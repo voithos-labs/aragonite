@@ -15,7 +15,7 @@ A `live-mode.md § 4.x` citation in source or a test resolves to § 4 below, and
 | [4.4](#44-cutting-a-construct-open-splits-and-destructive-presses) | Cutting a construct open            | what happens to delimiters an Enter or a delete cuts through or empties                 |
 | [4.5](#45-joins-clean-their-seam)                                  | Joins clean their seam              | the cleanup every destructive join runs where two pieces of text meet                   |
 | [4.6](#46-the-link-card)                                           | The link card                       | the only way to read or change a link's destination while live paints none              |
-| [4.7](#47-the-language-chip)                                       | The language chip                   | the way into a code fence's language label                                              |
+| [4.7](#47-the-code-rail)                                           | The code rail                       | the way into a code fence's language label, and the host's affordances                  |
 | [5](#5-what-does-not-change)                                       | What does not change                | the things live leaves exactly as source mode has them                                  |
 
 Where the same material lives elsewhere:
@@ -121,6 +121,7 @@ A byte typed where a marker run sits is placed by the edge seat (`components/blo
 - A caret seated at an extreme rather than stepped there (Home, End, a selection collapsing onto its own edge, a structural operation landing the caret at a block's start or end) means outside the delimiters, whatever key produced it. The caret took no step, so the key's direction isn't read.
 - Pending marks (§ 4.3) outrank the arrival: a toggle is the newer instruction about the same bytes.
 - An IME run can't be intercepted per keystroke, so the composed text is moved once at commit, against the arrival and marks captured at `compositionstart` (`composition-seat.ts`).
+- A typed delimiter closes itself (`delimiter-autopair.ts`, the one `beforeinput` arm every prose surface runs): the keystroke lands its twin after the caret, so a new opener never pairs with a later construct's closer. The closer typed over that twin steps past it, and a closer typed by hand completes the construct; after either the caret means outside the construct, whatever arrival preceded it, which is how a construct is left without a toggle. A first body byte that makes the pair no construct (`$5`) drops the twin, and Backspace between the twins takes both.
 
 The arrival and the seat, on § 2's block (`raw`, `inlines` and `live` as there):
 
@@ -177,6 +178,7 @@ Over a SELECTION the same chord writes bytes at once, in every mode. Its questio
 
 Unapplying, when it is:
 
+- The coverage question reads past the selection's boundary whitespace. A run closes against a word and never a space, so the wrap below already left that space outside the delimiters it wrote: the selection that applied a mark is the selection that takes it back.
 - The aligned strip goes first: a construct whose delimiters line up with the selection sheds them. Otherwise the construct splits around the selection, each half keeping the construct's own delimiter run and handing a boundary space to the text beside it.
 - Where runs of one kind nest, the press owes both directions. Every covering run is a candidate, since shedding only the inner one leaves the outer still covering the range the press just called formatted; and a strip sheds the runs of its own kind inside what it takes, since one left standing there unapplies the range only in part.
 - A selection taking a construct WHOLE is asked about the content that construct's delimiters enclose, whatever kind it is. The press means the mark on that content, so a run already covering it counts however the parse layered the two. That reading is what makes `***ab***` read as strong, and a link whose whole text is already marked read as marked.
@@ -186,12 +188,13 @@ Applying, when it isn't:
 
 - A range overlapping or abutting same-format runs applies over their union, dissolving their delimiters into one construct.
 - A code span sits the union out, since it holds its bytes literally and a neighbour's backtick is honest content inside a wider span.
+- The bare wrap takes the selection's TRIMMED core, in every mode: a run opens and closes against a word, so a boundary space belongs to the text beside the delimiters, and a selection holding nothing but space writes nothing. It is the trim the cross-block decomposition applies before it asks, so the two entry paths mark the same bytes.
 
 What every branch obeys:
 
 - None may splice at an endpoint strictly inside another construct's bytes, where a stranded delimiter would re-pair against whatever run the parse finds next.
 - Past that, the branches rewriting bytes the user never selected verify before writing, whatever the mode paints: the rendered content unchanged, and the selection's coverage actually flipped. A press whose candidates all fail writes nothing.
-- Two branches keep the mode fork and write their literal reading where the delimiters PAINT, so the reader can see and fix them: the aligned strip, which touches nothing outside the selection and stands down where a second run of its kind covers it, and the bare wrap (applying to a range no run touches, by wrapping it). Where nothing paints, both take § 2's discipline, the wrap with that coverage check on top, and a boundary space moves outside the run where the literal wrap would break it (the split rebalancer's reading, at the toggle).
+- Two branches keep the mode fork and write their literal reading where the delimiters PAINT, so the reader can see and fix them: the aligned strip, which touches nothing outside the selection and stands down where a second run of its kind covers it, and the bare wrap (applying to a range no run touches, by wrapping it). Where nothing paints, both take § 2's discipline, the wrap with that coverage check on top. The trim above is outside this fork: the space moves out of the run whoever is looking.
 
 ### 4.4 Cutting a construct open: splits and destructive presses
 
@@ -294,12 +297,13 @@ Live paints no destination, so the card is the only way to read or rewrite one.
 
 Scenarios: `src/lib/e2e/requirements/presentation/live-link-card.md`.
 
-### 4.7 The language chip
+### 4.7 The code rail
 
-The card's second client, for the one hidden run a caret can't reach at all. A fence line is unlandable once the block has content, so the chip is the way into its info string (the text after the opening ` ``` `, usually a language name).
+The card's second client, for the one hidden run a caret can't reach at all. A fence line is unlandable once the block has content, so the rail is the way into its info string (the text after the opening ` ``` `, usually a language name), and the seat for whatever affordances a host earns by installing a hook.
 
-- It sits at the code box's top-right, outside the walk container, shows on hover or while the caret is inside, and in reading mode it's a plain language label.
-- Enter writes the info span alone through the block's one display-commit entry (G4.24), as one isolated undo entry.
+- It sits at the code box's top-right, outside the walk container, shows on hover or while the caret is inside, and in reading mode its language button is a plain label.
+- The language button opens a picker over every registered grammar; Enter or a pick writes the info span alone through the block's one display-commit entry (G4.24), as one isolated undo entry. A bare fence that has just taken the caret completes to opener, empty body line and closer, and opens the picker itself when it has no language, unless the caret stepped in from a neighbour (edge affinity records the arrival), since a picker taking focus there would trap a keyboard walk.
+- Copy writes the fence body to the clipboard; a run button and an overflow menu appear only for a host that installed `onRunCode` or `codeMenuItems`, and neither touches a byte.
 
 Scenarios: `src/lib/e2e/requirements/blocks/code/language-chip.md`.
 
@@ -307,6 +311,7 @@ Scenarios: `src/lib/e2e/requirements/blocks/code/language-chip.md`.
 
 - Copy yields the source bytes; reading mode is the one rung that copies rendered text.
 - Search matches the source bytes, so a query crossing a construct boundary misses what the screen appears to show.
-- The caret lands only where the DOM walk can land it: hidden runs are unreachable, so a block's extremes are its landable bounds, not its raw ends (`cursor/widget-offset.ts`).
+- The caret lands only where the DOM walk can land it: hidden runs are unreachable, so a block's extremes are its landable bounds, not its raw ends, and the position after a body's final newline, on a hidden closer's line, is outside them too unless a caret anchor paints that line (`cursor/widget-offset.ts`).
 - Bytes change only where a rule above says so. A gesture that strands nothing writes exactly what source mode writes, except at § 4.1's painted content-empty chrome, where a block's own structural gate follows the mode and the two rungs diverge.
+- Undo granularity is the document's wherever a rendered block reveals its source for editing (block math, a painted code source): a burst of typing there comes back in one press, batched on the same pause the document batches on, and the whole reveal still commits as one document entry on blur.
 - Keystroke latency is a gated perf axis, with live rows beside their source twins (`performance.md`).

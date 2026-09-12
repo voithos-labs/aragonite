@@ -16,10 +16,6 @@ interface Declaration {
 }
 
 const ALLOWLIST: Record<string, Declaration> = {
-	'src/lib/components/blocks/table/table-menu-model.ts :: tableMenuItems': {
-		mode: 'bounded',
-		reason: 'the three menu groups are literal arrays of three, five and six items'
-	},
 	'src/lib/components/blocks/text/live-join-seam.ts :: cleanLiveJoinSeam': {
 		mode: 'bounded',
 		reason: 'a Math.min over the two readings the seam offers, deduplicated to one when they agree'

@@ -1,11 +1,13 @@
 /**
  * Editor-root ambient listeners: the mod-active cursor tracker, the selectionchange
- * bridge, and the blur announcer. Pure dispatch over live getters; each installing
- * `$effect` stays in `Editor.svelte` as a guard plus one install call, returning the
- * teardown. `onRoot`/`removeAll` capture that add/remove pair once.
+ * bridge, the blur announcer and the double-click word select. Pure dispatch over live
+ * getters; each installing `$effect` stays in `Editor.svelte` as a guard plus one install
+ * call, returning the teardown. `onRoot`/`removeAll` capture that add/remove pair once.
  */
 
 import { tick } from 'svelte';
+import { isEditableEventTarget } from '../editor-actions/whole-block-focus-surface';
+import { selectWordAtPoint, trimDoubleClickSelection } from '../selection/double-click-trim';
 
 // ── Listener plumbing ───────────────────────────────────────────────
 
@@ -109,4 +111,26 @@ export function installEditorBlurAnnouncer(deps: {
 		});
 	};
 	return onRoot(deps.root, 'focusout', handler);
+}
+
+/**
+ * Windows Chromium's double-click takes the space after the word, so the word is selected on
+ * the SECOND press, trimmed, with the native selection suppressed; the dblclick trim is the
+ * fallback. A press on an inline widget is that widget's own gesture (a footnote's double-click
+ * takes its whole token), so the root leaves it to the widget.
+ */
+export function installDoubleClickWordSelect(root: HTMLElement): () => void {
+	const onSecondPress = (e: MouseEvent) => {
+		if (e.detail !== 2 || e.button !== 0 || e.shiftKey || e.ctrlKey || e.metaKey) return;
+		if (!isEditableEventTarget(e.target) || pressesInlineWidget(e.target)) return;
+		if (selectWordAtPoint(root.ownerDocument, e.clientX, e.clientY)) e.preventDefault();
+	};
+	return removeAll(
+		onRoot(root, 'mousedown', onSecondPress),
+		onRoot(root, 'dblclick', () => trimDoubleClickSelection(root.ownerDocument))
+	);
+}
+
+function pressesInlineWidget(target: EventTarget | null): boolean {
+	return target instanceof Element && target.closest('[data-inline-widget]') !== null;
 }

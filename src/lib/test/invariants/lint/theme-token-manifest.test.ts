@@ -13,6 +13,7 @@ import { readEditorFile, stripComments } from './scan-source';
 import { declaredValue, LIGHT_SELECTOR, themeBlocks } from './theme-css';
 
 const THEMED_TOKENS = [
+	'--color-bg',
 	'--color-surface',
 	'--color-bg-secondary',
 	'--color-bg-elevated',
@@ -31,6 +32,8 @@ const THEMED_TOKENS = [
 
 const MODE_INDEPENDENT_TOKENS = [
 	'--font-editor',
+	'--font-code',
+	'--font-ui',
 	'--editor-font-size',
 	'--radius-ui',
 	'--radius-surface'
@@ -38,7 +41,9 @@ const MODE_INDEPENDENT_TOKENS = [
 
 /** Themed tokens whose light value deliberately repeats the dark one, with the reason. */
 const MODE_BLIND_BY_DESIGN: Record<string, string> = {
-	'--color-selection': 'one selection base, carried into both palettes by its washes'
+	'--color-selection': 'tracks --color-accent, so it follows whatever that resolves to per mode',
+	'--color-accent':
+		'one brand accent across both modes, matching the host app whose palette these defaults follow'
 };
 
 function declares(block: string, token: string): boolean {

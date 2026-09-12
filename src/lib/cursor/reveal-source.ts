@@ -9,6 +9,7 @@
 import { tick } from 'svelte';
 import { asRawOffset, toDomTextOffset } from './coordinate-spaces';
 import { restoreCaretAtWalkOffset } from './focused-caret';
+import { clampToLandableRaw } from './widget-offset';
 import { assertInvariant } from '../assert';
 import { checkRevealSourceLength } from '../invariants/inline-transitions';
 
@@ -44,8 +45,12 @@ export interface SourceReveal {
 export function createSourceReveal(deps: SourceRevealDeps): SourceReveal {
 	/** Places the caret at a BLOCK-source offset, converting to ambient-included walk space. */
 	function placeCaret(container: HTMLElement, blockSourceOffset: number): void {
-		const walkOffset = toDomTextOffset(asRawOffset(blockSourceOffset), deps.getAmbientLength());
-		restoreCaretAtWalkOffset(container, walkOffset);
+		// Offset 0 of a source that opens with hidden chrome (a leaf painting `$$` fence lines) is
+		// BEFORE that chrome: typing there would land outside the fence. The seat is the nearest
+		// landable position, which is a no-op wherever nothing hides.
+		const ambient = deps.getAmbientLength();
+		const seat = clampToLandableRaw(container, blockSourceOffset, ambient);
+		restoreCaretAtWalkOffset(container, toDomTextOffset(asRawOffset(seat), ambient));
 	}
 
 	async function reveal(atSourceOffset = 0): Promise<void> {

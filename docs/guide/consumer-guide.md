@@ -97,7 +97,7 @@ Everything supported is exported from `@voithos-labs/aragonite`. Before 1.0 the 
 | Group                  | What you get                                                                                                                                                                                                                                                                                                                    |
 | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Component**          | `Editor`, plus `EditorProps` and `EditorInstance` (the prop shape and the `bind:this` surface)                                                                                                                                                                                                                                  |
-| **Policy types**       | `ResolveImageUrl`, `ResolveLinkUrl`, `ImageLoadPolicy` for the URL and image props; `PastedImage` and `PasteImageHook` for the image-import hook                                                                                                                                                                                |
+| **Policy types**       | `ResolveImageUrl`, `ResolveLinkUrl`, `ImageLoadPolicy` for the URL and image props; `PastedImage` and `PasteImageHook` for the image-import hook; `CodeRunRequest`, `RunCodeHook`, `CodeMenuItem` and `CodeMenuItemsHook` for the code-block hooks                                                                              |
 | **Plugins**            | `installPlugins` for a parse-only pipeline with no editor mounted; `EditorPlugin` (the unit a plugin exports) and `EditorPluginEntry` (a `plugins` array entry: a bare unit, or `{ plugin, options }`)                                                                                                                          |
 | **Selection + keymap** | `EditorSelection` (what `getSelection()` returns) and `normalizeSelection`, which puts a selection's two endpoints in document order; `KeybindingOverride` and `CommandId` (what the `keybindings` prop takes)                                                                                                                  |
 | **Commands**           | `TOOLBAR_COMMANDS`, the command ids a formatting toolbar calls through `runCommand`                                                                                                                                                                                                                                             |
@@ -111,25 +111,27 @@ Everything supported is exported from `@voithos-labs/aragonite`. Before 1.0 the 
 
 ## Props
 
-| Prop               | What it does                                                                                                                                                                                                             |
-| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `source`           | Seeds the document at mount, and re-seeds it whenever the prop changes; never two-way bound                                                                                                                              |
-| `theme`            | Theme name, reflected to `data-editor-theme` on the editor root: `'dark'` (default), `'light'`, or a name of your own (see [Theming](#theming))                                                                          |
-| `presentationMode` | How the document presents, from raw source to fully rendered: `'source'` (default), `'reading'`, `'preview-block'`, `'preview-inline'`, or `'live'` (see [Presentation modes](#presentation-modes))                      |
-| `plugins`          | Plugin units installed once at mount, in array order, before the first parse; the array is also the set this editor activates (see [Plugins](#plugins))                                                                  |
-| `keybindings`      | Rebind or disable the editor's shortcuts, per instance (see [Rebinding chords](#rebinding-chords))                                                                                                                       |
-| `resolveImageUrl`  | Rewrite a raw image URL before it reaches `img.src` (to resolve a relative path, say)                                                                                                                                    |
-| `resolveLinkUrl`   | Rewrite a raw link destination at render time                                                                                                                                                                            |
-| `imageLoadPolicy`  | `'auto'` (load images) or `'placeholder'` (defer loading)                                                                                                                                                                |
-| `onLinkActivate`   | Handle an activated link (Ctrl/Cmd+click while editing, plain click in reading mode) instead of the default `window.open`                                                                                                |
-| `onPasteImage`     | Import hook for a paste that carries image files: you store them, and return the Markdown that stands in (see [Image paste](#image-paste))                                                                               |
-| `header`           | Your own UI above the first block, rendered inside the editor's scroll container (see [The header slot](#the-header-slot))                                                                                               |
-| `scrollMode`       | `'self'` (default: the editor scrolls itself) or `'host'` (an ancestor of yours scrolls it; see [Host scroll mode](#host-scroll-mode))                                                                                   |
-| `blockDragHandles` | Opt into the pointer affordances: the block drag handle and the table's row and column grips, revealed on hover and shown outright on touch (default off); keyboard reorder (Alt+Arrow) and the cell menu need no opt-in |
-| `searchBar`        | The built-in find/replace bar and its Mod+F / Mod+H shortcuts (default on)                                                                                                                                               |
-| `searchBarAnchor`  | An element to render that same bar into, instead of inside the editor root (see [Where the find bar lives](#where-the-find-bar-lives))                                                                                   |
+| Prop               | What it does                                                                                                                                                                                                                                                                                                                              |
+| ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `source`           | Seeds the document at mount, and re-seeds it whenever the prop changes; never two-way bound                                                                                                                                                                                                                                               |
+| `theme`            | Theme name, reflected to `data-editor-theme` on the editor root: `'dark'` (default), `'light'`, or a name of your own (see [Theming](#theming))                                                                                                                                                                                           |
+| `presentationMode` | How the document presents, from raw source to fully rendered: `'source'` (default), `'reading'`, `'preview-block'`, `'preview-inline'`, or `'live'` (see [Presentation modes](#presentation-modes))                                                                                                                                       |
+| `plugins`          | Plugin units installed once at mount, in array order, before the first parse; the array is also the set this editor activates (see [Plugins](#plugins))                                                                                                                                                                                   |
+| `keybindings`      | Rebind or disable the editor's shortcuts, per instance (see [Rebinding chords](#rebinding-chords))                                                                                                                                                                                                                                        |
+| `resolveImageUrl`  | Rewrite a raw image URL before it reaches `img.src` (to resolve a relative path, say)                                                                                                                                                                                                                                                     |
+| `resolveLinkUrl`   | Rewrite a raw link destination at render time                                                                                                                                                                                                                                                                                             |
+| `imageLoadPolicy`  | `'auto'` (load images) or `'placeholder'` (defer loading)                                                                                                                                                                                                                                                                                 |
+| `onLinkActivate`   | Handle an activated link (Ctrl/Cmd+click while editing, plain click in reading mode) instead of the default `window.open`                                                                                                                                                                                                                 |
+| `onPasteImage`     | Import hook for a paste that carries image files: you store them, and return the Markdown that stands in (see [Image paste](#image-paste))                                                                                                                                                                                                |
+| `onRunCode`        | Execution hook for code blocks: installing it is what puts a run button on every code block's rail, and the editor runs nothing itself (see [Running a code block](#running-a-code-block))                                                                                                                                                |
+| `codeMenuItems`    | Overflow-menu hook for code blocks, consulted each time a block's menu opens so its items can read live state; absent, or answering nothing, renders no menu (see [Running a code block](#running-a-code-block))                                                                                                                          |
+| `header`           | Your own UI above the first block, rendered inside the editor's scroll container (see [The header slot](#the-header-slot))                                                                                                                                                                                                                |
+| `scrollMode`       | `'self'` (default: the editor scrolls itself) or `'host'` (an ancestor of yours scrolls it; see [Host scroll mode](#host-scroll-mode))                                                                                                                                                                                                    |
+| `blockDragHandles` | The block drag handle, revealed on hover and shown outright on touch (default on; reading mode hides it). Only object blocks carry one — code, tables, equations, diagrams, pictures, list items, dividers, cards — never prose. `false` removes them, except on a picture; keyboard reorder (Alt+Arrow) and the cell menu need no opt-in |
+| `searchBar`        | The built-in find/replace bar and its Mod+F / Mod+H shortcuts (default on)                                                                                                                                                                                                                                                                |
+| `searchBarAnchor`  | An element to render that same bar into, instead of inside the editor root (see [Where the find bar lives](#where-the-find-bar-lives))                                                                                                                                                                                                    |
 
-**Set once at mount:** `resolveImageUrl`, `resolveLinkUrl`, `imageLoadPolicy`, `onLinkActivate`, `onPasteImage`, `blockDragHandles`, `scrollMode`, and `plugins`. Set them at mount and leave them; a swap later isn't guaranteed to reach blocks that are already built.
+**Set once at mount:** `resolveImageUrl`, `resolveLinkUrl`, `imageLoadPolicy`, `onLinkActivate`, `onPasteImage`, `onRunCode`, `codeMenuItems`, `blockDragHandles`, `scrollMode`, and `plugins`. Set them at mount and leave them; a swap later isn't guaranteed to reach blocks that are already built.
 
 **Read live:** `theme`, `searchBar`, `searchBarAnchor`, `presentationMode`, and `keybindings` may change after mount, and `header` re-renders like any other Svelte snippet.
 
@@ -157,7 +159,7 @@ And what you can write:
 | `setSelection(snapshot)`  | Puts a `getSelection()` snapshot back on the document (see [Restoring a selection](#restoring-a-selection))                             |
 | `placeCaretAtPoint(x, y)` | Lands the caret at a viewport point, exactly as a click there would (see [Placing the caret at a point](#placing-the-caret-at-a-point)) |
 | `insertMarkdown(md)`      | Inserts Markdown at the caret, exactly as pasting it would (see [Inserting Markdown at the caret](#inserting-markdown-at-the-caret))    |
-| `runCommand(id)`          | Runs an editor command by name, no keystroke involved (see [Toolbar commands](#toolbar-commands))                                       |
+| `runCommand(id, arg?)`    | Runs an editor command by name, no keystroke involved (see [Toolbar commands](#toolbar-commands))                                       |
 
 ### Reading the document and the selection
 
@@ -267,7 +269,7 @@ One call runs the whole paste route:
 
 ### Toolbar commands
 
-`runCommand(commandId: string): boolean`
+`runCommand(commandId: string, arg?: unknown): boolean`
 
 Runs an editor command by name at the focused block, no keystroke involved. It's what a formatting button calls: the button means "toggle bold", not "press Ctrl+B", so a user who rebinds the shortcut moves it without silently rewiring your button. The command behaves exactly as it would from the keyboard: same edit, one undo entry, caret and selection left where the keystroke would leave them.
 
@@ -282,7 +284,10 @@ editor.runCommand('nope'); // false, unknown id, nothing changed
 The ids you can pass:
 
 - **`TOOLBAR_COMMANDS`** (exported from the package) has what a selection toolbar needs: `toggleStrong`, `toggleEmphasis`, `toggleStrikethrough`, `toggleCode`, and `editLink`. The rest of the built-in commands stay internal for now.
+- **`heading.cycle`, with a level.** The arm behind `Mod+0` to `Mod+6`: `runCommand('heading.cycle', 2)` re-marks the focused prose block as a level-2 heading and `0` makes it a paragraph, which is what a heading picker calls.
 - **A plugin's global command name.** `registerGlobalCommand` registers it (see the [plugin guide](plugin-guide.md)), and it resolves ahead of the focused block, so you can fire a plugin's editor-wide action without a keystroke. A plugin's per-block command stays keyboard-only.
+
+`arg` is the argument a keymap binding would bake in (`{ chord: 'Mod+2', command: 'heading.cycle', arg: 2 }`), handed to the command as it is; a command that takes none ignores it.
 
 What the boolean means:
 
@@ -334,15 +339,16 @@ const off = events.on('edit', (e) => console.log(e.op, e.path));
 off();
 ```
 
-Five channels:
+Six channels:
 
-| Channel                  | Fires                                                                                                                      |
-| ------------------------ | -------------------------------------------------------------------------------------------------------------------------- |
-| `edit`                   | After every applied edit: a structural operation, a batch of typing (consecutive keystrokes flush as one), an undo or redo |
-| `selectionChange`        | Whenever the selection changes; the payload is the snapshot, or `null`                                                     |
-| `error`                  | On a failure the editor contained rather than threw                                                                        |
-| `presentationModeChange` | After a `presentationMode` prop change; the payload is the effective mode (never at mount)                                 |
-| `themeChange`            | After a `theme` prop change; the payload is the theme name (never at mount)                                                |
+| Channel                  | Fires                                                                                                                        |
+| ------------------------ | ---------------------------------------------------------------------------------------------------------------------------- |
+| `edit`                   | After every applied edit: a structural operation, a batch of typing (consecutive keystrokes flush as one), an undo or redo   |
+| `selectionChange`        | Whenever the selection changes; the payload is the snapshot, or `null`                                                       |
+| `error`                  | On a failure the editor contained rather than threw                                                                          |
+| `presentationModeChange` | After a `presentationMode` prop change; the payload is the effective mode (never at mount)                                   |
+| `themeChange`            | After a `theme` prop change; the payload is the theme name (never at mount)                                                  |
+| `menuChange`             | `true` when an editor-owned menu (right-click, insert `+`) opens and `false` when it closes; hide selection chrome meanwhile |
 
 Events fire synchronously from wherever they happen, and **a handler must not edit the document**: reentrant edits aren't supported.
 
@@ -428,7 +434,7 @@ events.on('error', (err) => err);
 
 Hiding every marker means one screen position can mean two raw offsets wherever a construct's delimiters sit. Live answers that with five rules, each applied in one place so it holds for every gesture:
 
-- **A character typed at a hidden edge follows how the caret got there.** Arriving from outside a construct types outside it; walking into it types inside. A construct that never grows at its edges (a link) always takes the outside.
+- **A character typed at a hidden edge follows how the caret got there.** Arriving from outside a construct types outside it; walking into it types inside. A construct that never grows at its edges (a link) always takes the outside. A delimiter you type closes itself (`*`, `**`, `` ` ``, `~~`, and a plugin's `$`), typing the closer over its twin steps past it, and the next character after a closer you typed lands outside the construct.
 - **A caret seated at an extreme lands outside.** `Home`, `End`, and collapsing a selection put the caret past the delimiters, not between them. A seat isn't a step, so the direction of the key that produced it doesn't decide the side.
 - **`Enter` inside a construct closes it and reopens it.** Splitting `**bold**` down the middle leaves two balanced constructs rather than one stranded delimiter in each half, and a split link carries its destination into both halves. Where no balanced rewrite shows what the screen showed (a code span whose reopened backticks would collide with its own, say), the split falls back to a plain byte cut.
 - **A join cleans up after itself.** `Backspace`, `Delete`, a range delete, typing over a selection, and a paste all go through the same code: a delimiter run the cut orphaned goes with the cut instead of appearing on screen, and a closer meeting an opener around nothing is dropped. Every candidate cleanup is checked against what the two sides showed, and the byte-literal join stands when it can't be.
@@ -442,7 +448,7 @@ Three more live-mode facts:
 
 Bytes only change where a rule above says so; a gesture that strands nothing writes exactly what source mode writes. One exception: `Backspace` at the very start of a `# ` with no heading text drops the construct, where source mode does nothing.
 
-**The language chip.** Wherever a mode hides a fenced code block's fence, a small chip appears at the code box's top-right on hover or with the caret inside. It shows the block's language, and outside reading mode a click turns it into a field where Enter commits a new one as a single undoable edit. It's the only way to reach an info string (the text after the opening fence that names the language) in those modes; source mode shows the fence itself and gets no chip.
+**The code rail.** Wherever a mode hides a fenced code block's fence, a small rail appears at the code box's top-right on hover or with the caret inside: the block's language (outside reading mode a click opens a picker over every registered language, and Enter or a pick commits as a single undoable edit), a copy button, and whatever your app installed through `onRunCode` and `codeMenuItems` (see [Running a code block](#running-a-code-block)). A fence that has just taken the caret with no language opens the picker by itself, unless the caret arrowed in from a neighbouring block. The rail is the only way to reach an info string (the text after the opening fence that names the language) in those modes; source mode shows the fence itself and gets no rail.
 
 The effective mode is reflected as `data-presentation` on the editor root (absent in source mode, so default-mode DOM is unchanged) and announced on the `presentationModeChange` channel.
 
@@ -473,6 +479,27 @@ Four props deal with URLs: `resolveImageUrl` and `resolveLinkUrl` rewrite a raw 
 - **A block can disappear mid-import.** If the block the paste fired from is unmounted before a slow hook resolves, the insertion is declined on the `error` channel (same `clipboard` origin) rather than dropping Markdown somewhere the user never pointed.
 
 For the curious, where the Markdown lands when the user moves the caret during a slow upload: a paste inside one block freezes its anchor at paste time, so a caret moved mid-upload doesn't drag the insertion with it. A paste over a selection spanning blocks follows the live selection instead, because that route resolves its endpoints by path at insertion time, so a selection extended during the import is the one that gets replaced. The difference is deliberate; snapshotting the second case would mean fighting the code that owns delete-and-insert as one operation.
+
+### Running a code block
+
+The editor runs nothing. `onRunCode` is the hook that says your app can: installing it puts a run button on every code block's rail (the top-right controls a marker-hiding mode shows on hover or with the caret inside), and pressing it hands you the block, then everything after is yours: the engine, the result, and where the output goes.
+
+```svelte
+<Editor
+	{source}
+	onRunCode={({ code, info, path }) => {
+		// code: the fence body alone, never the fence lines; info: the whole info string
+		// ("py {1-3}"); path: child indices from the document root to the block.
+		runInMyKernel(code, info.split(/\s+/)[0]).then((out) => showOutputBeside(path, out));
+	}}
+	codeMenuItems={(request) => [
+		{ id: 'clear', label: 'Clear output', run: () => clearOutput(request.path) },
+		{ id: 'export', label: 'Export', run: () => exportCell(request), disabled: !canExport }
+	]}
+/>
+```
+
+`codeMenuItems` is the same idea for the rail's overflow menu. It is consulted each time a menu opens, so an item can read live state (a `disabled` item renders dimmed and refuses activation), and a host answering nothing renders no menu at all: the editor has no app-level actions of its own to put there. Both hooks are set once at mount, like `onPasteImage`. Neither reaches the document: a run is not an edit, fires no `edit` event, and creates no undo entry. Writing a result back into the document is an `insertMarkdown` or a `source` rewrite of your own.
 
 ### Which URLs render
 
@@ -537,17 +564,17 @@ import { mermaidPlugin } from '@voithos-labs/aragonite/plugins/mermaid';
 import { parrotPlugin } from '@voithos-labs/aragonite/plugins/parrot';
 ```
 
-| Plugin                         | What it teaches the editor                                                                                                                                                                                                                                     |
-| ------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `admonitionsPlugin()`          | `:::name` directive callouts and native GitHub alerts (`> [!NOTE]` blockquotes) render as styled boxes, GitHub bytes untouched                                                                                                                                 |
-| `detailsPlugin()`              | A canonical `<details>` HTML block (`<details>` or `<details open>`, a `<summary>` line, a Markdown body, `</details>`) becomes an editable collapsible section whose summary is a real editable child; a non-canonical `<details …>` stays a plain HTML block |
-| `tocPlugin()`                  | A `[[toc]]` line becomes a live table of contents: every heading in the document, indented by level, each entry navigating to its heading on click or on Enter from the keyboard                                                                               |
-| `footnotesPlugin()`            | GFM footnotes: `[^label]: content` definitions render as an editable block, and `[^label]` references render as superscript numbers in first-reference order                                                                                                   |
-| `emojiPlugin()`                | GitHub `:shortcode:` emoji: a bare `:name:` renders as a glyph while the literal `:name:` bytes stay in the source; without the plugin, `:name:` is ordinary prose                                                                                             |
-| `highlightOccurrencesPlugin()` | Every other occurrence of the word under the caret is highlighted across the document's prose blocks once you stop typing, as a view-only decoration, never a byte change                                                                                      |
-| `latexPlugin({ renderer })`    | All three GitHub math forms through one injected engine: inline `$…$`, block `$$…$$`, and the fenced ` ```math ` form; uninstalled, each stays its plain reading (prose, or a plain `math` code block)                                                         |
-| `mermaidPlugin({ renderer? })` | A ` ```mermaid ` fence renders as a diagram through an injected engine; without one, the fence renders statically (the source, styled)                                                                                                                         |
-| `parrotPlugin()`               | A `%%parrot` line renders as an animated ASCII party parrot, with whatever follows the marker as its caption; uninstalled, the line is ordinary prose                                                                                                          |
+| Plugin                                    | What it teaches the editor                                                                                                                                                                                                                                                                                                                                                              |
+| ----------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `admonitionsPlugin()`                     | `:::name` directive callouts and native GitHub alerts (`> [!NOTE]` blockquotes) render as styled boxes, GitHub bytes untouched                                                                                                                                                                                                                                                          |
+| `detailsPlugin()`                         | A canonical `<details>` HTML block (`<details>` or `<details open>`, a `<summary>` line, a Markdown body, `</details>`) becomes an editable collapsible section whose summary is a real editable child; a non-canonical `<details …>` stays a plain HTML block                                                                                                                          |
+| `tocPlugin()`                             | A `[[toc]]` line becomes a live table of contents: every heading in the document, indented by level, each entry navigating to its heading on click or on Enter from the keyboard                                                                                                                                                                                                        |
+| `footnotesPlugin()`                       | GFM footnotes: `[^label]: content` definitions render as an editable block, and `[^label]` references render as superscript numbers in first-reference order                                                                                                                                                                                                                            |
+| `emojiPlugin()`                           | GitHub `:shortcode:` emoji: a bare `:name:` renders as a glyph while the literal `:name:` bytes stay in the source; without the plugin, `:name:` is ordinary prose                                                                                                                                                                                                                      |
+| `highlightOccurrencesPlugin()`            | Every other occurrence of the word under the caret is highlighted across the document's prose blocks once you stop typing, as a view-only decoration, never a byte change                                                                                                                                                                                                               |
+| `latexPlugin({ renderer, blockLayout? })` | All three GitHub math forms through one injected engine: inline `$…$`, block `$$…$$`, and the fenced ` ```math ` form; uninstalled, each stays its plain reading (prose, or a plain `math` code block). `blockLayout` (`'split'` default, `'stacked'`, `'source'`) is how a block opens for editing; an editor's `{ plugin, options: { blockLayout } }` entry overrides it per instance |
+| `mermaidPlugin({ renderer? })`            | A ` ```mermaid ` fence renders as a diagram through an injected engine; without one, the fence renders statically (the source, styled)                                                                                                                                                                                                                                                  |
+| `parrotPlugin()`                          | A `%%parrot` line renders as an animated ASCII party parrot, with whatever follows the marker as its caption; uninstalled, the line is ordinary prose                                                                                                                                                                                                                                   |
 
 A few of them take options or need a word more.
 
@@ -586,6 +613,8 @@ The module owns its CSS. Two stylesheets ship under `styles/`:
 
 A plugin's render engine may carry its own stylesheet (KaTeX's `katex.min.css`, say). That CSS is the plugin's to load, not the editor module's.
 
+No font ships either. The `/` showcase and the harness load Inter and JetBrains Mono from `@fontsource/*` devDependencies to dress as the app the editor ships into; those packages never reach the published module, so the `--font-*` tokens resolve to whatever your page provides, and to their fallback stacks otherwise.
+
 ### Scope
 
 Nothing is declared on `:root`; the module never puts custom properties into your global scope. The tokens come in two tiers, and the tier decides where you override:
@@ -611,17 +640,17 @@ Three paths, by how much you want to change:
 
 The role table below is the stable **host-chrome contract**: the tokens the editor and its plugins read to blend into your app, named the way a host theme system names them. Declare them anywhere in your cascade, or take the defaults through the opt-in class.
 
-| Role          | Token(s)                                                                   |
-| ------------- | -------------------------------------------------------------------------- |
-| **Font**      | `--font-editor`, `--editor-font-size` _(mode-independent; one value each)_ |
-| **Radius**    | `--radius-ui` _(controls)_, `--radius-surface` _(overlays, popovers)_      |
-| **Surface**   | `--color-surface`                                                          |
-| **Text**      | `--color-text-secondary` _(body)_, `--color-text-primary`                  |
-| **Muted**     | `--color-ui-muted`, `--color-ui-dulled`                                    |
-| **Accent**    | `--color-accent`                                                           |
-| **Selection** | `--color-selection`                                                        |
-| **Borders**   | `--color-border`                                                           |
-| **Error**     | `--color-error`                                                            |
+| Role          | Token(s)                                                                                                                                                                                                                                 |
+| ------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Font**      | `--font-editor` _(the surface)_, `--font-code` _(what stays monospace whatever the surface is: code blocks, code spans, revealed source)_, `--font-ui` _(menus and popovers)_, `--editor-font-size` _(mode-independent; one value each)_ |
+| **Radius**    | `--radius-ui` _(controls)_, `--radius-surface` _(overlays, popovers)_                                                                                                                                                                    |
+| **Surface**   | `--color-bg` _(the page ground; menus and the image toolbar paint on it)_, `--color-surface`                                                                                                                                             |
+| **Text**      | `--color-text-secondary` _(body)_, `--color-text-primary`                                                                                                                                                                                |
+| **Muted**     | `--color-ui-muted`, `--color-ui-dulled`                                                                                                                                                                                                  |
+| **Accent**    | `--color-accent`                                                                                                                                                                                                                         |
+| **Selection** | `--color-selection`                                                                                                                                                                                                                      |
+| **Borders**   | `--color-border`                                                                                                                                                                                                                         |
+| **Error**     | `--color-error`                                                                                                                                                                                                                          |
 
 The editor supplies these host-family surfaces itself, in both modes, because a host vocabulary rarely names them. Override them at `.editor`; a `:root` declaration would lose to the default:
 
@@ -658,47 +687,48 @@ Shifted symbols aren't modeled: `Shift+1` reaches the editor as whatever symbol 
 
 This table is for a reader. An app deriving an accelerator map should read `editor.reservedChords()` instead, since that set is composed from the live keymaps and covers chords claimed outside them (see [Which shortcuts the editor consumes](#which-shortcuts-the-editor-consumes)). The selection chords are one example: Shift+Arrow, `Mod+Shift+Home` / `Mod+Shift+End`, and the repeated `Mod+A` escalation go through the cross-block selection code rather than the keymap, so they aren't rebindable and aren't listed here.
 
-Tables also have pointer affordances the table has no row for: with `blockDragHandles` on, every row and column carries a grip, revealed on hover and shown outright on touch, that you can drag to reorder it or click for a row/column action menu. Right-clicking any cell opens that same menu (with cut/copy/paste) whether the grips are on or off, and Shift+F10 or the Context Menu key opens it from the keyboard.
+Right-clicking any cell opens the table's action menu: cut/copy/paste, Row and Column flyouts (insert, move), the two deletes, and the column's alignment. Shift+F10 or the Context Menu key opens it from the keyboard. A table has no per-row or per-column grips — its one drag handle, in the editor's gutter, moves the whole table.
 
-| Action                              | Chord                                               |
-| ----------------------------------- | --------------------------------------------------- |
-| **Editing**                         |                                                     |
-| Bold (toggle strong)                | `Mod+B`                                             |
-| Italic (toggle emphasis)            | `Mod+I`                                             |
-| Strikethrough                       | `Mod+Shift+X`                                       |
-| Inline code                         | `Mod+E`                                             |
-| Edit a link's URL (live mode)       | `Mod+K` (caret inside a link; opens the link card)  |
-| Cycle heading level                 | `Mod+0`–`Mod+6` (0 clears, 1–6 set `#`–`######`)    |
-| Split a block                       | `Enter` (in a code block, inserts a newline)        |
-| Hard line break                     | `Shift+Enter`                                       |
-| Merge into the block before / after | `Backspace` / `Delete` (at the block's start / end) |
-| Indent / outdent a list item        | `Tab` / `Shift+Tab`                                 |
-| Indent / dedent a code line         | `Tab` / `Shift+Tab`                                 |
-| Insert a tab in prose               | `Tab`                                               |
-| Undo                                | `Mod+Z`                                             |
-| Redo                                | `Mod+Y` or `Mod+Shift+Z`                            |
-| **Block reorder**                   |                                                     |
-| Move block up / down                | `Alt+↑` / `Alt+↓`                                   |
-| **Find / replace**                  |                                                     |
-| Open find                           | `Mod+F`                                             |
-| Open find + replace                 | `Mod+H`                                             |
-| Next / previous match               | `Enter` / `Shift+Enter` (in the find field)         |
-| Close search                        | `Esc`                                               |
-| **Tables**                          |                                                     |
-| Move between cells                  | `Tab` / `Shift+Tab`, arrow keys                     |
-| Next row (or add one)               | `Enter` (from the last cell, appends a row)         |
-| Insert row below / above            | `Mod+Enter` / `Mod+Shift+Enter`                     |
-| Insert column right / left          | `Alt+Shift+→` / `Alt+Shift+←`                       |
-| Delete row                          | `Mod+Shift+Backspace`                               |
-| Delete column                       | `Alt+Shift+Backspace`                               |
-| Move row up / down                  | `Alt+↑` / `Alt+↓`                                   |
-| Move column left / right            | `Alt+←` / `Alt+→`                                   |
-| Move the whole table up / down      | `Mod+Alt+↑` / `Mod+Alt+↓`                           |
-| Cycle column alignment              | `Mod+Shift+A`                                       |
-| Create a table                      | type a header row (`\| a \| b \|`), then `Enter`    |
-| **Clipboard**                       |                                                     |
-| Copy / cut a focused block          | `Mod+C` / `Mod+X`                                   |
-| Copy / cut a selected image         | `Mod+C` / `Mod+X`                                   |
+| Action                              | Chord                                                                         |
+| ----------------------------------- | ----------------------------------------------------------------------------- |
+| **Editing**                         |                                                                               |
+| Bold (toggle strong)                | `Mod+B`                                                                       |
+| Italic (toggle emphasis)            | `Mod+I`                                                                       |
+| Strikethrough                       | `Mod+Shift+X`                                                                 |
+| Inline code                         | `Mod+E`                                                                       |
+| Edit a link's URL (live mode)       | `Mod+K` (caret inside a link; opens the link card)                            |
+| Cycle heading level                 | `Mod+0`–`Mod+6` (0 clears, 1–6 set `#`–`######`)                              |
+| Split a block                       | `Enter` (in a code block, inserts a newline)                                  |
+| Leave a code block                  | `Enter` on its empty last line (typing the closing fence there does the same) |
+| Hard line break                     | `Shift+Enter`                                                                 |
+| Merge into the block before / after | `Backspace` / `Delete` (at the block's start / end)                           |
+| Indent / outdent a list item        | `Tab` / `Shift+Tab`                                                           |
+| Indent / dedent a code line         | `Tab` / `Shift+Tab`                                                           |
+| Insert a tab in prose               | `Tab`                                                                         |
+| Undo                                | `Mod+Z`                                                                       |
+| Redo                                | `Mod+Y` or `Mod+Shift+Z`                                                      |
+| **Block reorder**                   |                                                                               |
+| Move block up / down                | `Alt+↑` / `Alt+↓`                                                             |
+| **Find / replace**                  |                                                                               |
+| Open find                           | `Mod+F`                                                                       |
+| Open find + replace                 | `Mod+H`                                                                       |
+| Next / previous match               | `Enter` / `Shift+Enter` (in the find field)                                   |
+| Close search                        | `Esc`                                                                         |
+| **Tables**                          |                                                                               |
+| Move between cells                  | `Tab` / `Shift+Tab`, arrow keys                                               |
+| Next row (or add one)               | `Enter` (from the last cell, appends a row)                                   |
+| Insert row below / above            | `Mod+Enter` / `Mod+Shift+Enter`                                               |
+| Insert column right / left          | `Alt+Shift+→` / `Alt+Shift+←`                                                 |
+| Delete row                          | `Mod+Shift+Backspace`                                                         |
+| Delete column                       | `Alt+Shift+Backspace`                                                         |
+| Move row up / down                  | `Alt+↑` / `Alt+↓`                                                             |
+| Move column left / right            | `Alt+←` / `Alt+→`                                                             |
+| Move the whole table up / down      | `Mod+Alt+↑` / `Mod+Alt+↓`                                                     |
+| Cycle column alignment              | `Mod+Shift+A`                                                                 |
+| Create a table                      | type a header row (`\| a \| b \|`), then `Enter`                              |
+| **Clipboard**                       |                                                                               |
+| Copy / cut a focused block          | `Mod+C` / `Mod+X`                                                             |
+| Copy / cut a selected image         | `Mod+C` / `Mod+X`                                                             |
 
 **Typing a table into existence.** A table's header and delimiter lines have to be adjacent, which Enter alone could never produce, so a paragraph holding just a header row (`| a | b |`) is completed by `Enter` into a finished table (delimiter, one empty body row, caret in the first body cell) as one undoable step. It needs the leading pipe, so a paragraph that merely contains one (`ls | grep foo`) is left alone, and one undo restores the row you typed.
 
@@ -793,7 +823,7 @@ By default the editor root is the scrollport (the box that scrolls): it owns its
 What your CSS has to provide:
 
 - **Resolve the scroller before the editor's first use.** The editor finds the ancestor that scrolls it once, at first need. A shell that swaps its scroller in afterwards (a panel that expands, a wrapper replaced on a route transition) leaves the editor measuring against the wrong box. Settle the layout first, or remount the editor.
-- **A clipping wrapper needs left padding.** Host mode drops the editor's own padding, and the drag handle sits in a gutter outside the block box. A wrapper with `overflow: hidden` and no padding clips the handle away entirely, so pointer drag-reorder silently disappears. Reserve at least `0.85rem` on the left. This only matters with `blockDragHandles` on; keyboard reorder (Alt+Arrow) works either way.
+- **A clipping wrapper needs left padding.** Host mode drops the editor's own padding, and the drag handle sits in a gutter outside the block box. A wrapper with `overflow: hidden` and no padding clips the handle away entirely, so pointer drag-reorder silently disappears. Reserve at least `1.5rem` on the left, which is what the editor's own padding gives it. Keyboard reorder (Alt+Arrow) works either way.
 - **The reading column's side inset belongs to the editor, not an ancestor.** Host mode drops the editor's own padding, so the inset that narrows the text column is yours to add, and where you put it decides whether the margin beside the text is clickable. On the editor element or the block list inside it, the editor claims the whole gutter and a click there lands the caret on the nearest line. On any ancestor, that band is your shell's: the click never reaches a surface the editor can claim, and the margin beside every line goes dead while looking like part of the document. If the band genuinely is your chrome, answer the click yourself and hand the point to [`placeCaretAtPoint(x, y)`](#placing-the-caret-at-a-point).
 - **A drag autoscrolls whatever actually scrolls.** That's the nearest ancestor you made scrollable, or the page's own viewport when nothing between the editor and the document scrolls. One box it will never scroll is a fixed-height `overflow: hidden` wrapper: a reader can't wheel one back, so a drag that scrolled it would strand content out of reach. A programmatic reveal does move such a box, deliberately: it can put the block on screen and leave it there.
 

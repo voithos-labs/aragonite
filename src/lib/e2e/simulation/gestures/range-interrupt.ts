@@ -337,9 +337,12 @@ async function clickImageWidget(ctx: SimContext): Promise<number> {
 	return index;
 }
 
-/** The handle only paints on hover, so the press must be preceded by one. */
+/** The handle only paints on hover, so the press must be preceded by one; a paragraph has
+ *  none, so the first top-level host that carries one is the seat. */
 async function pressDragHandle(ctx: SimContext): Promise<undefined> {
-	const host = ctx.page.locator('[data-block-path]:not([data-block-path*=","])').first();
+	const host = ctx.page
+		.locator('[data-block-path]:not([data-block-path*=","]):has(> .block-drag-handle)')
+		.first();
 	await host.hover();
 	await ctx.editor.waitForRenderFlush();
 	const box = await host.locator('.block-drag-handle').first().boundingBox();

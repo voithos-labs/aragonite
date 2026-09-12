@@ -16,7 +16,9 @@ import { collectEditorSources, stripComments, type SourceFile } from './scan-sou
 const WALK_CONTAINER_SURFACES: Record<string, string> = {
 	'src/lib/components/blocks/code/CodeBlock.svelte': 'the fenced-code surface',
 	'src/lib/components/blocks/table/cell-render.ts': 'the table-cell surface',
-	'src/lib/components/blocks/text/text-render.ts': 'the prose surface'
+	'src/lib/components/blocks/text/text-render.ts': 'the prose surface',
+	'src/lib/components/blocks/editable-leaf.ts':
+		'the plugin leaf surface, when its host paints source'
 };
 
 /** Files naming a renderer whose output no caret parks in, so nothing reads a stamp back. Each
@@ -38,7 +40,8 @@ const SYNTHETIC_STAMPERS: Record<string, string> = {
 	'src/lib/invariants/marker-css-parity.ts': 'mounts a probe block carrying the stamp'
 };
 
-const RENDERER_CALL = /(?<![\w'"])(renderInlineNodes|renderCodeBlock)\s*\(/;
+// `renderSource` is the editable leaf's injected painter (`EditableLeafDeps.renderSource`).
+const RENDERER_CALL = /(?<![\w'"])(renderInlineNodes|renderCodeBlock|renderSource)\s*\(/;
 const STAMP_WRITE = /\.(?:toggle|set)Attribute\(\s*CONTENT_EMPTY_ATTR\b/;
 
 const callsRenderer = (file: SourceFile): boolean => RENDERER_CALL.test(stripComments(file.text));

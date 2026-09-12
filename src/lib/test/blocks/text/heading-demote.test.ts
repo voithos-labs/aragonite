@@ -1,5 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { demoteToParagraph, dropStructuralSuffix } from '$lib/components/blocks/text/text-keydown';
+import {
+	demoteEmptyAtxHeading,
+	demoteToParagraph,
+	dropStructuralSuffix
+} from '$lib/components/blocks/text/text-keydown';
 
 // Backspace at a live heading's content start drops the block's own structural bytes before it
 // merges anything. Which bytes those are is the kind's content range talking: a prefix for ATX, a
@@ -52,5 +56,25 @@ describe('dropStructuralSuffix', () => {
 			newRaw: 'Title\n',
 			caretOffset: 5
 		});
+	});
+});
+
+// The blur rule: an ATX heading with no text becomes the empty paragraph it looks like, and
+// nothing else does — a heading with text keeps its marker, and a setext heading has no prefix
+// standing over nothing.
+describe('demoteEmptyAtxHeading', () => {
+	it('drops the marker of a heading left with no text', () => {
+		expect(demoteEmptyAtxHeading('## \n', { start: 3, end: 3 })).toEqual({
+			newRaw: '\n',
+			caretOffset: 0
+		});
+	});
+
+	it('leaves a heading with text alone', () => {
+		expect(demoteEmptyAtxHeading('## Title\n', { start: 3, end: 8 })).toBeNull();
+	});
+
+	it('leaves a setext heading alone, whose content starts at zero', () => {
+		expect(demoteEmptyAtxHeading('\n===\n', { start: 0, end: 0 })).toBeNull();
 	});
 });

@@ -14,6 +14,7 @@ index is a valid source. Focus follows the moved column.
 ## Edge cases
 
 - Alt+ArrowLeft on the first column is a no-op: the source is unchanged and no undo entry is pushed, so a following Ctrl+Z undoes the prior typing
+- Alt+ArrowRight on the last column is the same no-op at the other end: no mutation, no undo entry
 - A column move on a non-canonical (tight) table canonicalizes the live view, and a single undo restores the original bytes exactly
 
 ## Error cases

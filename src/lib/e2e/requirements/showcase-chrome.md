@@ -17,7 +17,9 @@ and interactions are real clicks and key presses.
 
 - the editor opens on the seeded document: its first heading, read off the file's bytes, is
   the first heading the editor shows, and its `[[toc]]` line renders an outline
-- the theme toggle flips `data-editor-theme` on the editor root from `dark` to `light`
+- the showcase opens in live mode and the light theme (the editor's own defaults stay
+  source and dark; these are the demo's)
+- the theme toggle flips `data-editor-theme` on the editor root from `light` to `dark`
   and back, with the editor still mounted after each flip
 - the drag-handles toggle removes the hover grips (`.block-drag-handle`) from the document
   and restores them, and the editor comes back with the same content
@@ -26,8 +28,8 @@ and interactions are real clicks and key presses.
 - the debug panel's CST section shows the live tree of the showcase document
 - clicking the outline's last entry scrolls the editor down to that heading, whichever
   sections the document happens to hold
-- both toolbars are live mode's WYSIWYG affordance set: the markdown-first modes mount
-  neither, and flipping to live brings them in
+- both toolbars are live mode's WYSIWYG affordance set: flipping to a markdown-first mode
+  unmounts them, and flipping back to live brings them in
 - in live mode, selecting text floats the shared `SelectionToolbar` beside the selection —
   below it when the header's `topInset` leaves no room above, so the bar never lands on the
   header — its bold button wraps the selected run through `runCommand`, and collapsing the

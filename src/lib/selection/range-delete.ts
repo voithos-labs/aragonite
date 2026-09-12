@@ -21,6 +21,8 @@ import {
 	writeOwnRaw
 } from '../tree-operations/node-primitives';
 import { settleSeparatorOnBlank } from '../tree-operations/settle';
+import { deleteAtPath } from '../tree-operations/path-mutate';
+import { tryGetBlockKindDescriptor } from '../schema/block-kind-descriptor';
 import { cleanJoinedRaw } from '../tree-operations/node-ops';
 import {
 	deleteSubtreesIdentityGated,
@@ -49,6 +51,24 @@ export interface RangeDeleteResult {
 	 * each table's row BlockListState without re-deriving snap math. Table branch only.
 	 */
 	tableRowSplices?: TableRowSplice[];
+}
+
+/** Whoever takes the slot gets the caret, at its start; the block above when nothing does. */
+function deleteWholeUnit(
+	doc: Document,
+	path: number[],
+	sharing: SharingState,
+	grammar: GrammarView | undefined
+): RangeDeleteResult {
+	const parentPath = path.slice(0, -1);
+	const index = path[path.length - 1];
+	// The path-addressed door, so the commit's id ledger sees the slot go.
+	const chain = ensureUnsharedPath(doc, parentPath, sharing);
+	deleteAtPath(doc, path, sharing);
+	if (chain.length > 0) rebuildUnsharedChain(doc, chain, sharing, null, grammar);
+	const survivors = (chain.length > 0 ? chain[chain.length - 1] : doc).children ?? [];
+	const landing = Math.max(0, Math.min(index, survivors.length - 1));
+	return { newDoc: doc, collapsedCaret: { path: [...parentPath, landing], offset: 0 } };
 }
 
 /**
@@ -83,6 +103,12 @@ export function rangeDelete(
 	}
 
 	const sameBlock = comparePaths(start.path, end.path) === 0;
+	// A leaf with no positions inside it (a rule, a diagram) is in a range whole or not at all,
+	// so its range deletes the NODE: the byte arm below would leave the kind holding a bare line
+	// ending, which no reload reads as that kind.
+	if (sameBlock && tryGetBlockKindDescriptor(startBlock.kind)?.blockFocus === 'whole-block') {
+		return deleteWholeUnit(doc, start.path, sharing, grammar);
+	}
 	const startRaw = startBlock.raw;
 	const endRaw = endBlock.raw;
 	const startOffset = charOffsetOf(start, 'rangeDelete:prose-merge-start');

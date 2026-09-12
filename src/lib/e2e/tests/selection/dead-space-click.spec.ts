@@ -32,6 +32,21 @@ async function blockBox(editor: EditorPage, index: number): Promise<Box> {
 	return { left: r.x, right: r.x + r.width, top: r.y, bottom: r.y + r.height };
 }
 
+// The band directly under the last block is the tail row's (`TailInsert`: a press there appends
+// a paragraph), so the dead space these clicks aim at starts below it, inside the root.
+async function belowDocumentY(editor: EditorPage): Promise<number> {
+	const tail = await editor.page.locator('.editor-tail').boundingBox();
+	const root = await rootBox(editor);
+	const last = await lastBlockBox(editor);
+	return Math.min((tail ? tail.y + tail.height : last.bottom) + 8, root.bottom - 4);
+}
+
+// A press at offset 0 of block 0: a press a few pixels into the box lands after the first
+// glyph in a proportional face, and the selection then starts one character in.
+async function blockStartPoint(editor: EditorPage): Promise<{ x: number; y: number }> {
+	return editor.pointForOffset([0], 0);
+}
+
 test.describe('dead-space clicks place a caret', () => {
 	let editor: EditorPage;
 
@@ -43,9 +58,8 @@ test.describe('dead-space clicks place a caret', () => {
 	test('a click below the last block lands the caret at its end', async () => {
 		await editor.loadContent('first para\n\nsecond para\n');
 		const root = await rootBox(editor);
-		const last = await lastBlockBox(editor);
 
-		await editor.page.mouse.click(root.left + 40, last.bottom + 40);
+		await editor.page.mouse.click(root.left + 40, await belowDocumentY(editor));
 		await editor.typeText('!');
 		await editor.bridge.waitForSourceContains('!');
 
@@ -69,9 +83,8 @@ test.describe('dead-space clicks place a caret', () => {
 	test('a click below a list lands the caret at the end of its last item', async () => {
 		await editor.loadContent('lead\n\n- one\n- two\n');
 		const root = await rootBox(editor);
-		const last = await lastBlockBox(editor);
 
-		await editor.page.mouse.click(root.left + 40, last.bottom + 30);
+		await editor.page.mouse.click(root.left + 40, await belowDocumentY(editor));
 		await editor.typeText('!');
 		await editor.bridge.waitForSourceContains('!');
 
@@ -81,11 +94,11 @@ test.describe('dead-space clicks place a caret', () => {
 	test('a drag-select ending in the margin keeps its selection', async () => {
 		await editor.loadContent('first para\n\nsecond para\n');
 		const root = await rootBox(editor);
-		const para = await blockBox(editor, 0);
+		const start = await blockStartPoint(editor);
 
-		await editor.page.mouse.move(para.left + 4, para.top + 6);
+		await editor.page.mouse.move(start.x, start.y);
 		await editor.page.mouse.down();
-		await editor.page.mouse.move(root.right - 5, para.top + 6, { steps: 8 });
+		await editor.page.mouse.move(root.right - 5, start.y, { steps: 8 });
 		await editor.page.mouse.up();
 
 		expect(await editor.page.evaluate(() => window.getSelection()?.toString() ?? '')).toContain(
@@ -134,48 +147,41 @@ test.describe('dead-space clicks place a caret', () => {
 		expect(await editor.bridge.isCrossBlockActive()).toBe(true);
 	});
 
-	// A table addresses cells, not characters, so it answers the clamped probe point
-	// through its own descriptor hook. Below the document that point is the block
-	// box's trailing corner, which names the last row's last cell.
-	test('a click below a table lands the caret in the last row’s nearest cell', async () => {
+	// A table addresses cells, not characters: there is no line for a click beside it to land on,
+	// so a click that was not ON the table never lands in a cell — the thematic-break rule, for
+	// the same reason. Below the document the gap caret's own rule still applies (a trailing
+	// table must stay typable after), so the byte may open a paragraph, never a cell.
+	test('a click below a table lands in no cell', async () => {
 		await editor.loadContent('lead\n\n| A | B |\n| --- | --- |\n| 1 | 2 |\n');
 		const root = await rootBox(editor);
-		const last = await lastBlockBox(editor);
 
-		await editor.page.mouse.click(root.left + 40, last.bottom + 30);
-		await editor.typeText('!');
-		await editor.bridge.waitForSourceContains('!');
+		await editor.page.mouse.click(root.left + 40, await belowDocumentY(editor));
+		await editor.page.keyboard.type('!');
+		await editor.waitForNoSourceMutation();
 
-		expect(await editor.bridge.getSource()).toContain('| 1 | 2! |');
+		const source = await editor.bridge.getSource();
+		expect(source).toContain('| 1 | 2 |\n');
+		expect(source).not.toMatch(/\|[^|\n]*![^|\n]*\|/);
 	});
 
-	// A MIDDLE row is what separates "nearest cell" from "the last cell"; the x→column half is
-	// pinned at the unit layer (`table-caret-at-point.test.ts`), since a dead-space click sits
-	// in the root's padding where x is always clamped to a box edge.
-	//
-	// Driven with a LIVE cross-block range on purpose: beside a block the browser's own caret
-	// placement reaches the same cell, so only the range's fate says whose answer it is.
-	test('a click beside a table lands in that row and ends a live range', async () => {
+	// Level with a body row, where the old rule picked that row's cell. No live range here: a
+	// margin press collapses one to its focus end, which can itself be a cell, and that is the
+	// collapse's answer rather than the click's.
+	test('a click beside a table lands in no cell', async () => {
 		await editor.loadContent('lead\n\n| A | B |\n| --- | --- |\n| 1 | 2 |\n| 3 | 4 |\n');
-		await editor.focusBlockStart(0);
-		await editor.page.keyboard.press('ControlOrMeta+a');
-		await editor.page.keyboard.press('ControlOrMeta+a');
-		await editor.waitForCrossBlock(true);
-
 		const root = await rootBox(editor);
-		// Cell index 2 is the first body row's first cell.
 		const cell = await editor.page.locator('[role="cell"]').nth(2).boundingBox();
 		if (!cell) throw new Error('no box for the first body cell');
 
 		await editor.page.mouse.click(root.right - 5, cell.y + cell.height / 2);
-		await editor.typeText('!');
-		await editor.bridge.waitForSourceContains('!');
+		await editor.page.keyboard.type('!');
+		await editor.waitForNoSourceMutation();
 
-		const source = await editor.bridge.getSource();
-		expect(source, 'the stale range type-replaced the document away').toContain('lead');
-		expect(source).toContain('| 1 | 2! |');
-		expect(source).toContain('| 3 | 4 |');
-		expect(await editor.bridge.isCrossBlockActive()).toBe(false);
+		expect(await editor.bridge.getSource()).not.toContain('!');
+		const focusedKind = await editor.page.evaluate(() =>
+			document.activeElement?.closest('[data-block-kind]')?.getAttribute('data-block-kind')
+		);
+		expect(focusedKind).not.toBe('table');
 	});
 
 	// The landed offset abuts an atomic widget, where Chromium paints no caret and nothing can
@@ -205,9 +211,8 @@ test.describe('dead-space clicks place a caret', () => {
 	test('a document ending in a thematic break is not focused by the click below it', async () => {
 		await editor.loadContent('lead\n\n---\n');
 		const root = await rootBox(editor);
-		const last = await lastBlockBox(editor);
 
-		await editor.page.mouse.click(root.left + 40, last.bottom + 30);
+		await editor.page.mouse.click(root.left + 40, await belowDocumentY(editor));
 
 		const focusedKind = await editor.page.evaluate(
 			() =>
@@ -255,11 +260,11 @@ test.describe('dead-space clicks in a host-padded block list', () => {
 	test('a drag-select released in the list’s padding keeps its selection', async () => {
 		await editor.loadContent('first para\n\nsecond para\n');
 		const list = await listBox();
-		const para = await blockBox(editor, 0);
+		const start = await blockStartPoint(editor);
 
-		await editor.page.mouse.move(para.left + 4, para.top + 6);
+		await editor.page.mouse.move(start.x, start.y);
 		await editor.page.mouse.down();
-		await editor.page.mouse.move(list.right - 6, para.top + 6, { steps: 8 });
+		await editor.page.mouse.move(list.right - 6, start.y, { steps: 8 });
 		await editor.page.mouse.up();
 
 		expect(await editor.page.evaluate(() => window.getSelection()?.toString() ?? '')).toContain(

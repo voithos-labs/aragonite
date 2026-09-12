@@ -154,8 +154,8 @@ describe('mountedRowEls / rowCellEls', () => {
 	beforeEach(() => {
 		tableEl = document.createElement('div');
 		tableEl.setAttribute('role', 'table');
-		// A grip corner sits directly under the table but is not a row; the row
-		// selector must skip it (mirrors the real grid's leading corner span).
+		// A spacer sits directly under the table but is not a row; the row selector must
+		// skip it (mirrors the real grid's windowing spacers).
 		tableEl.appendChild(document.createElement('span'));
 		for (let r = 0; r < 3; r++) {
 			const rowEl = document.createElement('div');

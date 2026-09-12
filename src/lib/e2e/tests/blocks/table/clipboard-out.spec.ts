@@ -101,4 +101,23 @@ test.describe('table block: clipboard out', () => {
 		await page.keyboard.press('ControlOrMeta+c');
 		await expect.poll(() => editor.readClipboard()).toBe(TABLE_ALIGNED);
 	});
+	// The spreadsheet format rides beside the GFM: the same rectangle as a `<table>` on text/html.
+	test('a rectangle copy also writes an HTML table for spreadsheets', async ({ page }) => {
+		await editor.loadContent('| A | B |\n| --- | --- |\n| 1 | 2 |\n| 3 | 4 |\n');
+		await dragBetweenCells(page, 2, 5);
+		await editor.waitForCrossBlock(true);
+		await page.keyboard.press('ControlOrMeta+c');
+		await expect
+			.poll(() =>
+				page.evaluate(async () => {
+					const items = await navigator.clipboard.read();
+					for (const item of items) {
+						if (!item.types.includes('text/html')) continue;
+						return (await item.getType('text/html')).text();
+					}
+					return null;
+				})
+			)
+			.toContain('<tr><td>1</td><td>2</td></tr><tr><td>3</td><td>4</td></tr>');
+	});
 });

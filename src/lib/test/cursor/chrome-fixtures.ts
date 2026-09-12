@@ -5,6 +5,8 @@
 import { CONTENT_EMPTY_ATTR } from '../../cursor/widget-offset';
 
 export interface MountOptions {
+	/** Leave a stamped block unfocused: its chrome then hides like any other block's. */
+	unfocused?: boolean;
 	mode?: string;
 	stamped?: boolean;
 }
@@ -19,6 +21,10 @@ export function mountBlock(options: MountOptions, ...parts: Node[]): HTMLElement
 	block.append(...parts);
 	root.appendChild(block);
 	document.body.appendChild(root);
+	// The stamp paints only while the block holds focus (`editor.css`'s `:focus-within` rung, which
+	// `screenVisibilityOf` mirrors), and a stamped fixture is asking about the painted state — the
+	// unfocused one is `mountBlock({ stamped: true, unfocused: true })`.
+	if (options.stamped && !options.unfocused) block.focus();
 	return block;
 }
 

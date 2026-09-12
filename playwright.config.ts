@@ -5,9 +5,12 @@ const PROD = !!process.env.PERF_PROD;
 const WEBKIT = !!process.env.WEBKIT;
 // A run that adopts a developer's live harness on the default port serves whatever that
 // tree currently is, so a reviewer's battery moves both servers and reuses neither.
-const ISOLATED = !!process.env.E2E_ISOLATED;
-const DEV_PORT = ISOLATED ? 1430 : 1420;
-const PROD_PORT = ISOLATED ? 1431 : 1421;
+// `E2E_PORT` picks the isolated server's port, so two isolated batteries on one machine (two
+// worktrees, say) never race for 1430; it implies isolation.
+const OWN_PORT = Number(process.env.E2E_PORT) || 0;
+const ISOLATED = !!process.env.E2E_ISOLATED || OWN_PORT > 0;
+const DEV_PORT = OWN_PORT || (ISOLATED ? 1430 : 1420);
+const PROD_PORT = OWN_PORT ? OWN_PORT + 1 : ISOLATED ? 1431 : 1421;
 
 // `stdout: 'pipe'` routes the server's console through the reporters, which is what lets
 // `server-warn-reporter` fail a run on an SSR-side `[aragonite:` guard fire. Stderr already pipes.

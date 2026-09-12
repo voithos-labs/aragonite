@@ -1,5 +1,5 @@
 /**
- * Pure raw/caret transforms for TextEditableBlock keydown branches — heading-level
+ * Pure raw/caret transforms for TextEditableBlock's structural gestures — heading-level
  * swap, demotion to prose, hard-break insertion, literal-tab insertion. The component
  * owns the plumbing; these own the string math.
  */
@@ -58,6 +58,16 @@ export function dropStructuralSuffix(
 		newRaw: raw.slice(0, contentEnd) + ownTrailingLineEnding(raw),
 		caretOffset: Math.min(preEditOffset, contentEnd)
 	};
+}
+
+/**
+ * An ATX heading left with no text is a marker standing over nothing: unfocused it paints
+ * nothing (the chrome-only stamp is focus-scoped), so the block would survive invisibly and
+ * resurface as a `#` on the next click. On blur it becomes the empty paragraph it looks like.
+ */
+export function demoteEmptyAtxHeading(raw: string, content: ContentRange): TextEditResult | null {
+	if (content.start === 0 || content.end > content.start) return null;
+	return demoteToParagraph(raw, content, 0);
 }
 
 /**

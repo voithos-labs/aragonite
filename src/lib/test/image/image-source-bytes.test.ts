@@ -39,6 +39,56 @@ describe('buildImageSourceBytes', () => {
 		).toBe('![cat|400](cat.png "Cat")');
 	});
 
+	it('writes the crop tail on the framed form, zoom only when it is not one', () => {
+		expect(
+			buildImageSourceBytes({
+				alt: 'cat',
+				url: 'cat.png',
+				width: 400,
+				height: 300,
+				crop: { x: 30, y: 60, z: 1 }
+			})
+		).toBe('![cat|400x300@30,60](cat.png)');
+		expect(
+			buildImageSourceBytes({
+				alt: 'cat',
+				url: 'cat.png',
+				width: 400,
+				height: 300,
+				crop: { x: 50, y: 50, z: 2.5 }
+			})
+		).toBe('![cat|400x300@50,50,2.5](cat.png)');
+		// Rounded to what the parser reads back: whole percents, two-decimal zoom.
+		expect(
+			buildImageSourceBytes({
+				alt: 'cat',
+				url: 'cat.png',
+				width: 400,
+				height: 300,
+				crop: { x: 30.4, y: 59.6, z: 1.2345 }
+			})
+		).toBe('![cat|400x300@30,60,1.23](cat.png)');
+	});
+
+	it('a crop without a frame height is not written', () => {
+		expect(
+			buildImageSourceBytes({
+				alt: 'cat',
+				url: 'cat.png',
+				width: 400,
+				crop: { x: 30, y: 60, z: 1 }
+			})
+		).toBe('![cat|400](cat.png)');
+	});
+
+	it('a scanned crop round-trips through the fields', () => {
+		const src = '![cat|400x300@30,60,2](cat.png)';
+		const [image] = parseInline(src, 0, src.length);
+		const fields = imageFieldsFromInline(image);
+		expect(fields.crop).toEqual({ x: 30, y: 60, z: 2 });
+		expect(buildImageSourceBytes(fields)).toBe('![cat|400x300@30,60,2](cat.png)');
+	});
+
 	it('empty alt is allowed', () => {
 		expect(buildImageSourceBytes({ alt: '', url: 'cat.png' })).toBe('![](cat.png)');
 	});

@@ -10,7 +10,16 @@ export type { EditorProps, EditorInstance } from './editor-props';
 export type { EditorDiagnostics, InteractionTraceEntry } from './editor-props';
 
 export type { BlockComponent } from './block-component';
-export type { ResolveImageUrl, ResolveLinkUrl, PastedImage, PasteImageHook } from './editor-keys';
+export type {
+	ResolveImageUrl,
+	ResolveLinkUrl,
+	PastedImage,
+	PasteImageHook,
+	CodeRunRequest,
+	RunCodeHook,
+	CodeMenuItem,
+	CodeMenuItemsHook
+} from './editor-keys';
 export type { ImageLoadPolicy } from './core/inline-render';
 export type { PresentationMode } from './presentation-mode';
 export type { SearchState, SearchOptions } from './search/search-state.svelte';

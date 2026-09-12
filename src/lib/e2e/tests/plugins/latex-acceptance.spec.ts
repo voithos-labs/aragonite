@@ -169,8 +169,8 @@ test.describe('latex acceptance axes', () => {
 		// Commit landed the caret at the widget's trailing edge — the next char lands
 		// right after it, proving zero caret loss across the reactive re-render.
 		await page.keyboard.type('!');
-		await editor.bridge.waitForSourceContains('$x^2$! after');
-		expect(await editor.bridge.getSource()).toContain('Before z$x^2$! after');
+		await editor.bridge.waitForSourceContains('$x^2z$! after');
+		expect(await editor.bridge.getSource()).toContain('Before $x^2z$! after');
 
 		const nextTopAfter = (await editor.getBlock(1).boundingBox())?.y ?? NaN;
 		expect(Math.abs(nextTopAfter - nextTopBefore)).toBeLessThanOrEqual(GEOMETRY_TOLERANCE);
@@ -235,7 +235,8 @@ test.describe('latex acceptance axes', () => {
 
 		const errorNode = editor.inlineWidget.locator('.math-error');
 		await expect(errorNode).toHaveCount(1);
-		expect((await errorNode.textContent())?.toLowerCase()).toContain('error');
+		// The source itself, painted as an error; the parser's message rides the hover title.
+		expect((await errorNode.getAttribute('title'))?.toLowerCase()).toContain('error');
 		await expect(editor.page.locator('.katex-error')).toHaveCount(0);
 	});
 });

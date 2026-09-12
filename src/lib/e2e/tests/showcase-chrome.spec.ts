@@ -27,23 +27,24 @@ test.describe('/ showcase chrome', () => {
 		await expect(page.locator('.toc-block-item').first()).toBeVisible();
 	});
 
-	test('theme toggle flips the editor between dark and light', async ({ page }) => {
+	test('theme toggle flips the editor between light and dark', async ({ page }) => {
 		const editor = page.locator('.editor');
-		await expect(editor).toHaveAttribute('data-editor-theme', 'dark');
-
-		await page.getByTestId('theme-toggle').click();
+		// Light is the showcase's default; the editor's own `theme` default stays dark.
 		await expect(editor).toHaveAttribute('data-editor-theme', 'light');
 
 		await page.getByTestId('theme-toggle').click();
 		await expect(editor).toHaveAttribute('data-editor-theme', 'dark');
+
+		await page.getByTestId('theme-toggle').click();
+		await expect(editor).toHaveAttribute('data-editor-theme', 'light');
 	});
 
-	test('drag-handles toggle adds the grips and carries the edit across the remount', async ({
+	test('drag-handles toggle drops the grips and carries the edit across the remount', async ({
 		page
 	}) => {
 		const handles = page.locator('.block-drag-handle');
-		// Handles are opt-in, so the showcase opens gutter-free like any default embed.
-		await expect(handles).toHaveCount(0);
+		// Handles are on by default, so the showcase opens with them like any default embed.
+		await expect.poll(() => handles.count()).toBeGreaterThan(0);
 
 		// The prop is set-once, so the toggle remounts the editor — an edit made first is
 		// the only thing that can show whether the route carried the live source across.
@@ -54,11 +55,16 @@ test.describe('/ showcase chrome', () => {
 		await expect(intro).toContainText('ZZMARKER');
 
 		await page.getByTestId('drag-handles-toggle').click();
-		await expect.poll(() => handles.count()).toBeGreaterThan(0);
+		// Not zero: a picture's grip does not answer to the toggle.
+		await expect
+			.poll(() =>
+				page.locator('.block-host:not([data-block-kind="paragraph"]) .block-drag-handle').count()
+			)
+			.toBe(0);
 		await expect(page.locator('.editor')).toContainText('ZZMARKER');
 
 		await page.getByTestId('drag-handles-toggle').click();
-		await expect(handles).toHaveCount(0);
+		await expect.poll(() => handles.count()).toBeGreaterThan(0);
 	});
 
 	test('reading mode disables the drag-handles toggle', async ({ page }) => {
@@ -91,10 +97,14 @@ test.describe('/ showcase chrome', () => {
 		page
 	}) => {
 		const toolbar = page.getByTestId('selection-toolbar');
-		// Both toolbars belong to live mode; the markdown-first default shows neither.
+		// Both toolbars belong to live mode, the showcase's default: a markdown-first mode mounts
+		// neither, and flipping back brings the strip in (the bar waits for a selection).
+		await expect(page.getByTestId('insert-toolbar')).toHaveCount(1);
+		await page.locator('.showcase-mode[data-mode="source"]').click();
 		await expect(toolbar).toHaveCount(0);
 		await expect(page.getByTestId('insert-toolbar')).toHaveCount(0);
 		await page.locator('.showcase-mode[data-mode="live"]').click();
+		await expect(page.getByTestId('insert-toolbar')).toHaveCount(1);
 
 		const intro = page.locator('.block-host [contenteditable]').first();
 		await intro.click();

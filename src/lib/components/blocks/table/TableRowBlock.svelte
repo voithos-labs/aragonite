@@ -30,7 +30,6 @@
 	} from '../../../editor-actions/nested/nested-actions';
 	import { publishRefSlot, type RefSlots } from '../../../reactivity/publish-ref.svelte';
 	import TableCellBlock from './TableCellBlock.svelte';
-	import TableGrip from './TableGrip.svelte';
 
 	let {
 		node,
@@ -40,10 +39,7 @@
 		rowCount,
 		alignments = [],
 		myPath = [],
-		slots,
-		onOpenRowMenu,
-		onRowGripPointerDown,
-		showGrips
+		slots
 	}: {
 		node: NodeView;
 		index: number;
@@ -53,11 +49,6 @@
 		alignments?: readonly TableAlignment[];
 		myPath?: number[];
 		slots?: RefSlots<BlockComponent>;
-		onOpenRowMenu?: (rowIdx: number, e: MouseEvent) => void;
-		onRowGripPointerDown?: (rowIdx: number, e: PointerEvent) => void;
-		/** The table's `blockDragHandles` read, passed down rather than re-read: the row grip
-		 *  and the gutter track it fills are one decision. */
-		showGrips: boolean;
 	} = $props();
 
 	// A row's position among the table's children IS its row index.
@@ -204,15 +195,10 @@
 	});
 </script>
 
-<!-- The grip is the row's first child so it lands in the table's zero-width gutter track
-	and the cells fill the rest. No whitespace between it and the cells: a stray text node
-	joins the table's raw-offset walk and misplaces a parked cross-block caret. -->
+<!-- No whitespace between the row and its cells: a stray text node joins the table's
+	raw-offset walk and misplaces a parked cross-block caret. -->
 <div bind:this={rowEl} class="table-row" role="row" data-table-row-idx={rowIdx}>
-	{#if showGrips}<TableGrip
-			axis="row"
-			onActivate={(e) => onOpenRowMenu?.(rowIdx, e)}
-			onpointerdown={(e) => onRowGripPointerDown?.(rowIdx, e)}
-		/>{/if}{#each node.children ?? [] as cellNode, colIdx (cellsState.innerBlockIds[colIdx])}
+	{#each node.children ?? [] as cellNode, colIdx (cellsState.innerBlockIds[colIdx])}
 		<TableCellBlock
 			node={cellNode}
 			index={colIdx}

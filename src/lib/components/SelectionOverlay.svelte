@@ -15,6 +15,7 @@
 		type BlockSelectionClass
 	} from '../selection/primitives';
 	import { snapCrossBlockTableEndpoints } from '../selection/table-endpoint-snap';
+	import { pathsEqual } from '../selection/path-math';
 	import { wireOverlayRemeasure } from '../cursor/overlay-remeasure';
 
 	let {
@@ -52,6 +53,15 @@
 		});
 	});
 
+	// A whole unit (one surface-less block taken as the entire range) paints as a middle block
+	// does: its full box, no measuring.
+	const paintsWholeBox = $derived.by(() => {
+		if (classification === 'middle') return true;
+		if (classification !== 'single-block') return false;
+		const unit = selection?.wholeUnitPath ?? null;
+		return unit !== null && pathsEqual(unit, path);
+	});
+
 	// The measuring effect and the template read this one predicate, so a rendered
 	// rect is always one the effect measured; two predicates render a stale box.
 	const paintsEndpoints = $derived(
@@ -67,7 +77,9 @@
 		height: number;
 	}
 
-	/** Merge rects on the same visual line into a single rect to prevent double-highlight. */
+	/** Merge rects on the same visual line into a single rect to prevent double-highlight. Same
+	 *  line means vertically overlapping, not equal tops: an inline widget (a KaTeX box) stands
+	 *  taller than the text beside it, and two rects painted over one span read twice as dark. */
 	function mergeRectsPerLine(rects: LocalRect[]): LocalRect[] {
 		if (rects.length <= 1) return rects;
 		const sorted = [...rects].sort((a, b) => a.top - b.top);
@@ -76,7 +88,9 @@
 
 		for (let i = 1; i < sorted.length; i++) {
 			const r = sorted[i];
-			if (Math.abs(r.top - current.top) < 2) {
+			const overlap =
+				Math.min(current.top + current.height, r.top + r.height) - Math.max(current.top, r.top);
+			if (overlap > Math.min(current.height, r.height) * 0.5) {
 				const left = Math.min(current.left, r.left);
 				const right = Math.max(current.left + current.width, r.left + r.width);
 				const top = Math.min(current.top, r.top);
@@ -146,7 +160,7 @@
 	});
 </script>
 
-{#if classification === 'middle'}
+{#if paintsWholeBox}
 	<div class="selection-overlay selection-overlay-middle" contenteditable="false"></div>
 {:else if paintsEndpoints}
 	{#each endpointRects as rect, i (i)}

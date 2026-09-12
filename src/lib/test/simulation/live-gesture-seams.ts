@@ -21,7 +21,11 @@ import {
 	isHiddenMarkerText
 } from '$lib/cursor/widget-offset';
 import { asRawOffset, type RawOffset } from '$lib/cursor/coordinate-spaces';
-import { createEdgePolicyDispatch } from '$lib/components/blocks/text/edge-policy-dispatch';
+import {
+	createEdgePolicyDispatch,
+	keepsBlockKind
+} from '$lib/components/blocks/text/edge-policy-dispatch';
+import { resolveDelimiterAutoPair } from '$lib/components/blocks/text/delimiter-autopair';
 import {
 	resolveLiveRangeEdit,
 	resolveSelectionEdit
@@ -372,6 +376,20 @@ async function nativePress(
 	const write = (raw: string, caret: number) =>
 		h.blockEdit.updateBlockContent(index, raw, offset, caret);
 	if (kind === 'type') {
+		// The engine's byte reaches the surface through the auto-pair arm in every mode (G4.65),
+		// so a typed delimiter lands what that arm writes: its twin, or nothing past a twin.
+		const paired = resolveDelimiterAutoPair(
+			trimTrailingLineEnding(node.raw),
+			{ start, end },
+			offset,
+			key,
+			(line) => keepsBlockKind(node, line)
+		);
+		if (paired?.kind === 'step-over') return;
+		if (paired) {
+			await write(paired.text + trailingLineEnding(node.raw), paired.caret);
+			return;
+		}
 		await write(splice(node.raw, offset, offset, key), offset + key.length);
 		return;
 	}

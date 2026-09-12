@@ -41,6 +41,8 @@
 	} = $props();
 
 	let imageOverlayEl: HTMLDivElement | undefined = $state();
+	// The crop session owns the pointer over the image; the resize grip steps aside meanwhile.
+	let cropping = $state(false);
 
 	const linkRef = getContext<EditorDoc | undefined>(EDITOR_DOC_KEY)?.linkRef;
 
@@ -95,19 +97,25 @@
 	{@const ctx = imageEdit.getSelectedImageFields()}
 	{#if ctx?.widgetEl}
 		<div bind:this={imageOverlayEl} class="md-image-overlay" data-image-overlay>
-			<ImageResizeHandles
-				getWidgetEl={() => imageEdit.getSelectedImageFields()?.widgetEl ?? null}
-				editorContentWidth={imageEdit.getEditorContentWidth()}
-				editorEvents={events}
-				onCommit={imageEdit.commitImageResize}
-			/>
+			{#if !cropping}
+				<ImageResizeHandles
+					getWidgetEl={() => imageEdit.getSelectedImageFields()?.widgetEl ?? null}
+					editorContentWidth={imageEdit.getEditorContentWidth()}
+					editorEvents={events}
+					onCommit={imageEdit.commitImageResize}
+				/>
+			{/if}
 			{#key `${sel.paragraphPath.join(',')}@${sel.sourceStart}`}
 				<ImageProperties
 					target={sel}
 					fields={imageFieldsFromInline(ctx.image)}
+					getWidgetEl={() => imageEdit.getSelectedImageFields()?.widgetEl ?? null}
 					buildBytes={imageEdit.buildEditBytes}
 					onCommit={imageEdit.commitImageEdit}
+					onRemove={imageEdit.removeImage}
 					onDismiss={imageEdit.dismissImagePopover}
+					maxFrameWidth={imageEdit.getEditorContentWidth}
+					bind:cropping
 				/>
 			{/key}
 		</div>

@@ -27,9 +27,7 @@ function blockWrapper(options: {
 	wrapper.appendChild(Object.assign(document.createElement('p'), { className: 'md-block' }));
 	// The code surface's own chrome, rendered by the block component rather than by the host.
 	if (options.langChip) {
-		wrapper.appendChild(
-			Object.assign(document.createElement('span'), { className: 'code-lang-chip' })
-		);
+		wrapper.appendChild(Object.assign(document.createElement('span'), { className: 'code-rail' }));
 	}
 	wrapper.appendChild(
 		Object.assign(document.createElement('div'), { className: 'selection-overlay' })
@@ -53,8 +51,8 @@ const LAYOUTS = [
 	['with badges', { badges: 2, handle: true }],
 	['with one painted mark', { marks: 1, handle: true }],
 	['with several painted marks', { badges: 1, marks: 3, handle: true }],
-	['with a code language chip', { langChip: true, handle: true }],
-	['with a chip beside every other chrome', { badges: 1, marks: 2, langChip: true, handle: true }]
+	['with a code block rail', { langChip: true, handle: true }],
+	['with a rail beside every other chrome', { badges: 1, marks: 2, langChip: true, handle: true }]
 ] as const;
 
 describe('BLOCK_CONTENT_LOCATOR_SELECTOR resolves exactly one element per block', () => {

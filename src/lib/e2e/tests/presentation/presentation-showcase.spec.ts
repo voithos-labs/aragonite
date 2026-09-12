@@ -34,6 +34,9 @@ test.describe('/ showcase presentation toggle', () => {
 
 	test('reading hides markers, keeps rendered widgets; source restores', async ({ page }) => {
 		const editor = page.locator('.editor');
+		// Live is the showcase's default and paints no marker: the round trip starts from source.
+		await page.locator('.showcase-mode[data-mode="source"]').click();
+		await expect(editor).not.toHaveAttribute('data-presentation');
 		// The tour's inline widgets sit well below the fold, and "widgets survived the flip"
 		// asserted where none are mounted is the vacuity this scenario exists to avoid.
 		await scrollToEnd(page);

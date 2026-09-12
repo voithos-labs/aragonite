@@ -17,4 +17,4 @@
 
 - Ctrl+Shift+End from a body cell, then ArrowLeft (collapse-to-start) then type: the table body survives (no range-replace wipe) and the marker lands in the anchor cell. Regression for the cell dispatching cellKeydownPlan before cross-block.
 - Ctrl+Shift+End from a body cell, then ArrowDown (collapse-to-end) then type: the table body survives and the marker lands in the last cell. (ArrowDown is claimed unconditionally by the cell plan, so it wiped where ArrowRight lucked out.)
-- Three Ctrl+A presses in a cell (cell → table → document) still select the whole document — the cross-block-first gate must not break the 3-stage select-all.
+- Repeated Ctrl+A presses in a cell (cell → document, a third press changing nothing) leave the whole document selected — the cross-block-first gate must not break the stepped select-all.

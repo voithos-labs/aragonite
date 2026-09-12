@@ -16,7 +16,12 @@ export interface Commit {
 
 /** Wire `createWidgetInteraction` over a real parse with the widget at `sourceStart` already
  *  selected. Deps this path must not reach are proxy traps, so a widening handler fails loudly. */
-export function harness(source: string, sourceStart: number, linkRef?: LinkReferenceResolverRef) {
+export function harness(
+	source: string,
+	sourceStart: number,
+	linkRef?: LinkReferenceResolverRef,
+	extra: Partial<WidgetInteractionDeps> = {}
+) {
 	const node: CstNode = parse(source).children[0];
 	const commits: Commit[] = [];
 	const widgetSelection = createWidgetSelectionState({ onSelect: () => {} });
@@ -50,7 +55,8 @@ export function harness(source: string, sourceStart: number, linkRef?: LinkRefer
 		setPendingCursor: trap,
 		get linkRef() {
 			return linkRef;
-		}
+		},
+		...extra
 	} as unknown as WidgetInteractionDeps;
 
 	return { interaction: createWidgetInteraction(deps), commits, widgetSelection };

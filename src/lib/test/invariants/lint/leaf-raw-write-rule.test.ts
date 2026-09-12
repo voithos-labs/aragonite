@@ -23,6 +23,8 @@ const CAPABILITY_SITES: Record<string, string> = {
 const READER_SITES: Record<string, string> = {
 	[READERS_HOME]: 'the reader itself',
 	'src/lib/tree-operations/content-write.ts': 'the context-dependent-kind write',
+	'src/lib/editor-actions/table-context.ts':
+		'pasteGrid, writing each pasted cell text in place through the tableCell rule',
 	'src/lib/editor-actions/search-replace.ts': 'substitutes into a private clone',
 	'src/lib/selection/range-delete.ts': 'the same-block merge writes raw with no reparse',
 	'src/lib/selection/cross-block/type-replace.ts': 'the degraded arm splices raw',

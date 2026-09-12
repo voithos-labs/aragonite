@@ -147,8 +147,8 @@ test.describe('plugin inline math: select → reveal-source editing', () => {
 		page
 	}) => {
 		await editor.revealByClick();
-		// Move into the source (past the opening `$`) and type inside the formula.
-		await page.keyboard.press('ArrowRight');
+		// The click seats the caret at the formula's end, inside the closing `$`, so typing
+		// continues the formula.
 		await page.keyboard.type('y');
 		// End carries the caret out of the source, which is what folds an edited reveal.
 		// Enter does not commit — it is the block's split key (latex-inline-reveal-commands).
@@ -156,8 +156,8 @@ test.describe('plugin inline math: select → reveal-source editing', () => {
 
 		await expect(editor.mathWidget).toHaveCount(1);
 		await expect(editor.mathWidget.locator('.katex')).toHaveCount(1);
-		await editor.bridge.waitForSourceContains('$yx^2$');
-		expect(await editor.bridge.getSource()).toContain('Before $yx^2$ after');
+		await editor.bridge.waitForSourceContains('$x^2y$');
+		expect(await editor.bridge.getSource()).toContain('Before $x^2y$ after');
 		expect(await editor.bridge.getSource()).not.toContain('$x^2$ after');
 		expect(await roundTripStable(page)).toBe(true);
 	});
@@ -166,11 +166,11 @@ test.describe('plugin inline math: select → reveal-source editing', () => {
 		page
 	}) => {
 		await editor.revealByClick();
-		// A char typed right after reveal lands at the source's leading edge — not at a
-		// block edge, which is where a lost caret would drop it.
+		// A char typed right after reveal lands at the formula's end, inside the closing `$`:
+		// not at a block edge, where a lost caret would drop it, and not past the closer.
 		await page.keyboard.type('z');
 		const revealed = await editor.getBlockText(0);
-		expect(revealed).toContain('z$x^2$');
+		expect(revealed).toContain('$x^2z$');
 		expect(revealed).not.toContain('zBefore');
 
 		await page.keyboard.press('End');
@@ -179,8 +179,8 @@ test.describe('plugin inline math: select → reveal-source editing', () => {
 		// after the re-rendered widget — the escape's own End position does not survive the fold,
 		// the widget's trailing edge does.
 		await page.keyboard.type('!');
-		await editor.bridge.waitForSourceContains('$x^2$!');
-		expect(await editor.bridge.getSource()).toContain('Before z$x^2$! after');
+		await editor.bridge.waitForSourceContains('$x^2z$!');
+		expect(await editor.bridge.getSource()).toContain('Before $x^2z$! after');
 	});
 
 	test('Escape discards the source edit and restores the rendered widget', async ({ page }) => {
@@ -198,7 +198,6 @@ test.describe('plugin inline math: select → reveal-source editing', () => {
 
 	test('IME composition in the revealed source commits only on blur', async ({ page }) => {
 		await editor.revealByClick();
-		await page.keyboard.press('ArrowRight');
 		const ime = await attachIme(page);
 		await ime.compose('yy');
 		await ime.commit('yy');
@@ -209,9 +208,9 @@ test.describe('plugin inline math: select → reveal-source editing', () => {
 
 		// Focus leaves the block → the composed source commits and re-renders.
 		await editor.getBlock(1).click();
-		await editor.bridge.waitForSourceContains('$yyx^2$');
+		await editor.bridge.waitForSourceContains('$x^2yy$');
 		await expect(editor.mathWidget).toHaveCount(1);
-		expect(await editor.bridge.getSource()).toContain('Before $yyx^2$ after');
+		expect(await editor.bridge.getSource()).toContain('Before $x^2yy$ after');
 
 		// The blur-commit must not yank the caret back: focus moved to the next block,
 		// so the selection stays there — the just-blurred math block never steals it.

@@ -150,3 +150,26 @@ describe('a selection overlapping same-format runs applies over the union', () =
 		expect(r.newDisplay).toBe('**a tail**');
 	});
 });
+
+describe('applying over the union keeps the selection where it was', () => {
+	it('a press over half a run selects that half, not the grown run', () => {
+		const raw = 'hello **bold** world';
+		// "lo **b": two plain bytes, a space, the opening marker, one run byte.
+		const r = toggleFormat(
+			{ display: raw, content: whole(raw), selection: { start: 3, end: 9 } },
+			'strong'
+		);
+		expect(r.newDisplay).toBe('hel**lo bold** world');
+		expect(r.newDisplay.slice(r.newSelStart, r.newSelEnd)).toBe('**lo b');
+	});
+
+	it('an endpoint past the run keeps its own text', () => {
+		const raw = '**text text2** plain';
+		const r = toggleFormat(
+			{ display: raw, content: whole(raw), selection: { start: 7, end: 18 } },
+			'strong'
+		);
+		expect(r.newDisplay).toBe('**text text2 pla**in');
+		expect(r.newDisplay.slice(r.newSelStart, r.newSelEnd)).toBe('text2 pla**');
+	});
+});

@@ -3,7 +3,8 @@
 // Miss-analysis: every render-primary case drove the reveal through `parkCaret`, which is handed
 // an offset, so nothing exercised the one entry that has to COMPUTE one and the hardcoded 0 the
 // click handler passed was never read back; and no fixture ever spread `renderProps` anywhere the
-// fold kept, so both handlers re-firing on the way up from the revealed source went unseen.
+// fold kept, so both handlers re-firing on the way up from the revealed source went unseen. The
+// press alone then stood in for a click, so the reveal moving to the release went unseen too.
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { mount, unmount, flushSync } from 'svelte';
 import RevealLeafBlock from './fixtures/RevealLeafBlock.svelte';
@@ -69,12 +70,16 @@ function mountLeaf(caretTargetAtPoint?: BlockKindDescriptor['caretTargetAtPoint'
 			expect(el, 'the reveal mounted no source element').not.toBeNull();
 			return el!;
 		},
-		/** Press on the folded view at a viewport point, then settle the reveal it opens. */
+		/** Click the folded view at a viewport point, then settle the reveal it opens. The press
+		 *  and the click both fire, as a real click does: the reveal is the CLICK's. */
 		clickRendered: async (clientX: number, clientY: number) => {
 			const rendered = host.querySelector<HTMLElement>('.reveal-leaf-render');
 			expect(rendered, 'the leaf mounted no rendered view').not.toBeNull();
 			rendered!.dispatchEvent(
 				new PointerEvent('pointerdown', { bubbles: true, cancelable: true, clientX, clientY })
+			);
+			rendered!.dispatchEvent(
+				new MouseEvent('click', { bubbles: true, cancelable: true, clientX, clientY })
 			);
 			await flush();
 		}

@@ -13,7 +13,7 @@ async function firstSelectionRect(page: EditorPage['page']) {
 		const sel = window.getSelection();
 		if (!sel || sel.rangeCount === 0 || sel.isCollapsed) return null;
 		const rect = sel.getRangeAt(0).getClientRects()[0];
-		return rect ? { top: rect.top, left: rect.left } : null;
+		return rect ? { top: rect.top, left: rect.left, bottom: rect.bottom } : null;
 	});
 }
 
@@ -25,7 +25,7 @@ test.describe('selection toolbar', () => {
 		await editor.goto();
 	});
 
-	test('selecting inside a paragraph shows the bar above the selection first rect', async ({
+	test('selecting inside a paragraph opens the bar below and right of the selection', async ({
 		page
 	}) => {
 		await editor.loadContent('select some of this text\n\nsecond block\n');
@@ -37,8 +37,9 @@ test.describe('selection toolbar', () => {
 		const bar = await toolbar.boundingBox();
 		const rect = await firstSelectionRect(page);
 		expect(rect).not.toBeNull();
-		expect(bar!.y + bar!.height).toBeLessThanOrEqual(rect!.top + 1);
-		expect(Math.abs(bar!.x - rect!.left)).toBeLessThan(20);
+		// Below the selected line, and starting past where the selection ends — never over it.
+		expect(bar!.y).toBeGreaterThanOrEqual(rect!.bottom - 1);
+		expect(bar!.x).toBeGreaterThanOrEqual(rect!.left);
 	});
 
 	test('collapsing the selection hides the bar', async ({ page }) => {
@@ -80,11 +81,11 @@ test.describe('selection toolbar', () => {
 		// rect[0] starts mid-line; the multi-line union would start at the block's
 		// left edge, far left of the selection start.
 		expect(rect!.left).toBeGreaterThan(50);
-		expect(Math.abs(bar!.x - rect!.left)).toBeLessThan(20);
-		expect(bar!.y + bar!.height).toBeLessThanOrEqual(rect!.top + 1);
+		// Hung off the LAST line of the selection, so it sits below the first rect.
+		expect(bar!.y).toBeGreaterThanOrEqual(rect!.top);
 	});
 
-	test('a cross-block selection anchors above the start block via rangeRects', async ({ page }) => {
+	test('a cross-block selection anchors below the start block via rangeRects', async ({ page }) => {
 		await editor.loadContent('first block here\n\nsecond block below\n');
 		await editor.focusBlockStart(0);
 		await editor.shiftClickBlock([1], 6);
@@ -96,7 +97,7 @@ test.describe('selection toolbar', () => {
 		const blockTop = await page.evaluate(
 			() => (window as any).__test.rects.blockRect([0]).top as number
 		);
-		expect(bar!.y + bar!.height).toBeLessThanOrEqual(blockTop + 1);
+		expect(bar!.y).toBeGreaterThanOrEqual(blockTop);
 	});
 
 	test('the bold button paints pressed inside bold text and unpressed outside', async ({
@@ -206,5 +207,47 @@ test.describe('selection toolbar', () => {
 
 		await editor.bridge.waitForSourceEquals('**first block**\n\n**second block**\n', 3000);
 		await expect(bold).toHaveAttribute('aria-pressed', 'true');
+	});
+
+	// The editor's own menu takes the selection's spot: two cards over one range read as a glitch.
+	test('the bar hides while the editor menu is open and returns when it closes', async ({
+		page
+	}) => {
+		await editor.loadContent('select some of this text\n\nsecond block\n');
+		await editor.focusBlock(0, 7);
+		for (let i = 0; i < 4; i++) await page.keyboard.press('Shift+ArrowRight');
+		await expect(page.locator(TOOLBAR)).toBeVisible();
+
+		// A right-click inside the selection opens the clipboard menu over it.
+		const rect = (await firstSelectionRect(page))!;
+		await page.mouse.click(rect.left + 2, (rect.top + rect.bottom) / 2, { button: 'right' });
+		await expect(page.getByRole('menu', { name: 'Block actions' })).toBeVisible();
+		await expect(page.locator(TOOLBAR)).toHaveCount(0);
+
+		await page.keyboard.press('Escape');
+		await expect(page.getByRole('menu')).toHaveCount(0);
+		await expect(page.locator(TOOLBAR)).toBeVisible();
+	});
+
+	// `runCommand` with an argument: the picker fires the `heading.cycle` arm with its level.
+	test('Set heading runs heading.cycle with the picked level, and Normal text with zero', async ({
+		page
+	}) => {
+		await editor.loadContent('select some of this text\n\nsecond block\n');
+		await editor.focusBlock(0, 7);
+		for (let i = 0; i < 4; i++) await page.keyboard.press('Shift+ArrowRight');
+		await expect(page.locator(TOOLBAR)).toBeVisible();
+
+		// The picker opens on hover, the way a menu's flyout does.
+		await page.locator('[data-testid="toolbar-set-heading"]').hover();
+		await page.locator('[data-testid="toolbar-set-heading-2"]').click();
+		await editor.bridge.waitForSourceEquals('## select some of this text\n\nsecond block\n');
+
+		await editor.focusBlock(0, 10);
+		for (let i = 0; i < 4; i++) await page.keyboard.press('Shift+ArrowRight');
+		await expect(page.locator(TOOLBAR)).toBeVisible();
+		await page.locator('[data-testid="toolbar-set-heading"]').hover();
+		await page.locator('[data-testid="toolbar-set-heading-0"]').click();
+		await editor.bridge.waitForSourceEquals('select some of this text\n\nsecond block\n');
 	});
 });

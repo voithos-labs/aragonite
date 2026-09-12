@@ -187,6 +187,7 @@ function createSessionProbe<T>(init: () => T): {
 
 const editOpProbe = createSessionProbe<string[]>(() => []);
 const errorProbe = createSessionProbe<string[]>(() => []);
+const menuProbe = createSessionProbe<boolean[]>(() => []);
 const caretProbe = createSessionProbe<CaretProbeState>(() => ({ captured: false, rect: null }));
 const selectionProbe = createSessionProbe<SelectionChangeRecord[]>(() => []);
 
@@ -263,6 +264,7 @@ export function installTestProbes({
 	const remounted = 'the editor remounted while the session was open';
 	editOpProbe.invalidate(remounted);
 	errorProbe.invalidate(remounted);
+	menuProbe.invalidate(remounted);
 	caretProbe.invalidate(remounted);
 	selectionProbe.invalidate(remounted);
 
@@ -518,6 +520,14 @@ export function installTestProbes({
 				})
 			),
 		getCapturedErrors: (): string[] => errorProbe.peek(),
+		// ── Menu-change capture probe ─────────────────────────────────────
+		startMenuChangeCapture: (): void =>
+			menuProbe.start((changes) =>
+				editor.getEvents().on('menuChange', (open) => {
+					changes.push(open);
+				})
+			),
+		stopMenuChangeCapture: (): boolean[] => menuProbe.stop(),
 		// ── List item id probe ────────────────────────────────────────────
 		getListItemIds: (blockIndex: number): string[] => {
 			const doc = editor.__test.getDocument();

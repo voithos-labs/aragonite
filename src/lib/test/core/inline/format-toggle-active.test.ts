@@ -22,6 +22,13 @@ describe('isInlineFormatActive', () => {
 		expect(activeAt('x **word** y', 2, 10, 'strong')).toBe(true);
 	});
 
+	// A run closes against a word and never whitespace, so a selection reaching past the run by a
+	// space alone is still the run's own: the paint and the press owe the same answer there.
+	it('reads a selection reaching past the run by whitespace as active', () => {
+		expect(activeAt('x **word** y', 1, 10, 'strong')).toBe(true);
+		expect(activeAt('x **word** y', 2, 11, 'strong')).toBe(true);
+	});
+
 	it('reads the apply directions as inactive', () => {
 		expect(activeAt('hello world', 0, 5, 'strong')).toBe(false);
 		// A half-in selection applies over the union, so it is not yet active.

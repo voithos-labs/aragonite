@@ -51,6 +51,40 @@ export interface PastedImage {
 /** Host import hook for pasted images: resolves to the markdown to insert, or null
  *  to skip that image. Called once per image file, in clipboard order. */
 export type PasteImageHook = (image: PastedImage) => Promise<string | null>;
+
+/** What a code block hands its host when the run affordance is pressed. */
+export interface CodeRunRequest {
+	/** The fence body alone — opener and closer lines excluded. */
+	code: string;
+	/** The opener's full info string, untrimmed of trailing attributes (`py {1-3}`). */
+	info: string;
+	/** Child indices from the document root to this block. */
+	path: number[];
+}
+
+/**
+ * Host hook for executing a code block. The editor runs nothing itself: installing this is
+ * what puts the run affordance on the block's rail, and the host owns everything after —
+ * the engine, the result, and where output goes. Absent, no run affordance renders.
+ */
+export type RunCodeHook = (request: CodeRunRequest) => void;
+
+/** One entry in a code block's overflow menu. `run` is called with the menu already closed. */
+export interface CodeMenuItem {
+	id: string;
+	label: string;
+	run: () => void;
+	/** Renders dimmed and refuses activation. */
+	disabled?: boolean;
+}
+
+/**
+ * Host hook for the code block's overflow menu, consulted each time the menu opens so the
+ * items can read live state. Absent — or returning nothing — renders no overflow affordance:
+ * the editor has no app-level actions of its own to put there.
+ */
+export type CodeMenuItemsHook = (request: CodeRunRequest) => readonly CodeMenuItem[];
+
 export type PresentationModeGetter = () => PresentationMode;
 /** The editor's theme name, as reflected to `data-editor-theme`. An open string:
  *  built-ins are `'dark'`/`'light'`, and a consumer may name its own. */
@@ -174,6 +208,10 @@ export interface EditorPolicies {
 	/** Set-once host import hook for image-bearing pastes. Required-nullable: a mount must
 	 *  answer, and `undefined` deliberately leaves the paste on the text/plain path. */
 	onPasteImage: PasteImageHook | undefined;
+	/** Set-once host execution hook; its presence is what renders the run affordance. */
+	onRunCode: RunCodeHook | undefined;
+	/** Set-once host menu hook; its presence is what renders the overflow affordance. */
+	codeMenuItems: CodeMenuItemsHook | undefined;
 	/** Resolved image URLs that failed to load this session. One Set per instance, so a
 	 *  failed load never suppresses another editor's broken-state recompute
 	 *  (`components/image/widget-dom.ts`). */

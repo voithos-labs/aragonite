@@ -287,7 +287,9 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 	function parkCaret(offset: number): void {
 		const el = deps.getEl();
 		if (!el) return;
-		el.focus();
+		// `preventScroll`: seating a caret must not move the page — the reveal path scrolls when a
+		// target is off-screen; an implicit focus scroll jumped the document on every table edit.
+		el.focus({ preventScroll: true });
 		if (offset === CURSOR_EXACT_START) {
 			deps.backend.setRaw(asRawOffset(0));
 			return;
@@ -303,7 +305,7 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 	function focusAtColumn(x: number, from: StickyColumnDirection): void {
 		const el = deps.getEl();
 		if (!el) return;
-		el.focus();
+		el.focus({ preventScroll: true });
 		const ambientLength = deps.getAmbientLength();
 		// minOffset = the walk position of raw 0 keeps the scan out of the marker region.
 		const minOffset = toDomTextOffset(asRawOffset(0), ambientLength);
@@ -467,6 +469,9 @@ export interface ClipboardSurfaceDeps {
 	copyPreHook?: (e: ClipboardEvent) => boolean;
 	/** Pre-cross-block cut arm (selected-widget splice, intra-table rect cut). */
 	cutPreHook?: (e: ClipboardEvent) => boolean | Promise<boolean>;
+	/** Pre-cross-block paste arm, handed the normalized text while a live rectangle is still
+	 *  readable (a grid into a table's cells). True when it consumed the paste. */
+	pastePreHook?: (text: string) => boolean | Promise<boolean>;
 	/** The intra-block copy payload; owns its preventDefault. Omit to write the
 	 *  visible selection string (code, leaf); text and the cell slice their raw. */
 	copyTail?: (e: ClipboardEvent) => void;
@@ -559,6 +564,7 @@ export function createClipboardHandlers(deps: ClipboardSurfaceDeps): ClipboardHa
 	async function insertPastedText(text: string, e: ClipboardEvent | null): Promise<void> {
 		const fold = deps.foldReveal?.() ?? null;
 		await fold?.settled;
+		if (text && deps.pastePreHook && (await deps.pastePreHook(text))) return;
 		if (await deps.crossBlock.handlePaste(e, text)) return;
 		deps.stickyColumn.reset();
 		deps.edgeAffinity.reset();

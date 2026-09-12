@@ -5,7 +5,7 @@
  */
 
 import { DEV } from 'esm-env';
-import type { CstNode } from '../core/nodes';
+import { headingLevel, type CstNode } from '../core/nodes';
 import type { NodeView } from '../core/node-views';
 import { isBlankParagraph, isBlankSource, parse } from '../core/parser';
 import type { GrammarView } from '../schema/block-openers';
@@ -100,7 +100,7 @@ export function splitNode(
 
 	const rawText = node.raw;
 	const lineEnding = trailingLineEnding(rawText);
-	const cut = cutPastLineEnding(descriptor, node, offset);
+	const cut = headingHeadCut(descriptor, node, cutPastLineEnding(descriptor, node, offset));
 
 	const suffixSplit = structuralSuffixSplit(descriptor, node, cut);
 	// Both halves: each can collide alone (a `</details>` stranded on the second half, or
@@ -170,6 +170,16 @@ function cutPastLineEnding(descriptor: BlockKindDescriptor, node: CstNode, offse
 	if (ending === '') return at;
 	const contentEnd = descriptor.getContentRange?.(node).end;
 	return contentEnd === undefined ? at + ending.length : Math.min(at + ending.length, contentEnd);
+}
+
+/**
+ * Enter at the head of an ATX heading's text moves the whole heading down under a new empty
+ * line: the marker belongs with its text, and an empty heading is nothing anyone asked for.
+ */
+function headingHeadCut(descriptor: BlockKindDescriptor, node: CstNode, cut: number): number {
+	const content = headingLevel(node) === null ? undefined : descriptor.getContentRange?.(node);
+	if (!content || content.start === 0 || content.end === content.start) return cut;
+	return cut <= content.start ? 0 : cut;
 }
 
 /**

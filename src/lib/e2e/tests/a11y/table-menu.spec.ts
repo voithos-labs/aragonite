@@ -36,6 +36,9 @@ test.describe('table action menu: keyboard + announcements', () => {
 	}) => {
 		await page.locator('[role="cell"]').nth(2).click();
 		await page.keyboard.press('Shift+F10');
+		// Paste (the first enabled stop) → Row → Column → Delete row.
+		await page.keyboard.press('ArrowDown');
+		await page.keyboard.press('ArrowDown');
 		await page.keyboard.press('ArrowDown');
 		await page.keyboard.press('Enter');
 
@@ -82,24 +85,29 @@ test.describe('table action menu: keyboard + announcements', () => {
 		await expect(page.locator('[role="menu"] :focus')).toHaveAttribute('aria-label', 'Right');
 	});
 
-	test('arrow navigation skips a disabled mid-list item', async ({ page }) => {
+	test('Row flyout opens with Right, skips a disabled item, closes with Left', async ({ page }) => {
 		// First body row: "Move row up" is disabled (a body row can't cross the fixed
 		// header) yet sits between two enabled items, so arrow nav must step over it.
 		await page.locator('[role="cell"]').nth(2).click();
 		await page.keyboard.press('Shift+F10');
-		await expect(page.getByRole('menuitem', { name: 'Move row up' })).toBeDisabled();
 
 		const focused = page.locator('[role="menu"] :focus');
-		await page.keyboard.press('ArrowDown'); // Insert row above
+		await page.keyboard.press('ArrowDown'); // Paste → Row
+		await expect(focused).toHaveText('Row');
+		await page.keyboard.press('ArrowRight'); // opens the Row flyout on its first item
+		await expect(page.getByRole('menuitem', { name: 'Move row up' })).toBeDisabled();
+		await expect(focused).toHaveText('Insert row above');
 		await page.keyboard.press('ArrowDown');
 		await expect(focused).toHaveText('Insert row below');
 		await page.keyboard.press('ArrowDown'); // skips the disabled "Move row up"
 		await expect(focused).toHaveText('Move row down');
+		await page.keyboard.press('ArrowLeft'); // back to the group row, flyout gone
+		await expect(focused).toHaveText('Row');
+		await expect(page.getByRole('menuitem', { name: 'Insert row above' })).toHaveCount(0);
 	});
 
 	test('Left/Right arrows move focus within the alignment trio', async ({ page }) => {
-		await page.hover('[role="table"]');
-		await page.locator('[data-table-col-grip]').nth(1).click(); // column B (non-first)
+		await page.locator('[role="cell"]').nth(3).click({ button: 'right' }); // body cell, column B
 		await expect(page.getByRole('menu')).toBeVisible();
 
 		const focused = page.locator('[role="menu"] :focus');
@@ -118,6 +126,16 @@ test.describe('table action menu: keyboard + announcements', () => {
 		await page.keyboard.press('Alt+Shift+ArrowRight');
 
 		await expect(page.locator('.editor-sr-live-reorder')).toHaveText(/insert/i);
+	});
+
+	test('a Row flyout move announces the new position in the live region', async ({ page }) => {
+		await page.locator('[role="cell"]').nth(2).click({ button: 'right' }); // first body row
+		await page.getByRole('menuitem', { name: 'Row', exact: true }).hover();
+		await page.getByRole('menuitem', { name: 'Move row down' }).click();
+
+		await expect(page.locator('.editor-sr-live-reorder')).toHaveText(
+			'Moved row to position 2 of 2'
+		);
 	});
 
 	test('deleting a row announces it in the live region', async ({ page }) => {

@@ -90,6 +90,35 @@ test.describe('selection — pointer: edge cases', () => {
 	});
 });
 
+test.describe('selection — pointer: a leaf taken whole', () => {
+	let editor: EditorPage;
+
+	test.beforeEach(async ({ page }) => {
+		editor = new EditorPage(page);
+		await editor.goto('?presentationMode=live');
+	});
+
+	// A rule has no positions inside it: the drag takes it whole, and Backspace removes the block
+	// rather than emptying it (a rule holding a bare line ending is nothing a reload reads).
+	test('a drag inside a divider selects it whole, and Backspace removes it', async ({ page }) => {
+		await editor.loadContent('lead\n\n---\n\ntail\n');
+		const rule = await editor.getBlock(1).boundingBox();
+		if (!rule) throw new Error('no box for the rule');
+
+		await page.mouse.move(rule.x + rule.width / 2, rule.y + rule.height / 2);
+		await page.mouse.down();
+		await page.mouse.move(rule.x + rule.width / 2 + 30, rule.y + rule.height / 2, { steps: 6 });
+		await page.mouse.up();
+		await editor.waitForCrossBlock(true);
+
+		await page.keyboard.press('Backspace');
+
+		await editor.bridge.waitForSourceEquals('lead\n\ntail\n');
+		expect(await editor.bridge.getBlockCount()).toBe(2);
+		expect(await editor.parseConverged()).toBe(true);
+	});
+});
+
 test.describe('selection — pointer: cross-container', () => {
 	let editor: EditorPage;
 

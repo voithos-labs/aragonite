@@ -68,7 +68,7 @@ test.describe('/ showcase on a phone', () => {
 	});
 
 	test('the drag grips show without a hover and answer a tap', async ({ page }) => {
-		await page.getByTestId('drag-handles-toggle').tap();
+		// On by default: no toggle tap first.
 		const handle = page.locator('.block-drag-handle').first();
 
 		// Nothing hovers on touch, so a handle the hover rule alone reveals stays transparent.

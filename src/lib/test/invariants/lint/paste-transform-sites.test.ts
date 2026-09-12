@@ -15,6 +15,8 @@ const CALL_RE = /(?<!function\s)\bapplyPasteTransforms\s*\(/;
 
 /** Each sanctioned clipboard→parse site → why it legitimately parses clipboard text. */
 const SANCTIONED_SITES: Record<string, string> = {
+	'src/lib/components/menu/default-context-actions.ts':
+		'the block menu’s "Replace with clipboard": the clipboard text runs the transforms before it replaces the block’s bytes, the same rewrite a paste would have had',
 	'src/lib/selection/cross-block/paste.ts': 'cross-block selection paste parses the pasted slice',
 	'src/lib/tree-operations/paste/dispatch.ts':
 		'the paste tree-op parses the pasted text into blocks'
@@ -43,6 +45,14 @@ const READ_SITE_ROUTES: Record<string, { handoff: string; why: string }> = {
 	'src/lib/components/blocks/editable-surface.ts': {
 		handoff: 'pasteTail',
 		why: 'the shared paste handler hands the text to the block’s pasteTail, which dispatches through the paste tree-op'
+	},
+	'src/lib/components/menu/default-context-actions.ts': {
+		handoff: 'applyPasteTransforms',
+		why: 'the block menu’s "Replace with clipboard" reads through navigator.clipboard and runs the transforms itself before writing the block’s bytes'
+	},
+	'src/lib/components/menu/clipboard-actions.ts': {
+		handoff: 'pasteTextInto',
+		why: 'the menu paste reads through navigator.clipboard and re-dispatches the text as a paste event on the focused surface, whose handler is the editable-surface route above'
 	},
 	'src/lib/components/blocks/table/TableCellBlock.svelte': {
 		handoff: 'pasteDispatch',

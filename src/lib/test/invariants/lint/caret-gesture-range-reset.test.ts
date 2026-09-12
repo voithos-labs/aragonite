@@ -64,14 +64,18 @@ const CARET_GESTURE_DOORS: Record<string, Door> = {
  * one above; there is no third answer, which is the whole point of the guard.
  */
 const NON_CARET_PRESS_FILES: Record<string, string> = {
+	'src/lib/components/TailInsert.svelte':
+		'swallows the press so no caret seats under it; the paragraph it mints focuses itself',
+	'src/lib/components/menu/BlockMenu.svelte':
+		'swallows the press on its rows so the caret it inserts at keeps focus',
+	'src/lib/components/editor-root-listeners.ts':
+		'the second press of a double-click selects the word under it: a selection gesture in a block whose first press already went through the door',
 	'src/lib/components/blocks/table/TableActionMenu.svelte':
 		'document-capture dismiss-on-outside-press for the menu',
 	'src/lib/components/blocks/table/TableBlock.svelte':
-		'column-grip forwarder; the grip selects cells, not a caret',
-	'src/lib/components/blocks/table/TableRowBlock.svelte':
-		'row-grip forwarder; same as the column grip',
-	'src/lib/components/blocks/table/TableGrip.svelte':
-		'selects a row/column rectangle — a selection gesture, not a caret one',
+		'the add-row and add-column strips swallow their press so the cell keeps the caret that pinned them',
+	'src/lib/components/blocks/code/CodeBlockRail.svelte':
+		'preventDefault on a language-list option so the field keeps focus long enough to commit the pick; the caret returns through the block’s own door afterwards',
 	'src/lib/components/image/ImageOverlayHost.svelte':
 		'widget selection + overlay placement; the caret stays where it was',
 	'src/lib/components/image/ImageProperties.svelte':

@@ -6,8 +6,8 @@ uses — while the surface stays editable. Its defining property is the absence 
 any reveal: unlike `preview-block` and `preview-inline`, nothing un-hides when
 the caret arrives, so the markers a user never sees are also the markers a
 focused block never shows. The DOM keeps every marker node (offsets survive) and
-reading's read-only chrome is NOT inherited: task checkboxes toggle, table grips
-and drag handles stay, and links place a caret on a plain click instead of
+reading's read-only chrome is NOT inherited: task checkboxes toggle, block drag
+handles stay, and links place a caret on a plain click instead of
 navigating. Driven on `/test/editor` via `?presentationMode=live` and the header
 "Live mode" toggle (a real click), and on `/test/plugins` — the only harness that
 renders directive containers — through the `window.__test` bridge; source is
@@ -26,8 +26,9 @@ asserted through the same bridge.
   the brackets are construct syntax, so they are marker spans like any other
 - bullet items hide their `- ` and paint rendered bullet chrome instead; ordered
   ambient numbers stay visible; task checkboxes stay visible
-- table grips still reveal on table hover and drag handles still reveal on block
-  hover — both are reading-only removals live does not inherit
+- a block drag handle (the table's, the only affordance a table has left since the
+  row/column grips retired) still reveals on block hover — a reading-only removal
+  live does not inherit
 
 ## Edge cases
 

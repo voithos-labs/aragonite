@@ -43,6 +43,12 @@ export interface InlineSyntaxOptions {
 	 * commit's equality guard. See the plugin guide's inline section.
 	 */
 	rewriteImage?: ImageSyntaxRewriter;
+	/**
+	 * The trigger is a symmetric one-byte delimiter (`$…$`) a keystroke should close at once:
+	 * typing it lands its twin after the caret, so the new opener pairs with that twin rather
+	 * than with a later formula's delimiter (see `delimiter-autopair.ts`). Bare triggers only.
+	 */
+	autoPair?: boolean;
 }
 
 export interface InlineRung extends InlineSyntaxClaim {
@@ -77,6 +83,10 @@ const NO_RUNGS: readonly InlineRung[] = [];
 const reservedRegistry = new Map<string, InlineRung[]>();
 const unreservedRegistry = new Map<string, InlineRung[]>();
 
+// Triggers whose keystroke closes itself (`autoPair`); the built-in backtick is not registered
+// here, the typing seam knows it on its own.
+const autoPairTriggers = new Set<string>();
+
 // Triggers the fast bail (`needsScan`, scan/index.ts) must visit while a rung lives on them.
 // Maintained at registration, so a rung on a trigger `SPECIAL_CHARS` already visits costs nothing.
 const scanProbeTriggers = new Set<string>();
@@ -91,7 +101,7 @@ export function registerInlineSyntax(
 	if (trigger.length !== 1) {
 		throw new Error('registerInlineSyntax: trigger must be a single character');
 	}
-	const { prefix, priority = INLINE_PRIORITIES.plugin, rewriteImage } = options ?? {};
+	const { prefix, priority = INLINE_PRIORITIES.plugin, rewriteImage, autoPair } = options ?? {};
 	if (prefix !== undefined && (prefix.length < 2 || !prefix.startsWith(trigger))) {
 		throw new Error(
 			`registerInlineSyntax: prefix ${JSON.stringify(prefix)} must begin with the trigger ` +
@@ -126,6 +136,13 @@ export function registerInlineSyntax(
 		}
 	}
 
+	if (autoPair && prefix !== undefined) {
+		throw new Error(
+			`registerInlineSyntax: autoPair pairs the bare trigger ${JSON.stringify(trigger)} with ` +
+				`itself, so it cannot be combined with a prefix`
+		);
+	}
+
 	const effectivePrefix = prefix ?? trigger;
 	const registry = reserved ? reservedRegistry : unreservedRegistry;
 	const existing = registry.get(trigger);
@@ -143,6 +160,7 @@ export function registerInlineSyntax(
 			// A rung on a trigger the fast bail would skip must make the scan visit it,
 			// or the recognizer is the silent no-op this seam refuses to accept.
 			if (!reserved || SCAN_PROBED_RESERVED.has(trigger)) scanProbeTriggers.add(trigger);
+			if (autoPair) autoPairTriggers.add(trigger);
 		},
 		`registerInlineSyntax: ${JSON.stringify(trigger)} already registered at prefix ` +
 			`${JSON.stringify(effectivePrefix)}, priority ${priority}`
@@ -208,6 +226,11 @@ export function isScanProbeTrigger(char: string): boolean {
 	return scanProbeTriggers.has(char);
 }
 
+/** Whether a plugin asked for `char` to close itself as it is typed. */
+export function isAutoPairTrigger(char: string): boolean {
+	return autoPairTriggers.has(char);
+}
+
 /** False costs the scan loop nothing. */
 export function hasPrefixRungs(): boolean {
 	return reservedRegistry.size > 0;
@@ -217,4 +240,5 @@ export function __resetInlineSyntaxForTests(): void {
 	reservedRegistry.clear();
 	unreservedRegistry.clear();
 	scanProbeTriggers.clear();
+	autoPairTriggers.clear();
 }

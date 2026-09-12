@@ -25,6 +25,10 @@ const EXEMPT = [/^Merge /, /^Revert "/, /^[Bb]ump /, /^build\(deps/, /^fixup! /,
 
 const ATTRIBUTION = [/^co-authored-by:/i, /^(?:🤖\s*)?generated with /i];
 
+// A co-founder who writes his own subjects, by name, because the convention is ours and the
+// history it would cost to enforce on him is worth more than the uniformity.
+export const EXEMPT_AUTHORS = ['finnrw', 'Finn'];
+
 /**
  * @typedef {object} CommitMessageProblem
  * @property {string} rule
@@ -180,30 +184,61 @@ function report(problems, label) {
 }
 
 /**
+ * The author git is about to record, which the hook's message file does not carry.
+ * @returns {string}
+ */
+function committingAuthor() {
+	if (process.env.GIT_AUTHOR_NAME) return process.env.GIT_AUTHOR_NAME;
+	try {
+		return execFileSync('git', ['config', 'user.name'], {
+			encoding: 'utf8',
+			stdio: ['ignore', 'pipe', 'ignore']
+		}).trim();
+	} catch {
+		return '';
+	}
+}
+
+/**
  * The `commit-msg` hook's entry: validate one message file, reporting to stderr.
  * @param {string} filePath
  * @returns {boolean} Whether the message passes.
  */
 export function checkMessageFile(filePath) {
+	if (EXEMPT_AUTHORS.includes(committingAuthor())) return true;
 	const problems = commitMessageProblems(readFileSync(filePath, 'utf8'));
 	if (problems.length > 0) report(problems, '');
 	return problems.length === 0;
 }
 
 /**
- * `hash\nmessage` records, NUL-separated so a multi-line message stays one record.
- * @param {string} range
- * @returns {[hash: string, message: string][]}
+ * Every commit in a range that breaks the convention.
+ * @param {string} log `hash\nauthor\nmessage` records, NUL-separated so a multi-line message
+ *   stays one record.
+ * @returns {[hash: string, problems: CommitMessageProblem[]][]}
  */
-function rangeMessages(range) {
-	const log = execFileSync('git', ['log', '-z', '--format=%H%n%B', range], { encoding: 'utf8' });
+export function rangeProblems(log) {
 	return log
 		.split('\0')
 		.filter((record) => record.trim() !== '')
 		.map((record) => {
-			const cut = record.indexOf('\n');
-			return /** @type {[string, string]} */ ([record.slice(0, cut), record.slice(cut + 1)]);
-		});
+			const hashEnd = record.indexOf('\n');
+			const authorEnd = record.indexOf('\n', hashEnd + 1);
+			return {
+				hash: record.slice(0, hashEnd),
+				author: record.slice(hashEnd + 1, authorEnd),
+				message: record.slice(authorEnd + 1)
+			};
+		})
+		.filter((record) => !EXEMPT_AUTHORS.includes(record.author))
+		.map(
+			(record) =>
+				/** @type {[string, CommitMessageProblem[]]} */ ([
+					record.hash,
+					commitMessageProblems(record.message)
+				])
+		)
+		.filter(([, problems]) => problems.length > 0);
 }
 
 /** @returns {Promise<string>} */
@@ -222,12 +257,12 @@ async function main() {
 	let failed = false;
 	if (first === '--range') {
 		if (!second) throw new Error('--range needs a revision range, e.g. --range origin/dev..HEAD');
-		for (const [hash, message] of rangeMessages(second)) {
-			const problems = commitMessageProblems(message);
-			if (problems.length > 0) {
-				report(problems, hash.slice(0, 9));
-				failed = true;
-			}
+		const log = execFileSync('git', ['log', '-z', '--format=%H%n%an%n%B', second], {
+			encoding: 'utf8'
+		});
+		for (const [hash, problems] of rangeProblems(log)) {
+			report(problems, hash.slice(0, 9));
+			failed = true;
 		}
 	} else if (first) {
 		failed = !checkMessageFile(first);

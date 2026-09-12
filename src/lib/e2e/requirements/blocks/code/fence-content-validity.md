@@ -123,9 +123,10 @@ sat at two of the block's ten commit sites, and both reproduce the same corrupti
 - Enter splitting a body line around a mid-line run grows the fence rather than
   splitting the block
 - Shift+Tab dedenting a four-space-indented run to column 0 does the same
-- closing a fence by typing its own closer still works: ` ``` `, Enter, code, Enter,
-  ` ``` ` yields one closed block (the escalation is scoped to a closed fence
-  precisely so this authoring gesture survives)
+- authoring a fence by typing: ` ``` `, Enter (the bare opener completes to opener, empty body
+  line, closer), code, Enter, Enter (the trailing empty line exits) yields one closed block and
+  a paragraph below it. A typed fence is closed from its first Enter, so a closer run typed into
+  the body afterwards is a body line the escalation protects, never a second closer
 - a fence run pasted on a body line does the same (the rule moved to the shared seam,
   so paste keeps the behavior it always had)
 - a tilde run typed on a tilde fence's body line grows that fence

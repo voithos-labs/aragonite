@@ -61,6 +61,16 @@ describe('a symmetric pair extends or not by the arrival on record', () => {
 	});
 
 	// A click resets the affinity, so the default IS the click contract (live-mode.md § 4.2).
+	// The seat decides WHERE the byte lands; what a delimiter keystroke writes there is still the
+	// auto-pair's answer, or a byte seated past the closer would arrive without its twin.
+	// Miss-analysis: every seat row typed a letter, so the arm the keydown seat pre-empts by
+	// writing first (the `beforeinput` auto-pair) was never asked about a seated delimiter.
+	it('writes a delimiter’s twin at the seat, not a lone byte', () => {
+		const h = mount(BOLD, 'live', 'far');
+		expect(h.handleKeydown(key('`'), at(11))).toBe(true);
+		expect(h.edits).toEqual([[0, 'Some **bold**`` text\n', 11, 14]]);
+	});
+
 	it('declines with no arrival on record — a click keeps the construct’s near side', () => {
 		const h = mount(BOLD, 'live', null);
 		expect(h.handleKeydown(key('X'), at(11))).toBe(false);

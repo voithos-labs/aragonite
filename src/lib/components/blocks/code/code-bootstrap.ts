@@ -9,6 +9,7 @@ import {
 	__removePasteSurfaceForTests
 } from '../../../tree-operations/paste-surfaces';
 import { codePasteSurface } from './code-paste-surface';
+import { registerCodeContextActions } from './code-context-actions';
 
 import javascript from 'highlight.js/lib/languages/javascript';
 import typescript from 'highlight.js/lib/languages/typescript';
@@ -28,6 +29,7 @@ import cpp from 'highlight.js/lib/languages/cpp';
 import ruby from 'highlight.js/lib/languages/ruby';
 import markdown from 'highlight.js/lib/languages/markdown';
 import diff from 'highlight.js/lib/languages/diff';
+import latex from 'highlight.js/lib/languages/latex';
 
 let booted = false;
 
@@ -53,8 +55,10 @@ export function bootstrapCodeLanguages(): void {
 	registerLanguage('ruby', ruby);
 	registerLanguage('markdown', markdown, ['md']);
 	registerLanguage('diff', diff);
+	registerLanguage('latex', latex, ['tex']);
 
 	registerPasteSurface(codePasteSurface);
+	registerCodeContextActions();
 }
 
 /** Test-only: reset the booted flag and unregister the paste surface, so a

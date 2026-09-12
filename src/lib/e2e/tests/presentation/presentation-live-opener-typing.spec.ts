@@ -97,7 +97,11 @@ test.describe('live mode — a typed block opener paints until it has content', 
 	}) => {
 		const ep = await emptyBlockBelow(page, 'live');
 
-		await typeSettled(ep, page, '```');
+		// Not `typeSettled`: the second backtick steps over the twin the first one closed itself
+		// with (delimiter-autopair), so that keystroke changes no byte to settle on.
+		await page.keyboard.type('```');
+		await ep.bridge.waitForSourceContains('```');
+		await ep.waitForRenderFlush();
 		expect(await ep.bridge.getBlockKind(TYPED)).toBe('fencedCode');
 		await expect(ep.getBlock(TYPED).locator('.md-fence-line').first()).toHaveCSS(
 			'display',

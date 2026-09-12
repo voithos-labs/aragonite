@@ -62,14 +62,20 @@ export const HARDCODED_CHORD_SITES: readonly HardcodedChordSite[] = [
 	{
 		file: 'components/blocks/editable-leaf.ts',
 		chords: [],
-		keys: ['Enter'],
-		note: 'Shift-click gate on the rendered surface — a pointer read.'
+		keys: ['Backspace', 'Enter'],
+		note: "Shift-click gate on the rendered surface — a pointer read; plain Backspace (no modifier) at the top of an empty painted source deletes the block, as the code block does. The reveal's own undo resolves its chord through the keymap, so it claims none here."
 	},
 	{
 		file: 'components/link-card/LinkCard.svelte',
 		chords: ['Shift+Tab', 'Mod+K'],
 		keys: ['Enter', 'K', 'Tab', 'k'],
 		note: "Backwards step of the open card's focus trap, plus the entry chord swallowed as a no-op where the focus already is — the kind keymaps claim it everywhere else. Escape lives on the host, which must also close a card the document still holds the caret for."
+	},
+	{
+		file: 'components/menu/BlockMenu.svelte',
+		chords: [],
+		keys: ['ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'Enter', 'Escape'],
+		note: 'The open block menu steps and picks; the modifier read is the guard that leaves every chord to the editor.'
 	},
 	{
 		file: 'components/blocks/table/TableActionMenu.svelte',
@@ -132,8 +138,17 @@ export const HARDCODED_CHORD_SITES: readonly HardcodedChordSite[] = [
 	{
 		file: 'components/blocks/text/widget-interaction.ts',
 		chords: ['Shift+ArrowLeft', 'Shift+ArrowRight'],
-		keys: ['Arrow*', 'ArrowLeft', 'ArrowRight', 'Backspace', 'Delete', 'Escape'],
-		note: 'Extends a selection into a widget. A modified arrow is also swallowed while a widget is selected, but that is a caret-coherence guard in a transient state, not a binding.'
+		keys: [
+			'Arrow*',
+			'ArrowDown',
+			'ArrowLeft',
+			'ArrowRight',
+			'ArrowUp',
+			'Backspace',
+			'Delete',
+			'Escape'
+		],
+		note: 'Extends a selection into a widget. A modified arrow is also swallowed while a widget is selected, but that is a caret-coherence guard in a transient state, not a binding; a plain vertical arrow seats a caret and declines.'
 	},
 	{
 		file: 'components/image/ImageResizeHandles.svelte',

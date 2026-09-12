@@ -336,6 +336,9 @@ export interface TableContext {
 	cycleAlignment(colIdx: number): Promise<void>;
 	/** Set a column's alignment directly — distinct from the cycle step. */
 	setColumnAlignment(colIdx: number, alignment: TableAlignment): Promise<void>;
+	/** Write a grid of cell texts from `origin`, appending the rows and columns it needs, as one
+	 *  commit: a spreadsheet-like paste. Empty grids are a no-op. */
+	pasteGrid(origin: { rowIdx: number; colIdx: number }, grid: string[][]): Promise<void>;
 }
 
 /**

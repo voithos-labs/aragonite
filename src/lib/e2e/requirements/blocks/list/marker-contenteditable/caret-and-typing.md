@@ -11,3 +11,9 @@ The marker is `contenteditable="false"`; raw offset 0 maps to the DOM offset jus
 ## Edge cases
 
 - Multi-digit ordered marker (`10. `): ambient prefix is 4 chars; cursor math uses `ambientLength=4` correctly.
+
+## Miss-analysis
+
+- The marker click ran with drag handles off, the old default; on by default, the handle grip's
+  enlarged hit box reached past the gutter into the marker's first pixels and took the press.
+  The hit box now grows left and vertically only, and this spec presses with handles on.

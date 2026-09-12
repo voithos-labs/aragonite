@@ -1161,9 +1161,11 @@ leaf.getOptions(); // this editor's options for your plugin, typed unknown
 
 **Native parity is the tier's whole claim**: the editor's caret enters and leaves your block like any built-in text block (including keeping its column as it walks up or down lines), IME composition is respected, undo batches like prose, the clipboard is intercepted for plain-Markdown copy/cut/paste like every editable surface, and a cross-block selection sweeps through your text.
 
-**One spread wires the source surface.** Write `<div {...leaf.surfaceProps}>` on your source contenteditable and the nine DOM handlers, the `contenteditable` / `role` / `tabindex` / `spellcheck` attributes, and two view-lifecycle contracts all land at once, so a forgotten handler (a dropped `oncompositionend` that silently breaks IME) simply can't happen to you. The two contracts the spread owns are the ones every consumer used to hand-write: the source is populated as a **single text node** (so `textContent === source` and the walk that maps DOM positions to byte offsets stays exact), and focus is parked on the editor root when the source unmounts.
+**One spread wires the source surface.** Write `<div {...leaf.surfaceProps}>` on your source contenteditable and the DOM handlers, the `contenteditable` / `role` / `tabindex` / `spellcheck` attributes, and two view-lifecycle contracts all land at once, so a forgotten handler (a dropped `oncompositionend` that silently breaks IME) simply can't happen to you. The two contracts the spread owns are the ones every consumer used to hand-write: the source is populated so that **`textContent === source`** (the walk that maps DOM positions to byte offsets depends on it), and focus is parked on the editor root when the source unmounts.
 
-That single text node carries every newline your source holds, which makes **`white-space: pre-wrap` (or `pre`) on your source element part of the contract** for any leaf whose bytes can span lines. Without it the browser collapses the line breaks on screen while the offset walk goes on counting them, and the caret sits nowhere near where it looks.
+That text carries every newline your source holds, which makes **`white-space: pre-wrap` (or `pre`) on your source element part of the contract** for any leaf whose bytes can span lines. Without it the browser collapses the line breaks on screen while the offset walk goes on counting them, and the caret sits nowhere near where it looks.
+
+**A painted source.** By default the source is one text node. A `renderSource(text)` dep paints it as DOM instead (fence lines the marker-hiding modes collapse, highlight tokens; the `highlightCode` export is the code block's own tokenizer), and the factory asserts `textContent === text` on every paint, so a painter that drops a byte fails loudly in dev rather than corrupting a commit. A painted source takes its plain-text edits from the leaf, not the browser: typing, Enter, deletes and pastes splice the text and repaint, each reported through `onSourceEdit(text)` so a live preview can follow the draft, and undo inside the open reveal walks those edits back before it reaches the document's history. `repaintSource()` re-runs the painter after a native edit (an IME commit), and `completeBareSource(text)` lets a kind complete a chrome-only source (a `$$` straight over `$$`) to the shape a caret can sit in as it is revealed. Block math is the worked example.
 
 A leaf whose bytes are one line (the parrot's opener claims exactly one) declares `singleLine: true` and needs none of that. Enter in one of those ends the block: the text after the caret becomes a paragraph below and the caret goes with it, which is what Enter does in a heading. With the flag off, the default, Enter types a newline.
 
@@ -1380,6 +1382,8 @@ A fourth prop, `navigateTo`, is the editor's jump route: hand it a block path an
 If your `revealSource` widget takes a click of its own, declare `claimsActivationClick` in its editing policy and read `isWidgetActivationClick` to decide when to act: the surface stands its reveal down for exactly the gesture that predicate names, so the widget isn't swapped for its source bytes under a click meant to navigate. Without `revealSource` there's no reveal to stand down, and the field is inert.
 
 If your widget derives from the whole document, read the version inside the same `$derived` and use it as your memo key. The document itself isn't a usable key: the editor mutates it in place, so its identity never changes, and an identity-keyed memo hits forever on a stale answer. Reading the version inside the derived is also what subscribes your widget to edits anywhere, so N widgets sharing one memoized walk stay as live as N widgets each walking the document.
+
+**A symmetric delimiter can close itself as it is typed.** Pass `autoPair: true` on a bare trigger whose construct opens and closes on the same byte, the way the bundled latex plugin does for `$…$`: typing the trigger lands its twin after the caret, typing it again over that twin steps past it, and a first body byte the recognizer rejects (a `$` followed by a digit is a price) drops the twin again. Without it a lone `$` typed ahead of an existing formula pairs with that formula's closer and wraps the prose between them. The built-in backtick, `*`, `_` and `~~` behave this way without registration.
 
 **A bare trigger must be a character no built-in scanner claims.** Registering a bare recognizer on a reserved trigger (`` ` ``, `&`, `<`, `*`, `_`, `~`, `[`, `]`, `!`, `\`, or newline) throws: built-in dispatch runs first, so a bare recognizer there would never fire, and a silent no-op is the one failure a public API must not have.
 
@@ -1605,6 +1609,25 @@ registerGlobalCommand('mine.bold', handler, { chord: 'Mod+B' }); // fine: fires 
 ```
 
 Chord strings follow the consumer guide's chord model: fixed-order `Mod` / `Alt` / `Shift` plus the key's own value. Shifted-symbol chords aren't modeled, so bind plain digits and letters.
+
+## Block context actions
+
+**`registerBlockContextActions(kind, provider)`**
+
+The right-click menu on a block of `kind` (a code block, a table, a plugin's own block) lists what its providers return, ahead of the editor's own rows (copy, replace with the clipboard, remove). Register from `setup`. The provider is consulted on every open, so it reads the block as it is then; several may stack on one kind, and `EVERY_KIND` (`'*'`) registers for every kind. Prose is the page's background: a paragraph or heading keeps the browser's own menu and consults no provider.
+
+```ts
+registerBlockContextActions(conspiracy, (node) => [
+	{
+		id: 'conspiracy.debunk',
+		label: 'Mark debunked',
+		icon: 'check',
+		run: (ctx) => ctx.replaceRaw(node.raw.replace(/^:::conspiracy/, ':::debunked'))
+	}
+]);
+```
+
+`run` receives a `BlockActionContext`: the node, its path, `deleteBlock()`, and `replaceRaw(raw)`, which rewrites the block's bytes wholesale and reparses them, the road the default replace row takes. Each is one undo entry. `icon` names a glyph the editor's menus already draw (the same set the code rail and the table menu use); a row without one shows none. `danger` paints the row in the error colour, for an action that is not one undo away.
 
 ## Paste transforms
 

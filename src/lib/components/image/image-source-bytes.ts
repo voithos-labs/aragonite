@@ -3,7 +3,7 @@
 // serializer to be named in exactly one module.
 
 import { encodeDestination, escapeTitle } from '../../core/inline/destination-bytes';
-import type { ImageFields, InlineNode } from '../../core/nodes';
+import type { ImageCrop, ImageFields, InlineNode } from '../../core/nodes';
 import { devWarn } from '../../dev-warn';
 
 // ── The write seam ──────────────────────────────────────────────────────────
@@ -44,6 +44,7 @@ export function imageFieldsFromInline(image: InlineNode): ImageFields {
 		...(image.title !== undefined ? { title: image.title } : {}),
 		...(image.width !== undefined ? { width: image.width } : {}),
 		...(image.height !== undefined ? { height: image.height } : {}),
+		...(image.crop !== undefined ? { crop: image.crop } : {}),
 		...(image.label !== undefined ? { label: image.label } : {})
 	};
 }
@@ -53,7 +54,7 @@ export function imageFieldsFromInline(image: InlineNode): ImageFields {
 /** The built-in grammar's inverse. Reach it through `buildImageEditBytes`, the only
  *  caller entitled to decide these bytes are GFM's to write. */
 export function buildImageSourceBytes(fields: ImageFields): string {
-	const dimSuffix = buildDimSuffix(fields.width, fields.height);
+	const dimSuffix = buildDimSuffix(fields.width, fields.height, fields.crop);
 	const altSegment = escapeAlt(fields.alt) + dimSuffix;
 	// Reference form: the dimension hint rides in the alt, and url/title are not
 	// written — they belong to the LRD.
@@ -64,10 +65,21 @@ export function buildImageSourceBytes(fields: ImageFields): string {
 	return `![${altSegment}](${encodeDestination(fields.url)}${titleSegment})`;
 }
 
-function buildDimSuffix(width: number | undefined, height: number | undefined): string {
+function buildDimSuffix(
+	width: number | undefined,
+	height: number | undefined,
+	crop: ImageCrop | undefined
+): string {
 	if (width === undefined) return '';
 	if (height === undefined) return `|${width}`;
-	return `|${width}x${height}`;
+	return `|${width}x${height}${crop ? buildCropTail(crop) : ''}`;
+}
+
+/** Whole percents; the zoom only when it is one worth writing, trimmed to what it needs. */
+function buildCropTail(crop: ImageCrop): string {
+	const z = Math.round(crop.z * 100) / 100;
+	const zoom = z === 1 ? '' : `,${String(z)}`;
+	return `@${Math.round(crop.x)},${Math.round(crop.y)}${zoom}`;
 }
 
 // Alt sits inside `[...]`, where an unescaped bracket closes the scan early. Unlike

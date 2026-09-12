@@ -61,6 +61,9 @@ export interface EditorEventMap {
 	/** The theme name after a `theme` prop change (never fired at mount), for a plugin
 	 *  that paints its own colors and so cannot pick the change up from CSS. */
 	themeChange: string;
+	/** `true` when an editor-owned menu (right-click, insert `+`) opens, `false` when it closes,
+	 *  so host chrome over the selection can step aside rather than stack on it. */
+	menuChange: boolean;
 }
 
 export interface EditorEvents {

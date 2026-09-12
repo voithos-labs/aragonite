@@ -4,11 +4,15 @@
  * request's range call it. Documented-only, the rule drifted to a 1,499-character subject.
  */
 
-import { describe, it, expect } from 'vitest';
-import { existsSync, readFileSync } from 'node:fs';
+import { describe, it, expect, afterAll } from 'vitest';
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import path from 'node:path';
 import {
+	checkMessageFile,
 	commitMessageProblems,
+	rangeProblems,
+	EXEMPT_AUTHORS,
 	SUBJECT_LIMIT
 } from '../../../../../scripts/lint-commit-message.mjs';
 
@@ -136,5 +140,55 @@ describe('G4.58 commit-message shape — the two doors', () => {
 	it('dependabot writes the default `Bump ...` subject the exemption matches', () => {
 		const dependabot = readFileSync(path.join(ROOT, '.github/dependabot.yml'), 'utf8');
 		expect(dependabot).not.toMatch(/^\s*commit-message:/m);
+	});
+});
+
+describe('G4.58 commit-message shape — the co-founder exemption', () => {
+	const OFFENDING = 'Fixed the thing.';
+
+	/** The `-z --format=%H%n%an%n%B` records the range door reads. */
+	function log(...records: [hash: string, author: string, message: string][]): string {
+		return records.map((record) => `${record.join('\n')}\n`).join('\0');
+	}
+
+	it('names the authors it exempts', () => {
+		expect(EXEMPT_AUTHORS.length).toBeGreaterThan(0);
+	});
+
+	it.each(EXEMPT_AUTHORS.map((author) => [author]))('passes over %s in range mode', (author) => {
+		expect(rangeProblems(log(['abc1234', author, OFFENDING]))).toEqual([]);
+	});
+
+	it('still reports every other author in range mode', () => {
+		const reported = rangeProblems(
+			log(['abc1234', EXEMPT_AUTHORS[0], OFFENDING], ['def5678', 'somebody-else', OFFENDING])
+		);
+		expect(reported.map(([hash]) => hash)).toEqual(['def5678']);
+	});
+
+	describe('hook mode, where the message file carries no author', () => {
+		const scratch = mkdtempSync(path.join(tmpdir(), 'aragonite-commit-msg-'));
+		const messageFile = path.join(scratch, 'COMMIT_EDITMSG');
+		writeFileSync(messageFile, OFFENDING);
+		const authorBefore = process.env.GIT_AUTHOR_NAME;
+
+		afterAll(() => {
+			if (authorBefore === undefined) delete process.env.GIT_AUTHOR_NAME;
+			else process.env.GIT_AUTHOR_NAME = authorBefore;
+			rmSync(scratch, { recursive: true, force: true });
+		});
+
+		it.each(EXEMPT_AUTHORS.map((author) => [author]))(
+			'passes a message %s is committing',
+			(author) => {
+				process.env.GIT_AUTHOR_NAME = author;
+				expect(checkMessageFile(messageFile)).toBe(true);
+			}
+		);
+
+		it('still rejects the same message from anybody else', () => {
+			process.env.GIT_AUTHOR_NAME = 'somebody-else';
+			expect(checkMessageFile(messageFile)).toBe(false);
+		});
 	});
 });

@@ -9,7 +9,7 @@ the block.
 ## Happy paths
 
 - Reveal eq1 by click, click prose elsewhere in the same paragraph: eq1 re-renders (no `$…$` echo), the CST is untouched, and the caret lands at the click point — a typed char inserts there, not at the widget's trailing edge.
-- Reveal eq1, click eq2: ONE sequenced fold→reveal gesture — eq1 re-renders, eq2's source reveals live for typing at its leading edge, and the CST holds both originals.
+- Reveal eq1, click eq2: ONE sequenced fold→reveal gesture — eq1 re-renders, eq2's source reveals live for typing at its end (inside the closing `$`), and the CST holds both originals.
 
 ## Edge cases
 
