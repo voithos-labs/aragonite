@@ -212,6 +212,9 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 	// so a lookup can return the OTHER instance and `replaceWith` would MOVE it.
 	let activeSourceNode: Text | null = null;
 	let revealedWidget: HTMLElement | null = null;
+	// The offset the last fold parked, which lies inside the construct it just folded: the
+	// restore must not read it as a formula closing around the caret and reopen the reveal.
+	let foldParkedCaret: number | null = null;
 
 	// Every fold entry is module-private and pre-guarded by all of its callers, so a fold
 	// with no active reveal means a new caller skipped the guard or a flag leaked (G1.26).
@@ -340,6 +343,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		activeSourceNode = null;
 		revealedWidget = null;
 		resetReveal();
+		foldParkedCaret = caretAfter;
 		// No edit: fold without touching the CST. A zero-diff write still pushes a dead
 		// undo entry, so the user's next Ctrl+Z would revert nothing instead of their
 		// prior action. The pending-cursor set alone re-renders from the untouched CST.
@@ -477,22 +481,15 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 	}
 
 	/**
-	 * The caret a click on a rendered widget wants: the END of the widget's own content, INSIDE
-	 * its delimiters, so typing continues the construct rather than escaping it. `text` is the
-	 * content the kind parsed out, located in the source slice; a kind that carries none (or
-	 * whose content is not a literal substring) falls back to the trailing edge.
+	 * The caret a click on a rendered widget wants: the END of the content a kind names, INSIDE
+	 * its delimiters, so typing continues the construct rather than escaping it. A kind naming no
+	 * span keeps the leading edge: guessing an end from its parsed text put a footnote's caret
+	 * past its bracket.
 	 */
 	function insideEndOffset(inline: InlineNode): number {
 		const source = deps.node.raw.slice(inline.start, inline.end);
 		const span = getInlineWidgetEditing(inline.kind)?.revealContentSpan?.(source);
-		if (span && span.end >= 0 && span.end <= source.length) return span.end;
-		// A kind that names no span but parsed its content out: locate that text literally.
-		const text = inline.text;
-		if (text) {
-			const at = source.indexOf(text);
-			if (at !== -1) return at + text.length;
-		}
-		return source.length;
+		return span && span.end >= 0 && span.end <= source.length ? span.end : 0;
 	}
 
 	function hitTestRevealWidget(
@@ -763,7 +760,9 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 	// Only where the kind names a content span and the caret is inside it: a hard break is two
 	// bytes with a caret position between them and nothing to edit there.
 	function revealInterior(offset: number): boolean {
-		if (revealState) return false;
+		const parkedByFold = foldParkedCaret === offset;
+		foldParkedCaret = null;
+		if (parkedByFold || revealState) return false;
 		const widget = widgetsOf().find((w) => w.start < offset && offset < w.end);
 		if (!widget) return false;
 		const editing = getInlineWidgetEditing(widget.kind);

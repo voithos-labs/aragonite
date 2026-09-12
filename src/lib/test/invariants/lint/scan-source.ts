@@ -280,6 +280,29 @@ function opensRegex(code: string, at: number): boolean {
 // ── Lexical classification ───────────────────────────────────────────────────
 
 /** Class names in the order {@link lexicalClasses} numbers them. */
+// ── Prose surfaces ──────────────────────────────────────────────────────
+
+/** A component mounting an editable surface of its own. */
+const SURFACE_FACTORY = /\bcreateEditable(?:Surface|Leaf)\s*\(/;
+
+/** Its own beforeinput listener, which is where a native edit is claimed or lost. */
+const INSTALLS_BEFOREINPUT = /\bonbeforeinput\s*=/;
+
+/** Hosting inline constructs is what makes a surface prose: the delimiter runs a keystroke can
+ *  reach are exactly what the policy table answers for. */
+const READS_INLINE_POLICY =
+	/(?<![\w.])(getInlineConstructPolicy|getInlineMarkPolicy|inlineMarkForCommand|isCardEditableInlineKind|isRevealableInlineKind)\s*\(/;
+
+/** The surfaces every prose `beforeinput` seam has to reach (G4.44, G4.65). */
+export function isProseSurface(file: SourceFile): boolean {
+	return (
+		file.relPath.endsWith('.svelte') &&
+		SURFACE_FACTORY.test(file.code) &&
+		INSTALLS_BEFOREINPUT.test(file.code) &&
+		READS_INLINE_POLICY.test(stripComments(file.text))
+	);
+}
+
 export const LEXICAL_CLASSES = ['code', 'comment', 'string', 'template', 'regex'] as const;
 
 const [CODE, COMMENT, STRING, TEMPLATE, REGEX] = LEXICAL_CLASSES.map((_, index) => index);

@@ -36,11 +36,7 @@
 	} from '../../../tree-operations/table-grid-clipboard';
 	import { tableCellCount } from '../../../selection/table-endpoint-snap';
 	import { pathsEqual } from '../../../selection/path-math';
-	import {
-		resolveDelimiterAutoPair,
-		resolveEmptyPairBackspace,
-		stepsOverRevealedCloser
-	} from '../text/delimiter-autopair';
+	import { applyDelimiterAutoPair } from '../text/delimiter-autopair';
 	import { hasSelection as hasSelectionHelper } from '../../../cursor/content-offsets';
 	import { FALLBACK_CONTENT_WIDTH } from '../../../cursor/typography-estimates';
 	import {
@@ -343,6 +339,7 @@
 		},
 		isReading: () => readOnly,
 		getEdgeAffinity: () => edgeAffinity.get(),
+		noteOutside: edgeAffinity.noteExtreme,
 		pendingMarks,
 		installedAs: 'cell'
 	});
@@ -790,33 +787,21 @@
 
 	// The cell at the prose surface's self-closing delimiter arm (delimiter-autopair.ts).
 	function handleDelimiterAutoPair(e: InputEvent): boolean {
-		const typing = e.inputType === 'insertText';
-		if (!typing && e.inputType !== 'deleteContentBackward') return false;
-		if (e.isComposing || cursor.getRawSelection()) return false;
-		const caret = cursor.getRaw();
-		if (caret === null) return false;
-		const text = readCellText();
-		if (widgetInteraction.isRevealing()) {
-			if (!typing || !stepsOverRevealedCloser(text, caret, e.data ?? '')) return false;
-			e.preventDefault();
-			cursor.setRaw(asRawOffset(caret + 1));
-			void widgetInteraction.foldRevealBeforeMutation()?.settled;
-			return true;
-		}
-		const edit = typing
-			? resolveDelimiterAutoPair(text, { start: 0, end: text.length }, caret, e.data ?? '')
-			: resolveEmptyPairBackspace(text, caret);
-		if (!edit) return false;
-		e.preventDefault();
-		if (edit.kind === 'step-over') {
-			if (edit.overConstruct && !paintsFocusedMarkers(presentationMode)) {
-				edgeAffinity.noteExtreme();
-			} else cursor.setRaw(asRawOffset(edit.caret));
-			return true;
-		}
-		void blockEdit.updateBlockContent(index, edit.text, caret, edit.caret);
-		parkCursor(edit.caret, edit.text);
-		return true;
+		return applyDelimiterAutoPair(e, {
+			text: readCellText,
+			content: () => ({ start: 0, end: readCellText().length }),
+			caret: () => cursor.getRaw(),
+			hasSelection: () => cursor.getRawSelection() !== null,
+			isRevealing: widgetInteraction.isRevealing,
+			foldReveal: () => widgetInteraction.foldRevealBeforeMutation(),
+			markersPaint: () => paintsFocusedMarkers(presentationMode),
+			setCaret: (offset) => cursor.setRaw(asRawOffset(offset)),
+			seatOutside: edgeAffinity.noteExtreme,
+			write: (text, caretBefore, caretAfter) => {
+				void blockEdit.updateBlockContent(index, text, caretBefore, caretAfter);
+				parkCursor(caretAfter, text);
+			}
+		});
 	}
 
 	async function onBeforeInput(e: InputEvent): Promise<void> {

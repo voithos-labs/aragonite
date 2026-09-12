@@ -6,15 +6,15 @@ import {
 } from '../../cursor/edge-affinity';
 
 // The arrival matrix decides which of two offsets sharing one pixel a caret means. Pure on
-// the key, so the table is the test. A HORIZONTAL step CROSSES the run it meets, so one press
-// carries the caret through a delimiter in reading order; vertical motion lands by column and
-// keeps the approached side; line extremes are construct-relative and answer `outside` both ways.
+// the key, so the table is the test. Direction is the rule for STEPS — one stops on the side of
+// the run it approached from, so a press never changes which construct the caret is in — but not
+// for line extremes, which are construct-relative and answer `outside` in both directions.
 // Miss-analysis: the matrix shipped direction-blind (every arrow `inside`) with no consumer to
 // contradict it — the typing seat is the first, and its e2e rows are what caught the polarity.
 describe('classifyArrivalKey', () => {
 	const MATRIX: Record<string, EdgeAffinityAction> = {
-		ArrowLeft: 'near',
-		ArrowRight: 'far',
+		ArrowLeft: 'far',
+		ArrowRight: 'near',
 		ArrowUp: 'far',
 		ArrowDown: 'near',
 		PageUp: 'far',
@@ -57,7 +57,7 @@ describe('classifyArrivalKey', () => {
 
 	it('meta leaves the vertical arrows and plain arrows directional', () => {
 		expect(classifyArrivalKey('ArrowUp', true)).toBe('far');
-		expect(classifyArrivalKey('ArrowLeft', false)).toBe('near');
+		expect(classifyArrivalKey('ArrowLeft', false)).toBe('far');
 	});
 });
 
@@ -74,14 +74,14 @@ describe('createEdgeAffinityState', () => {
 		const a = createEdgeAffinityState();
 		const b = createEdgeAffinityState();
 		a.note(key('ArrowRight'));
-		expect(a.get()).toBe('far');
+		expect(a.get()).toBe('near');
 		expect(b.get()).toBeNull();
 	});
 
 	it('records the side each arrival means', () => {
 		const s = createEdgeAffinityState();
 		s.note(key('ArrowRight'));
-		expect(s.get()).toBe('far');
+		expect(s.get()).toBe('near');
 		s.note(key('Home'));
 		expect(s.get()).toBe('outside');
 	});
@@ -90,7 +90,7 @@ describe('createEdgeAffinityState', () => {
 	it('an extreme overrides the arrow side the same keydown recorded', () => {
 		const s = createEdgeAffinityState();
 		s.note(key('ArrowLeft'));
-		expect(s.get()).toBe('near');
+		expect(s.get()).toBe('far');
 		s.noteExtreme();
 		expect(s.get()).toBe('outside');
 	});
@@ -107,7 +107,7 @@ describe('createEdgeAffinityState', () => {
 	it('a modifier tap mid-arrow-run keeps the side', () => {
 		const s = primed('ArrowRight');
 		s.note(key('Shift'));
-		expect(s.get()).toBe('far');
+		expect(s.get()).toBe('near');
 	});
 
 	// The door forwards the meta flag, or the matrix's #124 arm is unreachable from a keydown.

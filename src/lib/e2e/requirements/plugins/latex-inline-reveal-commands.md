@@ -17,6 +17,8 @@ The rule lives at the block's command seam, so it holds for every reveal-capable
 
 - The blank-line materialization changed what an emptied-middle-block merge leaves behind, and this spec pinned the retired shape (`above` / blank / blank / definition), which reloaded one block wider than the live tree. The sweep that landed the rule picked its e2e projects from the FILES touched, so `e2e-plugins` was never run; the honest rule is to pick them from the BEHAVIOR changed — a separator-derivation change in `tree-operations` reaches every spec asserting `getSource()` after Backspace, Enter or a delete, whether or not its fixture mentions a blank line. The tree-level family pin is `test/tree-operations/emptied-block-collapse.test.ts`.
 
+- The fold's own caret restore lands inside the formula it just folded, and a restore that reveals a formula closing around a typed byte must not read that as a reason to reopen it; the invariant fire on the commands above is what caught the reopen, since the command then ran with a reveal open again
+
 ## Edge cases
 
 - ArrowRight leaves a block whose EDITED reveal sits at its end (and commits on the way): the live bytes are shorter than `node.raw`, and a boundary test against the stale raw traps the caret in the block forever

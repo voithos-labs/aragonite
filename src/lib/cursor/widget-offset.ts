@@ -117,7 +117,11 @@ export function findDomTextOffsetTarget(
 		}
 		const after = positionBeside(seg.last, 'after');
 		if (!after) continue;
-		if (seg.start + seg.len >= target) return after;
+		// Chromium canonicalizes the slot after a HIDDEN run upstream across it, so a byte typed
+		// there lands before the run; text starting at the target is the position that keeps it.
+		if (seg.start + seg.len > target || (seg.start + seg.len === target && !seg.hidden)) {
+			return after;
+		}
 		last = after;
 	}
 	return last;

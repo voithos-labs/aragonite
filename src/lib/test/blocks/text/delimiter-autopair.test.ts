@@ -10,6 +10,7 @@ const whole = (text: string) => ({ start: 0, end: text.length });
 const type = (text: string, caret: number, typed: string) =>
 	resolveDelimiterAutoPair(text, whole(text), caret, typed);
 const written = (text: string, caret: number) => ({ kind: 'write', text, caret });
+const closed = (text: string, caret: number) => ({ kind: 'close', text, caret });
 const stepped = (caret: number, overConstruct: boolean) => ({
 	kind: 'step-over',
 	caret,
@@ -91,6 +92,22 @@ describe('delimiter auto-pair', () => {
 		expect(type('a ', 2, '~')).toBeNull();
 		expect(type('a ~', 3, '~')).toEqual(written('a ~~~~', 4));
 		expect(type('a ~~~', 5, '~')).toBeNull();
+	});
+
+	// A closer typed by hand (no twin was there to step over) completes the construct, and the
+	// byte after it belongs outside: the arm writes it and seats the caret past the run.
+	// Miss-analysis: every closing row here had a twin to step over, so none typed the byte that
+	// makes the construct and asked which side the next one lands on.
+	it('a closer typed with no twin ahead closes the construct', () => {
+		expect(type('Some *ab', 8, '*')).toEqual(closed('Some *ab*', 9));
+		expect(type('Some `ab', 8, '`')).toEqual(closed('Some `ab`', 9));
+		expect(type('$ab', 3, '$')).toEqual(closed('$ab$', 4));
+	});
+
+	// `**ab*` plus `*` is the second half of a double closer, not a lone opener to grow.
+	it('a closer completing a double run closes rather than grows', () => {
+		expect(type('**ab*', 5, '*')).toEqual(closed('**ab**', 6));
+		expect(type('~~ab~', 5, '~')).toEqual(closed('~~ab~~', 6));
 	});
 
 	it('a press inside a closing run steps over it, byte by byte', () => {

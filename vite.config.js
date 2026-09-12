@@ -1,4 +1,5 @@
 import { realpathSync } from 'node:fs';
+import path from 'node:path';
 import { defineConfig, searchForWorkspaceRoot } from 'vite';
 import { sveltekit } from '@sveltejs/kit/vite';
 
@@ -33,6 +34,19 @@ const silenceBrokenImageFixture = {
 // bulky added to the repo belongs in it.
 const usePolling = process.env.ARAGONITE_POLL === '1';
 
+// A worktree whose `node_modules` is a junction into another checkout resolves every dep to a
+// real path outside its own root, and vite refuses to serve those files (a 403 per font), so
+// such a tree gets the junction target allowed.
+const nodeModules = path.resolve('node_modules');
+const nodeModulesTarget = (() => {
+	try {
+		return realpathSync.native(nodeModules);
+	} catch {
+		return nodeModules;
+	}
+})();
+const junctioned = nodeModulesTarget !== nodeModules;
+
 export default defineConfig({
 	plugins: [silenceBrokenImageFixture, sveltekit()],
 	// Per checkout, not the default under the junctioned `node_modules`: sibling worktrees' dev
@@ -41,9 +55,9 @@ export default defineConfig({
 	server: {
 		port: 1420,
 		strictPort: true,
-		// A worktree's `node_modules` is a junction into the main checkout, and Vite resolves the
-		// real path before its allow-list check, so the fonts 403 unless that target is allowed.
-		fs: { allow: [searchForWorkspaceRoot(process.cwd()), realpathSync('node_modules')] },
+		...(junctioned
+			? { fs: { allow: [searchForWorkspaceRoot(process.cwd()), nodeModulesTarget] } }
+			: {}),
 		watch: {
 			// A nested worktree under `.claude/` is not this app; a write there reloaded every open
 			// e2e page mid-battery. The rest are inert bulk that polling must never walk.

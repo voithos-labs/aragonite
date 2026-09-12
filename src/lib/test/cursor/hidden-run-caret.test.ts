@@ -208,6 +208,40 @@ describe('domTextOffsetAtNode — a hidden run has no interior walk positions', 
 });
 
 // The guard is the landing seam these all share, not a snap carried at each door.
+// `[ab](u) text` as the link renders it, both runs inside the link element. A target at the
+// closer's end is the prose's first position, not the slot after the hidden span: Chromium
+// canonicalizes that slot upstream across the run, so a byte typed there landed inside the link.
+// Miss-analysis: every finder row targeted a run interior or a run start; none asked where a
+// commit's own park past a hidden CLOSER puts the DOM caret.
+describe('a target past a hidden closer lands in the text that follows', () => {
+	it('prefers the following text node over the slot after the hidden span', () => {
+		const fx = mount({ mode: 'live' });
+		const link = document.createElement('span');
+		link.append(markerSpan('['), document.createTextNode('ab'), markerSpan('](u)'));
+		const tail = document.createTextNode(' text');
+		fx.block.replaceChildren(link, tail);
+
+		expect(describePosition(findDomTextOffsetTarget(fx.block, asDomTextOffset(7)))).toBe(
+			'text " text"@0'
+		);
+	});
+
+	it('still lands after the run where nothing follows it', () => {
+		const fx = mount({ mode: 'live' });
+		expect(describePosition(findDomTextOffsetTarget(fx.block, asDomTextOffset(8)))).toBe(
+			'element <div>@3'
+		);
+	});
+});
+
+/** A DOM position as text: a diff over the node itself walks into the window and its runes. */
+function describePosition(pos: { node: Node; offset: number } | null): string {
+	if (!pos) return 'null';
+	return pos.node.nodeType === Node.TEXT_NODE
+		? `text ${JSON.stringify(pos.node.textContent)}@${pos.offset}`
+		: `element <${(pos.node as Element).tagName.toLowerCase()}>@${pos.offset}`;
+}
+
 describe('caret writes never seat a range in hidden marker text', () => {
 	function cursorIO(block: HTMLElement, ambientLength = 0) {
 		return createAmbientCursorIO({ getEl: () => block, getAmbientLength: () => ambientLength });

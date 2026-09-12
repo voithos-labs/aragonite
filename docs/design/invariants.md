@@ -844,6 +844,7 @@ directory as well as this table before assuming a rule is unguarded.
 | G4.62 | Every code token clears AA on the surface and the fence, in both themes       | L       |
 | G4.63 | The bundled plugins' own suites import only the published entry points        | L       |
 | G4.64 | The tree-ops ladder has no upward import                                      | L       |
+| G4.65 | Every prose surface hands typed delimiters to the one auto-pair arm           | L       |
 
 ### The entries
 
@@ -1381,6 +1382,13 @@ downward, in that order. The cycle the split broke (`unshare.ts` reading the sea
 kind re-derive out of `node-ops.ts`, which read the copy-on-write door back) passed every
 behavioral test, and `svelte-check` reports nothing for an import cycle, so only a source scan can
 hold the shape. `lint/tree-op-ladder.test.ts`.
+
+**G4.65 · Delimiter auto-pair parity.** Every editable PROSE surface (G4.44's set) routes its
+`beforeinput` through `src/lib/components/blocks/text/delimiter-autopair.ts :: applyDelimiterAutoPair`,
+and no other file calls it. The arm decides what a typed delimiter writes (its twin, a step past
+the twin, the closer it completes) and which side the caret means afterwards; the two surfaces
+once carried a copy each, and a copy is the sibling that misses the next rule.
+`lint/delimiter-autopair-parity.test.ts`.
 
 ## Accessibility
 

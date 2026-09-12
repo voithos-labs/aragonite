@@ -231,7 +231,7 @@ test.describe('live mode — a reference form splits like any other link', () =>
 	test('both halves carry the reference label', async ({ page }) => {
 		const ep = await enterMode(page, 'live');
 		await clickWordSettled(ep, page, 'refexample');
-		await stepTo(ep, page, 'ArrowRight', 10);
+		await landAt(ep, page, 10);
 
 		await page.keyboard.press('Enter');
 		await ep.bridge.waitForSourceContains('Ref [refex][site]\n\n[ample][site] here');
