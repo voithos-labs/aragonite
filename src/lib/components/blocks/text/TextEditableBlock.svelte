@@ -44,14 +44,10 @@
 	import { createTextClipboard } from './text-clipboard';
 	import { createTextRender } from './text-render';
 	import { createWidgetInteraction } from './widget-interaction';
-	import { createEdgePolicyDispatch } from './edge-policy-dispatch';
+	import { createEdgePolicyDispatch, keepsBlockKind } from './edge-policy-dispatch';
 	import { hidesStructuralSuffix } from './hidden-suffix';
 	import { applyLiveRangeEdit, resolveSelectionEdit } from './live-selection-edit';
-	import {
-		resolveDelimiterAutoPair,
-		resolveEmptyPairBackspace,
-		stepsOverRevealedCloser
-	} from './delimiter-autopair';
+	import { applyDelimiterAutoPair } from './delimiter-autopair';
 	import { createCompositionSeat } from './composition-seat';
 	import { createConstructReveal } from './construct-reveal';
 	import { assertInvariant } from '../../../assert';
@@ -378,6 +374,7 @@
 			widgetInteraction.enterWidget(widget, fromTrailingEdge),
 		isReading: () => readOnly,
 		getEdgeAffinity: () => edgeAffinity.get(),
+		noteOutside: edgeAffinity.noteExtreme,
 		pendingMarks,
 		installedAs: 'block'
 	});
@@ -867,49 +864,27 @@
 		);
 	}
 
-	// A typed delimiter closes itself (delimiter-autopair.ts). The write and the caret take the
-	// ranged edit's road above, so the surface repaints once with the caret inside the pair.
+	// The write takes the ranged edit's road above, so the surface repaints once with the caret
+	// inside the pair. During a reveal the caret indexes the DOM text, which has outrun `node.raw`.
 	function handleDelimiterAutoPair(e: InputEvent): boolean {
-		const typing = e.inputType === 'insertText';
-		if (!typing && e.inputType !== 'deleteContentBackward') return false;
-		if (e.isComposing || cursor.getRawSelection()) return false;
-		const caret = cursor.getRaw();
-		if (caret === null) return false;
-		if (widgetInteraction.isRevealing()) {
-			if (!typing || !stepsOverRevealedCloser(readRawText(), caret, e.data ?? '')) return false;
-			e.preventDefault();
-			cursor.setRaw(asRawOffset(caret + 1));
-			void widgetInteraction.foldRevealBeforeMutation()?.settled;
-			return true;
-		}
-		const text = getDisplayText();
-		const edit = typing
-			? resolveDelimiterAutoPair(text, getContentRange(node), caret, e.data ?? '')
-			: resolveEmptyPairBackspace(text, caret);
-		if (!edit) return false;
-		e.preventDefault();
-		if (edit.kind === 'step-over') {
-			if (edit.overConstruct && !paintsFocusedMarkers(presentationMode)) {
-				// An unpainted closer: the caret already sits on the right pixel and Chromium seats
-				// a native insert upstream of the run anyway, so only the side moves (edge-seat.ts).
-				edgeAffinity.noteExtreme();
-			} else if (planTypedCompletion(node, edit.caret)) {
-				// No byte changed, but the line is now one an on-type completer claims (`$$`), and
-				// only the content door consults them.
+		return applyDelimiterAutoPair(e, {
+			text: () => (widgetInteraction.isRevealing() ? readRawText() : getDisplayText()),
+			content: () => getContentRange(node),
+			caret: () => cursor.getRaw(),
+			hasSelection: () => cursor.getRawSelection() !== null,
+			isRevealing: widgetInteraction.isRevealing,
+			foldReveal: () => widgetInteraction.foldRevealBeforeMutation(),
+			markersPaint: () => paintsFocusedMarkers(presentationMode),
+			setCaret: (offset) => cursor.setRaw(asRawOffset(offset)),
+			seatOutside: edgeAffinity.noteExtreme,
+			completesLine: (caret) => planTypedCompletion(node, caret) !== null,
+			keepsBlockKind: (text) => keepsBlockKind(node, text),
+			write: (text, caretBefore, caretAfter) => {
 				const raw = text + trailingLineEnding(node.raw);
-				void blockEdit.updateBlockContent(index, raw, caret, edit.caret);
-				setPendingCursorOffset(edit.caret, 'delimiter-autopair');
-			} else cursor.setRaw(asRawOffset(edit.caret));
-			return true;
-		}
-		void blockEdit.updateBlockContent(
-			index,
-			edit.text + trailingLineEnding(node.raw),
-			caret,
-			edit.caret
-		);
-		setPendingCursorOffset(edit.caret, 'delimiter-autopair');
-		return true;
+				void blockEdit.updateBlockContent(index, raw, caretBefore, caretAfter);
+				setPendingCursorOffset(caretAfter, 'delimiter-autopair');
+			}
+		});
 	}
 
 	async function onBeforeInput(e: InputEvent): Promise<void> {

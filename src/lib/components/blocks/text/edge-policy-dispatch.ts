@@ -39,6 +39,12 @@ import { deleteRangeRaw } from './live-selection-edit';
 import { resolveMarkedInsertion } from './pending-mark-insert';
 import { widgetAtCursor } from './widget-adjacency';
 import { resolveDelimiterAutoPair } from './delimiter-autopair';
+import { soleProseReparse } from './screen-diff';
+
+/** Whether `line` still reloads as `node`'s kind, the auto-pair resolver's guard. */
+export function keepsBlockKind(node: NodeView, line: string): boolean {
+	return soleProseReparse(line + trailingLineEnding(node.raw))?.block.kind === node.kind;
+}
 
 /** The subset of the inline-widget vocabulary the internal island policies reuse,
  *  expressed in the same terms without leaking into the public API. */
@@ -106,6 +112,8 @@ export interface EdgePolicyDispatchDeps {
 	isReading: () => boolean;
 	/** The arrival side the typing seat consults; null when no arrival claimed one. */
 	getEdgeAffinity: () => EdgeAffinity | null;
+	/** A seated delimiter that completed a construct leaves the caret meaning outside it. */
+	noteOutside?: () => void;
 	/** The constructs a collapsed-caret toggle promised the next insertion. Read AND spent
 	 *  here: the first byte after the chord is the one insertion they were pending for. */
 	pendingMarks: PendingMarksState;
@@ -644,20 +652,25 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 		if (!isPlainTypingKey(e) || caretOffset === null || hasSelectionHelper()) return false;
 		// A delimiter typed over its own closer is the auto-pair's step-over, which the beforeinput
 		// arm owns (delimiter-autopair.ts); seated outside the run it would be typed instead.
-		const autoPair = resolveDelimiterAutoPair(
-			display(),
-			getContentRange(deps.node),
-			caretOffset,
-			e.key
-		);
+		const content = getContentRange(deps.node);
+		const autoPair = resolveDelimiterAutoPair(display(), content, caretOffset, e.key);
 		if (autoPair?.kind === 'step-over') return false;
 		const el = deps.getEl();
 		const seat = el && typingSeatAt(el, caretOffset, e.key);
 		if (!seat) return false;
 		e.preventDefault();
 		deps.setSnapTarget(null);
-		// The kind rides the trace: it names the construct whose hidden edge the caret sat at, the
-		// question this seam answered, so a trace line without it cannot be read.
+		// The seat decides WHERE the byte lands; what a delimiter keystroke writes there is still
+		// the auto-pair's answer, or a byte seated past a run would arrive without its twin. The
+		// kind rides the trace: it names the construct whose hidden edge the caret sat at.
+		const paired = resolveDelimiterAutoPair(display(), content, seat.offset, e.key, (line) =>
+			keepsBlockKind(deps.node, line)
+		);
+		if (paired && paired.kind !== 'step-over') {
+			writeDisplay(paired.text, paired.caret, `seat:${seat.kind}`, caretOffset);
+			if (paired.kind === 'close') deps.noteOutside?.();
+			return true;
+		}
 		editDisplay(seat.offset, seat.offset, e.key, `seat:${seat.kind}`, caretOffset);
 		return true;
 	}

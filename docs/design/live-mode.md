@@ -121,6 +121,7 @@ A byte typed where a marker run sits is placed by the edge seat (`components/blo
 - A caret seated at an extreme rather than stepped there (Home, End, a selection collapsing onto its own edge, a structural operation landing the caret at a block's start or end) means outside the delimiters, whatever key produced it. The caret took no step, so the key's direction isn't read.
 - Pending marks (§ 4.3) outrank the arrival: a toggle is the newer instruction about the same bytes.
 - An IME run can't be intercepted per keystroke, so the composed text is moved once at commit, against the arrival and marks captured at `compositionstart` (`composition-seat.ts`).
+- A typed delimiter closes itself (`delimiter-autopair.ts`, the one `beforeinput` arm every prose surface runs): the keystroke lands its twin after the caret, so a new opener never pairs with a later construct's closer. The closer typed over that twin steps past it, and a closer typed by hand completes the construct; after either the caret means outside the construct, whatever arrival preceded it, which is how a construct is left without a toggle. A first body byte that makes the pair no construct (`$5`) drops the twin, and Backspace between the twins takes both.
 
 The arrival and the seat, on § 2's block (`raw`, `inlines` and `live` as there):
 

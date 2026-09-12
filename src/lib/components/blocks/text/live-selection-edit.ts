@@ -56,6 +56,7 @@ export function resolveLiveRangeEdit(
 	const range = pendingEditRange(e, cursor);
 	if (!range) return null;
 	const insert = replacementText(e);
+	if (range.start === range.end) return parkedCaretInsertion(node, cursor, range.start, insert);
 	const edit = resolveSelectionEdit(
 		node,
 		range,
@@ -68,6 +69,34 @@ export function resolveLiveRangeEdit(
 	return insert === null
 		? { kind: 'swallow' }
 		: { kind: 'rewrite', range, raw: edit.raw, caret: edit.caret };
+}
+
+/**
+ * A collapsed insertion has no seam to clean, but Chromium inserts at its canonical spelling of
+ * the caret's pixel, UPSTREAM across a hidden run, while the DOM caret may sit where a commit
+ * parked it, past that run (after a `)` just typed). A target behind the caret is that
+ * canonicalization, and the byte belongs where the caret is, the side the keydown seat settled. A
+ * target at or past the caret is the engine landing the byte itself, which a split's reopened run
+ * relies on: parked at its start, the byte goes inside.
+ */
+function parkedCaretInsertion(
+	node: NodeView,
+	cursor: LiveEditCursor,
+	engineTarget: number,
+	insert: string | null
+): LiveRangeEdit | null {
+	if (!insert) return null;
+	const selection = window.getSelection();
+	if (!selection || selection.rangeCount === 0 || !selection.isCollapsed) return null;
+	const caret = cursor.rawRangeOf(selection.getRangeAt(0))?.start ?? null;
+	if (caret === null || engineTarget >= caret) return null;
+	const display = trimTrailingLineEnding(node.raw);
+	return {
+		kind: 'rewrite',
+		range: { start: caret, end: caret },
+		raw: display.slice(0, caret) + insert + display.slice(caret) + trailingLineEnding(node.raw),
+		caret: caret + insert.length
+	};
 }
 
 /**

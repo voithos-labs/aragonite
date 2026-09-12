@@ -33,8 +33,9 @@ math on line 1 and column-aligned text on line 2, for the reveal hit-test.
 
 ## Edge cases
 
-- the reveal caret lands inside the source: a character typed right after reveal
-  appears within the `$…$`, not at a block edge
+- the reveal caret lands at the formula's END, inside the closing `$`: a character typed
+  right after a click reveal continues the formula, neither at a block edge nor past the
+  closer (keyboard entry from the left still lands at the leading edge)
 - after commit the caret sits at the math's trailing edge: a character typed after
   the commit appears immediately after the re-rendered math — the escaping caret's
   own position does not survive the fold, the widget's trailing edge does
