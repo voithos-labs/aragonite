@@ -1,15 +1,13 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, it, expect } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { serialize } from '$lib/core/serializer';
-import { parseInline, computeInlineContent } from '$lib/core/inline';
-import type { InlineNode } from '$lib/core/nodes';
+import { parse, serialize, parseInline, type InlineNode } from '$lib';
+import { computeInlineContent } from '$lib/plugin';
+import { resetPluginPlatformForTests } from '$lib/testing';
 import {
 	buildCoreInlineWidget,
 	getInlineWidgetComponent,
 	getInlineWidgetEditing
 } from '$lib/core/inline/inline-widgets';
-import { resetPluginPlatformForTests } from '$lib/testing';
 import { registerMathInline, MATH_INLINE } from '$lib/plugins/latex/latex-kind';
 import {
 	renderInlineMath,
@@ -96,9 +94,19 @@ describe('math widget dispatch', () => {
 	// reveal-source is the editing contract the widget-interaction layer reads to
 	// swap the rendered math island for its editable source; pin its exact shape.
 	it('registers the reveal-source editing policy', () => {
-		expect(getInlineWidgetEditing(MATH_INLINE as InlineNode['kind'])).toEqual({
-			revealSource: true
-		});
+		const policy = getInlineWidgetEditing(MATH_INLINE as InlineNode['kind']);
+		expect(policy?.revealSource).toBe(true);
+		expect(Object.keys(policy ?? {}).sort()).toEqual(['revealContentSpan', 'revealSource']);
+	});
+
+	// The span is what seats the caret INSIDE the delimiters when a click reveals the source,
+	// so typing continues the formula instead of escaping past its closing `$`.
+	it('reports its content span inside the `$` delimiters', () => {
+		const span = getInlineWidgetEditing(MATH_INLINE as InlineNode['kind'])?.revealContentSpan;
+		expect(span?.('$x^2$')).toEqual({ start: 1, end: 4 });
+		expect(span?.('$a$')).toEqual({ start: 1, end: 2 });
+		// Too short to hold delimiters plus content: no span rather than a nonsense one.
+		expect(span?.('$')).toBeNull();
 	});
 });
 

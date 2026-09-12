@@ -241,7 +241,7 @@ Three families of seam run these checks:
 | G1.25 | Widget-pool acquires happen only inside an open render pass                         | A·N     |
 | G1.26 | A fold implies an active reveal, and an open reveal blocks command mutation         | A·N     |
 | G1.27 | `compositionend` lands only inside a composition the surface saw start              | A·N     |
-| G1.28 | A code block's rendered text carries the block's bytes exactly                      | A·N     |
+| G1.28 | A code block's render and a painted leaf source carry the block's bytes exactly     | A·N     |
 | G1.29 | A cross-block endpoint's offset means what its own block's coordinate space says    | A·N     |
 | G1.30 | Every registered kind declares a `mergeRole` from the known set                     | A·N     |
 | G1.31 | The inline-construct policy table is coherent and unambiguous                       | A·N     |
@@ -476,8 +476,12 @@ exactly: `textContent === trimTrailingLineEnding(raw)`. The body round-trips thr
 `template.innerHTML`, and the HTML parser's normalizations (U+0000 dropped outright, engine-defined
 line-ending and surrogate handling) could silently eat a byte the CST still holds, while the block
 reads `textContent` back on every keystroke commit (the indent, dedent and cut gestures read
-`node.raw` instead). Predicate `checkRenderedTextFidelity` (`render-fidelity.ts`) · seam
-`components/blocks/code/code-renderer.ts :: renderCodeBlock` · `render-fidelity.test.ts`.
+`node.raw` instead). A painted editable-leaf source is held to the same equality at the leaf's one
+paint seam, whatever plugin supplied the painter, since the fold commits `textContent` on blur.
+Predicate `checkRenderedTextFidelity` (`render-fidelity.ts`) · seams
+`components/blocks/code/code-renderer.ts :: renderCodeBlock` and
+`components/blocks/editable-leaf.ts :: paintSource` · `render-fidelity.test.ts`,
+`test/blocks/editable-leaf-painted-fidelity.test.ts`.
 
 **G1.29 · Cross-block endpoint coordinates.** An endpoint's offset means what its own block's
 coordinate space says. A table endpoint carries `cellCoordinate: true`, so it reads as a cell index
@@ -695,7 +699,7 @@ inline-source paragraphs under the live split, the differential that judges the 
 agree: where the read says active the toggle unapplies, where it says inactive the toggle applies.
 The cross-block direction rests on this equivalence, and one side growing a fourth branch misroutes
 writes in silence. It holds with one branch outside it, in one mode: where the delimiters PAINT, the
-bare wrap writes its literal bytes unverified, on screen for the reader to see and fix (live-mode.md
+bare wrap writes its bytes unverified, on screen for the reader to see and fix (live-mode.md
 § 4.3). Split, absorb, the flank strip and the marker-hiding wrap all coverage-verify, the split
 over every covering run of the kind rather than the innermost alone. The aligned strip verifies
 coverage in no mode: it fires only where the block's own parse holds the construct at exactly the
@@ -838,6 +842,9 @@ directory as well as this table before assuming a rule is unguarded.
 | G4.60 | Every spread into a call's argument list declares what bounds its count       | L       |
 | G4.61 | The commit scope is set in production, not behind a build flag                | L       |
 | G4.62 | Every code token clears AA on the surface and the fence, in both themes       | L       |
+| G4.63 | The bundled plugins' own suites import only the published entry points        | L       |
+| G4.64 | The tree-ops ladder has no upward import                                      | L       |
+| G4.65 | Every prose surface hands typed delimiters to the one auto-pair arm           | L       |
 
 ### The entries
 
@@ -1036,7 +1043,7 @@ writes the documented whole-document default), as are the published kits (fixtur
 documents). `lint/parse-scope-sites.test.ts`.
 
 **G4.28 · Leaf raw-write rule parity.** A kind's own `normalizeRawWrite` reaches its bytes through
-two readers in `node-ops`: `writeOwnRaw` for a sink that writes in place, and `normalizeOwnRaw` for
+two readers in `node-primitives`: `writeOwnRaw` for a sink that writes in place, and `normalizeOwnRaw` for
 one that replaces the leaf with a reparse of the result. Exactly the documented sinks call each
 (find/replace's private clone, the same-block range merge, the degraded typed-char splice, the
 container-matching paste; and the cross-block merge and the truncated-endpoint reparse), plus the
@@ -1359,6 +1366,29 @@ page the editor was dropped onto, so it can report the shell's palette and never
 Completeness is the load-bearing half — the family is derived from the CSS by prefix, so a token
 added tomorrow is measured, and a value in a form the reader can't parse fails instead of escaping.
 `lint/code-token-contrast.test.ts`.
+
+**G4.63 · Bundled-plugin test boundary.** Every file under a per-plugin test directory
+(`src/lib/test/plugins/<plugin>/`) imports only the published entry points (`$lib`, `$lib/plugin`,
+`$lib/testing`), its own plugin's source, another plugin's published subpath, the copyable in-repo
+test support, a relative path outside library code, or an npm package. G4.16's twin one layer out:
+that one proves the barrels can build a plugin, this one that they can test it, so a suite reaching
+a `$lib` deep path names a testing door the surface is missing. Each allowlist entry carries that
+door's name, and a dead entry fails too. The loose platform tests directly under
+`src/lib/test/plugins/` are out of scope. `lint/bundled-plugin-test-boundary.test.ts`.
+
+**G4.64 · The tree-ops ladder.** The six files `node-ops.ts` split into (`node-primitives.ts`,
+`unshare.ts`, `settle.ts`, `content-write.ts`, `node-ops.ts`, `chain-rebuild.ts`) import only
+downward, in that order. The cycle the split broke (`unshare.ts` reading the seam absorb and the
+kind re-derive out of `node-ops.ts`, which read the copy-on-write door back) passed every
+behavioral test, and `svelte-check` reports nothing for an import cycle, so only a source scan can
+hold the shape. `lint/tree-op-ladder.test.ts`.
+
+**G4.65 · Delimiter auto-pair parity.** Every editable PROSE surface (G4.44's set) routes its
+`beforeinput` through `src/lib/components/blocks/text/delimiter-autopair.ts :: applyDelimiterAutoPair`,
+and no other file calls it. The arm decides what a typed delimiter writes (its twin, a step past
+the twin, the closer it completes) and which side the caret means afterwards; the two surfaces
+once carried a copy each, and a copy is the sibling that misses the next rule.
+`lint/delimiter-autopair-parity.test.ts`.
 
 ## Accessibility
 

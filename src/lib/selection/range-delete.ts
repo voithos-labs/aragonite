@@ -15,24 +15,23 @@ import { comparePaths, lowestCommonAncestor, isPathSubtreeBetween } from './path
 import { firstLeafAtOrAfter } from './path-lookup';
 import {
 	blockNodeAt,
-	cleanJoinedRaw,
 	nodeAt,
 	normalizeBodyWrite,
 	normalizeOwnRaw,
-	settleSeparatorOnBlank,
 	writeOwnRaw
-} from '../tree-operations/node-ops';
+} from '../tree-operations/node-primitives';
+import { settleSeparatorOnBlank } from '../tree-operations/settle';
+import { isBlankParagraph } from '../core/parser';
+import { displayLength } from '../core/lines';
+import { deleteAtPath } from '../tree-operations/path-mutate';
+import { cleanJoinedRaw } from '../tree-operations/node-ops';
 import {
 	deleteSubtreesIdentityGated,
 	installTruncatedEndpoint,
 	reparseTruncatedEndpoint
 } from './range-delete-ceremony';
-import {
-	ensureUnsharedNode,
-	ensureUnsharedPath,
-	rebuildUnsharedAncestry,
-	rebuildUnsharedChain
-} from '../tree-operations/unshare';
+import { ensureUnsharedNode, ensureUnsharedPath } from '../tree-operations/unshare';
+import { rebuildUnsharedAncestry, rebuildUnsharedChain } from '../tree-operations/chain-rebuild';
 import { involvesTable, tableAwareRangeDelete } from './range-delete-table';
 import { involvesReservedChrome, chromeAwareRangeDelete } from './range-delete-chrome';
 
@@ -53,6 +52,24 @@ export interface RangeDeleteResult {
 	 * each table's row BlockListState without re-deriving snap math. Table branch only.
 	 */
 	tableRowSplices?: TableRowSplice[];
+}
+
+/** Whoever takes the slot gets the caret, at its start; the block above when nothing does. */
+function deleteWholeUnit(
+	doc: Document,
+	path: number[],
+	sharing: SharingState,
+	grammar: GrammarView | undefined
+): RangeDeleteResult {
+	const parentPath = path.slice(0, -1);
+	const index = path[path.length - 1];
+	// The path-addressed door, so the commit's id ledger sees the slot go.
+	const chain = ensureUnsharedPath(doc, parentPath, sharing);
+	deleteAtPath(doc, path, sharing);
+	if (chain.length > 0) rebuildUnsharedChain(doc, chain, sharing, null, grammar);
+	const survivors = (chain.length > 0 ? chain[chain.length - 1] : doc).children ?? [];
+	const landing = Math.max(0, Math.min(index, survivors.length - 1));
+	return { newDoc: doc, collapsedCaret: { path: [...parentPath, landing], offset: 0 } };
 }
 
 /**
@@ -91,6 +108,18 @@ export function rangeDelete(
 	const endRaw = endBlock.raw;
 	const startOffset = charOffsetOf(start, 'rangeDelete:prose-merge-start');
 	const endOffset = charOffsetOf(end, 'rangeDelete:prose-merge-end');
+
+	// The range holds one block whole, so none of its own bytes survive: the byte arm below would
+	// keep a husk holding a bare line ending, which no reload reads as that kind. A paragraph is
+	// the one kind that survives empty, because a blank one IS the separating line below it.
+	if (
+		sameBlock &&
+		startOffset === 0 &&
+		endOffset >= displayLength(startRaw) &&
+		!isBlankParagraph({ kind: startBlock.kind, raw: '' })
+	) {
+		return deleteWholeUnit(doc, start.path, sharing, grammar);
+	}
 	// The end slice answers to the END block's rule before the join: start's rule below speaks
 	// only for start's bytes, so a truncation from the end block's head strands its closer. A
 	// same-block merge is one block's bytes and takes that rule once, whole, on the arm below.

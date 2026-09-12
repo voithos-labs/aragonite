@@ -9,7 +9,7 @@ import type { OperationDetailMap } from '../../schema/operations';
 import type { AnyBlockKind, CstNode, Document } from '../../core/nodes';
 import type { GrammarView } from '../../schema/block-openers';
 import type { PasteCommitCoordinator } from './paste-deps';
-import { nodeAt } from '../node-ops';
+import { nodeAt } from '../node-primitives';
 import { spliceMany } from '../splice-many';
 import { trailingLineEnding } from '../../core/lines';
 import { normalizeReplacementForBody } from './body-write';

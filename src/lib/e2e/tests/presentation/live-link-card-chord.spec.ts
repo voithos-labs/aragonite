@@ -35,6 +35,8 @@ async function modKConsumed(ep: EditorPage, page: Page): Promise<boolean | null>
 		}
 		probe.__modK.consumed = null;
 	});
+	// One of the four seats this probe is pressed from is the card's own URL field, outside
+	// every editable surface, so the press has no keydown verdict to settle on.
 	await page.keyboard.press('ControlOrMeta+k');
 	await ep.waitForRenderFlush();
 	return page.evaluate(

@@ -6,7 +6,7 @@
  */
 
 import type { DocumentView, NodeView } from '../core/node-views';
-import { isBlockNode, nodeAt } from '../tree-operations/node-ops';
+import { isBlockNode, nodeAt } from '../tree-operations/node-primitives';
 import { tryGetBlockKindDescriptor } from '../schema/block-kind-descriptor';
 import { isReadingMode, type PresentationMode } from '../presentation-mode';
 import { placeGapCaret } from './caret-doors';

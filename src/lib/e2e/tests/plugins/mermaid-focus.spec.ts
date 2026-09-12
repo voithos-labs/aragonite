@@ -63,9 +63,8 @@ test.describe('mermaid whole-block focus', () => {
 
 		await editor.getBlock(2).click();
 		await page.keyboard.press('Home');
-		await page.keyboard.press('Backspace');
+		await editor.pressDeclined('Backspace');
 		await expect(editor.inputHost).toBeFocused();
-		await editor.waitForNoSourceMutation();
 		expect(await editor.bridge.getSource()).toBe(original); // focus only — no byte change, no undo entry
 
 		await page.keyboard.press('Backspace');
@@ -83,9 +82,8 @@ test.describe('mermaid whole-block focus', () => {
 
 		await editor.getBlock(0).click();
 		await page.keyboard.press('End');
-		await page.keyboard.press('Delete');
+		await editor.pressDeclined('Delete');
 		await expect(editor.inputHost).toBeFocused();
-		await editor.waitForNoSourceMutation();
 		expect(await editor.bridge.getSource()).toBe(original);
 
 		await page.keyboard.press('Delete');

@@ -6,7 +6,7 @@ import type { SelectionPoint } from './primitives';
 import { makeBlockNode, metadataOf, type CstNode } from '../core/nodes';
 import type { DocumentView, NodeView } from '../core/node-views';
 import { cloneMetadata } from '../tree-operations/clone';
-import { isBlockNode, nodeAt } from '../tree-operations/node-ops';
+import { isBlockNode, nodeAt } from '../tree-operations/node-primitives';
 import { walkBetween, normalize, charOffsetOf, cellIndexOf } from './primitives';
 import { snapCrossBlockTableEndpoints } from './table-endpoint-snap';
 import { isStrictAncestorOf, pathHasPrefix, pathsEqual, sharedPrefixLength } from './path-math';
@@ -48,6 +48,12 @@ export function collectCrossBlockText(
 
 	const startRaw = isBlockNode(startNode) ? startNode.raw : '';
 	const endRaw = isBlockNode(endNode) ? endNode.raw : '';
+
+	// One leaf taken whole (`SelectionState.wholeUnitPath`): the only same-path prose pair the
+	// state stores, and the head/tail split below would emit its bytes twice.
+	if (pathsEqual(start.path, end.path) && !start.cellCoordinate) {
+		return startRaw.slice(start.offset, end.offset);
+	}
 
 	let effectiveStartPath = start.path;
 	let chromeStart: ChromeStartContainer | null = null;

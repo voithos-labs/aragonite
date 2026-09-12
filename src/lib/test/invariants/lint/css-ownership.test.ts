@@ -23,7 +23,7 @@ function readEditorCss(rel: string): string {
 // Editor-owned tokens vs consumer-provided host-chrome tokens. Every var() read in the
 // editor must belong to exactly one family.
 const OWNED_TOKEN =
-	/^--(?:(?:syntax|code-tok|md|search-match)-[a-z0-9-]+|selection-overlay-bg|reorder-scope-bg|vr-spacer-bg|font-editor|editor-font-size)$/;
+	/^--(?:(?:syntax|code-tok|md|search-match)-[a-z0-9-]+|selection-overlay-bg|reorder-scope-bg|vr-spacer-bg|menu-[a-z-]+|font-editor|font-code|font-ui|editor-font-size)$/;
 const HOST_TOKEN = /^--(?:color|radius)-[a-z0-9-]+$/;
 const ANY_READ = /var\(\s*(--[a-z0-9-]+)/g;
 

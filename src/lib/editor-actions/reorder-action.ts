@@ -11,7 +11,7 @@ import { CURSOR_START } from '../block-component';
 import type { CommandId } from '../schema/commands';
 import { reorderChildrenWithTrivia } from '../tree-operations/reorder';
 import { resolveReorderUnit, type ReorderUnit } from '../tree-operations/reorder-unit';
-import { blockNodeAt, nodeAt } from '../tree-operations/node-ops';
+import { blockNodeAt, nodeAt } from '../tree-operations/node-primitives';
 import { renumberOrderedList } from '../tree-operations/list/ordered-markers';
 import { expectStateForNode } from '../reactivity/state-registry';
 import { readCurrentSelection } from '../selection/native-bridge';
@@ -52,7 +52,8 @@ export function createReorderAction(
 	async function commitReorder(
 		unit: ReorderUnit,
 		to: number,
-		offset: number
+		offset: number,
+		focusAfter: boolean
 	): Promise<ReorderOutcome | null> {
 		let landing = to;
 
@@ -65,11 +66,13 @@ export function createReorderAction(
 					eventPath: docPathFrom([unit.index])
 				},
 				mutate: (children) => {
-					const settled = reorderChildrenWithTrivia(children, unit.index, to, deps.sharing);
+					const settled = reorderChildrenWithTrivia(children, unit.index, to, deps.sharing, true);
 					landing = settled.landing;
 					return settled.change;
 				},
-				afterTick: () => deps.blockRefs[landing]?.focus(CURSOR_START)
+				afterTick: () => {
+					if (focusAfter) deps.blockRefs[landing]?.focus(CURSOR_START);
+				}
 			});
 			return { landing, total: deps.doc.children.length };
 		}
@@ -98,7 +101,9 @@ export function createReorderAction(
 				}
 				return settled.change;
 			},
-			afterTick: () => state.innerBlockRefs[landing]?.focus(CURSOR_START)
+			afterTick: () => {
+				if (focusAfter) state.innerBlockRefs[landing]?.focus(CURSOR_START);
+			}
 		});
 		// Re-resolved, not `parent`: the ceremony's copy-on-write replaced that node, so the one
 		// this action resolved still holds the pre-move children.
@@ -120,19 +125,23 @@ export function createReorderAction(
 
 	async function run(
 		fromPath: number[],
-		computeTo: (currentIndex: number) => number
+		computeTo: (currentIndex: number) => number,
+		focusAfter: boolean
 	): Promise<void> {
 		const target = resolveAndClamp(fromPath, computeTo);
 		if (!target) return;
 		// Drop any cross-block selection so the overlay doesn't fight the move; the
-		// commit's afterTick re-places the caret.
+		// commit's afterTick re-places the caret when the caller wants it.
 		deps.selectionState.collapse();
-		const outcome = await commitReorder(target.unit, target.to, caretOffset());
+		const outcome = await commitReorder(target.unit, target.to, caretOffset(), focusAfter);
 		if (outcome) onReorder?.(outcome.landing, outcome.total);
 	}
 
 	return {
-		moveReorderUnit: (fromPath, toIndex) => run(fromPath, () => toIndex),
-		nudgeReorderUnit: (fromPath, dir) => run(fromPath, (index) => index + dir)
+		// A dropped block is not a block you asked to edit: focusing it opens whatever a caret
+		// opens there (an equation reveals its source), which is not what a drag asked for.
+		// The keyboard nudge is the opposite — the caret must ride the block it is moving.
+		moveReorderUnit: (fromPath, toIndex) => run(fromPath, () => toIndex, false),
+		nudgeReorderUnit: (fromPath, dir) => run(fromPath, (index) => index + dir, true)
 	};
 }

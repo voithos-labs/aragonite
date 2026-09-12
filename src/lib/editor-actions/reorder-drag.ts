@@ -169,8 +169,35 @@ function indexOf(host: HTMLElement): number | null {
 	return readBlockPath(host.querySelector('[data-block-path]'))?.at(-2) ?? null;
 }
 
+/**
+ * What the block IS, for the kinds whose text does not read as a label: a table's cells run
+ * together into `IngredientAmountWater35 L`, an equation reads as its own source. Prose keeps
+ * its first words, which is the best label it could have.
+ */
+const KIND_LABELS: Record<string, string> = {
+	table: 'Table',
+	mathBlock: 'Equation',
+	fencedCode: 'Code',
+	mermaid: 'Diagram',
+	thematicBreak: 'Divider',
+	details: 'Details',
+	image: 'Image'
+};
+
 function ghostLabel(host: HTMLElement): string {
+	const kind = host.dataset.blockKind ?? '';
+	if (kind === 'table') return tableLabel(host);
+	const named = KIND_LABELS[kind];
+	if (named) return named;
 	const text = (host.textContent ?? '').trim().replace(/\s+/g, ' ');
-	if (!text) return 'block';
+	if (!text) return host.querySelector('[data-image-widget]') ? 'Image' : 'Block';
 	return text.length > 40 ? text.slice(0, 40) + '…' : text;
+}
+
+/** Body rows × columns: the shape is what tells one table from another at a glance. */
+function tableLabel(host: HTMLElement): string {
+	const rows = host.querySelectorAll('.table-row').length;
+	const cols = host.querySelector('.table-row')?.childElementCount ?? 0;
+	if (rows === 0 || cols === 0) return 'Table';
+	return `Table · ${rows} × ${cols}`;
 }

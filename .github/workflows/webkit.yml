@@ -1,0 +1,35 @@
+name: WebKit
+# The second-engine lane, per release rather than per commit (docs/contributing/testing.md
+# § The WebKit run). Its own workflow, not a ci.yml job: every ci.yml job is a required status
+# check (scripts/apply-branch-protection.mjs, held in step by a lint), and this one reports
+# rather than blocks, so a WebKit-only red is visible on the release door without gating it.
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# Actions pinned to commit SHAs (a major tag is mutable); bump SHA and comment together.
+jobs:
+  webkit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: echo "PLAYWRIGHT_VERSION=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_ENV"
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-webkit-${{ runner.os }}-${{ env.PLAYWRIGHT_VERSION }}
+      - run: npx playwright install --with-deps webkit
+      - run: npm run test:e2e:webkit

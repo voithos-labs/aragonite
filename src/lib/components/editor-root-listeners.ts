@@ -1,12 +1,13 @@
 /**
  * Editor-root ambient listeners: the mod-active cursor tracker, the selectionchange
- * bridge, and the viewport-height watcher. Pure dispatch over live getters; each
- * installing `$effect` stays in `Editor.svelte` as a guard plus one install call,
- * returning the teardown. `onRoot`/`removeAll` capture that add/remove pair once.
+ * bridge, the blur announcer and the double-click word select. Pure dispatch over live
+ * getters; each installing `$effect` stays in `Editor.svelte` as a guard plus one install
+ * call, returning the teardown. `onRoot`/`removeAll` capture that add/remove pair once.
  */
 
 import { tick } from 'svelte';
-import type { UserScrollport } from '../cursor/scroll-ancestors';
+import { isEditableEventTarget } from '../editor-actions/whole-block-focus-surface';
+import { selectWordAtPoint, trimDoubleClickSelection } from '../selection/double-click-trim';
 
 // ── Listener plumbing ───────────────────────────────────────────────
 
@@ -112,26 +113,24 @@ export function installEditorBlurAnnouncer(deps: {
 	return onRoot(deps.root, 'focusout', handler);
 }
 
-/** Calls `bump` on a height change of the resolved scrollport `target`. */
-export function installViewportHeightWatcher(target: UserScrollport, bump: () => void): () => void {
-	if (target === window) {
-		// The page viewport has no box to observe, and a visualViewport move (a mobile URL
-		// bar retracting) never touches documentElement's height — hence both, ungated.
-		const visual = window.visualViewport;
-		return removeAll(
-			onRoot(window, 'resize', bump),
-			visual ? onRoot(visual, 'resize', bump) : () => {}
-		);
-	}
-	// Cast, not a narrowing: `UserScrollport` is a union of object types, which `=== window`
-	// does not narrow — the same cast `createScrollport` makes on the same split.
-	const el = target as HTMLElement;
-	let lastHeight = el.clientHeight;
-	const observer = new ResizeObserver(() => {
-		if (el.clientHeight === lastHeight) return;
-		lastHeight = el.clientHeight;
-		bump();
-	});
-	observer.observe(el);
-	return () => observer.disconnect();
+/**
+ * Windows Chromium's double-click takes the space after the word, so the word is selected on
+ * the SECOND press, trimmed, with the native selection suppressed; the dblclick trim is the
+ * fallback. A press on an inline widget is that widget's own gesture (a footnote's double-click
+ * takes its whole token), so the root leaves it to the widget.
+ */
+export function installDoubleClickWordSelect(root: HTMLElement): () => void {
+	const onSecondPress = (e: MouseEvent) => {
+		if (e.detail !== 2 || e.button !== 0 || e.shiftKey || e.ctrlKey || e.metaKey) return;
+		if (!isEditableEventTarget(e.target) || pressesInlineWidget(e.target)) return;
+		if (selectWordAtPoint(root.ownerDocument, e.clientX, e.clientY)) e.preventDefault();
+	};
+	return removeAll(
+		onRoot(root, 'mousedown', onSecondPress),
+		onRoot(root, 'dblclick', () => trimDoubleClickSelection(root.ownerDocument))
+	);
+}
+
+function pressesInlineWidget(target: EventTarget | null): boolean {
+	return target instanceof Element && target.closest('[data-inline-widget]') !== null;
 }

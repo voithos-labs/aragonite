@@ -23,12 +23,13 @@ describe('createDeadSpaceCaret routing', () => {
 	let resetSelectionForClick: Mock<() => void>;
 	let leafSnap: Mock<(x: number, y: number) => void>;
 	let ownSnap: Mock<(x: number, y: number) => void>;
+	let mounted: ReturnType<typeof mountTableGrid>;
 	const origFromPoint = document.elementFromPoint;
 
 	beforeEach(() => {
 		root = document.createElement('div');
 		// One row of two cells tiling the block's box.
-		const mounted = mountTableGrid({ path: [0], rows: 1, cols: 2, box: TABLE_BOX });
+		mounted = mountTableGrid({ path: [0], rows: 1, cols: 2, box: TABLE_BOX });
 		document.body.appendChild(root);
 		root.appendChild(mounted.host);
 		// The click is in the root's own padding; the clamp puts the probe in the box,
@@ -68,6 +69,16 @@ describe('createDeadSpaceCaret routing', () => {
 		const click = { target: root, clientX, clientY } as unknown as MouseEvent;
 		return caret.handleClick(root, click);
 	}
+
+	// The fixture's `elementFromPoint` answers the grid for every point, so the click reads as
+	// having been ON the table; a real margin press resolves to the root at the pressed point.
+	it('declines a table the press was beside, touching no selection', () => {
+		document.elementFromPoint = ((x: number) =>
+			x < TABLE_BOX.left ? root : mounted.grid) as typeof document.elementFromPoint;
+		expect(clickAt(TABLE_BOX.left - 50, 70)).toBe(false);
+		expect(focusByPath).not.toHaveBeenCalled();
+		expect(resetSelectionForClick).not.toHaveBeenCalled();
+	});
 
 	it('lands a click beside a table in the nearest cell, through the deep door', () => {
 		// Left of the box, level with the row → column 0.

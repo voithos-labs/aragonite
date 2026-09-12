@@ -35,6 +35,9 @@ export class EditorPage {
 		await this.page.waitForFunction(() => (window as any).__test !== undefined, null, {
 			timeout: BRIDGE_INSTALL_TIMEOUT
 		});
+		// The harness paints a proportional webfont; a caret measured before it lands sits in
+		// the fallback face's geometry, and the block reflows under the spec.
+		await this.page.evaluate(() => document.fonts.ready);
 	}
 
 	async loadContent(md: string) {
@@ -49,14 +52,14 @@ export class EditorPage {
 				return actual.replace(/\s+$/, '') === expected.replace(/\s+$/, '');
 			},
 			md,
-			{ timeout: 2000, polling: 16 }
+			{ timeout: 5000, polling: 16 }
 		);
 		await this.editorContainer.waitFor({ state: 'visible' });
 	}
 
 	/**
-	 * `loadContent` polls a full-document serialize with a 2s timeout, which times out at MB
-	 * scale, so this settles on a cheap in-page doc-length probe instead. `suffix` appends
+	 * `loadContent` polls a full-document serialize under the harness's short wait, which times
+	 * out at MB scale, so this settles on a cheap in-page doc-length probe instead. `suffix` appends
 	 * trailing markdown so a sibling block exists for cross-block navigation.
 	 */
 	async loadLargeFixture(shape: FixtureShape, bytes: number, suffix = ''): Promise<number> {
@@ -119,8 +122,8 @@ export class EditorPage {
 		return this.page.evaluate(() => (window as any).__test.parseConverged() as boolean);
 	}
 
-	// 5s to match expect()'s default — a wait is a ceiling, not a measurement,
-	// and 2s under-provisioned saturated parallel-worker runs.
+	// Every harness wait defaults to 5s, expect()'s own default: a wait is a ceiling, not a
+	// measurement, and 2s under-provisioned saturated parallel-worker runs.
 	async waitForCrossBlock(active: boolean): Promise<void> {
 		if (active) {
 			await this.page.waitForSelector('[data-cross-block]', { state: 'attached', timeout: 5000 });
@@ -433,7 +436,7 @@ export class EditorPage {
 	 * the serialized source, so `getSource()` predicates see no change. DOM count is the
 	 * cheapest signal that the post-Enter tree flushed.
 	 */
-	async waitForListItemCount(expected: number, timeout = 2000): Promise<void> {
+	async waitForListItemCount(expected: number, timeout = 5000): Promise<void> {
 		await this.page.waitForFunction(
 			(n) => document.querySelectorAll('.list-item-block').length === n,
 			expected,
@@ -446,7 +449,7 @@ export class EditorPage {
 	 * source, so `getBlockCount()` — which re-parses it — cannot see it. Every block wraps in
 	 * `.block-host`, so the total moves by one per insertion.
 	 */
-	async waitForBlockHostCount(expected: number, timeout = 2000): Promise<void> {
+	async waitForBlockHostCount(expected: number, timeout = 5000): Promise<void> {
 		await this.page.waitForFunction(
 			(n) => document.querySelectorAll('.block-host').length === n,
 			expected,
@@ -464,8 +467,10 @@ export class EditorPage {
 	}
 
 	/**
-	 * A predicate cannot observe a NON-event, so absence of mutation is confirmed by waiting
-	 * past the window a wrongly-committed mutation would surface in, then re-reading.
+	 * The absence oracle of last resort, for a gesture that produces NO keydown verdict — a
+	 * click, a drag, a paste, a menu item, a programmatic door. A predicate cannot observe a
+	 * non-event, so it waits past the window a wrongly-committed mutation would surface in.
+	 * A keyboard gesture has a verdict: use `pressDeclined` / `typeDeclined` instead.
 	 */
 	async waitForNoSourceMutation(): Promise<void> {
 		await this.page.waitForTimeout(150);
@@ -489,7 +494,74 @@ export class EditorPage {
 		await this.page.waitForTimeout(150);
 	}
 
-	async waitForClipboardContains(expected: string, timeout = 2000): Promise<void> {
+	async waitForClipboardContains(expected: string, timeout = 5000): Promise<void> {
 		await this.clipboard.waitForContains(expected, timeout);
+	}
+
+	// ── Absence Oracles ─────────────────────────────────────────────────
+
+	/**
+	 * Press a key that must change nothing, returning once the editor's verdict for it is
+	 * recorded — the surface handler's await chain has settled, so the caller's source read is
+	 * ordered after the gesture rather than after a timer.
+	 */
+	async pressDeclined(key: string): Promise<void> {
+		await this.awaitKeydownVerdicts(key, 1, () => this.page.keyboard.press(key));
+	}
+
+	/** Per-character typing: one keydown, and so one verdict, per character. */
+	async typeDeclined(text: string): Promise<void> {
+		await this.awaitKeydownVerdicts(text, text.length, () => this.page.keyboard.type(text));
+	}
+
+	/**
+	 * Reading mode takes no keystrokes, so no verdict exists to wait on; the positive signal is
+	 * the structural one — the editor root holds no editable surface — plus a drained tick for
+	 * whatever an effect would still commit.
+	 */
+	async expectSurfaceInert(): Promise<void> {
+		try {
+			await this.page.waitForFunction(
+				() => document.querySelectorAll('.editor [contenteditable="true"]').length === 0,
+				null,
+				{ timeout: 5000, polling: 16 }
+			);
+		} catch {
+			const live = await this.editorContainer.locator('[contenteditable="true"]').count();
+			throw new Error(`expectSurfaceInert: ${live} editable surface(s) under the editor root`);
+		}
+		await this.page.evaluate(() => (window as any).__test.drainTick());
+	}
+
+	/**
+	 * A count that never advances is a finding, not a timeout to widen: the key reached no
+	 * instrumented surface, so the gesture the spec believes it made never happened.
+	 */
+	private async awaitKeydownVerdicts(
+		gesture: string,
+		expected: number,
+		dispatch: () => Promise<void>
+	): Promise<void> {
+		const before = await this.page.evaluate(() => {
+			const trace = (window as any).__test.trace;
+			trace.enable();
+			return trace.keydownCount() as number;
+		});
+		await dispatch();
+		try {
+			await this.page.waitForFunction(
+				(target) => ((window as any).__test.trace.keydownCount() as number) >= target,
+				before + expected,
+				{ timeout: 5000, polling: 16 }
+			);
+		} catch {
+			const after = await this.page.evaluate(
+				() => (window as any).__test.trace.keydownCount() as number
+			);
+			throw new Error(
+				`no keydown verdict for '${gesture}': the editor recorded ${after - before} of ` +
+					`${expected} (count ${before} → ${after}), so the key reached no editor surface`
+			);
+		}
 	}
 }

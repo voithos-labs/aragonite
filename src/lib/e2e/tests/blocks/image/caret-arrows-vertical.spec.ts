@@ -29,7 +29,11 @@ test.describe('vertical arrow traversal around image widgets', () => {
 		// content.
 		await editor.typeText('X');
 		const src = await editor.bridge.getSource();
-		expect(src).toMatch(/X.*above list paragraph|above list paragraph.*X|abXove|abovXe/);
+		// Anywhere in the paragraph: the column memory picks the offset, and a proportional face
+		// maps the item's start to no fixed character of the line above.
+		const [first] = src.split('\n');
+		expect(first.replace('X', '')).toBe('above list paragraph.');
+		expect(first).toContain('X');
 		expect(src).not.toMatch(/!\[pic.*X|X.*\(\/test-fixtures/);
 	});
 

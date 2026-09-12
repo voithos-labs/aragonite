@@ -252,6 +252,12 @@ Close an issue by naming the shipping commit in the closing comment. Reconcile a
 the commits that resolve it rather than against its own text. A premise can expire without a word
 of the issue changing, so work that landed elsewhere closes issues nobody edited.
 
+One view of the ledger is generated, never a second copy of it:
+[`scripts/finn-todo.mjs`](../../scripts/finn-todo.mjs) renders the open issues assigned to a
+co-founder who works from a checklist into a gitignored `TODO.md`, grouped by `area:`, and pushes
+back exactly two edits (a ticked line closes its issue, a line with no number files one). It is
+opt-in, and nothing else about those issues crosses in either direction.
+
 Three more places a record lives, or pointedly doesn't:
 
 - **The changelog is past-only**, and a shipped milestone lands in it in the same commit that

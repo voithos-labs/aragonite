@@ -116,6 +116,11 @@ describe('screenVisibilityOf — the reading a rewrite seam takes', () => {
 			hidesMarkers: true,
 			chromePaints: false
 		});
+		// The stamp is a seat for a caret: unfocused, a stamped block hides its chrome like any
+		// other, exactly as the stylesheet's `:focus-within` rung has it.
+		expect(
+			screenVisibilityOf(mountBlock({ mode: 'live', stamped: true, unfocused: true })).chromePaints
+		).toBe(false);
 		// Reading takes no keystrokes, so a construct with nothing behind its chrome may paint
 		// nothing there, stamp or not.
 		expect(screenVisibilityOf(mountBlock({ mode: 'reading', stamped: true })).chromePaints).toBe(

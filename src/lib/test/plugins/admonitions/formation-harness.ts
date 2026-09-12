@@ -5,8 +5,7 @@
  * controller and container-edit serve every nesting level.
  */
 
-import { parse } from '$lib/core/parser';
-import type { CstNode } from '$lib/core/nodes';
+import { parse, type CstNode } from '$lib';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
 import { createContainerEditActions } from '$lib/editor-actions/container-edit';
 import { createHistoryActions } from '$lib/editor-actions/commit/history';

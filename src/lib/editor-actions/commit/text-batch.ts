@@ -7,8 +7,9 @@
 export interface TextBatchDeps {
 	/** Capture the pre-edit snapshot for the first keystroke of a batch. */
 	pushSnapshot(leafPath: number[], offset: number): void;
-	/** Emit the batched `input` edit event when a batch flushes. */
-	emitInput(leafPath: number[], byteLength: number): void;
+	/** Emit the batched `input` edit event when a batch flushes. Omitted by a batch with no edit
+	 *  channel of its own: a revealed source's bytes reach it once, on the fold's commit. */
+	emitInput?(leafPath: number[], byteLength: number): void;
 }
 
 export interface TextBatch {
@@ -48,7 +49,7 @@ export function createTextBatch(deps: TextBatchDeps): TextBatch {
 	 */
 	function flushPendingInput(): void {
 		if (batchByteLength > 0 && batchPath) {
-			deps.emitInput(batchPath, batchByteLength);
+			deps.emitInput?.(batchPath, batchByteLength);
 		}
 		batchPath = null;
 		batchByteLength = 0;

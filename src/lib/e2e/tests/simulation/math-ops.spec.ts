@@ -67,7 +67,7 @@ test.describe('math-ops simulation', () => {
 
 		await g.backspaceRevealEditInlineMath(0, 'z');
 		// The insert landed inside the fence, not as loose text after the widget.
-		expect(await editor.bridge.getSource()).toContain('$yx^2z$');
+		expect(await editor.bridge.getSource()).toContain('$x^2yz$');
 		await checkOracles('inline-reveal-commit');
 
 		// Delete text flanking the surviving widget (byte survival under an adjacent

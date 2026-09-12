@@ -29,7 +29,7 @@ export interface CellKeyState {
 
 export type CellKeyPlan =
 	| { kind: 'native' }
-	| { kind: 'select-all-step'; step: 'native' | 'table' | 'document' }
+	| { kind: 'select-all-step'; step: 'native' | 'document' }
 	| {
 			kind: 'focus-cell';
 			rowIdx: number;
@@ -49,10 +49,12 @@ function isLetterA(key: string): boolean {
 export function cellKeydownPlan(e: CellKeyInput, s: CellKeyState): CellKeyPlan {
 	const pos = { rowIdx: s.rowIdx, colIdx: s.colIdx };
 
+	// Two stages, like every other block: the cell's own text natively, then the document. A
+	// table stage in between was this editor's alone; Docs and friends go straight to the page.
 	if (e.ctrlOrMeta && isLetterA(e.key) && !e.shiftKey && !e.altKey) {
 		return {
 			kind: 'select-all-step',
-			step: s.selectAllCount === 0 ? 'native' : s.selectAllCount === 1 ? 'table' : 'document'
+			step: s.selectAllCount === 0 ? 'native' : 'document'
 		};
 	}
 	if (e.key === 'ArrowLeft' && !e.shiftKey && s.offset <= s.contentStart && s.collapsed) {

@@ -1,11 +1,9 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, it, expect } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { serialize } from '$lib/core/serializer';
-import { computeInlineContent } from '$lib/core/inline';
-import type { InlineNode } from '$lib/core/nodes';
-import { rawTextOfNode } from '$lib/cursor/widget-offset';
+import { parse, serialize, type InlineNode } from '$lib';
+import { computeInlineContent } from '$lib/plugin';
 import { resetPluginPlatformForTests } from '$lib/testing';
+import { rawTextOfNode } from '$lib/cursor/widget-offset';
 import { registerMathInline, MATH_INLINE } from '$lib/plugins/latex/latex-kind';
 
 // The atomic-island wrapper the render layer's portal builder stamps around a

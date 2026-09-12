@@ -83,7 +83,8 @@ export function classifyArrivalKey(key: string, metaKey = false): EdgeAffinityAc
 	// construct-relative answer. Windows/Linux never deliver meta+arrow to the page.
 	if (metaKey && (key === 'ArrowLeft' || key === 'ArrowRight')) return 'outside';
 	// A step stops on the side of the run it approached from, so one press never changes which
-	// construct the caret is in: forward keys reach the near side, backward keys the far one.
+	// construct the caret is in (live-mode.md § 4.2); leaving a construct is a typed closer's job
+	// (delimiter-autopair.ts) or a toggle's, not the arrow's.
 	if (key === 'ArrowRight' || key === 'ArrowDown' || key === 'PageDown') return 'near';
 	if (key === 'ArrowLeft' || key === 'ArrowUp' || key === 'PageUp') return 'far';
 	// A line extreme is construct-relative, not directional: `Home` before a line-leading

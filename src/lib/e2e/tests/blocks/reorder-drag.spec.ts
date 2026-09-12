@@ -3,7 +3,8 @@ import { EditorPage } from '../../editor-page';
 import { pollAutoscrollPast } from '../../autoscroll';
 
 // Drop index is direction-dependent (removing the dragged block shifts later indices), so DOWN, UP,
-// and a within-container drag are all covered to catch an off-by-one.
+// and a within-container drag are all covered to catch an off-by-one. The top-level blocks are
+// code cards: prose carries no handle to press (`components/drag-handle.ts`).
 test.describe('drag to reorder', () => {
 	let editor: EditorPage;
 
@@ -43,13 +44,13 @@ test.describe('drag to reorder', () => {
 	}
 
 	test('drag a top-level block DOWN past two siblings', async () => {
-		await editor.loadContent('A\n\nB\n\nC\n');
+		await editor.loadContent('```\nA\n```\n\n```\nB\n```\n\n```\nC\n```\n');
 		await dragHandle('.block-host', 'A', '.block-host', 'C', true);
 		await editor.bridge.waitForSourceMatches(/B[\s\S]*C[\s\S]*A/);
 	});
 
 	test('drag a top-level block UP to the top', async () => {
-		await editor.loadContent('A\n\nB\n\nC\n');
+		await editor.loadContent('```\nA\n```\n\n```\nB\n```\n\n```\nC\n```\n');
 		await dragHandle('.block-host', 'C', '.block-host', 'A', false);
 		await editor.bridge.waitForSourceMatches(/C[\s\S]*A[\s\S]*B/);
 	});
@@ -80,7 +81,7 @@ test.describe('drag to reorder', () => {
 	// A top-level drag's scope IS the document — there is no container to mark, so
 	// the cue must not appear (marking the whole editor would be noise).
 	test('a top-level drag marks no scope container', async () => {
-		await editor.loadContent('A\n\nB\n\nC\n');
+		await editor.loadContent('```\nA\n```\n\n```\nB\n```\n\n```\nC\n```\n');
 		const handle = await handleCenter('.block-host', 'B');
 		await editor.page.mouse.move(handle.x, handle.y);
 		await editor.page.mouse.down();
@@ -92,7 +93,7 @@ test.describe('drag to reorder', () => {
 	});
 
 	test('press and release without moving is a no-op (and pushes no undo entry)', async () => {
-		await editor.loadContent('A\n\nB\n\nC\n');
+		await editor.loadContent('```\nA\n```\n\n```\nB\n```\n\n```\nC\n```\n');
 		const before = await editor.bridge.getSource();
 
 		const handle = await handleCenter('.block-host', 'B');
@@ -100,6 +101,8 @@ test.describe('drag to reorder', () => {
 		await editor.page.mouse.down();
 		await editor.page.mouse.up();
 
+		// A mouse gesture, and then an undo chord pressed with focus outside every surface:
+		// neither produces a keydown verdict.
 		await editor.waitForNoSourceMutation();
 		expect(await editor.bridge.getSource()).toBe(before);
 
@@ -110,7 +113,7 @@ test.describe('drag to reorder', () => {
 	});
 
 	test('Escape cancels an in-progress drag', async () => {
-		await editor.loadContent('A\n\nB\n\nC\n');
+		await editor.loadContent('```\nA\n```\n\n```\nB\n```\n\n```\nC\n```\n');
 		const before = await editor.bridge.getSource();
 
 		const handle = await handleCenter('.block-host', 'A');
@@ -122,12 +125,77 @@ test.describe('drag to reorder', () => {
 		await editor.page.keyboard.press('Escape');
 		await editor.page.mouse.up();
 
+		// The drag session owns Escape through a document listener, not a block surface.
 		await editor.waitForNoSourceMutation();
 		expect(await editor.bridge.getSource()).toBe(before);
 	});
 
+	// Focusing what was dropped opens whatever a caret opens there — an equation reveals its
+	// source, so a dragged one came back in edit mode. The latex kind lives on the plugins
+	// route, so the contract is pinned here on the block this route has.
+	test('a drop focuses nothing it dropped', async ({ page }) => {
+		await editor.loadContent('```js\nfirst\n```\n\n```js\nsecond\n```\n\ntail\n');
+		const first = page.locator('.block-host[data-block-kind="fencedCode"]').first();
+		await first.hover();
+		const hb = (await first.locator(':scope > .block-drag-handle svg').boundingBox())!;
+		const dst = (await page
+			.locator('.block-host[data-block-kind="fencedCode"]')
+			.last()
+			.boundingBox())!;
+
+		await page.mouse.move(hb.x + hb.width / 2, hb.y + hb.height / 2);
+		await page.mouse.down();
+		await page.mouse.move(dst.x + dst.width / 2, dst.y + dst.height - 2, { steps: 12 });
+		await page.mouse.up();
+
+		await editor.bridge.waitForSourceMatches(/second[\s\S]*first/);
+		const focusedInsideABlock = await page.evaluate(
+			() => !!document.activeElement?.closest('.block-host')
+		);
+		expect(focusedInsideABlock, 'a drop must not focus what it dropped').toBe(false);
+	});
+
+	test('the ghost names a table rather than sampling its cells', async ({ page }) => {
+		await editor.loadContent('| A | B |\n| --- | --- |\n| 1 | 2 |\n\ntail\n');
+		const table = page.locator('.block-host[data-block-kind="table"]').first();
+		await table.hover();
+		const hb = (await table.locator(':scope > .block-drag-handle svg').boundingBox())!;
+		await page.mouse.move(hb.x + hb.width / 2, hb.y + hb.height / 2);
+		await page.mouse.down();
+		await page.mouse.move(hb.x + 120, hb.y + 60, { steps: 6 });
+
+		await expect(page.locator('.reorder-ghost')).toHaveText('Table · 2 × 2');
+		await page.keyboard.press('Escape');
+		await page.mouse.up();
+	});
+
+	// Trivia is positional, so a block dropped into a slot whose separator was empty (a heading
+	// interrupting the paragraph above it) lands flush against that paragraph, whose next lines
+	// the table's rows then are.
+	test('a table dropped flush under a paragraph stays a table', async ({ page }) => {
+		await editor.loadContent('Intro\n# Heading\n\n| A | B |\n| --- | --- |\n| 1 | 2 |\n');
+		const table = page.locator('.block-host[data-block-kind="table"]').first();
+		await table.hover();
+		const hb = (await table.locator(':scope > .block-drag-handle svg').boundingBox())!;
+		const heading = (await page
+			.locator('.block-host[data-block-kind="heading"]')
+			.first()
+			.boundingBox())!;
+
+		await page.mouse.move(hb.x + hb.width / 2, hb.y + hb.height / 2);
+		await page.mouse.down();
+		await page.mouse.move(heading.x + heading.width / 2, heading.y + 2, { steps: 12 });
+		await page.mouse.up();
+
+		await editor.bridge.waitForSourceEquals(
+			'Intro\n\n| A | B |\n| --- | --- |\n| 1 | 2 |\n\n# Heading\n'
+		);
+		expect(await editor.bridge.getBlockKind(1)).toBe('table');
+		expect(await editor.parseConverged()).toBe(true);
+	});
+
 	test('dragging the handle starts no text selection', async () => {
-		await editor.loadContent('A\n\nB\n\nC\n');
+		await editor.loadContent('```\nA\n```\n\n```\nB\n```\n\n```\nC\n```\n');
 		await dragHandle('.block-host', 'A', '.block-host', 'C', true);
 
 		const selected = await editor.page.evaluate(() => window.getSelection()?.toString() ?? '');
@@ -135,10 +203,11 @@ test.describe('drag to reorder', () => {
 	});
 
 	test('drag toward the bottom edge autoscrolls past virtualized blocks and drops', async () => {
-		// Far more paragraphs than fit in the viewport, so blocks below the fold are
-		// virtualized out — the drop target is unreachable without autoscroll.
+		// Far more blocks than fit in the viewport, so blocks below the fold are virtualized
+		// out — the drop target is unreachable without autoscroll. Code cards: prose carries no
+		// handle to press.
 		await editor.loadContent(
-			Array.from({ length: 150 }, (_, i) => 'para ' + i).join('\n\n') + '\n'
+			Array.from({ length: 150 }, (_, i) => '```\npara ' + i + '\n```').join('\n\n') + '\n'
 		);
 		const editorEl = editor.page.locator('.editor');
 
@@ -187,7 +256,7 @@ test.describe('drag to reorder', () => {
 
 		// para 0 committed a move into the off-window region: it now follows some
 		// later paragraph in the source. Exact landing index is irrelevant.
-		await editor.bridge.waitForSourceMatches(/para 1[\s\S]*\npara 0\n/);
+		await editor.bridge.waitForSourceMatches(/para 1[\s\S]*\npara 0\n```/);
 		// And the document is intact — no block dropped or duplicated.
 		expect(await editor.bridge.getBlockCount()).toBe(150);
 	});

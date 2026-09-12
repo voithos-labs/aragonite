@@ -15,7 +15,7 @@ import { expectParseConverged } from '$lib/test/harness/parse-converged';
 import { asDocPath } from '$lib/selection/path-math';
 
 // The ceremony settles every splice against the pre-mutate children it still holds
-// (`tree-operations/node-ops.settleSeparator`). Two contracts the wiring owes.
+// (`tree-operations/settle.settleSeparator`). Two contracts the wiring owes.
 // Miss-analysis: the settle lived at each splice site, so no case ever asked what a SECOND
 // settle over the same window does, nor whether a probe reading post-splice state could still
 // see was-blank. Both only became askable when the rule moved into the seam.

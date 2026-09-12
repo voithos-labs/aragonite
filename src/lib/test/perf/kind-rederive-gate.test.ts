@@ -3,7 +3,8 @@ import { installPlugins } from '$lib';
 import { admonitionsPlugin } from '$lib/plugins/admonitions';
 import { parse } from '$lib/core/parser';
 import { createSharingState } from '$lib/tree-operations/sharing';
-import { ensureUnsharedPath, rebuildUnsharedChain } from '$lib/tree-operations/unshare';
+import { ensureUnsharedPath } from '$lib/tree-operations/unshare';
+import { rebuildUnsharedChain } from '$lib/tree-operations/chain-rebuild';
 import {
 	disablePerfInstruments,
 	enablePerfInstruments,

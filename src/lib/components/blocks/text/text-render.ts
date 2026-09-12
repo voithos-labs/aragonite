@@ -7,7 +7,7 @@
 
 import type { AmbientPrefix } from '../../../block-component';
 import type { DocumentView, NodeView } from '../../../core/node-views';
-import type { PresentationMode } from '../../../presentation-mode';
+import { hidesMarkers, type PresentationMode } from '../../../presentation-mode';
 import type { ResolveImageUrl, ResolveLinkUrl } from '../../../editor-keys';
 import { buildAmbientSpan } from '../../../ambient/ambient-dom';
 import {
@@ -169,7 +169,8 @@ export function createTextRender(deps: TextRenderDeps): TextRender {
 				buildPortalWidget,
 				// Attribute-only stamps for the construct-reveal trigger, mode-gated so the
 				// other modes' DOM stays byte-identical.
-				tagConstructMarkers: deps.presentationMode === 'preview-inline'
+				tagConstructMarkers: deps.presentationMode === 'preview-inline',
+				pendingBreakSeat: hidesMarkers(deps.presentationMode)
 			})
 		);
 		return frag;

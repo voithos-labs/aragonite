@@ -73,11 +73,12 @@ describe('a seam absorb under an outstanding snapshot', () => {
 	it('splices the shared underline into the promoted head, and undo restores it', async () => {
 		const h = harness(UNDERLINE_BELOW);
 
-		await h.actions.splitBlock(0, 1);
+		// Inside the heading's content: a cut at its head moves the whole heading down instead.
+		await h.actions.splitBlock(0, 3);
 
 		expect(h.doc.children.map((c) => [c.kind, c.raw])).toEqual([
-			['heading', '#\n'],
-			['setextHeading', ' [t](u)\n===\n'],
+			['heading', '# [\n'],
+			['setextHeading', 't](u)\n===\n'],
 			['paragraph', 'after\n']
 		]);
 		expect(h.snapshotBytes()).toBe(UNDERLINE_BELOW);

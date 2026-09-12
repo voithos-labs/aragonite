@@ -76,9 +76,9 @@ describe('cellKeydownPlan: an unclaimed modified arrow still navigates', () => {
 });
 
 describe('cellKeydownPlan: ctrl+a select-all stepping', () => {
-	const steps: Array<[number, 'native' | 'table' | 'document']> = [
+	const steps: Array<[number, 'native' | 'document']> = [
 		[0, 'native'],
-		[1, 'table'],
+		[1, 'document'],
 		[2, 'document'],
 		[5, 'document']
 	];
@@ -96,7 +96,7 @@ describe('cellKeydownPlan: ctrl+a select-all stepping', () => {
 	it('starts the run with CapsLock on', () => {
 		expect(cellKeydownPlan(key('A', { ctrlOrMeta: true }), state({ selectAllCount: 1 }))).toEqual({
 			kind: 'select-all-step',
-			step: 'table'
+			step: 'document'
 		});
 	});
 });

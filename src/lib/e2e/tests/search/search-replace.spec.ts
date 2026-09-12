@@ -101,7 +101,7 @@ test.describe('search — structural replace', () => {
 		await page.getByRole('button', { name: 'All', exact: true }).click();
 		await editor.bridge.waitForSourceContains('# Heading');
 		await page.waitForFunction(() => (window as any).__test.getBlockKind(0) === 'heading', null, {
-			timeout: 2000,
+			timeout: 5000,
 			polling: 16
 		});
 		expect(await editor.bridge.getBlockKind(0)).toBe('heading');

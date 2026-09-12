@@ -96,8 +96,7 @@ test.describe('table block: keyboard vocabulary', () => {
 	test('Ctrl+Shift+Backspace is a no-op when only one body row remains', async ({ page }) => {
 		await page.locator('[role="cell"]').nth(2).click();
 		const before = await editor.bridge.getSource();
-		await page.keyboard.press('ControlOrMeta+Shift+Backspace');
-		await editor.waitForNoSourceMutation();
+		await editor.pressDeclined('ControlOrMeta+Shift+Backspace');
 		expect(await editor.bridge.getSource()).toBe(before);
 	});
 
@@ -105,8 +104,7 @@ test.describe('table block: keyboard vocabulary', () => {
 		await editor.loadContent('| A |\n| --- |\n| 1 |\n');
 		await page.locator('[role="cell"]').nth(0).click();
 		const before = await editor.bridge.getSource();
-		await page.keyboard.press('Alt+Shift+Backspace');
-		await editor.waitForNoSourceMutation();
+		await editor.pressDeclined('Alt+Shift+Backspace');
 		expect(await editor.bridge.getSource()).toBe(before);
 	});
 
@@ -141,9 +139,23 @@ test.describe('table block: keyboard vocabulary', () => {
 		await editor.bridge.waitForSourceEquals(`${TABLE_2x2}\nlead\n`);
 		// The row reorder still owns the bare chord — the two must not collide.
 		await page.locator('[role="cell"]').nth(2).click();
-		await page.keyboard.press('Alt+ArrowUp');
-		await editor.waitForNoSourceMutation();
+		await editor.pressDeclined('Alt+ArrowUp');
 		expect(await editor.bridge.getSource()).toBe(`${TABLE_2x2}\nlead\n`);
+	});
+
+	// The block move into a slot whose separator was empty: the table lands flush under the
+	// paragraph the heading interrupted, and its rows read as that paragraph's next lines.
+	test('Ctrl+Alt+ArrowUp lands the table whole under a paragraph', async ({ page }) => {
+		await editor.loadContent('Intro\n# Heading\n\n| A | B |\n| --- | --- |\n| 1 | 2 |\n');
+		await page.locator('[role="cell"]').nth(2).click();
+
+		await page.keyboard.press('ControlOrMeta+Alt+ArrowUp');
+
+		await editor.bridge.waitForSourceEquals(
+			'Intro\n\n| A | B |\n| --- | --- |\n| 1 | 2 |\n\n# Heading\n'
+		);
+		expect(await editor.bridge.getBlockKind(1)).toBe('table');
+		expect(await editor.parseConverged()).toBe(true);
 	});
 
 	test('Shift+Enter inside a cell inserts a literal <br> at the cursor', async ({ page }) => {

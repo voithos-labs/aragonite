@@ -62,6 +62,20 @@ test.describe('keyboard reorder', () => {
 		await editor.bridge.waitForSourceMatches(/---[\s\S]*lead/);
 	});
 
+	// The same empty slot by chord, on the pair whose join rewrites the prose as well: a rule
+	// flush under a paragraph is a setext underline, so the paragraph became a heading and the
+	// divider was gone.
+	test('Alt+ArrowUp lands a divider whole under a paragraph', async () => {
+		await editor.loadContent('Intro\n# Heading\n\n---\n');
+		await editor.getBlock(2).click(); // focus the separator
+		await editor.page.keyboard.press('Alt+ArrowUp');
+
+		await editor.bridge.waitForSourceEquals('Intro\n\n---\n\n# Heading\n');
+		expect(await editor.bridge.getBlockKind(0)).toBe('paragraph');
+		expect(await editor.bridge.getBlockKind(1)).toBe('thematicBreak');
+		expect(await editor.parseConverged()).toBe(true);
+	});
+
 	// A move with no sibling in that direction must change nothing AND push no undo entry, or a
 	// boundary press silently consumes a Ctrl+Z; the unit-level clamp test bypasses the
 	// keymap-dispatch path.
@@ -72,8 +86,7 @@ test.describe('keyboard reorder', () => {
 		await editor.page.keyboard.type('X');
 		await editor.bridge.waitForSourceEquals('XA\n\nB\n');
 
-		await editor.page.keyboard.press('Alt+ArrowUp'); // first block — nothing above
-		await editor.waitForNoSourceMutation();
+		await editor.pressDeclined('Alt+ArrowUp'); // first block — nothing above
 		expect(await editor.bridge.getSource()).toBe('XA\n\nB\n');
 
 		await editor.page.keyboard.press('ControlOrMeta+z'); // undoes the typing, not a phantom reorder
@@ -84,8 +97,7 @@ test.describe('keyboard reorder', () => {
 		await editor.loadContent('A\n\nB\n');
 		await editor.page.locator('[contenteditable="true"]', { hasText: 'B' }).click();
 		const before = await editor.bridge.getSource();
-		await editor.page.keyboard.press('Alt+ArrowDown');
-		await editor.waitForNoSourceMutation();
+		await editor.pressDeclined('Alt+ArrowDown');
 		expect(await editor.bridge.getSource()).toBe(before);
 	});
 });

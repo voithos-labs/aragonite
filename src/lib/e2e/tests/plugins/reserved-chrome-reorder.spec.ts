@@ -25,9 +25,13 @@ async function dragContainerHandle(
 ): Promise<void> {
 	const host = page.locator(`.block-host[data-block-kind="${containerKind}"]`).first();
 	await host.hover();
-	const hb = await host.locator(':scope > .block-drag-handle').boundingBox();
+	// The glyph, not the middle of the full-height strip: that is where a hand goes, and the
+	// strip's middle on a tall container is a long way from anything the user can see.
+	const hb = await host.locator(':scope > .block-drag-handle svg').boundingBox();
 	if (!hb) throw new Error(`no own handle for ${containerKind}`);
-	const db = await page.locator('.block-host', { hasText: dstText }).first().boundingBox();
+	// `.last()`: an HTML container's host reports the raw text of the region it opened, tail
+	// included, so `.first()` picks the container being dragged instead of the block below it.
+	const db = await page.locator('.block-host', { hasText: dstText }).last().boundingBox();
 	if (!db) throw new Error('missing drop-target box');
 	await page.mouse.move(hb.x + hb.width / 2, hb.y + hb.height / 2);
 	await page.mouse.down();
@@ -42,7 +46,6 @@ const ADMONITION = ':::tip Pro tip\nBody one\n\nBody two\n:::\n';
 // document index — a lone container clamps to a no-op and would hide the teleport. Admonition sits
 // at doc index 1, body one at [1, 1].
 const ADMONITION_SIBLINGS = 'TOP\n\n:::tip Pro tip\nBody one\n\nBody two\n:::\n\nTAIL\n';
-const ADMONITION_TAIL = ':::tip Pro tip\nBody one\n:::\n\nTAIL\n';
 const DETAILS = '<details open>\n<summary>Summary</summary>\n\nDetails body\n\n</details>\n';
 
 test.describe('opaque containers decline nested reorder', () => {
@@ -55,7 +58,11 @@ test.describe('opaque containers decline nested reorder', () => {
 
 	// ── Bug 2 — no drag affordance on chrome or body rows ─────────────────────
 
-	test('admonition title chrome and body rows render no handle; the container keeps its own', async ({
+	// A note is prose, so it carries no grip of its own either (`components/drag-handle.ts`);
+	// what this pins is that nothing INSIDE it becomes a reorder unit. The `<details>` case
+	// below is the container that does keep a grip, so the two together still separate
+	// "declines nested reorder" from "has no grip at all".
+	test('an admonition renders no handle on its chrome, its body rows, or itself', async ({
 		page
 	}) => {
 		await editor.loadContent(ADMONITION);
@@ -66,7 +73,7 @@ test.describe('opaque containers decline nested reorder', () => {
 		await expect(ownHandle(page, [0, 0])).toHaveCount(0); // title chrome
 		await expect(ownHandle(page, [0, 1])).toHaveCount(0); // body one
 		await expect(ownHandle(page, [0, 2])).toHaveCount(0); // body two
-		await expect(ownHandle(page, [0])).toHaveCount(1); // the container is a valid top-level unit
+		await expect(ownHandle(page, [0])).toHaveCount(0); // and the note itself: prose
 	});
 
 	test('the <details> summary chrome row renders no handle', async ({ page }) => {
@@ -88,13 +95,11 @@ test.describe('opaque containers decline nested reorder', () => {
 		const before = await editor.bridge.getSource();
 
 		await editor.focusBlockAtPath([1, 1], 0); // caret in "Body one"
-		await page.keyboard.press('Alt+ArrowUp');
-		await editor.waitForNoSourceMutation();
+		await editor.pressDeclined('Alt+ArrowUp');
 		expect(await editor.bridge.getSource()).toBe(before);
 
 		await editor.focusBlockAtPath([1, 1], 0);
-		await page.keyboard.press('Alt+ArrowDown');
-		await editor.waitForNoSourceMutation();
+		await editor.pressDeclined('Alt+ArrowDown');
 		expect(await editor.bridge.getSource()).toBe(before);
 
 		// The container never teleported to another document index: order is preserved.
@@ -111,8 +116,7 @@ test.describe('opaque containers decline nested reorder', () => {
 		await page.keyboard.type('X'); // a real edit to undo
 		await editor.bridge.waitForSourceContains('Body oneX');
 
-		await page.keyboard.press('Alt+ArrowUp'); // declined — must push no phantom entry
-		await editor.waitForNoSourceMutation();
+		await editor.pressDeclined('Alt+ArrowUp'); // must push no phantom entry
 
 		await editor.undo(); // undoes the typed X, not a phantom reorder
 		await editor.bridge.waitForSourceContains('Body one');
@@ -121,11 +125,13 @@ test.describe('opaque containers decline nested reorder', () => {
 
 	// ── Regression — the container itself still reorders at document level ─────
 
-	test('dragging the admonition own handle still reorders it past a sibling', async ({ page }) => {
-		await editor.loadContent(ADMONITION_TAIL); // [0]=admonition, [1]=TAIL
-		await dragContainerHandle(page, 'admonition', 'TAIL', true);
+	// `<details>` rather than the admonition: a note carries no grip, and this is the half that
+	// needs one — the container is still a top-level unit its own handle drags.
+	test('dragging the details own handle still reorders it past a sibling', async ({ page }) => {
+		await editor.loadContent(`${DETAILS}\nTAIL\n`); // [0]=details, [1]=TAIL
+		await dragContainerHandle(page, 'details', 'TAIL', true);
 
-		await editor.bridge.waitForSourceMatches(/TAIL[\s\S]*:::tip/);
+		await editor.bridge.waitForSourceMatches(/TAIL[\s\S]*<details/);
 		expect(await editor.bridge.getBlockCount()).toBe(2); // no drop or duplication
 	});
 });

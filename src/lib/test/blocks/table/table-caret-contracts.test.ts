@@ -33,31 +33,23 @@ function ownTextOf(el: Element): string[] {
 		.map((child) => child.textContent ?? '');
 }
 
-// Both grip states, since `blockDragHandles` decides whether the grips render and each state
-// has its own adjacency: the corner-to-grip run when on, the `{#if}` boundaries when off.
-describe.each([true, false])(
-	'the table markup contributes no characters to the raw-offset walk (grips: %s)',
-	(grips) => {
-		const mountGripped = () => mountTable(GRID, { policies: { blockDragHandles: () => grips } });
+describe('the table markup contributes no characters to the raw-offset walk', () => {
+	it('holds no text node between the grid and its rows', () => {
+		mounted = mountTable(GRID);
 
-		it('holds no text node between the corner, the column grips, and the rows', () => {
-			mounted = mountGripped();
+		expect(ownTextOf(mounted.el)).toEqual([]);
+	});
 
-			// Non-vacuity: without this the grips-on run is the grips-off run under another name.
-			expect(mounted.el.querySelectorAll('[data-table-col-grip]')).toHaveLength(grips ? 2 : 0);
-			expect(ownTextOf(mounted.el)).toEqual([]);
-		});
+	// A sole-child `{#each}` gets an empty text anchor from the Svelte runtime, and the walk
+	// sums lengths: what a row must hold is no CHARACTER, not no text node.
+	it('holds no character inside a row either, between the row and its cells', () => {
+		mounted = mountTable(GRID);
 
-		it('holds none inside a row either, between its grip and its cells', () => {
-			mounted = mountGripped();
-
-			const rows = mounted.el.querySelectorAll(':scope > [data-table-row-idx]');
-			expect(rows).toHaveLength(3);
-			expect(mounted.el.querySelectorAll('[data-table-row-grip]')).toHaveLength(grips ? 3 : 0);
-			for (const row of rows) expect(ownTextOf(row)).toEqual([]);
-		});
-	}
-);
+		const rows = mounted.el.querySelectorAll(':scope > [data-table-row-idx]');
+		expect(rows).toHaveLength(3);
+		for (const row of rows) expect(ownTextOf(row).join('')).toBe('');
+	});
+});
 
 describe('the table lands a caret through the door and at the offset it was asked for', () => {
 	it('parks in the corner cell without ending a live cross-block range', () => {

@@ -26,16 +26,13 @@ import { cascadeCleanupEmptyAncestors } from '../tree-operations/cleanup';
 import { deleteAtPath, replaceAtPath } from '../tree-operations/path-mutate';
 import {
 	blockNodeAt,
-	cleanJoinedRaw,
 	emptyParagraph,
 	nodeAt,
 	normalizeOwnRaw
-} from '../tree-operations/node-ops';
-import {
-	ensureUnsharedPath,
-	rebuildUnsharedAncestry,
-	rebuildUnsharedChain
-} from '../tree-operations/unshare';
+} from '../tree-operations/node-primitives';
+import { cleanJoinedRaw } from '../tree-operations/node-ops';
+import { ensureUnsharedPath } from '../tree-operations/unshare';
+import { rebuildUnsharedAncestry, rebuildUnsharedChain } from '../tree-operations/chain-rebuild';
 // Wall primitives live with the chrome branch, which imports the atoms below back. The
 // resulting cycle is function-body-only (resolved at call time, never at module load), so it
 // is safe.

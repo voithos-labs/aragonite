@@ -80,12 +80,24 @@ export interface AmbientInteractiveRange {
 	className: string;
 	role?: 'checkbox';
 	ariaChecked?: boolean;
+	/** The block's drag grip centres on this span's box rather than on its text line. */
+	dragAnchor?: boolean;
 	/** The click lands on the range's own span, before the leaf's caret handling; a handler
 	 *  reading the chord (`isWidgetActivationClick`) stops propagation to keep the gesture. */
 	onClick: (e: MouseEvent) => void;
 }
 
-export type AmbientPrefix = string | { text: string; interactive?: AmbientInteractiveRange[] };
+export type AmbientPrefix =
+	| string
+	| {
+			text: string;
+			interactive?: AmbientInteractiveRange[];
+			/**
+			 * The hanging indent the rendered prefix needs, when its painted width is not its text
+			 * width (a task item's `- [ ] ` paints as one box). Defaults to one `ch` per character.
+			 */
+			indent?: string;
+	  };
 
 // ── BlockComponentProps ──────────────────────────────────────────────────────
 
@@ -158,6 +170,13 @@ export interface BlockComponent {
 	 * surfaces with no such snap.
 	 */
 	snapCaretToPoint?(clientX: number, clientY: number): void;
+	/**
+	 * A press beside the block (the editor's margin, the host's own padding) that may become a
+	 * drag: start the block's OWN drag anchored at the leaf nearest the point — a table's cell
+	 * rectangle — exactly as a press on that leaf would. True when it did; false leaves the press
+	 * to the editor's generic drag.
+	 */
+	startDragAtPoint?(clientX: number, clientY: number, event: PointerEvent): boolean;
 	/**
 	 * Descend child indices to the BlockComponent at the leaf, or null if the path
 	 * doesn't resolve. Empty `path` returns this component. Containers implement it.

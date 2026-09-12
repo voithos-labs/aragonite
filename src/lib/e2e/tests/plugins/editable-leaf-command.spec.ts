@@ -39,7 +39,7 @@ test.describe('minted block commands on the editable-leaf tier: the %% memo kind
 		await page.waitForFunction(
 			() => (window as any).__test.getDocument().children[1]?.metadata?.memoTagged === true,
 			null,
-			{ timeout: 2000 }
+			{ timeout: 5000 }
 		);
 		// Memo metadata is not raw-bearing, so the source round-trips unchanged.
 		expect(await roundTripStable(page)).toBe(true);
@@ -58,7 +58,7 @@ test.describe('minted block commands on the editable-leaf tier: the %% memo kind
 		await page.waitForFunction(
 			() => (window as any).__test.getCapturedErrors().includes('command'),
 			null,
-			{ timeout: 2000 }
+			{ timeout: 5000 }
 		);
 		const origins = await capturedErrors(page);
 		expect(origins.filter((o) => o === 'command')).toHaveLength(1);

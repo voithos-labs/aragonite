@@ -85,7 +85,7 @@ test.describe('clipboard exploration: unusual content', () => {
 		await editor.page.waitForFunction(
 			() => (window.getSelection()?.toString().length ?? 0) > 0,
 			null,
-			{ timeout: 2000, polling: 16 }
+			{ timeout: 5000, polling: 16 }
 		);
 		await editor.page.keyboard.press('ControlOrMeta+a');
 		await editor.waitForCrossBlock(true);

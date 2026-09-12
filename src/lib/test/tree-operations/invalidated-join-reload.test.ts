@@ -1,14 +1,12 @@
 import { describe, it, expect } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
-import { absorbWindowSeams, updateNodeContent } from '$lib/tree-operations/node-ops';
+import { absorbWindowSeams } from '$lib/tree-operations/settle';
+import { updateNodeContent } from '$lib/tree-operations/content-write';
 import { reorderChildrenWithTrivia } from '$lib/tree-operations/reorder';
 import { createSharingState } from '$lib/tree-operations/sharing';
-import {
-	ensureUnsharedPath,
-	rebuildUnsharedChain,
-	type AncestrySeamFold
-} from '$lib/tree-operations/unshare';
+import { ensureUnsharedPath } from '$lib/tree-operations/unshare';
+import { rebuildUnsharedChain, type AncestrySeamFold } from '$lib/tree-operations/chain-rebuild';
 import { rebuildContainerRaw } from '$lib/schema/container-raw';
 import { makeNestedHarness } from '$lib/test/harness/editor-actions';
 import { describeConvergence } from '$lib/test/harness/parse-converged';

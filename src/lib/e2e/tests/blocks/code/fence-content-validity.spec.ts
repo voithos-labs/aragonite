@@ -30,8 +30,7 @@ test.describe('code block — content the fence cannot hold', () => {
 
 	test('a backtick typed into the info string is inert', async () => {
 		await editor.focusBlock(0, 5); // end of "js"
-		await editor.typeSlowly('`');
-		await editor.waitForNoSourceMutation();
+		await editor.typeDeclined('`');
 
 		expect(await editor.bridge.getSource()).toBe(SOURCE);
 	});
@@ -93,9 +92,13 @@ test.describe('code block — gestures that make an existing run a terminator', 
 	});
 });
 
-// The escalation is scoped to a CLOSED fence: typing your own closer is authoring, not a collision.
-test.describe('code block — closing a fence by typing it', () => {
-	test('type ```, Enter, code, Enter, ``` yields one closed block', async ({ page }) => {
+// The escalation is scoped to a CLOSED fence, and a typed fence is closed from its first Enter
+// (the bare opener completes to opener, empty body line, closer), so the authoring exit is Enter
+// on the trailing empty body line rather than a typed closer.
+test.describe('code block — authoring a fence by typing', () => {
+	test('type ```, Enter, code, Enter, Enter yields one closed block and a paragraph below', async ({
+		page
+	}) => {
 		const editor = new EditorPage(page);
 		await editor.goto();
 		await editor.loadContent('\n');
@@ -104,15 +107,18 @@ test.describe('code block — closing a fence by typing it', () => {
 		await editor.bridge.waitForSourceContains('```');
 
 		await editor.page.keyboard.press('Enter');
+		// The fixture's blank line IS the block the caret sits in, so the fence fills it.
+		await editor.bridge.waitForSourceEquals('```\n\n```\n');
 		await editor.typeText('code');
+		await editor.bridge.waitForSourceEquals('```\ncode\n```\n');
 		await editor.page.keyboard.press('Enter');
-		await editor.typeText('```');
-		await editor.bridge.waitForSourceContains('code');
+		await editor.bridge.waitForSourceEquals('```\ncode\n\n```\n');
+		await editor.page.keyboard.press('Enter');
+		await editor.typeText('after');
+		await editor.bridge.waitForSourceContains('after');
 
-		// The fixture's blank line IS the block the caret sits in, so the fence fills it: a
-		// leading blank would be one more block, which the count below reads as the same doc.
-		expect(await editor.bridge.getSource()).toBe('```\ncode\n```\n');
-		expect(await editor.bridge.getBlockCount()).toBe(1);
+		expect(await editor.bridge.getSource()).toBe('```\ncode\n```\n\nafter\n');
+		expect(await editor.bridge.getBlockCount()).toBe(2);
 		expect(await editor.bridge.getBlockKind(0)).toBe('fencedCode');
 	});
 });

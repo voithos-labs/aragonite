@@ -1,5 +1,6 @@
 import { test, expect } from '../../../fixtures';
 import { EditorPage } from '../../../editor-page';
+import { openImageField } from './helpers';
 
 test.describe('image popover portal isolation', () => {
 	let editor: EditorPage;
@@ -15,25 +16,30 @@ test.describe('image popover portal isolation', () => {
 		await editor.loadContent('![cat](/test-fixtures/sample.png)\n');
 		const widget = page.locator('[data-image-widget]').first();
 		await widget.click();
-		const urlInput = page.locator('.md-image-properties input').nth(0);
-		await urlInput.click();
-		await page.keyboard.type('?v=2');
+		const altInput = await openImageField(page);
+		await altInput.click();
+		await page.keyboard.type(' v2');
 		await expect(page.locator('[data-image-widget]')).toBeVisible();
 		await expect(page.locator('.md-image-properties')).toBeVisible();
-		expect(await urlInput.inputValue()).toContain('?v=2');
+		expect(await altInput.inputValue()).toContain(' v2');
 	});
 
 	// Clicking between popover inputs fired the widget's pointerdown (the popover sat inside the
 	// widget), re-dispatching `image-widget-select`; the reparent effect re-ran and the transient
 	// detach blurred it shut.
-	test('clicking between popover input fields keeps the popover open', async ({ page }) => {
+	test('toggling the alt field keeps the toolbar open', async ({ page }) => {
 		await editor.loadContent('![cat](/test-fixtures/sample.png)\n');
 		const widget = page.locator('[data-image-widget]').first();
 		await widget.click();
-		await page.locator('.md-image-properties input').nth(1).click();
-		await page.locator('.md-image-properties input').nth(0).click();
-		await page.locator('.md-image-properties input').nth(2).click();
+		const altButton = page
+			.locator('.md-image-properties')
+			.getByRole('button', { name: 'Alt text' });
+		await (await openImageField(page)).click();
+		await altButton.click();
+		await expect(page.locator('.md-image-properties input')).toHaveCount(0);
+		await (await openImageField(page)).click();
 		await expect(page.locator('.md-image-properties')).toBeVisible();
+		await expect(page.locator('.md-image-properties input')).toBeFocused();
 	});
 
 	// Reparenting the overlay INTO the widget carried Svelte whitespace text nodes with it; on a
@@ -72,23 +78,14 @@ test.describe('image popover portal isolation', () => {
 		);
 		const widget = page.locator('[data-image-widget]').first();
 		await widget.click();
-		const popover = page.locator('.md-image-properties').first();
-		await popover.waitFor({ state: 'visible' });
+		const input = await openImageField(page);
+		const field = page.locator('.md-image-field');
 
-		const popoverBox = (await popover.boundingBox())!;
-		const labelBoxes = await page.locator('.md-image-properties label > span').evaluateAll((els) =>
-			els.map((el) => {
-				const r = el.getBoundingClientRect();
-				return { x: r.x, right: r.x + r.width, y: r.y, bottom: r.y + r.height };
-			})
-		);
-		const popoverRight = popoverBox.x + popoverBox.width;
-		const popoverBottom = popoverBox.y + popoverBox.height;
-		for (const lb of labelBoxes) {
-			expect(lb.x).toBeGreaterThanOrEqual(popoverBox.x - 1);
-			expect(lb.right).toBeLessThanOrEqual(popoverRight + 1);
-			expect(lb.y).toBeGreaterThanOrEqual(popoverBox.y - 1);
-			expect(lb.bottom).toBeLessThanOrEqual(popoverBottom + 1);
-		}
+		const fieldBox = (await field.boundingBox())!;
+		const inputBox = (await input.boundingBox())!;
+		expect(inputBox.x).toBeGreaterThanOrEqual(fieldBox.x - 1);
+		expect(inputBox.x + inputBox.width).toBeLessThanOrEqual(fieldBox.x + fieldBox.width + 1);
+		expect(inputBox.y).toBeGreaterThanOrEqual(fieldBox.y - 1);
+		expect(inputBox.y + inputBox.height).toBeLessThanOrEqual(fieldBox.y + fieldBox.height + 1);
 	});
 });

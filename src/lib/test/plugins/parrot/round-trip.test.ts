@@ -1,7 +1,5 @@
 import { afterEach, beforeEach, describe, it, expect } from 'vitest';
-import { installPlugins } from '$lib';
-import { parse } from '$lib/core/parser';
-import { serialize } from '$lib/core/serializer';
+import { installPlugins, parse, serialize } from '$lib';
 import { resetPluginPlatformForTests } from '$lib/testing';
 import { parrotPlugin, PARROT } from '$lib/plugins/parrot';
 import { roundTripCases } from '$lib/test/support/round-trip';

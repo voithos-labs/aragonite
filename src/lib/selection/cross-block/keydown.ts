@@ -9,7 +9,7 @@ import type { CrossBlockDispatchContext } from './dispatch';
 import type { BlockElLookup } from '../../editor-keys';
 import type { AnyBlockKind, CstNode, Document } from '../../core/nodes';
 import { performCrossBlockDelete, performCrossBlockDeleteSync } from './ops';
-import { isBlockNode } from '../../tree-operations/node-ops';
+import { isBlockNode } from '../../tree-operations/node-primitives';
 import { isReadingMode } from '../../presentation-mode';
 import { eventToChord } from '../../schema/keybindings';
 import { dispatchKeyCommand } from '../../schema/block-commands';

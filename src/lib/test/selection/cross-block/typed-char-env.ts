@@ -27,7 +27,9 @@ export function makeEnv(source: string) {
 	let blockIds = doc.children.map((_, i) => `id-${i}`);
 	let blockRefs: (BlockComponent | undefined)[] = doc.children.map(() => makeRef());
 	const events = createEditorEvents();
-	const selectionState = createSelectionState();
+	// Doc-aware, as the shell's own state is: without it the endpoint funnels measure nothing and
+	// a whole-block endpoint pair stores a zero-length span.
+	const selectionState = createSelectionState({ getDoc: () => doc });
 	const stickyColumn = makeStickyColumn();
 	const edgeAffinity = makeEdgeAffinity();
 	const deps = {

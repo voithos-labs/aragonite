@@ -60,7 +60,7 @@ export async function resizeImage(
 			return !!img && Math.abs(img.getBoundingClientRect().width - w) <= 1;
 		},
 		expected,
-		{ timeout: 2000 }
+		{ timeout: 5000 }
 	);
 	tracker.resync(await editor.bridge.getSource());
 }

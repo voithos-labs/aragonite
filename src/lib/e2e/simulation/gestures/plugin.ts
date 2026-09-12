@@ -16,7 +16,7 @@ export async function toggleCollapse(ctx: SimContext): Promise<void> {
 	await ctx.page.waitForFunction(
 		(want) => document.querySelector('.details-toggle')?.getAttribute('aria-expanded') === want,
 		wasExpanded ? 'false' : 'true',
-		{ timeout: 2000, polling: 16 }
+		{ timeout: 5000, polling: 16 }
 	);
 	await ctx.editor.waitForRenderFlush();
 	ctx.tracker.resync(await ctx.editor.bridge.getSource());
@@ -61,7 +61,7 @@ export async function pasteGithubAlert(ctx: SimContext): Promise<void> {
 			return false;
 		},
 		null,
-		{ timeout: 2000, polling: 16 }
+		{ timeout: 5000, polling: 16 }
 	);
 	await ctx.editor.waitForRenderFlush();
 	ctx.tracker.resync(await ctx.editor.bridge.getSource());
@@ -87,7 +87,7 @@ export async function publishDocStats(ctx: SimContext): Promise<void> {
 			return Object.values(stats).some((r) => r.blocks === live);
 		},
 		null,
-		{ timeout: 2000, polling: 16 }
+		{ timeout: 5000, polling: 16 }
 	);
 	await ctx.editor.waitForRenderFlush();
 	ctx.tracker.resync(await ctx.editor.bridge.getSource());

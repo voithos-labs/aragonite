@@ -13,16 +13,19 @@ export interface NormalNode {
 	url?: string;
 	title?: string;
 	children?: NormalNode[];
+	// Provenance, not semantics (normalEqual ignores it): the source span of a GFM bare autolink,
+	// which the excuse layer needs to size the extension's reach against the input.
+	autolinkSpan?: { start: number; end: number };
 }
 
 // ── Public API ───────────────────────────────────────────────────────────────
 
 export function normalizeAragonite(nodes: InlineNode[], raw: string): NormalNode[] {
-	return foldToSpecSemantics(canonicalize(nodes.map((node) => mapAragonite(node, raw))));
+	return foldToSpecSemantics(mergeAdjacentText(nodes.map((node) => mapAragonite(node, raw))));
 }
 
 export function normalizeReference(nodes: CommonmarkNode[]): NormalNode[] {
-	return canonicalize(nodes.map(mapReference));
+	return mergeAdjacentText(nodes.map(mapReference));
 }
 
 export function normalEqual(a: NormalNode[], b: NormalNode[]): boolean {
@@ -63,6 +66,9 @@ function mapAragonite(node: InlineNode, raw: string): NormalNode {
 			return {
 				kind: 'link',
 				url: node.url,
+				...(isAngleAutolink(node, raw)
+					? {}
+					: { autolinkSpan: { start: node.start, end: node.end } }),
 				children: [{ kind: 'text', text: autolinkLabel(node, raw) }]
 			};
 		case 'image':
@@ -90,17 +96,20 @@ function mapAragoniteChildren(children: InlineNode[] | undefined, raw: string): 
 
 /** Autolink display text: angle-bracket form strips `<`/`>`; bare form is verbatim. */
 function autolinkLabel(node: InlineNode, raw: string): string {
-	if (raw[node.start] === '<' && raw[node.end - 1] === '>') {
-		return raw.slice(node.start + 1, node.end - 1);
-	}
+	if (isAngleAutolink(node, raw)) return raw.slice(node.start + 1, node.end - 1);
 	return raw.slice(node.start, node.end);
+}
+
+/** The angle form is CommonMark's; the reference reads the bare form as plain text. */
+function isAngleAutolink(node: InlineNode, raw: string): boolean {
+	return raw[node.start] === '<' && raw[node.end - 1] === '>';
 }
 
 // ── Aragonite-only reconciliations ───────────────────────────────────────────
 
 /**
  * Fold our byte-preserving form to the spec-semantic one the reference AST already
- * carries (§6.1, §6.8); folding its side too would double-strip. Runs after canonicalize.
+ * carries (§6.1, §6.8); folding its side too would double-strip. Runs after the text merge.
  * Blind spot: one-sided folding can mask our own wrong bytes that fold to the right
  * string, so offset errors are caught by the scan suites and the total-coverage property.
  */
@@ -186,10 +195,10 @@ function titleField(title: string | null | undefined): { title?: string } {
 }
 
 /** Merge adjacent text, drop empty text, recursively into children. */
-function canonicalize(nodes: NormalNode[]): NormalNode[] {
+export function mergeAdjacentText(nodes: NormalNode[]): NormalNode[] {
 	const result: NormalNode[] = [];
 	for (const node of nodes) {
-		const merged = node.children ? { ...node, children: canonicalize(node.children) } : node;
+		const merged = node.children ? { ...node, children: mergeAdjacentText(node.children) } : node;
 		if (merged.kind === 'text') {
 			if ((merged.text ?? '') === '') continue;
 			const prev = result[result.length - 1];

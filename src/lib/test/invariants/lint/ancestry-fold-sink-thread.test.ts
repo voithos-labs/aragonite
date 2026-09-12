@@ -33,7 +33,7 @@ const SITES: Record<string, SiteStance> = {
 		sinks: 1,
 		why: 'the routine-typing spine; it publishes no descriptor of its own, so it reconciles the splice directly'
 	},
-	'src/lib/tree-operations/unshare.ts': {
+	'src/lib/tree-operations/chain-rebuild.ts': {
 		declines: 0,
 		sinks: 1,
 		why: 'the ancestry wrapper threads its own parameter through, so its caller states a stance rather than inheriting one'
@@ -54,7 +54,7 @@ const SITES: Record<string, SiteStance> = {
 		why: 'the degraded splice arm, which already warns; its chain is built from a leaf path strictly BELOW the commit scope, so the ceremony’s own re-walk does not reach those levels'
 	},
 	'src/lib/selection/range-delete.ts': {
-		declines: 3,
+		declines: 4,
 		sinks: 0,
 		why: 'the cross-block delete family: byte-correctness passes inside a ceremony that owns the registers elsewhere and splices at the LCA itself. Their chains can run deeper than the ceremony’s scope, which is a recorded residual rather than a reconciliation'
 	},

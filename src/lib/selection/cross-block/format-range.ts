@@ -13,6 +13,7 @@ import {
 	isInlineFormatActive,
 	isInlineFormatActiveAfter,
 	toggleInlineFormat,
+	withoutBoundaryWhitespace,
 	type InlineFormatEdit,
 	type ToggleInlineFormatResult
 } from '../../core/inline/format-toggle';
@@ -24,9 +25,14 @@ import type { InlineMarkKind } from '../../schema/inline-construct-policy';
 import type { PresentationMode } from '../../presentation-mode';
 import type { GrammarView } from '../../schema/block-openers';
 import { tryGetBlockKindDescriptor } from '../../schema/block-kind-descriptor';
-import { normalizeBodyWrite, writeOwnRaw, type NodeParent } from '../../tree-operations/node-ops';
+import {
+	normalizeBodyWrite,
+	writeOwnRaw,
+	type NodeParent
+} from '../../tree-operations/node-primitives';
 import type { SharingState } from '../../tree-operations/sharing';
-import { ensureUnsharedPath, rebuildUnsharedChain } from '../../tree-operations/unshare';
+import { ensureUnsharedPath } from '../../tree-operations/unshare';
+import { rebuildUnsharedChain } from '../../tree-operations/chain-rebuild';
 import { comparePaths } from '../path-math';
 import { charOffsetOf, type SelectionPoint } from '../primitives';
 import { coveredGridCells, gridEndpointCellIndex } from '../table-endpoint-snap';
@@ -247,21 +253,6 @@ function contentSpan(
 		clampToContent(to ?? content.end, content)
 	);
 	return selection && { path, edit: { display, content, selection } };
-}
-
-/** The span minus its boundary whitespace, null once nothing is left. Markdown opens and closes a
- *  run against a word, never a space, so an untrimmed edge yields delimiters that form no
- *  construct — which the modes that paint them write anyway (`wrapCandidates` is unverified there). */
-function withoutBoundaryWhitespace(
-	display: string,
-	from: number,
-	to: number
-): { start: number; end: number } | null {
-	let start = from;
-	let end = to;
-	while (start < end && /\s/.test(display[start])) start++;
-	while (end > start && /\s/.test(display[end - 1])) end--;
-	return start === end ? null : { start, end };
 }
 
 const clampToContent = (offset: number, content: ContentRange): number =>

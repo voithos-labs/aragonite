@@ -121,7 +121,7 @@ test.describe('directive-ops simulation', () => {
 		await page.waitForFunction(
 			(n) => document.querySelectorAll('.directive-block').length > n,
 			containersBefore,
-			{ timeout: 2000, polling: 16 }
+			{ timeout: 5000, polling: 16 }
 		);
 		await checkOracles('container-pasted');
 

@@ -6,7 +6,7 @@
  */
 
 import type { CstNode, Document } from '../../core/nodes';
-import { nodeAt } from '../node-ops';
+import { nodeAt } from '../node-primitives';
 import { devWarn } from '../../dev-warn';
 import type { MultiScopeTarget, PasteCommitCoordinator } from './paste-deps';
 

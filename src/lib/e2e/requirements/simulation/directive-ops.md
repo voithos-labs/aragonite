@@ -43,7 +43,7 @@ its only job is to keep the engine live under the corruption net.
 
 - Backspace at the start of a directive leaf moves focus rather than concatenating
   into the block above (`not-mergeable`): the source must be byte-identical after it,
-  asserted by a positive re-read rather than a delta wait
+  asserted by a positive re-read ordered on the press's own keydown verdict, not a delta wait
 - a container cannot be inserted by typing — a multi-line `:::name … :::` fence never
   forms from live single-block typing, since the opener declines an unterminated fence
   to a paragraph — so one is inserted by copying an existing container and pasting it

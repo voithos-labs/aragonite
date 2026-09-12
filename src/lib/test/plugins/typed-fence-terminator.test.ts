@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
-import { updateNodeContent } from '$lib/tree-operations/node-ops';
+import { updateNodeContent } from '$lib/tree-operations/content-write';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { registerMathFence, MATH_FENCE } from '$lib/plugins/latex/latex-kind';
 import { registerMermaidKind, MERMAID } from '$lib/plugins/mermaid/mermaid-kind';

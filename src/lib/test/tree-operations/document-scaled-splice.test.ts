@@ -4,7 +4,7 @@
 
 import { describe, it, expect, beforeAll } from 'vitest';
 import { parse } from '$lib/core/parser';
-import { spliceChildrenSettled } from '$lib/tree-operations/node-ops';
+import { spliceChildrenSettled } from '$lib/tree-operations/settle';
 import { replaceBlockAtParent } from '$lib/tree-operations/paste/replace-block-at-parent';
 import { createPasteCoordinator } from '$lib/editor-actions/paste-coordinator';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';

@@ -2,10 +2,10 @@
 
 ## User interactions
 
-- Typing into a popover input updates the input value, does not delete the image
-- Clicking from one popover input to another keeps the popover open and focuses the clicked field
+- Typing into a toolbar field updates the input value, does not delete the image
+- Closing and reopening the alt field keeps the toolbar open and focuses the field
 
 ## Layout
 
-- Opening the popover does not shift the widget or the block below it (no layout reflow)
-- Popover field labels stay inside popover bounds even when the image is in a list item
+- Opening the toolbar does not shift the widget or the block below it (no layout reflow)
+- An open field's input stays inside the field surface even when the image is in a list item

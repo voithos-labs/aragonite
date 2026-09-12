@@ -89,6 +89,7 @@ test.describe('code block — ranged edits spanning a fence line', () => {
 		for (const offset of [19, 1]) {
 			await editor.focusBlock(0, offset);
 			await editor.paste();
+			// A paste event, not a keystroke: no keydown, so no verdict.
 			await editor.waitForNoSourceMutation();
 
 			expect(await editor.bridge.getSource()).toBe(SOURCE);
@@ -99,6 +100,7 @@ test.describe('code block — ranged edits spanning a fence line', () => {
 		await editor.seedClipboard('Y');
 		await selectFrom(editor, 18, 3);
 		await editor.paste();
+		// A paste event, not a keystroke: no keydown, so no verdict.
 		await editor.waitForNoSourceMutation();
 
 		expect(await editor.bridge.getSource()).toBe(SOURCE);
@@ -130,8 +132,7 @@ test.describe('code block — ranged edits spanning a fence line', () => {
 
 	test('Backspace at the start of the closer line is inert', async () => {
 		await editor.focusBlock(0, 18);
-		await editor.page.keyboard.press('Backspace');
-		await editor.waitForNoSourceMutation();
+		await editor.pressDeclined('Backspace');
 
 		expect(await editor.bridge.getSource()).toBe(SOURCE);
 	});
@@ -141,8 +142,7 @@ test.describe('code block — ranged edits spanning a fence line', () => {
 	// and macOS spells it with another key, so folding the modifier would change what is tested.
 	test('word-delete at the body start is inert', async () => {
 		await editor.focusBlock(0, 6);
-		await editor.page.keyboard.press('Control+Backspace');
-		await editor.waitForNoSourceMutation();
+		await editor.pressDeclined('Control+Backspace');
 
 		expect(await editor.bridge.getSource()).toBe(SOURCE);
 	});
@@ -151,6 +151,7 @@ test.describe('code block — ranged edits spanning a fence line', () => {
 	// that swallows the document.
 	test('typing inside the closer fence is inert', async () => {
 		await editor.focusBlock(0, 19);
+		// `typeText` is one `insertText`, which fires no keydown: no verdict to wait on.
 		await editor.typeText('x');
 		await editor.waitForNoSourceMutation();
 
@@ -159,16 +160,14 @@ test.describe('code block — ranged edits spanning a fence line', () => {
 
 	test('Backspace inside the closer fence is inert', async () => {
 		await editor.focusBlock(0, 20);
-		await editor.page.keyboard.press('Backspace');
-		await editor.waitForNoSourceMutation();
+		await editor.pressDeclined('Backspace');
 
 		expect(await editor.bridge.getSource()).toBe(SOURCE);
 	});
 
 	test('deleting a selected opener marker run is inert', async () => {
 		await selectFrom(editor, 0, 3);
-		await editor.page.keyboard.press('Backspace');
-		await editor.waitForNoSourceMutation();
+		await editor.pressDeclined('Backspace');
 
 		expect(await editor.bridge.getSource()).toBe(SOURCE);
 	});

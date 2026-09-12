@@ -9,7 +9,7 @@ import type { CstNode } from '../../core/nodes';
 import type { NodeView } from '../../core/node-views';
 import { trimTrailingLineEnding } from '../../core/lines';
 import { tryGetBlockKindDescriptor } from '../../schema/block-kind-descriptor';
-import type { TrackedPosition } from '../node-ops';
+import type { TrackedPosition } from '../settle';
 
 /**
  * Focus index for the replacement: the last PASTED node. Single-sourced so every structural

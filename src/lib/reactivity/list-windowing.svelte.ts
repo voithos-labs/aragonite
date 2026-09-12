@@ -76,15 +76,15 @@ export interface ListWindowing {
 	recordMeasuredChild(index: number, id: string, height: number): void;
 	/** A PROPAGATED child-container subtotal: oracle + model slot, addressed by index. No anchor correction. */
 	setChildSubtotal(index: number, total: number): void;
-	/** Enroll a child in this scope's batched measure pass; returns an unregister fn to call on
-	 *  the child's unmount. The scope reads ALL pending children before applying ANY write, so a
-	 *  fling that mounts many costs one reflow. */
+	/** Enroll a child in this scope's batched measure pass, read after the flush that registered
+	 *  it; returns an unregister fn to call on the child's unmount. The scope reads ALL pending
+	 *  children before applying ANY write, so a fling that mounts many costs one reflow. */
 	registerChild(id: string, child: MeasureEntry): () => void;
 	/** Re-measure ONE registered child immediately (its content height changed on edit). */
 	measureChildNow(id: string): void;
-	/** ResizeObserver path: O(1)-gate `observedHeight` against the recorded height and
-	 *  re-measure only on a genuine post-mount change, so the no-op mount resize on a fling
-	 *  costs no DOM read. */
+	/** ResizeObserver path: O(1)-gate `observedHeight` against the height this scope last
+	 *  applied and re-measure only on a genuine post-mount change, so the no-op mount resize
+	 *  on a fling costs no DOM read. */
 	measureChildOnResize(id: string, observedHeight: number): void;
 	/**
 	 * True when the scroll position IS the reveal target's requested placement. Asked by
@@ -107,12 +107,18 @@ export interface ListWindowing {
  * Resize-gate decision (pure, unit-tested). Keyed on the height DIFFERING from what is
  * recorded, never on which callback delivered it: a cached remount can report the grown
  * size in the very first callback, so a callback-order heuristic would drop it.
- * `recorded === undefined` means the batched mount pass hasn't measured this block yet —
- * defer to it rather than racing a lone read in on a fling-dirtied layout.
+ * `recorded === undefined` means the scope has applied no height for this block yet —
+ * defer to the batched pass rather than racing a lone read in on a fling-dirtied layout.
  */
 export function shouldRemeasureOnResize(recorded: number | undefined, observed: number): boolean {
 	if (observed <= 0 || recorded === undefined) return false;
 	return Math.abs(recorded - observed) >= 1;
+}
+
+interface RegisteredChild extends MeasureEntry {
+	/** What this scope last applied for the child: the resize gate's reference, which an
+	 *  oracle cache drop (a mode flip) must not blank. */
+	applied: number | undefined;
 }
 
 // One shared result backs every collapsed scope — frozen so a consumer mutating
@@ -161,8 +167,8 @@ export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
 
 	// One scope-owned batched pass rather than a per-child effect, which would interleave a
 	// layout read with the prior child's write → one forced reflow per mounted block on a
-	// fling. `pending` holds ids awaiting their first measure; the batch effect drains it.
-	const registry = new Map<string, MeasureEntry>();
+	// fling. `pending` holds ids awaiting their first measure; registration drains it.
+	const registry = new Map<string, RegisteredChild>();
 	const pending = new Set<string>();
 
 	/**
@@ -228,6 +234,20 @@ export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
 		return true;
 	}
 
+	/**
+	 * Which block this correction holds still: the top-of-viewport one by default, the FOCUSED
+	 * one when it sits at or below the fold. Clicking a construct that reveals its source (a
+	 * math block, a paragraph holding inline math) resizes that block and folds whichever was
+	 * revealed before it; anchored on the viewport top, both slide the clicked block out from
+	 * under the pointer. Anchoring on the focused block holds its start offset instead, so it
+	 * stays put and only the content after it reflows.
+	 */
+	function anchorIndexFor(topIndex: number): number {
+		const pinned = pinnedIndex();
+		if (pinned === null || pinned < topIndex || pinned >= model.size) return topIndex;
+		return pinned;
+	}
+
 	// Hold the anchor block's screen position across a height mutation that would otherwise
 	// slide the visible content (VR-2) — native `overflow-anchor` is off wherever this runs, so
 	// nothing else holds the line. The delta comes from the Fenwick model, not
@@ -237,7 +257,7 @@ export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
 		if (skipWhileHostAnchors(mutate)) return;
 		if (reassertRevealAnchor(mutate)) return;
 		const port = deps.getPort();
-		const anchorIndex = model.indexAtOffset(localScrollTop());
+		const anchorIndex = anchorIndexFor(model.indexAtOffset(localScrollTop()));
 		const before = model.offsetOf(anchorIndex);
 		mutate();
 		const delta = model.offsetOf(anchorIndex) - before;
@@ -361,22 +381,21 @@ export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
 	$effect(() => {
 		void heightVersion;
 		const el = deps.getOwnEl?.();
-		if (!el || !deps.reportSelfHeight) return;
-		const h = el.getBoundingClientRect().height;
-		if (h > 0 && Math.abs(h - reportedSelfHeight) >= 1) {
-			reportedSelfHeight = h;
-			deps.reportSelfHeight(h);
-		}
-	});
-
-	// The batched measure pass for NEWLY-MOUNTED children, keyed on the EFFECTIVE window: the
-	// raw result can be identical across a collapse expand, stranding remounted children in
-	// `pending` until the next scroll. Registration deliberately does NOT bump reactive
-	// state — the mount that registers a child already moved the window, so a per-child
-	// trigger would re-enter this effect O(children) times and trip the update-depth guard.
-	$effect(() => {
-		void effectiveWindow;
-		untrack(() => flushMeasurements());
+		const report = deps.reportSelfHeight;
+		if (!el || !report) return;
+		// After the flush, like the batch: at this effect's first run the children are unrendered.
+		let live = true;
+		void tick().then(() => {
+			if (!live) return;
+			const h = el.getBoundingClientRect().height;
+			if (h > 0 && Math.abs(h - reportedSelfHeight) >= 1) {
+				reportedSelfHeight = h;
+				report(h);
+			}
+		});
+		return () => {
+			live = false;
+		};
 	});
 
 	// The UNCORRECTED batch: the caller owns the anchor correction, because nesting a second
@@ -447,11 +466,21 @@ export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
 			// target's own container pushes a resolved target down by its full height (#32).
 			if (!skipWhileHostAnchors(write) && !reassertRevealAnchor(write)) write();
 		},
-		// Enroll without touching reactive state: the mount that registers this child already
-		// moved the window, which re-runs the batch effect to drain `pending`.
+		// Read after the flush that mounted the child, not inside it: content can land later in
+		// that flush (an inline widget's root flushes after this one), and an empty-host read is
+		// a scroll correction the observer undoes a frame later. Still ahead of paint.
 		registerChild(id, child) {
-			registry.set(id, child);
+			const entry: RegisteredChild = {
+				readHeight: child.readHeight,
+				applyHeight: (h) => {
+					entry.applied = h;
+					child.applyHeight(h);
+				},
+				applied: undefined
+			};
+			registry.set(id, entry);
 			pending.add(id);
+			void tick().then(flushMeasurements);
 			return () => {
 				registry.delete(id);
 				pending.delete(id);
@@ -461,11 +490,11 @@ export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
 		measureChildNow(id) {
 			measureOne(id);
 		},
-		// ResizeObserver path for async growth. The gate reads the oracle's recorded height
+		// ResizeObserver path for async growth. The gate reads what this scope last applied
 		// (O(1), no DOM), so the no-op mount resize a fling fires for every newly-mounted
 		// block returns without a rect read on the spacer-dirtied layout (VR-4).
 		measureChildOnResize(id, observedHeight) {
-			if (shouldRemeasureOnResize(deps.oracle.measured(id), observedHeight)) measureOne(id);
+			if (shouldRemeasureOnResize(registry.get(id)?.applied, observedHeight)) measureOne(id);
 		},
 		revealHoldsScroll() {
 			const targetScrollTop = revealTargetScrollTop();

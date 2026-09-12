@@ -1,9 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { serialize } from '$lib/core/serializer';
-import { getPluginMetadata } from '$lib/core/nodes';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
-import { __resetPasteSurfacesForTests } from '$lib/tree-operations/paste-surfaces';
+import { parse, serialize } from '$lib';
+import { getPluginMetadata } from '$lib/plugin';
+import { resetPluginPlatformForTests } from '$lib/testing';
 import {
 	registerDetailsKind,
 	rebuildDetailsRaw,
@@ -15,8 +13,7 @@ import {
 // ending rather than normalize CRLF to `\n`. Mirrors `serializeDirective`'s threading.
 
 function resetAndRegister(): void {
-	__resetSchemaRegistriesForTests();
-	__resetPasteSurfacesForTests();
+	resetPluginPlatformForTests();
 	registerDetailsKind();
 }
 

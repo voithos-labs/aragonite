@@ -241,6 +241,15 @@ Editor.svelte (production component, unchanged)
 - **`editor.bridge`** is the _state_ accessor: `getSource` / `getBlockCount` / `getBlockKind`,
   plus the `waitForSource*` / `waitForBlockCount` settling predicates. Reach for these instead
   of `waitForTimeout` whenever you're waiting on document state.
+- **Absence oracles** prove a gesture changed nothing, which no predicate can observe as a
+  delta. A keyboard gesture has a positive signal: the editable surfaces record one interaction
+  trace entry per keydown once the handler's own await chain settles, so `pressDeclined(key)`
+  and `typeDeclined(text)` dispatch the keys and return on that verdict. A count that never
+  advances fails naming the key — the press reached no editor surface, which is a finding, not
+  a timeout to widen. Reading mode takes no keystrokes, so `expectSurfaceInert()` asserts the
+  structural fact instead (no editable surface under the root) and drains a tick.
+  `waitForNoSourceMutation` is the fallback for a gesture with no verdict — a click, a drag, a
+  paste, a menu item, the `runCommand` door — and each remaining call says which.
 
 The two halves side by side, on a two-block document with the caret parked at the end of the
 paragraph:
@@ -262,7 +271,9 @@ interrupted run leaves a server alive, and the next run serves whatever that tre
 `E2E_ISOLATED=1` starts the run's own servers instead, on 1430 (and 1431 for the `PERF_PROD`
 preview), reusing neither, so a run can only measure the checkout it was launched from.
 `npm run test:e2e:isolated` runs the whole suite that way, and anything narrower is the same
-script with Playwright's own arguments appended:
+script with Playwright's own arguments appended. `E2E_PORT=1440` picks the isolated port (the
+preview takes the next one), so two isolated runs on one machine, from two worktrees say, never
+race for 1430:
 
 ```
 $ npm run test:e2e:isolated -- --project=e2e-top smoke.spec.ts
@@ -378,7 +389,9 @@ project exist at all, so the run can't half-happen inside the default suite. It 
 curated slice of the existing typing, split/merge, selection and round-trip specs, plus
 everything under `tests/webkit/`, which holds the specs only this run executes, covering the two
 helpers that branch on the engine. It fails rather than reports, and it can afford to because it
-carries no known-red backlog for a regression to hide behind. Run it alone, and on a quiet tree:
+carries no known-red backlog for a regression to hide behind. CI runs it as a non-blocking job on
+the release pull request (`dev` to `main`) and on manual dispatch, so a release sees the second
+engine without adding it to the per-commit loop. Locally, run it alone, and on a quiet tree:
 it shares the dev server with every other project, and a save into `src/` mid-run triggers an
 SSR reload whose component re-registration turns the run red for a reason the product never had.
 
@@ -477,8 +490,8 @@ much fun to diagnose as it sounds. Don't fire unsettled `keyboard.type` in a tig
 blockquote, `$effect`s and post-tick commits must flush before `getSource()` reflects the
 change. Wait on `editor.bridge.waitForSourceContains('expected')` or a sibling predicate; they
 poll until the assertion would pass and stop immediately. `waitForTimeout` is reserved for
-genuinely time-dependent waits (sticky-column layout settle, copy-only clipboard verification)
-and gets an inline comment when used. The raw rebuild itself is synchronous; you're waiting on
+genuinely time-dependent waits (sticky-column layout settle, copy-only clipboard verification,
+the absence oracle of a gesture with no keydown verdict) and gets an inline comment when used. The raw rebuild itself is synchronous; you're waiting on
 reactivity and render flush, not a debouncer.
 
 **Use `focusBlockEnd` / `focusBlockStart` for precise cursor placement.** They set the cursor

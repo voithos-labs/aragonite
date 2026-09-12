@@ -22,6 +22,12 @@ export interface CompletionResult {
 export interface BlockCompleter {
 	/** Attempt to complete `line`; null declines, as does a claim whose lines would paint nothing. */
 	tryComplete(line: string): CompletionResult | null;
+	/**
+	 * Also consulted as the line is TYPED, not only at Enter — for a claim that can only ever mean
+	 * one thing the moment it is complete (a lone `$$`), so the block forms as a ` ``` ` fence does.
+	 * Off by default: a table's header row is a prefix of a longer row the user may still be typing.
+	 */
+	onType?: boolean;
 }
 
 const completers = new Map<AnyBlockKind, BlockCompleter>();
@@ -52,6 +58,16 @@ function ordered(): readonly BlockCompleter[] {
 /** The first claim on `line`, or null when no registered completer takes it. */
 export function completeTypedLine(line: string): CompletionResult | null {
 	for (const completer of ordered()) {
+		const claim = completer.tryComplete(line);
+		if (claim) return claim;
+	}
+	return null;
+}
+
+/** The first claim on `line` among the completers that answer as the line is typed. */
+export function completeLineOnType(line: string): CompletionResult | null {
+	for (const completer of ordered()) {
+		if (!completer.onType) continue;
 		const claim = completer.tryComplete(line);
 		if (claim) return claim;
 	}

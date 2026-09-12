@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { computeFenceExit } from '$lib/components/blocks/code/code-fence-exit';
+import {
+	computeFenceExit,
+	computeTypedFenceExit
+} from '$lib/components/blocks/code/code-fence-exit';
 
 type FenceMeta = Parameters<typeof computeFenceExit>[0]['meta'];
 
@@ -111,5 +114,73 @@ describe('computeFenceExit — unclosed fence mints a closer', () => {
 	it('returns none when not at the end of the buffer', () => {
 		const text = 'hello\n';
 		expect(exit(text, 3, { closed: false })).toEqual({ kind: 'none' });
+	});
+});
+
+// Miss-analysis: exiting a code block was only ever asked of Enter, so the OTHER thing a user
+// does at the end of a block — typing the closer — reached the write seam instead, where a body
+// line that reads as a closer can only mean "grow the fence".
+describe('computeTypedFenceExit — a closer typed on the empty last line', () => {
+	const typedExit = (text: string, offset: number, typed: string, meta: Partial<FenceMeta> = {}) =>
+		computeTypedFenceExit({
+			text,
+			offset,
+			typed,
+			meta: { fenceMarker: '`', fenceLength: 3, info: '', closed: true, ...meta }
+		});
+
+	it('leaves the block, taking the run and its line with it', () => {
+		expect(typedExit('```js\nhello\n``\n```', 14, '`')).toEqual({
+			kind: 'exitWithEdit',
+			newText: '```js\nhello\n```'
+		});
+	});
+
+	it('leaves a body of nothing but that line', () => {
+		expect(typedExit('```\n``\n```', 6, '`')).toEqual({
+			kind: 'exitWithEdit',
+			newText: '```\n```'
+		});
+	});
+
+	it('completes a longer fence only at its own length', () => {
+		expect(typedExit('`````\na\n```\n`````', 11, '`', { fenceLength: 5 })).toEqual({
+			kind: 'none'
+		});
+		expect(typedExit('`````\na\n````\n`````', 12, '`', { fenceLength: 5 })).toEqual({
+			kind: 'exitWithEdit',
+			newText: '`````\na\n`````'
+		});
+	});
+
+	it('takes a CRLF line ending with the line', () => {
+		expect(typedExit('```\r\na\r\n``\r\n```', 10, '`')).toEqual({
+			kind: 'exitWithEdit',
+			newText: '```\r\na\r\n```'
+		});
+	});
+
+	it('reads a tilde fence by its own marker', () => {
+		expect(typedExit('~~~\na\n~~\n~~~', 8, '~', { fenceMarker: '~' })).toEqual({
+			kind: 'exitWithEdit',
+			newText: '~~~\na\n~~~'
+		});
+		expect(typedExit('~~~\na\n``\n~~~', 8, '`', { fenceMarker: '~' })).toEqual({ kind: 'none' });
+	});
+
+	it('escalates instead wherever the line is not the run alone', () => {
+		// Content ahead of the run, and the caret mid-line: both are body text, so the write seam
+		// keeps its CommonMark answer and grows the fence.
+		expect(typedExit('```\nx``\n```', 7, '`')).toEqual({ kind: 'none' });
+		expect(typedExit('```\n``x\n```', 6, '`')).toEqual({ kind: 'none' });
+	});
+
+	it('writes the byte when the line below is not this block’s closer', () => {
+		expect(typedExit('```\n``\nbody\n```', 6, '`')).toEqual({ kind: 'none' });
+	});
+
+	// An open fence has no closer yet, so the run the author types IS the closer: it is written.
+	it('writes the byte in an unclosed fence', () => {
+		expect(typedExit('```\na\n``\n', 8, '`', { closed: false })).toEqual({ kind: 'none' });
 	});
 });

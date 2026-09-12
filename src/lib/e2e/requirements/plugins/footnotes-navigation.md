@@ -87,3 +87,7 @@ covers the user-facing gesture.)
 - The click that outlived its block: five scenarios here drove it and all five passed, because
   the only thing it broke was a Svelte runtime warning no gate read. A channel nothing watches
   is a whole class of defect with no tests at all, whatever the scenarios say.
+- The whole-token select keyed off where the selection sat, on the premise that nothing between
+  the second press and its click could move it. A root listener that selects the word under the
+  second press did, and the rule declined itself out of the one gesture it exists for; it now
+  keys off the click's point.

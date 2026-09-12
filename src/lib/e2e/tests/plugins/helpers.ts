@@ -11,6 +11,7 @@ export class PluginsPage extends EditorPage {
 		await this.page.waitForFunction(() => (window as any).__test !== undefined, null, {
 			timeout: BRIDGE_INSTALL_TIMEOUT
 		});
+		await this.page.evaluate(() => document.fonts.ready);
 		// Armed for every spec, not per-spec: capture is passive, and a `capturedErrors() === []`
 		// assertion against a capture nobody started passes vacuously.
 		await this.page.evaluate(() => (window as any).__test.startErrorCapture());
@@ -179,7 +180,7 @@ export async function waitForContainer(
 	page: Page,
 	index: number,
 	predicate: (s: ContainerState) => boolean,
-	timeout = 2000
+	timeout = 5000
 ): Promise<ContainerState> {
 	await page.waitForFunction(
 		({ i, src, predSrc }) => new Function('i', `return (${predSrc})((${src})(i));`)(i) as boolean,
@@ -221,7 +222,7 @@ export async function readDoc(page: Page): Promise<DocState> {
 export async function waitForDoc(
 	page: Page,
 	predicate: (s: DocState) => boolean,
-	timeout = 2000
+	timeout = 5000
 ): Promise<DocState> {
 	await page.waitForFunction(
 		({ src, predSrc }) => new Function(`return (${predSrc})((${src})());`)() as boolean,

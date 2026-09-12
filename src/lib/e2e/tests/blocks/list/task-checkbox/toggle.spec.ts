@@ -51,4 +51,20 @@ test.describe('task checkbox — toggle and undo', () => {
 		await editor.bridge.waitForSourceContains('[ ]');
 		expect((await editor.bridge.getSource()).trim()).toBe('- [ ] upper');
 	});
+
+	// GitHub-shaped bytes under the GitHub look: the marker span the rendered modes collapse
+	// is inert, and a numbered task keeps its own marker through a toggle.
+	test('a click on the list marker span leaves the bytes alone', async () => {
+		await editor.loadContent('- [ ] pending\n');
+		await editor.page.locator('.task-list-marker').first().click();
+		await editor.waitForNoSourceMutation();
+		expect(await editor.bridge.getSource()).toBe('- [ ] pending\n');
+	});
+
+	test('an ordered task toggles with its own marker intact', async () => {
+		await editor.loadContent('1. [ ] first\n');
+		await editor.page.locator('.task-checkbox').first().click();
+		await editor.bridge.waitForSourceContains('[x]');
+		expect(await editor.bridge.getSource()).toBe('1. [x] first\n');
+	});
 });

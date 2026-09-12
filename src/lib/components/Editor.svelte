@@ -28,7 +28,7 @@
 	import { createPendingMarksState } from '../cursor/pending-marks';
 	import { createRevealAnchorState } from '../cursor/reveal-anchor';
 	import { createHeightOracle } from '../cursor/height-oracle';
-	import { ESTIMATE_BASE_FONT_SIZE, HEIGHT_ESTIMATES } from '../cursor/typography-estimates';
+	import { HEIGHT_ESTIMATES } from '../cursor/typography-estimates';
 	import {
 		clippingAncestors,
 		userScrollportFor,
@@ -37,18 +37,34 @@
 	import { createScrollport, type Scrollport } from '../cursor/scrollport';
 	import { createDeadSpaceCaret } from '../selection/dead-space-caret';
 	import { resetForPointerDown } from '../selection/cross-block/pointer';
+	import { installDragListener } from '../selection/drag-pointer';
 	import { createContentVersion } from '../reactivity/content-version.svelte';
 	import { useContainerWindowing } from '../reactivity/use-container-windowing.svelte';
 	import { refSlotsOver, replaceRefs, revealChildOrWait } from '../reactivity/publish-ref.svelte';
 	import { createSelectionState } from '../selection/selection-state.svelte';
 	import { createSelectionDescription } from '../selection/selection-description';
-	import { EDITOR_LABEL, movedBlockToPosition } from '../a11y-strings';
+	import {
+		BLOCK_ACTIONS_LABEL,
+		BLOCK_MENU_LABEL,
+		EDITOR_LABEL,
+		movedBlockToPosition
+	} from '../a11y-strings';
+	import TailInsert from './TailInsert.svelte';
+	import BlockMenu, {
+		insertFlyoutEntries,
+		insertMenuEntries,
+		insertSnippets,
+		type MenuEntry
+	} from './menu/BlockMenu.svelte';
+	import { runClipboardAction, type ClipboardAction } from './menu/clipboard-actions';
+	import { blockContextActionsFor, type BlockContextAction } from '../schema/context-actions';
+	import { isProseBackground, registerDefaultContextActions } from './menu/default-context-actions';
 	import type { EditorSelection } from '../selection/primitives';
 	import { createWidgetSelectionState } from './image/widget-selection-state.svelte';
 	import { bootstrapCodeLanguages } from './blocks/code/code-bootstrap';
 	import { assignIds } from '../block-id';
 	import { ensureEditableContainers, emptyParagraph } from '../tree-operations';
-	import { blockNodeAt, isBlockNode, nodeAt } from '../tree-operations/node-ops';
+	import { blockNodeAt, isBlockNode, nodeAt } from '../tree-operations/node-primitives';
 	import { serialize } from '../core/serializer';
 	import { parse } from '../core/parser';
 	import { defaultLinkActivation } from '../core/url-policy';
@@ -80,19 +96,26 @@
 	} from '../debug/interaction-trace';
 	import { readCurrentSelection } from '../selection/native-bridge';
 	import { restoreSelection, type SelectionRestoreOutcome } from '../selection/selection-restore';
-	import { findSurfacePathForElement, readBlockPath } from '../selection/path-lookup';
+	import { findSurfacePathForElement } from '../selection/path-lookup';
 	import { createCaretRestore } from '../selection/caret-restore';
 	import { createCrossBlockHandlers } from '../selection/cross-block/dispatch';
 	import { createCrossBlockCommands } from '../selection/cross-block/format-toggle';
-	import { isPreviewMode } from '../presentation-mode';
 	import { normalizeKeybindingOverrides } from '../schema/keybinding-overrides';
 	import { createEditorRootKeydown } from './editor-root-keydown';
 	import { createEditorRootClipboard } from './editor-root-clipboard';
+	import { createModeFlip } from './editor-root-mode-flip';
+	import { createFocusAttribution } from './editor-root-focus';
 	import {
+		installHeaderSlotCompensation,
+		installTypeScaleProbe,
+		installViewportHeightWatcher,
+		installWidthWatcher
+	} from './editor-root-geometry';
+	import {
+		installDoubleClickWordSelect,
 		installEditorBlurAnnouncer,
 		installModActiveTracker,
 		installSelectionChangeBridge,
-		installViewportHeightWatcher,
 		onRoot,
 		removeAll
 	} from './editor-root-listeners';
@@ -102,12 +125,8 @@
 		registerEditor,
 		unregisterEditor,
 		markEditorInteracted,
-		releaseInteractedEditor,
-		isTextEntrySurface
+		releaseInteractedEditor
 	} from '../active-editor';
-	import { ambientLengthOf } from '../ambient/ambient-dom';
-	import { toClampedRawOffset } from '../cursor/coordinate-spaces';
-	import { domTextOffsetAtNode } from '../cursor/widget-offset';
 	import {
 		canRunCommandById,
 		isCommandActiveById,
@@ -134,12 +153,12 @@
 	import { runStartupInvariantChecks } from '../invariants/install';
 	import { assertInvariant } from '../assert';
 	import { checkMarkerCssParity } from '../invariants/marker-css-parity';
-	import { checkLandableCaret } from '../invariants/landable-caret';
 	import { registerBuiltInBlocks } from './built-in-blocks';
 	import { BLOCK_CONTENT_SELECTOR } from './block-content-selector';
 
 	registerBuiltInBlocks();
 	bootstrapCodeLanguages();
+	registerDefaultContextActions();
 	runStartupInvariantChecks();
 
 	// `__registryEnablement` is a harness-only door; the intersection keeps it off the
@@ -151,8 +170,10 @@
 		imageLoadPolicy = 'auto',
 		onLinkActivate,
 		onPasteImage,
+		onRunCode,
+		codeMenuItems,
 		header,
-		blockDragHandles = false,
+		blockDragHandles = true,
 		searchBar = true,
 		searchBarAnchor,
 		keybindings,
@@ -447,6 +468,189 @@
 		revealBlock: (index) => revealPath([index])
 	});
 
+	// ── Block menu ──────────────────────────────────────────────────────
+
+	// Opened by the bottom `+` and by a right-click on prose with nothing selected; a right-click
+	// over a selection leaves the formatting popover (the host's) in charge and only suppresses
+	// the native menu. Tables run their own cell menu and have prevented the default first.
+	let blockMenu = $state<{
+		x: number;
+		y: number;
+		anchor: () => { x: number; y: number };
+		items: MenuEntry[];
+		label: string;
+		pick: (id: string) => void;
+	} | null>(null);
+
+	// Open/close transitions only, never the mount, so a subscriber's first news is a real menu.
+	let menuWasOpen = false;
+	$effect(() => {
+		const open = blockMenu !== null;
+		if (open === menuWasOpen) return;
+		menuWasOpen = open;
+		events.emit('menuChange', open);
+	});
+
+	function anchorOn(el: Element, point: { x: number; y: number }): () => { x: number; y: number } {
+		const rect = el.getBoundingClientRect();
+		const dx = point.x - rect.left;
+		const dy = point.y - rect.top;
+		return () => {
+			const now = el.getBoundingClientRect();
+			return { x: now.left + dx, y: now.top + dy };
+		};
+	}
+
+	// A right-click on a BLOCK — a fence, an equation, an image — is that block's context menu:
+	// its kind's registered actions, then the defaults. Prose is the page's background and keeps
+	// the browser's own menu (spelling, the platform's clipboard), as does a selection, whose
+	// affordance is the host's formatting popover. The margin shows nothing at all.
+	function onRootContextMenu(e: MouseEvent): void {
+		if (e.defaultPrevented || effectiveMode === 'reading' || !editorEl) return;
+		const target = e.target instanceof Element ? e.target : null;
+		if (!target || isHostChrome(target)) return;
+		e.preventDefault();
+		// The keyboard's contextmenu event (Windows fires it on the ContextMenu key's release)
+		// lands on the item the keydown's own menu already focused: that menu is the answer.
+		if (target.closest('.md-menu')) return;
+		const host = target.closest<HTMLElement>('.block-host[data-block-path]');
+		const path = pathOf(host);
+		if (!host || !path) return;
+		const point = { x: e.clientX, y: e.clientY };
+		const native = window.getSelection();
+		const selected = !!native && !native.isCollapsed && editorEl.contains(native.anchorNode);
+		// A selection's menu is the clipboard's, over the selection as it stands. So is prose's
+		// (the page's background), at a caret placed where the press landed; a nested block (a
+		// fence inside a list item) takes the same for now.
+		const node = path.length === 1 ? doc.children[path[0]] : undefined;
+		if (selected || !node || isProseBackground(node)) {
+			if (!selected) placeCaretAtPoint(e.clientX, e.clientY);
+			// Top-level prose is where a sibling block makes sense; a nested block or a selection
+			// gets the clipboard alone.
+			const insertAfter = !selected && node && isProseBackground(node) ? path[0] : null;
+			openClipboardMenu(point, host, insertAfter);
+			return;
+		}
+		const index = path[0];
+		const actions = blockContextActionsFor(node, path);
+		if (actions.length === 0) return;
+		const ctx = {
+			node,
+			path,
+			deleteBlock: async () => {
+				await blockEdit.deleteBlock(index);
+			},
+			replaceRaw: async (raw: string) => {
+				await blockEdit.updateBlockContent(index, raw);
+			}
+		};
+		blockMenu = {
+			...point,
+			anchor: anchorOn(host, point),
+			items: actions.map(({ id, label, icon, danger }) => ({
+				id,
+				label,
+				icon: icon as MenuEntry['icon'],
+				danger
+			})),
+			label: BLOCK_ACTIONS_LABEL,
+			pick: (id) => {
+				blockMenu = null;
+				const action = actions.find((a: BlockContextAction) => a.id === id);
+				if (action) void action.run(ctx);
+			}
+		};
+	}
+
+	// The editing surface a paste goes to: whatever editable holds focus inside the root.
+	function focusedEditable(): HTMLElement | null {
+		const active = document.activeElement;
+		return active instanceof HTMLElement && editorEl?.contains(active) && active.isContentEditable
+			? active
+			: null;
+	}
+
+	function clipboardRows(): MenuEntry[] {
+		const selected = !!focusedEditable() && !(window.getSelection()?.isCollapsed ?? true);
+		return [
+			{ id: 'clip.cut', label: 'Cut', icon: 'scissors', disabled: !selected },
+			{ id: 'clip.copy', label: 'Copy', icon: 'copy', disabled: !selected },
+			{ id: 'clip.paste', label: 'Paste', icon: 'clipboard' },
+			{ id: 'clip.paste-plain', label: 'Paste as plain text', icon: 'type' }
+		];
+	}
+
+	function runClipboardRow(id: string): boolean {
+		if (!id.startsWith('clip.')) return false;
+		void runClipboardAction(id.slice('clip.'.length) as ClipboardAction, focusedEditable());
+		return true;
+	}
+
+	/** `insertAfter` names the top-level block an "Insert block" flyout mints an empty sibling
+	 *  after; null leaves the menu to the clipboard rows alone. */
+	function openClipboardMenu(
+		point: { x: number; y: number },
+		anchorEl: Element,
+		insertAfter: number | null = null
+	): void {
+		const insert: MenuEntry[] =
+			insertAfter === null
+				? []
+				: [
+						{ id: 'sep', label: '', divider: true },
+						{ id: 'insert', label: 'Insert block', icon: 'plus', children: insertFlyoutEntries() }
+					];
+		blockMenu = {
+			...point,
+			anchor: anchorOn(anchorEl, point),
+			items: [...clipboardRows(), ...insert],
+			label: BLOCK_ACTIONS_LABEL,
+			pick: (id) => {
+				blockMenu = null;
+				if (runClipboardRow(id)) return;
+				const md = insertSnippets().get(id);
+				if (md && insertAfter !== null) void insertBlockAfter(insertAfter, md);
+			}
+		};
+	}
+
+	// The same two steps the tail's `+` takes: mint the empty paragraph, which lands the caret in
+	// it, then hand the snippet to the surface that now holds focus.
+	async function insertBlockAfter(index: number, md: string): Promise<void> {
+		await blockEdit.insertParagraph(index + 1, '');
+		insertMarkdown(md);
+	}
+
+	function pathOf(host: HTMLElement | null): number[] | null {
+		const raw = host?.dataset.blockPath;
+		if (!raw) return null;
+		try {
+			const parsed: unknown = JSON.parse(raw);
+			return Array.isArray(parsed) && parsed.every((n) => typeof n === 'number') ? parsed : null;
+		} catch {
+			return null;
+		}
+	}
+
+	async function onTailPlus(button: HTMLElement): Promise<void> {
+		await blockEdit.insertParagraph(doc.children.length, '');
+		const rect = button.getBoundingClientRect();
+		const point = { x: rect.left, y: rect.bottom + 4 };
+		const snippets = insertSnippets();
+		blockMenu = {
+			...point,
+			anchor: anchorOn(button, point),
+			items: [...insertMenuEntries(), { id: 'sep', label: '', divider: true }, ...clipboardRows()],
+			label: BLOCK_MENU_LABEL,
+			pick: (id) => {
+				blockMenu = null;
+				if (runClipboardRow(id)) return;
+				const md = snippets.get(id);
+				if (md) insertMarkdown(md);
+			}
+		};
+	}
+
 	// ── Link card door ──────────────────────────────────────────────────
 
 	// The caret snapshot and the entry guards ride the STATE, not the callers, so entry path N+1
@@ -509,9 +713,27 @@
 			}
 			const anchor = target?.closest('a[href]') as HTMLAnchorElement | null;
 			// The helper claims only clicks whose target IS the root, so nothing the
-			// editor renders is touched.
+			// editor renders is touched. A margin drag's release arrives as a root click too (the
+			// press and release targets meet at the root); with a range just painted, it is no
+			// click to answer.
 			if (!anchor) {
-				deadSpaceCaret.handleClick(root, e);
+				const pressed = marginDrag;
+				const dragged =
+					pressed &&
+					(Math.abs(e.clientX - marginDown.x) > 3 || Math.abs(e.clientY - marginDown.y) > 3);
+				marginDrag = false;
+				if (dragged) return;
+				if (deadSpaceCaret.handleClick(root, e)) return;
+				// A press the editor took on a block (a host's own padding beside a table, a rule, a
+				// folded equation's face) that did not move is a click on it: the click helper
+				// claims only dead space, so the same landing is resolved here.
+				if (pressed && !deadSpaceCaret.isDeadSpaceTarget(root, e.target)) {
+					if (placeCaretAtPoint(e.clientX, e.clientY)) return;
+				}
+				// Declined everywhere: a click on nothing still LEAVES what was being edited (a
+				// revealed equation folds on blur), since the margin press suppressed the blur the
+				// browser would have done.
+				if (pressed) blurEditingSurface(root);
 				return;
 			}
 			// Host chrome follows the page's link behaviour, not plain-click-edits.
@@ -529,9 +751,62 @@
 				e.preventDefault();
 			}
 		};
+		// Dead space, and the parts of a block that are neither editable nor controls: a rendered
+		// equation, a diagram, a card's rendered face. A press on any of them cannot grow a native
+		// selection, so the editor's drag runs from it.
+		// A whole-block input proxy is an editable in name only (it catches IME for a block with no
+		// text), so a press on it starts the editor's drag like a press on the block itself.
+		const NOT_A_DRAG_START =
+			'[contenteditable="true"]:not([data-whole-block-input]), button, input, textarea, select, ' +
+			'a, summary, [role="checkbox"], ' +
+			'.code-rail, .table-add-zone, .editor-tail, .md-menu, .block-drag-handle';
+		const dragStartsHere = (rootEl: HTMLElement, target: EventTarget | null): boolean => {
+			if (deadSpaceCaret.isDeadSpaceTarget(rootEl, target)) return true;
+			if (!(target instanceof Element) || !rootEl.contains(target)) return false;
+			return target.closest(NOT_A_DRAG_START) === null;
+		};
+		// A drag that STARTS in the margin: the browser cannot grow a selection from a
+		// non-editable press into an editable block, so the editor runs the drag itself, anchored
+		// where a click there would land. The mousedown's default is suppressed so the browser
+		// starts no selection of its own to fight it; `click` still fires for the caret placement.
+		let marginDrag = false;
+		let marginDown = { x: 0, y: 0 };
+		const startMarginDrag = (e: PointerEvent) => {
+			marginDrag = false;
+			marginDown = { x: e.clientX, y: e.clientY };
+			if (e.button !== 0 || e.shiftKey || e.ctrlKey || e.metaKey || e.altKey) return;
+			if (effectiveMode === 'reading' || !dragStartsHere(root, e.target)) return;
+			const anchor = deadSpaceCaret.anchorAtPoint(root, e.clientX, e.clientY);
+			if (!anchor) return;
+			marginDrag = true;
+			resetForPointerDown(selectionState, stickyColumn, edgeAffinity, false);
+			// A block that runs its own drag from a nearby press (a table's cell rectangle) takes
+			// it; the generic drag is for blocks that have none.
+			if (!('offset' in anchor)) {
+				const component = getBlockComponent(anchor.path);
+				if (component?.startDragAtPoint?.(e.clientX, e.clientY, e)) return;
+			}
+			installDragListener(
+				{
+					editorRoot: root,
+					scrollContainer: getScrollHost() ?? root,
+					selection: selectionState,
+					getBlockElByPath,
+					lifetimeSignal: lifetimeController.signal,
+					paintSameBlock: true
+				},
+				anchor,
+				e
+			);
+		};
 		return removeAll(
 			onRoot(root, 'click', handleClick),
-			onRoot(root, 'mousedown', (e: MouseEvent) => deadSpaceCaret.notePress(root, e))
+			installDoubleClickWordSelect(root),
+			onRoot(root, 'pointerdown', startMarginDrag),
+			onRoot(root, 'mousedown', (e: MouseEvent) => {
+				deadSpaceCaret.notePress(root, e);
+				if (marginDrag) e.preventDefault();
+			})
 		);
 	});
 
@@ -862,8 +1137,7 @@
 		resolveImageUrl: resolveImageUrlImpl,
 		resolveLinkUrl: resolveLinkUrlImpl,
 		imageLoadPolicy: () => imageLoadPolicy,
-		// Reading mode forces the affordances off through the prop's own funnel; the handle
-		// and the table grips all read this one getter.
+		// Reading mode forces the affordance off through the prop's own funnel.
 		blockDragHandles: () => blockDragHandles && effectiveMode !== 'reading',
 		presentationMode: () => effectiveMode,
 		theme: () => theme,
@@ -874,89 +1148,45 @@
 		get onPasteImage() {
 			return onPasteImage;
 		},
+		// Accessors for the same reason as onPasteImage above.
+		get onRunCode() {
+			return onRunCode;
+		},
+		get codeMenuItems() {
+			return codeMenuItems;
+		},
 		brokenImageUrls
 	} satisfies EditorPolicies);
 
 	// ── Root DOM effects ────────────────────────────────────────────────
 
-	/** The focused leaf's caret as (path, raw offset): the per-backend road while a leaf holds
-	 *  focus, else the native range a toggle click leaves behind while chrome takes focus. */
-	function captureFlipCaret(): { path: number[]; offset: number } | null {
-		if (selectionState.isCrossBlock || selectionState.gapCaret) return null;
-		const focused = readCurrentSelection(selectionState, blockRefs)?.focus;
-		if (focused) return { path: focused.path, offset: focused.offset };
-		const sel = window.getSelection();
-		if (!sel?.focusNode || !editorEl?.contains(sel.focusNode) || isHostChrome(sel.focusNode))
-			return null;
-		const node = sel.focusNode;
-		const el = node instanceof Element ? node : node.parentElement;
-		const path = findSurfacePathForElement(el);
-		if (!path) return null;
-		const contentEl = getBlockElByPath(path);
-		if (!contentEl?.contains(node)) return null;
-		const offset = toClampedRawOffset(
-			domTextOffsetAtNode(contentEl, node, sel.focusOffset),
-			ambientLengthOf(contentEl)
-		);
-		return { path, offset };
-	}
-
-	// The flip's PRE phase, the last moment the outgoing mode owns the DOM: past it the mode's
-	// render key has rebuilt every block from its own CST bytes, and the reveal's ephemeral edit
-	// is gone. Reading keeps its entry snapshot — no caret of its own to recapture on the way out.
-	let flipCaret: { path: number[]; offset: number } | null = null;
-	// svelte-ignore state_referenced_locally
-	let preFlipSeenMode = effectiveMode;
+	// The pre half runs while the outgoing mode still owns the DOM, the post half after the
+	// mode's render key has rebuilt every block; the factory carries the caret across the gap.
+	const modeFlip = createModeFlip({
+		get editorEl() {
+			return editorEl;
+		},
+		get mode() {
+			return effectiveMode;
+		},
+		selection: selectionState,
+		getSelection,
+		getBlockElByPath,
+		isHostChrome,
+		edgeAffinity,
+		// Built below; a flip runs post-init, so the getter reads past the TDZ.
+		get heightOracle() {
+			return heightOracle;
+		},
+		events,
+		restoreCaret: (path, offset) => restoreThroughRevealRoad(caretAt(path, offset), 'mount')
+	});
 	$effect.pre(() => {
 		const mode = effectiveMode;
-		if (mode === preFlipSeenMode) return;
-		const from = preFlipSeenMode;
-		preFlipSeenMode = mode;
-		untrack(() => {
-			if (from !== 'reading') flipCaret = captureFlipCaret();
-			// A flip is a blur-class event: a live reveal or composition folds through the existing
-			// blur choke point. Host chrome is exempt, or a mode toggle blurs a title field mid-edit.
-			const active = document.activeElement;
-			if (active instanceof HTMLElement && editorEl?.contains(active) && !isHostChrome(active)) {
-				active.blur();
-				// A blur the editor performs announces the selection it drops: the document listener
-				// only reports a range the browser still anchors in the root, and this one is gone.
-				events.emit('selectionChange', getSelection());
-			}
-		});
+		untrack(() => modeFlip.beforeFlip(mode));
 	});
-
-	// svelte-ignore state_referenced_locally
-	let lastEffectiveMode = effectiveMode;
 	$effect(() => {
-		const mode = effectiveMode;
-		if (mode === lastEffectiveMode) return;
-		lastEffectiveMode = mode;
-		// Which markers paint just changed, so a side recorded against the old geometry
-		// no longer names the offset the user meant.
-		edgeAffinity.reset();
-		// Hidden markers re-wrap prose, so every measured height is the other mode's. Not paired
-		// with `widthVersion++`: the flip has blurred, so a rebuild here loses the caret pin.
-		heightOracle.dropMeasured();
-		if (mode === 'reading') {
-			// The gap is an editor-owned caret no DOM blur can reach, so the flip clears it
-			// rather than each arrival path.
-			selectionState.clearGapCaret();
-		} else if (flipCaret) {
-			const caret = flipCaret;
-			flipCaret = null;
-			void (async () => {
-				// A post-tick focus like every structural op's; the road clamps the saved offset
-				// into the destination mode's landable range at the door. Yielding to a focused
-				// text-entry surface keeps the restore from stealing a host field mid-typing.
-				// The reveal is the bare MOUNT: a flip is a view operation, so it re-seats the
-				// caret without writing the scrollport the reader chose.
-				await tick();
-				if (effectiveMode !== mode || isTextEntrySurface(document.activeElement)) return;
-				await restoreThroughRevealRoad(caretAt(caret.path, caret.offset), 'mount');
-			})();
-		}
-		events.emit('presentationModeChange', mode);
+		modeFlip.afterFlip(effectiveMode);
 	});
 
 	// A theme flip invalidates no live edit, so it only has to be announced — for
@@ -1151,22 +1381,14 @@
 	// ── Resize invalidation ─────────────────────────────────────────────
 
 	// A WIDTH change re-wraps prose, staling every cached height, so the scopes rebuild
-	// off this counter; a height-only resize spares the measured cache. ResizeObserver's
-	// per-callback batching is the coalescing — no setTimeout/rAF debounce (G4.4).
+	// off this counter; a height-only resize spares the measured cache.
 	let widthVersion = $state(0);
 	$effect(() => {
-		const el = editorEl;
-		if (!el) return;
-		let lastWidth = el.clientWidth;
-		const observer = new ResizeObserver(() => {
-			const width = el.clientWidth;
-			if (width === lastWidth) return;
-			lastWidth = width;
+		if (!editorEl) return;
+		return installWidthWatcher(editorEl, () => {
 			heightOracle.dropMeasured();
 			widthVersion++;
 		});
-		observer.observe(el);
-		return () => observer.disconnect();
 	});
 
 	// The slice's own axis, watched on the RESOLVED port: the window's extent comes from the
@@ -1183,117 +1405,51 @@
 
 	// ── Type scale ──────────────────────────────────────────────────────
 
-	// The width change's sibling: a font-size move puts estimates off several-fold, so a
-	// document whose true height clears the activation watermark can fail to window at
-	// all. Only the off-window set depends on the ESTIMATE moving. The width observer
-	// can't see this (no other box in the root resizes), hence the `1em` probe.
-	function applyTypeScale(fontSizePx: number): void {
-		const next = fontSizePx / ESTIMATE_BASE_FONT_SIZE;
-		// Sub-percent moves are sub-pixel on a line box — not worth a full rebuild.
-		if (!(next > 0) || Math.abs(next - typeScale) < 0.01) return;
-		typeScale = next;
-		heightOracle.dropMeasured();
-		widthVersion++;
-	}
+	// A font-size move puts the estimates off several-fold, which no other box in the root
+	// reports; the probe's scale rides the width signal, since a rebuild is what it needs.
 	$effect(() => {
-		const el = typeScaleProbeEl;
-		if (!el) return;
-		applyTypeScale(el.getBoundingClientRect().height);
-		const observer = new ResizeObserver((entries) => {
-			const box = entries[0]?.borderBoxSize?.[0];
-			applyTypeScale(box ? box.blockSize : el.getBoundingClientRect().height);
+		if (!typeScaleProbeEl) return;
+		return installTypeScaleProbe(typeScaleProbeEl, {
+			getScale: () => typeScale,
+			onScale: (next) => {
+				typeScale = next;
+				heightOracle.dropMeasured();
+				widthVersion++;
+			}
 		});
-		observer.observe(el);
-		return () => observer.disconnect();
 	});
 
 	// ── Header slot compensation ────────────────────────────────────────
 
-	// The header slot's height lives outside the height model, so while the editor owns the
-	// correction a growing header would slide the document under the reader. Compensating from
-	// the SLOT's own resize is what composes with `correctAnchor` instead of double-correcting;
-	// a reveal already holding the scroll outranks it.
 	$effect(() => {
 		const el = headerEl;
 		if (!el || !editorEl) return;
 		const port = getScrollport();
 		if (!port) return;
-		let lastHeight = el.getBoundingClientRect().height;
-		const observer = new ResizeObserver((entries) => {
-			// Border boxes throughout, seed and fallback alike, so a browser without
-			// `borderBoxSize` computes the same delta.
-			const box = entries[0]?.borderBoxSize?.[0];
-			const height = box ? box.blockSize : el.getBoundingClientRect().height;
-			const delta = height - lastHeight;
-			lastHeight = height;
-			if (delta === 0 || !ownsScrollCorrection() || port.scrollTop() === 0) return;
-			if (!topWindowing.revealHoldsScroll()) port.setScrollTop(port.scrollTop() + delta);
+		return installHeaderSlotCompensation({
+			el,
+			port,
+			ownsScrollCorrection,
+			revealHoldsScroll: () => topWindowing.revealHoldsScroll()
 		});
-		observer.observe(el);
-		return () => observer.disconnect();
 	});
 
 	// ── Focus attribution ───────────────────────────────────────────────
 
-	// Drives each windowing scope's per-level pin, so a scroll that pushes the caret
-	// off-screen never tears down native focus/IME. Plain `let`, not $state: focusout
-	// fires mid-teardown during a structural commit, where a reactive write would trip
-	// state_unsafe_mutation.
-	let focusedPath: number[] | null = null;
-
-	// Marks the block host whose leaf holds the caret; both preview modes' CSS key their
-	// focused-block reveal off it. Imperative for focusedPath's teardown-safety reason,
-	// and mode-gated so source/reading DOM stays byte-identical.
-	let focusedHostEl: HTMLElement | null = null;
-	function applyFocusedAttr(): void {
-		if (focusedHostEl && isPreviewMode(effectiveMode)) {
-			focusedHostEl.setAttribute('data-focused', '');
-		} else {
-			focusedHostEl?.removeAttribute('data-focused');
+	const focusAttribution = createFocusAttribution({
+		get mode() {
+			return effectiveMode;
 		}
-	}
-	function setFocusedHost(host: HTMLElement | null): void {
-		if (focusedHostEl === host) return;
-		focusedHostEl?.removeAttribute('data-focused');
-		focusedHostEl = host;
-		applyFocusedAttr();
-	}
-	// Entering a preview mode marks the already-focused block, since no re-focus fires.
+	});
 	$effect(() => {
 		void effectiveMode;
-		applyFocusedAttr();
+		focusAttribution.applyForMode();
 	});
-
 	$effect(() => {
 		if (!editorEl) return;
-		const root = editorEl;
-		const onFocusIn = (e: FocusEvent) => {
-			const host = (e.target as Element | null)?.closest('[data-block-path]');
-			if (!host || !root.contains(host)) {
-				focusedPath = null;
-				setFocusedHost(null);
-				return;
-			}
-			setFocusedHost(host as HTMLElement);
-			const path = readBlockPath(host);
-			focusedPath = path && path.length > 0 ? path : null;
-			// G1.33 at the seam every caret door crosses: a door seats a caret by focusing the
-			// surface, whoever minted it, so a consumer's own door inherits the guard here.
-			const landed = e.target;
-			if (landed instanceof HTMLElement) {
-				assertInvariant('landable-caret', () =>
-					checkLandableCaret(landed, effectiveMode, path ?? [])
-				);
-			}
-		};
-		const onFocusOut = (e: FocusEvent) => {
-			const next = e.relatedTarget as Node | null;
-			if (next && root.contains(next)) return; // moving between blocks — keep the pin
-			focusedPath = null;
-			setFocusedHost(null);
-		};
-		return removeAll(onRoot(root, 'focusin', onFocusIn), onRoot(root, 'focusout', onFocusOut));
+		return focusAttribution.install(editorEl);
 	});
+
 	// ── Top-level windowing ─────────────────────────────────────────────
 
 	// Assembled here, after the windowing signals it carries exist; the block
@@ -1308,7 +1464,7 @@
 		scrollHost: getScrollHost,
 		scrollport: getScrollport,
 		blockElLookup: getBlockElByPath,
-		focusedPath: () => focusedPath,
+		focusedPath: focusAttribution.getFocusedPath,
 		heightOracle,
 		correctsScroll: ownsScrollCorrection,
 		widthVersion: () => widthVersion,
@@ -1416,6 +1572,11 @@
 	 * focused surface. A gap caret declines: its proxy is not a block, and a NESTED gap's proxy
 	 * sits inside its container's host, which must not receive what was aimed at the gap.
 	 */
+	function blurEditingSurface(root: HTMLElement): void {
+		const active = document.activeElement;
+		if (active instanceof HTMLElement && root.contains(active) && active !== root) active.blur();
+	}
+
 	function focusedSurfacePath(): number[] | null {
 		if (selectionState.gapCaret) return null;
 		const active = document.activeElement;
@@ -1460,10 +1621,10 @@
 
 	// The door only resolves the focused surface; every rule (the reading gate, the cross-block
 	// range decline, the arms themselves) lives below the seam. See `editor-props.ts`.
-	export function runCommand(commandId: string): boolean {
+	export function runCommand(commandId: string, arg?: unknown): boolean {
 		return runCommandById(
 			commandId as AnyCommandId,
-			undefined,
+			arg,
 			focusedCommandTarget(),
 			commandDispatchContext,
 			commandErrorSink
@@ -1632,6 +1793,7 @@
 	tabindex="-1"
 	role="group"
 	aria-label={EDITOR_LABEL}
+	oncontextmenu={onRootContextMenu}
 >
 	{#if searchBar}
 		<!-- Zero-height sticky anchor, so the bar doesn't scroll away with content. Portaled
@@ -1665,6 +1827,24 @@
 		window={topWindowing.window}
 		reorderable={true}
 	/>
+	<!-- A sibling of the list like the header: the windowing scope wants the list bare. -->
+	<TailInsert
+		{blockEdit}
+		childCount={doc.children.length}
+		readOnly={effectiveMode === 'reading'}
+		onPlus={(button) => void onTailPlus(button)}
+	/>
+	{#if blockMenu}
+		<BlockMenu
+			x={blockMenu.x}
+			y={blockMenu.y}
+			anchor={blockMenu.anchor}
+			items={blockMenu.items}
+			label={blockMenu.label}
+			onPick={blockMenu.pick}
+			onClose={() => (blockMenu = null)}
+		/>
+	{/if}
 	<ImageOverlayHost
 		{widgetSelection}
 		{controller}
@@ -1709,7 +1889,9 @@
 	.editor {
 		width: 100%;
 		flex: 1;
-		padding: 1rem;
+		/* Wider on the left: the drag grip lives in that gutter, 1.25rem out from the content,
+		   and the rest of this padding is what keeps it off the scroll container's border. */
+		padding: 1rem 1rem 1rem 1.5rem;
 		font-family: var(--font-editor, ui-monospace, monospace);
 		/* The type-scale root: every construct sizes in `em` off this, so one
 		   declaration scales the whole surface. */
@@ -1724,9 +1906,10 @@
 		   double-corrects. Do NOT restore `overflow-anchor` (VR-2). */
 		overflow-anchor: none;
 		scrollbar-width: thin;
-		scrollbar-color: var(--color-ui-muted, #a4a4a4) transparent;
-		border: 1px solid var(--color-ui-muted, #a4a4a4);
-		border-radius: 4px;
+		scrollbar-color: var(--color-border, #3e3e3b) transparent;
+		/* No box of its own. A document is the page's content, not a widget sitting on it, and
+		   an outline around the whole editor reads as a form field the moment the host gives it
+		   a column. A host that wants the frame draws it on its own container. */
 		/* Containing block for the image overlay portal. */
 		position: relative;
 	}

@@ -117,6 +117,7 @@ test.describe('live mode — markers never reveal', () => {
 
 		await toggle.click();
 		await expect(ep.editorContainer).toHaveAttribute('data-presentation', 'live');
+		// A header-toggle click, not a keystroke.
 		await ep.waitForNoSourceMutation();
 		expect(await ep.bridge.getSource()).toBe(baseline);
 	});
@@ -157,14 +158,13 @@ test.describe('live mode — the surface stays editable', () => {
 		expect(popupFired).toBe(false);
 	});
 
-	test('table grips and drag handles survive the flip', async ({ page }) => {
-		const grip = page.locator('[data-table-col-grip]').first();
-		await page.locator("[role='table']").first().hover();
-		await expect(grip).toHaveCSS('opacity', '1');
-
-		const host = page.locator('.block-host', { hasText: 'Some' }).last();
+	// The table is the doc's clearest handle host (a plain paragraph is the page background and
+	// carries none), and since the row/column grips retired it is the only drag affordance a
+	// table has left — so it is also the one live must not swallow.
+	test('the block drag handle still reveals on hover', async ({ page }) => {
+		const host = page.locator('.block-host[data-block-kind="table"]').first();
 		await host.hover();
-		await expect(host.locator('.block-drag-handle').first()).toHaveCSS('opacity', '1');
+		await expect(host.locator(':scope > .block-drag-handle').first()).toHaveCSS('opacity', '1');
 	});
 });
 

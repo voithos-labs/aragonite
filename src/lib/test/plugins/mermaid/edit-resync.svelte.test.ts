@@ -5,11 +5,11 @@
 // the blur commit writes a draft seeded from bytes that no longer exist.
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { mount, unmount, flushSync } from 'svelte';
-import { Editor } from '$lib';
+import { Editor, type CstNode } from '$lib';
+import { setPluginMetadata } from '$lib/plugin';
 import { installEditorDomStubsForTests, resetPluginPlatformForTests } from '$lib/testing';
 import { mermaidPlugin } from '$lib/plugins/mermaid';
 import { rebuildMermaidRaw, type MermaidMetadata } from '$lib/plugins/mermaid/mermaid-kind';
-import { setPluginMetadata, type CstNode } from '$lib/core/nodes';
 
 const CODE = 'graph TD\n\tA --> B\n';
 const SOURCE = `intro\n\n\`\`\`mermaid\n${CODE}\`\`\`\n\noutro\n`;

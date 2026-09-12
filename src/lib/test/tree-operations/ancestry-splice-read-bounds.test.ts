@@ -3,7 +3,8 @@ import { afterEach, expect, it } from 'vitest';
 import { parse } from '../../core/parser';
 import { disablePerfInstruments, enablePerfInstruments } from '../../perf/instruments';
 import { createSharingState } from '../../tree-operations/sharing';
-import { ensureUnsharedPath, rebuildUnsharedChain } from '../../tree-operations/unshare';
+import { ensureUnsharedPath } from '../../tree-operations/unshare';
+import { rebuildUnsharedChain } from '../../tree-operations/chain-rebuild';
 
 // The point of the child spans: a keystroke rewrites one region instead of re-joining the
 // container. Wall-clock cannot say which happened on a given host; counting the sibling

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { parse } from '../core/parser';
 import { serialize } from '../core/serializer';
-import { rebuildUnsharedAncestry } from '../tree-operations/unshare';
+import { rebuildUnsharedAncestry } from '../tree-operations/chain-rebuild';
 import { createSharingState } from '../tree-operations/sharing';
 import { roundTripCases } from '$lib/test/support/round-trip';
 

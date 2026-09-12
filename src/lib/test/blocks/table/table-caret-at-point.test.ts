@@ -3,7 +3,7 @@
 // The caret landing a point names inside a table. The gesture that asks (a
 // dead-space click) has already clamped the point into the table's box, so the
 // answers that matter are the ones the drag hit test refuses to give: a point in
-// the row-grip gutter, in the padding between cells, and past a row's own edges.
+// the gutter left of the first column, in the padding between cells, and past a row's own edges.
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { CURSOR_END } from '../../../block-component';
 import { registerBuiltInBlocks } from '../../../components/built-in-blocks';
@@ -13,7 +13,7 @@ registerBuiltInBlocks();
 import { tryGetBlockKindDescriptor } from '../../../schema/block-kind-descriptor';
 
 // A 2-row × 3-column grid: cells are 100 wide, rows 20 tall, the grid starting at
-// (100, 50). The 20px band left of x=100 is the row-grip gutter.
+// (100, 50). The 20px band left of x=100 is the gutter before the first column.
 const CELL_WIDTH = 100;
 const ROW_HEIGHT = 20;
 const GRID_LEFT = 100;
@@ -64,7 +64,7 @@ describe('tableCaretAtPoint', () => {
 		expect(at(GRID_LEFT + 150, GRID_TOP + 10)).toEqual({ path: [0, 1], offset: CURSOR_END });
 	});
 
-	it('maps x to the nearest column for a point in the row-grip gutter', () => {
+	it('maps x to the nearest column for a point in the gutter before the first column', () => {
 		// Left of every cell in row 1 → column 0 of that row, not a decline.
 		expect(at(GRID_LEFT - 15, GRID_TOP + ROW_HEIGHT + 10)).toEqual({
 			path: [1, 0],

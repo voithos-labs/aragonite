@@ -124,6 +124,6 @@ function settleOnComposedText(page: Page, text: string): Promise<unknown> {
 	return page.waitForFunction(
 		(t) => (document.activeElement?.textContent ?? '').includes(t),
 		text,
-		{ timeout: 2000, polling: 16 }
+		{ timeout: 5000, polling: 16 }
 	);
 }

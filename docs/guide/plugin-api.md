@@ -26,6 +26,7 @@ The groups, in page order:
 | [Kind declaration](#kind-declaration)                   | Minting a new block type's identity                                                          |
 | [The block-kind descriptor](#the-block-kind-descriptor) | Telling the editor how your block type behaves, and the checklist every one must fill in     |
 | [The component registry](#the-component-registry)       | Binding a block type to the Svelte component that renders it                                 |
+| [Code-block languages](#code-block-languages)           | Adding syntax-highlighting grammars beyond the bundled set                                   |
 | [The parser opener](#the-parser-opener)                 | Teaching the parser to recognize your block's syntax                                         |
 | [Enter completion](#enter-completion)                   | Letting one typed line become a construct whose lines must sit together                      |
 | [Registration probes](#registration-probes)             | Checking what's already registered, so a module that runs twice stays safe                   |
@@ -118,7 +119,7 @@ _(pre-freeze / unstable)_ The recipe: [Typing a multi-line construct into existe
 | Export                   | Role                                                                                                                                    |
 | ------------------------ | --------------------------------------------------------------------------------------------------------------------------------------- |
 | `registerBlockCompleter` | Let one typed line complete into a grammar whose lines must sit adjacent, which Enter alone can never type                              |
-| `BlockCompleter`         | The contract: `tryComplete(line)` claims with a result, or declines with null                                                           |
+| `BlockCompleter`         | The contract: `tryComplete(line)` claims with a result, or declines with null; `onType: true` also consults it as the line is typed     |
 | `CompletionResult`       | A claim: the lines to insert, endings omitted (the editor attaches the document's own), plus where the caret seats inside the insertion |
 
 ### Registration probes
@@ -177,6 +178,29 @@ _(pre-freeze / unstable)_ The container factory's sibling for leaves; the full s
 | `EditableLeafDeps`                                    | The factory's inputs: live getters for the node, the index, the path, and your source element, plus the static `mode` and `singleLine` settings        |
 | `StickyColumnDirection`                               | Which vertical direction the caret is entering your block from, handed to `focusAtColumn` so the column carries across lines                           |
 
+### Code-block languages
+
+_(pre-freeze / unstable)_ The syntax-highlighting registry behind fenced code. The editor bootstraps a curated set — javascript, typescript, python, rust, go, bash, json, yaml, sql, html, css, java, c, cpp, ruby, markdown, diff, plus their aliases — because every grammar is static bundle weight for every consumer. A host needing more registers them itself.
+
+Register **before mounting an editor**: a block already on screen re-tokenizes only when its own bytes next change. An unregistered language is not an error — the fence still authors, commits and round-trips, and its body renders untokenized.
+
+| Export             | Role                                                                                                                                   |
+| ------------------ | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `registerLanguage` | Add a grammar under a name, with optional aliases; idempotent, so a repeat call with the same name is a no-op                          |
+| `listLanguages`    | Every registered name and alias, sorted — what the code block's language picker offers                                                 |
+| `highlightCode`    | The code block's tokenizer: `(body, language)` to a text-preserving fragment of `code-tok-*` spans, for a plugin's own source surface  |
+| `LanguageGrammar`  | The registry's read shape: the resolved name and its definition                                                                        |
+| `LanguageFn`       | highlight.js's grammar-definition type, re-exported so you needn't import highlight.js directly (you hold it only as a transitive dep) |
+
+```ts
+import { registerLanguage } from '@voithos-labs/aragonite/plugin';
+import elixir from 'highlight.js/lib/languages/elixir';
+
+registerLanguage('elixir', elixir, ['ex', 'exs']);
+```
+
+Aliases are offered as their own rows in the picker, so a user typing `ex` finds it without knowing it resolves to `elixir`.
+
 ### Inline authoring
 
 _(pre-freeze / unstable)_ Syntax inside a paragraph: recognize it at a trigger character, render it as an **atomic widget** (one indivisible rendered thing the caret can sit beside but not inside), give it an editing policy. A **rung** is one level in the ordered ladder of recognizers a trigger consults. The render paths and the tier's limits: [Inline kinds](plugin-guide.md#inline-kinds).
@@ -189,14 +213,14 @@ _(pre-freeze / unstable)_ Syntax inside a paragraph: recognize it at a trigger c
 | `registerInlineSyntax`                                    | Hook the inline scanner on one trigger character with your recognizer; a reserved trigger (one a built-in owns, like `[`) takes a prefix rung                                                                                                                                              |
 | `INLINE_PRIORITIES`                                       | The inline ladder, lower consulted first: `prefixOverride` outranks a reserved trigger's built-in case, `plugin` is the bare-trigger default                                                                                                                                               |
 | `InlineSyntaxRecognizer`                                  | The recognizer contract: inspect the raw at the trigger, claim a span by returning a node, or decline with null                                                                                                                                                                            |
-| `InlineSyntaxOptions`                                     | The options bag: the multi-character `prefix`, the `priority`, and `rewriteImage`                                                                                                                                                                                                          |
+| `InlineSyntaxOptions`                                     | The options bag: the multi-character `prefix`, the `priority`, `rewriteImage`, and `autoPair`                                                                                                                                                                                              |
 | `ImageSyntaxRewriter`, `ImageFields`                      | The `rewriteImage` contract, for a rung whose recognizer builds built-in image nodes and must write edits back in its own syntax, and the edited fields it receives                                                                                                                        |
 | `registerInlineWidgetKind`                                | Render an inline kind as a live atomic widget: a Svelte `component` (recommended) or a hand-built `buildWidget`, never both                                                                                                                                                                |
 | `mintWidgetShell`                                         | Mint the marked, source-stamped span a `buildWidget` returns; its attributes are what the caret's position walk reads                                                                                                                                                                      |
 | `PluginInlineKind`, `InlineNode`                          | The inline kind type, and the node your recognizer builds                                                                                                                                                                                                                                  |
 | `InlineWidgetDescriptor`                                  | The widget registration: the is-this-a-widget test, one render path, the editing policy                                                                                                                                                                                                    |
 | `InlineWidgetComponentProps`                              | A component widget's props: frozen `{ inline, source }`, plus live getters for the mode, the theme, the document, and the content version, and `navigateTo` to jump to another block, optionally at an offset in it (aim at a leaf: a container path scrolls into view but seats no caret) |
-| `InlineWidgetEditingPolicy`, `InlineWidgetEditingContext` | The policy (reveal source on caret entry, delete granularity, edge behavior, a selected-key handler, whether the widget claims the activation click), and the context that handler receives                                                                                                |
+| `InlineWidgetEditingPolicy`, `InlineWidgetEditingContext` | The policy (reveal source on caret entry, where the content sits inside the delimiters so a revealing click seats the caret there, delete granularity, edge behavior, a selected-key handler, whether the widget claims the activation click), and the context that handler receives       |
 | `isWidgetActivationClick`                                 | Whether a click activates a widget: a Ctrl/Cmd chord while editing, a plain click in reading mode                                                                                                                                                                                          |
 
 ### Commands and keybindings
@@ -206,6 +230,10 @@ _(pre-freeze / unstable)_ Which tier dispatches what: [Block commands](plugin-gu
 | Export                                       | Role                                                                                                                                                                                                       |
 | -------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `registerBlockCommand`                       | Mint a `(kind, name)` command and get back its id, for a keymap binding to target                                                                                                                          |
+| `registerBlockContextActions`                | Add the actions a right-click on a block of `kind` offers (its context menu), ahead of the editor's own copy, replace and remove rows                                                                      |
+| `BlockContextAction`                         | One such action: id, label, optional glyph and danger flag, and `run(ctx)`                                                                                                                                 |
+| `BlockActionContext`                         | What `run` receives: the node, its path, `deleteBlock()` and `replaceRaw(raw)`                                                                                                                             |
+| `BlockContextActionProvider`                 | The registered function: `(node, path) => BlockContextAction[]`, consulted on every open                                                                                                                   |
 | `registerGlobalCommand`                      | Mint a process-wide command run against whichever editor dispatched it, optionally on a global chord; also returns its id                                                                                  |
 | `CommandId`                                  | A built-in command's id; a vocabulary your keymaps may bind too                                                                                                                                            |
 | `KeyBinding`                                 | One keymap entry: a chord (fixed-order `Mod` / `Alt` / `Shift` plus the key), a command id, an optional baked argument                                                                                     |

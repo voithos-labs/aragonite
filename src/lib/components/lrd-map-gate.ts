@@ -1,6 +1,6 @@
 import type { DocumentView } from '../core/node-views';
 import type { EditEvent } from '../editor-events';
-import { nodeAt } from '../tree-operations/node-ops';
+import { nodeAt } from '../tree-operations/node-primitives';
 
 /**
  * Whether a commit could change the LRD set, keeping the O(nodes) map rebuild off the keystroke

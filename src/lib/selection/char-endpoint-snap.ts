@@ -8,7 +8,7 @@
 
 import type { DocumentView } from '../core/node-views';
 import { displayLength, snapToScalarBoundary } from '../core/lines';
-import { isBlockNode, nodeAt } from '../tree-operations/node-ops';
+import { isBlockNode, nodeAt } from '../tree-operations/node-primitives';
 import { isWholeBlockUnit } from '../schema/whole-block-unit';
 import { comparePaths } from './path-math';
 import { isWholeBlockEndpoint, type SelectionEndpoint, type SelectionPoint } from './primitives';

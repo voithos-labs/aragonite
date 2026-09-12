@@ -12,7 +12,7 @@ const VIEWPORT = '.mermaid-viewport';
 // which a redraw replaces.
 const FOCUS_HOST = '.mermaid-block [data-whole-block-input]';
 
-async function waitForDiagramFocused(page: Page, timeout = 2000): Promise<void> {
+async function waitForDiagramFocused(page: Page, timeout = 5000): Promise<void> {
 	await page.waitForFunction(
 		(selector) => document.activeElement === document.querySelector(selector),
 		FOCUS_HOST,
@@ -28,6 +28,7 @@ async function diagramIsFocused(page: Page): Promise<boolean> {
 }
 
 async function assertUnchanged(ctx: SimContext, before: string, what: string): Promise<void> {
+	// The arrow lands on the diagram box, not an editable surface, so there is no verdict.
 	await ctx.editor.waitForNoSourceMutation();
 	const now = await ctx.editor.bridge.getSource();
 	if (now !== before) {

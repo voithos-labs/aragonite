@@ -4,7 +4,13 @@
  */
 import type { Snippet } from 'svelte';
 import type { AnyBlockKind } from './core/nodes';
-import type { PasteImageHook, ResolveImageUrl, ResolveLinkUrl } from './editor-keys';
+import type {
+	CodeMenuItemsHook,
+	PasteImageHook,
+	ResolveImageUrl,
+	ResolveLinkUrl,
+	RunCodeHook
+} from './editor-keys';
 import type { ImageLoadPolicy } from './core/inline-render';
 import type { PresentationMode } from './presentation-mode';
 import type { KeybindingOverride } from './schema/keybinding-overrides';
@@ -29,14 +35,24 @@ export interface EditorProps {
 	 *  in order and the markdown returned is inserted at the caret; `null` skips it.
 	 *  Installing it takes the WHOLE paste — the clipboard's `text/plain` is not pasted. */
 	onPasteImage?: PasteImageHook;
+	/** Execution hook for code blocks, set once at mount. The editor runs nothing itself:
+	 *  installing this is what puts the run affordance on a code block's rail, and the host
+	 *  owns the engine, the result, and where output goes. Absent, no run affordance renders. */
+	onRunCode?: RunCodeHook;
+	/** Overflow-menu hook for code blocks, set once at mount and consulted each time a menu
+	 *  opens so items can read live state. Absent, or returning nothing, renders no overflow
+	 *  affordance — the editor has no app-level actions of its own to offer there. */
+	codeMenuItems?: CodeMenuItemsHook;
 	/** Host chrome rendered INSIDE the editor's scroll container, above the first block
 	 *  (a title, properties panel, tag row). It scrolls away with the document rather than
 	 *  pinning, which is what lets the editor keep its own scrollport and windowing. */
 	header?: Snippet;
-	/** Opt into the pointer affordances: the block drag handle and the table's row and column
-	 *  grips (default off, so the surface stays gutter-free). A hover reveals them; touch, which
-	 *  has none, shows them outright. Keyboard reorder (Alt+Arrow) and the cell menu are always
-	 *  available and need no opt-in. */
+	/** The block drag handle (default on; reading mode never shows it). A hover reveals it;
+	 *  touch, which has none, shows it outright. Only the blocks a reader picks up whole carry
+	 *  one — code, tables, equations, diagrams, pictures, list items, dividers, cards — never
+	 *  prose (paragraph, heading, quote, note). `false` removes them, except on a picture,
+	 *  whose grip is the only pointer road to move it. Keyboard reorder (Alt+Arrow) is always
+	 *  available, as is the table's right-click cell menu. */
 	blockDragHandles?: boolean;
 	searchBar?: boolean;
 	/** Where the editor's own find/replace bar renders. Default (absent) keeps it pinned inside
@@ -105,14 +121,13 @@ export interface EditorInstance {
 	 */
 	insertMarkdown(md: string): boolean;
 	/**
-	 * Run a command by id at the focused surface, no chord in the path, so a consumer's
-	 * `keybindings` rebind cannot rewire a toolbar button. `TOOLBAR_COMMANDS` names the built-in
-	 * ids; a plugin's global name resolves ahead of the focused block, its per-block one stays
-	 * chord-only. Semantics match the chord: one undo entry, same caret — over a cross-block range
-	 * a format toggle marks every block it touches, a table by its cells. False, and nothing mutates,
-	 * on an unknown id, in reading mode, with nothing focused, and on the link editor over a range.
+	 * Run a command by id at the focused surface, or across a painted range where the id has a
+	 * cross-block arm (a format toggle marks every block it touches, a table by its cells). False,
+	 * and nothing mutates, on an unknown id, in reading mode, with nothing focused, and on the link
+	 * editor over a range. `arg` reaches the arm as a keybinding's argument would (`heading.cycle`
+	 * takes the level, 0 for plain text); an arm that takes none ignores it.
 	 */
-	runCommand(commandId: string): boolean;
+	runCommand(commandId: string, arg?: unknown): boolean;
 	/**
 	 * Whether `runCommand(id)` would reach that command's arm right now, asked at the seam that
 	 * would run it, so a host can grey a toolbar button out instead of hiding the affordance.

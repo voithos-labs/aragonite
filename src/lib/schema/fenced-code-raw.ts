@@ -49,7 +49,8 @@ export function fenceShapeOf(node: NodeView): FenceShape {
 export function reconcileFenceWrite(input: FenceWriteInput): FenceWriteResult {
 	const { fence, mode } = input;
 	if (!fence.closed && mode === 'authored') return { display: input.display, caret: input.caret };
-	return escalateFenceRuns({ ...input, ...sanitizeInfoString(input) });
+	const unglued = separateGluedCloser(input);
+	return escalateFenceRuns({ ...input, ...sanitizeInfoString({ ...input, ...unglued }) });
 }
 
 /**
@@ -210,6 +211,35 @@ function countDroppedBefore(info: string, infoStart: number, caret: number): num
 		if (info[i] === '`') dropped++;
 	}
 	return dropped;
+}
+
+/**
+ * Un-glue a closer the write landed on top of. A fence with NO body line — ```` ```\n``` ```` —
+ * has nothing between its two runs, so the body's only caret seat IS the closer's line start,
+ * and the first character typed there arrives ahead of the closer run: ```` ```\nAB``` ````,
+ * which no longer reads as closed and shows the run as body text. The fence says it is closed
+ * and the display no longer carries a closer line, so the write broke it; the missing line
+ * ending is what puts it back.
+ */
+function separateGluedCloser(input: FenceWriteInput): FenceWriteResult {
+	const { display, caret, fence } = input;
+	if (!fence.closed) return { display, caret };
+	const lines = display.split('\n');
+	// A closer still on its own line needs nothing; so does a display too short to hold one.
+	if (lines.length < 2 || lastCloserIndex(lines, fence) >= 1) return { display, caret };
+	const run = new RegExp(`[${fence.marker}]{${fence.length},}[ \t]*$`).exec(
+		lines[lines.length - 1]
+	);
+	// `index === 0` is a bare run that some other rule owns, not a glued one.
+	if (!run || run.index === 0) return { display, caret };
+	const at = display.length - run[0].length;
+	const ending = display.includes('\r\n') ? '\r\n' : '\n';
+	return {
+		display: display.slice(0, at) + ending + display.slice(at),
+		// The caret sits at the typed text's end, which is where the ending is inserted: it
+		// stays put, and only a caret already inside the closer run rides the shift.
+		caret: caret > at ? caret + ending.length : caret
+	};
 }
 
 function escalateFenceRuns(input: FenceWriteInput): FenceWriteResult {

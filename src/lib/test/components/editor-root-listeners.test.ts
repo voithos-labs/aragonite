@@ -2,10 +2,10 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { tick } from 'svelte';
 import {
+	installDoubleClickWordSelect,
 	installEditorBlurAnnouncer,
 	installModActiveTracker,
-	installSelectionChangeBridge,
-	installViewportHeightWatcher
+	installSelectionChangeBridge
 } from '$lib/components/editor-root-listeners';
 
 // Teardowns collect here so no test leaks a document-level listener into the next.
@@ -193,76 +193,64 @@ describe('editor-root listeners — selectionchange bridge', () => {
 	});
 });
 
-// ── Viewport-height watcher ──────────────────────────────────────────────────
+// ── Double-click word select ─────────────────────────────────────────────────
 
-describe('editor-root listeners — viewport-height watcher, window port', () => {
-	it('bumps on a window resize, and stops after teardown', () => {
-		let bumps = 0;
-		const teardown = installViewportHeightWatcher(window, () => bumps++);
-		teardowns.push(teardown);
-		window.dispatchEvent(new Event('resize'));
-		expect(bumps).toBe(1);
-		teardown();
-		window.dispatchEvent(new Event('resize'));
-		expect(bumps).toBe(1);
-	});
-});
-
-describe('editor-root listeners — viewport-height watcher, element port', () => {
-	// Observable stand-in for the observer jsdom does not implement.
-	class FakeResizeObserver {
-		static instances: FakeResizeObserver[] = [];
-		disconnected = false;
-		constructor(private callback: ResizeObserverCallback) {
-			FakeResizeObserver.instances.push(this);
+// Miss-analysis: the second-press listener lived inline in Editor.svelte with no test at its own
+// level, so the one press it must decline — one on an inline widget that owns its double-click —
+// was only ever caught by a footnote spec two layers up.
+describe('editor-root listeners — double-click word select', () => {
+	function mounted() {
+		const root = document.createElement('div');
+		const editable = document.createElement('p');
+		editable.setAttribute('contenteditable', 'true');
+		editable.textContent = 'hello world';
+		const widget = document.createElement('span');
+		widget.setAttribute('data-inline-widget', '');
+		widget.textContent = '[^a]';
+		editable.append(widget);
+		// jsdom leaves isContentEditable unimplemented; the fixture answers for the browser.
+		for (const el of [editable, widget]) {
+			Object.defineProperty(el, 'isContentEditable', { value: true });
 		}
-		observe(): void {}
-		disconnect(): void {
-			this.disconnected = true;
-		}
-		trigger(): void {
-			this.callback([], this as unknown as ResizeObserver);
-		}
+		root.append(editable);
+		document.body.append(root);
+		teardowns.push(installDoubleClickWordSelect(root));
+		return { root, editable, widget };
 	}
 
-	beforeEach(() => {
-		FakeResizeObserver.instances.length = 0;
-		(globalThis as { ResizeObserver?: unknown }).ResizeObserver = FakeResizeObserver;
-	});
-
-	afterEach(() => {
-		delete (globalThis as { ResizeObserver?: unknown }).ResizeObserver;
-	});
-
-	function elementPort(initialHeight: number) {
-		const el = document.createElement('div');
-		let height = initialHeight;
-		Object.defineProperty(el, 'clientHeight', { configurable: true, get: () => height });
-		let bumps = 0;
-		teardowns.push(installViewportHeightWatcher(el, () => bumps++));
-		return {
-			observer: FakeResizeObserver.instances[0],
-			setHeight: (h: number) => (height = h),
-			bumps: () => bumps
-		};
+	function secondPress(target: Element, init: MouseEventInit = {}): MouseEvent {
+		const event = new MouseEvent('mousedown', {
+			detail: 2,
+			button: 0,
+			bubbles: true,
+			cancelable: true,
+			...init
+		});
+		target.dispatchEvent(event);
+		return event;
 	}
 
-	it('bumps when the observed height changed', () => {
-		const port = elementPort(100);
-		port.setHeight(200);
-		port.observer.trigger();
-		expect(port.bumps()).toBe(1);
+	it('leaves a second press on an inline widget to the widget', () => {
+		const t = mounted();
+		expect(secondPress(t.widget).defaultPrevented).toBe(false);
 	});
 
-	it('a report with the height unchanged (a width-only resize) does not bump', () => {
-		const port = elementPort(100);
-		port.observer.trigger();
-		expect(port.bumps()).toBe(0);
+	it('leaves a modified second press to the browser', () => {
+		const t = mounted();
+		expect(secondPress(t.editable, { ctrlKey: true }).defaultPrevented).toBe(false);
+		expect(secondPress(t.editable, { shiftKey: true }).defaultPrevented).toBe(false);
 	});
 
-	it('teardown disconnects the observer', () => {
-		const port = elementPort(100);
-		teardowns.splice(0).forEach((teardown) => teardown());
-		expect(port.observer.disconnected).toBe(true);
+	it('leaves a press outside an editable surface alone', () => {
+		const t = mounted();
+		expect(secondPress(t.root).defaultPrevented).toBe(false);
+	});
+
+	it("the dblclick trims the trailing space off the browser's own word selection", () => {
+		const t = mounted();
+		const text = t.editable.firstChild as Text;
+		document.getSelection()!.setBaseAndExtent(text, 0, text, 6);
+		t.editable.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+		expect(document.getSelection()!.toString()).toBe('hello');
 	});
 });

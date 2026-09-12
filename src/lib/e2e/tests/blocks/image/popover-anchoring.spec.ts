@@ -12,8 +12,10 @@ test.describe('image popover anchoring', () => {
 
 	// The popover was `position: absolute` with no offsets, so it sat at its static-flow position
 	// at the bottom of `.editor` — in long documents it rendered off-screen while tests could still
-	// find it.
-	test('popover is anchored just below the widget, not at end of editor flow', async ({ page }) => {
+	// find it. It hangs off the image's right edge, level with its top.
+	test('popover sits beside the widget, top-aligned, not at end of editor flow', async ({
+		page
+	}) => {
 		await editor.loadContent(
 			'# heading\n\nfiller paragraph one.\n\nfiller paragraph two.\n\n![cat|200](/test-fixtures/sample.png)\n'
 		);
@@ -23,9 +25,27 @@ test.describe('image popover anchoring', () => {
 		const widgetBox = await widget.boundingBox();
 		const popoverBox = await popover.boundingBox();
 		if (!widgetBox || !popoverBox) throw new Error('widget or popover missing');
-		const widgetBottom = widgetBox.y + widgetBox.height;
-		expect(popoverBox.y).toBeGreaterThan(widgetBottom - 5);
-		expect(popoverBox.y).toBeLessThan(widgetBottom + 50);
+		expect(Math.abs(popoverBox.y - widgetBox.y)).toBeLessThanOrEqual(2);
+		expect(popoverBox.x).toBeGreaterThan(widgetBox.x + widgetBox.width);
+		expect(popoverBox.x).toBeLessThan(widgetBox.x + widgetBox.width + 24);
+	});
+
+	// A full-width image leaves no room beside it; the panel tucks into the image's top-right
+	// corner rather than hanging off the viewport.
+	test('popover tucks inside a full-width widget', async ({ page }) => {
+		// Wider than the column AND the viewport: the tuck must clamp to what is on screen.
+		await page.setViewportSize({ width: 640, height: 720 });
+		await editor.loadContent('![wide|900](/test-fixtures/sample.png)\n');
+		const widget = page.locator('[data-image-widget]').first();
+		await widget.click();
+		const popover = page.locator('.md-image-properties').first();
+		const widgetBox = (await widget.boundingBox())!;
+		const popoverBox = (await popover.boundingBox())!;
+		const viewport = page.viewportSize()!;
+		await expect(popover).toHaveClass(/inside/);
+		expect(popoverBox.x + popoverBox.width).toBeLessThanOrEqual(viewport.width);
+		expect(popoverBox.x).toBeGreaterThanOrEqual(widgetBox.x);
+		expect(popoverBox.y).toBeGreaterThanOrEqual(widgetBox.y);
 	});
 
 	// The overlay listened only for ResizeObserver, `edit`, and window resize. A sibling image's

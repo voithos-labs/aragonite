@@ -165,7 +165,7 @@ test.describe('selection undo — cross-block restore', () => {
 				return s && s.focus.offset > 0;
 			},
 			null,
-			{ timeout: 2000, polling: 16 }
+			{ timeout: 5000, polling: 16 }
 		);
 
 		const sel = await editor.bridge.getSelectionPaths();

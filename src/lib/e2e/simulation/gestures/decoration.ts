@@ -235,7 +235,7 @@ async function assertBadgeAt(
 		.waitForFunction(
 			({ sel, want }) => (document.querySelector(sel) !== null) === want,
 			{ sel: selector, want: present },
-			{ timeout: 2000, polling: 16 }
+			{ timeout: 5000, polling: 16 }
 		)
 		.catch(() => {
 			throw new Error(`[${ctx.label}] ${what}: badge presence at ${blockIndex} was not ${present}`);

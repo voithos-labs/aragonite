@@ -20,6 +20,8 @@
 	// until the spec flips the policy, so the late sizing happens INSIDE the editor's subtree,
 	// the case the anchoring opt-out decides.
 	const IMAGE_BLOCK_INDEX = 6;
+	// A divider carries a drag handle where prose does not; the drag spec grabs this one.
+	const HANDLE_BLOCK_INDEX = 30;
 	// `?blocks=` sizes the entry: the default clears the windowing watermark, and a short one
 	// is the same embedding below it, where the host's own native anchoring still runs. Seeded
 	// once — a fixture that reparsed on navigation would not be the document the spec measured.
@@ -28,7 +30,9 @@
 		Array.from({ length: data.blocks }, (_, i) =>
 			i === IMAGE_BLOCK_INDEX
 				? `![late](${LATE_IMAGE_SRC})`
-				: `Paragraph ${i} — lorem ipsum dolor sit amet, consectetur adipiscing elit.`
+				: i === HANDLE_BLOCK_INDEX
+					? '---'
+					: `Paragraph ${i} — lorem ipsum dolor sit amet, consectetur adipiscing elit.`
 		).join('\n\n') + '\n';
 
 	let source = $state(ENTRY);

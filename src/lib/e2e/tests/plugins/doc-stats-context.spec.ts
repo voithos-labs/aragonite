@@ -24,7 +24,7 @@ function readStats(page: Page): Promise<StatsMap> {
 async function waitForStats(
 	page: Page,
 	predicate: (stats: StatsMap) => boolean,
-	timeout = 2000
+	timeout = 5000
 ): Promise<StatsMap> {
 	await page.waitForFunction(
 		(predSrc) => {

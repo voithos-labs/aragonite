@@ -75,20 +75,8 @@ test.describe('image inside a link + reference-style images', () => {
 		expect(src).not.toContain('![cat|420](');
 	});
 
-	test('changing the url in the popover inlines a reference image (intended)', async ({ page }) => {
-		// Lead with a non-image paragraph so the dismiss click lands outside the widget.
-		await editor.loadContent(
-			['outside.', '', '![cat|400][ref]', '', '[ref]: /test-fixtures/sample.png', ''].join('\n')
-		);
-		await page.locator('[data-image-widget]').first().click();
-		await expect(page.locator('.md-image-properties')).toBeVisible();
-		await page.locator('.md-image-properties input').first().fill('/test-fixtures/sample.png?v=2');
-		await page.locator('.paragraph-block').first().click();
-		await editor.bridge.waitForSourceContains('?v=2');
-		const src = await editor.bridge.getSource();
-		expect(src).toContain('![cat|400](/test-fixtures/sample.png?v=2)');
-		expect(src).not.toContain('![cat|400][ref]');
-	});
+	// Changing the url (which inlines a reference image) is a source-mode edit: the toolbar
+	// carries no URL field. The seam's behaviour is unit-covered in image-source-bytes.test.ts.
 
 	test('a no-op popover dismiss preserves the reference and adds no undo entry', async ({
 		page
@@ -100,6 +88,7 @@ test.describe('image inside a link + reference-style images', () => {
 		await expect(page.locator('.md-image-properties')).toBeVisible();
 		const undoBefore = await undoDepth(page);
 		await page.locator('.paragraph-block').first().click();
+		// A click away from the popover, not a keystroke.
 		await editor.waitForNoSourceMutation();
 		expect(await undoDepth(page)).toBe(undoBefore);
 		const src = await editor.bridge.getSource();

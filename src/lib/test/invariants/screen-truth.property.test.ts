@@ -34,6 +34,9 @@ function mount(raw: string, mode: PresentationMode, contentEmpty: boolean): HTML
 	block.appendChild(renderInlineNodes(parseInline(raw, 0, raw.length), raw));
 	root.appendChild(block);
 	document.body.appendChild(root);
+	// The stamp paints only under focus (the stylesheet's `:focus-within` rung), and the oracle is
+	// stated over the painted state, so a stamped fixture holds focus.
+	if (contentEmpty) block.focus();
 	return block;
 }
 

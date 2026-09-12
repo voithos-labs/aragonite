@@ -13,6 +13,7 @@ import { measureBlocks, nearestBand, probePointIn, type MeasuredBlock } from './
 import { placeGapCaret } from './caret-doors';
 import { canGapStop, type GapStopScope } from './gap-caret';
 import { offsetFromViewportPoint } from '../cursor/point-offset';
+import type { SelectionEndpoint } from './primitives';
 
 // ── Public API ─────────────────────────────────────────────────────────────
 
@@ -45,6 +46,15 @@ export interface DeadSpaceCaret {
 	 * was claimed; a point past a windowed-out tail claims it and lands after the reveal.
 	 */
 	placeAtPoint(root: HTMLElement, x: number, y: number): boolean;
+	/** Whether a press target is the editor's dead space (the root, or a block list inside it). */
+	isDeadSpaceTarget(root: HTMLElement, target: EventTarget | null): boolean;
+	/**
+	 * The endpoint a drag STARTING in dead space (or on a block's rendered face) anchors at: the
+	 * landing a click there would take, without taking it. A character surface anchors at that
+	 * offset; a rendered leaf (an equation) anchors as a WHOLE block, so the range takes it entire
+	 * whichever way the drag goes. A coordinate-addressed kind (a table) anchors nothing.
+	 */
+	anchorAtPoint(root: HTMLElement, x: number, y: number): SelectionEndpoint | null;
 }
 
 export function createDeadSpaceCaret(deps: DeadSpaceCaretDeps): DeadSpaceCaret {
@@ -95,6 +105,12 @@ export function createDeadSpaceCaret(deps: DeadSpaceCaretDeps): DeadSpaceCaret {
 
 		const hit = blockAtPoint(root, probeX, probeY);
 		if (!hit) return false;
+		// Prose lands the caret on the line the click is level with, as any editor does. A block
+		// with no character surface (an equation, a table, a rule) has no such line, and a revealed
+		// source is one only while it is being edited: a click that was not ON the block is a click
+		// on nothing, and focuses nothing (the click's owner then blurs what was being edited).
+		const transient = hit.charSurface?.classList.contains('md-source-surface') ?? false;
+		if ((!hit.charSurface || transient) && !pressedOnBlockContent(root, x, y)) return false;
 		const landing = landingFor(hit, probeX, probeY);
 		if (!landing) return false;
 
@@ -119,7 +135,31 @@ export function createDeadSpaceCaret(deps: DeadSpaceCaretDeps): DeadSpaceCaret {
 		return true;
 	}
 
+	function anchorAtPoint(root: HTMLElement, x: number, y: number): SelectionEndpoint | null {
+		const blocks = measureBlocks(root);
+		const band = nearestBand(
+			blocks.map((b) => b.rect),
+			y
+		);
+		if (!band) return null;
+		if (band.belowAll && lastMountedTopLevel(blocks) !== deps.lastBlockIndex()) return null;
+		const { x: probeX, y: probeY } = probePointIn(blocks[band.index].rect, x, y, band.belowAll);
+		const hit = blockAtPoint(root, probeX, probeY);
+		if (!hit) return null;
+		// No character surface to measure against — a rendered equation, a rule, a table — so the
+		// block is the unit, and the funnel picks the side by the drag's direction. An offset would
+		// put a range END at the block's start and leave it out; a cell would make the drag a caret
+		// placement in the nearest column. A rule names no landing at all, and is a unit all the same.
+		if (!hit.charSurface) return { path: hit.path.slice(), wholeBlock: true };
+		const landing = landingFor(hit, probeX, probeY);
+		if (!landing) return null;
+		if (landing.path.length > 0) return { path: hit.path.slice(), wholeBlock: true };
+		return { path: hit.path.slice(), offset: landing.offset };
+	}
+
 	return {
+		isDeadSpaceTarget: isDeadSpace,
+		anchorAtPoint,
 		notePress(root, event) {
 			pressedOnDeadSpace =
 				isDeadSpace(root, event.target) &&
@@ -196,6 +236,15 @@ function isDeadSpace(root: HTMLElement, target: EventTarget | null): boolean {
 	return target instanceof Element && target.classList.contains('block-list');
 }
 
+/** Whether the ORIGINAL point (not the clamped probe) sits inside some block's content: on a
+ *  descendant of a host, not on the host's own box or the dead space around it. */
+function pressedOnBlockContent(root: HTMLElement, x: number, y: number): boolean {
+	const direct = document.elementFromPoint(x, y);
+	if (!(direct instanceof Element) || isDeadSpace(root, direct)) return false;
+	const host = direct.closest('[data-block-path]');
+	return host !== null && host !== direct;
+}
+
 /**
  * Where the caret goes for a resolved hit: an internal child path (empty for a
  * character-addressed surface) plus the offset within that leaf. Null declines the click.
@@ -204,8 +253,11 @@ function landingFor(hit: BlockHit, probeX: number, probeY: number): CaretTarget 
 	if (hit.caretTargetAtPoint) return hit.caretTargetAtPoint(probeX, probeY);
 	// A kind with only the drag hook addresses cells and named no caret landing.
 	if (hit.foreignDragHitTest) return null;
+	// A leaf with no character surface (a rule, a folded equation) reached here was pressed on
+	// its own box: the block itself is the landing, and its `focus` ignores the offset.
+	if (!hit.charSurface) return { path: [], offset: 0 };
 	// Reading mode flips contenteditable off, and a non-editable leaf has no character position.
-	if (!hit.charSurface?.matches('[contenteditable="true"]')) return null;
+	if (!hit.charSurface.matches('[contenteditable="true"]')) return null;
 	const offset = offsetFromViewportPoint(hit.charSurface, probeX, probeY);
 	return offset === null ? null : { path: [], offset };
 }

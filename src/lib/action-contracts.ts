@@ -6,7 +6,7 @@
 import type { CstNode, TableAlignment } from './core/nodes';
 import type { NodeView } from './core/node-views';
 import type { StructuralChange } from './tree-operations/structural-change';
-import type { TrackedPosition } from './tree-operations/node-ops';
+import type { TrackedPosition } from './tree-operations/settle';
 import type { SharingState } from './tree-operations/sharing';
 import type { BlockComponent, FocusPosition } from './block-component';
 import type { ScopedOpDescriptor } from './schema/operations';
@@ -336,6 +336,9 @@ export interface TableContext {
 	cycleAlignment(colIdx: number): Promise<void>;
 	/** Set a column's alignment directly — distinct from the cycle step. */
 	setColumnAlignment(colIdx: number, alignment: TableAlignment): Promise<void>;
+	/** Write a grid of cell texts from `origin`, appending the rows and columns it needs, as one
+	 *  commit: a spreadsheet-like paste. Empty grids are a no-op. */
+	pasteGrid(origin: { rowIdx: number; colIdx: number }, grid: string[][]): Promise<void>;
 }
 
 /**

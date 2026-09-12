@@ -44,6 +44,8 @@ const NATIVE_RANGE_WRITERS: Record<string, string> = {
 	'src/lib/cursor/focused-caret.ts': 'restoreCaretAtWalkOffset, the render-rebuild carry',
 	'src/lib/selection/caret-restore.ts': 'the menu-blur saved-range restore',
 	'src/lib/selection/cross-block/keydown.ts': 'the first-press Ctrl+A content range',
+	'src/lib/selection/double-click-trim.ts':
+		'the dblclick trailing-whitespace trim of the browser range',
 	'src/lib/selection/native-bridge.ts':
 		'the SelectionPoint door — the collapsed-caret landable clamp lives here'
 };
@@ -67,7 +69,7 @@ const WRITE_HELPER_NAMERS: Record<string, string> = {
  */
 const LANDABLE_CARET_NAMERS: Record<string, string> = {
 	'src/lib/invariants/landable-caret.ts': 'defines the predicate',
-	'src/lib/components/Editor.svelte': 'the editor root focusin seam — the one fire site'
+	'src/lib/components/editor-root-focus.ts': 'the editor root focusin seam — the one fire site'
 };
 
 /** Files that may mint a public `focus` from `selection/caret-doors`' placeCaret. */

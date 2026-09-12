@@ -11,6 +11,8 @@ renders as an inline widget stays rendered, and flipping back restores the sourc
 
 ## Happy paths
 
+- the showcase opens in live mode, which paints no marker, so the round trip below starts by
+  clicking "source"
 - clicking "reading" sets `data-presentation="reading"` on the editor root; clicking
   "source" removes the attribute again
 - in reading mode no member of the hidden marker family (`.md-marker` without

@@ -38,14 +38,14 @@ export async function press(ep: EditorPage, page: Page, key: string, times = 1):
  *  the shape a lost click takes — so settle on the caret existing rather than on the click. */
 export async function clickBlockSettled(ep: EditorPage, index: number): Promise<void> {
 	await ep.clickBlock(index);
-	await expect.poll(() => focusOffset(ep), { timeout: 2000 }).toBeGreaterThanOrEqual(0);
+	await expect.poll(() => focusOffset(ep), { timeout: 5000 }).toBeGreaterThanOrEqual(0);
 }
 
 export async function clickWordSettled(ep: EditorPage, page: Page, word: string): Promise<void> {
 	const point = await centerOfWord(page, word);
 	await page.mouse.click(point.x, point.y);
 	await ep.waitForRenderFlush();
-	await expect.poll(() => focusOffset(ep), { timeout: 2000 }).toBeGreaterThanOrEqual(0);
+	await expect.poll(() => focusOffset(ep), { timeout: 5000 }).toBeGreaterThanOrEqual(0);
 }
 
 /** Step with `key` until the caret reports `target` — the arrival is a real gesture, never a

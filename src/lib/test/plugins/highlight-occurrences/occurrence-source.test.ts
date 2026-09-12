@@ -2,7 +2,7 @@
 // epoch; selection changes within one epoch re-filter the cached index without
 // rebuilding it. `onScan` is the spy seam — it fires only on a real rebuild.
 import { describe, expect, it } from 'vitest';
-import { parse } from '$lib/core/parser';
+import { parse } from '$lib';
 import type { EditorSelection, MarkDecoration } from '$lib/plugin';
 import {
 	createOccurrenceSource,

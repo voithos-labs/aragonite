@@ -7,7 +7,7 @@ import { parse } from '../../core/parser';
 import { serialize } from '../../core/serializer';
 import { tableAwareRangeDelete } from '../../selection/range-delete-table';
 import { createSharingState } from '../../tree-operations/sharing';
-import { blockNodeAt } from '../../tree-operations/node-ops';
+import { blockNodeAt } from '../../tree-operations/node-primitives';
 import { __resetSchemaRegistriesForTests } from '../../schema/registry-reset';
 import { __resetPasteSurfacesForTests } from '../../tree-operations/paste-surfaces';
 import { registerDetailsKind } from '../../plugins/details/details-kind';

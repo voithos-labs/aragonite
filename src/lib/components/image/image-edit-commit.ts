@@ -8,7 +8,7 @@ import { createInlineRangeCommit } from '../../editor-actions/inline-range-commi
 import type { EditorEvents } from '../../editor-events';
 import type { GrammarView } from '../../schema/block-openers';
 import { FALLBACK_CONTENT_WIDTH } from '../../cursor/typography-estimates';
-import { blockNodeAt } from '../../tree-operations/node-ops';
+import { blockNodeAt } from '../../tree-operations/node-primitives';
 import { buildImageEditBytes } from './image-source-bytes';
 import type { WidgetSelectionState, WidgetTarget } from './widget-selection-state.svelte';
 
@@ -42,6 +42,7 @@ export interface ImageEditCommitter {
 	 *  popover's dirty check compares against these. */
 	buildEditBytes(target: WidgetTarget, newFields: ImageFields): string | null;
 	commitImageResize(newWidth: number, newHeight: number | undefined): void;
+	removeImage(target: WidgetTarget): void;
 	dismissImagePopover(): void;
 	getEditorContentWidth(): number;
 	attachWidgetSelectListener(): () => void;
@@ -123,14 +124,30 @@ export function createImageEditCommitter(deps: ImageEditCommitterDeps): ImageEdi
 		if (!sel) return;
 		const ctx = getSelectedImageFields();
 		if (!ctx) return;
+		const { image } = ctx;
+		// A cropped frame keeps its shape through a resize: the height follows the width.
+		const framedHeight =
+			image.crop && image.width !== undefined && image.height !== undefined
+				? Math.round((image.height * newWidth) / image.width)
+				: newHeight;
 		const newFields: ImageFields = {
-			alt: ctx.image.alt ?? '',
-			url: ctx.image.url ?? '',
-			...(ctx.image.title !== undefined ? { title: ctx.image.title } : {}),
+			alt: image.alt ?? '',
+			url: image.url ?? '',
+			...(image.title !== undefined ? { title: image.title } : {}),
 			width: newWidth,
-			...(newHeight !== undefined ? { height: newHeight } : {})
+			...(framedHeight !== undefined ? { height: framedHeight } : {}),
+			...(image.crop !== undefined && framedHeight !== undefined ? { crop: image.crop } : {})
 		};
 		commitImageEdit(sel, newFields);
+	}
+
+	/** The whole `![...](...)` span goes; the caret lands where the image began. */
+	function removeImage(target: WidgetTarget): void {
+		const paragraph = blockNodeAt(getDoc(), target.paragraphPath);
+		const image = paragraph && findImageInParagraph(paragraph, target.sourceStart);
+		if (!image) return;
+		widgetSelection.clear();
+		void inlineRange.commitInlineRange(target.paragraphPath, image.start, image.end, '', 0);
 	}
 
 	function dismissImagePopover(): void {
@@ -209,6 +226,7 @@ export function createImageEditCommitter(deps: ImageEditCommitterDeps): ImageEdi
 		commitImageEdit,
 		buildEditBytes,
 		commitImageResize,
+		removeImage,
 		dismissImagePopover,
 		getEditorContentWidth,
 		attachWidgetSelectListener,

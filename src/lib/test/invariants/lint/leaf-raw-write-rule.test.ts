@@ -10,18 +10,21 @@ import { describe, it, expect } from 'vitest';
 import { getBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
 import { collectEditorSources, rawAssignments, stripComments } from './scan-source';
 
-const SINK = 'src/lib/tree-operations/node-ops.ts';
+const READERS_HOME = 'src/lib/tree-operations/node-primitives.ts';
 
 /** Every file naming the capability in code, and why. */
 const CAPABILITY_SITES: Record<string, string> = {
 	'src/lib/schema/block-kind-descriptor.ts': 'the field declaration',
 	'src/lib/schema/built-in-descriptors.ts': 'tableCell and fencedCode declare it',
-	[SINK]: 'the reader dispatches it'
+	[READERS_HOME]: 'the readers dispatch it'
 };
 
 /** Every sink that writes a leaf's raw in place and owes the kind's rule. */
 const READER_SITES: Record<string, string> = {
-	[SINK]: 'the reader itself, plus the context-dependent-kind write',
+	[READERS_HOME]: 'the reader itself',
+	'src/lib/tree-operations/content-write.ts': 'the context-dependent-kind write',
+	'src/lib/editor-actions/table-context.ts':
+		'pasteGrid, writing each pasted cell text in place through the tableCell rule',
 	'src/lib/editor-actions/search-replace.ts': 'substitutes into a private clone',
 	'src/lib/selection/range-delete.ts': 'the same-block merge writes raw with no reparse',
 	'src/lib/selection/cross-block/type-replace.ts': 'the degraded arm splices raw',
@@ -37,7 +40,9 @@ const READER_SITES: Record<string, string> = {
  * metadata, so the rule runs against the OLD node or the structure it would restore is gone.
  */
 const PRE_REPARSE_SITES: Record<string, string> = {
-	[SINK]: 'the reader itself',
+	[READERS_HOME]: 'the reader itself',
+	'src/lib/tree-operations/node-ops.ts':
+		'the deep-leaf merge normalizes ahead of its fragment reparse',
 	'src/lib/selection/range-delete.ts': 'the cross-block merge normalizes the end slice',
 	'src/lib/selection/range-delete-ceremony.ts':
 		'the endpoint-survivor reparse, shared by all three branches',
@@ -70,7 +75,8 @@ const FENCE_READERS: Record<string, string> = {
 const ESCALATION_SITES: Record<string, string> = {
 	'src/lib/core/parsers/fence-syntax.ts': 'the grammar leaf that defines it',
 	[FENCE_HOME]: 'the fencedCode write rule',
-	[SINK]: 'sizes the terminator the content write mints for a construct it left open (GH #180)',
+	'src/lib/tree-operations/content-write.ts':
+		'sizes the terminator the content write mints for a construct it left open (GH #180)',
 	'src/lib/debug/diagnostics-report.ts':
 		'sizes the section fences of a field report whose bodies routinely carry fences of their own',
 	'src/lib/plugins/mermaid/mermaid-kind.ts':
@@ -101,10 +107,12 @@ describe('the kind’s own raw-write rule runs at every byte sink', () => {
 		expect(typeof getBlockKindDescriptor(kind).normalizeRawWrite).toBe('function');
 	});
 
-	it('the reader lives at the sink and dispatches whatever the kind declared', () => {
-		const sink = sources.find((f) => f.relPath === SINK);
-		expect(sink, `${SINK} not found`).toBeDefined();
-		expect(CAPABILITY.test(sink!.code), 'the reader stopped dispatching the capability').toBe(true);
+	it('the readers live at their home and dispatch whatever the kind declared', () => {
+		const home = sources.find((f) => f.relPath === READERS_HOME);
+		expect(home, `${READERS_HOME} not found`).toBeDefined();
+		expect(CAPABILITY.test(home!.code), 'the readers stopped dispatching the capability').toBe(
+			true
+		);
 	});
 
 	it('exactly the documented sites name the capability', () => {
@@ -136,9 +144,18 @@ describe('the kind’s own raw-write rule runs at every byte sink', () => {
  * either IS a kind re-emitting its own bytes, or cannot reach a kind that declares a rule.
  */
 const BARE_RAW_WRITE_ALLOWLIST: Record<string, { count: number; why: string }> = {
-	[SINK]: {
-		count: 11,
-		why: 'the sanctioned writer itself, plus the reparse funnel: every other write here is re-read from a parse, restores bytes the slot already held, or re-attaches the blank line that parse peeled off (GH #97). Both deep-leaf merge arms land bytes that already crossed `normalizeOwnRaw` and a fragment reparse (GH #54); the seam absorb restores the exact joined bytes over its own reparse (GH #61)'
+	[READERS_HOME]: { count: 1, why: 'the sanctioned writer itself' },
+	'src/lib/tree-operations/content-write.ts': {
+		count: 5,
+		why: 'the reparse funnel: every write is re-read from a parse, restores bytes the slot already held, or re-attaches the blank line that parse peeled off (GH #97)'
+	},
+	'src/lib/tree-operations/node-ops.ts': {
+		count: 4,
+		why: 'the split and the single-block reparse re-attach the blank line that parse peeled off (GH #97); both deep-leaf merge arms land bytes that already crossed `normalizeOwnRaw` and a fragment reparse (GH #54)'
+	},
+	'src/lib/tree-operations/settle.ts': {
+		count: 1,
+		why: 'the seam absorb re-attaches the blank run its own reparse peeled off (GH #61)'
 	},
 	'src/lib/schema/container-rebuilders.ts': {
 		count: 2,

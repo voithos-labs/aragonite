@@ -214,16 +214,16 @@ test.describe('table block: pointer selection', () => {
 		expect(await cells.last().textContent()).toContain('DOWN_MARK');
 	});
 
-	// The 3-stage Ctrl+A (cell → table → document) must survive the cross-block-first dispatch:
-	// stage 2 sets isCrossBlock, so stage 3 routes into the cross-block handler and must still end
-	// whole-document.
-	test('three Ctrl+A presses in a cell select the whole document', async ({ page }) => {
+	// The stepped Ctrl+A (cell → document) must survive the cross-block-first dispatch: stage 2
+	// sets isCrossBlock, so a third press routes into the cross-block handler and must still
+	// leave the whole document selected.
+	test('repeated Ctrl+A presses in a cell select the whole document', async ({ page }) => {
 		await editor.loadContent('Before.\n\n' + TABLE_MULTICHAR + '\nAfter.\n');
 
 		await page.locator('[role="cell"]').nth(3).click();
 		await page.keyboard.press('ControlOrMeta+a'); // stage 1: cell
-		await page.keyboard.press('ControlOrMeta+a'); // stage 2: table (enters cross-block)
-		await page.keyboard.press('ControlOrMeta+a'); // stage 3: whole document
+		await page.keyboard.press('ControlOrMeta+a'); // stage 2: whole document (enters cross-block)
+		await page.keyboard.press('ControlOrMeta+a'); // a third press changes nothing
 		await editor.waitForCrossBlock(true);
 
 		const sel = await editor.bridge.getSelectionPaths();

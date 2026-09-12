@@ -32,6 +32,13 @@ lives beside the oracle pin in `reactivity/height-oracle-mode-flip`.
   stay mounted across the flip, so the re-seat takes the bare-mount road. Nothing
   the flip does may recompute the window while the flip's own blur has the caret
   pin released
+- a flip that resizes mounted blocks above the viewport (fences losing their
+  marker lines into live) holds the block the reader is looking at where it is:
+  the windowing correction moves the scroll number by what those blocks lost,
+  and the number is not the oracle there. Miss-analysis: the flip's oracle was
+  the scroll number over a fixture no flip resized, so a model left stale by the
+  flip's cache drop, its resize reports dropped by the gate, held the number and
+  slid the content
 
 ## User interactions
 

@@ -23,7 +23,7 @@ export interface OperationDetailMap {
 				parentItemIdx?: number;
 				nestedItemIdx?: number;
 		  }
-		| { source: 'paste-dispatch' | 'paste-dispatch-table-cell' | 'cross-block-paste-whole-table' };
+		| { source: 'paste-dispatch' | 'paste-dispatch-table-cell' | 'cross-block-covered-block' };
 	paste:
 		| { count: number }
 		| {
@@ -45,6 +45,8 @@ export interface OperationDetailMap {
 	tableInsertRow: { rowIdx: number; side: 'above' | 'below' };
 	tableDeleteRow: { rowIdx: number; crossBlock?: true };
 	tableInsertColumn: { colIdx: number; side: 'left' | 'right' };
+	/** A grid pasted from `rowIdx`/`colIdx`, the table grown to hold it. */
+	tablePasteGrid: { rowIdx: number; colIdx: number; rows: number; cols: number };
 	tableDeleteColumn: { colIdx: number; crossBlock?: true };
 	tableReorderRow: { from: number; to: number };
 	tableReorderColumn: { from: number; to: number };

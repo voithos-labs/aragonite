@@ -63,13 +63,12 @@ export const PROJECT_PLAN_NOTE: NoteFixture = {
 
 		await g.typeText('## Build snippet');
 		await g.pressEnter();
-		await g.typeText('```');
-		await g.softEnter();
+		await g.typeFenceOpener();
 		await g.typeText('npm run test:editor');
 		await g.softEnter();
 		await g.typeText('npm run test:e2e');
 		await g.softEnter();
-		await g.softEnter();
+		await g.exitFence();
 		await g.checkpoint('code-block', 'code');
 
 		await g.typeText('Reference architecture below.');

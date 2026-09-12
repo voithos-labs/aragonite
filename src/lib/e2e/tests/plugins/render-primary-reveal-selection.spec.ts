@@ -24,16 +24,13 @@ test.describe('render-primary reveal click vs a live cross-block range', () => {
 
 	const math = () => editor.page.locator('[data-block-kind="mathBlock"]').first();
 
-	test('the click ends the range, so Backspace edits the source instead of the document', async ({
-		page
-	}) => {
+	test('the click ends the range, so Backspace edits the source instead of the document', async () => {
 		await clickWidgetCenter(math());
 		await editor.waitForCrossBlock(false);
 
 		// What Backspace does to the revealed source is the reveal's business; what it
 		// must not do is consume the range — that collapses the whole document to "\n".
-		await page.keyboard.press('Backspace');
-		await editor.waitForNoSourceMutation();
+		await editor.pressDeclined('Backspace');
 
 		const source = await editor.bridge.getSource();
 		expect(source).toContain('lead para');

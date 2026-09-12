@@ -15,8 +15,7 @@ test.describe('list Backspace — forward Delete behavior', () => {
 		await middle.click();
 		const before = await editor.bridge.getSource();
 		await editor.page.keyboard.press('End');
-		await editor.page.keyboard.press('Delete');
-		await editor.waitForNoSourceMutation();
+		await editor.pressDeclined('Delete');
 		expect(await editor.bridge.getSource()).toBe(before);
 	});
 

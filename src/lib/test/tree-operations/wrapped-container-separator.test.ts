@@ -1,7 +1,8 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
-import { deleteNode, updateNodeContent } from '$lib/tree-operations/node-ops';
+import { deleteNode } from '$lib/tree-operations/settle';
+import { updateNodeContent } from '$lib/tree-operations/content-write';
 import { trailingLineEnding } from '$lib/core/lines';
 import { rebuildAncestryRaw } from '$lib/schema/container-raw';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';

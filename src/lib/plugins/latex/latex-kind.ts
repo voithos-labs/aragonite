@@ -6,6 +6,7 @@
  */
 
 import {
+	caretOffsetAtPoint,
 	createScanIndex,
 	declarePluginInlineKind,
 	declarePluginKind,
@@ -18,6 +19,7 @@ import {
 	matchFenceOpen,
 	matchFenceClose,
 	OPENER_PRIORITIES,
+	type CaretTarget,
 	type PluginInlineKind,
 	type InlineNode,
 	type CstNode,
@@ -61,6 +63,9 @@ function recognizeMath(
 	if (afterOpen >= end) return null;
 	const opener = raw[afterOpen];
 	if (isWhitespace(opener) || isDigit(opener)) return null;
+	// `$$` is the display fence, or the empty pair a keystroke just closed: never an inline
+	// opener, or its closer search would jump to the far end of the next formula on the line.
+	if (opener === '$') return null;
 
 	// The index spans the whole block, so `end` decides the claim: a closer past the
 	// scan range leaves the `$` literal.
@@ -76,11 +81,19 @@ export function registerMathInline(): void {
 	// the inline registries also clears this guard.
 	if (isInlineKindDeclared(MATH_INLINE)) return;
 	const kind = declarePluginInlineKind(MATH_INLINE);
-	registerInlineSyntax('$', (raw, pos, end) => recognizeMath(raw, pos, end, kind));
+	registerInlineSyntax('$', (raw, pos, end) => recognizeMath(raw, pos, end, kind), {
+		autoPair: true
+	});
 	registerInlineWidgetKind(kind, {
 		isWidget: () => true,
 		component: MathInline,
-		editing: { revealSource: true }
+		editing: {
+			revealSource: true,
+			// `$…$`: one delimiter each side, so a revealing click seats the caret on the last
+			// character of the formula rather than past its closing `$`.
+			revealContentSpan: (source) =>
+				source.length >= 2 ? { start: 1, end: source.length - 1 } : null
+		}
 	});
 }
 
@@ -130,6 +143,7 @@ export function registerMathBlock(): void {
 		// edge can grow a sibling.
 		gapEdges: 'both',
 		conformanceFixture: '$$\nx^2\n$$\n',
+		caretTargetAtPoint: mathCaretAtPoint,
 		closure: simpleLeafClosure({
 			focus: {
 				mode: 'implemented',
@@ -187,6 +201,28 @@ export function registerMathBlock(): void {
 	registerMathFence();
 }
 
+/** Where a press on the folded equation puts the caret. KaTeX paints glyphs, not source bytes,
+ *  so the press walks the body span in proportion to how far along the equation it fell; the
+ *  fence lines carry no glyph of their own. */
+function mathCaretAtPoint(
+	blockEl: HTMLElement,
+	clientX: number,
+	clientY: number
+): CaretTarget | null {
+	const render = blockEl.querySelector<HTMLElement>('.math-block-render');
+	if (!render) return null;
+	const start = Number(render.dataset.bodyStart);
+	const end = Number(render.dataset.bodyEnd);
+	if (!Number.isFinite(start) || !Number.isFinite(end)) return null;
+	// `.katex-html` is the painted half: its MathML twin is clipped to a pixel, and the pair
+	// measured together answers for a point no reader aimed at.
+	const glyphs = render.querySelector<HTMLElement>('.katex-html');
+	const along = glyphs ? caretOffsetAtPoint(glyphs, clientX, clientY) : null;
+	const total = glyphs?.textContent?.length ?? 0;
+	if (along === null || total === 0) return { path: [], offset: end };
+	return { path: [], offset: start + Math.round((along / total) * (end - start)) };
+}
+
 // ── Fenced ```math display math ─────────────────────────────────────────────────
 // GitHub's third math form: a source-holding leaf like the `$$` block, rendered by
 // the same component.
@@ -206,6 +242,7 @@ export function registerMathFence(): void {
 		editable: true,
 		supportsInline: false,
 		gapEdges: 'both',
+		caretTargetAtPoint: mathCaretAtPoint,
 		conformanceFixture: '```math\nx^2\n```\n',
 		closure: simpleLeafClosure({
 			focus: {

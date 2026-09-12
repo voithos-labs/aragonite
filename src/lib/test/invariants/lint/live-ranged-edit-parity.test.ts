@@ -6,18 +6,12 @@
  * set for a reason the scan can see: its body holds no inline constructs to strand.
  */
 import { describe, it, expect } from 'vitest';
-import { collectEditorSources, stripComments, type SourceFile } from './scan-source';
-
-/** A component mounting an editable surface of its own. */
-const SURFACE_FACTORY = /\bcreateEditable(?:Surface|Leaf)\s*\(/;
-
-/** Its own beforeinput listener, which is where a native ranged edit is claimed or lost. */
-const INSTALLS_BEFOREINPUT = /\bonbeforeinput\s*=/;
-
-/** Hosting inline constructs is what makes a surface prose: the delimiter runs a range can cross
- *  are exactly what the policy table answers for. */
-const READS_INLINE_POLICY =
-	/(?<![\w.])(getInlineConstructPolicy|getInlineMarkPolicy|inlineMarkForCommand|isCardEditableInlineKind|isRevealableInlineKind)\s*\(/;
+import {
+	collectEditorSources,
+	isProseSurface,
+	stripComments,
+	type SourceFile
+} from './scan-source';
 
 const SEAM_HOME = 'src/lib/components/blocks/text/live-selection-edit.ts';
 
@@ -31,12 +25,6 @@ const RULE =
 	'a prose surface must resolve its native ranged edits through `resolveLiveRangeEdit`, which ' +
 	'reads the pending range off `getTargetRanges()` and crosses `cleanJoinedRaw`; reading the ' +
 	'live selection alone loses every word, line and drag delete at a collapsed caret';
-
-const isProseSurface = (file: SourceFile): boolean =>
-	file.relPath.endsWith('.svelte') &&
-	SURFACE_FACTORY.test(file.code) &&
-	INSTALLS_BEFOREINPUT.test(file.code) &&
-	READS_INLINE_POLICY.test(stripComments(file.text));
 
 describe('G4.44 live ranged-edit surface parity', () => {
 	const sources = collectEditorSources();

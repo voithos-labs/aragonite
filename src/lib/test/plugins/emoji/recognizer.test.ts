@@ -1,7 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { parseInline } from '$lib/core/inline';
-import type { InlineNode } from '$lib/core/nodes';
+import { parseInline, type InlineNode } from '$lib';
 import { resetPluginPlatformForTests } from '$lib/testing';
 import { registerEmoji, EMOJI_KIND } from '$lib/plugins/emoji/emoji-recognizer';
 

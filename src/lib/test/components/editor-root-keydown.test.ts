@@ -38,6 +38,8 @@ interface Harness {
 	press(key: string, init?: KeyboardEventInit): KeyboardEvent;
 	search: ReturnType<typeof fakeSearch>;
 	crossBlockKeys: KeyboardEvent[];
+	/** Text the range's own type-replace door was handed, in order. */
+	inserted: string[];
 	undoCount(): number;
 	redoCount(): number;
 	savedRanges: (Range | null)[];
@@ -57,6 +59,7 @@ function harness(): Harness {
 
 	const search = fakeSearch();
 	const crossBlockKeys: KeyboardEvent[] = [];
+	const inserted: string[] = [];
 	const savedRanges: (Range | null)[] = [];
 	const replaceExpanded: boolean[] = [];
 	let undoCount = 0;
@@ -92,6 +95,10 @@ function harness(): Harness {
 			handleKeyDown: (e) => {
 				crossBlockKeys.push(e);
 				return Promise.resolve(true);
+			},
+			insertText: (text) => {
+				inserted.push(text);
+				return Promise.resolve(true);
 			}
 		},
 		isHostChrome: (node) => !!node && header.contains(node),
@@ -110,6 +117,7 @@ function harness(): Harness {
 		},
 		search,
 		crossBlockKeys,
+		inserted,
 		undoCount: () => undoCount,
 		redoCount: () => redoCount,
 		savedRanges,
@@ -190,6 +198,30 @@ describe('editor-root keydown — dispatch order is load-bearing', () => {
 
 		h.press('ArrowDown');
 		expect(h.crossBlockKeys.map((e) => e.key)).toEqual(['ArrowDown']);
+	});
+
+	// A range over a block with no character position focuses the root, where no `beforeinput`
+	// fires: without this arm the character reached nothing and the range stood untouched.
+	it('a printable key with a cross-block range goes to the range’s text door', () => {
+		const h = harness();
+		h.setCrossBlock(true);
+		h.root.focus();
+
+		const event = h.press('x');
+		expect(h.inserted).toEqual(['x']);
+		expect(h.crossBlockKeys).toEqual([]);
+		expect(event.defaultPrevented).toBe(true);
+	});
+
+	it('a chorded or composing key is not text and keeps its own arm', () => {
+		const h = harness();
+		h.setCrossBlock(true);
+		h.root.focus();
+
+		h.press('b', { ctrlKey: true });
+		h.press('x', { isComposing: true });
+		expect(h.inserted).toEqual([]);
+		expect(h.crossBlockKeys.map((e) => e.key)).toEqual(['b', 'x']);
 	});
 
 	it('the cross-block arm stays silent on a collapsed caret', () => {

@@ -8,8 +8,12 @@ replaced by the finished fence pair instead of split.
 
 ## Happy paths
 
-- Type `$$` into an empty paragraph and press Enter: the block becomes one math block whose source
-  is the fence pair around a single empty line, and the press mints nothing else
+- Type `$$` into an empty paragraph: the block becomes one math block as the second `$` lands —
+  no Enter, the way a typed ``` is a fence at once — whose source is the fence pair around a
+  single empty line, with the caret on that line
+- A loaded (not typed) lone `$$` line plus Enter mints the same block: the Enter arm stays for a
+  line the on-type arm never saw typed
+- `$$` typed after other text on the line stays prose: only a line that IS `$$` opens anything
 - The caret lands ON that empty body line, proven by typing an expression, blurring so the revealed
   source commits, and reading the document bytes
 
@@ -20,8 +24,8 @@ replaced by the finished fence pair instead of split.
   the caret back at the end of the typed fence, and a character typed then lands after the second
   `$`, not in front of it. Mod+Z from INSIDE the still-focused reveal is inert (#161), which is a
   reveal/undo gap rather than a completion one — the same entry restores correctly after the blur
-- `$$ x` falls through to the ordinary split: an opener line carrying body text implies no
-  multi-line form, so it is not a gesture toward the pair
+- A loaded `$$ x` plus Enter falls through to the ordinary split: an opener line carrying body
+  text implies no multi-line form, so it is not a gesture toward the pair
 - Without the latex plugin installed, `$$` plus Enter splits exactly as bare GFM does — the
   completer is gated on registration like every other part of the extension
 

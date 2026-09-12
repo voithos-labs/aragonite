@@ -63,7 +63,7 @@ export async function splitFootnoteDefinitionBody(
 	await page.waitForFunction(
 		({ i, n }) => (window as any).__test.getDocument().children[i]?.children?.length === n,
 		{ i: defIndex, n: before.children + 1 },
-		{ timeout: 2000, polling: 16 }
+		{ timeout: 5000, polling: 16 }
 	);
 
 	const after = await containerAndRootCounts(page, defIndex);

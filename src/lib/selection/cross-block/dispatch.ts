@@ -94,6 +94,9 @@ export interface CrossBlockHandlers {
 	 *  programmatic insertion: no gesture to consume, so `replacement` carries the payload. */
 	handlePaste(e: ClipboardEvent | null, replacement?: string): Promise<boolean>;
 	handleBeforeInput(e: InputEvent): Promise<boolean>;
+	/** Type-replace from a door that carries no InputEvent: the editor root, where a range over a
+	 *  block with no character position leaves no editing surface for `beforeinput` to fire on. */
+	insertText(text: string): Promise<boolean>;
 	handleCompositionStart(): boolean;
 	/** Cross-block range delete for Cut handlers, after they synchronously wrote the clipboard. */
 	performCrossBlockDeleteFromEvent(): Promise<void>;
@@ -121,6 +124,13 @@ export function createCrossBlockHandlers(ctx: CrossBlockDispatchContext): CrossB
 	// branches, since it also carries navigation, which stays live.
 	const reading = () => isReadingMode(ctx.getPresentationMode);
 
+	const insertText = async (text: string): Promise<boolean> => {
+		if (reading()) return true;
+		if (!ctx.selection.isCrossBlock) return false;
+		await handleCrossBlockTypeReplace(ctx, mutationCtx, text);
+		return true;
+	};
+
 	return {
 		handleKeyDown: keydown.handleKeyDown,
 		handleCompositionStart: keydown.handleCompositionStart,
@@ -137,8 +147,11 @@ export function createCrossBlockHandlers(ctx: CrossBlockDispatchContext): CrossB
 				e.preventDefault();
 				return true;
 			}
-			return handleCrossBlockTypeReplace(ctx, mutationCtx, e);
+			if (!ctx.selection.isCrossBlock || e.inputType !== 'insertText') return false;
+			e.preventDefault();
+			return insertText(e.data ?? '');
 		},
+		insertText,
 		performCrossBlockDeleteFromEvent: async () => {
 			// Reached from cut handlers after the clipboard write; declining the delete
 			// degrades a reading-mode cut to a copy.

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, it, expect } from 'vitest';
-import { parseInline } from '$lib/core/inline';
+import { parseInline } from '$lib';
 import { resetPluginPlatformForTests } from '$lib/testing';
 import { registerMathInline, MATH_INLINE } from '$lib/plugins/latex/latex-kind';
 import { expectBoundedGrowth, measureScanGrowth } from '../../harness/scan-growth';
@@ -29,6 +29,13 @@ describe('inline math decline bounds', () => {
 	it('claims greedily through a declining run to the first real closer', () => {
 		const raw = '$x '.repeat(400) + '$a+b$ tail';
 		expect(mathIn(raw)).toEqual([{ kind: MATH_INLINE, start: 0, end: 1205 }]);
+	});
+
+	// `$$` is the display fence or a just-closed empty pair, never an opener: the closer search
+	// from it would otherwise swallow the prose up to the next formula's end.
+	it('a $$ run opens nothing, so a later formula keeps its own delimiters', () => {
+		expect(mathIn('$$ and $x^2$ later')).toEqual([{ kind: MATH_INLINE, start: 7, end: 12 }]);
+		expect(mathIn('$$x$$')).toEqual([{ kind: MATH_INLINE, start: 1, end: 4 }]);
 	});
 
 	// The scan range, not the block string, bounds a claim — a closer past `end`

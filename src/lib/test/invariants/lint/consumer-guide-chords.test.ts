@@ -121,6 +121,8 @@ const ROW_TARGETS: Record<string, { kind: AnyBlockKind; commands: CommandId[] }>
 		kind: 'fencedCode',
 		commands: ['code.indent', 'code.dedent']
 	},
+	// The typed closer the row's prose names is no chord, so only Enter resolves here.
+	'Leave a code block': { kind: 'fencedCode', commands: ['code.newline'] },
 	'Insert a tab in prose': { kind: 'paragraph', commands: ['block.insertTab'] },
 	Undo: { kind: 'paragraph', commands: ['history.undo'] },
 	Redo: { kind: 'paragraph', commands: ['history.redo'] },

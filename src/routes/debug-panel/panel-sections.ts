@@ -9,7 +9,7 @@ import { parse } from '$lib/core/parser';
 import { parseInline, getContentRange, isProseKind } from '$lib/core/inline';
 import { dumpInlineTree } from '$lib/debug/inspect';
 import { findBlockPathForElement } from '$lib/selection/path-lookup';
-import { isBlockNode, nodeAt } from '$lib/tree-operations/node-ops';
+import { isBlockNode, nodeAt } from '$lib/tree-operations/node-primitives';
 
 type EditorInstance = ReturnType<typeof Editor>;
 

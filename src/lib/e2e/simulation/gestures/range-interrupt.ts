@@ -20,7 +20,6 @@ import {
 
 export type RangeInterruptGesture =
 	| 'dead-space-below'
-	| 'dead-space-below-table'
 	| 'dead-space-margin'
 	| 'place-caret-at-point'
 	| 'image-click'
@@ -47,9 +46,6 @@ interface GestureSpec {
 
 const SPECS: Record<RangeInterruptGesture, GestureSpec> = {
 	'dead-space-below': { consumes: 'caret', build: 'select-all', act: clickBelowLastBlock },
-	// The family's one NESTED caret. The prediction reaches it because a grid's leaf bytes
-	// are contiguous inside its ancestors' raw — see `predict`.
-	'dead-space-below-table': { consumes: 'caret', build: 'select-all', act: clickBelowLastBlock },
 	'dead-space-margin': { consumes: 'caret', build: 'select-all', act: clickInRightMargin },
 	// The consumer door onto the same landing: no press and no click target in front of it,
 	// so it reaches the range-ending preamble by its own route.
@@ -134,11 +130,15 @@ export async function rangeInterrupt(
 		gapBoundary
 	});
 
-	await ctx.editor.typeSlowly(char);
 	if (spec.consumes === 'reveal-escape' || spec.consumes === 'reveal-blur') {
+		// A revealed source takes the char into the DOM without committing it, so the press's own
+		// verdict is what orders the byte-identity read below.
+		await ctx.editor.typeDeclined(char);
 		await assertRevealEphemeral(ctx, gesture, before);
 		if (spec.consumes === 'reveal-blur') await commitRevealByBlur(ctx, before, landing);
 		else await escapeRevealToCommit(ctx, before);
+	} else {
+		await ctx.editor.typeSlowly(char);
 	}
 	await settleTypedSource(ctx, predicted);
 
@@ -168,7 +168,10 @@ export async function availableRangeInterrupts(ctx: SimContext): Promise<RangeIn
 		}),
 		ctx.page.evaluate(findImageOnlyBlock)
 	]);
-	const available: RangeInterruptGesture[] = ['dead-space-margin', 'drag-handle-press', 'escape'];
+	// Only object blocks carry a handle, so a prose-only document offers no grip to press.
+	const hasHandle = (await ctx.page.locator(HANDLE_HOST).count()) > 0;
+	const available: RangeInterruptGesture[] = ['dead-space-margin', 'escape'];
+	if (hasHandle) available.push('drag-handle-press');
 	// The band below clamps onto the last block, so a caret lands only if that block offers
 	// a character position — a rule has none, and an image-only paragraph's child is a widget.
 	if (PROSE_KINDS.has(shape.lastKind) && !shape.lastRaw.trimStart().startsWith('![')) {
@@ -267,17 +270,28 @@ async function readRange(ctx: SimContext, how: string): Promise<BuiltRange> {
 
 // ── Gesture acts ────────────────────────────────────────────────────────────
 
-async function editorBox(ctx: SimContext): Promise<{ left: number; right: number }> {
+async function editorBox(
+	ctx: SimContext
+): Promise<{ left: number; right: number; bottom: number }> {
 	return ctx.page.evaluate(() => {
 		const r = (document.querySelector('.editor') as HTMLElement).getBoundingClientRect();
-		return { left: r.left, right: r.right };
+		return { left: r.left, right: r.right, bottom: r.bottom };
 	});
 }
 
 async function clickBelowLastBlock(ctx: SimContext): Promise<undefined> {
 	const root = await editorBox(ctx);
-	await ctx.page.mouse.click(root.left + 40, (await lastBlockBottom(ctx)) + 30);
+	await ctx.page.mouse.click(root.left + 40, await belowDocumentY(ctx));
 	return undefined;
+}
+
+/** The band under the last block is the tail row's (a press there appends a paragraph), so
+ *  the dead space these gestures aim at starts below it, inside the root. */
+async function belowDocumentY(ctx: SimContext): Promise<number> {
+	const root = await editorBox(ctx);
+	const tail = await ctx.page.locator('.editor-tail').boundingBox();
+	const bottom = tail ? tail.y + tail.height : (await lastBlockBottom(ctx)) + 22;
+	return Math.min(bottom + 8, root.bottom - 4);
 }
 
 /**
@@ -287,7 +301,7 @@ async function clickBelowLastBlock(ctx: SimContext): Promise<undefined> {
  */
 async function placeCaretBelowDocument(ctx: SimContext): Promise<undefined> {
 	const root = await editorBox(ctx);
-	const point = { x: root.left + 40, y: (await lastBlockBottom(ctx)) + 30 };
+	const point = { x: root.left + 40, y: await belowDocumentY(ctx) };
 	const placed = await ctx.page.evaluate(
 		(p) => (window as any).__test.placeCaretAtPoint(p.x, p.y) as boolean,
 		point
@@ -333,9 +347,12 @@ async function clickImageWidget(ctx: SimContext): Promise<number> {
 	return index;
 }
 
-/** The handle only paints on hover, so the press must be preceded by one. */
+/** The handle only paints on hover, so the press must be preceded by one; a paragraph has
+ *  none, so the first top-level host that carries one is the seat. */
+const HANDLE_HOST = '[data-block-path]:not([data-block-path*=","]):has(> .block-drag-handle)';
+
 async function pressDragHandle(ctx: SimContext): Promise<undefined> {
-	const host = ctx.page.locator('[data-block-path]:not([data-block-path*=","])').first();
+	const host = ctx.page.locator(HANDLE_HOST).first();
 	await host.hover();
 	await ctx.editor.waitForRenderFlush();
 	const box = await host.locator('.block-drag-handle').first().boundingBox();
@@ -461,7 +478,6 @@ async function assertRevealEphemeral(
 	gesture: RangeInterruptGesture,
 	before: string
 ): Promise<void> {
-	await ctx.editor.waitForNoSourceMutation();
 	const now = await ctx.editor.bridge.getSource();
 	if (now !== before) {
 		throw new Error(

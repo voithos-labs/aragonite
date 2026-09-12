@@ -8,7 +8,8 @@
 import { CURSOR_END } from '../../../block-component';
 import { normalizeCellRaw } from '../../../schema/table-cell-raw';
 import type { CstNode } from '../../../core/nodes';
-import { blockNodeAt, cutRangeFromDisplay } from '../../../tree-operations/node-ops';
+import { blockNodeAt } from '../../../tree-operations/node-primitives';
+import { cutRangeFromDisplay } from '../../../tree-operations/node-ops';
 import { sliceTableAtRow } from '../../../tree-operations/paste/table-slice';
 import { focusIndexBeforeResidue } from '../../../tree-operations/paste/focus-target';
 import { replaceBlockAtParent } from '../../../tree-operations/paste/replace-block-at-parent';

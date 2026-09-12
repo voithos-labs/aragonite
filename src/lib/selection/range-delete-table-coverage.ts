@@ -9,7 +9,8 @@ import type { CstNode } from '../core/nodes';
 import { metadataOf } from '../core/nodes';
 import type { MultiScopeTarget } from '../action-contracts';
 import type { StructuralChange } from '../tree-operations/structural-change';
-import { deleteNode, emptyParagraph } from '../tree-operations/node-ops';
+import { emptyParagraph } from '../tree-operations/node-primitives';
+import { deleteNode } from '../tree-operations/settle';
 import { trailingLineEnding } from '../core/lines';
 import { expectStateForNode, getStateForNode } from '../reactivity/state-registry';
 import {

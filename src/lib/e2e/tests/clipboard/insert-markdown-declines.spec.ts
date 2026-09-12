@@ -22,6 +22,7 @@ test.describe('insertMarkdown — declines', () => {
 	async function expectDeclinedWithoutMutation(): Promise<void> {
 		const before = await editor.bridge.getSource();
 		expect(await insert('inserted\n')).toBe(false);
+		// The programmatic door, with no keystroke behind it.
 		await editor.waitForNoSourceMutation();
 		expect(await editor.bridge.getSource()).toBe(before);
 	}

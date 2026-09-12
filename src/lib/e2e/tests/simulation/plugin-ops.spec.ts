@@ -79,11 +79,11 @@ async function mergeFromBelow(
 	const before = await ctx.editor.bridge.getSource();
 	await ctx.editor.clickBlockAtPath([tailIdx], 0);
 	await ctx.page.keyboard.press('Home');
-	await ctx.page.keyboard.press('Backspace');
 	if (expectMutation) {
+		await ctx.page.keyboard.press('Backspace');
 		await ctx.editor.bridge.waitForSourceWith((s, prev) => s !== prev, before);
 	} else {
-		await ctx.editor.waitForNoSourceMutation();
+		await ctx.editor.pressDeclined('Backspace');
 		expect(await ctx.editor.bridge.getSource()).toBe(before);
 	}
 	await ctx.editor.waitForRenderFlush();

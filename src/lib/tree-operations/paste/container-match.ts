@@ -8,16 +8,12 @@ import { CURSOR_END } from '../../block-component';
 import { devWarn } from '../../dev-warn';
 import type { CstNode, Document } from '../../core/nodes';
 import { trailingLineEnding, trimTrailingLineEnding } from '../../core/lines';
-import {
-	nodeAt,
-	settledCaretTarget,
-	updateNodeContent,
-	writeOwnRaw,
-	type SettledContent
-} from '../node-ops';
+import { nodeAt, writeOwnRaw } from '../node-primitives';
+import { settledCaretTarget, updateNodeContent, type SettledContent } from '../content-write';
 import { containerPasteFor } from './container-paste';
 import { rebuildContainerRawIfContainer } from '../../schema/container-raw';
-import { ensureUnsharedNode, ensureUnsharedPath, rebuildUnsharedChain } from '../unshare';
+import { ensureUnsharedNode, ensureUnsharedPath } from '../unshare';
+import { rebuildUnsharedChain } from '../chain-rebuild';
 import { containerScopeState } from './parent-scope';
 import {
 	applyStructuralChangeToIdsRefs,

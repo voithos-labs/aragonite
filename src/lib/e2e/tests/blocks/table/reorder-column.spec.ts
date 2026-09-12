@@ -53,9 +53,23 @@ test.describe('table block: keyboard column reorder', () => {
 		await page.keyboard.type('Z');
 		await editor.bridge.waitForSourceMatches(/\| (?:ZA|AZ) \|/);
 
-		await page.keyboard.press('Alt+ArrowLeft');
-		await editor.waitForNoSourceMutation();
+		await editor.pressDeclined('Alt+ArrowLeft');
 		await editor.bridge.waitForSourceMatches(/\| (?:ZA|AZ) \|/);
+
+		await editor.undo();
+		await editor.bridge.waitForSourceEquals(TABLE_3COL);
+	});
+
+	test('Alt+ArrowRight on the last column is a no-op and creates no undo entry', async ({
+		page
+	}) => {
+		await editor.loadContent(TABLE_3COL);
+		await page.locator('[role="cell"]').nth(2).click(); // header "C" (last column)
+		await page.keyboard.type('Z');
+		await editor.bridge.waitForSourceMatches(/\| (?:ZC|CZ) \|/);
+
+		await editor.pressDeclined('Alt+ArrowRight');
+		await editor.bridge.waitForSourceMatches(/\| (?:ZC|CZ) \|/);
 
 		await editor.undo();
 		await editor.bridge.waitForSourceEquals(TABLE_3COL);

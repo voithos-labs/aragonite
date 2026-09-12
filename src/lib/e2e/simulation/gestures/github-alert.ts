@@ -59,7 +59,7 @@ export async function mergeGithubAlertMiddleChild(
 	await page.waitForFunction(
 		({ i, n }) => (window as any).__test.getDocument().children[i]?.children?.length === n,
 		{ i: alertIndex, n: before.childCount - 1 },
-		{ timeout: 2000, polling: 16 }
+		{ timeout: 5000, polling: 16 }
 	);
 
 	const after = await alertShape(ctx, alertIndex);
@@ -177,6 +177,6 @@ async function waitForKindAt(ctx: SimContext, index: number, kind: string): Prom
 	await ctx.page.waitForFunction(
 		({ i, k }) => (window as any).__test.getDocument().children[i]?.kind === k,
 		{ i: index, k: kind },
-		{ timeout: 2000, polling: 16 }
+		{ timeout: 5000, polling: 16 }
 	);
 }

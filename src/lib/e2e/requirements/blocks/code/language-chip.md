@@ -7,9 +7,14 @@ string instead of a link's destination.
 
 ## What the chip is
 
-A button pinned to the code box's top-right, showing the info string's first token, or
-`text` when there is none. Click swaps it for a field seeded with the FULL info string;
-Enter commits, Escape and blur cancel byte-identically. Only Enter writes.
+A button on the code rail at the code box's top-right, showing the info string's first token, or
+`text` when there is none. Click opens a picker below it: a search field over every registered
+language, the block's own language highlighted first. Enter commits the highlighted row (or the
+typed text when nothing matches, so an unregistered language stays authorable); `text` is the
+row that clears a language; Escape and blur cancel byte-identically. Only Enter and a list pick
+write. A bare fence that has just taken the caret with no language opens the picker itself,
+unless the caret stepped in from a neighbour: a keyboard walk through an existing fence is not
+its authoring moment, and a picker taking focus there would trap the walk.
 
 It is transient, not chrome: hidden until the pointer hovers the block or the caret sits
 inside it, per the calm-surface rule the drag handle already follows. It renders OUTSIDE
@@ -21,8 +26,11 @@ never sees it and the render effect's `replaceChildren` cannot destroy it.
 - The chip renders in the marker-hiding modes (`reading`, both `preview-*` rungs, `live`)
   when the block is NOT content-empty, and never in source mode, which paints its fence
   always.
-- A content-empty block (an empty fence) paints its own chrome and gets no chip: the info
-  string is already reachable by caret there, which is how a fence is authored.
+- A content-empty block (an empty fence) gets the rail like any other. Its own dimmed chrome
+  paints only while the caret is inside (the caret walk mirrors that gate and the two must not
+  diverge), and the caret arriving completes the bare fence (opener, empty body line, closer)
+  so there is a line to sit on, then opens the picker when the fence has no language: the
+  picker is the authoring path, and a fence with no language is exactly where it is wanted.
 - Reveal is hover on the block OR focus inside it; the field being open keeps it revealed.
 - The hover is the block's OWN, not its container's: a fence nested in a blockquote or a list
   item stays unrevealed while the pointer sits elsewhere inside that container.
@@ -69,10 +77,10 @@ routes already share (`fence-content-validity.md`), so all three arms behave ali
 - **No keyboard chord.** v1 is pointer-first; minting a chord before the 1.0 freeze is a
   bigger decision than this affordance. A Tab reaching the button works because the button
   is a button, which is as far as v1 goes.
-- **Reading + content-empty paints nothing.** The content-empty reveal CSS covers only
-  `preview-*` and `live`, so an empty fence in reading mode shows neither its markers nor a
-  chip. Following the stated visibility rule literally rather than special-casing reading;
-  an empty code block in a reading view has nothing to say.
+- **Reading + content-empty paints markers nowhere, but still rails.** The content-empty
+  marker reveal covers only `preview-*` and `live`, so an empty fence in reading mode shows no
+  markers; the rail renders regardless, as an inert language label beside a copy affordance,
+  which is what a reader can still use.
 - **A focused preview block shows both.** The preview rungs reveal the fence on the focused
   block, and the chip also shows there (the caret is inside, and an open field counts as
   inside). Redundant, harmless, and cheaper than teaching the chip to read the focus stamp.
@@ -104,7 +112,8 @@ routes already share (`fence-content-validity.md`), so all three arms behave ali
 ## Edge cases
 
 - source mode renders no chip at all
-- a content-empty fence renders no chip in live
+- a content-empty fence in live gets the rail with its markers hidden; clicking into it
+  completes the fence, opens the picker, and Escape returns the caret to the new body line
 - a bare Enter on a padded fence line leaves the source byte-identical, and the one Mod+Z after
   it reverts the edit made before the chip was opened
 - a container's hover leaves its nested block's chip hidden; hovering that block reveals it

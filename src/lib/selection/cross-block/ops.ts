@@ -17,7 +17,7 @@ import type { CommitController, MultiScopeTarget } from '../../action-contracts'
 import { focusCollapsedCaret } from '../native-bridge';
 import { rangeDelete } from '../range-delete';
 import { trackChildIds, type StructuralChange } from '../../tree-operations/structural-change';
-import { isBlockNode, nodeAt } from '../../tree-operations/node-ops';
+import { isBlockNode, nodeAt } from '../../tree-operations/node-primitives';
 import { pathsEqual } from '../path-math';
 import { docPathFrom } from '../../cursor/coordinate-spaces';
 import { getStateForNode } from '../../reactivity/state-registry';

@@ -2,6 +2,8 @@
 
 ## Happy paths
 
+- One grip only: an accent pill on the right edge (width is all a drag sets; the former corner
+  grip was the same gesture twice)
 - Pointer drag on right handle resizes widget visually during drag
 - Pointer-up commits |N into source (single undo entry)
 - Back-to-back drags on the same handle both commit: the handle resolves the widget element on demand, so the second drag measures a live node rather than the one the first commit detached

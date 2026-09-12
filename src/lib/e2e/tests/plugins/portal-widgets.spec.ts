@@ -49,14 +49,13 @@ test.describe('component-portal inline widgets', () => {
 
 		await clickWidgetCenter(editor.mathWidget);
 		await expect(editor.mathWidget).toHaveCount(0);
-		// Step past the opening `$`, insert inside the formula, then walk the caret out
-		// of the source — the gesture that folds an edited reveal.
-		await page.keyboard.press('ArrowRight');
+		// The click seats the caret at the formula's end, inside the closing `$`; insert there,
+		// then walk the caret out of the source — the gesture that folds an edited reveal.
 		await page.keyboard.type('y');
 		await page.keyboard.press('End');
 
 		await expect(editor.mathWidget).toHaveCount(1);
-		await editor.bridge.waitForSourceContains('$yx^2$');
+		await editor.bridge.waitForSourceContains('$x^2y$');
 		await expect(editor.mathWidget.locator('.katex')).toHaveCount(1);
 		// Source changed → a fresh instance, so a new id (never the adopted one).
 		expect(await editor.mountId()).not.toBe(idBefore);

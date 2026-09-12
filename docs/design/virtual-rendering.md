@@ -31,7 +31,7 @@ This is where the height model comes in. Every block gets a cheap guess from its
 
 - The worst case for guessing is a block whose height has nothing to do with its source (a Mermaid diagram, a KaTeX render). One that renders at a stable skeleton size declares `estimateHeight` at that size and the guess is exact; one that truly can't know gets guessed as prose, self-corrects on first mount, and drifts the scrollbar thumb a bit more until then.
 - For every scope, the heights live in a binary indexed tree (i.e. Fenwick tree); this allows for things like "what pixel offset does block N start at" and "which block is at pixel P" to be answered in log time.
-- Measuring gets batched. Say 30 blocks get mounted - they are measured all at once and written (into the tree) all at once, this way the browser re-lays out once for the whole batch. An edit to a single mounted block re-measures just that block, through the same writer.
+- Measuring gets batched. Say 30 blocks get mounted - they are measured all at once and written (into the tree) all at once, this way the browser re-lays out once for the whole batch. The read waits for the flush that mounted them to finish (still before paint): a block's content, an inline widget's especially, can land later in that same flush, and a height read too early records an empty host that the next section's correction then has to undo. An edit to a single mounted block re-measures just that block, through the same writer.
 - The measured heights are cached (by block id, beside the tree), and that cache is discarded if the whole document is replaced through the `source` prop, or if anything changes how a block renders (smooth transition to next section)
 
 ## Keeping the page still while heights change
@@ -63,7 +63,7 @@ This is more annoying, the estimations need to update based on the live computed
 
 **Flip the presentation mode and hidden markers appear or vanish, which rewraps too.**
 
-Drops the measured cache. That's it actually. This way we only account for a little drift instead of a full rebuild.
+Drops the measured cache. That's it actually. This way we only account for a little drift instead of a full rebuild. A mounted block whose box moves with the markers (a fence losing its two marker lines) reports through the size-change path above, and the correction keeps the block in view where it was.
 
 ## Nesting
 

@@ -103,9 +103,9 @@ test.describe('plugin inline math: reveal collapse scoping', () => {
 		await expect(editor.widgets).toHaveCount(1);
 		expect(await editor.getBlockText(0)).toContain(EQ2);
 
-		// The new reveal is live: a typed char lands at eq2's source leading edge.
+		// The new reveal is live: a typed char lands at eq2's end, inside its closing `$`.
 		await page.keyboard.type('z');
-		expect(await editor.getBlockText(0)).toContain(`z${EQ2}`);
+		expect(await editor.getBlockText(0)).toContain(`${EQ2.slice(0, -1)}z$`);
 		// Both reveals were view toggles — the CST holds both originals.
 		const source = await editor.bridge.getSource();
 		expect(source).toContain(EQ1);

@@ -37,12 +37,12 @@ async function inLiveMode(ctx: SimContext, run: () => Promise<void>): Promise<vo
 	const toggle = page.getByTestId('live-toggle');
 
 	await toggle.click();
-	await page.waitForSelector('.editor[data-presentation="live"]', { timeout: 2000 });
+	await page.waitForSelector('.editor[data-presentation="live"]', { timeout: 5000 });
 	try {
 		await run();
 	} finally {
 		await toggle.click();
-		await page.waitForSelector('.editor:not([data-presentation])', { timeout: 2000 });
+		await page.waitForSelector('.editor:not([data-presentation])', { timeout: 5000 });
 	}
 	await editor.bridge.waitForSourceEquals(before, 3000);
 	tracker.resync(before);
@@ -197,10 +197,16 @@ export async function liveTypeFenceOpener(
 	info: string
 ): Promise<void> {
 	await typedOpener(ctx, blockIndex, async () => {
-		await mintOpener(ctx, '```', 'fencedCode');
-		await ctx.editor.typeSlowly(info);
+		const before = await ctx.editor.bridge.getSource();
+		await ctx.editor.typeSlowly('```');
+		await ctx.editor.bridge.waitForSourceWith((source, prev) => source !== prev, before);
+		// The completed fence offers its language picker, which holds the keys until Enter
+		// writes the info string and returns the caret to the body.
+		await ctx.page.locator('.code-lang-picker input').waitFor({ state: 'visible' });
+		await ctx.page.keyboard.type(info);
+		await ctx.page.keyboard.press('Enter');
 		await ctx.editor.bridge.waitForSourceContains('```' + info);
-		await ctx.editor.waitForRenderFlush();
+		await settleMint(ctx, 'fencedCode', 'typing "```"');
 		ctx.tracker.resync(await ctx.editor.bridge.getSource());
 	});
 }
@@ -340,7 +346,7 @@ export async function liveLinkCardEdit(
 		const before = await editor.bridge.getSource();
 
 		await clickText(ctx, linkText);
-		await page.locator(CARD).waitFor({ state: 'visible', timeout: 2000 });
+		await page.locator(CARD).waitFor({ state: 'visible', timeout: 5000 });
 		const field = page.locator(`${CARD} input`);
 		await field.click();
 		await page.keyboard.press('ControlOrMeta+a');

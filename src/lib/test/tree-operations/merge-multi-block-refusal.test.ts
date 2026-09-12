@@ -3,7 +3,7 @@ import type { Document } from '$lib/core/nodes';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import { mergeIntoPrevDeepLeaf, mergeWithNext } from '$lib/tree-operations';
-import type { BodyParent } from '$lib/tree-operations/node-ops';
+import type { BodyParent } from '$lib/tree-operations/node-primitives';
 import { expectParseConverged } from '$lib/test/harness/parse-converged';
 
 // GH #166. Miss-analysis: G2.13's gesture lane drove split, delete and content commits but no

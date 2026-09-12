@@ -23,13 +23,13 @@ test.describe('text editing — edge cases', () => {
 
 	// The caret is the whole outcome of the ineligible arm: source and block count cannot move,
 	// so asserting only those reads the press as dead (the shape issue #138 was filed as).
-	for (const [label, doc, landing] of [
-		['heading above heading', '# Heading A\n\n## Heading B\n', 11],
-		['prose above a prose-absorber', 'lorem\n\n# \n', 5]
+	for (const [label, doc, landing, after] of [
+		['heading above heading', '# Heading A\n\n## Heading B\n', 11, '# Heading A\n\n## Heading B\n'],
+		// The empty heading the caret leaves demotes on blur: a rule of its own, not a merge.
+		['prose above a prose-absorber', 'lorem\n\n# \n', 5, 'lorem\n\n\n']
 	] as const) {
 		test(`Backspace at a heading's start under ${label} — no merge, caret lands at its end`, async () => {
 			await editor.loadContent(doc);
-			const sourceBefore = await editor.bridge.getSource();
 			const countBefore = await editor.bridge.getBlockCount();
 
 			await editor.focusBlockStart(1);
@@ -39,7 +39,7 @@ test.describe('text editing — edge cases', () => {
 				.poll(async () => await editor.bridge.getSelectionPaths())
 				.toMatchObject({ focus: { path: [0], offset: landing } });
 			expect(await editor.bridge.getBlockCount()).toBe(countBefore);
-			expect(await editor.bridge.getSource()).toBe(sourceBefore);
+			await editor.bridge.waitForSourceEquals(after);
 		});
 	}
 
@@ -63,10 +63,9 @@ test.describe('text editing — edge cases', () => {
 		const breakBlock = editor.page.locator('.thematic-break-block');
 
 		await editor.focusBlockStart(2);
-		await editor.page.keyboard.press('Backspace');
+		await editor.pressDeclined('Backspace');
 
 		await expect(wholeBlockInput(breakBlock)).toBeFocused();
-		await editor.waitForNoSourceMutation();
 		expect(await editor.bridge.getSource()).toBe(original);
 		expect(await editor.bridge.getBlockCount()).toBe(countBefore);
 

@@ -7,9 +7,9 @@ import { createSharingState } from '../../tree-operations/sharing';
 import {
 	ensureUnsharedChild,
 	ensureUnsharedPath,
-	rebuildOwnedContainer,
-	rebuildUnsharedAncestry
+	rebuildOwnedContainer
 } from '../../tree-operations/unshare';
+import { rebuildUnsharedAncestry } from '../../tree-operations/chain-rebuild';
 
 function sharedDoc(src: string) {
 	const sharing = createSharingState();

@@ -18,6 +18,9 @@ const CAPACITY = 200;
 
 let enabled = false;
 let buf: InteractionTraceEntry[] = [];
+// Monotonic, so the harness poll costs one read and the ring buffer's eviction cannot
+// retract a verdict it already counted.
+let keydownVerdicts = 0;
 
 // ── Switch and readout ──────────────────────────────────────────────────────
 
@@ -36,6 +39,11 @@ export function isInteractionTraceEnabled(): boolean {
 /** Empty the buffer without touching the enabled flag — test isolation. */
 export function resetInteractionTrace(): void {
 	buf = [];
+	keydownVerdicts = 0;
+}
+
+export function interactionTraceKeydownCount(): number {
+	return keydownVerdicts;
 }
 
 export function interactionTraceSnapshot(): InteractionTraceEntry[] {
@@ -122,4 +130,12 @@ export function traceStickyCapture(x: number): void {
 export function traceStickyReset(): void {
 	if (!enabled) return;
 	record('sticky-column', 'reset');
+}
+
+/** `handled` is the event's own `defaultPrevented`: whether the editor claimed the press.
+ *  Recorded once per keydown, after the surface handler's await chain has settled. */
+export function traceKeydownVerdict(key: string, handled: boolean): void {
+	if (!enabled) return;
+	keydownVerdicts++;
+	record('keydown', 'verdict', { key, handled });
 }

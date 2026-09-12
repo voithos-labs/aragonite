@@ -1,8 +1,9 @@
+import { tick } from 'svelte';
 import type { Editor, PastedImage, PresentationMode } from '$lib';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import { parseConverges } from '$lib/testing/parse-convergence';
-import { nodeAt } from '$lib/tree-operations/node-ops';
+import { nodeAt } from '$lib/tree-operations/node-primitives';
 import { spliceChildren } from '$lib/tree-operations/children';
 import { getStateForNode } from '$lib/reactivity/state-registry';
 import type { BlockKind, CstNode, Document } from '$lib/core/nodes';
@@ -36,6 +37,7 @@ import { enablePerfInstruments, resetPerfInstruments, perfSnapshot } from '$lib/
 import {
 	enableInteractionTrace,
 	disableInteractionTrace,
+	interactionTraceKeydownCount,
 	interactionTraceSnapshot
 } from '$lib/debug/interaction-trace';
 import type { ClosureBlock } from '$lib/schema/closure';
@@ -185,6 +187,7 @@ function createSessionProbe<T>(init: () => T): {
 
 const editOpProbe = createSessionProbe<string[]>(() => []);
 const errorProbe = createSessionProbe<string[]>(() => []);
+const menuProbe = createSessionProbe<boolean[]>(() => []);
 const caretProbe = createSessionProbe<CaretProbeState>(() => ({ captured: false, rect: null }));
 const selectionProbe = createSessionProbe<SelectionChangeRecord[]>(() => []);
 
@@ -261,6 +264,7 @@ export function installTestProbes({
 	const remounted = 'the editor remounted while the session was open';
 	editOpProbe.invalidate(remounted);
 	errorProbe.invalidate(remounted);
+	menuProbe.invalidate(remounted);
 	caretProbe.invalidate(remounted);
 	selectionProbe.invalidate(remounted);
 
@@ -483,8 +487,11 @@ export function installTestProbes({
 		trace: {
 			enable: enableInteractionTrace,
 			disable: disableInteractionTrace,
-			snapshot: interactionTraceSnapshot
+			snapshot: interactionTraceSnapshot,
+			keydownCount: interactionTraceKeydownCount
 		},
+		// The harness's one drain for a gesture with no keydown verdict to wait on.
+		drainTick: (): Promise<void> => tick(),
 		// ── Consumer diagnostics door (real, not the extracted builder) ────
 		// Through the actual door, so the includeSource `?? false` default is exercised
 		// where it lives.
@@ -513,6 +520,14 @@ export function installTestProbes({
 				})
 			),
 		getCapturedErrors: (): string[] => errorProbe.peek(),
+		// ── Menu-change capture probe ─────────────────────────────────────
+		startMenuChangeCapture: (): void =>
+			menuProbe.start((changes) =>
+				editor.getEvents().on('menuChange', (open) => {
+					changes.push(open);
+				})
+			),
+		stopMenuChangeCapture: (): boolean[] => menuProbe.stop(),
 		// ── List item id probe ────────────────────────────────────────────
 		getListItemIds: (blockIndex: number): string[] => {
 			const doc = editor.__test.getDocument();

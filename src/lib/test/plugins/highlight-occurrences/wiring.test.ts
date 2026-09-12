@@ -1,19 +1,20 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { installPlugins } from '$lib';
+import { installPlugins, parse } from '$lib';
+import type {
+	EditorContext,
+	OnEditorCallback,
+	PluginSetupContext,
+	DecorationSource,
+	EditorSelection,
+	MarkDecoration
+} from '$lib/plugin';
 import { resetPluginPlatformForTests } from '$lib/testing';
-import { parse } from '$lib/core/parser';
 import {
 	highlightOccurrencesPlugin,
 	type HighlightOccurrencesOptions
 } from '$lib/plugins/highlight-occurrences';
 import { OCCURRENCE_CLASS } from '$lib/plugins/highlight-occurrences/occurrences';
-import {
-	onEditorCallbacks,
-	type EditorContext,
-	type OnEditorCallback,
-	type PluginSetupContext
-} from '$lib/schema/plugin-install';
-import type { DecorationSource, EditorSelection, MarkDecoration } from '$lib/plugin';
+import { onEditorCallbacks } from '$lib/schema/plugin-install';
 
 function caret(path: number[], offset: number): EditorSelection {
 	const point = { path, offset };

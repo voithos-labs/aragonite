@@ -57,13 +57,12 @@ export const BIOLOGY_NOTE: NoteFixture = {
 		await g.softEnter();
 		await g.checkpoint('blockquote', 'blockquote');
 
-		await g.typeText('```');
-		await g.softEnter();
+		await g.typeFenceOpener();
 		await g.typeText('photons = 8');
 		await g.softEnter();
 		await g.typeText('glucose = photons / 8');
 		await g.softEnter();
-		await g.softEnter();
+		await g.exitFence();
 		await g.checkpoint('code-block', 'code');
 
 		await g.typeText('Summary follows the divider.');

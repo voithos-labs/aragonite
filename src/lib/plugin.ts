@@ -97,6 +97,20 @@ export { OPENER_PRIORITIES } from './schema/opener-priorities';
 export { registerBlockCompleter } from './schema/block-completions';
 export type { BlockCompleter, CompletionResult } from './schema/block-completions';
 
+// ── Code-block languages (pre-freeze) ────────────────────────────────────────
+// The registry behind fenced-code highlighting. The editor bootstraps a curated set (every
+// grammar is bundle weight for every consumer), so a host needing more registers them itself,
+// BEFORE mounting an editor: a block on screen re-tokenizes only when its bytes next change.
+// An unregistered language is not an error — the fence still round-trips, just untokenized.
+export { registerLanguage, listLanguages } from './components/blocks/code/code-languages';
+export type { LanguageGrammar } from './components/blocks/code/code-languages';
+// The code block's own tokenizer, for a plugin whose source surface wants the same highlighting
+// (block math paints its LaTeX with it). Text-preserving: the fragment's textContent is `body`.
+export { tokenizeBody as highlightCode } from './components/blocks/code/code-renderer';
+// Re-exported so a host names the grammar type without importing highlight.js itself, which
+// it holds only transitively.
+export type { LanguageFn } from 'highlight.js';
+
 // ── Command vocabulary + keybindings (pre-freeze) ────────────────────────────
 // The built-in half; a plugin's own commands are minted in the section below.
 export type { CommandId } from './schema/commands';
@@ -105,6 +119,13 @@ export type { KeyBinding } from './schema/keybindings';
 // ── Command mint (pre-freeze) ────────────────────────────────────────────────
 // A (kind, name) block-command mints a PluginCommandId; AnyCommandId spans built-in and minted.
 export { registerBlockCommand } from './schema/block-commands';
+// The block context menu: a kind's right-click actions, empty unless something registers them.
+export { registerBlockContextActions } from './schema/context-actions';
+export type {
+	BlockContextAction,
+	BlockActionContext,
+	BlockContextActionProvider
+} from './schema/context-actions';
 export type { BlockCommandContext, BlockCommandHandler } from './schema/block-commands';
 export type { PluginCommandId, AnyCommandId } from './schema/command-id';
 // A global command is process-wide but runs against the dispatching instance's EditorContext.

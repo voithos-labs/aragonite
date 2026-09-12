@@ -21,7 +21,8 @@ import {
 	truncateEndInPlace,
 	truncateStartInPlace
 } from './range-delete-ceremony';
-import { ensureUnsharedPath, rebuildUnsharedChain } from '../tree-operations/unshare';
+import { ensureUnsharedPath } from '../tree-operations/unshare';
+import { rebuildUnsharedChain } from '../tree-operations/chain-rebuild';
 import { reservedChromeKindOf, isReservedChromeChild } from '../schema/reserved-chrome';
 
 // ── Public API ──────────────────────────────────────────────────────────────

@@ -2,7 +2,7 @@
 // whole-document walk produces the same map as a per-subtree one, so only counting the
 // inline parses tells them apart.
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { installPlugins, parse } from '$lib';
+import { installPlugins, parse, type DocumentView } from '$lib';
 import { resetPluginPlatformForTests } from '$lib/testing';
 import { footnotesPlugin } from '$lib/plugins/footnotes';
 import { rebuildAncestryRaw } from '$lib/schema/container-raw';
@@ -16,7 +16,6 @@ import {
 	perfSnapshot,
 	resetPerfInstruments
 } from '$lib/perf/instruments';
-import type { DocumentView } from '$lib/core/node-views';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
 import { createBlockEditActions } from '$lib/editor-actions/block-edit';
 import { makeEditorActionsDeps } from '$lib/test/harness/editor-actions';

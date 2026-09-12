@@ -34,10 +34,9 @@ test.describe('forward delete', () => {
 		const original = await editor.bridge.getSource();
 
 		await editor.focusBlockEnd(0);
-		await editor.page.keyboard.press('Delete');
+		await editor.pressDeclined('Delete');
 
 		await expect(wholeBlockInput(editor.page.locator('.thematic-break-block'))).toBeFocused();
-		await editor.waitForNoSourceMutation();
 		expect(await editor.bridge.getSource()).toBe(original);
 
 		await editor.page.keyboard.press('Delete');

@@ -1,19 +1,12 @@
 import { afterEach, beforeEach, describe, it, expect } from 'vitest';
 import { installPlugins } from '$lib';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
-import { __resetInstalledPluginsForTests } from '$lib/schema/plugin-install';
+import { declaredPluginKind } from '$lib/plugin';
+import { resetPluginPlatformForTests } from '$lib/testing';
 import { getBlockComponent } from '$lib/schema/block-component-registry';
-import { declaredPluginKind } from '$lib/schema/plugin-kind';
 import { tocPlugin, TOC_BLOCK } from '$lib/plugins/toc/toc-plugin';
 
-// The install latch is separate from the schema registries: reset both so each
-// case installs a fresh tocPlugin with its own option.
-function reset(): void {
-	__resetSchemaRegistriesForTests();
-	__resetInstalledPluginsForTests();
-}
-beforeEach(reset);
-afterEach(reset);
+beforeEach(resetPluginPlatformForTests);
+afterEach(resetPluginPlatformForTests);
 
 // Pins `tocPlugin({ maxDepth })` from factory arg through the extraProps closure to the
 // component prop — the bare-install default. Per-instance depth is per-instance-depth.test.ts.

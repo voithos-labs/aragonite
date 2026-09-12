@@ -70,7 +70,9 @@ describe('settle-funnel caller census', () => {
 	it('the import matcher survives an alias, a multi-line clause and a deep path', () => {
 		expect(probe("import { splitNode as performSplit } from '../tree-operations';")).toBe(true);
 		expect(
-			probe("import {\n\tdeleteNode,\n\temptyParagraph\n} from '../tree-operations/node-ops';")
+			probe(
+				"import {\n\tdeleteNode,\n\tfocusTargetInReplacement\n} from '../tree-operations/settle';"
+			)
 		).toBe(true);
 		// A same-named action-bundle method is not the primitive, and neither is prose.
 		expect(probe('blockEdit.mergeWithNext(index);')).toBe(false);

@@ -174,6 +174,8 @@ describe('block-exit arms read the landable bounds', () => {
 });
 
 describe('the keydown door notes the arrival', () => {
+	// A horizontal step stops on the side it came from (live-mode.md § 4.2): Right records the
+	// near side, Left the far one, so the byte typed next lands where the caret meant.
 	it('a forward arrow records the run’s near side, Home the construct-relative outside', async () => {
 		const { ctx } = makeEnv('Title\n', 2, 'live');
 		await handleSharedKeydown(press('ArrowRight'), ctx);

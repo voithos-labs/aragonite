@@ -4,7 +4,7 @@ import { serialize } from '../../core/serializer';
 import { deleteNode, splitNode, updateNodeContent } from '../../tree-operations';
 import { describeConvergence } from '$lib/test/harness/parse-converged';
 import { settled } from '$lib/test/harness/settle-funnel';
-import type { SettledContent } from '$lib/tree-operations/node-ops';
+import type { SettledContent } from '$lib/tree-operations/content-write';
 
 // GH #61: a splice can leave neighbours whose adjacent bytes re-read as ONE block on reload —
 // a list newly standing above indented code absorbs it, since no separator line can hold
@@ -134,11 +134,12 @@ describe('a splice absorbs a seam whose fold promotes the head (GH #255)', () =>
 		const doc = parse('# [t](u)\n===\n');
 		expect(doc.children.map((c) => c.kind)).toEqual(['heading', 'paragraph']);
 
-		const result = splitNode(doc, 0, 1, undefined, undefined, undefined);
+		// Inside the content: a cut at or before it moves the whole heading down instead.
+		const result = splitNode(doc, 0, 4, undefined, undefined, undefined);
 
 		expect(doc.children.map((c) => [c.kind, c.raw])).toEqual([
-			['heading', '#\n'],
-			['setextHeading', ' [t](u)\n===\n']
+			['heading', '# [t\n'],
+			['setextHeading', '](u)\n===\n']
 		]);
 		expect(result.secondHalfIndex).toBe(1);
 		expect(describeConvergence(doc)).toBeNull();
@@ -148,11 +149,11 @@ describe('a splice absorbs a seam whose fold promotes the head (GH #255)', () =>
 		const doc = parse('# | a |\n| --- |\n');
 		expect(doc.children.map((c) => c.kind)).toEqual(['heading', 'paragraph']);
 
-		splitNode(doc, 0, 1, undefined, undefined, undefined);
+		splitNode(doc, 0, 4, undefined, undefined, undefined);
 
 		expect(doc.children.map((c) => [c.kind, c.raw])).toEqual([
-			['heading', '#\n'],
-			['table', ' | a |\n| --- |\n']
+			['heading', '# | \n'],
+			['table', 'a |\n| --- |\n']
 		]);
 		expect(describeConvergence(doc)).toBeNull();
 	});

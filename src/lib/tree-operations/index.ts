@@ -1,21 +1,25 @@
-export type { NodeParent, MergeIntoPrevResult, MergeResult, SplitResult } from './node-ops';
+export type { NodeParent } from './node-primitives';
+export {
+	nodeAt,
+	emptyParagraph,
+	paragraphNode,
+	ensureEditableContainers,
+	normalizeReplacementTrivia
+} from './node-primitives';
+export {
+	deleteNode,
+	focusTargetInReplacement,
+	restoreSeparatorOnFill,
+	dropDoubledSeparator
+} from './settle';
+export { updateNodeContent, reclassifyContainer } from './content-write';
+export type { MergeIntoPrevResult, MergeResult, SplitResult } from './node-ops';
 export {
 	splitNode,
 	assertSplitLanding,
 	assertSingleNodeSink,
 	mergeWithNext,
-	mergeIntoPrevDeepLeaf,
-	deleteNode,
-	updateNodeContent,
-	reclassifyContainer,
-	focusTargetInReplacement,
-	ensureEditableContainers,
-	normalizeReplacementTrivia,
-	emptyParagraph,
-	paragraphNode,
-	restoreSeparatorOnFill,
-	dropDoubledSeparator,
-	nodeAt
+	mergeIntoPrevDeepLeaf
 } from './node-ops';
 
 export { unwrapFirstItemFromList, mergeListItemIntoPrevious } from './list/unwrap-merge';
@@ -45,10 +49,9 @@ export {
 	ensureUnsharedNode,
 	ensureUnsharedChildren,
 	ensureUnsharedSubtree,
-	rebuildOwnedContainer,
-	rebuildUnsharedChain,
-	rebuildUnsharedAncestry
+	rebuildOwnedContainer
 } from './unshare';
+export { rebuildUnsharedChain, rebuildUnsharedAncestry } from './chain-rebuild';
 
 export { buildPastedReplacement } from './paste/paste-replacement';
 
