@@ -11,6 +11,7 @@ export class PluginsPage extends EditorPage {
 		await this.page.waitForFunction(() => (window as any).__test !== undefined, null, {
 			timeout: BRIDGE_INSTALL_TIMEOUT
 		});
+		await this.page.evaluate(() => document.fonts.ready);
 		// Armed for every spec, not per-spec: capture is passive, and a `capturedErrors() === []`
 		// assertion against a capture nobody started passes vacuously.
 		await this.page.evaluate(() => (window as any).__test.startErrorCapture());

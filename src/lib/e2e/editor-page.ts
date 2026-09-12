@@ -35,6 +35,9 @@ export class EditorPage {
 		await this.page.waitForFunction(() => (window as any).__test !== undefined, null, {
 			timeout: BRIDGE_INSTALL_TIMEOUT
 		});
+		// The harness paints a proportional webfont; a caret measured before it lands sits in
+		// the fallback face's geometry, and the block reflows under the spec.
+		await this.page.evaluate(() => document.fonts.ready);
 	}
 
 	async loadContent(md: string) {
