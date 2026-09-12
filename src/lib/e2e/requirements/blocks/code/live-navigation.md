@@ -20,6 +20,8 @@ Fixture: `Before` / a two-line `js` fence / `After`, in `?presentationMode=live`
 - End on the last body line seats after its last byte, never past the hidden closer
 - Enter at the body end opens a line inside the fence; a second Enter on that empty line leaves
   the block, taking the empty line with it, and typing lands in the block below
+- A closer typed on that empty line leaves the same way: the hidden closer is already there, so
+  the run is the exit and none of its bytes land, and the caret arrives in the block below
 - Tab at a body line start indents the line, as it does in source mode
 
 ## Edge cases
@@ -38,6 +40,8 @@ Fixture: `Before` / a two-line `js` fence / `After`, in `?presentationMode=live`
 
 ## Miss-analysis
 
+- The exit gestures pinned here were all keys with no bytes of their own (Enter, the arrows), so
+  the one that types something a fence line could be read as went unasked in both modes.
 - Every code navigation scenario ran in source mode, where the fence lines paint and the raw's
   ends are landable, so a door reading `0`/`length` instead of the landable bounds passed every
   gate; the hidden-fence shape had no scenario of its own.

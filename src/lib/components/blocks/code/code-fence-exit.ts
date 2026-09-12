@@ -22,6 +22,14 @@ export type FenceExitResult =
 	| { kind: 'closeAndExit'; newText: string }
 	| { kind: 'none' };
 
+export interface TypedFenceExitInput extends FenceExitInput {
+	/** The one character the pending `insertText` would write. */
+	typed: string;
+}
+
+/** A typed closer either leaves (taking its own line with it) or is just a byte. */
+export type TypedFenceExitResult = Extract<FenceExitResult, { kind: 'exitWithEdit' | 'none' }>;
+
 // ── Public API ──────────────────────────────────────────────────────────────
 
 export function computeFenceExit(input: FenceExitInput): FenceExitResult {
@@ -50,6 +58,32 @@ export function computeFenceExit(input: FenceExitInput): FenceExitResult {
 	}
 	return { kind: 'none' };
 }
+
+/**
+ * The block's other exit gesture: a closer typed on the body's empty last line. Every other
+ * editor reads that run as "done here", and the bytes never land — written, they would be a body
+ * line reading as the closer, which the write seam can only answer by growing the fence. A run
+ * anywhere else is content, and that escalation keeps its CommonMark meaning.
+ */
+export function computeTypedFenceExit(input: TypedFenceExitInput): TypedFenceExitResult {
+	const { text, offset, meta, typed } = input;
+	const none = { kind: 'none' } as const;
+	if (!meta.closed || typed !== meta.fenceMarker) return none;
+
+	// The caret must sit at the end of a line that has one below it: the closer's.
+	const ending = /^\r?\n/.exec(text.slice(offset));
+	if (!ending) return none;
+	const lineStart = text.lastIndexOf('\n', offset - 1) + 1;
+	const run = text.slice(lineStart, offset);
+	if (run !== meta.fenceMarker.repeat(run.length) || run.length + 1 < meta.fenceLength) return none;
+
+	const below = offset + ending[0].length;
+	if (!matchFenceClose(lineAt(text, below), meta.fenceMarker, meta.fenceLength)) return none;
+	// The run's line goes with the exit, as Enter's own empty-line exit takes the blank one.
+	return { kind: 'exitWithEdit', newText: text.slice(0, lineStart) + text.slice(below) };
+}
+
+// ── Internal ────────────────────────────────────────────────────────────────
 
 // The one physical line beginning at `start`, without its trailing newline.
 function lineAt(text: string, start: number): string {

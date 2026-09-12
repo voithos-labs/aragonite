@@ -2,6 +2,8 @@
 //
 // Miss-analysis: the reveal's own undo matched Ctrl+Z by hand, so no test could ask the keymap
 // what the chord meant, and every case ended before the document moved under an open reveal.
+// Its granularity went the same way: every case made ONE edit, so nothing could see that a
+// second keystroke pushed a second entry where the document would have batched both.
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { mount, unmount, flushSync } from 'svelte';
 import RevealLeafBlock from './fixtures/RevealLeafBlock.svelte';
@@ -12,6 +14,9 @@ import {
 	normalizeKeybindingOverrides,
 	type KeybindingOverride
 } from '$lib/schema/keybinding-overrides';
+import { createRangeFromOffsets, getCursorOffset } from '$lib/cursor/content-offsets';
+import { asDomTextOffset } from '$lib/cursor/coordinate-spaces';
+import { UNDO_DEBOUNCE_MS } from '$lib/editor-actions/commit/text-batch';
 import { editorMountContext } from '../harness/mount-context';
 import { installLayoutStubs } from './editor-mount';
 
@@ -87,6 +92,23 @@ async function press(el: HTMLElement, init: KeyboardEventInit): Promise<void> {
 const pressEnter = (el: HTMLElement) => press(el, { key: 'Enter' });
 const pressUndoChord = (el: HTMLElement) => press(el, { key: 'z', ctrlKey: true });
 
+/** One typed character the way the engine delivers it: a collapsed target range at the caret. */
+async function typeChar(el: HTMLElement, char: string): Promise<void> {
+	const at = getCursorOffset(el) ?? (el.textContent ?? '').length;
+	const e = new InputEvent('beforeinput', {
+		inputType: 'insertText',
+		data: char,
+		bubbles: true,
+		cancelable: true
+	});
+	const range = createRangeFromOffsets(el, asDomTextOffset(at), asDomTextOffset(at));
+	Object.defineProperty(e, 'getTargetRanges', { value: () => (range ? [range] : []) });
+	el.dispatchEvent(e);
+	await flush();
+}
+
+const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
 let mounted: ReturnType<typeof mountLeaf> | null = null;
 
 beforeEach(() => {
@@ -150,5 +172,47 @@ describe('undo inside an open painted reveal', () => {
 		await pressUndoChord(el);
 		expect(el.textContent).toBe('@@ two');
 		expect(mounted.history.requestUndo).toHaveBeenCalledTimes(1);
+	});
+});
+
+describe('a burst of typing inside an open painted reveal', () => {
+	it('undoes as one entry, restoring the pre-burst text and caret', async () => {
+		mounted = mountLeaf();
+		const el = await mounted.revealAtEnd();
+		for (const char of 'abc') await typeChar(el, char);
+		expect(el.textContent).toBe(`${SOURCE}abc`);
+
+		await pressUndoChord(el);
+
+		expect(el.textContent).toBe(SOURCE);
+		expect(getCursorOffset(el)).toBe(SOURCE.length);
+		expect(mounted.history.requestUndo).not.toHaveBeenCalled();
+	});
+
+	it('opens a fresh entry once the typing pause has passed', async () => {
+		mounted = mountLeaf();
+		const el = await mounted.revealAtEnd();
+		await typeChar(el, 'a');
+		await pause(UNDO_DEBOUNCE_MS + 50);
+		await typeChar(el, 'b');
+
+		await pressUndoChord(el);
+		expect(el.textContent).toBe(`${SOURCE}a`);
+		await pressUndoChord(el);
+		expect(el.textContent).toBe(SOURCE);
+	});
+
+	it('closes the batch on an edit no keystroke could have made', async () => {
+		mounted = mountLeaf();
+		const el = await mounted.revealAtEnd();
+		await typeChar(el, 'a');
+		await typeChar(el, 'b');
+		await pressEnter(el);
+		expect(el.textContent).toBe(`${SOURCE}ab\n`);
+
+		await pressUndoChord(el);
+		expect(el.textContent).toBe(`${SOURCE}ab`);
+		await pressUndoChord(el);
+		expect(el.textContent).toBe(SOURCE);
 	});
 });

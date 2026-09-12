@@ -118,6 +118,23 @@ test.describe('code block in live mode — line extremes and the fence lines', (
 		);
 	});
 
+	// The closer is hidden here, so typing one is the reader asking to leave rather than to
+	// author bytes: the run never lands, and the caret arrives in the block that was already below.
+	test('a closer typed on the empty last line leaves below, writing none of its bytes', async ({
+		page
+	}) => {
+		await editor.focusBlockAtPath([1], BODY_END);
+		await page.keyboard.press('Enter');
+		await editor.bridge.waitForSourceContains('foo();\n\n```');
+
+		await page.keyboard.type('```');
+		await page.keyboard.type('Y');
+
+		await editor.bridge.waitForSourceEquals(
+			'Before\n\n```js\nconst x = 1;\nfoo();\n```\n\nYAfter\n'
+		);
+	});
+
 	test('Backspace at the body start leaves upward and the fence stays whole', async ({ page }) => {
 		await editor.focusBlockAtPath([1], BODY_START);
 		await page.keyboard.press('Backspace');

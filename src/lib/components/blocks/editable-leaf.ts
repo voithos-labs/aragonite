@@ -57,6 +57,7 @@ import { type CommandId } from '../../schema/commands';
 import { type BlockCommandContext } from '../../schema/block-commands';
 import { owningPluginEditor } from '../../schema/plugin-install';
 import { reorderRunCommand } from '../../editor-actions/reorder-action';
+import { createTextBatch } from '../../editor-actions/commit/text-batch';
 
 export type EditableLeafMode = 'plain' | 'render-primary';
 
@@ -338,14 +339,12 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		showSource: () => {
 			traceRevealOpen('leaf');
 			revealedBase = sourceText();
-			sourceUndo = [];
-			sourceRedo = [];
+			clearSourceHistory();
 			deps.setRevealed?.(true);
 		},
 		showRendered: () => {
 			revealedBase = null;
-			sourceUndo = [];
-			sourceRedo = [];
+			clearSourceHistory();
 			deps.setRevealed?.(false);
 		}
 	});
@@ -488,8 +487,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		if ((el.textContent ?? '') !== text) {
 			paintSource(el, text);
 			// The local entries were taken against bytes an external rewrite just replaced.
-			sourceUndo = [];
-			sourceRedo = [];
+			clearSourceHistory();
 			// Restore only under a live caret — an external rewrite (undo, structural
 			// replace) must not steal focus.
 			consumePendingRestore(el, pending, (offset) => setCursorOffset(el, asDomTextOffset(offset)));
@@ -506,14 +504,48 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 	}
 	let sourceUndo: SourceEntry[] = [];
 	let sourceRedo: SourceEntry[] = [];
+	// The document's own keystroke batch, not a second timer: a burst of typing inside the
+	// reveal takes one entry there, so it takes one here.
+	let batchBaseText = '';
+	const sourceBatch = createTextBatch({
+		pushSnapshot: (_leafPath, offset) => {
+			sourceUndo.push({ text: batchBaseText, caret: offset });
+			sourceRedo = [];
+		}
+	});
+
+	function clearSourceHistory(): void {
+		sourceBatch.interrupt();
+		sourceUndo = [];
+		sourceRedo = [];
+	}
 
 	function restoreSourceEntry(el: HTMLElement, from: SourceEntry[], to: SourceEntry[]): void {
 		const entry = from.pop();
 		if (!entry) return;
+		// The restored text is what the next keystroke must snapshot, so it opens its own batch.
+		sourceBatch.interrupt();
 		to.push({ text: el.textContent ?? '', caret: getCursorOffset(el) ?? 0 });
 		paintSource(el, entry.text);
 		setCursorOffset(el, asDomTextOffset(entry.caret));
 		deps.onSourceEdit?.(entry.text);
+	}
+
+	/**
+	 * The one entry every reveal edit crosses, so the batching rule lives here rather than at
+	 * each gesture: one character replaced by at most one non-newline character is the shape a
+	 * keystroke has, and nothing else coalesces. Enter, a paste, a cut and a selection replace
+	 * each take an entry of their own and end the burst before them.
+	 */
+	function recordSourceEdit(text: string, caret: number, keystroke: boolean): void {
+		if (!keystroke) {
+			sourceBatch.interrupt();
+			sourceUndo.push({ text, caret });
+			sourceRedo = [];
+			return;
+		}
+		batchBaseText = text;
+		sourceBatch.keystroke(deps.getPath(), caret);
 	}
 
 	// Splice `insert` over the source text node's [start, end) and reseat the caret. A
@@ -521,15 +553,15 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 	// inject <div>/<br> that vanish from textContent.
 	function spliceSourceText(el: HTMLElement, start: number, end: number, insert: string): void {
 		const text = el.textContent ?? '';
-		if (deps.renderSource) {
-			sourceUndo.push({ text, caret: getCursorOffset(el) ?? start });
-			sourceRedo = [];
-		}
+		const keystroke = end - start <= 1 && insert.length <= 1 && insert !== '\n';
+		if (deps.renderSource) recordSourceEdit(text, getCursorOffset(el) ?? start, keystroke);
 		const next = text.slice(0, start) + insert + text.slice(end);
 		paintSource(el, next);
 		deps.onSourceEdit?.(next);
 		preEditOffset = start;
 		setCursorOffset(el, asDomTextOffset(start + insert.length));
+		// Armed once the edit has settled, so the window measures the gap the user leaves.
+		if (deps.renderSource && keystroke) sourceBatch.armPause();
 		if (mode === 'plain') editableSurface.onInput();
 	}
 

@@ -47,10 +47,10 @@ test.describe('a render-primary block folds onto the document it opened over', (
 	});
 
 	// #161's own repro. The block forms as the second `$` lands, with the caret in its revealed
-	// source. The draft is ephemeral: Mod+Z walks it back a keystroke at a time, and the press
-	// after the last one returns the paragraph rather than flushing draft bytes into the document
-	// the undo just restored. Exact text, not `toHaveText`: that matcher folds whitespace, and a
-	// stray newline in the draft is one more local entry.
+	// source. The draft is ephemeral: Mod+Z walks it back a typing burst at a time, the document's
+	// own granularity, and the press after the last one returns the paragraph rather than flushing
+	// draft bytes into the document the undo just restored. Exact text, not `toHaveText`: that
+	// matcher folds whitespace, and a stray newline in the draft is one more local entry.
 	test('undo from inside a just-minted reveal walks the draft back, then returns the paragraph', async ({
 		page
 	}) => {
@@ -61,9 +61,12 @@ test.describe('a render-primary block folds onto the document it opened over', (
 		await editor.bridge.waitForSourceEquals('$$\n\n$$\n');
 		await expect(editor.source).toBeFocused();
 
-		await editor.typeSlowly('x^2');
+		// Two bursts with a pause between them, so the draft holds two entries rather than five.
+		await editor.typeSlowly('x^');
+		await editor.waitForUndoBatchFlush();
+		await editor.typeSlowly('2');
 		await expect.poll(() => editor.sourceText()).toBe('$$\nx^2\n$$');
-		for (const remaining of ['$$\nx^\n$$', '$$\nx\n$$', '$$\n\n$$']) {
+		for (const remaining of ['$$\nx^\n$$', '$$\n\n$$']) {
 			await page.keyboard.press('ControlOrMeta+z');
 			await expect.poll(() => editor.sourceText()).toBe(remaining);
 		}

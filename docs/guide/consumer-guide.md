@@ -689,45 +689,46 @@ This table is for a reader. An app deriving an accelerator map should read `edit
 
 Right-clicking any cell opens the table's action menu: cut/copy/paste, Row and Column flyouts (insert, move), the two deletes, and the column's alignment. Shift+F10 or the Context Menu key opens it from the keyboard. A table has no per-row or per-column grips — its one drag handle, in the editor's gutter, moves the whole table.
 
-| Action                              | Chord                                               |
-| ----------------------------------- | --------------------------------------------------- |
-| **Editing**                         |                                                     |
-| Bold (toggle strong)                | `Mod+B`                                             |
-| Italic (toggle emphasis)            | `Mod+I`                                             |
-| Strikethrough                       | `Mod+Shift+X`                                       |
-| Inline code                         | `Mod+E`                                             |
-| Edit a link's URL (live mode)       | `Mod+K` (caret inside a link; opens the link card)  |
-| Cycle heading level                 | `Mod+0`–`Mod+6` (0 clears, 1–6 set `#`–`######`)    |
-| Split a block                       | `Enter` (in a code block, inserts a newline)        |
-| Hard line break                     | `Shift+Enter`                                       |
-| Merge into the block before / after | `Backspace` / `Delete` (at the block's start / end) |
-| Indent / outdent a list item        | `Tab` / `Shift+Tab`                                 |
-| Indent / dedent a code line         | `Tab` / `Shift+Tab`                                 |
-| Insert a tab in prose               | `Tab`                                               |
-| Undo                                | `Mod+Z`                                             |
-| Redo                                | `Mod+Y` or `Mod+Shift+Z`                            |
-| **Block reorder**                   |                                                     |
-| Move block up / down                | `Alt+↑` / `Alt+↓`                                   |
-| **Find / replace**                  |                                                     |
-| Open find                           | `Mod+F`                                             |
-| Open find + replace                 | `Mod+H`                                             |
-| Next / previous match               | `Enter` / `Shift+Enter` (in the find field)         |
-| Close search                        | `Esc`                                               |
-| **Tables**                          |                                                     |
-| Move between cells                  | `Tab` / `Shift+Tab`, arrow keys                     |
-| Next row (or add one)               | `Enter` (from the last cell, appends a row)         |
-| Insert row below / above            | `Mod+Enter` / `Mod+Shift+Enter`                     |
-| Insert column right / left          | `Alt+Shift+→` / `Alt+Shift+←`                       |
-| Delete row                          | `Mod+Shift+Backspace`                               |
-| Delete column                       | `Alt+Shift+Backspace`                               |
-| Move row up / down                  | `Alt+↑` / `Alt+↓`                                   |
-| Move column left / right            | `Alt+←` / `Alt+→`                                   |
-| Move the whole table up / down      | `Mod+Alt+↑` / `Mod+Alt+↓`                           |
-| Cycle column alignment              | `Mod+Shift+A`                                       |
-| Create a table                      | type a header row (`\| a \| b \|`), then `Enter`    |
-| **Clipboard**                       |                                                     |
-| Copy / cut a focused block          | `Mod+C` / `Mod+X`                                   |
-| Copy / cut a selected image         | `Mod+C` / `Mod+X`                                   |
+| Action                              | Chord                                                                         |
+| ----------------------------------- | ----------------------------------------------------------------------------- |
+| **Editing**                         |                                                                               |
+| Bold (toggle strong)                | `Mod+B`                                                                       |
+| Italic (toggle emphasis)            | `Mod+I`                                                                       |
+| Strikethrough                       | `Mod+Shift+X`                                                                 |
+| Inline code                         | `Mod+E`                                                                       |
+| Edit a link's URL (live mode)       | `Mod+K` (caret inside a link; opens the link card)                            |
+| Cycle heading level                 | `Mod+0`–`Mod+6` (0 clears, 1–6 set `#`–`######`)                              |
+| Split a block                       | `Enter` (in a code block, inserts a newline)                                  |
+| Leave a code block                  | `Enter` on its empty last line (typing the closing fence there does the same) |
+| Hard line break                     | `Shift+Enter`                                                                 |
+| Merge into the block before / after | `Backspace` / `Delete` (at the block's start / end)                           |
+| Indent / outdent a list item        | `Tab` / `Shift+Tab`                                                           |
+| Indent / dedent a code line         | `Tab` / `Shift+Tab`                                                           |
+| Insert a tab in prose               | `Tab`                                                                         |
+| Undo                                | `Mod+Z`                                                                       |
+| Redo                                | `Mod+Y` or `Mod+Shift+Z`                                                      |
+| **Block reorder**                   |                                                                               |
+| Move block up / down                | `Alt+↑` / `Alt+↓`                                                             |
+| **Find / replace**                  |                                                                               |
+| Open find                           | `Mod+F`                                                                       |
+| Open find + replace                 | `Mod+H`                                                                       |
+| Next / previous match               | `Enter` / `Shift+Enter` (in the find field)                                   |
+| Close search                        | `Esc`                                                                         |
+| **Tables**                          |                                                                               |
+| Move between cells                  | `Tab` / `Shift+Tab`, arrow keys                                               |
+| Next row (or add one)               | `Enter` (from the last cell, appends a row)                                   |
+| Insert row below / above            | `Mod+Enter` / `Mod+Shift+Enter`                                               |
+| Insert column right / left          | `Alt+Shift+→` / `Alt+Shift+←`                                                 |
+| Delete row                          | `Mod+Shift+Backspace`                                                         |
+| Delete column                       | `Alt+Shift+Backspace`                                                         |
+| Move row up / down                  | `Alt+↑` / `Alt+↓`                                                             |
+| Move column left / right            | `Alt+←` / `Alt+→`                                                             |
+| Move the whole table up / down      | `Mod+Alt+↑` / `Mod+Alt+↓`                                                     |
+| Cycle column alignment              | `Mod+Shift+A`                                                                 |
+| Create a table                      | type a header row (`\| a \| b \|`), then `Enter`                              |
+| **Clipboard**                       |                                                                               |
+| Copy / cut a focused block          | `Mod+C` / `Mod+X`                                                             |
+| Copy / cut a selected image         | `Mod+C` / `Mod+X`                                                             |
 
 **Typing a table into existence.** A table's header and delimiter lines have to be adjacent, which Enter alone could never produce, so a paragraph holding just a header row (`| a | b |`) is completed by `Enter` into a finished table (delimiter, one empty body row, caret in the first body cell) as one undoable step. It needs the leading pipe, so a paragraph that merely contains one (`ls | grep foo`) is left alone, and one undo restores the row you typed.
 
