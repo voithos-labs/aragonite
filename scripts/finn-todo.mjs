@@ -1,5 +1,3 @@
-// Finn's checklist, rendered from the issues assigned to him and pushed back. Opt-in: nothing
-// runs it for you, and the issues stay the ledger — only the two verbs below are synced.
 // Usage: node scripts/finn-todo.mjs pull|push
 import { execFileSync } from 'node:child_process';
 import { readFileSync, writeFileSync } from 'node:fs';
