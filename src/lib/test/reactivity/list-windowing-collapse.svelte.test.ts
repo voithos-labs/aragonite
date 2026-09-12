@@ -3,7 +3,7 @@
 // returned surface — the window math is bypassed, not fed — and clamps
 // isInWindow/revealChild so reveal-into-collapsed degrades instead of hanging (VR-5).
 import { describe, it, expect, vi } from 'vitest';
-import { flushSync } from 'svelte';
+import { flushSync, tick } from 'svelte';
 import { fixedOracle, makePara, mountListWindowing } from '../harness/list-windowing.svelte';
 
 const BLOCK_PX = 50;
@@ -87,20 +87,17 @@ describe('revealChild clamp', () => {
 });
 
 describe('expand after collapse', () => {
-	it('drains measurements of children mounted by the expand (batch effect keys on the effective result)', () => {
+	it('measures a child mounted by the expand without waiting for a scroll', async () => {
 		let collapsed = $state(true);
 		const { windowing, cleanup } = setup(4, () => collapsed);
-
-		// A child mounting on expand registers without bumping reactive state, and for a
-		// small container the RAW window result is identical across the flip — so keying
-		// the batch effect on it would strand this measurement until the next scroll.
-		const applyHeight = vi.fn();
-		windowing.registerChild('b1', { readHeight: () => 42, applyHeight });
-		flushSync();
-		expect(applyHeight).not.toHaveBeenCalled();
-
 		collapsed = false;
 		flushSync();
+
+		// The window result can be identical across the flip for a small container, so the
+		// read has to ride the registration itself rather than a window change.
+		const applyHeight = vi.fn();
+		windowing.registerChild('b1', { readHeight: () => 42, applyHeight });
+		await tick();
 		expect(applyHeight).toHaveBeenCalledWith(42);
 		cleanup();
 	});

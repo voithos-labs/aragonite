@@ -6,11 +6,13 @@ import { count, openFind, typeQuery } from './helpers';
 
 // The needle is spread across rows so the ACTIVE match is revealed at the top while deep
 // matching rows start off-window: search auto-reveals only the active match, and the rest
-// must repaint when scrolled into view (#3).
+// must repaint when scrolled into view (#3). The last row carries one too, so the bottom
+// viewport holds a needle whatever the row height.
+const ROWS = 200;
 function bigTable(): string {
 	const head = '| Col A | Col B |\n| :--- | :--- |\n';
-	const rows = Array.from({ length: 200 }, (_, i) =>
-		i % 20 === 0 ? `| row ${i} | ZZNEEDLE |\n` : `| row ${i} | data ${i} |\n`
+	const rows = Array.from({ length: ROWS }, (_, i) =>
+		i % 20 === 0 || i === ROWS - 1 ? `| row ${i} | ZZNEEDLE |\n` : `| row ${i} | data ${i} |\n`
 	).join('');
 	return head + rows;
 }
@@ -93,7 +95,7 @@ test('a deep off-window table-row match repaints its highlight after a single sc
 
 	await openFind(editor);
 	await typeQuery(editor, 'ZZNEEDLE');
-	await expect(count(page)).toHaveText(/1\s*\/\s*10/);
+	await expect(count(page)).toHaveText(/1\s*\/\s*11/);
 	await editor.waitForRenderFlush();
 
 	// The active (first) match is revealed at the top; the deep match (row 180)

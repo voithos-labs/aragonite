@@ -172,7 +172,7 @@
 
 	// A block can grow after mount without its `raw` changing (async content decoding
 	// in), which the effect above never sees, and overflow-anchor is off so the growth
-	// would slide the viewport. The scope gates on the height it already recorded.
+	// would slide the viewport. The scope gates on the height it last applied.
 	$effect(() => {
 		if (!hostEl || !measureChannel) return;
 		const observer = new ResizeObserver((entries) => {

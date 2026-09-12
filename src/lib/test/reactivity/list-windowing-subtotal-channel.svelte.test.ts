@@ -3,7 +3,7 @@
 // the self-height report was only ever observed through an e2e where a redundant report is
 // invisible, and the id sourcing self-corrects on the very next rebuild.
 import { describe, it, expect, vi } from 'vitest';
-import { flushSync } from 'svelte';
+import { flushSync, tick } from 'svelte';
 import type { HeightOracle } from '../../cursor/height-oracle';
 import { fixedOracle, makePara, mountListWindowing } from '../harness/list-windowing.svelte';
 
@@ -37,7 +37,7 @@ function mountScope(opts: ScopeOpts) {
 }
 
 describe('list-windowing subtotal channel', () => {
-	it('reports its own box height only when the box actually moves (#189)', () => {
+	it('reports its own box height only when the box actually moves (#189)', async () => {
 		const oracleRef = countingOracle();
 		const reportSelfHeight = vi.fn();
 		const { windowing, cleanup } = mountScope({
@@ -53,6 +53,7 @@ describe('list-windowing subtotal channel', () => {
 		for (const height of [50, 60, 70]) {
 			windowing.recordMeasuredChild(0, 'b0', height);
 			flushSync();
+			await tick();
 		}
 
 		expect(reportSelfHeight).toHaveBeenCalledTimes(1);

@@ -17,10 +17,6 @@ export interface WindowInputs {
 	active: boolean; // current activation (for hysteresis)
 	activateAbovePx: number; // high watermark — activate when total exceeds it
 	deactivateBelowPx: number; // low watermark — deactivate when total drops below it
-	/** Windowing withheld outright, whatever the height: the unwindowed full slice, and the
-	 *  hysteresis converges to inactive so a later lift re-activates through the high
-	 *  watermark like a first crossing. See `presentation-mode.ts` `windowsBlocks`. */
-	suppressed?: boolean;
 }
 
 export interface WindowResult {
@@ -37,9 +33,7 @@ export function computeWindow(model: HeightModel, input: WindowInputs): WindowRe
 
 	// The one activation decision in the feature: a scope windows purely on its own modeled
 	// height, so who owns the scroll changes which port is read and nothing else.
-	const active =
-		!input.suppressed &&
-		(input.active ? total >= input.deactivateBelowPx : total >= input.activateAbovePx);
+	const active = input.active ? total >= input.deactivateBelowPx : total >= input.activateAbovePx;
 
 	if (!active || n === 0) {
 		return { active: false, start: 0, end: n, topSpacerPx: 0, bottomSpacerPx: 0 };
@@ -81,8 +75,6 @@ export interface BlockWindowDeps {
 	pinExtensionCap: number;
 	activateAbovePx: number;
 	deactivateBelowPx: number;
-	/** Live getter; see `WindowInputs.suppressed`. Absent means never suppressed. */
-	getSuppressed?: () => boolean;
 }
 
 export interface BlockWindow {
@@ -123,8 +115,7 @@ export function createBlockWindow(deps: BlockWindowDeps): BlockWindow {
 			pinExtensionCap: deps.pinExtensionCap,
 			active,
 			activateAbovePx: deps.activateAbovePx,
-			deactivateBelowPx: deps.deactivateBelowPx,
-			suppressed: deps.getSuppressed?.() ?? false
+			deactivateBelowPx: deps.deactivateBelowPx
 		});
 	});
 
