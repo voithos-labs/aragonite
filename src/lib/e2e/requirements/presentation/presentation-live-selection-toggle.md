@@ -49,8 +49,11 @@ since live paints no delimiter to assert against.
   dispatch the chord is claimed at
 - source mode is asserted for the same gestures, where the delimiters are
   painted and the result is identical bytes — the toggle is not a live-only rule,
-  only its invisibility is. The one divergence is the boundary-space selection:
-  source paints what it writes, so it keeps the space inside the run
+  only its invisibility is. The boundary-space selection is no exception: the
+  word goes in the run there too, and three presses on that one selection wrap,
+  strip and wrap again. Miss-analysis: every source scenario pressed ONCE, so the
+  `**words **` the boundary-space case asserted was never handed back to a second
+  press — bytes no parse reads as a run, which that press doubled into `****`
 
 ## Error cases
 

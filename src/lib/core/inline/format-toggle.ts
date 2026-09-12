@@ -1,10 +1,11 @@
 /**
  * Toggle an inline format inside a prose block. Over a SELECTION the direction is parse coverage,
  * not edge adjacency: a covered range unapplies (aligned strip, else split, over every covering run
- * in turn), overlapping or abutting runs apply over their union, a bare range wraps. Where the mode
- * PAINTS delimiters the strip and the wrap write literally; every other candidate declines unless it
- * verifies. At a COLLAPSED CARET: unwrap the span, else drop the empty pair, else insert one
- * (live-mode.md § 4.3). Every write clamps to the CONTENT range: a marker in `# ` changes the kind.
+ * in turn), overlapping or abutting runs apply over their union, a bare range wraps the core its
+ * boundary whitespace leaves. Where the mode PAINTS delimiters the strip and the wrap write
+ * unverified; every other candidate declines unless it verifies. At a COLLAPSED CARET: unwrap the
+ * span, else drop the empty pair, else insert one (live-mode.md § 4.3). Every write clamps to the
+ * CONTENT range: a marker in `# ` changes the kind.
  */
 
 import { recordFormatCoverageRead } from '../../perf/instruments';
@@ -97,8 +98,9 @@ export function toggleInlineFormat(
 
 	// A wrap whose markers do not paint owes split and absorb's coverage check: bytes that re-pair
 	// against a neighbouring run leave the range unformatted with nothing on screen to say so.
-	const wraps = wrapCandidates(display, inlines, start, end, mark);
-	return paints ? (wraps[0] ?? null) : firstFlipVerified(wraps, edit, format, 'apply');
+	const wrap = wrapCandidate(display, inlines, start, end, mark);
+	if (!wrap) return null;
+	return paints ? wrap : firstFlipVerified([wrap], edit, format, 'apply');
 }
 
 /** Whether a toggle right now would UNAPPLY — the pressed-state a toolbar paints. The same arms
@@ -237,8 +239,9 @@ function coveredReading(
 ): { from: number; to: number; covering: FormatSpan[] } {
 	const covering = coveringSpansOf(inlines, start, end, format);
 	if (covering.length > 0) return { from: start, to: end, covering };
-	const trimmed = trimmedRange(display, start, end);
-	if (!trimmed) return { from: start, to: end, covering };
+	const trimmed = withoutBoundaryWhitespace(display, start, end);
+	if (!trimmed || (trimmed.start === start && trimmed.end === end))
+		return { from: start, to: end, covering };
 	const inner = coveringSpansOf(inlines, trimmed.start, trimmed.end, format);
 	return inner.length > 0
 		? { from: trimmed.start, to: trimmed.end, covering: inner }
@@ -497,23 +500,21 @@ function strippedOffset(cuts: [number, number][], from: number, offset: number):
 // ── Wrap ─────────────────────────────────────────────────────────────────────
 
 /**
- * What a bare wrap could mean, what it literally says first. Only the wrap has a second reading:
- * markdown opens and closes a run against a word, never whitespace, so a boundary space goes to
- * the plain text beside the run, as `live-split-rebalance` reads the same problem. Either reading
- * needs both its endpoints to be legal cuts: markers spliced into a construct's bytes re-pair.
+ * The bare wrap, over the selection's trimmed core: markdown opens and closes a run against a word,
+ * never whitespace, so a boundary space goes to the plain text beside the run, as
+ * `live-split-rebalance` reads the same problem. Null where nothing survives the trim, or where an
+ * endpoint is no legal cut: markers spliced into a construct's bytes re-pair.
  */
-function wrapCandidates(
+function wrapCandidate(
 	display: string,
 	inlines: readonly InlineNode[],
 	start: number,
 	end: number,
 	mark: InlineMarkPolicy
-): ToggleInlineFormatResult[] {
-	const core = trimmedRange(display, start, end);
-	const readings = core === null ? [{ start, end }] : [{ start, end }, core];
-	return readings
-		.filter((range) => cutsLandCleanly(inlines, range, range))
-		.map((range) => wrapRange(display, range.start, range.end, mark));
+): ToggleInlineFormatResult | null {
+	const core = withoutBoundaryWhitespace(display, start, end);
+	if (!core || !cutsLandCleanly(inlines, core, core)) return null;
+	return wrapRange(display, core.start, core.end, mark);
 }
 
 function wrapRange(
@@ -810,18 +811,19 @@ function trailingWs(text: string): string {
 	return /\s*$/.exec(text)![0];
 }
 
-/** The selection minus its boundary whitespace, or null when there is none to trim or nothing
- *  left once it goes. */
-function trimmedRange(
+/** A range minus its boundary whitespace, null once nothing is left. One home for the trim, so the
+ *  wrap here and the cross-block decomposition that trims before it ever asks
+ *  (`selection/cross-block/format-range.ts`) cannot disagree about where a run may close. */
+export function withoutBoundaryWhitespace(
 	display: string,
-	start: number,
-	end: number
+	from: number,
+	to: number
 ): { start: number; end: number } | null {
-	let from = start;
-	let to = end;
-	while (from < to && /\s/.test(display[from])) from++;
-	while (to > from && /\s/.test(display[to - 1])) to--;
-	return (from === start && to === end) || from === to ? null : { start: from, end: to };
+	let start = from;
+	let end = to;
+	while (start < end && /\s/.test(display[start])) start++;
+	while (end > start && /\s/.test(display[end - 1])) end--;
+	return start === end ? null : { start, end };
 }
 
 // ── Content clamp ────────────────────────────────────────────────────────────

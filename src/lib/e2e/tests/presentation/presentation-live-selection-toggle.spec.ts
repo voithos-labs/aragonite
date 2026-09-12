@@ -164,11 +164,23 @@ test.describe('source mode — the same chord writes the same bytes', () => {
 		expect(await ep.getBlockText(PLAIN)).toBe('plain **words** here');
 	});
 
-	// The one divergence: source paints the run it writes, so the reader can see and fix it.
-	test('a selection ending on a space keeps the space inside the run', async ({ page }) => {
+	// A run closes against a word in every mode, painted or not, so the space stays outside the
+	// delimiters here too — and the run the wrap leaves selected is the one the next press takes off.
+	test('a selection ending on a space wraps the word, and a second press takes it back', async ({
+		page
+	}) => {
 		const ep = await enterPresentationMode(page, 'source', DOC);
 		await selectFrom(ep, page, PLAIN, 6, 6);
 		await page.keyboard.press(CHORD.strong);
-		await ep.bridge.waitForSourceContains('**words **here');
+		await ep.bridge.waitForSourceContains('plain **words** here');
+		expect(await ep.getBlockText(PLAIN)).toBe('plain **words** here');
+		// The wrap leaves its own delimiters selected, so the presses below are the same
+		// on-screen selection the user is still holding.
+		expect(await focusOffset(ep)).toBe(15);
+
+		await page.keyboard.press(CHORD.strong);
+		await ep.bridge.waitForSourceContains('plain words here');
+		await page.keyboard.press(CHORD.strong);
+		await ep.bridge.waitForSourceContains('plain **words** here');
 	});
 });
