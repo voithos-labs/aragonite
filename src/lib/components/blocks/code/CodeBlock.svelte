@@ -259,7 +259,11 @@
 	function onSurfaceFocus(): void {
 		if (languageOffered || readOnly || !showRail) return;
 		languageOffered = true;
-		const offerLanguage = infoString === '' && bodyText().trim() === '';
+		// A caret that STEPPED into an existing fence is passing through, and a picker taking
+		// focus there traps the walk. A typed opener is still open, and a click or an insert
+		// command seats the caret with no arrival key noted: those are the authoring moments.
+		const steppedIn = metadataOf(node, 'fencedCode').closed && edgeAffinity.get() !== null;
+		const offerLanguage = infoString === '' && bodyText().trim() === '' && !steppedIn;
 		// Deferred past the commit's OWN focus work. Creating a fence focuses this surface
 		// twice — once as it mounts, once when the commit seats its caret — and opening on the
 		// first would put the field up only for the second to blur it straight back down. A

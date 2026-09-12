@@ -1,11 +1,14 @@
 # Feature: Block `$$…$$` display math — render-primary, source-on-focus
 
 A `mathBlock` leaf renders its KaTeX display by default and reveals the raw `$$…$$`
-source in a contenteditable on focus/click, re-rendering on blur. It is not-mergeable
-and focusable, and while revealed the source behaves like a code block for caret and
-selection. Driven through real mouse/keyboard only — the reactive render↔source swap
-and the caret's survival across it are exactly what the unit layer could not prove
-(the Task 10 reveal-primitive finding deferred it here).
+source in a contenteditable on focus/click, re-rendering on blur. The source is painted
+like a code block's (fence lines the marker-hiding modes collapse, LaTeX highlight
+tokens) and its textContent is the bytes; in the default `split` layout the render stays
+up beside it as a live preview, `stacked` puts the preview below, `source` shows none. It
+is not-mergeable and focusable, and while revealed the source behaves like a code block
+for caret and selection. Driven through real mouse/keyboard only — the reactive
+render↔source swap and the caret's survival across it are exactly what the unit layer
+could not prove (the Task 10 reveal-primitive finding deferred it here).
 
 ## Happy paths
 
@@ -16,8 +19,9 @@ and the caret's survival across it are exactly what the unit layer could not pro
 
 - Renders the KaTeX display by default: a folded block shows `.katex`, no source
   contenteditable, and the CST still holds `$$x^2$$`
-- Click reveals the editable source without touching the CST: the render is gone, the
-  raw `$$x^2$$` is visible, editable text, and the source has not changed (view toggle)
+- Click reveals the editable source without touching the CST: the source holds focus with
+  the raw `$$x^2$$` as its text, the render stays as the split layout's preview, and the
+  document has not changed (view toggle)
 - Edit the source and blur re-renders: the block folds back to a KaTeX display and the
   edit persists to the CST, round-trip stable
 
@@ -35,11 +39,16 @@ and the caret's survival across it are exactly what the unit layer could not pro
 - **A1** the caret is preserved across the swap: after reveal it sits at the requested
   source offset (leading edge on click), not displaced to a block edge by the reactive
   re-render; a char then typed inside the formula lands at the caret
-- **A7** a multiline `aligned` fence renders, and its revealed source stays a single
-  text node whose `textContent` equals the raw byte-for-byte (internal `\n`s intact),
-  so the offset walk is exact
+- **A7** a multiline `aligned` fence renders, and its revealed source, painted as fence
+  lines and highlight spans, has a `textContent` equal to the raw byte-for-byte (internal
+  `\n`s intact, nothing added), so the offset walk is exact
 - A selection extended across the revealed source's boundary enters cross-block mode and
   the source stays revealed while the selection is live (a folded island could not be
   selected through)
 - Undo after a reveal→edit→commit cycle restores the pre-edit source in one step (the
   ephemeral edit committed as a single undo entry)
+- Undo inside the revealed source walks the reveal's own edits back first, one keystroke
+  per press, and only then reaches the document's history, whose restore re-seeds the
+  source; the blur after that commits nothing stale
+- Redo after that re-seed is the document's: the draft's own redo entries were taken
+  against bytes the document replaced, so they are gone rather than painted back

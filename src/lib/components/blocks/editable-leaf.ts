@@ -1,9 +1,10 @@
 /**
- * The editable-leaf seam a plugin block component builds on: a text-editing block surface with
- * native caret/IME/undo/cross-block-selection parity, in one factory so a plugin never touches an
- * editor context key. Two modes: `plain` commits per keystroke, `render-primary` reveals its
- * source and commits on blur. Call synchronously during init. Contract: plugin-guide § The
- * editable leaf.
+ * The editable-leaf seam a plugin block component builds on: native caret/IME/undo/selection
+ * parity in one factory, so a plugin never touches an editor context key. `plain` commits per
+ * keystroke; `render-primary` reveals its source and commits on blur. A painted source
+ * (`renderSource`) edits only its own DOM: every byte still enters the CST through
+ * `commitReveal`'s one `updateBlockContent`. Call synchronously during init. Contract:
+ * plugin-guide § The editable leaf.
  */
 
 import { getContext } from 'svelte';
@@ -41,6 +42,10 @@ import {
 	holdsOnlyMarkerChrome
 } from '../../cursor/widget-offset';
 import { parkFocusOnEditorRoot } from '../../selection/native-bridge';
+import { assertInvariant } from '../../assert';
+import { checkRenderedTextFidelity } from '../../invariants/render-fidelity';
+import { resolveBinding } from '../../schema/commands';
+import { eventToChord } from '../../schema/keybindings';
 import { resetForPointerDown } from '../../selection/cross-block/pointer';
 import { placeCaret } from '../../selection/caret-doors';
 import { createSourceReveal } from '../../cursor/reveal-source';
@@ -239,12 +244,14 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		getBlockElByPath,
 		getEditorRoot,
 		pluginEditor,
+		activePlugins,
 		events: editorEvents
 	} = wiring.deps;
 	const { reorder } = getContext<EditorServices>(EDITOR_SERVICES_KEY);
 	const {
 		presentationMode: getPresentationModeCtx,
 		theme: getThemeCtx,
+		keybindingOverrides,
 		onPasteImage
 	} = getContext<EditorPolicies>(EDITOR_POLICIES_KEY);
 	const getPresentationMode = (): PresentationMode => getPresentationModeCtx?.() ?? 'source';
@@ -447,11 +454,16 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 
 	// ── View sync ──────────────────────────────────────────────────────────────
 
-	// The one place source bytes become DOM. A painter's chrome-only case (a fence with no body
-	// line) takes the same stamp a code block does, so its markers paint while focused.
+	// The one place source bytes become DOM, so G1.28 is asserted here for every painter rather
+	// than trusted per plugin. A painter's chrome-only case (a fence with no body line) takes the
+	// same stamp a code block does, so its markers paint while focused.
 	function paintSource(el: HTMLElement, text: string): void {
 		if (deps.renderSource) {
-			el.replaceChildren(deps.renderSource(text));
+			const painted = deps.renderSource(text);
+			assertInvariant('rendered-text-fidelity', () =>
+				checkRenderedTextFidelity(painted.textContent ?? '', text)
+			);
+			el.replaceChildren(painted);
 			el.toggleAttribute(CONTENT_EMPTY_ATTR, holdsOnlyMarkerChrome(el));
 		} else {
 			el.textContent = text;
@@ -475,6 +487,9 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		pendingCursor = null;
 		if ((el.textContent ?? '') !== text) {
 			paintSource(el, text);
+			// The local entries were taken against bytes an external rewrite just replaced.
+			sourceUndo = [];
+			sourceRedo = [];
 			// Restore only under a live caret — an external rewrite (undo, structural
 			// replace) must not steal focus.
 			consumePendingRestore(el, pending, (offset) => setCursorOffset(el, asDomTextOffset(offset)));
@@ -562,21 +577,20 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		if (composing || !el) return;
 		preEditOffset = getCursorOffset(el) ?? 0;
 
-		// Undo INSIDE an open reveal steps back through this session's own edits: the document's
-		// history sees the session as one entry written on blur, so until then undo had nothing
-		// to undo. Once the local stack is spent the chord falls through to the document's. Which
-		// chord means undo is the keymap's to say, so a host's rebind or disable reaches here.
+		// Undo INSIDE an open painted reveal steps back through this session's own edits: the
+		// document's history sees the session as one entry written on blur, so until the local
+		// stack is spent the chord has nothing else to mean. Resolved through the keymap like every
+		// chord, so a host's rebinding or disable reaches it.
 		if (deps.renderSource && isRevealed()) {
-			const command = wiring.resolveChord(e, deps.getNode().kind);
-			const stacks =
-				command === 'history.undo'
-					? [sourceUndo, sourceRedo]
-					: command === 'history.redo'
-						? [sourceRedo, sourceUndo]
-						: null;
-			if (stacks && stacks[0].length > 0) {
+			const command = historyCommandFor(e);
+			if (command === 'history.undo' && sourceUndo.length > 0) {
 				e.preventDefault();
-				restoreSourceEntry(el, stacks[0], stacks[1]);
+				restoreSourceEntry(el, sourceUndo, sourceRedo);
+				return;
+			}
+			if (command === 'history.redo' && sourceRedo.length > 0) {
+				e.preventDefault();
+				restoreSourceEntry(el, sourceRedo, sourceUndo);
 				return;
 			}
 		}
@@ -664,6 +678,13 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		const start = clampToLandableRaw(el, range.start, 0);
 		const end = Math.max(start, clampToLandableRaw(el, range.end, 0));
 		spliceSourceText(el, start, end, insert);
+	}
+
+	function historyCommandFor(e: KeyboardEvent): string | undefined {
+		const chord = eventToChord(e);
+		if (!chord) return undefined;
+		return resolveBinding(chord, deps.getNode().kind, keybindingOverrides(), activePlugins)
+			?.command;
 	}
 
 	function hasSelectionIn(el: HTMLElement): boolean {

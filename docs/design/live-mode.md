@@ -15,7 +15,7 @@ A `live-mode.md § 4.x` citation in source or a test resolves to § 4 below, and
 | [4.4](#44-cutting-a-construct-open-splits-and-destructive-presses) | Cutting a construct open            | what happens to delimiters an Enter or a delete cuts through or empties                 |
 | [4.5](#45-joins-clean-their-seam)                                  | Joins clean their seam              | the cleanup every destructive join runs where two pieces of text meet                   |
 | [4.6](#46-the-link-card)                                           | The link card                       | the only way to read or change a link's destination while live paints none              |
-| [4.7](#47-the-language-chip)                                       | The language chip                   | the way into a code fence's language label                                              |
+| [4.7](#47-the-code-rail)                                           | The code rail                       | the way into a code fence's language label, and the host's affordances                  |
 | [5](#5-what-does-not-change)                                       | What does not change                | the things live leaves exactly as source mode has them                                  |
 
 Where the same material lives elsewhere:
@@ -295,12 +295,13 @@ Live paints no destination, so the card is the only way to read or rewrite one.
 
 Scenarios: `src/lib/e2e/requirements/presentation/live-link-card.md`.
 
-### 4.7 The language chip
+### 4.7 The code rail
 
-The card's second client, for the one hidden run a caret can't reach at all. A fence line is unlandable once the block has content, so the chip is the way into its info string (the text after the opening ` ``` `, usually a language name).
+The card's second client, for the one hidden run a caret can't reach at all. A fence line is unlandable once the block has content, so the rail is the way into its info string (the text after the opening ` ``` `, usually a language name), and the seat for whatever affordances a host earns by installing a hook.
 
-- It sits at the code box's top-right, outside the walk container, shows on hover or while the caret is inside, and in reading mode it's a plain language label.
-- Enter writes the info span alone through the block's one display-commit entry (G4.24), as one isolated undo entry.
+- It sits at the code box's top-right, outside the walk container, shows on hover or while the caret is inside, and in reading mode its language button is a plain label.
+- The language button opens a picker over every registered grammar; Enter or a pick writes the info span alone through the block's one display-commit entry (G4.24), as one isolated undo entry. A bare fence that has just taken the caret completes to opener, empty body line and closer, and opens the picker itself when it has no language, unless the caret stepped in from a neighbour (edge affinity records the arrival), since a picker taking focus there would trap a keyboard walk.
+- Copy writes the fence body to the clipboard; a run button and an overflow menu appear only for a host that installed `onRunCode` or `codeMenuItems`, and neither touches a byte.
 
 Scenarios: `src/lib/e2e/requirements/blocks/code/language-chip.md`.
 
@@ -308,6 +309,6 @@ Scenarios: `src/lib/e2e/requirements/blocks/code/language-chip.md`.
 
 - Copy yields the source bytes; reading mode is the one rung that copies rendered text.
 - Search matches the source bytes, so a query crossing a construct boundary misses what the screen appears to show.
-- The caret lands only where the DOM walk can land it: hidden runs are unreachable, so a block's extremes are its landable bounds, not its raw ends (`cursor/widget-offset.ts`).
+- The caret lands only where the DOM walk can land it: hidden runs are unreachable, so a block's extremes are its landable bounds, not its raw ends, and the position after a body's final newline, on a hidden closer's line, is outside them too unless a caret anchor paints that line (`cursor/widget-offset.ts`).
 - Bytes change only where a rule above says so. A gesture that strands nothing writes exactly what source mode writes, except at § 4.1's painted content-empty chrome, where a block's own structural gate follows the mode and the two rungs diverge.
 - Keystroke latency is a gated perf axis, with live rows beside their source twins (`performance.md`).

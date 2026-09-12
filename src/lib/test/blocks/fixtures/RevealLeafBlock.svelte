@@ -1,6 +1,6 @@
 <script lang="ts">
-	// A render-primary editable leaf whose `singleLine` is a prop, so one fixture drives both
-	// Enter contracts and the two cases differ in nothing else.
+	// A render-primary editable leaf whose `singleLine` and painter are props, so one fixture
+	// drives both Enter contracts and the painted source, and the cases differ in nothing else.
 	import { createEditableLeaf, type NodeView } from '$lib/plugin';
 
 	let {
@@ -8,14 +8,13 @@
 		index,
 		myPath = [],
 		singleLine = false,
-		painted = false
+		paint
 	}: {
 		node: NodeView;
 		index: number;
 		myPath?: number[];
 		singleLine?: boolean;
-		/** Paint the source as DOM, which is what gives the reveal an undo stack of its own. */
-		painted?: boolean;
+		paint?: (text: string) => DocumentFragment;
 	} = $props();
 
 	let sourceEl: HTMLDivElement | undefined = $state();
@@ -25,13 +24,7 @@
 	// svelte-ignore state_referenced_locally
 	const oneLine = singleLine;
 	// svelte-ignore state_referenced_locally
-	const paintSource = painted
-		? (text: string) => {
-				const fragment = document.createDocumentFragment();
-				fragment.append(document.createTextNode(text));
-				return fragment;
-			}
-		: undefined;
+	const renderSource = paint;
 
 	const leaf = createEditableLeaf({
 		getNode: () => node,
@@ -40,7 +33,7 @@
 		getEl: () => sourceEl ?? null,
 		mode: 'render-primary',
 		singleLine: oneLine,
-		renderSource: paintSource,
+		renderSource,
 		isRevealed: () => revealed,
 		setRevealed: (next) => (revealed = next)
 	});

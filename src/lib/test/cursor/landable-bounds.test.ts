@@ -100,3 +100,38 @@ describe('landableDomTextBounds — islands the caret cannot enter', () => {
 		expect(landableDomTextBounds(trailing)).toEqual({ start: 0, end: 11 });
 	});
 });
+
+// Miss-analysis: every trailing-chrome case ended its landable text on a character, so the
+// position after a final `\n`, which sits on the hidden closer's line, was never asked for.
+describe('landableDomTextBounds — a trailing newline before hidden chrome', () => {
+	it('ends before the newline, whose far side is a line nothing paints', () => {
+		const emptyBody = mountBlock(
+			{ mode: 'live' },
+			span('md-fence-line', '$$\n'),
+			text('\n'),
+			span('md-fence-line', '$$')
+		);
+		expect(landableDomTextBounds(emptyBody)).toEqual({ start: 3, end: 3 });
+
+		const body = mountBlock(
+			{ mode: 'live' },
+			span('md-fence-line', '```\n'),
+			text('foo\n'),
+			span('md-fence-line', '```')
+		);
+		expect(landableDomTextBounds(body)).toEqual({ start: 4, end: 7 });
+	});
+
+	it('keeps the position after the newline when a caret anchor paints its line', () => {
+		const anchor = document.createElement('br');
+		anchor.dataset.caretAnchor = 'closer';
+		const block = mountBlock(
+			{ mode: 'live' },
+			span('md-fence-line', '```\n'),
+			text('foo\n'),
+			anchor,
+			span('md-fence-line', '\n```')
+		);
+		expect(landableDomTextBounds(block)).toEqual({ start: 4, end: 8 });
+	});
+});

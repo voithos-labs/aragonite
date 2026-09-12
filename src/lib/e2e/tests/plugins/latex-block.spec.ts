@@ -7,33 +7,25 @@ import { BlockMathPage } from './latex-reveal-helpers';
  * A1 caret-across-swap and A7 multiline render). The reactive render↔source swap and the caret's
  * survival across it are exactly what the unit layer could not prove, so reveal, edit, blur, and
  * navigation are driven through real mouse/keyboard only. The folded render is `.math-block-render`
- * (KaTeX output `.katex`); the revealed source is the plain `$$…$$` text of `.math-block-source`.
- * Seed: `Before` / `$$x^2$$` / `After`.
+ * (KaTeX output `.katex`); the revealed source is `.math-block-source`, painted as fence lines and
+ * highlight spans whose textContent is the `$$…$$` bytes. In the default split layout the render
+ * stays up beside the source as a live preview. Seed: `Before` / `$$x^2$$` / `After`.
  */
 
 class BlockMathCaretPage extends BlockMathPage {
-	/** Collapsed caret offset within the single-text-node source, or null. */
+	/** The caret's raw offset inside the math block, or null when it sits elsewhere. */
 	async sourceCaretOffset(): Promise<number | null> {
-		return this.page.evaluate(() => {
-			const el = document.querySelector('.math-block-source');
-			const sel = window.getSelection();
-			if (!el || !sel || sel.rangeCount === 0) return null;
-			const range = sel.getRangeAt(0);
-			if (!el.contains(range.startContainer)) return null;
-			return range.startOffset;
-		});
+		const paths = await this.bridge.getSelectionPaths();
+		if (!paths || paths.anchor.path[0] !== 1) return null;
+		return paths.anchor.offset;
 	}
 
-	/** Shape of the revealed source's DOM — a single text node whose text carries any
-	 *  internal `\n`, the invariant the offset walk depends on (A7). */
-	async sourceNodeShape(): Promise<{ singleTextNode: boolean; text: string }> {
+	/** The revealed source's text, with a count of the spans it is painted as. */
+	async sourceShape(): Promise<{ spans: number; text: string }> {
 		return this.page.evaluate(() => {
 			const el = document.querySelector('.math-block-source');
-			if (!el) return { singleTextNode: false, text: '' };
-			return {
-				singleTextNode: el.childNodes.length === 1 && el.firstChild?.nodeType === Node.TEXT_NODE,
-				text: el.textContent ?? ''
-			};
+			if (!el) return { spans: 0, text: '' };
+			return { spans: el.querySelectorAll('span').length, text: el.textContent ?? '' };
 		});
 	}
 
@@ -97,7 +89,10 @@ test.describe('plugin block math: render-primary, source-on-focus', () => {
 	test('clicking the rendered math reveals its source without touching the CST', async () => {
 		await editor.revealByClick();
 
-		await expect(editor.render).toHaveCount(0);
+		// The render stays as the split layout's live preview; the source is what took the click.
+		await expect(editor.page.locator('.math-block-editing')).toHaveCount(1);
+		await expect(editor.render).toHaveCount(1);
+		await expect(editor.source).toBeFocused();
 		expect(await editor.sourceText()).toContain('$$x^2$$');
 		// Reveal is a view toggle — the source has not changed.
 		expect(await editor.bridge.getSource()).toContain('$$x^2$$');
@@ -164,16 +159,17 @@ test.describe('plugin block math: render-primary, source-on-focus', () => {
 		expect(await editor.getBlockText(0)).toBe('Before');
 	});
 
-	test('A7: a multiline aligned fence renders and reveals as a single text node', async () => {
+	test('A7: a multiline aligned fence renders and reveals byte-for-byte across its spans', async () => {
 		await editor.gotoMathSeed('mathblock-multiline');
 		// Renders despite the internal newlines.
 		await expect(editor.renderedKatex).toHaveCount(1);
 
 		await editor.revealByClick();
-		const shape = await editor.sourceNodeShape();
-		expect(shape.singleTextNode).toBe(true);
-		expect(shape.text).toContain('\\begin{aligned}');
-		expect(shape.text).toContain('\n');
+		// Painted as fence lines and highlight tokens, so the walk's textContent contract is
+		// what holds the offsets exact: every internal `\n` survives, nothing is added.
+		const shape = await editor.sourceShape();
+		expect(shape.spans).toBeGreaterThan(1);
+		expect(shape.text).toBe('$$\n\\begin{aligned}\na &= b \\\\\nc &= d\n\\end{aligned}\n$$');
 
 		// Blur with no edit is a pure view toggle — the bytes survive.
 		await editor.getBlock(2).click();
@@ -255,10 +251,13 @@ test.describe('plugin block math: render-primary, source-on-focus', () => {
 		await expect(editor.renderedKatex).toHaveCount(1);
 	});
 
-	test('an undo taken inside the revealed source re-seeds it, so the blur commits nothing stale', async ({
+	// Undo inside an open reveal walks the reveal's own edits first (the document's history holds
+	// the session as one entry, written on blur); once that is spent the chord reaches the
+	// document, whose restore re-seeds the source.
+	test('undo inside the revealed source takes the draft back first, then the document', async ({
 		page
 	}) => {
-		// A committed edit to THIS block, so the undo below has something of its own to restore.
+		// A committed edit to THIS block, so the document undo below has something of its own.
 		await editor.revealFromBefore();
 		await page.keyboard.press('ArrowRight');
 		await page.keyboard.press('ArrowRight');
@@ -266,18 +265,55 @@ test.describe('plugin block math: render-primary, source-on-focus', () => {
 		await editor.getBlock(2).click();
 		await editor.bridge.waitForSourceContains('$$ax^2$$');
 
-		// Reveal again, type one uncommitted char, and undo from inside the source.
 		await editor.revealByClick();
+		await page.keyboard.press('Home');
+		await page.keyboard.press('ArrowRight');
+		await page.keyboard.press('ArrowRight');
+		await page.keyboard.type('b');
+		await expect(editor.source).toHaveText('$$bax^2$$');
+
+		await editor.undo();
+		await expect(editor.source).toHaveText('$$ax^2$$');
+		expect(await editor.bridge.getSource()).toContain('$$ax^2$$');
+
+		await editor.undo();
+		await editor.bridge.waitForSourceContains('$$x^2$$');
+		await expect(editor.source).toHaveText('$$x^2$$');
+
+		// The re-seeded source holds nothing of the draft; blurring commits nothing stale.
+		await editor.getBlock(2).click();
+		await expect(editor.renderedKatex).toHaveCount(1);
+		expect(await editor.bridge.getSource()).toBe('Before\n\n$$x^2$$\n\nAfter\n');
+		expect(await roundTripStable(editor.page)).toBe(true);
+	});
+
+	// The draft's own redo entry was taken against bytes the document undo replaced, so a redo
+	// after the re-seed is the document's, never the stale draft painted back over new bytes.
+	test('redo after a document undo re-seeded the source is the document’s, not the draft’s', async ({
+		page
+	}) => {
+		await editor.revealFromBefore();
+		await page.keyboard.press('ArrowRight');
+		await page.keyboard.press('ArrowRight');
+		await page.keyboard.type('a');
+		await editor.getBlock(2).click();
+		await editor.bridge.waitForSourceContains('$$ax^2$$');
+
+		await editor.revealByClick();
+		await page.keyboard.press('Home');
 		await page.keyboard.press('ArrowRight');
 		await page.keyboard.press('ArrowRight');
 		await page.keyboard.type('b');
 		await editor.undo();
+		await editor.undo();
 		await editor.bridge.waitForSourceContains('$$x^2$$');
 
-		// The open source now holds pre-undo text; blurring must not commit it back over the undo.
+		await editor.redo();
+		await editor.bridge.waitForSourceContains('$$ax^2$$');
+		await expect(editor.source).toHaveText('$$ax^2$$');
+
 		await editor.getBlock(2).click();
-		await expect(editor.renderedKatex).toHaveCount(1);
-		expect(await editor.bridge.getSource()).toBe('Before\n\n$$x^2$$\n\nAfter\n');
+		expect(await editor.bridge.getSource()).toBe('Before\n\n$$ax^2$$\n\nAfter\n');
 		expect(await roundTripStable(editor.page)).toBe(true);
 	});
 });

@@ -97,7 +97,7 @@ Everything supported is exported from `@voithos-labs/aragonite`. Before 1.0 the 
 | Group                  | What you get                                                                                                                                                                                                                                                                                                                    |
 | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Component**          | `Editor`, plus `EditorProps` and `EditorInstance` (the prop shape and the `bind:this` surface)                                                                                                                                                                                                                                  |
-| **Policy types**       | `ResolveImageUrl`, `ResolveLinkUrl`, `ImageLoadPolicy` for the URL and image props; `PastedImage` and `PasteImageHook` for the image-import hook                                                                                                                                                                                |
+| **Policy types**       | `ResolveImageUrl`, `ResolveLinkUrl`, `ImageLoadPolicy` for the URL and image props; `PastedImage` and `PasteImageHook` for the image-import hook; `CodeRunRequest`, `RunCodeHook`, `CodeMenuItem` and `CodeMenuItemsHook` for the code-block hooks                                                                              |
 | **Plugins**            | `installPlugins` for a parse-only pipeline with no editor mounted; `EditorPlugin` (the unit a plugin exports) and `EditorPluginEntry` (a `plugins` array entry: a bare unit, or `{ plugin, options }`)                                                                                                                          |
 | **Selection + keymap** | `EditorSelection` (what `getSelection()` returns) and `normalizeSelection`, which puts a selection's two endpoints in document order; `KeybindingOverride` and `CommandId` (what the `keybindings` prop takes)                                                                                                                  |
 | **Commands**           | `TOOLBAR_COMMANDS`, the command ids a formatting toolbar calls through `runCommand`                                                                                                                                                                                                                                             |
@@ -123,13 +123,15 @@ Everything supported is exported from `@voithos-labs/aragonite`. Before 1.0 the 
 | `imageLoadPolicy`  | `'auto'` (load images) or `'placeholder'` (defer loading)                                                                                                                                                                                                                                                                                 |
 | `onLinkActivate`   | Handle an activated link (Ctrl/Cmd+click while editing, plain click in reading mode) instead of the default `window.open`                                                                                                                                                                                                                 |
 | `onPasteImage`     | Import hook for a paste that carries image files: you store them, and return the Markdown that stands in (see [Image paste](#image-paste))                                                                                                                                                                                                |
+| `onRunCode`        | Execution hook for code blocks: installing it is what puts a run button on every code block's rail, and the editor runs nothing itself (see [Running a code block](#running-a-code-block))                                                                                                                                                |
+| `codeMenuItems`    | Overflow-menu hook for code blocks, consulted each time a block's menu opens so its items can read live state; absent, or answering nothing, renders no menu (see [Running a code block](#running-a-code-block))                                                                                                                          |
 | `header`           | Your own UI above the first block, rendered inside the editor's scroll container (see [The header slot](#the-header-slot))                                                                                                                                                                                                                |
 | `scrollMode`       | `'self'` (default: the editor scrolls itself) or `'host'` (an ancestor of yours scrolls it; see [Host scroll mode](#host-scroll-mode))                                                                                                                                                                                                    |
 | `blockDragHandles` | The block drag handle, revealed on hover and shown outright on touch (default on; reading mode hides it). Only object blocks carry one — code, tables, equations, diagrams, pictures, list items, dividers, cards — never prose. `false` removes them, except on a picture; keyboard reorder (Alt+Arrow) and the cell menu need no opt-in |
 | `searchBar`        | The built-in find/replace bar and its Mod+F / Mod+H shortcuts (default on)                                                                                                                                                                                                                                                                |
 | `searchBarAnchor`  | An element to render that same bar into, instead of inside the editor root (see [Where the find bar lives](#where-the-find-bar-lives))                                                                                                                                                                                                    |
 
-**Set once at mount:** `resolveImageUrl`, `resolveLinkUrl`, `imageLoadPolicy`, `onLinkActivate`, `onPasteImage`, `blockDragHandles`, `scrollMode`, and `plugins`. Set them at mount and leave them; a swap later isn't guaranteed to reach blocks that are already built.
+**Set once at mount:** `resolveImageUrl`, `resolveLinkUrl`, `imageLoadPolicy`, `onLinkActivate`, `onPasteImage`, `onRunCode`, `codeMenuItems`, `blockDragHandles`, `scrollMode`, and `plugins`. Set them at mount and leave them; a swap later isn't guaranteed to reach blocks that are already built.
 
 **Read live:** `theme`, `searchBar`, `searchBarAnchor`, `presentationMode`, and `keybindings` may change after mount, and `header` re-renders like any other Svelte snippet.
 
@@ -446,7 +448,7 @@ Three more live-mode facts:
 
 Bytes only change where a rule above says so; a gesture that strands nothing writes exactly what source mode writes. One exception: `Backspace` at the very start of a `# ` with no heading text drops the construct, where source mode does nothing.
 
-**The language chip.** Wherever a mode hides a fenced code block's fence, a small chip appears at the code box's top-right on hover or with the caret inside. It shows the block's language, and outside reading mode a click turns it into a field where Enter commits a new one as a single undoable edit. It's the only way to reach an info string (the text after the opening fence that names the language) in those modes; source mode shows the fence itself and gets no chip.
+**The code rail.** Wherever a mode hides a fenced code block's fence, a small rail appears at the code box's top-right on hover or with the caret inside: the block's language (outside reading mode a click opens a picker over every registered language, and Enter or a pick commits as a single undoable edit), a copy button, and whatever your app installed through `onRunCode` and `codeMenuItems` (see [Running a code block](#running-a-code-block)). A fence that has just taken the caret with no language opens the picker by itself, unless the caret arrowed in from a neighbouring block. The rail is the only way to reach an info string (the text after the opening fence that names the language) in those modes; source mode shows the fence itself and gets no rail.
 
 The effective mode is reflected as `data-presentation` on the editor root (absent in source mode, so default-mode DOM is unchanged) and announced on the `presentationModeChange` channel.
 
@@ -477,6 +479,27 @@ Four props deal with URLs: `resolveImageUrl` and `resolveLinkUrl` rewrite a raw 
 - **A block can disappear mid-import.** If the block the paste fired from is unmounted before a slow hook resolves, the insertion is declined on the `error` channel (same `clipboard` origin) rather than dropping Markdown somewhere the user never pointed.
 
 For the curious, where the Markdown lands when the user moves the caret during a slow upload: a paste inside one block freezes its anchor at paste time, so a caret moved mid-upload doesn't drag the insertion with it. A paste over a selection spanning blocks follows the live selection instead, because that route resolves its endpoints by path at insertion time, so a selection extended during the import is the one that gets replaced. The difference is deliberate; snapshotting the second case would mean fighting the code that owns delete-and-insert as one operation.
+
+### Running a code block
+
+The editor runs nothing. `onRunCode` is the hook that says your app can: installing it puts a run button on every code block's rail (the top-right controls a marker-hiding mode shows on hover or with the caret inside), and pressing it hands you the block, then everything after is yours: the engine, the result, and where the output goes.
+
+```svelte
+<Editor
+	{source}
+	onRunCode={({ code, info, path }) => {
+		// code: the fence body alone, never the fence lines; info: the whole info string
+		// ("py {1-3}"); path: child indices from the document root to the block.
+		runInMyKernel(code, info.split(/\s+/)[0]).then((out) => showOutputBeside(path, out));
+	}}
+	codeMenuItems={(request) => [
+		{ id: 'clear', label: 'Clear output', run: () => clearOutput(request.path) },
+		{ id: 'export', label: 'Export', run: () => exportCell(request), disabled: !canExport }
+	]}
+/>
+```
+
+`codeMenuItems` is the same idea for the rail's overflow menu. It is consulted each time a menu opens, so an item can read live state (a `disabled` item renders dimmed and refuses activation), and a host answering nothing renders no menu at all: the editor has no app-level actions of its own to put there. Both hooks are set once at mount, like `onPasteImage`. Neither reaches the document: a run is not an edit, fires no `edit` event, and creates no undo entry. Writing a result back into the document is an `insertMarkdown` or a `source` rewrite of your own.
 
 ### Which URLs render
 

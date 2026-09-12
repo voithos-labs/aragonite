@@ -45,7 +45,16 @@ function mountLeaf(overrides: KeybindingOverride[] = []) {
 
 	const instance = mount(RevealLeafBlock, {
 		target,
-		props: { node, index: 0, myPath: [0], painted: true },
+		props: {
+			node,
+			index: 0,
+			myPath: [0],
+			paint: (text: string) => {
+				const fragment = document.createDocumentFragment();
+				fragment.append(document.createTextNode(text));
+				return fragment;
+			}
+		},
 		context: editorMountContext({
 			blockEdit: makeStubBlockEdit(),
 			doc: { doc: () => doc },
