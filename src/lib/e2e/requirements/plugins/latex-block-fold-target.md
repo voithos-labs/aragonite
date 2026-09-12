@@ -20,12 +20,16 @@ Fixture: `/test/plugins?seed=mathblock`.
 ## Edge cases
 
 - `$$` + Enter mints a math block with the caret in its revealed source; Mod+Z there walks the
-  typed draft back a keystroke per press, and the press after the last one returns the paragraph
-  rather than moving the document forward with the draft
+  typed draft back one typing burst per press — the draft batches on the same pause the document
+  does — and the press after the last one returns the paragraph rather than moving the document
+  forward with the draft
 - Repeated Mod+Z keeps walking back; no press is swallowed
 
 ## Miss-analysis
 
+- The draft's stack pushed an entry per splice while the document batched typing on a pause, so
+  every scenario that typed more than one character undid a character at a time and nobody read
+  the granularity as a defect.
 - The fold's only guard was "did the text change", read at fold time, so every case that drove a
   reveal drove it over a document that stood still. The question the guard exists to answer — is
   the block I measured still the block at this index — was never asked, and both ways it moves
