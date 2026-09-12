@@ -1,8 +1,9 @@
 import type { CstNode } from '../core/nodes';
-import { parse } from '../core/parser';
+import { isBlankParagraph, parse } from '../core/parser';
+import { trailingLineEnding } from '../core/lines';
 import type { SharingState } from './sharing';
 import { ensureUnsharedChild } from './unshare';
-import { absorbWindowSeams, type SettledSplice } from './settle';
+import { absorbWindowSeams, settleSeparatorOnBlank, type SettledSplice } from './settle';
 import type { StructuralChange } from './structural-change';
 import { devWarn } from '../dev-warn';
 
@@ -60,104 +61,57 @@ export function reorderChildrenWithTrivia(
 	for (let i = lo; i <= hi; i++) {
 		windowTrivia.push(ensureUnsharedChild({ children }, i, sharing).leadingTrivia);
 	}
-	const moved = children[from];
 	const change = reorderChildren(children, from, to);
 	for (let k = 0; k < windowTrivia.length; k++) {
 		children[lo + k].leadingTrivia = windowTrivia[k];
 	}
-	// The rotation reseats every slot in the window, and a block can land flush under a
-	// paragraph that then reads its lines as its own — a table dissolving into the prose above
-	// it. The seam it VACATED is the exception: a pair rejoining once the block between them
-	// leaves is the reload's own reading, which the absorber below settles.
-	const vacated = from < to ? from : from + 1;
-	const seams: number[] = [];
 	if (separators) {
-		for (let i = lo; i <= hi + 1; i++) if (i !== vacated) seams.push(i);
+		// The rotation reseats every slot in the window, and a block can land flush under a
+		// paragraph that then reads its lines as its own (a table dissolving into the prose above
+		// it). The seam it VACATED is the exception: a pair rejoining once the block between them
+		// leaves is the reload's own reading, which the absorber below settles.
+		const vacated = from < to ? from : from + 1;
+		for (let at = lo; at <= hi + 1; at++) {
+			if (at !== vacated) separateSeam(children, at, sharing);
+		}
+		// A blank line reseated by position can hold a line its follower holds too; the run owes
+		// exactly one, and none at the document head, where the reload reads each as a block.
+		for (let at = lo; at <= hi; at++) {
+			if (isBlankParagraph(children[at])) settleSeparatorOnBlank({ children }, at, sharing);
+		}
 	}
-	// Identity read BEFORE the inserts shift every index below them.
-	const oldOf = windowIdentity(change, children, lo);
-	const inserted = separateSeams(children, seams);
-	const settledChange =
-		inserted === 0 ? change : widenForInserts(change, children, lo, inserted, oldOf);
-	const added = hi - lo + 1 + inserted;
-	return absorbWindowSeams(
-		{ children },
-		lo,
-		added,
-		children.indexOf(moved),
-		settledChange,
-		sharing
-	);
-}
-
-/** Descending, so an insertion never shifts a seam still to be judged. */
-function separateSeams(children: CstNode[], seams: number[]): number {
-	let inserted = 0;
-	for (const at of [...new Set(seams)].sort((a, b) => b - a)) {
-		if (at <= 0 || at >= children.length) continue;
-		if (!needsSeparator(children[at - 1], children[at])) continue;
-		children.splice(at, 0, { kind: 'paragraph', leadingTrivia: '', raw: '\n' });
-		inserted++;
-	}
-	return inserted;
+	return absorbWindowSeams({ children }, lo, hi - lo + 1, to, change, sharing);
 }
 
 /**
- * Whether this seam swallows for want of a SEPARATOR — the only fusion a reorder should undo.
- * A block that swallows across a blank line does so on its own account (an unterminated fence
- * takes the prose below it whatever sits between), and that fold is the reload's true reading:
- * leave it to the absorber, which is what the fold tests pin.
+ * Give the follower at `at` a separator where the reload would otherwise not read the two
+ * blocks back as themselves, and only then: a block that swallows across a blank line (an
+ * unterminated fence taking the prose below it) is the reload's true reading, left to the
+ * absorber, which the fold tests pin.
  */
-function needsSeparator(prev: CstNode, next: CstNode): boolean {
+function separateSeam(children: CstNode[], at: number, sharing: SharingState): void {
+	if (at <= 0 || at >= children.length) return;
+	const prev = children[at - 1];
+	const next = children[at];
+	const apart = withLeadingLine(next.leadingTrivia, trailingLineEnding(next.raw));
+	if (apart === next.leadingTrivia) return;
+	if (readsAsBoth(prev, next.leadingTrivia, next) || !readsAsBoth(prev, apart, next)) return;
+	ensureUnsharedChild({ children }, at, sharing).leadingTrivia = apart;
+}
+
+function withLeadingLine(trivia: string, eol: string): string {
+	return trivia.startsWith('\n') || trivia.startsWith('\r\n') ? trivia : eol + trivia;
+}
+
+// Two blocks of the same shape, not merely two: a quote lazily taking the first line of the
+// prose below it still reads as two, with the remainder a different kind.
+function readsAsBoth(prev: CstNode, trivia: string, next: CstNode): boolean {
+	const blocks = parse(prev.raw + trivia + next.raw, { scope: 'fragment' }).children;
 	return (
-		readsAsOne(prev.raw + next.leadingTrivia + next.raw) && !readsAsOne(seamWithBlank(prev, next))
+		blocks.length === 2 &&
+		blocks[0].kind === prev.kind &&
+		blocks[0].raw === prev.raw &&
+		blocks[1].kind === next.kind &&
+		blocks[1].raw === next.raw
 	);
-}
-
-function seamWithBlank(prev: CstNode, next: CstNode): string {
-	const trivia = next.leadingTrivia.startsWith('\n')
-		? next.leadingTrivia
-		: `\n${next.leadingTrivia}`;
-	return `${prev.raw}\n${trivia}${next.raw}`;
-}
-
-function readsAsOne(bytes: string): boolean {
-	return parse(bytes, { scope: 'fragment' }).children.length < 2;
-}
-
-/** Which node currently holds each of the permutation's old slots. */
-function windowIdentity(
-	change: StructuralChange,
-	children: CstNode[],
-	lo: number
-): Map<CstNode, number> {
-	const oldOf = new Map<CstNode, number>();
-	if (change.op !== 'replace') return oldOf;
-	for (const [k, old] of Object.entries(change.idMap ?? {})) {
-		const node = children[lo + Number(k)];
-		if (node) oldOf.set(node, old);
-	}
-	return oldOf;
-}
-
-/**
- * The window grew by nodes the permutation did not have: re-derive new-index → old-index from
- * node identity, so every block that WAS in the window keeps its id and the separators take
- * fresh ones.
- */
-function widenForInserts(
-	change: StructuralChange,
-	children: CstNode[],
-	lo: number,
-	inserted: number,
-	oldOf: Map<CstNode, number>
-): StructuralChange {
-	if (change.op !== 'replace') return change;
-	const newCount = change.newCount + inserted;
-	const idMap: Record<number, number> = {};
-	children.slice(lo, lo + newCount).forEach((node, i) => {
-		const old = oldOf.get(node);
-		if (old !== undefined) idMap[i] = old;
-	});
-	return { ...change, newCount, idMap };
 }

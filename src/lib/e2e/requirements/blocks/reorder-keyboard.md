@@ -20,6 +20,9 @@ regardless of the drag-handle toggle.
 - Alt+ArrowDown on a focused fenced code block moves the whole block below its
   next sibling; a single undo restores the pre-move source.
 - Alt+ArrowUp on a focused thematic break moves it above its previous sibling.
+- A divider nudged into a slot whose separator was empty (a heading interrupting the paragraph
+  above it) arrives separated: the paragraph stays a paragraph rather than reading the rule as
+  its setext underline, and the source reloads to the same three blocks.
 
 ## Edge cases
 
