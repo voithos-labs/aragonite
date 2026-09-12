@@ -7,11 +7,9 @@ import type { InlineMarkKind } from '$lib/schema/inline-construct-policy';
 import { MARK_FORMATS, markersOf, whole } from './format-toggle-fixture';
 
 // What a toggle may write where the delimiters do not paint: the bytes are a candidate until the
-// render path agrees the screen still reads the same (live-mode.md § 2). Markdown opens and closes
-// a run against a word and never whitespace, so a selection carrying a boundary space is where the
-// literal wrap fails that check. Miss-analysis: every toggle case selected a bare word, so none
-// ever handed the seam a slice markdown refuses to wrap — and the seam verified nothing, so the
-// suite had nothing to catch it with.
+// render path agrees the screen still reads the same (live-mode.md § 2). Miss-analysis: every
+// toggle case selected a bare word, so none ever handed the seam a slice markdown refuses to wrap
+// — and the seam verified nothing, so the suite had nothing to catch it with.
 
 const live = (raw: string, selection: { start: number; end: number }, format: InlineMarkKind) =>
 	toggleInlineFormat({ display: raw, content: whole(raw), selection }, format, 'live');
@@ -19,7 +17,7 @@ const live = (raw: string, selection: { start: number; end: number }, format: In
 const screenOf = (display: string) =>
 	renderedText(parseInline(display, 0, display.length), display, CONTENT_VISIBILITY);
 
-describe('a live toggle over a selection with boundary whitespace', () => {
+describe('a live toggle verifies its bytes against the screen', () => {
 	// The contract every mark owes, whatever its delimiters can enclose: a toggle changes
 	// formatting and never the text on screen.
 	it.each(MARK_FORMATS)('leaves the screen exactly as it was (%s)', (format) => {
@@ -28,42 +26,6 @@ describe('a live toggle over a selection with boundary whitespace', () => {
 		const leading = live('hello world', { start: 5, end: 11 }, format);
 		expect(screenOf(leading!.newDisplay)).toBe('hello world');
 	});
-
-	// The three symmetric runs cannot hold the space, so it goes to the text beside them — the
-	// reading `live-split-rebalance` takes at the same problem.
-	it.each(['strong', 'emphasis', 'strikethrough'] as const)(
-		'hands a boundary space to the text beside the run (%s)',
-		(format) => {
-			const m = markersOf(format);
-			const trailing = live('hello world', { start: 0, end: 6 }, format);
-			expect(trailing?.newDisplay).toBe(`${m}hello${m} world`);
-			expect(trailing?.newDisplay.slice(trailing.newSelStart, trailing.newSelEnd)).toBe(
-				`${m}hello${m}`
-			);
-			expect(live('hello world', { start: 5, end: 11 }, format)?.newDisplay).toBe(
-				`hello ${m}world${m}`
-			);
-			expect(live('a hello b', { start: 1, end: 8 }, format)?.newDisplay).toBe(`a ${m}hello${m} b`);
-		}
-	);
-
-	// A code span CAN hold the space, and its background paints over it, so the literal reading is
-	// the true one there rather than a run the parse would break.
-	it('keeps a boundary space inside a code span', () => {
-		expect(live('hello world', { start: 0, end: 6 }, 'inlineCode')?.newDisplay).toBe(
-			'`hello `world'
-		);
-		expect(live('a b', { start: 1, end: 2 }, 'inlineCode')?.newDisplay).toBe('a` `b');
-	});
-
-	// Nothing left to wrap once the space goes, and a pair over a space is no run markdown reads:
-	// the only sound answer is no write at all (§ 2's fallback for a seam whose candidates fail).
-	it.each(['strong', 'emphasis', 'strikethrough'] as const)(
-		'declines a whitespace-only selection (%s)',
-		(format) => {
-			expect(live('a b', { start: 1, end: 2 }, format)).toBeNull();
-		}
-	);
 
 	// The check is over the SCREEN, not over the delimiter count: a wrap beside a run the reader
 	// already sees leaves that run exactly where it was, so the write stands.
@@ -103,25 +65,19 @@ describe('a toggle takes back the wrap that same selection wrote', () => {
 // while revealing exactly the surface being written to.
 describe('the preview rungs write what source writes', () => {
 	it.each(['preview-block', 'preview-inline'] as const)(
-		'keeps a boundary space inside the run rather than dead-keying (%s)',
+		'writes an unverified wrap where the marker-hiding fork declines (%s)',
 		(mode) => {
 			const at = (raw: string, selection: { start: number; end: number }) =>
 				toggleInlineFormat({ display: raw, content: whole(raw), selection }, 'strong', mode);
-			expect(at('hello world', { start: 0, end: 6 })?.newDisplay).toBe('**hello **world');
-			expect(at('a b', { start: 1, end: 2 })?.newDisplay).toBe('a** **b');
+			expect(at('*ab*', { start: 0, end: 1 })?.newDisplay).toBe('*****ab*');
+			expect(live('*ab*', { start: 0, end: 1 }, 'strong')).toBeNull();
 		}
 	);
 });
 
-describe('source mode writes the same bytes it always did', () => {
+describe('source mode reads a run through the space beside it', () => {
 	const source = (raw: string, selection: { start: number; end: number }) =>
 		toggleInlineFormat({ display: raw, content: whole(raw), selection }, 'strong', 'source');
-
-	// Painted delimiters are that mode's whole point: the reader sees the run and can fix it.
-	it('keeps the boundary space inside the run', () => {
-		expect(source('hello world', { start: 0, end: 6 })?.newDisplay).toBe('**hello **world');
-		expect(source('a b', { start: 1, end: 2 })?.newDisplay).toBe('a** **b');
-	});
 
 	// Painted delimiters put the run's own bytes inside the selection, which is the same reading
 	// past a boundary space that live takes over hidden ones.

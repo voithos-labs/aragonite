@@ -13,6 +13,7 @@ import {
 	isInlineFormatActive,
 	isInlineFormatActiveAfter,
 	toggleInlineFormat,
+	withoutBoundaryWhitespace,
 	type InlineFormatEdit,
 	type ToggleInlineFormatResult
 } from '../../core/inline/format-toggle';
@@ -252,21 +253,6 @@ function contentSpan(
 		clampToContent(to ?? content.end, content)
 	);
 	return selection && { path, edit: { display, content, selection } };
-}
-
-/** The span minus its boundary whitespace, null once nothing is left. Markdown opens and closes a
- *  run against a word, never a space, so an untrimmed edge yields delimiters that form no
- *  construct — which the modes that paint them write anyway (`wrapCandidates` is unverified there). */
-function withoutBoundaryWhitespace(
-	display: string,
-	from: number,
-	to: number
-): { start: number; end: number } | null {
-	let start = from;
-	let end = to;
-	while (start < end && /\s/.test(display[start])) start++;
-	while (end > start && /\s/.test(display[end - 1])) end--;
-	return start === end ? null : { start, end };
 }
 
 const clampToContent = (offset: number, content: ContentRange): number =>

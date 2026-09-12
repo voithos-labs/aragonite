@@ -187,12 +187,13 @@ Applying, when it isn't:
 
 - A range overlapping or abutting same-format runs applies over their union, dissolving their delimiters into one construct.
 - A code span sits the union out, since it holds its bytes literally and a neighbour's backtick is honest content inside a wider span.
+- The bare wrap takes the selection's TRIMMED core, in every mode: a run opens and closes against a word, so a boundary space belongs to the text beside the delimiters, and a selection holding nothing but space writes nothing. It is the trim the cross-block decomposition applies before it asks, so the two entry paths mark the same bytes.
 
 What every branch obeys:
 
 - None may splice at an endpoint strictly inside another construct's bytes, where a stranded delimiter would re-pair against whatever run the parse finds next.
 - Past that, the branches rewriting bytes the user never selected verify before writing, whatever the mode paints: the rendered content unchanged, and the selection's coverage actually flipped. A press whose candidates all fail writes nothing.
-- Two branches keep the mode fork and write their literal reading where the delimiters PAINT, so the reader can see and fix them: the aligned strip, which touches nothing outside the selection and stands down where a second run of its kind covers it, and the bare wrap (applying to a range no run touches, by wrapping it). Where nothing paints, both take § 2's discipline, the wrap with that coverage check on top, and a boundary space moves outside the run where the literal wrap would break it (the split rebalancer's reading, at the toggle).
+- Two branches keep the mode fork and write their literal reading where the delimiters PAINT, so the reader can see and fix them: the aligned strip, which touches nothing outside the selection and stands down where a second run of its kind covers it, and the bare wrap (applying to a range no run touches, by wrapping it). Where nothing paints, both take § 2's discipline, the wrap with that coverage check on top. The trim above is outside this fork: the space moves out of the run whoever is looking.
 
 ### 4.4 Cutting a construct open: splits and destructive presses
 

@@ -695,7 +695,7 @@ inline-source paragraphs under the live split, the differential that judges the 
 agree: where the read says active the toggle unapplies, where it says inactive the toggle applies.
 The cross-block direction rests on this equivalence, and one side growing a fourth branch misroutes
 writes in silence. It holds with one branch outside it, in one mode: where the delimiters PAINT, the
-bare wrap writes its literal bytes unverified, on screen for the reader to see and fix (live-mode.md
+bare wrap writes its bytes unverified, on screen for the reader to see and fix (live-mode.md
 § 4.3). Split, absorb, the flank strip and the marker-hiding wrap all coverage-verify, the split
 over every covering run of the kind rather than the innermost alone. The aligned strip verifies
 coverage in no mode: it fires only where the block's own parse holds the construct at exactly the
