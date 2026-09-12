@@ -1,6 +1,6 @@
 # <img alt="header" src="docs/assets/header.png" />
 
-This project is an effort (perhaps in vain) to create a markdown editor that is both open source and not crap. In my book, this means that it has to be lossless, extensible, lean, fast, have a graceful ui/ux, and have a hella good plugin interface. So you know, just some simplistic and easy to achieve goals [^1] [^2].
+This project is an effort (perhaps in vain) to create a markdown editor that is both open source and not crap. In my book, this means that it has to be lossless, extensible, fast, have a graceful ui/ux, and have a hella good plugin interface. So you know, just some simplistic and easy to achieve goals [^1] [^2].
 
 Note that aragonite is a work in progress [^3]. It's written in typescript and svelte [^4] [^5] [^6] [^7], and tested on chromium browsers (chrome and edge) [^8]. Yes, there are plans to port to different frontend frameworks and test in different browsers. No, not right now, sometime in the future.
 
@@ -189,26 +189,17 @@ The one deliberate byte write a plugin makes is its own kind's raw rebuild, whic
 
 A plugin component that throws takes down its own block, which degrades to a readable fallback while its siblings keep working. Uninstall a plugin and every document written with it still round trips byte for byte, because unknown syntax is handled gracefully.
 
-Also, shipping a kind forces the boring questions up front: the registration type requires declaring how the kind behaves under all nine cross-cutting subsystems (round-tripping, focus, merge, selection, search, reordering, undo, clipboard, and how the fuzzer drives it), and registering enrolls it in a conformance battery that actually exercises those behaviors.
+Also, shipping a kind forces the boring questions up front: the registration type requires declaring how the kind behaves under all nine cross-cutting subsystems (round-tripping, focus, merge, selection, search, reordering, undo, clipboard, and how the fuzzer drives it), and registering enrolls it in a conformance battery: the headless half runs in your own test suite, the browser half in this repo's e2e sweep.
 
 This is the bet. Aragonite cannot top Obsidian in plugin count (in the short term, at least), but what it can try to do is trade plugin count for plugin quality. Score it against my three criterias: reach is the whole own a kind story above, safety is the lossless promise doing double duty, and ergonomics is the part I haven't argued yet, so here it is: svelte and typescript end to end, the entire authoring surface on one import path (`@voithos-labs/aragonite/plugin`), and a public testing seam so your plugin's own test suite isn't an afterthought.
 
 Does the design actually work in practice? Well, the nine bundled first party plugins (admonitions, details, footnotes, emoji, math, diagrams, table of contents, occurrence highlighting, and a party parrot) are built on the exact surface third parties get, so I would describe it as "so far, so good".
 
-# Lean
+# One library
 
 Let's start by establishing the right context: most editors ship as a toolkit, and you assemble the editor yourself. CodeMirror is seven `@codemirror/*` packages plus a Lezer grammar; ProseMirror is `prosemirror-model` and `-state` and `-view` and `-transform` and however much glue you write to make them a product. Aragonite, on the other hand, is one library you import, with the parser, serializer, block editing, windowing, undo, selection, decorations, presentation modes, and the plugin platform already wired to each other.
 
 (Yes, there is a small set of dependencies. Two hard runtime dependencies: highlight.js, for code-block syntax colors, and esm-env, a few bytes of bundler-agnostic dev-flag resolution that svelte itself already depends on. Svelte is a peer you already have, and compiles to far less runtime than a virtual-DOM framework; katex and mermaid are optional peers, pulled in only if you use the math or diagram plugins. That is the whole tree.)
-
-Currently, the codebase lands at around 69k lines of typescript and svelte for the shipped library, roughly 6k of which is the nine bundled plugins [^13]. Here is where the lines actually went:
-
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/loc-dark.svg">
-  <img alt="Horizontal bar chart of the shipped library's lines of code by area: block UIs and rendering is the largest slice, then editing/commits/undo, the parser and serializer, selection, and the bundled plugins; the schema registry, invariants, public API, decorations, and windowing each take progressively smaller slices." src="docs/assets/loc-light.svg">
-</picture>
-
-I guess the number itself is nothing special, but the ratio turns out to be quite dense. A whole block editor (a full markdown parser and serializer, structural editing, windowing, cross-block selection, undo, decorations, five presentation modes, and a plugin platform) fits in a codebase one person can still realistically read end to end. The test suite, meanwhile, is ard 2.4x the size of the library (~168k lines), which says more about my paranoia than the leanness.
 
 # Fast
 
@@ -310,9 +301,9 @@ Now, the numbers here depend on the machine; however, the scale of the numbers a
 
 Now, here's a conundrum Finn and I faced early on: we wanted Notion's uiux, but we (by we, I meant Finn) wanted a document, not a pile of blocks. In summary, we wanted the benefits of Notion's uiux in our uiux, not necessarily its look. Which is why even though under the hood aragonite is as much a block editor as Notion is, on the surface it reads like a document you are writing, not a fucking game of tetris.
 
-Notion never lets you forget you are in a builder. Hover any block and a drag grip and a plus button fade into the gutter; the surface is a scaffold, and a stray click + drag can rearrange the page. Obsidian sits at the other pole, and reads as a calm plain document, because under the hood it is one (a text buffer, with all of the limitations I mentioned before). Aragonite wants the best of both world: the calm surface and a real structure.
+Notion never lets you forget you are in a builder. Hover any block, a plain paragraph included, and a drag grip and a plus button fade into the gutter; the surface is a scaffold, and a stray click + drag can rearrange the page. Obsidian sits at the other pole, and reads as a calm plain document, because under the hood it is one (a text buffer, with all of the limitations I mentioned before). Aragonite wants the best of both world: the calm surface and a real structure.
 
-So, if you open aragonite, the blocks are there, mostly invisible. No card chrome, no per block outline, no gutter furniture by default. The reorder handle is off unless you ask for it, and even then only appears on hover; keyboard reorder is always available and shows nothing until you use it.
+So, if you open aragonite, the blocks are there, mostly invisible. No card chrome, no per block outline, and prose never grows a handle. The blocks you would pick up whole (a table, a picture, a code block, a list item, a divider) get one on hover, and you turn that off easily (`blockDragHandles={false}`); keyboard reorder is always available and shows nothing until you use it.
 
 Oh, live preview? You think I forgot about it? nah. By default, markdown syntax stays visible but dimmed. Aragonite provide the `presentationMode` prop, which dials the same document along a spectrum, from the raw side to the rendered side:
 
@@ -360,8 +351,6 @@ Aragonite is free software, released under [AGPL-3.0-or-later](./LICENSE): use i
 [^11]: yes, the real file has `readonly` in a few places and carries two comments. no, not going to include them.
 
 [^12]: ProseMirror friends: yes, this means no `StateField`. The forward-mapping problem it solves is downstream of positions being integers into a flat sequence. Ours aren't.
-
-[^13]: counted from the tracked `src/lib` source, excluding the tests; `scripts/render-loc-chart.mjs` does the counting and draws the chart above. Give or take a refactor.
 
 [^14]: before anyone suggests it: CSS `content-visibility` is not this. It skips paint and layout but leaves the components mounted, and the cost that matters here is script, not layout.
 
