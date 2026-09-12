@@ -511,6 +511,9 @@
 		const target = e.target instanceof Element ? e.target : null;
 		if (!target || isHostChrome(target)) return;
 		e.preventDefault();
+		// The keyboard's contextmenu event (Windows fires it on the ContextMenu key's release)
+		// lands on the item the keydown's own menu already focused: that menu is the answer.
+		if (target.closest('.md-menu')) return;
 		const host = target.closest<HTMLElement>('.block-host[data-block-path]');
 		const path = pathOf(host);
 		if (!host || !path) return;
