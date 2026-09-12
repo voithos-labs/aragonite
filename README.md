@@ -195,12 +195,6 @@ This is the bet. Aragonite cannot top Obsidian in plugin count (in the short ter
 
 Does the design actually work in practice? Well, the nine bundled first party plugins (admonitions, details, footnotes, emoji, math, diagrams, table of contents, occurrence highlighting, and a party parrot) are built on the exact surface third parties get, so I would describe it as "so far, so good".
 
-# One library
-
-Let's start by establishing the right context: most editors ship as a toolkit, and you assemble the editor yourself. CodeMirror is seven `@codemirror/*` packages plus a Lezer grammar; ProseMirror is `prosemirror-model` and `-state` and `-view` and `-transform` and however much glue you write to make them a product. Aragonite, on the other hand, is one library you import, with the parser, serializer, block editing, windowing, undo, selection, decorations, presentation modes, and the plugin platform already wired to each other.
-
-(Yes, there is a small set of dependencies. Two hard runtime dependencies: highlight.js, for code-block syntax colors, and esm-env, a few bytes of bundler-agnostic dev-flag resolution that svelte itself already depends on. Svelte is a peer you already have, and compiles to far less runtime than a virtual-DOM framework; katex and mermaid are optional peers, pulled in only if you use the math or diagram plugins. That is the whole tree.)
-
 # Fast
 
 Aragonite is fast, and its this way due to one main reason: the editor only mounts what you can see. A 10KB note and a 10MB document have the same number of live components on screen, so typing costs the same in both. This is, as people call it, windowing, and is also one of the reasons why the block editor model earned its keep.
