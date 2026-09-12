@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import {
 	registerLanguage,
 	getLanguageGrammar,
+	listLanguages,
 	__resetRegistryForTests
 } from '../../../components/blocks/code/code-languages';
 import type { LanguageFn } from 'highlight.js';
@@ -46,6 +47,16 @@ describe('code-languages registry', () => {
 		registerLanguage('javascript', fakeGrammar, ['js']);
 		expect(getLanguageGrammar('js {1-3}')?.name).toBe('javascript');
 		expect(getLanguageGrammar('javascript title="example"')?.name).toBe('javascript');
+	});
+
+	it('lists every name and alias once, sorted, and each listed entry resolves', () => {
+		registerLanguage('Python', fakeGrammar, ['py']);
+		registerLanguage('javascript', fakeGrammar, ['js', 'JS']);
+
+		const listed = listLanguages();
+
+		expect(listed).toEqual(['javascript', 'js', 'py', 'python']);
+		for (const name of listed) expect(getLanguageGrammar(name)).not.toBeNull();
 	});
 
 	it('is idempotent — registering twice is a no-op', () => {
