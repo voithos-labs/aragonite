@@ -1,7 +1,7 @@
 /**
- * Pure model for the table affordance menu: which items a target cell, row, or column
- * offers and whether each is enabled. Enablement reuses the context's own refusal
- * predicates, so a disabled item can never reach a no-op commit.
+ * Pure model for the cell menu: which items a cell offers and whether each is enabled.
+ * Enablement reuses the context's own refusal predicates, so a disabled item can never reach
+ * a no-op commit.
  */
 import type { TableAxisAction } from '../../../action-contracts';
 import type { TableAlignment } from '../../../core/nodes';
@@ -15,7 +15,7 @@ export type ClipboardAction = 'cut' | 'copy' | 'paste';
 
 /**
  * Clamp a fixed-position menu's top-left into the viewport (minus `margin`) — menus
- * open at a raw pointer/grip coordinate. Larger than the viewport pins to top/left.
+ * open at a raw pointer coordinate. Larger than the viewport pins to top/left.
  */
 export function clampMenuToViewport(
 	desired: { x: number; y: number },
@@ -61,45 +61,33 @@ export type TableMenuItem =
 	| { kind: 'group'; id: 'row' | 'column'; label: string; items: TableMenuItem[] };
 
 export function tableMenuItems(
-	target: { rowIdx?: number; colIdx?: number },
+	cell: { rowIdx: number; colIdx: number },
 	dims: { rowCount: number; colCount: number },
 	alignments: readonly TableAlignment[],
-	// Present only for a cell right-click; grip menus never show the clipboard group. A
-	// live rectangle (`hasRect`) suppresses the cell-local selection but still serves Cut/Copy.
-	clipboard?: { hasSelection: boolean; hasRect?: boolean }
+	// A live rectangle (`hasRect`) suppresses the cell-local selection but still serves Cut/Copy.
+	clipboard: { hasSelection: boolean; hasRect?: boolean }
 ): TableMenuItem[] {
-	const items: TableMenuItem[] = [];
-	const isCell = target.rowIdx != null && target.colIdx != null;
-	if (isCell && clipboard)
-		items.push(...clipboardGroup(clipboard.hasSelection || clipboard.hasRect === true), {
-			kind: 'separator'
-		});
-	// A cell's menu carries both axes, so each axis's inserts and moves fold behind one flyout
-	// and only the two deletes and the alignment stay in the list; a grip's menu is one axis and
-	// stays flat.
-	if (isCell && target.rowIdx != null && target.colIdx != null) {
-		const rows = rowGroup(target.rowIdx, dims.rowCount);
-		const cols = columnGroup(target.colIdx, dims.colCount, alignments);
-		const isDelete = (i: TableMenuItem) =>
-			i.kind === 'action' && (i.action === 'deleteRow' || i.action === 'deleteColumn');
-		items.push(
-			{ kind: 'group', id: 'row', label: 'Row', items: rows.filter((i) => !isDelete(i)) },
-			{
-				kind: 'group',
-				id: 'column',
-				label: 'Column',
-				items: cols.filter((i) => !isDelete(i) && i.kind !== 'alignment')
-			},
-			{ kind: 'separator' },
-			...rows.filter(isDelete),
-			...cols.filter(isDelete),
-			...cols.filter((i) => i.kind === 'alignment')
-		);
-		return items;
-	}
-	if (target.rowIdx != null) items.push(...rowGroup(target.rowIdx, dims.rowCount));
-	if (target.colIdx != null) items.push(...columnGroup(target.colIdx, dims.colCount, alignments));
-	return items;
+	const rows = rowGroup(cell.rowIdx, dims.rowCount);
+	const cols = columnGroup(cell.colIdx, dims.colCount, alignments);
+	const isDelete = (i: TableMenuItem) =>
+		i.kind === 'action' && (i.action === 'deleteRow' || i.action === 'deleteColumn');
+	// A cell knows both axes, so each axis's inserts and moves fold behind one flyout and only
+	// the two deletes and the alignment stay in the list.
+	return [
+		...clipboardGroup(clipboard.hasSelection || clipboard.hasRect === true),
+		{ kind: 'separator' },
+		{ kind: 'group', id: 'row', label: 'Row', items: rows.filter((i) => !isDelete(i)) },
+		{
+			kind: 'group',
+			id: 'column',
+			label: 'Column',
+			items: cols.filter((i) => !isDelete(i) && i.kind !== 'alignment')
+		},
+		{ kind: 'separator' },
+		...rows.filter(isDelete),
+		...cols.filter(isDelete),
+		...cols.filter((i) => i.kind === 'alignment')
+	];
 }
 
 // Paste always applies: clipboard contents aren't readable synchronously to gate it.

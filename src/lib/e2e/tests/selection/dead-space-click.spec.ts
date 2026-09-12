@@ -32,6 +32,21 @@ async function blockBox(editor: EditorPage, index: number): Promise<Box> {
 	return { left: r.x, right: r.x + r.width, top: r.y, bottom: r.y + r.height };
 }
 
+// The band directly under the last block is the tail row's (`TailInsert`: a press there appends
+// a paragraph), so the dead space these clicks aim at starts below it, inside the root.
+async function belowDocumentY(editor: EditorPage): Promise<number> {
+	const tail = await editor.page.locator('.editor-tail').boundingBox();
+	const root = await rootBox(editor);
+	const last = await lastBlockBox(editor);
+	return Math.min((tail ? tail.y + tail.height : last.bottom) + 8, root.bottom - 4);
+}
+
+// A press at offset 0 of block 0: a press a few pixels into the box lands after the first
+// glyph in a proportional face, and the selection then starts one character in.
+async function blockStartPoint(editor: EditorPage): Promise<{ x: number; y: number }> {
+	return editor.pointForOffset([0], 0);
+}
+
 test.describe('dead-space clicks place a caret', () => {
 	let editor: EditorPage;
 
@@ -43,9 +58,8 @@ test.describe('dead-space clicks place a caret', () => {
 	test('a click below the last block lands the caret at its end', async () => {
 		await editor.loadContent('first para\n\nsecond para\n');
 		const root = await rootBox(editor);
-		const last = await lastBlockBox(editor);
 
-		await editor.page.mouse.click(root.left + 40, last.bottom + 40);
+		await editor.page.mouse.click(root.left + 40, await belowDocumentY(editor));
 		await editor.typeText('!');
 		await editor.bridge.waitForSourceContains('!');
 
@@ -69,9 +83,8 @@ test.describe('dead-space clicks place a caret', () => {
 	test('a click below a list lands the caret at the end of its last item', async () => {
 		await editor.loadContent('lead\n\n- one\n- two\n');
 		const root = await rootBox(editor);
-		const last = await lastBlockBox(editor);
 
-		await editor.page.mouse.click(root.left + 40, last.bottom + 30);
+		await editor.page.mouse.click(root.left + 40, await belowDocumentY(editor));
 		await editor.typeText('!');
 		await editor.bridge.waitForSourceContains('!');
 
@@ -81,11 +94,11 @@ test.describe('dead-space clicks place a caret', () => {
 	test('a drag-select ending in the margin keeps its selection', async () => {
 		await editor.loadContent('first para\n\nsecond para\n');
 		const root = await rootBox(editor);
-		const para = await blockBox(editor, 0);
+		const start = await blockStartPoint(editor);
 
-		await editor.page.mouse.move(para.left + 4, para.top + 6);
+		await editor.page.mouse.move(start.x, start.y);
 		await editor.page.mouse.down();
-		await editor.page.mouse.move(root.right - 5, para.top + 6, { steps: 8 });
+		await editor.page.mouse.move(root.right - 5, start.y, { steps: 8 });
 		await editor.page.mouse.up();
 
 		expect(await editor.page.evaluate(() => window.getSelection()?.toString() ?? '')).toContain(
@@ -141,9 +154,8 @@ test.describe('dead-space clicks place a caret', () => {
 	test('a click below a table lands in no cell', async () => {
 		await editor.loadContent('lead\n\n| A | B |\n| --- | --- |\n| 1 | 2 |\n');
 		const root = await rootBox(editor);
-		const last = await lastBlockBox(editor);
 
-		await editor.page.mouse.click(root.left + 40, last.bottom + 30);
+		await editor.page.mouse.click(root.left + 40, await belowDocumentY(editor));
 		await editor.page.keyboard.type('!');
 		await editor.waitForNoSourceMutation();
 
@@ -199,9 +211,8 @@ test.describe('dead-space clicks place a caret', () => {
 	test('a document ending in a thematic break is not focused by the click below it', async () => {
 		await editor.loadContent('lead\n\n---\n');
 		const root = await rootBox(editor);
-		const last = await lastBlockBox(editor);
 
-		await editor.page.mouse.click(root.left + 40, last.bottom + 30);
+		await editor.page.mouse.click(root.left + 40, await belowDocumentY(editor));
 
 		const focusedKind = await editor.page.evaluate(
 			() =>
@@ -249,11 +260,11 @@ test.describe('dead-space clicks in a host-padded block list', () => {
 	test('a drag-select released in the list’s padding keeps its selection', async () => {
 		await editor.loadContent('first para\n\nsecond para\n');
 		const list = await listBox();
-		const para = await blockBox(editor, 0);
+		const start = await blockStartPoint(editor);
 
-		await editor.page.mouse.move(para.left + 4, para.top + 6);
+		await editor.page.mouse.move(start.x, start.y);
 		await editor.page.mouse.down();
-		await editor.page.mouse.move(list.right - 6, para.top + 6, { steps: 8 });
+		await editor.page.mouse.move(list.right - 6, start.y, { steps: 8 });
 		await editor.page.mouse.up();
 
 		expect(await editor.page.evaluate(() => window.getSelection()?.toString() ?? '')).toContain(

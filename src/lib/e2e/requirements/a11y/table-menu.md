@@ -22,4 +22,5 @@ announcements for the structural ops that the mouse path also reaches.
 ## Announcements
 
 - Inserting a column announces via the live region.
+- A move taken through the Row flyout announces the row's new position, as the chord does.
 - Deleting a row announces via the live region.

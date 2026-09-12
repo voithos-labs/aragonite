@@ -78,8 +78,7 @@ describe('installDragListener — lifetime cleanup', () => {
 		});
 	}
 
-	// The shared session filters up/cancel to the pointer that opened the drag, but only
-	// table-reorder-drag pinned it; the cross-block, reorder and cell lifecycles carried no test.
+	// The shared session filters up/cancel to the pointer that opened the drag.
 	it('a second pointer’s pointerup does not end a drag another pointer started', () => {
 		const before = countDocListeners();
 		installDragListener(makeCtx(), { path: [0], offset: 0 }, down(1));

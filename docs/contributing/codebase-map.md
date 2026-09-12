@@ -244,8 +244,10 @@ a splice settles through the two entries a splice can arrive by, `settleSeparato
 commit ceremony runs over every scope's change, and `spliceChildrenSettled`, which the
 path-addressed helpers in `src/lib/tree-operations/path-mutate.ts` and
 `src/lib/tree-operations/cleanup.ts` splice through. What stays hand-carried says why at the
-site: the gap-caret creation in `src/lib/editor-actions/block-edit-core.ts` and the content
-entry's own branches in `updateNodeContent`. One helper sits outside the family for a reason no
+site: the gap-caret creation in `src/lib/editor-actions/block-edit-core.ts`, the content
+entry's own branches in `updateNodeContent`, and the rotation in
+`src/lib/tree-operations/reorder.ts` :: `reorderChildrenWithTrivia`, which reseats blank lines by
+position and asks `settleSeparatorOnBlank` for each one it moved. One helper sits outside the family for a reason no
 splice window can see: `src/lib/tree-operations/list/sublist-separator.ts` ::
 `settleSublistSeparator` gives a sublist whose first item is EMPTY the line that keeps its marker
 from reading as a setext underline, and the two paths that reach that shape ask it (the nesting

@@ -13,6 +13,9 @@
   meaning "move this row", so at the header boundary it is a no-op rather than a block move. The
   chord is the platform-modifier variant of the reorder gesture every other kind puts on Alt+↑/↓,
   which a cell caret cannot use because the row reorder claims it.
+- Ctrl+Alt+↑ into a slot whose separator was empty (a heading interrupting the paragraph above
+  it) lands the table separated: it stays a table rather than becoming the paragraph's next
+  lines, and the source reloads to the same three blocks.
 - Shift+Enter inside a cell inserts a literal `<br>` at the cursor. GFM cells can't carry raw newlines, so the proper representation is `<br>`. Round-trip preserves the `<br>` bytes. This file pins the byte-level insertion; the rendered line break is `cell-line-break.spec.ts`.
 
 ## Edge cases

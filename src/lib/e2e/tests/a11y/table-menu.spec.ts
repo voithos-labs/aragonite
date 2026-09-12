@@ -128,6 +128,16 @@ test.describe('table action menu: keyboard + announcements', () => {
 		await expect(page.locator('.editor-sr-live-reorder')).toHaveText(/insert/i);
 	});
 
+	test('a Row flyout move announces the new position in the live region', async ({ page }) => {
+		await page.locator('[role="cell"]').nth(2).click({ button: 'right' }); // first body row
+		await page.getByRole('menuitem', { name: 'Row', exact: true }).hover();
+		await page.getByRole('menuitem', { name: 'Move row down' }).click();
+
+		await expect(page.locator('.editor-sr-live-reorder')).toHaveText(
+			'Moved row to position 2 of 2'
+		);
+	});
+
 	test('deleting a row announces it in the live region', async ({ page }) => {
 		await page.locator('[role="cell"]').nth(2).click(); // first body row
 		await page.keyboard.press('ControlOrMeta+Shift+Backspace');

@@ -39,7 +39,7 @@ A grid is data for the cells, not a block to splice between them — the spreads
 - Sub-rectangle selection + paste a grid: the grid fills from the rectangle's top-left, tiled over
   it when the rectangle's sides are multiples of the grid's (a 1×2 grid over a 2×2 rectangle
   fills both rows), else placed once.
-- Whole-table selection (Ctrl+A 2nd press) + paste a paragraph: the table block is removed and replaced by the pasted block(s) at the table's position. Single Ctrl+Z restores the original table.
+- Whole-table selection (a rectangle dragged over every cell; Ctrl+A steps cell → document and offers no table stage) + paste a paragraph: the table block is removed and replaced by the pasted block(s) at the table's position. Single Ctrl+Z restores the original table.
 
 ## Miss-analysis
 

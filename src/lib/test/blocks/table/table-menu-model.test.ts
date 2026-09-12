@@ -5,8 +5,21 @@ import {
 	type TableMenuItem
 } from '../../../components/blocks/table/table-menu-model';
 import type { TableAxisAction } from '../../../action-contracts';
+import type { TableAlignment } from '../../../core/nodes';
 
 type ActionItem = Extract<TableMenuItem, { kind: 'action' }>;
+type ClipboardItem = Extract<TableMenuItem, { kind: 'clipboard' }>;
+
+const PLAIN: readonly TableAlignment[] = ['none', 'none', 'none', 'none', 'none'];
+
+function menuFor(
+	cell: { rowIdx: number; colIdx: number },
+	dims: { rowCount: number; colCount: number },
+	alignments: readonly TableAlignment[] = PLAIN,
+	clipboard: { hasSelection: boolean; hasRect?: boolean } = { hasSelection: false }
+): TableMenuItem[] {
+	return tableMenuItems(cell, dims, alignments, clipboard);
+}
 
 /** The list with every flyout opened into it, so enablement reads the same either way. */
 const flat = (items: TableMenuItem[]): TableMenuItem[] =>
@@ -18,46 +31,29 @@ const actionItem = (items: TableMenuItem[], action: TableAxisAction): ActionItem
 const hasAction = (items: TableMenuItem[], action: TableAxisAction): boolean =>
 	flat(items).some((i) => i.kind === 'action' && i.action === action);
 
+const clipItem = (items: TableMenuItem[], action: ClipboardItem['action']) =>
+	items.find((i): i is ClipboardItem => i.kind === 'clipboard' && i.action === action);
+
 describe('tableMenuItems: delete enablement', () => {
 	it('disables delete-column at the last column, enables it otherwise', () => {
-		expect(
-			actionItem(
-				tableMenuItems({ colIdx: 0 }, { rowCount: 2, colCount: 1 }, ['none']),
-				'deleteColumn'
-			)?.enabled
-		).toBe(false);
-		expect(
-			actionItem(
-				tableMenuItems({ colIdx: 0 }, { rowCount: 2, colCount: 2 }, ['none', 'none']),
-				'deleteColumn'
-			)?.enabled
-		).toBe(true);
+		const one = menuFor({ rowIdx: 1, colIdx: 0 }, { rowCount: 2, colCount: 1 });
+		expect(actionItem(one, 'deleteColumn')?.enabled).toBe(false);
+		const two = menuFor({ rowIdx: 1, colIdx: 0 }, { rowCount: 2, colCount: 2 });
+		expect(actionItem(two, 'deleteColumn')?.enabled).toBe(true);
 	});
 
 	it('disables delete-row for the only body row, enables it with two body rows', () => {
-		expect(
-			actionItem(
-				tableMenuItems({ rowIdx: 1 }, { rowCount: 2, colCount: 2 }, ['none', 'none']),
-				'deleteRow'
-			)?.enabled
-		).toBe(false);
-		expect(
-			actionItem(
-				tableMenuItems({ rowIdx: 1 }, { rowCount: 3, colCount: 2 }, ['none', 'none']),
-				'deleteRow'
-			)?.enabled
-		).toBe(true);
+		const one = menuFor({ rowIdx: 1, colIdx: 0 }, { rowCount: 2, colCount: 2 });
+		expect(actionItem(one, 'deleteRow')?.enabled).toBe(false);
+		const two = menuFor({ rowIdx: 1, colIdx: 0 }, { rowCount: 3, colCount: 2 });
+		expect(actionItem(two, 'deleteRow')?.enabled).toBe(true);
 	});
 
 	// The wrapper promotes the next row to header, so a header delete only needs a
 	// second row — unlike a body delete at the same dims, which is refused.
 	it('allows a header delete even when one body row remains', () => {
-		expect(
-			actionItem(
-				tableMenuItems({ rowIdx: 0 }, { rowCount: 2, colCount: 2 }, ['none', 'none']),
-				'deleteRow'
-			)?.enabled
-		).toBe(true);
+		const items = menuFor({ rowIdx: 0, colIdx: 0 }, { rowCount: 2, colCount: 2 });
+		expect(actionItem(items, 'deleteRow')?.enabled).toBe(true);
 	});
 });
 
@@ -70,7 +66,7 @@ describe('tableMenuItems: move enablement', () => {
 	];
 	for (const [name, rowIdx, rowCount, up, down] of rows) {
 		it(`row: ${name}`, () => {
-			const items = tableMenuItems({ rowIdx }, { rowCount, colCount: 2 }, ['none', 'none']);
+			const items = menuFor({ rowIdx, colIdx: 0 }, { rowCount, colCount: 2 });
 			expect(actionItem(items, 'moveRowUp')?.enabled).toBe(up);
 			expect(actionItem(items, 'moveRowDown')?.enabled).toBe(down);
 		});
@@ -83,7 +79,7 @@ describe('tableMenuItems: move enablement', () => {
 	];
 	for (const [name, colIdx, colCount, left, right] of cols) {
 		it(`column: ${name}`, () => {
-			const items = tableMenuItems({ colIdx }, { rowCount: 2, colCount }, ['none', 'none', 'none']);
+			const items = menuFor({ rowIdx: 1, colIdx }, { rowCount: 2, colCount });
 			expect(actionItem(items, 'moveColumnLeft')?.enabled).toBe(left);
 			expect(actionItem(items, 'moveColumnRight')?.enabled).toBe(right);
 		});
@@ -92,115 +88,84 @@ describe('tableMenuItems: move enablement', () => {
 
 describe('tableMenuItems: inserts and alignment', () => {
 	it('keeps inserts enabled at single-row / single-column boundaries', () => {
-		const rowItems = tableMenuItems({ rowIdx: 0 }, { rowCount: 1, colCount: 1 }, ['none']);
-		expect(actionItem(rowItems, 'insertRowAbove')?.enabled).toBe(true);
-		expect(actionItem(rowItems, 'insertRowBelow')?.enabled).toBe(true);
-		const colItems = tableMenuItems({ colIdx: 0 }, { rowCount: 1, colCount: 1 }, ['none']);
-		expect(actionItem(colItems, 'insertColumnLeft')?.enabled).toBe(true);
-		expect(actionItem(colItems, 'insertColumnRight')?.enabled).toBe(true);
+		const items = menuFor({ rowIdx: 0, colIdx: 0 }, { rowCount: 1, colCount: 1 });
+		for (const action of [
+			'insertRowAbove',
+			'insertRowBelow',
+			'insertColumnLeft',
+			'insertColumnRight'
+		] as const) {
+			expect(actionItem(items, action)?.enabled).toBe(true);
+		}
 	});
 
-	it('surfaces the target column current alignment as the last column item', () => {
-		const items = tableMenuItems({ colIdx: 1 }, { rowCount: 2, colCount: 2 }, ['none', 'center']);
-		expect(items.find((i) => i.kind === 'alignment')).toMatchObject({ current: 'center' });
+	it('surfaces the target column current alignment as the last item', () => {
+		const items = menuFor({ rowIdx: 1, colIdx: 1 }, { rowCount: 2, colCount: 2 }, [
+			'none',
+			'center'
+		]);
 		expect(items.at(-1)).toEqual({ kind: 'alignment', current: 'center' });
 	});
 
 	// Alignment is the dedicated 'alignment' item; cycleAlignment must never leak
 	// in as an action, even if the groups are refactored to iterate the union.
 	it('never emits cycleAlignment as an action', () => {
-		const items = tableMenuItems({ rowIdx: 1, colIdx: 0 }, { rowCount: 3, colCount: 2 }, [
-			'none',
-			'none'
-		]);
+		const items = menuFor({ rowIdx: 1, colIdx: 0 }, { rowCount: 3, colCount: 2 });
 		expect(hasAction(items, 'cycleAlignment')).toBe(false);
 	});
 });
 
+// A cell menu mixes the groups, so the dispatcher routes each item by its own index — row
+// actions to rowIdx, column actions to colIdx. Distinct values catch a crossed-wires bug.
 describe('tableMenuItems: action items carry their own axis index', () => {
-	const rowActions: TableAxisAction[] = [
-		'insertRowAbove',
-		'insertRowBelow',
-		'moveRowUp',
-		'moveRowDown',
-		'deleteRow'
-	];
-	const colActions: TableAxisAction[] = [
-		'insertColumnLeft',
-		'insertColumnRight',
-		'moveColumnLeft',
-		'moveColumnRight',
-		'deleteColumn'
-	];
-
-	// A both-axes cell menu mixes the groups, so the dispatcher routes each item by its own index —
-	// row actions to rowIdx, column actions to colIdx. Distinct values catch a crossed-wires bug.
-	it('routes a both-axes cell target by group: rowIdx for rows, colIdx for columns', () => {
-		const items = tableMenuItems({ rowIdx: 1, colIdx: 0 }, { rowCount: 3, colCount: 2 }, [
-			'none',
-			'none'
-		]);
-		for (const action of rowActions) expect(actionItem(items, action)?.index).toBe(1);
-		for (const action of colActions) expect(actionItem(items, action)?.index).toBe(0);
-	});
-
-	it('stamps every action with the lone axis index for a single-axis grip target', () => {
-		const rowItems = tableMenuItems({ rowIdx: 2 }, { rowCount: 4, colCount: 2 }, ['none', 'none']);
-		for (const action of rowActions) expect(actionItem(rowItems, action)?.index).toBe(2);
-		const colItems = tableMenuItems({ colIdx: 3 }, { rowCount: 2, colCount: 5 }, [
-			'none',
-			'none',
-			'none',
-			'none',
-			'none'
-		]);
-		for (const action of colActions) expect(actionItem(colItems, action)?.index).toBe(3);
+	it('routes row actions by rowIdx and column actions by colIdx', () => {
+		const items = menuFor({ rowIdx: 1, colIdx: 0 }, { rowCount: 3, colCount: 2 });
+		const rowActions = [
+			'insertRowAbove',
+			'insertRowBelow',
+			'moveRowUp',
+			'moveRowDown',
+			'deleteRow'
+		];
+		const colActions = [
+			'insertColumnLeft',
+			'insertColumnRight',
+			'moveColumnLeft',
+			'moveColumnRight',
+			'deleteColumn'
+		];
+		for (const action of rowActions as TableAxisAction[]) {
+			expect(actionItem(items, action)?.index).toBe(1);
+		}
+		for (const action of colActions as TableAxisAction[]) {
+			expect(actionItem(items, action)?.index).toBe(0);
+		}
 	});
 });
 
 describe('tableMenuItems: clipboard group', () => {
-	type ClipboardItem = Extract<TableMenuItem, { kind: 'clipboard' }>;
-	const clipActions = ['cut', 'copy', 'paste'] as const;
-	const clipItem = (
-		items: TableMenuItem[],
-		action: (typeof clipActions)[number]
-	): ClipboardItem | undefined =>
-		items.find((i): i is ClipboardItem => i.kind === 'clipboard' && i.action === action);
+	const dims = { rowCount: 3, colCount: 2 };
+	const cell = { rowIdx: 1, colIdx: 0 };
 
-	it('prepends Cut/Copy/Paste then a separator for a cell target, ahead of the row group', () => {
-		const items = tableMenuItems(
-			{ rowIdx: 1, colIdx: 0 },
-			{ rowCount: 3, colCount: 2 },
-			['none', 'none'],
-			{ hasSelection: true }
-		);
-		for (const action of clipActions) expect(clipItem(items, action)).toBeDefined();
+	it('leads with Cut/Copy/Paste then a separator, ahead of the row group', () => {
+		const items = menuFor(cell, dims, PLAIN, { hasSelection: true });
 		const lastClip = items.findIndex((i) => i.kind === 'clipboard' && i.action === 'paste');
 		const firstSep = items.findIndex((i) => i.kind === 'separator');
-		const rowAction = items.findIndex((i) => i.kind === 'action' && i.action === 'deleteRow');
+		const rowGroup = items.findIndex((i) => i.kind === 'group' && i.id === 'row');
+		expect(lastClip).toBeGreaterThanOrEqual(0);
 		expect(lastClip).toBeLessThan(firstSep);
-		expect(firstSep).toBeLessThan(rowAction);
+		expect(firstSep).toBeLessThan(rowGroup);
 	});
 
 	it('disables Cut/Copy without a selection but keeps Paste enabled', () => {
-		const items = tableMenuItems(
-			{ rowIdx: 1, colIdx: 0 },
-			{ rowCount: 3, colCount: 2 },
-			['none', 'none'],
-			{ hasSelection: false }
-		);
+		const items = menuFor(cell, dims, PLAIN, { hasSelection: false });
 		expect(clipItem(items, 'cut')?.enabled).toBe(false);
 		expect(clipItem(items, 'copy')?.enabled).toBe(false);
 		expect(clipItem(items, 'paste')?.enabled).toBe(true);
 	});
 
 	it('enables Cut/Copy with a selection', () => {
-		const items = tableMenuItems(
-			{ rowIdx: 1, colIdx: 0 },
-			{ rowCount: 3, colCount: 2 },
-			['none', 'none'],
-			{ hasSelection: true }
-		);
+		const items = menuFor(cell, dims, PLAIN, { hasSelection: true });
 		expect(clipItem(items, 'cut')?.enabled).toBe(true);
 		expect(clipItem(items, 'copy')?.enabled).toBe(true);
 	});
@@ -208,58 +173,21 @@ describe('tableMenuItems: clipboard group', () => {
 	// An intra-table rectangle suppresses the cell's native selection, so hasSelection
 	// is false; the rect is exactly what Cut/Copy exist to serve, so they enable on it.
 	it('enables Cut/Copy for an active rectangle with no cell selection', () => {
-		const items = tableMenuItems(
-			{ rowIdx: 1, colIdx: 0 },
-			{ rowCount: 3, colCount: 2 },
-			['none', 'none'],
-			{ hasSelection: false, hasRect: true }
-		);
+		const items = menuFor(cell, dims, PLAIN, { hasSelection: false, hasRect: true });
 		expect(clipItem(items, 'cut')?.enabled).toBe(true);
 		expect(clipItem(items, 'copy')?.enabled).toBe(true);
 	});
-
-	it('omits clipboard items for single-axis grip targets even when clipboard info is passed', () => {
-		const rowItems = tableMenuItems({ rowIdx: 1 }, { rowCount: 3, colCount: 2 }, ['none', 'none'], {
-			hasSelection: true
-		});
-		const colItems = tableMenuItems({ colIdx: 0 }, { rowCount: 3, colCount: 2 }, ['none', 'none'], {
-			hasSelection: true
-		});
-		expect(rowItems.some((i) => i.kind === 'clipboard')).toBe(false);
-		expect(colItems.some((i) => i.kind === 'clipboard')).toBe(false);
-	});
-
-	it('omits clipboard items for a cell target when no clipboard info is passed', () => {
-		const items = tableMenuItems({ rowIdx: 1, colIdx: 0 }, { rowCount: 3, colCount: 2 }, [
-			'none',
-			'none'
-		]);
-		expect(items.some((i) => i.kind === 'clipboard')).toBe(false);
-	});
 });
 
-describe('tableMenuItems: group selection by target shape', () => {
-	it('a row-only target emits the row group with no column items or separator', () => {
-		const items = tableMenuItems({ rowIdx: 1 }, { rowCount: 3, colCount: 2 }, ['none', 'none']);
-		expect(hasAction(items, 'deleteRow')).toBe(true);
-		expect(hasAction(items, 'deleteColumn')).toBe(false);
-		expect(items.some((i) => i.kind === 'separator')).toBe(false);
-	});
-
-	it('a column-only target emits the column group with no row items or separator', () => {
-		const items = tableMenuItems({ colIdx: 0 }, { rowCount: 3, colCount: 2 }, ['none', 'none']);
-		expect(hasAction(items, 'deleteColumn')).toBe(true);
-		expect(hasAction(items, 'deleteRow')).toBe(false);
-		expect(items.some((i) => i.kind === 'separator')).toBe(false);
-	});
-
-	it('a cell target folds each axis behind a flyout and keeps the deletes and alignment in the list', () => {
-		const items = tableMenuItems({ rowIdx: 1, colIdx: 0 }, { rowCount: 3, colCount: 2 }, [
-			'none',
-			'none'
-		]);
+describe('tableMenuItems: shape', () => {
+	it('folds each axis behind a flyout and keeps the deletes and alignment in the list', () => {
+		const items = menuFor({ rowIdx: 1, colIdx: 0 }, { rowCount: 3, colCount: 2 });
 		const kinds = items.map((i) => (i.kind === 'group' ? `group:${i.id}` : i.kind));
 		expect(kinds).toEqual([
+			'clipboard',
+			'clipboard',
+			'clipboard',
+			'separator',
 			'group:row',
 			'group:column',
 			'separator',
@@ -267,8 +195,8 @@ describe('tableMenuItems: group selection by target shape', () => {
 			'action',
 			'alignment'
 		]);
-		const rowGroup = items[0];
-		const colGroup = items[1];
+		const rowGroup = items[4];
+		const colGroup = items[5];
 		if (rowGroup.kind !== 'group' || colGroup.kind !== 'group') throw new Error('groups');
 		expect(rowGroup.items.map((i) => (i.kind === 'action' ? i.action : i.kind))).toEqual([
 			'insertRowAbove',
@@ -282,8 +210,8 @@ describe('tableMenuItems: group selection by target shape', () => {
 			'moveColumnLeft',
 			'moveColumnRight'
 		]);
-		expect(items[3]).toMatchObject({ kind: 'action', action: 'deleteRow' });
-		expect(items[4]).toMatchObject({ kind: 'action', action: 'deleteColumn' });
+		expect(items[7]).toMatchObject({ kind: 'action', action: 'deleteRow' });
+		expect(items[8]).toMatchObject({ kind: 'action', action: 'deleteColumn' });
 	});
 });
 

@@ -1,4 +1,4 @@
-import { type Locator, type Page } from '@playwright/test';
+import { expect, type Locator, type Page } from '@playwright/test';
 
 // Shared pointer helpers for the table block e2e specs. The drag gesture IS the real
 // mouse path (down → interpolated moves → up); the 10-step interpolation matches EditorPage's own
@@ -36,4 +36,18 @@ export async function dragBetweenCells(page: Page, fromIdx: number, toIdx: numbe
 		page.locator('[role="cell"]').nth(toIdx)
 	);
 	await dragBetweenBoxes(page, from, to);
+}
+
+/** Right-click a cell (a row-major index, or its locator) and hover a group row so its flyout
+ *  is showing. */
+export async function openFlyout(
+	page: Page,
+	cell: number | Locator,
+	group: 'Row' | 'Column'
+): Promise<void> {
+	const target = typeof cell === 'number' ? page.locator('[role="cell"]').nth(cell) : cell;
+	await target.click({ button: 'right' });
+	const row = page.getByRole('menuitem', { name: group, exact: true });
+	await expect(row).toBeVisible();
+	await row.hover();
 }

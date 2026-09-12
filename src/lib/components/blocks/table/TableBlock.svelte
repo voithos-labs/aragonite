@@ -46,14 +46,7 @@
 		type NodeScope
 	} from '../../../editor-actions/nested/nested-actions';
 	import { createTableMutationsContext } from '../../../editor-actions/table-context';
-	import {
-		startRowReorderDrag,
-		startColumnReorderDrag,
-		type RowReorderLine,
-		type ColumnReorderLine
-	} from './table-reorder-drag';
 	import TableRowBlock from './TableRowBlock.svelte';
-	import TableGrip from './TableGrip.svelte';
 	import TableActionMenu from './TableActionMenu.svelte';
 	import MenuIcon from '../../menu/MenuIcon.svelte';
 	import { ADD_COLUMN_RIGHT, ADD_ROW_BELOW } from '../../../a11y-strings';
@@ -81,7 +74,6 @@
 	} = getContext<EditorServices>(EDITOR_SERVICES_KEY);
 	const {
 		editorRoot: getEditorRoot,
-		scrollHost: getScrollHost,
 		widthVersion: getWidthVersion,
 		lifetime: editorLifetime,
 		linkRef
@@ -90,10 +82,6 @@
 	// Every menu item mutates the table, so reading mode declines to open it and the
 	// native context menu (with Copy) shows instead.
 	const readOnly = $derived(getPresentationMode() === 'reading');
-	// Off, always: a table's own block handle moves the table, and every row/column action —
-	// insert, delete, move, align — lives in the right-click cell menu. Per-row and per-column
-	// grips put a second gutter inside the block for gestures that menu already covers.
-	const showGrips = false;
 
 	const meta = $derived(metadataOf(node, 'table'));
 	const rowCount = $derived(node.children?.length ?? 0);
@@ -175,16 +163,11 @@
 	// wide cell scrolls out of the mounted set (F6). The floor only ever grows.
 	let columnMaxWidths = $state<number[]>([]);
 
-	// The row-grip gutter leads, and only while the grips render: rows auto-place, so a track
-	// with nothing in it would shift every cell left. Zero width, so the geometry is untouched.
 	const trackTemplate = $derived(
-		[
-			...(showGrips ? ['0'] : []),
-			...Array.from({ length: columnCount }, (_, c) => {
-				const floor = Math.max(80, columnMaxWidths[c] ?? 0);
-				return `minmax(${floor}px, max-content)`;
-			})
-		].join(' ')
+		Array.from({ length: columnCount }, (_, c) => {
+			const floor = Math.max(80, columnMaxWidths[c] ?? 0);
+			return `minmax(${floor}px, max-content)`;
+		}).join(' ')
 	);
 
 	let measuredColumnEpoch = '';
@@ -235,6 +218,17 @@
 
 	function focusCell(rowIdx: number, colIdx: number, position: CellPosition): void {
 		rowRefAt(rowIdx)?.focusByPath?.([colIdx], offsetForPosition(position));
+		revealColumn(rowIdx, colIdx);
+	}
+
+	// The grid is its own horizontal scroller and a cell's focus never scrolls (a click must not
+	// jump the page), so a column reached by keyboard or by a move is brought into the box here.
+	function revealColumn(rowIdx: number, colIdx: number): void {
+		const cell = cellElementAt(rowIdx, colIdx)?.getBoundingClientRect();
+		if (!tableEl || !cell) return;
+		const grid = tableEl.getBoundingClientRect();
+		if (cell.right > grid.right) tableEl.scrollLeft += cell.right - grid.right;
+		else if (cell.left < grid.left) tableEl.scrollLeft -= grid.left - cell.left;
 	}
 
 	const mutations = createTableMutationsContext({
@@ -295,17 +289,13 @@
 
 	setContext(TABLE_CONTEXT_KEY, ctx);
 
-	// ── Affordance menu (row + column) ─────────────────────────────────────
+	// ── Cell menu ──────────────────────────────────────────────────────────
 
-	const columnIndices = $derived(Array.from({ length: columnCount }, (_, c) => c));
-
-	type MenuAxis = 'row' | 'column';
-	type MenuTarget = { rowIdx?: number; colIdx?: number };
 	// clipboardSel is the cell's selection captured at right-click, before the menu steals
-	// focus — null for grip menus and for an empty cell with no caret.
+	// focus; null for an empty cell with no caret.
 	type CellSelection = { start: number; end: number };
 	let menu = $state<{
-		target: MenuTarget;
+		target: { rowIdx: number; colIdx: number };
 		x: number;
 		y: number;
 		clipboardSel: CellSelection | null;
@@ -361,16 +351,6 @@
 		return () => observer?.disconnect();
 	});
 
-	function openMenu(axis: MenuAxis, axisIdx: number, e: MouseEvent): void {
-		const grip = e.currentTarget as HTMLElement;
-		const rect = grip.getBoundingClientRect();
-		const target: MenuTarget = axis === 'column' ? { colIdx: axisIdx } : { rowIdx: axisIdx };
-		// A row grip opens beside itself rather than below, so the menu clears the left edge.
-		const point =
-			axis === 'column' ? { x: rect.left, y: rect.bottom } : { x: rect.right, y: rect.top };
-		menu = { target, ...point, clipboardSel: null, anchor: anchorOn(grip, point) };
-	}
-
 	// The open point as an offset into an element's box, so a scroll re-reads it where the
 	// element is now rather than where the viewport left it.
 	function anchorOn(el: Element, point: { x: number; y: number }): () => { x: number; y: number } {
@@ -417,19 +397,28 @@
 		openMenuAtCell(rowIdx, colIdx, rect ? rect.left : 0, rect ? rect.bottom : 0);
 	}
 
-	// Cell menus only — a grip menu has no caret to return to. The restore goes through
-	// `focusCell`: a bare `el.focus()` on a contenteditable seats no typeable caret.
+	// The restore goes through `focusCell`: a bare `el.focus()` on a contenteditable seats no
+	// typeable caret.
 	async function closeMenuRestoringFocus(): Promise<void> {
 		const target = menu?.target;
 		const offset = menu?.clipboardSel?.start ?? 'start';
 		menu = null;
-		if (target?.rowIdx == null || target?.colIdx == null) return;
+		if (!target) return;
 		await tick();
 		focusCell(target.rowIdx, target.colIdx, offset);
 	}
 
+	// A right-click seats no caret, so without this an action's focus-follow reads no focused
+	// cell and lands in column 0 (or row 0) of what it moved.
+	function seatMenuCaret(): void {
+		if (!menu) return;
+		const { rowIdx, colIdx } = menu.target;
+		focusCell(rowIdx, colIdx, menu.clipboardSel?.start ?? 'start');
+	}
+
 	async function runAction(action: TableAxisAction, axisIdx: number): Promise<void> {
 		if (!menu) return;
+		seatMenuCaret();
 		await ctx[action](axisIdx);
 		menu = null;
 	}
@@ -439,105 +428,15 @@
 		const { rowIdx, colIdx } = menu.target;
 		const sel = menu.clipboardSel ?? { start: 0, end: 0 };
 		menu = null;
-		if (rowIdx == null || colIdx == null) return;
 		await cellRefAt(rowIdx, colIdx)?.applyMenuClipboard?.(action, sel);
 	}
 
 	async function runAlign(alignment: 'left' | 'center' | 'right'): Promise<void> {
-		const colIdx = menu?.target.colIdx;
-		if (colIdx == null) return;
+		if (!menu) return;
+		const { colIdx } = menu.target;
+		seatMenuCaret();
 		await ctx.setColumnAlignment(colIdx, alignment);
 		menu = null;
-	}
-
-	// ── Row drag reorder ───────────────────────────────────────────────────
-
-	let dragLine = $state<RowReorderLine | null>(null);
-	// A drag that ends off the grip fires no click, so this resets on every grip
-	// pointerdown rather than being consumed on click; a stale `true` would eat a menu.
-	let suppressRowGripClick = false;
-
-	// Rows are `display: contents` (no box), so measure each mounted row's first cell.
-	// Carries the ABSOLUTE row index so a drop maps a mounted edge to a body position
-	// under windowing; re-read live each move, so an autoscroll re-slice is reflected.
-	function rowReorderGeometry() {
-		if (!tableEl || rowCount === 0) return null;
-		const rowEdges: number[] = [];
-		const gapIndices: number[] = [];
-		let lastBottom = 0;
-		let lastIdx = -1;
-		for (const rowEl of mountedRowEls(tableEl)) {
-			const cell = rowCellEls(rowEl)[0];
-			if (!cell) continue;
-			const rect = cell.getBoundingClientRect();
-			const idx = Number(rowEl.getAttribute('data-table-row-idx'));
-			rowEdges.push(rect.top);
-			gapIndices.push(idx);
-			lastBottom = rect.bottom;
-			lastIdx = idx;
-		}
-		if (rowEdges.length === 0) return null;
-		rowEdges.push(lastBottom);
-		gapIndices.push(lastIdx + 1);
-		const tableRect = tableEl.getBoundingClientRect();
-		return { rowEdges, gapIndices, left: tableRect.left, width: tableRect.width };
-	}
-
-	function onRowGripPointerDown(rowIdx: number, e: PointerEvent): void {
-		// Before any bail: a prior drag released off the grip left no click to consume it.
-		suppressRowGripClick = false;
-		// The header row is positionally fixed, so its grip stays click-only.
-		if (rowIdx === 0) return;
-		startRowReorderDrag(e, {
-			fromRowIdx: rowIdx,
-			getRowCount: () => rowCount,
-			getGeometry: rowReorderGeometry,
-			// Autoscroll must move whatever scrolls this editor — the root in self mode, the
-			// host's scroller in host mode — or off-window rows never mount.
-			getScrollContainer: getScrollHost,
-			setLine: (line) => (dragLine = line),
-			onDragRecognized: () => (suppressRowGripClick = true),
-			commit: (from, to) => void mutations.reorderRowTo(from, to),
-			lifetimeSignal: editorLifetime
-		});
-	}
-
-	// ── Column drag reorder ─────────────────────────────────────────────────
-
-	let columnDragLine = $state<ColumnReorderLine | null>(null);
-	// Plain let, reset on every grip pointerdown — see suppressRowGripClick.
-	let suppressColumnGripClick = false;
-
-	// Columns aren't windowed, so any mounted row carries the shared track geometry.
-	// Client coords match the position:fixed insertion line.
-	function columnReorderGeometry() {
-		if (!tableEl || rowCount === 0 || columnCount === 0) return null;
-		const firstRowEl = mountedRowEls(tableEl)[0];
-		if (!firstRowEl) return null;
-		const cells = rowCellEls(firstRowEl);
-		if (cells.length === 0) return null;
-		const colEdges: number[] = [];
-		for (const cell of cells) colEdges.push(cell.getBoundingClientRect().left);
-		const lastCell = cells[cells.length - 1];
-		colEdges.push(lastCell.getBoundingClientRect().right);
-		const tableRect = tableEl.getBoundingClientRect();
-		return { colEdges, top: tableRect.top, height: tableRect.height };
-	}
-
-	function onColumnGripPointerDown(colIdx: number, e: PointerEvent): void {
-		// Before any bail: a prior drag released off the grip left no click to consume it.
-		suppressColumnGripClick = false;
-		startColumnReorderDrag(e, {
-			fromColIdx: colIdx,
-			getColCount: () => columnCount,
-			getGeometry: columnReorderGeometry,
-			// `.table-block` is itself the overflow-x container.
-			getScrollContainer: () => tableEl ?? null,
-			setLine: (line) => (columnDragLine = line),
-			onDragRecognized: () => (suppressColumnGripClick = true),
-			commit: (from, to) => void mutations.reorderColumnTo(from, to),
-			lifetimeSignal: editorLifetime
-		});
 	}
 
 	// ── focusout: reset internal sticky when focus leaves the table ────────
@@ -733,20 +632,9 @@
 	oncontextmenu={openCellMenu}
 	onkeydown={onTableKeyDown}
 >
-	<!-- The corner occupies the zero-width gutter so the column grips align to their
-	     columns. The block boundaries below stay whitespace-adjacent: a stray text node
-	     joins the raw-offset walk and shifts a parked caret (cursor/widget-offset.ts). -->
-	{#if showGrips}<span class="table-grip-corner" aria-hidden="true"
-		></span>{#each columnIndices as colIdx (colIdx)}
-			<TableGrip
-				axis="column"
-				onActivate={(e) => {
-					if (suppressColumnGripClick) return;
-					openMenu('column', colIdx, e);
-				}}
-				onpointerdown={(e) => onColumnGripPointerDown(colIdx, e)}
-			/>
-		{/each}{/if}{#if win.active}
+	<!-- The block boundaries stay whitespace-adjacent: a stray text node joins the raw-offset
+	     walk and shifts a parked caret (cursor/widget-offset.ts). -->
+	{#if win.active}
 		<div class="vr-spacer" style="height: {win.topSpacerPx}px"></div>
 	{/if}{#each (node.children ?? []).slice(bounds.start, bounds.end) as rowNode, localIndex (rowsState.innerBlockIds[bounds.start + localIndex])}
 		<!-- ABSOLUTE-INDEX INVARIANT: index/myPath/key carry the absolute row index
@@ -761,12 +649,6 @@
 			alignments={meta.alignments ?? []}
 			myPath={[...myPath, rowIdx]}
 			slots={rowsState.refSlots}
-			onOpenRowMenu={(r, e) => {
-				if (suppressRowGripClick) return;
-				openMenu('row', r, e);
-			}}
-			{onRowGripPointerDown}
-			{showGrips}
 		/>
 	{/each}{#if win.active}
 		<div class="vr-spacer" style="height: {win.bottomSpacerPx}px"></div>
@@ -782,16 +664,6 @@
 			onclose={() => (menu = null)}
 			onescape={closeMenuRestoringFocus}
 		/>
-	{/if}{#if dragLine}
-		<div
-			class="table-reorder-line"
-			style="left:{dragLine.left}px;top:{dragLine.top}px;width:{dragLine.width}px"
-		></div>
-	{/if}{#if columnDragLine}
-		<div
-			class="table-reorder-line-vertical"
-			style="left:{columnDragLine.left}px;top:{columnDragLine.top}px;height:{columnDragLine.height}px"
-		></div>
 	{/if}
 </div>
 {#if addGeometry}<div
@@ -894,26 +766,6 @@
 	/* Spacers are direct grid children; span all columns to reserve a full row band. */
 	.vr-spacer {
 		grid-column: 1 / -1;
-	}
-	/* Zero-height so the corner + column-grip band (grid row 1) adds no visible row. */
-	.table-grip-corner {
-		height: 0;
-	}
-	/* Viewport-fixed, matching the client coords the drag measures in; pointer-events:none
-	   so the overlay never intercepts the drag's own pointer stream. */
-	.table-reorder-line,
-	.table-reorder-line-vertical {
-		position: fixed;
-		background: var(--md-reorder-indicator);
-		border-radius: 2px;
-		pointer-events: none;
-		z-index: 20;
-	}
-	.table-reorder-line {
-		height: 2px;
-	}
-	.table-reorder-line-vertical {
-		width: 2px;
 	}
 	/* Fallback for Chromium versions that don't honor `scrollbar-width`. */
 	.table-block::-webkit-scrollbar {

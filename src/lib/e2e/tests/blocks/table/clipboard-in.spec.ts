@@ -237,14 +237,14 @@ test.describe('table block: paste in', () => {
 		);
 	});
 
-	test('whole-table selection (Ctrl+A 2nd) + paste a paragraph replaces the table', async ({
+	// Ctrl+A steps cell → document, so a rectangle over every cell is the road to a whole-table
+	// selection: cells 0..5 of a two-column, two-body-row table.
+	test('whole-table selection (a rectangle over every cell) + paste a paragraph replaces the table', async ({
 		page
 	}) => {
 		const source = `before\n\n${TABLE_2BODY}\nafter\n`;
 		await editor.loadContent(source);
-		await page.locator('[role="cell"]').nth(2).click();
-		await page.keyboard.press('ControlOrMeta+a');
-		await page.keyboard.press('ControlOrMeta+a');
+		await dragBetweenCells(page, 0, 5);
 		await editor.waitForCrossBlock(true);
 
 		await editor.seedClipboard('replaced text\n');
@@ -259,9 +259,7 @@ test.describe('table block: paste in', () => {
 	test('whole-table paste is a single-undo-entry operation', async ({ page }) => {
 		const source = `before\n\n${TABLE_2BODY}\nafter\n`;
 		await editor.loadContent(source);
-		await page.locator('[role="cell"]').nth(2).click();
-		await page.keyboard.press('ControlOrMeta+a');
-		await page.keyboard.press('ControlOrMeta+a');
+		await dragBetweenCells(page, 0, 5);
 		await editor.waitForCrossBlock(true);
 
 		await editor.seedClipboard('replaced text\n');

@@ -169,6 +169,31 @@ test.describe('drag to reorder', () => {
 		await page.mouse.up();
 	});
 
+	// Trivia is positional, so a block dropped into a slot whose separator was empty (a heading
+	// interrupting the paragraph above it) lands flush against that paragraph, whose next lines
+	// the table's rows then are.
+	test('a table dropped flush under a paragraph stays a table', async ({ page }) => {
+		await editor.loadContent('Intro\n# Heading\n\n| A | B |\n| --- | --- |\n| 1 | 2 |\n');
+		const table = page.locator('.block-host[data-block-kind="table"]').first();
+		await table.hover();
+		const hb = (await table.locator(':scope > .block-drag-handle svg').boundingBox())!;
+		const heading = (await page
+			.locator('.block-host[data-block-kind="heading"]')
+			.first()
+			.boundingBox())!;
+
+		await page.mouse.move(hb.x + hb.width / 2, hb.y + hb.height / 2);
+		await page.mouse.down();
+		await page.mouse.move(heading.x + heading.width / 2, heading.y + 2, { steps: 12 });
+		await page.mouse.up();
+
+		await editor.bridge.waitForSourceEquals(
+			'Intro\n\n| A | B |\n| --- | --- |\n| 1 | 2 |\n\n# Heading\n'
+		);
+		expect(await editor.bridge.getBlockKind(1)).toBe('table');
+		expect(await editor.parseConverged()).toBe(true);
+	});
+
 	test('dragging the handle starts no text selection', async () => {
 		await editor.loadContent('```\nA\n```\n\n```\nB\n```\n\n```\nC\n```\n');
 		await dragHandle('.block-host', 'A', '.block-host', 'C', true);

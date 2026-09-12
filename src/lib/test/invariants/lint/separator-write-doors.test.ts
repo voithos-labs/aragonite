@@ -51,6 +51,8 @@ const TRIVIA_WRITERS: Record<string, string> = {
 /** Files that may name a settle door rather than reaching it through the funnel. */
 const HAND_SETTLE_CALLERS: Record<string, string> = {
 	'src/lib/tree-operations/settle.ts': 'defines them, and the funnel entries beside them',
+	'src/lib/tree-operations/reorder.ts':
+		'a rotation reseats blank lines by position, so each reseated run is asked the one-line rule',
 	'src/lib/tree-operations/content-write.ts':
 		'the content door’s two blank transitions settle by hand, ahead of the seam ask',
 	'src/lib/tree-operations/index.ts': 're-exports the two the gap-caret mint still needs',

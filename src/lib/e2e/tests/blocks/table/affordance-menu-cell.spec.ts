@@ -1,23 +1,12 @@
 import { test, expect } from '../../../fixtures';
 import { EditorPage } from '../../../editor-page';
+import { openFlyout } from './helpers';
 
 // Cells render row-major with the header cells first, so for TABLE the role="cell"
 // order is: 0=A 1=B (header) · 2="1" 3="2" (body row 1) · 4="3" 5="4" (body row 2).
 const TABLE = '| A | B |\n| --- | --- |\n| 1 | 2 |\n| 3 | 4 |\n';
 const TABLE_3COL = '| A | B | C |\n| --- | --- | --- |\n| 1 | 2 | 3 |\n';
 const TABLE_1X1 = '| A |\n| --- |\n| 1 |\n';
-
-/** Open a cell's menu and hover a group row so its flyout is showing. */
-async function openFlyout(
-	page: import('@playwright/test').Page,
-	cellIdx: number,
-	group: 'Row' | 'Column'
-): Promise<void> {
-	await page.locator('[role="cell"]').nth(cellIdx).click({ button: 'right' });
-	const row = page.getByRole('menuitem', { name: group, exact: true });
-	await expect(row).toBeVisible();
-	await row.hover();
-}
 
 test.describe('table block: cell right-click menu', () => {
 	let editor: EditorPage;
