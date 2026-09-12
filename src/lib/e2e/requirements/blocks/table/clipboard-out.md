@@ -11,7 +11,7 @@
 - 2×2 rectangular cell selection produces a valid GFM sub-table — pending Plan 4 input wiring that produces a path-equal anchor/focus on the table.
 - Single-row rectangle (one row, multiple cols) produces a header-only sub-table (header + delimiter, no body) — pending Plan 4.
 - Sub-table inherits column alignments sliced from the source — pending Plan 4. Concrete: from `| :--- | :---: | ---: |`, copying cols 0..1 yields `:---` and `:---:`.
-- Whole-table copy after Ctrl+A 2nd press emits the table's raw — pending Plan 4 (2nd-press semantics).
+- Whole-table copy after a rectangle over every cell emits the table's raw — pending Plan 4.
 
 ## Spreadsheet interchange
 
