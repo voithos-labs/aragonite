@@ -74,7 +74,6 @@
 	} = getContext<EditorServices>(EDITOR_SERVICES_KEY);
 	const {
 		editorRoot: getEditorRoot,
-		scrollHost: getScrollHost,
 		widthVersion: getWidthVersion,
 		lifetime: editorLifetime,
 		linkRef
@@ -219,6 +218,17 @@
 
 	function focusCell(rowIdx: number, colIdx: number, position: CellPosition): void {
 		rowRefAt(rowIdx)?.focusByPath?.([colIdx], offsetForPosition(position));
+		revealColumn(rowIdx, colIdx);
+	}
+
+	// The grid is its own horizontal scroller and a cell's focus never scrolls (a click must not
+	// jump the page), so a column reached by keyboard or by a move is brought into the box here.
+	function revealColumn(rowIdx: number, colIdx: number): void {
+		const cell = cellElementAt(rowIdx, colIdx)?.getBoundingClientRect();
+		if (!tableEl || !cell) return;
+		const grid = tableEl.getBoundingClientRect();
+		if (cell.right > grid.right) tableEl.scrollLeft += cell.right - grid.right;
+		else if (cell.left < grid.left) tableEl.scrollLeft -= grid.left - cell.left;
 	}
 
 	const mutations = createTableMutationsContext({
@@ -398,8 +408,17 @@
 		focusCell(target.rowIdx, target.colIdx, offset);
 	}
 
+	// A right-click seats no caret, so without this an action's focus-follow reads no focused
+	// cell and lands in column 0 (or row 0) of what it moved.
+	function seatMenuCaret(): void {
+		if (!menu) return;
+		const { rowIdx, colIdx } = menu.target;
+		focusCell(rowIdx, colIdx, menu.clipboardSel?.start ?? 'start');
+	}
+
 	async function runAction(action: TableAxisAction, axisIdx: number): Promise<void> {
 		if (!menu) return;
+		seatMenuCaret();
 		await ctx[action](axisIdx);
 		menu = null;
 	}
@@ -413,8 +432,9 @@
 	}
 
 	async function runAlign(alignment: 'left' | 'center' | 'right'): Promise<void> {
-		const colIdx = menu?.target.colIdx;
-		if (colIdx == null) return;
+		if (!menu) return;
+		const { colIdx } = menu.target;
+		seatMenuCaret();
 		await ctx.setColumnAlignment(colIdx, alignment);
 		menu = null;
 	}
