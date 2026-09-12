@@ -8,10 +8,11 @@ the same deep rows owe the same repaint.
 
 ## Happy paths
 
-- With matches spread through a ~200-row table, searching reveals the first
-  match at the top; a single scroll to the bottom mounts the deep matching
-  rows and the match highlight paints over the newly visible cell — with no
-  page errors.
+- With matches spread through a ~200-row table, the last row among them so
+  the bottom viewport holds one whatever the row height, searching reveals the
+  first match at the top; a single scroll to the bottom mounts the deep
+  matching rows and the match highlight paints over the newly visible cell,
+  with no page errors.
 - A cross-block selection from a paragraph above the table to the end of the
   document: after a single scroll to the bottom, the selection highlight
   paints over the newly mounted deep rows — with no page errors.

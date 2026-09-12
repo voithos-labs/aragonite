@@ -12,6 +12,14 @@ const TALL = `${Array.from(
 	(_, i) => `Paragraph ${i} with **bold** and some more text to wrap`
 ).join('\n\n')}\n`;
 
+// Fences lose their two marker lines in live, so every mounted code block above the viewport
+// shrinks at the flip; the prose between them stays the height it was.
+const FENCED = `${Array.from(
+	{ length: 60 },
+	(_, i) =>
+		`Paragraph ${i} ahead of a fence.\n\n\`\`\`js\nconst n${i} = ${i};\nconsole.log(n${i});\n\`\`\``
+).join('\n\n')}\n`;
+
 /** Well past the caret's block, so a scrolling restore has somewhere to yank the viewport to. */
 const PARKED = 900;
 
@@ -40,6 +48,22 @@ async function caretBlockPlacement(
 			mounted: true,
 			aboveViewport: host.getBoundingClientRect().bottom < port.getBoundingClientRect().top
 		};
+	});
+}
+
+/** The first host whose box reaches below the viewport top: the block the reader is looking at. */
+async function topVisibleHost(page: Page): Promise<{ path: string | null; top: number } | null> {
+	return page.evaluate(() => {
+		const portTop = document.querySelector('.editor')!.getBoundingClientRect().top;
+		const hosts = Array.from(
+			document.querySelectorAll('.editor [data-block-path]:not([data-block-path*=","])')
+		) as HTMLElement[];
+		for (const host of hosts) {
+			const rect = host.getBoundingClientRect();
+			if (rect.bottom > portTop + 1)
+				return { path: host.getAttribute('data-block-path'), top: rect.top };
+		}
+		return null;
 	});
 }
 
@@ -105,5 +129,23 @@ test.describe('mode flips — the scrollport stays where the reader left it', ()
 		await expect.poll(() => focusOffset(ep), { timeout: 5000 }).toBeGreaterThanOrEqual(0);
 		expect(await caretBlockPlacement(page), 'out of live').toEqual(pinned);
 		expect(await scrollTop(page), 'out of live').toBeCloseTo(parked, 0);
+	});
+
+	// The block under the reader's eyes, not the scroll number: when mounted blocks above the
+	// viewport change height at the flip, holding the number would slide the content, so the
+	// windowing correction moves the number by exactly what those blocks lost.
+	test('a flip that resizes mounted blocks above the viewport holds the block in view', async ({
+		page
+	}) => {
+		const ep = await enterPresentationMode(page, 'source', FENCED);
+		await ep.scrollEditorTo(PARKED * 3);
+		const before = await topVisibleHost(page);
+		expect(before, 'a block is in view').not.toBeNull();
+
+		await flipTo(ep, page, 'live-toggle', 'live');
+		const after = await topVisibleHost(page);
+		expect(after?.path, 'the same block leads the viewport').toBe(before!.path);
+		// A device-pixel band: each fence's correction is a fractional delta the scroller rounds.
+		expect(Math.abs(after!.top - before!.top), 'at the same place').toBeLessThan(2);
 	});
 });

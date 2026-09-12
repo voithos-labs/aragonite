@@ -31,7 +31,7 @@ This is where the height model comes in. Every block gets a cheap guess from its
 
 - The worst case for guessing is a block whose height has nothing to do with its source (a Mermaid diagram, a KaTeX render). One that renders at a stable skeleton size declares `estimateHeight` at that size and the guess is exact; one that truly can't know gets guessed as prose, self-corrects on first mount, and drifts the scrollbar thumb a bit more until then.
 - For every scope, the heights live in a binary indexed tree (i.e. Fenwick tree); this allows for things like "what pixel offset does block N start at" and "which block is at pixel P" to be answered in log time.
-- Measuring gets batched. Say 30 blocks get mounted - they are measured all at once and written (into the tree) all at once, this way the browser re-lays out once for the whole batch. An edit to a single mounted block re-measures just that block, through the same writer.
+- Measuring gets batched. Say 30 blocks get mounted - they are measured all at once and written (into the tree) all at once, this way the browser re-lays out once for the whole batch. The read waits for the flush that mounted them to finish (still before paint): a block's content, an inline widget's especially, can land later in that same flush, and a height read too early records an empty host that the next section's correction then has to undo. An edit to a single mounted block re-measures just that block, through the same writer.
 - The measured heights are cached (by block id, beside the tree), and that cache is discarded if the whole document is replaced through the `source` prop, or if anything changes how a block renders (smooth transition to next section)
 
 ## Keeping the page still while heights change
@@ -44,7 +44,6 @@ Again, some technical details:
   - Do note, while windowing in host mode, something growing in the page's own chrome above the editor goes uncompensated, because the editor's subtree is no longer an anchor candidate.
 - Chrome above the block list (the editor's header slot, or the host page's own) needs no special case in the window math: a scope only counts the part of itself that overlaps the viewport. The header slot does need the correction though (its height lives outside the height model), so when it grows, its delta routes through the same scroll adjustment.
 - For things that grow after mounting (e.g. an image decoding, a font swapping in, a lazy embed), those have to be accounted for lest we want to cause the dreaded slide; so every rendered block reports its size changes and windowing corrects for that.
-- Live mode never windows, whatever the height (`presentation-mode.ts` `windowsBlocks`): its blocks are the heavy ones (highlighted code, rendered math, diagrams), and a window that mounted and unmounted a couple of them on every scroll event, then measured and corrected the scroll, made a wheel tick a visible hitch and a jump. Every scope reads the same answer, so a flip into live mounts everything and a flip out re-activates through the high watermark below.
 - Fun fact: a scope starts windowing when its estimated height clears a budget (a few viewports), and stops when it drops below a _lower_ one. If the two thresholds were the same, a doc that hits the threshold line more or less exactly would flip on and off with every keystroke, and each flip remounts blocks, and that would be bad.
 - Unfortunately, the scrollbar thumb (as in the handle of the scrollbar) still drifts during windowing (while guesses are being replaced by measurements), and is the one visual artifact that's not corrected for. Fortunately, it shrinks as more blocks get measured.
 
@@ -64,7 +63,7 @@ This is more annoying, the estimations need to update based on the live computed
 
 **Flip the presentation mode and hidden markers appear or vanish, which rewraps too.**
 
-Drops the measured cache. That's it actually. This way we only account for a little drift instead of a full rebuild.
+Drops the measured cache. That's it actually. This way we only account for a little drift instead of a full rebuild. A mounted block whose box moves with the markers (a fence losing its two marker lines) reports through the size-change path above, and the correction keeps the block in view where it was.
 
 ## Nesting
 

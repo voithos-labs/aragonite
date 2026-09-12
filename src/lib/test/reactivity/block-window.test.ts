@@ -16,16 +16,6 @@ const base = {
 };
 
 describe('computeWindow', () => {
-	it('suppressed: mounts the full slice and reports inactive whatever the height', () => {
-		// Live mode never windows. Active going in, so the hysteresis converges to inactive
-		// rather than holding the last window.
-		const w = computeWindow(model(), { ...base, scrollTop: 1000, suppressed: true });
-		expect(w).toEqual({ active: false, start: 0, end: 100, topSpacerPx: 0, bottomSpacerPx: 0 });
-		// Lifted: back through the high watermark like a first crossing.
-		const lifted = computeWindow(model(), { ...base, active: false, suppressed: false });
-		expect(lifted.active).toBe(true);
-	});
-
 	it('returns a viewport-plus-overscan slice and matching spacers', () => {
 		const w = computeWindow(model(), { ...base, scrollTop: 1000 }); // top block = 20
 		expect(w.active).toBe(true);
