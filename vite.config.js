@@ -49,9 +49,12 @@ const junctioned = nodeModulesTarget !== nodeModules;
 
 export default defineConfig({
 	plugins: [silenceBrokenImageFixture, sveltekit()],
-	// Per checkout, not the default under the junctioned `node_modules`: sibling worktrees' dev
-	// servers would re-optimize one shared pre-bundle under each other and 500 every page.
-	cacheDir: '.svelte-kit/vite-cache',
+	// Per checkout under a junctioned `node_modules`, or sibling worktrees' dev servers
+	// re-optimize one shared pre-bundle under each other and 500 every page.
+	...(junctioned ? { cacheDir: '.svelte-kit/vite-cache' } : {}),
+	// The lazy engines pre-bundle at server start: discovered at first use, their chunks are
+	// re-optimized under a page that already imported them, and the import fails.
+	optimizeDeps: { include: ['mermaid', 'katex'] },
 	server: {
 		port: 1420,
 		strictPort: true,

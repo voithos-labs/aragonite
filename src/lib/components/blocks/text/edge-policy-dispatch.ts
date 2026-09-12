@@ -587,6 +587,8 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 		if (caretOffset !== d.length || !d.endsWith('\\')) return false;
 		// An escaped backslash (`\\\\`) is content, not a break.
 		if (d.endsWith('\\\\')) return false;
+		// Backslash before ASCII punctuation is an escape (`\|`, `\*`), never a break's backslash.
+		if (/^[!-/:-@[-`{-~]$/.test(e.key)) return false;
 		const ending = trailingLineEnding(deps.node.raw);
 		e.preventDefault();
 		deps.setSnapTarget(null);

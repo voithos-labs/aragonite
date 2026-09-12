@@ -17,9 +17,9 @@ import { makeSimContext } from './helpers';
 // requirements/simulation/range-interrupt-ops.md.
 
 const PROSE_DOC = 'first para\n\nsecond para\n\nthird para\n';
+// Prose carries no drag handle; the divider is the grip the press needs.
+const GRIP_DOC = PROSE_DOC + '\n---\n';
 const IMAGE_DOC = 'first para\n\nsecond para\n\n![diagram|440](/test-fixtures/sample.png)\n';
-// The table is the LAST block, so the band below the document clamps onto it.
-const TABLE_TAIL_DOC = 'lead para\n\nmiddle para\n\n| a | b |\n| --- | --- |\n| 1 | 2 |\n';
 const MATH_DOC = 'Alpha lead paragraph.\n\nBeta $x^2$ middle.\n\nGamma tail paragraph.\n';
 const BLOCK_MATH_DOC = 'Alpha lead paragraph.\n\n$$x^2$$\n\nGamma tail paragraph.\n';
 // The blank lines are fixture hygiene, not a workaround: a demotion at `# Overview` now
@@ -55,12 +55,6 @@ const PROBES: Record<RangeInterruptGesture, Probe> = {
 		title: 'a host shell’s placeCaretAtPoint lands a caret and ends the range',
 		doc: PROSE_DOC
 	},
-	'dead-space-below-table': {
-		route: 'editor',
-		title: 'a click below a table ends the range and types in the cell it landed in',
-		doc: TABLE_TAIL_DOC,
-		ready: '.table-block'
-	},
 	'image-click': {
 		route: 'editor',
 		title: 'an image click replaces only the widget it selected',
@@ -70,7 +64,7 @@ const PROBES: Record<RangeInterruptGesture, Probe> = {
 	'drag-handle-press': {
 		route: 'editor',
 		title: 'a reorder-grip press without a drag leaves the range to the keystroke',
-		doc: PROSE_DOC
+		doc: GRIP_DOC
 	},
 	escape: {
 		route: 'editor',

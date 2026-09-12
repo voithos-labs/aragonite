@@ -30,13 +30,12 @@ export const README_NOTE: NoteFixture = {
 
 		await g.typeText('## Commands');
 		await g.pressEnter();
-		await g.typeText('```');
-		await g.softEnter();
+		await g.typeFenceOpener();
 		await g.typeText('npm run dev');
 		await g.softEnter();
 		await g.typeText('npm test');
 		await g.softEnter();
-		await g.softEnter();
+		await g.exitFence();
 		await g.checkpoint('code', 'code');
 
 		await g.typeText('## Links');

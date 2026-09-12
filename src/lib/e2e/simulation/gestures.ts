@@ -22,7 +22,9 @@ import {
 	softEnter,
 	startQuote,
 	toggleTask,
-	typeFreshItem
+	typeFreshItem,
+	typeFenceOpener,
+	exitFence
 } from './gestures/structure';
 import { insertImage, resizeImage } from './gestures/image';
 import {
@@ -246,6 +248,16 @@ export class Gestures {
 
 	softEnter(): Promise<void> {
 		return softEnter(this.ctx);
+	}
+
+	/** ``` at the document end: the fence completes itself, and its closer is held as a twin. */
+	typeFenceOpener(): Promise<void> {
+		return typeFenceOpener(this.ctx);
+	}
+
+	/** Enter on the fence's empty last line leaves the block. */
+	exitFence(): Promise<void> {
+		return exitFence(this.ctx);
 	}
 
 	async hardBreakAt(blockPath: number[], offset: number): Promise<void> {

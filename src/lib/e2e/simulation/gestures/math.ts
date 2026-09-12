@@ -77,9 +77,12 @@ export async function insertBlockMath(
 	const { page, editor, tracker } = ctx;
 	const rendersBefore = await page.locator(BLOCK_RENDER).count();
 
-	await editor.typeSlowly(`$$${formula}$$`);
-	await editor.bridge.waitForSourceContains(`$$${formula}$$`);
+	// `$$` completes to a block whose source card holds the formula until the blur commits it.
+	await editor.typeSlowly('$$');
+	await editor.bridge.waitForSourceContains('$$\n\n$$');
+	await page.keyboard.type(formula);
 	await editor.clickBlock(blurBlockIndex);
+	await editor.bridge.waitForSourceContains(`$$\n${formula}\n$$`);
 	await page.locator(BLOCK_RENDER).nth(rendersBefore).waitFor({ state: 'visible' });
 	await editor.waitForRenderFlush();
 	tracker.resync(await editor.bridge.getSource());
@@ -94,7 +97,7 @@ export async function editInlineMath(ctx: SimContext, text: string): Promise<voi
 	await clickInlineWidget(page, 0);
 	await waitForWidgetCount(page, widgetCount - 1); // the clicked island folded to source
 	await editor.waitForRenderFlush();
-	await page.keyboard.press('ArrowRight');
+	// The click seats the caret at the formula's end, inside the closer, so the byte lands last.
 	await page.keyboard.type(text);
 	await escapeRevealToCommit(ctx, before);
 

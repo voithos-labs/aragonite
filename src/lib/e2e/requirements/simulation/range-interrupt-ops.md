@@ -47,35 +47,25 @@ byte 0 of the document, where the keystroke demotes the first block's kind and e
 deferred lazy-continuation class (issue #21) — a red for a reason this family is
 not about.
 
-| Gesture                  | Build       | If the range survived   | If the range ended                         |
-| ------------------------ | ----------- | ----------------------- | ------------------------------------------ |
-| `dead-space-below`       | select-all  | one-char document       | **key at the caret in the last block**     |
-| `dead-space-margin`      | select-all  | one-char document       | **key at the caret at that line's end**    |
-| `place-caret-at-point`   | select-all  | one-char document       | **key at the caret in the last block**     |
-| `dead-space-below-table` | select-all  | one-char document       | **key at the caret in the nearest cell**   |
-| `image-click`            | select-all  | one-char document       | **the selected image block replaced**      |
-| `drag-handle-press`      | prose range | **range span replaced** | key at the caret the press left            |
-| `escape`                 | prose range | range span replaced     | **key at the range's anchor**              |
-| `search-round-trip`      | prose range | **range span replaced** | key at the caret the close returned        |
-| `inline-reveal-click`    | select-all  | one-char document       | **no byte moves until the escape commits** |
-| `block-reveal-click`     | select-all  | one-char document       | **no byte moves until the blur commits**   |
-| `toc-entry-click`        | select-all  | one-char document       | **key at the heading it navigated to**     |
-| `gap-caret-click`        | select-all  | one-char document       | **a paragraph minted at the boundary**     |
+| Gesture                | Build       | If the range survived   | If the range ended                         |
+| ---------------------- | ----------- | ----------------------- | ------------------------------------------ |
+| `dead-space-below`     | select-all  | one-char document       | **key at the caret in the last block**     |
+| `dead-space-margin`    | select-all  | one-char document       | **key at the caret at that line's end**    |
+| `place-caret-at-point` | select-all  | one-char document       | **key at the caret in the last block**     |
+| `image-click`          | select-all  | one-char document       | **the selected image block replaced**      |
+| `drag-handle-press`    | prose range | **range span replaced** | key at the caret the press left            |
+| `escape`               | prose range | range span replaced     | **key at the range's anchor**              |
+| `search-round-trip`    | prose range | **range span replaced** | key at the caret the close returned        |
+| `inline-reveal-click`  | select-all  | one-char document       | **no byte moves until the escape commits** |
+| `block-reveal-click`   | select-all  | one-char document       | **no byte moves until the blur commits**   |
+| `toc-entry-click`      | select-all  | one-char document       | **key at the heading it navigated to**     |
+| `gap-caret-click`      | select-all  | one-char document       | **a paragraph minted at the boundary**     |
 
 Contracts come from observation of each gesture over a live range, not from the lint's
 caret/non-caret classification — pinning to that would make this suite a mirror of the
 thing it cross-checks.
 
-`dead-space-below-table` is the row that has already flipped, and it is worth reading as
-the pattern. It was written against a decline: a table addressed cells rather than
-characters, so the click had no unambiguous landing and left the range for the keystroke
-to replace. At 0.9.36 the table gained a nearest-cell caret target, so the gesture stopped
-being ambiguous — it now ends the range and lands at the end of the geometrically nearest
-cell of the last row, and the key inserts exactly there. **One legal outcome, not two.**
-The decline is no longer a permitted answer for this gesture, so a run that produces it
-is a failure rather than the other half of a pair; the row's build moved to select-all to
-match, which is what puts the disaster (a one-char document) maximally far from the
-prediction.
+`dead-space-below-table` is the row that retired at 0.10.3, and it is worth reading as the pattern. A table addresses cells rather than characters, so a click in the dead space beside or below it has no character surface to land on; the editor now declines that click outright (it ends the range and focuses nothing), so the gesture has no landing to type at and no longer belongs to this family. The band under the last block is the tail insert row's, so every dead-space gesture here aims below it.
 
 Its landing is the family's only NESTED caret. The prediction reaches it because a grid's
 leaf bytes are contiguous inside its ancestors' raw — a cell's raw sits verbatim inside

@@ -15,6 +15,9 @@ const TYPED = 1;
 /** A bare `#` and an empty fence: the load half of the same class, with no typing at all. */
 const LOADED = ['#', '', '```', '```', '', 'para'].join('\n') + '\n';
 
+/** The empty fence alone at the top, the shape the language-chip spec drives the same way. */
+const EMPTY_FENCE_FIRST = ['```', '```', '', 'para'].join('\n') + '\n';
+
 /** A link with no text: five painted bytes, none of which any rung may treat as unseen. */
 const EMPTY_LINK = '[](u)\n';
 
@@ -103,13 +106,18 @@ test.describe('live mode — a typed block opener paints until it has content', 
 		await ep.bridge.waitForSourceContains('```');
 		await ep.waitForRenderFlush();
 		expect(await ep.bridge.getBlockKind(TYPED)).toBe('fencedCode');
-		await expect(ep.getBlock(TYPED).locator('.md-fence-line').first()).toHaveCSS(
-			'display',
-			'inline'
-		);
 
-		await typeSettled(ep, page, 'js');
-		expect(await ep.bridge.getSource()).toContain('```js');
+		// The completed fence offers its language picker; Enter writes the info string and
+		// returns the caret to the body. A fence with a body line to sit on keeps its
+		// backticks hidden, so the typed byte is the proof of where the caret went.
+		const picker = page.locator('.code-lang-picker input');
+		await expect(picker).toBeVisible();
+		await page.keyboard.type('js');
+		await page.keyboard.press('Enter');
+		await ep.bridge.waitForSourceContains('```js');
+		await expect(ep.getBlock(TYPED).locator('.md-fence-line').first()).toHaveCSS('display', 'none');
+		await page.keyboard.type('X');
+		await ep.bridge.waitForSourceContains('```js\nX');
 	});
 
 	// The demote arm reads the walk's landable bound, so painting the chrome makes the press
@@ -151,25 +159,41 @@ test.describe('live mode — a typed block opener paints until it has content', 
 });
 
 test.describe('loaded openers — the paint half needs no typing', () => {
-	test('live paints a bare heading and an empty fence instead of ghosting them', async ({
-		page
-	}) => {
+	// A content-empty opener is silent until the caret arrives: an unfocused bare `#` or empty
+	// fence shows nothing. Focusing the heading paints its marker; focusing the empty fence
+	// completes it with a body line and offers the language picker instead of painting.
+	test('live paints a bare heading and an empty fence once the caret arrives', async ({ page }) => {
 		const ep = await enterPresentationMode(page, 'live', LOADED);
 
-		await expect(markerOf(ep, OPENER)).toHaveCSS('display', 'inline');
+		await expect(markerOf(ep, OPENER)).toHaveCSS('display', 'none');
 		const fenceLines = ep.getBlock(1).locator('.md-fence-line');
 		await expect(fenceLines).toHaveCount(2);
-		await expect(fenceLines.first()).toHaveCSS('display', 'inline');
-		await expect(fenceLines.last()).toHaveCSS('display', 'inline');
+		await expect(fenceLines.first()).toHaveCSS('display', 'none');
+
+		await ep.clickBlock(OPENER);
+		await expect(markerOf(ep, OPENER)).toHaveCSS('display', 'inline');
+
+		// The empty fence stands first in its own document, where its collapsed box is what
+		// the pointer reaches: the rail mounts on hover, and the click completes the fence.
+		const fence = await enterPresentationMode(page, 'live', EMPTY_FENCE_FIRST);
+		await fence.getBlock(0).hover();
+		await fence.clickBlock(0);
+		await fence.bridge.waitForSourceContains('```\n\n```');
+		await expect(page.locator('.code-lang-picker input')).toBeVisible();
 	});
 
-	// The preview rungs reveal on FOCUS; a content-empty block paints unfocused, where they
-	// would otherwise show the same ghost live did.
-	test('preview-inline paints the same chrome on an unfocused block', async ({ page }) => {
+	test('preview-inline paints the same chrome on the focused block only', async ({ page }) => {
 		const ep = await enterPresentationMode(page, 'preview-inline', LOADED);
 
+		await expect(markerOf(ep, OPENER)).toHaveCSS('display', 'none');
+		await ep.clickBlock(OPENER);
 		await expect(markerOf(ep, OPENER)).toHaveCSS('display', 'inline');
-		await expect(ep.getBlock(1).locator('.md-fence-line').first()).toHaveCSS('display', 'inline');
+
+		const fence = await enterPresentationMode(page, 'preview-inline', EMPTY_FENCE_FIRST);
+		await fence.getBlock(0).hover();
+		await fence.clickBlock(0);
+		await fence.bridge.waitForSourceContains('```\n\n```');
+		await expect(page.locator('.code-lang-picker input')).toBeVisible();
 	});
 
 	// Reading takes no keystrokes, so it keeps the rendered document's silence.

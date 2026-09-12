@@ -197,10 +197,16 @@ export async function liveTypeFenceOpener(
 	info: string
 ): Promise<void> {
 	await typedOpener(ctx, blockIndex, async () => {
-		await mintOpener(ctx, '```', 'fencedCode');
-		await ctx.editor.typeSlowly(info);
+		const before = await ctx.editor.bridge.getSource();
+		await ctx.editor.typeSlowly('```');
+		await ctx.editor.bridge.waitForSourceWith((source, prev) => source !== prev, before);
+		// The completed fence offers its language picker, which holds the keys until Enter
+		// writes the info string and returns the caret to the body.
+		await ctx.page.locator('.code-lang-picker input').waitFor({ state: 'visible' });
+		await ctx.page.keyboard.type(info);
+		await ctx.page.keyboard.press('Enter');
 		await ctx.editor.bridge.waitForSourceContains('```' + info);
-		await ctx.editor.waitForRenderFlush();
+		await settleMint(ctx, 'fencedCode', 'typing "```"');
 		ctx.tracker.resync(await ctx.editor.bridge.getSource());
 	});
 }

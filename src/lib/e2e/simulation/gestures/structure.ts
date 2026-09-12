@@ -18,6 +18,37 @@ export async function softEnter(ctx: SimContext): Promise<void> {
 }
 
 /**
+ * A fence typed at the document end completes itself: the closer, an empty body line, and
+ * the language picker, which Enter dismisses. The closer is held as a twin so the body the
+ * note types next predicts before it.
+ */
+export async function typeFenceOpener(ctx: SimContext): Promise<void> {
+	const { page, editor, tracker } = ctx;
+	const before = await editor.bridge.getSource();
+	await editor.typeSlowly('```');
+	await editor.bridge.waitForSourceWith((source, prev) => source !== prev, before);
+	// Live completes the fence on the third backtick; styled source on the Enter that follows.
+	if (!(await editor.bridge.getSource()).includes('```\n\n```')) {
+		await page.keyboard.press('Enter');
+	}
+	await editor.bridge.waitForSourceContains('```\n\n```');
+	await editor.waitForRenderFlush();
+	const picker = page.locator('.code-lang-picker input');
+	if (await picker.isVisible()) {
+		await page.keyboard.press('Enter');
+		await picker.waitFor({ state: 'hidden' });
+	}
+	tracker.resync(await editor.bridge.getSource());
+	tracker.holdTwin('\n```');
+}
+
+/** Enter on the fence's empty last line leaves the block, and the held closer is spent. */
+export async function exitFence(ctx: SimContext): Promise<void> {
+	await actThenResync(ctx, () => ctx.page.keyboard.press('Enter'));
+	ctx.tracker.releaseTwin();
+}
+
+/**
  * The only gesture that authors a hard line break INSIDE a paragraph. It must reach BACKWARD
  * into typed text: Shift+Enter at end-of-block leaves a bare trailing backslash, so no
  * forward-only cadence produces the shape. Leaves the caret mid-block, which the tracker's

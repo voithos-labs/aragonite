@@ -6,11 +6,12 @@
 	// Journal shape: two entries in ONE ancestor scroller, plus a clipped pane no scroll can
 	// reveal. Every editor runs `scrollMode="host"`, so the page owns the scroll.
 
+	// The third block is a divider: it carries the drag handle prose never does, so the
+	// autoscroll drag spec has something to grab.
 	function entry(label: string, count: number): string {
 		return (
-			Array.from(
-				{ length: count },
-				(_, i) => `${label} paragraph ${i} — lorem ipsum dolor sit amet, consectetur.`
+			Array.from({ length: count }, (_, i) =>
+				i === 2 ? '---' : `${label} paragraph ${i} — lorem ipsum dolor sit amet, consectetur.`
 			).join('\n\n') + '\n'
 		);
 	}

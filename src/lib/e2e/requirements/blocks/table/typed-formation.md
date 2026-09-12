@@ -29,6 +29,7 @@ header-shaped row, with the caret at its end, is replaced by the finished table 
 - A row without a leading pipe (`a | b`) falls through. The parser's scan alone would take it, so
   the leading pipe is the intent gate that keeps prose carrying a pipe (`ls | grep foo`) from
   becoming a table
+- Miss-analysis: the transitional hard-break arm read every trailing backslash as a pending break, so the `|` typed after `\` opened a new line; no unit case typed punctuation after a backslash, and this row was the only spec that did.
 - An escaped pipe inside a cell (`| a \| x | b |`) stays cell content, so the row completes with
   two columns, not three
 

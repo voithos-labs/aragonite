@@ -56,20 +56,22 @@ test.describe('code block in live mode — arrows at every edge', () => {
 	test('ArrowDown walks the body lines, then leaves below; ArrowUp mirrors it', async ({
 		page
 	}) => {
-		await editor.focusBlockEnd(0);
+		// A real click seats the caret and settles the sticky column the vertical walk reads;
+		// each read then polls for a landing the handler awaits.
+		await editor.clickBlockAtPath([0], 6);
 		await page.keyboard.press('ArrowDown');
-		expect(await landedIn(editor)).toBe(1);
+		await expect.poll(() => landedIn(editor)).toBe(1);
 		await page.keyboard.press('ArrowDown');
-		expect(await landedIn(editor)).toBe(1);
+		await expect.poll(() => landedIn(editor)).toBe(1);
 		await page.keyboard.press('ArrowDown');
-		expect(await landedIn(editor)).toBe(2);
+		await expect.poll(() => landedIn(editor)).toBe(2);
 
 		await page.keyboard.press('ArrowUp');
-		expect(await landedIn(editor)).toBe(1);
+		await expect.poll(() => landedIn(editor)).toBe(1);
 		await page.keyboard.press('ArrowUp');
-		expect(await landedIn(editor)).toBe(1);
+		await expect.poll(() => landedIn(editor)).toBe(1);
 		await page.keyboard.press('ArrowUp');
-		expect(await landedIn(editor)).toBe(0);
+		await expect.poll(() => landedIn(editor)).toBe(0);
 	});
 });
 

@@ -631,7 +631,10 @@
 	)
 	.list-item-block[data-list-marker='task']
 	.task-checkbox {
-	visibility: hidden;
+	/* Visible inside the hidden ambient marker, its `[ ]` bytes gone by colour: a hidden span
+	   leaves the accessibility tree and the hit-test, and the pseudo-elements draw the box. */
+	visibility: visible;
+	color: transparent;
 	position: relative;
 	display: inline-block;
 	/* Slot + gap; `TASK_HANGING_INDENT` in task-checkbox.ts is these plus the trailing space. */
