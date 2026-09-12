@@ -10,10 +10,11 @@ import type { Document } from '../../core/nodes';
 import type { SelectionState } from '../selection-state.svelte';
 import { tableCellCount } from '../table-endpoint-snap';
 import { CURSOR_END } from '../../block-component';
-import { normalizeLineEndings } from '../../core/lines';
+import { normalizeLineEndings, terminateLine } from '../../core/lines';
 import { performCrossBlockDelete } from './ops';
 import { charOffsetOf } from '../primitives';
 import { focusCollapsedCaret } from '../native-bridge';
+import { blockCoveredWhole } from '../covered-block';
 import { pasteDispatch } from '../../tree-operations/paste/dispatch';
 import { applyPasteTransforms } from '../../tree-operations/paste/paste-transforms';
 import { parse } from '../../core/parser';
@@ -45,10 +46,13 @@ export async function handleCrossBlockPaste(
 
 	const doc = ctx.getDoc();
 
-	// Whole-table selection (Ctrl+A 2nd press inside a cell): replace the table block at the
-	// parent position, single undo. The sub-rectangle path only clears cells, leaving the table.
-	if (isWholeTableSelection(ctx.selection, doc)) {
-		await replaceTableWithPaste(ctx, mutCtx, pasted);
+	// The range holds one block whole, in either addressing: replace the block at its parent
+	// position, single undo. A sub-rectangle inside a table only clears cells, leaving the table.
+	const covered =
+		wholeTablePath(ctx.selection, doc) ??
+		blockCoveredWhole(doc, ctx.selection.anchor, ctx.selection.focus);
+	if (covered) {
+		await replaceCoveredBlockWithPaste(ctx, mutCtx, pasted, covered);
 		return true;
 	}
 
@@ -122,47 +126,50 @@ async function landCaretAfterPaste(
 	}
 }
 
-// ── Whole-table paste ──────────────────────────────────────────────────────
+// ── Covered-block paste ────────────────────────────────────────────────────
 
-function isWholeTableSelection(selection: SelectionState, doc: Document): boolean {
+/** The table a cell rectangle covers whole (Ctrl+A's 2nd press inside a cell), or null. */
+function wholeTablePath(selection: SelectionState, doc: Document): number[] | null {
 	const anchor = selection.anchor;
 	const focus = selection.focus;
-	if (!anchor || !focus) return false;
-	if (!pathsEqual(anchor.path, focus.path)) return false;
+	if (!anchor || !focus) return null;
+	if (!pathsEqual(anchor.path, focus.path)) return null;
 	const node = nodeAt(doc, anchor.path);
-	if (!node || !isBlockNode(node) || node.kind !== 'table') return false;
+	if (!node || !isBlockNode(node) || node.kind !== 'table') return null;
 	const cellCount = tableCellCount(node);
-	if (cellCount === 0) return false;
+	if (cellCount === 0) return null;
 	// Same-path intra-table selection: cell offsets are context-established, so read directly.
 	const lo = Math.min(anchor.offset, focus.offset);
 	const hi = Math.max(anchor.offset, focus.offset);
-	return lo === 0 && hi === cellCount - 1;
+	return lo === 0 && hi === cellCount - 1 ? anchor.path.slice() : null;
 }
 
 /**
- * Replace the selected table block with the pasted content at the table's parent position.
- * Routes through replaceBlockAtParent so the splice lands at the doc/enclosing-container scope
- * rather than the row-level blockEdit TableRowBlock propagates. One snapshot covers the replace.
+ * Replace the covered block with the pasted content at its parent position. Routes through
+ * replaceBlockAtParent so the splice lands at the doc/enclosing-container scope rather than the
+ * row-level blockEdit TableRowBlock propagates. One snapshot covers the replace.
  */
-async function replaceTableWithPaste(
+async function replaceCoveredBlockWithPaste(
 	ctx: CrossBlockDispatchContext,
 	mutCtx: CrossBlockMutationContext,
-	pasted: string
+	pasted: string,
+	blockPath: number[]
 ): Promise<void> {
-	const tablePath = ctx.selection.anchor!.path;
 	const doc = ctx.getDoc();
+	const covered = blockNodeAt(doc, blockPath);
+	if (!covered) return;
 
 	// This route never reaches pasteDispatch, so the paste transforms and the instance grammar
-	// ride here too; both rules live in the helper, applied at both sites.
-	const parsed = parse(applyPasteTransforms(pasted, ctx.activePlugins), {
-		grammar: ctx.grammar,
-		scope: 'fragment'
-	});
+	// ride here too; both rules live in the helper, applied at both sites. Terminated in the
+	// covered block's OWN ending, or an unterminated clipboard line leaves the block below
+	// flowing into the last one pasted (G4.20).
+	const parsed = parse(
+		terminateLine(applyPasteTransforms(pasted, ctx.activePlugins), covered.raw),
+		{ grammar: ctx.grammar, scope: 'fragment' }
+	);
 	if (parsed.children.length === 0) return;
 
-	const tableNode = blockNodeAt(doc, tablePath);
-	if (!tableNode) return;
-	const replacement = normalizeReplacementTrivia(tableNode, parsed.children);
+	const replacement = normalizeReplacementTrivia(covered, parsed.children);
 	for (const node of replacement) ensureEditableContainers(node);
 
 	mutCtx.pushUndoSnapshot();
@@ -170,15 +177,15 @@ async function replaceTableWithPaste(
 
 	await replaceBlockAtParent({
 		doc,
-		blockPath: tablePath,
+		blockPath,
 		replacement,
 		controller: ctx.pasteCoordinator,
 		undoEntry: 'join',
 		focusReplacementIndex: replacement.length - 1,
 		focusOffset: CURSOR_END,
-		source: 'cross-block-paste-whole-table',
+		source: 'cross-block-covered-block',
 		...(ctx.grammar ? { grammar: ctx.grammar } : {}),
-		// Nothing is reattached behind the clipboard here — the table's whole slot is the target —
+		// Nothing is reattached behind the clipboard here — the block's whole slot is the target —
 		// so the trailing blank rides in unfiltered (`paste/dispatch.ts` states the rule).
 		trailingSeparator: parsed.suffix
 	});

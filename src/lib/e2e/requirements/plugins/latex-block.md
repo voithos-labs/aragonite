@@ -37,7 +37,8 @@ could not prove (the Task 10 reveal-primitive finding deferred it here).
 ## Edge cases (spec's named highest-risk)
 
 - **A1** the caret is preserved across the swap: after reveal it sits at the requested
-  source offset (leading edge on click), not displaced to a block edge by the reactive
+  source offset (the leading edge when it arrives by arrow; the pressed point when by click,
+  which `latex-block-click-caret.md` owns), not displaced to a block edge by the reactive
   re-render; a char then typed inside the formula lands at the caret
 - **A7** a multiline `aligned` fence renders, and its revealed source, painted as fence
   lines and highlight spans, has a `textContent` equal to the raw byte-for-byte (internal

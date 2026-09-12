@@ -33,6 +33,12 @@ export const HARDCODED_CHORD_SITES: readonly HardcodedChordSite[] = [
 		note: 'Mod-click link activation — no keystroke is consumed.'
 	},
 	{
+		file: 'components/editor-root-keydown.ts',
+		chords: [],
+		keys: ['Escape'],
+		note: 'Escape closes the find bar (a reserved UI chord, enumerated). The modifier read is a REFUSAL: an unchorded character over a live range goes to the range’s text door, a chorded one to the arms below it.'
+	},
+	{
 		file: 'components/editor-root-listeners.ts',
 		chords: [],
 		keys: [],

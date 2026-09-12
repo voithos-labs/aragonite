@@ -52,6 +52,21 @@ function fenceLine(text: string): HTMLSpanElement {
 }
 
 /**
+ * Where the body sits inside the block's source. The fence lines carry no glyph of their own, so
+ * a point measured against the rendered equation names a place in this span and nowhere else.
+ */
+export function mathBodySpan(text: string): { start: number; end: number } {
+	if (/^[ \t]*(?:`{3,}|~{3,})/.test(text)) {
+		const firstBreak = text.indexOf('\n');
+		if (firstBreak === -1) return { start: text.length, end: text.length };
+		const closer = /(?:\r?\n)?[ \t]*(?:`{3,}|~{3,})[ \t]*\r?\n?$/.exec(text);
+		return { start: firstBreak + 1, end: closer ? closer.index : text.length };
+	}
+	const { opener, body } = sliceMathSource(text);
+	return { start: opener.length, end: opener.length + body.length };
+}
+
+/**
  * A `$$` block with no body LINE — `$$$$`, `$$\n$$`, a whitespace-only one-liner — has nowhere
  * for a caret to sit once the fence lines hide, and Backspace has no byte it could mean. The
  * completion every such block takes as its source is revealed: opener, one empty body line,

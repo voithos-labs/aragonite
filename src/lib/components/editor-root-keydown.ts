@@ -16,7 +16,7 @@ import type { CrossBlockHandlers } from '../selection/cross-block/dispatch';
 import type { CommandErrorSink } from '../schema/block-commands';
 import type { KeybindingOverrideMap } from '../schema/keybinding-overrides';
 import { isReservedUiChord, runGlobalChord, type GlobalCommandContext } from '../schema/commands';
-import { eventToChord } from '../schema/keybindings';
+import { eventToChord, isCharacterKey } from '../schema/keybindings';
 
 export interface EditorRootKeydownDeps {
 	/** Getters, never values: a capture freezes the reading-mode gate and the
@@ -35,7 +35,7 @@ export interface EditorRootKeydownDeps {
 	 *  chords. `undefined` = every installed plugin. */
 	activation: PluginActivation | undefined;
 	onCommandError: CommandErrorSink;
-	crossBlock: Pick<CrossBlockHandlers, 'handleKeyDown'>;
+	crossBlock: Pick<CrossBlockHandlers, 'handleKeyDown' | 'insertText'>;
 	/** True for nodes in the host's `header` slot: they sit inside `root.contains`
 	 *  without being the editor's own content. */
 	isHostChrome(node: Node | null): boolean;
@@ -135,7 +135,18 @@ export function createEditorRootKeydown(deps: EditorRootKeydownDeps): EditorRoot
 				return;
 			}
 
-			if (deps.isCrossBlock) void deps.crossBlock.handleKeyDown(event);
+			if (!deps.isCrossBlock) return;
+
+			// A range whose blocks host no character position leaves no editing surface focused, so
+			// no `beforeinput` ever fires for a typed character and this is the only door it has.
+			// Composition still belongs to the browser, and a chorded key is not text.
+			if (isCharacterKey(event.key) && !event.isComposing && !event.ctrlKey && !event.metaKey) {
+				event.preventDefault();
+				void deps.crossBlock.insertText(event.key);
+				return;
+			}
+
+			void deps.crossBlock.handleKeyDown(event);
 		}
 	};
 }
