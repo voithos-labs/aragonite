@@ -6,6 +6,7 @@
  */
 
 import {
+	caretOffsetAtPoint,
 	createScanIndex,
 	declarePluginInlineKind,
 	declarePluginKind,
@@ -18,6 +19,7 @@ import {
 	matchFenceOpen,
 	matchFenceClose,
 	OPENER_PRIORITIES,
+	type CaretTarget,
 	type PluginInlineKind,
 	type InlineNode,
 	type CstNode,
@@ -141,10 +143,7 @@ export function registerMathBlock(): void {
 		// edge can grow a sibling.
 		gapEdges: 'both',
 		conformanceFixture: '$$\nx^2\n$$\n',
-		// A click on the rendered equation seats the caret at the END of the source, as a click on
-		// inline math does; the leaf clamps it inside the fence. (Past the end is fine: the reveal
-		// clamps to the source length first.)
-		caretTargetAtPoint: () => ({ path: [], offset: Number.MAX_SAFE_INTEGER }),
+		caretTargetAtPoint: mathCaretAtPoint,
 		closure: simpleLeafClosure({
 			focus: {
 				mode: 'implemented',
@@ -202,6 +201,28 @@ export function registerMathBlock(): void {
 	registerMathFence();
 }
 
+/** Where a press on the folded equation puts the caret. KaTeX paints glyphs, not source bytes,
+ *  so the press walks the body span in proportion to how far along the equation it fell; the
+ *  fence lines carry no glyph of their own. */
+function mathCaretAtPoint(
+	blockEl: HTMLElement,
+	clientX: number,
+	clientY: number
+): CaretTarget | null {
+	const render = blockEl.querySelector<HTMLElement>('.math-block-render');
+	if (!render) return null;
+	const start = Number(render.dataset.bodyStart);
+	const end = Number(render.dataset.bodyEnd);
+	if (!Number.isFinite(start) || !Number.isFinite(end)) return null;
+	// `.katex-html` is the painted half: its MathML twin is clipped to a pixel, and the pair
+	// measured together answers for a point no reader aimed at.
+	const glyphs = render.querySelector<HTMLElement>('.katex-html');
+	const along = glyphs ? caretOffsetAtPoint(glyphs, clientX, clientY) : null;
+	const total = glyphs?.textContent?.length ?? 0;
+	if (along === null || total === 0) return { path: [], offset: end };
+	return { path: [], offset: start + Math.round((along / total) * (end - start)) };
+}
+
 // ── Fenced ```math display math ─────────────────────────────────────────────────
 // GitHub's third math form: a source-holding leaf like the `$$` block, rendered by
 // the same component.
@@ -221,6 +242,7 @@ export function registerMathFence(): void {
 		editable: true,
 		supportsInline: false,
 		gapEdges: 'both',
+		caretTargetAtPoint: mathCaretAtPoint,
 		conformanceFixture: '```math\nx^2\n```\n',
 		closure: simpleLeafClosure({
 			focus: {

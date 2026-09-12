@@ -25,7 +25,7 @@
 	};
 	import { renderDisplayMath } from './math-renderer';
 	import { mathDisplaySource } from './latex-kind';
-	import { completeBareMathSource, renderMathSource } from './math-source';
+	import { completeBareMathSource, mathBodySpan, renderMathSource } from './math-source';
 	import { resolveDefaultLayout, type MathBlockLayout } from './math-layout';
 
 	let {
@@ -96,8 +96,14 @@
 		if (!renderEl) return;
 		// Runs while REVEALED as well: the split keeps a live preview beside the source, so the
 		// equation re-renders as it is typed rather than only when the source folds away.
-		const source = mathDisplaySource(draft ?? leaf.sourceText);
+		const text = draft ?? leaf.sourceText;
+		const source = mathDisplaySource(text);
 		renderEl.replaceChildren(renderDisplayMath(source).dom);
+		// The span a press on the glyphs lands in: the descriptor's `caretTargetAtPoint` reads the
+		// rendered element alone and has no other way to the bytes behind it.
+		const body = mathBodySpan(text);
+		renderEl.dataset.bodyStart = String(body.start);
+		renderEl.dataset.bodyEnd = String(body.end);
 		// An equation with nothing in it renders nothing, which folded would be an invisible block
 		// the user cannot find to delete; it keeps the card's fill instead, like an empty fence.
 		renderEl.toggleAttribute('data-empty', source.trim() === '');
