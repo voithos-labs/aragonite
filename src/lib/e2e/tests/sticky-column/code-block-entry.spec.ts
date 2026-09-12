@@ -124,15 +124,19 @@ test.describe('sticky column: code block entry symmetry', () => {
 			return -1;
 		}, BLOCK_CONTENT_SELECTOR);
 		expect(codeBlockIndex).toBeGreaterThan(0);
+		const landedIn = async () => (await editor.bridge.getSelectionPaths())?.anchor.path[0];
 
-		const aboveBlock = editor.getBlock(codeBlockIndex - 1);
-		const aboveBox = await aboveBlock.boundingBox();
+		// The block above is an ordered list, so the line ArrowDown leaves from is its LAST item;
+		// leaving from any other lands in the next item, and a list column is not a code landing.
+		const aboveLine = editor.page.locator(`[data-block-path='[${codeBlockIndex - 1},2,0]']`);
+		const aboveBox = await aboveLine.boundingBox();
 		expect(aboveBox).not.toBeNull();
-		await aboveBlock.click({ position: { x: aboveBox!.width - 20, y: 10 } });
+		await aboveLine.click({ position: { x: aboveBox!.width - 20, y: aboveBox!.height / 2 } });
 		await editor.waitForRenderFlush();
 		const capturedAboveX = await editor.getCaretPixelX();
 		await editor.page.keyboard.press('ArrowDown');
 		await editor.waitForRenderFlush();
+		expect(await landedIn()).toBe(codeBlockIndex);
 		const landAboveX = await editor.getCaretPixelX();
 
 		await resetStickyByClickingOutside(editor);
@@ -146,6 +150,7 @@ test.describe('sticky column: code block entry symmetry', () => {
 		const capturedBelowX = await editor.getCaretPixelX();
 		await editor.page.keyboard.press('ArrowUp');
 		await editor.waitForRenderFlush();
+		expect(await landedIn()).toBe(codeBlockIndex);
 		const landBelowX = await editor.getCaretPixelX();
 
 		// Entry from above and below land on DIFFERENT body lines, where nearest-column

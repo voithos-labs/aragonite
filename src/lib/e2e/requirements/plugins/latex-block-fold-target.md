@@ -19,8 +19,9 @@ Fixture: `/test/plugins?seed=mathblock`.
 
 ## Edge cases
 
-- `$$` + Enter mints a math block with the caret in its revealed source; Mod+Z there returns the
-  paragraph rather than moving the document forward with the draft
+- `$$` + Enter mints a math block with the caret in its revealed source; Mod+Z there walks the
+  typed draft back a keystroke per press, and the press after the last one returns the paragraph
+  rather than moving the document forward with the draft
 - Repeated Mod+Z keeps walking back; no press is swallowed
 
 ## Miss-analysis

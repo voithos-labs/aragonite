@@ -81,21 +81,30 @@ test.describe('code language chip — when it shows', () => {
 		await expect(chipButton(page)).toHaveText('text');
 	});
 
-	// A content-empty fence paints its own dimmed markers AND gets the rail. The two
-	// overlapping is deliberate: the picker is the authoring path for a language now, and a
-	// fence with no language is exactly where it is wanted. The markers stay because the
-	// caret walk mirrors that rule (`cursor/widget-offset.ts`) and must not diverge from it.
-	test('a content-empty fence keeps its own chrome AND gets the rail', async ({ page }) => {
+	// A content-empty fence gets the rail like any other. Its own markers paint only while the
+	// caret is inside (`cursor/widget-offset.ts` mirrors that gate), and the caret arriving
+	// completes the bare fence so there is a body line to sit on, then offers a language: the
+	// picker is the authoring path, and a fence with no language is exactly where it is wanted.
+	test('a content-empty fence gets the rail; the caret arriving completes it and asks for a language', async ({
+		page
+	}) => {
 		const editor = await loadLive(page, EMPTY_FENCE);
 		await editor.getBlock(0).hover();
 
 		expect(await editor.bridge.getBlockKind(0)).toBe('fencedCode');
 		await expect(rail(page)).toHaveCount(1);
 		await expect(chipButton(page)).toHaveText('text');
-		await expect(editor.getBlock(0).locator('.md-fence-line').first()).toHaveCSS(
-			'display',
-			'inline'
-		);
+		await expect(editor.getBlock(0).locator('.md-fence-line').first()).toHaveCSS('display', 'none');
+
+		await editor.getBlock(0).click();
+		await editor.bridge.waitForSourceEquals('```\n\n```\n\n# Heading\n');
+		await expect(chipInput(page)).toBeVisible();
+
+		// Escape hands the caret back to the body line it completed.
+		await page.keyboard.press('Escape');
+		await expect(chipInput(page)).toHaveCount(0);
+		await page.keyboard.type('x');
+		await editor.bridge.waitForSourceEquals('```\nx\n```\n\n# Heading\n');
 	});
 
 	// The reveal takes the child combinator: a container's hover is not its nested block's.

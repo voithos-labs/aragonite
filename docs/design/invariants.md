@@ -241,7 +241,7 @@ Three families of seam run these checks:
 | G1.25 | Widget-pool acquires happen only inside an open render pass                         | A·N     |
 | G1.26 | A fold implies an active reveal, and an open reveal blocks command mutation         | A·N     |
 | G1.27 | `compositionend` lands only inside a composition the surface saw start              | A·N     |
-| G1.28 | A code block's rendered text carries the block's bytes exactly                      | A·N     |
+| G1.28 | A code block's render and a painted leaf source carry the block's bytes exactly     | A·N     |
 | G1.29 | A cross-block endpoint's offset means what its own block's coordinate space says    | A·N     |
 | G1.30 | Every registered kind declares a `mergeRole` from the known set                     | A·N     |
 | G1.31 | The inline-construct policy table is coherent and unambiguous                       | A·N     |
@@ -476,8 +476,12 @@ exactly: `textContent === trimTrailingLineEnding(raw)`. The body round-trips thr
 `template.innerHTML`, and the HTML parser's normalizations (U+0000 dropped outright, engine-defined
 line-ending and surrogate handling) could silently eat a byte the CST still holds, while the block
 reads `textContent` back on every keystroke commit (the indent, dedent and cut gestures read
-`node.raw` instead). Predicate `checkRenderedTextFidelity` (`render-fidelity.ts`) · seam
-`components/blocks/code/code-renderer.ts :: renderCodeBlock` · `render-fidelity.test.ts`.
+`node.raw` instead). A painted editable-leaf source is held to the same equality at the leaf's one
+paint seam, whatever plugin supplied the painter, since the fold commits `textContent` on blur.
+Predicate `checkRenderedTextFidelity` (`render-fidelity.ts`) · seams
+`components/blocks/code/code-renderer.ts :: renderCodeBlock` and
+`components/blocks/editable-leaf.ts :: paintSource` · `render-fidelity.test.ts`,
+`test/blocks/editable-leaf-painted-fidelity.test.ts`.
 
 **G1.29 · Cross-block endpoint coordinates.** An endpoint's offset means what its own block's
 coordinate space says. A table endpoint carries `cellCoordinate: true`, so it reads as a cell index

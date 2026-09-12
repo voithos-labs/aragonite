@@ -61,9 +61,9 @@ export const HARDCODED_CHORD_SITES: readonly HardcodedChordSite[] = [
 	},
 	{
 		file: 'components/blocks/editable-leaf.ts',
-		chords: ['Mod+Shift+Z', 'Mod+Y', 'Mod+Z'],
-		keys: ['Backspace', 'Enter', 'Y', 'Z'],
-		note: "Shift-click gate on the rendered surface — a pointer read; plain Backspace (no modifier) at the top of an empty painted source deletes the block, as the code block does; the undo chords step an open reveal's own edits before falling through to the document's history."
+		chords: [],
+		keys: ['Backspace', 'Enter'],
+		note: "Shift-click gate on the rendered surface — a pointer read; plain Backspace (no modifier) at the top of an empty painted source deletes the block, as the code block does. The reveal's own undo resolves its chord through the keymap, so it claims none here."
 	},
 	{
 		file: 'components/link-card/LinkCard.svelte',

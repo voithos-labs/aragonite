@@ -315,6 +315,7 @@ export function landableDomTextBounds(container: ParentNode): {
 	let start = 0;
 	let end = 0;
 	let landed = false;
+	let lastText: Node | null = null;
 	for (const seg of landingSegments(container, markerHidingMode(container))) {
 		if (seg.len === 0) continue;
 		const stop = seg.start + seg.len;
@@ -326,8 +327,28 @@ export function landableDomTextBounds(container: ParentNode): {
 		}
 		landed = true;
 		end = stop;
+		lastText = seg.kind === 'text' ? seg.node : null;
+	}
+	// The position after the last landable run's final `\n` is the start of a line nothing
+	// paints: the engine seats no caret there, so an end gate reading it never fires and the
+	// caret is stuck on the empty line. A caret anchor gives that line its paint and keeps it.
+	if (lastText?.textContent?.endsWith('\n') && !followedByCaretAnchor(lastText, container)) {
+		end -= 1;
 	}
 	return { start: asDomTextOffset(start), end: asDomTextOffset(Math.max(start, end)) };
+}
+
+/** Whether the next painted node after `text`, at any depth above it, is a caret anchor. */
+function followedByCaretAnchor(text: Node, root: ParentNode): boolean {
+	for (let node: Node | null = text; node && node !== root; node = node.parentNode) {
+		let next = node.nextSibling;
+		while (next?.nodeType === Node.TEXT_NODE && (next.textContent?.length ?? 0) === 0) {
+			next = next.nextSibling;
+		}
+		if (next)
+			return next instanceof HTMLElement && next.tagName === 'BR' && 'caretAnchor' in next.dataset;
+	}
+	return false;
 }
 
 /**
