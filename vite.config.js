@@ -1,4 +1,5 @@
-import { defineConfig } from 'vite';
+import { realpathSync } from 'node:fs';
+import { defineConfig, searchForWorkspaceRoot } from 'vite';
 import { sveltekit } from '@sveltejs/kit/vite';
 
 // E2E broken-image tests hit /test-fixtures/nonexistent.png on purpose, and SvelteKit's
@@ -34,9 +35,15 @@ const usePolling = process.env.ARAGONITE_POLL === '1';
 
 export default defineConfig({
 	plugins: [silenceBrokenImageFixture, sveltekit()],
+	// Per checkout, not the default under the junctioned `node_modules`: sibling worktrees' dev
+	// servers would re-optimize one shared pre-bundle under each other and 500 every page.
+	cacheDir: '.svelte-kit/vite-cache',
 	server: {
 		port: 1420,
 		strictPort: true,
+		// A worktree's `node_modules` is a junction into the main checkout, and Vite resolves the
+		// real path before its allow-list check, so the fonts 403 unless that target is allowed.
+		fs: { allow: [searchForWorkspaceRoot(process.cwd()), realpathSync('node_modules')] },
 		watch: {
 			// A nested worktree under `.claude/` is not this app; a write there reloaded every open
 			// e2e page mid-battery. The rest are inert bulk that polling must never walk.
