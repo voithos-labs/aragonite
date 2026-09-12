@@ -57,11 +57,12 @@
 	}
 
 	/* The hit target is bigger than the glyph: a 16px box in a gutter is a target the pointer
-	   misses between two rows, and a miss here reads as the grip belonging to the block above. */
+	   misses between two rows, and a miss here reads as the grip belonging to the block above.
+	   Never past the strip's right edge, which is the content's first character. */
 	.grip::before {
 		content: '';
 		position: absolute;
-		inset: -8px -4px;
+		inset: -8px 0 -8px -4px;
 	}
 
 	/* Touch never fires the hover reveal, so the handle shows unasked. */
