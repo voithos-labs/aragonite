@@ -1,8 +1,8 @@
 /**
  * The block context menu's vocabulary: what a right-click on a block of a given kind offers.
  * A kind's own providers come first, then the ones registered for every kind (`'*'`: the
- * editor's default Delete). Providers are consulted on every open, so they read the block as it
- * is. Built-in kinds register theirs at bootstrap; a plugin registers through the public barrel.
+ * editor's copy, replace and remove rows). Providers are consulted on every open, so they read
+ * the block as it is. The defaults register at bootstrap; a plugin registers through the barrel.
  */
 export const EVERY_KIND = '*';
 import type { NodeView } from '../core/node-views';

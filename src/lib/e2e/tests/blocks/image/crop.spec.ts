@@ -165,7 +165,8 @@ test.describe('image crop', () => {
 		expect(during.ih).toBeGreaterThanOrEqual(during.fh - 1);
 
 		await page.mouse.up();
-		await editor.bridge.waitForSourceMatches(/!\[cat\|\d+x\d+@30,60,2\]/);
+		// Not the loaded 300x150: a predicate the fixture already satisfies settles on nothing.
+		await editor.bridge.waitForSourceMatches(/!\[cat\|(?!300x150)\d+x\d+@30,60,2\]/);
 	});
 
 	test('resizing a cropped image keeps the frame shape', async ({ page }) => {
@@ -178,9 +179,33 @@ test.describe('image crop', () => {
 		await page.mouse.down();
 		await page.mouse.move(hb.x + hb.width / 2 + 100, hb.y + hb.height / 2, { steps: 8 });
 		await page.mouse.up();
-		await editor.bridge.waitForSourceMatches(/!\[cat\|(\d+)x(\d+)@30,60\]/);
+		await editor.bridge.waitForSourceMatches(/!\[cat\|(?!200x100)\d+x\d+@30,60\]/);
 		const m = /!\[cat\|(\d+)x(\d+)@30,60\]/.exec(await editor.bridge.getSource())!;
 		expect(Number(m[1])).toBeGreaterThan(200);
 		expect(Math.abs(Number(m[1]) / Number(m[2]) - 2)).toBeLessThan(0.05);
+	});
+
+	test('a loaded crop survives its own commit byte for byte, and a pan is one undo away', async ({
+		page
+	}) => {
+		const loaded = '![cat|200x100@30,60,1.5](/test-fixtures/sample.png)\n';
+		await editor.loadContent(loaded);
+		await selectAndStartCrop(page);
+		await page.keyboard.press('Enter');
+		await editor.waitForNoSourceMutation();
+		expect(await editor.bridge.getSource()).toBe(loaded);
+		await expect(page.locator('[data-image-widget].md-image-cropped')).toHaveCount(1);
+
+		const widget = await selectAndStartCrop(page);
+		const box = (await widget.boundingBox())!;
+		await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+		await page.mouse.down();
+		await page.mouse.move(box.x + box.width / 2 - 40, box.y + box.height / 2, { steps: 6 });
+		await page.mouse.up();
+		await page.keyboard.press('Enter');
+		await editor.bridge.waitForSourceMatches(/@(?!30,)\d+,60,1\.5\]/);
+
+		await editor.undo();
+		await editor.bridge.waitForSourceEquals(loaded);
 	});
 });

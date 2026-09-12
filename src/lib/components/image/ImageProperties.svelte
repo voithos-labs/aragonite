@@ -453,7 +453,8 @@
 		outline: none;
 		font-family: var(--font-ui, system-ui, sans-serif);
 	}
-	.md-image-properties.inside {
+	/* `inside` is the placement attachment's own class, written outside the template. */
+	.md-image-properties:global(.inside) {
 		top: 8px;
 		flex-direction: row;
 	}
@@ -501,7 +502,7 @@
 		left: auto;
 		right: calc(100% + 6px);
 	}
-	.inside .md-image-field {
+	.md-image-properties:global(.inside) .md-image-field {
 		left: auto;
 		right: 0;
 		top: calc(100% + 6px);

@@ -65,9 +65,10 @@ SOFTWARE.
 
 ## Lucide (ISC)
 
-The code block's rail embeds icon path data from Lucide
-(`src/lib/components/blocks/code/CodeBlockRail.svelte`). The paths are inlined rather than
-taken as a dependency; no Lucide code ships.
+The editor's own chrome embeds icon path data from Lucide: the code block's rail
+(`src/lib/components/blocks/code/CodeBlockRail.svelte`) and the menus, the image toolbar and the
+demo's selection bar (`src/lib/components/menu/MenuIcon.svelte`). The paths are inlined rather
+than taken as a dependency; no Lucide code ships.
 
 ```
 ISC License

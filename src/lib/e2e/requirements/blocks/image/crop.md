@@ -28,7 +28,15 @@ own tail on the Obsidian-style size hint (`image-dimensions.ts`, `image-source-b
   restores the image untouched, with no source change and no undo entry
 - a committed crop renders as a fixed frame (`md-image-cropped`, `object-fit: cover`) the image
   pans inside; resizing it keeps the frame's shape
+- a crop loaded from bytes survives its own commit byte for byte (the tick over an untouched
+  session writes nothing new), and a pan that does write is one undo away from the loaded bytes
 - the resize grip on a cropped image resizes the FRAME, previewed on the frame rather than on
   the picture panned inside it: the picture keeps covering the frame at every point of the drag,
   and the frame keeps its shape (Shift unlocks nothing here — the brackets change a frame's
   aspect)
+
+## Miss-analysis
+
+Two settles after a grip drag matched the loaded fixture's own bytes (`300x150@30,60,2`,
+`200x100@30,60`), so a drag that wrote nothing would have passed them; G4.22 caught the
+vacuity on the merged tree, and the predicates now exclude the loaded size.

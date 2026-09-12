@@ -27,15 +27,16 @@ test.describe('/ showcase chrome', () => {
 		await expect(page.locator('.toc-block-item').first()).toBeVisible();
 	});
 
-	test('theme toggle flips the editor between dark and light', async ({ page }) => {
+	test('theme toggle flips the editor between light and dark', async ({ page }) => {
 		const editor = page.locator('.editor');
-		await expect(editor).toHaveAttribute('data-editor-theme', 'dark');
-
-		await page.getByTestId('theme-toggle').click();
+		// Light is the showcase's default; the editor's own `theme` default stays dark.
 		await expect(editor).toHaveAttribute('data-editor-theme', 'light');
 
 		await page.getByTestId('theme-toggle').click();
 		await expect(editor).toHaveAttribute('data-editor-theme', 'dark');
+
+		await page.getByTestId('theme-toggle').click();
+		await expect(editor).toHaveAttribute('data-editor-theme', 'light');
 	});
 
 	test('drag-handles toggle drops the grips and carries the edit across the remount', async ({
@@ -96,10 +97,14 @@ test.describe('/ showcase chrome', () => {
 		page
 	}) => {
 		const toolbar = page.getByTestId('selection-toolbar');
-		// Both toolbars belong to live mode; the markdown-first default shows neither.
+		// Both toolbars belong to live mode, the showcase's default: a markdown-first mode mounts
+		// neither, and flipping back brings the strip in (the bar waits for a selection).
+		await expect(page.getByTestId('insert-toolbar')).toHaveCount(1);
+		await page.locator('.showcase-mode[data-mode="source"]').click();
 		await expect(toolbar).toHaveCount(0);
 		await expect(page.getByTestId('insert-toolbar')).toHaveCount(0);
 		await page.locator('.showcase-mode[data-mode="live"]').click();
+		await expect(page.getByTestId('insert-toolbar')).toHaveCount(1);
 
 		const intro = page.locator('.block-host [contenteditable]').first();
 		await intro.click();

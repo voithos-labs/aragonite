@@ -36,8 +36,6 @@
 	} from '../cursor/scroll-ancestors';
 	import { createScrollport, type Scrollport } from '../cursor/scrollport';
 	import { createDeadSpaceCaret } from '../selection/dead-space-caret';
-	import { selectWordAtPoint, trimDoubleClickSelection } from '$lib/selection/double-click-trim';
-	import { isEditableEventTarget } from '$lib/editor-actions/whole-block-focus-surface';
 	import { resetForPointerDown } from '../selection/cross-block/pointer';
 	import { installDragListener } from '../selection/drag-pointer';
 	import { createContentVersion } from '../reactivity/content-version.svelte';
@@ -114,6 +112,7 @@
 		installWidthWatcher
 	} from './editor-root-geometry';
 	import {
+		installDoubleClickWordSelect,
 		installEditorBlurAnnouncer,
 		installModActiveTracker,
 		installSelectionChangeBridge,
@@ -800,14 +799,7 @@
 		};
 		return removeAll(
 			onRoot(root, 'click', handleClick),
-			// The second press of a double-click: the word is selected here, trimmed, before the
-			// browser can paint its own wider range. The dblclick trim stays as the fallback.
-			onRoot(root, 'mousedown', (e: MouseEvent) => {
-				if (e.detail !== 2 || e.button !== 0 || e.shiftKey || e.ctrlKey || e.metaKey) return;
-				if (!isEditableEventTarget(e.target)) return;
-				if (selectWordAtPoint(root.ownerDocument, e.clientX, e.clientY)) e.preventDefault();
-			}),
-			onRoot(root, 'dblclick', () => trimDoubleClickSelection(root.ownerDocument)),
+			installDoubleClickWordSelect(root),
 			onRoot(root, 'pointerdown', startMarginDrag),
 			onRoot(root, 'mousedown', (e: MouseEvent) => {
 				deadSpaceCaret.notePress(root, e);

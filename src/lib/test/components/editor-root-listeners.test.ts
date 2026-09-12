@@ -2,6 +2,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { tick } from 'svelte';
 import {
+	installDoubleClickWordSelect,
 	installEditorBlurAnnouncer,
 	installModActiveTracker,
 	installSelectionChangeBridge
@@ -189,5 +190,67 @@ describe('editor-root listeners — selectionchange bridge', () => {
 		selectInside(b.content);
 		fire();
 		expect(b.emits()).toBe(0);
+	});
+});
+
+// ── Double-click word select ─────────────────────────────────────────────────
+
+// Miss-analysis: the second-press listener lived inline in Editor.svelte with no test at its own
+// level, so the one press it must decline — one on an inline widget that owns its double-click —
+// was only ever caught by a footnote spec two layers up.
+describe('editor-root listeners — double-click word select', () => {
+	function mounted() {
+		const root = document.createElement('div');
+		const editable = document.createElement('p');
+		editable.setAttribute('contenteditable', 'true');
+		editable.textContent = 'hello world';
+		const widget = document.createElement('span');
+		widget.setAttribute('data-inline-widget', '');
+		widget.textContent = '[^a]';
+		editable.append(widget);
+		// jsdom leaves isContentEditable unimplemented; the fixture answers for the browser.
+		for (const el of [editable, widget]) {
+			Object.defineProperty(el, 'isContentEditable', { value: true });
+		}
+		root.append(editable);
+		document.body.append(root);
+		teardowns.push(installDoubleClickWordSelect(root));
+		return { root, editable, widget };
+	}
+
+	function secondPress(target: Element, init: MouseEventInit = {}): MouseEvent {
+		const event = new MouseEvent('mousedown', {
+			detail: 2,
+			button: 0,
+			bubbles: true,
+			cancelable: true,
+			...init
+		});
+		target.dispatchEvent(event);
+		return event;
+	}
+
+	it('leaves a second press on an inline widget to the widget', () => {
+		const t = mounted();
+		expect(secondPress(t.widget).defaultPrevented).toBe(false);
+	});
+
+	it('leaves a modified second press to the browser', () => {
+		const t = mounted();
+		expect(secondPress(t.editable, { ctrlKey: true }).defaultPrevented).toBe(false);
+		expect(secondPress(t.editable, { shiftKey: true }).defaultPrevented).toBe(false);
+	});
+
+	it('leaves a press outside an editable surface alone', () => {
+		const t = mounted();
+		expect(secondPress(t.root).defaultPrevented).toBe(false);
+	});
+
+	it("the dblclick trims the trailing space off the browser's own word selection", () => {
+		const t = mounted();
+		const text = t.editable.firstChild as Text;
+		document.getSelection()!.setBaseAndExtent(text, 0, text, 6);
+		t.editable.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+		expect(document.getSelection()!.toString()).toBe('hello');
 	});
 });

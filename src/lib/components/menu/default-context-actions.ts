@@ -41,6 +41,11 @@ export function isProseBackground(node: NodeView): boolean {
 
 let registered = false;
 
+/** Test-only. */
+export function __resetDefaultContextActionsForTests(): void {
+	registered = false;
+}
+
 export function registerDefaultContextActions(): void {
 	if (registered) return;
 	registered = true;

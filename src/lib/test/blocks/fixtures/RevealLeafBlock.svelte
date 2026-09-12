@@ -7,8 +7,16 @@
 		node,
 		index,
 		myPath = [],
-		singleLine = false
-	}: { node: NodeView; index: number; myPath?: number[]; singleLine?: boolean } = $props();
+		singleLine = false,
+		painted = false
+	}: {
+		node: NodeView;
+		index: number;
+		myPath?: number[];
+		singleLine?: boolean;
+		/** Paint the source as DOM, which is what gives the reveal an undo stack of its own. */
+		painted?: boolean;
+	} = $props();
 
 	let sourceEl: HTMLDivElement | undefined = $state();
 	let revealed = $state(false);
@@ -16,6 +24,14 @@
 	// Static config, captured once on purpose: the factory reads it at the call, not live.
 	// svelte-ignore state_referenced_locally
 	const oneLine = singleLine;
+	// svelte-ignore state_referenced_locally
+	const paintSource = painted
+		? (text: string) => {
+				const fragment = document.createDocumentFragment();
+				fragment.append(document.createTextNode(text));
+				return fragment;
+			}
+		: undefined;
 
 	const leaf = createEditableLeaf({
 		getNode: () => node,
@@ -24,6 +40,7 @@
 		getEl: () => sourceEl ?? null,
 		mode: 'render-primary',
 		singleLine: oneLine,
+		renderSource: paintSource,
 		isRevealed: () => revealed,
 		setRevealed: (next) => (revealed = next)
 	});

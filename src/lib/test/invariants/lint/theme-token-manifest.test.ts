@@ -13,6 +13,7 @@ import { readEditorFile, stripComments } from './scan-source';
 import { declaredValue, LIGHT_SELECTOR, themeBlocks } from './theme-css';
 
 const THEMED_TOKENS = [
+	'--color-bg',
 	'--color-surface',
 	'--color-bg-secondary',
 	'--color-bg-elevated',
@@ -31,6 +32,8 @@ const THEMED_TOKENS = [
 
 const MODE_INDEPENDENT_TOKENS = [
 	'--font-editor',
+	'--font-code',
+	'--font-ui',
 	'--editor-font-size',
 	'--radius-ui',
 	'--radius-surface'

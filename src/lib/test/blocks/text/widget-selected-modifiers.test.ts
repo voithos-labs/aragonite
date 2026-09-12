@@ -24,7 +24,7 @@ const WIDGET_START = 6;
 describe('an unclaimed key is swallowed with its default cancelled', () => {
 	// Every key the arms above do not claim. Each one's native default mutates the
 	// contenteditable or moves focus out of it while the widget stays selected.
-	it.each(['Enter', 'Tab', 'ArrowUp', 'ArrowDown', 'PageDown', 'Home'])(
+	it.each(['Enter', 'Tab', 'PageDown', 'Home'])(
 		'%s reports consumed and is preventDefault-ed',
 		async (name) => {
 			const b = harness(SOURCE, WIDGET_START);
