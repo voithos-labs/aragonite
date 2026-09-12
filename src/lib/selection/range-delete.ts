@@ -21,8 +21,9 @@ import {
 	writeOwnRaw
 } from '../tree-operations/node-primitives';
 import { settleSeparatorOnBlank } from '../tree-operations/settle';
+import { isBlankParagraph } from '../core/parser';
+import { displayLength } from '../core/lines';
 import { deleteAtPath } from '../tree-operations/path-mutate';
-import { tryGetBlockKindDescriptor } from '../schema/block-kind-descriptor';
 import { cleanJoinedRaw } from '../tree-operations/node-ops';
 import {
 	deleteSubtreesIdentityGated,
@@ -103,16 +104,22 @@ export function rangeDelete(
 	}
 
 	const sameBlock = comparePaths(start.path, end.path) === 0;
-	// A leaf with no positions inside it (a rule, a diagram) is in a range whole or not at all,
-	// so its range deletes the NODE: the byte arm below would leave the kind holding a bare line
-	// ending, which no reload reads as that kind.
-	if (sameBlock && tryGetBlockKindDescriptor(startBlock.kind)?.blockFocus === 'whole-block') {
-		return deleteWholeUnit(doc, start.path, sharing, grammar);
-	}
 	const startRaw = startBlock.raw;
 	const endRaw = endBlock.raw;
 	const startOffset = charOffsetOf(start, 'rangeDelete:prose-merge-start');
 	const endOffset = charOffsetOf(end, 'rangeDelete:prose-merge-end');
+
+	// The range holds one block whole, so none of its own bytes survive: the byte arm below would
+	// keep a husk holding a bare line ending, which no reload reads as that kind. A paragraph is
+	// the one kind that survives empty, because a blank one IS the separating line below it.
+	if (
+		sameBlock &&
+		startOffset === 0 &&
+		endOffset >= displayLength(startRaw) &&
+		!isBlankParagraph({ kind: startBlock.kind, raw: '' })
+	) {
+		return deleteWholeUnit(doc, start.path, sharing, grammar);
+	}
 	// The end slice answers to the END block's rule before the join: start's rule below speaks
 	// only for start's bytes, so a truncation from the end block's head strands its closer. A
 	// same-block merge is one block's bytes and takes that rule once, whole, on the arm below.

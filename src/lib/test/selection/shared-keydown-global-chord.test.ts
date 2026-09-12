@@ -21,6 +21,7 @@ const noCross: CrossBlockHandlers = {
 	handlePointerDown: () => false,
 	handlePaste: async () => false,
 	handleBeforeInput: async () => false,
+	insertText: async () => false,
 	handleCompositionStart: () => false,
 	performCrossBlockDeleteFromEvent: async () => {}
 };

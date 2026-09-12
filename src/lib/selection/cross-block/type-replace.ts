@@ -3,7 +3,8 @@
  * Delete the range, splice the character into the surviving leaf's raw, re-parse so a marker at
  * offset 0 re-derives the kind (parity with the single-block type path). Routed through
  * commitMultiScope so a kind change mints a fresh node, ids/refs stay synced, and the op is
- * `updateContent`.
+ * `updateContent`. A range holding its block whole has no surviving leaf and takes the
+ * replace arm at the foot of the file instead.
  */
 
 import type { MultiScopeTarget } from '../../action-contracts';
@@ -12,6 +13,12 @@ import type { CrossBlockDispatchContext } from './dispatch';
 import type { CrossBlockMutationContext } from './ops';
 import { performCrossBlockDelete } from './ops';
 import { charOffsetOf } from '../primitives';
+import { blockCoveredWhole } from '../covered-block';
+import { CURSOR_END } from '../../block-component';
+import { parse } from '../../core/parser';
+import { terminateLine } from '../../core/lines';
+import { replaceBlockAtParent } from '../../tree-operations/paste/replace-block-at-parent';
+import { ensureEditableContainers, normalizeReplacementTrivia } from '../../tree-operations';
 import {
 	blockNodeAt,
 	normalizeBodyWrite,
@@ -37,27 +44,33 @@ import { devWarn } from '../../dev-warn';
 export async function handleCrossBlockTypeReplace(
 	ctx: CrossBlockDispatchContext,
 	mutCtx: CrossBlockMutationContext,
-	e: InputEvent
-): Promise<boolean> {
-	if (!ctx.selection.isCrossBlock || e.inputType !== 'insertText') return false;
+	typed: string
+): Promise<void> {
+	// A range holding its block whole leaves no leaf to splice into, so the character replaces the
+	// block in its own slot. An empty insertion has nothing to stand there and takes the delete.
+	const covered = typed
+		? blockCoveredWhole(ctx.getDoc(), ctx.selection.anchor, ctx.selection.focus)
+		: null;
+	if (covered) {
+		await replaceCoveredBlockWithText(ctx, mutCtx, typed, covered);
+		return;
+	}
 
-	e.preventDefault();
-	const typed = e.data ?? '';
 	const caret = await performCrossBlockDelete(mutCtx, { skipCaretRestore: true });
-	if (!caret) return true;
+	if (!caret) return;
 	// All caret placements below target caret.path's top-level block; mount it once here so each
 	// (the post-tick landing included) finds a live element.
 	await ctx.revealPath(caret.path);
 	if (!typed) {
 		focusCollapsedCaret(ctx.getBlockElByPath, caret);
-		return true;
+		return;
 	}
 
 	const doc = ctx.getDoc();
 	const targetNode = blockNodeAt(doc, caret.path);
 	if (!targetNode) {
 		focusCollapsedCaret(ctx.getBlockElByPath, caret);
-		return true;
+		return;
 	}
 
 	// `updateContent`, not `input`: symmetric with the single-block path's KIND-CHANGING branch
@@ -67,7 +80,7 @@ export async function handleCrossBlockTypeReplace(
 	const scope = resolveTypedCharScope(ctx, caret.path);
 	if (!scope) {
 		focusCollapsedCaret(ctx.getBlockElByPath, caret);
-		return true;
+		return;
 	}
 
 	// resolveTypedCharScope returns the leaf's IMMEDIATE parent: every mounted container registers
@@ -141,7 +154,48 @@ export async function handleCrossBlockTypeReplace(
 			focusCollapsedCaret(ctx.getBlockElByPath, { path, offset: target.offset });
 		}
 	});
-	return true;
+}
+
+/**
+ * Replace the covered block with the parse of the typed character, at the block's parent
+ * position: the same door the covered-block paste takes, so both gestures splice at one scope
+ * and land one undo entry. Re-parsed rather than spliced, so a marker typed over the block
+ * derives its kind exactly as the single-block type path does.
+ */
+async function replaceCoveredBlockWithText(
+	ctx: CrossBlockDispatchContext,
+	mutCtx: CrossBlockMutationContext,
+	typed: string,
+	blockPath: number[]
+): Promise<void> {
+	const doc = ctx.getDoc();
+	const covered = blockNodeAt(doc, blockPath);
+	if (!covered) return;
+	// Terminated in the block's OWN ending: an unterminated line leaves the block below flowing
+	// into the one the character just minted (G4.20).
+	const parsed = parse(terminateLine(typed, covered.raw), {
+		grammar: ctx.grammar,
+		scope: 'fragment'
+	});
+	if (parsed.children.length === 0) return;
+
+	const replacement = normalizeReplacementTrivia(covered, parsed.children);
+	for (const node of replacement) ensureEditableContainers(node);
+
+	mutCtx.pushUndoSnapshot();
+	ctx.selection.collapse();
+
+	await replaceBlockAtParent({
+		doc,
+		blockPath,
+		replacement,
+		controller: ctx.pasteCoordinator,
+		undoEntry: 'join',
+		focusReplacementIndex: replacement.length - 1,
+		focusOffset: CURSOR_END,
+		source: 'cross-block-covered-block',
+		...(ctx.grammar ? { grammar: ctx.grammar } : {})
+	});
 }
 
 /** The scope's children, re-read after the commit: the ceremony replaces the node it published. */
