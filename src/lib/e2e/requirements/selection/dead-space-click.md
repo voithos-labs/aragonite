@@ -16,6 +16,9 @@ claiming only root-targeted clicks leaves that band inert.
 - Click in the right margin beside a line: the caret lands at the end of THAT line,
   not at the end of the block.
 - Click below a document ending in a list: the caret lands at the end of the last item.
+- "Below" starts under the tail row: the band directly beneath the last block belongs to the
+  "add a line below" strip, whose press appends a paragraph instead (its own contract, not this
+  file's), and the dead-space rule holds for everything under it.
 - Click in the block list's own padding under a host layout that pads it
   (`?paddedList=on`): the caret lands at the end of that line, same as the root's padding.
 - Click beside a line that ends at an atomic widget (an image-only paragraph): the caret
