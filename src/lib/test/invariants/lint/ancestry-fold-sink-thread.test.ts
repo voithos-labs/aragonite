@@ -54,7 +54,7 @@ const SITES: Record<string, SiteStance> = {
 		why: 'the degraded splice arm, which already warns; its chain is built from a leaf path strictly BELOW the commit scope, so the ceremony’s own re-walk does not reach those levels'
 	},
 	'src/lib/selection/range-delete.ts': {
-		declines: 3,
+		declines: 4,
 		sinks: 0,
 		why: 'the cross-block delete family: byte-correctness passes inside a ceremony that owns the registers elsewhere and splices at the LCA itself. Their chains can run deeper than the ceremony’s scope, which is a recorded residual rather than a reconciliation'
 	},
