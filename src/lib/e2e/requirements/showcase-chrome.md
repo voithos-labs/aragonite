@@ -30,9 +30,10 @@ and interactions are real clicks and key presses.
   sections the document happens to hold
 - both toolbars are live mode's WYSIWYG affordance set: flipping to a markdown-first mode
   unmounts them, and flipping back to live brings them in
-- in live mode, selecting text floats the shared `SelectionToolbar` beside the selection —
-  below it when the header's `topInset` leaves no room above, so the bar never lands on the
-  header — its bold button wraps the selected run through `runCommand`, and collapsing the
+- in live mode, selecting text floats the editor's selection toolbar (the `selectionToolbar`
+  prop, which the showcase ties to live mode and its header toggle) beside the selection —
+  below it when the header leaves no room above, since the editor root's top floors the
+  flip, so the bar never lands on the header — its bold button wraps the selected run through `runCommand`, and collapsing the
   selection hides the bar (the component's own behavior matrix lives with
   `decorations/selection-toolbar.md`; this scenario also pins the inset flip, which only a
   chrome-bearing host can reach)

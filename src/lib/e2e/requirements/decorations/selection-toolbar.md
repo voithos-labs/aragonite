@@ -1,19 +1,16 @@
-# Feature: selection toolbar (consumer rect-API example)
+# Feature: selection toolbar
 
-A shared demo component, mounted by the `/` showcase and the `/test/editor`
-harness (this spec drives the harness mount; `showcase-chrome.md` pins the
-showcase one), built purely consumer-side: a
-`bind:this` `EditorInstance`, `getEvents().on('selectionChange')` for
-lifecycle, and `getRects().rangeRects` for both the cross-block and the
-single-block anchor — the snapshot carries real range offsets, so the public
-API serves extent and geometry alike and the component makes no native
-selection read. `normalizeSelection` orders the endpoints and
-`getBlockKindAt` excludes an intra-table rectangle, so no path arithmetic and
-no class probe live in the component. A `position: fixed` bar floats above the
-selection's first rect, carrying the five `TOOLBAR_COMMANDS` as buttons that
-call `runCommand(id)` rather than synthesizing a chord, each greyed by
-`canRunCommand(id)` when the door would decline it and painted pressed by
-`isCommandActive(id)`.
+The editor's own formatting popover, mounted by `Editor.svelte` in every mode but
+reading and turned off by the `selectionToolbar` prop (the `/test/editor` harness
+takes the default; `showcase-chrome.md` pins the showcase, which ties it to live
+mode). Built purely on the doors a host's chrome would use:
+`getEvents().on('selectionChange')` for lifecycle, `getRects().rangeRects` for both
+the cross-block and the single-block anchor, `normalizeSelection` to order the
+endpoints, `getBlockKindAt` to exclude an intra-table rectangle, and the command
+door for every button: `runCommand(id)` rather than a synthesized chord, greyed by
+`canRunCommand(id)` and painted pressed by `isCommandActive(id)`. A
+`position: fixed` card in the shared `.md-menu` surface opens below and to the
+right of the selection.
 
 ## Happy paths
 
@@ -65,8 +62,8 @@ call `runCommand(id)` rather than synthesizing a chord, each greyed by
 ## Edge cases
 
 - a bar with no room below the selection flips above its first rect, and one
-  at the right edge of the viewport is pushed left; `topInset` (the host's own
-  fixed chrome) floors the flip
+  at the right edge of the viewport is pushed left; the editor root's top (where
+  the host's own chrome ends) floors the flip
 - the bar re-anchors on scroll and resize as well as on selection change, so it
   stays with the text it acts on
 

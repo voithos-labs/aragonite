@@ -55,6 +55,7 @@ export interface EditorProps {
 	 *  available, as is the table's right-click cell menu. */
 	blockDragHandles?: boolean;
 	searchBar?: boolean;
+	selectionToolbar?: boolean;
 	/** Where the editor's own find/replace bar renders. Default (absent) keeps it pinned inside
 	 *  the editor root; an element relocates the SAME bar into it, theme scope included, so
 	 *  host-scroll embeds can put it in a pane's chrome instead of mid-page. Read live, and
