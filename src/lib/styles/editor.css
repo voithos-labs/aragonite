@@ -148,6 +148,13 @@
 	user-select: none;
 }
 
+/* One radius for the picture, the crop frame that clips it and the selection ring, so a crop can
+   never round differently from the plain image it was made from. Declared on the editor rather
+   than the widget because the selection ring rides an overlay that is no descendant of it. */
+:where(.editor) {
+	--md-image-radius: 4px;
+}
+
 /* Positioning context for the ::after selection tint and ::before snap caret. */
 :where(.editor) [data-inline-widget] {
 	position: relative;
@@ -170,7 +177,7 @@
 	display: block;
 	/* Enough to take the hard corner off a photo sitting in prose, not enough to read as a
 	   card: half the surface radius the block chrome uses. */
-	border-radius: 4px;
+	border-radius: var(--md-image-radius);
 }
 
 /* A cropped image: the widget is the frame (width and aspect set inline from the `|WxH` hint,
@@ -178,15 +185,16 @@
 :where(.editor) .md-image-widget.md-image-cropped {
 	overflow: hidden;
 	max-width: 100%;
-	/* The frame clips the picture, so the rounding belongs to it; the picture inside is square
-	   again or its own corners would cut inside the frame's. */
-	border-radius: 4px;
+	/* The frame clips the picture, so the rounding belongs to it. `clip-path` alongside
+	   `overflow`, because a rounded overflow clip is the one Chromium drops when the picture
+	   inside gets its own compositing layer, and a crop is exactly when that happens. */
+	border-radius: var(--md-image-radius);
+	clip-path: inset(0 round var(--md-image-radius));
 }
 
-:where(.editor) .md-image-widget.md-image-cropped img {
-	border-radius: 0;
-}
-
+/* The picture keeps its own radius rather than going square inside the frame: at zoom 1 it sits
+   exactly on the frame, so the two corners coincide, and above 1 its corners are outside the
+   frame entirely. Either way the crop cannot come out with harder corners than the plain image. */
 :where(.editor) .md-image-widget.md-image-cropped img {
 	position: absolute;
 	max-width: none;
@@ -319,6 +327,20 @@
 	position: absolute;
 	pointer-events: none;
 	z-index: 10;
+}
+
+/* A selected image says so with a hairline ring. It rides the overlay, not the widget: a cropped
+   widget clips its own pseudo-elements, and a border on the picture would move the layout. Held
+   just off the edge so it reads as a ring around the picture rather than part of it, over a
+   translucent dark line that keeps it legible against a pale photo. */
+:where(.editor) .md-image-overlay::before {
+	content: '';
+	position: absolute;
+	inset: -2px;
+	border: 1px solid var(--color-accent, #567b67);
+	border-radius: calc(var(--md-image-radius, 4px) + 2px);
+	box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.18);
+	pointer-events: none;
 }
 
 :where(.editor) .md-image-overlay > * {

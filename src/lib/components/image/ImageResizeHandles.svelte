@@ -187,23 +187,29 @@
 {/if}
 
 <style>
-	/* An accent pill straddling the edge with a white rim, so it reads on any picture. The hit
-	   strip is wider than the paint. */
+	/* A neutral grip sitting inside the picture's right edge: the selection ring owns the edge
+	   itself, and the accent is the ring's, so a second accent shape beside it reads as decoration
+	   rather than as a control. White over a hairline rim so it carries on a dark picture and a
+	   pale one alike. The hit strip is wider than the paint. */
 	.md-resize-handle {
 		position: absolute;
-		right: -3px;
+		right: 7px;
 		top: 50%;
-		width: 6px;
-		height: 44px;
-		max-height: 60%;
+		width: 4px;
+		height: 36px;
+		max-height: 40%;
 		transform: translateY(-50%);
-		border-radius: 3px;
-		background: var(--color-accent, #567b67);
+		border-radius: 999px;
+		background: rgba(255, 255, 255, 0.92);
 		box-shadow:
-			0 0 0 1.5px rgba(255, 255, 255, 0.9),
-			0 1px 3px rgba(0, 0, 0, 0.3);
+			0 0 0 0.5px rgba(0, 0, 0, 0.35),
+			0 1px 3px rgba(0, 0, 0, 0.35);
+		opacity: 0.85;
 		z-index: 10;
 		cursor: ew-resize;
+	}
+	.md-resize-handle:hover {
+		opacity: 1;
 	}
 	.md-resize-handle::before {
 		content: '';
