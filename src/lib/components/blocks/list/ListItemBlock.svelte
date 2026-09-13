@@ -39,16 +39,20 @@
 	import { dispatchKindCommand } from '../../../schema/block-commands';
 	import type { AnyCommandId } from '../../../schema/command-id';
 	import BlockDragHandle from '../../BlockDragHandle.svelte';
+	import { showsListItemDragHandle } from '../../drag-handle';
 
 	let {
 		node,
 		index,
 		myPath = [],
+		itemCount,
 		slots
 	}: {
 		node: NodeView;
 		index: number;
 		myPath?: number[];
+		/** How many items the enclosing list holds; a lone item has no sibling to reorder past. */
+		itemCount: number;
 		slots?: RefSlots<BlockComponent>;
 	} = $props();
 
@@ -67,6 +71,10 @@
 	// $derived, not a mount-time snapshot: a runtime prop toggle must reach blocks
 	// that window in and out after the change, not just those mounted at mount.
 	const dragHandles = $derived(getDragHandles?.() ?? false);
+	// The grip is the only pointer road into a reorder, and a reorder needs a sibling: a lone
+	// item stays a reorder host (a dragged sibling never arrives, but the class costs nothing)
+	// and simply shows nothing to grab.
+	const showsHandle = $derived(showsListItemDragHandle(itemCount, dragHandles));
 	const presentationMode = $derived(getPresentationMode?.() ?? 'source');
 	const readOnly = $derived(presentationMode === 'reading');
 
@@ -260,7 +268,7 @@
 <div
 	class="list-item-block"
 	class:reorder-host={dragHandles}
-	class:handle-host={dragHandles}
+	class:handle-host={showsHandle}
 	data-task-checked={taskCheckedAttr}
 	data-list-marker={presentationMarkerKind}
 	bind:this={boxEl}
@@ -277,8 +285,9 @@
 		/>
 	</div>
 	<!-- A list item IS a reorder unit; its inner content BlockList passes the
-		 default reorderable={false}, so the paragraph inside gets no handle. -->
-	{#if dragHandles}
+		 default reorderable={false}, so the paragraph inside gets no handle. A lone item
+		 renders none either: its drag is list-scoped and there is no sibling to pass. -->
+	{#if showsHandle}
 		<BlockDragHandle />
 	{/if}
 </div>

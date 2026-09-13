@@ -49,7 +49,12 @@ export function mountItem(
 	context.set(LIST_CONTEXT_KEY, listContext as unknown as ListContext);
 	const instance = mount(ListItemBlock, {
 		target,
-		props: { node: list.children![itemIndex], index: itemIndex, myPath: [0, itemIndex] },
+		props: {
+			node: list.children![itemIndex],
+			index: itemIndex,
+			myPath: [0, itemIndex],
+			itemCount: list.children!.length
+		},
 		context
 	});
 	flushSync();

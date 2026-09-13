@@ -147,6 +147,7 @@
 			node={item}
 			index={absoluteIndex}
 			myPath={[...myPath, absoluteIndex]}
+			itemCount={(node.children ?? []).length}
 			slots={listState.refSlots}
 		/>
 	{/each}
