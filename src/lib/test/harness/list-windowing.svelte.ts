@@ -29,11 +29,12 @@ export function fixedOracle(px: number): HeightOracle {
 	};
 }
 
-/** Height BY ID, so a permutation the model tracks changes each index's offset. */
+/** Height BY ID, so a permutation the model tracks changes each index's offset. The listed
+ *  heights answer as MEASURED, which is what a block with a real box reports. */
 export function heightsOracle(heights: Record<string, number>, estimate = 10): HeightOracle {
 	return {
 		estimate: () => estimate,
-		measured: () => undefined,
+		measured: (id: string) => heights[id],
 		recordMeasured: () => {},
 		height: (id: string) => heights[id] ?? estimate,
 		dropMeasured: () => {}
