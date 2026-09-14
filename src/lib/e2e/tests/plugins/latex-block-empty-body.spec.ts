@@ -60,6 +60,13 @@ test.describe('one-line block math emptied (live)', () => {
 		expect(await roundTripStable(page)).toBe(true);
 	});
 
+	test('undo inside the reveal takes the completion back with the delete', async ({ page }) => {
+		await page.keyboard.press('Control+a');
+		await page.keyboard.press('Backspace');
+		await page.keyboard.press('Control+z');
+		await expect.poll(() => editor.sourceText()).toBe('$$x^2$$');
+	});
+
 	// Parity with the built-in fence: an emptied code block takes the next Backspace as "delete
 	// the block", since an empty body holds no byte the press could mean.
 	test('a second Backspace on the emptied block deletes it', async ({ page }) => {

@@ -19,6 +19,7 @@ Fixture: `Before` / `$$x^2$$` / `After` (`?seed=mathblock`), in `live`.
 
 - the blur after emptying commits `$$\n\n$$`, keeps the kind `mathBlock`, and round-trips
 - a second Backspace on the emptied block deletes it, the way an emptied code fence goes
+- undo inside the open reveal takes the completion back with the delete that provoked it
 
 ## Miss-analysis
 
