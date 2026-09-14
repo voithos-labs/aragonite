@@ -28,7 +28,6 @@ function seededOracle(): HeightOracle {
 		recordMeasured: (id, height) => {
 			measured.set(id, height);
 		},
-		height: (id) => measured.get(id) ?? ESTIMATE,
 		dropMeasured: () => measured.clear()
 	};
 }

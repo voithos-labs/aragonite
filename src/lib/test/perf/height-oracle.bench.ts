@@ -62,7 +62,8 @@ function build(shape: (i: number) => CstNode): { nodes: CstNode[]; ids: string[]
 /** `buildModel`'s own loop (`reactivity/list-windowing.svelte.ts`), minus the reactive scope. */
 function seed(oracle: HeightOracle, nodes: CstNode[], ids: string[]): number[] {
 	const heights = new Array<number>(nodes.length);
-	for (let i = 0; i < nodes.length; i++) heights[i] = oracle.height(ids[i], nodes[i], WIDTH);
+	for (let i = 0; i < nodes.length; i++)
+		heights[i] = oracle.measured(ids[i]) ?? oracle.estimate(nodes[i], WIDTH);
 	return heights;
 }
 

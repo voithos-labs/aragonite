@@ -28,8 +28,6 @@ export interface HeightOracle {
 	estimate(node: NodeView, width: number): number;
 	measured(id: string): number | undefined;
 	recordMeasured(id: string, height: number): void;
-	/** measured(id) ?? estimate(node, width). */
-	height(id: string, node: NodeView, width: number): number;
 	/** Drop every measured height; estimates carry the model until each block re-measures. */
 	dropMeasured(): void;
 }
@@ -117,7 +115,6 @@ export function createHeightOracle(opts: HeightOracleOptions): HeightOracle {
 		recordMeasured: (id, height) => {
 			measuredById.set(id, height);
 		},
-		height: (id, node, width) => measuredById.get(id) ?? estimate(node, width),
 		dropMeasured: () => measuredById.clear()
 	};
 }
