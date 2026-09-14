@@ -153,7 +153,7 @@ The caret surface reads as three layers, and a new gesture composes them rather 
 
 1. **Landing.** Seat a caret, one entry per addressing mode: `focus` and `parkCaret` (raw offset), `focusAtColumn` (editor-relative pixel X on the first or last visual line, with park semantics), `focusByPath` (descent to a nested leaf). Every implementation is built on the same `placeCaret` core (`selection/caret-doors.ts`), so the range-ending policy lives in one place.
 2. **Point resolution.** Turn a viewport point into a landing first: the `caretTargetAtPoint` descriptor hook answers for kinds that resolve a point through their own DOM (a table names a cell; a render-primary leaf names the source offset under its rendered view, which is where its reveal click lands), with the drag hit test (`foreignDragHitTest`) as its decline-happy sibling. Both read `src/lib/cursor/point-offset.ts`, the one home for point-to-offset: an exact probe that declines outside the element, and the nearest one (`caretOffsetAtPoint`, on the plugin barrel) that clamps the point into its box first. Neither does arithmetic of its own, so the offset a point resolves to is the walk's.
-3. **Boundary policy.** Where a landing meets an atomic widget (§ 6): `enterEdgeWidget` for a keyboard arrival at a block edge, `snapCaretToPoint` for a click's post-landing refinement, both dispatching the kind's one registered `InlineWidgetEditingPolicy`.
+3. **Boundary policy.** Where a landing meets an atomic widget (§ 6): `enterEdgeWidget` for a keyboard arrival at a block edge (a vertical arrival at a widget-only block takes the same door), `snapCaretToPoint` for a click's post-landing refinement, both dispatching the kind's one registered `InlineWidgetEditingPolicy`.
 
 A block publishes the shape one of two ways, and `BlockHost` resolves both at the single point it stores a ref: a leaf as its own instance exports, a container under one `containerApi` export. Why two: Svelte 5 instance exports are individual top-level declarations with no spread, and forwarding a dozen members by hand made every member a place to drop one. The component registry types the two shapes as a union, so a block publishing neither doesn't compile.
 
@@ -317,7 +317,7 @@ So the caret is addressable only at its leading and trailing edges, and the gene
 
 Two cross-block focus behaviors compose on top:
 
-- **Vertical skip.** A block whose only inline content is widgets reports `isVerticallyTransparent()`, and ArrowUp/Down passes straight through it. Containers recurse, so a list item holding one image-only paragraph is itself transparent.
+- **Vertical stop.** A block whose only inline content is widgets (an image, a lone formula) is one stop for ArrowUp/Down in either direction: the first press enters it as an object (the image selected, a formula's source revealed) and the next press moves on, so a run of Up presses and the Down run back retrace the same stops. `isVerticallyTransparent()` still names the block; it now says "enter as an object", not "pass through", and only a block that cannot be entered is skipped. Containers recurse, so a list item holding one image-only paragraph is the stop.
 - **Edge entry.** When a cross-block ArrowLeft/Right lands at the far edge of a paragraph that ends (or starts) with a widget, the dispatcher enters the widget rather than parking a caret at a boundary with nothing to show for it.
 
 What "entering" means splits by the kind's editing policy:
