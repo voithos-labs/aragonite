@@ -1,11 +1,11 @@
 # Feature: what an inline `$…$` run claims in prose
 
-Inline math recognition is guarded so shell and currency prose keeps its dollar signs. The guard
-used to read the byte after the opening `$`, which made every digit-opening formula literal —
-`$10^5$` among them. It now reads the span it would claim instead: a run that is only a number is
-a price, and a closing `$` a digit follows opens the second price of a range. A directive
-container is not part of that decision; its prose reaches the same recognizer a top-level
-paragraph does.
+Inline math recognition is guarded so shell and currency prose keeps its dollar signs, and the
+guard reads the span a run would claim, never the byte after the opening `$` (so `$10^5$` is a
+formula). An attempt ends at the next `$`, whichever it is: a closer needs a non-space before it
+and no digit after it, a run that fails there stays literal rather than trying a later `$`, and a
+run that is only a number is a price. A directive container is not part of that decision; its
+prose reaches the same recognizer a top-level paragraph does.
 
 ## Happy paths
 

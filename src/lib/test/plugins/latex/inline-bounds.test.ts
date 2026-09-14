@@ -31,8 +31,8 @@ describe('inline math decline bounds', () => {
 		expect(mathIn(raw)).toEqual([{ kind: MATH_INLINE, start: 1200, end: 1205 }]);
 	});
 
-	// `$$` is the display fence or a just-closed empty pair, never an opener: the closer search
-	// from it would otherwise swallow the prose up to the next formula's end.
+	// `$$` is the display fence or a just-closed empty pair, never an opener: an attempt from it
+	// would end on its own twin.
 	it('a $$ run opens nothing, so a later formula keeps its own delimiters', () => {
 		expect(mathIn('$$ and $x^2$ later')).toEqual([{ kind: MATH_INLINE, start: 7, end: 12 }]);
 		expect(mathIn('$$x$$')).toEqual([{ kind: MATH_INLINE, start: 1, end: 4 }]);

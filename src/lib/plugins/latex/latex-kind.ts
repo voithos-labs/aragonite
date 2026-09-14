@@ -53,10 +53,9 @@ const nextDollarFrom = createScanIndex(indexDollars);
 const isPriceSpan = (body: string) => /^\d[\d.,]*$/.test(body);
 
 /**
- * Pandoc's rule, with one divergence of ours. An attempt ENDS at the next `$`, whichever it is:
- * a bad closer leaves the opener literal rather than reaching on to a later formula's closer and
- * swallowing the prose between. A closer needs a non-space before it and no digit after it.
- * Ours: a span that is only a number is a price (`$5$`), which is what keeps a typed price prose.
+ * Pandoc's rule, with one divergence of ours. An attempt ENDS at the next `$`, whichever it is,
+ * and a bad closer leaves the opener literal; a closer needs a non-space before it and no digit
+ * after it. Ours: a span that is only a number is a price (`$5$`), so a typed price stays prose.
  */
 function recognizeMath(
 	raw: string,
