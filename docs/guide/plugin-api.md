@@ -184,13 +184,14 @@ _(pre-freeze / unstable)_ The syntax-highlighting registry behind fenced code. T
 
 Register **before mounting an editor**: a block already on screen re-tokenizes only when its own bytes next change. An unregistered language is not an error — the fence still authors, commits and round-trips, and its body renders untokenized.
 
-| Export             | Role                                                                                                                                   |
-| ------------------ | -------------------------------------------------------------------------------------------------------------------------------------- |
-| `registerLanguage` | Add a grammar under a name, with optional aliases; idempotent, so a repeat call with the same name is a no-op                          |
-| `listLanguages`    | Every registered name and alias, sorted — what the code block's language picker offers                                                 |
-| `highlightCode`    | The code block's tokenizer: `(body, language)` to a text-preserving fragment of `code-tok-*` spans, for a plugin's own source surface  |
-| `LanguageGrammar`  | The registry's read shape: the resolved name and its definition                                                                        |
-| `LanguageFn`       | highlight.js's grammar-definition type, re-exported so you needn't import highlight.js directly (you hold it only as a transitive dep) |
+| Export               | Role                                                                                                                                   |
+| -------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `registerLanguage`   | Add a grammar under a name, with optional aliases; idempotent, so a repeat call with the same name is a no-op                          |
+| `listLanguages`      | Every registered language once, under its canonical name, sorted — the rows the code block's language picker offers                    |
+| `getLanguageAliases` | The other spellings a language answers to, from any spelling of it — what a picker's filter matches on                                 |
+| `highlightCode`      | The code block's tokenizer: `(body, language)` to a text-preserving fragment of `code-tok-*` spans, for a plugin's own source surface  |
+| `LanguageGrammar`    | The registry's read shape: the resolved name and its definition                                                                        |
+| `LanguageFn`         | highlight.js's grammar-definition type, re-exported so you needn't import highlight.js directly (you hold it only as a transitive dep) |
 
 ```ts
 import { registerLanguage } from '@voithos-labs/aragonite/plugin';
