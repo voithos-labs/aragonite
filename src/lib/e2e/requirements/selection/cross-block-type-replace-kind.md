@@ -15,6 +15,11 @@ read `#…` while the block still rendered and classified as a paragraph.
 
 ## Edge cases
 
+- The same selection with `Mod+2` pressed instead of a typed marker: the chord takes
+  the same delete-then-redispatch arm, so the survivor ends a level-2 heading. The
+  door declines `heading.cycle` while a range is painted (a level belongs to one
+  block), and this is the path that must keep landing.
+
 - Nested survivor: a blockquote paragraph selected out through a following
   paragraph, collapse landing inside the blockquote at offset 0, type `>`: the
   surviving blockquote child re-parses to a nested blockquote (kind `blockquote`),

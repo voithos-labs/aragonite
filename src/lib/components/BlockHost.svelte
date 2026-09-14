@@ -80,8 +80,8 @@
 
 	let descriptor = $derived(registryView.descriptor(node.kind));
 	let isContainer = $derived(descriptor.isContainer);
-	// Who paints this block's rects, decided ONCE here and handed to both overlays —
-	// duplicated, the two drift and a container paints over its own children. Delegation
+	// Who measures this block's rects, decided ONCE here and handed to both overlays —
+	// duplicated, the two drift and a container measures over its own children. Delegation
 	// needs children with hosts: a childless container and a grid have none.
 	let delegatesPainting = $derived(
 		isContainer && (node.children?.length ?? 0) > 0 && descriptor.containerContract !== 'grid'

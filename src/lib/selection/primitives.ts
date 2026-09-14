@@ -6,7 +6,13 @@
 
 import type { CommitSnapshotArg, UndoEntryMode } from '../action-contracts';
 import type { DocumentView, NodeView } from '../core/node-views';
-import { comparePaths, isPathBetween, pathHasPrefix } from './path-math';
+import {
+	comparePaths,
+	isPathBetween,
+	isStrictAncestorOf,
+	pathHasPrefix,
+	pathsEqual
+} from './path-math';
 import {
 	asCellIndex,
 	asRawOffset,
@@ -161,4 +167,29 @@ export function classifyBlockForSelection(
 	if (comparePaths(path, end.path) === 0) return 'end';
 	if (isPathBetween(path, start.path, end.path)) return 'middle';
 	return 'outside';
+}
+
+/**
+ * Whether this block paints the range over its whole box: the range holds its entire subtree and
+ * no ancestor's box already covers it, or it is the whole unit a single-block range holds. Chrome
+ * a container derives from its markers (a GitHub alert's badge) has no child host to paint it, so
+ * the covering block takes the box in one piece and its children paint nothing.
+ */
+export function blockPaintsWholeBox(
+	path: readonly number[],
+	selection: EditorSelection,
+	wholeUnitPath: readonly number[] | null
+): boolean {
+	if (wholeUnitPath) return pathsEqual(path, wholeUnitPath);
+	const { start, end } = normalize(selection);
+	return (
+		holdsSubtree(path, start.path, end.path) &&
+		!holdsSubtree(path.slice(0, -1), start.path, end.path)
+	);
+}
+
+/** The range holds this block's whole subtree: inside it in document order, and not an ancestor
+ *  of the end endpoint, whose own descendants the range cuts through. */
+function holdsSubtree(path: readonly number[], start: number[], end: number[]): boolean {
+	return isPathBetween(path, start, end) && !isStrictAncestorOf(path, end);
 }

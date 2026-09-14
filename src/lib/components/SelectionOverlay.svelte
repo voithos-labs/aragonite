@@ -9,13 +9,13 @@
 	} from '../editor-keys';
 	import {
 		normalize,
+		blockPaintsWholeBox,
 		classifyBlockForSelection,
 		charOffsetOf,
 		cellIndexOf,
-		type BlockSelectionClass
+		type EditorSelection
 	} from '../selection/primitives';
 	import { snapCrossBlockTableEndpoints } from '../selection/table-endpoint-snap';
-	import { pathsEqual } from '../selection/path-math';
 	import { wireOverlayRemeasure } from '../cursor/overlay-remeasure';
 
 	let {
@@ -28,7 +28,7 @@
 		path: number[];
 		blockRef: BlockComponent | undefined;
 		blockEl: HTMLElement | null | undefined;
-		/** This container's children paint their own overlays, so it paints none. */
+		/** This container's children paint the range's endpoint rects, so it measures none. */
 		delegatesPainting?: boolean;
 		/** This container measures its own rects instead of delegating. Both are decided
 		 *  at BlockHost, which hands the same pair to DecorationOverlay. */
@@ -42,32 +42,26 @@
 	const getEditorRoot = editorDoc?.editorRoot;
 	const getDoc = editorDoc?.doc;
 
-	const classification = $derived.by<BlockSelectionClass>(() => {
-		if (delegatesPainting) return 'outside';
-		if (!selection?.isCustomRendered || !selection.anchor || !selection.focus) {
-			return 'outside';
-		}
-		return classifyBlockForSelection(path, {
-			anchor: selection.anchor,
-			focus: selection.focus
-		});
+	const range = $derived.by<EditorSelection | null>(() => {
+		if (!selection?.isCustomRendered || !selection.anchor || !selection.focus) return null;
+		return { anchor: selection.anchor, focus: selection.focus };
 	});
 
-	// A whole unit (one surface-less block taken as the entire range) paints as a middle block
-	// does: its full box, no measuring.
-	const paintsWholeBox = $derived.by(() => {
-		if (classification === 'middle') return true;
-		if (classification !== 'single-block') return false;
-		const unit = selection?.wholeUnitPath ?? null;
-		return unit !== null && pathsEqual(unit, path);
-	});
+	const classification = $derived(range ? classifyBlockForSelection(path, range) : 'outside');
+
+	// Delegation-blind on purpose: a block the range holds whole paints one box over everything it
+	// renders, chrome included, and the seam already keeps its children from painting under it.
+	const paintsWholeBox = $derived(
+		range !== null && blockPaintsWholeBox(path, range, selection?.wholeUnitPath ?? null)
+	);
 
 	// The measuring effect and the template read this one predicate, so a rendered
 	// rect is always one the effect measured; two predicates render a stale box.
 	const paintsEndpoints = $derived(
-		classification === 'start' ||
-			classification === 'end' ||
-			(classification === 'single-block' && containerPaintsRects)
+		!delegatesPainting &&
+			(classification === 'start' ||
+				classification === 'end' ||
+				(classification === 'single-block' && containerPaintsRects))
 	);
 
 	interface LocalRect {

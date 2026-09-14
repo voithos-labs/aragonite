@@ -5,10 +5,10 @@ import { STANDARD_DIAGRAM_DOC } from './mermaid-helpers';
 /**
  * Cross-block selection overlay over childless opaque containers
  * (requirements/plugins/mermaid-selection-overlay.md). A mermaid block swept into a cross-block
- * range has no child block-hosts to paint highlights, so the block itself must take the full-block
- * overlay — in the rendered AND the error state — while child-bearing containers keep delegating to
- * their children (no double paint). Lives in the plugins project because only plugin kinds produce
- * childless containers; the built-in overlay behavior is pinned in tests/selection/overlay.spec.ts.
+ * range has no child block-hosts at all, so the block itself must take the full-block overlay — in
+ * the rendered AND the error state — the same box a child-bearing container takes when the range
+ * holds it whole. Lives in the plugins project because only plugin kinds produce childless
+ * containers; the built-in overlay behavior is pinned in tests/selection/overlay.spec.ts.
  */
 
 const BROKEN_DOC = 'Above text\n\n```mermaid\nnotadiagram broken\n```\n\ntail text\n';
@@ -66,17 +66,15 @@ test.describe('cross-block selection overlay — childless opaque container', ()
 		await expect(page.locator(MIDDLE_OVERLAY)).toHaveCount(1);
 	});
 
-	test('a child-bearing opaque container (callout) still delegates painting to its children', async ({
-		page
-	}) => {
+	test('a child-bearing opaque container (callout) held whole paints one box', async ({ page }) => {
 		await editor.loadContent(CALLOUT_DOC);
 		await editor.focusBlockStart(0);
 		await page.keyboard.press('ControlOrMeta+Shift+End');
 		await editor.waitForCrossBlock(true);
 
-		await expect(page.locator(MIDDLE_OVERLAY)).toHaveCount(0);
+		await expect(page.locator(MIDDLE_OVERLAY)).toHaveCount(1);
 		await expect(
-			page.locator("[data-block-path='[1]'] [data-block-path] .selection-overlay-middle")
-		).not.toHaveCount(0);
+			page.locator("[data-block-path='[1]'] [data-block-path] .selection-overlay")
+		).toHaveCount(0);
 	});
 });

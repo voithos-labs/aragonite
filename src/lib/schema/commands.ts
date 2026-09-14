@@ -68,13 +68,14 @@ export type BlockCommandId = (typeof BLOCK_COMMAND_IDS)[number];
 export type CommandId = GlobalCommandId | BlockCommandId;
 
 /**
- * Commands whose arms rewrite one block's bytes around that block's own selection and have no
- * cross-block reading: the dispatch seam declines them outright while a range is painted.
- * Membership is the arm's shape, not the id's prefix — the link card mints its link over one
- * block's offsets, and a range gives it no one block to mint into.
+ * Commands whose arms rewrite one block and have no cross-block reading: the dispatch seam
+ * declines them outright while a range is painted. Membership is the arm's shape, not the id's
+ * prefix: the link card mints over one block's offsets and a heading level belongs to one block,
+ * so a range spanning blocks leaves neither of them a subject to act on.
  */
 export const RANGE_DECLINED_COMMAND_IDS: ReadonlySet<string> = new Set<CommandId>([
-	'link.openCard'
+	'link.openCard',
+	'heading.cycle'
 ]);
 
 /**
@@ -92,7 +93,9 @@ export const CROSS_BLOCK_RANGE_COMMAND_IDS: ReadonlySet<string> = new Set<Comman
 
 /**
  * The command ids a host's selection toolbar invokes through `EditorInstance.runCommand`. The
- * rest of the vocabulary stays internal until the command registry unifies it.
+ * rest of the vocabulary stays internal until the command registry unifies it. Every id here
+ * answers the range question in one of the two sets above, so `canRunCommand` tells a bar which
+ * of its buttons a cross-block selection leaves nothing to act on.
  */
 export const TOOLBAR_COMMANDS = {
 	toggleStrong: 'format.toggleStrong',
@@ -100,7 +103,9 @@ export const TOOLBAR_COMMANDS = {
 	toggleStrikethrough: 'format.toggleStrikethrough',
 	toggleCode: 'format.toggleCode',
 	/** The link editor Mod+K opens: over a selection it creates, inside a link it edits. */
-	editLink: 'link.openCard'
+	editLink: 'link.openCard',
+	/** The heading picker's arm, taking the level as its argument; 0 is normal text. */
+	setHeading: 'heading.cycle'
 } as const satisfies Record<string, CommandId>;
 
 /** Minimal context a global command needs; HistoryActions is structurally compatible. */

@@ -48,8 +48,7 @@
 	const ROWS: readonly { icon: MenuIconName; label: string; command: string }[] = [
 		{ icon: 'code', label: 'Inline code', command: TOOLBAR_COMMANDS.toggleCode }
 	];
-	// "Set heading": the existing `heading.cycle` arm with its level argument — 0 is normal text.
-	const TURN_INTO_COMMAND = 'heading.cycle';
+	const TURN_INTO_COMMAND = TOOLBAR_COMMANDS.setHeading;
 	const TURN_INTO: readonly { label: string; level: number }[] = [
 		{ label: 'Normal text', level: 0 },
 		{ label: 'Heading 1', level: 1 },
@@ -68,6 +67,11 @@
 	let active = $state<ReadonlySet<string>>(new Set());
 	let current: EditorSelection | null = null;
 	let barEl: HTMLDivElement | undefined = $state();
+
+	// A labelled row the door declines leaves the bar, where a mark only dims: the icons keep the
+	// bar's shape, a dead row is a line of noise over a selection it cannot act on.
+	const rows = $derived(ROWS.filter((row) => !declined.has(row.command)));
+	const offersHeading = $derived(!declined.has(TURN_INTO_COMMAND));
 
 	interface Placement {
 		x: number;
@@ -261,51 +265,52 @@
 			{/each}
 		</div>
 		<div class="md-menu-divider" aria-hidden="true"></div>
-		<div
-			class="selection-toolbar-row"
-			role="presentation"
-			onpointerenter={() => (turnIntoOpen = !declined.has(TURN_INTO_COMMAND))}
-		>
-			<button
-				type="button"
-				class="md-menu-item"
-				data-testid="toolbar-set-heading"
-				disabled={declined.has(TURN_INTO_COMMAND)}
-				aria-haspopup="menu"
-				aria-expanded={turnIntoOpen}
-				onmousedown={(e) => e.preventDefault()}
-				onclick={() => (turnIntoOpen = !turnIntoOpen)}
+		{#if offersHeading}
+			<div
+				class="selection-toolbar-row"
+				role="presentation"
+				onpointerenter={() => (turnIntoOpen = true)}
 			>
-				<span class="md-menu-icon"><MenuIcon name="heading" size={14} /></span>
-				<span class="selection-toolbar-label">Set heading</span>
-				<span class="md-menu-icon"><MenuIcon name="chevron-right" size={13} /></span>
-			</button>
-			{#if turnIntoOpen}
-				<div class="md-menu selection-toolbar-flyout" role="menu" {@attach keepFlyoutOnScreen}>
-					{#each TURN_INTO as option (option.level)}
-						{@const chosen = option.level === 0 ? blockKind === 'paragraph' : false}
-						<button
-							type="button"
-							class="md-menu-item"
-							role="menuitemradio"
-							data-testid="toolbar-set-heading-{option.level}"
-							aria-checked={chosen}
-							onmousedown={(e) => e.preventDefault()}
-							onclick={() => fire(TURN_INTO_COMMAND, option.level)}
-						>
-							<span class="selection-toolbar-label">{option.label}</span>
-							{#if chosen}<span class="md-menu-icon"><MenuIcon name="check" size={13} /></span>{/if}
-						</button>
-					{/each}
-				</div>
-			{/if}
-		</div>
-		{#each ROWS as row (row.command)}
+				<button
+					type="button"
+					class="md-menu-item"
+					data-testid="toolbar-set-heading"
+					aria-haspopup="menu"
+					aria-expanded={turnIntoOpen}
+					onmousedown={(e) => e.preventDefault()}
+					onclick={() => (turnIntoOpen = !turnIntoOpen)}
+				>
+					<span class="md-menu-icon"><MenuIcon name="heading" size={14} /></span>
+					<span class="selection-toolbar-label">Set heading</span>
+					<span class="md-menu-icon"><MenuIcon name="chevron-right" size={13} /></span>
+				</button>
+				{#if turnIntoOpen}
+					<div class="md-menu selection-toolbar-flyout" role="menu" {@attach keepFlyoutOnScreen}>
+						{#each TURN_INTO as option (option.level)}
+							{@const chosen = option.level === 0 ? blockKind === 'paragraph' : false}
+							<button
+								type="button"
+								class="md-menu-item"
+								role="menuitemradio"
+								data-testid="toolbar-set-heading-{option.level}"
+								aria-checked={chosen}
+								onmousedown={(e) => e.preventDefault()}
+								onclick={() => fire(TURN_INTO_COMMAND, option.level)}
+							>
+								<span class="selection-toolbar-label">{option.label}</span>
+								{#if chosen}<span class="md-menu-icon"><MenuIcon name="check" size={13} /></span
+									>{/if}
+							</button>
+						{/each}
+					</div>
+				{/if}
+			</div>
+		{/if}
+		{#each rows as row (row.command)}
 			<button
 				type="button"
 				class="md-menu-item"
 				data-testid="toolbar-{row.command}"
-				disabled={declined.has(row.command)}
 				aria-pressed={active.has(row.command)}
 				onmousedown={(e) => e.preventDefault()}
 				onclick={() => fire(row.command)}

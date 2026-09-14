@@ -120,7 +120,8 @@ describe('runCommandById gates', () => {
 			'format.toggleEmphasis',
 			'format.toggleStrikethrough',
 			'format.toggleCode',
-			'link.openCard'
+			'link.openCard',
+			'heading.cycle'
 		];
 		for (const id of rewrites) expect(runCommandById(id, undefined, target(ran), ctx)).toBe(false);
 		expect(ran).toEqual([]);

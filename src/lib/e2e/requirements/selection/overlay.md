@@ -10,7 +10,7 @@
 
 - Overlay has pointer-events: none so clicks pass through
 - Endpoint overlays appear on start and end blocks during cross-block selection
-- Container blocks (blockquote, list) do not render their own overlay — their children handle it; no double-layering
+- A container the range holds whole (blockquote, list) paints one box over everything it renders, its own chrome included; its children paint none, so nothing double-layers
 
 ## Error / degenerate cases
 

@@ -61,9 +61,14 @@ async function pressOverCrossBlockRange(chord: string) {
 describe('G4.40 single-block-rewrite set parity', () => {
 	const keymap = singleBlockRewriteKeymap();
 
-	it('the keymaps bind exactly the ids the seam answers specially over a range', () => {
+	it('the keymaps bind exactly the rewrite ids the seam answers specially over a range', () => {
 		const bound = [...new Set(keymap.map((row) => row.command))].sort();
-		expect(bound).toEqual([...RANGE_DECLINED_COMMAND_IDS, ...CROSS_BLOCK_RANGE_COMMAND_IDS].sort());
+		// Scoped to the rewrites: the seam declines the heading arm too, but its chords reach it
+		// through the delete-and-redispatch arm, so no rewrite chord names it.
+		const answered = [...RANGE_DECLINED_COMMAND_IDS, ...CROSS_BLOCK_RANGE_COMMAND_IDS]
+			.filter(isSingleBlockRewriteId)
+			.sort();
+		expect(bound).toEqual(answered);
 	});
 
 	it.each(keymap)('$chord ($command) is claimed over a cross-block range', async ({ chord }) => {

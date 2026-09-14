@@ -9,7 +9,8 @@ import { describe, it, expect } from 'vitest';
 import {
 	BLOCK_COMMAND_IDS,
 	CROSS_BLOCK_RANGE_COMMAND_IDS,
-	RANGE_DECLINED_COMMAND_IDS
+	RANGE_DECLINED_COMMAND_IDS,
+	TOOLBAR_COMMANDS
 } from '$lib/schema/commands';
 
 /**
@@ -26,7 +27,6 @@ const RANGE_SAFE: Record<string, string> = {
 	'block.mergeNext': 'structural: joins two blocks, no offsets of its own to spend',
 	'block.moveUp': 'reorders a whole unit; offsets are not part of the operation',
 	'block.moveDown': 'reorders a whole unit; offsets are not part of the operation',
-	'heading.cycle': 'rewrites the block CONTENT RANGE, which no cross-block range narrows',
 	'code.newline': 'fence-body edit at the caret inside one code block',
 	'code.indent': 'fence-body edit over whole lines, not the painted range',
 	'code.dedent': 'fence-body edit over whole lines, not the painted range',
@@ -77,6 +77,18 @@ describe('G4.50 every block command answers the cross-block range question', () 
 			...Object.keys(RANGE_SAFE)
 		];
 		expect(named.filter((id) => !vocabulary.has(id))).toEqual([]);
+	});
+
+	// A published toolbar id answering "range-safe" is this bug's shape: the button stays live over
+	// a cross-block selection and the press lands on whichever block holds the anchor (#324).
+	it('never calls a published toolbar id range-safe', () => {
+		const offered = Object.values(TOOLBAR_COMMANDS);
+		expect(offered.filter((id) => RANGE_SAFE[id] !== undefined)).toEqual([]);
+		expect(
+			offered.filter(
+				(id) => !RANGE_DECLINED_COMMAND_IDS.has(id) && !CROSS_BLOCK_RANGE_COMMAND_IDS.has(id)
+			)
+		).toEqual([]);
 	});
 
 	// Non-vacuity: the census must actually fail on an unclassified id, not merely on an empty set.
