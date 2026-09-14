@@ -1,8 +1,8 @@
 /**
  * Which atomic island's raw edge a point lands on: the NEAREST edge among the islands the caller
  * measures, so a run of flush islands answers the one the point is actually beside. A point inside
- * one reads its kind — a character-like island names the edge on the point's side, an island that
- * selects whole declines and keeps its own click handling.
+ * one reads its kind: a character-like island names the edge on the point's side, while an island
+ * that selects whole declines and keeps its own click handling.
  */
 
 export interface WidgetEdgeCandidate {

@@ -32,6 +32,8 @@ Seed `emoji`: block 0 `Mood :smile: today` (one `:smile:` reference), block 1
   Miss-analysis: the click specs all aimed BESIDE an island, because a point inside one
   was the whole-widget select's territory, and no test asked what a press on a glyph
   whose policy steps over should do instead.
+- Click ON a glyph in reading mode: the press takes focus to the block and seats a
+  collapsed caret, exactly as a press beside an island already did, and writes nothing.
 
 ## Error cases
 

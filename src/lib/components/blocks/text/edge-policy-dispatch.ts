@@ -347,12 +347,13 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 		if (deps.isRevealing()) return false;
 		if (caretOffset === null) return false;
 		const node = deps.node;
-		const range = heldRange();
 		// Forward keys enter the widget after the caret, backward keys the one before, so
 		// a caret between two adjacent widgets enters the one the key is aimed at.
 		const direction = e.key === 'ArrowRight' || e.key === 'Delete' ? 'forward' : 'backward';
 		const widgetAt = widgetAtCursor(caretOffset, inlinesOf(node), node.raw, direction);
 		if (!widgetAt) return false;
+		// Below the bail: every keystroke in every prose block reaches the line above.
+		const range = heldRange();
 
 		// Unchorded, and at a CARET: a modifier makes the key a word-scoped platform command, and
 		// a held range is an edit of the range, not an entry into the construct beside its start.
@@ -532,8 +533,8 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 			(ambient.contains(sel.anchorNode) || ambient.contains(sel.focusNode));
 		if (!touchesAmbient) return false;
 		e.preventDefault();
-		const range = deps.getRawSelection();
-		if (range && range.start < range.end) {
+		const range = heldRange();
+		if (range) {
 			// Consumed at KEYDOWN, so no `beforeinput` carries this range to the shared seam: the arm
 			// asks it here, or a literal splice prints the runs the cut stranded (live-mode.md § 4.5).
 			const edit = replaceRangeRaw(

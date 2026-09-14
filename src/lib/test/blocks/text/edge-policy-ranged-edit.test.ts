@@ -28,11 +28,15 @@ function selectWholeSurface(el: HTMLElement): void {
 	sel.addRange(range);
 }
 
-/** A block whose first inline node is a widget: `&copy;` deletes atomically and steps over,
- *  `![a](u)` selects then deletes — the two edge policies a leading island can carry. */
+/**
+ * A block whose first inline node is a widget: `&copy;` deletes atomically and steps over,
+ * `![a](u)` selects then deletes, the two edge policies a leading island can carry. `ranged`
+ * selects from `from` to the end of the display text.
+ */
 function mountWidgetLed(
 	source: string,
-	ranged: boolean
+	ranged: boolean,
+	from = 0
 ): EdgeDispatchHarness & { entered: number[] } {
 	const node = parse(source).children[0];
 	const display = trimTrailingLineEnding(node.raw);
@@ -42,13 +46,15 @@ function mountWidgetLed(
 	const harness = makeEdgeDispatch(node, el, {
 		enterWidget: (widget) => entered.push(widget.start),
 		getRawSelection: () =>
-			ranged ? { start: asRawOffset(0), end: asRawOffset(display.length) } : null
+			ranged ? { start: asRawOffset(from), end: asRawOffset(display.length) } : null
 	});
 	return { ...harness, entered };
 }
 
 const ENTITY_LED = '&copy; opens\n';
 const IMAGE_LED = '![a](u) opens\n';
+/** `&copy;`'s trailing edge: a range opening there is the widget's OTHER caret-adjacent side. */
+const ENTITY_END = 6;
 
 installEdgeDispatchCleanup();
 
@@ -62,13 +68,14 @@ describe('a key over a range that opens with a CST widget', () => {
 	});
 
 	it.each([
-		['an entity-led block, Delete', ENTITY_LED, 'Delete'],
-		['an image-led block, Delete', IMAGE_LED, 'Delete'],
-		['an image-led block, ArrowRight', IMAGE_LED, 'ArrowRight']
-	])('%s: the key falls to the range, never entering the widget', (_case, source, name) => {
-		const h = mountWidgetLed(source, true);
+		['an entity-led block, Delete', ENTITY_LED, 'Delete', 0],
+		['an image-led block, Delete', IMAGE_LED, 'Delete', 0],
+		['an image-led block, ArrowRight', IMAGE_LED, 'ArrowRight', 0],
+		['a range opening at an entity’s trailing edge, Backspace', ENTITY_LED, 'Backspace', ENTITY_END]
+	])('%s: the key falls to the range, never entering the widget', (_case, source, name, from) => {
+		const h = mountWidgetLed(source, true, from);
 		const e = key(name);
-		expect(h.handleKeydown(e, at(0))).toBe(false);
+		expect(h.handleKeydown(e, at(from))).toBe(false);
 		expect(e.defaultPrevented).toBe(false);
 		expect(h.entered).toEqual([]);
 		expect(h.edits).toEqual([]);
@@ -80,6 +87,12 @@ describe('a key over a range that opens with a CST widget', () => {
 		const h = mountWidgetLed(ENTITY_LED, false);
 		expect(h.handleKeydown(key('Delete'), at(0))).toBe(true);
 		expect(h.edits).toEqual([[0, ' opens\n', 0, 0]]);
+	});
+
+	it('still takes the entity whole on Backspace at its trailing edge', () => {
+		const h = mountWidgetLed(ENTITY_LED, false);
+		expect(h.handleKeydown(key('Backspace'), at(ENTITY_END))).toBe(true);
+		expect(h.edits).toEqual([[0, ' opens\n', ENTITY_END, 0]]);
 	});
 
 	it('still selects the image on ArrowRight at a collapsed caret', () => {

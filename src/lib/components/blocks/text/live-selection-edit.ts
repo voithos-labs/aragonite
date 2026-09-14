@@ -164,9 +164,9 @@ export function resolveSelectionEdit(
 	};
 }
 
-/** The rewrite of `[start, end)` to `typed` a gesture the surface consumed installs — a delete is
- *  the empty one. The seam's cleaned bytes where it has them, else the literal display splice with
- *  the caret past the insert: the fallback's one home, so no arm carrying it can drift. */
+/** The rewrite of `[start, end)` to `typed` a gesture the surface consumed installs, where a
+ *  delete is the empty one. The seam's cleaned bytes where it has them, else the literal display
+ *  splice with the caret past the insert: the fallback's one home, so no arm can drift. */
 export function replaceRangeRaw(
 	node: NodeView,
 	range: { start: number; end: number },

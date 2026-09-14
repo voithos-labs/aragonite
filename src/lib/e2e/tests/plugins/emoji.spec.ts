@@ -1,5 +1,5 @@
 import { test, expect } from '../../fixtures';
-import { PluginsPage, capturedErrors } from './helpers';
+import { activeBlockPath, PluginsPage, capturedErrors } from './helpers';
 
 /**
  * `:shortcode:` emoji as atomic glyph widgets on the bare `:` trigger. The literal bytes stay in
@@ -114,6 +114,21 @@ test.describe('plugin inline emoji shortcodes', () => {
 			});
 		}
 	}
+
+	test('reading mode: a press on the glyph focuses the block and writes nothing', async ({
+		page
+	}) => {
+		await editor.setPresentationMode('reading');
+		const box = await emojiIn(editor, 0).boundingBox();
+		if (!box) throw new Error('no glyph box');
+		await page.mouse.click(box.x + box.width * 0.75, box.y + box.height / 2);
+		await editor.waitForNoSourceMutation();
+
+		expect(await editor.bridge.getSource()).toContain('Mood :smile: today');
+		expect(await activeBlockPath(page)).toEqual([0]);
+		expect(await page.evaluate(() => window.getSelection()?.isCollapsed ?? null)).toBe(true);
+		expect(await capturedErrors(page)).toEqual([]);
+	});
 
 	test('copying a range containing the reference yields the :name: bytes', async ({ page }) => {
 		await editor.focusBlockStart(0);

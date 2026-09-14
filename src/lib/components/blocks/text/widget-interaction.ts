@@ -838,14 +838,13 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		// text and the browser's word rule takes `[` or `$` as a word of its own.
 		if (doubleClick && revealOpenedByLastClick && selectRevealedSource(clickX, clickY)) return;
 		// The snap below seats a CARET, so it stands down for a range this surface paints, which it
-		// would collapse — the rule `clampOutOfAmbient` already carries.
+		// would collapse; the rule `clampOutOfAmbient` already carries.
 		const live = window.getSelection();
 		if (surfaceHoldsRange(el, live)) return;
 		const seat = nearestWidgetEdgeSeat(measuredWidgets(el), clickX, clickY);
 		if (seat === null) return;
-		// A press BESIDE an island stands down for a visible caret. A press ON one cannot: the
-		// engine answers that hit test with a position in the neighbouring text, which is visible
-		// and wrong, so the glyph's own edge wins.
+		// A press BESIDE an island stands down for a visible caret; a press ON one cannot, since the
+		// engine answers that hit test with a position in the neighbouring text.
 		if (!seat.inside && caretIsInTextContent(el, live)) return;
 		el.focus();
 		deps.cursor.setRaw(asRawOffset(seat.offset));
