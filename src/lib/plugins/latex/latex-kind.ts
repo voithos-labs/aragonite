@@ -49,9 +49,13 @@ function indexMathClosers(raw: string): Int32Array {
 // (`$HOME $PATH $USER …`) would otherwise cost a full block scan at every `$`.
 const firstCloserFrom = createScanIndex(indexMathClosers);
 
+/** Money, written the way prose writes it: a whole number between the delimiters. */
+const isPriceSpan = (body: string) => /^\d[\d.,]*$/.test(body);
+
 /**
- * The digit guard on the opener is what keeps `$5 and $10` currency, not math. The
- * close is deliberately not digit-guarded, so `$x^2$` closes on its `2`.
+ * Currency, not math, is what the two claim tests below buy: a span that is only a number is a
+ * price (`$5$`), and a closer a digit follows opens the second price of a range (`$10-$20`).
+ * Neither reads the opener, so `$10^5$` is the formula it looks like.
  */
 function recognizeMath(
 	raw: string,
@@ -62,7 +66,7 @@ function recognizeMath(
 	const afterOpen = pos + 1;
 	if (afterOpen >= end) return null;
 	const opener = raw[afterOpen];
-	if (isWhitespace(opener) || isDigit(opener)) return null;
+	if (isWhitespace(opener)) return null;
 	// `$$` is the display fence, or the empty pair a keystroke just closed: never an inline
 	// opener, or its closer search would jump to the far end of the next formula on the line.
 	if (opener === '$') return null;
@@ -71,6 +75,8 @@ function recognizeMath(
 	// scan range leaves the `$` literal.
 	const close = firstCloserFrom(raw, pos + 2);
 	if (close === -1 || close >= end) return null;
+	if (isDigit(raw[close + 1] ?? '')) return null;
+	if (isPriceSpan(raw.slice(afterOpen, close))) return null;
 	return { kind, start: pos, end: close + 1 };
 }
 

@@ -102,6 +102,8 @@ describe('delimiter auto-pair', () => {
 		expect(type('Some *ab', 8, '*')).toEqual(closed('Some *ab*', 9));
 		expect(type('Some `ab', 8, '`')).toEqual(closed('Some `ab`', 9));
 		expect(type('$ab', 3, '$')).toEqual(closed('$ab$', 4));
+		// A digit-opening formula, which the price rules leave to the author's own closer.
+		expect(type('$10^5', 5, '$')).toEqual(closed('$10^5$', 6));
 	});
 
 	// `**ab*` plus `*` is the second half of a double closer, not a lone opener to grow.

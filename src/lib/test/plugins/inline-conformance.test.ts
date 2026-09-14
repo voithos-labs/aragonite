@@ -86,10 +86,10 @@ const mathRung: InlineConformanceProfile = {
 	get kind() {
 		return declaredPluginInlineKind(MATH_INLINE);
 	},
-	fixtures: ['$x^2$', 'let $a+b$ be'],
-	// Shell and currency prose is the whole reason the opener is digit- and
-	// whitespace-guarded; a claim here would eat a paragraph's worth of bytes.
-	overlapFixtures: ['$5 and $10', '$ x $', '$HOME and $PATH', 'costs $9'],
+	fixtures: ['$x^2$', 'let $a+b$ be', 'one part in $10^5$'],
+	// Shell and currency prose is the whole reason a `$` claim is guarded at all; one taken
+	// here would eat a paragraph's worth of bytes.
+	overlapFixtures: ['$5 and $10', '$ x $', '$HOME and $PATH', 'costs $9', 'between $10-$20'],
 	overlapDecline: { mode: 'assert' },
 	widget: { mode: 'assert' },
 	editingPolicy: { mode: 'assert' },
