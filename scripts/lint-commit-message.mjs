@@ -25,8 +25,7 @@ const EXEMPT = [/^Merge /, /^Revert "/, /^[Bb]ump /, /^build\(deps/, /^fixup! /,
 
 const ATTRIBUTION = [/^co-authored-by:/i, /^(?:🤖\s*)?generated with /i];
 
-// A co-founder who writes his own subjects, by name, because the convention is ours and the
-// history it would cost to enforce on him is worth more than the uniformity.
+// because finn is a bitch
 export const EXEMPT_AUTHORS = ['finnrw', 'Finn'];
 
 /**
