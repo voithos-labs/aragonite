@@ -60,10 +60,11 @@ describe('code-languages registry', () => {
 		for (const name of listed) expect(getLanguageGrammar(name)).not.toBeNull();
 	});
 
-	it('reports the spellings a language answers to, under its own name', () => {
+	it('reports the spellings a language answers to, from any spelling of it', () => {
 		registerLanguage('Python', fakeGrammar, ['py', 'PY']);
 
 		expect(getLanguageAliases('python')).toEqual(['py']);
+		expect(getLanguageAliases('py')).toEqual(['py']);
 	});
 
 	// A host registers what it likes, and a name it picks can already be somebody's alias. The

@@ -12,11 +12,12 @@ A button on the code rail at the code box's top-right, showing the info string's
 language, one row each, the block's own language highlighted first in the spelling the fence
 uses. An alias (`rs`, `py`) is a search key rather than a row of its own, so the list never
 carries a language twice. Enter commits what the field holds whenever that spelling names a
-language the registry knows, and the highlighted row otherwise, which is also how an unregistered
-language stays authorable (§ The commit has the whole rule); `text` is the row that clears a
-language; Escape and blur cancel byte-identically. Only Enter and a list pick write. A bare fence that has just taken the caret with no language opens the picker itself,
-unless the caret stepped in from a neighbour: a keyboard walk through an existing fence is not
-its authoring moment, and a picker taking focus there would trap the walk.
+language the registry knows and the highlight has not moved, and the highlighted row otherwise,
+which is also how an unregistered language stays authorable (§ The commit has the whole rule);
+`text` is the row that clears a language; Escape and blur cancel byte-identically. Only Enter
+and a list pick write. A bare fence that has just taken the caret with no language opens the
+picker itself, unless the caret stepped in from a neighbour: a keyboard walk through an existing
+fence is not its authoring moment, and a picker taking focus there would trap the walk.
 
 It is transient, not chrome: hidden until the pointer hovers the block or the caret sits
 inside it, per the calm-surface rule the drag handle already follows. It renders OUTSIDE

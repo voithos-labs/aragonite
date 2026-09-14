@@ -49,10 +49,10 @@ export function listLanguages(): string[] {
 	return [...grammars.keys()].sort();
 }
 
-/** The alternate spellings a registered language answers to, under the name `listLanguages`
- *  returns it as, so a picker's filter matches `rs` to `rust` without its own table. */
+/** The alternate spellings a language answers to, from any spelling of it — a picker's filter
+ *  matches `rs` to `rust` without a table of its own. */
 export function getLanguageAliases(name: string): readonly string[] {
-	const key = name.toLowerCase();
+	const key = canonicalName(name);
 	if (!grammars.has(key)) return [];
 	return [...aliases].filter(([, target]) => target === key).map(([alias]) => alias);
 }
