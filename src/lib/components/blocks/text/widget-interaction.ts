@@ -38,7 +38,12 @@ import {
 } from '../../../debug/interaction-trace';
 import { assertInvariant } from '../../../assert';
 import type { RevealFold } from '../editable-surface';
-import { caretIsInTextContent, hasModifier, isPlainTypingKey } from './click-snap-guard';
+import {
+	caretIsInTextContent,
+	hasModifier,
+	isPlainTypingKey,
+	surfaceHoldsRange
+} from './click-snap-guard';
 import {
 	findWidgetNodeByStart,
 	findFirstEdgeWidget,
@@ -820,8 +825,10 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		// The first click of a double-click already revealed, so the second lands in the source
 		// text and the browser's word rule takes `[` or `$` as a word of its own.
 		if (doubleClick && revealOpenedByLastClick && selectRevealedSource(clickX, clickY)) return;
-		// A click in a real text node keeps the native caret; a synthetic overlay would compete.
-		if (caretIsInTextContent(el, window.getSelection())) return;
+		// The snap below seats a CARET: it stands down for a visible one, and for a range this
+		// surface paints, which it would collapse — the rule `clampOutOfAmbient` already carries.
+		const live = window.getSelection();
+		if (caretIsInTextContent(el, live) || surfaceHoldsRange(el, live)) return;
 		for (const inline of widgetsOf()) {
 			const widget = widgetElByStart(el, inline.start);
 			if (!widget) continue;
