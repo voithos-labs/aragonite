@@ -40,6 +40,7 @@ The groups, in page order:
 | [Events](#events)                                       | What the editor tells your plugin has happened, and the shapes it says it in                 |
 | [Rects](#rects)                                         | Where things are on screen: block boxes, ranges, the caret, scrolling to a block             |
 | [Caret geometry](#caret-geometry)                       | Answering where a press inside your block puts the caret                                     |
+| [Pointer gestures](#pointer-gestures)                   | Keeping a drag that belongs to your block (a pan, a brush) from starting a selection         |
 | [Selection geometry](#selection-geometry)               | The shapes that describe what the user has selected                                          |
 | [Parse and serialize](#parse-and-serialize)             | Markdown in, tree out, and back again                                                        |
 | [Grammar scanners](#grammar-scanners)                   | The editor's own code-fence, HTML-tag, and blockquote rules, reusable so you never fork them |
@@ -153,17 +154,17 @@ _(pre-freeze / unstable)_ The `:::name` grammar itself is the [directives guide]
 
 _(pre-freeze / unstable)_ A container's **chrome** is its own furniture: the border, the title line, an icon if you like. The factory hides everything else (child-list state, ancestor wiring, the mounting of only what's visible), so your component only has to supply the chrome. Worked end to end in [the walkthrough](plugin-guide.md#walkthrough-a-conspiracy-container-end-to-end).
 
-| Export                                          | Role                                                                                                                                                                                                               |
-| ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `createContainerBlock`                          | Wire a nested-child-list container so your component is as thin as the built-in blockquote's                                                                                                                       |
-| `BlockList`                                     | The child-list component your container renders, spread with the factory's props, as a direct child of your box                                                                                                    |
-| `registerChromeLeaf`                            | Register a container's title or summary line as a kind of its own, with a sensible default keymap                                                                                                                  |
-| `chromeChild`                                   | Build the reserved child-0 node for that line: the title text plus its newline (an empty title keeps the bare newline)                                                                                             |
-| `isCollapsedContainer`                          | Read a container's collapse state through its descriptor, so your component and the editor's own walks agree                                                                                                       |
-| `ContainerBlock`, `ContainerBlockComponent`     | What the factory returns (the child-list props, the `containerApi` you publish, the keydown handler, plus the commit, focus-exit, mode, theme and options entries), and the shape that `containerApi` must satisfy |
-| `ContainerBlockDeps`, `ContainerBlockListProps` | The factory's inputs, live getters rather than captured values, and the props `BlockList` takes                                                                                                                    |
-| `RefSlots`                                      | The per-child reference accessors the child-list props carry                                                                                                                                                       |
-| `ChromeLeafOptions`                             | `registerChromeLeaf`'s options: a CSS class for styling the line, keymap overrides, the merge role                                                                                                                 |
+| Export                                          | Role                                                                                                                                                                                                                            |
+| ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `createContainerBlock`                          | Wire a nested-child-list container so your component is as thin as the built-in blockquote's                                                                                                                                    |
+| `BlockList`                                     | The child-list component your container renders, spread with the factory's props, as a direct child of your box                                                                                                                 |
+| `registerChromeLeaf`                            | Register a container's title or summary line as a kind of its own, with a sensible default keymap                                                                                                                               |
+| `chromeChild`                                   | Build the reserved child-0 node for that line: the title text plus its newline (an empty title keeps the bare newline)                                                                                                          |
+| `isCollapsedContainer`                          | Read a container's collapse state through its descriptor, so your component and the editor's own walks agree                                                                                                                    |
+| `ContainerBlock`, `ContainerBlockComponent`     | What the factory returns (the child-list props, the `containerApi` you publish, the keydown handler, plus the commit, focus-exit, mode, theme, options and scroll-hold entries), and the shape that `containerApi` must satisfy |
+| `ContainerBlockDeps`, `ContainerBlockListProps` | The factory's inputs, live getters rather than captured values, and the props `BlockList` takes                                                                                                                                 |
+| `RefSlots`                                      | The per-child reference accessors the child-list props carry                                                                                                                                                                    |
+| `ChromeLeafOptions`                             | `registerChromeLeaf`'s options: a CSS class for styling the line, keymap overrides, the merge role                                                                                                                              |
 
 ### Editable-leaf authoring
 
@@ -295,11 +296,17 @@ _(pre-freeze / unstable)_ What a kind fills its descriptor's `caretTargetAtPoint
 
 ### Pointer gestures
 
-_(pre-freeze / unstable)_ One attribute, for a block that answers drags itself (a diagram you pan, a canvas you draw on). Without it the editor reads the same press as the start of a selection, and your gesture runs with a block range painted over it. Your own `stopPropagation` cannot do this job: pointer events are delegated at the app root, so your handler runs after the editor's.
+_(pre-freeze / unstable)_ One attribute, for a block whose drags are its own (a diagram you pan, a canvas you draw on). Without it the editor reads the press as the start of a selection, and your pan runs under a painted block range. Calling `stopPropagation()` in your own handler doesn't help: Svelte delivers pointer events from the app root, so the editor's listener has already run.
 
-| Export                 | Role                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
-| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `POINTER_GESTURE_ATTR` | Put it on the element whose drags are yours, and a press anywhere inside that element is left alone by the editor's drag-to-select, and by the click ladder above the caret wherever that element sits outside any `contenteditable` (an island inside your own editable text is the inline widget's own door instead). The editor reads it at press time, so the declaration may be permanent or conditional: drop it while your gesture is disarmed and the editor answers those presses as it would on any other block |
+| Export                 | Role                                                                                                                                                                                                                                                                                                                                                                         |
+| ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `POINTER_GESTURE_ATTR` | Put it on the element whose drags are yours. A press inside it is left alone by drag-to-select, and by the double and triple click too, as long as the element sits outside any `contenteditable` (an island inside your own editable text is the inline widget's door instead). The editor reads it at press time, so declare it always or only while your gesture is armed |
+
+```svelte
+<div class="viewport" {...{ [POINTER_GESTURE_ATTR]: focused ? '' : undefined }} onpointerdown={beginPan}>
+```
+
+That is what mermaid does: unfocused, a drag on the diagram selects like it would on any block; focused, it pans.
 
 ### Selection geometry
 
