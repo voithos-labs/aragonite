@@ -652,13 +652,9 @@
 	.task-checkbox::before {
 	content: '';
 	visibility: visible;
-	/* Centred by layout (`inset: 0; margin: auto`), NOT by a translate(-50%, -50%): a
-	   transformed box is rasterised at its fractional edges, and on a scaled display (a
-	   Windows 125% or 150% desktop) that leaves one edge half-painted, so the square reads
-	   a few pixels shorter than it is wide. A box positioned in layout snaps to whole
-	   device pixels, and rounding its size to whole CSS pixels keeps both edges on the same
-	   grid so width and height snap alike. The unrounded pair is the fallback for a browser
-	   without `round()`. */
+	/* Centred by layout and sized to whole pixels, never by a translate: a transformed box
+	   rasterises at fractional edges on a scaled desktop and reads shorter than it is wide.
+	   The unrounded pair is the fallback for a browser without `round()`. */
 	position: absolute;
 	inset: 0;
 	margin: auto;
