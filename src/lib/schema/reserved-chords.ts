@@ -45,6 +45,12 @@ export const HARDCODED_CHORD_SITES: readonly HardcodedChordSite[] = [
 		note: 'The Mod-held `data-mod-active` affordance tracks flag state only — no keystroke is consumed.'
 	},
 	{
+		file: 'selection/multi-click.ts',
+		chords: [],
+		keys: [],
+		note: 'A modified multi-click is left to the browser (Shift extends, Mod activates) — no keystroke is consumed.'
+	},
+	{
 		file: 'components/GapCaret.svelte',
 		chords: [],
 		keys: [

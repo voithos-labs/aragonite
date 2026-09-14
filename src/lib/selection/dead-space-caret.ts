@@ -55,6 +55,9 @@ export interface DeadSpaceCaret {
 	 * whichever way the drag goes. A coordinate-addressed kind (a table) anchors nothing.
 	 */
 	anchorAtPoint(root: HTMLElement, x: number, y: number): SelectionEndpoint | null;
+	/** The path of the block a press names, the point clamped into the nearest band: what the
+	 *  click ladder selects in for a press on the margin or a block's own box. */
+	blockPathNearPoint(root: HTMLElement, x: number, y: number): number[] | null;
 }
 
 export function createDeadSpaceCaret(deps: DeadSpaceCaretDeps): DeadSpaceCaret {
@@ -135,7 +138,12 @@ export function createDeadSpaceCaret(deps: DeadSpaceCaretDeps): DeadSpaceCaret {
 		return true;
 	}
 
-	function anchorAtPoint(root: HTMLElement, x: number, y: number): SelectionEndpoint | null {
+	/** The nearest block's hit for a press, with the probe point clamped into its band. */
+	function hitNearPoint(
+		root: HTMLElement,
+		x: number,
+		y: number
+	): { hit: BlockHit; probeX: number; probeY: number } | null {
 		const blocks = measureBlocks(root);
 		const band = nearestBand(
 			blocks.map((b) => b.rect),
@@ -145,7 +153,13 @@ export function createDeadSpaceCaret(deps: DeadSpaceCaretDeps): DeadSpaceCaret {
 		if (band.belowAll && lastMountedTopLevel(blocks) !== deps.lastBlockIndex()) return null;
 		const { x: probeX, y: probeY } = probePointIn(blocks[band.index].rect, x, y, band.belowAll);
 		const hit = blockAtPoint(root, probeX, probeY);
-		if (!hit) return null;
+		return hit && { hit, probeX, probeY };
+	}
+
+	function anchorAtPoint(root: HTMLElement, x: number, y: number): SelectionEndpoint | null {
+		const near = hitNearPoint(root, x, y);
+		if (!near) return null;
+		const { hit, probeX, probeY } = near;
 		// No character surface to measure against — a rendered equation, a rule, a table — so the
 		// block is the unit, and the funnel picks the side by the drag's direction. An offset would
 		// put a range END at the block's start and leave it out; a cell would make the drag a caret
@@ -157,9 +171,14 @@ export function createDeadSpaceCaret(deps: DeadSpaceCaretDeps): DeadSpaceCaret {
 		return { path: hit.path.slice(), offset: landing.offset };
 	}
 
+	function blockPathNearPoint(root: HTMLElement, x: number, y: number): number[] | null {
+		return hitNearPoint(root, x, y)?.hit.path.slice() ?? null;
+	}
+
 	return {
 		isDeadSpaceTarget: isDeadSpace,
 		anchorAtPoint,
+		blockPathNearPoint,
 		notePress(root, event) {
 			pressedOnDeadSpace =
 				isDeadSpace(root, event.target) &&

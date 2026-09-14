@@ -38,6 +38,7 @@
 	import { createDeadSpaceCaret } from '../selection/dead-space-caret';
 	import { resetForPointerDown } from '../selection/cross-block/pointer';
 	import { installDragListener } from '../selection/drag-pointer';
+	import { installMultiClickSelect } from '../selection/multi-click';
 	import { createContentVersion } from '../reactivity/content-version.svelte';
 	import { useContainerWindowing } from '../reactivity/use-container-windowing.svelte';
 	import { refSlotsOver, replaceRefs, revealChildOrWait } from '../reactivity/publish-ref.svelte';
@@ -112,7 +113,6 @@
 		installWidthWatcher
 	} from './editor-root-geometry';
 	import {
-		installDoubleClickWordSelect,
 		installEditorBlurAnnouncer,
 		installModActiveTracker,
 		installSelectionChangeBridge,
@@ -719,6 +719,11 @@
 			// press and release targets meet at the root); with a range just painted, it is no
 			// click to answer.
 			if (!anchor) {
+				// A multi-click places no caret: the ladder painted its range over this press.
+				if (e.detail >= 2) {
+					marginDrag = false;
+					return;
+				}
 				const pressed = marginDrag;
 				const dragged =
 					pressed &&
@@ -773,6 +778,7 @@
 		// starts no selection of its own to fight it; `click` still fires for the caret placement.
 		let marginDrag = false;
 		let marginDown = { x: 0, y: 0 };
+		let marginSession: { dispose(): void } | null = null;
 		const startMarginDrag = (e: PointerEvent) => {
 			marginDrag = false;
 			marginDown = { x: e.clientX, y: e.clientY };
@@ -788,7 +794,7 @@
 				const component = getBlockComponent(anchor.path);
 				if (component?.startDragAtPoint?.(e.clientX, e.clientY, e)) return;
 			}
-			installDragListener(
+			marginSession = installDragListener(
 				{
 					editorRoot: root,
 					scrollContainer: getScrollHost() ?? root,
@@ -803,10 +809,26 @@
 		};
 		return removeAll(
 			onRoot(root, 'click', handleClick),
-			installDoubleClickWordSelect(root),
+			installMultiClickSelect({
+				editorRoot: root,
+				selection: selectionState,
+				getBlockElByPath,
+				getScrollContainer: () => getScrollHost() ?? root,
+				lifetimeSignal: lifetimeController.signal,
+				marginBlockAt: (target, x, y) =>
+					effectiveMode !== 'reading' && dragStartsHere(root, target)
+						? deadSpaceCaret.blockPathNearPoint(root, x, y)
+						: null
+			}),
 			onRoot(root, 'pointerdown', startMarginDrag),
 			onRoot(root, 'mousedown', (e: MouseEvent) => {
 				deadSpaceCaret.notePress(root, e);
+				// The second press of a click run is the ladder's, which runs its own drag.
+				if (marginDrag && e.detail >= 2) {
+					marginSession?.dispose();
+					marginSession = null;
+					marginDrag = false;
+				}
 				if (marginDrag) e.preventDefault();
 			})
 		);

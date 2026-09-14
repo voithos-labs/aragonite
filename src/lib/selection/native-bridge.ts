@@ -8,13 +8,19 @@
 import type { SelectionPoint, EditorSelection } from './primitives';
 import type { SelectionState } from './selection-state.svelte';
 import type { BlockComponent } from '../block-component';
-import { asRawOffset, toClampedRawOffset, toDomTextOffset } from '../cursor/coordinate-spaces';
+import {
+	asDomTextOffset,
+	asRawOffset,
+	toClampedRawOffset,
+	toDomTextOffset
+} from '../cursor/coordinate-spaces';
+import { createRangeFromOffsets } from '../cursor/content-offsets';
 import {
 	clampToLandableRaw,
 	createRangeAtDomTextOffsets,
 	domTextOffsetAtNode
 } from '../cursor/widget-offset';
-import { ambientLengthOf, placeCaretAfterAmbientSpan } from '../ambient/ambient-dom';
+import { ambientLengthOf, ambientSpanOf, placeCaretAfterAmbientSpan } from '../ambient/ambient-dom';
 
 // ── Read native → SelectionPoint ────────────────────────────────────────────
 
@@ -79,6 +85,30 @@ export function focusCollapsedCaret(
 	return true;
 }
 
+/** Select a surface's content whole, past its ambient prefix: the first-press Ctrl+A range and
+ *  the triple-click one. */
+export function applySurfaceContentRange(el: HTMLElement): void {
+	const ambient = ambientSpanOf(el);
+	const ambientLen = ambient?.textContent?.length ?? 0;
+	const textLen = el.textContent?.length ?? 0;
+
+	if (ambient && textLen > ambientLen) {
+		if (!placeCaretAfterAmbientSpan(el)) return;
+		// textLen counts the full textContent (marker included) — a DomTextOffset by construction.
+		const endRange = createRangeFromOffsets(el, asDomTextOffset(textLen), asDomTextOffset(textLen));
+		if (endRange) {
+			window.getSelection()?.extend(endRange.endContainer, endRange.endOffset);
+		}
+		return;
+	}
+
+	const range = document.createRange();
+	range.selectNodeContents(el);
+	const sel = window.getSelection();
+	sel?.removeAllRanges();
+	sel?.addRange(range);
+}
+
 export function applySingleBlockRange(
 	blockEl: HTMLElement,
 	startOffset: number,
@@ -92,6 +122,12 @@ export function applySingleBlockRange(
 	);
 	if (!range) return;
 	const sel = window.getSelection();
+	// A start at raw 0 under an ambient marker goes AFTER the island, as a caret does: Chromium
+	// drops a range that opens inside its contenteditable="false".
+	if (ambient > 0 && startOffset <= 0 && placeCaretAfterAmbientSpan(blockEl)) {
+		sel?.extend(range.endContainer, range.endOffset);
+		return;
+	}
 	sel?.removeAllRanges();
 	sel?.addRange(range);
 }

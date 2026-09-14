@@ -67,9 +67,10 @@ const MINT_ALLOWLIST: Record<string, string> = {
 	'src/lib/components/blocks/text/widget-interaction.ts':
 		'CST inline offsets (unbranded model values) enter cursor IO',
 	'src/lib/cursor/reveal-source.ts': 'block-source offsets (unbranded deps) enter the walk',
-	'src/lib/selection/native-bridge.ts': 'SelectionPoint offsets (unbranded) enter the walk',
-	'src/lib/selection/cross-block/keydown.ts':
-		'textContent length is a DomTextOffset by construction',
+	'src/lib/selection/native-bridge.ts':
+		'SelectionPoint offsets (unbranded) enter the walk; a textContent length is a DomTextOffset by construction',
+	'src/lib/selection/multi-click.ts':
+		'the point probe’s raw offsets and the segmenter’s walk-text indices (both unbranded) cross the walk in each direction',
 	'src/lib/decorations/island-dom.ts': 'decoration model offsets (unbranded) enter the walk'
 };
 

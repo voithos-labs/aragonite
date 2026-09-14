@@ -8,8 +8,9 @@ import type { UserScrollport } from '../cursor/scroll-ancestors';
 import type { SelectionState } from './selection-state.svelte';
 import type { SelectionEndpoint } from './primitives';
 import type { BlockElLookup } from '../editor-keys';
+import { caretOffsetAtPoint } from '../cursor/point-offset';
 import { applyCollapsedCaret, applySingleBlockRange, clearNativeSelection } from './native-bridge';
-import { isWholeBlockEndpoint } from './primitives';
+import { isWholeBlockEndpoint, type SelectionPoint } from './primitives';
 import { comparePaths } from './path-math';
 import { createPointerDragSession } from './pointer-session';
 import { blockNearPoint } from './nearest-block';
@@ -29,6 +30,19 @@ export interface DragContext {
 	 * is extending a selection underneath: the session paints the same-block range itself.
 	 */
 	paintSameBlock?: boolean;
+	/** A drag continuing a multi-click: the range grows by that rung's unit. */
+	granularity?: DragGranularity;
+}
+
+/** The unit a multi-click drag grows by. Spans are raw offsets; the press's own span is the
+ *  floor the range never shrinks below. */
+export interface DragGranularity {
+	/** Where the press selected; a pointer that names no other block paints here. */
+	surface: HTMLElement;
+	anchorSpan: { start: number; end: number };
+	spanAround(offset: number): { start: number; end: number };
+	/** A focus in another block, pushed to the unit's boundary on the side away from the anchor. */
+	expandFocus(point: SelectionPoint, side: 'before' | 'after'): SelectionEndpoint;
 }
 
 // ── Public entry ───────────────────────────────────────────────────────────
@@ -45,6 +59,11 @@ export function installDragListener(
 		// autoscrolling drag sends nothing but off-block points.
 		const near = blockNearPoint(ctx.editorRoot, clientX, clientY);
 		if (!near) return;
+
+		if (ctx.granularity) {
+			processGranularMove(ctx.granularity, near, clientX, clientY);
+			return;
+		}
 
 		if (comparePaths(near.path, anchorPoint.path) === 0) {
 			if (!('offset' in anchorPoint)) {
@@ -70,6 +89,51 @@ export function installDragListener(
 			ctx.selection.enterCrossBlock(anchorPoint, focusPoint);
 		} else {
 			ctx.selection.extendFocus(focusPoint);
+		}
+	}
+
+	// The anchor's side flips with the drag's direction (the press's span ends the range going up,
+	// starts it going down), so a flip re-enters; a same-side move only extends.
+	let anchorAfter: boolean | null = null;
+	function processGranularMove(
+		unit: DragGranularity,
+		near: NonNullable<ReturnType<typeof blockNearPoint>>,
+		clientX: number,
+		clientY: number
+	): void {
+		const anchorIsChar = 'offset' in anchorPoint && !anchorPoint.cellCoordinate;
+		if (!anchorIsChar || comparePaths(near.path, anchorPoint.path) === 0) {
+			if (ctx.selection.isCrossBlock) ctx.selection.collapse();
+			anchorAfter = null;
+			const offset = caretOffsetAtPoint(unit.surface, clientX, clientY);
+			if (offset === null) return;
+			const span = unit.spanAround(offset);
+			unit.surface.focus({ preventScroll: true });
+			applySingleBlockRange(
+				unit.surface,
+				Math.min(unit.anchorSpan.start, span.start),
+				Math.max(unit.anchorSpan.end, span.end)
+			);
+			return;
+		}
+		const focusPoint = near.endpointHere();
+		if (!focusPoint) return;
+		if (isWholeBlockEndpoint(focusPoint) && !reachedCentreLine(near.path, clientY)) return;
+		const after = comparePaths(near.path, anchorPoint.path) > 0;
+		const focus = isWholeBlockEndpoint(focusPoint)
+			? focusPoint
+			: unit.expandFocus(focusPoint, after ? 'after' : 'before');
+		if (!ctx.selection.isCrossBlock || anchorAfter !== after) {
+			anchorAfter = after;
+			ctx.selection.enterCrossBlock(
+				{
+					path: anchorPoint.path.slice(),
+					offset: after ? unit.anchorSpan.start : unit.anchorSpan.end
+				},
+				focus
+			);
+		} else {
+			ctx.selection.extendFocus(focus);
 		}
 	}
 
