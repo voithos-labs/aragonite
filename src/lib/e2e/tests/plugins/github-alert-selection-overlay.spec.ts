@@ -1,5 +1,6 @@
+import type { Page } from '@playwright/test';
 import { test, expect } from '../../fixtures';
-import { PluginsPage } from './helpers';
+import { PluginsPage, dragBetweenPoints, textRunCenter } from './helpers';
 
 /**
  * A GitHub alert swept into a cross-block range (requirements/plugins/github-alert-selection-
@@ -10,6 +11,14 @@ import { PluginsPage } from './helpers';
 
 const ALERT_DOC = 'above\n\n> [!WARNING]\n> body line\n\nbelow\n';
 const ALERT_OVERLAY = "[data-block-path='[1]'] > .selection-overlay-middle";
+
+/** The painted box, and whether the title row's band falls inside it. */
+async function boxCoversTitle(page: Page): Promise<boolean> {
+	const box = (await page.locator(ALERT_OVERLAY).boundingBox())!;
+	const title = (await page.locator('.admonition-title').boundingBox())!;
+	expect(title.height).toBeGreaterThan(0);
+	return title.y >= box.y - 1 && title.y + title.height <= box.y + box.height + 1;
+}
 
 test.describe('cross-block selection overlay - a GitHub alert held whole', () => {
 	let editor: PluginsPage;
@@ -25,14 +34,21 @@ test.describe('cross-block selection overlay - a GitHub alert held whole', () =>
 		await page.keyboard.press('ControlOrMeta+Shift+End');
 		await editor.waitForCrossBlock(true);
 
-		const overlay = page.locator(ALERT_OVERLAY);
-		await expect(overlay).toHaveCount(1);
+		await expect(page.locator(ALERT_OVERLAY)).toHaveCount(1);
+		expect(await boxCoversTitle(page)).toBe(true);
+	});
 
-		const box = (await overlay.boundingBox())!;
-		const title = (await page.locator('.admonition-title').boundingBox())!;
-		expect(title.height).toBeGreaterThan(0);
-		expect(title.y).toBeGreaterThanOrEqual(box.y - 1);
-		expect(title.y + title.height).toBeLessThanOrEqual(box.y + box.height + 1);
+	// The issue's own gesture, whose endpoints land mid-word rather than at the block edges.
+	test('a pointer drag across the alert paints the same one box', async ({ page }) => {
+		await dragBetweenPoints(
+			page,
+			await textRunCenter(page, [0], 'above'),
+			await textRunCenter(page, [2], 'below')
+		);
+		await editor.waitForCrossBlock(true);
+
+		await expect(page.locator(ALERT_OVERLAY)).toHaveCount(1);
+		expect(await boxCoversTitle(page)).toBe(true);
 	});
 
 	test('the body block inside it paints nothing, so the highlight never doubles', async ({

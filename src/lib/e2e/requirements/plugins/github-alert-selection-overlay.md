@@ -10,6 +10,8 @@ box: the blocks the range actually touches paint their own pieces.
 
 - A Mod+Shift+End sweep from the paragraph above the alert to the end of the document
   paints one container-level box whose bounds cover the alert's title row
+- The same range built as a pointer drag across the alert, mid-word to mid-word, paints
+  that same box: the rule is the range's shape, not the gesture that drew it
 
 ## Edge cases
 
