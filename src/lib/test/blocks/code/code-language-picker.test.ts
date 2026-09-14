@@ -34,6 +34,12 @@ function press(field: HTMLInputElement, key: string): void {
 	flushSync();
 }
 
+function hover(row: number): void {
+	const options = mounted.target.querySelectorAll<HTMLElement>('.code-lang-list [role="option"]');
+	options[row].dispatchEvent(new MouseEvent('mouseenter'));
+	flushSync();
+}
+
 function rows(): string[] {
 	return [...mounted.target.querySelectorAll('.code-lang-name')].map((el) => el.textContent ?? '');
 }
@@ -89,6 +95,18 @@ describe('CodeBlock — the language picker’s commit', () => {
 
 		type(field, 'c');
 		press(field, 'ArrowDown');
+		press(field, 'Enter');
+
+		expect(commits()).toEqual(['```cpp\nconst x = 1\n```\n']);
+	});
+
+	// The pointer is the rule's other arm: a hovered row highlights like an arrowed one, so it
+	// has to outrank the typed spelling the same way.
+	it('takes the row the pointer rests on, the same as an arrowed one', () => {
+		const field = openField();
+
+		type(field, 'c');
+		hover(1);
 		press(field, 'Enter');
 
 		expect(commits()).toEqual(['```cpp\nconst x = 1\n```\n']);
