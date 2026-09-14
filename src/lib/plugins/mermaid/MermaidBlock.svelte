@@ -143,9 +143,8 @@
 	const view = createPanZoom();
 	const overlayView = createPanZoom();
 
-	// Focus-gated so the in-document diagram never hijacks the page: unfocused, a bare wheel
-	// scrolls, a stray drag cannot pan, and the editor's drag-to-select still owns the press.
-	// Tracked rather than probed, because the gesture declaration the editor reads is markup.
+	// Armed by focus, so an unfocused diagram hijacks neither the page nor the editor's own drag.
+	// Tracked rather than probed: the editor reads the same fact as markup, so there is one value.
 	let gestureArmed = $state(false);
 
 	function onViewportWheel(e: WheelEvent): void {
@@ -156,8 +155,6 @@
 	}
 
 	function onViewportPointerDown(e: PointerEvent): void {
-		// Never preventDefault, so the browser's focus-on-mousedown still lands: the
-		// first click focuses, and only a drag on the now-focused block pans.
 		e.stopPropagation();
 		if (gestureArmed) view.beginPan(e);
 	}

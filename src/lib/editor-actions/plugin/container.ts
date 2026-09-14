@@ -169,7 +169,8 @@ export interface ContainerBlock {
 	/**
 	 * The reader's scroll position, captured now. Call before a state flip that swaps this
 	 * block's view for one of a different height, then await the returned restore: the
-	 * scrollport is back where it was once the swap has flushed.
+	 * scrollport is back where it was once the swap has flushed. A reveal in flight outranks
+	 * it and the restore stands down.
 	 */
 	captureScrollPosition(): () => Promise<void>;
 }
@@ -330,6 +331,7 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 		edgeAffinity,
 		selection,
 		reorder,
+		revealAnchor,
 		events: editorEvents,
 		registryView,
 		activePlugins
@@ -592,7 +594,8 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 		updateOwnMetadata,
 		handleKeydown,
 		moveFocusOut,
-		captureScrollPosition: () => captureScrollPosition(deps.getBoxEl()),
+		captureScrollPosition: () =>
+			captureScrollPosition(deps.getBoxEl(), () => revealAnchor.get() !== null),
 		getPresentationMode,
 		getTheme,
 		getOptions
