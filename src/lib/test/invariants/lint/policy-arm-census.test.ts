@@ -39,7 +39,7 @@ const readsPolicyTable = (file: SourceFile): boolean =>
 
 /** The widget registry's doors — the other table, whose subject is the atomic island. */
 const WIDGET_READ =
-	/(?<![\w.])(getInlineWidgetEditing|isInlineWidget|isInlineWidgetKind|widgetSourceRange|augmentInlineWidgetKind)\s*\(/;
+	/(?<![\w.])(getInlineWidgetEditing|isInlineWidget|isInlineWidgetKind|isCharacterLikeWidget|widgetSourceRange|augmentInlineWidgetKind)\s*\(/;
 
 const readsWidgetRegistry = (file: SourceFile): boolean =>
 	file.relPath !== WIDGET_REGISTRY && WIDGET_READ.test(stripComments(file.text));

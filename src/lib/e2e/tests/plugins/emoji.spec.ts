@@ -93,6 +93,28 @@ test.describe('plugin inline emoji shortcodes', () => {
 		expect(await capturedErrors(page)).toEqual([]);
 	});
 
+	// Quarters, not halves: the box midline is where the two answers meet, and a press there is
+	// decided by sub-pixel luck.
+	for (const mode of ['source', 'live'] as const) {
+		for (const [side, fraction, expected] of [
+			['left', 0.25, 'Mood X:smile: today'],
+			['right', 0.75, 'Mood :smile:X today']
+		] as const) {
+			test(`${mode}: a click on the glyph's ${side} half seats the caret at that edge`, async ({
+				page
+			}) => {
+				await editor.setPresentationMode(mode);
+				const box = await emojiIn(editor, 0).boundingBox();
+				if (!box) throw new Error('no glyph box');
+				await page.mouse.click(box.x + box.width * fraction, box.y + box.height / 2);
+				await editor.typeText('X');
+
+				await editor.bridge.waitForSourceContains(expected);
+				expect(await capturedErrors(page)).toEqual([]);
+			});
+		}
+	}
+
 	test('copying a range containing the reference yields the :name: bytes', async ({ page }) => {
 		await editor.focusBlockStart(0);
 		await editor.selectAll();

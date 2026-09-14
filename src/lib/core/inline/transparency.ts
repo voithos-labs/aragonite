@@ -7,7 +7,7 @@
 
 import type { NodeView } from '../node-views';
 import { getInlineContent } from './inline-cache';
-import { isInlineWidget, getInlineWidgetEditing } from './inline-widgets';
+import { isInlineWidget, isCharacterLikeWidget } from './inline-widgets';
 
 export function isVerticallyTransparentNode(node: NodeView | null | undefined): boolean {
 	if (!node) return false;
@@ -25,8 +25,8 @@ export function isVerticallyTransparentNode(node: NodeView | null | undefined): 
 	if (inlines.length === 0) return false;
 	for (const inline of inlines) {
 		if (isInlineWidget(inline, node.raw)) {
-			// A step-over widget is character-like: it carries a column, so it reads as text.
-			if (getInlineWidgetEditing(inline.kind)?.onEdge === 'step-over') return false;
+			// A character-like widget carries a column, so it reads as text.
+			if (isCharacterLikeWidget(inline.kind)) return false;
 			continue;
 		}
 		if (inline.kind === 'text' && (inline.text ?? '').trim() === '') continue;

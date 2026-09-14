@@ -16,6 +16,7 @@ import { resolvedInlineContent } from '../../../core/inline/inline-cache';
 import {
 	flattenInlineWidgets,
 	getInlineWidgetEditing,
+	isCharacterLikeWidget,
 	isWidgetActivationClick
 } from '../../../core/inline/inline-widgets';
 import { isVerticallyTransparentNode } from '../../../core/inline/transparency';
@@ -31,10 +32,7 @@ import {
 	selectionFocusWalkOffset
 } from '../../../cursor/widget-offset';
 import { createSourceReveal, type SourceReveal } from '../../../cursor/reveal-source';
-import {
-	nearestWidgetEdgeOffset,
-	type WidgetEdgeCandidate
-} from '../../../cursor/widget-edge-snap';
+import { nearestWidgetEdgeSeat, type WidgetEdgeCandidate } from '../../../cursor/widget-edge-snap';
 import {
 	traceRevealOpen,
 	traceRevealFold,
@@ -839,23 +837,32 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		// The first click of a double-click already revealed, so the second lands in the source
 		// text and the browser's word rule takes `[` or `$` as a word of its own.
 		if (doubleClick && revealOpenedByLastClick && selectRevealedSource(clickX, clickY)) return;
-		// The snap below seats a CARET: it stands down for a visible one, and for a range this
-		// surface paints, which it would collapse — the rule `clampOutOfAmbient` already carries.
+		// The snap below seats a CARET, so it stands down for a range this surface paints, which it
+		// would collapse — the rule `clampOutOfAmbient` already carries.
 		const live = window.getSelection();
-		if (caretIsInTextContent(el, live) || surfaceHoldsRange(el, live)) return;
-		const snapTo = nearestWidgetEdgeOffset(measuredWidgets(el), clickX, clickY);
-		if (snapTo === null) return;
+		if (surfaceHoldsRange(el, live)) return;
+		const seat = nearestWidgetEdgeSeat(measuredWidgets(el), clickX, clickY);
+		if (seat === null) return;
+		// A press BESIDE an island stands down for a visible caret. A press ON one cannot: the
+		// engine answers that hit test with a position in the neighbouring text, which is visible
+		// and wrong, so the glyph's own edge wins.
+		if (!seat.inside && caretIsInTextContent(el, live)) return;
 		el.focus();
-		deps.cursor.setRaw(asRawOffset(snapTo));
+		deps.cursor.setRaw(asRawOffset(seat.offset));
 		// `setRaw`'s walker may have landed in a trailing text node, where native renders.
-		if (!caretIsInTextContent(el, window.getSelection())) deps.setSnapTarget(snapTo);
+		if (!caretIsInTextContent(el, window.getSelection())) deps.setSnapTarget(seat.offset);
 	}
 
 	function* measuredWidgets(el: HTMLElement): Generator<WidgetEdgeCandidate> {
 		for (const inline of widgetsOf()) {
 			const widget = widgetElByStart(el, inline.start);
 			if (widget) {
-				yield { start: inline.start, end: inline.end, rect: widget.getBoundingClientRect() };
+				yield {
+					start: inline.start,
+					end: inline.end,
+					rect: widget.getBoundingClientRect(),
+					seatsInside: isCharacterLikeWidget(inline.kind)
+				};
 			}
 		}
 	}

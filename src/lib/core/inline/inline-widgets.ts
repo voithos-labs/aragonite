@@ -190,6 +190,12 @@ export function getInlineWidgetEditing(kind: AnyInlineKind): InlineWidgetEditing
 	return registry.get(kind)?.editing;
 }
 
+/** A kind the caret reads as one character: it steps over in one press, carries a column of its
+ *  own, and a press ON its glyph names an edge rather than selecting the island whole. */
+export function isCharacterLikeWidget(kind: AnyInlineKind): boolean {
+	return getInlineWidgetEditing(kind)?.onEdge === 'step-over';
+}
+
 export function getInlineWidgetComponent(
 	kind: AnyInlineKind
 ): Component<InlineWidgetComponentProps> | undefined {

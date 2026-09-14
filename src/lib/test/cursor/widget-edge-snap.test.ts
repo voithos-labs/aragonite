@@ -1,61 +1,81 @@
 // Miss-analysis: the snap's geometry was only ever exercised through blocks holding ONE island,
 // where "the first island the point is past" and "the island nearest the point" agree, so no test
-// could tell the two rules apart and a run of flush islands always answered the first.
+// could tell the two rules apart and a run of flush islands always answered the first. The inside
+// case had the same shape: every candidate selected whole, so "inside declines" read as geometry
+// rather than as the whole-select policy it is.
 import { describe, it, expect } from 'vitest';
-import { nearestWidgetEdgeOffset, type WidgetEdgeCandidate } from '../../cursor/widget-edge-snap';
+import { nearestWidgetEdgeSeat, type WidgetEdgeCandidate } from '../../cursor/widget-edge-snap';
 
 const ROW = { top: 0, bottom: 20 };
 
-/** Four flush glyph islands on one row, each 20px wide and 7 raw bytes long. */
-function flushRun(count: number, firstStart = 0): WidgetEdgeCandidate[] {
+/** Four flush islands on one row, each 20px wide and 7 raw bytes long. `seatsInside` is the
+ *  character-like policy: a press on the glyph names an edge instead of selecting it whole. */
+function flushRun(count: number, seatsInside = false): WidgetEdgeCandidate[] {
 	return Array.from({ length: count }, (_, i) => ({
-		start: firstStart + i * 7,
-		end: firstStart + (i + 1) * 7,
-		rect: { left: 100 + i * 20, right: 120 + i * 20, ...ROW }
+		start: i * 7,
+		end: (i + 1) * 7,
+		rect: { left: 100 + i * 20, right: 120 + i * 20, ...ROW },
+		seatsInside
 	}));
 }
 
-describe('nearestWidgetEdgeOffset', () => {
+const edgeAt = (candidates: WidgetEdgeCandidate[], x: number, y: number | null): number | null =>
+	nearestWidgetEdgeSeat(candidates, x, y)?.offset ?? null;
+
+describe('nearestWidgetEdgeSeat', () => {
 	it('answers the LAST island of a run for a point past it, not the first one passed', () => {
-		expect(nearestWidgetEdgeOffset(flushRun(4), 200, 10)).toBe(28);
+		expect(edgeAt(flushRun(4), 200, 10)).toBe(28);
 	});
 
 	it('answers a lone island the same way', () => {
-		expect(nearestWidgetEdgeOffset(flushRun(1), 200, 10)).toBe(7);
+		expect(edgeAt(flushRun(1), 200, 10)).toBe(7);
 	});
 
 	it('answers the first island for a point left of the run', () => {
-		expect(nearestWidgetEdgeOffset(flushRun(4), 90, 10)).toBe(0);
+		expect(edgeAt(flushRun(4), 90, 10)).toBe(0);
 	});
 
 	it('answers the shared offset on the seam between two flush islands', () => {
 		// The trailing edge of one island and the leading edge of the next are the same byte, so
 		// the tie between them cannot be observed.
-		expect(nearestWidgetEdgeOffset(flushRun(4), 120, 10)).toBe(7);
+		expect(edgeAt(flushRun(4), 120, 10)).toBe(7);
 	});
 
-	it('declines a point inside an island, which owns its own click', () => {
-		expect(nearestWidgetEdgeOffset(flushRun(4), 150, 10)).toBeNull();
+	it('declines a point inside a whole-select island, which owns its own click', () => {
+		expect(edgeAt(flushRun(4), 150, 10)).toBeNull();
 	});
 
 	it('declines when there is no island at all', () => {
-		expect(nearestWidgetEdgeOffset([], 150, 10)).toBeNull();
+		expect(edgeAt([], 150, 10)).toBeNull();
 	});
 
 	it('prefers an island on the point’s own row over a nearer one on another row', () => {
 		// Two block images stack: the same x-range, different rows. A click beside the lower one
 		// must not reach the upper one's trailing edge.
 		const stacked: WidgetEdgeCandidate[] = [
-			{ start: 0, end: 31, rect: { left: 24, right: 56, top: 0, bottom: 24 } },
-			{ start: 31, end: 62, rect: { left: 24, right: 56, top: 32, bottom: 56 } }
+			{ start: 0, end: 31, rect: { left: 24, right: 56, top: 0, bottom: 24 }, seatsInside: false },
+			{ start: 31, end: 62, rect: { left: 24, right: 56, top: 32, bottom: 56 }, seatsInside: false }
 		];
 
-		expect(nearestWidgetEdgeOffset(stacked, 58, 44)).toBe(62);
-		expect(nearestWidgetEdgeOffset(stacked, 58, 12)).toBe(31);
+		expect(edgeAt(stacked, 58, 44)).toBe(62);
+		expect(edgeAt(stacked, 58, 12)).toBe(31);
 	});
 
 	it('reads horizontal containment alone as inside when the point names no row', () => {
-		expect(nearestWidgetEdgeOffset(flushRun(4), 150, null)).toBeNull();
-		expect(nearestWidgetEdgeOffset(flushRun(4), 200, null)).toBe(28);
+		expect(edgeAt(flushRun(4), 150, null)).toBeNull();
+		expect(edgeAt(flushRun(4), 200, null)).toBe(28);
+	});
+
+	// ── Inside a character-like island ───────────────────────────────────────
+
+	it('seats the nearer edge by side for a point inside a character-like island', () => {
+		// The third island spans 140..160 and raw [14,21): its left half names 14, its right 21.
+		expect(edgeAt(flushRun(4, true), 145, 10)).toBe(14);
+		expect(edgeAt(flushRun(4, true), 155, 10)).toBe(21);
+	});
+
+	it('marks the inside seat, which no engine caret of the point’s own stands against', () => {
+		expect(nearestWidgetEdgeSeat(flushRun(4, true), 145, 10)?.inside).toBe(true);
+		expect(nearestWidgetEdgeSeat(flushRun(4, true), 200, 10)?.inside).toBe(false);
 	});
 });
