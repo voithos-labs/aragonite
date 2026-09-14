@@ -23,6 +23,17 @@ function converged(page: import('@playwright/test').Page): Promise<boolean> {
 	return page.evaluate(() => (window as any).__test.parseConverged());
 }
 
+/** The top-level block's rendered text beside its raw: in source mode they are the same string,
+ *  so a native edit that leaked past the seam shows here where a tree-only read would miss it. */
+function domMatchesRaw(page: import('@playwright/test').Page, index: number): Promise<boolean> {
+	return page.evaluate((i) => {
+		const host = document.querySelector(`[data-block-path='[${i}]']`);
+		const surface = host?.querySelector('[contenteditable="true"]') ?? host;
+		const raw = String((window as any).__test.getDocument().children[i]?.raw ?? '');
+		return surface?.textContent === raw.replace(/\r?\n$/, '');
+	}, index);
+}
+
 test.describe('dragging a selection', () => {
 	let editor: EditorPage;
 
@@ -43,6 +54,7 @@ test.describe('dragging a selection', () => {
 		await dragSelection(page, beta, await pastLineEnd(page, 'gamma'));
 		await editor.bridge.waitForSourceEquals('alpha  gammabeta\n\nsecond para here\n');
 		expect(await converged(page)).toBe(true);
+		expect(await domMatchesRaw(page, 0)).toBe(true);
 		await page.keyboard.press('Control+z');
 		await editor.bridge.waitForSourceEquals(TWO);
 		await page.keyboard.press('Control+y');
@@ -54,6 +66,8 @@ test.describe('dragging a selection', () => {
 		await dragSelection(page, beta, await runStart(page, 'second para here'));
 		await editor.bridge.waitForSourceEquals('alpha  gamma\n\nbetasecond para here\n');
 		expect(await converged(page)).toBe(true);
+		expect(await domMatchesRaw(page, 0)).toBe(true);
+		expect(await domMatchesRaw(page, 1)).toBe(true);
 		await page.keyboard.press('Control+z');
 		await editor.bridge.waitForSourceEquals(TWO);
 	});
@@ -79,6 +93,16 @@ test.describe('dragging a selection', () => {
 		await editor.bridge.waitForSourceEquals('alpha  gamma\n\nbetasecond para here\n');
 		await page.keyboard.press('Control+z');
 		await editor.bridge.waitForSourceEquals(TWO);
+	});
+
+	test("a word dragged out of a code body takes the body's own bytes", async ({ page }) => {
+		await editor.loadContent('```\nconst value = 1\n```\n\nsecond para here\n');
+		await doubleClickOn('value');
+		await dragSelection(page, await runCenter(page, 'value'), await runStart(page, 'second para'));
+		await editor.bridge.waitForSourceEquals('```\nconst  = 1\n```\n\nvaluesecond para here\n');
+		expect(await converged(page)).toBe(true);
+		await page.keyboard.press('Control+z');
+		await editor.bridge.waitForSourceEquals('```\nconst value = 1\n```\n\nsecond para here\n');
 	});
 
 	test('a drop inside the selection itself leaves the document alone', async ({ page }) => {

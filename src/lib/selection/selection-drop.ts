@@ -53,8 +53,8 @@ interface DragSource {
 
 export function installSelectionDrop(deps: SelectionDropDeps): () => void {
 	let source: DragSource | null = null;
-	const onDragStart = () => {
-		source = readSelectionSource(deps.editorRoot);
+	const onDragStart = (e: DragEvent) => {
+		source = readSelectionSource(deps.editorRoot, e.target);
 	};
 	const onDragEnd = () => {
 		source = null;
@@ -118,13 +118,19 @@ export function dropOffsetAfterCut(
 
 // ── Reading the gesture ────────────────────────────────────────────────────
 
-/** The native range the drag carries, in its block's raw offsets. Null unless it is one
- *  editable block's own range: a cross-block selection paints through the overlay and leaves
- *  no native range for the browser to drag. */
-function readSelectionSource(editorRoot: HTMLElement): DragSource | null {
+/** The native range the drag carries, in its block's raw offsets. Null unless the drag grips one
+ *  editable block's own range: a cross-block selection paints through the overlay and leaves no
+ *  native range for the browser to drag. */
+function readSelectionSource(
+	editorRoot: HTMLElement,
+	dragged: EventTarget | null
+): DragSource | null {
 	const sel = window.getSelection();
 	if (!sel || sel.isCollapsed || sel.rangeCount === 0) return null;
 	const range = sel.getRangeAt(0);
+	// A draggable of its own (a rendered link, an image) is not this gesture, even with a range
+	// painted elsewhere: a selection drag grips a node the range covers.
+	if (!(dragged instanceof Node) || !range.intersectsNode(dragged)) return null;
 	const surface = surfaceOf(range.startContainer);
 	if (!surface || !editorRoot.contains(surface) || !surface.contains(range.endContainer)) {
 		return null;

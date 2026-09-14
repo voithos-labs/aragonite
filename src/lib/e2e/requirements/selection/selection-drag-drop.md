@@ -22,14 +22,20 @@ because the drag is the browser's and reads only the native range.
 - drag the block rung's whole content into another paragraph: the content lands in the target
   and the source block stays as an empty one
 - drag a Shift+Arrow selection: it moves exactly as a ladder-made one does
+- drag a word out of a code body into a paragraph: the code body loses exactly that word
 
 ## Edge cases
 
 - drop a selection inside itself: the document is untouched
 - undo after a drop: one press restores the whole document byte for byte, and redo re-lands it
-- after every step the live tree still serializes to what it parses back from
+- after every step the live tree still serializes to what it parses back from, and each
+  touched block's rendered text still equals its raw, so no native edit leaked past the seam
 
 ## Error cases
 
 - a drag that leaves the editor: nothing dropped here, so the source is the browser's own
   business and this seam stands down
+- dragging something with a drag of its own (a rendered link, an image) while a range is selected
+  elsewhere: the range is not what is being dragged, so this seam stands down
+- a payload carrying a line break, a source inside a table cell, or a drop point that names no
+  character position: the browser keeps the gesture, unchanged from before this seam existed
