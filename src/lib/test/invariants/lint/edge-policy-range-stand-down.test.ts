@@ -33,6 +33,13 @@ function armsOf(code: string): Arm[] {
 	while ((match = entry.exec(manifest)) !== null) {
 		out.push({ id: match[1], handler: match[2] ?? null });
 	}
+	// A `claims` shape the pattern does not read would drop that arm AND the one after it.
+	const declaredIds = (manifest.match(/\bid:\s*'/g) ?? []).length;
+	if (out.length !== declaredIds) {
+		throw new Error(
+			`arm census read ${out.length} of ${declaredIds} arms: a claims shape it cannot parse`
+		);
+	}
 	return out;
 }
 
