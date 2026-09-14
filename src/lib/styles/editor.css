@@ -652,12 +652,20 @@
 	.task-checkbox::before {
 	content: '';
 	visibility: visible;
+	/* Centred by layout (`inset: 0; margin: auto`), NOT by a translate(-50%, -50%): a
+	   transformed box is rasterised at its fractional edges, and on a scaled display (a
+	   Windows 125% or 150% desktop) that leaves one edge half-painted, so the square reads
+	   a few pixels shorter than it is wide. A box positioned in layout snaps to whole
+	   device pixels, and rounding its size to whole CSS pixels keeps both edges on the same
+	   grid so width and height snap alike. The unrounded pair is the fallback for a browser
+	   without `round()`. */
 	position: absolute;
-	left: 50%;
-	top: 50%;
+	inset: 0;
+	margin: auto;
 	width: 1.2em;
 	height: 1.2em;
-	transform: translate(-50%, -50%);
+	width: round(1.2em, 1px);
+	height: round(1.2em, 1px);
 	box-sizing: border-box;
 	border: 1.5px solid var(--color-ui-muted, #8f8f89);
 	border-radius: 0.28em;
@@ -697,6 +705,40 @@
 	border: solid var(--color-bg, #2c2c2a);
 	border-width: 0 0.15em 0.15em 0;
 	transform: translate(-50%, -50%) rotate(45deg);
+}
+
+/* The span is the SLOT, a full line-height tall; the box is the pseudo-element inside it. The
+   hover tint the source modes put on the span (ListItemBlock) would draw a tall rectangle
+   round the square, so in the rendered modes it moves onto the box: an open box fills with
+   the tint, a checked one is already a solid fill and keeps it. */
+:where(.editor):is(
+		[data-presentation='reading'],
+		[data-presentation^='preview-'],
+		[data-presentation='live']
+	)
+	.list-item-block[data-list-marker='task']
+	.task-checkbox:hover {
+	background-color: transparent;
+}
+
+:where(.editor):is(
+		[data-presentation='reading'],
+		[data-presentation^='preview-'],
+		[data-presentation='live']
+	)
+	.list-item-block[data-list-marker='task']
+	.task-checkbox::before {
+	transition: background-color 60ms ease-out;
+}
+
+:where(.editor):is(
+		[data-presentation='reading'],
+		[data-presentation^='preview-'],
+		[data-presentation='live']
+	)
+	.list-item-block[data-list-marker='task']:not([data-task-checked='true'])
+	.task-checkbox:hover::before {
+	background-color: var(--md-marker-hover-bg, rgba(128, 128, 128, 0.15));
 }
 
 /* ── Reading mode ─────────────────────────────────────────────────────────────
