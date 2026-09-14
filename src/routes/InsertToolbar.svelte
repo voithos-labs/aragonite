@@ -1,6 +1,6 @@
 <script lang="ts">
 	/**
-	 * Consumer-side insert-toolbar example, the fixed sibling of `SelectionToolbar`: every
+	 * Consumer-side insert-toolbar example, the fixed strip under the showcase header: every
 	 * construct is a Markdown snippet through `insertMarkdown`, a plugin's included, so the bar
 	 * needs no per-construct API (consumer-guide.md § Recipe: an insert toolbar).
 	 */

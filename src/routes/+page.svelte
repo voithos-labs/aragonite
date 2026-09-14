@@ -12,7 +12,6 @@
 	import { trackParityDocument } from './parity-documents.svelte';
 	import DebugPanel from './debug-panel/DebugPanel.svelte';
 	import InsertToolbar from './InsertToolbar.svelte';
-	import SelectionToolbar from './SelectionToolbar.svelte';
 	import { createPanelState } from './debug-panel/panel-state.svelte';
 	import { createDebugPanelFeed } from './debug-panel/panel-feed.svelte';
 	import { demoPasteImage, resolveDemoImageUrl } from './demo-image-store';
@@ -59,12 +58,10 @@
 	// Ctrl+Shift+D drive one state.
 	const panel = createPanelState();
 	const panelFeed = createDebugPanelFeed(() => editor);
-
-	let headerHeight = $state(0);
 </script>
 
 <div class="showcase aragonite-editor-theme" data-editor-theme={theme}>
-	<header class="showcase-header" bind:clientHeight={headerHeight}>
+	<header class="showcase-header">
 		<span class="showcase-title">aragonite</span>
 		<span class="showcase-tag">showcase</span>
 		<!-- Left of the mode group's auto margin: the open debug panel is fixed to the right
@@ -155,12 +152,10 @@
 				onPasteImage={demoPasteImage}
 				resolveImageUrl={resolveDemoImageUrl}
 				{presentationMode}
+				selectionToolbar={presentationMode === 'live' && selectionMenu}
 				{theme}
 			/>
 		{/key}
-		{#if presentationMode === 'live' && selectionMenu}
-			<SelectionToolbar {editor} topInset={headerHeight} />
-		{/if}
 	</div>
 	<DebugPanel {panel} {...panelFeed} />
 </div>

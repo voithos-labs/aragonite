@@ -146,6 +146,7 @@
 	import { bothEnable, createRegistryView, type KindEnablement } from '../schema/registry-view';
 	import BlockList from './BlockList.svelte';
 	import SearchBar from './SearchBar.svelte';
+	import SelectionToolbar from './menu/SelectionToolbar.svelte';
 	import ImageOverlayHost from './image/ImageOverlayHost.svelte';
 	import LinkCardHost from './link-card/LinkCardHost.svelte';
 	import { createLinkCardState } from './link-card/link-card-state.svelte';
@@ -176,6 +177,7 @@
 		blockDragHandles = true,
 		searchBar = true,
 		searchBarAnchor,
+		selectionToolbar = true,
 		keybindings,
 		theme = 'dark',
 		presentationMode = 'source',
@@ -1843,6 +1845,20 @@
 			label={blockMenu.label}
 			onPick={blockMenu.pick}
 			onClose={() => (blockMenu = null)}
+		/>
+	{/if}
+	{#if selectionToolbar && effectiveMode !== 'reading'}
+		<SelectionToolbar
+			editor={{
+				getSelection,
+				getRects,
+				getBlockKindAt,
+				runCommand,
+				canRunCommand,
+				isCommandActive,
+				getEvents
+			}}
+			root={editorEl}
 		/>
 	{/if}
 	<ImageOverlayHost

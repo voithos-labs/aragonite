@@ -2,8 +2,9 @@ import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 
 /**
- * Selection toolbar (requirements/decorations/selection-toolbar.md): the demo route's
- * consumer-side rect-API example, driven with real mouse and keyboard gestures.
+ * Selection toolbar (requirements/decorations/selection-toolbar.md): the editor's own
+ * popover, mounted by the harness through the default prop, driven with real mouse and
+ * keyboard gestures.
  */
 
 const TOOLBAR = '[data-testid="selection-toolbar"]';

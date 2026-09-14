@@ -130,10 +130,11 @@ Everything supported is exported from `@voithos-labs/aragonite`. Before 1.0 the 
 | `blockDragHandles` | The block drag handle, revealed on hover and shown outright on touch (default on; reading mode hides it). Only object blocks carry one — code, tables, equations, diagrams, pictures, list items, dividers, cards — never prose. `false` removes them, except on a picture; keyboard reorder (Alt+Arrow) and the cell menu need no opt-in |
 | `searchBar`        | The built-in find/replace bar and its Mod+F / Mod+H shortcuts (default on)                                                                                                                                                                                                                                                                |
 | `searchBarAnchor`  | An element to render that same bar into, instead of inside the editor root (see [Where the find bar lives](#where-the-find-bar-lives))                                                                                                                                                                                                    |
+| `selectionToolbar` | The built-in formatting popover over a selection: the marks, the link, a heading picker, inline code and copy (default on; reading mode never shows it; see [Recipe: a selection toolbar](#recipe-a-selection-toolbar))                                                                                                                   |
 
 **Set once at mount:** `resolveImageUrl`, `resolveLinkUrl`, `imageLoadPolicy`, `onLinkActivate`, `onPasteImage`, `onRunCode`, `codeMenuItems`, `blockDragHandles`, `scrollMode`, and `plugins`. Set them at mount and leave them; a swap later isn't guaranteed to reach blocks that are already built.
 
-**Read live:** `theme`, `searchBar`, `searchBarAnchor`, `presentationMode`, and `keybindings` may change after mount, and `header` re-renders like any other Svelte snippet.
+**Read live:** `theme`, `searchBar`, `searchBarAnchor`, `selectionToolbar`, `presentationMode`, and `keybindings` may change after mount, and `header` re-renders like any other Svelte snippet.
 
 ## The instance surface
 
@@ -1047,7 +1048,7 @@ The bundled toc plugin does exactly that walk over its live document, and clicki
 
 ### Recipe: a selection toolbar
 
-Float a formatting bar above the user's selection. Nine steps, and the anchoring ones have a snippet after the list:
+The editor ships one: a popover that opens beside a prose selection with the marks, the link, a heading picker, inline code and copy, on by default and off with `selectionToolbar={false}`. It is built on the doors below and nothing else, so this recipe is also how to replace it with your own. Nine steps, and the anchoring ones have a snippet after the list:
 
 1. **Subscribe to `selectionChange`.** A `null` payload or a collapsed selection (anchor equals focus) hides the bar.
 2. **Put the endpoints in document order first.** `normalizeSelection(snapshot)` answers `{ start, end }` (by path, then by offset when the paths match), so a backward drag anchors exactly like a forward one. Anchor to `start`; a hand-rolled comparison gets the container-and-its-child pair wrong, where the shorter path is the earlier one.
@@ -1073,7 +1074,7 @@ editor.getEvents().on('selectionChange', (sel) => {
 });
 ```
 
-The repository's `SelectionToolbar` component, mounted by the showcase's live mode and the dev harness alike, is this recipe end to end: both anchoring branches, the table exclusion, the five `TOOLBAR_COMMANDS` buttons greyed by `canRunCommand` and pressed by `isCommandActive`, and the mousedown cancel that keeps the caret in the document.
+The editor's own bar (`src/lib/components/menu/SelectionToolbar.svelte`) is this recipe end to end: both anchoring branches, the table exclusion, the five `TOOLBAR_COMMANDS` buttons greyed by `canRunCommand` and pressed by `isCommandActive`, and the mousedown cancel that keeps the caret in the document.
 
 ### Recipe: an insert toolbar
 
