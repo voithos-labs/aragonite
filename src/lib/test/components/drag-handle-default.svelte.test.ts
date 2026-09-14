@@ -22,22 +22,36 @@ function handleCount(): number {
 
 describe('blockDragHandles default', () => {
 	it('renders handles when the prop is omitted', () => {
-		mounted = mountEditor({ source: '- one\n\nplain\n' });
+		mounted = mountEditor({ source: '- one\n- two\n\nplain\n' });
 		expect(handleCount()).toBeGreaterThan(0);
 	});
 
 	it('renders no handle once the embedder opts out', () => {
-		mounted = mountEditor({ source: '- one\n\nplain\n', blockDragHandles: false });
+		mounted = mountEditor({ source: '- one\n- two\n\nplain\n', blockDragHandles: false });
 		expect(handleCount()).toBe(0);
 	});
 
 	// Prose is the page's background: no grip, though it stays a reorder unit.
-	it('renders no handle on a paragraph, and one on the list item beside it', () => {
-		mounted = mountEditor({ source: '- one\n\nplain\n' });
+	it('renders no handle on a paragraph, and one per list item beside it', () => {
+		mounted = mountEditor({ source: '- one\n- two\n\nplain\n' });
 		// Path [1]: the top-level paragraph, not the one inside the list item (not a unit).
 		const para = mounted.target.querySelector('.block-host[data-block-path="[1]"]')!;
 		expect(para.classList.contains('reorder-host')).toBe(true);
 		expect(para.querySelector(':scope > .block-drag-handle')).toBeNull();
-		expect(mounted.target.querySelectorAll('.list-item-block > .block-drag-handle').length).toBe(1);
+		expect(mounted.target.querySelectorAll('.list-item-block > .block-drag-handle').length).toBe(2);
+	});
+
+	// A list item's drag is scoped to its list, so a lone item's grip could never drop anywhere.
+	it('renders no handle on the only item of a list', () => {
+		mounted = mountEditor({ source: '- [ ] lone task\n\nplain\n' });
+		const item = mounted.target.querySelector('.list-item-block')!;
+		expect(item.classList.contains('reorder-host')).toBe(true);
+		expect(item.classList.contains('handle-host')).toBe(false);
+		expect(handleCount()).toBe(0);
+	});
+
+	it('shows the handle again once a second item exists', () => {
+		mounted = mountEditor({ source: '- one\n- two\n' });
+		expect(mounted.target.querySelectorAll('.list-item-block > .block-drag-handle').length).toBe(2);
 	});
 });
