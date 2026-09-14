@@ -1,9 +1,9 @@
 /**
- * Dragging a selection and dropping it. The browser's own version is two unrelated native edits
- * — `deleteByDrag` on the source, `insertFromDrop` on the target — each committed alone, so undo
- * takes two presses over a document that lost bytes in between, and inside one block the source
- * commit rebuilds the surface under the drop. Owned here instead: one snapshot, two raw writes
- * that splice nothing, so no path moves under the second.
+ * Dragging a selection and dropping it. The browser's own version is two native edits committed
+ * apart — `deleteByDrag` on the source, `insertFromDrop` on the target — so undo takes two presses
+ * over a document that lost bytes in between, and inside one block the source commit rebuilds the
+ * surface under the drop. Owned here instead: one snapshot over two raw writes, which splice
+ * nothing, so no path moves under the second.
  */
 
 import type { CstNode, Document } from '../core/nodes';
@@ -59,6 +59,11 @@ export function installSelectionDrop(deps: SelectionDropDeps): () => void {
 	const onDragEnd = () => {
 		source = null;
 	};
+	// The editor is the drop target for a drag it owns, instead of each point inheriting the
+	// browser's own verdict on whether anything may land there.
+	const onDragOver = (e: DragEvent) => {
+		if (source) e.preventDefault();
+	};
 	const onDrop = (e: DragEvent) => {
 		const from = source;
 		source = null;
@@ -73,10 +78,12 @@ export function installSelectionDrop(deps: SelectionDropDeps): () => void {
 	};
 	deps.editorRoot.addEventListener('dragstart', onDragStart);
 	deps.editorRoot.addEventListener('dragend', onDragEnd);
+	deps.editorRoot.addEventListener('dragover', onDragOver);
 	deps.editorRoot.addEventListener('drop', onDrop);
 	return () => {
 		deps.editorRoot.removeEventListener('dragstart', onDragStart);
 		deps.editorRoot.removeEventListener('dragend', onDragEnd);
+		deps.editorRoot.removeEventListener('dragover', onDragOver);
 		deps.editorRoot.removeEventListener('drop', onDrop);
 	};
 }
@@ -168,43 +175,28 @@ async function runDrop(
 	text: string,
 	copy: boolean
 ): Promise<void> {
-	const sameBlock = pathsEqual(from.path, to.path);
 	if (copy) {
-		await writeBlockRaw(
-			deps,
-			to.path,
-			(raw) => spliceAt(raw, to.offset, text),
-			to.offset + text.length,
-			true
-		);
-		return;
-	}
-	if (sameBlock) {
-		const cut = cutFrom(deps, from);
-		if (!cut) return;
-		const offset = dropOffsetAfterCut(to.offset, from.start, from.end, cut.shrunkBy);
-		if (offset === null) return;
-		await writeBlockRaw(
-			deps,
-			from.path,
-			() => spliceAt(cut.raw, offset, text),
-			offset + text.length,
-			true
-		);
+		await writeBlockRaw(deps, to.path, insert(to.offset, text), to.offset + text.length, true);
 		return;
 	}
 	const cut = cutFrom(deps, from);
 	if (!cut) return;
-	deps.controller.pushUndoSnapshot(from.path[0], from.start);
+	if (pathsEqual(from.path, to.path)) {
+		const offset = dropOffsetAfterCut(to.offset, from.start, from.end, cut.shrunkBy);
+		if (offset === null) return;
+		const merged = spliceAt(cut.raw, offset, text);
+		await writeBlockRaw(deps, from.path, () => merged, offset + text.length, true);
+		return;
+	}
+	deps.controller.pushUndoSnapshotPath(from.path, from.start);
 	const spliced = await writeBlockRaw(deps, from.path, () => cut.raw, from.start, false);
-	const target = shiftPathAfterSplice(to.path, from.path.slice(0, -1), from.path.at(-1)!, spliced);
-	await writeBlockRaw(
-		deps,
-		target,
-		(raw) => spliceAt(raw, to.offset, text),
-		to.offset + text.length,
-		false
-	);
+	const at = from.path[from.path.length - 1];
+	const target = shiftPathAfterSplice(to.path, from.path.slice(0, -1), at, spliced);
+	await writeBlockRaw(deps, target, insert(to.offset, text), to.offset + text.length, false);
+}
+
+function insert(offset: number, text: string): (raw: string) => string {
+	return (raw) => spliceAt(raw, offset, text);
 }
 
 /** The source block's display bytes with the dragged range gone, through the delete seam so a
