@@ -21,13 +21,14 @@ export async function consumeStickyLanding(
 ): Promise<void> {
 	const isStickyMove = typeof position === 'object' && 'stickyColumnFrom' in position;
 
-	// Widget-only blocks contribute no column landing, so ArrowUp/Down passes through — unless
-	// the block is enterable as an object, which is a stop of its own.
-	if (isStickyMove && block.isVerticallyTransparent?.()) {
+	if (isStickyMove) {
 		const from = position.stickyColumnFrom;
-		if (entersAsObject(block, from)) return;
-		await retryAt(index + (from === 'below' ? -1 : 1));
-		return;
+		const arrival = verticalArrival(block, from);
+		if (arrival === 'entered') return;
+		if (arrival === 'transparent') {
+			await retryAt(index + (from === 'below' ? -1 : 1));
+			return;
+		}
 	}
 
 	// Enter an edge widget rather than dropping a no-op caret at its boundary, so the
@@ -53,11 +54,19 @@ export async function consumeStickyLanding(
 	else block.focus(CURSOR_END);
 }
 
+/** What a vertical arrival does at a block: enter its widget, pass over it, or seat a caret. */
+export type VerticalArrival = 'entered' | 'transparent' | 'seat';
+
 /**
- * A block vertical travel would pass over is still a STOP where it can be entered as an object:
- * one press selects the widget, the next leaves it, and both directions read it alike. The rule
- * both vertical doors share — the per-block landing and the container's column entry.
+ * The vertical stop rule, asked by both vertical doors: the per-block landing and a container's
+ * column entry. A widget-only block carries no column, so it is passed over unless its edge widget
+ * takes the arrival, which is a stop of its own and reads alike from either side. `'entered'` means
+ * the widget ALREADY took it, so the caller stops rather than repeating the entry.
  */
-export function entersAsObject(block: BlockComponent, from: StickyColumnDirection): boolean {
-	return block.enterEdgeWidget?.(from === 'above' ? 'start' : 'end') ?? false;
+export function verticalArrival(
+	block: BlockComponent,
+	from: StickyColumnDirection
+): VerticalArrival {
+	if (!block.isVerticallyTransparent?.()) return 'seat';
+	return block.enterEdgeWidget?.(from === 'above' ? 'start' : 'end') ? 'entered' : 'transparent';
 }

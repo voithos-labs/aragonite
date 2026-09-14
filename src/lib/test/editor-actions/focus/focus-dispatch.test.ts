@@ -178,15 +178,18 @@ describe('dispatchFocusAtColumn', () => {
 
 	// Miss-analysis (#326): the container entry and the per-block landing each decided this on
 	// their own, and no test compared them, so the two vertical doors drifted apart.
-	it('stops on a transparent child that enters as an object instead of passing over it', () => {
+	it.each([
+		['above', 'start'],
+		['below', 'end']
+	] as const)('entry from %s stops on a transparent child, at its %s edge', (from, side) => {
 		const image = mockRef({
 			focus: vi.fn(),
 			isVerticallyTransparent: () => true,
 			enterEdgeWidget: vi.fn(() => true)
 		});
 		const text = mockRef({ focus: vi.fn(), focusAtColumn: vi.fn() });
-		dispatchFocusAtColumn([image, text], 42, 'above');
-		expect(image.enterEdgeWidget).toHaveBeenCalledWith('start');
+		dispatchFocusAtColumn(from === 'above' ? [image, text] : [text, image], 42, from);
+		expect(image.enterEdgeWidget).toHaveBeenCalledWith(side);
 		expect(text.focusAtColumn).not.toHaveBeenCalled();
 	});
 

@@ -1,7 +1,7 @@
 /**
- * Which atomic island's raw edge a click beside one lands on. Geometry only — the caller measures
- * the islands — so a run of flush islands is one nearest-edge comparison rather than a scan that
- * stops at the first island the point is past, which answers the first of N every time.
+ * Which atomic island's raw edge a point beside one lands on: the NEAREST edge among the islands
+ * the caller measures, so a run of flush islands answers the one the point is actually beside.
+ * A point inside an island declines, leaving that island's own click handling to claim it.
  */
 
 export interface WidgetEdgeCandidate {

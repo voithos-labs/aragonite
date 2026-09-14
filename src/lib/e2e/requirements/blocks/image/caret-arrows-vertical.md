@@ -1,14 +1,14 @@
 # Feature: Vertical arrow traversal around image widgets
 
-An image-only paragraph carries no text column, so a vertical arrow cannot seat a caret in it —
-but it can be ENTERED as an object. So vertical travel stops on it once: the first press selects
+An image-only paragraph carries no text column, so a vertical arrow cannot seat a caret in it. It
+can still be ENTERED as an object, so vertical travel stops on it once: the first press selects
 the image, the second moves on to the next text-bearing block. Both directions read it the same
 way, which is what makes an ArrowUp run and the ArrowDown run back retrace the same stops. The
 rule is the object, not the image: every widget-only block stops, entered however its kind enters.
 
 Miss-analysis (#326): every case here started and ended on a text-bearing block, so a walk was
 only ever asserted at its destination; the stop in between was invisible to the suite, and the two
-vertical doors — the per-block landing and a container's column entry — each carried their own
+vertical doors, the per-block landing and a container's column entry, each carried their own
 answer for it.
 
 ## Happy paths
@@ -27,4 +27,4 @@ answer for it.
 ## Edge cases
 
 - For an inline (mid-paragraph) image, ArrowUp from the line after the image lands at the line
-  before it — the surrounding paragraph has text positions, so nothing here applies.
+  before it: the surrounding paragraph has text positions, so nothing here applies.
