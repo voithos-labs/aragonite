@@ -116,8 +116,8 @@
 	/* Presentational tokens (mode-independent). */
 	/* Washes over the host-declarable selection base, alpha apart, so a host that names one
 	   base moves the selection, the search matches and the reorder chrome together. */
-	--selection-overlay-bg: color-mix(in srgb, var(--color-selection, #6496ff) 30%, transparent);
-	--search-match-bg: color-mix(in srgb, var(--color-selection, #6496ff) 22%, transparent);
+	--selection-overlay-bg: rgba(100, 150, 255, 0.3);
+	--search-match-bg: rgba(100, 150, 255, 0.22);
 	/* Painted on top of the match text, so it must keep an alpha channel or it hides it. */
 	--search-match-active-bg: rgba(216, 166, 87, 0.55);
 	--md-ref-label-color: rgba(128, 128, 128, 0.45);
@@ -129,7 +129,7 @@
 	--md-reorder-indicator: var(--color-selection, #6496ff);
 	/* Wash on the container being reordered within during a nested drag. Tinted with the reorder
 	   accent, not neutral grey, so the shift stays perceptible for low-contrast vision. */
-	--reorder-scope-bg: color-mix(in srgb, var(--color-selection, #6496ff) 14%, transparent);
+	--reorder-scope-bg: rgba(100, 150, 255, 0.14);
 	--syntax-marker-dim: 0.65;
 
 	/* Menu/popout elevation, per mode: a shadow tuned for a near-black surface is invisible
@@ -145,6 +145,17 @@
 	/* Placeholder tint behind off-window content (VR-8), so a spacer that outruns the
 	   window recompute reads as "loading" rather than a white tear. */
 	--vr-spacer-bg: rgba(255, 255, 255, 0.025);
+}
+
+/* The washes follow a host's `--color-selection` where the engine can mix; the static values
+   above are the same tints of the default base, for engines without `color-mix` (WebKit before
+   Safari 16.2). */
+@supports (color: color-mix(in srgb, red, blue)) {
+	:where(.editor, .aragonite-editor-theme) {
+		--selection-overlay-bg: color-mix(in srgb, var(--color-selection, #6496ff) 30%, transparent);
+		--search-match-bg: color-mix(in srgb, var(--color-selection, #6496ff) 22%, transparent);
+		--reorder-scope-bg: color-mix(in srgb, var(--color-selection, #6496ff) 14%, transparent);
+	}
 }
 
 :where(.editor, .aragonite-editor-theme)[data-editor-theme='light'] {

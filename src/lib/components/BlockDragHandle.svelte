@@ -48,6 +48,7 @@
 		left: 0;
 		width: 100%;
 		height: 1.25rem;
+		top: 0.75em;
 		top: 0.5lh;
 		transform: translateY(-50%);
 		display: flex;
