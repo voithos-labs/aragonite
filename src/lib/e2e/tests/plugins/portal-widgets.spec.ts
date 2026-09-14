@@ -1,5 +1,5 @@
 import { test, expect } from '../../fixtures';
-import { clickWidgetCenter } from './helpers';
+import { clickWidgetCenter, clickWidgetEnd } from './helpers';
 import { MathRevealPage } from './latex-reveal-helpers';
 
 /**
@@ -47,9 +47,9 @@ test.describe('component-portal inline widgets', () => {
 	}) => {
 		const idBefore = await editor.mountId();
 
-		await clickWidgetCenter(editor.mathWidget);
+		await clickWidgetEnd(editor.mathWidget);
 		await expect(editor.mathWidget).toHaveCount(0);
-		// The click seats the caret at the formula's end, inside the closing `$`; insert there,
+		// Pressed at the formula's tail, so the caret sits inside the closing `$`; insert there,
 		// then walk the caret out of the source — the gesture that folds an edited reveal.
 		await page.keyboard.type('y');
 		await page.keyboard.press('End');

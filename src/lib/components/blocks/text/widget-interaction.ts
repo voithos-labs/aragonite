@@ -486,15 +486,26 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 	}
 
 	/**
-	 * The caret a click on a rendered widget wants: the END of the content a kind names, INSIDE
-	 * its delimiters, so typing continues the construct rather than escaping it. A kind naming no
-	 * span keeps the leading edge: guessing an end from its parsed text put a footnote's caret
-	 * past its bracket.
+	 * Where a click on a rendered widget seats the caret when its kind maps no point: the END of
+	 * the content a kind names, INSIDE its delimiters, so typing continues the construct rather
+	 * than escaping it. A kind naming no span keeps the leading edge — guessing an end from its
+	 * parsed text put a footnote's caret past its bracket.
 	 */
 	function insideEndOffset(inline: InlineNode): number {
 		const source = deps.node.raw.slice(inline.start, inline.end);
 		const span = getInlineWidgetEditing(inline.kind)?.revealContentSpan?.(source);
 		return span && span.end >= 0 && span.end <= source.length ? span.end : 0;
+	}
+
+	/** The offset a press names inside a widget's source. Read against the PRE-fold geometry:
+	 *  a fold reflows the line and the point stops meaning anything the moment it runs. */
+	function seatFromPoint(el: HTMLElement, inline: InlineNode, x: number, y: number): number | null {
+		const widget = widgetElByStart(el, inline.start);
+		const atPoint = getInlineWidgetEditing(inline.kind)?.revealOffsetAtPoint;
+		if (!widget || !atPoint) return null;
+		const source = deps.node.raw.slice(inline.start, inline.end);
+		const seat = atPoint(widget, source, x, y);
+		return seat === null ? null : Math.max(0, Math.min(seat, source.length));
 	}
 
 	function hitTestRevealWidget(
@@ -537,6 +548,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		if (!el) return;
 		const hit = hitTestRevealWidget(el, clickX, clickY);
 		if (!hit) return;
+		const seat = seatFromPoint(el, hit.inline, clickX, clickY);
 		let targetStart = hit.inline.start;
 		if (revealState) {
 			const active = revealState;
@@ -561,9 +573,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		if (!target) return;
 		el.focus();
 		revealOpenedByLastClick = true;
-		// A click can't map to a source glyph, so it lands at the end of the content rather
-		// than guessing: the caret sits inside the delimiters, ready to type.
-		void startReveal(target, target.start, insideEndOffset(target));
+		void startReveal(target, target.start, seat ?? insideEndOffset(target));
 	}
 
 	/**

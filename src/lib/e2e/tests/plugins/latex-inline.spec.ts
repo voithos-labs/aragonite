@@ -1,5 +1,11 @@
 import { test, expect } from '../../fixtures';
-import { PluginsPage, revealWidget, roundTripStable, textRunCenter } from './helpers';
+import {
+	PluginsPage,
+	clickWidgetEnd,
+	revealWidget,
+	roundTripStable,
+	textRunCenter
+} from './helpers';
 import { capturePageErrors } from '../../page-probes';
 import { attachIme } from '../../simulation/ime';
 
@@ -23,6 +29,13 @@ class MathPage extends PluginsPage {
 
 	async revealByClick(): Promise<void> {
 		await revealWidget(this.mathWidget);
+	}
+
+	/** A press at the formula's tail, for a scenario that wants the caret there: the seat
+	 *  follows the point (`latex-inline-click-caret.md`), so it is aimed, not assumed. */
+	async revealAtFormulaEnd(): Promise<void> {
+		await clickWidgetEnd(this.mathWidget);
+		await expect(this.mathWidget).toHaveCount(0);
 	}
 
 	/**
@@ -146,8 +159,8 @@ test.describe('plugin inline math: select → reveal-source editing', () => {
 	test('editing the source and walking the caret out re-renders KaTeX and persists the edit', async ({
 		page
 	}) => {
-		await editor.revealByClick();
-		// The click seats the caret at the formula's end, inside the closing `$`, so typing
+		await editor.revealAtFormulaEnd();
+		// Pressed at the formula's tail, so the caret sits inside the closing `$` and typing
 		// continues the formula.
 		await page.keyboard.type('y');
 		// End carries the caret out of the source, which is what folds an edited reveal.
@@ -165,8 +178,8 @@ test.describe('plugin inline math: select → reveal-source editing', () => {
 	test('the reveal caret lands in the source and the commit lands it at the trailing edge', async ({
 		page
 	}) => {
-		await editor.revealByClick();
-		// A char typed right after reveal lands at the formula's end, inside the closing `$`:
+		await editor.revealAtFormulaEnd();
+		// A char typed right after the reveal lands where the press did, inside the closing `$`:
 		// not at a block edge, where a lost caret would drop it, and not past the closer.
 		await page.keyboard.type('z');
 		const revealed = await editor.getBlockText(0);
@@ -197,7 +210,7 @@ test.describe('plugin inline math: select → reveal-source editing', () => {
 	});
 
 	test('IME composition in the revealed source commits only on blur', async ({ page }) => {
-		await editor.revealByClick();
+		await editor.revealAtFormulaEnd();
 		const ime = await attachIme(page);
 		await ime.compose('yy');
 		await ime.commit('yy');
@@ -248,8 +261,8 @@ test.describe('plugin inline math: select → reveal-source editing', () => {
 		// (reachable under saturated parallel workers) breaks the last-line detection, so settle
 		// fonts before the gesture.
 		await page.evaluate(() => document.fonts.ready);
-		// Extend down into the next paragraph straight from the reveal caret. The reveal caret
-		// lands at the source's leading edge (a mid-block offset) and the block is one visual line,
+		// Extend down into the next paragraph straight from the reveal caret. That caret sits
+		// inside the source (a mid-block offset) and the block is one visual line,
 		// so the FIRST Shift+ArrowDown extends to the line end within the block — a
 		// shift-extension, which keeps the source revealed (unlike a collapsed End press, which
 		// would escape the island and fold it). The SECOND crosses the boundary, with the anchor

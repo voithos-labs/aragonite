@@ -126,11 +126,15 @@ describe('math widget dispatch', () => {
 	it('registers the reveal-source editing policy', () => {
 		const policy = getInlineWidgetEditing(MATH_INLINE as InlineNode['kind']);
 		expect(policy?.revealSource).toBe(true);
-		expect(Object.keys(policy ?? {}).sort()).toEqual(['revealContentSpan', 'revealSource']);
+		expect(Object.keys(policy ?? {}).sort()).toEqual([
+			'revealContentSpan',
+			'revealOffsetAtPoint',
+			'revealSource'
+		]);
 	});
 
-	// The span is what seats the caret INSIDE the delimiters when a click reveals the source,
-	// so typing continues the formula instead of escaping past its closing `$`.
+	// The span bounds a caret entering the source, and is the fallback seat for a press the
+	// glyph walk cannot answer for; either way the caret stays inside the `$` delimiters.
 	it('reports its content span inside the `$` delimiters', () => {
 		const span = getInlineWidgetEditing(MATH_INLINE as InlineNode['kind'])?.revealContentSpan;
 		expect(span?.('$x^2$')).toEqual({ start: 1, end: 4 });

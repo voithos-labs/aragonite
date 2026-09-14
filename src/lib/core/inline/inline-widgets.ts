@@ -92,12 +92,22 @@ export interface InlineWidgetEditingPolicy {
 	revealSource?: boolean;
 	/**
 	 * Where this kind's editable CONTENT sits inside its source span, as offsets relative to
-	 * that span — `$x$` answers `{ start: 1, end: 2 }`. A click that reveals the source seats
-	 * the caret at `end`, so typing continues the construct instead of escaping past its
-	 * closing delimiter. Only the kind knows its own delimiters; absent, the caret keeps the
-	 * leading edge.
+	 * that span — `$x$` answers `{ start: 1, end: 2 }`. It bounds a caret entering the source,
+	 * and `end` is where a revealing click lands when the kind maps no point of its own. Only
+	 * the kind knows its own delimiters; absent, the caret keeps the leading edge.
 	 */
 	revealContentSpan?: (source: string) => { start: number; end: number } | null;
+	/**
+	 * The offset in `source` a press on the RENDERED widget names, so a click seats the caret
+	 * where it landed rather than at one edge. Only the kind can map its render back to bytes (a
+	 * KaTeX island paints glyphs, not source); null declines this point and keeps the fallback.
+	 */
+	revealOffsetAtPoint?: (
+		widgetEl: HTMLElement,
+		source: string,
+		clientX: number,
+		clientY: number
+	) => number | null;
 	deleteGranularity?: (typeof DELETE_GRANULARITIES)[number];
 	onEdge?: (typeof ON_EDGE_POLICIES)[number];
 	onSelectedKey?: (e: KeyboardEvent, ctx: InlineWidgetEditingContext) => boolean;

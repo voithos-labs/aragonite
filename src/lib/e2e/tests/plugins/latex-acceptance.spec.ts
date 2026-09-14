@@ -1,5 +1,5 @@
 import { test, expect } from '../../fixtures';
-import { PluginsPage, clickWidgetCenter } from './helpers';
+import { PluginsPage, clickWidgetCenter, clickWidgetEnd } from './helpers';
 
 /**
  * Acceptance-axis coverage for the LaTeX extension, each test labelled with the spec's axis id.
@@ -159,7 +159,9 @@ test.describe('latex acceptance axes', () => {
 		await expect(editor.inlineWidget).toHaveCount(1);
 		const nextTopBefore = (await editor.getBlock(1).boundingBox())?.y ?? NaN;
 
-		await clickWidgetCenter(editor.inlineWidget);
+		// Pressed at the formula's tail, so the typed byte continues it: the seat follows the
+		// point (`latex-inline-click-caret.md`), and this axis is about the commit, not the seat.
+		await clickWidgetEnd(editor.inlineWidget);
 		await expect(editor.inlineWidget).toHaveCount(0);
 		await page.keyboard.type('z');
 		// A caret escape is the commit gesture; Enter splits the block instead.
