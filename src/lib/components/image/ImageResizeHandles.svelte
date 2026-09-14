@@ -190,10 +190,12 @@
 	/* A neutral grip sitting inside the picture's right edge: the selection ring owns the edge
 	   itself, and the accent is the ring's, so a second accent shape beside it reads as decoration
 	   rather than as a control. White over a hairline rim so it carries on a dark picture and a
-	   pale one alike. The hit strip is wider than the paint. */
+	   pale one alike. The hit strip is wider than the paint, so on a picture too narrow to hold
+	   both the strip and a clickable middle (an icon-sized image) the grip steps back outside
+	   the edge, where it stood before. */
 	.md-resize-handle {
 		position: absolute;
-		right: 7px;
+		right: clamp(-3px, calc(50% - 20px), 7px);
 		top: 50%;
 		width: 4px;
 		height: 36px;

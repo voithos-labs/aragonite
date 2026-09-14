@@ -148,13 +148,6 @@
 	user-select: none;
 }
 
-/* One radius for the picture, the crop frame that clips it and the selection ring, so a crop can
-   never round differently from the plain image it was made from. Declared on the editor rather
-   than the widget because the selection ring rides an overlay that is no descendant of it. */
-:where(.editor) {
-	--md-image-radius: 4px;
-}
-
 /* Positioning context for the ::after selection tint and ::before snap caret. */
 :where(.editor) [data-inline-widget] {
 	position: relative;
@@ -175,8 +168,6 @@
 	max-width: 100%;
 	height: auto;
 	display: block;
-	/* Enough to take the hard corner off a photo sitting in prose, not enough to read as a
-	   card: half the surface radius the block chrome uses. */
 	border-radius: var(--md-image-radius);
 }
 
