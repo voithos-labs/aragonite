@@ -145,7 +145,8 @@ test.describe('mode flips — the scrollport stays where the reader left it', ()
 		await flipTo(ep, page, 'live-toggle', 'live');
 		const after = await topVisibleHost(page);
 		expect(after?.path, 'the same block leads the viewport').toBe(before!.path);
-		// A device-pixel band: each fence's correction is a fractional delta the scroller rounds.
-		expect(Math.abs(after!.top - before!.top), 'at the same place').toBeLessThan(2);
+		// One snap, not a band per fence: each correction is a fractional delta, and the port
+		// carries the pixel the scroller refuses into the next one.
+		expect(Math.abs(after!.top - before!.top), 'at the same place').toBeLessThan(1);
 	});
 });

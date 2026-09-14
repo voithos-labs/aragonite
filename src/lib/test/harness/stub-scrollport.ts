@@ -3,7 +3,7 @@
  * zero geometry for every one of them, so a mounted scope needs the port stubbed to observe
  * anything at all.
  */
-import type { Scrollport } from '../../cursor/scrollport';
+import { withRelativeScroll, type Scrollport } from '../../cursor/scrollport';
 
 export interface StubScrollportOpts {
 	viewportHeight: number;
@@ -14,21 +14,31 @@ export interface StubScrollportOpts {
 	/** The browser's own clamp, which a plain property cannot model: a scroll past the
 	 *  content end is refused, so an anchor can never hold a target beyond it. */
 	maxScrollTop?: number;
+	/** Round each write to a whole pixel and report the rounded value back, as a real scroller
+	 *  does at device-pixel ratio 1 — the other half of the clamp a plain property cannot model. */
+	snapsToPixel?: boolean;
 }
 
 export function stubScrollport(opts: StubScrollportOpts): Scrollport {
-	const { viewportHeight, viewportTop = 0, contentWidth = 800, maxScrollTop = Infinity } = opts;
+	const {
+		viewportHeight,
+		viewportTop = 0,
+		contentWidth = 800,
+		maxScrollTop = Infinity,
+		snapsToPixel = false
+	} = opts;
 	let scrollTop = 0;
-	return {
+	return withRelativeScroll({
 		viewportTop: () => viewportTop,
 		viewportHeight: () => viewportHeight,
 		contentWidth: () => contentWidth,
 		scrollTop: () => scrollTop,
 		setScrollTop: (value) => {
-			scrollTop = Math.max(0, Math.min(value, maxScrollTop));
+			const clamped = Math.max(0, Math.min(value, maxScrollTop));
+			scrollTop = snapsToPixel ? Math.round(clamped) : clamped;
 		},
 		subscribe: () => () => {}
-	};
+	});
 }
 
 /** This scope's list element as windowing reads it: a rect top that moves with the scroll,

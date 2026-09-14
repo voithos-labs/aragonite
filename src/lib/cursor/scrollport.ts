@@ -15,17 +15,51 @@ export interface Scrollport {
 	contentWidth(): number;
 	scrollTop(): number;
 	setScrollTop(value: number): void;
+	/** Move by `delta`. The only relative write: see {@link withRelativeScroll}. */
+	scrollBy(delta: number): void;
 	/** Fires on user and programmatic scrolls alike; returns the unsubscribe. */
 	subscribe(onScroll: () => void): () => void;
 }
 
 export function createScrollport(target: UserScrollport): Scrollport {
-	return target === window ? pageScrollport() : elementScrollport(target as HTMLElement);
+	return withRelativeScroll(
+		target === window ? pageScrollport() : elementScrollport(target as HTMLElement)
+	);
+}
+
+/**
+ * Adds the relative write every corrector goes through. A scroller snaps a fractional write to
+ * a whole device pixel and reports the snapped value back, so a run of relative corrections (a
+ * mode flip fires one per re-measured block) would drop that fraction every time and slide the
+ * reader's content by the sum. The refused fraction carries into the next call instead.
+ */
+export function withRelativeScroll(base: Omit<Scrollport, 'scrollBy'>): Scrollport {
+	let carried = 0;
+	let written: number | null = null;
+	return {
+		...base,
+		setScrollTop(value) {
+			base.setScrollTop(value);
+			carried = 0;
+			written = null;
+		},
+		scrollBy(delta) {
+			const from = base.scrollTop();
+			// Anything that moved the port since our own write (the reader, a reveal) leaves the
+			// carried fraction describing a position nobody holds any more.
+			const target = from + (written === from ? carried : 0) + delta;
+			base.setScrollTop(target);
+			written = base.scrollTop();
+			const refused = target - written;
+			// Only the snap's own fraction carries; a clamp at either end is a real refusal.
+			carried = Math.abs(refused) < 1 ? refused : 0;
+		}
+	};
 }
 
 // ── Internal ───────────────────────────────────────────────────────────────
 
-function elementScrollport(el: HTMLElement): Scrollport {
+function elementScrollport(el: HTMLElement): Omit<Scrollport, 'scrollBy'> {
 	return {
 		viewportTop: () => el.getBoundingClientRect().top,
 		viewportHeight: () => el.clientHeight,
@@ -45,7 +79,7 @@ function elementScrollport(el: HTMLElement): Scrollport {
  *  `selection/autoscroll.ts` makes: the viewport is the box the fold belongs to, whereas
  *  `document.scrollingElement` — whose box is the whole multi-thousand-pixel document — is the
  *  only thing that moves. */
-function pageScrollport(): Scrollport {
+function pageScrollport(): Omit<Scrollport, 'scrollBy'> {
 	const scroller = () => document.scrollingElement;
 	return {
 		viewportTop: () => 0,

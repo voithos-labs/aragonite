@@ -261,7 +261,7 @@ export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
 		const before = model.offsetOf(anchorIndex);
 		mutate();
 		const delta = model.offsetOf(anchorIndex) - before;
-		if (delta !== 0 && port) port.setScrollTop(port.scrollTop() + delta);
+		if (delta !== 0 && port) port.scrollBy(delta);
 	}
 
 	// The structural-rebuild variant of correctAnchor. A count change shifts every index
@@ -286,7 +286,7 @@ export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
 		const newIndex = anchorId !== undefined ? modelChildIds.indexOf(anchorId) : -1;
 		if (newIndex === -1) return;
 		const delta = model.offsetOf(newIndex) - before;
-		if (delta !== 0 && port) port.setScrollTop(port.scrollTop() + delta);
+		if (delta !== 0 && port) port.scrollBy(delta);
 	}
 
 	let lastWidthVersion = deps.getWidthVersion();

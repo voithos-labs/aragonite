@@ -51,6 +51,7 @@ export type MountListWindowingOptions = Partial<ListWindowingDeps> & {
 	viewportHeight?: number;
 	viewportTop?: number;
 	maxScrollTop?: number;
+	snapsToPixel?: boolean;
 	/** Chrome between the port's content origin and this list's first block. */
 	chromeAbove?: number;
 };
@@ -70,10 +71,11 @@ export function mountListWindowing(options: MountListWindowingOptions): MountedL
 		viewportHeight = 500,
 		viewportTop,
 		maxScrollTop,
+		snapsToPixel,
 		chromeAbove,
 		...deps
 	} = options;
-	const port = stubScrollport({ viewportHeight, viewportTop, maxScrollTop });
+	const port = stubScrollport({ viewportHeight, viewportTop, maxScrollTop, snapsToPixel });
 	const listEl = stubListEl(port, listHeight, chromeAbove);
 
 	let windowing!: ListWindowing;

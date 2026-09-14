@@ -125,7 +125,7 @@ describe('editor-root geometry — header slot compensation', () => {
 		teardowns.push(
 			installHeaderSlotCompensation({
 				el: box.el,
-				port: { scrollTop: () => top, setScrollTop: (v) => (top = v) },
+				port: { scrollTop: () => top, scrollBy: (delta: number) => (top += delta) },
 				ownsScrollCorrection: () => opts.owns ?? true,
 				revealHoldsScroll: () => opts.holds ?? false
 			})
