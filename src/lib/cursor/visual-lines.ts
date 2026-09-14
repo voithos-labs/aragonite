@@ -1,8 +1,9 @@
 /**
- * Whether the cursor sits on the first or last visual line of a wrapping element. Offsets
- * alone can't answer it past 2 wrapped lines, so cursor Y is compared to the first/last
- * line's Y. The text-node walk works around collapsed ranges next to non-text children
- * (dimmed marker spans) returning null rects — measuring around real text always works.
+ * Whether the cursor sits on the first or last visual line of a wrapping element. Offsets alone
+ * can't answer it past 2 wrapped lines, so the cursor's line is compared to the edge line's.
+ * Collapsed ranges beside non-text children (dimmed markers, atomic islands) measure to nothing,
+ * so the edge line is measured around real text, and a rect-less caret reads the box it sits
+ * against.
  */
 
 import { domDescendants } from './dom-walk';
@@ -69,6 +70,7 @@ export function isAtFirstVisualLine(
 ): boolean {
 	return isAtEdgeVisualLine(el, () => fallbackOffset <= contentStart, {
 		isEmpty: (el.textContent ?? '').length === 0,
+		toStart: true,
 		boundaryTop: () => {
 			const firstText = findFirstTextNode(el);
 			const top = firstText ? getCharRangeTop(firstText, 0, false) : null;
@@ -84,6 +86,7 @@ export function isAtLastVisualLine(
 ): boolean {
 	return isAtEdgeVisualLine(el, () => fallbackOffset >= contentEnd, {
 		isEmpty: contentEnd === 0,
+		toStart: false,
 		boundaryTop: () => {
 			const lastText = findLastTextNode(el);
 			const top = lastText ? getCharRangeTop(lastText, lastText.textContent!.length, true) : null;
@@ -95,32 +98,82 @@ export function isAtLastVisualLine(
 // ── Internal ────────────────────────────────────────────────────────────────
 
 /** The shared skeleton of the two edge predicates: `fallback` answers where geometry cannot — a
- *  dropped range, an unmeasurable collapsed caret, an unmeasurable boundary line — and
+ *  dropped range, a caret no box can be found for, an unmeasurable boundary line — and
  *  `boundaryTop` measures the edge line each side's own way. */
 function isAtEdgeVisualLine(
 	el: HTMLElement,
 	fallback: () => boolean,
-	edge: { isEmpty: boolean; boundaryTop: () => number | null }
+	edge: { isEmpty: boolean; toStart: boolean; boundaryTop: () => number | null }
 ): boolean {
 	const sel = window.getSelection();
 	if (!sel || sel.rangeCount === 0) return fallback();
 	if (edge.isEmpty) return true;
 
 	const cursorRange = sel.getRangeAt(0);
+	const lineHeight = parseFloat(getComputedStyle(el).lineHeight) || FALLBACK_LINE_HEIGHT;
+	const tolerance = lineHeight * SAME_LINE_TOLERANCE;
 	const cursorTop = getRangeTop(cursorRange);
-	if (cursorTop === null) return cursorRange.collapsed ? fallback() : true;
+
+	if (cursorTop === null) {
+		if (!cursorRange.collapsed) return true;
+		// A caret beside an atomic island sits at an element-level position and measures to no rect
+		// of its own: it rides the island's box, and is at the edge line when nothing reaches past.
+		const band = neighbourBand(cursorRange);
+		const contents = bandOfRange(contentsRange(el));
+		if (!band || !contents) return fallback();
+		return edge.toStart
+			? band.top < contents.top + tolerance
+			: band.bottom > contents.bottom - tolerance;
+	}
 
 	const edgeTop = edge.boundaryTop();
 	if (edgeTop === null) return fallback();
+	return Math.abs(cursorTop - edgeTop) < tolerance;
+}
 
-	const lineHeight = parseFloat(getComputedStyle(el).lineHeight) || FALLBACK_LINE_HEIGHT;
-	return Math.abs(cursorTop - edgeTop) < lineHeight * SAME_LINE_TOLERANCE;
+interface VerticalBand {
+	top: number;
+	bottom: number;
+}
+
+/** The vertical band of the box a rect-less caret sits against: the child it precedes, else the
+ *  one it follows. Null where the caret is not at an element-level position. */
+function neighbourBand(range: Range): VerticalBand | null {
+	const container = range.startContainer;
+	if (container.nodeType !== Node.ELEMENT_NODE) return null;
+	const children = container.childNodes;
+	return (
+		nodeBand(children[range.startOffset], false) ?? nodeBand(children[range.startOffset - 1], true)
+	);
+}
+
+function nodeBand(node: Node | undefined, fromEnd: boolean): VerticalBand | null {
+	if (!node) return null;
+	const range = document.createRange();
+	range.selectNode(node);
+	// A node that wraps has one rect per line, and the caret touches the line on its own side.
+	const rects = range.getClientRects();
+	if (rects.length === 0) return bandOfRange(range);
+	return bandOf(rects[fromEnd ? rects.length - 1 : 0]);
+}
+
+function contentsRange(el: HTMLElement): Range {
+	const range = document.createRange();
+	range.selectNodeContents(el);
+	return range;
+}
+
+function bandOfRange(range: Range): VerticalBand | null {
+	return bandOf(range.getBoundingClientRect());
+}
+
+function bandOf(rect: DOMRect): VerticalBand | null {
+	return rect.height > 0 ? { top: rect.top, bottom: rect.bottom } : null;
 }
 
 /** The boundary line's collapsed-contents fallback measurement. */
 function collapsedContentsTop(el: HTMLElement, toStart: boolean): number | null {
-	const range = document.createRange();
-	range.selectNodeContents(el);
+	const range = contentsRange(el);
 	range.collapse(toStart);
 	return getRangeTop(range);
 }
