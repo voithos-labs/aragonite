@@ -219,7 +219,7 @@
 		"globals": "^17.11.0",
 		"jsdom": "^30.0.0",
 		"katex": "^0.18.4",
-		"mermaid": "^11.17.0",
+		"mermaid": "^12.0.0",
 		"prettier": "^3.9.6",
 		"prettier-plugin-svelte": "^4.1.1",
 		"svelte": "^5.56.10",
