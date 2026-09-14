@@ -86,7 +86,7 @@ test.describe('vertical travel past an image-only paragraph', () => {
 // A step-over widget carries a column, so a paragraph holding only one is NOT an object stop: it
 // is a caret stop, seated beside the glyph, and still one press in and one press out each way.
 
-const SURROUNDED = (middle: string) =>
+const surrounded = (middle: string) =>
 	['top paragraph.', '', middle, '', 'start here.', ''].join('\n');
 
 const MIDDLE = 1;
@@ -121,7 +121,7 @@ test.describe('vertical travel past an entity-only paragraph', () => {
 		test(`${label}: one press in and one out, both directions`, async ({ page }) => {
 			const editor = new EditorPage(page);
 			await editor.goto();
-			await editor.loadContent(SURROUNDED(middle));
+			await editor.loadContent(surrounded(middle));
 			await expect(page.locator('[data-inline-widget]')).toHaveCount(glyphs);
 			await editor.focusBlockAtPath([2], 3);
 
@@ -129,19 +129,19 @@ test.describe('vertical travel past an entity-only paragraph', () => {
 			expect(await walkAcross(editor, 'ArrowDown', 2)).toEqual({ presses: 2, stops: 1 });
 		});
 	}
-});
 
-test('a caret stepped over the glyph leaves the block on one press, either direction', async ({
-	page
-}) => {
-	const editor = new EditorPage(page);
-	await editor.goto();
-	await editor.loadContent(SURROUNDED('&copy;'));
-	await editor.focusBlockAtPath([MIDDLE], 0);
-	await page.keyboard.press('ArrowRight'); // over the whole glyph, to its trailing edge
+	test('a caret stepped over the glyph leaves the block on one press, either direction', async ({
+		page
+	}) => {
+		const editor = new EditorPage(page);
+		await editor.goto();
+		await editor.loadContent(surrounded('&copy;'));
+		await editor.focusBlockAtPath([MIDDLE], 0);
+		await page.keyboard.press('ArrowRight'); // over the whole glyph, to its trailing edge
 
-	expect(await walkAcross(editor, 'ArrowUp', 0)).toEqual({ presses: 1, stops: 0 });
-	await editor.focusBlockAtPath([MIDDLE], 0);
-	await page.keyboard.press('ArrowRight');
-	expect(await walkAcross(editor, 'ArrowDown', 2)).toEqual({ presses: 1, stops: 0 });
+		expect(await walkAcross(editor, 'ArrowUp', 0)).toEqual({ presses: 1, stops: 0 });
+		await editor.focusBlockAtPath([MIDDLE], 0);
+		await page.keyboard.press('ArrowRight');
+		expect(await walkAcross(editor, 'ArrowDown', 2)).toEqual({ presses: 1, stops: 0 });
+	});
 });
