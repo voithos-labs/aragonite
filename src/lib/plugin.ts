@@ -323,6 +323,11 @@ export type { CaretTarget } from './schema/block-kind-descriptor';
 export { CURSOR_END } from './block-component';
 export type { CursorEnd } from './block-component';
 
+// ── Pointer gestures (pre-freeze) ────────────────────────────────────────────
+// Put this attribute on an element whose drags are your widget's own (a pan, a brush) and the
+// editor's pointer arms leave a press inside it alone: no block range, no click ladder.
+export { POINTER_GESTURE_ATTR } from './selection/pointer-gesture';
+
 // ── Selection geometry (pre-freeze) ──────────────────────────────────────────
 // The selection shapes a decoration source or rect consumer reads. SELECTION_END is
 // the sentinel `rangeRects` accepts as `end`.

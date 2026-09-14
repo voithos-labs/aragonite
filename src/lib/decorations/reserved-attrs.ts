@@ -20,6 +20,7 @@ export const RESERVED_BLOCK_ATTRS: ReadonlySet<string> = new Set([
 	'data-image-widget',
 	'data-inline-widget',
 	'data-link-card',
+	'data-pointer-gesture',
 	'data-presentation',
 	'data-table-row-idx'
 ]);

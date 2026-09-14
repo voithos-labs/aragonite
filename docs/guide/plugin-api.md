@@ -293,6 +293,14 @@ _(pre-freeze / unstable)_ What a kind fills its descriptor's `caretTargetAtPoint
 | `CaretTarget`             | What the hook answers: the child path to the leaf (empty when your block is the leaf) and the offset inside it                                                                                                            |
 | `CURSOR_END`, `CursorEnd` | The offset meaning "wherever that leaf ends", and its type; a plain `0` is the other end, since that one is a real offset                                                                                                 |
 
+### Pointer gestures
+
+_(pre-freeze / unstable)_ One attribute, for a block that answers drags itself (a diagram you pan, a canvas you draw on). Without it the editor reads the same press as the start of a selection, and your gesture runs with a block range painted over it. Your own `stopPropagation` cannot do this job: pointer events are delegated at the app root, so your handler runs after the editor's.
+
+| Export                 | Role                                                                                                                                                                       |
+| ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `POINTER_GESTURE_ATTR` | Put it on the element whose drags are yours, and a press anywhere inside that element is left alone by the editor's drag-to-select and by the click ladder above the caret |
+
 ### Selection geometry
 
 _(pre-freeze / unstable)_ The selection shapes a decoration source or geometry consumer reads.

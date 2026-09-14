@@ -32,6 +32,7 @@
 		updateOwnMetadata,
 		handleKeydown,
 		moveFocusOut,
+		captureScrollPosition,
 		getPresentationMode,
 		getTheme
 	} = createContainerBlock({
@@ -219,8 +220,11 @@
 		// there too, so this closes the command path.
 		if (isReading) return;
 		if (!editing) seedDraft();
+		// Captured BEFORE the flip: the card reaches its fitted height only after mounting, and
+		// a scrollport at the document's end clamps against the short layout in between.
+		const restoreScroll = captureScrollPosition();
 		editRequested = true;
-		void tick().then(() => textareaEl?.focus());
+		void restoreScroll().then(() => textareaEl?.focus());
 	}
 
 	function cancelEdit(): void {
@@ -330,6 +334,7 @@
 			<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 			<div
 				class="mermaid-viewport"
+				data-pointer-gesture
 				tabindex="0"
 				role="img"
 				aria-label="Mermaid diagram"
@@ -392,6 +397,7 @@
 			</div>
 			<div
 				class="mermaid-overlay-viewport"
+				data-pointer-gesture
 				onwheel={onOverlayWheel}
 				onpointerdown={(e) => {
 					e.stopPropagation();

@@ -40,6 +40,7 @@ import {
 	type EditorServices,
 	type PluginEditorLookup
 } from '../../editor-keys';
+import { captureScrollPosition } from '../../cursor/scroll-hold';
 import { emitCommandError } from '../../editor-events';
 import { owningPluginEditor } from '../../schema/plugin-install';
 import { createBlockListState } from '../../reactivity/block-list-state.svelte';
@@ -165,6 +166,12 @@ export interface ContainerBlock {
 	 * entry and windowing reveal. False for a modified or non-arrow key: leave it native.
 	 */
 	moveFocusOut(e: KeyboardEvent): boolean;
+	/**
+	 * The reader's scroll position, captured now. Call before a state flip that swaps this
+	 * block's view for one of a different height, then await the returned restore: the
+	 * scrollport is back where it was once the swap has flushed.
+	 */
+	captureScrollPosition(): () => Promise<void>;
 }
 
 // ── Collapse gates ───────────────────────────────────────────────────────────
@@ -585,6 +592,7 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 		updateOwnMetadata,
 		handleKeydown,
 		moveFocusOut,
+		captureScrollPosition: () => captureScrollPosition(deps.getBoxEl()),
 		getPresentationMode,
 		getTheme,
 		getOptions

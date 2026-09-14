@@ -39,6 +39,7 @@
 	import { resetForPointerDown } from '../selection/cross-block/pointer';
 	import { installDragListener } from '../selection/drag-pointer';
 	import { installMultiClickSelect } from '../selection/multi-click';
+	import { claimsPointerGesture } from '../selection/pointer-gesture';
 	import { createContentVersion } from '../reactivity/content-version.svelte';
 	import { useContainerWindowing } from '../reactivity/use-container-windowing.svelte';
 	import { refSlotsOver, replaceRefs, revealChildOrWait } from '../reactivity/publish-ref.svelte';
@@ -768,6 +769,7 @@
 			'a, summary, [role="checkbox"], ' +
 			'.code-rail, .table-add-zone, .editor-tail, .md-menu, .block-drag-handle';
 		const dragStartsHere = (rootEl: HTMLElement, target: EventTarget | null): boolean => {
+			if (claimsPointerGesture(target)) return false;
 			if (deadSpaceCaret.isDeadSpaceTarget(rootEl, target)) return true;
 			if (!(target instanceof Element) || !rootEl.contains(target)) return false;
 			return target.closest(NOT_A_DRAG_START) === null;
