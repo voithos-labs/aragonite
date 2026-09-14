@@ -28,9 +28,11 @@ export function registerLanguage(
 	}
 }
 
-/** The fold: any spelling of a language to the one name it is registered under. */
+/** The fold: any spelling of a language to the one name it is registered under. A name of its
+ *  own beats another language's alias, so no grammar is shadowed by somebody's nickname. */
 function canonicalName(spelling: string): string {
 	const key = spelling.toLowerCase();
+	if (grammars.has(key)) return key;
 	return aliases.get(key) ?? key;
 }
 
@@ -47,9 +49,10 @@ export function listLanguages(): string[] {
 	return [...grammars.keys()].sort();
 }
 
-/** The alternate spellings a language answers to, so a filter matches `rs` to `rust`. */
+/** The alternate spellings a registered language answers to, under the name `listLanguages`
+ *  returns it as, so a picker's filter matches `rs` to `rust` without its own table. */
 export function getLanguageAliases(name: string): readonly string[] {
-	const key = canonicalName(name);
+	const key = name.toLowerCase();
 	if (!grammars.has(key)) return [];
 	return [...aliases].filter(([, target]) => target === key).map(([alias]) => alias);
 }
