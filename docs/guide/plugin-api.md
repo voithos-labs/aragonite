@@ -180,15 +180,15 @@ _(pre-freeze / unstable)_ The container factory's sibling for leaves; the full s
 
 ### Code-block languages
 
-_(pre-freeze / unstable)_ The syntax-highlighting registry behind fenced code. The editor bootstraps a curated set — javascript, typescript, python, rust, go, bash, json, yaml, sql, html, css, java, c, cpp, ruby, markdown, diff, plus their aliases — because every grammar is static bundle weight for every consumer. A host needing more registers them itself.
+_(pre-freeze / unstable)_ The syntax-highlighting registry behind fenced code. The editor bootstraps a curated couple dozen (the usual suspects: javascript, python, rust, bash, sql, the C family, and friends) plus their aliases, because every grammar is static bundle weight for every consumer. `listLanguages()` tells you exactly which ones you have; a host needing more registers them itself.
 
-Register **before mounting an editor**: a block already on screen re-tokenizes only when its own bytes next change. An unregistered language is not an error — the fence still authors, commits and round-trips, and its body renders untokenized.
+Register **before mounting an editor**: a block already on screen re-tokenizes only when its own bytes next change. An unregistered language is not an error: the fence still authors, commits and round-trips, and its body renders untokenized.
 
 | Export               | Role                                                                                                                                   |
 | -------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
 | `registerLanguage`   | Add a grammar under a name, with optional aliases; idempotent, so a repeat call with the same name is a no-op                          |
-| `listLanguages`      | Every registered language once, under its canonical name, sorted — the rows the code block's language picker offers                    |
-| `getLanguageAliases` | The other spellings a language answers to, from any spelling of it — what a picker's filter matches on                                 |
+| `listLanguages`      | Every registered language once, under its canonical name, sorted: the rows the code block's language picker offers                     |
+| `getLanguageAliases` | The other spellings a language answers to, asked by any of them: what a picker's filter matches on                                     |
 | `highlightCode`      | The code block's tokenizer: `(body, language)` to a text-preserving fragment of `code-tok-*` spans, for a plugin's own source surface  |
 | `LanguageGrammar`    | The registry's read shape: the resolved name and its definition                                                                        |
 | `LanguageFn`         | highlight.js's grammar-definition type, re-exported so you needn't import highlight.js directly (you hold it only as a transitive dep) |
@@ -200,7 +200,7 @@ import elixir from 'highlight.js/lib/languages/elixir';
 registerLanguage('elixir', elixir, ['ex', 'exs']);
 ```
 
-Aliases are offered as their own rows in the picker, so a user typing `ex` finds it without knowing it resolves to `elixir`.
+The picker shows `elixir` once, and `ex` and `exs` are search keys for that row, so a user typing `ex` finds it without knowing the full name.
 
 ### Inline authoring
 
