@@ -59,7 +59,7 @@ test.describe('an undo that restores a glyph widget leaves the scrollport alone'
 			const editor = new PluginsPage(page);
 			await editor.gotoPlugins('emoji');
 			await editor.loadContent(DOC);
-			// A real flip, not a seeded mode: the flip is what drops the measured heights.
+			// An actual flip, not a mode seeded at load: the flip is what drops the measured heights.
 			await editor.setPresentationMode('live');
 
 			const listIndex = await page.evaluate(() =>
