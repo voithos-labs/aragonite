@@ -52,6 +52,24 @@ function blockCenter(
 	}, index);
 }
 
+/** A table cell's rendered text beside its own raw: the cell is the editing surface, so the
+ *  block-level read above would compare one cell's DOM against the whole table's bytes. */
+function cellMatchesRaw(
+	page: import('@playwright/test').Page,
+	row: number,
+	col: number
+): Promise<boolean> {
+	return page.evaluate(
+		([r, c]) => {
+			const rowEl = document.querySelector(`[data-table-row-idx='${r}']`);
+			const cell = rowEl?.querySelectorAll(':scope > [role="cell"]')[c];
+			const table = (window as any).__test.getDocument().children[0];
+			return cell?.textContent === String(table?.children?.[r]?.children?.[c]?.raw ?? '');
+		},
+		[row, col]
+	);
+}
+
 /** The top-level block's rendered text beside its raw: in source mode they are the same string,
  *  so a native edit that leaked past the seam shows here where a tree-only read would miss it. */
 function domMatchesRaw(page: import('@playwright/test').Page, index: number): Promise<boolean> {
@@ -134,6 +152,21 @@ test.describe('dragging a selection', () => {
 		await editor.bridge.waitForSourceEquals('```\nconst value = 1\n```\n\nsecond para here\n');
 	});
 
+	const CELL_DOC = '| a | b |\n| --- | --- |\n| alpha beta gamma | zed |\n\nsecond para here\n';
+	const CELL_MOVED = '| a | b |\n| --- | --- |\n| alpha  gamma | zed |\n\nbetasecond para here\n';
+
+	test('a word dragged out of a table cell moves to the drop point', async ({ page }) => {
+		await editor.loadContent(CELL_DOC);
+		await doubleClickOn('beta');
+		await dragSelection(page, await runCenter(page, 'beta'), await runStart(page, 'second para'));
+		await editor.bridge.waitForSourceEquals(CELL_MOVED);
+		expect(await converged(page)).toBe(true);
+		expect(await cellMatchesRaw(page, 1, 0)).toBe(true);
+		expect(await domMatchesRaw(page, 1)).toBe(true);
+		await page.keyboard.press('Control+z');
+		await editor.bridge.waitForSourceEquals(CELL_DOC);
+	});
+
 	test('a drop inside the selection itself leaves the document alone', async ({ page }) => {
 		const beta = await doubleClickOn('beta');
 		await dragSelection(page, beta, { x: beta.x + 2, y: beta.y });
@@ -143,12 +176,10 @@ test.describe('dragging a selection', () => {
 
 	// ── Shapes the seam declines: cancelled outright, never half-applied ──
 
-	const CELL_DOC = '| a | b |\n| --- | --- |\n| alpha beta gamma | c |\n\nsecond para here\n';
-
-	test('a word dragged out of a table cell cancels the drop', async ({ page }) => {
+	test('a drop onto a table cell cancels', async ({ page }) => {
 		await editor.loadContent(CELL_DOC);
-		await doubleClickOn('beta');
-		await dragSelection(page, await runCenter(page, 'beta'), await runStart(page, 'second para'));
+		await doubleClickOn('second');
+		await dragSelection(page, await runCenter(page, 'second'), await runCenter(page, 'zed'));
 		await editor.waitForNoSourceMutation();
 		expect(await page.evaluate(() => (window as any).__test.getSource())).toBe(CELL_DOC);
 		await undoLeavesDocument(editor, CELL_DOC);

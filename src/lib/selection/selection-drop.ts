@@ -6,7 +6,7 @@
  * nothing, so no path moves under the second.
  */
 
-import type { Document } from '../core/nodes';
+import type { CstNode, Document } from '../core/nodes';
 import type { GrammarView } from '../schema/block-openers';
 import type { LinkReferenceResolverRef, PresentationModeGetter } from '../editor-keys';
 import type { PluginActivation } from '../schema/plugin-activation';
@@ -18,7 +18,10 @@ import { toClampedRawOffset } from '../cursor/coordinate-spaces';
 import { domTextOffsetAtNode } from '../cursor/widget-offset';
 import { trailingLineEnding, trimTrailingLineEnding } from '../core/lines';
 import { deleteRangeRaw } from '../components/blocks/text/live-selection-edit';
-import { blockNodeAt, emptyParagraph } from '../tree-operations/node-primitives';
+import { blockNodeAt, emptyParagraph, writeOwnRaw } from '../tree-operations/node-primitives';
+import { cloneNode } from '../tree-operations/clone';
+import { cutRangeFromDisplay } from '../tree-operations/node-ops';
+import { rebuildAncestryRaw } from '../schema/container-raw';
 import { applyPasteTransforms } from '../tree-operations/paste/paste-transforms';
 import { replaceBlockAtParent } from '../tree-operations/paste/replace-block-at-parent';
 import { parseReplacement } from '../tree-operations/paste/replacement-parse';
@@ -40,15 +43,25 @@ export interface SelectionDropDeps {
 	isReadOnly(): boolean;
 }
 
-/** Where the drag started, in the source block's raw offsets. */
+/** Where the drag started, in the source surface's raw offsets. */
 interface DragSource {
+	/** The editing surface the range sits in: a block, or a table cell. */
 	path: number[];
 	start: number;
 	end: number;
+	inCell: boolean;
 }
 
-/** A drag that IS this gesture but whose shape the seam does not move — a source inside a table
- *  cell, a range leaving its surface. The drop cancels it rather than handing it back. */
+/** The cut's bytes, at the block whose raw carries them: the source block, or the table a cell's
+ *  bytes are joined into. `shrunkBy` is that block's own shrink. */
+interface ScopeCut {
+	path: number[];
+	raw: string;
+	shrunkBy: number;
+}
+
+/** A drag that IS this gesture but whose shape the seam does not move — a range leaving its
+ *  surface, an empty one. The drop cancels it rather than handing it back. */
 const DECLINED = 'declined';
 type DragStash = DragSource | typeof DECLINED;
 
@@ -128,7 +141,7 @@ export function dropOffsetAfterCut(
 // ── Reading the gesture ────────────────────────────────────────────────────
 
 /**
- * The native range the drag carries, in its block's raw offsets. `null` is "not this gesture" and
+ * The native range the drag carries, in its surface's raw offsets. `null` is "not this gesture" and
  * leaves the drag to the browser; {@link DECLINED} is this gesture in a shape the seam does not
  * move, which the drop cancels. A cross-block selection reaches neither: it paints through the
  * overlay and leaves no native range for the browser to drag.
@@ -147,7 +160,8 @@ function readSelectionSource(
 	if (!surface || !editorRoot.contains(surface)) return null;
 	// Past this point the drag IS the editor's selection, so every remaining shape declines.
 	if (!surface.contains(range.endContainer)) return DECLINED;
-	const path = proseBlockPath(surface);
+	const cellPath = findCellPathForElement(surface);
+	const path = cellPath ?? findBlockPathForElement(surface);
 	if (!path) return DECLINED;
 	const ambient = ambientLengthOf(surface);
 	const start = toClampedRawOffset(
@@ -158,7 +172,7 @@ function readSelectionSource(
 		domTextOffsetAtNode(surface, range.endContainer, range.endOffset),
 		ambient
 	);
-	return start < end ? { path, start, end } : DECLINED;
+	return start < end ? { path, start, end, inCell: cellPath !== null } : DECLINED;
 }
 
 /** The block and offset a drop point addresses, as a single-click caret would land. Null where
@@ -174,7 +188,7 @@ function dropTarget(
 	return blockNodeAt(deps.getDoc(), point.path) ? { path: point.path, offset: point.offset } : null;
 }
 
-/** The source block's own bytes for the range, past the paste transforms. Null for a payload
+/** The source surface's own bytes for the range, past the paste transforms. Null for a payload
  *  this seam does not own: a line break needs the structural paste route. */
 function movedText(deps: SelectionDropDeps, from: DragSource): string | null {
 	const node = blockNodeAt(deps.getDoc(), from.path);
@@ -199,17 +213,20 @@ async function runDrop(
 	}
 	const cut = cutFrom(deps, from);
 	if (!cut) return;
-	if (pathsEqual(from.path, to.path)) {
+	if (pathsEqual(cut.path, to.path)) {
 		const offset = dropOffsetAfterCut(to.offset, from.start, from.end, cut.shrunkBy);
 		if (offset === null) return;
 		const merged = spliceAt(cut.raw, offset, text);
-		await writeBlockRaw(deps, from.path, () => merged, offset + text.length, true);
+		await writeBlockRaw(deps, cut.path, () => merged, offset + text.length, true);
 		return;
 	}
 	deps.controller.pushUndoSnapshotPath(from.path, from.start);
-	const spliced = await writeBlockRaw(deps, from.path, () => cut.raw, from.start, false);
-	const at = from.path[from.path.length - 1];
-	const target = shiftPathAfterSplice(to.path, from.path.slice(0, -1), at, spliced);
+	// A table's caret door reads a cell landing, never a character offset (G1.29), so the
+	// transient caret the second write moves off is its first cell.
+	const sourceCaret = from.inCell ? 0 : from.start;
+	const spliced = await writeBlockRaw(deps, cut.path, () => cut.raw, sourceCaret, false);
+	const at = cut.path[cut.path.length - 1];
+	const target = shiftPathAfterSplice(to.path, cut.path.slice(0, -1), at, spliced);
 	await writeBlockRaw(deps, target, insert(to.offset, text), to.offset + text.length, false);
 }
 
@@ -217,14 +234,12 @@ function insert(offset: number, text: string): (raw: string) => string {
 	return (raw) => spliceAt(raw, offset, text);
 }
 
-/** The source block's display bytes with the dragged range gone, through the delete seam so a
+/** The source surface's display bytes with the dragged range gone, through the delete seam so a
  *  live-mode join cleans up after itself. */
-function cutFrom(
-	deps: SelectionDropDeps,
-	from: DragSource
-): { raw: string; shrunkBy: number } | null {
+function cutFrom(deps: SelectionDropDeps, from: DragSource): ScopeCut | null {
 	const node = blockNodeAt(deps.getDoc(), from.path);
 	if (!node) return null;
+	if (from.inCell) return cutFromCell(deps, from, node);
 	const before = trimTrailingLineEnding(node.raw);
 	const edit = deleteRangeRaw(
 		node,
@@ -234,7 +249,31 @@ function cutFrom(
 		containerAmbientPrefix(deps.getDoc(), from.path)
 	);
 	const raw = trimTrailingLineEnding(edit.raw);
-	return { raw, shrunkBy: before.length - raw.length };
+	return { path: from.path, raw, shrunkBy: before.length - raw.length };
+}
+
+/** A cell's bytes are joined into its row, so the TABLE is the block the cut rewrites: the cell's
+ *  own range-delete on a copy, then the kind's escape and the ancestry rebuild around it. */
+function cutFromCell(deps: SelectionDropDeps, from: DragSource, cell: CstNode): ScopeCut | null {
+	const tablePath = from.path.slice(0, -2);
+	const table = blockNodeAt(deps.getDoc(), tablePath);
+	if (!table) return null;
+	const cut = cutRangeFromDisplay(
+		cell,
+		cell.raw,
+		{ start: from.start, end: from.end },
+		deps.getPresentationMode?.(),
+		deps.linkRef
+	);
+	const rebuilt = cloneNode(table);
+	const inner = from.path.slice(-2);
+	const [rowIdx, colIdx] = inner;
+	const written = rebuilt.children?.[rowIdx]?.children?.[colIdx];
+	if (!written) return null;
+	writeOwnRaw(written, cut.display, deps.grammar);
+	rebuildAncestryRaw(rebuilt, inner);
+	const raw = trimTrailingLineEnding(rebuilt.raw);
+	return { path: tablePath, raw, shrunkBy: trimTrailingLineEnding(table.raw).length - raw.length };
 }
 
 /**
@@ -290,9 +329,4 @@ function surfaceOf(node: Node): HTMLElement | null {
 	let el = node instanceof HTMLElement ? node : node.parentElement;
 	while (el && el.contentEditable !== 'true') el = el.parentElement;
 	return el;
-}
-
-/** The block path of a prose surface; null for a table cell, whose offsets are cell indices. */
-function proseBlockPath(surface: HTMLElement): number[] | null {
-	return findCellPathForElement(surface) ? null : findBlockPathForElement(surface);
 }

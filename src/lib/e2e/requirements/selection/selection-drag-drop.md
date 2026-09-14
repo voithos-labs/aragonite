@@ -6,7 +6,7 @@ this itself as two unrelated native edits — a `deleteByDrag` on the source and
 byte-losing document in between, and inside one block the source commit rebuilds the surface
 under the drop so the text lands at offset 0 instead of where it was dropped. The editor owns
 the gesture instead (`selection/selection-drop.ts`): one commit, one undo entry, the payload
-taken from the source block's own bytes so live-mode markers travel with it.
+taken from the source surface's own bytes so live-mode markers travel with it.
 
 The gesture is the same whichever way the selection was made — the click ladder or Shift+Arrow —
 because the drag is the browser's and reads only the native range.
@@ -27,6 +27,10 @@ edits never runs: a declined drag writes nothing and leaves the undo stack alone
   and the source block stays as an empty one
 - drag a Shift+Arrow selection: it moves exactly as a ladder-made one does
 - drag a word out of a code body into a paragraph: the code body loses exactly that word
+- drag a word out of a table cell into a paragraph: the word lands there, the cell keeps the rest,
+  and one undo restores both sides
+  - Miss-analysis: the only cell drag in the suite asserted the cancel, so no test ever asked a
+    cell's bytes to land anywhere else and the seam's own decline read as coverage
 
 ## Edge cases
 
@@ -39,18 +43,14 @@ edits never runs: a declined drag writes nothing and leaves the undo stack alone
 
 Every shape the seam declines takes the same exit: the document is byte-identical AND a following
 undo changes nothing, since a fresh document has nothing to undo — an entry on the stack would show
-up as a document that moved. The six declines the code carries, each named:
+up as a document that moved. The five declines the code carries, each named:
 
-- **a source inside a table cell** — cancelled, covered. A cell addresses its offsets by cell index,
-  so the seam cannot move its bytes, and letting the browser have the gesture loses them
-  - Miss-analysis: the first version of this seam returned "not my gesture" for a cell source,
-    which reads the same as "no drag here" and handed the shape back to the browser; no spec
-    dragged out of a cell, so the two native edits landed and one undo left the cell's word gone
 - **a payload carrying a line break** — cancelled, covered (triple-click a paragraph holding a soft
   break and drag it). Moving it needs the structural paste route, which this seam does not take, so
   the spec asserts the source paragraph still holds BOTH its lines, not just that the bytes match
-- **a drop on a block that holds no character position** — cancelled, covered (drop onto a thematic
-  break). There is no offset to insert at
+- **a drop on a block that holds no character position** — cancelled, covered twice: a drop onto a
+  thematic break, and a drop onto a table cell, whose offsets are cell indices rather than
+  character positions. There is no offset to insert at
 - **a range that leaves its surface** — cancelled, not drivable under Playwright: a cross-block
   selection paints through the overlay and parks a collapsed native caret, so the browser starts no
   drag from it at all
