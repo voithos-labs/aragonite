@@ -35,7 +35,7 @@ import {
 } from './construct-edge-delete';
 import { hidesStructuralSuffix } from './hidden-suffix';
 import { resolveEdgeSeat, type EdgeSeat } from './edge-seat';
-import { deleteRangeRaw } from './live-selection-edit';
+import { replaceRangeRaw } from './live-selection-edit';
 import { resolveMarkedInsertion } from './pending-mark-insert';
 import { widgetAtCursor } from './widget-adjacency';
 import { resolveDelimiterAutoPair } from './delimiter-autopair';
@@ -256,6 +256,13 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 		);
 	}
 
+	/** The range this surface holds, or null at a caret. A key aimed at one edits the RANGE: the
+	 *  caret the arms read is only its start. */
+	function heldRange(): { start: number; end: number } | null {
+		const selection = deps.getRawSelection();
+		return selection && selection.start < selection.end ? selection : null;
+	}
+
 	// ── The seams the arms below defer to ────────────────────────────────────
 
 	/**
@@ -307,21 +314,49 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 		);
 	}
 
+	/** A printable byte an arm claimed because the engine drops it at an element-level caret. Over
+	 *  a held range it REPLACES through the join seam, the road a mid-block range takes; at a caret
+	 *  the seat answers which side of an unpainted run it lands on. */
+	function writeTypedByte(
+		el: HTMLElement,
+		caretOffset: number,
+		typed: string,
+		source: string
+	): void {
+		const range = heldRange();
+		if (range) {
+			const edit = replaceRangeRaw(
+				deps.node,
+				range,
+				typed,
+				joinSeamMode(el),
+				deps.linkRef,
+				deps.getAmbientPrefix?.() ?? ''
+			);
+			void deps.blockEdit.updateBlockContent(deps.index, edit.raw, range.start, edit.caret);
+			deps.setPendingCursor(edit.caret, source, edit.raw);
+			return;
+		}
+		const seatedAt = typingSeatAt(el, caretOffset, typed)?.offset ?? caretOffset;
+		editDisplay(seatedAt, seatedAt, typed, source, caretOffset);
+	}
+
 	// ── CST inline widget ────────────────────────────────────────────────────
 
 	function handleCstWidget(e: KeyboardEvent, caretOffset: RawOffset | null): boolean {
 		if (deps.isRevealing()) return false;
 		if (caretOffset === null) return false;
 		const node = deps.node;
+		const range = heldRange();
 		// Forward keys enter the widget after the caret, backward keys the one before, so
 		// a caret between two adjacent widgets enters the one the key is aimed at.
 		const direction = e.key === 'ArrowRight' || e.key === 'Delete' ? 'forward' : 'backward';
 		const widgetAt = widgetAtCursor(caretOffset, inlinesOf(node), node.raw, direction);
 		if (!widgetAt) return false;
 
-		// Unchorded only: a modifier makes the key a word-scoped platform command, and
-		// entering here would swap that word-step for the modal widget-selected state.
-		const plainEdgeKey = !e.shiftKey && !hasModifier(e);
+		// Unchorded, and at a CARET: a modifier makes the key a word-scoped platform command, and
+		// a held range is an edit of the range, not an entry into the construct beside its start.
+		const plainEdgeKey = !e.shiftKey && !hasModifier(e) && !range;
 		const enterFromRight =
 			plainEdgeKey && widgetAt.atRight && (e.key === 'ArrowLeft' || e.key === 'Backspace');
 		const enterFromLeft =
@@ -359,14 +394,7 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 		) {
 			e.preventDefault();
 			deps.setSnapTarget(null);
-			const typed = e.key;
-			// This branch owns only the fact that the engine drops the key beside a widget; which
-			// side of an unpainted run the byte belongs on is still the seat's answer.
-			const seatedAt = typingSeatAt(el, caretOffset, typed)?.offset ?? caretOffset;
-			const newRaw = node.raw.slice(0, seatedAt) + typed + node.raw.slice(seatedAt);
-			const postEdit = seatedAt + typed.length;
-			void deps.blockEdit.updateBlockContent(deps.index, newRaw, caretOffset, postEdit);
-			deps.setPendingCursor(postEdit, 'widget', newRaw);
+			writeTypedByte(el, caretOffset, e.key, 'widget');
 			return true;
 		}
 		return false;
@@ -415,8 +443,8 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 		// Second press: the native selection already wraps a replace island, so delete its
 		// whole hidden range through the CST as one undo entry.
 		if (isDestructive) {
-			const selection = deps.getRawSelection();
-			if (selection && selection.start < selection.end) {
+			const selection = heldRange();
+			if (selection) {
 				const selected = islands.find(
 					(i) =>
 						islandPolicy(i).onEdge === 'select' &&
@@ -480,7 +508,7 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 		// branch in e2e, so it is unit-pinned instead.
 		if (isTyping && !caretIsInTextContent(el, window.getSelection())) {
 			e.preventDefault();
-			editDisplay(caretOffset, caretOffset, e.key);
+			writeTypedByte(el, caretOffset, e.key, 'island');
 			return true;
 		}
 		return false;
@@ -508,9 +536,10 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 		if (range && range.start < range.end) {
 			// Consumed at KEYDOWN, so no `beforeinput` carries this range to the shared seam: the arm
 			// asks it here, or a literal splice prints the runs the cut stranded (live-mode.md § 4.5).
-			const edit = deleteRangeRaw(
+			const edit = replaceRangeRaw(
 				deps.node,
 				range,
+				'',
 				joinSeamMode(el),
 				deps.linkRef,
 				deps.getAmbientPrefix?.() ?? ''

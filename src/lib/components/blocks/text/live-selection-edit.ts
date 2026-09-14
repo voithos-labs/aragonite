@@ -164,22 +164,34 @@ export function resolveSelectionEdit(
 	};
 }
 
-/** The delete of `[start, end)` a destructive gesture installs: the seam's cleaned rewrite where
- *  it has one, else the literal display splice with the caret at the cut — the fallback's one
- *  home, so no arm carrying it can drift. */
-export function deleteRangeRaw(
+/** The rewrite of `[start, end)` to `typed` a gesture the surface consumed installs — a delete is
+ *  the empty one. The seam's cleaned bytes where it has them, else the literal display splice with
+ *  the caret past the insert: the fallback's one home, so no arm carrying it can drift. */
+export function replaceRangeRaw(
 	node: NodeView,
 	range: { start: number; end: number },
+	typed: string,
 	presentationMode: PresentationMode | undefined,
 	linkRef: InlineResolverRef | undefined,
 	ambientPrefix: string
 ): SelectionEdit {
-	const cleaned = resolveSelectionEdit(node, range, '', presentationMode, linkRef, ambientPrefix);
+	const cleaned = resolveSelectionEdit(
+		node,
+		range,
+		typed,
+		presentationMode,
+		linkRef,
+		ambientPrefix
+	);
 	if (cleaned) return cleaned;
 	const display = trimTrailingLineEnding(node.raw);
 	return {
-		raw: display.slice(0, range.start) + display.slice(range.end) + trailingLineEnding(node.raw),
-		caret: range.start
+		raw:
+			display.slice(0, range.start) +
+			typed +
+			display.slice(range.end) +
+			trailingLineEnding(node.raw),
+		caret: range.start + typed.length
 	};
 }
 

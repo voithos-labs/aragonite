@@ -17,7 +17,7 @@ import { ambientLengthOf } from '../ambient/ambient-dom';
 import { toClampedRawOffset } from '../cursor/coordinate-spaces';
 import { domTextOffsetAtNode } from '../cursor/widget-offset';
 import { trailingLineEnding, trimTrailingLineEnding } from '../core/lines';
-import { deleteRangeRaw } from '../components/blocks/text/live-selection-edit';
+import { replaceRangeRaw } from '../components/blocks/text/live-selection-edit';
 import { blockNodeAt, emptyParagraph, writeOwnRaw } from '../tree-operations/node-primitives';
 import { cloneNode } from '../tree-operations/clone';
 import { cutRangeFromDisplay } from '../tree-operations/node-ops';
@@ -240,9 +240,10 @@ function cutFrom(deps: SelectionDropDeps, from: DragSource): ScopeCut | null {
 	if (!node) return null;
 	if (from.inCell) return cutFromCell(deps, from, node);
 	const before = trimTrailingLineEnding(node.raw);
-	const edit = deleteRangeRaw(
+	const edit = replaceRangeRaw(
 		node,
 		{ start: from.start, end: from.end },
+		'',
 		deps.getPresentationMode?.(),
 		deps.linkRef,
 		containerAmbientPrefix(deps.getDoc(), from.path)

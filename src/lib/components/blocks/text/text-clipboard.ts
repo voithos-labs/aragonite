@@ -29,7 +29,7 @@ import {
 	type RevealFold
 } from '../editable-surface';
 import { pasteDispatch } from '../../../tree-operations/paste/dispatch';
-import { deleteRangeRaw } from './live-selection-edit';
+import { replaceRangeRaw } from './live-selection-edit';
 import type { PresentationMode } from '../../../presentation-mode';
 
 export interface TextClipboardDeps {
@@ -167,9 +167,10 @@ export function createTextClipboard(deps: TextClipboardDeps): TextClipboard {
 			if (!selOffsets) return;
 			// A cut is a delete, so it crosses the same join seam: in live the range can span
 			// delimiter runs the reader never saw, and a raw splice would print them.
-			const edit = deleteRangeRaw(
+			const edit = replaceRangeRaw(
 				deps.node,
 				selOffsets,
+				'',
 				deps.getPresentationMode(),
 				deps.linkRef,
 				deps.getAmbientPrefix()
