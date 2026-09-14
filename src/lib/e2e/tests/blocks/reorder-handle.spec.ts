@@ -249,11 +249,24 @@ test.describe('reorder hover handle', () => {
 	});
 
 	test('list item is a reorder unit; its inner paragraph is not (one handle in subtree)', async () => {
-		await editor.loadContent('- one\n\nplain\n');
+		await editor.loadContent('- one\n- two\n\nplain\n');
 		const item = editor.page.locator('.list-item-block', { hasText: 'one' });
 		await item.hover();
 		await expect(item.locator('.block-drag-handle')).toHaveCount(1);
 		await expect(item.locator('.block-drag-handle')).toHaveCSS('opacity', '1');
+	});
+
+	// The grip reorders within the list and nowhere else, so on a lone item it could only ever
+	// drop the item back where it was. Adding a sibling brings it back.
+	test('the only item of a list carries no handle until a sibling joins it', async ({ page }) => {
+		await editor.loadContent('- [ ] lone task\n\nplain\n');
+		const item = page.locator('.list-item-block', { hasText: 'lone task' });
+		await item.hover();
+		await expect(item.locator(':scope > .block-drag-handle')).toHaveCount(0);
+		await expect(page.locator('.block-drag-handle')).toHaveCount(0);
+
+		await editor.loadContent('- [ ] lone task\n- [ ] second\n\nplain\n');
+		await expect(page.locator('.list-item-block > .block-drag-handle')).toHaveCount(2);
 	});
 
 	// The shell's grip landed in the gutter on top of the first item's and, being its own hit
@@ -291,7 +304,7 @@ test.describe('reorder hover handle', () => {
 	});
 
 	test('nested hover reveals only the innermost unit, not the ancestor handle', async () => {
-		await editor.loadContent('- outer\n  - inner item\n');
+		await editor.loadContent('- outer\n  - inner item\n  - inner two\n- outer two\n');
 		const inner = editor.page.locator('.list-item-block', { hasText: 'inner item' }).last();
 		const outerOwnHandle = editor.page
 			.locator('.list-item-block', { hasText: 'outer' })
@@ -304,7 +317,7 @@ test.describe('reorder hover handle', () => {
 	});
 
 	test('axe baseline stays green with handles rendered', async ({ page }) => {
-		await editor.loadContent('- one\n\nplain\n\n> quoted\n');
+		await editor.loadContent('- one\n- two\n\nplain\n\n> quoted\n');
 		await editor.waitForRenderFlush();
 		await expectNoNewA11yViolations(page, 'reorder-handle');
 	});

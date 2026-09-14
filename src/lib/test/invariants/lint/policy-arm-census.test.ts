@@ -120,6 +120,13 @@ const HAND_WRITTEN_ARMS: readonly HandWrittenArm[] = [
 			'a label map, not an arm: it names block kinds only to name them in a menu row ("Remove code block"); no gesture reads it and no construct policy hangs on it'
 	},
 	{
+		path: 'src/lib/components/menu/SelectionToolbar.svelte',
+		detection: 'kind-literal',
+		fate: 'outside',
+		reason:
+			'icon names on the mark buttons ("link"), not construct kinds: every button runs a command id and the door decides admissibility'
+	},
+	{
 		path: 'src/lib/components/blocks/text/construct-edge-delete.ts',
 		detection: 'declared',
 		fate: 'outside',

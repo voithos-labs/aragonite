@@ -1,7 +1,8 @@
 // The height model seeds one estimate per child of a mounted scope, so loading 400,000 blocks
 // pays this 400,000 times before a single one paints. Nodes are synthesized rather than parsed:
 // the estimate reads kind, raw and child count only, and a 20MB parse would dominate the setup.
-import { bench, describe } from 'vitest';
+import { describe, test } from 'vitest';
+import { BENCH_TIMEOUT } from './fixtures/bench-timeout';
 import { makeBlockNode, type BlockMetadata, type CstNode } from '../../core/nodes';
 import { createHeightOracle, type HeightOracle } from '../../cursor/height-oracle';
 
@@ -72,12 +73,10 @@ describe('height seeding', () => {
 		['400k mixed kinds', mixed]
 	] as const) {
 		const { nodes, ids } = build(shape);
-		bench(
-			`seed ${label}`,
-			() => {
+		test(`seed ${label}`, { timeout: BENCH_TIMEOUT }, async ({ bench }) => {
+			await bench(`seed ${label}`, () => {
 				seed(oracle, nodes, ids);
-			},
-			{ warmupIterations: 1, time: 3_000 }
-		);
+			}).run({ warmupIterations: 1, time: 3_000 });
+		});
 	}
 });

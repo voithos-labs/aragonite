@@ -1,4 +1,5 @@
-import { bench, describe } from 'vitest';
+import { describe, test } from 'vitest';
+import { BENCH_TIMEOUT } from './fixtures/bench-timeout';
 import { parse } from '../../core/parser';
 import { FIXTURE_SHAPES, generateFixture } from './fixtures/generate';
 
@@ -13,13 +14,11 @@ for (const shape of FIXTURE_SHAPES) {
 	describe(`parse ${shape}`, () => {
 		for (const [label, bytes, opts] of SIZES) {
 			const src = generateFixture(shape, bytes);
-			bench(
-				label,
-				() => {
+			test(label, { timeout: BENCH_TIMEOUT }, async ({ bench }) => {
+				await bench(label, () => {
 					parse(src);
-				},
-				{ warmupIterations: 1, ...opts }
-			);
+				}).run({ warmupIterations: 1, ...opts });
+			});
 		}
 	});
 }

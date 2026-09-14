@@ -542,7 +542,7 @@ A few container-specific operations, for completeness:
 
 ## 10. Selection, search, clipboard
 
-Single-block selection is the browser's: native selection inside the block's contenteditable, the native caret, native `::selection` paint, with only copy/cut intercepted.
+Single-block selection is the browser's: native selection inside the block's contenteditable, the native caret, native `::selection` paint, with only copy/cut intercepted. Except for the click ladder. From the second click of a run the editor takes the gesture over, because the browser's idea of a word depends on the platform (Windows grabs the space after it) and its word walk happily wanders into a rendered formula next door. So: two clicks select the word, three select the block's content, and dragging from either grows the selection a word or a block at a time, across blocks too. The word comes from segmenting the block's own text with markers and widgets blanked out, which is how double-clicking `_word_` gets you `word` and not the underscores. There's no fourth rung on purpose (Mod+A twice already selects the document, and a jittery triple-click that selects everything right before you type is a great way to lose a document). A double-click on an inline widget is still the widget's own business.
 
 ### Cross-block selection
 

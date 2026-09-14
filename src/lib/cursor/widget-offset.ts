@@ -149,6 +149,17 @@ export function widgetsIntersectingRange(
 	return out;
 }
 
+/** The walk's text with marker chrome and widget bytes blanked to spaces, at the walk's own
+ *  offsets: what a rule reading words (the multi-click ladder) sees as content. */
+export function maskedWalkText(container: ParentNode): string {
+	let out = '';
+	for (const seg of walkSegments(container, null)) {
+		const content = seg.kind === 'text' && markerRootOf(seg.node, container) === null;
+		out += content ? (seg.node.textContent ?? '') : ' '.repeat(seg.len);
+	}
+	return out;
+}
+
 /** Total walk length of `container` — its one-past-end walk position. */
 export function containerDomTextLength(container: ParentNode): DomTextOffset {
 	let count = 0;
