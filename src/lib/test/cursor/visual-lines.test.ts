@@ -266,9 +266,9 @@ describe('isAtFirstVisualLine / isAtLastVisualLine', () => {
 	});
 });
 
-// Miss-analysis in requirements/keyboard-navigation/vertical-travel-object-parity.md. A caret
-// beside an atomic island sits at an element-level position, where Chromium reports no rect for
-// the collapsed range; the island's own box is what says which visual line the caret is on.
+// Miss-analysis: the rect-less branch was exercised only with the caret inside a text node, the one
+// shape Chromium always measures, so nothing asked the predicates about an element-level caret
+// beside an atomic island, where the island's own box is what names the line.
 describe('a caret with no rect of its own reads the line off the box it sits against', () => {
 	let block: HTMLElement;
 	let island: HTMLElement;

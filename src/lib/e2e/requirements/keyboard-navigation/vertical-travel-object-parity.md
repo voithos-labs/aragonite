@@ -7,9 +7,9 @@ on. ArrowDown reads it the same way. Both vertical directions must agree, or a r
 followed by the same number of ArrowDowns leaves the caret somewhere else.
 
 A step-over widget (a decoded entity, an emoji shortcode) carries a column instead, so a paragraph
-holding only one is a caret stop rather than an object stop: the arrival seats a caret beside the
-glyph, where a caret paints and a widget selection would paint nothing. The count is the same, one
-press in and one press out, both directions.
+holding only one is a caret stop rather than an object stop: the arrival seats the caret beside the
+glyph, the seat a horizontal step across it already lands on, instead of taking the widget as an
+object. The count is the same, one press in and one press out, both directions.
 
 Miss-analysis: the vertical arms were tested only where the object block sat between plain
 paragraphs in one scope, so the two doors a vertical arrival crosses, the per-block landing and a
@@ -34,4 +34,5 @@ replaces the caret, so nothing ever pressed Down on a seated caret with no rect.
 - Two adjacent entities, and a list item holding one entity-only paragraph, count the same as a
   lone entity. An entity followed by prose is an ordinary text block and counts the same.
 - A caret stepped over the glyph by ArrowRight leaves the block on the first vertical press, up or
-  down.
+  down. A caret stepped between two adjacent glyphs, which touches no text node on either side,
+  reads the same.

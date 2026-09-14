@@ -130,18 +130,24 @@ test.describe('vertical travel past an entity-only paragraph', () => {
 		});
 	}
 
-	test('a caret stepped over the glyph leaves the block on one press, either direction', async ({
-		page
-	}) => {
-		const editor = new EditorPage(page);
-		await editor.goto();
-		await editor.loadContent(surrounded('&copy;'));
-		await editor.focusBlockAtPath([MIDDLE], 0);
-		await page.keyboard.press('ArrowRight'); // over the whole glyph, to its trailing edge
+	const STEPPED_SEATS = [
+		{ label: 'past the only glyph', middle: '&copy;' },
+		{ label: 'between two adjacent glyphs', middle: '&copy;&reg;' }
+	];
 
-		expect(await walkAcross(editor, 'ArrowUp', 0)).toEqual({ presses: 1, stops: 0 });
-		await editor.focusBlockAtPath([MIDDLE], 0);
-		await page.keyboard.press('ArrowRight');
-		expect(await walkAcross(editor, 'ArrowDown', 2)).toEqual({ presses: 1, stops: 0 });
-	});
+	for (const { label, middle } of STEPPED_SEATS) {
+		test(`a caret stepped ${label} leaves on one press, either direction`, async ({ page }) => {
+			const editor = new EditorPage(page);
+			await editor.goto();
+			await editor.loadContent(surrounded(middle));
+			// One press crosses a whole glyph, so this seat touches no text node on either side.
+			await editor.focusBlockAtPath([MIDDLE], 0);
+			await page.keyboard.press('ArrowRight');
+
+			expect(await walkAcross(editor, 'ArrowUp', 0)).toEqual({ presses: 1, stops: 0 });
+			await editor.focusBlockAtPath([MIDDLE], 0);
+			await page.keyboard.press('ArrowRight');
+			expect(await walkAcross(editor, 'ArrowDown', 2)).toEqual({ presses: 1, stops: 0 });
+		});
+	}
 });
