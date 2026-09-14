@@ -1179,14 +1179,17 @@ editable-surface factory built it (the thematic break is `editable = false` and 
 commands). `BlockComponent` declares the method optional, so surface N+1 would compile clean and
 decline every `editor.runCommand()` on its blocks. `lint/command-door-surface-parity.test.ts`.
 
-**G4.40 · Rewrite-claim set parity.** Three lists are one set: the ids the built-in keymaps bind to
-a rewrite over one block's own selection, the ids the dispatch seam answers specially over a
-cross-block range (`RANGE_DECLINED_COMMAND_IDS` declines, `CROSS_BLOCK_RANGE_COMMAND_IDS` routes to
-the cross-block branch), and the chords `selection/cross-block/keydown.ts` claims, with each id on
-exactly one of the two lists. Membership is the branch's shape, not the id's prefix, so the list
-carries the non-`format.` members by hand; a prefix scan couldn't see `link.openCard`. A sixth
-rewrite taught to one spelling is an N minus 1 gap at the other two; the swallow GROWING a chord is
-caught by G4.29 instead, whose manifest records the key literals that file compares.
+**G4.40 · Rewrite-claim set parity.** Three lists name one set of rewrites: the ids the built-in
+keymaps bind to a rewrite over one block's own selection, the ids the dispatch seam answers
+specially over a cross-block range (`RANGE_DECLINED_COMMAND_IDS` declines,
+`CROSS_BLOCK_RANGE_COMMAND_IDS` routes to the cross-block branch), and the chords
+`selection/cross-block/keydown.ts` claims, with each rewrite id on exactly one of the two seam
+lists. The seam lists may also hold an id no rewrite keymap binds (`heading.cycle`, declined over
+a range and claimed by the delete-and-redispatch arm), so the guard compares the rewrite-scoped
+subset. Membership is the branch's shape, not the id's prefix, so the list carries the
+non-`format.` members by hand; a prefix scan couldn't see `link.openCard`. A sixth rewrite taught
+to one spelling is an N minus 1 gap at the other two; the swallow GROWING a chord is caught by
+G4.29 instead, whose manifest records the key literals that file compares.
 `test/selection/cross-block/rewrite-claim-parity.test.ts`.
 
 **G4.41 · Warn-gate bypasses.** No file under `src/lib` mocks `dev-warn` or spies `console.warn`. A

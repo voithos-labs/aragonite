@@ -284,8 +284,8 @@ editor.runCommand('nope'); // false, unknown id, nothing changed
 
 The ids you can pass:
 
-- **`TOOLBAR_COMMANDS`** (exported from the package) has what a selection toolbar needs: `toggleStrong`, `toggleEmphasis`, `toggleStrikethrough`, `toggleCode`, and `editLink`. The rest of the built-in commands stay internal for now.
-- **`heading.cycle`, with a level.** The arm behind `Mod+0` to `Mod+6`: `runCommand('heading.cycle', 2)` re-marks the focused prose block as a level-2 heading and `0` makes it a paragraph, which is what a heading picker calls.
+- **`TOOLBAR_COMMANDS`** (exported from the package) has what a selection toolbar needs: `toggleStrong`, `toggleEmphasis`, `toggleStrikethrough`, `toggleCode`, `editLink`, and `setHeading`. The rest of the built-in commands stay internal for now.
+- **`setHeading`, with a level.** The arm behind `Mod+0` to `Mod+6`: `runCommand(TOOLBAR_COMMANDS.setHeading, 2)` re-marks the focused prose block as a level-2 heading and `0` makes it a paragraph, which is what a heading picker calls. A heading level belongs to one block, so over a selection spanning blocks it declines rather than guessing which block you meant.
 - **A plugin's global command name.** `registerGlobalCommand` registers it (see the [plugin guide](plugin-guide.md)), and it resolves ahead of the focused block, so you can fire a plugin's editor-wide action without a keystroke. A plugin's per-block command stays keyboard-only.
 
 `arg` is the argument a keymap binding would bake in (`{ chord: 'Mod+2', command: 'heading.cycle', arg: 2 }`), handed to the command as it is; a command that takes none ignores it.
@@ -293,7 +293,7 @@ The ids you can pass:
 What the boolean means:
 
 - **`true` means the editor took the command, not that the edit has landed.** A toggle inside a construct whose markers a preview mode has revealed (see [Presentation modes](#presentation-modes)) settles that reveal first, so read the outcome on the `edit` channel rather than polling `getSource()`.
-- **`false` means nothing changed**: an unknown id, reading mode, a command that needs a focused block when none is, or the link editor over a selection spanning blocks (a link lives inside one block, and a range across blocks gives it none).
+- **`false` means nothing changed**: an unknown id, reading mode, a command that needs a focused block when none is, or the link editor or a heading level over a selection spanning blocks (a link lives inside one block, a heading level is one block's, and a range across blocks gives them none).
 
 Two more things before you wire buttons:
 
@@ -302,12 +302,13 @@ Two more things before you wire buttons:
 
 `canRunCommand(commandId: string): boolean`
 
-Tells you whether `runCommand(id)` would reach the command right now, which is what greys a toolbar button out instead of hiding it. It answers `false` exactly where `runCommand` declines before dispatch: an unknown id, reading mode, a block-scoped id with nothing focused, and the link editor while the selection spans blocks. `true` means reachable, not that it'll write (across blocks it may find no block that can hold the mark), so keep reading `runCommand`'s boolean too.
+Tells you whether `runCommand(id)` would reach the command right now, which is what greys a toolbar button out instead of hiding it. It answers `false` exactly where `runCommand` declines before dispatch: an unknown id, reading mode, a block-scoped id with nothing focused, and the link editor or a heading level while the selection spans blocks. `true` means reachable, not that it'll write (across blocks it may find no block that can hold the mark), so keep reading `runCommand`'s boolean too.
 
 ```ts
 // with a selection spanning two paragraphs
 editor.canRunCommand(TOOLBAR_COMMANDS.toggleStrong); // true
 editor.canRunCommand(TOOLBAR_COMMANDS.editLink); // false, a link can't span blocks
+editor.canRunCommand(TOOLBAR_COMMANDS.setHeading); // false, a heading level is one block's
 ```
 
 `isCommandActive(commandId: string): boolean`
@@ -1048,7 +1049,7 @@ The bundled toc plugin does exactly that walk over its live document, and clicki
 
 ### Recipe: a selection toolbar
 
-The editor ships one: a popover that opens beside a prose selection with the marks, the link, a heading picker, inline code and copy, on by default and off with `selectionToolbar={false}`. It is built on the doors below and nothing else, so this recipe is also how to replace it with your own. Nine steps, and the anchoring ones have a snippet after the list:
+The editor ships one: a popover that opens beside a prose selection with the marks, the link, a heading picker (inside one block only), inline code and copy, on by default and off with `selectionToolbar={false}`. It is built on the doors below and nothing else, so this recipe is also how to replace it with your own. Nine steps, and the anchoring ones have a snippet after the list:
 
 1. **Subscribe to `selectionChange`.** A `null` payload or a collapsed selection (anchor equals focus) hides the bar.
 2. **Put the endpoints in document order first.** `normalizeSelection(snapshot)` answers `{ start, end }` (by path, then by offset when the paths match), so a backward drag anchors exactly like a forward one. Anchor to `start`; a hand-rolled comparison gets the container-and-its-child pair wrong, where the shorter path is the earlier one.
@@ -1056,7 +1057,7 @@ The editor ships one: a popover that opens beside a prose selection with the mar
 4. **Single-block selections**: `getSelection()` reports the range's real endpoints, so anchor with `rangeRects(start.path, start.offset, end.offset)`, the same call with a real end offset in place of `SELECTION_END`. (Reading the native `window.getSelection()` range works too, since within one block the editor delegates selection to the browser.) A selection **inside a table** shares the table's path on both endpoints and carries cell indices in `offset`, which the `cellCoordinate` flag need not mark, so exclude it with `getBlockKindAt(start.path) === 'table'`, never by the flag alone.
 5. **Re-anchor on the next `selectionChange`, not on scroll.** Rects are viewport-space snapshots; a `position: fixed` bar drifts under scroll until the selection next changes. Wire a scroll listener only if your UX demands live tracking.
 6. **Fire the buttons through `runCommand`, not synthetic keystrokes.** `runCommand(TOOLBAR_COMMANDS.toggleStrong)` says what the button means; a synthesized `Ctrl+B` says which key the button impersonates, and a user's rebind then silently rewires it.
-7. **Grey the declining buttons out with `canRunCommand`, on the same `selectionChange`.** Ask it per button and disable the ones that answer `false`, so a selection spanning blocks shows the link button dimmed rather than dead while the format toggles stay live. Still read `runCommand`'s boolean, per [Toolbar commands](#toolbar-commands).
+7. **Grey the declining buttons out with `canRunCommand`, on the same `selectionChange`.** Ask it per button and disable the ones that answer `false`, so a selection spanning blocks shows the link button dimmed rather than dead while the format toggles stay live (the editor's own bar goes one further and drops a labelled row the door declines, which is why its heading picker vanishes there). Still read `runCommand`'s boolean, per [Toolbar commands](#toolbar-commands).
 8. **Paint the pressed states with `isCommandActive`, on that same `selectionChange`.** A selection already inside a bold run shows the bold button pressed (`aria-pressed` is the accessible spelling), and pressing it then unwraps: the pressed paint and the press read the same bytes, so they agree by construction. In live mode a selection sitting inside a link shows the link button pressed the same way, off the link the card would edit, and clicking it opens that link's card with the selection left alone; a selection that runs out of the link isn't inside it, so the button unpresses and the click falls back to creating a new link over the range.
 9. **Keep focus in the document**, for the same reason the insert toolbar does: cancel the button's mousedown default, or restore a `getSelection()` snapshot before calling.
 
@@ -1074,7 +1075,7 @@ editor.getEvents().on('selectionChange', (sel) => {
 });
 ```
 
-The editor's own bar (`src/lib/components/menu/SelectionToolbar.svelte`) is this recipe end to end: both anchoring branches, the table exclusion, the five `TOOLBAR_COMMANDS` buttons greyed by `canRunCommand` and pressed by `isCommandActive`, and the mousedown cancel that keeps the caret in the document.
+The editor's own bar (`src/lib/components/menu/SelectionToolbar.svelte`) is this recipe end to end: both anchoring branches, the table exclusion, the `TOOLBAR_COMMANDS` buttons greyed by `canRunCommand` and pressed by `isCommandActive`, and the mousedown cancel that keeps the caret in the document.
 
 ### Recipe: an insert toolbar
 
