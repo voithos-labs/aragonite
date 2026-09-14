@@ -4,11 +4,9 @@
  * tokens. Text-preserving by construction — opener + body + closer is the input — so the
  * offset walk and G1.28 hold. Anything not shaped like a fence paints as plain tokens.
  */
-import { highlightCode } from '$lib/plugin';
+import { highlightCode, matchFenceClose, matchFenceOpen } from '$lib/plugin';
 
 const FENCE = '$$';
-const CODE_FENCE_OPEN = /^[ \t]*(?:`{3,}|~{3,})/;
-const CODE_FENCE_CLOSE = /^[ \t]*(?:`{3,}|~{3,})[ \t]*$/;
 
 interface MathSlice {
 	opener: string;
@@ -32,10 +30,14 @@ function sliceMathSource(text: string): MathSlice {
 		if (text.slice(0, firstNewline) !== FENCE) return unsliced(text);
 		return sliceFenceLines(text, firstNewline, (line) => line === FENCE);
 	}
-	if (firstNewline === -1 || !CODE_FENCE_OPEN.test(text.slice(0, firstNewline))) {
-		return unsliced(text);
-	}
-	return sliceFenceLines(text, firstNewline, (line) => CODE_FENCE_CLOSE.test(line));
+	if (firstNewline === -1) return unsliced(text);
+	// CommonMark's fence rules stay the editor's: a closer repeats its opener's own marker, at
+	// that length or longer.
+	const fence = matchFenceOpen(text.slice(0, firstNewline));
+	if (!fence) return unsliced(text);
+	return sliceFenceLines(text, firstNewline, (line) =>
+		matchFenceClose(line, fence.marker, fence.length)
+	);
 }
 
 function sliceFenceLines(
@@ -89,7 +91,7 @@ export function completeBareMathSource(text: string): { text: string; caret: num
 	if (!opener || !closer) return null;
 	if (body.includes('\n') || body.trim() !== '') return null;
 	const openerLine = opener.replace(/\n$/, '');
-	return { text: `${openerLine}\n\n${closer.replace(/^\n/, '')}`, caret: openerLine.length + 1 };
+	return { text: `${openerLine}\n\n${closer}`, caret: openerLine.length + 1 };
 }
 
 export function renderMathSource(text: string): DocumentFragment {

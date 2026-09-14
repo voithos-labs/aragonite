@@ -25,7 +25,17 @@ describe('completeBareMathSource rebuilds from the block’s own delimiters', ()
 		});
 	}
 
-	const leftAlone = ['$$\n\n$$', '```math\n\n```', '$$x^2$$', '```math\nx^2\n```', 'loose prose'];
+	// A closer repeats its opener's own marker at its length or longer, so neither of the last
+	// two closes anything and neither block is bare.
+	const leftAlone = [
+		'$$\n\n$$',
+		'```math\n\n```',
+		'$$x^2$$',
+		'```math\nx^2\n```',
+		'~~~math\n```',
+		'````math\n```',
+		'loose prose'
+	];
 	for (const source of leftAlone) {
 		it(`leaves ${JSON.stringify(source)} alone`, () => {
 			expect(completeBareMathSource(source)).toBeNull();
