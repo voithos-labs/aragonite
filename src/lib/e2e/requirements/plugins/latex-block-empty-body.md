@@ -2,7 +2,7 @@
 
 A `$$x^2$$` block carries its whole formula on the fence line itself, so deleting the body leaves
 a source with no body line at all. While the fence lines hide, that surface holds nothing but its
-own chrome, and live mode paints chrome standing over no content — the reader's equation turns
+own chrome, and live mode paints chrome standing over no content, so the reader's equation turns
 into `$$$$`. The bare-source completion the reveal door applies has to hold across editing too:
 whatever empties the body, the block settles on opener, one empty body line, closer, with the
 caret on that line.

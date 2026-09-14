@@ -21,9 +21,9 @@ test.describe('one-line block math emptied (live)', () => {
 	/** The fence pays for itself only while it is hidden: no `$$` on screen, and no chrome-only
 	 *  stamp, which is what unhides it. */
 	const expectFenceHidden = async () => {
+		await expect.poll(() => editor.getBlock(1).innerText()).not.toContain('$$');
 		await expect.poll(() => editor.sourceText()).toBe(EMPTIED);
 		await expect(editor.source).not.toHaveAttribute('data-content-empty');
-		expect(await editor.getBlock(1).innerText()).not.toContain('$$');
 	};
 
 	test('select-all then Backspace leaves an empty body line, not the bare fence', async ({
