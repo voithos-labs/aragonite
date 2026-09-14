@@ -102,7 +102,12 @@ export type { BlockCompleter, CompletionResult } from './schema/block-completion
 // grammar is bundle weight for every consumer), so a host needing more registers them itself,
 // BEFORE mounting an editor: a block on screen re-tokenizes only when its bytes next change.
 // An unregistered language is not an error — the fence still round-trips, just untokenized.
-export { registerLanguage, listLanguages } from './components/blocks/code/code-languages';
+// `listLanguages` lists each language once; `getLanguageAliases` holds the other spellings.
+export {
+	registerLanguage,
+	listLanguages,
+	getLanguageAliases
+} from './components/blocks/code/code-languages';
 export type { LanguageGrammar } from './components/blocks/code/code-languages';
 // The code block's own tokenizer, for a plugin whose source surface wants the same highlighting
 // (block math paints its LaTeX with it). Text-preserving: the fragment's textContent is `body`.
