@@ -78,6 +78,17 @@ describe('CodeBlock — the language picker’s list', () => {
 
 		expect(rows()).toEqual(['rust']);
 	});
+
+	// The row and the fence name one language in two spellings, so the mark that says "this is
+	// what you have" compares through the registry rather than by text.
+	it('marks the row the fence already uses, whichever spelling each is in', () => {
+		const field = openField();
+
+		type(field, 'javascript');
+
+		const option = mounted.target.querySelector('.code-lang-list [role="option"]');
+		expect(option?.getAttribute('aria-selected')).toBe('true');
+	});
 });
 
 describe('CodeBlock — the language picker’s commit', () => {

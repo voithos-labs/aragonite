@@ -87,10 +87,17 @@
 		// Unfiltered, the block's own language leads, in the spelling the fence uses — so the
 		// row that matters is where the eye already is, and its canonical twin is not below it.
 		const current = language;
-		const canonical = getLanguageGrammar(current)?.name;
-		const rest = all.filter((name) => name !== current && name !== canonical);
+		const rest = all.filter((name) => name !== current && !isCurrentLanguage(name));
 		return [current, ...rest];
 	});
+
+	/** One language in two spellings is still the block's own, so the mark comparing them asks
+	 *  the registry rather than the text. */
+	function isCurrentLanguage(name: string): boolean {
+		const canonical = (spelling: string) =>
+			getLanguageGrammar(spelling)?.name ?? spelling.toLowerCase();
+		return canonical(name) === canonical(language);
+	}
 
 	// The highlight cannot outrun a filter that shortened the list under it.
 	$effect(() => {
@@ -153,9 +160,7 @@
 		if (e.key === 'Enter') {
 			e.preventDefault();
 			// A spelling the registry resolves is a name, not a query: it commits as typed, so
-			// `js` stays authorable from a picker whose rows are canonical. Arrowing takes the
-			// row instead, and a string the list never matched still commits, so an unregistered
-			// language stays authorable too.
+			// `js` survives a picker whose rows are canonical. A moved highlight takes the row.
 			const typed = draft.trim();
 			const namesLanguage = !highlightMoved && typed !== '' && getLanguageGrammar(typed) !== null;
 			commit(
@@ -454,7 +459,7 @@
 						<button
 							type="button"
 							role="option"
-							aria-selected={name === language}
+							aria-selected={isCurrentLanguage(name)}
 							data-active={i === activeIndex}
 							tabindex="-1"
 							onmouseenter={() => {
@@ -469,7 +474,7 @@
 							}}
 						>
 							<span class="code-lang-name">{name}</span>
-							{#if name === language}
+							{#if isCurrentLanguage(name)}
 								<span class="code-lang-check">
 									{@render icon('<path d="M20 6 9 17l-5-5"/>')}
 								</span>
