@@ -1,7 +1,7 @@
 {
 	"name": "@voithos-labs/aragonite",
 	"version": "0.10.3",
-	"description": "Svelte 5 block editor for GFM Markdown with byte-for-byte lossless round-trip and a plugin platform",
+	"description": "cute svelte-based markdown editor lib",
 	"keywords": [
 		"markdown",
 		"gfm",
@@ -188,7 +188,7 @@
 	},
 	"peerDependencies": {
 		"katex": "^0.17.0 || ^0.18.0",
-		"mermaid": "^11.16.0",
+		"mermaid": "^11.16.0 || ^12.0.0",
 		"svelte": "^5.29.0"
 	},
 	"peerDependenciesMeta": {

@@ -260,7 +260,8 @@ cNo.....................................oc
 		font-size: 1.1em;
 		line-height: 1.1;
 		letter-spacing: 0.05em;
-		/* one frame tall, in the reel's own rows so a step lands on the next frame exactly */
+		/* one frame tall, in the reel's own rows so a step lands on the next frame exactly; the
+		   em line is the same height for engines without lh (Safari before 16.4) */
 		height: calc(var(--parrot-rows) * 1.1em);
 		height: calc(var(--parrot-rows) * 1lh);
 		/* wider than a phone column, and the editor root pans if it isn't contained; the bar
