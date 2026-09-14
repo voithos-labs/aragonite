@@ -26,7 +26,7 @@ import { applyPasteTransforms } from '../tree-operations/paste/paste-transforms'
 import { replaceBlockAtParent } from '../tree-operations/paste/replace-block-at-parent';
 import { parseReplacement } from '../tree-operations/paste/replacement-parse';
 import { blockNearPoint } from './nearest-block';
-import { findBlockPathForElement, findCellPathForElement } from './path-lookup';
+import { findSurfaceForElement } from './path-lookup';
 import { containerAmbientPrefix } from './range-delete';
 
 export interface SelectionDropDeps {
@@ -160,9 +160,8 @@ function readSelectionSource(
 	if (!surface || !editorRoot.contains(surface)) return null;
 	// Past this point the drag IS the editor's selection, so every remaining shape declines.
 	if (!surface.contains(range.endContainer)) return DECLINED;
-	const cellPath = findCellPathForElement(surface);
-	const path = cellPath ?? findBlockPathForElement(surface);
-	if (!path) return DECLINED;
+	const found = findSurfaceForElement(surface);
+	if (!found) return DECLINED;
 	const ambient = ambientLengthOf(surface);
 	const start = toClampedRawOffset(
 		domTextOffsetAtNode(surface, range.startContainer, range.startOffset),
@@ -172,7 +171,7 @@ function readSelectionSource(
 		domTextOffsetAtNode(surface, range.endContainer, range.endOffset),
 		ambient
 	);
-	return start < end ? { path, start, end, inCell: cellPath !== null } : DECLINED;
+	return start < end ? { ...found, start, end } : DECLINED;
 }
 
 /** The block and offset a drop point addresses, as a single-click caret would land. Null where
@@ -256,8 +255,9 @@ function cutFrom(deps: SelectionDropDeps, from: DragSource): ScopeCut | null {
  *  own range-delete on a copy, then the kind's escape and the ancestry rebuild around it. */
 function cutFromCell(deps: SelectionDropDeps, from: DragSource, cell: CstNode): ScopeCut | null {
 	const tablePath = from.path.slice(0, -2);
+	// The cell path is resolved from a DOM selector contract, so the kind is read, not assumed.
 	const table = blockNodeAt(deps.getDoc(), tablePath);
-	if (!table) return null;
+	if (!table || table.kind !== 'table') return null;
 	const cut = cutRangeFromDisplay(
 		cell,
 		cell.raw,

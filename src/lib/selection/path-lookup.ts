@@ -121,8 +121,23 @@ export function findCellPathForElement(el: Element | null): number[] | null {
 	return [...tablePath, rowIdx, colIdx];
 }
 
-/** The path of the editing SURFACE `el` sits in — the enclosing cell where there is one, else
- *  the enclosing block. The pairing {@link findCellPathForElement} says every producer owes. */
+/** The editing SURFACE `el` sits in: the enclosing cell where there is one, else the enclosing
+ *  block, and which of the two answered — a caller whose bytes live at a different scope for a
+ *  cell reads the flag rather than re-deriving the pairing. */
+export interface EditingSurface {
+	path: number[];
+	inCell: boolean;
+}
+
+/** The pairing {@link findCellPathForElement} says every producer owes, in one place. */
+export function findSurfaceForElement(el: Element | null): EditingSurface | null {
+	const cellPath = findCellPathForElement(el);
+	if (cellPath) return { path: cellPath, inCell: true };
+	const blockPath = findBlockPathForElement(el);
+	return blockPath ? { path: blockPath, inCell: false } : null;
+}
+
+/** {@link findSurfaceForElement} for a caller that needs only the path. */
 export function findSurfacePathForElement(el: Element | null): number[] | null {
-	return findCellPathForElement(el) ?? findBlockPathForElement(el);
+	return findSurfaceForElement(el)?.path ?? null;
 }

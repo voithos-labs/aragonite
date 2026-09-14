@@ -15,6 +15,11 @@ because the drag is the browser's and reads only the native range.
 that grips its own selection, including the ones it declines, so the browser's pair of native
 edits never runs: a declined drag writes nothing and leaves the undo stack alone.
 
+The read therefore has two different noes, and confusing them is the whole bug class: "not this
+gesture" hands the drag back to the browser, while a recognized shape the seam cannot move is
+cancelled. Answering the first where the second is meant gives the browser its two native edits,
+and one undo then leaves the source's bytes gone.
+
 ## Happy paths
 
 - drag a double-clicked word to the end of its own paragraph: the word lands there and is gone
@@ -43,7 +48,7 @@ edits never runs: a declined drag writes nothing and leaves the undo stack alone
 
 Every shape the seam declines takes the same exit: the document is byte-identical AND a following
 undo changes nothing, since a fresh document has nothing to undo — an entry on the stack would show
-up as a document that moved. The five declines the code carries, each named:
+up as a document that moved. The six declines the code carries, each named:
 
 - **a payload carrying a line break** — cancelled, covered (triple-click a paragraph holding a soft
   break and drag it). Moving it needs the structural paste route, which this seam does not take, so
@@ -54,6 +59,9 @@ up as a document that moved. The five declines the code carries, each named:
 - **a range that leaves its surface** — cancelled, not drivable under Playwright: a cross-block
   selection paints through the overlay and parks a collapsed native caret, so the browser starts no
   drag from it at all
+- **a surface the DOM resolves no path for** — cancelled, not drivable: every mounted editing
+  surface sits under a block host, so neither a cell path nor a block path answering means the
+  range is in DOM the editor does not own
 - **an empty range after the ambient clamp** — cancelled, not drivable: a drag needs a non-collapsed
   native selection to start, and one covering only a marker island is not reachable by gesture
 - **reading mode** — cancelled, not drivable: reading mode mounts no editable surface, so there is
