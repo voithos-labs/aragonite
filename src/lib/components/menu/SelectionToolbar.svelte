@@ -13,6 +13,7 @@
 	import { TOOLBAR_COMMANDS } from '../../schema/commands';
 	import { SELECTION_TOOLBAR_LABEL } from '../../a11y-strings';
 	import { keepFlyoutOnScreen } from './flyout-placement';
+	import { runClipboardAction } from './clipboard-actions';
 	import MenuIcon, { type MenuIconName } from './MenuIcon.svelte';
 
 	type ToolbarEditor = Pick<
@@ -56,7 +57,6 @@
 		{ label: 'Heading 3', level: 3 }
 	];
 	const BUTTONS = [...MARKS, ...ROWS, { command: TURN_INTO_COMMAND }];
-	const PROSE_KINDS: ReadonlySet<string> = new Set(['paragraph', 'heading', 'setextHeading']);
 	const BAR_GAP = 6;
 
 	let { editor, root }: { editor: ToolbarEditor; root: HTMLElement | undefined } = $props();
@@ -82,9 +82,9 @@
 		return Math.max(0, root?.getBoundingClientRect().top ?? 0);
 	}
 
+	// The document's own copy, so a cross-block range lands as the Markdown Ctrl+C would write.
 	function copySelection(): void {
-		const text = window.getSelection()?.toString() ?? '';
-		if (text) void navigator.clipboard.writeText(text);
+		void runClipboardAction('copy', null);
 		placement = null;
 	}
 
@@ -115,15 +115,17 @@
 	// can end anywhere; the release places the bar from the selection that stood at that moment.
 	let pointerHeld = false;
 	$effect(() => {
+		// A press on the bar itself is a button, not a drag: arming the release here would re-place
+		// the bar (and close its flyout) under the click that follows.
 		const down = (e: PointerEvent) => {
-			if (e.button === 0) pointerHeld = true;
+			if (e.button === 0 && !barEl?.contains(e.target as Node)) pointerHeld = true;
 		};
-		// The release is heard at capture, before the editor's own handlers settle the range, so the
-		// bar is placed a frame later from the selection as it then stands.
+		// Placed from the range the editor last reported; a release that still moves the range
+		// reports again through `selectionChange`, which re-places.
 		const up = () => {
 			if (!pointerHeld) return;
 			pointerHeld = false;
-			requestAnimationFrame(() => update(editor.getSelection() ?? current));
+			if (current) update(current);
 		};
 		document.addEventListener('pointerdown', down, true);
 		document.addEventListener('pointerup', up, true);
@@ -147,24 +149,18 @@
 	);
 
 	// Sticky with the text: the rects are viewport coordinates, so a scroll or resize moves the
-	// selection under the bar and the bar re-measures. One frame per burst, not one per event.
+	// selection under the bar and the bar re-measures. Scroll already arrives once per frame.
 	$effect(() => {
-		let frame = 0;
 		const reanchor = () => {
-			if (frame || !current) return;
-			frame = requestAnimationFrame(() => {
-				frame = 0;
-				// Same gates as a selection change: a scroll mid-drag (autoscroll included) must not
-				// bring the bar out before the release does.
-				placement = current && !pointerHeld && !menuOpen ? place(current) : null;
-			});
+			// Same gates as a selection change: a scroll mid-drag (autoscroll included) must not
+			// bring the bar out before the release does.
+			if (current) placement = shownOver(current);
 		};
 		window.addEventListener('scroll', reanchor, { capture: true, passive: true });
 		window.addEventListener('resize', reanchor, { passive: true });
 		return () => {
 			window.removeEventListener('scroll', reanchor, { capture: true });
 			window.removeEventListener('resize', reanchor);
-			if (frame) cancelAnimationFrame(frame);
 		};
 	});
 
@@ -172,12 +168,6 @@
 		current = selection;
 		turnIntoOpen = false;
 		blockKind = selection ? editor.getBlockKindAt(normalizeSelection(selection).start.path) : null;
-		// Prose only: over a code fence or an equation's source the marks mean nothing, so the bar
-		// stays away rather than opening greyed out.
-		placement =
-			selection && !menuOpen && !pointerHeld && blockKind !== null && PROSE_KINDS.has(blockKind)
-				? place(selection)
-				: null;
 		// Asked per selection change, not per render: the answers are snapshots of this selection.
 		declined = new Set(
 			BUTTONS.filter((b) => !editor.canRunCommand(b.command)).map((b) => b.command)
@@ -185,6 +175,15 @@
 		active = new Set(
 			BUTTONS.filter((b) => editor.isCommandActive(b.command)).map((b) => b.command)
 		);
+		placement = selection ? shownOver(selection) : null;
+	}
+
+	// The door decides where the bar belongs: over a code fence or an equation's source it declines
+	// every mark, and a bar of greyed buttons is worse than none.
+	function shownOver(selection: EditorSelection): Placement | null {
+		if (menuOpen || pointerHeld) return null;
+		if (MARKS.every((mark) => declined.has(mark.command))) return null;
+		return place(selection);
 	}
 
 	function place(selection: EditorSelection): Placement | null {

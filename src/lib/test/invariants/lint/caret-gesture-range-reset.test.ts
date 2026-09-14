@@ -68,6 +68,8 @@ const NON_CARET_PRESS_FILES: Record<string, string> = {
 		'swallows the press so no caret seats under it; the paragraph it mints focuses itself',
 	'src/lib/components/menu/BlockMenu.svelte':
 		'swallows the press on its rows so the caret it inserts at keeps focus',
+	'src/lib/components/menu/SelectionToolbar.svelte':
+		'swallows the press on its buttons so the selection they act on survives it; the release is only heard to place the bar',
 	'src/lib/components/editor-root-listeners.ts':
 		'the second press of a double-click selects the word under it: a selection gesture in a block whose first press already went through the door',
 	'src/lib/components/blocks/table/TableActionMenu.svelte':
