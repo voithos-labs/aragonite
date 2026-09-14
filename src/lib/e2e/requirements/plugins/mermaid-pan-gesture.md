@@ -3,8 +3,9 @@
 A rendered diagram pans under a held drag. That drag is the widget's gesture, so the editor's
 pointer arms must leave it alone: no whole-block range is seeded, no selection overlay is
 painted, and focus stays on the block the user is working in. The claim is declared on the
-element (`data-pointer-gesture`), not inferred from the kind — a plugin's own
-`stopPropagation` fires after the editor's root listeners and cannot reach this.
+element (`data-pointer-gesture`), not inferred from the kind: a plugin's own `stopPropagation`
+fires after the editor's root listeners and cannot reach this. The diagram declares only while
+its pan is armed, so an unfocused one is still the editor's to answer.
 
 Fixture (loaded per test): a paragraph `Above text`, one ` ```mermaid ` fence, a paragraph
 `tail text`; the broken-fence document for the error-card case.
@@ -18,8 +19,10 @@ Fixture (loaded per test): a paragraph `Above text`, one ` ```mermaid ` fence, a
 
 ## Edge cases
 
+- A press-and-drag out of an UNFOCUSED diagram into the block below still seeds a cross-block
+  range, and pans nothing: the diagram has no gesture to protect until it is focused
 - A drag on the BROKEN diagram's error card, which declares no gesture surface, still takes the
-  block whole — the door is the declared element, not the kind
+  block whole: the door is the declared element, not the kind
 - A drag that STARTS in prose and ends on the diagram is unaffected (the door reads the press
   target only); that contract is pinned in `mermaid-pointer-selection-bytes.md`
 

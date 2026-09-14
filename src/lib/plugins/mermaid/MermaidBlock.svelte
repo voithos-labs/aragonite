@@ -143,12 +143,13 @@
 	const view = createPanZoom();
 	const overlayView = createPanZoom();
 
-	// Focus-gated so the in-document diagram never hijacks the page: unfocused, a bare
-	// wheel scrolls and a stray drag cannot pan. Any descendant focus counts.
-	const isFocused = () => !!boxEl?.contains(document.activeElement);
+	// Focus-gated so the in-document diagram never hijacks the page: unfocused, a bare wheel
+	// scrolls, a stray drag cannot pan, and the editor's drag-to-select still owns the press.
+	// Tracked rather than probed, because the gesture declaration the editor reads is markup.
+	let gestureArmed = $state(false);
 
 	function onViewportWheel(e: WheelEvent): void {
-		if (!isFocused() || !(e.ctrlKey || e.metaKey)) return;
+		if (!gestureArmed || !(e.ctrlKey || e.metaKey)) return;
 		e.preventDefault();
 		e.stopPropagation();
 		view.zoomBy(e.deltaY);
@@ -158,7 +159,7 @@
 		// Never preventDefault, so the browser's focus-on-mousedown still lands: the
 		// first click focuses, and only a drag on the now-focused block pans.
 		e.stopPropagation();
-		if (isFocused()) view.beginPan(e);
+		if (gestureArmed) view.beginPan(e);
 	}
 
 	function onOverlayWheel(e: WheelEvent): void {
@@ -310,7 +311,13 @@
 </script>
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
-<div class="mermaid-block" bind:this={boxEl} onkeydown={handleKeydown}>
+<div
+	class="mermaid-block"
+	bind:this={boxEl}
+	onkeydown={handleKeydown}
+	onfocusin={() => (gestureArmed = true)}
+	onfocusout={(e) => (gestureArmed = boxEl?.contains(e.relatedTarget as Node | null) ?? false)}
+>
 	{#if editing}
 		<textarea
 			bind:this={textareaEl}
@@ -334,7 +341,7 @@
 			<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 			<div
 				class="mermaid-viewport"
-				data-pointer-gesture
+				data-pointer-gesture={gestureArmed ? '' : undefined}
 				tabindex="0"
 				role="img"
 				aria-label="Mermaid diagram"

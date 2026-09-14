@@ -4,9 +4,10 @@ import { dragBetweenPoints } from './helpers';
 import { MermaidPage, STANDARD_DIAGRAM_DOC } from './mermaid-helpers';
 
 /**
- * A drag the diagram claims for its own pan seeds no block range
- * (requirements/plugins/mermaid-pan-gesture.md). The editor's margin-drag arm reads the press
- * before the plugin's own handler runs, so only a declared gesture surface can decline it.
+ * A drag the diagram claims for its own pan seeds no block range, and a drag it has not claimed
+ * still belongs to the editor (requirements/plugins/mermaid-pan-gesture.md). The margin-drag arm
+ * reads the press before the plugin's own handler runs, so only a declared surface can decline
+ * it, and the diagram declares only while its pan is armed.
  */
 
 const BROKEN_DOC = 'Above text\n\n```mermaid\nnotadiagram broken\n```\n\ntail text\n';
@@ -75,6 +76,23 @@ test.describe('a diagram pan claims its own drag', () => {
 			'translate(60px, 20px) scale(1)'
 		);
 		expect(await editor.bridge.isCrossBlockActive()).toBe(false);
+	});
+
+	// Armed, not permanent: an unfocused diagram has no pan to protect, so a press on it is still
+	// the editor's to answer and a sweep out of it selects across blocks as from any other face.
+	test('a drag out of an UNFOCUSED diagram still seeds a cross-block range', async ({ page }) => {
+		const box = await editor.viewport.boundingBox();
+		if (!box) throw new Error('the rendered diagram has no bounding box');
+		const from = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+
+		await dragBetweenPoints(page, from, await editor.pointForOffset([2], 4));
+
+		await editor.waitForCrossBlock(true);
+		expect(await editor.bridge.isCrossBlockActive()).toBe(true);
+		// Nothing panned: an unclaimed drag is not a gesture the plugin ran too.
+		expect(await canvasTransform(page, '.mermaid-viewport .mermaid-canvas')).toBe(
+			'translate(0px, 0px) scale(1)'
+		);
 	});
 
 	// The door is the declared surface, not the kind: the error card declares no gesture, so a
