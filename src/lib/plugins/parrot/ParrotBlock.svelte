@@ -274,6 +274,7 @@ cNd.........................................;lOc
 		line-height: 1.1;
 		letter-spacing: 0.05em;
 		/* one frame tall, in the reel's own rows so a step lands on the next frame exactly */
+		height: calc(var(--parrot-rows) * 1.1em);
 		height: calc(var(--parrot-rows) * 1lh);
 		/* wider than a phone column, and the editor root pans if it isn't contained; the bar
 		   would sit across the bird, which is decoration rather than a pane to scroll */
