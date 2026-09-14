@@ -210,7 +210,7 @@ export function rangeDelete(
 /** The container prefix the survivor renders under, so the join seam can read its candidate back
  *  through it (live-mode.md § 4.5). An ambient marker rides the container's FIRST child only, the
  *  way `BlockList` forwards it, and a list item is the one built-in container that paints one. */
-function containerAmbientPrefix(doc: Document, path: readonly number[]): string {
+export function containerAmbientPrefix(doc: Document, path: readonly number[]): string {
 	if (path.length < 2 || path[path.length - 1] !== 0) return '';
 	const parent = blockNodeAt(doc, path.slice(0, -1));
 	const item = parent?.kind === 'listItem' ? metadataOf(parent, 'listItem') : null;

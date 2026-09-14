@@ -72,6 +72,31 @@ export async function pastLineEnd(page: Page, needle: string): Promise<{ x: numb
 	return at;
 }
 
+/** A point on the first glyph of the first rendered run of `needle`: the one aim point inside a
+ *  line whose character boundary no font metric can move, offset 0 of that run. */
+export async function runStart(page: Page, needle: string): Promise<{ x: number; y: number }> {
+	const at = await page.evaluate((w) => {
+		const walker = document.createTreeWalker(
+			document.querySelector('.editor')!,
+			NodeFilter.SHOW_TEXT
+		);
+		let node: Node | null;
+		while ((node = walker.nextNode())) {
+			const i = (node as Text).data.indexOf(w);
+			if (i < 0) continue;
+			const r = document.createRange();
+			r.setStart(node, i);
+			r.setEnd(node, i + w.length);
+			const b = r.getBoundingClientRect();
+			if (b.width === 0) continue;
+			return { x: b.left + 1, y: b.top + b.height / 2 };
+		}
+		return null;
+	}, needle);
+	if (!at) throw new Error(`no rendered run of ${JSON.stringify(needle)}`);
+	return at;
+}
+
 /** A point in the gutter left of the editable holding `needle`: a container's own box. */
 export async function gutterLeftOf(page: Page, needle: string): Promise<{ x: number; y: number }> {
 	const at = await page.evaluate((w) => {

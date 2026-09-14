@@ -45,6 +45,12 @@ export const HARDCODED_CHORD_SITES: readonly HardcodedChordSite[] = [
 		note: 'The Mod-held `data-mod-active` affordance tracks flag state only — no keystroke is consumed.'
 	},
 	{
+		file: 'selection/selection-drop.ts',
+		chords: [],
+		keys: [],
+		note: 'Ctrl/Alt at the DROP is the platform copy modifier, read off a DragEvent — no keystroke is consumed.'
+	},
+	{
 		file: 'selection/multi-click.ts',
 		chords: [],
 		keys: [],

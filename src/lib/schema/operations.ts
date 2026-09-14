@@ -23,7 +23,13 @@ export interface OperationDetailMap {
 				parentItemIdx?: number;
 				nestedItemIdx?: number;
 		  }
-		| { source: 'paste-dispatch' | 'paste-dispatch-table-cell' | 'cross-block-covered-block' };
+		| {
+				source:
+					| 'paste-dispatch'
+					| 'paste-dispatch-table-cell'
+					| 'cross-block-covered-block'
+					| 'selection-drop';
+		  };
 	paste:
 		| { count: number }
 		| {

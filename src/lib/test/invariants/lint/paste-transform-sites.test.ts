@@ -18,6 +18,8 @@ const SANCTIONED_SITES: Record<string, string> = {
 	'src/lib/components/menu/default-context-actions.ts':
 		'the block menu’s "Replace with clipboard": the clipboard text runs the transforms before it replaces the block’s bytes, the same rewrite a paste would have had',
 	'src/lib/selection/cross-block/paste.ts': 'cross-block selection paste parses the pasted slice',
+	'src/lib/selection/selection-drop.ts':
+		'a dropped selection is a cut and a paste in one commit, so the moved bytes take the same rewrite the paste half would have given them',
 	'src/lib/tree-operations/paste/dispatch.ts':
 		'the paste tree-op parses the pasted text into blocks'
 };

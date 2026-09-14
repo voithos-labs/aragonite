@@ -40,6 +40,7 @@
 	import { installDragListener } from '../selection/drag-pointer';
 	import { installMultiClickSelect } from '../selection/multi-click';
 	import { claimsPointerGesture } from '../selection/pointer-gesture';
+	import { installSelectionDrop } from '../selection/selection-drop';
 	import { createContentVersion } from '../reactivity/content-version.svelte';
 	import { useContainerWindowing } from '../reactivity/use-container-windowing.svelte';
 	import { refSlotsOver, replaceRefs, revealChildOrWait } from '../reactivity/publish-ref.svelte';
@@ -821,6 +822,17 @@
 					effectiveMode !== 'reading' && dragStartsHere(root, target)
 						? deadSpaceCaret.blockPathNearPoint(root, x, y)
 						: null
+			}),
+			installSelectionDrop({
+				editorRoot: root,
+				getDoc: () => doc,
+				controller,
+				coordinator: pasteCoordinator,
+				getPresentationMode: () => effectiveMode,
+				linkRef: linkRefView,
+				grammar: registryView.grammar,
+				activePlugins,
+				isReadOnly: () => effectiveMode === 'reading'
 			}),
 			onRoot(root, 'pointerdown', startMarginDrag),
 			onRoot(root, 'mousedown', (e: MouseEvent) => {
