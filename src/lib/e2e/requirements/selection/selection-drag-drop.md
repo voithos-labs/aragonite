@@ -37,14 +37,28 @@ edits never runs: a declined drag writes nothing and leaves the undo stack alone
 
 ## Error cases
 
-Both of these are the cancel rule, read through the two shapes that reach it. Each asserts the
-document byte-identical AND that a following undo changes nothing, since a fresh document has
-nothing to undo: an entry on the stack would show up as a document that moved.
+Every shape the seam declines takes the same exit: the document is byte-identical AND a following
+undo changes nothing, since a fresh document has nothing to undo — an entry on the stack would show
+up as a document that moved. The six declines the code carries, each named:
 
-- drag a word out of a table cell: cancelled. A cell addresses its offsets by cell index, so the
-  seam cannot move its bytes — and letting the browser have the gesture loses them
+- **a source inside a table cell** — cancelled, covered. A cell addresses its offsets by cell index,
+  so the seam cannot move its bytes, and letting the browser have the gesture loses them
   - Miss-analysis: the first version of this seam returned "not my gesture" for a cell source,
     which reads the same as "no drag here" and handed the shape back to the browser; no spec
     dragged out of a cell, so the two native edits landed and one undo left the cell's word gone
-- triple-click a paragraph holding a soft line break and drag it: cancelled. A payload carrying a
-  line break needs the structural paste route, which this seam does not take
+- **a payload carrying a line break** — cancelled, covered (triple-click a paragraph holding a soft
+  break and drag it). Moving it needs the structural paste route, which this seam does not take, so
+  the spec asserts the source paragraph still holds BOTH its lines, not just that the bytes match
+- **a drop on a block that holds no character position** — cancelled, covered (drop onto a thematic
+  break). There is no offset to insert at
+- **a range that leaves its surface** — cancelled, not drivable under Playwright: a cross-block
+  selection paints through the overlay and parks a collapsed native caret, so the browser starts no
+  drag from it at all
+- **an empty range after the ambient clamp** — cancelled, not drivable: a drag needs a non-collapsed
+  native selection to start, and one covering only a marker island is not reachable by gesture
+- **reading mode** — cancelled, not drivable: reading mode mounts no editable surface, so there is
+  no selection to drag
+
+One shape is NOT a decline and stays the browser's: a drag whose gripped node lies outside the
+painted range (a rendered link, an image). Implemented, but not covered — Chromium starts no such
+drag under Playwright's synthetic mouse.

@@ -270,8 +270,9 @@ async function writeBlockRaw(
 		source: 'selection-drop',
 		...(deps.grammar ? { grammar: deps.grammar } : {})
 	});
-	// The LANDED count, not the parse's: a body rule inside the scope can rewrite the list.
-	return landed - 1;
+	// The LANDED count, not the parse's: a body rule inside the scope can rewrite the list. Zero
+	// is the unmounted-scope decline, which wrote nothing and so moved nothing.
+	return Math.max(0, landed - 1);
 }
 
 // ── Small helpers ──────────────────────────────────────────────────────────

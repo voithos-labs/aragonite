@@ -916,7 +916,7 @@ declared in `sideEffects`. Subset, not equality: the `/renderer` engine subpaths
 `lint/plugin-pack-parity.test.ts`.
 
 **G4.11 · Paste-transform site parity.** Exactly the sanctioned clipboard-to-parse routes
-call `applyPasteTransforms`; a third route born without it silently drops plugin transforms. Two
+call `applyPasteTransforms`; a new route born without it silently drops plugin transforms. Two
 halves, because caller parity alone can't see the shape it names (a route that never mentions the
 symbol contributes nothing to the caller set), so every clipboard or drop read is also enumerated
 and required to reach a sanctioned route. `lint/paste-transform-sites.test.ts`.

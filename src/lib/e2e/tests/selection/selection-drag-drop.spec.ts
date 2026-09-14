@@ -25,13 +25,31 @@ function converged(page: import('@playwright/test').Page): Promise<boolean> {
 
 /** A fresh document has nothing to undo, so a Ctrl+Z that still leaves `expected` is the read for
  *  "the declined gesture put no entry on the stack" — and for "it wrote nothing" at the same time. */
-async function undoLeavesDocument(
+async function undoLeavesDocument(editor: EditorPage, expected: string): Promise<void> {
+	await editor.pressDeclined('Control+z');
+	expect(await editor.page.evaluate(() => (window as any).__test.getSource())).toBe(expected);
+}
+
+/** One top-level block's own bytes: the read that says whether a payload left its source, where a
+ *  whole-document diff only implies it. */
+function blockRaw(page: import('@playwright/test').Page, index: number): Promise<string> {
+	return page.evaluate(
+		(i) => String((window as any).__test.getDocument().children[i]?.raw ?? ''),
+		index
+	);
+}
+
+/** The centre of a top-level block's box: the aim point for a block that renders no text. */
+function blockCenter(
 	page: import('@playwright/test').Page,
-	expected: string
-): Promise<void> {
-	await page.keyboard.press('Control+z');
-	await page.waitForTimeout(200);
-	expect(await page.evaluate(() => (window as any).__test.getSource())).toBe(expected);
+	index: number
+): Promise<{ x: number; y: number }> {
+	return page.evaluate((i) => {
+		const el = document.querySelector(`[data-block-path='[${i}]']`) as HTMLElement | null;
+		if (!el) throw new Error(`no block [${i}]`);
+		const box = el.getBoundingClientRect();
+		return { x: box.left + box.width / 2, y: box.top + box.height / 2 };
+	}, index);
 }
 
 /** The top-level block's rendered text beside its raw: in source mode they are the same string,
@@ -133,7 +151,7 @@ test.describe('dragging a selection', () => {
 		await dragSelection(page, await runCenter(page, 'beta'), await runStart(page, 'second para'));
 		await editor.waitForNoSourceMutation();
 		expect(await page.evaluate(() => (window as any).__test.getSource())).toBe(CELL_DOC);
-		await undoLeavesDocument(page, CELL_DOC);
+		await undoLeavesDocument(editor, CELL_DOC);
 	});
 
 	const SOFT_BREAK_DOC = 'first line\nsecond line\n\nsecond para here\n';
@@ -144,7 +162,22 @@ test.describe('dragging a selection', () => {
 		await page.mouse.click(at.x, at.y, { clickCount: 3 });
 		await dragSelection(page, at, await runStart(page, 'second para'));
 		await editor.waitForNoSourceMutation();
+		// The payload itself, beside the whole-document read: dropping the line-break guard moves
+		// both lines into the target, which this read names and a byte diff only implies.
+		expect(await blockRaw(page, 0)).toBe('first line\nsecond line\n');
 		expect(await page.evaluate(() => (window as any).__test.getSource())).toBe(SOFT_BREAK_DOC);
-		await undoLeavesDocument(page, SOFT_BREAK_DOC);
+		await undoLeavesDocument(editor, SOFT_BREAK_DOC);
+	});
+
+	const RULE_DOC = 'alpha beta gamma\n\n---\n\nsecond para here\n';
+
+	test('a drop on a block that holds no character position cancels', async ({ page }) => {
+		await editor.loadContent(RULE_DOC);
+		const beta = await doubleClickOn('beta');
+		await dragSelection(page, beta, await blockCenter(page, 1));
+		await editor.waitForNoSourceMutation();
+		expect(await blockRaw(page, 0)).toBe('alpha beta gamma\n');
+		expect(await page.evaluate(() => (window as any).__test.getSource())).toBe(RULE_DOC);
+		await undoLeavesDocument(editor, RULE_DOC);
 	});
 });
