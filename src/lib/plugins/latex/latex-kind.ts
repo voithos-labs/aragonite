@@ -37,25 +37,26 @@ export const MATH_FENCE = 'mathFence';
 const isWhitespace = (ch: string) => /\s/.test(ch);
 const isDigit = (ch: string) => ch >= '0' && ch <= '9';
 
-function indexMathClosers(raw: string): Int32Array {
+function indexDollars(raw: string): Int32Array {
 	const positions: number[] = [];
 	for (let i = 1; i < raw.length; i++) {
-		if (raw[i] === '$' && !isWhitespace(raw[i - 1])) positions.push(i);
+		if (raw[i] === '$') positions.push(i);
 	}
 	return Int32Array.from(positions);
 }
 
 // Indexed once per block, not searched per consultation: a paragraph of shell prose
 // (`$HOME $PATH $USER …`) would otherwise cost a full block scan at every `$`.
-const firstCloserFrom = createScanIndex(indexMathClosers);
+const nextDollarFrom = createScanIndex(indexDollars);
 
 /** Money, written the way prose writes it: a whole number between the delimiters. */
 const isPriceSpan = (body: string) => /^\d[\d.,]*$/.test(body);
 
 /**
- * Currency, not math, is what the two claim tests below buy: a span that is only a number is a
- * price (`$5$`), and a closer a digit follows opens the second price of a range (`$10-$20`).
- * Neither reads the opener, so `$10^5$` is the formula it looks like.
+ * Pandoc's rule, with one divergence of ours. An attempt ENDS at the next `$`, whichever it is:
+ * a bad closer leaves the opener literal rather than reaching on to a later formula's closer and
+ * swallowing the prose between. A closer needs a non-space before it and no digit after it.
+ * Ours: a span that is only a number is a price (`$5$`), which is what keeps a typed price prose.
  */
 function recognizeMath(
 	raw: string,
@@ -68,14 +69,14 @@ function recognizeMath(
 	const opener = raw[afterOpen];
 	if (isWhitespace(opener)) return null;
 	// `$$` is the display fence, or the empty pair a keystroke just closed: never an inline
-	// opener, or its closer search would jump to the far end of the next formula on the line.
+	// opener, or the attempt would end on its own twin.
 	if (opener === '$') return null;
 
 	// The index spans the whole block, so `end` decides the claim: a closer past the
 	// scan range leaves the `$` literal.
-	const close = firstCloserFrom(raw, pos + 2);
+	const close = nextDollarFrom(raw, pos + 2);
 	if (close === -1 || close >= end) return null;
-	if (isDigit(raw[close + 1] ?? '')) return null;
+	if (isWhitespace(raw[close - 1]) || isDigit(raw[close + 1] ?? '')) return null;
 	if (isPriceSpan(raw.slice(afterOpen, close))) return null;
 	return { kind, start: pos, end: close + 1 };
 }

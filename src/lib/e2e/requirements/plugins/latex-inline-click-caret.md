@@ -27,8 +27,8 @@ Seed (`?seed=math`): `Before $x^2$ after` in block [0], a `Next` paragraph in [1
 - Escape between the two presses restores the rendered island, and neither reveal edits a byte.
 - Keyboard entry is unchanged: arriving from the left still reveals at the leading edge
   (`latex-inline.md` owns that scenario).
-- A kind that names no point mapping keeps the end seat — footnote references and directive text
-  reveal at the end of their content as before.
+- A kind that names no point mapping keeps the seat it had. Footnote references and directive
+  text name no content span either, so both still reveal at their leading edge, unchanged.
 
 ## Miss-analysis
 

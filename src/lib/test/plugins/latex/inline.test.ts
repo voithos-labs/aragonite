@@ -51,6 +51,7 @@ describe('$ flanking recognition', () => {
 		// A span that is only a number is money; the range needs the closer's digit guard.
 		['$5$', false],
 		['$1,000$', false],
+		['$5.00$', false],
 		['$10-$20', false],
 		['$x$5', false],
 		['a$b', false]
@@ -65,6 +66,36 @@ describe('$ flanking recognition', () => {
 		const [node] = mathNodesIn('a $x^2$ b');
 		expect(node).toMatchObject({ start: 2, end: 7 });
 	});
+});
+
+/**
+ * The table above reads a count, which cannot tell `$x$` from a claim that swallowed the prose
+ * in front of it. These read the SPAN, over the shapes where a price stands ahead of a formula.
+ * Miss-analysis: no case ever put two `$` runs in one line with prose between them, so the one
+ * reading that mattered — where the claim ENDS — was never asserted at all.
+ */
+describe('a claim ends at the first later $, or not at all', () => {
+	beforeEach(() => registerMathInline());
+
+	const spansOf = (raw: string) => mathNodesIn(raw).map((n) => [n.start, n.end]);
+
+	const claims: Array<[string, number[][]]> = [
+		['It costs $5 and the ratio is $x$.', [[29, 32]]],
+		['We paid $20 for $n$ shards.', [[16, 19]]],
+		['Budget $5, formula $x^2$ here.', [[19, 24]]],
+		['$5 and $10, plus $x$', [[17, 20]]],
+		['costs $9 and $x$', [[13, 16]]],
+		// The closer's digit guard declines at `$x$`; the retry from the next `$` must not then
+		// reach across the prose to `$y$`'s closer.
+		['$x$5 and $y$', [[9, 12]]],
+		// A space before a `$` ends the attempt where it stands: `$a` stays literal.
+		['$a $b$', [[3, 6]]]
+	];
+	for (const [raw, spans] of claims) {
+		it(`${raw} → ${JSON.stringify(spans)}`, () => {
+			expect(spansOf(raw)).toEqual(spans);
+		});
+	}
 });
 
 describe('inline math round-trip', () => {

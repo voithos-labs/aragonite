@@ -14,21 +14,21 @@ afterEach(resetPluginPlatformForTests);
 const scan = (raw: string) => parseInline(raw, 0, raw.length);
 const mathIn = (raw: string) => scan(raw).filter((n) => n.kind === MATH_INLINE);
 
-// Every `$` in shell prose declines, because no later `$` has a non-whitespace char
-// before it. A decline that searches to the end of the block therefore costs one full
-// block scan per `$` — seconds per keystroke on a large paragraph.
+// Every `$` in shell prose declines, because the `$` that ends its attempt has whitespace
+// before it. A decline that searches to the end of the block would cost one full block scan
+// per `$` — seconds per keystroke on a large paragraph.
 describe('inline math decline bounds', () => {
 	it('a $-flood scans within a bounded growth ratio', () => {
 		const growth = measureScanGrowth(scan, '$x ', [32, 128]);
 		expectBoundedGrowth(growth);
 	}, 300_000);
 
-	// The bound is a lookup over the same closer predicate, so the greedy first-close
-	// reading is unchanged: the opening `$` still reaches past a long declining run
-	// to the first `$` with a non-whitespace char before it.
-	it('claims greedily through a declining run to the first real closer', () => {
+	// The bound is a lookup, but it answers with the NEXT `$`, whichever it is: an attempt
+	// ends at the first one it meets, so a declining run is a run of one-lookup declines and
+	// the formula at the end keeps its own delimiters.
+	it('ends each attempt at the next $, so a declining run claims nothing', () => {
 		const raw = '$x '.repeat(400) + '$a+b$ tail';
-		expect(mathIn(raw)).toEqual([{ kind: MATH_INLINE, start: 0, end: 1205 }]);
+		expect(mathIn(raw)).toEqual([{ kind: MATH_INLINE, start: 1200, end: 1205 }]);
 	});
 
 	// `$$` is the display fence or a just-closed empty pair, never an opener: the closer search

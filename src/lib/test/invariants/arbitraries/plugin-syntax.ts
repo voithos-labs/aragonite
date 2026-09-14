@@ -29,6 +29,10 @@ const asciiRungToken = fc.constantFrom(
 	':not-an-emoji:',
 	'$x$',
 	'$a_b$',
+	// A digit body and a price standing ahead of a formula: the shapes where `$` recognition
+	// decides how far a claim reaches, and so where it can overlap the token beside it.
+	'$5$',
+	'$9 and $x$',
 	'$',
 	'$$',
 	'~sub~',
