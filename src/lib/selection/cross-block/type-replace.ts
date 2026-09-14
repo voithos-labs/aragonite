@@ -15,10 +15,8 @@ import { performCrossBlockDelete } from './ops';
 import { charOffsetOf } from '../primitives';
 import { blockCoveredWhole } from '../covered-block';
 import { CURSOR_END } from '../../block-component';
-import { parse } from '../../core/parser';
-import { terminateLine } from '../../core/lines';
 import { replaceBlockAtParent } from '../../tree-operations/paste/replace-block-at-parent';
-import { ensureEditableContainers, normalizeReplacementTrivia } from '../../tree-operations';
+import { parseReplacement } from '../../tree-operations/paste/replacement-parse';
 import {
 	blockNodeAt,
 	normalizeBodyWrite,
@@ -171,16 +169,8 @@ async function replaceCoveredBlockWithText(
 	const doc = ctx.getDoc();
 	const covered = blockNodeAt(doc, blockPath);
 	if (!covered) return;
-	// Terminated in the block's OWN ending: an unterminated line leaves the block below flowing
-	// into the one the character just minted (G4.20).
-	const parsed = parse(terminateLine(typed, covered.raw), {
-		grammar: ctx.grammar,
-		scope: 'fragment'
-	});
-	if (parsed.children.length === 0) return;
-
-	const replacement = normalizeReplacementTrivia(covered, parsed.children);
-	for (const node of replacement) ensureEditableContainers(node);
+	const parsed = parseReplacement(covered, typed, ctx.grammar);
+	if (!parsed) return;
 
 	mutCtx.pushUndoSnapshot();
 	ctx.selection.collapse();
@@ -188,10 +178,10 @@ async function replaceCoveredBlockWithText(
 	await replaceBlockAtParent({
 		doc,
 		blockPath,
-		replacement,
+		replacement: parsed.replacement,
 		controller: ctx.pasteCoordinator,
 		undoEntry: 'join',
-		focusReplacementIndex: replacement.length - 1,
+		focusReplacementIndex: parsed.replacement.length - 1,
 		focusOffset: CURSOR_END,
 		source: 'cross-block-covered-block',
 		...(ctx.grammar ? { grammar: ctx.grammar } : {})

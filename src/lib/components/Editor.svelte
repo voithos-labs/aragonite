@@ -832,6 +832,7 @@
 				linkRef: linkRefView,
 				grammar: registryView.grammar,
 				activePlugins,
+				events,
 				isReadOnly: () => effectiveMode === 'reading'
 			}),
 			onRoot(root, 'pointerdown', startMarginDrag),

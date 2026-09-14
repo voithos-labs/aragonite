@@ -6,26 +6,22 @@
  * nothing, so no path moves under the second.
  */
 
-import type { CstNode, Document } from '../core/nodes';
+import type { Document } from '../core/nodes';
 import type { GrammarView } from '../schema/block-openers';
 import type { LinkReferenceResolverRef, PresentationModeGetter } from '../editor-keys';
 import type { PluginActivation } from '../schema/plugin-activation';
 import type { CommitController } from '../action-contracts';
 import type { PasteCommitCoordinator } from '../tree-operations/paste/paste-deps';
+import { emitClipboardError, type EditorEvents } from '../editor-events';
 import { ambientLengthOf } from '../ambient/ambient-dom';
 import { toClampedRawOffset } from '../cursor/coordinate-spaces';
 import { domTextOffsetAtNode } from '../cursor/widget-offset';
-import { terminateLine, trailingLineEnding, trimTrailingLineEnding } from '../core/lines';
-import { parse } from '../core/parser';
+import { trailingLineEnding, trimTrailingLineEnding } from '../core/lines';
 import { deleteRangeRaw } from '../components/blocks/text/live-selection-edit';
-import { ensureEditableContainers } from '../tree-operations';
-import {
-	blockNodeAt,
-	emptyParagraph,
-	normalizeReplacementTrivia
-} from '../tree-operations/node-primitives';
+import { blockNodeAt, emptyParagraph } from '../tree-operations/node-primitives';
 import { applyPasteTransforms } from '../tree-operations/paste/paste-transforms';
 import { replaceBlockAtParent } from '../tree-operations/paste/replace-block-at-parent';
+import { parseReplacement } from '../tree-operations/paste/replacement-parse';
 import { blockNearPoint } from './nearest-block';
 import { findBlockPathForElement, findCellPathForElement } from './path-lookup';
 import { containerAmbientPrefix } from './range-delete';
@@ -39,6 +35,8 @@ export interface SelectionDropDeps {
 	linkRef: LinkReferenceResolverRef | undefined;
 	grammar: GrammarView | undefined;
 	activePlugins: PluginActivation | undefined;
+	/** The instance event surface: a ceremony that throws mid-move has nowhere else to report. */
+	events: EditorEvents;
 	isReadOnly(): boolean;
 }
 
@@ -49,32 +47,43 @@ interface DragSource {
 	end: number;
 }
 
+/** A drag that IS this gesture but whose shape the seam does not move — a source inside a table
+ *  cell, a range leaving its surface. The drop cancels it rather than handing it back. */
+const DECLINED = 'declined';
+type DragStash = DragSource | typeof DECLINED;
+
 // ── Public entry ───────────────────────────────────────────────────────────
 
 export function installSelectionDrop(deps: SelectionDropDeps): () => void {
-	let source: DragSource | null = null;
+	let source: DragStash | null = null;
 	const onDragStart = (e: DragEvent) => {
 		source = readSelectionSource(deps.editorRoot, e.target);
 	};
 	const onDragEnd = () => {
 		source = null;
 	};
-	// The editor is the drop target for a drag it owns, instead of each point inheriting the
-	// browser's own verdict on whether anything may land there.
+	// The editor is the drop target for every drag this seam recognized, declined ones included:
+	// the drop below must RUN to cancel the browser's pair of native edits.
 	const onDragOver = (e: DragEvent) => {
 		if (source) e.preventDefault();
 	};
 	const onDrop = (e: DragEvent) => {
 		const from = source;
 		source = null;
-		if (!from || deps.isReadOnly()) return;
+		if (!from) return;
+		// Before every decline below, not after: the browser's two edits land apart and its undo
+		// is not ours, so a shape this seam declines mutates nothing rather than half of it.
+		e.preventDefault();
+		if (from === DECLINED || deps.isReadOnly()) return;
 		const target = dropTarget(deps, e.clientX, e.clientY);
 		if (!target) return;
 		const text = movedText(deps, from);
 		if (text === null) return;
-		// Ahead of the await: the default is the pair of native edits this owns instead.
-		e.preventDefault();
-		void runDrop(deps, from, target, text, e.ctrlKey || e.altKey);
+		void runDrop(deps, from, target, text, e.ctrlKey || e.altKey).catch((error) => {
+			// A throw between the two writes leaves a snapshot pushed and half the move applied;
+			// the host hears it on the channel the paste route reports through.
+			emitClipboardError(deps.events, { error, path: from.path });
+		});
 	};
 	deps.editorRoot.addEventListener('dragstart', onDragStart);
 	deps.editorRoot.addEventListener('dragend', onDragEnd);
@@ -88,8 +97,8 @@ export function installSelectionDrop(deps: SelectionDropDeps): () => void {
 	};
 }
 
-/** Where a splice of `delta` blocks at `at` inside `parent` leaves `target`. Pure, and the one
- *  reason the two writes below may run in either order safely. */
+/** Where a splice of `delta` blocks at `at` inside `parent` leaves `target`: what the drop's
+ *  second write addresses once the first one's reparse changed its slot's block count. */
 export function shiftPathAfterSplice(
 	target: number[],
 	parent: number[],
@@ -118,13 +127,16 @@ export function dropOffsetAfterCut(
 
 // ── Reading the gesture ────────────────────────────────────────────────────
 
-/** The native range the drag carries, in its block's raw offsets. Null unless the drag grips one
- *  editable block's own range: a cross-block selection paints through the overlay and leaves no
- *  native range for the browser to drag. */
+/**
+ * The native range the drag carries, in its block's raw offsets. `null` is "not this gesture" and
+ * leaves the drag to the browser; {@link DECLINED} is this gesture in a shape the seam does not
+ * move, which the drop cancels. A cross-block selection reaches neither: it paints through the
+ * overlay and leaves no native range for the browser to drag.
+ */
 function readSelectionSource(
 	editorRoot: HTMLElement,
 	dragged: EventTarget | null
-): DragSource | null {
+): DragStash | null {
 	const sel = window.getSelection();
 	if (!sel || sel.isCollapsed || sel.rangeCount === 0) return null;
 	const range = sel.getRangeAt(0);
@@ -132,11 +144,11 @@ function readSelectionSource(
 	// painted elsewhere: a selection drag grips a node the range covers.
 	if (!(dragged instanceof Node) || !range.intersectsNode(dragged)) return null;
 	const surface = surfaceOf(range.startContainer);
-	if (!surface || !editorRoot.contains(surface) || !surface.contains(range.endContainer)) {
-		return null;
-	}
+	if (!surface || !editorRoot.contains(surface)) return null;
+	// Past this point the drag IS the editor's selection, so every remaining shape declines.
+	if (!surface.contains(range.endContainer)) return DECLINED;
 	const path = proseBlockPath(surface);
-	if (!path) return null;
+	if (!path) return DECLINED;
 	const ambient = ambientLengthOf(surface);
 	const start = toClampedRawOffset(
 		domTextOffsetAtNode(surface, range.startContainer, range.startOffset),
@@ -146,7 +158,7 @@ function readSelectionSource(
 		domTextOffsetAtNode(surface, range.endContainer, range.endOffset),
 		ambient
 	);
-	return start < end ? { path, start, end } : null;
+	return start < end ? { path, start, end } : DECLINED;
 }
 
 /** The block and offset a drop point addresses, as a single-click caret would land. Null where
@@ -241,31 +253,25 @@ async function writeBlockRaw(
 	const node = blockNodeAt(doc, path);
 	if (!node) return 0;
 	const written = rewrite(trimTrailingLineEnding(node.raw));
-	const replacement = reparsed(node, written, deps.grammar);
-	await replaceBlockAtParent({
+	// A block emptied by the cut keeps its slot as a blank paragraph: no splice, so the second
+	// write's path is still the one this gesture resolved.
+	const parsed = parseReplacement(node, written, deps.grammar, () => [
+		emptyParagraph(node.leadingTrivia ?? '', trailingLineEnding(node.raw))
+	]);
+	if (!parsed) return 0;
+	const landed = await replaceBlockAtParent({
 		doc,
 		blockPath: path,
-		replacement,
+		replacement: parsed.replacement,
 		controller: deps.coordinator,
 		undoEntry: own ? 'own' : 'join',
-		focusReplacementIndex: replacement.length - 1,
+		focusReplacementIndex: parsed.replacement.length - 1,
 		focusOffset: caret,
 		source: 'selection-drop',
 		...(deps.grammar ? { grammar: deps.grammar } : {})
 	});
-	return replacement.length - 1;
-}
-
-function reparsed(original: CstNode, raw: string, grammar: GrammarView | undefined): CstNode[] {
-	const ending = trailingLineEnding(original.raw);
-	const parsed = parse(terminateLine(raw, original.raw), { grammar, scope: 'fragment' });
-	const children =
-		parsed.children.length > 0
-			? parsed.children
-			: [emptyParagraph(original.leadingTrivia ?? '', ending)];
-	const replacement = normalizeReplacementTrivia(original, children);
-	for (const node of replacement) ensureEditableContainers(node);
-	return replacement;
+	// The LANDED count, not the parse's: a body rule inside the scope can rewrite the list.
+	return landed - 1;
 }
 
 // ── Small helpers ──────────────────────────────────────────────────────────

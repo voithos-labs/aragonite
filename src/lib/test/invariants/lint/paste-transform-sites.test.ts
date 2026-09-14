@@ -1,5 +1,5 @@
 /**
- * G4.11 — paste-transform two-site parity (see the `paste-transforms.ts` header): every
+ * G4.11 — paste-transform site parity (see the `paste-transforms.ts` header): every
  * site where clipboard text reaches `parse()` must run `applyPasteTransforms` first. Two
  * arms, because a new clipboard→parse route that never mentions the symbol contributes
  * nothing to the caller set: read sites are enumerated too, each naming the handoff
@@ -24,7 +24,7 @@ const SANCTIONED_SITES: Record<string, string> = {
 		'the paste tree-op parses the pasted text into blocks'
 };
 
-const RULE = `every clipboard→parse route must run applyPasteTransforms; the two sanctioned sites are ${Object.keys(
+const RULE = `every clipboard→parse route must run applyPasteTransforms; the sanctioned sites are ${Object.keys(
 	SANCTIONED_SITES
 ).join(
 	' and '
@@ -85,14 +85,14 @@ function clipboardReadSites(sources: Array<{ relPath: string; code: string }>): 
 		.sort();
 }
 
-describe('G4.11 paste-transform two-site parity', () => {
+describe('G4.11 paste-transform site parity', () => {
 	const sources = collectEditorSources();
 
 	it('inspected at least one editor source file', () => {
 		expect(sources.length).toBeGreaterThan(0);
 	});
 
-	it('exactly the two sanctioned sites call applyPasteTransforms', () => {
+	it('exactly the sanctioned sites call applyPasteTransforms', () => {
 		const callers = sources
 			.filter((f) => CALL_RE.test(f.code))
 			.map((f) => f.relPath)

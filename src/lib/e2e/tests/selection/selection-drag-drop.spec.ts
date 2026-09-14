@@ -23,6 +23,17 @@ function converged(page: import('@playwright/test').Page): Promise<boolean> {
 	return page.evaluate(() => (window as any).__test.parseConverged());
 }
 
+/** A fresh document has nothing to undo, so a Ctrl+Z that still leaves `expected` is the read for
+ *  "the declined gesture put no entry on the stack" — and for "it wrote nothing" at the same time. */
+async function undoLeavesDocument(
+	page: import('@playwright/test').Page,
+	expected: string
+): Promise<void> {
+	await page.keyboard.press('Control+z');
+	await page.waitForTimeout(200);
+	expect(await page.evaluate(() => (window as any).__test.getSource())).toBe(expected);
+}
+
 /** The top-level block's rendered text beside its raw: in source mode they are the same string,
  *  so a native edit that leaked past the seam shows here where a tree-only read would miss it. */
 function domMatchesRaw(page: import('@playwright/test').Page, index: number): Promise<boolean> {
@@ -108,7 +119,32 @@ test.describe('dragging a selection', () => {
 	test('a drop inside the selection itself leaves the document alone', async ({ page }) => {
 		const beta = await doubleClickOn('beta');
 		await dragSelection(page, beta, { x: beta.x + 2, y: beta.y });
-		await page.waitForTimeout(250);
+		await editor.waitForNoSourceMutation();
 		expect(await page.evaluate(() => (window as any).__test.getSource())).toBe(TWO);
+	});
+
+	// ── Shapes the seam declines: cancelled outright, never half-applied ──
+
+	const CELL_DOC = '| a | b |\n| --- | --- |\n| alpha beta gamma | c |\n\nsecond para here\n';
+
+	test('a word dragged out of a table cell cancels the drop', async ({ page }) => {
+		await editor.loadContent(CELL_DOC);
+		await doubleClickOn('beta');
+		await dragSelection(page, await runCenter(page, 'beta'), await runStart(page, 'second para'));
+		await editor.waitForNoSourceMutation();
+		expect(await page.evaluate(() => (window as any).__test.getSource())).toBe(CELL_DOC);
+		await undoLeavesDocument(page, CELL_DOC);
+	});
+
+	const SOFT_BREAK_DOC = 'first line\nsecond line\n\nsecond para here\n';
+
+	test('a payload carrying a line break cancels the drop', async ({ page }) => {
+		await editor.loadContent(SOFT_BREAK_DOC);
+		const at = await runCenter(page, 'first line');
+		await page.mouse.click(at.x, at.y, { clickCount: 3 });
+		await dragSelection(page, at, await runStart(page, 'second para'));
+		await editor.waitForNoSourceMutation();
+		expect(await page.evaluate(() => (window as any).__test.getSource())).toBe(SOFT_BREAK_DOC);
+		await undoLeavesDocument(page, SOFT_BREAK_DOC);
 	});
 });

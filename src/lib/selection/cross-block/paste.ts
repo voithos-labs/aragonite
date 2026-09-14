@@ -10,18 +10,17 @@ import type { Document } from '../../core/nodes';
 import type { SelectionState } from '../selection-state.svelte';
 import { tableCellCount } from '../table-endpoint-snap';
 import { CURSOR_END } from '../../block-component';
-import { normalizeLineEndings, terminateLine } from '../../core/lines';
+import { normalizeLineEndings } from '../../core/lines';
 import { performCrossBlockDelete } from './ops';
 import { charOffsetOf } from '../primitives';
 import { focusCollapsedCaret } from '../native-bridge';
 import { blockCoveredWhole } from '../covered-block';
 import { pasteDispatch } from '../../tree-operations/paste/dispatch';
 import { applyPasteTransforms } from '../../tree-operations/paste/paste-transforms';
-import { parse } from '../../core/parser';
 import { blockNodeAt, isBlockNode, nodeAt } from '../../tree-operations/node-primitives';
 import { pathsEqual } from '../path-math';
 import { replaceBlockAtParent } from '../../tree-operations/paste/replace-block-at-parent';
-import { ensureEditableContainers, normalizeReplacementTrivia } from '../../tree-operations';
+import { parseReplacement } from '../../tree-operations/paste/replacement-parse';
 import { emitClipboardError } from '../../editor-events';
 
 export async function handleCrossBlockPaste(
@@ -160,17 +159,13 @@ async function replaceCoveredBlockWithPaste(
 	if (!covered) return;
 
 	// This route never reaches pasteDispatch, so the paste transforms and the instance grammar
-	// ride here too; both rules live in the helper, applied at both sites. Terminated in the
-	// covered block's OWN ending, or an unterminated clipboard line leaves the block below
-	// flowing into the last one pasted (G4.20).
-	const parsed = parse(
-		terminateLine(applyPasteTransforms(pasted, ctx.activePlugins), covered.raw),
-		{ grammar: ctx.grammar, scope: 'fragment' }
+	// ride here too; both rules live in the helper, applied at both sites.
+	const parsed = parseReplacement(
+		covered,
+		applyPasteTransforms(pasted, ctx.activePlugins),
+		ctx.grammar
 	);
-	if (parsed.children.length === 0) return;
-
-	const replacement = normalizeReplacementTrivia(covered, parsed.children);
-	for (const node of replacement) ensureEditableContainers(node);
+	if (!parsed) return;
 
 	mutCtx.pushUndoSnapshot();
 	ctx.selection.collapse();
@@ -178,10 +173,10 @@ async function replaceCoveredBlockWithPaste(
 	await replaceBlockAtParent({
 		doc,
 		blockPath,
-		replacement,
+		replacement: parsed.replacement,
 		controller: ctx.pasteCoordinator,
 		undoEntry: 'join',
-		focusReplacementIndex: replacement.length - 1,
+		focusReplacementIndex: parsed.replacement.length - 1,
 		focusOffset: CURSOR_END,
 		source: 'cross-block-covered-block',
 		...(ctx.grammar ? { grammar: ctx.grammar } : {}),

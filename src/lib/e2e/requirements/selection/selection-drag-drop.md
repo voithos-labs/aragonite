@@ -11,6 +11,10 @@ taken from the source block's own bytes so live-mode markers travel with it.
 The gesture is the same whichever way the selection was made — the click ladder or Shift+Arrow —
 because the drag is the browser's and reads only the native range.
 
+**A shape the seam does not move is cancelled, never half-applied.** The seam claims every drag
+that grips its own selection, including the ones it declines, so the browser's pair of native
+edits never runs: a declined drag writes nothing and leaves the undo stack alone.
+
 ## Happy paths
 
 - drag a double-clicked word to the end of its own paragraph: the word lands there and is gone
@@ -28,14 +32,19 @@ because the drag is the browser's and reads only the native range.
 
 - drop a selection inside itself: the document is untouched
 - undo after a drop: one press restores the whole document byte for byte, and redo re-lands it
-- after every step the live tree still serializes to what it parses back from, and each
-  touched block's rendered text still equals its raw, so no native edit leaked past the seam
+- after a drop the live tree still serializes to what it parses back from, and each touched
+  block's rendered text still equals its raw, so no native edit leaked past the seam
 
 ## Error cases
 
-- a drag that leaves the editor: nothing dropped here, so the source is the browser's own
-  business and this seam stands down
-- dragging something with a drag of its own (a rendered link, an image) while a range is selected
-  elsewhere: the range is not what is being dragged, so this seam stands down
-- a payload carrying a line break, a source inside a table cell, or a drop point that names no
-  character position: the browser keeps the gesture, unchanged from before this seam existed
+Both of these are the cancel rule, read through the two shapes that reach it. Each asserts the
+document byte-identical AND that a following undo changes nothing, since a fresh document has
+nothing to undo: an entry on the stack would show up as a document that moved.
+
+- drag a word out of a table cell: cancelled. A cell addresses its offsets by cell index, so the
+  seam cannot move its bytes — and letting the browser have the gesture loses them
+  - Miss-analysis: the first version of this seam returned "not my gesture" for a cell source,
+    which reads the same as "no drag here" and handed the shape back to the browser; no spec
+    dragged out of a cell, so the two native edits landed and one undo left the cell's word gone
+- triple-click a paragraph holding a soft line break and drag it: cancelled. A payload carrying a
+  line break needs the structural paste route, which this seam does not take

@@ -57,12 +57,14 @@ function landTrailingSeparator(
 	args.doc.suffix = ending;
 }
 
-export async function replaceBlockAtParent(args: ReplaceBlockAtParentArgs): Promise<void> {
+/** Answers how many blocks LANDED in the slot — the body rule below can rewrite the list, so a
+ *  caller whose next write addresses a later sibling asks here rather than counting its own. */
+export async function replaceBlockAtParent(args: ReplaceBlockAtParentArgs): Promise<number> {
 	const { doc, blockPath, controller, undoEntry, focusOffset, source } = args;
 
 	const blockIdx = blockPath[blockPath.length - 1];
 	const scope = resolveParentScope(doc, blockPath, controller);
-	if (!scope) return;
+	if (!scope) return 0;
 
 	// A replacement is minted before any byte sink sees it, so the owner's bodyWrite escape
 	// lands here — on the clipboard blocks AND the target's split halves alike.
@@ -115,4 +117,5 @@ export async function replaceBlockAtParent(args: ReplaceBlockAtParentArgs): Prom
 			);
 		}
 	});
+	return replacement.length;
 }

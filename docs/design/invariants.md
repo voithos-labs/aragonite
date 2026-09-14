@@ -790,7 +790,7 @@ directory as well as this table before assuming a rule is unguarded.
 | G4.8  | Every documented chord resolves in the surface that dispatches it             | L       |
 | G4.9  | Every published theme token is declared, with light and dark values           | L       |
 | G4.10 | Every bundled plugin directory is exported, and the pack carries it           | L       |
-| G4.11 | Exactly the two sanctioned paste routes apply paste transforms                | L       |
+| G4.11 | Exactly the sanctioned paste routes apply paste transforms                    | L       |
 | G4.12 | Caret-edge destructive keys route through the one edge-policy dispatch        | L       |
 | G4.13 | No view-stripping cast outside `tree-operations/` and the commit ceremony     | T·L     |
 | G4.14 | Every component prop reading the CST is typed as a readonly view              | L       |
@@ -915,7 +915,7 @@ text block's clipboard seam). `lint/consumer-guide-chords.test.ts`.
 declared in `sideEffects`. Subset, not equality: the `/renderer` engine subpaths are extra.
 `lint/plugin-pack-parity.test.ts`.
 
-**G4.11 · Paste-transform two-site parity.** Exactly the two sanctioned clipboard-to-parse routes
+**G4.11 · Paste-transform site parity.** Exactly the sanctioned clipboard-to-parse routes
 call `applyPasteTransforms`; a third route born without it silently drops plugin transforms. Two
 halves, because caller parity alone can't see the shape it names (a route that never mentions the
 symbol contributes nothing to the caller set), so every clipboard or drop read is also enumerated
