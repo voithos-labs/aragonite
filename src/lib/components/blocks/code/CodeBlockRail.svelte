@@ -10,7 +10,7 @@
 		codeLanguageLabel
 	} from '../../../a11y-strings';
 	import type { CodeMenuItem } from '../../../editor-keys';
-	import { listLanguages } from './code-languages';
+	import { getLanguageAliases, getLanguageGrammar, listLanguages } from './code-languages';
 
 	// The chrome for the modes that paint no fence: the language door plus whatever action
 	// affordances the host has earned by installing a hook. Drafts live here and only a
@@ -49,15 +49,12 @@
 
 	let editing = $state(false);
 	let draft = $state('');
-	// The draft SEEDS with the current language, so filtering on it from the start would open
-	// the picker onto a list of one. Filtering waits for a keystroke; until then the full list
-	// shows with the current language highlighted, which is also what Enter would re-commit.
+	// Filtering waits for a keystroke: the field opens empty, and until then the whole list
+	// shows with the block's own language leading it, which is what a bare Enter re-commits.
 	let filtering = $state(false);
-	// Whether the LIST is what Enter should take. Until the user types or arrows, it is not:
-	// the highlight is only a where-you-stand marker, and a language the registry does not
-	// carry (an unregistered grammar, or a bare mount that registered none) would otherwise
-	// have no entry to seat on, so a bare Enter would rewrite it to the list's first row.
 	let activeIndex = $state(0);
+	/** The user moved the highlight, so the row it sits on outranks whatever they typed. */
+	let highlightMoved = false;
 	let copied = $state(false);
 	let menuOpen = $state(false);
 	let openMenuItems = $state<readonly CodeMenuItem[]>([]);
@@ -77,16 +74,22 @@
 		const all = ['text', ...listLanguages().filter((name) => name !== 'text')];
 		const needle = filtering ? draft.trim().toLowerCase() : '';
 		if (needle.length > 0) {
-			const starts = all.filter((name) => name.startsWith(needle));
-			const contains = all.filter((name) => !name.startsWith(needle) && name.includes(needle));
+			// An alias is a search key, never a row of its own: `rs` finds `rust`, and the list
+			// still carries one entry per language.
+			const spellings = (name: string) => [name, ...getLanguageAliases(name)];
+			const starts = all.filter((name) => spellings(name).some((s) => s.startsWith(needle)));
+			const seated = new Set(starts);
+			const contains = all.filter(
+				(name) => !seated.has(name) && spellings(name).some((s) => s.includes(needle))
+			);
 			return [...starts, ...contains];
 		}
-		// Unfiltered, the block's own language leads. This menu is ours to order, so the row
-		// that matters goes where the eye already is rather than somewhere the list has to be
-		// scrolled to — which is why nothing here scrolls itself on open.
+		// Unfiltered, the block's own language leads, in the spelling the fence uses — so the
+		// row that matters is where the eye already is, and its canonical twin is not below it.
 		const current = language;
-		const rest = all.filter((name) => name !== current);
-		return all.includes(current) ? [current, ...rest] : [current, ...rest];
+		const canonical = getLanguageGrammar(current)?.name;
+		const rest = all.filter((name) => name !== current && name !== canonical);
+		return [current, ...rest];
 	});
 
 	// The highlight cannot outrun a filter that shortened the list under it.
@@ -107,6 +110,7 @@
 		if (!editable) return;
 		draft = '';
 		filtering = false;
+		highlightMoved = false;
 		menuOpen = false;
 		editing = true;
 		// Row 0 is the block's own language (see `suggestions`), so the highlight starts where
@@ -148,22 +152,27 @@
 		if (e.isComposing) return;
 		if (e.key === 'Enter') {
 			e.preventDefault();
-			// The highlighted row is what Enter takes once the user has engaged the list; the
-			// raw draft stands otherwise, and whenever the filter matched nothing, so an
-			// unregistered language survives both opening the field and typing it in.
-			// The highlighted row wins; a typed string the list never matched still commits, so
-			// an unregistered language stays authorable.
-			commit(suggestions[activeIndex] ?? (draft.trim() === '' ? language : draft));
+			// A spelling the registry resolves is a name, not a query: it commits as typed, so
+			// `js` stays authorable from a picker whose rows are canonical. Arrowing takes the
+			// row instead, and a string the list never matched still commits, so an unregistered
+			// language stays authorable too.
+			const typed = draft.trim();
+			const namesLanguage = !highlightMoved && typed !== '' && getLanguageGrammar(typed) !== null;
+			commit(
+				namesLanguage ? typed : (suggestions[activeIndex] ?? (typed === '' ? language : typed))
+			);
 		} else if (e.key === 'Escape') {
 			e.preventDefault();
 			close();
 			onCancel(true);
 		} else if (e.key === 'ArrowDown') {
 			e.preventDefault();
+			highlightMoved = true;
 			activeIndex = suggestions.length === 0 ? 0 : (activeIndex + 1) % suggestions.length;
 			scrollActiveIntoView();
 		} else if (e.key === 'ArrowUp') {
 			e.preventDefault();
+			highlightMoved = true;
 			activeIndex =
 				suggestions.length === 0 ? 0 : (activeIndex - 1 + suggestions.length) % suggestions.length;
 			scrollActiveIntoView();
@@ -431,6 +440,7 @@
 				placeholder="Search for a language…"
 				oninput={() => {
 					filtering = true;
+					highlightMoved = false;
 					activeIndex = 0;
 				}}
 				onkeydown={onFieldKeyDown}
@@ -447,7 +457,10 @@
 							aria-selected={name === language}
 							data-active={i === activeIndex}
 							tabindex="-1"
-							onmouseenter={() => (activeIndex = i)}
+							onmouseenter={() => {
+								highlightMoved = true;
+								activeIndex = i;
+							}}
 							onmousedown={(e) => {
 								// mousedown, not click: the field's blur would otherwise cancel the edit
 								// before a click ever landed.

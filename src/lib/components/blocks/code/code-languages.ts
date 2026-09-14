@@ -1,6 +1,7 @@
 /**
  * Language registry for code-block tokenization. Nothing outside this directory
  * imports highlight.js directly; static vs. dynamic loading is a policy on top.
+ * Aliases fold to their canonical name here, so no caller carries its own table.
  */
 
 import type { LanguageFn } from 'highlight.js';
@@ -27,25 +28,30 @@ export function registerLanguage(
 	}
 }
 
+/** The fold: any spelling of a language to the one name it is registered under. */
+function canonicalName(spelling: string): string {
+	const key = spelling.toLowerCase();
+	return aliases.get(key) ?? key;
+}
+
 /** Info strings with trailing attributes (`js {1-3}`) resolve on the first token. */
 export function getLanguageGrammar(infoString: string): LanguageGrammar | null {
 	const trimmed = infoString.trim();
 	if (trimmed.length === 0) return null;
 
-	const firstToken = trimmed.split(/\s+/)[0].toLowerCase();
-	const resolvedName = aliases.get(firstToken) ?? firstToken;
-	return grammars.get(resolvedName) ?? null;
+	return grammars.get(canonicalName(trimmed.split(/\s+/)[0])) ?? null;
 }
 
-/**
- * Every registered grammar name, plus every alias, sorted — what the language picker
- * offers. Aliases are listed as their own entries: a user typing `js` should find it
- * rather than having to know it resolves to `javascript`.
- */
+/** Every registered language once, under its canonical name, sorted — the picker's rows. */
 export function listLanguages(): string[] {
-	const names = new Set<string>(grammars.keys());
-	for (const alias of aliases.keys()) names.add(alias);
-	return [...names].sort();
+	return [...grammars.keys()].sort();
+}
+
+/** The alternate spellings a language answers to, so a filter matches `rs` to `rust`. */
+export function getLanguageAliases(name: string): readonly string[] {
+	const key = canonicalName(name);
+	if (!grammars.has(key)) return [];
+	return [...aliases].filter(([, target]) => target === key).map(([alias]) => alias);
 }
 
 /** Test-only: clear all registered languages. */

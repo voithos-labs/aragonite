@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import {
 	registerLanguage,
 	getLanguageGrammar,
+	getLanguageAliases,
 	listLanguages,
 	__resetRegistryForTests
 } from '../../../components/blocks/code/code-languages';
@@ -49,14 +50,28 @@ describe('code-languages registry', () => {
 		expect(getLanguageGrammar('javascript title="example"')?.name).toBe('javascript');
 	});
 
-	it('lists every name and alias once, sorted, and each listed entry resolves', () => {
+	it('lists one entry per language — the canonical name, sorted, aliases folded away', () => {
 		registerLanguage('Python', fakeGrammar, ['py']);
 		registerLanguage('javascript', fakeGrammar, ['js', 'JS']);
 
 		const listed = listLanguages();
 
-		expect(listed).toEqual(['javascript', 'js', 'py', 'python']);
+		expect(listed).toEqual(['javascript', 'python']);
 		for (const name of listed) expect(getLanguageGrammar(name)).not.toBeNull();
+	});
+
+	it('reports the spellings a language answers to, from either of them', () => {
+		registerLanguage('Python', fakeGrammar, ['py', 'PY']);
+
+		expect(getLanguageAliases('python')).toEqual(['py']);
+		expect(getLanguageAliases('py')).toEqual(['py']);
+	});
+
+	it('reports no aliases for a language registered without any, or for an unknown name', () => {
+		registerLanguage('go', fakeGrammar);
+
+		expect(getLanguageAliases('go')).toEqual([]);
+		expect(getLanguageAliases('klingon')).toEqual([]);
 	});
 
 	it('is idempotent — registering twice is a no-op', () => {
