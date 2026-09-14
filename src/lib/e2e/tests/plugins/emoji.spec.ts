@@ -76,6 +76,23 @@ test.describe('plugin inline emoji shortcodes', () => {
 		expect(await capturedErrors(page)).toEqual([]);
 	});
 
+	test('a click past a run of flush glyphs seats the caret after the last one', async ({
+		page
+	}) => {
+		await editor.loadContent('Mood :smile: today\n\nend :dizzy::dizzy::dizzy::sparkles:\n');
+		await editor.setPresentationMode('live');
+		await expect(emojiIn(editor, 1)).toHaveCount(4);
+
+		const last = await emojiIn(editor, 1).last().boundingBox();
+		if (!last) throw new Error('no glyph box');
+		await page.mouse.click(last.x + last.width + 12, last.y + last.height / 2);
+		await editor.typeText('X');
+		await editor.bridge.waitForSourceContains('X');
+
+		expect(await editor.bridge.getSource()).toContain('end :dizzy::dizzy::dizzy::sparkles:X');
+		expect(await capturedErrors(page)).toEqual([]);
+	});
+
 	test('copying a range containing the reference yields the :name: bytes', async ({ page }) => {
 		await editor.focusBlockStart(0);
 		await editor.selectAll();

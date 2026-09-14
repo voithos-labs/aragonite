@@ -26,6 +26,27 @@ describe('consumeStickyLanding', () => {
 		expect(block.focus).not.toHaveBeenCalled();
 	});
 
+	// Miss-analysis (#326): the same rule lived in the container's column entry too, and no test
+	// read the two together, so a block was a stop through one door and passed over by the other.
+	it('sticky move stops on a transparent block that enters as an object', async () => {
+		const image = mockRef({
+			focus: vi.fn(),
+			isVerticallyTransparent: () => true,
+			enterEdgeWidget: vi.fn(() => true)
+		});
+		const retryAt = vi.fn();
+		await consumeStickyLanding(
+			image,
+			3,
+			{ stickyColumnFrom: 'below' },
+			createStickyColumnState(),
+			retryAt
+		);
+		expect(image.enterEdgeWidget).toHaveBeenCalledWith('end');
+		expect(retryAt).not.toHaveBeenCalled();
+		expect(image.focus).not.toHaveBeenCalled();
+	});
+
 	it('sticky move from below skips a vertically-transparent block upward', async () => {
 		const block = mockRef({ focus: vi.fn(), isVerticallyTransparent: () => true });
 		const retryAt = vi.fn();

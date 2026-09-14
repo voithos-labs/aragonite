@@ -168,6 +168,28 @@ describe('dispatchFocusAtColumn', () => {
 		expect(last.focus).toHaveBeenCalledWith(CURSOR_END);
 	});
 
+	it('passes over a vertically-transparent child', () => {
+		const transparent = mockRef({ focus: vi.fn(), isVerticallyTransparent: () => true });
+		const text = mockRef({ focus: vi.fn(), focusAtColumn: vi.fn() });
+		dispatchFocusAtColumn([transparent, text], 42, 'above');
+		expect(transparent.focus).not.toHaveBeenCalled();
+		expect(text.focusAtColumn).toHaveBeenCalledWith(42, 'above');
+	});
+
+	// Miss-analysis (#326): the container entry and the per-block landing each decided this on
+	// their own, and no test compared them, so the two vertical doors drifted apart.
+	it('stops on a transparent child that enters as an object instead of passing over it', () => {
+		const image = mockRef({
+			focus: vi.fn(),
+			isVerticallyTransparent: () => true,
+			enterEdgeWidget: vi.fn(() => true)
+		});
+		const text = mockRef({ focus: vi.fn(), focusAtColumn: vi.fn() });
+		dispatchFocusAtColumn([image, text], 42, 'above');
+		expect(image.enterEdgeWidget).toHaveBeenCalledWith('start');
+		expect(text.focusAtColumn).not.toHaveBeenCalled();
+	});
+
 	it('empty refs array is a no-op', () => {
 		expect(() => dispatchFocusAtColumn([], 42, 'above')).not.toThrow();
 	});

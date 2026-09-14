@@ -122,8 +122,9 @@ function extendFocusOrRestore(
 /**
  * Extend focus to the next leaf in document order (Shift+ArrowDown / Shift+ArrowRight leaving
  * the block), entering cross-block mode if needed. Returns true if focus moved. `axis` =
- * 'vertical' skips vertically-transparent leaves, mirroring single-block focus dispatch;
- * 'horizontal' lands unconditionally so an image-only paragraph is selectable in one step.
+ * 'vertical' skips vertically-transparent leaves — a range covers one either way, so unlike a
+ * collapsed caret it needs no object stop; 'horizontal' lands unconditionally so an image-only
+ * paragraph is selectable in one step.
  */
 export function extendFocusToNextBlock(
 	selection: SelectionState,

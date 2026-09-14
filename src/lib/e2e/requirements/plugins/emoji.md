@@ -23,6 +23,9 @@ Seed `emoji`: block 0 `Mood :smile: today` (one `:smile:` reference), block 1
   the delete is one commit, one undo entry.
 - Copy: copying a range that contains the reference yields the `:smile:` source
   bytes on the clipboard, never the 😄 glyph.
+- Click past a run: with four shortcodes flush against each other at the end of a
+  line, a click past the last glyph seats the caret after the last one's bytes, so a
+  typed character lands at the end of the line.
 
 ## Error cases
 

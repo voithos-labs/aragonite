@@ -32,6 +32,10 @@ import {
 } from '../../../cursor/widget-offset';
 import { createSourceReveal, type SourceReveal } from '../../../cursor/reveal-source';
 import {
+	nearestWidgetEdgeOffset,
+	type WidgetEdgeCandidate
+} from '../../../cursor/widget-edge-snap';
+import {
 	traceRevealOpen,
 	traceRevealFold,
 	type RevealFoldReason
@@ -839,19 +843,20 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		// surface paints, which it would collapse — the rule `clampOutOfAmbient` already carries.
 		const live = window.getSelection();
 		if (caretIsInTextContent(el, live) || surfaceHoldsRange(el, live)) return;
+		const snapTo = nearestWidgetEdgeOffset(measuredWidgets(el), clickX, clickY);
+		if (snapTo === null) return;
+		el.focus();
+		deps.cursor.setRaw(asRawOffset(snapTo));
+		// `setRaw`'s walker may have landed in a trailing text node, where native renders.
+		if (!caretIsInTextContent(el, window.getSelection())) deps.setSnapTarget(snapTo);
+	}
+
+	function* measuredWidgets(el: HTMLElement): Generator<WidgetEdgeCandidate> {
 		for (const inline of widgetsOf()) {
 			const widget = widgetElByStart(el, inline.start);
-			if (!widget) continue;
-			const rect = widget.getBoundingClientRect();
-			const snapTo = clickX > rect.right ? inline.end : clickX < rect.left ? inline.start : null;
-			if (snapTo === null) continue;
-			el.focus();
-			deps.cursor.setRaw(asRawOffset(snapTo));
-			// `setRaw`'s walker may have landed in a trailing text node, where native renders.
-			if (!caretIsInTextContent(el, window.getSelection())) {
-				deps.setSnapTarget(snapTo);
+			if (widget) {
+				yield { start: inline.start, end: inline.end, rect: widget.getBoundingClientRect() };
 			}
-			return;
 		}
 	}
 

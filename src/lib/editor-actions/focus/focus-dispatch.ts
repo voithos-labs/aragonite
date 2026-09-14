@@ -12,7 +12,7 @@ import {
 	type StickyColumnDirection
 } from '../../block-component';
 import type { StickyColumnState } from '../../cursor/sticky-column';
-import { consumeStickyLanding } from './focus-landing';
+import { consumeStickyLanding, entersAsObject } from './focus-landing';
 
 /** What the calling scope contributes to a move beyond the target itself. */
 export interface MoveFocusScope {
@@ -128,12 +128,15 @@ export function dispatchFocusAtColumn(
 	if (refs.length === 0) return;
 	const indices =
 		from === 'above' ? refs.map((_, i) => i) : refs.map((_, i) => refs.length - 1 - i);
-	// Skip vertically-transparent refs so an entry from above/below lands on the
-	// first/last text-bearing child, not an image-only paragraph.
+	// Pass over vertically-transparent refs so an entry from above/below lands on the
+	// first/last text-bearing child — unless one is enterable as an object, which stops.
 	for (const i of indices) {
 		const ref = refs[i];
 		if (!ref?.focusable) continue;
-		if (ref.isVerticallyTransparent?.()) continue;
+		if (ref.isVerticallyTransparent?.()) {
+			if (entersAsObject(ref, from)) return;
+			continue;
+		}
 		if (ref.focusAtColumn) ref.focusAtColumn(x, from);
 		else ref.focus(from === 'above' ? CURSOR_START : CURSOR_END);
 		return;
