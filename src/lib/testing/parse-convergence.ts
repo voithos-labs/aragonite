@@ -1,9 +1,9 @@
 /**
- * The parse-convergence oracle. A byte round-trip after a mutation is a tautology (G2.1 makes
- * `serialize∘parse` identity), so this compares the LIVE tree against `parse(serialize(live))`
- * STRUCTURALLY instead: kinds, children shape, and parse-derived metadata. The comparison is
- * exact: the parser materializes blank lines as blocks, so an empty paragraph reparses as itself.
- * The reparse uses the ambient grammar, so an unregistered kind reads as a false divergence.
+ * Compares the live tree against `parse(serialize(live))`. A byte round-trip after a mutation is
+ * trivially true (G2.1 makes `serialize∘parse` the identity), so this compares structure instead:
+ * kinds, the shape of the children, and the metadata the parser derives. The comparison is exact,
+ * because the parser turns blank lines into blocks, so an empty paragraph reparses as itself. The
+ * reparse uses the registered grammar, so an unregistered kind reads as a false mismatch.
  */
 
 import type { BlockMetadataByKind, CstNode, Document } from '../core/nodes';
@@ -11,9 +11,9 @@ import { parse } from '../core/parser';
 import { serialize } from '../core/serializer';
 import { show } from './conformance-core';
 
-// Typed against BlockMetadataByKind so a renamed or removed field is a compile error;
-// an ADDED field still needs enrolling by hand. Editor-level fields (childIds,
-// ownerEpoch) are not parse-derived, so the reparse never mints them.
+// Typed against BlockMetadataByKind so a renamed or removed field is a compile error; a field
+// that is added still has to be listed here by hand. Fields the editor adds (childIds,
+// ownerEpoch) do not come from the parser, so a reparse never produces them.
 const METADATA_FIELDS: {
 	[K in keyof BlockMetadataByKind]?: readonly (keyof BlockMetadataByKind[K])[];
 } = {
@@ -29,17 +29,17 @@ const METADATA_FIELDS: {
 	listItem: ['marker', 'taskItem', 'taskChecked', 'taskMarker']
 };
 
-/** True when the live tree converges structurally with a fresh parse of its serialization. */
+/** True when the live tree matches a fresh parse of its own serialization, structurally. */
 export function parseConverges(doc: Document): boolean {
 	return describeConvergence(doc) === null;
 }
 
-/** The FIRST structural divergence from `parse(serialize(doc))`, or null when converged. */
+/** The first structural difference from `parse(serialize(doc))`, or null when they match. */
 export function describeConvergence(doc: Document): string | null {
 	return diffChildren(doc, parse(serialize(doc)), []);
 }
 
-/** Assert convergence, throwing a plain `Error` (runner-agnostic) on divergence. */
+/** Asserts the two match, throwing a plain `Error` on a difference so any runner can use it. */
 export function assertParseConverged(doc: Document, label = 'parse convergence'): void {
 	const divergence = describeConvergence(doc);
 	if (divergence) throw new Error(`${label}: ${divergence}`);

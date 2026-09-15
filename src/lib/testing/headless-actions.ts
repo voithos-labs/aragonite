@@ -1,8 +1,8 @@
 /**
- * Headless editor-actions environment for the published conformance kit. These stubs
- * restate rather than reuse the in-repo `test/harness` mocks, which are `vi.fn()`-based:
- * `@voithos-labs/aragonite/testing` is imported into an author's own suite, so a static runner import
- * would load Vitest for anyone reaching for `resetPluginPlatformForTests` alone.
+ * A headless editor-actions environment for the published conformance kit. These stubs restate the
+ * in-repo `test/harness` mocks rather than reusing them, because those are built on `vi.fn()`:
+ * `@voithos-labs/aragonite/testing` is imported into an author's own suite, so importing a runner
+ * here would load Vitest for anyone reaching for `resetPluginPlatformForTests` alone.
  */
 
 import type { BlockEditActions, FocusActions } from '../action-contracts';
@@ -58,7 +58,7 @@ export function stubBlockEdit(): BlockEditActions {
 	};
 }
 
-/** A focus bundle that records what bubbled up to it — the focus-bubble check's oracle. */
+/** A focus bundle that records what bubbled up to it, which is what the focus-bubble check reads. */
 export interface RecordingFocus extends FocusActions {
 	/** Whole argument lists, so a check pins arity as well as values. */
 	readonly moveFocusCalls: readonly unknown[][];
@@ -73,7 +73,7 @@ export function recordingFocus(): RecordingFocus {
 		},
 		// The focus-bubble consumers assert on moveFocus, never on a resolved component.
 		revealPath: async () => null,
-		// Headless: no rendered boundary to park a gap caret at.
+		// Headless: nothing is rendered, so there is no boundary to put a gap caret at.
 		tryGapStop: () => false
 	};
 }
@@ -81,9 +81,9 @@ export function recordingFocus(): RecordingFocus {
 // ── Block-list state ─────────────────────────────────────────────────────────
 
 /**
- * A BlockListState seeded with one ref per child (the `$effect` that fills refs never
- * runs headlessly). `getNode` must read the LIVE node: the commit primitives replace the
- * spine's nodes, so a captured reference goes stale after the first commit.
+ * A `BlockListState` pre-filled with one ref per child, because the `$effect` that fills refs never
+ * runs headlessly. `getNode` reads the live node: the commit primitives replace the ancestor nodes,
+ * so a captured reference goes stale after the first commit.
  */
 export function mountBlockListState(getNode: () => CstNode): BlockListState {
 	const state = createBlockListState(() => getNode());

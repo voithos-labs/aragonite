@@ -1,8 +1,7 @@
 /**
- * Shared plumbing for the conformance kits: the assertion primitives and CST walks
- * `container-conformance.ts` (G4.3) and `kind-conformance.ts` sit on. Runner-agnostic —
- * a failure is a plain thrown `Error`, so no suite reaching for one seam is forced to
- * load a runner.
+ * Shared plumbing for the conformance kits: the assertion helpers and tree traversals
+ * `container-conformance.ts` (G4.3) and `kind-conformance.ts` sit on. A failure is a plain thrown
+ * `Error`, so reaching for one of these never forces a suite to load a test runner.
  */
 
 import type { AnyBlockKind, CstNode, Document } from '../core/nodes';
@@ -12,9 +11,9 @@ import type { BlockKindDescriptor } from '../schema/block-kind-descriptor';
 // ── Coverage vocabulary ──────────────────────────────────────────────────────
 
 /**
- * How a cell is covered: `assert` runs the real check, `exempt` means the invariant has
- * nothing to bite on, `boundary` means it needs something headless code cannot reach.
- * Both non-assert modes carry a substantive reason — never a silent skip.
+ * How a cell is covered: `assert` runs the real check, `exempt` means the invariant has nothing
+ * to test here, `boundary` means it needs something headless code cannot reach. Both of the
+ * non-asserting modes carry a real reason, so nothing is ever skipped silently.
  */
 export type ConformanceCoverage =
 	{ mode: 'assert' } | { mode: 'exempt'; reason: string } | { mode: 'boundary'; reason: string };
@@ -49,12 +48,12 @@ export function show(value: unknown): string {
 	return typeof value === 'string' ? JSON.stringify(value) : String(value);
 }
 
-/** A documented reason is substantive, never a bare token — the visible-not-silent-skip floor. */
+/** A documented reason says something, never a bare token: a skip has to be visible. */
 export function assertReasonDocumented(reason: string, label: string): void {
 	assert(reason.length > 20, `${label} is documented`);
 }
 
-/** An EXEMPT/BOUNDARY cell must carry a substantive reason — visible, never a silent skip. */
+/** An exempt or boundary cell carries a real reason, so the skip stays visible. */
 export function assertExemptionDocumented(cell: ConformanceCoverage, label: string): void {
 	if (cell.mode === 'assert') {
 		fail(`assertExemptionDocumented called on an 'assert' cell: ${label}`);
@@ -63,10 +62,10 @@ export function assertExemptionDocumented(cell: ConformanceCoverage, label: stri
 }
 
 /**
- * For a byte-faithful (strip/opaque) rebuild, `rebuildRaw` is the parse inverse: it must
- * reproduce the SAME bytes, not merely run twice with the same wrong output. Grid rebuilds
- * canonicalize delimiter/padding widths by contract, so they ride the determinism cell
- * instead. Mutates `node.raw` in place — pass a fresh parse, never a shared cell node.
+ * For a byte-faithful (strip or opaque) rebuild, `rebuildRaw` is the inverse of the parse: it has
+ * to reproduce the same bytes, not just run twice with the same wrong output. Grid rebuilds
+ * canonicalize delimiter and padding widths by contract, so they use the determinism cell instead.
+ * This writes `node.raw` in place, so pass a fresh parse, never a node a cell shares.
  */
 export function assertRebuildIsParseCanonical(
 	descriptor: BlockKindDescriptor,
@@ -103,7 +102,7 @@ export function nodeAtPath(root: Document | CstNode, path: number[]): CstNode {
 	return cur;
 }
 
-/** First node of `kind` in a pre-order walk (the kind may be nested below the root). */
+/** First node of `kind` in a pre-order traversal (the kind may be nested below the root). */
 export function findFirstOfKind(root: Document | CstNode, kind: AnyBlockKind): CstNode | null {
 	for (const child of root.children ?? []) {
 		if (child.kind === kind) return child;
@@ -113,7 +112,7 @@ export function findFirstOfKind(root: Document | CstNode, kind: AnyBlockKind): C
 	return null;
 }
 
-/** Doc-rooted path of the first node of `kind` in a pre-order walk, or null. */
+/** Document-rooted path of the first node of `kind` in a pre-order traversal, or null. */
 export function findFirstPathOfKind(root: Document | CstNode, kind: AnyBlockKind): number[] | null {
 	const children = root.children ?? [];
 	for (let i = 0; i < children.length; i++) {

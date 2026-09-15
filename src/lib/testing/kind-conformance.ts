@@ -1,9 +1,9 @@
 /**
- * The generic per-kind conformance battery — the executable half of the closure matrix.
- * Registering a block kind enrolls it: one cell per `ClosureColumn`, derived from the
- * kind's `closure` block and `conformanceFixture`. A cell is executed only where its
- * mechanism is headlessly observable; everything else is recorded as `boundary` or
- * `exempt`, never stubbed green. Runner-agnostic — plain `Error`s, no runner import.
+ * The generic per-kind conformance battery, the runnable half of the closure table. Registering a
+ * block kind enrolls it: one cell per `ClosureColumn`, taken from the kind's `closure` block and
+ * its `conformanceFixture`. A cell runs only where headless code can observe what it checks;
+ * everything else is recorded as `boundary` or `exempt`, never stubbed green. It works under any
+ * runner: failures are plain `Error`s and nothing here imports one.
  */
 
 import type { AnyBlockKind, CstNode, Document } from '../core/nodes';
@@ -91,8 +91,8 @@ const CLOSURE_ORDER: ClosureColumn[] = [
 ];
 
 /**
- * Execute every headless closure cell for `kind`, or throw an `Error` naming each failed
- * cell. A `conformanceFixture` parsing to no node of the kind fails the run outright.
+ * Runs every headless closure cell for `kind`, or throws an `Error` naming each failed cell. A
+ * `conformanceFixture` that parses to no node of the kind fails the run outright.
  */
 export async function runKindConformance(
 	kind: AnyBlockKind,
@@ -134,8 +134,8 @@ function buildContext(kind: AnyBlockKind, descriptor: BlockKindDescriptor): Kind
 	if (!nodePath) {
 		fail(`kind conformance failed for "${kind}": conformanceFixture parses to no "${kind}" node`);
 	}
-	// The one place every executor receives the fixture, so the position contract they drive
-	// `doc.children[0]` on (undo deletes it, the byte-slice copy sweeps from it) is settled here.
+	// The one place every check receives the fixture, so the rule they all rely on, that the node
+	// sits at `doc.children[0]`, is fixed here: undo deletes it, the byte-slice copy starts from it.
 	if (nodePath[0] !== 0) {
 		fail(
 			`kind conformance failed for "${kind}": conformanceFixture must open with the "${kind}" ` +
@@ -155,8 +155,8 @@ async function runCustomCheck(
 	check: KindCellCheck['check'],
 	ctx: KindCellContext | null
 ): Promise<CellResult> {
-	// On any mode but `implemented` a custom check contradicts the declaration and would
-	// silence the declared-mode executor, so reverting a profiled cell's mode goes red.
+	// In any mode but `implemented` a custom check contradicts the declaration and would silence
+	// the check that mode would run, so changing a profiled cell's mode back fails.
 	if (cell.mode !== 'implemented') {
 		fail(
 			`profile supplies a "${column}" check for "${kind}", but its declared mode is ` +
@@ -290,8 +290,8 @@ function execSearchPaint(cell: ClosureCell, ctx: KindCellContext | null): CellRe
 	if (needle === null) return { status: 'exempt', detail: cell.reason };
 	const compiled = compileMatcher(needle, { caseSensitive: true, wholeWord: false, regex: false });
 	if (!compiled.ok) return { status: 'exempt', detail: cell.reason };
-	// Non-vacuity: the needle IS present in the raw, so no match can only mean the scan
-	// deliberately skips this non-searchable kind.
+	// The needle is present in the raw, so no match can only mean the search deliberately
+	// skips this non-searchable kind.
 	assert(
 		compiled.matcher.findAll(ctx.node.raw).length > 0,
 		`needle "${needle}" is present in the "${ctx.kind}" raw`
@@ -375,11 +375,11 @@ const TRAILING_SENTINEL = '\n\nclipboard sentinel\n';
 const LEADING_SENTINEL = 'clipboard lead\n\n';
 
 /**
- * Assert the default cross-block copy over `kind`'s fixture carries its bytes with no
- * kind-specific synthesis, at BOTH endpoint roles — the honest meaning of
- * `clipboard: inherit-default`. Endpoints ride the real selection funnel, so the expectation is
- * the contract, never a re-derivation of the slice under test. Fixture contract: `fixture`
- * parses to `kind` at `children[0]`; the kit adds its sentinel block on the sweeping side.
+ * Asserts that the default cross-block copy over `kind`'s fixture carries its bytes with nothing
+ * synthesized for the kind, at both endpoint roles, which is what `clipboard: inherit-default`
+ * honestly means. The endpoints go through the real selection code, so the expectation states the
+ * contract rather than recomputing the slice under test. The fixture parses to `kind` at
+ * `children[0]`, and the kit adds its marker block on the side the copy sweeps across.
  */
 export function checkCopyIsRawByteSlice(kind: AnyBlockKind, fixture: string): void {
 	assertIs(
@@ -392,7 +392,7 @@ export function checkCopyIsRawByteSlice(kind: AnyBlockKind, fixture: string): vo
 	checkCopyIntoKind(kind, fixture);
 }
 
-/** The kind as the range START: its tail, then the sentinel's head. */
+/** The kind as the start of the range: its tail, then the sentinel's head. */
 function checkCopyFromKind(kind: AnyBlockKind, fixture: string): void {
 	const doc = parse(fixture + TRAILING_SENTINEL);
 	const lastIndex = doc.children.length - 1;
@@ -417,7 +417,7 @@ function checkCopyFromKind(kind: AnyBlockKind, fixture: string): void {
 	);
 }
 
-/** The kind as the range END, the role a start-only check never exercises. */
+/** The kind as the end of the range, the role a start-only check never exercises. */
 function checkCopyIntoKind(kind: AnyBlockKind, fixture: string): void {
 	const doc = parse(LEADING_SENTINEL + fixture);
 	const kindIndex = doc.children.length - 1;
@@ -452,8 +452,9 @@ function bytesBetween(children: CstNode[], from: number, to: number): string {
 }
 
 /**
- * The production mint→store→slice chain: endpoints normalize in `SelectionState` exactly as a
- * gesture's would, so a kind whose offsets the funnel rewrites is copied as the editor copies it.
+ * The production create, store and slice chain: the endpoints are normalized in `SelectionState`
+ * exactly as a real gesture's would be, so a kind whose offsets that code rewrites is copied the
+ * way the editor copies it.
  */
 function copyThroughFunnel(doc: Document, anchor: SelectionPoint, focus: SelectionPoint): string {
 	const selection = createSelectionState({ getDoc: () => doc });
