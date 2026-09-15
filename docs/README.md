@@ -17,7 +17,7 @@ Everything else hangs off those four. The folders are split by **audience**, not
 
 ## `design/`: how it works
 
-One spec per subsystem, for anyone changing the editor's insides. Start with `editor.md` whatever the task, and open another only when your task touches its subsystem. Working through all eight up front is a great way to feel productive without becoming useful; let the other seven be somebody else's afternoon.
+One spec per subsystem, for anyone changing the editor's insides. Start with `editor.md` whatever the task, and open another only when your task touches its subsystem. Working through all nine up front is a great way to feel productive without becoming useful; let the other eight be somebody else's afternoon.
 
 | Doc                                                          | Scope                                                                                                              |
 | ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------ |
@@ -26,6 +26,7 @@ One spec per subsystem, for anyone changing the editor's insides. Start with `ed
 | [`design/inline-parsing.md`](design/inline-parsing.md)       | How the text inside a block (`**bold**` and friends) becomes styled spans, markers still visible                   |
 | [`design/virtual-rendering.md`](design/virtual-rendering.md) | Why a 10 MB document types like a small one: only the blocks on screen are rendered                                |
 | [`design/live-mode.md`](design/live-mode.md)                 | The fully rendered mode that stays editable: the rules for editing around markers nobody can see                   |
+| [`design/caret-placement.md`](design/caret-placement.md)     | How a click becomes a caret, and what the caret does on the next key: nine stages, one file each                   |
 | [`design/invariants.md`](design/invariants.md)               | The rules that would cost someone their file, each numbered and each with a check that fails when it breaks        |
 | [`design/plugin-contract.md`](design/plugin-contract.md)     | What the plugin API promises: the shapes already settled, the ones still moving before 1.0, what was left out      |
 | [`design/performance.md`](design/performance.md)             | Why typing cost does not grow with document size, the exceptions, and the checks that enforce the numbers          |
