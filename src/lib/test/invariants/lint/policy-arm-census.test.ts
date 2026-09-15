@@ -39,7 +39,7 @@ const readsPolicyTable = (file: SourceFile): boolean =>
 
 /** The widget registry's doors — the other table, whose subject is the atomic island. */
 const WIDGET_READ =
-	/(?<![\w.])(getInlineWidgetEditing|isInlineWidget|isInlineWidgetKind|widgetSourceRange|augmentInlineWidgetKind)\s*\(/;
+	/(?<![\w.])(getInlineWidgetEditing|isInlineWidget|isInlineWidgetKind|isCharacterLikeWidget|widgetSourceRange|augmentInlineWidgetKind)\s*\(/;
 
 const readsWidgetRegistry = (file: SourceFile): boolean =>
 	file.relPath !== WIDGET_REGISTRY && WIDGET_READ.test(stripComments(file.text));
@@ -118,6 +118,13 @@ const HAND_WRITTEN_ARMS: readonly HandWrittenArm[] = [
 		fate: 'outside',
 		reason:
 			'a label map, not an arm: it names block kinds only to name them in a menu row ("Remove code block"); no gesture reads it and no construct policy hangs on it'
+	},
+	{
+		path: 'src/lib/components/menu/SelectionToolbar.svelte',
+		detection: 'kind-literal',
+		fate: 'outside',
+		reason:
+			'icon names on the mark buttons ("link"), not construct kinds: every button runs a command id and the door decides admissibility'
 	},
 	{
 		path: 'src/lib/components/blocks/text/construct-edge-delete.ts',

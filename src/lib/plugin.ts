@@ -102,7 +102,12 @@ export type { BlockCompleter, CompletionResult } from './schema/block-completion
 // grammar is bundle weight for every consumer), so a host needing more registers them itself,
 // BEFORE mounting an editor: a block on screen re-tokenizes only when its bytes next change.
 // An unregistered language is not an error — the fence still round-trips, just untokenized.
-export { registerLanguage, listLanguages } from './components/blocks/code/code-languages';
+// `listLanguages` lists each language once; `getLanguageAliases` holds the other spellings.
+export {
+	registerLanguage,
+	listLanguages,
+	getLanguageAliases
+} from './components/blocks/code/code-languages';
 export type { LanguageGrammar } from './components/blocks/code/code-languages';
 // The code block's own tokenizer, for a plugin whose source surface wants the same highlighting
 // (block math paints its LaTeX with it). Text-preserving: the fragment's textContent is `body`.
@@ -317,6 +322,11 @@ export { caretOffsetAtPoint } from './cursor/point-offset';
 export type { CaretTarget } from './schema/block-kind-descriptor';
 export { CURSOR_END } from './block-component';
 export type { CursorEnd } from './block-component';
+
+// ── Pointer gestures (pre-freeze) ────────────────────────────────────────────
+// Put this attribute on an element whose drags are your widget's own (a pan, a brush) and the
+// editor's pointer arms leave a press inside it alone: no block range, no click ladder.
+export { POINTER_GESTURE_ATTR } from './selection/pointer-gesture';
 
 // ── Selection geometry (pre-freeze) ──────────────────────────────────────────
 // The selection shapes a decoration source or rect consumer reads. SELECTION_END is

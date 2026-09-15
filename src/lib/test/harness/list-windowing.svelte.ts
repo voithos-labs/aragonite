@@ -24,18 +24,17 @@ export function fixedOracle(px: number): HeightOracle {
 		estimate: () => px,
 		measured: () => undefined,
 		recordMeasured: () => {},
-		height: () => px,
 		dropMeasured: () => {}
 	};
 }
 
-/** Height BY ID, so a permutation the model tracks changes each index's offset. */
+/** Height BY ID, so a permutation the model tracks changes each index's offset. The listed
+ *  heights answer as MEASURED, which is what a block with a real box reports. */
 export function heightsOracle(heights: Record<string, number>, estimate = 10): HeightOracle {
 	return {
 		estimate: () => estimate,
-		measured: () => undefined,
+		measured: (id: string) => heights[id],
 		recordMeasured: () => {},
-		height: (id: string) => heights[id] ?? estimate,
 		dropMeasured: () => {}
 	};
 }
@@ -51,6 +50,7 @@ export type MountListWindowingOptions = Partial<ListWindowingDeps> & {
 	viewportHeight?: number;
 	viewportTop?: number;
 	maxScrollTop?: number;
+	snapsToPixel?: boolean;
 	/** Chrome between the port's content origin and this list's first block. */
 	chromeAbove?: number;
 };
@@ -70,10 +70,11 @@ export function mountListWindowing(options: MountListWindowingOptions): MountedL
 		viewportHeight = 500,
 		viewportTop,
 		maxScrollTop,
+		snapsToPixel,
 		chromeAbove,
 		...deps
 	} = options;
-	const port = stubScrollport({ viewportHeight, viewportTop, maxScrollTop });
+	const port = stubScrollport({ viewportHeight, viewportTop, maxScrollTop, snapsToPixel });
 	const listEl = stubListEl(port, listHeight, chromeAbove);
 
 	let windowing!: ListWindowing;

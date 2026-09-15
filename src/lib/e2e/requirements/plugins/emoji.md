@@ -23,6 +23,17 @@ Seed `emoji`: block 0 `Mood :smile: today` (one `:smile:` reference), block 1
   the delete is one commit, one undo entry.
 - Copy: copying a range that contains the reference yields the `:smile:` source
   bytes on the clipboard, never the 😄 glyph.
+- Click past a run: with four shortcodes flush against each other at the end of a
+  line, a click past the last glyph seats the caret after the last one's bytes, so a
+  typed character lands at the end of the line.
+- Click ON a glyph: a press on the glyph's left half seats the caret before its bytes
+  and one on the right half after them, in either presentation mode. The glyph reads
+  as one character, so a press on it names an edge the way a press beside it does.
+  Miss-analysis: the click specs all aimed BESIDE an island, because a point inside one
+  was the whole-widget select's territory, and no test asked what a press on a glyph
+  whose policy steps over should do instead.
+- Click ON a glyph in reading mode: the press takes focus to the block and seats a
+  collapsed caret, exactly as a press beside an island already did, and writes nothing.
 
 ## Error cases
 

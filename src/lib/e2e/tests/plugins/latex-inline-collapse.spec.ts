@@ -1,5 +1,5 @@
 import { test, expect } from '../../fixtures';
-import { PluginsPage, clickWidgetCenter } from './helpers';
+import { PluginsPage, clickWidgetCenter, clickWidgetEnd } from './helpers';
 
 /**
  * Reveal COLLAPSE scoping for inline math, on the two-equations-one-paragraph seed (the showcase
@@ -92,8 +92,9 @@ test.describe('plugin inline math: reveal collapse scoping', () => {
 	}) => {
 		await editor.revealFirstByClick();
 
-		// eq2 is the only rendered widget left; the click must fold eq1 AND reveal eq2.
-		await clickWidgetCenter(editor.widgets.first());
+		// eq2 is the only rendered widget left; the click must fold eq1 AND reveal eq2. Aimed at
+		// eq2's tail so the typed byte below lands at its end, wherever the seat maps.
+		await clickWidgetEnd(editor.widgets.first());
 
 		await expect.poll(() => editor.getBlockText(0)).toContain(EQ2);
 		expect(await editor.getBlockText(0)).not.toContain(EQ1);
@@ -103,7 +104,7 @@ test.describe('plugin inline math: reveal collapse scoping', () => {
 		await expect(editor.widgets).toHaveCount(1);
 		expect(await editor.getBlockText(0)).toContain(EQ2);
 
-		// The new reveal is live: a typed char lands at eq2's end, inside its closing `$`.
+		// The new reveal is live: the typed char lands where the press did, inside eq2's closer.
 		await page.keyboard.type('z');
 		expect(await editor.getBlockText(0)).toContain(`${EQ2.slice(0, -1)}z$`);
 		// Both reveals were view toggles — the CST holds both originals.

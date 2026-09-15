@@ -6,6 +6,7 @@ Everything this editor has actually shipped, newest first. The README sends peop
 
 ## [0.10](changelog/0.10.md)
 
+- [0.10.4](changelog/0.10.md#0104-the-click-ladder-a-selection-toolbar-and-a-drop-that-moves): the editor owns the word and block clicks and the drop of a dragged selection, a toolbar opens over a selection, inline math opens with a digit, the picker lists each language once
 - [0.10.3](changelog/0.10.md#0103-finns-uiux-once-over): context menus and the block menu, table flyouts and strips, the code rail and the language picker, math layouts, image crop, delimiters that pair themselves
 - [0.10.2](changelog/0.10.md#0102-an-editor-you-can-see-on-a-white-page): an unthemed editor inherits its page's text color, and the quickstart mounts one you can read
 - [0.10.1](changelog/0.10.md#0101-large-documents-the-plugins-prop-and-a-phone): typing inside a huge list costs the block, the plugins prop is the enablement set, a plugin can say where a click lands, the parrot ships and dances in CSS, and the demo answers a phone

@@ -9,12 +9,15 @@ string instead of a link's destination.
 
 A button on the code rail at the code box's top-right, showing the info string's first token, or
 `text` when there is none. Click opens a picker below it: a search field over every registered
-language, the block's own language highlighted first. Enter commits the highlighted row (or the
-typed text when nothing matches, so an unregistered language stays authorable); `text` is the
-row that clears a language; Escape and blur cancel byte-identically. Only Enter and a list pick
-write. A bare fence that has just taken the caret with no language opens the picker itself,
-unless the caret stepped in from a neighbour: a keyboard walk through an existing fence is not
-its authoring moment, and a picker taking focus there would trap the walk.
+language, one row each, the block's own language highlighted first in the spelling the fence
+uses. An alias (`rs`, `py`) is a search key rather than a row of its own, so the list never
+carries a language twice. Enter commits what the field holds whenever that spelling names a
+language the registry knows and the highlight has not moved, and the highlighted row otherwise,
+which is also how an unregistered language stays authorable (§ The commit has the whole rule);
+`text` is the row that clears a language; Escape and blur cancel byte-identically. Only Enter
+and a list pick write. A bare fence that has just taken the caret with no language opens the
+picker itself, unless the caret stepped in from a neighbour: a keyboard walk through an existing
+fence is not its authoring moment, and a picker taking focus there would trap the walk.
 
 It is transient, not chrome: hidden until the pointer hovers the block or the caret sits
 inside it, per the calm-surface rule the drag handle already follows. It renders OUTSIDE
@@ -45,6 +48,10 @@ never sees it and the render effect's `replaceChildren` cannot destroy it.
   the fence write rule runs over it like every other gesture, and it lands as ONE undo
   entry — isolated on both sides, so neither a typing burst before it nor one after it
   joins the entry.
+- A typed spelling the registry resolves is a name, not a query: it commits as typed, so `rs`
+  lands as `rs` rather than as the `rust` row it found. Moving the highlight (an arrow key, or
+  the pointer over a row) makes that row win instead, and a spelling no grammar answers to
+  commits as typed too, which is how an unregistered language stays authorable.
 - An unchanged info string is a close, not a write: no undo entry, no `edit` event. The test
   is the SEED, not the written bytes, because `meta.info` is trimmed — on a padded opener
   (trailing spaces after `js`, or spaces before it) a byte test would let a bare Enter respell
@@ -106,6 +113,8 @@ routes already share (`fence-content-validity.md`), so all three arms behave ali
   with the fence runs, body and closer unchanged, and the block is still `fencedCode`. The
   preview rungs are the interesting ones: the open field makes the block read as focused, so
   they REVEAL the fence while the chip is committing over it
+- typing an alias (`rs`) filters to its language, listed once under its canonical name, and
+  Enter lands the alias as typed
 - clearing the field and committing empties the info string
 - typing a character after a commit lands it at the first body offset
 
@@ -134,6 +143,9 @@ routes already share (`fence-content-validity.md`), so all three arms behave ali
 - The no-op commit: every commit scenario typed a NEW language onto an unpadded fence, so the
   byte test passed on the only shape the suite loaded and the gesture that changes nothing was
   never made. A door's do-nothing path is a scenario, not an absence of one.
+- The doubled list (#322): every scenario read the picker through the commit it produced, so a
+  list carrying a row per spelling instead of a row per language passed all of them. No test
+  ever read the rows.
 - Nothing could have caught this: the affordance did not exist. The class the suite missed
   is the one issue #142 names — a mode that hides a construct's syntax owes a door back to
   it, and only the link card had one. The presentation batteries assert what a mode HIDES

@@ -3,7 +3,8 @@
 // the real per-keystroke cost rather than a hand-rolled stand-in. Three axes: depth
 // (chain length alone), breadth (the O(container-size) re-join cliff), and combined,
 // which is the only one that puts depth and per-level bytes together.
-import { bench, describe } from 'vitest';
+import { describe, test } from 'vitest';
+import { BENCH_TIMEOUT } from './fixtures/bench-timeout';
 import type { CstNode } from '../../core/nodes';
 import { parse } from '../../core/parser';
 import { enablePerfInstruments } from '../../perf/instruments';
@@ -32,13 +33,11 @@ function benchAncestryRebuild(
 ): void {
 	const chain = deepestChain(root);
 	const sharing = createSharingState();
-	bench(
-		label,
-		() => {
+	test(label, { timeout: BENCH_TIMEOUT }, async ({ bench }) => {
+		await bench(label, () => {
 			rebuildUnsharedChain(root, chain, sharing, null, undefined);
-		},
-		{ warmupIterations: 1, ...opts }
-	);
+		}).run({ warmupIterations: 1, ...opts });
+	});
 }
 
 function singleFlatList(targetBytes: number): string {
@@ -90,9 +89,9 @@ describe('ancestry rebuild — interior keystroke, hint vs full', () => {
 		rebuildUnsharedChain(list, chain, sharing, null, undefined);
 		const leaf = chain[2];
 		let longer = false;
-		bench(
-			`rebuild interior of a 1MB list (${hinted ? 'spliced' : 'full'})`,
-			() => {
+		const label = `rebuild interior of a 1MB list (${hinted ? 'spliced' : 'full'})`;
+		test(label, { timeout: BENCH_TIMEOUT }, async ({ bench }) => {
+			await bench(label, () => {
 				const leafPreviousRaw = leaf.raw;
 				// Alternating lengths, so the span shift is measured rather than skipped.
 				longer = !longer;
@@ -110,9 +109,8 @@ describe('ancestry rebuild — interior keystroke, hint vs full', () => {
 					undefined,
 					hinted ? { path, leafPreviousRaw } : undefined
 				);
-			},
-			{ warmupIterations: 1, iterations: 20 }
-		);
+			}).run({ warmupIterations: 1, iterations: 20 });
+		});
 	}
 });
 

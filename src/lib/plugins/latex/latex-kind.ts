@@ -37,21 +37,25 @@ export const MATH_FENCE = 'mathFence';
 const isWhitespace = (ch: string) => /\s/.test(ch);
 const isDigit = (ch: string) => ch >= '0' && ch <= '9';
 
-function indexMathClosers(raw: string): Int32Array {
+function indexDollars(raw: string): Int32Array {
 	const positions: number[] = [];
 	for (let i = 1; i < raw.length; i++) {
-		if (raw[i] === '$' && !isWhitespace(raw[i - 1])) positions.push(i);
+		if (raw[i] === '$') positions.push(i);
 	}
 	return Int32Array.from(positions);
 }
 
 // Indexed once per block, not searched per consultation: a paragraph of shell prose
 // (`$HOME $PATH $USER …`) would otherwise cost a full block scan at every `$`.
-const firstCloserFrom = createScanIndex(indexMathClosers);
+const nextDollarFrom = createScanIndex(indexDollars);
+
+/** Money, written the way prose writes it: a whole number between the delimiters. */
+const isPriceSpan = (body: string) => /^\d[\d.,]*$/.test(body);
 
 /**
- * The digit guard on the opener is what keeps `$5 and $10` currency, not math. The
- * close is deliberately not digit-guarded, so `$x^2$` closes on its `2`.
+ * Pandoc's rule, with one divergence of ours. An attempt ENDS at the next `$`, whichever it is,
+ * and a bad closer leaves the opener literal; a closer needs a non-space before it and no digit
+ * after it. Ours: a span that is only a number is a price (`$5$`), so a typed price stays prose.
  */
 function recognizeMath(
 	raw: string,
@@ -62,15 +66,17 @@ function recognizeMath(
 	const afterOpen = pos + 1;
 	if (afterOpen >= end) return null;
 	const opener = raw[afterOpen];
-	if (isWhitespace(opener) || isDigit(opener)) return null;
+	if (isWhitespace(opener)) return null;
 	// `$$` is the display fence, or the empty pair a keystroke just closed: never an inline
-	// opener, or its closer search would jump to the far end of the next formula on the line.
+	// opener, or the attempt would end on its own twin.
 	if (opener === '$') return null;
 
 	// The index spans the whole block, so `end` decides the claim: a closer past the
 	// scan range leaves the `$` literal.
-	const close = firstCloserFrom(raw, pos + 2);
+	const close = nextDollarFrom(raw, pos + 2);
 	if (close === -1 || close >= end) return null;
+	if (isWhitespace(raw[close - 1]) || isDigit(raw[close + 1] ?? '')) return null;
+	if (isPriceSpan(raw.slice(afterOpen, close))) return null;
 	return { kind, start: pos, end: close + 1 };
 }
 
@@ -89,12 +95,58 @@ export function registerMathInline(): void {
 		component: MathInline,
 		editing: {
 			revealSource: true,
-			// `$…$`: one delimiter each side, so a revealing click seats the caret on the last
-			// character of the formula rather than past its closing `$`.
-			revealContentSpan: (source) =>
-				source.length >= 2 ? { start: 1, end: source.length - 1 } : null
+			revealContentSpan: mathContentSpan,
+			revealOffsetAtPoint: mathInlineOffsetAtPoint
 		}
 	});
+}
+
+// ── Caret from a press ───────────────────────────────────────────────────────
+// KaTeX paints glyphs, not source bytes, so both forms read a press the same way: how far along
+// the painted run it fell, walked proportionally into the span the run renders.
+
+/** `$…$`: one delimiter each side, so an edit stays inside the formula. */
+const mathContentSpan = (source: string) =>
+	source.length >= 2 ? { start: 1, end: source.length - 1 } : null;
+
+function glyphOffsetInSpan(
+	rendered: HTMLElement,
+	span: { start: number; end: number },
+	clientX: number,
+	clientY: number
+): number | null {
+	// `.katex-html` is the painted half: its MathML twin is clipped to a pixel, and the pair
+	// measured together answers for a point no reader aimed at.
+	const glyphs = rendered.querySelector<HTMLElement>('.katex-html');
+	const along = glyphs ? caretOffsetAtPoint(glyphs, clientX, clientY) : null;
+	const total = glyphs?.textContent?.length ?? 0;
+	if (along === null || total === 0) return null;
+	return span.start + Math.round((along / total) * (span.end - span.start));
+}
+
+function mathInlineOffsetAtPoint(
+	widgetEl: HTMLElement,
+	source: string,
+	clientX: number,
+	clientY: number
+): number | null {
+	const span = mathContentSpan(source);
+	return span ? glyphOffsetInSpan(widgetEl, span, clientX, clientY) : null;
+}
+
+/** Where a press on the folded equation puts the caret; the fence lines carry no glyph of
+ *  their own, so a point the glyphs cannot answer for keeps the body's end. */
+function mathCaretAtPoint(
+	blockEl: HTMLElement,
+	clientX: number,
+	clientY: number
+): CaretTarget | null {
+	const render = blockEl.querySelector<HTMLElement>('.math-block-render');
+	if (!render) return null;
+	const start = Number(render.dataset.bodyStart);
+	const end = Number(render.dataset.bodyEnd);
+	if (!Number.isFinite(start) || !Number.isFinite(end)) return null;
+	return { path: [], offset: glyphOffsetInSpan(render, { start, end }, clientX, clientY) ?? end };
 }
 
 // ── Rendered display source ────────────────────────────────────────────────────
@@ -199,28 +251,6 @@ export function registerMathBlock(): void {
 
 	// Co-registered so one install teaches both forms (the admonition/githubAlert precedent).
 	registerMathFence();
-}
-
-/** Where a press on the folded equation puts the caret. KaTeX paints glyphs, not source bytes,
- *  so the press walks the body span in proportion to how far along the equation it fell; the
- *  fence lines carry no glyph of their own. */
-function mathCaretAtPoint(
-	blockEl: HTMLElement,
-	clientX: number,
-	clientY: number
-): CaretTarget | null {
-	const render = blockEl.querySelector<HTMLElement>('.math-block-render');
-	if (!render) return null;
-	const start = Number(render.dataset.bodyStart);
-	const end = Number(render.dataset.bodyEnd);
-	if (!Number.isFinite(start) || !Number.isFinite(end)) return null;
-	// `.katex-html` is the painted half: its MathML twin is clipped to a pixel, and the pair
-	// measured together answers for a point no reader aimed at.
-	const glyphs = render.querySelector<HTMLElement>('.katex-html');
-	const along = glyphs ? caretOffsetAtPoint(glyphs, clientX, clientY) : null;
-	const total = glyphs?.textContent?.length ?? 0;
-	if (along === null || total === 0) return { path: [], offset: end };
-	return { path: [], offset: start + Math.round((along / total) * (end - start)) };
 }
 
 // ── Fenced ```math display math ─────────────────────────────────────────────────

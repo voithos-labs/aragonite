@@ -7,7 +7,8 @@ import {
 	firstPath,
 	lastPath,
 	findBlockPathForElement,
-	findCellPathForElement
+	findCellPathForElement,
+	findSurfaceForElement
 } from '../../selection/path-lookup';
 import { nodeAt } from '../../tree-operations/node-primitives';
 import type { CstNode } from '../../core/nodes';
@@ -186,5 +187,22 @@ describe('findCellPathForElement', () => {
 		const host = grid(1, 1);
 		host.removeAttribute('data-block-path');
 		expect(findCellPathForElement(cellAt(host, 0, 0))).toBeNull();
+	});
+});
+
+describe('findSurfaceForElement', () => {
+	it('answers the cell path, flagged, inside a grid', () => {
+		const { cells } = mountTableGrid({ path: [3], rows: 2, cols: 2 });
+		expect(findSurfaceForElement(cells[1][0])).toEqual({ path: [3, 1, 0], inCell: true });
+	});
+
+	it('answers the block path, unflagged, outside one', () => {
+		const block = document.createElement('div');
+		block.setAttribute('data-block-path', '[2]');
+		expect(findSurfaceForElement(block)).toEqual({ path: [2], inCell: false });
+	});
+
+	it('answers null where neither resolves', () => {
+		expect(findSurfaceForElement(document.createElement('div'))).toBeNull();
 	});
 });

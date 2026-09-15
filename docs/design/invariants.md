@@ -790,7 +790,7 @@ directory as well as this table before assuming a rule is unguarded.
 | G4.8  | Every documented chord resolves in the surface that dispatches it             | L       |
 | G4.9  | Every published theme token is declared, with light and dark values           | L       |
 | G4.10 | Every bundled plugin directory is exported, and the pack carries it           | L       |
-| G4.11 | Exactly the two sanctioned paste routes apply paste transforms                | L       |
+| G4.11 | Exactly the sanctioned paste routes apply paste transforms                    | L       |
 | G4.12 | Caret-edge destructive keys route through the one edge-policy dispatch        | L       |
 | G4.13 | No view-stripping cast outside `tree-operations/` and the commit ceremony     | T·L     |
 | G4.14 | Every component prop reading the CST is typed as a readonly view              | L       |
@@ -845,6 +845,7 @@ directory as well as this table before assuming a rule is unguarded.
 | G4.63 | The bundled plugins' own suites import only the published entry points        | L       |
 | G4.64 | The tree-ops ladder has no upward import                                      | L       |
 | G4.65 | Every prose surface hands typed delimiters to the one auto-pair arm           | L       |
+| G4.66 | A relative scroll is written through `scrollBy`, never read-plus-delta        | L       |
 
 ### The entries
 
@@ -915,8 +916,8 @@ text block's clipboard seam). `lint/consumer-guide-chords.test.ts`.
 declared in `sideEffects`. Subset, not equality: the `/renderer` engine subpaths are extra.
 `lint/plugin-pack-parity.test.ts`.
 
-**G4.11 · Paste-transform two-site parity.** Exactly the two sanctioned clipboard-to-parse routes
-call `applyPasteTransforms`; a third route born without it silently drops plugin transforms. Two
+**G4.11 · Paste-transform site parity.** Exactly the sanctioned clipboard-to-parse routes
+call `applyPasteTransforms`; a new route born without it silently drops plugin transforms. Two
 halves, because caller parity alone can't see the shape it names (a route that never mentions the
 symbol contributes nothing to the caller set), so every clipboard or drop read is also enumerated
 and required to reach a sanctioned route. `lint/paste-transform-sites.test.ts`.
@@ -1179,14 +1180,17 @@ editable-surface factory built it (the thematic break is `editable = false` and 
 commands). `BlockComponent` declares the method optional, so surface N+1 would compile clean and
 decline every `editor.runCommand()` on its blocks. `lint/command-door-surface-parity.test.ts`.
 
-**G4.40 · Rewrite-claim set parity.** Three lists are one set: the ids the built-in keymaps bind to
-a rewrite over one block's own selection, the ids the dispatch seam answers specially over a
-cross-block range (`RANGE_DECLINED_COMMAND_IDS` declines, `CROSS_BLOCK_RANGE_COMMAND_IDS` routes to
-the cross-block branch), and the chords `selection/cross-block/keydown.ts` claims, with each id on
-exactly one of the two lists. Membership is the branch's shape, not the id's prefix, so the list
-carries the non-`format.` members by hand; a prefix scan couldn't see `link.openCard`. A sixth
-rewrite taught to one spelling is an N minus 1 gap at the other two; the swallow GROWING a chord is
-caught by G4.29 instead, whose manifest records the key literals that file compares.
+**G4.40 · Rewrite-claim set parity.** Three lists name one set of rewrites: the ids the built-in
+keymaps bind to a rewrite over one block's own selection, the ids the dispatch seam answers
+specially over a cross-block range (`RANGE_DECLINED_COMMAND_IDS` declines,
+`CROSS_BLOCK_RANGE_COMMAND_IDS` routes to the cross-block branch), and the chords
+`selection/cross-block/keydown.ts` claims, with each rewrite id on exactly one of the two seam
+lists. The seam lists may also hold an id no rewrite keymap binds (`heading.cycle`, declined over
+a range and claimed by the delete-and-redispatch arm), so the guard compares the rewrite-scoped
+subset. Membership is the branch's shape, not the id's prefix, so the list carries the
+non-`format.` members by hand; a prefix scan couldn't see `link.openCard`. A sixth rewrite taught
+to one spelling is an N minus 1 gap at the other two; the swallow GROWING a chord is caught by
+G4.29 instead, whose manifest records the key literals that file compares.
 `test/selection/cross-block/rewrite-claim-parity.test.ts`.
 
 **G4.41 · Warn-gate bypasses.** No file under `src/lib` mocks `dev-warn` or spies `console.warn`. A
@@ -1389,6 +1393,13 @@ and no other file calls it. The arm decides what a typed delimiter writes (its t
 the twin, the closer it completes) and which side the caret means afterwards; the two surfaces
 once carried a copy each, and a copy is the sibling that misses the next rule.
 `lint/delimiter-autopair-parity.test.ts`.
+
+**G4.66 · Relative scroll through one door.** A correction that moves the scrollport by a delta
+calls `Scrollport.scrollBy`, never `setScrollTop(scrollTop() + delta)`. The scroller snaps a
+fractional write to a device pixel and reports the snapped value back, so the hand-rolled spelling
+loses that fraction once per correction, and a mode flip corrects once per re-measured block
+(#315). `scrollBy` carries the refused fraction into the next call; the rule is a source scan
+because the lossy spelling type-checks. `lint/relative-scroll-write.test.ts`.
 
 ## Accessibility
 

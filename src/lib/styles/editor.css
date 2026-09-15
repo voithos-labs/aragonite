@@ -168,9 +168,7 @@
 	max-width: 100%;
 	height: auto;
 	display: block;
-	/* Enough to take the hard corner off a photo sitting in prose, not enough to read as a
-	   card: half the surface radius the block chrome uses. */
-	border-radius: 4px;
+	border-radius: var(--md-image-radius);
 }
 
 /* A cropped image: the widget is the frame (width and aspect set inline from the `|WxH` hint,
@@ -178,15 +176,16 @@
 :where(.editor) .md-image-widget.md-image-cropped {
 	overflow: hidden;
 	max-width: 100%;
-	/* The frame clips the picture, so the rounding belongs to it; the picture inside is square
-	   again or its own corners would cut inside the frame's. */
-	border-radius: 4px;
+	/* The frame clips the picture, so the rounding belongs to it. `clip-path` alongside
+	   `overflow`, because a rounded overflow clip is the one Chromium drops when the picture
+	   inside gets its own compositing layer, and a crop is exactly when that happens. */
+	border-radius: var(--md-image-radius);
+	clip-path: inset(0 round var(--md-image-radius));
 }
 
-:where(.editor) .md-image-widget.md-image-cropped img {
-	border-radius: 0;
-}
-
+/* The picture keeps its own radius rather than going square inside the frame: at zoom 1 it sits
+   exactly on the frame, so the two corners coincide, and above 1 its corners are outside the
+   frame entirely. Either way the crop cannot come out with harder corners than the plain image. */
 :where(.editor) .md-image-widget.md-image-cropped img {
 	position: absolute;
 	max-width: none;
@@ -319,6 +318,20 @@
 	position: absolute;
 	pointer-events: none;
 	z-index: 10;
+}
+
+/* A selected image says so with a hairline ring. It rides the overlay, not the widget: a cropped
+   widget clips its own pseudo-elements, and a border on the picture would move the layout. Held
+   just off the edge so it reads as a ring around the picture rather than part of it, over a
+   translucent dark line that keeps it legible against a pale photo. */
+:where(.editor) .md-image-overlay::before {
+	content: '';
+	position: absolute;
+	inset: -2px;
+	border: 1px solid var(--color-accent, #567b67);
+	border-radius: calc(var(--md-image-radius, 4px) + 2px);
+	box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.18);
+	pointer-events: none;
 }
 
 :where(.editor) .md-image-overlay > * {
@@ -652,12 +665,16 @@
 	.task-checkbox::before {
 	content: '';
 	visibility: visible;
+	/* Centred by layout and sized to whole pixels, never by a translate: a transformed box
+	   rasterises at fractional edges on a scaled desktop and reads shorter than it is wide.
+	   The unrounded pair is the fallback for a browser without `round()`. */
 	position: absolute;
-	left: 50%;
-	top: 50%;
+	inset: 0;
+	margin: auto;
 	width: 1.2em;
 	height: 1.2em;
-	transform: translate(-50%, -50%);
+	width: round(1.2em, 1px);
+	height: round(1.2em, 1px);
 	box-sizing: border-box;
 	border: 1.5px solid var(--color-ui-muted, #8f8f89);
 	border-radius: 0.28em;
@@ -697,6 +714,40 @@
 	border: solid var(--color-bg, #2c2c2a);
 	border-width: 0 0.15em 0.15em 0;
 	transform: translate(-50%, -50%) rotate(45deg);
+}
+
+/* The span is the SLOT, a full line-height tall; the box is the pseudo-element inside it. The
+   hover tint the source modes put on the span (ListItemBlock) would draw a tall rectangle
+   round the square, so in the rendered modes it moves onto the box: an open box fills with
+   the tint, a checked one is already a solid fill and keeps it. */
+:where(.editor):is(
+		[data-presentation='reading'],
+		[data-presentation^='preview-'],
+		[data-presentation='live']
+	)
+	.list-item-block[data-list-marker='task']
+	.task-checkbox:hover {
+	background-color: transparent;
+}
+
+:where(.editor):is(
+		[data-presentation='reading'],
+		[data-presentation^='preview-'],
+		[data-presentation='live']
+	)
+	.list-item-block[data-list-marker='task']
+	.task-checkbox::before {
+	transition: background-color 60ms ease-out;
+}
+
+:where(.editor):is(
+		[data-presentation='reading'],
+		[data-presentation^='preview-'],
+		[data-presentation='live']
+	)
+	.list-item-block[data-list-marker='task']:not([data-task-checked='true'])
+	.task-checkbox:hover::before {
+	background-color: var(--md-marker-hover-bg, rgba(128, 128, 128, 0.15));
 }
 
 /* ── Reading mode ─────────────────────────────────────────────────────────────

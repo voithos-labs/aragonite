@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import {
 	registerLanguage,
 	getLanguageGrammar,
+	getLanguageAliases,
 	listLanguages,
 	__resetRegistryForTests
 } from '../../../components/blocks/code/code-languages';
@@ -49,14 +50,47 @@ describe('code-languages registry', () => {
 		expect(getLanguageGrammar('javascript title="example"')?.name).toBe('javascript');
 	});
 
-	it('lists every name and alias once, sorted, and each listed entry resolves', () => {
+	it('lists one entry per language — the canonical name, sorted, aliases folded away', () => {
 		registerLanguage('Python', fakeGrammar, ['py']);
 		registerLanguage('javascript', fakeGrammar, ['js', 'JS']);
 
 		const listed = listLanguages();
 
-		expect(listed).toEqual(['javascript', 'js', 'py', 'python']);
+		expect(listed).toEqual(['javascript', 'python']);
 		for (const name of listed) expect(getLanguageGrammar(name)).not.toBeNull();
+	});
+
+	it('reports the spellings a language answers to, from any spelling of it', () => {
+		registerLanguage('Python', fakeGrammar, ['py', 'PY']);
+
+		expect(getLanguageAliases('python')).toEqual(['py']);
+		expect(getLanguageAliases('py')).toEqual(['py']);
+	});
+
+	// A host registers what it likes, and a name it picks can already be somebody's alias. The
+	// name it was registered under wins: a grammar is never shadowed by another's nickname.
+	it('resolves a name of its own over another language’s alias', () => {
+		const hostGrammar = (() => ({ name: 'host' })) as unknown as LanguageFn;
+		registerLanguage('bash', fakeGrammar, ['sh', 'shell']);
+		registerLanguage('shell', hostGrammar);
+
+		expect(getLanguageGrammar('shell')?.definition).toBe(hostGrammar);
+		expect(getLanguageGrammar('sh')?.name).toBe('bash');
+	});
+
+	it('keeps a language’s own aliases when a later one takes its name as an alias', () => {
+		registerLanguage('rust', fakeGrammar, ['rs']);
+		registerLanguage('mylang', fakeGrammar, ['rust']);
+
+		expect(getLanguageAliases('rust')).toEqual(['rs']);
+		expect(getLanguageGrammar('rust')?.name).toBe('rust');
+	});
+
+	it('reports no aliases for a language registered without any, or for an unknown name', () => {
+		registerLanguage('go', fakeGrammar);
+
+		expect(getLanguageAliases('go')).toEqual([]);
+		expect(getLanguageAliases('klingon')).toEqual([]);
 	});
 
 	it('is idempotent — registering twice is a no-op', () => {

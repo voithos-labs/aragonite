@@ -1,7 +1,8 @@
 // The height model seeds one estimate per child of a mounted scope, so loading 400,000 blocks
 // pays this 400,000 times before a single one paints. Nodes are synthesized rather than parsed:
 // the estimate reads kind, raw and child count only, and a 20MB parse would dominate the setup.
-import { bench, describe } from 'vitest';
+import { describe, test } from 'vitest';
+import { BENCH_TIMEOUT } from './fixtures/bench-timeout';
 import { makeBlockNode, type BlockMetadata, type CstNode } from '../../core/nodes';
 import { createHeightOracle, type HeightOracle } from '../../cursor/height-oracle';
 
@@ -61,7 +62,8 @@ function build(shape: (i: number) => CstNode): { nodes: CstNode[]; ids: string[]
 /** `buildModel`'s own loop (`reactivity/list-windowing.svelte.ts`), minus the reactive scope. */
 function seed(oracle: HeightOracle, nodes: CstNode[], ids: string[]): number[] {
 	const heights = new Array<number>(nodes.length);
-	for (let i = 0; i < nodes.length; i++) heights[i] = oracle.height(ids[i], nodes[i], WIDTH);
+	for (let i = 0; i < nodes.length; i++)
+		heights[i] = oracle.measured(ids[i]) ?? oracle.estimate(nodes[i], WIDTH);
 	return heights;
 }
 
@@ -72,12 +74,10 @@ describe('height seeding', () => {
 		['400k mixed kinds', mixed]
 	] as const) {
 		const { nodes, ids } = build(shape);
-		bench(
-			`seed ${label}`,
-			() => {
+		test(`seed ${label}`, { timeout: BENCH_TIMEOUT }, async ({ bench }) => {
+			await bench(`seed ${label}`, () => {
 				seed(oracle, nodes, ids);
-			},
-			{ warmupIterations: 1, time: 3_000 }
-		);
+			}).run({ warmupIterations: 1, time: 3_000 });
+		});
 	}
 });

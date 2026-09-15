@@ -89,7 +89,7 @@ function borderBoxHeight(entries: ResizeObserverEntry[], el: HTMLElement): numbe
 
 export interface HeaderSlotCompensationDeps {
 	el: HTMLElement;
-	port: Pick<Scrollport, 'scrollTop' | 'setScrollTop'>;
+	port: Pick<Scrollport, 'scrollTop' | 'scrollBy'>;
 	ownsScrollCorrection(): boolean;
 	revealHoldsScroll(): boolean;
 }
@@ -108,7 +108,7 @@ export function installHeaderSlotCompensation(deps: HeaderSlotCompensationDeps):
 		const delta = height - lastHeight;
 		lastHeight = height;
 		if (delta === 0 || !deps.ownsScrollCorrection() || port.scrollTop() === 0) return;
-		if (!deps.revealHoldsScroll()) port.setScrollTop(port.scrollTop() + delta);
+		if (!deps.revealHoldsScroll()) port.scrollBy(delta);
 	});
 	observer.observe(el);
 	return () => observer.disconnect();

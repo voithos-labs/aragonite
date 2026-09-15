@@ -1,19 +1,16 @@
-# Feature: selection toolbar (consumer rect-API example)
+# Feature: selection toolbar
 
-A shared demo component, mounted by the `/` showcase and the `/test/editor`
-harness (this spec drives the harness mount; `showcase-chrome.md` pins the
-showcase one), built purely consumer-side: a
-`bind:this` `EditorInstance`, `getEvents().on('selectionChange')` for
-lifecycle, and `getRects().rangeRects` for both the cross-block and the
-single-block anchor — the snapshot carries real range offsets, so the public
-API serves extent and geometry alike and the component makes no native
-selection read. `normalizeSelection` orders the endpoints and
-`getBlockKindAt` excludes an intra-table rectangle, so no path arithmetic and
-no class probe live in the component. A `position: fixed` bar floats above the
-selection's first rect, carrying the five `TOOLBAR_COMMANDS` as buttons that
-call `runCommand(id)` rather than synthesizing a chord, each greyed by
-`canRunCommand(id)` when the door would decline it and painted pressed by
-`isCommandActive(id)`.
+The editor's own formatting popover, mounted by `Editor.svelte` in every mode but
+reading and turned off by the `selectionToolbar` prop (the `/test/editor` harness
+takes the default; `showcase-chrome.md` pins the showcase, which ties it to live
+mode). Built purely on the doors a host's chrome would use:
+`getEvents().on('selectionChange')` for lifecycle, `getRects().rangeRects` for both
+the cross-block and the single-block anchor, `normalizeSelection` to order the
+endpoints, `getBlockKindAt` to exclude an intra-table rectangle, and the command
+door for every button: `runCommand(id)` rather than a synthesized chord, greyed by
+`canRunCommand(id)` and painted pressed by `isCommandActive(id)`. A
+`position: fixed` card in the shared `.md-menu` surface opens below and to the
+right of the selection.
 
 ## Happy paths
 
@@ -45,6 +42,13 @@ call `runCommand(id)` rather than synthesizing a chord, each greyed by
 - a cross-block selection leaves the format toggles live and greys only the
   link editor out: the toggles have a cross-block arm behind them, the link
   editor mints over one block's offsets and a range gives it none
+- a cross-block selection drops the "Set heading" row entirely, and a
+  single-block one still offers it: a level belongs to one block, so the door
+  declines the arm, and a labelled row the door declines leaves the bar rather
+  than sitting there greyed (a mark only dims, keeping the icon bar's shape)
+- the "Inline code" row survives the same selection and wraps each block's
+  covered run on its own: it has the cross-block arm the other toggles have,
+  so the bar offers exactly what the door admits
 - the bold button pressed over a cross-block selection wraps every block the
   range touches, and its `aria-pressed` flips to true once they all carry the
   mark: the pressed read answers from the same coverage the press spends
@@ -65,8 +69,8 @@ call `runCommand(id)` rather than synthesizing a chord, each greyed by
 ## Edge cases
 
 - a bar with no room below the selection flips above its first rect, and one
-  at the right edge of the viewport is pushed left; `topInset` (the host's own
-  fixed chrome) floors the flip
+  at the right edge of the viewport is pushed left; the editor root's top (where
+  the host's own chrome ends) floors the flip
 - the bar re-anchors on scroll and resize as well as on selection change, so it
   stays with the text it acts on
 
@@ -82,6 +86,11 @@ call `runCommand(id)` rather than synthesizing a chord, each greyed by
 - Nothing pressed a toggle over a selection of delimiter bytes, so a press that
   writes the bytes unchanged, collapses the selection onto a caret and charges
   an undo entry for it had no scenario at any layer (GH #218)
+- Every cross-block scenario asked the MARKS row what it showed, and nothing ever
+  asked the labelled rows, so the heading picker stayed offered over a range that
+  gave it no one block to act on (GH #324); the seam's own census read the block
+  vocabulary and never the published toolbar ids, so the arm was recorded
+  range-safe with a reason that held for one block only
 - Both shapes are source-mode only, which is why they are pinned there alone: a
   marker-hiding mode's caret stops are the visible ones, so a selection can open
   at the inner run's opener but its next stop is past the content, never inside

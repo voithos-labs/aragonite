@@ -1,5 +1,5 @@
 import { test, expect } from '../../fixtures';
-import { PluginsPage, capturedErrors } from './helpers';
+import { activeBlockPath, PluginsPage, capturedErrors } from './helpers';
 
 /**
  * `:shortcode:` emoji as atomic glyph widgets on the bare `:` trigger. The literal bytes stay in
@@ -73,6 +73,60 @@ test.describe('plugin inline emoji shortcodes', () => {
 		await editor.bridge.waitForSourceContains(':smile:');
 		await expect(emojiIn(editor, 0)).toHaveCount(1);
 		expect(await editor.bridge.getSource()).toBe('Mood :smile: today\n\nType here\n');
+		expect(await capturedErrors(page)).toEqual([]);
+	});
+
+	test('a click past a run of flush glyphs seats the caret after the last one', async ({
+		page
+	}) => {
+		await editor.loadContent('Mood :smile: today\n\nend :dizzy::dizzy::dizzy::sparkles:\n');
+		await editor.setPresentationMode('live');
+		await expect(emojiIn(editor, 1)).toHaveCount(4);
+
+		const last = await emojiIn(editor, 1).last().boundingBox();
+		if (!last) throw new Error('no glyph box');
+		await page.mouse.click(last.x + last.width + 12, last.y + last.height / 2);
+		await editor.typeText('X');
+		await editor.bridge.waitForSourceContains('X');
+
+		expect(await editor.bridge.getSource()).toContain('end :dizzy::dizzy::dizzy::sparkles:X');
+		expect(await capturedErrors(page)).toEqual([]);
+	});
+
+	// Quarters, not halves: the box midline is where the two answers meet, and a press there is
+	// decided by sub-pixel luck.
+	for (const mode of ['source', 'live'] as const) {
+		for (const [side, fraction, expected] of [
+			['left', 0.25, 'Mood X:smile: today'],
+			['right', 0.75, 'Mood :smile:X today']
+		] as const) {
+			test(`${mode}: a click on the glyph's ${side} half seats the caret at that edge`, async ({
+				page
+			}) => {
+				await editor.setPresentationMode(mode);
+				const box = await emojiIn(editor, 0).boundingBox();
+				if (!box) throw new Error('no glyph box');
+				await page.mouse.click(box.x + box.width * fraction, box.y + box.height / 2);
+				await editor.typeText('X');
+
+				await editor.bridge.waitForSourceContains(expected);
+				expect(await capturedErrors(page)).toEqual([]);
+			});
+		}
+	}
+
+	test('reading mode: a press on the glyph focuses the block and writes nothing', async ({
+		page
+	}) => {
+		await editor.setPresentationMode('reading');
+		const box = await emojiIn(editor, 0).boundingBox();
+		if (!box) throw new Error('no glyph box');
+		await page.mouse.click(box.x + box.width * 0.75, box.y + box.height / 2);
+		await editor.waitForNoSourceMutation();
+
+		expect(await editor.bridge.getSource()).toContain('Mood :smile: today');
+		expect(await activeBlockPath(page)).toEqual([0]);
+		expect(await page.evaluate(() => window.getSelection()?.isCollapsed ?? null)).toBe(true);
 		expect(await capturedErrors(page)).toEqual([]);
 	});
 

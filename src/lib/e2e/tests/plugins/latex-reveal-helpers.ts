@@ -71,6 +71,24 @@ export class MathRevealPage extends PluginsPage {
 		for (let i = 0; i < into; i++) await this.page.keyboard.press('ArrowRight');
 	}
 
+	/** Press that far across the painted glyph run and report the offset the reveal seated the
+	 *  caret at, within the revealed source's own text node. */
+	async revealOffsetAtGlyphFraction(fraction: number): Promise<number | null> {
+		const box = await this.mathWidget.locator('.katex-html').first().boundingBox();
+		if (!box) throw new Error('no glyph box for the rendered formula');
+		await this.page.mouse.click(box.x + box.width * fraction, box.y + box.height / 2);
+		await expect(this.mathWidget).toHaveCount(0);
+		return this.page.evaluate(() => {
+			const selection = window.getSelection();
+			if (!selection || selection.rangeCount === 0) return null;
+			const range = selection.getRangeAt(0);
+			// Null unless the caret is in the revealed source itself: the offset means nothing
+			// measured against a neighbouring prose text node.
+			const text = range.startContainer.textContent ?? '';
+			return /^\$.*\$$/.test(text) ? range.startOffset : null;
+		});
+	}
+
 	/** Backspace once per entry, settling on the revealed source's visible text after
 	 *  each press. The CST is frozen while revealed, so the DOM is the only oracle. */
 	async backspaceRevealed(block: number, texts: string[]): Promise<void> {

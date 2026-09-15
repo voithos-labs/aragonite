@@ -31,6 +31,13 @@ import markdown from 'highlight.js/lib/languages/markdown';
 import diff from 'highlight.js/lib/languages/diff';
 import latex from 'highlight.js/lib/languages/latex';
 
+import csharp from 'highlight.js/lib/languages/csharp';
+import kotlin from 'highlight.js/lib/languages/kotlin';
+import swift from 'highlight.js/lib/languages/swift';
+import php from 'highlight.js/lib/languages/php';
+import powershell from 'highlight.js/lib/languages/powershell';
+import dockerfile from 'highlight.js/lib/languages/dockerfile';
+
 let booted = false;
 
 export function bootstrapCodeLanguages(): void {
@@ -56,6 +63,13 @@ export function bootstrapCodeLanguages(): void {
 	registerLanguage('markdown', markdown, ['md']);
 	registerLanguage('diff', diff);
 	registerLanguage('latex', latex, ['tex']);
+
+	registerLanguage('csharp', csharp, ['cs', 'c#']);
+	registerLanguage('kotlin', kotlin, ['kt']);
+	registerLanguage('swift', swift);
+	registerLanguage('php', php);
+	registerLanguage('powershell', powershell, ['ps1']);
+	registerLanguage('dockerfile', dockerfile, ['docker']);
 
 	registerPasteSurface(codePasteSurface);
 	registerCodeContextActions();

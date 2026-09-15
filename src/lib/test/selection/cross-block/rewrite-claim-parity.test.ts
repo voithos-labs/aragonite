@@ -1,11 +1,9 @@
 // @vitest-environment jsdom
 //
-// G4.40 — "single-block rewrite" is spelled in three places and must name one set: the ids the
-// built-in keymaps bind, the ids the dispatch seam answers specially over a cross-block range
-// (`RANGE_DECLINED_COMMAND_IDS` declines, `CROSS_BLOCK_RANGE_COMMAND_IDS` routes to the arm),
-// and the chords `cross-block/keydown.ts` claims before its delete-and-redispatch arm. A sixth
-// rewrite taught to one spelling is an N-1 gap at the other two. The swallow GROWING a chord is
-// caught by G4.29 instead, off the key literals its manifest records.
+// G4.40 — "single-block rewrite" is spelled in three places (the built-in keymaps, the dispatch
+// seam's range lists, the chords `cross-block/keydown.ts` claims) and the rewrite-scoped subset
+// must agree: a sixth rewrite taught to one spelling is an N-1 gap at the other two. The seam
+// lists may hold a non-rewrite id too (`heading.cycle`); G4.29 catches a chord growing.
 import { describe, it, expect } from 'vitest';
 import { ALL_BLOCK_KINDS } from '$lib/core/nodes';
 import { tryGetBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
@@ -61,9 +59,14 @@ async function pressOverCrossBlockRange(chord: string) {
 describe('G4.40 single-block-rewrite set parity', () => {
 	const keymap = singleBlockRewriteKeymap();
 
-	it('the keymaps bind exactly the ids the seam answers specially over a range', () => {
+	it('the keymaps bind exactly the rewrite ids the seam answers specially over a range', () => {
 		const bound = [...new Set(keymap.map((row) => row.command))].sort();
-		expect(bound).toEqual([...RANGE_DECLINED_COMMAND_IDS, ...CROSS_BLOCK_RANGE_COMMAND_IDS].sort());
+		// Scoped to the rewrites: the seam declines the heading arm too, but its chords reach it
+		// through the delete-and-redispatch arm, so no rewrite chord names it.
+		const answered = [...RANGE_DECLINED_COMMAND_IDS, ...CROSS_BLOCK_RANGE_COMMAND_IDS]
+			.filter(isSingleBlockRewriteId)
+			.sort();
+		expect(bound).toEqual(answered);
 	});
 
 	it.each(keymap)('$chord ($command) is claimed over a cross-block range', async ({ chord }) => {

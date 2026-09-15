@@ -4,13 +4,16 @@
 // re-export that drifts from the registry behind it fails here rather than in a host's build.
 import { describe, it, expect } from 'vitest';
 import latex from 'highlight.js/lib/languages/latex';
-import { highlightCode, listLanguages, registerLanguage } from '$lib/plugin';
+import { getLanguageAliases, highlightCode, listLanguages, registerLanguage } from '$lib/plugin';
 
 describe('the plugin barrel’s code-language surface', () => {
-	it('round-trips a registered grammar into the picker’s list', () => {
+	it('round-trips a registered grammar into the picker’s list, its alias folded in', () => {
 		registerLanguage('latex', latex, ['tex']);
 
-		expect(listLanguages()).toEqual(expect.arrayContaining(['latex', 'tex']));
+		expect(listLanguages()).toContain('latex');
+		expect(listLanguages()).not.toContain('tex');
+		// The list is canonical, so the folded spellings stay reachable for a host's own picker.
+		expect(getLanguageAliases('latex')).toContain('tex');
 	});
 
 	it('highlights text-preservingly, through the registered name and its alias', () => {

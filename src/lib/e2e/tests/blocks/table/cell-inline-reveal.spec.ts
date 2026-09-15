@@ -47,7 +47,7 @@ test.describe('table cell: inline math reveal-to-edit', () => {
 		page
 	}) => {
 		await revealWidget(editor.mathWidget);
-		await page.keyboard.press('Home'); // the reveal seats the caret at the formula's end
+		await page.keyboard.press('Home'); // back to the cell start, wherever the press seated
 		await page.keyboard.press('ArrowRight'); // past the opening `$`
 		await page.keyboard.type('y');
 		await page.keyboard.press('Enter');
@@ -64,7 +64,7 @@ test.describe('table cell: inline math reveal-to-edit', () => {
 		page
 	}) => {
 		await revealWidget(editor.mathWidget);
-		await page.keyboard.press('Home'); // the reveal seats the caret at the formula's end
+		await page.keyboard.press('Home'); // back to the cell start, wherever the press seated
 		await page.keyboard.press('ArrowRight'); // past the opening `$`
 		await page.keyboard.type('|');
 		await page.keyboard.press('Enter');

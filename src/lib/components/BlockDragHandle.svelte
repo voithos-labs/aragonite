@@ -48,6 +48,8 @@
 		left: 0;
 		width: 100%;
 		height: 1.25rem;
+		/* the em line is the same first-line centre for engines without lh (Safari before 16.4) */
+		top: 0.75em;
 		top: 0.5lh;
 		transform: translateY(-50%);
 		display: flex;

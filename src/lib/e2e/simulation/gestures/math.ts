@@ -39,14 +39,16 @@ async function blockRaw(ctx: SimContext, index: number): Promise<string> {
 
 // A plain `.click()` lands at the first content quad's center, which the clipped 1px
 // `.katex-mathml` half degenerates to a corner OUTSIDE the island — silently missing the
-// reveal hit-test. Aim at the painted `.katex-html` glyphs instead.
-export async function clickInlineWidget(page: Page, nth: number): Promise<void> {
+// reveal hit-test. Aim at the painted `.katex-html` glyphs instead, at `xFraction` across
+// them, since the reveal seats the caret where the press landed.
+export async function clickInlineWidget(page: Page, nth: number, xFraction = 0.5): Promise<void> {
 	const widget = page.locator(INLINE_WIDGET).nth(nth);
 	const glyphs = widget.locator('.katex-html');
 	const target = (await glyphs.count()) > 0 ? glyphs.first() : widget;
 	const box = await target.boundingBox();
 	if (!box) throw new Error('inline math widget has no bounding box');
-	await target.click({ position: { x: box.width / 2, y: box.height / 2 } });
+	const x = Math.min(box.width * xFraction, box.width - 1);
+	await target.click({ position: { x, y: box.height / 2 } });
 }
 
 /**
@@ -94,10 +96,10 @@ export async function editInlineMath(ctx: SimContext, text: string): Promise<voi
 	const before = await editor.bridge.getSource();
 	const widgetCount = await page.locator(INLINE_WIDGET).count();
 
-	await clickInlineWidget(page, 0);
+	// Pressed at the formula's tail, so the caret sits inside the closer and the byte lands last.
+	await clickInlineWidget(page, 0, 1);
 	await waitForWidgetCount(page, widgetCount - 1); // the clicked island folded to source
 	await editor.waitForRenderFlush();
-	// The click seats the caret at the formula's end, inside the closer, so the byte lands last.
 	await page.keyboard.type(text);
 	await escapeRevealToCommit(ctx, before);
 

@@ -91,11 +91,21 @@ export async function capturedErrors(page: Page): Promise<string[]> {
 // that point to a corner outside the island, silently missing the reveal hit-test. Target
 // `.katex-html` (the painted glyphs) when present; fall back to the island's border-box center.
 export async function clickWidgetCenter(widget: Locator): Promise<void> {
+	await clickWidgetAt(widget, (width) => width / 2);
+}
+
+// A press on a widget seats the caret where it landed, so a spec that wants the caret at the
+// construct's tail aims there rather than relying on the seat a center press happens to give.
+export async function clickWidgetEnd(widget: Locator): Promise<void> {
+	await clickWidgetAt(widget, (width) => width - 1);
+}
+
+async function clickWidgetAt(widget: Locator, xOf: (width: number) => number): Promise<void> {
 	const visible = widget.locator('.katex-html');
 	const target = (await visible.count()) > 0 ? visible.first() : widget;
 	const box = await target.boundingBox();
 	if (!box) throw new Error('widget has no bounding box');
-	await target.click({ position: { x: box.width / 2, y: box.height / 2 } });
+	await target.click({ position: { x: xOf(box.width), y: box.height / 2 } });
 }
 
 // Reveal a render-primary widget by clicking it and settling on the fold-out: the rendered widget

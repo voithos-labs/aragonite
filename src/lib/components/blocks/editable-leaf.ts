@@ -100,9 +100,9 @@ export interface EditableLeafDeps {
 	onSourceEdit?(text: string): void;
 	/**
 	 * A source that is only its own chrome (a `$$$$` with no body line), completed to the shape
-	 * a caret can sit in, with where the caret goes. Applied as the source is revealed, so the
-	 * block the user just entered is one they can type into and delete; null leaves the bytes
-	 * alone. The edit is the reveal's own, committed on blur like any other.
+	 * a caret can sit in, with where the caret goes. Applied as the source is revealed AND after
+	 * any edit that empties it, so the block is one the user can type into and delete however it
+	 * got there; null leaves the bytes alone. The edit is the reveal's own, committed on blur.
 	 */
 	completeBareSource?(text: string): { text: string; caret: number } | null;
 }
@@ -555,11 +555,15 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		const text = el.textContent ?? '';
 		const keystroke = end - start <= 1 && insert.length <= 1 && insert !== '\n';
 		if (deps.renderSource) recordSourceEdit(text, getCursorOffset(el) ?? start, keystroke);
-		const next = text.slice(0, start) + insert + text.slice(end);
+		const spliced = text.slice(0, start) + insert + text.slice(end);
+		// An edit that empties the body leaves the same chrome-only source a bare block arrives
+		// as, so the edit door owes the completion the reveal door applies.
+		const completed = deps.completeBareSource?.(spliced) ?? null;
+		const next = completed?.text ?? spliced;
 		paintSource(el, next);
 		deps.onSourceEdit?.(next);
 		preEditOffset = start;
-		setCursorOffset(el, asDomTextOffset(start + insert.length));
+		setCursorOffset(el, asDomTextOffset(completed?.caret ?? start + insert.length));
 		// Armed once the edit has settled, so the window measures the gap the user leaves.
 		if (deps.renderSource && keystroke) sourceBatch.armPause();
 		if (mode === 'plain') editableSurface.onInput();

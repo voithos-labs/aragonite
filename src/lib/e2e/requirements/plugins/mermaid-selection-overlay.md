@@ -3,8 +3,8 @@
 A container block with NO child block-hosts (a render-primary plugin block like mermaid)
 has no children to paint cross-block selection highlights, so the block itself must take
 the full-block overlay when it sits strictly inside a cross-block range — the same
-whole-block highlight a non-text leaf (thematic break) gets. Child-bearing containers keep
-delegating: their children paint, the container never double-paints.
+whole-block highlight a non-text leaf (thematic break) gets, and the same box a
+child-bearing container takes when the range holds it whole.
 
 ## Happy paths
 
@@ -18,8 +18,9 @@ delegating: their children paint, the container never double-paints.
 
 ## Edge cases
 
-- A child-bearing opaque container (callout) strictly inside a range paints NO
-  container-level overlay; its child block-hosts paint their own (no double paint)
+- A child-bearing opaque container (callout) the range holds whole paints ONE
+  container-level box, title chrome included, and its child block-hosts paint none
+  (no double paint)
 
 ## Miss-analysis
 

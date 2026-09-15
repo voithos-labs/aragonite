@@ -265,3 +265,76 @@ describe('isAtFirstVisualLine / isAtLastVisualLine', () => {
 		expect(isAtLastVisualLine(block, 8, 8)).toBe(true);
 	});
 });
+
+// Miss-analysis: the rect-less branch was exercised only with the caret inside a text node, the one
+// shape Chromium always measures, so nothing asked the predicates about an element-level caret
+// beside an atomic island, where the island's own box is what names the line.
+describe('a caret with no rect of its own reads the line off the box it sits against', () => {
+	let block: HTMLElement;
+	let island: HTMLElement;
+	const originalRangeRects = Range.prototype.getClientRects;
+	const originalRangeBox = Range.prototype.getBoundingClientRect;
+	const originalComputed = window.getComputedStyle;
+
+	beforeEach(() => {
+		block = document.createElement('div');
+		block.contentEditable = 'true';
+		island = document.createElement('span');
+		island.contentEditable = 'false';
+		island.appendChild(document.createTextNode('©'));
+		block.appendChild(island);
+		document.body.appendChild(block);
+		window.getComputedStyle = (() => ({
+			lineHeight: `${LINE_HEIGHT}px`
+		})) as unknown as typeof window.getComputedStyle;
+	});
+
+	afterEach(() => {
+		Range.prototype.getClientRects = originalRangeRects;
+		Range.prototype.getBoundingClientRect = originalRangeBox;
+		window.getComputedStyle = originalComputed;
+		block.remove();
+		window.getSelection()?.removeAllRanges();
+	});
+
+	/** Collapsed ranges measure to nothing, as they do beside a `contenteditable=false` island;
+	 *  every other range answers from `boxes`, keyed by the range's start offset in `block`. */
+	function stubRects(boxes: (start: number) => DOMRect): void {
+		Range.prototype.getClientRects = function (this: Range): DOMRectList {
+			return this.collapsed ? rectListOf(null) : rectListOf(boxes(this.startOffset));
+		};
+		Range.prototype.getBoundingClientRect = function (this: Range): DOMRect {
+			return this.collapsed ? rectAt(0, 0) : boxes(this.startOffset);
+		};
+	}
+
+	function placeCursorAt(offset: number): void {
+		const range = document.createRange();
+		range.setStart(block, offset);
+		range.collapse(true);
+		const sel = window.getSelection()!;
+		sel.removeAllRanges();
+		sel.addRange(range);
+	}
+
+	it('a widget-only block is one visual line from either edge of the island', () => {
+		stubRects(() => rectAt(40));
+		placeCursorAt(0);
+		expect(isAtFirstVisualLine(block, 0, 0)).toBe(true);
+		expect(isAtLastVisualLine(block, 0, 6)).toBe(true);
+		placeCursorAt(1);
+		expect(isAtFirstVisualLine(block, 6, 0)).toBe(true);
+		expect(isAtLastVisualLine(block, 6, 6)).toBe(true);
+	});
+
+	// An island wide enough to wrap sits on its own line below the text, the shape an inline image
+	// makes: the caret against it is on the last line but no longer on the first.
+	it('an island on its own line below the text is the last line, not the first', () => {
+		block.insertBefore(document.createTextNode('a'), island);
+		// Island at [1]; the block's whole contents start at [0] and span both lines.
+		stubRects((start) => (start === 1 ? rectAt(30, 120) : rectAt(0, 150)));
+		placeCursorAt(2);
+		expect(isAtLastVisualLine(block, 0, 6)).toBe(true);
+		expect(isAtFirstVisualLine(block, 0, 0)).toBe(false);
+	});
+});

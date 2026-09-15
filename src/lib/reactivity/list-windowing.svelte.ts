@@ -149,7 +149,23 @@ export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
 	// `getChildIds()` already reflects the new children. Copied — it is spliced in place.
 	let modelChildIds: string[] = [];
 
-	function buildModel(): HeightModel {
+	/** What the CURRENT model holds, keyed by id, for a rebuild to carry across. The two lengths
+	 *  diverge for one tick after a child change, and a slot past the model's end reads 0. */
+	function heightsById(): Map<string, number> {
+		const carried = new Map<string, number>();
+		const known = Math.min(modelChildIds.length, model.size);
+		for (let i = 0; i < known; i++) carried.set(modelChildIds[i], model.heightOf(i));
+		return carried;
+	}
+
+	/**
+	 * A surviving block keeps the height the model measured (VR-15); `carried` is null only
+	 * where a width or type-scale change has earned a reseed from the oracle. The cache behind
+	 * those heights can be gone (a mode flip drops it, and a block whose box never moved reports
+	 * no resize to put it back), so reseeding a structural rebuild would trade a whole document
+	 * of measurements for estimates and scroll the reader by the difference.
+	 */
+	function buildModel(carried: Map<string, number> | null): HeightModel {
 		const width = estimateWidth(deps.getListEl(), deps.getPort()?.contentWidth() ?? 0);
 		const children = deps.getChildren();
 		// Indexed, and off the snapshot: `map` pays a `has` trap beside every `get`, once per child.
@@ -157,12 +173,14 @@ export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
 		const count = children.length;
 		const heights = new Array<number>(count);
 		for (let i = 0; i < count; i++) {
-			heights[i] = deps.oracle.height(modelChildIds[i], children[i], width);
+			const id = modelChildIds[i];
+			heights[i] =
+				deps.oracle.measured(id) ?? carried?.get(id) ?? deps.oracle.estimate(children[i], width);
 		}
 		return new HeightModel(heights);
 	}
 
-	let model = $state<HeightModel>(buildModel());
+	let model = $state<HeightModel>(buildModel(null));
 	let heightVersion = $state(0);
 
 	// One scope-owned batched pass rather than a per-child effect, which would interleave a
@@ -261,7 +279,7 @@ export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
 		const before = model.offsetOf(anchorIndex);
 		mutate();
 		const delta = model.offsetOf(anchorIndex) - before;
-		if (delta !== 0 && port) port.setScrollTop(port.scrollTop() + delta);
+		if (delta !== 0 && port) port.scrollBy(delta);
 	}
 
 	// The structural-rebuild variant of correctAnchor. A count change shifts every index
@@ -286,7 +304,7 @@ export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
 		const newIndex = anchorId !== undefined ? modelChildIds.indexOf(anchorId) : -1;
 		if (newIndex === -1) return;
 		const delta = model.offsetOf(newIndex) - before;
-		if (delta !== 0 && port) port.setScrollTop(port.scrollTop() + delta);
+		if (delta !== 0 && port) port.scrollBy(delta);
 	}
 
 	let lastWidthVersion = deps.getWidthVersion();
@@ -307,8 +325,10 @@ export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
 			// the re-measure compares measured-before against all-estimate-after, and lands the
 			// anchor a block off wherever the poisoned model names a different top child (#188).
 			// Width only — re-measuring on a structural edit costs a reflow per split.
+			// Read off the OLD model, so the carry is taken before the rebuild replaces it.
+			const carried = widthChanged ? null : heightsById();
 			correctAnchorByStableId(() => {
-				model = buildModel();
+				model = buildModel(carried);
 				heightVersion++;
 				if (widthChanged) remeasureMounted();
 			});

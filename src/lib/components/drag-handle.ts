@@ -47,6 +47,15 @@ export function showsDragHandle(node: NodeView, handlesEnabled: boolean): boolea
 	return handlesEnabled && !GRIPLESS_KINDS.has(node.kind);
 }
 
+/**
+ * A list item's grip reorders it among its SIBLINGS and nowhere else: the drag is scoped to
+ * the enclosing list, so a lone item has nothing to trade places with and its grip is a
+ * promise the drop can't keep. It reappears the moment a second item joins the list.
+ */
+export function showsListItemDragHandle(itemCount: number, handlesEnabled: boolean): boolean {
+	return handlesEnabled && itemCount > 1;
+}
+
 /** A box within this many line-heights holds one row of content, margins included. */
 const SINGLE_LINE = 1.5;
 

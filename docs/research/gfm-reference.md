@@ -276,7 +276,7 @@ x^2 + y^2 = z^2
 ```
 ````
 
-One divergence, on purpose: a `$` followed straight away by a digit is currency, not math, so `$5` and `$5 and $10` stay literal text. Only the opener is guarded, so `$x^2$` still closes on its `2`.
+The closing rule is pandoc's: a `$…$` run closes at the next `$`, which needs a non-space before it and no digit after it, and a run that fails there stays literal rather than trying a later `$` (so `$5 and $10` is two prices, and `It costs $5 and the ratio is $x$` renders only `$x$`). One divergence, on purpose: a run that holds only a number (`$5$`, `$1,000$`) is currency, not math, so a typed price never turns into a formula. A digit may open a formula (`$10^5$`) and close one (`$x^2$`).
 
 - **Mermaid Diagrams:** A fenced code block tagged `mermaid` renders as a diagram. The bundled mermaid plugin does the rendering, with the `mermaid` package as an optional peer dependency.
 

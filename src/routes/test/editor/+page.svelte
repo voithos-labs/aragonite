@@ -13,7 +13,6 @@
 	import { createPanelState } from '../../debug-panel/panel-state.svelte';
 	import { createDebugPanelFeed } from '../../debug-panel/panel-feed.svelte';
 	import InsertToolbar from '../../InsertToolbar.svelte';
-	import SelectionToolbar from '../../SelectionToolbar.svelte';
 	import { harnessPasteImage, installTestProbes } from './test-probes';
 	import { trackParityDocument } from '../../parity-documents.svelte';
 
@@ -233,7 +232,6 @@
 					searchBarAnchor={anchorAttached ? searchAnchorEl : null}
 				/>
 			{/key}
-			<SelectionToolbar {editor} />
 		</div>
 		<DebugPanel {panel} {...panelFeed} />
 	</div>

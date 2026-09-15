@@ -2,8 +2,9 @@ import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 
 /**
- * Selection toolbar (requirements/decorations/selection-toolbar.md): the demo route's
- * consumer-side rect-API example, driven with real mouse and keyboard gestures.
+ * Selection toolbar (requirements/decorations/selection-toolbar.md): the editor's own
+ * popover, mounted by the harness through the default prop, driven with real mouse and
+ * keyboard gestures.
  */
 
 const TOOLBAR = '[data-testid="selection-toolbar"]';
@@ -207,6 +208,43 @@ test.describe('selection toolbar', () => {
 
 		await editor.bridge.waitForSourceEquals('**first block**\n\n**second block**\n', 3000);
 		await expect(bold).toHaveAttribute('aria-pressed', 'true');
+	});
+
+	// A heading level belongs to one block, so the door declines it over a range and the row goes
+	// with it; the rows that DO act on the whole range stay.
+	test('a cross-block selection drops the Set heading row, a single-block one keeps it', async ({
+		page
+	}) => {
+		await editor.loadContent('first block here\n\nsecond block below\n');
+		await editor.focusBlockStart(0);
+		await page.keyboard.press('ControlOrMeta+Shift+End');
+		await editor.waitForCrossBlock(true);
+
+		await expect(page.locator(TOOLBAR)).toBeVisible();
+		await expect(page.locator('[data-testid="toolbar-set-heading"]')).toHaveCount(0);
+
+		await page.keyboard.press('ArrowLeft');
+		await editor.waitForCrossBlock(false);
+		await editor.focusBlock(0, 3);
+		for (let i = 0; i < 4; i++) await page.keyboard.press('Shift+ArrowRight');
+
+		await expect(page.locator(TOOLBAR)).toBeVisible();
+		await expect(page.locator('[data-testid="toolbar-set-heading"]')).toBeVisible();
+	});
+
+	// The row the issue asked to drop with the heading picker: it stays because it HAS a
+	// cross-block arm, and each block's covered run becomes its own code span.
+	test('the inline code row over a cross-block selection wraps each block on its own', async ({
+		page
+	}) => {
+		await editor.loadContent('first block\n\nsecond block\n');
+		await editor.focusBlock(0, 3);
+		await page.keyboard.press('ControlOrMeta+a');
+		await page.keyboard.press('ControlOrMeta+a');
+		await editor.waitForCrossBlock(true);
+
+		await page.locator('[data-testid="toolbar-format.toggleCode"]').click();
+		await editor.bridge.waitForSourceEquals('`first block`\n\n`second block`\n', 3000);
 	});
 
 	// The editor's own menu takes the selection's spot: two cards over one range read as a glitch.

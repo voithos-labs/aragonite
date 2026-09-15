@@ -7,7 +7,8 @@ import {
 	CURSOR_END,
 	CURSOR_START,
 	type BlockComponent,
-	type FocusPosition
+	type FocusPosition,
+	type StickyColumnDirection
 } from '../../block-component';
 import type { StickyColumnState } from '../../cursor/sticky-column';
 
@@ -20,12 +21,14 @@ export async function consumeStickyLanding(
 ): Promise<void> {
 	const isStickyMove = typeof position === 'object' && 'stickyColumnFrom' in position;
 
-	// Widget-only blocks contribute no column landing, so ArrowUp/Down passes through.
-	// Horizontal moves still stop at the widget edge.
-	if (isStickyMove && block.isVerticallyTransparent?.()) {
-		const direction = position.stickyColumnFrom === 'below' ? -1 : 1;
-		await retryAt(index + direction);
-		return;
+	if (isStickyMove) {
+		const from = position.stickyColumnFrom;
+		const arrival = verticalArrival(block, from);
+		if (arrival === 'entered') return;
+		if (arrival === 'transparent') {
+			await retryAt(index + (from === 'below' ? -1 : 1));
+			return;
+		}
 	}
 
 	// Enter an edge widget rather than dropping a no-op caret at its boundary, so the
@@ -49,4 +52,21 @@ export async function consumeStickyLanding(
 	if (typeof position === 'number') block.focus(position);
 	else if (position === 'start') block.focus(CURSOR_START);
 	else block.focus(CURSOR_END);
+}
+
+/** What a vertical arrival does at a block: enter its widget, pass over it, or seat a caret. */
+export type VerticalArrival = 'entered' | 'transparent' | 'seat';
+
+/**
+ * The vertical stop rule, asked by both vertical doors: the per-block landing and a container's
+ * column entry. A widget-only block carries no column, so it is passed over unless its edge widget
+ * takes the arrival, which is a stop of its own and reads alike from either side. `'entered'` means
+ * the widget ALREADY took it, so the caller stops rather than repeating the entry.
+ */
+export function verticalArrival(
+	block: BlockComponent,
+	from: StickyColumnDirection
+): VerticalArrival {
+	if (!block.isVerticallyTransparent?.()) return 'seat';
+	return block.enterEdgeWidget?.(from === 'above' ? 'start' : 'end') ? 'entered' : 'transparent';
 }

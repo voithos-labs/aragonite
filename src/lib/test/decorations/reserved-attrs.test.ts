@@ -74,6 +74,7 @@ describe('acceptedBlockAttrs', () => {
 			'data-image-widget',
 			'data-inline-widget',
 			'data-link-card',
+			'data-pointer-gesture',
 			'data-presentation',
 			'data-table-row-idx'
 		]);

@@ -42,13 +42,12 @@ describe('createHeightOracle', () => {
 		expect(o.estimate(code, 800)).toBe(20 * 4 + 16);
 	});
 
-	it('measured height supersedes the estimate; height() prefers it', () => {
+	it('a measured height reads back; an unmeasured id reads nothing', () => {
 		const o = createHeightOracle(opts);
-		const node = para('hello');
 		o.recordMeasured('id-1', 99);
 		expect(o.measured('id-1')).toBe(99);
-		expect(o.height('id-1', node, 800)).toBe(99);
-		expect(o.height('id-2', node, 800)).toBe(24 + 16);
+		expect(o.measured('id-2')).toBeUndefined();
+		expect(o.estimate(para('hello'), 800)).toBe(24 + 16);
 	});
 
 	it('dropMeasured falls every id back to its estimate', () => {

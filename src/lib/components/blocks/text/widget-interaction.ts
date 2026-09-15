@@ -16,6 +16,7 @@ import { resolvedInlineContent } from '../../../core/inline/inline-cache';
 import {
 	flattenInlineWidgets,
 	getInlineWidgetEditing,
+	isCharacterLikeWidget,
 	isWidgetActivationClick
 } from '../../../core/inline/inline-widgets';
 import { isVerticallyTransparentNode } from '../../../core/inline/transparency';
@@ -31,6 +32,7 @@ import {
 	selectionFocusWalkOffset
 } from '../../../cursor/widget-offset';
 import { createSourceReveal, type SourceReveal } from '../../../cursor/reveal-source';
+import { nearestWidgetEdgeSeat, type WidgetEdgeCandidate } from '../../../cursor/widget-edge-snap';
 import {
 	traceRevealOpen,
 	traceRevealFold,
@@ -38,7 +40,12 @@ import {
 } from '../../../debug/interaction-trace';
 import { assertInvariant } from '../../../assert';
 import type { RevealFold } from '../editable-surface';
-import { caretIsInTextContent, hasModifier, isPlainTypingKey } from './click-snap-guard';
+import {
+	caretIsInTextContent,
+	hasModifier,
+	isPlainTypingKey,
+	surfaceHoldsRange
+} from './click-snap-guard';
 import {
 	findWidgetNodeByStart,
 	findFirstEdgeWidget,
@@ -481,15 +488,26 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 	}
 
 	/**
-	 * The caret a click on a rendered widget wants: the END of the content a kind names, INSIDE
-	 * its delimiters, so typing continues the construct rather than escaping it. A kind naming no
-	 * span keeps the leading edge: guessing an end from its parsed text put a footnote's caret
-	 * past its bracket.
+	 * Where a click on a rendered widget seats the caret when its kind maps no point: the END of
+	 * the content a kind names, INSIDE its delimiters, so typing continues the construct rather
+	 * than escaping it. A kind naming no span keeps the leading edge — guessing an end from its
+	 * parsed text put a footnote's caret past its bracket.
 	 */
 	function insideEndOffset(inline: InlineNode): number {
 		const source = deps.node.raw.slice(inline.start, inline.end);
 		const span = getInlineWidgetEditing(inline.kind)?.revealContentSpan?.(source);
 		return span && span.end >= 0 && span.end <= source.length ? span.end : 0;
+	}
+
+	/** The offset a press names inside a widget's source. Read against the PRE-fold geometry:
+	 *  a fold reflows the line and the point stops meaning anything the moment it runs. */
+	function seatFromPoint(el: HTMLElement, inline: InlineNode, x: number, y: number): number | null {
+		const widget = widgetElByStart(el, inline.start);
+		const atPoint = getInlineWidgetEditing(inline.kind)?.revealOffsetAtPoint;
+		if (!widget || !atPoint) return null;
+		const source = deps.node.raw.slice(inline.start, inline.end);
+		const seat = atPoint(widget, source, x, y);
+		return seat === null ? null : Math.max(0, Math.min(seat, source.length));
 	}
 
 	function hitTestRevealWidget(
@@ -532,6 +550,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		if (!el) return;
 		const hit = hitTestRevealWidget(el, clickX, clickY);
 		if (!hit) return;
+		const seat = seatFromPoint(el, hit.inline, clickX, clickY);
 		let targetStart = hit.inline.start;
 		if (revealState) {
 			const active = revealState;
@@ -556,9 +575,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		if (!target) return;
 		el.focus();
 		revealOpenedByLastClick = true;
-		// A click can't map to a source glyph, so it lands at the end of the content rather
-		// than guessing: the caret sits inside the delimiters, ready to type.
-		void startReveal(target, target.start, insideEndOffset(target));
+		void startReveal(target, target.start, seat ?? insideEndOffset(target));
 	}
 
 	/**
@@ -820,21 +837,32 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		// The first click of a double-click already revealed, so the second lands in the source
 		// text and the browser's word rule takes `[` or `$` as a word of its own.
 		if (doubleClick && revealOpenedByLastClick && selectRevealedSource(clickX, clickY)) return;
-		// A click in a real text node keeps the native caret; a synthetic overlay would compete.
-		if (caretIsInTextContent(el, window.getSelection())) return;
+		// The snap below seats a CARET, so it stands down for a range this surface paints, which it
+		// would collapse; the rule `clampOutOfAmbient` already carries.
+		const live = window.getSelection();
+		if (surfaceHoldsRange(el, live)) return;
+		const seat = nearestWidgetEdgeSeat(measuredWidgets(el), clickX, clickY);
+		if (seat === null) return;
+		// A press BESIDE an island stands down for a visible caret; a press ON one cannot, since the
+		// engine answers that hit test with a position in the neighbouring text.
+		if (!seat.inside && caretIsInTextContent(el, live)) return;
+		el.focus();
+		deps.cursor.setRaw(asRawOffset(seat.offset));
+		// `setRaw`'s walker may have landed in a trailing text node, where native renders.
+		if (!caretIsInTextContent(el, window.getSelection())) deps.setSnapTarget(seat.offset);
+	}
+
+	function* measuredWidgets(el: HTMLElement): Generator<WidgetEdgeCandidate> {
 		for (const inline of widgetsOf()) {
 			const widget = widgetElByStart(el, inline.start);
-			if (!widget) continue;
-			const rect = widget.getBoundingClientRect();
-			const snapTo = clickX > rect.right ? inline.end : clickX < rect.left ? inline.start : null;
-			if (snapTo === null) continue;
-			el.focus();
-			deps.cursor.setRaw(asRawOffset(snapTo));
-			// `setRaw`'s walker may have landed in a trailing text node, where native renders.
-			if (!caretIsInTextContent(el, window.getSelection())) {
-				deps.setSnapTarget(snapTo);
+			if (widget) {
+				yield {
+					start: inline.start,
+					end: inline.end,
+					rect: widget.getBoundingClientRect(),
+					seatsInside: isCharacterLikeWidget(inline.kind)
+				};
 			}
-			return;
 		}
 	}
 

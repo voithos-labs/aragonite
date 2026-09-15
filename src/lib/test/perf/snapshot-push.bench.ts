@@ -3,7 +3,8 @@
 // that production skips; the digestDoc rows isolate it (production ≈ push − digest).
 // The stack saturates at MAX_UNDO during sampling, so means report steady-state
 // long-session behavior rather than first-push behavior.
-import { bench, describe } from 'vitest';
+import { describe, test } from 'vitest';
+import { BENCH_TIMEOUT } from './fixtures/bench-timeout';
 import { parse } from '../../core/parser';
 import { createUndoController } from '../../editor-actions/commit/undo-controller';
 import { digestDoc } from '../../invariants/snapshot-integrity';
@@ -27,25 +28,21 @@ for (const shape of SHAPES) {
 
 	describe(`pushUndoSnapshot ${shape}`, () => {
 		for (const { label, opts, controller } of cells) {
-			bench(
-				label,
-				() => {
+			test(label, { timeout: BENCH_TIMEOUT }, async ({ bench }) => {
+				await bench(label, () => {
 					controller.pushUndoSnapshot(0, 0);
-				},
-				{ warmupIterations: 1, ...opts }
-			);
+				}).run({ warmupIterations: 1, ...opts });
+			});
 		}
 	});
 
 	describe(`digestDoc ${shape}`, () => {
 		for (const { label, opts, doc } of cells) {
-			bench(
-				label,
-				() => {
+			test(label, { timeout: BENCH_TIMEOUT }, async ({ bench }) => {
+				await bench(label, () => {
 					digestDoc(doc);
-				},
-				{ warmupIterations: 1, ...opts }
-			);
+				}).run({ warmupIterations: 1, ...opts });
+			});
 		}
 	});
 }

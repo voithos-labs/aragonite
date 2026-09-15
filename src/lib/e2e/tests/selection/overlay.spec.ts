@@ -74,7 +74,7 @@ test.describe('selection — overlay: edge cases', () => {
 		).toBeAttached();
 	});
 
-	test('container block does not render its own overlay when children already have overlays', async () => {
+	test('a container the range holds whole paints one box, its children none', async () => {
 		await editor.loadContent('before\n\n> quote line 1\n> quote line 2\n\nafter\n');
 		await editor.focusBlockStart(0);
 		await editor.page.keyboard.press('ControlOrMeta+Shift+End');
@@ -82,9 +82,9 @@ test.describe('selection — overlay: edge cases', () => {
 
 		await expect(
 			editor.page.locator("[data-block-path='[1]'] > .selection-overlay-middle")
-		).toHaveCount(0);
+		).toHaveCount(1);
 		await expect(
-			editor.page.locator('[data-block-path] [data-block-path] .selection-overlay-middle').first()
-		).toBeAttached();
+			editor.page.locator("[data-block-path='[1]'] [data-block-path] .selection-overlay")
+		).toHaveCount(0);
 	});
 });

@@ -38,7 +38,11 @@ lives beside the oracle pin in `reactivity/height-oracle-mode-flip`.
   and the number is not the oracle there. Miss-analysis: the flip's oracle was
   the scroll number over a fixture no flip resized, so a model left stale by the
   flip's cache drop, its resize reports dropped by the gate, held the number and
-  slid the content
+  slid the content. Miss-analysis (#315): the oracle was right and its tolerance was
+  a whole two pixels, so the fraction the scroller refuses on each correction, one per
+  corrected block, passed here; it surfaced only as this scenario re-labelling the
+  leading block on the runs where the previous block's edge sat within a pixel of the
+  viewport top
 
 ## User interactions
 

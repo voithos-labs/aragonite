@@ -27,6 +27,8 @@ const READER_SITES: Record<string, string> = {
 		'pasteGrid, writing each pasted cell text in place through the tableCell rule',
 	'src/lib/editor-actions/search-replace.ts': 'substitutes into a private clone',
 	'src/lib/selection/range-delete.ts': 'the same-block merge writes raw with no reparse',
+	'src/lib/selection/selection-drop.ts':
+		'a drop out of a table cell writes the cut cell text into a private clone of its table',
 	'src/lib/selection/cross-block/type-replace.ts': 'the degraded arm splices raw',
 	'src/lib/selection/cross-block/format-range.ts':
 		'the per-block toggle writes display bytes with no reparse',

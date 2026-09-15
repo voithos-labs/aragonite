@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, it, expect } from 'vitest';
-import { parse, serialize, parseInline, type InlineNode } from '$lib';
+import { installPlugins, parse, serialize, parseInline, type CstNode, type InlineNode } from '$lib';
+import { admonitionsPlugin } from '$lib/plugins/admonitions';
 import { computeInlineContent } from '$lib/plugin';
 import { resetPluginPlatformForTests } from '$lib/testing';
 import {
@@ -29,20 +30,30 @@ describe('inline math is dormant until registered', () => {
 	});
 });
 
-// The flanking rule (requirement 1) is the spec: open valid only when the char
-// after `$` is neither whitespace nor a digit (currency-safe); close valid only
-// when the char before `$` is not whitespace. The close is NOT digit-guarded, so
-// `$x^2$` closes on a digit.
+// The spec: open valid when the char after `$` is not whitespace; close valid when the char
+// before it is not whitespace and the char after it is not a digit; and a span that is purely a
+// number is a price, not a formula. Miss-analysis: the table paired a letter opener with a digit
+// closer (`$x^2$`) and a digit opener with no closer (`$5`, `$5 and $10`), never a digit opener
+// WITH a valid closer, which is the one cell the old first-byte guard answered wrongly.
 describe('$ flanking recognition', () => {
 	beforeEach(() => registerMathInline());
 
 	const cases: Array<[string, boolean]> = [
 		['$x$', true],
 		['$x^2$', true],
+		['$10^5$', true],
+		['$3x$', true],
+		['$5-2$', true],
 		['$ x$', false],
 		['$x $', false],
 		['$5', false],
 		['$5 and $10', false],
+		// A span that is only a number is money; the range needs the closer's digit guard.
+		['$5$', false],
+		['$1,000$', false],
+		['$5.00$', false],
+		['$10-$20', false],
+		['$x$5', false],
 		['a$b', false]
 	];
 	for (const [raw, recognized] of cases) {
@@ -57,6 +68,36 @@ describe('$ flanking recognition', () => {
 	});
 });
 
+/**
+ * The table above reads a count, which cannot tell `$x$` from a claim that swallowed the prose
+ * in front of it. These read the SPAN, over the shapes where a price stands ahead of a formula.
+ * Miss-analysis: no case ever put two `$` runs in one line with prose between them, so the one
+ * reading that mattered — where the claim ENDS — was never asserted at all.
+ */
+describe('a claim ends at the first later $, or not at all', () => {
+	beforeEach(() => registerMathInline());
+
+	const spansOf = (raw: string) => mathNodesIn(raw).map((n) => [n.start, n.end]);
+
+	const claims: Array<[string, number[][]]> = [
+		['It costs $5 and the ratio is $x$.', [[29, 32]]],
+		['We paid $20 for $n$ shards.', [[16, 19]]],
+		['Budget $5, formula $x^2$ here.', [[19, 24]]],
+		['$5 and $10, plus $x$', [[17, 20]]],
+		['costs $9 and $x$', [[13, 16]]],
+		// The closer's digit guard declines at `$x$`; the retry from the next `$` must not then
+		// reach across the prose to `$y$`'s closer.
+		['$x$5 and $y$', [[9, 12]]],
+		// A space before a `$` ends the attempt where it stands: `$a` stays literal.
+		['$a $b$', [[3, 6]]]
+	];
+	for (const [raw, spans] of claims) {
+		it(`${raw} → ${JSON.stringify(spans)}`, () => {
+			expect(spansOf(raw)).toEqual(spans);
+		});
+	}
+});
+
 describe('inline math round-trip', () => {
 	beforeEach(() => registerMathInline());
 
@@ -69,6 +110,26 @@ describe('inline math round-trip', () => {
 		const math = computeInlineContent(paragraph).filter(isMath);
 		expect(math).toHaveLength(1);
 		expect(math[0]).toMatchObject({ start: 0, end: 3 });
+	});
+});
+
+// The repro behind #319 read as a container defect. It is not one: a directive's prose reaches
+// the same recognizer a top-level paragraph does, so both hosts answer identically.
+describe('a directive container reaches the same recognizer', () => {
+	beforeEach(() => {
+		installPlugins([admonitionsPlugin()]);
+		registerMathInline();
+	});
+
+	const PROSE = 'One part in $10^5$ here.\n';
+	const mathIn = (node: CstNode) => computeInlineContent(node).filter(isMath);
+
+	it('answers for a `:::tip` body exactly as for a top-level paragraph', () => {
+		const body = parse(`:::tip Measure\n${PROSE}:::\n`).children[0].children?.[1];
+		expect(body?.kind).toBe('paragraph');
+		const inDirective = mathIn(body!);
+		expect(inDirective).toEqual(mathIn(parse(PROSE).children[0]));
+		expect(inDirective).toHaveLength(1);
 	});
 });
 
@@ -96,11 +157,15 @@ describe('math widget dispatch', () => {
 	it('registers the reveal-source editing policy', () => {
 		const policy = getInlineWidgetEditing(MATH_INLINE as InlineNode['kind']);
 		expect(policy?.revealSource).toBe(true);
-		expect(Object.keys(policy ?? {}).sort()).toEqual(['revealContentSpan', 'revealSource']);
+		expect(Object.keys(policy ?? {}).sort()).toEqual([
+			'revealContentSpan',
+			'revealOffsetAtPoint',
+			'revealSource'
+		]);
 	});
 
-	// The span is what seats the caret INSIDE the delimiters when a click reveals the source,
-	// so typing continues the formula instead of escaping past its closing `$`.
+	// The span bounds a caret entering the source, and is the fallback seat for a press the
+	// glyph walk cannot answer for; either way the caret stays inside the `$` delimiters.
 	it('reports its content span inside the `$` delimiters', () => {
 		const span = getInlineWidgetEditing(MATH_INLINE as InlineNode['kind'])?.revealContentSpan;
 		expect(span?.('$x^2$')).toEqual({ start: 1, end: 4 });

@@ -163,6 +163,23 @@ test.describe('code language chip — the commit', () => {
 		expect(await editor.bridge.getBlockKind(0)).toBe('fencedCode');
 	});
 
+	// An alias is a search key, not a row: the list folds `rs` into `rust`, and the spelling the
+	// author typed is still what lands, so the short forms stay authorable through this door.
+	test('an alias filters to its language, listed once, and commits as typed', async ({ page }) => {
+		const editor = await loadLive(page);
+		await openChip(editor);
+		await page.keyboard.type('rs');
+
+		const rows = page.locator('.code-lang-name');
+		await expect(rows.first()).toHaveText('rust');
+		await expect(rows.filter({ hasText: /^rust$/ })).toHaveCount(1);
+		await expect(rows.filter({ hasText: /^rs$/ })).toHaveCount(0);
+
+		await page.keyboard.press('Enter');
+		await editor.bridge.waitForSourceContains('```rs');
+		expect(await editor.bridge.getSource()).toBe('```rs\nconst x = 1\n```\n\n# Heading\n');
+	});
+
 	// A same-length info string would land the caret right whatever the opener's width did to
 	// the offset, so the commit here lengthens the line.
 	test('the caret comes back to the body’s first offset, ready to type', async ({ page }) => {

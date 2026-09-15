@@ -32,6 +32,7 @@
 		updateOwnMetadata,
 		handleKeydown,
 		moveFocusOut,
+		captureScrollPosition,
 		getPresentationMode,
 		getTheme
 	} = createContainerBlock({
@@ -142,22 +143,20 @@
 	const view = createPanZoom();
 	const overlayView = createPanZoom();
 
-	// Focus-gated so the in-document diagram never hijacks the page: unfocused, a bare
-	// wheel scrolls and a stray drag cannot pan. Any descendant focus counts.
-	const isFocused = () => !!boxEl?.contains(document.activeElement);
+	// Armed by focus, so an unfocused diagram hijacks neither the page nor the editor's own drag.
+	// Tracked rather than probed: the editor reads the same fact as markup, so there is one value.
+	let gestureArmed = $state(false);
 
 	function onViewportWheel(e: WheelEvent): void {
-		if (!isFocused() || !(e.ctrlKey || e.metaKey)) return;
+		if (!gestureArmed || !(e.ctrlKey || e.metaKey)) return;
 		e.preventDefault();
 		e.stopPropagation();
 		view.zoomBy(e.deltaY);
 	}
 
 	function onViewportPointerDown(e: PointerEvent): void {
-		// Never preventDefault, so the browser's focus-on-mousedown still lands: the
-		// first click focuses, and only a drag on the now-focused block pans.
 		e.stopPropagation();
-		if (isFocused()) view.beginPan(e);
+		if (gestureArmed) view.beginPan(e);
 	}
 
 	function onOverlayWheel(e: WheelEvent): void {
@@ -219,8 +218,11 @@
 		// there too, so this closes the command path.
 		if (isReading) return;
 		if (!editing) seedDraft();
+		// Captured BEFORE the flip: the card reaches its fitted height only after mounting, and
+		// a scrollport at the document's end clamps against the short layout in between.
+		const restoreScroll = captureScrollPosition();
 		editRequested = true;
-		void tick().then(() => textareaEl?.focus());
+		void restoreScroll().then(() => textareaEl?.focus());
 	}
 
 	function cancelEdit(): void {
@@ -306,7 +308,13 @@
 </script>
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
-<div class="mermaid-block" bind:this={boxEl} onkeydown={handleKeydown}>
+<div
+	class="mermaid-block"
+	bind:this={boxEl}
+	onkeydown={handleKeydown}
+	onfocusin={() => (gestureArmed = true)}
+	onfocusout={(e) => (gestureArmed = boxEl?.contains(e.relatedTarget as Node | null) ?? false)}
+>
 	{#if editing}
 		<textarea
 			bind:this={textareaEl}
@@ -330,6 +338,7 @@
 			<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 			<div
 				class="mermaid-viewport"
+				data-pointer-gesture={gestureArmed ? '' : undefined}
 				tabindex="0"
 				role="img"
 				aria-label="Mermaid diagram"
@@ -392,6 +401,7 @@
 			</div>
 			<div
 				class="mermaid-overlay-viewport"
+				data-pointer-gesture
 				onwheel={onOverlayWheel}
 				onpointerdown={(e) => {
 					e.stopPropagation();

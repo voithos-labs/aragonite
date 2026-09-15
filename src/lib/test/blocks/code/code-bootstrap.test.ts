@@ -5,8 +5,37 @@ import {
 } from '../../../components/blocks/code/code-bootstrap';
 import {
 	getLanguageGrammar,
+	listLanguages,
 	__resetRegistryForTests
 } from '../../../components/blocks/code/code-languages';
+
+/** Every built-in language and the spellings it answers to: canonical name first. */
+const BUILT_IN: readonly (readonly string[])[] = [
+	['bash', 'sh', 'shell'],
+	['c'],
+	['cpp', 'c++'],
+	['csharp', 'cs', 'c#'],
+	['css'],
+	['diff'],
+	['dockerfile', 'docker'],
+	['go'],
+	['html', 'htm'],
+	['java'],
+	['javascript', 'js'],
+	['json'],
+	['kotlin', 'kt'],
+	['latex', 'tex'],
+	['markdown', 'md'],
+	['php'],
+	['powershell', 'ps1'],
+	['python', 'py'],
+	['ruby'],
+	['rust', 'rs'],
+	['sql'],
+	['swift'],
+	['typescript', 'ts'],
+	['yaml', 'yml']
+];
 
 describe('code-bootstrap', () => {
 	beforeEach(() => {
@@ -14,44 +43,20 @@ describe('code-bootstrap', () => {
 		__resetBootForTests();
 	});
 
-	it('registers all 11 Tier 1 languages', () => {
+	it('offers exactly the built-in languages, one entry each', () => {
 		bootstrapCodeLanguages();
-		for (const name of [
-			'javascript',
-			'typescript',
-			'python',
-			'rust',
-			'go',
-			'bash',
-			'json',
-			'yaml',
-			'sql',
-			'html',
-			'css'
-		]) {
-			expect(getLanguageGrammar(name)).not.toBeNull();
-		}
+
+		expect(listLanguages()).toEqual([...BUILT_IN.map(([name]) => name)].sort());
 	});
 
-	it('registers all 6 Tier 2 languages', () => {
+	it('resolves every built-in language from its name and from each of its aliases', () => {
 		bootstrapCodeLanguages();
-		for (const name of ['java', 'c', 'cpp', 'ruby', 'markdown', 'diff']) {
-			expect(getLanguageGrammar(name)).not.toBeNull();
-		}
-	});
 
-	it('registers aliases', () => {
-		bootstrapCodeLanguages();
-		expect(getLanguageGrammar('js')?.name).toBe('javascript');
-		expect(getLanguageGrammar('ts')?.name).toBe('typescript');
-		expect(getLanguageGrammar('py')?.name).toBe('python');
-		expect(getLanguageGrammar('rs')?.name).toBe('rust');
-		expect(getLanguageGrammar('sh')?.name).toBe('bash');
-		expect(getLanguageGrammar('shell')?.name).toBe('bash');
-		expect(getLanguageGrammar('yml')?.name).toBe('yaml');
-		expect(getLanguageGrammar('htm')?.name).toBe('html');
-		expect(getLanguageGrammar('c++')?.name).toBe('cpp');
-		expect(getLanguageGrammar('md')?.name).toBe('markdown');
+		for (const [name, ...aliases] of BUILT_IN) {
+			for (const spelling of [name, ...aliases]) {
+				expect(getLanguageGrammar(spelling)?.name, spelling).toBe(name);
+			}
+		}
 	});
 
 	it('is idempotent across multiple calls', () => {

@@ -23,9 +23,7 @@ import {
 } from '../keyboard-extend';
 import { pathsEqual } from '../path-math';
 import { intraTableRectExtension } from '../table-rect-extend';
-import { ambientSpanOf, placeCaretAfterAmbientSpan } from '../../ambient/ambient-dom';
-import { asDomTextOffset } from '../../cursor/coordinate-spaces';
-import { createRangeFromOffsets } from '../../cursor/content-offsets';
+import { applySurfaceContentRange } from '../native-bridge';
 
 // ── Public API ─────────────────────────────────────────────────────────────
 
@@ -221,7 +219,7 @@ async function handleCrossBlockEntry(
 		e.preventDefault();
 		selection.incrementSelectAllCount();
 		if (selection.selectAllCount === 1) {
-			selectFirstPressContent(el);
+			applySurfaceContentRange(el);
 			return true;
 		}
 		selectWholeDocument(selection, getDoc(), ctx.getBlockElByPath);
@@ -329,32 +327,6 @@ function kindOfPath(path: number[], doc: Document): AnyBlockKind {
 	}
 	// The root's 'document' kind is outside AnyBlockKind; dispatch treats it as an unknown kind.
 	return isBlockNode(node) ? node.kind : (node.kind as AnyBlockKind);
-}
-
-/**
- * Select the block's content for the first Ctrl+A press. With an ambient marker (a list item's
- * `- `), anchor after it so type-replace doesn't corrupt the contenteditable="false" island.
- */
-function selectFirstPressContent(el: HTMLElement): void {
-	const ambient = ambientSpanOf(el);
-	const ambientLen = ambient?.textContent?.length ?? 0;
-	const textLen = el.textContent?.length ?? 0;
-
-	if (ambient && textLen > ambientLen) {
-		if (!placeCaretAfterAmbientSpan(el)) return;
-		// textLen counts the full textContent (marker included) — a DomTextOffset by construction.
-		const endRange = createRangeFromOffsets(el, asDomTextOffset(textLen), asDomTextOffset(textLen));
-		if (endRange) {
-			window.getSelection()?.extend(endRange.endContainer, endRange.endOffset);
-		}
-		return;
-	}
-
-	const range = document.createRange();
-	range.selectNodeContents(el);
-	const sel = window.getSelection();
-	sel?.removeAllRanges();
-	sel?.addRange(range);
 }
 
 /**

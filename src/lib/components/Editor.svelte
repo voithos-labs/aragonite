@@ -38,6 +38,9 @@
 	import { createDeadSpaceCaret } from '../selection/dead-space-caret';
 	import { resetForPointerDown } from '../selection/cross-block/pointer';
 	import { installDragListener } from '../selection/drag-pointer';
+	import { installMultiClickSelect } from '../selection/multi-click';
+	import { claimsPointerGesture } from '../selection/pointer-gesture';
+	import { installSelectionDrop } from '../selection/selection-drop';
 	import { createContentVersion } from '../reactivity/content-version.svelte';
 	import { useContainerWindowing } from '../reactivity/use-container-windowing.svelte';
 	import { refSlotsOver, replaceRefs, revealChildOrWait } from '../reactivity/publish-ref.svelte';
@@ -112,7 +115,6 @@
 		installWidthWatcher
 	} from './editor-root-geometry';
 	import {
-		installDoubleClickWordSelect,
 		installEditorBlurAnnouncer,
 		installModActiveTracker,
 		installSelectionChangeBridge,
@@ -146,6 +148,7 @@
 	import { bothEnable, createRegistryView, type KindEnablement } from '../schema/registry-view';
 	import BlockList from './BlockList.svelte';
 	import SearchBar from './SearchBar.svelte';
+	import SelectionToolbar from './menu/SelectionToolbar.svelte';
 	import ImageOverlayHost from './image/ImageOverlayHost.svelte';
 	import LinkCardHost from './link-card/LinkCardHost.svelte';
 	import { createLinkCardState } from './link-card/link-card-state.svelte';
@@ -176,6 +179,7 @@
 		blockDragHandles = true,
 		searchBar = true,
 		searchBarAnchor,
+		selectionToolbar = true,
 		keybindings,
 		theme = 'dark',
 		presentationMode = 'source',
@@ -717,6 +721,11 @@
 			// press and release targets meet at the root); with a range just painted, it is no
 			// click to answer.
 			if (!anchor) {
+				// A multi-click places no caret: the ladder painted its range over this press.
+				if (e.detail >= 2) {
+					marginDrag = false;
+					return;
+				}
 				const pressed = marginDrag;
 				const dragged =
 					pressed &&
@@ -761,6 +770,7 @@
 			'a, summary, [role="checkbox"], ' +
 			'.code-rail, .table-add-zone, .editor-tail, .md-menu, .block-drag-handle';
 		const dragStartsHere = (rootEl: HTMLElement, target: EventTarget | null): boolean => {
+			if (claimsPointerGesture(target)) return false;
 			if (deadSpaceCaret.isDeadSpaceTarget(rootEl, target)) return true;
 			if (!(target instanceof Element) || !rootEl.contains(target)) return false;
 			return target.closest(NOT_A_DRAG_START) === null;
@@ -771,6 +781,7 @@
 		// starts no selection of its own to fight it; `click` still fires for the caret placement.
 		let marginDrag = false;
 		let marginDown = { x: 0, y: 0 };
+		let marginSession: { dispose(): void } | null = null;
 		const startMarginDrag = (e: PointerEvent) => {
 			marginDrag = false;
 			marginDown = { x: e.clientX, y: e.clientY };
@@ -786,7 +797,7 @@
 				const component = getBlockComponent(anchor.path);
 				if (component?.startDragAtPoint?.(e.clientX, e.clientY, e)) return;
 			}
-			installDragListener(
+			marginSession = installDragListener(
 				{
 					editorRoot: root,
 					scrollContainer: getScrollHost() ?? root,
@@ -801,10 +812,38 @@
 		};
 		return removeAll(
 			onRoot(root, 'click', handleClick),
-			installDoubleClickWordSelect(root),
+			installMultiClickSelect({
+				editorRoot: root,
+				selection: selectionState,
+				getBlockElByPath,
+				getScrollContainer: () => getScrollHost() ?? root,
+				lifetimeSignal: lifetimeController.signal,
+				marginBlockAt: (target, x, y) =>
+					effectiveMode !== 'reading' && dragStartsHere(root, target)
+						? deadSpaceCaret.blockPathNearPoint(root, x, y)
+						: null
+			}),
+			installSelectionDrop({
+				editorRoot: root,
+				getDoc: () => doc,
+				controller,
+				coordinator: pasteCoordinator,
+				getPresentationMode: () => effectiveMode,
+				linkRef: linkRefView,
+				grammar: registryView.grammar,
+				activePlugins,
+				events,
+				isReadOnly: () => effectiveMode === 'reading'
+			}),
 			onRoot(root, 'pointerdown', startMarginDrag),
 			onRoot(root, 'mousedown', (e: MouseEvent) => {
 				deadSpaceCaret.notePress(root, e);
+				// The second press of a click run is the ladder's, which runs its own drag.
+				if (marginDrag && e.detail >= 2) {
+					marginSession?.dispose();
+					marginSession = null;
+					marginDrag = false;
+				}
 				if (marginDrag) e.preventDefault();
 			})
 		);
@@ -1843,6 +1882,20 @@
 			label={blockMenu.label}
 			onPick={blockMenu.pick}
 			onClose={() => (blockMenu = null)}
+		/>
+	{/if}
+	{#if selectionToolbar && effectiveMode !== 'reading'}
+		<SelectionToolbar
+			editor={{
+				getSelection,
+				getRects,
+				getBlockKindAt,
+				runCommand,
+				canRunCommand,
+				isCommandActive,
+				getEvents
+			}}
+			root={editorEl}
 		/>
 	{/if}
 	<ImageOverlayHost
