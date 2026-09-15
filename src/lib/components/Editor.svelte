@@ -49,10 +49,9 @@
 	import { createWidgetSelectionState } from './image/widget-selection-state.svelte';
 	import { bootstrapCodeLanguages } from './blocks/code/code-bootstrap';
 	import { assignIds } from '../block-id';
-	import { ensureEditableContainers, emptyParagraph } from '../tree-operations';
+	import { createDocumentSwap, initDocument } from './editor-root-document-swap';
 	import { blockNodeAt } from '../tree-operations/node-primitives';
 	import { serialize } from '../core/serializer';
-	import { parse } from '../core/parser';
 	import { defaultLinkActivation } from '../core/url-policy';
 	import { advanceSignatureEpoch, lrdMapCouldChange } from './lrd-map-gate';
 	import {
@@ -247,29 +246,11 @@
 
 	// ── State ───────────────────────────────────────────────────────────
 
-	function initDocument(src: string): {
-		doc: Document;
-		resolver: LinkReferenceResolver;
-		signature: string;
-	} {
-		const d = parse(src, { scope: 'document' });
-		if (d.children.length === 0) {
-			// Only the empty source parses to zero blocks — a blank line is a block of its
-			// own — so there is no authored ending to inherit and LF is the whole answer.
-			d.children.push(emptyParagraph('', '\n'));
-		}
-		for (const child of d.children) {
-			ensureEditableContainers(child);
-		}
-		const refMap = buildLinkReferenceMap(d.children);
-		return { doc: d, resolver: refMap.resolve, signature: refMap.signature };
-	}
-
 	// doc/blockIds are mutable state structural ops write through directly, so they
 	// cannot be $derived: snapshot at mount, re-sync via the $effect below.
 	// svelte-ignore state_referenced_locally
 	const initial = initDocument(source);
-	let doc = $state<Document>(initial.doc);
+	let doc: Document = $state(initial.doc);
 	// svelte-ignore state_referenced_locally
 	let blockIds = $state<string[]>(assignIds(doc.children));
 	// Bumped by every byte-writing door. Inline widgets derive on it directly, and the
@@ -387,47 +368,40 @@
 		if (decorationEngine.sourceCount > 0) void tick().then(() => decorationEngine.notifyEdit());
 	});
 
-	// Counts whole-document REPLACEMENTS, which the edit epoch cannot tell from a
-	// keystroke. Deliberately NOT $state: its readers run inside decoration `provide`,
-	// which must register no reactive dependency.
-	let documentGeneration = 0;
+	const documentSwap = createDocumentSwap({
+		// Built below; a swap runs post-init, so the closures read past the TDZ.
+		flushDebouncedCheckpoint: () => controller.flushDebouncedCheckpoint(),
+		adoptDocument: (next) => {
+			doc = next;
+			blockIds = assignIds(doc.children);
+		},
+		bumpContentVersion: contentVersion.bump,
+		clearBlockRefs: () => {
+			blockRefs.length = 0;
+		},
+		get heightOracle() {
+			return heightOracle;
+		},
+		undoManager,
+		stickyColumn,
+		edgeAffinity,
+		selection: selectionState,
+		// The epoch bumps only on a differing LRD signature, the resolver refreshes regardless.
+		adoptLinkReferences: (resolver, signature) => {
+			const next = advanceSignatureEpoch(currentSignature, signatureEpoch, signature);
+			currentResolver = resolver;
+			currentSignature = next.signature;
+			signatureEpoch = next.epoch;
+		}
+	});
 
 	// `source !== lastSource` guard is load-bearing — see `docs/design/editor.md` § Reactive state plumbing.
 	// svelte-ignore state_referenced_locally
 	let lastSource = source;
 	$effect(() => {
-		if (source !== lastSource) {
-			// A pending typing batch addresses the OUTGOING document, so it flushes
-			// while its path still resolves; left armed, the timer fires note A's path
-			// against note B.
-			controller.flushDebouncedCheckpoint();
-			lastSource = source;
-			const reset = initDocument(source);
-			doc = reset.doc;
-			contentVersion.bump();
-			blockIds = assignIds(doc.children);
-			blockRefs.length = 0;
-			// Block ids never recur, so every measured height now keys a block that cannot
-			// come back: the scopes reseed from estimates exactly as they do on first load.
-			heightOracle.dropMeasured();
-			undoManager.clear();
-			stickyColumn.reset();
-			edgeAffinity.reset();
-			// Announced, not left to the clear: the swap usually arrives on a plain caret, which
-			// is native-only, so nothing editor-owned moves and subscribers would keep painting
-			// the outgoing document's selection. Batched, so a real range still emits once.
-			selectionState.batch(() => {
-				selectionState.clear();
-				selectionState.announceSelection();
-			});
-			documentGeneration++;
-			// The resolver refreshes unconditionally — the old one closes over the
-			// swapped-out doc — but the epoch bumps only on a differing LRD signature.
-			const next = advanceSignatureEpoch(currentSignature, signatureEpoch, reset.signature);
-			currentResolver = reset.resolver;
-			currentSignature = next.signature;
-			signatureEpoch = next.epoch;
-		}
+		if (source === lastSource) return;
+		lastSource = source;
+		documentSwap.swapTo(source);
 	});
 
 	/**
@@ -737,7 +711,7 @@
 	};
 	const searchState = createSearchState({
 		getDoc,
-		getDocumentGeneration: () => documentGeneration,
+		getDocumentGeneration: documentSwap.generation,
 		decorations,
 		replace: gatedSearchReplace,
 		// Rides the one public seam, which also owns the reveal anchor (top-pinned by

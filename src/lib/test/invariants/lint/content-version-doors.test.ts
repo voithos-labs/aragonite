@@ -16,7 +16,8 @@ const ANNOUNCERS: Record<string, string> = {
 	'src/lib/editor-actions/block-edit.ts': 'the top-level routine-typing write',
 	'src/lib/editor-actions/container-edit.ts': 'the nested out-of-ceremony write door',
 	'src/lib/editor-actions/commit/history.ts': 'the undo/redo tree swap',
-	'src/lib/components/Editor.svelte': 'the wiring, plus the `source` prop swap',
+	'src/lib/components/Editor.svelte': 'the wiring',
+	'src/lib/components/editor-root-document-swap.ts': 'the `source` prop swap',
 	'src/lib/testing/headless-actions.ts': 'the published harness counts what its doors announced'
 };
 
