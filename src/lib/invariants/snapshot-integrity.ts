@@ -1,14 +1,14 @@
 /**
- * G1.9 — no mutation may change the serialized bytes reachable through a node an undo
- * entry still shares. BYTES-scoped, so a shared node may still be MOVED: each snapshot
- * owns its children array. The digest is the formalization, over top-level children only —
- * a container's raw covers its whole subtree, so a write through any shared descendant
- * that matters to serialization surfaces without recursion.
+ * G1.9: no mutation may change the serialized bytes reachable through a node an undo entry still
+ * shares. It is about the bytes, not identity, so a shared node may still be moved: each snapshot
+ * owns its own children array. The digest covers the top-level children only, because a
+ * container's raw covers its whole subtree, so a write through any shared descendant that changes
+ * the serialization shows up without recursing.
  */
 import type { Document } from '../core/nodes';
 import type { InvariantViolation } from '../assert';
 
-/** Structural slice of UndoEntry — keeps this leaf module free of undo/ imports. */
+/** The part of an undo entry this check needs, so the file imports nothing from `undo/`. */
 export interface SnapshotEntry {
 	snapshot: Document;
 	/** Digest of `snapshot` at push; absent outside DEV. */

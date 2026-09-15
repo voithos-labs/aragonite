@@ -1,8 +1,8 @@
 /**
- * G1.16 — every path a commit declares is doc-absolute: each prefix resolves to an
- * existing child from the document root. The final index may be one past the end, since
- * insert-shaped ops legitimately name the slot they create. The `DocPath` param is the
- * compile-time gate; this stays the runtime belt for the JS callers types don't bind.
+ * G1.16: every path a commit declares is document-absolute, so each prefix resolves to an
+ * existing child from the document root. The last index may be one past the end, because an
+ * insert names the position it is about to create. The `DocPath` type checks this at compile
+ * time; this is the runtime check for the JavaScript callers types do not bind.
  */
 
 import type { CstNode, Document } from '../core/nodes';

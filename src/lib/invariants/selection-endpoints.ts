@@ -1,9 +1,9 @@
 /**
- * G1.29 — a cross-block endpoint's offset means what its block's coordinate space says: a cell
- * index on a table (a char offset there corrupts the grid through rangeDelete's generic branch),
- * a char offset inside [0, displayLength(raw)] elsewhere, and one of those two ends inside a
- * kind with no character positions (an interior one slices an opaque unit in half). Same-path
- * pairs are exempt (an intra-table rectangle's focus is unflagged by convention).
+ * G1.29: a cross-block endpoint's offset is read in its own block's coordinates. On a table that
+ * means a cell index (a character offset there corrupts the grid through `rangeDelete`'s generic
+ * branch); elsewhere a character offset inside `[0, displayLength(raw)]`; and inside a kind with
+ * no character positions, one of those two ends, because anything between them cuts an opaque
+ * block in half. A pair on the same path is exempt: a rectangle inside one table is not flagged.
  */
 
 import type { DocumentView, NodeView } from '../core/node-views';
@@ -12,8 +12,8 @@ import { isWholeBlockUnit } from '../schema/whole-block-unit';
 import type { InvariantViolation } from '../assert';
 
 /**
- * Structural, NOT `selection/`'s `SelectionPoint`: no `invariants/` predicate takes a
- * dependency — runtime or type — on the selection model.
+ * A plain structural point, not `selection/`'s `SelectionPoint`: no check in `invariants/` depends
+ * on the selection model, at runtime or in its types.
  */
 export interface EndpointCoordinate {
 	readonly path: readonly number[];
@@ -55,8 +55,8 @@ export function checkCrossBlockEndpointCoordinates(
 	return null;
 }
 
-/** The flag's other direction: a cell index against a block with no cells reads as a character
- *  offset downstream, so the same corruption arrives from the opposite producer. */
+/** The same mistake the other way round: a cell index on a block with no cells is read further
+ *  down as a character offset, so the corruption arrives from the opposite side. */
 function checkCellCoordinate(
 	role: 'anchor' | 'focus',
 	point: EndpointCoordinate,

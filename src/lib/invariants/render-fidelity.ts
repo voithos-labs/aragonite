@@ -1,8 +1,8 @@
 /**
- * G1.28 — rendered text fidelity. A renderer round-tripping bytes through an HTML parser
- * inherits engine-defined normalizations (U+0000, line endings, surrogates), and a gesture
- * that reads `textContent` back would commit the loss away. jsdom preserves all of them,
- * so this runtime belt is the only thing that can catch it — a unit suite cannot.
+ * G1.28: the text a block renders still matches its raw bytes. A renderer that passes bytes
+ * through an HTML parser inherits whatever that browser normalizes (U+0000, line endings,
+ * surrogates), and a gesture that reads `textContent` back would commit the loss. jsdom preserves
+ * all of them, so only this runtime check can catch it, never a unit test.
  */
 
 import type { InvariantViolation } from '../assert';

@@ -1,6 +1,6 @@
 /**
- * Seam-side glue between the pure predicates and the `assertInvariant` channel, so the
- * predicates themselves stay pure and unaware of it.
+ * Wires the pure predicates to `assertInvariant`, so the predicates stay pure and know nothing
+ * about how a violation is reported.
  */
 
 import type { CstNode, Document } from '../core/nodes';
@@ -23,9 +23,9 @@ import { checkChildSpansLockstep, checkIdsChildrenLockstep } from './structural-
 import { checkSnapshotIntegrity, type SnapshotEntry } from './snapshot-integrity';
 
 /**
- * Per-commit check for the nodes a commit touched, never a whole-tree walk. Each predicate
- * self-filters by kind. Run AFTER the commit's rebuildRaw, so a strip container's raw is
- * its freshly-rebuilt output.
+ * Checks only the nodes a commit touched, never the whole tree. Each predicate filters by kind
+ * itself. Call it after the commit's `rebuildRaw`, so a strip container's raw is the output
+ * that rebuild just produced.
  */
 export function assertCommittedNodes(nodes: CstNode[]): void {
 	for (const node of nodes) {
@@ -40,8 +40,8 @@ export function assertCommittedNodes(nodes: CstNode[]): void {
 }
 
 /**
- * Pre-mutate commit-seam check that both declared coordinates are doc-absolute (G1.16,
- * `commit-paths.ts`). Null skips a coordinate the commit doesn't carry.
+ * Checks, before the commit mutates anything, that both declared paths are document-absolute
+ * (G1.16, `commit-paths.ts`). Null skips a path this commit does not carry.
  */
 export function assertCommitPaths(
 	doc: Document,
@@ -61,9 +61,9 @@ export function assertCommitPaths(
 }
 
 /**
- * G1.9 per-commit seam: the freshest undo entry is the one this commit's mutations could
- * have corrupted, so only its digest is re-verified. Deeper entries stay covered by the
- * restore-time check in `editor-actions/commit/history.ts`.
+ * G1.9, once per commit: only the newest undo entry could have been corrupted by this commit's
+ * mutations, so only its digest is re-checked. Older entries are covered when they are
+ * restored, in `editor-actions/commit/history.ts`.
  */
 export function assertUndoTopIntegrity(entry: SnapshotEntry | undefined): void {
 	if (!entry) return;
@@ -71,9 +71,9 @@ export function assertUndoTopIntegrity(entry: SnapshotEntry | undefined): void {
 }
 
 /**
- * G1.36 consumer half, at each publish seam: the descriptor's own bounds check cannot see a
- * change that fits its array while describing the wrong window, and a short id array reaches
- * Svelte's keyed each as missing keys.
+ * G1.36, the reading half, run wherever ids are written to state: the descriptor's own bounds
+ * check cannot catch a change that fits its array but describes the wrong range, and an id
+ * array that is too short reaches Svelte's keyed each as missing keys.
  */
 export function assertIdsInLockstep(seam: string, idCount: number, childCount: number): void {
 	assertInvariant('ids-children-lockstep', () =>
@@ -82,9 +82,9 @@ export function assertIdsInLockstep(seam: string, idCount: number, childCount: n
 }
 
 /**
- * Registry-wide checks at the mount seam. The flush owns the once-latch: the first sweeps
- * the whole world, later mounts validate only registrations since the previous flush. The
- * inline-policy check sits outside it — mount-only, and table-wide on every mount (G1.31).
+ * The registry-wide checks, run when the editor mounts. The flush runs the full sweep the first
+ * time and only the registrations added since the previous flush after that. The inline-policy
+ * check sits outside that latch: it runs on every mount, over the whole table (G1.31).
  */
 export function runStartupInvariantChecks(): void {
 	flushPendingRegistrationChecks();

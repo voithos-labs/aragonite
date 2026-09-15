@@ -5,10 +5,10 @@ import { getContentRange, type ContentRange } from '../core/inline';
 import type { InvariantViolation } from '../assert';
 
 /**
- * G1.8 — a content range stays within its raw: `0 <= start <= end <= displayLength(raw)`.
- * Every kind that HAS a range is covered, not just the prose ones: a non-prose kind may declare
- * `getContentRange` (the directive leaf does) and the range is consumed unconditionally.
- * `getRange` is a parameter so a negative test can inject a bad range without touching the registry.
+ * G1.8: a content range stays inside its raw bytes, `0 <= start <= end <= displayLength(raw)`.
+ * It covers every kind that has a range, not only the prose ones: a non-prose kind may declare
+ * `getContentRange` (the directive leaf does) and callers use the range without checking.
+ * `getRange` is a parameter so a test can inject a bad range without touching the registry.
  */
 export function checkContentRange(
 	node: CstNode,

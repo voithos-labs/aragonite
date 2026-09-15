@@ -1,10 +1,10 @@
 /**
- * CSS↔TS parity for the hidden-run predicate: `cursor/widget-offset.ts` mirrors the
- * stylesheet's class scoping structurally, because a getComputedStyle per keystroke is
- * unaffordable — so the two can drift. This probe pays for the comparison once per mode
- * change, per marker family, over three answers: the stylesheet's, the walk's, and the
- * node-space model both are stated over. It declines wherever no stylesheet demonstrably hides
- * anything (jsdom, source mode); the presentation e2e battery is the real assertion there.
+ * Checks that the stylesheet and `cursor/widget-offset.ts` still agree about which marker runs
+ * are hidden. The TypeScript side mirrors the stylesheet's class scoping by hand, because
+ * reading `getComputedStyle` on every keystroke is too slow, so the two can drift. It compares
+ * three answers once per mode change, per marker family: the stylesheet's, the DOM-to-offset
+ * traversal's, and the node-space rule both are stated over. Where no stylesheet hides anything
+ * (jsdom, source mode) it does nothing, and the presentation e2e battery asserts instead.
  */
 
 import type { InvariantViolation } from '../assert';
@@ -21,11 +21,11 @@ interface ProbeCase {
 	focusedHost: boolean;
 	attrs?: Record<string, string>;
 	reveal?: boolean;
-	/** The block holds only chrome, so two of the three families paint (a ref label does not). */
+	/** The block holds only markers, so two of the three families paint (a ref label does not). */
 	contentEmpty?: boolean;
 }
 
-/** One case per stylesheet arm the predicate mirrors, both host-focus states. */
+/** One case per stylesheet branch the check mirrors, in both host-focus states. */
 const CASES: ProbeCase[] = ['md-marker', 'md-fence-line', 'md-ref-label'].flatMap((family) => [
 	{ name: family, family, focusedHost: false },
 	{ name: `${family} (focused host)`, family, focusedHost: true },
@@ -55,13 +55,13 @@ export function checkMarkerCssParity(editorRoot: HTMLElement): InvariantViolatio
 		const read = probes.map(({ probe, span, block }) => ({
 			name: probe.name,
 			predicate: isHiddenMarkerRoot(span, block),
-			// The model claims the families and the chrome fold; the REVEAL arms are the walk's
-			// alone, so a focused host is where the two are allowed to differ.
+			// The node-space rule covers the families and the markers-only case; the reveal
+			// branches belong to the traversal alone, so the two may differ on a focused host.
 			model: probe.focusedHost ? null : modelHides(span, screenVisibilityOf(block)),
 			css: getComputedStyle(span).display === 'none'
 		}));
-		// No case computes hidden: either source mode (nothing hides by design) or an engine
-		// that applies no stylesheet — no signal to compare against, so the probe stands down.
+		// Nothing came out hidden: either source mode, where nothing hides by design, or an
+		// environment that applies no stylesheet. There is nothing to compare against, so skip.
 		if (!read.some((entry) => entry.css)) return null;
 		const diverged = read.find(
 			(entry) =>

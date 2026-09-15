@@ -1,15 +1,16 @@
 /**
- * Predicates for the inline layer's transition guards (G1.25–G1.27): the widget-pool pass
- * bracket, the reveal kernel's source-length precondition, and the IME composition window.
+ * The checks behind the inline transition guards (G1.25 to G1.27): the widget pool's
+ * begin/sweep bracket, the source-length rule for a revealed construct, and the window during
+ * which an IME composition is open.
  */
 import type { InvariantViolation } from '../assert';
 
 export type PoolBracketAction = 'acquire' | 'beginPass' | 'sweep';
 
 /**
- * G1.25 — every pool mutation respects the beginPass/sweep bracket. Outside one, adoption
- * flags and pass tallies are meaningless and key-only lookup cannot tell byte-identical
- * duplicate widgets apart.
+ * G1.25: every pool change happens between `beginPass` and `sweep`. Outside that bracket the
+ * adoption flags and pass counts mean nothing, and a lookup by key alone cannot tell two
+ * byte-identical widgets apart.
  */
 export function checkPoolBracket(
 	passOpen: boolean,
@@ -38,8 +39,9 @@ export function checkPoolBracket(
 }
 
 /**
- * G1.26 (kernel leg) — a reveal's source bytes span exactly its [sourceStart, sourceEnd)
- * range; a mismatch shifts every raw offset outside the source, desyncing the offset walk.
+ * G1.26, the shared editable core's half: a revealed construct's source bytes span exactly its
+ * `[sourceStart, sourceEnd)` range. A mismatch shifts every raw offset after the source, so the
+ * DOM-to-offset traversal stops agreeing with the bytes.
  */
 export function checkRevealSourceLength(
 	sourceLength: number,
@@ -55,9 +57,9 @@ export function checkRevealSourceLength(
 }
 
 /**
- * G1.27 — a compositionend lands only inside a composition the surface saw start. Browsers
- * pair the events per element, so an unpaired end means a consumer wired `compositionend`
- * without `compositionstart` and every composition keystroke reached the CST mid-IME.
+ * G1.27: a `compositionend` only arrives inside a composition the editable element saw start.
+ * Browsers pair the events per element, so an unpaired end means a consumer wired
+ * `compositionend` without `compositionstart`, and every IME keystroke reached the tree.
  */
 export function checkCompositionEndPaired(composing: boolean): InvariantViolation | null {
 	if (composing) return null;
