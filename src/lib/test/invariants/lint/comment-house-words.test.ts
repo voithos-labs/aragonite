@@ -82,7 +82,7 @@ const BASELINE: Record<string, number> = {
 	'src/lib/test/gfm-conformance': 0,
 	'src/lib/test/harness': 24,
 	'src/lib/test/image': 8,
-	'src/lib/test/invariants': 259,
+	'src/lib/test/invariants': 258,
 	'src/lib/test/perf': 8,
 	'src/lib/test/plugins': 91,
 	'src/lib/test/reactivity': 21,

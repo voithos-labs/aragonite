@@ -79,7 +79,7 @@ keymap dispatch. Habits that kill it:
   (`src/lib/test/invariants/lint/`): "every entry path matching X routes through Y", which fails
   the day path N+1 is born instead of at the next audit.
 
-A source-scan guard is a unit test that reads the source tree instead of running it. Most scans
+A source-scan guard is a unit test that reads the source tree instead of running it. Many scans
 in that folder are one row in a shared rule table: the shape, the files allowed to hold it, and
 the snippets the matcher must flag or spare. A red names the offending file and the rule's reason:
 

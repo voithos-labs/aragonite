@@ -205,8 +205,8 @@ const PRE_DELETE_NAMERS: Record<string, string> = {
 		'the one splicer: a fenced body has no inline constructs to clean'
 };
 
-/** Only the oracle may answer which marker spans a hiding mode drops; the rest create the class,
- *  identify their own span, or probe it. A component's `<style>` names classes to paint them,
+/** Only the render-path reader in `visibility.ts` answers which marker spans a hiding mode drops;
+ *  the rest create the class, identify their own span, or probe it. A component's `<style>` names classes to paint them,
  *  which G4.30's list holds, so `.svelte` files sit this rule out. */
 const MARKER_FAMILY_NAMERS: Record<string, string> = {
 	'src/lib/core/inline/visibility.ts': 'the oracle: states the families and drops what hides',

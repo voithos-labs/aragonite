@@ -399,7 +399,7 @@ const RULES: FileRule[] = [
 		misses: ['const n: ContentLength = contentLengthOf(x);']
 	},
 	{
-		id: 'one spelling for the inline cache: no consumer reaches for the raw accessor',
+		id: 'G4.32 one spelling for the inline cache: no consumer reaches for the raw accessor',
 		population: except('src/lib/core/inline/inline-cache.ts'),
 		matches: /(?<![\w.])getInlineContent\s*\(/,
 		allowed: {

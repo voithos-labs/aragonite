@@ -76,7 +76,7 @@ const RULES: CallSiteRule[] = [
 		holds: (args) => /\bgrammar\s*:/.test(args),
 		reason:
 			'a container reparsing child content without the instance grammar reads a disabled kind’s syntax',
-		// Four built-in containers wire it directly, plus the plugin container factory and the declaration.
+		// Four built-in containers wire it directly, plus the plugin container factory.
 		atLeastCallers: 5,
 		hits: ['const b = createStandardNestedActions(state, { scope, stickyColumn, parent });'],
 		misses: [
@@ -93,7 +93,7 @@ const RULES: CallSiteRule[] = [
 		reason:
 			'the grammar parameter is required-nullable, so the type stops an omission but not a caller answering undefined because threading was inconvenient',
 		// Routine typing, the commit sequence, the metadata refresh, paste, cross-block
-		// type-replace and the four range-delete modules, plus the declarations.
+		// type-replace and the four range-delete modules.
 		atLeastCallers: 8,
 		hits: [
 			'rebuildUnsharedChain(doc, chain, sharing, undefined);',
@@ -113,7 +113,7 @@ const RULES: CallSiteRule[] = [
 		holds: (args) => /\bgrammar\s*[:,}]/.test(args),
 		reason:
 			'pasted bytes, or the bodyWrite reparse of them, read an unlisted plugin’s syntax without the instance grammar (#267)',
-		// Four clipboard routes and three splice sites, plus both declarations.
+		// Four clipboard routes and three splice sites.
 		atLeastCallers: 7,
 		hits: [
 			'await pasteDispatch({ pastedText, targetPath }, { doc, blockEdit, controller });',
@@ -154,7 +154,7 @@ const RULES: CallSiteRule[] = [
 		holds: (args) => THREADED_AXES.every((axis) => threadsAxis(args, axis)),
 		reason:
 			'a bundle that omits getPresentationMode or linkRef, or answers either with undefined, hands its sinks a mode-less edit',
-		// Four built-in containers, the plugin container factory, the list context, declarations.
+		// Four built-in containers, the plugin container factory, the list context.
 		atLeastCallers: 5,
 		hits: [
 			'createStandardNestedActions(state, { scope, stickyColumn, parent });',
