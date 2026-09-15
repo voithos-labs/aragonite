@@ -19,11 +19,10 @@ import { getBlockKindDescriptor, tryGetBlockKindDescriptor } from '../schema/blo
 // ── Public API ─────────────────────────────────────────────────────────────
 
 /**
- * Plain text spanning a cross-block selection: the start block's tail, every middle block's
- * leadingTrivia + raw, the end block's head. Descendants of an already-collected container
- * are skipped, since a container's raw already holds its children's text. Full-boundary leaf
- * endpoints promote to their deepest non-shared container ancestor so list markers and
- * blockquote prefixes survive; a start inside reserved chrome re-emits its container once.
+ * The plain text of a cross-block selection: the start block's tail, every middle block's
+ * blank lines plus raw, the end block's head. A container's raw already holds its children,
+ * so its descendants are skipped. A leaf endpoint at a block boundary is promoted to its
+ * outermost container inside the selection so list markers and blockquote prefixes survive.
  */
 export function collectCrossBlockText(
 	doc: DocumentView,
@@ -36,12 +35,12 @@ export function collectCrossBlockText(
 	const endNode = nodeAt(doc, end.path);
 	if (!startNode || !endNode) return '';
 
-	// On a table, offsets index half-open cell ranges (see `SelectionPoint`), not characters,
-	// so the three table branches route through emitTablePortion. Same-path intra-table offsets
-	// are context-established (unflagged) and read directly; cross-block ones use cellIndexOf.
+	// On a table an offset is a cell index, not a character (see `SelectionPoint`). A same-path
+	// pair inside one table reads the offsets directly; a cross-block pair goes through
+	// `cellIndexOf`.
 	if (pathsEqual(start.path, end.path) && isBlockNode(startNode) && startNode.kind === 'table') {
-		// Cell offsets are inclusive on both ends (hence the `+ 1`). A collapsed pair is a caret
-		// in a cell, not a rect, so copy nothing and let the cell's native copy handle it.
+		// Cell offsets are inclusive at both ends, hence the `+ 1`. Equal offsets are a caret in
+		// one cell, not a rectangle, so the cell's own native copy handles it.
 		if (start.offset === end.offset) return '';
 		return emitTablePortion(startNode, start.offset, end.offset + 1);
 	}
@@ -49,8 +48,8 @@ export function collectCrossBlockText(
 	const startRaw = isBlockNode(startNode) ? startNode.raw : '';
 	const endRaw = isBlockNode(endNode) ? endNode.raw : '';
 
-	// One leaf taken whole (`SelectionState.wholeUnitPath`): the only same-path prose pair the
-	// state stores, and the head/tail split below would emit its bytes twice.
+	// One block selected whole (`SelectionState.wholeUnitPath`) is the only same-path pair outside
+	// a table, and the head/tail split below would emit its bytes twice.
 	if (pathsEqual(start.path, end.path) && !start.cellCoordinate) {
 		return startRaw.slice(start.offset, end.offset);
 	}
@@ -78,8 +77,8 @@ export function collectCrossBlockText(
 				startTail = startRaw.slice(startOffset);
 			}
 		} else if (startOffset > 0 && start.path.length > 1) {
-			// A chrome start emits nothing here: its wrapper needs the body it encloses,
-			// which only the walk below knows.
+			// A start inside a container's title line emits nothing yet: the container's opener
+			// is rebuilt around the body, which the loop below collects.
 			chromeStart = startChromeContainer(doc, start, startRaw, startOffset);
 			if (!chromeStart) {
 				const marker = soleChildContainerPrefix(doc, start.path, startRaw);
@@ -93,8 +92,8 @@ export function collectCrossBlockText(
 	let effectiveEndPath = end.path;
 	let endHead: string;
 	if (isBlockNode(endNode) && endNode.kind === 'table') {
-		// Snapped end cell is the inclusive last cell of its row; emitTablePortion takes an
-		// exclusive end, so +1 makes the captured rows match the delete.
+		// The snapped end cell is inclusive and `emitTablePortion` takes an exclusive end, so the
+		// `+ 1` makes the copied rows match what a delete would remove.
 		endHead = emitTablePortion(endNode, 0, cellIndexOf(end, 'collectCrossBlockText:endTable') + 1);
 	} else {
 		const endOffset = charOffsetOf(end, 'collectCrossBlockText:end');
@@ -194,11 +193,10 @@ function emitTablePortion(
 }
 
 /**
- * The container marker prefix a partial-leaf slice must keep when the leaf is the sole child
- * of a strip container ("3. " so "3. thi" survives rather than "thi"). Without it CommonMark
- * §5.2 stops a following "N." line from interrupting the paragraph and the round-trip
- * collapses into one block. Eligibility is the descriptor's `strip` contract, not a kind list.
- * Sole-child is required: earlier siblings sit between the marker and the leaf's raw.
+ * The list or quote marker a partial slice of a sole-child leaf keeps ("3. thi" rather than
+ * "thi"): without it, CommonMark lets a following "N." line join the paragraph and the pasted
+ * text collapses into one block. Only a sole child qualifies, since an earlier sibling would
+ * sit between the marker and this leaf's raw.
  */
 function soleChildContainerPrefix(
 	doc: DocumentView,
@@ -215,11 +213,10 @@ function soleChildContainerPrefix(
 }
 
 /**
- * The rebuild a chrome-wrapper synthesis may run for `container`, or null when re-emitting its
- * wrapper isn't faithful. Both chrome endpoint paths consult this and nothing else, so the
- * rule cannot hold on one endpoint and not the other. Only `'opaque'` qualifies: its syntax is
- * an opener plus a closer, so a truncated chrome IS an opener. `'strip'` has nothing to close
- * (`soleChildContainerPrefix` is its seam); `'grid'` declares no chrome and rides the table arm.
+ * The kind's `rebuildRaw` when a copy endpoint inside `container`'s title line can be re-emitted
+ * as a truncated opener, or null. Only an `'opaque'` container qualifies: its syntax is an
+ * opener plus a closer, so a shortened title is still a valid opener. Both endpoints consult
+ * this one function, so the rule cannot hold at one end and not the other.
  */
 function chromeWrapperRebuild(
 	container: NodeView,
@@ -232,11 +229,11 @@ function chromeWrapperRebuild(
 }
 
 /**
- * Bytes for a copy endpoint landing inside a container's reserved chrome. A generic raw.slice
- * emits wrapper-less bytes that reparse to a bare paragraph, losing the kind on paste, so
- * synthesize a chrome-only container (truncated chrome, empty body) and run the kind's own
- * rebuildRaw. Metadata is shallow-copied (primitive-valued by G1.6) because rebuildRaw is
- * plugin code fed a node that would otherwise alias the LIVE tree.
+ * The bytes for a copy that ends inside a container's title line. A plain `raw.slice` would
+ * paste back as a bare paragraph, so a container with the truncated title and an empty body is
+ * built and the kind's own `rebuildRaw` serializes it. Metadata is copied first (it holds only
+ * primitives, so a shallow copy suffices, G1.6) because `rebuildRaw` is plugin code that must
+ * not alias the live tree.
  */
 function endChromeContainerBytes(
 	doc: DocumentView,
@@ -273,14 +270,14 @@ function endChromeContainerBytes(
 interface ChromeStartContainer {
 	path: number[];
 	node: NodeView;
-	/** The chrome leaf from the start offset on — the truncated title/summary. */
+	/** The title line from the start offset on. */
 	chromeTail: string;
 	rebuildRaw: (node: CstNode) => void;
 }
 
 /**
- * The container a copy STARTS inside the chrome of, when re-emitting its wrapper around the
- * collected body is faithful; null when it isn't. Eligibility is `chromeWrapperRebuild`'s.
+ * The container whose title line the copy starts inside, when its opener can be re-emitted
+ * around the collected body; null otherwise.
  */
 function startChromeContainer(
 	doc: DocumentView,
@@ -303,11 +300,11 @@ function startChromeContainer(
 }
 
 /**
- * Re-emit the container around `body` with the truncated chrome back in the opener line. ONE
- * rebuildRaw call over the real body is what makes the closer trustworthy: a directive fence
- * widens when its body reproduces the terminator, so opener and closer derived in the same call
- * cannot disagree about width. `exited` means the walk left the subtree, i.e. the body ran to
- * the end, so the trailing inner trivia belongs to the copy; otherwise line-terminate instead.
+ * Re-emits the container around `body` with the truncated title in the opener line. One
+ * `rebuildRaw` call over the real body keeps opener and closer in agreement: a directive fence
+ * widens when its body contains the terminator. `exited` means the selection ran past the
+ * container's end, so its trailing blank lines belong to the copy; otherwise the body gets a
+ * line ending instead.
  */
 function wrapChromeStartContainer(
 	start: ChromeStartContainer,
@@ -319,7 +316,7 @@ function wrapChromeStartContainer(
 	const synthetic = makeBlockNode({
 		kind: node.kind,
 		leadingTrivia: '',
-		// The live raw, so the rebuild reads the authored closer line ending (G4.20).
+		// The live raw, so the rebuild copies the closer line's own line ending (G4.20).
 		raw: node.raw,
 		metadata: node.metadata ? cloneMetadata(node.metadata) : undefined,
 		innerPrefix: node.innerPrefix ?? '',
@@ -340,8 +337,8 @@ function wrapChromeStartContainer(
 }
 
 /**
- * Walk up from a leaf endpoint to the deepest container ancestor entirely inside the
- * selection. Start-side promotion is safe only while each child is first; end-side, last.
+ * Walks up from a leaf endpoint to the outermost container that lies entirely inside the
+ * selection: on the start side every step must be a first child, on the end side a last child.
  */
 function promoteToContainer(
 	doc: DocumentView,

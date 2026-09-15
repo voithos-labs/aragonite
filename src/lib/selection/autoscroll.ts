@@ -1,9 +1,8 @@
 /**
- * Pointer-edge autoscroll RAF loop, shared between cross-block and intra-table drag. The caller
- * supplies the live pointer and the scroll targets to evaluate each frame. A target may be the
- * window (`cursor/scroll-ancestors`), which answers the two halves from different places on
- * purpose: measure the viewport, write `document.scrollingElement`. Using the scrolling element
- * for both puts the document's own multi-thousand-pixel box into the edge math.
+ * Scrolls a container while a drag holds the pointer near its edge, one step per animation
+ * frame. When the target is the window, the edge band is measured against the viewport but the
+ * scroll is written to `document.scrollingElement`: measuring the scrolling element would put
+ * the document's full height into the edge math.
  */
 import type { UserScrollport } from '../cursor/scroll-ancestors';
 

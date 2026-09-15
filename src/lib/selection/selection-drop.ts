@@ -1,9 +1,9 @@
 /**
- * Dragging a selection and dropping it. The browser's own version is two native edits committed
- * apart — `deleteByDrag` on the source, `insertFromDrop` on the target — so undo takes two presses
- * over a document that lost bytes in between, and inside one block the source commit rebuilds the
- * surface under the drop. Owned here instead: one snapshot over two raw writes, which splice
- * nothing, so no path moves under the second.
+ * Dragging a selection and dropping it. The browser's own version is two separate edits
+ * (`deleteByDrag` on the source, `insertFromDrop` on the target), so undo takes two steps over a
+ * document that lost bytes in between, and inside one block the first edit re-renders the
+ * element under the drop. The editor does it instead: one undo snapshot over two raw writes,
+ * which splice nothing, so no path moves under the second.
  */
 
 import type { CstNode, Document } from '../core/nodes';
@@ -38,14 +38,14 @@ export interface SelectionDropDeps {
 	linkRef: LinkReferenceResolverRef | undefined;
 	grammar: GrammarView | undefined;
 	activePlugins: PluginActivation | undefined;
-	/** The instance event surface: a ceremony that throws mid-move has nowhere else to report. */
+	/** The editor's event emitter: a move that throws halfway has nowhere else to report. */
 	events: EditorEvents;
 	isReadOnly(): boolean;
 }
 
-/** Where the drag started, in the source surface's raw offsets. */
+/** Where the drag started, in raw offsets of the element it started in. */
 interface DragSource {
-	/** The editing surface the range sits in: a block, or a table cell. */
+	/** The editable element the range sits in: a block, or a table cell. */
 	path: number[];
 	start: number;
 	end: number;
@@ -53,15 +53,15 @@ interface DragSource {
 }
 
 /** The cut's bytes, at the block whose raw carries them: the source block, or the table a cell's
- *  bytes are joined into. `shrunkBy` is that block's own shrink. */
+ *  bytes are joined into. `shrunkBy` is how much that block's raw shrank. */
 interface ScopeCut {
 	path: number[];
 	raw: string;
 	shrunkBy: number;
 }
 
-/** A drag that IS this gesture but whose shape the seam does not move — a range leaving its
- *  surface, an empty one. The drop cancels it rather than handing it back. */
+/** A drag that is this gesture but in a shape this module does not move (a range leaving its
+ *  element, an empty one). The drop cancels it rather than handing it back to the browser. */
 const DECLINED = 'declined';
 type DragStash = DragSource | typeof DECLINED;
 
@@ -75,8 +75,8 @@ export function installSelectionDrop(deps: SelectionDropDeps): () => void {
 	const onDragEnd = () => {
 		source = null;
 	};
-	// The editor is the drop target for every drag this seam recognized, declined ones included:
-	// the drop below must RUN to cancel the browser's pair of native edits.
+	// The editor is the drop target for every drag recognised here, declined ones included: the
+	// drop handler below must run to cancel the browser's pair of native edits.
 	const onDragOver = (e: DragEvent) => {
 		if (source) e.preventDefault();
 	};
@@ -84,8 +84,8 @@ export function installSelectionDrop(deps: SelectionDropDeps): () => void {
 		const from = source;
 		source = null;
 		if (!from) return;
-		// Before every decline below, not after: the browser's two edits land apart and its undo
-		// is not ours, so a shape this seam declines mutates nothing rather than half of it.
+		// Before every decline below, not after: the browser's two edits land separately and its
+		// undo is not the editor's, so a declined shape changes nothing rather than half of it.
 		e.preventDefault();
 		if (from === DECLINED || deps.isReadOnly()) return;
 		const target = dropTarget(deps, e.clientX, e.clientY);
@@ -93,8 +93,8 @@ export function installSelectionDrop(deps: SelectionDropDeps): () => void {
 		const text = movedText(deps, from);
 		if (text === null) return;
 		void runDrop(deps, from, target, text, e.ctrlKey || e.altKey).catch((error) => {
-			// A throw between the two writes leaves a snapshot pushed and half the move applied;
-			// the host hears it on the channel the paste route reports through.
+			// A throw between the two writes leaves an undo snapshot pushed and half the move
+			// applied; the host hears about it on the same channel paste errors use.
 			emitClipboardError(deps.events, { error, path: from.path });
 		});
 	};
@@ -110,8 +110,8 @@ export function installSelectionDrop(deps: SelectionDropDeps): () => void {
 	};
 }
 
-/** Where a splice of `delta` blocks at `at` inside `parent` leaves `target`: what the drop's
- *  second write addresses once the first one's reparse changed its slot's block count. */
+/** Where `target` ends up after a splice of `delta` blocks at `at` inside `parent`: what the
+ *  drop's second write addresses once the first write's reparse changed the block count. */
 export function shiftPathAfterSplice(
 	target: number[],
 	parent: number[],
@@ -126,8 +126,8 @@ export function shiftPathAfterSplice(
 	return shifted;
 }
 
-/** Where a drop at `offset` lands once `[start, end)` left the same block, `shrunkBy` bytes
- *  shorter than the range was wide once the join seam cleaned up. Null inside the range. */
+/** Where a drop at `offset` lands once `[start, end)` has left the same block, which shrank by
+ *  `shrunkBy` bytes after the join cleanup. Null inside the range. */
 export function dropOffsetAfterCut(
 	offset: number,
 	start: number,
@@ -141,10 +141,10 @@ export function dropOffsetAfterCut(
 // ── Reading the gesture ────────────────────────────────────────────────────
 
 /**
- * The native range the drag carries, in its surface's raw offsets. `null` is "not this gesture" and
- * leaves the drag to the browser; {@link DECLINED} is this gesture in a shape the seam does not
- * move, which the drop cancels. A cross-block selection reaches neither: it paints through the
- * overlay and leaves no native range for the browser to drag.
+ * The native range the drag carries, in its element's raw offsets. `null` means not this
+ * gesture, and leaves the drag to the browser; {@link DECLINED} is this gesture in a shape this
+ * module does not move, which the drop cancels. A cross-block selection reaches neither: the
+ * overlay paints it and leaves no native range for the browser to drag.
  */
 function readSelectionSource(
 	editorRoot: HTMLElement,
@@ -153,12 +153,12 @@ function readSelectionSource(
 	const sel = window.getSelection();
 	if (!sel || sel.isCollapsed || sel.rangeCount === 0) return null;
 	const range = sel.getRangeAt(0);
-	// A draggable of its own (a rendered link, an image) is not this gesture, even with a range
-	// painted elsewhere: a selection drag grips a node the range covers.
+	// An element that is draggable on its own (a rendered link, an image) is not this gesture,
+	// even with a range painted elsewhere: a selection drag starts on a node the range covers.
 	if (!(dragged instanceof Node) || !range.intersectsNode(dragged)) return null;
 	const surface = surfaceOf(range.startContainer);
 	if (!surface || !editorRoot.contains(surface)) return null;
-	// Past this point the drag IS the editor's selection, so every remaining shape declines.
+	// From here the drag is the editor's selection, so every remaining shape is declined.
 	if (!surface.contains(range.endContainer)) return DECLINED;
 	const found = findSurfaceForElement(surface);
 	if (!found) return DECLINED;
@@ -187,8 +187,8 @@ function dropTarget(
 	return blockNodeAt(deps.getDoc(), point.path) ? { path: point.path, offset: point.offset } : null;
 }
 
-/** The source surface's own bytes for the range, past the paste transforms. Null for a payload
- *  this seam does not own: a line break needs the structural paste route. */
+/** The source element's bytes for the range, after the paste transforms. Null for text this
+ *  module does not handle: a line break needs the structural paste path. */
 function movedText(deps: SelectionDropDeps, from: DragSource): string | null {
 	const node = blockNodeAt(deps.getDoc(), from.path);
 	if (!node) return null;
@@ -197,7 +197,7 @@ function movedText(deps: SelectionDropDeps, from: DragSource): string | null {
 	return text && !/[\r\n]/.test(text) ? text : null;
 }
 
-// ── The commit ceremony ────────────────────────────────────────────────────
+// ── The commit ─────────────────────────────────────────────────────────────
 
 async function runDrop(
 	deps: SelectionDropDeps,
@@ -220,8 +220,8 @@ async function runDrop(
 		return;
 	}
 	deps.controller.pushUndoSnapshotPath(from.path, from.start);
-	// A table's caret door reads a cell landing, never a character offset (G1.29), so the
-	// transient caret the second write moves off is its first cell.
+	// A table's `focus` takes a cell, never a character offset (G1.29), so the temporary caret
+	// the second write moves away from is its first cell.
 	const sourceCaret = from.inCell ? 0 : from.start;
 	const spliced = await writeBlockRaw(deps, cut.path, () => cut.raw, sourceCaret, false);
 	const at = cut.path[cut.path.length - 1];
@@ -233,8 +233,8 @@ function insert(offset: number, text: string): (raw: string) => string {
 	return (raw) => spliceAt(raw, offset, text);
 }
 
-/** The source surface's display bytes with the dragged range gone, through the delete seam so a
- *  live-mode join cleans up after itself. */
+/** The source element's display bytes with the dragged range gone, through the range delete so
+ *  a live-mode join cleans up after itself. */
 function cutFrom(deps: SelectionDropDeps, from: DragSource): ScopeCut | null {
 	const node = blockNodeAt(deps.getDoc(), from.path);
 	if (!node) return null;
@@ -252,8 +252,8 @@ function cutFrom(deps: SelectionDropDeps, from: DragSource): ScopeCut | null {
 	return { path: from.path, raw, shrunkBy: before.length - raw.length };
 }
 
-/** A cell's bytes are joined into its row, so the TABLE is the block the cut rewrites: the cell's
- *  own range-delete on a copy, then the kind's escape and the ancestry rebuild around it. */
+/** A cell's bytes are joined into its row, so the table is the block the cut rewrites: the cell's
+ *  own range delete on a copy, then the kind's escaping and the ancestor rebuild around it. */
 function cutFromCell(deps: SelectionDropDeps, from: DragSource, cell: CstNode): ScopeCut | null {
 	const tablePath = from.path.slice(0, -2);
 	// The cell path is resolved from a DOM selector contract, so the kind is read, not assumed.
@@ -278,9 +278,9 @@ function cutFromCell(deps: SelectionDropDeps, from: DragSource, cell: CstNode): 
 }
 
 /**
- * Replace the block at `path` with the reparse of the bytes `rewrite` returns, at its parent
- * scope. Answers how many blocks the slot grew or shrank by, which is what keeps a second
- * write's path honest. `own` pushes this write's own undo entry.
+ * Replaces the block at `path` with the reparse of the bytes `rewrite` returns, in its parent's
+ * child list. Returns how many blocks the position grew or shrank by, which keeps a second
+ * write's path correct. `own` pushes this write's own undo entry.
  */
 async function writeBlockRaw(
 	deps: SelectionDropDeps,
@@ -293,8 +293,8 @@ async function writeBlockRaw(
 	const node = blockNodeAt(doc, path);
 	if (!node) return 0;
 	const written = rewrite(trimTrailingLineEnding(node.raw));
-	// A block emptied by the cut keeps its slot as a blank paragraph: no splice, so the second
-	// write's path is still the one this gesture resolved.
+	// A block emptied by the cut keeps its position as a blank paragraph: no splice, so the
+	// second write's path is still the one resolved at the drop.
 	const parsed = parseReplacement(node, written, deps.grammar, () => [
 		emptyParagraph(node.leadingTrivia ?? '', trailingLineEnding(node.raw))
 	]);
@@ -310,8 +310,8 @@ async function writeBlockRaw(
 		source: 'selection-drop',
 		...(deps.grammar ? { grammar: deps.grammar } : {})
 	});
-	// The LANDED count, not the parse's: a body rule inside the scope can rewrite the list. Zero
-	// is the unmounted-scope decline, which wrote nothing and so moved nothing.
+	// The count that landed, not the parse's: a container's body rule can rewrite the list. Zero
+	// means the parent was not mounted and nothing was written, so nothing moved.
 	return Math.max(0, landed - 1);
 }
 

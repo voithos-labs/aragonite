@@ -26,9 +26,9 @@ import { isDefaultGlobalChord } from '../schema/commands';
 
 export interface SharedKeydownContext extends LandableBoundsContext {
 	getEl(): HTMLElement | null;
-	/** Current caret offset in raw-content coordinates (ambient marker excluded). */
+	/** Current caret offset in raw-content coordinates (the container's marker prefix excluded). */
 	getCursorOffset(): number | null;
-	/** Shift-selection focus offset in raw-content coordinates (ambient marker excluded). */
+	/** Shift-selection focus offset in raw-content coordinates (the marker prefix excluded). */
 	getFocusOffset(): number | null;
 	getIndex(): number;
 	getMyPath(): number[];
@@ -41,7 +41,7 @@ export interface SharedKeydownContext extends LandableBoundsContext {
 	focus: FocusActions;
 	getBlockElByPath: BlockElLookup;
 	/** The plugins this instance activated; without it the suppression below swallows a
-	 *  chord another editor's plugin claimed. `undefined` = every installed plugin. */
+	 *  chord another editor's plugin owns. `undefined` means every installed plugin. */
 	activePlugins: PluginActivation | undefined;
 }
 
@@ -72,10 +72,10 @@ export async function handleSharedKeydown(
 	ctx.stickyColumn.noteKey(e, () => getCurrentCursorEditorRelativeX(el));
 	ctx.edgeAffinity.note(e);
 
-	// Native contenteditable history stays suppressed on keydown, since Ctrl+Y doesn't fire
-	// beforeinput historyRedo in Chromium/WebView2. The DEFAULT table is the right question here:
+	// The browser's own undo/redo is suppressed on keydown, since Ctrl+Y fires no `historyRedo`
+	// beforeinput in Chromium and WebView2. The default chord table is the right question here:
 	// it names the chords with a native history default, and running the command is the block's
-	// own override-aware dispatch, one branch further on.
+	// own dispatch, one branch further on.
 	const historyChord = eventToChord(e);
 	if (historyChord && isDefaultGlobalChord(historyChord, ctx.activePlugins)) {
 		e.preventDefault();
@@ -175,20 +175,20 @@ export interface LandableBounds {
 	end: number;
 }
 
-/** The reads the bounds need, so a block-edge gate outside this file can ask without standing up
+/** The reads the bounds need, so a block-edge check outside this file can ask without building
  *  the whole keydown context. */
 export interface LandableBoundsContext {
-	/** textContent length in raw-content coordinates (ambient marker excluded). */
+	/** textContent length in raw-content coordinates (the marker prefix excluded). */
 	getTextLen(): number;
 	getAmbientLength(): number;
 }
 
 /**
- * The raw offsets a caret can actually reach in this block, from the walk that decides where a
- * caret lands. A mode that hides a block's own markers with no reveal puts those bytes out of
- * reach, so the exits move in to what the DOM can land — the kind's declared content range is
- * not that bound: paragraph, fenced code and table cell each declare the whole raw and still
- * open or close with a run nothing paints. Every block-edge gate reads this, not 0/length.
+ * The raw offsets a caret can actually reach in this block, from the same walk that places the
+ * caret. A mode that hides a block's markers puts those bytes out of reach, so the exits move
+ * in to what the DOM can land on; the kind's declared content range is not that bound, since a
+ * paragraph, a fenced code block and a table cell each declare the whole raw and still open or
+ * close with a run nothing paints. Every block-edge check reads this, not 0 and length.
  */
 export function caretLandableBounds(ctx: LandableBoundsContext, el: HTMLElement): LandableBounds {
 	return landableRawBounds(el, ctx.getAmbientLength()) ?? { start: 0, end: ctx.getTextLen() };

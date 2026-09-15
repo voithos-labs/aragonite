@@ -1,8 +1,8 @@
 /**
- * Shared pointer-drag session: the document-listener + rAF-coalescing scaffold every drag
- * lifecycle builds on. Owns the pointer-ownership filter, autoscroll wiring, and idempotent
- * teardown; callers supply the per-surface move/end behavior and the options that genuinely
- * differ. rAF here is frame-paced pointermove coalescing, not async sequencing (G4.4).
+ * The shared pointer-drag session every drag builds on: document-level listeners, one move per
+ * animation frame, the pointer-id filter, autoscroll, and a teardown that is safe to run twice.
+ * Callers supply the move and end behaviour. The rAF here coalesces pointermove events to one
+ * per frame; it is not used to sequence anything (G4.4).
  */
 
 import { createAutoScroll, type AutoScrollDeps } from './autoscroll';
@@ -17,8 +17,8 @@ export interface PointerDragSessionOptions {
 	 *  are dropped, so a consumer must answer the point it gets rather than wait for a better one. */
 	onMove(pointer: PointerPosition): void;
 	/**
-	 * pointerup / pointercancel finalize, after the pending move flushes and the session tears
-	 * down. NOT run on Escape or lifetime abort: those are pure teardowns.
+	 * Runs on pointerup or pointercancel, after the pending move flushes and the session tears
+	 * down. Not run on Escape or a lifetime abort: those only tear down.
 	 */
 	onEnd?(reason: 'up' | 'cancel'): void;
 	/** Caller cleanup, run once on every teardown path (up, cancel, Escape, abort). */
@@ -81,9 +81,9 @@ export function createPointerDragSession(
 		});
 	}
 
-	// A release before the coalescing rAF runs would otherwise drop the final move (a stale drop
-	// index, or isCrossBlock false on a fast flick / pointercancel). Guard on a LIVE rAF so an
-	// already-processed move is never replayed.
+	// A release before the frame callback runs would otherwise drop the final move (a stale drop
+	// index, or `isCrossBlock` false after a fast flick). Guarded on a pending frame so an
+	// already processed move is never replayed.
 	function flushPendingMove(): void {
 		if (rafId !== null && pending) opts.onMove(pending);
 	}

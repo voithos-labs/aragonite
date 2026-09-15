@@ -44,9 +44,9 @@ function enterCrossBlockFromKeyboard(
 		path: anchorPoint.path.slice(),
 		offset: anchorPoint.offset
 	});
-	// Collapse (not clear) so the focus block retains a caret, or Chromium retargets clipboard
-	// events to <body> (same rule as `parkCaretInFocusBlock`). Best-effort: an endpoint hosting
-	// no text position gets no caret, which is why components/editor-root-clipboard.ts exists.
+	// A collapsed caret stays in the focus block, or Chromium sends clipboard events to <body>
+	// (as in `parkCaretInFocusBlock`). Best effort: an endpoint with no text position gets no
+	// caret, and `components/editor-root-clipboard.ts` covers that case.
 	applyCollapsedCaret(currentBlockEl, anchorPoint);
 	return true;
 }
@@ -68,25 +68,25 @@ export async function collapseCrossBlock(
 	selection.collapse();
 	clearNativeSelection();
 
-	// The cell landing seats at the cell's own edge; from there it takes the SAME seat as a
-	// prose leaf. Seating through the cell's own focus door instead would skip the collapse
-	// ceremony, and the byte typed at the arrival would join the construct the cell opens with
-	// rather than land in front of it. Only the END side overrides the landing's own offset.
+	// A cell target lands at the cell's own edge and then takes the same caret path as a text
+	// leaf. Going through the cell's own `focus` instead would skip the collapse steps, and a
+	// byte typed there would join the construct the cell opens with rather than land in front
+	// of it. Only the end side overrides the landing's own offset.
 	const landing = selection.cellLandingFor(target);
 	const point: SelectionPoint =
 		to === 'end' && !pathsEqual(landing.path, target.path)
 			? { path: landing.path, offset: leafOffsetEnd(doc, landing.path) }
 			: landing;
 
-	// The landable clamp (a caret may not sit past a hidden run) lives in applyCollapsedCaret.
+	// `applyCollapsedCaret` clamps the offset so the caret cannot sit past a hidden marker run.
 	await revealPath(landing.path);
 	focusCollapsedCaret(getBlockElByPath, point);
 }
 
 /**
- * Scroll the focus block into view when mounted. Does not itself reveal a windowed-out block:
- * the doc-edge extend reveals its endpoint via `revealActiveEndpoint` first, and a single-step
- * Shift+Arrow extend lands adjacent to the mounted window.
+ * Scrolls the focus block into view when it is mounted. Does not mount a windowed-out block
+ * itself: the document-edge extend mounts its endpoint through `revealActiveEndpoint` first,
+ * and a single Shift+Arrow step lands next to the mounted range.
  */
 export function scrollFocusBlockIntoView(
 	selection: SelectionState,
@@ -100,9 +100,9 @@ export function scrollFocusBlockIntoView(
 // ── Keyboard Extension ─────────────────────────────────────────────────────
 
 /**
- * Move the cross-block focus to `target`, or restore the resulting single-block range natively
- * when the seam collapses (focus contracted back onto the anchor's prose leaf). Keyboard entry
- * parks only a collapsed caret, so the range must be re-established here to stay visible.
+ * Moves the cross-block focus to `target`, or restores the range natively when the focus has
+ * come back onto the anchor's own block. Keyboard entry leaves only a collapsed caret, so the
+ * range has to be re-created here to stay visible.
  */
 function extendFocusOrRestore(
 	selection: SelectionState,
@@ -120,11 +120,11 @@ function extendFocusOrRestore(
 }
 
 /**
- * Extend focus to the next leaf in document order (Shift+ArrowDown / Shift+ArrowRight leaving
- * the block), entering cross-block mode if needed. Returns true if focus moved. `axis` =
- * 'vertical' skips vertically-transparent leaves — a range covers one either way, so unlike a
- * collapsed caret it needs no object stop; 'horizontal' lands unconditionally so an image-only
- * paragraph is selectable in one step.
+ * Extends focus to the next leaf in document order (Shift+ArrowDown or Shift+ArrowRight
+ * leaving the block), entering cross-block mode if needed. Returns true if focus moved. The
+ * vertical axis skips leaves the caret passes over (an image-only paragraph): a range covers
+ * one either way. The horizontal axis stops on every leaf, so such a paragraph is selectable
+ * in one step.
  */
 export function extendFocusToNextBlock(
 	selection: SelectionState,
@@ -205,7 +205,7 @@ export function extendFocusToDocEdge(
 	return true;
 }
 
-/** Select the entire document as a cross-block range (second Ctrl+A press). */
+/** Select the entire document as a cross-block range (the second Ctrl+A). */
 export function selectWholeDocument(
 	selection: SelectionState,
 	doc: Document,
@@ -217,8 +217,8 @@ export function selectWholeDocument(
 	const lastOffset = leafOffsetEnd(doc, last);
 	selection.enterCrossBlock({ path: first, offset: 0 }, { path: last, offset: lastOffset });
 
-	// A single prose leaf (whole doc is one block) has no cross-block state to paint; the seam
-	// refuses it. Select natively so a 2nd Ctrl+A on a one-block doc doesn't deselect.
+	// A one-block document has no cross-block range to paint and `enterCrossBlock` refuses it,
+	// so select natively; otherwise a second Ctrl+A would deselect.
 	if (!selection.isCustomRendered) {
 		selection.collapse();
 		const blockEl = getBlockElByPath?.(first);
@@ -229,8 +229,8 @@ export function selectWholeDocument(
 		return true;
 	}
 
-	// Paste-dispatch anchor, see enterCrossBlockFromKeyboard. A table focus normalizes to the
-	// table block, whose wrapper holds no caret, so park in its deep cell.
+	// A collapsed caret for paste dispatch, as in `enterCrossBlockFromKeyboard`. A table focus
+	// names the table block, whose wrapper holds no caret, so the caret goes in the cell.
 	const focus = selection.focus;
 	const parkPoint = focus && selection.cellLandingFor(focus);
 	const focusBlockEl = parkPoint ? getBlockElByPath?.(parkPoint.path) : null;
@@ -265,9 +265,9 @@ export function handleShiftClick(
 	}
 
 	if (!previouslyFocusedBlockEl || !previouslyFocusedBlockPath) return false;
-	// The anchor path comes from the DOM, and no path host exists below a table, so a caret
-	// parked in a cell would carry the TABLE's path with a char offset. The endpoint seam can't
-	// tell that from a cell index, so deepen to the cell here and let the seam convert.
+	// The anchor path comes from the DOM, and nothing below a table carries a path, so a caret in
+	// a cell would read as the table's path with a character offset. The endpoint snap cannot
+	// tell that from a cell index, so the path is deepened to the cell here.
 	const anchorPath = findCellPathForElement(previouslyFocusedBlockEl) ?? previouslyFocusedBlockPath;
 	const anchor = readNativeCaretInBlock(previouslyFocusedBlockEl, anchorPath);
 	if (!anchor) return false;
@@ -276,7 +276,8 @@ export function handleShiftClick(
 	if (comparePaths(anchor.path, focusPoint.path) === 0) return false;
 
 	selection.enterCrossBlock(anchor, focusPoint);
-	// Paste-dispatch anchor (see enterCrossBlockFromKeyboard); the click default isn't relied on.
+	// A collapsed caret for paste dispatch (see `enterCrossBlockFromKeyboard`); the click's
+	// default is not relied on.
 	applyCollapsedCaret(clickedBlockEl, focusPoint);
 	return true;
 }
@@ -291,9 +292,9 @@ function firstLeafAfter(doc: Document, fromPath: number[]): number[] | null {
 
 /** Last leaf reachable from `fromPath` going backward (descend or step). */
 function lastLeafBefore(doc: Document, fromPath: number[]): number[] | null {
-	// previousPath is doc-order (ancestor-before-descendant), so a first-child leaf's "previous"
-	// is its own container, and descending into that ancestor's LAST leaf would move the walk
-	// forward. Skip ancestors until a genuinely preceding subtree is reached.
+	// `previousPath` walks in document order (ancestor before descendant), so a first child's
+	// previous is its own container, and descending to that container's last leaf would move
+	// forward. Ancestors are skipped until a subtree that truly precedes is reached.
 	let prev = previousPath(doc, fromPath);
 	while (prev && isStrictAncestorOf(prev, fromPath)) prev = previousPath(doc, prev);
 	return prev ? lastLeafAtOrBefore(doc, prev) : null;
@@ -322,8 +323,8 @@ function lastNonTransparentLeafBefore(doc: Document, fromPath: number[]): number
 }
 
 /**
- * Doc-edge resolver: start AT the edge leaf and step inward to a text-bearing leaf. Distinct
- * from the leafAfter/leafBefore walkers, which step away from `fromPath`.
+ * Starts at the edge leaf itself and steps inward to a text-bearing one, unlike
+ * `firstLeafAfter` and `lastLeafBefore`, which step away from their start.
  */
 function firstNonTransparentLeafFrom(doc: Document, startPath: number[]): number[] | null {
 	if (!isTransparent(doc, startPath)) return startPath;

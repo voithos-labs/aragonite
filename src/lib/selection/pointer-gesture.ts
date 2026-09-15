@@ -1,11 +1,12 @@
 /**
- * The door a widget declares over an element whose pointer drags belong to its own gesture (a
- * diagram's pan, a canvas's brush): the editor's pointer arms decline a press inside it, so the
- * gesture never doubles as a block range. A declaration, not a `stopPropagation`: pointer events
- * are delegated at the app root, so a component's own handler runs after the editor's.
+ * The attribute a widget sets on an element whose pointer drags are its own gesture (a diagram's
+ * pan, a canvas's brush): the editor's pointer handlers ignore a pointerdown inside it, so the
+ * gesture never doubles as a block range. An attribute rather than `stopPropagation` because
+ * pointer events are delegated at the app root, so a component's own handler runs after the
+ * editor's.
  */
 
-/** Declared on the gesture surface itself; any descendant press counts. */
+/** Set on the gesture's element itself; a pointerdown on any descendant counts. */
 export const POINTER_GESTURE_ATTR = 'data-pointer-gesture';
 
 export function claimsPointerGesture(target: EventTarget | null): boolean {

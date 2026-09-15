@@ -1,8 +1,8 @@
 /**
- * The click ladder past the caret: the second press of a run selects the word under it, the
- * third the surface's content, and a drag from either extends at that granularity. Owned from
- * the second press, so the browser paints nothing of its own: its word rule is per platform,
- * its walk enters atomic islands, and a marker here never joins a word.
+ * Double and triple click: the second click of a run selects the word under it, the third the
+ * whole block's text, and a drag from either grows by that unit. The editor owns the gesture
+ * from the second click so the browser paints nothing of its own: its word rule varies by
+ * platform, it walks into non-editable widgets, and a marker here never joins a word.
  */
 
 import { ambientLengthOf } from '../ambient/ambient-dom';
@@ -46,7 +46,7 @@ function wordSegmenter(): Intl.Segmenter | null {
 
 /**
  * [start, end) of the segment at `offset` in `text`: the word ending there when it is one, else
- * the segment starting there (whitespace or punctuation, as the engine would take). Null on
+ * the segment starting there (whitespace or punctuation, as the browser would take). Null on
  * empty text, or on a platform with no segmenter.
  */
 export function wordSpanAt(text: string, offset: number): Span | null {
@@ -86,7 +86,7 @@ export function spanAround(
 	};
 }
 
-/** The rung a press's click count reaches; the run stays at the block rung past three. */
+/** The unit a click count selects; a run stays at the block unit past three clicks. */
 export function granularityForClickCount(clickCount: number): ClickGranularity | null {
 	if (clickCount === 2) return 'word';
 	return clickCount >= 3 ? 'block' : null;
@@ -100,16 +100,17 @@ export interface MultiClickDeps {
 	getBlockElByPath: BlockElLookup;
 	getScrollContainer(): UserScrollport;
 	lifetimeSignal?: AbortSignal;
-	/** A press outside every editable surface (the margin, a container's own box) names the
-	 *  nearest block, as a single click there does; null where the press is chrome's. */
+	/** A click outside every editable element (the margin, a container's own box) names the
+	 *  nearest block, as a single click there does; null when the click is on a button or handle. */
 	marginBlockAt(target: EventTarget | null, clientX: number, clientY: number): number[] | null;
 }
 
 /**
- * Root listeners for the ladder. The count rides the mousedown (a pointer event carries none),
- * and the drag rides the pointerdown of the same press, so both are heard. The mousedown is
- * cancelled, never the pointerdown (that would silence the click), and so is the mouseup: the
- * browser's release seats a caret at a press that landed off a glyph, over the range just painted.
+ * Root listeners for the gesture. The click count comes from mousedown (a pointer event
+ * carries none) and the drag from the pointerdown of the same click, so both are listened to.
+ * The mousedown is cancelled, never the pointerdown (that would silence the click), and so is
+ * the mouseup: on release the browser would put a caret where a click landed off a glyph,
+ * over the range just painted.
  */
 export function installMultiClickSelect(deps: MultiClickDeps): () => void {
 	let lastPointerDown: PointerEvent | null = null;
@@ -162,19 +163,19 @@ export function installMultiClickSelect(deps: MultiClickDeps): () => void {
 	};
 }
 
-/** The surface a press selects in: the editable under it, else the nearest block's, the way a
- *  single click in the margin lands there. A block with no text surface is nobody's word. */
+/** The editable element a click selects in: the one under it, else the nearest block's, the
+ *  way a single click in the margin lands there. A block with no text has no word to select. */
 function pressedSurface(
 	deps: MultiClickDeps,
 	e: MouseEvent
 ): { surface: HTMLElement; anchor: SelectionEndpoint | null } | null {
-	// Up through an island inside the editable (a list's `- ` prefix) to the surface itself.
+	// Up through a non-editable span inside the editable (a list's `- ` prefix) to the editable.
 	const own = surfaceOf(e.target);
 	if (own) return isWholeBlockInputProxy(own) ? null : { surface: own, anchor: null };
 	const path = deps.marginBlockAt(e.target, e.clientX, e.clientY);
 	const block = path && deps.getBlockElByPath(path);
 	if (!block) return null;
-	// A container's own box (a quote's gutter) selects in the leaf nearest the press, the way a
+	// A container's own box (a quote's gutter) selects in the leaf nearest the click, the way a
 	// click beside a line lands in that line.
 	const surface = block.contentEditable === 'true' ? block : nearestSurfaceIn(block, e.clientY);
 	const surfacePath = surface && pathOfSurface(surface);
@@ -197,8 +198,8 @@ function nearestSurfaceIn(block: HTMLElement, clientY: number): HTMLElement | nu
 	return best;
 }
 
-/** The path of the block a surface is the content of; null for a surface addressed some other
- *  way (a table's cell), whose drag is not a char-point drag. */
+/** The path of the block this editable element is the text of; null for one addressed some
+ *  other way (a table's cell), whose drag is not a character drag. */
 function pathOfSurface(surface: HTMLElement): number[] | null {
 	const host = surface.closest<HTMLElement>('[data-block-path]');
 	const raw = host?.getAttribute('data-block-path');
@@ -207,7 +208,7 @@ function pathOfSurface(surface: HTMLElement): number[] | null {
 	return host.querySelector('[contenteditable="true"]') === surface ? path : null;
 }
 
-/** Paint the rung's span at the press and answer it, in raw offsets. */
+/** Selects the unit's span at the click and returns it, in raw offsets. */
 function selectAtPoint(
 	surface: HTMLElement,
 	granularity: ClickGranularity,
@@ -245,8 +246,8 @@ function createGranularity(
 	};
 }
 
-/** A press on an inline widget is that widget's own gesture (a footnote's double-click takes
- *  its whole token), so the ladder leaves it alone. */
+/** A click on an inline widget is that widget's own gesture (a footnote's double-click takes
+ *  its whole token), so it is left alone here. */
 function pressesInlineWidget(target: EventTarget | null): boolean {
 	return target instanceof Element && target.closest('[data-inline-widget]') !== null;
 }

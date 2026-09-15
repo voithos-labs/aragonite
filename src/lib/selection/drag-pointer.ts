@@ -26,18 +26,18 @@ export interface DragContext {
 	/** Aborted on editor unmount; forwarded to the session's teardown. */
 	lifetimeSignal?: AbortSignal;
 	/**
-	 * The press began outside every editable surface (the editor's margin), so no native drag
+	 * The drag began in the editor's margin, outside every editable element, so no native drag
 	 * is extending a selection underneath: the session paints the same-block range itself.
 	 */
 	paintSameBlock?: boolean;
-	/** A drag continuing a multi-click: the range grows by that rung's unit. */
+	/** A drag continuing a double or triple click: the range grows by that click's unit. */
 	granularity?: DragGranularity;
 }
 
-/** The unit a multi-click drag grows by. Spans are raw offsets; the press's own span is the
- *  floor the range never shrinks below. */
+/** The unit a multi-click drag grows by. Spans are raw offsets; the span the click itself
+ *  selected is the floor the range never shrinks below. */
 export interface DragGranularity {
-	/** Where the press selected; a pointer that names no other block paints here. */
+	/** The element the click selected in; a pointer over no other block paints here. */
 	surface: HTMLElement;
 	anchorSpan: { start: number; end: number };
 	spanAround(offset: number): { start: number; end: number };
@@ -83,8 +83,8 @@ export function installDragListener(
 		const focusPoint = near.endpointHere();
 		if (!focusPoint) return;
 		if (isWholeBlockEndpoint(focusPoint) && !reachedCentreLine(near.path, clientY)) return;
-		// A whole unit re-enters rather than extends: its anchor's side is resolved against the
-		// new focus by the entry, where an extend would keep the unit's start as the anchor.
+		// A whole-block range re-enters rather than extends: entering picks the anchor's side
+		// against the new focus, where extending would keep the block's start as the anchor.
 		if (!ctx.selection.isCrossBlock || ctx.selection.wholeUnitPath) {
 			ctx.selection.enterCrossBlock(anchorPoint, focusPoint);
 		} else {
@@ -92,8 +92,8 @@ export function installDragListener(
 		}
 	}
 
-	// The anchor's side flips with the drag's direction (the press's span ends the range going up,
-	// starts it going down), so a flip re-enters; a same-side move only extends.
+	// The anchor's side follows the drag's direction (the clicked span ends the range going up,
+	// starts it going down), so a direction change re-enters; a same-side move only extends.
 	let anchorAfter: boolean | null = null;
 	function processGranularMove(
 		unit: DragGranularity,
@@ -137,10 +137,9 @@ export function installDragListener(
 		}
 	}
 
-	// A block with no positions inside it is in or out as a unit, and the unit joins the range
-	// once the pointer has crossed its centre line coming from the anchor's side: a sweep that
-	// merely touched its edge has not asked for it. Not reached, the last focus stands, so the
-	// range grows to the block only when the pointer commits to it.
+	// A block with no positions inside it is in or out as a unit, and it joins the range once
+	// the pointer has crossed its centre line from the anchor's side: a sweep that merely
+	// touched its edge has not asked for it. Until then the last focus stands.
 	function reachedCentreLine(path: number[], clientY: number): boolean {
 		const box = ctx.getBlockElByPath(path)?.getBoundingClientRect();
 		if (!box) return true;
@@ -148,14 +147,14 @@ export function installDragListener(
 		return comparePaths(anchorPoint.path, path) < 0 ? clientY >= middle : clientY <= middle;
 	}
 
-	// A whole-block anchor (a table, an equation) has nothing to paint natively either, and a range
-	// that only appears once the pointer reaches ANOTHER block reads as a drag that does nothing.
-	// The block is taken whole the moment the pointer moves, as the unit the state stores and the
-	// overlay paints (`wholeUnitPath`); a pointer returning from outside takes it whole again.
+	// A whole-block anchor (a table, an equation) has nothing to paint natively, and a range that
+	// appears only once the pointer reaches another block reads as a drag that does nothing. So
+	// the block is taken whole the moment the pointer moves (`wholeUnitPath`), and again when
+	// the pointer returns from outside.
 	function takeAnchorBlockWhole(): void {
 		if (ctx.selection.wholeUnitPath) return;
-		// Both ends whole: the pointer's position INSIDE the block is not a rectangle to grow (a
-		// press beside a table dragged up over it would otherwise select the rows below the
+		// Both ends whole: the pointer's position inside the block is not a rectangle to grow (a
+		// click beside a table dragged up over it would otherwise select the rows below the
 		// pointer, the opposite of the sweep). The block is the unit until the drag leaves it.
 		ctx.selection.enterCrossBlock(anchorPoint, {
 			path: anchorPoint.path.slice(),
@@ -222,9 +221,9 @@ export function installDragListener(
 function parkCaretInFocusBlock(ctx: DragContext): void {
 	const focus = ctx.selection.focus;
 	if (!focus) return;
-	// A whole unit has no text node for a caret: focus parks on the editor root, whose keydown
-	// and clipboard arms serve a custom range (as they do for a windowed-out block), with no
-	// native range left behind for the browser to act on.
+	// A whole-block range has no text node for a caret, so focus goes to the editor root, whose
+	// keydown and clipboard handlers serve the range (as they do for a windowed-out block), with
+	// no native range left for the browser to act on.
 	if (ctx.selection.wholeUnitPath) {
 		clearNativeSelection();
 		ctx.editorRoot.focus({ preventScroll: true });
