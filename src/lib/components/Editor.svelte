@@ -41,22 +41,10 @@
 	import { refSlotsOver, replaceRefs, revealChildOrWait } from '../reactivity/publish-ref.svelte';
 	import { createSelectionState } from '../selection/selection-state.svelte';
 	import { createSelectionDescription } from '../selection/selection-description';
-	import {
-		BLOCK_ACTIONS_LABEL,
-		BLOCK_MENU_LABEL,
-		EDITOR_LABEL,
-		movedBlockToPosition
-	} from '../a11y-strings';
+	import { EDITOR_LABEL, movedBlockToPosition } from '../a11y-strings';
 	import TailInsert from './TailInsert.svelte';
-	import BlockMenu, {
-		insertFlyoutEntries,
-		insertMenuEntries,
-		insertSnippets,
-		type MenuEntry
-	} from './menu/BlockMenu.svelte';
-	import { runClipboardAction, type ClipboardAction } from './menu/clipboard-actions';
-	import { blockContextActionsFor, type BlockContextAction } from '../schema/context-actions';
-	import { isProseBackground, registerDefaultContextActions } from './menu/default-context-actions';
+	import BlockMenu from './menu/BlockMenu.svelte';
+	import { registerDefaultContextActions } from './menu/default-context-actions';
 	import type { EditorSelection } from '../selection/primitives';
 	import { createWidgetSelectionState } from './image/widget-selection-state.svelte';
 	import { bootstrapCodeLanguages } from './blocks/code/code-bootstrap';
@@ -104,6 +92,7 @@
 	import { createModeFlip } from './editor-root-mode-flip';
 	import { createFocusAttribution } from './editor-root-focus';
 	import { createRootGestures } from './editor-root-gestures';
+	import { createRootMenus, type BlockMenuModel } from './editor-root-menus';
 	import {
 		installHeaderSlotCompensation,
 		installTypeScaleProbe,
@@ -456,14 +445,7 @@
 	// Opened by the bottom `+` and by a right-click on prose with nothing selected; a right-click
 	// over a selection leaves the formatting popover (the host's) in charge and only suppresses
 	// the native menu. Tables run their own cell menu and have prevented the default first.
-	let blockMenu = $state<{
-		x: number;
-		y: number;
-		anchor: () => { x: number; y: number };
-		items: MenuEntry[];
-		label: string;
-		pick: (id: string) => void;
-	} | null>(null);
+	let blockMenu = $state<BlockMenuModel | null>(null);
 
 	// Open/close transitions only, never the mount, so a subscriber's first news is a real menu.
 	let menuWasOpen = false;
@@ -473,166 +455,6 @@
 		menuWasOpen = open;
 		events.emit('menuChange', open);
 	});
-
-	function anchorOn(el: Element, point: { x: number; y: number }): () => { x: number; y: number } {
-		const rect = el.getBoundingClientRect();
-		const dx = point.x - rect.left;
-		const dy = point.y - rect.top;
-		return () => {
-			const now = el.getBoundingClientRect();
-			return { x: now.left + dx, y: now.top + dy };
-		};
-	}
-
-	// A right-click on a BLOCK — a fence, an equation, an image — is that block's context menu:
-	// its kind's registered actions, then the defaults. Prose is the page's background and keeps
-	// the browser's own menu (spelling, the platform's clipboard), as does a selection, whose
-	// affordance is the host's formatting popover. The margin shows nothing at all.
-	function onRootContextMenu(e: MouseEvent): void {
-		if (e.defaultPrevented || effectiveMode === 'reading' || !editorEl) return;
-		const target = e.target instanceof Element ? e.target : null;
-		if (!target || isHostChrome(target)) return;
-		e.preventDefault();
-		// The keyboard's contextmenu event (Windows fires it on the ContextMenu key's release)
-		// lands on the item the keydown's own menu already focused: that menu is the answer.
-		if (target.closest('.md-menu')) return;
-		const host = target.closest<HTMLElement>('.block-host[data-block-path]');
-		const path = pathOf(host);
-		if (!host || !path) return;
-		const point = { x: e.clientX, y: e.clientY };
-		const native = window.getSelection();
-		const selected = !!native && !native.isCollapsed && editorEl.contains(native.anchorNode);
-		// A selection's menu is the clipboard's, over the selection as it stands. So is prose's
-		// (the page's background), at a caret placed where the press landed; a nested block (a
-		// fence inside a list item) takes the same for now.
-		const node = path.length === 1 ? doc.children[path[0]] : undefined;
-		if (selected || !node || isProseBackground(node)) {
-			if (!selected) placeCaretAtPoint(e.clientX, e.clientY);
-			// Top-level prose is where a sibling block makes sense; a nested block or a selection
-			// gets the clipboard alone.
-			const insertAfter = !selected && node && isProseBackground(node) ? path[0] : null;
-			openClipboardMenu(point, host, insertAfter);
-			return;
-		}
-		const index = path[0];
-		const actions = blockContextActionsFor(node, path);
-		if (actions.length === 0) return;
-		const ctx = {
-			node,
-			path,
-			deleteBlock: async () => {
-				await blockEdit.deleteBlock(index);
-			},
-			replaceRaw: async (raw: string) => {
-				await blockEdit.updateBlockContent(index, raw);
-			}
-		};
-		blockMenu = {
-			...point,
-			anchor: anchorOn(host, point),
-			items: actions.map(({ id, label, icon, danger }) => ({
-				id,
-				label,
-				icon: icon as MenuEntry['icon'],
-				danger
-			})),
-			label: BLOCK_ACTIONS_LABEL,
-			pick: (id) => {
-				blockMenu = null;
-				const action = actions.find((a: BlockContextAction) => a.id === id);
-				if (action) void action.run(ctx);
-			}
-		};
-	}
-
-	// The editing surface a paste goes to: whatever editable holds focus inside the root.
-	function focusedEditable(): HTMLElement | null {
-		const active = document.activeElement;
-		return active instanceof HTMLElement && editorEl?.contains(active) && active.isContentEditable
-			? active
-			: null;
-	}
-
-	function clipboardRows(): MenuEntry[] {
-		const selected = !!focusedEditable() && !(window.getSelection()?.isCollapsed ?? true);
-		return [
-			{ id: 'clip.cut', label: 'Cut', icon: 'scissors', disabled: !selected },
-			{ id: 'clip.copy', label: 'Copy', icon: 'copy', disabled: !selected },
-			{ id: 'clip.paste', label: 'Paste', icon: 'clipboard' },
-			{ id: 'clip.paste-plain', label: 'Paste as plain text', icon: 'type' }
-		];
-	}
-
-	function runClipboardRow(id: string): boolean {
-		if (!id.startsWith('clip.')) return false;
-		void runClipboardAction(id.slice('clip.'.length) as ClipboardAction, focusedEditable());
-		return true;
-	}
-
-	/** `insertAfter` names the top-level block an "Insert block" flyout mints an empty sibling
-	 *  after; null leaves the menu to the clipboard rows alone. */
-	function openClipboardMenu(
-		point: { x: number; y: number },
-		anchorEl: Element,
-		insertAfter: number | null = null
-	): void {
-		const insert: MenuEntry[] =
-			insertAfter === null
-				? []
-				: [
-						{ id: 'sep', label: '', divider: true },
-						{ id: 'insert', label: 'Insert block', icon: 'plus', children: insertFlyoutEntries() }
-					];
-		blockMenu = {
-			...point,
-			anchor: anchorOn(anchorEl, point),
-			items: [...clipboardRows(), ...insert],
-			label: BLOCK_ACTIONS_LABEL,
-			pick: (id) => {
-				blockMenu = null;
-				if (runClipboardRow(id)) return;
-				const md = insertSnippets().get(id);
-				if (md && insertAfter !== null) void insertBlockAfter(insertAfter, md);
-			}
-		};
-	}
-
-	// The same two steps the tail's `+` takes: mint the empty paragraph, which lands the caret in
-	// it, then hand the snippet to the surface that now holds focus.
-	async function insertBlockAfter(index: number, md: string): Promise<void> {
-		await blockEdit.insertParagraph(index + 1, '');
-		insertMarkdown(md);
-	}
-
-	function pathOf(host: HTMLElement | null): number[] | null {
-		const raw = host?.dataset.blockPath;
-		if (!raw) return null;
-		try {
-			const parsed: unknown = JSON.parse(raw);
-			return Array.isArray(parsed) && parsed.every((n) => typeof n === 'number') ? parsed : null;
-		} catch {
-			return null;
-		}
-	}
-
-	async function onTailPlus(button: HTMLElement): Promise<void> {
-		await blockEdit.insertParagraph(doc.children.length, '');
-		const rect = button.getBoundingClientRect();
-		const point = { x: rect.left, y: rect.bottom + 4 };
-		const snippets = insertSnippets();
-		blockMenu = {
-			...point,
-			anchor: anchorOn(button, point),
-			items: [...insertMenuEntries(), { id: 'sep', label: '', divider: true }, ...clipboardRows()],
-			label: BLOCK_MENU_LABEL,
-			pick: (id) => {
-				blockMenu = null;
-				if (runClipboardRow(id)) return;
-				const md = snippets.get(id);
-				if (md) insertMarkdown(md);
-			}
-		};
-	}
 
 	// ── Link card door ──────────────────────────────────────────────────
 
@@ -1077,6 +899,21 @@
 				isReadOnly: () => effectiveMode === 'reading'
 			})
 		);
+	});
+
+	const rootMenus = createRootMenus({
+		get editorEl() {
+			return editorEl;
+		},
+		get mode() {
+			return effectiveMode;
+		},
+		getDoc,
+		isHostChrome,
+		blockEdit,
+		placeCaretAtPoint,
+		insertMarkdown,
+		setMenu: (menu) => (blockMenu = menu)
 	});
 
 	// A theme flip invalidates no live edit, so it only has to be announced — for
@@ -1678,7 +1515,7 @@
 	tabindex="-1"
 	role="group"
 	aria-label={EDITOR_LABEL}
-	oncontextmenu={onRootContextMenu}
+	oncontextmenu={rootMenus.onRootContextMenu}
 >
 	{#if searchBar}
 		<!-- Zero-height sticky anchor, so the bar doesn't scroll away with content. Portaled
@@ -1717,7 +1554,7 @@
 		{blockEdit}
 		childCount={doc.children.length}
 		readOnly={effectiveMode === 'reading'}
-		onPlus={(button) => void onTailPlus(button)}
+		onPlus={(button) => void rootMenus.onTailPlus(button)}
 	/>
 	{#if blockMenu}
 		<BlockMenu
