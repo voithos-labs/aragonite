@@ -1,7 +1,8 @@
 /**
- * AT announcement text for a cross-block selection. The overlay paints rects but suppresses
- * native selection, so assistive tech sees nothing without this. Counts top-level blocks
- * spanned; a selection nested inside one top-level block gets a generic phrase.
+ * The screen-reader announcement for a cross-block selection. The overlay paints rectangles
+ * but suppresses the native selection, so assistive technology sees nothing without this.
+ * Counts the top-level blocks spanned; a selection inside one top-level block gets a generic
+ * phrase.
  */
 
 import type { EditorSelection } from './primitives';

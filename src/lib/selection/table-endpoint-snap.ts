@@ -1,8 +1,8 @@
 /**
- * The cell-index space a selection endpoint inside a grid lives in. Offsets are INCLUSIVE cell
- * indices, the space SelectionPoint already uses. The whole-row snap and the two metadata reads
- * answer for a table alone; the coverage tenants answer for any `containerContract: 'grid'` kind.
- * An intra-table pair is deliberately left unsnapped, so rectangular sub-cell selection survives.
+ * The cell-index space a selection endpoint inside a grid lives in. Offsets are inclusive cell
+ * indices, the space `SelectionPoint` already uses. The whole-row snap and the two metadata reads
+ * are for tables only; the coverage functions serve any `containerContract: 'grid'` kind. A pair
+ * inside one table is deliberately left unsnapped, so a rectangle of cells can be selected.
  */
 
 import type { DocumentView, NodeView } from '../core/node-views';
@@ -15,10 +15,11 @@ import { comparePaths, pathHasPrefix } from './path-math';
 import { devWarn } from '../dev-warn';
 
 /**
- * The char→cell conversion funnel: a cross-block endpoint inside a table must address the table
- * block by row-major cell index, or a deep `[tableIdx, row, col]` path with a char offset routes
- * the delete down the generic branch and corrupts the grid. SelectionState applies this to every
- * incoming point, so entry paths never call it themselves. Non-table paths pass through.
+ * The one conversion from a cell path to a cell index: a cross-block endpoint inside a table
+ * must address the table block by row-major cell index, or a `[tableIdx, row, col]` path with a
+ * character offset sends the delete down the plain branch and corrupts the grid.
+ * `SelectionState` applies this to every incoming point, so entry paths never call it
+ * themselves. Non-table paths pass through.
  */
 export function normalizeTableEndpoint(
 	doc: DocumentView,
@@ -64,10 +65,10 @@ function gridColumnCount(grid: NodeView): number {
 }
 
 /**
- * `point`'s index in `grid`'s cell space, null where it addresses no cell of it — the side the
- * range runs past, which reads as the grid's own edge. A table's endpoint arrives on the grid path
- * already carrying the index; a plugin grid's keeps the deep `[grid, row, col]` path G1.29 permits,
- * and resolves through the same width {@link coveredGridCells} decodes with.
+ * `point`'s index in `grid`'s cell space, or null where it addresses no cell of the grid (the
+ * side the range runs past, which reads as the grid's own edge). A table's endpoint arrives on
+ * the grid path already carrying the index; a plugin grid's keeps the `[grid, row, col]` path
+ * G1.29 permits, and resolves through the same width {@link coveredGridCells} decodes with.
  */
 export function gridEndpointCellIndex(
 	grid: NodeView,
@@ -75,9 +76,9 @@ export function gridEndpointCellIndex(
 	point: SelectionPoint
 ): number | null {
 	if (!pathHasPrefix(point.path, gridPath)) return null;
-	// On the grid's own path, resolution is the NODE KIND's, not the flag's ({@link
-	// cellEndpointDeepPath}): a table path IS cell space, so an intra-table rectangle's unflagged
-	// corner counts cells, while any other grid holds a char offset addressing no cell.
+	// On the grid's own path the node kind decides, not the flag ({@link cellEndpointDeepPath}):
+	// a table path is cell space, so the unflagged corner of a rectangle inside a table counts
+	// cells, while any other grid holds a character offset addressing no cell.
 	if (point.path.length === gridPath.length)
 		return point.cellCoordinate || grid.kind === 'table' ? point.offset : null;
 	const [row, col = 0] = point.path.slice(gridPath.length);
@@ -85,12 +86,12 @@ export function gridEndpointCellIndex(
 }
 
 /**
- * The cells a range covers inside one grid, in document order. `from`/`to` are the range's own cell
- * indices IN DOCUMENT ORDER (`from <= to`; unordered inputs answer with fewer cells or none), null
- * on a side the range runs past. Both inside is the RECTANGLE they span — what the overlay paints
- * and `range-delete-table` clears; one inside is a run to that cell inclusive. Rows of cells is the
- * whole shape asked: children that are not rows of cells answer with no cells, rows of unequal
- * width with the wrong cells or none, every index being row 0's width.
+ * The cells a range covers inside one grid, in document order. `from` and `to` are the range's
+ * cell indices in document order (`from <= to`; unordered inputs return fewer cells or none),
+ * null on a side the range runs past. Both inside is the rectangle they span, which the overlay
+ * paints and `range-delete-table` clears; one inside is a run up to that cell inclusive. The
+ * grid must be rows of cells of equal width: anything else returns the wrong cells or none,
+ * since every index is decoded with row 0's width.
  */
 export function coveredGridCells(
 	grid: NodeView,
@@ -124,12 +125,11 @@ export function coveredGridCells(
 }
 
 /**
- * Inverse of {@link normalizeTableEndpoint}: expand an endpoint addressing a table block to its
- * deep `[tableIdx, row, col]` leaf path so reveal/caret placement reaches an off-window cell.
- * Null when the path is already a leaf or the index lands outside the grid. Resolution is on the
- * NODE KIND, not the `cellCoordinate` flag: an intra-table focus is unflagged (see
- * {@link SelectionPoint}) yet still a cell index. Callers reach it through
- * `SelectionState.cellLandingFor`, which is where the landing rule lives.
+ * The inverse of {@link normalizeTableEndpoint}: expands an endpoint addressing a table block to
+ * its `[tableIdx, row, col]` leaf path, so mounting and caret placement reach a windowed-out
+ * cell. Null when the path is already a leaf or the index lies outside the grid. The node kind
+ * decides, not the `cellCoordinate` flag: a focus inside a table is unflagged (see
+ * {@link SelectionPoint}) yet still a cell index. Callers go through `SelectionState.cellLandingFor`.
  */
 export function cellEndpointDeepPath(doc: DocumentView, point: SelectionPoint): number[] | null {
 	const node = nodeAt(doc, point.path);

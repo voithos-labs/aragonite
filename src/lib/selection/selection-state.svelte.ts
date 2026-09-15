@@ -57,14 +57,15 @@ export interface SelectionState {
 	/** The third mode: a collapsed caret in a between-blocks boundary (`gap-caret.ts`). */
 	readonly gapCaret: GapCaretPosition | null;
 	/**
-	 * One block taken whole as the entire range — a press on a surface-less leaf (an equation)
-	 * dragged inside it. The stored pair spans the block's bytes on a shared path, which the
-	 * same-path guard would otherwise refuse, so the overlay reads this to paint it as a unit.
+	 * One block taken whole as the entire range: a click on a leaf with no text (an equation)
+	 * dragged inside it. The stored pair spans the block's bytes on one path, which the
+	 * same-path check would otherwise refuse, so the overlay reads this to paint the block as a
+	 * unit.
 	 */
 	readonly wholeUnitPath: number[] | null;
 
-	// Every mutator below is silent when it changes nothing: a preamble that clears what is
-	// already clear must not wake a subscriber into re-reading an unmoved selection.
+	// Every mutator below is silent when it changes nothing: a reset that clears what is
+	// already clear must not make a subscriber re-read an unmoved selection.
 	enterCrossBlock(anchor: SelectionEndpoint, focus: SelectionEndpoint): void;
 	extendFocus(point: SelectionEndpoint): void;
 	collapse(): void;
@@ -75,25 +76,25 @@ export interface SelectionState {
 	resetSelectAllCount(): void;
 
 	/**
-	 * Fire the channel for a selection this state cannot see. Subscribers read the editor
-	 * back through `getSelection()`, which also answers for a NATIVE caret the restore road
-	 * lands and for a document a `source` swap replaced under it — neither of which moves a
-	 * field the mutators above guard on. Coalesces inside a {@link SelectionState.batch}.
+	 * Notifies for a selection change this state cannot see. Subscribers read the editor back
+	 * through `getSelection()`, which also reports a native caret a restore placed and a
+	 * document a `source` swap replaced; neither moves a field the mutators above check.
+	 * Coalesces inside a {@link SelectionState.batch}.
 	 */
 	announceSelection(): void;
 
 	/**
-	 * Hold change notification until `mutate` returns, then fire once if anything mutated.
-	 * Nests; flushes even when the body throws. An entry path that writes state AND lands a
-	 * caret must wrap both: subscribers read the editor back on notify, so a notify between
-	 * the two reports a caret the DOM half has not moved yet.
+	 * Holds the change notification until `mutate` returns, then fires once if anything
+	 * changed. Nests, and flushes even when the body throws. Code that writes state and also
+	 * places a caret must wrap both: subscribers read the editor back on notify, so a notify
+	 * between the two reports a caret the DOM has not moved yet.
 	 */
 	batch(mutate: () => void): void;
 
 	/**
-	 * Classify an anchor/focus pair for DOM restore WITHOUT mutating state, so no phantom
-	 * cross-block onChange fires. Same-path prose is 'single-block' (native highlight); a
-	 * cross-block or intra-table cell rect is 'custom' (overlay).
+	 * Classifies an anchor/focus pair for a DOM restore without touching state, so no spurious
+	 * cross-block `onChange` fires. A same-path text range is 'single-block' (native highlight);
+	 * a cross-block range or a rectangle inside a table is 'custom' (overlay).
 	 */
 	restoreRoute(
 		anchor: SelectionPoint,
@@ -101,9 +102,9 @@ export interface SelectionState {
 	): 'collapsed' | 'single-block' | 'custom';
 	/**
 	 * Where a caret lands for `point`: an endpoint inside a table addresses the table block by
-	 * cell INDEX, so its landing is the cell's own deep `[table,row,col]` leaf at offset 0.
-	 * Any other point lands as itself. Every reveal and every park goes through here, so no
-	 * caller can seat a cell index as a char offset on the table wrapper.
+	 * cell index, so it lands in the cell's own `[table, row, col]` leaf at offset 0. Any other
+	 * point lands as itself. Every mount and every caret placement goes through here, so no
+	 * caller can put a cell index on the table wrapper as a character offset.
 	 */
 	cellLandingFor(point: SelectionPoint): SelectionPoint;
 }
@@ -208,8 +209,8 @@ class SelectionStateImpl implements SelectionState {
 
 	enterCrossBlock(anchor: SelectionEndpoint, focus: SelectionEndpoint): void {
 		this.#gapCaret = null;
-		// Both ends the same surface-less block: the unit itself is the range, stored as its full
-		// byte span and flagged, since below a same-path pair is refused as prose.
+		// Both ends on the same block with no text: the block itself is the range, stored as its
+		// full byte span and flagged, since a same-path pair is refused as text below.
 		if (
 			isWholeBlockEndpoint(anchor) &&
 			isWholeBlockEndpoint(focus) &&
@@ -225,10 +226,11 @@ class SelectionStateImpl implements SelectionState {
 		this.#wholeUnit = null;
 		const a = this.#normalizePoint(anchor, focus.path);
 		const f = this.#normalizePoint(focus, anchor.path);
-		// A same-path prose pair is a single-block range the browser owns; storing it mints an
-		// INVISIBLE cross-block state. Refuse it here so no entry path can. Intra-table rects
-		// share the table path but flag a cell coordinate, and the same-offset keyboard seed is
-		// kept so its immediate `extendFocus` has an anchor.
+		// A same-path text pair is a single-block range the browser owns; storing it would create
+		// an invisible cross-block state, so it is refused here, where every entry path passes. A
+		// rectangle inside a table shares the table path but is flagged as a cell coordinate, and
+		// the keyboard's equal-offset starting pair is kept so its immediate `extendFocus` has an
+		// anchor.
 		if (this.#isSamePathProseRange(a, f)) {
 			this.#anchor = null;
 			this.#focus = null;
@@ -245,17 +247,17 @@ class SelectionStateImpl implements SelectionState {
 			throw new Error('SelectionState.extendFocus called without an anchor');
 		}
 		this.#gapCaret = null;
-		// Leaving a whole unit: its anchor is the block as a whole again, so the side it means
-		// (start below the new focus, end above it) is resolved afresh rather than kept at 0.
+		// Leaving a whole-block range: its anchor is the block as a whole again, so the side it
+		// means (start below the new focus, end above it) is resolved afresh rather than kept at 0.
 		if (this.#wholeUnit) {
 			const unit = { path: this.#wholeUnit, wholeBlock: true as const };
 			this.#anchor = this.#normalizePoint(unit, point.path);
 			this.#wholeUnit = null;
 		}
 		const f = this.#normalizePoint(point, this.#anchor.path);
-		// A focus back on the anchor's prose leaf contracts to a single-block range. No
-		// `offset !== offset` guard, unlike #isSamePathProseRange: extendFocus never seeds, so
-		// landing exactly on the anchor offset is a collapse that must not be stored either.
+		// A focus back on the anchor's text leaf shrinks to a single-block range. No equal-offset
+		// exception, unlike `#isSamePathProseRange`: `extendFocus` never starts a pair, so landing
+		// exactly on the anchor offset is a collapse that must not be stored either.
 		if (
 			pathsEqual(this.#anchor.path, f.path) &&
 			!this.#anchor.cellCoordinate &&
@@ -270,14 +272,14 @@ class SelectionStateImpl implements SelectionState {
 		this.#notify();
 	}
 
-	// G1.29 at the storing seam, the belt behind #normalizePoint: both entries carry it because
-	// both store an endpoint pair.
 	#byteLengthAt(path: number[]): number {
 		const doc = this.#getDoc?.();
 		const node = doc ? nodeAt(doc, path) : null;
 		return node && 'raw' in node ? displayLength(node.raw) : 0;
 	}
 
+	// The coordinate check (G1.29) runs where the pair is stored, as a backstop behind
+	// `#normalizePoint`; both `enterCrossBlock` and `extendFocus` call it because both store a pair.
 	#assertEndpointCoordinates(anchor: SelectionPoint, focus: SelectionPoint): void {
 		const getDoc = this.#getDoc;
 		if (!getDoc) return;
@@ -286,19 +288,19 @@ class SelectionStateImpl implements SelectionState {
 		);
 	}
 
-	// Same prose leaf, distinct offsets: the shape that must never enter cross-block state.
-	// Equal-offset pairs are excluded so the keyboard entry seed survives to its extend.
+	// Same text leaf, distinct offsets: the shape that must never enter cross-block state.
+	// Equal-offset pairs are excluded so the keyboard's starting pair survives to its extend.
 	#isSamePathProseRange(a: SelectionPoint, f: SelectionPoint): boolean {
 		return (
 			pathsEqual(a.path, f.path) && !a.cellCoordinate && !f.cellCoordinate && a.offset !== f.offset
 		);
 	}
 
-	// The funnel every entry path (keyboard, shift-click, drag, select-all, undo restore) goes
-	// through: a table endpoint can never be stored as a deep cell path with a char offset, and a
-	// char offset can never be stored outside the space its own block addresses (both funnels'
-	// headers). Never normalize at a call site instead. Idempotent; without a doc nothing can be
-	// measured, so points pass raw.
+	// The one place every entry path (keyboard, shift-click, drag, select-all, undo restore)
+	// normalizes: a table endpoint is never stored as a cell path with a character offset, and a
+	// character offset is never stored outside its block's range. Never normalize at a call site
+	// instead. Idempotent; without a document nothing can be measured, so points pass through as
+	// they are.
 	#normalizePoint(point: SelectionEndpoint, otherPath: readonly number[]): SelectionPoint {
 		const getDoc = this.#getDoc;
 		if (!getDoc) {
@@ -375,8 +377,8 @@ class SelectionStateImpl implements SelectionState {
 	cellLandingFor(point: SelectionPoint): SelectionPoint {
 		const getDoc = this.#getDoc;
 		if (!getDoc) return point;
-		// Resolution is the door's, on the node kind: a context-established intra-table endpoint
-		// is unflagged and still a cell index, and a non-table path answers null.
+		// `cellEndpointDeepPath` decides by node kind: an endpoint inside a table is unflagged and
+		// still a cell index, and a non-table path returns null.
 		const deepPath = cellEndpointDeepPath(getDoc(), point);
 		return deepPath ? { path: deepPath, offset: 0 } : point;
 	}

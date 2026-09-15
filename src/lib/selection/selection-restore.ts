@@ -1,9 +1,9 @@
 /**
- * The one road from a stored selection back onto the live editor: resolve against the current
- * tree, reveal what the caret will be parked at, then land it. Both entry paths (undo/redo
- * swap, the consumer's `setSelection`) funnel through here, so the resolve/clamp/reveal rules
- * can't be carried by only one. A gap caret takes {@link restoreGapCaret}, the same road minus
- * the endpoint pair.
+ * The one path from a stored selection back onto the live editor: resolve it against the
+ * current tree, mount the block the caret will land in, then place it. Both callers (an
+ * undo/redo swap and the consumer's `setSelection`) come through here, so the resolve, clamp
+ * and mount rules cannot differ between them. A gap caret takes {@link restoreGapCaret}, the
+ * same steps minus the endpoint pair.
  */
 
 import type { DocumentView } from '../core/node-views';
@@ -18,8 +18,8 @@ import type { SelectionState } from './selection-state.svelte';
 
 /**
  * `unresolvable` is decided before anything happens and is the only outcome that leaves the
- * editor untouched. `unplaced` is everything short of both halves landing; the reveal and, on
- * the custom route, the cross-block state write have already run.
+ * editor untouched. `unplaced` is everything short of both halves landing; the mount and, on
+ * the overlay route, the cross-block state write have already run.
  */
 export type SelectionRestoreOutcome = 'applied' | 'unresolvable' | 'unplaced';
 
@@ -27,15 +27,15 @@ export interface SelectionRestoreDeps {
 	getDoc(): DocumentView;
 	selectionState: SelectionState;
 	getBlockElByPath: BlockElLookup;
-	/** Make the park target ready and report whether it is. Injected because WHICH path gets
-	 *  revealed is this module's rule, how strongly is the caller's. */
+	/** Mounts the block the caret will land in and reports whether it is ready. Injected because
+	 *  which path gets mounted is this module's rule and how far to scroll is the caller's. */
 	revealTarget(path: number[]): Promise<boolean>;
 }
 
 /**
- * Restore a snapshot. Never throws; an endpoint whose path no longer addresses a block is
- * declined before the reveal, so a dead snapshot cannot move the viewport or disturb a live
- * selection. What a decline does about the on-screen selection is the caller's policy.
+ * Restores a snapshot. Never throws; an endpoint whose path no longer addresses a block is
+ * declined before anything is mounted, so a dead snapshot cannot move the viewport or disturb
+ * a live selection. What a decline does about the on-screen selection is the caller's policy.
  */
 export async function restoreSelection(
 	selection: EditorSelection,
@@ -46,17 +46,17 @@ export async function restoreSelection(
 	const focus = resolveSelectionPoint(doc, selection.focus);
 	if (!anchor || !focus) return 'unresolvable';
 
-	// Reveal exactly what the applier parks the caret at: a cell-coordinate focus parks in its
-	// deep [table, row, col] cell, and table rows window too.
+	// Mount exactly what the caret will land in: a cell-coordinate focus lands in its
+	// [table, row, col] cell, and table rows are windowed too.
 	const revealed = await deps.revealTarget(deps.selectionState.cellLandingFor(focus).path);
 	const placed = applySelectionToDom({ anchor, focus }, deps.selectionState, deps.getBlockElByPath);
 	return revealed && placed ? 'applied' : 'unplaced';
 }
 
 /**
- * Restore a gap caret. The scope check is `gapEligibleAt`'s, not a full eligibility gate:
- * the tree being restored is the one the gap was minted against, so `gapEdges` cannot have
- * changed under it, but the PATH can now name something no BlockList renders.
+ * Restores a gap caret. Only the child-list check of `gapEligibleAt` runs, not the full
+ * eligibility check: the tree being restored is the one the gap was created against, so
+ * `gapEdges` cannot have changed, but the path can now name something no BlockList renders.
  */
 export async function restoreGapCaret(
 	pos: GapCaretPosition,
@@ -75,11 +75,11 @@ export async function restoreGapCaret(
 }
 
 /**
- * Clamp an endpoint into its block's addressable range, or null when its path no longer
- * resolves to a block (the document root included). The NODE KIND picks the coordinate space,
- * not the `cellCoordinate` flag: an intra-table endpoint is unflagged (see
- * {@link SelectionPoint}) yet still carries a cell index. The char-space bound is `raw`, which
- * on a marker-bearing kind runs past the content end; the DOM walk lands such an offset there.
+ * Clamps an endpoint into its block's range, or null when its path no longer resolves to a
+ * block (the document root included). The node kind picks the coordinate space, not the
+ * `cellCoordinate` flag: an endpoint inside a table is unflagged (see {@link SelectionPoint})
+ * yet still carries a cell index. The character bound is `raw`, which on a kind with markers
+ * runs past the content end; the DOM-to-offset walk puts such an offset at the end.
  */
 export function resolveSelectionPoint(
 	doc: DocumentView,
@@ -88,8 +88,8 @@ export function resolveSelectionPoint(
 	const node = nodeAt(doc, point.path);
 	if (node === null || !isBlockNode(node)) return null;
 
-	// Through the extent helper, not a local product: this ceiling and `cellEndpointDeepPath`'s
-	// bounds check must be the same number, or a clamped index is rejected by that check.
+	// Through `tableCellCount`, not a local product: this ceiling and `cellEndpointDeepPath`'s
+	// bounds check must be the same number, or a clamped index fails that check.
 	const limit = node.kind === 'table' ? tableCellCount(node) - 1 : node.raw.length;
 	const offset = Math.min(Math.max(point.offset, 0), Math.max(limit, 0));
 

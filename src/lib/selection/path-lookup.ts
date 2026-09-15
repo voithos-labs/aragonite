@@ -65,7 +65,8 @@ export function firstLeafAtOrAfter(doc: Document, path: number[]): number[] | nu
 export function lastLeafAtOrBefore(doc: Document, path: number[]): number[] | null {
 	let cur: number[] | null = path;
 	while (cur) {
-		// Annotated: overload resolution + the `cur` reassignment below otherwise cycle inference.
+		// Annotated because overload resolution and the `cur` reassignment below otherwise make
+		// TypeScript's inference cycle.
 		const node: CstNode | Document | null = nodeAt(doc, cur);
 		if (!node) return null;
 		if (!('children' in node) || !node.children || node.children.length === 0) return cur;
@@ -99,11 +100,11 @@ export function findBlockPathForElement(el: Element | null): number[] | null {
 }
 
 /**
- * The deep `[...tablePath, row, col]` path of an element inside a table cell. Only block hosts
- * emit `data-block-path`, so {@link findBlockPathForElement} stops at the table and returns a
- * path whose offsets are cell indices while a caret read from the same element is in characters.
- * Any producer resolving an endpoint path from the DOM must come through here. Null outside a
- * cell grid; addresses the grid by selector contract (`data-table-row-idx`, `role="cell"`).
+ * The `[...tablePath, row, col]` path of an element inside a table cell. Only block hosts carry
+ * `data-block-path`, so {@link findBlockPathForElement} stops at the table and returns a path
+ * whose offsets are cell indices, while a caret read from the same element is in characters.
+ * Anything resolving an endpoint path from the DOM must come through here. Null outside a
+ * grid; the grid is addressed by `data-table-row-idx` and `role="cell"`.
  */
 export function findCellPathForElement(el: Element | null): number[] | null {
 	const cellEl = el?.closest('[role="cell"]') ?? null;
@@ -121,15 +122,15 @@ export function findCellPathForElement(el: Element | null): number[] | null {
 	return [...tablePath, rowIdx, colIdx];
 }
 
-/** The editing SURFACE `el` sits in: the enclosing cell where there is one, else the enclosing
- *  block, and which of the two answered — a caller whose bytes live at a different scope for a
- *  cell reads the flag rather than re-deriving the pairing. */
+/** The editable element `el` sits in: the enclosing cell where there is one, else the enclosing
+ *  block, plus which of the two answered, so a caller that treats cells differently reads the
+ *  flag rather than re-deriving it. */
 export interface EditingSurface {
 	path: number[];
 	inCell: boolean;
 }
 
-/** The pairing {@link findCellPathForElement} says every producer owes, in one place. */
+/** The cell-then-block lookup {@link findCellPathForElement} requires, in one place. */
 export function findSurfaceForElement(el: Element | null): EditingSurface | null {
 	const cellPath = findCellPathForElement(el);
 	if (cellPath) return { path: cellPath, inCell: true };

@@ -39,23 +39,23 @@ export interface CellSelectionPoint {
 }
 
 /**
- * A single selection endpoint, discriminated on `cellCoordinate`; empty path is the
- * document root. `offset` keeps its name on both arms, and its space is the
- * discriminant's job: read it through {@link charOffsetOf} / {@link cellIndexOf}.
- * Exception: intra-table selections share the table path and carry cell-valued offsets
- * on UNFLAGGED points, established by their shared scope rather than the flag.
+ * One selection endpoint, discriminated on `cellCoordinate`; an empty path is the document
+ * root. `offset` keeps its name on both variants and the flag says which space it is in, so
+ * read it through {@link charOffsetOf} or {@link cellIndexOf}. The exception: a selection
+ * inside one table shares the table path and carries cell indices on unflagged points.
  */
 export type SelectionPoint = CharSelectionPoint | CellSelectionPoint;
 
-/** An endpoint whose block offered no position to land on; the funnel resolves the side. */
+/** An endpoint whose block offered no position to land on; its side is resolved against the
+ *  other endpoint when the range is entered. */
 export interface WholeBlockEndpoint {
 	path: number[];
 	wholeBlock: true;
 }
 
 /**
- * What an entry path may hand the selection funnel. Only {@link SelectionPoint} is ever
- * stored, so an unresolved endpoint cannot reach a consumer.
+ * What a gesture may hand `enterCrossBlock`. Only a {@link SelectionPoint} is ever stored, so
+ * an unresolved endpoint cannot reach a consumer.
  */
 export type SelectionEndpoint = SelectionPoint | WholeBlockEndpoint;
 
@@ -73,7 +73,7 @@ export interface EditorSelection {
 	focus: SelectionPoint;
 }
 
-/** Offset as a char index into the leaf's `raw`. DEV-warns on a cell point, but always returns. */
+/** Offset as a char index into the leaf's `raw`. Warns in dev on a cell point, but always returns. */
 export function charOffsetOf(point: SelectionPoint, tag: string): RawOffset {
 	if (point.cellCoordinate) {
 		devWarn(tag, 'char-offset site received a cell-coordinate SelectionPoint', point);
@@ -81,7 +81,7 @@ export function charOffsetOf(point: SelectionPoint, tag: string): RawOffset {
 	return asRawOffset(point.offset);
 }
 
-/** Offset as a row-major table cell index. DEV-warns on a char point, but always returns. */
+/** Offset as a row-major table cell index. Warns in dev on a char point, but always returns. */
 export function cellIndexOf(point: SelectionPoint, tag: string): CellIndex {
 	if (!point.cellCoordinate) {
 		devWarn(tag, 'cell-index site received a char-offset SelectionPoint', point);
@@ -92,11 +92,10 @@ export function cellIndexOf(point: SelectionPoint, tag: string): CellIndex {
 // ── Normalization ──────────────────────────────────────────────────────────
 
 /**
- * `{start, end}` in document order: by path, then by offset when paths match. Published on the
- * consumer barrel as `normalizeSelection`, which is what a host anchors UI to. The offset tiebreak
- * is coordinate-space agnostic: two endpoints sharing a table's path carry row-major CELL indices,
- * whose order IS document order inside that table. A caller with no selection has nothing to
- * order, since `getSelection()` answers null with nothing focused and at a gap caret.
+ * `{start, end}` in document order: by path, then by offset when the paths match. Exported to
+ * consumers as `normalizeSelection`. The offset tiebreak works in either space: two endpoints
+ * sharing a table's path carry row-major cell indices, whose order is document order inside
+ * that table.
  */
 export function normalize(selection: EditorSelection): {
 	start: SelectionPoint;
@@ -112,7 +111,7 @@ export function normalize(selection: EditorSelection): {
 
 // ── Undo snapshot ──────────────────────────────────────────────────────────
 
-/** A join delete rides the caller's snapshot; every other one seats undo at its own coordinate. */
+/** A join delete uses the caller's undo snapshot; every other delete records its own position. */
 export function deleteSnapshot(
 	options: { undoEntry?: UndoEntryMode } | undefined,
 	path: number[],
@@ -171,9 +170,9 @@ export function classifyBlockForSelection(
 
 /**
  * Whether this block paints the range over its whole box: the range holds its entire subtree and
- * no ancestor's box already covers it, or it is the whole unit a single-block range holds. Chrome
- * a container derives from its markers (a GitHub alert's badge) has no child host to paint it, so
- * the covering block takes the box in one piece and its children paint nothing.
+ * no ancestor's box already covers it, or it is the one block a whole-block range holds. A
+ * container's own decoration (a GitHub alert's badge) has no child host to paint it, so the
+ * covering block takes the box in one piece and its children paint nothing.
  */
 export function blockPaintsWholeBox(
 	path: readonly number[],

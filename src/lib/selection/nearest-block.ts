@@ -1,9 +1,9 @@
 /**
  * The mounted block nearest a viewport point, and the endpoint that point addresses. A gesture
- * that must answer EVERY point — the dead-space click, a drag into the margin — resolves an
- * off-block point through here instead of declining it. The probe point never leaves the module:
- * a caller hit-testing at its own raw point gets no offset at all on a character surface.
- * Only mounted blocks are measured; a caller answering for a windowed-out tail reconciles itself.
+ * that must answer every point (a dead-space click, a drag into the margin) resolves an
+ * off-block point here instead of declining it. The clamped probe point stays inside this
+ * module: hit-testing a text block at the original point would return no offset at all. Only
+ * mounted blocks are measured; a caller answering for a windowed-out tail handles that itself.
  */
 
 import { clampPointIntoBox } from '../cursor/point-offset';

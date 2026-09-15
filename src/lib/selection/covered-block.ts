@@ -1,7 +1,7 @@
 /**
- * The block a range holds whole, for the gestures that insert over it. Such a range has no seam
- * inside it to merge at: the block leaves the tree entirely, so bytes that follow must land in
- * its SLOT rather than at a caret in whatever took the slot.
+ * The block a range covers whole, for the paste and typing paths that replace it. There is no
+ * join inside such a range to merge at: the block leaves the tree, so the new bytes go into
+ * its list position rather than at a caret in whatever block took that position.
  */
 
 import type { DocumentView } from '../core/node-views';
@@ -10,8 +10,8 @@ import { displayLength } from '../core/lines';
 import { isBlockNode, nodeAt } from '../tree-operations/node-primitives';
 import { pathsEqual } from './path-math';
 
-/** The block both endpoints address and jointly span, or null. Cell coordinates index a grid
- *  rather than characters: the table's own coverage rule is `cross-block/paste.ts`'s. */
+/** The block both endpoints sit in and together span end to end, or null. Cell coordinates
+ *  index a grid, not characters, so a table is judged by `cross-block/paste.ts` instead. */
 export function blockCoveredWhole(
 	doc: DocumentView,
 	anchor: SelectionPoint | null,

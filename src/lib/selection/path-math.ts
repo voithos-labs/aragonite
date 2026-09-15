@@ -1,17 +1,17 @@
 /**
- * Pure predicates over CST paths, plus the `DocPath` brand home. No DOM, no document lookups.
- * The predicates take `readonly number[]`: they order any path-shaped array regardless of what
- * space it addresses, so brand-typing them to `DocPath` would force a cast at every call site.
+ * Pure predicates over CST paths, plus the `DocPath` brand. No DOM, no document lookups. The
+ * predicates take `readonly number[]` rather than `DocPath`: they order any path-shaped array
+ * whatever it addresses, and the brand would force a cast at every call site.
  */
 
 // ── Doc-absolute path brand ──────────────────────────────────────────────────
 
 declare const docPathBrand: unique symbol;
 /**
- * A path whose every prefix resolves from the document root: the dialect the commit seam
- * requires and G1.16 checks (`op.eventPath` and `snapshot.path` carry it). `asDocPath` is the
- * base mint; op families compose through `extendDocPath`/`docPathFrom` in
- * `cursor/coordinate-spaces.ts`. G1.16 stays the runtime belt for JS callers types don't bind.
+ * A path resolved from the document root, which is what a commit requires of `op.eventPath`
+ * and `snapshot.path` (checked at runtime by G1.16, for callers the types do not bind).
+ * `asDocPath` is the base constructor; `extendDocPath` and `docPathFrom` in
+ * `cursor/coordinate-spaces.ts` build on it.
  */
 export type DocPath = number[] & { readonly [docPathBrand]: true };
 

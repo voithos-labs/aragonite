@@ -21,7 +21,7 @@ export type TableRectExtension =
 /**
  * The extension a Shift+Arrow produces for an intra-table rectangle, or null when the selection
  * is not a same-table rectangle. `anchor === focus` is a valid one-cell rectangle, so the first
- * Shift+Arrow starts here too. Offsets are cell indices, context-established by the shared path.
+ * Shift+Arrow starts here too. Offsets are cell indices, as the shared table path implies.
  */
 export function intraTableRectExtension(
 	doc: DocumentView,

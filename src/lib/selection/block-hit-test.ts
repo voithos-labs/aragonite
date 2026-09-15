@@ -1,9 +1,7 @@
 /**
- * Viewport point to the block under it, for pointer hit-testing: walks ancestors of the topmost
- * element to the nearest `data-block-path` host. A kind with internal coordinate addressing
- * carries the point→internals hooks its descriptor declares, so a caller resolves a
- * cell-coordinate point without knowing the kind. What the hit does NOT carry is what a kind
- * cannot answer: a block with no character surface reports none.
+ * Finds the block under a viewport point for pointer hit-testing. The hit carries the
+ * point-to-cell hooks the block's kind descriptor declares, so a caller can resolve a table
+ * cell without knowing the kind, and it reports no text element for a block that has none.
  */
 
 import type { AnyBlockKind } from '../core/nodes';
@@ -16,20 +14,19 @@ import { readBlockPath } from './path-lookup';
 export interface BlockHit {
 	path: number[];
 	/**
-	 * The surface a character offset may be hit-tested against, or null when the kind renders
-	 * none: a coordinate-addressed grid, and a whole-block kind whose rendered body is chrome.
-	 * A caller that character-hit-tests the wrapper instead gets a plausible-but-wrong offset
-	 * across the whole subtree rather than a decline.
+	 * The editable element a character offset is hit-tested against, or null when the kind has
+	 * none (a table grid, or a whole-block kind whose body is all markers and buttons).
+	 * Hit-testing the wrapper instead would return a plausible but wrong offset, not a refusal.
 	 */
 	charSurface: HTMLElement | null;
 	/**
-	 * Point→internal-offset hook for kinds with coordinate addressing (a table's row-major
-	 * cellIdx). Pre-bound to the block's wrapper, resolved from the kind descriptor.
+	 * Maps a point to a row-major cell index for a grid kind such as a table. Bound to this
+	 * block's wrapper, taken from the kind descriptor.
 	 */
 	foreignDragHitTest?: (clientX: number, clientY: number) => number | null;
 	/**
-	 * The caret landing inside such a kind, as an internal child path plus offset. A
-	 * caret-placing gesture reads this where the drag hook declines.
+	 * Where a click inside a grid kind puts the caret, as a child path plus offset; read when
+	 * the drag hook returns null.
 	 */
 	caretTargetAtPoint?: (clientX: number, clientY: number) => CaretTarget | null;
 }
@@ -46,16 +43,15 @@ export function blockAtPoint(
 			if (!path) return null;
 			const wrapper = el;
 			const kind = wrapper.getAttribute('data-block-kind');
-			// tryGet tolerates junk DOM strings — unregistered kinds resolve undefined.
+			// `tryGet` tolerates an unregistered kind string read off the DOM.
 			const descriptor = kind ? tryGetBlockKindDescriptor(kind as AnyBlockKind) : undefined;
 			const dragHitTest = descriptor?.foreignDragHitTest;
 			const caretTarget = descriptor?.caretTargetAtPoint;
 			return {
 				path,
-				// A cell-addressed kind's first contenteditable is one of its CELLS, so declaring
-				// the drag hook withdraws the block-level surface rather than offering that. The
-				// whole-block editing host is chrome, not characters, so it is excluded too, as is
-				// the selection overlay (`contenteditable="false"`, mounted while a range is live).
+				// A grid kind's first contenteditable is a cell, not the block, so a kind with the
+				// drag hook reports no text element. The whole-block input and the selection
+				// overlay are skipped for the same reason: neither holds the block's characters.
 				charSurface: dragHitTest
 					? null
 					: (wrapper.querySelector(
@@ -71,10 +67,10 @@ export function blockAtPoint(
 }
 
 /**
- * The selection endpoint a pointer over `hit` addresses: a row-major cell index where the kind
- * declares the drag hook, a char offset on a character surface, and otherwise the block as a
- * whole — the selection funnel resolves which of its two ends this side of the range wants.
- * Shared by both drag consumers, so neither can hit-test characters against a block with none.
+ * The selection endpoint a pointer over `hit` addresses: a cell index for a grid kind, a
+ * character offset where the block has text, and otherwise the whole block, whose end is
+ * chosen later against the other endpoint. Both drag paths use this, so neither can hit-test
+ * characters against a block that has none.
  */
 export function endpointAtPoint(
 	hit: BlockHit,
@@ -83,7 +79,8 @@ export function endpointAtPoint(
 ): SelectionEndpoint | null {
 	if (hit.foreignDragHitTest) {
 		const cellIdx = hit.foreignDragHitTest(clientX, clientY);
-		// The flag routes collapse/reveal to the deep cell, matching the keyboard path.
+		// `cellCoordinate` routes a collapse and a scroll-into-view to the cell itself, as the
+		// keyboard path does.
 		return cellIdx === null
 			? null
 			: ({ path: hit.path, offset: cellIdx, cellCoordinate: true } satisfies CellSelectionPoint);

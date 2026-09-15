@@ -1,9 +1,8 @@
 /**
- * The two caret doors a block component exposes. `parkCaret` is the primitive: it seats a caret
- * and touches nothing else, which is what the cross-block dispatcher needs while an extend is
- * still growing a range. `focus` is that primitive plus the claim-ending every other placement
- * owes, since a caret left in a live cross-block range leaves a document the next keystroke
- * type-replaces. The door a caller reaches for by default is the safe one.
+ * The two ways a block component places the caret. `parkCaret` puts the caret down and touches
+ * nothing else, which the cross-block dispatcher needs while a shift-extend is still growing a
+ * range. `focus` does the same after first ending any cross-block range or gap caret: a caret
+ * left inside a live range makes the next keystroke replace the whole range.
  */
 
 import type { GapCaretPosition } from './gap-caret';
@@ -11,8 +10,9 @@ import { clearNativeSelection } from './native-bridge';
 import type { SelectionState } from './selection-state.svelte';
 
 /**
- * Mint a component's public `focus` from its park primitive. Batched because `clear()` notifies:
- * an emission between the state write and the DOM landing reports a caret about to move.
+ * Builds a component's public `focus` from its `parkCaret`. Batched because `clear()` notifies
+ * listeners, and a notification between the state write and the DOM caret would report a
+ * caret that is about to move.
  */
 export function placeCaret(
 	selection: SelectionState,
@@ -26,9 +26,9 @@ export function placeCaret(
 }
 
 /**
- * The gap's own door: every arrival path writes gap state through here and nowhere else. The
- * native clear is inside the batch because no native caret may outlive the landing — the gap
- * owns the caret from here until something else claims it.
+ * The only place gap-caret state is written. The native selection is cleared inside the batch
+ * because no browser caret may outlive the gap caret: the gap owns the caret until something
+ * else takes it.
  */
 export function placeGapCaret(selection: SelectionState, pos: GapCaretPosition): void {
 	selection.batch(() => {
@@ -39,10 +39,9 @@ export function placeGapCaret(selection: SelectionState, pos: GapCaretPosition):
 }
 
 /**
- * Ends any editor-owned caret claim (cross-block range or gap) before a new caret lands. The
- * range arm takes the gap with it, so the split is on which claim is live rather than on which
- * field to zero. The native clear matters for a whole-block landing, which seats no DOM range
- * of its own.
+ * Ends the editor-owned caret (a cross-block range or a gap caret) before a new one lands.
+ * `clear()` drops the gap caret too, so the branch is on which one is live. The native clear
+ * matters for a whole-block caret, which sets no DOM range of its own.
  */
 function endLiveCaretClaim(selection: SelectionState): void {
 	if (selection.isCrossBlock) {
