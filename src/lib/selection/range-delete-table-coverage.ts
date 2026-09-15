@@ -71,7 +71,8 @@ export async function maybeCommitTableCoverageDelete(
 	const meta = metadataOf(table, 'table');
 	const columnCount = meta.columnCount;
 	const rowCount = table.children?.length ?? 0;
-	// Same-path intra-table endpoints are context-established, not flagged, so they read directly.
+	// Endpoints inside one table share its path and are not flagged, so the offsets read directly
+	// as cell indices.
 	const coverage = classifyTableSelectionCoverage(start.offset, end.offset, columnCount, rowCount);
 
 	switch (coverage.kind) {
@@ -80,8 +81,8 @@ export async function maybeCommitTableCoverageDelete(
 		case 'table':
 			return { caret: await commitFullTableDelete(ctx, start, options, caretRestore) };
 		case 'row': {
-			// Mirror Ctrl+Shift+Backspace: ≥1 body row must remain. Refusal is a silent no-op, since
-			// falling through to a cell-clear would rewrite the user's intent.
+			// As with Ctrl+Shift+Backspace, at least one body row must remain. A refusal does nothing,
+			// since falling through to a cell clear would do something the user did not ask for.
 			if (!canDeleteRow(coverage.rowIdx, rowCount)) return { caret: null };
 			const caret = await commitRowDelete(
 				ctx,
@@ -122,8 +123,8 @@ async function commitFullTableDelete(
 	await ctx.controller.commitStructural({
 		snapshot,
 		mutate: (children) => {
-			// Read before the delete: with the table gone no block is left to take an ending
-			// from, and the filler below IS a line ending (G4.20).
+			// Read before the delete: with the table gone no block is left to take a line ending
+			// from, and the filler below needs one (G4.20).
 			const lineEnding = trailingLineEnding(children[tableIdx]?.raw ?? '\n');
 			const change = deleteNode(
 				{ children, ownerKind: undefined, owner: undefined },
@@ -203,9 +204,9 @@ async function commitColumnDelete(
 	const tableIdx = start.path[0];
 	const rowsState = expectStateForNode(table);
 	const rows = table.children ?? [];
-	// A row's BlockListState registers on mount, so a windowed-out row has none. Scope only the
-	// mounted rows for reactivity; the ensureUnsharedChildren below copy-path-on-writes EVERY
-	// row, so the per-row cell splice stays G1.9-safe regardless of mount state.
+	// A row's `BlockListState` registers on mount, so a windowed-out row has none. Only mounted
+	// rows get a reactive scope; `ensureUnsharedChildren` below copies every row, so the per-row
+	// cell splice never writes a shared node whatever its mount state (G1.9).
 	const mountedRowScopes: MultiScopeTarget[] = [];
 	for (let i = 0; i < rows.length; i++) {
 		const state = getStateForNode(rows[i]);
@@ -237,8 +238,8 @@ async function commitColumnDelete(
 			const rowDelete: StructuralChange = { op: 'delete', at: colIdx, count: 1 };
 			return [{ op: 'noop' }, ...mountedRowScopes.map(() => rowDelete)];
 		},
-		// Event targets the TABLE: a column index is not a child path (parity with
-		// table-context's column ops), so colIdx rides in the detail.
+		// The event targets the table: a column index is not a child path (the table context's
+		// column ops do the same), so `colIdx` goes in the detail.
 		op: {
 			kind: 'tableDeleteColumn',
 			detail: { colIdx, crossBlock: true },

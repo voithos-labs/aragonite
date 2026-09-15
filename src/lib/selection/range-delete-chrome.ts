@@ -1,8 +1,9 @@
 /**
- * Reserved-chrome branch of rangeDelete, the wall rule: nothing merges across a
- * `reservedChrome` container's wall. Outside endpoints truncate in place, covered chrome clears
- * (never node-deletes, G1.14), covered body children delete, and the container dies only when
- * the range consumes its whole subtree, then as ONE splice with children intact.
+ * The `rangeDelete` branch for a container with a `reservedChrome` child (a details block's
+ * summary line), the wall rule: nothing merges across such a container's edge. Endpoints
+ * outside it truncate in place, a covered title line is cleared rather than deleted (G1.14),
+ * covered body children are deleted, and the container itself goes only when the range covers
+ * its whole subtree, then as one splice with its children intact.
  */
 
 import type { GrammarView } from '../schema/block-openers';
@@ -28,9 +29,9 @@ import { reservedChromeKindOf, isReservedChromeChild } from '../schema/reserved-
 // ── Public API ──────────────────────────────────────────────────────────────
 
 /**
- * True when the range must take the wall path: an endpoint sits inside a `reservedChrome`
- * container the range crosses out of or into, or the range starts in the chrome leaf itself.
- * Same-block, body-only, and enclose-from-outside ranges stay on the generic path.
+ * True when the range must take the wall branch: an endpoint sits inside a `reservedChrome`
+ * container the range crosses out of or into, or the range starts in the title line itself.
+ * Same-block, body-only, and enclose-from-outside ranges stay on the plain branch.
  */
 export function involvesReservedChrome(
 	doc: Document,
@@ -48,9 +49,10 @@ export function involvesReservedChrome(
 }
 
 /**
- * Delete [start, end] under the wall rule. Both endpoints truncate in place (chrome by a raw
- * write, keeping the kind via contextDependentKind; prose by a reparse of the surviving slice),
- * and nothing merges across the wall. Collapsed caret keeps generic start-position semantics.
+ * Deletes [start, end] under the wall rule. Both endpoints truncate in place (a title line by a
+ * raw write, which keeps the kind through `contextDependentKind`; text by a reparse of the
+ * surviving slice), and nothing merges across the wall. The collapsed caret lands at the start,
+ * as in the plain branch.
  */
 export function chromeAwareRangeDelete(
 	doc: Document,
@@ -65,21 +67,21 @@ export function chromeAwareRangeDelete(
 	const endC = nearestChromeContainer(doc, end.path);
 	const live = { presentationMode, linkRef };
 
-	// Own every written spine BEFORE identities are captured (G1.9): chains stay valid across
-	// splices, paths don't.
+	// Copy every chain that will be written before node identities are captured (G1.9): chains
+	// stay valid across splices, paths do not.
 	const startChain = ensureUnsharedPath(doc, start.path, sharing);
 	const endChain = ensureUnsharedPath(doc, end.path, sharing);
 
-	// Shared deletion plan (range-delete-ceremony.ts). Chrome marks no endpoint paths for
-	// deletion: both endpoints truncate in place below. resolveEndWall returns null when start
-	// sits inside the end container, which needs no chrome-clear either way, since that
-	// container's chrome child 0 never lands in the strictly-between walk.
+	// No endpoint path is marked for deletion: both endpoints truncate in place below.
+	// `resolveEndWall` returns null when the start sits inside the end container, which needs
+	// no title-line clear either way, since that container's child 0 is never strictly between
+	// the endpoints.
 	const wall = resolveEndWall(doc, start, end, null);
 	const endConsumed = wall?.consumed ?? false;
 	const { plan, lcaPath } = planCrossBlockDeletion(doc, start, end, [], wall, sharing);
 
-	// End truncates in place first (its path is still live), the wall: its tail never merges
-	// into start. Skipped when its container dies whole.
+	// The end truncates first, while its path is still valid, and its tail never merges into
+	// the start. Skipped when its container goes whole.
 	if (!endConsumed) {
 		truncateEndInPlace(
 			doc,
@@ -118,8 +120,8 @@ export function chromeAwareRangeDelete(
 }
 
 // ── Wall primitives (shared with the table branch) ──────────────────────────
-// `involvesTable` dispatches before `involvesReservedChrome`, so ranges with a table endpoint
-// ride range-delete-table.ts; these primitives keep the wall rule single-sourced across both.
+// `involvesTable` is checked before `involvesReservedChrome`, so a range with a table endpoint
+// goes to `range-delete-table.ts`; these helpers keep the wall rule in one place for both.
 
 export interface ChromeContainer {
 	path: number[];

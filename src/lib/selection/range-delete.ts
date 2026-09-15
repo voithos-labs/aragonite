@@ -48,13 +48,14 @@ export interface RangeDeleteResult {
 	newDoc: Document;
 	collapsedCaret: SelectionPoint;
 	/**
-	 * Row splices performed on endpoint tables, so the cross-block commit can descriptor-sync
-	 * each table's row BlockListState without re-deriving snap math. Table branch only.
+	 * Row splices made on the endpoint tables, so the cross-block commit can update each table's
+	 * row `BlockListState` without redoing the snap math. Table branch only.
 	 */
 	tableRowSplices?: TableRowSplice[];
 }
 
-/** Whoever takes the slot gets the caret, at its start; the block above when nothing does. */
+/** Whichever block takes the position gets the caret, at its start; the block above when none
+ *  does. */
 function deleteWholeUnit(
 	doc: Document,
 	path: number[],
@@ -63,7 +64,7 @@ function deleteWholeUnit(
 ): RangeDeleteResult {
 	const parentPath = path.slice(0, -1);
 	const index = path[path.length - 1];
-	// The path-addressed door, so the commit's id ledger sees the slot go.
+	// Deleted by path, so the commit's id bookkeeping sees the position go.
 	const chain = ensureUnsharedPath(doc, parentPath, sharing);
 	deleteAtPath(doc, path, sharing);
 	if (chain.length > 0) rebuildUnsharedChain(doc, chain, sharing, null, grammar);
@@ -73,10 +74,10 @@ function deleteWholeUnit(
 }
 
 /**
- * Delete [start, end] in place, merge at start's position with its container context preserved,
- * cascade-clean empty ancestors, rebuild container raws. Copy-path-on-write: every spliced or
- * written spine is unshared BEFORE target identities are captured, so the identity gate compares
- * post-unshare references. Caller pre-normalizes and keeps endpoints on focusable blocks.
+ * Deletes [start, end] in place: merges at the start's position inside its container, cleans
+ * up emptied ancestors, rebuilds container raws. Every chain that is spliced or written is
+ * copied before node identities are captured, so the identity check compares the copies. The
+ * caller normalizes the range and keeps the endpoints on focusable blocks.
  */
 export function rangeDelete(
 	doc: Document,
@@ -93,9 +94,9 @@ export function rangeDelete(
 		throw new Error('rangeDelete: start or end path does not resolve to a block node');
 	}
 
-	// The wall branches join nothing, but a truncation still strands the runs whose partner went
-	// with the cut, so their prose endpoints cross the cleaner's unpaired-run half; only the
-	// chrome child's own raw writes stay byte-literal.
+	// The wall branches join nothing, but a truncation still leaves delimiter runs unpaired, so
+	// their text endpoints go through the unpaired-run cleanup; only a title line's raw write
+	// stays byte for byte.
 	if (involvesTable(startBlock, endBlock)) {
 		return tableAwareRangeDelete(doc, start, end, sharing, grammar, presentationMode, linkRef);
 	}
@@ -109,9 +110,10 @@ export function rangeDelete(
 	const startOffset = charOffsetOf(start, 'rangeDelete:prose-merge-start');
 	const endOffset = charOffsetOf(end, 'rangeDelete:prose-merge-end');
 
-	// The range holds one block whole, so none of its own bytes survive: the byte arm below would
-	// keep a husk holding a bare line ending, which no reload reads as that kind. A paragraph is
-	// the one kind that survives empty, because a blank one IS the separating line below it.
+	// The range holds one block whole, so none of its bytes survive: the byte path below would
+	// keep an empty leftover holding only a line ending, which no reload reads as that kind. A
+	// paragraph is the one kind that survives empty, because a blank one is the separating line
+	// below it.
 	if (
 		sameBlock &&
 		startOffset === 0 &&
@@ -120,19 +122,20 @@ export function rangeDelete(
 	) {
 		return deleteWholeUnit(doc, start.path, sharing, grammar);
 	}
-	// The end slice answers to the END block's rule before the join: start's rule below speaks
-	// only for start's bytes, so a truncation from the end block's head strands its closer. A
-	// same-block merge is one block's bytes and takes that rule once, whole, on the arm below.
+	// The end slice goes through the end block's own write rule before the join: the start's
+	// rule below covers only the start's bytes, so a cut from the end block's head would
+	// otherwise leave its closer stranded. A same-block merge is one block's bytes and takes
+	// that rule once, below.
 	const endTail = endRaw.slice(endOffset);
-	// A join can MINT a line neither side held: two lines each carrying a mid-line `</details>`
-	// become one that opens with it. The survivor lands in start's container, so it answers to
-	// that container's body rule, applied here so the kinds derive from the bytes that land.
+	// A join can create a line neither side held: two lines each with a mid-line `</details>`
+	// become one that opens with it. The survivor lands in the start's container, so that
+	// container's body rule is applied here, before the kinds are derived from the bytes.
 	const mergedRaw = normalizeBodyWrite(
 		blockNodeAt(doc, start.path.slice(0, -1))?.kind,
 		startRaw.slice(0, startOffset) + (sameBlock ? endTail : normalizeOwnRaw(endBlock, endTail))
 	);
-	// After both normalizers and ahead of both consumers: in live the runs the truncation left
-	// unpaired, and the pair a join brings back to back, are bytes the reader never saw
+	// After both write rules and before either consumer: in live mode the runs the truncation
+	// left unpaired, and the pair a join brings back to back, are bytes the user never saw
 	// (live-mode.md § 4.5).
 	const joined = cleanJoinedRaw(
 		{
@@ -149,13 +152,13 @@ export function rangeDelete(
 	if (sameBlock) {
 		// May be nested in a blockquote/list/listItem whose raw depends on this leaf.
 		const chain = ensureUnsharedPath(doc, start.path, sharing);
-		// start.path resolved above, so the chain reaches the leaf; the fallback still routes
-		// through the unshare seam, never a raw capture.
+		// `start.path` resolved above, so the chain reaches the leaf; the fallback still copies
+		// through `ensureUnsharedNode`, never a bare reference.
 		const owned = chain[chain.length - 1] ?? ensureUnsharedNode(startBlock, sharing);
-		// No reparse on this arm, so the survivor's own grammar answers here: a join can mint
-		// a line the kind reads as its terminator (a fence run in a code body).
+		// No reparse on this branch, so the kind's own write rule runs here: a join can create a
+		// line the kind reads as its terminator (a fence run in a code body).
 		writeOwnRaw(owned, joined.raw, grammar);
-		// Ahead of the rebuild, which reads the body's trivia: a selection covering a block's whole
+		// Before the rebuild, which reads the blank lines: a selection covering a block's whole
 		// text leaves it blank, and a blank block is the separating line of the one below it.
 		const parent = nodeAt(doc, start.path.slice(0, -1));
 		if (parent) settleSeparatorOnBlank(parent, start.path[start.path.length - 1], sharing);
@@ -166,8 +169,8 @@ export function rangeDelete(
 		};
 	}
 
-	// Start's slot, start's rule: the survivor answers to it BEFORE the reparse re-derives
-	// metadata, and inherits the slot's separator a fragment reparse would mint empty.
+	// The survivor takes the start block's write rule before the reparse derives metadata, and
+	// keeps the start's leading blank lines, which a fragment reparse would drop.
 	const replacement = reparseTruncatedEndpoint(startBlock, joined.raw);
 
 	// walkBetween includes ancestors of `end` whose subtrees extend past it, so filter to
@@ -178,8 +181,8 @@ export function rangeDelete(
 	const deletionPaths: number[][] = [...betweenPaths, end.path];
 	const lcaPath = lowestCommonAncestor(start.path, end.path);
 
-	// Unshare every spliced spine before capturing target identities: a copy made after capture
-	// would fail the identity gate and skip the deletion.
+	// Copy every spliced chain before capturing node identities: a copy made after capture would
+	// fail the identity check and skip the deletion.
 	ensureUnsharedPath(doc, start.path, sharing);
 	for (const path of deletionPaths) {
 		ensureUnsharedPath(doc, path.slice(0, -1), sharing);
@@ -194,10 +197,10 @@ export function rangeDelete(
 		rebuildUnsharedAncestry(doc, path, sharing, null, grammar);
 	}
 
-	// The re-parse may change kind, including leaf → CONTAINER (a list marker joined to its item
-	// text). Caret restore walks the block element at its path, and a container path drops focus
-	// on a non-editable wrapper, so descend to the leaf. The offset stays a byte coordinate (the
-	// paste and type-replace splice at it); the restore door's landable clamp owns the caret seat.
+	// The reparse may change the kind, even leaf to container (a list marker joined to its item
+	// text). Caret restore focuses the element at the path, and a container path would focus a
+	// non-editable wrapper, so descend to the leaf. The offset stays a byte offset (paste and
+	// type-replace splice at it); the restore clamps it to where a caret can sit.
 	const leafPath = firstLeafAtOrAfter(doc, start.path);
 	const collapsedCaret: SelectionPoint =
 		leafPath && leafPath.length > start.path.length
@@ -207,14 +210,15 @@ export function rangeDelete(
 	return { newDoc: doc, collapsedCaret };
 }
 
-/** The container prefix the survivor renders under, so the join seam can read its candidate back
- *  through it (live-mode.md § 4.5). An ambient marker rides the container's FIRST child only, the
- *  way `BlockList` forwards it, and a list item is the one built-in container that paints one. */
+/** The marker prefix the survivor renders under, so the join cleanup can read its result back
+ *  through it (live-mode.md § 4.5). The marker is drawn in front of the container's first child
+ *  only, the way `BlockList` forwards it, and a list item is the one built-in container that
+ *  draws one. */
 export function containerAmbientPrefix(doc: Document, path: readonly number[]): string {
 	if (path.length < 2 || path[path.length - 1] !== 0) return '';
 	const parent = blockNodeAt(doc, path.slice(0, -1));
 	const item = parent?.kind === 'listItem' ? metadataOf(parent, 'listItem') : null;
-	// A task item's ambient carries its checkbox too, which this derivation does not model: '' skips
-	// the read-back rather than checking it against the wrong prefix.
+	// A task item's marker carries its checkbox too, which is not modelled here: '' skips the
+	// read-back rather than checking against the wrong prefix.
 	return item && !item.taskItem ? item.marker : '';
 }

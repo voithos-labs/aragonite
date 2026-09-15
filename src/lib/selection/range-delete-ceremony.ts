@@ -1,8 +1,9 @@
 /**
- * Deletion ceremony shared by every rangeDelete branch (generic, chrome, table): covered paths
- * splice identity-gated in reverse doc order, with cascading empty-ancestor cleanup. The wall
- * branches also reduce covered paths to subtree roots so a container dies as ONE splice with
- * children intact, keeping a commit scope or undo entry holding the detached node clean.
+ * The deletion steps every `rangeDelete` branch (plain, title-line, table) shares: covered
+ * paths are spliced out in reverse document order, each only while it still holds the node
+ * captured up front, then emptied ancestors are cleaned up. The wall branches also reduce the
+ * covered paths to subtree roots, so a container leaves as one splice with its children intact
+ * and the undo entry holds a whole detached node.
  */
 
 import type { GrammarView } from '../schema/block-openers';
@@ -33,9 +34,8 @@ import {
 import { cleanJoinedRaw } from '../tree-operations/node-ops';
 import { ensureUnsharedPath } from '../tree-operations/unshare';
 import { rebuildUnsharedAncestry, rebuildUnsharedChain } from '../tree-operations/chain-rebuild';
-// Wall primitives live with the chrome branch, which imports the atoms below back. The
-// resulting cycle is function-body-only (resolved at call time, never at module load), so it
-// is safe.
+// The title-line branch imports this module back; the cycle is only inside function bodies,
+// resolved at call time, so it is safe.
 import {
 	nearestChromeContainer,
 	rangeConsumesContainer,
@@ -49,9 +49,10 @@ function filterToSubtreeRoots(paths: number[][]): number[][] {
 }
 
 /**
- * Identity-gated reverse-doc-order deletion: a deeper delete + cascade can shift a survivor
- * into an outer slot, so each path is re-resolved and spliced only while it still holds the
- * node captured up front. Caller must own every parent spine BEFORE calling (G1.9).
+ * Deletes in reverse document order, each path only while it still holds the node captured up
+ * front: a deeper delete plus cleanup can shift a survivor into an outer position. The caller
+ * must have copied every parent chain before calling, so the identity check compares the
+ * copies (G1.9).
  */
 export function deleteSubtreesIdentityGated(
 	doc: Document,
@@ -72,17 +73,17 @@ export function deleteSubtreesIdentityGated(
 	}
 }
 
-/** The live-seam reads a prose truncation needs; both undefined outside live. */
+/** What a text truncation needs from live mode; both undefined outside it. */
 export interface LiveSeamContext {
 	presentationMode: PresentationMode | undefined;
 	linkRef: InlineResolverRef | undefined;
 }
 
 /**
- * A wall-branch truncation is half a join: the runs it strands, their partner gone with the
- * cut, are bytes the reader never saw, so a kept prose side crosses the registered cleaner
- * (live-mode.md § 4.5), expressed as a join with the block's own edge. Identity outside live;
- * a chrome child's raw write never routes here — the wall stays byte-literal.
+ * A truncation in a wall branch is half a join: the delimiter runs it leaves unpaired are bytes
+ * the user never saw in live mode, so the kept text side goes through the same cleanup a join
+ * does, as a join with the block's own edge (live-mode.md § 4.5). Identity outside live mode.
+ * A title line's raw write never comes here; it stays byte for byte.
  */
 function cleanTruncatedProse(
 	node: CstNode,
@@ -108,10 +109,11 @@ function cleanTruncatedProse(
 }
 
 /**
- * Reparse the bytes surviving at an endpoint's slot, through the source kind's own write rule:
- * the reparse re-derives metadata from bytes, so structure the truncation dropped and the rule
- * restores (a fence closer) has to land before it. The slot's leading trivia rides across, and
- * an empty slice gives a bare paragraph, on the source block's line ending (G4.20).
+ * Reparses the bytes that survive at an endpoint's position, through the source kind's own
+ * write rule first: the reparse derives metadata from bytes, so anything the truncation dropped
+ * and the rule restores (a fence closer) has to be back before it runs. The position's leading
+ * blank lines carry over, and an empty slice gives a bare paragraph on the source block's line
+ * ending (G4.20).
  */
 export function reparseTruncatedEndpoint(node: CstNode, slice: string): CstNode[] {
 	const lineEnding = trailingLineEnding(node.raw);
@@ -121,14 +123,15 @@ export function reparseTruncatedEndpoint(node: CstNode, slice: string): CstNode[
 	}
 	const cloned = reparsed.children.slice();
 	cloned[0] = { ...cloned[0], leadingTrivia: node.leadingTrivia };
-	// The peeled trailing blank line has no follower slot here, so it stays in raw.
+	// The trailing blank line the parser split off has no following block to attach to here, so
+	// it stays in raw.
 	cloned[cloned.length - 1].raw += reparsed.suffix;
 	return cloned;
 }
 
 /**
- * Install an endpoint's replacement, stamped as the live tree's own. The splice door settles the
- * blank run a truncation left the slot in (G2.13); `sharing` owns the writes.
+ * Installs an endpoint's replacement, marked as the live tree's own copy. `replaceAtPath` fixes
+ * up the blank lines a truncation left around the position (G2.13).
  */
 export function installTruncatedEndpoint(
 	doc: Document,
@@ -141,10 +144,10 @@ export function installTruncatedEndpoint(
 }
 
 /**
- * Truncate the start endpoint in place, after the planned deletion: a chrome start keeps its
- * bytes literal by raw write; a prose head crosses the unpaired-run cleanup, then reinstalls
- * through the endpoint reparse. Returns the seam the collapsed caret lands on. `isChrome` is
- * the caller's own derivation, read before any splice moved the tree.
+ * Truncates the start endpoint in place, after the planned deletion. A title line keeps its
+ * bytes as they are, by a raw write; a text head goes through the unpaired-run cleanup and is
+ * reinstalled by reparse. Returns the offset the collapsed caret lands on. `isChrome` is read
+ * by the caller before any splice moved the tree.
  */
 export function truncateStartInPlace(
 	doc: Document,
@@ -173,9 +176,10 @@ export function truncateStartInPlace(
 }
 
 /**
- * Truncate the end endpoint in place, before the planned deletion (its path is still live):
- * chrome by raw write, prose through the cleanup + reparse. Returns the surviving tail node
- * re-read through the tree (design rule 5), for a caller that must locate it after splices.
+ * Truncates the end endpoint in place, before the planned deletion, while its path is still
+ * valid: a title line by raw write, text through the cleanup and reparse. Returns the surviving
+ * tail node re-read through the tree (design rule 5) for a caller that must find it after the
+ * splices.
  */
 export function truncateEndInPlace(
 	doc: Document,
@@ -196,7 +200,7 @@ export function truncateEndInPlace(
 	return blockNodeAt(doc, end.path);
 }
 
-// ── Cross-block deletion plan (chrome + table branches) ─────────────────────
+// ── Cross-block deletion plan (title-line and table branches) ───────────────
 // The branches interleave endpoint truncation with applyPlannedDeletion differently (end
 // before, start after), so the truncation atoms take their call position from the caller.
 
@@ -206,9 +210,10 @@ export interface EndWall {
 }
 
 /**
- * End-side wall context: the chrome container holding the end point, when the range enters it
- * from outside. `consumed` means the whole subtree is covered (a prose end's last-byte rule, or
- * an emptied table on the container's last-child chain), so the container unit-deletes.
+ * The title-line container holding the end point, when the range enters it from outside.
+ * `consumed` means the whole subtree is covered (a text end at the last byte, or an emptied
+ * table at the end of the container's last-child chain), so the container is deleted as one
+ * unit.
  */
 export function resolveEndWall(
 	doc: Document,
@@ -228,15 +233,16 @@ export function resolveEndWall(
 export interface DeletionPlan {
 	deletionPaths: number[][];
 	chromeClearChain: CstNode[] | null;
-	/** The epoch the plan was collected against; the apply step's splices own their
-	 *  spines through it, so no case has to re-thread it. */
+	/** The sharing state the plan was collected against; the apply step's splices copy their
+	 *  chains through it, so no branch has to pass it again. */
 	sharing: SharingState;
 }
 
 /**
- * Covered subtree roots plus endpoint paths the caller marks for removal, honoring the chrome
- * wall: a surviving end container's covered chrome CLEARS instead of deleting (returned as an
- * unshared chain for the caller's raw write), and a consumed container becomes one unit delete.
+ * The covered subtree roots plus the endpoint paths the caller marks for removal, honouring
+ * the wall: a surviving end container's covered title line is cleared rather than deleted
+ * (returned as a copied chain for the caller's raw write), and a consumed container becomes
+ * one unit delete.
  */
 function collectDeletionPlan(
 	doc: Document,
@@ -269,9 +275,10 @@ function collectDeletionPlan(
 }
 
 /**
- * Plan the deletion via {@link collectDeletionPlan}, own every deletion path's parent spine
- * before any splice (G1.9), and resolve the LCA cascade cleanup stops at. The caller resolves
- * `wall` itself: its `consumed` flag also gates each case's endpoint prose-replace.
+ * Plans the deletion through {@link collectDeletionPlan}, copies every deletion path's parent
+ * chain before any splice (G1.9), and finds the common ancestor the cleanup stops at. The
+ * caller resolves `wall` itself, since its `consumed` flag also decides each branch's endpoint
+ * truncation.
  */
 export function planCrossBlockDeletion(
 	doc: Document,
@@ -289,8 +296,9 @@ export function planCrossBlockDeletion(
 }
 
 /**
- * Apply the plan atomically: clear a surviving end container's covered chrome (raw write, never
- * a node delete), then splice the covered subtrees in reverse doc order under the identity gate.
+ * Applies the plan: clears a surviving end container's covered title line (a raw write, never
+ * a node delete), then splices the covered subtrees in reverse document order with the
+ * identity check.
  */
 export function applyPlannedDeletion(doc: Document, plan: DeletionPlan, lcaPath: number[]): void {
 	const chrome = plan.chromeClearChain?.[plan.chromeClearChain.length - 1];
@@ -299,8 +307,9 @@ export function applyPlannedDeletion(doc: Document, plan: DeletionPlan, lcaPath:
 }
 
 /**
- * Rebuild every deletion path's surviving ancestry, then the cleared chrome's opener line
- * (chain-based, so the re-emit survives the splices). Case-specific rebuilds stay at call sites.
+ * Rebuilds every deletion path's surviving ancestors, then the cleared title line's opener
+ * (through the saved chain, so the rebuild survives the splices). Branch-specific rebuilds stay
+ * at their call sites.
  */
 export function rebuildSharedAncestries(
 	doc: Document,

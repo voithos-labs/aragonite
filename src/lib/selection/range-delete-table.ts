@@ -1,9 +1,9 @@
 /**
- * Table-aware branch of rangeDelete: tables encode selection offsets as cell indices, so prose
- * raw-merge doesn't apply. Post-delete survivors are located by identity scan
- * ({@link survivorPath}), not index arithmetic, because deletions and cascade cleanup shift
- * sibling indices at arbitrary depths. One early-exiting scan per delete, and it rides the cold
- * Backspace/Delete gesture, so the linear cost is accepted.
+ * The `rangeDelete` branch for a table endpoint: a table's selection offsets are cell indices,
+ * so the text merge does not apply. Surviving blocks are found afterwards by scanning for the
+ * node ({@link survivorPath}) rather than by index arithmetic, because deletions and cleanup
+ * shift sibling indices at any depth. One scan per delete, on a Backspace or Delete keystroke,
+ * so the linear cost is accepted.
  */
 
 import type { GrammarView } from '../schema/block-openers';
@@ -57,8 +57,8 @@ export function tableAwareRangeDelete(
 	const sameBlock = comparePaths(start.path, end.path) === 0;
 	const live = { presentationMode, linkRef };
 
-	// Own both endpoint spines (and table subtrees: cell raws, row splices, and header promotion
-	// all write at depth) before any capture or mutation.
+	// Copy both endpoint chains (and the table subtrees: cell raws, row splices, and header
+	// promotion all write at depth) before any capture or mutation.
 	const startChain = ensureUnsharedPath(doc, start.path, sharing);
 	const startBlock = startChain[startChain.length - 1] ?? ownedEndpoint(doc, start.path, sharing);
 	const endBlock = sameBlock
@@ -80,8 +80,8 @@ export function tableAwareRangeDelete(
 }
 
 /**
- * Owned fallback for an endpoint whose unshare chain came back short: routes through the
- * unshare seam, never a raw live-tree capture. A miss here is a caller bug.
+ * The copied node for an endpoint whose chain came back short, through `ensureUnsharedNode`
+ * rather than a bare reference into the live tree. A miss here is a caller bug.
  */
 function ownedEndpoint(doc: Document, path: number[], sharing: SharingState): CstNode {
 	const node = blockNodeAt(doc, path);
@@ -101,8 +101,8 @@ function deleteWithinTable(
 	sharing: SharingState,
 	grammar: GrammarView | undefined
 ): RangeDeleteResult {
-	// Same-path intra-table endpoints are context-established, not flagged, so they read
-	// `.offset` directly; cellIndexOf would warn spuriously here.
+	// Endpoints inside one table share its path and are not flagged, so `.offset` reads directly;
+	// `cellIndexOf` would warn for nothing here.
 	clearRectangularCells(table, start.offset, end.offset);
 	rebuildUnsharedAncestry(doc, start.path, sharing, null, grammar);
 
@@ -346,7 +346,7 @@ function deleteAcrossTwoTables(
 
 	let collapsedCaret: SelectionPoint;
 	if (startResult === 'tableSurvives') {
-		// Start table keeps its slot (deletions are all at or after start.path).
+		// The start table keeps its position (deletions are all at or after `start.path`).
 		collapsedCaret = survivingAnchorCellCaret(startTable, start.path, startCell);
 	} else if (endTablePath) {
 		// Start emptied, so its block went and the end table shifted; land in its first cell.
@@ -362,10 +362,10 @@ function deleteAcrossTwoTables(
 	return { newDoc: doc, collapsedCaret, tableRowSplices };
 }
 
-// Every block the caret could land in was removed, so survivors are sought in the deleted block's
-// OWN container, walking outward when cascade cleanup took that too. `lineEnding` is the deleted
-// start table's, captured before the mutation (G4.20): nothing survives to read one from, so a
-// defaulted LF would flip a CRLF doc.
+// Every block the caret could land in was removed, so a survivor is sought in the deleted
+// block's own container, walking outward when the cleanup took that too. `lineEnding` is the
+// deleted start table's, captured before the mutation: nothing survives to read one from, and a
+// default LF would turn a CRLF document (G4.20).
 function caretNearestSurvivor(
 	doc: Document,
 	startPath: number[],
@@ -406,10 +406,10 @@ function survivingChildren(doc: Document, path: number[]): CstNode[] | null {
 	return children && children.length > 0 ? children : null;
 }
 
-// End-of-survivor caret, descending to the leaf a caret lands in: last child at each step,
-// collapse-aware (a collapsed container's visible target is chrome child 0). The gate is
-// FOCUSABILITY, not merge-eligibility: a fenced-code leaf is editable but not merge-eligible,
-// and the merge walk would strand the caret on the container's own path.
+// The caret at a survivor's end, descending to the leaf: the last child at each step, or child
+// 0 for a collapsed container, whose title line is all that shows. The test is whether the leaf
+// can take focus, not whether it can merge: a fenced code leaf is editable but not mergeable,
+// and the merge walk would leave the caret on the container's own path.
 function survivorEndCaret(node: CstNode, path: number[]): SelectionPoint {
 	let leaf = node;
 	const leafPath = path.slice();
@@ -421,8 +421,8 @@ function survivorEndCaret(node: CstNode, path: number[]): SelectionPoint {
 	return { path: leafPath, offset: displayLength(leaf.raw) };
 }
 
-// Start-of-survivor caret, the twin of survivorEndCaret. First child at each level is also the
-// collapse-visible chrome child, so no collapse case is needed.
+// The caret at a survivor's start, the counterpart of `survivorEndCaret`. The first child at
+// each level is also the title line a collapsed container shows, so no collapse case is needed.
 function survivorStartCaret(node: CstNode, path: number[]): SelectionPoint {
 	let leaf = node;
 	const leafPath = path.slice();
