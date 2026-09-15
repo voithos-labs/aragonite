@@ -12,6 +12,7 @@ import {
 	callArguments,
 	collectEditorSources,
 	EDITOR_SRC,
+	isProseSurface,
 	rawAssignments,
 	REPO_WIDE_ROOTS,
 	stripComments
@@ -63,6 +64,24 @@ describe('repo-wide scan roots', () => {
 	it('REPO_WIDE_ROOTS is the declared set the default scan walks', () => {
 		expect(REPO_WIDE_ROOTS).toHaveLength(3);
 		expect(REPO_WIDE_ROOTS[0]).toBe(EDITOR_SRC);
+	});
+});
+
+// The population G4.44 and G4.65 bind: a factory-mounted `.svelte` surface with its own
+// beforeinput listener that hosts inline constructs. Any one mark alone is not a prose surface.
+describe('isProseSurface', () => {
+	const probe = (text: string) =>
+		isProseSurface({ relPath: 'src/lib/components/blocks/x/Probe.svelte', text, code: text });
+
+	it('wants all three marks, not any one', () => {
+		const whole =
+			'const s = createEditableSurface({}); const p = getInlineConstructPolicy(k); <div onbeforeinput={f}>';
+		expect(probe(whole)).toBe(true);
+		expect(probe('const s = createEditableSurface({}); <div onbeforeinput={f}>')).toBe(false);
+		expect(probe('const p = getInlineConstructPolicy(k); <div onbeforeinput={f}>')).toBe(false);
+		expect(
+			probe('const s = createEditableSurface({}); const p = getInlineConstructPolicy(k);')
+		).toBe(false);
 	});
 });
 

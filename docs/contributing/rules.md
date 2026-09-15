@@ -79,17 +79,20 @@ keymap dispatch. Habits that kill it:
   (`src/lib/test/invariants/lint/`): "every entry path matching X routes through Y", which fails
   the day path N+1 is born instead of at the next audit.
 
-A source-scan guard is a unit test that reads the source tree instead of running it. Every scan
-in that folder has the same last line, and its red names the offending file and token:
+A source-scan guard is a unit test that reads the source tree instead of running it. Most scans
+in that folder are one row in a shared rule table: the shape, the files allowed to hold it, and
+the snippets the matcher must flag or spare. A red names the offending file and the rule's reason:
 
 ```ts
-// src/lib/test/invariants/lint/timing-hacks.test.ts
-it('every timing primitive lives in an allowlisted file', () => {
-	const violations = sources
-		.flatMap((f) => findTimingHits(f.relPath, f.code))
-		.filter((hit) => !(hit.relPath in ALLOWLIST));
-	expect(violations).toEqual([]);
-});
+// src/lib/test/invariants/lint/file-rules.test.ts
+{
+	id: 'G4.4 no timing hacks for sequencing',
+	matches: /\b(?:setTimeout|setInterval|queueMicrotask|requestAnimationFrame)\s*\(/,
+	allowed: { 'src/lib/selection/autoscroll.ts': 'rAF autoscroll loop: an animation cadence, not ordering' /* ... */ },
+	reason: '`await tick()` is the only sequencing primitive; ...',
+	hits: ['setTimeout(() => x, 0)'],
+	misses: ['clearTimeout(id);']
+}
 ```
 
 ## Fixing bugs

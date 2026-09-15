@@ -119,14 +119,13 @@ editor (the README's Origin section), died of exactly that.
 the reason it isn't sequencing. Any other timer call reds the scan.
 
 ```ts
-// src/lib/test/invariants/lint/timing-hacks.test.ts
-const ALLOWLIST: Record<string, string> = {
-	'src/lib/selection/autoscroll.ts': 'rAF autoscroll loop (frame cadence)',
-	'src/lib/selection/pointer-session.ts': 'rAF pointermove coalescing (shared drag session)',
-	'src/lib/editor-actions/commit/text-batch.ts': 'setTimeout wall-clock undo debounce',
-	'src/lib/search/regex-executor.ts': 'setTimeout regex-scan cancellation deadline',
-	'src/lib/plugins/parrot/ParrotBlock.svelte': 'setInterval parrot frame cadence'
-};
+// src/lib/test/invariants/lint/file-rules.test.ts, the G4.4 row
+allowed: {
+	'src/lib/selection/autoscroll.ts': 'rAF autoscroll loop: an animation cadence, not ordering',
+	'src/lib/selection/pointer-session.ts': 'rAF pointermove coalescing: the one place every drag lifecycle runs',
+	'src/lib/editor-actions/commit/text-batch.ts': 'setTimeout wall-clock undo debounce, a pause detection tick() cannot express',
+	// ...
+},
 ```
 
 **Spec:** `docs/design/editor.md` § 11 (the ceremony's tick step) and § 16 (how the predecessor

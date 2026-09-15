@@ -128,7 +128,7 @@ Two rules from the rule set, both bought with incidents. Never pipe a gate comma
 
 Three warnings though, about the e2e suite on real hardware:
 
-- A few specs still carry absolute wall-clock budgets, so a slower laptop or a busy host can tip one red without your change being wrong. Most of that class is gone (a guard, G4.48, prices timing as a growth ratio instead, which cancels machine speed); what's left is the allowlist in `src/lib/test/invariants/lint/wall-clock-budgets.test.ts`, each entry with its reason. CI is the arbiter, same as perf.
+- A few specs still carry absolute wall-clock budgets, so a slower laptop or a busy host can tip one red without your change being wrong. Most of that class is gone (a guard, G4.48, prices timing as a growth ratio instead, which cancels machine speed); what's left is the allowlist in `src/lib/test/invariants/lint/suite-file-rules.test.ts`, each entry with its reason. CI is the arbiter, same as perf.
 - A run you interrupt can leave a dev server alive, and the next run will cheerfully reuse it and serve stale code, which looks exactly like everything failing at once. Kill leftover node processes before rerunning. `npm run test:e2e:isolated` sidesteps the whole class by starting the run's own server on its own port and reusing nothing ([testing.md § E2E tests](docs/contributing/testing.md#e2e-tests-playwright) has the ports).
 - Pre-warm the dev server on a cold checkout. Playwright's server timeout is short enough that a cold Vite boot on fresh `node_modules` can outrun it. Run `npm run dev` once and let it come up, or learn to read your first e2e run's instant failure as the phantom it is.
 

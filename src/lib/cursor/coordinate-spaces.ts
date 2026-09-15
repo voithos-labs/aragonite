@@ -1,8 +1,8 @@
 /**
  * The editor's coordinate spaces as branded numbers (G3.7), so mixing them is a type error
  * at the seam instead of a caret bug later. A brand is produced only by its space's home
- * module or an `as*` boundary mint at a declared public door — the coordinate-brand-mints
- * lint holds that list closed — and moves between spaces only through the named
+ * module or an `as*` boundary mint at a declared public door — G4.15's rows in
+ * `lint/file-rules.test.ts` hold that list closed — and moves between spaces only through the named
  * conversions below, one home per direction. Public API doors keep `number` and mint once.
  */
 

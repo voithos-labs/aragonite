@@ -286,7 +286,7 @@ Superseded by G3.6 (`BlockKindRegistration`).
 **G1.4 · No container history context.** No container `setContext`s `HISTORY_KEY`. Predicate
 `checkNoContainerHistoryKey` (`context-keys.ts`) · seam
 `editor-actions/nested/nested-actions.ts :: setNestedActionsContexts` · `context-keys.test.ts`,
-`lint/no-container-history-key.test.ts`.
+`lint/file-rules.test.ts`.
 
 **G1.5 · Category and field legality.** Leaf fields appear only on leaves, container fields only on
 containers, and a wrap-less container carries no `innerPrefix`. Predicate `checkCategoryFields`
@@ -870,11 +870,11 @@ every drag lifecycle rides); the `setTimeout` wall-clock undo debounce in
 `editor-actions/commit/text-batch.ts` (a tick-grained microtask can't express "the user stopped
 typing"); the `setTimeout` scan deadline in `search/regex-executor.ts` (a cancellation budget,
 not an ordering primitive, since nothing awaits the timer); and the `setInterval` frame cadence in
-`plugins/parrot/ParrotBlock.svelte` (an animation, sequencing nothing). `lint/timing-hacks.test.ts`.
+`plugins/parrot/ParrotBlock.svelte` (an animation, sequencing nothing). `lint/file-rules.test.ts`.
 
 **G4.5 · No synthetic keyboard events.** No synthetic `KeyboardEvent` in editor runtime source. The
 cross-block redispatch hack is retired and stays that way.
-`lint/no-synthetic-keyboard-event.test.ts`.
+`lint/file-rules.test.ts`.
 
 **G4.6 · CSS ownership.** `app.css` holds no editor rules or tokens; every editor-owned token read
 is declared in `editor-theme.css`; every host-token read carries a fallback; and host-chrome
@@ -932,18 +932,18 @@ other `blocks/text/` file intercepts a plain destructive key without being allow
 **G4.13 · The view-to-mutable boundary.** No `as CstNode` or `as Document` view-stripping cast
 outside `tree-operations/` and the commit ceremony. Readers hold bytes-readonly views
 (`core/node-views.ts`, G1.9 as a type) and re-enter mutability only through the unshare/clone seam
-or a commit scope's owned view. `lint/view-stripping-casts.test.ts`; type pins in
+or a commit scope's owned view. `lint/file-rules.test.ts`; type pins in
 `test/core/node-views.test.ts`.
 
 **G4.14 · Readonly-view prop parity.** Every `.svelte` component prop reading the CST is typed
 `NodeView` or `DocumentView`. The registration boundary erases prop types, so a `node: CstNode`
 drift compiles; only the doc-owning root (`Editor.svelte`) holds a mutable `Document`.
-`lint/readonly-view-prop-annotations.test.ts`.
+`lint/file-rules.test.ts`.
 
 **G4.15 · Coordinate-brand mint discipline.** `as <Brand>` casts and the `as*` boundary mints appear
 only in `cursor/coordinate-spaces.ts` and the allowlisted public-entry files; everywhere else
 arrives at a brand through a mint or a named conversion. G3.7's runtime-source complement.
-`lint/coordinate-brand-mints.test.ts`.
+`lint/file-rules.test.ts`.
 
 **G4.16 · Bundled-plugin import boundary.** Every file under `src/lib/plugins/**` imports only the
 public authoring barrel (`$lib/plugin`), its own plugin directory, `svelte`, or, for a
@@ -1026,7 +1026,7 @@ export conditions every bundler resolves and whose `DEV` still folds away in a p
 This is the one scan covering the test tree too, because `svelte-package` inspects everything it
 copies and warns on the token wherever it sits, and it only warns, so a test-tree read would rot the
 packaging claim unwatched. Library-scoped rather than repo-wide: the reference plugins and the
-consumer example are Vite APPS, where the read is legitimate. `lint/no-import-meta-env.test.ts`.
+consumer example are Vite APPS, where the read is legitimate. `lint/suite-file-rules.test.ts`.
 
 **G4.26 · Comment budget.** Two scans. Length: a file's first comment block (the header) holds at
 most about seven text lines, any other block at most six; the stated budget is 1-2 lines and a
@@ -1110,7 +1110,7 @@ sub-entry per signature space, so a caller that passes the resolver and drops th
 the entry the render path didn't fill and answers with brackets where the screen shows a link, the
 class that produced the bounds seam. The raw `getInlineContent` stays inside its own module; the one
 allowlisted caller is the vertical-skip decision, whose resolver-less answer is its stated contract.
-`lint/inline-cache-one-spelling.test.ts`.
+`lint/file-rules.test.ts`.
 
 **G4.33 · Live-rewrite verification.** The modules that build live-mode byte candidates each verify
 through the render path's own `renderedText`, and every file naming an inline marker family in code
@@ -1183,7 +1183,7 @@ is hand-written per component. Surface N+1 would compile clean and silently decl
 one signal: a component dispatching chords itself is a command surface even where no
 editable-surface factory built it (the thematic break is `editable = false` and still takes
 commands). `BlockComponent` declares the method optional, so surface N+1 would compile clean and
-decline every `editor.runCommand()` on its blocks. `lint/command-door-surface-parity.test.ts`.
+decline every `editor.runCommand()` on its blocks. `lint/file-rules.test.ts`.
 
 **G4.40 · Rewrite-claim set parity.** Three lists name one set of rewrites: the ids the built-in
 keymaps bind to a rewrite over one block's own selection, the ids the dispatch seam answers
@@ -1204,7 +1204,7 @@ sink silences, and a spy that swallows the call takes Svelte's own runtime warni
 as well (they reach it through `console.warn` and nowhere else), so the fail-on-warn unit gate
 goes blind for that whole file and every fire in it passes unnoticed. The one file whose subject IS a warning channel
 (`devWarn`'s console half) is named in the scan's allowlist with the reason.
-`lint/warn-gate-bypass-census.test.ts`.
+`lint/suite-file-rules.test.ts`.
 
 **G4.42 · Separator-write sites.** No module writes a sibling's `leadingTrivia` by hand. A splice
 settles through the one route: `settleSeparator` at the commit ceremony, `spliceChildrenSettled`
@@ -1227,7 +1227,7 @@ calls it. A destructive input carries the range it will rewrite on the EVENT (`g
 not in the selection, so a surface reading only its live selection sees nothing at a collapsed
 caret: word, line and drag deletes reached the bytes natively and cut through delimiter runs the
 reader never saw. The fenced-code surface is outside the set for a reason the scan can see: its body
-holds no inline constructs to strand. `lint/live-ranged-edit-parity.test.ts`.
+holds no inline constructs to strand. `lint/file-rules.test.ts`.
 
 **G4.45 · Settle coverage for bare tree ops.** The bare tree-op primitives (`splitNode`,
 `deleteNode`, the three merge entries) splice a body without settling it, so every file importing
@@ -1250,13 +1250,13 @@ answer with the reason. The hidden host is a real contenteditable that paints no
 read excluding it, or a focus comparison by identity, answers for the wrong element while every byte
 still round-trips: a wrong hit-test endpoint, a tab stop with no input entry. Two of the three
 spellings are scanned; dispatch-target identity is probed-benign and not enumerable.
-`lint/whole-block-host-readers.test.ts`.
+`lint/file-rules.test.ts`.
 
 **G4.48 · Wall-clock budgets.** An absolute `performance.now` or `Date.now` budget in a behavior
 suite is machine-speed-dependent and reds on a loaded host, so outside the perf projects every
 wall-clock budget goes through the growth harness, where `measureScanGrowth`'s N-vs-4N ratio cancels
 the machine. Allowlisted residue carries its reason: the harness itself, a recursion-depth bound, an
-elapsed-time check a ratio can't express. `lint/wall-clock-budgets.test.ts`.
+elapsed-time check a ratio can't express. `lint/suite-file-rules.test.ts`.
 
 **G4.49 · The shared IME driver.** A spec constructing a `CompositionEvent` or an
 `insertCompositionText` input event by hand exercises a browser no user has, so hand-fired sequences
@@ -1273,7 +1273,7 @@ fails the day it's minted. `lint/range-command-census.test.ts`.
 **G4.51 · Debounced-checkpoint pairing.** A file pushing a typing checkpoint also arms the pause
 window. The two halves sit at different points in the keystroke on purpose (the arm follows the
 settle), so a push with no arm leaves a batch no pause can end, every later keystroke joins it, and
-one Ctrl+Z unwinds the session. `lint/debounced-checkpoint-pairing.test.ts`.
+one Ctrl+Z unwinds the session. `lint/file-rules.test.ts`.
 
 **G4.52 · Content-version announcements.** The version is ANNOUNCED at each place that writes the
 document bytes, never derived from a walk of the tree, so the announcements are a declared set, and
@@ -1397,14 +1397,14 @@ hold the shape. `lint/tree-op-ladder.test.ts`.
 and no other file calls it. The arm decides what a typed delimiter writes (its twin, a step past
 the twin, the closer it completes) and which side the caret means afterwards; the two surfaces
 once carried a copy each, and a copy is the sibling that misses the next rule.
-`lint/delimiter-autopair-parity.test.ts`.
+`lint/file-rules.test.ts`.
 
 **G4.66 · Relative scroll through one door.** A correction that moves the scrollport by a delta
 calls `Scrollport.scrollBy`, never `setScrollTop(scrollTop() + delta)`. The scroller snaps a
 fractional write to a device pixel and reports the snapped value back, so the hand-rolled spelling
 loses that fraction once per correction, and a mode flip corrects once per re-measured block
 (#315). `scrollBy` carries the refused fraction into the next call; the rule is a source scan
-because the lossy spelling type-checks. `lint/relative-scroll-write.test.ts`.
+because the lossy spelling type-checks. `lint/file-rules.test.ts`.
 
 ## Accessibility
 
