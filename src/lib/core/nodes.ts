@@ -137,9 +137,9 @@ export interface BlockMetadataByKind {
 }
 
 /**
- * The one sanctioned metadata cast, for contexts a narrowed `BuiltinCstNode` arm cannot reach:
- * a generic `K`, or a full `CstNode` whose branded plugin arm blocks `kind` narrowing. Prefer
- * reading `node.metadata` off a narrowed arm. Pass the kind you have already established.
+ * The one allowed metadata cast, for code a narrowed `BuiltinCstNode` member cannot reach: a
+ * generic `K`, or a full `CstNode`, whose plugin member blocks `kind` narrowing. Prefer reading
+ * `node.metadata` off a narrowed node. Pass the kind you have already established.
  */
 export function metadataOf<K extends keyof BlockMetadataByKind>(
 	node: CstNode,
@@ -190,8 +190,8 @@ interface BlockNodeBase {
 }
 
 /**
- * G1.5 forbids `children` and the container structural fields on non-containers, so the arms pin
- * them `undefined` and the union rejects a leaf that grew a child at the type level.
+ * A leaf never has `children` or the container fields (G1.5), so the leaf members type them
+ * `undefined` and the union rejects a leaf that grew a child at compile time.
  */
 interface LeafBlockNodeBase extends BlockNodeBase {
 	children?: undefined;
@@ -202,7 +202,7 @@ interface LeafBlockNodeBase extends BlockNodeBase {
 }
 
 /**
- * G1.5 is one-directional (a container may be transiently childless mid-edit), so every
+ * A container may be briefly childless mid-edit (the leaf rule runs one way, G1.5), so every
  * structural field stays optional. `childIds` mirrors `children` for keyed rendering;
  * `childSpans` records where each child's bytes sit in `raw` (`schema/child-spans.ts`).
  */
@@ -277,9 +277,9 @@ export interface TableRowNode extends ContainerBlockNodeBase {
 }
 
 /**
- * A branded-string kind, so this arm is NOT discriminable by `switch (node.kind)`: narrow past
- * it with `isBuiltinBlockNode` first. A plugin block may be a leaf or a container, so the
- * structural fields stay optional.
+ * A branded-string kind, so `switch (node.kind)` cannot narrow this member: narrow past it with
+ * `isBuiltinBlockNode` first. A plugin block may be a leaf or a container, so the structural
+ * fields stay optional.
  */
 export interface PluginBlockNode extends BlockNodeBase {
 	kind: PluginBlockKind;
@@ -310,15 +310,15 @@ export type BuiltinCstNode =
 	| TableRowNode;
 
 /**
- * The open `PluginBlockNode` arm does not discriminate, so full-union `kind` checks do not
- * narrow: reach the discriminated world through `isBuiltinBlockNode`. Common fields (`raw`,
- * `leadingTrivia`, `kind`) project across every arm and read without narrowing.
+ * The open `PluginBlockNode` member has no literal kind, so `kind` checks on the full union do
+ * not narrow: go through `isBuiltinBlockNode` first. Common fields (`raw`, `leadingTrivia`,
+ * `kind`) exist on every member and read without narrowing.
  */
 export type CstNode = BuiltinCstNode | PluginBlockNode;
 
 /**
- * The door to the `switch (node.kind)` narrowing the branded plugin arm blocks. Mirrored for
- * views, so a reader that narrows a `NodeView` reads each arm's metadata with no `metadataOf`.
+ * The one way into the `switch (node.kind)` narrowing the plugin member blocks. Overloaded for
+ * views, so code that narrows a `NodeView` reads each member's metadata with no `metadataOf`.
  */
 export function isBuiltinBlockNode(node: CstNode): node is BuiltinCstNode;
 export function isBuiltinBlockNode(node: NodeView): node is BytesView<BuiltinCstNode>;
@@ -327,11 +327,11 @@ export function isBuiltinBlockNode(node: CstNode | NodeView): boolean {
 }
 
 /**
- * The ONE place the runtime-kind construction cast lives. A construction door, not the
- * view-to-mutable strip door: the spread returns a FRESH object, so passing a view mints a copy
- * instead of stripping its readonly-ness, which is why G4.13 sanctions this file. Fields are not
- * checked against the arm, so a metadata-less node of a metadata-carrying kind is mintable (a
- * transient re-parse probe does this) and its `metadata` must not be read before re-parse.
+ * The one place the cast from a runtime kind string to `CstNode` lives. The spread returns a
+ * fresh object, so passing a view creates a copy rather than stripping its read-only-ness, which
+ * is why the view-cast lint allows this file (G4.13). Fields are not checked against the kind, so
+ * a node of a metadata-carrying kind can be created without metadata (a temporary re-parse does
+ * this) and its `metadata` must not be read before the re-parse.
  */
 export function makeBlockNode(fields: {
 	kind: AnyBlockKind;
@@ -352,8 +352,8 @@ export interface Document {
 	prefix: string;
 	children: CstNode[];
 	suffix: string;
-	/** The root's parallel id array while a caller keeps one here — the editor's own live ids
-	 *  are editor state, but the splice doors maintain whatever array the parent carries. */
+	/** The root's parallel id array, when a caller keeps one here: the editor's own live ids are
+	 *  editor state, but the splice operations maintain whatever array the parent carries. */
 	childIds?: string[];
 }
 
@@ -419,16 +419,12 @@ export interface InlineNode {
 	/** Discriminator for `unresolvedReference` nodes: which form they would have been. */
 	refKind?: 'link' | 'image';
 	/**
-	 * Stamped by the scan when a plugin rung claimed these bytes, derived per scan and never
+	 * Set by the scan when a plugin handler claimed these bytes, derived per scan and never
 	 * persisted. Write paths read it to re-serialize in the claiming syntax, not built-in GFM.
 	 */
 	syntaxClaim?: InlineSyntaxClaim;
 }
 
-/**
- * Optional keys are omitted rather than set to `undefined`, so a serializer can tell "no title"
- * from "empty title" and reproduce a node that never carried one.
- */
 /**
  * How an image sits inside its `|WxH` frame: the image point (`x`%, `y`%) pinned to the same
  * point of the frame, at `z` times the smallest scale that fills it. `{50, 50, 1}` is a plain
@@ -443,6 +439,7 @@ export interface ImageCrop {
 export interface ImageFields {
 	alt: string;
 	url: string;
+	/** Omitted rather than `undefined`, so a serializer can tell "no title" from "empty title". */
 	title?: string;
 	width?: number;
 	height?: number;
@@ -456,14 +453,15 @@ export interface ImageFields {
 }
 
 /**
- * Re-serializes an image an inline rung minted over its own bytes: `source` in, its replacement
- * in the rung's syntax out, or `null` to decline the edit rather than rewrite the bytes as GFM.
+ * Re-serializes an image a plugin handler created over its own bytes: `source` in, its
+ * replacement in the plugin's syntax out, or `null` to decline the edit rather than rewrite the
+ * bytes as GFM.
  */
 export type ImageSyntaxRewriter = (source: string, fields: ImageFields) => string | null;
 
-/** What the scan records on a node an inline rung claimed. */
+/** What the scan records on a node a plugin inline handler claimed. */
 export interface InlineSyntaxClaim {
-	/** The claiming rung's prefix: its bare trigger, or its multi-char prefix. */
+	/** The claiming handler's prefix: its bare trigger, or its multi-character prefix. */
 	prefix: string;
 	rewriteImage?: ImageSyntaxRewriter;
 }

@@ -32,7 +32,7 @@ function matchTaskCheckbox(text: string): { checked: boolean; rawMarker: string 
 }
 
 /**
- * CommonMark §5.2: a marker interrupts a paragraph only if bullet or starting at `1` AND its
+ * CommonMark §5.2: a marker interrupts a paragraph only if bullet or starting at `1` and its
  * first item is non-empty, so neither "... is 2. bananas" nor a content-less marker is a list.
  * Standalone list parsing (`matchListItem`) accepts both.
  */
@@ -93,7 +93,7 @@ export function parseList(
 		const itemRaw = joinRaw(lines, itemStartIndex, i);
 		const baseLines = stripListItemLines(lines, itemStartIndex, i, contentIndent);
 
-		// A leading `[ ] ` is the task marker; re-mint so body offsets match its shortened bytes.
+		// A leading `[ ] ` is the task marker; rebuild the lines so body offsets match the new bytes.
 		const task = matchTaskCheckbox(baseLines.length > 0 ? baseLines[0].text : '');
 		const strippedLines = task
 			? remapStrippedLines(baseLines, (line, index) =>

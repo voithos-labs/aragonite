@@ -1,5 +1,5 @@
 /**
- * Inline text-directive recognizer for `:name[label]{attrs}`. It OWNS the whole span: returning
+ * Inline text-directive recognizer for `:name[label]{attrs}`. It owns the whole span: returning
  * `end` past the `[label]{attrs}` keeps the scanner's bracket stack from competing for the inner
  * `[label]`. Conservative by construction, declining unless `[` or `{` follows the name, so
  * `:smile:`, `10:30`, and `://` stay literal. Meaning is parsed elsewhere (`grammar.ts`).

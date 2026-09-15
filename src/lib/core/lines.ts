@@ -12,20 +12,20 @@ export function trimTrailingLineEnding(raw: string): string {
 }
 
 /**
- * The ending `raw` actually carries — {@link trimTrailingLineEnding}'s complement, the two
- * partitioning `raw`. What {@link trailingLineEnding} answers instead is which ending the
- * DOCUMENT uses, so a site reattaching a block's own bytes reads this one (G4.20).
+ * The ending `raw` actually carries, {@link trimTrailingLineEnding}'s complement.
+ * {@link trailingLineEnding} answers a different question, which ending to give a block, so code
+ * reattaching a block's own bytes reads this one (G4.20).
  */
 export function ownTrailingLineEnding(raw: string): '' | '\n' | '\r\n' {
 	return raw.slice(displayLength(raw)) as '' | '\n' | '\r\n';
 }
 
 /**
- * `offset` moved off the interior of a surrogate pair, back to the pair's own start. Caret
- * offsets are UTF-16 code units, so a cut at one can halve an astral scalar and leave a lone
- * surrogate — bytes no UTF-8 encoder round-trips (`TextEncoder` yields U+FFFD) and no inverse
- * gesture restores. Scalars only: a grapheme cluster is a rendering question, and answering it
- * here would move a caret the author placed between two legitimately separate scalars.
+ * `offset` moved off the interior of a surrogate pair, back to the pair's start. Caret offsets
+ * are UTF-16 code units, so a cut at one can halve an astral character and leave a lone
+ * surrogate, which no UTF-8 encoder round-trips (`TextEncoder` yields U+FFFD) and no undo
+ * restores. Code points only: a grapheme cluster is a rendering question, and snapping to one
+ * would move a caret the author placed between two separate characters.
  */
 export function snapToScalarBoundary(raw: string, offset: number): number {
 	if (offset <= 0 || offset >= raw.length) return offset;
@@ -36,7 +36,7 @@ export function snapToScalarBoundary(raw: string, offset: number): number {
 }
 
 /**
- * The block's authored trailing line ending. Every site that reattaches or mints one reads it
+ * The block's authored trailing line ending. Every site that reattaches or creates one reads it
  * here (G4.20), so a CRLF-authored block keeps its ending and an unterminated one gets `\n`.
  */
 export function trailingLineEnding(raw: string): '\n' | '\r\n' {
@@ -51,7 +51,7 @@ export function terminateLine(text: string, sourceRaw: string): string {
 	return text.endsWith('\n') ? text : text + trailingLineEnding(sourceRaw);
 }
 
-/** Paste entry points funnel through here so Windows CRLF does not leak into a note. */
+/** Every paste entry point goes through here so Windows CRLF does not leak into a note. */
 export function normalizeLineEndings(text: string): string {
 	return text.replace(/\r\n/g, '\n');
 }
@@ -87,7 +87,7 @@ export function splitLines(source: string): ParsedLine[] {
 }
 
 /**
- * Re-mint a `ParsedLine[]` after a per-line strip, as the container parsers do when they reparse
+ * Rebuild a `ParsedLine[]` after a per-line strip, as the container parsers do when they reparse
  * a prefix-stripped body. Recompute, not spread: reusing an input line's offsets after shortening
  * its text desyncs the offsets from the bytes.
  */

@@ -10,13 +10,13 @@ import { registerBlockCompleter, type CompletionResult } from '../../schema/bloc
 import { writeTableRow } from '../../schema/container-rebuilders';
 import { tableHeaderCells } from './table';
 
-// `parseTable` seats the header at child 0 and synthesizes the delimiter from metadata, so the
+// `parseTable` puts the header at child 0 and synthesizes the delimiter from metadata, so the
 // first body row is child 1.
 const FIRST_BODY_CELL = [1, 0];
 
 /**
  * A leading pipe on top of the parser's row predicate: prose carries pipes too (`ls | grep foo`),
- * which the scan alone would take as a two-cell header. The predicate stays the outer bound — a
+ * which the scan alone would take as a two-cell header. The predicate stays the outer bound: a
  * row it rejects never completes.
  */
 export function tryCompleteTableRow(line: string): CompletionResult | null {
@@ -37,8 +37,8 @@ export function registerTableCompleter(): void {
 	registerBlockCompleter('table', { tryComplete: tryCompleteTableRow });
 }
 
-/** Through the row rebuilder, so minted padding is the padding the serializer emits. The seam
- *  owns line endings, so the rebuilder's is trimmed back off. */
+/** Through the row rebuilder, so the padding written is the padding the serializer emits. The
+ *  caller owns line endings, so the rebuilder's is trimmed back off. */
 function canonicalRow(cells: string[]): string {
 	const row: CstNode = {
 		kind: 'tableRow',

@@ -29,8 +29,9 @@ export function splitRowCells(rowText: string): string[] {
 }
 
 /**
- * The cells a line offers as a table header row, or null when it offers none — the one home for
- * the shape, so a row the continuation scan accepts and the Enter completer refuses cannot exist.
+ * The cells a line offers as a table header row, or null when it offers none. The one place the
+ * shape is defined, so a row the continuation scan accepts and the Enter completer refuses
+ * cannot exist.
  * Arity against the delimiter is the caller's check.
  */
 export function tableHeaderCells(text: string): string[] | null {
@@ -105,7 +106,7 @@ export function parseTable(
 	};
 }
 
-// GFM pads short BODY rows and truncates long ones to the delimiter column count. The header
+// GFM pads short body rows and truncates long ones to the delimiter column count. The header
 // always matches: a mismatch rejects the whole table at recognition (GFM §4.10, paragraph.ts).
 function buildRow(line: ParsedLine, columnCount: number, isHeader: boolean): CstNode {
 	const cellTexts = splitRowCells(line.text);

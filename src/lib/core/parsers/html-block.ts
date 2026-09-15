@@ -29,7 +29,7 @@ function type6Shape(names: string): string {
 const TYPE_6_OPEN = new RegExp(type6Shape(TYPE_6_TAGS), 'i');
 
 /**
- * Recognize a type-6 tag line for ONE listed tag name, open or close. Built from the same
+ * Recognize a type-6 tag line for one listed tag name, open or close. Built from the same
  * shape as the type-6 union so a container whose terminator is an html tag line tests the
  * spec's looseness (`   </details>`, `</DETAILS>`, `<details >`) rather than a copy of it.
  */
@@ -44,7 +44,7 @@ export function htmlBlockTagLineMatcher(
 }
 
 // CommonMark §6.6 complete-tag grammar at line scope, reusing the inline raw-HTML sources
-// (core/inline/html-tag-grammar.ts). Priority LAST: types 1 and 6 claim their names first,
+// (core/inline/html-tag-grammar.ts). Priority last: types 1 and 6 claim their names first,
 // which is what implements the spec's exclusion of the type-1 tag names.
 const TYPE_7_OPEN = new RegExp(`^ {0,3}(?:${OPEN_TAG_SOURCE}|${CLOSE_TAG_SOURCE})\\s*$`);
 

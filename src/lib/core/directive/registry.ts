@@ -1,6 +1,7 @@
 /**
- * Name-to-kind registry for the directive primitive: the shared opener resolves a fence's
- * `(tier, name)` here, then delegates to `fromDirective` or builds a lossless generic node.
+ * Name-to-kind registry for the directive syntax: the shared opener resolves a fence's
+ * `(tier, name)` (tier: container, leaf or text) here, then delegates to `fromDirective` or
+ * builds a lossless generic node.
  * Register-once with no unregister, the `customElements` model the schema registries follow.
  * Tier scopes the key, so a container and a leaf may share a name.
  */
@@ -66,8 +67,8 @@ export function resolveDirective(
 }
 
 /**
- * Pre-narrowed: the registration contract above guarantees a block node for these tiers, so the
- * union narrowing lives at this choke point instead of a cast per opener call site.
+ * Pre-narrowed: registration guarantees a block node for these tiers, so the union narrowing
+ * happens here once instead of a cast per opener call site.
  */
 export function resolveBlockDirectiveFactory(
 	tier: 'leaf' | 'container',
@@ -83,7 +84,7 @@ export function isDirectiveRegistered(tier: DirectiveTier, name: string): boolea
 
 /**
  * What "does this kind have a recognizer" must ask: a directive kind owns no opener of its own,
- * so an opener-registry probe alone reads the whole directive tier as unrecognizable.
+ * so checking the opener registry alone reads every directive kind as unrecognizable.
  */
 export function isDirectiveKind(kind: AnyBlockKind | PluginInlineKind): boolean {
 	for (const def of definitions.values()) {

@@ -1,9 +1,9 @@
 /**
- * G1.9 in the type system (G3.8): a snapshot-shared node is read-only on its serialized bytes,
- * so a view freezes every byte-carrying field. `childIds`, `childSpans` and `ownerEpoch` are
- * editor bookkeeping, not round-trip bytes, and stay writable through a view. The ONE sanctioned
- * view-to-mutable door is the unshare seam (`tree-operations/unshare.ts`) plus the commit
- * ceremony's owned scope views (G4.13); everywhere else the source-scan lint holds the perimeter.
+ * A node shared with an undo snapshot is read-only on its serialized bytes (G1.9), and a view
+ * types that: every byte-carrying field is frozen. `childIds`, `childSpans` and `ownerEpoch` are
+ * editor bookkeeping, not round-trip bytes, and stay writable. The only casts from a view back to
+ * a mutable node are the copy-before-write in `tree-operations/unshare.ts` and the commit
+ * sequence's owned views (G4.13); a lint test holds that line everywhere else.
  */
 
 import type { CstNode, Document } from './nodes';
@@ -24,5 +24,6 @@ export type BytesView<T> = T extends string | number | boolean | bigint | symbol
 export type NodeView = BytesView<CstNode>;
 export type DocumentView = BytesView<Document>;
 
-/** A spine root the unshare seam accepts: the live document or a caller-owned children wrapper. */
+/** A root the copy-before-write in `tree-operations/unshare.ts` accepts: the live document or a
+ *  caller-owned children wrapper. */
 export type NodeParentView = { readonly children: readonly NodeView[] };

@@ -23,7 +23,7 @@ import {
 import { parseLinkReferenceDefinition } from './link-reference';
 
 // Idempotence guard, not a registry bypass: a dev-server re-eval resets it so
-// the register-once dev valve still replaces.
+// the register-once dev path still replaces.
 let registered = false;
 
 export function registerBuiltInOpeners(): void {

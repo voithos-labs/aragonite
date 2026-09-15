@@ -27,8 +27,8 @@ export function registerDirectiveOpeners(): void {
 	const leaf = declaredPluginKind(DIRECTIVE_LEAF);
 
 	registerBlockOpener(container, {
-		// Priced off the ladder, never as a bare integer, so renumbering a built-in moves this
-		// with it. A colon fence collides with no built-in matcher; it only needs the gap.
+		// Derived from the built-in priorities, never a bare integer, so renumbering a built-in
+		// moves this with it. A colon fence collides with no built-in matcher; it only needs a gap.
 		priority: OPENER_PRIORITIES.blockquote + 5,
 		interruptsParagraph: (line) => matchDirectiveOpener(line) !== null,
 		tryOpen(ctx) {
@@ -74,7 +74,7 @@ export function registerDirectiveOpeners(): void {
 				scope: ctx.isDocumentParse ? 'document' : 'fragment',
 				depth: ctx.depth + 1
 			});
-			// isDirectiveCloser guarantees an all-colon line, so its length IS the colon count.
+			// isDirectiveCloser guarantees an all-colon line, so its length is the colon count.
 			const closerColonCount = closerLine.text.length;
 			const closerNewline = closerLine.raw.endsWith('\n');
 
