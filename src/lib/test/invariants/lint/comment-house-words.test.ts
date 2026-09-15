@@ -66,7 +66,7 @@ const BASELINE: Record<string, number> = {
 	'src/lib/perf': 1,
 	'src/lib/plugins': 24,
 	'src/lib/reactivity': 21,
-	'src/lib/schema': 13,
+	'src/lib/schema': 5,
 	'src/lib/search': 3,
 	'src/lib/selection': 0,
 	'src/lib/styles': 5,

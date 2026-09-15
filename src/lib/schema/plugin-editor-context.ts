@@ -1,6 +1,6 @@
 /**
- * Per-(instance, plugin) EditorContext: the one object onEditor callbacks, global-command
- * handlers, and BlockCommandContext.editor all receive. `document` is a getter so every read is
+ * One `EditorContext` per editor and plugin: the object `onEditor` callbacks, global-command
+ * handlers and `BlockCommandContext.editor` all receive. `document` is a getter so every read is
  * live (rules.md: getters, not values).
  */
 import type { DocumentView } from '../core/node-views';
@@ -16,15 +16,15 @@ import {
 } from './plugin-install';
 
 export interface EditorPluginContexts {
-	/** The instance's context for a plugin it activated; `undefined` for one it did not. The
-	 *  empty name is the instance's own base context (an unowned kind's), never gated. */
+	/** This editor's context for a plugin it activated; `undefined` for one it did not. The empty
+	 *  name returns the editor's base context, the one kinds no plugin owns use, never filtered. */
 	get(pluginName: string): EditorContext | undefined;
 	attachAll(onError: (report: { plugin: string; error: unknown }) => void): void;
 	dispose(): void;
 }
 
-// Process-monotonic instance id: `editor-1`, `editor-2`, … Stable per mount, so a
-// plugin can key per-instance state on `editor.editorId`.
+// Editor ids counted up across the process: `editor-1`, `editor-2`, … Stable for the life of a
+// mount, so a plugin can key its per-editor state on `editor.editorId`.
 let n = 0;
 export const mintEditorId = () => `editor-${++n}`;
 

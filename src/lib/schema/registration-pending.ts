@@ -1,7 +1,7 @@
 /**
- * Pending-registration ledger behind the registration-check seam (`./registration-checks`).
- * Import-leaf on purpose: the registries that enqueue here register built-ins during their own
- * module evaluation, so a back-import would call into this module before its state initializes.
+ * The registrations waiting to be checked by `./registration-checks`. This module imports nothing
+ * on purpose: the registries that add to it register built-ins while their own module is still
+ * evaluating, so importing them back would run this module's code before its state exists.
  */
 import type { AnyBlockKind } from '../core/nodes';
 
@@ -11,10 +11,10 @@ let didFirstFlush = false;
 let grammarConsumed = false;
 
 /**
- * Record a registration for the next coherence flush. The pending-kinds gate no-ops before the
- * first flush, which validates the bootstrap batch whole. Lateness is recorded UNCONDITIONALLY,
- * ahead of that gate: an editorless `parse()` trips grammar-consumption without flushing, so an
- * opener registered after that is genuinely late and must survive to the first flush (G1.17).
+ * Record a registration for the next check. Nothing is added before the first check, which
+ * validates the whole startup batch at once. A late opener is recorded whatever happens: a
+ * `parse()` with no editor marks the grammar used without running a check, so an opener registered
+ * after that really is late and has to survive until the first check (G1.17).
  */
 export function enqueueRegistrationCheck(
 	kind: AnyBlockKind,
@@ -25,7 +25,7 @@ export function enqueueRegistrationCheck(
 	pendingKinds.add(kind);
 }
 
-/** Grammar-consumption latch: the parser's opener-dispatch read trips it. */
+/** Marks the grammar as used; the parser sets it the first time it reads the opener order. */
 export function markGrammarConsumed(): void {
 	grammarConsumed = true;
 }
@@ -41,9 +41,8 @@ export interface RegistrationFlushWork {
 }
 
 /**
- * Claim the outstanding work, clearing it BEFORE any check runs — draining first is the
- * re-entrancy guard, so a check that re-reads the grammar finds an empty pending set instead of
- * recursing into another flush.
+ * Take the outstanding work and clear it before any check runs: clearing first is what keeps a
+ * check that re-reads the grammar from starting another round of checks.
  */
 export function takeRegistrationFlushWork(): RegistrationFlushWork | null {
 	if (didFirstFlush && pendingKinds.size === 0 && pendingLateOpeners.size === 0) return null;

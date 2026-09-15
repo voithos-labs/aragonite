@@ -1,9 +1,10 @@
 /**
- * Registration-seam coherence: the registries enqueue every post-bootstrap registration and this
- * seam validates them at the next flush — Editor mount, or the parser's next grammar read
- * (`getOrderedOpeners`) — never mid-batch, so intra-batch forward references stay warn-free.
- * This module and block-openers reference each other, but only inside function bodies, and
- * neither calls the other during evaluation, so no cycle observes uninitialized state.
+ * Checks that the registrations agree with each other. The registries queue every registration
+ * made after startup, and this module checks them at the next opportunity: an Editor mount, or the
+ * parser's next read of the grammar (`getOrderedOpeners`). Never part-way through a batch, so one
+ * registration referring forward to another in the same batch warns about nothing. This module and
+ * `block-openers` name each other, but only inside function bodies, so neither runs while the
+ * other is still evaluating.
  */
 import {
 	ALL_BLOCK_KINDS,
@@ -50,7 +51,7 @@ export {
 	__resetRegistrationChecksForTests
 } from './registration-pending';
 
-/** Matches `assertInvariant` — the default sink; tests inject a collector. */
+/** The same shape as `assertInvariant`, which is the default; tests pass a collector instead. */
 export type RegistrationCheckReport = (tag: string, check: () => InvariantViolation | null) => void;
 
 const hasDescriptor = (kind: AnyBlockKind): boolean =>
@@ -75,8 +76,8 @@ const viaOf = (cell: ClosureCell): string | undefined =>
 	cell.mode === 'implemented' ? cell.via : undefined;
 
 /**
- * Descriptor → G1.24 entry. Exported so the suites project the same fields: a test-local copy
- * that missed a column would pass while the rule it claims to exercise went unread.
+ * Turns a descriptor into the entry the G1.24 check reads. Exported so the suites build it the
+ * same way: a test-local copy missing a field would pass while the rule it tests went unchecked.
  */
 export const closureCoherenceEntry = (
 	kind: AnyBlockKind,
@@ -100,8 +101,8 @@ const closureEntries = (kinds: readonly AnyBlockKind[]) =>
 		.filter((e): e is { kind: AnyBlockKind; d: NonNullable<typeof e.d> } => e.d !== undefined)
 		.map(({ kind, d }) => closureCoherenceEntry(kind, d));
 
-// Widened to `string` on the way out: the vocabulary check exists for the callers the
-// `MergeRole` union cannot bind (a plugin registering through a cast).
+// Widened to `string` on the way out: the check exists for the callers the `MergeRole` union
+// cannot constrain, such as a plugin registering through a cast.
 const mergeRoleEntries = (kinds: readonly AnyBlockKind[]): MergeRoleEntry[] =>
 	kinds.flatMap((kind) => {
 		const mergeRole: string | undefined = tryGetBlockKindDescriptor(kind)?.mergeRole;
@@ -146,9 +147,9 @@ const descriptorFieldEntries = (
 const isKnownCommandId = (id: string): boolean => isBuiltinCommandId(id) || isPluginCommandId(id);
 
 /**
- * Run the registry coherence checks (G1.2/10/11/17/18/24/30/32/37). The first call sweeps the whole
- * world; later calls validate only the kinds registered since, plus opener coherence over the
- * full registry (a new opener's priority collision is inherently cross-entry).
+ * Run the registry checks (G1.2/10/11/17/18/24/30/32/37). The first call covers everything
+ * registered; later calls check only the kinds registered since, plus the openers as a whole,
+ * because a new opener's priority clash always involves another entry.
  */
 export function flushPendingRegistrationChecks(
 	report: RegistrationCheckReport = assertInvariant
@@ -160,9 +161,9 @@ export function flushPendingRegistrationChecks(
 			checkRegistryCompleteness(ALL_BLOCK_KINDS, hasDescriptor, hasComponent)
 		);
 	}
-	// The first flush sweeps the live registry, not just ALL_BLOCK_KINDS. Completeness stays
-	// built-in-scoped: a plugin kind's component may register on its own schedule, so
-	// reservedChrome coherence is the plugin-kind bootstrap check instead.
+	// The first run covers the live registry, not only `ALL_BLOCK_KINDS`. The completeness check
+	// stays limited to built-ins, since a plugin kind's component may register later; the
+	// reserved-chrome check covers plugin kinds at startup instead.
 	const kinds = work.firstFlush ? getAllRegisteredKinds() : work.kinds;
 	report('opener-registry', () => checkOpenerRegistry(listRegisteredOpeners(), hasDescriptor));
 	report('keymap-coherence', () =>
@@ -192,10 +193,10 @@ const isKnownInlineKind = (kind: AnyInlineKind): boolean =>
 	isBuiltinInlineKind(kind) || isInlineKindDeclared(kind);
 
 /**
- * G1.31, at the EDITOR-MOUNT flush alone. The rows register with the descriptors, but the
- * policy's function hooks patch in from the component layer, which a parse-only unit test
- * never loads — running this at the parser's flush would fire on an absence legal there.
- * Table-wide rather than per-registration, so it does not ride the pending-kinds queue.
+ * G1.31, run only when an Editor mounts. The rows register with the descriptors, but the policy's
+ * functions come from the component layer, which a parse-only unit test never loads, so running
+ * this at the parser's check would fire on an absence that is legal there. It reads the whole
+ * table rather than one registration, so it stays off the queue of pending kinds.
  */
 export function checkInlineConstructPoliciesAtMount(
 	report: RegistrationCheckReport = assertInvariant

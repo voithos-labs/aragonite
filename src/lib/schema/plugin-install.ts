@@ -1,7 +1,7 @@
 import { devWarn } from '../dev-warn';
 import { isValidPluginName } from './plugin-name';
-// Type-only: the runtime edge already runs editor-events → plugin-install, so a value import
-// back would close a schema→root cycle.
+// Type-only: `editor-events` already imports this module at runtime, so importing a value back
+// would close a cycle from `schema/` to the root.
 import type { DocumentView } from '../core/node-views';
 import type { EditorEvents } from '../editor-events';
 import type { DecorationRegistry } from '../decorations/types';
@@ -15,9 +15,9 @@ export interface EditorPlugin<Options = unknown> {
 }
 
 // ── Setup-time context + per-editor subscription ─────────────────────────────
-// `setup` receives a PluginSetupContext scoped to the install; `onEditor` registers a callback
-// fired once per <Editor> instance. Option typing flows by generic, but `setup` stays method
-// syntax (bivariant params) so a typed plugin stays assignable at the install boundary.
+// `setup` receives a `PluginSetupContext` for this install; `onEditor` registers a callback that
+// runs once per mounted `<Editor>`. Option types flow through the generic, but `setup` stays
+// method syntax (bivariant parameters) so a plugin with typed options is still assignable.
 
 export interface PluginSetupContext<Options = unknown> {
 	onEditor(cb: OnEditorCallback<Options>): void;
@@ -26,8 +26,8 @@ export type OnEditorCallback<Options = unknown> = (
 	editor: EditorContext<Options>
 ) => void | (() => void);
 
-/** Subscribe-only view of the events surface. EditorContext must NOT expose the
- *  full EditorEvents — that would freeze plugin-visible `emit` at 1.0. */
+/** Subscribe-only view of the editor's events. `EditorContext` must not expose the full
+ *  `EditorEvents`: that would freeze a plugin-visible `emit` into the 1.0 API. */
 export type EditorEventSubscriptions = Pick<EditorEvents, 'on'>;
 export interface EditorContext<Options = unknown> {
 	readonly editorId: string;
@@ -36,17 +36,18 @@ export interface EditorContext<Options = unknown> {
 	readonly options: Options;
 	readonly decorations: DecorationRegistry;
 	readonly rects: EditorRects;
-	/** Getter-backed, live; the EFFECTIVE mode. Change signal: the `presentationModeChange` event. */
+	/** A getter, so always live: the mode in effect. The `presentationModeChange` event signals a change. */
 	readonly presentationMode: PresentationMode;
-	/** Getter-backed, live; the theme name reflected to `data-editor-theme`. Change signal: the
-	 *  `themeChange` event. Needed only by a plugin that PAINTS its own colors. */
+	/** A getter, so always live: the theme name written to `data-editor-theme`. The `themeChange`
+	 *  event signals a change. Only a plugin that draws its own colors needs it. */
 	readonly theme: string;
 }
 
 // ── Process-global install state ─────────────────────────────────────────────
 // A plugin is code: its setup writes into register-once registries, so it runs at most once per
-// process. `failed` remembers a name whose setup threw alongside its original error, since a
-// partial setup can't be re-run and a later attempt must advise a reload without losing the cause.
+// process. `failed` keeps the name of a plugin whose setup threw together with the original error,
+// since a half-finished setup cannot re-run and a later attempt must say to reload without losing
+// the cause.
 
 const installed = new Map<string, EditorPlugin>();
 const failed = new Map<string, unknown>();
@@ -93,13 +94,13 @@ export function installPlugins(plugins: readonly EditorPlugin[]): void {
 	}
 }
 
-/** A `plugins` prop entry: a bare unit, or a unit with per-instance options. */
+/** A `plugins` prop entry: a plugin on its own, or a plugin with options for this editor. */
 export type EditorPluginEntry = EditorPlugin | { plugin: EditorPlugin; options?: unknown };
 
 /**
- * Split a `plugins` prop into the install list and a name→options map. Options are per-instance
- * even though a unit installs once process-global. A plugin listed twice keeps the first entry,
- * the same first-wins rule installPlugins applies, so the options map can't disagree with it.
+ * Split a `plugins` prop into the install list and a name-to-options map. The options belong to
+ * one editor even though a plugin installs once per process. A plugin listed twice keeps its first
+ * entry, the same first-wins rule `installPlugins` uses, so the options map cannot disagree.
  */
 export function normalizePluginEntries(entries: readonly EditorPluginEntry[]): {
 	plugins: EditorPlugin[];
@@ -140,8 +141,8 @@ export function pluginKindOwner(kind: string): string | null {
 	return kindOwners.get(kind) ?? null;
 }
 
-/** The per-instance EditorContext of the plugin owning `kind`. The `''` miss arm hands an
- *  unowned kind the base per-instance context, so the leaf and container tiers resolve alike. */
+/** This editor's `EditorContext` for the plugin that owns `kind`. Passing `''` when no plugin owns
+ *  it returns the editor's base context, so leaf blocks and containers resolve the same way. */
 export function owningPluginEditor(
 	pluginEditor: ((pluginName: string) => EditorContext | undefined) | undefined,
 	kind: string
@@ -187,8 +188,8 @@ function installOne(plugin: EditorPlugin): void {
 	installed.set(plugin.name, plugin);
 }
 
-// onEditor is synchronous-only: the closer fires the moment setup returns, so a context leaked
-// past setup throws instead of silently registering into a wiped install.
+// `onEditor` works during setup only: the context closes the moment setup returns, so a context
+// kept past that throws instead of quietly registering into an install that is already over.
 function makeSetupContext(pluginName: string): { ctx: PluginSetupContext; close: () => void } {
 	let open = true;
 	const ctx: PluginSetupContext = {
@@ -206,8 +207,8 @@ function makeSetupContext(pluginName: string): { ctx: PluginSetupContext; close:
 	return { ctx, close: () => (open = false) };
 }
 
-// `name@version` when the plugin carries a version, so a two-version collision reads
-// unambiguously in the warn and the two failure throws.
+// `name@version` when the plugin carries a version, so a clash between two versions is
+// unambiguous in the warning and in the two failure messages.
 function pluginLabel(plugin: EditorPlugin): string {
 	return plugin.version ? `${plugin.name}@${plugin.version}` : plugin.name;
 }

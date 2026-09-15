@@ -14,10 +14,10 @@ import { __resetInstalledPluginsForTests } from './plugin-install';
 import { __resetInlineConstructPoliciesForTests } from './inline-construct-policy';
 
 /**
- * Test-only. Clears every non-built-in registration; built-ins survive. Also clears the warn
- * dedup, the registration-check latches, and the installed-plugin set — state that shadows a
- * registry must never outlive its reset. The single-slot registrations (live split rebalancer,
- * join-seam cleaner) keep their own doors: only a suite testing a slot wants it emptied.
+ * Test-only. Clears every non-built-in registration; built-ins stay. Also clears the warning
+ * de-duplication, the registration-check flags and the installed-plugin set, since state that
+ * mirrors a registry must never outlive its reset. The two single-function registrations (the live
+ * split rebalancer, the join cleaner) have their own resets: only a suite testing one clears it.
  */
 export function __resetSchemaRegistriesForTests(): void {
 	__removePluginBlockKindsForTests();

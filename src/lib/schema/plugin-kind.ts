@@ -11,8 +11,8 @@ import { devReplacesRegistration } from './register-once';
 
 const declaredPluginKinds = new Set<string>();
 
-// Structural sentinels a plugin kind must not shadow: `document` is `Document.kind` and
-// `global` is the keybinding-override scope, so neither is in BLOCK_KIND_TABLE below.
+// Names a plugin kind must not take: `document` is `Document.kind` and `global` is the
+// keybinding-override scope, so neither appears in `BLOCK_KIND_TABLE`.
 const RESERVED_KIND_NAMES = new Set<string>(['document', 'global']);
 
 export function declarePluginKind(name: string): PluginBlockKind {
@@ -28,8 +28,8 @@ export function declarePluginKind(name: string): PluginBlockKind {
 		throw new Error(`declarePluginKind: "${name}" is a reserved structural sentinel`);
 	}
 	if (declaredPluginKinds.has(name)) {
-		// Dev re-eval (HMR/SSR) re-declares a plugin's own kind; return the existing
-		// brand rather than 500 the route. Production/test keep the collision throw.
+		// Hot reload and SSR re-declare a plugin's own kind: hand back the branded name rather
+		// than break the route. Production and test keep the throw.
 		if (devReplacesRegistration()) return name as PluginBlockKind;
 		const owner = pluginKindOwner(name);
 		throw new Error(
@@ -44,9 +44,9 @@ export function declarePluginKind(name: string): PluginBlockKind {
 }
 
 /**
- * Recover the branded kind for an already-declared name, so a module that didn't mint it reaches
- * the brand without an unchecked cast. Throws for an undeclared name, so a typo can't silently
- * register against a kind that doesn't exist.
+ * The branded kind for a name already declared, so a module that did not declare it gets the
+ * branded type without an unchecked cast. Throws for an undeclared name, so a typo cannot quietly
+ * register against a kind that does not exist.
  */
 export function declaredPluginKind(name: string): PluginBlockKind {
 	if (!declaredPluginKinds.has(name)) {
@@ -58,9 +58,9 @@ export function declaredPluginKind(name: string): PluginBlockKind {
 }
 
 /**
- * Non-throwing declaration probe, so an idempotent module (HMR, a re-imported registrar) asks
- * before declaring instead of catching {@link declarePluginKind}'s or {@link declaredPluginKind}'s
- * throw.
+ * Has this name been declared? A module that may run twice (hot reload, a re-imported
+ * registration) asks first instead of catching {@link declarePluginKind}'s or
+ * {@link declaredPluginKind}'s throw.
  */
 export function isBlockKindDeclared(name: string): boolean {
 	return declaredPluginKinds.has(name);
@@ -82,7 +82,7 @@ export function declarePluginInlineKind(name: string): PluginInlineKind {
 		throw new Error(`declarePluginInlineKind: "${name}" is a built-in InlineNodeKind`);
 	}
 	if (declaredPluginInlineKinds.has(name)) {
-		// Dev re-eval survival — see declarePluginKind. Production/test keep the throw.
+		// Hot reload and SSR re-declare: see `declarePluginKind`. Production and test keep the throw.
 		if (devReplacesRegistration()) return name as PluginInlineKind;
 		throw new Error(`declarePluginInlineKind: "${name}" was already declared by another plugin`);
 	}

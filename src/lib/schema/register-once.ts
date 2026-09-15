@@ -1,21 +1,21 @@
 /**
- * Register-once with a DEV-only survival valve for HMR/SSR registrar re-eval. The frozen
- * contract (docs/design/plugin-contract.md § The registries: global, register-once) is
- * conflict-on-duplicate, and production and test keep the throw. On a dev server a re-run
- * registrar would otherwise 500 every route until restart, so there a duplicate replaces with a
- * note instead.
+ * Register-once, with one exception on a dev server so hot reload and SSR may re-run a plugin's
+ * registration. The frozen contract (docs/design/plugin-contract.md § The registries: global,
+ * register-once) is that a duplicate is an error, and production and test keep the throw. On a dev
+ * server that throw would break every route until restart, so there a duplicate replaces the entry
+ * and warns instead.
  */
 import { editorEnv } from '../env';
 import { devWarn } from '../dev-warn';
 
-/** True only on a dev server (not production, not a test run) — the one window the valve opens. */
+/** True only on a dev server, not in production and not in a test run: the one case that replaces. */
 export function devReplacesRegistration(): boolean {
 	return editorEnv.isDev && !editorEnv.isTest;
 }
 
 /**
- * `apply` carries the registration and its side effects, and runs on a fresh register AND on a
- * dev replace, so a re-run registrar with changed content re-primes those seams.
+ * `apply` does the registration and its side effects. It runs both on a first registration and on
+ * a dev-server replacement, so re-running a plugin with changed content updates everything again.
  */
 export function registerOnce(isDuplicate: boolean, apply: () => void, conflict: string): void {
 	if (isDuplicate) {

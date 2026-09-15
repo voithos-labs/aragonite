@@ -1,10 +1,10 @@
 /**
- * Per-instance resolution over the process-global block definitions (docs/design/plugin-contract.md
- * § Schema registries). The default view resolves every kind VERBATIM, so an editorless `parse()`
- * and every bare component mount stay byte-identical. An `isEnabled` view resolves no component
- * for a disabled plugin kind and drops its opener; the DESCRIPTOR is never filtered, since a
- * disabled kind still needs it to degrade rather than throw. The `plugins` prop sources the
- * predicate: `plugin-activation.ts` turns an instance's listed set into one.
+ * Per-editor resolution over the process-wide block definitions (docs/design/plugin-contract.md
+ * § Schema registries). The default view resolves every kind exactly as registered, so a `parse()`
+ * with no editor and every plain component mount stay byte-identical. A view with `isEnabled`
+ * resolves no component for a disabled plugin kind and drops its opener; the descriptor is never
+ * filtered, since a disabled kind still needs it to degrade rather than throw. The `plugins` prop
+ * supplies the predicate: `plugin-activation.ts` turns one editor's list into one.
  */
 import { isBuiltinBlockKind, type AnyBlockKind } from '../core/nodes';
 import { getBlockComponent, type BlockComponentEntry } from './block-component-registry';
@@ -15,21 +15,21 @@ import {
 } from './block-kind-descriptor';
 import { defaultGrammarView, createGrammarView, type GrammarView } from './block-openers';
 
-/** `false` disables a PLUGIN kind for one instance; built-ins are never disableable. */
+/** `false` disables a plugin kind for one editor; built-ins can never be disabled. */
 export type KindEnablement = (kind: AnyBlockKind) => boolean;
 
 export interface RegistryView {
-	/** The kind's component, or `undefined` when unregistered OR disabled for this instance. */
+	/** The kind's component, or `undefined` when it is unregistered or disabled for this editor. */
 	component(kind: AnyBlockKind): BlockComponentEntry | undefined;
-	/** The kind's descriptor — never filtered (required infrastructure); throws when absent. */
+	/** The kind's descriptor, never filtered because every kind needs one; throws when absent. */
 	descriptor(kind: AnyBlockKind): BlockKindDescriptor;
 	tryDescriptor(kind: AnyBlockKind): BlockKindDescriptor | undefined;
-	/** The block grammar this instance parses through (`parse(source, { grammar })`). */
+	/** The block grammar this editor parses through (`parse(source, { grammar })`). */
 	grammar: GrammarView;
 }
 
-/** Both predicates must admit the kind, so a second filter can only narrow the first.
- *  An absent side admits everything. */
+/** Both predicates must allow the kind, so a second filter can only narrow the first.
+ *  A missing predicate allows everything. */
 export function bothEnable(
 	a: KindEnablement | undefined,
 	b: KindEnablement | undefined

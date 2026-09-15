@@ -1,8 +1,8 @@
 /**
- * The single-block plugin unit: declare-and-describe a kind, then bind its component, sparing a
- * one-kind plugin the register/define double-wrap and its setup ordering. A multi-kind plugin
- * stays on `definePlugin` directly. `kind` is the plain declared-kind NAME, branded lazily after
- * `register` runs — `declaredPluginKind` throws for a not-yet-declared name.
+ * The one-block plugin shortcut: declare and describe a kind, then attach its component, so a
+ * single-kind plugin does not have to wrap `definePlugin` itself and get the setup order right. A
+ * plugin with several kinds uses `definePlugin` directly. `kind` is the plain declared name,
+ * branded after `register` runs: `declaredPluginKind` throws for a name not yet declared.
  */
 
 import type { Component } from 'svelte';
