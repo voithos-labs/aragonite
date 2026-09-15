@@ -1,9 +1,9 @@
 // @vitest-environment jsdom
 //
-// G4.40 — "single-block rewrite" is spelled in three places (the built-in keymaps, the dispatch
-// seam's range lists, the chords `cross-block/keydown.ts` claims) and the rewrite-scoped subset
-// must agree: a sixth rewrite taught to one spelling is an N-1 gap at the other two. The seam
-// lists may hold a non-rewrite id too (`heading.cycle`); G4.29 catches a chord growing.
+// The set of single-block rewrites is spelled in three places (the built-in keymaps, the command
+// dispatcher's range lists, the chords `cross-block/keydown.ts` handles) and the three must agree:
+// a sixth rewrite taught to one spelling is a gap at the other two (G4.40). The dispatcher's lists
+// may hold a non-rewrite id too (`heading.cycle`); G4.29 catches a chord growing.
 import { describe, it, expect } from 'vitest';
 import { ALL_BLOCK_KINDS } from '$lib/core/nodes';
 import { tryGetBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
@@ -13,9 +13,9 @@ import { makeKeydownEnv, press } from './keydown-env';
 
 const SOURCE = 'alpha\n\nbeta\n\ngamma\n';
 
-/** Set members whose id carries no `format.` prefix. Hand-carried because membership is the
- *  arm's shape and no naming rule separates them from the kind commands beside them: a prefix
- *  census could not see `link.openCard`, which is how it stayed outside the set. */
+/** Set members whose id carries no `format.` prefix. Listed by hand because no naming rule
+ *  separates them from the kind commands beside them: a prefix scan could not see
+ *  `link.openCard`, which is how it stayed outside the set. */
 const NON_FORMAT_REWRITE_IDS = ['link.openCard'];
 
 const isSingleBlockRewriteId = (command: string): boolean =>
@@ -61,8 +61,8 @@ describe('G4.40 single-block-rewrite set parity', () => {
 
 	it('the keymaps bind exactly the rewrite ids the seam answers specially over a range', () => {
 		const bound = [...new Set(keymap.map((row) => row.command))].sort();
-		// Scoped to the rewrites: the seam declines the heading arm too, but its chords reach it
-		// through the delete-and-redispatch arm, so no rewrite chord names it.
+		// Scoped to the rewrites: the dispatcher declines the heading commands too, but their chords
+		// reach it through the delete-and-redispatch branch, so no rewrite chord names them.
 		const answered = [...RANGE_DECLINED_COMMAND_IDS, ...CROSS_BLOCK_RANGE_COMMAND_IDS]
 			.filter(isSingleBlockRewriteId)
 			.sort();
@@ -93,7 +93,7 @@ describe('G4.40 single-block-rewrite set parity', () => {
 		}
 	);
 
-	// Non-vacuity: the arm claims the rewrites, not every modified chord the keymaps bind.
+	// Non-vacuity: the branch handles the rewrites, not every modified chord the keymaps bind.
 	it('a keymap chord outside the set is not swallowed by the rewrite arm', async () => {
 		const { consumed, event } = await pressOverCrossBlockRange('Mod+Enter');
 		expect(consumed).toBe(false);

@@ -4,7 +4,7 @@
 // a range covers is the grid's own question: a run to the endpoint cell with one side outside,
 // a rectangle with both inside. Every cell span is whole-cell.
 //
-// Miss-analysis: the grid exclusion was a written-down decision, so nothing broke silently — but
+// Miss-analysis: the grid exclusion was a written-down decision, so nothing broke silently, but
 // no test in either suite ever handed the plan a table endpoint, in either coordinate space.
 import { describe, it, expect } from 'vitest';
 import { parse } from '$lib/core/parser';
@@ -19,15 +19,15 @@ import type { SelectionPoint } from '$lib/selection/primitives';
 
 const at = (path: number[], offset: number): SelectionPoint => ({ path, offset });
 
-/** A cross-block endpoint inside a table: the TABLE's path, a row-major cell index, flagged. */
+/** A cross-block endpoint inside a table: the table's path, a row-major cell index, flagged. */
 const cell = (path: number[], index: number): SelectionPoint => ({
 	path,
 	offset: index,
 	cellCoordinate: true
 });
 
-/** An intra-table corner: the same shape UNFLAGGED — the pair's shared table path establishes the
- *  space (`SelectionPoint`), which is how a rectangle drag stores its two ends. */
+/** A corner inside one table: the same shape unflagged; the pair's shared table path establishes
+ *  the space (`SelectionPoint`), which is how a rectangle drag stores its two ends. */
 const corner = (path: number[], index: number): SelectionPoint => ({ path, offset: index });
 
 const TWO_COL = '| Ha | Hb |\n| --- | --- |\n| a1 | a2 |\n| b1 | b2 |\n';
@@ -119,7 +119,7 @@ describe('a cell whose content cannot carry the mark', () => {
 	});
 });
 
-// The cell's own escaping runs at the write sink, so a toggled cell holding a pipe is still one
+// The cell's own escaping runs in its write rule, so a toggled cell holding a pipe is still one
 // cell after the row re-emits its delimiters.
 describe('the bytes a cell write lands', () => {
 	it('keeps an escaped pipe escaped through the toggle', () => {

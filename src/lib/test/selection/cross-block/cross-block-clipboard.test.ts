@@ -33,8 +33,8 @@ describe('cross-block clipboard prologue', () => {
 		const deps = makeDeps(createSelectionState());
 		const { event, written, preventSpy } = makeCopyEvent();
 
-		// The false return is what keeps each surface's native/intra-block path alive —
-		// e.g. a plain single-cell table copy must NOT preventDefault.
+		// The false return is what keeps each block's own single-block path alive: a plain
+		// single-cell table copy must not call preventDefault.
 		expect(writeCrossBlockCopy(event, deps)).toBe(false);
 		expect(preventSpy).not.toHaveBeenCalled();
 		expect(written.size).toBe(0);

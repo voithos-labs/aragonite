@@ -23,8 +23,8 @@ const HEADER_PLUS_TWO = '| a | b |\n| --- | --- |\n| 1 | 2 |\n| 3 | 4 |\n';
 
 function makeEnv(source: string) {
 	const harness = makeEditorActionsDeps(parse(source).children);
-	// Production wiring: getDoc enables the state seam's table-endpoint
-	// normalization + whole-row snap, which the plain harness omits.
+	// Production wiring: `getDoc` enables the selection state's table-endpoint normalization and
+	// whole-row snap, which the plain harness omits.
 	harness.deps.selectionState = createSelectionState({ getDoc: () => harness.deps.doc });
 	const controller = createUndoController(harness.deps);
 	const mutCtx: CrossBlockMutationContext = {

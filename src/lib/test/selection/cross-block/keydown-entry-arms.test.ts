@@ -1,9 +1,10 @@
 // @vitest-environment jsdom
 //
-// The two arms that run while cross-block mode is NOT yet active, plus the compositionstart half
-// the same factory returns. Ctrl+A is a two-press ladder keyed off a count on SelectionState, so a
-// press that forgot to increment leaves it stuck at one block. compositionstart has no beforeinput
-// to gate on: an active range must be deleted SYNCHRONOUSLY or composed text lands on a stale one.
+// The two branches that run while cross-block mode is not yet active, plus the compositionstart
+// half the same factory returns. Ctrl+A escalates over two presses keyed off a count on
+// `SelectionState`, so a press that forgot to increment leaves it stuck at one block.
+// compositionstart has no beforeinput to wait for: an active range must be deleted synchronously
+// or composed text lands on a stale one.
 import { describe, it, expect } from 'vitest';
 import { asEditorX } from '$lib/cursor/coordinate-spaces';
 import { makeKeydownEnv, press } from './keydown-env';
@@ -40,7 +41,7 @@ describe('cross-block keydown — Ctrl+A ladder', () => {
 		expect(env.selection.focus?.path).toEqual([2]);
 	});
 
-	// Ctrl+Shift+A is a different chord and must not ladder.
+	// Ctrl+Shift+A is a different chord and must not count as a second press.
 	it('ignores the shifted chord', async () => {
 		const env = makeKeydownEnv(SOURCE);
 
@@ -81,9 +82,9 @@ describe('cross-block keydown — compositionstart', () => {
 		expect(env.selection.isCrossBlock).toBe(true);
 	});
 
-	// Both ephemeral caret states reset unconditionally, before the range check: a composition is
+	// Both transient caret states reset unconditionally, before the range check: a composition is
 	// an edit, so neither a column captured by an earlier vertical arrow nor the side an earlier
-	// arrival recorded may survive it.
+	// caret placement recorded may survive it.
 	it('resets the sticky column and the edge affinity even when it declines', () => {
 		const env = makeKeydownEnv(SOURCE);
 		env.stickyColumn.capture(asEditorX(600));

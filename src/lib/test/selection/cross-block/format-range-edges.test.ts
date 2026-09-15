@@ -1,11 +1,11 @@
 // @vitest-environment jsdom
 //
-// Where a per-block span meets bytes the single-block seam cannot mark soundly: an edge landing on
-// whitespace, and a write whose delimiters form no construct. The decomposition and the direction
+// Where a per-block span meets bytes the single-block toggle cannot mark soundly: an edge landing
+// on whitespace, and a write whose delimiters form no construct. The span split and the direction
 // rule are `./format-range.test.ts`.
 //
 // Miss-analysis: every partial span in that file started and ended on a word boundary, and every
-// e2e range was a whole-document Mod+A, so no test ever put a space at a span's edge — the one
+// e2e range was a whole-document Mod+A, so no test ever put a space at a span's edge, the one
 // place the source-mode wrap candidate list has a second entry the mode never reaches.
 import { describe, it, expect } from 'vitest';
 import { parse } from '$lib/core/parser';
@@ -51,7 +51,7 @@ describe('a span whose edge lands on whitespace', () => {
 		});
 	}
 
-	// The trim moves the RESTORED range too: its endpoints come off the toggle's own selection, so
+	// The trim moves the restored range too: its endpoints come off the toggle's own selection, so
 	// they land inside the marked run rather than around the space the span gave up.
 	it('restores the range inside the marked run, not around the trimmed space', () => {
 		const head = planCrossBlockFormat(
@@ -73,17 +73,17 @@ describe('a span whose edge lands on whitespace', () => {
 		expect(tail.startOffset).toBe('alpha '.length);
 	});
 
-	// A dead second press is the visible half of the bug: bytes that form no construct read as
-	// uncovered, so the range never flips back.
+	// A second keystroke that does nothing is the visible half of the bug: bytes that form no
+	// construct read as unmarked, so the range never toggles back.
 	it('leaves bytes a second press unwraps, rather than a dead key', () => {
 		const once = toggle(HEAD.source, HEAD.start, HEAD.end)!;
 		expect(toggle(once, at([0], 0), at([1], '**beta**'.length))).toBe('alpha\n\nbeta gamma\n');
 	});
 });
 
-// The seam's wrap arm is UNVERIFIED wherever the mode paints delimiters, so a span whose write
-// forms no construct still comes back as a candidate. Only the post-write coverage re-read
-// refuses it, which is what keeps a second press from compounding delimiters.
+// The toggle's wrap is unverified wherever the mode paints delimiters, so a span whose write
+// forms no construct still comes back as a candidate. Only the coverage re-read after the
+// write refuses it, which is what keeps a second keystroke from piling up delimiters.
 describe('a write that formed no construct', () => {
 	// `**alpha***` — the block's own trailing `*` joins the closing run and the pair never closes.
 	const TRAILING_MARKER = 'alpha*\n\nbeta\n';

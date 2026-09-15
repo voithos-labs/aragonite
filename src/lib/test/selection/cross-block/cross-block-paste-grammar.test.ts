@@ -3,7 +3,7 @@
 // The cross-block paste caller must forward the instance grammar onto the PasteDispatchContext it
 // builds, so the join-paste reparse honors per-instance enablement.
 // `test/tree-operations/paste/dispatch-commit.test.ts` proves the apply path honors a passed
-// ctx.grammar; this proves the CALLER populates it.
+// ctx.grammar; this proves the caller populates it.
 import { describe, it, expect } from 'vitest';
 import { createGrammarView } from '$lib/schema/block-openers';
 import { makeEnv, makeHandlers, makePasteEvent, selectAcross } from './typed-char-env';
@@ -25,7 +25,7 @@ describe('handleCrossBlockPaste forwards the instance grammar to the join repars
 		expect(env.doc.children[0].kind).toBe('paragraph');
 	});
 
-	// Control: with the global grammar (grammar undefined) the same paste re-mints the
+	// Control: with the global grammar (grammar undefined) the same paste re-creates the
 	// list, so the assertion above is a real grammar effect, not a vacuous pass.
 	it('the global grammar still re-mints the completion as a list', async () => {
 		const env = makeEnv('x\n\n. item\n');

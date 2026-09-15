@@ -11,14 +11,14 @@ import { createSelectionState } from '$lib/selection/selection-state.svelte';
 import { registerBlockListState } from '$lib/reactivity/state-registry';
 import { makeBlockListState, makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
 
-// A range delete leaves its survivor beside an absorbing neighbour ABOVE the selection, so the
-// settle folds a seam outside the selected endpoints — a fold the id ledger the commit composes
-// its structural descriptor from must observe too.
-// Miss-analysis: every cross-block delete pin asserted the scope's own children and bytes, and the
-// descriptor's own pins called `computeScopeDescriptor` with hand-written lengths, so no case ever
-// compared the published id array against the children a settle-folded delete actually left.
+// A range delete leaves its survivor beside a neighbour above the selection that absorbs it, so
+// the fix-up merges two blocks outside the selected endpoints, a merge the id bookkeeping the
+// commit builds its structural change from must observe too.
+// Miss-analysis: every cross-block delete pin asserted the container's own children and bytes,
+// and the structural-change pins called `computeScopeDescriptor` with hand-written lengths, so no
+// case ever compared the id array in state against the children such a delete actually left.
 
-/** A list above indented prose: their adjacent bytes re-read as one list, and the fold cascades. */
+/** A list above indented text: their adjacent bytes re-read as one list, and the merge cascades. */
 const ABSORBING_NEIGHBOUR = '- a\n\nAB\n\n  cd\n\n  ef\n';
 
 function makeEnv(source: string) {
@@ -70,8 +70,8 @@ describe('a cross-block delete whose settle folds a seam above the selection', (
 		expect(state.innerBlockIds).toEqual([listId]);
 	});
 
-	// The doc root keeps no id array of its own, so its ledger is BORROWED. One left behind would
-	// be maintained forever by the next top-level splice, against ids nothing reconciles.
+	// The document root keeps no id array of its own, so its id tracker is borrowed. One left
+	// behind would be maintained forever by the next top-level splice, against ids nothing reconciles.
 	it('gives the document root’s borrowed ledger back', async () => {
 		const env = makeEnv('lead\n\n> quoted\n\ntail\n');
 		const quote = env.deps.doc.children[1];

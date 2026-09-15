@@ -40,8 +40,8 @@ describe('cross-block typed character — A2/A3 event symmetry', () => {
 		expect(editEvents.map((e) => e.op)).toEqual(['delete', 'updateContent']);
 
 		const update = editEvents[1] as Extract<EditEvent, { op: 'updateContent' }>;
-		// Both arms: the block-length contract, and the arithmetic that pins it —
-		// the first alone would pass against a survivor that is not what we think.
+		// Both checks: the block-length contract, and the arithmetic that pins it; the first
+		// alone would pass against a survivor that is not what we think.
 		expect(update.detail.length).toBe((env.doc.children[0] as CstNode).raw.length);
 		expect(update.detail.length).toBe('world\n'.length + typed.length);
 	});
@@ -111,8 +111,8 @@ describe('cross-block typed character — kind re-derivation at offset 0', () =>
 	});
 });
 
-// A commit that re-derives the kind must declare an op the LRD gate treats as kind-unstable:
-// under `input` the gate read the POST-commit kind and kept serving a destroyed definition.
+// A commit that re-derives the kind must declare an op the link-reference gate treats as kind-unstable:
+// under `input` the gate read the post-commit kind and kept serving a destroyed definition.
 describe('cross-block typed character — link-reference resolver freshness', () => {
 	it('a type-replace that destroys a definition stops the resolver serving it', async () => {
 		const env = makeEnv('[label]: /a\n\n[ref]: /b\n\nSee [ref] and [label].\n');
@@ -132,16 +132,17 @@ describe('cross-block typed character — link-reference resolver freshness', ()
 		expect(resolver()('ref')).toBeUndefined();
 		expect(resolver()('label')).toBeUndefined();
 
-		// The detail is computed before the commit, but a kind change mints a fresh node by re-parsing,
-		// so the length contract needs checking on THIS arm, not only on the kind-stable one above.
+		// The detail is computed before the commit, but a kind change creates a fresh node by
+		// reparsing, so the length contract needs checking on this branch too, not only on the
+		// kind-stable one above.
 		const update = editEvents.at(-1) as Extract<EditEvent, { op: 'updateContent' }>;
 		expect(update.op).toBe('updateContent');
 		expect(update.detail.length).toBe(survivor.raw.length);
 	});
 
 	it('a type-replace that creates a definition makes the resolver serve it', async () => {
-		// The other direction of the same gate decision: the post-commit kind IS
-		// `linkReferenceDefinition`, which is why this arm survived the bug.
+		// The other direction of the same decision: the post-commit kind is
+		// `linkReferenceDefinition`, which is why this case survived the bug.
 		const env = makeEnv('drop me\n\nlabel]: /a\n');
 		const resolver = trackLrdResolver(env);
 		expect(resolver()('label')).toBeUndefined();

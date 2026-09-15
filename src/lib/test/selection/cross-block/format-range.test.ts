@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 //
-// The cross-block toggle's decomposition and its direction rule: the anchor's tail, each middle
+// The cross-block toggle's span split and its direction rule: the anchor's tail, each middle
 // block's content, the focus block's head, all rewritten the one way the range's own coverage
-// says. Whether a press LANDS is the commit arm's; which spans it would touch is this file's.
+// says. Whether a keystroke lands is the commit's business; which spans it would touch is this file's.
 import { describe, it, expect } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
@@ -76,8 +76,8 @@ describe('direction is the whole range’s coverage, not each block’s', () => 
 		expect(toggle('**alpha**\n\nbeta\n', at([0], 0), at([1], 4))).toBe('**alpha**\n\n**beta**\n');
 	});
 
-	// The single-block seam reads each span alone, so without the range's direction pinned an
-	// apply press would walk the covered block back the other way.
+	// The single-block toggle reads each span alone, so without the range's direction pinned an
+	// apply keystroke would toggle the covered block back the other way.
 	it('an apply press is idempotent over an already-covered span', () => {
 		const once = toggle('**alpha**\n\nbeta\n', at([0], 0), at([1], 4))!;
 		expect(toggle(once, at([0], 0), at([1], 8))).toBe('alpha\n\nbeta\n');

@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 //
-// What the plan hands back for a range whose edge is a deep `[grid, row, col]` path: a CHAR offset
-// into a cell the write grows, an endpoint space a table does not have. A prose edge follows its
-// own rewrite; this is the sibling that did not.
+// What the plan hands back for a range whose edge is a deep `[grid, row, col]` path: a character
+// offset into a cell the write grows, an endpoint space a table does not have. A text edge
+// follows its own rewrite; this is the sibling that did not.
 //
 // Miss-analysis: every endpoint assertion in these suites used a table endpoint, whose cell-index
 // space no write can move, so none asked what a char-offset endpoint reads after its cell grew.
@@ -48,7 +48,7 @@ describe('a range edge deep inside a plugin grid', () => {
 		expect(plan!.startOffset).toBe(1);
 	});
 
-	// An endpoint on the grid's OWN path addresses no cell, so no cell write owns its offset.
+	// An endpoint on the grid's own path addresses no cell, so no cell write owns its offset.
 	it('leaves a char offset on the grid’s own path where it stands', () => {
 		const doc = docAround(gridOf(registerPluginGrid(), TWO_BY_TWO));
 

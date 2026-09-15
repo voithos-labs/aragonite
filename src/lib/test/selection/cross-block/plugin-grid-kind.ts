@@ -1,6 +1,6 @@
 // A plugin-declared grid: the grid kind, the row kind it holds, and the inline-bearing leaf a row
-// holds — the shape the built-in table has, registered the way a plugin would register it, with no
-// table metadata anywhere — plus the document and the stored-endpoint plan its suites press
+// holds (the shape the built-in table has, registered the way a plugin would register it, with no
+// table metadata anywhere), plus the document and the stored-endpoint plan its suites test
 // against. Callers own the registry reset (`__resetSchemaRegistriesForTests`).
 
 import { parse } from '$lib/core/parser';
@@ -48,7 +48,7 @@ export function registerPluginGrid() {
 
 export type PluginGridKinds = ReturnType<typeof registerPluginGrid>;
 
-/** A grid over `rows` of cell raws — the rows-of-cells shape the grid arm walks. */
+/** A grid over `rows` of cell raws, the rows-of-cells shape the grid branch walks. */
 export function gridOf(kinds: PluginGridKinds, rows: string[][]): CstNode {
 	const children = rows.map((cells) => ({
 		kind: kinds.row,

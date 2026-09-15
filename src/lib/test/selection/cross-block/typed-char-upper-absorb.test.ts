@@ -3,20 +3,20 @@ import { describe, it, expect } from 'vitest';
 import { serialize } from '$lib/core/serializer';
 import { makeEnv, makeHandlers, selectAcross, makeBeforeInputEvent } from './typed-char-env';
 
-// GH #21's caret half at the cross-block door: the typed character demotes the survivor, the
-// settle absorbs the paragraph above it, and the caret has to follow the bytes into the
-// predecessor's slot instead of addressing the one the fold emptied.
-// Miss-analysis: this door's pins asserted the survivor's kind and bytes, never the path and
-// offset it hands the caret, so a landing aimed at a vacated slot could not fail.
+// GH #21's caret half through the cross-block type-replace: the typed character demotes the
+// survivor, the fix-up merges it into the paragraph above, and the caret has to follow the bytes
+// into that paragraph instead of addressing the position the merge emptied.
+// Miss-analysis: this path's pins asserted the survivor's kind and bytes, never the path and
+// offset it hands the caret, so a landing aimed at a vacated position could not fail.
 
 describe('cross-block typed character — a fold above the survivor', () => {
 	it('lands the caret in the block the fold left standing', async () => {
 		const env = makeEnv('a\n# h\n\n# kkk\n');
 		const paths: number[][] = [];
 		const offsets: (number | undefined)[] = [];
-		// A single text node is the whole block: no ambient marker, so DOM and raw offsets agree.
-		// The door places the range and then focuses, and jsdom's own focus resets the selection —
-		// so the landing is read at the focus call, which is where production reads it too.
+		// A single text node is the whole block: no marker prefix, so DOM and raw offsets agree. The
+		// placement sets the range and then focuses, and jsdom's own focus resets the selection, so
+		// the landing is read at the focus call, which is where production reads it too.
 		const blockEl = document.createElement('div');
 		blockEl.append(document.createTextNode('a\nx# kkk\n'));
 		blockEl.focus = () => offsets.push(window.getSelection()?.anchorOffset);

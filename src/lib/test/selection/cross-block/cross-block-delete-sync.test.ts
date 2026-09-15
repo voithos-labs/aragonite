@@ -93,9 +93,9 @@ describe('performCrossBlockDeleteSync — commit-primitive convergence', () => {
 	});
 });
 
-// GH #129 at the cross-block door: a delete that blanks the tail block exposes the
-// document's folded trailing line, so both commit paths must let the settle materialize
-// it AND report the grown tail to the ids sync.
+// GH #129 through the cross-block delete: a delete that blanks the tail block exposes the
+// document's trailing blank line, so both commit paths must let the fix-up write it and report
+// the grown tail to the id sync.
 describe('cross-block delete beside the folded trailing blank (GH #129)', () => {
 	it('pure top-level: the whole-content delete materializes the fold in step', async () => {
 		const env = makeEnv('alpha\n\nbeta\n\n');
@@ -127,7 +127,7 @@ describe('cross-block delete beside the folded trailing blank (GH #129)', () => 
 		expect(env.doc.children).toHaveLength(2);
 		expect(env.doc.suffix).toBe('');
 		expect(env.getBlockIds()).toHaveLength(2);
-		// The quote died; its slot now holds the materialized blank, which must not keep its id.
+		// The quote is gone; its position now holds the new blank, which must not keep its id.
 		expect(env.getBlockIds()[1]).not.toBe(idsBefore[1]);
 		expectParseConverged(env.deps.doc);
 	});

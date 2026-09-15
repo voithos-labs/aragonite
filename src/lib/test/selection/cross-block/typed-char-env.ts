@@ -27,8 +27,8 @@ export function makeEnv(source: string) {
 	let blockIds = doc.children.map((_, i) => `id-${i}`);
 	let blockRefs: (BlockComponent | undefined)[] = doc.children.map(() => makeRef());
 	const events = createEditorEvents();
-	// Doc-aware, as the shell's own state is: without it the endpoint funnels measure nothing and
-	// a whole-block endpoint pair stores a zero-length span.
+	// Document-aware, as the shell's own state is: without it the endpoint normalizers measure
+	// nothing and a whole-block endpoint pair stores a zero-length span.
 	const selectionState = createSelectionState({ getDoc: () => doc });
 	const stickyColumn = makeStickyColumn();
 	const edgeAffinity = makeEdgeAffinity();
@@ -50,7 +50,8 @@ export function makeEnv(source: string) {
 		setBlockRefs: (v: (BlockComponent | undefined)[]) => {
 			blockRefs = v;
 		},
-		// This env asserts on selection, never on the version; the door census owns that question.
+		// This env asserts on selection, never on the content version; the version-writer scan
+		// owns that question.
 		bumpContentVersion: () => {},
 		undoManager: createUndoManager(),
 		sharing: createSharingState(),
@@ -68,11 +69,12 @@ export function makeEnv(source: string) {
 
 export interface HandlerOptions {
 	getCursorOffset?: () => number | null;
-	/** The caret-landing door: the dispatch places its post-commit caret through this. */
+	/** The caret's element lookup: the dispatch places its post-commit caret through this. */
 	getBlockElByPath?: (path: number[]) => HTMLElement | null;
 	/** Instance grammar the dispatch must forward onto its commit contexts. */
 	grammar?: GrammarView;
-	/** Substitute dispatch reveal (e.g. gated); the paste coordinator keeps the env's own. */
+	/** A substitute mount for the dispatch (held, for instance); the paste coordinator keeps the
+	 *  env's own. */
 	revealPath?: (path: number[]) => Promise<BlockComponent | null>;
 }
 

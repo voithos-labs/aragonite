@@ -1,12 +1,12 @@
 // @vitest-environment jsdom
 //
 // A plugin grid inside a cross-block format range. `containerContract: 'grid'` is a declarable
-// plugin contract, so the toggle's grid arm is reached by kinds with no table metadata, whose
+// plugin contract, so the toggle's grid branch is reached by kinds with no table metadata, whose
 // endpoints never snap to cell space: a range edge inside one arrives as a deep `[grid, row, col]`
 // path.
 //
-// Miss-analysis: every case fed the arm a parsed table with the grid WHOLLY inside the range, so
-// neither a metadata-free grid nor an endpoint inside one was ever put to it.
+// Miss-analysis: every case fed the branch a parsed table with the grid wholly inside the range,
+// so neither a metadata-free grid nor an endpoint inside one was ever put to it.
 import { afterEach, describe, expect, it } from 'vitest';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { setPluginMetadata } from '$lib/core/nodes';
@@ -53,8 +53,8 @@ describe('a grid whose kind carries no table metadata', () => {
 		expect(plan.writes.map((write) => write.path)).toEqual([[0], [1, 0, 0], [1, 0, 1], [2]]);
 	});
 
-	// The arm walks rows and their cells. A grid holding leaves directly declares no such shape,
-	// so it contributes nothing — the pre-arm behaviour, and not a throw or an empty grid's NaN.
+	// The grid branch walks rows and their cells. A grid holding leaves directly declares no such
+	// shape, so it contributes nothing: not a throw, and not an empty grid's NaN.
 	it('contributes nothing, and blocks nothing, when its children hold no cells', () => {
 		const kinds = registerPluginGrid();
 		const doc = docAround({
@@ -88,7 +88,7 @@ describe('a range endpoint deep inside a plugin grid', () => {
 
 		// A row-1 endpoint, so the index arithmetic is `row * width + col` and not `row + col`.
 		const { end, plan } = planStored(doc, at([0], 0), at([1, 1, 0], 1));
-		// The premise the arm has to survive: no snap moved this endpoint into cell space.
+		// The premise the branch has to survive: no snap moved this endpoint into cell space.
 		expect(end).toEqual({ path: [1, 1, 0], offset: 1 });
 		expect(plan!.writes.map((write) => write.path)).toEqual([[0], [1, 0, 0], [1, 0, 1], [1, 1, 0]]);
 	});
@@ -101,7 +101,7 @@ describe('a range endpoint deep inside a plugin grid', () => {
 		expect(plan!.writes.map((write) => write.path)).toEqual([[1, 0, 1], [1, 1, 0], [1, 1, 1], [2]]);
 	});
 
-	// Both endpoints inside one grid is the rectangle arm, reached through the same resolution —
+	// Both endpoints inside one grid is the rectangle case, reached through the same resolution:
 	// the pair a drag inside a plugin grid stores, where a table's would share the table path.
 	it('marks the rectangle two deep endpoints span', () => {
 		const doc = docAround(
@@ -118,8 +118,8 @@ describe('a range endpoint deep inside a plugin grid', () => {
 		]);
 	});
 
-	// The pressed read decomposes the same range, so it inherits the fix: the cells past the
-	// endpoint must not vote the toolbar's paint off.
+	// The active-marks read splits the same range into spans, so it inherits the fix: the cells
+	// past the endpoint must not vote the toolbar's mark off.
 	it('reads pressed from the covered cells alone', () => {
 		const doc = docAround(
 			gridOf(registerPluginGrid(), [
@@ -132,8 +132,9 @@ describe('a range endpoint deep inside a plugin grid', () => {
 		expect(crossBlockActiveFormats(doc, at([0], 0), at([1, 0, 0], 1)).has('strong')).toBe(true);
 	});
 
-	// An endpoint ON the grid's own path counts cells only where the path IS cell space. A plugin
-	// grid rendering one surface over its cells lands a CHAR offset there, which addresses no cell.
+	// An endpoint on the grid's own path counts cells only where the path is cell space. A plugin
+	// grid rendering one editable element over its cells lands a character offset there, which
+	// addresses no cell.
 	it('reads a char offset on the grid’s own path as the grid’s edge, not as a cell index', () => {
 		const doc = docAround(gridOf(registerPluginGrid(), TWO_BY_TWO));
 
@@ -173,7 +174,7 @@ describe('a grid whose rows differ in width', () => {
 		]);
 	});
 
-	// The endpoint IS the surplus cell, and its index is still row 0's width — which puts it past
+	// The endpoint is the surplus cell, and its index is still row 0's width, which puts it past
 	// the grid's last index, so the run stops at the last cell the space does reach.
 	it('resolves a deep endpoint through row 0’s width, past the grid’s end', () => {
 		const doc = docAround(gridOf(registerPluginGrid(), RAGGED));

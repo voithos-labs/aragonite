@@ -1,12 +1,12 @@
 // @vitest-environment jsdom
 //
-// The range arm over a block whose whole content is another kind's run. It has no arms of its own,
-// so it must land exactly what the single-block seam lands on the same bytes
-// (`core/inline/format-toggle-cross-kind-nest.test.ts`); where the after-read disowned the write,
-// the block was dropped in silence while its neighbours were marked.
+// The cross-block toggle over a block whose whole content is another kind's run. It has no rules
+// of its own, so it must land exactly what the single-block toggle lands on the same bytes
+// (`core/inline/format-toggle-cross-kind-nest.test.ts`); where the re-read after the write
+// disowned it, the block was dropped in silence while its neighbours were marked.
 //
 // Miss-analysis: every cross-block case gave its middle block plain content or a run of the format
-// pressed, so no case ever put a block the seam writes and then reads as unchanged into a range.
+// pressed, so no case ever put a block the toggle writes and then reads as unchanged into a range.
 import { describe, it, expect } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
@@ -41,8 +41,9 @@ describe.each(MODES)('a middle block whose content is one run of another kind (%
 		);
 	});
 
-	// The direction vote reads the same block, so a stack it called unmarked made the whole press
-	// an apply — and then every marked neighbour sat the press out too, writing nothing at all.
+	// The direction vote reads the same block, so a nested run it called unmarked made the whole
+	// keystroke an apply, and then every marked neighbour sat the keystroke out too, writing
+	// nothing at all.
 	it('votes with its neighbours, so the covered range unapplies whole', () => {
 		expect(toggle('**head**\n\n***ab***\n\n**tail**\n', at([0], 0), at([2], 8), mode)).toBe(
 			'head\n\n*ab*\n\ntail\n'
@@ -50,7 +51,7 @@ describe.each(MODES)('a middle block whose content is one run of another kind (%
 	});
 
 	// A construct carrying no mark of its own reaches the vote the same way, and got it wrong the
-	// other direction: the block the range called unmarked was the one the press marked AGAIN.
+	// other direction: the block the range called unmarked was the one the keystroke marked again.
 	it('counts a link whose whole text is marked, so the range unapplies rather than doubling it', () => {
 		expect(toggle('**head**\n\n[**a**](u)\n\n**tail**\n', at([0], 0), at([2], 8), mode)).toBe(
 			'head\n\n[a](u)\n\ntail\n'

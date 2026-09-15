@@ -1,21 +1,21 @@
 // @vitest-environment jsdom
 //
-// `revealActiveEndpoint`'s prose arm: the only caller of the park door, reachable only when the
-// endpoint is windowed OUT. `parkCaret` is optional on `BlockComponent`, and the contract promises
-// a specific degradation — no parked caret, the range survives, the scroll still runs. Pinned here
-// because what must NOT happen (a fallback to the range-ending `focus`, or a throw) is invisible
+// `revealActiveEndpoint`'s text branch: the only caller of `parkCaret`, reachable only when the
+// endpoint is windowed out. `parkCaret` is optional on `BlockComponent`, and the contract promises
+// a specific degradation: no caret placed, the range survives, the scroll still runs. Pinned here
+// because what must not happen (a fallback to the range-ending `focus`, or a throw) is invisible
 // to every extend spec.
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { CURSOR_START, type BlockComponent } from '$lib/block-component';
 import { makeKeydownEnv, press } from './keydown-env';
 import { allowDevWarns } from '$lib/test/support/warn-gate';
 
-// The fixtures seat table endpoints directly instead of through SelectionState, so the coordinate
-// guard sees the un-normalized point.
+// The fixtures set table endpoints directly instead of through SelectionState, so the coordinate
+// check sees the un-normalized point.
 afterEach(() => allowDevWarns(['invariant:cross-block-endpoint-coordinates']));
 
 const SOURCE = 'alpha\n\nbeta\n\ngamma\n';
-/** The doc-end leaf `Ctrl+Shift+End` extends to, held off-window. */
+/** The document-end leaf `Ctrl+Shift+End` extends to, held windowed out. */
 const ENDPOINT = [2];
 
 function endpointRef(withParkDoor: boolean): BlockComponent {
@@ -52,8 +52,8 @@ describe('revealActiveEndpoint parks in a revealed off-window endpoint', () => {
 		expect(env.selection.focus?.path).toEqual(ENDPOINT);
 	});
 
-	// Miss-analysis (GH #111): the cell arm parked a literal 0, and this suite pinned only the
-	// prose arm's offset — a start sentinel discarded at the cell door was invisible.
+	// Miss-analysis (GH #111): the cell branch placed a literal 0, and this suite pinned only the
+	// text branch's offset; a start sentinel discarded by the cell's `parkCaret` was invisible.
 	it('the cell arm parks the START sentinel, so the cell door clamps and classifies', async () => {
 		const ref = endpointRef(true);
 		const env = makeKeydownEnv('alpha\n\n| A | B |\n| --- | --- |\n| 1 | 2 |\n', {
@@ -70,8 +70,8 @@ describe('revealActiveEndpoint parks in a revealed off-window endpoint', () => {
 		expect(ref.parkCaret).toHaveBeenCalledWith(CURSOR_START);
 	});
 
-	// The documented degradation. The range surviving is the half that matters: parking
-	// through `focus` instead would cancel the selection the user is still building.
+	// The documented degradation. The range surviving is the half that matters: placing the
+	// caret through `focus` instead would cancel the selection the user is still building.
 	it('degrades to a missed park when the endpoint omits the door — no fallback, no throw', async () => {
 		const ref = endpointRef(false);
 		const { env, scrolled } = extendToOffWindowEnd(ref);
@@ -84,8 +84,8 @@ describe('revealActiveEndpoint parks in a revealed off-window endpoint', () => {
 		expect(ref.focus).not.toHaveBeenCalled();
 		expect(env.selection.isCrossBlock).toBe(true);
 		expect(env.selection.focus?.path).toEqual(ENDPOINT);
-		// The reveal mounted the endpoint, so the scroll that follows the park still has
-		// an element — the arm continues past the absent door rather than returning early.
+		// The mount brought in the endpoint, so the scroll that follows still has an element; the
+		// branch continues past the absent `parkCaret` rather than returning early.
 		expect(scrolled).toHaveBeenCalled();
 	});
 });

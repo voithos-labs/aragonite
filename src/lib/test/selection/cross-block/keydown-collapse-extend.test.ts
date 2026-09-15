@@ -1,9 +1,9 @@
 // @vitest-environment jsdom
 //
-// The navigation arms, live in reading mode because nothing they do is an edit. Two things are
-// invisible if only one direction is tested: WHICH endpoint an unshifted arrow collapses to
+// The navigation branches, live in reading mode because nothing they do is an edit. Two things
+// are invisible if only one direction is tested: which endpoint an unshifted arrow collapses to
 // (left/up to range start, right/down to end), and whether a shifted arrow grows or shrinks.
-// Escape shares the collapse-to-start arm but is gated on carrying no modifiers.
+// Escape shares the collapse-to-start branch but only with no modifiers held.
 import { describe, it, expect } from 'vitest';
 import { makeKeydownEnv, press } from './keydown-env';
 
@@ -15,9 +15,9 @@ function envAcrossFirstTwo(presentationMode?: 'reading') {
 	return env;
 }
 
-// Ctrl and Cmd fold to one Mod, and `reservedChords()` publishes the folded chord, so both arms
-// owe both forms. Miss-analysis: the e2e cover presses `ControlOrMeta`, which is Meta only on
-// darwin and no runner is darwin, so half the chord went untested (#69).
+// Ctrl and Cmd collapse to one Mod, and `reservedChords()` exports the collapsed chord, so both
+// branches must handle both forms. Miss-analysis: the e2e cover presses `ControlOrMeta`, which is
+// Meta only on macOS and no runner is macOS, so half the chord went untested (#69).
 const DOC_EDGE_CHORDS = [
 	['Ctrl', { ctrlKey: true, shiftKey: true }],
 	['Cmd', { metaKey: true, shiftKey: true }]
@@ -55,8 +55,8 @@ describe('cross-block keydown — collapse', () => {
 		expect(env.revealed.at(-1)).toEqual([0]);
 	});
 
-	// The Escape arm is explicitly modifier-free. A modified Escape belongs to
-	// whatever else claims it, and collapsing on it would steal the chord.
+	// The Escape branch is explicitly modifier-free. A modified Escape belongs to whatever else
+	// handles it, and collapsing on it would steal the chord.
 	for (const [name, init] of [
 		['Shift+Escape', { shiftKey: true }],
 		['Ctrl+Escape', { ctrlKey: true }],
@@ -71,7 +71,7 @@ describe('cross-block keydown — collapse', () => {
 		});
 	}
 
-	// Navigation is not an edit, so it stays live where the destructive arm gates.
+	// Navigation is not an edit, so it stays live where the destructive branch stops.
 	it('still collapses in reading mode', async () => {
 		const env = envAcrossFirstTwo('reading');
 
@@ -124,7 +124,7 @@ describe('cross-block keydown — extend', () => {
 });
 
 describe('cross-block keydown — doc-edge from a collapsed caret', () => {
-	// The claim is what this arm can assert: entering cross-block reads the native caret, which
+	// The consumed key is what this case can assert: entering cross-block reads the native caret, which
 	// needs `document.activeElement === blockEl`, and the env's block elements are detached.
 	for (const [mod, init] of DOC_EDGE_CHORDS) {
 		for (const key of ['End', 'Home']) {

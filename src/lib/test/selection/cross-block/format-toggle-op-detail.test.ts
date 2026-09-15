@@ -1,10 +1,10 @@
 // @vitest-environment jsdom
 //
 // The `updateContent` a cross-block toggle emits, at the two shapes a grid start endpoint takes.
-// `detail.length` is a public field a host reads and the op is spent BEFORE the write, so which
-// block `path` names decides whether the length is the pre- or the post-write one.
+// `detail.length` is a public field a host reads and the op is evaluated before the write, so
+// which block `path` names decides whether the length is the pre- or the post-write one.
 //
-// Miss-analysis: the grid arm changed this field with no test on the emitted op at all — every
+// Miss-analysis: the grid branch changed this field with no test on the emitted op at all; every
 // toggle case read the plan, one layer below the event a host subscribes to.
 import { afterEach, describe, expect, it } from 'vitest';
 import { parse } from '$lib/core/parser';
@@ -30,8 +30,8 @@ const lastUpdate = (events: EditEvent[]) =>
 	events.at(-1) as Extract<EditEvent, { op: 'updateContent' }>;
 
 describe('the updateContent a toggle emits for a grid start endpoint', () => {
-	// A table's start endpoint snaps onto the TABLE path, which no per-cell write matches, so the
-	// detail is the grid's own PRE-write length (`schema/operations.ts`).
+	// A table's start endpoint snaps onto the table path, which no per-cell write matches, so the
+	// detail is the grid's own pre-write length (`schema/operations.ts`).
 	it('reports the table’s pre-write length against the table path', async () => {
 		const env = makeKeydownEnv(TABLE);
 		const events: EditEvent[] = [];
@@ -51,7 +51,7 @@ describe('the updateContent a toggle emits for a grid start endpoint', () => {
 		expect((env.deps.doc.children[1] as CstNode).raw.length).toBeGreaterThan(before);
 	});
 
-	// A plugin grid's endpoint never snaps, so `path` names the CELL — which the plan does write,
+	// A plugin grid's endpoint never snaps, so `path` names the cell, which the plan does write,
 	// making the detail that cell's post-write length.
 	it('reports the cell’s post-write length against a plugin grid’s deep path', async () => {
 		const env = makeKeydownEnv(pluginGridDoc());

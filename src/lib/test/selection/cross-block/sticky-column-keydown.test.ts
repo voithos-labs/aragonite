@@ -4,7 +4,7 @@ import { asEditorX } from '$lib/cursor/coordinate-spaces';
 import { makeKeydownEnv, press } from './keydown-env';
 
 // Every key the cross-block dispatcher consumes returns before handleSharedKeydown reaches its
-// sticky decision, and the collapse arms run no commit — so nothing downstream resets either.
+// sticky decision, and the collapse branches run no commit, so nothing downstream resets either.
 // Driven at the dispatcher because that is the entry path that swallows the key.
 
 function envWithColumn() {
