@@ -20,8 +20,8 @@ afterEach(() => __resetInlineSyntaxForTests());
 // against a recursive walk.
 const MODEL_DEPTH = 32_000;
 // jsdom's insert bookkeeping is superlinear in tree depth (a native DOM is not), so the
-// environment, not the walk, caps the one pin that renders. The margin is thin — a recursive
-// twin overflows a few thousand levels below this — so a roomier stack greens the pin.
+// environment, not the walk, caps the one pin that renders. The margin is thin (a recursive
+// version overflows a few thousand levels below this), so a roomier stack greens the pin.
 const RENDER_DEPTH = 8_000;
 
 /**
@@ -78,7 +78,8 @@ describe('inline tree walks at input-controlled nesting depth', () => {
 		]);
 	});
 
-	// A recognizer may mint any tree, so a rung's claim stamp inherits the depth its author chose.
+	// A recognizer may build any tree, so a plugin handler's claim record inherits the depth its
+	// author chose.
 	it('stamps a rung-minted chain past the recursion ceiling', () => {
 		const raw = 'Q' + 'x'.repeat(2 * MODEL_DEPTH + 2);
 		registerInlineSyntax('Q', (_source, pos, end) => {
@@ -108,7 +109,7 @@ describe('inline tree walks at input-controlled nesting depth', () => {
 		expect(buildLinkReferenceMap(doc.children as CstNode[]).resolve('a')).toEqual({ url: '/u' });
 	});
 
-	// `renderedText` is this walk's visible fold, so the deep pin below carries it.
+	// `renderedText` is this traversal's visible-text reading, so the deep pin below covers it.
 	it('reads the visible text as the fold of its runs', () => {
 		const raw = '**ab**';
 		const { nodes } = nestedStrong(1, textLeaf);

@@ -36,8 +36,8 @@ describe('inline ladder — a prefix rung on the `!` trigger', () => {
 		expect(parseInline(raw, 0, raw.length)).toEqual([textNode(0, 10, raw)]);
 	});
 
-	// The rung must be consulted ahead of `handleBang`: that handler consumes `![` as one
-	// unit and advances past it, so a rung waiting behind the switch never sees the trigger.
+	// The plugin handler must be consulted ahead of `handleBang`: that built-in consumes `![` as
+	// one unit and advances past it, so a handler waiting behind the switch never sees the trigger.
 	it('claims `![[a.png]]` while a built-in image in the same document is untouched', () => {
 		const raw = 'see ![[a.png]] and ![alt](u)';
 		registerEmbed();

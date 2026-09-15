@@ -22,11 +22,10 @@ import { activateDirectiveGrammar } from '$lib/core/directive/activate';
 
 activateDirectiveGrammar(); // before any parse
 
-// The acceptance gate for the directive primitive: an arbitrary spanning the whole
-// construct space, asserting serialize(parse(src)) === src. Curated non-ASCII pools
-// (not fc.unicode) keep CJK / astral / combining boundary shapes reliably reachable, and
-// the reachability self-tests below are the rules.md evidence that the arbitrary can
-// actually produce the bug-carrying shapes.
+// The acceptance gate for directives: a generator spanning the whole construct space, asserting
+// serialize(parse(src)) === src. Curated non-ASCII pools (not fc.unicode) keep CJK, astral and
+// combining boundary shapes reachable, and the reachability self-tests below prove the generator
+// can produce the bug-carrying shapes (rules.md).
 
 const isNonAscii = (s: string): boolean => [...s].some((ch) => (ch.codePointAt(0) ?? 0) > 0x7f);
 

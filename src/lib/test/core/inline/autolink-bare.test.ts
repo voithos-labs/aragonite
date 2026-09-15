@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { inlineOf } from './inline-test-helpers';
 
 describe('bare www. autolink floor (GFM §6.9)', () => {
-	// `.` is trailing punctuation, so the trim can eat the prefix's own dot and land BELOW
+	// `.` is trailing punctuation, so the trim can eat the prefix's own dot and land below
 	// the `www.` floor. The floor check must reject at-or-below, not only exactly.
 	it.each(['(www.)', 'see www..', 'www.!', 'see www.', 'www.'])(
 		'does not autolink %j — nothing survives the trim past the prefix',

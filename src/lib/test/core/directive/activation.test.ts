@@ -36,16 +36,16 @@ describe('directive grammar activation', () => {
 		expect(isBlockOpenerRegistered(DIRECTIVE_CONTAINER)).toBe(true);
 	});
 
-	// Activating before the grammar-consumed latch trips is what keeps the directive
-	// opener out of the G1.17 late-opener warn — the startup-before-parse contract.
+	// Activating before the first parse is what keeps the directive opener out of the
+	// late-opener dev warning (G1.17).
 	it('emits no late-opener warn when activated before a parse consumes the grammar', () => {
 		activateDirectiveGrammar();
 		parse(':::x\ny\n:::\n');
 		expect(collectRegistrationTags()).not.toContain('late-opener-registration');
 	});
 
-	// The intended G1.17 catch: activating AFTER a document parsed means the opener
-	// arrives too late for already-parsed documents to re-parse, so the dev-warn fires.
+	// The case the warning exists for (G1.17): activating after a document parsed means the
+	// opener arrives too late for already-parsed documents, so the dev warning fires.
 	it('warns when activated after a parse has already consumed the grammar', () => {
 		flushPendingRegistrationChecks(() => {}); // bootstrap flush → didFirstFlush latch
 		parse('plain paragraph\n'); // consumes the grammar (markGrammarConsumed)

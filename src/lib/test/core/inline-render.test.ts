@@ -82,7 +82,7 @@ describe('renderInlineNodes — entityReference widget (visible glyph)', () => {
 
 describe('renderInlineNodes — entityReference literal span (invisible glyph)', () => {
 	// A whitespace/control/zero-width decoding keeps its literal-source span, because an
-	// invisible atomic island would be a caret trap.
+	// invisible widget would be a caret trap.
 	it.each([
 		{ name: 'nbsp (whitespace)', raw: '&nbsp;', decoded: ' ' },
 		{ name: 'zero-width space (format)', raw: '&#8203;', decoded: '​' },

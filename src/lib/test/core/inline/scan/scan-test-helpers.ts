@@ -196,8 +196,8 @@ export function resolverOf(entries: Record<string, ResolvedReference>): LinkRefe
 // ── Case runner ─────────────────────────────────────────────────────────────
 
 /**
- * The empty-registry reading of `raw` — the byte-identity oracle every plugin-rung
- * decline is measured against. Resets first, so a caller can register after taking it.
+ * The empty-registry reading of `raw`: the reference every plugin-handler decline is
+ * measured against. Resets first, so a caller can register after taking it.
  */
 export function scanClean(raw: string, end = raw.length): InlineNode[] {
 	__resetInlineSyntaxForTests();

@@ -9,7 +9,7 @@ import { roundTripCases } from '$lib/test/support/round-trip';
  * several axes at once, so each is pinned against commonmark.js rather than itself —
  * sound here because the GFM extensions leave §2.1, §4.4/§4.6, §5.1 and §5.2 untouched.
  * Block outlines only: the reference's inline stage `String.trim()`s an NBSP cmark-gfm
- * keeps, so its rendered HTML is not a usable oracle.
+ * keeps, so its rendered HTML is not a usable reference.
  */
 
 const NBSP = String.fromCharCode(0xa0);

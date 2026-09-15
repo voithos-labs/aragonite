@@ -1,5 +1,5 @@
 // `OpenContext.isDocumentParse` is the only signal separating a whole-document parse from a
-// standalone parse of a fragment that happens to start at line 0 (issue #52). Position is
+// standalone parse of a fragment that happens to start at line 0. Position is
 // composed from it plus `index`/`depth`, so the flag itself stays constant while nesting.
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { parse } from '../../core/parser';

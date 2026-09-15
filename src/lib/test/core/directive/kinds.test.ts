@@ -66,8 +66,8 @@ describe('directiveLeaf render descriptor', () => {
 	});
 });
 
-// The losslessness pin: the opener writes `raw` verbatim, so only the inverse — rebuild
-// from the captured metadata + children after a structural edit — can prove the capture.
+// The losslessness pin: the opener writes `raw` verbatim, so only the inverse (rebuilding from
+// the captured metadata and children after a structural edit) can prove the capture.
 describe('rebuildDirectiveContainerRaw', () => {
 	beforeEach(() => {
 		__resetSchemaRegistriesForTests();

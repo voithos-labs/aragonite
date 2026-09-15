@@ -5,7 +5,7 @@ import { canInterruptParagraph } from '../../../core/parsers/list';
 import type { Document } from '../../../core/nodes';
 
 // CommonMark §5.2's second interrupt condition: a list may interrupt a paragraph only if its
-// first item is NOT empty. Readings below were taken from commonmark 0.31.2, which agrees with
+// first item is not empty. Readings below were taken from commonmark 0.31.2, which agrees with
 // cmark-gfm here (no GFM extension touches list interruption).
 //
 // Miss-analysis: `list-lazy-continuation.test.ts` covered the ordered-start-at-1 half of §5.2
@@ -72,8 +72,8 @@ describe('inside a list item, the same rule decides the sublist', () => {
 	const itemKinds = (source: string) =>
 		parse(source).children[0].children![0].children!.map((c) => c.kind);
 
-	// The Enter+Tab mint's pre-separator bytes: strict GFM reads the marker line as the
-	// underline of a setext heading, which is why the mint emits a blank line.
+	// The bytes Enter+Tab writes before the separator: strict GFM reads the marker line as the
+	// underline of a setext heading, which is why that path emits a blank line.
 	it('an empty marker under the item’s paragraph is a setext underline', () => {
 		expect(itemKinds('- x\n  - \n')).toEqual(['setextHeading']);
 		expect(serialize(parse('- x\n  - \n'))).toBe('- x\n  - \n');

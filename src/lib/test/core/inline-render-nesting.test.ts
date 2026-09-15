@@ -10,7 +10,7 @@ const markersOf = (frag: DocumentFragment) =>
 
 // Inline nesting depth is input-controlled, so a per-level recursion overflows the stack
 // and the RangeError strands the block in the failed-block fallback, which cannot heal.
-// `scanChildren` was de-recursed for the same reason.
+// `scanChildren` is iterative for the same reason.
 describe('inline render at input-controlled nesting depth', () => {
 	// Marker order is what a hand-rolled work stack gets wrong, and a no-throw assertion
 	// would not notice.

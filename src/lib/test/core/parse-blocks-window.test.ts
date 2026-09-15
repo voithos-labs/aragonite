@@ -1,5 +1,5 @@
 /**
- * The parseBlocks window seam's contract: a window whose boundaries fall on block starts
+ * The `parseBlocks` window contract: a window whose boundaries fall on block starts
  * parses identically to a full parse of the window's text.
  */
 import { describe, expect, it } from 'vitest';

@@ -64,9 +64,9 @@ describe('toggleInlineFormat at a collapsed caret', () => {
 		expect(r.newSelStart).toBe(5);
 	});
 
-	// The removal is the exact inverse of this seam's own insert, so the pair has to be a run of its
-	// own. A marker character abutting it means these bytes are something the user wrote, and every
-	// mode this arm is reachable from paints them — live forks to pending marks before it.
+	// The removal is the exact inverse of the toggle's own insert, so the pair has to stand alone.
+	// A marker character next to it means the user wrote these bytes, and every mode that reaches
+	// this branch shows them (live mode forks to pending marks before it).
 	it('declines the pair removal when a shorter delimiter sits inside a longer run', () => {
 		const raw = 'a****b';
 		const r = toggleFormat(

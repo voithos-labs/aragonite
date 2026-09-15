@@ -4,7 +4,7 @@ import type { InlineNode } from '../../../core/nodes';
 import { entityRendersGlyph, buildEntityWidget } from '../../../core/inline/entity-widget';
 
 // Whitespace / control / zero-width decodings stay literal spans because an invisible
-// atomic island is a caret trap; `&nbsp;` is on the literal side for the same reason.
+// widget is a caret trap; `&nbsp;` is on the literal side for the same reason.
 describe('entityRendersGlyph — the visibility gate', () => {
 	it.each([
 		{ name: 'named symbol (©)', decoded: '©' },

@@ -10,7 +10,7 @@ import {
 afterEach(() => __resetInlineSyntaxForTests());
 
 // Registration validation runs before any recognizer is consulted, so a bare
-// decliner stands in for every rung under test.
+// decliner stands in for every handler under test.
 const decline: InlineSyntaxRecognizer = () => null;
 
 describe('inline ladder — registration rules', () => {

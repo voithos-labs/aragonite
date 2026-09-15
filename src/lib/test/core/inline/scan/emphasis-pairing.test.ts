@@ -31,7 +31,7 @@ describe('multiple-of-3 rule (CommonMark §6.2)', () => {
 		expect(nodes.filter((n) => n.kind === 'emphasis')).toHaveLength(0);
 	});
 
-	// The rule applies to ORIGINAL run lengths, not the unconsumed remainder after partial
+	// The rule applies to original run lengths, not the unconsumed remainder after partial
 	// matches (commonmark.js `origdelims`); each shape has a distinct decay pattern.
 	const originalRunLengthCases = [
 		{ source: 'x**y*z****w', shape: 'x**y<em>z</em>***w' },

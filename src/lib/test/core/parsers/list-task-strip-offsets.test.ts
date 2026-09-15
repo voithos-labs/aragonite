@@ -5,9 +5,9 @@ import { declarePluginKind } from '../../../schema/plugin-kind';
 import { __resetSchemaRegistriesForTests } from '../../../schema/registry-reset';
 import type { ParsedLine } from '../../../core/lines';
 
-// A strip that rewrites a line's `raw` while spreading its OLD offsets desyncs the whole
+// A strip that rewrites a line's `raw` while spreading its old offsets desyncs the whole
 // stream from its own bytes. The offsets are unobservable through the CST, since parsers
-// key on `raw`/`text`, so they are pinned at the `OpenContext.lines` seam instead.
+// key on `raw`/`text`, so they are pinned through `OpenContext.lines` instead.
 
 function offsetPairs(lines: ParsedLine[]): [number, number][] {
 	return lines.map((l) => [l.start, l.end]);

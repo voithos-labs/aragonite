@@ -1,7 +1,7 @@
 /**
- * The format-toggle suites' shared door. `toggleInlineFormat` declines a kind whose policy row
- * declares no mark, which is the runtime guard that replaced the closed `InlineMarkKind` union;
- * every case here passes a rowed kind, so a null is a broken registration and throws.
+ * The format-toggle suites' shared entry point. `toggleInlineFormat` declines a kind whose policy
+ * row declares no mark; every case here passes a kind with a row, so a null is a broken
+ * registration and throws.
  */
 
 import {
@@ -41,8 +41,9 @@ export interface Press {
 	mode: PresentationMode;
 }
 
-/** One press with its pressed-state read on both sides, for the suites that assert the paint and
- *  the write agree. A decline leaves the read where it was, so `activeAfter` reports `active`. */
+/** One toggle with its pressed-state read on both sides, for the suites that assert the toolbar
+ *  state and the write agree. A decline leaves the read where it was, so `activeAfter` reports
+ *  `active`. */
 export function press({ display, start, end, format, mode }: Press) {
 	const edit: InlineFormatEdit = { display, content: whole(display), selection: { start, end } };
 	const active = isInlineFormatActive(edit, format);

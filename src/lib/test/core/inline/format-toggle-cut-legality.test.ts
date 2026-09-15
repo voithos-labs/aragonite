@@ -7,8 +7,8 @@ import { press } from './format-toggle-fixture';
 // an atomic construct strands a delimiter that re-pairs: the bytes move, and the range the
 // selection lands on is not the one the new markers formatted. Split and absorb refused such a cut
 // already; the wrap asks the same predicate. Miss-analysis: no wrap case ever placed a selection
-// endpoint inside an atomic construct, so the rule sat at two of the seam's three emitters
-// unobserved — sibling-path parity, one emitter short.
+// endpoint inside an atomic construct, so the rule sat unobserved at two of the toggle's three
+// writers: sibling-path parity, one writer short.
 
 const MODES: PresentationMode[] = ['source', 'live'];
 const ESCAPED = 'a\\*escaped\\* b';
@@ -37,7 +37,7 @@ describe.each(MODES)('a wrap whose endpoint cuts a construct declines (%s)', (mo
 	});
 });
 
-// The markers a wrap mints can merge with a neighbouring run instead of forming their own span:
+// The markers a wrap writes can merge with a neighbouring run instead of forming their own span:
 // `*em*` wrapped in `**` reparses as one nested stack whose strong sits inside the emphasis. Every
 // byte of content still carries the mark, so the merged bytes verify and both modes write them.
 // Miss-analysis: every wrap case selected a bare word, so no marker ever re-paired.
@@ -70,11 +70,11 @@ describe.each(MODES)('a wrap whose markers merge with a neighbouring run (%s)', 
 	});
 });
 
-// A selection taking ONE of the run's delimiters merges too, and the stack it lands in covers the
-// content rather than the bytes the selection named — the coverage check the marker-hiding wrap
-// carries on top of the screen check, and the one arm of the fork the two modes still split on.
-// Miss-analysis: the re-pair rewrite folded the fork into a `describe.each` and dropped its only
-// DECLINE-side pin, which G2.14 cannot see, since the ladder excuses a decline.
+// A selection taking one of the run's delimiters merges too, and the stack it lands in covers the
+// content rather than the bytes the selection named: the coverage check the marker-hiding wrap
+// carries on top of the screen check, and the one branch where the two modes still differ.
+// Miss-analysis: a rewrite folded the fork into a `describe.each` and dropped its only
+// decline-side pin, which the G2.14 property cannot see, since it excuses a decline.
 describe('a wrap whose merged bytes leave the selection uncovered', () => {
 	const HALF_RUN = { display: '*em* z', start: 0, end: 3, format: 'strong' } as const;
 

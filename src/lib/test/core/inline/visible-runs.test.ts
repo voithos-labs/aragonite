@@ -1,9 +1,9 @@
 // @vitest-environment jsdom
-// The run list's SPANS, which the concatenated text cannot check: `renderedText` is the same
-// string whatever offsets the runs claim, and `edge-seat` is the one reader that acts on them.
-// Miss-analysis: the painted span used to be recovered by searching the construct's raw for its
-// painted text, so a self-similar shape matched at the wrong place; the search's only caller had
-// no test naming an offset, and the property net over the seat excludes that shape by interval.
+// The run list's spans, which the concatenated text cannot check: `renderedText` is the same
+// string whatever offsets the runs claim, and `edge-seat.ts` is the one reader that acts on them.
+// Miss-analysis: the visible span was recovered by searching the construct's raw for its visible
+// text, so a self-similar shape matched at the wrong place; the search's only caller had no test
+// naming an offset, and the property test over `edge-seat.ts` excludes that shape by interval.
 import { describe, it, expect } from 'vitest';
 import { parseInline } from '$lib/core/inline';
 import { CONTENT_VISIBILITY, visibleRuns } from '$lib/core/inline/visibility';
@@ -36,7 +36,7 @@ describe('a run carries the raw bytes it stands for', () => {
 		]);
 	});
 
-	// The join seam hands over the surviving side of a cut, whose nodes skip the bytes that went.
+	// A block join hands over the surviving side of a cut, whose nodes skip the bytes that went.
 	it('keeps a clipped list anchored on each node rather than on a running count', () => {
 		const raw = 'ab **cd** ef';
 		const clipped: InlineNode[] = [

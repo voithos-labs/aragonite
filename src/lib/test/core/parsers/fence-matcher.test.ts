@@ -65,7 +65,7 @@ describe('matchFenceClose', () => {
 	}
 });
 
-// The write-side inverse — what a body forces the fence to grow to — and the sibling of
+// The write-side inverse (what a body forces the fence to grow to), the sibling of
 // `escalatedColonCount` for directives.
 describe('escalatedFenceLength', () => {
 	it('returns the minimum when no body line reproduces the terminator', () => {

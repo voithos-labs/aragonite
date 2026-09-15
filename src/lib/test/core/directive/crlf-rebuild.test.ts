@@ -9,7 +9,7 @@ import {
 } from '$lib/core/directive/kinds';
 
 // Only a rebuild is at risk: an unedited container emits `raw` verbatim, but a structural
-// edit re-synthesizes the chrome lines, which must not normalize CRLF to `\n`.
+// edit re-synthesizes the fence lines, which must not normalize CRLF to `\n`.
 
 beforeAll(() => activateDirectiveGrammar());
 
@@ -37,7 +37,7 @@ describe('directive rebuild preserves CRLF chrome line endings', () => {
 		expect(node.raw).toBe(':::custom\nedited\n:::\n');
 	});
 
-	// EACH chrome line keeps its own ending: a `closerNewline` that records only presence
+	// Each fence line keeps its own ending: a `closerNewline` that records only presence
 	// re-emits the closer with the opener's ending.
 	it("keeps the closer's own ending when it differs from the opener", () => {
 		const node = parse(':::custom\nbody\n:::\r\n').children[0];

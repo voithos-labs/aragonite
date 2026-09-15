@@ -1,9 +1,9 @@
 // @vitest-environment jsdom
 //
 // A wrap trims the selection's boundary whitespace before it writes, in every mode, so the same
-// press taken three times over wraps, strips and wraps again. Miss-analysis: every case in these
-// suites pressed ONCE, so the `** word**` a painting mode wrote was never handed to a second press
-// — bytes no parse reads as a run, which that press doubled into `****`.
+// toggle taken three times over wraps, strips and wraps again. Miss-analysis: every case in these
+// suites toggled once, so the `** word**` a marker-showing mode wrote was never handed to a second
+// toggle: bytes no parse reads as a run, which that toggle doubled into `****`.
 import { describe, it, expect } from 'vitest';
 import { toggleInlineFormat, type InlineFormatEdit } from '$lib/core/inline/format-toggle';
 import type { PresentationMode } from '$lib/presentation-mode';
@@ -21,8 +21,8 @@ const SELECTIONS = {
 	'both spaces': { start: 3, end: 9 }
 };
 
-/** Press `count` times, each press on the selection the write before it left — the gesture a user
- *  makes by holding one selection and pressing the chord again. A decline ends the run. */
+/** Toggle `count` times, each on the selection the previous write left: the gesture of holding
+ *  one selection and pressing the shortcut again. A decline ends the run. */
 function presses(
 	format: InlineMarkKind,
 	mode: PresentationMode,
@@ -47,7 +47,7 @@ function presses(
 describe.each(MODES)('a toggle over boundary whitespace (%s)', (mode) => {
 	for (const [reach, selection] of Object.entries(SELECTIONS)) {
 		// The space cannot go inside: a run opens and closes against a word, and the cross-block
-		// sibling trims the same edge before it ever asks the seam.
+		// sibling trims the same edge before it ever asks the toggle.
 		it.each(MARK_FORMATS)(`wraps the word alone, ${reach} (%s)`, (format) => {
 			const m = markersOf(format);
 			const wrapped = `pre ${m}word${m} post`;
@@ -61,7 +61,7 @@ describe.each(MODES)('a toggle over boundary whitespace (%s)', (mode) => {
 		expect(presses(format, mode, { start: 3, end: 4 }, 1)).toEqual([null]);
 	});
 
-	// The selection carries the run it wrote, which is what makes the second press a strip rather
+	// The selection carries the run it wrote, which is what makes the second toggle a strip rather
 	// than a second wrap.
 	it.each(MARK_FORMATS)('leaves the run it wrote selected (%s)', (format) => {
 		const m = markersOf(format);

@@ -23,8 +23,8 @@ const recognizeFootnote: InlineSyntaxRecognizer = (raw, pos, end) => {
 	return { kind: 'footnoteReference' as InlineNode['kind'], start: pos, end: close + 1 };
 };
 
-// Two claiming rungs competing on `:`: the `::`-prefix rung claims a pair, the bare
-// rung claims one colon. Distinct kinds so dispatch order is observable end-to-end.
+// Two claiming handlers competing on `:`: the `::`-prefix handler claims a pair, the bare
+// handler claims one colon. Distinct kinds so dispatch order is observable end-to-end.
 const recognizeColonPair: InlineSyntaxRecognizer = (raw, pos) =>
 	raw.startsWith('::', pos)
 		? { kind: 'colonPair' as InlineNode['kind'], start: pos, end: pos + 2 }
@@ -38,8 +38,8 @@ const recognizeColon: InlineSyntaxRecognizer = (_raw, pos) => ({
 // ── Deterministic dispatch order ────────────────────────────────────────────────
 
 describe('inline ladder — deterministic order (registration order never matters)', () => {
-	// priority asc, then prefix length desc, then prefix lexicographic asc. A bare
-	// rung (no prefix) takes the trigger as its effective prefix.
+	// Priority ascending, then prefix length descending, then prefix alphabetical. A bare
+	// handler (no prefix) takes the trigger as its effective prefix.
 	const rungs: Array<{ prefix?: string; priority: number }> = [
 		{ priority: INLINE_PRIORITIES.plugin },
 		{ prefix: '::', priority: INLINE_PRIORITIES.prefixOverride },
@@ -56,8 +56,8 @@ describe('inline ladder — deterministic order (registration order never matter
 		expect(getInlineRungs(':').map((r) => r.prefix)).toEqual(expectedOrder);
 	});
 
-	// The scanner-level pin: a reverse-iterating dispatch would let the bare `:`@100 rung
-	// claim a single colon before `::`@40 — the array-order test above cannot see that.
+	// The scanner-level pin: a reverse-iterating dispatch would let the bare `:`@100 handler
+	// claim a single colon before `::`@40, which the array-order test above cannot see.
 	function scanColons(reversed: boolean): InlineNode[] {
 		const steps = [
 			() => registerInlineSyntax(':', recognizeColonPair, { prefix: '::', priority: 40 }),

@@ -3,7 +3,7 @@ import { describe, it, expect } from 'vitest';
 import { toggleFormat, whole } from './format-toggle-fixture';
 import { parseInline } from '$lib/core/inline';
 
-// Inline code is the only format whose delimiter run is content-dependent, in BOTH directions: a
+// Inline code is the only format whose delimiter run is content-dependent, in both directions: a
 // wrap sizes its fence past the longest run it encloses, and a strip reads the run the parsed
 // span actually carries. Every case here asserts the bytes reparse as one code span holding the
 // intended text — the fence length alone proves nothing.

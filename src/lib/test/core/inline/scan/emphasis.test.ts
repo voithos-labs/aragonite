@@ -54,7 +54,7 @@ describeScanCases('strikethrough (GFM)', [
 			strikethroughNode(6, 11, [textNode(8, 9, 'c')])
 		]
 	],
-	// Distinct same-length runs DO nest (only a longer run, which cannot
+	// Distinct same-length runs do nest (only a longer run, which cannot
 	// delimit, is prevented; direct `~~~~` nesting is unreachable).
 	[
 		'distinct runs nest',

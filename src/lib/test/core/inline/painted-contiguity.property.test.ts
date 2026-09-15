@@ -1,9 +1,9 @@
 // @vitest-environment jsdom
 //
-// `edge-seat :: paintedRange` reads a CHILDLESS construct's painted span as the outer bounds of
-// its visible runs, and carves the two marker runs out of what is left. That rests on the runs
-// being CONTIGUOUS: a hidden run in the middle would put the seat's written offset inside bytes
-// the reader can see. A property over drawn documents rather than a keystroke-time assertion —
+// `paintedRange` in `edge-seat.ts` reads a childless construct's visible span as the outer bounds
+// of its visible runs, and carves the two marker runs out of what is left. That rests on the runs
+// being contiguous: a hidden run in the middle would put the caret's written offset inside bytes
+// the user can see. A property over rendered documents rather than a keystroke-time assertion:
 // the claim is about the render path's output shape for a class of nodes, not about an instance.
 import { describe, it, expect } from 'vitest';
 import fc from 'fast-check';
@@ -15,7 +15,7 @@ import '$lib/schema/built-in-descriptors';
 
 const PARAMS = { numRuns: 400, seed: freshOrFixedSeed(413771) } as const;
 
-/** Every fixture holds content, so its chrome hides: the live reading the seat asks with. */
+/** Every fixture holds content, so its markers hide: the live-mode reading `paintedRange` uses. */
 const LIVE = screenVisibility('live', { chromePaints: false });
 
 /** The exact predicate `paintedRange`'s caller uses to reach it. */
@@ -40,8 +40,8 @@ function firstGap(runs: readonly VisibleRun[]): string | null {
 }
 
 describe('a childless construct paints one contiguous stretch', () => {
-	// The shapes the seat was minted for, stated outright: an escape, both autolink spellings, a
-	// hard break, and the content-empty link and image whose whole node is chrome.
+	// The shapes `paintedRange` was written for, stated outright: an escape, both autolink
+	// spellings, a hard break, and the content-empty link and image whose whole node is markers.
 	it.each([
 		'x \\* y',
 		'see <http://e.com> now',
@@ -66,7 +66,7 @@ describe('a childless construct paints one contiguous stretch', () => {
 					const painted = paintedRunsOf(node, raw);
 					if (painted.length === 0) continue;
 					expect(firstGap(painted), `${raw} :: ${node.kind}`).toBeNull();
-					// The bounds `paintedRange` returns, and the two runs the seat derives from them.
+					// The bounds `paintedRange` returns, and the two runs it derives from them.
 					const bounds = { start: painted[0].start, end: painted[painted.length - 1].end };
 					expect(bounds.start).toBeGreaterThanOrEqual(node.start);
 					expect(bounds.end).toBeLessThanOrEqual(node.end);
@@ -82,8 +82,8 @@ describe('a childless construct paints one contiguous stretch', () => {
 		);
 	});
 
-	// The oracle's own non-vacuity: a stretch with a hidden run through the middle is exactly the
-	// shape that would make `paintedRange`'s outer bounds span bytes the reader never saw.
+	// The gap finder's own non-vacuity: a stretch with a hidden run through the middle is exactly
+	// the shape that would make `paintedRange`'s outer bounds span bytes the user never saw.
 	it('the gap detector sees a hidden run between two painted ones', () => {
 		const run = (start: number, end: number): VisibleRun => ({
 			start,

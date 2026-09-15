@@ -1,7 +1,7 @@
 /**
- * A rung may not claim past the range it was given. The scan range is not always a
- * block's whole raw (a heading's excludes its closing `#` run, a table cell's the `|`),
- * so a recognizer searching the STRING swallows bytes the block still needs — and the
+ * A plugin inline handler may not claim past the range it was given. The scan range is not
+ * always a block's whole raw (a heading's excludes its closing `#` run, a table cell's the `|`),
+ * so a recognizer searching the whole string swallows bytes the block still needs, and the
  * overrun leaves no trace, since the scan loop then exits as if it had finished.
  */
 
@@ -32,7 +32,7 @@ describe('a rung may not claim past the scan range', () => {
 		);
 	});
 
-	// Half-open `[start, end)`: `end` IS the scan advance, so a claim ending exactly
+	// Half-open `[start, end)`: `end` is the scan advance, so a claim ending exactly
 	// at the range end is the ordinary full-range case, not an overrun.
 	it('accepts a claim ending exactly at the range end', () => {
 		registerInlineSyntax('@', (raw, pos, end) => ({
@@ -46,7 +46,7 @@ describe('a rung may not claim past the scan range', () => {
 		]);
 	});
 
-	// A range-honouring rung is unaffected by bytes past `end` whatever they spell —
+	// A handler that honours its range is unaffected by bytes past `end` whatever they spell:
 	// declining a claim that would exceed the range is the contract.
 	it('leaves a rung that honours the range alone', () => {
 		registerInlineSyntax('@', (raw, pos, end) => {
@@ -58,8 +58,8 @@ describe('a rung may not claim past the scan range', () => {
 		expect(parseInline(RAW, 0, SHORT_END)[0]).toMatchObject({ start: 0, end: 5 });
 	});
 
-	// Both dispatch routes share `tryRungs`, but only structurally — the reserved
-	// prefix rung is consulted before the switch, the bare rung from its `default` arm.
+	// Both dispatch routes share `tryRungs`, but only structurally: the reserved prefix
+	// handler is consulted before the switch, the bare handler from its `default` branch.
 	it('guards the pre-switch reserved-prefix route too', () => {
 		registerInlineSyntax(
 			'!',

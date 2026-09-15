@@ -7,7 +7,7 @@ import type { InlineNode } from '$lib/core/nodes';
 const leafText = (nodes: InlineNode[]): string =>
 	nodes.map((n) => (n.children ? leafText(n.children) : (n.text ?? ''))).join('');
 
-// Wrap-then-strip is the contract every format owes, whatever its delimiter run: the three fixed
+// Wrap-then-strip is the contract every format must keep, whatever its delimiter run: the fixed
 // pairs and inline code's content-sized fence go round the same way.
 describe.each(MARK_FORMATS)('toggleInlineFormat over a selection (%s)', (format) => {
 	const markers = markersOf(format);
@@ -67,7 +67,7 @@ describe('toggleInlineFormat', () => {
 		expect(leafText(parsed)).toBe('a b');
 	});
 
-	// The flanking single `*` inside `**word**` belong to a STRONG construct, so toggling emphasis
+	// The flanking single `*` inside `**word**` belong to a strong construct, so toggling emphasis
 	// must nest, not strip: a construct-blind flank check destroys the bold.
 	it('nests emphasis inside a strong construct instead of stripping its markers', () => {
 		const raw = '**word**';
@@ -108,7 +108,7 @@ describe('toggleInlineFormat', () => {
 		expect(r.newDisplay).toBe('*word*');
 	});
 
-	// The delimiter run is read off the PARSE, not off this module's canonical pair, so a construct
+	// The delimiter run is read off the parse, not off this module's canonical pair, so a construct
 	// the author wrote non-canonically strips as itself instead of nesting a second pair inside it.
 	it.each([
 		['emphasis' as const, '_word_', 1],

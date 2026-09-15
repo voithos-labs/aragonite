@@ -1,8 +1,8 @@
 /**
  * Type pins for the CstNode discriminated union. The `@ts-expect-error`
- * directives ARE the assertions: `npm run check` fails if one goes unused (an
+ * directives are the assertions: `npm run check` fails if one goes unused (an
  * illegal shape started compiling). The positive reads pin that narrowing still
- * yields per-arm metadata. `compileTimePins` is never invoked — only the runtime
+ * yields per-member metadata. `compileTimePins` is never invoked: only the runtime
  * cases execute.
  */
 import { describe, it, expect } from 'vitest';
@@ -11,7 +11,7 @@ import { isBuiltinBlockNode, makeBlockNode } from '../../core/nodes';
 import type { CstNode, HeadingNode, ParagraphNode, PluginBlockKind } from '../../core/nodes';
 
 export function compileTimePins(node: CstNode, pluginKind: PluginBlockKind): void {
-	// Guarding to the built-in union lets `switch (node.kind)` yield each arm's
+	// Guarding to the built-in union lets `switch (node.kind)` yield each member's
 	// metadata with no cast (positive pin — stops compiling if discrimination breaks).
 	if (isBuiltinBlockNode(node)) {
 		switch (node.kind) {
@@ -30,11 +30,11 @@ export function compileTimePins(node: CstNode, pluginKind: PluginBlockKind): voi
 		}
 	}
 
-	// The guard is load-bearing: on the full union the branded plugin arm blocks
-	// discrimination, so a bare kind check does NOT narrow metadata.
+	// The guard is required: on the full union the branded plugin member blocks
+	// discrimination, so a bare kind check does not narrow metadata.
 	switch (node.kind) {
 		case 'heading': {
-			// @ts-expect-error full-union kind check does not narrow past the plugin arm
+			// @ts-expect-error full-union kind check does not narrow past the plugin member
 			const blocked: number = node.metadata.level;
 			void blocked;
 			break;
@@ -60,12 +60,12 @@ export function compileTimePins(node: CstNode, pluginKind: PluginBlockKind): voi
 		kind: 'paragraph',
 		leadingTrivia: '',
 		raw: '',
-		// @ts-expect-error a leaf arm cannot carry children (G1.5 stated as a type)
+		// @ts-expect-error a leaf member cannot carry children (G1.5 as a type)
 		children: []
 	};
 	void leafWithChildren;
 
-	// The open plugin arm accepts any branded kind (positive pin).
+	// The open plugin member accepts any branded kind (positive pin).
 	const pluginNode: CstNode = { kind: pluginKind, leadingTrivia: '', raw: '' };
 	void pluginNode;
 }

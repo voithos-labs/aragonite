@@ -72,7 +72,7 @@ function mapAragonite(node: InlineNode, raw: string): NormalNode {
 				children: [{ kind: 'text', text: autolinkLabel(node, raw) }]
 			};
 		case 'image':
-			// Our side compares images by flattened alt STRING while the reference
+			// Our side compares images by flattened alt string while the reference
 			// keeps structured children — the image-alt-structure deliberate class
 			// rests on this asymmetry; do not restructure without re-adjudicating it.
 			return {

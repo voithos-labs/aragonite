@@ -175,7 +175,7 @@ describe('inline-render image — alt-only fallback', () => {
 	const renderFallback = (nodes: InlineNode[], raw: string) =>
 		renderInlineNodes(nodes, raw, { renderImagesAsWidgets: false });
 
-	// The shape an inline-syntax rung mints for an Obsidian-style embed: an `image`
+	// The shape a plugin inline handler creates for an Obsidian-style embed: an `image`
 	// node whose alt names the target, over markers three characters wide.
 	const embedNode = (raw: string, target: string): InlineNode => ({
 		kind: 'image',

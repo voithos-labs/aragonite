@@ -1,5 +1,5 @@
 /**
- * Decides a deliberate divergence on the DIVERGENCE, not on the input: each class neutralizes
+ * Decides a deliberate divergence on the divergence itself, not the input: each class neutralizes
  * its construct on both sides and demands the rest still match, so a real bug standing next to
  * an excused construct is no longer excused along with it.
  */

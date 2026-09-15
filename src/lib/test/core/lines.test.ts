@@ -10,8 +10,8 @@ describe('trailingLineEnding', () => {
 		expect(trailingLineEnding('a\n')).toBe('\n');
 	});
 
-	// A block with no trailing ending (a document-final block) keeps the LF the
-	// commit path has always appended — matching the code-paste-surface sibling.
+	// A block with no trailing ending (a document-final block) gets `\n`, matching what the
+	// commit path and the code paste path append.
 	it('defaults to LF when the raw has no trailing ending', () => {
 		expect(trailingLineEnding('a')).toBe('\n');
 	});

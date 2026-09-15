@@ -4,10 +4,10 @@ import { diffInput, type Divergence } from './differ';
 import { explainDivergence, NEUTRALIZATIONS_TRIED, type DivergenceClass } from './excuses';
 import { arbInlineSource, freshOrFixedSeed } from '../invariants/arbitraries';
 
-// The semantic oracle the byte-conservation and offset-tiling properties can NOT be:
-// they stay green when emphasis is classified into the WRONG kinds, since the bytes
+// The semantic check the byte-conservation and offset-tiling properties cannot be:
+// they stay green when emphasis is classified into the wrong kinds, since the bytes
 // still tile. Blind spot, by construction: breaking aragonite's code-point read makes it
-// CONVERGE with the equally-wrong UTF-16 reference, so astral-flanking regressions are
+// converge with the equally wrong UTF-16 reference, so astral-flanking regressions are
 // the baseline slice ratchet's job (it pins astral inputs as must-diverge), not this.
 
 // The three baseline.json classes are decided per divergence by `excuses.ts` — a random input

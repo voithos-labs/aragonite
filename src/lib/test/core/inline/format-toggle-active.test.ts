@@ -3,8 +3,8 @@ import { inlineFormatsCovering, isInlineFormatActive } from '$lib/core/inline/fo
 import type { InlineMarkKind } from '$lib/schema/inline-construct-policy';
 import { whole } from './format-toggle-fixture';
 
-// The pressed-state read answers "would a press unapply": the same arms the toggle routes by,
-// asked without emitting. Held beside the toggle so the pressed paint and the press cannot drift.
+// The pressed-state read answers "would a toggle unformat": the same checks the toggle routes by,
+// asked without writing. Kept beside the toggle so the toolbar state and the toggle cannot drift.
 
 const activeAt = (raw: string, start: number, end: number, format: InlineMarkKind) =>
 	isInlineFormatActive({ display: raw, content: whole(raw), selection: { start, end } }, format);
@@ -23,7 +23,7 @@ describe('isInlineFormatActive', () => {
 	});
 
 	// A run closes against a word and never whitespace, so a selection reaching past the run by a
-	// space alone is still the run's own: the paint and the press owe the same answer there.
+	// space alone is still the run's own: the toolbar state and the toggle must agree there.
 	it('reads a selection reaching past the run by whitespace as active', () => {
 		expect(activeAt('x **word** y', 1, 10, 'strong')).toBe(true);
 		expect(activeAt('x **word** y', 2, 11, 'strong')).toBe(true);
@@ -41,8 +41,9 @@ describe('isInlineFormatActive', () => {
 		expect(activeAt('`code run`', 3, 3, 'inlineCode')).toBe(true);
 	});
 
-	// A link parses as a sole span of its own kind, so the mark-row test is the only thing between
-	// the shared predicate and a pressed paint for a chord no row can write. Both readers ask it.
+	// A link parses as a sole span of its own kind, so the policy-row test is the only thing
+	// between the shared predicate and a pressed state for a shortcut no row can write. Both
+	// readers ask it.
 	it('declines a kind whose policy row declares no mark, through either reader', () => {
 		const raw = '[a](b)';
 		const edit = { display: raw, content: whole(raw), selection: whole(raw) };

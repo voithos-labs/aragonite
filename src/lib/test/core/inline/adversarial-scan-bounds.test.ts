@@ -11,9 +11,9 @@ const tiles = (source: string) =>
 const scan = (source: string) => void parseInline(source, 0, source.length);
 
 // Three inline scans that go super-linear when unbounded: the entity `;` search, the autolink
-// paren trim, and the code-span backtick matcher. Each is priced as the N-vs-4N ratio rather than
-// a wall-clock budget, so the bound is the machine-independent one, and the output claim rides
-// beside it at a single size.
+// paren trim, and the code-span backtick matcher. Each is measured as the N-versus-4N ratio rather
+// than a wall-clock budget, so the bound does not depend on the machine, and the output is
+// asserted beside it at one size.
 
 describe('adversarial scan bounds', () => {
 	it('entity-candidate flood scans within a bounded growth ratio, output unchanged', () => {
@@ -28,7 +28,7 @@ describe('adversarial scan bounds', () => {
 
 	it('trailing-paren flood trims within a bounded growth ratio, output unchanged', () => {
 		// The tail is the shape, so the per-sample distinctness goes in the domain: a `z` run
-		// AFTER the parens would end the match on a non-punctuation byte and trim nothing.
+		// after the parens would end the match on a non-punctuation byte and trim nothing.
 		const parenTail = (bytes: number, salt: string) =>
 			'www.x.com' + salt + ')'.repeat(Math.max(1, bytes - 9 - salt.length));
 		const growth = measureScanGrowth(scan, parenTail, [32, 128]);
@@ -49,7 +49,7 @@ describe('adversarial scan bounds', () => {
 
 	it('backtick-run ladder scans within a bounded growth ratio, output unchanged', () => {
 		// Runs of strictly increasing length never close (no equal-length partner), so a
-		// per-opener forward rescan to EOF is O(runs·n) — the O(n^1.5) ladder.
+		// per-opener forward rescan to EOF is O(runs·n), which is O(n^1.5) here.
 		const ladder = (bytes: number, salt: string) => {
 			let out = salt;
 			for (let k = 1; out.length < bytes; k++) out += '`'.repeat(k) + 'x';

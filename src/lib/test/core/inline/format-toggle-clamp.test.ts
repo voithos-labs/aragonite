@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { MARK_FORMATS, toggleFormat } from './format-toggle-fixture';
 
-// A toggle may only write inside the block's CONTENT range: a heading's `# ` prefix and a setext
-// underline are structural bytes, and markers spliced into them change the block's KIND.
+// A toggle may only write inside the block's content range: a heading's `# ` prefix and a setext
+// underline are structural bytes, and markers spliced into them change the block's kind.
 // Miss-analysis: every case here passed offsets a caret can genuinely reach, but no test ever
 // handed the toggle a range outside the content — the whole display was assumed editable.
 

@@ -16,7 +16,7 @@ const kind = declaredPluginInlineKind(DIRECTIVE_TEXT);
 const recognize = (raw: string, pos: number, end: number) =>
 	recognizeTextDirective(raw, pos, end, kind);
 
-// The recognizer OWNS `:name[label]{attrs}` atomically, so the scanner's bracket stack
+// The recognizer owns `:name[label]{attrs}` atomically, so the scanner's bracket stack
 // never sees the inner `[label]`; everywhere else it stays conservative and declines.
 describe('recognizeTextDirective', () => {
 	const cases: Array<[raw: string, pos: number, end: number, expectedEnd: number | null]> = [
@@ -80,8 +80,8 @@ describe('directiveText atomic widget', () => {
 		expect(shell.textContent).toBe(':abbr[HTML]{title="x"}');
 	});
 
-	// reveal-source is what the widget-interaction layer reads to swap the rendered island
-	// for its editable source, so the text tier stays editable rather than a read-only atom.
+	// `revealSource` is what widget-interaction.ts reads to swap the rendered widget for its
+	// editable source, so a text directive stays editable rather than a read-only block.
 	it('registers the reveal-source editing policy', () => {
 		expect(getInlineWidgetEditing(kind)).toEqual({ revealSource: true });
 	});

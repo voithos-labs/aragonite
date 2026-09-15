@@ -5,7 +5,7 @@ import {
 	registerDirective,
 	type CstNode
 } from '$lib/plugin';
-// The reset affordance is a test-only seam, deliberately kept off the public barrel.
+// The reset function is test-only, deliberately kept off the public barrel.
 import { __resetDirectiveRegistryForTests } from '$lib/core/directive/registry';
 
 const PROBE = declarePluginKind('probe-note');

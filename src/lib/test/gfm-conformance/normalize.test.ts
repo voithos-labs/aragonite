@@ -95,7 +95,7 @@ describe('normalize (dual-parser mini-differ)', () => {
 // ── Reconciliations (audited: baseline.json normalizerReconciliations) ───────
 
 /**
- * Divergences reconciled by folding the ARAGONITE side to the spec-semantic form the
+ * Divergences reconciled by folding the aragonite side to the spec-semantic form the
  * reference already carries (§6.1, §6.8). The shape must equal the reference's
  * untransformed one, since folding that side too would double-strip.
  */
@@ -131,7 +131,7 @@ const RECONCILED: Array<{ name: string; md: string; shape: NormalNode[] }> = [
 	}
 ];
 
-/** Edges the reconciliation must NOT touch (spec §6.1 / §6.8 boundaries). */
+/** Edges the reconciliation must not touch (spec §6.1 / §6.8 boundaries). */
 const PRESERVED: Array<{ name: string; md: string; shape: NormalNode[] }> = [
 	{
 		name: 'all-space code span keeps every space',

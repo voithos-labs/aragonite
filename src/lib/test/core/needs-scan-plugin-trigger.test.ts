@@ -36,8 +36,8 @@ describe('needsScan probes a registered ":" trigger', () => {
 	});
 });
 
-// `w`/`W` are the PROBE_WWW arm, sibling to `:` above: the registry probe must be carried
-// at BOTH conditional-probe arms (sibling-path parity).
+// `w`/`W` are the `PROBE_WWW` branch, sibling to `:` above: the registry probe must run in
+// both conditional-probe branches (sibling-path parity).
 describe('needsScan probes a registered "w" trigger', () => {
 	it('empty registry: "wx" stays one byte-identical text node', () => {
 		expect(parseInline('wx', 0, 2)).toEqual([{ kind: 'text', start: 0, end: 2, text: 'wx' }]);
@@ -58,7 +58,7 @@ describe('needsScan probes a registered "w" trigger', () => {
 	});
 });
 
-// `!` is reserved yet held out of SPECIAL_CHARS, so its prefix rungs need the same probe.
+// `!` is reserved yet held out of SPECIAL_CHARS, so its prefix handlers need the same probe.
 // `!{k=v}` carries no `[`, so only the probe can save it from the fast bail.
 describe('needsScan probes a registered "!" prefix rung', () => {
 	it('empty registry: "!{k=v}" stays one byte-identical text node', () => {

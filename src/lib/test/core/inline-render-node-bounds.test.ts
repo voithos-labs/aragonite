@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
-// Miss-analysis (C-M6): every render fixture came from parseInline, whose nodes are
-// well-formed by construction, so no case asked what a decomposing renderer emits over a node
-// a plugin rung minted — the built-in kinds `stampClaim` sanctions — and the searches that
-// read past `node.end` had nothing to fail against.
+// Miss-analysis (C-M6): every render fixture came from parseInline, whose nodes are well-formed
+// by construction, so no case asked what the renderer emits over a node a plugin handler created
+// (the built-in kinds `stampClaim` allows), and the searches that read past `node.end` had
+// nothing to fail against.
 import { describe, it, expect } from 'vitest';
 import { renderInlineNodes } from '../../core/inline-render';
 import type { InlineNode } from '../../core/nodes';
@@ -14,7 +14,7 @@ function renderedText(node: InlineNode, raw: string): string {
 }
 
 describe('a decomposing renderer emits exactly its own bytes (G2.4)', () => {
-	// Each raw puts the byte the renderer searches for OUTSIDE the node, so an unbounded
+	// Each raw puts the byte the renderer searches for outside the node, so an unbounded
 	// search renders the next node's source into this node's spans.
 	const shapes: { name: string; node: InlineNode; raw: string }[] = [
 		{
