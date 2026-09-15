@@ -378,17 +378,28 @@ function callSiteRegex(name: string): RegExp {
 	return new RegExp(`(?:(?<![\\w$.])|(?<=\\.\\.\\.))${name}\\s*\\(`, 'g');
 }
 
-/** The argument text of every call to `name`; pass comment-stripped code. Skips the declaration. */
-export function callsTo(code: string, name: string): string[] {
-	const out: string[] = [];
+export interface CallSite {
+	/** Offset of the callee name in the code. */
+	index: number;
+	/** The argument text, or null where the parens never close. */
+	args: string | null;
+}
+
+/** Every call to `name` in comment-stripped code, the declaration skipped. */
+export function callSites(code: string, name: string): CallSite[] {
+	const out: CallSite[] = [];
 	const re = callSiteRegex(name);
 	let m: RegExpExecArray | null;
 	while ((m = re.exec(code)) !== null) {
 		if (/function\s+$/.test(code.slice(Math.max(0, m.index - 12), m.index))) continue;
-		const call = balancedCall(code, m.index + m[0].length);
-		if (call !== null) out.push(call);
+		out.push({ index: m.index, args: balancedCall(code, m.index + m[0].length) });
 	}
 	return out;
+}
+
+/** The argument text of every balanced call to `name`; pass comment-stripped code. */
+export function callsTo(code: string, name: string): string[] {
+	return callSites(code, name).flatMap((site) => (site.args === null ? [] : [site.args]));
 }
 
 /** Whether `code` calls `name` at all — the membership form of {@link callsTo}. */

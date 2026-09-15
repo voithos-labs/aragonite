@@ -77,7 +77,7 @@ delete-last-item caret loss shipped exactly that way and survived until the audi
 state comes from) and reds on a by-value argument. From the scan's own self-test:
 
 ```ts
-// src/lib/test/invariants/lint/createblockliststate-getters.test.ts
+// src/lib/test/invariants/lint/call-site-rules.test.ts, the G4.1 row's probes
 createBlockListState(node); // flagged: a snapshot taken at factory-call time
 createBlockListState(() => node); // accepted: re-read on every use
 ```

@@ -850,7 +850,7 @@ directory as well as this table before assuming a rule is unguarded.
 ### The entries
 
 **G4.1 · Getter-fed block-list state.** No by-value `createBlockListState`: it takes getters only.
-`lint/createblockliststate-getters.test.ts`.
+`lint/call-site-rules.test.ts`.
 
 **G4.2 · Render path skips the inline cache.** The render path computes inline content via
 `computeInlineContent`, never the caching `getInlineContent` accessor. Perf hygiene, since the cache
@@ -1046,7 +1046,7 @@ document, and a position-scoped kind appears wherever the edited block sat (issu
 caller's knowledge alone, nothing in `parse` can recover it, so the declaration lives at the call.
 Scanned over the library and the plugin-route author stand-in; the consumer example is excluded (it
 writes the documented whole-document default), as are the published kits (fixtures are whole
-documents). `lint/parse-scope-sites.test.ts`.
+documents). `lint/call-site-rules.test.ts`.
 
 **G4.28 · Leaf raw-write rule parity.** A kind's own `normalizeRawWrite` reaches its bytes through
 two readers in `node-primitives`: `writeOwnRaw` for a sink that writes in place, and `normalizeOwnRaw` for
