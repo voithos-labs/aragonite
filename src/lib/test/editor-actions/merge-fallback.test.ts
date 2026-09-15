@@ -3,9 +3,9 @@ import { mergedElseFocusNext, mergedElseFocusPrevious } from '$lib/editor-action
 import { CURSOR_END, CURSOR_START } from '$lib/block-component';
 import { mockRef } from '$lib/test/harness/editor-actions';
 
-// The single owner of the interior-merge fallbacks, shared by block-edit-core's two merge
-// interiors and unwrap-strategies.listItemCascadeMiddle. Pinned here so a dropped focus call
-// fails at the source, not in a caller.
+// The one owner of the interior-merge fallbacks, shared by block-edit-core's two merges and
+// unwrap-strategies.listItemCascadeMiddle. Tested here so a dropped focus call fails at the
+// source, not in a caller.
 
 describe('mergedElseFocusPrevious', () => {
 	it('focuses the previous block at its end when the merge found no target', () => {

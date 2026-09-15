@@ -6,11 +6,10 @@ import { expectParseConverged } from '$lib/test/harness/parse-converged';
 import { makeSearchReplace, scanCompiled } from '$lib/test/harness/search-replace';
 
 // A replacement is literal content, so a fence run it lands in a code body must grow the
-// block's fence instead of terminating it, and a replacement that CONSUMES the closer must
-// get it back (issue #55, same door). Miss-analysis: the G4.24 funnel lint pinned the
-// COMPONENT's write sites, and no test drove a byte sink that reaches a fencedCode raw
-// without the surface — the descriptor-hook route (`normalizeRawWrite`) had no fence arm at
-// all. Issue #45.
+// block's fence instead of closing it, and a replacement that consumes the closer must get
+// it back (issue #55, same path). Miss-analysis (issue #45): the G4.24 lint checked the
+// component's write sites, and no test drove a byte write that reaches a fencedCode raw
+// without the component; the descriptor route (`normalizeRawWrite`) had no fence case at all.
 
 const scan = (doc: Document, query: string) => scanCompiled(doc, query, { caseSensitive: true });
 
@@ -93,7 +92,7 @@ describe('search/replace into a fenced code block', () => {
 	});
 
 	// An unclosed fence ends the document, so the bytes still converge; the rule it needs is
-	// that the replacement stays INSIDE the block rather than closing it.
+	// that the replacement stays inside the block rather than closing it.
 	it('keeps a closer run inside an unclosed fence’s body', async () => {
 		const { deps, sr } = makeSearchReplace('```js\nXX\nconst x = 1\n');
 
@@ -125,7 +124,7 @@ describe('search/replace into a fenced code block', () => {
 		expect(serialize(stack[0].snapshot)).toBe(source);
 	});
 
-	// The escalation grows the OPENER, ahead of every body match, so a caret or a match
+	// The escalation grows the opener, ahead of every body match, so a caret or a match
 	// offset read off the pre-replace bytes lands wrong. Search re-scans after a replace;
 	// the undo entry is the one offset that survives, and it addresses the old bytes.
 	it('seeds the undo caret at the pre-replace match offset', async () => {

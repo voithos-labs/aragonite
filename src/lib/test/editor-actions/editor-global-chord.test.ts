@@ -6,12 +6,12 @@ import {
 import { normalizeKeybindingOverrides } from '$lib/schema/keybinding-overrides';
 import type { AnyBlockKind } from '$lib/core/nodes';
 
-// The arm a block that IS its own focus target carries: no inner leaf runs the global tier
-// for it, and the editor root declines while focus sits on the block itself.
+// The handler a block focused as a whole carries: no inner leaf runs the global chords for
+// it, and the editor root declines while focus sits on the block itself.
 //
 // Miss-analysis for the rebind cases below: every override case here re-pointed a chord the
-// BUILT-IN table already owned, so the arm's pre-gate answered true for reasons that had
-// nothing to do with the override, and its override-blindness was invisible.
+// built-in table already owned, so the handler's first check answered true for reasons that
+// had nothing to do with the override, and its blindness to overrides was invisible.
 
 function makeDeps(overrides?: Parameters<typeof normalizeKeybindingOverrides>[0]) {
 	const requestUndo = vi.fn();
@@ -39,7 +39,7 @@ describe('handleEditorGlobalChord', () => {
 		expect(which === 'undo' ? requestUndo : requestRedo).toHaveBeenCalledTimes(1);
 	});
 
-	// Declining is what lets the caller fall through to its kind keymap and key tail.
+	// Declining is what lets the caller fall through to its kind keymap and key handling.
 	it.each(['Mod+M', 'Alt+ArrowUp', 'Backspace', 'Mod+Alt+Z'])('declines %s', (chord) => {
 		const { deps, requestUndo, requestRedo } = makeDeps();
 		expect(handleEditorGlobalChord(chord, deps)).toBe(false);
@@ -83,7 +83,7 @@ describe('handleEditorGlobalChord', () => {
 		expect(requestUndo).toHaveBeenCalledTimes(1);
 	});
 
-	// A kind keymap binding is not this arm's business: it declines so the caller's own
+	// A kind keymap binding is not this handler's business: it declines so the caller's own
 	// dispatch runs it.
 	it('declines a chord the kind keymap binds, leaving it to the kind dispatch', () => {
 		const { deps, requestUndo, requestRedo } = makeDeps();

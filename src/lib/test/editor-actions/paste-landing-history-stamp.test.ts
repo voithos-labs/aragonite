@@ -1,12 +1,12 @@
-// Miss-analysis: the paste landing's only tests drove it to completion with nothing else
-// touching the stack, so the one interleaving that misplaces the caret — a history swap
-// resolving inside the landing's own reveal await — had no arm at any layer (#31).
+// Miss-analysis (#31): the paste's caret placement was only ever tested with nothing else
+// touching the undo stack, so the one interleaving that misplaces the caret, an undo
+// finishing while the placement waits for its target to scroll into view, had no test.
 import { describe, it, expect, vi } from 'vitest';
 import { createPasteCoordinator } from '$lib/editor-actions/paste-coordinator';
 import type { UndoController } from '$lib/editor-actions/deps';
 import type { BlockComponent } from '$lib/block-component';
 
-/** Only the two members the landing reads; the rest of the controller never runs here. */
+/** Only the two members the caret placement reads; the rest of the controller never runs here. */
 function stubController(): UndoController {
 	let generation = 0;
 	return {

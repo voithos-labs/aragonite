@@ -8,8 +8,8 @@ import type { UndoEntry } from '$lib/undo/types';
 import { allowDevWarns } from '$lib/test/support/warn-gate';
 import { makeListItem, makeListNode } from '$lib/test/harness/list-fixtures';
 
-// The scope fixtures are minimal hand-built containers, not parser output, so the container-raw
-// oracle reads them as stale.
+// The scope fixtures are minimal hand-built containers, not parser output, so the dev-mode
+// stale-raw check reads them as stale.
 afterEach(() => allowDevWarns(['invariant:stale-raw']));
 
 function stackBytes(entries: UndoEntry[]): string[] {
@@ -48,8 +48,8 @@ describe('commit ceremony — rollback on mutation throw', () => {
 		const state = makeBlockListState(() => deps.doc.children[0], ['id-a', 'id-b']);
 		const controller = createUndoController(deps);
 
-		// Populates redo so both stacks have something to restore — a regression
-		// restoring only undo stays invisible to an undo-length-only assertion.
+		// Populates redo so both stacks have something to restore: a regression restoring
+		// only undo stays invisible to an undo-length-only assertion.
 		await controller.commitMultiScope({
 			scopes: [{ node: deps.doc.children[0], state, path: [0] }],
 			snapshot: { path: asDocPath([0]), offset: 0 },
@@ -109,7 +109,7 @@ describe('commit ceremony — rollback on mutation throw', () => {
 		const state = makeBlockListState(() => deps.doc.children[0], ['id-a', 'id-b']);
 		const controller = createUndoController(deps);
 
-		// Pushes a real snapshot, bumping the epoch so children[0] ends up owned.
+		// Pushes a real snapshot, so children[0] ends up copied out of it.
 		await controller.commitMultiScope({
 			scopes: [{ node: deps.doc.children[0], state, path: [0] }],
 			snapshot: { path: asDocPath([0]), offset: 0 },
@@ -122,8 +122,9 @@ describe('commit ceremony — rollback on mutation throw', () => {
 		const ownedContainer = deps.doc.children[0];
 		const childrenBefore = concatChildren(ownedContainer.children ?? []);
 
-		// A same-unit join against an already-owned node: copy-path-on-write no-ops and the
-		// splice lands in place, where a top-level array swap cannot reach it.
+		// A join into the same undo entry against an already copied node: the copy before
+		// write does nothing and the splice lands in place, where a top-level array swap
+		// cannot reach it.
 		const scopes: MultiScopeTarget[] = [{ node: ownedContainer, state, path: [0] }];
 		await expect(
 			controller.commitMultiScope({
@@ -161,8 +162,8 @@ describe('commit ceremony — rollback on mutation throw', () => {
 		expect(serialize(deps.doc)).toBe(serializedBefore);
 	});
 
-	// The integrated frame guard: every other case pins the stacks or the tree, never
-	// both, so dropping either register from the consolidated rollback surfaces only here.
+	// The whole-rollback check: every other case tests the stacks or the tree, never both,
+	// so dropping either from the rollback shows up only here.
 	it('a splice-then-throw restores the document AND both stacks together', async () => {
 		const { deps } = makeEditorActionsDeps([makeListNode(['- a\n', '- b\n'])]);
 		const state = makeBlockListState(() => deps.doc.children[0], ['id-a', 'id-b']);

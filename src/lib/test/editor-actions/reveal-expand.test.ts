@@ -4,9 +4,9 @@ import { createContainerBlockComponent } from '$lib/editor-actions/container-blo
 import type { BlockComponent } from '$lib/block-component';
 import { makeShimDeps, mockRef } from '$lib/test/harness/editor-actions';
 
-// A reveal aimed into a COLLAPSED container opens its expand door first, so the descent
-// runs against the post-expansion window instead of dead-ending on the clamp. The door
-// itself is composed a layer up and pinned in `test/plugins/expand-door.test.ts`.
+// A scroll-into-view aimed into a collapsed container expands it first, so the descent
+// runs against the expanded tree instead of stopping on the hidden body. The expand itself
+// is composed a layer up and tested in `test/plugins/expand-door.test.ts`.
 
 function shim(over: {
 	refs: (BlockComponent | undefined)[];
@@ -25,7 +25,7 @@ describe('revealByPath — expanding a collapsed container', () => {
 	it('opens the door for a body target and resolves the child the expansion mounted', async () => {
 		const body = mockRef();
 		const refs: (BlockComponent | undefined)[] = [mockRef(), undefined];
-		// Awaiting the door before reading the slot is the whole ordering contract.
+		// Awaiting the expand before reading the ref is the whole ordering contract.
 		const expandCollapsed = vi.fn(async () => {
 			refs[1] = body;
 			return true;
@@ -62,8 +62,7 @@ describe('revealByPath — expanding a collapsed container', () => {
 		expect(expandCollapsed).not.toHaveBeenCalled();
 	});
 
-	// The honest-boolean floor: a kind declaring no expand door reveals as it did before
-	// the door existed.
+	// The fallback: a kind declaring no expand scrolls into view as it did before the expand existed.
 	it('degrades when the kind declares no door', async () => {
 		const resolved = await shim({
 			refs: [mockRef(), undefined],

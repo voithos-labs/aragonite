@@ -9,16 +9,16 @@ import { movedBlockToPosition } from '$lib/a11y-strings';
 import { mockRef, makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
 import type { BlockComponent } from '$lib/block-component';
 
-// What a reorder REPORTS, at both scopes: the a11y announcement and the caret landing. A move can
-// invalidate a join, and the fold that settles it changes both the destination and the sibling
-// count — neither of which the pre-commit node can answer, since the commit copies it away.
-// Miss-analysis: onReorder had no test at any scope, so the container arm's stale total shipped;
-// the landing was pinned at the primitive alone, never at the door that spends it.
+// What a reorder reports, at both levels: the a11y announcement and where the caret goes. A
+// move can make two neighbours merge, and the merge changes both the destination and the
+// sibling count, neither of which the pre-commit node can answer, since the commit copies it.
+// Miss-analysis: onReorder had no test at any level, so the container's stale total shipped;
+// the caret index was tested at the primitive alone, never at the action that uses it.
 
 /**
- * Every slot answers, and each records the index it was asked for. A fold's change carries
+ * Every index answers, and each records the index it was asked for. A merge's change carries
  * `idMap: {0:0}`, so the array itself holds `undefined` where a mounted editor holds a
- * component — this models the mounted document rather than the headless splice.
+ * component; this models the mounted document rather than the headless splice.
  */
 function refsAnsweringEverySlot(
 	slots: (BlockComponent | undefined)[],
@@ -82,14 +82,14 @@ describe('reorder announcement and landing — document scope', () => {
 		expect(h.announced).toEqual(['Moved block to position 2 of 2']);
 	});
 
-	// The keyboard nudge, which is the gesture that carries the caret: a drop does not focus
-	// what it dropped (`reorder-action.ts`), so only this path can witness the landing ref.
+	// The keyboard nudge, the gesture that carries the caret: a drop does not focus what it
+	// dropped (`reorder-action.ts`), so only this path can see the ref the caret lands on.
 	it('focuses the block the move landed on after the fold above it', async () => {
 		const h = makeTop('a\n# h\nb\n');
 
 		await h.reorder.nudgeReorderUnit([1], 1);
 
-		// Slot 1 after the fold, and the ref that got there is the moved block's own.
+		// Index 1 after the merge, and the ref that got there is the moved block's own.
 		expect(h.focused).toEqual([1]);
 	});
 

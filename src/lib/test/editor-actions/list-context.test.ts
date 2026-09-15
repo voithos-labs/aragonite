@@ -9,8 +9,8 @@ import {
 import { metadataOf, type CstNode } from '$lib/core/nodes';
 import { allowDevWarns } from '$lib/test/support/warn-gate';
 
-// Hand-built list fixtures read as stale to the container-raw oracle, and a plural first half is
-// one of the split shapes under test.
+// Hand-built list fixtures read as stale to the dev-mode stale-raw check, and a first half
+// that parses to several blocks is one of the split shapes under test.
 afterEach(() => allowDevWarns(['invariant:stale-raw', 'tree-ops']));
 
 const makeDeps = (docChildren: CstNode[]) => makeEditorActionsDeps(docChildren).deps;
@@ -88,8 +88,8 @@ describe('list-context — splitItemAtOffset', () => {
 		expect(listState.innerBlockIds).toHaveLength(2);
 	});
 
-	// Miss-analysis (GH #98): every split pin here used a single-block first half, so
-	// `innerIndex + 1` always WAS the second half and the splice boundary went unobserved.
+	// Miss-analysis (GH #98): every split test here used a single-block first half, so
+	// `innerIndex + 1` always was the second half and the splice boundary went unobserved.
 	it('a plural first half stays whole; only the second half moves to the new item', async () => {
 		// Enter at the end of the blank line inside the item's indented code: the first half
 		// reparses to [code, blank], and the new item must start at the second half.
@@ -192,8 +192,8 @@ describe('list-context — insertItemAfter', () => {
 		expect(items[1].raw).toBe('2. [ ] \n');
 	});
 
-	// The new item's body is nothing but a line ending, so a defaulted `\n` reaches
-	// the document's bytes as a lone LF inside a CRLF list (G4.20).
+	// The new item's body is nothing but a line ending, so a default `\n` would reach the
+	// document's bytes as a lone LF inside a CRLF list (G4.20).
 	it('the new item takes the list’s line ending', async () => {
 		const doc = parse('1. a\r\n');
 		const list = doc.children[0];
@@ -214,8 +214,8 @@ describe('list-context — insertItemAfter', () => {
 
 // ── marker normalization on indent / promote ────────────────────────────────
 
-// Parity with paste-absorb: the DESTINATION list's marker wins over the moved item's own,
-// and the origin renumbers around the survivor it keeps.
+// The same rule as a paste into a list: the destination list's marker wins over the moved
+// item's own, and the origin renumbers around the survivor it keeps.
 describe('list-context — a moved item adopts its destination marker', () => {
 	it.each([
 		{

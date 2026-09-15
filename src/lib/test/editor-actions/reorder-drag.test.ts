@@ -2,8 +2,8 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { installReorderDrag } from '$lib/editor-actions/reorder-drag';
 
-// Guards the root pointerdown listener's lifecycle: the unmount-mid-session leak class
-// e2e cannot reach. The per-drag document listeners are covered by the Escape/no-op e2e.
+// Checks the root pointerdown listener's lifecycle: the unmount-mid-drag leak e2e cannot
+// reach. The per-drag document listeners are covered by the Escape and no-op e2e.
 describe('installReorderDrag — root listener lifecycle', () => {
 	let editorRoot: HTMLElement;
 	let added: number;

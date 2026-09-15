@@ -1,6 +1,6 @@
 // The container factory spreads `base.blockEdit` but replaces `base.focus` wholesale:
 // harmless while the overrides return only a `blockEdit` key, and a silent drop of
-// every focus override the day one grows. Nothing else binds the two lines.
+// every focus override the day one grows. Nothing else ties the two lines together.
 import { describe, it, expect, vi } from 'vitest';
 import {
 	composeCollapseGates,

@@ -9,8 +9,8 @@ import {
 	type StructuralChange
 } from '$lib/tree-operations/structural-change';
 
-// The ceremony brackets its synchronous body with this flag so the decoration engine can
-// keep a source off a half-applied commit.
+// The commit brackets its synchronous body with this flag so the decorations never read
+// a half-applied tree.
 describe('commit-scope flag', () => {
 	it('tracks an explicit begin/end pair', () => {
 		expect(isCommitInProgress()).toBe(false);
@@ -36,8 +36,8 @@ describe('commit-scope flag', () => {
 		expect(isCommitInProgress()).toBe(false);
 	});
 
-	// Pins the arm itself: the cases above stay green if `beginCommit()` is removed,
-	// since neither observes the flag mid-ceremony.
+	// Tests the bracket itself: the cases above stay green if `beginCommit()` is removed,
+	// since neither observes the flag mid-commit.
 	it('arms the flag for the whole of a real commit mutate callback', async () => {
 		const { deps, doc } = makeEditorActionsDeps([makeNode('paragraph', 'hello\n')]);
 		const controller = createUndoController(deps);
@@ -47,7 +47,7 @@ describe('commit-scope flag', () => {
 			snapshot: { path: asDocPath([0]), offset: 0 },
 			mutate: (children) => {
 				flagInsideMutate = isCommitInProgress();
-				// Separated: two trivia-less paragraphs reload as one, which the settle converges.
+				// Separated: two paragraphs with no blank line reload as one, which the fix-up would merge.
 				children.push({ ...makeNode('paragraph', 'world\n'), leadingTrivia: '\n' });
 				const change: StructuralChange = { op: 'insert', at: children.length - 1, count: 1 };
 				stampStructuralChange(children, change, deps.sharing);

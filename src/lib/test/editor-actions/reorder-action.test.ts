@@ -16,8 +16,8 @@ import type { CstNode } from '$lib/core/nodes';
 
 // ── Top-level harness ─────────────────────────────────────────────────────────
 
-// Built through `parse` so blank-line separators exist as real `leadingTrivia` — a
-// hand-built `{ raw }` node has none, and positional trivia only shows up against genuine ones.
+// Built through `parse` so blank-line separators exist as real `leadingTrivia`: a
+// hand-built `{ raw }` node has none, and separator moves only show up against real ones.
 function makeTop(raws: string[]) {
 	const harness = makeEditorActionsDeps(parse(raws.join('\n\n') + '\n').children);
 	const controller = createUndoController(harness.deps);
@@ -70,8 +70,8 @@ describe('reorder action — top level', () => {
 		expect(serialize(h.doc)).toBe('a\n\nb\n\nc\n');
 	});
 
-	// A "loose list" parses to separate top-level `list` nodes (the blank line is the
-	// next list's leadingTrivia), so this is the document branch, not the list branch.
+	// A loose list parses to separate top-level `list` nodes (the blank line is the next
+	// list's leadingTrivia), so this is the document branch, not the list branch.
 	it('reorders blank-separated top-level list nodes, separators stay positional', async () => {
 		const harness = makeEditorActionsDeps(parse('- one\n\n- two\n\n- three\n').children);
 		const controller = createUndoController(harness.deps);
@@ -128,7 +128,7 @@ describe('reorder action — blockquote', () => {
 		expect(serialize(h.doc)).toBe('> b\n>\n> c\n>\n> a\n');
 	});
 
-	// A drag carries no live caret, so the snapshot synthesizes the restore path; a
+	// A drag carries no live caret, so the snapshot builds the restore path itself; a
 	// top-level index there strands the caret on an unrelated block after undo.
 	it('a no-caret container reorder snapshots a deep restore path', async () => {
 		const h = makeReorderContainer('> a\n>\n> b\n>\n> c\n');
@@ -141,8 +141,8 @@ describe('reorder action — blockquote', () => {
 describe('reorder action — plugin (opaque) container declines', () => {
 	beforeEach(__resetSchemaRegistriesForTests);
 
-	// The teleport seed: a pre-decline resolver hands back the container's DOCUMENT
-	// slot, so a body-leaf gesture permutes the top-level array instead.
+	// The cause of the whole-alert move: a resolver that does not decline hands back the
+	// container's document index, so a body-leaf gesture permutes the top-level array instead.
 	function makeDeclineHarness() {
 		const chromeKind = declarePluginKind('spec-chrome');
 		const containerKind = declarePluginKind('spec-container');
@@ -189,8 +189,8 @@ describe('reorder action — plugin (opaque) container declines', () => {
 
 		await reorder.nudgeReorderUnit([1, 1], -1);
 
-		// Ordered so each fails independently: the commit emits an edit and pushes an
-		// undo entry BEFORE the permutation reaches the bytes.
+		// Ordered so each fails independently: the commit emits an edit and pushes an undo
+		// entry before the permutation reaches the bytes.
 		expect(edits).toBe(0);
 		expect(harness.deps.undoManager.getStacks().undo).toHaveLength(0);
 		expect(serialize(harness.doc)).toBe(before);

@@ -9,8 +9,8 @@ import {
 	makeStubFocus
 } from '$lib/test/harness/editor-actions';
 
-// listItem is the container WITHOUT an unwrapRole: kinds that declare one dispatch
-// mergeWithPrevious(0) to an unwrap strategy instead of delegating upward.
+// listItem is the container without an unwrapRole: kinds that declare one send
+// mergeWithPrevious(0) to an unwrap strategy instead of handing it to the parent.
 function makeNode(children: CstNode[]): CstNode {
 	return {
 		kind: 'listItem',
@@ -50,8 +50,8 @@ function makeParentDeferring(method: 'mergeWithPrevious' | 'mergeWithNext' | 'de
 	return { deferred, parent };
 }
 
-// Each method's upward-delegation boundary: mergeWithNext/deleteBlock need the inner
-// block to be the last/only child, mergeWithPrevious triggers at index 0.
+// Where each method hands up to the parent: mergeWithNext and deleteBlock need the inner
+// block to be the last or only child, mergeWithPrevious triggers at index 0.
 const delegationCases = [
 	{
 		method: 'mergeWithPrevious' as const,

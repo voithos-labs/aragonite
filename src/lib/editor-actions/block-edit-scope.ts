@@ -74,7 +74,8 @@ export interface CommitScope {
 	commit(args: ScopeCommitArgs): Promise<void>;
 }
 
-/** The owner the tree operations read for a container commit, {@link MutationView}'s counterpart. */
+/** The owner the tree operations read for a container commit; {@link MutationView}'s
+ *  counterpart. */
 export const scopeParentOf = (scope: ContainerScope) => ({
 	children: scope.children,
 	ownerKind: scope.node.kind,

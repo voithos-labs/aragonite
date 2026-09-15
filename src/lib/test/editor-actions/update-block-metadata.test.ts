@@ -28,7 +28,7 @@ describe('updateBlockMetadata', () => {
 
 		await actions.updateBlockMetadata(0, { taskChecked: true });
 
-		// Copy-path-on-write: the captured pre-op node stays pristine for the snapshot sharing it.
+		// Copy before write: the pre-edit node stays untouched for the snapshot sharing it.
 		expect(deps.doc.children[0].metadata).toEqual({ taskChecked: true });
 		expect(node.metadata).toEqual({ taskChecked: false });
 		expect(editHandler).toHaveBeenCalledTimes(1);
@@ -80,8 +80,8 @@ describe('updateBlockMetadata', () => {
 		expect(deps.undoManager.getStacks().undo).toHaveLength(0);
 	});
 
-	// A `noop` commit leaves the staleness oracle unable to infer the touched node, so the
-	// top-level scope must name it or the resync gets zero G1.1/G1.12/G1.13 validation.
+	// A `noop` commit leaves the dev-mode stale-raw check unable to infer the touched node, so
+	// the top-level scope must name it or the write gets no G1.1, G1.12 or G1.13 check.
 	it('names the resynced node for the dev oracle (parity with the container scope)', async () => {
 		const node = makeNode('paragraph', 'hello\n', { taskChecked: false });
 		const { deps, controller, actions } = makeTopHarness([node]);
@@ -118,7 +118,7 @@ describe('updateBlockMetadata', () => {
 
 	it('shallow-merge preserves untouched fields', async () => {
 		// A switch to `node.metadata = metadata` (no spread) fails here. The fixture is a
-		// registered leaf kind: kind-agnostic for the merge check, and the dev oracle validates it.
+		// registered leaf kind: any kind works for the merge check, and the dev check validates it.
 		const node = makeNode('paragraph', 'hello\n', {
 			marker: '- ',
 			taskItem: true,
@@ -265,8 +265,8 @@ describe('updateBlockMetadata — container scope', () => {
 	});
 
 	it('task taskMarker patch rebuilds inner listItem raw AND parent list raw', async () => {
-		// Without the ceremony's ancestry rebuild the inner listItem.raw updates while the
-		// list's composite raw stays stale.
+		// Without the commit's ancestor rebuild the inner listItem.raw updates while the
+		// list's own raw stays stale.
 		const { bundle, liveInner, liveContainer } = makeContainerSetup(1, 'list');
 
 		await bundle.blockEdit.updateBlockMetadata(0, { taskChecked: true, taskMarker: '[x] ' });

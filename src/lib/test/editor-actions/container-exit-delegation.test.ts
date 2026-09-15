@@ -4,9 +4,9 @@ import { createContainerExitOverrides } from '$lib/editor-actions/container-exit
 import { makeStubBlockEdit, makeStubFocus } from '$lib/test/harness/editor-actions';
 import type { CstNode } from '$lib/core/nodes';
 
-// The exit is ONE parent-scope replaceBlock, so its event path and undo entry belong to
-// that commit. What is the override's own is the delegation: the trimmed container plus the
-// minted gap, caret on the gap, input untouched.
+// The exit is one replaceBlock in the parent, so its event path and undo entry belong to
+// that commit. What the override owns is what it hands over: the trimmed container plus the
+// new blank paragraph, caret on the paragraph, input untouched.
 
 function overridesOver(
 	node: CstNode,
@@ -35,12 +35,11 @@ function overridesOver(
 	})({ ...defaults, containerEdit: {} as never });
 }
 
-// The policy every container the plugin seam builds is wired with, driven through its
-// blockquote instance.
+// The rule every plugin container is wired with, driven through its blockquote instance.
 describe('container exit delegates one parent replaceBlock', () => {
 	it('hands the parent the trimmed container and the minted gap', async () => {
 		// The shape the first Enter leaves: content, the separator line, then the blank
-		// block it made — a single blank inner line would be trivia, not a child.
+		// block it made; a single blank inner line would be a blank line, not a child.
 		const quote = parse('> a\n>\n>\n').children[0];
 		const parentBlockEdit = makeStubBlockEdit();
 

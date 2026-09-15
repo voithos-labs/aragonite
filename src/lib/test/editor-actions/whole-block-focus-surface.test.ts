@@ -7,7 +7,7 @@ import type { AnyBlockKind, CstNode } from '$lib/core/nodes';
 import { makeShimDeps } from '$lib/test/harness/editor-actions';
 
 // A kind whose declared focus element is absent (a render-error state the plugin forgot
-// to cover) must degrade to a focusable box, never a no-op that strands the caret.
+// to cover) must fall back to a focusable box, never do nothing and strand the caret.
 
 function box(): HTMLElement {
 	const el = document.createElement('div');
@@ -74,10 +74,10 @@ describe('composeWholeBlockFocusSurface', () => {
 	});
 });
 
-// Miss-analysis: the one-tab-stop rule was prose beside the proxy's `tabIndex = 0`, and the only
-// case that measured a tab order drove the built-in separator — which already declares -1 in its
-// markup. Nothing read a SUPPLIED surface's tabindex, so the two kinds that declare 0 (mermaid's
-// five render states, the opaque-container fixture) satisfied every green test in the repo.
+// Miss-analysis: the one-tab-stop rule was prose beside the proxy's `tabIndex = 0`, and the
+// only case that measured a tab order drove the built-in separator, which already declares
+// -1 in its markup. Nothing read a supplied element's tabindex, so the two kinds that
+// declare 0 (mermaid's five render states, the container fixture) passed every test.
 describe('the declared surface leaves the tab order', () => {
 	function surfaceOver(getDeclared: () => HTMLElement | null) {
 		return composeWholeBlockFocusSurface(
@@ -107,7 +107,7 @@ describe('the declared surface leaves the tab order', () => {
 	});
 
 	// A kind's declared element is per render state, so a demotion applied once at mount reaches
-	// only the state that happened to be showing — mermaid's loading surface, never its viewport.
+	// only the state that happened to be showing: mermaid's loading view, never its viewport.
 	it('demotes the surface a LATER render state supplies', () => {
 		const loading = box();
 		loading.tabIndex = 0;
@@ -125,7 +125,7 @@ describe('the declared surface leaves the tab order', () => {
 });
 
 describe('container shim through a composed fallback surface', () => {
-	// Every shim here composes the fallback the describe above pins; the shim's focus is the subject.
+	// Every component here composes the fallback the describe above tests; its focus is the subject.
 	afterEach(() => allowDevWarns(['container-block']));
 
 	function shim(boxEl: HTMLElement, declared: HTMLElement | null = null) {
@@ -156,8 +156,8 @@ describe('container shim through a composed fallback surface', () => {
 		expect(boxEl.getAttribute('tabindex')).toBe('0');
 	});
 
-	// An empty diagram declares its edit textarea as the focus surface: already in the tab
-	// order, so minting -1 took it out. The arm above guarded only an EXPLICIT tabindex.
+	// An empty diagram declares its edit textarea as the focus element: already in the tab
+	// order, so setting -1 took it out. The check above guarded only an explicit tabindex.
 	it('focus() leaves an already-focusable surface’s tab order alone', () => {
 		const boxEl = box();
 		const textarea = document.createElement('textarea');

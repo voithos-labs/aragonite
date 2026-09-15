@@ -7,9 +7,9 @@ import { registerDetailsKind } from '$lib/plugins/details/details-kind';
 import { expectParseConverged } from '$lib/test/harness/parse-converged';
 import { makeSearchReplace, scanCompiled } from '$lib/test/harness/search-replace';
 
-// Miss-analysis: the search-replace escape suites pinned the fence and cell arms of the
-// clone path, but none targeted a bodyWrite container — a template landing a terminator in
-// a details body truncated the container on its own reparse (GH #40).
+// Miss-analysis (GH #40): the search-replace escape suites tested the fence and cell cases
+// of the clone path, but none targeted a bodyWrite container; a template landing a closing
+// tag in a details body truncated the container on its own reparse.
 
 beforeEach(() => {
 	__resetSchemaRegistriesForTests();
@@ -34,8 +34,8 @@ describe('search/replace into a details body', () => {
 		expectParseConverged(deps.doc);
 	});
 
-	// The summary's bytes are emitted into the opener line, where a stray tag corrupts the
-	// container's own chrome; the escape answers there too.
+	// The summary's bytes are written into the opener line, where a stray tag corrupts the
+	// container's own markers; the escape applies there too.
 	it('escapes a template landing the close tag in the summary chrome', async () => {
 		const { deps, sr } = makeSearchReplace(
 			'<details>\n<summary>title</summary>\n\nbody\n\n</details>\n'

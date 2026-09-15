@@ -9,8 +9,8 @@ import { makeBlockListState, makeEditorActionsDeps } from '$lib/test/harness/edi
 import { makeTableMutations } from './table-mutations-harness';
 import type { EditEvent } from '$lib/editor-events';
 
-// A column is not a child node, so column-shaped ops address the TABLE and carry the
-// column index in the event detail. Two sites share the contract: the alignment ops
+// A column is not a child node, so column edits address the table and carry the column
+// index in the event detail. Two sites share the contract: the alignment edits
 // (editor-actions/table-context) and the coverage-driven column delete
 // (selection/range-delete-table-coverage).
 

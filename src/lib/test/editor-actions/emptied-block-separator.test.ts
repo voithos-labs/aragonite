@@ -6,12 +6,12 @@ import { serialize } from '$lib/core/serializer';
 import { makeNestedHarness, makeTopHarness } from '$lib/test/harness/editor-actions';
 import { expectParseConverged } from '$lib/test/harness/parse-converged';
 
-// The gesture the tree-level arms model (`tree-operations/emptied-block-reload.test.ts`), driven
-// through the bundles a consumer holds: `TextEditableBlock.commitInput` sends the block's own line
-// ending when its text goes empty, so emptying a paragraph is an ordinary content commit.
-// Miss-analysis: the blank-line settles were pinned at the tree level and through the fill
-// gesture's bundle path only, so no bundle case ever emptied a block — the door the defect
-// reached the consumer through had no case at all.
+// The gesture the tree-level tests model (`tree-operations/emptied-block-reload.test.ts`),
+// driven through the bundles a consumer holds: `TextEditableBlock.commitInput` sends the
+// block's own line ending when its text goes empty, so emptying a paragraph is an ordinary
+// content commit. Miss-analysis: the blank-line fix-ups were tested at the tree level and
+// through the fill gesture's bundle path only, so no bundle case ever emptied a block; the
+// path the defect reached the consumer through had no case at all.
 
 describe('emptying a block through the top-level bundle', () => {
 	it('leaves bytes that reload as the blocks still on screen', async () => {
@@ -51,8 +51,8 @@ describe('emptying a block inside a container', () => {
 		expectParseConverged(h.deps.doc);
 	});
 
-	// A body parsed after its container's OPENER line has a line above its head, which the
-	// `innerPrefix` peel takes: the run still owes one, though the head sits at index 0.
+	// A body parsed after its container's opener line has a line above its first block, which
+	// stripping `innerPrefix` takes: the run still needs one, though the block sits at index 0.
 	it('keeps the line a wrapped body head still owes its opener', async () => {
 		installPlugins([admonitionsPlugin()]);
 		const h = makeNestedHarness(parse('> [!NOTE]\n> one\n>\n> two\n').children, { index: 0 });
@@ -65,12 +65,12 @@ describe('emptying a block inside a container', () => {
 	});
 });
 
-// GH #129 at the bundle: blanking the tail must materialize the parse-folded suffix line,
-// which is structural, so the routine-typing preview has to promote it into the ceremony
-// and blockIds must grow with the tree.
+// GH #129 at the bundle: blanking the last block must turn the suffix's trailing blank line
+// into a block, which is structural, so the routine-typing trial has to send it through a
+// commit and blockIds must grow with the tree.
 describe('emptying the tail block of a suffix-folded document', () => {
 	it('materializes the folded line structurally and keeps blockIds in step', async () => {
-		// The whole-document parse keeps the folded suffix line the fixture depends on.
+		// The whole-document parse keeps the trailing blank line in the suffix, which the fixture needs.
 		const h = makeTopHarness('alpha\n\n');
 		expect(h.doc.suffix).toBe('\n');
 

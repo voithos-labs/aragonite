@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 //
-// Which root-scope moves park in a gap instead of entering the target block.
+// Which root-level moves stop in a gap instead of entering the target block.
 import { describe, it, expect, vi } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { createFocusActions } from '$lib/editor-actions/focus/focus';
@@ -57,7 +57,7 @@ describe('moveFocus — directional gap stops', () => {
 		expect(h.focused).toEqual([1]);
 	});
 
-	// A numeric offset is a targeted landing with no direction — restore roads use it.
+	// A numeric offset is a targeted position with no direction; selection restores use it.
 	it('never stops on a targeted landing', async () => {
 		const h = harnessFor(MIXED);
 

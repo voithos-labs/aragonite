@@ -47,7 +47,7 @@ function press(key: string, mods: Partial<KeyboardEvent> = {}): KeyboardEvent {
 	} as unknown as KeyboardEvent;
 }
 
-/** Seeds the column the way a real vertical run does: through the door, not `capture`. */
+/** Sets the column the way a real vertical move does: through `noteKey`, not `capture`. */
 function seedColumn(stickyColumn: StickyColumnState, x: number): void {
 	stickyColumn.noteKey({ key: 'ArrowDown', altKey: false }, () => asEditorX(x));
 }
@@ -102,8 +102,8 @@ describe('handleWholeBlockKeys', () => {
 		expect(e.preventDefault).not.toHaveBeenCalled();
 	});
 
-	// Miss-analysis: this file's own printable case asserted the drop it should have questioned —
-	// every branch was pinned except the key class with no branch at all.
+	// Miss-analysis: this file's own printable case asserted the drop it should have questioned;
+	// every branch was tested except the key class with no branch at all.
 	it.each(['a', 'A', ' ', 'é'])('the printable %o mints a paragraph below carrying it', (key) => {
 		const { deps, insertParagraph, splitBlock, moveFocus } = makeDeps();
 		const e = press(key, { shiftKey: key === 'A' });
@@ -150,9 +150,9 @@ describe('handleWholeBlockKeys', () => {
 	});
 });
 
-// With no caret to measure, the surface routes the key through `noteKey` with no
-// measureX. Without it a column outlives a horizontal traversal and, since `capture` is
-// idempotent, the next ArrowDown in the landing block reuses the stale pixel X.
+// With no caret to measure, the block routes the key through `noteKey` with no measureX.
+// Without it a column outlives a horizontal move and, since `capture` is idempotent, the
+// next ArrowDown in the block it lands in reuses the stale pixel x.
 describe('handleWholeBlockKeys: sticky column', () => {
 	afterEach(() => vi.unstubAllGlobals());
 
@@ -192,8 +192,8 @@ describe('handleWholeBlockKeys: sticky column', () => {
 		expect(stickyColumn.get()).toBeNull();
 	});
 
-	// Belt-and-suspenders: both callers consume the reorder chord before the shared tail,
-	// but the door declines it anyway.
+	// Both callers consume the reorder chord before the shared key handling, but it declines
+	// the chord anyway.
 	it('Alt+ArrowUp (the reorder chord) neither clears nor recaptures', () => {
 		const { deps, stickyColumn } = makeDeps();
 		seedColumn(stickyColumn, 200);

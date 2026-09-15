@@ -27,7 +27,7 @@ describe('debounce flush on structural commit', () => {
 		const splitEvents = editHandler.mock.calls.map((c) => c[0]).filter((e) => e.op === 'split');
 		expect(splitEvents).toHaveLength(1);
 
-		// Observers must see typing → split, not split → typing.
+		// Listeners must see typing then split, not split then typing.
 		const inputIdx = editHandler.mock.calls.findIndex((c) => c[0].op === 'input');
 		const splitIdx = editHandler.mock.calls.findIndex((c) => c[0].op === 'split');
 		expect(inputIdx).toBeLessThan(splitIdx);

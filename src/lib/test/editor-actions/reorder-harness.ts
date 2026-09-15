@@ -1,6 +1,6 @@
-// Mounted-container reorder harness for the reorder-action suites: seeded innerBlockRefs
-// mimic a mounted container ({#each} never runs in node env) and the registered state lets
-// the action's expectStateForNode resolve.
+// A mounted-container reorder harness for the reorder-action suites: pre-filled
+// innerBlockRefs mimic a mounted container ({#each} never runs in node) and the registered
+// state lets the action's expectStateForNode resolve.
 
 import { expect } from 'vitest';
 import { parse } from '$lib/core/parser';

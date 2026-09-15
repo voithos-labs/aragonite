@@ -1,6 +1,6 @@
-// `docs/design/editor.md` §12: the `error` channel is one seam for every contained
-// failure, and `origin: 'commit'` is the ceremony's arm of it. Both throw sites here
-// run plugin-authored code — the snapshot push's ref walk and the post-tick callback.
+// `docs/design/editor.md` §12: the `error` event is the one report for every contained
+// failure, and `origin: 'commit'` is the commit's share of it. Both throw sites here run
+// plugin code: the snapshot push's ref walk and the post-tick callback.
 import { describe, it, expect, afterEach } from 'vitest';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
 import { parse } from '$lib/core/parser';
@@ -15,8 +15,8 @@ import {
 } from '$lib/test/harness/editor-actions';
 import { allowDevWarns } from '$lib/test/support/warn-gate';
 
-// The container fixtures are hand-built, not parser output, so the container-raw oracle reads
-// them as stale.
+// The container fixtures are hand-built, not parser output, so the dev-mode stale-raw check
+// reads them as stale.
 afterEach(() => allowDevWarns(['invariant:stale-raw']));
 
 function harness() {

@@ -33,8 +33,8 @@ describe('createContainerBlockComponent', () => {
 		expect(c.focusable).toBe(true);
 	});
 
-	// Miss-analysis: the flag was a literal `true` with no reader, so no test could tell a
-	// declared value from the hardcode — the only pin was the default it never left.
+	// Miss-analysis: the flag was a literal `true` nothing read, so no test could tell a
+	// declared value from the hardcoded one; the only test was the default it never left.
 	it('reports the declared editable value, re-read live', () => {
 		let declared = false;
 		const c = createContainerBlockComponent(
@@ -73,8 +73,8 @@ describe('createContainerBlockComponent', () => {
 		expect(() => container([]).focus(0)).not.toThrow();
 	});
 
-	// The body is unmounted, so a walk-in from below must clamp to child 0, never the
-	// absent last ref.
+	// The body is unmounted, so an entry from below must clamp to child 0, never the absent
+	// last ref.
 	function collapsedContainer(refs: BlockComponent[]): BlockComponent {
 		return createContainerBlockComponent(makeShimDeps(refs, { isCollapsed: () => true }));
 	}
@@ -136,7 +136,7 @@ describe('createContainerBlockComponent', () => {
 	});
 });
 
-// `focus` ends a live cross-block range so the next keystroke can't type-replace the
+// `focus` ends a live cross-block range so the next keystroke cannot type over the
 // document; `parkCaret` deliberately does not.
 describe('createContainerBlockComponent — the two caret doors', () => {
 	function withRange(refs: BlockComponent[]) {
@@ -165,7 +165,7 @@ describe('createContainerBlockComponent — the two caret doors', () => {
 		expect(refs[0].parkCaret).toHaveBeenCalledWith(0);
 	});
 
-	// The half that matters: the extend's range survives (BlockComponent.parkCaret).
+	// The half that matters: the selection extend's range survives (BlockComponent.parkCaret).
 	it('a child without the park door is skipped, not landed through focus', () => {
 		const bare = { focus: vi.fn(), getCursorOffset: () => null } as unknown as BlockComponent;
 		const { selection, api } = withRange([bare]);
@@ -177,7 +177,7 @@ describe('createContainerBlockComponent — the two caret doors', () => {
 	});
 
 	// `parkCaret` is optional so an external leaf may omit it; the documented cost is a
-	// missed PARK, never a stranded caret on an ordinary focus walk.
+	// missed `parkCaret`, never a stranded caret on an ordinary focus walk.
 	it('focus lands in a child without the park door, through its focus', () => {
 		const bare = { focus: vi.fn(), getCursorOffset: () => null } as unknown as BlockComponent;
 		const { selection, api } = withRange([bare]);
@@ -189,8 +189,8 @@ describe('createContainerBlockComponent — the two caret doors', () => {
 	});
 });
 
-// The ThematicBreak model exposed through the container shim: with a focus element
-// getter, caret entry lands on that element instead of walking absent children.
+// The ThematicBreak model through the container component: with a focus element getter,
+// caret entry lands on that element instead of walking absent children.
 describe('createContainerBlockComponent — whole-block focus (getFocusEl)', () => {
 	function wholeBlock(focusEl: HTMLElement | null, refs: BlockComponent[] = []): BlockComponent {
 		return createContainerBlockComponent(
@@ -247,9 +247,9 @@ describe('createContainerBlockComponent — whole-block focus (getFocusEl)', () 
 	});
 });
 
-// The shim ALWAYS exposes measurePartialRects, the seam the search/decoration overlays
-// measure a childless container through. A child-bearing container returns nothing and
-// is never asked: the overlay gates on delegatesPainting, not on this return.
+// The component always exposes measurePartialRects, which the search and decoration
+// overlays measure a childless container through. A container with children returns
+// nothing and is never asked: the overlay checks delegatesPainting, not this return.
 describe('createContainerBlockComponent — measurePartialRects (opaque single-unit)', () => {
 	const RECT = { left: 4, top: 8, width: 120, height: 40 } as unknown as DOMRect;
 	const boxEl = () => ({ getBoundingClientRect: () => RECT }) as unknown as HTMLElement;

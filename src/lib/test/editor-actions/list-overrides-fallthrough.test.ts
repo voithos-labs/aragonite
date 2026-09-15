@@ -5,8 +5,8 @@ import { makeNestedHarness } from '$lib/test/harness/editor-actions';
 import type { CstNode } from '$lib/core/nodes';
 
 // The list bundle's item replace falls through to the shared block-edit core rather than
-// a hand-rolled override. These pin the two guards the core carries and the override
-// lacked, so the fall-through cannot silently regress them.
+// a hand-rolled override. These test the two guards the core carries and the override
+// lacked, so the fall-through cannot silently lose them.
 
 function itemNode(text: string): CstNode {
 	return parse(`- ${text}\n`).children[0].children![0];

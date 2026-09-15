@@ -1,7 +1,7 @@
-// The invariant predicates are exhaustively unit-tested as pure functions, but nothing
-// proved the COMMIT ceremony invokes them over the nodes it touched — a collapsed
-// `touchedNodes` thunk and a deleted `assertCommittedNodes` call both stayed green.
-// Each commit family carries the wiring separately, so each gets its own control.
+// The invariant predicates are unit-tested as pure functions, but nothing proved the
+// commit calls them over the nodes it touched: an empty `touchedNodes` function and a
+// deleted `assertCommittedNodes` call both stayed green. Each commit family wires them
+// separately, so each gets its own case.
 
 import { describe, it, expect } from 'vitest';
 import { parse } from '$lib/core/parser';
@@ -17,8 +17,8 @@ function firesStaleRaw(): boolean {
 	return takeDevWarns().some((fire) => fire.tag === 'invariant:stale-raw');
 }
 
-// The ceremony rebuilds the OUTER spine but never re-derives the nested child, so a
-// staleness planted there survives to assertCommittedNodes, where checkStaleRaw recurses.
+// The commit rebuilds the outer ancestors but never the nested child, so a stale raw
+// planted there survives to assertCommittedNodes, where checkStaleRaw recurses.
 const NESTED_BQ = '> outer\n>\n> > nested one\n> > nested two\n';
 
 function corruptNestedBlockquote(outer: CstNode): void {
@@ -52,8 +52,8 @@ describe('commit ceremony fires the node invariants over its touched nodes', () 
 	});
 
 	// ── Family 2: top-level metadata-noop document branch (explicit touchedNodes) ─
-	// `op: 'noop'` leaves the ceremony unable to infer the resynced node, so this branch
-	// must name it explicitly or the node sits unvalidated.
+	// `op: 'noop'` leaves the commit unable to infer the changed node, so this branch
+	// must name it explicitly or the node goes unchecked.
 	it('a top-level updateBlockMetadata over a stale nested raw fires stale-raw', async () => {
 		const { deps } = makeEditorActionsDeps(parse(NESTED_BQ).children);
 		const controller = createUndoController(deps);

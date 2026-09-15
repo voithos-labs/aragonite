@@ -1,7 +1,7 @@
-// A scope `path` that does not address its `node` must bail, not fall back to the
-// caller's never-unshared node: the splice would land on the snapshot-shared node and
-// corrupt the freshest undo entry, silently — G1.19/G1.22 are dev-only warnings. Its
-// sibling (`withUnsharedSpine`, G1.20) rebuilds what the walk did reach instead.
+// A scope `path` that does not address its `node` must bail, not fall back to the caller's
+// never-copied node: the splice would land on the node the snapshot shares and silently
+// corrupt the newest undo entry (G1.19 and G1.22 are dev-only warnings). Its sibling
+// (`withUnsharedSpine`, G1.20) rebuilds what the walk did reach instead.
 import { describe, it, expect } from 'vitest';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
 import { parse } from '$lib/core/parser';
@@ -32,13 +32,13 @@ function harness(scopePath: number[]) {
 }
 
 describe('commitMultiScope bails on a scope path that ran off the tree', () => {
-	// [99]: the whole walk misses. [0, 99]: the walk truncates mid-spine, so the
-	// fallback handed over the ANCESTOR — the same class one rung less obvious.
+	// [99]: the whole walk misses. [0, 99]: the walk stops partway, so the fallback handed
+	// over the ancestor, the same bug one level less obvious.
 	for (const scopePath of [[99], [0, 99]]) {
 		it(`writes nothing through the shared tree for path [${scopePath.join(',')}]`, async () => {
 			const { deps, commit } = harness(scopePath);
-			// The children array is the oracle, not `serialize`: a [99] walk rebuilds
-			// no raw at all, so the corrupted entry is invisible to a byte compare.
+			// The children array is the evidence, not `serialize`: a [99] walk rebuilds no raw
+			// at all, so the corrupted entry is invisible to a byte compare.
 			const sharedList = deps.undoManager.peekUndo()!.snapshot.children[0];
 			const sharedBefore = concatChildren(sharedList.children ?? []);
 			const treeBefore = serialize(deps.doc);

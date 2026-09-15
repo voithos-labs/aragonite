@@ -85,7 +85,7 @@ describe('no-caret container commits snapshot a resolving deep restore path', ()
 	});
 
 	it('container delete stores the deleted item path', async () => {
-		// The list item delete falls through to the shared core, which still seeds the deep path.
+		// The list item delete falls through to the shared core, which still records the deep path.
 		const h = makeNestedHarness([listOf(['one\n', 'two\n'])], { listOverrides: true, index: 0 });
 
 		await h.bundle.blockEdit.deleteBlock(1);

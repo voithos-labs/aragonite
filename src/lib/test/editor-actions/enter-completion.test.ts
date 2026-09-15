@@ -16,7 +16,7 @@ import {
 	parseLeaf as leaf
 } from '$lib/test/harness/editor-actions';
 
-// The split command's one completion arm: which presses reach a completer at all, and what the
+// The split command's completion step: which Enters reach a completer at all, and what the
 // commit it routes to writes. The registry's own semantics live in test/schema, the table
 // completer's line predicate in test/blocks/table.
 
@@ -32,8 +32,8 @@ function pathFocusSpy() {
 const stubScope = (children: CstNode[], refs: (BlockComponent | undefined)[] = []) =>
 	makeCommitScopeStub(children, { refs, collapse: false });
 
-/** The composed shape both wiring sites build: the consult wrapped around the core's split, with
- *  the core reachable underneath as the no-claim fallthrough. */
+/** The composed shape both wiring sites build: the completer check wrapped around the core's
+ *  split, with the core reachable underneath when no completer answers. */
 function seamOver(scope: CommitScope): BlockEditActions {
 	const core = createBlockEditCore(scope);
 	const consulted: Pick<BlockEditActions, 'splitBlock' | 'replaceBlock'> = {
@@ -44,9 +44,9 @@ function seamOver(scope: CommitScope): BlockEditActions {
 	return withEnterCompletion(consulted as BlockEditActions, (index) => scope.children()[index]);
 }
 
-// A second registrant whose caret sits on a line the seam mints, which the table's cell-addressed
-// caret cannot exercise. Kind-name order puts it ahead of `table`; its trigger is ordinary prose,
-// so no other case in this file reaches it.
+// A second completer whose caret sits on a line the completion creates, which the table's
+// cell-addressed caret cannot exercise. Kind-name order puts it ahead of `table`; its trigger
+// is ordinary prose, so no other case in this file reaches it.
 registerBlockCompleter(declarePluginKind('spec-fence'), {
 	tryComplete: (line) =>
 		line === 'fence me'
@@ -54,8 +54,8 @@ registerBlockCompleter(declarePluginKind('spec-fence'), {
 			: null
 });
 
-// A registrant whose every claim mints bytes the reader would see nothing of: no lines at all, and
-// blank lines, which are bytes and parse back as empty paragraphs.
+// A completer whose every answer produces bytes the user would see nothing of: no lines at
+// all, and blank lines, which are bytes and parse back as empty paragraphs.
 const PAINTS_NOTHING: Record<string, string[]> = {
 	'empty me': [],
 	'blank me': [''],
@@ -110,16 +110,16 @@ describe('Enter completion — which presses reach a completer', () => {
 		expect(plan.replacement[0].raw).toBe('| a | b |\r\n| --- | --- |\r\n|  |  |\r\n');
 	});
 
-	// An unterminated tail line has no authored ending, so the mint takes the LF default and the
-	// document ends terminated — the completion adds lines either way.
+	// An unterminated last line has no authored ending, so the new blocks take the LF default
+	// and the document ends terminated; the completion adds lines either way.
 	it('terminates an unterminated tail line rather than leaving the mint open', () => {
 		const plan = planEnterCompletion(leaf('| a | b |'), 9)!;
 		expect(plan.replacement[0].raw).toBe('| a | b |\n| --- | --- |\n|  |  |\n');
 	});
 });
 
-// A completer answers where the caret sits as a line and a column, because the seam picks the line
-// ending AFTER the claim: a byte offset minted by the completer is one short on every CRLF block.
+// A completer answers where the caret sits as a line and a column, because the line ending is
+// picked after it answers: a byte offset from the completer is one short on every CRLF block.
 describe('Enter completion — the caret the seam resolves', () => {
 	it.each([
 		['fence me\n', 4],
@@ -151,8 +151,8 @@ describe('Enter completion — what the composed split commits', () => {
 		expect(cell.calls).toEqual([{ path: [1, 0], offset: 0 }]);
 	});
 
-	// The undo snapshot anchors where the caret WAS, not where the mint sends it: restoring the
-	// paragraph with the caret at 0 would put the next typed byte in front of the row.
+	// The undo snapshot records where the caret was, not where the completion sends it: restoring
+	// the paragraph with the caret at 0 would put the next typed byte in front of the row.
 	it('snapshots the caret at the end of the typed line, not at the cell it lands in', async () => {
 		const { scope, commits } = stubScope([leaf('| a | b |\n')]);
 		await seamOver(scope).splitBlock(0, 9);
@@ -166,9 +166,9 @@ describe('Enter completion — what the composed split commits', () => {
 		expect(children.map((c) => c.raw)).toEqual(['| a \n', '| b |\n']);
 	});
 
-	// A mint that paints nothing replaces the typed line with a delete, or with blank trivia a
-	// reload reads as neither: the seam declines, so the press stays the ordinary split. The blank
-	// shapes parse to paragraphs, which is why arity alone cannot see them.
+	// A completion that shows nothing replaces the typed line with a delete, or with blank lines
+	// a reload reads as neither: it is declined, so Enter stays the ordinary split. The blank
+	// shapes parse to paragraphs, which is why a count alone cannot see them.
 	it.each(Object.keys(PAINTS_NOTHING))('falls through on the %j claim', async (line) => {
 		const raw = `${line}\n`;
 		expect(planEnterCompletion(leaf(raw), line.length)).toBeNull();
@@ -198,11 +198,11 @@ describe('Enter completion — the document it leaves behind', () => {
 		expect(serialize(h.deps.doc)).toBe(
 			'| A | B |\n| --- | --- |\n| 1 | 2 |\n\n| a | b |\n| --- | --- |\n|  |  |\n'
 		);
-		// The separating blank line survived on the mint, so a reload sees two tables.
+		// The separating blank line survived on the new block, so a reload sees two tables.
 		expect(parse(serialize(h.deps.doc)).children).toHaveLength(2);
 	});
 
-	// In-container policy: complete in place; the blockquote rebuild reparses the mint as a
+	// In a container: complete in place; the blockquote rebuild reparses the new table as a
 	// quoted table.
 	it('completes inside a blockquote and reparses as a quoted table', async () => {
 		const h = makeNestedHarness('> | a | b |\n');

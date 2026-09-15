@@ -86,8 +86,8 @@ describe('dispatchMoveFocus', () => {
 		expect(child.focus).toHaveBeenCalledWith(CURSOR_END);
 	});
 
-	// A non-focusable target must not dead-end the move (`docs/design/editor.md`
-	// § Focus traversal); with no focusable sibling ahead, the walk delegates upward.
+	// A target that cannot take focus must not stop the move (`docs/design/editor.md`
+	// § Focus traversal); with no focusable sibling ahead, the walk hands up to the parent.
 	it('non-focusable at the boundary: delegates upward in the move direction', async () => {
 		const child = mockRef({ focus: vi.fn(), focusable: false });
 		const parentFocus = makeStubFocus();
@@ -99,7 +99,7 @@ describe('dispatchMoveFocus', () => {
 		expect(parentFocus.moveFocus).toHaveBeenCalledWith(1, 'start');
 	});
 
-	// The interior twin: no upward delegation while a focusable sibling remains.
+	// The interior counterpart: nothing goes to the parent while a focusable sibling remains.
 	it('non-focusable mid-chain: skips to the next focusable sibling', async () => {
 		const nonFocusable = mockRef({ focus: vi.fn(), focusable: false });
 		const focusable = mockRef({ focus: vi.fn(), focusable: true });
@@ -176,8 +176,8 @@ describe('dispatchFocusAtColumn', () => {
 		expect(text.focusAtColumn).toHaveBeenCalledWith(42, 'above');
 	});
 
-	// Miss-analysis (#326): the container entry and the per-block landing each decided this on
-	// their own, and no test compared them, so the two vertical doors drifted apart.
+	// Miss-analysis (#326): the container entry and the per-block arrival each decided this on
+	// their own, and no test compared them, so the two vertical paths drifted apart.
 	it.each([
 		['above', 'start'],
 		['below', 'end']

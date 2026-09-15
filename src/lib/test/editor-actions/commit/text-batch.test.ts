@@ -34,10 +34,10 @@ describe('text-batch lifecycle', () => {
 		expect(pushSnapshot).toHaveBeenCalledTimes(2);
 	});
 
-	// Miss-analysis (#71): every case armed the pause inside `keystroke`, so nothing could tell
-	// a window that starts when the user stops typing from one that starts when the editor starts
-	// working — and on a host where a keystroke's own settle approaches 250ms those are the
-	// difference between one undo entry per burst and one per character.
+	// Miss-analysis (#71): every case started the pause timer inside `keystroke`, so nothing
+	// could tell a timer that starts when the user stops typing from one that starts when the
+	// editor starts working; on a host where a keystroke's own processing approaches 250 ms
+	// those are the difference between one undo entry per burst and one per character.
 	it('the window opens at the arm, not at the keystroke: a slow settle spends no budget', () => {
 		const { batch, pushSnapshot } = harness();
 		batch.keystroke([1], 0);
@@ -71,7 +71,7 @@ describe('text-batch lifecycle', () => {
 		batch.keystroke([0], 0);
 		batch.keystroke([1], 0);
 		expect(pushSnapshot).toHaveBeenCalledTimes(2);
-		// Flush-before-repoint: the displaced batch's OWN path is emitted.
+		// Flush before repointing: the displaced batch's own path is emitted.
 		expect(emitInput).toHaveBeenCalledWith([0], 1);
 	});
 

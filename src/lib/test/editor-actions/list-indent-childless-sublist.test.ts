@@ -10,9 +10,9 @@ import {
 } from '$lib/test/harness/editor-actions';
 import type { CstNode } from '$lib/core/nodes';
 
-// Miss-analysis (GH #220): each list door was pinned alone and only over sublists holding items,
-// so no test asked the doors that SEAT an item into a sublist what a childless one means — the
-// same shape #202 closed one seam over, in the lift direction.
+// Miss-analysis (GH #220): each list action was tested alone and only over sublists holding
+// items, so no test asked the actions that put an item into a sublist what a childless one
+// means; #202 closed the same shape one action over, in the lift direction.
 
 interface KindShape {
 	kind: string;
@@ -45,8 +45,8 @@ function listWithChildlessSublist(spelling: 'undefined' | 'empty'): CstNode {
 	return list;
 }
 
-// `[]` is truthy, so it already reaches the sublist scope; `undefined` is the red-first pin and
-// `[]` the guard that keeps the two spellings answering alike.
+// `[]` is truthy, so it already reaches the sublist scope; `undefined` is the case that was red
+// first and `[]` the guard that keeps the two spellings answering alike.
 describe.each([{ spelling: 'undefined' as const }, { spelling: 'empty' as const }])(
 	'indentItem into a childless matching sublist (children: $spelling)',
 	({ spelling }) => {
@@ -80,7 +80,7 @@ describe.each([{ spelling: 'undefined' as const }, { spelling: 'empty' as const 
 				]
 			});
 
-			// The bytes must reload to the tree that wrote them: an item seated under an item
+			// The bytes must reload to the tree that wrote them: an item placed under an item
 			// serializes to something no reparse can produce.
 			expect(serialize(deps.doc)).toBe('1. a\n   1. b\n');
 			expect(shapeOf(parse(serialize(deps.doc)).children[0])).toEqual(shapeOf(liveList()));

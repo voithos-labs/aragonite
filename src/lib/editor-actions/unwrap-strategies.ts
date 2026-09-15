@@ -26,7 +26,8 @@ export interface UnwrapStrategyDeps {
 	state: BlockListState;
 }
 
-/** Drop an empty item and renumber from its index; `land` places the caret where the strategy chose. */
+/** Drop an empty item and renumber from its index; `land` places the caret where the
+ *  strategy chose. */
 async function deleteEmptyItem(
 	{ deps, state }: UnwrapStrategyDeps,
 	itemIndex: number,
@@ -59,7 +60,8 @@ async function liftFirstChildAndKeepContainer({ deps }: UnwrapStrategyDeps): Pro
 	await spliceLift(deps, liftFirstChildKeepingContainer(deps.node));
 }
 
-/** Rule U2's declared decline: child 0 is the container's title row, and a lift would carry it out. */
+/** Rule U2's declared decline: child 0 is the container's title row, and a lift would carry
+ *  it out. */
 async function keepReservedChrome(): Promise<void> {}
 
 async function spliceLift(deps: NestedActionsDeps, replacement: CstNode[]): Promise<void> {
@@ -70,7 +72,8 @@ async function spliceLift(deps: NestedActionsDeps, replacement: CstNode[]): Prom
 	});
 }
 
-/** The first list item's cascade: promote if nested, delete if empty, delete the list if it is the only item, else rule U1. */
+/** The first list item's cascade: promote if nested, delete if empty, delete the list if it
+ *  is the only item, else rule U1. */
 async function listItemCascadeFirst(strategy: UnwrapStrategyDeps): Promise<void> {
 	const { deps, state } = strategy;
 	const node = deps.node;
@@ -108,7 +111,8 @@ async function listItemCascadeFirst(strategy: UnwrapStrategyDeps): Promise<void>
 
 // ── Middle-child strategies ─────────────────────────────────────────────────
 
-/** A middle list item: delete and renumber if empty, else rule M1, merge into the deepest text above. */
+/** A middle list item: delete and renumber if empty, else rule M1, merge into the deepest
+ *  text above. */
 async function listItemCascadeMiddle(
 	strategy: UnwrapStrategyDeps,
 	itemIndex: number

@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 //
-// G1.20 — unshared-spine depth. A chain shorter than the leaf path makes
-// `chain[leafPath.length - 2]` address a node the caller does NOT own, so the write lands
-// on a snapshot-shared node and corrupts history at a later undo.
+// The copied chain must be as deep as the leaf path (G1.20). A shorter chain makes
+// `chain[leafPath.length - 2]` address a node the caller has not copied, so the write lands
+// on a node the undo snapshot shares and corrupts history at a later undo.
 import { describe, it, expect, vi } from 'vitest';
 
 import { takeDevWarns } from '$lib/test/support/warn-gate';
@@ -30,7 +30,7 @@ function item(): CstNode {
 	} as CstNode;
 }
 
-/** `chainDepth` is what the stubbed container edit hands back; the honest depth is
+/** `chainDepth` is what the stubbed container edit hands back; the correct depth is
  *  CONTAINER_PATH plus the inner index. */
 function typeInto(node: CstNode, chainDepth: number): void {
 	const containerEdit = makeStubContainerEdit();

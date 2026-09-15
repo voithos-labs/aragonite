@@ -18,9 +18,9 @@ import {
 } from '$lib/test/harness/editor-actions';
 import type { EditEvent } from '$lib/editor-events';
 
-// A structural op that changes nothing must mint no undo entry and emit no edit event.
-// The container path is the residue risk: its discard runs the full in-place mutate
-// then rolls it back, so the doc must come out byte-identical.
+// A structural edit that changes nothing must push no undo entry and emit no edit event.
+// The container path is the one that can leave traces: its discard runs the full in-place
+// mutate then rolls it back, so the document must come out byte-identical.
 
 const DETAILS = '<details>\n<summary>Summary</summary>\n\nBody\n\n</details>\n';
 
@@ -66,7 +66,7 @@ describe('noop structural commit discards its snapshot', () => {
 		expect(deps.doc.children[0].childIds ?? []).toEqual(beforeChildIds);
 	});
 
-	// Positive control: a "discard everything" regression fails here.
+	// Control: a "discard everything" regression fails here.
 	it('a real paragraph split still mints one undo entry and one edit event', async () => {
 		const h = makeTopHarness('hello world\n');
 
@@ -78,13 +78,13 @@ describe('noop structural commit discards its snapshot', () => {
 	});
 });
 
-// The M1 middle-item merge finds no target when the previous item's deepest leaf is
-// opaque, and that no-op must discard like its block-edit-core sibling.
+// The rule M1 middle-item merge finds no target when the previous item's deepest leaf has no
+// editable text, and that no-op must discard like its block-edit-core sibling.
 describe('no-target list middle-item merge discards its commit', () => {
 	it('Backspace above an opaque prev leaf mints no entry and no merge event', async () => {
 		const doc = parse('- ```\n  code\n  ```\n- text\n');
 		const list = doc.children[0];
-		// RED ≠ GREEN: a reachable prose leaf would merge and legitimately commit.
+		// So the case can fail: a reachable prose leaf would merge and legitimately commit.
 		expect(list.children?.[0].children?.[0].kind).toBe('fencedCode');
 		expect(findMergeTarget(list.children![0])).toBeNull();
 

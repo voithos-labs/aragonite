@@ -94,7 +94,7 @@ describe('replaceAll — per-top-level-subtree, one undo entry', () => {
 	it('seeds the undo snapshot with the deep match path for a nested replacement', async () => {
 		const { deps, sr } = makeSearchReplace('- itemX\n');
 		const match = scanForLiteral(deps.doc, 'X')[0];
-		expect(match.path.length).toBeGreaterThan(1); // nested, so RED ≠ GREEN
+		expect(match.path.length).toBeGreaterThan(1); // nested, so the case can fail
 
 		await sr.replaceOne(match, 'Y');
 
@@ -120,7 +120,7 @@ describe('replaceAll — per-top-level-subtree, one undo entry', () => {
 
 		const matches = scanForLiteral(deps.doc, 'needle');
 		expect(matches.length).toBeGreaterThan(0);
-		// RED ≠ GREEN: one child cannot collide.
+		// So the case can fail: one child cannot collide.
 		expect(deps.doc.children[0].children![0].children!.length).toBeGreaterThanOrEqual(2);
 
 		await sr.replaceAll(matches, 'love');
@@ -163,7 +163,7 @@ describe('replaceOne — single-subtree case', () => {
 });
 
 describe('replace — matches on childless opaque containers are skipped', () => {
-	// The real scanner: only it produces the container matches these pin.
+	// The real scanner: only it produces the container matches these test.
 	const DIAGRAM_RAW = '```diagram\ngraph cat\n```\n';
 	let diagramNode: CstNode;
 	beforeEach(() => {
@@ -185,7 +185,7 @@ describe('replace — matches on childless opaque containers are skipped', () =>
 		const { deps, sr } = makeSearchReplace([para, diagramNode]);
 
 		const matches = scanCompiled(deps.doc, 'cat');
-		expect(matches.map((m) => m.path)).toEqual([[0], [1]]); // leaf + container, so RED ≠ GREEN
+		expect(matches.map((m) => m.path)).toEqual([[0], [1]]); // leaf + container, so the case can fail
 
 		const replaced = await sr.replaceAll(matches, 'dog');
 
@@ -211,9 +211,9 @@ describe('replace — matches on childless opaque containers are skipped', () =>
 });
 
 describe('replace — a batch that applies nothing leaves no undo entry', () => {
-	// Miss-analysis: the undo assertions all counted entries after a SUCCESSFUL batch, and the
-	// throw arm was pinned on its error event alone — so the snapshot pushed before the loop, the
-	// one register no commit ceremony covers, had no case looking at it on the failing path.
+	// Miss-analysis: the undo assertions all counted entries after a successful batch, and the
+	// throw case was tested on its error event alone, so the snapshot pushed before the loop,
+	// the one thing no commit rolls back, had no case looking at it on the failing path.
 	it('restores the stacks when the first subtree throws in its rebuild', async () => {
 		__resetSchemaRegistriesForTests();
 		const brittle = declarePluginKind('replace-brittle');
@@ -250,10 +250,10 @@ describe('replace — a batch that applies nothing leaves no undo entry', () => 
 });
 
 describe('replace — a childless opaque container reparses its own bytes', () => {
-	// Miss-analysis (#41): the container arm was pinned only by its DECLINE, with a fixture kind
-	// whose opener was never registered — so the decline read as "containers are excluded" when
-	// the real rule is kind stability, and the reachable half (a registered kind that survives the
-	// substitution) had no case at all.
+	// Miss-analysis (#41): the container case was tested only by its decline, with a fixture
+	// kind whose opener was never registered, so the decline read as "containers are excluded"
+	// when the real rule is kind stability, and the reachable half (a registered kind that
+	// survives the substitution) had no case at all.
 	beforeEach(() => {
 		__resetSchemaRegistriesForTests();
 		registerMermaidKind();

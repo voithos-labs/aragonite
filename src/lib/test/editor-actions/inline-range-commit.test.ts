@@ -5,12 +5,12 @@ import { rangeSelectionOf } from '$lib/test/support/undo-entry';
 import type { EditEvent } from '$lib/editor-events';
 import { allowDevWarns } from '$lib/test/support/warn-gate';
 
-// The container fixtures are hand-built, not parser output, so the container-raw oracle reads
-// them as stale.
+// The container fixtures are hand-built, not parser output, so the dev-mode stale-raw check
+// reads them as stale.
 afterEach(() => allowDevWarns(['invariant:stale-raw']));
 
-// The one primitive both the image popover and the link card write through: splice bytes over a
-// raw range in the leaf at `path`, as ONE undo entry, at any depth.
+// The one primitive both the image popover and the link card write through: splice bytes over
+// a raw range in the leaf at `path`, as one undo entry, at any depth.
 
 function makeTop(source: string) {
 	const harness = makeTopHarness(source);

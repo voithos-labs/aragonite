@@ -17,8 +17,8 @@ import {
 import { CURSOR_START } from '$lib/block-component';
 import type { BlockListState } from '$lib/reactivity/block-list-state.svelte';
 
-// The delete's afterTick must clamp against the LIVE post-commit children: a node
-// captured by value is stale by +1, so deleting the LAST item indexes past the refs.
+// The delete's afterTick must clamp against the live post-commit children: a node read
+// before the commit is one too long, so deleting the last item indexes past the refs.
 
 describe('list-overrides deleteBlock — focus after deleting the last item', () => {
 	it('lands the caret on the new last item, not a stale index past the refs', async () => {

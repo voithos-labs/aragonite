@@ -6,9 +6,9 @@ import { parse } from '$lib/core/parser';
 
 // A command's bytes are not typing: a format toggle pressed mid-burst must be its own undo
 // step, so one Ctrl+Z takes the formatting off and leaves the words. Miss-analysis: the
-// undo-granularity suite only pinned STRUCTURAL commits, which interrupt through the commit
-// ceremony — command-path TEXT edits share `updateBlockContent` with keystrokes and were
-// assumed batched, so nothing contradicted the coalescing.
+// undo-granularity suite only tested structural commits, which break the batch inside the
+// commit; a command's text edit shares `updateBlockContent` with keystrokes and was assumed
+// batched, so nothing contradicted the merging.
 
 function makeEditor(source: string) {
 	const { deps } = makeEditorActionsDeps(parse(source).children);
@@ -52,7 +52,7 @@ describe('a command-path text edit owns its undo entry', () => {
 		controller.flushDebouncedCheckpoint();
 	});
 
-	// Non-vacuity: the same three writes without the seam coalesce, which is what shipped.
+	// Control: the same three writes without `isolateUndoEntry` merge into one entry.
 	it('the same writes without the seam coalesce into one entry', async () => {
 		const { deps, controller, blockEdit } = makeEditor('ab\n');
 

@@ -9,8 +9,8 @@ function makeSetup() {
 	return { deps, events, controller, history: createHistoryActions(deps, controller) };
 }
 
-// captureCurrentState marks the whole tree snapshot-shared, forcing copy-on-write
-// spines on the next edit — for a swap that never happens.
+// captureCurrentState marks the whole tree as shared with a snapshot, forcing the next
+// edit to copy its path first, for an undo that never happens.
 describe('history swap — no-op guard', () => {
 	it('requestUndo on an empty undo stack does not mark the tree snapshot-shared', async () => {
 		const { deps, history } = makeSetup();
@@ -27,7 +27,7 @@ describe('history swap — no-op guard', () => {
 	});
 });
 
-// Pins the swap-side clear — see `history.ts` for why the seam declines instead.
+// Tests the clear on the undo side; `history.ts` says why the restore declines instead.
 describe('history swap — a snapshot whose selection no longer resolves', () => {
 	it('clears the standing selection instead of leaving its overlay painted', async () => {
 		const { deps, history } = makeSetup();
@@ -49,9 +49,9 @@ describe('history swap — a snapshot whose selection no longer resolves', () =>
 	});
 });
 
-// Nothing else pins that the swap keeps sharing the restore road with the consumer's
-// setSelection door; growing its own applier would re-open the stale emission the
-// road's notification batch closed.
+// Nothing else checks that undo keeps sharing the selection restore with the consumer's
+// setSelection; growing its own would re-open the stale notification the shared restore's
+// batching closed.
 describe('history swap — the restored selection notifies once, after the placement', () => {
 	it('emits after the applier has looked for the block, not before', async () => {
 		const log: string[] = [];
@@ -76,8 +76,8 @@ describe('history swap — the restored selection notifies once, after the place
 	});
 });
 
-// Flush, not discard: the pending `input` event must reach edit-channel observers
-// (discarding drops those bytes) AND the debounce timer must be cleared.
+// Flush, not discard: the pending `input` event must reach edit listeners (discarding
+// drops those bytes) and the debounce timer must be cleared.
 describe('history swap — batch flush', () => {
 	it('flushes a pending batch exactly once: emits its input event and clears the timer', async () => {
 		vi.useFakeTimers();
@@ -88,7 +88,7 @@ describe('history swap — batch flush', () => {
 				if (e.op === 'input') inputs.push(e.op);
 			});
 
-			// Arms a batch: the first keystroke pushes a snapshot and opens the pending input batch.
+			// Starts a batch: the first keystroke pushes a snapshot and opens the pending input batch.
 			controller.pushUndoSnapshotDebounced([0], 1);
 			await history.requestUndo();
 			vi.advanceTimersByTime(1000);

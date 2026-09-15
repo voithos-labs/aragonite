@@ -13,10 +13,10 @@ import {
 import type { AnyBlockKind, CstNode } from '$lib/core/nodes';
 import { makeShimDeps } from '$lib/test/harness/editor-actions';
 
-// The hidden editing host is contenteditable, so every gate that asks "is a plugin's own
-// editable surface holding this?" would answer yes about the editor's own chrome. These are the
-// three seams that would then misroute: the focus-surface composition, the shim's focus landing,
-// and the shim's cursor-offset report.
+// The hidden editing host is contenteditable, so every check that asks "is a plugin's own
+// editor holding this?" would answer yes about the editor's own host. These are the three
+// places that would then go wrong: the focus-element composition, the component's focus
+// placement, and the component's cursor-offset report.
 
 function attach<T extends HTMLElement>(el: T): T {
 	document.body.appendChild(el);
@@ -55,9 +55,9 @@ describe('the editing host is not a plugin editable', () => {
 });
 
 // Without the exclusion the composition reads its own host as the plugin's edit mode and
-// withdraws the surface, so every whole-block affordance dies the moment the host takes focus.
+// withdraws the focus element, so all whole-block key handling dies once the host takes focus.
 describe('the composed surface, with the host holding focus', () => {
-	// The declared element is deliberately absent, which is the arm that consults activeElement.
+	// The declared element is deliberately absent, which is the branch that reads activeElement.
 	afterEach(() => allowDevWarns(['container-block']));
 
 	it('falls back to the box rather than withdrawing', () => {

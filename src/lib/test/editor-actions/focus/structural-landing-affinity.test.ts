@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
 //
-// The side a cross-block landing settles. Miss (#172): the affinity suite covered the key
-// classifier and the collapse door, and nothing asked what a moveFocus landing answers — an
-// absent call at a seat is invisible to tests written against the calls that exist.
+// The side of a hidden marker a cross-block move lands on. Miss-analysis (#172): the affinity
+// suite covered the key classifier and the selection collapse, and nothing asked what a
+// moveFocus arrival answers; a missing call is invisible to tests written against the calls
+// that exist.
 import { describe, it, expect, vi } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { createFocusActions } from '$lib/editor-actions/focus/focus';
@@ -11,14 +12,14 @@ import { createEdgeAffinityState } from '$lib/cursor/edge-affinity';
 import { makeEditorActionsDeps, mockRef } from '$lib/test/harness/editor-actions';
 import type { FocusPosition } from '$lib/block-component';
 
-// `**bold**` above a fence: the landing lands in the closer's hidden run, where 'near' reads as
+// `**bold**` above a fence: the caret lands in the closer's hidden run, where 'near' reads as
 // inside the construct and 'outside' as after it (docs/design/live-mode.md § 4.2).
 const BOLD_ABOVE_FENCE = 'a **bold**\n\n```\ncode\n```\n';
 
 function harnessFor(source: string) {
 	const { deps, doc } = makeEditorActionsDeps(parse(source).children);
 	// The real state, not the harness mock: the assertion is the side it answers, and a mock
-	// answers null however the seat calls it.
+	// answers null however the move calls it.
 	const affinity = createEdgeAffinityState();
 	deps.edgeAffinity = affinity;
 	deps.setBlockRefs(doc.children.map(() => mockRef({ focus: vi.fn() })));
@@ -47,8 +48,8 @@ describe("moveFocus — the side a landing at a block's end settles (#172)", () 
 		expect(h.affinity.get()).toBe('outside');
 	});
 
-	// A numeric position is a caller that knows its byte (a split's continuation), not an
-	// arrival at an edge — it has no side to settle and must not claim one.
+	// A numeric position is a caller that knows its byte (a split's second half), not an
+	// arrival at an edge: it has no side to decide and must not claim one.
 	it('leaves a targeted numeric landing alone', async () => {
 		const h = harnessFor(BOLD_ABOVE_FENCE);
 

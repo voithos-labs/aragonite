@@ -11,10 +11,10 @@ import { testClosure } from '$lib/test/support/closure';
 import { makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
 import type { AnyBlockKind, CstNode } from '$lib/core/nodes';
 
-// A commit that unwinds AFTER the chain rebuild re-kinded a container published a
-// replacement into a live NESTED children array, which no other rollback register
-// reaches: the array swap restores `doc.children` and `savedChildren` restores the
-// swapped-out node's own children, not the slot now holding a different node.
+// A commit that unwinds after the chain rebuild changed a container's kind wrote a
+// replacement into a live nested children array, which no other rollback step reaches:
+// the array swap restores `doc.children` and `savedChildren` restores the swapped-out
+// node's own children, not the index now holding a different node.
 
 let THROWING: AnyBlockKind;
 
@@ -48,8 +48,8 @@ function makeDoc() {
 	return { ...harness, controller, inner, thrower };
 }
 
-/** Takes the snapshot and unshares the spine, so the joining commit below finds the
- *  outer blockquote already owned and splices into its live children array. */
+/** Takes the snapshot and copies the ancestors, so the joining commit below finds the
+ *  outer blockquote already copied and splices into its live children array. */
 async function seedUndoUnit(h: ReturnType<typeof makeDoc>): Promise<void> {
 	await h.controller.commitMultiScope({
 		scopes: [{ node: h.inner(), path: [0, 0], state: createBlockListState(h.inner) }],
@@ -61,8 +61,8 @@ async function seedUndoUnit(h: ReturnType<typeof makeDoc>): Promise<void> {
 	});
 }
 
-/** The inner leaf write completes a `> [!TIP]` marker, so that scope's rebuild re-kinds the
- *  container — and chains sort deepest-first, so the swap lands before the throw. */
+/** The inner leaf write completes a `> [!TIP]` marker, so that scope's rebuild changes the
+ *  container's kind; chains sort deepest first, so the swap lands before the throw. */
 async function throwingCommit(h: ReturnType<typeof makeDoc>): Promise<unknown> {
 	try {
 		await h.controller.commitMultiScope({

@@ -20,12 +20,12 @@ import { takeDevWarns } from '$lib/test/support/warn-gate';
 import { describeConvergence } from '$lib/test/harness/parse-converged';
 import type { BlockComponent } from '$lib/block-component';
 
-// GH #176: a nested delete stops the list interrupting the paragraph above, and the ancestry
-// settle folds the two into one. The commit that caused it lives in a scope the fold ate, so the
-// caret, the parent scope's registers and the undo entry are all owed answers the container's
-// own descriptor cannot give.
-// Miss-analysis: every container-commit pin asserted the scope's own children, and a fold at the
-// scope's own slot changes an array no assertion in that family reads.
+// A nested delete stops the list interrupting the paragraph above, and the ancestor fix-up
+// merges the two into one. The commit that caused it lives in a container the merge swallowed,
+// so the caret, the parent's ids and refs and the undo entry all need answers the container's
+// own change cannot give.
+// Miss-analysis: every container-commit test asserted the container's own children, and a
+// collapse at the container's own index changes an array no assertion in that family reads.
 
 const SOURCE = 'a\n1. x\n2. y\n';
 
@@ -34,8 +34,8 @@ function harness() {
 	const focused: number[] = [];
 	const survivor = mockRef({ focus: vi.fn((offset?: number) => focused.push(offset ?? -1)) });
 	h.deps.blockRefs[0] = survivor as BlockComponent;
-	// The scope's own refs answer too, so a landing aimed at the eaten container is visible
-	// rather than silently absent.
+	// The container's own refs answer too, so a caret aimed at the swallowed container is
+	// visible rather than silently absent.
 	const inner: number[] = [];
 	h.state.innerBlockRefs[0] = mockRef({ focus: vi.fn((o?: number) => inner.push(o ?? -1)) });
 	const errors: unknown[] = [];
@@ -52,15 +52,15 @@ describe('a commit whose ancestry settle ate its own scope', () => {
 		expect(serialize(h.deps.doc)).toBe('a\n2. y\n');
 		// `'a\n'` is what the paragraph put in front of the list's own first byte.
 		expect(h.focused).toEqual([2]);
-		// The eaten scope has no child to focus, so the door's own landing resolved nothing —
-		// quietly, since a fold is a normal outcome and not something a host must hear about.
+		// The swallowed container has no child to focus, so the delete's own caret placement
+		// found nothing, quietly: a collapse is a normal outcome, not something a host must hear.
 		expect(h.inner).toEqual([]);
 		expect(h.errors).toEqual([]);
 	});
 
-	// The other side of the ask, at the door that pays for it on every keystroke: routine typing
-	// in a body head moves the container's opener line, and one that still interrupts keeps its
-	// slot. Kind-stable, so this is the noop-preview route through `withUnsharedSpine`.
+	// The other side, on the path that pays for it on every keystroke: routine typing in a
+	// body's first block moves the container's opener line, and one that still interrupts keeps
+	// its index. The kind is unchanged, so this is the noop-preview route through `withUnsharedSpine`.
 	it('leaves the slot standing when the rebuilt opener still interrupts', async () => {
 		const h = makeNestedHarness('a\n> b\n', { index: 1 });
 
@@ -71,11 +71,11 @@ describe('a commit whose ancestry settle ate its own scope', () => {
 		expect(h.deps.blockIds).toHaveLength(2);
 	});
 
-	// The other producer of the same fold: a body write that DEMOTES a child stops the container
-	// interrupting its follower. It reaches the door through the non-noop preview, which is a
-	// different route into the same settle than the delete above.
-	// Miss-analysis: the content-write producer's only pin was at the tree op, so no assertion
-	// covered the door's registers, caret or undo entry for a fold a write caused.
+	// The other cause of the same collapse: a body write that demotes a child stops the
+	// container interrupting its follower. It arrives through the non-noop preview, a different
+	// route into the same fix-up than the delete above.
+	// Miss-analysis: the content write's only test was at the tree operation, so no assertion
+	// covered the ids and refs, caret or undo entry for a collapse a write caused.
 	it('folds the follower a body write let the container continue into', async () => {
 		const h = makeNestedHarness('> a\n> # h\ntext\n', { index: 0 });
 		const survivor: number[] = [];
@@ -104,7 +104,7 @@ describe('a commit whose ancestry settle ate its own scope', () => {
 		expect(h.deps.blockIds).toHaveLength(2);
 	});
 
-	// The fold is the only change on this commit — every scope descriptor is `noop` — and the
+	// The collapse is the only change on this commit (every scope's change is `noop`), and the
 	// delete asks for a discard when nothing changed.
 	it('keeps the undo entry, and undo restores the pre-fold tree', async () => {
 		const h = harness();
@@ -124,7 +124,7 @@ describe('a commit whose ancestry settle ate its own scope', () => {
 	});
 });
 
-/** The same producer one level down, where the folded array belongs to a CONTAINER. */
+/** The same cause one level down, where the collapsed array belongs to a container. */
 function quotedListHarness() {
 	const { deps } = makeEditorActionsDeps(parse('> a\n> 1. x\n> 2. y\n'));
 	const controller = createUndoController(deps);
@@ -169,8 +169,8 @@ describe('a fold whose parent scope is a container, not the document', () => {
 
 		expect(serialize(h.deps.doc)).toBe('> a\n> 2. y\n');
 		expect(h.quote().children!.map((c) => c.kind)).toEqual(['paragraph']);
-		// An unmounted owner has NO ids, which is not an empty list: seeding one would publish
-		// one id per changed slot instead of one per child, and a wrong length is permanent.
+		// An unmounted owner has no ids, which is not an empty list: starting from one would
+		// write one id per changed index instead of one per child, and a wrong length is permanent.
 		expect(h.quote().childIds).toHaveLength(h.quote().children!.length);
 		expect(h.quote().childIds).not.toContain(undefined);
 	});

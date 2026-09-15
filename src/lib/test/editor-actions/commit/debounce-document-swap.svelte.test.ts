@@ -1,9 +1,9 @@
 // @vitest-environment jsdom
 //
 // A debounce timer surviving a `source` swap or an unmount fires `edit { op: 'input' }`
-// carrying the OLD document's path against the document that replaced it. Asked of the
-// mounted component on purpose: the batch was always interruptible, but no lifecycle
-// seam called it.
+// carrying the old document's path against the document that replaced it. Asked of the
+// mounted component on purpose: the batch could always be interrupted, but no lifecycle
+// hook called it.
 import { describe, it, expect, beforeAll, afterEach, vi } from 'vitest';
 import { flushSync, tick } from 'svelte';
 import { installLayoutStubs } from '../../blocks/editor-mount';
@@ -53,7 +53,7 @@ describe('the typing debounce is interrupted before the document it addresses go
 	});
 
 	// The flush emits `edit`, which the editor's own subscriber defers into a decoration
-	// run — at teardown, against a getter closed over dead state.
+	// run: at teardown, against a getter closed over dead state.
 	it('schedules no decoration work for the document it just tore down', async () => {
 		const { editor, target, inputs } = mountEditor('alpha\n\nbeta\n');
 		const provided: number[] = [];

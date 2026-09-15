@@ -43,7 +43,7 @@ describe('block-edit core — shared structural decisions', () => {
 		expect(content.calls).toEqual([CURSOR_EXACT_START]);
 	});
 
-	// Miss-analysis (GH #98): the split pins asserted block layout, never where the caret
+	// Miss-analysis (GH #98): the split tests asserted block layout, never where the caret
 	// landed; the one focus assertion used a single-block first half, where i + 1 is right.
 	it('a split whose first half reparses plural seats the caret on the second half', async () => {
 		// Enter at the end of a blank line inside indented code: the first half parses to
@@ -143,9 +143,9 @@ describe('block-edit core — shared structural decisions', () => {
 	});
 });
 
-// The whole-block-focus branch sits before the `!isBlockEditable` check, so the policy
-// overrides the delete-non-editable fallback regardless of editability. Both merge
-// directions are pinned because the bug class here is sibling-path parity.
+// The whole-block-focus branch sits before the `!isBlockEditable` check, so it overrides
+// the delete-non-editable fallback whatever the editability. Both merge directions are
+// tested because the bug class here is one direction diverging from the other.
 describe('block-edit core — whole-block-focus fallback', () => {
 	beforeEach(__resetSchemaRegistriesForTests);
 
@@ -221,8 +221,8 @@ describe('block-edit core — non-editable neighbour fallback', () => {
 		await createBlockEditCore(scope).mergeWithPreviousInterior(1);
 		expect(children).toHaveLength(1);
 		expect(commits[0].op.kind).toBe('delete');
-		// The deleted neighbor (i-1), not i — both scope factories mint the emitted event
-		// path from this target (top-level parity in top-level-event-paths.test.ts).
+		// The deleted neighbour (i-1), not i: both scope factories build the emitted event
+		// path from this target (the top-level side is in top-level-event-paths.test.ts).
 		expect(commits[0].eventTarget).toBe(0);
 	});
 
@@ -263,8 +263,8 @@ describe('block-edit core — thematicBreak focus-then-delete', () => {
 	});
 });
 
-// Miss-analysis: the wrap-settle pins called the tree op with the container node directly;
-// the core's sinks hand the commit view's shape, whose owner no pin ever asserted.
+// Miss-analysis: the wrap fix-up tests called the tree op with the container node directly;
+// the core hands the tree ops the commit view's shape, whose owner no test ever asserted.
 describe('block-edit core — wrap-owner threading', () => {
 	beforeEach(() => {
 		// registerChromeLeaf registers a paste surface, so the schema reset alone would leave
@@ -296,7 +296,7 @@ describe('block-edit core — chrome.descendToBody', () => {
 		await createBlockEditCore(scope).descendToBody(0);
 		expect(commits).toHaveLength(0);
 		expect(children).toHaveLength(2);
-		// An arrival on a block it did not create, so the door — not this caller — picks the byte.
+		// An arrival on a block it did not create, so the block's focus, not this caller, picks the byte.
 		expect(body.calls).toEqual([CURSOR_START]);
 	});
 
@@ -314,7 +314,7 @@ describe('block-edit core — chrome.descendToBody', () => {
 		expect(body.calls).toEqual([0]);
 	});
 
-	// The minted body IS a line ending, so a defaulted `\n` strands a lone LF
+	// The new body is nothing but a line ending, so a default `\n` would leave a lone LF
 	// inside a CRLF container (G4.20).
 	it('the minted body paragraph takes the chrome sibling’s line ending', async () => {
 		const { scope, children } = makeCommitScopeStub([leaf('Title\r\n')]);

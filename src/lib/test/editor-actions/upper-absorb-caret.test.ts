@@ -4,17 +4,17 @@ import { replaceRefs } from '$lib/reactivity/publish-ref.svelte';
 import { mockRef, makeNestedHarness, makeTopHarness } from '$lib/test/harness/editor-actions';
 import type { BlockComponent } from '$lib/block-component';
 
-// GH #21's caret half: once the write's settle absorbs the join ABOVE it, the surviving block is
-// the predecessor, so the caret owes the bytes that predecessor put in front of the typed ones.
-// Miss-analysis: every content-door pin asserted the tree, never which ref the commit focused, so
-// a restore aimed at the pre-settle slot could not fail.
+// The caret half of GH #21: once the write's fix-up merges the block into the one above, the
+// surviving block is the predecessor, so the caret must add the bytes that predecessor put in
+// front of the typed ones. Miss-analysis: every content-write test asserted the tree, never
+// which ref the commit focused, so a restore aimed at the pre-merge index could not fail.
 
 interface FocusCall {
 	slot: number;
 	offset: unknown;
 }
 
-/** Refs that report which ORIGINAL slot they were minted for: an idMap carries them across. */
+/** Refs that report which original index they were made for: an idMap carries them across. */
 function labelledRefs(count: number, calls: FocusCall[]): BlockComponent[] {
 	return Array.from({ length: count }, (_, slot) =>
 		mockRef({ focus: (offset) => calls.push({ slot, offset }) })
@@ -40,22 +40,22 @@ describe('caret after a fold above the edited block — top level', () => {
 		expect(h.calls).toEqual([{ slot: 0, offset: 3 }]);
 	});
 
-	// The multi-block arm walks the window from its own head, so the walk starts behind the
-	// absorbed bytes as well.
+	// The multi-block case walks the replaced range from its own first block, so the walk
+	// starts behind the merged-in bytes as well.
 	it('walks a multi-block write from the settled window, not from the written text', async () => {
 		const h = makeTop('a\n# h\nb\n');
 
-		// Caret after the `x` the first minted block carries; the walk still has to clear the
-		// two bytes the absorbed predecessor put in front of it.
+		// Caret after the `x` the first new block carries; the walk still has to clear the two
+		// bytes the predecessor put in front of it.
 		await h.actions.updateBlockContent(1, 'x\n\ny\n', 0, 1);
 
 		expect(h.harness.doc.children.map((c) => c.raw)).toEqual(['a\nx\n', 'y\nb\n']);
 		expect(h.calls).toEqual([{ slot: 0, offset: 3 }]);
 	});
 
-	// The blank arm reaches the same door when emptying changes the KIND: a heading emptied to a
-	// blank line is a non-noop preview, so the ceremony runs and the container above swallows the
-	// slot — the blank arm's textStart, spent at a door, not just derived at the tree op.
+	// The blank case reaches the same path when emptying changes the kind: a heading emptied to
+	// a blank line is a non-noop trial, so the commit runs and the container above swallows the
+	// index; the blank case's textStart, used by the action, not just computed at the tree op.
 	it('spends the blank arm textStart when emptying a heading folds it upward', async () => {
 		const h = makeTop('- item\n\n# h\n\n    code\n');
 
@@ -67,7 +67,7 @@ describe('caret after a fold above the edited block — top level', () => {
 		expect(h.calls).toEqual([{ slot: 0, offset: 8 }]);
 	});
 
-	// The decline side: nothing absorbed above, so the caret keeps the offset it was handed.
+	// The decline side: nothing merged above, so the caret keeps the offset it was handed.
 	it('leaves the caret alone where the join above still holds', async () => {
 		const h = makeTop('a\n\n# h\nb\n');
 

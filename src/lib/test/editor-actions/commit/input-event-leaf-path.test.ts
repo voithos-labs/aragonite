@@ -5,8 +5,8 @@ import { UNDO_DEBOUNCE_MS } from '$lib/editor-actions/commit/text-batch';
 import { makeNestedHarness } from '$lib/test/harness/editor-actions';
 import type { EditEvent } from '$lib/editor-events';
 
-// The observable stake for the leaf path: `lrdMapCouldChange` resolves the event path,
-// so a container-level path hides a nested definition edit from the map rebuild.
+// Why the leaf path matters: `lrdMapCouldChange` reads the event path, so a container-level
+// path hides a nested link-definition edit from the map rebuild.
 
 function makeNestedTyping(source: string) {
 	const { deps, events, bundle } = makeNestedHarness(source, { index: 0 });

@@ -49,7 +49,8 @@ export interface ListContextDeps {
 	linkRef: InlineResolverRef | undefined;
 }
 
-/** The item Enter creates: the previous item's marker bumped, its task checkbox inherited unchecked. */
+/** The item Enter creates: the previous item's marker bumped, its task checkbox inherited
+ *  unchecked. */
 function mintFollowerItem(prevMeta: ListItemMetadata | undefined, children: CstNode[]): CstNode {
 	const inheritTask = prevMeta?.taskItem === true;
 	return buildListItem(

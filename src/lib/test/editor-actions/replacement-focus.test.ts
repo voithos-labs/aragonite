@@ -54,7 +54,7 @@ describe('focusMovedOutsideReplacement', () => {
 	});
 
 	// A plugin may own data-block-path with a non-JSON value, and the parse runs inside
-	// afterTick — outside the ceremony's catch, so a throw is an unhandled rejection.
+	// afterTick, outside the commit's catch, so a throw is an unhandled rejection.
 	it('restores without throwing when data-block-path is non-JSON', () => {
 		focusHostWithRawPath('plugin-owned-token');
 		expect(() => focusMovedOutsideReplacement([], 1, 2)).not.toThrow();
@@ -62,9 +62,9 @@ describe('focusMovedOutsideReplacement', () => {
 	});
 });
 
-// The preview picks between the structural commit and the routine typing path and
-// nothing re-decides it, so it must answer about the bytes the write actually lands —
-// which a container that rewrites its body's bytes makes differ.
+// The trial reparse picks between the structural commit and the routine typing path and
+// nothing re-decides it, so it must answer about the bytes the write actually stores, which
+// a container that rewrites its body's bytes makes differ.
 describe('previewContentReparse reads the owning container', () => {
 	beforeEach(() => {
 		__resetSchemaRegistriesForTests();

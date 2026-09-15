@@ -7,12 +7,12 @@ import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { testClosure } from '$lib/test/support/closure';
 import type { CstNode } from '$lib/core/nodes';
 
-// Top-level/container event-path parity: both scopes emit the op's TARGET, never the
+// Top-level and container event paths agree: both emit the edit's target, never the
 // snapshot index.
 
-/** Non-editable and NOT a whole-block-focus target — the shape a caret-adjacent
- *  merge deletes. Every non-editable built-in now takes the focus path instead, so
- *  the delete branch is reachable only through a plugin kind. */
+/** Not editable and not focused as a whole: the shape a merge from a neighbouring caret
+ *  deletes. Every non-editable built-in takes the focus path instead, so the delete branch
+ *  is reachable only through a plugin kind. */
 function inertNode(): CstNode {
 	const kind = declarePluginKind('spec-inert-top-level');
 	registerBlockKind(kind, {
@@ -42,7 +42,7 @@ describe('top-level event paths target the operated block', () => {
 		expect(h.edits[0]).toMatchObject({ op: 'delete', path: [1] });
 	});
 
-	// The focus-then-delete twin: press one mutates nothing, so there is no edit to report.
+	// The focus-then-delete counterpart: the first keypress changes nothing, so there is no edit to report.
 	it('backspace-merge into a thematic break emits no edit event', async () => {
 		const h = makeTopHarness('---\n\ntext\n');
 		await h.actions.mergeWithPrevious(1);

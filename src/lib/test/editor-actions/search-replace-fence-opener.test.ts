@@ -4,11 +4,11 @@ import type { Document } from '$lib/core/nodes';
 import { expectParseConverged } from '$lib/test/harness/parse-converged';
 import { makeSearchReplace, scanCompiled } from '$lib/test/harness/search-replace';
 
-// Find/replace is the one byte sink whose write can take a code block's OPENER without a
-// selection endpoint: a match spanning the opener line substitutes it away and strands the
-// closer, which then absorbs the heading below (issue #58). Miss-analysis:
-// `search-replace-fence-escalation.test.ts` drove matches that end ON the closer (issue #55) and
-// none that start above the opener, so this door's other half went unwatched.
+// Find and replace is the one write that can take a code block's opener without a selection
+// endpoint: a match spanning the opener line substitutes it away and strands the closer,
+// which then absorbs the heading below (issue #58). Miss-analysis:
+// `search-replace-fence-escalation.test.ts` drove matches that end on the closer (issue #55)
+// and none that start above the opener, so this path's other half went unwatched.
 
 const scan = (doc: Document, query: string) => scanCompiled(doc, query, { caseSensitive: true });
 
@@ -34,8 +34,8 @@ describe('search/replace that consumes a fenced code opener', () => {
 		expectParseConverged(deps.doc);
 	});
 
-	// A replacement can also push text ABOVE the opener, which leaves line 0 foreign while the
-	// opener still claims the closer below it. Dropping that run would unclose a live block.
+	// A replacement can also push text above the opener, which leaves line 0 foreign while the
+	// opener still owns the closer below it. Dropping that run would unclose a live block.
 	it('leaves a closer an opener above it still claims', async () => {
 		const { deps, sr } = makeSearchReplace('```js\nbody\n```\n\n# Heading\n');
 

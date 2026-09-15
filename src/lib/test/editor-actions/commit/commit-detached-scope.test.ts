@@ -1,6 +1,6 @@
 // A commit whose mutation splices one of its own scope nodes out of the tree must not
-// rebuild or invariant-check the detached node, and overlapping scopes must not
-// false-fire the identity assert on the ceremony's own copies.
+// rebuild or invariant-check the detached node, and overlapping scopes must not trip the
+// identity assert on the commit's own copies.
 
 import { describe, it, expect } from 'vitest';
 import { parse } from '$lib/core/parser';

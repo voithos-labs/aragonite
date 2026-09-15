@@ -3,9 +3,9 @@ import { serialize } from '$lib/core/serializer';
 import { CURSOR_END, CURSOR_START } from '$lib/block-component';
 import { makeTopHarness, mockRef } from '$lib/test/harness/editor-actions';
 
-// GH #166. Miss-analysis: no case drove Delete/Backspace across a boundary whose joined bytes
-// read as two blocks, so the doors' behaviour there was only ever the sinks' — and both sinks
-// answered wrong in silence.
+// Miss-analysis (GH #166): no case drove Delete or Backspace across a boundary whose joined
+// bytes read as two blocks, so the actions' behaviour there was only ever the tree
+// operations', and both answered wrong in silence.
 
 /** Caret at the heading's end, Delete; caret at the paragraph's start, Backspace. */
 const HEADING_OVER_TWO_LINES = '# h\ntext\nmore\n';
@@ -48,7 +48,7 @@ describe('a refused join moves the caret instead of merging', () => {
 		expect(h.deps.undoManager.canUndo).toBe(false);
 	});
 
-	// Non-vacuity: the ordinary join still merges and still seats the caret at the seam.
+	// Control: the ordinary join still merges and still puts the caret at the join.
 	it('an ordinary forward join still merges and lands at the seam', async () => {
 		const h = makeTop('alpha\n\nbeta\n');
 

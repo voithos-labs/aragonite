@@ -11,8 +11,8 @@ import { makeListNode } from '$lib/test/harness/list-fixtures';
 const makeContainer = (childRaws: string[]): CstNode =>
 	makeListNode(childRaws, { childIds: childRaws.map((_, i) => `c-${i}`) });
 
-// publishScopeView writes each scope's ids/refs into reactive state BEFORE the
-// ancestor-raw rebuild, so a later throw leaves them reflecting a rolled-back mutation.
+// publishScopeView writes each scope's ids and refs into reactive state before the
+// ancestor rebuild, so a later throw leaves them reflecting a rolled-back mutation.
 describe('commitMultiScope — ids/refs rollback on a post-publish throw', () => {
 	it('restores top-level blockIds/refs when a later scope throws after the doc scope published', async () => {
 		const { deps, getBlockIds, getBlockRefs } = makeEditorActionsDeps([
@@ -24,8 +24,8 @@ describe('commitMultiScope — ids/refs rollback on a post-publish throw', () =>
 		const idsBefore = [...getBlockIds()];
 		const refsBefore = [...getBlockRefs()];
 
-		// Armed once `mutate` has run, so the fault lands on the publish pass rather than the
-		// prepare reads before it, and disarms so the rollback's own read still resolves.
+		// Armed once `mutate` has run, so the fault lands on the publish pass rather than on
+		// the prepare reads before it, and disarms so the rollback's own read still resolves.
 		let armed = false;
 		const stashedRefs: BlockListState['innerBlockRefs'] = [];
 		const throwingState: BlockListState = {
@@ -53,7 +53,7 @@ describe('commitMultiScope — ids/refs rollback on a post-publish throw', () =>
 				scopes,
 				snapshot: { path: asDocPath([0]), offset: 0 },
 				mutate: ([docScope]) => {
-					// A fresh id makes the doc-scope publish rewrite blockIds — the mutation to undo.
+					// A fresh id makes the document-scope publish rewrite blockIds: the mutation to undo.
 					docScope.children.push({ kind: 'paragraph', leadingTrivia: '', raw: 'x\n' } as CstNode);
 					armed = true;
 					return [{ op: 'insert', at: docScope.children.length - 1, count: 1 }, { op: 'noop' }];

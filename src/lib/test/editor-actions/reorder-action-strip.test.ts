@@ -5,10 +5,10 @@ import { makeReorderContainer } from './reorder-harness';
 import { admonitionsPlugin } from '$lib/plugins/admonitions';
 import { footnotesPlugin } from '$lib/plugins/footnotes';
 
-// A strip plugin container reorders its body children within itself. The
-// rebuild-as-blockquote hazard (which drops the `[!TYPE]` marker) is masked in committed
-// state by the ceremony re-rebuilding the scope through its own descriptor, so these pin
-// the OBSERVABLE contract instead: reorder-within, marker survives, tree converges.
+// An alert-style plugin container reorders its body children within itself. The hazard of
+// rebuilding it as a blockquote (which drops the `[!TYPE]` marker) is hidden in committed
+// state by the commit rebuilding the scope through its own descriptor, so these test the
+// observable contract instead: reorder within, marker survives, tree converges.
 
 beforeAll(() => {
 	installPlugins([admonitionsPlugin(), footnotesPlugin()]);
@@ -49,8 +49,7 @@ describe('reorder action — footnote-def body children reorder within', () => {
 	});
 });
 
-// The teleport: nudging a body child must not drag the whole alert among the
-// document siblings.
+// Nudging a body child must not move the whole alert among the document's blocks.
 describe('reorder action — no whole-alert teleport', () => {
 	it('nudging a body child reorders within; top/bottom siblings stay put', async () => {
 		const h = makeReorderContainer('top\n\n> [!NOTE]\n> a\n>\n> b\n\nbottom\n', { nodeIndex: 1 });

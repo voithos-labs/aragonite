@@ -1,4 +1,5 @@
-/** The narrow commit interface `tree-operations/paste/` depends on instead of importing editor-actions. */
+/** The narrow commit interface `tree-operations/paste/` depends on instead of importing
+ *  editor-actions. */
 
 import type { PasteCommitCoordinator } from '../tree-operations/paste/paste-deps';
 import type { EditorActionsDeps, UndoController } from './deps';

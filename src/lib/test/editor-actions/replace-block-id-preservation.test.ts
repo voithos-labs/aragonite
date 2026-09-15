@@ -4,8 +4,8 @@ import { makeNestedHarness, makeNode, makeTopHarness } from '$lib/test/harness/e
 import type { CstNode } from '$lib/core/nodes';
 import { allowDevWarns } from '$lib/test/support/warn-gate';
 
-// The synthesized replacement containers are minted without a rebuilt raw, which is what the
-// oracle reports.
+// The hand-built replacement containers have no rebuilt raw, which the dev-mode stale-raw
+// check reports.
 afterEach(() => allowDevWarns(['invariant:stale-raw']));
 
 // ── Top-level replaceBlock preserves id ──────────────────────────────────────
@@ -26,7 +26,7 @@ describe('top-level replaceBlock id preservation', () => {
 
 	it('first replacement inherits the original block id when expanding to multiple blocks', async () => {
 		const original = makeNode('paragraph', 'a\n');
-		// Separated: trivia-less sibling paragraphs reload as one, which the settle converges.
+		// Separated: sibling paragraphs with no blank line reload as one, which the fix-up would merge.
 		const sibling = { ...makeNode('paragraph', 'b\n'), leadingTrivia: '\n' };
 		const { getBlockIds, actions } = makeTopHarness([original, sibling]);
 
@@ -59,7 +59,7 @@ describe('top-level replaceBlock id preservation', () => {
 
 	it('empty replacement (delete) does not need id preservation', async () => {
 		const original = makeNode('paragraph', 'a\n');
-		// Separated: trivia-less sibling paragraphs reload as one, which the settle converges.
+		// Separated: sibling paragraphs with no blank line reload as one, which the fix-up would merge.
 		const sibling = { ...makeNode('paragraph', 'b\n'), leadingTrivia: '\n' };
 		const { getBlockIds, actions } = makeTopHarness([original, sibling]);
 
@@ -143,7 +143,7 @@ describe('nested replaceBlock ensureEditableContainers', () => {
 
 		await bundle.blockEdit.replaceBlock(0, [synthList]);
 
-		// The commit replaced the container node, so read through the live doc.
+		// The commit replaced the container node, so read through the live document.
 		const placedList = deps.doc.children[0].children?.[0];
 		expect(placedList?.kind).toBe('list');
 		const listItem = placedList?.children?.[0];

@@ -1,9 +1,9 @@
 // @vitest-environment jsdom
 //
 // `createNestedBlockEdit`'s own contribution over the shared block-edit core is entirely
-// BOUNDARY logic: which calls stay inside the container and which hand UP to the parent.
-// An edge merge that stayed interior dead-ends silently; an interior merge that delegated
-// deletes the wrong block. Each case pins one side plus its interior twin.
+// boundary logic: which calls stay inside the container and which hand up to the parent.
+// An edge merge that stayed interior silently does nothing; an interior merge that went to
+// the parent deletes the wrong block. Each case tests one edge plus its interior counterpart.
 import { describe, it, expect, vi } from 'vitest';
 import { setPluginMetadata, type CstNode } from '$lib/core/nodes';
 import { createNestedBlockEdit } from '$lib/editor-actions/nested/nested-block-edit';
@@ -95,8 +95,8 @@ describe('nested block edit — upward boundaries', () => {
 });
 
 describe('nested block edit — collapsed forward-merge', () => {
-	// The chrome row is the last VISIBLE child while collapsed. `append: false` is
-	// load-bearing: without it, exiting past the final block mints a trailing paragraph.
+	// The title row is the last visible child while collapsed. `append: false` is required:
+	// without it, exiting past the final block appends a trailing paragraph.
 	it('moves focus past the container instead of merging into the hidden body', async () => {
 		const { blockEdit, parent, node } = env(collapsedDetails(3));
 
@@ -120,8 +120,8 @@ describe('nested block edit — collapsed forward-merge', () => {
 });
 
 describe('nested block edit — childless guards', () => {
-	// The contrapositive of `if (!deps.node.children) return` is what matters: it returns
-	// WITHOUT delegating, so a childless container never asks its parent to act for it.
+	// What matters about `if (!deps.node.children) return` is that it returns without
+	// calling the parent, so a childless container never asks its parent to act for it.
 	it('return without delegating upward when the container has no children', async () => {
 		const { blockEdit, parent } = env({ kind: 'listItem', leadingTrivia: '', raw: '' } as CstNode);
 

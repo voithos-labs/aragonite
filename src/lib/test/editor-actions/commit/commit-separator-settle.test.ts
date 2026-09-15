@@ -14,11 +14,11 @@ import { registerBlockListState } from '$lib/reactivity/state-registry';
 import { expectParseConverged } from '$lib/test/harness/parse-converged';
 import { asDocPath } from '$lib/selection/path-math';
 
-// The ceremony settles every splice against the pre-mutate children it still holds
-// (`tree-operations/settle.settleSeparator`). Two contracts the wiring owes.
-// Miss-analysis: the settle lived at each splice site, so no case ever asked what a SECOND
-// settle over the same window does, nor whether a probe reading post-splice state could still
-// see was-blank. Both only became askable when the rule moved into the seam.
+// The commit fixes up the blank lines around every splice against the pre-mutate children it
+// still holds (`tree-operations/settle.settleSeparator`). Two contracts the wiring must keep.
+// Miss-analysis: the fix-up lived at each splice site, so no case ever asked what a second
+// fix-up over the same range does, nor whether a check reading post-splice state could still
+// see which blocks were blank. Both only became askable when the rule moved into the commit.
 
 describe('the ceremony settle over a window its mutate already settled', () => {
 	it('leaves an emptied block alone rather than settling its run twice', async () => {
@@ -30,8 +30,8 @@ describe('the ceremony settle over a window its mutate already settled', () => {
 		expectParseConverged(h.deps.doc);
 	});
 
-	// A multi-block fill returns a `replace` window covering the filled slot, so the funnel sees
-	// the same transition `updateNodeContent` just answered for.
+	// A multi-block fill returns a `replace` range covering the filled index, so the commit's
+	// fix-up sees the same transition `updateNodeContent` just handled.
 	it('leaves a multi-block fill of a blank slot alone', async () => {
 		const h = makeTopHarness('alpha\n\n\ndelta\n');
 
@@ -42,10 +42,11 @@ describe('the ceremony settle over a window its mutate already settled', () => {
 	});
 });
 
-// A cross-block delete crosses BOTH funnel entries in one commit: `rangeDelete` splices through
-// the path-addressed door inside `mutate`, then the ceremony settles the scope's change over the
-// same window. The truncated start block is a new node, so the survivor filter reads the original
-// as removed — and a blank one takes the restore branch on top of what the splice already settled.
+// A cross-block delete crosses both fix-up entries in one commit: `rangeDelete` splices
+// through the path-addressed write inside `mutate`, then the commit fixes up the scope's
+// change over the same range. The truncated start block is a new node, so the survivor filter
+// reads the original as removed, and a blank one takes the restore branch on top of what the
+// splice already fixed.
 describe('a delete that crosses both funnel entries in one commit', () => {
 	function deleteAcross(
 		source: string,
@@ -107,21 +108,21 @@ describe('a delete that crosses both funnel entries in one commit', () => {
 	});
 });
 
-// The gap-caret Enter below the last block of a suffix-folded document: the mint is blank, so
-// the settle materializes the folded line into a block, and the published change must report
-// that growth or `applyStructuralChangeToIdsRefs` under-counts. Bytes stay green through the
-// desync, hence the assertions on the parallel arrays.
+// The gap-caret Enter below the last block of a document with a trailing blank line in its
+// suffix: the new paragraph is blank, so the fix-up turns the suffix line into a block, and
+// the reported change must include that growth or `applyStructuralChangeToIdsRefs`
+// under-counts. Bytes stay green through the mismatch, hence the assertions on the arrays.
 describe('an insert whose settle materializes the folded tail line', () => {
 	// Miss-analysis: `makeEditorActionsDeps` hardcoded `suffix: ''`, so a top-level fixture built
-	// the natural way could not hold a folded trailing line — unreachable, not merely untested.
+	// the natural way could not hold a trailing blank line: unreachable, not merely untested.
 	it('keeps blockIds and refs in step with the tree', async () => {
 		const h = makeTopHarness(parse('alpha\n\n'));
 		expect(h.deps.doc.suffix).toBe('\n');
 
 		await h.actions.insertParagraph(1, '');
 
-		// Three blocks: the mint is blank, so the folded line can no longer stay folded — it is
-		// a block the reload would read anyway (GH #129's rule, reached through an insert).
+		// Three blocks: the new paragraph is blank, so the suffix line can no longer stay in
+		// the suffix; it is a block the reload would read anyway (GH #129's rule, via an insert).
 		expect(serialize(h.deps.doc)).toBe('alpha\n\n\n\n');
 		expect(h.deps.doc.children).toHaveLength(3);
 		expect(h.getBlockIds()).toHaveLength(h.deps.doc.children.length);
@@ -129,9 +130,9 @@ describe('an insert whose settle materializes the folded tail line', () => {
 		expectParseConverged(h.deps.doc);
 	});
 
-	// The delete twin (GH #168). Miss-analysis: the settle asked the tail question only through
-	// `settleSeparatorOnBlank`, which a delete window at the tail never reaches — it probes the
-	// slot the delete just vacated — so the funnel had no tail arm for the whole delete family.
+	// The delete counterpart (GH #168). Miss-analysis: the fix-up asked the trailing-line
+	// question only through `settleSeparatorOnBlank`, which a delete at the end never reaches
+	// (it checks the index the delete vacated), so no delete ever handled the trailing line.
 	it('keeps them in step when a delete leaves the tail blank against the folded line', async () => {
 		const h = makeTopHarness(parse('alpha\n\n\nbeta\n\n'));
 		expect(h.deps.doc.suffix).toBe('\n');
@@ -143,8 +144,8 @@ describe('an insert whose settle materializes the folded tail line', () => {
 		expect(h.getBlockIds()).toHaveLength(h.deps.doc.children.length);
 		expectParseConverged(h.deps.doc);
 
-		// The following commit is where an unreported mint becomes permanent: the parallel
-		// arrays are one short before it and stay one short after.
+		// The following commit is where an unreported new block becomes permanent: the id and
+		// ref arrays are one short before it and stay one short after.
 		await h.actions.deleteBlock(0);
 
 		expect(h.getBlockIds()).toHaveLength(h.deps.doc.children.length);

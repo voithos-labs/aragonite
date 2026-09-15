@@ -5,9 +5,9 @@ import { makeTableMutations } from './table-mutations-harness';
 
 afterEach(() => vi.restoreAllMocks());
 
-// A row windowed out of the table's mounted slice has no BlockListState, so scoping
-// every row unconditionally throws on the first unmounted one. Only mounted rows are
-// scoped; the rest ride the table scope's unshare + raw rebuild and must still change bytes.
+// An unmounted row has no BlockListState, so scoping every row unconditionally throws on the
+// first unmounted one. Only mounted rows are scoped; the rest go through the table scope's
+// copy and raw rebuild and must still change bytes.
 
 const TALL = '| a | b |\n| --- | --- |\n| c | d |\n| e | f |\n';
 
@@ -57,7 +57,7 @@ describe('column ops on a row-windowed table', () => {
 
 // A single mounted row 0 makes the per-row change lookup an identity map, the one
 // arrangement under which mispairing scopes with changes is invisible. These mount the
-// arrangements a real window leaves behind.
+// arrangements real windowing leaves behind.
 describe('column ops pair each row scope with its own change', () => {
 	it('commits when the mounted slice starts past row 0', async () => {
 		const { deps, mutations } = makeWindowedTable([2]);
@@ -88,7 +88,7 @@ describe('column ops pair each row scope with its own change', () => {
 	});
 
 	// Identical per-row changes make the pairing invisible in the bytes, so only the
-	// alignment invariant's channel can see it (armed to fire in commit-invariant-wiring).
+	// alignment invariant can see it (made to fire in commit-invariant-wiring).
 	it('the scope-alignment invariant stays silent on a straddling window', async () => {
 		const { mutations } = makeWindowedTable([0, 2]);
 

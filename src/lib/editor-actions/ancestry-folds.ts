@@ -125,7 +125,8 @@ function publishContainerFold(deps: EditorActionsDeps, fold: AncestrySeamFold): 
 	};
 }
 
-/** The whole pre-splice array: a collapse recreates several nodes, so nothing narrower restores it. */
+/** The whole pre-splice array: a collapse recreates several nodes, so nothing narrower
+ *  restores them. */
 function restoreChildren(fold: AncestrySeamFold): void {
 	spliceMany(fold.siblings, 0, fold.siblings.length, fold.before);
 }
