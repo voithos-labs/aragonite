@@ -29,12 +29,7 @@
 	import { createRevealAnchorState } from '../cursor/reveal-anchor';
 	import { createHeightOracle } from '../cursor/height-oracle';
 	import { HEIGHT_ESTIMATES } from '../cursor/typography-estimates';
-	import {
-		clippingAncestors,
-		userScrollportFor,
-		type UserScrollport
-	} from '../cursor/scroll-ancestors';
-	import { createScrollport, type Scrollport } from '../cursor/scrollport';
+	import { createScrollHostResolution } from './editor-root-scroll-host';
 	import { installSelectionDrop } from '../selection/selection-drop';
 	import { createContentVersion } from '../reactivity/content-version.svelte';
 	import { useContainerWindowing } from '../reactivity/use-container-windowing.svelte';
@@ -71,17 +66,9 @@
 	import { installReorderDrag } from '../editor-actions/reorder-drag';
 	import { createPasteCoordinator } from '../editor-actions/paste-coordinator';
 	import { createOperationsLog } from '../debug/operations-log';
-	import { dumpInteractionTrace, dumpOperationsLog } from '../debug/inspect';
-	import { buildDiagnosticsReport } from '../debug/diagnostics-report';
-	import {
-		enableInteractionTrace,
-		disableInteractionTrace,
-		isInteractionTraceEnabled,
-		interactionTraceSnapshot
-	} from '../debug/interaction-trace';
+	import { createEditorDiagnostics } from '../debug/editor-diagnostics';
 	import { readCurrentSelection } from '../selection/native-bridge';
 	import { restoreSelection, type SelectionRestoreOutcome } from '../selection/selection-restore';
-	import { findSurfacePathForElement } from '../selection/path-lookup';
 	import { createCaretRestore } from '../selection/caret-restore';
 	import { createCrossBlockHandlers } from '../selection/cross-block/dispatch';
 	import { createCrossBlockCommands } from '../selection/cross-block/format-toggle';
@@ -92,6 +79,7 @@
 	import { createFocusAttribution } from './editor-root-focus';
 	import { createRootGestures } from './editor-root-gestures';
 	import { createRootMenus, type BlockMenuModel } from './editor-root-menus';
+	import { createFocusedSurface } from './editor-root-focused-surface';
 	import {
 		installHeaderSlotCompensation,
 		installTypeScaleProbe,
@@ -119,8 +107,7 @@
 		isCommandActiveById,
 		runCommandById,
 		type CommandDispatchContext,
-		type CommandErrorSink,
-		type KindCommandTarget
+		type CommandErrorSink
 	} from '../schema/block-commands';
 	import type { AnyCommandId } from '../schema/command-id';
 	import { installPlugins, normalizePluginEntries } from '../schema/plugin-install';
@@ -141,7 +128,7 @@
 	import { assertInvariant } from '../assert';
 	import { checkMarkerCssParity } from '../invariants/marker-css-parity';
 	import { registerBuiltInBlocks } from './built-in-blocks';
-	import { BLOCK_CONTENT_SELECTOR } from './block-content-selector';
+	import { blockContentElAt } from './block-el-lookup';
 
 	registerBuiltInBlocks();
 	bootstrapCodeLanguages();
@@ -177,44 +164,12 @@
 	// svelte-ignore state_referenced_locally
 	const hostScroll = scrollMode === 'host';
 
-	// Host mode asks two different questions one walk cannot serve (`cursor/
-	// scroll-ancestors` header): what a drag autoscrolls, and what bounds the visible
-	// region. Memoized on first read, so a host that swaps its scroller must remount.
-	let resolvedScrollHost: UserScrollport | null = null;
-	let resolvedClipBounds: HTMLElement[] = [];
-	let hostResolved = false;
-	function resolveHost(): void {
-		if (hostResolved || !editorEl) return;
-		resolvedScrollHost = userScrollportFor(editorEl);
-		resolvedClipBounds = clippingAncestors(editorEl);
-		hostResolved = true;
-	}
-	/** What a drag autoscrolls: the root in self mode, the nearest scrollable ancestor
-	 *  in host mode. Null only before the root mounts. */
-	function getScrollHost(): UserScrollport | null {
-		if (!hostScroll) return editorEl ?? null;
-		resolveHost();
-		return resolvedScrollHost;
-	}
-	/** Every clipping ancestor; their intersection with the viewport is what a reveal
-	 *  must land inside. */
-	function getClipBounds(): HTMLElement[] {
-		if (!hostScroll) return [];
-		resolveHost();
-		return resolvedClipBounds;
-	}
-
-	// The scrollport every windowing scope measures and writes, over the SAME scroller the
-	// autoscroll seam resolves — so the mode picks the target and nothing downstream branches
-	// on it. Memoized with that resolution.
-	let scrollport: Scrollport | null = null;
-	function getScrollport(): Scrollport | null {
-		if (!scrollport) {
-			const target = getScrollHost();
-			if (target) scrollport = createScrollport(target);
-		}
-		return scrollport;
-	}
+	const { getScrollHost, getClipBounds, getScrollport } = createScrollHostResolution({
+		get editorEl() {
+			return editorEl;
+		},
+		hostScroll
+	});
 
 	// Install before initDocument parses `source`, so plugin openers/directives are live
 	// for the seed grammar. Set-once by contract — a later prop change is ignored.
@@ -511,28 +466,8 @@
 
 	// ── Block element and component lookup ──────────────────────────────
 
-	// The measurement surface for cross-block caret math. Table cells carry no
-	// data-block-path (they render without BlockHost), so a deep cell path resolves
-	// the table wrapper and walks into the cell DOM.
-	const getBlockElByPath: BlockElLookup = (path) => {
-		if (!editorEl) return null;
-		const directWrapper = editorEl.querySelector(`[data-block-path='${JSON.stringify(path)}']`);
-		if (directWrapper) {
-			return directWrapper.querySelector(BLOCK_CONTENT_SELECTOR) as HTMLElement | null;
-		}
-		if (path.length < 3) return null;
-		const tablePath = path.slice(0, -2);
-		const rowIdx = path[path.length - 2];
-		const colIdx = path[path.length - 1];
-		const tableWrapper = editorEl.querySelector(`[data-block-path='${JSON.stringify(tablePath)}']`);
-		if (!tableWrapper) return null;
-		const tableEl = tableWrapper.querySelector(':scope > [role="table"]');
-		if (!tableEl) return null;
-		const rowEl = tableEl.querySelector(`:scope > [data-table-row-idx='${rowIdx}']`);
-		if (!rowEl) return null;
-		const cells = rowEl.querySelectorAll(':scope > [role="cell"]');
-		return (cells[colIdx] as HTMLElement | undefined) ?? null;
-	};
+	const getBlockElByPath: BlockElLookup = (path) =>
+		editorEl ? blockContentElAt(editorEl, path) : null;
 
 	// The non-scrolling sibling of revealPath, and the one descent both the rect API
 	// and the test surface consume — a second closure would drift from it.
@@ -1268,25 +1203,19 @@
 		return editorEl ? rootGestures.placeCaretAtPoint(editorEl, x, y) : false;
 	}
 
-	/**
-	 * The block path behind `document.activeElement`, for the public doors that address the
-	 * focused surface. A gap caret declines: its proxy is not a block, and a NESTED gap's proxy
-	 * sits inside its container's host, which must not receive what was aimed at the gap.
-	 */
-	function focusedSurfacePath(): number[] | null {
-		if (selectionState.gapCaret) return null;
-		const active = document.activeElement;
-		if (!(active instanceof HTMLElement) || !editorEl?.contains(active)) return null;
-		return findSurfacePathForElement(active);
-	}
+	// The doors below only resolve the focused surface; their rules live under that seam. See
+	// `editor-props.ts` for each contract.
+	const focusedSurface = createFocusedSurface({
+		get editorEl() {
+			return editorEl;
+		},
+		selection: selectionState,
+		getDoc,
+		getBlockComponent
+	});
 
-	// Routed to the focused SURFACE, the way a paste event is: everything the pipeline owes
-	// (transforms, delete-first, one undo entry, focus) lives below that seam, not here. See
-	// `editor-props.ts` for the contract.
 	export function insertMarkdown(md: string): boolean {
-		const path = focusedSurfacePath();
-		if (!path) return false;
-		return getBlockComponent(path)?.insertMarkdown?.(md) ?? false;
+		return focusedSurface.insertMarkdown(md);
 	}
 
 	const commandDispatchContext: CommandDispatchContext = {
@@ -1298,30 +1227,11 @@
 		crossBlockCommands: crossBlockCommands
 	};
 
-	// A gap caret focuses a proxy, not a block, so no block-local command has a surface to run
-	// on; global ones still reach the seam, exactly as the gap caret's own chord proxy does.
-	function focusedCommandTarget(): KindCommandTarget | null {
-		const path = focusedSurfacePath();
-		if (!path) return null;
-		const component = getBlockComponent(path);
-		const node = blockNodeAt(doc, path);
-		if (!component?.runCommand || !node) return null;
-		return {
-			kind: node.kind,
-			runCommand: (id, arg) => component.runCommand!(id, arg),
-			isCommandActive: component.isCommandActive
-				? (id) => component.isCommandActive!(id)
-				: undefined
-		};
-	}
-
-	// The door only resolves the focused surface; every rule (the reading gate, the cross-block
-	// range decline, the arms themselves) lives below the seam. See `editor-props.ts`.
 	export function runCommand(commandId: string, arg?: unknown): boolean {
 		return runCommandById(
 			commandId as AnyCommandId,
 			arg,
-			focusedCommandTarget(),
+			focusedSurface.commandTarget(),
 			commandDispatchContext,
 			commandErrorSink
 		);
@@ -1332,7 +1242,7 @@
 	export function canRunCommand(commandId: string): boolean {
 		return canRunCommandById(
 			commandId as AnyCommandId,
-			focusedCommandTarget(),
+			focusedSurface.commandTarget(),
 			commandDispatchContext
 		);
 	}
@@ -1342,7 +1252,7 @@
 	export function isCommandActive(commandId: string): boolean {
 		return isCommandActiveById(
 			commandId as AnyCommandId,
-			focusedCommandTarget(),
+			focusedSurface.commandTarget(),
 			commandDispatchContext
 		);
 	}
@@ -1377,34 +1287,10 @@
 		return chordIsClaimed(event, reservedChords());
 	}
 
-	// Reads the public snapshot, so it covers single-block carets the cross-block
-	// SelectionState never holds.
-	function selectionSummary(): string {
-		const sel = getSelection();
-		if (!sel) return '(no selection)';
-		const fmt = (p: { path: number[]; offset: number }) => `[${p.path.join(',')}]@${p.offset}`;
-		return `anchor=${fmt(sel.anchor)} focus=${fmt(sel.focus)}`;
-	}
+	const diagnostics = createEditorDiagnostics({ getSelection, getSource, operationsLog });
 
 	export function getDiagnostics(): EditorDiagnostics {
-		return {
-			enableTrace: enableInteractionTrace,
-			disableTrace: disableInteractionTrace,
-			isTraceEnabled: isInteractionTraceEnabled,
-			traceSnapshot: interactionTraceSnapshot,
-			serializeDiagnostics: (opts) => {
-				const includeSource = opts?.includeSource ?? false;
-				return buildDiagnosticsReport({
-					timestamp: new Date().toISOString(),
-					trace: dumpInteractionTrace(interactionTraceSnapshot()),
-					opsLog: dumpOperationsLog(operationsLog),
-					selection: selectionSummary(),
-					// Serialize only when opted in — the report stays document-free by default.
-					source: includeSource ? getSource() : '',
-					includeSource
-				});
-			}
-		};
+		return diagnostics;
 	}
 
 	// Compile-time conformance: the published handle can't drift from the exports.
