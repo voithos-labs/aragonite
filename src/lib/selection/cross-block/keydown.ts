@@ -52,8 +52,9 @@ async function handleKeyDown(
 	const { selection } = ctx;
 
 	// Before the dispatch, not after: every branch below can consume the key and return, and the
-	// collapse/extend arms run no commit, so a reset deferred to the shared prelude never fires.
-	// The dispatcher holds a range, not a caret, so it supplies no measurement; a collapse lands one.
+	// collapse and extend branches run no commit, so a reset deferred to the shared keydown never
+	// fires. The dispatcher holds a range, not a caret, so it supplies no measurement; a collapse
+	// does.
 	ctx.stickyColumn.noteKey(e);
 	ctx.edgeAffinity.note(e);
 
@@ -95,9 +96,10 @@ async function handleCrossBlockActive(
 		return true;
 	}
 
-	// Ahead of the command candidates, because a rewrite is NOT a type-replace: deleting the range
-	// and dispatching at the collapsed caret leaves empty pairs where the document stood. The
-	// seam decides which of these ids has a cross-block arm and which declines.
+	// Before the command candidates, because a format toggle is not a type-replace: deleting the
+	// range and dispatching at the collapsed caret would leave empty marker pairs where the text
+	// stood. The command dispatcher decides which of these ids has a cross-block handler and
+	// which are declined.
 	if (isClaimedRewriteChord(e)) {
 		e.preventDefault();
 		if (isReadingMode(ctx.getPresentationMode)) return true;
@@ -108,9 +110,9 @@ async function handleCrossBlockActive(
 	if (isCommandCandidateKey(e)) {
 		e.preventDefault();
 		if (isReadingMode(ctx.getPresentationMode)) return true;
-		// Reveal at the delete's own caret, not the pre-delete start path: rangeDelete returns
-		// the authoritative post-delete position, and for a table endpoint that is the deep
-		// [table,row,col] cell whose runCommand exists (the wrapper path has none).
+		// Mount the delete's own caret, not the pre-delete start path: `rangeDelete` returns the
+		// post-delete position, and for a table endpoint that is the [table, row, col] cell whose
+		// `runCommand` exists (the wrapper path has none).
 		const fallbackPath = (selection.start ?? selection.focus)?.path ?? myPath;
 		const collapsedCaret = await performCrossBlockDelete(mutCtx);
 		await ctx.afterReactivity();
@@ -206,7 +208,7 @@ async function handleCrossBlockActive(
 	return false;
 }
 
-/** The first-press arm: chords that start a selection from a collapsed caret. */
+/** The entry branch: chords that start a selection from a collapsed caret. */
 async function handleCrossBlockEntry(
 	ctx: CrossBlockDispatchContext,
 	e: KeyboardEvent
@@ -232,9 +234,9 @@ async function handleCrossBlockEntry(
 // ── Keydown Helpers ───────────────────────────────────────────────────────
 
 /**
- * A swallowed rewrite chord, handed to the seam with the range still painted. It resolves
- * against the kind of the surface that took the keystroke, exactly as a single-block press
- * would, so a consumer rebind reaches the same arm the default chord does.
+ * A swallowed format chord, handed to the command dispatcher with the range still painted. It
+ * resolves against the kind of the block that took the keystroke, exactly as a single-block
+ * keystroke would, so a consumer's rebinding reaches the same handler the default chord does.
  */
 async function dispatchOverRange(
 	ctx: CrossBlockDispatchContext,
@@ -246,8 +248,8 @@ async function dispatchOverRange(
 	const surface = await ctx.revealPath(path);
 	dispatchKeyCommand(
 		chord,
-		// The block may host no command surface of its own; the range's arm is reached at the
-		// seam, ahead of any per-block `runCommand`, so an absent one is not a decline.
+		// The block may have no `runCommand` of its own; the range's handler is reached in the
+		// dispatcher ahead of any per-block `runCommand`, so an absent one is not a decline.
 		{
 			kind: kindOfPath(path, ctx.getDoc()),
 			runCommand: (id, arg) => surface?.runCommand?.(id, arg) ?? false
@@ -278,16 +280,16 @@ function isCommandCandidateKey(e: KeyboardEvent): boolean {
 }
 
 /**
- * The keystroke half of the cross-block rewrite claim: swallow the default chords before the
- * browser's own bold (or Ctrl+K kill-line) runs and before the delete-and-redispatch arm sees
- * them, then hand the chord to the seam, which routes a format id to the cross-block arm and
- * declines the rest (`CROSS_BLOCK_RANGE_COMMAND_IDS` / `RANGE_DECLINED_COMMAND_IDS` in
- * `schema/commands`). Mod+Shift+X takes an arm of its own: unshifted Mod+X is the block cut.
+ * The chords the cross-block range handles itself: swallowed before the browser's own bold (or
+ * Ctrl+K kill-line) runs and before the delete-and-redispatch branch sees them, then handed to
+ * the command dispatcher, which routes a format id to the cross-block handler and declines the
+ * rest (`CROSS_BLOCK_RANGE_COMMAND_IDS` and `RANGE_DECLINED_COMMAND_IDS` in `schema/commands`).
+ * Mod+Shift+X is listed on its own because unshifted Mod+X is the block cut.
  */
 function isClaimedRewriteChord(e: KeyboardEvent): boolean {
 	if (!(e.ctrlKey || e.metaKey) || e.altKey) return false;
-	// Literal comparisons, not a character class: the G4.29 manifest scan reads the keys a file
-	// compares, and a regex would hide this file's claim on Mod+B/I/E/K from it.
+	// Literal comparisons, not a character class: the chord scan (G4.29) reads the keys a file
+	// compares, and a regex would hide this file's use of Mod+B/I/E/K from it.
 	if (e.shiftKey) return e.key === 'x' || e.key === 'X';
 	return (
 		e.key === 'b' ||
@@ -302,10 +304,10 @@ function isClaimedRewriteChord(e: KeyboardEvent): boolean {
 }
 
 /**
- * Collapse, and correct the side the arrow already classified: the key is directional but the
- * caret took no step — it jumped to the range's own edge, where the answer is construct-relative
- * (live-mode.md § 4.2). Without this the seat reads the arrow's side and the first byte joins
- * the construct the collapse landed in front of.
+ * Collapses, and corrects the side the arrow key already recorded: the key has a direction but
+ * the caret took no step, it jumped to the range's own edge, where the side depends on the
+ * construct there (live-mode.md § 4.2). Without this the caret keeps the arrow's side and the
+ * first typed byte joins the construct the collapse landed in front of.
  */
 async function collapseTo(
 	ctx: CrossBlockDispatchContext,
@@ -330,11 +332,12 @@ function kindOfPath(path: number[], doc: Document): AnyBlockKind {
 }
 
 /**
- * Bring the active (focus-side) endpoint into view after an extend. A cell-coordinate focus
- * addresses the table block by cell index, so reveal the deep cell path to mount the off-window
- * row, then park the dispatch caret there to keep the next keystroke routed. Start, not end: an
- * end caret in the last cell makes ArrowRight read as an exit-the-table move. `parkCaret`, never
- * `focus`: this landing runs WHILE an extend grows, and `focus` would end the range (G2.12).
+ * Brings the focus endpoint into view after an extend. A cell-coordinate focus addresses the
+ * table block by cell index, so the cell path is mounted to bring in a windowed-out row, then
+ * the dispatch caret is put there to keep the next keystroke routed. At the cell's start, not
+ * its end: an end caret in the last cell makes ArrowRight read as leaving the table.
+ * `parkCaret`, never `focus`: this runs while an extend grows, and `focus` would end the range
+ * (G2.12).
  */
 async function revealActiveEndpoint(ctx: CrossBlockDispatchContext): Promise<void> {
 	const focus = ctx.selection.focus;
@@ -342,15 +345,15 @@ async function revealActiveEndpoint(ctx: CrossBlockDispatchContext): Promise<voi
 	// A landing that deepened the path is a cell; anything else lands as itself.
 	if (focus && landing && !pathsEqual(landing.path, focus.path)) {
 		const cellRef = await ctx.revealPath(landing.path);
-		// A null ref means the cell never mounted; fall through to scroll the (mounted) table
-		// so a failed reveal still keeps the endpoint in view.
+		// A null ref means the cell never mounted; fall through to scroll the mounted table so
+		// the endpoint still stays in view.
 		if (cellRef) {
 			cellRef.parkCaret?.(CURSOR_START);
 			return;
 		}
 	}
-	// An off-window prose endpoint can't be scrolled to while unmounted. Reveal it and park the
-	// dispatch caret in it, the same reveal-then-pin pattern as the table-cell case above.
+	// A windowed-out text endpoint cannot be scrolled to while unmounted. Mount it and put the
+	// dispatch caret in it, as the table-cell case above does.
 	if (focus && !ctx.getBlockElByPath(focus.path)) {
 		const ref = await ctx.revealPath(focus.path);
 		if (ref) {

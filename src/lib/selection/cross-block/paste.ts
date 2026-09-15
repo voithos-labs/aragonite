@@ -79,8 +79,8 @@ export async function handleCrossBlockPaste(
 	}
 
 	// No `preDelete`: the range is already gone. `performCrossBlockDelete` above took it through
-	// `rangeDelete`, which crosses the join seam itself, so this dispatch inserts at a caret the
-	// cleanup already seated — handing it a range would delete a second time.
+	// `rangeDelete`, which runs the join cleanup itself, so this dispatch inserts at a caret the
+	// cleanup already placed; handing it a range would delete a second time.
 	const result = await pasteDispatch(
 		{
 			pastedText: pasted,
@@ -97,8 +97,8 @@ export async function handleCrossBlockPaste(
 		}
 	);
 
-	// A settle that absorbed the join above the target moved the caret to a slot this gesture
-	// never revealed, so mount it before the landing reads for its element.
+	// A fix-up that merged the target into the block above moved the caret to a position this
+	// gesture never mounted, so mount it before the placement looks for its element.
 	if (result.inlineCaretPath) await ctx.revealPath(result.inlineCaretPath);
 	await landCaretAfterPaste(ctx, result.inlineCaretPath ?? caret.path, result.inlineCaretOffset);
 	return true;
@@ -127,7 +127,7 @@ async function landCaretAfterPaste(
 
 // ── Covered-block paste ────────────────────────────────────────────────────
 
-/** The table a cell rectangle covers whole (Ctrl+A's 2nd press inside a cell), or null. */
+/** The table a cell rectangle covers whole (a second Ctrl+A inside a cell), or null. */
 function wholeTablePath(selection: SelectionState, doc: Document): number[] | null {
 	const anchor = selection.anchor;
 	const focus = selection.focus;
@@ -137,7 +137,7 @@ function wholeTablePath(selection: SelectionState, doc: Document): number[] | nu
 	if (!node || !isBlockNode(node) || node.kind !== 'table') return null;
 	const cellCount = tableCellCount(node);
 	if (cellCount === 0) return null;
-	// Same-path intra-table selection: cell offsets are context-established, so read directly.
+	// A selection inside one table: the offsets are cell indices, read directly.
 	const lo = Math.min(anchor.offset, focus.offset);
 	const hi = Math.max(anchor.offset, focus.offset);
 	return lo === 0 && hi === cellCount - 1 ? anchor.path.slice() : null;
@@ -180,8 +180,9 @@ async function replaceCoveredBlockWithPaste(
 		focusOffset: CURSOR_END,
 		source: 'cross-block-covered-block',
 		...(ctx.grammar ? { grammar: ctx.grammar } : {}),
-		// Nothing is reattached behind the clipboard here — the block's whole slot is the target —
-		// so the trailing blank rides in unfiltered (`paste/dispatch.ts` states the rule).
+		// Nothing is reattached after the pasted text here, since the block's whole position is
+		// the target, so the trailing blank line comes in unfiltered (`paste/dispatch.ts` states
+		// the rule).
 		trailingSeparator: parsed.suffix
 	});
 }

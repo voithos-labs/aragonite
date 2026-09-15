@@ -34,14 +34,15 @@ export interface CrossBlockMutationContext {
 	controller: CommitController;
 	/** Push an undo snapshot immediately, bypassing the debounce. */
 	pushUndoSnapshot: () => void;
-	/** Block grammar for the delete's ancestry rebuild. Required-nullable so a new construction
-	 *  site can't silently skip the thread; `undefined` = global. */
+	/** Block grammar for the delete's ancestor rebuild. Required but nullable so a new construction
+	 *  site cannot silently skip it; `undefined` means the global grammar. */
 	grammar: GrammarView | undefined;
-	/** The effective mode the delete's join seam answers to (live-mode.md § 4.5). Required-nullable for the
-	 *  same reason as `grammar`; `undefined` reads as not-live, so the join stays byte-literal. */
+	/** The effective mode the delete's join cleanup reads (live-mode.md § 4.5). Required but
+	 *  nullable for the same reason as `grammar`; `undefined` reads as not live, so the join keeps
+	 *  every byte. */
 	getPresentationMode: PresentationModeGetter | undefined;
-	/** The instance's link-reference resolver, so the seam parses the reference forms the render
-	 *  path drew. Required-nullable beside the mode. */
+	/** The instance's link-reference resolver, so the join cleanup parses the reference forms the
+	 *  renderer drew. Required but nullable, like the mode. */
 	linkRef: LinkReferenceResolverRef | undefined;
 }
 
@@ -66,9 +67,9 @@ export async function performCrossBlockDelete(
 	ctx: CrossBlockMutationContext,
 	options?: CrossBlockDeleteOptions
 ): Promise<SelectionPoint | null> {
-	// A re-entrant delete (auto-repeat, paste, composition) parked on the reveal await would
-	// resolve the SAME endpoints and delete against the mutated tree. Serialize per selection;
-	// with nothing in flight this adds no await, preserving the sync variant's no-yield window.
+	// A re-entrant delete (key auto-repeat, paste, composition) waiting on the mount would resolve
+	// the same endpoints and delete against the mutated tree. Deletes are serialized per
+	// selection; with none in progress this adds no await, so the sync variant still yields nowhere.
 	let inFlight: Promise<SelectionPoint | null> | undefined;
 	while ((inFlight = inFlightDeletes.get(ctx.selection))) {
 		await inFlight.catch(() => {});
@@ -93,8 +94,9 @@ async function runCrossBlockDelete(
 	if (!start || !end) return null;
 
 	const doc = ctx.getDoc();
-	// A cross-path table endpoint leaves the pure path: the whole-row snap splices
-	// table.children, which only the multi-scope commit syncs. Intra-table clears only raws.
+	// A table endpoint on a different path from the other leaves the top-level path: the
+	// whole-row snap splices `table.children`, which only the multi-scope commit syncs. A range
+	// inside one table clears only raws.
 	const samePath = pathsEqual(start.path, end.path);
 	const isPureTopLevel =
 		start.path.length === 1 &&
@@ -107,9 +109,9 @@ async function runCrossBlockDelete(
 			}
 		: undefined;
 
-	// Start-wins collapse: the merged block lands at start.path[0] and stays put. Mount it now,
-	// while caretRestore (a sync post-tick landing) still needs a live element. Gated on
-	// caretRestore so the IME path never yields before its synchronous commit.
+	// The start wins the collapse: the merged block lands at `start.path[0]` and stays put. Mount
+	// it now, while `caretRestore` (a sync placement after the tick) still needs a live element.
+	// Skipped without `caretRestore` so the IME path never yields before its synchronous commit.
 	if (caretRestore) {
 		await ctx.revealPath(start.path);
 	}
@@ -136,9 +138,9 @@ async function runCrossBlockDelete(
 }
 
 /**
- * compositionstart variant: the IME swallows the composition if the handler yields, so this
- * must not await. The commit ceremony is synchronous up to its post-publish `await tick()`,
- * so firing without awaiting keeps the whole delete inside the no-await window.
+ * The compositionstart variant: the IME swallows the composition if the handler yields, so this
+ * must not await. The commit is synchronous up to its `await tick()` after the state write, so
+ * firing without awaiting keeps the whole delete before any yield.
  */
 export function performCrossBlockDeleteSync(ctx: CrossBlockMutationContext): void {
 	void performCrossBlockDelete(ctx, { skipCaretRestore: true });
@@ -170,8 +172,8 @@ async function commitPureTopLevelDelete(
 	await ctx.controller.commitStructural({
 		snapshot,
 		mutate: (topLevelChildren) => {
-			// Prefix stays inert; the suffix rides the live document as accessors, so the
-			// tail settle can materialize the folded trailing line.
+			// The prefix stays inert; the suffix reads and writes through to the live document, so
+			// the trailing-blank-line fix-up can write one.
 			const proxyDoc: Document = {
 				kind: 'document',
 				prefix: '',
@@ -219,8 +221,8 @@ async function commitCrossContainerDelete(
 	const touched = collectTouchedContainers(doc, start.path, end.path);
 	const scopes: MultiScopeTarget[] = [];
 
-	// Doc scope goes first when the LCA is doc-level, so commitMultiScope publishes
-	// doc.children / blockIds / blockRefs atomically with the container scopes.
+	// The document scope goes first when the common ancestor is the root, so `commitMultiScope`
+	// writes `doc.children`, the ids and the refs to state together with the container scopes.
 	if (start.path[0] !== end.path[0]) {
 		scopes.push(ctx.controller.getDocScope());
 	}
@@ -233,12 +235,12 @@ async function commitCrossContainerDelete(
 
 	await ctx.controller.commitMultiScope({
 		scopes,
-		// The selection start survives the delete (start-wins collapse), so its deep path is a
-		// resolving restore coordinate.
+		// The selection start survives the delete (the start wins the collapse), so its path still
+		// resolves as the restore position.
 		snapshot: deleteSnapshot(options, start.path, start.offset),
 		mutate: (scopeViews) => {
 			const sharing = scopeViews[0].sharing;
-			// Opened BEFORE the mutation: paths go stale as rangeDelete splices, while the owned
+			// Opened before the mutation: paths go stale as `rangeDelete` splices, while the copied
 			// scope nodes stay valid because splices happen in place.
 			const ledgers = scopeViews.map((v) => trackChildIds(v.node));
 
@@ -254,8 +256,8 @@ async function commitCrossContainerDelete(
 			collapsedCaret = result.collapsedCaret;
 			ctx.selection.collapse();
 
-			// An endpoint-table scope takes its descriptor from the row splice the table branch
-			// actually performed, matched on the owned node, never from re-derived snap math.
+			// An endpoint table's scope reports the row splice the table branch actually made,
+			// matched on the copied node, never a re-derived snap.
 			const rowSplices = result.tableRowSplices ?? [];
 			return ledgers.map((ledger, i): StructuralChange => {
 				const rowSplice = rowSplices.find((s) => s.table === scopeViews[i].node);

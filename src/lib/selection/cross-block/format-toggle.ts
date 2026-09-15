@@ -1,8 +1,8 @@
 /**
- * The cross-block arm of the inline format toggles: plan the per-block spans (`./format-range`),
- * write them all under ONE undo entry through the multi-scope ceremony, then put the range back
- * over the result through the shared restore road. The dispatch seam reaches this through an
- * injected router, so `schema/` keeps no edge to selection machinery.
+ * The cross-block half of the inline format toggles: plan the per-block spans (`./format-range`),
+ * write them all under one undo entry in a multi-scope commit, then put the range back over the
+ * result through `restoreSelection`. The key dispatcher reaches this through an injected router,
+ * so `schema/` keeps no import of selection code.
  */
 
 import type { BlockComponent } from '../../block-component';
@@ -33,20 +33,21 @@ export interface CrossBlockCommandDeps {
 	getBlockElByPath: BlockElLookup;
 	revealPath: (path: number[]) => Promise<BlockComponent | null>;
 	controller: CommitController;
-	/** The mode each per-block rewrite verifies against. Required-nullable like the cross-block
-	 *  dispatch context's own threads; `undefined` reads as source. */
+	/** The mode each per-block rewrite verifies against. Required but nullable, like the
+	 *  cross-block dispatch context's fields; `undefined` reads as source mode. */
 	getPresentationMode: PresentationModeGetter | undefined;
 	grammar: GrammarView | undefined;
-	/** The pressed-state memo's key alongside the range: the document is mutated in place, so its
-	 *  identity witnesses nothing (`docs/design/editor.md` § 7). */
+	/** The active-marks memo's key alongside the range: the document is mutated in place, so its
+	 *  identity says nothing about whether it changed (`docs/design/editor.md` § 7). */
 	getContentVersion: () => number;
 }
 
 export function createCrossBlockCommands(deps: CrossBlockCommandDeps): CrossBlockCommandRouter {
 	const activeFormats = createActiveFormatMemo(deps);
 	return {
-		// Reachability of the arm, not participation: whether any block joins is only known once
-		// the range is decomposed, and a press that reaches no block writes nothing.
+		// Whether the command has a cross-block handler, not whether any block joins: that is only
+		// known once the range is split into spans, and a keystroke that reaches no block writes
+		// nothing.
 		canRun: (id) => inlineMarkForCommand(id) !== null,
 		run: (id) => {
 			const mark = inlineMarkForCommand(id);
@@ -61,13 +62,13 @@ export function createCrossBlockCommands(deps: CrossBlockCommandDeps): CrossBloc
 	};
 }
 
-// ── The pressed-state memo ─────────────────────────────────────────────────
+// ── The active-marks memo ──────────────────────────────────────────────────
 
 const NO_MARKS: ReadonlySet<InlineMarkKind> = new Set();
 
-/** One slot rather than a cache: a toolbar asks once per button against one range, and the previous
- *  key is dead the moment the selection moves. Outside reactive state like `inline-cache.ts`, since
- *  a derived read that wrote `$state` would be a write during a read. */
+/** One entry rather than a cache: a toolbar asks once per button against one range, and the
+ *  previous key is dead the moment the selection moves. Kept outside reactive state, like
+ *  `inline-cache.ts`, since a derived read that wrote `$state` would be a write during a read. */
 function createActiveFormatMemo(deps: CrossBlockCommandDeps): () => ReadonlySet<InlineMarkKind> {
 	let slot: { key: string; marks: ReadonlySet<InlineMarkKind> } | null = null;
 	return () => {
@@ -81,8 +82,8 @@ function createActiveFormatMemo(deps: CrossBlockCommandDeps): () => ReadonlySet<
 	};
 }
 
-/** The offset's SPACE is part of the identity: a cell point counts cells where a char point
- *  counts bytes, so the flag rides the key. */
+/** The offset's space is part of the identity: a cell point counts cells where a character
+ *  point counts bytes, so the flag goes in the key. */
 const pointKey = (point: SelectionPoint): string =>
 	`${point.path.join(',')}@${point.offset}${point.cellCoordinate ? 'c' : ''}`;
 
@@ -100,8 +101,8 @@ async function toggleFormatOverRange(
 
 	const restored = restoredRange(anchor, focus, start, end, plan);
 	await deps.controller.commitMultiScope({
-		// Doc scope alone: the writes are bytes, not splices, so no container's children array
-		// or id list moves and each touched spine rebuilds from the leaf it owns.
+		// The document scope alone: the writes are bytes, not splices, so no container's children
+		// array or id list moves and each touched chain rebuilds from its own leaf.
 		scopes: [deps.controller.getDocScope()],
 		// The endpoint's own space, like the plan's offsets: undo restores through the clamp that
 		// reads a grid's path as cell indices.
@@ -147,8 +148,8 @@ const withOffset = (point: SelectionPoint, offset: number): SelectionPoint => ({
 	offset
 });
 
-/** The event detail's post-write length, read off the plan: `op` is spent before `mutate` runs.
- *  A block the plan does not write reports the length it already stands at (`schema/operations.ts`). */
+/** The event detail's post-write length, read off the plan, since `op` is evaluated before
+ *  `mutate` runs. A block the plan does not write reports its current length (`schema/operations.ts`). */
 function startBlockLength(
 	doc: ReturnType<DocumentGetter>,
 	start: SelectionPoint,

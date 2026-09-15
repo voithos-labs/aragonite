@@ -1,6 +1,7 @@
 /**
- * Shared cross-block copy/cut prologue: each surface owns its intra-block logic but delegates
- * the cross-block branch here. The boolean return lets callers keep their own fall-through.
+ * The cross-block branch of copy and cut, shared by every editable block: each block keeps its
+ * own single-block logic and delegates the cross-block case here. The boolean return lets
+ * callers keep their own fall-through.
  */
 
 import type { DocumentGetter } from '../../editor-keys';

@@ -1,8 +1,8 @@
 /**
  * Cross-block event dispatch, wired by `components/blocks/editable-surface.ts` and by
- * `Editor.svelte` for editor-root routing. The factory returns handlers each caller runs at the
- * top of its own event handlers; single-block handling stays with the caller. This file is the
- * composer: keydown in keydown.ts, pointer in pointer.ts, paste / type-replace passthroughs.
+ * `Editor.svelte` for the editor root. The factory returns handlers each caller runs at the top
+ * of its own event handlers; single-block handling stays with the caller. Keydown lives in
+ * `keydown.ts` and pointer in `pointer.ts`; paste and type-replace pass through here.
  */
 
 import type { BlockEditActions, HistoryActions } from '../../action-contracts';
@@ -55,33 +55,33 @@ export interface CrossBlockDispatchContext {
 	blockEdit: BlockEditActions;
 	controller: CommitController;
 	history: HistoryActions;
-	// Threaded so a post-delete command dispatch reaches a plugin-global handler and contains its
-	// throw. Required-nullable so a new context constructor can't silently skip the thread.
+	// Passed so a post-delete command dispatch reaches a plugin-global handler and contains its
+	// throw. Required but nullable, so a new context constructor cannot silently skip it.
 	pluginEditor: PluginEditorLookup | undefined;
-	/** The effective presentation mode; the destructive-branch reading gate keys off this. */
+	/** The effective presentation mode; the reading-mode check on the destructive branches reads it. */
 	getPresentationMode: PresentationModeGetter | undefined;
-	/** The instance's link-reference resolver, forwarded to the delete's join seam. Required-
-	 *  nullable like `pluginEditor`, so a new construction site can't silently skip the thread. */
+	/** The instance's link-reference resolver, forwarded to the delete's join cleanup. Required
+	 *  but nullable like `pluginEditor`, so a new construction site cannot silently skip it. */
 	linkRef: LinkReferenceResolverRef | undefined;
 	onCommandError: CommandErrorSink | undefined;
-	/** The arm a format chord takes over the live range; the seam routes there rather than
-	 *  declining. Non-nullable: without it a rewrite chord is swallowed and nothing else. */
+	/** The handler a format chord takes over the live range; the dispatcher routes there rather
+	 *  than declining. Non-nullable: without it a format chord is swallowed and nothing happens. */
 	crossBlockCommands: CrossBlockCommandRouter;
 	getKeybindingOverrides: () => KeybindingOverrideMap;
 	pasteCoordinator: PasteCommitCoordinator;
-	/** Block grammar forwarded to the join-paste reparse. Required-nullable like `pluginEditor`
-	 *  so a new construction site can't silently skip the thread; `undefined` = global. */
+	/** Block grammar forwarded to the paste reparse. Required but nullable like `pluginEditor`;
+	 *  `undefined` means the global grammar. */
 	grammar: GrammarView | undefined;
-	/** The plugins this instance activated, forwarded to the paste-transform pipeline.
-	 *  Required-nullable like `grammar`; `undefined` means every installed plugin. */
+	/** The plugins this instance activated, forwarded to the paste transforms. Required but
+	 *  nullable like `grammar`; `undefined` means every installed plugin. */
 	activePlugins: PluginActivation | undefined;
-	/** The instance event surface, the paste arm's only channel for a gesture it consumed but
+	/** The editor's event emitter, the paste handler's only channel for a gesture it consumed but
 	 *  could not land. Non-nullable: skipping it drops a paste in silence. */
 	events: EditorEvents;
 
 	getCursorOffset: () => number | null;
 
-	/** Svelte's tick() — awaited after mutations so the DOM settles. */
+	/** Svelte's `tick()`, awaited after mutations so the DOM has updated. */
 	afterReactivity: () => Promise<void>;
 }
 
@@ -94,8 +94,8 @@ export interface CrossBlockHandlers {
 	 *  programmatic insertion: no gesture to consume, so `replacement` carries the payload. */
 	handlePaste(e: ClipboardEvent | null, replacement?: string): Promise<boolean>;
 	handleBeforeInput(e: InputEvent): Promise<boolean>;
-	/** Type-replace from a door that carries no InputEvent: the editor root, where a range over a
-	 *  block with no character position leaves no editing surface for `beforeinput` to fire on. */
+	/** Type-replace from a caller with no `InputEvent`: the editor root, where a range over a block
+	 *  with no character position leaves no editable element for `beforeinput` to fire on. */
 	insertText(text: string): Promise<boolean>;
 	handleCompositionStart(): boolean;
 	/** Cross-block range delete for Cut handlers, after they synchronously wrote the clipboard. */
@@ -119,8 +119,8 @@ export function createCrossBlockHandlers(ctx: CrossBlockDispatchContext): CrossB
 	const keydown = createCrossBlockKeydown(ctx, mutationCtx);
 	const pointer = createCrossBlockPointer(ctx);
 
-	// Reading-mode gates for the mutating halves live at the composer, so every construction site
-	// (each editable surface, the editor root) inherits them. Keydown gates its own destructive
+	// The reading-mode checks for the mutating handlers live here, so every construction site
+	// (each editable block, the editor root) inherits them. Keydown checks its own destructive
 	// branches, since it also carries navigation, which stays live.
 	const reading = () => isReadingMode(ctx.getPresentationMode);
 

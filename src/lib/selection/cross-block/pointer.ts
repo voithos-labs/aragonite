@@ -27,9 +27,9 @@ export function createCrossBlockPointer(ctx: CrossBlockDispatchContext): CrossBl
 }
 
 /**
- * Shared pointerdown preamble for any block that intercepts cross-block input. Resets
- * sticky-column and the select-all counter, and on a non-shift press clears any active
- * cross-block selection so a fresh drag doesn't extend the prior range. The native sibling of
+ * The shared pointerdown reset for any block that handles cross-block input. Resets the sticky
+ * column and the select-all counter, and on a plain click clears any active cross-block
+ * selection so a fresh drag does not extend the prior range. The pointer counterpart of
  * `caret-doors.ts`, so it ends the gap caret too.
  */
 export function resetForPointerDown(
@@ -41,8 +41,8 @@ export function resetForPointerDown(
 	stickyColumn.reset();
 	edgeAffinity.reset();
 	selection.resetSelectAllCount();
-	// Unconditional, unlike the range arm: the gap is collapsed-only, so a shift-press has no
-	// range to grow from it. Silent when no gap is live.
+	// Unconditional, unlike the range branch: a gap caret is always collapsed, so a shift-click
+	// has no range to grow from it. Silent when no gap caret is live.
 	selection.clearGapCaret();
 	if (!isShift && selection.isCrossBlock) {
 		selection.clear();
@@ -101,8 +101,8 @@ function handlePointerDown(ctx: CrossBlockDispatchContext, e: PointerEvent): boo
 		installDragListener(
 			{
 				editorRoot: root,
-				// The root is the hit-test boundary; what SCROLLS may be an ancestor in
-				// host-scroll mode, so the two resolve separately.
+				// The root is the hit-test boundary; what scrolls may be an ancestor in host-scroll
+				// mode, so the two resolve separately.
 				scrollContainer: ctx.getScrollHost() ?? root,
 				selection,
 				getBlockElByPath: ctx.getBlockElByPath,
