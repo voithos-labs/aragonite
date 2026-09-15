@@ -1,9 +1,9 @@
 /**
- * Cursor / range / selection helpers for contenteditable text surfaces. Offsets count DOM
- * text characters ambient-inclusively (`Range.toString()` does not skip
- * contenteditable=false islands), so they are `DomTextOffset`. An offset inside a span the
- * cursor may not enter — an atomic inline widget, or marker text the mode hides — snaps to
- * that span's leading or trailing edge.
+ * Cursor, range and selection helpers for contenteditable text blocks. Offsets count DOM text
+ * characters with the marker prefix included (`Range.toString()` does not skip
+ * contenteditable=false spans), so they are `DomTextOffset`. An offset inside a span the cursor
+ * may not enter (an atomic inline widget, or marker text the mode hides) snaps to that span's
+ * leading or trailing edge.
  */
 
 import { asDomTextOffset, type DomTextOffset } from './coordinate-spaces';
@@ -11,9 +11,9 @@ import { domDescendants } from './dom-walk';
 import { isAtomicInlineWidget, isHiddenMarkerRoot } from './widget-offset';
 
 /**
- * Length of a span the cursor may not enter, or null when it is transparent. Atomic widgets
- * and marker text the mode paints nothing for are both opaque: an offset inside either has
- * no position to seat, and hiding is classified at its one home, never re-derived here.
+ * Length of a span the cursor may not enter, or null when the cursor may pass through it. Atomic
+ * widgets and marker text the mode paints nothing for are both opaque: the caret has no position
+ * inside either. Whether text is hidden is decided in `widget-offset.ts`, never re-derived here.
  */
 function opaqueSpanLength(node: Node, container: HTMLElement): number | null {
 	if (node.nodeType !== Node.ELEMENT_NODE) return null;
@@ -32,8 +32,8 @@ export function createRangeFromOffsets(
 	let startSet = false;
 	let endFound = false;
 
-	// One classification per node, though the walk and the body below both ask: the read is a
-	// `contains` plus a `closest` per element, and a caret seat spends this walk on every step.
+	// One classification per node, though the walk and the body below both ask: each read costs
+	// a `contains` plus a `closest` per element, and every caret placement runs this walk.
 	const opaque = new Map<Node, number | null>();
 	const opaqueLengthOf = (node: Node): number | null => {
 		if (!opaque.has(node)) opaque.set(node, opaqueSpanLength(node, container));
@@ -91,9 +91,9 @@ export function setCursorOffset(container: HTMLElement, offset: DomTextOffset): 
 }
 
 /**
- * The one "DOM (node, offset) → content-offset" read here. `Selection.toString()` skips
- * text inside contenteditable=false islands and is unreliable across them; `Range.toString()`
- * on a prefix range does not skip, so all readers funnel through this.
+ * The one "DOM (node, offset) to content offset" read in this file. `Selection.toString()` skips
+ * text inside contenteditable=false spans and is unreliable across them; `Range.toString()` on a
+ * prefix range does not skip, so every reader goes through this.
  */
 function nodeOffsetToContent(container: HTMLElement, node: Node, offset: number): DomTextOffset {
 	const preRange = document.createRange();
@@ -106,7 +106,7 @@ function nodeOffsetToContent(container: HTMLElement, node: Node, offset: number)
 	return asDomTextOffset(preRange.toString().length);
 }
 
-/** The range START (anchor for forward selections); the moving endpoint during Shift+Arrow
+/** The range start (the anchor of a forward selection); the moving endpoint during Shift+Arrow
  *  extension is `getSelectionFocusOffset`. */
 export function getCursorOffset(container: HTMLElement): DomTextOffset | null {
 	if (document.activeElement !== container) return null;
@@ -134,7 +134,7 @@ export function getSelectionOffsets(
 }
 
 /**
- * Offsets for an arbitrary range inside `container` — an InputEvent's `getTargetRanges()`
+ * Offsets for an arbitrary range inside `container`: an InputEvent's `getTargetRanges()`
  * pending-edit range is not the live selection (a word delete at a collapsed caret reports
  * the whole word). Null when either endpoint sits outside the container.
  */

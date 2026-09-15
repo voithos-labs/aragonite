@@ -28,8 +28,8 @@ export interface HeightOracle {
 	estimate(node: NodeView, width: number): number;
 	measured(id: string): number | undefined;
 	recordMeasured(id: string, height: number): void;
-	/** Drop every measured height. A live scope carries its own across a rebuild (VR-15), so
-	 *  estimates seed only a scope built after the drop, and any block with a fresh id. */
+	/** Drop every measured height. A mounted block list keeps its own heights across a rebuild
+	 *  (VR-15), so only a list built after the drop, and any block with a fresh id, starts from estimates. */
 	dropMeasured(): void;
 }
 
@@ -43,14 +43,14 @@ export function createHeightOracle(opts: HeightOracleOptions): HeightOracle {
 
 	function sourceLines(raw: string): number {
 		let n = 1;
-		// Code units, not `raw[i]`: the indexed read mints a one-character string per byte.
+		// Code units, not `raw[i]`: the indexed read creates a one-character string per byte.
 		for (let i = 0; i < raw.length; i++) if (raw.charCodeAt(i) === NEWLINE) n++;
 		if (raw.endsWith('\n')) n--; // trailing newline shouldn't add a phantom line
 		return Math.max(1, n);
 	}
 
-	// Each image contributes its `|WxH` hint height, else the min-height floor — an unsized
-	// image isn't knowable until decode, which the ResizeObserver corrects post-mount.
+	// Each image contributes its `|WxH` hint height, else the min-height floor; an unsized
+	// image's height isn't knowable until decode, which the ResizeObserver corrects after mount.
 	function imageHeights(raw: string): number {
 		let total = 0;
 		IMAGE_ALT.lastIndex = 0;
@@ -63,13 +63,13 @@ export function createHeightOracle(opts: HeightOracleOptions): HeightOracle {
 	}
 
 	function estimate(node: NodeView, width: number): number {
-		// One registry lookup, read twice: the model seeds this once per block of the document.
+		// One registry lookup, read twice: the height table calls this once per block of the document.
 		const descriptor = tryGetBlockKindDescriptor(node.kind);
 		// A collapsed container's body lives in `raw` but never renders, so estimating from
-		// full `raw` over-counts it several-fold; only the chrome row paints.
+		// full `raw` over-counts it several-fold; only the title row paints.
 		if (isCollapsedByDescriptor(descriptor, node)) return opts.lineHeight + opts.blockChrome;
-		// A descriptor's own O(1) estimate supersedes the built-in arms (a rendered artifact
-		// is far taller than its source text); the oracle still adds chrome.
+		// A descriptor's own O(1) estimate replaces the built-in cases (a rendered artifact
+		// is far taller than its source text); the block margin is still added here.
 		const custom = descriptor?.estimateHeight;
 		if (custom) return custom(node, { width }) + opts.blockChrome;
 		const kind = node.kind;
@@ -93,7 +93,7 @@ export function createHeightOracle(opts: HeightOracleOptions): HeightOracle {
 			case 'list':
 			case 'listItem': {
 				// Max of two terms, each alone wrong: the blob term ignores newlines and
-				// per-child chrome, the child-count term ignores wrap. Still O(1), no walk.
+				// per-child margins, the child-count term ignores wrap. Still O(1), no walk.
 				const childCount = Math.max(1, node.children?.length ?? 1);
 				const byChildren = childCount * (opts.lineHeight + opts.blockChrome);
 				const byText = wrappedLines(raw.length, width) * opts.lineHeight + opts.blockChrome;

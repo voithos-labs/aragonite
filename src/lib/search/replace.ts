@@ -19,7 +19,7 @@ export interface ReplaceRange {
 
 /**
  * Apply ranges to `text`, substituting right-to-left so earlier offsets stay valid. No
- * per-replacement escape hook: a structural leaf's delimiters escape over the WHOLE
+ * per-replacement escape hook: a structural leaf's delimiters escape over the whole
  * post-splice raw, so that is the caller's `toLegalRaw` pass over the result.
  */
 export function applyRangesToText(text: string, ranges: ReplaceRange[], template: string): string {

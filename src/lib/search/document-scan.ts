@@ -2,8 +2,8 @@ import type { DocumentView, NodeView } from '../core/node-views';
 import { getBlockKindDescriptor, type BlockKindDescriptor } from '../schema/block-kind-descriptor';
 import type { CompiledMatcher, RawRange } from './matcher';
 
-/** `start`/`end` are raw offsets into the matched block's own raw (public
- *  surface, so they stay `number`; DOM entry points mint). */
+/** `start`/`end` are raw offsets into the matched block's own raw; public API, so they
+ *  stay `number`, and the DOM entry points brand them. */
 export interface Match {
 	path: number[];
 	start: number;
@@ -42,7 +42,7 @@ export function collectScanTargets(doc: DocumentView): ScanTarget[] {
 	return out;
 }
 
-/** Joins per-target ranges back onto their paths, positionally — the ranges must
+/** Joins per-target ranges back onto their paths by position: the ranges must
  *  come from the same target list, in the same order. */
 export function matchesFromRanges(
 	targets: readonly ScanTarget[],

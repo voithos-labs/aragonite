@@ -14,7 +14,7 @@ export interface CompiledMatcher {
 export type CompileResult = { ok: true; matcher: CompiledMatcher } | { ok: false; error: string };
 
 /** What a regex-mode query compiles to. The off-thread executor searches the same
- *  language as the synchronous matcher because both mint the spec here. */
+ *  language as the synchronous matcher because both build the spec here. */
 export interface RegexSpec {
 	pattern: string;
 	flags: string;

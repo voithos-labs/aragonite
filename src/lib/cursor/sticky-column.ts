@@ -1,9 +1,9 @@
 /**
  * Sticky column: the editor-relative pixel X that survives repeated vertical arrows and
- * intermediate clamping. Two-axis contract for `focusAtColumn` surfaces. CAPTURE: the focused
- * block records X before any cross-block transition, via `noteKey` (G2.10). CONSUME: landings
- * route through `consumeStickyLanding` (`editor-actions/focus/focus-landing.ts`), which null-checks
- * and falls back, so `focusAtColumn` is a pure receiver whose x is always finite.
+ * intermediate clamping, for blocks that implement `focusAtColumn`. The focused block records X
+ * through `noteKey` before any move to another block (G2.10); the arriving block reads it through
+ * `consumeStickyLanding` (`editor-actions/focus/focus-landing.ts`), which null-checks and falls
+ * back, so `focusAtColumn` always receives a finite x.
  */
 
 import type { EditorX } from './coordinate-spaces';
@@ -17,18 +17,18 @@ import { BARE_MODIFIER_KEYS } from '../schema/keybindings';
 export interface StickyColumnState {
 	get(): EditorX | null;
 
-	/** Idempotent — the no-op-when-set is what preserves the original intent through
-	 *  within-block clamping. Non-finite input is ignored. */
+	/** Idempotent: doing nothing when already set is what keeps the original column through
+	 *  clamping inside a block. Non-finite input is ignored. */
 	capture(x: EditorX): void;
 
 	reset(): void;
 
 	/**
-	 * The only door a keydown handler may use; `reset()` stays public for the lifecycle,
-	 * commit, undo and paste callers, whose unconditional clear has no key to classify.
-	 * `measureX` is consulted only on the capture branch and only the caller can supply it
-	 * (the X comes from the live caret) — a caller holding a range rather than a caret
-	 * omits it, and a capture key then PRESERVES the column rather than clearing it.
+	 * The only entry point a keydown handler may use; `reset()` stays public for the lifecycle,
+	 * commit, undo and paste callers, whose unconditional clear has no key to classify. `measureX`
+	 * is read only on the capture branch, and only the caller can supply it (the X comes from the
+	 * live caret); a caller holding a range rather than a caret omits it, and a capture key then
+	 * keeps the column rather than clearing it.
 	 */
 	noteKey(e: Pick<KeyboardEvent, 'key' | 'altKey'>, measureX?: () => EditorX | null): void;
 }
@@ -69,8 +69,8 @@ export function createStickyColumnState(): StickyColumnState {
 
 /**
  * Keys that neither capture nor reset; every key not here and not a vertical arrow resets.
- * Bare modifiers are read from the chord parser rather than re-listed — a local copy
- * missing AltGraph/CapsLock is how a modifier tap mid-arrow-run dropped the column.
+ * Bare modifiers come from the key-combination parser rather than a local list, which could
+ * miss AltGraph or CapsLock and drop the column on a modifier tap mid-arrow-run.
  */
 export const PRESERVE_KEYS_NON_ARROW: readonly string[] = [
 	'PageUp',

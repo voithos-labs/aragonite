@@ -1,18 +1,17 @@
 /**
- * The one iterative pre-order over rendered inline DOM — the caret-space twin of
- * `core/inline/walk.ts`, and here rather than beside it because `cursor/` is what a DOM walk may
- * import from (`ambient/` reads this direction too, `core/` never does). Nesting depth is
- * input-controlled, so a per-level call frame overflows the stack and strands the block in the
- * unhealable failed-block fallback.
+ * The one iterative pre-order traversal of rendered inline DOM, the DOM counterpart of
+ * `core/inline/walk.ts`. It lives here rather than beside it because `cursor/` is what a DOM walk
+ * may import from (`ambient/` reads this direction too, `core/` never does). Nesting depth comes
+ * from the input, so recursion would overflow the stack and leave the block stuck in the
+ * failed-block fallback.
  */
 
 /**
- * `root`, then its descendants, in document order. `fromEnd` MIRRORS that walk rather than
- * reversing it — each level's children come last-first, a parent still ahead of them — so the
- * leaves arrive reversed and a search for the last matching one reads them in the order it wants.
- * `descend` declines a node's children: the node itself is still yielded, and is asked only when
- * it has any. Each child list is read when its parent pops, so a consumer that rewrites the tree
- * must finish the walk first.
+ * `root`, then its descendants, in document order. `fromEnd` mirrors that walk rather than
+ * reversing it (each level's children come last-first, a parent still ahead of them), so a search
+ * for the last matching leaf reads the leaves in the order it wants. `descend` declines a node's
+ * children; the node itself is still yielded. Each child list is read when its parent pops, so a
+ * caller that rewrites the tree must finish the walk first.
  */
 export function* domDescendants(
 	root: Node,

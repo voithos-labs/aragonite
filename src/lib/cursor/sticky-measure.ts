@@ -15,7 +15,7 @@ import {
 import { containerDomTextLength, findDomTextOffsetTarget } from './widget-offset';
 import { firstUsefulRect } from './visual-lines';
 
-// Half a line height of padding on each side of the probe line — wide enough for
+// Half a line height of padding on each side of the measured line: wide enough for
 // ascender/descender variation, narrow enough to exclude the neighbouring line.
 const LINE_BAND_TOLERANCE = 0.5;
 
@@ -44,10 +44,10 @@ export function getOffsetRect(container: HTMLElement, offset: DomTextOffset): DO
 
 /**
  * Offset on the first or last caret-bearing visual line whose collapsed-range rect is
- * closest to `editorRelativeX`. Linear scan — `getClientRects` left values are
- * non-monotonic on BiDi lines, so binary search is invalid. Widget-only lines are
- * transparent (their collapsed ranges return null rects); `minOffset` excludes the
- * ambient-marker prefix.
+ * closest to `editorRelativeX`. A linear scan, since `getClientRects` left values are
+ * non-monotonic on BiDi lines and binary search would be wrong. Widget-only lines are
+ * skipped (their collapsed ranges return null rects); `minOffset` excludes the
+ * container's marker prefix.
  */
 export function findOffsetNearestX(
 	container: HTMLElement,

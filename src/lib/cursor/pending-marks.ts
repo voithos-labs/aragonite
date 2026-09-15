@@ -1,9 +1,9 @@
 /**
- * Pending marks: the inline constructs a collapsed-caret toggle promises the NEXT insertion,
- * relative to the caret's construct chain — a kind already in the chain is a removal, one absent
- * is an application. Live mode paints no delimiter, so materializing an empty pair in the bytes
- * would leave invisible `****` behind on an abandoned toggle. SET by the toggle command, CONSUMED
- * by the typing and composition seats, INVALIDATED by the edge affinity (live-mode.md § 4.3).
+ * Pending marks: the inline formats a toggle at a collapsed caret promises the next insertion,
+ * relative to the constructs around the caret (a kind already active is a removal, one absent is
+ * an application). Live mode paints no delimiter, so writing an empty pair into the bytes would
+ * leave an invisible `****` behind on an abandoned toggle. The toggle command sets them, the typing
+ * and composition paths consume them, and the edge affinity clears them (live-mode.md § 4.3).
  */
 
 import type { InlineMarkKind } from '../schema/inline-construct-policy';
@@ -47,7 +47,7 @@ export function createPendingMarksState(): PendingMarksState {
 	};
 }
 
-/** The set a chord press produces, or null once it empties. Pure, so the toggle matrix is
+/** The set one toggle chord produces, or null once it empties. Pure, so the toggle matrix is
  *  testable without an instance. */
 export function flipMark(
 	marks: ReadonlySet<InlineMarkKind> | null,

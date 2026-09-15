@@ -1,7 +1,7 @@
 /**
  * Whether the cursor sits on the first or last visual line of a wrapping element. Offsets alone
  * can't answer it past 2 wrapped lines, so the cursor's line is compared to the edge line's.
- * Collapsed ranges beside non-text children (dimmed markers, atomic islands) measure to nothing,
+ * Collapsed ranges beside non-text children (dimmed markers, atomic widgets) measure to nothing,
  * so the edge line is measured around real text, and a rect-less caret reads the box it sits
  * against.
  */
@@ -10,8 +10,8 @@ import { domDescendants } from './dom-walk';
 import { FALLBACK_LINE_HEIGHT } from './typography-estimates';
 import { isHiddenMarkerText } from './widget-offset';
 
-// Fraction of a line height within which the cursor Y counts as the boundary line —
-// sub-line, so sub/superscript or inline-image jitter doesn't read as a different line.
+// Fraction of a line height within which the cursor Y counts as the boundary line; under one
+// line, so sub/superscript or inline-image jitter doesn't read as a different line.
 const SAME_LINE_TOLERANCE = 0.8;
 
 /** The first rect that can position a caret: the leading client rect when it has real
@@ -58,10 +58,10 @@ export function findLastTextNode(root: Node): Text | null {
 
 /**
  * True if the selection inside `el` sits on the first visual line; empty containers return true.
- * `fallbackOffset` (the snapped caret intent from `ambient-cursor.getRaw`) resolves the case
- * where there is no live range — Chromium drops the caret range next to atomic
- * contenteditable=false islands across event-loop yields. It is compared against the block's
- * first LANDABLE offset, which a leading hidden run moves off raw 0.
+ * `fallbackOffset` (the snapped caret offset from `ambient-cursor.getRaw`) answers when there is
+ * no live range, since Chromium drops the caret range next to atomic contenteditable=false
+ * widgets across event-loop yields. It is compared against the block's first offset the caret
+ * can sit at, which a leading hidden run moves off raw 0.
  */
 export function isAtFirstVisualLine(
 	el: HTMLElement,
@@ -97,8 +97,8 @@ export function isAtLastVisualLine(
 
 // ── Internal ────────────────────────────────────────────────────────────────
 
-/** The shared skeleton of the two edge predicates: `fallback` answers where geometry cannot — a
- *  dropped range, a caret no box can be found for, an unmeasurable boundary line — and
+/** The shared skeleton of the two edge predicates: `fallback` answers where geometry cannot (a
+ *  dropped range, a caret no box can be found for, an unmeasurable boundary line) and
  *  `boundaryTop` measures the edge line each side's own way. */
 function isAtEdgeVisualLine(
 	el: HTMLElement,
@@ -116,8 +116,8 @@ function isAtEdgeVisualLine(
 
 	if (cursorTop === null) {
 		if (!cursorRange.collapsed) return true;
-		// A caret beside an atomic island sits at an element-level position and measures to no rect
-		// of its own: it rides the island's box, and is at the edge line when nothing reaches past.
+		// A caret beside an atomic widget sits at an element-level position and measures to no rect
+		// of its own: it rides the widget's box, and is at the edge line when nothing reaches past.
 		const band = neighbourBand(cursorRange);
 		const contents = bandOfRange(contentsRange(el));
 		if (!band || !contents) return fallback();
@@ -178,7 +178,7 @@ function collapsedContentsTop(el: HTMLElement, toStart: boolean): number | null 
 	return getRangeTop(range);
 }
 
-/** Hidden-run classification needs the walk container; a bare text-node root has none. */
+/** Deciding whether text is a hidden marker needs the walk container; a bare text-node root has none. */
 function containerOf(root: Node): HTMLElement | null {
 	return root instanceof HTMLElement ? root : null;
 }

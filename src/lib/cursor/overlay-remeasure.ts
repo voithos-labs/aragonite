@@ -1,8 +1,8 @@
 /**
- * Shared scroll-listener wiring for DecorationOverlay and SelectionOverlay: measure on
- * mount, on scroll, and on the table's row-window `$derived` moving. That third trigger is
- * load-bearing for windowed tables — a raw 'scroll' fires BEFORE the windowed `{#each}`
- * mounts the new rows, so only the dep-based re-run measures post-commit.
+ * Shared scroll-listener wiring for DecorationOverlay and SelectionOverlay: measure on mount, on
+ * scroll, and when the table's row-window `$derived` moves. Windowed tables need that third
+ * trigger: a raw 'scroll' fires before the windowed `{#each}` mounts the new rows, so only the
+ * dependency-driven re-run measures after the commit.
  */
 
 import { untrack } from 'svelte';
@@ -14,15 +14,15 @@ export function wireOverlayRemeasure(opts: {
 	editorRoot: HTMLElement | null;
 	blockRef: BlockComponent | undefined;
 	measure: () => void;
-	/** Run the SETUP measure untracked, for a caller whose `measure` reads the document: tracking
+	/** Run the setup measure untracked, for a caller whose `measure` reads the document: tracking
 	 *  it would tear down and re-wire these listeners on every keystroke. Scoped to that one call,
-	 *  never the whole wiring — the row-window read below must stay tracked either way. */
+	 *  never the whole wiring, since the row-window read below must stay tracked either way. */
 	untrackSetupMeasure?: boolean;
 }): () => void {
 	const { el, editorRoot, blockRef, measure } = opts;
 
-	// Plain synchronous read so the enclosing $effect registers as a dep of the table's win
-	// $derived. Must NOT be inside untrack().
+	// Plain synchronous read so the enclosing $effect depends on the table's row-window
+	// $derived; it must not be inside untrack().
 	blockRef?.mountedRowWindow?.();
 
 	if (opts.untrackSetupMeasure) untrack(measure);
@@ -45,9 +45,9 @@ export function wireOverlayRemeasure(opts: {
 		disposers.push(() => editorRoot.removeEventListener('scroll', measure));
 	}
 
-	// The block's own box changing under a live range — a paragraph set to a heading, a font
-	// load, a resize — moves the text the rects were measured against. Layout-driven, so it
-	// fires after the change has painted; absent (jsdom) the scroll paths above still hold.
+	// The block's own box changing under a live range (a paragraph set to a heading, a font
+	// load, a resize) moves the text the rects were measured against. Layout-driven, so it
+	// fires after the change has painted; where absent (jsdom) the scroll paths above still hold.
 	if (typeof ResizeObserver === 'function') {
 		const observer = new ResizeObserver(() => measure());
 		observer.observe(el);

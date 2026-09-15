@@ -1,9 +1,9 @@
 /**
- * Bounds regex find. A pathological pattern spends minutes inside ONE `RegExp.exec`, which
+ * Bounds regex find. A pathological pattern spends minutes inside one `RegExp.exec`, which
  * no main-thread budget can interrupt, so the only bound is a killable thread. The worker
  * ships as source text through a Blob URL, not a bundler worker import, leaving dist
  * packaging and consumer bundlers untouched. Where that is unavailable (SSR, a CSP-restricted
- * embedder, the test runner) it degrades to a sync scan bounded only BETWEEN texts.
+ * embedder, the test runner) it degrades to a sync scan bounded only between texts.
  */
 
 import { execAll, type RawRange } from './matcher';
@@ -20,7 +20,7 @@ export interface RegexScanRequest {
 	readonly epoch: number;
 }
 
-/** `cancelled` covers supersession and release alike — nothing to report either way. */
+/** `cancelled` covers supersession and release alike: nothing to report either way. */
 export type RegexScanFailure = 'timeout' | 'error' | 'cancelled';
 
 export type RegexScanOutcome =

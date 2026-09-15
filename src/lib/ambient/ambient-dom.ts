@@ -1,6 +1,6 @@
 /**
- * DOM construction and lookup for the ambient marker span — the read-only
- * prefix container blocks contribute to their first prose child's textContent.
+ * DOM construction and lookup for the marker span (the "ambient" prefix): the read-only
+ * prefix a container block draws in front of its first prose child's text.
  */
 
 import type { AmbientPrefix } from '../block-component';
@@ -69,8 +69,8 @@ export function placeCaretAfterAmbientSpan(blockEl: HTMLElement): boolean {
 	const range = document.createRange();
 	// Prefer the first text node after the span so visual-line geometry returns real rects;
 	// setStartAfter yields a collapsed range with no textbox in empty-item state. A hidden
-	// marker run next to the span is not that text node — it paints nothing, and descending
-	// into it would seat raw 0 inside unpainted bytes.
+	// marker run next to the span is not that text node: it paints nothing, and descending
+	// into it would put raw offset 0 inside unpainted bytes.
 	const textAfter = firstTextNodeAfter(span);
 	if (textAfter && !isHiddenMarkerText(textAfter, blockEl)) {
 		range.setStart(textAfter, 0);

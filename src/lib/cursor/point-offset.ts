@@ -1,7 +1,7 @@
 /**
- * Viewport point → caret offset inside one element. The probe is the browser's, the arithmetic
- * is `widget-offset.ts`'s walk: this module mints no offset of its own, so an atomic widget and
- * a leading ambient marker count here exactly as they do for a live caret read.
+ * Viewport point to caret offset inside one element. The browser finds the DOM position, and
+ * `widget-offset.ts`'s walk does the arithmetic: this module computes no offset of its own, so
+ * an atomic widget and a leading marker prefix count here exactly as they do for a live caret read.
  */
 
 import { ambientLengthOf } from '../ambient/ambient-dom';
@@ -9,9 +9,9 @@ import { toClampedRawOffset } from './coordinate-spaces';
 import { domTextOffsetAtNode } from './widget-offset';
 
 /**
- * The caret offset in `el` NEAREST a viewport point: the point clamps into `el`'s box first, so a
- * press on chrome above or beside the text still names one. What `caretTargetAtPoint` owes, since
- * a caret-placing gesture must land. Null where the element holds no text position at all.
+ * The caret offset in `el` nearest a viewport point: the point clamps into `el`'s box first, so a
+ * click on the block's frame above or beside the text still names one, as `caretTargetAtPoint`
+ * requires, since a caret-placing gesture must land. Null where the element holds no text position.
  */
 export function caretOffsetAtPoint(
 	el: HTMLElement,
@@ -23,8 +23,8 @@ export function caretOffsetAtPoint(
 }
 
 /**
- * The EXACT twin: null for a point outside `el`, which a hit test must decline rather than
- * round into the nearest offset.
+ * The exact counterpart: null for a point outside `el`, which a hit test must decline rather
+ * than round into the nearest offset.
  */
 export function offsetFromViewportPoint(
 	blockEl: HTMLElement,

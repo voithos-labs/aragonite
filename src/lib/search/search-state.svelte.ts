@@ -13,7 +13,7 @@ import type {
 const EMPTY_MATCHES: IndexedMatch[] = [];
 
 // Both reuse the invalid-regex readout: a scan with no usable answer is one state to the
-// reader, whatever ended it.
+// user, whatever ended it.
 const REGEX_TOO_SLOW = 'Regex too slow';
 const REGEX_SCAN_FAILED = 'Regex search failed';
 
@@ -23,7 +23,7 @@ export interface SearchOptions {
 	regex: boolean;
 }
 
-/** A match paired with its flat-list position — what the active highlight compares
+/** A match paired with its flat-list position, which the active highlight compares
  *  against `activeIndex`. */
 export interface IndexedMatch {
 	match: Match;
@@ -32,8 +32,8 @@ export interface IndexedMatch {
 
 interface SearchDeps {
 	getDoc: () => DocumentView;
-	/** Bumped when the whole document is REPLACED, never on an in-place edit or undo —
-	 *  those leave the tree under a position the user still owns. */
+	/** Bumped when the whole document is replaced, never on an in-place edit or undo,
+	 *  since those leave the tree under a position the user still owns. */
 	getDocumentGeneration: () => number;
 	/** Highlights ship as marks under source 'editor:search', registered on open and
 	 *  disposed on close, so a closed bar costs nothing. */
@@ -45,7 +45,7 @@ interface SearchDeps {
 		replaceAll(m: Match[], t: string): Promise<number>;
 	};
 	reveal: (path: number[]) => Promise<unknown>;
-	/** Test seam; production builds the worker-backed executor internally. */
+	/** Injected by tests; production builds the worker-backed executor internally. */
 	regexExecutor?: RegexExecutor;
 	// Returns focus to the document. Without it, closing removes the focused find input and
 	// focus falls to <body>, stranding keyboard routing outside the editor.
@@ -62,8 +62,8 @@ export function createSearchState(deps: SearchDeps): SearchState {
 	const matchesByPath = $derived(groupByPathKey(matches, (match, index) => ({ match, index })));
 	let activeIndex = $state(0);
 	let error = $state<string | null>(null);
-	// Cleared on the next search ACTION, not in rescan — the engine's post-commit re-run
-	// would otherwise wipe it instantly.
+	// Cleared on the next search action, not in rescan: the decoration registry's re-run
+	// after a commit would otherwise wipe it instantly.
 	let replacedCount = $state<number | null>(null);
 
 	// A regex scan lands asynchronously, so `matches` can trail the query that asked for
@@ -78,18 +78,18 @@ export function createSearchState(deps: SearchDeps): SearchState {
 
 	let handle: DecorationSourceHandle | null = null;
 
-	// The scan runs for its side effects, so only the CURRENT key may skip it; cleared on
+	// The scan runs for its side effects, so only the current key may skip it; cleared on
 	// close() so a reopen at the same key rescans rather than serving the empty set.
 	let lastScanKey: string | null = null;
 
-	// Keyed on editEpoch, NEVER doc.children identity: typing mutates children in place, so
+	// Keyed on editEpoch, never doc.children identity: typing mutates children in place, so
 	// identity only changes on structural commits and would serve stale matches.
 	function provide(doc: DocumentView, ctx: ProvideContext): MarkDecoration[] {
 		const { caseSensitive, wholeWord, regex } = options;
 		const key = `${ctx.editEpoch}\0${+caseSensitive}${+wholeWord}${+regex}\0${query}`;
 		if (key !== lastScanKey) {
-			// Scan the document the registry is providing FOR, not whatever the deps getter
-			// resolves to — the plugin guide points decoration authors at this file.
+			// Scan the document the registry is providing for, not whatever the deps getter
+			// resolves to; the plugin guide points decoration authors at this file.
 			rescan(doc);
 			lastScanKey = key;
 		}
@@ -103,7 +103,7 @@ export function createSearchState(deps: SearchDeps): SearchState {
 	}
 
 	function rescan(doc: DocumentView = deps.getDoc()): void {
-		// A whole-document REPLACEMENT restarts navigation at the first match: the carried
+		// A whole-document replacement restarts navigation at the first match: the old
 		// position indexes a document the user never navigated. Edits, undo and option
 		// toggles leave the user where they were, so they fall through to applyMatches' clamp.
 		const generation = deps.getDocumentGeneration();
@@ -162,9 +162,9 @@ export function createSearchState(deps: SearchDeps): SearchState {
 			});
 	}
 
-	// Every state change routes through the engine so the published marks follow. invalidate
-	// is synchronous by contract, so setQuery's callers still observe fresh matches on
-	// return; the no-handle fallback keeps the headless setQuery-before-open path scanning.
+	// Every state change goes through the decoration registry so the published marks follow.
+	// invalidate is synchronous by contract, so setQuery's callers still observe fresh matches
+	// on return; the no-handle fallback keeps the headless setQuery-before-open path scanning.
 	function refresh(): void {
 		if (handle) handle.invalidate();
 		else rescan();
@@ -276,7 +276,7 @@ export function createSearchState(deps: SearchDeps): SearchState {
 	};
 }
 
-/** Public controller surface — what `editor.getSearch()` exposes. Deliberately minimal:
+/** The public search controller, what `editor.getSearch()` exposes. Deliberately minimal:
  *  adding a member later is non-breaking, removing one is not. */
 export interface SearchState {
 	readonly isOpen: boolean;

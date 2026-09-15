@@ -1,8 +1,8 @@
 /**
- * Ambient-aware cursor I/O for prose contenteditable surfaces: raw ↔ DOM offset
- * translation that respects the leading ambient marker span a container block contributes
- * to its first prose child. Zero-ambient surfaces are first-class consumers —
- * `getAmbientLength: () => 0` reduces this to plain widget-aware translation.
+ * Caret reads and writes for prose contenteditable blocks: raw to DOM offset translation and
+ * back, accounting for the leading marker span (the "ambient" prefix) a container block draws in
+ * front of its first prose child. Blocks with no prefix use this too: `getAmbientLength: () => 0`
+ * reduces it to plain widget-aware translation.
  */
 
 import {
@@ -18,7 +18,7 @@ export interface AmbientCursorDeps {
 	getEl: () => HTMLElement | null | undefined;
 	getAmbientLength: () => number;
 	/**
-	 * Logical caret position (raw units) when the live DOM range is gone or trapped — the
+	 * Logical caret position (raw units) when the live DOM range is gone or trapped: the
 	 * "user clicked here" intent that survives Chromium dropping element-level carets
 	 * across event-loop yields. Null when no snap intent is active.
 	 */
@@ -28,18 +28,18 @@ export interface AmbientCursorDeps {
 export interface AmbientCursorIO {
 	/** Raw offset of the collapsed caret, or null if no selection inside `el`. */
 	getRaw(): RawOffset | null;
-	/** Move the caret to the given raw offset. Offsets at/before the ambient
-	 * boundary land just after the marker span. */
+	/** Move the caret to the given raw offset. Offsets at or before raw 0 land just
+	 * after the marker span. */
 	setRaw(offset: RawOffset): void;
 	/** Raw offsets of the anchor/focus endpoints of the current selection, or null. */
 	getRawSelection(): { start: RawOffset; end: RawOffset } | null;
-	/** Raw offsets of an arbitrary range inside this surface — an InputEvent's target range, which
-	 *  a word delete reports at a COLLAPSED caret and the selection therefore cannot answer. */
+	/** Raw offsets of an arbitrary range inside this block: an InputEvent's target range, which a
+	 *  word delete reports at a collapsed caret, so the selection cannot answer it. */
 	rawRangeOf(range: AbstractRange): { start: RawOffset; end: RawOffset } | null;
-	/** Ensure the caret sits outside the ambient marker region. No-op when `el`
-	 * isn't the active element or the caret is already out. */
+	/** Ensure the caret sits outside the marker prefix. No-op when `el` isn't the
+	 * active element or the caret is already out. */
 	clampOutOfAmbient(): void;
-	/** Park the caret immediately after the ambient span — used as the raw-0 landing. */
+	/** Put the caret immediately after the marker span, where raw offset 0 lands. */
 	setToAmbientBoundary(): void;
 }
 
@@ -67,8 +67,8 @@ export function createAmbientCursorIO(deps: AmbientCursorDeps): AmbientCursorIO 
 	function getRaw(): RawOffset | null {
 		const live = readLiveRange();
 		if (live.state === 'inactive') return null;
-		// Dropped (Chromium loses element-level carets past atomic widgets) or rebounded
-		// into a contenteditable=false island: the snap target carries the user's intent.
+		// Dropped (Chromium loses element-level carets past atomic widgets) or bounced into a
+		// contenteditable=false span: the snap target holds where the user meant to click.
 		if (live.state === 'dropped') return snapTargetRaw();
 		if (live.inAmbient(live.range.startContainer)) return snapTargetRaw();
 		const content = domTextOffsetAtNode(live.el, live.range.startContainer, live.range.startOffset);
@@ -84,8 +84,8 @@ export function createAmbientCursorIO(deps: AmbientCursorDeps): AmbientCursorIO 
 		const el = deps.getEl();
 		if (!el) return;
 		const ambientLength = deps.getAmbientLength();
-		// Walking to position ambientLength lands inside the marker island, where Chromium
-		// bounces the caret out in front of the span. Use a sibling boundary instead.
+		// Walking to position ambientLength lands inside the marker span, where Chromium
+		// bounces the caret out in front of it. Use a sibling boundary instead.
 		if (ambientLength > 0 && offset <= 0) {
 			setToAmbientBoundary();
 			return;
@@ -93,8 +93,8 @@ export function createAmbientCursorIO(deps: AmbientCursorDeps): AmbientCursorIO 
 		const target = toDomTextOffset(offset, ambientLength);
 		const pos = findDomTextOffsetTarget(el, target);
 		if (!pos) return;
-		// The walker's last-text-node fallback can land inside the marker text, where the
-		// contenteditable="false" island traps the caret.
+		// The walk's last-text-node fallback can land inside the marker text, where the
+		// contenteditable="false" span traps the caret.
 		const ambient = ambientSpanOf(el);
 		if (ambient && ambient.contains(pos.node)) {
 			setToAmbientBoundary();
@@ -113,8 +113,8 @@ export function createAmbientCursorIO(deps: AmbientCursorDeps): AmbientCursorIO 
 	}
 
 	function clampOutOfAmbient(): void {
-		// Liveness before the ambient read, as every other method here does it: the length is an
-		// owner-bound derived at the call site, and a surface unmounted mid-dispatch is a dead owner.
+		// Check the live range before reading the prefix length, as every other method here does:
+		// the length is derived from the owning block, and a block unmounted mid-dispatch has none.
 		const live = readLiveRange();
 		if (live.state !== 'live' || !live.collapsed) return;
 		const ambientLength = deps.getAmbientLength();
@@ -129,7 +129,7 @@ export function createAmbientCursorIO(deps: AmbientCursorDeps): AmbientCursorIO 
 		if (live.state !== 'live' || live.collapsed) return null;
 		// No snap-target fallback here, unlike `getRaw`: a single caret intent cannot stand
 		// in for one end of a pair, and the clamp below already maps the marker interior to
-		// raw 0 — the right boundary for a drag that began inside the marker.
+		// raw 0, the right boundary for a drag that began inside the marker.
 		return rawEndpointsOf(live.el, live.range, deps.getAmbientLength());
 	}
 
@@ -173,6 +173,6 @@ type LiveRange =
 			el: HTMLElement;
 			range: Range;
 			collapsed: boolean;
-			/** `node` sits inside the marker's contenteditable="false" island. */
+			/** `node` sits inside the marker's contenteditable="false" span. */
 			inAmbient: (node: Node) => boolean;
 	  };

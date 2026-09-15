@@ -26,7 +26,7 @@ export interface UndoEntry {
 	blockIds: string[];
 	/** Effective selection at push. See docs/design/editor.md § Undo / redo. */
 	selection: EditorSelection | GapCaretSelection;
-	/** DEV-only digest of `snapshot` at push; restore verifies no mutation wrote through a shared node. */
+	/** Dev-only digest of `snapshot` at push; restore verifies no mutation wrote through a shared node. */
 	integrity?: number;
 }
 

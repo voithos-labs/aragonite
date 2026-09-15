@@ -7,11 +7,11 @@
 import type { UserScrollport } from './scroll-ancestors';
 
 export interface Scrollport {
-	/** Client-coordinate top of the visible box — 0 when the page viewport is the port. Paired
-	 *  with a block's own client rect, it maps that block into the port's content space. */
+	/** Client-coordinate top of the visible box; 0 when the page viewport is the scroll container.
+	 *  Paired with a block's own client rect, it maps that block into the container's content space. */
 	viewportTop(): number;
 	viewportHeight(): number;
-	/** Width available to content, for the height oracle's line-wrap estimates. */
+	/** Width available to content, for the height estimator's line-wrap estimates. */
 	contentWidth(): number;
 	scrollTop(): number;
 	setScrollTop(value: number): void;
@@ -28,10 +28,10 @@ export function createScrollport(target: UserScrollport): Scrollport {
 }
 
 /**
- * Adds the relative write every corrector goes through. A scroller snaps a fractional write to
- * a whole device pixel and reports the snapped value back, so a run of relative corrections (a
- * mode flip fires one per re-measured block) would drop that fraction every time and slide the
- * reader's content by the sum. The refused fraction carries into the next call instead.
+ * Adds the relative write every scroll correction goes through. A scroller snaps a fractional
+ * write to a whole device pixel and reports the snapped value back, so a run of corrections (a
+ * mode switch fires one per re-measured block) would drop that fraction every time and slide the
+ * user's content by the sum. The refused fraction is kept for the next call instead.
  */
 export function withRelativeScroll(base: Omit<Scrollport, 'scrollBy'>): Scrollport {
 	let carried = 0;
@@ -45,13 +45,13 @@ export function withRelativeScroll(base: Omit<Scrollport, 'scrollBy'>): Scrollpo
 		},
 		scrollBy(delta) {
 			const from = base.scrollTop();
-			// Anything that moved the port since our own write (the reader, a reveal) leaves the
-			// carried fraction describing a position nobody holds any more.
+			// Anything that moved the scroll container since our own write (the user, a
+			// scroll-into-view) leaves the kept fraction describing a position nobody holds any more.
 			const target = from + (written === from ? carried : 0) + delta;
 			base.setScrollTop(target);
 			written = base.scrollTop();
 			const refused = target - written;
-			// Only the snap's own fraction carries; a clamp at either end is a real refusal.
+			// Only the snap's own fraction is kept; a clamp at either end is a real refusal.
 			carried = Math.abs(refused) < 1 ? refused : 0;
 		}
 	};
@@ -75,10 +75,10 @@ function elementScrollport(el: HTMLElement): Omit<Scrollport, 'scrollBy'> {
 	};
 }
 
-/** The page's own viewport. Measure and write come from different places on purpose, the split
- *  `selection/autoscroll.ts` makes: the viewport is the box the fold belongs to, whereas
- *  `document.scrollingElement` — whose box is the whole multi-thousand-pixel document — is the
- *  only thing that moves. */
+/** The page's own viewport. Measuring and writing use different elements on purpose, the same
+ *  split `selection/autoscroll.ts` makes: the viewport is the visible box, whereas
+ *  `document.scrollingElement`, whose box is the whole multi-thousand-pixel document, is the only
+ *  thing that moves. */
 function pageScrollport(): Omit<Scrollport, 'scrollBy'> {
 	const scroller = () => document.scrollingElement;
 	return {

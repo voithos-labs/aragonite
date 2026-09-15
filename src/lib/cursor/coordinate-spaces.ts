@@ -1,9 +1,9 @@
 /**
  * The editor's coordinate spaces as branded numbers (G3.7), so mixing them is a type error
- * at the seam instead of a caret bug later. A brand is produced only by its space's home
- * module or an `as*` boundary mint at a declared public door — G4.15's rows in
- * `lint/file-rules.test.ts` hold that list closed — and moves between spaces only through the named
- * conversions below, one home per direction. Public API doors keep `number` and mint once.
+ * instead of a caret bug later. A brand is produced only by the module that owns its space or
+ * by an `as*` cast at a declared public entry point (G4.15's rows in `lint/file-rules.test.ts`
+ * hold that list closed), and moves between spaces only through the conversions below, one
+ * function per direction. Public API entry points take `number` and brand it once.
  */
 
 import type { DocPath } from '../selection/path-math';
@@ -11,19 +11,18 @@ import type { DocPath } from '../selection/path-math';
 // ── Brands ───────────────────────────────────────────────────────────────────
 
 declare const rawOffsetBrand: unique symbol;
-/** Byte offset into a block node's raw content (CST-facing; ambient marker excluded). */
+/** Byte offset into a block node's raw content (CST-facing; the container's marker prefix excluded). */
 export type RawOffset = number & { readonly [rawOffsetBrand]: true };
 
 declare const domTextOffsetBrand: unique symbol;
 /**
- * Offset in the widget-offset walk space: raw offset plus the leading ambient marker's
- * text length. Home: `cursor/widget-offset.ts`, with `cursor/content-offsets.ts` as the
- * widget-free equivalent.
+ * Offset as the DOM walk counts it: the raw offset plus the leading marker prefix's text length.
+ * Produced by `cursor/widget-offset.ts`, or `cursor/content-offsets.ts` where no widgets are involved.
  */
 export type DomTextOffset = number & { readonly [domTextOffsetBrand]: true };
 
 declare const editorXBrand: unique symbol;
-/** Editor-relative pixel X (viewport X minus the editor container's left) — scroll-invariant. */
+/** Editor-relative pixel X (viewport X minus the editor container's left), unaffected by scrolling. */
 export type EditorX = number & { readonly [editorXBrand]: true };
 
 declare const viewportXBrand: unique symbol;
@@ -31,11 +30,11 @@ declare const viewportXBrand: unique symbol;
 export type ViewportX = number & { readonly [viewportXBrand]: true };
 
 declare const cellIndexBrand: unique symbol;
-/** Row-major table cell index. Declared ahead of its home's conversion so the
+/** Row-major table cell index, declared here rather than in the table code so the
  *  `as CellIndex` lint rule exists before the first cast does. */
 export type CellIndex = number & { readonly [cellIndexBrand]: true };
 
-// ── Conversions (the inter-space arithmetic — one home per direction) ────────
+// ── Conversions (between spaces, one function per direction) ─────────────────
 
 export function toDomTextOffset(raw: RawOffset, ambientLength: number): DomTextOffset {
 	return (raw + ambientLength) as DomTextOffset;
@@ -45,8 +44,8 @@ export function toRawOffset(domText: DomTextOffset, ambientLength: number): RawO
 	return (domText - ambientLength) as RawOffset;
 }
 
-/** `toRawOffset` clamped to raw 0, for DOM reads that may land inside the leading ambient
- *  marker, where the unclamped result goes negative. */
+/** `toRawOffset` clamped to raw 0, for DOM reads that may land inside the leading marker
+ *  prefix, where the unclamped result goes negative. */
 export function toClampedRawOffset(domText: DomTextOffset, ambientLength: number): RawOffset {
 	return Math.max(0, toRawOffset(domText, ambientLength)) as RawOffset;
 }
@@ -59,7 +58,7 @@ export function toViewportX(editor: EditorX, editorLeft: number): ViewportX {
 	return (editor + editorLeft) as ViewportX;
 }
 
-// ── Boundary mints (space homes and declared doors only — see the lint) ──────
+// ── Brand casts (owning modules and declared entry points only; see the lint) ─
 
 export function asRawOffset(n: number): RawOffset {
 	return n as RawOffset;
@@ -84,28 +83,28 @@ export function asCellIndex(n: number): CellIndex {
 // ── Cell grid decode ─────────────────────────────────────────────────────────
 
 /**
- * Row-major cell index → `{ row, col }` for a table of `colCount` columns — the one home
- * for the divmod the selection and table-overlay paths otherwise hand-roll. Takes a plain
- * number so a `CellIndex` holder and a bare loop counter both reach it without a cast.
+ * Row-major cell index to `{ row, col }` for a table of `colCount` columns, the one place this
+ * divmod lives. Takes a plain number so a `CellIndex` holder and a bare loop counter both reach
+ * it without a cast.
  */
 export function cellRowCol(cellIdx: number, colCount: number): { row: number; col: number } {
 	const row = Math.floor(cellIdx / colCount);
 	return { row, col: cellIdx - row * colCount };
 }
 
-// ── DocPath composition (the doc-absolute path helpers, at the neutral leaf) ──
+// ── DocPath composition (document-absolute path helpers, in a dependency-free module) ──
 //
-// `DocPath`'s type and base mint live in `selection/path-math.ts`; its composers live here
-// because `tree-operations/` must reach them without depending on `selection/`. Bare
-// `as DocPath` casts for the same reason — importing the runtime mint would reopen the
-// cursor↔selection cycle, while the type-only `DocPath` edge is erased.
+// `DocPath`'s type and its branding function live in `selection/path-math.ts`; the composers
+// live here because `tree-operations/` must reach them without depending on `selection/`. Bare
+// `as DocPath` casts for the same reason: importing the runtime function would reopen the
+// cursor-selection import cycle, while a type-only import is erased.
 
-/** Append a child index to a parent path, yielding a doc-absolute path. */
+/** Append a child index to a parent path, yielding a document-absolute path. */
 export function extendDocPath(parent: readonly number[], index: number): DocPath {
 	return [...parent, index] as DocPath;
 }
 
-/** Brand a complete doc-absolute path (copied) for composers that already hold one;
+/** Brand a complete document-absolute path (copied) for callers that already hold one;
  *  `extendDocPath` covers the parent-plus-index case, this covers the rest. */
 export function docPathFrom(indices: readonly number[]): DocPath {
 	return [...indices] as DocPath;

@@ -1,18 +1,18 @@
 /**
- * "What scrolls" and "what clips" are two walks, never one: SCROLLING asks for
- * `auto`/`scroll` and stops at the first answer, CLIPPING asks for anything that bounds
+ * "What scrolls" and "what clips" are two walks, never one: the scrolling walk asks for
+ * `auto`/`scroll` and stops at the first answer, the clipping walk asks for anything that bounds
  * the visible region and collects the whole chain, since visibility is their intersection.
  * An `overflow: hidden` auto-height card matches a clipping predicate while doing neither.
- * `selection/drag-pointer.ts` keeps its own inner walk, so a change here is not one to it.
+ * `selection/drag-pointer.ts` keeps its own inner walk, so a change here does not change it.
  */
 
-// Scrollable through script — `element.scrollTop = n` moves it. `hidden` qualifies.
+// Scrollable through script: `element.scrollTop = n` moves it. `hidden` qualifies.
 const SCRIPT_SCROLLABLE_VALUES = new Set(['auto', 'scroll', 'hidden']);
-// Scrollable by the USER, which is what a drag may autoscroll. `hidden` is excluded by
+// Scrollable by the user, which is what a drag may autoscroll. `hidden` is excluded by
 // convention, not capability: a user cannot wheel it back, so autoscrolling it would
 // strand content out of reach.
 const USER_SCROLLABLE_VALUES = new Set(['auto', 'scroll']);
-// What can bound the visible region. `clip` joins here and only here — it never scrolls,
+// What can bound the visible region. `clip` joins here and only here: it never scrolls,
 // so it is no autoscroll answer, but a block past its edge is unreachable.
 const VIEW_BOUNDING_VALUES = new Set([...SCRIPT_SCROLLABLE_VALUES, 'clip']);
 
@@ -21,7 +21,7 @@ function isScriptScrollable(el: HTMLElement): boolean {
 	return SCRIPT_SCROLLABLE_VALUES.has(cs.overflowX) || SCRIPT_SCROLLABLE_VALUES.has(cs.overflowY);
 }
 
-// Never a candidate in either walk: when the page box IS the scrollport, the window
+// Never a candidate in either walk: when the page box is the scroll container, the window
 // viewport is the rect to measure and the thing to scroll, and neither box is that rect.
 function isPageBox(el: HTMLElement): boolean {
 	return el === document.body || el === document.documentElement;
@@ -41,8 +41,8 @@ export type UserScrollport = HTMLElement | Window;
 
 /**
  * What a drag autoscrolls to bring more of `el` into reach: the nearest user-scrollable
- * ancestor, or the window when the page's own viewport is the scrollport. Total on
- * purpose — a null for the page-scrolled case reads as "no autoscroll targets", and
+ * ancestor, or the window when the page's own viewport is the scroll container. Always answers
+ * on purpose: a null for the page-scrolled case would read as "no autoscroll target", and
  * `document.scrollingElement` is no substitute (its rect is the document box).
  */
 export function userScrollportFor(el: HTMLElement): UserScrollport {
@@ -77,7 +77,7 @@ export function clippingAncestors(el: HTMLElement): HTMLElement[] {
 }
 
 /** First scrollable descendant of `el` in document order. A block-host wrapper sits
- *  OUTSIDE a block's internal scroll container, so finding what scrolls beneath the host
+ *  outside a block's internal scroll container, so finding what scrolls beneath the host
  *  means looking inward, not up. */
 export function firstScrollableDescendant(el: HTMLElement): HTMLElement | null {
 	const queue: HTMLElement[] = [];
