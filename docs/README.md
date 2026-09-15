@@ -49,6 +49,7 @@ The pack is the whole `guide/` folder as is, subfolders included (a doc's gifs l
 
 | Doc                                                                          | Scope                                                                                                                                       |
 | ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| [`contributing/glossary.md`](contributing/glossary.md)                       | Every word the repo coined, one line each, and what to write instead: keep it open beside any other doc here                                |
 | [`contributing/rules.md`](contributing/rules.md)                             | Five rules, each one paid for by a real bug: **read before your first edit**                                                                |
 | [`contributing/casebook.md`](contributing/casebook.md)                       | The eight incidents behind the rules: read before your first structural change                                                              |
 | [`contributing/anatomy-of-a-change.md`](contributing/anatomy-of-a-change.md) | One real feature traced from first design decision to ship, for the shape of a change here                                                  |
