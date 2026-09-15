@@ -1,8 +1,8 @@
 /**
- * Plugin-facing global commands: mint a process-wide command id, register a handler receiving
- * the dispatching instance's EditorContext, optionally bind a chord in the plugin-global tier
- * (last in precedence). Beside block-commands, not in commands.ts, for the same cycle reason —
- * commands ← command-id must stay one-directional.
+ * Plugin-facing global commands: create a process-wide command id, register a handler that
+ * receives the dispatching editor's `EditorContext`, and optionally bind a chord among the
+ * plugin-global chords (last in precedence). Beside `block-commands`, not in `commands.ts`, so
+ * `commands → command-id` stays one-directional.
  */
 import { mintCommandId, type PluginCommandId } from './command-id';
 import {
@@ -19,20 +19,20 @@ export function registerGlobalCommand(
 	handler: (editor: EditorContext) => boolean,
 	opts?: { chord?: string }
 ): PluginCommandId {
-	// Validate the chord BEFORE the mint: a collision must not leave a minted name and a
+	// Validate the chord before creating the id: a collision must not leave a created name and a
 	// registered handler behind a failed registration.
 	if (opts?.chord) assertPluginGlobalChordAvailable(opts.chord, name);
 	const owner = currentInstallingPlugin();
-	// Owner-attributed: it is what lets a plugin re-mint its own name, and what names the prior
-	// owner in a cross-plugin collision.
+	// The owner is what lets a plugin ask for its own name again, and what names the prior owner
+	// in a cross-plugin collision.
 	const id = mintCommandId(name, owner);
 	registerCommand(id, (ctx) => {
 		if (!ctx.pluginEditor) {
 			warnDeadKeyCommand(id, 'plugin-global');
 			return false;
 		}
-		// Installed process-wide but absent from this editor's `plugins` prop: inert here, not
-		// dead, so it must not spend the dead-key diagnostic a truly unreachable id owes.
+		// Installed process-wide but absent from this editor's `plugins` prop: inert here, not dead,
+		// so it must not use up the dead-key warning a truly unreachable id gets.
 		const editor = ctx.pluginEditor(owner ?? '');
 		if (!editor) return false;
 		try {

@@ -10,8 +10,8 @@ export interface KeyBinding {
 	chord: string;
 	command: AnyCommandId;
 	/**
-	 * Static argument baked into the binding, widened so a minted command travels the same
-	 * channel. It reaches the handler as `unknown`, which must type-guard before use.
+	 * Static argument baked into the binding, widened so a plugin command's argument travels the
+	 * same channel. It reaches the handler as `unknown`, which must type-guard before use.
 	 */
 	arg?: unknown;
 }

@@ -1,9 +1,9 @@
 /**
- * Which modifier chords a mounted editor consumes. The keymap tiers enumerate from the
- * registries; chords claimed by hand-written keydown branches do not, so they ride the
- * manifest below — G4.29's source scan fails until a new claiming site joins it. Bare keys
- * stay out of contract: a focused document owns them whatever the manifest says. A manifested
- * file must keep its literal key comparisons and modifier reads, which are the scan's evidence.
+ * Which modifier chords a mounted editor consumes. Keymap chords are listed from the registries;
+ * chords taken by hand-written keydown branches are not, so they go in `HARDCODED_CHORD_SITES`
+ * below, and the G4.29 source scan fails until a new such file is added there. Bare keys are out
+ * of scope: a focused document owns them regardless. A listed file must keep its literal key
+ * comparisons and modifier reads, which are the scan's evidence.
  */
 import { getAllRegisteredKinds, tryGetBlockKindDescriptor } from './block-kind-descriptor';
 import { GLOBAL_KEYMAP, pluginGlobalChords, reservedUiChords } from './commands';
@@ -11,9 +11,9 @@ import type { KeybindingOverrideMap } from './keybinding-overrides';
 import type { PluginActivation } from './plugin-activation';
 import { eventToChord, normalizeChord } from './keybindings';
 
-// ── The hardcoded-chord manifest ─────────────────────────────────────────────
+// ── The hardcoded-chord list ─────────────────────────────────────────────────
 
-/** One library file that reads a KeyboardEvent modifier flag, and what it claims. */
+/** One library file that reads a KeyboardEvent modifier flag, and the chords it consumes. */
 export interface HardcodedChordSite {
 	/** Path under `src/lib`, as G4.29's scan reports it. */
 	file: string;
@@ -320,20 +320,20 @@ const HARDCODED_CHORDS: ReadonlySet<string> = new Set(
 // ── Composition ──────────────────────────────────────────────────────────────
 
 export interface ReservedChordOptions {
-	/** The instance's live `searchBar` value: with the bar off the editor claims neither
+	/** The instance's live `searchBar` value: with the bar off the editor consumes neither
 	 *  Find nor Replace. */
 	searchBar: boolean;
 	/** The instance's compiled `keybindings` prop, so an override's binds and disables show. */
 	keybindings?: KeybindingOverrideMap;
-	/** The plugins this instance activated: a chord another editor's plugin claimed is not
-	 *  this editor's. Required-nullable, so a new caller must answer; `undefined` is every
+	/** The plugins this instance activated: a chord another editor's plugin bound is not this
+	 *  editor's. Required but nullable, so a new caller must answer; `undefined` is every
 	 *  installed plugin. */
 	activation: PluginActivation | undefined;
 }
 
 /**
  * Every modifier chord this editor consumes, normalized. Composed on each call: kind keymaps,
- * the plugin tiers and the override map all change under a live editor.
+ * plugin chords and the override map all change under a live editor.
  */
 export function collectReservedChords(options: ReservedChordOptions): ReadonlySet<string> {
 	const claimed = new Set(
@@ -357,8 +357,8 @@ export function collectReservedChords(options: ReservedChordOptions): ReadonlySe
 }
 
 /**
- * True when `chords` claims this keystroke, under the editor's own normalization — Ctrl and
- * Cmd both fold to `Mod`, so a consumer never re-derives the platform rule.
+ * True when `chords` holds this keystroke, under the editor's own normalization: Ctrl and Cmd
+ * both become `Mod`, so a consumer never re-derives the platform rule.
  */
 export function chordIsClaimed(event: KeyboardEvent, chords: ReadonlySet<string>): boolean {
 	const chord = eventToChord(event);
