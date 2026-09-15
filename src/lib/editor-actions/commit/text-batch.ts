@@ -1,14 +1,13 @@
 /**
- * Keystroke-batch lifecycle: one undo entry per burst of typing, broken by a
- * wall-clock pause, a batch-key change, or a structural commit. Snapshot capture
- * itself stays with the controller, injected.
+ * Keystroke batching: one undo entry per burst of typing, ended by a pause, a change of
+ * batch key, or a structural commit. Snapshot capture stays with the controller, injected.
  */
 
 export interface TextBatchDeps {
 	/** Capture the pre-edit snapshot for the first keystroke of a batch. */
 	pushSnapshot(leafPath: number[], offset: number): void;
 	/** Emit the batched `input` edit event when a batch flushes. Omitted by a batch with no edit
-	 *  channel of its own: a revealed source's bytes reach it once, on the fold's commit. */
+	 *  events of its own: a revealed source's bytes are reported once, when it collapses. */
 	emitInput?(leafPath: number[], byteLength: number): void;
 }
 
@@ -19,16 +18,16 @@ export interface TextBatch {
 	 */
 	keystroke(leafPath: number[], offset: number, batchKey?: string | number): void;
 	/**
-	 * Start the pause window, called once the keystroke's own edit has SETTLED. Split from
-	 * `keystroke` because the window measures the gap the user leaves, not the gap plus the
-	 * editor's own work: armed before the settle, a keystroke whose processing approaches the
-	 * window opens a fresh batch every time and undo granularity collapses to one entry per
-	 * character. A no-op with no live batch.
+	 * Start the pause timer, called once the keystroke's own edit has finished. Separate from
+	 * `keystroke` because the timer measures the pause the user leaves, not the pause plus the
+	 * editor's own work: started earlier, a keystroke whose processing takes about as long as
+	 * the timer would open a fresh batch every time, one undo entry per character. Does
+	 * nothing without a live batch.
 	 */
 	armPause(): void;
 	/**
-	 * Structural-commit interrupt: cancel the pause timer, flush the pending input
-	 * event, and require a fresh snapshot from the next keystroke.
+	 * Called by a structural commit: cancel the pause timer, flush the pending input event,
+	 * and make the next keystroke push a fresh snapshot.
 	 */
 	interrupt(): void;
 }
@@ -44,8 +43,8 @@ export function createTextBatch(deps: TextBatchDeps): TextBatch {
 	let batchByteLength = 0;
 
 	/**
-	 * Must run before the batch is repointed or reset, else edit-channel observers
-	 * never see the batch's `input` event and under-count keystrokes.
+	 * Must run before the batch is repointed or reset, or edit-event listeners never see
+	 * the batch's `input` event and under-count keystrokes.
 	 */
 	function flushPendingInput(): void {
 		if (batchByteLength > 0 && batchPath) {
@@ -77,8 +76,8 @@ export function createTextBatch(deps: TextBatchDeps): TextBatch {
 		armPause() {
 			if (needsCheckpoint) return;
 			clearTimer();
-			// Wall-clock pause detection, not async sequencing (G4.4 allowlist):
-			// tick() is microtask-grained and can't express "stopped typing ~250ms".
+			// A real-time pause, not async sequencing (G4.4 allowlist): tick() is a microtask
+			// and cannot express "stopped typing for 250 ms".
 			timer = setTimeout(() => {
 				needsCheckpoint = true;
 				timer = null;

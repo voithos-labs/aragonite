@@ -1,6 +1,6 @@
 /**
- * Shared cross-block landing tail for the focus dispatchers. Sticky-X null handling
- * lives here, so `focusAtColumn` receivers always get a finite x.
+ * The last step of a cross-block focus move, shared by both focus dispatchers. A null sticky
+ * column is handled here, so `focusAtColumn` always receives a finite x.
  */
 
 import {
@@ -31,8 +31,8 @@ export async function consumeStickyLanding(
 		}
 	}
 
-	// Enter an edge widget rather than dropping a no-op caret at its boundary, so the
-	// arrow key produces one visible step.
+	// Enter an edge widget rather than putting a caret that does nothing at its boundary, so
+	// the arrow key produces one visible step.
 	if (position === 'start' && block.enterEdgeWidget?.('start')) return;
 	if (position === 'end' && block.enterEdgeWidget?.('end')) return;
 
@@ -47,21 +47,21 @@ export async function consumeStickyLanding(
 		return;
 	}
 
-	// An ARRIVAL says "the start"/"the end" and the door seats it on a landable offset; a numeric
-	// position is a caller who knows its byte (a split's continuation) and is passed through.
+	// 'start' and 'end' are arrivals, and the block's focus clamps them to an offset the caret
+	// can sit at; a number is a caller that knows its byte (a split's second half), passed through.
 	if (typeof position === 'number') block.focus(position);
 	else if (position === 'start') block.focus(CURSOR_START);
 	else block.focus(CURSOR_END);
 }
 
-/** What a vertical arrival does at a block: enter its widget, pass over it, or seat a caret. */
+/** What a vertical arrival does at a block: enter its widget, pass over it, or place a caret. */
 export type VerticalArrival = 'entered' | 'transparent' | 'seat';
 
 /**
- * The vertical stop rule, asked by both vertical doors: the per-block landing and a container's
- * column entry. A widget-only block carries no column, so it is passed over unless its edge widget
- * takes the arrival, which is a stop of its own and reads alike from either side. `'entered'` means
- * the widget ALREADY took it, so the caller stops rather than repeating the entry.
+ * Whether a vertical move stops at a block, shared by the per-block arrival and a container's
+ * column entry. A widget-only block has no column, so the move passes over it unless its edge
+ * widget takes the arrival, which is a stop of its own from either side. `'entered'` means the
+ * widget already took it, so the caller stops rather than entering it again.
  */
 export function verticalArrival(
 	block: BlockComponent,

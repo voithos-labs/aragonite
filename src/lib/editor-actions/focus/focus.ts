@@ -1,6 +1,6 @@
 /**
- * FocusActions factory: cursor movement across blocks, sticky-column-aware
- * vertical traversal, and trailing-paragraph creation past document end.
+ * The root FocusActions: caret movement across top-level blocks, vertical moves that keep
+ * the sticky column, and the paragraph appended when a move goes past the document's end.
  */
 
 import type { FocusActions, MoveFocusOptions } from '../../action-contracts';
@@ -36,20 +36,20 @@ export function createFocusActions(
 			const step = traversalStep(position);
 			const stopsAtGaps = step !== 0 && !options?.skipGapStop;
 			// The boundary a directional move crosses is the greater of the two adjacent
-			// indices. Out-of-range boundaries and the root's trailing one decline in
-			// `gapEligibleAt`, so the arms below keep their behavior unguarded.
+			// indices. `gapEligibleAt` declines out-of-range boundaries and the root's trailing
+			// one, so the branches below need no guard of their own.
 			if (stopsAtGaps && gapStopAt([], step > 0 ? blockIndex : blockIndex + 1)) return;
 			if (blockIndex < 0) return;
 			if (blockIndex >= deps.doc.children.length) {
 				if (options?.append === false) return;
-				// Past the last block — appended through the commit primitive so it participates in
-				// undo history and edit events. The separating blank line and the paragraph's own
-				// are both line endings, so both take the document's (G4.20).
+				// Past the last block: appended through a commit so it is in undo history and edit
+				// events. The separating blank line and the paragraph's own line are both line
+				// endings, so both take the document's (G4.20).
 				const lastBlock = deps.doc.children[deps.doc.children.length - 1];
 				const lineEnding = trailingLineEnding(lastBlock?.raw ?? '\n');
 				const newBlock = emptyParagraph(lineEnding, lineEnding);
-				// The appended slot (one past the end) is the coordinate for both the
-				// event and the restore fallback — it names the block this op creates.
+				// The appended index (one past the end) is the path for both the event and the
+				// undo restore fallback: it names the block this creates.
 				const appendPath = docPathFrom([deps.doc.children.length]);
 				await controller.commitStructural({
 					snapshot: { path: appendPath, offset: 0 },
@@ -68,15 +68,15 @@ export function createFocusActions(
 			}
 			const block = await deps.revealPath([blockIndex]);
 			if (!block?.focusable) {
-				// A refless or non-focusable block must not dead-end the move — skip it in
-				// the move's direction (editor.md § Focus traversal).
+				// A block with no ref, or one that cannot take focus, must not stop the move: skip
+				// it in the move's direction (editor.md § Focus traversal).
 				if (step !== 0) await this.moveFocus(blockIndex + step, position, options);
 				return;
 			}
 
-			// A landing AT a block's end is a seat at an extreme, not a step onto it, so the side
-			// it means is construct-relative (docs/design/live-mode.md § 4.2). Without this the
-			// first byte typed after a structural landing joins the closer it landed inside.
+			// Landing at a block's end is a jump to an extreme, not a step onto it, so which side
+			// of a hidden marker it means is decided per construct (docs/design/live-mode.md
+			// § 4.2). Without this the first byte typed after the move joins the closer.
 			if (position === 'end') deps.edgeAffinity.noteExtreme();
 
 			await consumeStickyLanding(block, blockIndex, position, deps.stickyColumn, (i) =>

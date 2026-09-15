@@ -1,6 +1,6 @@
 /**
- * Pure dispatchers for container focus — moveFocus, focusByPath, focusAtColumn.
- * No Svelte context or reactivity; inputs are passed in as parameters.
+ * Pure dispatchers for focus inside a container: moveFocus, focusByPath, focusAtColumn.
+ * No Svelte context or reactivity; everything comes in as parameters.
  */
 
 import type { FocusActions, MoveFocusOptions } from '../../action-contracts';
@@ -14,14 +14,14 @@ import {
 import type { StickyColumnState } from '../../cursor/sticky-column';
 import { consumeStickyLanding, verticalArrival } from './focus-landing';
 
-/** What the calling scope contributes to a move beyond the target itself. */
+/** What the calling container contributes to a move beyond the target itself. */
 export interface MoveFocusScope {
 	/** Overrides `refs.length` for the upper bound: the two diverge for one render cycle
 	 *  after a structural op, and without it the cursor escapes the container. */
 	childCount?: number;
 	/** The caller's own options, forwarded verbatim on upward delegation. */
 	options?: MoveFocusOptions;
-	/** Pre-bound to this scope's own boundaries (`selection/gap-caret.ts`). */
+	/** Bound to this container's own boundaries (`selection/gap-caret.ts`). */
 	gapStop?: (boundaryIndex: number) => boolean;
 }
 
@@ -41,9 +41,9 @@ export async function dispatchMoveFocus(
 			? parent.focus.moveFocus(targetIndex, position, options)
 			: parent.focus.moveFocus(targetIndex, position);
 	const step = traversalStep(position);
-	// Ahead of every ref read, so the CST alone decides the boundary and a windowed-out
-	// child cannot change the answer. The two scope edges are boundaries like any other:
-	// this is also what stops the delegate arms from leaving the container.
+	// Before any ref is read, so the CST alone decides the boundary and an unmounted child
+	// cannot change the answer. The container's two edges are boundaries like any other:
+	// this is also what keeps the delegation below from leaving the container.
 	if (gapStop && step !== 0 && !options?.skipGapStop) {
 		if (gapStop(step > 0 ? innerIndex : innerIndex + 1)) return;
 	}
@@ -59,8 +59,8 @@ export async function dispatchMoveFocus(
 
 	const block = refs[innerIndex];
 	if (!block?.focusable) {
-		// A refless or non-focusable child must not dead-end the move — continue in
-		// its direction (editor.md § Focus traversal).
+		// A child with no ref, or one that cannot take focus, must not stop the move: continue
+		// in its direction (editor.md § Focus traversal).
 		if (step !== 0) {
 			await dispatchMoveFocus(refs, innerIndex + step, position, stickyColumn, parent, scope);
 		}
@@ -73,8 +73,8 @@ export async function dispatchMoveFocus(
 }
 
 /**
- * Direction a FocusPosition implies for traversal. A bare numeric offset is a
- * targeted landing with no direction, so 0 tells the caller not to skip.
+ * The direction a FocusPosition implies for traversal. A bare numeric offset is a targeted
+ * position with no direction, so 0 tells the caller not to skip.
  */
 export function traversalStep(position: FocusPosition): -1 | 0 | 1 {
 	if (typeof position === 'object') return position.stickyColumnFrom === 'below' ? -1 : 1;
@@ -84,9 +84,9 @@ export function traversalStep(position: FocusPosition): -1 | 0 | 1 {
 }
 
 /**
- * Adjacent-only contract (VR-12, docs/design/virtual-rendering.md): sync, revealing
- * nothing, so an unmounted `refs[first]` silently no-ops. The caller keeps the target
- * within overscan; anything wider routes through the async `revealByPath`/`revealPath`.
+ * Synchronous and scrolls nothing into view, so an unmounted `refs[first]` silently does
+ * nothing. The caller keeps the target within the mounted window (VR-12,
+ * docs/design/virtual-rendering.md); anything further goes through the async `revealByPath`.
  */
 export function dispatchFocusByPath(
 	refs: (BlockComponent | undefined)[],
@@ -128,8 +128,8 @@ export function dispatchFocusAtColumn(
 	if (refs.length === 0) return;
 	const indices =
 		from === 'above' ? refs.map((_, i) => i) : refs.map((_, i) => refs.length - 1 - i);
-	// Pass over transparent refs so an entry from above/below lands on the first/last
-	// text-bearing child.
+	// Pass over widget-only children so an entry from above or below lands on the first or
+	// last child that has text.
 	for (const i of indices) {
 		const ref = refs[i];
 		if (!ref?.focusable) continue;

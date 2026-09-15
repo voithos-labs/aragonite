@@ -1,8 +1,8 @@
 /**
- * HistoryActions factory: capture current state for the swap entry, replay the
- * entry's snapshot, restore the saved selection. Snapshots share the live tree's
- * nodes, so a restore re-marks the epoch and re-copies the children array — else a
- * later publish writes the stack's own entry.
+ * Undo and redo: capture the current state for the opposite stack, install the entry's
+ * snapshot, restore its selection. Snapshots share the live tree's nodes, so a restore marks
+ * the tree shared again and copies the children array; otherwise a later commit would write
+ * into the stack's own entry.
  */
 
 import { tick } from 'svelte';
@@ -22,16 +22,16 @@ export function createHistoryActions(
 			const violation = checkSnapshotIntegrity(entry);
 			return violation && { ...violation, message: `${op}: ${violation.message}` };
 		});
-		// Ahead of the swap itself, so a landing awaiting across it reads the new stamp
-		// whichever side of the doc write its reveal resolves on.
+		// Before the swap itself, so a caret placement waiting across it sees the new counter
+		// whichever side of the document write its scroll-into-view finishes on.
 		controller.noteHistorySwap();
 		deps.sharing.markSnapshotTaken();
 		deps.setDoc({ ...entry.snapshot, children: [...entry.snapshot.children] });
 		deps.bumpContentVersion();
 		// A copy: live state splices this array in place, and the entry stays on the stack.
 		deps.setBlockIds([...entry.blockIds]);
-		// The tick belongs to the doc swap above, not to the restore: the new tree
-		// must render before the shared seam can reveal or address anything in it.
+		// The tick belongs to the document swap above, not to the restore: the new tree must
+		// render before the selection restore can scroll to or address anything in it.
 		await tick();
 		const restoreDeps = {
 			getDoc: () => deps.doc,
@@ -44,16 +44,16 @@ export function createHistoryActions(
 		const outcome = isGapSelection(entry.selection)
 			? await restoreGapCaret(entry.selection.gapCaret, restoreDeps)
 			: await restoreSelection(entry.selection, restoreDeps);
-		// An entry can name a slot that never existed in its own snapshot (append-past-end declares
-		// the one-past-the-end coordinate as its restore fallback). The seam declines without side
-		// effects, so clearing is this caller's policy: the one place that knows the doc changed.
+		// An entry can name an index its own snapshot never had (append-past-end records the
+		// one-past-the-end path as its fallback). The restore declines without side effects, so
+		// clearing the selection is decided here, the one place that knows the document changed.
 		if (outcome === 'unresolvable') deps.selectionState.clear();
 		deps.events.emit('edit', { op, path: [], timestamp: Date.now() });
 	}
 
-	// Flush, not discard: interrupt clears the debounce timer so it can't push a stale
-	// snapshot after the stack moves, AND emits the batch's pending `input` event so
-	// its bytes aren't dropped from the edit channel.
+	// Flush, not discard: `interrupt` clears the debounce timer so it cannot push a stale
+	// snapshot after the stack moves, and emits the batch's pending `input` event so its
+	// bytes are not dropped from the edit events.
 	function beginHistorySwap(): void {
 		deps.stickyColumn.reset();
 		deps.edgeAffinity.reset();
@@ -63,8 +63,8 @@ export function createHistoryActions(
 	return {
 		async requestUndo(): Promise<void> {
 			beginHistorySwap();
-			// Check the stack before capturing: captureCurrentState marks the whole tree
-			// snapshot-shared, forcing copy-on-write spines on the next edit.
+			// Check the stack before capturing: captureCurrentState marks the whole tree as
+			// shared with a snapshot, forcing the next edit to copy its path first.
 			if (!deps.undoManager.canUndo) return;
 			const entry = deps.undoManager.undo(controller.captureCurrentState());
 			if (!entry) return;
