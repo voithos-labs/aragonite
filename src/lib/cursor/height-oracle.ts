@@ -28,7 +28,8 @@ export interface HeightOracle {
 	estimate(node: NodeView, width: number): number;
 	measured(id: string): number | undefined;
 	recordMeasured(id: string, height: number): void;
-	/** Drop every measured height; estimates carry the model until each block re-measures. */
+	/** Drop every measured height. A live scope carries its own across a rebuild (VR-15), so
+	 *  estimates seed only a scope built after the drop, and any block with a fresh id. */
 	dropMeasured(): void;
 }
 

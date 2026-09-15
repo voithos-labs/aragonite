@@ -845,6 +845,7 @@ directory as well as this table before assuming a rule is unguarded.
 | G4.63 | The bundled plugins' own suites import only the published entry points        | L       |
 | G4.64 | The tree-ops ladder has no upward import                                      | L       |
 | G4.65 | Every prose surface hands typed delimiters to the one auto-pair arm           | L       |
+| G4.66 | A relative scroll is written through `scrollBy`, never read-plus-delta        | L       |
 
 ### The entries
 
@@ -1392,6 +1393,13 @@ and no other file calls it. The arm decides what a typed delimiter writes (its t
 the twin, the closer it completes) and which side the caret means afterwards; the two surfaces
 once carried a copy each, and a copy is the sibling that misses the next rule.
 `lint/delimiter-autopair-parity.test.ts`.
+
+**G4.66 · Relative scroll through one door.** A correction that moves the scrollport by a delta
+calls `Scrollport.scrollBy`, never `setScrollTop(scrollTop() + delta)`. The scroller snaps a
+fractional write to a device pixel and reports the snapped value back, so the hand-rolled spelling
+loses that fraction once per correction, and a mode flip corrects once per re-measured block
+(#315). `scrollBy` carries the refused fraction into the next call; the rule is a source scan
+because the lossy spelling type-checks. `lint/relative-scroll-write.test.ts`.
 
 ## Accessibility
 
