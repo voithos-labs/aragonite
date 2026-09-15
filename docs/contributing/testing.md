@@ -12,7 +12,7 @@ Where to jump:
 - [Unit tests (Vitest)](#unit-tests-vitest): where a file goes, the area scripts, mounting a
   block without the whole editor, and the console-warning gate.
 - [E2E tests (Playwright)](#e2e-tests-playwright): the fixture import rule, the test bridge, the
-  area scripts, the plugins route and what's installed on it, the WebKit run, the requirement
+  area scripts, the plugins route and what's installed on it, the WebKit lane, the requirement
   files, and the gotchas.
 - [The conformance differ](#the-conformance-differ): our inline parser diffed against
   commonmark.js.
@@ -317,7 +317,7 @@ editing, and selection + clipboard.
 | `test:e2e:simulation`     | The note-taking simulation sessions (their own section below)                                                                                                                                                                                                                                                    |
 | `test:e2e:a11y`           | axe over `.editor`: fails on any violation outside the committed allowlist                                                                                                                                                                                                                                       |
 | `test:e2e:vr`             | Virtual rendering on large fixtures: windowing, reveal, table-row windowing, mounted-count ceiling                                                                                                                                                                                                               |
-| `test:e2e:webkit`         | The second-engine run: a curated slice under the WebKit binary, env-gated, per release rather than per commit (next section)                                                                                                                                                                                     |
+| `test:e2e:webkit`         | The second-engine lane: a curated slice under the WebKit binary, env-gated; CI runs it on every PR and the release PR can't merge past it (next section)                                                                                                                                                         |
 
 The a11y allowlist and the VR ceilings both fail closed and only shrink. Neither is a perf gate;
 both ride `npm test`.
@@ -379,21 +379,50 @@ left with the kind switched off through the harness-only `__registryEnablement` 
 `activation/` (two editors in one process, only the first listing the parrot and the block
 badge, for the per-instance activation spec).
 
-### The WebKit run
+### The WebKit lane
 
-A second contenteditable implementation, run per release rather than per commit. The reason to
-keep it out of `npm test` is signal, not time: a second engine in the per-commit loop doubles the
-flake surface for a class of bug that doesn't appear between releases.
+A second contenteditable implementation, and a check the release can't merge past.
 `npm run test:e2e:webkit` sets `WEBKIT=1`, and that variable is what makes the `e2e-webkit`
-project exist at all, so the run can't half-happen inside the default suite. It collects a
-curated slice of the existing typing, split/merge, selection and round-trip specs, plus
-everything under `tests/webkit/`, which holds the specs only this run executes, covering the two
-helpers that branch on the engine. It fails rather than reports, and it can afford to because it
-carries no known-red backlog for a regression to hide behind. CI runs it as a non-blocking job on
-the release pull request (`dev` to `main`) and on manual dispatch, so a release sees the second
-engine without adding it to the per-commit loop. Locally, run it alone, and on a quiet tree:
-it shares the dev server with every other project, and a save into `src/` mid-run triggers an
-SSR reload whose component re-registration turns the run red for a reason the product never had.
+project exist at all, so the lane can't half-run inside `npm test`. It's kept out of `npm test`
+on purpose, and the reason is signal rather than time: a second engine in your local loop doubles
+the flake surface for a class of bug that shows up roughly once per Playwright bump. So CI
+carries it, and you run it by hand when you've touched selection, typing or the clipboard.
+
+What it runs: a curated slice of the typing, split/merge, selection and round-trip specs
+(`WEBKIT_LANE` in `playwright.config.ts`), plus everything under `tests/webkit/`, which only this
+lane executes.
+
+**In CI it blocks.** `.github/workflows/webkit.yml` runs the lane on every pull request to `main`
+and to `dev`. On the release PR (`dev` to `main`) its `webkit` check is required, same as the
+`ci.yml` jobs: `scripts/apply-branch-protection.mjs` lists it, and a lint holds that list in
+step with the workflows. `dev` can't be protected (it takes the history rewrites), so there the
+lane only reports, but a red on your dev PR is yours: the release PR runs the same lane over the
+same commits, and it won't merge until that's green. A red the day after a Playwright bump, with
+no editor change in sight, is the engine build moving under the same code (the browser build is
+pinned by the `@playwright/test` version in `package.json`). That's a real finding too, either an
+engine difference to handle or a flake to quarantine.
+
+**Quarantining a flake.** A flake is a spec that reads red on some runs of the lane and green on
+others, same code. Since the lane blocks, one of those can hold a release on a coin toss, so it
+comes out of the lane, and only out of the lane:
+
+1. File the issue (`severity: watch` while nothing's confirmed) with what was seen and the
+   command that repeats it, which is the same in bash and PowerShell:
+
+   ```
+   node scripts/run-with-env.mjs WEBKIT=1 -- npx playwright test --project=e2e-webkit selection/pointer.spec.ts --repeat-each 10 --trace on
+   ```
+
+2. Make the test's first line `test.fixme(browserName === 'webkit', '#353: what it does')`,
+   with `browserName` taken from the test's fixture args. Chromium keeps running the test; the
+   lane reports it as skipped, with the issue number in the reason.
+3. Leave the requirement bullet as it is (the claim still holds under Chromium) and add an
+   indented line under it saying where the skip is, so the two files stay paired (G4.23).
+4. When the issue closes, the `fixme` goes with it.
+
+**Running it locally.** Alone, and on a quiet tree: the lane shares the dev server with every
+other project, and a save into `src/` mid-run triggers an SSR reload whose component
+re-registration turns the run red for a reason the product never had.
 
 Two harness helpers branch on the engine, both behind unchanged signatures, so no spec knows
 which side it got. WebKit rejects the clipboard permissions at **context creation**, which no
@@ -403,7 +432,7 @@ carrying a `DataTransfer`, which is where the editor's own handlers already read
 WebKit exposes no CDP session, so the IME driver hand-fires the composition sequence: the one
 exemption G4.49 grants, which no spec may copy.
 
-What the run proves: editor behavior survives a second engine, and the commit path survives a
+What the lane proves: editor behavior survives a second engine, and the commit path survives a
 WebKit-shaped composition without double-applying at `compositionend`. What it doesn't: event
 ORDER, which only the CDP side can assert, and the paste chord itself, which the dispatched
 event bypasses. Both stay pinned in Chromium.
@@ -413,11 +442,9 @@ which no in-repo suite can see at all: clipboard retargeting, the host's own acc
 and image-src scheme policy are the embedding host's decisions rather than the page's, so that
 class of bug is found by a real host or by a user.
 
-**The caveat, wherever this run is described.** WebKit-on-Windows through Playwright isn't
-Safari and isn't a WKWebView. It's the closest available proxy, so a green run is weaker
-evidence than its pass count suggests, and #37 stays open until something runs on Apple
-hardware. The browser build is pinned by the `@playwright/test` version in `package.json`, so a
-Playwright upgrade that turns this run red is telling you something real.
+**The caveat, wherever this lane is described.** Playwright's WebKit build isn't Safari and
+isn't a WKWebView. It's the closest available proxy, so a green run is weaker evidence than its
+pass count suggests, and #37 stays open until something runs on Apple hardware.
 
 ### Requirements pair one-to-one with specs
 

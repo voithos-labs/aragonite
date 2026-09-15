@@ -208,6 +208,7 @@ describe('branch-protection context readers — self-tests', () => {
 		expect(ci.filter((name) => name.startsWith('e2e '))).toHaveLength(4);
 		expect(declaredCi.length).toBe(ci.length);
 		expect(declaredExternal.get('cla.yml')).toEqual(['cla']);
+		expect(declaredExternal.get('webkit.yml')).toEqual(['webkit']);
 	});
 
 	it('follows a job rename rather than the hand-written list', () => {
