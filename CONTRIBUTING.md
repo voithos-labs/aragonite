@@ -4,7 +4,9 @@ So you want to work on this thing. Condolences.
 
 Anyways, for more in depth stuff, find them here:
 
+- [`docs/contributing/first-hour.md`](docs/contributing/first-hour.md): what to read first, in order
 - [`docs/contributing/rules.md`](docs/contributing/rules.md): rules to abide by
+- [`docs/contributing/glossary.md`](docs/contributing/glossary.md): the words the repo made up, one line each
 - [`docs/contributing/codebase-map.md`](docs/contributing/codebase-map.md): behavior to file mapping
 - [`docs/contributing/testing.md`](docs/contributing/testing.md): the two test layers, and how to write into them
 - [`docs/contributing/code-style.md`](docs/contributing/code-style.md): naming, comments, etc.

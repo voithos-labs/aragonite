@@ -6,12 +6,12 @@ New here? Run it with the root [`README.md`](../README.md) (which also argues wh
 
 ## Start here
 
-| If you want to…                     | Read                                                                                                                               |
-| ----------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| **Understand how the editor works** | [`design/editor.md`](design/editor.md)                                                                                             |
-| **Embed the editor in an app**      | [`guide/consumer-guide.md`](guide/consumer-guide.md)                                                                               |
-| **Write a plugin**                  | [`guide/plugin-guide.md`](guide/plugin-guide.md), then its [testing](guide/plugin-testing.md) and [API](guide/plugin-api.md) pages |
-| **Contribute to the editor itself** | [`../CONTRIBUTING.md`](../CONTRIBUTING.md), then [`contributing/rules.md`](contributing/rules.md)                                  |
+| If you want to…                     | Read                                                                                                                                   |
+| ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| **Understand how the editor works** | [`design/editor.md`](design/editor.md)                                                                                                 |
+| **Embed the editor in an app**      | [`guide/consumer-guide.md`](guide/consumer-guide.md)                                                                                   |
+| **Write a plugin**                  | [`guide/plugin-guide.md`](guide/plugin-guide.md), then its [testing](guide/plugin-testing.md) and [API](guide/plugin-api.md) pages     |
+| **Contribute to the editor itself** | [`../CONTRIBUTING.md`](../CONTRIBUTING.md) to set up, then [`contributing/first-hour.md`](contributing/first-hour.md) for what to read |
 
 Everything else hangs off those four. The folders are split by **audience**, not by topic, so don't be surprised when the same subsystem shows up in two of them wearing different hats.
 
@@ -50,6 +50,7 @@ The pack is the whole `guide/` folder as is, subfolders included (a doc's gifs l
 
 | Doc                                                                          | Scope                                                                                                                                       |
 | ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| [`contributing/first-hour.md`](contributing/first-hour.md)                   | What to read in your first hour, in order, and the file behind each of the five things a first change touches                               |
 | [`contributing/glossary.md`](contributing/glossary.md)                       | Every word the repo coined, one line each, and what to write instead: keep it open beside any other doc here                                |
 | [`contributing/rules.md`](contributing/rules.md)                             | Five rules, each one paid for by a real bug: **read before your first edit**                                                                |
 | [`contributing/casebook.md`](contributing/casebook.md)                       | The eight incidents behind the rules: read before your first structural change                                                              |
