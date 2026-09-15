@@ -1,8 +1,9 @@
 /**
- * The kind class with no character positions: `blockFocus: 'whole-block'` declares the opaque
- * focus-then-delete model, and no children means no inner surface either, so the rendered body
- * (an SVG, a toolbar) is chrome rather than the block's bytes. Its only addressable offsets are
- * 0 and `displayLength(raw)`; `selection/char-endpoint-snap.ts` is what holds selection to them.
+ * The class of block with no character positions inside it: `blockFocus: 'whole-block'` means the
+ * block is focused and deleted as one unit, and having no children means there is no editable area
+ * inside it either, so what it draws (an SVG, a toolbar) is frame rather than the block's bytes.
+ * Its only offsets are 0 and `displayLength(raw)`; `selection/char-endpoint-snap.ts` holds
+ * selection to them.
  */
 
 import type { NodeView } from '../core/node-views';

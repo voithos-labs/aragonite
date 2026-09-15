@@ -1,9 +1,9 @@
 /**
- * Built-in block-kind descriptors and inline-construct policies, applied by an EXPLICIT
+ * Built-in block-kind descriptors and inline-construct policies, applied by an explicit
  * `registerBuiltInDescriptors()` call from `core/inline/index.ts` and
- * `components/built-in-blocks.ts`: the `sideEffects` allowlist names dist paths, never the src
- * specifiers used inside this library, so only a called binding is safe from tree-shaking. Split
- * from `block-kind-descriptor.ts` so that module carries no registration payload.
+ * `components/built-in-blocks.ts`: the `sideEffects` list names built paths, never the source
+ * paths used inside this library, so only a binding something calls survives tree-shaking. Kept
+ * apart from `block-kind-descriptor.ts` so that module registers nothing itself.
  */
 
 import { metadataOf } from '../core/nodes';
@@ -50,8 +50,8 @@ function setextHeadingContentRange(node: NodeView): { start: number; end: number
 
 // ── Keymaps ───────────────────────────────────────────────────────────────
 
-// Shared by every kind TextEditableBlock renders — prose and the raw-editable fallback alike —
-// so transformative chords behave identically across them.
+// Shared by every kind TextEditableBlock renders, prose and the raw-editable fallback alike, so
+// the chords that transform a block behave the same in all of them.
 const TEXT_EDITABLE_KEYMAP: KeyBinding[] = [
 	{ chord: 'Enter', command: 'block.split' },
 	{ chord: 'Shift+Enter', command: 'block.hardBreak' },
@@ -64,9 +64,9 @@ const TEXT_EDITABLE_KEYMAP: KeyBinding[] = [
 	{ chord: 'Mod+I', command: 'format.toggleEmphasis' },
 	{ chord: 'Mod+Shift+X', command: 'format.toggleStrikethrough' },
 	{ chord: 'Mod+E', command: 'format.toggleCode' },
-	// The live-mode link card. Consumed even when no card opens (a caret outside every link
-	// no-ops): `reservedChords()` reports the chord as claimed, and a fall-through would run the
-	// browser's own Mod+K.
+	// The live-mode link card. The chord is taken even when no card opens (a caret outside every
+	// link does nothing): `reservedChords()` reports it as taken, and letting it through would
+	// trigger the browser's own Mod+K.
 	{ chord: 'Mod+K', command: 'link.openCard' },
 	{ chord: 'Mod+0', command: 'heading.cycle', arg: 0 },
 	{ chord: 'Mod+1', command: 'heading.cycle', arg: 1 },
@@ -77,10 +77,10 @@ const TEXT_EDITABLE_KEYMAP: KeyBinding[] = [
 	{ chord: 'Mod+6', command: 'heading.cycle', arg: 6 }
 ];
 
-// The cell is the focused surface inside a table, so the table's whole keyboard vocabulary binds
-// on THIS kind — an override scoped to `table` would resolve against a block that never holds
-// the caret. Plain arrows stay unbound: they depend on caret position, which a chord can't
-// express, so they live in `cell-keydown-plan.ts`.
+// The cell is what holds the caret inside a table, so all of the table's keys bind on this kind:
+// an override scoped to `table` would apply to a block the caret never sits in. Plain arrows stay
+// unbound because they depend on where the caret is, which a chord cannot express; they live in
+// `cell-keydown-plan.ts`.
 const TABLE_CELL_KEYMAP: KeyBinding[] = [
 	{ chord: 'Enter', command: 'cell.enter' },
 	{ chord: 'Tab', command: 'cell.tab' },
@@ -101,16 +101,16 @@ const TABLE_CELL_KEYMAP: KeyBinding[] = [
 	{ chord: 'Alt+ArrowLeft', command: 'table.moveColumnLeft' },
 	{ chord: 'Alt+ArrowRight', command: 'table.moveColumnRight' },
 	{ chord: 'Mod+Shift+A', command: 'table.cycleAlignment' },
-	// The whole table among its siblings. Alt+Arrow, every other kind's reorder chord, is taken
-	// by the row reorder a cell caret means first.
+	// Moves the whole table among its siblings. Alt+Arrow, the reorder chord every other kind
+	// uses, is already taken by the row reorder a caret in a cell means first.
 	{ chord: 'Mod+Alt+ArrowUp', command: 'block.moveUp' },
 	{ chord: 'Mod+Alt+ArrowDown', command: 'block.moveDown' }
 ];
 
 // ── Closure blocks ────────────────────────────────────────────────────────────
 
-// Shared by the not-mergeable, non-inline raw-text leaves — byte-identical rows, hoisted rather
-// than triplicated. fencedCode diverges too widely to spread, so it stays inline.
+// Shared by the not-mergeable, non-inline raw-text leaves: the rows are identical, so they live
+// here once. `fencedCode` differs too much to share, so it declares its own.
 const RAW_TEXT_LEAF_CLOSURE: ClosureBlock = {
 	roundTrip: { mode: 'inherit-default' },
 	focus: { mode: 'implemented', via: 'native caret in the raw-editable contenteditable' },
@@ -126,8 +126,8 @@ const RAW_TEXT_LEAF_CLOSURE: ClosureBlock = {
 	simOracle: { mode: 'implemented', via: 'note-taking simulation under the loaded-ops oracles' }
 };
 
-// The prose trio share a closure differing only in three via strings. Bake the
-// structurally-fixed rows; demand the varying vias so the honesty rule stays author-supplied.
+// The three prose kinds share a closure differing only in three `via` strings. The fixed rows are
+// filled in here; the three that vary stay required, so each kind names its own mechanism.
 function proseLeafClosure(vias: {
 	mergeBackspaceVia: string;
 	selectionPaintVia: string;
@@ -149,8 +149,8 @@ function proseLeafClosure(vias: {
 
 // ── Inline-construct policies ───────────────────────────────────────────────
 
-// Registered beside the block descriptors rather than from the component layer so a headless
-// consumer — and the unit bootstrap, which loads only this module — reads the same rows.
+// Registered next to the block descriptors rather than from the component layer, so a consumer
+// with no UI, and the unit tests that load only this module, read the same rows.
 function registerBuiltInInlinePolicies(): void {
 	// Outermost first, and code is innermost because its content is literal: no other mark can
 	// take effect inside it.
@@ -190,18 +190,18 @@ function registerBuiltInInlinePolicies(): void {
 		splitBehavior: 'plain',
 		revealable: true
 	});
-	// An autolink's `<`/`>` are a link's delimiters by another spelling: the destination IS the
-	// text, so a byte landing between the brackets rewrites where the link goes. Never-extend, for
-	// the same reason the bracket form is (live-mode.md § 4.2), and plain: two halves of a URL
-	// are not two URLs.
+	// An autolink's `<` and `>` are a link's delimiters in another spelling: the destination is the
+	// text, so a character landing between the brackets changes where the link goes. Never-extend
+	// for the same reason the bracket form is (live-mode.md § 4.2), and split plainly: two halves
+	// of a URL are not two URLs.
 	registerInlineConstructPolicy('autolink', {
 		edgeAffinity: 'never-extend',
 		autoUnwrapOnEmpty: false,
 		splitBehavior: 'plain',
 		revealable: false
 	});
-	// Unstamped marker runs, permanently hidden in live mode: the `\X` pair and the trailing-space
-	// run delete as a unit, so nothing may rewrite their markers around an edit.
+	// Marker runs with no data attribute, always hidden in live mode: the `\X` pair and the
+	// trailing-space run delete as one unit, so nothing may rewrite their markers around an edit.
 	for (const kind of ['escape', 'hardLineBreak'] as const) {
 		registerInlineConstructPolicy(kind, {
 			edgeAffinity: 'never-extend',
@@ -214,8 +214,8 @@ function registerBuiltInInlinePolicies(): void {
 
 // ── Built-in registrations ──────────────────────────────────────────────────
 
-// Idempotence guard, not a registry bypass: both entry points call this, and a
-// dev-server re-eval resets it so the register-once dev valve still replaces.
+// Stops a second run rather than skipping the registries: both entry points call this, and on a
+// dev server a re-evaluation resets the flag so a repeat registration still replaces.
 let registered = false;
 
 export function registerBuiltInDescriptors(): void {
@@ -244,8 +244,8 @@ export function registerBuiltInDescriptors(): void {
 		editable: true,
 		supportsInline: true,
 		getContentRange: headingContentRange,
-		// Live paints no `## `, so the first Backspace a user can aim at it takes the structure
-		// they CAN see; the second one merges, through the untouched cascade.
+		// Live mode shows no `## `, so the first Backspace the user can aim at it removes the
+		// structure they can see; the second merges, through the usual path.
 		contentStartBackspace: 'demote-first',
 		keymap: TEXT_EDITABLE_KEYMAP,
 		conformanceFixture: '# Heading\n',
@@ -427,8 +427,8 @@ export function registerBuiltInDescriptors(): void {
 					'grid child — not a block-level reorder unit; whole rows move via a row-drag gesture inside the table grid, not the BlockList'
 			},
 			undo: { mode: 'inherit-default' },
-			// inherit-default, unlike table/tableCell: no clipboard path anchors on a row node,
-			// so the row's per-cell painting does not extend to being a copy source.
+			// Inherit-default, unlike `table` and `tableCell`: no copy path starts from a row node,
+			// so a row painting its cells does not make it a copy source.
 			clipboard: { mode: 'inherit-default' },
 			simOracle: { mode: 'implemented', via: 'note-taking simulation (table edits)' }
 		}
@@ -442,7 +442,7 @@ export function registerBuiltInDescriptors(): void {
 		normalizeRawWrite: normalizeCellRaw,
 		renderImagesAsWidgets: false,
 		keymap: TABLE_CELL_KEYMAP,
-		// No conformanceFixture: the table opener mints cells, so one never stands alone as the
+		// No `conformanceFixture`: the table opener creates the cells, so one is never the
 		// top-level result of a document scan.
 		closure: {
 			roundTrip: {
@@ -478,8 +478,8 @@ export function registerBuiltInDescriptors(): void {
 		editable: true,
 		supportsInline: false,
 		keymap: TEXT_EDITABLE_KEYMAP,
-		// No conformanceFixture: it is the reserved fallback for content no opener claimed, so a
-		// document scan never yields it in isolation.
+		// No `conformanceFixture`: it is the fallback for content no opener took, so a document
+		// scan never produces it on its own.
 		closure: {
 			...RAW_TEXT_LEAF_CLOSURE,
 			mergeBackspace: {

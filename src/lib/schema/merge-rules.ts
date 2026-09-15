@@ -1,7 +1,7 @@
 /**
- * Merge eligibility and target resolution for Backspace-at-start — the role-pair rules and the
- * target-finding walker; per-kind `MergeRole` assignment lives on `BlockKindDescriptor`.
- * See docs/design/editor.md — Merge eligibility: roles, not pairs.
+ * Merge eligibility and target resolution for Backspace at the start of a block: the role-pair
+ * rules and the walk that finds the target. Each kind's `MergeRole` is declared on
+ * `BlockKindDescriptor`. See docs/design/editor.md, "Merge eligibility: roles, not pairs".
  */
 
 import type { CstNode } from '../core/nodes';
@@ -39,10 +39,10 @@ export interface MergeTarget {
 }
 
 /**
- * Descend into the last child until landing on a prose / prose-absorber leaf; null on a
- * not-mergeable leaf or an empty container. A collapsed container clamps its body out of view,
- * so the walk descends to the chrome leaf (child 0) instead — its not-mergeable role turns the
- * merge into the caller's focus-move fallback rather than a hidden-body write.
+ * Descend into the last child until reaching a prose or prose-absorber leaf; null on a
+ * not-mergeable leaf or an empty container. A collapsed container hides its body, so the walk
+ * goes to its title row (child 0) instead: that child is not mergeable, which turns the merge into
+ * the caller's move-focus fallback rather than a write into a hidden body.
  */
 export function walkToDeepestMergeLeaf(node: CstNode, path: number[]): MergeTarget | null {
 	const role = getMergeRole(node.kind);

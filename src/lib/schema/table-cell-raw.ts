@@ -1,14 +1,15 @@
 /**
- * The tableCell raw-write rule, declared on the kind as `normalizeRawWrite` and applied at the
- * write sink (`tree-operations/content-write.updateNodeContent`). A cell's bytes are joined verbatim
- * into its row, and the parser truncates a row reparsing wider than the delimiter's column
- * count, so a bare `|` or line break reaching a cell raw deletes the last column's content.
- * Both passes are prefix-composable, which is what makes `escapedCellOffset` an exact caret image.
+ * The rule for writing a table cell's bytes, declared on the kind as `normalizeRawWrite` and
+ * applied where content is written (`tree-operations/content-write.updateNodeContent`). A cell's
+ * bytes go into its row unchanged, and the parser cuts a row that reparses with more columns than
+ * the delimiter row declares, so a bare `|` or line break reaching a cell's raw would delete the
+ * last column's content. Both passes work prefix by prefix, which is what lets `escapedCellOffset`
+ * map a caret position exactly.
  */
 
 /**
- * Escape every `|` not already freed by an odd run of backslashes. Idempotent: the freeing
- * backslash usually comes from text the writer never touched, so a re-run must be a no-op.
+ * Escape every `|` an odd run of backslashes has not already escaped. Running it twice changes
+ * nothing: the escaping backslash usually comes from text the writer never touched.
  */
 export function escapeUnescapedPipes(s: string): string {
 	let out = '';

@@ -1,9 +1,10 @@
 /**
- * The fencedCode raw-write rule, declared on the kind as `normalizeRawWrite` and applied at every
- * write sink. RESTORE re-appends a closer a truncating write dropped and DROP removes one it
- * stranded, ESCALATE grows both runs past a body line that would read as the closer, SANITIZE
- * drops backticks from a backtick fence's info string (CommonMark §4.5) — all off the block's OWN
- * fence shape, which is why the pass takes a node. An authored open fence is exempt.
+ * The rule for writing a fenced code block's bytes, declared on the kind as `normalizeRawWrite`
+ * and applied wherever content is written. It puts back a closer a truncating write dropped,
+ * removes one such a write stranded, grows both marker runs past a body line that would read as
+ * the closer, and drops backticks from a backtick fence's info string (CommonMark §4.5). All of it
+ * reads the block's own fence shape, which is why the pass takes a node. A fence the user left
+ * open is exempt.
  */
 
 import { metadataOf } from '../core/nodes';
@@ -17,7 +18,7 @@ import {
 
 export interface FenceShape {
 	marker: '`' | '~';
-	/** The block's own run length, from its metadata — not re-scanned from the write. */
+	/** The block's own marker-run length, from its metadata, not re-scanned from the write. */
 	length: number;
 	closed: boolean;
 }
@@ -26,7 +27,7 @@ export interface FenceShape {
 export type FenceWriteMode = 'authored' | 'literal';
 
 export interface FenceWriteInput {
-	/** Display text about to be committed — raw without its trailing line ending. */
+	/** Display text about to be committed: raw without its trailing line ending. */
 	display: string;
 	/** Caret offset in `display`, mapped onto the reconciled bytes on the way out. */
 	caret: number;
@@ -54,10 +55,10 @@ export function reconcileFenceWrite(input: FenceWriteInput): FenceWriteResult {
 }
 
 /**
- * A whole fencedCode `raw` made legal — the kind's `normalizeRawWrite`. Literal by
- * construction: a sink reaching a node's bytes without its surface is never the author
- * typing the block's own syntax. The fence lines reconcile first, so ESCALATE measures a
- * body that ends where the closer does.
+ * A whole fenced-code `raw` made legal, the kind's `normalizeRawWrite`. Always treated as content
+ * rather than typed syntax: code reaching a node's bytes without going through its editable
+ * element is never the user typing the block's own fence. The fence lines are fixed first, so
+ * growing the runs measures a body that ends where the closer does.
  */
 export function normalizeFencedRaw(raw: string, node: NodeView): string {
 	const fence = fenceShapeOf(node);
@@ -88,10 +89,10 @@ export function writeFenceInfo(display: string, info: string, fence: FenceShape)
 // ── Internal ────────────────────────────────────────────────────────────────
 
 /**
- * What the info span may hold: one line, no backtick under a backtick fence (CommonMark §4.5),
- * and no leading run of the fence's own marker, which lengthens the fence instead — `~~~` + `~x`
- * reparses as a four-tilde run its own closer no longer closes. Dropped rather than declined,
- * the rule the typed and pasted routes already share.
+ * What the info string may hold: one line, no backtick under a backtick fence (CommonMark §4.5),
+ * and no leading run of the fence's own marker, which would lengthen the fence instead: `~~~` plus
+ * `~x` reparses as a four-tilde run its own closer no longer closes. The characters are dropped
+ * rather than the write refused, the same rule typing and pasting already use.
  */
 function legalInfo(info: string, fence: FenceShape): string {
 	const oneLine = info.replace(/[\r\n]/g, '');
@@ -104,13 +105,13 @@ function legalInfo(info: string, fence: FenceShape): string {
 interface OpenerParts {
 	indent: string;
 	info: string;
-	/** Offset just past the opener's marker run — where an escalation inserts. */
+	/** Offset just past the opener's marker run, where a longer run is inserted. */
 	runEnd: number;
 }
 
 /**
- * Split by the block's OWN run length, not by re-scanning the written line: a backtick
- * typed at the head of the info string must read as info, not as a longer run.
+ * Split by the block's own run length rather than by re-scanning the written line: a backtick
+ * typed at the start of the info string must read as info, not as a longer run.
  */
 function splitOpener(line: string, fence: FenceShape): OpenerParts | null {
 	const indent = /^ {0,3}/.exec(line)![0];
@@ -120,10 +121,10 @@ function splitOpener(line: string, fence: FenceShape): OpenerParts | null {
 }
 
 /**
- * The block's fence lines against a write that took one of them — an unclosed fence absorbs every
- * block below it at the next parse, from either half. With the block's own opener still at line 0
- * a missing closer comes back; without it a surviving closer is machinery the write stranded and
- * goes. The arms split on {@link ownOpener}, so exactly one can fire.
+ * The block's fence lines against a write that removed one of them: a fence left open swallows
+ * every block below it at the next parse, whichever half went missing. With the block's own opener
+ * still on line 0 the missing closer comes back; without it, a surviving closer is syntax the
+ * write stranded and goes. {@link ownOpener} decides which, so only one of the two can run.
  */
 function reconcileFenceLines(display: string, fence: FenceShape, blockEnding: string): string {
 	if (!fence.closed) return display;
@@ -136,9 +137,9 @@ function reconcileFenceLines(display: string, fence: FenceShape, blockEnding: st
 }
 
 /**
- * Line 0 read as the block's OWN opener: its exact run, and info that is not a longer run. A
- * write's only line reading as this fence's CLOSER is not it — an opener never doubles as one,
- * and no metadata claims a block to size a fence to.
+ * Line 0 read as the block's own opener: its exact run, and info that is not a longer run. A
+ * write whose only line reads as this fence's closer is not one: an opener never doubles as a
+ * closer, and no block's metadata is left to size a fence from.
  */
 function ownOpener(lines: string[], fence: FenceShape): OpenerParts | null {
 	const opener = splitOpener(lines[0], fence);
@@ -148,8 +149,8 @@ function ownOpener(lines: string[], fence: FenceShape): OpenerParts | null {
 }
 
 /**
- * The closer a truncating write dropped, re-appended, or null when one is still there. The ending
- * is the BLOCK's, not the written slice's, which may be unterminated (G4.20).
+ * Puts back the closer a truncating write dropped, or null when one is still there. The line
+ * ending is the block's, not the written slice's, which may have none (G4.20).
  */
 function restoredCloser(
 	lines: string[],
@@ -162,11 +163,11 @@ function restoredCloser(
 }
 
 /**
- * The closer a write left behind after taking the block's own opener — machinery no metadata
- * claims, removed rather than kept, since as text it re-opens a fence over the live siblings
- * below. Null when there is none, or when an opener above could CLOSE on the run:
- * same marker, run no longer than the closer's — a foreign-marker or longer-run open line is
- * body text the run never terminated.
+ * The closer a write left behind after removing the block's own opener: syntax nothing claims, so
+ * it goes rather than stays, since as text it opens a fence over the real blocks below. Null when
+ * there is none, or when a line above could close on that run: same marker, run no longer than the
+ * closer's. An open line with a different marker or a longer run is body text the run never
+ * closed.
  */
 function droppedStrandedCloser(lines: string[], fence: FenceShape): string | null {
 	const closer = lastCloserIndex(lines, fence, 0);
@@ -214,12 +215,11 @@ function countDroppedBefore(info: string, infoStart: number, caret: number): num
 }
 
 /**
- * Un-glue a closer the write landed on top of. A fence with NO body line — ```` ```\n``` ```` —
- * has nothing between its two runs, so the body's only caret seat IS the closer's line start,
- * and the first character typed there arrives ahead of the closer run: ```` ```\nAB``` ````,
- * which no longer reads as closed and shows the run as body text. The fence says it is closed
- * and the display no longer carries a closer line, so the write broke it; the missing line
- * ending is what puts it back.
+ * Separate a closer the write ran into. A fence with no body line has nothing between its two
+ * runs, so the only caret position in the body is the start of the closer's line, and the first
+ * character typed there lands in front of the closer run: ```` ```\nAB``` ````, which no longer
+ * reads as closed and shows the run as body text. The metadata still says the fence is closed
+ * while the text carries no closer line, so the missing line ending is what puts it back.
  */
 function separateGluedCloser(input: FenceWriteInput): FenceWriteResult {
 	const { display, caret, fence } = input;
@@ -230,14 +230,14 @@ function separateGluedCloser(input: FenceWriteInput): FenceWriteResult {
 	const run = new RegExp(`[${fence.marker}]{${fence.length},}[ \t]*$`).exec(
 		lines[lines.length - 1]
 	);
-	// `index === 0` is a bare run that some other rule owns, not a glued one.
+	// `index === 0` is a bare run another rule handles, not one the write ran into.
 	if (!run || run.index === 0) return { display, caret };
 	const at = display.length - run[0].length;
 	const ending = display.includes('\r\n') ? '\r\n' : '\n';
 	return {
 		display: display.slice(0, at) + ending + display.slice(at),
-		// The caret sits at the typed text's end, which is where the ending is inserted: it
-		// stays put, and only a caret already inside the closer run rides the shift.
+		// The caret sits at the end of the typed text, exactly where the line ending goes in: it
+		// stays put, and only a caret already inside the closer run moves.
 		caret: caret > at ? caret + ending.length : caret
 	};
 }
@@ -276,7 +276,7 @@ function escalateFenceRuns(input: FenceWriteInput): FenceWriteResult {
 	return { display: lines.join('\n'), caret: moved };
 }
 
-/** Last line reading as this fence's closer at or after `from`; line 0 is the opener's slot. */
+/** Last line reading as this fence's closer at or after `from`; line 0 is the opener's line. */
 function lastCloserIndex(lines: string[], fence: FenceShape, from = 1): number {
 	for (let i = lines.length - 1; i >= from; i--) {
 		if (matchFenceClose(lines[i], fence.marker, fence.length)) return i;

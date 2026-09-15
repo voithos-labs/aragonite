@@ -3,9 +3,9 @@ import type { NodeView } from '../core/node-views';
 import { tryGetBlockKindDescriptor, type BlockKindDescriptor } from './block-kind-descriptor';
 
 /**
- * Reserved-chrome predicates: the declaration-driven surface the model layer dispatches on
- * instead of a plugin kind name. These read a container's `reservedChrome` declaration, never
- * a hard-coded kind.
+ * Checks for a container's reserved chrome (its fixed first child). The rest of the editor asks
+ * these instead of naming a plugin kind: they read a container's `reservedChrome` declaration,
+ * never a hard-coded kind.
  */
 
 /** The reserved chrome kind a container declares, or undefined if it declares none. */
@@ -13,18 +13,18 @@ export function reservedChromeKindOf(containerKind: AnyBlockKind): AnyBlockKind 
 	return tryGetBlockKindDescriptor(containerKind)?.reservedChrome?.kind;
 }
 
-/** True when `childIndex` is the reserved chrome slot (index 0) of a chrome-declaring container. */
+/** True when `childIndex` is the reserved chrome position (index 0) of a container declaring one. */
 export function isReservedChromeChild(container: NodeView, childIndex: number): boolean {
 	return childIndex === 0 && reservedChromeKindOf(container.kind) !== undefined;
 }
 
-/** True only when the kind declares an `isCollapsed` probe and it reports this node collapsed. */
+/** True only when the kind declares an `isCollapsed` check and that check reports it collapsed. */
 export function isCollapsedContainer(node: NodeView): boolean {
 	return isCollapsedByDescriptor(tryGetBlockKindDescriptor(node.kind), node);
 }
 
-/** The same reading for a caller already holding the descriptor — the height oracle's per-node
- *  path, where a second registry lookup is one per block of the document. */
+/** The same answer for a caller that already holds the descriptor: the height estimator runs per
+ *  node, where a second registry lookup would cost one per block of the document. */
 export function isCollapsedByDescriptor(
 	descriptor: BlockKindDescriptor | undefined,
 	node: NodeView
@@ -34,9 +34,9 @@ export function isCollapsedByDescriptor(
 }
 
 /**
- * The metadata patch that expands `node`, or null when its kind declares no door. Sibling of
- * `isCollapsedContainer` over the same declaration, so the clamp that hides a body and the
- * reveal that opens it cannot disagree about which containers collapse.
+ * The metadata change that expands `node`, or null when its kind declares no way to expand. It
+ * reads the same declaration as `isCollapsedContainer`, so the code that hides a body and the code
+ * that opens it cannot disagree about which containers collapse.
  */
 export function expandContainerPatch(node: NodeView): Record<string, unknown> | null {
 	const door = tryGetBlockKindDescriptor(node.kind)?.reservedChrome?.expandPatch;

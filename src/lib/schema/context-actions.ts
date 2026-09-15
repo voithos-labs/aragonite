@@ -1,8 +1,8 @@
 /**
- * The block context menu's vocabulary: what a right-click on a block of a given kind offers.
- * A kind's own providers come first, then the ones registered for every kind (`'*'`: the
- * editor's copy, replace and remove rows). Providers are consulted on every open, so they read
- * the block as it is. The defaults register at bootstrap; a plugin registers through the barrel.
+ * What a right-click on a block of a given kind offers. A kind's own providers come first, then
+ * the ones registered for every kind (`'*'`: the editor's copy, replace and remove rows).
+ * Providers run on every open, so they see the block as it is. The defaults register at startup;
+ * a plugin registers through the public barrel.
  */
 export const EVERY_KIND = '*';
 import type { NodeView } from '../core/node-views';
@@ -20,7 +20,7 @@ export interface BlockActionContext {
 export interface BlockContextAction {
 	id: string;
 	label: string;
-	/** A glyph name the menu knows (`components/menu/MenuIcon.svelte`); absent draws none. */
+	/** An icon name the menu knows (`components/menu/MenuIcon.svelte`); absent draws none. */
 	icon?: string;
 	danger?: boolean;
 	run(ctx: BlockActionContext): void | Promise<void>;

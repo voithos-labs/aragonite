@@ -1,7 +1,7 @@
 /**
- * Single source of truth for the structural-operation vocabulary: `OperationKind`,
- * `OpDescriptor`, and `EditEvent` all derive from `OperationDetailMap`, so drift is a compile
- * error rather than a one-place-missed edit.
+ * The one list of structural operations: `OperationKind`, `OpDescriptor` and `EditEvent` all come
+ * from `OperationDetailMap`, so a mismatch is a compile error rather than an edit someone missed
+ * in one place.
  */
 
 export interface OperationDetailMap {
@@ -10,10 +10,10 @@ export interface OperationDetailMap {
 	reorder: { from: number; to: number };
 	delete: { crossBlock?: true; table?: 'whole' } | undefined;
 	input: { byteLength: number };
-	/** `crossBlock` marks a write that spanned the range's other blocks too: `path` names one
-	 *  block, as every op does, and `length` is that block's. The `delete` twin reads the same.
-	 *  A toggle endpoint carrying a CELL INDEX names its grid, whose own bytes no write holds, so
-	 *  `length` is the grid's PRE-write length; a deep cell path names that cell like any block. */
+	/** `crossBlock` marks a write that also covered the range's other blocks: `path` names one
+	 *  block, as every operation does, and `length` is that block's. `delete` reads the same way. An
+	 *  endpoint carrying a cell index names its table, whose own bytes no write holds, so `length`
+	 *  is the table's length before the write; a full path to a cell names it like any block. */
 	updateContent: { length: number; crossBlock?: true };
 	replaceBlock:
 		| { count: number }
@@ -43,7 +43,7 @@ export interface OperationDetailMap {
 				outerPath?: number[];
 		  };
 	appendBlock: { itemIndex?: number } | undefined;
-	/** Insert at an interior index; `appendBlock`'s sibling for a block minted BETWEEN two. */
+	/** Insert at an index inside the list; `appendBlock`'s sibling for a block created between two. */
 	insertBlock: undefined;
 	metadataUpdate: { fields: string[] };
 	undo: undefined;
@@ -72,7 +72,7 @@ export type OpDescriptor = {
 }[OperationKind];
 
 /**
- * OpDescriptor plus the doc-absolute event path container/multi-scope commits carry. `eventPath`
- * is `DocPath` so the op families composing it can't decay to a raw `number[]`.
+ * `OpDescriptor` plus the document-absolute path that container and multi-list commits carry.
+ * `eventPath` is a `DocPath` so the code that builds it cannot fall back to a plain `number[]`.
  */
 export type ScopedOpDescriptor = OpDescriptor & { eventPath: DocPath };
