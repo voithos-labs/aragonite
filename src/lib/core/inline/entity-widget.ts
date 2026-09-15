@@ -2,7 +2,7 @@
  * Visibility gate and DOM builder for the decoded-entity inline widget. A character reference
  * renders as an atomic widget showing its decoded glyph, but only when that glyph is visible:
  * an entity decoding to nothing drawable (`&nbsp;`, `&ZeroWidthSpace;`) keeps its literal
- * source span, because an invisible atomic island is a caret trap.
+ * source span, because an invisible widget is a caret trap.
  */
 
 import type { InlineNode } from '../nodes';
@@ -18,7 +18,7 @@ export function entityRendersGlyph(decoded: string | undefined): boolean {
 	return decoded !== undefined && !RENDERS_NO_GLYPH.test(decoded);
 }
 
-/** Source bytes ride the shell's `data-source-*`, so the raw-aware walk reads back `&copy;`. */
+/** Source bytes ride the shell's `data-source-*`, so the DOM-to-offset traversal reads `&copy;`. */
 export function buildEntityWidget(node: InlineNode): HTMLSpanElement {
 	const shell = mintWidgetShell('md-entity-widget', node);
 	shell.textContent = node.decoded ?? '';

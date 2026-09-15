@@ -1,11 +1,11 @@
 /**
- * Toggle an inline format inside a prose block. Over a SELECTION the direction is parse coverage,
- * not edge adjacency: a covered range unapplies (aligned strip, else split, over every covering run
- * in turn), overlapping or abutting runs apply over their union, a bare range wraps the core its
- * boundary whitespace leaves. Where the mode PAINTS delimiters the strip and the wrap write
- * unverified; every other candidate declines unless it verifies. At a COLLAPSED CARET: unwrap the
- * span, else drop the empty pair, else insert one (live-mode.md § 4.3). Every write clamps to the
- * CONTENT range: a marker in `# ` changes the kind.
+ * Toggles an inline format (bold, emphasis, code) inside a prose block. Over a selection the parse
+ * decides the direction: a range a same-format run already covers is unformatted, a range touching
+ * such runs is formatted over their union, and a bare range is wrapped. A mode that shows the
+ * delimiters writes the strip and the wrap as-is; every other candidate must pass verification. At
+ * a collapsed caret: unwrap the enclosing span, else drop an empty pair, else insert one
+ * (live-mode.md § 4.3). Every write stays inside the content range: a marker in `# ` changes
+ * the kind.
  */
 
 import { recordFormatCoverageRead } from '../../perf/instruments';
@@ -25,7 +25,7 @@ import { CONTENT_VISIBILITY, renderedText } from './visibility';
 /** Named fields, because the two ranges and the display are all offsets into the same string:
  *  a swapped content-and-selection pair type-checks and splices markers into structural bytes. */
 export interface InlineFormatEdit {
-	/** The block's display bytes — its raw without the trailing line ending. */
+	/** The block's display bytes: its raw without the trailing line ending. */
 	display: string;
 	/** The bytes the block's own kind calls content; every write clamps into them. */
 	content: ContentRange;
@@ -38,9 +38,8 @@ export interface ToggleInlineFormatResult {
 	newSelEnd: number;
 }
 
-/** Null for a kind whose row declares no mark, or for a press whose every candidate fails its
- *  verification: the vocabulary lives on the row, so a kind without one has no delimiters this
- *  seam could write, and a toggle's sound fallback is not writing. */
+/** Null for a kind whose policy row declares no mark (there are no delimiters to write) and for
+ *  a toggle whose every candidate fails verification: the safe fallback is to write nothing. */
 export function toggleInlineFormat(
 	edit: InlineFormatEdit,
 	format: InlineMarkKind,
@@ -51,23 +50,23 @@ export function toggleInlineFormat(
 	const { display, content, selection } = edit;
 	const start = clampToContent(selection.start, content);
 	const end = clampToContent(selection.end, content);
-	// The same bounds the block itself parses with, so no construct can straddle the structural
+	// Parsed with the block's own content bounds, so no construct can straddle the structural
 	// bytes the clamp above keeps the write out of.
 	const inlines = parseInline(display, content.start, content.end);
 	if (start === end) return toggleAtCaret(display, inlines, start, format, mark);
 
-	// Painted delimiters are the mode's own answer, so those modes write their candidate unverified.
-	// The preview rungs paint: this seam only writes into the block those rungs reveal.
+	// A mode that shows the delimiters writes its candidate unverified: the user sees the markers.
+	// The preview modes count as showing them, since a toggle only writes into the focused block.
 	const paints = paintsFocusedMarkers(mode ?? 'source');
 	const { from, to, covering } = coveredReading(display, inlines, start, end, format);
 
-	// A strip sheds ONE run, so where a second of the same kind covers the selection too, the answer
-	// is the covering arm's split: stripping there leaves the press's own read still active.
+	// A strip removes one run, so when a second run of the same kind also covers the selection the
+	// split path below handles it: stripping alone would leave the format still active.
 	const sole = covering.length > 1 ? null : soleStripCandidate(display, inlines, from, to, format);
 	if (sole) return paints || preservesScreen(sole, edit, screenOf(display, content)) ? sole : null;
 
-	// The flank strip rewrites bytes OUTSIDE the selection, and byte equality can mistake a nested
-	// run's delimiters for the enclosing one's, so its candidate verifies like the split's.
+	// The flank strip rewrites bytes outside the selection, and byte equality can mistake a nested
+	// run's delimiters for the enclosing one's, so its candidate is verified like the split's.
 	const enclosing = enclosingSpanOf(inlines, from, to, format);
 	if (enclosing && flanksAreItsMarkers(display, from, to, enclosing)) {
 		const flank = firstFlipVerified(
@@ -96,23 +95,23 @@ export function toggleInlineFormat(
 			'apply'
 		);
 
-	// A wrap whose markers do not paint owes split and absorb's coverage check: bytes that re-pair
-	// against a neighbouring run leave the range unformatted with nothing on screen to say so.
+	// A wrap whose markers are hidden gets the same coverage check as split and absorb: markers
+	// that re-pair with a neighbouring run leave the range unformatted with nothing on screen to
+	// show it.
 	const wrap = wrapCandidate(display, inlines, start, end, mark);
 	if (!wrap) return null;
 	return paints ? wrap : firstFlipVerified([wrap], edit, format, 'apply');
 }
 
-/** Whether a toggle right now would UNAPPLY — the pressed-state a toolbar paints. The same arms
- *  the toggle routes by, asked without emitting: a caret inside the construct, a selection
- *  carrying its own markers, flanked by them, or covered by a same-format construct. */
+/** Whether a toggle right now would unformat, which is the pressed state a toolbar shows. The
+ *  same checks the toggle routes by, asked without writing anything. */
 export function isInlineFormatActive(edit: InlineFormatEdit, format: InlineMarkKind): boolean {
 	return coverageCarries(coverageOf(edit), format);
 }
 
-/** The pressed state a result would paint: the same read, over the bytes and range it hands back.
- *  One home for the after-read, so the seam's own direction check and the ladder guard cannot
- *  drift on the content-end arithmetic. */
+/** The pressed state after `result` is applied: the same read, over the bytes and range it hands
+ *  back. Kept here so the toggle's own direction check and the tests that re-read a result
+ *  cannot disagree about where the content ends. */
 export function isInlineFormatActiveAfter(
 	edit: InlineFormatEdit,
 	result: ToggleInlineFormatResult,
@@ -136,9 +135,9 @@ export function activeInlineFormats(edit: InlineFormatEdit): Set<InlineMarkKind>
 	);
 }
 
-/** Which of `candidates` the range carries, off ONE parse of the block. A toolbar asks once per
- *  button on every selection change and every answer is the same walk; taking candidates rather
- *  than the vocabulary is what lets a range's running intersection stop re-asking ruled-out marks. */
+/** Which of `candidates` the range carries, from one parse of the block. A toolbar asks once per
+ *  button on every selection change, so a caller narrowing the candidates skips marks already
+ *  ruled out. */
 export function inlineFormatsCovering(
 	edit: InlineFormatEdit,
 	candidates: Iterable<InlineMarkKind>
@@ -149,9 +148,9 @@ export function inlineFormatsCovering(
 	return carried;
 }
 
-/** The same read, one id at a time, with consecutive asks over one block state sharing the parse:
- *  a toolbar's buttons arrive as N separate calls, and only the caller knows they are one repaint.
- *  One slot, since the previous state is dead the moment a keystroke or the caret moves. */
+/** The same read one mark at a time, sharing the parse across consecutive asks over one block
+ *  state, since a toolbar's buttons arrive as separate calls. One memo entry only: the previous
+ *  state is dead the moment a keystroke or the caret moves. */
 export function createInlineFormatActiveMemo(): (
 	edit: InlineFormatEdit,
 	format: InlineMarkKind
@@ -172,7 +171,7 @@ interface Coverage {
 	start: number;
 	end: number;
 	inlines: readonly InlineNode[];
-	/** The slice parsed standalone; empty at a caret, where the aligned arm never asks. */
+	/** The slice parsed standalone; empty at a caret, where the aligned strip never asks. */
 	sliceNodes: readonly InlineNode[];
 }
 
@@ -182,8 +181,8 @@ function coverageOf(edit: InlineFormatEdit): Coverage {
 	const start = clampToContent(selection.start, content);
 	const end = clampToContent(selection.end, content);
 	const inlines = parseInline(display, content.start, content.end);
-	// A selection spanning the whole display is the same parse, byte bounds included — which is
-	// every middle block of a cross-block range, so the second parse is worth not making.
+	// A selection spanning the whole display parses the same as the block, and that is every
+	// middle block of a cross-block range, so the second parse is skipped.
 	const sliceIsDisplay = start === 0 && end === display.length;
 	return {
 		display,
@@ -199,8 +198,8 @@ function coverageOf(edit: InlineFormatEdit): Coverage {
 	};
 }
 
-/** The memo's key: field-wise, where the cross-block sibling composes a string, because the
- *  display here is the block's whole raw and building a key would cost what the memo saves. */
+/** Field-wise comparison rather than a composed string key: the display is the block's whole raw,
+ *  and building a key would cost what the memo saves. */
 function sameEdit(a: InlineFormatEdit, b: InlineFormatEdit): boolean {
 	return (
 		a.display === b.display &&
@@ -211,8 +210,8 @@ function sameEdit(a: InlineFormatEdit, b: InlineFormatEdit): boolean {
 	);
 }
 
-/** The one home for "does this range carry this mark", so every reader asks the same guards —
- *  including the mark-row test, which a kind with no vocabulary has to fail rather than parse. */
+/** The one place that answers "does this range carry this mark", so every reader applies the same
+ *  checks, including the policy-row test a kind with no mark must fail without parsing. */
 function coverageCarries(
 	{ display, start, end, inlines, sliceNodes }: Coverage,
 	format: InlineMarkKind
@@ -226,9 +225,9 @@ function coverageCarries(
 }
 
 /**
- * The range an unapply reads, with the runs covering it. A run closes against a word and never
- * whitespace, so the wrap leaves a boundary space OUTSIDE the delimiters: a selection reaching
- * past a run by whitespace alone is still that run's own, or it could not take its own mark off.
+ * The range an unformat reads, with the runs covering it. A run closes against a word, never
+ * whitespace, so a wrap leaves boundary spaces outside the delimiters; a selection reaching past
+ * a run by whitespace alone still counts as that run, or it could not take its own mark off.
  */
 function coveredReading(
 	display: string,
@@ -250,10 +249,9 @@ function coveredReading(
 
 // ── Aligned unapply ──────────────────────────────────────────────────────────
 
-/** The selection carries its own flanking markers (the user selected `**word**`): exactly one
- *  span covering the whole slice, so the strip can't orphan markers on `**a** **b**`. It rewrites
- *  only selected bytes, so it keeps the press's literal reading, and it sheds the runs of its own
- *  kind inside that reading, or a whole-range unapply would leave part of the range formatted. */
+/** The selection includes its own markers (the user selected `**word**`): exactly one span covers
+ *  the whole slice, so the strip cannot orphan markers on `**a** **b**`. It rewrites only selected
+ *  bytes, and also removes same-kind runs nested inside, or part of the range stays formatted. */
 function soleStripCandidate(
 	display: string,
 	inlines: readonly InlineNode[],
@@ -279,9 +277,9 @@ function soleStripCandidate(
 	};
 }
 
-/** Markers outside the selection (`word` inside `*word*`), stripped at the selection's flanks
- *  rather than the construct's own run, so a `***word***` stack sheds one layer by run
- *  arithmetic; the construct check is what makes `**word**` toggled to emphasis nest instead. */
+/** Markers just outside the selection (`word` inside `*word*`), stripped at the selection's edges
+ *  rather than at the construct's own run, so a `***word***` stack loses one layer. The construct
+ *  check is what makes toggling emphasis on `**word**` nest instead. */
 function flankStrip(
 	display: string,
 	start: number,
@@ -300,10 +298,10 @@ function flankStrip(
 // ── Split unapply ────────────────────────────────────────────────────────────
 
 /**
- * The construct re-emitted around the selection: each non-empty half keeps the construct's own
- * delimiter run, and a half's boundary whitespace yields a second candidate with it moved outside,
- * since the symmetric runs cannot close against a space. The middle sheds the markers of any
- * same-format construct it wholly contains, or it would reload still formatted.
+ * The construct re-emitted around the selection: each non-empty half keeps its delimiter run, with
+ * a second candidate moving boundary whitespace outside, since a run cannot close against a space.
+ * The middle loses the markers of any same-format construct it wholly contains, or it would
+ * reparse still formatted.
  */
 function splitCandidates(
 	display: string,
@@ -353,7 +351,7 @@ function halfVariants(text: string, opener: string, closer: string): string[] {
 /**
  * The selection grown over every same-format construct it touches, to a fixed point. Only
  * recursive-content constructs join: one holding literal text (a code span) means its delimiters
- * are honest content inside any wider span, so merging would rewrite what the reader sees.
+ * are honest content inside any wider span, so merging would change what the user sees.
  */
 function formatUnionOf(
 	inlines: readonly InlineNode[],
@@ -386,8 +384,8 @@ function formatUnionOf(
 	return touched ? { start: from, end: to } : null;
 }
 
-/** The run grows to the union, the SELECTION does not: each endpoint is carried through the
- *  strip and re-wrap, so a press over half a run leaves that half selected. An endpoint on the
+/** The run grows to the union but the selection does not: each endpoint is tracked through the
+ *  strip and re-wrap, so a toggle over half a run leaves that half selected. An endpoint on the
  *  union's edge keeps the new marker inside the range, as a bare wrap's selection does. */
 function absorbCandidates(
 	display: string,
@@ -431,10 +429,10 @@ function absorbCandidates(
 	return out;
 }
 
-/** Whether a rewrite of `within` may splice at both `cuts`: each has to land where a byte splice
- *  can, in a text run or on a construct boundary, never strictly inside another construct's bytes —
- *  a stranded delimiter re-pairs with whatever run the parse finds next, which can preserve the
- *  text while reformatting content nobody selected. Split, absorb and the wrap all ask here. */
+/** Whether a rewrite of `within` may splice at both `cuts`: each must fall in a text run or on a
+ *  construct boundary, never strictly inside another construct. A stranded delimiter re-pairs with
+ *  whatever run the parse finds next, reformatting content nobody selected. Split, absorb and the
+ *  wrap all ask here. */
 function cutsLandCleanly(
 	inlines: readonly InlineNode[],
 	cuts: { start: number; end: number },
@@ -500,10 +498,10 @@ function strippedOffset(cuts: [number, number][], from: number, offset: number):
 // ── Wrap ─────────────────────────────────────────────────────────────────────
 
 /**
- * The bare wrap, over the selection's trimmed core: markdown opens and closes a run against a word,
- * never whitespace, so a boundary space goes to the plain text beside the run, as
- * `live-split-rebalance` reads the same problem. Null where nothing survives the trim, or where an
- * endpoint is no legal cut: markers spliced into a construct's bytes re-pair.
+ * The bare wrap, over the selection with its boundary whitespace trimmed: markdown opens and closes
+ * a run against a word, never a space, so boundary spaces stay outside the markers. Null when
+ * nothing survives the trim or an endpoint is not a legal cut (markers spliced into a construct's
+ * bytes re-pair).
  */
 function wrapCandidate(
 	display: string,
@@ -552,8 +550,8 @@ function preservesScreen(
 	return screenOf(candidate.newDisplay, shiftedContent(content, display, candidate)) === shown;
 }
 
-/** Both checks a candidate owes wherever its own bytes are not the mode's answer: the content text
- *  unchanged, and the selection's coverage actually flipped — text preservation alone admits a
+/** The two checks a candidate must pass when the mode hides its markers: the on-screen text is
+ *  unchanged, and the selection's coverage actually flipped. Text preservation alone admits a
  *  nested pair that leaves the range formatted exactly as it was. */
 function firstFlipVerified(
 	candidates: ToggleInlineFormatResult[],
@@ -572,8 +570,8 @@ function firstFlipVerified(
 	);
 }
 
-/** Whether NO same-format run is left overlapping the selection, or one covers it whole — the
- *  press's direction, asked of the bytes it would write. */
+/** Whether the toggle's direction holds in the bytes it would write: for apply, a same-format run
+ *  covers the selection whole; for unapply, none still overlaps it. */
 function coverageFlipped(
 	candidate: ToggleInlineFormatResult,
 	content: ContentRange,
@@ -589,7 +587,7 @@ function coverageFlipped(
 	return spans.every((span) => span.end <= from || to <= span.start);
 }
 
-/** The write clamps into the content, so only its END moves, by what the candidate added. */
+/** The write stays inside the content range, so only its end moves, by what the candidate added. */
 function shiftedContent(
 	content: ContentRange,
 	display: string,
@@ -623,10 +621,9 @@ function toggleAtCaret(
 	const markers = mark.markerBytes;
 	const mLen = markers.length;
 
-	// The empty pair the previous press inserted; there is no span to find, since `****` parses as
-	// literal text. Removal is the exact inverse of the insert below, so the pair must be a run of
-	// its own: a marker character abutting either side means these are bytes the user wrote, and
-	// this arm only runs where the mode paints them.
+	// The empty pair a previous toggle inserted; there is no span to find, since `****` parses as
+	// literal text. Removal is the exact inverse of the insert below, so the pair must stand
+	// alone: a marker character on either side means the user wrote these bytes.
 	if (isLoneEmptyPair(display, caret, markers)) {
 		return {
 			newDisplay: display.slice(0, caret - mLen) + display.slice(caret + mLen),
@@ -664,8 +661,8 @@ interface FormatSpan {
 	contentEnd: number;
 }
 
-/** Both delimiters of a construct are the same run, so the bytes its content leaves over split
- *  evenly — which is how a code span's content-sized fence is read back off the parse. */
+/** Both delimiters of a construct are the same run, so the bytes outside its content split evenly;
+ *  that is how a code span's content-sized fence is read back off the parse. */
 function markerLengthOf(span: FormatSpan): number {
 	return span.contentStart - span.start;
 }
@@ -677,7 +674,7 @@ function spanOf(node: InlineNode): FormatSpan | null {
 }
 
 /**
- * The innermost construct of this kind whose CONTENT covers `[start, end]`, off the FULL-context
+ * The innermost construct of this kind whose content covers `[start, end]`, from the block's full
  * parse: `*word*` carved from `**word**` and from `***word***` read identically in isolation, but
  * only the latter sits inside an emphasis span.
  */
@@ -696,10 +693,10 @@ function enclosingSpanOf(
 	return found;
 }
 
-/** Every construct of this kind whose WHOLE RANGE covers the selection, peeled of the delimiters
- *  the selection takes whole — coverage that reaches into the delimiters still reads as "already
- *  formatted", and where runs of one kind nest, shedding the inner one leaves the outer covering,
- *  so the split tries each in turn. */
+/** Every construct of this kind whose whole range covers the selection, after stripping the
+ *  delimiters the selection takes whole: reaching into the delimiters still reads as already
+ *  formatted. Where runs of one kind nest, removing the inner one leaves the outer covering, so
+ *  the split tries each in turn. */
 function coveringSpansOf(
 	inlines: readonly InlineNode[],
 	start: number,
@@ -716,9 +713,9 @@ function coveringSpansOf(
 	return covering;
 }
 
-/** The range with the delimiters of every construct it takes WHOLE peeled off: a run nests inside
- *  another kind's bytes (`***ab***` is emphasis around strong), so a range that takes the outer
- *  construct whole is asking about the content that construct encloses. */
+/** The range with the delimiters of every construct it takes whole stripped off: a run can nest
+ *  inside another kind's bytes (`***ab***` is emphasis around strong), so a range taking the outer
+ *  construct whole is asking about the content inside it. */
 function peeledToContent(
 	inlines: readonly InlineNode[],
 	start: number,
@@ -751,10 +748,10 @@ function spanExactlyOver(
 }
 
 /**
- * The selection read as exactly one span of this kind — standalone AND in the block's own parse,
- * which is the only reading a strip may act on: `*bold*` carved out of `**bold**` is emphasis alone
- * while the block holds none, and shedding one delimiter layer there lands on a run of the same
- * kind. Offsets come back in SLICE space, where the strip splices.
+ * The selection read as exactly one span of this kind, both standalone and in the block's own
+ * parse, the only reading a strip may act on: `*bold*` carved out of `**bold**` is emphasis on its
+ * own but not in the block, and stripping one layer there lands on a run of the same kind. Offsets
+ * are relative to the slice, where the strip splices.
  */
 function soleSpanOfSelection(
 	sliceNodes: readonly InlineNode[],
@@ -811,9 +808,9 @@ function trailingWs(text: string): string {
 	return /\s*$/.exec(text)![0];
 }
 
-/** A range minus its boundary whitespace, null once nothing is left. One home for the trim, so the
- *  wrap here and the cross-block decomposition that trims before it ever asks
- *  (`selection/cross-block/format-range.ts`) cannot disagree about where a run may close. */
+/** A range minus its boundary whitespace, or null when nothing is left. The one trim, shared with
+ *  the cross-block path (`selection/cross-block/format-range.ts`) so the two cannot disagree about
+ *  where a run may close. */
 export function withoutBoundaryWhitespace(
 	display: string,
 	from: number,

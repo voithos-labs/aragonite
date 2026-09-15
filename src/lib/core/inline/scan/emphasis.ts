@@ -225,8 +225,8 @@ function wrapMatch(
 	const kind: InlineNode['kind'] =
 		opener.char === '~' ? 'strikethrough' : use === 2 ? 'strong' : 'emphasis';
 
-	// The NONE arm only bounds this walk. What rules out cycling the list closeNodeWindow walks
-	// is the caller's contract (slots ascend with scan order, relinks skip forward), not this arm.
+	// The `NONE` branch only bounds this walk. What rules out cycling the list `closeNodeWindow`
+	// walks is the caller's contract (slots ascend with scan order, relinks skip forward).
 	const children: InlineNode[] = [];
 	for (let i = win.next[openerSlot]; i !== closerSlot && i !== NONE; i = win.next[i]) {
 		children.push(win.slot[i]);

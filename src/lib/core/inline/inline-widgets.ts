@@ -1,9 +1,8 @@
 /**
- * The single source of truth for which inline kinds render as live atomic widgets
- * (contenteditable=false islands marked `[data-inline-widget]`) and how each is recognized.
- * Recognition is registry-owned; DOM building dispatches by layer: a `buildWidget` for
- * core-built widgets, a `component` mounted through the injected portal builder, or neither
- * for the image, whose per-instance builder is injected per render.
+ * The one registry of which inline kinds render as live widgets (non-editable spans marked
+ * `[data-inline-widget]`) and how each is recognized. DOM building has three routes: a
+ * `buildWidget` for core-built widgets, a `component` mounted through the injected portal
+ * builder, or neither for the image, whose builder is injected per render.
  */
 
 import type { Component } from 'svelte';
@@ -16,8 +15,8 @@ import { registerOnce } from '../../schema/register-once';
 import { inlineDescendants } from './walk';
 
 /**
- * The atomic-widget shell every core builder shares. Its `data-*` attributes are the offset
- * walk's only handle, so the shell is minted here once and builders add only the body.
+ * The widget shell every core builder shares. Its `data-*` attributes are the only handle the
+ * DOM-to-offset traversal has, so the shell is created here once and builders add only the body.
  */
 export function mintWidgetShell(className: string, node: InlineNode): HTMLSpanElement {
 	const shell = document.createElement('span');
@@ -29,8 +28,8 @@ export function mintWidgetShell(className: string, node: InlineNode): HTMLSpanEl
 	return shell;
 }
 
-/** The raw byte range a shell carries, or null when the attributes are absent or malformed —
- *  {@link mintWidgetShell}'s inverse, so the mint and every read-back move together. */
+/** The raw byte range a shell carries, or null when the attributes are absent or malformed:
+ *  {@link mintWidgetShell}'s inverse, kept beside it so the two move together. */
 export function widgetSourceRange(el: Element): { start: number; end: number } | null {
 	const start = parseInt(el.getAttribute('data-source-start') ?? '', 10);
 	const end = parseInt(el.getAttribute('data-source-end') ?? '', 10);
@@ -40,18 +39,18 @@ export function widgetSourceRange(el: Element): { start: number; end: number } |
 
 /**
  * Props a `component` widget kind is mounted with. Frozen at mount: the pool remounts on a
- * source change, so `source` never shifts under a live instance, but `inline.start`/`end` CAN
- * lag once adjacent typing moves the widget. The live position is the wrapper's re-stamped
- * `data-source-*`, never these fields. The getters below are live for the same reason inverted:
- * an instance the pool reuses would go stale on a frozen value.
+ * source change, so `source` never shifts under a live instance, but `inline.start`/`end` can
+ * lag once typing beside the widget moves it. The live position is the wrapper's rewritten
+ * `data-source-*`, never these fields. The getters below are live for the inverse reason: a
+ * reused instance would go stale on a frozen value.
  */
 export interface InlineWidgetComponentProps {
 	inline: InlineNode;
 	source: string;
 	/** Absent reads as 'source'. */
 	getPresentationMode?: () => PresentationMode;
-	/** A widget whose body an ENGINE paints emits colors no stylesheet reaches, so it keys its
-	 *  render on this. One styled with CSS tokens needs nothing here. Absent reads as 'dark'. */
+	/** A widget whose body a renderer such as KaTeX draws emits colors no stylesheet reaches, so
+	 *  it keys its render on this. One styled with CSS tokens needs nothing. Absent is 'dark'. */
 	getTheme?: () => string;
 	/** The pool keys on `${kind} ${source}`, so a widget whose value derives from the document
 	 *  (footnote numbering) needs this to survive edits elsewhere that change no source. */
@@ -59,19 +58,19 @@ export interface InlineWidgetComponentProps {
 	/**
 	 * Memo key for a whole-document derivation: the `$state` document is mutated in place, so
 	 * its identity never changes and an identity-keyed memo would hit forever on stale data.
-	 * Read it INSIDE the widget's `$derived`; that read is what subscribes it to edits anywhere.
+	 * Read it inside the widget's `$derived`; that read is what subscribes it to edits anywhere.
 	 */
 	getContentVersion?: () => number;
-	/** `EditorRects.navigateTo`: reveal, scroll and land the caret at a raw offset in a block
+	/** `EditorRects.navigateTo`: mount, scroll to and put the caret at a raw offset in a block
 	 *  path. Absent in a bare harness, so a widget that navigates declines rather than throws. */
 	navigateTo?: (path: number[], offset?: number) => Promise<boolean>;
 }
 
 /**
- * The editor's activation gesture, shared by the surface deciding whether to reveal and the
- * widget deciding whether to act: a Ctrl/Cmd chord while editing, a plain click in reading
- * mode, where there is no caret for a plain click to place. The link click's rule
- * (`Editor.svelte`), applied to widgets.
+ * The editor's activation gesture, shared by the editable element deciding whether to show the
+ * source and the widget deciding whether to act: Ctrl/Cmd+click while editing, a plain click in
+ * reading mode, where there is no caret for a plain click to place. The same rule links use
+ * (`Editor.svelte`).
  */
 export function isWidgetActivationClick(modified: boolean, mode: PresentationMode): boolean {
 	return modified || mode === 'reading';
@@ -84,23 +83,23 @@ export const ON_EDGE_POLICIES = ['select', 'step-over'] as const;
 
 /**
  * Per-kind editing behavior, read by the caret-edge dispatch
- * (`components/blocks/text/edge-policy-dispatch.ts`). `atomic` deletes in one press where
+ * (`components/blocks/text/edge-policy-dispatch.ts`). `atomic` deletes in one keypress where
  * `select-then-delete` takes two; `onEdge` chooses between selecting the construct whole and
  * stepping over it like a character.
  */
 export interface InlineWidgetEditingPolicy {
 	revealSource?: boolean;
 	/**
-	 * Where this kind's editable CONTENT sits inside its source span, as offsets relative to
-	 * that span — `$x$` answers `{ start: 1, end: 2 }`. It bounds a caret entering the source,
-	 * and `end` is where a revealing click lands when the kind maps no point of its own. Only
-	 * the kind knows its own delimiters; absent, the caret keeps the leading edge.
+	 * Where this kind's editable content sits inside its source span, as offsets relative to
+	 * that span (`$x$` answers `{ start: 1, end: 2 }`). It bounds a caret entering the source,
+	 * and `end` is where a click that shows the source puts the caret when the kind maps no point
+	 * of its own. Only the kind knows its delimiters; absent, the caret stays at the leading edge.
 	 */
 	revealContentSpan?: (source: string) => { start: number; end: number } | null;
 	/**
-	 * The offset in `source` a press on the RENDERED widget names, so a click seats the caret
-	 * where it landed rather than at one edge. Only the kind can map its render back to bytes (a
-	 * KaTeX island paints glyphs, not source); null declines this point and keeps the fallback.
+	 * The offset in `source` a click on the rendered widget names, so the caret goes where the
+	 * click landed rather than to one edge. Only the kind can map its render back to bytes (a
+	 * KaTeX widget draws glyphs, not source); null declines this point and keeps the fallback.
 	 */
 	revealOffsetAtPoint?: (
 		widgetEl: HTMLElement,
@@ -112,12 +111,12 @@ export interface InlineWidgetEditingPolicy {
 	onEdge?: (typeof ON_EDGE_POLICIES)[number];
 	onSelectedKey?: (e: KeyboardEvent, ctx: InlineWidgetEditingContext) => boolean;
 	/** The widget's own component handles an activation click ({@link isWidgetActivationClick}),
-	 *  so the surface stands its reveal down rather than unmounting the widget under it. */
+	 *  so the editable element does not show the source, which would unmount the widget. */
 	claimsActivationClick?: boolean;
 }
 
 export interface InlineWidgetEditingContext {
-	/** Bytes-readonly (G1.9); edits go through `updateContent`. */
+	/** The bytes are read-only (G1.9); edits go through `updateContent`. */
 	node: NodeView;
 	inline: InlineNode;
 	widgetStart: number;
@@ -136,7 +135,7 @@ export interface InlineWidgetDescriptor {
 	/** Omitted for a kind whose builder is injected per render (image) or that uses `component`. */
 	buildWidget?(node: InlineNode, raw: string): HTMLElement;
 	/** The recommended path, mutually exclusive with `buildWidget`: the render layer wraps it in
-	 *  the atomic-island span and mounts it through the injected portal builder. */
+	 *  the widget shell span and mounts it through the injected portal builder. */
 	component?: Component<InlineWidgetComponentProps>;
 	editing?: InlineWidgetEditingPolicy;
 }
@@ -190,8 +189,8 @@ export function getInlineWidgetEditing(kind: AnyInlineKind): InlineWidgetEditing
 	return registry.get(kind)?.editing;
 }
 
-/** A kind the caret reads as one character: it steps over in one press, carries a column of its
- *  own, and a press ON its glyph names an edge rather than selecting the island whole. */
+/** A kind the caret treats as one character: it steps over in one keypress, has a column of its
+ *  own, and a click on its glyph names an edge rather than selecting the widget whole. */
 export function isCharacterLikeWidget(kind: AnyInlineKind): boolean {
 	return getInlineWidgetEditing(kind)?.onEdge === 'step-over';
 }
@@ -243,8 +242,8 @@ registerInlineWidgetKind('rawHtml', {
 	buildWidget: (node) => buildLiveHtmlWidget(node)
 });
 
-// Gated to visibly-rendering glyphs: an invisible entity keeps its literal-source span rather
-// than becoming an atomic island the caret cannot see.
+// Only an entity that draws a glyph becomes a widget: an invisible one keeps its literal-source
+// span, or the caret would step over something it cannot see.
 registerInlineWidgetKind('entityReference', {
 	isWidget: (node) => entityRendersGlyph(node.decoded),
 	buildWidget: (node) => buildEntityWidget(node),

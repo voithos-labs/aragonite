@@ -30,7 +30,7 @@ import {
 
 // Every character that can start a construct or anchor a lookback: the dispatch cases below
 // plus `@` (GFM email lookback). `!` and `]` are deliberately absent, mattering only in ranges
-// that also contain `[`; a plugin rung makes `!` visible per registration (plugin-syntax.ts).
+// that also contain `[`; a plugin registration makes `!` visible (plugin-syntax.ts).
 const SPECIAL_CHARS = '\\`&\n<[*_~@';
 
 // GFM bare http/www autolinks contain no character from the set above, so their starts get
@@ -79,9 +79,9 @@ function needsScan(raw: string, start: number, end: number): boolean {
 	return false;
 }
 
-// Try a trigger's rungs in dispatch order: the first whose prefix matches at `ctx.pos` and whose
-// recognizer claims wins. Claim validation lives here once, on both dispatch paths, and sits past
-// the decline so a declining rung pays none of it and leaves `ctx` byte-identical.
+// Tries a trigger's plugin handlers in dispatch order: the first whose prefix matches at `ctx.pos`
+// and whose recognizer claims wins. The claim checks live here once, for both dispatch paths,
+// after the decline so a declining handler pays nothing and leaves `ctx` untouched.
 function tryRungs(ctx: ScanContext, rungs: InlineRung[] | undefined): InlineNode | null {
 	if (!rungs) return null;
 	const { raw, pos, end } = ctx;
@@ -95,10 +95,10 @@ function tryRungs(ctx: ScanContext, rungs: InlineRung[] | undefined): InlineNode
 		if (node.end <= pos) {
 			throw new Error(`inline-syntax "${rung.prefix}" did not advance`);
 		}
-		// A block's scan range is not always its raw (a heading's excludes the closing `#` run, a
-		// table cell's the `|`), so a recognizer searching the STRING claims bytes the block still
-		// needs, and the overrun leaves no trace beyond wrong caret offsets. Half-open: ending AT
-		// `end` is ordinary, only past it is a fault.
+		// A block's scan range is not always its whole raw (a heading's excludes the closing `#`
+		// run, a table cell's the `|`), so a recognizer searching the whole string claims bytes the
+		// block still needs, and the only trace is wrong caret offsets. Ending exactly at `end` is
+		// fine; only past it is a fault.
 		if (node.end > end) {
 			throw new Error(
 				`inline-syntax "${rung.prefix}" claimed [${node.start}, ${node.end}), past the scan ` +
@@ -111,10 +111,11 @@ function tryRungs(ctx: ScanContext, rungs: InlineRung[] | undefined): InlineNode
 	return null;
 }
 
-// A rung minting a BUILT-IN kind borrows the editor's model for bytes of its own, and the
-// editor's inverse emits built-in grammar, so an image minted over `![[cat.png]]` would resize
-// into GFM and take the author's syntax with it. Descendants stamp on the same rule; a rung's
-// own kind needs no stamp. Assigned, never merged, so a recognizer cannot name its own claimer.
+// A plugin handler that creates a built-in kind (an `image` over `![[cat.png]]`) borrows the
+// editor's model for its own bytes, and the editor's writers emit built-in grammar, so a resize
+// would rewrite the author's syntax as GFM; the claim tells the writers whose syntax it is.
+// Descendants are marked by the same rule; a plugin's own kind needs no mark. Assigned, never
+// merged, so a recognizer cannot name its own claimer.
 function stampClaim(node: InlineNode, claim: InlineSyntaxClaim): void {
 	for (const inline of inlineDescendants([node])) {
 		if (isBuiltinInlineKind(inline.kind)) inline.syntaxClaim = claim;
@@ -133,9 +134,10 @@ export function scanInline(
 	}
 
 	const ctx = createScanContext(raw, start, end, resolver);
-	// Reserved-trigger prefix rungs are consulted before the switch so they can outrank a
-	// built-in case: a handler consumes its trigger and advances (`handleBang` eats `![` whole),
-	// so the scan never returns to a position the switch has read. Hoisted for the empty registry.
+	// Reserved-trigger prefix handlers are consulted before the switch so they can outrank a
+	// built-in one: a built-in handler consumes its trigger and advances (`handleBang` eats `![`
+	// whole), so the scan never returns to a position the switch has read. The check is hoisted
+	// so an empty registry costs nothing.
 	const consultPrefixRungs = hasPrefixRungs();
 	while (ctx.pos < ctx.end) {
 		if (consultPrefixRungs) {

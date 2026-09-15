@@ -1,7 +1,7 @@
 /**
  * Lazy `inlineContent` accessor for non-render consumers, over a node-keyed WeakMap.
  * Non-reactive by design: never call from the render path (which uses computeInlineContent),
- * since a reactive read+write here re-introduces the keyed-`{#each}` corruption G4.2 guards.
+ * since a reactive read plus write here corrupts a keyed `{#each}` (G4.2).
  * One sub-entry per signature space, so resolver-less and signature-bearing callers cannot
  * evict each other on a bracket-bearing block.
  */
@@ -40,7 +40,7 @@ export function getInlineContent(
 	const hit = entry?.[slot];
 	if (hit && hit.raw === node.raw && hit.signature === sig) return hit.content;
 	const content = computeInlineContent(node, effectiveResolver);
-	// Spread, so refilling one slot carries the other one through untouched.
+	// Spread, so refilling one slot keeps the other one untouched.
 	cache.set(node, { ...entry, [slot]: { raw: node.raw, signature: sig, content } });
 	return content;
 }
@@ -48,7 +48,7 @@ export function getInlineContent(
 /**
  * The one spelling of `getInlineContent(node, ref.current, ref.signature)`, so a non-render
  * call site cannot drop the signature and silently desync from what render drew. `linkRef`
- * stays structural: naming editor-keys' type would cycle that module back onto this layer.
+ * stays structural: naming editor-keys' type would create an import cycle with that module.
  */
 export function resolvedInlineContent(
 	node: NodeView,

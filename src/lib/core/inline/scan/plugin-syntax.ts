@@ -1,8 +1,9 @@
 /**
- * Unstable-public hook for plugin inline syntax: a priority ladder mirroring `OPENER_PRIORITIES`.
- * One trigger character plus an optional prefix beginning with it, dispatched low-priority-first
- * so a plugin can outrank a built-in trigger on a longer prefix (footnotes' `[^` beating `[`).
- * Reserved triggers hold pre-switch rungs, all others hold `default`-arm rungs (scan/index.ts).
+ * Registry for plugin inline syntax: one trigger character plus an optional prefix beginning with
+ * it, tried lowest priority first (the same numbering as `OPENER_PRIORITIES`), so a plugin can
+ * outrank a built-in trigger with a longer prefix (footnotes' `[^` beating `[`). An `InlineRung`
+ * is one registered handler. Handlers on a reserved trigger are consulted before the scanner's
+ * switch, all others from its `default` branch (scan/index.ts).
  */
 
 import type { ImageSyntaxRewriter, InlineNode, InlineSyntaxClaim } from '../../nodes';
@@ -16,37 +17,36 @@ import { registerOnce } from '../../../schema/register-once';
  */
 export type InlineSyntaxRecognizer = (raw: string, pos: number, end: number) => InlineNode | null;
 
-/** The priority ladder every registration prices against; lower is consulted first. */
+/** The priority numbers registrations use; lower is consulted first. */
 export const INLINE_PRIORITIES = {
-	/** Rungs consulted before a reserved trigger's built-in handling. */
+	/** Handlers consulted before a reserved trigger's built-in handling. */
 	prefixOverride: 40,
 	/** The switch's own anchor; not registerable. */
 	builtin: 50,
-	/** Default rung for bare-trigger registrations. */
+	/** Default for bare-trigger registrations. */
 	plugin: 100
 } as const;
 
 export interface InlineSyntaxOptions {
 	/**
-	 * Multi-char prefix beginning with the trigger; required for a reserved trigger. Consulted
-	 * ahead of the built-in case, so a prefix that also opens a built-in construct outranks it
-	 * and the recognizer must decline the overlap itself. Getting that wrong is silent; see the
-	 * plugin guide's reserved-trigger section.
+	 * Multi-character prefix beginning with the trigger; required for a reserved trigger. It is
+	 * consulted ahead of the built-in handler, so a prefix that also opens a built-in construct
+	 * outranks it, and the recognizer must decline that overlap itself (the plugin guide's
+	 * reserved-trigger section).
 	 */
 	prefix?: string;
-	/** Rung; lower is consulted first. Defaults to `INLINE_PRIORITIES.plugin`. */
+	/** Lower is consulted first. Defaults to `INLINE_PRIORITIES.plugin`. */
 	priority?: number;
 	/**
-	 * Re-serializer for the built-in `image` nodes this recognizer mints; without it the editor
+	 * Re-serializer for the built-in `image` nodes this recognizer creates; without it the editor
 	 * declines those edits rather than writing GFM over the claimed bytes. Return `null` for
-	 * anything your grammar cannot hold: source-identical bytes are dropped silently by the
-	 * commit's equality guard. See the plugin guide's inline section.
+	 * anything your grammar cannot hold (the plugin guide's inline section).
 	 */
 	rewriteImage?: ImageSyntaxRewriter;
 	/**
-	 * The trigger is a symmetric one-byte delimiter (`$…$`) a keystroke should close at once:
-	 * typing it lands its twin after the caret, so the new opener pairs with that twin rather
-	 * than with a later formula's delimiter (see `delimiter-autopair.ts`). Bare triggers only.
+	 * The trigger is a symmetric one-byte delimiter (`$…$`) that typing should close at once: the
+	 * matching closer lands after the caret, so the new opener pairs with it rather than with a
+	 * later formula's delimiter (`delimiter-autopair.ts`). Bare triggers only.
 	 */
 	autoPair?: boolean;
 }
@@ -57,38 +57,41 @@ export interface InlineRung extends InlineSyntaxClaim {
 }
 
 /**
- * The characters `scanInline`'s switch claims. A bare registration on one would never fire; it
- * needs a prefix rung priced below `builtin`. Kept in step with `./index.ts` by G4.18.
+ * The characters `scanInline`'s switch handles itself. A bare registration on one would never
+ * fire; it needs a prefix and a priority below `builtin`. A lint test keeps this set in step with
+ * `./index.ts` (G4.18).
  */
 const BUILTIN_TRIGGERS = new Set(['\\', '`', '&', '\n', '*', '_', '~', '[', ']', '!', '<']);
 
 /**
- * Reserved triggers a registration makes visible to `needsScan` (scan/index.ts) instead, probed
- * only while a rung lives on them. `!` is here rather than in `SPECIAL_CHARS` because making it
- * unconditionally special would drag every prose `"Hello!"` through the full scan loop.
+ * Reserved triggers the fast bail (`needsScan`, scan/index.ts) checks only while a handler is
+ * registered on them. `!` is here rather than in `SPECIAL_CHARS` because making it always
+ * special would drag every prose `"Hello!"` through the full scan loop.
  */
 const SCAN_PROBED_RESERVED = new Set(['!']);
 
 /**
- * Reserved triggers with no route to the scan at all, so a prefix rung on one would be accepted
- * yet never consulted: the silent no-op this seam exists to prevent. A construct needing `]`
- * gives it a route first. Pinned against a SPECIAL_CHARS edit by G4.18.
+ * Reserved triggers the scan never reaches, so a prefix registration on one would be accepted yet
+ * never consulted: the silent no-op this registry exists to refuse. A construct needing `]` gives
+ * it a route first. A lint test pins this against a `SPECIAL_CHARS` edit (G4.18).
  */
 const REJECTED_RESERVED = new Set([']']);
 
 const NO_RUNGS: readonly InlineRung[] = [];
 
-// Reserved-trigger prefix rungs (pre-switch) live apart from every other trigger's rungs
-// (`default` arm) so each dispatch path reads one map and its empty gate is one `size` check.
+// Reserved-trigger handlers (consulted before the switch) live apart from all other handlers
+// (consulted from its `default` branch) so each dispatch path reads one map and its empty check
+// is one `size` read.
 const reservedRegistry = new Map<string, InlineRung[]>();
 const unreservedRegistry = new Map<string, InlineRung[]>();
 
-// Triggers whose keystroke closes itself (`autoPair`); the built-in backtick is not registered
-// here, the typing seam knows it on its own.
+// Triggers that close themselves as they are typed (`autoPair`); the built-in backtick is not
+// here, the typing path knows it on its own.
 const autoPairTriggers = new Set<string>();
 
-// Triggers the fast bail (`needsScan`, scan/index.ts) must visit while a rung lives on them.
-// Maintained at registration, so a rung on a trigger `SPECIAL_CHARS` already visits costs nothing.
+// Triggers the fast bail (`needsScan`, scan/index.ts) must check while a handler is registered
+// on them. Filled at registration, so a handler on a trigger `SPECIAL_CHARS` already checks
+// costs nothing.
 const scanProbeTriggers = new Set<string>();
 
 // ── Registration ───────────────────────────────────────────────────────────────
@@ -111,8 +114,8 @@ export function registerInlineSyntax(
 
 	const reserved = BUILTIN_TRIGGERS.has(trigger);
 	if (reserved) {
-		// Pinned contract: keep the message verbatim. A reserved trigger is reachable only
-		// through a prefix rung priced below the switch anchor.
+		// A test pins this message verbatim. A reserved trigger is reachable only through a
+		// prefix with a priority below `builtin`.
 		if (prefix === undefined) {
 			throw new Error(
 				`registerInlineSyntax: ${JSON.stringify(trigger)} is claimed by the built-in scanner, ` +
@@ -157,8 +160,8 @@ export function registerInlineSyntax(
 				priority,
 				rewriteImage
 			});
-			// A rung on a trigger the fast bail would skip must make the scan visit it,
-			// or the recognizer is the silent no-op this seam refuses to accept.
+			// A handler on a trigger the fast bail would skip must make the scan check it,
+			// or the recognizer is the silent no-op this registry refuses to accept.
 			if (!reserved || SCAN_PROBED_RESERVED.has(trigger)) scanProbeTriggers.add(trigger);
 			if (autoPair) autoPairTriggers.add(trigger);
 		},
@@ -174,7 +177,7 @@ function compareRungs(a: InlineRung, b: InlineRung): number {
 	return a.prefix < b.prefix ? -1 : a.prefix > b.prefix ? 1 : 0;
 }
 
-// Overwriting a matching (prefix, priority) rung is the dev-server replace path.
+// Overwriting a handler with the same prefix and priority is the dev-server hot-reload path.
 function upsertRung(registry: Map<string, InlineRung[]>, trigger: string, rung: InlineRung): void {
 	const rungs = registry.get(trigger);
 	if (!rungs) {
@@ -192,14 +195,15 @@ function upsertRung(registry: Map<string, InlineRung[]>, trigger: string, rung: 
 // ── Dispatch accessors ───────────────────────────────────────────────────────────
 
 /**
- * Whether the built-in scanner claims `trigger` through a `case` arm. A rung on one is consulted
- * BEFORE that arm, so it owes the overlap a decline; the conformance kit refuses it an exemption.
+ * Whether the built-in scanner handles `trigger` in its switch. A plugin handler on one is
+ * consulted before the switch, so it must decline the overlap itself; the conformance kit grants
+ * no exemption.
  */
 export function isReservedInlineTrigger(trigger: string): boolean {
 	return BUILTIN_TRIGGERS.has(trigger);
 }
 
-/** Rungs for a trigger in dispatch order, reserved-aware. Empty when none. */
+/** The handlers for a trigger in dispatch order, from whichever map holds it. Empty when none. */
 export function getInlineRungs(trigger: string): readonly InlineRung[] {
 	const registry = BUILTIN_TRIGGERS.has(trigger) ? reservedRegistry : unreservedRegistry;
 	return registry.get(trigger) ?? NO_RUNGS;

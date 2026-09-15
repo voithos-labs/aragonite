@@ -1,10 +1,9 @@
 /**
- * DOM renderer for InlineNode trees. Over a widget-free range the fragment's textContent equals
- * raw.slice. Atomic widgets break that by design, contributing their own text or none and
- * carrying source bytes on `data-source-*`, so a raw offset is recovered only through the shared
- * walk (cursor/widget-offset.ts), never by counting textContent. Stated both ways by G2.4.
- *
- * Which of the spans minted here a mode leaves on screen is `inline/visibility.ts`.
+ * DOM renderer for inline node trees. Over a widget-free range the fragment's textContent equals
+ * raw.slice. Widgets break that by design, contributing their own text or none and carrying their
+ * source bytes on `data-source-*`, so a raw offset is recovered only through the shared DOM
+ * traversal (cursor/widget-offset.ts), never by counting textContent (G2.4). Which of the spans
+ * built here a mode leaves on screen is `inline/visibility.ts`.
  */
 
 import type { InlineNode } from './nodes';
@@ -32,20 +31,20 @@ export interface RenderInlineOptions {
 		}
 	) => Node;
 	/**
-	 * Mounts a `component`-kind widget in the atomic-island wrapper. Injected for the same reason
+	 * Mounts a `component`-kind widget in the widget shell wrapper. Injected for the same reason
 	 * as `buildImageWidget`; absent or null falls the widget back to its raw source.
 	 */
 	buildPortalWidget?: (node: InlineNode, raw: string) => HTMLElement | null;
 	/**
-	 * Paint a lone backslash ending the display as the hard break it is about to become: the
+	 * Render a lone backslash ending the display as the hard break it is about to become: the
 	 * byte as a (hidden) marker plus two `br` anchors so the caret has a second line to sit on.
 	 * Only for a mode that hides markers; the DOM stays byte-identical elsewhere.
 	 */
 	pendingBreakSeat?: boolean;
 	/**
-	 * Stamp marker spans with the construct's raw range, so preview-inline's reveal trigger can
-	 * address them. Attributes only, leaving textContent and the offset walk untouched. Off by
-	 * default so the DOM stays byte-identical outside preview-inline.
+	 * Write the construct's raw range onto its marker spans as data attributes, so preview-inline
+	 * can find the spans to reveal. Attributes only, leaving textContent and the offset traversal
+	 * untouched. Off by default so the DOM stays byte-identical outside preview-inline.
 	 */
 	tagConstructMarkers?: boolean;
 }
@@ -75,8 +74,9 @@ function sourceSpan(raw: string, node: InlineNode, className: string): HTMLSpanE
 	return span;
 }
 
-/** The one href funnel for every sink — a consumer's rewrite, then the scheme allowlist; undefined
- *  reads as "render inert". Exported: the link card's Open button hands over a user-typed URL. */
+/** The one href path every DOM sink goes through: a consumer's rewrite, then the scheme allowlist;
+ *  undefined means render inert. Exported because the link card's Open button hands over a
+ *  user-typed URL. */
 export function resolveHref(
 	opts: RenderInlineOptions,
 	url: string | undefined
@@ -96,10 +96,10 @@ function renderInlineCode(
 	opts: RenderInlineOptions
 ): DocumentFragment {
 	const frag = document.createDocumentFragment();
-	// Every span is a slice of raw, never a parsed field that happens to agree — and each is its
-	// OWN slice: the opening fence is capped at half the node and the closing one read back off
-	// the tail, so a node nobody parsed (a plugin mint over unfenced bytes) still emits its bytes
-	// exactly once (G2.4).
+	// Every span is a slice of raw, never a parsed field that happens to agree, and each is its
+	// own slice: the opening fence is capped at half the node and the closing one read back off
+	// the tail, so a node nobody parsed (a plugin-created node over unfenced bytes) still emits
+	// its bytes exactly once (G2.4).
 	const fenceLimit = node.start + Math.floor((node.end - node.start) / 2);
 	let contentStart = node.start;
 	while (contentStart < fenceLimit && raw[contentStart] === '`') contentStart++;
@@ -119,8 +119,8 @@ function renderInlineCode(
 // ── Nesting frames ───────────────────────────────────────────────────────────
 
 /**
- * One construct's pending child render, assembled by `close` when the frame drains. Children
- * accumulate in a DETACHED fragment, which keeps each insertion's ancestor bookkeeping O(1)
+ * One construct's pending child render, assembled by `close` when the frame is done. Children
+ * accumulate in a detached fragment, which keeps each insertion's ancestor bookkeeping O(1)
  * rather than O(depth). Emitted order is source order: the frame owns the top of the stack.
  */
 interface RenderFrame {
@@ -173,8 +173,8 @@ function openWrapped(
 // ── Links ────────────────────────────────────────────────────────────────────
 
 // Markers come from raw.slice: the parsed url/title can differ from the source bytes. Every
-// split point is clamped to node.end — a plugin mint need not carry the bytes GFM's own link
-// does, and a search running past the node would render the NEXT node's source (G2.4).
+// split point is clamped to node.end: a plugin-created node need not carry the bytes GFM's own
+// link does, and a search running past the node would render the next node's source (G2.4).
 function openLink(
 	node: InlineNode,
 	raw: string,
@@ -286,7 +286,7 @@ function appendImageSource(
 	const altStart = node.start + 2;
 	const altEnd = altStart + altText.length;
 	// `alt` locates the split and never supplies text (openLink's rule), and only where it is
-	// literally those bytes: a minted image's markers need not be a GFM image's. Unlocatable
+	// literally those bytes: a plugin-made image's markers need not be a GFM image's. Unlocatable
 	// falls back to unmarked source, since a construct nobody can decompose would collapse whole.
 	if (altEnd > node.end || !raw.startsWith(altText, altStart)) {
 		container.appendChild(document.createTextNode(raw.slice(node.start, node.end)));
@@ -329,7 +329,7 @@ function renderNode(
 			// a `<br>` would diverge across browsers.
 			const breakRaw = raw.slice(node.start, node.end);
 			const nlIdx = breakRaw.indexOf('\n');
-			// A node carrying no line ending (a plugin mint) is all marker: a -1 here would
+			// A node carrying no line ending (a plugin-created node) is all marker: a -1 here would
 			// slice from the end and drop bytes.
 			const lineEndingStart =
 				nlIdx === -1
@@ -434,11 +434,11 @@ export function renderInlineNodes(
 }
 
 /**
- * `insertHardBreak` at the end of a block writes `\` whose line ending IS the block's trailing
+ * `insertHardBreak` at the end of a block writes a `\` whose line ending is the block's trailing
  * one, so until the next key supplies the following line CommonMark (and the scanner) read the
- * byte as literal text. Left as text it shows as a stray backslash and the caret stays on the
- * first line; painted like this the user sees the new line they asked for. A `br` adds no
- * textContent, so G1.28 holds; the walk seats offset `length` after the first anchor.
+ * byte as literal text. Rendered like this the user sees the new line they asked for instead of
+ * a stray backslash. A `br` adds no textContent, so the offset traversal stays exact (G1.28) and
+ * puts offset `length` after the first anchor.
  */
 function paintPendingBreak(nodes: InlineNode[], raw: string, frag: DocumentFragment): void {
 	const last = nodes[nodes.length - 1];

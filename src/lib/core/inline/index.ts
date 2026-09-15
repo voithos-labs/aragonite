@@ -22,8 +22,8 @@ export interface ContentRange {
 }
 
 declare const contentLengthBrand: unique symbol;
-/** Raw-space length of a block's rendered content, mintable only from its content range: a
- *  DOM-measured length answers in walk space and lags the pass that is rewriting the DOM. */
+/** Raw-offset length of a block's rendered content, built only from its content range: a
+ *  DOM-measured length counts as the DOM traversal does and lags the pass rewriting the DOM. */
 export type ContentLength = number & { readonly [contentLengthBrand]: true };
 
 /** Content range within a prose block's raw; marker-bearing kinds override via descriptor. */
@@ -33,7 +33,7 @@ export function getContentRange(node: NodeView): ContentRange {
 	return { start: 0, end: displayLength(node.raw) };
 }
 
-/** The one {@link ContentLength} mint. */
+/** The one place a {@link ContentLength} is created. */
 export function contentLengthOf(node: NodeView): ContentLength {
 	return getContentRange(node).end as ContentLength;
 }
@@ -43,10 +43,10 @@ export function isProseKind(kind: CstNode['kind']): boolean {
 }
 
 /**
- * The bytes an INLINE construct's delimiters do not cover, or null for a kind that has none — a
- * bare text run, an escape, a pair emptied of content. The inline twin of {@link getContentRange},
- * here rather than beside one of its callers because the caret bounds, the typing seat, the
- * destructive arm and the toggles all need the same answer.
+ * The bytes an inline construct's delimiters do not cover, or null for a kind that has none: a
+ * bare text run, an escape, a pair emptied of content. The inline counterpart of
+ * {@link getContentRange}, here rather than beside one caller because the caret bounds, the
+ * typing position, deletion and the toggles all need the same answer.
  */
 export function constructContentRange(node: InlineNode): ContentRange | null {
 	const children = node.children;

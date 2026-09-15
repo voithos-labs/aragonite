@@ -1,7 +1,6 @@
 /**
  * The scan's inverse for the two fields every bracketed construct hides: a destination and a
- * title. One home so the image and link write seams cannot drift apart on what needs escaping —
- * the sibling-path shape that put an unencoded space in one seam and not the other.
+ * title. One place, so the image and link write paths cannot drift apart on what needs escaping.
  */
 
 // Bare destinations end at whitespace/`"`/`'` and carry parens only in balanced pairs

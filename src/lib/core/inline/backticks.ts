@@ -1,7 +1,7 @@
 /**
  * Backtick-run indexing for code spans (CommonMark §6.1): a run of N backticks closes with the
  * next run of exactly N. Indexed once, then binary-searched per opener, because a per-opener
- * forward rescan to EOF turns a run-length ladder quadratic.
+ * forward rescan to EOF turns a sequence of growing run lengths quadratic.
  */
 
 /**
