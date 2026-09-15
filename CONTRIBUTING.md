@@ -164,6 +164,8 @@ CI runs on every pull request:
 - a consumer smoke test, which packs the library, installs the tarball into a real app and checks it survives server rendering and hydration
 - a check that the committed emoji table still matches the upstream it was generated from
 
+Before you open it, run the six lines in [rules.md § Before you open the PR](docs/contributing/rules.md#before-you-open-the-pr). They're the checks a PR here trips most, each takes seconds, and the review will ask about them otherwise.
+
 Merging needs one code-owner approval. Review is root-cause first, and it'll ask for the test alongside the fix; I know that's a lot to ask of a drive-by contributor, but I have to ask anyway, for the sake of aragonite's health. If you want to start somewhere that's beginner friendly, issues labelled `good first issue` are picked to be exactly that.
 
 ## Filing an issue

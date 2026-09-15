@@ -12,6 +12,7 @@ You prob want to read this page before your first edit, and the casebook before 
 - [Fixing bugs](#fixing-bugs): how a fix lands here, test first.
 - [Testing shape](#testing-shape): where tests have to sit to catch anything.
 - [Working the gates](#working-the-gates): the check commands, what green looks like, and the one way to fool yourself.
+- [Before you open the PR](#before-you-open-the-pr): the six checks a PR here trips most, each with its command.
 - [Records](#records): where defects, decisions, and stale prose go.
 
 ## The five rules
@@ -189,6 +190,39 @@ $ npm run test:editor:invariants
   same tree. Contention produces phantom failures that cost real investigation time.
 - A dev warning reds a gate. [`warnings.md`](warnings.md) says which channel means what, and how a
   test claims a fire it lit on purpose.
+
+## Before you open the PR
+
+Six checks a pull request here trips more often than everything else put together, each with the
+command that runs it. They take seconds, and the commit gate runs them anyway; the point of the
+list is that you hear it from the terminal instead of from the review.
+
+1. **Every new e2e spec has a requirement file, and vice versa** (G4.23):
+   `src/lib/e2e/tests/<area>/x.spec.ts` pairs with `src/lib/e2e/requirements/<area>/x.md`, and the
+   requirement carries at least one scenario.
+   `npx vitest run src/lib/e2e/lint/requirement-spec-lockstep.test.ts`
+2. **Every comment fits the budget** (G4.26): no block over six text lines, no file header over
+   seven, and no house word (seam, door, funnel, mint, and the rest of
+   [`glossary.md`](glossary.md)) beyond the count its directory already carries.
+   `npx vitest run src/lib/test/invariants/lint/comment-budget.test.ts src/lib/test/invariants/lint/comment-house-words.test.ts`
+3. **Every token the editor's CSS reads is declared in `src/lib/styles/editor-theme.css`**, every
+   host token it reads has a fallback, and `src/app.css` holds no editor rule (G4.6).
+   `npx vitest run src/lib/test/invariants/lint/css-ownership.test.ts`
+4. **Every icon a menu row names is a key of the glyph table** in
+   `src/lib/components/menu/MenuIcon.svelte`: a new icon is a new entry there, and a name that
+   isn't one fails the `MenuIconName` type.
+   `npm run check`
+5. **Nothing sequences on `setTimeout`, `requestAnimationFrame` or a microtask trick** (G4.4):
+   `await tick()` is the one sequencing primitive, and the short list of timers that sequence
+   nothing (a debounce, an animation) is the allowlist in the test.
+   `npx vitest run src/lib/test/invariants/lint/timing-hacks.test.ts`
+6. **A new file with a `pointerdown` or `mousedown` handler is in one of the two lists** of the
+   G2.12 scan: the presses that place a caret, with the door each one goes through, or the presses
+   that place none, with the reason.
+   `npx vitest run src/lib/test/invariants/lint/caret-gesture-range-reset.test.ts`
+
+`npm run test:editor:invariants` runs lines 2, 3, 5 and 6 together; the first lives beside the
+e2e specs, so it keeps its own line.
 
 ## Records
 
