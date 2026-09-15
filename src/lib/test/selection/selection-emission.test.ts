@@ -13,7 +13,7 @@ import { parse } from '../../core/parser';
 import type { EditorSelection } from '../../selection/primitives';
 
 interface Emission {
-	/** The block the NATIVE caret sat in — what a subscriber's read-back resolves. */
+	/** The block the native caret sat in, which is what a subscriber's read-back resolves. */
 	caretBlock: number | null;
 	isCrossBlock: boolean;
 }
@@ -78,7 +78,7 @@ describe('the restore road settles before it notifies', () => {
 	});
 
 	// The documented exception, pinned so changing it is a visible decision: a collapsed restore
-	// whose target resolves but has no element clears state THEN fails, reporting the outgoing one.
+	// whose target resolves but has no element clears state, then fails, reporting the outgoing one.
 	it('an unplaced restore still reports the outgoing selection', () => {
 		const h = emissionHarness();
 		h.parkCaretIn(0, 3);
@@ -143,8 +143,8 @@ describe('SelectionState.batch', () => {
 		expect(count()).toBe(1);
 	});
 
-	// A depth that leaks on a throw mutes the selection channel for the editor's
-	// whole lifetime — the failure worth guarding at the seam, not at call sites.
+	// A batch depth that leaks on a throw mutes selection notifications for the editor's whole
+	// lifetime, so the flush is in `batch` itself, not at call sites.
 	it('flushes and stays usable when the body throws', () => {
 		const { state, count } = counting();
 		state.setGapCaret({ parentPath: [], index: 1 });
@@ -162,9 +162,9 @@ describe('SelectionState.batch', () => {
 	});
 });
 
-// The restore road is the only entry path wrapped in a batch. These pin the counts of the paths
-// that are NOT: a mutator that changed nothing must stay silent, so a subscriber's read-back is
-// never woken by a gesture the selection slept through (#29).
+// The restore path is the only entry path wrapped in a batch. These pin the counts of the paths
+// that are not: a mutator that changed nothing must stay silent, so a subscriber's read-back is
+// never triggered by a gesture the selection slept through (#29).
 describe('unbatched entry-path emission counts', () => {
 	it('a pointerdown that collapses a cross-block selection notifies once', () => {
 		let notifies = 0;
@@ -188,8 +188,8 @@ describe('unbatched entry-path emission counts', () => {
 		expect(notifies).toBe(0);
 	});
 
-	// The preamble is the native sibling of the caret door: both must end every editor-owned
-	// caret claim, or a click leaves a phantom gap painted beside the new caret.
+	// The pointerdown reset is the pointer counterpart of `placeCaret`: both must end every
+	// editor-owned caret, or a click leaves a phantom gap caret painted beside the new caret.
 	it('a pointerdown ends a live gap caret, shift held or not', () => {
 		for (const isShift of [false, true]) {
 			let notifies = 0;
@@ -204,8 +204,8 @@ describe('unbatched entry-path emission counts', () => {
 		}
 	});
 
-	// Miss (#29): the doors were pinned through their callers, where a real mutation always rode
-	// along, so no test ever asked what a door does with nothing to change.
+	// Miss-analysis (#29): the mutators were pinned through their callers, where a real mutation
+	// always came along, so no test ever asked what a mutator does with nothing to change.
 	it('every mutator is silent when it changes nothing', () => {
 		let notifies = 0;
 		const state = createSelectionState({ onChange: () => notifies++ });
@@ -231,8 +231,8 @@ describe('unbatched entry-path emission counts', () => {
 		expect(notifies).toBe(1);
 	});
 
-	// The counter is the fourth field `clear` zeroes: guarding on the endpoints alone would
-	// swallow the notification that a Ctrl+A run was reset.
+	// The counter is the fourth field `clear` zeroes: checking the endpoints alone would swallow
+	// the notification that a Ctrl+A run was reset.
 	it('clear notifies for a standing select-all count with no endpoints', () => {
 		let notifies = 0;
 		const state = createSelectionState({ onChange: () => notifies++ });

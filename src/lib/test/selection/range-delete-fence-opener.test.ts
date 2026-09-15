@@ -7,15 +7,15 @@ import { registerCalloutForTests } from './chrome-plugins';
 import { expectParseConverged } from '../harness/parse-converged';
 import { allowDevWarns } from '$lib/test/support/warn-gate';
 
-// rangeDelete is driven with hand-built endpoints, so the table arm sees a char offset
-// SelectionState would have snapped to a cell coordinate.
+// rangeDelete is driven with hand-built endpoints, so the table branch sees a character offset
+// `SelectionState` would have snapped to a cell coordinate.
 afterEach(() => allowDevWarns(['deleteFromTableIntoProse:start']));
 
-// Issue #58, the mirror of #55: a range whose END endpoint sits in a code body consumes the
-// OPENER, and the surviving closer reparses as a NEW unclosed fence that eats the live siblings
-// below. Miss-analysis: the #55 pins drove ranges STARTING in a code body, the only shape that
-// loses the closer; the generic merge normalized the joined raw against START's rule alone, so
-// no pin could reach the end block's rule with an end-side slice.
+// Issue #58, the mirror of #55: a range whose end endpoint sits in a code body consumes the
+// opener, and the surviving closer reparses as a new unclosed fence that eats the siblings below.
+// Miss-analysis: the #55 pins drove ranges starting in a code body, the only shape that loses the
+// closer; the plain merge normalized the joined raw against the start's rule alone, so no pin
+// could reach the end block's rule with an end-side slice.
 
 const sharing = () => createSharingState();
 
@@ -37,12 +37,12 @@ describe('range delete that consumes a fenced code opener', () => {
 
 		expect(serialize(doc)).toBe('pady\n\ntail\n');
 		expect(kindsOf(doc)).toEqual(['paragraph', 'paragraph']);
-		// The drop shrinks the END slice past the join, so the caret keeps the start offset.
+		// The drop shrinks the end slice past the join, so the caret keeps the start offset.
 		expect(collapsedCaret).toEqual({ path: [0], offset: 2 });
 		expectParseConverged(doc);
 	});
 
-	// A tilde line inside the surviving body is text the run never terminated — the guard must
+	// A tilde line inside the surviving body is text the run never terminated; the check must
 	// not read it as a live opener and leave the stranded closer to absorb on reload.
 	it('drops it past a foreign-marker open line in the surviving body', () => {
 		const doc = parse('para\n\n```js\n~~~\nbody\n```\n\ntail\n');
@@ -61,8 +61,8 @@ describe('range delete that consumes a fenced code opener', () => {
 		expectParseConverged(doc);
 	});
 
-	// The stranded run is legal GFM and what loaded markdown supplies, so it can be LONGER than
-	// the opener the range took — which is exactly the shape the restore rule must not size to.
+	// The stranded run is legal GFM and what loaded markdown supplies, so it can be longer than
+	// the opener the range took, which is exactly the shape the restore rule must not size to.
 	it('drops a stranded closer longer than the deleted opener’s run', () => {
 		const doc = parse('para\n\n~~~js\nbody\n~~~~~\n\ntail\n');
 
@@ -114,8 +114,8 @@ describe('range delete that consumes a fenced code opener', () => {
 		expectParseConverged(doc);
 	});
 
-	// A range consuming BOTH fence lines leaves no run to strand and no metadata to restore from,
-	// so neither arm may fire: the fence is gone, not broken.
+	// A range consuming both fence lines leaves no run to strand and no metadata to restore from,
+	// so neither rule may fire: the fence is gone, not broken.
 	it('leaves a range that took both fence lines with nothing to reconcile', () => {
 		const doc = parse('para\n\n```js\nbody\n```\n\ntail\n');
 
@@ -133,9 +133,10 @@ describe('range delete that consumes a fenced code opener', () => {
 		expectParseConverged(doc);
 	});
 
-	// The same-block arm writes raw in place with no reparse behind it, so the node keeps the
-	// kind its bytes no longer describe. That staleness is the arm's own, kind-generic (a heading
-	// losing its `#` does the same); what the fence rule owes here is bytes that stop absorbing.
+	// The same-block branch writes raw in place with no reparse behind it, so the node keeps the
+	// kind its bytes no longer describe. That staleness is the branch's own and applies to every
+	// kind (a heading losing its `#` does the same); what the fence rule must give here is bytes
+	// that stop absorbing the sibling.
 	it('drops it on a range confined to the code block, freeing the sibling', () => {
 		const doc = parse('```js\nbody\n```\n\ntail\n');
 
@@ -191,8 +192,8 @@ describe('range delete that consumes a fenced code opener', () => {
 			expectParseConverged(doc);
 		});
 
-		// The whole surviving tail IS the closer line, so dropping it empties the endpoint; the
-		// wall keeps that slot rather than merging it away, so a placeholder holds the caret.
+		// The whole surviving tail is the closer line, so dropping it empties the endpoint; the
+		// wall keeps that position rather than merging it away, so a placeholder holds the caret.
 		it('drops a tail that is exactly the closer line', () => {
 			const doc = parse(':::callout Title\nInside\n:::\n\n```js\nbody\n```\n\ntail\n');
 

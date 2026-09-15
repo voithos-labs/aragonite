@@ -56,9 +56,9 @@ describe('nearestBand', () => {
 });
 
 // Where the endpoint gets hit-tested. The probe point is deliberately not returned, so this is
-// its only observation point: a coordinate-addressed kind records the point its own hook was
-// handed. A raw off-block point resolves to no offset at all on a character surface, which is
-// what dropped a coalesced drag's whole gesture.
+// its only observation point: a grid kind records the point its own hook was handed. An
+// unclamped off-block point resolves to no offset at all on a text block, which would drop a
+// whole drag gesture whose moves were coalesced into one.
 describe('blockNearPoint', () => {
 	const BOXES = [
 		{ left: 100, right: 300, top: 100, bottom: 140 },

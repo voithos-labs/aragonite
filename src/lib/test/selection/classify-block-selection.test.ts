@@ -58,9 +58,9 @@ describe('classifyBlockForSelection', () => {
 	});
 });
 
-// Miss-analysis: every overlay case pinned the doc-order class, and none asked which block paints
-// the box — so a container's derived chrome (a GitHub alert's badge, no child host to paint it)
-// went unpainted under a range that held the whole block (#321).
+// Miss-analysis: every overlay case pinned the document-order class, and none asked which block
+// paints the box, so a container's own decoration (a GitHub alert's badge, with no child host to
+// paint it) went unpainted under a range that held the whole block (#321).
 describe('blockPaintsWholeBox', () => {
 	it('paints a leaf the range holds whole, and nothing outside the range', () => {
 		const s = sel({ path: [1], offset: 0 }, { path: [4], offset: 0 });

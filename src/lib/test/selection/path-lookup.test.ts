@@ -145,9 +145,10 @@ describe('findBlockPathForElement', () => {
 	});
 });
 
-// The door for any producer that resolves an endpoint path from the DOM: only block hosts carry
-// data-block-path, so a plain walk stops at the table and hands back cell-index offsets where the
-// caret's are characters. Every null arm matters — "not a cell" read as "cell 0" corrupts too.
+// The one lookup for anything resolving an endpoint path from the DOM: only block hosts carry
+// `data-block-path`, so a plain ancestor walk stops at the table and hands back cell-index offsets
+// where the caret's are characters. Every null branch matters: "not a cell" read as "cell 0"
+// corrupts too.
 describe('findCellPathForElement', () => {
 	function grid(rowCount: number, colCount: number) {
 		return mountTableGrid({ path: [3], rows: rowCount, cols: colCount }).host;

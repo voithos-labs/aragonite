@@ -6,8 +6,8 @@ import type { SelectionPoint } from '../../selection/primitives';
 import { allowDevWarns } from '$lib/test/support/warn-gate';
 import { TWO_COL_THREE_ROW } from './table-fixtures';
 
-// rangeDelete is driven with hand-built endpoints, so the table arms see char offsets
-// SelectionState would have snapped to cell coordinates.
+// rangeDelete is driven with hand-built endpoints, so the table branches see character offsets
+// `SelectionState` would have snapped to cell coordinates.
 afterEach(() => allowDevWarns(['deleteAcrossTwoTables:start', 'deleteAcrossTwoTables:end']));
 
 function run(source: string, start: SelectionPoint, end: SelectionPoint) {
@@ -102,7 +102,7 @@ describe('rangeDelete — across two top-level tables (char-addressable caret)',
 	});
 
 	it('both empty with a preceding blockquote: caret descends to the survivor last leaf', () => {
-		// Blockquote (two paragraphs) [0], tables [1] and [2]. The caret must land at the END of the
+		// Blockquote (two paragraphs) [0], tables [1] and [2]. The caret must land at the end of the
 		// blockquote's deepest leaf: a char offset on the container path names bytes no leaf owns.
 		const { doc, caret } = run(
 			`> alpha\n>\n> bravo\n\n${TWO_COL_THREE_ROW}\n${TWO_COL_THREE_ROW}`,
@@ -117,8 +117,8 @@ describe('rangeDelete — across two top-level tables (char-addressable caret)',
 	});
 
 	it('both empty with a blockquote ending in a fenced code block: caret descends to the code leaf', () => {
-		// The blockquote's deepest leaf is a fenced code block — editable but NOT merge-eligible — so
-		// the survivor caret must descend by focusability rather than merge-eligibility.
+		// The blockquote's deepest leaf is a fenced code block, editable but not mergeable, so the
+		// survivor caret must descend by whether a leaf can take focus, not whether it can merge.
 		const { doc, caret } = run(
 			'> alpha\n>\n> ```\n> code\n> ```\n\n' + `${TWO_COL_THREE_ROW}\n${TWO_COL_THREE_ROW}`,
 			{ path: [1], offset: 0 },
@@ -148,7 +148,7 @@ describe('rangeDelete — across two top-level tables (char-addressable caret)',
 	});
 
 	it('start empties across an intervening blockquote: end-table path is not over-shifted', () => {
-		// Table A [0], blockquote [1], table B [2]. A empties → removed; the blockquote AND its inner
+		// Table A [0], blockquote [1], table B [2]. A empties → removed; the blockquote and its inner
 		// paragraph are both deletion paths, and counting the nested one would over-shift B's index.
 		const { doc, caret } = run(
 			`${TWO_COL_THREE_ROW}\n> quoted\n\n${TWO_COL_THREE_ROW}`,
@@ -162,8 +162,8 @@ describe('rangeDelete — across two top-level tables (char-addressable caret)',
 	});
 
 	it('both empty with no surrounding blocks: caret lands in a materialized empty paragraph', () => {
-		// Doc is only the two tables; clearing both empties the document. Mirror
-		// the prose precedent: materialize one empty paragraph at [0].
+		// The document is only the two tables; clearing both empties it. As the text case does,
+		// one empty paragraph is created at [0].
 		const { doc, caret } = run(
 			`${TWO_COL_THREE_ROW}\n${TWO_COL_THREE_ROW}`,
 			{ path: [0], offset: 0 },

@@ -8,8 +8,9 @@ import { DETAILS } from '$lib/plugins/details/details-kind';
 import { registerChromePluginsForTests } from './chrome-plugins';
 import type { SelectionPoint } from '../../selection/primitives';
 
-// A cross-block copy whose END lands inside a container's reserved chrome (title/summary) must
-// keep the wrapper: wrapper-less bytes reparse to a bare paragraph and lose the kind on paste.
+// A cross-block copy whose end lands inside a container's title line (a details summary, a
+// callout title) must keep the container's opener: bytes without it reparse to a bare paragraph
+// and lose the kind on paste.
 
 function point(path: number[], offset: number): SelectionPoint {
 	return { path, offset };
@@ -82,8 +83,8 @@ describe('cross-block copy ending in reserved chrome', () => {
 		expect(getPluginMetadata<{ rogue?: boolean }>(doc.children[1])?.rogue).toBeUndefined();
 	});
 
-	// Regression pins: a non-chrome container endpoint (listItem / blockquote) must
-	// still recover its marker via the existing suffix-arithmetic path, untouched.
+	// An endpoint in a container with no title line (a list item, a blockquote) still recovers
+	// its marker through the suffix arithmetic.
 	it('leaves the listItem marker-recovery path unchanged', () => {
 		const doc = parse('Above\n\n1. hello\n');
 		const text = collectCrossBlockText(doc, point([0], 2), point([1, 0, 0], 3));

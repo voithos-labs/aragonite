@@ -7,8 +7,8 @@ import { registerCalloutForTests } from './chrome-plugins';
 import type { SelectionPoint } from '../../selection/primitives';
 import { allowDevWarns } from '$lib/test/support/warn-gate';
 
-// rangeDelete is driven with hand-built endpoints, so the table arms see char offsets
-// SelectionState would have snapped to cell coordinates first.
+// rangeDelete is driven with hand-built endpoints, so the table branches see character offsets
+// `SelectionState` would have snapped to cell coordinates first.
 afterEach(() =>
 	allowDevWarns([
 		'deleteFromProseIntoTable:end',
@@ -18,9 +18,10 @@ afterEach(() =>
 	])
 );
 
-// The chrome wall × the table branch: `involvesTable` dispatches before `involvesReservedChrome`,
-// so these ranges ride the table branch and the wall must hold there too. Table endpoints carry
-// already-snapped cell indices (start = row start, end = inclusive row-last cell).
+// The title-line wall meets the table branch: `involvesTable` is checked before
+// `involvesReservedChrome`, so these ranges take the table branch and the wall must hold there
+// too. Table endpoints carry already-snapped cell indices (start = row start, end = inclusive
+// last cell of its row).
 
 // [0]=Above, [1]=note ([1,0]=title, [1,1]=table of rows (a,b)/(1,2)), [2]=Below.
 const TBL_FIXTURE =
@@ -64,7 +65,7 @@ describe('chrome wall × table branch — table endpoint inside the container', 
 		// end.offset 1 = inclusive last cell of header row → header removed, body promoted.
 		const { doc, source, caret } = run(TBL_FIXTURE, point([0], 2), point([1, 1], 1));
 		// The truncated prose head keeps its line ending, so the blank line the source had between it
-		// and the container survives — matching the chrome-start case below.
+		// and the container survives, matching the title-line start case below.
 		expect(source).toBe('Ab\n\n:::callout\n| 1 | 2 |\n| --- | --- |\n:::\n\nBelow\n');
 		const note = doc.children[1];
 		expect(note.children?.map((c) => c.kind)).toEqual(['callout-title', 'table']);
@@ -82,8 +83,8 @@ describe('chrome wall × table branch — table endpoint inside the container', 
 	});
 
 	it('body table emptied but not last child: chrome clears, the rest of the body survives', () => {
-		// Body = table + trailing paragraph, so the emptied table is NOT a
-		// last-child chain — no unit delete, the wall clear applies instead.
+		// The body is a table plus a trailing paragraph, so the emptied table is not at the end of
+		// a last-child chain: no unit delete, the wall clear applies instead.
 		const source = 'Above\n\n:::callout Title\n| a | b |\n| --- | --- |\n\nAfter\n:::\n\nBelow\n';
 		const { doc, source: out } = run(source, point([0], 2), point([1, 1], 1));
 		expect(out).toBe('Ab\n\n:::callout\n\nAfter\n:::\n\nBelow\n');
@@ -113,8 +114,9 @@ describe('chrome wall × table branch — table endpoint outside the container',
 		expect(caret).toEqual({ path: [0, 0, 1], offset: 1 });
 	});
 
-	// G1.9 guard for the chrome-END truncate: the kept tail is written into the title raw in place,
-	// so a narrowed branch-entry unshare writes through a snapshot-shared node — assert the child.
+	// The copy-before-write check (G1.9) for the title-line end truncation: the kept tail is
+	// written into the title raw in place, so a branch that copied too little would write through
+	// a node the undo snapshot shares. The child node is asserted.
 	it('chrome-end truncate writes an unshared copy, never the snapshot-shared title node', () => {
 		const doc = parse(TBL_ABOVE_FIXTURE);
 		const snapshotTitle = doc.children[1].children![0];
@@ -171,8 +173,8 @@ describe('chrome wall × table branch — consumed container unit-deletes', () =
 			undefined
 		);
 		expect(serialize(result.newDoc)).toBe('| a | b |\n| --- | --- |\n\nBelow\n');
-		// One splice, not an empty-then-cascade: the detached node keeps its
-		// children so a commit scope holding it stays invariant-clean.
+		// One splice, not an emptying followed by cleanup: the detached node keeps its children,
+		// so the undo entry holds a whole node.
 		expect(note.children?.length).toBe(2);
 		expect(result.collapsedCaret).toEqual({ path: [0, 0, 1], offset: 1 });
 	});

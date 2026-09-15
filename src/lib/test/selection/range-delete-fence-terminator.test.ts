@@ -7,15 +7,15 @@ import { registerCalloutForTests } from './chrome-plugins';
 import { expectParseConverged } from '../harness/parse-converged';
 import { allowDevWarns } from '$lib/test/support/warn-gate';
 
-// rangeDelete is driven with hand-built endpoints, so the table arm sees a char offset
-// SelectionState would have snapped to a cell coordinate.
+// rangeDelete is driven with hand-built endpoints, so the table branch sees a character offset
+// `SelectionState` would have snapped to a cell coordinate.
 afterEach(() => allowDevWarns(['deleteFromProseIntoTable:end']));
 
-// The cross-block delete reaches a code block's bytes through its own sink, not the code
-// surface: the same-block arm writes the merged raw with no reparse behind it, so a join
-// that MINTS a closer line out of two lines holding none splits the block on reload. Same
-// class as issue #45, other door. Miss-analysis: `range-delete.test.ts` drove prose joins
-// only, and the fence rule was pinned at the component funnel, which this arm never crosses.
+// The cross-block delete writes a code block's bytes itself, not through the code block's
+// component: the same-block branch writes the merged raw with no reparse behind it, so a join
+// that creates a closer line out of two lines holding none splits the block on reload. The same
+// class as issue #45, by another path. Miss-analysis: `range-delete.test.ts` drove text joins
+// only, and the fence rule was pinned at the component's write path, which this branch never uses.
 
 const sharing = () => createSharingState();
 
@@ -90,12 +90,12 @@ describe('range delete inside a fenced code block', () => {
 	});
 });
 
-// Issue #55, #45 from the other side: a range reaching past the closer LOSES a terminator the
-// metadata still claims, which no escalation can repair — there is no run to grow. The session
-// keeps the block and its siblings, so the bytes are made legal for that shape. Miss-analysis:
-// the #45 pins drove joins INSIDE one block (a minted terminator) and stopped at the one arm
-// that writes raw in place; the truncation arms reparse, which re-derives honest `closed: false`
-// metadata, so no pin could see the loss unless it drove them with a fenced-code endpoint.
+// Issue #55, #45 from the other side: a range reaching past the closer loses a terminator the
+// metadata still claims, which no fence widening can repair, since there is no run to grow. The
+// editor keeps the block and its siblings, so the bytes are made legal for that shape.
+// Miss-analysis: the #45 pins drove joins inside one block (a created terminator) and stopped at
+// the one branch that writes raw in place; the truncation branches reparse, which re-derives
+// honest `closed: false` metadata, so no pin could see the loss without a fenced-code endpoint.
 describe('range delete that consumes a fenced code closer', () => {
 	it('restores the closer the same-block range swallowed', () => {
 		const doc = parse('```js\nbody\n```\n\npara\n');
@@ -186,7 +186,7 @@ describe('range delete that consumes a fenced code closer', () => {
 	});
 
 	// The parser preserves a missing final newline, so the joined slice carries none and the
-	// reattached ending falls back to LF. The closer's ending is the BLOCK's, not the slice's.
+	// reattached ending falls back to LF. The closer's ending is the block's, not the slice's.
 	it('mints CRLF when the document’s last block has no trailing newline', () => {
 		const doc = parse('```js\r\nbody\r\n```\r\n\r\npara');
 

@@ -1,10 +1,10 @@
 // @vitest-environment jsdom
 // A range holding one block whole is a range like any other: typing, pasting and cutting over it
-// take the block out and land the gesture's own bytes in its slot, leaving both neighbours alone
-// and a tree its reload reads back — every kind a drag can take whole, in both line endings. The
-// table is absent: its coverage is addressed in cells, and the paste arm reads it by its own rule.
-// Miss-analysis: cross-block-typed-char.test.ts drove prose ranges only, where the truncated start
-// block survives to hold the caret; nothing asked where the bytes go when the block itself goes.
+// take the block out and land the gesture's bytes in its position, leaving both neighbours alone
+// and a tree its reload reads back, for every kind a drag can take whole and both line endings.
+// The table is absent: its coverage is addressed in cells, and the paste path reads it by its own
+// rule. Miss-analysis: `cross-block-typed-char.test.ts` drove text ranges only, where the truncated
+// start block survives to hold the caret; nothing asked where the bytes go when the block goes.
 import { describe, it, expect, beforeAll } from 'vitest';
 import fc from 'fast-check';
 import { isBlankParagraph } from '$lib/core/parser';

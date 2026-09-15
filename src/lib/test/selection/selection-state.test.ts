@@ -147,7 +147,7 @@ describe('SelectionState.restoreRoute (classify a pair without mutating state)',
 	it('routes a same-path table range as custom (cell rect)', () => {
 		const doc = parse(tableSource);
 		const s = createSelectionState({ getDoc: () => doc });
-		// Flagged anchor and context-established (unflagged) focus both classify custom.
+		// A flagged anchor and an unflagged focus on the table path both classify as custom.
 		expect(
 			s.restoreRoute({ path: [0], offset: 0, cellCoordinate: true }, { path: [0], offset: 1 })
 		).toBe('custom');
@@ -179,7 +179,7 @@ describe('SelectionState.cellLandingFor', () => {
 		expect(s.cellLandingFor({ path: [0], offset: 2 })).toEqual({ path: [0, 1, 0], offset: 0 });
 	});
 
-	// The fallback is what lets every caller drop its own `?? point` arm.
+	// The fallback is what lets every caller drop its own `?? point` branch.
 	it('lands a prose endpoint as itself, offset included', () => {
 		const doc = parse('paragraph\n');
 		const s = createSelectionState({ getDoc: () => doc });
@@ -193,7 +193,8 @@ describe('SelectionState.cellLandingFor', () => {
 		expect(s.cellLandingFor(point)).toEqual(point);
 	});
 
-	// Out of the grid the door declines (and says so), and a landing must not invent a row.
+	// Out of the grid `cellEndpointDeepPath` returns null (and warns), and a landing must not
+	// invent a row.
 	it('lands an out-of-grid cell index as itself', () => {
 		const doc = parse(tableSource);
 		const s = createSelectionState({ getDoc: () => doc });

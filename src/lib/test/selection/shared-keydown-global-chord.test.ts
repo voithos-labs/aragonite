@@ -12,9 +12,10 @@ import {
 } from '$lib/schema/commands';
 import { __resetMintedCommandIdsForTests } from '$lib/schema/command-id';
 
-// The prelude that runs before every editable surface's own dispatch. A plugin-global chord must
-// be preventDefaulted AND deferred (return false) so the surface's own dispatchKeyCommand runs it;
-// a `return true` here would swallow every plugin-global chord with no other test failing.
+// The shared keydown that runs before every editable block's own dispatch. A plugin-global chord
+// must have its default prevented and still be deferred (return false) so the block's own
+// `dispatchKeyCommand` runs it; a `return true` here would swallow every plugin-global chord with
+// no other test failing.
 
 const noCross: CrossBlockHandlers = {
 	handleKeyDown: async () => false,
@@ -78,12 +79,12 @@ describe('handleSharedKeydown — plugin-global chord deferral', () => {
 		expect(e.defaultPrevented).toBe(false);
 	});
 
-	// The swallow the consumer guide now promises: a disabled history chord runs nothing and is
-	// still taken, because the native default it would fall through to rewrites the document past
-	// the CST stack. This arm reads the DEFAULT table, so it swallows before any override is
-	// consulted — which is why the press is consumed whatever the override left it bound to.
-	// Miss-analysis: the file drove plugin-global chords only, so the arm's own reason for
-	// existing — the three built-in history chords — was never pressed at this level.
+	// The swallow the consumer guide promises: a disabled history chord runs nothing and is still
+	// consumed, because the native default it would fall through to rewrites the document behind
+	// the CST's back. This branch reads the default chord table, so it swallows before any
+	// override is consulted, whatever the override left the chord bound to.
+	// Miss-analysis: the file drove plugin-global chords only, so the branch's own reason for
+	// existing, the three built-in history chords, was never pressed at this level.
 	it.each(['Mod+Z', 'Mod+Y', 'Mod+Shift+Z'])(
 		'%s is preventDefaulted and deferred to the block dispatch',
 		async (chord) => {

@@ -1,7 +1,7 @@
 // Where the caret goes when every block the range covered is gone. Two claims the table-caret
-// suite reaches the shapes of but never checks: the placeholder minted when the document empties
-// IS a line ending (G4.20), and the descent into a surviving container is collapse-aware, so the
-// caret belongs on a collapsed container's chrome child rather than its last body leaf.
+// suite reaches the shapes of but never checks: the placeholder created when the document empties
+// is a line ending (G4.20), and the descent into a surviving container respects collapse, so the
+// caret belongs on a collapsed container's title line rather than its last body leaf.
 import { describe, it, expect, beforeEach } from 'vitest';
 import { parse } from '../../core/parser';
 import { serialize } from '../../core/serializer';
@@ -52,8 +52,8 @@ describe('the placeholder minted when nothing survives takes the document’s li
 
 describe('the survivor descent stops at a collapsed container’s chrome child', () => {
 	beforeEach(() => {
-		// registerDetailsKind registers a chrome leaf, which owns a paste surface;
-		// the schema reset alone leaves it orphaned and the re-register collides.
+		// `registerDetailsKind` registers a title-line leaf, which owns a paste target; the
+		// schema reset alone leaves it orphaned and a second registration collides.
 		__resetSchemaRegistriesForTests();
 		__resetPasteSurfacesForTests();
 		registerDetailsKind();

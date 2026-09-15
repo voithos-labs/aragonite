@@ -30,9 +30,9 @@ function isLeafAt(doc: Document, path: number[]): boolean {
 	return !('children' in node) || !node.children || node.children.length === 0;
 }
 
-// A cross-block merge re-parses the joined raw and may change kind, leaf into CONTAINER. The
-// caret is restored by walking the block element at its path, so it must name a leaf whatever the
-// merge produced — a container path walks the subtree and focuses a non-editable wrapper.
+// A cross-block merge reparses the joined raw and may change the kind, even leaf into container.
+// The caret is restored by focusing the block element at its path, so it must name a leaf
+// whatever the merge produced; a container path focuses a non-editable wrapper.
 describe('rangeDelete caret after a merge that re-parses into a container', () => {
 	// Caret at the start of the paragraph's second line, Shift+ArrowDown, Backspace:
 	// the surviving head keeps its line ending, so the join re-parses as a table.

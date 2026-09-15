@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 //
-// Which door the dead-space click lands through. The band arithmetic is nearest-block.test.ts
-// and the geometry is blocks/table/table-caret-at-point.test.ts; untested between them is the
-// routing decision, and whether the range-ending door opens only once a landing is known.
+// Which path the dead-space click lands through. The band arithmetic is `nearest-block.test.ts`
+// and the geometry `blocks/table/table-caret-at-point.test.ts`; what only this suite pins is the
+// routing decision, and that a live range ends only once a landing is known.
 import { describe, it, expect, beforeEach, afterEach, vi, type Mock } from 'vitest';
 import type { BlockComponent } from '$lib/block-component';
 import { CURSOR_END } from '$lib/block-component';
@@ -71,7 +71,7 @@ describe('createDeadSpaceCaret routing', () => {
 	}
 
 	// The fixture's `elementFromPoint` answers the grid for every point, so the click reads as
-	// having been ON the table; a real margin press resolves to the root at the pressed point.
+	// having been on the table; a real margin click resolves to the root at the clicked point.
 	it('declines a table the press was beside, touching no selection', () => {
 		document.elementFromPoint = ((x: number) =>
 			x < TABLE_BOX.left ? root : mounted.grid) as typeof document.elementFromPoint;
@@ -96,8 +96,9 @@ describe('createDeadSpaceCaret routing', () => {
 	});
 
 	it('declines, touching no selection, when the kind names no caret landing', () => {
-		// A kind with a drag hit test and nothing to place a caret with: the decline must come BEFORE
-		// the range-ending preamble, or a rejected click collapses a selection it never replaced.
+		// A kind with a drag hit test and nothing to place a caret with: the decline must come
+		// before the range-ending reset, or a rejected click collapses a selection it never
+		// replaced.
 		const declared = tryGetBlockKindDescriptor('table')!.caretTargetAtPoint;
 		try {
 			augmentBuiltin('table', { caretTargetAtPoint: undefined });
@@ -121,15 +122,15 @@ describe('createDeadSpaceCaret routing', () => {
 		expect(resetSelectionForClick).not.toHaveBeenCalled();
 	});
 
-	// The probe point, not the click point: the surface answers it as it would a click there,
-	// and a caret landing at an atomic widget's edge has nothing to show for itself until it
-	// does. jsdom resolves no point→offset, so the shallow door's landing is e2e-driven and
-	// only the deep one's routing is decidable here.
+	// The probe point, not the click point: the block answers it as it would a click there, and
+	// a caret landing at a non-editable widget's edge shows nothing until the block's snap paints
+	// it. jsdom resolves no point to an offset, so the text block's landing is covered by e2e and
+	// only the cell routing is decidable here.
 	describe('click-intent snap', () => {
 		it('hands the probe point to the leaf the internal path names', () => {
 			clickAt(20, TABLE_BOX.top + 20);
 			expect(leafSnap).toHaveBeenCalledWith(TABLE_BOX.left + 1, TABLE_BOX.top + 20);
-			// Never the container's own door: the landing addresses the cell, not the grid.
+			// Never the table's own snap: the landing addresses the cell, not the grid.
 			expect(ownSnap).not.toHaveBeenCalled();
 		});
 

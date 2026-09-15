@@ -85,8 +85,8 @@ describe('createAutoScroll — rAF loop termination at scroll limits', () => {
 		autoScroll.dispose();
 	});
 
-	// The window target answers its two halves from different places — the split that left a
-	// page-scrolled embedding with no autoscroll at all.
+	// The window target measures the viewport but scrolls `document.scrollingElement`; getting
+	// that split wrong leaves a page-scrolled embedding with no autoscroll at all.
 	describe('the window target', () => {
 		const VIEWPORT_HEIGHT = 700;
 		let written: number;
@@ -121,8 +121,8 @@ describe('createAutoScroll — rAF loop termination at scroll limits', () => {
 				getTargets: () => [window]
 			});
 
-			// The pointer sits in the VIEWPORT's bottom edge band, nowhere near the document box's, so
-			// measuring `document.scrollingElement`'s rect — the obvious substitution — never starts it.
+			// The pointer sits in the viewport's bottom edge band, nowhere near the document box's, so
+			// measuring the scrolling element's rect instead would never start the loop.
 			autoScroll.maybeStart();
 			expect(rafCalls).toBe(1);
 			drainOneFrame();

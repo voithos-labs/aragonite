@@ -11,9 +11,10 @@ import {
 } from '$lib/schema/inline-construct-policy';
 import type { PresentationMode } from '$lib/presentation-mode';
 
-// `rangeDelete`'s mode arm, the seam every cross-block delete, cut, type-over and paste's delete
-// half crosses. The registration is the production one — a stub here would pin the wiring and
-// nothing else. The mode is the only difference between the two halves of each pair below.
+// `rangeDelete`'s live-mode join cleanup, which every cross-block delete, cut, type-over and
+// paste's delete half goes through. The registered cleaner is the production one; a stub would
+// pin the wiring and nothing else. The mode is the only difference between the two halves of
+// each pair below.
 
 beforeEach(() => registerLiveJoinSeamCleaner(cleanLiveJoinSeam));
 afterEach(() => __resetLiveJoinSeamCleanerForTests());
@@ -32,7 +33,8 @@ function deleteRange(
 const at = (block: number, offset: number) => ({ path: [block], offset });
 
 describe('a selection running out of one construct and into another', () => {
-	// § 5's row: the reader never saw either run, so the joined TEXT is what survives.
+	// The live-mode.md § 4.5 case: the user never saw either run, so the joined text is what
+	// survives.
 	it('bold to italic leaves no delimiter on screen', () => {
 		expect(deleteRange('**bold** and *italic*\n', at(0, 4), at(0, 16), 'live')).toBe('boalic\n');
 	});
@@ -56,14 +58,14 @@ describe('a selection running out of one construct and into another', () => {
 	});
 
 	// The same construct on both sides survives the cut: its opener and closer meet across the
-	// seam, so the literal join already says what the reader saw and nothing is dropped.
+	// join, so the literal join already says what the user saw and nothing is dropped.
 	it('cutting inside one construct keeps it whole', () => {
 		expect(deleteRange('**bold**\n', at(0, 3), at(0, 5), 'live')).toBe('**bd**\n');
 	});
 });
 
 describe('a selection that closes a construct against the one below it', () => {
-	// The delete's own inverse of the split: what is left of the two blocks meets closer-to-opener.
+	// The delete's own inverse of the split: what is left of the two blocks meets closer to opener.
 	it('the pair enclosing nothing at the seam goes', () => {
 		expect(deleteRange('Some **bo**\n\nX**ld** text\n', at(0, 11), at(1, 1), 'live')).toBe(
 			'Some **bold** text\n'

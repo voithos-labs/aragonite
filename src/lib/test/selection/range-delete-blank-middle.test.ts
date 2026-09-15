@@ -9,11 +9,11 @@ import type { Document } from '$lib/core/nodes';
 import type { SelectionPoint } from '$lib/selection/primitives';
 
 // GH #73: a blank block covered as a range's middle is the separating line of the block after
-// it, and the ceremony splices through `deleteAtPath` — which has no successor hand-down of its
-// own, while `clearRedundantSeparator` beside it only ever FREES a separator.
+// it, and the delete splices through `deleteAtPath`, which hands nothing down to the successor,
+// while `clearRedundantSeparator` beside it only ever frees a separator.
 // Miss-analysis: every cross-block fixture put content blocks between its endpoints, so no case
-// deleted a blank BLOCK; the survivor-trivia cases cover the start block's own separator, which
-// is a different node from the one a deleted middle owes.
+// deleted a blank block; the survivor blank-line cases cover the start block's own separator,
+// which is a different node from the one a deleted middle must hand down.
 
 const TABLE = '| h1 | h2 |\n| --- | --- |\n| a | b |\n';
 
@@ -24,8 +24,8 @@ function del(source: string, start: SelectionPoint, end: SelectionPoint): Docume
 }
 
 describe('a deleted blank middle hands its line to the block below', () => {
-	// The generic branch deletes the end endpoint too, so the successor that survives is the
-	// block past it — one `clearRedundantSeparator` already stripped while the blank still stood.
+	// The plain branch deletes the end endpoint too, so the successor that survives is the block
+	// past it, one `clearRedundantSeparator` already stripped while the blank still stood.
 	it('keeps the successor separated once the blank above it is gone', () => {
 		const doc = del('a\n\n\nb\n\nc\n', { path: [0], offset: 1 }, { path: [2], offset: 1 });
 

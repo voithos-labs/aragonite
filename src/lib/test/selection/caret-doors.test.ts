@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 //
-// The two caret doors a block component exposes. `parkCaret` is each surface's own primitive
-// (exercised through the surfaces' own suites); this pins what `placeCaret` adds on top of it.
+// The two ways a block component places the caret. `parkCaret` is each block's own primitive
+// (exercised through the blocks' own suites); this pins what `placeCaret` adds on top of it.
 import { describe, it, expect } from 'vitest';
 import { placeCaret } from '../../selection/caret-doors';
 import { createSelectionState } from '../../selection/selection-state.svelte';
@@ -38,8 +38,8 @@ describe('placeCaret — the safe caret door', () => {
 		expect(h.landed).toBe(7);
 	});
 
-	// The park primitive is untouched by the split: reaching for it directly with a
-	// range live is what an extend does, and it must still leave the range alone.
+	// `parkCaret` is untouched: calling it directly with a range live is what a shift-extend
+	// does, and it must still leave the range alone.
 	it('leaves the range live when the park primitive is called directly', () => {
 		const h = liveRange();
 
@@ -59,8 +59,8 @@ describe('placeCaret — the safe caret door', () => {
 		expect(h.emissions).toEqual([{ isCrossBlock: false, landed: 7 }]);
 	});
 
-	// `clear()` notifies whether or not it changed anything, and most caret placements happen with no
-	// range standing — the guard is what keeps the selection channel quiet.
+	// Most caret placements happen with no range live, and they must not notify selection
+	// subscribers.
 	it('emits nothing when no range is live', () => {
 		const emissions: number[] = [];
 		const selection = createSelectionState({ onChange: () => emissions.push(1) });
@@ -85,15 +85,15 @@ describe('placeCaret — the safe caret door', () => {
 		expect(window.getSelection()?.rangeCount).toBe(1);
 
 		const h = liveRange();
-		// A whole-block landing seats no DOM range of its own — the ThematicBreak model.
+		// A whole-block landing sets no DOM range of its own, as a thematic break does.
 		placeCaret(h.selection, () => {})(0);
 
 		expect(window.getSelection()?.rangeCount).toBe(0);
 		el.remove();
 	});
 
-	// The gap is the other editor-owned caret claim: a mint that left it standing would paint
-	// two carets at once.
+	// The gap caret is the other editor-owned caret: a placement that left it standing would
+	// paint two carets at once.
 	it('ends a live gap caret and lands the caret, in one emission', () => {
 		const h = liveRange();
 		h.selection.clear();

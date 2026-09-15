@@ -7,8 +7,8 @@ import type { SelectionPoint } from '../../selection/primitives';
 import { allowDevWarns } from '$lib/test/support/warn-gate';
 import { TWO_COL_FOUR_ROW } from './table-fixtures';
 
-// rangeDelete is driven with hand-built endpoints, so the table arms see char offsets
-// SelectionState would have snapped to cell coordinates first.
+// rangeDelete is driven with hand-built endpoints, so the table branches see character offsets
+// `SelectionState` would have snapped to cell coordinates first.
 afterEach(() =>
 	allowDevWarns([
 		'deleteFromProseIntoTable:end',
@@ -18,10 +18,10 @@ afterEach(() =>
 	])
 );
 
-// Contract guard for the shared cross-block deletion ceremony (planCrossBlockDeletion →
-// applyPlannedDeletion → rebuildSharedAncestries). Each case routes through the SAME helpers but
-// sequences its endpoint prose-replace on a different side of the delete, and locates its shifted
-// survivor by identity — a between block strictly inside the range shifts that document index.
+// Pins the shared cross-block deletion steps (`planCrossBlockDeletion`, `applyPlannedDeletion`,
+// `rebuildSharedAncestries`). Each case routes through the same helpers but truncates its text
+// endpoint on a different side of the delete, and finds its shifted survivor by node identity:
+// a block strictly inside the range shifts that document index.
 
 function run(source: string, start: SelectionPoint, end: SelectionPoint) {
 	const result = rangeDelete(
@@ -39,7 +39,7 @@ function run(source: string, start: SelectionPoint, end: SelectionPoint) {
 describe('cross-block delete ceremony — per-case ordering survives the shared path', () => {
 	it('Case 1 (prose→table): the between block drops and the start truncates through the shared path', () => {
 		// para[0], mid[1], table[2]. mid is strictly between → deleted, shifting the table [2]→[1]. The
-		// start truncates AFTER the delete; before would shift the between/end deletion paths mid-plan.
+		// start truncates after the delete; before would shift the between/end deletion paths mid-plan.
 		const { doc, source, caret } = run(
 			`head\n\nmid\n\n${TWO_COL_FOUR_ROW}`,
 			{ path: [0], offset: 2 },
@@ -59,7 +59,7 @@ describe('cross-block delete ceremony — per-case ordering survives the shared 
 
 	it('Case 2 (table→prose): end replaces BEFORE the delete; surviving tail resolves its shifted path by identity', () => {
 		// table[0] survives, mid[1], tail[2]. mid deleted → tail [2]→[1]. The end tail is replaced at
-		// its live path first, then re-located by identity — replacing after hits a stale slot.
+		// its live path first, then found again by identity; replacing after would hit a stale position.
 		const { doc, source, caret } = run(
 			`${TWO_COL_FOUR_ROW}\nmid\n\ntail text\n`,
 			{ path: [0], offset: 3 },

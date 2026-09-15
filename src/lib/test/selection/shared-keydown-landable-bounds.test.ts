@@ -1,12 +1,12 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-// A mode that hides a block's own structural markers with no reveal makes raw 0 unreachable, so
-// the block-exit arms must fire at the LANDABLE bounds instead. Spy on the extenders and on
-// moveFocus to observe the decision without DOM geometry.
-// Miss-analysis: the bounds used to come from the kind's declared content range, which a
-// paragraph and a fenced code block both declare as the whole raw — so a fixture that never
-// rendered could answer for them, and the two kinds whose runs are unstamped went untested.
+// A mode that hides a block's own markers makes raw 0 unreachable, so the block-exit branches
+// must fire at the bounds a caret can actually reach. The extenders and `moveFocus` are spied on
+// to observe the decision without DOM geometry.
+// Miss-analysis: the bounds came from the kind's declared content range, which a paragraph and a
+// fenced code block both declare as the whole raw, so a fixture that never rendered could answer
+// for them, and the two kinds whose runs carry no data attribute went untested.
 vi.mock('../../selection/keyboard-extend', () => ({
 	extendFocusToNextBlock: vi.fn(),
 	extendFocusToPreviousBlock: vi.fn(),
@@ -30,7 +30,7 @@ interface Env {
 	moveFocus: ReturnType<typeof vi.fn>;
 }
 
-/** The block's OWN renderer paints the fixture: the bounds read the DOM, so a hand-built tree
+/** The block's own renderer paints the fixture: the bounds read the DOM, so a hand-built tree
  *  would answer for a document that never rendered. */
 function render(node: CstNode): HTMLElement {
 	const { el, deps } = makeRenderHarness(node, { mode: 'live' });
@@ -109,7 +109,7 @@ describe('block-exit arms read the landable bounds', () => {
 		expect(moveFocus).not.toHaveBeenCalled();
 	});
 
-	// preview-block and preview-inline reveal the focused block's own prefix, so its bytes
+	// preview-block and preview-inline show the focused block's own prefix, so its bytes
 	// stay reachable and the exit stays at raw 0.
 	for (const mode of ['preview-block', 'preview-inline']) {
 		it(`ArrowLeft at the content start stays native in ${mode}`, async () => {
@@ -151,7 +151,7 @@ describe('block-exit arms read the landable bounds', () => {
 		expect(await handleSharedKeydown(press('ArrowRight'), atEnd.ctx)).toBe(false);
 	});
 
-	// A setext underline is a structural SUFFIX: in live the last reachable offset is the
+	// A setext underline is a marker suffix: in live the last reachable offset is the
 	// content end, and ArrowRight there exits rather than stepping into unpainted bytes.
 	it('ArrowRight exits at a setext heading’s content end in live', async () => {
 		const { ctx, moveFocus } = makeEnv('Title\n===\n', 5, 'live');

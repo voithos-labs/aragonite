@@ -68,9 +68,9 @@ describe('undo selection snapshots — cellCoordinate round-trip', () => {
 	});
 });
 
-// Miss-analysis (GH #111): the clamp lived at ONE caller (the collapse road), so a restore
-// arriving through any other caller — a range delete's descended-leaf caret at literal 0 —
-// seated the native caret behind the hidden run and no test observed the door itself.
+// Miss-analysis (GH #111): the clamp lived at one caller (the collapse path), so a restore
+// arriving through any other caller (a range delete's descended-leaf caret at literal 0) put the
+// native caret behind the hidden run, and no test observed `applyCollapsedCaret` itself.
 describe('applyCollapsedCaret — the landable clamp lives in the door', () => {
 	afterEach(() => document.body.replaceChildren());
 
@@ -139,7 +139,7 @@ describe('applySelectionToDom — restore routing', () => {
 		const requested: number[][] = [];
 
 		applySelectionToDom(
-			// Flagged anchor + context-established (unflagged) focus, cell index 3.
+			// A flagged anchor and an unflagged focus on the table path, cell index 3.
 			{ anchor: { path: [0], offset: 0, cellCoordinate: true }, focus: { path: [0], offset: 3 } },
 			s,
 			(p) => {
@@ -148,20 +148,20 @@ describe('applySelectionToDom — restore routing', () => {
 			}
 		);
 
-		// Cell index 3 in a 2-column table is row 1, col 1 — park in the deep cell,
-		// not a char-walk on the table wrapper path [0].
+		// Cell index 3 in a 2-column table is row 1, col 1: the caret goes in that cell, not at a
+		// character offset on the table wrapper path [0].
 		expect(requested).toEqual([[0, 1, 1]]);
 	});
 
-	// Miss-analysis: the restore road's table coverage all came in through the cross-block arm,
-	// where a cell endpoint HAD to be translated to paint anything. The collapsed arm looks like
-	// prose from the outside, so nothing ever asked which space its offset was in.
+	// Miss-analysis: the restore path's table coverage all came in through the cross-block branch,
+	// where a cell endpoint had to be translated to paint anything. The collapsed branch looks
+	// like text from the outside, so nothing ever asked which space its offset was in.
 	it('lands a COLLAPSED cell selection in the cell, not at a char offset on the table', () => {
 		const doc = parse(TABLE_ONLY);
 		const s = createSelectionState({ getDoc: () => doc });
 		const requested: number[][] = [];
-		// What getSelection() reports for a caret parked in the last cell, and what a consumer
-		// replays through setSelection.
+		// What `getSelection()` reports for a caret in the last cell, and what a consumer replays
+		// through `setSelection`.
 		const stored = { path: [0], offset: 3, cellCoordinate: true as const };
 
 		applySelectionToDom({ anchor: stored, focus: { ...stored } }, s, (p) => {

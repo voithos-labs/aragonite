@@ -8,8 +8,8 @@ import type { SelectionPoint } from '../../selection/primitives';
 import { allowDevWarns } from '$lib/test/support/warn-gate';
 import { TWO_COL_FOUR_ROW, findTable } from './table-fixtures';
 
-// rangeDelete is driven with hand-built endpoints, so the table arms see char offsets
-// SelectionState would have snapped to cell coordinates first.
+// rangeDelete is driven with hand-built endpoints, so the table branches see character offsets
+// `SelectionState` would have snapped to cell coordinates first.
 afterEach(() => allowDevWarns(['deleteFromProseIntoTable:end', 'deleteFromTableIntoProse:start']));
 
 function run(input: string | Document, start: SelectionPoint, end: SelectionPoint) {
@@ -26,8 +26,8 @@ function run(input: string | Document, start: SelectionPoint, end: SelectionPoin
 	return { doc: result.newDoc, source: serialize(result.newDoc), caret: result.collapsedCaret };
 }
 
-// Cross-block table-END endpoints are whole-row-snapped before rangeDelete
-// (table-endpoint-snap.ts), so end.offset is the INCLUSIVE last cell of its row and the delete
+// Cross-block table end endpoints are snapped to whole rows before rangeDelete
+// (table-endpoint-snap.ts), so end.offset is the inclusive last cell of its row and the delete
 // clears [0, end.offset].
 describe('rangeDelete — Case 1 (prose anchor → cell focus mid-table)', () => {
 	it('clears cells [0..end] inclusive, removes fully-covered rows, promotes header', () => {
@@ -155,7 +155,7 @@ describe('rangeDelete — Case 2 (cell anchor mid-table → prose focus below)',
 	});
 
 	it('table fully consumed into a nested tail: caret addresses the tail at its post-delete path', () => {
-		// Anchor cell 0 → mid-"second": the table empties AND the blockquote's first paragraph is
+		// Anchor cell 0 → mid-"second": the table empties and the blockquote's first paragraph is
 		// deleted, so the surviving tail shifts at both depths — [1, 1] becomes [0, 0].
 		const { doc, caret } = run(
 			`${TWO_COL_FOUR_ROW}\n> first\n>\n> second\n`,

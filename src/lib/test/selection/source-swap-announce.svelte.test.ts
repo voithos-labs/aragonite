@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
-// Miss-analysis: the swap's selection reset was pinned only through the decoration epoch,
-// which fires on its own; nothing asked whether the selection CHANNEL fires, and the swap
-// reaches it holding a plain caret, which leaves every SelectionState field already null.
+// Miss-analysis: the swap's selection reset was pinned only through the decoration generation
+// counter, which fires on its own; nothing asked whether the selection notification fires, and
+// the swap reaches it holding a plain caret, which leaves every `SelectionState` field already null.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
 import { installLayoutStubs, mountEditor, placeCaret, surfaceAt } from '../blocks/editor-mount';
 import type { MountedEditor } from '../blocks/editor-mount';
@@ -16,7 +16,7 @@ afterEach(async () => {
 	mounted = null;
 });
 
-/** Mount over `source`, park a plain caret in the first block, and start recording. */
+/** Mount over `source`, put a plain caret in the first block, and start recording. */
 function swapHarness(source: string) {
 	const props = $state({ source });
 	mounted = mountEditor(props);
@@ -36,7 +36,7 @@ describe('a `source` prop swap announces the selection it drops', () => {
 		expect(seen).toEqual([null]);
 	});
 
-	// A swap out of a live cross-block range moves the guarded fields too, so the clear's own
+	// A swap out of a live cross-block range moves the checked fields too, so the clear's own
 	// notification and the announcement must coalesce rather than emit the transition twice.
 	it('emits once when the outgoing document held a cross-block selection', async () => {
 		const { props, seen, editor } = swapHarness('alpha one\n\nbeta two\n');

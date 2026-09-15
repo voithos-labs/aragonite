@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 //
 // A cross-block endpoint inside a kind with no character positions must carry 0 or
-// displayLength(raw) — anything between makes every byte consumer slice a whole block in half.
+// displayLength(raw): anything between makes every byte consumer slice a whole block in half.
 import { describe, it, expect, afterEach } from 'vitest';
 import { createSelectionState } from '$lib/selection/selection-state.svelte';
 import { collectCrossBlockText } from '$lib/selection/clipboard-text';
@@ -44,7 +44,7 @@ describe('cross-block endpoints inside a whole-block kind', () => {
 		const doc = mermaidDoc();
 		const s = stateOver(doc);
 
-		// The offset a character hit-test over the rendered SVG and its toolbar mints.
+		// The offset a character hit-test over the rendered SVG and its toolbar would produce.
 		s.enterCrossBlock({ path: [0], offset: 6 }, { path: [1], offset: 12 });
 
 		expect(s.end).toEqual({ path: [1], offset: DIAGRAM_END });
@@ -63,7 +63,7 @@ describe('cross-block endpoints inside a whole-block kind', () => {
 		expect(after).toBe('Above text\n\n text\n');
 	});
 
-	// Document order, not the anchor/focus role: a backward drag ends its anchor AFTER the
+	// Document order, not the anchor/focus role: a backward drag ends its anchor after the
 	// diagram, and `normalize` reorders the pair only later.
 	it('decides the side by document order, not by which endpoint is the anchor', () => {
 		const doc = mermaidDoc();
@@ -92,7 +92,7 @@ describe('cross-block endpoints inside a whole-block kind', () => {
 		const doc = mermaidDoc();
 		const s = stateOver(doc);
 
-		// What the pointer drag mints once the hit-test declines a surface with no characters.
+		// What the pointer drag produces once the hit-test declines a block with no characters.
 		s.enterCrossBlock({ path: [0], offset: 6 }, { path: [1], wholeBlock: true });
 
 		expect(s.end).toEqual({ path: [1], offset: DIAGRAM_END });

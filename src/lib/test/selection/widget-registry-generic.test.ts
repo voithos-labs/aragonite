@@ -1,8 +1,7 @@
 /**
- * Regression: widget edge-select and vertical-transparency are registry-generic, not image-coupled
- * — a non-image live widget (the built-in `<br>` rawHtml widget) must travel the same entry-layer
- * predicates. Re-couple recognition to `kind === 'image'` and the `<br>` assertions go red.
- *
+ * Widget edge-select and vertical transparency come from the widget registry, not from the image
+ * kind: a non-image live widget (the built-in `<br>` rawHtml widget) must pass the same entry
+ * predicates. Tying recognition to `kind === 'image'` turns the `<br>` assertions red.
  * A standalone `<br>\n` parses as an HTML block (CommonMark §4.6 type 7), so a transparent
  * `<br>`-only paragraph needs content that cannot open one, hence `<br><br>`.
  */
@@ -55,8 +54,8 @@ describe('edge-widget helpers for a non-image widget', () => {
 		});
 	});
 
-	// Blank padding at a paragraph edge is trivia the parser can't keep inside a
-	// paragraph, so hand-build to pin the skip-blank-text branch for a `<br>`.
+	// Blank padding at a paragraph edge is whitespace the parser cannot keep inside a paragraph,
+	// so the node is hand-built to pin the skip-blank-text branch for a `<br>`.
 	it('findFirstEdgeWidget skips leading blank text to a <br>', () => {
 		const raw = '  <br>\n';
 		expect(findFirstEdgeWidget([text(0, 2, '  '), rawHtml(2, 6)], raw)).toMatchObject({
@@ -75,8 +74,8 @@ describe('edge-widget helpers for a non-image widget', () => {
 		});
 	});
 
-	// Control: a non-live tag is not a widget, so the finders decline — recognition
-	// keys on the registry (isLiveHtmlTag), not the node kind and not on `image`.
+	// Control: a non-live tag is not a widget, so the finders decline; recognition keys on the
+	// registry (`isLiveHtmlTag`), not the node kind and not `image`.
 	it('decline a non-live <span> tag at either edge', () => {
 		const raw = '<span>\n';
 		expect(findFirstEdgeWidget([rawHtml(0, 6)], raw)).toBeNull();

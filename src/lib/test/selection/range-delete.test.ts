@@ -147,12 +147,12 @@ describe('rangeDelete — boundary offsets', () => {
 });
 
 describe('rangeDelete — cascade identity discipline (Tier 2 G2)', () => {
-	// Cascade and delete share one identity check: an iteration whose path resolves to a different
-	// node (a survivor slid into the slot via a deeper cascade) must skip both the splice AND the
-	// ancestor walk. The asymmetry was the original bug — cascade ran on stale paths.
+	// Cleanup and delete share one identity check: an iteration whose path resolves to a different
+	// node (a survivor that slid into the position after a deeper cleanup) must skip both the
+	// splice and the ancestor walk.
 
 	it('post-end top-level survivor that slides into a vacated outer slot is preserved', () => {
-		// The delete chain removes inner_bq [1, 0] and outer_bq [1], so the slot path [1] now resolves
+		// The delete chain removes inner_bq [1, 0] and outer_bq [1], so the path [1] now resolves
 		// to the post-end paragraph. The identity check fires here; cascade must not walk the survivor.
 		const src = 'start\n\n> > A\n\nend\n\npost-end\n';
 		const { source } = run(src, { path: [0], offset: 5 }, { path: [2], offset: 3 });
@@ -161,7 +161,7 @@ describe('rangeDelete — cascade identity discipline (Tier 2 G2)', () => {
 
 	it('post-end nested survivor that slides through cascade levels is preserved', () => {
 		// outer_bq holds two inner blockquotes: the first wraps the deletion target A, the second is
-		// post-end and slides into [1, 0]'s slot after A's delete + cascade.
+		// post-end and slides into [1, 0]'s position after A's delete and cleanup.
 		const src = 'start\n\n> > A\n>\n> > B\n';
 		// end at the end of the "A\n" line, offset = displayLength("A\n") = 2. walkBetween adds only
 		// the end path — the two blockquotes are ancestors of end, excluded by isPathSubtreeBetween.

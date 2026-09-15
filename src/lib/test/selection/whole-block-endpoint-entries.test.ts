@@ -1,12 +1,12 @@
 // @vitest-environment jsdom
 //
 // The entry paths that reach a whole-block kind with a character offset in hand: a shift-click's
-// hit-test, and the restore road a consumer's `setSelection` rides. Both must leave the funnel
-// carrying a whole-unit endpoint.
+// hit-test, and the restore path a consumer's `setSelection` takes. Both must leave
+// `enterCrossBlock` holding a whole-block endpoint.
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // jsdom lays nothing out, so the click's caret read is stubbed exactly as
-// `keyboard-shift-click.test.ts` stubs it; the branch under test is what the funnel stores.
+// `keyboard-shift-click.test.ts` stubs it; the branch under test is what the selection state stores.
 vi.mock('$lib/selection/native-bridge', async (importOriginal) => ({
 	...(await importOriginal<typeof import('$lib/selection/native-bridge')>()),
 	readNativeCaretInBlock: vi.fn()

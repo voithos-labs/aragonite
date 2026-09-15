@@ -6,12 +6,12 @@ import { createSelectionState } from '$lib/selection/selection-state.svelte';
 import type { SelectionRestoreDeps } from '$lib/selection/selection-restore';
 import { allowDevWarns } from '$lib/test/support/warn-gate';
 
-// The fixtures seat table endpoints directly instead of through SelectionState, so the coordinate
-// guard sees the un-normalized point.
+// The fixtures set table endpoints directly instead of through SelectionState, so the coordinate
+// check sees the un-normalized point.
 afterEach(() => allowDevWarns(['invariant:cross-block-endpoint-coordinates']));
 
-// Restoring a gap-carrying undo entry: the boundary is clamped into the tree it lands in,
-// and the block it sits against is revealed before the caret parks.
+// Restoring an undo entry that holds a gap caret: the boundary is clamped into the tree it
+// lands in, and the block it sits against is mounted before the caret is placed.
 
 const DOC = '| a |\n| - |\n\n```\nx\n```\n\n> para\n>\n> ```\n> y\n> ```\n';
 
@@ -43,7 +43,8 @@ describe('restoreGapCaret', () => {
 		expect(h.revealed).toEqual([[1]]);
 	});
 
-	// At the scope end there is no block AT the index, so the reveal takes the one before it.
+	// At the end of the child list there is no block at the index, so the block before it is
+	// mounted instead.
 	it('reveals the preceding block at a scope-end boundary', async () => {
 		const h = harness();
 
@@ -74,7 +75,7 @@ describe('restoreGapCaret', () => {
 		expect(h.revealed).toEqual([]);
 	});
 
-	// A fence has no children, so a path naming it as a scope addresses no boundary at all.
+	// A fence has no children, so a path naming it as the parent addresses no boundary at all.
 	it('declines a childless leaf as a parent', async () => {
 		const h = harness();
 
@@ -82,7 +83,7 @@ describe('restoreGapCaret', () => {
 		expect(h.selectionState.gapCaret).toBeNull();
 	});
 
-	// The reveal is best-effort; the caret still parks, as the endpoint road's does.
+	// The mount is best effort; the caret is still placed, as it is for an endpoint pair.
 	it('reports unplaced but still parks when the reveal misses', async () => {
 		const h = harness({ revealTarget: async () => false });
 

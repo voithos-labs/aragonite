@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 //
-// The landing walk behind the public `placeCaretAtPoint`: no press was noted and no target was
-// inspected, so what is decidable here is the clamp, the landing, and the range-ending preamble.
-// The gesture guards in front of it are `dead-space-caret-routing.test.ts`.
+// The placement behind the public `placeCaretAtPoint`: no click was recorded and no target
+// inspected, so what is decidable here is the clamp, the landing, and the range-ending reset.
+// The click checks in front of it are `dead-space-caret-routing.test.ts`.
 import { describe, it, expect, beforeEach, afterEach, vi, type Mock } from 'vitest';
 import type { BlockComponent } from '$lib/block-component';
 import { CURSOR_END } from '$lib/block-component';
@@ -56,7 +56,7 @@ describe('placeCaretAtPoint landing walk', () => {
 	});
 
 	// One block is mounted, at index 0, so the default deps put the document's end inside the
-	// rendered slice — where every arm below but the windowed-tail one belongs.
+	// mounted range, where every case below but the windowed-out tail belongs.
 	function makeCaret(
 		overrides: Partial<DeadSpaceCaretDeps> = {},
 		reset: () => void = resetSelectionForClick
@@ -81,9 +81,9 @@ describe('placeCaretAtPoint landing walk', () => {
 		expect(resetSelectionForClick).toHaveBeenCalledOnce();
 	});
 
-	// A point OUTSIDE the block's box reaches a surface at all only because it is clamped into
-	// the box first, and the surface is handed the CLAMPED point — the one a click inside the
-	// box would have produced. Both axes, since the margin band runs beside and above the text.
+	// A point outside the block's box reaches an editable element only because it is clamped
+	// into the box first, and the element is handed the clamped point, the one a click inside
+	// the box would have produced. Both axes, since the margin band runs beside and above the text.
 	it('clamps a point in the margin band into the block’s own box', () => {
 		expect(placeAt(20, TABLE_BOX.top + 20)).toBe(true);
 		expect(leafSnap).toHaveBeenLastCalledWith(TABLE_BOX.left + 1, TABLE_BOX.top + 20);
@@ -102,7 +102,7 @@ describe('placeCaretAtPoint landing walk', () => {
 		expect(focusByPath).toHaveBeenCalledWith([0, 1], CURSOR_END);
 	});
 
-	// Miss-analysis: the below-document arm above only ever ran with the whole document
+	// Miss-analysis: the below-document case above only ever ran with the whole document
 	// mounted, so "last mounted band" and "last block" were the same index and no test could
 	// tell which one the walk read.
 	it('resolves a point below a windowed-out tail against the document, not the slice', async () => {
@@ -136,7 +136,7 @@ describe('placeCaretAtPoint landing walk', () => {
 		expect(placeAt(TABLE_BOX.left + 20, TABLE_BOX.top + 20)).toBe(false);
 	});
 
-	// ── The range-ending preamble (G2.12) ────────────────────────────────────
+	// ── The range-ending reset (G2.12) ───────────────────────────────────────
 
 	describe('a live cross-block range', () => {
 		let selection: ReturnType<typeof createSelectionState>;
@@ -145,8 +145,8 @@ describe('placeCaretAtPoint landing walk', () => {
 		beforeEach(() => {
 			selection = createSelectionState();
 			const stickyColumn = createStickyColumnState();
-			// The real preamble, not a spy: what this arm asserts is the SELECTION's fate, and a
-			// spy would pass on a call that ends nothing.
+			// The real reset, not a spy: what this case asserts is the selection's fate, and a spy
+			// would pass on a call that ends nothing.
 			endRange = () => resetForPointerDown(selection, stickyColumn, makeEdgeAffinity(), false);
 			selection.enterCrossBlock({ path: [0], offset: 0 }, { path: [2], offset: 4 });
 		});

@@ -105,14 +105,14 @@ describe('cellIndexOf', () => {
 	});
 });
 
-// Compile-time pins for the discriminated union. The load-bearing assertions are the directives
+// Compile-time pins for the discriminated union. The assertions that matter are the directives
 // verified by `npm run check`; the runtime expectations only keep the values live for vitest.
 describe('SelectionPoint discriminated union — type pins', () => {
 	it('discriminates on the flag literal and narrows the union', () => {
 		const cellPoint: CellSelectionPoint = { path: [0], offset: 3, cellCoordinate: true };
 		const charPoint: CharSelectionPoint = { path: [0], offset: 3 };
 
-		// A cell point is not a char point — the required-`true` flag rejects it.
+		// A cell point is not a char point: the required `true` flag rejects it.
 		// @ts-expect-error — cellCoordinate: true is not assignable to a char point
 		const notChar: CharSelectionPoint = cellPoint;
 
@@ -121,12 +121,12 @@ describe('SelectionPoint discriminated union — type pins', () => {
 		// @ts-expect-error — a cell point cannot flow into a CharSelectionPoint parameter
 		takesChar(cellPoint);
 
-		// The cell variant needs the literal true — a widened boolean cannot mint it.
+		// The cell variant needs the literal `true`; a widened boolean cannot produce it.
 		const flag = Math.random() > 0.5;
-		// @ts-expect-error — a widened boolean is neither the char nor the cell arm
+		// @ts-expect-error a widened boolean is neither the char nor the cell variant
 		const widened: CellSelectionPoint = { path: [0], offset: 0, cellCoordinate: flag };
 
-		// Checking the flag narrows a union value to the cell arm.
+		// Checking the flag narrows a union value to the cell variant.
 		const point: SelectionPoint = cellPoint;
 		if (point.cellCoordinate) {
 			const narrowed: CellSelectionPoint = point;

@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 //
-// A dead-space `y` that falls BETWEEN two root bands. Real root blocks tile flush, so this
-// branch only opens under a host that pads `.block-host`: consumer-conditional geometry no
-// browser suite reaches, and the band rects are synthetic for exactly that reason.
+// A dead-space `y` that falls between two root-level blocks. Real root blocks tile flush, so
+// this branch only opens under a host that pads `.block-host`: geometry no browser suite
+// reaches, which is why the band rects are synthetic.
 import { describe, it, expect, beforeEach, afterEach, vi, type Mock } from 'vitest';
 import type { BlockComponent } from '$lib/block-component';
 import { registerBuiltInBlocks } from '$lib/components/built-in-blocks';
@@ -28,7 +28,7 @@ describe('a dead-space y between two root bands', () => {
 	let root: HTMLElement;
 	let component: BlockComponent;
 	let focusByPath: Mock<(path: number[], offset: number) => void>;
-	/** The live gap at the moment the preamble ran, which must still be none. */
+	/** The gap caret at the moment the reset ran, which must still be none. */
 	let gapWhenReset: unknown;
 	const origFromPoint = document.elementFromPoint;
 
@@ -83,7 +83,7 @@ describe('a dead-space y between two root bands', () => {
 
 		expect(clickBetweenBands(gapScope)).toBe(true);
 		expect(gapScope.selection.gapCaret).toEqual({ parentPath: [], index: 1 });
-		// The preamble clears the gap, so a door that opened first would be wiped by it.
+		// The reset clears the gap caret, so a placement that ran first would be wiped by it.
 		expect(gapWhenReset).toBeNull();
 		expect(focusByPath).not.toHaveBeenCalled();
 	});

@@ -2,8 +2,8 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { createCaretRestore } from '$lib/selection/caret-restore';
 
-// The closure search opened and the link card reuses: what a caret survives when chrome takes
-// focus, and what happens when the commit that ran meanwhile rebuilt the DOM under it.
+// What a caret survives when a menu or overlay input takes focus, and what happens when a
+// commit rebuilt the DOM under it meanwhile.
 
 let root: HTMLElement;
 let leaf: HTMLElement;

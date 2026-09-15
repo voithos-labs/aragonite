@@ -1,11 +1,11 @@
 // @vitest-environment jsdom
 //
-// The chrome wall's range delete truncates both endpoints in place — no join — so the runs a
-// cut strands never crossed the live cleaner and painted as literal `**` on screen. Prose
-// truncations are half a join and take the cleaner's unpaired-run half; the chrome child's own
-// raw writes stay byte-literal, the wall excluded from the cleaner's view (GH #133).
-// Miss-analysis: the table branch's fix pinned its own prose truncations, but no pin selected
-// across the chrome wall without a table — the sibling branch that skips the seam identically.
+// The title-line wall's range delete truncates both endpoints in place with no join, so the
+// delimiter runs a cut leaves unpaired must still go through the live-mode cleanup, or they
+// paint as literal `**`. A text truncation is half a join and takes the cleanup's unpaired-run
+// half; a title line's own raw write stays byte for byte, outside the cleanup's view (GH #133).
+// Miss-analysis: the table branch's fix pinned its own text truncations, but nothing selected
+// across the title-line wall without a table, the sibling branch that skips the join the same way.
 import { afterEach, beforeEach, describe, it, expect } from 'vitest';
 import { parse } from '../../core/parser';
 import { serialize } from '../../core/serializer';
@@ -63,8 +63,8 @@ describe('a live chrome-crossing delete drops the runs its truncation stranded',
 		expect(source).toContain('ld text\n');
 	});
 
-	// The wall: the chrome child's bytes are the container's own line, so its truncation stays
-	// byte-literal even in live — the cleaner never sees across it.
+	// The wall: the title line's bytes are the container's own line, so its truncation stays byte
+	// for byte even in live mode; the cleanup never sees across it.
 	it('a chrome endpoint keeps its truncation byte-literal in live', () => {
 		const marked = 'Above\n\n:::callout **Ti**tle\nBody\n:::\n\nBelow\n';
 		const { source } = run(marked, { path: [0], offset: 2 }, { path: [1, 0], offset: 4 }, 'live');

@@ -6,8 +6,8 @@ import type { SelectionPoint } from '../../selection/primitives';
 import { allowDevWarns } from '$lib/test/support/warn-gate';
 import { TWO_COL_FOUR_ROW, TWO_COL_THREE_ROW, findTable } from './table-fixtures';
 
-// rangeDelete is driven with hand-built endpoints, so the table arms see char offsets
-// SelectionState would have snapped to cell coordinates first.
+// rangeDelete is driven with hand-built endpoints, so the table branches see character offsets
+// `SelectionState` would have snapped to cell coordinates first.
 afterEach(() =>
 	allowDevWarns([
 		'deleteFromProseIntoTable:end',
@@ -31,8 +31,8 @@ function run(source: string, start: SelectionPoint, end: SelectionPoint) {
 }
 
 describe('rangeDelete — tableRowSplices reporting', () => {
-	// The cross-block commit maps each endpoint table's scope descriptor from
-	// these splices (by node identity) instead of re-deriving snap math.
+	// The cross-block commit reports each endpoint table's structural change from these splices
+	// (matched by node identity) instead of re-deriving the snap.
 	it('Case 1 reports the end table row prefix it removed', () => {
 		const { doc, splices } = run(
 			`intro\n\n${TWO_COL_FOUR_ROW}`,

@@ -9,7 +9,7 @@ import { CALLOUT, rebuildCalloutRaw } from '../../../routes/test/plugins/callout
 import { registerChromePluginsForTests } from './chrome-plugins';
 import type { SelectionPoint } from '../../selection/primitives';
 
-// A cross-block copy whose START lands inside a container's reserved chrome must keep the chrome
+// A cross-block copy whose start lands inside a container's title line must keep the title's
 // tail wrapped and the body nested, or the whole selection reparses as bare paragraphs.
 
 function point(path: number[], offset: number): SelectionPoint {
@@ -50,8 +50,8 @@ describe('cross-block copy starting in reserved chrome', () => {
 		expect(parse(text).children[0].children!.map((c) => c.kind)).toEqual(['callout-title']);
 	});
 
-	// G4.20: the closer's line ending comes off the live container's raw, not a
-	// default — a CRLF-authored callout must not emit an LF closer.
+	// The closer's line ending comes off the live container's raw, not a default: a
+	// CRLF-authored callout must not emit an LF closer (G4.20).
 	it('rebuilds a CRLF-authored container CRLF-safe', () => {
 		const doc = parse(':::callout Title\r\n\r\nBody\r\n\r\n:::\r\n\r\nBelow\r\n');
 		const text = collectCrossBlockText(doc, point([0, 0], 2), point([1], 3));
@@ -88,7 +88,7 @@ describe('cross-block copy starting in reserved chrome', () => {
 		const nested =
 			'::::callout Outer\n\nO1\n\n:::callout Inner\n\nI1\n\n:::\n\nO2\n\n::::\n\nBelow\n';
 
-		// The closer must match the OPENER's fence length: a constant ":::" would
+		// The closer must match the opener's fence length: a constant ":::" would
 		// close the outer at the inner container's closer line and strand O2.
 		it('closes the outer at its own fence width, not a constant', () => {
 			const doc = parse(nested);
@@ -106,8 +106,8 @@ describe('cross-block copy starting in reserved chrome', () => {
 			expect(bodies(outer.children![2])).toEqual(['I1']);
 		});
 
-		// Start in the outer chrome, end in the inner chrome: the end-side synthesis
-		// already yields a complete inner container, so both closers land in order.
+		// Start in the outer title line, end in the inner one: the end-side rebuild already
+		// yields a complete inner container, so both closers land in order.
 		it('nests a chrome-only end container inside the opened outer', () => {
 			const doc = parse(nested);
 			const text = collectCrossBlockText(doc, point([0, 0], 2), point([0, 2, 0], 3));
@@ -118,8 +118,9 @@ describe('cross-block copy starting in reserved chrome', () => {
 			expect(bodies(outer.children![2])).toEqual([]);
 		});
 
-		// Start in the INNER chrome, running past the outer's end: only the container the start opened
-		// may close, or a closer for the never-opened outer strands a bare "::::" line after the copy.
+		// Start in the inner title line, running past the outer's end: only the container the
+		// start opened may close, or a closer for the never-opened outer leaves a bare "::::"
+		// line after the copy.
 		it('closes only the container the start opened', () => {
 			const doc = parse(nested);
 			const text = collectCrossBlockText(doc, point([0, 2, 0], 2), point([1], 3));
@@ -135,8 +136,8 @@ describe('cross-block copy starting in reserved chrome', () => {
 			]);
 		});
 
-		// Residue (issue #42): an end inside a nested container's BODY skips it in the walk, so its
-		// bytes flatten to prose. The outer wrapper — this fix's contract — still survives.
+		// Known gap (issue #42): an end inside a nested container's body skips that container in
+		// the walk, so its bytes flatten to text. The outer wrapper still survives.
 		it('keeps the outer kind when the end lands in a nested body', () => {
 			const doc = parse(nested);
 			const text = collectCrossBlockText(doc, point([0, 0], 2), point([0, 2, 1], 1));
@@ -148,8 +149,9 @@ describe('cross-block copy starting in reserved chrome', () => {
 		});
 	});
 
-	// The property the buffer-and-wrap design exists for: `colonCount` stays 4 in metadata while the
-	// live fence widened to 5, so reading the fence from metadata alone closes the container early.
+	// The reason the body is collected before the wrapper is built: `colonCount` stays 4 in
+	// metadata while the live fence widened to 5, so reading the fence from metadata alone would
+	// close the container early.
 	it('widens opener and closer together when the body forces fence escalation', () => {
 		const doc = parse('::::callout Title\n\n:::\n\n::::\n\nBelow\n');
 		doc.children[0].children![1].raw = '::::\n';
@@ -163,8 +165,8 @@ describe('cross-block copy starting in reserved chrome', () => {
 		expect(bodies(reparsed.children[0])).toEqual(['::::']);
 	});
 
-	// Where the grid and chrome arms actually meet: a sub-table emitted by the table
-	// end arm flows into the wrapper as ordinary body bytes.
+	// Where the table and title-line branches meet: a sub-table emitted by the table end branch
+	// flows into the wrapper as ordinary body bytes.
 	it('wraps a sub-table emitted by a mid-table end endpoint', () => {
 		const doc = parse(
 			':::callout Title\n\n| A | B |\n| --- | --- |\n| 1 | 2 |\n| 3 | 4 |\n\n:::\n\nBelow\n'
@@ -182,15 +184,16 @@ describe('cross-block copy starting in reserved chrome', () => {
 		expect(note.children![1].raw).toBe('| A | B |\n| --- | --- |\n| 1 | 2 |\n');
 	});
 
-	// A container declaring reservedChrome on a `strip` contract has no closer to synthesize — its
-	// syntax is a per-line prefix — so BOTH chrome paths must decline rather than emit a wrapper.
+	// A container declaring `reservedChrome` on a `strip` contract has no closer to build (its
+	// syntax is a per-line prefix), so both title-line paths must decline rather than emit a
+	// wrapper.
 	it('declines wrapper synthesis on both endpoints for a strip-contract container', () => {
 		const doc = parse('Above\n\n:::callout Title\n\nBody\n\n:::\n\nBelow\n');
 		augmentBlockKind(CALLOUT as AnyBlockKind, {
 			container: { contract: 'strip', rebuildRaw: rebuildBlockquoteRaw }
 		});
 
-		// An unguarded end arm emits "ove\n> Tit" — a blockquote wrapper on a note.
+		// An unchecked end branch would emit "ove\n> Tit", a blockquote wrapper on a note.
 		expect(collectCrossBlockText(doc, point([0], 2), point([1, 0], 3))).toBe('ove\nTit');
 		expect(collectCrossBlockText(doc, point([1, 0], 2), point([2], 3))).toBe('tle\nBody\n\nBel');
 	});

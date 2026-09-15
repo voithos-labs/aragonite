@@ -83,7 +83,7 @@ describe('restoreSelection', () => {
 			h.deps
 		);
 
-		// The reveal scrolls; running it before the resolve check would move the
+		// The mount scrolls; running it before the resolve check would move the
 		// viewport on the way to reporting failure.
 		expect(outcome).toBe('unresolvable');
 		expect(h.revealed).toEqual([]);
@@ -102,8 +102,8 @@ describe('restoreSelection', () => {
 		expect(h.revealed).toEqual([]);
 	});
 
-	// The undo swap clears on `unresolvable` and must NOT clear on `unplaced`,
-	// where the custom route has already stored the correct endpoints.
+	// The undo swap clears on `unresolvable` and must not clear on `unplaced`, where the overlay
+	// route has already stored the correct endpoints.
 	it('reports unplaced — not unresolvable — when a resolvable target is unmounted', async () => {
 		const h = restoreHarness(PROSE, { mounted: false });
 
@@ -132,8 +132,8 @@ describe('restoreSelection', () => {
 	it('reveals the deep cell it parks in, not the table block', async () => {
 		const h = restoreHarness(TABLE_2x2);
 
-		// Cell index 3 in a 2-column table is row 1, col 1. Table rows window, so
-		// revealing [0] alone would leave that row unmounted.
+		// Cell index 3 in a 2-column table is row 1, col 1. Table rows are windowed, so mounting
+		// [0] alone would leave that row unmounted.
 		await restoreSelection(
 			{ anchor: { path: [0], offset: 0, cellCoordinate: true }, focus: { path: [0], offset: 3 } },
 			h.deps

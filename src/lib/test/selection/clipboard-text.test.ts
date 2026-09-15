@@ -65,8 +65,8 @@ describe('collectCrossBlockText', () => {
 		});
 
 		it('table-as-end: snaps the focus cell to its whole row so the row is fully captured', () => {
-			// Focus in cell 4 (row 1) → snaps up to the row's last cell, emitting whole rows 0..1
-			// including cells the user did not drag across. Pre-snap this dropped row 1 entirely.
+			// Focus in cell 4 (row 1) snaps up to the row's last cell, emitting whole rows 0..1,
+			// including cells the user did not drag across.
 			const doc = parse(fixture);
 			const text = collectCrossBlockText(doc, { path: [0], offset: 0 }, cell(4));
 			expect(text).toBe('Before.\n\n| A | B | C |\n| --- | --- | --- |\n| 1 | 2 | 3 |\n');

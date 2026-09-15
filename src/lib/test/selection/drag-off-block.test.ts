@@ -1,10 +1,10 @@
 // @vitest-environment jsdom
 //
-// A drag whose pointer leaves every block: the frame coalescer keeps only the latest position, so
+// A drag whose pointer leaves every block: one move per frame keeps only the latest position, so
 // a burst ending in the margin is the whole frame's move. Miss-analysis: the drag suite counted
-// listeners and asserted where the release parks, never drove a MOVE through it, so the branch
-// deciding whether a gesture opens a range at all had no test at any layer — and the Chromium e2e
-// lane paces one move per frame, the one shape that never reproduces it.
+// listeners and asserted where the release puts the caret, never drove a move through it, so the
+// branch deciding whether a gesture opens a range at all had no test at any layer, and the
+// Chromium e2e lane paces one move per frame, the one shape that never reproduces it.
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { installDragListener } from '$lib/selection/drag-pointer';
 import { createSelectionState } from '$lib/selection/selection-state.svelte';
@@ -17,7 +17,7 @@ const BOXES = [
 	{ left: 0, right: 100, top: 30, bottom: 50 },
 	{ left: 0, right: 100, top: 60, bottom: 80 }
 ];
-// The focus below the anchor snaps to its block's end, so each arm's offset is that block's length.
+// The focus below the anchor snaps to its block's end, so each case's offset is that block's length.
 const END_OF = { second: 6, third: 5 };
 
 describe('a drag that ends off every block', () => {
@@ -50,7 +50,7 @@ describe('a drag that ends off every block', () => {
 		installDragListener(
 			{
 				editorRoot,
-				// Far larger than every point below, so no edge band arms the autoscroll loop and
+				// Far larger than every point below, so no edge band starts the autoscroll loop and
 				// the stubbed frame stays the drag's own.
 				scrollContainer: wideScrollport(),
 				selection,
@@ -113,8 +113,8 @@ describe('a drag that ends off every block', () => {
 		expect(selection.focus).toBeNull();
 	});
 
-	// Clamping means an off-block point can now resolve to the ANCHOR block, which is the
-	// collapse branch: the overlay stops painting a range the pointer has left.
+	// Clamping means an off-block point can resolve to the anchor block, which is the collapse
+	// branch: the overlay stops painting a range the pointer has left.
 	it('collapses when the off-block point clamps back to the anchor block', () => {
 		move(10, 70);
 		frame.run();
@@ -144,7 +144,7 @@ function wideScrollport(): HTMLElement {
 	return el;
 }
 
-/** One armed callback at a time, mirroring the coalescer's single pending frame. */
+/** One pending callback at a time, mirroring the session's single pending frame. */
 function stubFrame(): { run(): void } {
 	let armed: FrameRequestCallback | null = null;
 	globalThis.requestAnimationFrame = ((fn: FrameRequestCallback) => {

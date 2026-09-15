@@ -59,7 +59,7 @@ describe('createPointerDragSession — move coalescing', () => {
 			}
 		);
 
-		// Two moves inside one frame: the rAF is armed once and has not run.
+		// Two moves inside one frame: one frame callback is pending and has not run.
 		document.dispatchEvent(pointer('pointermove', 1, { clientX: 5, clientY: 0 }));
 		document.dispatchEvent(pointer('pointermove', 1, { clientX: 9, clientY: 0 }));
 		expect(seen).toEqual([]);

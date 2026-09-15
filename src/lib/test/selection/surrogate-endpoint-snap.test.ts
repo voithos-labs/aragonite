@@ -1,10 +1,10 @@
 // @vitest-environment jsdom
 //
-// A UTF-16 offset can land INSIDE an astral scalar, and the public `setSelection` takes plain
-// numbers, so the endpoint funnel is the only place that can refuse one. Miss-analysis: every
-// generator feeding the endpoint funnels draws pure ASCII, and the one lane that could have drawn
-// this shape clamps the offset away before asserting — so no test in the suite has ever handed a
-// funnel an offset that splits a scalar (#167).
+// A UTF-16 offset can land inside a surrogate pair, and the public `setSelection` takes plain
+// numbers, so the endpoint normalization is the only place that can refuse one. Miss-analysis:
+// every generator feeding the endpoint normalizers draws pure ASCII, and the one suite that could
+// have drawn this shape clamps the offset away before asserting, so no test had ever handed a
+// normalizer an offset that splits a pair (#167).
 import { describe, it, expect } from 'vitest';
 import { createSelectionState } from '../../selection/selection-state.svelte';
 import { rangeDelete } from '../../selection/range-delete';
@@ -64,7 +64,7 @@ describe('the char endpoint funnel refuses an offset inside a scalar', () => {
 		}
 	});
 
-	// The self-test the oracle owes: it must see the corruption it is meant to catch.
+	// The checker's own self-test: it must see the corruption it is meant to catch.
 	it('the well-formedness oracle names a split pair and passes an intact one', () => {
 		expect(loneSurrogatesIn('a\u{1F466}b')).toEqual([]);
 		expect(loneSurrogatesIn('a\uD83D')).toEqual([1]);
@@ -80,7 +80,7 @@ describe('a cross-block delete through a surrogate pair', () => {
 		expect(out).toBe('ail\n');
 	});
 
-	// The END endpoint's own arm: the pair sits in the block the range finishes in.
+	// The end endpoint's own case: the pair sits in the block the range finishes in.
 	it('leaves the pair whole when the trailing endpoint splits it', () => {
 		const out = deleteAcross(parse('head\n\na\u{1F466}b\n'), 2, 2);
 		expect(loneSurrogatesIn(out)).toEqual([]);

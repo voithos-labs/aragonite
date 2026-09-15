@@ -1,5 +1,5 @@
 // Deleting a sole table empties the document, so the coverage delete materializes a caret
-// placeholder in the same commit. That placeholder IS a line ending and nothing survives to read
+// placeholder in the same commit. That placeholder is a line ending and nothing survives to read
 // one from, so it must be captured before the delete or a CRLF document becomes LF (G4.20).
 import { describe, it, expect } from 'vitest';
 import { parse } from '$lib/core/parser';

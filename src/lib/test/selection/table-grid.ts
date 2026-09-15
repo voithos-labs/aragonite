@@ -1,4 +1,4 @@
-// The mounted table grid as the selection seams read it: a data-block-path wrapper, a
+// The mounted table grid as the selection code reads it: a data-block-path wrapper, a
 // role="table" grid, data-table-row-idx rows, role="cell" cells. With `box`, the wrapper
 // reports it and each row's cells tile it left-to-right; callers attach `host` themselves.
 

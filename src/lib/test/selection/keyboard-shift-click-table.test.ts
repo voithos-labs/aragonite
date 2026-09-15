@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-// Same two DOM seams as keyboard-shift-click.test.ts, mocked because jsdom has no layout.
-// readNativeCaretInBlock echoes the path it is handed, which is what makes the deepening visible.
+// The same two DOM reads as `keyboard-shift-click.test.ts`, mocked because jsdom has no layout.
+// `readNativeCaretInBlock` echoes the path it is handed, which is what makes the deepening visible.
 vi.mock('../../selection/native-bridge', async (importOriginal) => ({
 	...(await importOriginal<typeof import('../../selection/native-bridge')>()),
 	readNativeCaretInBlock: vi.fn()
@@ -85,7 +85,7 @@ describe('handleShiftClick out of a table cell', () => {
 		const cells = mountTable([0], 3, 3);
 		clickOffset.mockReturnValue(2);
 
-		// The cell is its own editable surface, so its getMyPath() is the deep path.
+		// The cell is its own editable element, so its `getMyPath()` is the cell path.
 		expect(handleShiftClick(s, cells[1][2], [0, 1, 2], 0, 0, cells[1][2], [0])).toBe(false);
 		expect(s.isCrossBlock).toBe(false);
 	});

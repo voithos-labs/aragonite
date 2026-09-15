@@ -7,11 +7,11 @@ import { registerCalloutForTests } from './chrome-plugins';
 import { expectParseConverged } from '../harness/parse-converged';
 import type { SelectionPoint } from '$lib/selection/primitives';
 
-// Issue #60: the generic merge installed the survivor straight from a fragment reparse, which
-// mints its own leading trivia, so the start block's separator was dropped and its bytes butted
-// against the block above — one paragraph on reload. Miss-analysis: every cross-block fixture put
-// the start endpoint in the document's FIRST block, whose trivia is '' either way, and asserted
-// the merged bytes without ever reparsing them.
+// Issue #60: the plain merge installed the survivor straight from a fragment reparse, which
+// creates its own leading blank lines, so the start block's separator was dropped and its bytes
+// ran into the block above, one paragraph on reload. Miss-analysis: every cross-block fixture put
+// the start endpoint in the document's first block, whose leading blank lines are '' either way,
+// and asserted the merged bytes without ever reparsing them.
 
 const sharing = () => createSharingState();
 
@@ -34,7 +34,7 @@ describe('cross-block merge keeps the start block’s separator', () => {
 	});
 
 	// The loss never depended on the offset: a mid-block start reparses to a fragment whose first
-	// block opens the bytes, so its minted trivia is '' just the same.
+	// block opens the bytes, so its leading blank lines are '' just the same.
 	it('keeps it for a mid-block start too', () => {
 		const doc = del(
 			'alpha\n\nbravo\n\ncharlie\n',
@@ -55,7 +55,7 @@ describe('cross-block merge keeps the start block’s separator', () => {
 	});
 
 	// Inside a container the separator is a prefixed blank line the rebuild re-emits, so a dropped
-	// trivia glues two quote paragraphs into one.
+	// blank line glues two quote paragraphs into one.
 	it('keeps a nested survivor’s blank quote line', () => {
 		const doc = del(
 			'alpha\n\n> one\n>\n> two\n\ncharlie\n',
@@ -94,8 +94,8 @@ describe('cross-block merge keeps the start block’s separator', () => {
 	});
 });
 
-// The wall branches install their endpoints through the shared reparse, which always carried the
-// slot's trivia. Pinned here so the generic branch's fix and theirs stay one rule.
+// The wall branches install their endpoints through the shared reparse, which always kept the
+// position's leading blank lines. Pinned here so the plain branch's fix and theirs stay one rule.
 describe('the wall branches keep it too', () => {
 	beforeEach(registerCalloutForTests);
 

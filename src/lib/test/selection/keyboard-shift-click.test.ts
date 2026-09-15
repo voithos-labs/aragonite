@@ -1,9 +1,9 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-// handleShiftClick reads two DOM seams — the click's caret offset and the previously-focused
-// block's anchor caret — that need a laid-out contenteditable jsdom cannot provide, so mock them
-// and exercise the branch logic instead.
+// `handleShiftClick` makes two DOM reads (the click's caret offset and the previously focused
+// block's anchor caret) that need a laid-out contenteditable jsdom cannot provide, so they are
+// mocked and the branch logic exercised instead.
 vi.mock('../../selection/native-bridge', async (importOriginal) => ({
 	...(await importOriginal<typeof import('../../selection/native-bridge')>()),
 	readNativeCaretInBlock: vi.fn()

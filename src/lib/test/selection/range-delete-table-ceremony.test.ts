@@ -7,8 +7,8 @@ import type { Document } from '../../core/nodes';
 import type { SelectionPoint } from '../../selection/primitives';
 import { allowDevWarns } from '$lib/test/support/warn-gate';
 
-// rangeDelete is driven with hand-built endpoints, so the table arms see char offsets
-// SelectionState would have snapped to cell coordinates first.
+// rangeDelete is driven with hand-built endpoints, so the table branches see character offsets
+// `SelectionState` would have snapped to cell coordinates first.
 afterEach(() =>
 	allowDevWarns([
 		'deleteFromProseIntoTable:end',
@@ -18,9 +18,9 @@ afterEach(() =>
 	])
 );
 
-// The table branch rides the chrome branch's deletion ceremony: a covered container strictly
-// between the endpoints dies as ONE splice with children intact, never a child-by-child emptying,
-// so a commit scope or undo entry holding the detached node stays invariant-clean.
+// The table branch shares the title-line branch's deletion steps: a covered container strictly
+// between the endpoints goes as one splice with its children intact, never a child-by-child
+// emptying, so the undo entry holds a whole detached node.
 
 const TWO_COL_TWO_ROW = '| a | b |\n| --- | --- |\n| 1 | 2 |\n';
 

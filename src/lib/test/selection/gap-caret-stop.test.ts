@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 //
-// The arrival door: what a gap landing writes, and what it ends on the way in.
+// Placing a gap caret: what the placement writes, and what it ends on the way in.
 import { describe, it, expect } from 'vitest';
 import { parse } from '../../core/parser';
 import { tryGapStop } from '../../selection/gap-caret';
@@ -35,7 +35,7 @@ describe('tryGapStop', () => {
 		expect(scope.selection.gapCaret).toBeNull();
 	});
 
-	// Reading mode has no caret to park, so the move keeps its old landing.
+	// Reading mode has no caret to place, so the move keeps its old landing.
 	it('never stops in reading mode', () => {
 		const scope = makeScope('reading');
 

@@ -8,10 +8,10 @@ import type { Document } from '$lib/core/nodes';
 import type { SelectionPoint } from '$lib/selection/primitives';
 
 // A block with no positions inside it (a rule, a diagram) is in a range whole or not at all, so
-// a range that covers it deletes the NODE: the same-block arm's byte write would leave a rule
+// a range that covers it deletes the node: the same-block branch's byte write would leave a rule
 // holding a bare line ending, which no reload reads as a rule.
-// Miss-analysis: every same-block fixture was prose, whose emptied survivor is a legal block;
-// the whole-unit drag was the first gesture to hand this arm a kind that has no empty form.
+// Miss-analysis: every same-block fixture was text, whose emptied survivor is a legal block; the
+// whole-block drag was the first gesture to hand this branch a kind that has no empty form.
 
 function del(source: string, start: SelectionPoint, end: SelectionPoint) {
 	const doc: Document = parse(source);
@@ -60,8 +60,8 @@ describe('a range covering a whole-block-focus leaf deletes the node', () => {
 		expectParseConverged(doc);
 	});
 
-	// The arm's ordinary reading stands for prose: a paragraph emptied by its range is a legal
-	// blank block, and the follower keeps its own line.
+	// The branch's ordinary behaviour stands for text: a paragraph emptied by its range is a
+	// legal blank block, and the block after it keeps its own line.
 	it('still leaves an emptied paragraph in place', () => {
 		const { doc } = del(
 			'lead\n\nmid\n\ntail\n',

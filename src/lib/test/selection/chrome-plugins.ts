@@ -1,6 +1,7 @@
-// Chrome-plugin registration for the selection suites. registerChromeLeaf (inside the kind
-// registrations) registers a paste surface; the schema reset alone leaves it orphaned, so both
-// registries reset before re-registering (a re-register would collide).
+// Registers the title-line plugin kinds (callout, details) for the selection suites.
+// `registerChromeLeaf` inside the kind registrations also registers a paste target; the schema
+// reset alone leaves it orphaned, so both registries reset first (a second registration would
+// collide).
 
 import { __resetPasteSurfacesForTests } from '../../tree-operations/paste-surfaces';
 import { __resetSchemaRegistriesForTests } from '../../schema/registry-reset';

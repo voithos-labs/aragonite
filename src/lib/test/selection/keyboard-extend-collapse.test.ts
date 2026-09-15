@@ -12,7 +12,7 @@ function harness() {
 	const selection = createSelectionState({ getDoc: () => doc });
 	const cellRef = { focus: vi.fn() } as unknown as BlockComponent;
 	const revealPath = vi.fn(async () => cellRef);
-	// Mounted with text, so the seat's DOM range resolves and its offset is readable.
+	// Mounted with text, so the caret's DOM range resolves and its offset is readable.
 	const getBlockElByPath = vi.fn(() => {
 		const el = document.createElement('div');
 		el.append(document.createTextNode('abcdef'));
@@ -26,9 +26,10 @@ function caretOffset(): number {
 	return window.getSelection()?.anchorOffset ?? -1;
 }
 
-// An intra-table rectangle carries a FLAGGED anchor and an UNFLAGGED focus (cross-block/keydown.ts
-// extends by the same-path convention), so either collapse target's offset is a cell index and
-// must resolve to that cell, not to a character offset into the table's rendered text.
+// A rectangle inside a table carries a flagged anchor and an unflagged focus
+// (`cross-block/keydown.ts` extends by the same-path convention), so either collapse target's
+// offset is a cell index and must resolve to that cell, not to a character offset into the
+// table's rendered text.
 describe('collapseCrossBlock over an intra-table rectangle', () => {
 	it('resolves the deep cell path when the collapse target is the unflagged focus', async () => {
 		const { selection, cellRef, revealPath, getBlockElByPath } = harness();
@@ -42,7 +43,7 @@ describe('collapseCrossBlock over an intra-table rectangle', () => {
 		// Cell 4 of a 2-column table = row 2, col 0.
 		expect(revealPath).toHaveBeenCalledWith([0, 2, 0]);
 		expect(getBlockElByPath).toHaveBeenCalledWith([0, 2, 0]);
-		// The cell's own edge, seated natively — its focus door would skip the collapse ceremony.
+		// The cell's own edge, set natively; the cell's `focus` would skip the collapse steps.
 		expect(caretOffset()).toBeGreaterThan(0);
 		expect(cellRef.focus).not.toHaveBeenCalled();
 	});
