@@ -400,7 +400,8 @@ export function isBuiltinInlineKind(kind: AnyInlineKind): kind is InlineNodeKind
 	return kind in INLINE_KIND_TABLE;
 }
 
-/** start/end are byte offsets into the parent block's raw, including markers. */
+/** start/end are byte offsets into the parent block's raw, including markers. Optional keys are
+ *  omitted, never set to `undefined`, so a serializer can tell "no title" from "empty title". */
 export interface InlineNode {
 	kind: AnyInlineKind;
 	start: number;
@@ -439,7 +440,6 @@ export interface ImageCrop {
 export interface ImageFields {
 	alt: string;
 	url: string;
-	/** Omitted rather than `undefined`, so a serializer can tell "no title" from "empty title". */
 	title?: string;
 	width?: number;
 	height?: number;

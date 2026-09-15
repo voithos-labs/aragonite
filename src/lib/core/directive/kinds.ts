@@ -138,7 +138,8 @@ const DIRECTIVE_LEAF_KEYMAP: KeyBinding[] = [
 ];
 
 // The `::name` fence is a dimmed marker prefix, on the heading marker-range mechanism. A raw
-// that no longer opens a fence reparses to a paragraph first, so the null branch is unreachable.
+// that no longer opens a fence reparses to a paragraph first, so the null branch is only a
+// safety fallback.
 function directiveLeafContentRange(node: NodeView): { start: number; end: number } {
 	const fence = matchDirectiveOpener(trimTrailingLineEnding(node.raw));
 	const start = fence ? fence.colonCount + fence.name.length : 0;
