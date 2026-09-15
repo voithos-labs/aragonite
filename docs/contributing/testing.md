@@ -385,8 +385,9 @@ A second contenteditable implementation, and a check the release can't merge pas
 `npm run test:e2e:webkit` sets `WEBKIT=1`, and that variable is what makes the `e2e-webkit`
 project exist at all, so the lane can't half-run inside `npm test`. It's kept out of `npm test`
 on purpose, and the reason is signal rather than time: a second engine in your local loop doubles
-the flake surface for a class of bug that shows up roughly once per Playwright bump. So CI
-carries it, and you run it by hand when you've touched selection, typing or the clipboard.
+the flake surface, and the engine build only moves when Playwright does, so that's when this
+class of bug shows up. So CI carries it, and you run it by hand when you've touched selection,
+typing or the clipboard.
 
 What it runs: a curated slice of the typing, split/merge, selection and round-trip specs
 (`WEBKIT_LANE` in `playwright.config.ts`), plus everything under `tests/webkit/`, which only this
@@ -413,7 +414,7 @@ comes out of the lane, and only out of the lane:
    node scripts/run-with-env.mjs WEBKIT=1 -- npx playwright test --project=e2e-webkit selection/pointer.spec.ts --repeat-each 10 --trace on
    ```
 
-2. Make the test's first line `test.fixme(browserName === 'webkit', '#353: what it does')`,
+2. Make the test's first line `test.fixme(browserName === 'webkit', '#<issue>: what it does')`,
    with `browserName` taken from the test's fixture args. Chromium keeps running the test; the
    lane reports it as skipped, with the issue number in the reason.
 3. Leave the requirement bullet as it is (the claim still holds under Chromium) and add an

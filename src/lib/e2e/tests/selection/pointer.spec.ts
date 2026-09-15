@@ -20,7 +20,6 @@ test.describe('selection — pointer: happy paths', () => {
 	});
 
 	test('drag across three paragraphs renders middle overlay', async ({ browserName }) => {
-		// Lane-only quarantine: the overlay reads absent on some WebKit 26.6 runs (#353).
 		test.fixme(browserName === 'webkit', '#353: middle overlay intermittently absent on WebKit');
 		await editor.loadContent('aaa\n\nbbb\n\nccc\n');
 		await editor.dragFromTo([0], 0, [2], 3);
