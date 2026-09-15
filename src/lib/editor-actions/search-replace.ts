@@ -1,8 +1,8 @@
 /**
- * Find/replace writes. Per affected TOP-LEVEL subtree, reparse its substituted source
- * and commit a replace at its index: O(affected subtrees), identity held elsewhere,
- * and aliasing-safe because the commit installs freshly-parsed nodes rather than
- * writing through a snapshot-shared one. Returns the count actually replaced.
+ * Find and replace writes. For each affected top-level subtree, reparse its substituted
+ * source and commit a replace at its index: one commit per subtree, and safe against undo
+ * snapshots because the commit installs freshly parsed nodes rather than writing through a
+ * shared one. Returns the count actually replaced.
  */
 import type { CstNode } from '../core/nodes';
 import { parse } from '../core/parser';
@@ -54,8 +54,8 @@ export function createSearchReplace(deps: EditorActionsDeps, controller: UndoCon
 			const rel = ranges[0].path.slice(1);
 			const leaf = descend(child, rel);
 			if (!leaf) continue;
-			// Reparsing a private clone bypasses `updateNodeContent`, so that sink's two byte
-			// rules — the kind's own raw rule and the owner's bodyWrite escape — apply here.
+			// Reparsing a private clone bypasses `updateNodeContent`, so its two byte rules (the
+			// kind's own raw rule and the owner's bodyWrite escape) are applied here.
 			const owner = rel.length > 0 ? descend(child, rel.slice(0, -1)) : null;
 			const substituted = normalizeBodyWrite(
 				owner?.kind,
@@ -63,8 +63,8 @@ export function createSearchReplace(deps: EditorActionsDeps, controller: UndoCon
 			);
 			writeOwnRaw(leaf, substituted, deps.grammar);
 		}
-		// A nested leaf's edit must propagate up the clone's materialized container raw
-		// before the reparse from `child.raw`; a top-level leaf needs none.
+		// A nested leaf's edit must be written up into the clone's container raws before the
+		// reparse from `child.raw`; a top-level leaf needs none.
 		for (const ranges of byLeaf.values()) {
 			const rel = ranges[0].path.slice(1);
 			if (rel.length > 0) rebuildAncestryRaw(child, rel);
@@ -75,10 +75,10 @@ export function createSearchReplace(deps: EditorActionsDeps, controller: UndoCon
 	}
 
 	/**
-	 * A match can land on a container node itself. A CHILDLESS one scanned as a leaf, and this
-	 * path reparses rather than writing in place — so the kind re-derives its own metadata from
-	 * the substituted bytes and nothing goes stale. One with children is excluded: its raw is a
-	 * rebuild of theirs, and substituting into it would drift (G1.12/G1.13).
+	 * A match can land on a container node itself. A childless one was scanned as a leaf, and
+	 * this path reparses rather than writing in place, so the kind re-derives its metadata from
+	 * the substituted bytes and nothing goes stale. One with children is excluded: its raw is
+	 * rebuilt from theirs, and substituting into it would make the two disagree (G1.12/G1.13).
 	 */
 	function isReplaceable(match: Match): boolean {
 		const top: CstNode | undefined = deps.doc.children[match.path[0]];
@@ -89,12 +89,12 @@ export function createSearchReplace(deps: EditorActionsDeps, controller: UndoCon
 
 	/**
 	 * The one hazard the reparse cannot absorb: a substitution that breaks a container's opener
-	 * line comes back as a different kind entirely — a diagram silently becoming a plain code
+	 * line comes back as a different kind entirely, a diagram silently becoming a plain code
 	 * block. Accepted for leaves, declined here.
 	 */
 	function keepsItsKind(before: CstNode, after: CstNode[]): boolean {
-		// Only where the substitution wrote the container's OWN raw — a childless one, scanned as a
-		// leaf. One with children had a CHILD edited, and re-kinding there is the ordinary
+		// Only where the substitution wrote the container's own raw: a childless one, scanned as
+		// a leaf. One with children had a child edited, and a kind change there is the ordinary
 		// structural replace every leaf already gets.
 		const childless = (before.children?.length ?? 0) === 0;
 		if (!childless || !getBlockKindDescriptor(before.kind).isContainer) return true;
@@ -107,11 +107,10 @@ export function createSearchReplace(deps: EditorActionsDeps, controller: UndoCon
 		const indices = [...groups.keys()].sort((a, b) => b - a); // last-first keeps lower indices valid
 		if (indices.length === 0) return 0;
 		const seed = groups.get(indices[indices.length - 1])![0];
-		// One pushed snapshot + per-subtree skip-commits = one undo entry, so a throw
-		// mid-batch still recovers in one Ctrl+Z. Intentional.
-		// The push happens outside the commit ceremony, so its rollback register is ours too: a
-		// batch whose FIRST subtree throws applies nothing and must leave no entry behind, or the
-		// next Ctrl+Z spends itself restoring the document to where it already is.
+		// One pushed snapshot plus per-subtree skip commits is one undo entry, so a throw
+		// mid-batch still recovers in one Ctrl+Z. The push happens outside any commit, so its
+		// rollback is ours too: a batch whose first subtree throws applies nothing and must
+		// leave no entry behind, or the next Ctrl+Z restores the document to where it already is.
 		const stacksBeforePush = deps.undoManager.getStacks();
 		controller.pushUndoSnapshotPath(seed.path, seed.start);
 		let newBlockCount = 0;
@@ -122,8 +121,8 @@ export function createSearchReplace(deps: EditorActionsDeps, controller: UndoCon
 			try {
 				newNodes = buildSubtree(topIndex, group, template);
 			} catch (error) {
-				// buildSubtree dispatches into the kind's `rebuildRaw` — plugin code running
-				// outside every commit ceremony, so nothing else would attribute this.
+				// buildSubtree calls the kind's `rebuildRaw`, plugin code running outside any
+				// commit, so nothing else would report this error.
 				deps.events.emit('error', {
 					origin: 'commit',
 					error,
@@ -135,22 +134,22 @@ export function createSearchReplace(deps: EditorActionsDeps, controller: UndoCon
 			newBlockCount += newNodes.length;
 			applied += group.length;
 			await controller.commitStructural({
-				snapshot: 'skip', // batch shares the single snapshot pushed above
+				snapshot: 'skip', // the batch shares the single snapshot pushed above
 				mutate: (children) => {
 					spliceMany(children, topIndex, 1, newNodes);
 					const change = replacePreservingFirst(topIndex, 1, newNodes.length);
 					stampStructuralChange(children, change, deps.sharing);
 					return change;
 				}
-				// op omitted → no per-commit edit event; one is emitted after the batch
+				// op omitted: no per-commit edit event; one is emitted after the batch
 			});
 		}
 		if (applied === 0) {
 			deps.undoManager.restoreStacks(stacksBeforePush);
 			return 0;
 		}
-		// A single-subtree replace has one operated node, so the aggregate event carries
-		// its doc-absolute path (editor.md §12); a multi-subtree batch genuinely has none.
+		// A single-subtree replace has one edited node, so the aggregate event carries its
+		// document-absolute path (editor.md §12); a multi-subtree batch genuinely has none.
 		const eventPath = indices.length === 1 ? docPathFrom([indices[0]]) : [];
 		deps.events.emit(
 			'edit',

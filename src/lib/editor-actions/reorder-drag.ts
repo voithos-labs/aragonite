@@ -1,8 +1,8 @@
 /**
- * Pointer drag-to-reorder: one delegated capture-phase pointerdown on the editor
- * root, a ghost + insertion line while dragging (no tree mutation, no reflow), and
- * ONE move committed on drop. The drop index resolves against currently-mounted
- * siblings only; autoscroll brings off-viewport ones into the window.
+ * Drag-to-reorder with the pointer: one capture-phase pointerdown listener on the editor
+ * root, a ghost and an insertion line while dragging (no tree change, no reflow), and one
+ * move committed on drop. The drop index is resolved against the mounted siblings only;
+ * autoscroll brings the others into view.
  */
 
 import type { UserScrollport } from '../cursor/scroll-ancestors';
@@ -17,13 +17,13 @@ export interface ReorderDragOverlay {
 
 export interface ReorderDragContext {
 	editorRoot: HTMLElement;
-	/** What autoscrolls when the drag reaches an edge: the root in self mode, the
-	 *  host's scroller in host mode (where the root doesn't scroll), the window when
-	 *  the page scrolls. Never `editorRoot` directly — see `cursor/scroll-ancestors`. */
+	/** What autoscrolls when the drag reaches an edge: the root in self mode, the host's
+	 *  scroll container in host mode (where the root does not scroll), the window when the
+	 *  page scrolls. Never `editorRoot` directly (`cursor/scroll-ancestors`). */
 	getScrollHost: () => UserScrollport | null;
 	moveReorderUnit: ReorderAction['moveReorderUnit'];
 	overlay: ReorderDragOverlay;
-	/** Aborted on editor unmount — tears down a drag whose pointerup can't fire. */
+	/** Aborted on editor unmount, ending a drag whose pointerup can no longer fire. */
 	lifetimeSignal?: AbortSignal;
 }
 
@@ -38,7 +38,7 @@ export function installReorderDrag(ctx: ReorderDragContext): { dispose(): void }
 		if (!dragHost) return;
 		const session = startSession(ctx, dragHost);
 		if (!session) return;
-		// Capture-phase + stopPropagation so the block's own pointerdown never starts a
+		// Capture phase plus stopPropagation, so the block's own pointerdown never starts a
 		// cross-block text selection; preventDefault keeps the handle from taking focus.
 		e.preventDefault();
 		e.stopPropagation();
@@ -77,8 +77,8 @@ function startSession(
 		? '.list-item-block'
 		: '.block-host';
 	const label = ghostLabel(dragHost);
-	// The container this unit reorders within (null at top level). Marked for the
-	// drag's duration so the scope-locked reorder reads as intentional, not broken.
+	// The container this unit moves within (null at top level). Marked for the drag's
+	// duration so a move confined to it reads as intentional, not broken.
 	const scopeEl = dragHost.closest('.list-block, .blockquote-block') as HTMLElement | null;
 
 	let dropTo: number | null = null;
@@ -97,9 +97,9 @@ function startSession(
 
 	function process(clientX: number, clientY: number): void {
 		const sibs = siblings();
-		// rawR = the original index to drop before. Removing the dragged item shifts
-		// later indices down by one, hence the adjustment so a downward drop lands
-		// where the line showed.
+		// rawR is the original index to drop before. Removing the dragged item shifts later
+		// indices down by one, hence the adjustment so a downward drop lands where the line
+		// showed.
 		let rawR = sibs.length ? sibs[sibs.length - 1].index + 1 : fromIndex! + 1;
 		let line = sibs.length
 			? {
@@ -125,7 +125,7 @@ function startSession(
 			scopeEl?.classList.add('reorder-scope');
 			createPointerDragSession(down, {
 				onMove: (p) => process(p.clientX, p.clientY),
-				// A drop commits only on release, never on cancel/Escape/unmount.
+				// A drop commits only on release, never on cancel, Escape or unmount.
 				onEnd: (reason) => {
 					if (reason === 'up' && dropTo !== null && dropTo !== fromIndex) {
 						void ctx.moveReorderUnit(fromPath!, dropTo);
@@ -146,8 +146,8 @@ function startSession(
 				disableUserSelect: true,
 				lifetimeSignal: ctx.lifetimeSignal
 			});
-			// Paint from the press point before any move, so a no-move release still
-			// commits a drop.
+			// Draw from the pointer-down point before any move, so a release without moving
+			// still commits a drop.
 			process(down.clientX, down.clientY);
 		}
 	};
@@ -155,8 +155,8 @@ function startSession(
 
 // ── Element → path / index ───────────────────────────────────────────────────
 
-// A `.list-item-block` carries no `data-block-path`, so borrow a descendant
-// block-host's — resolveReorderUnit climbs back to the list item either way.
+// A `.list-item-block` carries no `data-block-path`, so borrow a descendant block-host's;
+// resolveReorderUnit climbs back to the list item either way.
 function pathFor(host: HTMLElement): number[] | null {
 	if (host.getAttribute('data-block-path')) return readBlockPath(host);
 	return readBlockPath(host.querySelector('[data-block-path]'));
@@ -170,9 +170,9 @@ function indexOf(host: HTMLElement): number | null {
 }
 
 /**
- * What the block IS, for the kinds whose text does not read as a label: a table's cells run
- * together into `IngredientAmountWater35 L`, an equation reads as its own source. Prose keeps
- * its first words, which is the best label it could have.
+ * The ghost label for kinds whose text does not read as one: a table's cells run together
+ * into `IngredientAmountWater35 L`, an equation reads as its own source. Prose keeps its
+ * first words, which is the best label it could have.
  */
 const KIND_LABELS: Record<string, string> = {
 	table: 'Table',
@@ -194,7 +194,7 @@ function ghostLabel(host: HTMLElement): string {
 	return text.length > 40 ? text.slice(0, 40) + '…' : text;
 }
 
-/** Body rows × columns: the shape is what tells one table from another at a glance. */
+/** Rows by columns: the shape is what tells one table from another at a glance. */
 function tableLabel(host: HTMLElement): string {
 	const rows = host.querySelectorAll('.table-row').length;
 	const cols = host.querySelector('.table-row')?.childElementCount ?? 0;

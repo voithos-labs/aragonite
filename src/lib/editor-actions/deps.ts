@@ -16,15 +16,15 @@ export interface EditorActionsDeps {
 	get doc(): Document;
 	get blockIds(): string[];
 	get blockRefs(): (BlockComponent | undefined)[];
-	/** The top-level scope's slot identity, so the doc-scope adapter reports the same
-	 *  scope the editor's own BlockList publishes into. */
+	/** The root block list's ref slots, so the document-scope adapter reports the same
+	 *  list the editor's own BlockList writes into. */
 	blockRefSlots: RefSlots<BlockComponent>;
 	setDoc(doc: Document): void;
 	setBlockIds(ids: string[]): void;
 	setBlockRefs(refs: (BlockComponent | undefined)[]): void;
-	/** Announce that this door moved the document's bytes
-	 *  (`reactivity/content-version.svelte.ts`). The ceremony owes one call per commit; the
-	 *  writers outside it owe their own, which is the census G4.52 keeps honest. */
+	/** Announce that the document's bytes changed (`reactivity/content-version.svelte.ts`).
+	 *  The commit sequence calls it once per commit; every writer outside a commit must call
+	 *  it itself (G4.52 lists them). */
 	bumpContentVersion(): void;
 	undoManager: UndoManager;
 	sharing: SharingState;
@@ -32,31 +32,31 @@ export interface EditorActionsDeps {
 	edgeAffinity: EdgeAffinityState;
 	selectionState: SelectionState;
 	getBlockElByPath: BlockElLookup;
-	/** Scroll an off-window top-level block into the render window and await its
-	 *  mount, then return its component (null if unreachable). Already-mounted
-	 *  targets return synchronously without scrolling. */
+	/** Scroll an unmounted top-level block into the rendered window, wait for it to mount,
+	 *  and return its component (null if unreachable). An already-mounted block returns
+	 *  at once without scrolling. */
 	revealPath(path: number[]): Promise<BlockComponent | null>;
 	events: EditorEvents;
 	/** The instance's block grammar, so a disabled kind's opener stays skipped when
 	 *  the editor re-parses an edited block. Absent = the global grammar. */
 	grammar?: GrammarView;
-	/** Live EFFECTIVE mode, for the seams that must not act in reading mode. Absent in
-	 *  harnesses, which `isReadingMode` reads as not-reading. */
+	/** The live effective presentation mode, for the actions that must not write in reading
+	 *  mode. Absent in harnesses, which `isReadingMode` reads as not reading. */
 	getPresentationMode?: PresentationModeGetter;
-	/** The instance's link-reference resolver, for the byte rewrites that must parse the reference
-	 *  forms the render path drew. Absent in harnesses, which have no definitions to resolve. */
+	/** The instance's link-reference resolver, for byte rewrites that must parse the reference
+	 *  links the renderer drew. Absent in harnesses, which have no definitions to resolve. */
 	linkRef?: InlineResolverRef;
 }
 
 /**
- * The history-typed members added to the contracts-leaf `CommitController`. They stay here so
- * that leaf keeps no edge to `undo/`.
+ * `CommitController` plus the members typed against `undo/`. They live here so
+ * `action-contracts` keeps no import from `undo/`.
  */
 export interface UndoController extends CommitController {
 	captureCurrentState(): UndoEntry;
-	/** Monotonic stamp of the last history swap. A caret landing captures it before its
-	 *  reveal and declines when it moved: the tree it was aimed at is no longer on screen. */
+	/** A counter bumped on every undo or redo. A caret placement reads it before scrolling its
+	 *  target into view and gives up if it changed: the tree it aimed at is gone. */
 	historyGeneration(): number;
-	/** Announce a swap. The restore road's own call — nothing else may bump it. */
+	/** Announce an undo or redo. Only the history restore may call it. */
 	noteHistorySwap(): void;
 }

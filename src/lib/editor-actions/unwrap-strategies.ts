@@ -1,7 +1,6 @@
 /**
- * Unwrap strategy implementations, selected by a container's declared
- * `unwrapRole` (schema/block-kind-descriptor.ts) from the nested blockEdit
- * dispatcher.
+ * The Backspace unwrap strategies, selected by a container's declared `unwrapRole`
+ * (schema/block-kind-descriptor.ts) from the container's blockEdit.
  */
 
 import { CURSOR_END, CURSOR_START } from '../block-component';
@@ -27,7 +26,7 @@ export interface UnwrapStrategyDeps {
 	state: BlockListState;
 }
 
-/** Drop a user-empty item and renumber from its slot; `land` seats the caret the strategy chose. */
+/** Drop an empty item and renumber from its index; `land` places the caret where the strategy chose. */
 async function deleteEmptyItem(
 	{ deps, state }: UnwrapStrategyDeps,
 	itemIndex: number,
@@ -60,7 +59,7 @@ async function liftFirstChildAndKeepContainer({ deps }: UnwrapStrategyDeps): Pro
 	await spliceLift(deps, liftFirstChildKeepingContainer(deps.node));
 }
 
-/** Rule U2's declared decline: child 0 is the container's chrome, and a lift would carry it out. */
+/** Rule U2's declared decline: child 0 is the container's title row, and a lift would carry it out. */
 async function keepReservedChrome(): Promise<void> {}
 
 async function spliceLift(deps: NestedActionsDeps, replacement: CstNode[]): Promise<void> {
@@ -71,7 +70,7 @@ async function spliceLift(deps: NestedActionsDeps, replacement: CstNode[]): Prom
 	});
 }
 
-/** List first-item cascade: nested promote / empty delete / empty-sole delete-list / Rule U1. */
+/** The first list item's cascade: promote if nested, delete if empty, delete the list if it is the only item, else rule U1. */
 async function listItemCascadeFirst(strategy: UnwrapStrategyDeps): Promise<void> {
 	const { deps, state } = strategy;
 	const node = deps.node;
@@ -109,7 +108,7 @@ async function listItemCascadeFirst(strategy: UnwrapStrategyDeps): Promise<void>
 
 // ── Middle-child strategies ─────────────────────────────────────────────────
 
-/** List middle-item: empty delete+renumber, else Rule M1 merge into deepest text above. */
+/** A middle list item: delete and renumber if empty, else rule M1, merge into the deepest text above. */
 async function listItemCascadeMiddle(
 	strategy: UnwrapStrategyDeps,
 	itemIndex: number
@@ -126,8 +125,8 @@ async function listItemCascadeMiddle(
 		return;
 	}
 
-	// Rule M1: merge into the deepest visible text above. An opaque prev leaf gives
-	// the merge no target, so the tree stays put and the caret falls back.
+	// Rule M1: merge into the deepest visible text above. A previous leaf with no editable
+	// text gives the merge no target, so the tree stays put and only the caret moves.
 	let mergePoint: { targetPath: number[]; offset: number } | null = null;
 	await deps.parent.containerEdit.commitContainer({
 		containerNode: node,
@@ -157,8 +156,8 @@ async function listItemCascadeMiddle(
 			const [firstPathIdx, ...restPath] = merged.targetPath;
 			state.innerBlockRefs[firstPathIdx]?.focusByPath?.(restPath, merged.offset);
 		},
-		// A no-target merge changes nothing; discard the entry but keep afterTick,
-		// which still lands the caret.
+		// A merge with no target changes nothing; discard the undo entry but keep afterTick,
+		// which still places the caret.
 		discardIfNoop: true
 	});
 }

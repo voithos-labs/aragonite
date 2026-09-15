@@ -1,8 +1,8 @@
 /**
- * Per-level adapter for the shared block-edit core: commit ceremony, child addressing, refs and
- * unshare, for a top-level edit vs a container one. Both factories are the SINGLE mint point for
- * the commit args' doc-absolute paths, as `DocPath` — the core hands over local indices only.
- * G1.16 stays the runtime belt for the JS callers types don't bind.
+ * Per-level adapter for the shared block-edit core: the commit, child addressing, refs and
+ * copy-before-write, for a top-level edit or a container one. The two factories are the only
+ * place the commit's document-absolute paths (`DocPath`) are made; the core hands over local
+ * indices only. G1.16 is the runtime check for JS callers the types do not bind.
  */
 
 import type { OpDescriptor } from '../schema/operations';
@@ -22,30 +22,30 @@ import type { EditorActionsDeps, UndoController } from './deps';
 import type { NestedActionsDeps } from './nested/nested-actions';
 import type { BlockListState } from '../reactivity/block-list-state.svelte';
 
-/** Owned mutation view the core's `mutate` writes through — uniform across levels. */
+/** The copied children the core's `mutate` writes through, the same shape at both levels. */
 export interface MutationView {
 	children: CstNode[];
 	sharing: SharingState;
 	/** The container these children belong to, for mutations whose bytes must satisfy
 	 *  its grammar (`bodyWrite`). Absent at the document root. */
 	ownerKind?: AnyBlockKind;
-	/** The container NODE itself, for settles that write its wrap slots. Nullable
+	/** The container node itself, for fix-ups that write its opener or closer. Nullable
 	 *  rather than optional so each adapter answers; `undefined` is the document root. */
 	owner: CstNode | undefined;
 	/** The instance's block grammar, for mutations that re-parse. Absent = the global grammar. */
 	grammar?: GrammarView;
-	/** Live EFFECTIVE mode, for mutations whose bytes depend on what the mode paints. Nullable
-	 *  rather than optional so each adapter answers; `undefined` reads as not-live. */
+	/** The live effective mode, for mutations whose bytes depend on what the mode shows. Nullable
+	 *  rather than optional so each adapter answers; `undefined` reads as not live. */
 	getPresentationMode: PresentationModeGetter | undefined;
-	/** The instance's link-reference resolver, so a rewrite parses the reference forms the render
-	 *  path drew. Nullable for the same reason as the mode; `undefined` reads them as brackets. */
+	/** The instance's link-reference resolver, so a rewrite parses the reference links the
+	 *  renderer drew. Nullable for the same reason as the mode; `undefined` reads them as brackets. */
 	linkRef: InlineResolverRef | undefined;
-	/** Copy-out-of-sharing the child at `i` before an in-place write; returns the owned node. */
+	/** Copy the child at `i` out of the undo snapshot before an in-place write; returns the copy. */
 	unshareChild(i: number): CstNode;
 }
 
 export interface ScopeCommitArgs {
-	/** Snapshot coordinate in THIS scope's local index space, or 'skip' to join a caller's entry. */
+	/** Undo snapshot position as a local index in this list, or 'skip' to join a caller's entry. */
 	snapshot: { index: number; offset: number } | 'skip';
 	/** Local index the edit event targets; the factory prefixes the scope's absolute path. */
 	eventTarget: number;
@@ -53,28 +53,28 @@ export interface ScopeCommitArgs {
 	mutate: (view: MutationView) => StructuralChange;
 	afterTick?: CommitAfterTick;
 	/**
-	 * Leaves the dev staleness oracle checks when `mutate` returns `noop`. The owned
-	 * copy exists only after `mutate` runs, hence a stable array. Top-level only.
+	 * The nodes the dev-mode stale-raw check reads when `mutate` returns `noop`. The copy
+	 * exists only after `mutate` runs, hence a stable array filled later. Top-level only.
 	 */
 	touchedNodes?: CstNode[];
 	/**
-	 * A structural op that can legitimately no-op, so the ceremony discards the snapshot
-	 * rather than mint a dead entry. Never on content/metadata commits — their `noop`
-	 * still carries a byte change (action-contracts `DiscardIfNoop`).
+	 * A structural edit that can legitimately change nothing, so the commit discards the
+	 * snapshot rather than push a dead entry. Never on content or metadata commits: their
+	 * `noop` still carries a byte change (action-contracts `DiscardIfNoop`).
 	 */
 	discardIfNoop?: boolean;
 }
 
 export interface CommitScope {
-	/** Read accessor — mutation happens through the commit's owned view, never this. */
+	/** Read only; mutation goes through the commit's copied view, never this. */
 	children(): readonly NodeView[];
 	refAt(i: number): BlockComponent | undefined;
-	/** Empty replaceBlock emits `delete` (container) vs `replaceBlock{count:0}` (top-level). */
+	/** An empty replaceBlock emits `delete` (container) or `replaceBlock{count:0}` (top-level). */
 	collapseEmptyReplaceToDelete: boolean;
 	commit(args: ScopeCommitArgs): Promise<void>;
 }
 
-/** The byte/settle sinks' owner answer for a container commit's own scope — {@link MutationView}'s twin. */
+/** The owner the tree operations read for a container commit, {@link MutationView}'s counterpart. */
 export const scopeParentOf = (scope: ContainerScope) => ({
 	children: scope.children,
 	ownerKind: scope.node.kind,
@@ -128,8 +128,8 @@ export function createTopLevelScope(
 
 export function createContainerScope(state: BlockListState, deps: NestedActionsDeps): CommitScope {
 	return {
-		// A fold at this container's own slot detaches it (`tree-operations/chain-rebuild.ts`), so a
-		// post-commit read can find the scope gone rather than merely empty.
+		// A collapse at this container's own index detaches it (`tree-operations/chain-rebuild.ts`),
+		// so a post-commit read can find the container gone rather than merely empty.
 		children: () => deps.node?.children ?? [],
 		refAt: (i) => state.innerBlockRefs[i],
 		collapseEmptyReplaceToDelete: true,

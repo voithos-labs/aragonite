@@ -1,7 +1,7 @@
 /**
- * Top-level BlockEditActions factory. Structural mutations route through the shared
- * `block-edit-core` against a top-level `CommitScope`; this factory adds the edge
- * guards and the one per-level body the core can't share, `updateBlockContent`.
+ * The top-level BlockEditActions. Structural edits go through the shared `block-edit-core`
+ * against a top-level `CommitScope`; this adds the edge guards and the one per-level method
+ * the core cannot share, `updateBlockContent`.
  */
 
 import { tick } from 'svelte';
@@ -23,16 +23,16 @@ export function createBlockEditActions(
 	const scope = createTopLevelScope(deps, controller);
 	const core = createBlockEditCore(scope);
 
-	// The keystroke's own work, split out so `updateBlockContent` owns the batch ceremony
-	// around it and nothing inside can return past the pause arm.
+	// The keystroke's own work, split out so `updateBlockContent` owns the batch bookkeeping
+	// around it and nothing inside can return past starting the pause timer.
 	async function applyContentUpdate(
 		blockIndex: number,
 		text: string,
 		preEditOffset?: number,
 		postEditFocusOffset?: number
 	): Promise<void> {
-		// The structural path's live mutation runs inside the ceremony, so a
-		// multi-block splice never touches the live children array out-of-commit.
+		// The structural path's mutation runs inside a commit, so a multi-block splice never
+		// touches the live children array outside one.
 		const preview = previewContentReparse(
 			deps.doc.children[blockIndex],
 			text,
@@ -48,9 +48,9 @@ export function createBlockEditActions(
 				snapshot: 'skip',
 				eventTarget: blockIndex,
 				op: { kind: 'updateContent', detail: { length: text.length } },
-				// ownerKind undefined is the ANSWER, not an omission: the document root
-				// imposes no body grammar. The suffix rides as accessors so the tail
-				// settle folds against the live document.
+				// ownerKind undefined is the answer, not an omission: the document root has no
+				// body grammar. The suffix goes as accessors so the trailing-line fix-up reads
+				// and writes the live document.
 				mutate: (view) => {
 					view.unshareChild(blockIndex);
 					settled = performUpdate(
@@ -78,9 +78,9 @@ export function createBlockEditActions(
 			return;
 		}
 
-		// Routine typing: an out-of-ceremony in-place write, so copy the node first when a
-		// snapshot shares it. Slotless parent on purpose — the preview already routed every
-		// suffix materialization into the ceremony, so none can happen here.
+		// Routine typing: an in-place write outside a commit, so copy the node first when an undo
+		// snapshot shares it. No suffix on purpose: the trial reparse already sent every case
+		// that turns the trailing line into a block through a commit, so none can happen here.
 		ensureUnsharedPath(deps.doc, [blockIndex], deps.sharing);
 		const settled = performUpdate(
 			{ children: deps.doc.children, ownerKind: undefined, owner: undefined },
@@ -89,12 +89,12 @@ export function createBlockEditActions(
 			deps.grammar,
 			deps.sharing
 		);
-		// A blank-fill settle can still FOLD here — the single-node preview probe has no
-		// neighbour to absorb it — so this path publishes its own descriptor and re-lands the
-		// caret, which the ceremony would otherwise have done.
+		// Filling a blank block can still merge it into a neighbour here (the single-node trial
+		// had no neighbour to merge into), so this path writes its own change to state and
+		// places the caret again, which a commit would otherwise have done.
 		if (settled.change.op !== 'noop') publishScopeFold(deps, undefined, settled.change);
-		// After that publish, as the ceremony announces after its own, and ahead of the no-fold
-		// return: the leaf's raw is already written, and the ordinary keystroke settles to `noop`.
+		// After that write to state, as a commit announces after its own, and before the early
+		// return: the leaf's raw is already written, and an ordinary keystroke ends as `noop`.
 		deps.bumpContentVersion();
 		if (settled.change.op === 'noop') return;
 		await tick();
@@ -144,15 +144,15 @@ export function createBlockEditActions(
 		): Promise<void> {
 			deps.stickyColumn.reset();
 			deps.edgeAffinity.reset();
-			// Keyed by block, not by slot: a bare index identifies the position, so a
-			// different block arriving at the same slot would continue its batch.
+			// Keyed by block id, not by index: a bare index names the position, so a different
+			// block arriving at the same index would continue its batch.
 			controller.pushUndoSnapshotDebounced(
 				[blockIndex],
 				preEditOffset ?? 0,
 				deps.blockIds[blockIndex]
 			);
-			// The pause window opens once this keystroke's own work is done, throw included: an
-			// unarmed batch never ends by pause and would swallow every later keystroke.
+			// The pause timer starts once this keystroke's own work is done, throw included: a
+			// batch whose timer never started never ends by pause and swallows every later keystroke.
 			try {
 				await applyContentUpdate(blockIndex, text, preEditOffset, postEditFocusOffset);
 			} finally {

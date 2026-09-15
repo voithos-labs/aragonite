@@ -1,7 +1,6 @@
 /**
- * The TableContext mutation bundle. The component keeps sticky-column state,
- * focused-cell tracking, DOM helpers, and BlockComponent — only structural mutations
- * live here.
+ * The TableContext edits. The component keeps the sticky column, the focused cell, DOM
+ * helpers and BlockComponent; only structural edits live here.
  */
 
 import type { CellPosition, ContainerEditActions, TableContext } from '../action-contracts';
@@ -44,8 +43,8 @@ import {
 } from '../tree-operations/table-mutations';
 
 /**
- * The header (row 0) is positionally fixed. Null skips the commit, so a boundary
- * press pushes no undo entry.
+ * The header (row 0) stays where it is. Null skips the commit, so a keypress at the edge
+ * pushes no undo entry.
  */
 export function tableRowReorderTarget(
 	rowIdx: number,
@@ -81,7 +80,7 @@ export interface TableMutationsContextDeps {
 	controller: UndoController;
 	focusCell: (rowIdx: number, colIdx: number, position: CellPosition) => void;
 	announceReorder: (message: string) => void;
-	/** The instance grammar the cell byte-write door threads (absent: the global one). */
+	/** The instance grammar the cell writes use (absent: the global one). */
 	grammar?: GrammarView;
 }
 
@@ -134,9 +133,9 @@ export function createTableMutationsContext(
 	}
 
 	/**
-	 * The table scope plus one per MOUNTED row: a row's BlockListState registers on
-	 * mount, so scoping a windowed-out row throws and takes the gesture with it. The
-	 * bytes still reach every row, through the table scope.
+	 * The table scope plus one per mounted row: a row's BlockListState registers on mount,
+	 * so scoping an unmounted row throws and takes the edit with it. The bytes still reach
+	 * every row, through the table scope.
 	 */
 	function mountedColumnScopes(): { scopes: MultiScopeTarget[]; rowIndices: number[] } {
 		const { node, myPath, rowsState } = deps;
@@ -163,14 +162,14 @@ export function createTableMutationsContext(
 		const { scopes, rowIndices } = mountedColumnScopes();
 		await controller.commitMultiScope({
 			scopes,
-			// Columns aren't nodes: the table itself is the restore coordinate.
+			// Columns are not nodes: undo restores to the table itself.
 			snapshot: { path: docPathFrom(myPath), offset: 0 },
 			mutate: ([tableScope, ...rowScopes]) => {
-				// Reaches the windowed-out rows the scopes skip, so the per-row cell splice
-				// below never writes through a snapshot-shared row (G1.9).
+				// Reaches the unmounted rows the scopes skip, so the per-row cell splice below
+				// never writes through a row an undo snapshot shares (G1.9).
 				ensureUnsharedChildren(tableScope.node, tableScope.sharing);
-				// The splice walks the owned table's rows, so the row scopes' ids/refs only
-				// sync correctly while each row view IS the child at the index it covers.
+				// The splice walks the copied table's rows, so the row scopes' ids and refs only
+				// sync correctly while each row view is the child at the index it covers.
 				assertInvariant('column-scope-alignment', () =>
 					rowScopes.every((s, i) => s.node === tableScope.node.children?.[rowIndices[i]])
 						? null
@@ -179,7 +178,7 @@ export function createTableMutationsContext(
 								message: 'commitColumnEdit: row scopes misaligned with owned table children'
 							}
 				);
-				// One change per row, in row order — pair the mounted rows with theirs.
+				// One change per row, in row order; pair the mounted rows with theirs.
 				const perRow = opts.mutateColumns(tableScope.node);
 				return [{ op: 'noop' }, ...rowIndices.map((i) => perRow[i])];
 			},
@@ -188,9 +187,10 @@ export function createTableMutationsContext(
 		});
 	}
 
-	// Grown at the bottom and the right only, so each scope's change is one contiguous insert:
-	// rows for the table, cells for every mounted row. Cell texts go through the cell kind's own
-	// raw rule in place, and the table raw is rebuilt once, delimiter line included.
+	// The table grows at the bottom and the right only, so each scope's change is one
+	// contiguous insert: rows for the table, cells for every mounted row. Cell texts go through
+	// the cell kind's own raw rule in place, and the table raw is rebuilt once, delimiter line
+	// included.
 	async function pasteGrid(
 		origin: { rowIdx: number; colIdx: number },
 		grid: string[][]
@@ -205,9 +205,9 @@ export function createTableMutationsContext(
 			scopes,
 			snapshot: { path: docPathFrom(myPath), offset: 0 },
 			mutate: ([tableScope, ...rowScopes]) => {
-				// Subtree, not children: the cell writes below land at depth two, and a row's
-				// cells stay shared with the undo snapshot when only the rows are unshared —
-				// the write would go through it and undo would restore the pasted bytes.
+				// The subtree, not just the children: the cell writes below land at depth two,
+				// and a row's cells stay shared with the undo snapshot when only the rows are
+				// copied, so the write would reach the snapshot and undo would keep the paste.
 				ensureUnsharedSubtree(tableScope.node, tableScope.sharing);
 				assertInvariant('column-scope-alignment', () =>
 					rowScopes.every((s, i) => s.node === tableScope.node.children?.[rowIndices[i]])
@@ -264,11 +264,11 @@ export function createTableMutationsContext(
 		if (from === to) return;
 		const { node, myPath, rowsState, parentContainerEdit, focusCell, focusedCell } = deps;
 		const rowCount = node.children?.length ?? 0;
-		// Guard the SOURCE against the live count: a keyboard/menu/drag commit can carry
-		// a `from` staled by a concurrent structural edit. `to` is already clamped.
+		// Check the source against the live count: a keyboard, menu or drag commit can carry a
+		// `from` made stale by a concurrent structural edit. `to` is already clamped.
 		if (from < 0 || from >= rowCount) return;
-		// focusout nulls focusedCell on the post-commit re-render, so capture the column
-		// now; the afterTick would otherwise land at column 0.
+		// focusout nulls focusedCell on the re-render after the commit, so read the column
+		// now; afterTick would otherwise land at column 0.
 		const col = focusedCell?.colIdx ?? 0;
 		await parentContainerEdit.commitContainer({
 			containerNode: node,
@@ -276,8 +276,8 @@ export function createTableMutationsContext(
 			state: rowsState,
 			snapshot: { path: extendDocPath(myPath, from), offset: 0 },
 			mutate: (scope) => {
-				// rebuildTableRaw rewrites EVERY row's raw, so the rows must be unshared
-				// first — reorderChildren only permutes references.
+				// rebuildTableRaw rewrites every row's raw, so the rows must be copied first;
+				// reorderChildren only permutes references.
 				ensureUnsharedChildren(scope.node, scope.sharing);
 				const change = reorderChildren(scope.node.children!, from, to);
 				rebuildTableRaw(scope.node);
@@ -302,10 +302,10 @@ export function createTableMutationsContext(
 		if (from === to) return;
 		const { node, focusCell, focusedCell } = deps;
 		const columnCount = metadataOf(node, 'table').columnCount;
-		// Guard the SOURCE against the live count — see reorderRowTo.
+		// Check the source against the live count, as reorderRowTo does.
 		if (from < 0 || from >= columnCount) return;
-		// focusout nulls focusedCell on the post-commit re-render, so capture the row
-		// now; the afterTick would otherwise land at row 0.
+		// focusout nulls focusedCell on the re-render after the commit, so read the row now;
+		// afterTick would otherwise land at row 0.
 		const row = focusedCell?.rowIdx ?? 0;
 		await commitColumnEdit({
 			mutateColumns: (table) => mutMoveColumn(table, from, to),
@@ -346,7 +346,7 @@ export function createTableMutationsContext(
 				state: rowsState,
 				snapshot: { path: extendDocPath(myPath, rowIdx), offset: 0 },
 				mutate: (scope) => {
-					// deleteRow promotes the next row to header (a metadata write).
+					// deleteRow makes the next row the header, a metadata write.
 					ensureUnsharedChildren(scope.node, scope.sharing);
 					mutDeleteRow(scope.node, rowIdx);
 					return { op: 'delete', at: rowIdx, count: 1 };
@@ -358,8 +358,8 @@ export function createTableMutationsContext(
 				},
 				afterTick: () => {
 					deps.announceReorder(DELETED_ROW);
-					// Read through `deps.node`: the captured `node` is the pre-commit object
-					// the snapshot still shares, so its child count is stale after the delete.
+					// Read through `deps.node`: the `node` read above is the pre-commit object the
+					// undo snapshot still shares, so its child count is stale after the delete.
 					const newRowCount = deps.node.children?.length ?? 0;
 					if (newRowCount === 0) return;
 					const columnCount = metadataOf(deps.node, 'table').columnCount;
@@ -379,7 +379,7 @@ export function createTableMutationsContext(
 				op: { kind: 'tableDeleteColumn', detail: { colIdx } },
 				afterTick: () => {
 					deps.announceReorder(DELETED_COLUMN);
-					// deps.node, not the stale pre-commit capture — see deleteRow.
+					// deps.node, not the stale pre-commit object, as in deleteRow.
 					const newColumnCount = metadataOf(deps.node, 'table').columnCount;
 					if (newColumnCount === 0) return;
 					const targetCol = Math.min(colIdx, newColumnCount - 1);
@@ -391,8 +391,8 @@ export function createTableMutationsContext(
 
 		async cycleAlignment(colIdx) {
 			const { node, myPath, rowsState, parentContainerEdit } = deps;
-			// Distinct OperationKind so consumers can count alignment cycles apart from
-			// metadata edits. The event targets the TABLE: a column index is not a path.
+			// A distinct OperationKind so consumers can count alignment cycles apart from
+			// metadata edits. The event targets the table: a column index is not a path.
 			await parentContainerEdit.commitContainer({
 				containerNode: node,
 				path: [...myPath],
@@ -408,11 +408,11 @@ export function createTableMutationsContext(
 
 		async setColumnAlignment(colIdx, alignment) {
 			const { node, myPath, rowsState, parentContainerEdit, focusCell, focusedCell } = deps;
-			// Capture before the menu's focusout nulls it: the alignment button unmounts
-			// on commit, so without a refocus the caret falls to <body>.
+			// Read before the menu's focusout nulls it: the alignment button unmounts on
+			// commit, so without a refocus the caret falls to <body>.
 			const cell = focusedCell;
-			// Commits unconditionally: the first table mutation also normalizes cell
-			// padding, so a same-value set is not a byte no-op.
+			// Commits unconditionally: the first table edit also normalizes cell padding, so
+			// setting the same value is not a byte no-op.
 			await parentContainerEdit.commitContainer({
 				containerNode: node,
 				path: [...myPath],

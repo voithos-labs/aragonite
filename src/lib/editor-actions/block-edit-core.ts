@@ -1,7 +1,7 @@
 /**
- * Scope-parameterized structural-edit core shared by the top-level and container
- * BlockEditActions factories. Each method is the interior body only — no edge guards,
- * no upward delegation, no unwrap dispatch; the factories add those.
+ * The structural edits shared by the top-level and container BlockEditActions, over a
+ * `CommitScope`. Each method is the interior case only: no edge guards, no handing up to
+ * the parent, no unwrap dispatch; the factories add those.
  */
 
 import { CURSOR_END, CURSOR_EXACT_START, CURSOR_START } from '../block-component';
@@ -35,19 +35,19 @@ import type { CommitAfterTick, UndoEntryMode } from '../action-contracts';
 import type { CommitScope, MutationView } from './block-edit-scope';
 import { mergedElseFocusNext, mergedElseFocusPrevious } from './merge-fallback';
 
-/** The byte/settle sinks' owner answer, read live off the commit's owned view. */
+/** The owner the tree operations read, taken live off the commit's copied view. */
 const bodyParentOf = (view: MutationView) => ({
 	children: view.children,
 	ownerKind: view.ownerKind,
 	owner: view.owner
 });
 
-/** The ineligible-merge cascade both directions share; `dir` names the neighbour side. */
+/** What both merge directions do when the neighbour cannot merge; `dir` names its side. */
 async function handleIneligibleNeighbor(scope: CommitScope, i: number, dir: -1 | 1): Promise<void> {
 	const neighbor = i + dir;
 	const neighborKind = scope.children()[neighbor].kind;
-	// A whole-block-focus neighbor is focused, not deleted: press one highlights it, a second
-	// press deletes it. Ordered first so a not-mergeable-but-editable kind never dead-ends here.
+	// A neighbour focused as a whole is focused, not deleted: the first keypress highlights
+	// it, a second deletes it. First so an editable but not mergeable kind never stops here.
 	if (getBlockKindDescriptor(neighborKind).blockFocus === 'whole-block') {
 		scope.refAt(neighbor)?.focus(0);
 		return;
@@ -91,8 +91,8 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 	const core: BlockEditCore = {
 		async split(i, offset) {
 			// Offset 0 is not special: empty block above, content below, caret on the content. The
-			// landing is the primitive's answer, not `i + 1` — a plural first half pushes the
-			// second half further down, and G1.34 holds the seat to it.
+			// caret index is the primitive's answer, not `i + 1`: a first half that parses to
+			// several blocks pushes the second half further down (G1.34 checks the index).
 			let secondHalfIndex = i + 1;
 			let split: SplitResult | undefined;
 			await scope.commit({
@@ -116,16 +116,16 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 					if (split) assertSplitLanding(split, secondHalfIndex);
 					scope.refAt(secondHalfIndex)?.focus(CURSOR_EXACT_START);
 				},
-				// A single-line/chrome block splits to nothing, so discard rather than
-				// mint a dead entry on a rebound Enter.
+				// A single-line block (a title row) splits to nothing, so discard rather than
+				// push a dead undo entry on a rebound Enter.
 				discardIfNoop: true
 			});
 		},
 
 		async descendToBody(i) {
 			const children = scope.children();
-			// A body child already exists: pure focus move, no undo entry. An absent ref
-			// (windowed-out, or a collapsed body) leaves the caret put — load-bearing.
+			// A body child already exists: a focus move, no undo entry. An absent ref (unmounted,
+			// or a collapsed body) leaves the caret where it is, on purpose.
 			if (i + 1 < children.length) {
 				scope.refAt(i + 1)?.focus(CURSOR_START);
 				return;
@@ -135,8 +135,8 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 				eventTarget: i + 1,
 				op: { kind: 'appendBlock' },
 				mutate: (view) => {
-					// The synthesized body line IS a line ending, so it takes the chrome
-					// sibling's (G4.20); a defaulted LF strands one in a CRLF container.
+					// The new body line is nothing but a line ending, so it takes the title row's
+					// (G4.20); a default LF would leave a lone LF in a CRLF container.
 					const body = emptyParagraph('', trailingLineEnding(view.children[i]?.raw ?? '\n'));
 					view.children.splice(i + 1, 0, body);
 					const change: StructuralChange = { op: 'insert', at: i + 1, count: 1 };
@@ -148,12 +148,12 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 		},
 
 		/**
-		 * The between-blocks caret's mint (`selection/gap-caret.ts`). `i` is a BOUNDARY index,
-		 * so `children.length` appends; the caret lands after the text the paragraph carries.
+		 * The paragraph the between-blocks caret creates (`selection/gap-caret.ts`). `i` is a
+		 * boundary index, so `children.length` appends; the caret lands after the given text.
 		 */
 		async insertParagraph(i, text) {
 			const children = scope.children();
-			// Both the separator and the paragraph's own bytes ARE line endings, so both take a
+			// The separator and the paragraph's own bytes are both line endings, so both take a
 			// real neighbour's (G4.20); a boundary always has one on at least one side.
 			const lineEnding = trailingLineEnding((children[i - 1] ?? children[i])?.raw ?? '\n');
 			await scope.commit({
@@ -161,15 +161,16 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 				eventTarget: i,
 				op: { kind: 'insertBlock' },
 				mutate: (view) => {
-					// Only the scope's head block owns no separator; anywhere else the mint owes
-					// its predecessor a blank line, whatever the displaced sibling carried.
+					// Only the first block of a list owns no separator; anywhere else the new
+					// paragraph needs a blank line after its predecessor, whatever the displaced
+					// sibling carried.
 					const trivia = i > 0 ? lineEnding : (view.children[0]?.leadingTrivia ?? '');
 					view.children.splice(i, 0, paragraphNode(trivia, text, lineEnding));
 					const change: StructuralChange = { op: 'insert', at: i, count: 1 };
 					stampStructuralChange(view.children, change, view.sharing);
-					// A gap-caret paragraph is a block of its own on BOTH sides, which the splice
-					// settle cannot infer: the displaced sibling is a body block now, not the head,
-					// so it owes its own separator, and an EMPTY mint is a blank line itself.
+					// The new paragraph is a block of its own on both sides, which the commit's
+					// blank-line fix-up cannot infer: the displaced sibling is no longer first, so
+					// it needs its own separator, and an empty paragraph is itself a blank line.
 					const parent = bodyParentOf(view);
 					restoreSeparatorOnFill(parent, i + 1, view.sharing);
 					dropDoubledSeparator(parent, i, view.sharing);
@@ -212,8 +213,8 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 					if (merged.targetPath.length === 0) ref?.focus(merged.joinOffset);
 					else ref?.focusByPath?.(merged.targetPath, merged.joinOffset);
 				},
-				// A no-target merge changes nothing; discard the entry but keep afterTick,
-				// which still lands the caret.
+				// A merge with no target changes nothing; discard the undo entry but keep
+				// afterTick, which still places the caret.
 				discardIfNoop: true
 			});
 		},
@@ -228,8 +229,9 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 				return;
 			}
 
-			// The landing is the primitive's answer, not `displayLength` read ahead of it: a live
-			// seam cleanup drops runs on the first block's side and moves where the two met.
+			// The caret offset is the primitive's answer, not `displayLength` read beforehand:
+			// live mode's clean-up at the join drops marker runs on the first block's side and
+			// moves where the two met.
 			let merged: MergeResult = { change: { op: 'noop' }, joinOffset: 0 };
 			await scope.commit({
 				snapshot: { index: i, offset: CURSOR_END },
@@ -273,9 +275,9 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 			if (i < 0 || i >= children.length) return;
 			const fields = Object.keys(metadata);
 			if (fields.length === 0) return;
-			// `mutate` returns noop, so the ceremony's dev oracle can't infer the resynced
-			// node. The owned copy exists only after unshareChild, hence a stable array
-			// the ceremony reads post-mutate.
+			// `mutate` returns noop, so the commit's dev-mode stale-raw check cannot infer the
+			// changed node. The copy exists only after unshareChild, hence a stable array the
+			// commit reads after mutate.
 			const touchedNodes: CstNode[] = [];
 			await scope.commit({
 				snapshot: options?.undoEntry === 'join' ? 'skip' : { index: i, offset: 0 },
@@ -285,12 +287,11 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 				mutate: (view) => {
 					const node = view.unshareChild(i);
 					node.metadata = { ...(node.metadata ?? {}), ...metadata } as typeof node.metadata;
-					// Through the chain funnel, not a bare rebuild: metadata can feed the
-					// container's OPENER line (an alert's type), so the rebuilt bytes may open
-					// as a different kind. The document branch runs no chain rebuild of its
-					// own, so this is the only seam a top-level metadata write crosses.
-					// `folds: null` — the rebuild root is the commit's own scope array, whose
-					// descriptor this mutate has already fixed as `noop`.
+					// Through `rebuildUnsharedChain`, not a bare rebuild: metadata can feed the
+					// container's opener line (an alert's type), so the rebuilt bytes may parse as
+					// a different kind, and the top-level commit runs no chain rebuild of its own.
+					// `folds: null` because the rebuild root is the commit's own children array,
+					// whose change this mutate has already fixed as `noop`.
 					const [reclassified] = rebuildUnsharedChain(
 						{ children: view.children },
 						[node],
@@ -308,8 +309,8 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 		async replaceBlock(i, replacement, focus, options) {
 			const children = scope.children();
 			if (i < 0 || i >= children.length) return;
-			// `snapshotOffset` is where the caret WAS, which undo restores; `focus.offset` is where
-			// it lands. They part company when the replacement seats it inside a new structure.
+			// `snapshotOffset` is where the caret was, which undo restores; `focus.offset` is where
+			// it lands. They differ when the replacement puts it inside a new structure.
 			const snapshot =
 				options?.undoEntry === 'join'
 					? 'skip'
@@ -317,8 +318,8 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 			await scope.commit({
 				snapshot,
 				eventTarget: i,
-				// Empty-replace op-kind is per-scope: top-level emits `replaceBlock{count:0}`,
-				// container collapses to `delete`. The structural change is `delete` either way.
+				// The op kind for an empty replace is per level: top-level emits
+				// `replaceBlock{count:0}`, a container `delete`. The change is `delete` either way.
 				op:
 					replacement.length === 0
 						? scope.collapseEmptyReplaceToDelete

@@ -1,7 +1,7 @@
 /**
- * Rewrite a byte range inside one leaf's raw as a single undo entry. The anchored inline editors
- * (image properties, link card) all reach their bytes this way, so the scope choice — top-level
- * vs container ceremony — and the no-op discard live here rather than at each popover.
+ * Rewrite a byte range inside one leaf's raw as a single undo entry. The inline popovers
+ * (image properties, link card) all write their bytes this way, so the choice of commit
+ * (top-level or container) and the no-op discard live here rather than in each popover.
  */
 
 import type { CstNode, Document } from '../core/nodes';
@@ -21,7 +21,7 @@ import type { UndoController } from './deps';
 export interface InlineRangeCommitDeps {
 	getDoc: () => Document;
 	controller: UndoController;
-	/** The instance's grammar, for the leaf's own raw-write rule. Absent = the global grammar. */
+	/** The instance's grammar, for the leaf kind's own raw-write rule. Absent = the global grammar. */
 	grammar?: GrammarView;
 }
 
@@ -49,8 +49,8 @@ export function createInlineRangeCommit(deps: InlineRangeCommitDeps): InlineRang
 		const leaf = nodeAt(deps.getDoc() as DocumentView, path);
 		if (leaf === null || !isBlockNode(leaf)) return;
 		const newRaw = leaf.raw.slice(0, start) + bytes + leaf.raw.slice(end);
-		// Compared against the bytes the KIND would actually land (G4.28), so a splice a cell's
-		// pipe escape normalizes away adds no undo entry — the dismiss-after-resize shape.
+		// Compared against the bytes the kind would actually store (G4.28), so a splice a table
+		// cell's pipe escaping cancels out adds no undo entry (dismissing an image after a resize).
 		const legal = normalizeOwnRaw(leaf, newRaw);
 		if (legal === leaf.raw) return;
 

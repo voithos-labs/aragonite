@@ -1,7 +1,7 @@
 /**
- * The Enter-completion seam: a lone typed line a registered completer claims becomes the
- * structure it opens instead of splitting. `planEnterCompletion` is pure; `withEnterCompletion`
- * is the one place the plan is spent, wrapped around a composed `splitBlock`.
+ * Enter completion: a lone typed line a registered completer recognises becomes the structure
+ * it opens instead of splitting. `planEnterCompletion` is pure; `withEnterCompletion` is the
+ * one place the plan is applied, wrapped around a composed `splitBlock`.
  */
 
 import { parse } from '../core/parser';
@@ -22,11 +22,11 @@ export interface EnterCompletion {
 }
 
 /**
- * Wraps a COMPOSED `splitBlock` with the consult, at the two bundle composition sites only. Above
- * the container overrides rather than inside the split body, so a container that replaces
- * `splitBlock` cannot take the completion arm out of its subtree. One press consults once per
- * NODE: the blockquote exit's hop to the parent scope is a second consult, on a different node,
- * and an always-declining one — a container is never a prose line.
+ * Wraps a composed `splitBlock` with the completer check, at the two bundle composition sites
+ * only. Above the container overrides rather than inside the split, so a container that
+ * replaces `splitBlock` cannot lose the completion for its subtree. One Enter checks once per
+ * node: the blockquote exit's call into the parent is a second check on a different node,
+ * which always declines, since a container is never a prose line.
  */
 export function withEnterCompletion(
 	blockEdit: BlockEditActions,
@@ -40,7 +40,7 @@ export function withEnterCompletion(
 				await blockEdit.splitBlock(index, offset);
 				return;
 			}
-			// `snapshotOffset` is where the caret WAS, so one undo restores the typed line with the
+			// `snapshotOffset` is where the caret was, so one undo restores the typed line with the
 			// caret at its end rather than in front of it.
 			await blockEdit.replaceBlock(
 				index,
@@ -49,10 +49,10 @@ export function withEnterCompletion(
 				{ snapshotOffset: offset }
 			);
 		},
-		// The typed arm: a keystroke that leaves the block as a line an on-type completer claims
-		// (see `BlockCompleter.onType`) forms the structure at once, the way a typed ` ``` ` is a
-		// fence the moment the parser sees it. The write lands first, so the typed line is its own
-		// undo step and the mint replaces the bytes the CST actually holds.
+		// The typing side: a keystroke that leaves the block as a line an on-type completer
+		// recognises (`BlockCompleter.onType`) forms the structure at once, the way a typed
+		// ` ``` ` is a fence the moment the parser sees it. The write lands first, so the typed
+		// line is its own undo step and the replacement covers the bytes the CST actually holds.
 		async updateBlockContent(index, text, preEditOffset, postEditFocusOffset) {
 			await blockEdit.updateBlockContent(index, text, preEditOffset, postEditFocusOffset);
 			const offset = postEditFocusOffset ?? preEditOffset;
@@ -69,7 +69,7 @@ export function withEnterCompletion(
 	};
 }
 
-/** The completion a press at `offset` earns, or null when the block or the caret disqualifies it. */
+/** The completion Enter at `offset` produces, or null when the block or the caret rules it out. */
 export function planEnterCompletion(
 	node: NodeView | undefined,
 	offset: number
@@ -77,7 +77,7 @@ export function planEnterCompletion(
 	return planCompletion(node, offset, completeTypedLine);
 }
 
-/** The completion a keystroke earns, consulting only the completers that answer on type. */
+/** The completion a keystroke produces, asking only the completers that answer on type. */
 export function planTypedCompletion(
 	node: NodeView | undefined,
 	offset: number
@@ -96,20 +96,20 @@ function planCompletion(
 	const claim = consult(line);
 	if (!claim) return null;
 
-	// Through the parser rather than a hand-built node, so the mint is exactly what a reload of
-	// those bytes produces. Global grammar, as every other structural reparse.
+	// Through the parser rather than a hand-built node, so the new blocks are exactly what a
+	// reload of those bytes produces. Global grammar, like every other structural reparse.
 	const lineEnding = trailingLineEnding(node.raw);
 	const raw = claim.lines.map((text) => text + lineEnding).join('');
 	const replacement = parse(raw, { scope: 'fragment' }).children;
-	// A mint that paints nothing would replace the typed line with a delete, or with blank trivia
-	// a reload reads as neither. Blank lines parse back as empty paragraphs, so the reading is per
-	// node rather than the child count.
+	// A completion that shows nothing would replace the typed line with a delete, or with blank
+	// lines a reload reads as neither. Blank lines parse back as empty paragraphs, so the check
+	// is per node rather than by child count.
 	if (replacement.every((node) => node.raw.trim() === '')) return null;
 	return { replacement, caret: resolveCaret(replacement[0], claim.caret) };
 }
 
-/** The claim's line/column as a byte offset inside the node its path addresses. Resolved here
- *  because the line ending the count depends on is the seam's choice, not the completer's. */
+/** The completer's line and column as a byte offset inside the node its path addresses. Resolved
+ *  here because the line ending the count depends on is chosen here, not by the completer. */
 function resolveCaret(minted: CstNode, caret: CompletionResult['caret']) {
 	let target: CstNode | undefined = minted;
 	for (const index of caret.path) target = target?.children?.[index];
@@ -118,7 +118,7 @@ function resolveCaret(minted: CstNode, caret: CompletionResult['caret']) {
 }
 
 /** The one line this block's raw is, or null when it is not a single line of prose whose every
- *  byte is content — a completer must never read a kind's own markers as typed text. */
+ *  byte is content: a completer must never read a kind's own markers as typed text. */
 function wholeTypedLine(node: NodeView): string | null {
 	const descriptor = getBlockKindDescriptor(node.kind);
 	if (descriptor.mergeRole !== 'prose') return null;

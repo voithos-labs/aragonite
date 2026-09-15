@@ -1,8 +1,8 @@
 /**
- * Container BlockEditActions factory. Interior mutations route through the shared
- * `block-edit-core` against a container `CommitScope`; this wrapper owns what the
- * core can't: the children guards, boundary delegation up to `parent.blockEdit`, the
- * unwrap dispatch, and `updateBlockContent`.
+ * A container's BlockEditActions. Interior edits go through the shared `block-edit-core`
+ * against a container `CommitScope`; this wrapper owns what the core cannot: the children
+ * guards, handing edge cases up to `parent.blockEdit`, the unwrap dispatch, and
+ * `updateBlockContent`.
  */
 
 import { tick } from 'svelte';
@@ -34,9 +34,9 @@ export function createNestedBlockEdit(
 	const core = createBlockEditCore(scope);
 
 	/**
-	 * Where a caret at `offset` lands once this container's body-write rule has
-	 * rewritten `text`. Both caret doors read it, since either can arrive from a
-	 * component that measured the DOM before the rewrite.
+	 * Where a caret at `offset` lands once this container's body-write rule has rewritten
+	 * `text`. Both caret placements read it, since either can come from a component that
+	 * measured the DOM before the rewrite.
 	 */
 	function mapCommittedOffset(text: string, offset: number): number {
 		const bodyWrite = tryGetBlockKindDescriptor(deps.node.kind)?.bodyWrite;
@@ -70,8 +70,8 @@ export function createNestedBlockEdit(
 					await firstChildUnwrapStrategies[unwrapRole.firstChildBackspace]({ deps, state });
 					return;
 				}
-				// Undeclared containers delegate upward. Awaited so caller continuations
-				// (focus placement) run after the upward chain settles.
+				// A container with no unwrap role hands the merge to its parent. Awaited so the
+				// caller's follow-up (focus placement) runs after the parent is done.
 				await parent.blockEdit.mergeWithPrevious(deps.index);
 				return;
 			}
@@ -94,9 +94,9 @@ export function createNestedBlockEdit(
 				return parent.blockEdit.mergeWithNext(deps.index);
 			}
 
-			// A collapsed container's body is unmounted, so forward-Delete exits past the container
-			// rather than dead-ending on the invisible body — a focus move, no mutation.
-			// `append: false` keeps the last-block case inert rather than minting a paragraph.
+			// A collapsed container's body is unmounted, so forward Delete exits past the container
+			// rather than stopping on the invisible body: a focus move, no edit. `append: false`
+			// keeps the last-block case inert rather than appending a paragraph.
 			if (isCollapsedContainer(deps.node)) {
 				await parent.focus.moveFocus(deps.index + 1, 'start', { append: false });
 				return;
@@ -130,8 +130,8 @@ export function createNestedBlockEdit(
 			preEditOffset?: number,
 			postEditFocusOffset?: number
 		): Promise<void> {
-			// The batch's pause window opens once this keystroke's own work is done, throw
-			// included: an unarmed batch never ends by pause.
+			// The batch's pause timer starts once this keystroke's own work is done, throw
+			// included: a batch whose timer never started never ends by pause.
 			try {
 				await applyContentUpdate(innerIndex, text, preEditOffset, postEditFocusOffset);
 			} finally {
@@ -148,7 +148,8 @@ export function createNestedBlockEdit(
 	): Promise<void> {
 		if (!deps.node.children) return;
 
-		// No tail suffix: the document-level fold has no container twin yet.
+		// No trailing-line suffix: only the document keeps its last blank line in a suffix, a
+		// container does not.
 		const preview = previewContentReparse(
 			deps.node.children[innerIndex],
 			text,
@@ -160,9 +161,9 @@ export function createNestedBlockEdit(
 		const leafPath = extendDocPath(deps.path, innerIndex);
 
 		if (preview.op !== 'noop') {
-			// Mapped, because a caret measured before the rewrite names a position in
-			// bytes that never landed. Reachable here and not only on the routine path:
-			// completing `</details>` is a kind change, and a kind change commits.
+			// Mapped, because a caret measured before the rewrite names a position in bytes that
+			// were never stored. Reachable here and not only on the routine path: completing
+			// `</details>` is a kind change, and a kind change commits.
 			const focusOffset = mapCommittedOffset(text, postEditFocusOffset ?? preEditOffset ?? 0);
 			let settled: SettledContent = { change: { op: 'noop' }, textStart: 0 };
 			await parent.containerEdit.commitContainer({
@@ -193,8 +194,8 @@ export function createNestedBlockEdit(
 			return;
 		}
 
-		// Routine typing — debounced undo path, no structural commit. The inner leaf's
-		// id is the batch key, so a focus move between sibling leaves breaks the batch.
+		// Routine typing: the debounced undo path, no structural commit. The inner leaf's id is
+		// the batch key, so a focus move between sibling leaves breaks the batch.
 		parent.containerEdit.pushDebouncedCheckpoint(
 			leafPath,
 			preEditOffset ?? 0,
@@ -223,24 +224,25 @@ export function createNestedBlockEdit(
 				deps.grammar,
 				sharing
 			);
-			// taskItem metadata is extracted at parse time from the first stripped
-			// line, so without this it freezes while the serialized source drifts.
+			// Task-item metadata is read at parse time from the first line, so without this it
+			// stays frozen while the serialized source changes.
 			if (ownedContainer.kind === 'listItem' && innerIndex === 0) {
 				reconcileTaskMetadata(ownedContainer);
 			}
 			return settled.change;
 		});
 		parent.containerEdit.nudgeReactivity();
-		// The rebuild re-kinded a container on this spine (a typed `> [!TIP]` marker
-		// moves into the container's own bytes), so the edited leaf no longer exists.
-		// Re-enter at the container's start; its focus walk lands in the body.
+		// The rebuild changed the kind of a container above the leaf (a typed `> [!TIP]` marker
+		// moves into the container's own bytes), so the edited leaf no longer exists. Re-enter
+		// at the container's start; its focus walk lands in the body.
 		if (reclassified) {
 			await tick();
 			await parent.focus.moveFocus(deps.index, 'start');
 			return;
 		}
-		// A blank-fill settle can fold here, which the single-node preview probe cannot see;
-		// the spine wrapper published the splice, and the caret follows the re-tiled bytes.
+		// Filling a blank block can merge it into a neighbour here, which the single-node trial
+		// cannot see; `withUnsharedSpine` wrote the splice to state, and the caret follows the
+		// bytes as they now lie.
 		if (settled.change.op === 'noop') return;
 		await tick();
 		focusAfterContentReplace(

@@ -1,8 +1,8 @@
 /**
- * Register a container-chrome leaf kind: editable text at a reserved child slot of a plugin
- * container (a callout title, a details summary). The container declares the slot via
- * `reservedChrome`; this seam supplies the leaf. Chrome only, never standalone recognizer-backed
- * kinds — the contract is a single-line, plain-text child (`docs/design/plugin-contract.md`).
+ * Register a title-row leaf kind: editable text at a reserved child index of a plugin
+ * container (a callout title, a details summary). The container declares the index via
+ * `reservedChrome`; this registers the leaf. Only for such rows, never for a kind with its
+ * own parser: the child is one line of plain text (`docs/design/plugin-contract.md`).
  */
 
 import type { Component } from 'svelte';
@@ -18,24 +18,24 @@ import { makeBlockNode, type AnyBlockKind, type CstNode } from '../../core/nodes
 import type { BlockComponent, BlockComponentProps } from '../../block-component';
 
 /**
- * Mint the reserved child-0 node for a chrome leaf. An empty title collapses to a
- * bare newline, so the empty leaf still holds a line.
+ * Create the reserved child-0 node for a title-row leaf. An empty title becomes a bare
+ * newline, so the empty leaf still holds a line.
  */
 export function chromeChild(kind: AnyBlockKind, text: string): CstNode {
 	return makeBlockNode({ kind, leadingTrivia: '', raw: text ? `${text}\n` : '\n' });
 }
 
 export interface ChromeLeafOptions {
-	/** CSS class on the leaf's surface, for chrome styling. */
+	/** CSS class on the leaf's editable element, for styling the title row. */
 	blockClass?: string;
-	/** A binding replaces the seam default for its chord; the defaults fill the rest. */
+	/** A binding replaces the default for its chord; the defaults fill the rest. */
 	keymap?: KeyBinding[];
-	/** Defaults to 'not-mergeable' (chrome: body prose cannot merge into it). */
+	/** Defaults to 'not-mergeable': body prose cannot merge into a title row. */
 	mergeRole?: MergeRole;
 }
 
-// Chrome is single-line by serialization, so Enter descends into the body
-// instead of splitting; Backspace/Delete take the ordinary merge walk.
+// A title row serializes as one line, so Enter moves into the body instead of splitting;
+// Backspace and Delete take the ordinary merge path.
 const CHROME_DEFAULT_KEYMAP: KeyBinding[] = [
 	{ chord: 'Enter', command: 'chrome.descendToBody' },
 	{ chord: 'Backspace', command: 'block.mergePrev' },
@@ -61,8 +61,8 @@ export function registerChromeLeaf<
 		supportsInline: false,
 		contextDependentKind: true,
 		keymap: mergeChromeKeymap(opts.keymap),
-		// No conformanceFixture: the container opener mints child-0, so a chrome leaf
-		// never stands alone as a document scan's result.
+		// No conformanceFixture: the container's parser creates child 0, so a title-row leaf
+		// never comes out of a document parse on its own.
 		closure: {
 			roundTrip: {
 				mode: 'implemented',
@@ -97,7 +97,7 @@ export function registerChromeLeaf<
 		kind,
 		defineBlockComponent(component, () => ({ blockClass: opts.blockClass }))
 	);
-	// Inline-only surface, so `surfaceForcesInline` holds if a paste ever reaches
-	// surface resolution — defense behind the gate that already flattens chrome pastes.
+	// Inline-only, so `surfaceForcesInline` holds if a paste ever reaches surface resolution:
+	// a second line of defense behind the check that already flattens title-row pastes.
 	registerPasteSurface({ kind, onInlinePaste: defaultInlineHook });
 }

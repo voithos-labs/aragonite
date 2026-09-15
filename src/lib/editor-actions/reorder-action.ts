@@ -1,10 +1,10 @@
 /**
- * Sibling-reorder action for the drag-and-drop and keyboard-nudge callers: resolve the unit a path
- * points into, clamp the destination, commit one permutation. A reorder creates no node — each
- * moved block keeps its id and ref through the `reorderChildren` idMap — and the only writes are
- * positional separators (`reorderChildrenWithTrivia`) and marker renumbering. Where the move
- * invalidated a join, that primitive's settle folds it, so both the caret and the announcement
- * ride the outcome it reports rather than the destination the clamp picked.
+ * Moving a block among its siblings, for drag-and-drop and the keyboard nudge: resolve the
+ * unit a path points into, clamp the destination, commit one permutation. A reorder creates no
+ * node (each moved block keeps its id and ref through the `reorderChildren` idMap); the only
+ * writes are blank-line separators and marker renumbering. A move can make two neighbours
+ * merge, so the caret and the announcement use the outcome the primitive reports, not the
+ * destination the clamp picked.
  */
 
 import { CURSOR_START } from '../block-component';
@@ -23,7 +23,7 @@ export interface ReorderAction {
 	nudgeReorderUnit(fromPath: number[], dir: -1 | 1): Promise<void>;
 }
 
-/** The two ids that mean a reorder nudge, folded once for every surface's `runCommand` arm. */
+/** The two command ids that mean a reorder nudge, handled once for every block's `runCommand`. */
 export function reorderRunCommand(
 	id: CommandId,
 	reorder: Pick<ReorderAction, 'nudgeReorderUnit'>,
@@ -84,7 +84,7 @@ export function createReorderAction(
 			containerNode: parent,
 			path: unit.parentPath,
 			state,
-			// A drag carries no live caret: restore to the moved unit's pre-move path.
+			// A drag carries no live caret, so undo restores to the moved unit's pre-move path.
 			snapshot: { path: extendDocPath(unit.parentPath, unit.index), offset },
 			op: {
 				kind: 'reorder',
@@ -95,8 +95,8 @@ export function createReorderAction(
 				const settled = reorderChildrenWithTrivia(scope.children, unit.index, to, scope.sharing);
 				landing = settled.landing;
 				if (unit.renumberMarkers) {
-					// Ordered markers are position-dependent, so this unshares each item whose
-					// marker it rewrites; the ceremony's rebuild then concatenates fresh raws.
+					// Ordered markers depend on position, so this copies each item whose marker it
+					// rewrites; the commit's rebuild then concatenates the fresh raws.
 					renumberOrderedList(scope.node, 0, scope.sharing);
 				}
 				return settled.change;
@@ -105,8 +105,8 @@ export function createReorderAction(
 				if (focusAfter) state.innerBlockRefs[landing]?.focus(CURSOR_START);
 			}
 		});
-		// Re-resolved, not `parent`: the ceremony's copy-on-write replaced that node, so the one
-		// this action resolved still holds the pre-move children.
+		// Re-resolved, not `parent`: the commit's copy-before-write replaced that node, so the
+		// one resolved above still holds the pre-move children.
 		return { landing, total: blockNodeAt(deps.doc, unit.parentPath)?.children?.length ?? 0 };
 	}
 
@@ -130,17 +130,17 @@ export function createReorderAction(
 	): Promise<void> {
 		const target = resolveAndClamp(fromPath, computeTo);
 		if (!target) return;
-		// Drop any cross-block selection so the overlay doesn't fight the move; the
-		// commit's afterTick re-places the caret when the caller wants it.
+		// Drop any cross-block selection so the overlay does not fight the move; the commit's
+		// afterTick places the caret again when the caller wants it.
 		deps.selectionState.collapse();
 		const outcome = await commitReorder(target.unit, target.to, caretOffset(), focusAfter);
 		if (outcome) onReorder?.(outcome.landing, outcome.total);
 	}
 
 	return {
-		// A dropped block is not a block you asked to edit: focusing it opens whatever a caret
-		// opens there (an equation reveals its source), which is not what a drag asked for.
-		// The keyboard nudge is the opposite — the caret must ride the block it is moving.
+		// A dropped block is not a block the user asked to edit: focusing it opens whatever a
+		// caret opens there (an equation shows its source), which a drag did not ask for. The
+		// keyboard nudge is the opposite: the caret must move with the block.
 		moveReorderUnit: (fromPath, toIndex) => run(fromPath, () => toIndex, false),
 		nudgeReorderUnit: (fromPath, dir) => run(fromPath, (index) => index + dir, true)
 	};

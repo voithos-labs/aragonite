@@ -1,6 +1,6 @@
 /**
- * ContainerEditActions factory: the debounced checkpoint pusher for raw typing
- * outside the commit primitive, the doc-root reactivity nudge, and `commitContainer`.
+ * The root ContainerEditActions: the debounced undo checkpoint for typing outside a commit,
+ * the document-root reactivity nudge, the leaf write path, and `commitContainer`.
  */
 
 import type { ContainerEditActions } from '../action-contracts';
@@ -28,8 +28,8 @@ export function createContainerEditActions(
 		},
 
 		nudgeReactivity(): void {
-			// Raw mutations made outside the commit primitive surface through this nudge,
-			// so Svelte re-reads doc.children.
+			// Raw writes made outside a commit become visible through this nudge, which makes
+			// Svelte re-read doc.children.
 			deps.doc.children = [...deps.doc.children];
 		},
 
@@ -38,22 +38,22 @@ export function createContainerEditActions(
 			write: (chain: CstNode[], sharing: SharingState) => StructuralChange | void
 		): boolean {
 			const chain = ensureUnsharedPath(deps.doc, absPath, deps.sharing);
-			// Read before the write: it is the one byte-state no level of the rebuild can capture
-			// for itself, and the ancestry splice needs it to place the leaf's own region.
+			// Read before the write: no level of the rebuild can recover the leaf's old bytes
+			// itself, and the ancestor fix-up needs them to locate the leaf's region.
 			const leafPreviousRaw = chain[chain.length - 1]?.raw;
 			const written = write(chain, deps.sharing) ?? { op: 'noop' };
-			// Unconditional: this door exists to carry bytes, and a short chain or a `noop`
-			// settle says nothing about whether `write` moved any.
+			// Unconditional: this path exists to write bytes, and a short chain or a `noop`
+			// change says nothing about whether `write` changed any.
 			deps.bumpContentVersion();
-			// The write's own settle can splice the scope it wrote in, and a short chain means the
-			// unshare never reached that scope, so there is nothing to publish against.
+			// The write's own fix-up can splice the child list it wrote in, and a short chain means
+			// the copy never reached that list, so there is nothing to write to state.
 			if (chain.length === absPath.length) {
 				publishScopeFold(deps, chain[absPath.length - 2], written);
 			}
-			// The ANCESTRY settle's folds — a container's own slot in its PARENT, not the write's
-			// scope published above. Their unwind is discarded on purpose: nothing rolls back at a
-			// door that is not a ceremony. Their caret landing (`foldLandingFor`) wants a tick this
-			// synchronous door has not got, and no producer reaches one.
+			// Containers that collapsed while their ancestors were rebuilt: a splice in the
+			// container's parent, not in the child list written above. The undo function is
+			// dropped on purpose (this path is not a commit, so nothing rolls back), and the
+			// caret landing (`foldLandingFor`) needs a tick this synchronous path has not got.
 			const folds: AncestrySeamFold[] = [];
 			const replacements = rebuildUnsharedChain(
 				deps.doc,

@@ -1,7 +1,7 @@
 /**
- * Override factory every plugin-seam container shares: the Enter-on-empty-last-child exit.
- * Backspace unwrap (U2) is declaration-driven — the kind's `unwrapRole` selects strategies
- * in `unwrap-strategies.ts`.
+ * The override every plugin container shares: Enter on an empty last child exits the
+ * container. Backspace unwrap (rule U2) comes from the kind's declared `unwrapRole`, which
+ * picks a strategy in `unwrap-strategies.ts`.
  */
 
 import type { BlockEditActions } from '../action-contracts';
@@ -17,9 +17,9 @@ export interface ContainerExitOverridesDeps {
 export function createContainerExitOverrides(deps: ContainerExitOverridesDeps) {
 	return (defaults: NestedActionsBundle) => ({
 		blockEdit: {
-			// Enter on an empty trailing paragraph exits the container instead of appending another
-			// inner line, and MINTS the blank it lands on: Enter is never down-nav, so a block
-			// below is left alone and a nested container is escaped one level per press.
+			// Enter on an empty trailing paragraph exits the container instead of adding another
+			// inner line, and creates the blank paragraph it lands on: Enter never moves down into
+			// an existing block, and a nested container is escaped one level per Enter.
 			splitBlock: async (innerIndex: number, offset: number): Promise<void> => {
 				const { parentBlockEdit } = deps;
 				const { node, index } = deps.scope;
