@@ -25,7 +25,7 @@ import {
 // while the same pair at top level round-tripped.
 // Miss-analysis: the live-join pins drive the two top-level merge primitives; M1 was covered only
 // by mode-free structural cases, and the census that would have caught the gap
-// (`lint/live-rewrite-verification.test.ts :: readsSlot`) is one-directional set equality.
+// (G4.33’s slot-reader row in `lint/manifest-rules.test.ts`) is one-directional set equality.
 
 beforeEach(() => registerLiveJoinSeamCleaner(cleanLiveJoinSeam));
 afterEach(() => __resetLiveJoinSeamCleanerForTests());

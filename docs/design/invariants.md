@@ -920,14 +920,14 @@ declared in `sideEffects`. Subset, not equality: the `/renderer` engine subpaths
 call `applyPasteTransforms`; a new route born without it silently drops plugin transforms. Two
 halves, because caller parity alone can't see the shape it names (a route that never mentions the
 symbol contributes nothing to the caller set), so every clipboard or drop read is also enumerated
-and required to reach a sanctioned route. `lint/paste-transform-sites.test.ts`.
+and required to reach a sanctioned route. `lint/manifest-rules.test.ts`.
 
 **G4.12 · Caret-edge destructive keys.** Every plain Backspace or Delete intercepted at a caret edge
 in a prose block routes through the one edge-policy dispatch, which resolves what sits at the edge
 (a CST widget, a decoration island, an ambient-prefix overlap) against declarative policies, and
 commits via `updateBlockContent`. The only carve-out is the selected-widget second-press delete. No
 other `blocks/text/` file intercepts a plain destructive key without being allowlisted.
-`lint/caret-edge-seams.test.ts`.
+`lint/manifest-rules.test.ts`.
 
 **G4.13 · The view-to-mutable boundary.** No `as CstNode` or `as Document` view-stripping cast
 outside `tree-operations/` and the commit ceremony. Readers hold bytes-readonly views
@@ -997,7 +997,7 @@ commit, keyboard resize and the popover dirty check, each reaching for the seria
 each re-emitting GFM over bytes an inline plugin kind claimed, and a fourth path joining the route
 undocumented). It does NOT catch a path that hand-rolls the GFM bytes from a template; no name scan
 can. Scanned rather than typed because the serializer carries its own unit suite and so can't be
-unexported. `lint/image-bytes-write-seam.test.ts`.
+unexported. `lint/manifest-rules.test.ts`.
 
 **G4.22 · E2E wait predicates describe the outcome.** Inside one `test()` body, a `waitForSource*`
 predicate must describe the POST-operation shape. One that's already true on the document the test
@@ -1085,7 +1085,7 @@ namer is a decision rather than a drift. The runtime backstop is the DEV parity 
 (`invariants/marker-css-parity.ts`): once per mode change, a probe span per family compares
 `getComputedStyle` against the predicate's answer, standing down where no stylesheet computes; the
 presentation e2e suite asserts it through the invariant-console gate.
-`lint/hidden-run-classification.test.ts`.
+`lint/manifest-rules.test.ts`.
 
 **G4.31 · Affinity and pending-mark resets.** Edge affinity (the record of how the caret arrived at
 a block edge, which decides which side of a hidden marker run a typed byte lands on) and the pending
@@ -1127,7 +1127,7 @@ declines any side whose chrome PAINTS (live-mode.md § 4.1), or it reads bytes o
 nobody saw and drops them. The two cut seams run off the DOM and answer that question from the
 model, since a construct wrapping content-empty chrome paints its own delimiters too. The files
 permitted to name `preDelete` at all are a closed allowlist, each with its reason; the fenced-code
-surface is the one splicer outside the seam. `lint/live-rewrite-verification.test.ts`.
+surface is the one splicer outside the seam. `lint/manifest-rules.test.ts`.
 
 **G4.34 · Link byte-write seam.** The image seam's twin (G4.21), over the construct whose
 destination the reader never sees: the GFM link serializer is named in code only inside
@@ -1137,7 +1137,7 @@ boundary is the CALLER set; a second write path is the shape that shipped for im
 verifies every candidate through the render path (G4.33): a destination that breaks its own
 construct surfaces as literal source, which no walk over the parse can see. A link claimed by an
 inline plugin kind is declined outright, there being no `rewriteLink` hook to re-serialize it.
-`lint/link-bytes-write-seam.test.ts`.
+`lint/manifest-rules.test.ts`.
 
 **G4.35 · Stamp and revealable parity.** A construct whose marker spans carry a `data-construct-*`
 stamp declares `revealable: true` in the inline-construct policy table, and every revealable kind
@@ -1160,7 +1160,7 @@ set-scans with per-file reasons and set equality: the `setRaw` namers (one per c
 caret-write helpers (`setCursorOffset`, `restoreCaretAtWalkOffset`), and the surfaces building
 `focus` from `caret-doors`' `placeCaret`. A new writer in any of the five lists is a lint
 conversation, not a drift; the class arrived as site-by-site marker-string sweeps that didn't
-converge until the count was closed. `lint/caret-write-doors.test.ts`.
+converge until the count was closed. `lint/manifest-rules.test.ts`.
 
 **G4.37 · Content-empty stamp parity.** The files rendering a fragment into a contenteditable the
 caret walk reads (`renderInlineNodes`, `renderCodeBlock`) are exactly the files stamping
@@ -1168,7 +1168,7 @@ caret walk reads (`renderInlineNodes`, `renderCodeBlock`) are exactly the files 
 catches the missing stamp only when a caret parks into it in dev, so surface N+1 shipped unstamped
 would paint a marker-only block as an empty line nobody can reach. Both lists are pinned, and the
 files naming a renderer that mounts nothing carry a per-file reason.
-`lint/content-empty-stamp-census.test.ts`.
+`lint/manifest-rules.test.ts`.
 
 **G4.38 · Insertion surface parity.** Every component mounting an editable surface
 (`createEditableSurface`, `createEditableLeaf`) publishes `insertMarkdown` through the channel its
@@ -1235,7 +1235,7 @@ one is declared with the commit whose settle covers its writes, and each is asse
 commit entry or a settle entry. Keyed on the IMPORT, so an alias still enrolls its file and a
 same-named action-bundle method doesn't. The tail rule (GH #168) lives in the settle: a caller
 outside the commit ceremony leaves it unrun and the document one folded line short of its own
-reload, silently, since the bytes still round-trip. `lint/settle-funnel-callers.test.ts`.
+reload, silently, since the bytes still round-trip. `lint/manifest-rules.test.ts`.
 
 **G4.46 · Ancestry fold-sink stance.** `rebuildUnsharedChain` and `rebuildUnsharedAncestry` take a
 required-nullable `folds` sink, and a fold splices the PARENT's children, so passing a sink is the
