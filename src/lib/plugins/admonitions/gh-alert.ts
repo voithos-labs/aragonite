@@ -1,8 +1,8 @@
 /**
- * The single home for `> [!TYPE]` recognition, reused by the native `githubAlert` opener.
- * Both converters run the parser's own extent authority so CommonMark §5.1 lazy
- * continuation lands identically. On a whole document prefer the wrapper in
- * `convert-document.ts`: the stream scanner here is not fence-safe.
+ * The one place `> [!TYPE]` is recognized, shared with the native `githubAlert` opener.
+ * Both converters ask the parser how far the blockquote runs, so CommonMark §5.1 lazy
+ * continuation is handled identically. For a whole document use `convert-document.ts`
+ * instead: the scanner here is not fence-safe.
  */
 import { blockquoteExtent, escalatedColonCount, splitLines, type ParsedLine } from '$lib/plugin';
 import { ADMONITION_KINDS } from './kinds';
@@ -11,8 +11,8 @@ const ALERT_NAMES = new Set<string>(ADMONITION_KINDS);
 
 const CANONICAL_COLONS = 3;
 
-/** Every `>` pattern here caps indent at CommonMark's 0–3 spaces: past that the line is
- *  indented code, and claiming it would promote a literal `>` to a marker on rebuild. */
+/** Every `>` pattern here caps indent at CommonMark's 0 to 3 spaces: past that the line is
+ *  indented code, and taking it would promote a literal `>` to a marker on rebuild. */
 const MARKER = /^ {0,3}>[ \t]*\[!([A-Za-z]+)\][ \t]*$/;
 
 const QUOTE_OPEN = /^ {0,3}>/;
@@ -46,8 +46,8 @@ function emitDirective(name: string, source: ParsedLine[]): string {
 		.map((line) => stripQuoteMarker(line.text) + (line.lineEnding || fallback))
 		.join('');
 	const body = splitLines(convertGithubAlerts(stripped).converted);
-	// Fence lengthened past any colon run in the body, which would otherwise read as the
-	// container's own closer once this output is written into the document.
+	// The fence runs longer than any colon run in the body, which would otherwise read as
+	// this container's own closer once the output is written into the document.
 	const colons = ':'.repeat(
 		escalatedColonCount(body.map((line) => line.text).join('\n'), CANONICAL_COLONS)
 	);
@@ -75,8 +75,8 @@ export function convertGithubAlerts(text: string): AlertConversion {
 		const typed = matchAlertMarker(lines[i].text);
 		if (typed && startsBlockquote(lines, i)) {
 			const { nextIndex } = blockquoteExtent(lines, i, lines.length);
-			// A marker line always opens a quote, so the extent claims at least this line;
-			// floored anyway because a loosened indent cap would hang this loop.
+			// A marker line always opens a quote, so the extent covers at least this line;
+			// checked anyway because a loosened indent cap would hang this loop.
 			if (nextIndex > i) {
 				converted += emitDirective(typed.toLowerCase(), lines.slice(i, nextIndex));
 				changed = true;

@@ -1,7 +1,7 @@
 <script lang="ts">
-	// Collapse-ness has one definition, the descriptor's `reservedChrome.isCollapsed` probe.
-	// The reader's transient disclosure layers over it by feeding the factory the effective
-	// state, so the window clamp, focus clamp and caret never disagree.
+	// Whether a section is collapsed is decided in one place, `reservedChrome.isCollapsed` on
+	// the kind descriptor. Reading mode's temporary open state goes into the factory on top of
+	// it, so windowing, focus and the caret never disagree.
 	import {
 		BlockList,
 		createContainerBlock,
@@ -22,15 +22,15 @@
 			getIndex: () => index,
 			getPath: () => myPath,
 			getBoxEl: () => boxEl,
-			// The effective state, so a transiently-opened section actually mounts and
-			// measures its body.
+			// The state on screen, so a section opened only in reading mode still mounts
+			// and measures its body.
 			isCollapsed: () => !open
 		});
 
 	const reading = $derived(getPresentationMode() === 'reading');
 	const reader = createReaderDisclosure({ isDocumentOpen: () => documentOpen });
-	// Leaving reading mode discards the flip: with the bytes editable again, a view
-	// state they disagree with would be a live lie.
+	// Leaving reading mode discards the temporary state: with the bytes editable again, a
+	// view that disagrees with them would be showing something the document does not say.
 	$effect(() => {
 		if (!reading) reader.reset();
 	});
@@ -46,8 +46,8 @@
 		updateOwnMetadata({ open: !isOpen }, caretInBody ? () => containerApi.focus(0) : undefined);
 	}
 
-	// Reading mode gets the handler that cannot write, not one that declines to: this
-	// is the only mode read, and the toggle keeps working for a reader either way.
+	// Reading mode gets the handler that cannot write at all, rather than one that checks the
+	// mode and declines, so nothing reachable from here can turn a toggle into an edit.
 	const onToggle = $derived(reading ? reader.toggle : commitDisclosure);
 
 	export { containerApi };
@@ -67,7 +67,7 @@
 </div>
 
 <style>
-	/* Mirrors the admonition's rail gap and caret column so the two read as a family. */
+	/* Matches the admonition's left border and text column so the two look like a family. */
 	.details-block {
 		position: relative;
 		margin: 0.8em 0;
@@ -80,11 +80,11 @@
 	.details-toggle {
 		position: absolute;
 		left: 0.45em;
-		/* Anchors the button's em geometry to the editor font; without it the UA font-size
-		   shrinks the line-box math below and floats the caret above the summary title. */
+		/* Ties the button's em sizes to the editor font; without it the browser's default
+		   font-size shrinks the line box below and floats the arrow above the summary title. */
 		font: inherit;
-		/* Overlays the summary's first line box exactly (block padding + the leaf's 2px,
-		   one line-height tall), so flex-centering lands the caret on the title line. */
+		/* Sits exactly over the summary's first line (the block's padding plus the child's
+		   2px, one line-height tall), so centring lands the arrow on the title line. */
 		top: calc(0.15em + 2px);
 		width: 1.1em;
 		height: 1.6em;
@@ -116,8 +116,8 @@
 		border-radius: var(--radius-ui, 3px);
 	}
 
-	/* The summary leaf is promoted to a title row by CSS alone; it stays a real block
-	   inside `.block-list`, so selection and windowing treat it as an ordinary child. */
+	/* The summary is styled as a title row by CSS alone; it stays a real block inside
+	   `.block-list`, so selection and windowing treat it as an ordinary child. */
 	.details-block :global(.details-summary) {
 		font-weight: 600;
 	}

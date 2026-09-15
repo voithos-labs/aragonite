@@ -11,13 +11,13 @@
 		navigateTo
 	}: InlineWidgetComponentProps = $props();
 
-	// Frozen: the pool remounts on any source change, so this can never go stale.
+	// Read once: the widget remounts on any source change, so this can never go stale.
 	// svelte-ignore state_referenced_locally
 	const label = source.slice(2, -1);
 
-	// Reactive, not baked: the pool keys on the source, so this instance survives a renumber
-	// driven by a reference added elsewhere. The version is read inside the derived, so the
-	// shared walk stays subscribed rather than snapshotted.
+	// Reactive, not computed once: widgets are keyed on the source, so this instance survives a
+	// renumber caused by a reference added elsewhere. The version is read inside the derived, so
+	// the shared numbering pass stays subscribed rather than snapshotted.
 	const display = $derived.by(() => {
 		const doc = getDocument?.();
 		if (!doc) return label;
@@ -27,8 +27,8 @@
 		return String(numbers.get(label) ?? label);
 	});
 
-	// Resolved on the gesture, never derived: a reference that is never clicked costs nothing
-	// beyond the numbering walk it already pays for.
+	// Looked up on the click, never derived: a reference nobody clicks costs nothing beyond the
+	// numbering pass it already pays for.
 	function onClick(e: MouseEvent): void {
 		const mode = getPresentationMode?.() ?? 'source';
 		if (!isWidgetActivationClick(e.ctrlKey || e.metaKey, mode)) return;

@@ -1,7 +1,7 @@
 /**
- * A `[[toc]]` leaf whose folded view lists the document's headings, read straight off
- * `BlockComponentProps.document` — the reference consumer of that prop. Recognition is
- * gated on registration, so with no plugin loaded `[[toc]]` is a plain paragraph.
+ * A `[[toc]]` block whose rendered view lists the document's headings, read straight off
+ * `BlockComponentProps.document`: the worked example of using that prop. Recognition starts
+ * only once the plugin registers, so without it `[[toc]]` is a plain paragraph.
  */
 
 import {
@@ -26,14 +26,14 @@ const TOC_LINE = '[[toc]]';
 export function registerTocBlock(): void {
 	const toc = declarePluginKind(TOC_BLOCK);
 
-	// A source-holding leaf like `fencedCode`: `serialize` re-emits `leadingTrivia + raw`,
-	// so a raw taken verbatim from the line round-trips.
+	// A block that holds its own source, like `fencedCode`: `serialize` re-emits
+	// `leadingTrivia + raw`, so a raw taken verbatim from the line round-trips.
 	registerBlockKind(toc, {
 		mergeRole: 'not-mergeable',
 		editable: true,
 		supportsInline: false,
-		// Render-primary like the math forms: the folded view leaves a caret no textual landing
-		// at either edge, so both boundaries open against another trapped kind.
+		// Render-primary like the math blocks: the rendered view gives the caret nowhere to sit
+		// at either edge, so both edges take the gap caret.
 		gapEdges: 'both',
 		conformanceFixture: '[[toc]]\n',
 		closure: simpleLeafClosure({
@@ -58,8 +58,8 @@ export function registerTocBlock(): void {
 	});
 
 	registerBlockOpener(toc, {
-		// Gap placement below the only bracket-consuming built-in, so `[[toc]]` resolves here
-		// whatever that matcher claims.
+		// Just below the only built-in that consumes brackets, so `[[toc]]` resolves here
+		// whatever that matcher does.
 		priority: OPENER_PRIORITIES.linkReferenceDefinition - 5,
 		interruptsParagraph: (text) => text === TOC_LINE,
 		tryOpen(ctx) {
@@ -76,16 +76,16 @@ export function registerTocBlock(): void {
 
 export type MaxHeadingLevel = 1 | 2 | 3 | 4 | 5 | 6;
 
-/** The per-instance `{ plugin, options }` shape, and the factory argument's, which are one
- *  vocabulary on purpose: the instance entry overrides the factory default. */
+/** The shape of this editor's `{ plugin, options }` entry and of the factory argument,
+ *  deliberately the same: the per-editor entry overrides the factory default. */
 export interface TocOptions {
 	/** Deepest heading level listed (default 6 = every level). */
 	maxDepth?: MaxHeadingLevel;
 }
 
 export function tocPlugin(options?: TocOptions): EditorPlugin {
-	// Definition-time, so it is the BARE-install default only: the block prefers this editor's
-	// `{ plugin, options }` depth, which is what lets two instances differ.
+	// Read when the plugin is defined, so it is only the default for a plain install: the block
+	// prefers this editor's `{ plugin, options }` depth, which is what lets two editors differ.
 	const maxDepth = options?.maxDepth ?? MAX_HEADING_DEPTH;
 	return definePlugin({
 		name: 'toc',

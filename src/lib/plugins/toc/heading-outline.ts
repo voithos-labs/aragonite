@@ -1,7 +1,7 @@
 /**
- * The heading outline as a pure function over the read-only document. The walk
- * recurses through containers, so a heading nested in a blockquote or list is still
- * collected at its own path and remains navigable.
+ * The heading outline as a pure function over the read-only document. It recurses through
+ * containers, so a heading nested in a blockquote or list is still collected at its own path
+ * and stays navigable.
  */
 
 import {
@@ -16,9 +16,9 @@ import {
 export const MAX_HEADING_DEPTH = 6;
 
 /**
- * The instance's `{ plugin, options }` depth, else `fallback` (the factory argument's
- * bare-install default). Options arrive as `unknown` from the platform, so anything but a
- * whole number in 1..6 is not a depth and falls back rather than listing nothing.
+ * The depth from this editor's `{ plugin, options }` entry, else `fallback`, which is the
+ * factory argument's default for a plain install. Options arrive as `unknown`, so anything but
+ * a whole number in 1..6 is not a depth and falls back rather than listing nothing.
  */
 export function resolveMaxDepth(options: unknown, fallback: number): number {
 	const declared = (options as { maxDepth?: unknown } | undefined)?.maxDepth;
@@ -29,7 +29,7 @@ export function resolveMaxDepth(options: unknown, fallback: number): number {
 export interface TocEntry {
 	/** Stable and unique per position: the keyed-loop identity. */
 	id: string;
-	/** Doc-absolute block path of the heading, for `rects.scrollTo`. */
+	/** Document-absolute block path of the heading, for `rects.scrollTo`. */
 	path: number[];
 	level: number;
 	label: string;

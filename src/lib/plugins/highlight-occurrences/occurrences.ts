@@ -1,8 +1,8 @@
 /**
- * Pure occurrence scan: indexing by word is what turns the caret-driven lookup into
- * one map read rather than a fresh document walk. Offsets are per-leaf raw offsets,
- * dimmed markers included, the space mark decorations consume. `isProseKind` gates the
- * scope, so a code/HTML/raw leaf is neither scanned nor a valid anchor.
+ * Pure occurrence scan: indexing by word turns the caret-driven lookup into one map read
+ * instead of a fresh document walk. Offsets are raw offsets within a block, dimmed markers
+ * included, which is what mark decorations are measured in. Only prose blocks are scanned
+ * (`isProseKind`), so a code, HTML or raw block is neither scanned nor a word to search for.
  */
 
 import {
@@ -26,15 +26,15 @@ export interface WordSpan {
 
 export type OccurrenceIndex = Map<string, MarkDecoration[]>;
 
-/** Token lists keyed by the leaf `raw` they were scanned from, so a leaf whose bytes did
+/** Token lists keyed by the block `raw` they were scanned from, so a block whose bytes did
  *  not move costs one string compare instead of a re-tokenize. */
 export type TokenCache = Map<string, WordSpan[]>;
 
 export interface OccurrenceScan {
 	index: OccurrenceIndex;
-	/** Carry into the next scan; a leaf gone from the document drops out of it. */
+	/** Pass into the next scan; a block gone from the document drops out of it. */
 	tokens: TokenCache;
-	/** Leaves whose text had to be tokenized, the seam a memoization test asserts on. */
+	/** Blocks whose text had to be tokenized: what a caching test asserts on. */
 	tokenizedLeaves: number;
 }
 
@@ -53,8 +53,8 @@ export function wordAt(text: string, offset: number): WordSpan | null {
 	return { word: text.slice(start, end), start, end };
 }
 
-/** Null when the focus is not a leaf (a container/cell-coordinate endpoint) or the
- *  caret sits on a non-word char. */
+/** Null when the selection's focus is not a block of text (a container or a table-cell
+ *  endpoint), or the caret sits on a character that cannot start a word. */
 export function anchorWord(doc: DocumentView, selection: EditorSelection | null): string | null {
 	if (!selection) return null;
 	const leaf = leafAt(doc, selection.focus.path);
@@ -63,8 +63,8 @@ export function anchorWord(doc: DocumentView, selection: EditorSelection | null)
 	return span ? span.word : null;
 }
 
-/** Built once per document change by a memoizing source, not once per caret move. The
- *  marks are rebuilt every time (they carry paths), the tokens only for changed leaves. */
+/** Built once per document change by a caching source, not once per caret move. The marks
+ *  are rebuilt every time (they hold paths), the tokens only for blocks that changed. */
 export function buildOccurrenceIndex(doc: DocumentView, cached?: TokenCache): OccurrenceScan {
 	const index: OccurrenceIndex = new Map();
 	const tokens: TokenCache = new Map();

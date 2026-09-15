@@ -83,7 +83,7 @@ export function registerAdmonitions(options?: AdmonitionsOptions): void {
 		}
 	}
 
-	// `updateMetadata` is the sanctioned commit path: patch, rebuildRaw, one undoable edit.
+	// `updateMetadata` is the only supported commit path: patch, rebuildRaw, one undoable edit.
 	const cycleKind = registerBlockCommand(admonition, 'admonition.cycleKind', (ctx) => {
 		const meta = getPluginMetadata<AdmonitionMetadata>(ctx.node);
 		const dir = ctx.arg === 'prev' ? -1 : 1;
@@ -97,7 +97,8 @@ export function registerAdmonitions(options?: AdmonitionsOptions): void {
 		mergeRole: 'container',
 		editable: true,
 		supportsInline: false,
-		// Opaque tier rule: no textual escape hatch at either edge, so both take the gap caret.
+		// An opaque container has no text at either edge for the caret to step into, so both
+		// edges take the gap caret.
 		gapEdges: 'both',
 		container: {
 			// The title lives in the opener line, so raw is not a strip of the children.

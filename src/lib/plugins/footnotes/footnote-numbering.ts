@@ -16,9 +16,9 @@ import { FOOTNOTE_REF_KIND } from './constants';
 
 export interface FootnoteReference {
 	label: string;
-	/** Doc-absolute block path of the prose leaf carrying the reference. */
+	/** Document-absolute block path of the prose block holding the reference. */
 	path: number[];
-	/** Raw offset just past the `[^label]` bytes in that leaf — where the way back lands. */
+	/** Raw offset just past the `[^label]` bytes in that block: where a jump back lands. */
 	end: number;
 }
 
@@ -78,9 +78,9 @@ const refsBySubtree = new WeakMap<NodeView, SubtreeEntry>();
 
 /**
  * One top-level subtree's references, memoized against the bytes they came from, so a
- * keystroke re-parses that subtree and reuses every other. Sound because the serializer
- * never recurses (`editor.md` § 12): a subtree's `raw` is its whole byte image, kept so by
- * the container-`raw` rebuild up the ancestry.
+ * keystroke re-parses that subtree and reuses every other. Safe because the serializer never
+ * recurses (`editor.md` § 12): a subtree's `raw` is its whole byte image, kept that way by the
+ * `raw` rebuild that runs up its ancestors.
  */
 function subtreeRefs(node: NodeView): readonly FootnoteReference[] {
 	const cached = refsBySubtree.get(node);

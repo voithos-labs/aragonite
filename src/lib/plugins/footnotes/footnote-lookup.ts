@@ -29,8 +29,8 @@ function findInSubtree(node: NodeView, path: number[], label: string): Definitio
 	return null;
 }
 
-/** The definition's first body block, since the container itself is no caret seat. The
- *  container path stands in when the body holds no block; null when no definition matches. */
+/** The definition's first body block, since the caret cannot sit on the container itself. The
+ *  container's own path is used when the body holds no block; null when no definition matches. */
 export function findFootnoteDefinitionLanding(
 	document: DocumentView,
 	label: string

@@ -1,8 +1,8 @@
 /**
- * The `[^label]: content` definition block as a strip container in the listItem mold.
- * The marker is pure syntax living only in the container's own raw, so
- * `strip(raw) === serialize(children)`. Load is byte-exact off the stored raw; a
- * post-edit rebuild canonicalizes marker spacing and indent, exactly as listItem does.
+ * The `[^label]: content` definition block, a strip container shaped like a list item. The
+ * marker is syntax living only in the container's own raw, so
+ * `strip(raw) === serialize(children)`. Loading is byte-exact off the stored raw; a rebuild
+ * after an edit normalizes marker spacing and indent, exactly as a list item does.
  */
 
 import {
@@ -49,9 +49,9 @@ function keepsParagraphOpen(strippedText: string, grammar: OpenContext['grammar'
 }
 
 /**
- * Blank lines are absorbed only while a later indented line still follows — a trailing blank
- * run belongs to the document. An unindented non-blank line continues the definition only as
- * a lazy continuation of an open body paragraph (CommonMark §5.1, as cmark-gfm applies it).
+ * Blank lines are taken in only while a later indented line still follows; a trailing run of
+ * blanks belongs to the document. An unindented non-blank line continues the definition only
+ * as a lazy continuation of an open body paragraph (CommonMark §5.1, as cmark-gfm applies it).
  */
 function scanDefinitionEnd(ctx: OpenContext): number {
 	let lastContent = ctx.index;
@@ -131,8 +131,8 @@ export function registerFootnoteDefinition(): void {
 	const kind = declarePluginKind(FOOTNOTE_DEF_KIND);
 
 	registerBlockOpener(kind, {
-		// Below linkReferenceDefinition so the footnote form is claimed first, in its own
-		// sub-LRD slot so no two co-installed first-party plugins share it (G1.10).
+		// Below linkReferenceDefinition so the footnote form matches first, at a priority of
+		// its own so no two bundled plugins share one (G1.10).
 		priority: OPENER_PRIORITIES.linkReferenceDefinition - 4,
 		tryOpen,
 		interruptsParagraph: false
@@ -143,17 +143,17 @@ export function registerFootnoteDefinition(): void {
 		mergeRole: 'not-mergeable',
 		editable: true,
 		supportsInline: false,
-		// Kit fixtures must be rebuildRaw fixed points, so the continuation is indented: the
-		// lazy form canonicalizes.
+		// A conformance fixture has to survive rebuildRaw unchanged, so the continuation line
+		// is indented: the lazy form would be rewritten.
 		conformanceFixture: '[^1]: A footnote definition.\n    with an indented continuation.\n',
-		// Unlike a listItem, whose leaf resolves to the item under the list, the body
-		// blocks reorder within; the marker is position-independent, so rebuildRaw re-emits it.
+		// Body blocks reorder inside the definition, unlike a list item, which moves under its
+		// list; the marker does not depend on position, so rebuildRaw re-emits it.
 		container: {
 			contract: 'strip',
 			rebuildRaw: rebuildFootnoteDefRaw,
 			reorderChildren: {},
-			// The marker rides metadata rather than the first line, so the remainder of a lift is
-			// still a definition, not the plain quote a quote-shaped lift leaves.
+			// The marker lives in metadata rather than the first line, so lifting the first child
+			// out leaves a definition behind, not the plain blockquote a quote lift leaves.
 			unwrapRole: {
 				firstChildBackspace: 'lift-first-child-keep-container',
 				middleChildBackspace: 'default-merge'

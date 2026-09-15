@@ -1,8 +1,8 @@
 /**
- * Document-scoped GitHub-alert conversion, the sanctioned rewrite pattern:
- * `getSource()` → transform → write the `source` prop back. Scoping through
- * `parse` rather than line scanning is what makes it fence-safe; nested alerts are
- * skipped because rewriting one would mean rebuilding its ancestors' raw.
+ * GitHub-alert conversion over a whole document, and the supported way to rewrite one:
+ * `getSource()` → transform → write the `source` prop back. Going through `parse` rather
+ * than scanning lines is what makes it fence-safe; nested alerts are skipped because
+ * rewriting one would mean rebuilding its ancestors' raw.
  */
 import { parse, type PasteTransform } from '$lib/plugin';
 import { convertAlertBlockquoteRaw, hasGithubAlert, type AlertConversion } from './gh-alert';
@@ -28,7 +28,7 @@ export function convertGithubAlertsInDocument(source: string): AlertConversion {
 	return { converted: parts.join(''), changed };
 }
 
-/** The line probe short-circuits the common no-alert paste before the parse. */
+/** The line scan short-circuits the common no-alert paste before the parse. */
 export const githubAlertsPasteTransform: PasteTransform = {
 	name: 'admonitions.github-alerts',
 	transform(text) {

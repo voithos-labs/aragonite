@@ -1,7 +1,7 @@
 <script lang="ts">
-	// The marker rides the first child as an ambient prefix (the listItem `- ` model), so the
-	// body edits like ordinary prose while the marker stays read-only chrome. Its `[^label]`
-	// range is the way back, on the same click the reference took to get here.
+	// The `[^label]: ` marker is drawn in front of the first child instead of being part of its
+	// text, the way a list item's `- ` is, so the body edits like ordinary prose and the marker
+	// stays read-only. Clicking the marker jumps back to the first reference.
 	import {
 		BlockList,
 		createContainerBlock,
@@ -31,7 +31,7 @@
 	let boxEl: HTMLElement | undefined = $state();
 
 	const label = $derived(getPluginMetadata<FootnoteDefMetadata>(node)?.label ?? '');
-	// The clickable half: the colon and its space are syntax nobody aims at.
+	// Only `[^label]` is clickable; the colon and space after it are syntax nobody aims at.
 	const marker = $derived(`[^${label}]`);
 
 	const { blockListProps, containerApi, getPresentationMode } = createContainerBlock({
@@ -52,22 +52,22 @@
 		})
 	});
 
-	// Resolved on the gesture, never derived: the span's listener is bound once at build time,
-	// so a captured path would be the walk's answer from whenever that was.
+	// Looked up on the click, never derived: the span's listener is bound once when the span is
+	// built, so a path captured then would be the answer from whenever that was.
 	function jumpToFirstReference(e: MouseEvent): void {
 		if (!isWidgetActivationClick(e.ctrlKey || e.metaKey, getPresentationMode())) return;
-		// Skips the leaf's caret clamp and the editor's root click handler on purpose: the
-		// jump is the only thing this click does.
+		// Skips the block's caret handling and the editor's root click handler on purpose:
+		// jumping is the only thing this click does.
 		e.preventDefault();
 		e.stopPropagation();
 		if (!document) return;
 		// GFM numbers by first-reference order, so the first reference is the one this
-		// definition's number was minted from.
+		// definition's number comes from.
 		const first = collectFootnoteReferences(document).find((ref) => ref.label === label);
 		if (first) void rects?.navigateTo(first.path, first.end);
 	}
 
-	// Where a plain click already acts, so the pointer cue matches the gesture.
+	// True where a plain click already jumps, so the pointer shape matches what a click does.
 	const plainClickJumps = $derived(isWidgetActivationClick(false, getPresentationMode()));
 
 	export { containerApi };
@@ -83,7 +83,8 @@
 </div>
 
 <style>
-	/* A gutter rail, not card chrome: the marker itself is the child leaf's prefix span. */
+	/* A line down the left margin, not a card: the marker itself is drawn in front of the
+	   first child. */
 	.footnote-def {
 		position: relative;
 		margin: 0.4em 0;
@@ -92,7 +93,7 @@
 		font-size: 0.95em;
 	}
 
-	/* The marker span is built into the child leaf's DOM, outside this component's scope. */
+	/* The marker span is built into the child block's DOM, outside this component's styles. */
 	.footnote-def :global(.footnote-def-marker:hover) {
 		text-decoration: underline;
 	}

@@ -3,8 +3,8 @@
 export { admonitionsPlugin } from './register';
 export type { AdmonitionsOptions } from './admonition-kind';
 
-// convertGithubAlerts is naive full-text and rewrites inside code fences; for a whole
-// document prefer convertGithubAlertsInDocument, which scopes through the parser.
+// convertGithubAlerts scans plain text and rewrites inside code fences too; for a whole
+// document prefer convertGithubAlertsInDocument, which goes through the parser.
 export { convertGithubAlerts, hasGithubAlert } from './gh-alert';
 export type { AlertConversion } from './gh-alert';
 export { convertGithubAlertsInDocument } from './convert-document';

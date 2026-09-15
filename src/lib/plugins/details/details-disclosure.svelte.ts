@@ -1,13 +1,12 @@
 /**
- * The half of the `<details>` toggle that writes nothing: reading mode must let a
- * reader open a collapsed section without touching bytes, and these deps carry no
- * commit door, so no flip reachable from here can become an edit. Absent-by-default
- * rather than seeded on entry, so the document's own `open` shows through even for a
- * block windowed out at the moment of the flip. Scoped to the instance, so it is ephemeral.
+ * The half of the `<details>` toggle that writes nothing: in reading mode a user may open a
+ * collapsed section without touching bytes, and nothing handed in here can reach a commit.
+ * Starts unset rather than copying the document's `open`, so a block that was not mounted
+ * when the toggle happened still shows the document's own state. One per component instance.
  */
 
 export interface ReaderDisclosure {
-	/** The reader's flip if they made one, else the document's own state. */
+	/** What the user toggled it to, if they toggled it; otherwise the document's own state. */
 	readonly open: boolean;
 	toggle(): void;
 	reset(): void;
@@ -26,8 +25,8 @@ export function createReaderDisclosure(deps: {
 			flipped = !(flipped ?? deps.isDocumentOpen());
 		},
 		reset() {
-			// Conditional: an unconditional write re-invalidates every reader of `open`
-			// on each pass of the effect that calls this.
+			// Guarded: writing unconditionally would invalidate everything that reads
+			// `open` on every pass of the effect that calls this.
 			if (flipped !== null) flipped = null;
 		}
 	};

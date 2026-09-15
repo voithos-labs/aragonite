@@ -1,9 +1,8 @@
 /**
- * `<details>` collapsible: the second reserved-chrome container consumer. The
- * `<summary>` is a real CST child at index 0 whose tags live in the container's own
- * raw, so `strip(raw)` diverges from `serialize(children)`, hence `'opaque'` (raw
- * authoritative, exempt from `checkStaleRaw`). Non-canonical `<details …>` declines
- * to the built-in htmlBlock.
+ * The `<details>` collapsible. Its `<summary>` is a real CST child at index 0, but the tags
+ * around it live in the container's own raw, so `strip(raw)` differs from
+ * `serialize(children)`: hence `'opaque'`, where raw is authoritative and `checkStaleRaw` is
+ * skipped. A `<details …>` written any other way is left to the built-in htmlBlock.
  */
 
 import {
@@ -39,8 +38,8 @@ const BODY_WRAP: ContainerBodyWrap = { afterOpenerLine: true, beforeCloserLine: 
 
 export interface DetailsMetadata {
 	open: boolean;
-	/** One captured ending governs all three chrome lines: a well-formed document has
-	 *  uniform endings, so the rebuild reproduces them byte-identically. */
+	/** One captured ending is used for all three tag lines: a well-formed document has
+	 *  uniform endings, so the rebuild reproduces them byte for byte. */
 	lineEnding: string;
 	/** False for a document-final details with no trailing newline, so the rebuild
 	 *  does not add one. */
@@ -95,9 +94,9 @@ function unpairedTagLines(
 }
 
 /**
- * Two accountings, because the recognizer and a browser disagree about what a tag line is,
- * and only the fixpoint leaves neither renderer holding a stray. Terminates because every
- * round escapes a line and escaping never mints a tag.
+ * Two passes, because this recognizer and a browser disagree about what counts as a tag line,
+ * and only repeating until nothing changes leaves neither of them holding a stray tag. It
+ * terminates because every round escapes at least one line and escaping never creates a tag.
  */
 function strayTagLines(lines: readonly string[]): Set<number> {
 	const escaped = new Set<number>();
@@ -127,8 +126,8 @@ function strayEscapePoints(raw: string): number[] {
 		.map((i) => starts[i] + texts[i].indexOf('<'));
 }
 
-/** Renders as the literal glyph in a paragraph, in an html block's passthrough, and on
- *  GitHub alike, while matching no tag line. */
+/** Renders as a literal `<` in a paragraph, in an html block's passthrough, and on GitHub
+ *  alike, while matching no tag line. */
 const ESCAPED_LT = '&lt;';
 
 function escapeStrayDetailsTags(raw: string): string {
@@ -144,8 +143,8 @@ function escapeStrayDetailsTags(raw: string): string {
 	return out + raw.slice(cursor);
 }
 
-/** {@link escapeStrayDetailsTags}'s caret image: each escape ahead of the caret pushes
- *  it by the entity's growth. */
+/** Where {@link escapeStrayDetailsTags} leaves the caret: each escape before it pushes the
+ *  caret along by the characters the entity adds. */
 function mapStrayEscapeOffset(raw: string, offset: number): number {
 	const grown = ESCAPED_LT.length - 1;
 	return strayEscapePoints(raw).reduce((at, point) => (point < offset ? at + grown : at), offset);
@@ -176,7 +175,8 @@ export function registerDetailsKind(): void {
 		mergeRole: 'container',
 		editable: true,
 		supportsInline: false,
-		// Opaque tier rule: no textual escape hatch at either edge, so both take the gap caret.
+		// An opaque container has no text at either edge for the caret to step into, so both
+		// edges take the gap caret.
 		gapEdges: 'both',
 		container: {
 			contract: 'opaque',
@@ -219,10 +219,10 @@ export function registerDetailsKind(): void {
 	registerChromeLeaf(detailsSummary, { blockClass: 'details-summary' });
 
 	registerBlockOpener(details, {
-		// Slots into the gap just below htmlBlock, which else claims `<details>` as a type-6 block.
+		// Just below htmlBlock, which would otherwise take `<details>` as a type-6 block.
 		priority: OPENER_PRIORITIES.htmlBlock - 5,
 		// Redundant with htmlBlock's type-6 interrupt, which details wins on re-dispatch; kept
-		// so the opener's paragraph behavior does not depend on that priority ordering.
+		// so this opener's paragraph behavior does not depend on that priority order.
 		interruptsParagraph: (line) => OPEN_LINE.test(line),
 		tryOpen(ctx) {
 			const openMatch = ctx.line.text.match(OPEN_LINE);

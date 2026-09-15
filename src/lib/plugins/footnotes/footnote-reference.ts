@@ -1,8 +1,8 @@
 /**
- * The reference implementation of an inline rung: `[^label]` claims the ladder's
- * `[^`-prefix rung, consulted before the built-in `[` handler. The literal bytes stay
- * in the block's raw and the number is derived rather than stored. Recognition is gated
- * on registration: absent the plugin, `[` runs its built-in bracket handling instead.
+ * The worked example of an inline syntax handler: `[^label]` registers on the `[^` prefix, so
+ * it is tried before the built-in `[` handler. The literal bytes stay in the block's raw and
+ * the number is worked out rather than stored. Recognition starts only once the plugin
+ * registers: without it, `[` runs the built-in bracket handling instead.
  */
 
 import {
@@ -44,8 +44,8 @@ function recognizeFootnoteReference(
 ): InlineNode | null {
 	if (raw[pos] !== '[' || raw[pos + 1] !== '^') return null;
 	const labelStart = pos + 2;
-	// The index spans the whole block, so `end` decides the claim: a `]` past the scan
-	// range leaves the reference unterminated.
+	// The index spans the whole block, so `end` is what decides: a `]` past the scan range
+	// leaves the reference unterminated.
 	const close = firstTerminatorFrom(raw, labelStart);
 	if (close === -1 || close >= end) return null;
 	if (raw[close] !== ']' || close === labelStart) return null;
