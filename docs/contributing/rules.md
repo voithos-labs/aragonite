@@ -217,8 +217,8 @@ list is that you hear it from the terminal instead of from the review.
    nothing (a debounce, an animation) is the allowlist in the test.
    `npx vitest run src/lib/test/invariants/lint/timing-hacks.test.ts`
 6. **A new file with a `pointerdown` or `mousedown` handler is in one of the two lists** of the
-   G2.12 scan: the presses that place a caret, with the door each one goes through, or the presses
-   that place none, with the reason.
+   G2.12 scan: the pointer handlers that place a caret, with the entry point each one goes through, or
+   the ones that place none, with the reason.
    `npx vitest run src/lib/test/invariants/lint/caret-gesture-range-reset.test.ts`
 
 `npm run test:editor:invariants` runs lines 2, 3, 5 and 6 together; the first lives beside the
