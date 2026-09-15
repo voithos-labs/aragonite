@@ -80,6 +80,7 @@
 	import { createRootGestures } from './editor-root-gestures';
 	import { createRootMenus, type BlockMenuModel } from './editor-root-menus';
 	import { createFocusedSurface } from './editor-root-focused-surface';
+	import type { EditorTestSurface } from './editor-root-test-surface';
 	import {
 		installHeaderSlotCompensation,
 		installTypeScaleProbe,
@@ -1315,47 +1316,17 @@
 
 	// ── Test-only surface ───────────────────────────────────────────────
 
-	function getOperationsLog() {
-		return operationsLog;
-	}
-
-	function getUndoStack() {
-		return undoManager.getStacks();
-	}
-
-	/** The live CST Document; treat it as read-only, since mutating it bypasses the
-	 *  undo pipeline. */
-	function getDocument() {
-		return doc;
-	}
-
-	export const __test = {
-		getDocument,
-		// The swap door's only oracle: every other door is reachable headlessly, but the
-		// `source` prop's reset lives in this component.
+	export const __test: EditorTestSurface = {
+		getDocument: () => doc,
 		getContentVersion: contentVersion.read,
 		getBlockComponent,
-		getUndoStack,
-		getOperationsLog,
-		// Specs need the state, not the `data-cross-block` mirror: a deferred $effect
-		// writes the attribute, and an intra-table rectangle keeps one path on both
-		// endpoints, so neither the DOM nor getSelection() answers this reliably.
+		getUndoStack: () => undoManager.getStacks(),
+		getOperationsLog: () => operationsLog,
 		isCrossBlockActive: () => selectionState.isCrossBlock,
-		// The gap caret has no public selection shape and no paint yet, so the state is the
-		// only place arrival can be observed.
 		getGapCaret: () => selectionState.gapCaret,
-		// The engine, not the `addSource`-only public registry: the derived per-path
-		// buckets are the only oracle for a stale bucket, since jsdom measures every
-		// range at zero width and no overlay ever paints there.
 		getDecorationEngine: () => decorationEngine,
-		// The measured-height cache is root-constructed and handed down through context,
-		// so its lifetime against a document swap has no headless seam either.
 		getHeightOracle: () => heightOracle,
-		// The one signal a windowing scope rebuilds off when no id moved, so it is the
-		// oracle for a mode flip having asked for the rebuild it needs.
 		getWidthVersion: () => widthVersion,
-		// Constructs the detached-slot artifact the windowed each-block's cleanup can
-		// leave behind (see `isSlotDetached`); e2e-only.
 		setBlockRefSlot: blockRefSlots.set
 	};
 </script>
