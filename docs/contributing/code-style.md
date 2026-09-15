@@ -50,7 +50,7 @@ Two kinds of comment earn their lines:
 
 Neither says what the code does or how (names and types already do), and neither argues. The case for this reading over the other one was made in the review; the code keeps the conclusion. If the why needs more than a sentence, it's a design doc. Leave a pointer (`docs/design/virtual-rendering.md` § Keeping the page still while heights change) and nothing else.
 
-The budget alone didn't stop the essays, so, the rules that do:
+The budget alone didn't stop the essays. The rules that do:
 
 - **Plain words.** Write the English you'd use out loud to a colleague from another team. The repo grew a private vocabulary (seam, door, funnel, rung, ceremony, mint, peel, settle, seat, island, oracle, ladder, landable, and a few dozen more), and a comment written in it reads as encrypted to anyone who didn't grow up here. Use the plain phrase: "the module boundary", "the one entry point", "the estimated height", "where the caret sits". Where a symbol forces the word (`heightOracle` is the type's name), gloss it in three words or fewer: "the height oracle (estimates block heights)". The eleven words at the top of `codebase-map.md` are there so you can read the comments that still use them, not so you can write more.
 - **Name the subject.** "Least destructive first:" is not a sentence. Least destructive _what_? Say the thing: the paragraph block, the scroll container, the undo stack, the caret. A comment about "the seam", "the surface" or "this" makes the reader reconstruct the subject from the code, which was the comment's job.
