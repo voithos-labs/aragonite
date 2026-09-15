@@ -805,7 +805,7 @@ directory as well as this table before assuming a rule is unguarded.
 | G4.23 | Every e2e spec pairs with a requirement file, and vice versa                  | L       |
 | G4.24 | The code surface commits through exactly one `updateBlockContent` call        | L       |
 | G4.25 | No `import.meta` env read anywhere under `src/lib`                            | L       |
-| G4.26 | Comment blocks stay inside the budget                                         | L       |
+| G4.26 | Comments stay inside the budget: block length, and house words per directory  | L       |
 | G4.27 | Every `parse` call outside the parser declares its scope                      | L       |
 | G4.28 | Leaf raw writes reach bytes through the two sanctioned readers                | L       |
 | G4.29 | Every file claiming a hardcoded chord is manifested with its chords and keys  | L       |
@@ -1028,11 +1028,16 @@ copies and warns on the token wherever it sits, and it only warns, so a test-tre
 packaging claim unwatched. Library-scoped rather than repo-wide: the reference plugins and the
 consumer example are Vite APPS, where the read is legitimate. `lint/no-import-meta-env.test.ts`.
 
-**G4.26 · Comment budget.** A file's first comment block (the header) holds at most about seven text
-lines, any other block at most six. The stated budget (1-2 lines, headers ~5) was documented-only
-and drifted exactly as the enforcement ladder predicts; this gate catches the essay class and leaves
-the finer register to review. A why that needs more lines belongs in a design doc, a requirement
-file, or the commit. `lint/comment-budget.test.ts`.
+**G4.26 · Comment budget.** Two scans. Length: a file's first comment block (the header) holds at
+most about seven text lines, any other block at most six; the stated budget is 1-2 lines and a
+header of about five, and the slack leaves the finer cut to review. Vocabulary: the repo's private
+words (seam, door, funnel, rung, ceremony, mint, peel, landable, oracle, seat, island, ladder, road,
+dialect, sanctioned, owe, husk) are counted in comments per directory, backticked symbol names
+excluded, and each count is pinned to a baseline in the test that a rewrite lowers and nothing
+raises. Both rules were documented-only and drifted exactly as the ladder predicts. A why that
+needs more lines belongs in a design doc; a why that needs a private word belongs in plain English
+(`docs/contributing/code-style.md` § Comments). `lint/comment-budget.test.ts`,
+`lint/comment-house-words.test.ts`.
 
 **G4.27 · Parse-scope declaration.** Every call of the core `parse` entry outside `core/parser.ts`
 passes an explicit `scope`. The default is `'document'`, so a silent fragment caller (a commit
