@@ -36,7 +36,7 @@ This is where the height model comes in. Every block gets a cheap guess from its
 
 ## Keeping the page still while heights change
 
-Here's a bad ux: you scroll up, a block above the viewport gets mounted (thus getting its real measurement), it turns out taller than the guess, and the content under your eyes slides down. So, to not have this, windowing self corrects - it gets the difference (between the measurement and the estimation) from the height model, and adjusts the scroll by the difference.
+Here's a bad ux: you scroll up, a block above the viewport gets mounted (thus getting its real measurement), it turns out taller than the guess, and the content under your eyes slides down. So, to not have this, windowing self corrects - it gets the difference (between the measurement and the estimation) from the height model, and adjusts the scroll by the difference. The scroller only takes whole device pixels, so the fraction it refuses is carried into the next adjustment instead of thrown away; otherwise a flip that corrects forty blocks above you drifts a full pixel and a different block ends up leading the viewport (that was #315).
 
 Again, some technical details:
 
@@ -63,7 +63,7 @@ This is more annoying, the estimations need to update based on the live computed
 
 **Flip the presentation mode and hidden markers appear or vanish, which rewraps too.**
 
-Drops the measured cache. That's it actually. This way we only account for a little drift instead of a full rebuild. A mounted block whose box moves with the markers (a fence losing its two marker lines) reports through the size-change path above, and the correction keeps the block in view where it was.
+Drops the measured cache. That's it actually. This way we only account for a little drift instead of a full rebuild. A mounted block whose box moves with the markers (a fence losing its two marker lines) reports through the size-change path above, and the correction keeps the block in view where it was. The scopes keep the heights that cache no longer backs, and a structural rebuild (a split, an undo) carries them across rather than reseeding from estimates; only a width or type-scale change earns a reseed (VR-15). Without the carry, the first undo after a flip reseeded most of the document from guesses and scrolled the reader by the difference, which was #320.
 
 ## Nesting
 
