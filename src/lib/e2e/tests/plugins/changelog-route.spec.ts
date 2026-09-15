@@ -79,6 +79,19 @@ test.describe('/changelog route', () => {
 		await expect(heading).toBeInViewport();
 	});
 
+	test("the family file's own index pointer is not mounted", async ({ page }) => {
+		// The file opens with a link to `../changelog.md`, right on GitHub and a 404 beside this
+		// page, so the route drops that one line and nothing after it.
+		await expect(page.locator('a[href$="changelog.md"]')).toHaveCount(0);
+		const opener = page.locator('[data-block-kind="paragraph"]').first();
+		await expect(opener).not.toContainText('Newest first');
+
+		// The oldest family follows the pointer with a `git log` hint, which must survive the drop.
+		await page.locator('.changelog-family').last().click();
+		await expect(opener).toContainText('Compact summary');
+		await expect(page.locator('a[href$="changelog.md"]')).toHaveCount(0);
+	});
+
 	test('expanding the outline in reading mode moves no bytes', async ({ page }) => {
 		const before = await outlineRaw(page);
 		expect(before.startsWith('<details>\n')).toBe(true);

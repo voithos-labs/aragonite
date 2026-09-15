@@ -44,11 +44,12 @@ const PRELUDE = '<details>\n<summary>Versions</summary>\n\n[[toc]]\n\n</details>
 
 describe('changelog documents', () => {
 	// A `?raw` glob resolving to nothing would round-trip vacuously, and so would a prelude the
-	// route stopped prepending.
-	it('composes every release family behind the route prelude', () => {
+	// route stopped prepending. The file's `../changelog.md` pointer is a 404 on the site.
+	it('composes every release family behind the route prelude, minus the index pointer', () => {
 		expect(CHANGELOG_FAMILIES.length).toBeGreaterThan(1);
 		for (const { id, document } of CHANGELOG_FAMILIES) {
 			expect(document.startsWith(`${PRELUDE}# Changelog ${id}\n`)).toBe(true);
+			expect(document, id).not.toContain('](../changelog.md)');
 		}
 		const bytes = CHANGELOG_FAMILIES.reduce((sum, f) => sum + f.document.length, 0);
 		expect(bytes).toBeGreaterThan(20_000);

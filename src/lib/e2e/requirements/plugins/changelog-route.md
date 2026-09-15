@@ -1,8 +1,9 @@
 # Feature: `/changelog` dogfood route
 
 `/changelog` renders the repo's own changelog — long real documents, imported at build
-time from `docs/changelog/<family>.md` and shown verbatim behind a prelude the route
-prepends: a `[[toc]]` inside a collapsed `<details>`. All nine bundled plugins are
+time from `docs/changelog/<family>.md` and shown as they are, less the file's own index
+pointer, behind a prelude the route prepends: a `[[toc]]` inside a collapsed `<details>`.
+All nine bundled plugins are
 installed the consumer way, the outline is capped at the version level, and the editor
 owns its scrollport so virtual rendering is live. Like the `/` showcase it exposes no
 `window.__test` bridge, so assertions are rendered-DOM only, and the shared e2e `test`
@@ -39,6 +40,12 @@ render path, rendered or as styled source. Presentation-mode _behavior_ is owned
 
 ## Edge cases
 
+- the family file's "Newest first; the index is `../changelog.md`" line, right on GitHub and
+  a 404 beside this page, is dropped before the file mounts: no link ending in
+  `changelog.md` renders, on the newest family or the oldest, and the oldest family's next
+  sentence (its `git log` hint) still does. Miss-analysis: every scenario asserted the
+  route's own prelude and the family file's title, never the file's own first line, so a
+  link written for the repo tree rode onto the page unasserted
 - the reader's expand is transient: in reading mode the disclosure writes no bytes, so
   the `<details>` opener still reads `<details>` after the outline has mounted
 - the document is long enough that its tail headings are windowed out at load, so the
