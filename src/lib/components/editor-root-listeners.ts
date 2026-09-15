@@ -58,6 +58,18 @@ export function installModActiveTracker(root: HTMLElement): () => void {
 	);
 }
 
+/**
+ * A reveal's anchor holds only until the next user-intent gesture on the resolved port. Not
+ * `scroll`: a programmatic anchor correction fires it and would self-release mid-settle.
+ */
+export function installRevealAnchorRelease(port: EventTarget, release: () => void): () => void {
+	return removeAll(
+		onRoot(port, 'keydown', release),
+		onRoot(port, 'pointerdown', release),
+		onRoot(port, 'wheel', release, { passive: true })
+	);
+}
+
 export interface SelectionChangeBridgeDeps {
 	/** The element the installing effect captured, not a live binding. */
 	root: HTMLElement;

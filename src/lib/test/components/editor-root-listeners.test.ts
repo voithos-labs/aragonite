@@ -4,6 +4,7 @@ import { tick } from 'svelte';
 import {
 	installEditorBlurAnnouncer,
 	installModActiveTracker,
+	installRevealAnchorRelease,
 	installSelectionChangeBridge
 } from '$lib/components/editor-root-listeners';
 
@@ -189,5 +190,30 @@ describe('editor-root listeners — selectionchange bridge', () => {
 		selectInside(b.content);
 		fire();
 		expect(b.emits()).toBe(0);
+	});
+});
+
+// ── Reveal-anchor release ────────────────────────────────────────────────────
+
+describe('editor-root listeners — reveal-anchor release', () => {
+	function release() {
+		const port = document.createElement('div');
+		document.body.append(port);
+		let released = 0;
+		teardowns.push(installRevealAnchorRelease(port, () => released++));
+		return { port, count: () => released };
+	}
+
+	it.each(['keydown', 'pointerdown', 'wheel'])('%s on the port releases the pin', (type) => {
+		const r = release();
+		r.port.dispatchEvent(new Event(type));
+		expect(r.count()).toBe(1);
+	});
+
+	// A programmatic anchor correction fires `scroll` itself and would self-release mid-settle.
+	it('a scroll releases nothing', () => {
+		const r = release();
+		r.port.dispatchEvent(new Event('scroll'));
+		expect(r.count()).toBe(0);
 	});
 });

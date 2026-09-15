@@ -35,11 +35,6 @@
 		type UserScrollport
 	} from '../cursor/scroll-ancestors';
 	import { createScrollport, type Scrollport } from '../cursor/scrollport';
-	import { createDeadSpaceCaret } from '../selection/dead-space-caret';
-	import { resetForPointerDown } from '../selection/cross-block/pointer';
-	import { installDragListener } from '../selection/drag-pointer';
-	import { installMultiClickSelect } from '../selection/multi-click';
-	import { claimsPointerGesture } from '../selection/pointer-gesture';
 	import { installSelectionDrop } from '../selection/selection-drop';
 	import { createContentVersion } from '../reactivity/content-version.svelte';
 	import { useContainerWindowing } from '../reactivity/use-container-windowing.svelte';
@@ -67,7 +62,7 @@
 	import { bootstrapCodeLanguages } from './blocks/code/code-bootstrap';
 	import { assignIds } from '../block-id';
 	import { ensureEditableContainers, emptyParagraph } from '../tree-operations';
-	import { blockNodeAt, isBlockNode, nodeAt } from '../tree-operations/node-primitives';
+	import { blockNodeAt } from '../tree-operations/node-primitives';
 	import { serialize } from '../core/serializer';
 	import { parse } from '../core/parser';
 	import { defaultLinkActivation } from '../core/url-policy';
@@ -108,6 +103,7 @@
 	import { createEditorRootClipboard } from './editor-root-clipboard';
 	import { createModeFlip } from './editor-root-mode-flip';
 	import { createFocusAttribution } from './editor-root-focus';
+	import { createRootGestures } from './editor-root-gestures';
 	import {
 		installHeaderSlotCompensation,
 		installTypeScaleProbe,
@@ -117,6 +113,7 @@
 	import {
 		installEditorBlurAnnouncer,
 		installModActiveTracker,
+		installRevealAnchorRelease,
 		installSelectionChangeBridge,
 		onRoot,
 		removeAll
@@ -152,7 +149,6 @@
 	import ImageOverlayHost from './image/ImageOverlayHost.svelte';
 	import LinkCardHost from './link-card/LinkCardHost.svelte';
 	import { createLinkCardState } from './link-card/link-card-state.svelte';
-	import { LINK_ELEMENT_SELECTOR, resolveLinkAtPoint } from './blocks/text/link-at-point';
 	import { runStartupInvariantChecks } from '../invariants/install';
 	import { assertInvariant } from '../assert';
 	import { checkMarkerCssParity } from '../invariants/marker-css-parity';
@@ -455,23 +451,6 @@
 		return !!node && !!headerEl && headerEl.contains(node);
 	}
 
-	// ── Dead-space caret ────────────────────────────────────────────────
-
-	// A click in the root's padding or below the last block places a caret rather than
-	// doing nothing. `getBlockComponent` is hoisted; the reset closure defers its reads.
-	const deadSpaceCaret = createDeadSpaceCaret({
-		getBlockComponent,
-		resetSelectionForClick: () =>
-			resetForPointerDown(selectionState, stickyColumn, edgeAffinity, false),
-		gapScope: {
-			getDoc: () => doc,
-			selection: selectionState,
-			getPresentationMode: () => effectiveMode
-		},
-		lastBlockIndex: () => doc.children.length - 1,
-		revealBlock: (index) => revealPath([index])
-	});
-
 	// ── Block menu ──────────────────────────────────────────────────────
 
 	// Opened by the bottom `+` and by a right-click on prose with nothing selected; a right-click
@@ -669,20 +648,6 @@
 			!selectionState.isCrossBlock && window.getSelection()?.isCollapsed === false
 	});
 
-	/** Open the card on the link `el` renders, or report that nothing there is one. The caret has
-	 *  already landed from mousedown, which is the one the state snapshots. */
-	function openLinkCard(el: Element): boolean {
-		const path = findSurfacePathForElement(el);
-		if (!path) return false;
-		const block = nodeAt(doc, path);
-		if (block === null || !isBlockNode(block)) return false;
-		const contentEl = getBlockElByPath(path);
-		if (!contentEl) return false;
-		const hit = resolveLinkAtPoint({ contentEl, block, path, linkRef: linkRefView });
-		if (!hit) return false;
-		return linkCard.open(hit.target);
-	}
-
 	// The card belongs to live mode alone; any other mode paints the destination bytes already.
 	$effect(() => {
 		if (effectiveMode !== 'live') linkCard.close();
@@ -699,170 +664,15 @@
 		assertInvariant('marker-css-parity', () => checkMarkerCssParity(root));
 	});
 
-	// ── Root gesture listeners ──────────────────────────────────────────
+	// ── Root ambient listeners ──────────────────────────────────────────
 
-	$effect(() => {
-		if (!editorEl) return;
-		const root = editorEl;
-		const handleClick = (e: MouseEvent) => {
-			const target = e.target as Element | null;
-			// Ahead of the anchor arm: a blocked-scheme link renders as a SPAN, and it is exactly
-			// the link a user opens the card to fix. Mod-click still activates, below.
-			if (effectiveMode === 'live' && !e.ctrlKey && !e.metaKey) {
-				const linkEl = target?.closest(LINK_ELEMENT_SELECTOR);
-				if (linkEl && !isHostChrome(linkEl) && openLinkCard(linkEl)) {
-					e.preventDefault();
-					return;
-				}
-			}
-			const anchor = target?.closest('a[href]') as HTMLAnchorElement | null;
-			// The helper claims only clicks whose target IS the root, so nothing the
-			// editor renders is touched. A margin drag's release arrives as a root click too (the
-			// press and release targets meet at the root); with a range just painted, it is no
-			// click to answer.
-			if (!anchor) {
-				// A multi-click places no caret: the ladder painted its range over this press.
-				if (e.detail >= 2) {
-					marginDrag = false;
-					return;
-				}
-				const pressed = marginDrag;
-				const dragged =
-					pressed &&
-					(Math.abs(e.clientX - marginDown.x) > 3 || Math.abs(e.clientY - marginDown.y) > 3);
-				marginDrag = false;
-				if (dragged) return;
-				if (deadSpaceCaret.handleClick(root, e)) return;
-				// A press the editor took on a block (a host's own padding beside a table, a rule, a
-				// folded equation's face) that did not move is a click on it: the click helper
-				// claims only dead space, so the same landing is resolved here.
-				if (pressed && !deadSpaceCaret.isDeadSpaceTarget(root, e.target)) {
-					if (placeCaretAtPoint(e.clientX, e.clientY)) return;
-				}
-				// Declined everywhere: a click on nothing still LEAVES what was being edited (a
-				// revealed equation folds on blur), since the margin press suppressed the blur the
-				// browser would have done.
-				if (pressed) blurEditingSurface(root);
-				return;
-			}
-			// Host chrome follows the page's link behaviour, not plain-click-edits.
-			if (isHostChrome(anchor)) return;
-			const href = anchor.getAttribute('href');
-			if (!href) return;
-			// Reading mode has no caret for a plain click to place, so links behave as
-			// in a rendered document.
-			if (e.ctrlKey || e.metaKey || effectiveMode === 'reading') {
-				e.preventDefault();
-				activateLink(href, e);
-			} else {
-				// Suppress the browser's link navigation; cursor placement comes from
-				// mousedown and is unaffected.
-				e.preventDefault();
-			}
-		};
-		// Dead space, and the parts of a block that are neither editable nor controls: a rendered
-		// equation, a diagram, a card's rendered face. A press on any of them cannot grow a native
-		// selection, so the editor's drag runs from it.
-		// A whole-block input proxy is an editable in name only (it catches IME for a block with no
-		// text), so a press on it starts the editor's drag like a press on the block itself.
-		const NOT_A_DRAG_START =
-			'[contenteditable="true"]:not([data-whole-block-input]), button, input, textarea, select, ' +
-			'a, summary, [role="checkbox"], ' +
-			'.code-rail, .table-add-zone, .editor-tail, .md-menu, .block-drag-handle';
-		const dragStartsHere = (rootEl: HTMLElement, target: EventTarget | null): boolean => {
-			if (claimsPointerGesture(target)) return false;
-			if (deadSpaceCaret.isDeadSpaceTarget(rootEl, target)) return true;
-			if (!(target instanceof Element) || !rootEl.contains(target)) return false;
-			return target.closest(NOT_A_DRAG_START) === null;
-		};
-		// A drag that STARTS in the margin: the browser cannot grow a selection from a
-		// non-editable press into an editable block, so the editor runs the drag itself, anchored
-		// where a click there would land. The mousedown's default is suppressed so the browser
-		// starts no selection of its own to fight it; `click` still fires for the caret placement.
-		let marginDrag = false;
-		let marginDown = { x: 0, y: 0 };
-		let marginSession: { dispose(): void } | null = null;
-		const startMarginDrag = (e: PointerEvent) => {
-			marginDrag = false;
-			marginDown = { x: e.clientX, y: e.clientY };
-			if (e.button !== 0 || e.shiftKey || e.ctrlKey || e.metaKey || e.altKey) return;
-			if (effectiveMode === 'reading' || !dragStartsHere(root, e.target)) return;
-			const anchor = deadSpaceCaret.anchorAtPoint(root, e.clientX, e.clientY);
-			if (!anchor) return;
-			marginDrag = true;
-			resetForPointerDown(selectionState, stickyColumn, edgeAffinity, false);
-			// A block that runs its own drag from a nearby press (a table's cell rectangle) takes
-			// it; the generic drag is for blocks that have none.
-			if (!('offset' in anchor)) {
-				const component = getBlockComponent(anchor.path);
-				if (component?.startDragAtPoint?.(e.clientX, e.clientY, e)) return;
-			}
-			marginSession = installDragListener(
-				{
-					editorRoot: root,
-					scrollContainer: getScrollHost() ?? root,
-					selection: selectionState,
-					getBlockElByPath,
-					lifetimeSignal: lifetimeController.signal,
-					paintSameBlock: true
-				},
-				anchor,
-				e
-			);
-		};
-		return removeAll(
-			onRoot(root, 'click', handleClick),
-			installMultiClickSelect({
-				editorRoot: root,
-				selection: selectionState,
-				getBlockElByPath,
-				getScrollContainer: () => getScrollHost() ?? root,
-				lifetimeSignal: lifetimeController.signal,
-				marginBlockAt: (target, x, y) =>
-					effectiveMode !== 'reading' && dragStartsHere(root, target)
-						? deadSpaceCaret.blockPathNearPoint(root, x, y)
-						: null
-			}),
-			installSelectionDrop({
-				editorRoot: root,
-				getDoc: () => doc,
-				controller,
-				coordinator: pasteCoordinator,
-				getPresentationMode: () => effectiveMode,
-				linkRef: linkRefView,
-				grammar: registryView.grammar,
-				activePlugins,
-				events,
-				isReadOnly: () => effectiveMode === 'reading'
-			}),
-			onRoot(root, 'pointerdown', startMarginDrag),
-			onRoot(root, 'mousedown', (e: MouseEvent) => {
-				deadSpaceCaret.notePress(root, e);
-				// The second press of a click run is the ladder's, which runs its own drag.
-				if (marginDrag && e.detail >= 2) {
-					marginSession?.dispose();
-					marginSession = null;
-					marginDrag = false;
-				}
-				if (marginDrag) e.preventDefault();
-			})
-		);
-	});
-
-	// Release on the next user-intent gesture, so the anchor holds only through the post-reveal
-	// settle. NOT on `scroll`: a programmatic correctAnchor write fires `scroll` itself and
-	// would self-release mid-settle. On the resolved PORT, not the root — the pin fights
-	// whoever scrolls the port, and in host mode that gesture lands outside the editor.
+	// On the resolved PORT, not the root: the pin fights whoever scrolls the port, and in host
+	// mode that gesture lands outside the editor.
 	$effect(() => {
 		if (!editorEl) return;
 		const target = getScrollHost();
 		if (!target) return;
-		const release = () => revealAnchor.releaseAll();
-		return removeAll(
-			onRoot(target, 'keydown', release),
-			onRoot(target, 'pointerdown', release),
-			onRoot(target, 'wheel', release, { passive: true })
-		);
+		return installRevealAnchorRelease(target, () => revealAnchor.releaseAll());
 	});
 
 	$effect(() => {
@@ -1226,6 +1036,47 @@
 	});
 	$effect(() => {
 		modeFlip.afterFlip(effectiveMode);
+	});
+
+	// ── Root gestures ───────────────────────────────────────────────────
+
+	const rootGestures = createRootGestures({
+		get mode() {
+			return effectiveMode;
+		},
+		getDoc,
+		selection: selectionState,
+		stickyColumn,
+		edgeAffinity,
+		getBlockElByPath,
+		getBlockComponent,
+		revealPath,
+		getScrollHost,
+		getLifetime: () => lifetimeController.signal,
+		isHostChrome,
+		activateLink,
+		linkCard,
+		linkRef: linkRefView
+	});
+	// The drop install rides the same root; its deps are the paste pipeline's, not a gesture's.
+	$effect(() => {
+		if (!editorEl) return;
+		const root = editorEl;
+		return removeAll(
+			rootGestures.install(root),
+			installSelectionDrop({
+				editorRoot: root,
+				getDoc,
+				controller,
+				coordinator: pasteCoordinator,
+				getPresentationMode: () => effectiveMode,
+				linkRef: linkRefView,
+				grammar: registryView.grammar,
+				activePlugins,
+				events,
+				isReadOnly: () => effectiveMode === 'reading'
+			})
+		);
 	});
 
 	// A theme flip invalidates no live edit, so it only has to be announced — for
@@ -1603,7 +1454,7 @@
 	// The dead-space click's own landing walk, minus the press/target discrimination a host
 	// caller has already done for itself. See `editor-props.ts` for the contract.
 	export function placeCaretAtPoint(x: number, y: number): boolean {
-		return editorEl ? deadSpaceCaret.placeAtPoint(editorEl, x, y) : false;
+		return editorEl ? rootGestures.placeCaretAtPoint(editorEl, x, y) : false;
 	}
 
 	/**
@@ -1611,11 +1462,6 @@
 	 * focused surface. A gap caret declines: its proxy is not a block, and a NESTED gap's proxy
 	 * sits inside its container's host, which must not receive what was aimed at the gap.
 	 */
-	function blurEditingSurface(root: HTMLElement): void {
-		const active = document.activeElement;
-		if (active instanceof HTMLElement && root.contains(active) && active !== root) active.blur();
-	}
-
 	function focusedSurfacePath(): number[] | null {
 		if (selectionState.gapCaret) return null;
 		const active = document.activeElement;

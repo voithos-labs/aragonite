@@ -27,7 +27,7 @@ export interface HardcodedChordSite {
 
 export const HARDCODED_CHORD_SITES: readonly HardcodedChordSite[] = [
 	{
-		file: 'components/Editor.svelte',
+		file: 'components/editor-root-gestures.ts',
 		chords: [],
 		keys: [],
 		note: 'Mod-click link activation — no keystroke is consumed.'

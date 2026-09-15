@@ -55,8 +55,9 @@ const CARET_GESTURE_DOORS: Record<string, Door> = {
 	// Two doors: the dispatcher hit-tests against SOURCE text the rendered view lacks, so
 	// the rendered view calls the preamble itself rather than delegating.
 	'src/lib/components/blocks/editable-leaf.ts': 'both',
-	// The dead-space click — the root's own padding and the area below the last block.
-	'src/lib/components/Editor.svelte': 'reset'
+	// The dead-space click (the root's own padding, the area below the last block) and the
+	// margin drag, both of which land a caret the browser did not place.
+	'src/lib/components/editor-root-gestures.ts': 'reset'
 };
 
 /**
@@ -70,6 +71,8 @@ const NON_CARET_PRESS_FILES: Record<string, string> = {
 		'swallows the press on its rows so the caret it inserts at keeps focus',
 	'src/lib/components/menu/SelectionToolbar.svelte':
 		'swallows the press on its buttons so the selection they act on survives it; the release is only heard to place the bar',
+	'src/lib/components/editor-root-listeners.ts':
+		'the reveal-anchor release: a press on the scroll port drops the pin and touches no caret',
 	'src/lib/selection/multi-click.ts':
 		'the second and third presses of a click run select the word or the surface under them: a selection gesture whose first press already went through the door',
 	'src/lib/components/blocks/table/TableActionMenu.svelte':
