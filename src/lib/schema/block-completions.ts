@@ -1,18 +1,18 @@
 /**
  * Per-kind Enter-completion registry, the block-opener registry's sibling: an opener recognizes
- * a line while parsing, a completer recognizes a lone typed line at an Enter press and answers
- * the canonical lines that complete it. Published on `plugin.ts`, so its plugin entries clear
- * through `registry-reset.ts` like every other public register-once seam.
+ * a line while parsing, a completer recognizes a lone typed line when Enter is pressed and
+ * returns the canonical lines that complete it. Part of `plugin.ts`, so its plugin entries clear
+ * through `registry-reset.ts` like every other public register-once registry.
  */
 
 import { isBuiltinBlockKind, type AnyBlockKind } from '../core/nodes';
 import { deletePluginEntries, registerOnce } from './register-once';
 
 /**
- * The replacement, as lines WITHOUT endings — the seam attaches the block's own (G4.20) — plus
- * where the caret seats: `path` is child indices inside the minted block, empty for the block,
- * and `line`/`column` address a position inside THAT node. Line-relative rather than a byte
- * offset because the seam picks the line ending after the claim, so only it can count bytes.
+ * The replacement, as lines with no line endings: the Enter handler attaches the block's own
+ * (G4.20). `caret.path` is the child indices inside the new block, empty for the block itself,
+ * and `line`/`column` are a position inside that node. Line-relative rather than a byte offset
+ * because the Enter handler picks the line ending afterwards, so only it can count bytes.
  */
 export interface CompletionResult {
 	lines: string[];
@@ -20,12 +20,13 @@ export interface CompletionResult {
 }
 
 export interface BlockCompleter {
-	/** Attempt to complete `line`; null declines, as does a claim whose lines would paint nothing. */
+	/** Attempt to complete `line`; null declines, and so does a result whose lines render nothing. */
 	tryComplete(line: string): CompletionResult | null;
 	/**
-	 * Also consulted as the line is TYPED, not only at Enter — for a claim that can only ever mean
-	 * one thing the moment it is complete (a lone `$$`), so the block forms as a ` ``` ` fence does.
-	 * Off by default: a table's header row is a prefix of a longer row the user may still be typing.
+	 * Also consulted as the line is typed, not only at Enter, for a line that can only mean one
+	 * thing the moment it is complete (a lone `$$`), so the block forms the way a ` ``` ` fence
+	 * does. Off by default: a table's header row is the start of a longer row the user may still
+	 * be typing.
 	 */
 	onType?: boolean;
 }
@@ -44,8 +45,8 @@ export function registerBlockCompleter(kind: AnyBlockKind, completer: BlockCompl
 	);
 }
 
-// Kind-name order, so which completer is consulted first is a pure function of the declarations
-// and never of registration order — the openers' rule, minus a priority no conflict has asked for.
+// Kind-name order, so which completer runs first depends on the declarations and never on
+// registration order. The openers' rule, without a priority number no conflict has needed yet.
 function ordered(): readonly BlockCompleter[] {
 	if (!orderedCache) {
 		orderedCache = [...completers.entries()]
@@ -55,7 +56,7 @@ function ordered(): readonly BlockCompleter[] {
 	return orderedCache;
 }
 
-/** The first claim on `line`, or null when no registered completer takes it. */
+/** The first completion for `line`, or null when no registered completer takes it. */
 export function completeTypedLine(line: string): CompletionResult | null {
 	for (const completer of ordered()) {
 		const claim = completer.tryComplete(line);
@@ -64,7 +65,7 @@ export function completeTypedLine(line: string): CompletionResult | null {
 	return null;
 }
 
-/** The first claim on `line` among the completers that answer as the line is typed. */
+/** The first completion for `line` among the completers that answer as the line is typed. */
 export function completeLineOnType(line: string): CompletionResult | null {
 	for (const completer of ordered()) {
 		if (!completer.onType) continue;
@@ -74,8 +75,8 @@ export function completeLineOnType(line: string): CompletionResult | null {
 	return null;
 }
 
-/** Whether `kind` already owns a completer — the probe a registrar re-run reads before it
- *  registers, so a re-installed plugin never trips the register-once throw. */
+/** Does `kind` already have a completer? A plugin that may register twice checks this first,
+ *  so re-installing it never trips the register-once throw. */
 export function isBlockCompleterRegistered(kind: string): boolean {
 	return completers.has(kind as AnyBlockKind);
 }
@@ -85,7 +86,7 @@ export function __resetBlockCompletersForTests(): void {
 	orderedCache = null;
 }
 
-// The unified schema reset preserves built-ins for tests that merely add plugin kinds.
+// The shared schema reset keeps built-ins, for tests that only add plugin kinds.
 export function __removePluginCompletersForTests(): void {
 	deletePluginEntries(completers, isBuiltinBlockKind);
 	orderedCache = null;

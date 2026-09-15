@@ -1,10 +1,10 @@
 /**
  * Byte offsets of each child's rendered region inside its container's own `raw`, so a typing
- * rewrite splices one region instead of re-joining every child (O(1) reads through the `$state`
- * proxy rather than O(children)). Bookkeeping, never bytes: nothing serializes or renders it, and
- * a span the invalidation seams missed fails the region check below and falls back to the full
- * rebuild. A `Uint32Array` on purpose — Svelte proxies plain arrays, and the shift would mint a
- * source per element.
+ * rewrite replaces one region instead of re-joining every child (one read through the `$state`
+ * proxy instead of one per child). Bookkeeping only: nothing serializes or renders it, and a span
+ * left stale by a missed invalidation fails the region check below and falls back to the full
+ * rebuild. A `Uint32Array` on purpose: Svelte proxies plain arrays, and the shift would create a
+ * reactive source per element.
  */
 
 import { DEV } from 'esm-env';
@@ -26,9 +26,9 @@ export type LinePrefix = (text: string, first: boolean) => string;
 /** One child's contribution to its container's raw. */
 type RenderChild = (text: string, first: boolean) => string;
 
-/** Drop the spans a children-shape change invalidated; the next full rebuild reseeds them. */
+/** Drop the spans a change to the children invalidated; the next full rebuild recomputes them. */
 export function dropChildSpans(node: CstNode): void {
-	// Tested, not assigned blind: a bare write would mint the field on every node it passes.
+	// Checked before writing: an unconditional write would add the field to every node passed in.
 	if (node.childSpans) node.childSpans = undefined;
 }
 
@@ -48,7 +48,7 @@ export function rebuildConcatRaw(node: CstNode, changed?: ChildRawChange): void 
 	const spans = new Uint32Array(children.length * 2);
 	let out = '';
 	for (let i = 0; i < children.length; i++) {
-		// One indexed read per child: the array is a `$state` proxy and each one is a trap.
+		// One indexed read per child: the array is a `$state` proxy, so every read is a proxy trap.
 		const child = children[i];
 		spans[i * 2] = out.length;
 		out += child.leadingTrivia + child.raw;
@@ -60,7 +60,8 @@ export function rebuildConcatRaw(node: CstNode, changed?: ChildRawChange): void 
 
 /**
  * A container whose raw re-prefixes every line of its body (blockquote, list item). `innerPrefix`
- * is unread: these kinds open their body on their own first line, so no parse fills it (G1.5).
+ * is not read here: these kinds open their body on their own first line, so no parse fills it
+ * (G1.5).
  */
 export function rebuildStripRaw(node: CstNode, prefix: LinePrefix, changed?: ChildRawChange): void {
 	const children = node.children!;
@@ -121,9 +122,9 @@ function renderPrefixed(text: string, prefix: LinePrefix, first: boolean): strin
 }
 
 /**
- * G1.38: re-derives the whole raw on a scratch and refuses a splice that disagrees, so a sibling's
- * bytes moving under the spans cannot ship. Dev only, and off under the perf instruments, whose
- * numbers would otherwise be measuring this.
+ * Rebuilds the whole raw on a scratch node and rejects a rewrite that disagrees with it, so a
+ * sibling's bytes moving under the spans cannot reach the document (G1.38). Dev only, and off
+ * while the perf instruments run, whose numbers would otherwise be measuring this.
  */
 function spliceIsFaithful(node: CstNode, rebuildFull: (scratch: CstNode) => void): boolean {
 	if (!DEV || perfEnabled()) return true;
@@ -149,9 +150,9 @@ function spliceIsFaithful(node: CstNode, rebuildFull: (scratch: CstNode) => void
 // ── The splice ───────────────────────────────────────────────────────────────
 
 /**
- * Rewrite one child's region in place, or decline so the caller reseeds. Declines cover every
- * way the spans can have stopped describing `raw`: the region check is what turns a span the
- * invalidation seams missed into a slower rebuild instead of a corruption.
+ * Rewrite one child's region in place, or decline so the caller rebuilds from scratch. The
+ * declines cover every way the spans can have stopped describing `raw`: checking the region is
+ * what turns a missed invalidation into a slower rebuild instead of corrupted bytes.
  */
 function spliceChildRegion(
 	node: CstNode,
@@ -175,8 +176,8 @@ function spliceChildRegion(
 
 	const rendered = render(trivia + child.raw, first);
 	if (end < raw.length) {
-		// Nothing may reach across the regions that follow: a body running past its own last
-		// line ending would share it, and an emptied opening region hands line 0 to the next child.
+		// Nothing may run into the regions that follow: a child not ending in a line ending would
+		// share its last line, and an emptied first region hands line 0 to the next child.
 		if (rendered !== '' && !rendered.endsWith('\n')) return false;
 		if (first && end > start !== (rendered !== '')) return false;
 	}

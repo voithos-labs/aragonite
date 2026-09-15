@@ -1,8 +1,8 @@
 /**
- * Priority ladder for the built-in block openers, single-sourced here so the published table and
- * the registry cannot drift. Lower dispatches first, ties broken by kind name. A plugin opener
- * whose matcher is a superset of a built-in's must price BELOW it (```mermaid under
- * `fencedCode`); one that only slots between built-ins prices into the gap.
+ * Priority order for the built-in block openers, kept only here so the published table and the
+ * registry cannot drift. Lower runs first, ties broken by kind name. A plugin opener that matches
+ * everything a built-in matches and more needs a lower number than it (```mermaid below
+ * `fencedCode`); one that belongs between two built-ins takes a number in the gap.
  */
 
 import type { BlockKind } from '../core/nodes';

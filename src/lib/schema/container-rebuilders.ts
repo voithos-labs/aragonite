@@ -1,8 +1,8 @@
 /**
- * Per-container-kind raw rebuilders. Separate from container-raw.ts (the ancestry dispatch) so
- * the built-in registrations can declare rebuildRaw directly: this file reaches no registry,
- * while the dispatch must import one, and same-file would cycle. The strip and concat shapes
- * live in child-spans.ts; each kind here contributes only its own per-line syntax.
+ * Per-container-kind raw rebuilders. Kept apart from `container-raw.ts`, which walks a node's
+ * ancestors, so the built-in registrations can declare `rebuildRaw` directly: this file imports
+ * no registry, that walk must, and one file holding both would cycle. The two shared rebuild
+ * shapes live in `child-spans.ts`; each kind here adds only its own per-line syntax.
  */
 
 import type { CstNode, TableAlignment } from '../core/nodes';
@@ -24,7 +24,7 @@ const quoteLine = (text: string): string => (text === '' ? '>' : '> ' + text);
 
 /**
  * Rebuild a list item's `raw`: marker on the first line, indentation on continuations. Blank
- * lines stay unindented — GFM loose-list form.
+ * lines stay unindented, the GFM loose-list form.
  */
 export function rebuildListItemRaw(node: CstNode, changed?: ChildRawChange): void {
 	if (!node.children || !node.metadata) return;
@@ -57,8 +57,8 @@ export function rebuildTableRowRaw(node: CstNode): void {
 }
 
 /**
- * The same bytes under an ending the row does not own: a row minted by a structural op has no
- * authored one, so the TABLE dictates it. Split from the descriptor-shaped rebuilder above
+ * The same bytes with a line ending the row does not carry itself: a row created by a structural
+ * edit has none from the source, so the table supplies it. Separate from the rebuilder above
  * because `rebuildRaw`'s second parameter is the changed-child hint.
  */
 export function writeTableRow(node: CstNode, lineEnding: string): void {
@@ -68,11 +68,10 @@ export function writeTableRow(node: CstNode, lineEnding: string): void {
 }
 
 /**
- * Header + synthesized canonical delimiter + body rows. Every row is rebuilt before assembly, so
- * the whole table normalizes to canonical padding on first structural mutation rather than
- * landing half-padded. The table's own ending drives every emitted line (G4.20): a row minted by
- * a structural op has no authored ending, so per-row detection would strand it on LF in a CRLF
- * table.
+ * Header, a rebuilt delimiter row, then the body rows. Every row is rebuilt first, so the first
+ * structural edit normalizes the whole table's padding instead of leaving half of it padded. The
+ * table's own line ending is used for every line (G4.20): a row created by a structural edit has
+ * none of its own, so reading the ending per row would leave that row on LF in a CRLF table.
  */
 export function rebuildTableRaw(node: CstNode): void {
 	if (!node.children) return;
