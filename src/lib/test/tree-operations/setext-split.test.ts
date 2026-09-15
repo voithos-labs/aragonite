@@ -3,7 +3,7 @@ import { parse } from '../../core/parser';
 import { splitNode } from '../../tree-operations';
 import { describeConvergence } from '../harness/parse-converged';
 
-// The setext underline sits AFTER the title, so a plain raw cut strands it in the second
+// The setext underline sits after the title, so a plain raw cut strands it in the second
 // half, where `=====` reparses as a junk paragraph and `-----` demotes the heading.
 describe('setext heading split', () => {
 	for (const underline of ['=====', '-----']) {
@@ -53,9 +53,9 @@ describe('setext heading split', () => {
 });
 
 // GH #99: a cut on a content line's trailing whitespace left the second half opening with a
-// whitespace-only line, which a reload reads as blank and folds into trivia. The cut consumes
-// that whitespace into the first half — the arm that keeps `serialize(parse(x)) === x` —
-// exactly as `cutPastLineEnding` consumes a bare ending.
+// whitespace-only line, which a reload reads as blank and turns into a separator. The cut
+// consumes that whitespace into the first half (the branch that keeps
+// `serialize(parse(x)) === x`), exactly as `cutPastLineEnding` consumes a bare ending.
 // Miss-analysis: every setext pin cut on a letter or a line boundary; none put the caret
 // inside a content line's trailing whitespace run.
 describe('setext split cutting on trailing whitespace', () => {
@@ -87,7 +87,7 @@ describe('setext split cutting on trailing whitespace', () => {
 		expect(describeConvergence(doc)).toBeNull();
 	});
 
-	// A remainder that is ONLY whitespace has no content line to protect: the blank-half arm
+	// A remainder that is only whitespace has no content line to protect: the blank-half branch
 	// already separates it correctly, so the whitespace stays with the second half.
 	it('leaves an all-whitespace remainder to the blank-half arm', () => {
 		const doc = parse('More \n=====\n');

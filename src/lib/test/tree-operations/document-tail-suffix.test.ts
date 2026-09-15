@@ -7,11 +7,11 @@ import { settleSeparatorOnBlank } from '../../tree-operations/settle';
 import { describeConvergence } from '$lib/test/harness/parse-converged';
 import { settled } from '$lib/test/harness/settle-funnel';
 
-// GH #129: the parse folds a document's one trailing blank line into `doc.suffix` only while
+// GH #129: the parser keeps a document's one trailing blank line in `doc.suffix` only while
 // the tail block is non-blank; when a gesture blanks the tail, the reload reads that line as
-// its own empty paragraph, so the settle must materialize it.
+// its own empty paragraph, so the fix-up must turn it into a block.
 // Miss-analysis: the shape lane's corpus always ends on a block, so no draw ever placed the
-// parse-folded suffix beside a tail a gesture then blanked.
+// parser's suffix beside a tail a gesture then blanked.
 
 describe('the folded trailing blank materializes when the tail turns blank (GH #129)', () => {
 	it('emptying the only block appends the suffix line and reports the insert', () => {
@@ -41,8 +41,8 @@ describe('the folded trailing blank materializes when the tail turns blank (GH #
 		expect(describeConvergence(doc)).toBeNull();
 	});
 
-	// The structural sinks are handed a slotless body parent, so the mint is the settle's alone
-	// (GH #168): both cases below report the widened window the ceremony publishes.
+	// The structural writes are handed a body parent with no suffix, so only the fix-up creates
+	// the block (GH #168): both cases below report the widened window the commit writes out.
 	it('a split whose blank second half lands at the tail widens its window', () => {
 		const doc = parse('foo*42*_lorem_  \r\n\n');
 		expect(doc.children).toHaveLength(1);
@@ -71,8 +71,8 @@ describe('the folded trailing blank materializes when the tail turns blank (GH #
 		expect(change).toEqual({ op: 'replace', at: 2, count: 1, newCount: 1 });
 	});
 
-	// The whole document gone: no tail is left for the line to fold against, so it is the one
-	// block the reload reads and the settle must mint it.
+	// The whole document gone: no tail is left for the line to attach to, so it is the one
+	// block the reload reads and the fix-up must create it.
 	it('deleting the only block materializes the folded line rather than emptying the tree', () => {
 		const doc = parse('a\n\n');
 
@@ -85,8 +85,8 @@ describe('the folded trailing blank materializes when the tail turns blank (GH #
 	});
 
 	// The full-table delete fills the emptied document itself (`range-delete-table-coverage`), so
-	// the settle meets a blank tail the caller already reported — its own mint has to widen that
-	// window rather than land outside it.
+	// the fix-up meets a blank tail the caller already reported: the block it creates has to
+	// widen that window rather than land outside it.
 	it('widens a caller-minted filler window when the folded line materializes beside it', () => {
 		const doc = parse('| H |\n| - |\n\n');
 
@@ -102,8 +102,8 @@ describe('the folded trailing blank materializes when the tail turns blank (GH #
 		expect(change).toEqual({ op: 'replace', at: 0, count: 1, newCount: 2 });
 	});
 
-	// The whole-content range delete's door: `rangeDelete`'s same-block arm writes the blank
-	// and settles through this seam, so the arm must live in the settle for it to inherit.
+	// The whole-content range delete's path: `rangeDelete`'s same-block branch writes the blank
+	// and goes through this fix-up, so the rule must live in the fix-up for it to inherit.
 	it('the settle itself materializes on a document parent', () => {
 		const doc = parse('foo bar\n\n');
 		doc.children[0].raw = '\n';

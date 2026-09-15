@@ -18,8 +18,8 @@ import {
 } from '../../harness/editor-actions';
 import type { AnyBlockKind, CstNode, Document } from '../../../core/nodes';
 
-// The shape registerChromeLeaf produces: reserved chrome at child 0 plus the leaf's
-// inline-only paste surface.
+// The shape registerChromeLeaf produces: a reserved title child at child 0 plus that leaf's
+// inline-only paste handlers.
 function registerChromeContainer(): { container: AnyBlockKind; chrome: AnyBlockKind } {
 	const chrome = declarePluginKind('spec-chrome-title');
 	const container = declarePluginKind('spec-chrome-container');
@@ -89,8 +89,8 @@ describe('paste into a reserved-chrome leaf', () => {
 
 	it('flattens a list clipboard at a chrome path even when an enclosing list would absorb', async () => {
 		const { container, chrome } = registerChromeContainer();
-		// The chrome leaf sits where findListAbsorb treats the container as a list item, so the
-		// container family fires here unless the chrome gate precedes it.
+		// The title child sits where findListAbsorb treats the container as a list item, so the
+		// container family fires here unless the title check precedes it.
 		const list: CstNode = {
 			kind: 'list',
 			leadingTrivia: '',
@@ -113,7 +113,7 @@ describe('paste into a reserved-chrome leaf', () => {
 		const blockEdit = makeStubBlockEdit();
 		const controller = makeStubController();
 
-		// The container family matches this target, so the gate must win over it.
+		// The container family matches this target, so the title check must win over it.
 		expect(findListAbsorb(doc, [0, 0, 0], parse('- a\n- b\n'), 5)).not.toBeNull();
 
 		await pasteDispatch(

@@ -1,5 +1,5 @@
-// `containerPaste.matchesAncestor` is plugin code the paste gates run on a user gesture.
-// On the cross-block route the covering range delete has ALREADY committed when the gate
+// `containerPaste.matchesAncestor` is plugin code the paste checks run on a user gesture.
+// On the cross-block route the covering range delete has already committed when the check
 // runs, so an escaping throw loses the selection with nothing pasted and nothing on the
 // `error` channel. A throw must decline, exactly as a `false` return does.
 import { afterEach, describe, expect, it } from 'vitest';
@@ -49,7 +49,7 @@ describe('a throwing matchesAncestor is contained at every gate', () => {
 		expect(takeDevWarns().map((w) => w.tag)).toEqual(['container-paste']);
 	});
 
-	// Break-out's gate reads the predicate the other way round, so a broken predicate must
+	// Break-out's check reads the predicate the other way round, so a broken predicate must
 	// still behave as `() => false` there rather than as an abort.
 	it('list-break-out treats the throw as a non-match and still applies', () => {
 		throwOnMatch('list', true);

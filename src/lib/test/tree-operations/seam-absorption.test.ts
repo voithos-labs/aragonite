@@ -6,10 +6,10 @@ import { describeConvergence } from '$lib/test/harness/parse-converged';
 import { settled } from '$lib/test/harness/settle-funnel';
 import type { SettledContent } from '$lib/tree-operations/content-write';
 
-// GH #61: a splice can leave neighbours whose adjacent bytes re-read as ONE block on reload —
-// a list newly standing above indented code absorbs it, since no separator line can hold
-// indentation apart. The seam settle absorbs the pair the way the reload will.
-// Miss-analysis: the property arm excluded every document holding indented code, so the one
+// GH #61: a splice can leave neighbours whose adjacent bytes re-read as one block on reload
+// (a list newly standing above indented code absorbs it, since no separator line can hold
+// indentation apart). The neighbour merge joins the pair the way the reload will.
+// Miss-analysis: the property branch excluded every document holding indented code, so the one
 // adjacency no separator can fix was unreachable by construction.
 
 describe('a splice absorbs a seam the reload would fold (GH #61)', () => {
@@ -38,7 +38,7 @@ describe('a splice absorbs a seam the reload would fold (GH #61)', () => {
 		expect(change).toEqual({ op: 'replace', at: 0, count: 3, newCount: 1, idMap: { 0: 0 } });
 	});
 
-	// A blank run is transparent to continuation, so the absorber can stand above it.
+	// Blank lines do not stop a continuation, so the absorbing block can stand above them.
 	it('a delete whose absorber sits across a blank run still folds the window', () => {
 		const doc = parse('- > # [t](u)\n\n\n-     code\n  \n  foo@bar.com\n\n```\n```\n');
 		expect(doc.children.map((c) => c.kind)).toEqual([
@@ -68,9 +68,9 @@ describe('a splice absorbs a seam the reload would fold (GH #61)', () => {
 		expect(change).toEqual({ op: 'replace', at: 0, count: 5, newCount: 1, idMap: { 0: 0 } });
 	});
 
-	// A structured container's children do not standalone-reparse to themselves: two items'
-	// joined bytes read as a nested LIST, which is the parent's kind, not a sibling's.
-	// Miss-analysis: the seam pins only drove document-level children, so no window ever held
+	// A structured container's children do not reparse to themselves on their own: two items'
+	// joined bytes read as a nested list, which is the parent's kind, not a sibling's.
+	// Miss-analysis: the join pins only drove document-level children, so no window ever held
 	// a structured container's children whose joined bytes parse to the parent's own kind.
 	it('a list-scope delete never absorbs items into a nested list', () => {
 		const doc = parse('1. First\n2. Second\n3. Third\n');
@@ -86,8 +86,8 @@ describe('a splice absorbs a seam the reload would fold (GH #61)', () => {
 
 	// GH #21's cross-linked family member, replayed off its fresh-seed shape: a setext heading
 	// deleted from between a list and indented code lets the four-space indent continue the item,
-	// which no separator normalization can hold apart. The fold stops at the blockquote below, so
-	// the tail code block keeps its own slot.
+	// which no separator normalization can hold apart. The merge stops at the blockquote below, so
+	// the tail code block keeps its own position.
 	it('a delete letting a list swallow indented code stops the fold at the next block', () => {
 		const doc = parse('# word\n- > # word\n\n[t](u)\n=\n\n    code\n\n> q\n\n    tail\n');
 		expect(doc.children.map((c) => c.kind)).toEqual([
@@ -123,11 +123,11 @@ describe('a splice absorbs a seam the reload would fold (GH #61)', () => {
 	});
 });
 
-// GH #255: the second half a split mints can be the FIRST line of a two-line construct whose
-// second line is the follower — a setext underline, a table delimiter row. The pair's own bytes
-// parse to one block, so the reload folds it and the tree must too.
-// Miss-analysis: every seam pin folded a window whose head kept its kind, so the guard admitting
-// only a kind-preserving fold refused these promotions unasserted.
+// GH #255: the second half a split creates can be the first line of a two-line construct whose
+// second line is the follower (a setext underline, a table delimiter row). The pair's own bytes
+// parse to one block, so the reload merges it and the tree must too.
+// Miss-analysis: every join pin merged a window whose head kept its kind, so the check admitting
+// only a kind-preserving merge refused these promotions unasserted.
 
 describe('a splice absorbs a seam whose fold promotes the head (GH #255)', () => {
 	it('a split above a setext underline leaves the pair as one heading', () => {
@@ -158,7 +158,7 @@ describe('a splice absorbs a seam whose fold promotes the head (GH #255)', () =>
 		expect(describeConvergence(doc)).toBeNull();
 	});
 
-	// The content door names the block whose bytes moved, so the fold is asked through the
+	// The content write names the block whose bytes moved, so the merge is asked through the
 	// head-line pre-parse first: it must fall through rather than decline the promotion.
 	it('typing the underline into the tight block below a paragraph folds the pair', () => {
 		const doc = parse('p\n# h\n');

@@ -1,7 +1,7 @@
-// Enter mints the successor's blank-line separator when the first half would otherwise
+// Enter creates the successor's blank-line separator when the first half would otherwise
 // lazily absorb it. Asserted through `describeConvergence`, not bytes: the defect is the
-// LIVE tree disagreeing with a reparse of its own serialization, which every byte-level
-// oracle is blind to (the round trip is a tautology, G2.1).
+// live tree disagreeing with a reparse of its own serialization, which every byte-level
+// check is blind to (the round trip is a tautology, G2.1).
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { parse } from '../../core/parser';
 import { serialize } from '../../core/serializer';
@@ -62,7 +62,7 @@ describe('split separator — the half that absorbs gets one', () => {
 });
 
 describe('split separator — the empty half that needs one', () => {
-	// A lone blank line after a block is that block's trailing trivia, so an empty second
+	// A lone blank line after a block is that block's trailing blank line, so an empty second
 	// half only survives the reload as a block when a separator opens its run.
 	const emptyHalfBecomesBlock: readonly [name: string, source: string, offset: number][] = [
 		['heading', '## Title\n', 8],
@@ -81,8 +81,8 @@ describe('split separator — the empty half that needs one', () => {
 });
 
 describe('split separator — the halves that close get none', () => {
-	// A body that swallows a blank line as content would take the separator INSIDE itself,
-	// which is why the predicate asks what a blank line DOES, not whether the join merges.
+	// A body that swallows a blank line as content would take the separator inside itself,
+	// which is why the predicate asks what a blank line does, not whether the join merges.
 	const swallowsTheBlank: readonly [name: string, source: string, offset: number][] = [
 		['unclosed fence', '```\ncode\n', 9],
 		['unclosed html block', '<pre>\nliteral\n', 13]
@@ -125,8 +125,8 @@ describe('split separator — the promoted first half', () => {
 	});
 });
 
-// The probe stands in for whatever the user types next, so it must be the line NO opener
-// claims. Openers are arbitrary code, so a consumer's globally-registered plugin is the
+// The stand-in line represents whatever the user types next, so it must be the line no opener
+// takes. Openers are arbitrary code, so a consumer's globally registered plugin is the
 // reachable way to break that, and unit files reset the platform.
 describe('split separator — the probe line', () => {
 	beforeEach(__resetSchemaRegistriesForTests);
@@ -156,8 +156,8 @@ describe('split separator — the probe line', () => {
 
 		expect(probeLineOpensAsProse()).toBe(false);
 
-		// The consequence, pinned so the guard's warning is not the only record: a claimed probe
-		// makes the separator read as doing nothing, and every paragraph split loses it.
+		// The consequence, pinned so the check's warning is not the only record: a stand-in line
+		// an opener takes makes the separator read as doing nothing, and every paragraph split loses it.
 		const doc = parse('Hello world\n');
 		splitNode(doc, 0, 5, undefined, undefined, undefined);
 		expect(doc.children[1].leadingTrivia).toBe('');

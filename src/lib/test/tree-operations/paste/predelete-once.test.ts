@@ -14,9 +14,9 @@ import {
 
 // GH #121: the container-match, sibling-absorb and break-out strategies never read `preDelete`, so
 // a paste over a selection kept the selected bytes as the residue its split hands the trailing
-// half. The cut is spent ONCE at the door now, ahead of a strategy pick that decides on the
+// half. The cut is applied once in dispatch now, ahead of a strategy pick that decides on the
 // target's bytes.
-// Miss-analysis: every container-route case pastes at a COLLAPSED caret, so the field these routes
+// Miss-analysis: every container-route case pastes at a collapsed caret, so the field these routes
 // ignore was populated in none of them; the hook routes' own `preDelete` pins hid the gap.
 
 function harnessFor(source: string) {

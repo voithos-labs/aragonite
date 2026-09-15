@@ -13,11 +13,11 @@ import { registerCalloutKind } from '../../../routes/test/plugins/callout/callou
 import { expectParseConverged } from '../harness/parse-converged';
 import type { CstNode } from '$lib/core/nodes';
 
-// The give-back twin of the closer-peel take pinned in `wrapped-container-separator.test.ts`: a
+// The counterpart of the closer-line take pinned in `wrapped-container-separator.test.ts`: a
 // blank run reaching the body tail borrows a line into `innerSuffix` so the reload keeps the
-// block, and a tail that stops being blank owes that line back.
-// Miss-analysis: the wrap arms were pinned in the blanking direction only, and the G2.13
-// arbitrary draws no chrome-wrapped container, so nothing observed the return trip at all — the
+// block, and a tail that stops being blank must give that line back.
+// Miss-analysis: the fence-line branches were pinned in the blanking direction only, and the
+// G2.13 arbitrary draws no fenced container, so nothing observed the return trip at all: the
 // borrowed line simply stayed, one stray blank before every closer.
 
 function writeBody(container: CstNode, at: number, text: string): void {
@@ -78,8 +78,8 @@ describe('the closer peel a blank tail borrowed', () => {
 });
 
 // The gesture the class reaches production by: Enter at the end of the last body child makes a
-// blank tail (the settle borrows), then typing fills it (the settle must give back). The take
-// runs at the commit ceremony, so only a bundle-driven case crosses it.
+// blank tail (the fix-up borrows), then typing fills it (the fix-up must give back). The take
+// runs inside the commit, so only a bundle-driven case reaches it.
 describe('a tail split then typed, through the container bundle', () => {
 	beforeEach(() => {
 		__resetSchemaRegistriesForTests();
@@ -102,8 +102,8 @@ describe('a tail split then typed, through the container bundle', () => {
 		expectParseConverged(h.deps.doc);
 	});
 
-	// `<details>` is the other kind declaring `beforeCloserLine`, reaching the arm through a
-	// different chrome shape: the wrap tier is the class, not the dogfood callout.
+	// `<details>` is the other kind declaring `beforeCloserLine`, reaching the branch through a
+	// different fence shape: fenced containers are the class, not the dogfood callout.
 	it('holds for the details container too', async () => {
 		const source = '<details>\n<summary>S</summary>\n\nFirst one\n\n</details>\n';
 		const h = makeNestedHarness(parse(source), { index: 0 });
@@ -112,9 +112,9 @@ describe('a tail split then typed, through the container bundle', () => {
 		await h.bundle.blockEdit.splitBlock(body, 9);
 		await h.bundle.blockEdit.updateBlockContent(body + 1, 'two\n', 3);
 
-		// The seed's own blank against the closer is the peel by the time the tail run ends, so
-		// it is spent with it: the release cannot tell an authored line from a borrowed one, and
-		// the shape it leaves still reloads as itself.
+		// The fixture's own blank against the closer is the stripped line by the time the tail
+		// run ends, so it goes with it: the release cannot tell an authored line from a borrowed
+		// one, and the shape it leaves still reloads as itself.
 		expect(serialize(h.deps.doc)).toBe(
 			'<details>\n<summary>S</summary>\n\nFirst one\n\ntwo\n</details>\n'
 		);

@@ -129,7 +129,7 @@ describe('buildExitReplacement', () => {
 		expect(paragraphIndex).toBe(0);
 	});
 
-	// The exit slot does not burn a number, from base 1 or any preserved starting number.
+	// The exited item does not burn a number, from base 1 or any preserved starting number.
 	it.each([1, 5])('ordered middle exit from base %i continues the sequence', (base) => {
 		const list = parseList(`${base}. a\n${base + 1}. b\n${base + 2}. c\n${base + 3}. d\n`);
 		blankFirstParagraph(list.children![2]);

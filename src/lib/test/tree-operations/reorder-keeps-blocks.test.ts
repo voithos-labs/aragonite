@@ -1,6 +1,6 @@
-// A reorder must not change what the document CONTAINS. Blank lines are nodes here, and a
+// A reorder must not change what the document contains. Blank lines are nodes here, and a
 // blank node does not travel with the block a drag moves, so a block could land flush under a
-// paragraph that then read its rows as its own text — a table dissolving into the prose above
+// paragraph that then read its rows as its own text: a table dissolving into the prose above
 // it, and the same for any block a paragraph can continue into.
 import { describe, it, expect } from 'vitest';
 import { parse } from '../../core/parser';
@@ -8,7 +8,7 @@ import { serialize } from '../../core/serializer';
 import { reorderChildrenWithTrivia } from '../../tree-operations/reorder';
 import { createSharingState } from '../../tree-operations/sharing';
 
-// The seams that bite: a table and a list under prose (a paragraph continues into both), a
+// The joins that bite: a table and a list under prose (a paragraph continues into both), a
 // quote, a heading, and a fence that cannot be continued into. Blank-line nodes throughout.
 // The doubled blank lines are the point: an extra blank line is a node of its own, and that
 // node does not travel with the block below it.
@@ -76,7 +76,7 @@ describe('a reorder keeps every block it moves past', () => {
 		expect(broken).toEqual([]);
 	});
 
-	// The guard must not pay for itself in noise: a seam that already reads as two blocks is
+	// The rule must not pay for itself in noise: a join that already reads as two blocks is
 	// left exactly as the author wrote it.
 	it('writes no separator where the blocks were already apart', () => {
 		const kinds = parse(DOC).children.map((c) => c.kind);

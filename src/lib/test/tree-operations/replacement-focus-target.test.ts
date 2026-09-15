@@ -32,7 +32,7 @@ describe('focusTargetInReplacement', () => {
 	});
 });
 
-// What each caret door onto the content funnel spends: the settle's window and its text offset.
+// What each caret placement after a content write uses: the fix-up's window and its text offset.
 describe('settledCaretTarget', () => {
 	const noFold = { change: { op: 'noop' } as const, textStart: 0 };
 
@@ -51,7 +51,7 @@ describe('settledCaretTarget', () => {
 		});
 	});
 
-	// The multi-block window still descends, and the descent starts behind the absorbed bytes —
+	// The multi-block window still descends, and the descent starts behind the absorbed bytes:
 	// drop the shift and the same offset lands at the block's start instead of after the `y`.
 	it('descends a multi-block window from the absorbed head', () => {
 		const settled = {

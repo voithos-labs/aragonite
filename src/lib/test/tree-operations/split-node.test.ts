@@ -77,7 +77,7 @@ describe('splitNode', () => {
 });
 
 describe('splitNode edge cases', () => {
-	// GH #98: the caret contract is the returned index, not `blockIndex + 1` — a first half
+	// GH #98: the caret contract is the returned index, not `blockIndex + 1`: a first half
 	// whose bytes reparse plural (blank lines inside indented code) pushes the second half down.
 	it('reports the second half index past a plural first half', () => {
 		const doc = parse('    a\n\n\n    b\n');

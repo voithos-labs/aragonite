@@ -37,7 +37,7 @@ describe('ensureListItemNewlineTerminated', () => {
 		expect(item.raw).toBe('- a\n');
 	});
 
-	// Patching a CONTAINER last child's raw without descending leaves raw and children
+	// Patching a container last child's raw without descending leaves raw and children
 	// disagreeing (G1.1), and the next rebuild mashes its tail item into the following one.
 	it('descends into a nested container instead of patching its raw alone', () => {
 		const item = parse('- a\n  - b').children[0].children![0];
@@ -52,7 +52,7 @@ describe('ensureListItemNewlineTerminated', () => {
 
 	// The descent stops above a node whose children are not whole lines: a grid cell's bytes sit
 	// inside the row's line, so an ending appended there splits the row and corrupts the table.
-	// Miss-analysis: every descent case ended in a prose leaf or a strip container, so the arm
+	// Miss-analysis: every descent case ended in a prose leaf or a strip container, so the branch
 	// reaching a kind whose raw is not a line of its own was never driven.
 	it('stops above a grid cell rather than splitting the row', () => {
 		const source = '- | a | b |\n  | --- | --- |\n  | c | d |';
@@ -65,10 +65,10 @@ describe('ensureListItemNewlineTerminated', () => {
 		expect(checkStaleRaw(item)).toBeNull();
 	});
 
-	// The opaque twin of the grid case, and the one that fails SILENTLY: the descent used to reach
-	// a body block already ending in `\n`, return, and leave the item unterminated — the state
-	// `spliceTerminatedItems` exists to prevent. `directiveContainer` is core's own `:::` fallback,
-	// so the arm needs no plugin.
+	// The opaque counterpart of the grid case, and the one that fails silently: the descent used
+	// to reach a body block already ending in `\n`, return, and leave the item unterminated, the
+	// state `spliceTerminatedItems` exists to prevent. `directiveContainer` is core's own `:::`
+	// fallback, so the branch needs no plugin.
 	it('stops above an opaque container body rather than leaving the item unterminated', () => {
 		activateDirectiveGrammar();
 		const source = '- text\n\n  :::note Heads up\n  body\n  :::';
@@ -110,7 +110,7 @@ describe('spliceTerminatedItems', () => {
 		expect(list.raw).toBe('1. one\n6. Ordered\n7. third\n');
 	});
 
-	// A literal '\n' strands an item arriving WITHOUT an ending as an LF line inside a CRLF
+	// A literal '\n' strands an item arriving without an ending as an LF line inside a CRLF
 	// container (G4.20); the siblings it joins carry the only ending it can adopt.
 	it('adopts the surrounding list ending instead of a literal LF', () => {
 		const list = parse('1. one\r\n2. two\r\n').children[0];

@@ -14,11 +14,11 @@ import { createBlockEditActions } from '$lib/editor-actions/block-edit';
 import { makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
 import { expectParseConverged, triviaRawOf } from '$lib/test/harness/parse-converged';
 
-// A break-out splices the enclosing list's slot for a first-half list, the pasted blocks and a
-// residue half, and the slot's own separating line has to survive that swap like every other
+// A break-out replaces the enclosing list with a first-half list, the pasted blocks and a
+// residue half, and the list's own separating line has to survive that swap like every other
 // splice's does (syntax-tree.md § Blank lines).
 // Miss-analysis: `list-break-out.test.ts` covers the pure replacement builder only, over lists
-// drawn with no separator above them, so no case ever put a blank line at the spliced slot —
+// drawn with no separator above them, so no case ever put a blank line at the spliced position:
 // the one input whose loss the builder's blanket `leadingTrivia: ''` produces.
 
 /** Paste `clipboard` at `offset` inside the leaf at `targetPath` of a live document. */
@@ -57,8 +57,8 @@ describe('a paste that breaks a list out settles the slot it spliced', () => {
 		expectParseConverged(pasted);
 	});
 
-	// A blank BLOCK above the list is the list's separating line, so the slot carries none and the
-	// splice must not mint one either.
+	// A blank block above the list is the list's separating line, so the list carries none and
+	// the splice must not create one either.
 	it('mints nothing below a blank block the run already answers for', async () => {
 		const doc = parse('intro\n\n\n- one\n- two\n');
 		expect(layout(doc)).toEqual([

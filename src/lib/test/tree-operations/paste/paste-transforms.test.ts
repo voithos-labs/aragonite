@@ -13,7 +13,7 @@ import {
 import { activationFor } from '../../../schema/plugin-activation';
 import { allowDevWarns, takeDevWarns } from '../../support/warn-gate';
 
-// The ordering fixtures append unconditionally, so the dev idempotence probe warns on them;
+// The ordering fixtures append unconditionally, so the dev idempotence check warns on them;
 // only the containment cases below are about the diagnostic itself.
 afterEach(() => allowDevWarns(['paste-transform']));
 
@@ -106,7 +106,7 @@ describe('paste-transforms containment', () => {
 	it('runs a later transform on the untouched text after an earlier one throws', () => {
 		registerPasteTransform(throwingOnCall('thrower', 1).transform);
 		registerPasteTransform({ name: 'bang', transform: (text) => `${text}?` });
-		// 'seed?' proves the pipeline survived the throw AND fed the bang transform the
+		// 'seed?' proves the pipeline survived the throw and fed the bang transform the
 		// pre-throw running text.
 		expect(applyPasteTransforms('seed')).toBe('seed?');
 	});
@@ -115,14 +115,14 @@ describe('paste-transforms containment', () => {
 		const probe = throwingOnCall('probe-thrower', 2);
 		registerPasteTransform(probe.transform);
 		expect(applyPasteTransforms('seed')).toBe('seed!');
-		expect(probe.callCount()).toBe(2); // the probe really ran — the pin is not vacuous
+		expect(probe.callCount()).toBe(2); // the idempotence check really ran, so the pin is not vacuous
 	});
 
 	it('reports a probe-time throw as a probe throw, never as a non-idempotent rewrite', () => {
 		registerPasteTransform(throwingOnCall('probe-thrower', 2).transform);
 		applyPasteTransforms('seed');
-		// The message names the probe, not a decline: a "declining" message would send the
-		// author debugging a working paste.
+		// The message names the idempotence check, not a decline: a "declining" message would
+		// send the author debugging a working paste.
 		const messages = takeDevWarns().map((w) => w.message);
 		expect(messages).toContainEqual(
 			expect.stringContaining("transform 'probe-thrower' threw in the dev idempotence probe")
@@ -131,7 +131,7 @@ describe('paste-transforms containment', () => {
 	});
 
 	// Keeps the negative assertion above honest: the non-idempotent message is live, so its
-	// absence on the probe-throw path is a real distinction.
+	// absence when the idempotence check throws is a real distinction.
 	it('still reports a genuinely non-idempotent rewrite under its own message', () => {
 		registerPasteTransform(appending('grows', '!'));
 		applyPasteTransforms('seed');

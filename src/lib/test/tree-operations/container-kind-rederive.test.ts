@@ -9,7 +9,7 @@ import { checkStaleRaw } from '$lib/invariants/node-shape';
 import type { CstNode, Document } from '$lib/core/nodes';
 
 // The pure half of the container kind-change path: a container whose rebuilt raw opens
-// as a different kind is replaced in its parent's slot. Eligibility is the opener
+// as a different kind is replaced in its parent's children. Eligibility is the opener
 // registry, since a kind with no standalone recognizer reparses to something else. The
 // editor-driven half is test/plugins/admonitions/github-alert-typed-formation.test.ts.
 
@@ -64,7 +64,7 @@ describe('reclassifyContainer', () => {
 		expect(doc.children[0]).toBe(before);
 	});
 
-	// A listItem's raw parses to a LIST and a tableRow's to a paragraph, so re-deriving
+	// A listItem's raw parses to a list and a tableRow's to a paragraph, so re-deriving
 	// either from its own raw destroys it. The rule is the opener registry, not a name list.
 	it.each([
 		['listItem', '- [!TI\n', '[!TIP]\n'],
@@ -97,7 +97,7 @@ describe('reclassifyContainer', () => {
 		expect(doc.children[0].kind).toBe('blockquote');
 	});
 
-	// A freshly-parsed replacement carries no childIds, so undefined keys reach the nested
+	// A freshly parsed replacement carries no childIds, so undefined keys reach the nested
 	// keyed `{#each}` and throw on the second child. One body child cannot expose it.
 	it('assigns child ids on a replacement with a multi-block body', () => {
 		const doc: Document = parse('> [!TI\n>\n> a\n>\n> b\n');

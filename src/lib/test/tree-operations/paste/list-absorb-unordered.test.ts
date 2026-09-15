@@ -13,7 +13,7 @@ import {
 } from '../../harness/editor-actions';
 import { metadataOf } from '$lib/core/nodes';
 
-// Absorbing a same-type list paste must normalize markers for BOTH halves: a `*` kept
+// Absorbing a same-type list paste must normalize markers for both halves: a `*` kept
 // inside a `- ` list is split into two lists by reference parsers.
 
 describe('list-absorb — marker normalization', () => {

@@ -20,7 +20,7 @@ it('a keystroke inside a large container reads O(1) sibling elements, not O(chil
 	const doc = parse(source);
 	const path = [0, 900, 0];
 	const chain = ensureUnsharedPath(doc, path, sharing);
-	// The seeding pass is the O(children) one, and it is what the hinted pass then rides.
+	// The first pass is the O(children) one, and the hinted pass then builds on it.
 	rebuildUnsharedChain(doc, chain, sharing, null, undefined);
 
 	const list = doc.children[0];
@@ -42,9 +42,9 @@ it('a keystroke inside a large container reads O(1) sibling elements, not O(chil
 	expect(reads).toBeLessThan(10);
 });
 
-// The other half of the same rule: a hint rides up from the door that named the leaf's bytes and
-// from nowhere else, so a structural caller re-derives at every level (`editor.md` § 9). A fresh
-// spans array is what a full rebuild leaves behind; the splice writes the one it was handed.
+// The other half of the same rule: a hint is passed up only from the caller that named the leaf's
+// bytes, so a structural caller re-derives at every level (`editor.md` § 9). A fresh spans array
+// is what a full rebuild leaves behind; the splice writes the one it was handed.
 it('a hintless rebuild re-derives at every level, and a hinted one splices at every level', () => {
 	const source = '- one\n\n  body\n\n  tail\n';
 	const path = [0, 0, 1];

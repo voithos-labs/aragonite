@@ -5,11 +5,12 @@ import { applyStructuralChangeToIdsRefs } from '$lib/tree-operations/structural-
 import { parse } from '$lib/core/parser';
 import type { BlockComponent } from '$lib/block-component';
 
-// GH #178: a fold reported `idMap: {0:0}`, so every slot below it took a fresh id and remounted —
-// including blocks the gesture never touched, whose identity the incoming change still described.
-// Miss-analysis: the reorder pins assert the permutation the reorder MINTS, and the absorb pins
-// assert the window a fold collapses; no case ran a reorder whose window a fold then ate, so the
-// composition of the two was never read at all.
+// GH #178: a merge reported `idMap: {0:0}`, so every position below it took a fresh id and
+// remounted, including blocks the gesture never touched, whose identity the incoming change still
+// described.
+// Miss-analysis: the reorder pins assert the permutation the reorder produces, and the merge pins
+// assert the window a merge collapses; no case ran a reorder whose window a merge then ate, so
+// the composition of the two was never read at all.
 
 /** A list above an indented paragraph: their adjacent bytes re-read as one list on reload. */
 const SOURCE = '- a\n\nx\n\n  b\n';

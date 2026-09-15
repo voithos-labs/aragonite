@@ -84,15 +84,15 @@ describe('reorderChildrenWithTrivia', () => {
 		expect(children.map((c) => c.leadingTrivia)).toEqual(['', '\n']);
 	});
 
-	// The OOB backstop must fire BEFORE the per-slot unshare loop, or a stale index reads
-	// `.leadingTrivia` off `undefined` and throws before the delegated guard can no-op.
+	// The out-of-bounds check must fire before the per-block copy loop, or a stale index reads
+	// `.leadingTrivia` off `undefined` and throws before the delegated check can no-op.
 	it('is a guarded noop when `from` is out of bounds, before any unshare', () => {
 		const children = [triviaNode('', 'a\n'), triviaNode('\n', 'b\n')];
 		const originals = children.slice();
 		const s = sharing();
 		s.markSnapshotTaken();
 
-		// The block never moved, so the landing is where it still stands.
+		// The block never moved, so the caret ends up where it still stands.
 		expect(reorderChildrenWithTrivia(children, 5, 0, s)).toEqual({
 			change: { op: 'noop' },
 			landing: 5

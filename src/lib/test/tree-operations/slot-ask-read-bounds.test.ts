@@ -6,9 +6,9 @@ import type { AncestrySeamFold } from '../../tree-operations/chain-rebuild';
 import { ensureUnsharedPath } from '../../tree-operations/unshare';
 import { rebuildUnsharedAncestry } from '../../tree-operations/chain-rebuild';
 
-// Miss-analysis: the slot ask's cost was pinned only by the perf gate's wall clock on the pinned
-// host, so an O(children) eager snapshot rode in as machine noise; an element-read oracle fails
-// on the class, not the milliseconds.
+// Miss-analysis: the cost of the join check at a container's position was pinned only by the
+// perf gate's wall clock on the pinned host, so an O(children) eager snapshot got in as machine
+// noise; a check that counts element reads fails on the class, not the milliseconds.
 it('a declined slot ask reads O(window) sibling elements, not O(children)', () => {
 	const count = 2000;
 	const source = Array.from({ length: count }, (_, i) => `- item ${i}\n`).join('');
@@ -33,7 +33,7 @@ it('a declined slot ask reads O(window) sibling elements, not O(children)', () =
 	rebuildUnsharedAncestry(doc, [0, 0], sharing, folds, undefined);
 
 	expect(folds).toEqual([]);
-	// The unshare walk and the slot ask's own indexOf pay one pass; the declined ask must not
-	// pay a second full pass snapshotting siblings it never folds.
+	// The copy-on-write walk and the join check's own indexOf pay one pass; a declined check
+	// must not pay a second full pass snapshotting siblings it never merges.
 	expect(reads).toBeLessThan(count + 200);
 });

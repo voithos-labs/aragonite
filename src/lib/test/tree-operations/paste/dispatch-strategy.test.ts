@@ -28,7 +28,7 @@ describe('paste-dispatch — strategy selection', () => {
 	);
 });
 
-// A surface holding no blocks classifies past the copy's packaging; every other target reads the
+// A kind that holds no blocks skips over the copy's packaging; every other target reads the
 // clipboard whole, which is what keeps a pasted blank run a blank run in prose.
 describe('paste-dispatch — the clipboard’s content blocks', () => {
 	const WRAPPED = '  \nhello\nworld\n  ';

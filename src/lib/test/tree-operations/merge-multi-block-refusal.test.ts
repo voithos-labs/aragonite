@@ -7,10 +7,10 @@ import type { BodyParent } from '$lib/tree-operations/node-primitives';
 import { expectParseConverged } from '$lib/test/harness/parse-converged';
 
 // GH #166. Miss-analysis: G2.13's gesture lane drove split, delete and content commits but no
-// merge, so no oracle ever read a merged tree back — the forward sink's own dev warn was the
-// only witness of the dropped line, and the deep-leaf sink had none at all.
+// merge, so no check ever read a merged tree back; the forward merge's own dev warn was the only
+// witness of the dropped line, and the deep-leaf merge had none at all.
 
-/** A heading whose join with the paragraph below reads as TWO blocks: `# htext` then `more`. */
+/** A heading whose join with the paragraph below reads as two blocks: `# htext` then `more`. */
 const HEADING_OVER_TWO_LINES = '# h\ntext\nmore\n';
 const QUOTED = '> # h\n> text\n> more\n';
 
@@ -45,8 +45,8 @@ describe('a join whose bytes read as several blocks is refused, not truncated', 
 		expectParseConverged(doc);
 	});
 
-	// Bytes are no oracle here: a body merge writes the quote's CHILDREN and never rebuilds the
-	// container's own raw, so `serialize` reads back the source whatever the sink did. What can
+	// Bytes prove nothing here: a body merge writes the quote's children and never rebuilds the
+	// container's own raw, so `serialize` reads back the source whatever the merge did. What can
 	// fail is the change descriptor and the reload, which is what a truncation would break.
 	it('declines both directions inside a blockquote body', () => {
 		const forward = quotedBody();
@@ -61,7 +61,7 @@ describe('a join whose bytes read as several blocks is refused, not truncated', 
 	});
 });
 
-// Non-vacuity: the refusal must not have swallowed the ordinary join the same doors serve.
+// Non-vacuity: the refusal must not have swallowed the ordinary join the same merges serve.
 describe('a join whose bytes stay one block still merges', () => {
 	it('joins two paragraphs forward and backward', () => {
 		const forward = parse('alpha\n\nbeta\n');

@@ -1,8 +1,8 @@
 // The commit-time reparse reads one block's text with no positional context, so before
 // issue #52 a position-scoped opener saw line 0 wherever the edited block sat.
 // Miss-analysis: the clean-room author pinned both directions from outside the repo, and
-// nothing in-repo could red — every conformance kit fixture is a whole document, and no
-// shipped kind gates on position, so the battery has no position-scoped exemplar. The
+// nothing in-repo could red: every conformance kit fixture is a whole document, and no
+// shipped kind depends on position, so the battery has no position-scoped exemplar. The
 // fixture now lives in `test/support/position-scoped-kind.ts`.
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { parse } from '../../core/parser';
@@ -40,7 +40,7 @@ describe('a position-scoped kind and the commit-time reparse', () => {
 
 	// Pins a known divergence (issue #21's kind-agnostic class: two blocks whose bytes
 	// jointly reparse as one, with nothing reparsing across a block boundary after a
-	// commit). Not closed by the parse-scope signal — do not delete this to make it green.
+	// commit). Not closed by the parse-scope signal; do not delete this to make it green.
 	it('breaking the closer and restoring it leaves the halves split', () => {
 		const kind = registerDocumentTopKind();
 		const source = FRONT_MATTER + '\nbody\n';

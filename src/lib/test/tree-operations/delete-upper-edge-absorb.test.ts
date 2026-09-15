@@ -5,12 +5,12 @@ import { deleteNode } from '$lib/tree-operations/settle';
 import { mergeIntoPrevDeepLeaf } from '$lib/tree-operations/node-ops';
 import { describeConvergence } from '$lib/test/harness/parse-converged';
 
-// GH #173: `deleteNode`'s seam absorb looked downward only, so a merge whose rewritten survivor
-// gained indentation stopped interrupting the indentation-delimited block ABOVE it and the live
-// tree kept a block its own reload folds away.
-// Miss-analysis: the delete pins all move a block INTO a seam, never rewrite the survivor's own
+// GH #173: `deleteNode`'s neighbour merge looked downward only, so a merge whose rewritten
+// survivor gained indentation stopped interrupting the indentation-delimited block above it and
+// the live tree kept a block its own reload merges away.
+// Miss-analysis: the delete pins all move a block into a join, never rewrite the survivor's own
 // bytes, so nothing in the suite could observe the upper edge; the G2.13 join lane excludes the
-// shape by direction (a fold reads fewer blocks where #166's class read more).
+// shape by direction (a merge reads fewer blocks where #166's class read more).
 
 describe('a merge whose survivor the block above absorbs', () => {
 	it('asks the seam at the survivor’s upper edge', () => {
@@ -27,7 +27,7 @@ describe('a merge whose survivor the block above absorbs', () => {
 		expect(describeConvergence(doc)).toBeNull();
 	});
 
-	// The downward edge the hand-rolled absorb already covered, so routing the door through the
+	// The downward edge the hand-rolled merge already covered, so routing the delete through the
 	// shared window walker (GH #179) cannot have cost it.
 	it('still asks the seam the delete itself opened below', () => {
 		const doc = parse('a\n# h\nb\n');

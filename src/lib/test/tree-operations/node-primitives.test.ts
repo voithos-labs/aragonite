@@ -105,7 +105,7 @@ describe('ensureEditableContainers', () => {
 	});
 });
 
-// A whole-block-focus kind is childless BY DESIGN, so the backfill's "cursor always has
+// A whole-block-focus kind is childless by design, so the backfill's "cursor always has
 // a target" rationale does not apply. A phantom paragraph makes the opaque node
 // permanently fail checkOpaqueStaleRaw: raw can never account for a child it omits.
 describe('ensureEditableContainers — whole-block-focus kinds stay childless', () => {

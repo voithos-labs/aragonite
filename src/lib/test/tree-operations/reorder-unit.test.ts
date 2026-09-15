@@ -50,7 +50,7 @@ describe('resolveReorderUnit', () => {
 	});
 
 	it('resolves a table cell up to the table as a top-level document block', () => {
-		// The grid kinds are not reorderable, so the resolver climbs to the table's document slot.
+		// The grid kinds are not reorderable, so the resolver climbs to the table's document position.
 		const doc = parse('| a | b |\n| - | - |\n| c | d |\n');
 		expect(resolveReorderUnit(doc, [0, 0, 0])).toEqual({
 			parentPath: [],
@@ -66,7 +66,7 @@ describe('resolveReorderUnit', () => {
 	});
 
 	it('a nested node whose kind is "document" is not the reorderable root', () => {
-		// The root is identified STRUCTURALLY (parentPath.length === 0), never by kind string. The
+		// The root is identified structurally (parentPath.length === 0), never by kind string. The
 		// invalid kind is deliberate: the CstNode union rightly will not type a root-name alias.
 		const nested = {
 			kind: 'document',
@@ -86,12 +86,12 @@ describe('resolveReorderUnit', () => {
 });
 
 // An opaque container is not a reorderable parent: the resolver declines at its boundary
-// rather than teleporting to the document slot. A native reorderable parent nested in
+// rather than teleporting to the document position. A native reorderable parent nested in
 // the body still wins first, so the decline cannot over-reach.
 describe('resolveReorderUnit — plugin (opaque) container', () => {
 	beforeEach(__resetSchemaRegistriesForTests);
 
-	// An opaque container at document index 1 whose child 0 is reserved chrome.
+	// An opaque container at document index 1 whose child 0 is its reserved title child.
 	function opaqueContainer(body: CstNode[]): Document {
 		const chromeKind = declarePluginKind('spec-chrome');
 		const containerKind = declarePluginKind('spec-container');
@@ -127,7 +127,7 @@ describe('resolveReorderUnit — plugin (opaque) container', () => {
 
 	it('a body leaf declines to null — no walk-past to the document slot', () => {
 		const doc = opaqueContainer([{ kind: 'paragraph', leadingTrivia: '', raw: 'body\n' }]);
-		// The teleport: returning { parentPath: [], index: 1 }, the whole container's slot.
+		// The teleport: returning { parentPath: [], index: 1 }, the whole container's position.
 		expect(resolveReorderUnit(doc, [1, 1])).toBeNull();
 	});
 

@@ -8,12 +8,12 @@ import { trailingLineEnding } from '$lib/core/lines';
 import { expectParseConverged, layoutOf as layout } from '$lib/test/harness/parse-converged';
 import type { Document } from '$lib/core/nodes';
 
-// The reverse of the typed-blank-line spine (`typed-blank-lines-reload.test.ts`): a block that
-// BECOMES blank joins the blank run around it, and a run carries exactly the one separating line
-// its reload mints. Two of them reload as an empty paragraph nobody typed; none folds the run's
-// head into the block above.
-// Miss-analysis: every blank-line case drove the FILL direction — a blank block gaining content —
-// so nothing emptied a block, and `updateNodeContent` settled one direction of the transition.
+// The reverse of the typed-blank-line cases (`typed-blank-lines-reload.test.ts`): a block that
+// becomes blank joins the blank run around it, and a run carries exactly the one separating line
+// its reload produces. Two of them reload as an empty paragraph nobody typed; none merges the
+// run's head into the block above.
+// Miss-analysis: every blank-line case drove the fill direction (a blank block gaining content),
+// so nothing emptied a block, and `updateNodeContent` fixed up one direction of the transition.
 
 /** The gesture: `TextEditableBlock.commitInput` sends `text + trailingLineEnding(raw)`, so an
  *  emptied block sends the line ending alone. */
@@ -35,7 +35,7 @@ describe('emptying a block settles the run it joins', () => {
 		expectReloadsAsItStands(doc, 'alpha\n\n\ndelta\n');
 	});
 
-	// The slot carries no separator of its own — the blank block above it opens the run — so the
+	// The block carries no separator of its own (the blank block above it opens the run), so the
 	// one the follower holds is the second, not the first.
 	it('drops the follower separator when a blank block already opens the run', () => {
 		const doc = parse('a\n\n\nx\n\nb\n');
@@ -45,8 +45,8 @@ describe('emptying a block settles the run it joins', () => {
 		expectReloadsAsItStands(doc, 'a\n\n\n\nb\n');
 	});
 
-	// A split leaves the separator on the FOLLOWER, so the run's second line sits two slots past
-	// the block being emptied: a settle reaching only `index + 1` finds a blank block with none.
+	// A split leaves the separator on the follower, so the run's second line sits two positions
+	// past the block being emptied: a fix-up reaching only `index + 1` finds a blank block with none.
 	it('reaches past a blank follower to the separator a split left below it', () => {
 		const doc = parse('Hello\n\nSecond\n');
 		splitNode(doc, 0, 5, undefined, undefined, undefined);
@@ -64,8 +64,8 @@ describe('emptying a block settles the run it joins', () => {
 		expectReloadsAsItStands(doc, 'Hello\n\n\n\nSecond\n');
 	});
 
-	// A document-leading run separates from nothing, so it materializes in full and carries no
-	// line at all — the follower's is one too many, not one of two.
+	// A document-leading run separates from nothing, so every line is a block and the run carries
+	// no separator at all: the follower's is one too many, not one of two.
 	it('leaves a head run no separator at all', () => {
 		const doc = parse('x\n\nb\n');
 
@@ -74,8 +74,8 @@ describe('emptying a block settles the run it joins', () => {
 		expectReloadsAsItStands(doc, '\nb\n');
 	});
 
-	// A multi-block commit puts the new blank at the END of what it minted, where it meets the
-	// follower; the slot the gesture named is prose.
+	// A multi-block commit puts the new blank at the end of what it created, where it meets the
+	// follower; the position the gesture named is prose.
 	it('settles the last block a multi-block commit minted', () => {
 		const doc = parse('alpha\n\nx\n\ndelta\n');
 
@@ -85,10 +85,10 @@ describe('emptying a block settles the run it joins', () => {
 	});
 });
 
-// A fence terminates itself, so the paragraph under it carries no separator — and once that
+// A fence terminates itself, so the paragraph under it carries no separator, and once that
 // paragraph is blank, the run holds none and the reload swallows the block instead of doubling it.
 // Miss-analysis: the class was filed as doubling, and a doubling-only fix reads the same red as
-// green here; only an oracle over the run's whole line count sees both signs.
+// green here; only a check over the run's whole line count sees both signs.
 describe('emptying a block the run above cannot separate from', () => {
 	it('mints the separator a self-terminating predecessor never owed', () => {
 		const doc = parse('```\nc\n```\nx\n');
@@ -99,8 +99,8 @@ describe('emptying a block the run above cannot separate from', () => {
 	});
 
 	// The run's one line already stands, on the follower rather than the run head. Both
-	// placements are the same bytes and reload alike, so the settle leaves it where it is
-	// instead of moving it — hence bytes and convergence here, not a layout match.
+	// placements are the same bytes and reload alike, so the fix-up leaves it where it is
+	// instead of moving it, hence bytes and convergence here, not a layout match.
 	it('leaves the line the follower already holds alone', () => {
 		const doc = parse('```\nc\n```\nx\n\nb\n');
 
@@ -120,8 +120,8 @@ describe('emptying a block that owes nothing', () => {
 		expectReloadsAsItStands(doc, 'a\n\n\n');
 	});
 
-	// The fill arm mints the follower's separator and declines below the blank tail this commit
-	// leaves, so the two arms compose rather than doubling the line between them.
+	// The fill branch creates the follower's separator and declines below the blank tail this
+	// commit leaves, so the two branches compose rather than doubling the line between them.
 	it('leaves a fill whose own last block is blank converged', () => {
 		const doc = parse('alpha\n\n\ndelta\n');
 
@@ -132,11 +132,11 @@ describe('emptying a block that owes nothing', () => {
 });
 
 // Indentation alone delimits indented code, so a block turning blank puts bytes back to back that
-// re-read as fewer blocks — the seam `deleteNode` has always absorbed, now owed by the content door
-// too. G2.13's `empty` arm sat behind a `holdsIndentedCode` precondition for exactly these shapes.
-// Miss-analysis: the property arm excluded them by precondition, and its fixed seed does not draw
-// the shape even with the precondition off — so the arm could not have failed on this class either
-// way, and the deterministic cases are what actually hold the door.
+// re-read as fewer blocks: the join `deleteNode` has always merged, and the content write must
+// too. G2.13's `empty` branch sat behind a `holdsIndentedCode` precondition for exactly these
+// shapes. Miss-analysis: the property branch excluded them by precondition, and its fixed seed
+// does not draw the shape even with the precondition off, so it could not have failed on this
+// class either way, and the deterministic cases are what actually guard the write.
 describe('emptying a block beside indentation-delimited content', () => {
 	it('absorbs the seam the two neighbours now make', () => {
 		const doc = parse('**b**\n\n    code\n\n\n**b**\n\n    code\n\n> q\n');
@@ -148,9 +148,9 @@ describe('emptying a block beside indentation-delimited content', () => {
 		expectParseConverged(doc);
 	});
 
-	// The absorbed window's own bytes end in a blank line, which a fragment parse peels into its
-	// suffix. Riding the last block's raw is only right at the parent's tail; here the line is a
-	// block of its own, exactly as the reload reads it.
+	// The absorbed window's own bytes end in a blank line, which a fragment parse splits off into
+	// its suffix. Leaving it in the last block's raw is only right at the parent's tail; here the
+	// line is a block of its own, exactly as the reload reads it.
 	it('materializes a peeled trailing blank line instead of hiding it in raw', () => {
 		const doc = parse('- - # **b**\n\n| H0 |\n| --- | --- |\n\n    code\n\t\n\n```\n```\n');
 
@@ -165,8 +165,8 @@ describe('emptying a block beside indentation-delimited content', () => {
 		expectParseConverged(doc);
 	});
 
-	// The higher-traffic caller of the same absorb: a delete puts the neighbours back to back the
-	// same way, and its window can peel the same trailing line.
+	// The higher-traffic caller of the same merge: a delete puts the neighbours back to back the
+	// same way, and its window can split off the same trailing line.
 	it('materializes the peel on the delete door too', () => {
 		const doc = parse('- - # **b**\n\nmid\n\n    code\n\t\n\n```\n```\n');
 
@@ -177,7 +177,7 @@ describe('emptying a block beside indentation-delimited content', () => {
 	});
 });
 
-// G4.20: the settle's bytes come off the node it writes, never a defaulted LF.
+// The fix-up's line ending comes off the node it writes, never a defaulted LF (G4.20).
 describe('the CRLF twins', () => {
 	it('drops a CRLF separator', () => {
 		const doc = parse('alpha\r\n\r\nx\r\n\r\ndelta\r\n');

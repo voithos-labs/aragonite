@@ -5,7 +5,7 @@ import { admonitionsPlugin } from '$lib/plugins/admonitions';
 import { footnotesPlugin } from '$lib/plugins/footnotes';
 
 // A strip plugin container reorders its body children among themselves, so the resolver
-// must land on the container rather than walk past it to the document slot (the
+// must land on the container rather than walk past it to the document position (the
 // teleport). Membership is the descriptor's `reorderChildren` capability, not a kind name.
 
 beforeAll(() => {

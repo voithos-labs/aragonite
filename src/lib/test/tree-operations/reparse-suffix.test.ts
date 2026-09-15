@@ -4,9 +4,9 @@ import { serialize } from '../../core/serializer';
 import { splitNode, updateNodeContent } from '../../tree-operations';
 import { takeDevWarns } from '$lib/test/support/warn-gate';
 
-// GH #97: a fragment parse peels a half's trailing blank line into `doc.suffix`, and the
-// reparse funnel dropped it. The line stands between the halves, so it is the second half's
-// separator (`leadingTrivia`) per the blank-line rule — not part of either half's raw.
+// GH #97: a fragment parse splits a half's trailing blank line off into `doc.suffix`, and the
+// reparse path dropped it. The line stands between the halves, so it is the second half's
+// separator (`leadingTrivia`) per the blank-line rule, not part of either half's raw.
 // Miss-analysis: every split pin used raws without interior blank lines, so no half could
 // end in one; only indented code puts a blank line inside a leaf's raw.
 
@@ -34,8 +34,8 @@ describe('a split half ending in a blank line keeps it (GH #97)', () => {
 		expect(serialize(doc)).toBe('    a\r\n\r\n    b\r\n');
 	});
 
-	// A run past the first line materializes as blank blocks, so only ONE line is ever the
-	// parse's suffix — the split must keep the blocks AND the peeled line.
+	// A run past the first line becomes blank blocks, so only one line is ever the parse's
+	// suffix: the split must keep the blocks and the split-off line.
 	it('keeps a longer blank run: blocks plus the peeled line', () => {
 		const doc = parse('    a\n\n\n\n    b\n');
 		expect(doc.children).toHaveLength(1);
@@ -48,7 +48,7 @@ describe('a split half ending in a blank line keeps it (GH #97)', () => {
 });
 
 // Miss-analysis: the multi-block update pins all ended flush at a block's last byte, so the
-// fragment parse never peeled a suffix out of a committed text.
+// fragment parse never split a suffix off a committed text.
 describe('a multi-block content write ending in a blank line keeps it (GH #97)', () => {
 	it('keeps the peeled line in the last minted block', () => {
 		const doc = parse('x\n');

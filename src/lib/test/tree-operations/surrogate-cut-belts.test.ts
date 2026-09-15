@@ -1,10 +1,10 @@
 // @vitest-environment jsdom
-// The byte sinks that cut at a caret offset, enumerated: whoever slices `raw` at an offset a
-// caret supplied owes the scalar-boundary snap, or a gesture lands half a surrogate pair in one
-// block and half in another. Miss-analysis: every offset these sinks are driven with in the suite
-// comes from a hand-written ASCII fixture, so an offset splitting a pair reaches them only from a
-// real caret nobody simulates (#167, #105's split arm, and the three later sinks the first census
-// missed by counting sinks in prose instead of by set equality).
+// The writes that cut at a caret offset, enumerated: whatever slices `raw` at an offset a caret
+// supplied must snap to a scalar boundary first, or a gesture lands half a surrogate pair in one
+// block and half in another. Miss-analysis: every offset these writes are driven with in the
+// suite comes from a hand-written ASCII fixture, so an offset splitting a pair reaches them only
+// from a real caret nobody simulates (#167, #105's split branch, and the three later writes the
+// first census missed by counting them in prose instead of by set equality).
 import { afterEach, beforeEach, describe, it, expect } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
@@ -43,8 +43,8 @@ function isWellFormed(text: string): boolean {
 // ── The belt's membership ────────────────────────────────────────────────────
 
 /**
- * Every module naming the snap, and the cut it owes it to. Set equality, so sink N+1 is a
- * decision at birth: the prose count this census replaced was three sinks short.
+ * Every module naming the snap, and the cut it must apply it to. Set equality, so a new cutting
+ * write is a decision at birth: the prose count this census replaced was three writes short.
  */
 const BELT_MEMBERS: Record<string, string> = {
 	'src/lib/core/lines.ts': 'the snap itself',
@@ -145,8 +145,8 @@ describe('the native ranged edit’s join', () => {
 	beforeEach(() => registerLiveJoinSeamCleaner(cleanLiveJoinSeam));
 	afterEach(() => __resetLiveJoinSeamCleanerForTests());
 
-	// The pair sits inside `**…**`, so the delete strands the marker runs and the seam cleaner
-	// runs — the arm where a mid-pair endpoint reaches the slice.
+	// The pair sits inside `**…**`, so the delete strands the marker runs and the join cleanup
+	// runs: the branch where a mid-pair endpoint reaches the slice.
 	const SOURCE = 'Some **\u{1F466}bold** and *italic* words\n';
 
 	it('snaps a mid-pair endpoint before slicing', () => {

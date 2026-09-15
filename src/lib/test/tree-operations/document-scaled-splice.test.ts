@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 // Miss-analysis: every splice test spliced a handful of blocks, so no test ever handed a mutation
-// door more items than the engine takes as arguments — the count the doors scale with was untested.
+// more items than V8 takes as arguments: the count the splices scale with was untested.
 
 import { describe, it, expect, beforeAll } from 'vitest';
 import { parse } from '$lib/core/parser';
@@ -11,7 +11,7 @@ import { createUndoController } from '$lib/editor-actions/commit/undo-controller
 import { makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
 import type { CstNode, Document } from '$lib/core/nodes';
 
-/** Past the engine's argument limit (~125k), so one spread would raise a RangeError. */
+/** Past V8's argument limit (~125k), so one spread would raise a RangeError. */
 const OVER_LIMIT = 200_000;
 
 let pasted: Document;

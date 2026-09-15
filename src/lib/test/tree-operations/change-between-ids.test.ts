@@ -9,8 +9,8 @@ import { deleteAtPath } from '$lib/tree-operations/path-mutate';
 import { createSharingState } from '$lib/tree-operations/sharing';
 import type { BlockComponent } from '$lib/block-component';
 
-// The composer a caller running several splice doors reports with: the doors write their net
-// splice into the id array, and one contiguous window is read back off slot identity.
+// How a caller running several splice functions reports: each writes its net splice into the id
+// array, and one contiguous window is read back off which ids survived where.
 
 describe('changeBetweenIds', () => {
 	it('reports noop when no slot moved', () => {
@@ -31,7 +31,7 @@ describe('changeBetweenIds', () => {
 	});
 
 	it('maps every marker surviving inside the window to where it stood', () => {
-		// A reorder inside the window: both slots survive, neither where it started.
+		// A reorder inside the window: both blocks survive, neither where it started.
 		expect(changeBetweenIds(['a', 'b', 'c', 'd'], ['a', 'c', 'b', 'd'])).toEqual({
 			op: 'replace',
 			at: 1,
@@ -67,8 +67,8 @@ describe('changeBetweenIds', () => {
 		expect(changeBetweenIds([], ['a'])).toEqual({ op: 'insert', at: 0, count: 1 });
 	});
 
-	// A repeated marker would make the window ambiguous; ids are unique per slot by construction,
-	// and the composer must not silently map a duplicate to the wrong origin.
+	// A repeated id would make the window ambiguous; ids are unique per position by construction,
+	// and the reader must not silently map a duplicate to the wrong origin.
 	it('leaves ids and children in lockstep for the shape a settle fold produces', () => {
 		const change = changeBetweenIds(['a', 'b', 'c', 'd'], ['a']);
 		const ids = ['id-0', 'id-1', 'id-2', 'id-3'];

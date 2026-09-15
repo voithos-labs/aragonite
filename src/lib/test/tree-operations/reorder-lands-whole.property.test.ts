@@ -1,9 +1,9 @@
 // A reorder must not change what the document contains, and the tree it leaves must be the one
-// a reload reads: every kind a reader picks up, against prose and against each other, over every
+// a reload reads: every kind a user picks up, against prose and against each other, over every
 // separator shape and every (from, to), in both line endings.
 // Miss-analysis: reorder-keeps-blocks.test.ts pinned the block multiset over one LF fixture whose
-// blocks were all blank-line separated; nothing asked whether the settled tree reloads to itself,
-// what ending a minted separator carries, or what the pair around the vacated slot becomes.
+// blocks were all blank-line separated; nothing asked whether the fixed-up tree reloads to itself,
+// what ending a new separator carries, or what the pair around the vacated position becomes.
 import { describe, it, expect, beforeAll } from 'vitest';
 import fc from 'fast-check';
 import { parse, isBlankParagraph } from '$lib/core/parser';
@@ -23,7 +23,7 @@ beforeAll(() => {
 	registerMathBlock();
 });
 
-// The blocks a reader moves, and the prose they land beside. Each is one block on its own; what
+// The blocks a user moves, and the prose they land beside. Each is one block on its own; what
 // it becomes flush against a neighbour is the grammar's call (a rule under prose is a setext
 // underline, a picture under prose is an inline image, a table under prose is its continuation).
 const BLOCKS = {
@@ -40,8 +40,8 @@ const BLOCKS = {
 } as const;
 type Kind = keyof typeof BLOCKS;
 
-// '' seats the next block flush (the grammar decides whether it still opens); one line is the
-// ordinary separator; two lines mint a blank paragraph node that travels with neither neighbour.
+// '' puts the next block flush (the grammar decides whether it still opens); one line is the
+// ordinary separator; two lines make a blank paragraph node that travels with neither neighbour.
 type Gap = 'flush' | 'line' | 'double';
 
 interface Shape {
@@ -88,9 +88,9 @@ function minus(a: readonly string[], b: readonly string[]): string[] | null {
 }
 
 /**
- * Every content block survives, the moved one included, with one exemption the settle design
- * grants: the two blocks that STRADDLED the moved block may rejoin once it leaves, since their
- * adjacency is the reload's own reading of bytes the move never touched. Nothing else may fold.
+ * Every content block survives, the moved one included, with one exemption the fix-up design
+ * grants: the two blocks that straddled the moved block may rejoin once it leaves, since their
+ * adjacency is the reload's own reading of bytes the move never touched. Nothing else may merge.
  */
 function contentPreserved(before: readonly CstNode[], from: number, after: readonly CstNode[]) {
 	const expected = contentOf(before);

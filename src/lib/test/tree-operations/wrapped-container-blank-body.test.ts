@@ -12,13 +12,13 @@ import { registerCalloutKind } from '../../../routes/test/plugins/callout/callou
 import { expectParseConverged } from '../harness/parse-converged';
 import type { CstNode } from '$lib/core/nodes';
 
-// GH #130: emptying every body block of a chrome-wrapped container leaves a blank run that IS
-// the whole body, and the reload peels a line into BOTH wrap slots before it materializes a
-// block — so the run owes two lines, where each peel arm alone grants at most one.
-// Miss-analysis: every peel case was pinned with prose on one side of the run, which is what
-// each arm's own guard tests for, so the shape where neither arm engages had no pin.
+// GH #130: emptying every body block of a fenced container leaves a blank run that is the whole
+// body, and the reload strips a line into both `innerPrefix` and `innerSuffix` before it makes
+// a block, so the run must carry two lines, where each fence-line branch alone grants at most one.
+// Miss-analysis: every fence-line case was pinned with prose on one side of the run, which is
+// what each branch's own check tests for, so the shape where neither branch engages had no pin.
 
-/** The emptied-block gesture through the container sink: commitInput sends the ending alone. */
+/** The emptied-block gesture through the container write: commitInput sends the ending alone. */
 function emptyBodyChild(container: CstNode, at: number): void {
 	updateNodeContent(
 		{ children: container.children!, ownerKind: container.kind, owner: container },
@@ -38,8 +38,8 @@ describe('a blank run that is the whole wrapped body', () => {
 	});
 	afterEach(__resetSchemaRegistriesForTests);
 
-	// Through the door: emptying a paragraph is kind-stable, so both writes take the routine
-	// typing path and the container's raw is rebuilt from the emptied body.
+	// Through the real write: emptying a paragraph is kind-stable, so both writes take the
+	// routine typing path and the container's raw is rebuilt from the emptied body.
 	it('survives emptying every body block through the content door', async () => {
 		const h = makeNestedHarness(':::callout Title\nBody1\n\nBody2\n:::\n', { index: 0 });
 
@@ -50,8 +50,8 @@ describe('a blank run that is the whole wrapped body', () => {
 		expectParseConverged(h.deps.doc);
 	});
 
-	// The reload's own layout: both peels taken, and every surviving block carries its line in
-	// its own raw rather than in trivia (syntax-tree.md § Blank lines).
+	// The reload's own layout: both fence lines taken, and every surviving block carries its line
+	// in its own raw rather than in `leadingTrivia` (syntax-tree.md § Blank lines).
 	it('lands the peels in the wrap slots and leaves nothing standing', () => {
 		const doc = parse(':::callout Title\nBody1\n\nBody2\n:::\n');
 		const callout = doc.children[0];
@@ -92,8 +92,8 @@ describe('a blank run that is the whole wrapped body', () => {
 	});
 });
 
-// Non-vacuity for the two-peel gate: a blockquote's body opens at the container's own first
-// line, so nothing peels and a whole-blank body owes no wrap line at all.
+// Non-vacuity for the two-line check: a blockquote's body opens at the container's own first
+// line, so nothing is stripped and a whole-blank body needs no fence line at all.
 describe('a blank run that is the whole UNWRAPPED body', () => {
 	beforeEach(activateDirectiveGrammar);
 

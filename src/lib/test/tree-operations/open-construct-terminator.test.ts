@@ -7,10 +7,10 @@ import { createSharingState } from '$lib/tree-operations/sharing';
 import { rebuildContainerRaw } from '$lib/schema/container-raw';
 import { describeConvergence } from '$lib/test/harness/parse-converged';
 
-// GH #180: a write leaving an unterminated absorb-to-EOF construct made the seam settle converge
-// the live tree to the reload's reading, which is the whole rest of the document as the
-// construct's body. The sink closes the construct instead, so the neighbours stand.
-// Miss-analysis: the kind-change absorb's pins drew prose demotions only — every one wrote a kind
+// GH #180: a write leaving an unterminated construct that runs to end of file made the neighbour
+// merge bring the live tree to the reload's reading, which is the whole rest of the document as
+// the construct's body. The write closes the construct instead, so the neighbours stand.
+// Miss-analysis: the kind-change merge's pins drew prose demotions only; every one wrote a kind
 // whose bytes terminate on their own line, so no pin ever asked what a construct that eats forward
 // does to the blocks below it.
 
@@ -34,7 +34,7 @@ describe('a write closes the construct its own bytes leave open (GH #180)', () =
 			newCount: 1,
 			idMap: { 0: 0 }
 		});
-		// The minted terminator lands past the written text, so the caret's offset is untouched.
+		// The added closer lands past the written text, so the caret's offset is untouched.
 		expect(settled.textStart).toBe(0);
 	});
 
@@ -61,7 +61,7 @@ describe('a write closes the construct its own bytes leave open (GH #180)', () =
 		expect(describeConvergence(doc)).toBeNull();
 	});
 
-	// A multi-block write leaves the construct in its LAST block, which is the one that meets
+	// A multi-block write leaves the construct in its last block, which is the one that meets
 	// the follower.
 	it('closes an open construct a multi-block write left at its tail', () => {
 		const doc = parse('x\n\ntail\n');
@@ -92,8 +92,8 @@ describe('a write closes the construct its own bytes leave open (GH #180)', () =
 		expect(describeConvergence(doc)).toBeNull();
 	});
 
-	// The container door writes marker-stripped body bytes, a different reading path than the
-	// document's, so the body owes its own pin.
+	// The container write takes marker-stripped body bytes, a different reading path than the
+	// document's, so the body needs its own pin.
 	it('closes inside a container body too', () => {
 		const doc = parse('> a\n> # h\n> b\n');
 		const quote = doc.children[0];
@@ -117,7 +117,7 @@ describe('a write closes the construct its own bytes leave open (GH #180)', () =
 
 describe('the mint declines where nothing is at stake (GH #180)', () => {
 	// An authored open fence at the tail absorbs nothing, and closing it would rewrite bytes the
-	// user did not type — the exemption `schema/fenced-code-raw.ts` already declares.
+	// user did not type: the exemption `schema/fenced-code-raw.ts` already declares.
 	it('leaves a tail fence open, with no follower to swallow', () => {
 		const doc = parse('x\n\ntail\n');
 
@@ -130,7 +130,7 @@ describe('the mint declines where nothing is at stake (GH #180)', () => {
 		expect(serialize(doc)).toBe('x\n\n```\n');
 	});
 
-	// Typing INSIDE an existing open fence is kind-stable, so the write never reaches the settle
+	// Typing inside an existing open fence is kind-stable, so the write never reaches the fix-up
 	// and the user's own bytes stand.
 	it('leaves a kind-stable write into an open fence alone', () => {
 		const doc = parse('```\ncode\n');
@@ -154,10 +154,10 @@ describe('the mint declines where nothing is at stake (GH #180)', () => {
 	});
 });
 
-// The other side of the decision: the mint is the WRITE's, so a gesture that only exposes an open
-// construct still folds. A reorder writes no bytes, and an open fence moved above prose reads as
-// its body on reload — the absorb converges to that, and re-terminating here would rewrite bytes
-// no keystroke produced.
+// The other side of the decision: only a write adds a closer, so a gesture that only exposes an
+// open construct still merges. A reorder writes no bytes, and an open fence moved above prose
+// reads as its body on reload: the merge converges to that, and closing the fence here would
+// rewrite bytes no keystroke produced.
 describe('a gesture that writes no bytes still absorbs (GH #180)', () => {
 	it('a reorder lifting an open fence above prose folds the way the reload reads it', () => {
 		const doc = parse('a\n\n```\nx\n');

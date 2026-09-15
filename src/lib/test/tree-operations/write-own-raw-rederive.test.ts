@@ -5,11 +5,11 @@ import { mergeIntoPrevDeepLeaf } from '../../tree-operations';
 import { writeOwnRaw } from '../../tree-operations/node-primitives';
 import { describeConvergence } from '$lib/test/harness/parse-converged';
 
-// GH #54: the in-place write discipline left kind and parse-owned metadata stale — the door
-// re-derived metadata only after its OWN rule rewrote the bytes, and the deep-leaf merge
+// GH #54: the in-place write discipline left kind and parse-owned metadata stale: the write
+// re-derived metadata only after its own rule rewrote the bytes, and the deep-leaf merge
 // wrote absorbed bytes with no reparse at all.
-// Miss-analysis: the door's only behavioral pins rode the fence rule's rewrites, so a write
-// whose bytes arrived already-legal never crossed a metadata assertion.
+// Miss-analysis: the write's only behavioral pins went through the fence rule's rewrites, so a
+// write whose bytes arrived already legal never reached a metadata assertion.
 
 describe('writeOwnRaw re-derives parse-owned metadata (GH #54)', () => {
 	it('a heading write refreshes the level its bytes now carry', () => {

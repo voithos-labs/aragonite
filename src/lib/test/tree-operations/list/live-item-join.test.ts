@@ -21,7 +21,7 @@ import {
 } from '$lib/schema/inline-construct-policy';
 
 // B-F2: M1 was the one destructive join whose signature could not reach `cleanJoinedRaw`, so
-// Enter-then-Backspace inside a list materialized the closer/opener pair the reader never saw,
+// Enter-then-Backspace inside a list wrote out the closer/opener pair the user never saw,
 // while the same pair at top level round-tripped.
 // Miss-analysis: the live-join pins drive the two top-level merge primitives; M1 was covered only
 // by mode-free structural cases, and the census that would have caught the gap
@@ -47,7 +47,7 @@ describe('the list-item merge crosses the live join seam', () => {
 	});
 
 	// The primitive can only clean what its caller hands it the mode for, so the gesture is
-	// pinned too: Backspace at a middle item's start is the one door into M1.
+	// pinned too: Backspace at a middle item's start is the one way into M1.
 	// Hand-built rather than `makeNestedHarness`: this suite needs jsdom for the visibility
 	// read, where the harness's production block-list state is an orphaned `$effect`.
 	it('the middle-item Backspace hands the mode down', async () => {

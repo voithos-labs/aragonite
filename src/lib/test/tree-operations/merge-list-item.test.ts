@@ -167,7 +167,7 @@ describe('mergeListItemIntoPrevious', () => {
 
 	it('opaque previous leaf (fenced code): returns null without throwing or mutating', () => {
 		// A not-mergeable previous item leaves the walker no text-bearing leaf: M1 must report
-		// no-target for the caller's focus-move fallback, not throw inside the ceremony.
+		// no-target for the caller's focus-move fallback, not throw inside the commit.
 		const list = parseList('- ```\n  code\n  ```\n- text\n');
 		const children = list.children!.slice();
 		const before = children.length;
@@ -180,8 +180,8 @@ describe('mergeListItemIntoPrevious', () => {
 	});
 });
 
-// Isolated because the walker's collapse probe needs the details kind registered to read
-// the summary chrome as opaque.
+// Isolated because the walker's collapse check needs the details kind registered to read
+// the summary child as opaque.
 describe('mergeListItemIntoPrevious — collapsed container as previous leaf', () => {
 	beforeEach(() => {
 		__resetSchemaRegistriesForTests();
@@ -190,7 +190,7 @@ describe('mergeListItemIntoPrevious — collapsed container as previous leaf', (
 	});
 
 	it('previous item ends in a collapsed <details>: returns null without mutating', () => {
-		// The collapsed details' only reachable leaf is its opaque summary chrome, so this
+		// The collapsed details' only reachable leaf is its opaque summary child, so this
 		// reaches the same no-target fallback as the fenced-code case.
 		const list = parse(
 			'- <details>\n  <summary>Sum</summary>\n\n  Hidden\n\n  </details>\n- text\n'

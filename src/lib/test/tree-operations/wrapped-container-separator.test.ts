@@ -12,13 +12,13 @@ import { registerCalloutKind } from '../../../routes/test/plugins/callout/callou
 import { expectParseConverged } from '../harness/parse-converged';
 import type { CstNode } from '$lib/core/nodes';
 
-// Miss-analysis (wrapped-container settle): the splice families were pinned at the document
-// top, where `prefix` is always empty. Inside a container whose parse peels the blank line
-// against its opener into `innerPrefix`, the same settle dropped the line the peel eats, so
-// the body head vanished on reload — and with reserved chrome at index 0, the settle read the
-// chrome leaf as a body predecessor and declined instead.
+// Miss-analysis (fenced-container fix-up): the splice families were pinned at the document
+// top, where `prefix` is always empty. Inside a container whose parse strips the blank line
+// after its opener into `innerPrefix`, the same fix-up dropped the line the reload strips, so
+// the body head vanished on reload; and with a reserved title child at index 0, the fix-up
+// read that child as a body predecessor and declined instead.
 
-/** The sinks' answer bundle for a container's own children — the shape every caller hands. */
+/** The parent argument for a container's own children, the shape every caller hands in. */
 function bodyParentOf(container: CstNode) {
 	return { children: container.children!, ownerKind: container.kind, owner: container };
 }
@@ -60,8 +60,8 @@ describe('separator settle inside a chrome-wrapped container', () => {
 		expectParseConverged(doc);
 	});
 
-	// The chrome leaf sits at child 0 and is not a body block, so the body head is child 1:
-	// reading the leaf as a predecessor left the head separated from nothing.
+	// The title child sits at child 0 and is not a body block, so the body head is child 1:
+	// reading the title as a predecessor left the head separated from nothing.
 	it('treats the reserved chrome leaf as above the body, not as a predecessor', () => {
 		const doc = parse(':::callout Title\n\nA\n\nB\n:::\n');
 		expect(doc.children[0].children?.[0].kind).toBe('callout-title');
@@ -86,10 +86,10 @@ describe('separator settle inside a chrome-wrapped container', () => {
 	});
 });
 
-// GH #101: a body block emptied against a chrome line owes TWO lines — one the wrap's parse
-// peels into `innerPrefix`/`innerSuffix`, one to materialize as a block — and the settle
-// counted at most one. Miss-analysis: every emptied-block case ran at the document top or in a
-// strip container, where no chrome line bounds the run and one line is always enough.
+// GH #101: a body block emptied against a fence line needs two lines (one the parse strips
+// into `innerPrefix`/`innerSuffix`, one to become a block), and the fix-up counted at most
+// one. Miss-analysis: every emptied-block case ran at the document top or in a strip
+// container, where no fence line bounds the run and one line is always enough.
 describe('emptying a body block against the wrap’s chrome lines', () => {
 	beforeEach(() => {
 		__resetSchemaRegistriesForTests();
@@ -98,7 +98,7 @@ describe('emptying a body block against the wrap’s chrome lines', () => {
 	});
 	afterEach(__resetSchemaRegistriesForTests);
 
-	/** The emptied-block gesture through the container sink: commitInput sends the ending alone. */
+	/** The emptied-block gesture through the container write: commitInput sends the ending alone. */
 	function emptyBodyChild(container: CstNode, at: number): void {
 		updateNodeContent(
 			{ children: container.children!, ownerKind: container.kind, owner: container },
@@ -134,7 +134,7 @@ describe('emptying a body block against the wrap’s chrome lines', () => {
 		expectParseConverged(doc);
 	});
 
-	// The standing line already IS the peel line on reload — the settle keeps the first line
+	// The standing line already is the one the reload strips: the fix-up keeps the first line
 	// that stands rather than rewriting byte-equivalent shapes (§ Blank lines).
 	it('leaves a standing follower separator as the peel line, minting nothing', () => {
 		const doc = parse(':::callout Title\n```\nc\n```\n\nBody2\n:::\n');
@@ -148,7 +148,7 @@ describe('emptying a body block against the wrap’s chrome lines', () => {
 		expectParseConverged(doc);
 	});
 
-	// An all-blank single-line body sits under both peel guards (each needs two lines to
+	// An all-blank single-line body sits under both fence-line checks (each needs two lines to
 	// engage), so the lean one-line form already reloads as the block.
 	it('an emptied ONLY body block needs no wrap line at all', () => {
 		const doc = parse(':::callout Title\nBody\n:::\n');
@@ -176,8 +176,8 @@ describe('emptying a body block against the wrap’s chrome lines', () => {
 describe('separator settle inside a strip container', () => {
 	beforeEach(activateDirectiveGrammar);
 
-	// Non-vacuity for the wrap gate: a blockquote body opens at the container's own first line,
-	// so nothing peels and the settle must DROP the separator it frees.
+	// Non-vacuity for the fence check: a blockquote body opens at the container's own first
+	// line, so nothing is stripped and the fix-up must drop the separator it frees.
 	it('drops the freed separator — a blockquote peels nothing', () => {
 		const doc = parse('> a\n>\n>\n> b\n');
 

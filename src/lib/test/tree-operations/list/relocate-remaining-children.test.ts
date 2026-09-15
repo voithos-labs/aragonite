@@ -6,7 +6,7 @@ import { expectParseConverged } from '$lib/test/harness/parse-converged';
 import type { Document } from '$lib/core/nodes';
 
 // merge-list-item.test.ts pins tree shape and mergePoint; this file pins the serialized
-// markdown plus its convergence with a reparse — the byte round-trip alone is a
+// markdown plus its convergence with a reparse: the byte round-trip alone is a
 // tautology that passes on a stale list raw.
 
 function mergeAndConverge(src: string, currentIndex: number): { doc: Document; source: string } {

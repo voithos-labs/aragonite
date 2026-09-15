@@ -6,11 +6,11 @@ import { serialize } from '$lib/core/serializer';
 import { makeRunningPasteController, makeStubBlockEdit } from '$lib/test/harness/editor-actions';
 import { allowDevWarns } from '$lib/test/support/warn-gate';
 
-// B-F3: container-match was the one paste route reading the intolerant door, so an unmounted
-// outer scope made it the only route that drops the clipboard silently — on the arm where a
-// cross-block delete has already committed.
+// B-F3: container-match was the one paste route reading the throwing state lookup, so an
+// unmounted outer container made it the only route that drops the clipboard silently, on the
+// branch where a cross-block delete has already committed.
 // Miss-analysis: every container-match case registers a state for the outer node first, so the
-// unmounted arm the other four routes are pinned on had no draw here.
+// unmounted branch the other four routes are pinned on had no case here.
 
 describe('container-matching paste at an unmounted outer scope', () => {
 	it('splices the clipboard through the tolerant door rather than dropping it', async () => {

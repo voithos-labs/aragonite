@@ -108,8 +108,8 @@ describe('pasteDispatch — cross-block inline join reparse', () => {
 		registerPasteSurface(__getDefaultTextSurface('paragraph'));
 	});
 
-	// A join paste completing marker syntax at offset 0 must re-mint the slot at the reparsed
-	// kind, mirroring the non-join sibling's funnel route, or parse(serialize(live)) diverges.
+	// A join paste completing marker syntax at offset 0 must put a node of the reparsed kind in
+	// the position, mirroring the non-join sibling's reparse path, or parse(serialize(live)) diverges.
 	it('completing an ordered-list marker re-mints the block as a list', async () => {
 		const { deps } = makeEditorActionsDeps(parse('. item\n').children);
 		expect(deps.doc.children[0].kind).toBe('paragraph');
@@ -151,7 +151,7 @@ describe('pasteDispatch — cross-block inline join reparse', () => {
 // ── pasteDispatch end-to-end routing ────────────────────────────────────────
 
 describe('pasteDispatch — strategy routing end-to-end', () => {
-	// Registries are register-once, so the reset makes routing see the app's surface
+	// Registries are register-once, so the reset makes routing see the app's paste handlers
 	// independent of prior describes.
 	beforeEach(() => {
 		__resetPasteSurfacesForTests();

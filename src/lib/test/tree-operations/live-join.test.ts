@@ -9,10 +9,10 @@ import {
 } from '$lib/schema/inline-construct-policy';
 import type { PresentationMode } from '$lib/presentation-mode';
 
-// BOTH merge primitives production reaches — the deep-leaf sink Backspace enters and the reparse
-// sink Delete enters — because a rule carried at one of two is the audit's dominant bug. Each case
-// runs in live and again with no mode, so the byte-literal behavior every other mode keeps is
-// pinned beside the rewrite.
+// Both merge primitives production reaches (the deep-leaf write Backspace enters and the reparse
+// write Delete enters), because a rule carried at one of two is the audit's dominant bug. Each
+// case runs in live and again with no mode, so the byte-literal behavior every other mode keeps
+// is pinned beside the rewrite.
 
 beforeEach(() => registerLiveJoinSeamCleaner(cleanLiveJoinSeam));
 afterEach(() => __resetLiveJoinSeamCleanerForTests());
@@ -52,9 +52,9 @@ describe('each merge primitive drops the seam pair in live', () => {
 });
 
 describe('the join offset the caret rides moves with the runs the cleanup dropped', () => {
-	// The caret lands where the two blocks MET. Dropping the closing run ahead of the seam shortens
-	// the first half's bytes, so a `joinOffset` read before the cleanup would seat the caret two
-	// characters into the text below it.
+	// The caret lands where the two blocks met. Dropping the closing run ahead of the join point
+	// shortens the first half's bytes, so a `joinOffset` read before the cleanup would put the
+	// caret two characters into the text below it.
 	it('reports the seam in the bytes that were actually written', () => {
 		const doc = parse(SPLIT_BOLD);
 		const result = mergeIntoPrevDeepLeaf(doc, 1, undefined, 'live', undefined);

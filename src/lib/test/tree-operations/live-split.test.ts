@@ -12,9 +12,9 @@ import {
 } from '$lib/schema/inline-construct-policy';
 import { expectParseConverged } from '$lib/test/harness/parse-converged';
 
-// `splitNode`'s mode arm: live consults the one registered rebalancer, every other mode keeps the
-// byte-literal cut. The registration is the production one — a stub here would pin the wiring and
-// nothing else. The mode is the only difference between the two halves of each pair below.
+// `splitNode`'s mode branch: live consults the one registered rebalancer, every other mode keeps
+// the byte-literal cut. The registration is the production one: a stub here would pin the wiring
+// and nothing else. The mode is the only difference between the two halves of each pair below.
 
 beforeEach(() => {
 	registerLiveSplitRebalancer(rebalanceLiveSplit);
@@ -49,7 +49,7 @@ describe('live mode rebalances the halves; the other modes do not', () => {
 		expect(rawsAfterSplit('[text](url)\n', 3, 'live')).toEqual(['[te](url)\n', '[xt](url)\n']);
 	});
 
-	// GH #95's cut rule runs first: the ending terminates the FIRST half, and the rebalance
+	// GH #95's cut rule runs first: the ending terminates the first half, and the rebalance
 	// closes the construct against it rather than against a line the user never typed.
 	it('composes with the line-ending cut', () => {
 		expect(rawsAfterSplit('**bo\nld**\n', 4, 'live')).toEqual(['**bo**\n', '**ld**\n']);
@@ -74,8 +74,8 @@ describe('live mode rebalances the halves; the other modes do not', () => {
 });
 
 // `splitNode` only dev-warns when the first half parses to more than one block, and a devWarn is
-// invisible to every gate. The rewrite closes that off by construction — it refuses any candidate
-// whose halves are not one prose block each — so the block count is asserted here instead.
+// invisible to every gate. The rewrite closes that off by construction (it refuses any candidate
+// whose halves are not one prose block each), so the block count is asserted here instead.
 describe('a rebalanced split always produces exactly two blocks', () => {
 	const adversarial: [string, number][] = [
 		['# **head**\n', 5],
@@ -104,7 +104,7 @@ describe('a rebalanced split always produces exactly two blocks', () => {
 	});
 });
 
-// The split's inverse: the closing and reopening runs meet at the seam enclosing nothing, and the
+// The split's inverse: the closing and reopening runs meet at the join enclosing nothing, and the
 // join drops them (live-mode.md § 4.5). Without the cleanup these write `Some **bo****ld** text`,
 // gaining a pair on every repeat, and return a split link as two anchors sharing one destination.
 describe('Backspace merging the halves back', () => {
@@ -123,7 +123,7 @@ describe('Backspace merging the halves back', () => {
 	});
 
 	// The byte-literal split merges back identically in every mode, which is what made the residue
-	// a regression of the rewrite rather than a pre-existing hole — and the join, not the split,
+	// a regression of the rewrite rather than a pre-existing hole, and the join, not the split,
 	// is where the cleaning belongs.
 	it('is not a defect of the byte-literal split, which round-trips', () => {
 		const doc = parse('Some **bold** text\n');
@@ -142,7 +142,7 @@ describe('Backspace merging the halves back', () => {
 	});
 });
 
-// A parse-only consumer loads the descriptors and never the component layer that fills the slot.
+// A parse-only consumer loads the descriptors and never the component layer that registers one.
 describe('no rebalancer registered', () => {
 	it('leaves live splits byte-literal rather than throwing', () => {
 		__resetLiveSplitRebalancerForTests();
@@ -150,10 +150,10 @@ describe('no rebalancer registered', () => {
 	});
 });
 
-// The rebalancer verifies its halves standalone, where a missing final line ending is legal —
-// but at the seam the halves then share a line and the reload folds them (GH #61).
-// Miss-analysis: every rebalance pin asserted half BYTES, so none could catch an ending the
-// seam needed; only the fresh-seed differential lane tripped it.
+// The rebalancer verifies its halves standalone, where a missing final line ending is legal,
+// but side by side the halves then share a line and the reload merges them (GH #61).
+// Miss-analysis: every rebalance pin asserted half bytes, so none could catch an ending the
+// join needed; only the fresh-seed differential lane tripped it.
 describe('rebalanced halves keep their line endings', () => {
 	it('a half the rewrite left unterminated takes the block ending back', () => {
 		const doc = parse('\\\n[**bold**](u`)`)  \n&notreal;\\\n[text](u`x`)foo\n\n\\*\n');

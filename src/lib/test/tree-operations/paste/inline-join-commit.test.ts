@@ -14,9 +14,9 @@ import type { BlockListState } from '$lib/reactivity/block-list-state.svelte';
 import type { EditEvent } from '$lib/editor-events';
 import { takeDevWarns } from '$lib/test/support/warn-gate';
 
-// A splice outside the commit ceremony updates neither the parent's `childIds` (which
-// never self-heals: `createBlockListState` backfills only an ABSENT id array, never a
-// short one) nor the `edit` stream, so persistence sees the delete and not the insertion.
+// A splice outside the commit updates neither the parent's `childIds` (which never
+// self-heals: `createBlockListState` backfills only an absent id array, never a short one)
+// nor the `edit` stream, so persistence sees the delete and not the insertion.
 
 function blockquoteHarness() {
 	const { deps, events } = makeEditorActionsDeps(parse('> # Head\n').children);
@@ -87,7 +87,7 @@ describe("cross-block inline paste ('join') — commit ceremony participation", 
 		expect(onEdit.mock.calls.map(([e]) => e.op)).toContain('updateContent');
 	});
 
-	// The range delete has ALREADY committed by the time the paste dispatches, so a throw here
+	// The range delete has already committed by the time the paste dispatches, so a throw here
 	// loses the selection with nothing pasted; only ref alignment is unavailable when unmounted.
 	it('an unmounted container still commits instead of throwing', async () => {
 		const { deps } = makeEditorActionsDeps(parse('> # Head\n').children);

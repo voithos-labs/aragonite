@@ -68,7 +68,7 @@ describe('replaceBlockAtParent — id preservation', () => {
 	});
 
 	it('empty replacement removes the block', async () => {
-		// Separated: three trivia-less paragraphs are one paragraph on reload.
+		// Separated: three paragraphs with no blank lines between them are one paragraph on reload.
 		const harness = makeEditorActionsDeps([
 			makePara('a\n'),
 			makePara('b\n', '\n'),

@@ -5,7 +5,7 @@ import { deleteAtPath, replaceAtPath } from '../../tree-operations/path-mutate';
 import { createSharingState } from '../../tree-operations/sharing';
 import type { CstNode } from '../../core/nodes';
 
-// `createBlockListState` backfills only an ABSENT `childIds` array, never a short one, so
+// `createBlockListState` backfills only an absent `childIds` array, never a short one, so
 // a hand-rolled splice at depth desyncs the keyed-each source permanently.
 function quoteWithIds(source: string): CstNode {
 	const quote = parse(source).children[0];
@@ -13,7 +13,7 @@ function quoteWithIds(source: string): CstNode {
 	return quote;
 }
 
-/** Nothing stamped, then an epoch bump: every existing node reads as snapshot-shared. */
+/** Nothing marked, then a generation bump: every existing node reads as snapshot-shared. */
 function sharedEverything() {
 	const sharing = createSharingState();
 	sharing.markSnapshotTaken();
@@ -40,9 +40,9 @@ describe('deleteAtPath', () => {
 		expect(doc.children[0].raw).toBe('b\n');
 	});
 
-	// The settle hands the vacated separating line down to whoever takes the slot, which is a
-	// write to a SURVIVING node — the one the snapshot beside it still points at. `sharing` is
-	// required at the door for exactly this write, so the heir is copied before it is changed.
+	// The fix-up hands the vacated separating line down to whichever block takes the position, a
+	// write to a surviving node, the one the snapshot beside it still points at. `sharing` is
+	// required here for exactly this write, so the heir is copied before it is changed.
 	it('copies the heir before handing it the vacated separator, never writing the shared node', () => {
 		const doc = parse('a\n\n# h\npara\n');
 		const heirBefore = doc.children[2];

@@ -17,7 +17,8 @@ describe('updateNodeContent', () => {
 	});
 
 	// The component instance, IME state, and inline-cache WeakMap are all keyed on the node
-	// object. A mint-always refactor leaves the covering tests green, so this pins it directly.
+	// object. A refactor that always creates a new node leaves the covering tests green, so this
+	// pins it directly.
 	it('same-kind edit preserves the node object identity', () => {
 		const doc = parse('Hello\n');
 		const before = doc.children[0];
@@ -26,7 +27,7 @@ describe('updateNodeContent', () => {
 	});
 
 	// The in-place branch reassigns `children` and reports `noop`, so nothing resyncs the id
-	// array — and `createBlockListState` backfills only an ABSENT one, never a short one.
+	// array, and `createBlockListState` backfills only an absent one, never a short one.
 	it('same-kind edit keeps childIds in lockstep with a reparsed child count', () => {
 		const doc = parse('> a\n');
 		const quote = doc.children[0];
@@ -37,7 +38,7 @@ describe('updateNodeContent', () => {
 
 		expect(quote.children).toHaveLength(2);
 		expect(quote.childIds).toHaveLength(2);
-		// A blanket re-mint would remount every child of the container on routine typing.
+		// Fresh ids for every child would remount all of them on routine typing.
 		expect(quote.childIds[0]).toBe(survivingId);
 	});
 

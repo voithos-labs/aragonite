@@ -3,7 +3,7 @@ import { defaultStructuralHook, pastedContentFocusIndex } from '$lib/tree-operat
 import { parse } from '$lib/core/parser';
 import type { CstNode } from '$lib/core/nodes';
 
-// The caret lands at the end of the PASTED content, not the trailing residue
+// The caret lands at the end of the pasted content, not the trailing residue
 // buildPastedReplacement appends as the last node.
 
 const para = (raw: string): CstNode => parse(raw).children[0];
@@ -25,7 +25,7 @@ describe('defaultStructuralHook — caret at end of pasted content', () => {
 	});
 });
 
-// Takes the display and offset the DELETE half already resolved, so a seam cleanup that moved
+// Takes the display and offset the delete half already resolved, so a join cleanup that moved
 // either one is accounted for by construction rather than re-derived here.
 describe('pastedContentFocusIndex', () => {
 	it('mid-block yields length-2, end-of-block yields length-1', () => {

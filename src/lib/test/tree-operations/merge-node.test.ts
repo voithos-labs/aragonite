@@ -3,7 +3,7 @@ import { parse } from '../../core/parser';
 import { mergeIntoPrevDeepLeaf, mergeWithNext } from '../../tree-operations';
 import { applyStructuralChangeToIdsRefs } from '../../tree-operations/structural-change';
 
-// The two joins production reaches: the forward reparse sink, and the backward deep-leaf write.
+// The two joins production reaches: the forward reparse merge, and the backward deep-leaf write.
 
 describe('mergeIntoPrevDeepLeaf', () => {
 	it('merges two paragraphs into one (strips internal line break)', () => {
@@ -36,7 +36,8 @@ describe('mergeIntoPrevDeepLeaf', () => {
 		expect(doc.children).toHaveLength(2);
 	});
 
-	// The write re-reads its own bytes, so absorbed marker text re-kinds the slot it lands in.
+	// The write re-reads its own bytes, so absorbed marker text changes the kind of the block it
+	// lands in.
 	it('re-reads the merged bytes to determine the surviving block type', () => {
 		const doc = parse('');
 		doc.children = [

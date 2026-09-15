@@ -12,15 +12,15 @@ import { lineOpensAs } from '$lib/tree-operations/content-write';
 import { registerCalloutKind } from '../../../routes/test/plugins/callout/callout-kind';
 import type { AnyBlockKind, CstNode } from '$lib/core/nodes';
 
-// The container kind gate elides a reparse when the rewritten opener line, read ALONE,
+// The container kind check skips a reparse when the rewritten opener line, read alone,
 // still opens as the kind the node already is. That partition over every registered
-// container is what makes the gate sound, and nothing else checks it: a new opener whose
-// claim needs a later line must land in the conservative half here, loudly.
+// container is what makes the check sound, and nothing else checks it: a new opener that
+// needs a later line to decide must land in the conservative half here, loudly.
 
 /**
- * Kinds whose opener declines a one-line probe, so the gate stays CONSERVATIVE for them
- * and every edit to their opener line pays the full container parse. Falling through is
- * the safe answer, so membership here is a cost, not a correctness problem.
+ * Kinds whose opener declines a one-line trial parse, so the check stays conservative for
+ * them and every edit to their opener line pays the full container parse. Falling through
+ * is the safe answer, so membership here is a cost, not a correctness problem.
  */
 const CONSERVATIVE = new Set(['directiveContainer', 'admonition', 'details', 'callout']);
 
@@ -49,7 +49,7 @@ function firstLine(raw: string): string {
 	return nl < 0 ? raw : raw.slice(0, nl);
 }
 
-/** Every container kind the gate can reach, with its fixture's own first line. */
+/** Every container kind the check can reach, with its fixture's own first line. */
 function eligibleContainers(): { kind: AnyBlockKind; node: CstNode }[] {
 	const out: { kind: AnyBlockKind; node: CstNode }[] = [];
 	for (const kind of getAllRegisteredKinds()) {
@@ -79,7 +79,7 @@ describe('opener verdict agreement across registered container kinds', () => {
 		expect(misfiled).toEqual([]);
 	});
 
-	// The load-bearing half: a regression here is a keystroke cost on the container-size axis.
+	// The half that matters: a regression here is a keystroke cost on the container-size axis.
 	it.each(['blockquote', 'list', 'githubAlert', 'footnote-def'])(
 		'%s identifies itself from its opener line',
 		(kind) => {

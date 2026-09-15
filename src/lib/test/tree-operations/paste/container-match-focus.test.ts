@@ -1,9 +1,9 @@
 // @vitest-environment jsdom
 //
-// A structural paste lands at the END of the pasted run, so its target index scales with
-// the CLIPBOARD, not the caret, and the landing goes through the reveal seam that mounts
-// an off-window target first (VR-12). The other paste suites never run `afterTick`, so
-// nothing else observes the landing at all.
+// A structural paste lands at the end of the pasted run, so its target index scales with
+// the clipboard, not the caret, and the caret placement goes through the path that mounts
+// an unmounted target first (VR-12). The other paste suites never run `afterTick`, so
+// nothing else observes where the caret ends up at all.
 import { describe, it, expect, vi } from 'vitest';
 import { pasteDispatch } from '$lib/tree-operations/paste/dispatch';
 import { parse } from '$lib/core/parser';
@@ -16,8 +16,8 @@ import type { UndoEntryMode } from '$lib/action-contracts';
 import { CURSOR_END } from '$lib/block-component';
 import type { PasteCommitCoordinator } from '$lib/tree-operations/paste/paste-deps';
 
-/** The harness owned-scope protocol plus the post-tick callback the real ceremony runs —
- *  the part the sibling paste suites stub away. */
+/** The harness owned-scope protocol plus the post-tick callback the real commit runs, the
+ *  part the sibling paste suites stub away. */
 function landingController(): {
 	controller: PasteCommitCoordinator;
 	landCaret: ReturnType<typeof vi.fn>;
@@ -57,7 +57,7 @@ describe('structural paste lands its caret through the reveal seam', () => {
 	it('same-type absorb lands on the last pasted item, past the residue', async () => {
 		const doc = parse('- alpha\n- keep\n');
 
-		// Caret mid-word, so the split leaves a residue item the landing must skip.
+		// Caret mid-word, so the split leaves a residue item the caret placement must skip.
 		const landCaret = await pasteInto(doc, '- x\n- y\n', [0, 0, 0], 'al'.length, 'own');
 
 		expect(landCaret).toHaveBeenCalledTimes(1);

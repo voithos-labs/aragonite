@@ -5,11 +5,11 @@ import { updateNodeContent } from '$lib/tree-operations/content-write';
 import { rebuildContainerRaw } from '$lib/schema/container-raw';
 import { describeConvergence } from '$lib/test/harness/parse-converged';
 
-// GH #21's upper half: a demoted block stops interrupting the paragraph ABOVE it, so that pair
+// GH #21's upper half: a demoted block stops interrupting the paragraph above it, so that pair
 // reloads as one too. The write asks both edges of its own window, and reports where its text
-// starts inside the survivor — the predecessor now, not the edited block.
-// Miss-analysis: the demotion's seam was pinned below the write alone, because the join above is
-// the edge where the survivor changes identity and no pin asked what the caret owes it.
+// starts inside the survivor: the predecessor now, not the edited block.
+// Miss-analysis: the demotion's join was pinned below the write alone, because the join above is
+// the edge where the survivor changes identity and no pin asked what the caret must do there.
 
 describe('a kind demotion settles the join above (GH #21)', () => {
 	it('absorbs the predecessor the demoted block stopped interrupting', () => {
@@ -31,7 +31,7 @@ describe('a kind demotion settles the join above (GH #21)', () => {
 		expect(settled.textStart).toBe(2);
 	});
 
-	// Both joins at once: the write must report ONE window, not two folds the ids resync twice.
+	// Both joins at once: the write must report one window, not two merges the ids resync twice.
 	it('folds three blocks into one when the demotion sat between two paragraphs', () => {
 		const doc = parse('a\n# h\nb\n');
 
@@ -50,7 +50,7 @@ describe('a kind demotion settles the join above (GH #21)', () => {
 		expect(settled.textStart).toBe(2);
 	});
 
-	// The other side of the same arm: the marker deleted rather than pushed off offset 0.
+	// The other side of the same branch: the marker deleted rather than pushed off offset 0.
 	it('absorbs when the marker is deleted instead', () => {
 		const doc = parse('a\n# h\nb\n');
 
@@ -62,8 +62,8 @@ describe('a kind demotion settles the join above (GH #21)', () => {
 		expect(settled.textStart).toBe(2);
 	});
 
-	// The container door writes marker-stripped body bytes, a different reading path than the
-	// document's, so the upper edge owes its own pin there.
+	// The container write takes marker-stripped body bytes, a different reading path than the
+	// document's, so the upper edge needs its own pin there.
 	it('absorbs inside a container body too', () => {
 		const doc = parse('> a\n> # h\n> b\n');
 		const quote = doc.children[0];
@@ -81,8 +81,9 @@ describe('a kind demotion settles the join above (GH #21)', () => {
 		expect(settled.textStart).toBe(2);
 	});
 
-	// A multi-block write disturbs a join at each edge and one per minted seam; the settle owes
-	// every one of them, and the text offset is measured from the window's head either way.
+	// A multi-block write disturbs a join at each edge and one between each pair of new blocks;
+	// the fix-up must ask every one, and the text offset is measured from the window's head
+	// either way.
 	it('asks both edges of a multi-block write', () => {
 		const doc = parse('a\n# h\nb\n');
 
@@ -101,8 +102,8 @@ describe('a kind demotion settles the join above (GH #21)', () => {
 		expect(settled.textStart).toBe(2);
 	});
 
-	// The blank arm's fold has always anchored above the write (a blank run is transparent to the
-	// container above it); what is new is that it answers for the offset the caret doors spend.
+	// The blank branch's merge has always started above the write (blank lines do not stop the
+	// container above it); what is new is that it answers for the offset the caret placement uses.
 	it('reports the offset when emptying a block lets the container above swallow it', () => {
 		const doc = parse('- item\n\ntext\n\n    code\n');
 
@@ -122,7 +123,7 @@ describe('a kind demotion settles the join above (GH #21)', () => {
 		expect(settled.textStart).toBe(8);
 	});
 
-	// The decline side: a blank line above still separates, so only the join below folds and the
+	// The decline side: a blank line above still separates, so only the join below merges and the
 	// written text keeps the window's head.
 	it('leaves a separated predecessor standing', () => {
 		const doc = parse('a\n\n# h\nb\n');

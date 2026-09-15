@@ -10,8 +10,8 @@ import { registerFootnoteDefinition } from '$lib/plugins/footnotes/footnote-defi
 import { describeConvergence } from '../harness/parse-converged';
 
 // Miss-analysis (emptied-middle-block collapse): the blank-line rule made every splice derive
-// its separator, and the delete arm was pinned while the merge arm was not — so the merge kept
-// the emptied block's line and left bytes that reload one block wider. The rule is
+// its separator, and the delete branch was pinned while the merge branch was not, so the merge
+// kept the emptied block's line and left bytes that reload one block wider. The rule is
 // kind-agnostic, so the pin is the family: a successor that is not a paragraph (a footnote
 // definition, a link reference definition, an html block) must collapse identically.
 
@@ -66,8 +66,8 @@ describe('an emptied middle block takes its own blank line with it', () => {
 		});
 	});
 
-	// Non-vacuity: the shape this replaced kept the emptied block's line, and the oracle above
-	// is what tells the two apart — the bytes alone round-trip either way (G2.1).
+	// Non-vacuity: the shape this replaced kept the emptied block's line, and the reload check
+	// above is what tells the two apart; the bytes alone round-trip either way (G2.1).
 	it('rejects the leftover-blank shape the collapse used to leave', () => {
 		const doc = parse('above\n\n[^a]: note\n');
 		doc.children[1].leadingTrivia = '\n\n';

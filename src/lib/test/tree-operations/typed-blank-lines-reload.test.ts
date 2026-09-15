@@ -6,10 +6,10 @@ import { splitNode } from '$lib/tree-operations/node-ops';
 import { expectParseConverged, layoutOf as layout } from '$lib/test/harness/parse-converged';
 import type { Document } from '$lib/core/nodes';
 
-// The typing ≡ loading spine at tree level: the simulation compares source BYTES across the
+// The typing-equals-loading rule at tree level: the simulation compares source bytes across the
 // two paths, so a shape that only the typed side holds survived it.
 
-/** "1", Enter, Enter, "2" — the Enter-split byte policy, driven through the ops. */
+/** "1", Enter, Enter, "2": the Enter-split byte policy, driven through the ops. */
 function typeOneEnterEnterTwo(): Document {
 	const doc = parse('1\n');
 	splitNode(doc, 0, 1, undefined, undefined, undefined);
@@ -40,9 +40,9 @@ describe('a typed blank line survives the reload', () => {
 	});
 });
 
-// The tree spine under the typed-fence e2e gesture, which pinned the pre-materialization shape
-// (a lone blank line was document whitespace, so typing minted a block BELOW it) until this rule
-// made it a block of its own.
+// The tree-level case under the typed-fence e2e gesture, which pinned the earlier shape (a lone
+// blank line was document whitespace, so typing created a block below it) until this rule made
+// it a block of its own.
 describe('a lone blank document is the block you type into', () => {
 	it('fills that block rather than leaving a blank line above the new one', () => {
 		const doc = parse('\n');
@@ -56,7 +56,7 @@ describe('a lone blank document is the block you type into', () => {
 	});
 });
 
-// A blank block opened above an existing separator carries none of its own — the run below opens
+// A blank block opened above an existing separator carries none of its own; the run below opens
 // it. Typing there ends the blank line, and with it the arrangement that let the separator go.
 // Miss-analysis: the split's own bytes were pinned, and so was typing into a blank line at the
 // document tail (where the blank half does carry a separator); no case typed into a blank line
@@ -96,7 +96,7 @@ describe('typing into the blank line an Enter opened', () => {
 		expect(layout(parse(serialize(doc)).children)).toEqual(layout(doc.children));
 	});
 
-	// The split shape puts the separator on the FOLLOWER, so a blank block below the fill already
+	// The split shape puts the separator on the follower, so a blank block below the fill already
 	// carries its line; a second one there reloads as one more empty paragraph.
 	it('leaves a follower that already carries the separator alone', () => {
 		const doc = parse('Hello\n\nSecond\n');
@@ -110,11 +110,11 @@ describe('typing into the blank line an Enter opened', () => {
 	});
 });
 
-// A blank line a LOAD minted carries the separator on its own trivia and leaves the follower
-// none, so the fill's mint has to land on the follower instead — the shape every reload
-// produces, and the one arm `restoreSeparatorOnFill` alone cannot reach.
+// A blank line a load produced carries the separator in its own `leadingTrivia` and leaves the
+// follower none, so the fill's new separator has to land on the follower instead: the shape
+// every reload produces, and the one branch `restoreSeparatorOnFill` alone cannot reach.
 // Miss-analysis: every case above drives the split-produced shape, where the follower already
-// carries the separator; none typed into a blank block the parser had minted.
+// carries the separator; none typed into a blank block the parser had produced.
 describe('typing into a blank line the load minted', () => {
 	it('hands the separator to the follower the blank line was standing in for', () => {
 		const doc = parse('alpha\n\n\ndelta\n');
@@ -130,7 +130,7 @@ describe('typing into a blank line the load minted', () => {
 		expect(layout(parse(serialize(doc)).children)).toEqual(layout(doc.children));
 	});
 
-	// A multi-block fill pushes the follower down, so the settle reads its index off the change.
+	// A multi-block fill pushes the follower down, so the fix-up reads its index off the change.
 	it('finds the follower past the blocks a multi-block fill minted', () => {
 		const doc = parse('alpha\n\n\ndelta\n');
 

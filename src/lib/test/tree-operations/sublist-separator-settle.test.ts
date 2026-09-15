@@ -19,13 +19,13 @@ import {
 } from '$lib/test/harness/editor-actions';
 import type { CstNode, Document } from '$lib/core/nodes';
 
-// The mint is not the only way into `- x\n  - `: emptying the one nested item's paragraph lands
-// the same bytes from the other direction, and the write is two levels below the list that owes
-// the separating line. The chain rebuild every commit runs is where both meet.
+// Enter+Tab is not the only way into `- x\n  - `: emptying the one nested item's paragraph lands
+// the same bytes from the other direction, and the write is two levels below the list that must
+// carry the separating line. The chain rebuild every commit runs is where both meet.
 //
-// Miss-analysis: the ancestry rebuild's seam ask only ever FOLDS, so a slot whose reload reads as
-// a different kind than the block above it fell through with no verdict, and nothing asserted that
-// a container's rebuilt opener still means what the tree says it means.
+// Miss-analysis: the ancestor rebuild's join check only ever merges, so a position whose reload
+// reads as a different kind than the block above it fell through with no decision, and nothing
+// asserted that a container's rebuilt opener still means what the tree says it means.
 
 function nodeAt(doc: Document, path: number[]): CstNode {
 	let node = doc.children[path[0]];
@@ -54,7 +54,7 @@ function bundleAt(doc: Document, root: NestedActionsBundle, path: number[]): Nes
 	return bundle;
 }
 
-/** Empty the leaf at `leafPath` through the door a keystroke uses, and report the bytes. */
+/** Empty the leaf at `leafPath` through the path a keystroke uses, and report the bytes. */
 async function emptyLeaf(source: string, leafPath: number[]): Promise<Document> {
 	const { deps } = makeEditorActionsDeps(parse(source));
 	const controller = createUndoController(deps);
