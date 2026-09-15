@@ -70,7 +70,29 @@ const BASELINE: Record<string, number> = {
 	'src/lib/search': 3,
 	'src/lib/selection': 122,
 	'src/lib/styles': 5,
-	'src/lib/test': 1459,
+	'src/lib/test': 2,
+	'src/lib/test/ambient': 1,
+	'src/lib/test/blocks': 260,
+	'src/lib/test/components': 18,
+	'src/lib/test/core': 68,
+	'src/lib/test/cursor': 66,
+	'src/lib/test/debug': 1,
+	'src/lib/test/decorations': 11,
+	'src/lib/test/editor-actions': 125,
+	'src/lib/test/gfm-conformance': 2,
+	'src/lib/test/harness': 24,
+	'src/lib/test/image': 8,
+	'src/lib/test/invariants': 356,
+	'src/lib/test/perf': 8,
+	'src/lib/test/plugins': 91,
+	'src/lib/test/reactivity': 21,
+	'src/lib/test/schema': 64,
+	'src/lib/test/search': 1,
+	'src/lib/test/selection': 107,
+	'src/lib/test/simulation': 56,
+	'src/lib/test/support': 4,
+	'src/lib/test/tree-operations': 158,
+	'src/lib/test/undo': 7,
 	'src/lib/testing': 48,
 	'src/lib/tree-operations': 143,
 	'src/routes': 46
@@ -89,11 +111,13 @@ export function countHouseWords(text: string): number {
 		.reduce((n, line) => n + (proseOf(line).match(HOUSE_WORD)?.length ?? 0), 0);
 }
 
-/** `src/lib/<dir>` for library files, `src/lib` for its root files, `src/routes` for the rest. */
+/** `src/lib/<dir>` for library files (`src/lib/test/<dir>` for unit tests, so each rewrite pass owns
+ *  its own numbers), `src/lib` for its root files, `src/routes` for the rest. */
 function directoryOf(relPath: string): string {
 	const parts = relPath.split('/');
 	if (parts[1] === 'routes') return 'src/routes';
-	return parts.length > 3 ? parts.slice(0, 3).join('/') : 'src/lib';
+	const depth = parts[2] === 'test' && parts.length > 4 ? 4 : 3;
+	return parts.length > depth ? parts.slice(0, depth).join('/') : 'src/lib';
 }
 
 describe('G4.26 house words in comments stay under the baseline', () => {
