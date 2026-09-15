@@ -1,9 +1,9 @@
 /**
- * Container children mutations that keep `childIds` in lockstep, for out-of-commit-scope
- * writes (discovered descendants/ancestors — see the `node-primitives.ts` header). Inside a
- * commit scope the StructuralChange descriptor owns id/ref sync; here a hand-rolled
- * splice would let the parallel id array drift and break Svelte's keyed-each rendering.
- * The same shape change invalidates `childSpans`, so both parallel arrays settle here.
+ * Children mutations that keep `childIds` in step, for writes outside a commit scope (descendants
+ * and ancestors found by walking the tree, see the `node-primitives.ts` header). Inside a commit
+ * scope the StructuralChange descriptor keeps ids and refs in step; here a hand-rolled splice
+ * would let the id array drift and break Svelte's keyed each. The same shape change invalidates
+ * `childSpans`, so both arrays are updated here.
  */
 
 import type { CstNode } from '../core/nodes';
@@ -23,7 +23,7 @@ export function pushChild(container: CstNode, child: CstNode): void {
 
 /**
  * Bring `childIds` back to `children`'s length after an in-place children swap. The
- * surviving prefix keeps its ids — a blanket re-mint would remount every child under
+ * surviving prefix keeps its ids: fresh ids for all would remount every child under
  * Svelte's keyed each, the identity the swapping branches exist to preserve. No-op when
  * the array is absent; the mounting BlockList backfills it.
  */
@@ -49,8 +49,8 @@ export function spliceChildren(
 	if (!container.children) container.children = [];
 	// No lazy-init here: containers without childIds get them from the mounting BlockList anyway.
 	if (container.childIds) {
-		// A replacement's head continues the slot it lands in, so it keeps that slot's id —
-		// `replacePreservingFirst`'s rule, which the in-commit-scope splice already carries.
+		// A replacement's head continues the position it lands in, so it keeps that position's
+		// id: `replacePreservingFirst`'s rule, which the in-commit splice already applies.
 		const continues = removeCount > 0 && items.length > 0;
 		const ids = items.map((_, i) =>
 			i === 0 && continues ? container.childIds![at] : generateBlockId()

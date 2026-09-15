@@ -94,7 +94,7 @@ const BASELINE: Record<string, number> = {
 	'src/lib/test/tree-operations': 158,
 	'src/lib/test/undo': 7,
 	'src/lib/testing': 48,
-	'src/lib/tree-operations': 143,
+	'src/lib/tree-operations': 0,
 	'src/routes': 46
 };
 

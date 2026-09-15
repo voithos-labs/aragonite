@@ -1,7 +1,7 @@
 /**
- * The content write: every byte that enters a node crosses `updateNodeContent`, the sole
- * re-parse transfer funnel (editor.md § 6, § 8), and the container twin that re-derives a
- * container's kind from its rebuilt raw.
+ * The content write: every byte that enters a node goes through `updateNodeContent`, the one
+ * reparse path (editor.md § 6, § 8), and its container counterpart that re-derives a container's
+ * kind from its rebuilt raw.
  */
 
 import type { AnyBlockKind, CstNode, Document } from '../core/nodes';
@@ -38,16 +38,17 @@ import {
 
 // ── Update Content ──
 
-/** What a content write settled: its change widened by every fold, and the offset the written
- *  text starts at inside that change's window (nonzero once a fold above absorbed it). */
+/** What a content write produced once its neighbours were fixed up: its change widened by every
+ *  merge, and the offset the written text starts at inside that change's window (nonzero once a
+ *  merge above absorbed it). */
 export interface SettledContent {
 	change: StructuralChange;
 	textStart: number;
 }
 
 /**
- * Update raw and re-parse. A kind change mints the reparsed block into the slot rather than
- * reassigning `kind` in place, and multi-block text mints every parsed block; only a same-kind
+ * Update raw and reparse. A kind change puts the reparsed block in the position rather than
+ * reassigning `kind` in place, and multi-block text creates every parsed block; only a same-kind
  * single-block edit writes in place, so routine typing keeps the node's object identity.
  */
 export function updateNodeContent(
@@ -60,30 +61,31 @@ export function updateNodeContent(
 	const wasBlank = isBlankParagraph(parent.children[blockIndex]);
 	const change = writeParsedContent(parent, blockIndex, text, grammar);
 	const lastWritten = lastMintedIndex(change, blockIndex);
-	// One blank line served BOTH sides: it separated this block from the one above and stood in
-	// as the separator of the block beneath it. Ending it owes each their own.
+	// One blank line served both sides: it separated this block from the one above and stood in
+	// as the separator of the block beneath it. Filling it gives each side its own.
 	if (wasBlank && !isBlankParagraph(parent.children[blockIndex])) {
 		restoreSeparatorOnFill(parent, blockIndex, sharing);
 		restoreSeparatorAfterBlank(parent, followerIndexAfter(change, blockIndex), sharing);
 		releaseWrapPeel(parent, lastWritten);
 		return settleWriteSeams(parent, blockIndex, lastWritten, change, sharing);
 	}
-	// The reverse transition: the block IS the separating line now, so the run it joins gives
-	// back the second one. The last block minted is the one that meets the follower.
+	// The reverse transition: the block is the separating line now, so the run it joins gives
+	// back the second one. The last block created is the one that meets the follower.
 	if (!wasBlank && isBlankParagraph(parent.children[lastWritten])) {
 		const settled = parent.children.length;
 		settleSeparatorOnBlank(parent, lastWritten, sharing);
 		const widened = widenForTailMint(change, settled, parent.children.length);
 		return settleWriteSeams(parent, blockIndex, lastWritten, widened, sharing);
 	}
-	// Same-kind typing INSIDE content must never pay a neighbour reparse.
+	// Same-kind typing inside content must never pay for a neighbour reparse.
 	if (change.op === 'noop') return { change, textStart: 0 };
 	return settleWriteSeams(parent, blockIndex, lastWritten, change, sharing);
 }
 
 /**
- * Ask every join the write disturbed and report where the written text ended up: an absorb
- * ABOVE leaves the predecessor standing, so its bytes now sit in front of the text.
+ * Ask every join the write disturbed whether it merges, and report where the written text ended
+ * up: a merge into the block above leaves that block standing, so its bytes now sit in front of
+ * the text.
  */
 function settleWriteSeams(
 	parent: BodyParentArg,
@@ -109,8 +111,8 @@ function settleWriteSeams(
 }
 
 /**
- * The tracked position as an offset in the settled window's committed text, the space every
- * caret door measures in, where the head block's own leading trivia is outside the window.
+ * The tracked position as an offset in the window's committed text, the space every caret
+ * placement measures in, where the head block's own leading blank lines are outside the window.
  */
 function textOffsetInWindow(
 	children: readonly CstNode[],
@@ -131,15 +133,16 @@ function followerIndexAfter(change: StructuralChange, blockIndex: number): numbe
 	return change.op === 'replace' ? change.at + change.newCount : blockIndex + 1;
 }
 
-/** The last block the write left in the slot: a multi-block reparse mints past the first. */
+/** The last block the write left in the position: a multi-block reparse creates blocks past
+ *  the first. */
 function lastMintedIndex(change: StructuralChange, blockIndex: number): number {
 	return change.op === 'replace' ? change.at + change.newCount - 1 : blockIndex;
 }
 
 /**
- * The written bytes parsed, with the construct they leave OPEN closed off first: an unterminated
- * construct reads every block below it as its body at the next parse, and the seam settle would
- * converge the live tree to exactly that reading.
+ * The written bytes parsed, with any construct they leave open closed off first: an unterminated
+ * construct reads every block below it as its body at the next parse, and the neighbour merge
+ * would bring the live tree to exactly that reading.
  */
 function closeWrittenConstruct(
 	parent: BodyParentArg,
@@ -148,8 +151,8 @@ function closeWrittenConstruct(
 	oldKind: AnyBlockKind,
 	grammar: GrammarView | undefined
 ): { text: string; parsed: Document } {
-	// Fragment scope: this is one block's bytes, whatever its position, so a position-scoped
-	// kind must not mint here.
+	// Fragment scope: this is one block's bytes, whatever its position, so a kind that depends on
+	// document position must not be produced here.
 	const parsed = parse(text, { grammar, scope: 'fragment' });
 	if (blockIndex + 1 >= parent.children.length) return { text, parsed };
 	if (parsed.children.length === 1 && parsed.children[0].kind === oldKind) return { text, parsed };
@@ -160,17 +163,17 @@ function closeWrittenConstruct(
 }
 
 /**
- * The terminator written bytes owe when their last construct absorbs to EOF, asked of the grammar
- * rather than a kind list. Null when the bytes terminate themselves, or when no fence opener
- * explains the absorb (the one family whose closer its opener determines).
+ * The closing line the written bytes need when their last construct runs to end of file, asked
+ * of the grammar rather than a kind list. Null when the bytes close themselves, or when no fence
+ * opener explains the run (the one family whose closer its opener determines).
  */
 function openConstructTerminator(
 	text: string,
 	blocks: readonly CstNode[],
 	grammar: GrammarView | undefined
 ): string | null {
-	// The terminator is a line of its own, so bytes whose last line is still open have none to
-	// append to (G4.20's unterminated tail slice, which absorbs nothing while it stands alone).
+	// The closer is a line of its own, so bytes whose last line is unterminated have nowhere to
+	// put one (the unterminated tail slice of G4.20, which absorbs nothing while it stands alone).
 	if (!text.endsWith('\n') || blocks.length === 0) return null;
 	const ending = trailingLineEnding(text);
 	const probe = parse(text + ending + NEXT_PROSE_LINE + ending, { grammar, scope: 'fragment' });
@@ -193,8 +196,8 @@ function writeParsedContent(
 	const node = parent.children[blockIndex];
 	const oldKind = node.kind;
 	const oldDescriptor = getBlockKindDescriptor(oldKind);
-	// Ahead of every reparse below, so a write lands on the kind its committed bytes
-	// describe, not the kind the pre-escape text would parse to (`bodyWrite`).
+	// Before every reparse below, so the write lands on the kind its committed bytes describe,
+	// not the kind the text would parse to before the container's escape (`bodyWrite`).
 	const bodyText = forBody(parent, text);
 
 	// A context-dependent kind has no standalone recognizer, so reparsing would downgrade it:
@@ -214,19 +217,20 @@ function writeParsedContent(
 	const parsed = reparsed.children;
 	const first: CstNode | undefined = parsed[0];
 	// A marker-consuming container (a GitHub alert) needs its raw rebuilt from the backfilled
-	// body, or G1.1 stale-raw fires.
+	// body, or raw and children disagree (G1.1).
 	const firstBackfilled = !!first && isEmptyEditableContainer(first);
 	if (first) ensureEditableContainers(first);
 
-	// Text-leading blanks fold into the first block's raw (the single-block shape); the
-	// rest keep their own trivia.
+	// Blank lines at the start of the text go into the first block's raw (as in the single-block
+	// case); the rest keep their own separators.
 	if (parsed.length > 1) {
 		const rest = parsed.slice(1);
 		for (const sibling of rest) ensureEditableContainers(sibling);
 		first.raw = first.leadingTrivia + first.raw;
 		first.leadingTrivia = node.leadingTrivia;
 		if (firstBackfilled) reconcileBackfilledRaw(first);
-		// The peeled line has no follower inside the splice, so it stays in raw.
+		// The trailing blank line the parse split off has no follower inside the splice, so it
+		// stays in raw.
 		rest[rest.length - 1].raw += reparsed.suffix;
 		spliceMany(parent.children, blockIndex, 1, parsed);
 		return replacePreservingFirst(blockIndex, 1, parsed.length);
@@ -264,7 +268,7 @@ export function adoptReparsedFields(target: CstNode, parsed: CstNode | undefined
 	target.innerSuffix = parsed?.innerSuffix;
 }
 
-/** A container `ensureEditableContainers` will backfill; read BEFORE the backfill runs. */
+/** A container `ensureEditableContainers` will backfill; read before the backfill runs. */
 function isEmptyEditableContainer(node: CstNode): boolean {
 	const d = getBlockKindDescriptor(node.kind);
 	return d.isContainer && d.blockFocus !== 'whole-block' && (node.children?.length ?? 0) === 0;
@@ -288,7 +292,7 @@ export function lineOpensAs(line: string, grammar?: GrammarView): AnyBlockKind {
 	return parse(`${line}\n`, { grammar, scope: 'fragment' }).children[0]?.kind ?? 'paragraph';
 }
 
-/** Whether the ambient grammar still leaves `NEXT_PROSE_LINE` an ordinary paragraph. */
+/** Whether the grammar in effect still leaves `NEXT_PROSE_LINE` an ordinary paragraph. */
 export function probeLineOpensAsProse(grammar?: GrammarView): boolean {
 	return lineOpensAs(NEXT_PROSE_LINE, grammar) === 'paragraph';
 }
@@ -310,30 +314,31 @@ export function reclassifyContainer(
 
 	if (perfEnabled()) recordContainerKindReparse();
 	const parsed = parse(node.raw, { grammar, scope: 'fragment' }).children;
-	// A container's raw is one block by construction; a multi-block reparse means bytes
-	// this seam has no slot for, left to the gesture that owns the mutation.
+	// A container's raw is one block by construction; a multi-block reparse means bytes this
+	// function has no position for, left to the edit that owns the mutation.
 	if (parsed.length !== 1 || parsed[0].kind === node.kind) return null;
 
 	const replacement = parsed[0];
 	const backfilled = isEmptyEditableContainer(replacement);
 	ensureEditableContainers(replacement);
-	// The slot's trivia is authoritative, so restore the bytes before overwriting it or
-	// anything the parse split off the front vanishes with it.
+	// The position's own `leadingTrivia` is authoritative, so restore the bytes before
+	// overwriting it or anything the parse split off the front vanishes with it.
 	replacement.raw = node.raw;
 	replacement.leadingTrivia = node.leadingTrivia;
 	if (backfilled) reconcileBackfilledRaw(replacement);
-	// A freshly-parsed node carries no childIds and this swap publishes under the slot's
-	// reused component instance, so undefined keys would reach the nested keyed `{#each}`.
+	// A freshly parsed node carries no `childIds`, and this swap is written to state under the
+	// position's reused component instance, so undefined keys would reach the nested keyed
+	// `{#each}`.
 	assignChildIdsDeep(replacement);
 	parent.children[index] = replacement;
-	// Write-then-re-read (tree-operations/unshare.ts header).
+	// Write, then re-read through the tree (`unshare.ts` header).
 	return parent.children[index];
 }
 
 /**
- * Where a caret at `offset` in the written text lands once {@link updateNodeContent}'s folds
- * settled: an absorb ABOVE leaves the predecessor holding the bytes, so the slot the gesture
- * named is gone and the offset carries what that predecessor put in front of it.
+ * Where a caret at `offset` in the written text ends up once {@link updateNodeContent}'s merges
+ * are done: a merge into the block above leaves that block holding the bytes, so the position
+ * the edit named is gone and the offset includes what that block put in front of it.
  */
 export function settledCaretTarget(
 	settled: SettledContent,

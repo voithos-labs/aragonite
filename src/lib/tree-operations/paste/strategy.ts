@@ -4,7 +4,7 @@ import { isBlankParagraph } from '../../core/parser';
 
 /**
  * The clipboard's content blocks: a blank block at either edge is the copy's packaging, which a
- * surface holding no blocks classifies past. Empty when nothing but packaging came across.
+ * kind that holds no blocks skips over. Empty when nothing but packaging came across.
  */
 export function contentBlocks(blocks: readonly CstNode[]): readonly CstNode[] {
 	let start = 0;

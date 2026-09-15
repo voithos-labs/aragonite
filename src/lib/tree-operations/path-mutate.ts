@@ -1,10 +1,9 @@
 /**
- * Path-addressed child splices for the range-delete ceremony. Both route through
- * `spliceChildrenSettled` (`settle.ts`): they address containers at arbitrary depth, which is
- * exactly where a desynced `childIds` or an unsettled separator becomes permanent. `sharing` is
- * REQUIRED, not optional: the settle writes the surviving neighbours' own bytes, so a door
- * reached without it writes through a snapshot-shared node (G1.9). Callers unshare the PARENT
- * spine themselves; `sharing` is what unshares the children the settle touches.
+ * Path-addressed child splices for the range delete. Both go through `spliceChildrenSettled`
+ * (`settle.ts`): they address containers at any depth, exactly where a drifted `childIds` or a
+ * stale separator becomes permanent. `sharing` is required, not optional: the fix-up writes the
+ * surviving neighbours' own bytes, and without it those writes hit snapshot-shared nodes (G1.9).
+ * Callers copy the parent chain themselves; `sharing` copies the children the fix-up touches.
  */
 import type { CstNode, Document } from '../core/nodes';
 import type { SharingState } from './sharing';

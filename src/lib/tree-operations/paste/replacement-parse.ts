@@ -1,7 +1,7 @@
 /**
- * The bytes a block is replaced BY, parsed the one way every replace-at-parent caller needs them:
+ * The bytes a block is replaced by, parsed the one way every replace-at-parent caller needs them:
  * terminated in the original's own line ending (G4.20), reparsed in the instance grammar, carrying
- * the original's leading trivia, with editable containers ensured.
+ * the original's leading blank lines, with editable containers ensured.
  */
 
 import type { CstNode } from '../../core/nodes';
@@ -17,7 +17,7 @@ export interface ParsedReplacement {
 }
 
 /**
- * Null where `raw` parses to nothing and the caller named no `fallback` — the block keeps its
+ * Null where `raw` parses to nothing and the caller named no `fallback`: the block keeps its
  * bytes rather than being replaced by an empty splice.
  */
 export function parseReplacement(

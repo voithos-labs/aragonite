@@ -1,7 +1,7 @@
 /**
- * The split and merge primitives, the two ops that re-tile a body's blocks around a caret, plus
- * the join cleanup every destructive join crosses (live-mode.md § 4.5). They mutate and report;
- * the settle around them is the ceremony's (`settle.ts`).
+ * The split and merge primitives, the two ops that re-divide a body's blocks around a caret,
+ * plus the cleanup every destructive join goes through (live-mode.md § 4.5). They mutate and
+ * report; the commit sequence recomputes the separators around them (`settle.ts`).
  */
 
 import { DEV } from 'esm-env';
@@ -52,24 +52,24 @@ import { adoptReparsedFields, probeLineOpensAsProse } from './content-write';
 
 // ── Split ──
 
-/** What a split leaves the caret: the structural splice, plus where the second half's head
- *  landed, past `blockIndex + 1` when the first half reparsed to several blocks. */
+/** What a split reports: the structural splice, plus where the second half's head ended up,
+ *  past `blockIndex + 1` when the first half reparsed to several blocks. */
 export interface SplitResult {
 	change: StructuralChange;
 	secondHalfIndex: number;
 }
 
 /**
- * The landing a site is about to consume, held to the primitive's answer (G1.34): a re-derived
- * `blockIndex + 1` warns instead of shipping.
+ * The caret index a caller is about to use must be the one the split reported (G1.34): a caller
+ * that re-derives `blockIndex + 1` itself warns here instead of going wrong quietly.
  */
 export function assertSplitLanding(split: SplitResult, landing: number): void {
 	assertInvariant('split-landing', () => checkSplitLanding(split.secondHalfIndex, landing));
 }
 
 /**
- * What a one-slot sink is about to put in its slot, held to one node (G1.35). Asked at the WRITE
- * with the nodes being written, so the guard answers for sink N+1.
+ * A write target that holds one block must receive exactly one (G1.35). Checked at the write
+ * with the nodes being written, so a new write target inherits the check.
  */
 export function assertSingleNodeSink(sink: string, installed: readonly CstNode[]): void {
 	assertInvariant('single-node-sink', () => checkSingleNodeSink(sink, installed.length));
@@ -94,8 +94,8 @@ export function splitNode(
 	const node = parent.children[blockIndex];
 	const descriptor = getBlockKindDescriptor(node.kind);
 
-	// A context-dependent kind (tableCell, container chrome) has no standalone recognizer,
-	// so the reparse would destroy both halves.
+	// A context-dependent kind (a table cell, a container's title child) has no standalone
+	// recognizer, so the reparse would destroy both halves.
 	if (descriptor.contextDependentKind) return noop;
 
 	const rawText = node.raw;
@@ -103,24 +103,25 @@ export function splitNode(
 	const cut = headingHeadCut(descriptor, node, cutPastLineEnding(descriptor, node, offset));
 
 	const suffixSplit = structuralSuffixSplit(descriptor, node, cut);
-	// Both halves: each can collide alone (a `</details>` stranded on the second half, or
-	// a first half promoted to a bare terminator once its trailing text is cut away).
+	// Both halves are escaped: each can collide with the container's syntax alone (a `</details>`
+	// stranded on the second half, or a first half that becomes a bare closer once its trailing
+	// text is cut away).
 	let firstRaw = forBody(parent, suffixSplit ? suffixSplit.firstRaw : rawText.slice(0, cut));
 	let secondRaw = forBody(parent, suffixSplit ? suffixSplit.secondRaw : rawText.slice(cut));
 
 	firstRaw = terminateLine(firstRaw, rawText);
 	secondRaw = terminateLine(secondRaw, rawText);
 
-	// Live alone rebalances: there the delimiters around the cut are unpainted, so a byte-literal
-	// half would surface runs the reader never saw. The rebalancer declines when its bytes do not
+	// Only live mode rebalances: there the delimiters around the cut are hidden, so a byte-literal
+	// half would show runs the user never saw. The rebalancer declines when its bytes do not
 	// parse back, leaving the literal cut every other mode gets.
 	if (presentationMode === 'live') {
 		const rebalanced = getLiveSplitRebalancer()?.(node, offset, firstRaw, secondRaw, linkRef);
 		if (rebalanced) {
 			firstRaw = rebalanced.firstRaw;
 			secondRaw = rebalanced.secondRaw;
-			// The rewrite verifies its halves STANDALONE, where a missing final ending is
-			// legal; at the seam the halves would share a line and rejoin on reload.
+			// The rewrite verifies each half on its own, where a missing final line ending is
+			// legal; side by side the halves would share a line and rejoin on reload.
 			firstRaw = terminateLine(firstRaw, rawText);
 			secondRaw = terminateLine(secondRaw, rawText);
 		}
@@ -133,21 +134,23 @@ export function splitNode(
 		parent.children[blockIndex + 1]
 	);
 	const first = reparseAsNodes(firstRaw, node.leadingTrivia);
-	// The first half's peeled line stands between the halves, so it is the second half's
-	// separator; `separator` answers no when the bytes already end in a blank line.
+	// The blank line the parse split off the first half stands between the halves, so it is the
+	// second half's separator; `separator` is empty when the bytes already end in a blank line.
 	const second = reparseAsNodes(secondRaw, first.suffix + separator);
 	if (DEV && first.nodes.length > 1) {
-		// Legal, since the landing index rides the result, but rare enough to keep visible.
+		// Legal, since the result carries the caret index, but rare enough to keep visible.
 		devWarn('tree-ops', `splitNode: the first half parsed to ${first.nodes.length} blocks`);
 	}
 
 	const nodes = [...first.nodes, ...second.nodes];
-	// The second half's peeled line has no follower inside the splice, so it stays in raw.
+	// The blank line split off the second half has no follower inside the splice, so it stays
+	// in raw.
 	nodes[nodes.length - 1].raw += second.suffix;
 	const splitTail = blockIndex === parent.children.length - 1;
 	parent.children.splice(blockIndex, 1, ...nodes);
-	// Floor at the seam itself: a wider window would reach back into the spliced set and break
-	// the one-window accounting. At the tail the document's folded line is the settle funnel's.
+	// The merge window starts at the join itself: a wider one would reach back into the spliced
+	// set and break the one-window accounting. At the tail, the document's trailing blank line
+	// is the separator fix-up's to handle.
 	const seamLeft = blockIndex + nodes.length - 1;
 	const eaten = splitTail ? 0 : absorbSeamReading(parent, seamLeft, seamLeft, sharing).eaten;
 	return {
@@ -157,8 +160,8 @@ export function splitNode(
 }
 
 /**
- * The cut a split makes: an ending the offset lands ON terminates the FIRST half rather than
- * opening the second, which would mint a blank line nobody typed. A CRLF is one boundary, and
+ * The cut a split makes: a line ending the offset lands on ends the first half rather than
+ * opening the second, which would create a blank line nobody typed. A CRLF is one boundary, and
  * the cut clamps to a content range's end.
  */
 function cutPastLineEnding(descriptor: BlockKindDescriptor, node: CstNode, offset: number): number {
@@ -183,7 +186,7 @@ function headingHeadCut(descriptor: BlockKindDescriptor, node: CstNode, cut: num
 }
 
 /**
- * Leading trivia for a freshly minted BLANK block: a blank line is a block only past its run's
+ * The separator for a newly created blank block: a blank line is a block only past its run's
  * first line, so it separates from a non-blank predecessor unless a run is already open below.
  */
 function blankBlockTrivia(
@@ -198,8 +201,8 @@ function blankBlockTrivia(
 }
 
 /**
- * The second half's leading trivia: a blank half follows {@link blankBlockTrivia}; a prose half
- * takes a separator exactly when lazy continuation would fold the halves back together.
+ * The second half's separator: a blank half follows {@link blankBlockTrivia}; a prose half takes
+ * a separator exactly when lazy continuation would join the halves back together.
  */
 function splitSeparator(
 	firstRaw: string,
@@ -226,7 +229,7 @@ function blankHalfBecomesBlock(firstRaw: string, secondRaw: string, lineEnding: 
 /**
  * Would a blank line between `raw` and the line after it split off a second block? Asked of the
  * bytes, never a kind list, so the separator never lands inside a body that swallows both forms.
- * Blank blocks are discounted on both sides, or the separator would answer yes for every raw.
+ * Blank blocks are not counted on either side, or the answer would be yes for every raw.
  */
 function separatorSplitsOffNextLine(raw: string, secondRaw: string, lineEnding: string): boolean {
 	if (DEV && !probeLineOpensAsProse()) {
@@ -279,9 +282,10 @@ function structuralSuffixSplit(
 // ── Merge ──
 
 /**
- * `join.mergedRaw` with the delimiter runs the join orphaned at its seam dropped, live only
- * (live-mode.md § 4.5). The one registered cleaner verifies its own bytes and otherwise declines,
- * leaving the literal join every other mode gets. Every destructive join crosses this door.
+ * `join.mergedRaw` with the delimiter runs the join left unpaired at the join point dropped, in
+ * live mode only (live-mode.md § 4.5). The one registered cleaner verifies its own bytes and
+ * otherwise declines, leaving the literal join every other mode gets. Every destructive join
+ * goes through here.
  */
 export function cleanJoinedRaw(
 	join: JoinSeam,
@@ -294,8 +298,8 @@ export function cleanJoinedRaw(
 
 /**
  * The bytes a single-block edit leaves when it deletes `range` out of `display`. A delete-then-
- * insert is a join like any other, so it crosses the same cleanup, and the returned offset is
- * where the two sides now meet.
+ * insert is a join like any other, so it goes through the same cleanup, and the returned offset
+ * is where the two sides now meet.
  */
 export function cutRangeFromDisplay(
 	node: NodeView,
@@ -304,8 +308,9 @@ export function cutRangeFromDisplay(
 	presentationMode: PresentationMode | undefined,
 	linkRef: InlineResolverRef | undefined
 ): { display: string; offset: number } {
-	// Both ends off any scalar interior before the slice: a half-pair here is unrecoverable
-	// bytes, not a recoverable edit. Snapping the same direction cannot invert the range.
+	// Both ends are moved off the middle of a surrogate pair before the slice: half a pair here
+	// is unrecoverable bytes, not a recoverable edit. Snapping both the same direction cannot
+	// invert the range.
 	const start = snapToScalarBoundary(display, range.start);
 	const end = snapToScalarBoundary(display, range.end);
 	if (start >= end) return { display, offset: start };
@@ -322,7 +327,7 @@ export function cutRangeFromDisplay(
 	return { display: cleaned.raw, offset: cleaned.seam };
 }
 
-/** The bytes two adjacent blocks make when one absorbs the other, seam cleanup included. */
+/** The bytes two adjacent blocks make when one absorbs the other, join cleanup included. */
 function joinRaw(
 	prev: NodeView,
 	curr: NodeView,
@@ -342,8 +347,8 @@ function joinRaw(
 	);
 }
 
-/** What a join leaves the caret: the structural splice, plus where the two blocks met in the
- *  survivor's bytes, which a seam cleanup moves when it drops a run on the first block's side. */
+/** What a join reports: the structural splice, plus where the two blocks met in the survivor's
+ *  bytes, which the join cleanup moves when it drops a run on the first block's side. */
 export interface MergeResult {
 	change: StructuralChange;
 	joinOffset: number;
@@ -379,8 +384,8 @@ export function mergeIntoPrevDeepLeaf(
 
 	const leafPath = [blockIndex - 1, ...mergeTarget.path];
 	const slot = leafPath[leafPath.length - 1];
-	// The verdict comes off the LIVE tree, ahead of the unshare: an unshared spine is a write,
-	// and a refused join must leave the pair exactly as it stands.
+	// The decision is read off the live tree before any copy-on-write: copying the ancestors is
+	// a write, and a refused join must leave the pair exactly as it stands.
 	const target = holderChildrenAt(parent.children, leafPath)[slot];
 	const curr = parent.children[blockIndex];
 	const lineEnding = trailingLineEnding(target.raw);
@@ -388,11 +393,11 @@ export function mergeIntoPrevDeepLeaf(
 	const merged = mergedLeafFor(target, trimTrailingLineEnding(mergedRaw) + lineEnding, grammar);
 	if (!merged) return null;
 
-	// The merge writes the deep leaf's raw plus every spine ancestor's rebuilt raw, so
-	// unshare the whole spine and resolve through the owned copies.
+	// The merge writes the deep leaf's raw plus every ancestor's rebuilt raw, so copy the whole
+	// ancestor chain first and resolve through the owned copies.
 	if (sharing) ensureUnsharedPath(parent, leafPath, sharing);
-	// Write-then-re-read (tree-operations/unshare.ts header), down to the leaf's own slot
-	// so a kind change can mint into it.
+	// Write, then re-read through the tree (`unshare.ts` header), down to the leaf's own position
+	// so a kind change can put a new node there.
 	installMergedLeaf(holderChildrenAt(parent.children, leafPath), slot, merged, sharing);
 	if (mergeTarget.path.length > 0) {
 		rebuildAncestryRaw(parent.children[blockIndex - 1], mergeTarget.path);
@@ -402,23 +407,24 @@ export function mergeIntoPrevDeepLeaf(
 	return { targetPath: mergeTarget.path, joinOffset, change };
 }
 
-/** The children array holding `path`'s last slot, walked from `children`. */
+/** The children array holding `path`'s last index, walked from `children`. */
 function holderChildrenAt(children: CstNode[], path: number[]): CstNode[] {
 	let holder = children;
 	for (const index of path.slice(0, -1)) holder = holder[index].children!;
 	return holder;
 }
 
-/** What the deep-leaf sink will install: the legal bytes, plus their reparse where the kind has
- *  one. The blocks ride whole rather than as their first, so the install answers G1.35. */
+/** What the deep-leaf write installs: the legal bytes, plus their reparse where the kind has
+ *  one. The parsed blocks are passed whole rather than as their first, so the install can check
+ *  it received one (G1.35). */
 interface MergedLeaf {
 	written: string;
 	blocks: readonly CstNode[];
 }
 
 /**
- * The deep-leaf merge's verdict: the absorbed bytes cross the kind's own rule and a fragment
- * reparse. Null when they read as several blocks, since the leaf is one slot (G1.35).
+ * The deep-leaf merge's decision: the absorbed bytes pass through the kind's own write rule and
+ * a fragment reparse. Null when they read as several blocks, since the leaf holds one (G1.35).
  */
 function mergedLeafFor(
 	target: CstNode,
@@ -435,7 +441,7 @@ function mergedLeafFor(
 	return blocks.length > 1 ? null : { written, blocks };
 }
 
-/** {@link mergedLeafFor}'s write, over the unshared spine the verdict was taken ahead of. */
+/** {@link mergedLeafFor}'s write, over the copied ancestor chain the decision was taken before. */
 function installMergedLeaf(
 	holderChildren: CstNode[],
 	slot: number,
@@ -447,7 +453,8 @@ function installMergedLeaf(
 	assertSingleNodeSink('mergedLeafFor', blocks);
 	const parsed = blocks[0];
 	if (parsed && parsed.kind !== target.kind) {
-		// Byte-honest over the fragment peel, the single-slot sink's rule.
+		// The written bytes win over the reparse's split-off blank line: a one-block write target
+		// keeps every byte.
 		parsed.raw = written;
 		parsed.leadingTrivia = target.leadingTrivia;
 		ensureEditableContainers(parsed);
@@ -491,7 +498,7 @@ export function mergeWithNext(
 
 /**
  * Reparse a half's bytes as the blocks they hold, plus the trailing blank line the fragment
- * parse peels into `doc.suffix`: every sink answers for it, or the bytes are lost.
+ * parse splits off into `doc.suffix`: every caller must put it somewhere, or the bytes are lost.
  */
 function reparseAsNodes(raw: string, leadingTrivia: string): { nodes: CstNode[]; suffix: string } {
 	const doc = parse(raw, { scope: 'fragment' });
@@ -504,13 +511,14 @@ function reparseAsNodes(raw: string, leadingTrivia: string): { nodes: CstNode[];
 }
 
 /**
- * The merge sinks' single-block twin, and their decline: a join whose bytes read as several
- * blocks has no home in one slot, so null refuses it rather than truncating (G1.35).
+ * The single-block counterpart for the merges: a join whose bytes read as several blocks does
+ * not fit one position, so null refuses it rather than truncating (G1.35).
  */
 function reparseAsNode(raw: string, leadingTrivia: string): CstNode | null {
 	const { nodes, suffix } = reparseAsNodes(raw, leadingTrivia);
 	if (nodes.length > 1) return null;
-	// A single-block sink has no follower slot, so the peeled line stays in the block's bytes.
+	// A single-block write has no follower to give the split-off blank line to, so it stays in
+	// the block's bytes.
 	nodes[0].raw += suffix;
 	return nodes[0];
 }

@@ -13,7 +13,7 @@ import { rebuildContainerRawIfContainer } from '../../schema/container-raw';
 import { getBlockKindDescriptor } from '../../schema/block-kind-descriptor';
 
 /**
- * The child holding the node's last LINE, or null when the node's own raw holds it. Only a
+ * The child holding the node's last line, or null when the node's own raw holds it. Only a
  * strip container serializes its children's raws as whole lines; a grid cell and an opaque
  * body live inside a line their container emits, so the ending belongs to the container.
  */
@@ -26,7 +26,7 @@ function lastLineOwningChild(node: CstNode): CstNode | null {
 
 /**
  * Terminate the deepest node that owns its own last line, then rebuild every strip container
- * above it: such a container's raw is DERIVED from its children, so appending to it directly
+ * above it: such a container's raw is derived from its children, so appending to it directly
  * leaves the two disagreeing (G1.1) and its tail item still unterminated.
  */
 function terminateLastLine(node: CstNode, ending: '\n' | '\r\n'): void {
@@ -52,9 +52,9 @@ export function newlineTerminateListItems(items: CstNode[], ending: '\n' | '\r\n
 }
 
 /**
- * THE way pasted items enter a list's children mid-array: termination is welded to the
+ * The one way pasted items enter a list's children mid-array: termination is tied to the
  * splice so a new paste path cannot forget it. The ending comes from the neighbours the
- * items join — displaced target, then the item above, then the list head.
+ * items join: the displaced target, then the item above, then the list head.
  */
 export function spliceTerminatedItems(
 	children: CstNode[],

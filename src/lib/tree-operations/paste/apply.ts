@@ -11,11 +11,10 @@ import { resolveParentScope } from './parent-scope';
 import { replaceBlockAtParent } from './replace-block-at-parent';
 
 /**
- * Apply an inline paste. Single-block routes through `updateBlockContent`; cross-block
- * commits the same re-parse funnel directly against the parent scope, because the
- * originating bundle may not match the target's level. The single-block route stays
- * synchronous through its mutation so the caller can set cursor state before the first
- * reactivity flush.
+ * Apply an inline paste. Single-block goes through `updateBlockContent`; cross-block runs the
+ * same reparse path directly against the parent list, because the originating action bundle
+ * may not match the target's level. The single-block route stays synchronous through its
+ * mutation so the caller can set cursor state before the first reactivity flush.
  */
 export async function applyInlineResult(
 	targetPath: number[],
@@ -34,11 +33,11 @@ export async function applyInlineResult(
 }
 
 /**
- * Cross-block inline paste. `'join'` means the caller already pushed the covering
- * snapshot, not that the ceremony is skipped — committing is what keeps the parent's
- * `childIds` aligned and puts the insertion on the `edit` stream. The mutation routes
- * through the same-slot re-parse funnel, so a paste completing marker syntax re-mints the
- * slot at the reparsed kind instead of leaving the old kind holding foreign bytes.
+ * Cross-block inline paste. `'join'` means the caller already pushed the covering undo
+ * snapshot, not that the commit is skipped: committing is what keeps the parent's `childIds`
+ * aligned and puts the insertion on the `edit` stream. The mutation goes through the
+ * same-position reparse path, so a paste completing marker syntax puts a node of the reparsed
+ * kind there instead of leaving the old kind holding foreign bytes.
  */
 async function commitInlineJoin(
 	targetPath: number[],
@@ -55,8 +54,8 @@ async function commitInlineJoin(
 		scopes: [scope],
 		snapshot: 'skip',
 		mutate: ([view]) => {
-			// The slot may still be snapshot-shared, and the funnel's same-kind branch writes
-			// its raw in place (G1.9).
+			// The node may still be snapshot-shared, and the same-kind branch of the reparse
+			// writes its raw in place (G1.9).
 			ensureUnsharedChild(view, leafIndex, view.sharing);
 			settled = updateNodeContent(
 				{ children: view.children, ownerKind: view.node.kind, owner: view.node },
@@ -76,8 +75,8 @@ async function commitInlineJoin(
 		}
 	});
 
-	// The paste can demote the slot's kind, and a settle that absorbed the join above it left
-	// the predecessor holding the pasted bytes — so the caller's own caret target is stale.
+	// The paste can demote the block's kind, and a merge into the block above left that block
+	// holding the pasted bytes, so the caller's own caret target is stale.
 	const target = settledCaretTarget(settled, leafIndex, result.caretOffset, siblings);
 	return { path: [...targetPath.slice(0, -1), target.index], offset: target.offset };
 }

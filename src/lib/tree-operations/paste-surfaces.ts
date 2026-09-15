@@ -14,9 +14,9 @@ export interface PasteRange {
 }
 
 /**
- * What the join-seam cleanup needs from the caller: the paste's delete half is a join, and in
- * live the runs it strands are bytes the reader never saw. Absent leaves the cut byte-literal,
- * which is every non-live mode's answer anyway.
+ * What the join cleanup needs from the caller: the paste's delete half is a join, and in live
+ * mode the delimiter runs it strands are bytes the user never saw. Absent leaves the cut
+ * byte-literal, which is every non-live mode's answer anyway.
  */
 export interface PasteSeam {
 	presentationMode: PresentationMode | undefined;
@@ -42,16 +42,17 @@ export interface ScopedStructuralPasteInput {
 	blocks: CstNode[];
 	controller: PasteCommitCoordinator;
 	undoEntry: UndoEntryMode;
-	/** The instance grammar the splice owes its bodyWrite escape reparse. Required-nullable, so
-	 *  a new scoped surface cannot silently drop it; `undefined` = global. */
+	/** The instance grammar the splice's `bodyWrite` escape reparses in. Nullable on purpose, so
+	 *  a new scoped paste target cannot silently drop it; `undefined` means the global grammar. */
 	grammar: GrammarView | undefined;
 }
 
 export interface PasteSurface {
 	kind: AnyBlockKind;
 	/**
-	 * This surface holds text, never blocks (a table cell), so a blank block at the clipboard's
-	 * edge is the copy's packaging: it neither picks the route nor lands in a structural splice.
+	 * This kind's editable element holds text, never blocks (a table cell), so a blank block at
+	 * the clipboard's edge is the copy's packaging: it neither picks the route nor lands in a
+	 * structural splice.
 	 */
 	blankEdgesArePackaging?: boolean;
 	/** Splice `text` into `node` at `offset` (optionally pre-deleting a range). Pure. */

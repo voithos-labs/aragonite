@@ -35,7 +35,7 @@ export function bumpOrderedMarker(marker: string): string {
 /**
  * Renumber an ordered list's items in place from `fromIndex`, preserving marker suffixes.
  * `fromIndex = 0` resets the sequence to 1; `renumberOrderedListFrom` owns non-1 bases.
- * Every renumbered item's metadata and raw is WRITTEN, so a live-tree caller must pass
+ * Every renumbered item's metadata and raw is written, so a live-tree caller must pass
  * `sharing`; construction-time callers on fresh nodes may omit it.
  */
 export function renumberOrderedList(list: CstNode, fromIndex = 0, sharing?: SharingState): void {
@@ -99,8 +99,8 @@ export function normalizeItemMarkerToList(item: CstNode, parentList: CstNode): v
 
 /**
  * Rewrite pasted items' markers to the enclosing list's style: an unordered list templates
- * the bullet glyph, an ordered list continues the sequence from `firstIndex`. Runs BEFORE
- * any splice: `$state` wraps entries lazily, so a marker written to a newly-spliced item
+ * the bullet glyph, an ordered list continues the sequence from `firstIndex`. Runs before
+ * any splice: `$state` wraps entries lazily, so a marker written to a newly spliced item
  * bypasses reactivity.
  */
 export function templatePastedItemMarkers(

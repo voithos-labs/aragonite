@@ -1,6 +1,6 @@
 /**
  * Paste absorb: a same-type list pasted into a non-empty list item flattens as siblings of
- * the target, with markers normalized to the enclosing list's style — the flat result most
+ * the target, with markers normalized to the enclosing list's style, the flat result most
  * markdown editors produce. Covers the single-block non-empty same-type case that runs
  * after `findContainerMatchingUnwrap` and would otherwise fall through to the default
  * structural paste; mismatched types go to `list-break-out` instead.
@@ -29,7 +29,7 @@ export interface ListAbsorb {
 	itemIndex: number;
 	innerIndex: number;
 	offset: number;
-	/** The target leaf's bytes AFTER the paste's delete half. */
+	/** The target leaf's bytes after the paste's delete half. */
 	targetRaw?: string;
 }
 
@@ -108,7 +108,7 @@ export async function applyListAbsorb(
 			const sharing = scopeView.sharing;
 			spliceTerminatedItems(scopeView.children, plan.itemIndex, 1, replacement);
 
-			// Only items AFTER the replacement region: their proxies already exist, so marker
+			// Only items after the replacement region: their proxies already exist, so marker
 			// mutations propagate to the DOM.
 			const afterReplacementIdx = plan.itemIndex + replacement.length;
 			if (outerOrdered && afterReplacementIdx < scopeView.children.length) {
@@ -130,7 +130,7 @@ export async function applyListAbsorb(
 			eventPath: docPathFrom(plan.listPath)
 		},
 		afterTick: () => {
-			// The shared structural-paste landing rule: last pasted item, before the residue.
+			// The shared structural-paste caret rule: last pasted item, before the residue.
 			const lastPastedIdx =
 				plan.itemIndex + focusIndexBeforeResidue(replacement.length, trailingItem !== null);
 			return ctx.controller.landCaret([...plan.listPath, lastPastedIdx], CURSOR_END);

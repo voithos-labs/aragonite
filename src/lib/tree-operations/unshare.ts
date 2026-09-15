@@ -1,9 +1,9 @@
 /**
- * Copy-path-on-write for structural-sharing undo: unshare the root→target spine before
- * any in-place write — undo entries still reference shared nodes. Copies are SHALLOW, so
- * unshare deeper wherever you write. Write-then-re-read: after assigning a copy into the
- * live tree, re-read it through the tree — the `$state` proxy wrapper is canonical, not
- * the copy you held. Also the one sanctioned view→mutable door (`core/node-views.ts`).
+ * Copy on write for undo's structural sharing: undo entries still reference shared nodes, so
+ * every node from the root down to the target is copied before an in-place write. Copies are
+ * shallow, so unshare deeper wherever you write. After assigning a copy into the live tree,
+ * re-read it through the tree: the `$state` proxy is canonical, not the copy you held. Also
+ * the only allowed way to turn a read-only view into a writable node (`core/node-views.ts`).
  */
 import type { CstNode } from '../core/nodes';
 import type { NodeParentView, NodeView } from '../core/node-views';
@@ -31,9 +31,9 @@ function copyNode(node: NodeView, sharing: SharingState): CstNode {
 }
 
 /**
- * The copy-on-write spine walk, returning the owned chain outermost-first. `assertInRange`
+ * The copy-on-write walk down `path`, returning the owned chain outermost first. `assertInRange`
  * fires G1.22 for the strict `ensureUnsharedPath` caller and stays silent for tolerant rebuild
- * passes, which legitimately hand short paths; the walk stops at the first gap either way.
+ * passes, which legitimately hand in short paths; the walk stops at the first gap either way.
  */
 export function walkUnsharing(
 	root: NodeParentView,
@@ -42,7 +42,8 @@ export function walkUnsharing(
 	assertInRange: boolean
 ): CstNode[] {
 	const chain: CstNode[] = [];
-	// Root is the live document or a ceremony-owned array — writable by contract (file header).
+	// The root is the live document or an array the commit sequence owns, writable by contract
+	// (file header).
 	let parentChildren = root.children as CstNode[];
 	for (const index of path) {
 		let node = parentChildren[index];
@@ -54,7 +55,7 @@ export function walkUnsharing(
 		if (!node) break;
 		if (sharing.isShared(node)) {
 			parentChildren[index] = copyNode(node, sharing);
-			// Write-then-re-read (file header).
+			// Write, then re-read through the tree (file header).
 			node = parentChildren[index];
 		}
 		chain.push(node);
@@ -65,7 +66,7 @@ export function walkUnsharing(
 
 /**
  * Unshare every node along `path` from `root`; returns the chain outermost-first. The caller
- * owns `root.children` (live document, or a commit ceremony's array copy).
+ * owns `root.children` (the live document, or a commit sequence's array copy).
  */
 export function ensureUnsharedPath(
 	root: NodeParentView,
@@ -82,20 +83,21 @@ export function ensureUnsharedChild(
 	sharing: SharingState
 ): CstNode {
 	const child = parent.children![index];
-	// G1.22: an index off the end is a caller bug, failed here rather than epoch-dependently
-	// inside `isShared`.
+	// An index off the end is a caller bug (G1.22), failed here rather than inside `isShared`,
+	// where it would depend on the generation counter.
 	assertInvariant('unshare-path-in-range', () =>
 		child ? null : { code: 'unshare-path', message: `child index ${index} out of range` }
 	);
 	if (!child || !sharing.isShared(child)) return child;
 	parent.children![index] = copyNode(child, sharing);
-	// Write-then-re-read (file header).
+	// Write, then re-read through the tree (file header).
 	return parent.children![index];
 }
 
 /**
- * Standalone copy for a node being MOVED out of a parent the snapshot keeps: the caller attaches
- * the copy, the original stays put. An unshared input passes through as live-tree-owned.
+ * A standalone copy for a node being moved out of a parent the snapshot keeps: the caller
+ * attaches the copy, the original stays put. An unshared input passes through as owned by the
+ * live tree.
  */
 export function ensureUnsharedNode(node: NodeView, sharing: SharingState): CstNode {
 	return sharing.isShared(node) ? copyNode(node, sharing) : (node as CstNode);

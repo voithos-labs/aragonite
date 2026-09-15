@@ -1,14 +1,14 @@
 /**
- * Structural-sharing epoch primitive — the copy-on-write engine `unshare.ts` reads to
- * decide when a node must be cloned before it is written. The undo lifecycle bumps the
- * epoch, after which any node stamped earlier counts as shared. A missing `ownerEpoch`
- * counts as shared too: an unnecessary copy is correct, a missed one corrupts history.
+ * The generation counter `unshare.ts` reads to decide whether a node must be copied before it
+ * is written. Undo bumps the counter at every snapshot and restore, after which any node marked
+ * earlier counts as shared. A missing `ownerEpoch` counts as shared too: an unnecessary copy is
+ * correct, a missed one corrupts history.
  */
 export interface SharingState {
 	/** Bump after every snapshot push and every undo/redo restore. */
 	markSnapshotTaken(): void;
 	isShared(node: { ownerEpoch?: number }): boolean;
-	/** Stamp a freshly created/copied node as owned by the live tree. */
+	/** Mark a freshly created or copied node as owned by the live tree. */
 	stamp(node: { ownerEpoch?: number }): void;
 }
 

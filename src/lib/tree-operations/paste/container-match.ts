@@ -40,7 +40,7 @@ interface ContainerUnwrap {
 	merge?: {
 		targetLeafPath: number[];
 		offset: number;
-		/** The target leaf's bytes AFTER the paste's delete half. */
+		/** The target leaf's bytes after the paste's delete half. */
 		targetRaw: string;
 	};
 }
@@ -113,9 +113,9 @@ function isEmptyContainerChild(
 }
 
 /**
- * The one paragraph an unwrapped item's text may be spliced as. The merge slices a DISPLAY
- * offset out of the target leaf and reattaches the residue, which only prose bytes address —
- * so both writes re-read this rather than trusting the finder's gate from a distance.
+ * The one paragraph an unwrapped item's text may be spliced as. The merge slices a display
+ * offset out of the target leaf and reattaches the residue, which only prose bytes can address,
+ * so both writes re-check this rather than trusting the finder's check from a distance.
  */
 function singleParagraphChildOf(node: CstNode): CstNode | null {
 	if (!node.children || node.children.length !== 1) return null;
@@ -189,8 +189,8 @@ async function applyContainerMatchingMerge(
 	const firstLeaf = singleParagraphChildOf(unwrap.items[0]);
 	const lastLeaf = singleParagraphChildOf(unwrap.items[unwrap.items.length - 1]);
 	if (!firstLeaf || !lastLeaf) {
-		// Unreachable while the finder's gate holds. Declining before the commit keeps a drifted
-		// gate a clean no-op, and the diagnostic is what stops that drift being silent.
+		// Unreachable while the finder's check holds. Declining before the commit keeps a drifted
+		// check a clean no-op, and the warning is what stops that drift being silent.
 		devWarn('paste-container-match', 'merge items are no longer single-paragraph', {
 			first: unwrap.items[0].kind,
 			last: unwrap.items[unwrap.items.length - 1].kind
@@ -198,7 +198,7 @@ async function applyContainerMatchingMerge(
 		return;
 	}
 
-	// Post-delete bytes: the door spent the paste's delete half before picking this strategy.
+	// Post-delete bytes: dispatch applied the paste's delete half before picking this strategy.
 	const targetLineEnding = trailingLineEnding(merge.targetRaw);
 	const targetDisplay = trimTrailingLineEnding(merge.targetRaw);
 	const displayBefore = targetDisplay.slice(0, merge.offset);
@@ -214,7 +214,7 @@ async function applyContainerMatchingMerge(
 		ctx.undoEntry === 'join'
 			? ('skip' as const)
 			: { path: docPathFrom(unwrap.outerPath), offset: 0 };
-	/** The merged leaf sits BELOW the scope node — own its full spine. */
+	/** The merged leaf sits below the scope node, so copy its whole ancestor chain. */
 	const ownMergedLeafSpine = (sharing: SharingState) => {
 		const chain = ensureUnsharedPath(ctx.doc, merge.targetLeafPath, sharing);
 		return { chain, ownedLeaf: chain[chain.length - 1] ?? ensureUnsharedNode(targetLeaf, sharing) };
@@ -261,7 +261,7 @@ async function applyContainerMatchingMerge(
 			const { chain, ownedLeaf } = ownMergedLeafSpine(sharing);
 			writeOwnRaw(ownedLeaf, displayBefore + firstItemText + targetLineEnding, ctx.grammar);
 			// The residue can cross a kind boundary (a fence closer landing in a paragraph),
-			// so it reattaches through the reparse funnel, never a bare write.
+			// so it reattaches through the reparse path, never a bare write.
 			residue = updateNodeContent(
 				{ children: lastItem.children!, ownerKind: lastItem.kind, owner: lastItem },
 				0,
@@ -269,8 +269,8 @@ async function applyContainerMatchingMerge(
 				ctx.grammar,
 				sharing
 			);
-			// The write's settle can splice the item's own body, a scope this commit's descriptor
-			// does not cover: its ids stay in step here, and the caret rides it below.
+			// The write's fix-up can splice the item's own body, a list this commit's descriptor
+			// does not cover: its ids stay in step here, and the caret follows it below.
 			if (lastItem.childIds) {
 				applyStructuralChangeToIdsRefs(
 					residue.change,
@@ -278,7 +278,7 @@ async function applyContainerMatchingMerge(
 					new Array(lastItem.childIds.length)
 				);
 			}
-			// Both rebuilds run before the splice, so the published children carry correct
+			// Both rebuilds run before the splice, so the children written to state carry correct
 			// raws in one reactive flush.
 			rebuildUnsharedChain(ctx.doc, chain, sharing, null, ctx.grammar);
 			rebuildContainerRawIfContainer(remainingItems[remainingItems.length - 1]);
@@ -303,8 +303,8 @@ async function applyContainerMatchingMerge(
 			eventPath: docPathFrom(unwrap.outerPath)
 		},
 		afterTick: () => {
-			// A char offset in the last spliced item's paragraph, so land on the paragraph
-			// rather than CURSOR_END on the item — at the slot the residue's own settle left it in.
+			// A char offset in the last spliced item's paragraph, so land on the paragraph rather
+			// than CURSOR_END on the item, at the position the residue's own fix-up left it in.
 			const lastInsertedIdx = unwrap.spliceIndex + remainingItems.length;
 			const target = settledCaretTarget(residue, 0, lastDisplay.length, lastItem.children ?? []);
 			return ctx.controller.landCaret(

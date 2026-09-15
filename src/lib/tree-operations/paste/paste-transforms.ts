@@ -1,6 +1,6 @@
 /**
  * Content-keyed, pre-parse paste transforms: a plugin registers a named transform that
- * rewrites the raw clipboard text or declines. Register-once, throw-on-duplicate — the
+ * rewrites the raw clipboard text or declines. Register-once, throw-on-duplicate, the
  * `customElements` model shared with `paste-surfaces.ts`.
  */
 import type { PluginActivation } from '../../schema/plugin-activation';
@@ -22,7 +22,7 @@ interface RegisteredTransform {
 }
 
 // Map iteration is insertion order, so `.values()` is the pipeline order while the keyed
-// lookup guards duplicates — one structure, no parallel array.
+// lookup catches duplicates: one structure, no parallel array.
 const transforms = new Map<string, RegisteredTransform>();
 
 export function registerPasteTransform(transform: PasteTransform): void {
@@ -37,7 +37,7 @@ export function registerPasteTransform(transform: PasteTransform): void {
 }
 
 /**
- * Non-throwing registration probe, so an idempotent module (HMR, a re-imported registrar) asks
+ * Non-throwing registration check, so an idempotent module (HMR, a re-imported registrar) asks
  * before registering instead of catching the duplicate throw.
  */
 export function isPasteTransformRegistered(name: string): boolean {
@@ -67,11 +67,11 @@ export function __resetPasteTransformsForTests(): void {
 }
 
 /**
- * The one door plugin `transform()` code is called through. On the cross-block route the
+ * The one place plugin `transform()` code is called from. On the cross-block route the
  * covering range delete has already committed, so an escaping throw would leave the
  * selection deleted and nothing pasted; a throw becomes the null a decline returns. The
- * warning names its phase because a probe-time throw read as a decline would send the
- * author debugging a paste that worked.
+ * warning names its phase because a throw during the idempotence check, read as a decline,
+ * would send the author debugging a paste that worked.
  */
 function runContained(
 	transform: PasteTransform,

@@ -1,8 +1,8 @@
 /**
- * The one door the paste gates reach a kind's `containerPaste` declaration through.
+ * The one place the paste checks read a kind's `containerPaste` declaration through.
  * `matchesAncestor` is plugin code, and on the cross-block route the covering range delete
- * has already committed when a gate consults it, so an escaping throw would leave the
- * selection deleted and nothing pasted. The returned declaration is already contained.
+ * has already committed when a check consults it, so an escaping throw would leave the
+ * selection deleted and nothing pasted. The returned declaration already catches it.
  */
 
 import type { AnyBlockKind } from '../../core/nodes';

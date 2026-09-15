@@ -1,6 +1,7 @@
 /**
- * The ancestry rebuild: raws re-derived along an owned spine chain innermost-first, each
- * container's kind re-derived and the seam at its own slot asked on the way out (editor.md § 9).
+ * The ancestor rebuild: raws re-derived along an owned chain of ancestors innermost first, each
+ * container's kind re-derived and the joins at its own position checked on the way out
+ * (editor.md § 9).
  */
 
 import type { CstNode } from '../core/nodes';
@@ -18,8 +19,9 @@ import { settleSublistSeparator } from './list/sublist-separator';
 
 /**
  * Longest prefix of `chain` still attached under `root`, identity-checked level by level. A
- * commit mutation can splice a node out mid-ceremony, and rebuilding the detached node's raw
- * against its emptied children writes `raw: ''`; ancestors above the detachment still rebuild.
+ * commit's mutation can splice a node out partway through the commit, and rebuilding the
+ * detached node's raw against its emptied children writes `raw: ''`; ancestors above the
+ * detachment still rebuild.
  */
 export function attachedChainPrefix(root: NodeParent, chain: CstNode[]): CstNode[] {
 	let parentChildren = root.children;
@@ -31,8 +33,8 @@ export function attachedChainPrefix(root: NodeParent, chain: CstNode[]): CstNode
 }
 
 /**
- * One container slot a rebuild re-kinded. `previous` is the rollback register: a commit
- * unwinding after the swap has already published `replacement` into a live children array.
+ * One container position a rebuild gave a new kind. `previous` is what a rollback restores: a
+ * commit unwinding after the swap has already written `replacement` into a live children array.
  */
 export interface ContainerReclassification {
 	siblings: CstNode[];
@@ -42,12 +44,12 @@ export interface ContainerReclassification {
 }
 
 /**
- * A fold the rebuilt container's own slot owed: its bytes stopped interrupting a neighbour, so
- * the parent's array reloads as fewer blocks. `before` is the pre-splice array, the rollback
- * register, since the splice lands in an array no commit descriptor covers.
+ * A merge at the rebuilt container's own position: its bytes stopped interrupting a neighbour,
+ * so the parent's array reloads as fewer blocks. `before` is the pre-splice array, kept for
+ * rollback, since the splice lands in an array no commit descriptor covers.
  */
 export interface AncestrySeamFold {
-	/** Chain level of the folded container, so a caller composes the owner's path from its own. */
+	/** Chain level of the merged container, so a caller composes the owner's path from its own. */
 	depth: number;
 	siblings: CstNode[];
 	/** The chain node owning `siblings`, or null when they are the rebuild root's children. */
@@ -58,8 +60,8 @@ export interface AncestrySeamFold {
 }
 
 /**
- * What the typing door knows and a bare chain does not: where the chain sits in the document,
- * and the bytes its leaf carried before the write. Both are guesses the rebuild identity-checks.
+ * What the typing path knows and a bare chain does not: where the chain sits in the document,
+ * and the bytes its leaf held before the write. Both are guesses the rebuild checks by identity.
  */
 export interface ChainWriteHint {
 	path: number[];
@@ -67,11 +69,11 @@ export interface ChainWriteHint {
 }
 
 /**
- * Rebuild raws along an owned spine chain innermost-first, re-deriving each container's kind and
- * settling the seams at its own slot; chain- rather than path-based so it survives index shifts.
- * Both passes gate on a boundary line of the rebuilt raw moving. `folds` is required-nullable: a
- * fold splices the PARENT's array, so only a caller that reconciles that scope's ids/refs passes
- * a sink.
+ * Rebuild raws along an owned ancestor chain innermost first, re-deriving each container's kind
+ * and merging the joins at its own position; chain- rather than path-based so it survives index
+ * shifts. Both passes run only when a boundary line of the rebuilt raw moved. `folds` is
+ * nullable on purpose: a merge splices the parent's array, so only a caller that reconciles
+ * that list's ids and refs passes an array to collect them.
  */
 export function rebuildUnsharedChain(
 	root: NodeParent | CstNode,
@@ -82,8 +84,8 @@ export function rebuildUnsharedChain(
 	hint?: ChainWriteHint
 ): ContainerReclassification[] {
 	const reclassified: ContainerReclassification[] = [];
-	// The bytes chain[i + 1] held before this pass. It rides up only from a door that named the
-	// leaf's own: a caller passing no hint re-derives at every level (editor.md § 9).
+	// The bytes chain[i + 1] held before this pass. It is passed up only from a caller that named
+	// the leaf's own; a caller passing no hint re-derives at every level (editor.md § 9).
 	let childPreviousRaw: string | undefined;
 	for (let i = chain.length - 1; i >= 0; i--) {
 		const node = chain[i];
@@ -114,10 +116,10 @@ export function rebuildUnsharedChain(
 				reclassified.push({ siblings, index, previous: node, replacement });
 			}
 		}
-		// Ahead of the seam ask, which then reads the settled bytes: a list rebuilt down to an
-		// empty marker owes the paragraph above it a separating line.
+		// Before the join check, which then reads the fixed-up bytes: a list rebuilt down to an
+		// empty marker must give the paragraph above it a separating line.
 		if (openerMoved) settleSublistSeparator(siblings, index);
-		// After the re-derive: the seam reads whatever occupies the slot now.
+		// After the kind re-derive: the join check reads whatever occupies the position now.
 		if (folds) {
 			const before = folds.length;
 			settleSlotSeams(
@@ -125,7 +127,8 @@ export function rebuildUnsharedChain(
 				sharing,
 				folds
 			);
-			// A fold re-tiled the owner's children, so its spans describe a shape that is gone.
+			// A merge re-divided the owner's children, so its child spans describe a shape that
+			// is gone.
 			if (folds.length > before && owner) dropChildSpans(owner);
 		}
 	}
@@ -161,20 +164,21 @@ interface ChainSlot {
 	owner: CstNode | null;
 	depth: number;
 	index: number;
-	/** The join ABOVE turns on the opener line, the one BELOW on the closer: each is asked only
-	 *  when its own line moved, so a head-child edit never pays the follower-side parse. */
+	/** The join above depends on the opener line, the one below on the closer: each is checked
+	 *  only when its own line moved, so an edit in the first child never pays for the
+	 *  follower-side parse. */
 	openerMoved: boolean;
 	closerMoved: boolean;
 }
 
 /**
- * Ask the joins at a rebuilt container's slot, since its new bytes can stop interrupting a
- * neighbour. `absorbWindowSeams` walks `at - 1 … at + added - 1`, so the two arguments below
+ * Check the joins at a rebuilt container's position, since its new bytes can stop interrupting
+ * a neighbour. `absorbWindowSeams` walks `at - 1 … at + added - 1`, so the two arguments below
  * name exactly the sides whose line moved.
  */
 function settleSlotSeams(slot: ChainSlot, sharing: SharingState, folds: AncestrySeamFold[]): void {
 	const { siblings, index, openerMoved, closerMoved } = slot;
-	// The rollback snapshot is captured only once a fold is certain: an eager copy here cost
+	// The rollback snapshot is captured only once a merge is certain: an eager copy here cost
 	// O(children) reactive reads on every keystroke inside a large container.
 	let before: CstNode[] | null = null;
 	const landing: TrackedPosition = { index, offset: 0 };
@@ -217,9 +221,9 @@ function lastLine(raw: string): string {
 }
 
 /**
- * Unshare the spine to `path` and rebuild it innermost-first, tolerating paths that ran out of
- * range mid-walk (post-delete rebuild passes). Prefer `rebuildUnsharedChain` when indices may
- * have shifted since the unshare.
+ * Copy the ancestors down `path` and rebuild them innermost first, tolerating paths that run
+ * out of range partway (rebuild passes after a delete). Prefer `rebuildUnsharedChain` when
+ * indices may have shifted since the copy.
  */
 export function rebuildUnsharedAncestry(
 	root: NodeParent,

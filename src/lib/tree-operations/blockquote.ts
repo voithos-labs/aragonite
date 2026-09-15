@@ -22,7 +22,7 @@ export function unwrapFirstChildFromQuote(container: NodeView): CstNode[] {
 	const clonedChildren: CstNode[] = container.children.map(cloneNode);
 
 	const lifted = clonedChildren[0];
-	// The container's leading trivia is applied at the caller's splice point.
+	// The container's leading blank lines are applied at the caller's splice point.
 	lifted.leadingTrivia = '';
 
 	if (clonedChildren.length === 1) {
@@ -65,7 +65,7 @@ export function buildQuoteExitReplacement(container: NodeView): CstNode[] {
 	trimmed.childIds = assignIds(trimmed.children);
 	rebuildContainerRaw(trimmed);
 
-	// Every byte this op mints is a line ending, so it takes the container's (G4.20).
+	// Every byte this op creates is a line ending, so it takes the container's (G4.20).
 	const lineEnding = trailingLineEnding(container.raw);
 	return [trimmed, emptyParagraph(lineEnding, lineEnding)];
 }

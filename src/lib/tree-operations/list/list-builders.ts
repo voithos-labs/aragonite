@@ -40,8 +40,8 @@ export function assembleListHalf(
 }
 
 /**
- * A listItem mirroring `template`'s metadata/affixes. `children` are placed verbatim —
- * clone before passing if they are still referenced from the source tree.
+ * A listItem mirroring `template`'s metadata/affixes. `children` are placed verbatim, so
+ * clone them before passing if they are still referenced from the source tree.
  */
 export function buildListItemWithContent(template: NodeView, children: CstNode[]): CstNode {
 	const metadata = template.metadata
@@ -83,7 +83,7 @@ function mintListItem(
 /**
  * A bare list shell with empty raw. Unlike `assembleListHalf` it neither renumbers nor
  * rebuilds raw; a live-tree caller owns that and must route it through `sharing` so the
- * moved items are unshared before being written (`unshare.ts`).
+ * moved items are copied before being written (`unshare.ts`).
  */
 export function buildListShell(ordered: boolean, children: CstNode[]): CstNode {
 	const metadata: ListMetadata = { ordered };

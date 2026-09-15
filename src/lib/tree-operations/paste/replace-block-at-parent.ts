@@ -1,6 +1,6 @@
 /**
  * Replace the block at `blockPath`, committing at its parent scope (`parent-scope.ts`)
- * rather than through the caller's blockEdit — paste-into-cell must mutate `doc.children`
+ * rather than through the caller's blockEdit: a paste into a cell must mutate `doc.children`
  * while holding the row-level nested bundle.
  */
 
@@ -40,10 +40,10 @@ export interface ReplaceBlockAtParentArgs {
 }
 
 /**
- * Land the clipboard's trailing blank where a reload folds one: the DOCUMENT's own suffix, and
- * only at a tail whose slot is empty — one separation is one separation. A container tail
- * declines, since `innerSuffix` is the wrap-peel settle's register on this same commit. The
- * clipboard says WHETHER a line lands, never which one: normalized to LF at every entry point,
+ * Land the clipboard's trailing blank line where a reload keeps one: the document's own suffix,
+ * and only at a tail with nothing after it, since one separation is one separation. A container
+ * tail declines: `innerSuffix` belongs to the fence-line fix-up on this same commit. The
+ * clipboard says whether a line lands, never which one: normalized to LF at every entry point,
  * its own suffix would strand an LF line in a CRLF document (G4.20).
  */
 function landTrailingSeparator(
@@ -57,8 +57,8 @@ function landTrailingSeparator(
 	args.doc.suffix = ending;
 }
 
-/** Answers how many blocks LANDED in the slot — the body rule below can rewrite the list, so a
- *  caller whose next write addresses a later sibling asks here rather than counting its own. */
+/** Returns how many blocks landed in the position: the body rule below can rewrite the list, so
+ *  a caller whose next write addresses a later sibling asks here rather than counting its own. */
 export async function replaceBlockAtParent(args: ReplaceBlockAtParentArgs): Promise<number> {
 	const { doc, blockPath, controller, undoEntry, focusOffset, source } = args;
 
@@ -66,8 +66,8 @@ export async function replaceBlockAtParent(args: ReplaceBlockAtParentArgs): Prom
 	const scope = resolveParentScope(doc, blockPath, controller);
 	if (!scope) return 0;
 
-	// A replacement is minted before any byte sink sees it, so the owner's bodyWrite escape
-	// lands here — on the clipboard blocks AND the target's split halves alike.
+	// A replacement is built before any content write sees it, so the owner's `bodyWrite` escape
+	// is applied here, to the clipboard blocks and the target's split halves alike.
 	const ownerKind = blockPath.length > 1 ? (scope.node.kind as AnyBlockKind) : undefined;
 	const { replacement, mapIndex } = normalizeReplacementForBody(
 		ownerKind,
@@ -75,16 +75,17 @@ export async function replaceBlockAtParent(args: ReplaceBlockAtParentArgs): Prom
 		args.grammar
 	);
 	const focusReplacementIndex = mapIndex(args.focusReplacementIndex);
-	// The settle can fold the spliced window into its neighbours, which moves both halves of the
-	// landing: the residue reattaches inside the last pasted leaf, and an absorb above moves the
-	// slot itself. The commit carries this through its folds and `afterTick` reads it back.
+	// The fix-up can merge the spliced window into its neighbours, which moves both halves of the
+	// caret target: the residue reattaches inside the last pasted leaf, and a merge above moves
+	// the position itself. The commit keeps this updated through its merges and `afterTick`
+	// reads it back.
 	const caret = trackedPasteCaret(replacement, blockIdx, focusReplacementIndex, focusOffset);
 
 	const oldBlock = nodeAt(doc, blockPath) as CstNode | null;
 	const sameKindFirst =
 		oldBlock !== null && replacement.length > 0 && replacement[0].kind === oldBlock.kind;
 	// Read as bytes before the commit: the displaced block is the document's own ending, and a
-	// node held across a commit goes stale the moment the spine unshares.
+	// node held across a commit goes stale the moment the ancestors are copied.
 	const tailEnding = oldBlock ? trailingLineEnding(oldBlock.raw) : '\n';
 
 	await controller.commitMultiScope({
@@ -108,7 +109,7 @@ export async function replaceBlockAtParent(args: ReplaceBlockAtParentArgs): Prom
 		},
 		trackCaret: [caret],
 		afterTick: () => {
-			// Re-read from the document: the ceremony unshares the spine, so the scope node the
+			// Re-read from the document: the commit copies the ancestors, so the scope node the
 			// caller resolved is a stale copy by now.
 			const landed = nodeAt(doc, scope.path)?.children?.[caret.index];
 			return controller.landCaret(

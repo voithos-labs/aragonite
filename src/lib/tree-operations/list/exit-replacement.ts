@@ -37,7 +37,7 @@ export function buildExitReplacement(
 	const firstHalfItems = wasFirstItem ? [] : [...before, ...promotedItems];
 	const secondHalfItems = wasFirstItem ? [...promotedItems, ...after] : after;
 
-	// Every byte this op mints is a line ending, so it takes the list's (G4.20).
+	// Every byte this op creates is a line ending, so it takes the list's (G4.20).
 	const lineEnding = trailingLineEnding(list.raw);
 	const exitParagraph = emptyParagraph('', lineEnding);
 

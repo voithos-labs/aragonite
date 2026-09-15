@@ -1,8 +1,8 @@
 /**
- * The separator settle every splice owes its neighbourhood (syntax-tree.md § Blank lines), the
- * seam absorb behind it (editor.md § 8), and the delete primitive built on both. `sharing` owns
- * every in-place write (G1.9); the retire census in `lint/separator-write-doors.test.ts` names
- * every door here.
+ * The settle (recomputing the blank-line separators an edit left stale, syntax-tree.md § Blank
+ * lines), the merge of neighbours that re-read as one block on reload (editor.md § 8), and the
+ * delete primitive built on both. Every in-place write goes through `sharing` (G1.9);
+ * `lint/separator-write-doors.test.ts` lists every function here that writes a separator.
  */
 
 import type { AnyBlockKind, CstNode, Document } from '../core/nodes';
@@ -30,8 +30,8 @@ import {
 // ── Separators ──
 
 /**
- * Settle the separator at `index`: nothing needs one at the body head or below a blank block,
- * where the parser would read the extra line as one more empty paragraph.
+ * Drop the separator at `index` where nothing needs one: at the body head, or below a blank
+ * block, where the parser would read the extra line as one more empty paragraph.
  */
 export function clearRedundantSeparator(
 	parent: SeparatorParent,
@@ -52,8 +52,8 @@ export function clearRedundantSeparator(
 }
 
 /**
- * A blank block IS a blank line, so it and its follower share ONE separator (G2.13). The
- * follower's stands, so a later fill of this slot still finds the follower separated.
+ * A blank block is itself a blank line, so it and its follower share one separator (G2.13). The
+ * follower's line is the one kept, so filling this block later still finds the follower separated.
  */
 export function dropDoubledSeparator(
 	parent: SeparatorParent,
@@ -70,7 +70,7 @@ export function dropDoubledSeparator(
 
 /**
  * The separator a block takes back when it stops being blank: its own blank line was what stood
- * between it and a non-blank predecessor. Call at the fill.
+ * between it and a non-blank predecessor. Call when the block is filled.
  */
 export function restoreSeparatorOnFill(
 	parent: SeparatorParent,
@@ -84,8 +84,8 @@ export function restoreSeparatorOnFill(
 }
 
 /**
- * The separator the block BELOW a consumed blank line takes back: the same mint minus the
- * blank-self guard, declined where its own follower already holds one (G2.13).
+ * The separator the block below a consumed blank line takes back: the fill case without the
+ * blank-self check, skipped where its own follower already holds one (G2.13).
  */
 export function restoreSeparatorAfterBlank(
 	parent: SeparatorParent,
@@ -101,9 +101,9 @@ export function restoreSeparatorAfterBlank(
 }
 
 /**
- * The settle a block turning INTO a blank line owes: the run it joins carries exactly ONE
- * separating line across every block in it AND its follower. The line already standing is
- * kept; a mint lands at the run's head, the only slot one may take.
+ * When a block turns into a blank line, the run of blank blocks it joins must carry exactly one
+ * separating line across every block in it and its follower. A line already standing is kept;
+ * a new one goes at the run's head, the only position one may take.
  */
 export function settleSeparatorOnBlank(
 	parent: SeparatorParent,
@@ -123,13 +123,15 @@ export function settleSeparatorOnBlank(
 	for (let i = start; i <= Math.min(end + 1, children.length - 1); i++) {
 		if (children[i].leadingTrivia !== '') standing.push(i);
 	}
-	// A chrome line bounding the run beside PROSE eats one line as the wrap's peel
-	// (`innerPrefix`/`innerSuffix`), on top of the run's own count; an all-blank body owes none.
+	// A fence line at either end of the run takes one blank line into `innerPrefix`/`innerSuffix`
+	// (the line the parser strips against the fence), on top of the run's own count, when prose
+	// sits on the run's other side; an all-blank body needs none.
 	const wrap = bodyWrapOf(parent);
 	const slots = wrapSlotsOf(parent);
 	const bodyEnd = children.length - 1;
-	// A run of two or more that IS the whole body sits against both chrome lines: the reload
-	// peels a line into each slot before it materializes a block, so it owes BOTH.
+	// A run of two or more that is the whole body sits against both fence lines: the reload
+	// strips a line into each of `innerPrefix` and `innerSuffix` before it makes a block, so the
+	// run must supply both.
 	const twoPeelBody =
 		!!slots &&
 		wrap?.afterOpenerLine === true &&
@@ -141,22 +143,24 @@ export function settleSeparatorOnBlank(
 	if (slots && wrap?.beforeCloserLine && (tailBelowProse || twoPeelBody) && !slots.innerSuffix) {
 		slots.innerSuffix = trailingLineEnding(children[end].raw);
 	}
-	// The reverse: a deletion can leave a lone blank as the WHOLE body, where the closer
-	// peel no longer engages beside the opener's, so the run gives the extra line back.
+	// The reverse: a deletion can leave a lone blank as the whole body, where the closer no
+	// longer strips a line of its own beside the opener's, so the run gives the extra line back.
 	const loneBlankBody = start === bodyStart && end === bodyEnd && start === end;
 	if (slots && loneBlankBody && slots.innerSuffix && (slots.innerPrefix || standing.length > 0)) {
 		slots.innerSuffix = '';
 	}
 	const headUnderWrap =
 		!!slots && wrap?.afterOpenerLine === true && start === bodyStart && end < bodyEnd;
-	// A line already standing IS the opener's peel on reload, so taking one as well would add a
-	// line; a two-peel body's count comes out of the slots, not out of the run.
+	// A line already standing is what the reload strips against the opener, so taking one into
+	// `innerPrefix` as well would add a line; a `twoPeelBody` counts its lines in
+	// `innerPrefix`/`innerSuffix`, not in the run.
 	const takesOpenerPeel = twoPeelBody || (headUnderWrap && standing.length === 0);
 	if (slots && takesOpenerPeel && !slots.innerPrefix) {
 		slots.innerPrefix = trailingLineEnding(children[start].raw);
 	}
-	// Under the wrap the run keeps exactly one peel line, in `innerPrefix` or still standing;
-	// elsewhere a run with no line above it separates from nothing and materializes in full.
+	// Under the opener the run keeps exactly one stripped line, in `innerPrefix` or still
+	// standing; elsewhere a run with no line above it separates from nothing and every line
+	// becomes a block.
 	let wanted: number;
 	if (twoPeelBody) wanted = 0;
 	else if (headUnderWrap) wanted = slots?.innerPrefix ? 0 : 1;
@@ -173,8 +177,9 @@ export function settleSeparatorOnBlank(
 }
 
 /**
- * The give-back twin of {@link settleSeparatorOnBlank}'s closer peel: a tail that stops being
- * blank owes the borrowed `innerSuffix` line back, or the wrap emits a line nobody typed.
+ * The counterpart of the closer's line in {@link settleSeparatorOnBlank}: a tail block that
+ * stops being blank gives the borrowed `innerSuffix` line back, or the container emits a line
+ * nobody typed.
  */
 export function releaseWrapPeel(parent: SeparatorParent, index: number): void {
 	retireChildSpans(parent);
@@ -188,17 +193,17 @@ export function releaseWrapPeel(parent: SeparatorParent, index: number): void {
 }
 
 /**
- * The parse folds the document's one trailing blank line into `suffix` only while the tail block
+ * The parser keeps the document's one trailing blank line in `suffix` only while the tail block
  * is non-blank; once the tail turns blank the reload reads that line as its own empty paragraph,
- * so the settle materializes it. Document-level slot only. Returns the blocks appended.
+ * so it becomes a block here. Document level only. Returns the number of blocks appended.
  */
 function materializeTailSuffix(parent: SeparatorParent, sharing?: SharingState): number {
 	retireChildSpans(parent);
 	const children = parent.children;
 	const suffix = parent.suffix;
 	if (!children || !suffix) return 0;
-	// An emptied parent has no tail for the line to fold against, so it is the document's whole
-	// content and the reload reads it as the one block there is.
+	// An emptied parent has no tail block for the line to attach to, so the line is the document's
+	// whole content and the reload reads it as the one block there is.
 	if (children.length > 0 && !isBlankParagraph(children[children.length - 1])) return 0;
 	const minted: CstNode = { kind: 'paragraph', leadingTrivia: '', raw: suffix };
 	if (sharing) sharing.stamp(minted);
@@ -207,12 +212,12 @@ function materializeTailSuffix(parent: SeparatorParent, sharing?: SharingState):
 	return 1;
 }
 
-// ── The splice settle funnel ──
+// ── Settling a spliced window ──
 
 /**
- * The settle every splice owes its neighbourhood, then the seam question over the window.
- * `removed` is the pre-splice span, the only place was-blank survives a splice; `tracked` rides
- * the folds for a door landing a caret in the spliced bytes.
+ * Recompute the separators around a splice, then ask whether the window's neighbours now re-read
+ * as one block. `removed` is the pre-splice span, the only record of which blocks were blank;
+ * `tracked` follows the merges for a caller landing a caret in the spliced bytes.
  */
 function settleSplicedWindow(
 	parent: SeparatorParent,
@@ -224,25 +229,26 @@ function settleSplicedWindow(
 	tracked?: TrackedPosition
 ): StructuralChange {
 	if (!parent.children) return change;
-	// Ahead of the arms: `settleSeparatorOnBlank` materializes the tail line itself, so a count
-	// read after it would leave that growth outside the window the sink reports.
+	// Read before the branches below: `settleSeparatorOnBlank` can append the tail line as a
+	// block, and a count read after it would leave that growth outside the reported window.
 	const beforeMint = parent.children.length;
 	handDownVacatedSeparator(parent, at, removed[0]?.leadingTrivia ?? '', sharing);
 	clearRedundantSeparator(parent, at, sharing);
 	if (removed.some(isBlankParagraph)) {
-		// Both ends: the line was the slot's own AND the one below it stood on.
+		// Both ends: the removed blank line was this position's own separator and the one the
+		// block below stood on.
 		restoreSeparatorAfterBlank(parent, at, sharing);
 		if (added > 0) restoreSeparatorAfterBlank(parent, at + added, sharing);
 		releaseWrapPeel(parent, at + Math.max(added - 1, 0));
 	} else {
 		settleSeparatorOnBlank(parent, at + Math.max(added - 1, 0), sharing);
 	}
-	// Unconditional, and the funnel's only home for it: a delete window at the tail probes no
-	// slot, and the question is about the parent's LAST block.
+	// Unconditional, and only here: a delete window at the tail names no surviving block, and
+	// the question is about the parent's last block whatever the window.
 	materializeTailSuffix(parent, sharing);
 	const widened = widenForTailMint(change, beforeMint, parent.children.length);
-	// The seam question is part of SETTLING, not a rule each door carries, so door N+1 inherits
-	// it. A byte-shaped write reporting `noop` splices no window and is asked nothing.
+	// Merging neighbours is part of settling, not a rule each caller repeats, so a new caller
+	// inherits it. A write that reports `noop` splices no window and is asked nothing.
 	return absorbWindowSeams(
 		parent as NodeParent,
 		at,
@@ -251,13 +257,14 @@ function settleSplicedWindow(
 		widened,
 		sharing,
 		tracked,
-		// A one-slot window names the one block whose bytes changed, which is what lets the seam
-		// above decline on its first line; a plural one names no single block.
+		// A one-block window names the block whose bytes changed, which lets the join above it be
+		// refused on that block's first line alone; a wider window names no single block.
 		added === 1 ? at : undefined
 	).change;
 }
 
-/** Whoever takes the slot inherits its line, having none of its own ({@link deleteNode}'s rule). */
+/** The block that takes the vacated position inherits its separator when it has none of its own
+ *  ({@link deleteNode}'s rule). */
 function handDownVacatedSeparator(
 	parent: SeparatorParent,
 	at: number,
@@ -272,9 +279,9 @@ function handDownVacatedSeparator(
 }
 
 /**
- * The commit ceremony's settle door: derive the spliced window from the change and settle it
- * against `before`, the pre-mutate children. Nodes surviving inside the window are not removals,
- * so a coarse descriptor over an in-place write settles as one.
+ * The commit sequence's entry point: derive the spliced window from `change` and recompute its
+ * separators against `before`, the children before the mutation. Nodes surviving inside the
+ * window are not removals, so a coarse change descriptor over an in-place write is treated as one.
  */
 export function settleSeparator(
 	parent: SeparatorParent,
@@ -286,8 +293,8 @@ export function settleSeparator(
 	const window = splicedWindow(change);
 	const children = parent.children;
 	if (!window || !children) return change;
-	// At the funnel's door, ahead of every arm: a window the mutate mis-derived reads `before`
-	// out of bounds and hands the arms a negative span, which each would clamp into silence.
+	// Checked here, before any branch: a window the mutation mis-derived reads `before` out of
+	// bounds and hands the branches a negative span, which each would silently clamp.
 	assertInvariant('structural-descriptor', () => checkStructuralDescriptor(change, before.length));
 	const survivors = new Set(children.slice(window.at, window.at + window.added));
 	const removed = before
@@ -312,8 +319,9 @@ function splicedWindow(
 }
 
 /**
- * The out-of-commit-scope twin of {@link settleSeparator}, for a container discovered by walking
- * the live tree: it splices through the `childIds` door and reads the pre-splice span itself.
+ * {@link settleSeparator}'s counterpart outside a commit scope, for a container found by walking
+ * the live tree: it splices through `spliceChildren`, which keeps `childIds` in step, and records
+ * the pre-splice span itself.
  */
 export function spliceChildrenSettled(
 	parent: CstNode | Document,
@@ -326,8 +334,8 @@ export function spliceChildrenSettled(
 	if (!children || at < 0 || at > children.length) return;
 	const removed = children.slice(at, at + removeCount);
 	spliceChildren(parent as CstNode, at, removeCount, replacement);
-	// `noop` in, so what comes back describes the SETTLE alone: `spliceChildren` already carried
-	// the door's own splice into `childIds`, and out of commit scope nothing else publishes.
+	// `noop` goes in so the result describes the fix-up alone: `spliceChildren` already applied
+	// this function's own splice to `childIds`, and outside a commit scope nothing else writes them.
 	const settled = settleSplicedWindow(
 		parent as SeparatorParent,
 		at,
@@ -341,8 +349,9 @@ export function spliceChildrenSettled(
 }
 
 /**
- * What a seam settle absorbed: post-splice window position and size, and the net blocks eaten.
- * `span + eaten` is the pre-absorb slot count, which is what a change descriptor reports.
+ * What a merge of neighbours absorbed: the window's position and size after the splice, and the
+ * net blocks eaten. `span + eaten` is the block count before the merge, which is what a change
+ * descriptor reports.
  */
 interface SeamAbsorption {
 	at: number;
@@ -351,17 +360,18 @@ interface SeamAbsorption {
 	spliced: boolean;
 }
 
-/** A byte position the folds carry with them, written in place since each fold re-tiles the bytes. */
+/** A byte position the merges keep updated, written in place since each merge re-divides the
+ *  bytes into blocks. */
 export interface TrackedPosition {
 	index: number;
 	offset: number;
 }
 
 /**
- * A splice can leave neighbours whose adjacent bytes re-read as fewer blocks on reload. Absorb
- * while the window's own bytes parse to fewer blocks, which is the reload's reading; a blank run
- * is transparent to a container's continuation, so the window anchors at the nearest non-blank
- * block above the seam, never below `floor`, and cascades.
+ * A splice can leave neighbours whose adjacent bytes re-read as fewer blocks on reload. Merge
+ * while the window's own bytes parse to fewer blocks, which is the reload's reading; blank lines
+ * do not stop a container's continuation, so the window starts at the nearest non-blank block
+ * above the join, never below `floor`, and repeats downward.
  */
 export function absorbSeamReading(
 	parent: NodeParent,
@@ -380,23 +390,23 @@ export function absorbSeamReading(
 	let span = seamLeft - at + 1;
 	let eaten = 0;
 	let spliced = false;
-	// Only the first pass: a fold re-tiles the window, so the probe's absolute index is stale.
+	// Only on the first pass: a merge re-divides the window, so the index is stale after one.
 	let probe = headProbe;
 	for (;;) {
-		// The candidate edge crosses a blank run too: the absorbed content sits on the
-		// run's far side (a list continues into indented code across any number of blanks).
+		// The window's far edge crosses a blank run too: the absorbed content sits on the run's
+		// far side (a list continues into indented code across any number of blank lines).
 		let right = at + span;
 		while (right < children.length && isBlankParagraph(children[right])) right++;
 		const window = children.slice(at, Math.min(right + 1, children.length));
 		if (window.length <= span || window.length < 2) break;
-		// A context-dependent kind has no standalone reading, so its seam is not askable.
+		// A context-dependent kind has no standalone reading, so a join touching it cannot be asked.
 		if (window.some((node) => tryGetBlockKindDescriptor(node.kind)?.contextDependentKind)) break;
 		if (probe !== undefined && declinesOnHeadLine(window, probe - at)) break;
 		probe = undefined;
 		const reparsed = parse(joinedWindowBytes(window, window.length), { scope: 'fragment' });
 		const blocks = reparsed.children;
 		if (blocks.length === 0 || blocks.length >= window.length) break;
-		// A fold may PROMOTE the head past what its bytes carry alone (a paragraph under the
+		// A merge may promote the head beyond what its bytes carry alone (a paragraph under the
 		// setext underline below it), so what must survive is the head's own reading, not its kind.
 		if (blocks[0].kind !== window[0].kind && !readsAsItselfAlone(window[0])) break;
 		onBeforeSplice?.();
@@ -418,8 +428,8 @@ export function absorbSeamReading(
 
 /**
  * Whether a block's own bytes read back as that block. A structured container's children fail
- * this by construction (one list item's bytes read as a LIST), which is how a scope whose
- * children a document parse does NOT reproduce declines the seam question.
+ * this by construction (one list item's bytes read as a list), which is how a child list a
+ * document parse does not reproduce stays out of the merge.
  */
 function readsAsItselfAlone(node: CstNode): boolean {
 	const alone = parse(node.raw, { scope: 'fragment' }).children;
@@ -427,9 +437,9 @@ function readsAsItselfAlone(node: CstNode): boolean {
 }
 
 /**
- * Decline-only pre-parse for a window whose LAST member is the block that changed: join the
+ * A cheap refusal check for a window whose last member is the block that changed: join the
  * others with only that block's first line. Block parsing is a left-to-right line scan, so a
- * block opening here opens in the full join too; a pass falls through to the real parse.
+ * block that opens here opens in the full join too; a pass falls through to the real parse.
  */
 function declinesOnHeadLine(window: readonly CstNode[], member: number): boolean {
 	if (member <= 0 || member !== window.length - 1) return false;
@@ -442,8 +452,8 @@ function declinesOnHeadLine(window: readonly CstNode[], member: number): boolean
 	return parse(joined, { scope: 'fragment' }).children.length >= window.length;
 }
 
-/** How a fold reads a window: the head's raw, then each of the next `count - 1` members'
- *  leading trivia and raw. */
+/** The bytes a merge parses: the head's raw, then each of the next `count - 1` members' leading
+ *  blank lines and raw. */
 function joinedWindowBytes(window: readonly CstNode[], count: number): string {
 	let joined = window[0].raw;
 	for (let i = 1; i < count; i++) joined += window[i].leadingTrivia + window[i].raw;
@@ -451,8 +461,8 @@ function joinedWindowBytes(window: readonly CstNode[], count: number): string {
 }
 
 /**
- * Where a byte position inside the folded window lands: the fold's own reparse re-tiles the
- * joined bytes, and a position past the window only shifts by what the fold ate.
+ * Where a byte position inside the merged window ends up: the merge's reparse re-divides the
+ * joined bytes, and a position past the window only shifts by the blocks the merge ate.
  */
 function retrackThroughFold(
 	tracked: TrackedPosition,
@@ -478,9 +488,9 @@ function retrackThroughFold(
 }
 
 /**
- * Map a post-edit caret offset (in the committed text) to the parsed block it falls in, as a
- * local display offset. An offset inside inter-block trivia lands at the next block's start;
- * past-the-end clamps to the last.
+ * Map a post-edit caret offset (in the committed text) to the parsed block it falls in, as an
+ * offset local to that block. An offset inside the blank lines between blocks lands at the next
+ * block's start; past the end clamps to the last.
  */
 export function focusTargetInReplacement(
 	nodes: readonly NodeView[],
@@ -499,17 +509,19 @@ export function focusTargetInReplacement(
 	return { index: last, offset: trimTrailingLineEnding(nodes[last].raw).length };
 }
 
-/** What a splice settled: its change widened by every fold, and where a tracked index landed. */
+/** What settling a splice produced: its change widened by every merge, and where a tracked
+ *  index ended up. */
 export interface SettledSplice {
 	change: StructuralChange;
 	landing: number;
 }
 
 /**
- * The seam question at every join the splice at `at` disturbed, its window's two edges and the
- * joins inside it, since a move can invalidate a join that was already correct. Each fold
- * cascades downward. `headProbe` names the one block whose bytes changed, letting each ask
- * decline on its first line alone; dropped once anything folds, since its index has moved.
+ * Ask every join the splice at `at` disturbed whether its two sides now re-read as one block:
+ * the window's two edges and the joins inside it, since a move can break a join that was
+ * already correct. Each merge continues downward. `headProbe` names the one block whose bytes
+ * changed, so a join can be refused on its first line alone; dropped once anything merges,
+ * since its index has moved.
  */
 export function absorbWindowSeams(
 	parent: NodeParent,
@@ -549,8 +561,8 @@ export function absorbWindowSeams(
 	return { change: foldAbsorbIntoChange(change, settled), landing: moved };
 }
 
-/** Two folds as ONE window, which is what a change descriptor reports. The walk is left to
- *  right, so `later` never opens above `earlier`'s post-splice span. */
+/** Two merges as one window, which is what a change descriptor reports. The walk is left to
+ *  right, so `later` never starts above `earlier`'s post-splice span. */
 function unionAbsorptions(earlier: SeamAbsorption, later: SeamAbsorption): SeamAbsorption {
 	return {
 		at: earlier.at,
@@ -560,7 +572,7 @@ function unionAbsorptions(earlier: SeamAbsorption, later: SeamAbsorption): SeamA
 	};
 }
 
-/** Where `index` sits once `seam` folded: a slot inside the absorbed span collapses into it. */
+/** Where `index` sits once `seam` merged: a position inside the absorbed span collapses into it. */
 function indexAfterAbsorb(index: number, seam: SeamAbsorption): number {
 	if (index < seam.at) return index;
 	const absorbedTo = seam.at + seam.span + seam.eaten;
@@ -568,9 +580,9 @@ function indexAfterAbsorb(index: number, seam: SeamAbsorption): number {
 }
 
 /**
- * The absorbed window folded into the write's own, as the ONE contiguous window the sink
- * reports: `count` counts pre-write slots, so the union's span converts back across whatever
- * the write itself added or removed.
+ * The absorbed window combined with the write's own, as the one contiguous window the caller
+ * reports: `count` counts positions before the write, so the union's span converts back across
+ * whatever the write itself added or removed.
  */
 function foldAbsorbIntoChange(change: StructuralChange, seam: SeamAbsorption): StructuralChange {
 	const absorbedTo = seam.at + seam.span + seam.eaten;
@@ -609,9 +621,9 @@ interface FoldWindow {
 }
 
 /**
- * Identity through the fold: a slot the absorb did not re-mint still holds the block the change
- * put there, so its id composes through both steps instead of resetting. Slot 0 keeps the head
- * mapping wherever the walk has none, since a fold EXTENDS its head, kind promotion included.
+ * Identity through the merge: a position the merge did not re-create still holds the block the
+ * change put there, so its id maps through both steps instead of resetting. Position 0 keeps the
+ * head mapping wherever the walk has none, since a merge extends its head, kind promotion included.
  */
 function composeFoldIdMap(
 	change: StructuralChange,
@@ -622,7 +634,7 @@ function composeFoldIdMap(
 	for (let slot = 0; slot < window.newCount; slot++) {
 		const index = window.lo + slot;
 		if (index >= seam.at && index < seam.at + seam.span) continue;
-		// Back through the fold: a slot past the absorbed span sat `eaten` further down before it.
+		// Back through the merge: a position past the absorbed span sat `eaten` further down before it.
 		const spliced = index < seam.at ? index : index + seam.eaten;
 		const old = preChangeIndex(change, spliced, window);
 		if (old === null) continue;
@@ -633,7 +645,8 @@ function composeFoldIdMap(
 	return idMap;
 }
 
-/** Where `spliced` (a post-change index) stood before the change, or null for a slot it minted. */
+/** Where `spliced` (a post-change index) stood before the change, or null for a block the change
+ *  created. */
 function preChangeIndex(
 	change: StructuralChange,
 	spliced: number,
@@ -647,9 +660,10 @@ function preChangeIndex(
 }
 
 /**
- * Where the fragment parse's peeled trailing blank run goes. At the parent's tail it stays in the
- * last block's raw, the single-slot sink's rule; mid-document it joins the follower's run, where
- * one line separates and every later one is a block of its own (syntax-tree.md § Blank lines).
+ * Where the trailing blank run the fragment parse split off goes. At the parent's tail it stays
+ * in the last block's raw, as in every write that lands one block; mid-document it joins the
+ * follower's run, where one line separates and every later one is a block of its own
+ * (syntax-tree.md § Blank lines).
  */
 function absorbFragmentPeel(
 	parent: NodeParent,
@@ -675,7 +689,7 @@ function absorbFragmentPeel(
 /** A blank run split back into the lines it is made of, each keeping its own ending. */
 const blankLinesOf = (run: string): string[] => run.match(/[^\n]*\n|[^\n]+$/g) ?? [];
 
-/** The materialized tail reported inside the sink's one contiguous window. */
+/** The tail line that became a block, reported inside the caller's one contiguous window. */
 export function widenForTailMint(
 	change: StructuralChange,
 	before: number,
@@ -690,17 +704,19 @@ export function widenForTailMint(
 	if (change.op === 'replace' && change.at + change.newCount === before) {
 		return { ...change, newCount: change.newCount + grown };
 	}
-	// A delete that took the tail vacated the slot the mint lands in, so the two are one window.
+	// A delete that took the tail vacated the position the new block lands in, so the two are
+	// one window.
 	if (change.op === 'delete' && change.at === before) {
 		return { op: 'replace', at: change.at, count: change.count, newCount: grown };
 	}
-	// The mint landed past a window that does not reach the tail, so no single contiguous
-	// span describes both; the parallel arrays would drift either way this widened it.
+	// The new block landed past a window that does not reach the tail, so no single contiguous
+	// span describes both; the parallel id arrays would drift either way this widened it.
 	devWarn('tree-ops', 'a tail suffix materialized outside the reported window');
 	return change;
 }
 
-/** A blank line off the node's own bytes (G4.20), where one does structural work at all. */
+/** Give the block at `index` a blank line, with the ending taken from its own bytes (G4.20),
+ *  where one separates anything at all. */
 function mintSeparator(parent: SeparatorParent, index: number, sharing?: SharingState): void {
 	const children = parent.children;
 	if (!children || index <= bodyStartIndex(parent)) return;
@@ -711,38 +727,39 @@ function mintSeparator(parent: SeparatorParent, index: number, sharing?: Sharing
 	owned.leadingTrivia = trailingLineEnding(owned.raw);
 }
 
-/** Reserved chrome is not a body block, so the body window opens past it. */
+/** A container's reserved title child is not a body block, so the body starts past it. */
 function bodyStartIndex(parent: SeparatorParent): number {
 	return bodyStartFor(ownerKindNameOf(parent));
 }
 
-/** The container's declared body wrap, whichever shape names the owner. */
+/** The owning container's declared body wrap, whichever parent shape names it. */
 function bodyWrapOf(parent: SeparatorParent): ContainerBodyWrap | undefined {
 	const kind = ownerKindNameOf(parent);
 	if (kind === undefined) return undefined;
 	return tryGetBlockKindDescriptor(kind as AnyBlockKind)?.bodyWrap;
 }
 
-/** The node carrying the wrap's peel slots: the sink's answer, or the parent when it IS the node. */
+/** The node holding `innerPrefix`/`innerSuffix`: the owner the caller named, or the parent itself
+ *  when it is a node. */
 function wrapSlotsOf(parent: SeparatorParent): CstNode | undefined {
 	return ownerNodeOf(parent);
 }
 
-/** The container node these children belong to, where the caller answered for one. */
+/** The container node these children belong to, where the caller named one. */
 function ownerNodeOf(parent: SeparatorParent): CstNode | undefined {
 	return parent.owner ?? ('raw' in parent ? (parent as CstNode) : undefined);
 }
 
 /**
- * Every settle door rewrites bytes the owner's child spans describe while leaving the children's
- * shape alone, so the spans retire at the doors and the next rebuild re-derives them.
+ * Every separator write here changes bytes the owner's child spans describe without changing the
+ * children's shape, so the spans are dropped here and the next rebuild re-derives them.
  */
 function retireChildSpans(parent: SeparatorParent): void {
 	const owner = ownerNodeOf(parent);
 	if (owner) dropChildSpans(owner);
 }
 
-/** The kind whose body these children are: the sink's answer, or the owner node's own. */
+/** The kind whose body these children are: the one the caller named, or the owner node's own. */
 function ownerKindNameOf(parent: SeparatorParent): string | undefined {
 	return 'ownerKind' in parent ? parent.ownerKind : parent.kind;
 }
@@ -753,8 +770,9 @@ function bodyStartFor(kind: string | undefined): number {
 }
 
 /**
- * A chrome-wrapped container's parse peels the blank line against its opener into `innerPrefix`,
- * so a separator freed above the body head is that line: hand it over, or the peel eats the head.
+ * The parser strips the blank line after a fenced container's opener into `innerPrefix`, so a
+ * separator freed above the body head is that line: hand it over, or the reload takes the head's
+ * own line instead.
  */
 function absorbWrapPrefix(
 	parent: SeparatorParent,
@@ -775,8 +793,8 @@ function absorbWrapPrefix(
 
 /**
  * Remove the node at `blockIndex`, leaving the next sibling separated from its new predecessor
- * and no more. Takes {@link BodyParentArg} because the settle can hand a freed line to the
- * owner's wrap slots; the successor's trivia is the op's only in-place write.
+ * and no more. Takes {@link BodyParentArg} because the fix-up can hand a freed line to the
+ * owner's `innerPrefix`; the successor's `leadingTrivia` is the op's only in-place write.
  */
 export function deleteNode(
 	parent: BodyParentArg,
@@ -798,7 +816,7 @@ export function deleteNode(
 
 	parent.children.splice(blockIndex, 1);
 	clearRedundantSeparator(parent, blockIndex, sharing);
-	// BOTH the survivor's edges: the delete puts it beside a new follower, and a merge door that
+	// Both of the survivor's edges: the delete puts it beside a new follower, and a merge that
 	// rewrote its bytes can equally have stopped it interrupting the block above.
 	const survivor = Math.max(blockIndex - 1, 0);
 	return absorbWindowSeams(

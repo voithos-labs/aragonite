@@ -36,7 +36,6 @@ export function unwrapFirstItemFromList(list: NodeView): CstNode[] {
 
 	const firstItem = list.children[0];
 	if (!firstItem.children || firstItem.children.length === 0) {
-		// Empty item: nothing to lift, so return the shrunk list.
 		const clonedList: CstNode = cloneNode(list);
 		const rest = clonedList.children!.slice(1);
 		if (rest.length === 0) return [];
@@ -115,8 +114,8 @@ function depthOneListFor(
 /**
  * Relocate the merged-away item's remaining children by "preserve absolute indent":
  * nested-list items promote to the depth-1 sibling container when the merge target sits
- * deeper, everything else absorbs into the target item. Children are MOVED into the live
- * tree and unshared individually, so the snapshot's view of the deleted item stays intact
+ * deeper, everything else absorbs into the target item. Children are moved into the live
+ * tree and copied individually, so the snapshot's view of the deleted item stays intact
  * (G1.9).
  */
 function relocateRemainingChildren(
@@ -138,19 +137,19 @@ function relocateRemainingChildren(
 				for (let i = 0; i < child.children.length; i++) {
 					const item = sharing ? ensureUnsharedChild(child, i, sharing) : child.children[i];
 					item.leadingTrivia = '';
-					// discovered-descendant mutation, see node-primitives.ts header
+					// An in-place write on a descendant found by walking, see the `node-primitives.ts` header.
 					pushChild(depthOneList, item);
 				}
 				rebuildListRaw(depthOneList);
 				continue;
 			}
-			// discovered-descendant mutation, see node-primitives.ts header
+			// An in-place write on a descendant found by walking, see the `node-primitives.ts` header.
 			pushChild(targetItem, child);
 		} else {
 			// A trailing paragraph keeps its blank-line separator, or the two lazy-continue
 			// into one on reload. Other leaves start fresh and need none.
 			child.leadingTrivia = child.kind === 'paragraph' ? lineEnding : '';
-			// discovered-descendant mutation, see node-primitives.ts header
+			// An in-place write on a descendant found by walking, see the `node-primitives.ts` header.
 			pushChild(targetItem, child);
 		}
 	}
@@ -159,9 +158,9 @@ function relocateRemainingChildren(
 /**
  * Merge the list item at `currentIndex` into the deepest text-bearing leaf of the
  * preceding item, mutating `list` in place and returning the merge point for the caret.
- * `targetPath`'s trailing index is the LAST paragraph in the target item, not always 0.
- * Null when the previous item exposes only an opaque deepest leaf — that is a legitimate
- * outcome the caller falls back from, unlike a bad `currentIndex`, which throws.
+ * `targetPath`'s trailing index is the last paragraph in the target item, not always 0.
+ * Null when the previous item exposes only an opaque deepest leaf: a legitimate outcome the
+ * caller falls back from, unlike a bad `currentIndex`, which throws.
  */
 export function mergeListItemIntoPrevious(
 	list: CstNode,
@@ -171,8 +170,8 @@ export function mergeListItemIntoPrevious(
 	presentationMode: PresentationMode | undefined,
 	linkRef: InlineResolverRef | undefined
 ): { mergePoint: { targetPath: number[]; offset: number } } | null {
-	// Targeting may read `list.children`, but the final splice MUST land in `children`
-	// (`node-ops.ts` header).
+	// Targeting may read `list.children`, but the final splice must land in `children`
+	// (`node-primitives.ts` header).
 	if (
 		list.kind !== 'list' ||
 		!list.children ||
@@ -216,8 +215,8 @@ export function mergeListItemIntoPrevious(
 	const currentFirstText = (currentFirstParagraph.raw ?? '').replace(/\r?\n$/, '');
 
 	const lineEnding = trailingLineEnding(targetParagraph.raw ?? '');
-	// Every destructive join crosses the seam cleaner, M1 included: a literal concatenation
-	// surfaces the marker runs the join orphaned, which live paints for nobody.
+	// Every destructive join goes through the join cleanup, M1 included: a literal concatenation
+	// would show the delimiter runs the join left unpaired, which live mode had hidden.
 	const joined = cleanJoinedRaw(
 		{
 			mergedRaw: targetOriginalText + currentFirstText,
@@ -228,8 +227,8 @@ export function mergeListItemIntoPrevious(
 		},
 		presentationMode
 	);
-	// The caret rides the CLEANED seam: a run dropped on the target's side moves where the
-	// two halves met.
+	// The caret follows the cleaned join offset: a run dropped on the target's side moves where
+	// the two halves met.
 	const mergeOffset = joined.seam;
 	targetParagraph.raw = joined.raw + lineEnding;
 
@@ -238,7 +237,7 @@ export function mergeListItemIntoPrevious(
 	children.splice(currentIndex, 1);
 
 	// So the post-splice reads below see the new shape; idempotent with the commit's
-	// final publish.
+	// final write to state.
 	list.children = children;
 
 	rebuildAncestryRaw(list, targetPath);

@@ -1,7 +1,7 @@
 /**
  * Lift a container's first child out while the container itself survives (Rule U2's other
  * shape): the remainder keeps its kind and its `rebuildRaw` re-emits the syntax, so a marker
- * held in metadata rides through. `blockquote.ts`'s `unwrapFirstChildFromQuote` is the shape
+ * held in metadata survives. `blockquote.ts`'s `unwrapFirstChildFromQuote` is the shape
  * where the opener lives on the first line and the lift drops it.
  */
 
@@ -16,14 +16,14 @@ export function liftFirstChildKeepingContainer(container: NodeView): CstNode[] {
 	if (!children || children.length === 0) return [];
 
 	const lifted = cloneNode(children[0]);
-	// The container's leading trivia is applied at the caller's splice point.
+	// The container's leading blank lines are applied at the caller's splice point.
 	lifted.leadingTrivia = '';
 	if (children.length === 1) return [lifted];
 
 	const remaining = cloneNode(container);
 	const remainingChildren = remaining.children!.slice(1);
 	// The blank line that stood between the two children inside the container is the one that
-	// now stands between the lifted block and the container: conserved, never minted.
+	// now stands between the lifted block and the container: kept, never created.
 	remaining.leadingTrivia = remainingChildren[0].leadingTrivia;
 	remainingChildren[0].leadingTrivia = '';
 	remaining.children = remainingChildren;

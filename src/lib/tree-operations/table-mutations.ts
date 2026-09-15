@@ -1,5 +1,5 @@
-// In-place table CST mutations; the caller owns the commit ceremony and the raw rebuild,
-// so these touch neither reactivity, undo, nor raw. Column mutators emit exactly one
+// In-place table CST mutations; the caller owns the commit and the raw rebuild, so these
+// touch neither reactivity, undo, nor raw. Column mutators emit exactly one
 // StructuralChange per row, in row order, for multi-scope callers to pair with row scopes.
 
 import type { CstNode, TableRowMetadata, TableAlignment } from '../core/nodes';
@@ -89,8 +89,8 @@ export function setAlignment(table: CstNode, colIdx: number, alignment: TableAli
 export function cycleAlignment(table: CstNode, colIdx: number): void {
 	const meta = metadataOf(table, 'table');
 	const current = meta.alignments[colIdx];
-	// 'none' renders identically to 'left', so stepping through it would look like a stuck
-	// press; jump to 'center' instead. Once cycling begins the column never re-enters it.
+	// 'none' renders identically to 'left', so stepping through it would look like the click
+	// did nothing; jump to 'center' instead. Once cycling begins the column never re-enters it.
 	if (current === 'none') {
 		meta.alignments[colIdx] = 'center';
 		return;
@@ -104,7 +104,7 @@ export function cycleAlignment(table: CstNode, colIdx: number): void {
 // editor-actions/ so selection/ never has to reach across for them.
 
 /**
- * Whether a row delete is allowed. `rowCount` is the FULL count including the header. A
+ * Whether a row delete is allowed. `rowCount` is the full count including the header. A
  * header delete promotes the next row so it needs only a second row; a body delete needs
  * a second body row, else it would leave a header-only table.
  */

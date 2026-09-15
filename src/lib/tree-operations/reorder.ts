@@ -8,7 +8,7 @@ import type { StructuralChange } from './structural-change';
 import { devWarn } from '../dev-warn';
 
 // A stale index (a mid-drag delete shrank the array) would splice `undefined` into the
-// $state tree, so both entry points bail through this BEFORE any unshare or write.
+// $state tree, so both entry points bail through this before any copy or write.
 function isReorderOutOfBounds(from: number, to: number, len: number): boolean {
 	if (from < 0 || from >= len || to < 0 || to >= len) {
 		devWarn('reorder', `reorder out of bounds: from=${from} to=${to} len=${len}`);
@@ -18,7 +18,7 @@ function isReorderOutOfBounds(from: number, to: number, len: number): boolean {
 }
 
 // A reorder rewrites no bytes and creates no node: it is one contiguous `replace`
-// whose idMap permutes the spanned window so each moved block keeps its id + ref.
+// whose idMap permutes the spanned window so each moved block keeps its id and ref.
 export function reorderChildren(children: CstNode[], from: number, to: number): StructuralChange {
 	if (from === to) return { op: 'noop' };
 	if (isReorderOutOfBounds(from, to, children.length)) return { op: 'noop' };
@@ -36,11 +36,11 @@ export function reorderChildren(children: CstNode[], from: number, to: number): 
 }
 
 /**
- * Reorder children while keeping block separators positional. A separator is stored as the next
- * child's `leadingTrivia` but read per slot, so it belongs to the position, not the node. Writing
- * it is a byte write, so spanned children are unshared first (`unshare.ts`) and `children` must
- * already be an owned array. The landing rides the result: a fold settling a seam the move
- * invalidated can sit above the moved block.
+ * Reorder children while keeping block separators with their positions. A separator is stored as
+ * the next child's `leadingTrivia` but read per position, so it belongs to the position, not the
+ * node. Writing it is a byte write, so the spanned children are copied first (`unshare.ts`) and
+ * `children` must already be an owned array. The result carries where the block ended up: a
+ * merge fixing a join the move broke can sit above the moved block.
  */
 export function reorderChildrenWithTrivia(
 	children: CstNode[],
@@ -66,15 +66,15 @@ export function reorderChildrenWithTrivia(
 		children[lo + k].leadingTrivia = windowTrivia[k];
 	}
 	if (separators) {
-		// The rotation reseats every slot in the window, and a block can land flush under a
+		// The rotation moves every position in the window, and a block can land flush under a
 		// paragraph that then reads its lines as its own (a table dissolving into the prose above
-		// it). The seam it VACATED is the exception: a pair rejoining once the block between them
-		// leaves is the reload's own reading, which the absorber below settles.
+		// it). The join it vacated is the exception: a pair rejoining once the block between them
+		// leaves is the reload's own reading, which the merge below applies.
 		const vacated = from < to ? from : from + 1;
 		for (let at = lo; at <= hi + 1; at++) {
 			if (at !== vacated) separateSeam(children, at, sharing);
 		}
-		// A blank line reseated by position can hold a line its follower holds too; the run owes
+		// A blank block moved by position can hold a line its follower holds too; the run needs
 		// exactly one, and none at the document head, where the reload reads each as a block.
 		for (let at = lo; at <= hi; at++) {
 			if (isBlankParagraph(children[at])) settleSeparatorOnBlank({ children }, at, sharing);
@@ -87,7 +87,7 @@ export function reorderChildrenWithTrivia(
  * Give the follower at `at` a separator where the reload would otherwise not read the two
  * blocks back as themselves, and only then: a block that swallows across a blank line (an
  * unterminated fence taking the prose below it) is the reload's true reading, left to the
- * absorber, which the fold tests pin.
+ * neighbour merge, which its tests pin.
  */
 function separateSeam(children: CstNode[], at: number, sharing: SharingState): void {
 	if (at <= 0 || at >= children.length) return;

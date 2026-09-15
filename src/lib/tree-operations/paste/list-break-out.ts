@@ -1,6 +1,6 @@
 /**
  * Paste break-out: lift a pasted list out of an enclosing list rather than nesting it,
- * whenever the two ordered flags disagree — keeping the pasted list separate preserves its
+ * whenever the two ordered flags disagree: keeping the pasted list separate preserves its
  * semantic type. Same-type pastes go through `list-absorb`.
  */
 
@@ -33,13 +33,13 @@ export interface ListBreakOut {
 	innerIndex: number;
 	/** Caret offset within the target leaf's raw. */
 	offset: number;
-	/** The target leaf's bytes AFTER the paste's delete half. */
+	/** The target leaf's bytes after the paste's delete half. */
 	targetRaw?: string;
 }
 
 /**
  * The break-out plan, or null: requires a top block declaring `containerPaste.siblingAbsorb`
- * whose `matchesAncestor` REJECTS the nearest list ancestor (matching pastes belong to
+ * whose `matchesAncestor` rejects the nearest list ancestor (matching pastes belong to
  * `list-absorb` and must not also trigger here), targeting a direct leaf of the listItem.
  */
 export function findListBreakOut(
@@ -95,8 +95,8 @@ export async function applyListBreakOut(
 	const parentScope = resolveParentScope(ctx.doc, plan.listPath, ctx.controller);
 	if (!parentScope) return;
 	const spliceIndex = plan.listPath[plan.listPath.length - 1];
-	// The last pasted block, never the second-half residue list — and carried through the settle,
-	// whose folds can move the slot out from under a landing chosen here.
+	// The last pasted block, never the second-half residue list, and kept updated through the
+	// fix-up, whose merges can move the position out from under a caret chosen here.
 	const caret = trackedPasteCaret(
 		replacement,
 		spliceIndex,
@@ -137,7 +137,7 @@ export async function applyListBreakOut(
 // ── Replacement builder (pure, testable) ─────────────────────────────────────
 
 export interface ListBreakOutReplacement {
-	/** `[firstHalfList?, ...pastedBlocks, secondHalfList?]` — halves omitted when empty. */
+	/** `[firstHalfList?, ...pastedBlocks, secondHalfList?]`, halves omitted when empty. */
 	replacement: CstNode[];
 	/** The second-half list (post-caret residue) is present as the last node. */
 	hasTrailingResidue: boolean;
@@ -179,9 +179,8 @@ export function buildListBreakOutReplacement(
 	}
 	for (const block of pastedBlocks) {
 		const cloned = cloneNode(block);
-		// Normalize the clone's items so its rebuilt raw can't mash into the next block.
-		// The ending comes from the list being broken out of — the pasted block lands
-		// among its lines.
+		// Normalize the clone's items so its rebuilt raw cannot run into the next block. The
+		// ending comes from the list being broken out of: the pasted block lands among its lines.
 		if (cloned.kind === 'list' && cloned.children) {
 			newlineTerminateListItems(cloned.children, trailingLineEnding(list.raw));
 			rebuildListRaw(cloned);

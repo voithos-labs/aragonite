@@ -1,8 +1,8 @@
 /**
- * Structural-change descriptor returned by tree ops; the commit primitive consumes it to
- * auto-sync the parallel `blockIds` / `blockRefs` arrays, so callers never hand-splice
- * them. Every variant describes ONE contiguous `at`/`count` window — an op editing two
- * disjoint ranges splits into separate commits or uses the multi-scope commit path.
+ * The change descriptor a tree op returns; the commit consumes it to keep the parallel
+ * `blockIds` / `blockRefs` arrays in step, so callers never splice them by hand. Every variant
+ * describes one contiguous `at`/`count` window: an op editing two disjoint ranges splits into
+ * separate commits or uses the multi-scope commit.
  */
 
 import type { BlockComponent } from '../block-component';
@@ -27,7 +27,7 @@ export type StructuralChange =
 	  };
 
 /**
- * Replace [at, at+count) where the FIRST new item inherits the old first item's id + ref,
+ * Replace [at, at+count) where the first new item inherits the old first item's id and ref,
  * preserving Svelte keyed identity (cursor, IME composition) across the swap.
  */
 export function replacePreservingFirst(
@@ -39,11 +39,11 @@ export function replacePreservingFirst(
 }
 
 /**
- * Stamp the nodes a change's insert/replace window CREATED as owned by the live tree;
- * pre-existing nodes go through `unshare.ts` instead. Also backfills `childIds` on
- * containers in a created subtree, before the commit publishes: a freshly-parsed node
- * carries none, and under a reused component instance the nested keyed `{#each}` renders
- * before the re-init effect, so undefined keys would reach Svelte.
+ * Mark the nodes a change's insert/replace window created as owned by the live tree;
+ * pre-existing nodes go through `unshare.ts` instead. Also backfills `childIds` on containers
+ * in a created subtree before the commit writes to state: a freshly parsed node carries none,
+ * and under a reused component instance the nested keyed `{#each}` renders before the re-init
+ * effect, so undefined keys would reach Svelte.
  */
 export function stampStructuralChange(
 	children: CstNode[],
@@ -100,15 +100,15 @@ export function applyStructuralChangeToIdsRefs(
 	}
 }
 
-// ── Descriptor off the doors' own id array ──
+// ── A descriptor read off the id array ──
 
-/** A parent whose parallel id array the splice doors maintain: a container, or the root. */
+/** A parent whose parallel id array the splice functions maintain: a container, or the root. */
 type IdCarrier = { children?: CstNode[]; childIds?: string[] };
 
 /**
- * Borrow `parent.childIds` as the ledger the splice doors write their net splice into, so a
+ * Borrow `parent.childIds` as the record the splice functions write their net effect into, so a
  * caller running several of them reports what they add up to instead of re-deriving it from
- * lengths (a settle's fold moves slots the caller's own window never named).
+ * lengths (a merge during the fix-up moves positions the caller's own window never named).
  */
 export function trackChildIds(parent: IdCarrier): {
 	read: () => StructuralChange;

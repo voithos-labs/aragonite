@@ -1,7 +1,7 @@
 /**
- * The paste family's `bodyWrite` moment: paste builds nodes upstream of every
- * content-write byte sink, so a container's escape lands here instead — on the clipboard text
- * ahead of the strategy-picking parse, and on the built replacement at the splice.
+ * Where paste applies a container's `bodyWrite` escape: paste builds nodes before any content
+ * write sees them, so the escape is applied here instead, to the clipboard text before the
+ * strategy-picking parse and to the built replacement at the splice.
  */
 
 import type { AnyBlockKind, CstNode, Document } from '../../core/nodes';

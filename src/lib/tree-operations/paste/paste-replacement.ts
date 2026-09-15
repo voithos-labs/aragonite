@@ -1,7 +1,7 @@
 /**
  * Replacement node list for a multi-block paste into a single leaf: the leaf's raw split
- * at the cursor, with the pasted blocks between the slices. STRUCTURAL pastes only —
- * routing a single-paragraph clipboard here would split it into three nodes.
+ * at the cursor, with the pasted blocks between the slices. Structural pastes only: routing
+ * a single-paragraph clipboard here would split it into three nodes.
  */
 
 import type { CstNode } from '../../core/nodes';
@@ -21,8 +21,8 @@ export function buildPastedReplacement(
 	const leafRaw = leaf.raw;
 	const lineEnding = trailingLineEnding(leafRaw);
 	const display = trimTrailingLineEnding(leafRaw);
-	// Off any scalar interior before the cut: the halves land in DIFFERENT blocks, so a pair
-	// split here is unrecoverable bytes rather than a recoverable edit.
+	// Moved off the middle of a surrogate pair before the cut: the halves land in different
+	// blocks, so a pair split here is unrecoverable bytes rather than a recoverable edit.
 	const cut = snapToScalarBoundary(display, offset);
 	const rawBefore = display.slice(0, cut);
 	const rawAfter = display.slice(cut);
@@ -40,7 +40,7 @@ export function buildPastedReplacement(
 		newNodes.push(beforeNode);
 	}
 
-	// A blank-line separator is forced where source trivia is empty, or the block butts
+	// A blank-line separator is forced where the source has none, or the block butts
 	// against its predecessor via a soft break and renders as one merged paragraph. A blank
 	// predecessor already holds a run open, so its successor takes no separator of its own.
 	for (let i = 0; i < blocks.length; i++) {

@@ -1,7 +1,7 @@
 /**
  * Reconcile listItem task metadata against its first paragraph's raw. The parser stores
- * the task marker on the item's metadata, but live typing only mutates `paragraph.raw` —
- * so without this, typing `[ ] ` serializes as a task the live CST still calls plain.
+ * the task marker on the item's metadata, but live typing only mutates `paragraph.raw`, so
+ * without this, typing `[ ] ` serializes as a task the live CST still calls plain.
  */
 
 import type { CstNode } from '../../core/nodes';

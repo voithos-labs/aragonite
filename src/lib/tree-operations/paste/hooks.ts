@@ -27,9 +27,10 @@ import {
 const BESPOKE_SURFACE_KINDS = new Set<BlockKind>(['tableCell']);
 
 /**
- * The leaf's bytes and caret after the paste's DELETE half — through the one join seam, so a cut
- * that stranded a delimiter run the reader never saw drops it here rather than pasting it into
- * view (live-mode.md § 4.5). The range is forwarded whole: the endpoints are the seam's to read.
+ * The leaf's bytes and caret after the paste's delete half, through the one join cleanup, so a
+ * cut that stranded a delimiter run the user never saw drops it here rather than pasting it
+ * into view (live-mode.md § 4.5). The range is forwarded whole: the endpoints are the cleanup's
+ * to read.
  */
 function applyPreDelete(
 	node: CstNode,
@@ -78,7 +79,7 @@ export function defaultStructuralHook(
 ): StructuralPasteResult {
 	const display = trimTrailingLineEnding(node.raw);
 	const cut = applyPreDelete(node, display, preDelete, offset, seam);
-	// Compare the BYTES rather than the range: a cleanup can drop more than the selection did,
+	// Compare the bytes rather than the range: a cleanup can drop more than the selection did,
 	// and an empty range leaves them equal, which is exactly when the original node stands.
 	const synthLeaf =
 		cut.display === display ? node : { ...node, raw: cut.display + trailingLineEnding(node.raw) };
@@ -92,10 +93,10 @@ export function defaultStructuralHook(
 }
 
 /**
- * Caret target for a structural paste: the end of the PASTED content, not the trailing
+ * Caret target for a structural paste: the end of the pasted content, not the trailing
  * residue. A mid-block caret leaves the post-caret slice as the replacement's last node,
  * so the pasted content ends one node earlier. Takes the display and offset the delete half
- * already resolved — a seam cleanup moves both, and re-deriving them here would disagree.
+ * already resolved: the join cleanup moves both, and re-deriving them here would disagree.
  */
 export function pastedContentFocusIndex(
 	display: string,
