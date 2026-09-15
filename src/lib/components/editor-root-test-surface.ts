@@ -1,7 +1,7 @@
 /**
  * The e2e bridge's shape (`window.__test`, read through `routes/test/editor/test-probes.ts`).
  * Frozen: every member name and signature is read by the e2e suite, so a change here is a
- * change to hundreds of specs. Each member is an oracle no public door can answer.
+ * change to hundreds of specs. Each member answers what no public method can.
  */
 
 import type { BlockComponent } from '../block-component';
@@ -16,7 +16,7 @@ import type { UndoManager } from '../undo/types';
 export interface EditorTestSurface {
 	/** The live CST; read-only by contract, since a write bypasses the undo pipeline. */
 	getDocument(): Document;
-	/** The swap door's only oracle: the `source` prop's reset lives in the root. */
+	/** The only place the `source` prop's reset can be observed; it lives in the root. */
 	getContentVersion(): number;
 	getBlockComponent(path: number[]): BlockComponent | null;
 	getUndoStack(): ReturnType<UndoManager['getStacks']>;
@@ -27,11 +27,11 @@ export interface EditorTestSurface {
 	/** The gap caret has no public selection shape and no paint, so arrival is observable
 	 *  only here. */
 	getGapCaret(): GapCaretPosition | null;
-	/** The engine, not the `addSource`-only registry: its per-path buckets are the only oracle
-	 *  for a stale bucket, since jsdom measures every range at zero width. */
+	/** The engine, not the `addSource`-only registry: its per-path buckets are the only place
+	 *  a stale bucket shows, since jsdom measures every range at zero width. */
 	getDecorationEngine(): DecorationEngine;
 	/** Root-constructed and handed down through context, so its lifetime against a document
-	 *  swap has no headless seam. */
+	 *  swap cannot be checked headlessly. */
 	getHeightOracle(): HeightOracle;
 	/** The one signal a windowing scope rebuilds off when no id moved. */
 	getWidthVersion(): number;

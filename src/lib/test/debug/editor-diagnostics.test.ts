@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { createEditorDiagnostics } from '$lib/debug/editor-diagnostics';
 import { createOperationsLog } from '$lib/debug/operations-log';
 
-// Miss-analysis: the report builder is pinned pure, but the door feeding it (which selection line,
+// Miss-analysis: the report builder is pinned pure, but the entry point feeding it (which selection line,
 // whether the source is read at all) was reachable only through a mounted editor.
 
 function diagnostics(selection: { path: number[]; offset: number } | null) {

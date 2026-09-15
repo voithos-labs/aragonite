@@ -38,7 +38,7 @@ export interface RootMenusDeps {
 	blockEdit: Pick<BlockEditActions, 'deleteBlock' | 'updateBlockContent' | 'insertParagraph'>;
 	/** The dead-space landing walk, so a prose right-click acts at the press. */
 	placeCaretAtPoint(x: number, y: number): boolean;
-	/** The public insert door: a snippet goes to the surface that holds focus. */
+	/** The public insert entry point: a snippet goes to the editable that holds focus. */
 	insertMarkdown(md: string): boolean;
 	setMenu(menu: BlockMenuModel | null): void;
 }
@@ -101,14 +101,14 @@ export function createRootMenus(deps: RootMenusDeps): RootMenus {
 		return true;
 	}
 
-	// The same two steps the tail's `+` takes: mint the empty paragraph, which lands the caret in
+	// The same two steps the tail's `+` takes: create the empty paragraph, which lands the caret in
 	// it, then hand the snippet to the surface that now holds focus.
 	async function insertBlockAfter(index: number, md: string): Promise<void> {
 		await deps.blockEdit.insertParagraph(index + 1, '');
 		deps.insertMarkdown(md);
 	}
 
-	/** `insertAfter` names the top-level block an "Insert block" flyout mints an empty sibling
+	/** `insertAfter` names the top-level block an "Insert block" flyout creates an empty sibling
 	 *  after; null leaves the menu to the clipboard rows alone. */
 	function openClipboardMenu(point: Point, anchorEl: Element, insertAfter: number | null): void {
 		const insert: MenuEntry[] =

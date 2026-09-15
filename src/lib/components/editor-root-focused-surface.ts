@@ -1,8 +1,8 @@
 /**
- * The editing surface behind `document.activeElement`, for the public doors that address it.
+ * The editing surface behind `document.activeElement`, for the public entry points that address it.
  * A gap caret declines: its proxy is not a block, and a NESTED gap's proxy sits inside its
- * container's host, which must not receive what was aimed at the gap. Every rule a door owes
- * (the reading gate, the paste pipeline) lives below this seam, in the surface it resolves.
+ * container's host, which must not receive what was aimed at the gap. Every rule an entry point
+ * must apply (the reading gate, the paste pipeline) lives in the editable it resolves.
  */
 
 import type { BlockComponent } from '../block-component';
@@ -23,7 +23,7 @@ export interface FocusedSurfaceDeps {
 export interface FocusedSurface {
 	path(): number[] | null;
 	/** Null for a gap caret's proxy or a block that runs no commands; global commands still
-	 *  reach the dispatch seam, exactly as the gap caret's own chord proxy does. */
+	 *  reach the command dispatch, exactly as the gap caret's own chord proxy does. */
 	commandTarget(): KindCommandTarget | null;
 	/** Routed the way a paste event is: transforms, delete-first, one undo entry and focus
 	 *  all live in the surface. */

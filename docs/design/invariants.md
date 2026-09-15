@@ -540,7 +540,7 @@ never from inside any caret entry's own body: every caret entry seats a caret by
 surface, so a caret component a consumer owns inherits the guard instead of routing around it. The
 seam is per focus arrival, so a re-seat into a surface that already holds focus fires nothing.
 Reading mode is out of scope, since it takes no keystrokes. Predicate `checkLandableCaret`
-(`landable-caret.ts`) · seam `components/Editor.svelte`, the editor root's `focusin` handler ·
+(`landable-caret.ts`) · `components/editor-root-focus.ts`, the editor root's `focusin` handler ·
 `landable-caret.test.ts`, `landable-caret-doors.test.ts`.
 
 **G1.34 · Split landing.** The index a split's caret lands on is the one `splitNode` returned, never

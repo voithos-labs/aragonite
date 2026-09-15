@@ -1204,7 +1204,7 @@
 		return editorEl ? rootGestures.placeCaretAtPoint(editorEl, x, y) : false;
 	}
 
-	// The doors below only resolve the focused surface; their rules live under that seam. See
+	// The entry points below only resolve the focused editable; their rules live in the editable itself. See
 	// `editor-props.ts` for each contract.
 	const focusedSurface = createFocusedSurface({
 		get editorEl() {

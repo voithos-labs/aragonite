@@ -1,6 +1,6 @@
 /**
- * Editor-root pointer gestures: the click ladder (the link card, anchor activation, the
- * dead-space caret, a press on a block's own face), the margin drag the browser cannot grow
+ * Editor-root pointer gestures: click handling in priority order, first match wins (the link
+ * card, anchor activation, the dead-space caret, a press on a block's own face), the margin drag the browser cannot grow
  * from a non-editable press, and the multi-click install over the same press classifier.
  * The installing `$effect` stays in `Editor.svelte` as a guard plus one install call.
  */
@@ -132,7 +132,7 @@ export function createRootGestures(deps: RootGesturesDeps): RootGestures {
 				handleAnchorClick(anchor, e);
 				return;
 			}
-			// A multi-click places no caret: the ladder painted its range over this press.
+			// A multi-click places no caret: the multi-click select painted its range over this press.
 			if (e.detail >= 2) {
 				marginDrag = false;
 				return;
@@ -190,7 +190,7 @@ export function createRootGestures(deps: RootGesturesDeps): RootGestures {
 
 		const handleMouseDown = (e: MouseEvent) => {
 			deadSpaceCaret.notePress(root, e);
-			// The second press of a click run is the ladder's, which runs its own drag.
+			// The second press of a click run belongs to the multi-click select, which runs its own drag.
 			if (marginDrag && e.detail >= 2) {
 				marginSession?.dispose();
 				marginSession = null;

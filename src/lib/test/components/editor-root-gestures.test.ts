@@ -11,7 +11,7 @@ import type { PresentationMode } from '$lib/presentation-mode';
 
 // Miss-analysis: the press classifier and the margin drag's arming were driven only through
 // Playwright, so no jsdom test named a decline (a widget's gesture surface, a modifier press,
-// reading mode) or the range-ending door the arming crosses.
+// reading mode) or the range-ending step the arming runs.
 
 const BOX = { left: 40, right: 400, top: 20, bottom: 60 };
 /** In the root's left margin, level with the block's band. */

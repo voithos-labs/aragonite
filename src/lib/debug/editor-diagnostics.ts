@@ -1,5 +1,5 @@
 /**
- * The `getDiagnostics()` door: the interaction-trace switches and the fenced field report
+ * The `getDiagnostics()` entry point: the interaction-trace switches and the fenced field report
  * (`diagnostics-report.ts`). The document source is excluded unless the consumer opts in.
  */
 

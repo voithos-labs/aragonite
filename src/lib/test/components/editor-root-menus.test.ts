@@ -130,7 +130,7 @@ describe('editor-root menus — the right-click', () => {
 		]);
 		// No editable holds focus, so there is nothing to cut or copy.
 		expect(h.menu()!.items[0].disabled).toBe(true);
-		// A flyout pick mints the sibling first, then hands the snippet to the surface it focused.
+		// A flyout pick creates the sibling first, then hands the snippet to the surface it focused.
 		h.menu()!.pick('bullet');
 		await vi.waitFor(() => expect(h.insertMarkdown).toHaveBeenCalledWith('- '));
 		expect(h.blockEdit.insertParagraph).toHaveBeenCalledWith(2, '');
