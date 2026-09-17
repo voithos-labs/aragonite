@@ -1,11 +1,12 @@
 <script lang="ts">
-	import { untrack } from 'svelte';
+	import { tick, untrack } from 'svelte';
 	import {
 		LINK_CARD_LABEL,
 		LINK_CARD_OPEN,
 		LINK_CARD_REMOVE,
 		LINK_CARD_URL
 	} from '../../a11y-strings';
+	import MenuIcon from '../menu/MenuIcon.svelte';
 
 	// Anchored chrome over one link construct. Enter commits; Escape is the host's, since it must
 	// also close a card the document still has the caret for.
@@ -54,8 +55,15 @@
 	$effect(() => {
 		if (focusEpoch === focusedEpoch) return;
 		focusedEpoch = focusEpoch;
-		urlInput?.focus();
-		urlInput?.select();
+		// After the tick, not now: this child's effect runs before the host's, so at this moment
+		// the anchor still sits at the editor's origin, and a focus here scrolls THAT into view —
+		// the viewport jumps to the top of the document and the card, placed a frame later beside
+		// the selection, is nowhere on screen. Once the host has placed it, the focus scrolls only
+		// as far as showing the field needs, which is not at all beside a selection in view.
+		void tick().then(() => {
+			urlInput?.focus();
+			urlInput?.select();
+		});
 	});
 
 	// The card follows the document while it is open: an undo — or any write landing from outside
@@ -117,74 +125,130 @@
 	tabindex="-1"
 	onkeydown={handleKeyDown}
 >
-	<label>
-		<span>URL</span>
+	<label class="md-link-card-field">
+		<span class="md-link-card-caption">URL</span>
 		<input
 			bind:this={urlInput}
 			bind:value={draft}
 			type="text"
 			aria-label={LINK_CARD_URL}
+			placeholder="https://"
 			onkeydown={handleUrlKeyDown}
 		/>
 	</label>
 	<div class="md-link-card-actions">
 		<button
 			type="button"
+			class="md-link-card-btn"
+			aria-label={LINK_CARD_OPEN}
+			title={LINK_CARD_OPEN}
 			disabled={openable === undefined}
-			onclick={(e) => openable !== undefined && onOpenLink(openable, e)}>{LINK_CARD_OPEN}</button
+			onclick={(e) => openable !== undefined && onOpenLink(openable, e)}
 		>
+			<MenuIcon name="external-link" />
+		</button>
 		{#if onRemove}
-			<button type="button" onclick={onRemove}>{LINK_CARD_REMOVE}</button>
+			<button
+				type="button"
+				class="md-link-card-btn"
+				aria-label={LINK_CARD_REMOVE}
+				title={LINK_CARD_REMOVE}
+				onclick={onRemove}
+			>
+				<MenuIcon name="unlink" />
+			</button>
 		{/if}
 	</div>
 </div>
 
 <style>
+	/* The menu surface (`.md-menu`, editor.css) and the image chrome's field: a caption over an
+	   underlined input, and passive icon buttons beside it, so the card reads as one of the
+	   host's popovers rather than a form. */
 	.md-link-card {
 		position: absolute;
 		top: 0;
 		left: 0;
 		z-index: 100;
-		display: grid;
+		display: flex;
+		align-items: flex-end;
 		gap: 6px;
-		min-width: 280px;
-		padding: 8px;
-		border: 1px solid var(--color-ui-muted, #a4a4a4);
-		border-radius: 4px;
-		background: var(--color-bg-elevated, #2a2a2a);
-		box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+		width: 300px;
+		padding: 8px 8px 8px 10px;
+		box-sizing: border-box;
+		background: var(--color-bg, #2c2c2a);
+		border: 1px solid var(--color-border, #3e3e3b);
+		border-radius: 8px;
+		box-shadow: var(--menu-shadow, 0 12px 32px rgba(0, 0, 0, 0.5), 0 2px 8px rgba(0, 0, 0, 0.35));
+		font-family: var(--font-ui, system-ui, sans-serif);
+		font-size: 13px;
+		line-height: 1.4;
+		color: var(--color-text-primary, #e8e8e5);
 	}
-	label {
-		display: grid;
-		grid-template-columns: 40px 1fr;
-		align-items: center;
-		gap: 8px;
+	.md-link-card-field {
+		flex: 1;
+		min-width: 0;
+		display: flex;
+		flex-direction: column;
+		gap: 5px;
 	}
-	input {
-		padding: 4px 6px;
-		border: 1px solid var(--color-ui-muted, #a4a4a4);
-		border-radius: var(--radius-ui, 3px);
-		background: var(--color-surface, #2d3033);
-		color: var(--color-text-secondary, #eee);
+	.md-link-card-caption {
+		font-size: 10.5px;
+		font-weight: 600;
+		letter-spacing: 0.06em;
+		text-transform: uppercase;
+		color: var(--color-text-muted, #aaaaaa);
+	}
+	/* Underlined, not boxed: one rule under the text reads as a field to fill in and keeps the
+	   surface calm, where a second rounded box inside a rounded card reads as chrome on chrome. */
+	.md-link-card-field input {
+		width: 100%;
+		box-sizing: border-box;
+		background: transparent;
+		color: var(--color-text-primary, #e8e8e5);
+		border: none;
+		border-bottom: 1px solid var(--color-border, #3e3e3b);
+		border-radius: 0;
+		padding: 3px 1px 5px;
 		font-family: inherit;
-		font-size: 12px;
+		font-size: 13px;
+		line-height: 1.4;
+		outline: none;
+		transition: border-color 120ms ease-out;
+	}
+	.md-link-card-field input:focus {
+		border-bottom-color: var(--color-accent, #567b67);
+	}
+	.md-link-card-field input::placeholder {
+		color: var(--color-text-muted, #aaaaaa);
 	}
 	.md-link-card-actions {
 		display: flex;
-		gap: 6px;
-		justify-content: flex-end;
+		gap: 2px;
+		/* Level with the input's rule, not the caption. */
+		padding-bottom: 1px;
 	}
-	button {
-		padding: 3px 8px;
-		border: 1px solid var(--color-ui-muted, #a4a4a4);
-		border-radius: var(--radius-ui, 3px);
+	.md-link-card-btn {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 26px;
+		height: 26px;
+		padding: 0;
+		border: none;
+		border-radius: 6px;
 		background: transparent;
-		color: var(--color-text-secondary, #eee);
-		font: inherit;
-		font-size: 12px;
+		color: var(--color-ui-muted, #8f8f89);
 		cursor: pointer;
 	}
-	button:hover {
-		background: var(--color-ui-faint, rgba(255, 255, 255, 0.07));
+	.md-link-card-btn:hover:not(:disabled),
+	.md-link-card-btn:focus-visible {
+		background: var(--menu-item-hover, rgba(255, 255, 255, 0.07));
+		color: var(--color-text-primary, #e8e8e5);
+		outline: none;
+	}
+	.md-link-card-btn:disabled {
+		opacity: 0.4;
+		cursor: default;
 	}
 </style>

@@ -1,7 +1,11 @@
 import type { Page } from '@playwright/test';
 import { test, expect } from '../../../fixtures';
 import { EditorPage } from '../../../editor-page';
-import { clickPastImageRightEdge, waitForFirstImageLoaded } from './helpers';
+import {
+	clickPastImageRightEdge,
+	pointPastImageRightEdge,
+	waitForFirstImageLoaded
+} from './helpers';
 
 const LIST_IMAGE_DOC = '- ![pic|300x200](/test-fixtures/sample.png)\n';
 
@@ -57,6 +61,40 @@ test.describe('synthetic caret indicator at widget boundary', () => {
 		// editor can't see whether Chromium painted a native caret, so suppressing it is the only
 		// mutual exclusion left.
 		expect(await caretColorOfFocusedBlock(page)).toBe('rgba(0, 0, 0, 0)');
+	});
+
+	// The press seats the browser's caret before the click arms the synthetic one, and at the
+	// element-level offset beside the island Chromium paints it at the line box's height: a taller
+	// stroke for the length of the press, then the synthetic. So the dark starts at the press.
+	test('the native caret is dark from the press, before the click arms the synthetic', async ({
+		page
+	}) => {
+		await editor.loadContent(LIST_IMAGE_DOC);
+		await waitForFirstImageLoaded(page);
+		const point = await pointPastImageRightEdge(page);
+		await page.mouse.move(point.x, point.y);
+		await page.mouse.down();
+
+		await expect.poll(() => caretColorOfFocusedBlock(page)).toBe('rgba(0, 0, 0, 0)');
+		await expect(page.locator('[data-image-widget].md-snap-after')).toHaveCount(0);
+
+		await page.mouse.up();
+		await expect(page.locator('[data-image-widget].md-snap-after')).toHaveCount(1);
+		expect(await caretColorOfFocusedBlock(page)).toBe('rgba(0, 0, 0, 0)');
+	});
+
+	test('a press that seats in text keeps the native caret', async ({ page }) => {
+		await editor.loadContent('- ![pic|300x200](/test-fixtures/sample.png) trailing words\n');
+		await waitForFirstImageLoaded(page);
+		const para = page
+			.locator('[data-image-widget]')
+			.locator('xpath=ancestor::*[@contenteditable="true"]');
+		const box = (await para.boundingBox())!;
+		await page.mouse.move(box.x + box.width - 30, box.y + box.height - 12);
+		await page.mouse.down();
+		await expect.poll(() => caretColorOfFocusedBlock(page)).not.toBe('rgba(0, 0, 0, 0)');
+		await page.mouse.up();
+		expect(await caretColorOfFocusedBlock(page)).not.toBe('rgba(0, 0, 0, 0)');
 	});
 
 	test('the native caret comes back when the synthetic clears', async ({ page }) => {

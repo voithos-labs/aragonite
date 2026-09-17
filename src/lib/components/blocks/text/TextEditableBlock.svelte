@@ -22,6 +22,8 @@
 	import { isInlineWidget } from '../../../core/inline/inline-widgets';
 	import { trimTrailingLineEnding, trailingLineEnding } from '../../../core/lines';
 	import { hasSelection as hasSelectionHelper } from '../../../cursor/content-offsets';
+	import { caretIsInTextContent, seatIsInTextContent } from './click-snap-guard';
+	import { caretSeatFromPoint } from '../../../cursor/point-offset';
 	import { FALLBACK_CONTENT_WIDTH } from '../../../cursor/typography-estimates';
 	import {
 		createInlineFormatActiveMemo,
@@ -196,6 +198,12 @@
 	// Survives the click→keydown gap when Chromium clears the caret at CE=false-adjacent
 	// positions. Reactive so the snap-caret overlay sees changes.
 	let lastSnapTargetOffset = $state<number | null>(null);
+	// The press seats the browser's caret before the click arms the synthetic one, and beside an
+	// island that seat is an element-level offset: Chromium paints a caret there at the line
+	// box's height, a taller stroke for the length of the press, which the synthetic then
+	// replaces. Reactive so the overlay darkens it as it lands; the click decides what paints next.
+	let pressSeatedBesideIsland = $state(false);
+	let pressPending = false;
 
 	// One funnel for every pending-cursor write, tagged so the interaction trace names
 	// which gesture set the restore; the render effect owns the consume half.
@@ -715,6 +723,25 @@
 		if (off !== lastSnapTargetOffset) lastSnapTargetOffset = null;
 	}
 
+	/** Where the press just seated the caret: a collapsed selection at an element-level offset
+	 *  inside this block, the one seat Chromium paints at the line box's height. */
+	function notePressSeat(root: HTMLElement): void {
+		if (!pressPending) return;
+		const sel = window.getSelection();
+		const seated =
+			!!sel &&
+			sel.isCollapsed &&
+			sel.rangeCount > 0 &&
+			root.contains(sel.getRangeAt(0).startContainer) &&
+			!caretIsInTextContent(root, sel);
+		if (seated !== pressSeatedBesideIsland) pressSeatedBesideIsland = seated;
+	}
+
+	function endPress(): void {
+		pressPending = false;
+		if (pressSeatedBesideIsland) pressSeatedBesideIsland = false;
+	}
+
 	// One listener drives the block's whole selection cadence. The snap clearer runs even
 	// during composition — an IME caret move still invalidates a click-intent snap — while
 	// the reveal machines are composition-gated like onInput.
@@ -723,6 +750,7 @@
 		if (!root) return;
 		const handler = () => {
 			clearSnapTargetIfMoved(root);
+			notePressSeat(root);
 			if (composing) return;
 			widgetInteraction.foldRevealIfSelectionEscaped();
 			constructReveal.update();
@@ -740,6 +768,9 @@
 		// contenteditable=false island, and "unreliably" cuts both ways — nothing can ask
 		// whether it painted, so darkening the native one is the only guarantee available.
 		el.classList.remove('md-snap-caret-active');
+		// Dark from the press, not from the click: nothing paints beside the island until the
+		// click has decided, rather than the native stroke for the press and the synthetic after.
+		if (pressSeatedBesideIsland) el.classList.add('md-snap-caret-active');
 		if (lastSnapTargetOffset === null) return;
 		const off = lastSnapTargetOffset;
 		for (const inline of resolvedInlineContent(node, linkRef)) {
@@ -898,6 +929,14 @@
 		lastClickClientX = e.clientX;
 		lastClickClientY = e.clientY;
 		lastSnapTargetOffset = null;
+		// Only a primary press ends in a click; a context-menu press would hold the dark forever.
+		pressPending = e.button === 0;
+		// Read now, from the browser's own hit test, rather than at the `selectionchange` the
+		// seat queues: that task can land after a frame has painted the native stroke. The
+		// event's own read refines this once the seat is real.
+		const seat = pressPending && el ? caretSeatFromPoint(document, e.clientX, e.clientY) : null;
+		pressSeatedBesideIsland =
+			!!seat && !!el && el.contains(seat.node) && !seatIsInTextContent(el, seat.node);
 		// A press on a reveal-source widget is an owned gesture: suppressing the browser's
 		// caret default leaves the reveal as the only selection writer until it places.
 		if (widgetInteraction.isPointOnRevealWidget(e.clientX, e.clientY)) e.preventDefault();
@@ -908,6 +947,7 @@
 		// Persist a revealed source edit before the caret is gone.
 		widgetInteraction.commitRevealOnBlur();
 		lastSnapTargetOffset = null;
+		endPress();
 		demoteEmptyHeadingOnBlur();
 	}
 
@@ -930,6 +970,8 @@
 			modified: e.ctrlKey || e.metaKey,
 			clickCount: e.detail
 		});
+		// The click has decided: the snap target carries the dark from here, or nothing does.
+		endPress();
 	}
 
 	// ── Formatting shortcuts ────────────────────────────────────────────

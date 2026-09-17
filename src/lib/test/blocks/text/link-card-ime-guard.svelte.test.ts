@@ -3,7 +3,7 @@
 // confirm/cancel keystrokes (which arrive as Enter/Tab/Escape mid-composition) reached the
 // card's handlers as if the user had pressed them.
 import { describe, it, expect, vi } from 'vitest';
-import { mount, unmount, flushSync } from 'svelte';
+import { mount, unmount, flushSync, tick } from 'svelte';
 import { parse } from '$lib/core/parser';
 import { createEditorEvents } from '$lib/editor-events';
 import LinkCard from '$lib/components/link-card/LinkCard.svelte';
@@ -62,7 +62,7 @@ describe('IME keystrokes never operate the card', () => {
 
 // ── The host's document-level Escape ────────────────────────────────────────
 
-function mountHost() {
+async function mountHost() {
 	const card = createLinkCardState({
 		onOpen: () => {},
 		canOpen: () => true,
@@ -89,12 +89,15 @@ function mountHost() {
 	});
 	card.enter({ path: [0], sourceStart: 6 });
 	flushSync();
+	// The entered card takes the focus after the tick that places its anchor, so the Escape
+	// that owes the caret back finds the card holding it.
+	await tick();
 	return { card, restore, destroy: () => unmount(app) };
 }
 
 describe('Escape cancelling a conversion does not close the card', () => {
-	it('the composing Escape is ignored; the plain one closes and restores the caret', () => {
-		const { card, restore, destroy } = mountHost();
+	it('the composing Escape is ignored; the plain one closes and restores the caret', async () => {
+		const { card, restore, destroy } = await mountHost();
 		expect(card.getTarget()).not.toBeNull();
 		document.dispatchEvent(key('Escape', true));
 		flushSync();

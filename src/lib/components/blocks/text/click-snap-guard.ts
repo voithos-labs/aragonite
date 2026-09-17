@@ -7,7 +7,11 @@ import { isHiddenMarkerText } from '../../../cursor/widget-offset';
  *  synthetic indicator stands down. Hidden marker text renders nothing, so it does not count. */
 export function caretIsInTextContent(el: HTMLElement, sel: Selection | null): boolean {
 	if (!sel || sel.rangeCount === 0) return false;
-	const node = sel.getRangeAt(0).startContainer;
+	return seatIsInTextContent(el, sel.getRangeAt(0).startContainer);
+}
+
+/** The same read for a seat named by its node — the one a press is about to make. */
+export function seatIsInTextContent(el: HTMLElement, node: Node): boolean {
 	return node.nodeType === Node.TEXT_NODE && el.contains(node) && !isHiddenMarkerText(node, el);
 }
 

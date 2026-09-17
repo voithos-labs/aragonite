@@ -67,6 +67,31 @@ test.describe('live-mode link card — the create half of Mod+K', () => {
 		await ep.bridge.waitForSourceEquals(before, 3000);
 	});
 
+	// The card's field takes focus before the host has placed the anchor, which still sits at the
+	// editor's origin: a scrolling focus carried the viewport to the top of the document, and the
+	// card, placed a frame later beside the selection, was nowhere on screen.
+	test('the chord deep in a scrolled document keeps the scroll and shows the card', async ({
+		page
+	}) => {
+		const filler = Array.from({ length: 60 }, (_, i) => `filler line ${i + 1}`).join('\n\n');
+		const ep = await enterPresentationMode(page, 'live', `${filler}\n\nAlpha bravo charlie\n`);
+		await ep.scrollEditorTo(10_000_000);
+		await clickWordSettled(ep, page, 'Alpha');
+		await landAt(ep, page, 6);
+		await selectRight(ep, page, 5);
+		const scrollTop = () => ep.editorContainer.evaluate((el) => el.scrollTop);
+		const before = await scrollTop();
+		expect(before).toBeGreaterThan(0);
+
+		await ep.pressDeclined('ControlOrMeta+k');
+
+		await expect(page.locator(URL_FIELD)).toBeFocused();
+		await expect(page.locator(CARD)).toBeInViewport();
+		// The scroll stays, or nudges DOWN by the card's own height when the selection sits at the
+		// bottom edge and the card opens below it; it never runs back toward the top.
+		expect(await scrollTop()).toBeGreaterThanOrEqual(before);
+	});
+
 	test('Escape leaves the document byte-identical and the selection live', async ({ page }) => {
 		await selectBravo(ep, page);
 		const before = await ep.bridge.getSource();

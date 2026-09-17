@@ -179,6 +179,11 @@ export function createNestedBlockEdit(
 						deps.grammar,
 						scope.sharing
 					);
+					// A re-kind is exactly the change the task reconcile answers for: the marker
+					// stands before a paragraph, and the first block may have just stopped being one.
+					if (scope.node.kind === 'listItem' && innerIndex === 0) {
+						reconcileTaskMetadata(scope.node);
+					}
 					stampStructuralChange(scope.children, settled.change, scope.sharing);
 					return settled.change;
 				},

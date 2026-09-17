@@ -66,6 +66,10 @@ test.describe('live mode — a typed block opener paints until it has content', 
 
 		expect(await ep.bridge.getBlockKind(TYPED)).toBe('heading');
 		await expect(markerOf(ep, TYPED)).toHaveCSS('display', 'inline');
+		// A heading to the parser, a paragraph to the eye: the h1 type waits for the space, since
+		// the same `#` is the first byte of `#tag` and a line that jumps to h1 size for one
+		// keystroke reads as the editor fighting the tag.
+		await expect(ep.getBlock(TYPED)).toHaveClass(/paragraph-block/);
 	});
 
 	test('the next letter lands after the painted marker, not in front of it', async ({ page }) => {
@@ -88,6 +92,7 @@ test.describe('live mode — a typed block opener paints until it has content', 
 		expect(await ep.bridge.getSource()).toContain('# ');
 		expect(await ep.bridge.getBlockKind(TYPED)).toBe('heading');
 		await expect(markerOf(ep, TYPED)).toHaveCSS('display', 'inline');
+		await expect(ep.getBlock(TYPED)).toHaveClass(/heading-1/);
 
 		await typeSettled(ep, page, 'a');
 		expect(await ep.bridge.getSource()).toContain('# a');

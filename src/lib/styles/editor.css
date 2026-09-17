@@ -283,21 +283,37 @@
 :where(.editor) [data-inline-widget].md-snap-before::before {
 	content: '';
 	position: absolute;
-	top: 4px;
-	bottom: 4px;
+	top: 0;
+	bottom: 0;
 	width: 1.5px;
 	background-color: var(--color-text-primary, currentColor);
 	animation: md-snap-caret-blink 1s step-end infinite;
 	pointer-events: none;
 }
 
-/* Clear of the widget's own edge: against a picture, a caret drawn tight to the frame reads as
-   part of the border rather than as a caret waiting for the next character. */
 :where(.editor) [data-inline-widget].md-snap-after::before {
-	right: -4px;
+	right: -1px;
 }
 
 :where(.editor) [data-inline-widget].md-snap-before::before {
+	left: -1px;
+}
+
+/* A picture's island is tall, so its caret is inset from the frame and held clear of the
+   widget's own edge: drawn tight to the frame it reads as part of the border rather than as a
+   caret waiting for the next character. A text-height island keeps the full box instead, since
+   the inset would leave a stub shorter than the native caret beside it. */
+:where(.editor) .md-image-widget.md-snap-after::before,
+:where(.editor) .md-image-widget.md-snap-before::before {
+	top: 4px;
+	bottom: 4px;
+}
+
+:where(.editor) .md-image-widget.md-snap-after::before {
+	right: -4px;
+}
+
+:where(.editor) .md-image-widget.md-snap-before::before {
 	left: -4px;
 }
 

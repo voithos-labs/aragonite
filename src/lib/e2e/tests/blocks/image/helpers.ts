@@ -24,16 +24,21 @@ export async function undoDepth(page: Page): Promise<number> {
 	return page.evaluate(() => (window as any).__test?.dumpUndoStack?.()?.length ?? 0);
 }
 
-// Clamped inside the paragraph box: the wrap-boundary position where Chromium parks the caret at
-// the image's end offset.
-export async function clickPastImageRightEdge(page: Page): Promise<void> {
+/** The dead space past the first image's right edge, clamped inside the paragraph box: the
+ *  wrap-boundary position where Chromium parks the caret at the image's end offset. */
+export async function pointPastImageRightEdge(page: Page): Promise<{ x: number; y: number }> {
 	const widget = page.locator('[data-image-widget]').first();
 	const para = widget.locator('xpath=ancestor::*[@contenteditable="true"]');
 	const widgetBox = await widget.boundingBox();
 	const paraBox = await para.boundingBox();
 	if (!widgetBox || !paraBox) throw new Error('layout boxes missing');
-	const clickX = Math.min(widgetBox.x + widgetBox.width + 80, paraBox.x + paraBox.width - 20);
-	await page.mouse.click(clickX, widgetBox.y + widgetBox.height / 2);
+	const x = Math.min(widgetBox.x + widgetBox.width + 80, paraBox.x + paraBox.width - 20);
+	return { x, y: widgetBox.y + widgetBox.height / 2 };
+}
+
+export async function clickPastImageRightEdge(page: Page): Promise<void> {
+	const point = await pointPastImageRightEdge(page);
+	await page.mouse.click(point.x, point.y);
 }
 
 /** The toolbar's one field, the alt: press its button, then the input is the one there. */
