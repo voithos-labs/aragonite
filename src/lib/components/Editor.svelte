@@ -46,16 +46,10 @@
 	import { refSlotsOver, replaceRefs, revealChildOrWait } from '../reactivity/publish-ref.svelte';
 	import { createSelectionState } from '../selection/selection-state.svelte';
 	import { createSelectionDescription } from '../selection/selection-description';
-	import {
-		BLOCK_ACTIONS_LABEL,
-		BLOCK_MENU_LABEL,
-		EDITOR_LABEL,
-		movedBlockToPosition
-	} from '../a11y-strings';
+	import { BLOCK_ACTIONS_LABEL, EDITOR_LABEL, movedBlockToPosition } from '../a11y-strings';
 	import TailInsert from './TailInsert.svelte';
 	import BlockMenu, {
 		insertFlyoutEntries,
-		insertMenuEntries,
 		insertSnippets,
 		type MenuEntry
 	} from './menu/BlockMenu.svelte';
@@ -618,8 +612,8 @@
 		};
 	}
 
-	// The same two steps the tail's `+` takes: mint the empty paragraph, which lands the caret in
-	// it, then hand the snippet to the surface that now holds focus.
+	// Two steps: mint the empty paragraph, which lands the caret in it, then hand the snippet to
+	// the surface that now holds focus, so an inserted block takes the one paste road.
 	async function insertBlockAfter(index: number, md: string): Promise<void> {
 		await blockEdit.insertParagraph(index + 1, '');
 		insertMarkdown(md);
@@ -634,25 +628,6 @@
 		} catch {
 			return null;
 		}
-	}
-
-	async function onTailPlus(button: HTMLElement): Promise<void> {
-		await blockEdit.insertParagraph(doc.children.length, '');
-		const rect = button.getBoundingClientRect();
-		const point = { x: rect.left, y: rect.bottom + 4 };
-		const snippets = insertSnippets();
-		blockMenu = {
-			...point,
-			anchor: anchorOn(button, point),
-			items: [...insertMenuEntries(), { id: 'sep', label: '', divider: true }, ...clipboardRows()],
-			label: BLOCK_MENU_LABEL,
-			pick: (id) => {
-				blockMenu = null;
-				if (runClipboardRow(id)) return;
-				const md = snippets.get(id);
-				if (md) insertMarkdown(md);
-			}
-		};
 	}
 
 	// ── Link card door ──────────────────────────────────────────────────
@@ -766,9 +741,9 @@
 		// A whole-block input proxy is an editable in name only (it catches IME for a block with no
 		// text), so a press on it starts the editor's drag like a press on the block itself.
 		const NOT_A_DRAG_START =
-			'[contenteditable="true"]:not([data-whole-block-input]), button, input, textarea, select, ' +
-			'a, summary, [role="checkbox"], ' +
-			'.code-rail, .table-add-zone, .editor-tail, .md-menu, .block-drag-handle';
+			'[contenteditable="true"]:not([data-whole-block-input]), ' +
+			'button:not(.editor-tail-row), input, textarea, select, a, summary, [role="checkbox"], ' +
+			'.code-rail, .table-add-zone, .md-menu, .block-drag-handle';
 		const dragStartsHere = (rootEl: HTMLElement, target: EventTarget | null): boolean => {
 			if (claimsPointerGesture(target)) return false;
 			if (deadSpaceCaret.isDeadSpaceTarget(rootEl, target)) return true;
@@ -1867,12 +1842,7 @@
 		reorderable={true}
 	/>
 	<!-- A sibling of the list like the header: the windowing scope wants the list bare. -->
-	<TailInsert
-		{blockEdit}
-		childCount={doc.children.length}
-		readOnly={effectiveMode === 'reading'}
-		onPlus={(button) => void onTailPlus(button)}
-	/>
+	<TailInsert {blockEdit} childCount={doc.children.length} readOnly={effectiveMode === 'reading'} />
 	{#if blockMenu}
 		<BlockMenu
 			x={blockMenu.x}

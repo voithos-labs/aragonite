@@ -85,10 +85,25 @@ export interface CrossBlockDispatchContext {
 	afterReactivity: () => Promise<void>;
 }
 
+/** What the pressing surface knows about its own press that the shared arm cannot read. */
+export interface PointerPressOptions {
+	/**
+	 * The press landed where the browser starts no native drag of its own: an atomic island with
+	 * `contenteditable=false` and `user-select: none` (an emoji). The session paints the range
+	 * inside the block itself, as it does for a drag from the margin, or the drag selects nothing.
+	 */
+	paintSameBlock?: boolean;
+	/**
+	 * The raw offset the press anchors at, for a surface that resolves its own press better than
+	 * the engine's hit test does (a press on an atomic island). Absent, the point is hit-tested.
+	 */
+	anchorOffset?: number;
+}
+
 export interface CrossBlockHandlers {
 	/** Returns true if the event was fully handled (caller should return). */
 	handleKeyDown(e: KeyboardEvent): Promise<boolean>;
-	handlePointerDown(e: PointerEvent): boolean;
+	handlePointerDown(e: PointerEvent, press?: PointerPressOptions): boolean;
 	/** `replacement` stands in for the clipboard's own text, for a caller that already turned the
 	 *  payload into markdown and must not re-read the event past its awaits. A null event is a
 	 *  programmatic insertion: no gesture to consume, so `replacement` carries the payload. */

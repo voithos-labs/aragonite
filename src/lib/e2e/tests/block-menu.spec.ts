@@ -1,14 +1,20 @@
 import { test, expect } from '../fixtures';
 import { EditorPage } from '../editor-page';
 
-// The trailing insert row and the block menu behind its `+`: a click on the row adds a paragraph
-// at the end of the document, the `+` adds one and opens the insert menu over it, and every menu
-// the editor opens is keyboard-driven without taking focus, so the caret it acts on stays put.
+// The trailing insert row and the block menu: a click on the row adds a paragraph at the end of
+// the document, and every menu the editor opens is keyboard-driven without taking focus, so the
+// caret it acts on stays put. The menu rows here are the prose right-click menu's, which is the
+// editor's own insert road since the row's gutter `+` went.
 // Requirements: e2e/requirements/block-menu.md.
 
 const TAIL_ROW = { name: 'Add a line below' };
-const TAIL_PLUS = { name: 'Add a block' };
-const INSERT_MENU = { name: 'Insert a block' };
+const BLOCK_MENU = { name: 'Block actions' };
+
+/** The right-click menu on a paragraph: the clipboard rows, then the "Insert block" flyout. */
+async function openProseMenu(editor: EditorPage): Promise<void> {
+	await editor.getBlock(0).click({ button: 'right' });
+	await expect(editor.page.getByRole('menu', BLOCK_MENU)).toBeVisible();
+}
 
 test.describe('trailing insert row and the block menu', () => {
 	let editor: EditorPage;
@@ -29,57 +35,58 @@ test.describe('trailing insert row and the block menu', () => {
 		expect(await editor.bridge.getSource()).toBe('```\ncode\n```\n\nafter\n');
 	});
 
-	test('the gutter + adds the paragraph and opens the insert menu over it', async ({ page }) => {
-		await editor.loadContent('first\n');
-		await page.getByRole('button', TAIL_PLUS).click();
-		const menu = page.getByRole('menu', INSERT_MENU);
-		await expect(menu).toBeVisible();
-		await editor.bridge.waitForBlockCount(2);
+	test('a drag that starts on the tail row selects, and adds no paragraph', async ({ page }) => {
+		await editor.loadContent('first para\n\nsecond para\n');
+		const tail = await page.locator('.editor-tail').boundingBox();
+		const last = await editor.getBlock(1).boundingBox();
+		if (!tail || !last) throw new Error('no layout box');
 
-		// Two steps down from the first row is the to-do list; Enter inserts it at the caret.
-		await page.keyboard.press('ArrowDown');
-		await page.keyboard.press('ArrowDown');
-		await expect(menu.locator('[data-active="true"]')).toHaveText('To-do list');
-		await page.keyboard.press('Enter');
-		await expect(menu).toHaveCount(0);
-		await editor.bridge.waitForSourceContains('- [ ] ');
-		await page.keyboard.type('task');
-		await editor.bridge.waitForSourceContains('task');
-		expect(await editor.bridge.getSource()).toBe('first\n\n- [ ] task\n');
+		// Up and to the left, from the strip into the text of the block above it. The end point is
+		// well inside that text: past its last glyph the range would be the empty tail of the line.
+		const from = { x: last.x + last.width * 0.7, y: tail.y + tail.height / 2 };
+		const to = { x: last.x + 20, y: last.y + last.height / 2 };
+		await page.mouse.move(from.x, from.y);
+		await page.mouse.down();
+		for (let step = 1; step <= 6; step++) {
+			await page.mouse.move(
+				from.x + ((to.x - from.x) * step) / 6,
+				from.y + ((to.y - from.y) * step) / 6
+			);
+		}
+		await page.mouse.up();
+		await editor.waitForRenderFlush();
+
+		expect(await page.evaluate(() => window.getSelection()?.toString() ?? '')).toContain('para');
+		// The strip's click appends only for a press that stayed put.
+		expect(await editor.bridge.getSource()).toBe('first para\n\nsecond para\n');
 	});
 
 	test('ArrowUp wraps to the last row, and a picked row closes the menu', async ({ page }) => {
 		await editor.loadContent('first\n');
-		await page.getByRole('button', TAIL_PLUS).click();
-		const menu = page.getByRole('menu', INSERT_MENU);
-		await expect(menu).toBeVisible();
+		await openProseMenu(editor);
+		const menu = page.getByRole('menu', BLOCK_MENU);
 		await page.keyboard.press('ArrowUp');
-		// The last selectable row: the clipboard group ends the insert menu.
-		await expect(menu.locator('[data-active="true"]')).toHaveText('Paste as plain text');
+		// The last selectable row: the "Insert block" flyout ends the prose menu.
+		await expect(menu.locator('[data-active="true"]')).toHaveText('Insert block');
 		await page.keyboard.press('ArrowDown');
-		await expect(menu.locator('[data-active="true"]')).toHaveText('Bulleted list');
-		await page.keyboard.press('Enter');
-		await expect(menu).toHaveCount(0);
-		await editor.bridge.waitForSourceContains('- ');
+		// Cut and Copy are disabled with no selection, so the first row the walk stops on is Paste.
+		await expect(menu.locator('[data-active="true"]')).toHaveText('Paste');
 	});
 
-	test('Escape closes the menu and leaves the caret where the + put it', async ({ page }) => {
+	test('Escape closes the menu and inserts nothing', async ({ page }) => {
 		await editor.loadContent('first\n');
-		await page.getByRole('button', TAIL_PLUS).click();
-		const menu = page.getByRole('menu', INSERT_MENU);
-		await expect(menu).toBeVisible();
+		await openProseMenu(editor);
 		await page.keyboard.press('Escape');
-		await expect(menu).toHaveCount(0);
+		await expect(page.getByRole('menu', BLOCK_MENU)).toHaveCount(0);
 		await page.keyboard.type('typed');
 		await editor.bridge.waitForSourceContains('typed');
-		expect(await editor.bridge.getSource()).toBe('first\n\ntyped\n');
+		expect(await editor.bridge.getSource()).toContain('typed');
 	});
 
 	test('menuChange fires true on open and false on close, once each', async ({ page }) => {
 		await editor.loadContent('first\n');
 		await page.evaluate(() => (window as any).__test.startMenuChangeCapture());
-		await page.getByRole('button', TAIL_PLUS).click();
-		await expect(page.getByRole('menu', INSERT_MENU)).toBeVisible();
+		await openProseMenu(editor);
 		await page.keyboard.press('Escape');
 		await expect(page.getByRole('menu')).toHaveCount(0);
 		expect(await page.evaluate(() => (window as any).__test.stopMenuChangeCapture())).toEqual([

@@ -924,8 +924,23 @@
 	let lastClickClientX: number | null = null;
 	let lastClickClientY: number | null = null;
 
+	/**
+	 * A press ON an atomic island the caret reads as one character (an emoji): the island is
+	 * `contenteditable=false` and `user-select: none`, so the browser starts no drag from it and
+	 * answers its point with a position in the neighbouring text — the editor's session paints the
+	 * range itself, anchored at the island's own edge on the press's side. Null for an island that
+	 * owns its press (an image's select, a formula's reveal) and for a press on plain text, which
+	 * the engine already drags from.
+	 */
+	function islandPress(e: PointerEvent): { paintSameBlock: boolean; anchorOffset?: number } {
+		if (!el || e.button !== 0 || e.shiftKey) return { paintSameBlock: false };
+		const anchorOffset = widgetInteraction.islandPressAnchor(e.clientX, e.clientY);
+		if (anchorOffset === null) return { paintSameBlock: false };
+		return { paintSameBlock: true, anchorOffset };
+	}
+
 	function onPointerDown(e: PointerEvent): void {
-		if (crossBlock.handlePointerDown(e)) return;
+		if (crossBlock.handlePointerDown(e, islandPress(e))) return;
 		lastClickClientX = e.clientX;
 		lastClickClientY = e.clientY;
 		lastSnapTargetOffset = null;

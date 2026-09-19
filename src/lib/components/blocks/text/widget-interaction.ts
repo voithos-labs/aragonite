@@ -134,6 +134,14 @@ export interface WidgetInteraction {
 	/** The point sits on a reveal-source widget — pointerdown preventDefaults the
 	 *  browser's caret task so nothing races the reveal's own placement. */
 	isPointOnRevealWidget(x: number, y: number): boolean;
+	/**
+	 * Where a press ON an atomic island anchors a drag: the island's own raw edge on the point's
+	 * side, for a kind the caret reads as one character. Null for a point on no island, or on one
+	 * that selects whole (an image, a formula) — those own their press. The browser's hit test
+	 * cannot answer this: an island is `user-select: none`, so it returns a position in the
+	 * neighbouring text that moves with whatever is already selected.
+	 */
+	islandPressAnchor(x: number, y: number): number | null;
 }
 
 /**
@@ -538,6 +546,15 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		return el !== null && hitTestRevealWidget(el, x, y) !== null;
 	}
 
+	function islandPressAnchor(x: number, y: number): number | null {
+		const el = deps.getEl();
+		if (!el) return null;
+		const seat = nearestWidgetEdgeSeat(measuredWidgets(el), x, y);
+		// `inside` only: an edge reached from the text beside an island is the engine's to answer,
+		// and it does, so the press needs nothing from here.
+		return seat?.inside ? seat.offset : null;
+	}
+
 	// The whole-token select belongs to the double-click that OPENED a reveal, and nothing in
 	// the second click's own shape tells it apart from a later one inside the same source.
 	let revealOpenedByLastClick = false;
@@ -906,6 +923,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		commitRevealOnBlur,
 		foldRevealBeforeMutation,
 		foldRevealIfSelectionEscaped,
-		isPointOnRevealWidget
+		isPointOnRevealWidget,
+		islandPressAnchor
 	};
 }
