@@ -1,10 +1,10 @@
-# Feature: Cross-block delete — container survivor caret
+# Feature: Cross-block delete: container survivor caret
 
 When a table-aware cross-block delete consumes every block the caret could land
-in, the caret falls to the nearest surviving block before the range. A container
-survivor (blockquote / list) must resolve to the END of its deepest focusable
-leaf — never a char offset on the container's own path, which names bytes no leaf
-owns and makes the restore clamp or mis-land.
+in, the caret falls to the nearest surviving block before the range. A surviving
+container (blockquote or list) must resolve to the end of its deepest focusable
+leaf, never to a character offset on the container's own path: that names bytes
+no leaf owns and makes the restore clamp or land in the wrong place.
 
 ## Happy paths
 
@@ -15,6 +15,6 @@ owns and makes the restore clamp or mis-land.
 
 ## Edge cases
 
-- The survivor is a container, so a naive "end of the survivor's raw" caret would
-  address the whole container's raw (nested markers included). The typed
-  character must still land in the last leaf, proving the descent.
+- The survivor is a container, so a simple "end of the survivor's raw" caret would
+  address the whole container's raw, nested markers included. The typed character
+  must still land in the last leaf, which proves the descent happened.

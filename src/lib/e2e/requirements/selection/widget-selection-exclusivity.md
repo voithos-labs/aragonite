@@ -18,13 +18,13 @@ chords, so Mod+A runs the ordinary select-all and the second press goes document
 ## Edge cases
 
 - The document ends with the widget's own paragraph, so the cross-block focus endpoint hosts no
-  caret and the chord's event dispatches at `<body>` — the route where the widget arm and the
-  cross-block arm compete for the same event.
+  caret and the chord's event dispatches at `<body>`, the route where the widget handler and the
+  cross-block handler compete for the same event.
 
 ## Miss-analysis
 
-- The editor-root clipboard seam gained a selected-widget arm ahead of its cross-block arm on the
-  premise that the two states are mutually exclusive. The premise held only for the
+- The editor root's clipboard handler gained a selected-widget branch ahead of its cross-block
+  branch on the premise that the two states are mutually exclusive. The premise held only for the
   select-widget-then-range ordering, which is the only one the suite ever built; nothing drove a
   range open while a widget was already selected, and no test asserted the invariant itself
-  rather than one consumer of it.
+  rather than one thing that depends on it.

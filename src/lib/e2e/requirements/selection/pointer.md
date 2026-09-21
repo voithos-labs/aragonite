@@ -18,9 +18,9 @@
   range as a unit once the pointer has crossed its centre line coming from the anchor's side.
   A sweep that only touched its edge has not asked for it, and the last focus stands until the
   pointer commits; the rule is symmetric for drags coming down onto it and up onto it.
-- A drag that STARTS on such a block (on the equation or beside it in its box) selects that block
+- A drag that starts on such a block (on the equation or beside it in its box) selects that block
   alone as soon as the pointer moves, painted as a whole unit; leaving the block grows the range
-  from it, and coming back takes it whole again. Focus parks on the editor root when the drag
+  from it, and coming back takes it whole again. Focus rests on the editor root when the drag
   ends, so copy yields the block's source and Backspace removes the block, leaving the document
   the reload reads (no rule holding a bare line ending).
 
@@ -31,8 +31,8 @@
 ## Miss-analysis
 
 - The whole-unit range was pinned by its overlay and its copy, never by what a delete left in
-  the tree: the same-block delete arm had only ever met prose, whose emptied survivor is a legal
-  block, so a rule emptied to its line ending sat unnoticed until a reload read it away.
+  the tree: the same-block delete branch had only ever met prose, whose emptied survivor is a
+  legal block, so a rule emptied to its line ending sat unnoticed until a reload read it away.
 
 ## Error / degenerate cases
 

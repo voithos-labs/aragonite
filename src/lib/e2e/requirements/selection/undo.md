@@ -1,13 +1,13 @@
-# Feature: Selection undo — cross-block restore
+# Feature: Selection undo: cross-block restore
 
 ## Happy paths
 
-- Undo after cross-block cut restores document content AND cross-block selection (overlays reappear)
-- Undo after cross-block backspace restores document AND cross-block selection
+- Undo after cross-block cut restores document content and cross-block selection (overlays reappear)
+- Undo after cross-block backspace restores document and cross-block selection
 - Redo after undoing a cross-block cut re-applies the deletion
 
 ## Edge cases
 
-- Undo after type-replace restores cross-block selection AND removes all typed chars in one step
+- Undo after type-replace restores cross-block selection and removes all typed chars in one step
 - Selection-only changes (Shift+Arrow) push no undo entries: stack depth unchanged
-- Post-undo, blockRefs realign so a drag in a downstream table column selects cells, not a paragraph past the table.
+- Post-undo, `blockRefs` realign so a drag in a downstream table column selects cells, not a paragraph past the table.

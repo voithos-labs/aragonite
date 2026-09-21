@@ -1,50 +1,51 @@
 # Feature: setSelection() restores a getSelection() snapshot
 
 `editor.setSelection(selection)` is the inverse of `getSelection()`: a host persists a
-snapshot (per tab, per session) and hands it back later. It reveals a windowed-out
-target before placing anything — a synchronous focus cannot mount an off-window block
-(VR-12) — and reports whether the restore landed instead of throwing.
+snapshot (per tab, per session) and hands it back later. It mounts and scrolls an
+off-window target into view before placing anything, since a synchronous focus cannot
+mount an off-window block (VR-12), and reports whether the restore landed instead of
+throwing.
 
-It moves the viewport while it runs, and **hands it back when it resolves**: the reveal
-claims no scroll position past the promise. A host restoring both a caret and a
-remembered scroll writes them in that order, so anything the reveal kept would outrank
-the scroll the host wrote last.
+It moves the viewport while it runs, and **gives it back when it resolves**: the scroll
+it did claims no position past the promise. A host restoring both a caret and a
+remembered scroll writes them in that order, so anything the restore held on to would
+override the scroll the host wrote last.
 
 ## Happy paths
 
 - Collapsed caret in a prose leaf: the caret lands at the exact raw offset, `getSelection()` round-trips the snapshot, resolves `true`
 - Caret into a block that scrolled out of the window: the block mounts, scrolls into view, the caret lands, resolves `true`
-- Caret into a block still mounted but scrolled past the fold (the overscan band): the block is
-  scrolled back into view — `true` means in view, not merely mounted
+- Caret into a block still mounted but scrolled past the fold (the overscan strip): the block is
+  scrolled back into view, so `true` means in view, not merely mounted
 - Within-block range (same path, distinct offsets): the native range is re-established across the same offsets, resolves `true`
 - Cross-block range: the selection re-enters cross-block state and the overlay paints, resolves `true`
 - Intra-table cell rectangle (cell-valued offsets on unflagged endpoints): the same cell selection is restored, resolves `true`
 - Collapsed-caret restore with a `selectionChange` subscriber attached: every emission the restore
-  produces reports the restored selection — never the one being left
+  produces reports the restored selection, never the one being left
 - Within-block range restore with the same subscriber: same, on the native-range route
 
 ## Edge cases
 
 - Offset past the end of the block's content: the caret clamps to the block end, resolves `true`
-- Reading mode (surface inert, `contenteditable` off): the selection is still placed as a
-  native range inside the target block — reading keeps selection and navigation
+- Reading mode (the block is inert, `contenteditable` off): the selection is still placed as a
+  native range inside the target block, since reading mode keeps selection and navigation
 - A block whose height settles asynchronously (a diagram, display math, an image decoding
   in) grows after the restore resolved: the scroll position the host wrote afterwards
   survives that measure pass
 - A user gesture (typing, clicking, scrolling) lands while a restore is still settling: the
-  restore keeps settling and its boolean is unaffected. Only a rival claim can change the
-  outcome, and the reader is not one — a host that branches on `false` must not be sent
-  down its fallback by ordinary interaction. Unit-pinned on the settle loop
-  (`test/cursor/editor-rects`), where the two losses of the pin are distinguishable
+  restore keeps settling and its boolean is unaffected. Only another programmatic reveal can
+  change the outcome, and the user is not one: a host that branches on `false` must not be
+  sent down its fallback by ordinary interaction. Pinned in a unit test over the settle loop
+  (`test/cursor/editor-rects`), where the two ways of losing the property can be told apart
   without a browser.
 
 ## Error cases
 
 - Anchor or focus path no longer addresses a block (snapshot taken, then a shorter
-  document loaded): resolves `false`, never throws, and performs no side effect —
+  document loaded): resolves `false`, never throws, and performs no side effect:
   no scroll movement, no focus steal, no selection state change
-- A LATER programmatic reveal is issued before the restore settles: that reveal owns the
-  viewport, so the restore stops competing for it and reports honest visibility — usually
+- A later programmatic reveal is issued before the restore settles: that reveal owns the
+  viewport, so the restore stops competing for it and reports honest visibility, usually
   `false`. **The caret is placed either way**, so this `false` means "the viewport is not
   where I asked", not "nothing happened"
 
@@ -54,25 +55,25 @@ The offset clamp is invisible from e2e: an over-long DOM offset already degrades
 container end when the range is built, so the browser hides a missing model clamp. The
 discriminating coverage is the pure resolver's unit test
 (`src/lib/test/selection/selection-restore.test.ts`), which pins the clamp per coordinate
-space — raw length for prose, last cell index for a table path.
+space: raw length for prose, last cell index for a table path.
 
-The overscan-band scenario exists because every other in-view scenario scrolls its target out
+The overscan-strip scenario exists because every other in-view scenario scrolls its target out
 of the window **entirely**, which forces a real mount-and-scroll. That hid the case a host
 actually lands in after a normal user scroll: a target still mounted a few blocks past the
 fold, for which the mount primitive short-circuits and never scrolls. "In view" needs a
 scenario where the block is already mounted, or it only ever tests "mounted".
 
-The stale-emission scenarios assert every payload of the burst, not the settled one. Reading the
-selection back after the await passed throughout the bug's life — the last emission was always
-correct — so only a subscriber's view of the intermediate events discriminates. The pure-harness
-counterpart (`src/lib/test/selection/selection-emission.test.ts`) pins the same property where the
-browser's own `selectionchange` cannot mask it, and pins the batch seam's nesting and throw
-behavior, which no gesture can reach.
+The stale-emission scenarios assert every event the restore emits, not only the last one.
+Reading the selection back after the await passed throughout the bug's life, because the last
+emission was always correct, so only a subscriber's view of the intermediate events tells them
+apart. The counterpart in the pure harness (`src/lib/test/selection/selection-emission.test.ts`)
+pins the same property where the browser's own `selectionchange` cannot mask it, and pins the
+batching's nesting and throw behavior, which no gesture can reach.
 
-The hand-back scenario needs a block that grows **after** the restore resolved, and it has
+The give-it-back scenario needs a block that grows **after** the restore resolved, and it has
 to grow **below the fold**. Growth above the anchor legitimately moves `scrollTop` (the
-top-of-viewport correction holding the visible position), so a scenario built there cannot
-tell a held pin from an honest correction. Below the fold the honest delta is exactly zero,
-which is what makes "the host's position is untouched" a discriminating assertion. The
-baseline is read back rather than asserted as the number the host asked for: mounting the
-blocks on the way down re-measures them, and that correction is legitimate too.
+correction that holds the visible position at the top of the viewport), so a scenario built
+there cannot tell a held scroll position from an honest correction. Below the fold the honest
+change is exactly zero, which is what makes "the host's position is untouched" tell the two
+apart. The baseline is read back rather than asserted as the number the host asked for:
+mounting the blocks on the way down re-measures them, and that correction is legitimate too.

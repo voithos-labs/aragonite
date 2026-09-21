@@ -1,11 +1,11 @@
-# Feature: Keyboard cross-block selection — edge cases
+# Feature: Keyboard cross-block selection: edge cases
 
 Boundary, no-op, and degenerate cases for cross-block selection.
 
 ## Edge cases
 
 - Shift+ArrowDown at last block: no-op, cross-block stays inactive
-- Shift+ArrowDown out of a table that IS the last block: no-op, and the cell stays editable —
+- Shift+ArrowDown out of a table that is the last block: no-op, and the cell stays editable:
   the next Backspace deletes one character rather than clearing the cell
 - Shift+ArrowUp at first block: no-op, cross-block stays inactive
 - Ctrl+A doubling counter resets on non-Ctrl+A keystroke: pressing Ctrl+A after typing starts fresh
@@ -18,7 +18,7 @@ Boundary, no-op, and degenerate cases for cross-block selection.
 
 ## Miss-analysis (Sel-F1)
 
-The declining last-block gesture was pinned with a PARAGRAPH as the last block, where the
-entry path never mints a pair at all. The table sibling mints one first and then hears the
-extend decline, and no scenario named it. The pin also asserted through `[data-cross-block]`,
-which the phantom state attaches — the oracle and the defect were the same bit.
+The declining last-block gesture was pinned with a paragraph as the last block, where the
+entry path never creates a pair at all. The table version creates one first and then hears the
+extend decline, and no scenario named it. The test also asserted through `[data-cross-block]`,
+which the phantom state attaches, so what it checked and the defect were the same bit.

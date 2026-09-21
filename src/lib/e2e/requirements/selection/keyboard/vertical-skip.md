@@ -1,4 +1,4 @@
-# Feature: Keyboard cross-block selection — vertical-skip parity
+# Feature: Keyboard cross-block selection: vertical-skip parity
 
 Cross-block Shift+ArrowUp/Down must respect `isVerticallyTransparent()` the
 same way single-block ArrowUp/Down dispatch does. Vertically-transparent
@@ -7,7 +7,7 @@ transparent) carry no caret-able column landing, so vertical extension
 passes straight through them to the next concrete leaf.
 
 Horizontal extension (Shift+ArrowLeft/Right) still stops at the widget
-edge — vertical-skip is a vertical-only behavior.
+edge: vertical-skip is a vertical-only behavior.
 
 ## Happy paths
 
@@ -26,13 +26,13 @@ edge — vertical-skip is a vertical-only behavior.
 - Ctrl+Shift+Home at a document whose first block is transparent lands
   the focus on the first text-bearing block, not on the transparent edge.
 
-## Off-window (windowed doc) — VR-6
+## Off-window (windowed doc): VR-6
 
 - Ctrl+Shift+End in a windowed doc whose last block is an image-only
-  paragraph that is currently OFF-window (unmounted): focus lands on the
+  paragraph that is currently off-window (unmounted): focus lands on the
   last text-bearing block, identical to the non-windowed result. The
-  transparency decision must come from the CST node, not a mounted
-  component — an unmounted transparent block must still be skipped.
+  transparency decision must come from the CST node, not from a mounted
+  component: an unmounted transparent block must still be skipped.
 
 ## Container recursion
 

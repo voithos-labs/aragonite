@@ -1,12 +1,12 @@
 # Feature: editing a whole-block range that opens with an inline widget
 
 An edit key aimed at a held range edits the range. The caret the edge dispatch reads is that
-range's start, so a block whose first inline node is an atomic island must behave exactly like one
-that opens with prose: the character replaces the selection, Delete empties it.
+range's start, so a block whose first inline node is an atomic widget must behave exactly like
+one that opens with prose: the character replaces the selection, Delete empties it.
 
 Miss-analysis: every ranged-edit test selected a range starting on prose, and every widget-edge
-test pressed its key at a collapsed caret, so no test ever crossed the two and the caret arms that
-answer for the construct beside the range's start were never asked a ranged question.
+test pressed its key at a collapsed caret, so no test ever crossed the two and the caret branches
+that answer for the construct beside the range's start were never asked a ranged question.
 
 ## Happy paths
 
@@ -16,7 +16,7 @@ answer for the construct beside the range's start were never asked a ranged ques
 
 ## Edge cases
 
-- Both presentation modes: source and live paint the leading island differently, and the rule is
+- Both presentation modes: source and live paint the leading widget differently, and the rule is
   the same in each.
 - Ctrl+A then Delete on a widget-led paragraph: the whole block empties, never just the widget.
 - Ctrl+A then Delete on a glyph-led paragraph, whose kind deletes atomically at a caret: the range
