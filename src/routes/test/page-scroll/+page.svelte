@@ -5,8 +5,8 @@
 	import { trackParityDocument } from '../../parity-documents.svelte';
 	import type { PageData } from './$types';
 
-	// The second host-scroll shape: `scrollMode="host"` with NOTHING scrollable between the
-	// editor and the document, so the window's viewport is the scrollport and the PAGE scrolls.
+	// The second shape of host scrolling: `scrollMode="host"` with nothing scrollable between
+	// the editor and the document, so the window is the scroll container and the page scrolls.
 	// `/test/flow` covers the other one, an ancestor scroller pinned to 100vh.
 
 	let { data }: { data: PageData } = $props();
@@ -16,15 +16,15 @@
 		"<svg xmlns='http://www.w3.org/2000/svg' width='400' height='300'></svg>"
 	)}`;
 
-	// The image-decode stall as DOCUMENT content: mounted under `imageLoadPolicy="placeholder"`
-	// until the spec flips the policy, so the late sizing happens INSIDE the editor's subtree,
-	// the case the anchoring opt-out decides.
+	// An image that sizes late, inside the document: mounted under `imageLoadPolicy="placeholder"`
+	// until the spec changes the policy, so the late sizing happens inside the editor's own
+	// subtree, which is the case the anchoring opt-out decides.
 	const IMAGE_BLOCK_INDEX = 6;
-	// A divider carries a drag handle where prose does not; the drag spec grabs this one.
+	// A divider shows a drag handle where prose does not; the drag spec grabs this one.
 	const HANDLE_BLOCK_INDEX = 30;
-	// `?blocks=` sizes the entry: the default clears the windowing watermark, and a short one
-	// is the same embedding below it, where the host's own native anchoring still runs. Seeded
-	// once — a fixture that reparsed on navigation would not be the document the spec measured.
+	// `?blocks=` sizes the entry: the default is long enough to turn windowing on, and a short
+	// one is the same embedding below that point, where the browser's own scroll anchoring still
+	// runs. Built once: a fixture that reparsed on navigation would not be what the spec measured.
 	// svelte-ignore state_referenced_locally
 	const ENTRY =
 		Array.from({ length: data.blocks }, (_, i) =>
@@ -52,8 +52,8 @@
 			setKeybindings: (overrides) => (keybindings = overrides),
 			setPresentationMode: (mode) => (presentationMode = mode)
 		});
-		// Driven from the spec, not page controls: any clickable button would itself be a
-		// non-editor box in the viewport, and the oracle's premise is that none is in view.
+		// Driven from the spec rather than from page controls: a clickable button would itself be
+		// a box in the viewport that is not the editor's, and this check assumes none is in view.
 		(window as unknown as { __pageScroll?: unknown }).__pageScroll = {
 			loadDocumentImage: () => {
 				imageLoadPolicy = 'auto';
@@ -67,8 +67,8 @@
 
 <div class="page aragonite-editor-theme">
 	<div class="filler" data-testid="filler-top">Above the entry</div>
-	<!-- The control arm's grower: the same late sizing OUTSIDE the entry, where the
-	     host's own box is still an anchor candidate. -->
+	<!-- The comparison case: the same late sizing outside the entry, where the host's own
+	     box can still be the browser's scroll anchor. -->
 	<img class="late-image" data-testid="outer-image" src={outerImageSrc} alt="" />
 	<div class="entry" data-testid="entry">
 		<Editor
@@ -86,13 +86,13 @@
 
 <style>
 	/* app.css pins the document to `height: 100%; overflow: hidden` for the routes where the
-	   editor owns its scrollport; this one's subject is the page scrolling. */
+	   editor owns its scroll container; this route is about the page scrolling instead. */
 	:global(html),
 	:global(body) {
 		height: auto;
 		overflow: visible;
 	}
-	/* Short: the reader must be able to scroll past it into a viewport holding
+	/* Short: the user must be able to scroll past it into a viewport holding
 	   nothing but editor content. */
 	.filler {
 		height: 400px;
@@ -104,8 +104,8 @@
 		width: 400px;
 		height: auto;
 	}
-	/* Padding, no overflow: host mode drops the editor's own padding, and the hover drag
-	   handle sits at left:-0.85rem — a flush wrapper would clip it away. */
+	/* Padding, no overflow: host mode drops the editor's own padding, and the drag handle on
+	   hover sits at left:-0.85rem, which a wrapper with no room would clip away. */
 	.entry {
 		padding: 0.75rem 1rem;
 	}

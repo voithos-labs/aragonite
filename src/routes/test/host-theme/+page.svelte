@@ -1,13 +1,13 @@
 <script lang="ts">
 	import { Editor, type PresentationMode } from '$lib';
 	import { trackParityDocument } from '../../parity-documents.svelte';
-	// The whole shared set, so the host palette is judged with every plugin's chrome installed.
+	// The whole shared set, so the host palette is judged with every plugin's own UI installed.
 	import { DEMO_PLUGINS } from '../../demo-plugins';
 
 	/**
-	 * The themed-host embed: host-chrome tokens declared on the page wrapper and NO
-	 * `.aragonite-editor-theme` anywhere, so the editor consumes a host cascade the way an
-	 * app's own theme system feeds it. The token vocabulary mirrors the first integration's.
+	 * The themed-host embedding: host-chrome tokens declared on the page wrapper and no
+	 * `.aragonite-editor-theme` anywhere, so the editor reads a host's cascade the way an app's
+	 * own theme system feeds it. The token names mirror the first integration's.
 	 */
 
 	interface HostTheme {
@@ -257,8 +257,8 @@ An admonition picks its own palette; only the chrome around it is the host's.
 		overflow: hidden;
 	}
 
-	/* The host draws the frame and the editor scrolls inside it with no chrome of its own;
-	   the type scale is inherited from here, which only works with no opt-in class above. */
+	/* The host draws the frame and the editor scrolls inside it with no frame of its own;
+	   the type scale is inherited from here, which only works when no opt-in class sits above. */
 	.doc-editor {
 		height: 100%;
 		--editor-font-size: 14px;

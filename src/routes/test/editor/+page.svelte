@@ -1,9 +1,9 @@
 <script lang="ts">
 	import { Editor, type PresentationMode } from '$lib';
-	// `?extraLanguage=on` registers a grammar the editor does NOT bundle, through the same
-	// public seam a host uses (`@voithos-labs/aragonite/plugin`). This is the worked example
-	// for the registry export: one import, one call, before any editor mounts. Off by default,
-	// because the language list is geometry the picker specs read.
+	// `?extraLanguage=on` registers a grammar the editor does not bundle, through the same public
+	// API a host uses (`@voithos-labs/aragonite/plugin`). This is the worked example for that
+	// export: one import, one call, before any editor mounts. Off by default, because the language
+	// list is geometry the picker specs read.
 	import { registerLanguage } from '$lib/plugin';
 	import elixir from 'highlight.js/lib/languages/elixir';
 	import swift from 'highlight.js/lib/languages/swift';
@@ -27,8 +27,8 @@
 	let editor = $state<ReturnType<typeof Editor>>();
 
 	// On by default here, unlike the library (opt-in), so the handle specs get it without a param;
-	// `?dragHandles=false` turns it off. Set-once-at-mount, so the header checkbox remounts via
-	// {#key}, carrying the content across.
+	// `?dragHandles=false` turns it off. Fixed at mount, so the header checkbox remounts through
+	// {#key}, passing the content across.
 	let dragHandlesOn = $state(param('dragHandles') !== 'false');
 
 	function toggleDragHandles() {
@@ -36,17 +36,17 @@
 		dragHandlesOn = !dragHandlesOn;
 	}
 
-	// The prop is set-once at mount, so the opt-in is a URL param and the per-image response
-	// is swapped behind this stable function. Off by default — that is the no-hook arm.
+	// The prop is fixed at mount, so the opt-in is a URL param and the per-image response is
+	// swapped behind this stable function. Off by default, which is the case with no hook at all.
 	const onPasteImage = param('imagePaste') === 'on' ? harnessPasteImage : undefined;
 
 	// `?header=on` mounts a host header inside the editor's scroll container, off by default
-	// because a preamble shifts the block geometry specs across the suite measure. Its toggle
-	// sits OUTSIDE that container, so clicking it cannot scroll the position under test.
+	// because anything above the blocks shifts the geometry specs across the suite measure. Its
+	// toggle sits outside that container, so clicking it cannot scroll the position under test.
 	const headerOn = param('header') === 'on';
 	let headerTall = $state(false);
 
-	// Module scope would run this during SSR too, where it is pointless; the guard keeps the
+	// At module scope this would run during SSR too, where it does nothing; the check keeps the
 	// registration on the client, still ahead of the editor's own mount below.
 	const extraLanguagesOn = param('extraLanguage') === 'on';
 	if (extraLanguagesOn) {
@@ -54,8 +54,8 @@
 		registerLanguage('swift', swift);
 	}
 
-	// `?codeActions=on` installs stub host hooks for the code block's rail, so the run and
-	// overflow affordances render. Off by default: the rail's width is geometry the block
+	// `?codeActions=on` installs stand-in host hooks for the code block's side gutter, so the run
+	// and overflow buttons render. Off by default: that gutter's width is geometry the block
 	// specs measure, and the editor ships neither hook.
 	const codeActionsOn = param('codeActions') === 'on';
 	// Recorded on the body dataset rather than rendered: a visible readout would shift the
@@ -73,15 +73,15 @@
 		: undefined;
 
 	// `?paddedList=on` reproduces the documented host layout that pads the block list itself, so
-	// the visible side gutter reports the LIST as the click target rather than the editor root.
+	// the visible side gutter reports the list as the click target rather than the editor root.
 	const paddedListOn = param('paddedList') === 'on';
 
 	// `?insertToolbar=on` mounts the shared insert strip above the editor. Off by default: a
 	// standing bar shifts the block geometry the rest of the suite measures.
 	const insertToolbarOn = param('insertToolbar') === 'on';
 
-	// `?searchAnchor=on` mounts a fixed pane OUTSIDE `.aragonite-editor-theme` as the find/replace
-	// bar's home. Off by default: it would overlay geometry the rest of the suite measures.
+	// `?searchAnchor=on` mounts a fixed pane outside `.aragonite-editor-theme` for the find and
+	// replace bar to sit in. Off by default: it would cover geometry the rest of the suite measures.
 	const searchAnchorOn = param('searchAnchor') === 'on';
 	let searchAnchorEl = $state<HTMLElement>();
 	let anchorAttached = $state(true);
@@ -103,8 +103,8 @@
 		{ mode: 'live', testid: 'live-toggle', label: 'Live mode' }
 	];
 
-	// Records to a page-scoped sink instead of opening a window. Wired ONLY in reading mode:
-	// onLinkActivate REPLACES the default open-in-tab, which source mode's specs assert on.
+	// Records into an array on the page instead of opening a window. Set only in reading mode:
+	// onLinkActivate replaces the default open-in-a-tab, which source mode's specs check.
 	function recordLinkActivation(url: string) {
 		((window as unknown as { __linkActivations?: string[] }).__linkActivations ??= []).push(url);
 	}
@@ -131,8 +131,8 @@
 	});
 </script>
 
-<!-- The host chrome a consumer mounts in the header slot; its link follows the page's
-     link behaviour, not the editor's modifier-click policy. -->
+<!-- The host's own content, mounted in the header slot; its link follows the page's
+     link behaviour, not the editor's modifier-click rule. -->
 {#snippet documentHero()}
 	<div class="demo-hero" data-testid="harness-header" style:height={headerTall ? '240px' : '80px'}>
 		<input
@@ -141,8 +141,8 @@
 			aria-label="Document title"
 			value="Untitled document"
 		/>
-		<!-- A contenteditable title is the likelier hero shape, and the one that puts a
-		     native caret inside the editor root. -->
+		<!-- A contenteditable title is the likelier shape for a header like this, and the one
+		     that puts a browser caret inside the editor root. -->
 		<div
 			class="demo-hero-note"
 			data-testid="hero-note"
@@ -157,8 +157,9 @@
 	</div>
 {/snippet}
 
-<!-- The host-chrome token block keys on the attribute sitting WITH the class, so a wrapper that
-     carries only the class gets editor tokens and stale chrome — the showcase route's shape. -->
+<!-- The host-chrome token block keys on the attribute sitting on the same element as the class,
+     so a wrapper with only the class gets editor tokens and a page around them that does not
+     follow: the showcase route's shape. -->
 <div class="test-harness aragonite-editor-theme" data-editor-theme={editorTheme}>
 	<header class="demo-header">
 		<div class="demo-heading">
@@ -181,8 +182,8 @@
 			>
 				Header: {headerTall ? 'tall' : 'short'}
 			</button>
-			<!-- The same field mounted OUTSIDE the editor root: the control that says
-			     whether a chord result is about the slot or about text fields at large. -->
+			<!-- The same field mounted outside the editor root: what says whether a key
+			     combination's result is about the header slot or about text fields in general. -->
 			<input
 				class="demo-btn"
 				data-testid="outside-title"
@@ -238,8 +239,8 @@
 </div>
 
 {#if searchAnchorOn}
-	<!-- Deliberately outside `.aragonite-editor-theme`: a themed ancestor here would resolve
-	     the bar's tokens for it and hide a seam that forgot to carry its own scope. -->
+	<!-- Deliberately outside `.aragonite-editor-theme`: a themed ancestor here would resolve the
+	     bar's tokens for it, hiding a bar that forgot to bring its own theme scope. -->
 	<div class="anchor-pane" data-testid="search-anchor" bind:this={searchAnchorEl}></div>
 	<div class="anchor-controls">
 		<button
@@ -260,8 +261,8 @@
 {/if}
 
 <style>
-	/* Positioned, so the bar's own absolute placement resolves against the pane — the
-	   consumer side of "the anchor is the box". */
+	/* Positioned, so the bar's own absolute placement resolves against this pane: the
+	   consumer's side of the rule that the anchor is the box. */
 	.anchor-pane {
 		position: fixed;
 		top: 8px;
@@ -277,9 +278,9 @@
 		gap: 6px;
 	}
 	/* The demo dresses itself as the host app the editor ships into (limestone): its page
-	   ground, its UI face, and a PROPORTIONAL surface face — which is that app's own default
-	   for `--font-editor`. Code stays monospace through `--font-code`, so this page also
-	   stands as the worked example of the two faces pulling apart. */
+	   background, its UI typeface, and a proportional text face, which is that app's own default
+	   for `--font-editor`. Code stays monospace through `--font-code`, so this page is also the
+	   worked example of the two typefaces pulling apart. */
 	.test-harness {
 		width: 100vw;
 		height: 100vh;
@@ -380,8 +381,8 @@
 		min-width: 0;
 		min-height: 0;
 	}
-	/* Puts the visible side gutter on the LIST rather than the root — the host layout the
-	   dead-space gesture has to claim through. */
+	/* Puts the visible side gutter on the block list rather than the root: the host layout a
+	   gesture in the empty margin has to work through. */
 	.padded-list :global(.editor > .block-list) {
 		width: 100%;
 		padding: 0 24px;
