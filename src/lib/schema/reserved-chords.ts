@@ -30,31 +30,31 @@ export const HARDCODED_CHORD_SITES: readonly HardcodedChordSite[] = [
 		file: 'components/editor-root-gestures.ts',
 		chords: [],
 		keys: [],
-		note: 'Mod-click link activation — no keystroke is consumed.'
+		note: 'Mod-click link activation: no keystroke is consumed.'
 	},
 	{
 		file: 'components/editor-root-keydown.ts',
 		chords: [],
 		keys: ['Escape'],
-		note: 'Escape closes the find bar (a reserved UI chord, enumerated). The modifier read is a REFUSAL: an unchorded character over a live range goes to the range’s text door, a chorded one to the arms below it.'
+		note: 'Escape closes the find bar (a reserved UI chord, enumerated). The modifier read is a refusal: an unchorded character over a live range is written as text, a chorded one goes to the handlers below it.'
 	},
 	{
 		file: 'components/editor-root-listeners.ts',
 		chords: [],
 		keys: [],
-		note: 'The Mod-held `data-mod-active` affordance tracks flag state only — no keystroke is consumed.'
+		note: 'The Mod-held `data-mod-active` affordance tracks flag state only: no keystroke is consumed.'
 	},
 	{
 		file: 'selection/selection-drop.ts',
 		chords: [],
 		keys: [],
-		note: 'Ctrl/Alt at the DROP is the platform copy modifier, read off a DragEvent — no keystroke is consumed.'
+		note: 'Ctrl/Alt at the drop is the platform copy modifier, read off a DragEvent: no keystroke is consumed.'
 	},
 	{
 		file: 'selection/multi-click.ts',
 		chords: [],
 		keys: [],
-		note: 'A modified multi-click is left to the browser (Shift extends, Mod activates) — no keystroke is consumed.'
+		note: 'A modified multi-click is left to the browser (Shift extends, Mod activates): no keystroke is consumed.'
 	},
 	{
 		file: 'components/GapCaret.svelte',
@@ -69,7 +69,7 @@ export const HARDCODED_CHORD_SITES: readonly HardcodedChordSite[] = [
 			'Enter',
 			'Escape'
 		],
-		note: 'The gap caret proxy claims the exits plus the Enter that mints; Ctrl/Meta/Alt yields to the global table, and Shift takes the plain arrow arm.'
+		note: 'The gap caret proxy claims the exits plus the Enter that creates a block; Ctrl/Meta/Alt yields to the global table, and Shift takes the plain arrow branch.'
 	},
 	{
 		file: 'components/SearchBar.svelte',
@@ -81,13 +81,13 @@ export const HARDCODED_CHORD_SITES: readonly HardcodedChordSite[] = [
 		file: 'components/blocks/editable-leaf.ts',
 		chords: [],
 		keys: ['Backspace', 'Enter'],
-		note: "Shift-click gate on the rendered surface — a pointer read; plain Backspace (no modifier) at the top of an empty painted source deletes the block, as the code block does. The reveal's own undo resolves its chord through the keymap, so it claims none here."
+		note: "Shift-click gate on the rendered surface, a pointer read; plain Backspace (no modifier) at the top of an empty painted source deletes the block, as the code block does. The reveal's own undo resolves its chord through the keymap, so it claims none here."
 	},
 	{
 		file: 'components/link-card/LinkCard.svelte',
 		chords: ['Shift+Tab', 'Mod+K'],
 		keys: ['Enter', 'K', 'Tab', 'k'],
-		note: "Backwards step of the open card's focus trap, plus the entry chord swallowed as a no-op where the focus already is — the kind keymaps claim it everywhere else. Escape lives on the host, which must also close a card the document still holds the caret for."
+		note: "Backwards step of the open card's focus trap, plus the entry chord swallowed as a no-op where the focus already is; the kind keymaps claim it everywhere else. Escape lives on the host, which must also close a card the document still holds the caret for."
 	},
 	{
 		file: 'components/menu/BlockMenu.svelte',
@@ -166,7 +166,7 @@ export const HARDCODED_CHORD_SITES: readonly HardcodedChordSite[] = [
 			'Delete',
 			'Escape'
 		],
-		note: 'Extends a selection into a widget. A modified arrow is also swallowed while a widget is selected, but that is a caret-coherence guard in a transient state, not a binding; a plain vertical arrow seats a caret and declines.'
+		note: 'Extends a selection into a widget. A modified arrow is also swallowed while a widget is selected, but that is a caret-coherence guard in a transient state, not a binding; a plain vertical arrow places a caret and declines.'
 	},
 	{
 		file: 'components/image/ImageResizeHandles.svelte',
@@ -212,7 +212,7 @@ export const HARDCODED_CHORD_SITES: readonly HardcodedChordSite[] = [
 			'c',
 			'x'
 		],
-		note: 'Whole-block copy/cut: a keydown carries no ClipboardEvent, so the chord is read here. The unchorded printable mints a paragraph below, so the same modifier reads gate that branch too.'
+		note: 'Whole-block copy/cut: a keydown carries no ClipboardEvent, so the chord is read here. The unchorded printable creates a paragraph below, so the same modifier reads gate that branch too.'
 	},
 	{
 		file: 'editor-actions/plugin/container.ts',
@@ -224,19 +224,19 @@ export const HARDCODED_CHORD_SITES: readonly HardcodedChordSite[] = [
 		file: 'plugins/footnotes/FootnoteDefinition.svelte',
 		chords: [],
 		keys: [],
-		note: 'Mod-click on the `[^label]` marker jumps back to the reference — no keystroke is consumed.'
+		note: 'Mod-click on the `[^label]` marker jumps back to the reference: no keystroke is consumed.'
 	},
 	{
 		file: 'plugins/footnotes/FootnoteReference.svelte',
 		chords: [],
 		keys: [],
-		note: 'Mod-click jump to the definition, the link click’s gesture — no keystroke is consumed.'
+		note: 'Mod-click jump to the definition, the link click’s gesture: no keystroke is consumed.'
 	},
 	{
 		file: 'plugins/mermaid/MermaidBlock.svelte',
 		chords: ['Mod+Enter'],
 		keys: ['ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'Enter', 'Escape', 'Tab'],
-		note: 'Commits the diagram edit; the arrows are the edit box’s boundary exits, and a modified one is declined rather than claimed. Bundled-plugin chord, listed unconditionally — it coincides with the table keymap, so gating it on the install would change no answer.'
+		note: 'Commits the diagram edit; the arrows are the edit box’s boundary exits, and a modified one is declined rather than claimed. Bundled-plugin chord, listed unconditionally: it coincides with the table keymap, so gating it on the install would change no answer.'
 	},
 	{
 		file: 'schema/keybindings.ts',
@@ -279,7 +279,7 @@ export const HARDCODED_CHORD_SITES: readonly HardcodedChordSite[] = [
 			'k',
 			'x'
 		],
-		note: 'Mod+0-6 routes to the merged command registry, where that binding lives. The rewrite chords are CLAIMED over a cross-block range and handed to the dispatch seam — the four format toggles route to the cross-block arm, the link card declines, since no single block can host its mint — because falling through read the chord as text (or ran Ctrl+K as kill-line). Mod+Shift+X takes an arm of its own: unshifted Mod+X is the whole-block cut.'
+		note: 'Mod+0-6 routes to the merged command registry, where that binding lives. The rewrite chords are claimed over a cross-block range and handed to the cross-block dispatch: the four format toggles route to the cross-block handler, and the link card declines, since no single block can hold the link it would create. Falling through read the chord as text (or ran Ctrl+K as kill-line). Mod+Shift+X takes a branch of its own: unshifted Mod+X is the whole-block cut.'
 	},
 	{
 		file: 'selection/cross-block/pointer.ts',
