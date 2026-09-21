@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 //
-// Every hop from the document facet to the widget's props is optional-typed, and the
-// fallback for a missing version is CORRECT — just O(widgets × leaves). So a broken hop
-// leaves every numbering test green, and only counting walks tells the two apart.
+// Every step from the document view to the widget's props is optionally typed, and the
+// fallback for a missing version is correct, just O(widgets × blocks). So a broken step
+// leaves every numbering test green, and only counting passes tells the two apart.
 import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest';
 import { mount, unmount, flushSync } from 'svelte';
 import TextEditableBlock from '$lib/components/blocks/text/TextEditableBlock.svelte';
@@ -19,8 +19,8 @@ import { editorMountContext } from '../../harness/mount-context';
 
 const LEAVES = 30;
 
-// Two references in the mounted block, and a document deep enough that one walk
-// and two are unmistakable: each walk inline-parses every prose leaf.
+// Two references in the mounted block, and a document deep enough that one pass and two
+// are unmistakable: each pass inline-parses every prose block.
 function documentWithReferences(): ReturnType<typeof parse> {
 	const body = ['Body has [^a] and [^b] here.'];
 	for (let i = 1; i < LEAVES; i++) body.push(`Filler paragraph ${i}.`);
@@ -61,8 +61,8 @@ describe('footnote reference widgets read the editor content version', () => {
 		mounted = mountReferences(contentVersion);
 
 		expect(mounted.refs.map((el) => el.textContent)).toEqual(['1', '2']);
-		// Both widgets must reach the version; one falling back to its own walk is
-		// the shape that renders correctly and costs double.
+		// Both widgets must reach the version; one falling back to its own pass is
+		// the case that renders correctly and costs double.
 		expect(contentVersion.mock.calls.length).toBeGreaterThanOrEqual(2);
 	});
 
@@ -71,9 +71,9 @@ describe('footnote reference widgets read the editor content version', () => {
 		mounted = mountReferences(() => 4242);
 		expect(mounted.refs.map((el) => el.textContent)).toEqual(['1', '2']);
 
-		// The WALK COUNT, not the raw compute total: the block's own render adds a small
-		// constant, so rounding puts the verdict midway between one walk and two rather
-		// than one incidental compute away from being unable to fail.
+		// The number of passes, not the raw compute total: the block's own render adds a
+		// small constant, so rounding puts the threshold midway between one pass and two
+		// rather than one incidental compute away from being unable to fail.
 		const walks = Math.round(perfSnapshot().inlineComputeCount / LEAVES);
 		expect(walks).toBe(1);
 	});

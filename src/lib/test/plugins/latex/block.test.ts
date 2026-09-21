@@ -8,18 +8,18 @@ import { registerMathBlock, MATH_BLOCK } from '$lib/plugins/latex/latex-kind';
 import { latexPlugin } from '$lib/plugins/latex';
 import type { MathRenderer } from '$lib/plugins/latex/math-renderer';
 
-// latexPlugin requires an injected renderer; block parsing never renders, so a
-// no-op stub satisfies the required option without pulling a math engine in.
+// latexPlugin requires a renderer; block parsing never renders, so a do-nothing stub
+// satisfies the required option without pulling in a math library.
 const stubRenderer: MathRenderer = () => ({ dom: document.createElement('span') });
 
 // The block opener and the inline `$` trigger register through independent registries, and
-// the platform reset clears both — a schema-only reset would leave inline live and the
-// gating test would pass for the wrong reason.
+// the platform reset clears both; a schema-only reset would leave the inline half registered
+// and the test below would pass for the wrong reason.
 beforeEach(resetPluginPlatformForTests);
 afterEach(resetPluginPlatformForTests);
 
-// Recognition is gated on the opener registering — with no extension loaded a
-// `$$` fence is ordinary GFM text (a paragraph), byte-identical to bare GFM.
+// Recognition starts only once the opener registers: with the plugin absent a `$$` fence is
+// ordinary GFM text (a paragraph), byte-identical to plain GFM.
 describe('block math is dormant until registered', () => {
 	it('leaves a $$…$$ fence as a paragraph with nothing registered', () => {
 		const src = '$$\nx^2\n$$\n';
@@ -94,9 +94,9 @@ describe('latexPlugin wires the block opener', () => {
 	});
 });
 
-// The renderer is REQUIRED (no baked-in engine, unlike mermaid's optional one), and the
-// contract lives at the type level — so the `@ts-expect-error` directives below are the
-// assertions: a regression to an optional renderer fails `npm run check`.
+// The renderer is required (there is no built-in default, unlike mermaid's optional one), and
+// that holds at the type level, so the `@ts-expect-error` directives below are the assertions:
+// making the renderer optional again fails `npm run check`.
 describe('latexPlugin requires an injected renderer', () => {
 	it('rejects a missing or empty renderer option at compile time', () => {
 		// @ts-expect-error - renderer is required; a bare call omits it
@@ -109,8 +109,8 @@ describe('latexPlugin requires an injected renderer', () => {
 });
 
 // A schema reset clears the block registry but leaves the inline registries live, so a
-// reinstall must re-register the block kind yet NOT the inline one. The inline guard is
-// keyed on the surviving declared kind; mis-key it and the re-register throws.
+// reinstall must re-register the block kind but not the inline one. The inline check keys on
+// the kind that survives the reset; key it on anything else and the second registration throws.
 describe('latexPlugin reinstall after a platform reset', () => {
 	it('re-registers the block kind and leaves the inline path intact', () => {
 		installPlugins([latexPlugin({ renderer: stubRenderer })]);

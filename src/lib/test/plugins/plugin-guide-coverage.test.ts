@@ -4,12 +4,13 @@ import path from 'node:path';
 
 // Drift guard: every export of the two published author barrels must appear in the docs pack,
 // so a new export can't ship undocumented. Names match in backtick form, so incidental prose
-// cannot stand in for an entry. Each section is keyed by its heading, which makes the heading
-// load-bearing: rename it in both.
+// cannot stand in for an entry. Each section is found by its heading, so the heading matters:
+// rename it in both.
 const CATALOG_DOC = 'docs/guide/plugin-api.md';
 const CATALOG_HEADING = '\n## API reference';
-// `@voithos-labs/aragonite/testing` has no catalog table of its own — its section IS the catalog, and only
-// its callables are enrolled; the kits' report types are read off the calls that return them.
+// `@voithos-labs/aragonite/testing` has no catalog table of its own: its section is the
+// catalog, only its callables are enrolled, and the kits' report types are read off the calls
+// that return them.
 const TESTING_DOC = 'docs/guide/plugin-testing.md';
 const TESTING_HEADING = '\n## Verifying your plugin';
 
@@ -48,7 +49,7 @@ function guideSection(doc: string, heading: string): string {
 
 /**
  * A catalog cell names an export bare (`` `foo` ``); the prose-shaped testing section also
- * accepts a call (`` `foo(text)` ``). The catalog arm keeps the strict form, which is what
+ * accepts a call (`` `foo(text)` ``). The catalog side keeps the strict form, which is what
  * stops incidental prose from standing in for a table row.
  */
 const undocumented = (names: string[], text: string, allowCallForm = false) =>

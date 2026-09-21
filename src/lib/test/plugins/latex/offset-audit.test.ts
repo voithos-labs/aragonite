@@ -6,11 +6,10 @@ import { resetPluginPlatformForTests } from '$lib/testing';
 import { rawTextOfNode } from '$lib/cursor/widget-offset';
 import { registerMathInline, MATH_INLINE } from '$lib/plugins/latex/latex-kind';
 
-// The atomic-island wrapper the render layer's portal builder stamps around a
-// component widget, with interior text that is NOT the source bytes — modelling
-// KaTeX's rendered glyphs. Mounting the real MathInline component (Svelte + KaTeX)
-// is reserved for the e2e; the walk under test keys only on the four attributes and
-// the presence of nonzero non-source interior, all of which this reproduces.
+// The wrapper span the render layer puts around a component widget, with interior text that
+// is not the source bytes, standing in for KaTeX's rendered glyphs. Mounting the real
+// MathInline component is left to the e2e; the traversal under test reads only the four
+// attributes and the fact that the interior text is non-empty and not the source.
 function stampMathWidget(node: InlineNode): HTMLElement {
 	const wrapper = document.createElement('span');
 	wrapper.dataset.inlineWidget = '';
@@ -25,10 +24,9 @@ function stampMathWidget(node: InlineNode): HTMLElement {
 	return wrapper;
 }
 
-// Nonzero-interior byte-survival audit (G1.9). Inline math is the first widget whose
-// rendered interior text is NOT its source bytes — every prior widget had zero interior
-// textContent — so this is the first input class where a read-back trusting
-// `.textContent` over the widget-aware walk leaks glyphs and drops the source.
+// Byte survival for a widget with interior text (G1.9). Inline math is the first widget whose
+// rendered interior text is not its source bytes, so it is the first case where reading back
+// `.textContent` instead of the widget-aware traversal leaks glyphs and drops the source.
 
 const BLOCK_RAW = 'a $x^2$ b';
 const SOURCE = '$x^2$';
@@ -43,8 +41,8 @@ afterEach(() => {
 	document.body.innerHTML = '';
 });
 
-// Mount the block as the render path builds it: outer text, the rendered math widget
-// (the stamped atomic island with glyph-like interior), outer text.
+// Mount the block the way the render path builds it: outer text, the rendered math widget
+// with its glyph-like interior, outer text.
 function mountRenderedBlock(): { el: HTMLElement; widget: HTMLElement } {
 	const math = computeInlineContent(parse(BLOCK_RAW).children[0]).find(
 		(n) => n.kind === MATH_INLINE
@@ -62,8 +60,8 @@ describe('inline-math widget: nonzero-interior byte survival', () => {
 		const { el, widget } = mountRenderedBlock();
 		// The premise of the audit: this widget carries real interior text.
 		expect((widget.textContent ?? '').length).toBeGreaterThan(0);
-		// A naive `.textContent` read (the leaking path) reconstructs neither the block
-		// raw nor even the `$…$` bytes — the glyphs replace the source.
+		// A plain `.textContent` read reconstructs neither the block raw nor even the
+		// `$…$` bytes: the glyphs replace the source.
 		expect(el.textContent).not.toBe(BLOCK_RAW);
 		expect(el.textContent).not.toContain(SOURCE);
 	});
@@ -73,15 +71,15 @@ describe('inline-math widget: nonzero-interior byte survival', () => {
 		expect(rawTextOfNode(el, BLOCK_RAW)).toBe(BLOCK_RAW);
 	});
 
-	// The walk reads text nodes verbatim and the widget via `data-source-*` against
-	// the render-time raw, so an edit to the surrounding text nodes is captured
-	// while the widget bytes stay exact — this is the "type/delete around it" case.
+	// The traversal reads text nodes verbatim and the widget through `data-source-*` against
+	// the raw it was rendered from, so an edit to the surrounding text is captured while the
+	// widget's own bytes stay exact.
 	it('typing after the widget survives read-back with the source intact', () => {
 		const { el } = mountRenderedBlock();
 		(el.lastChild as Text).data += '!';
 		const readback = rawTextOfNode(el, BLOCK_RAW);
 		expect(readback).toBe('a $x^2$ b!');
-		// The read-back is what a commit serializes — round-trips byte-for-byte.
+		// The read-back is what a commit serializes, and it round-trips byte for byte.
 		expect(serialize(parse(readback))).toBe(readback);
 	});
 

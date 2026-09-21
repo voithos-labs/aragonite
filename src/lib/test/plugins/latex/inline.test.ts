@@ -22,8 +22,8 @@ afterEach(resetPluginPlatformForTests);
 const isMath = (n: InlineNode) => n.kind === MATH_INLINE;
 const mathNodesIn = (raw: string) => parseInline(raw, 0, raw.length).filter(isMath);
 
-// Recognition is gated on this extension registering the `$` trigger — with no
-// extension loaded the scanner leaves `$` as literal text (bare-GFM parity).
+// Recognition starts only once the plugin registers the `$` trigger: without it the scanner
+// leaves `$` as literal text, exactly as plain GFM does.
 describe('inline math is dormant until registered', () => {
 	it('leaves $x$ as plain text with nothing registered', () => {
 		expect(parseInline('$x$', 0, 3)).toEqual([{ kind: 'text', start: 0, end: 3, text: '$x$' }]);
@@ -34,7 +34,7 @@ describe('inline math is dormant until registered', () => {
 // before it is not whitespace and the char after it is not a digit; and a span that is purely a
 // number is a price, not a formula. Miss-analysis: the table paired a letter opener with a digit
 // closer (`$x^2$`) and a digit opener with no closer (`$5`, `$5 and $10`), never a digit opener
-// WITH a valid closer, which is the one cell the old first-byte guard answered wrongly.
+// with a valid closer, which is the one case the first-byte check got wrong.
 describe('$ flanking recognition', () => {
 	beforeEach(() => registerMathInline());
 
@@ -69,10 +69,10 @@ describe('$ flanking recognition', () => {
 });
 
 /**
- * The table above reads a count, which cannot tell `$x$` from a claim that swallowed the prose
- * in front of it. These read the SPAN, over the shapes where a price stands ahead of a formula.
- * Miss-analysis: no case ever put two `$` runs in one line with prose between them, so the one
- * reading that mattered — where the claim ENDS — was never asserted at all.
+ * The table above reads a count, which cannot tell `$x$` from a match that swallowed the prose
+ * in front of it. These read the span itself, over the shapes where a price stands ahead of a
+ * formula. Miss-analysis: no case ever put two `$` runs in one line with prose between them, so
+ * where a match ends, the one reading that mattered, was never asserted at all.
  */
 describe('a claim ends at the first later $, or not at all', () => {
 	beforeEach(() => registerMathInline());
@@ -113,8 +113,8 @@ describe('inline math round-trip', () => {
 	});
 });
 
-// The repro behind #319 read as a container defect. It is not one: a directive's prose reaches
-// the same recognizer a top-level paragraph does, so both hosts answer identically.
+// The report behind #319 looked like a container defect. It is not: a directive's prose reaches
+// the same recognizer a top-level paragraph does, so both give the same answer.
 describe('a directive container reaches the same recognizer', () => {
 	beforeEach(() => {
 		installPlugins([admonitionsPlugin()]);
@@ -133,9 +133,9 @@ describe('a directive container reaches the same recognizer', () => {
 	});
 });
 
-// Math renders through a `component`, so the descriptor carries no synchronous builder
-// and the injected portal builder owns the island shell (asserted in the e2e). What
-// stays unit-provable is the reveal-source policy and the dispatch contract.
+// Math renders through a `component`, so the descriptor has no synchronous builder and the
+// render layer builds the wrapper span (asserted in the e2e). What a unit test can still
+// prove is the reveal-source policy and how the dispatch behaves.
 describe('math widget dispatch', () => {
 	beforeEach(() => registerMathInline());
 
@@ -147,13 +147,14 @@ describe('math widget dispatch', () => {
 		const node = { kind: MATH_INLINE, start: 0, end: 3 } as InlineNode;
 		// No portal builder → null (the render layer falls back to the raw span).
 		expect(buildCoreInlineWidget(node, '$x$')).toBeNull();
-		// With one → the dispatch returns its element untouched (the pool owns stamping).
+		// With one, the dispatch returns its element untouched; the render layer adds the
+		// attributes.
 		const portal = document.createElement('span');
 		expect(buildCoreInlineWidget(node, '$x$', () => portal)).toBe(portal);
 	});
 
-	// reveal-source is the editing contract the widget-interaction layer reads to
-	// swap the rendered math island for its editable source; pin its exact shape.
+	// `revealSource` is what the widget-interaction code reads to swap the rendered math
+	// for its editable source; its exact shape is pinned here.
 	it('registers the reveal-source editing policy', () => {
 		const policy = getInlineWidgetEditing(MATH_INLINE as InlineNode['kind']);
 		expect(policy?.revealSource).toBe(true);
@@ -164,8 +165,8 @@ describe('math widget dispatch', () => {
 		]);
 	});
 
-	// The span bounds a caret entering the source, and is the fallback seat for a press the
-	// glyph walk cannot answer for; either way the caret stays inside the `$` delimiters.
+	// The span bounds a caret entering the source, and is where a click the glyph measurement
+	// cannot answer for goes; either way the caret stays inside the `$` delimiters.
 	it('reports its content span inside the `$` delimiters', () => {
 		const span = getInlineWidgetEditing(MATH_INLINE as InlineNode['kind'])?.revealContentSpan;
 		expect(span?.('$x^2$')).toEqual({ start: 1, end: 4 });
@@ -175,9 +176,9 @@ describe('math widget dispatch', () => {
 	});
 });
 
-// The injected renderer is the plugin's consumer seam (latexPlugin({ renderer }) →
-// setMathRenderer). The wired renderer must flow into the inline render MathInline
-// reads, not a hardcoded engine — a regression to a fixed engine drops it.
+// The renderer is what a consumer supplies (`latexPlugin({ renderer })` calls
+// `setMathRenderer`). It has to reach the inline render MathInline reads, rather than a
+// hardcoded one, which a regression to a fixed renderer would drop.
 describe('injected renderer threading', () => {
 	const displayModes: boolean[] = [];
 	const tagRenderer: MathRenderer = (source, { display }) => {
@@ -192,12 +193,12 @@ describe('injected renderer threading', () => {
 		setMathRenderer(tagRenderer);
 		registerMathInline();
 		// MathInline renders through renderInlineMath over the `$`-stripped interior;
-		// the document-wide memo returns a clone of the renderer's node.
+		// the document-wide cache returns a clone of the renderer's node.
 		const { dom } = renderInlineMath('x');
 		expect(dom.className).toBe('tagged-math');
 		expect(dom.textContent).toBe('tagged:x');
-		// Inline `$…$` is text-mode math — a display:true regression would render
-		// centered block math for every inline formula and no other test would catch it.
+		// Inline `$…$` is text-mode math: passing `display: true` would render centered
+		// block math for every inline formula, and no other test would catch it.
 		expect(displayModes).toEqual([false]);
 	});
 });

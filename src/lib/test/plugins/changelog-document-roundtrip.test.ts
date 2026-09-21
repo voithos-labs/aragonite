@@ -16,10 +16,9 @@ import { CHANGELOG_FAMILIES } from '../../../routes/changelog/changelog-content'
 
 /**
  * The `/changelog` route serves the repo's own changelog, one release family per document, so
- * every release entry ships to a demo route as untested content and byte-exact round-trip is the
- * route's whole claim. A unit case by necessity: the route exposes no `window.__test` bridge, and
- * the composed documents are imported here rather than re-composed, so neither the prelude nor a
- * newly added family can drift out from under the guard.
+ * every entry ships to a demo route as untested content and a byte-exact round trip is the
+ * route's whole promise. The documents are imported here rather than re-composed, so neither
+ * the prelude nor a newly added family can drift out from under this guard.
  */
 
 beforeAll(() => {
@@ -70,8 +69,8 @@ describe('changelog documents', () => {
 	it('resolves the prelude to a collapsed details holding the outline', () => {
 		const [outline] = parse(CHANGELOG_FAMILIES[0].document).children;
 		expect(outline.kind).toBe(DETAILS);
-		// Child 0 is the summary chrome; the `[[toc]]` must have parsed as the plugin leaf
-		// inside the container rather than falling back to prose.
+		// Child 0 is the summary; the `[[toc]]` must have parsed as the plugin block inside
+		// the container rather than falling back to prose.
 		expect(outline.children?.[1]?.kind).toBe(TOC_BLOCK);
 		expect(outline.raw.startsWith('<details>\n')).toBe(true);
 	});

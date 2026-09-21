@@ -11,8 +11,8 @@ const isEmoji = (n: InlineNode) => n.kind === EMOJI_KIND;
 const scan = (raw: string) => parseInline(raw, 0, raw.length);
 const emojiIn = (raw: string) => scan(raw).filter(isEmoji);
 
-// With the plugin absent, `:smile:` is ordinary prose — a document authored with
-// shortcodes opens byte-identically in an editor that never installed emoji.
+// With the plugin absent, `:smile:` is ordinary prose: a document authored with shortcodes
+// opens byte-identically in an editor that never installed emoji.
 describe('emoji shortcode is dormant until the plugin registers', () => {
 	it('leaves :smile: to literal text with nothing registered', () => {
 		const clean = scan('a :smile: b');
@@ -23,8 +23,8 @@ describe('emoji shortcode is dormant until the plugin registers', () => {
 	});
 });
 
-// The recognizer's `:` rung alone flips the scanner's trigger probe, with no
-// directive tier present — the standalone coexistence half of the interfaces line.
+// The emoji recognizer on its own makes `:` a character the scanner stops on, with no
+// directive handler present.
 describe('the emoji rung alone makes `:` scan-visible', () => {
 	beforeEach(() => registerEmoji());
 
@@ -66,8 +66,8 @@ describe('recognizer grammar', () => {
 		});
 	}
 
-	// The reference is atomic and closes at its own `:` — the trailing bytes rescan
-	// as ordinary inline content, never swallowed into the claim.
+	// The match is atomic and closes at its own `:`; the trailing bytes rescan as
+	// ordinary inline content and are never swallowed into it.
 	it('claims only through the closing colon, leaving a trailing colon literal', () => {
 		const nodes = scan(':smile::');
 		expect(nodes[0]).toMatchObject({ kind: EMOJI_KIND, start: 0, end: 7 });

@@ -4,8 +4,8 @@ import { resetPluginPlatformForTests } from '$lib/testing';
 import { parrotPlugin, PARROT } from '$lib/plugins/parrot';
 import { roundTripCases } from '$lib/test/support/round-trip';
 
-// The parrot's registrar is module-private (the plugin keeps the guide's bytes), so the
-// plugin unit is the only door in — the one a consumer installs through.
+// The parrot's registration function is module-private (the plugin keeps the guide's bytes),
+// so installing the plugin is the only way in, which is what a consumer does.
 const installParrot = () => installPlugins([parrotPlugin()]);
 
 beforeEach(resetPluginPlatformForTests);
@@ -21,8 +21,8 @@ describe('parrot is dormant until installed', () => {
 	});
 });
 
-// The opener claims a line on the bare `%%parrot` prefix, with no separator demanded —
-// so `%%parrots` is a parrot whose caption starts mid-word. Pinned as the grammar it is.
+// The opener takes a line on the bare `%%parrot` prefix, with no separator required, so
+// `%%parrots` is a parrot whose caption starts mid-word. Pinned as the grammar it is.
 describe('parrot recognition', () => {
 	beforeEach(installParrot);
 
@@ -63,8 +63,8 @@ describe('parrot recognition', () => {
 });
 
 // The component derives its caption as `node.raw.slice('%%parrot'.length).trim()`, so what
-// this pins is the half the parser owes it: the WHOLE line, marker and caption alike, lands
-// in `raw`. The rendered caption itself is the e2e's (requirements/plugins/parrot.md).
+// this pins is the parser's half: the whole line, marker and caption alike, ends up in `raw`.
+// The rendered caption belongs to the e2e (requirements/plugins/parrot.md).
 describe('the caption bytes survive in the node raw', () => {
 	beforeEach(installParrot);
 
@@ -80,9 +80,9 @@ describe('the caption bytes survive in the node raw', () => {
 	});
 });
 
-// Round-trip is the load-bearing guarantee: serialize re-emits `leadingTrivia + raw`, so a
-// `raw` taken verbatim from the consumed line round-trips. The declined shapes prove the
-// process-wide opener leaves every non-claimed byte alone.
+// The round trip is the guarantee that matters: serialize re-emits `leadingTrivia + raw`, so
+// a `raw` taken verbatim from the consumed line round-trips. The declined shapes prove this
+// opener leaves every byte it does not take alone.
 describe('parrot round-trip', () => {
 	beforeEach(installParrot);
 

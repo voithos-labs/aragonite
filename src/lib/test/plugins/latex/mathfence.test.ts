@@ -4,8 +4,8 @@ import { resetPluginPlatformForTests } from '$lib/testing';
 import { roundTripCases } from '$lib/test/support/round-trip';
 import { registerMathFence, MATH_FENCE, mathDisplaySource } from '$lib/plugins/latex/latex-kind';
 
-// GitHub's third math form: a fence whose info string opens with `math`. Priced below
-// `fencedCode`, whose superset matcher would otherwise claim every fence.
+// GitHub's third math form: a fence whose info string starts with `math`. Registered below
+// `fencedCode`, which would otherwise take every fence.
 
 describe('math fence claims and declines', () => {
 	beforeEach(() => {
@@ -62,9 +62,9 @@ describe('math fence claims and declines', () => {
 	}
 });
 
-// Unterminated declines to the built-in fencedCode (matching the sibling `$$`
-// block's decline path, not mermaid's consume-to-EOF), so it becomes a plain
-// `math` code block — byte-identical either way.
+// An unterminated fence falls through to the built-in fencedCode (the same as the `$$` block,
+// not mermaid's consume-to-end-of-input), so it becomes a plain `math` code block; the bytes
+// are identical either way.
 describe('unterminated math fence declines to fencedCode', () => {
 	beforeEach(() => {
 		resetPluginPlatformForTests();
@@ -109,8 +109,8 @@ describe('math fence with the plugin uninstalled', () => {
 	});
 });
 
-// The render component reads the inner LaTeX from stored source, whichever wrapper
-// the source carries — the same helper serves the `$$` block and the fence.
+// The render component reads the inner LaTeX from the stored source, whichever wrapper that
+// source uses; the same helper serves the `$$` block and the fence.
 describe('mathDisplaySource strips the wrapper to the inner formula', () => {
 	const cases: Array<[label: string, source: string, inner: string]> = [
 		['bare $$ multi-line', '$$\nx^2\n$$', 'x^2'],

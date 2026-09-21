@@ -7,8 +7,8 @@ import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { testClosure } from '$lib/test/support/closure';
 import { takeDevWarns } from '$lib/test/support/warn-gate';
 
-// The dogfood details declaration shape without its rendering: a `reservedChrome`
-// collapse probe reading an `open` metadata flag.
+// The details declaration without its rendering: a `reservedChrome.isCollapsed` reading
+// an `open` metadata flag.
 function registerCollapsible(): ReturnType<typeof declarePluginKind> {
 	const chrome = declarePluginKind('collapse-probe-chrome');
 	const kind = declarePluginKind('collapse-probe-container');
@@ -18,8 +18,8 @@ function registerCollapsible(): ReturnType<typeof declarePluginKind> {
 		editable: true,
 		supportsInline: false,
 		closure: testClosure,
-		// The probe never commits, so an inert strip contract + noop rebuild satisfy
-		// the group's required pairing.
+		// It never commits, so a do-nothing strip contract and rebuild satisfy the
+		// required pairing.
 		container: {
 			contract: 'strip',
 			rebuildRaw: () => {},
@@ -81,9 +81,9 @@ describe('composeCollapseProbe', () => {
 		expect(fires[0].message).toMatch(/collapse-probe-container/);
 	});
 
-	// Reading mode is the ONE place a view/document divergence is legitimate, because a
-	// reader's flip writes no bytes by construction. Without the carve-out the
-	// affordance dev-warns for as long as the reader leaves the section open.
+	// Reading mode is the one place the view may disagree with the document, because a
+	// toggle there writes no bytes. Without the exception the editor dev-warns for as
+	// long as the section stays open.
 	it('allows a reading-mode view divergence without warning', () => {
 		const kind = registerCollapsible();
 		const node = containerNode(kind, false); // the document says collapsed
@@ -98,8 +98,8 @@ describe('composeCollapseProbe', () => {
 		expect(takeDevWarns()).toEqual([]);
 	});
 
-	// Scoped to reading, not "any mode with a getter": a preview mode edits, so a
-	// divergence there is still the half-collapsed hybrid the cross-check catches.
+	// Limited to reading mode, not "any mode with a getter": a preview mode edits, so a
+	// disagreement there is still the half-collapsed state this check catches.
 	it('still warns in a live preview mode', () => {
 		const kind = registerCollapsible();
 		const node = containerNode(kind, false);

@@ -65,8 +65,8 @@ describe('callout kind round-trip', () => {
 });
 
 // The round-trip suite above only exercises the opener's verbatim `raw`; these
-// guard `rebuildCalloutRaw` directly — the container-rebuild inverse the editor
-// runs when the callout's children mutate (the title returns to the opener line).
+// guard `rebuildCalloutRaw` directly: the rebuild the editor runs when the callout's
+// children change, which puts the title back on the opener line.
 describe('callout rebuildRaw is the opener inverse', () => {
 	beforeEach(() => {
 		resetPluginPlatformForTests();

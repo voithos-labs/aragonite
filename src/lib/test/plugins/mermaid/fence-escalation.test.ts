@@ -1,8 +1,8 @@
-// Miss-analysis: the round-trip property is a fixed-point oracle over a body the OPENER produced,
-// so it can only draw bodies that already fit inside their fence — the edit path, where a body the
-// block never parsed is written back into it, has no property at all. The container kit's
-// terminator cell is the class's home and cannot reach this shape: it drives the last CHILD
-// through `bodyWrite`, and this container has neither.
+// Miss-analysis: the round-trip property only checks bodies the opener produced, so it can only
+// draw bodies that already fit inside their fence; the edit path, where a body the block never
+// parsed is written back into it, had no property at all. The container kit's terminator cell
+// covers this class elsewhere but cannot reach this shape: it drives the last child through
+// `bodyWrite`, and this container has neither.
 import { describe, it, expect, beforeEach } from 'vitest';
 import { parse, serialize, type CstNode, type Document } from '$lib';
 import { getPluginMetadata, setPluginMetadata } from '$lib/plugin';
@@ -52,8 +52,8 @@ describe('a mermaid body carrying a fence run', () => {
 		expect(describeConvergence(doc)).toBeNull();
 	});
 
-	// An unterminated block has no closer line to grow, and the parser reads it to end of input
-	// either way — minting one would invent bytes the author never wrote.
+	// An unterminated block has no closer line to grow, and the parser reads it to the end of
+	// the input either way; adding one would invent bytes the author never wrote.
 	it('grows the opener of an unterminated block and mints no closer', () => {
 		const { node } = commitCode('```mermaid\ngraph TD\n', 'graph TD\n```\nafter\n');
 		expect(node.raw).toBe('````mermaid\ngraph TD\n```\nafter\n');

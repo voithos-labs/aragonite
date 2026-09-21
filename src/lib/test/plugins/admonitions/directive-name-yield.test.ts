@@ -14,9 +14,9 @@ import { testClosure } from '$lib/test/support/closure';
 
 /**
  * Admonitions registers five directive names and leaves alone any already registered.
- * Held here rather than by co-registering two claimants on a dev route: the winner is then
- * decided by process install order, which a multi-route SSR server and a fresh browser
- * realm resolve differently.
+ * Tested here rather than by installing two competing plugins on a dev route: the winner would
+ * then depend on install order, which a multi-route server and a fresh browser page resolve
+ * differently.
  */
 
 const PROBE = 'directiveYieldProbe';

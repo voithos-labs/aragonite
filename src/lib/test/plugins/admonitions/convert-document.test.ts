@@ -60,7 +60,7 @@ describe('convertGithubAlertsInDocument', () => {
 
 	it('converts a natively-parsed githubAlert node, not only a blockquote', () => {
 		// With native rendering, a top-level alert is a `githubAlert`, not a
-		// `blockquote`; the convert affordance must still rewrite it to directive source.
+		// `blockquote`; the converter must still rewrite it to directive source.
 		const src = '> [!NOTE]\n> Native.\n';
 		expect(parse(src).children[0].kind).toBe('githubAlert');
 		expect(convertGithubAlertsInDocument(src).converted).toBe(':::note\nNative.\n:::\n');

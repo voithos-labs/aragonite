@@ -1,9 +1,9 @@
-// F5: the register-once probe set must cover every register-once call a plugin makes, so an
-// idempotent module (HMR, a re-imported registrar) asks instead of catching a throw.
+// The "have I already registered" checks must cover every register-once call a plugin makes,
+// so an idempotent module (hot reload, a re-imported registrar) can ask instead of catching.
 //
-// Miss-analysis: the probe set was tested one probe at a time against its own registry, and
-// no test held the SET to the registries a plugin actually writes — so the missing block
-// declare-probe was invisible while its inline mirror shipped.
+// Miss-analysis: the checks were tested one at a time against their own registry, and no test
+// held the set to the registries a plugin actually writes, so the missing block-declaration
+// check was invisible while its inline counterpart shipped.
 import { describe, it, expect, beforeEach } from 'vitest';
 import {
 	declarePluginKind,
@@ -32,8 +32,8 @@ describe('isBlockKindDeclared', () => {
 		expect(isBlockKindDeclared(KIND)).toBe(false);
 	});
 
-	// The bind it closes: both declaration seams throw, so without the probe an idempotent
-	// module has no non-throwing way to ask.
+	// What it exists for: both declaration calls throw, so without this check an idempotent
+	// module has no way to ask that does not throw.
 	it('lets an idempotent registrar re-run without a collision throw', () => {
 		const declareOnce = () =>
 			isBlockKindDeclared(KIND) ? declaredPluginKind(KIND) : declarePluginKind(KIND);
@@ -46,7 +46,7 @@ describe('isBlockKindDeclared', () => {
 		expect(isBlockKindDeclared('paragraph')).toBe(false);
 	});
 
-	// Parity with the inline side, which is what makes the block probe's absence a gap.
+	// It matches the inline side, which is what made the missing block check a gap.
 	it('is the block mirror of isInlineKindDeclared', () => {
 		declarePluginInlineKind('probe-declared-inline');
 		expect(isInlineKindDeclared('probe-declared-inline')).toBe(true);
@@ -54,9 +54,9 @@ describe('isBlockKindDeclared', () => {
 	});
 });
 
-// The dev-server survival valve (`schema/register-once.ts`): production and test keep the
-// duplicate throw, a dev server replaces. The paste registry rides the same valve as every
-// other register-once seam — this pins that it does.
+// The dev-server allowance (`schema/register-once.ts`): production and test keep the duplicate
+// throw, a dev server replaces instead. The paste registry follows the same rule as every
+// other register-once call, and this pins that it does.
 describe('registerPasteTransform under the dev duplicate valve', () => {
 	const named = (result: string) => ({ name: 'valve-probe', transform: () => result });
 

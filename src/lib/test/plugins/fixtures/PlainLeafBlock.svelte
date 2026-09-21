@@ -1,6 +1,6 @@
 <script lang="ts">
 	// The plugin guide's plain-mode editable-leaf recipe as a mountable fixture: one factory
-	// call, one spread, and the `bind:this` the factory's `getEl` reads in BOTH modes.
+	// call, one spread, and the `bind:this` the factory's `getEl` reads in both modes.
 	import { createEditableLeaf, type BlockComponent, type NodeView } from '$lib/plugin';
 
 	let { node, index, myPath = [] }: { node: NodeView; index: number; myPath?: number[] } = $props();
@@ -50,8 +50,8 @@
 
 <style>
 	.plain-leaf-block {
-		/* The single-text-node contract counts every newline the offset walk walks, so a
-		   multi-line plain leaf must preserve them visually too. */
+		/* The single-text-node rule counts every newline the DOM-to-offset traversal counts,
+		   so a multi-line plain block has to show them too. */
 		white-space: pre-wrap;
 	}
 </style>

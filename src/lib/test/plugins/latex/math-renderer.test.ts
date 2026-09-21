@@ -1,9 +1,8 @@
 /**
  * @vitest-environment jsdom
  *
- * The engine-free render seam. `createMemoizedRenderer`'s memoization contract is
- * the core half of the core/adapter split; the katex adapter it wraps is proven in
- * `renderer.test.ts`.
+ * The render layer that holds no renderer of its own. `createMemoizedRenderer`'s caching is
+ * what this file proves; the KaTeX adapter it wraps is proven in `renderer.test.ts`.
  */
 import { describe, it, expect, vi } from 'vitest';
 import {
@@ -46,9 +45,9 @@ describe('createMemoizedRenderer', () => {
 		expect(inner).toHaveBeenCalledTimes(2);
 	});
 
-	// A2 — editing one equation re-renders only IT. The injectable `inner` spy is
-	// the render counter: a memo keyed on anything but the source string (or none)
-	// would call it again on an untouched equation and trip the final assertion.
+	// Editing one equation re-renders only that one. The `inner` spy is the render counter:
+	// a cache keyed on anything but the source string, or no cache at all, would call it
+	// again on an untouched equation and fail the last assertion.
 	it('re-renders only the edited equation; untouched ones stay cache hits (A2)', () => {
 		const inner = vi.fn((source: string, _opts: { display: boolean }) => {
 			const dom = document.createElement('span');
@@ -65,19 +64,19 @@ describe('createMemoizedRenderer', () => {
 		render('a^3', { display: false });
 		expect(inner).toHaveBeenCalledTimes(4);
 
-		// The reactive re-run an edit triggers re-renders the untouched siblings —
+		// The reactive re-run an edit triggers re-renders the untouched neighbours;
 		// all cache hits, so the count holds.
 		for (const eq of ['b^2', 'c^2']) render(eq, { display: false });
 		expect(inner).toHaveBeenCalledTimes(4);
 	});
 
-	// The LRU mechanics are pinned once on the shared primitive in bounded-memo.test.ts;
-	// these pin the wrapper's own contract instead.
+	// The eviction rules are pinned once on the shared helper in bounded-memo.test.ts;
+	// these pin the wrapper's own behavior instead.
 });
 
 describe('the injection seam', () => {
-	// The memo keys on display; this pins the seam functions THREADING the flag, since a
-	// renderDisplayMath passing display:false serves inline HTML for every block formula.
+	// The cache key includes `display`; this pins the two functions passing the flag through,
+	// since a `renderDisplayMath` passing `display: false` serves inline HTML for every block.
 	it('renderInlineMath and renderDisplayMath each thread their own display flag', () => {
 		const inner = vi.fn((source: string, opts: { display: boolean }) => {
 			const dom = document.createElement('span');

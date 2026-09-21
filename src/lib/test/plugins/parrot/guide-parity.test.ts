@@ -5,9 +5,9 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 
 /**
- * The shipped parrot IS the guide's quickstart: `docs/guide/plugin-guide.md` owns the bytes,
- * `src/lib/plugins/parrot/` compiles them. Two adaptations bridge the two, and this derives
- * the plugin from the docs so either side drifting reds here rather than in a reader's editor.
+ * The shipped parrot is the guide's quickstart: `docs/guide/plugin-guide.md` owns the bytes,
+ * `src/lib/plugins/parrot/` compiles them. Two changes bridge the two, and this derives the
+ * plugin from the docs so either side drifting fails here rather than in a reader's editor.
  */
 
 const PLUGIN_DIR = 'src/lib/plugins/parrot';
@@ -68,7 +68,7 @@ function spanBetween(lines: string[], startLine: string, endLine: string) {
 /**
  * One tab onto the lines that are code. Every byte inside a `String.raw` literal keeps its
  * own indentation, its closing delimiter line included: a tab before that backtick lands
- * INSIDE the string and repaints the bird.
+ * inside the string and repaints the bird.
  */
 function nestOneLevel(block: string[]): string[] {
 	let inRaw = false;
@@ -126,8 +126,8 @@ describe('the bundled parrot is the plugin guide, compiled', () => {
 });
 
 // ── Non-vacuity: the derivation really does both adaptations ────────────────
-// Two byte-equal sides prove nothing about WHICH bytes, and the splice is the half that
-// can be wrong in the file and the derivation at once.
+// Two byte-equal sides prove nothing about which bytes, and the splice is the half that can
+// be wrong in the file and in the derivation at once.
 
 describe('the derivation performs both adaptations', () => {
 	const guide = read(GUIDE);

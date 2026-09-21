@@ -1,9 +1,9 @@
 /**
- * Type pins for the view-typed public plugin surface (G1.9 at the barrel). The
- * `@ts-expect-error` directives are the assertions: `npm run check` fails if a byte
- * write starts compiling through a public read surface, or if an implementation
- * re-widens its view param to the mutable type — the read hooks are function-type
- * properties, so params check contravariantly rather than bivariantly.
+ * Type pins for the read-only view types on the public plugin API (G1.9 at the barrel). The
+ * `@ts-expect-error` directives are the assertions: `npm run check` fails if a byte write
+ * starts compiling through a read-only type, or if an implementation widens its view parameter
+ * back to the mutable one. The read hooks are function-typed properties, so parameters are
+ * checked contravariantly.
  */
 import { describe, it, expect } from 'vitest';
 import { parse } from '$lib/core/parser';
@@ -13,7 +13,7 @@ import type { EditorContext } from '$lib/schema/plugin-install';
 import type { BlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
 
 export function compileTimePins(editor: EditorContext): void {
-	// @ts-expect-error raw is serialized bytes — readonly through EditorContext.document
+	// @ts-expect-error raw is serialized bytes, read-only through EditorContext.document
 	editor.document.children[0].raw = '# changed\n';
 	// @ts-expect-error children structure is readonly through EditorContext.document
 	editor.document.children = [];
@@ -21,7 +21,7 @@ export function compileTimePins(editor: EditorContext): void {
 	const byteWriter: DecorationSource = {
 		name: 'pin-byte-write',
 		provide: (doc) => {
-			// @ts-expect-error a source reads its doc through the view — byte writes don't compile
+			// @ts-expect-error a source reads its doc through the view, so byte writes don't compile
 			doc.children[0].raw = '# changed\n';
 			return [];
 		}
@@ -29,12 +29,12 @@ export function compileTimePins(editor: EditorContext): void {
 
 	const paramWidener: DecorationSource = {
 		name: 'pin-mutable-param',
-		// @ts-expect-error annotating the mutable Document is rejected — the view param
+		// @ts-expect-error annotating the mutable Document is rejected; the view parameter
 		// checks contravariantly, so a source cannot hand itself write access
 		provide: (_doc: Document) => []
 	};
 
-	// @ts-expect-error a read hook annotated with the mutable CstNode is rejected —
+	// @ts-expect-error a read hook annotated with the mutable CstNode is rejected:
 	// descriptor read hooks receive views
 	const hookWidener: BlockKindDescriptor['getContentRange'] = (node: CstNode) => ({
 		start: 0,

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { githubAlertsPasteTransform } from '$lib/plugins/admonitions/convert-document';
 
-// Only the paste-transform WRAPPER contract lives here. Conversion correctness is
+// Only the paste-transform wrapper's contract lives here. Conversion correctness is
 // covered by convert-document.test.ts and is not re-tested through the wrapper.
 
 const run = (text: string) => githubAlertsPasteTransform.transform(text);
@@ -20,8 +20,8 @@ describe('admonitions github-alerts paste transform', () => {
 	});
 
 	it('declines (null) when the only alert is inside a code fence', () => {
-		// The cheap probe sees the marker line, but the fence-safe converter reports
-		// nothing changed, so the wrapper declines rather than returning the input.
+		// The cheap line scan sees the marker line, but the fence-safe converter reports
+		// nothing changed, so the wrapper returns null rather than the input.
 		expect(run('```md\n> [!NOTE]\n> body\n```\n')).toBeNull();
 	});
 

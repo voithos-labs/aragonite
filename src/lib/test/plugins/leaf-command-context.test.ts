@@ -53,8 +53,8 @@ type CtxOverrides = Partial<Omit<BuildArgs[0], 'getIndex'> & BuildArgs[1]> & {
 	pluginEditor?: BuildArgs[2];
 };
 
-// getNode stays a thunk through the builder: the dispatch re-reads it, so capturing what
-// it returned would hide the node swap the liveness case below relies on.
+// `getNode` stays a function through the builder: the dispatch re-reads it, so capturing what
+// it returned would hide the node swap the case below relies on.
 function buildCtx(over: CtxOverrides = {}) {
 	const {
 		getNode = () => leafNode(),
@@ -112,9 +112,9 @@ describe('editable-leaf command context', () => {
 		expect(pluginEditor).toHaveBeenCalledWith('admonitions');
 	});
 
-	// The leaf tier reaches a minted handler through the same dispatch seam as the
-	// container tier: a chord on the focused leaf resolves the registered command
-	// and hands it the leaf's command context, hooks included.
+	// A block reaches a registered handler through the same dispatch a container does: a key
+	// combination on the focused block resolves the registered command and hands it that
+	// block's command context, hooks included.
 	it('dispatches a minted command on the leaf path with hooks reaching the handler', () => {
 		const hooks = { openFocusView: vi.fn() };
 		const handler = vi.fn((ctx: { hooks?: unknown }) => {

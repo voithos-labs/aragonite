@@ -11,8 +11,9 @@ import {
 	tryCompleteMathBlock
 } from '$lib/plugins/latex/math-completion';
 
-// The `$$` completer's line predicate, the bytes it answers, and what the seam makes of them. The
-// registry's own semantics live in test/schema; the seam's gates in test/editor-actions.
+// The `$$` completer's line test, the bytes it answers with, and what the editor does with
+// them. The registry's own behavior lives in test/schema, the checks around it in
+// test/editor-actions.
 
 beforeEach(resetPluginPlatformForTests);
 afterEach(resetPluginPlatformForTests);
@@ -43,8 +44,8 @@ describe('block math Enter completer — the bytes it answers', () => {
 		expect(claim.caret).toEqual({ path: [], line: 1, column: 0 });
 	});
 
-	// The claim is only worth anything if the bytes parse back as the block it describes — the
-	// round-trip invariant, on the completer's own output.
+	// The answer is only worth anything if the bytes parse back as the block it describes:
+	// the round-trip invariant, on the completer's own output.
 	it('answers bytes that parse to one math block and serialize back unchanged', () => {
 		registerMathBlock();
 		const source = tryCompleteMathBlock('$$')!
@@ -58,16 +59,16 @@ describe('block math Enter completer — the bytes it answers', () => {
 });
 
 describe('block math Enter completer — registration', () => {
-	// The bare-GFM guarantee reaches the completion seam too: with nothing installed, `$$` plus
-	// Enter is an ordinary split, exactly as it was before the plugin existed.
+	// The plain-GFM guarantee reaches completion too: with nothing installed, `$$` plus Enter
+	// is an ordinary split.
 	it('claims nothing until the kind is registered', () => {
 		expect(completeTypedLine('$$')).toBeNull();
 		registerMathBlock();
 		expect(completeTypedLine('$$')?.lines).toEqual(['$$', '', '$$']);
 	});
 
-	// The registry throws on a duplicate kind, so the registrar guards on the probe rather than on
-	// a module flag a platform reset would leave standing.
+	// The registry throws on a duplicate kind, so registration checks the registry rather than
+	// a module flag a platform reset would leave set.
 	it('is inert on a second registration rather than throwing', () => {
 		registerMathBlock();
 		expect(() => registerMathBlockCompleter(declaredPluginKind(MATH_BLOCK))).not.toThrow();
@@ -76,8 +77,8 @@ describe('block math Enter completer — registration', () => {
 });
 
 describe('block math Enter completion — what the seam plans', () => {
-	// The caret sits on the SECOND line of the mint, so the byte offset it resolves to depends on
-	// the ending the seam chose — the case a completer-minted byte offset could not express.
+	// The caret sits on the second line of the new block, so the byte offset it resolves to
+	// depends on the line ending chosen: what a byte offset fixed by the completer cannot say.
 	it.each([
 		['$$\n', '$$\n\n$$\n', 3],
 		['$$\r\n', '$$\r\n\r\n$$\r\n', 4]
@@ -89,7 +90,8 @@ describe('block math Enter completion — what the seam plans', () => {
 		expect(plan.caret).toEqual({ path: [], offset });
 	});
 
-	// The gate is the seam's, not the completer's: a caret short of the line's end is a split.
+	// The check belongs to the editor, not the completer: a caret short of the line's end
+	// is a split.
 	it('declines a caret that is not at the end of the typed fence', () => {
 		registerMathBlock();
 		expect(planEnterCompletion(parse('$$\n').children[0], 1)).toBeNull();

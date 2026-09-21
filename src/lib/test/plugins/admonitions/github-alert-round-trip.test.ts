@@ -6,7 +6,7 @@ import { roundTripCases } from '$lib/test/support/round-trip';
 
 // Load is byte-exact off the stored raw; a post-edit rebuild re-emits the marker
 // (casing preserved from metadata) + `> `-prefixed body, CRLF threaded, and reparses
-// to the same kind — the strip-container contract with a first-line marker.
+// to the same kind: the strip-container contract with a first-line marker.
 
 beforeAll(() => {
 	installPlugins([admonitionsPlugin()]);

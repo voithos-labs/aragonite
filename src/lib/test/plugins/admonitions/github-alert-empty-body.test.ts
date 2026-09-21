@@ -4,9 +4,10 @@ import { updateNodeContent } from '$lib/tree-operations';
 import { checkStaleRaw } from '$lib/invariants/node-shape';
 import { admonitionsPlugin } from '$lib/plugins/admonitions';
 
-// Typing `> [!TIP]` reparses into a marker-only alert whose raw cannot account for the
-// focus paragraph the editor backfills — unlike a blockquote, whose `>` line doubles as
-// the blank body. The reparse must rebuild the raw from that body, or G1.1 fires.
+// Typing `> [!TIP]` reparses into a marker-only alert whose raw cannot account for the empty
+// paragraph the editor adds for the caret; a blockquote's `>` line doubles as that blank body,
+// an alert's marker line does not. The reparse has to rebuild the raw from that body, or the
+// raw and the children disagree (G1.1).
 
 beforeAll(() => {
 	installPlugins([admonitionsPlugin()]);

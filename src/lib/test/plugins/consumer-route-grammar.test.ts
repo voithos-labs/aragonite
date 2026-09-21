@@ -1,6 +1,6 @@
 /**
  * The consumer example's seed, parsed under the plugin set that route installs. A fixture
- * naming a directive some other installed plugin claims still renders, as that plugin's
+ * naming a directive some other installed plugin owns still renders, as that plugin's
  * block, so the drift is silent everywhere but the browser.
  * Miss-analysis: only `consumer-smoke` covered the consumer route, and CI runs it on
  * pull_request / push:main, never on the dev branch the renaming commit landed on.
@@ -20,8 +20,8 @@ import { tocPlugin } from '$lib/plugins/toc';
 import { calloutPlugin } from '../../../routes/test/plugins/callout/register';
 import { PLUGINS_SEED } from '../../../../examples/consumer/src/routes/plugins/seed';
 
-// The parser never renders, so a stub stands in for the route's real KaTeX engine; mermaid
-// gets none there either, which is the no-engine fallback the consumer suite asserts.
+// The parser never renders, so a stub stands in for the route's real KaTeX; mermaid gets no
+// renderer there either, which is the fallback the consumer suite asserts.
 const consumerRouteSet = () => [
 	calloutPlugin(),
 	detailsPlugin(),

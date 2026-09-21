@@ -1,6 +1,6 @@
-// Miss: round-trip.test.ts pinned only indented continuations — no suite compared the
-// definition's extent against cmark-gfm's lazy-continuation reading (#24), so the scan's
-// missing paragraph state was invisible. Expected shapes verified live via api.github.com/markdown.
+// Miss-analysis: round-trip.test.ts pinned only indented continuations, and no suite compared
+// the definition's extent with cmark-gfm's lazy-continuation reading (#24), so the scan's
+// missing paragraph state was invisible. Shapes checked live against api.github.com/markdown.
 import { beforeEach, describe, expect, it } from 'vitest';
 import { installPlugins, parse, serialize } from '$lib';
 import { resetPluginPlatformForTests } from '$lib/testing';
@@ -58,7 +58,7 @@ describe('footnote definition lazy continuation (absorbed lines)', () => {
 
 	// GitHub keeps both as literal paragraph text: a setext underline cannot be lazy, and a
 	// link reference definition is not a block start in cmark. The absorbed `===` reparses
-	// as a setext heading here — the body reading shared with the core blockquote model.
+	// as a setext heading here, the same body reading the core blockquote model uses.
 	it('absorbs setext-underline and link-reference-definition shaped lines', () => {
 		expect(parseKinds('[^a]: one\n===\n')).toEqual([FOOTNOTE_DEF_KIND]);
 		const lrd = parse('[^a]: one\n[x]: /url\n');

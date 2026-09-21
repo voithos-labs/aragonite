@@ -6,9 +6,9 @@ import { getPluginMetadata } from '$lib/plugin';
 import { resetPluginPlatformForTests } from '$lib/testing';
 import { registerMermaidKind, type MermaidMetadata } from '$lib/plugins/mermaid/mermaid-kind';
 
-// Adversarial fence shapes for serialize(parse(src)) === src, run in BOTH install
-// states so uninstall safety comes out by construction. Pure byte identity, so even a
-// code line that closes the fence early is a legal draw; reachability is pinned below.
+// Awkward fence shapes for serialize(parse(src)) === src, run in both install states so
+// uninstall safety comes out by construction. Pure byte identity, so even a code line that
+// closes the fence early is a legal draw; that these shapes are reachable is pinned below.
 
 const arbLineEnding = fc.constantFrom('\n', '\r\n');
 
@@ -87,9 +87,9 @@ describe('mermaid round-trip property — plugin installed', () => {
 		);
 	});
 
-	// Reachability evidence for the adversarial fence classes, read off the parsed
-	// nodes' captured metadata (which also proves the capture reaches each shape).
-	// The SAME arbitrary the properties run on must produce them.
+	// Evidence that the awkward fence shapes are reachable, read off the parsed nodes'
+	// captured metadata (which also proves the capture handles each shape). The same
+	// generator the properties run on has to produce them.
 	function sampledMermaidMetadata(): MermaidMetadata[] {
 		const out: MermaidMetadata[] = [];
 		for (const src of samples) {

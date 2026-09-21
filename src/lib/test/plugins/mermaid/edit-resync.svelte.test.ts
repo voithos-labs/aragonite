@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 
-// The open edit box against a document that changes underneath it: an out-of-band write
-// to the live CST (a host history seam, a structural replace) must reach the textarea, or
-// the blur commit writes a draft seeded from bytes that no longer exist.
+// The open edit box against a document that changes underneath it: a write to the live CST
+// from elsewhere (a host undo, a structural replace) must reach the textarea, or the blur
+// commit writes text based on bytes that no longer exist.
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { mount, unmount, flushSync } from 'svelte';
 import { Editor, type CstNode } from '$lib';
@@ -14,15 +14,15 @@ import { rebuildMermaidRaw, type MermaidMetadata } from '$lib/plugins/mermaid/me
 const CODE = 'graph TD\n\tA --> B\n';
 const SOURCE = `intro\n\n\`\`\`mermaid\n${CODE}\`\`\`\n\noutro\n`;
 
-// `__test` is off the published `EditorInstance`, and reaching the LIVE node is the
-// point here — a reparse of `getSource()` is a different tree the component never sees.
+// `__test` is not on the published `EditorInstance`, and reaching the live node is the point
+// here: reparsing `getSource()` gives a different tree the component never sees.
 type MountedEditor = ReturnType<typeof Editor>;
 
 let instance: MountedEditor | null = null;
 let target: HTMLElement | null = null;
 
-// No renderer injected: the block falls to its static surface, so the diagram engine never
-// loads and every edit-mode path below is still the shipped one.
+// No renderer supplied: the block falls back to showing its code, so mermaid never loads and
+// every edit-mode path below is still the shipped one.
 function mountEditor(): HTMLElement {
 	target = document.createElement('div');
 	document.body.appendChild(target);
@@ -45,8 +45,8 @@ function openEdit(root: HTMLElement): void {
 	flushSync();
 }
 
-/** An out-of-band code rewrite on the live tree — what an undo or a structural replace
- *  landing outside this component's gesture looks like from the block's side. */
+/** A code rewrite on the live tree from elsewhere: what an undo or a structural replace
+ *  outside this component looks like from the block's side. */
 function rewriteCodeExternally(code: string): void {
 	const node = instance!.__test.getDocument().children[1] as unknown as CstNode;
 	setPluginMetadata<MermaidMetadata>(node, {

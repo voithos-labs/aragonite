@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import { createReaderDisclosure } from '$lib/plugins/details/details-disclosure.svelte';
 
-// The reading-mode disclosure: view state only. Its dependency object carries no
-// commit door, which is what makes a reading-mode toggle unable to write bytes —
-// the property is type-level here and byte-pinned in the presentation e2e.
+// The reading-mode disclosure: view state only. Nothing handed in can reach a commit, which
+// is what makes a reading-mode toggle unable to write bytes; that is a type-level fact here
+// and checked against bytes in the presentation e2e.
 
 describe('createReaderDisclosure', () => {
 	it("shows the document's state through until the reader touches it", () => {
@@ -11,8 +11,8 @@ describe('createReaderDisclosure', () => {
 		const disclosure = createReaderDisclosure({ isDocumentOpen: () => documentOpen });
 
 		expect(disclosure.open).toBe(false);
-		// A live read, not a snapshot: an undo landing while a reader looks at it must
-		// show through, exactly as it does before any flip.
+		// A live read, not a snapshot: an undo arriving while the user is looking must
+		// show through, exactly as it does before any toggle.
 		documentOpen = true;
 		expect(disclosure.open).toBe(true);
 	});
@@ -27,8 +27,8 @@ describe('createReaderDisclosure', () => {
 	});
 
 	it('first flip is relative to the document state, not to a default', () => {
-		// An open-in-the-document section must CLOSE on the reader's first click, not
-		// re-open — a naive `flipped = !flipped` off a `false` seed does the latter.
+		// A section open in the document must close on the user's first click, not
+		// re-open; `flipped = !flipped` starting from `false` does the latter.
 		const disclosure = createReaderDisclosure({ isDocumentOpen: () => true });
 
 		disclosure.toggle();

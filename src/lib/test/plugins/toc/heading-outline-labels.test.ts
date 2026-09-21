@@ -28,8 +28,8 @@ describe('projectInlineText — clean heading labels', () => {
 	}
 });
 
-// The brief's mandated case: an emoji shortcode in a heading renders as its glyph,
-// not its `:shortcode:` bytes — the "widget → rendered text" arm of the rule.
+// An emoji shortcode in a heading renders as its glyph, not its `:shortcode:` bytes:
+// the widget branch of the projection rule.
 describe('projectInlineText — emoji glyph projection', () => {
 	beforeEach(resetPluginPlatformForTests);
 	afterEach(resetPluginPlatformForTests);

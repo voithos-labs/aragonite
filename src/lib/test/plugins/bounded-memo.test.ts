@@ -42,8 +42,8 @@ describe('createBoundedMemo', () => {
 		expect(second.dom.textContent).toBe('x');
 	});
 
-	// Membership, not truthiness, decides a hit — a cached falsy value must not
-	// re-run the compute (the generalization's regression guard).
+	// Membership, not truthiness, decides a hit: a cached falsy value must not re-run
+	// the compute.
 	it('caches a falsy value without recomputing', () => {
 		const compute = vi.fn(() => '');
 		const memo = createBoundedMemo<string, string>({ cap: 4 });
@@ -73,8 +73,8 @@ describe('createBoundedMemo', () => {
 		expect(compute).toHaveBeenCalledTimes(4);
 	});
 
-	// Async is the same primitive with V = Promise: the in-flight promise is the
-	// cached value, so a repeat before resolution shares it (no double render).
+	// Async is the same helper with V = Promise: the pending promise is the cached value,
+	// so a repeat before it resolves shares it and nothing renders twice.
 	it('dedupes in-flight async work: a repeat before resolution shares the promise', async () => {
 		let resolve!: (v: string) => void;
 		const compute = vi.fn(() => new Promise<string>((r) => (resolve = r)));
@@ -91,8 +91,8 @@ describe('createBoundedMemo', () => {
 		expect(await second).toBe('done');
 	});
 
-	// A rejecting promise is cached verbatim — same failure for the same key, no
-	// retry — mirroring the sync cache's error caching.
+	// A rejecting promise is cached as it is: the same failure for the same key, no retry,
+	// matching how the synchronous cache stores errors.
 	it('caches a rejecting promise verbatim: one compute, the same rejected promise each call', async () => {
 		const rejection = new Error('boom');
 		const compute = vi.fn(() => Promise.reject(rejection));
@@ -109,8 +109,8 @@ describe('createBoundedMemo', () => {
 	});
 });
 
-// `cap` is on the published plugin surface, so a nonsensical value must report rather
-// than throw — cap 0 otherwise reads as "caching is off" until an author debugs it.
+// `cap` is part of the published plugin API, so a nonsensical value must report rather than
+// throw: cap 0 otherwise reads as "caching is off" until an author debugs it.
 describe('createBoundedMemo with a non-positive cap', () => {
 	it('dev-warns at creation and clamps to a usable cap', () => {
 		const memo = createBoundedMemo<string, number>({ cap: 0 });

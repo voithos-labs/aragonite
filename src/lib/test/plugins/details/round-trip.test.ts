@@ -96,9 +96,9 @@ describe('details kind round-trip', () => {
 	});
 });
 
-// `<details>` interrupts an open paragraph (htmlBlock parity), so the same text
-// claims as a details whether it starts a window or follows a paragraph — while a
-// non-canonical `<details …>` still falls through to htmlBlock in both positions.
+// `<details>` interrupts an open paragraph, as htmlBlock does, so the same text opens a
+// details whether it starts the input or follows a paragraph, while a `<details …>` written
+// any other way still falls through to htmlBlock in both positions.
 describe('details opener paragraph-interrupt parity', () => {
 	beforeEach(resetAndRegister);
 
@@ -120,8 +120,8 @@ describe('details opener paragraph-interrupt parity', () => {
 });
 
 // The suite above only exercises the opener's verbatim `raw`; these guard the rebuild
-// inverse the editor runs when the children mutate. A stale or nondeterministic
-// rebuild trips G1.12/G1.13, so determinism is asserted explicitly.
+// inverse the editor runs when the children change. A stale or nondeterministic rebuild
+// leaves raw disagreeing with the children (G1.12, G1.13), so determinism is asserted here.
 describe('details rebuildRaw is the opener inverse', () => {
 	beforeEach(resetAndRegister);
 

@@ -4,7 +4,7 @@ import { getBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
 import { admonitionsPlugin, convertGithubAlerts } from '$lib/plugins/admonitions';
 import { stripQuoteMarker } from '$lib/plugins/admonitions/gh-alert';
 
-// The plugin's quote grammar is capped at CommonMark's 0–3 space block indent,
+// The plugin's quote grammar is capped at CommonMark's 0 to 3 space block indent,
 // like the built-in blockquote's. Over-accepting strips a `>` the built-in keeps
 // literal, so an edit rewrites prose into a quote marker.
 beforeAll(() => {
@@ -49,7 +49,7 @@ describe('githubAlert body keeps bytes the built-in blockquote keeps', () => {
 });
 
 describe('the transform caps the gates the parser caps, and no others', () => {
-	// The blockquote-start probe is capped: `    > x` is indented code, so the line
+	// The blockquote-start check is capped: `    > x` is indented code, so the line
 	// below it opens a quote of its own and its marker counts.
 	it('converts an alert preceded by an indented-code line starting with >', () => {
 		const { converted, changed } = convertGithubAlerts('    > x\n> [!NOTE]\n> body\n');
@@ -57,7 +57,7 @@ describe('the transform caps the gates the parser caps, and no others', () => {
 		expect(converted).toBe('    > x\n:::note\nbody\n:::\n');
 	});
 
-	// The body scan is NOT capped: the parser absorbs this line as lazy continuation,
+	// The body scan is not capped: the parser absorbs this line as lazy continuation,
 	// so a cap that stopped the scan would eject the rest of the alert.
 	it('keeps an over-indented body line inside the alert instead of ejecting it', () => {
 		const { converted } = convertGithubAlerts('> [!NOTE]\n> in\n    > out\n');

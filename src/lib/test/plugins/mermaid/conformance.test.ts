@@ -1,7 +1,7 @@
 // Miss-analysis: the kit's terminator cell reached only the two containers whose bodies are real
-// children, and its declaration probe asserted a body child outright — so the one shipped shape it
-// could not admit (childless, body in metadata) was also the one shape with no other home for the
-// collision class, and the reference plugin container went unenrolled.
+// children, and its declaration check demanded a body child outright, so the one shipped shape it
+// could not accept (childless, body in metadata) was also the one shape with nowhere else to
+// cover this class, and the example plugin container was never enrolled.
 import { describe, it, expect, beforeEach } from 'vitest';
 import {
 	augmentBlockKind,
@@ -61,7 +61,7 @@ describe('G4.3 conformance kit — the childless opaque container', () => {
 		]);
 	});
 
-	// Non-vacuity: the cell has to see THIS container's collision, not merely pass over a write
+	// Non-vacuity: the cell has to see this container's collision, not simply pass over a write
 	// that never reached its bytes.
 	it('fails the terminator cell when the fixture seats the body nowhere', async () => {
 		await expect(
@@ -75,8 +75,8 @@ describe('G4.3 conformance kit — the childless opaque container', () => {
 		).rejects.toThrow(/the fixture body reached "mermaid"'s own bytes/);
 	});
 
-	// The hole the enrolment found: the declaration probe demanded a body child, so this shape
-	// could never reach `declarations` at all, whatever else its profile claimed.
+	// The hole enrolling it found: the declaration check demanded a body child, so this shape
+	// could never reach `declarations` at all, whatever else it declared.
 	it('fails declaration sanity when a childless container declares a body wrap', async () => {
 		augmentBlockKind(MERMAID_KIND(), { container: { bodyWrap: { afterOpenerLine: true } } });
 

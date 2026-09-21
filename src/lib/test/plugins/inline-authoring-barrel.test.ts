@@ -19,9 +19,9 @@ import type {
 	ImageSyntaxRewriter
 } from '$lib/plugin';
 
-// The inline authoring surface is unstable (pre-freeze). This probe pins the
-// symbols a plugin imports from `@voithos-labs/aragonite/plugin` to their core implementations,
-// so a dropped or mis-wired re-export fails here rather than in a downstream plugin.
+// The inline authoring API is not frozen yet. This pins the symbols a plugin imports from
+// `@voithos-labs/aragonite/plugin` to their core implementations, so a dropped or mis-wired
+// re-export fails here rather than in a downstream plugin.
 describe('@voithos-labs/aragonite/plugin inline authoring surface', () => {
 	it('re-exports the inline registration functions from their core modules', () => {
 		expect(pluginBarrel.registerInlineSyntax).toBe(registerInlineSyntax);
@@ -68,8 +68,8 @@ describe('@voithos-labs/aragonite/plugin inline authoring surface', () => {
 		const widgetStartOf = (ctx: InlineWidgetEditingContext) => ctx.widgetStart;
 		const kind: PluginInlineKind | null = null;
 		const node: InlineNode = { kind: 'math' as PluginInlineKind, start: 0, end: 0 };
-		// The rewrite hook a rung minting built-in `image` nodes registers, and the
-		// fields an edit hands it — a plugin cannot write one without both.
+		// The rewrite hook a handler producing built-in `image` nodes registers, and the
+		// fields an edit hands it: a plugin cannot write one without both.
 		const fields: ImageFields = { alt: 'cat', url: 'cat.png', width: 320 };
 		const rewriteImage: ImageSyntaxRewriter = (_source, next) => `![[${next.url}]]`;
 

@@ -1,6 +1,6 @@
-// The strip-container face of the split-separator class: a definition's body is real
-// child blocks, so without a separator the two children re-emit as continuation lines
-// whose reparse folds them back into one paragraph.
+// The strip-container case of the split-separator rule: a definition's body is real child
+// blocks, so without a separator the two children re-emit as continuation lines that
+// reparse back into one paragraph.
 import { beforeEach, describe, expect, it } from 'vitest';
 import { installPlugins, parse, serialize } from '$lib';
 import { resetPluginPlatformForTests } from '$lib/testing';

@@ -84,7 +84,7 @@ const BASELINE: Record<string, number> = {
 	'src/lib/test/image': 8,
 	'src/lib/test/invariants': 258,
 	'src/lib/test/perf': 8,
-	'src/lib/test/plugins': 91,
+	'src/lib/test/plugins': 0,
 	'src/lib/test/reactivity': 21,
 	'src/lib/test/schema': 0,
 	'src/lib/test/search': 1,

@@ -9,8 +9,8 @@ import {
 } from '$lib/plugins/details/details-kind';
 
 // Without edits an opaque container emits its `raw` verbatim, so only `rebuildDetailsRaw`
-// is at risk: the three chrome lines it SYNTHESIZES have to reproduce the authored line
-// ending rather than normalize CRLF to `\n`. Mirrors `serializeDirective`'s threading.
+// is at risk: the three tag lines it builds have to reproduce the authored line ending rather
+// than rewrite CRLF to `\n`. The same rule `serializeDirective` follows.
 
 function resetAndRegister(): void {
 	resetPluginPlatformForTests();

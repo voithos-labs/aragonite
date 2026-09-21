@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 //
-// The code-block language surface as a plugin author holds it: only the published barrel, so a
+// The code-block language API as a plugin author sees it: only the published barrel, so a
 // re-export that drifts from the registry behind it fails here rather than in a host's build.
 import { describe, it, expect } from 'vitest';
 import latex from 'highlight.js/lib/languages/latex';
@@ -12,7 +12,7 @@ describe('the plugin barrel’s code-language surface', () => {
 
 		expect(listLanguages()).toContain('latex');
 		expect(listLanguages()).not.toContain('tex');
-		// The list is canonical, so the folded spellings stay reachable for a host's own picker.
+		// The list is canonical, so the alias spellings stay reachable for a host's own picker.
 		expect(getLanguageAliases('latex')).toContain('tex');
 	});
 

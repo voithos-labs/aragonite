@@ -8,9 +8,9 @@ import {
 	type MermaidMetadata
 } from '$lib/plugins/mermaid/mermaid-kind';
 
-// The opaque contract serializes `raw` verbatim, so the byte round-trip passes even
-// with mis-captured metadata. These pin the inverse instead — the path every
-// `updateOwnMetadata` commit rides.
+// An opaque container serializes `raw` verbatim, so the byte round trip passes even when the
+// metadata was captured wrongly. These pin the rebuild instead, which is what every
+// `updateOwnMetadata` commit goes through.
 
 function parseMermaid(src: string): CstNode {
 	const block = parse(src).children[0];

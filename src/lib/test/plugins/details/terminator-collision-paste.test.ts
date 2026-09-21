@@ -17,9 +17,9 @@ import {
 	makeStubBlockEdit
 } from '$lib/test/harness/editor-actions';
 
-// Miss-analysis: every terminator-collision suite drove the node-ops byte sinks (typing,
-// split, cross-block delete); paste builds its nodes upstream of every sink, and no test
-// drove pasteDispatch or the paste splice into a bodyWrite container (GH #40).
+// Miss-analysis: every terminator-collision suite drove the per-block byte writes (typing,
+// split, cross-block delete); paste builds its nodes before any of them, and no test drove
+// pasteDispatch or the paste splice into a bodyWrite container (GH #40).
 
 const OPEN_DETAILS = '<details>\n<summary>T</summary>\n\nbody\n\n</details>\n';
 
@@ -65,8 +65,8 @@ describe('details terminator escape at the paste door', () => {
 		expect(checkOpaqueStaleRaw(h.doc.children[0])).toBeNull();
 	});
 
-	// The target's OWN bytes strand, not the clipboard's: the paste's split is the same cut
-	// the Enter door escapes, so the paste splice owes the same rule (split-door parity).
+	// The target's own bytes are what get stranded, not the clipboard's: a paste splits at
+	// the same point Enter does, so the paste splice has to apply the same escape.
 	it('a structural paste splitting a mid-line tag escapes the stranded half', async () => {
 		const h = mountDoc('<details>\n<summary>T</summary>\n\nxx</details>\n\n</details>\n');
 		expect(h.doc.children[0].children?.length).toBe(2);
@@ -92,8 +92,8 @@ describe('details terminator escape at the paste door', () => {
 	});
 
 	// The recognizer never sees an indented close, so the container survives in aragonite
-	// either way — but a browser closes the element on it, and paste is the only door such
-	// spellings can arrive through (GH #40).
+	// either way, but a browser closes the element on it, and paste is the only way such
+	// spellings can arrive (GH #40).
 	it('escapes a passthrough-only spelling arriving by paste', async () => {
 		const h = mountDoc(OPEN_DETAILS);
 

@@ -1,10 +1,10 @@
 // @vitest-environment jsdom
 //
-// Miss-analysis: the fold's only guard was "did the text change", which reads the CST at FOLD
-// time — so every case that drove a reveal drove it over a document that stood still, and the one
-// question the guard exists to answer (is the block I measured still the block at this index?)
-// was never asked. The two ways it moves are an undo and a host `source` swap; both destroy the
-// component, so no in-repo unit or e2e case could have caught it while asserting only bytes.
+// Miss-analysis: closing the source checked only "did the text change", which reads the CST at
+// close time, so every case that opened a source did it over a document that stood still, and
+// the question that check exists to answer (is the block I measured still the block at this
+// index?) was never asked. The two ways it moves are an undo and a host `source` swap; both
+// destroy the component, so no case asserting only bytes could have caught it.
 import { afterEach, beforeEach, describe, it, expect } from 'vitest';
 import { mount, unmount, flushSync, tick } from 'svelte';
 import { Editor, type EditorInstance } from '$lib';
@@ -34,8 +34,8 @@ afterEach(async () => {
 	resetPluginPlatformForTests();
 });
 
-/** An editor whose `source` prop is live, so a case can swap the document under a live reveal
- *  the way a host does. */
+/** An editor whose `source` prop is live, so a case can swap the document under an open
+ *  source the way a host does. */
 function mountEditorWithLiveSource(initial: string) {
 	const props = $state({ source: initial, plugins: [latexPlugin({ renderer: stubRenderer })] });
 	target = document.createElement('div');
@@ -67,9 +67,9 @@ async function revealWithDraft(
 }
 
 describe('a render-primary fold writes back only what its reveal measured', () => {
-	// An undo or a `source` swap replaces the node at this index and the blur lands afterwards.
-	// Rewriting the live node's bytes with no tick in between is that state exactly: the mirror
-	// has not run, so the surface still holds the draft the user typed against the OLD document.
+	// An undo or a `source` swap replaces the node at this index and the blur arrives afterwards.
+	// Rewriting the live node's bytes with no tick in between is exactly that state: nothing has
+	// re-rendered, so the element still holds what the user typed against the old document.
 	it('declines the fold when the document at the index moved under the open reveal', async () => {
 		const editor = mountEditorWithLiveSource(OPENED);
 		const el = await revealWithDraft(editor, '$$\ndraft\n$$');
@@ -95,9 +95,9 @@ describe('a render-primary fold writes back only what its reveal measured', () =
 	});
 });
 
-// Miss-analysis: the leaf's chord dispatch was pinned only on the revealed half, and every case
-// that pressed a chord pressed it there — so the folded view, which is where the block sits for
-// most of its life, went its whole existence with no keydown door and no case to notice.
+// Miss-analysis: key-binding dispatch was pinned only on the open-source half, and every case
+// pressed its keys there, so the rendered view, where the block spends most of its life, had
+// no keydown handler at all and no case to notice.
 describe('a render-primary block answers chords in either half of the swap', () => {
 	it('undoes a committed edit while the FOLDED view holds focus', async () => {
 		const editor = mountEditorWithLiveSource(OPENED);

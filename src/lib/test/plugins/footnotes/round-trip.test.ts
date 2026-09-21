@@ -46,7 +46,7 @@ describe('footnote round-trip for half-typed / incomplete syntax (plugin install
 
 	it('leaves an unterminated reference literal (no parsed node to corrupt)', () => {
 		// The reference recognizer needs a closing `]`, and the opener needs `]:`, so
-		// `[^` / `[^foo` are never claimed — they stay literal text and round-trip.
+		// `[^` and `[^foo` never match; they stay literal text and round-trip.
 		for (const src of ['[^\n', '[^foo\n', 'A bare [^1] mark, no definition.\n']) {
 			roundTrips(src);
 			expect(parse(src).children[0].kind).toBe('paragraph');
@@ -66,15 +66,15 @@ describe('footnote round-trip without the plugin (the uninstall story)', () => {
 	afterEach(() => resetPluginPlatformForTests());
 
 	beforeEach(() => {
-		// Reset to built-ins only — do NOT install the plugin. A document authored
+		// Reset to built-ins only, without installing the plugin. A document authored
 		// with footnotes must survive being opened by an editor that lacks them.
 		resetPluginPlatformForTests();
 	});
 
 	it('falls back to a paragraph when uninstalled — and still round-trips', () => {
 		// The built-in reserves leading-caret labels away from link reference
-		// definitions, so an uninstalled [^label]: line is a plain paragraph — for
-		// both prose and URL bodies. Either way the bytes survive verbatim.
+		// definitions, so an uninstalled `[^label]:` line is a plain paragraph, for both
+		// prose and URL bodies. Either way the bytes survive verbatim.
 		for (const src of ['[^1]: The detail.\n', '[^1]: https://example.com\n']) {
 			roundTrips(src);
 			expect(parse(src).children[0].kind).toBe('paragraph');

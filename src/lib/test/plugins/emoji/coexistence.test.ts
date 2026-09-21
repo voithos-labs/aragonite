@@ -6,9 +6,9 @@ import { resetPluginPlatformForTests } from '$lib/testing';
 import { DIRECTIVE_TEXT } from '$lib/core/directive/kinds';
 import { emojiPlugin, EMOJI_KIND } from '$lib/plugins/emoji';
 
-// Both grammars ride the bare `:` trigger, and register-once forbids the same
-// (trigger, prefix, priority) twice — so emoji's `plugin + 10` rung is what lets them
-// coexist. The grammars are disjoint, so the order decides first refusal only.
+// Both grammars use the bare `:` trigger, and the same (trigger, prefix, priority) may not be
+// registered twice, so emoji's `plugin + 10` priority is what lets them coexist. The grammars
+// do not overlap, so the order only decides which is asked first.
 beforeEach(() => {
 	resetPluginPlatformForTests();
 	activateDirectives();
@@ -35,16 +35,16 @@ describe('emoji and the directive text tier coexist on `:`', () => {
 		expect(kindsIn(':name')).toEqual(['text']);
 	});
 
-	// A table miss declines to bytes rather than being claimed by the +10 rung — the
-	// directive tier already had first refusal, so a miss leaves ordinary prose.
+	// A shortcode not in the table falls through rather than being taken by the `+10`
+	// handler: the directive handler was asked first, so a miss leaves ordinary prose.
 	it('an unknown :notaname: stays literal after both rungs decline', () => {
 		expect(kindsIn(':notaname:')).toEqual(['text']);
 	});
 });
 
-// The other install order a consumer can write: emoji claims `:` first, so an
-// activation asking "does anyone own `:`" rather than "did I already register" skips
-// its own recognizer and leaves the tier dead. Byte round-trip is blind to it.
+// The other install order a consumer can write: emoji takes `:` first, so an activation
+// asking "does anyone own `:`" rather than "have I already registered" would skip its own
+// recognizer and leave the directive handler dead. A byte round trip would not notice.
 describe('the directive text tier survives a plugin that took `:` first', () => {
 	beforeEach(() => {
 		resetPluginPlatformForTests();

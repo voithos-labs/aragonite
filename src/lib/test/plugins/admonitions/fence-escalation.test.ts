@@ -10,8 +10,8 @@ beforeAll(() => {
 });
 
 /**
- * Rebuild an admonition whose body child holds `bodyRaw`, mimicking the commit
- * ceremony's rebuild of an enclosing container after a content edit.
+ * Rebuild an admonition whose body child holds `bodyRaw`, the way a commit rebuilds an
+ * enclosing container after a content edit.
  */
 function rebuiltWithBody(source: string, bodyRaw: string) {
 	const node = parse(source).children[0];
@@ -42,8 +42,8 @@ describe('admonition fence escalation past body colon runs', () => {
 		expect(checkOpaqueStaleRaw(node)).toBeNull();
 	});
 
-	// The escalated length is re-derived from the body on every emit rather than
-	// latched into metadata, so two rebuilds over identical state must still agree.
+	// The lengthened fence is worked out from the body on every emit rather than stored
+	// in metadata, so two rebuilds over identical state must still agree.
 	it('stays deterministic across repeated rebuilds (G1.13)', () => {
 		const node = rebuiltWithBody(':::note T\n\nbody\n\n:::\n', 'before\n:::\nafter\n');
 		expect(checkOpaqueRebuildDeterminism(node)).toBeNull();
@@ -71,7 +71,7 @@ describe('admonition fence escalation past body colon runs', () => {
 
 	it('does not escalate past an indented or trailing-content colon run', () => {
 		// Neither ` :::` nor `::: x` is a closer (`isDirectiveCloser` demands a
-		// whole-line colon run), so escalating past them would be gratuitous churn.
+		// whole-line colon run), so lengthening past them would change bytes for nothing.
 		expect(rebuiltWithBody(':::note T\n\nbody\n\n:::\n', '    :::\n').raw).toBe(
 			':::note T\n\n    :::\n\n:::\n'
 		);

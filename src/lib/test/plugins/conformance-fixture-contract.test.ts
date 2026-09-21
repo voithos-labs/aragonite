@@ -1,6 +1,6 @@
-// F9: the conformance kit's fixture contract — the kind at `children[0]`, the kit's sentinel
-// on the sweeping side — was load-bearing but stated nowhere, so a plugin author met it as a
-// bare assertion failure. The message now carries the contract; this holds it to that.
+// The conformance kit's fixture contract (the kind at `children[0]`, the kit's marker block
+// after it) was required but written down nowhere, so a plugin author met it as a bare
+// assertion failure. The message now states it, and this holds it to that.
 //
 // Miss-analysis: the kit's own suites all supplied conforming fixtures, so no test ever read
 // the failure an author gets, and a message that taught nothing could not regress.

@@ -1,11 +1,11 @@
 // @vitest-environment jsdom
 
-// Mounting a plugin component through the published surface ONLY. The in-repo mount harness
-// is not packaged, so an author's recipe has to stand alone; this file IS that recipe.
+// Mounting a plugin component through the published API only. The in-repo mount harness is not
+// packaged, so an author's recipe has to stand alone, and this file is that recipe.
 //
 // Miss-analysis: every mounted-block suite reached the internal harness, so nothing held the
-// published surface to mounting one — the jsdom stubs and the scroll mode were maintainer
-// knowledge with no test standing on them.
+// published API to mounting one; the jsdom stubs and the scroll mode were maintainer knowledge
+// with no test standing on them.
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { mount, unmount, flushSync } from 'svelte';
 import { Editor, type EditorInstance } from '$lib';
@@ -26,7 +26,7 @@ const KIND = 'jsdom-mount-leaf';
 const MARKER = '@@';
 const SOURCE = `intro\n\n${MARKER}\nfirst\nsecond\n${MARKER}\n\noutro\n`;
 
-/** A closed `@@ … @@` block — multi-line on purpose, so the leaf's newlines are observable. */
+/** A closed `@@ … @@` block, multi-line on purpose so the block's newlines are observable. */
 function markerBlockExtent(lines: readonly ParsedLine[], index: number): number {
 	if (lines[index].text !== MARKER) return 0;
 	for (let i = index + 1; i < lines.length; i++) {
@@ -105,7 +105,7 @@ describe('mounting a plugin block through the published surface', () => {
 		const leaf = root.querySelector<HTMLElement>('.plain-leaf-block');
 		expect(leaf, 'the plugin component mounted').not.toBeNull();
 		expect(leaf?.getAttribute('contenteditable')).toBe('true');
-		// The single-text-node contract: the surface's text IS the block's raw, newlines included.
+		// The single-text-node rule: the element's text is the block's raw, newlines included.
 		expect(leaf?.textContent).toBe(`${MARKER}\nfirst\nsecond\n${MARKER}`);
 		expect(leaf?.childNodes).toHaveLength(1);
 	});

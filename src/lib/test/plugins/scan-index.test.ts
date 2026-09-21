@@ -42,9 +42,9 @@ describe('createScanIndex memoization', () => {
 		expect(collect).toHaveBeenCalledTimes(1);
 	});
 
-	// Cap 2 is the load-bearing bound: recognition consulting two blocks alternately must
-	// not thrash the index, while old blocks must not accumulate. The LRU mechanics are
-	// pinned once on the shared primitive in bounded-memo.test.ts; this pins the wiring.
+	// Cap 2 is the number that matters: recognition alternating between two blocks must not
+	// thrash the index, while old blocks must not accumulate. The eviction rules are pinned
+	// once on the shared helper in bounded-memo.test.ts; this pins the wiring.
 	it('holds two raws at once; a third evicts one', () => {
 		const collect = vi.fn(digitPositions);
 		const lookup = createScanIndex(collect);

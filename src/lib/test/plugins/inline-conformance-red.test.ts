@@ -1,12 +1,12 @@
 // @vitest-environment jsdom
 /**
- * The kit's cells are only worth their runtime if they can red. Each case here
- * registers a rung with one deliberate defect and asserts the cell that owns it
- * fails, naming it — the enrollment suite next door proves the other direction.
+ * The kit's cells are only worth their runtime if they can fail. Each case here registers an
+ * inline handler with one deliberate defect and asserts the cell that owns it fails, naming
+ * it; the enrollment suite beside it proves the other direction.
  *
- * Defects are chosen to be invisible to byte round-trip, which is the whole reason
- * the cells exist: every document below round-trips perfectly while meaning
- * something other than what its author wrote.
+ * The defects are invisible to a byte round trip, which is the whole reason the cells exist:
+ * every document below round-trips perfectly while meaning something other than what its
+ * author wrote.
  */
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -46,8 +46,8 @@ const run = (profile: InlineConformanceProfile) => () => runInlineKindConformanc
 // ── overlapDecline: the flagship ─────────────────────────────────────────────
 
 describe('overlapDecline reds a rung that swallows the grammar overlap', () => {
-	// `![[a]](u)` is a built-in image, and a prefix rung on `!` is consulted first — so
-	// a recognizer claiming every `![[…]]` takes those bytes and the document still
+	// `![[a]](u)` is a built-in image, and a handler registered on the `!` prefix is asked
+	// first, so a recognizer taking every `![[…]]` takes those bytes and the document still
 	// round-trips, as a wiki embed the author never wrote.
 	const swallowEverything = (raw: string, pos: number, end: number): InlineNode | null => {
 		const close = raw.indexOf(']]', pos + 3);
@@ -76,7 +76,7 @@ describe('overlapDecline reds a rung that swallows the grammar overlap', () => {
 		expect(report.cells.find((c) => c.cell === 'overlapDecline')?.status).toBe('asserted');
 	});
 
-	// A reserved trigger's rung outranks a built-in case by construction, so there is
+	// A handler on a reserved trigger always outranks the built-in case, so there is
 	// always an overlap and nothing to excuse.
 	it('refuses an exemption on a reserved trigger outright', () => {
 		registerWikiRung(rewriteWikiImage);
@@ -101,9 +101,9 @@ describe('imageClaim reds a borrowed built-in the rung cannot re-serialize', () 
 		);
 	});
 
-	// A hook that cannot re-emit the node it was handed cannot be trusted with an
-	// edited one — and a rewrite equal to the source is dropped by the commit's
-	// equality guard, so the edit would visibly do nothing with nothing to read.
+	// A hook that cannot re-emit the node it was handed cannot be trusted with an edited
+	// one, and a rewrite equal to the source is dropped by the commit's equality check,
+	// so the edit would visibly do nothing and say nothing.
 	it('fails a hook that cannot reproduce its own input', () => {
 		registerWikiRung(() => '![[somethingelse.png]]');
 		expect(run(wikiProfile())).toThrow(/imageClaim: .*rewriteImage re-emits/s);
@@ -129,7 +129,7 @@ describe('claims reds a fixture the rung never touches', () => {
 // ── registration ─────────────────────────────────────────────────────────────
 
 describe('registration reds a rung that is not where the profile says', () => {
-	// The failure the directive tier shipped with: the kind and widget registered,
+	// The failure the directive handler shipped with: the kind and widget registered,
 	// the recognizer skipped because another plugin already held the trigger.
 	it('fails when nothing is registered at the declared prefix', () => {
 		expect(run(wikiProfile())).toThrow(/no rung is registered on "!" at prefix "!\[\["/);
@@ -180,8 +180,8 @@ describe('widget reds an island the offset walk cannot measure', () => {
 		expect(report.cells.find((c) => c.cell === 'widget')?.status).toBe('asserted');
 	});
 
-	// Every caret offset in the block rides on the walk, and no byte moves when the
-	// span is wrong — the block simply stops agreeing with its own bytes.
+	// Every caret offset in the block comes from the DOM-to-offset traversal, and no byte
+	// moves when the span is wrong: the block simply stops agreeing with its own bytes.
 	it('fails an island whose source span is short by one', () => {
 		const kind = registerMarkerRung((node) => {
 			const shell = mintWidgetShell('marker', node);
@@ -198,8 +198,8 @@ describe('widget reds an island the offset walk cannot measure', () => {
 });
 
 describe('widget reds a claim that cannot stand on its own bytes', () => {
-	// The claim reaches for a byte OUTSIDE itself, so the slice `data-source-*` hands
-	// the clipboard and a source reveal does not re-form as the same widget.
+	// The match reaches for a byte outside itself, so the slice `data-source-*` hands the
+	// clipboard, and showing the source does not re-form the same widget.
 	it('fails a rung whose slice only forms in the context it was cut from', () => {
 		const kind = declarePluginInlineKind(MARKER);
 		registerInlineSyntax('@', (raw, pos, end) => {
@@ -219,13 +219,13 @@ describe('widget reds a claim that cannot stand on its own bytes', () => {
 
 // ── roundTrip ────────────────────────────────────────────────────────────────
 
-// A block's scan range is not always its whole raw, so a rung reading the string
-// instead of the range swallows chrome bytes into its widget's span and offsets every
-// later caret. The dispatch already throws on such a claim; what the kit owns is WHEN
-// the author hears about it, so these pin that it drives a RESTRICTED range at all —
-// otherwise the rung is only caught in the consumer's app, at the first heading.
+// A block's scan range is not always its whole raw, so a handler reading the string instead
+// of the range swallows marker bytes into its widget's span and shifts every later caret. The
+// dispatch already throws on such a match; what the kit decides is when the author hears about
+// it, so these pin that it drives a restricted range at all. Otherwise the handler is only
+// caught in the consumer's app, at the first heading.
 describe('roundTrip reds a claim that reads past the range the block offered', () => {
-	/** Registers `@…@` with an `end`-unaware recognizer of the caller's shape. */
+	/** Registers `@…@` with a recognizer of the caller's shape that ignores `end`. */
 	function registerOverrunningRung(
 		claimEnd: (raw: string, pos: number) => number | null
 	): PluginInlineKind {
@@ -252,8 +252,8 @@ describe('roundTrip reds a claim that reads past the range the block offered', (
 	});
 
 	// The terminator-search shape stops at a real closer, so only a tail carrying the
-	// author's OWN grammar puts one beyond `end` — which is why the kit also cuts the
-	// range just past an opener, straddling it.
+	// author's own grammar puts one beyond `end`, which is why the kit also cuts the
+	// range just past an opener.
 	it('fails a terminator search with no `end` bound', () => {
 		const kind = registerOverrunningRung((raw, pos) => {
 			const close = raw.indexOf('@', pos + 1);
@@ -264,8 +264,8 @@ describe('roundTrip reds a claim that reads past the range the block offered', (
 		);
 	});
 
-	// With leading prose the cut has to LOCATE the opener rather than assume offset 0,
-	// or the range ends inside the prose and no rung is consulted at the boundary.
+	// With leading prose the cut has to find the opener rather than assume offset 0, or
+	// the range ends inside the prose and no handler is asked at the boundary.
 	it('fails a terminator search behind a fixture with leading prose', () => {
 		const kind = registerOverrunningRung((raw, pos) => {
 			const close = raw.indexOf('@', pos + 1);

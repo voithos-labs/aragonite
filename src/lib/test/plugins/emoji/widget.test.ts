@@ -8,8 +8,8 @@ import { registerEmoji, buildEmojiWidget, EMOJI_KIND } from '$lib/plugins/emoji/
 beforeEach(resetPluginPlatformForTests);
 afterEach(resetPluginPlatformForTests);
 
-// The decoded-entity mold: a `[data-inline-widget]` island whose text is the glyph
-// and whose source bytes ride `data-source-*`, so the raw-aware walk reads `:smile:`
+// Shaped like a decoded entity: a `[data-inline-widget]` span whose text is the glyph and
+// whose source bytes sit on `data-source-*`, so the DOM-to-offset traversal reads `:smile:`
 // back while the DOM shows 😄.
 describe('buildEmojiWidget — atomic island shell', () => {
 	it('stamps the widget marker, source span, and the glyph', () => {
@@ -31,8 +31,8 @@ describe('buildEmojiWidget — atomic island shell', () => {
 describe('emoji widget registration', () => {
 	beforeEach(() => registerEmoji());
 
-	// Atomic delete + step-over is what makes a caret-adjacent Backspace remove the
-	// whole reference in one press and a plain arrow walk across it like a character.
+	// Atomic delete plus step-over is what makes a Backspace beside it remove the whole
+	// shortcode at once and a plain arrow move across it as if it were one character.
 	it('registers the atomic, step-over editing policy', () => {
 		expect(getInlineWidgetEditing(EMOJI_KIND as InlineNode['kind'])).toEqual({
 			deleteGranularity: 'atomic',

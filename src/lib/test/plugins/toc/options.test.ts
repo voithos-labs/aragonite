@@ -8,8 +8,9 @@ import { tocPlugin, TOC_BLOCK } from '$lib/plugins/toc/toc-plugin';
 beforeEach(resetPluginPlatformForTests);
 afterEach(resetPluginPlatformForTests);
 
-// Pins `tocPlugin({ maxDepth })` from factory arg through the extraProps closure to the
-// component prop — the bare-install default. Per-instance depth is per-instance-depth.test.ts.
+// Pins `tocPlugin({ maxDepth })` from the factory argument through the extraProps closure to
+// the component prop: the default for a plain install. Per-editor depth is in
+// per-instance-depth.test.ts.
 describe('tocPlugin maxDepth option', () => {
 	function tocExtraProps(): Record<string, unknown> | undefined {
 		const kind = declaredPluginKind(TOC_BLOCK);

@@ -1,6 +1,6 @@
 // The two pure halves behind the highlight-occurrences plugin, each asserted at its
 // own level: word-under-caret resolution (`anchorWord`) and the whole-document
-// occurrence index the memoizing source looks that word up in.
+// occurrence index the caching source looks that word up in.
 import { describe, expect, it } from 'vitest';
 import { parse, type EditorSelection } from '$lib';
 import {
@@ -62,8 +62,8 @@ describe('anchorWord', () => {
 		expect(anchorWord(tableDoc, caret([0, 0, 0], 1))).toBe('cat');
 	});
 
-	// A fenced code block is not an inline-prose surface (supportsInline: false, read
-	// through isProseKind) — the declared capability occurrence highlighting scopes to.
+	// A fenced code block is not inline prose (`supportsInline: false`, read through
+	// `isProseKind`), which is what occurrence highlighting limits itself to.
 	it('returns null when the caret sits inside a non-prose leaf', () => {
 		const codeDoc = parse('cat one\n\n```\ncat inside code\n```\n');
 		// Offset 5 sits inside the fence body's 'cat' (raw: '```\ncat inside…').
@@ -91,7 +91,7 @@ describe('buildOccurrenceIndex', () => {
 
 	it('indexes table-cell leaves', () => {
 		const tableDoc = parse('| cat | dog |\n| --- | --- |\n| cat | nap |\n');
-		// The delimiter row is trivia, not a child: body cells sit on row 1.
+		// The delimiter row is not a child: body cells sit on row 1.
 		expect(
 			buildOccurrenceIndex(tableDoc)
 				.index.get('cat')
@@ -112,8 +112,8 @@ describe('buildOccurrenceIndex', () => {
 	});
 });
 
-// The scan is per-keystroke work, so what it may NOT redo is the load-bearing half: a leaf
-// whose bytes did not move keeps the token list the previous scan produced.
+// The scan runs on every keystroke, so what it must not redo is the part that matters: a
+// block whose bytes did not move keeps the token list the previous scan produced.
 describe('buildOccurrenceIndex token cache', () => {
 	const doc = parse('cat one\n\ndog two\n');
 	const rawOf = (parsed: ReturnType<typeof parse>, index: number) => parsed.children[index].raw;

@@ -1,10 +1,10 @@
 // @vitest-environment jsdom
 /**
- * Enrollment: every bundled inline rung runs the published conformance kit. A rung
- * shipping in this repo is the kit's first consumer, so a cell no bundled rung can
- * pass is a cell that has not been paid for.
+ * Enrollment: every bundled inline handler runs the published conformance kit. A handler
+ * shipping in this repo is the kit's first consumer, so a cell no bundled handler can pass
+ * is a cell that has not been paid for.
  *
- * The kit's own red demonstrations live in `inline-conformance-red.test.ts`.
+ * The kit's own failure demonstrations live in `inline-conformance-red.test.ts`.
  */
 
 import { beforeEach, describe, expect, it } from 'vitest';
@@ -21,8 +21,8 @@ import { latexPlugin } from '$lib/plugins/latex';
 import { MATH_INLINE } from '$lib/plugins/latex/latex-kind';
 import type { MathRenderer } from '$lib/plugins/latex/math-renderer';
 
-// The renderer is a required option and the kit never renders math, so a no-op
-// stub satisfies it without pulling a math engine into the suite.
+// The renderer is a required option and the kit never renders math, so a do-nothing stub
+// satisfies it without pulling a math library into the suite.
 const stubRenderer: MathRenderer = () => ({ dom: document.createElement('span') });
 
 const MINTS_ONLY_ITS_OWN_KIND =
@@ -36,8 +36,8 @@ const footnoteRung: InlineConformanceProfile = {
 		return declaredPluginInlineKind(FOOTNOTE_REF_KIND);
 	},
 	fixtures: ['[^note]', 'see [^a] and [^b]'],
-	// `[` is the built-in link/reference handler's own trigger, and the `[^` rung is
-	// consulted ahead of it: every malformed reference has to fall through byte-clean.
+	// `[` is the built-in link and reference handler's own trigger, and the `[^` handler is
+	// asked ahead of it: every malformed reference has to fall through with its bytes intact.
 	overlapFixtures: ['[^]', '[^ spaced]', '[^unterminated', 'a [link [^ ] here](https://x.dev)'],
 	overlapDecline: { mode: 'assert' },
 	widget: { mode: 'assert' },
@@ -52,8 +52,8 @@ const emojiRung: InlineConformanceProfile = {
 		return declaredPluginInlineKind(EMOJI_KIND);
 	},
 	fixtures: [':smile:', 'ship it :rocket: now'],
-	// `:` is shared with the directive text tier one rung below, and with prose that
-	// merely contains a colon — every one of these must reach the next reader intact.
+	// `:` is shared with the directive text handler one priority below, and with prose that
+	// merely contains a colon; every one of these must arrive intact.
 	overlapFixtures: [
 		':name[label]',
 		':name{.cls}',
@@ -87,7 +87,7 @@ const mathRung: InlineConformanceProfile = {
 		return declaredPluginInlineKind(MATH_INLINE);
 	},
 	fixtures: ['$x^2$', 'let $a+b$ be', 'one part in $10^5$'],
-	// Shell and currency prose is the whole reason a `$` claim is guarded at all; one taken
+	// Shell and currency prose is the whole reason a `$` match is guarded at all; one taken
 	// here would eat a paragraph's worth of bytes.
 	overlapFixtures: ['$5 and $10', '$ x $', '$HOME and $PATH', 'costs $9', 'between $10-$20'],
 	overlapDecline: { mode: 'assert' },
@@ -99,8 +99,8 @@ const mathRung: InlineConformanceProfile = {
 describe('every bundled inline rung passes the conformance kit', () => {
 	beforeEach(() => {
 		resetPluginPlatformForTests();
-		// Emoji BEFORE the directive activation on purpose: that order is what leaves the
-		// tier's recognizer unregistered, making its `registration` cell a live guard.
+		// Emoji before the directive activation on purpose: that order is what leaves the
+		// directive recognizer unregistered, making its `registration` cell a live check.
 		installPlugins([emojiPlugin(), footnotesPlugin(), latexPlugin({ renderer: stubRenderer })]);
 		activateDirectiveGrammar();
 	});
@@ -124,8 +124,8 @@ describe('every bundled inline rung passes the conformance kit', () => {
 	});
 });
 
-// A cell recorded rather than executed proves nothing: a fixture that stopped being
-// claimed, or a jsdom-less run, would otherwise pass as a quiet `boundary`.
+// A cell recorded rather than executed proves nothing: a fixture that stopped matching, or a
+// run without jsdom, would otherwise pass as a quiet `boundary`.
 describe('the enrolled rungs execute the cells their shape owns', () => {
 	beforeEach(() => {
 		resetPluginPlatformForTests();
@@ -142,8 +142,8 @@ describe('the enrolled rungs execute the cells their shape owns', () => {
 		expect(cell.detail).toContain('offset-walk length');
 	});
 
-	// The island of a `component` kind is the editor's, so that half does not run and
-	// the cell must SAY so — `asserted` over skipped work is the silent skip.
+	// The wrapper span for a `component` kind belongs to the editor, so that half does not
+	// run and the cell has to say so: reporting `asserted` over skipped work hides it.
 	it('reports the island half of a `component` widget as a boundary', () => {
 		const cell = cellOf(footnoteRung, 'widget');
 		expect(cell.status).toBe('boundary');

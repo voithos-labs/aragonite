@@ -1,8 +1,8 @@
 /**
  * Headless driver for alert formation from inside a blockquote: a container action
- * bundle at any depth over the real editor-actions stack, plus the typing loop the
- * formation suites share. Coordinates are doc-absolute, so one document-level undo
- * controller and container-edit serve every nesting level.
+ * bundle at any depth over the real editor-actions stack, plus the typing loop these suites
+ * share. Paths are document-absolute, so one document-level undo controller and one container
+ * edit serve every nesting level.
  */
 
 import { parse, type CstNode } from '$lib';

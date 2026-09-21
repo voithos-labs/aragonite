@@ -9,8 +9,8 @@ import { roundTripCases } from '$lib/test/support/round-trip';
 beforeEach(resetPluginPlatformForTests);
 afterEach(resetPluginPlatformForTests);
 
-// Recognition is gated on the opener registering — with no plugin loaded `[[toc]]`
-// is an ordinary paragraph, byte-identical to bare GFM.
+// Recognition starts only once the opener registers: with no plugin loaded `[[toc]]` is an
+// ordinary paragraph, byte-identical to plain GFM.
 describe('toc is dormant until registered', () => {
 	it('leaves a [[toc]] line as a paragraph with nothing registered', () => {
 		const src = '# H\n\n[[toc]]\n';
@@ -19,9 +19,9 @@ describe('toc is dormant until registered', () => {
 	});
 });
 
-// Grammar: the opener claims ONLY the exact line `[[toc]]`. Indentation or trailing
-// content declines to a paragraph — the exact-match strictness that keeps the
-// process-wide opener inert for every sibling plugin document.
+// Grammar: the opener takes only the exact line `[[toc]]`. Indentation or trailing content
+// falls through to a paragraph, and that strictness is what keeps this opener out of the way
+// in every other plugin's documents.
 describe('toc recognition', () => {
 	beforeEach(registerTocBlock);
 
@@ -59,9 +59,9 @@ describe('toc recognition', () => {
 	});
 });
 
-// Round-trip is the load-bearing guarantee: serialize re-emits `leadingTrivia + raw`,
-// so a `raw` taken verbatim from the consumed line round-trips byte-for-byte. The
-// decline rows prove the non-claimed shapes preserve their bytes too.
+// The round trip is the guarantee that matters: serialize re-emits `leadingTrivia + raw`, so
+// a `raw` taken verbatim from the consumed line round-trips byte for byte. The declined rows
+// prove the shapes it does not take keep their bytes too.
 describe('toc round-trip', () => {
 	beforeEach(registerTocBlock);
 

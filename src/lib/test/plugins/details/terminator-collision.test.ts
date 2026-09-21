@@ -17,11 +17,11 @@ import { registerDetailsKind, DETAILS } from '$lib/plugins/details/details-kind'
 import { getBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
 
 /**
- * `</details>` is a fixed terminator with no fence length to escalate, so the repair is a
- * commit-path escape: `bodyWrite` rewrites the offending line's `<` to `&lt;` BEFORE the
- * write lands, upstream of the leaf reparse, so the child's kind follows the escaped bytes.
- * Both halves are pinned: the escape fires where the grammar is at stake, and declines
- * everywhere else. The structural doors live in terminator-collision-structural.test.ts.
+ * `</details>` is a fixed terminator with no fence length to grow, so the fix happens on the
+ * commit path: `bodyWrite` rewrites the offending line's `<` to `&lt;` before the write lands,
+ * ahead of the child's reparse, so the child's kind follows the escaped bytes. Both halves are
+ * pinned: the escape fires where the grammar is at stake and declines everywhere else. The
+ * structural paths live in terminator-collision-structural.test.ts.
  */
 beforeEach(() => {
 	resetPluginPlatformForTests();
@@ -56,9 +56,8 @@ describe('details terminator collision through the real commit path', () => {
 
 		const details = h.deps.doc.children[0];
 		expect(details.children?.[1].raw).toBe('&lt;/details>\n');
-		// Upstream of the leaf reparse: the kind follows the ESCAPED bytes, so the
-		// child stays prose instead of being minted as the htmlBlock the raw tag
-		// would have parsed to.
+		// Ahead of the child's reparse: the kind follows the escaped bytes, so the child
+		// stays prose instead of becoming the htmlBlock the raw tag would have parsed to.
 		expect(details.children?.map((c) => c.kind)).toEqual(['details-summary', 'paragraph']);
 	});
 
@@ -81,8 +80,8 @@ describe('details terminator collision through the real commit path', () => {
 		expect(checkOpaqueStaleRaw(h.deps.doc.children[0])).toBeNull();
 	});
 
-	// Byte round-trip is NOT the property at risk here: a red row points at the
-	// escape, not the serializer.
+	// The byte round trip is not the property at risk here: a failure in this row points
+	// at the escape, not the serializer.
 	it('keeps the byte round-trip intact throughout', async () => {
 		const h = mountDetails(OPEN_DETAILS);
 		await h.bundle.blockEdit.updateBlockContent(1, '</details>\n', 0);
@@ -93,7 +92,7 @@ describe('details terminator collision through the real commit path', () => {
 
 	// The fence-bearing sibling: a fenced body line reproducing the tag is content
 	// the container's own scan already skips, so the escape must decline. Escaping
-	// here would corrupt the code's text — entities do not decode inside a fence.
+	// here would corrupt the code's text: entities do not decode inside a fence.
 	it('declines to escape a close tag inside a fenced code body', async () => {
 		const h = mountDetails(OPEN_DETAILS);
 		await h.bundle.blockEdit.updateBlockContent(1, '```\n</details>\n```\n', 0);
@@ -103,8 +102,8 @@ describe('details terminator collision through the real commit path', () => {
 	});
 
 	// What closes the element is raw-HTML passthrough, looser than the container's own
-	// recognizer: each of these reloads intact here yet closes the element on GitHub,
-	// so the escape answers to the SPEC's tag-line shape.
+	// recognizer: each of these reloads intact here yet closes the element on GitHub, so
+	// the escape follows the spec's tag-line shape, not this recognizer's.
 	const passthroughVariants = [
 		[' </details>', ' &lt;/details>'],
 		['   </details>', '   &lt;/details>'],
@@ -189,9 +188,9 @@ describe('details terminator escape caret image', () => {
 		}
 	});
 
-	// `</details` with no `>` yet is ALREADY a type-6 line, and a browser left holding
-	// it swallows what follows. Escaping from that keystroke on also keeps the block
-	// from oscillating through htmlBlock, so no intermediate state is a kind change.
+	// `</details` with no `>` yet is already a type-6 line, and a browser left holding it
+	// swallows what follows. Escaping from that keystroke on also keeps the block from
+	// flipping through htmlBlock, so no state along the way changes the kind.
 	it('escapes from the first keystroke the spec would pass through, never oscillating', async () => {
 		const h = mountDetails(OPEN_DETAILS);
 		const typed = '</details>';
@@ -207,8 +206,8 @@ describe('details terminator escape caret image', () => {
 		expect(checkOpaqueStaleRaw(h.deps.doc.children[0])).toBeNull();
 	});
 
-	// The structural door: a commit whose kind genuinely changes still escapes. Caret
-	// mapping is pinned in the details e2e — this harness mounts no refs.
+	// The structural path: a commit whose kind genuinely changes still escapes. Caret
+	// mapping is pinned in the details e2e; this harness mounts no component refs.
 	it('escapes on a kind-changing commit, the structural door', async () => {
 		const h = mountDetails('<details>\n<summary>T</summary>\n\n```\nx\n```\n\n</details>\n');
 		expect(h.deps.doc.children[0].children?.[1].kind).toBe('fencedCode');

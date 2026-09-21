@@ -6,8 +6,8 @@ import { CURSOR_END } from '$lib/block-component';
 import { caretOffsetAtPoint } from '$lib/cursor/point-offset';
 import type { CaretTarget } from '$lib/plugin';
 
-// The kit a kind answers `caretTargetAtPoint` with. A field the platform reads and a plugin
-// cannot honestly fill looks supported and is not, so the three pieces are pinned to their mints.
+// The pieces a kind answers `caretTargetAtPoint` with. A field the platform reads but a plugin
+// cannot honestly fill looks supported and is not, so all three are pinned to where they live.
 describe('caret-geometry barrel surface', () => {
 	it('re-exports the point probe from its home in cursor/', () => {
 		expect(pluginBarrel.caretOffsetAtPoint).toBe(caretOffsetAtPoint);

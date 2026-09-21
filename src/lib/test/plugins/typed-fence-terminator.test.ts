@@ -7,12 +7,12 @@ import { registerMathFence, MATH_FENCE } from '$lib/plugins/latex/latex-kind';
 import { registerMermaidKind, MERMAID } from '$lib/plugins/mermaid/mermaid-kind';
 import { describeConvergence } from '$lib/test/harness/parse-converged';
 
-// GH #180 at the plugin surface: the class is the grammar's, not a kind list, so a fence a plugin
-// opener claims owes the same terminator the built-in one does. Both bundled fence kinds are here
-// because they take opposite unterminated readings — mermaid claims an open fence, mathFence
-// declines it to `fencedCode` — and the swallowed document is the same either way.
-// Miss-analysis: the kind-change absorb's pins drew prose demotions only, and the plugins e2e
-// project sits outside tree-ops' commit-tier gate, so nothing typed a fence opener over content.
+// GH #180 at the plugin API: this belongs to the grammar, not to a list of kinds, so a fence a
+// plugin opener takes needs the same terminator the built-in one does. Both bundled fence kinds
+// are here because they read an unterminated fence oppositely (mermaid takes it, mathFence
+// leaves it to `fencedCode`), and the swallowed document is the same either way.
+// Miss-analysis: the kind-change tests drew prose demotions only, and the plugins e2e project
+// sits outside tree-ops' commit gate, so nothing typed a fence opener over content.
 
 describe('a typed plugin fence closes over an empty body (GH #180)', () => {
 	beforeEach(() => {
@@ -47,7 +47,7 @@ describe('a typed plugin fence closes over an empty body (GH #180)', () => {
 		expect(describeConvergence(doc)).toBeNull();
 	});
 
-	// The terminator is what makes the plugin's own opener claim the bytes at all: unterminated,
+	// The terminator is what makes the plugin's own opener take the bytes at all: unterminated,
 	// they fall through to `fencedCode` and eat the document.
 	it('```math becomes a math fence rather than swallowing the rest', () => {
 		const doc = parse('x\n\nalpha beta\n\ngamma delta\n');

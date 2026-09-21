@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { parse, serialize } from '$lib';
 
-// With the admonitions plugin NOT installed, a GitHub-alert blockquote parses as a
+// With the admonitions plugin not installed, a GitHub-alert blockquote parses as a
 // plain blockquote: its bytes are never corrupted, so uninstalling the plugin never
 // breaks a saved document. Installed native rendering is github-alert.test.ts.
 

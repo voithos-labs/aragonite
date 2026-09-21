@@ -5,9 +5,9 @@ import { takeDevWarns } from '$lib/test/support/warn-gate';
 import type { NodeView } from '$lib/core/node-views';
 import type { PresentationMode } from '$lib/presentation-mode';
 
-// Miss-analysis: reading-mode inertness was pinned only at the dispatch seams G4.19 scans;
-// `updateOwnMetadata` is handed straight to plugin components, and no test drove that one
-// plugin-facing byte door under reading mode (GH #38).
+// Miss-analysis: reading mode writing nothing was pinned only at the dispatch points G4.19
+// scans; `updateOwnMetadata` is handed straight to plugin components, and no test drove that
+// one plugin-facing write in reading mode (GH #38).
 
 const node = { kind: 'demo-collapsible', leadingTrivia: '', raw: '' } as unknown as NodeView;
 

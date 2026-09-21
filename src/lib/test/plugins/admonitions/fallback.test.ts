@@ -1,6 +1,6 @@
 /**
  * plugin-testing.md's "case that matters most": a document authored with the directive
- * but with the plugin NOT registered still round-trips byte-for-byte through the
+ * but with the plugin not registered still round-trips byte for byte through the
  * generic fallback, so uninstalling never corrupts a saved document. Activates
  * directives only; never installs the admonition kind.
  */

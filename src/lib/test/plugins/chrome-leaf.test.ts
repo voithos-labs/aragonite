@@ -16,8 +16,8 @@ function keymapByChord(keymap: KeyBinding[] | undefined): Record<string, string>
 }
 
 describe('registerChromeLeaf', () => {
-	// registerChromeLeaf also registers a register-once paste surface; clear it so
-	// re-registering the same kind across cases doesn't throw.
+	// registerChromeLeaf also makes a register-once paste entry; clear it so re-registering
+	// the same kind across cases does not throw.
 	beforeEach(() => {
 		__resetSchemaRegistriesForTests();
 		__resetPasteSurfacesForTests();

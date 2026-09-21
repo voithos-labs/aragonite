@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import { createNavigationQueue } from '$lib/plugins/toc/navigation-queue';
 
-// A navigation that parks each call on a promise the test resolves by hand, so the
-// queue's serialization is observable one settle at a time: `calls` records the
-// path of every navigation actually issued, `resolveNext` completes the oldest.
+// A navigation that leaves each call waiting on a promise the test resolves by hand, so the
+// queue's ordering is visible one step at a time: `calls` records the path of every
+// navigation actually issued, `resolveNext` completes the oldest.
 function deferredNavigateTo() {
 	const calls: number[][] = [];
 	const resolvers: Array<() => void> = [];
@@ -17,7 +17,7 @@ function deferredNavigateTo() {
 	};
 }
 
-// Flush enough microtask turns for a resumed drain loop to issue its next scroll.
+// Flush enough microtask turns for the resumed loop to issue its next scroll.
 async function settle(): Promise<void> {
 	for (let i = 0; i < 4; i++) await Promise.resolve();
 }
@@ -31,8 +31,8 @@ describe('createNavigationQueue', () => {
 		await settle();
 		expect(calls).toEqual([[1]]);
 
-		// The strict-serialization guard: unserialized, navigateTo([2]) fires here
-		// concurrently with the first and reddens.
+		// The one-at-a-time check: without it, navigateTo([2]) would fire here alongside
+		// the first and fail.
 		void queue.navigateTo([2]);
 		await settle();
 		expect(calls).toEqual([[1]]);
@@ -54,7 +54,7 @@ describe('createNavigationQueue', () => {
 
 		resolveNext();
 		await settle();
-		// Latest-wins: the drain picks up [3] (the newest), never the superseded [2].
+		// Newest wins: the loop picks up [3], never the replaced [2].
 		expect(calls).toEqual([[1], [3]]);
 
 		resolveNext();

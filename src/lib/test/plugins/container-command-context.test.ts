@@ -16,7 +16,7 @@ import { buildContainerKindTarget } from '$lib/editor-actions/plugin/container';
 import type { AnyBlockKind, CstNode } from '$lib/core/nodes';
 import type { AnyCommandId } from '$lib/schema/command-id';
 
-// No cross-block range in these cases; the seam's range decline has its own suite.
+// No cross-block range in these cases; the range decline has its own suite.
 const GATES = {
 	getPresentationMode: () => 'source' as const,
 	isCrossBlockRange: () => false,
@@ -31,8 +31,8 @@ const noteAlt = declarePluginKind('demoNoteAlt');
 const noteNode = (kind = note): CstNode => ({ kind, leadingTrivia: '', raw: '' });
 
 // The public `keybindings` prop types `kind` as a built-in BlockKind, so a plugin-kind
-// binding goes in as its compiled map form — the shape a plugin's own keymap resolves
-// through. This suite exercises only the target the container hands the dispatcher.
+// binding goes in as its compiled map form, which is what a plugin's own keymap resolves
+// to. This suite exercises only what the container hands the dispatcher.
 function bindKindChord(
 	kind: AnyBlockKind,
 	chord: string,

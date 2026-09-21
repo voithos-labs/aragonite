@@ -16,8 +16,8 @@ function convertedAlertRegion(source: string): string {
 }
 
 // Both converters take their extent from `blockquoteExtent`, so CommonMark §5.1 lazy
-// continuation must land identically on both. The last two rows are the shapes only a
-// STATEFUL extent gets right — a line regex forks on them.
+// continuation must be handled identically by both. The last two rows are the shapes only an
+// extent scan that tracks state gets right; a line-by-line regex disagrees on them.
 const AGREEING_SOURCES: [string, string][] = [
 	['plain quoted body', '> [!NOTE]\n> a\n> b\n'],
 	['tab-indented continuation line', '> [!NOTE]\n\t> body\n'],

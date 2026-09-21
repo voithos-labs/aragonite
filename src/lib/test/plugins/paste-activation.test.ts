@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 //
-// Miss-analysis: the paste suites all drove a grammar-less dispatch, where the global and the
-// instance view answer alike, so no test ever pasted a plugin kind's syntax into an editor that
-// did not list the plugin (GH #267).
+// Miss-analysis: the paste suites all drove a dispatch with no grammar, where the process-wide
+// and per-editor views answer alike, so no test ever pasted a plugin kind's syntax into an
+// editor that did not list the plugin (GH #267).
 import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest';
 import { installPlugins } from '$lib';
 import { resetPluginPlatformForTests } from '$lib/testing';
@@ -58,8 +58,8 @@ describe('a paste parses through the instance grammar, not the global one', () =
 		expect(doc.children.map((c) => c.kind)).toContain(PARROT);
 	});
 
-	// The unlisted opener is gone, so the clipboard is one paragraph: inline, and the marker
-	// bytes land as prose rather than minting a kind this editor resolves no component for.
+	// The unlisted opener is gone, so the clipboard is one paragraph: inline, with the marker
+	// bytes arriving as prose rather than creating a kind this editor has no component for.
 	it('falls back to prose for an editor that does not', async () => {
 		const { doc, blockEdit } = await pasteInto(grammarListing([]));
 		expect(doc.children.map((c) => c.kind)).not.toContain(PARROT);
@@ -68,8 +68,8 @@ describe('a paste parses through the instance grammar, not the global one', () =
 	});
 });
 
-// The splice's own reparse, one layer under the dispatch above: a bodyWrite owner escapes the
-// pasted bytes and re-reads them, so it owes the same grammar the clipboard parse read.
+// The splice's own reparse, one layer under the dispatch above: a `bodyWrite` container
+// escapes the pasted bytes and re-reads them, so it has to use the grammar the clipboard used.
 describe('the bodyWrite escape reparse reads the instance grammar', () => {
 	const pasted = (): CstNode[] => [
 		{ kind: 'paragraph', leadingTrivia: '', raw: PARROT_LINE + '</details>\n' } as CstNode

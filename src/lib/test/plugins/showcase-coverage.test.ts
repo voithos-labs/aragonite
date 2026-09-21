@@ -38,7 +38,7 @@ const NOT_YET_DEMONSTRATED: Record<string, string> = {
 	setextHeading: 'GAP: every heading is ATX; the underlined form is unshown',
 	indentedCode: 'GAP: code is fenced throughout; the four-space form is unshown',
 	linkReferenceDefinition: 'GAP: every link is inline; the reference form is unshown',
-	// Kinds a finished tour must NOT contain.
+	// Kinds a finished tour must not contain.
 	htmlBlock:
 		'BY DESIGN: the only raw HTML is the `<details>` block, which the details plugin claims',
 	unrecognized: 'BY DESIGN: the parser mints this for input it cannot place; a valid tour has none',
@@ -64,7 +64,7 @@ const PLUGIN_DEMONSTRATED_BY: Record<string, string[]> = {
 	'highlight-occurrences': []
 };
 
-/** The inline kinds the bundled plugins mint. No registry lists them, so the plugin
+/** The inline kinds the bundled plugins add. No registry lists them, so the plugin
  *  packages' own exported constants stand in. */
 const PLUGIN_INLINE_KINDS = [EMOJI_KIND, FOOTNOTE_REF_KIND, MATH_INLINE];
 
@@ -136,7 +136,7 @@ describe('the showcase document demonstrates the surface it ships with', () => {
 		).toEqual([]);
 	});
 
-	// The registry cannot see a plugin that LEFT the demo set: its kinds leave the expected
+	// The registry cannot see a plugin that left the demo set: its kinds leave the expected
 	// set with it, and every assertion above stays green on a tour that lost a plugin.
 	it.each(Object.entries(PLUGIN_DEMONSTRATED_BY))(
 		'the %s plugin has something to show',
@@ -178,7 +178,7 @@ describe('the showcase document demonstrates the surface it ships with', () => {
 	});
 });
 
-/** The first word of four letters or more a paragraph repeats — `showcase-occurrences.spec.ts`
+/** The first word of four letters or more a paragraph repeats; `showcase-occurrences.spec.ts`
  *  picks its click target the same way, over the same tokenization the plugin scans with. */
 function repeatedWord(raw: string): string | null {
 	const counts = new Map<string, number>();

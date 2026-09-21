@@ -44,9 +44,9 @@ import { stripComments } from '../invariants/lint/scan-source';
 import { testClosure } from '$lib/test/support/closure';
 import type { AnyBlockKind } from '$lib/plugin';
 
-// One registration through each public register-once entry, so a new one added without
-// wiring its reset into `resetPluginPlatformForTests` re-throws its dup on the
-// re-install below. Keep in lockstep with the aggregate.
+// One registration through each public register-once entry, so a new one added without wiring
+// its reset into `resetPluginPlatformForTests` throws a duplicate on the re-install below.
+// Keep this in step with the aggregate.
 function installProbePlugin(): void {
 	const block = declarePluginKind('probe-block');
 	const inline = declarePluginInlineKind('probe-inline');
@@ -100,8 +100,8 @@ describe('resetPluginPlatformForTests aggregate', () => {
 		expect(getPasteSurface('probe-block' as AnyBlockKind)).toBeUndefined();
 		expect(getInlineRungs('⌘')).toHaveLength(0);
 
-		// The register-once dup throw is exactly what a third-party suite hits
-		// without a sanctioned reset — re-running the whole setup must be clean.
+		// The duplicate-registration throw is exactly what a third-party suite hits without
+		// the supported reset; re-running the whole setup must be clean.
 		expect(() => installProbePlugin()).not.toThrow();
 	});
 
@@ -115,8 +115,8 @@ describe('resetPluginPlatformForTests aggregate', () => {
 	});
 });
 
-// ── Published conformance surface ───────────────────────────────────────────────
-// The seams a third-party suite imports from `@voithos-labs/aragonite/testing`. A rename or a
+// ── Published conformance API ───────────────────────────────────────────────
+// What a third-party suite imports from `@voithos-labs/aragonite/testing`. A rename or a
 // dropped re-export fails to resolve here rather than in a downstream author's suite.
 
 describe('@voithos-labs/aragonite/testing conformance surface', () => {
@@ -131,7 +131,7 @@ describe('@voithos-labs/aragonite/testing conformance surface', () => {
 		expect(typeof installEditorDomStubsForTests).toBe('function');
 	});
 
-	// The reset's own error tells a non-Vitest runner to opt in through this door, so it
+	// The reset's own error tells a non-Vitest runner to opt in through this function, so it
 	// has to be reachable from the subpath that error is thrown on.
 	it('publishes the editor-env override door', () => {
 		expect(typeof configureEditorEnv).toBe('function');
@@ -150,9 +150,10 @@ describe('@voithos-labs/aragonite/testing conformance surface', () => {
 	});
 });
 
-// ── What the published `@voithos-labs/aragonite/testing` surface may depend on ────────────────
+// ── What the published `@voithos-labs/aragonite/testing` code may depend on ────────────────
 
-/** `testing.ts` plus every module behind it — the code that ships as `@voithos-labs/aragonite/testing`. */
+/** `testing.ts` plus every module behind it: the code that ships as
+ *  `@voithos-labs/aragonite/testing`. */
 function testingSurfaceSources(): { relPath: string; specifiers: string[] }[] {
 	const dir = path.resolve('src/lib/testing');
 	const files = readdirSync(dir)
@@ -183,9 +184,9 @@ describe('@voithos-labs/aragonite/testing dependency rules', () => {
 		expect(sources.flatMap((s) => s.specifiers).length).toBeGreaterThan(5);
 	});
 
-	// The kit runs INSIDE an author's own case, so a static runner import would force
-	// that runner on every suite reaching for `resetPluginPlatformForTests` alone —
-	// including one on Jest or node:test. It throws plain `Error`s instead.
+	// The kit runs inside an author's own test case, so a static runner import would force
+	// that runner on every suite reaching for `resetPluginPlatformForTests` alone, including
+	// one on Jest or node:test. It throws plain `Error`s instead.
 	it('imports no test runner', () => {
 		const offenders = offendersMatching(sources, /^(vitest|jest|@jest\/|node:test|chai)/);
 		expect(offenders, 'runner imports on the published testing surface').toEqual([]);
@@ -193,7 +194,7 @@ describe('@voithos-labs/aragonite/testing dependency rules', () => {
 
 	// `prune-dist.mjs` deletes `dist/test` before pack and `verify-pack.mjs` rejects any
 	// that ship, so an import reaching into `test/` resolves in the repo and 404s in the
-	// published package — a break no in-repo suite sees.
+	// published package, a break no in-repo suite sees.
 	it('reaches into no directory that is stripped from the published package', () => {
 		const offenders = offendersMatching(sources, /(^|\/)(test|e2e)\//);
 		expect(offenders, 'imports of paths pruned from dist/').toEqual([]);

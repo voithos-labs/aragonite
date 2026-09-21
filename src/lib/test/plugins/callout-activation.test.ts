@@ -4,8 +4,8 @@ import { resetPluginPlatformForTests } from '$lib/testing';
 import { registerCalloutKind } from '../../../routes/test/plugins/callout/callout-kind';
 
 // A regression to opener-only activation stays green everywhere else, because every other
-// route turns the inline `:` tier on out-of-band. The platform reset clears the inline-syntax
-// registry too, leaving registerCalloutKind the only path that can claim `:`.
+// path turns the inline `:` handler on some other way. The platform reset clears the
+// inline-syntax registry too, leaving registerCalloutKind the only thing that can take `:`.
 describe('registerCalloutKind activates the inline text tier', () => {
 	beforeEach(resetPluginPlatformForTests);
 

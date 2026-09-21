@@ -5,9 +5,9 @@ import { admonitionsPlugin } from '$lib/plugins/admonitions';
 import type { GithubAlertMetadata } from '$lib/plugins/admonitions/kinds';
 import { roundTripCases } from '$lib/test/support/round-trip';
 
-// Native GitHub alerts: a blockquote whose FIRST line is exactly `> [!TYPE]` becomes
-// its own `githubAlert` kind, with the marker line in the container raw + metadata
-// only. Every NON-alert blockquote must still parse plain.
+// Native GitHub alerts: a blockquote whose first line is exactly `> [!TYPE]` becomes its own
+// `githubAlert` kind, with the marker line in the container raw and metadata only. Every
+// other blockquote must still parse plain.
 
 beforeAll(() => {
 	installPlugins([admonitionsPlugin()]);
@@ -51,7 +51,7 @@ describe('github alert — the marker grammar claims a githubAlert', () => {
 });
 
 describe('github alert — MARKER whitespace edges', () => {
-	// The edges MARKER's regex flags imply but no other case reaches, so a tightening
+	// The edges `MARKER`'s regex allows but no other case reaches, so a tightening
 	// of the spacing rule cannot slip through green.
 
 	it('accepts trailing whitespace after the `]`', () => {

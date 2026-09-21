@@ -56,7 +56,7 @@ describe('[^label] recognizer grammar', () => {
 	}
 
 	// Label chars exclude `]` but not `[`, so the first `]` closes: the inner `[^x`
-	// is label content, and the claim ends at the first bracket. The trailing `]`
+	// is label content, and the match ends at the first bracket. The trailing `]`
 	// rescans as its own literal.
 	it('reads [^nested[^x]] as label "nested[^x", closing at the first bracket', () => {
 		const nodes = scan('[^nested[^x]]');
@@ -69,8 +69,8 @@ describe('[^label] recognizer grammar', () => {
 		expect(nodes[nodes.length - 1]).toMatchObject({ kind: 'text', text: ']' });
 	});
 
-	// A trailing `(...)` is not part of the reference — the ref is atomic and the
-	// following bytes rescan as ordinary inline content (GFM footnote, not a link).
+	// A trailing `(...)` is not part of the reference: it is atomic and the following
+	// bytes rescan as ordinary inline content (a GFM footnote, not a link).
 	it('does not consume a trailing (...) after the reference', () => {
 		const nodes = scan('[^1](x)');
 		expect(nodes[0]).toMatchObject({ kind: FOOTNOTE_REF_KIND, start: 0, end: 4, label: '1' });
@@ -83,8 +83,8 @@ describe('footnote reference widget registration', () => {
 
 	it('registers a component widget that reveals its source and claims the activation click', () => {
 		expect(getInlineWidgetComponent(FOOTNOTE_REF_KIND as InlineNode['kind'])).toBeDefined();
-		// Both fields, exhaustively: the reveal is the plain-click behavior and the claim is
-		// what stands it down for the jump gesture, so a dropped claim reveals under the click.
+		// Both fields: `revealSource` is what a plain click does, and `claimsActivationClick`
+		// turns that off so the click jumps instead. Drop it and the source opens on a click.
 		expect(getInlineWidgetEditing(FOOTNOTE_REF_KIND as InlineNode['kind'])).toEqual({
 			revealSource: true,
 			claimsActivationClick: true

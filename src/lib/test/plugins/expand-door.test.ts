@@ -6,9 +6,9 @@ import { registerBlockKind } from '$lib/schema/block-kind-descriptor';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { testClosure } from '$lib/test/support/closure';
 
-// What a reveal into a collapsed body commits, and when it declines. The door is
-// declared beside the collapse probe (`reservedChrome.expandPatch`), so the clamp that
-// hides a body and the reveal that opens it read one source.
+// What opening a collapsed body commits, and when it declines. `expandPatch` is declared
+// beside `isCollapsed` on `reservedChrome`, so the rule that hides a body and the one that
+// opens it read the same place.
 
 function registerCollapsible(name: string, withDoor: boolean) {
 	const chrome = declarePluginKind(`${name}-chrome`);
@@ -72,8 +72,8 @@ describe('composeExpandDoor', () => {
 		expect(d.commit).not.toHaveBeenCalled();
 	});
 
-	// The honest floor: a collapsible kind that declares no door reveals exactly as it
-	// did before the door existed, rather than inventing a patch on the kind's behalf.
+	// The floor: a collapsible kind that declares no `expandPatch` opens without committing
+	// anything, rather than the editor inventing a patch on its behalf.
 	it('declines when the kind declares no expandPatch', async () => {
 		const d = door(registerCollapsible('door-none', false), {});
 
@@ -81,8 +81,8 @@ describe('composeExpandDoor', () => {
 		expect(d.commit).not.toHaveBeenCalled();
 	});
 
-	// Reading mode commits nothing at all (G4.19's rule, on a seam the lint can't see):
-	// a reveal there degrades to the chrome row instead of editing the document.
+	// Reading mode commits nothing at all (G4.19, in a place the lint cannot see): opening
+	// there just shows the title row instead of editing the document.
 	it('declines in reading mode — the reveal degrades rather than committing', async () => {
 		const d = door(registerCollapsible('door-reading', true), { mode: 'reading' });
 

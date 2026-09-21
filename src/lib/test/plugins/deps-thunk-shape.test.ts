@@ -1,9 +1,9 @@
 /**
- * Type pins for the freeze-surface liveness rule: a live field on the public
- * factory-deps interfaces is a thunk (`() => T`), so a captured value no longer compiles. The `@ts-expect-error` directives ARE the
- * assertions — `npm run check` fails the day one starts compiling. `valueCaptureRejected`
- * is the load-bearing one: a getter and a value property are structurally identical,
- * so nothing but the thunk shape can reject a value capture.
+ * Type pins for the rule that live fields stay live: a live field on the public factory-deps
+ * interfaces is a function (`() => T`), so a captured value no longer compiles. The
+ * `@ts-expect-error` directives are the assertions; `npm run check` fails the day one starts
+ * compiling. A getter and a value property are structurally identical, so only the function
+ * shape can reject a captured value.
  */
 import { describe, it, expect } from 'vitest';
 import { parse } from '$lib/core/parser';
@@ -11,8 +11,8 @@ import type { NodeView } from '$lib/core/node-views';
 import type { ContainerBlockDeps } from '$lib/editor-actions/plugin/container';
 import type { EditableLeafDeps } from '$lib/components/blocks/editable-leaf';
 
-// Load-bearing: a value under the CORRECT new name. Fails only because `NodeView` is
-// not `() => NodeView` — value-capture of a live field, now uncompilable.
+// The one that matters: a value under the correct new name. It fails only because `NodeView`
+// is not `() => NodeView`, which is a captured live field and no longer compiles.
 export function valueCaptureRejected(view: NodeView): void {
 	const container: ContainerBlockDeps = {
 		// @ts-expect-error getNode is a () => NodeView thunk; a captured value is not a live read
@@ -32,14 +32,14 @@ export function valueCaptureRejected(view: NodeView): void {
 	void leaf;
 }
 
-// The pre-freeze getter shape (`get node()`) is gone — the field is named `getNode`.
+// There is no getter form: the field is named `getNode`.
 export function getterShapeRejected(view: NodeView): void {
 	const container: ContainerBlockDeps = {
 		getNode: () => view,
 		getIndex: () => 0,
 		getPath: () => [],
 		getBoxEl: () => undefined,
-		// @ts-expect-error `node` is not a ContainerBlockDeps field — the getter convention is retired
+		// @ts-expect-error `node` is not a ContainerBlockDeps field; there is no getter form
 		get node() {
 			return view;
 		}
@@ -47,14 +47,14 @@ export function getterShapeRejected(view: NodeView): void {
 	void container;
 }
 
-// The pre-freeze value shape (`node: someView`) is gone for the same reason.
+// There is no plain-value form (`node: someView`) either, for the same reason.
 export function valueShapeRejected(view: NodeView): void {
 	const leaf: EditableLeafDeps = {
 		getNode: () => view,
 		getIndex: () => 0,
 		getPath: () => [],
 		getEl: () => null,
-		// @ts-expect-error `node` is not an EditableLeafDeps field — pass getNode instead
+		// @ts-expect-error `node` is not an EditableLeafDeps field; pass getNode instead
 		node: view
 	};
 	void leaf;

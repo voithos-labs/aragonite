@@ -38,8 +38,8 @@ function editorStub() {
 		decorations: {
 			addSource: (source: DecorationSource) => {
 				added = source;
-				// The engine runs a source the moment it registers; a stub that skips that
-				// first provide cannot see what the source makes of the epoch it mounts on.
+				// The decoration system runs a source the moment it registers; a stub that skips
+				// that first provide cannot see what the source makes of its first `editEpoch`.
 				source.provide(DOC, { editEpoch: 0 });
 				return { invalidate, dispose };
 			}
@@ -95,8 +95,8 @@ describe('highlightOccurrencesPlugin wiring', () => {
 
 		wired.fireSelection(caret([0], 0)); // caret on the first 'cat'
 		expect(wired.invalidate).toHaveBeenCalledTimes(1);
-		// The invalidate re-runs provide in the engine; here we call it directly to
-		// prove the source now sees the word under the caret (setSelection was wired).
+		// Invalidating re-runs provide inside the editor; calling it directly here shows
+		// the source now sees the word under the caret, so setSelection was wired.
 		const marks = wired.source()!.provide(DOC, { editEpoch: 0 }) as MarkDecoration[];
 		expect(marks).toHaveLength(2);
 		expect(marks[0].class).toBe(OCCURRENCE_CLASS);
@@ -116,7 +116,7 @@ describe('highlightOccurrencesPlugin wiring', () => {
 		wired.fireSelection(caret([0], 0));
 		expect(wired.source()!.provide(DOC, { editEpoch: 0 })).toHaveLength(2);
 
-		// A keystroke: the epoch bumps with no `edit` event ahead of it.
+		// A keystroke: `editEpoch` bumps with no `edit` event before it.
 		expect(wired.source()!.provide(DOC, { editEpoch: 1 })).toEqual([]);
 
 		wired.fireEdit('input');
@@ -133,8 +133,8 @@ describe('highlightOccurrencesPlugin wiring', () => {
 		expect(wired.source()!.provide(DOC, { editEpoch: 1 })).toHaveLength(2);
 	});
 
-	// The scan seam is the plugin's only option; the memo it feeds is pinned at the
-	// source level, so this asserts the threading and nothing beyond it.
+	// `onScan` is the plugin's only option; the cache it feeds is pinned at the source
+	// level, so this asserts the wiring and nothing beyond it.
 	it('threads the onScan option into the source it mints', () => {
 		const onScan = vi.fn();
 		const wired = attach({ onScan });
@@ -147,9 +147,9 @@ describe('highlightOccurrencesPlugin through the install platform', () => {
 	beforeEach(() => resetPluginPlatformForTests());
 	afterEach(() => resetPluginPlatformForTests());
 
-	// A unit installs once per process, so an author's suite reinstalls between cases: a
-	// registration that skipped the reset seam throws here, and a duplicated onEditor call
-	// misses the count.
+	// A plugin installs once per process, so an author's suite reinstalls between cases: a
+	// registration that ignored the test reset throws here, and a duplicated onEditor call
+	// fails the count.
 	it('reinstalls across the reset seam, registering exactly one callback each time', () => {
 		installPlugins([highlightOccurrencesPlugin()]);
 		expect(onEditorCallbacks('highlight-occurrences')).toHaveLength(1);
@@ -159,7 +159,7 @@ describe('highlightOccurrencesPlugin through the install platform', () => {
 		expect(onEditorCallbacks('highlight-occurrences')).toHaveLength(1);
 	});
 
-	// One installed unit, two <Editor> instances: hoisting the source out of the onEditor
+	// One installed plugin, two <Editor> instances: moving the source out of the onEditor
 	// callback would let a caret in one editor decorate the other.
 	it('mints an independent source per editor', () => {
 		installPlugins([highlightOccurrencesPlugin()]);

@@ -8,17 +8,17 @@ import { splitNode } from '$lib/tree-operations/node-ops';
 import { rangeDelete } from '$lib/selection/range-delete';
 import { createSharingState } from '$lib/tree-operations/sharing';
 
-// The structural doors into the same `</details>` escape: they reach the body through
-// their own sinks, with no per-block commit to carry the rule.
+// The structural paths into the same `</details>` escape: they write the body themselves,
+// with no per-block commit to apply the rule.
 
 beforeEach(() => {
 	resetPluginPlatformForTests();
 	registerDetailsKind();
 });
 
-// Enter is the second door into the body. BOTH halves are reachable, which is why
-// the sink escapes both: the anchored recognizer spares a tag line with text on
-// either side, and the cut is what strands it alone.
+// Enter is the second way into the body. Both halves are reachable, which is why the write
+// escapes both: the anchored recognizer spares a tag line with text on either side, and the
+// split is what leaves it alone on its line.
 describe('details terminator escape at the split door', () => {
 	const detailsOwner = () => ({ ownerKind: declaredPluginKind(DETAILS), owner: undefined });
 
@@ -30,8 +30,8 @@ describe('details terminator escape at the split door', () => {
 	});
 
 	it('escapes the first half when the cut strands a leading tag', () => {
-		// `</details>foo` parses as an htmlBlock — the tag line only survived unescaped
-		// because the trailing text kept it off the anchored terminator.
+		// `</details>foo` parses as an htmlBlock; the tag line survived unescaped only
+		// because the trailing text kept it from matching the anchored terminator.
 		const parent = { children: parse('</details>foo\n').children, ...detailsOwner() };
 		expect(parent.children[0].kind).toBe('htmlBlock');
 
@@ -52,9 +52,9 @@ describe('details terminator escape at the split door', () => {
 	});
 });
 
-// The cross-block family reaches the body through its own sinks, not through the
-// per-block ones. A join can MINT a terminator line out of two lines that each
-// held none — which is why these doors need the rule as much as typing does.
+// The cross-block operations write the body themselves rather than going through the
+// per-block path. Joining two lines can create a terminator line out of two that each held
+// none, which is why they need the rule as much as typing does.
 describe('details terminator escape at the cross-block doors', () => {
 	// Both children are ordinary loaded shapes: the tag sits mid-line, where the
 	// anchored recognizer never sees it. The delete is what strands it at column 0.

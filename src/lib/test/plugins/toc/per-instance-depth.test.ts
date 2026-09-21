@@ -2,7 +2,7 @@
 // Two editors, one process, one installed toc definition, two depths.
 //
 // Miss-analysis: the depth was pinned at the factory argument and at the extraProps closure, both
-// of which are process-global by construction — no test mounted a second instance, so nothing
+// of which are process-wide by construction, and no test mounted a second instance, so nothing
 // could observe the first install fixing the depth for the other.
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { mount, unmount, flushSync } from 'svelte';
@@ -46,8 +46,8 @@ afterEach(() => {
 
 describe('tocPlugin depth through the per-instance options channel', () => {
 	it('two live editors sharing one installed definition list different depths', () => {
-		// The SAME unit in both props: installing a second definition of one name is the
-		// first-wins discard this channel exists to route around.
+		// The same plugin in both props: a second plugin of the same name is discarded in
+		// favour of the first, which is what this option exists to work around.
 		const toc = tocPlugin();
 		const shallow = mountEditor([{ plugin: toc, options: { maxDepth: 1 } }]);
 		const deep = mountEditor([{ plugin: toc, options: { maxDepth: 3 } }]);

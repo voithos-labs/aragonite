@@ -58,9 +58,9 @@ describe('convertGithubAlerts', () => {
 		expect(convertGithubAlerts(src).converted).toBe(':::note\na\n:::\n\n:::tip\nb\n:::');
 	});
 
-	// Miss-analysis (#171): every fixture drew a FLAT alert, so nothing exercised the one input
-	// the conversion changes twice — a nested alert, which loses a quote level here and becomes a
-	// top-level marker on the next pass. The dev idempotence probe found it on ordinary content.
+	// Miss-analysis (#171): every fixture used a flat alert, so nothing exercised the one input
+	// the conversion changes twice: a nested alert, which loses a quote level here and becomes a
+	// top-level marker on the next pass. The dev-mode idempotence check found it on real content.
 	it('converts a nested alert in the same pass, so a second pass changes nothing', () => {
 		const src = '> [!NOTE]\n> > [!TIP]\n> > inner\n';
 		const once = convertGithubAlerts(src);

@@ -16,7 +16,7 @@ import {
 } from '$lib/testing/container-conformance';
 import { testClosure } from '$lib/test/support/closure';
 
-// The terminator cell over a CHILDLESS container — the whole-block shape (mermaid's) whose body
+// The terminator cell over a childless container: the whole-block shape (mermaid's) whose body
 // lives in metadata, so there is no last child to overwrite. Two kinds share one grammar and
 // differ only in whether the rebuild widens its fence past the body, which is the repair the
 // cell exists to find.
@@ -113,7 +113,7 @@ describe('G4.3 terminator collision — the childless, metadata-bodied shape', (
 	});
 
 	// Non-vacuity: the same fixture against a rebuild that keeps a fixed fence must be caught,
-	// or the childless arm is running the write and asserting nothing about the reparse.
+	// or the childless branch is running the write and asserting nothing about the reparse.
 	it('fails a childless container whose fixed fence lets the body close the block', () => {
 		const kind = registerProbeKind('probe-fixed');
 		expect(() => checkTerminatorCollision(kind, profileFor('probe-fixed', seatCode))).toThrow(

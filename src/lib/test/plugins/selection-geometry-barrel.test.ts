@@ -4,9 +4,9 @@ import * as mainBarrel from '$lib/index';
 import { SELECTION_END } from '$lib/block-component';
 import type { EditorSelection, SelectionPoint } from '$lib/plugin';
 
-// The selection-geometry surface is pre-freeze. This probe pins the sentinel on
-// both barrels to its single mint (block-component), so a dropped re-export fails
-// here rather than in a consumer that would otherwise hardcode MAX_SAFE_INTEGER.
+// The selection-geometry API is not frozen yet. This pins the sentinel value on both barrels
+// to the one place it is defined (block-component), so a dropped re-export fails here rather
+// than in a consumer that would otherwise hardcode MAX_SAFE_INTEGER.
 describe('selection-geometry barrel surface', () => {
 	it('re-exports SELECTION_END from block-component on both barrels', () => {
 		expect(pluginBarrel.SELECTION_END).toBe(SELECTION_END);

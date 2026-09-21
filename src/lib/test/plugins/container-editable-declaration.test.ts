@@ -1,9 +1,9 @@
 // @vitest-environment jsdom
-// The container tier's `editable` declaration, end to end: a kind declares it, the factory
-// threads it, the mounted surface reports it.
+// A container's `editable` declaration, end to end: a kind declares it, the factory passes it
+// through, the mounted block reports it.
 //
 // Miss-analysis: the shim hardcoded `editable: true`, so no fixture could declare otherwise and
-// every existing container test asserted the hardcode back — the capability had no kind to pin it.
+// every existing container test read that hardcoded value back, with no kind to pin the rest.
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { mount, unmount, flushSync } from 'svelte';
 import {
@@ -29,7 +29,7 @@ function registerOpaqueKind(): void {
 	registerBlockKind(kind, {
 		gapEdges: 'none',
 		mergeRole: 'not-mergeable',
-		// The declaration under test: a surface whose only edit path would be its own UI.
+		// The declaration under test: a block whose only edit path would be its own UI.
 		editable: false,
 		supportsInline: false,
 		blockFocus: 'whole-block',
@@ -95,8 +95,8 @@ describe('a container kind declaring editable: false', () => {
 		await opaque.dispose();
 	});
 
-	// The declaration reaches the flag the editor actually gates on, so the two agree
-	// rather than the surface saying one thing and merge/search reading another.
+	// The declaration reaches the flag the editor actually checks, so the two agree rather
+	// than the block saying one thing and merge or search reading another.
 	it('agrees with the descriptor flag the gates read', () => {
 		expect(isBlockEditable(declaredPluginKind(KIND))).toBe(false);
 	});
