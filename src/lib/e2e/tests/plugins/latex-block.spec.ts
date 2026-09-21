@@ -3,13 +3,13 @@ import { roundTripStable } from './helpers';
 import { BlockMathPage } from './latex-reveal-helpers';
 
 /**
- * Block `$$…$$` display math: render-primary, source-on-focus (design §"Block math", flagship axes
- * A1 caret-across-swap and A7 multiline render). The reactive render↔source swap and the caret's
- * survival across it are exactly what the unit layer could not prove, so reveal, edit, blur, and
- * navigation are driven through real mouse/keyboard only. The folded render is `.math-block-render`
- * (KaTeX output `.katex`); the revealed source is `.math-block-source`, painted as fence lines and
- * highlight spans whose textContent is the `$$…$$` bytes. In the default split layout the render
- * stays up beside the source as a live preview. Seed: `Before` / `$$x^2$$` / `After`.
+ * Block `$$…$$` display maths: rendered first, source shown on focus (design § "Block math", axes
+ * A1, the caret across the swap, and A7, multiline render). The swap between render and source and
+ * the caret surviving it are exactly what the unit tests cannot prove, so opening, editing,
+ * blurring and moving are all driven by real mouse and keyboard. The render is
+ * `.math-block-render`, with KaTeX output in `.katex`; the source is `.math-block-source`, drawn as
+ * fence lines and highlight spans whose textContent is the `$$…$$` bytes. In the default split
+ * layout the render stays beside the source as a live preview. Seed: `Before` / `$$x^2$$` / `After`.
  */
 
 class BlockMathCaretPage extends BlockMathPage {
@@ -20,7 +20,7 @@ class BlockMathCaretPage extends BlockMathPage {
 		return paths.anchor.offset;
 	}
 
-	/** The revealed source's text, with a count of the spans it is painted as. */
+	/** The shown source's text, with a count of the spans it is drawn as. */
 	async sourceShape(): Promise<{ spans: number; text: string }> {
 		return this.page.evaluate(() => {
 			const el = document.querySelector('.math-block-source');
@@ -48,9 +48,9 @@ test.describe('plugin block math: render-primary, source-on-focus', () => {
 		await editor.gotoMathSeed('mathblock');
 	});
 
-	// A block with no body line — the one-line `$$$$`, or `$$` over `$$` — reveals as opener,
-	// one empty body line and closer, so the caret has a line to sit on; Backspace on that line is
-	// then the block's deletion, in live mode and source mode alike.
+	// A block with no body line, whether the one-line `$$$$` or `$$` over `$$`, opens as an opener,
+	// one empty body line and a closer, so the caret has a line to sit on. Backspace on that line
+	// is then the block's deletion, in live mode and source mode alike.
 	for (const mode of ['live', 'source'] as const) {
 		test(`an empty block gains a body line on reveal and Backspace deletes it (${mode})`, async ({
 			page
@@ -63,7 +63,7 @@ test.describe('plugin block math: render-primary, source-on-focus', () => {
 			await page.keyboard.press('Backspace');
 			await editor.bridge.waitForSourceEquals('Before\n');
 			expect(await editor.bridge.getBlockCount()).toBe(1);
-			// The press lands the caret in the block above, as the code block's deletion does.
+			// The key leaves the caret in the block above, as deleting a code block does.
 			await expect(editor.getBlock(0)).toContainText('Before');
 			expect(await editor.selectionInBlock(0)).toBe(true);
 		});
@@ -94,7 +94,7 @@ test.describe('plugin block math: render-primary, source-on-focus', () => {
 		await expect(editor.render).toHaveCount(1);
 		await expect(editor.source).toBeFocused();
 		expect(await editor.sourceText()).toContain('$$x^2$$');
-		// Reveal is a view toggle — the source has not changed.
+		// Showing the source only changes the view: the source has not changed.
 		expect(await editor.bridge.getSource()).toContain('$$x^2$$');
 		expect(await roundTripStable(editor.page)).toBe(true);
 	});
@@ -103,7 +103,7 @@ test.describe('plugin block math: render-primary, source-on-focus', () => {
 		page
 	}) => {
 		await editor.revealFromBefore();
-		// Caret at the source leading edge; step inside the fence and insert a char.
+		// Caret at the source's leading edge: step inside the fence and insert a character.
 		await page.keyboard.press('ArrowRight');
 		await page.keyboard.press('ArrowRight');
 		await page.keyboard.type('a');
@@ -132,12 +132,12 @@ test.describe('plugin block math: render-primary, source-on-focus', () => {
 		});
 		await editor.paste();
 
-		// The ephemeral source edit takes the text/plain payload, not the HTML markup: without the
-		// render-primary leaf's own onpaste the native paste drops live <b> into the reveal.
+		// The uncommitted source edit takes the text/plain payload, not the HTML markup: without
+		// this block's own onpaste the browser's paste drops a live <b> into the shown source.
 		const html = await editor.source.innerHTML();
 		expect(html).not.toContain('<b>');
 		expect(await editor.sourceText()).toContain(' plain');
-		// The edit stays ephemeral until blur — blur commits and the doc round-trips.
+		// The edit stays uncommitted until blur, which commits it and the document round-trips.
 		await editor.getBlock(2).click();
 		expect(await roundTripStable(editor.page)).toBe(true);
 	});
@@ -145,13 +145,13 @@ test.describe('plugin block math: render-primary, source-on-focus', () => {
 	test('A1: the reveal caret lands at the source edge and a typed char lands inside it', async ({
 		page
 	}) => {
-		// Keyboard entry (focus(0)) lands the caret without a click mouseup competing
-		// for it — the reactive re-render must not displace it to a block edge.
+		// Entering by keyboard, with focus(0), lands the caret with no mouseup competing for it,
+		// and the re-render must not move it to a block edge.
 		await editor.revealFromBefore();
 		expect(await editor.sourceCaretOffset()).toBe(0);
 
-		// Step two chars into the fence and type: the char lands at the caret, inside
-		// the formula — not leaked to the sibling paragraph.
+		// Step two characters into the fence and type: the character lands at the caret, inside
+		// the formula, and not in the sibling paragraph.
 		await page.keyboard.press('ArrowRight');
 		await page.keyboard.press('ArrowRight');
 		await page.keyboard.type('z');
@@ -165,13 +165,13 @@ test.describe('plugin block math: render-primary, source-on-focus', () => {
 		await expect(editor.renderedKatex).toHaveCount(1);
 
 		await editor.revealByClick();
-		// Painted as fence lines and highlight tokens, so the walk's textContent contract is
-		// what holds the offsets exact: every internal `\n` survives, nothing is added.
+		// Drawn as fence lines and highlight tokens, so what keeps the offsets exact is the rule
+		// that textContent matches the raw: every internal `\n` survives and nothing is added.
 		const shape = await editor.sourceShape();
 		expect(shape.spans).toBeGreaterThan(1);
 		expect(shape.text).toBe('$$\n\\begin{aligned}\na &= b \\\\\nc &= d\n\\end{aligned}\n$$');
 
-		// Blur with no edit is a pure view toggle — the bytes survive.
+		// Blur with no edit only changes the view, and the bytes survive.
 		await editor.getBlock(2).click();
 		await expect(editor.renderedKatex).toHaveCount(1);
 		expect(await roundTripStable(editor.page)).toBe(true);
@@ -227,8 +227,8 @@ test.describe('plugin block math: render-primary, source-on-focus', () => {
 		await page.keyboard.press('Shift+ArrowLeft');
 
 		await editor.waitForCrossBlock(true);
-		// The source stays revealed while the selection is live — a folded island
-		// could not be selected through.
+		// The source stays shown while the selection is live; a rendered widget could not be
+		// selected through.
 		await expect(editor.source).toHaveCount(1);
 		const paths = await editor.bridge.getSelectionPaths();
 		expect(paths).not.toBeNull();
@@ -251,13 +251,13 @@ test.describe('plugin block math: render-primary, source-on-focus', () => {
 		await expect(editor.renderedKatex).toHaveCount(1);
 	});
 
-	// Undo inside an open reveal walks the reveal's own edits first (the document's history holds
-	// the session as one entry, written on blur); once that is spent the chord reaches the
-	// document, whose restore re-seeds the source.
+	// Undo while the source is open walks that draft's own edits first, since the document's
+	// history holds the whole session as one entry written on blur; once the draft is spent the
+	// chord reaches the document, whose restore refills the source.
 	test('undo inside the revealed source takes the draft back first, then the document', async ({
 		page
 	}) => {
-		// A committed edit to THIS block, so the document undo below has something of its own.
+		// A committed edit to this block, so the document undo below has something of its own.
 		await editor.revealFromBefore();
 		await page.keyboard.press('ArrowRight');
 		await page.keyboard.press('ArrowRight');
@@ -280,7 +280,7 @@ test.describe('plugin block math: render-primary, source-on-focus', () => {
 		await editor.bridge.waitForSourceContains('$$x^2$$');
 		await expect(editor.source).toHaveText('$$x^2$$');
 
-		// The re-seeded source holds nothing of the draft; blurring commits nothing stale.
+		// The refilled source holds nothing of the draft, so blurring commits nothing stale.
 		await editor.getBlock(2).click();
 		await expect(editor.renderedKatex).toHaveCount(1);
 		expect(await editor.bridge.getSource()).toBe('Before\n\n$$x^2$$\n\nAfter\n');
@@ -288,7 +288,7 @@ test.describe('plugin block math: render-primary, source-on-focus', () => {
 	});
 
 	// The draft's own redo entry was taken against bytes the document undo replaced, so a redo
-	// after the re-seed is the document's, never the stale draft painted back over new bytes.
+	// after the refill is the document's, never the stale draft painted back over new bytes.
 	test('redo after a document undo re-seeded the source is the document’s, not the draft’s', async ({
 		page
 	}) => {

@@ -2,8 +2,8 @@ import { test, expect } from '../../fixtures';
 import { roundTripStable } from './helpers';
 import { BlockMathPage } from './latex-reveal-helpers';
 
-// The ```math fence's own fence lines, on a marker-hiding rung: chrome the mode collapses and the
-// edit range clamps away from, exactly as the `$$` sibling's.
+// The ```math fence's own fence lines under a marker-hiding mode: lines the mode collapses and the
+// edit range is kept away from, exactly as for its `$$` sibling.
 // Requirements: e2e/requirements/plugins/latex-fence-live-editing.md.
 
 const SOURCE = '```math\nx^2\n```';

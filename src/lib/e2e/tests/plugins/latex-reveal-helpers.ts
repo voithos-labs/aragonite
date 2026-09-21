@@ -1,9 +1,10 @@
 import { expect } from '../../fixtures';
 import { PluginsPage } from './helpers';
 
-// Shared probe surfaces for the latex reveal suites: the inline-widget reveal (MathRevealPage,
-// used by the fold seam and Enter's block meaning) and the block/fence render↔source swap
-// (BlockMathPage). Both surfaces are one gesture set across several specs, so they live here.
+// Shared page helpers for the latex suites that open a formula's source: the inline widget, in
+// MathRevealPage, used by the commit-first tests and by Enter's block meaning, and the block and
+// fence swap between render and source, in BlockMathPage. Each is one gesture set shared by
+// several specs, so both live here.
 
 export class BlockMathPage extends PluginsPage {
 	get render() {
@@ -28,9 +29,9 @@ export class BlockMathPage extends PluginsPage {
 	}
 
 	/**
-	 * Click the folded render to reveal its source. Block math swaps in a distinct
-	 * `.math-block-source` element rather than removing the widget, so it settles on that element's
-	 * arrival — not on the shared `revealWidget` count-to-zero.
+	 * Click the render to open its source. Block maths swaps in a separate `.math-block-source`
+	 * element rather than removing the widget, so this waits for that element to appear instead of
+	 * for the shared `revealWidget` count to reach zero.
 	 */
 	async revealByClick(): Promise<void> {
 		await this.render.click();
@@ -38,8 +39,8 @@ export class BlockMathPage extends PluginsPage {
 		await this.waitForRenderFlush();
 	}
 
-	/** Enter the math block from the paragraph above via a real ArrowRight, so the
-	 *  caret lands through `focus(0)` — no click mouseup competing for the caret. */
+	/** Enter the maths block from the paragraph above with a real ArrowRight, so the caret lands
+	 *  through `focus(0)` with no mouseup competing for it. */
 	async revealFromBefore(): Promise<void> {
 		await this.getBlock(0).click();
 		await this.page.keyboard.press('End');
@@ -54,16 +55,16 @@ export class MathRevealPage extends PluginsPage {
 		return this.page.locator('.math-inline-widget');
 	}
 
-	/** Open the trailing-edge reveal on the math in `block`: place the caret past
-	 *  the widget, then one Backspace, which reveals without touching a byte. */
+	/** Open the source from the trailing edge of the maths in `block`: put the caret past the
+	 *  widget, then one Backspace, which opens it without touching a byte. */
 	async revealFromTrailingEdge(block: number): Promise<void> {
 		await this.focusBlockEnd(block);
 		await this.page.keyboard.press('Backspace');
 		await expect(this.mathWidget).toHaveCount(0);
 	}
 
-	/** Open the leading-edge reveal on a block that STARTS with math, then step
-	 *  `into` bytes deeper so an edit lands inside the formula. */
+	/** Open the source from the leading edge of a block that starts with maths, then step `into`
+	 *  bytes further so an edit lands inside the formula. */
 	async revealFromLeadingEdge(block: number, into = 0): Promise<void> {
 		await this.focusBlockStart(block);
 		await this.page.keyboard.press('ArrowRight');
@@ -71,8 +72,8 @@ export class MathRevealPage extends PluginsPage {
 		for (let i = 0; i < into; i++) await this.page.keyboard.press('ArrowRight');
 	}
 
-	/** Press that far across the painted glyph run and report the offset the reveal seated the
-	 *  caret at, within the revealed source's own text node. */
+	/** Click that far across the painted glyph run and report the offset the caret ended at,
+	 *  within the open source's own text node. */
 	async revealOffsetAtGlyphFraction(fraction: number): Promise<number | null> {
 		const box = await this.mathWidget.locator('.katex-html').first().boundingBox();
 		if (!box) throw new Error('no glyph box for the rendered formula');
@@ -82,15 +83,15 @@ export class MathRevealPage extends PluginsPage {
 			const selection = window.getSelection();
 			if (!selection || selection.rangeCount === 0) return null;
 			const range = selection.getRangeAt(0);
-			// Null unless the caret is in the revealed source itself: the offset means nothing
+			// Null unless the caret is in the open source itself: the offset means nothing
 			// measured against a neighbouring prose text node.
 			const text = range.startContainer.textContent ?? '';
 			return /^\$.*\$$/.test(text) ? range.startOffset : null;
 		});
 	}
 
-	/** Backspace once per entry, settling on the revealed source's visible text after
-	 *  each press. The CST is frozen while revealed, so the DOM is the only oracle. */
+	/** Backspace once per entry, waiting on the open source's visible text after each keypress.
+	 *  The CST does not change while it is open, so the DOM is the only thing to read. */
 	async backspaceRevealed(block: number, texts: string[]): Promise<void> {
 		for (const expected of texts) {
 			await this.page.keyboard.press('Backspace');

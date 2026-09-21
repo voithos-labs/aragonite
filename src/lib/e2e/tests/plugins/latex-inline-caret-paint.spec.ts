@@ -2,11 +2,12 @@ import { test, expect } from '../../fixtures';
 import { PluginsPage } from './helpers';
 
 /**
- * Exactly one caret paints for one caret position, at an inline-math widget's edge. The rule is
- * kind-agnostic and lives with the image pins (blocks/image/caret-synthetic-indicator.spec.ts);
- * this is the plugin-surface twin, because the widget the consumer hit it on was math and the
- * image suite runs on a route with no plugins installed. Nothing here can assert the pixel — a
- * control run showed Playwright never captures a native caret — only that both sources were live.
+ * Exactly one caret is painted for one caret position, at an inline-maths widget's edge. The rule
+ * does not depend on the kind and lives with the image tests
+ * (blocks/image/caret-synthetic-indicator.spec.ts); this is the plugin counterpart, because the
+ * widget a consumer hit it on was maths and the image suite runs on a route with no plugins
+ * installed. Nothing here can assert the pixel, since Playwright never captures a browser's own
+ * caret, only that both carets were live.
  */
 
 test.describe('inline math: one caret per caret position', () => {
@@ -20,11 +21,11 @@ test.describe('inline math: one caret per caret position', () => {
 		const box = await widget.boundingBox();
 		if (!box) throw new Error('math widget has no bounding box');
 
-		// Click to the right of the widget with no trailing text to anchor in: the caret lands at
-		// an element-level offset, where the editor paints a synthetic caret because Chromium's own
-		// is unreliable there. When Chromium DOES paint, the user sees two — so the block's own
-		// caret goes dark while the synthetic is up, the only mutual exclusion available without
-		// asking the browser what it painted.
+		// Click to the right of the widget with no trailing text to land in: the caret goes to an
+		// element-level offset, where the editor paints its own caret because Chromium's is
+		// unreliable there. When Chromium does paint one the user sees two, so the block's own
+		// caret goes dark while the painted one is up, which is the only way to keep them apart
+		// without asking the browser what it drew.
 		await page.mouse.click(box.x + box.width + 25, box.y + box.height / 2);
 		await expect(page.locator('[data-inline-widget].md-snap-after')).toHaveCount(1);
 		const caretColor = await page.evaluate(

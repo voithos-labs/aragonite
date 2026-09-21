@@ -30,8 +30,8 @@ test.describe('a render-primary block folds onto the document it opened over', (
 		await editor.bridge.waitForSourceEquals('$$\nnew\n$$\n\ntail\n');
 	});
 
-	// The confirmed swallow: with the FOLDED view holding focus the block had no keydown door at
-	// all, so Mod+Z reached neither the leaf nor the editor root arm.
+	// The confirmed swallow: with the rendered view holding focus the block had no keydown handler
+	// at all, so Mod+Z reached neither the block nor the editor root.
 	test('Mod+Z reaches the stack while the folded view holds focus', async ({ page }) => {
 		await editor.render.click();
 		await expect(editor.source).toBeFocused();
@@ -46,11 +46,12 @@ test.describe('a render-primary block folds onto the document it opened over', (
 		await editor.bridge.waitForSourceEquals(DOC);
 	});
 
-	// #161's own repro. The block forms as the second `$` lands, with the caret in its revealed
-	// source. The draft is ephemeral: Mod+Z walks it back a typing burst at a time, the document's
-	// own granularity, and the press after the last one returns the paragraph rather than flushing
-	// draft bytes into the document the undo just restored. Exact text, not `toHaveText`: that
-	// matcher folds whitespace, and a stray newline in the draft is one more local entry.
+	// The reproduction from #161. The block forms as the second `$` lands, with the caret in its
+	// open source. That draft is uncommitted: Mod+Z steps back through it one typing burst at a
+	// time, the document's own granularity, and the key after the last one brings the paragraph
+	// back rather than pushing draft bytes into the document the undo just restored. Exact text
+	// rather than `toHaveText`, which collapses whitespace, since a stray newline in the draft is
+	// one more entry of its own.
 	test('undo from inside a just-minted reveal walks the draft back, then returns the paragraph', async ({
 		page
 	}) => {
@@ -61,7 +62,7 @@ test.describe('a render-primary block folds onto the document it opened over', (
 		await editor.bridge.waitForSourceEquals('$$\n\n$$\n');
 		await expect(editor.source).toBeFocused();
 
-		// Two bursts with a pause between them, so the draft holds two entries rather than five.
+		// Two bursts with a pause between them, so the draft holds two entries and not five.
 		await editor.typeSlowly('x^');
 		await editor.waitForUndoBatchFlush();
 		await editor.typeSlowly('2');

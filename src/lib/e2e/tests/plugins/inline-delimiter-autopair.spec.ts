@@ -1,9 +1,9 @@
 import { test, expect } from '../../fixtures';
 import { PluginsPage } from './helpers';
 
-// A typed inline delimiter closes itself: a new `$` or backtick pairs with the twin the keystroke
-// lands, never with a delimiter further along the line, and typing the closer over that twin steps
-// past it. The source bytes are the oracle throughout; where the caret sits is read by typing.
+// A typed inline delimiter closes itself: a new `$` or backtick pairs with the partner the same
+// keystroke adds, never with a delimiter further along the line, and typing the closer over that
+// partner steps past it. The source bytes are the reference; the caret is read by typing.
 // Requirements: e2e/requirements/plugins/inline-delimiter-autopair.md.
 
 test.describe('inline delimiter auto-pair', () => {
@@ -15,8 +15,8 @@ test.describe('inline delimiter auto-pair', () => {
 		await editor.setPresentationMode('live');
 	});
 
-	// The bug this pins: a lone `$` ahead of an existing formula paired with that formula's closer
-	// and wrapped the prose between them.
+	// The bug this guards: a lone `$` ahead of an existing formula pairing with that formula's
+	// closer and wrapping the prose between them.
 	test('a $ typed ahead of a formula pairs with its own twin, not the formula', async ({
 		page
 	}) => {
@@ -24,8 +24,8 @@ test.describe('inline delimiter auto-pair', () => {
 		await editor.focusBlock(0, 5);
 		await page.keyboard.type('$');
 		await editor.bridge.waitForSourceContains('text $$and $x^2$ later');
-		// The body is typed into the formula's revealed source, which commits when the closer
-		// typed over the twin steps past it; the space then lands outside the formula.
+		// The body is typed into the formula's shown source, which commits when the closer typed
+		// over its partner steps past it, and the space then lands outside the formula.
 		await page.keyboard.type('ab$ z');
 		await editor.bridge.waitForSourceContains('text $ab$ zand $x^2$ later');
 	});
@@ -56,8 +56,8 @@ test.describe('inline delimiter auto-pair', () => {
 		expect(await editor.bridge.getSource()).toBe('pay x\n');
 	});
 
-	// The emphasis family: `**` typed ahead of an existing bold run pairs with its own twin, and
-	// the byte after the just-closed run lands outside it.
+	// The emphasis delimiters: `**` typed ahead of an existing bold run pairs with its own
+	// partner, and the byte after the run just closed lands outside it.
 	test('** and ~~ pair with their own twins and close cleanly', async ({ page }) => {
 		await editor.loadContent('text and **bold** later\n');
 		await editor.focusBlock(0, 5);
@@ -79,7 +79,7 @@ test.describe('inline delimiter auto-pair', () => {
 		expect(await editor.bridge.getBlockKind(1)).toBe('fencedCode');
 	});
 
-	// A step-over that leaves the line an on-type completer claims still reaches that completer.
+	// A step over a closer that leaves a line another on-type rule handles still reaches it.
 	test('$$ still forms the math block as the second $ lands', async ({ page }) => {
 		await editor.loadContent('above\n\n\n');
 		await editor.focusBlock(1, 0);

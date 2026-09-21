@@ -1,8 +1,8 @@
 import { test, expect } from '../../fixtures';
 import { PluginsPage } from './helpers';
 
-// The equation's card is the block: a click anywhere in it opens the source, ink or not. The
-// editor's padding level with the block is not the block, so a click there opens nothing.
+// The equation's box is the block: a click anywhere in it opens the source, on a glyph or not. The
+// editor's padding beside the block is not the block, so a click there opens nothing.
 // Requirements: e2e/requirements/plugins/latex-block-margin-click.md.
 
 test.describe('block math: clicks beside the equation', () => {

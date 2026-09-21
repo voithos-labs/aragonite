@@ -4,12 +4,12 @@ import { PluginsPage } from './helpers';
 /**
  * KaTeX `htmlAndMathml` output is two sibling trees inside `.katex`: the visual `.katex-html`
  * render and a `.katex-mathml` accessibility tree that `katex/dist/katex.min.css` collapses to a
- * 1px box. Without that stylesheet both halves lay out, so every equation paints twice — the render
- * followed by its TeX source echoed as plain text. These pin "the widget renders once": the MathML
- * half occupies no visible box while the HTML half keeps its glyph layout.
+ * 1px box. Without that stylesheet both halves lay out, so every equation paints twice: the render
+ * followed by its TeX source repeated as plain text. These tests pin that the widget renders once,
+ * with the MathML half taking no visible box while the HTML half keeps its glyph layout.
  */
 
-// Post-clip the MathML box is 1×1; unclipped it lays out at glyph size (tens of px).
+// Clipped, the MathML box is 1×1; unclipped it lays out at glyph size, tens of pixels.
 const CLIPPED_PX = 2;
 
 test.describe('plugin math rendering: single visible render', () => {

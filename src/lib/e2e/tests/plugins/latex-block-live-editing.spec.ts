@@ -1,8 +1,8 @@
 import { test, expect } from '../../fixtures';
 import { BlockMathPage } from './latex-reveal-helpers';
 
-// Editing keys at the edges of a revealed `$$` source whose fence lines live mode hides: the
-// line extremes, Enter, Backspace and Tab must all stay inside the body.
+// Editing keys at the edges of an open `$$` source whose fence lines live mode hides: the ends of
+// the line, Enter, Backspace and Tab must all stay inside the body.
 // Requirements: e2e/requirements/plugins/latex-block-live-editing.md.
 
 const BODY = '\\begin{aligned}\na &= b \\\\\nc &= d\n\\end{aligned}';
@@ -84,8 +84,8 @@ test.describe('block math editing edges (live)', () => {
 		expect(await editor.bridge.getSource()).toBe(DOC);
 	});
 
-	// Parity with prose: no built-in binds Tab, so it is the browser's focus step out of the
-	// block, and the leaf folds on the blur it causes, committing the draft whole.
+	// The same as prose: nothing built in binds Tab, so it is the browser's focus step out of the
+	// block, and the block closes on the blur that causes, committing the draft whole.
 	test('Tab leaves the block as it leaves a paragraph, and the draft commits whole', async ({
 		page
 	}) => {

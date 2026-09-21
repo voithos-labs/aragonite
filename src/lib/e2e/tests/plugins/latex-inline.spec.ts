@@ -10,11 +10,11 @@ import { capturePageErrors } from '../../page-probes';
 import { attachIme } from '../../simulation/ime';
 
 /**
- * Inline `$…$` math: select → reveal editable source → commit re-renders (design §"Inline edit UX",
- * flagship axis A1). The reveal swap and the commit re-render are driven through real
- * mouse/keyboard only — no programmatic selection — because the reactive-re-render survival of the
- * caret is exactly what the unit layer could not prove. The math widget is `.math-inline-widget`;
- * KaTeX output is `.katex`; the revealed source is plain `$…$` text in the block.
+ * Inline `$…$` maths: select it, its editable source opens, committing re-renders it (design §
+ * "Inline edit UX", axis A1). The swap and the re-render are driven by real mouse and keyboard
+ * only, with no programmatic selection, because the caret surviving the re-render is exactly what
+ * the unit tests cannot prove. The widget is `.math-inline-widget`, KaTeX output is `.katex`, and
+ * the open source is plain `$…$` text in the block.
  */
 
 class MathPage extends PluginsPage {
@@ -31,8 +31,8 @@ class MathPage extends PluginsPage {
 		await revealWidget(this.mathWidget);
 	}
 
-	/** A press at the formula's tail, for a scenario that wants the caret there: the seat
-	 *  follows the point (`latex-inline-click-caret.md`), so it is aimed, not assumed. */
+	/** A click at the formula's end, for a scenario that wants the caret there: the caret follows
+	 *  the point (`latex-inline-click-caret.md`), so it is aimed at, not assumed. */
 	async revealAtFormulaEnd(): Promise<void> {
 		await clickWidgetEnd(this.mathWidget);
 		await expect(this.mathWidget).toHaveCount(0);
@@ -89,14 +89,14 @@ test.describe('plugin inline math: select → reveal-source editing', () => {
 		expect(await editor.bridge.getSource()).toContain('Before $x^2$ after');
 		await editor.revealByClick();
 
-		// The opaque widget is gone; the raw `$…$` is now visible, editable text.
+		// The widget is gone and the raw `$…$` is visible, editable text.
 		expect(await editor.getBlockText(0)).toContain('$x^2$');
-		// Reveal is a view toggle — the source has not changed.
+		// Opening the source only changes the view: the source itself has not changed.
 		expect(await editor.bridge.getSource()).toContain('Before $x^2$ after');
 	});
 
-	// The rule is the reveal choke point's, not the footnote widget's: the first click reveals,
-	// and the browser's word rule would take `$` from the source as a word of its own.
+	// The rule belongs to the one place sources open, not to the footnote widget: the first click
+	// opens it, and the browser's word rule would take `$` from the source as a word of its own.
 	test('a double-click on the rendered math selects the whole revealed token', async ({ page }) => {
 		const box = await editor.mathWidget.boundingBox();
 		if (!box) throw new Error('math widget has no bounding box');
@@ -123,11 +123,11 @@ test.describe('plugin inline math: select → reveal-source editing', () => {
 		await page.mouse.click(widgetBox.x + widgetBox.width / 2, line2Y);
 		await editor.waitForRenderFlush();
 
-		// The widget is untouched — the click landed on real text, not on the widget.
+		// The widget is untouched: the click landed on real text, not on it.
 		await expect(editor.mathWidget).toHaveCount(1);
 
-		// The caret really landed in line-2 text: a typed char enters the block source
-		// while the math source stays folded (never revealed for editing).
+		// The caret really landed in the second line's text: a typed character goes into the
+		// block's source while the formula stays rendered and never opens for editing.
 		await page.keyboard.type('Q');
 		await editor.bridge.waitForSourceContains('Q');
 		const source = await editor.bridge.getSource();
@@ -140,16 +140,16 @@ test.describe('plugin inline math: select → reveal-source editing', () => {
 	}) => {
 		await editor.getBlock(0).click();
 		await page.keyboard.press('Home');
-		// "Before " is 7 chars: 7 steps reach the widget's leading edge; the 8th ENTERS it. Under
-		// the Obsidian model an entry reveals the source in place, rather than parking in an
-		// invisible widget-selected state awaiting Enter.
+		// "Before " is 7 characters: 7 steps reach the widget's leading edge and the eighth enters
+		// it. Under the Obsidian model entering opens the source in place rather than resting in
+		// an invisible selected-widget state waiting for Enter.
 		for (let i = 0; i < 7; i++) await page.keyboard.press('ArrowRight');
 		await page.keyboard.press('ArrowRight');
 
 		await expect(editor.mathWidget).toHaveCount(0);
-		// Reveal is a view toggle — the CST source is unchanged.
+		// Opening the source only changes the view: the CST source is unchanged.
 		expect(await editor.bridge.getSource()).toContain('Before $x^2$ after');
-		// Caret at the leading edge: a typed char lands BEFORE the opening `$`.
+		// Caret at the leading edge: a typed character lands before the opening `$`.
 		await page.keyboard.type('Z');
 		const revealed = await editor.getBlockText(0);
 		expect(revealed).toContain('Z$x^2$');
@@ -160,11 +160,11 @@ test.describe('plugin inline math: select → reveal-source editing', () => {
 		page
 	}) => {
 		await editor.revealAtFormulaEnd();
-		// Pressed at the formula's tail, so the caret sits inside the closing `$` and typing
+		// Clicked at the formula's end, so the caret sits inside the closing `$` and typing
 		// continues the formula.
 		await page.keyboard.type('y');
-		// End carries the caret out of the source, which is what folds an edited reveal.
-		// Enter does not commit — it is the block's split key (latex-inline-reveal-commands).
+		// End carries the caret out of the source, which is what commits an edited one. Enter does
+		// not commit; it is the block's split key (latex-inline-reveal-commands).
 		await page.keyboard.press('End');
 
 		await expect(editor.mathWidget).toHaveCount(1);
@@ -179,8 +179,8 @@ test.describe('plugin inline math: select → reveal-source editing', () => {
 		page
 	}) => {
 		await editor.revealAtFormulaEnd();
-		// A char typed right after the reveal lands where the press did, inside the closing `$`:
-		// not at a block edge, where a lost caret would drop it, and not past the closer.
+		// A character typed right after the source opens lands where the click did, inside the
+		// closing `$`: not at a block edge, where a lost caret would drop it, and not past it.
 		await page.keyboard.type('z');
 		const revealed = await editor.getBlockText(0);
 		expect(revealed).toContain('$x^2z$');
@@ -188,8 +188,8 @@ test.describe('plugin inline math: select → reveal-source editing', () => {
 
 		await page.keyboard.press('End');
 		await expect(editor.mathWidget).toHaveCount(1);
-		// Commit landed the caret at the math's trailing edge: the next char lands immediately
-		// after the re-rendered widget — the escape's own End position does not survive the fold,
+		// The commit left the caret at the formula's trailing edge, so the next character lands
+		// immediately after the re-rendered widget: the End position does not survive the commit,
 		// the widget's trailing edge does.
 		await page.keyboard.type('!');
 		await editor.bridge.waitForSourceContains('$x^2z$!');
@@ -200,7 +200,7 @@ test.describe('plugin inline math: select → reveal-source editing', () => {
 		await editor.revealByClick();
 		await page.keyboard.press('ArrowRight');
 		await page.keyboard.type('y');
-		// Escape reverts to the rendered widget from the untouched raw — edit discarded.
+		// Escape renders the widget again from the untouched raw, discarding the edit.
 		await page.keyboard.press('Escape');
 
 		await expect(editor.mathWidget).toHaveCount(1);
@@ -215,18 +215,18 @@ test.describe('plugin inline math: select → reveal-source editing', () => {
 		await ime.compose('yy');
 		await ime.commit('yy');
 
-		// Composition is ephemeral: nothing committed to the CST yet.
+		// The composition is not committed: nothing has reached the CST yet.
 		await editor.waitForRenderFlush();
 		expect(await editor.bridge.getSource()).toContain('Before $x^2$ after');
 
-		// Focus leaves the block → the composed source commits and re-renders.
+		// Focus leaves the block, so the composed source commits and re-renders.
 		await editor.getBlock(1).click();
 		await editor.bridge.waitForSourceContains('$x^2yy$');
 		await expect(editor.mathWidget).toHaveCount(1);
 		expect(await editor.bridge.getSource()).toContain('Before $x^2yy$ after');
 
-		// The blur-commit must not yank the caret back: focus moved to the next block,
-		// so the selection stays there — the just-blurred math block never steals it.
+		// The commit on blur must not pull the caret back: focus moved to the next block, so the
+		// selection stays there and the maths block just blurred never takes it.
 		await editor.waitForRenderFlush();
 		expect(await editor.selectionInMathBlock()).toBe(false);
 	});
@@ -234,15 +234,15 @@ test.describe('plugin inline math: select → reveal-source editing', () => {
 	test('committing a revealed widget with no edit keeps the prior undo entry reachable', async ({
 		page
 	}) => {
-		// A real edit in the sibling paragraph — the entry the next Ctrl+Z must reach.
+		// A real edit in the sibling paragraph: the entry the next Ctrl+Z must reach.
 		await editor.getBlock(1).click();
 		await page.keyboard.press('End');
 		await page.keyboard.type('ABC');
 		await editor.bridge.waitForSourceContains('NextABC');
 		await editor.waitForUndoBatchFlush();
 
-		// Reveal the math and commit with NO edit. A zero-diff commit would push a dead
-		// undo entry, so this Ctrl+Z would revert the no-op instead of the ABC edit.
+		// Open the formula and commit with no edit. A commit that changed nothing would still push
+		// an undo entry, and this Ctrl+Z would undo that instead of the ABC edit.
 		await editor.revealByClick();
 		await page.keyboard.press('End');
 		await expect(editor.mathWidget).toHaveCount(1);
@@ -257,30 +257,29 @@ test.describe('plugin inline math: select → reveal-source editing', () => {
 		const pageErrors = capturePageErrors(page);
 
 		await editor.revealByClick();
-		// The keyboard-extend decision is visual-line GEOMETRY; a KaTeX font swap mid-measure
-		// (reachable under saturated parallel workers) breaks the last-line detection, so settle
-		// fonts before the gesture.
+		// Extending by keyboard is decided from visual-line geometry, and a KaTeX font swap
+		// partway through a measurement, which happens under busy parallel workers, breaks the
+		// last-line check, so wait for fonts before the gesture.
 		await page.evaluate(() => document.fonts.ready);
-		// Extend down into the next paragraph straight from the reveal caret. That caret sits
-		// inside the source (a mid-block offset) and the block is one visual line,
-		// so the FIRST Shift+ArrowDown extends to the line end within the block — a
-		// shift-extension, which keeps the source revealed (unlike a collapsed End press, which
-		// would escape the island and fold it). The SECOND crosses the boundary, with the anchor
-		// staying INSIDE the revealed source throughout.
+		// Extend down into the next paragraph straight from the caret the open source left. That
+		// caret sits inside the source, at a mid-block offset, and the block is one visual line,
+		// so the first Shift+ArrowDown extends to the line's end inside the block. Extending keeps
+		// the source open, unlike a collapsed End, which would leave the widget and close it. The
+		// second crosses into the next block, with the anchor staying inside the open source.
 		await page.keyboard.press('Shift+ArrowDown');
 		await page.keyboard.press('Shift+ArrowDown');
 		await editor.waitForCrossBlock(true);
 
-		// The source stays revealed while the selection is live — a folded island could
-		// not be selected through, and folding would strand the anchored endpoint.
+		// The source stays open while the selection is live: a rendered widget could not be
+		// selected through, and closing it would strand the anchored endpoint.
 		await expect(editor.mathWidget).toHaveCount(0);
 		const paths = await editor.bridge.getSelectionPaths();
 		expect(paths).not.toBeNull();
 		expect([paths!.anchor.path[0], paths!.focus.path[0]].sort()).toEqual([0, 1]);
 
-		// Blur while the cross-block selection is live. No mouse/keyboard gesture moves focus off
-		// the block without collapsing the selection, so the blur is fired directly. The commit must
-		// bail on cross-block, not fold the source out from under the anchored endpoint.
+		// Blur while the cross-block selection is live. No mouse or keyboard gesture moves focus
+		// off the block without collapsing the selection, so the blur is fired directly. The
+		// commit must stop on a cross-block range rather than close the source under its anchor.
 		await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
 		await editor.waitForRenderFlush();
 
@@ -289,8 +288,8 @@ test.describe('plugin inline math: select → reveal-source editing', () => {
 	});
 });
 
-// The whole-token rule belongs to the double-click that OPENED the reveal. Once the source is
-// showing, it is ordinary text and the browser's word rule owns the gesture.
+// The whole-token rule belongs to the double-click that opened the source. Once it is showing, it
+// is ordinary text and the browser's word rule owns the gesture.
 test.describe('plugin inline math: a double-click inside an open reveal', () => {
 	for (const mode of ['source', 'live'] as const) {
 		test(`${mode} mode: takes the word, not the whole token`, async ({ page }) => {
@@ -306,8 +305,8 @@ test.describe('plugin inline math: a double-click inside an open reveal', () => 
 			await page.mouse.dblclick(word.x, word.y);
 			await editor.waitForRenderFlush();
 
-			// Trimmed: the browser's word rule carries the trailing space, and what discriminates
-			// is that the `$` delimiters are outside the selection.
+			// Trimmed: the browser's word rule takes the trailing space, and what this checks is
+			// that the `$` delimiters stay outside the selection.
 			await expect
 				.poll(() => page.evaluate(() => window.getSelection()?.toString().trim()))
 				.toBe('beta');

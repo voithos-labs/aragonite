@@ -3,10 +3,10 @@ import { roundTripStable, waitForDoc, activeBlockPath } from './helpers';
 import { BlockMathPage } from './latex-reveal-helpers';
 
 /**
- * Block math commit kernel (requirements/plugins/latex-block-commit-split.md): a revealed source
- * committed with text that parses to multiple blocks must re-split the document — the stuck-fence
- * class. Real keyboard/mouse only; Enter inside the source inserts a literal newline (never splits
- * live), so the split happens at blur-commit time.
+ * Committing block maths (requirements/plugins/latex-block-commit-split.md): an open source
+ * committed with text that parses to several blocks must split the document again, which is what
+ * a stuck fence comes from. Real keyboard and mouse only; Enter inside the source inserts a
+ * literal newline and never splits as you type, so the split happens when blur commits.
  */
 
 test.describe('block math commit kernel: multi-block source re-splits', () => {
@@ -32,7 +32,7 @@ test.describe('block math commit kernel: multi-block source re-splits', () => {
 		expect(doc.kinds).toEqual(['paragraph', 'mathBlock', 'paragraph', 'paragraph']);
 		expect(doc.texts[1]).toBe('$$x^2$$');
 		expect(doc.texts[2]).toBe('hello');
-		// The math folded back to a clean render — the stuck state is gone.
+		// The maths went back to a clean render, so the stuck state is gone.
 		await expect(editor.renderedKatex).toHaveCount(1);
 		expect(await roundTripStable(page)).toBe(true);
 	});
@@ -45,9 +45,9 @@ test.describe('block math commit kernel: multi-block source re-splits', () => {
 		await page.keyboard.press('Enter');
 		await page.keyboard.press('Enter');
 		await page.keyboard.type('hello');
-		// The fold's relayout during the click consumes the click's own focus (Chromium drops it to
-		// <body>), so the commit restores the caret to the edit position in the split-off paragraph
-		// — never a dead caret.
+		// Re-laying out while the block closes consumes the click's own focus, which Chromium
+		// drops to <body>, so the commit puts the caret back at the edit position in the
+		// split-off paragraph rather than leaving no caret at all.
 		await editor.getBlock(0).click();
 
 		await waitForDoc(page, (s) => s.rootCount === 4);

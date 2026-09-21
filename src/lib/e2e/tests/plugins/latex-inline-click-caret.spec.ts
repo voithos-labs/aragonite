@@ -2,10 +2,10 @@ import { test, expect } from '../../fixtures';
 import { MathRevealPage } from './latex-reveal-helpers';
 
 /**
- * Where a click on a rendered `$…$` island puts the caret
- * (requirements/plugins/latex-inline-click-caret.md). The block form already reads the press as a
- * place in the equation; the inline widget seated every click at the formula's end, so editing a
- * formula's head was a click plus a walk back.
+ * Where a click on a rendered `$…$` widget puts the caret
+ * (requirements/plugins/latex-inline-click-caret.md). The block form already reads the click as a
+ * place in the equation; the inline widget put every click at the formula's end, so editing the
+ * start of a formula was a click plus several arrow steps back.
  */
 
 const LONG_FORMULA = 'Before $alpha+beta$ after\n\nNext\n';
@@ -19,14 +19,14 @@ test.describe('inline math: a click seats the caret where it landed', () => {
 		await expect(editor.mathWidget).toHaveCount(1);
 	});
 
-	/** The painted glyph box — KaTeX's MathML twin is clipped to a pixel and measures nothing. */
+	/** The painted glyph box; KaTeX's MathML copy is clipped to a pixel and measures nothing. */
 	async function glyphBox(): Promise<{ x: number; y: number; width: number; height: number }> {
 		const box = await editor.mathWidget.locator('.katex-html').first().boundingBox();
 		if (!box) throw new Error('no glyph box for the rendered formula');
 		return box;
 	}
 
-	/** Press at `x` across the glyph run, type one byte, then escape to commit it. */
+	/** Click at `x` across the glyph run, type one byte, then move out to commit it. */
 	async function typeAtGlyphX(x: number, byte: string): Promise<string> {
 		const box = await glyphBox();
 		await editor.page.mouse.click(x, box.y + box.height / 2);
@@ -68,7 +68,7 @@ test.describe('inline math: a click seats the caret where it landed', () => {
 		expect(early).toBeGreaterThan(0);
 		expect(late!).toBeGreaterThan(early!);
 		expect(late!).toBeLessThan('$alpha+beta$'.length);
-		// Both reveals were view toggles; neither edited a byte.
+		// Both only changed the view; neither edited a byte.
 		expect(await editor.bridge.getSource()).toBe(LONG_FORMULA);
 	});
 });

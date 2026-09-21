@@ -2,11 +2,11 @@ import { test, expect } from '../../fixtures';
 import { PluginsPage } from './helpers';
 
 /**
- * Horizontal caret entry against an inline-math widget opens the source reveal (Obsidian model) —
- * the caret never parks in the invisible widget-selected state.
- * Reveal-vs-select dispatch is unit-pinned (widget-entry-dispatch.test.ts); this drives the real
- * keyboard gestures and verifies caret DIRECTION by typing a marker char. Image contrast:
- * blocks/image/{caret-arrows-horizontal,backspace-delete}.spec.ts — an image selects here.
+ * Stepping the caret left or right into an inline-maths widget opens its source, the Obsidian
+ * model, and the caret never rests in the invisible selected-widget state. Which of the two the
+ * dispatch picks is pinned in widget-entry-dispatch.test.ts; this drives the real keyboard
+ * gestures and checks which side the caret ended on by typing a marker character. For contrast,
+ * an image selects instead: blocks/image/{caret-arrows-horizontal,backspace-delete}.spec.ts.
  */
 
 class MathEntryPage extends PluginsPage {
@@ -19,16 +19,16 @@ class MathEntryPage extends PluginsPage {
 		await expect(this.mathWidget).toHaveCount(1);
 	}
 
-	/** Land the caret immediately right of `$x^2$` (raw offset 12) in the seed
-	 *  `Before $x^2$ after`: End, then ArrowLeft through " after" (6 chars). */
+	/** Land the caret immediately right of `$x^2$`, raw offset 12, in the seed
+	 *  `Before $x^2$ after`: End, then ArrowLeft through the 6 characters of " after". */
 	async caretRightOfWidget(): Promise<void> {
 		await this.getBlock(0).click();
 		await this.page.keyboard.press('End');
 		for (let i = 0; i < 6; i++) await this.page.keyboard.press('ArrowLeft');
 	}
 
-	/** Land the caret immediately left of `$x^2$` (raw offset 7): Home, then
-	 *  ArrowRight through "Before " (7 chars). */
+	/** Land the caret immediately left of `$x^2$`, raw offset 7: Home, then ArrowRight through
+	 *  the 7 characters of "Before ". */
 	async caretLeftOfWidget(): Promise<void> {
 		await this.getBlock(0).click();
 		await this.page.keyboard.press('Home');
@@ -54,9 +54,9 @@ test.describe('inline math: horizontal caret entry reveals the source', () => {
 		await page.keyboard.press('ArrowLeft');
 
 		await expect(editor.mathWidget).toHaveCount(0);
-		// Entry is a pure view toggle — no CST mutation, no undo entry.
+		// Entering only changes the view: no edit to the CST, no undo entry.
 		expect(await editor.bridge.getSource()).toContain('Before $x^2$ after');
-		// Caret at the trailing edge: a typed char lands AFTER the closing `$`.
+		// Caret at the trailing edge: a typed character lands after the closing `$`.
 		await page.keyboard.type('Z');
 		const revealed = await editor.getBlockText(0);
 		expect(revealed).toContain('$x^2$Z');
@@ -80,8 +80,8 @@ test.describe('inline math: horizontal caret entry reveals the source', () => {
 		await page.keyboard.press('ArrowLeft'); // reveal at trailing edge
 		await expect(editor.mathWidget).toHaveCount(0);
 
-		// "$x^2$" is 5 chars: 5 steps reach the leading edge (still contained), the
-		// 6th escapes left of the source and folds the reveal.
+		// "$x^2$" is 5 characters: 5 steps reach the leading edge, still inside, and the sixth
+		// moves left of the source and closes it again.
 		for (let i = 0; i < 6; i++) await page.keyboard.press('ArrowLeft');
 
 		await expect(editor.mathWidget).toHaveCount(1);
@@ -94,12 +94,13 @@ test.describe('inline math: horizontal caret entry reveals the source', () => {
 		await editor.caretRightOfWidget();
 		await page.keyboard.press('Backspace');
 
-		// First Backspace reveals with no byte change — NOT a silent whole-widget delete.
+		// The first Backspace opens the source and changes no byte: it is not a silent delete of
+		// the whole widget.
 		await expect(editor.mathWidget).toHaveCount(0);
 		expect(await editor.getBlockText(0)).toContain('$x^2$');
 		expect(await editor.bridge.getSource()).toContain('Before $x^2$ after');
 
-		// Second Backspace visibly eats the trailing `$` in the revealed source.
+		// The second Backspace visibly removes the trailing `$` from the open source.
 		await page.keyboard.press('Backspace');
 		const revealed = await editor.getBlockText(0);
 		expect(revealed).toContain('$x^2 ');
@@ -128,8 +129,8 @@ test.describe('inline math: horizontal caret entry reveals the source', () => {
 		await editor.caretRightOfWidget();
 		await page.keyboard.press('Shift+ArrowLeft');
 
-		// A selection sweep never reveals: the widget stays rendered and a real
-		// (non-collapsed) selection spans it.
+		// Selecting across never opens the source: the widget stays rendered and a real,
+		// uncollapsed selection spans it.
 		await expect(editor.mathWidget).toHaveCount(1);
 		expect(await page.evaluate(() => window.getSelection()?.isCollapsed)).toBe(false);
 	});

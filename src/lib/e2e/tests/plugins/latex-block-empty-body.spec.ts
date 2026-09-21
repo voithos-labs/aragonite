@@ -2,9 +2,9 @@ import { test, expect } from '../../fixtures';
 import { roundTripStable } from './helpers';
 import { BlockMathPage } from './latex-reveal-helpers';
 
-// A one-line `$$x^2$$` emptied has no body line left, and a surface holding only its hidden fence
-// lines is what live mode paints as `$$$$`. The completion has to survive the edit door, not only
-// the reveal one. Requirements: e2e/requirements/plugins/latex-block-empty-body.md.
+// Emptying a one-line `$$x^2$$` leaves no body line, and a block holding only its hidden fence
+// lines is what live mode paints as `$$$$`. The completion has to survive the edit path, not just
+// the one that shows the source. Requirements: e2e/requirements/plugins/latex-block-empty-body.md.
 
 const EMPTIED = '$$\n\n$$';
 
@@ -18,8 +18,8 @@ test.describe('one-line block math emptied (live)', () => {
 		await editor.revealByClick();
 	});
 
-	/** The fence pays for itself only while it is hidden: no `$$` on screen, and no chrome-only
-	 *  stamp, which is what unhides it. */
+	/** The fence works only while it stays hidden: no `$$` on screen, and no marker-only attribute,
+	 *  which is what would show it. */
 	const expectFenceHidden = async () => {
 		await expect.poll(() => editor.getBlock(1).innerText()).not.toContain('$$');
 		await expect.poll(() => editor.sourceText()).toBe(EMPTIED);
@@ -67,8 +67,8 @@ test.describe('one-line block math emptied (live)', () => {
 		await expect.poll(() => editor.sourceText()).toBe('$$x^2$$');
 	});
 
-	// Parity with the built-in fence: an emptied code block takes the next Backspace as "delete
-	// the block", since an empty body holds no byte the press could mean.
+	// The same as the built-in fence: an emptied code block takes the next Backspace as "delete
+	// the block", since an empty body holds no byte the key could mean.
 	test('a second Backspace on the emptied block deletes it', async ({ page }) => {
 		await page.keyboard.press('Control+a');
 		await page.keyboard.press('Backspace');

@@ -2,9 +2,9 @@ import { test, expect } from '../../fixtures';
 import { PluginsPage, capturedErrors } from './helpers';
 
 /**
- * Which `$…$` runs claim in real prose (requirements/plugins/latex-inline-claims.md). The
- * reported repro is a digit-opening formula inside a `:::tip`, so the directive body and a
- * top-level paragraph are both driven, and the prices beside them must stay literal.
+ * Which `$…$` runs become formulas in real prose (requirements/plugins/latex-inline-claims.md).
+ * The reported case is a formula opening with a digit inside a `:::tip`, so both the directive
+ * body and a top-level paragraph are driven, and the prices beside them must stay literal.
  */
 
 const DIRECTIVE = ':::tip Measure\nOne part in $10^5$ here.\n:::\n\nAfter\n';
@@ -19,7 +19,7 @@ test.describe('inline math claims: a digit-opening formula renders, a price does
 		await editor.gotoPlugins('math');
 	});
 
-	/** The directive's body paragraph, which only a comma-path addresses. */
+	/** The directive's body paragraph, which only a nested path addresses. */
 	function directiveBody() {
 		return editor.page.locator("[data-block-path='[0,1]']");
 	}
