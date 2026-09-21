@@ -39,7 +39,7 @@ const KEYDOWN_SEAM_FILES = [
 const KEYDOWN_RESET_EXCEPTIONS: Record<string, { count: number; why: string }> = {
 	'src/lib/selection/cross-block/keydown.ts': {
 		count: 1,
-		why: 'handleCompositionStart — an IME lifecycle event, with no key to classify'
+		why: 'handleCompositionStart: an IME lifecycle event, with no key to classify'
 	}
 };
 

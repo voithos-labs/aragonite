@@ -209,8 +209,9 @@ const PRE_DELETE_NAMERS: Record<string, string> = {
  *  the rest create the class, identify their own span, or probe it. A component's `<style>` names classes to paint them,
  *  which G4.30's list holds, so `.svelte` files sit this rule out. */
 const MARKER_FAMILY_NAMERS: Record<string, string> = {
-	'src/lib/core/inline/visibility.ts': 'the oracle: states the families and drops what hides',
-	'src/lib/core/inline-render.ts': 'creates the spans the oracle then reads back',
+	'src/lib/core/inline/visibility.ts':
+		'the one module that states the families and drops what hides',
+	'src/lib/core/inline-render.ts': 'creates the spans `visibility.ts` then reads back',
 	'src/lib/cursor/widget-offset.ts':
 		'identifies the marker-prefix widget, whose contenteditable="false" marker is no family of the rule',
 	'src/lib/ambient/ambient-dom.ts': 'creates that same widget',
@@ -522,7 +523,7 @@ const MANIFESTS: ManifestRule[] = [
 		matches: /['"][^'"]*md-(marker|ref-label)/,
 		declared: MARKER_FAMILY_NAMERS,
 		reason:
-			'a file started naming marker classes: route the drop question through the oracle, or declare what it does instead',
+			'a file started naming marker classes: route the drop question through `visibility.ts`, or declare what it does instead',
 		hits: [
 			"el.querySelectorAll('.md-marker')",
 			"const SEL = '.md-ref-label, b';",

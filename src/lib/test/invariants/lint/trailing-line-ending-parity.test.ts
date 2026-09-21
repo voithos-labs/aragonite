@@ -162,7 +162,7 @@ const OWN_ENDING_RULE =
 const RAW_LITERAL_ALLOWLIST: Record<string, { count: number; why: string }> = {
 	'src/lib/selection/range-delete-ceremony.ts': {
 		count: 1,
-		why: 'pre-rebuild placeholder, not emitted bytes: the cleared chrome is re-derived by rebuildUnsharedChain immediately after, which re-emits the opener line with the source ending (a CRLF quote-out yields ">\\r\\n"; the branch is covered by the CRLF-mirror oracle)'
+		why: 'pre-rebuild placeholder, not emitted bytes: the cleared chrome is re-derived by rebuildUnsharedChain immediately after, which re-emits the opener line with the source ending (a CRLF quote-out yields ">\\r\\n"; the branch is covered by the CRLF-mirror check)'
 	},
 	'src/lib/testing/container-conformance.ts': {
 		count: 2,

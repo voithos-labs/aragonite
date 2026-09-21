@@ -146,22 +146,22 @@ describe('the kind’s own raw-write rule runs at every byte sink', () => {
  * is either a kind re-emitting its own bytes, or one that cannot reach a kind declaring a rule.
  */
 const BARE_RAW_WRITE_ALLOWLIST: Record<string, { count: number; why: string }> = {
-	[READERS_HOME]: { count: 1, why: 'the sanctioned writer itself' },
+	[READERS_HOME]: { count: 1, why: 'the one allowed writer itself' },
 	'src/lib/tree-operations/content-write.ts': {
 		count: 5,
-		why: 'the reparse funnel: every write is re-read from a parse, restores bytes the slot already held, or re-attaches the blank line that parse peeled off (GH #97)'
+		why: 'the reparse path every write takes: each one is re-read from a parse, restores bytes the slot already held, or re-attaches the blank line that parse stripped (GH #97)'
 	},
 	'src/lib/tree-operations/node-ops.ts': {
 		count: 4,
-		why: 'the split and the single-block reparse re-attach the blank line that parse peeled off (GH #97); both deep-leaf merge arms land bytes that already crossed `normalizeOwnRaw` and a fragment reparse (GH #54)'
+		why: 'the split and the single-block reparse re-attach the blank line that parse stripped (GH #97); both deep-leaf merge branches land bytes that already crossed `normalizeOwnRaw` and a fragment reparse (GH #54)'
 	},
 	'src/lib/tree-operations/settle.ts': {
 		count: 1,
-		why: 'the seam absorb re-attaches the blank run its own reparse peeled off (GH #61)'
+		why: 'the join absorb re-attaches the blank run its own reparse stripped (GH #61)'
 	},
 	'src/lib/schema/container-rebuilders.ts': {
 		count: 2,
-		why: 'the table grid re-emits its own bytes from its rows (G4.20 arm 3 reads the same writes)'
+		why: 'the table grid re-emits its own bytes from its rows (G4.20 branch 3 reads the same writes)'
 	},
 	'src/lib/schema/child-spans.ts': {
 		count: 4,
@@ -174,7 +174,7 @@ const BARE_RAW_WRITE_ALLOWLIST: Record<string, { count: number; why: string }> =
 	},
 	'src/lib/plugins/admonitions/github-alert-kind.ts': {
 		count: 2,
-		why: "the alert's own rebuildRaw, empty-body and filled arms"
+		why: "the alert's own rebuildRaw, empty-body and filled branches"
 	},
 	'src/lib/plugins/details/details-kind.ts': {
 		count: 1,
@@ -186,7 +186,7 @@ const BARE_RAW_WRITE_ALLOWLIST: Record<string, { count: number; why: string }> =
 	},
 	'src/lib/plugins/mermaid/mermaid-kind.ts': {
 		count: 1,
-		why: 'the mermaid leaf re-emits its fence from its own metadata — for its bytes, the kind IS the rule'
+		why: 'the mermaid leaf re-emits its fence from its own metadata: for its bytes, the kind is itself the rule'
 	},
 	'examples/consumer/src/routes/dev-guard/dev-probe.ts': {
 		count: 1,
@@ -194,11 +194,11 @@ const BARE_RAW_WRITE_ALLOWLIST: Record<string, { count: number; why: string }> =
 	},
 	'src/lib/editor-actions/commit/undo-controller.ts': {
 		count: 1,
-		why: 'the rollback restores raws the tree already held; nothing new is minted'
+		why: 'the rollback restores raws the tree already held; nothing new is created'
 	},
 	'src/lib/selection/range-delete-ceremony.ts': {
 		count: 4,
-		why: 'the chrome-clear and the truncation atoms’ two chrome-endpoint arms, reserved-chrome slots no leaf kind declaring a rule can occupy; and the endpoint reparse re-attaching the blank line that parse peeled off (GH #97)'
+		why: 'the chrome-clear and the truncation atoms’ two chrome-endpoint branches, reserved-chrome slots no leaf kind declaring a rule can occupy; and the endpoint reparse re-attaching the blank line that parse stripped (GH #97)'
 	},
 	'src/lib/selection/range-delete-table.ts': {
 		count: 2,
@@ -214,7 +214,7 @@ const BARE_RAW_WRITE_ALLOWLIST: Record<string, { count: number; why: string }> =
 	},
 	'src/lib/tree-operations/list/terminator.ts': {
 		count: 1,
-		why: "appends the list's own line ending to the deepest node that OWNS its last line — the descent stops above a grid cell or an opaque body, whose bytes sit inside a line their container emits; an ending terminates a line rather than restructuring one"
+		why: "appends the list's own line ending to the deepest node that owns its last line: the descent stops above a grid cell or an opaque body, whose bytes sit inside a line their container emits; an ending terminates a line rather than restructuring one"
 	},
 	'src/lib/testing/container-conformance.ts': {
 		count: 5,

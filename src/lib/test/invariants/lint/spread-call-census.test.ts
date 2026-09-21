@@ -18,7 +18,7 @@ interface Declaration {
 const ALLOWLIST: Record<string, Declaration> = {
 	'src/lib/components/blocks/text/live-join-seam.ts :: cleanLiveJoinSeam': {
 		mode: 'bounded',
-		reason: 'a Math.min over the two readings the seam offers, deduplicated to one when they agree'
+		reason: 'a Math.min over the two readings the join offers, deduplicated to one when they agree'
 	},
 	'src/lib/decorations/island-dom.ts :: applyReplace': {
 		mode: 'bounded',
@@ -47,7 +47,7 @@ const ALLOWLIST: Record<string, Declaration> = {
 	},
 	'src/lib/tree-operations/splice-many.ts :: spliceMany': {
 		mode: 'bounded',
-		reason: 'one INSERT_CHUNK per call, whatever the total the mutation doors hand it'
+		reason: 'one INSERT_CHUNK per call, whatever the total the mutation entry points hand it'
 	},
 	'src/lib/undo/manager.ts :: restoreStacks': {
 		mode: 'bounded',

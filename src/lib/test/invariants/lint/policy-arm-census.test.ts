@@ -118,21 +118,21 @@ const HAND_WRITTEN_ARMS: readonly HandWrittenArm[] = [
 		detection: 'kind-literal',
 		fate: 'outside',
 		reason:
-			'a label map, not an arm: it names block kinds only to name them in a menu row ("Remove code block"); no gesture reads it and no construct policy hangs on it'
+			'a label map, not an `arms` entry: it names block kinds only to name them in a menu row ("Remove code block"); no gesture reads it and no construct policy hangs on it'
 	},
 	{
 		path: 'src/lib/components/menu/SelectionToolbar.svelte',
 		detection: 'kind-literal',
 		fate: 'outside',
 		reason:
-			'icon names on the mark buttons ("link"), not construct kinds: every button runs a command id and the door decides admissibility'
+			'icon names on the mark buttons ("link"), not construct kinds: every button runs a command id and the command registry decides admissibility'
 	},
 	{
 		path: 'src/lib/components/blocks/text/construct-edge-delete.ts',
 		detection: 'declared',
 		fate: 'outside',
 		reason:
-			'which constructs it takes whole is a per-NODE fact: `[](u)` is a link with no content range, `![a](u)` an atomic island with one, so a kind column would swap both answers'
+			'which constructs it takes whole is a per-node fact: `[](u)` is a link with no content range, `![a](u)` an atomic widget with one, so a kind column would swap both answers'
 	},
 	{
 		path: 'src/lib/components/blocks/text/live-join-seam.ts',
@@ -145,7 +145,7 @@ const HAND_WRITTEN_ARMS: readonly HandWrittenArm[] = [
 		detection: 'declared',
 		fate: 'outside',
 		reason:
-			'a declared arm list, and never rows: this is a total order over gesture FAMILIES, where a row answers a per-construct question — the reading-mode cut is an entry in that order for the same reason'
+			'a declared `arms` list, and never rows: this is a total order over gesture families, where a row answers a per-construct question, and the reading-mode cut is an entry in that order for the same reason'
 	},
 	{
 		path: 'src/lib/components/blocks/text/link-source-bytes.ts',
@@ -159,7 +159,7 @@ const HAND_WRITTEN_ARMS: readonly HandWrittenArm[] = [
 		detection: 'declared',
 		fate: 'deferred',
 		reason:
-			'the no-residue rule is restated at four arms; single-sourcing it into the table folds into the slots-to-rows move'
+			'the no-residue rule is restated at four `arms` entries; single-sourcing it into the table folds into the slots-to-rows move'
 	},
 	{
 		path: POLICY_TABLE,
@@ -173,13 +173,13 @@ const HAND_WRITTEN_ARMS: readonly HandWrittenArm[] = [
 		detection: 'kind-literal',
 		fate: 'outside',
 		reason:
-			'the widget registry side of the two-table boundary: image as an atomic island, not a hidden delimiter run'
+			'the widget registry side of the two-table boundary: image as an atomic widget, not a hidden delimiter run'
 	},
 	{
 		path: 'src/lib/components/image/image-edit-commit.ts',
 		detection: 'kind-literal',
 		fate: 'outside',
-		reason: 'the same island question, re-finding the widget an open editor is anchored to'
+		reason: 'the same widget question, re-finding the widget an open editor is anchored to'
 	}
 ];
 

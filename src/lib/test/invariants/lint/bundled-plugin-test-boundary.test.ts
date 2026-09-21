@@ -53,7 +53,7 @@ const ALLOWLIST: Record<string, Exemption> = {
 	'src/lib/test/plugins/admonitions/github-alert-empty-body.test.ts': {
 		specifiers: ['$lib/tree-operations', '$lib/invariants/node-shape'],
 		reason:
-			'no door mutates a parsed document off an instance, and the stale-raw predicate is ' +
+			'nothing published mutates a parsed document off an instance, and the stale-raw predicate is ' +
 			'off the testing barrel'
 	},
 	'src/lib/test/plugins/admonitions/github-alert-formation-siblings.test.ts': {
@@ -74,12 +74,12 @@ const ALLOWLIST: Record<string, Exemption> = {
 			'$lib/tree-operations'
 		],
 		reason:
-			'no headless editor-actions environment, no published parse convergence, and no door ' +
+			'no headless editor-actions environment, no published parse convergence, and nothing published ' +
 			'reads a node by path out of a parsed document'
 	},
 	'src/lib/test/plugins/admonitions/github-alert-unwrap.test.ts': {
 		specifiers: ['$lib/tree-operations'],
-		reason: 'no published door unwraps a child from its quote off a parsed document'
+		reason: 'nothing published unwraps a child from its quote off a parsed document'
 	},
 	'src/lib/test/plugins/details/terminator-collision.test.ts': {
 		specifiers: [
@@ -117,14 +117,14 @@ const ALLOWLIST: Record<string, Exemption> = {
 			'$lib/tree-operations/sharing'
 		],
 		reason:
-			'no published door splits or range-deletes a parsed document, and no published opaque ' +
+			'nothing published splits or range-deletes a parsed document, and no published opaque ' +
 			'stale-raw predicate to hold the result to'
 	},
 	'src/lib/test/plugins/emoji/coexistence.test.ts': {
 		specifiers: ['$lib/core/directive/kinds'],
 		reason:
-			'the directive inline tier has no published kind name; the plugin barrel publishes the ' +
-			'body wrap and the registration doors only'
+			'the directive inline level has no published kind name; the plugin barrel publishes the ' +
+			'body wrap and the registration entry points only'
 	},
 	'src/lib/test/plugins/emoji/widget.test.ts': {
 		specifiers: ['$lib/core/inline/inline-widgets'],
@@ -132,7 +132,7 @@ const ALLOWLIST: Record<string, Exemption> = {
 	},
 	'src/lib/test/plugins/footnotes/definition-split-separator.test.ts': {
 		specifiers: ['$lib/tree-operations', '$lib/testing/parse-convergence'],
-		reason: 'no published door splits a parsed document, and no published parse convergence'
+		reason: 'nothing published splits a parsed document, and no published parse convergence'
 	},
 	'src/lib/test/plugins/footnotes/numbering-incremental.test.ts': {
 		specifiers: [
@@ -163,7 +163,8 @@ const ALLOWLIST: Record<string, Exemption> = {
 	},
 	'src/lib/test/plugins/latex/block.test.ts': {
 		specifiers: ['$lib/core/inline/scan/plugin-syntax'],
-		reason: 'no registry read-back: an inline rung registers on a trigger but is never listed back'
+		reason:
+			'no registry read-back: an inline syntax handler registers on a trigger but is never listed back'
 	},
 	'src/lib/test/plugins/latex/inline.test.ts': {
 		specifiers: ['$lib/core/inline/inline-widgets'],
@@ -176,7 +177,7 @@ const ALLOWLIST: Record<string, Exemption> = {
 	'src/lib/test/plugins/latex/typed-completion.test.ts': {
 		specifiers: ['$lib/editor-actions/enter-completion', '$lib/schema/block-completions'],
 		reason:
-			'a completer registers but nothing published runs one, and the Enter seam that consults ' +
+			'a completer registers but nothing published runs one, and the Enter handler that consults ' +
 			'it has no headless entry'
 	},
 	'src/lib/test/plugins/mermaid/fence-escalation.test.ts': {

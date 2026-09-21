@@ -26,7 +26,7 @@ const INFLATION_ALLOWLIST: readonly InflationException[] = [
 	{
 		spec: 'simulation/',
 		reason:
-			'seeded gesture family: one seeded session drives every gesture, so the requirement enumerates gesture coverage and oracle checkpoints, not tests'
+			'seeded gesture family: one seeded session drives every gesture, so the requirement enumerates gesture coverage and reference checkpoints, not tests'
 	},
 	{
 		spec: 'capture/',
@@ -41,32 +41,32 @@ const INFLATION_ALLOWLIST: readonly InflationException[] = [
 	{
 		spec: 'selection/gap-caret-arrival-scopes.spec.ts',
 		reason:
-			'three of the six bullets are v1 narrowings — the click route, container entry, and the measured-unreachable windowed seam — and a fourth is the interaction note, none of them scenarios the two gestures could drive'
+			'three of the six bullets are v1 narrowings (the click route, container entry, and the measured-unreachable windowed join), and a fourth is the interaction note, none of them scenarios the two gestures could drive'
 	},
 	{
 		spec: 'blocks/atomic-cross-block-delete.spec.ts',
 		reason:
-			'four hard-invariant bullets asserted in EVERY scenario, and the two tests are one parametrized loop over the atomic variants'
+			'four hard-invariant bullets asserted in every scenario, and the two tests are one parametrized loop over the atomic variants'
 	},
 	{
 		spec: 'clipboard/list-copy-paste-roundtrip.spec.ts',
 		reason:
-			'six of seven tests are one parametrized loop over the ROUNDTRIPS rows, invisible to the literal test counter'
+			'six of seven tests are one parametrized loop over the `ROUNDTRIPS` rows, invisible to the literal test counter'
 	},
 	{
 		spec: 'clipboard/list-paste-absorbs-same-type.spec.ts',
 		reason:
-			'nine of ten tests are one parametrized loop over the absorb ROWS, invisible to the literal test counter'
+			'nine of ten tests are one parametrized loop over the absorb `ROWS`, invisible to the literal test counter'
 	},
 	{
 		spec: 'inline-editing/formatting-shortcuts.spec.ts',
 		reason:
-			'six of seven tests are one parametrized loop over the TOGGLES rows, invisible to the literal test counter'
+			'six of seven tests are one parametrized loop over the `TOGGLES` rows, invisible to the literal test counter'
 	},
 	{
 		spec: 'blocks/code/fence-content-validity.spec.ts',
 		reason:
-			'the write rule reaches most of its doors headlessly (the byte sinks, find/replace, the range-delete arms), so those bullets are unit-pinned and the spec drives only the gestures a user makes through the DOM'
+			'the write rule reaches most of its entry points headlessly (the byte sinks, find/replace, the range-delete branches), so those bullets are unit-pinned and the spec drives only the gestures a user makes through the DOM'
 	},
 	{
 		spec: 'perf/perf-gate.perf.spec.ts',
@@ -76,7 +76,7 @@ const INFLATION_ALLOWLIST: readonly InflationException[] = [
 	{
 		spec: 'perf/typing-latency.perf.spec.ts',
 		reason:
-			'five test calls, three of them parametrized loops, run ~35 report rows, and the bullets state measurement semantics (caret target, settle predicate, sizes, artifacts, the rung rows and their confound) rather than scenarios'
+			'five test calls, three of them parametrized loops, run ~35 report rows, and the bullets state measurement semantics (caret target, settle predicate, sizes, artifacts, the inline-handler rows and their confound) rather than scenarios'
 	},
 	{
 		spec: 'perf/vr-reveal-anchor.spec.ts',

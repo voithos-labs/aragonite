@@ -26,12 +26,12 @@ const SITES: Record<string, SiteStance> = {
 	'src/lib/editor-actions/commit/undo-controller.ts': {
 		declines: 0,
 		sinks: 1,
-		why: 'the multi-scope ceremony owns the doc-level ids/refs and every prepared scope’s state, so it reconciles and publishes the fold’s unwind'
+		why: 'the multi-scope commit sequence owns the doc-level ids/refs and every prepared scope’s state, so it reconciles and publishes the fold’s unwind'
 	},
 	'src/lib/editor-actions/container-edit.ts': {
 		declines: 0,
 		sinks: 1,
-		why: 'the routine-typing spine; it publishes no descriptor of its own, so it reconciles the splice directly'
+		why: 'the ordinary typing path; it publishes no descriptor of its own, so it reconciles the splice directly'
 	},
 	'src/lib/tree-operations/chain-rebuild.ts': {
 		declines: 0,
@@ -41,7 +41,7 @@ const SITES: Record<string, SiteStance> = {
 	'src/lib/editor-actions/block-edit-core.ts': {
 		declines: 1,
 		sinks: 0,
-		why: 'a decision, not a constraint: the rebuild root IS the scope whose descriptor the ceremony publishes, so a fold there would ride that descriptor. Declining because a metadata write that changes what a container interrupts has no producer'
+		why: 'a decision, not a constraint: the rebuild root is itself the scope whose descriptor the commit sequence publishes, so a fold there would ride that descriptor. Declining because a metadata write that changes what a container interrupts has no producer'
 	},
 	'src/lib/selection/cross-block/format-range.ts': {
 		declines: 1,
@@ -51,27 +51,27 @@ const SITES: Record<string, SiteStance> = {
 	'src/lib/selection/cross-block/type-replace.ts': {
 		declines: 1,
 		sinks: 0,
-		why: 'the degraded splice arm, which already warns; its chain is built from a leaf path strictly BELOW the commit scope, so the ceremony’s own re-walk does not reach those levels'
+		why: 'the degraded splice branch, which already warns; its chain is built from a leaf path strictly below the commit scope, so the commit sequence’s own re-walk does not reach those levels'
 	},
 	'src/lib/selection/range-delete.ts': {
 		declines: 4,
 		sinks: 0,
-		why: 'the cross-block delete family: byte-correctness passes inside a ceremony that owns the registers elsewhere and splices at the LCA itself. Their chains can run deeper than the ceremony’s scope, which is a recorded residual rather than a reconciliation'
+		why: 'the cross-block delete family: byte-correctness passes inside a commit sequence that owns the registers elsewhere and splices at the lowest common ancestor itself. Their chains can run deeper than that commit’s scope, which is a recorded residual rather than a reconciliation'
 	},
 	'src/lib/selection/range-delete-ceremony.ts': {
 		declines: 2,
 		sinks: 0,
-		why: 'same family — the endpoint-survivor and chrome-clear rebuild passes'
+		why: 'same family: the endpoint-survivor and chrome-clear rebuild passes'
 	},
 	'src/lib/selection/range-delete-chrome.ts': {
 		declines: 2,
 		sinks: 0,
-		why: 'same family — both endpoints of a wall range'
+		why: 'same family: both endpoints of a wall range'
 	},
 	'src/lib/selection/range-delete-table.ts': {
 		declines: 7,
 		sinks: 0,
-		why: 'same family — every table-range endpoint and survivor pass'
+		why: 'same family: every table-range endpoint and survivor pass'
 	},
 	'src/lib/tree-operations/paste/container-match.ts': {
 		declines: 2,
