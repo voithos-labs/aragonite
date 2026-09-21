@@ -77,8 +77,8 @@ import ParrotBlock from './ParrotBlock.svelte';
 
 export const PARROT = 'parrot';
 
-/** Where a press in the block puts the caret. The caption renders the bytes after `%%parrot `,
- *  so an offset in it sits that far along the source; the revealed source IS the source. */
+/** Where a click in the block puts the caret. The caption renders the bytes after `%%parrot `,
+ *  so an offset in it sits that far along the source; the shown source is the source itself. */
 function parrotCaretAtPoint(
 	blockEl: HTMLElement,
 	clientX: number,
@@ -207,7 +207,7 @@ xx:':;;;;,.,,...,;;cllllllllllllllc;'.;od,
 cNo.....................................oc
 `
 	];
-	// One strip the CSS scrolls a frame at a time. The closing newline is load-bearing: a `pre`
+	// One strip the CSS scrolls a frame at a time. The closing newline matters: a `pre`
 	// drops a trailing blank line, and a strip a row short steps a fraction off every frame.
 	const REEL = FRAMES.join('\n') + '\n';
 	// The clip window's height, which is why every frame has to be the same number of rows.
@@ -269,7 +269,7 @@ cNo.....................................oc
 		overflow-x: auto;
 		overflow-y: hidden;
 		scrollbar-width: none;
-		/* chrome, not content: every frame is in the DOM and none of them belong in a copy */
+		/* decoration, not content: every frame is in the DOM and none of them belong in a copy */
 		user-select: none;
 		animation: parrot-hue 0.49s step-end infinite;
 	}

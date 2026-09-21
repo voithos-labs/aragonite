@@ -220,7 +220,7 @@ Ol;......................................;l'
 cNd.........................................;lOc
 `
 	];
-	// One strip the CSS scrolls a frame at a time. The closing newline is load-bearing: a `pre`
+	// One strip the CSS scrolls a frame at a time. The closing newline matters: a `pre`
 	// drops a trailing blank line, and a strip a row short steps a fraction off every frame.
 	const REEL = FRAMES.join('\n') + '\n';
 	// The clip window's height, which is why every frame has to be the same number of rows.
@@ -282,7 +282,7 @@ cNd.........................................;lOc
 		overflow-x: auto;
 		overflow-y: hidden;
 		scrollbar-width: none;
-		/* chrome, not content: every frame is in the DOM and none of them belong in a copy */
+		/* decoration, not content: every frame is in the DOM and none of them belong in a copy */
 		user-select: none;
 		animation: parrot-hue 0.49s step-end infinite;
 	}

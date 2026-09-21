@@ -13,8 +13,8 @@ import ParrotBlock from './ParrotBlock.svelte';
 
 export const PARROT = 'parrot';
 
-/** Where a press in the block puts the caret. The caption renders the bytes after `%%parrot `,
- *  so an offset in it sits that far along the source; the revealed source IS the source. */
+/** Where a click in the block puts the caret. The caption renders the bytes after `%%parrot `,
+ *  so an offset in it sits that far along the source; the shown source is the source itself. */
 function parrotCaretAtPoint(
 	blockEl: HTMLElement,
 	clientX: number,
