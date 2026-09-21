@@ -1,22 +1,22 @@
 import { type SimContext } from '../invariants';
 
-// Table gestures. RESYNC rather than predict: table construction auto-pads every cell to
-// canonical padding and a typed cell edit lands mid-source between pipes, so neither is the
-// end-of-document append the tracker predicts.
+// Table gestures. They resync rather than predict: building a table pads every cell to a
+// standard width, and an edit to a cell lands between pipes in the middle of the source, so
+// neither is the append at the end that the expected answer predicts.
 //
-// A live table renders an interactive `.table-block` only after a LOAD — typed pipe syntax
-// stays a paragraph and never exposes `[role="cell"]` — so sessions must start from one.
+// A table renders as an interactive `.table-block` only once a document is loaded: typed pipe
+// syntax stays a paragraph and never grows a `[role="cell"]`, so a session must start from one.
 
 const CELL = '[role="cell"]';
 
-/** Click the cell at `cellIndex` (row-major over the rendered grid). */
+/** Click the cell at `cellIndex`, counted across the rendered grid row by row. */
 async function clickCell(ctx: SimContext, cellIndex: number): Promise<void> {
 	await ctx.page.locator(CELL).nth(cellIndex).click();
 }
 
 /**
- * The edit lands between pipes, so it cannot be predicted as an end-of-document append.
- * Presses End first so the text appends to existing cell content rather than splitting it.
+ * The edit lands between pipes, so it cannot be predicted as text added at the end of the
+ * document. Presses End first, so the text goes after the cell's content instead of splitting it.
  */
 export async function editCell(ctx: SimContext, cellIndex: number, text: string): Promise<void> {
 	await clickCell(ctx, cellIndex);
@@ -25,8 +25,8 @@ export async function editCell(ctx: SimContext, cellIndex: number, text: string)
 }
 
 /**
- * Touches EVERY row — the richest stale-`$state` / per-row-scope stress the table offers — so
- * the oracles see a keyed-container move across all rows at once.
+ * Touches every row, which is the hardest test of per-row state the table offers, so the checks
+ * see a keyed container change across all rows at once.
  */
 export async function insertColumnRight(ctx: SimContext, cellIndex: number): Promise<void> {
 	await clickCell(ctx, cellIndex);
@@ -52,9 +52,9 @@ export async function deleteRow(ctx: SimContext, cellIndex: number): Promise<voi
 }
 
 /**
- * The "source differs" predicate is op-agnostic and needs no computed target. A no-op (delete
- * at the 1-row/1-column floor) leaves the source unchanged, so the settle times out and the
- * gesture fails loudly rather than recording a stale state as truth.
+ * Waiting for the source to differ works for any of these and needs no worked-out target. A
+ * delete that does nothing (the table is already one row or one column) leaves the source
+ * unchanged, so the wait times out and the gesture throws instead of recording a stale state.
  */
 async function actThenResync(ctx: SimContext, act: () => Promise<void>): Promise<void> {
 	const before = await ctx.editor.bridge.getSource();

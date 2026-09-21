@@ -1,10 +1,10 @@
 import { type SimContext, assertStructuralIntegrity } from '../invariants';
 
 /**
- * The destructive surface that held the historical corruption Criticals. BUILDS must ENGAGE
- * a genuine cross-block range and fail loudly if they silently stay single-block, so a no-op
- * is never mistaken for coverage; DESTROYS settle on a real source change, run the
- * structural oracle sweep on the collapsed tree, then resync.
+ * Deleting across blocks, where the worst corruption bugs came from. Building a range must
+ * really cross a block boundary and throw loudly if it quietly stayed inside one, so nothing
+ * that did nothing counts as coverage; deleting one waits for the source to change, runs the
+ * structural checks on the collapsed tree, then resyncs.
  */
 
 // ── Build ──────────────────────────────────────────────────────────────────────
@@ -24,8 +24,8 @@ async function assertCrossBlockEngaged(ctx: SimContext, how: string): Promise<vo
 }
 
 /**
- * A single-line block crosses in one press and a wrapped one may need more, so this presses
- * up to `maxSteps` until the cross-block attribute attaches, then asserts engagement.
+ * A one-line block is crossed in a single press and a wrapped one may need more, so this
+ * presses up to `maxSteps` until the cross-block attribute appears, then checks that it did.
  */
 export async function extendSelectionAcross(
 	ctx: SimContext,
@@ -53,8 +53,8 @@ export async function shiftClickAcross(
 }
 
 /**
- * Double Ctrl+A: block, then whole document. A single-block document never escalates, so
- * this asserts engagement and fails loud if the second press stayed within one block.
+ * Ctrl+A twice: the block, then the whole document. A one-block document never widens, so this
+ * checks the range crossed a boundary and throws if the second press stayed inside one block.
  */
 export async function selectWholeDocument(ctx: SimContext): Promise<void> {
 	await ctx.editor.selectAll();
@@ -67,8 +67,9 @@ export async function selectWholeDocument(ctx: SimContext): Promise<void> {
 // ── Destroy ────────────────────────────────────────────────────────────────────
 
 /**
- * Settles on the collapse AND a real source change, so a destroy that silently no-ops (the
- * range never engaged, the key fell through) fails here rather than recording a stale tree.
+ * Waits for the selection to collapse and for the source to really change, so a delete that
+ * quietly did nothing (the range never crossed a block, the key was ignored) fails here rather
+ * than recording a stale tree.
  */
 async function destroyThenSweep(
 	ctx: SimContext,

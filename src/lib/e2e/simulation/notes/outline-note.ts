@@ -2,10 +2,10 @@ import type { Gestures } from '../gestures';
 import type { NoteFixture } from './types';
 
 /**
- * The deep-nesting note: three levels in the equality spine, guarding the nesting path the
- * two-level notes cannot reach. Built with the only cadence that breaks that ceiling —
- * `pressEnter` → `indentEmptyItem` → `typeFreshItem` — since indenting a FILLED trailing item
- * does not nest it under its sibling.
+ * The deeply nested note: three levels, covering nesting the two-level notes cannot reach.
+ * Built with the only sequence that gets past two levels, `pressEnter`, `indentEmptyItem`,
+ * `typeFreshItem`, since indenting a trailing item that already has text does not nest it
+ * under the item before it.
  */
 export const OUTLINE_NOTE: NoteFixture = {
 	name: 'outline-note',

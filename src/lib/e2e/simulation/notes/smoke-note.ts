@@ -2,9 +2,9 @@ import type { Gestures } from '../gestures';
 import type { NoteFixture } from './types';
 
 /**
- * The short note the default-suite smoke drives. It reaches the full oracle suite — including
- * a list exit, the exact shape the harness first caught a desync in — while staying well
- * under the smoke wall-time budget.
+ * The short note the default suite's smoke test drives. It reaches every check, including
+ * leaving a list, which is where this harness first caught state going out of step, and still
+ * finishes well inside the smoke test's time budget.
  */
 export const SMOKE_NOTE: NoteFixture = {
 	name: 'smoke-note',
@@ -30,7 +30,7 @@ export const SMOKE_NOTE: NoteFixture = {
 		'Glucose',
 		'drive the reaction'
 	],
-	// Enter separates, so the note reads the way the gestures type it.
+	// Enter separates blocks, so the note reads the way the gestures type it.
 	expectedMarkdown:
 		'Photosynthesis converts light energy into chemical energy.\n' +
 		'\n' +

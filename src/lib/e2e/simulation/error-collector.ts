@@ -3,19 +3,19 @@ import type { Page } from '@playwright/test';
 export interface ErrorCollector {
 	/** Call once at session start, before any gesture. */
 	start(): Promise<void>;
-	/** Throw if any channel recorded a failure since `start`. `waive` names the tags this
-	 *  checkpoint provokes on purpose (`['tree-ops']`, `['svelte:derived_inert']`); everything
-	 *  else reds. */
+	/** Throws if anything recorded a failure since `start`. `waive` names the tags this
+	 *  checkpoint triggers on purpose (`['tree-ops']`, `['svelte:derived_inert']`); anything
+	 *  else fails. */
 	assertNone(waive?: string[]): Promise<void>;
 }
 
-/** Every editor dev warning, invariant fires included: `devWarn` heads them all. */
+/** Every editor dev warning, failed checks included: `devWarn` tags them all. */
 const SENTINEL_TAG = /\[aragonite:([^\]]+)\]/;
 
-/** Svelte's own runtime warnings carry no sentinel; they head their code instead. */
+/** Svelte's own runtime warnings carry no `[aragonite:…]` tag; they lead with their code. */
 const SVELTE_CODE = /\[svelte\]\s+([a-z0-9_]+)/;
 
-/** The two console heads share one tag namespace, so one waiver list covers both. */
+/** Both kinds of console warning carry a tag, so one waiver list covers both. */
 function warnTagOf(text: string): string | null {
 	const sentinel = SENTINEL_TAG.exec(text)?.[1];
 	if (sentinel) return sentinel;
@@ -24,10 +24,10 @@ function warnTagOf(text: string): string | null {
 }
 
 /**
- * Three channels a long session must stay clean on: console errors + pageerrors,
- * gate-failing dev warnings, and the editor's structured `error` event (failures the
- * editor CONTAINS rather than throws). `fixtures.ts` also fails on a dev warning, but
- * only at spec teardown — `assertNone` runs at checkpoints, so a fire surfaces mid-session.
+ * Three things a long session must stay clean on: console errors and page errors, dev warnings
+ * that fail the run, and the editor's structured `error` event (a failure the editor catches
+ * rather than throws). `fixtures.ts` also fails on a dev warning, but only at teardown, while
+ * `assertNone` runs at every checkpoint, so one shows up mid-session.
  */
 export function attachErrorCollector(page: Page): ErrorCollector {
 	const errors: string[] = [];

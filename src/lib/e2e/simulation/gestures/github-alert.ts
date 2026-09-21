@@ -1,17 +1,17 @@
 import { type SimContext, assertStructuralIntegrity } from '../invariants';
 
-// Native GitHub-alert container gestures (plugins route, `?seed=admonitions`). A `> [!TYPE]`
-// blockquote is its own `githubAlert` strip container: the marker lives only in the container
-// raw + metadata, and the bytes are NEVER rewritten to `:::`. Each gates on the promotion or
-// structural change and resyncs; the merge and unwrap gestures assert the kind-stability and
-// marker-drop boundaries the container's `unwrapRole` promises.
+// Gestures for a native GitHub alert (plugins route, `?seed=admonitions`). A `> [!TYPE]`
+// blockquote is its own `githubAlert` container: the marker lives only in the container's raw
+// text and metadata, and the bytes are never rewritten to `:::`. Each waits for the block to
+// change kind or shape and resyncs; the merge and unwrap gestures check that the kind holds
+// and the marker goes, which is what the container's `unwrapRole` promises.
 
 /**
- * Marker formation from live typing. Typed PER KEYSTROKE, so the editor sees the blockquote
- * promotion at `>`, the inline recognizer's `[` rung, and the alert reclassification at `]`
- * as three separate input events — a regression confined to those intermediate states is
- * invisible to an atomic insert. No second Enter: that would exit the quote. The body waits
- * on the alert kind, since reclassification must land the caret in the body first.
+ * The marker built by typing. Typed one key at a time, so the editor sees the blockquote form
+ * at `>`, the inline handler for `[`, and the change to an alert at `]` as three separate input
+ * events; a bug confined to those in-between states is invisible to a one-shot insert. No
+ * second Enter, which would leave the quote. The body waits for the alert kind, since the
+ * change of kind has to put the caret in the body first.
  */
 export async function typeGithubAlert(
 	ctx: SimContext,
@@ -38,9 +38,9 @@ export async function typeGithubAlert(
 }
 
 /**
- * The merge must stay INSIDE the alert: kind and marker survive, the root count holds, and
- * only the alert's own child count drops. All four are asserted, so a regression in the
- * middle-child unwrapRole cannot record a corrupted tree as truth.
+ * The merge has to stay inside the alert: the kind and marker survive, the document root keeps
+ * its count, and only the alert's own child count drops. All four are checked, so a bug in how
+ * a middle child unwraps cannot record a corrupted tree as if it were right.
  */
 export async function mergeGithubAlertMiddleChild(
 	ctx: SimContext,
@@ -74,9 +74,9 @@ export async function mergeGithubAlertMiddleChild(
 }
 
 /**
- * `lift-first-child-drop-opener`: the alert loses its kind, its body reparses as a plain block.
- * Asserts exactly ONE alert vanished (robust to sibling alerts elsewhere in the session) and
- * that the `:::` form never appears.
+ * `lift-first-child-drop-opener`: the alert loses its kind and its body reparses as a plain
+ * block. Checks that exactly one alert disappeared, which holds even with other alerts in the
+ * document, and that the `:::` form never appears.
  */
 export async function unwrapGithubAlert(ctx: SimContext, alertIndex: number): Promise<void> {
 	const { page, editor, tracker } = ctx;
@@ -101,9 +101,9 @@ export async function unwrapGithubAlert(ctx: SimContext, alertIndex: number): Pr
 }
 
 /**
- * A reorder WITHIN the alert: the body child permutes in place while kind, marker, root slot
- * and child count all hold. A regression to the teleport moves the whole alert among document
- * siblings or rebuilds it as a plain blockquote; both guards throw.
+ * A move inside the alert: the body child swaps places while the kind, the marker, the alert's
+ * own position and its child count all hold. A bug that moved the whole alert among the
+ * document's blocks, or rebuilt it as a plain blockquote, throws on one of those checks.
  */
 export async function reorderGithubAlertBodyChild(
 	ctx: SimContext,
@@ -167,7 +167,7 @@ async function docKinds(ctx: SimContext): Promise<string[]> {
 	);
 }
 
-/** The `> [!TYPE]` marker line off the alert's raw — the substring whose disappearance marks the unwrap. */
+/** The `> [!TYPE]` marker line from the alert's raw text: the text whose loss marks the unwrap. */
 function markerText(shape: AlertShape): string {
 	const nl = shape.raw.indexOf('\n');
 	return nl < 0 ? shape.raw : shape.raw.slice(0, nl).replace(/\r$/, '');

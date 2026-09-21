@@ -1,8 +1,8 @@
 import { type SimContext } from '../invariants';
 
-// Where the caret sits in RAW offsets, and the real-arrow walk that puts it there. The atomic
-// widget gestures assert exact landings, so the caret has to arrive by presses a user makes.
-// `live-editing.ts`'s seatCaret stays separate: it walks selection-path offsets, another space.
+// Where the caret sits, in raw offsets, and the arrow presses that walk it there. The widget
+// gestures check exact positions, so the caret has to arrive by presses a user would make.
+// `live-editing.ts` keeps its own version, which counts offsets along the selection path.
 
 export async function cursorOffset(ctx: SimContext, blockIndex: number): Promise<number | null> {
 	return ctx.page.evaluate(
@@ -11,8 +11,8 @@ export async function cursorOffset(ctx: SimContext, blockIndex: number): Promise
 	);
 }
 
-// An atomic step-over lands the caret exactly on a far edge, so every reachable offset is hit
-// exactly and an over-step past `target` trips the guard rather than looping forever.
+// A step over a widget lands the caret exactly on its far edge, so every reachable offset is
+// hit exactly and a step past `target` throws rather than looping forever.
 export async function arrowRightToOffset(
 	ctx: SimContext,
 	blockIndex: number,

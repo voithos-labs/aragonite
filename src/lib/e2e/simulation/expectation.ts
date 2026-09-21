@@ -1,10 +1,10 @@
 /**
- * The model-free oracle: one expected-source string, not a shadow CST. It predicts exactly
- * ONE thing — printable insertion at the caret — because the typed character is literal
- * source regardless of how the editor reclassifies the block; every auto-behavior gesture
- * calls `resync` instead. Insertion lands before the single trailing newline the editor
- * keeps, which is also the gap an Enter's materialized empty block leaves. The one auto
- * behavior it does model is delimiter auto-pair, through the editor's own resolver.
+ * The expected answer, held as one source string rather than a second syntax tree. It predicts
+ * one thing, a printable character typed at the caret, because that byte is literal source
+ * however the editor re-classifies the block; every gesture with automatic behaviour resyncs
+ * instead. Insertion goes before the single trailing newline the editor keeps, which is also
+ * where Enter leaves its empty block. The one automatic behaviour modelled is delimiter
+ * auto-pairing, through the editor's own resolver.
  */
 import {
 	resolveDelimiterAutoPair,
@@ -13,13 +13,13 @@ import {
 import { isBuiltinBlockKind } from '../../core/nodes';
 import { parse } from '../../core/parser';
 
-/** Kinds whose surface carries no auto-pair arm: a typed byte there is literal. */
+/** Kinds whose editable area does no auto-pairing: a typed byte there is literal. */
 const NO_PAIR_KINDS = new Set(['fencedCode', 'indentedCode', 'htmlBlock', 'thematicBreak']);
 
 export class ExpectationTracker {
 	private src: string;
-	/** Bytes the editor wrote past the caret (an auto-pair twin, a completed fence's closer);
-	 *  the caret sits before them. */
+	/** Bytes the editor wrote past the caret (an auto-paired closing delimiter, a completed
+	 *  fence's closer); the caret sits before them. */
 	private twin = '';
 
 	constructor(initialSource: string) {
@@ -69,7 +69,7 @@ export class ExpectationTracker {
 		return this.src;
 	}
 
-	/** A resync keeps a held twin only while the document still ends in it. */
+	/** A resync keeps the held closing bytes only while the document still ends in them. */
 	resync(actualSource: string): void {
 		this.src = actualSource;
 		const tail = this.src.endsWith('\n') ? this.src.slice(0, -1) : this.src;
@@ -85,7 +85,7 @@ export class ExpectationTracker {
 		this.twin = '';
 	}
 
-	/** The caret: before the trailing newline, and before any twin held past it. */
+	/** Where a typed byte goes: before the trailing newline, and before any held closing bytes. */
 	private insertionPoint(): number {
 		const end = this.src.endsWith('\n') ? this.src.length - 1 : this.src.length;
 		return end - this.twin.length;

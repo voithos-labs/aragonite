@@ -1,10 +1,10 @@
 import type { SimContext } from '../invariants';
 
 /**
- * The byte-stability oracle for the mode prop: the source must round-trip unchanged across a
- * `source → mode → source` flip regardless of what was live when it landed, which the closing
- * `waitForSourceEquals` asserts. Reading mode drops the text caret, so the return trip
- * re-clicks a block to hand the following gestures an editable surface.
+ * The check that the mode prop changes no bytes: the source has to come back unchanged from a
+ * switch out and back, whatever state the editor was in, which the closing `waitForSourceEquals`
+ * proves. Reading mode drops the text caret, so the way back clicks a block again to give the
+ * following gestures something editable.
  */
 type FlipMode = 'reading' | 'preview-block' | 'preview-inline' | 'live';
 
@@ -26,7 +26,7 @@ export async function flipPresentationMode(ctx: SimContext, mode: FlipMode): Pro
 	await toggle.click();
 	await page.waitForSelector('.editor:not([data-presentation])', { timeout: 5000 });
 
-	// Reading left no caret; restore an editable surface before handing control back.
+	// Reading mode left no caret; put one back in an editable block before returning.
 	await editor.clickBlock(0);
 	await editor.bridge.waitForSourceEquals(before, 3000);
 	tracker.resync(before);

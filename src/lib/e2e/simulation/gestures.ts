@@ -119,10 +119,10 @@ import {
 import { composeAbort, composeCommit, type CompositionCase } from './gestures/ime';
 
 /**
- * The human-gesture vocabulary atop EditorPage. Each gesture performs a real keyboard/mouse
- * action, then either PREDICTS the bytes (printable typing) or RESYNCS the tracker
- * (auto-behavior), and settles on an observable predicate — never a bare sleep. The surface
- * is frozen: new gestures arrive as new methods, so a note fixture is never rewritten.
+ * The vocabulary of human gestures on top of EditorPage. Each gesture makes a real keyboard or
+ * mouse action, then either predicts the bytes (printable typing) or resyncs the expected answer
+ * (anything automatic), and waits on something observable rather than sleeping. The set of
+ * methods is fixed: a new gesture is a new method, so a note fixture is never rewritten.
  */
 export interface GestureOpts {
 	typoRate?: number;
@@ -132,7 +132,7 @@ export interface GestureOpts {
 export class Gestures {
 	private readonly typoRate: number;
 	private readonly onCheckpoint?: (label: string, gesture: string) => Promise<void>;
-	/** Set by a gesture that parks the caret away from the document end. */
+	/** Set by a gesture that leaves the caret somewhere other than the document end. */
 	private caretParkedMidBlock = false;
 
 	constructor(
@@ -145,8 +145,8 @@ export class Gestures {
 	}
 
 	/**
-	 * Annotate a build boundary for the recorder. A no-op when unwired (only the capture run
-	 * hooks it), so it mutates nothing and stays out of the deterministic spine.
+	 * Marks a point in the build for the recorder. Does nothing unless the capture run supplied
+	 * a callback, so it changes no state and cannot affect a replay.
 	 */
 	async checkpoint(label: string, gesture: string): Promise<void> {
 		await this.onCheckpoint?.(label, gesture);
@@ -156,8 +156,8 @@ export class Gestures {
 
 	async typeText(text: string): Promise<void> {
 		const { editor, tracker } = this.ctx;
-		// The tracker predicts insertion at the document end, so a mid-block caret would
-		// surface as a source mismatch naming the wrong culprit. Fail at the real cause.
+		// The expected answer assumes typing at the document end, so a caret left mid-block
+		// would show up as a source mismatch blaming the wrong thing. Fail at the real cause.
 		if (this.caretParkedMidBlock) {
 			throw new Error(
 				`[${this.ctx.label}] typeText after hardBreakAt or mintAtGap: the caret is parked ` +
@@ -175,8 +175,8 @@ export class Gestures {
 	}
 
 	/**
-	 * Type the first line of a fresh list item: the first char resyncs around the marker
-	 * materialization, the rest predicts. Nests past the ceiling char-by-char `typeText` hits.
+	 * Type the first line of a new list item: the first character resyncs, because the marker
+	 * appears with it, and the rest is predicted. Nests deeper than `typeText` can.
 	 */
 	typeFreshItem(text: string): Promise<void> {
 		return typeFreshItem(this.ctx, text);
@@ -185,10 +185,10 @@ export class Gestures {
 	// ── Navigation / repositioning ──────────────────────────────────────────────
 
 	/**
-	 * Real pointer click to reposition the caret, asserting the landing — a wrong-block
-	 * landing must never be silently recorded as truth. The block PATH is the load-bearing
-	 * assertion; the offset resyncs to whatever the click produced. Offset-precise or nested
-	 * clicks go through `editor.clickBlockAtPath`.
+	 * A real click to move the caret, checking where it ended up: a click that lands in the wrong
+	 * block must never be recorded as if it were right. The block path is what is checked; the
+	 * offset resyncs to whatever the click produced. An exact offset or a nested block goes
+	 * through `editor.clickBlockAtPath`.
 	 */
 	async clickToReposition(targetBlockPath: number[]): Promise<void> {
 		const { editor, tracker } = this.ctx;
@@ -199,8 +199,8 @@ export class Gestures {
 	}
 
 	/**
-	 * Models noticing an earlier typo and going back to fix it. Net-identity, so end-state
-	 * equality still holds.
+	 * Imitates noticing an earlier typo and going back to fix it. Leaves the bytes as they were,
+	 * so the end state still matches.
 	 */
 	lateCorrection(targetBlockPath: number[]): Promise<void> {
 		return lateCorrection(this.ctx, this, targetBlockPath);
@@ -208,7 +208,7 @@ export class Gestures {
 
 	// ── Structure ───────────────────────────────────────────────────────────────
 
-	/** Enter splits a block; the transient empty block is auto-behavior, so resync. */
+	/** Enter splits a block; the empty block it leaves is automatic, so resync. */
 	async pressEnter(): Promise<void> {
 		const { page, editor, tracker } = this.ctx;
 		const hostsBefore = await page.evaluate(() => document.querySelectorAll('.block-host').length);
@@ -218,8 +218,8 @@ export class Gestures {
 	}
 
 	// ── Delegators ──────────────────────────────────────────────────────────────
-	// Thin facade over gestures/. Those take SimContext explicitly so they stay
-	// unit-addressable and the frozen class surface grows without bloating this file.
+	// A thin front for gestures/. Those take SimContext directly, so each can be called on its
+	// own and this file stays small as the method list grows.
 
 	/** Extend a selection `count` chars from the caret (leftward; negative = rightward). */
 	selectChars(count: number): Promise<void> {
@@ -250,7 +250,8 @@ export class Gestures {
 		return softEnter(this.ctx);
 	}
 
-	/** ``` at the document end: the fence completes itself, and its closer is held as a twin. */
+	/** ``` at the document end: the fence completes itself, and its closing line is held past
+	 *  the caret. */
 	typeFenceOpener(): Promise<void> {
 		return typeFenceOpener(this.ctx);
 	}
@@ -270,8 +271,8 @@ export class Gestures {
 	}
 
 	/**
-	 * The `pressEnter` → `indentEmptyItem` → `typeFreshItem` cadence nests past the
-	 * two-level ceiling that indenting a FILLED item hits.
+	 * The `pressEnter`, `indentEmptyItem`, `typeFreshItem` sequence nests deeper than indenting
+	 * an item that already has text, which stops at two levels.
 	 */
 	indentEmptyItem(): Promise<void> {
 		return indentEmptyItem(this.ctx);
@@ -287,16 +288,16 @@ export class Gestures {
 	}
 
 	/**
-	 * The opaque-container boundary declines, so this is a byte-exact no-op; a regression to
-	 * the teleport changes the source and the gesture throws.
+	 * The edge of an opaque container refuses the move, so this changes no bytes; if the block
+	 * ever jumped out of the container again, the source would change and this would throw.
 	 */
 	reorderInContainer(bodyPath: number[]): Promise<void> {
 		return reorderInContainer(this.ctx, bodyPath);
 	}
 
 	/**
-	 * The mirror of `indentEmptyItem`. Settles on the focused item's path shortening; the
-	 * next `typeFreshItem` materializes its marker.
+	 * The opposite of `indentEmptyItem`. Waits for the focused item's path to get shorter; the
+	 * next `typeFreshItem` brings its marker back.
 	 */
 	outdentEmptyItem(): Promise<void> {
 		return outdentEmptyItem(this.ctx);
@@ -310,7 +311,7 @@ export class Gestures {
 		return continueQuote(this.ctx, text);
 	}
 
-	/** The typed `> >` nested quote the equality spine needs to guard the quote-exit fix. */
+	/** Types a `> >` nested quote, so the end-state check covers leaving a nested quote. */
 	nestQuote(text: string): Promise<void> {
 		return nestQuote(this.ctx, text);
 	}
@@ -320,9 +321,9 @@ export class Gestures {
 	}
 
 	/**
-	 * Mint a paragraph at the between-blocks caret before `boundaryIndex`: the insert whose
-	 * commit path no other gesture reaches, since the boundary belongs to no block's surface.
-	 * Empty `text` presses Enter. Leaves the caret mid-document — a note's LAST gesture.
+	 * Insert a paragraph at the caret between blocks, before `boundaryIndex`: the one insert no
+	 * other gesture reaches, since that gap belongs to no block's editable area. Empty `text`
+	 * presses Enter. Leaves the caret mid-document, so it must be a note's last gesture.
 	 */
 	async mintAtGap(
 		boundaryIndex: number,
@@ -342,8 +343,8 @@ export class Gestures {
 	}
 
 	// ── Math (LaTeX extension, plugins route) ───────────────────────────────────
-	// Insert / reveal-edit-commit / delete inline `$…$` and block `$$…$$` math.
-	// Each gesture gates on the widget↔source swap and resyncs around the reparse.
+	// Insert, edit and delete inline `$…$` and block `$$…$$` math. Each gesture waits for the
+	// swap between the widget and its source, and resyncs once the reparse is done.
 
 	insertInlineMath(formula: string): Promise<void> {
 		return insertInlineMath(this.ctx, formula);
@@ -369,36 +370,36 @@ export class Gestures {
 		return deleteInlineMathWidget(this.ctx, blockIndex);
 	}
 
-	/** Arrow-enter a block-final inline widget, walk through the revealed source and
-	 *  out its leading edge, fold — a byte-identical caret-entry-reveal round trip. */
+	/** Arrow into an inline widget at the end of a block, walk through the source it shows and
+	 *  out the front of it, and let it close again: the bytes must come back identical. */
 	walkThroughInlineMath(blockIndex: number): Promise<void> {
 		return walkThroughInlineMath(this.ctx, blockIndex);
 	}
 
-	/** Backspace-enter a block-final inline widget, insert inside the formula, and
-	 *  commit by escaping the trailing edge — the caret-escape reveal-commit path. */
+	/** Backspace into an inline widget at the end of a block, type inside the formula, and
+	 *  commit it by moving the caret out past its end. */
 	backspaceRevealEditInlineMath(blockIndex: number, insert: string): Promise<void> {
 		return backspaceRevealEditInlineMath(this.ctx, blockIndex, insert);
 	}
 
-	// Both fence gestures act from a FLANKING prose block and never focus the fence, whose
-	// render would reveal its source on pointerdown.
+	// Both fence gestures work from a prose block beside the fence and never focus the fence
+	// itself, which would show its source on pointerdown.
 
-	/** Alt+Arrow the prose above the fence past it and back — a net-identity sibling
-	 *  permutation the fence's raw and kind must survive unchanged. */
+	/** Alt+Arrow the prose above the fence past it and back: the bytes end up as they were, and
+	 *  the fence's raw text and kind must survive unchanged. */
 	reorderPastMathFence(proseIndex: number, fenceIndex: number): Promise<void> {
 		return reorderPastMathFence(this.ctx, proseIndex, fenceIndex);
 	}
 
-	/** Backspace a cross-block range built from the prose above to the prose below, so
-	 *  the fence is wholly interior — every fence byte must go, and one undo restores it. */
+	/** Backspace a range running from the prose above to the prose below, so the fence lies
+	 *  entirely inside it: every fence byte must go, and one undo must bring it back. */
 	deleteAcrossMathFence(fenceIndex: number): Promise<void> {
 		return deleteAcrossMathFence(this.ctx, this, fenceIndex);
 	}
 
 	// ── Mermaid (whole-block focus, plugins route) ──────────────────────────────
-	// Opaque childless diagram: each gates on a focus/structural signal and resyncs; the
-	// delete and Enter detours net to identity via undo.
+	// An opaque diagram with no children: each gesture waits for a focus or structural change
+	// and resyncs, and the delete and Enter detours end with an undo, so the bytes come back.
 
 	arrowFocusMermaid(belowIndex: number): Promise<void> {
 		return arrowFocusMermaid(this.ctx, belowIndex);
@@ -413,9 +414,9 @@ export class Gestures {
 	}
 
 	// ── Table ─────────────────────────────────────────────────────────────────
-	// Each resyncs around the table's canonical cell auto-padding. Cells are addressed by
-	// row-major rendered index, which SHIFTS after an insert/delete — the caller sequences
-	// against the current grid.
+	// Each resyncs, because the table pads its cells to a standard width. A cell is named by
+	// its rendered index, counting across rows, which shifts after an insert or delete, so the
+	// caller works from the grid as it stands.
 
 	editCell(cellIndex: number, text: string): Promise<void> {
 		return editCell(this.ctx, cellIndex, text);
@@ -438,34 +439,35 @@ export class Gestures {
 	}
 
 	// ── Plugin containers ───────────────────────────────────────────────────────
-	// Resyncs around the opener-byte rewrite and body mount/unmount. Only reachable over a
-	// loaded document holding a details container.
+	// Each resyncs, since the opening line is rewritten and the body mounts or unmounts. Only
+	// reachable on a loaded document that already holds a details container.
 
 	toggleCollapse(): Promise<void> {
 		return toggleCollapse(this.ctx);
 	}
 
-	// A minted-command chord that bubbles from a callout leaf to the container handler.
-	// Resyncs around the opener-byte rewrite; needs a loaded `:::callout` callout.
+	// A plugin command whose shortcut travels from a callout child up to the container's
+	// handler. Resyncs, since the opening line is rewritten; needs a loaded `:::callout`.
 	setCalloutKind(): Promise<void> {
 		return setCalloutKind(this.ctx);
 	}
 
-	// Real GitHub-alert paste (Mod+V) the admonitions pre-parse transform rewrites
-	// to a :::tip admonition. Resyncs around the transform + reparse.
+	// A real paste (Mod+V) of a GitHub alert, which the admonitions plugin rewrites to a
+	// :::tip before parsing. Resyncs, since both the rewrite and the reparse change the bytes.
 	pasteGithubAlert(): Promise<void> {
 		return pasteGithubAlert(this.ctx);
 	}
 
-	// A READ-ONLY global chord: it republishes `window.__docStats` and commits nothing, so
-	// the caller nets it to identity. Needs the doc-stats plugin installed.
+	// A global shortcut that only reads: it rewrites `window.__docStats` and commits nothing, so
+	// the bytes are unchanged. Needs the doc-stats plugin installed.
 	publishDocStats(): Promise<void> {
 		return publishDocStats(this.ctx);
 	}
 
 	// ── Directives (`:::name` primitive, plugins route) ──────────────────────────
-	// Each gates on the promotion or widget swap and resyncs around the reparse. Container
-	// inserts arrive by PASTE — a multi-line fence never forms from live single-block typing.
+	// Each waits for the block to change kind or for the widget to swap in, then resyncs after
+	// the reparse. A container is inserted by pasting: typing one block at a time never builds
+	// a multi-line fence.
 
 	insertTextDirective(name: string, label: string): Promise<void> {
 		return insertTextDirective(this.ctx, name, label);
@@ -492,9 +494,9 @@ export class Gestures {
 	}
 
 	// ── Footnotes (first-party plugin, `?seed=footnotes`) ────────────────────────
-	// Two tiers: the `[^label]: ` strip-container definition and the `[^label]` inline
-	// reference widget. Everything here RESYNCS — the derived reference number is display
-	// state the tracker never models, so nothing may predict it.
+	// Two parts: the `[^label]: ` definition block and the `[^label]` inline reference widget.
+	// Everything here resyncs, because the reference number is worked out for display and the
+	// expected answer never models it.
 
 	typeFootnoteDefinition(targetIndex: number, label: string, body: string): Promise<void> {
 		return typeFootnoteDefinition(this.ctx, targetIndex, label, body);
@@ -524,12 +526,12 @@ export class Gestures {
 		return deleteFootnoteReference(this.ctx, refIndex, blurBlockIndex);
 	}
 
-	// ── Cross-block selection + destruction ──────────────────────────────────────
-	// Builds fail loud if the range never engaged; destroys settle on the collapse, run the
-	// structural oracle sweep on the merged tree, and resync. The caller nets them to
-	// identity with a trailing undo — cross-block destruction is byte-reversible.
+	// ── Cross-block selection and deletion ───────────────────────────────────────
+	// Building a range throws loudly if it never engaged; deleting one waits for the collapse,
+	// runs the structural checks on the merged tree, and resyncs. The caller closes with an
+	// undo, since deleting across blocks must be reversible byte for byte.
 
-	/** Extend the selection past the block boundary below/above the caret with Shift+Arrow. */
+	/** Extend the selection past the block below or above the caret with Shift+Arrow. */
 	extendSelectionAcross(dir: 'down' | 'up', maxSteps?: number): Promise<void> {
 		return extendSelectionAcross(this.ctx, dir, maxSteps);
 	}
@@ -538,7 +540,7 @@ export class Gestures {
 		return shiftClickAcross(this.ctx, targetPath, offset);
 	}
 
-	/** Double Ctrl+A: select the caret's block, then escalate to the whole document. */
+	/** Ctrl+A twice: select the caret's block, then widen to the whole document. */
 	selectWholeDocument(): Promise<void> {
 		return selectWholeDocument(this.ctx);
 	}
@@ -562,9 +564,9 @@ export class Gestures {
 	// ── Block merge ───────────────────────────────────────────────────────────────
 
 	/**
-	 * Backspace at block start: merges into the predecessor or delegates to the container-exit
-	 * unwrap. Fails loud on a no-op (the first block has no predecessor), runs the structural
-	 * oracle sweep, and resyncs; the caller nets it to identity with a trailing undo.
+	 * Backspace at the start of a block: it merges into the block above, or leaves the container
+	 * it sits in. Throws loudly if nothing happens (the first block has nothing above it), runs
+	 * the structural checks, and resyncs; the caller closes with an undo.
 	 */
 	mergeBackspaceAtStart(targetPath: number[]): Promise<void> {
 		return mergeBackspaceAtStart(this.ctx, targetPath);
@@ -573,9 +575,9 @@ export class Gestures {
 	// ── Range interrupt ───────────────────────────────────────────────────────────
 
 	/**
-	 * Fire `gesture` over a live cross-block range, then one printable key, asserting the
-	 * bytes against the outcome that gesture is pinned to — the precondition that hid two
-	 * whole-document losses. Outcome vocabulary: `gestures/range-interrupt.ts`.
+	 * Run `gesture` while a cross-block range is live, then press one printable key, and check
+	 * the bytes against the outcome that gesture is held to. This is the situation that hid two
+	 * whole documents being lost. The outcomes are listed in `gestures/range-interrupt.ts`.
 	 */
 	rangeInterrupt(gesture: RangeInterruptGesture): Promise<void> {
 		return rangeInterrupt(this.ctx, this, gesture);
@@ -584,9 +586,9 @@ export class Gestures {
 	// ── History ───────────────────────────────────────────────────────────────
 
 	/**
-	 * Flush the input batcher so the next gesture starts a FRESH undo entry — without it the
-	 * batcher coalesces keystrokes within ~250ms into one. A deterministic fence, not a
-	 * wall-clock wait.
+	 * Flush the input batcher so the next gesture starts a new undo entry; without it the
+	 * batcher groups keystrokes within about 250ms into one. A fixed step, not a wait on the
+	 * clock.
 	 */
 	pause(): Promise<void> {
 		return this.ctx.editor.waitForUndoBatchFlush();
@@ -605,9 +607,9 @@ export class Gestures {
 	// ── Presentation ────────────────────────────────────────────────────────────
 
 	/**
-	 * Flip to `mode` and back mid-session, asserting the note round-trips byte-identical.
-	 * Auto-behavior, so it settles on the mode attribute and resyncs — the byte-stability
-	 * oracle the loaded-ops battery otherwise never sees.
+	 * Switch to `mode` and back mid-session, checking that the note comes back byte for byte.
+	 * The switch is automatic, so it waits on the mode attribute and resyncs. Nothing else in
+	 * the loaded-document suites checks that the bytes survive a mode switch.
 	 */
 	flipPresentationMode(
 		mode: 'reading' | 'preview-block' | 'preview-inline' | 'live'
@@ -616,17 +618,17 @@ export class Gestures {
 	}
 
 	// ── Live-mode editing ───────────────────────────────────────────────────────
-	// Each enters live through the toggle, drives one live-only rule, and undoes what it spent —
-	// so every one nets to identity and a note fixture can fire it mid-session.
+	// Each switches into live mode through the toggle, drives one live-only rule, and undoes
+	// what it wrote, so the bytes end up as they were and a note can run it mid-session.
 
-	/** Toggle a mark over a selected word; `strikethrough` and `inlineCode` are live's two new
-	 *  chords, and all three write bytes immediately at a RANGE. */
+	/** Toggle a mark over a selected word; `strikethrough` and `inlineCode` are the two
+	 *  shortcuts live mode adds, and all three write bytes at once over a range. */
 	liveToggleFormat(blockIndex: number, word: string, format: LiveFormat): Promise<void> {
 		return liveToggleFormat(this.ctx, blockIndex, word, format);
 	}
 
-	/** Backspace at a construct's trailing content edge takes the visible character, not the
-	 *  delimiter native editing would have reached. */
+	/** Backspace at the end of a construct's text takes the visible character, not the
+	 *  delimiter the browser's own editing would have reached. */
 	liveEdgeBackspace(blockIndex: number, content: string): Promise<void> {
 		return liveEdgeBackspace(this.ctx, blockIndex, content);
 	}
@@ -646,58 +648,58 @@ export class Gestures {
 		return liveLinkCardEdit(this.ctx, linkText, url);
 	}
 
-	/** Backspace-merge a block into its predecessor, then type ONE byte at the seam the
-	 *  landing door seated (two entries, two undos). */
+	/** Backspace to merge a block into the one above, then type one byte where the caret landed
+	 *  at the join (two undo entries, two undos). */
 	liveMergeLanding(blockIndex: number, seamBefore: string, seamAfter: string): Promise<void> {
 		return liveMergeLanding(this.ctx, blockIndex, seamBefore, seamAfter);
 	}
 
-	/** Home in a list item seats through the sentinel door; one byte opens the line. */
+	/** Home in a list item puts the caret at offset 0; one typed byte opens the line. */
 	liveListHomeSeat(itemText: string): Promise<void> {
 		return liveListHomeSeat(this.ctx, itemText);
 	}
 
-	/** Extend into a table (the cell arm parks the START sentinel) and collapse — byte-free. */
+	/** Extend a selection into a table and collapse it again; no bytes may change. */
 	liveExtendIntoTablePark(): Promise<void> {
 		return liveExtendIntoTablePark(this.ctx);
 	}
 
-	/** Type `#` onto a fresh line below `blockIndex`, then its text: the mint resyncs, the text
-	 *  predicts. */
+	/** Type `#` onto a new line below `blockIndex`, then its text: the new block resyncs, the
+	 *  text is predicted. */
 	liveTypeHeadingOpener(blockIndex: number, text: string): Promise<void> {
 		return liveTypeHeadingOpener(this.ctx, blockIndex, text);
 	}
 
-	/** The same on a fence: three backticks mint the block, the info string settles on its line. */
+	/** The same for a fence: three backticks create the block, then the info string is typed. */
 	liveTypeFenceOpener(blockIndex: number, info: string): Promise<void> {
 		return liveTypeFenceOpener(this.ctx, blockIndex, info);
 	}
 
-	/** The adjacent-line member: the header row predicts byte for byte, Enter mints the grid. */
+	/** The same for a table: the header row is predicted byte for byte, Enter builds the grid. */
 	liveTypeTableOpener(blockIndex: number, cells: string[]): Promise<void> {
 		return liveTypeTableOpener(this.ctx, blockIndex, cells);
 	}
 
-	// ── Decoration islands + block decoration (plugins route, `?seed=sim`) ────────
-	// Painting islands never changes bytes, so each resyncs; the replace delete and the
-	// transparent widget backspace net to identity via undo.
+	// ── Decoration widgets and block decoration (plugins route, `?seed=sim`) ─────
+	// Drawing a decoration never changes bytes, so each resyncs; deleting a replace widget and
+	// backspacing through a see-through one both end with an undo.
 
-	/** Walk the caret across an island — step-over for replace, transparency for widget. */
+	/** Walk the caret across a decoration: it steps over a replace one and through a widget. */
 	walkAcrossIsland(blockIndex: number): Promise<void> {
 		return walkAcrossIsland(this.ctx, blockIndex);
 	}
 
-	/** Two-press select-then-delete of a replace island, then undo (net identity). */
+	/** Two presses to select then delete a replace decoration, then undo it. */
 	edgeDeleteReplaceIsland(blockIndex: number, key: 'Backspace' | 'Delete'): Promise<void> {
 		return edgeDeleteReplaceIsland(this.ctx, blockIndex, key);
 	}
 
-	/** Backspace through a widget island onto the adjacent real byte, then undo. */
+	/** Backspace through a widget decoration onto the real byte beside it, then undo. */
 	backspaceThroughWidgetIsland(blockIndex: number): Promise<void> {
 		return backspaceThroughWidgetIsland(this.ctx, blockIndex);
 	}
 
-	/** Type a char at an island's trailing edge and delete it — the island survives. */
+	/** Type a character at a decoration's trailing edge and delete it; the decoration survives. */
 	typeAdjacentToIsland(blockIndex: number): Promise<void> {
 		return typeAdjacentToIsland(this.ctx, blockIndex);
 	}
@@ -707,8 +709,9 @@ export class Gestures {
 		return reorderDecoratedBlock(this.ctx, blockIndex);
 	}
 
-	// ── Decoded-entity atomic widget ─────────────────────────────────────────────
-	// The widget contributes its GLYPH, not its raw, so both resync rather than predict.
+	// ── Decoded-entity widget ────────────────────────────────────────────────────
+	// The widget shows the character, not the reference it came from, so both gestures resync
+	// rather than predict.
 
 	typeEntityWidget(blockIndex: number, offset: number, reference: string): Promise<void> {
 		return typeEntityWidget(this.ctx, blockIndex, offset, reference);
@@ -718,9 +721,9 @@ export class Gestures {
 		return atomicDeleteEntityWidget(this.ctx, blockIndex);
 	}
 
-	// ── Emoji shortcode atomic widget (first-party plugin, `?seed=emoji`) ─────────
-	// The widget contributes its GLYPH, not its raw, and the insert is mid-prose, so all
-	// three resync.
+	// ── Emoji shortcode widget (first-party plugin, `?seed=emoji`) ───────────────
+	// The widget shows the emoji, not the shortcode it came from, and the insert happens
+	// mid-sentence, so all three resync.
 
 	typeEmojiShortcode(blockIndex: number, offset: number, shortcode: string): Promise<void> {
 		return typeEmojiShortcode(this.ctx, blockIndex, offset, shortcode);
@@ -735,8 +738,8 @@ export class Gestures {
 	}
 
 	// ── Native GitHub alerts (admonitions plugin, `?seed=admonitions`) ────────────
-	// Each gates on the promotion or structural change and resyncs; the merge and unwrap
-	// assert containment and marker-drop internally.
+	// Each waits for the block to change kind or shape, then resyncs; the merge and the unwrap
+	// check for themselves that the body stayed inside and the markers went.
 
 	typeGithubAlert(
 		targetIndex: number,
@@ -758,9 +761,9 @@ export class Gestures {
 		return unwrapGithubAlert(this.ctx, alertIndex);
 	}
 
-	// ── IME composition (CDP-threaded) ───────────────────────────────────────────
-	// The compose window is DOM-only, so the source stays byte-stable until commit and the
-	// tracker resyncs around the committed bytes. Requires `ctx.ime`.
+	// ── IME composition (driven over CDP) ────────────────────────────────────────
+	// Composition happens in the DOM alone, so the source does not change until the commit,
+	// and the expected answer resyncs to the committed bytes. Requires `ctx.ime`.
 
 	composeCommit(blockIndex: number, composition: CompositionCase): Promise<void> {
 		return composeCommit(this.ctx, blockIndex, composition);
@@ -772,7 +775,8 @@ export class Gestures {
 
 	// ── Internal ────────────────────────────────────────────────────────────────
 
-	/** Type a wrong neighbor key, settle, Backspace it out, settle — nets to identity. */
+	/** Type a neighbouring key by mistake, wait, Backspace it out, wait; the bytes end up
+	 *  unchanged. */
 	private async injectCancellingTypo(intended: string): Promise<void> {
 		const { editor, tracker } = this.ctx;
 		const wrong = neighborKey(intended, this.rng);

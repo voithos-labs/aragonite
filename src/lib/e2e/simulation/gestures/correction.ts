@@ -2,13 +2,13 @@ import type { Gestures } from '../gestures';
 import type { SimContext } from '../invariants';
 
 /**
- * The caret lands MID-document, where the tracker's end-of-content append rule does not
- * hold, so these observe the source and resync rather than predicting.
+ * The caret ends up mid-document, where the expected answer's "typed at the end" rule does not
+ * hold, so these gestures read the source and resync rather than predicting it.
  */
 
 /**
- * A net-identity edit wherever the caret sits. Mid-document, so a raw keystroke plus a
- * source-delta settle is the only sound observation; leaves the document byte-identical.
+ * An edit that cancels itself out, wherever the caret sits. Mid-document, so the only sound
+ * check is a keystroke plus a wait for the source to change; the bytes end up identical.
  */
 export async function cancellingEditAtCaret(ctx: SimContext): Promise<void> {
 	const clean = await ctx.editor.bridge.getSource();
@@ -20,8 +20,8 @@ export async function cancellingEditAtCaret(ctx: SimContext): Promise<void> {
 }
 
 /**
- * `targetBlockPath` must be a single top-level index: the click asserts the focus block
- * path, since a wrong-block landing must never be recorded as truth.
+ * `targetBlockPath` must be a single top-level index: the click checks which block ended up
+ * focused, since a click in the wrong block must never be recorded as if it were right.
  */
 export async function lateCorrection(
 	ctx: SimContext,

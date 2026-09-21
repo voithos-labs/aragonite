@@ -1,11 +1,11 @@
 import type { Gestures } from '../gestures';
 
 /**
- * An authoring script plus the canonical source it must serialize to. `build` carries CLEAN
- * intent — typos and detours come from the Gestures layer, never the fixture.
- * `expectedMarkdown` is calibrated against the editor (typing ≡ loading), never hand-guessed.
- * `landmarks` are in-order phrases, so a reorder or drop surfaces in structural-only regions
- * end-state equality cannot reach.
+ * A script for writing a note, plus the source it must serialize to. `build` types the note
+ * cleanly: typos and detours come from the gestures, never from the fixture.
+ * `expectedMarkdown` is taken from the editor, by loading the same markdown, never guessed by
+ * hand. `landmarks` are phrases in order, so a block moved or dropped shows up in the parts of
+ * the document the end-state check cannot see.
  */
 export interface NoteFixture {
 	name: string;

@@ -2,10 +2,10 @@ import type { Gestures } from '../gestures';
 import type { NoteFixture } from './types';
 
 /**
- * The inline-rich note: stresses inline-parser variety the structural notes skip. Every
- * construct is typed char-by-char so the whole note is HOLD and end-state equality stays a
- * primary oracle. The hard break CLOSES the note, because `hardBreakAt` leaves the caret
- * mid-block and nothing may type after it.
+ * The note full of inline syntax, covering the variety the structural notes skip. Every
+ * construct is typed character by character, so typing it reproduces the loaded document and
+ * the end state still has to match. The hard break closes the note, because `hardBreakAt`
+ * leaves the caret mid-block and nothing may type after it.
  */
 export const FEATURE_TOUR_NOTE: NoteFixture = {
 	name: 'feature-tour-note',

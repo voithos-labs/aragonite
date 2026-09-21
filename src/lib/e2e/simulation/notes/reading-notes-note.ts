@@ -2,8 +2,8 @@ import type { Gestures } from '../gestures';
 import type { NoteFixture } from './types';
 
 /**
- * The nested-blockquote note. The `> >` line sits in the equality spine, so end-state equality
- * is what guards the nested-quote-exit path.
+ * The nested-blockquote note. The `> >` line is part of the document the end state is compared
+ * against, so that comparison is what covers leaving a nested quote.
  */
 export const READING_NOTES_NOTE: NoteFixture = {
 	name: 'reading-notes-note',

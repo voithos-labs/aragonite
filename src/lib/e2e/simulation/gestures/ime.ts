@@ -1,12 +1,12 @@
 import { type SimContext } from '../invariants';
 
-// A composition writes to the DOM but not to the source until it commits, so there is no
-// source delta to settle on mid-composition: `compose` settles on the DOM text, the commit on
-// the bytes reaching the source. The driver is threaded through `ctx.ime`, created once per
-// session from a CDP surface; the gestures throw loudly if it is absent.
+// A composition writes to the DOM but not to the source until it commits, so mid-composition
+// there is no source change to wait on: `compose` waits on the DOM text, the commit on the
+// bytes reaching the source. The driver comes in on `ctx.ime`, made once per session; the
+// gestures throw loudly if it is absent.
 
 export interface CompositionCase {
-	/** In-flight composition strings, applied in order (the pre-edit candidates). */
+	/** The candidate strings shown while composing, applied in order. */
 	readonly updates: readonly string[];
 	/** The committed text (a converted candidate, e.g. かん → 日本). */
 	readonly commit: string;
@@ -19,9 +19,9 @@ function requireIme(ctx: SimContext): NonNullable<SimContext['ime']> {
 }
 
 /**
- * Asserts the source stays byte-stable across EVERY mid-composition update, then settles on
- * the committed bytes. Focused at the block's end so the commit appends within the block
- * rather than at a mid-word boundary.
+ * Checks the source stays byte for byte the same through every update while composing, then
+ * waits for the committed bytes. Focused at the end of the block, so the commit adds to the end
+ * of it rather than in the middle of a word.
  */
 export async function composeCommit(
 	ctx: SimContext,
@@ -50,8 +50,8 @@ export async function composeCommit(
 }
 
 /**
- * An empty insert ends the composition with no bytes, so the source must be byte-identical
- * before and after — proving an abandoned composition commits nothing.
+ * An empty insert ends the composition without writing anything, so the source must be
+ * identical before and after: an abandoned composition commits nothing.
  */
 export async function composeAbort(
 	ctx: SimContext,
@@ -65,7 +65,8 @@ export async function composeAbort(
 
 	for (const update of composition.updates) await ime.compose(update);
 	await ime.abort();
-	// A CDP composition, not a keystroke: the abort fires no keydown to take a verdict from.
+	// Composition is driven over CDP, not by keys, so the abort fires no keydown for the editor
+	// to record a decision about.
 	await editor.waitForNoSourceMutation();
 	if ((await editor.bridge.getSource()) !== before) {
 		throw new Error(

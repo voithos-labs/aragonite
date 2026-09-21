@@ -1,9 +1,9 @@
 import { type SimContext } from '../invariants';
 import { arrowRightToOffset, cursorOffset } from './caret-walk';
 
-// Decoration-tier gestures (plugins route, `?seed=sim`). Decorations are view-only, so
-// painting never changes the source — only the replace delete and the transparent widget
-// backspace move bytes, and both net to identity via undo.
+// Decoration gestures (plugins route, `?seed=sim`). Decorations are for display only, so
+// drawing one never changes the source. Only deleting a replace decoration and backspacing
+// through a see-through one move bytes, and an undo puts both back.
 
 const ISLAND = '[data-decoration-island]';
 const SELECTED = '.md-widget-selected';
@@ -14,7 +14,7 @@ interface IslandSpan {
 	kind: 'replace' | 'widget';
 }
 
-// ── Island reads ─────────────────────────────────────────────────────────────
+// ── Reading a decoration ─────────────────────────────────────────────────────
 
 async function readIsland(ctx: SimContext, blockIndex: number): Promise<IslandSpan> {
 	const span = await ctx.page.evaluate((i) => {
@@ -39,9 +39,9 @@ async function islandCount(ctx: SimContext, blockIndex: number): Promise<number>
 // ── Gestures ─────────────────────────────────────────────────────────────────
 
 /**
- * A replace island steps over as ONE atomic unit, so the exact far/near offsets are the
- * load-bearing assertion; a zero-width widget island is transparent and the caret crosses
- * onto the adjacent real byte. Either way the source must be byte-identical after.
+ * A replace decoration is stepped over in one go, so the exact offsets on each side are what
+ * this checks; a zero-width widget is see-through and the caret crosses onto the real byte
+ * beside it. Either way the source must be identical afterwards.
  */
 export async function walkAcrossIsland(ctx: SimContext, blockIndex: number): Promise<void> {
 	const { page, editor, tracker } = ctx;
@@ -78,9 +78,10 @@ export async function walkAcrossIsland(ctx: SimContext, blockIndex: number): Pro
 }
 
 /**
- * Two-press select-then-delete, then undo — net identity. The assertion with teeth is on the
- * FIRST press: it selects the island whole and must leave the hidden bytes byte-identical,
- * so a silent one-byte eat fails here rather than hiding inside the delete.
+ * Two presses to select and delete, then an undo, so the bytes end up unchanged. The check
+ * that matters is on the first press: it selects the whole decoration and must leave the
+ * hidden bytes exactly as they were, so a quietly swallowed byte fails here rather than
+ * hiding inside the delete.
  */
 export async function edgeDeleteReplaceIsland(
 	ctx: SimContext,
@@ -120,9 +121,9 @@ export async function edgeDeleteReplaceIsland(
 }
 
 /**
- * The island is transparent, so the press eats the ADJACENT real byte — never a no-op that
- * strips only the island DOM. The widget sits at its sentinel word's leading edge, so the
- * eaten byte is the space before it and the word survives to re-derive the island.
+ * The decoration is see-through, so the press takes the real byte beside it and never just
+ * strips the decoration's own DOM. The widget sits at the front of the word it marks, so the
+ * byte taken is the space before it and the word survives to grow the decoration again.
  */
 export async function backspaceThroughWidgetIsland(
 	ctx: SimContext,
@@ -152,8 +153,8 @@ export async function backspaceThroughWidgetIsland(
 }
 
 /**
- * Net identity. The insert lands adjacent to the island, whose content key is untouched, so
- * the island re-derives and the count holds across the edit.
+ * The bytes end up unchanged. The typed character lands next to the decoration, whose own text
+ * is untouched, so the decoration is derived again and the count holds across the edit.
  */
 export async function typeAdjacentToIsland(ctx: SimContext, blockIndex: number): Promise<void> {
 	const { page, editor, tracker } = ctx;
@@ -177,9 +178,9 @@ export async function typeAdjacentToIsland(ctx: SimContext, blockIndex: number):
 }
 
 /**
- * The block decoration is source-keyed on content, so the badge must FOLLOW the bytes to the
- * new path and back. The treatment-follows-path contract itself is e2e-pinned; this drives
- * the interleave under load.
+ * A block decoration is keyed on the block's content, so the badge has to follow the bytes to
+ * the new position and back. That rule has its own e2e test; this one runs it in the middle of
+ * a long session.
  */
 export async function reorderDecoratedBlock(ctx: SimContext, blockIndex: number): Promise<void> {
 	const { page, editor, tracker } = ctx;

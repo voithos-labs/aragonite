@@ -16,9 +16,9 @@ export interface ManifestEntry {
 
 /**
  * Pairs a screenshot with the known editor state at each checkpoint, so a later reviewer can
- * judge what looks broken against the recorded source. The run directory is seed-derived with
- * no timestamp, so determinism extends to the artifacts, and it lives OUTSIDE `test-results/`
- * because Playwright wipes that at the start of every run.
+ * judge what looks broken against the recorded source. The run directory is named after the
+ * seed with no timestamp, so the files are reproducible too, and it sits outside
+ * `test-results/`, which Playwright wipes at the start of every run.
  */
 export class Recorder {
 	private readonly entries: ManifestEntry[] = [];
@@ -32,12 +32,11 @@ export class Recorder {
 	async checkpoint(label: string, gesture: string): Promise<void> {
 		const index = this.entries.length;
 		const screenshot = `${pad(index)}-${label}.png`;
-		// Let any pending reactive render + layout flush before the screenshot so
-		// the captured frame reflects settled state, not a mid-transition one.
+		// Let any pending render and layout finish before the screenshot, so the captured
+		// frame shows the settled state rather than one mid-change.
 		await this.editor.waitForRenderFlush();
-		// Full-page, not viewport-only: a long note runs past the fold, and the
-		// visual review needs the whole document at each checkpoint (a viewport
-		// shot would clip trailing blocks like a standalone image at the end).
+		// The full page, not just the viewport: a long note runs off screen, and the visual
+		// review needs the whole document at each checkpoint.
 		await this.page.screenshot({
 			path: `${this.runDir}/${screenshot}`,
 			fullPage: true

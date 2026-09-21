@@ -2,12 +2,12 @@ import type { Gestures } from '../gestures';
 import type { NoteFixture } from './types';
 
 /**
- * The structurally-deep note: container nesting and variety the inline-rich note skips. All
- * HOLD, so end-state equality stays a primary oracle. Nesting uses the indent-around-content
- * cadence, which reaches two levels and no further — three needs the empty-item cadence and
- * lives in the outline note. Indenting under an ordered item INHERITS ordered, and a typed
- * `- ` marker stays literal text; Enter inside a quote separates paragraphs, so a multi-line
- * single paragraph is a `hardBreakAt` shape.
+ * The structurally deep note: nested containers and the variety the inline-rich note skips.
+ * Typing it reproduces the loaded document, so the end state still has to match. Nesting is
+ * built by indenting around content, which reaches two levels and no further; three needs the
+ * empty-item sequence and lives in the outline note. An item indented under an ordered one
+ * stays ordered, and a typed `- ` marker stays plain text. Enter inside a quote starts a new
+ * paragraph, so a paragraph of several lines needs `hardBreakAt`.
  */
 export const PROJECT_PLAN_NOTE: NoteFixture = {
 	name: 'project-plan-note',
@@ -77,8 +77,8 @@ export const PROJECT_PLAN_NOTE: NoteFixture = {
 		await g.resizeImage('left', 2);
 		await g.checkpoint('image', 'image');
 
-		// The checkbox renders on the item's paragraph; only the list and the
-		// item-paragraphs carry data-block-path, so the path stops at the paragraph.
+		// The checkbox renders on the item's paragraph, and only the list and the item
+		// paragraphs carry a data-block-path, so the path stops at the paragraph.
 		await g.toggleTask([7, 0, 0]);
 	},
 	landmarks: [

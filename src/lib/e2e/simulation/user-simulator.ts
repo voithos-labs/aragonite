@@ -26,8 +26,8 @@ export interface SessionOpts {
 	note: NoteFixture;
 	capture?: boolean;
 	/**
-	 * Off by default: it drives one undo/redo per stack entry, so it is wired into the smoke
-	 * note and a single multi-seed seed rather than every session.
+	 * Off by default: it drives one undo and redo per stack entry, so only the smoke note and a
+	 * single multi-seed run turn it on.
 	 */
 	undoUnwind?: boolean;
 }
@@ -35,11 +35,11 @@ export interface SessionOpts {
 const EMPTY_BASELINE = '\n';
 
 /**
- * Drives one full note-taking session through real gestures, running the oracle suite
- * continuously. The end-state target is computed up front by LOADING the note's markdown
- * (typing ≡ loading), then the editor is cleared to author into. Never call `loadContent(x)`
- * when the prop already holds `x`: `setSource` is a no-op on an unchanged value, so each hop
- * of the start sequence must be a real value change.
+ * Drives one full note-taking session through real gestures, running the checks all the way
+ * through. The target for the end state is worked out first by loading the note's markdown
+ * (typing has to match loading), then the editor is cleared to type into. Never call
+ * `loadContent(x)` when the editor already holds `x`: `setSource` does nothing on an unchanged
+ * value, so each step of the start sequence has to be a real change.
  */
 export async function runSession(page: Page, editor: EditorPage, opts: SessionOpts): Promise<void> {
 	const errors = attachErrorCollector(page);
@@ -73,9 +73,9 @@ export async function runSession(page: Page, editor: EditorPage, opts: SessionOp
 	ctx.label = 'build';
 	await opts.note.build(g);
 
-	// Finalize the capture manifest in a `finally` so that if any oracle throws
-	// mid-session, the screenshots + state dumps gathered up to that point still
-	// land for the visual review — then the failure re-throws, never masked.
+	// The capture manifest is written in a `finally`, so that if a check throws mid-session the
+	// screenshots and state dumps gathered so far are still there for the visual review; the
+	// failure then throws on, never hidden.
 	try {
 		ctx.label = 'checkpoint';
 		await assertNoErrors(ctx);
@@ -87,8 +87,9 @@ export async function runSession(page: Page, editor: EditorPage, opts: SessionOp
 		await assertContainsInOrder(ctx, opts.note.landmarks);
 		await recorder?.checkpoint('note-built', 'build');
 
-		// Placed HERE, not at note end, because it needs an empty redo stack: the detours below
-		// each close with an undo whose redo residue would make "rewind to the top" ill-defined.
+		// Here rather than at the end of the note, because it needs an empty redo stack: each
+		// detour below ends in an undo, and what it leaves on the redo stack would make
+		// "rewind to the top" mean nothing definite.
 		if (opts.undoUnwind) {
 			ctx.label = 'undo-unwind';
 			await runFullSessionUndoUnwind(ctx, baseline);
@@ -117,16 +118,15 @@ export async function runSession(page: Page, editor: EditorPage, opts: SessionOp
 }
 
 /**
- * Drops the edit afterward: the differential must not leave a residual char that would fail
- * the end-state equality oracle.
+ * Drops the edit afterwards: this must not leave a stray character behind, which would fail the
+ * check that the end state matches.
  */
 async function runRevertingDifferential(ctx: SimContext): Promise<void> {
 	const clean = await ctx.editor.bridge.getSource();
 	await undoRedoDifferential(ctx, async () => {
 		await ctx.editor.typeSlowly('X');
-		// Confirm the keystroke landed via a source delta, not a content match: a
-		// `waitForSourceContains('X')` would false-pass on any note whose source
-		// already contains an 'X'.
+		// Confirm the keystroke arrived by watching the source change, not by matching content:
+		// `waitForSourceContains('X')` would pass on any note whose source already holds an 'X'.
 		await ctx.editor.bridge.waitForSourceWith((source, prev) => source !== prev, clean, 2000);
 	});
 	await ctx.editor.undo();
@@ -135,10 +135,10 @@ async function runRevertingDifferential(ctx: SimContext): Promise<void> {
 }
 
 /**
- * Seeded realism detours that each NET TO IDENTITY, so the end-state equality oracle still
- * holds for every note and seed. The seed gates which fire, spreading undo-batch shapes across
- * runs. The `pause()`s are load-bearing, not decoration: each flushes the input batcher so the
- * following delete lands in its own undo entry, without which one Ctrl+Z overshoots.
+ * Detours that make the session look human and each leave the bytes exactly as they were, so the
+ * end state still matches for every note and seed. The seed decides which run, spreading the
+ * shapes of undo batches across runs. Each `pause()` is required: it flushes the input batcher
+ * so the delete after it gets its own undo entry, without which one Ctrl+Z goes too far.
  */
 async function runCancellingDetours(ctx: SimContext, g: Gestures, rng: Rng): Promise<void> {
 	if (rng.chance(0.5)) await g.pause();
@@ -161,17 +161,16 @@ async function runCancellingDetours(ctx: SimContext, g: Gestures, rng: Rng): Pro
 
 	if (rng.chance(0.5)) await g.pause();
 
-	// Byte-stability across a presentation-mode flip. The seed picks which rung so the
-	// multi-seed runner spreads every mode across seeds — the flip must not perturb the
-	// clean built source under any live gesture state.
+	// The bytes must survive a presentation-mode switch. The seed picks which mode, so the
+	// multi-seed runner covers them all: no mode switch may disturb the built source.
 	if (rng.chance(0.7)) {
 		await g.flipPresentationMode(
 			rng.pick(['reading', 'preview-block', 'preview-inline', 'live'] as const)
 		);
 	}
 
-	// The two most dangerous surfaces, appended so the existing seed→detour mapping is
-	// preserved. Both net to identity via a trailing undo, so end-state equality holds.
+	// The two riskiest gestures, added at the end so each seed still picks the same detours as
+	// before. Both leave the bytes as they were, thanks to a closing undo.
 	if (rng.chance(0.5)) await g.pause();
 
 	if (rng.chance(0.6)) {
@@ -184,16 +183,17 @@ async function runCancellingDetours(ctx: SimContext, g: Gestures, rng: Rng): Pro
 		await mergeUndoDetour(ctx, g);
 	}
 
-	// Appended last for the same reason as the pair above: every draw before it keeps
-	// its existing seed→detour mapping.
+	// Added last for the same reason as the pair above: every draw before it keeps the detour
+	// its seed picked before.
 	if (rng.chance(0.7)) {
 		await rangeInterruptDetour(ctx, g, rng);
 	}
 }
 
 /**
- * The precondition behind two whole-document losses. The seed picks which gesture fires from
- * the set THIS document can reach, so seeds spread across the interrupt surface.
+ * A live cross-block range interrupted by another gesture, the situation behind two whole
+ * documents being lost. The seed picks from the gestures this document can reach, so the seeds
+ * spread across them.
  */
 async function rangeInterruptDetour(ctx: SimContext, g: Gestures, rng: Rng): Promise<void> {
 	const available = await availableRangeInterrupts(ctx);
@@ -202,10 +202,10 @@ async function rangeInterruptDetour(ctx: SimContext, g: Gestures, rng: Rng): Pro
 }
 
 /**
- * Drives a reorder BETWEEN edits and undo/redo — the interleaving that surfaces the
- * aliasing/unshare/stamp corruption a reorder can introduce, which the simulation is the only
- * oracle for (`docs/contributing/rules.md` § Testing shape). Block 0 is a heading or
- * paragraph with a sibling below it in every note, so the move is never a no-op.
+ * Moves a block between edits and undo, the order of events that brings out the shared-node
+ * corruption a reorder can cause and that only the simulation catches
+ * (`docs/contributing/rules.md` § Testing shape). Block 0 is a heading or paragraph with a
+ * sibling below it in every note, so the move always does something.
  */
 async function reorderUndoDetour(ctx: SimContext, g: Gestures): Promise<void> {
 	const before = await ctx.editor.bridge.getSource();
@@ -218,9 +218,9 @@ async function reorderUndoDetour(ctx: SimContext, g: Gestures): Promise<void> {
 }
 
 /**
- * Block 0 is a heading or paragraph in every note, so `End` plus a small leftward selection
- * always has chars to remove. The pre-delete `pause` fences the delete into its own undo
- * batch, so one Ctrl+Z reverses exactly it.
+ * Block 0 is a heading or paragraph in every note, so `End` plus a small selection to the left
+ * always has characters to remove. The `pause` before the delete gives it its own undo entry,
+ * so one Ctrl+Z reverses exactly that.
  */
 async function selectDeleteUndoDetour(ctx: SimContext, g: Gestures, rng: Rng): Promise<void> {
 	const before = await ctx.editor.bridge.getSource();
@@ -235,8 +235,9 @@ async function selectDeleteUndoDetour(ctx: SimContext, g: Gestures, rng: Rng): P
 }
 
 /**
- * Net identity, fenced with `pause` like the delete detour. The clipboard is left dirty, but
- * the source is unchanged once the paste is undone — all the end-state oracle observes.
+ * Leaves the bytes as they were, separated by `pause` like the delete detour. The clipboard is
+ * left holding text, but the source is unchanged once the paste is undone, which is all the end
+ * state looks at.
  */
 async function copyPasteUndoDetour(ctx: SimContext, g: Gestures): Promise<void> {
 	const before = await ctx.editor.bridge.getSource();
@@ -254,17 +255,17 @@ async function copyPasteUndoDetour(ctx: SimContext, g: Gestures): Promise<void> 
 }
 
 /**
- * Cross-block destruction is the surface that held the historical corruption Criticals, so
- * driving it here puts a range collapse + merge under the full oracle sweep on every seed.
- * The seed picks both the build and the destroy, spreading across the entry×exit matrix.
+ * Deleting across blocks is where the worst corruption bugs came from, so driving it here puts
+ * a range collapse and merge under the full set of checks on every seed. The seed picks both how
+ * the range is built and how it is destroyed, so the pairs spread across runs.
  */
 async function crossBlockDestroyUndoDetour(ctx: SimContext, g: Gestures, rng: Rng): Promise<void> {
 	const before = await ctx.editor.bridge.getSource();
 	const destroy = rng.pick(['backspace', 'delete', 'cut', 'type-over', 'paste-over'] as const);
 	await g.pause();
 
-	// paste-over needs a primed clipboard; copy from block 0 before the range is built
-	// (the copy collapses whatever is selected, so it must precede the cross-block build).
+	// Pasting over the range needs something on the clipboard, so copy from block 0 first: the
+	// copy collapses whatever is selected, so it has to happen before the range is built.
 	if (destroy === 'paste-over') {
 		await g.clickToReposition([0]);
 		await ctx.page.keyboard.press('End');
@@ -294,8 +295,8 @@ async function crossBlockDestroyUndoDetour(ctx: SimContext, g: Gestures, rng: Rn
 	ctx.tracker.resync(before);
 }
 
-// Scanning for an eligible pair keeps the detour a REAL merge on any note, instead of a
-// move-focus no-op that would trip the gesture's loud guard.
+// Looking for an eligible pair keeps the detour a real merge on any note, rather than a
+// move-the-caret no-op that would trip the gesture's loud check.
 const MERGEABLE_PREV_KINDS = new Set([
 	'paragraph',
 	'heading',
@@ -317,8 +318,8 @@ async function findMergeableParagraph(ctx: SimContext): Promise<number | null> {
 }
 
 /**
- * Backspace-at-offset-0 drives the merge-rules dispatch, the subsystem the corruption oracle
- * otherwise never fuzzes. The target is chosen at RUNTIME so the Backspace always merges.
+ * Backspace at offset 0 runs the merge rules, which nothing else here exercises at random. The
+ * target block is chosen while the session runs, so the Backspace always merges.
  */
 async function mergeUndoDetour(ctx: SimContext, g: Gestures): Promise<void> {
 	const target = await findMergeableParagraph(ctx);
@@ -334,10 +335,10 @@ async function mergeUndoDetour(ctx: SimContext, g: Gestures): Promise<void> {
 }
 
 /**
- * Unwinds the whole authoring stack to its floor and rewinds it, where `undoRedoDifferential`
- * fences a single gesture. Deterministic: driven by the stack depth read from the bridge, not
- * wall-clock waits. The redo stack must be EMPTY on entry, so the caller runs this right after
- * the build, before the net-identity detours perturb it.
+ * Undoes the whole session to the bottom of the stack and redoes it, where
+ * `undoRedoDifferential` covers a single gesture. Driven by the stack depth read from the
+ * editor, not by waiting on the clock. The redo stack has to be empty on entry, so the caller
+ * runs this right after the build, before the detours disturb it.
  */
 async function runFullSessionUndoUnwind(ctx: SimContext, initialSource: string): Promise<void> {
 	const preUnwind = await ctx.editor.bridge.getSource();

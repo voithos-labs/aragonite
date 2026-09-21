@@ -1,13 +1,13 @@
 import { type Page } from '@playwright/test';
 import { type SimContext } from '../invariants';
 
-// Plugin-container gestures. A live `<details>` renders its `.details-toggle` only on the
-// plugins route, so sessions driving these must start from a loaded document holding one.
+// Plugin-container gestures. A `<details>` renders its `.details-toggle` only on the plugins
+// route, so a session using these must start from a loaded document that holds one.
 
 /**
- * Reads the pre-click state and settles on the OPPOSITE `aria-expanded` value, so a silent
- * no-op (a detached or unresponsive toggle) fails loudly on the timeout instead of recording
- * a stale source as truth. The opener-byte rewrite is auto-behavior, so the tracker resyncs.
+ * Reads the state before the click and waits for `aria-expanded` to flip, so a toggle that
+ * quietly did nothing, because it is detached or unresponsive, times out instead of recording
+ * a stale source. The editor rewrites the opening line itself, so the expected answer resyncs.
  */
 export async function toggleCollapse(ctx: SimContext): Promise<void> {
 	const toggle = ctx.page.locator('.details-toggle').first();
@@ -23,10 +23,10 @@ export async function toggleCollapse(ctx: SimContext): Promise<void> {
 }
 
 /**
- * The corruption oracle's only view of command dispatch: a keypress bubbling from an inner
- * leaf to the container handler. Pressing the chord for the OPPOSITE type is what gives the
- * gesture teeth — a dead binding or lost bubble leaves the source unchanged and the settle
- * times out, the same fail-loud shape `toggleCollapse` uses.
+ * The simulation's only look at command dispatch: a keypress travelling from an inner child up
+ * to the container's handler. Pressing the shortcut for the other type is what gives this
+ * teeth, since a dead binding or a lost keypress leaves the source unchanged and the wait times
+ * out, the same way `toggleCollapse` fails.
  */
 export async function setCalloutKind(ctx: SimContext): Promise<void> {
 	const calloutIdx = await topLevelCalloutIndex(ctx.page);
@@ -44,10 +44,10 @@ export async function setCalloutKind(ctx: SimContext): Promise<void> {
 }
 
 /**
- * `convertAlertsOnPaste` is off by default, so the pasted bytes stay GitHub syntax and parse
- * natively as a `githubAlert`. Settles on the landed KIND, not a source delta: with the alert
- * opener broken the bytes would land as a literal blockquote, which is still a delta, still
- * round-trip-stable and still nested-state clean — no oracle would trip.
+ * `convertAlertsOnPaste` is off by default, so the pasted bytes stay GitHub syntax and parse as
+ * a `githubAlert`. Waits for the block's kind, not for the source to change: if the alert's
+ * opener were broken the bytes would arrive as a plain blockquote, which still changes the
+ * source, still round-trips and still leaves state clean, so no other check would notice.
  */
 export async function pasteGithubAlert(ctx: SimContext): Promise<void> {
 	await ctx.page.evaluate(() => navigator.clipboard.writeText('> [!TIP]\n> Pasted alert.\n'));
@@ -68,10 +68,10 @@ export async function pasteGithubAlert(ctx: SimContext): Promise<void> {
 }
 
 /**
- * A READ-ONLY global chord: it republishes `window.__docStats` and commits nothing, so the
- * caller nets it to identity. POISONS every published record's block count first, then
- * settles on recovery — only the command's recompute replaces a poisoned record, and no
- * `edit` event republishes behind our back, so a dead binding times out loudly.
+ * A global shortcut that only reads: it rewrites `window.__docStats` and commits nothing, so
+ * the bytes are unchanged. It first spoils the block count in every published record, then
+ * waits for a correct one: only the command's own recompute replaces a spoiled record, and no
+ * `edit` event rewrites one behind its back, so a dead binding times out loudly.
  */
 export async function publishDocStats(ctx: SimContext): Promise<void> {
 	await ctx.page.evaluate(() => {
@@ -93,8 +93,8 @@ export async function publishDocStats(ctx: SimContext): Promise<void> {
 	ctx.tracker.resync(await ctx.editor.bridge.getSource());
 }
 
-// Top-level index of the callout — the type change keeps `kind: 'callout'`,
-// so this still resolves after a setKind.
+// Top-level index of the callout. Changing its type keeps `kind: 'callout'`, so this still
+// finds it afterwards.
 async function topLevelCalloutIndex(page: Page): Promise<number> {
 	return page.evaluate(() =>
 		(window as any).__test
@@ -103,7 +103,7 @@ async function topLevelCalloutIndex(page: Page): Promise<number> {
 	);
 }
 
-// Current callout type read off the opaque container's authoritative raw opener.
+// The callout's current type, read from the opening line of the container's raw text.
 async function calloutType(page: Page, calloutIdx: number): Promise<string> {
 	return page.evaluate((i) => {
 		const raw = ((window as any).__test.getDocument().children[i]?.raw ?? '') as string;
