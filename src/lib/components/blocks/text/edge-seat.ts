@@ -159,7 +159,8 @@ function candidateOffsets(
 ): number[] {
 	// `never-extend` resolves like the end of a line: past the construct's delimiters, which is
 	// the run's near side at an opener and its far side at a closer. A symmetric pair follows the
-	// side the caret arrived from, defaulting to the near side, as Google Docs does (§ 4.2).
+	// side the caret arrived from, defaulting to the near side, as Google Docs does
+	// (live-mode.md § 4.2).
 	const side: EdgeAffinity = edgeAffinity === 'never-extend' ? 'outside' : (affinity ?? 'near');
 	const preferred = offsetForSide(run, side);
 	const ranked = [preferred, otherEnd(run, side), caretOffset];
