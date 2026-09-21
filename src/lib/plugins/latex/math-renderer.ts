@@ -1,8 +1,8 @@
 /**
- * The renderer-adapter seam: `latexPlugin({ renderer })` injects the engine here at
- * install, so the plugin core never imports one. Widgets and leaves read the active
- * renderer through this module because their frozen props carry no renderer channel,
- * and the one document-wide memo means a repeated formula renders once.
+ * Where the renderer is plugged in: `latexPlugin({ renderer })` sets it at install time, so the
+ * plugin's own code never imports one. Widgets and blocks read the current renderer through
+ * this module because their props are fixed at mount and carry no renderer. One cache for the
+ * whole document means a repeated formula renders once.
  */
 
 import { createBoundedMemo } from '$lib/plugin';
@@ -12,13 +12,13 @@ export type MathRenderer = (
 	opts: { display: boolean }
 ) => { dom: HTMLElement; error?: string };
 
-// ── Memoized wrapper ──────────────────────────────────────────────────────────
+// ── Cached wrapper ────────────────────────────────────────────────────────────
 
 const MEMO_CAP = 256;
 
 /**
- * Memoizes the render work, not the node: `cloneOnRead` is what lets `inner` run once
- * per key while each caller still gets its own detached node to mount.
+ * Caches the render work, not the node: `cloneOnRead` is what lets `inner` run once per key
+ * while each caller still gets its own detached node to mount.
  */
 export function createMemoizedRenderer(inner: MathRenderer): MathRenderer {
 	const memo = createBoundedMemo<string, { dom: HTMLElement; error?: string }>({
@@ -28,10 +28,10 @@ export function createMemoizedRenderer(inner: MathRenderer): MathRenderer {
 	return (source, opts) => memo(`${source}\x00${opts.display}`, () => inner(source, opts));
 }
 
-// ── Injection seam ──────────────────────────────────────────────────────────────
+// ── Where the renderer is set ───────────────────────────────────────────────────
 
-// Deliberately no default engine: the core must not import one, and the plugin's
-// required `renderer` option guarantees this is set before any widget mounts.
+// Deliberately no default: this file must not import a renderer, and the plugin's required
+// `renderer` option guarantees one is set before any widget mounts.
 let activeRenderer: MathRenderer | null = null;
 
 export function setMathRenderer(renderer: MathRenderer): void {

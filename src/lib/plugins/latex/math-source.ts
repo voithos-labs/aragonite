@@ -1,8 +1,9 @@
 /**
- * The block form's source as DOM, shaped like a code block's: each fence line in a
- * `.md-fence-line` wrapper the marker-hiding modes collapse, the body as LaTeX highlight
- * tokens. Text-preserving by construction — opener + body + closer is the input — so the
- * offset walk and G1.28 hold. Anything not shaped like a fence paints as plain tokens.
+ * The block form's source as DOM, shaped like a code block's: each fence line inside a
+ * `.md-fence-line` wrapper that the marker-hiding modes collapse, the body as highlighted LaTeX
+ * tokens. It emits exactly opener plus body plus closer, so the text is unchanged and the
+ * DOM-to-offset traversal stays exact (G1.28). Anything not shaped like a fence paints as
+ * plain tokens.
  */
 import { highlightCode, matchFenceClose, matchFenceOpen } from '$lib/plugin';
 
@@ -52,8 +53,8 @@ function sliceFenceLines(
 	if (!isCloser(lastLine)) return { opener, body: rest, closer: '' };
 	if (lastNewline === -1) return { opener, body: '', closer: lastLine };
 	// The newline before the closer belongs to the closer's line (the code block's rule), so
-	// collapsing that line leaves no blank line at the box's edge — unless the body is blank,
-	// where that newline IS the one line the caret can sit on.
+	// collapsing that line leaves no blank line at the box's edge. The exception is a blank
+	// body, where that newline is the only line the caret can sit on.
 	const bodyWithEnding = rest.slice(0, lastNewline + 1);
 	if (!/\S/.test(bodyWithEnding)) return { opener, body: bodyWithEnding, closer: lastLine };
 	return { opener, body: rest.slice(0, lastNewline), closer: rest.slice(lastNewline) };
@@ -72,8 +73,8 @@ function fenceLine(text: string): HTMLSpanElement {
 }
 
 /**
- * Where the body sits inside the block's source. The fence lines carry no glyph of their own, so
- * a point measured against the rendered equation names a place in this span and nowhere else.
+ * Where the body sits inside the block's source. The fence lines paint no glyphs of their own,
+ * so a point measured against the rendered equation can only name a place inside this span.
  */
 export function mathBodySpan(text: string): { start: number; end: number } {
 	const { opener, body } = sliceMathSource(text);
@@ -81,10 +82,11 @@ export function mathBodySpan(text: string): { start: number; end: number } {
 }
 
 /**
- * A block with no body LINE — `$$$$`, `$$\n$$`, a ```math straight over its closer — has nowhere
- * for a caret to sit once the fence lines hide, and Backspace has no byte it could mean. The
- * completion every such block takes: opener, one empty body line, closer, caret on that line,
- * rebuilt from its OWN delimiters. A block that has a body line, blank or not, is left alone.
+ * A block with no body line at all (`$$$$`, `$$\n$$`, a ```math sitting straight on its closer)
+ * has nowhere for a caret to sit once the fence lines hide, and Backspace has no byte to mean.
+ * Every such block is completed the same way: opener, one empty body line, closer, caret on
+ * that line, rebuilt from its own delimiters. A block with a body line, blank or not, is left
+ * alone.
  */
 export function completeBareMathSource(text: string): { text: string; caret: number } | null {
 	const { opener, body, closer } = sliceMathSource(text);

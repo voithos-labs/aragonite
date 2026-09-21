@@ -1,7 +1,7 @@
 /**
- * The engine adapter behind the `@voithos-labs/aragonite/plugins/mermaid/renderer` subpath, the
- * consumer half of the injection seam. The dynamic import keeps the engine off module
- * eval, so nothing touches `document` until a diagram actually renders.
+ * The mermaid adapter behind the `@voithos-labs/aragonite/plugins/mermaid/renderer` subpath,
+ * the half a consumer supplies. The dynamic import keeps mermaid out of module evaluation, so
+ * nothing touches `document` until a diagram actually renders.
  */
 
 import type { MermaidConfig } from 'mermaid';
@@ -23,8 +23,8 @@ const MERMAID_THEMES = new Set<string>(['default', 'base', 'dark', 'forest', 'ne
 
 /**
  * Mermaid's own names pass through, so a consumer can name its editor theme `'forest'` and
- * get it; anything else falls to mermaid's light palette. Wrapping this injected renderer to
- * rewrite `context.theme` is how a custom theme maps.
+ * get it; anything else falls to mermaid's light palette. Wrapping this renderer to rewrite
+ * `context.theme` is how a custom theme maps onto one of mermaid's.
  */
 function toMermaidTheme(editorTheme: string): MermaidTheme {
 	return (MERMAID_THEMES.has(editorTheme) ? editorTheme : 'default') as MermaidTheme;
@@ -52,8 +52,8 @@ async function renderThemed(code: string, id: string, theme: MermaidTheme): Prom
 }
 
 /**
- * Chained, not concurrent: the site config is process-global, so two renders straddling a
- * theme flip would interleave and one diagram would come back half-themed.
+ * One after another, not together: the config is global to the process, so two renders either
+ * side of a theme change would interleave and one diagram would come back half-themed.
  */
 export const mermaidRenderer: MermaidRenderer = (code, id, context) => {
 	const theme = toMermaidTheme(context?.theme ?? 'dark');

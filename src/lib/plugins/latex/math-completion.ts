@@ -14,7 +14,7 @@ import {
 const BLOCK_FENCE = '$$';
 
 /** Exactly the fence and nothing else: `$$x$$` is already a whole block and `$$ x` opens no
- *  multi-line form, so neither is a gesture toward the pair this completes. */
+ *  multi-line form, so neither is an attempt at the pair this completes. */
 export function tryCompleteMathBlock(line: string): CompletionResult | null {
 	if (line.trim() !== BLOCK_FENCE) return null;
 	return { lines: [BLOCK_FENCE, '', BLOCK_FENCE], caret: { path: [], line: 1, column: 0 } };
@@ -22,8 +22,8 @@ export function tryCompleteMathBlock(line: string): CompletionResult | null {
 
 export function registerMathBlockCompleter(kind: AnyBlockKind): void {
 	if (isBlockCompleterRegistered(kind)) return;
-	// On type as well as at Enter: a lone `$$` can only be the pair's opener, so the block forms
-	// as the second `$` lands — the way a typed ` ``` ` is a fence at once — with the caret on
-	// the body line. The one-line `$$x$$` form is still reachable by typing into that body.
+	// On typing as well as on Enter: a lone `$$` can only be the pair's opener, so the block
+	// forms as the second `$` is typed, the way a typed ` ``` ` becomes a fence at once, with
+	// the caret on the body line. The one-line `$$x$$` form is still reachable from that body.
 	registerBlockCompleter(kind, { tryComplete: tryCompleteMathBlock, onType: true });
 }

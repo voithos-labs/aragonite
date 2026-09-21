@@ -1,17 +1,17 @@
 <script module lang="ts">
-	// Mount id plus render count are the A2 acceptance oracle: editing one equation must
-	// leave every untouched block's pair unchanged.
+	// The mount id and the render count are what a test reads: editing one equation must
+	// leave every other block's pair of numbers unchanged.
 	let nextMountId = 0;
 </script>
 
 <script lang="ts">
-	// Render-primary editable leaf: all editing behavior lives in `createEditableLeaf`,
-	// so this component owns only the render↔source swap visuals.
+	// A render-primary editable block: all editing behavior lives in `createEditableLeaf`, so
+	// this component owns only how the render and the source are laid out.
 	import { createEditableLeaf, type BlockComponent, type NodeView } from '$lib/plugin';
-	// Plugin-local like the other labels here: bundled plugins import only the public barrel.
+	// Defined here like the other labels: bundled plugins import only the public barrel.
 	// The three ways the source and its preview can share the block while editing (see
 	// `math-layout.ts`); the host's plugin options pick the starting one. The toggle cycles
-	// them and names the NEXT layout.
+	// through them, and its label names the layout it will switch to.
 	type MathLayout = MathBlockLayout;
 	const LAYOUT_NEXT: Record<MathLayout, MathLayout> = {
 		split: 'stacked',
@@ -42,8 +42,8 @@
 	let sourceEl: HTMLDivElement | undefined = $state();
 	let renderEl: HTMLDivElement | undefined = $state();
 	let revealed = $state(false);
-	// The in-flight source while revealed: a render-primary edit reaches the CST only on blur,
-	// so the live preview reads the surface, not the node. Null when nothing is in flight.
+	// The source being edited: a render-primary edit reaches the CST only on blur, so the live
+	// preview reads the editable element, not the node. Null when no edit is in progress.
 	let draft = $state<string | null>(null);
 
 	const leaf = createEditableLeaf({
@@ -64,23 +64,24 @@
 		}
 	});
 
-	// While editing, the preview is a sibling of the surface that holds focus: its scrollbar (a
-	// wide equation overflows the half-width card) must not take that focus, since losing it is
-	// what folds the editor. Same device as the eye button; a fold click is a click while folded.
+	// While editing, the preview sits beside the editable element that holds focus: its
+	// scrollbar (a wide equation overflows the half-width card) must not take that focus,
+	// because losing it closes the source. Only while editing: the click that opens the source
+	// is a click made while it is closed.
 	function keepSourceFocus(e: MouseEvent): void {
 		if (revealed) e.preventDefault();
 	}
 
-	// Per-instance and per-session: a reader who changes the layout is asking about THIS equation
-	// while they edit it, not setting a preference for the document. The starting layout is the
-	// host's: this editor's plugin options, else the factory's default.
+	// Per block and per session: someone who changes the layout is asking about this one
+	// equation while they edit it, not setting a preference for the document. The starting
+	// layout comes from this editor's plugin options, else the factory's default.
 	// svelte-ignore state_referenced_locally
 	let layout = $state<MathLayout>(resolveDefaultLayout(leaf.getOptions(), blockLayout));
 	const previewOpen = $derived(layout !== 'source');
 
-	// The edits the leaf applies itself report through `onSourceEdit`; this is the native path
-	// (a composition's commit), where the highlight goes stale until repainted. The leaf's own
-	// handler runs first so the IME bookkeeping it owns is untouched.
+	// Edits the block applies itself report through `onSourceEdit`; this is the browser's own
+	// path (an IME composition committing), where the highlighting goes stale until repainted.
+	// The block's handler runs first so the IME bookkeeping it owns is untouched.
 	function onSourceInput(e: Event): void {
 		leaf.surfaceProps.oninput();
 		if ((e as InputEvent).isComposing) return;
@@ -90,22 +91,22 @@
 
 	// ── View rendering ──────────────────────────────────────────────────────────
 
-	// Re-runs on every remount of the render div and on any source change; the
-	// document-wide memo clones a cached node, so a repeat formula is cheap.
+	// Re-runs on every remount of the render div and on any source change; the document-wide
+	// cache clones a stored node, so a repeated formula is cheap.
 	$effect(() => {
 		if (!renderEl) return;
-		// Runs while REVEALED as well: the split keeps a live preview beside the source, so the
-		// equation re-renders as it is typed rather than only when the source folds away.
+		// Runs while the source is showing too: the side-by-side layout keeps a live preview, so
+		// the equation re-renders as it is typed rather than only when the source closes.
 		const text = draft ?? leaf.sourceText;
 		const source = mathDisplaySource(text);
 		renderEl.replaceChildren(renderDisplayMath(source).dom);
-		// The span a press on the glyphs lands in: the descriptor's `caretTargetAtPoint` reads the
-		// rendered element alone and has no other way to the bytes behind it.
+		// Where a click on the glyphs puts the caret: `caretTargetAtPoint` on the kind descriptor
+		// sees only the rendered element and has no other route to the bytes behind it.
 		const body = mathBodySpan(text);
 		renderEl.dataset.bodyStart = String(body.start);
 		renderEl.dataset.bodyEnd = String(body.end);
-		// An equation with nothing in it renders nothing, which folded would be an invisible block
-		// the user cannot find to delete; it keeps the card's fill instead, like an empty fence.
+		// An empty equation renders nothing, which would leave an invisible block the user cannot
+		// find to delete; it keeps the card's fill instead, like an empty code fence.
 		renderEl.toggleAttribute('data-empty', source.trim() === '');
 		renderCount += 1;
 		renderEl.dataset.renderCount = String(renderCount);
@@ -141,10 +142,10 @@
 	} satisfies BlockComponent);
 </script>
 
-<!-- Editing shows source AND render side by side rather than swapping one for the other: the
-	swap re-flowed the whole document on every click, and a preview that only appears after you
-	stop editing is the one you needed while typing. Each half is a card, and the eye sits in the
-	top-right of whichever card is showing. -->
+<!-- Editing shows the source and the render side by side rather than swapping one for the
+	other: swapping re-flows the whole document on every click, and a preview that appears only
+	after you stop editing is the one you needed while typing. Each half is a card, and the
+	toggle button sits in the top-right of whichever card is showing. -->
 <div
 	class="math-block"
 	class:math-block-editing={revealed}
@@ -160,8 +161,8 @@
 				class="math-block-source md-source-surface"
 				aria-label="Math source"
 			></div>
-			<!-- The toggle keeps one seat: the top-right card. Side by side that is the preview; stacked
-				and source-only it is this card. -->
+			<!-- The toggle always sits in the top-right card. Side by side that is the preview;
+				stacked or source-only it is this card. -->
 			{#if layout !== 'split'}
 				{@render layoutToggle()}
 			{/if}
@@ -223,8 +224,8 @@
 {/snippet}
 
 <style>
-	/* At rest the render alone, laid out as a plain block so it centres exactly as it did
-	   before any of this existed. Editing turns the block into two equal cards. */
+	/* When not editing, the render alone, laid out as a plain block so it centres. Editing
+	   turns the block into two equal cards. */
 	.math-block-split {
 		display: grid;
 		grid-template-columns: 1fr 1fr;
@@ -232,7 +233,7 @@
 		gap: 6px;
 	}
 
-	/* Stacked: the source over its preview, each the block's full width — for the equation too
+	/* Stacked: the source above its preview, each the block's full width, for an equation too
 	   long to read at half width. Not the default: it grows the block and reshuffles the page. */
 	.math-block-stacked {
 		display: grid;
@@ -240,42 +241,42 @@
 		gap: 6px;
 	}
 
-	/* The equation's cards are boxes like a code block's, and take the same stand-off from their
-	   neighbours (editor.css, fencedCode). Padding, not margin: the height model measures the
-	   host's box. */
+	/* The equation's cards are boxes like a code block's, and keep the same distance from their
+	   neighbours (editor.css, fencedCode). Padding, not margin: block heights are measured from
+	   the host's box. */
 	:global(.block-host[data-block-kind='mathBlock']) {
 		padding-block: 6px;
 	}
 
-	/* Each half is its own card, and the containing block for its eye. */
+	/* Each half is its own card, and the positioning parent for its toggle button. */
 	.math-block-card {
 		position: relative;
 		min-width: 0;
 		border-radius: 8px;
 	}
 
-	/* Keyed on EDITING, not on the split: folding the preview away leaves one card, and a card
-	   that lost its fill the moment it stood alone would read as having left edit mode. */
+	/* Keyed on editing, not on the side-by-side layout: hiding the preview leaves one card, and
+	   a card that lost its fill the moment it stood alone would look like editing had stopped. */
 	.math-block-editing .math-block-card {
 		display: flex;
 		align-items: center;
 		background: var(--color-bg-secondary, rgba(128, 128, 128, 0.12));
 	}
 
-	/* Deltas over the shared .md-source-surface (editor.css) — including its accent border,
-	   which announced a state the card's own fill already carries. */
+	/* Only the differences from the shared .md-source-surface (editor.css), including dropping
+	   its accent border: the card's own fill already shows that state. */
 	.math-block-source {
 		outline: none;
 		padding: 10px 12px;
-		/* WRAP, rather than scroll sideways. The card is half the block's width, so any real
+		/* Wraps rather than scrolling sideways. The card is half the block's width, so any real
 		   formula overflows it, and a horizontal scrollbar hides the very text being edited.
 		   `pre-wrap` keeps the author's own line breaks and wraps only what is too long;
-		   LaTeX carries no indentation structure for wrapping to destroy. */
+		   LaTeX has no indentation for wrapping to destroy. */
 		white-space: pre-wrap;
 		overflow-wrap: anywhere;
-		/* LEFT, like every other source surface. Centring gave each line a different starting
-		   x, which is exactly what makes multi-line LaTeX unreadable; the RENDER is the half
-		   that is genuinely centred, and the pairing is what Overleaf and friends do. */
+		/* Left-aligned, like every other editable source area. Centring gives each line a
+		   different starting x, which is what makes multi-line LaTeX unreadable; the render is
+		   the half that is centred, the way Overleaf and friends pair them. */
 		text-align: left;
 		background: transparent;
 		border-color: transparent;
@@ -283,7 +284,7 @@
 	}
 
 	/* The card stretches the source so its box fills the column; without it a short formula's
-	   surface shrink-wraps and the caret only lands where the text is. */
+	   editable box shrink-wraps and the caret only lands where the text is. */
 	.math-block-editing .math-block-card > .math-block-source {
 		flex: 1;
 		min-width: 0;
@@ -300,17 +301,17 @@
 		overflow-x: auto;
 	}
 
-	/* Folded and empty: the fill stays, so there is a box to see and click into. */
+	/* Empty and not being edited: the fill stays, so there is a box to see and click into. */
 	.math-block:not(.math-block-editing) .math-block-render[data-empty] {
 		background: var(--color-bg-secondary, rgba(128, 128, 128, 0.12));
-		/* The editing card's height exactly — one source line at its size, plus its padding and
-		   hairline — so folding and unfolding an empty equation moves nothing. */
+		/* Exactly the editing card's height (one source line at its size, plus its padding and
+		   hairline border), so opening and closing an empty equation moves nothing. */
 		min-height: calc(0.9em * 1.5 + 22px);
 		box-sizing: border-box;
 	}
 
-	/* At rest the render is the whole block and a hover tint is its only affordance; inside a
-	   card the fill is already there, so the tint would double it. */
+	/* When not editing, the render is the whole block and a hover tint is its only cue; inside
+	   a card the fill is already there, so the tint would double it. */
 	.math-block:not(.math-block-editing) .math-block-render:hover {
 		background: var(--color-bg-secondary, rgba(128, 128, 128, 0.12));
 	}
@@ -334,8 +335,8 @@
 		transition: opacity 120ms ease-out;
 	}
 
-	/* Transient like every other affordance here: the pointer over the block, or the eye itself
-	   holding focus. */
+	/* Shown only while it is wanted, like every other cue here: the pointer over the block, or
+	   the button itself holding focus. */
 	.math-block:hover .math-preview-toggle,
 	.math-preview-toggle:focus-visible {
 		opacity: 1;

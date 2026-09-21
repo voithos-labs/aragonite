@@ -1,7 +1,7 @@
 /**
- * The reference whole-block container, on public registration seams only: an opaque
+ * The worked example of a whole-block container, using public registration only: an opaque
  * container with no children, its diagram code in typed metadata, so an
- * `updateOwnMetadata({ code })` commit is the whole edit path. Uninstall safety is by
+ * `updateOwnMetadata({ code })` commit is the whole edit path. Uninstalling is safe by
  * construction: without this opener the same bytes parse as plain `fencedCode`.
  */
 
@@ -38,8 +38,8 @@ export interface MermaidMetadata {
 }
 
 // ── Fence grammar ─────────────────────────────────────────────────────────────
-// The barrel's built-in matcher, gated on the info string's first word, so the
-// CommonMark fence rules stay the editor's and never become a plugin copy.
+// The editor's own fence matcher, filtered on the info string's first word, so the CommonMark
+// fence rules stay in one place and never become a plugin's copy of them.
 
 function matchMermaidFence(text: string): FenceOpen | null {
 	const fence = matchFenceOpen(text);
@@ -56,9 +56,9 @@ export function joinMermaidBody(draft: string, lineEnding: string): string {
 }
 
 /**
- * The opener's inverse, and the byte path every code edit rides. The body is a metadata string
- * this kind never re-parses, so the fence is sized against it here — a diagram line that reads as
- * this block's closer would otherwise truncate the block on its next load.
+ * The opener's inverse, and what every code edit goes through. The body is a metadata string
+ * this kind never re-parses, so the fence is sized against it here: a diagram line that reads
+ * as this block's closer would otherwise cut the block short on its next load.
  */
 export function rebuildMermaidRaw(node: CstNode): void {
 	const meta = getPluginMetadata<MermaidMetadata>(node);
@@ -88,8 +88,8 @@ function grownCloser(closerRaw: string, marker: '`' | '~', length: number): stri
 }
 
 // ── Component UI hooks ────────────────────────────────────────────────────────
-// `ctx.hooks` is the platform's command→component channel; the handlers below cast it
-// back to this shape and decline when absent (kind registered, no instance mounted).
+// `ctx.hooks` is how a command reaches the component; the handlers below cast it back to this
+// shape and do nothing when it is missing (kind registered, no block mounted).
 
 export interface MermaidUiHooks {
 	openEdit(): void;
@@ -101,8 +101,8 @@ export interface MermaidUiHooks {
 export function registerMermaidKind(): void {
 	const mermaid = declarePluginKind(MERMAID);
 
-	// No default chord: the edit affordance is the button, and this command exists for
-	// consumer keymap bindings.
+	// No default key binding: the button is how you edit, and this command exists so a
+	// consumer can bind its own.
 	registerBlockCommand(mermaid, 'mermaid.edit', (ctx) => {
 		const hooks = ctx.hooks as MermaidUiHooks | undefined;
 		if (!hooks) return false;
@@ -121,20 +121,20 @@ export function registerMermaidKind(): void {
 		mergeRole: 'not-mergeable',
 		editable: true,
 		supportsInline: false,
-		// ThematicBreak's focus-then-delete model: arrows stop on it, and a caret-adjacent
-		// Backspace focuses before a second press deletes.
+		// Focus first, then delete, as a thematic break does: arrows stop on it, and Backspace
+		// from the next block focuses it before a second Backspace deletes it.
 		blockFocus: 'whole-block',
-		// Leading edge only, for the same reason as thematicBreak: its focused Enter already
-		// inserts a paragraph below.
+		// Leading edge only, for the same reason as a thematic break: pressing Enter while it
+		// is focused already inserts a paragraph below.
 		gapEdges: 'before',
 		container: {
-			// Raw is rebuilt from metadata alone, so it is exempt from the strip byte-check
-			// and guarded by the reparse + determinism probes instead.
+			// Raw is rebuilt from metadata alone, so the strip byte-check is skipped and the
+			// reparse and determinism checks cover it instead.
 			contract: 'opaque',
 			rebuildRaw: rebuildMermaidRaw
 		},
-		// The char-based default would seed a rendered diagram at ~one line; the measured
-		// height supersedes this on mount.
+		// The character-count default would estimate a rendered diagram at about one line; the
+		// measured height replaces this on mount.
 		estimateHeight: () => 320,
 		keymap: [{ chord: 'Mod+M', command: focusCommand }],
 		conformanceFixture: '```mermaid\ngraph TD\n```\n',
@@ -176,8 +176,8 @@ export function registerMermaidKind(): void {
 	});
 
 	registerBlockOpener(mermaid, {
-		// `fencedCode` accepts every fence, ```mermaid included, so this must price ahead
-		// of that superset matcher rather than slot into a gap between built-ins.
+		// `fencedCode` accepts every fence, ```mermaid included, so this has to be tried
+		// before it rather than sit between two built-ins.
 		priority: OPENER_PRIORITIES.fencedCode - 5,
 		interruptsParagraph: (line) => matchMermaidFence(line) !== null,
 		tryOpen(ctx) {

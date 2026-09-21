@@ -1,7 +1,7 @@
 /**
- * `renderer` is required because there is no baked-in default engine; `katexRenderer`
- * is the one-import path. The plugin unit installs this setup once per process, so it
- * runs unguarded.
+ * `renderer` is required because there is no built-in default; `katexRenderer` is the
+ * one-import way to supply it. The plugin installs this setup once per process, so it runs
+ * unguarded.
  */
 
 import {
@@ -20,9 +20,9 @@ export interface LatexPluginOptions {
 	renderer: MathRenderer;
 	/**
 	 * How a `$$` block opens for editing: `split` (source beside the preview, the default),
-	 * `stacked` (preview below), or `source` (no preview). Definition-time, so it is the
-	 * bare-install default; an editor's `{ plugin, options: { blockLayout } }` entry overrides it
-	 * per instance. The block's own toggle cycles from whichever applies.
+	 * `stacked` (preview below), or `source` (no preview). Read when the plugin is defined, so it
+	 * is the default for a plain install; an editor's `{ plugin, options: { blockLayout } }`
+	 * entry overrides it. The block's own toggle cycles from whichever applies.
 	 */
 	blockLayout?: MathBlockLayout;
 }
@@ -34,7 +34,7 @@ export function latexPlugin(options: LatexPluginOptions): EditorPlugin {
 		setup() {
 			setMathRenderer(options.renderer);
 			registerMathInline();
-			// registerMathBlock co-registers the ```math fence kind; both render through BlockMath.
+			// registerMathBlock also registers the ```math fence kind; both render through BlockMath.
 			registerMathBlock();
 			const blockMath = defineBlockComponent(BlockMath, () => ({ blockLayout }));
 			registerBlockComponent(declaredPluginKind(MATH_BLOCK), blockMath);
