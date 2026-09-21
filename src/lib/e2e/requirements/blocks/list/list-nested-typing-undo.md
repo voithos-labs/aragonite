@@ -1,4 +1,4 @@
-# Feature: typing inside a nested list item — Ctrl+Z reverts exact keystrokes
+# Feature: typing inside a nested list item, Ctrl+Z reverts exact keystrokes
 
 ## Happy paths
 
@@ -13,4 +13,4 @@
 ## Regression notes
 
 - Exercises `pushDebouncedCheckpoint` path; distinct from top-level typing debouncer.
-- Sibling-leaf batch breaks key on the leaf block's id, not the outer container's index — without that, all leaves inside one container share a batch.
+- A batch break between sibling leaves keys on the leaf block's id, not the outer container's index; without that, every leaf inside one container shares a batch.

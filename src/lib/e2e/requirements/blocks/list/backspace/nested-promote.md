@@ -1,4 +1,4 @@
-# Block: List — Backspace (nested promote)
+# Block: List, Backspace (nested promote)
 
 Backspace at offset 0 of a nested item's first child promotes the item one level outward (same as Shift+Tab).
 

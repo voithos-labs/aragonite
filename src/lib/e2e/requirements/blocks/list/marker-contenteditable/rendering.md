@@ -1,6 +1,6 @@
-# Block: List — Marker Rendering
+# Block: List, Marker Rendering
 
-The list-item marker (`- ` / `1. `) renders as an atomic `.md-marker` span inside the first child paragraph's contenteditable, not as a flex-sibling element outside it. Each nested level gets its own ambient marker.
+The list-item marker (`- ` / `1. `) renders as an atomic `.md-marker` span inside the first child paragraph's contenteditable, not as a flex-sibling element outside it. Each nested level gets its own leading marker.
 
 ## Happy paths
 
@@ -9,4 +9,4 @@ The list-item marker (`- ` / `1. `) renders as an atomic `.md-marker` span insid
 
 ## Edge cases
 
-- Nested list: parent's first child gets ambient `- `; nested list's first child gets its own ambient `- `.
+- Nested list: the parent's first child gets the leading `- `; the nested list's first child gets its own.

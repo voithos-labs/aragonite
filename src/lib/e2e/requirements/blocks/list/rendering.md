@@ -1,4 +1,4 @@
-# Block: List — Rendering & Arrow Navigation
+# Block: List, Rendering & Arrow Navigation
 
 Covers how ordered and unordered lists render and how arrow keys traverse and exit them.
 

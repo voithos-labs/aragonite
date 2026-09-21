@@ -1,4 +1,4 @@
-# Block: List — Backspace (delete empty item)
+# Block: List, Backspace (delete empty item)
 
 Backspace at the start of an empty list item deletes the item; if it's the only item, the entire list is removed.
 

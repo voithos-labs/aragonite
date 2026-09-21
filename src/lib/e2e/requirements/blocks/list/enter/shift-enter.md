@@ -1,4 +1,4 @@
-# Block: List — Shift+Enter
+# Block: List, Shift+Enter
 
 Shift+Enter inside a list item is the hard break every prose block takes (`block.hardBreak`),
 not a new item: the item's paragraph gains a `\` line break, the item paints a second line, and

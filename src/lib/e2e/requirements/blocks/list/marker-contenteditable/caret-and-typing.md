@@ -1,4 +1,4 @@
-# Block: List — Caret Placement and Typing Around the Marker
+# Block: List, Caret Placement and Typing Around the Marker
 
 The marker is `contenteditable="false"`; raw offset 0 maps to the DOM offset just past the marker. Multi-digit ordered markers exercise the same translation.
 
@@ -10,10 +10,10 @@ The marker is `contenteditable="false"`; raw offset 0 maps to the DOM offset jus
 
 ## Edge cases
 
-- Multi-digit ordered marker (`10. `): ambient prefix is 4 chars; cursor math uses `ambientLength=4` correctly.
+- Multi-digit ordered marker (`10. `): the leading marker is 4 chars; the cursor arithmetic uses `ambientLength=4` correctly.
 
 ## Miss-analysis
 
-- The marker click ran with drag handles off, the old default; on by default, the handle grip's
-  enlarged hit box reached past the gutter into the marker's first pixels and took the press.
-  The hit box now grows left and vertically only, and this spec presses with handles on.
+- The marker click ran with drag handles off, which used to be the default; with them on, the
+  handle's enlarged hit box reached past the gutter into the marker's first pixels and took the
+  click. The hit box now grows left and vertically only, and this spec clicks with handles on.
