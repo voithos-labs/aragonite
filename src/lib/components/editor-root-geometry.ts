@@ -1,9 +1,9 @@
 /**
- * Editor-root geometry observers: the width and viewport-height watchers, the type-scale probe
- * and the header-slot compensation. Each observes the element its installing `$effect`
- * captured and returns the teardown; the reactive signals they feed (`widthVersion`,
+ * Editor-root geometry observers: the width and viewport-height watchers, the type-scale
+ * measurement and the header-height compensation. Each observes the element its installing
+ * `$effect` captured and returns the teardown; the values they feed (`widthVersion`,
  * `typeScale`, `viewportHeightVersion`) stay in `Editor.svelte`, which is what the rest of the
- * root reads. ResizeObserver's per-callback batching is the coalescing; no timer debounce (G4.4).
+ * root reads. ResizeObserver already batches per callback, so there is no timer (G4.4).
  */
 
 import type { UserScrollport } from '../cursor/scroll-ancestors';
@@ -13,8 +13,8 @@ import { onRoot, removeAll } from './editor-root-listeners';
 
 // ── Width and height ────────────────────────────────────────────────
 
-/** Calls `onWidthChange` when `el`'s width moves. A height-only resize is ignored: only a
- *  re-wrap stales the measured heights. */
+/** Calls `onWidthChange` when `el`'s width changes. A height-only resize is ignored: only a
+ *  re-wrap makes the measured heights wrong. */
 export function installWidthWatcher(el: HTMLElement, onWidthChange: () => void): () => void {
 	let lastWidth = el.clientWidth;
 	const observer = new ResizeObserver(() => {
@@ -27,19 +27,19 @@ export function installWidthWatcher(el: HTMLElement, onWidthChange: () => void):
 	return () => observer.disconnect();
 }
 
-/** Calls `bump` on a height change of the resolved scrollport `target`. */
+/** Calls `bump` when the resolved scroll container `target` changes height. */
 export function installViewportHeightWatcher(target: UserScrollport, bump: () => void): () => void {
 	if (target === window) {
-		// The page viewport has no box to observe, and a visualViewport move (a mobile URL
-		// bar retracting) never touches documentElement's height — hence both, ungated.
+		// The page viewport has no box to observe, and a visualViewport change (a mobile URL
+		// bar retracting) never touches documentElement's height, so both run unconditionally.
 		const visual = window.visualViewport;
 		return removeAll(
 			onRoot(window, 'resize', bump),
 			visual ? onRoot(visual, 'resize', bump) : () => {}
 		);
 	}
-	// Cast, not a narrowing: `UserScrollport` is a union of object types, which `=== window`
-	// does not narrow — the same cast `createScrollport` makes on the same split.
+	// A cast, not a narrowing: `UserScrollport` is a union of object types, which `=== window`
+	// does not narrow; `createScrollport` casts the same way at the same split.
 	const el = target as HTMLElement;
 	let lastHeight = el.clientHeight;
 	const observer = new ResizeObserver(() => {
@@ -60,15 +60,15 @@ export interface TypeScaleProbeDeps {
 }
 
 /**
- * The width watcher's sibling: a font-size move puts the height estimates off several-fold, so
- * a document whose true height clears the activation watermark can fail to window at all. No
- * other box in the root reports it, hence the `1em` probe; the scale is relative to the size
+ * The width watcher's sibling: a font-size change puts the height estimates off several-fold,
+ * so a document tall enough to need windowing can fail to window at all. No other box in the
+ * root reports it, hence the `1em` element measured here; the scale is relative to the size
  * `HEIGHT_ESTIMATES` were calibrated at.
  */
 export function installTypeScaleProbe(el: HTMLElement, deps: TypeScaleProbeDeps): () => void {
 	const apply = (fontSizePx: number) => {
 		const next = fontSizePx / ESTIMATE_BASE_FONT_SIZE;
-		// Sub-percent moves are sub-pixel on a line box — not worth a full rebuild.
+		// A change under one percent is sub-pixel on a line box, not worth a full rebuild.
 		if (!(next > 0) || Math.abs(next - deps.getScale()) < 0.01) return;
 		deps.onScale(next);
 	};
@@ -78,14 +78,14 @@ export function installTypeScaleProbe(el: HTMLElement, deps: TypeScaleProbeDeps)
 	return () => observer.disconnect();
 }
 
-// Border boxes throughout, seed and fallback alike, so a browser without `borderBoxSize`
-// computes the same delta.
+// Border boxes throughout, first measurement and fallback alike, so a browser without
+// `borderBoxSize` computes the same difference.
 function borderBoxHeight(entries: ResizeObserverEntry[], el: HTMLElement): number {
 	const box = entries[0]?.borderBoxSize?.[0];
 	return box ? box.blockSize : el.getBoundingClientRect().height;
 }
 
-// ── Header slot ─────────────────────────────────────────────────────
+// ── Header height ───────────────────────────────────────────────────
 
 export interface HeaderSlotCompensationDeps {
 	el: HTMLElement;
@@ -95,10 +95,10 @@ export interface HeaderSlotCompensationDeps {
 }
 
 /**
- * The header slot's height lives outside the height model, so while the editor owns the
- * correction a growing header would slide the document under the reader. Compensating from
- * the SLOT's own resize composes with `correctAnchor` instead of double-correcting; a reveal
- * already holding the scroll outranks it.
+ * The header's height is not in the height table, so while the editor owns the scroll
+ * correction a growing header would slide the document under the user. Compensating from the
+ * header's own resize adds to `correctAnchor` instead of double-correcting; a scroll already
+ * being held for a block wins over it.
  */
 export function installHeaderSlotCompensation(deps: HeaderSlotCompensationDeps): () => void {
 	const { el, port } = deps;

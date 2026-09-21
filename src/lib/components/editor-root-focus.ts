@@ -1,8 +1,8 @@
 /**
- * Editor-root focus attribution: which block host holds the caret. The path drives each
- * windowing scope's per-level pin, so a scroll that pushes the caret off-screen never tears
- * down native focus/IME; the `data-focused` attribute is what both preview modes' CSS key
- * their focused-block reveal off. The installing `$effect`s stay in `Editor.svelte`.
+ * Editor-root focus attribution: which block host holds the caret. The path tells each
+ * windowing list which block to keep mounted, so a scroll that pushes the caret off-screen
+ * never tears down native focus or the IME; both preview modes' CSS keys the focused block's
+ * markers off the `data-focused` attribute. The installing `$effect`s stay in `Editor.svelte`.
  */
 
 import { assertInvariant } from '../assert';
@@ -30,7 +30,7 @@ export function createFocusAttribution(deps: FocusAttributionDeps): FocusAttribu
 	let focusedPath: number[] | null = null;
 	let focusedHostEl: HTMLElement | null = null;
 
-	// Mode-gated so source/reading DOM stays byte-identical.
+	// Only in preview modes, so source and reading DOM stay byte-identical.
 	function applyFocusedAttr(): void {
 		if (focusedHostEl && isPreviewMode(deps.mode)) {
 			focusedHostEl.setAttribute('data-focused', '');
@@ -61,8 +61,8 @@ export function createFocusAttribution(deps: FocusAttributionDeps): FocusAttribu
 			setFocusedHost(host as HTMLElement);
 			const path = readBlockPath(host);
 			focusedPath = path && path.length > 0 ? path : null;
-			// G1.33 at the seam every caret door crosses: a door seats a caret by focusing the
-			// surface, whoever minted it, so a consumer's own door inherits the guard here.
+			// Every way of placing a caret focuses its editable element, whoever wrote the code,
+			// so a consumer's own caret placement is checked here too (G1.33).
 			const landed = e.target;
 			if (landed instanceof HTMLElement) {
 				assertInvariant('landable-caret', () => checkLandableCaret(landed, deps.mode, path ?? []));
@@ -70,7 +70,7 @@ export function createFocusAttribution(deps: FocusAttributionDeps): FocusAttribu
 		};
 		const onFocusOut = (e: FocusEvent) => {
 			const next = e.relatedTarget as Node | null;
-			if (next && root.contains(next)) return; // moving between blocks — keep the pin
+			if (next && root.contains(next)) return; // moving between blocks: keep the focused path
 			clear();
 		};
 		return removeAll(onRoot(root, 'focusin', onFocusIn), onRoot(root, 'focusout', onFocusOut));

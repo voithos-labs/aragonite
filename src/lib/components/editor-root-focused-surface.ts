@@ -1,8 +1,8 @@
 /**
- * The editing surface behind `document.activeElement`, for the public entry points that address it.
- * A gap caret declines: its proxy is not a block, and a NESTED gap's proxy sits inside its
- * container's host, which must not receive what was aimed at the gap. Every rule an entry point
- * must apply (the reading gate, the paste pipeline) lives in the editable it resolves.
+ * The editable block behind `document.activeElement`, for the public entry points that address
+ * it. A gap caret is refused: its stand-in element is not a block, and a nested gap's stand-in
+ * sits inside its container's host, which must not receive what was aimed at the gap. Every rule
+ * an entry point must apply (the reading-mode check, the paste pipeline) lives in the block.
  */
 
 import type { BlockComponent } from '../block-component';
@@ -22,11 +22,11 @@ export interface FocusedSurfaceDeps {
 
 export interface FocusedSurface {
 	path(): number[] | null;
-	/** Null for a gap caret's proxy or a block that runs no commands; global commands still
-	 *  reach the command dispatch, exactly as the gap caret's own chord proxy does. */
+	/** Null for a gap caret's stand-in element or a block that runs no commands; global commands
+	 *  still reach the dispatch, exactly as the gap caret's own chord handling does. */
 	commandTarget(): KindCommandTarget | null;
 	/** Routed the way a paste event is: transforms, delete-first, one undo entry and focus
-	 *  all live in the surface. */
+	 *  all live in the block. */
 	insertMarkdown(md: string): boolean;
 }
 

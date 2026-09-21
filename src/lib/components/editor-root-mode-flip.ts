@@ -1,9 +1,9 @@
 /**
- * Editor-root presentation-mode flip: carry the caret across a mode change. The pre phase is
- * the last moment the outgoing mode owns the DOM (past it the mode's render key has rebuilt
- * every block from its own CST bytes), so the caret is captured and the surface blurred there;
- * the post phase drops the geometry the old markers set and re-seats the caret through the
- * reveal road. The two `$effect`s stay in `Editor.svelte` as the mode read plus one call each.
+ * Editor-root presentation-mode switch: keep the caret across a mode change. The pre phase is
+ * the last moment the outgoing mode owns the DOM (past it, the mode's render key has rebuilt
+ * every block from its own CST bytes), so the caret is captured and the block blurred there;
+ * the post phase drops the geometry the old markers set and puts the caret back through the
+ * shared restore path. The two `$effect`s stay in `Editor.svelte`, a mode read plus one call.
  */
 
 import { tick } from 'svelte';
@@ -32,12 +32,14 @@ export interface ModeFlipDeps {
 	edgeAffinity: Pick<EdgeAffinityState, 'reset'>;
 	heightOracle: Pick<HeightOracle, 'dropMeasured'>;
 	events: EditorEvents;
-	/** The bare-mount restore road: a flip is a view operation and writes no scrollport. */
+	/** The bare-mount restore path: a mode change only changes the view, so it writes no
+	 *  scroll position. */
 	restoreCaret(path: number[], offset: number): Promise<unknown>;
 }
 
 export interface ModeFlip {
-	/** The `$effect.pre` half, run untracked: capture and blur while the outgoing mode owns the DOM. */
+	/** The `$effect.pre` half, run untracked: capture and blur while the outgoing mode still
+	 *  owns the DOM. */
 	beforeFlip(to: PresentationMode): void;
 	/** The `$effect` half: reset mode-bound geometry, then restore the caret after the flush. */
 	afterFlip(to: PresentationMode): void;
@@ -53,8 +55,8 @@ export function createModeFlip(deps: ModeFlipDeps): ModeFlip {
 	let preFlipSeenMode = deps.mode;
 	let lastEffectiveMode = deps.mode;
 
-	/** The focused leaf's caret as (path, raw offset): the per-backend road while a leaf holds
-	 *  focus, else the native range a toggle click leaves behind while chrome takes focus. */
+	/** The focused block's caret as (path, raw offset): the block's own answer while it holds
+	 *  focus, else the native range a toggle click leaves behind while the button has focus. */
 	function captureCaret(): FlipCaret | null {
 		if (deps.selection.isCrossBlock || deps.selection.gapCaret) return null;
 		const focused = deps.getSelection()?.focus;
@@ -74,9 +76,9 @@ export function createModeFlip(deps: ModeFlipDeps): ModeFlip {
 		return { path, offset };
 	}
 
-	// A post-tick focus like every structural op's; the road clamps the saved offset into the
-	// destination mode's landable range. Yielding to a focused text-entry surface keeps the
-	// restore from stealing a host field mid-typing.
+	// A post-tick focus like every structural op's; the restore path clamps the saved offset to
+	// one the caret can sit at in the new mode. Standing aside for a focused text field keeps
+	// the restore from stealing a host field mid-typing.
 	async function restoreAfterFlush(caret: FlipCaret, to: PresentationMode): Promise<void> {
 		await tick();
 		if (deps.mode !== to || isTextEntrySurface(document.activeElement)) return;
@@ -90,8 +92,9 @@ export function createModeFlip(deps: ModeFlipDeps): ModeFlip {
 			preFlipSeenMode = to;
 			// Reading keeps its entry snapshot: it has no caret of its own to recapture on the way out.
 			if (from !== 'reading') flipCaret = captureCaret();
-			// A flip is a blur-class event: a live reveal or composition folds through the existing
-			// blur choke point. Host chrome is exempt, or a mode toggle blurs a title field mid-edit.
+			// A mode change counts as a blur: showing markers or an in-progress composition closes
+			// through the blur handling that already exists. The host's own header is exempt, or a
+			// mode toggle would blur a title field mid-edit.
 			const active = document.activeElement;
 			if (
 				active instanceof HTMLElement &&
@@ -107,14 +110,14 @@ export function createModeFlip(deps: ModeFlipDeps): ModeFlip {
 		afterFlip(to) {
 			if (to === lastEffectiveMode) return;
 			lastEffectiveMode = to;
-			// Which markers paint just changed: a side recorded against the old geometry no longer
-			// names the offset the user meant, and every measured height is the other mode's. Not
-			// paired with a width bump, since the flip has blurred and a rebuild would lose the pin.
+			// Which markers paint just changed: an edge recorded against the old geometry no longer
+			// names the offset the user meant, and every measured height is the other mode's. No
+			// width bump with it: focus is gone, and a rebuild would lose the block held in place.
 			deps.edgeAffinity.reset();
 			deps.heightOracle.dropMeasured();
 			if (to === 'reading') {
-				// The gap is an editor-owned caret no DOM blur can reach, so the flip clears it
-				// rather than each arrival path.
+				// The gap caret is the editor's own, not the browser's, so no blur reaches it:
+				// the mode change clears it rather than each entry path.
 				deps.selection.clearGapCaret();
 			} else if (flipCaret) {
 				const caret = flipCaret;

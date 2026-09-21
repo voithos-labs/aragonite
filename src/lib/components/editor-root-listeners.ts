@@ -1,8 +1,8 @@
 /**
- * Editor-root ambient listeners: the mod-active cursor tracker, the selectionchange
- * bridge, the blur announcer and the double-click word select. Pure dispatch over live
- * getters; each installing `$effect` stays in `Editor.svelte` as a guard plus one install
- * call, returning the teardown. `onRoot`/`removeAll` capture that add/remove pair once.
+ * Editor-root document listeners: the mod-active cursor tracker, the selectionchange bridge,
+ * the blur announcer and the double-click word select. Pure dispatch over live getters; each
+ * installing `$effect` stays in `Editor.svelte` as a check plus one install call, returning
+ * the teardown. `onRoot` and `removeAll` hold the add/remove pair in one place.
  */
 
 import { tick } from 'svelte';
@@ -59,8 +59,9 @@ export function installModActiveTracker(root: HTMLElement): () => void {
 }
 
 /**
- * A reveal's anchor holds only until the next user-intent gesture on the resolved port. Not
- * `scroll`: a programmatic anchor correction fires it and would self-release mid-settle.
+ * A block stays held in place only until the user's next gesture on the resolved scroll
+ * container. Not `scroll`: a programmatic correction fires that too, and would release the
+ * hold half way through.
  */
 export function installRevealAnchorRelease(port: EventTarget, release: () => void): () => void {
 	return removeAll(
@@ -73,7 +74,7 @@ export function installRevealAnchorRelease(port: EventTarget, release: () => voi
 export interface SelectionChangeBridgeDeps {
 	/** The element the installing effect captured, not a live binding. */
 	root: HTMLElement;
-	/** Live predicate, never a capture: the header slot can mount after install. */
+	/** A live check, never captured: the host's header can mount after install. */
 	isHostChrome(node: Node | null): boolean;
 	/** Emits this editor's current selection snapshot, read at event time. */
 	emit(): void;
@@ -90,7 +91,7 @@ export function installSelectionChangeBridge(deps: SelectionChangeBridgeDeps): (
 		if (!sel || sel.rangeCount === 0) return;
 		const anchorNode = sel.anchorNode;
 		if (!anchorNode || !deps.root.contains(anchorNode)) return;
-		// A selection in host chrome is not a document selection: emitting there
+		// A selection in the host's header is not a document selection: emitting there
 		// reports this editor's own unchanged selection on every header caret move.
 		if (deps.isHostChrome(anchorNode)) return;
 		deps.emit();
@@ -99,10 +100,10 @@ export function installSelectionChangeBridge(deps: SelectionChangeBridgeDeps): (
 }
 
 /**
- * A focus departure is a selection change no browser channel reports: the native range can
- * survive unfocused while the editor's own read goes null, so the channel announces it. Judged
- * after the flush, never at focusout: a structural commit unmounts the focused surface and
- * lands focus again after its own tick, and a departure that came back is no departure.
+ * Losing focus is a selection change no browser event reports: the native range can survive
+ * unfocused while the editor's own read goes null, so this announces it. Decided after the
+ * flush, never at focusout: a structural commit unmounts the focused block and puts focus back
+ * after its own tick, and focus that came back never left.
  */
 export function installEditorBlurAnnouncer(deps: {
 	root: HTMLElement;

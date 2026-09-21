@@ -36,7 +36,8 @@ export interface RootMenusDeps {
 	getDoc: DocumentGetter;
 	isHostChrome(node: Node | null): boolean;
 	blockEdit: Pick<BlockEditActions, 'deleteBlock' | 'updateBlockContent' | 'insertParagraph'>;
-	/** The dead-space landing walk, so a prose right-click acts at the press. */
+	/** Where a click on empty space puts the caret, so a right-click on prose acts at the
+	 *  pointer. */
 	placeCaretAtPoint(x: number, y: number): boolean;
 	/** The public insert entry point: a snippet goes to the editable that holds focus. */
 	insertMarkdown(md: string): boolean;
@@ -75,7 +76,7 @@ export function createRootMenus(deps: RootMenusDeps): RootMenus {
 		}
 	}
 
-	/** The editing surface a paste goes to: whatever editable holds focus inside the root. */
+	/** Where a paste goes: whatever editable element holds focus inside the root. */
 	function focusedEditable(): HTMLElement | null {
 		const active = document.activeElement;
 		return active instanceof HTMLElement &&
@@ -101,8 +102,8 @@ export function createRootMenus(deps: RootMenusDeps): RootMenus {
 		return true;
 	}
 
-	// The same two steps the tail's `+` takes: create the empty paragraph, which lands the caret in
-	// it, then hand the snippet to the surface that now holds focus.
+	// The same two steps the tail's `+` takes: create the empty paragraph, which puts the caret
+	// in it, then hand the snippet to whatever now holds focus.
 	async function insertBlockAfter(index: number, md: string): Promise<void> {
 		await deps.blockEdit.insertParagraph(index + 1, '');
 		deps.insertMarkdown(md);
@@ -164,9 +165,9 @@ export function createRootMenus(deps: RootMenusDeps): RootMenus {
 		});
 	}
 
-	// A right-click on a BLOCK (a fence, an equation, an image) is that block's context menu.
-	// Prose is the page's background and a selection is the host's popover's, so both get the
-	// clipboard rows; the margin shows nothing at all.
+	// A right-click on a block (a fence, an equation, an image) opens that block's context menu.
+	// Prose is the page's background and a selection belongs to the host's popover, so both get
+	// the clipboard rows; the margin shows nothing at all.
 	function onRootContextMenu(e: MouseEvent): void {
 		const root = deps.editorEl;
 		if (e.defaultPrevented || deps.mode === 'reading' || !root) return;

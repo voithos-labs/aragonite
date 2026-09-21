@@ -1,10 +1,10 @@
 /**
- * Editor-root chord routing: dispatch for keystrokes no mounted block consumed. Pure
- * dispatch over live getters; the installing `$effect` stays in `Editor.svelte`.
+ * Editor-root chord routing: dispatch for keystrokes no mounted block handled. Pure dispatch
+ * over live getters; the installing `$effect` stays in `Editor.svelte`.
  *
- * Arm order is load-bearing (pinned by `test/components/editor-root-keydown.test.ts`): search /
- * Escape runs FIRST because the global-chord arm's focus gate is an unconditional
- * early return, which would swallow a Mod+F pressed with the caret inside a block.
+ * The order below matters (`test/components/editor-root-keydown.test.ts` pins it): search and
+ * Escape run first because the global-chord branch's focus check returns early no matter what,
+ * which would swallow a Mod+F pressed with the caret inside a block.
  */
 
 import { claimsBodyChord, isForeignTextEntry } from '../active-editor';
@@ -19,7 +19,7 @@ import { isReservedUiChord, runGlobalChord, type GlobalCommandContext } from '..
 import { eventToChord, isCharacterKey } from '../schema/keybindings';
 
 export interface EditorRootKeydownDeps {
-	/** Getters, never values: a capture freezes the reading-mode gate and the
+	/** Getters, never values: capturing them would freeze the reading-mode check and the
 	 *  override map at construction time. */
 	get searchBarEnabled(): boolean;
 	get mode(): PresentationMode;
@@ -31,12 +31,12 @@ export interface EditorRootKeydownDeps {
 	search: SearchState;
 	history: GlobalCommandContext['history'];
 	pluginEditor: PluginEditorLookup;
-	/** The plugins this instance activated, so the root claims only its own plugins'
-	 *  chords. `undefined` = every installed plugin. */
+	/** The plugins this instance activated, so the root takes only its own plugins'
+	 *  chords. `undefined` means every installed plugin. */
 	activation: PluginActivation | undefined;
 	onCommandError: CommandErrorSink;
 	crossBlock: Pick<CrossBlockHandlers, 'handleKeyDown' | 'insertText'>;
-	/** True for nodes in the host's `header` slot: they sit inside `root.contains`
+	/** True for nodes in the host's own header: they sit inside `root.contains`
 	 *  without being the editor's own content. */
 	isHostChrome(node: Node | null): boolean;
 	/** Snapshot the pre-search caret; the bar's close handler restores it. */
@@ -52,10 +52,10 @@ export interface EditorRootKeydown {
 
 export function createEditorRootKeydown(deps: EditorRootKeydownDeps): EditorRootKeydown {
 	/**
-	 * Search / Escape: focus inside this editor, or a search chord this instance
-	 * claims. `claimsBodyChord` gives a lone editor Find/Replace page-wide while
-	 * keeping a second mounted editor from stealing it. A foreign text-entry surface
-	 * owns page-global Find while the user types in it, so the editor yields there.
+	 * Search and Escape: focus inside this editor, or a search chord this instance takes.
+	 * `claimsBodyChord` gives a lone editor Find and Replace page-wide while keeping a second
+	 * mounted editor from stealing it. A text field outside every editor owns page-wide Find
+	 * while the user types in it, so the editor stands aside there.
 	 */
 	function handleSearchChords(
 		event: KeyboardEvent,
@@ -68,8 +68,8 @@ export function createEditorRootKeydown(deps: EditorRootKeydownDeps): EditorRoot
 
 		if (deps.searchBarEnabled && chord && isReservedUiChord(chord)) {
 			event.preventDefault();
-			// Seed the query before open(): focusing the find input collapses the
-			// selection. The !isOpen guard keeps a repeat Mod+F from clobbering the
+			// Read the query before open(): focusing the find input collapses the
+			// selection. The !isOpen check keeps a repeat Mod+F from overwriting the
 			// saved pre-search caret with the collapsed one.
 			const selection = window.getSelection();
 			const selected = selection?.toString() ?? '';
@@ -93,10 +93,10 @@ export function createEditorRootKeydown(deps: EditorRootKeydownDeps): EditorRoot
 	}
 
 	/**
-	 * Undo/redo, plugin-global chords and cross-block motion fire only when no block holds focus:
-	 * unlike the search chords, these collide with a focused outside element's native behavior (a
-	 * text input owns Mod+Z). The gap caret's proxy is focused DOM of its own and resolves the same
-	 * chords at the target (`GapCaret.svelte`), so this arm stays out of its way.
+	 * Undo, redo, plugin-global chords and cross-block motion fire only when no block holds
+	 * focus: unlike the search chords, these collide with a focused outside element's own
+	 * behavior (a text input owns Mod+Z). The gap caret has focused DOM of its own and handles
+	 * the same chords there (`GapCaret.svelte`), so this stays out of its way.
 	 */
 	function ownsWindowedOutCaret(root: HTMLElement, active: Element | null): boolean {
 		const noElementFocused = active === null || active === root.ownerDocument.body;
@@ -110,17 +110,17 @@ export function createEditorRootKeydown(deps: EditorRootKeydownDeps): EditorRoot
 			const chord = eventToChord(event);
 			const active = root.ownerDocument.activeElement;
 
-			// Host chrome owns its own keystrokes whole. The yield lives at the dispatch
-			// entry rather than in each arm; `isForeignTextEntry` can't answer it, since
-			// it means "outside every mounted editor" and the slot is inside one.
+			// The host's own header owns its keystrokes entirely. Checked once here rather
+			// than in each branch; `isForeignTextEntry` cannot answer it, since it means
+			// "outside every mounted editor" and the header is inside one.
 			if (deps.isHostChrome(active)) return;
 
 			if (handleSearchChords(event, root, chord, active)) return;
 			if (!ownsWindowedOutCaret(root, active)) return;
 
-			// No block is focused here, so resolve at global scope — override tier included, or a
-			// consumer's global rebind would be dead at this surface alone. The seam carries the
-			// reading gate and answers whether the press was consumed.
+			// No block is focused here, so resolve globally, overrides included, or a consumer's
+			// global rebind would be dead in this one place. `runGlobalChord` applies the
+			// reading-mode check and reports whether it handled the key.
 			if (
 				chord &&
 				runGlobalChord(chord, deps.keybindingOverrides, {
@@ -137,8 +137,8 @@ export function createEditorRootKeydown(deps: EditorRootKeydownDeps): EditorRoot
 
 			if (!deps.isCrossBlock) return;
 
-			// A range whose blocks host no character position leaves no editing surface focused, so
-			// no `beforeinput` ever fires for a typed character and this is the only door it has.
+			// A range whose blocks hold no character position leaves nothing editable focused, so
+			// no `beforeinput` ever fires for a typed character and this is its only way in.
 			// Composition still belongs to the browser, and a chorded key is not text.
 			if (isCharacterKey(event.key) && !event.isComposing && !event.ctrlKey && !event.metaKey) {
 				event.preventDefault();

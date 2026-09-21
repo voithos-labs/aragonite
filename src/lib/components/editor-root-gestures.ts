@@ -1,8 +1,9 @@
 /**
  * Editor-root pointer gestures: click handling in priority order, first match wins (the link
- * card, anchor activation, the dead-space caret, a press on a block's own face), the margin drag the browser cannot grow
- * from a non-editable press, and the multi-click install over the same press classifier.
- * The installing `$effect` stays in `Editor.svelte` as a guard plus one install call.
+ * card, link activation, the caret for a click on empty space, a click on a block's own box),
+ * the margin drag the browser cannot start from a non-editable element, and the multi-click
+ * handling over the same click test. The installing `$effect` stays in `Editor.svelte` as a
+ * check plus one install call.
  */
 
 import type { BlockComponent } from '../block-component';
@@ -24,7 +25,7 @@ import { onRoot, removeAll } from './editor-root-listeners';
 import type { LinkCardState } from './link-card/link-card-state.svelte';
 
 export interface RootGesturesDeps {
-	/** A getter, never a value: every arm is gated on the mode in force at the gesture. */
+	/** A getter, never a value: every branch below checks the mode in force at the gesture. */
 	get mode(): PresentationMode;
 	getDoc: DocumentGetter;
 	selection: SelectionState;
@@ -32,7 +33,7 @@ export interface RootGesturesDeps {
 	edgeAffinity: EdgeAffinityState;
 	getBlockElByPath: BlockElLookup;
 	getBlockComponent(path: number[]): BlockComponent | null;
-	/** The mount primitive: what a click below a windowed-out tail lands through. */
+	/** How a block gets mounted: what a click below the last mounted block goes through. */
 	revealPath(path: number[]): Promise<BlockComponent | null>;
 	getScrollHost(): UserScrollport | null;
 	getLifetime(): AbortSignal;
@@ -45,13 +46,13 @@ export interface RootGesturesDeps {
 export interface RootGestures {
 	/** `root` is the element the installing effect captured, not a live binding. */
 	install(root: HTMLElement): () => void;
-	/** The dead-space click's landing walk for a point the caller already chose to answer. */
+	/** Where a click on empty space puts the caret, for a point the caller chose to answer. */
 	placeCaretAtPoint(root: HTMLElement, x: number, y: number): boolean;
 }
 
-// Dead space, and the parts of a block that are neither editable nor controls (a rendered
-// equation, a diagram, a card's face): a press there cannot grow a native selection, so the
-// editor's drag runs from it. A whole-block input proxy is editable in name only.
+// Empty space, and the parts of a block that are neither editable nor controls (a rendered
+// equation, a diagram, a card's face): the browser cannot grow a selection from a click there,
+// so the editor runs the drag itself. A whole-block input proxy is editable in name only.
 const NOT_A_DRAG_START =
 	'[contenteditable="true"]:not([data-whole-block-input]), button, input, textarea, select, ' +
 	'a, summary, [role="checkbox"], ' +
@@ -100,13 +101,13 @@ export function createRootGestures(deps: RootGesturesDeps): RootGestures {
 	}
 
 	function install(root: HTMLElement): () => void {
-		// Per install: a root rebind starts with no press in flight.
+		// Per install: rebinding the root starts with no click in progress.
 		let marginDrag = false;
 		let marginDown = { x: 0, y: 0 };
 		let marginSession: { dispose(): void } | null = null;
 
 		const handleAnchorClick = (anchor: HTMLAnchorElement, e: MouseEvent) => {
-			// Host chrome follows the page's link behaviour, not plain-click-edits.
+			// The host's own header follows the page's link behaviour, not click-to-edit.
 			if (deps.isHostChrome(anchor)) return;
 			const href = anchor.getAttribute('href');
 			if (!href) return;
@@ -118,8 +119,8 @@ export function createRootGestures(deps: RootGesturesDeps): RootGestures {
 
 		const handleClick = (e: MouseEvent) => {
 			const target = e.target as Element | null;
-			// Ahead of the anchor arm: a blocked-scheme link renders as a SPAN, and it is exactly
-			// the link a user opens the card to fix. Mod-click still activates, below.
+			// Ahead of the link branch: a link with a blocked scheme renders as a plain span, and
+			// it is exactly the link a user opens the card to fix. Mod-click still activates, below.
 			if (deps.mode === 'live' && !e.ctrlKey && !e.metaKey) {
 				const linkEl = target?.closest(LINK_ELEMENT_SELECTOR);
 				if (linkEl && !deps.isHostChrome(linkEl) && openLinkCard(linkEl)) {
@@ -132,7 +133,7 @@ export function createRootGestures(deps: RootGesturesDeps): RootGestures {
 				handleAnchorClick(anchor, e);
 				return;
 			}
-			// A multi-click places no caret: the multi-click select painted its range over this press.
+			// A double or triple click places no caret: the multi-click select painted its range.
 			if (e.detail >= 2) {
 				marginDrag = false;
 				return;
@@ -145,20 +146,21 @@ export function createRootGestures(deps: RootGesturesDeps): RootGestures {
 			marginDrag = false;
 			if (dragged) return;
 			if (deadSpaceCaret.handleClick(root, e)) return;
-			// A press the editor took on a block's own box (a host's padding beside a table, a rule,
-			// a folded equation's face) that did not move is a click on it; the click helper claims
-			// only dead space, so the same landing is resolved here.
+			// A click the editor took on a block's own box (a host's padding beside a table, a rule,
+			// a closed equation's face) that did not move is a click on that block; the helper above
+			// handles only empty space, so the same lookup happens here.
 			if (pressed && !deadSpaceCaret.isDeadSpaceTarget(root, e.target)) {
 				if (deadSpaceCaret.placeAtPoint(root, e.clientX, e.clientY)) return;
 			}
-			// Declined everywhere: a click on nothing still LEAVES what was being edited (a revealed
-			// equation folds on blur), since the margin press suppressed the browser's own blur.
+			// Handled by nothing above: a click on nothing still leaves what was being edited (an
+			// equation showing its source closes on blur), since the margin click suppressed the
+			// browser's own blur.
 			if (pressed) blurEditingSurface(root);
 		};
 
-		// The browser cannot grow a selection from a non-editable press into an editable block,
-		// so the editor runs the drag itself, anchored where a click there would land. The
-		// mousedown's default is suppressed so no native selection fights it; `click` still fires.
+		// The browser cannot grow a selection from a non-editable element into an editable block,
+		// so the editor runs the drag itself, starting where a click there would put the caret.
+		// The mousedown's default is suppressed so no native selection fights it; `click` fires.
 		const startMarginDrag = (e: PointerEvent) => {
 			marginDrag = false;
 			marginDown = { x: e.clientX, y: e.clientY };
@@ -168,7 +170,7 @@ export function createRootGestures(deps: RootGesturesDeps): RootGestures {
 			if (!anchor) return;
 			marginDrag = true;
 			resetForPointerDown(deps.selection, deps.stickyColumn, deps.edgeAffinity, false);
-			// A block that runs its own drag from a nearby press (a table's cell rectangle) takes
+			// A block that runs its own drag from a nearby click (a table's cell rectangle) takes
 			// it; the generic drag is for blocks that have none.
 			if (!('offset' in anchor)) {
 				const component = deps.getBlockComponent(anchor.path);
@@ -190,7 +192,7 @@ export function createRootGestures(deps: RootGesturesDeps): RootGestures {
 
 		const handleMouseDown = (e: MouseEvent) => {
 			deadSpaceCaret.notePress(root, e);
-			// The second press of a click run belongs to the multi-click select, which runs its own drag.
+			// The second click of a run belongs to the multi-click select, which runs its own drag.
 			if (marginDrag && e.detail >= 2) {
 				marginSession?.dispose();
 				marginSession = null;

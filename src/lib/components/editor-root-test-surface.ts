@@ -33,8 +33,8 @@ export interface EditorTestSurface {
 	/** Root-constructed and handed down through context, so its lifetime against a document
 	 *  swap cannot be checked headlessly. */
 	getHeightOracle(): HeightOracle;
-	/** The one signal a windowing scope rebuilds off when no id moved. */
+	/** The one value a block list rebuilds off when no id moved. */
 	getWidthVersion(): number;
-	/** Constructs the detached-slot artifact a windowed each-block's cleanup can leave behind. */
+	/** Creates the stale child-ref entry an unmounted block's cleanup can leave behind. */
 	setBlockRefSlot: RefSlots<BlockComponent>['set'];
 }

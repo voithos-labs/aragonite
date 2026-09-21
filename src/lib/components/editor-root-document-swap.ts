@@ -1,7 +1,7 @@
 /**
  * Editor-root document swap: the `source` prop's whole-document replacement. Every piece of
  * per-document state resets here in one fixed order, so a swap cannot skip a step; the
- * `$effect` that detects the change stays in `Editor.svelte` as the guard plus one call.
+ * `$effect` that detects the change stays in `Editor.svelte` as the check plus one call.
  */
 
 import type { Document } from '../core/nodes';
@@ -37,8 +37,8 @@ export function initDocument(source: string): ParsedDocument {
 }
 
 export interface DocumentSwapDeps {
-	/** A pending typing batch addresses the OUTGOING document, so it flushes while its path
-	 *  still resolves; left armed, the timer fires note A's path against note B. */
+	/** A pending typing batch belongs to the outgoing document, so it flushes while its path
+	 *  still resolves; left running, the timer would apply note A's path to note B. */
 	flushDebouncedCheckpoint(): void;
 	/** Writes the tree into the `$state` root and re-keys its blocks. */
 	adoptDocument(doc: Document): void;
@@ -55,13 +55,13 @@ export interface DocumentSwapDeps {
 
 export interface DocumentSwap {
 	swapTo(source: string): void;
-	/** Whole-document replacements, which the edit epoch cannot tell from a keystroke. */
+	/** Counts whole-document replacements, which `editEpoch` cannot tell from a keystroke. */
 	generation(): number;
 }
 
 export function createDocumentSwap(deps: DocumentSwapDeps): DocumentSwap {
-	// Plain, never reactive: its readers run inside decoration `provide`, which must register
-	// no dependency.
+	// Plain, never reactive: the code that reads it runs inside decoration `provide`, which
+	// must register no dependency.
 	let generation = 0;
 
 	return {
@@ -71,8 +71,8 @@ export function createDocumentSwap(deps: DocumentSwapDeps): DocumentSwap {
 			deps.adoptDocument(reset.doc);
 			deps.bumpContentVersion();
 			deps.clearBlockRefs();
-			// Block ids never recur, so every measured height keys a block that cannot come back:
-			// the scopes reseed from estimates exactly as they do on first load.
+			// Block ids never recur, so every measured height belongs to a block that cannot come
+			// back: the block lists go back to estimates exactly as they do on first load.
 			deps.heightOracle.dropMeasured();
 			deps.undoManager.clear();
 			deps.stickyColumn.reset();
