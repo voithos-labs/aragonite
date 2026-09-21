@@ -21,8 +21,8 @@
 	import { simIslandPlugin } from './sim-island/sim-island-plugin';
 	import { wikiEmbedPlugin } from './wiki-embed/wiki-embed-plugin';
 	import { tagsPlugin } from './tags/tag-plugin';
-	import { tagMarksPlugin } from './tags/tag-marks-plugin';
-	import './tags/tag-marks.css';
+	import { tagMarksPlugin } from '../../demo-tags/tag-marks-plugin';
+	import '../../demo-tags/tag-marks.css';
 	import type { EditorPlugin } from '$lib/plugin';
 
 	// docStatsPlugin is a bare entry (no options), covering the options-default branch.

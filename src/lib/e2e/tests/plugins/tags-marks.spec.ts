@@ -2,7 +2,7 @@ import { test, expect } from '../../fixtures';
 import { PluginsPage, capturedErrors } from './helpers';
 
 /**
- * In-body tags the other way (`routes/test/plugins/tags/tag-marks-plugin.ts`): a mark decoration
+ * In-body tags the other way (`routes/demo-tags/tag-marks-plugin.ts`): a mark decoration
  * over ordinary text instead of an inline widget. A tag's source is its display, so there is
  * nothing for a widget to uncover, and no non-editable widget to cost the caret, the one-press
  * Backspace or any other gesture. Seed `tags-marks` holds the same document as the widget

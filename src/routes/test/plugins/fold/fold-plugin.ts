@@ -2,7 +2,7 @@
 // clickable `…` island that reopens through invalidate(). Folded bytes live only in the
 // CST — the island stands for them in the DOM.
 import { definePlugin, type Decoration, type DocumentView } from '$lib/plugin';
-import { forEachLeaf } from '../walk-views';
+import { forEachLeaf } from '../../../walk-views';
 
 const OPEN = '[>';
 const CLOSE = '<]';

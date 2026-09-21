@@ -9,7 +9,7 @@ import { katexRenderer } from '$lib/plugins/latex/renderer';
 import { mermaidPlugin } from '$lib/plugins/mermaid';
 import { parrotPlugin } from '$lib/plugins/parrot';
 import { mermaidRenderer } from '$lib/plugins/mermaid/renderer';
-import { tagMarksPlugin } from './test/plugins/tags/tag-marks-plugin';
+import { tagMarksPlugin } from './demo-tags/tag-marks-plugin';
 
 // One mint site for every demo route: definitions are process-global and install first-wins, so a
 // route varying a plugin's configuration passes `{ plugin, options }` rather than its own array.

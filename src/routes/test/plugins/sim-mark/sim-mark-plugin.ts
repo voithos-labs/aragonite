@@ -5,7 +5,7 @@
 // its marks would perturb those exact-overlay-count assertions.
 import { definePlugin } from '$lib/plugin';
 import type { DocumentView, MarkDecoration } from '$lib/plugin';
-import { forEachLeaf } from '../walk-views';
+import { forEachLeaf } from '../../../walk-views';
 
 // Whole-word-present in both loaded-ops fixtures (PLUGIN_DOC, DIRECTIVE_DOC).
 const MARKED_WORD = 'paragraph';

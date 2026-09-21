@@ -4,7 +4,7 @@
 // the other `?seed=sim` documents, so this stays inert there. Every position is re-derived
 // from content each per-edit pass, so a decoration follows its bytes across typing.
 import { definePlugin, type Decoration, type DocumentView, type NodeView } from '$lib/plugin';
-import { forEachLeaf } from '../walk-views';
+import { forEachLeaf } from '../../../walk-views';
 
 const REPLACE_OPEN = '[>';
 const REPLACE_CLOSE = '<]';

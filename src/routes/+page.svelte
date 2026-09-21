@@ -9,7 +9,7 @@
 	import { resolve } from '$app/paths';
 	import { Editor, type PresentationMode } from '$lib';
 	import SHOWCASE_DOCUMENT from './showcase-content.md?raw';
-	import './test/plugins/tags/tag-marks.css';
+	import './demo-tags/tag-marks.css';
 	import { trackParityDocument } from './parity-documents.svelte';
 	import DebugPanel from './debug-panel/DebugPanel.svelte';
 	import InsertToolbar from './InsertToolbar.svelte';

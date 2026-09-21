@@ -13,7 +13,7 @@ import {
 	type InlineNode
 } from '$lib/plugin';
 import BodyTag from './BodyTag.svelte';
-import { recognizeTag } from './tag-scan';
+import { recognizeTag } from '../../../demo-tags/tag-scan';
 
 export const BODY_TAG_KIND = 'harness-tag';
 

@@ -1,7 +1,7 @@
 // Fixture for BlockDecoration on public doors only: every heading host gets a
 // class plus a badge widget (blockDecorationsForPath's consumer), at any depth.
 import { definePlugin, type Decoration, type DocumentView } from '$lib/plugin';
-import { forEachLeaf } from '../walk-views';
+import { forEachLeaf } from '../../../walk-views';
 
 export const blockBadgePlugin = definePlugin({
 	name: 'block-badge',
