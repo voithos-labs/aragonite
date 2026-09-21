@@ -250,24 +250,38 @@ test.describe('synthetic caret indicator at widget boundary', () => {
 	});
 
 	// One caret is one position: the editor's own range owns the position while it is up, so no
-	// block may still be painting a caret of its own underneath it.
+	// block may still be painting a caret of its own underneath it. A range whose focus lands back
+	// on the armed offset leaves the browser's caret exactly where the snap put it, so nothing
+	// about the caret's own position says the paint should go.
 	test('no synthetic caret is painted while a cross-block range is up', async ({ page }) => {
 		await editor.loadContent(TWO_IMAGE_DOC);
 		await waitForAllImagesLoaded(page);
 		await clickPastImage(page, 0);
 		await expect.poll(() => paintedCarets(page)).toEqual(['[0]']);
+		const armed = (await editor.bridge.getSelection())!.focus;
 
-		const widget = page.locator('[data-image-widget]').first();
-		const wb = (await widget.boundingBox())!;
+		expect(
+			await editor.bridge.setSelection({ anchor: { path: [2], offset: 0 }, focus: armed })
+		).toBe(true);
+
+		await expect.poll(() => editor.bridge.isCrossBlockSelection()).toBe(true);
+		await expect.poll(() => paintedCarets(page)).toEqual([]);
+	});
+
+	// The press half, which the drag's own pointerdown answers before any range exists: kept
+	// because it is the gesture a user makes, not because it reaches the rule above.
+	test('synthetic caret clears when a press lands in another block', async ({ page }) => {
+		await editor.loadContent(TWO_IMAGE_DOC);
+		await waitForAllImagesLoaded(page);
+		await clickPastImage(page, 0);
+		await expect.poll(() => paintedCarets(page)).toEqual(['[0]']);
+
 		const tail = page.locator('[contenteditable="true"]').last();
 		const tb = (await tail.boundingBox())!;
 		await page.mouse.move(tb.x + 40, tb.y + tb.height / 2);
 		await page.mouse.down();
-		for (let step = 1; step <= 6; step++) {
-			await page.mouse.move(wb.x + 20, tb.y - ((tb.y - wb.y) * step) / 6, { steps: 2 });
-		}
-		expect(await editor.bridge.isCrossBlockSelection()).toBe(true);
-		expect(await paintedCarets(page)).toEqual([]);
+
+		await expect.poll(() => paintedCarets(page)).toEqual([]);
 		await page.mouse.up();
 	});
 

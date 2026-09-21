@@ -784,7 +784,9 @@
 		// Hidden from the press, not from the click, so a press beside a widget does not show the
 		// browser's caret first and the synthetic one after it.
 		if (pressSeatedBesideIsland) el.classList.add('md-snap-caret-active');
-		if (lastSnapTargetOffset === null) return;
+		// A cross-block range owns the caret's position wherever its endpoints landed, so no block
+		// paints one of its own under it, however the range was entered.
+		if (lastSnapTargetOffset === null || selection.isCrossBlock) return;
 		const off = lastSnapTargetOffset;
 		for (const inline of resolvedInlineContent(node, linkRef)) {
 			if (!isInlineWidget(inline, node.raw)) continue;
