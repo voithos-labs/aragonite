@@ -1,13 +1,13 @@
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 
-// Replace All must not reparse a top-level subtree WITHOUT childIds: a reused container
-// component fed the fresh node renders `undefined` keys, and a list item with two or more
+// Replace All must not reparse a top-level subtree without childIds: a reused container
+// component handed the fresh node renders `undefined` keys, and a list item with two or more
 // children then collides on the duplicate key and throws.
 test.describe('search — replace preserves container ids', () => {
 	test('Replace All over "list" never desyncs nested container ids', async ({ page }) => {
 		const editor = new EditorPage(page);
-		await editor.goto(); // HARNESS_SHOWCASE_CONTENT by default — do not loadContent
+		await editor.goto(); // HARNESS_SHOWCASE_CONTENT by default; do not loadContent
 
 		await page.evaluate(() => (window as any).__test.startErrorCapture());
 

@@ -4,9 +4,9 @@ import { EditorPage } from '../../editor-page';
 import { capturePageErrors } from '../../page-probes';
 import { count, openFind, typeQuery } from './helpers';
 
-// The needle is spread across rows so the ACTIVE match is revealed at the top while deep
-// matching rows start off-window: search auto-reveals only the active match, and the rest
-// must repaint when scrolled into view (#3). The last row carries one too, so the bottom
+// The needle is spread across rows so the active match scrolls into view at the top while deep
+// matching rows start unmounted: search scrolls to the active match only, and the rest must
+// repaint when they come into view (#3). The last row carries one too, so the bottom of the
 // viewport holds a needle whatever the row height.
 const ROWS = 200;
 function bigTable(): string {
@@ -35,9 +35,9 @@ function row180Mounted(page: Page): Promise<boolean> {
 	);
 }
 
-// After scrolling, find a cell fully inside the editor viewport (insets trim the accepted
-// band; a needle filters to matching cells) and report whether an overlay of the given
-// selector geometrically covers it — the repaint discriminator.
+// After scrolling, find a cell fully inside the editor viewport (the insets trim the accepted
+// band, a needle filters to matching cells) and report whether an overlay of the given
+// selector covers it: the read that tells a repaint from no repaint.
 function coveredCell(
 	page: Page,
 	args: { overlaySelector: string; needle?: string; insetTop: number; insetBottom: number }
@@ -88,8 +88,8 @@ test('a deep off-window table-row match repaints its highlight after a single sc
 	await editor.loadContent(bigTable());
 	await editor.waitForRenderFlush();
 
-	// Preconditions: row windowing active and the deepest needle row is off-window.
-	// If either fails this is NOT a valid RED.
+	// Preconditions: row windowing is active and the deepest needle row is unmounted.
+	// If either fails, a failure below proves nothing.
 	expect(await page.locator('.vr-spacer').count()).toBeGreaterThan(0);
 	expect(await row180Mounted(page)).toBe(false);
 
@@ -98,13 +98,13 @@ test('a deep off-window table-row match repaints its highlight after a single sc
 	await expect(count(page)).toHaveText(/1\s*\/\s*11/);
 	await editor.waitForRenderFlush();
 
-	// The active (first) match is revealed at the top; the deep match (row 180)
-	// must still be off-window, or there is nothing to repaint on scroll-in.
+	// The active (first) match is scrolled to at the top; the deep match (row 180)
+	// must still be unmounted, or there is nothing to repaint when it scrolls in.
 	expect(await needleMounted(page)).toBe(true); // sanity: the active match is mounted
 	expect(await row180Mounted(page)).toBe(false);
 
-	// SINGLE vertical scroll to bring the deep matching rows into the mounted window.
-	// No second nudge — that constraint is the discriminator.
+	// One vertical scroll brings the deep matching rows into the mounted window.
+	// No second nudge: that constraint is what makes the assertion mean anything.
 	await page.evaluate(() => {
 		const ed = document.querySelector('.editor') as HTMLElement;
 		ed.scrollTop = ed.scrollHeight;
@@ -118,8 +118,8 @@ test('a deep off-window table-row match repaints its highlight after a single sc
 	expect(pageErrors).toEqual([]);
 });
 
-// The SelectionOverlay repaint discriminator, sibling to the search one; the top inset
-// keeps the probe off the intro paragraph's band.
+// The same repaint read for `SelectionOverlay`, beside the search one; the top inset keeps
+// it off the intro paragraph's band.
 const visibleCellCovered = (page: Page) =>
 	coveredCell(page, { overlaySelector: '.selection-overlay', insetTop: 40, insetBottom: -1 });
 

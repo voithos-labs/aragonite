@@ -18,9 +18,9 @@ test.describe('search — image-widget matches', () => {
 		await page.keyboard.type('needle');
 
 		await expect(count(page)).toHaveText(/1\s*\/\s*1/);
-		// The explicit width gives the widget a deterministic layout width whether or not the
-		// image loads, so WIDTH — not height, which an unloaded image leaves 0 — is the
-		// network-independent signal that the highlight covers it.
+		// The explicit width gives the widget a fixed layout width whether or not the image
+		// loads. Height would stay 0 for an unloaded image, so width is the sign that does not
+		// depend on the network for saying the highlight covers it.
 		await expect(overlays(page)).toHaveCount(1);
 		const width = await overlays(page)
 			.first()
@@ -38,8 +38,8 @@ test.describe('search — image-widget matches', () => {
 	test('matches in the image URL seed also paint over the widget', async ({ page }) => {
 		const editor = new EditorPage(page);
 		await editor.goto();
-		// The needle lives only in the URL (inside the widget source range), nowhere
-		// in textContent — exercises the same fully-inside-a-widget collapse.
+		// The needle lives only in the URL (inside the widget's source range) and nowhere in
+		// textContent, which is the same fully-inside-a-widget collapse.
 		await editor.loadContent('- ![alt|120](https://picsum.photos/seed/needleseed/120/80)\n');
 		await editor.waitForRenderFlush();
 

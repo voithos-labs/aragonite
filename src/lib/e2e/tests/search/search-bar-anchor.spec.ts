@@ -8,7 +8,7 @@ const anchoredBar = (page: Page) => anchor(page).locator('.search-bar');
 const rootBar = (page: Page) => page.locator('.editor .search-bar');
 
 // `--color-border` is declared only in the theme scope, and the find input's inline
-// fallback is a DIFFERENT grey — so the computed value says which one resolved.
+// fallback is a different grey, so the computed value says which one resolved.
 const TOKEN_DARK = 'rgb(62, 62, 59)';
 const TOKEN_LIGHT = 'rgb(201, 199, 192)';
 const INLINE_FALLBACK = 'rgb(68, 71, 79)';

@@ -3,9 +3,10 @@ import { EditorPage } from '../../editor-page';
 import { count, findInput, openFind, overlays, typeQuery } from './helpers';
 
 /**
- * The find bar across a whole-document `source` swap (requirements/search/source-swap-rescan.md).
- * Search memoizes its scan on the edit epoch, so a swap leaving the epoch alone strands the
- * counter on the previous document's total and paints overlays over unmatched text.
+ * The find bar across a whole-document `source` swap
+ * (`requirements/search/source-swap-rescan.md`). Search memoizes its scan on the edit counter,
+ * so a swap that leaves that counter alone strands the tally on the previous document's total
+ * and paints overlays over unmatched text.
  */
 
 test.describe('search — an open find bar across a source swap', () => {
@@ -39,13 +40,13 @@ test.describe('search — an open find bar across a source swap', () => {
 
 	test('a swap restarts navigation at the first match of the new document', async ({ page }) => {
 		// Drives the real prop write, so this is the one level that covers the editor
-		// counting the replacement — a harness that bumps its own counter cannot.
+		// counting the replacement; a harness that bumps its own counter cannot.
 		await findInput(page).press('Enter');
 		await findInput(page).press('Enter');
 		await expect(count(page)).toHaveText(/3\s*\/\s*3/);
 
-		// Five matches, so nothing clamps the carried position down: the regression
-		// reads 3 / 5 on a document the user has never navigated.
+		// Five matches, so nothing clamps the kept position down: the bug reads 3 / 5 on a
+		// document the user has never navigated.
 		await editor.loadContent('alpha alpha\n\nalpha alpha\n\nalpha\n');
 		await expect(count(page)).toHaveText(/1\s*\/\s*5/);
 	});

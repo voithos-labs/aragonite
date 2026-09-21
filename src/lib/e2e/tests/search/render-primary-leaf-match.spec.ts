@@ -4,11 +4,11 @@ import { PluginsPage } from '../plugins/helpers';
 import { count, openFind, typeQuery } from './helpers';
 
 /**
- * Search inside a folded render-primary leaf widget
- * (requirements/search/render-primary-leaf-match.md). Such a leaf renders its source through
- * a component, so a match in its raw has no measurable text node; `createEditableLeaf`
- * covers the rendered block box while folded, at the leaf CHOKE POINT, so every
- * render-primary leaf inherits the highlight with no per-kind code.
+ * Search inside a render-primary leaf widget whose source is hidden
+ * (`requirements/search/render-primary-leaf-match.md`). Such a leaf renders its source through
+ * a component, so a match in its raw has no measurable text node; `createEditableLeaf` covers
+ * the rendered block box at the one place every such leaf passes, so each of them gets the
+ * highlight with no per-kind code.
  */
 
 const hostFor = (page: Page, kind: string) => page.locator(`[data-block-kind='${kind}']`);
@@ -18,9 +18,9 @@ async function search(editor: PluginsPage, token: string): Promise<void> {
 	await typeQuery(editor, token);
 }
 
-// The token lives only inside the leaf's source, so finding it (count 1 / 1) is the
-// scan half — that already worked. Painting a sized cover rect inside the folded
-// block's host is the fix under test.
+// The token lives only inside the leaf's source, so finding it (count 1 / 1) is the scan
+// half. Painting a sized cover rect inside the host of the block whose source is hidden is
+// what this checks.
 async function expectFoundAndPainted(page: Page, kind: string): Promise<void> {
 	await expect(count(page)).toHaveText(/1\s*\/\s*1/);
 	const overlay = hostFor(page, kind).locator('.match-overlay');

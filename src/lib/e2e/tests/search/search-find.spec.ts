@@ -30,7 +30,7 @@ test.describe('search — find and highlight', () => {
 		await openFind(editor);
 		await page.getByRole('button', { name: 'Regex' }).click();
 		await findInput(page).click();
-		// `a*` matches each `a` run AND the empty string at every other position; the
+		// `a*` matches each `a` run and the empty string at every other position; the
 		// empty matches measure zero-width and must be dropped, not painted.
 		await typeQuery(editor, 'a*');
 		await expect(overlays(page).first()).toBeVisible();
@@ -98,9 +98,8 @@ test.describe('search — edit while open', () => {
 });
 
 test.describe('search — bar stays pinned', () => {
-	// Regression: the bar was absolutely positioned inside the scroll container, so
-	// navigating to an off-screen match scrolled it out of view. A zero-height
-	// sticky anchor now pins it to the scrollport top.
+	// A zero-height sticky anchor pins the bar to the top of the scroll container, so
+	// navigating to an off-screen match cannot scroll the bar out of view.
 	test('the bar remains in the editor viewport after Next scrolls to an off-screen match', async ({
 		page
 	}) => {
@@ -132,12 +131,12 @@ test.describe('search — bar stays pinned', () => {
 		expect(before, 'search bar must exist').not.toBeNull();
 		expect(before!.pinnedToTop && before!.inViewport).toBe(true);
 
-		// Navigate to the off-screen match; the editor scrolls down to reveal it.
+		// Navigate to the off-screen match; the editor scrolls down to bring it into view.
 		await page.getByRole('button', { name: 'Next match' }).click();
 		await expect(count(page)).toHaveText(/2\s*\/\s*2/);
-		// Guard against a vacuous pass: if a future viewport change stops the doc
-		// from overflowing, Next scrolls nothing and "bar stayed at top" is trivially
-		// true. Assert the reveal actually scrolled the editor.
+		// Guard against a vacuous pass: if a future viewport change stops the document
+		// overflowing, Next scrolls nothing and "the bar stayed at top" is trivially true.
+		// Assert that the jump to the match really scrolled the editor.
 		await expect
 			.poll(() => page.evaluate(() => document.querySelector('.editor')!.scrollTop))
 			.toBeGreaterThan(0);
@@ -157,9 +156,9 @@ test.describe('search — off-window reveal', () => {
 
 		const editor = new EditorPage(page);
 		await editor.goto();
-		// A multi-MB fixture activates windowing; the suffix appends a paragraph
-		// holding a unique marker as the LAST (off-window) block. The fixture's
-		// 16-word vocabulary never contains the marker, so it is the sole match.
+		// A multi-MB fixture activates windowing; the suffix appends a paragraph holding a
+		// unique marker as the last, unmounted block. The fixture's 16-word vocabulary never
+		// contains the marker, so it is the sole match.
 		await editor.loadLargeFixture('many-small-blocks', 2_000_000, '\n\nZZUNIQUEMARKER tail\n');
 
 		const blockCount = await page.evaluate(
@@ -168,7 +167,7 @@ test.describe('search — off-window reveal', () => {
 		const last = blockCount - 1;
 
 		// Precondition: windowing is active and the marker block is genuinely
-		// off-window, or the reveal assertion is vacuous.
+		// unmounted, or the assertion below is vacuous.
 		expect(await page.locator('.vr-spacer').count()).toBeGreaterThan(0);
 		expect(
 			await page.evaluate(
@@ -181,7 +180,7 @@ test.describe('search — off-window reveal', () => {
 		await page.keyboard.type('ZZUNIQUEMARKER');
 		await expect(page.locator('.search-count')).toHaveText(/1\s*\/\s*1/);
 
-		// Enter navigates to the (only) match and reveals it.
+		// Enter navigates to the only match and scrolls it into view.
 		await page.keyboard.press('Enter');
 		await page.waitForFunction(
 			(i) => !!document.querySelector(`[data-block-path='${JSON.stringify([i])}']`),

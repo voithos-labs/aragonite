@@ -4,13 +4,13 @@ import { capturePageErrors } from '../../page-probes';
 import { count, findInput, openFind, overlays, typeQuery } from './helpers';
 
 /**
- * A regex query that must not freeze the editor (requirements/search/pathological-regex.md).
- * The only level that exercises the WORKER: the unit runner has no `Worker` and falls back
+ * A regex query that must not freeze the editor (`requirements/search/pathological-regex.md`).
+ * The only level that exercises the worker: the unit runner has no `Worker` and falls back
  * to a synchronous scan.
  */
 
-// `(a+)+$` over a run of `a` ending in a non-match backtracks exponentially — this
-// length measured in minutes on the main thread before the scan moved off it.
+// `(a+)+$` over a run of `a` ending in a non-match backtracks exponentially: this length
+// takes minutes if the scan runs on the main thread.
 const PATHOLOGICAL_QUERY = '(a+)+$';
 const FIXTURE = `ready\n\n${'a'.repeat(32)}!\n`;
 
@@ -32,9 +32,9 @@ test.describe('search — a pathological regex query', () => {
 	});
 
 	test('the editor keeps accepting input while the scan runs', async ({ page }) => {
-		// The WALL CLOCK is the oracle here, not an assertion: a frozen main thread still lands
-		// every keystroke eventually, so only elapsed time separates a scan that left the main
-		// thread from one that did not.
+		// Elapsed time is the check here, not an assertion on state: a frozen main thread still
+		// lands every keystroke eventually, so only the clock separates a scan that left the
+		// main thread from one that did not.
 		const startedAt = Date.now();
 
 		await typeQuery(editor, PATHOLOGICAL_QUERY);

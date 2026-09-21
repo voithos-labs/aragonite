@@ -52,9 +52,9 @@ test.describe('search — replace', () => {
 		expect(replaced).toContain('bar two');
 		expect(replaced).toContain('bar three');
 
-		// A SINGLE undo restores the entire original document. Clicking "All" left
-		// focus on the button; Ctrl+Z only routes through a focused block (or the
-		// editor root), so focus a block first.
+		// One undo restores the entire original document. Clicking "All" left focus on the
+		// button, and Ctrl+Z only routes through a focused block (or the editor root), so
+		// focus a block first.
 		await editor.clickBlock(0);
 		await editor.undo();
 		await editor.bridge.waitForSourceContains('foo three');
@@ -168,7 +168,7 @@ test.describe('search — tables', () => {
 		expect(source).not.toContain('| dev |');
 		expect(source).toContain('engineer');
 		expect(source.match(/engineer/g)?.length).toBe(2);
-		// The table structure survives — still one table block.
+		// The table structure survives: still one table block.
 		expect(await editor.bridge.getBlockCount()).toBe(1);
 	});
 
