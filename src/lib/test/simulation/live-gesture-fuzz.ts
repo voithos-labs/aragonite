@@ -202,8 +202,8 @@ const typedRun = (gesture: Gesture): string =>
 /**
  * What live-mode.md § 2 allows over bytes, per gesture family. Typing loses nothing; a split keeps
  * every byte but a line ending; a destructive keypress only removes. The two range gestures cut the
- * same span with live mode off, so there that run is the upper bound. A caret-edge keypress takes a
- * different character from the browser's on purpose (§ 4.4), so there it bounds nothing.
+ * same span in both runs, so there the run with live mode off is the upper bound. A caret-edge
+ * keypress takes a different character from the browser's on purpose (§ 4.4), so it bounds nothing.
  */
 function bytesConserved(gesture: Gesture, before: string, live: string, literal: string): boolean {
 	if (gesture.kind === 'type') return isSubsequence(inked(before), inked(live));
