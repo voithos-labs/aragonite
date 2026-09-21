@@ -1,8 +1,8 @@
 <script lang="ts">
 	/**
 	 * The row below the last block: a full-width strip that adds an empty paragraph at the end
-	 * of the document and lands the caret in it, with a `+` in the left gutter that does the
-	 * same — so there is always a way to write below whatever the last block is (a table, a
+	 * of the document and puts the caret in it, with a `+` in the left gutter that does the
+	 * same, so there is always a way to write below whatever the last block is (a table, a
 	 * fence, an equation), and a place to add the next block from.
 	 */
 	import type { BlockEditActions } from '../action-contracts';
@@ -22,7 +22,8 @@
 		onPlus: (button: HTMLElement) => void;
 	} = $props();
 
-	// The mint's own focus lands the caret; the mousedown is swallowed so nothing else seats one.
+	// `insertParagraph` focuses the new block, which places the caret; the mousedown is
+	// swallowed so nothing else places one.
 	function append(): void {
 		if (readOnly) return;
 		void blockEdit?.insertParagraph(childCount, '');
@@ -71,7 +72,8 @@
 		border-radius: 4px;
 	}
 	/* In the editor's gutter, exactly where a block's drag handle sits (`BlockDragHandle`): the
-	   root's 1rem padding holds a 0.85rem slot, and this is the handle of the imaginary last line. */
+	   root's 1rem padding leaves 0.85rem of room, and this is the handle of an imaginary last
+	   line. */
 	.editor-tail-plus {
 		position: absolute;
 		left: -1rem;

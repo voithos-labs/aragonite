@@ -18,9 +18,9 @@
 	import BlockHost from './BlockHost.svelte';
 	import GapCaret from './GapCaret.svelte';
 
-	// `slots` is owner-supplied: a `bind:` $bindable array desyncs from the owner's state
-	// across cross-effect mutations. `reorderable` is true only when these children ARE
-	// reorder units (document root, list, blockquote).
+	// `slots` is supplied by the owner: a `bind:` $bindable array falls out of step with the
+	// owner's state when two effects write it. `reorderable` is true only when these children
+	// are themselves the things that reorder (document root, list, blockquote).
 	let {
 		children,
 		blockIds,
@@ -45,25 +45,25 @@
 	let end = $derived(bounds.end);
 	let slice = $derived(children.slice(start, end));
 
-	// Read like BlockHost's, `| undefined` included: a bare-mounted list in a harness provides
-	// none. The two action bundles are read HERE because they are scope-local — this list's own
-	// position answers them, unlike the root facets GapCaret reads for itself.
+	// Read like BlockHost's, `| undefined` included: a list mounted alone in a test provides
+	// none. The two action bundles are read here because they depend on where this list sits,
+	// unlike the root-wide ones GapCaret reads for itself.
 	const selection = getContext<EditorServices | undefined>(EDITOR_SERVICES_KEY)?.selection;
 	const focusActions = getContext<FocusActions | undefined>(FOCUS_KEY);
 	const blockEdit = getContext<BlockEditActions | undefined>(BLOCK_EDIT_KEY);
 
-	// Only a surface that paints inline content paints one, so the prefix is withheld from a
-	// first child that would ignore it — a code block, a nested list, a container. Withheld, not
-	// handed over and dropped: a prefix a child does not paint but does count is an offset the
-	// walk has no bytes for. Painting the marker for those shapes is open (GH #43).
+	// Only a block that paints inline content paints the container's marker prefix, so it is
+	// withheld from a first child that would ignore it: a code block, a nested list, a
+	// container. Withheld rather than handed over and dropped, because a prefix a child counts
+	// but does not paint is an offset with no bytes behind it. Painting it there is open (#43).
 	function ambientFor(node: NodeView): AmbientPrefix {
 		return isProseKind(node.kind) ? ambientPrefixForFirst : '';
 	}
 
-	// The boundary index the live gap addresses in THIS scope, when the slice reaches it.
-	// Eligibility is re-read against the children as they stand: the state cannot see an edit
-	// that changed the kinds facing this boundary, and a caret must never paint where no
-	// gesture could have parked one.
+	// The boundary this list's live gap caret sits at, when the rendered range reaches it.
+	// Whether a gap is allowed is re-read against the children as they stand: the stored state
+	// cannot see an edit that changed the kinds either side, and a caret must never paint
+	// where no gesture could have put one.
 	let gapIndex = $derived.by(() => {
 		const gap = selection?.gapCaret;
 		if (!gap || !pathsEqual(gap.parentPath, parentPath)) return null;
@@ -78,8 +78,8 @@
 	{/if}
 	{#each slice as node, localIndex (blockIds[start + localIndex])}
 		{@const absoluteIndex = start + localIndex}
-		<!-- ABSOLUTE-INDEX INVARIANT: index/id/key are `start + localIndex`, never the
-		     local loop index — paths and structural ops key off it. -->
+		<!-- index, id and key are `start + localIndex`, never the local loop index:
+		     paths and structural edits all key off the absolute index. -->
 		{#if gapIndex === absoluteIndex}
 			<GapCaret index={absoluteIndex} {focusActions} {blockEdit} />
 		{/if}
@@ -93,8 +93,8 @@
 			{reorderable}
 		/>
 	{/each}
-	<!-- The slice's trailing boundary: the scope end when the slice reaches it, and
-	     otherwise the seam with the next windowed-out block. -->
+	<!-- The end of the rendered range: the end of this list when the range reaches it,
+	     and otherwise the join with the next block that is not mounted. -->
 	{#if gapIndex === end}
 		<GapCaret index={end} {focusActions} {blockEdit} />
 	{/if}

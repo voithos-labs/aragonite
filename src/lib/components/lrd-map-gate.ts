@@ -3,10 +3,11 @@ import type { EditEvent } from '../editor-events';
 import { nodeAt } from '../tree-operations/node-primitives';
 
 /**
- * Whether a commit could change the LRD set, keeping the O(nodes) map rebuild off the keystroke
- * hot path. Any op that is not a kind-stable `input`/`metadataUpdate` could add or remove a
- * definition; a kind-stable one only can when its target is itself an LRD. `input` is kind-stable
- * by construction, held by the input-op kind-stability lint under `test/invariants/lint/`.
+ * Whether a commit could change the set of link reference definitions, keeping the
+ * whole-document map rebuild off the keystroke hot path. Any op but `input` or
+ * `metadataUpdate` could add or remove one; those two only can when the block they touch is
+ * itself a definition, since neither changes a block's kind (the lint under
+ * `test/invariants/lint/` holds that for `input`).
  */
 export function lrdMapCouldChange(doc: DocumentView, event: EditEvent): boolean {
 	if (event.op !== 'input' && event.op !== 'metadataUpdate') return true;
@@ -14,9 +15,9 @@ export function lrdMapCouldChange(doc: DocumentView, event: EditEvent): boolean 
 }
 
 /**
- * A monotonic stamp that changes **exactly** when the signature string does.
- * Reference-bearing render memos key on the epoch instead of the whole (~MB)
- * signature, so bumping on every rebuild would re-render every bracket-bearing block.
+ * A counter that changes exactly when the signature string does. Render caches for blocks
+ * holding references key on the counter instead of the whole (~MB) signature, so bumping it
+ * on every rebuild would re-render every block with a bracket in it.
  */
 export function advanceSignatureEpoch(
 	prevSignature: string,

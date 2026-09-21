@@ -49,8 +49,8 @@
 		reorderable?: boolean;
 	} = $props();
 
-	// Optional throughout: bare unit harnesses mount BlockHost without the editor
-	// shell, so every read here (and both overlays') is written for absence.
+	// Optional throughout: unit tests mount BlockHost without the editor shell, so
+	// every read here, and in both overlays, is written for absence.
 	const services = getContext<EditorServices | undefined>(EDITOR_SERVICES_KEY);
 	const editorEvents = services?.events;
 	const engine = services?.decorations;
@@ -62,13 +62,13 @@
 	const rects = services?.rects;
 	const policies = getContext<EditorPolicies | undefined>(EDITOR_POLICIES_KEY);
 	const getDragHandles = policies?.blockDragHandles;
-	// $derived, not a mount-time snapshot: a runtime prop toggle must reach blocks
-	// that window in after the change.
+	// $derived, not a mount-time snapshot: a prop toggle at runtime must reach blocks
+	// that mount after the change.
 	const dragHandles = $derived(getDragHandles?.() ?? false);
-	// The affordance opt-in already folds reading mode in, but a picture's grip does not wait
-	// for that opt-in, so reading mode is asked here too.
+	// The drag-handle prop already accounts for reading mode, but an image's handle does not
+	// wait for that prop, so reading mode is checked here too.
 	const isReading = $derived(policies?.presentationMode?.() === 'reading');
-	// A reorder unit without a grip (a paragraph) is still a drop neighbour and keyboard-movable.
+	// A block with no drag handle (a paragraph) can still be dropped next to and moved by key.
 	const showsHandle = $derived(reorderable && !isReading && showsDragHandle(node, dragHandles));
 
 	let myPath = $derived([...parentPath, index]);
@@ -80,37 +80,37 @@
 
 	let descriptor = $derived(registryView.descriptor(node.kind));
 	let isContainer = $derived(descriptor.isContainer);
-	// Who measures this block's rects, decided ONCE here and handed to both overlays —
-	// duplicated, the two drift and a container measures over its own children. Delegation
-	// needs children with hosts: a childless container and a grid have none.
+	// Who measures this block's rectangles, decided once here and handed to both overlays:
+	// duplicated, the two drift and a container measures over its own children. Handing it to
+	// the children needs children with hosts, which a childless container and a grid lack.
 	let delegatesPainting = $derived(
 		isContainer && (node.children?.length ?? 0) > 0 && descriptor.containerContract !== 'grid'
 	);
 
 	let hostEl: HTMLElement | null = $state(null);
-	// The one point that resolves a block's published surface (leaf exports vs
-	// containerApi); every consumer of this host's ref reads what it returns.
+	// The one place a block's published interface is resolved (a block's own exports, or
+	// `containerApi`); everything that reads this host's ref gets what it returns.
 	let instance: BlockComponentExports | undefined = $state();
 	let ref: BlockComponent | undefined = $derived(resolveBlockSurface(instance));
 
-	// Neither conjunct is redundant though both look it: the shim gives every container
-	// `measurePartialRects`, so that term guards only a hand-rolled one omitting it, and
-	// the delegation term guards a hand-rolled child-bearing non-grid container.
+	// Neither half is redundant though both look it: the shared container wrapper gives every
+	// container `measurePartialRects`, so that test only catches a hand-written one without it,
+	// and the other catches a hand-written container that has children and is not a grid.
 	let containerPaintsRects = $derived(
 		isContainer && !delegatesPainting && !!ref?.measurePartialRects
 	);
 
 	let entry = $derived(registryView.component(node.kind));
 
-	// A kind with no registered component falls back to the raw-editable surface below
+	// A kind with no registered component falls back to the plain editable block below
 	// rather than silently rendering nothing.
 	$effect(() => {
 		if (!entry) devWarn('block-host', 'no component for kind, rendering raw', node.kind);
 	});
 
-	// The error boundary sticks on its fallback until reset() runs, so restoring
-	// DIFFERENT bytes retries the render while an unchanged raw can't loop.
-	// Plain lets, not $state: the effect keys on node.raw alone and reads these live.
+	// The error boundary stays on its fallback until reset() runs, so restoring different
+	// bytes retries the render while unchanged bytes cannot loop.
+	// Plain `let`s, not $state: the effect keys on node.raw alone and reads these live.
 	let failedRaw: string | null = null;
 	let retryFailedRender: (() => void) | null = null;
 
@@ -135,8 +135,8 @@
 		return publishRefSlot(slots, index, ref, hostEl);
 	});
 
-	// No `focus` means neither sanctioned shape was published. `defineBlockComponent`
-	// types this; the guard catches a registration that got in through a cast.
+	// No `focus` means neither allowed shape was published. `defineBlockComponent`
+	// types this; the check catches a registration that got in through a cast.
 	$effect(() => {
 		if (ref && typeof ref.focus !== 'function')
 			devWarn('block-host', 'component published no BlockComponent surface', node.kind);
@@ -146,9 +146,9 @@
 
 	useMountGauge();
 
-	// Enroll in the scope's batched measure pass rather than measuring inline: a
-	// per-block read interleaved with a sibling's model write costs one reflow per
-	// mounted block on a fling (VR-4). Re-registers on path change.
+	// Join the list's batched measure pass rather than measuring inline: a per-block
+	// read between a sibling's height write costs one reflow per mounted block on a
+	// fast scroll (VR-4). Re-registers on path change.
 	$effect(() => {
 		void myPath;
 		if (!measureChannel) return;
@@ -157,9 +157,9 @@
 		);
 	});
 
-	// An edit resizes this one block; re-measure it directly. Skip the MOUNT run — the
-	// batched pass above owns mount measurement, and a per-block read on a fling is the
-	// thrash it exists to remove (VR-4).
+	// An edit resizes this one block, so re-measure it directly. Skip the first run: the
+	// batched pass above owns measurement at mount, and a per-block read during a fast
+	// scroll is the thrashing it exists to remove (VR-4).
 	let firstRun = true;
 	$effect(() => {
 		void node.raw;
@@ -170,9 +170,9 @@
 		measureChannel?.measureNow(id);
 	});
 
-	// A block can grow after mount without its `raw` changing (async content decoding
-	// in), which the effect above never sees, and overflow-anchor is off so the growth
-	// would slide the viewport. The scope gates on the height it last applied.
+	// A block can grow after mount without its `raw` changing (an image finishing its
+	// decode), which the effect above never sees, and `overflow-anchor` is off so the
+	// growth would slide the viewport. The list compares against the height it applied.
 	$effect(() => {
 		if (!hostEl || !measureChannel) return;
 		const observer = new ResizeObserver((entries) => {
@@ -202,9 +202,9 @@
 		};
 	});
 
-	// Badges prepend BEFORE the block component, so BLOCK_CONTENT_SELECTOR
-	// (block-content-selector.ts) excludes `.decoration-badge` — keep it in step if
-	// this wrapper class changes.
+	// Badges go in ahead of the block component, so BLOCK_CONTENT_SELECTOR
+	// (block-content-selector.ts) excludes `.decoration-badge`; keep the two in step
+	// if this wrapper class changes.
 	$effect(() => {
 		const decs = blockDecs;
 		const el = hostEl;
@@ -278,8 +278,8 @@
 			</div>
 		{/snippet}
 	</svelte:boundary>
-	<!-- hostEl is null until mount; safe because SelectionState is only populated by
-		 user gesture, and the overlay's $effect guards on !blockEl. -->
+	<!-- hostEl is null until mount; safe because SelectionState is filled only by a
+		 user gesture, and the overlay's $effect checks for a missing blockEl. -->
 	<SelectionOverlay
 		path={myPath}
 		blockRef={ref}
@@ -294,7 +294,7 @@
 		{isContainer}
 		{containerPaintsRects}
 	/>
-	<!-- Rendered LAST so the block-el lookup still resolves block content as its
+	<!-- Rendered last so the block-element lookup still finds block content as its
 		 first match. -->
 	{#if showsHandle}
 		<BlockDragHandle />
@@ -306,10 +306,10 @@
 		position: relative;
 	}
 
-	/* Pure-CSS hover reveal: no per-block reactive state on a path whose cost scales
-	   with mounted-component count. Global because handle hosts nest; the `:not(:has(
-	   ...))` reveals the innermost hovered handle, not a staircase of ancestors. A gripless
-	   unit (a paragraph in a quote) is no host, so hovering it reveals its container's. */
+	/* Shown on hover by CSS alone: no per-block reactive state on a path whose cost grows with
+	   the number of mounted components. Global because handle hosts nest; the `:not(:has(...))`
+	   shows the innermost hovered handle, not a staircase of ancestors. A block with no handle
+	   (a paragraph in a quote) is no host, so hovering it shows its container's. */
 	:global(.handle-host:hover:not(:has(.handle-host:hover)) > .block-drag-handle),
 	:global(.block-drag-handle:hover) {
 		opacity: 1;

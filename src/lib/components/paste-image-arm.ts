@@ -1,9 +1,9 @@
 /**
- * The host image-import arm of a paste, shared by the editable-surface clipboard skeleton and the
- * editor-root fallback. It ends at "here is the markdown nobody claimed"; each caller owns what
- * happens next. Two ordering rules: files are read before the first await (`clipboardData` is not
- * dependably live afterwards), and a multi-block selection reaches the delete only after the hook
- * answers, so a failed import destroys nothing.
+ * The part of a paste that hands images to the host's import hook, shared by the blocks' own
+ * clipboard code and the editor-root fallback. It ends at "here is the markdown nobody took";
+ * each caller owns what happens next. Two ordering rules: files are read before the first await
+ * (`clipboardData` is not reliably live afterwards), and a multi-block selection is deleted only
+ * after the hook answers, so a failed import destroys nothing.
  */
 
 import type { PasteImageHook } from '../editor-keys';
@@ -11,7 +11,7 @@ import { emitClipboardError, type EditorEvents } from '../editor-events';
 import type { CrossBlockHandlers } from '../selection/cross-block/dispatch';
 
 export interface ImagePasteArmDeps {
-	/** Undefined leaves an image-bearing paste on the text/plain path — `filesOf`
+	/** Undefined leaves a paste carrying images on the text/plain path: `filesOf`
 	 *  then reports none. */
 	onPasteImage: PasteImageHook | undefined;
 	/** A failed import reports here rather than vanishing. */
@@ -23,9 +23,9 @@ export interface ImagePasteArm {
 	/** Call before the handler's first await; empty when no hook is installed. */
 	filesOf(data: DataTransfer | null): File[];
 	/**
-	 * Import `files` in clipboard order, then offer the markdown to the cross-block
-	 * seam. Null means the arm is finished (nothing imported, or a multi-block
-	 * selection took the insertion); markdown means no selection claimed it.
+	 * Import `files` in clipboard order, then offer the markdown to the cross-block paste.
+	 * Null means there is nothing left to do (nothing imported, or a multi-block selection
+	 * took the insertion); markdown means no selection took it.
 	 */
 	run(e: ClipboardEvent, files: File[]): Promise<string | null>;
 }
@@ -38,12 +38,12 @@ export function createImagePasteArm(deps: ImagePasteArmDeps): ImagePasteArm {
 			const importImage = deps.onPasteImage;
 			if (!importImage) return null;
 			const markdown = await importAll(deps, importImage, files);
-			// Empty markdown ends the arm like no markdown, and keeps the seam's payload
-			// below non-empty.
+			// Empty markdown ends this the same way no markdown does, and keeps the
+			// cross-block paste from being handed an empty string.
 			if (!markdown) return null;
-			// Inherit the ordinary paste route rather than placing anything here: the
-			// delete collapses start-wins and the receiving block may be merged away. The
-			// seam reads `isCrossBlock` LIVE, so a mid-import selection is the one replaced.
+			// Go through the ordinary paste route rather than inserting anything here: the
+			// delete collapses to the start and the receiving block may be merged away. That
+			// route reads `isCrossBlock` live, so the selection as it stands is the one replaced.
 			if (await deps.crossBlock.handlePaste(e, markdown)) return null;
 			return markdown;
 		}
@@ -59,9 +59,9 @@ function imageFilesOf(data: DataTransfer | null): File[] {
 }
 
 /**
- * One insertion, not one per image: a hook may return multi-line markdown, whose
- * structural paste can split the block out from under a second insertion addressed at
- * anchor + length — and one paste gesture owes the user one undo entry.
+ * One insertion, not one per image: a hook may return multi-line markdown, whose structural
+ * paste can split the block out from under a second insertion aimed at anchor plus length,
+ * and one paste gesture should be one undo entry.
  */
 async function importAll(
 	deps: ImagePasteArmDeps,

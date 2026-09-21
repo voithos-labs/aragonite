@@ -1,7 +1,7 @@
 /**
- * The block content element at a path: the measurement surface for cross-block caret math.
+ * The block content element at a path: what cross-block caret arithmetic measures against.
  * Table cells carry no `data-block-path` (they render without BlockHost), so a deep cell path
- * resolves the table wrapper and walks into the cell DOM.
+ * resolves the table wrapper and descends into the cell DOM.
  */
 
 import { BLOCK_CONTENT_SELECTOR } from './block-content-selector';

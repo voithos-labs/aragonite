@@ -6,14 +6,14 @@
 
 /**
  * Attachment factory: appends the node to `target`, and puts it back where it was when the
- * target changes or the attachment tears down. A null target leaves the node home, which is
- * how the seam stays absent by default.
+ * target changes or the attachment tears down. A null target leaves the node where it is,
+ * which is how this stays off by default.
  */
 export function portalInto(target: HTMLElement | null | undefined) {
 	return (node: HTMLElement): (() => void) | void => {
 		if (!target) return;
-		// A marker holds the home position: the siblings around it can change while the node
-		// is away, so a captured `nextSibling` would insert against a stale reference.
+		// A comment marks where the node came from: the siblings around it can change while
+		// the node is away, so a captured `nextSibling` would be a stale reference.
 		const marker = node.ownerDocument.createComment('');
 		node.parentNode?.insertBefore(marker, node);
 		target.appendChild(node);

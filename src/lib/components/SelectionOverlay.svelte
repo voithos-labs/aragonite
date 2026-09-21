@@ -35,8 +35,8 @@
 		containerPaintsRects?: boolean;
 	} = $props();
 
-	// Optional, like every context BlockHost reads: a bare mount provides no shell,
-	// and every use below is written for absence. Destructuring these threw first.
+	// Optional, like every context BlockHost reads: a mount without the editor shell
+	// provides none, and every use below is written for absence.
 	const selection = getContext<EditorServices | undefined>(EDITOR_SERVICES_KEY)?.selection;
 	const editorDoc = getContext<EditorDoc | undefined>(EDITOR_DOC_KEY);
 	const getEditorRoot = editorDoc?.editorRoot;
@@ -49,14 +49,14 @@
 
 	const classification = $derived(range ? classifyBlockForSelection(path, range) : 'outside');
 
-	// Delegation-blind on purpose: a block the range holds whole paints one box over everything it
-	// renders, chrome included, and the seam already keeps its children from painting under it.
+	// Ignores who measures, on purpose: a block the range covers whole paints one box over
+	// everything it renders, markers included, and its children already paint nothing under it.
 	const paintsWholeBox = $derived(
 		range !== null && blockPaintsWholeBox(path, range, selection?.wholeUnitPath ?? null)
 	);
 
-	// The measuring effect and the template read this one predicate, so a rendered
-	// rect is always one the effect measured; two predicates render a stale box.
+	// The measuring effect and the markup read this one value, so a painted rectangle is
+	// always one the effect measured; two separate tests would paint a stale box.
 	const paintsEndpoints = $derived(
 		!delegatesPainting &&
 			(classification === 'start' ||

@@ -1,9 +1,9 @@
 <script lang="ts">
 	/**
-	 * The between-blocks caret's own surface: a zero-height proxy that takes DOM focus while the
-	 * gap is live. It lives in the BlockList, outside every block's surface, so it contributes
-	 * nothing to any block's textContent walk. Text and Enter mint a paragraph at the boundary;
-	 * every other input is refused at `beforeinput`.
+	 * The between-blocks caret: a zero-height stand-in element that takes DOM focus while the
+	 * gap is live. It lives in the BlockList, outside every block, so it adds nothing to any
+	 * block's text content. Text and Enter create a paragraph at the boundary; every other
+	 * input is refused at `beforeinput`.
 	 */
 	import { getContext } from 'svelte';
 	import type { BlockEditActions, FocusActions, HistoryActions } from '../action-contracts';
@@ -32,8 +32,8 @@
 		blockEdit: BlockEditActions | undefined;
 	} = $props();
 
-	// Root-provided facets, read here rather than threaded through BlockList: only the
-	// scope-local action bundles depend on where this list sits.
+	// Provided by the root and read here rather than passed through BlockList: only the
+	// two action bundles above depend on where this list sits.
 	const services = getContext<EditorServices | undefined>(EDITOR_SERVICES_KEY);
 	const selection = services?.selection;
 	const policies = getContext<EditorPolicies | undefined>(EDITOR_POLICIES_KEY);
@@ -45,8 +45,8 @@
 
 	const isReading = $derived(isReadingMode(policies?.presentationMode));
 
-	// Rendering, not sequencing: the component exists only while it IS the live gap.
-	// Focusing the contenteditable seats a caret in it (Chromium); no manual range needed.
+	// Not a timing trick: the component exists only while it is the live gap. Focusing
+	// the contenteditable puts a caret in it (Chromium); no manual range needed.
 	$effect(() => {
 		if (!proxyEl) return;
 		proxyEl.focus();
@@ -63,15 +63,15 @@
 		void focusActions?.moveFocus(index - 1, 'end', EXIT);
 	}
 
-	/** The mint's own `afterTick` focuses the new block, and that door ends the gap. */
+	/** `insertParagraph`'s own `afterTick` focuses the new block, and that focus ends the gap. */
 	function mint(text: string): void {
 		void blockEdit?.insertParagraph(index, text);
 	}
 
 	/**
-	 * Undo/redo and plugin globals resolve HERE, at the target: no block holds focus, and the
-	 * root's own arm answers only a caret with no focused element at all. Reading mode still
-	 * consumes the chord, or the browser's native history runs on the proxy.
+	 * Undo, redo and plugin-global chords are handled here, where the key landed: no block holds
+	 * focus, and the root's own handler answers only a caret with no focused element at all.
+	 * Reading mode still takes the chord, or the browser's own undo would run on this element.
 	 */
 	function handleGlobalChord(
 		event: KeyboardEvent,
@@ -130,8 +130,8 @@
 	}
 
 	function onBeforeInput(event: InputEvent): void {
-		// The browser owns the proxy between compositionstart and compositionend (the editor's
-		// standing IME stance) — refusing here swallows the composition.
+		// The browser owns this element between compositionstart and compositionend, as it does
+		// everywhere in the editor: refusing here would swallow the composition.
 		if (composing) return;
 		event.preventDefault();
 		if (event.inputType === 'insertText' && event.data) mint(event.data);
@@ -140,8 +140,8 @@
 	function onCompositionEnd(): void {
 		composing = false;
 		const composed = proxyEl?.textContent ?? '';
-		// The proxy is a caret host, never a surface a serializer reads: whatever the IME left
-		// belongs to the minted paragraph, and the proxy goes back to empty either way.
+		// This element only holds a caret; nothing serializes it. Whatever the IME left belongs
+		// to the new paragraph, and the element goes back to empty either way.
 		if (proxyEl) proxyEl.textContent = '';
 		if (composed) mint(composed);
 	}
@@ -149,7 +149,7 @@
 	function onFocusOut(event: FocusEvent): void {
 		const next = event.relatedTarget;
 		// A null relatedTarget is the window losing focus, which a native caret survives too.
-		// Anything landing inside the editor claimed the caret through a door of its own.
+		// Anything focused inside the editor took the caret by its own route.
 		if (next === null) return;
 		if (next instanceof Node && editorDoc?.editorRoot()?.contains(next)) return;
 		selection?.clearGapCaret();
@@ -195,10 +195,10 @@
 		animation: gap-caret-blink 1s step-end infinite;
 	}
 	/**
-	 * Absolutely positioned, so the zero-height wrapper keeps the boundary's layout, and a
-	 * REAL box: Chromium fires no `beforeinput` on a zero-height editing host, which silently
-	 * costs the proxy every keystroke. Click-through, or the band would steal edge clicks
-	 * from both neighbours; the painted line is the caret, so this one never shows.
+	 * Absolutely positioned, so the zero-height wrapper keeps the boundary's layout, and given
+	 * a real box: Chromium fires no `beforeinput` on a zero-height editing host, which would
+	 * silently cost this element every keystroke. Click-through, or the strip would steal edge
+	 * clicks from both neighbours; the painted line is the caret, so this one never shows.
 	 */
 	.gap-caret-proxy {
 		position: absolute;

@@ -56,7 +56,7 @@ const HOUSE_WORDS = [
 const BASELINE: Record<string, number> = {
 	'src/lib': 0,
 	'src/lib/ambient': 0,
-	'src/lib/components': 21,
+	'src/lib/components': 0,
 	'src/lib/core': 0,
 	'src/lib/cursor': 0,
 	'src/lib/decorations': 0,
