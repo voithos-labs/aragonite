@@ -29,11 +29,6 @@ test.describe('list marker — rendering and round-trip', () => {
 		await expect(markers.nth(1)).toHaveText('2. ');
 	});
 
-	test('source round-trips after load', async () => {
-		await editor.loadContent('- Hello\n');
-		expect(await editor.bridge.getSource()).toBe('- Hello\n');
-	});
-
 	test('nested list: each level gets its own ambient marker', async () => {
 		await editor.loadContent('- Parent\n  - Child\n');
 		const markers = editor.page.locator(

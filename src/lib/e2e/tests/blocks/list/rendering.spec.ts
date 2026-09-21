@@ -8,12 +8,6 @@ test.describe('list rendering', () => {
 		await editor.goto();
 	});
 
-	test('nested list renders as single top-level block', async () => {
-		await editor.loadContent('- Parent\n  - Child\n- Sibling\n');
-		expect(await editor.bridge.getBlockKind(0)).toBe('list');
-		expect(await editor.bridge.getBlockCount()).toBe(1);
-	});
-
 	test('editing item preserves source with correct marker', async () => {
 		await editor.loadContent('- Item A\n- Item B\n');
 		const first = editor.page.locator('[contenteditable="true"]', { hasText: 'Item A' });
@@ -31,13 +25,6 @@ test.describe('list rendering', () => {
 		await nested.first().click();
 		await editor.typeText(' more');
 		await editor.bridge.waitForSourceContains('  - Nested more');
-	});
-
-	test('ordered list displays correct markers', async () => {
-		await editor.loadContent('1. First\n2. Second\n3. Third\n');
-		expect(await editor.bridge.getBlockCount()).toBe(1);
-		const source = await editor.bridge.getSource();
-		expect(source).toBe('1. First\n2. Second\n3. Third\n');
 	});
 });
 

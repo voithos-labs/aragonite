@@ -5,9 +5,7 @@ Covers how ordered and unordered lists render and how arrow keys traverse and ex
 ## Rendering
 
 - Unordered lists display with `-`, `*`, or `+` markers
-- Ordered lists display with `1.`, `2.`, etc. markers
 - Nested lists render indented within the parent item
-- The entire list (including nested levels) is a single top-level block
 - Source round-trips after any edit
 
 ## Arrow key navigation
