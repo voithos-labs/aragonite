@@ -56,11 +56,11 @@ const HOUSE_WORDS = [
 const BASELINE: Record<string, number> = {
 	'src/lib': 0,
 	'src/lib/ambient': 0,
-	'src/lib/components': 354,
+	'src/lib/components': 63,
 	'src/lib/core': 0,
 	'src/lib/cursor': 0,
 	'src/lib/decorations': 0,
-	'src/lib/e2e': 539,
+	'src/lib/e2e': 9,
 	'src/lib/editor-actions': 0,
 	'src/lib/invariants': 0,
 	'src/lib/perf': 0,
@@ -95,7 +95,28 @@ const BASELINE: Record<string, number> = {
 	'src/lib/test/undo': 0,
 	'src/lib/testing': 0,
 	'src/lib/tree-operations': 0,
-	'src/routes': 46
+	'src/routes': 46,
+	'src/lib/components/blocks': 258,
+	'src/lib/components/image': 8,
+	'src/lib/components/link-card': 19,
+	'src/lib/components/menu': 6,
+	'src/lib/e2e/simulation': 36,
+	'src/lib/e2e/simulation/gestures': 61,
+	'src/lib/e2e/simulation/notes': 8,
+	'src/lib/e2e/tests': 18,
+	'src/lib/e2e/tests/blocks': 47,
+	'src/lib/e2e/tests/capture': 1,
+	'src/lib/e2e/tests/clipboard': 19,
+	'src/lib/e2e/tests/decorations': 28,
+	'src/lib/e2e/tests/keyboard-navigation': 3,
+	'src/lib/e2e/tests/perf': 21,
+	'src/lib/e2e/tests/plugins': 90,
+	'src/lib/e2e/tests/presentation': 99,
+	'src/lib/e2e/tests/search': 1,
+	'src/lib/e2e/tests/selection': 38,
+	'src/lib/e2e/tests/simulation': 55,
+	'src/lib/e2e/tests/text-editing': 3,
+	'src/lib/e2e/tests/webkit': 2
 };
 
 const HOUSE_WORD = new RegExp(`\\b(?:${HOUSE_WORDS.join('|')})\\b`, 'gi');
@@ -111,13 +132,15 @@ export function countHouseWords(text: string): number {
 		.reduce((n, line) => n + (proseOf(line).match(HOUSE_WORD)?.length ?? 0), 0);
 }
 
-/** `src/lib/<dir>` for library files (`src/lib/test/<dir>` for unit tests, so each rewrite pass owns
- *  its own numbers), `src/lib` for its root files, `src/routes` for the rest. */
+/** How many path segments name a row: deeper where several rewrite passes share one tree. */
+const ROW_DEPTH: Record<string, number> = { test: 4, components: 4, e2e: 5 };
+
+/** The baseline row a file counts toward: its directory, cut at that tree's row depth. */
 function directoryOf(relPath: string): string {
 	const parts = relPath.split('/');
 	if (parts[1] === 'routes') return 'src/routes';
-	const depth = parts[2] === 'test' && parts.length > 4 ? 4 : 3;
-	return parts.length > depth ? parts.slice(0, depth).join('/') : 'src/lib';
+	const depth = ROW_DEPTH[parts[2]] ?? 3;
+	return parts.slice(0, Math.min(depth, parts.length - 1)).join('/');
 }
 
 describe('G4.26 house words in comments stay under the baseline', () => {
