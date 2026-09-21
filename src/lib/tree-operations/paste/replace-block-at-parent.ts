@@ -13,6 +13,7 @@ import { nodeAt } from '../node-primitives';
 import { spliceMany } from '../splice-many';
 import { trailingLineEnding } from '../../core/lines';
 import { normalizeReplacementForBody } from './body-write';
+import { reconcileTaskMetadata, taskMarkerMayStandBefore } from '../list/reconcile-task';
 import { landedPasteOffset, trackedPasteCaret } from './focus-target';
 import { resolveParentScope } from './parent-scope';
 import { docPathFrom } from '../../cursor/coordinate-spaces';
@@ -92,6 +93,8 @@ export async function replaceBlockAtParent(args: ReplaceBlockAtParentArgs): Prom
 		scopes: [scope],
 		snapshot: undoEntry === 'join' ? 'skip' : { path: docPathFrom(blockPath), offset: 0 },
 		mutate: ([scopeView]) => {
+			// Read before the splice, for the task-marker rule below.
+			const stood = taskMarkerMayStandBefore(scopeView.children[blockIdx]);
 			spliceMany(scopeView.children, blockIdx, 1, replacement);
 			// Identity preservation only helps on a kind match; BlockHost dispatches by kind,
 			// so a different kind remounts anyway.
@@ -99,6 +102,9 @@ export async function replaceBlockAtParent(args: ReplaceBlockAtParentArgs): Prom
 				? replacePreservingFirst(blockIdx, 1, replacement.length)
 				: { op: 'replace', at: blockIdx, count: 1, newCount: replacement.length };
 			stampStructuralChange(scopeView.children, change, scopeView.sharing);
+			// The third write that can put a new block in a list item's first position, and so take
+			// the task marker with the paragraph that carried it.
+			reconcileTaskMetadata(scopeView.node, blockIdx, stood, scopeView.sharing);
 			landTrailingSeparator(args, scopeView.children, blockIdx + replacement.length, tailEnding);
 			return [change];
 		},

@@ -340,8 +340,8 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 					spliceMany(view.children, i, 1, normalized);
 					const change = replacePreservingFirst(i, 1, normalized.length);
 					stampStructuralChange(view.children, change, view.sharing);
-					// The other write that can put a new block in a list item's first position, and
-					// so take the task marker with the paragraph that carried it.
+					// One of the three writes that can put a new block in a list item's first
+					// position, and so take the task marker with the paragraph that carried it.
 					if (view.owner) reconcileTaskMetadata(view.owner, i, stood, view.sharing);
 					return change;
 				},

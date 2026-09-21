@@ -30,6 +30,19 @@ test.describe('insertMarkdown — programmatic insertion', () => {
 		await editor.bridge.waitForSourceMatches(/\| 1 \| 2X \|/);
 	});
 
+	// The structural strategy splices the parent's children itself, a third write that can put a
+	// block in a to-do's first position, where the task marker cannot stand in front of it.
+	test('a table over a to-do paragraph takes the checkbox with the paragraph', async () => {
+		await editor.loadContent('- [ ] alpha\n');
+		await editor.focusBlockAtPath([0, 0, 0], 0);
+		await editor.page.keyboard.press('Shift+End');
+
+		expect(await insert(TABLE)).toBe(true);
+		await editor.bridge.waitForSourceContains('| --- | --- |');
+		expect(await editor.bridge.getSource()).not.toContain('[ ]');
+		await expect(editor.page.locator('.task-checkbox')).toHaveCount(0);
+	});
+
 	test('a single-line snippet mid-paragraph splices inline at the caret offset', async () => {
 		await editor.loadContent('alphabeta\n');
 		await editor.focusBlock(0, 'alpha'.length);

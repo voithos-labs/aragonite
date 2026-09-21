@@ -16,6 +16,11 @@ not semantics of its own.
   bytes.
 - List items inserted with the caret inside a same-type list: the container-match strategy
   absorbs them as siblings of the target item, exactly as pasting them would.
+- A table over a to-do's whole paragraph: the item gives its checkbox up with the paragraph,
+  since a task marker stands in front of a paragraph and nothing else.
+  - Miss-analysis: the task-marker rule was pinned on the routes a keystroke reaches, and the
+    door's own cases all insert into plain prose, so the write the structural strategy makes
+    for itself was the one route no test asked the question on.
 
 ## Edge cases
 
