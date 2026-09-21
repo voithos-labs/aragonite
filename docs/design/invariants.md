@@ -132,7 +132,7 @@ A minority of runtime guards are inline closures at their own seam rather than s
 G1.15, the five commit-and-parse guards G1.19 through G1.23, the interaction halves of G1.26, and
 G1.39. What they check isn't a CST node's shape but a transient value the machinery builds
 mid-flight (a prepared commit scope, an unshare chain, an owned table view, an in-flight reveal, the
-paint an effect has just written). Those exist only mid-commit, mid-parse or mid-gesture. There's no stable object to hand a pure predicate, and no way
+paint an effect has just written). Those exist only mid-commit, mid-parse, mid-gesture or mid-render. There's no stable object to hand a pure predicate, and no way
 for a test to reconstruct the exact state on its own.
 
 So they're guarded through the machinery that produces them, or through the console channel above,
@@ -611,13 +611,15 @@ Predicate `schema/child-spans.ts :: spliceIsFaithful`, the one predicate living 
 `invariants/` · seam: the splice path · `test/schema/child-spans-settle.test.ts`,
 `child-spans.property.test.ts`.
 
-**G1.39 · One synthetic caret.** Beside a non-editable inline widget the browser draws no caret the
-editor can see, so the block paints one of its own. A caret is a position and a document has one, so
-across the whole editor at most one widget carries the paint. The block that arms it clears the
-others first, since a block unmounted with the caret inside never hears the change that would clear
-its own. An inline closure at the paint effect: its subject is the DOM that effect has just written,
-which no test can hand a predicate. Seam
-`components/blocks/text/TextEditableBlock.svelte :: sweepOtherBlocksSnap` ·
+**G1.39 · One synthetic caret** (`snap-caret-unique`). Beside a non-editable inline widget the
+browser draws no caret the editor can see, so the block paints one of its own. A caret is a position
+and a document has one, so across the whole editor at most one widget carries the paint. The block
+that arms it clears the others first, since a block unmounted with the caret inside never hears the
+change that would clear its own, and no block paints at all while the editor's own cross-block range
+owns the position. An inline closure at the paint effect: its subject is the DOM that effect has
+just written, which no test can hand a predicate. Seam: the snap-caret paint effect in
+`components/blocks/text/TextEditableBlock.svelte`, which calls
+`TextEditableBlock.svelte :: sweepOtherBlocksSnap` before it paints ·
 `e2e/tests/blocks/image/caret-synthetic-indicator.spec.ts`, and the e2e invariant watcher under it.
 
 ## Group 2: property and regression tested

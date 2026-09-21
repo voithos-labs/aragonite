@@ -41,7 +41,8 @@ const caretColorOfFocusedBlock = (page: Page): Promise<string> =>
 
 // The synthetic indicator is the fallback for "native caret can't render": it appears only at a
 // widget boundary AT ELEMENT-LEVEL (no text-node anchor) or when Chromium dropped the caret. Where
-// the native caret renders it stays absent, so the two never compete.
+// the native caret renders it stays absent, so the two never compete, and one caret is one
+// position, which is the guard G1.39 catalogs.
 test.describe('synthetic caret indicator at widget boundary', () => {
 	let editor: EditorPage;
 

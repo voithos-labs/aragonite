@@ -721,8 +721,8 @@
 	function clearSnapTargetIfMoved(root: HTMLElement): void {
 		if (lastSnapTargetOffset === null) return;
 		const sel = window.getSelection();
-		// No range means the browser dropped the caret without moving it, which is the state the
-		// snap target stands in for; a press, a blur and typing each clear it in their own handler.
+		// With no range there is nothing to compare the snap target against, and this function only
+		// clears: the gestures that move the caret elsewhere clear it through their own handlers.
 		if (!sel || sel.rangeCount === 0) return;
 		const range = sel.getRangeAt(0);
 		if (!root.contains(range.startContainer)) {
@@ -796,6 +796,7 @@
 				sweepOtherBlocksSnap();
 				widget.classList.add(inline.end === off ? 'md-snap-after' : 'md-snap-before');
 				el.classList.add('md-snap-caret-active');
+				// One caret is one position, so one widget in the document carries the paint (G1.39).
 				assertInvariant('snap-caret-unique', () => {
 					const root = getEditorRoot();
 					const painted = root?.querySelectorAll('.md-snap-after, .md-snap-before').length ?? 1;
@@ -811,9 +812,8 @@
 		}
 	});
 
-	/** One caret is one position, so a block painting its synthetic caret clears every other
-	 *  block's (G1.39): a block that unmounts with the caret inside never hears the change that
-	 *  clears its own. */
+	/** A block painting its synthetic caret clears every other block's: one that unmounts with the
+	 *  caret inside never hears the change that clears its own. */
 	function sweepOtherBlocksSnap(): void {
 		const root = getEditorRoot();
 		if (!root || !el) return;
