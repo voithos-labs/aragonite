@@ -2,8 +2,8 @@ import { test, expect } from '../fixtures';
 import { EditorPage } from '../editor-page';
 
 /**
- * Insert toolbar (requirements/insert-toolbar.md): the demo routes' consumer-side
- * insertMarkdown example, driven with real clicks against the harness mount.
+ * The insert toolbar (requirements/insert-toolbar.md): the demo routes' example of an app
+ * calling insertMarkdown, driven with real clicks against the harness.
  */
 
 const SNIPPET_ROWS = [
@@ -30,14 +30,15 @@ test.describe('insert toolbar', () => {
 		await expect(table).toBeEnabled();
 	});
 
-	// Miss-analysis: the greying was only ever driven towards enabled — no scenario took focus
-	// OUT of the editor, so the channel's silence on a user blur went unobserved.
+	// Miss-analysis: the greying was only ever tested on the way to enabled, and no scenario
+	// took focus out of the editor, so nothing noticed that a blur reported nothing.
 	test('buttons grey again when focus leaves the editor', async ({ page }) => {
 		const table = page.getByTestId('insert-table');
 		await editor.clickBlock(0);
 		await expect(table).toBeEnabled();
 
-		// Non-selectable harness chrome: the native range survives this click, the caret does not.
+		// Part of the harness that cannot be selected: the browser's range survives this click,
+		// the editor's caret does not.
 		await page.locator('label').first().click();
 		await expect(table).toBeDisabled();
 	});

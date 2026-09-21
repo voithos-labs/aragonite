@@ -1,10 +1,10 @@
 import { test, expect } from '../fixtures';
 import { EditorPage } from '../editor-page';
 
-// The prose right-click menu carries an "Insert block" flyout: the same empty blocks the tail's
-// `+` offers, minted as a sibling after the block under the pointer. Only top-level prose has it —
-// inside a table cell, a code fence or a nested block the row is absent, since a sibling there
-// would not be what the user meant. The source bytes are the oracle.
+// The right-click menu on prose carries an "Insert block" flyout: the same empty blocks the
+// trailing row's `+` offers, added after the block under the pointer. Only top-level prose has
+// it, since inside a table cell, a code fence or a nested block a sibling is not what the user
+// meant, so the row is absent there. The source bytes are what is checked.
 // Requirements: e2e/requirements/context-menu-insert.md.
 
 test.describe('right-click menu: Insert block', () => {

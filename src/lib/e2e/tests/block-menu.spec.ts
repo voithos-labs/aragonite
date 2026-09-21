@@ -3,8 +3,8 @@ import { EditorPage } from '../editor-page';
 
 // The trailing insert row and the block menu behind its `+`: a click on the row adds a paragraph
 // at the end of the document, the `+` adds one and opens the insert menu over it, and every menu
-// the editor opens is keyboard-driven without taking focus, so the caret it acts on stays put.
-// Requirements: e2e/requirements/block-menu.md.
+// the editor opens is driven by the keyboard without taking focus, so the caret it acts on stays
+// where it is. Requirements: e2e/requirements/block-menu.md.
 
 const TAIL_ROW = { name: 'Add a line below' };
 const TAIL_PLUS = { name: 'Add a block' };

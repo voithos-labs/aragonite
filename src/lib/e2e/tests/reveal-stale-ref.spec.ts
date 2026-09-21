@@ -1,9 +1,10 @@
 import { test, expect } from '../fixtures';
 import { EditorPage } from '../editor-page';
 
-// A top-level slot holding a DETACHED off-window ref must be dropped and re-revealed, not
-// descended into. The stale slot is forged deterministically because the natural cleanup
-// race that leaves one behind is not reproducible on demand.
+// A top-level list position holding a reference to a component that is no longer in the page
+// must be dropped and the block mounted again, not descended into. The stale reference is
+// planted on purpose, because the cleanup race that leaves one behind cannot be reproduced
+// on demand.
 test.describe('reveal into a stale top-level ref slot', () => {
 	let editor: EditorPage;
 
@@ -18,23 +19,24 @@ test.describe('reveal into a stale top-level ref slot', () => {
 
 		expect(await page.evaluate(() => (window as any).__test.captureBlockRef(0))).toBe(true);
 
-		// Scroll far past the list: block 0 windows out and its slot clears.
+		// Scroll far past the list, so block 0 unmounts and its list position clears.
 		await editor.scrollEditorTo(10_000_000);
 		await expect(page.locator(`[data-block-path='[0]']`)).toHaveCount(0);
 		await expect
 			.poll(() => page.evaluate(() => (window as any).__test.getBlockCursorSurface([0]).exists))
 			.toBe(false);
 
-		// Forge the stale slot: the captured ref is now a detached container shim.
+		// Plant the stale reference: the captured one now points at a component no longer in
+		// the page.
 		expect(await page.evaluate(() => (window as any).__test.replantBlockRef(0))).toBe(true);
 
-		// Search-driven reveal into the first list item's unique text.
+		// A search scrolls to the first list item's unique text.
 		await page.keyboard.press('ControlOrMeta+f');
 		await page.getByRole('textbox', { name: 'Find' }).waitFor({ state: 'visible' });
 		await page.keyboard.type('zebrafish');
 
-		// The reveal must drop the stale ref, scroll back up, and mount the list
-		// with a visible match overlay — not silently no-op on the detached shim.
+		// Scrolling to the match must drop the stale reference, scroll back up and mount the
+		// list with the match highlighted, not quietly do nothing.
 		await expect(page.locator(`[data-block-path='[0]']`)).toHaveCount(1);
 		await expect(page.locator('.match-overlay-active')).toBeVisible();
 	});

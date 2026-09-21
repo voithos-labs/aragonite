@@ -4,10 +4,10 @@ import { EditorPage } from '../../editor-page';
 import { gotoFlow, settleFrames, spacerCount } from './vr-helpers';
 import { capturePageErrors } from '../../page-probes';
 
-// Host-scroll (flow) mode: several entries in one ancestor scroller, plus a pane that clips
-// rather than scrolls. The root spans the whole document here, so measuring or scrolling IT
-// would call an unreachable block visible and leave a drag stranded — every seam has to
-// resolve against whatever actually scrolls the editor — windowing included.
+// Flow mode, where the app does the scrolling: several editors inside one scrolling ancestor,
+// plus a pane that clips rather than scrolls. The editor root covers the whole document here,
+// so measuring or scrolling it would call an unreachable block visible and leave a drag
+// stranded. Everything, windowing included, has to work from whatever really scrolls.
 
 const entry = (page: Page, id: string): Locator => page.locator(`[data-testid="entry-${id}"]`);
 
@@ -38,8 +38,8 @@ test('a host-scroll entry windows its blocks against the ancestor scrollport', a
 	expect(await entry(page, 'a').locator('.vr-spacer').count()).toBeGreaterThan(0);
 	expect(pageErrors).toEqual([]);
 
-	// One implementation, two ports: the SAME source in a self-mode editor mounts a slice of
-	// the same order. Mounting all 200 here is this mode's pre-scrollport behaviour.
+	// One implementation, two scroll containers: the same source in an editor that scrolls
+	// itself mounts about as many blocks. Mounting all 200 here is how this mode used to be.
 	const source = await flowSource(page, 'a');
 	const selfMode = new EditorPage(page);
 	await selfMode.goto();
@@ -72,8 +72,8 @@ test('the editor root stops being a scroll container and the ancestor carries th
 	expect(geometry.rootHeight).toBeGreaterThan(4000);
 	expect(geometry.scrollerOverflowPx).toBeGreaterThan(geometry.rootHeight);
 
-	// The ENTRY's own box, not a block's: blocks come and go with the window, and the claim
-	// here is that the ancestor's scroll moves the editor at all.
+	// The editor's own box, not a block's: blocks come and go with the window, and the point
+	// here is that scrolling the ancestor moves the editor at all.
 	const topOf = () =>
 		page.evaluate(
 			() => document.querySelector('[data-testid="entry-a"]')!.getBoundingClientRect().top
@@ -93,7 +93,7 @@ test('typing and undo in a host-scroll entry behave as in self mode', async ({ p
 	await page.keyboard.type('FLOW_MARK');
 	await expect.poll(() => flowSource(page, 'a')).toContain('FLOW_MARK');
 
-	await page.waitForTimeout(300); // past the ~250ms undo-batch debounce
+	await page.waitForTimeout(300); // past the 250ms undo debounce
 	await page.keyboard.press('ControlOrMeta+z');
 	await expect.poll(() => flowSource(page, 'a')).not.toContain('FLOW_MARK');
 	expect(pageErrors).toEqual([]);
@@ -132,8 +132,8 @@ test('setSelection in a host-scroll entry reports true only once the block is in
 			{ id, index }
 		);
 
-	// Task 1's contract crosses the mode: the restore scrolls the ANCESTOR and the
-	// boolean means the block got there.
+	// The same rule holds in this mode: the restore scrolls the ancestor, and the boolean
+	// means the block arrived.
 	expect(await at('a', 180)).toBe(true);
 	const seen = await page.evaluate(() => {
 		const rect = (window as any).__flow.blockRect('a', [180]) as { top: number; bottom: number };
@@ -161,9 +161,9 @@ test('scrollTo past a clipping host edge resolves false — nothing can reveal t
 	const pageErrors = capturePageErrors(page);
 	await gotoFlow(page);
 
-	// The CLIP boundary is the case, not distance: the target sits past the pane's bottom
-	// edge but well inside the window viewport, so a window-bounded measure calls it
-	// visible. The neighbour above the edge must still read `true`, or "always false in a
+	// The clipping edge is the case, not distance: the target sits past the pane's bottom edge
+	// but well inside the window's viewport, so measuring against the window alone calls it
+	// visible. The block just above that edge must still read `true`, or "always false inside a
 	// clipping pane" would pass for the wrong reason.
 	const geometry = await page.evaluate(() => {
 		const pane = document.querySelector('[data-testid="entry-clipped"]')!.getBoundingClientRect();
@@ -171,7 +171,7 @@ test('scrollTo past a clipping host edge resolves false — nothing can reveal t
 		return { paneBottom: pane.bottom, blockTop: below.top, viewport: window.innerHeight };
 	});
 	expect(geometry.blockTop).toBeGreaterThan(geometry.paneBottom);
-	expect(geometry.blockTop).toBeLessThan(geometry.viewport); // inside the window: the crux
+	expect(geometry.blockTop).toBeLessThan(geometry.viewport); // inside the window, which is the point
 
 	expect(await page.evaluate(() => (window as any).__flow.scrollTo('clipped', [0]))).toBe(true);
 	expect(await page.evaluate(() => (window as any).__flow.scrollTo('clipped', [5]))).toBe(false);
@@ -191,8 +191,8 @@ test('a drag at the scrollport edge autoscrolls the host, not the non-scrolling 
 		);
 	const before = await scrollTop();
 
-	// The handle only mounts on hover. Grab it, then hold the pointer in the
-	// scrollport's bottom edge band: the rAF autoscroll loop must move the ancestor.
+	// The drag handle only mounts on hover. Grab it, then hold the pointer near the bottom edge
+	// of the scroll container: the autoscroll loop must move the ancestor.
 	const source = entry(page, 'a').locator('.block-host').nth(2);
 	await source.hover();
 	const handle = await source.locator('.block-drag-handle').first().boundingBox();
@@ -240,8 +240,8 @@ test('the find bar rides the entry top edge, not the ancestor scrollport', async
 	// Constant against the entry: the bar scrolls away with its own editor.
 	expect(Math.abs(near.fromEntry - far.fromEntry)).toBeLessThan(2);
 	expect(near.fromEntry).toBeLessThan(40);
-	// And genuinely gone from the scrollport top — a sticky anchor resolving against
-	// the ancestor would park it there, floating over the page's other content.
+	// And really gone from the top of the scroll container: a sticky element working from the
+	// ancestor would sit there, floating over the rest of the page.
 	expect(far.fromScrollport).toBeLessThan(-200);
 	expect(pageErrors).toEqual([]);
 });
@@ -261,19 +261,19 @@ test('nested scopes in a host-scroll entry window their children and stay error-
 	expect(items).toBeGreaterThan(100);
 	expect(rows).toBeGreaterThan(100);
 
-	// Into the scrollport first: an entry below the fold intersects it in zero pixels and
-	// correctly mounts almost nothing (VR-11), which would pass the census for no reason.
+	// Into view first: an editor below the fold overlaps the viewport by nothing and correctly
+	// mounts almost no blocks (VR-11), which would pass the count for the wrong reason.
 	await nested.scrollIntoViewIfNeeded();
 	await settleFrames(page);
 
-	// List items and table rows are direct-`{#each}` children, not BlockHosts, so
-	// they census by their own element rather than by `data-block-kind`.
+	// List items and table rows are rendered directly by an `{#each}` rather than as block
+	// hosts, so they are counted by their own element instead of by `data-block-kind`.
 	expect(await nested.locator('.list-item-block').count()).toBeLessThan(items);
 	expect(await nested.locator('[data-table-row-idx]').count()).toBeLessThan(rows);
 	expect(await nested.locator('.vr-spacer').count()).toBeGreaterThan(0);
 
-	// Editing inside a nested scope drives the measure/subtotal path that reports up
-	// through a parent model nothing reads — a render-phase throw there fails here.
+	// Editing inside a nested list drives the measuring that reports totals up to a parent
+	// height table nothing reads, and a throw during that render fails here.
 	await nested.locator('.list-item-block [contenteditable]').first().click();
 	await page.keyboard.press('End');
 	await page.keyboard.type('NESTED_MARK');
@@ -288,7 +288,7 @@ test('two entries in one scroller window independently against the shared port',
 	await gotoFlow(page);
 
 	const [countA, countB] = [await blockCount(page, 'a'), await blockCount(page, 'b')];
-	// Different sizes, so an assertion that read one entry twice cannot pass.
+	// Different sizes, so a check that read the same editor twice cannot pass.
 	expect(countA).not.toBe(countB);
 	expect(await hosts(entry(page, 'a')).count()).toBeLessThan(countA);
 	expect(await hosts(entry(page, 'b')).count()).toBeLessThan(countB);

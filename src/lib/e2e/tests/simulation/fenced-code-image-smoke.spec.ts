@@ -3,10 +3,10 @@ import { EditorPage } from '../../editor-page';
 import { runSession } from '../../simulation/user-simulator';
 import { BIOLOGY_NOTE } from '../../simulation/notes/biology-note';
 
-// The headline note is the only one that type-builds a fenced code block AND an image, and
-// it ran only in the capture-gated suites — so those two kinds went uncovered in CI. Running
-// it with `capture:false` arms the cheap oracle half in the default gate; the expensive
-// screenshot capture stays gated in diverse-notes-capture.spec.ts.
+// The main note is the only one that types both a fenced code block and an image, and it ran
+// only in the capture suites, so those two kinds went untested in CI. Running it with
+// `capture:false` brings the cheap half into the default gate; the expensive screenshots stay
+// behind the switch in diverse-notes-capture.spec.ts.
 test.describe('note-taking simulation: fenced-code + image smoke', () => {
 	let editor: EditorPage;
 

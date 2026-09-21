@@ -10,18 +10,18 @@ import {
 } from './vr-helpers';
 import { capturePageErrors } from '../../page-probes';
 
-// Who holds the reader's place under late-sizing content in a page-scrolled host embedding.
-// The two answers cannot coexist on one editor, so the activation decides: while windowing
-// runs the editor corrects by hand and withdraws its subtree from the host's anchor
-// candidates; below the budget it corrects nothing and stays a candidate. The oracle either
-// way is the top block in the window viewport, before and after an image above it decodes.
+// Who keeps the reader's place when content above them grows late, in a page that does the
+// scrolling. The two answers cannot both apply to one editor, so whether windowing is running
+// decides: while it runs the editor corrects the scroll itself and takes its blocks out of the
+// browser's own anchoring; below the threshold it corrects nothing and stays eligible. Either
+// way the check is the top block in the viewport, before and after an image above it decodes.
 
 const IMAGE_BLOCK = 6;
 const DOCUMENT_IMAGE = '.editor .md-image-widget img';
 const OUTER_IMAGE = '[data-testid="outer-image"]';
 
-/** Puts every non-editor box out of the viewport: otherwise the document scroller could
- *  anchor on a filler and hold the line for a reason the editor had no part in. */
+/** Moves everything that is not the editor out of the viewport: otherwise the page could
+ *  anchor on filler and hold the position for a reason the editor had no part in. */
 async function assertOnlyEntryContentInView(page: Page): Promise<void> {
 	const intruders = await page.evaluate(() => {
 		const ids = ['filler-top', 'filler-bottom', 'outer-image'];
@@ -33,8 +33,8 @@ async function assertOnlyEntryContentInView(page: Page): Promise<void> {
 	expect(intruders).toEqual([]);
 }
 
-/** Park the reader just past the image block, so the grower sits above the fold and inside
- *  the mounted band — a windowed-out image never decodes and grows nothing. */
+/** Leave the reader just past the image, so it sits above the viewport and among the mounted
+ *  blocks: an image that is unmounted never decodes and never grows. */
 async function scrollPastImageBlock(page: Page): Promise<void> {
 	const imageTop = await page.evaluate((i) => {
 		const rect = (window as any).__test.rects.blockRect([i]) as DOMRect;
@@ -43,8 +43,8 @@ async function scrollPastImageBlock(page: Page): Promise<void> {
 	await scrollPageTo(page, Math.round(imageTop) + 150);
 }
 
-/** Wait for the image at `selector` to gain an intrinsic size, let the reflow
- *  settle, and report the height it took in layout. */
+/** Wait for the image at `selector` to get its own size, let the reflow settle, and report
+ *  the height it ended up with. */
 async function decodedHeight(page: Page, selector: string): Promise<number> {
 	await page.waitForFunction(
 		(sel) => ((document.querySelector(sel) as HTMLImageElement | null)?.naturalHeight ?? 0) > 0,
@@ -59,23 +59,24 @@ async function decodedHeight(page: Page, selector: string): Promise<number> {
 
 async function assertReaderHeld(page: Page, grow: () => Promise<void>): Promise<void> {
 	await assertOnlyEntryContentInView(page);
-	// Anchoring makes no adjustment at scroll offset 0, so a reader parked at the top
-	// would pass this vacuously.
+	// Nothing is adjusted at scroll position 0, so a reader at the top would pass this
+	// without proving anything.
 	expect(await page.evaluate(() => window.scrollY)).toBeGreaterThan(0);
 	const before = await topVisibleBlockInViewport(page);
 	expect(before).not.toBeNull();
 
 	await grow();
 
-	// Both the block's IDENTITY and its position: a document that scrolled by a whole
-	// block would otherwise report "some block near the same offset".
+	// Both which block it is and where it sits: a document that scrolled by a whole block
+	// would otherwise report "some block at about the same place".
 	const after = await topVisibleBlockInViewport(page);
 	expect(after!.ref).toBe(before!.ref);
 	expect(Math.abs(after!.top - before!.top)).toBeLessThanOrEqual(1);
 }
 
-// The trade, as code rather than prose: one declaration, keyed on the activation, is what
-// keeps native anchoring and the manual correction from both rewriting one scroll position.
+// The trade-off in code rather than prose: one declaration, switched on whether windowing is
+// running, is what stops the browser's anchoring and the editor's correction both writing the
+// same scroll position.
 test('the editor withdraws from host anchor candidacy only while windowing runs', async ({
 	page
 }) => {
@@ -103,14 +104,14 @@ test('a document image decoding in above the fold does not shift the windowed re
 
 	await assertReaderHeld(page, async () => {
 		await page.evaluate(() => (window as any).__pageScroll.loadDocumentImage());
-		// Vacuity: the content above the reader really did grow.
+		// Proves something: the content above the reader really did grow.
 		expect(await decodedHeight(page, DOCUMENT_IMAGE)).toBeCloseTo(300, 0);
 	});
 	expect(pageErrors).toEqual([]);
 });
 
-// Below the budget nothing corrects by hand, so the host's own anchoring must still be able
-// to see the editor's blocks. A red here means the opt-out was applied unconditionally.
+// Below the threshold the editor corrects nothing, so the browser's own anchoring must still
+// see its blocks. A failure here means the opt-out was applied in every case.
 test('a document image decoding in above the fold does not shift an unwindowed reader', async ({
 	page
 }) => {
@@ -126,15 +127,15 @@ test('a document image decoding in above the fold does not shift an unwindowed r
 	expect(pageErrors).toEqual([]);
 });
 
-// A held reveal claim re-asserts its target's absolute position on every measure pass. Below
-// the budget the browser is already holding that same line, so the re-assertion is the second
-// writer — the same shape as the correction itself, on the one path that outranks it.
+// A held scroll-to request re-asserts its target's exact position on every measure pass. Below
+// the threshold the browser is already holding that same position, so the re-assertion is a
+// second writer, the same problem as the correction itself on the one path that outranks it.
 test('a held reveal claim does not double-correct against native anchoring', async ({ page }) => {
 	const pageErrors = capturePageErrors(page);
 	await gotoPageScroll(page, UNWINDOWED_ENTRY_BLOCKS);
 	expect(await spacerCount(page)).toBe(0);
 
-	// `'nearest'` holds its pin by default, and no user gesture follows to release it.
+	// `'nearest'` keeps holding the position by default, and no gesture follows to release it.
 	const target = Math.round(UNWINDOWED_ENTRY_BLOCKS / 2);
 	expect(await page.evaluate((i) => (window as any).__test.rects.scrollTo([i]), target)).toBe(true);
 
@@ -152,9 +153,9 @@ test('an image decoding in outside an unwindowed entry does not shift the reader
 	await gotoPageScroll(page, UNWINDOWED_ENTRY_BLOCKS);
 	await scrollPastImageBlock(page);
 
-	// The attribution arm: identical growth one box further out, where the host's own wrapper
-	// anchors. A red here means the page has no scroll anchoring at all, which would make the
-	// arm above red for the wrong reason.
+	// The control: the same growth one box further out, where the page's own wrapper anchors. A
+	// failure here means the page has no scroll anchoring at all, which would fail the case
+	// above for the wrong reason.
 	await assertReaderHeld(page, async () => {
 		await page.evaluate(() => (window as any).__pageScroll.loadOuterImage());
 		expect(await decodedHeight(page, OUTER_IMAGE)).toBeCloseTo(300, 0);

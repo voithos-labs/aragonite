@@ -2,14 +2,14 @@ import { test, expect } from '../fixtures';
 import type { Locator, Page } from '@playwright/test';
 import { EditorPage } from '../editor-page';
 
-// Each editor installs its OWN document-level keydown listener on the shared document, so
-// these pin that every chord stays contained to one instance — and that a lone editor still
-// claims its own chords, which the containment gate must not strand.
+// Each editor adds its own keydown listener to the shared document, so these cases check that
+// a shortcut reaches only one editor, and that a single editor on a page still takes its own
+// shortcuts, which the check for that must not strand.
 
 async function gotoMulti(page: Page): Promise<{ left: Locator; right: Locator }> {
 	await page.goto('/test/multi-editor');
-	// Gate on hydration: both editors' mount effects — including each document-level
-	// keydown listener — have run, so a chord never races a cold editor.
+	// Waits for hydration, so both editors' mount effects have run, keydown listeners
+	// included, and no shortcut races an editor that is not ready.
 	await page.waitForFunction(
 		() => (window as unknown as { __editorsReady?: boolean }).__editorsReady === true,
 		null,
@@ -24,15 +24,14 @@ const activeEditorIndex = (page: Page) =>
 		[...document.querySelectorAll('.editor')].findIndex((e) => e.contains(document.activeElement))
 	);
 
-// Type at the end of an editor's first editable, then wait past the undo batch
-// debounce so the run lands as one committed, undoable entry. The click also makes
-// this editor the last-interacted instance.
+// Type at the end of an editor's first editable block, then wait past the undo debounce so the
+// typing lands as one undoable entry. The click also makes this the editor last interacted with.
 async function editEditor(page: Page, editor: Locator, mark: string): Promise<void> {
 	await editor.locator('[contenteditable]').first().click();
 	await page.keyboard.press('End');
 	await page.keyboard.type(mark);
 	await expect(editor).toContainText(mark);
-	await page.waitForTimeout(300); // past the ~250ms undo-batch debounce so the run is one undo entry
+	await page.waitForTimeout(300); // past the 250ms undo debounce, so the typing is one undo entry
 }
 
 test.describe('multi-editor document-chord containment', () => {
@@ -40,7 +39,7 @@ test.describe('multi-editor document-chord containment', () => {
 		await gotoMulti(page);
 		await page.locator('[data-testid="outside-input"]').focus();
 		await page.keyboard.press('ControlOrMeta+f');
-		await page.waitForTimeout(150); // absence check — no shape to poll for
+		await page.waitForTimeout(150); // checking nothing happens; there is nothing to wait on
 		await expect(page.locator('.search-bar')).toHaveCount(0);
 	});
 
@@ -50,8 +49,8 @@ test.describe('multi-editor document-chord containment', () => {
 		await expect.poll(() => activeEditorIndex(page)).toBe(0);
 		await page.keyboard.press('ControlOrMeta+f');
 
-		// Exactly one bar opens, and it belongs to the focused (left) editor: a search arm that
-		// ignores focus opens both.
+		// Exactly one bar opens, and it belongs to the focused editor on the left: a search
+		// handler that ignores focus opens both.
 		await expect(page.locator('.search-bar')).toHaveCount(1);
 		await expect(left.locator('.search-bar')).toHaveCount(1);
 	});
@@ -59,34 +58,36 @@ test.describe('multi-editor document-chord containment', () => {
 	test('a body-level Ctrl+Z reverts only the last-interacted editor', async ({ page }) => {
 		const { left, right } = await gotoMulti(page);
 		await editEditor(page, right, 'RIGHTMARK'); // right interacted first
-		await editEditor(page, left, 'LEFTMARK'); // left last — it owns a body chord
+		await editEditor(page, left, 'LEFTMARK'); // left last, so it takes a key sent to <body>
 
 		await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
 		await page.keyboard.press('ControlOrMeta+z');
 
-		// Dropping the body arm leaves the windowed-out caret's undo dead (perf/vr-reveal F2);
-		// accepting body unconditionally is the overreach the last-interacted gate closes.
+		// Ignoring keys that arrive on <body> would leave undo dead once the caret's block is
+		// unmounted (perf/vr-reveal F2); taking them always would reach too far, which is what
+		// the last-interacted rule prevents.
 		await expect(left).not.toContainText('LEFTMARK');
 		await expect(right).toContainText('RIGHTMARK');
 	});
 });
 
 test.describe('single-editor document-chord claim', () => {
-	// The lone-editor claim truth-table: focus inside, on a foreign NON-text control, or on
-	// <body> claims; focus in a foreign TEXT-entry surface YIELDS, so the editor never hijacks
-	// a page-global chord away from a field the user is typing in.
+	// What a single editor on a page takes: it takes the key when focus is inside it, on a
+	// control of the app's that is not a text field, or on <body>; it leaves the key alone when
+	// focus is in a text field of the app's, so it never takes a shortcut from a field the user
+	// is typing in.
 
-	// Focus on a sibling control OUTSIDE the editor is neither inside-root nor <body>, so a
-	// gate demanding one of those strands the chord entirely and only the sole-editor claim can
-	// route it — the shape that broke Ctrl+H after a click on the reading-mode toggle.
+	// Focus on a control beside the editor is neither inside it nor on <body>, so a rule that
+	// demands one of those strands the shortcut, and only a single editor taking it can deliver
+	// it. That is what broke Ctrl+H after a click on the reading-mode toggle.
 	test('the sole editor claims Ctrl+F while an outside control holds focus', async ({ page }) => {
 		const editor = new EditorPage(page);
 		await editor.goto();
 		await editor.loadContent('# Title\n\nAlpha paragraph\n');
 
-		// Focus a header control OUTSIDE the editor without clicking (a click would flip
-		// the mode); native focus now rests on a real element that is neither <body> nor
-		// inside the editor — the exact state a reading-mode toggle click leaves behind.
+		// Focus a header control outside the editor without clicking, since a click would
+		// switch the mode. Focus now rests on a real element that is neither <body> nor inside
+		// the editor, which is the state a click on the reading-mode toggle leaves behind.
 		await page.getByTestId('presentation-toggle').focus();
 		await expect
 			.poll(() =>
@@ -107,8 +108,8 @@ test.describe('single-editor document-chord claim', () => {
 		await editor.goto();
 		await editor.loadContent('# Title\n\nAlpha paragraph\n');
 
-		// A consumer's own <textarea>, mounted OUTSIDE the editor. Its type-list twin —
-		// a foreign checkbox — is claimed above; a text-entry surface must not be.
+		// The app's own <textarea>, mounted outside the editor. Its counterpart, a checkbox of
+		// the app's, is taken in the case above; a text field must not be.
 		await page.evaluate(() => {
 			const field = document.createElement('textarea');
 			field.setAttribute('data-testid', 'foreign-textarea');
@@ -119,10 +120,10 @@ test.describe('single-editor document-chord claim', () => {
 		await expect(foreign).toBeFocused();
 
 		await page.keyboard.press('ControlOrMeta+f');
-		await page.waitForTimeout(150); // absence check — no shape to poll for
+		await page.waitForTimeout(150); // checking nothing happens; there is nothing to wait on
 
-		// No Find bar opens, and focus stays in the consumer's field: a sole editor claiming
-		// unconditionally opens its bar and steals focus into it.
+		// No Find bar opens, and focus stays in the app's field: a single editor that took the
+		// key regardless would open its bar and pull focus into it.
 		await expect(page.locator('.search-bar')).toHaveCount(0);
 		await expect(foreign).toBeFocused();
 	});

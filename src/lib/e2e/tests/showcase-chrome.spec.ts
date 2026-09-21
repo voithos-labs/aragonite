@@ -2,17 +2,17 @@ import { test, expect } from '../fixtures';
 import { waitForEditorHydrated } from '../page-probes';
 import { SHOWCASE_MD, scanShowcase } from '../showcase-document';
 
-// The `/` showcase header: theme, drag handles, the debug panel, and the toc as navigation.
-// No `window.__test` bridge on this route, so assertions read rendered DOM only. The mode
-// toggle and the bundled-plugin surface have their own specs and are not re-tested here.
-// What the seeded document says is read off its bytes, never pinned as prose — the owner
-// rewrites it by hand. Requirements: e2e/requirements/showcase-chrome.md.
+// The `/` showcase header: theme, drag handles, the debug panel, and the table of contents as
+// navigation. This route has no `window.__test` bridge, so the cases read rendered DOM only.
+// The mode toggle and the bundled plugins have their own specs. What the demo document says is
+// read from its bytes, never written out here, since it is rewritten by hand.
+// Requirements: e2e/requirements/showcase-chrome.md.
 
 test.describe('/ showcase chrome', () => {
 	test.beforeEach(async ({ page }) => {
 		await page.goto('/');
-		// One storage key backs the panel on both mounting routes, so the closed-by-default
-		// premise below is a fresh-context accident until it is cleared explicitly.
+		// One storage key holds the panel's state on both routes that mount it, so "closed by
+		// default" below only holds by luck until the key is cleared.
 		await page.evaluate(() => localStorage.removeItem('aragonite.debug-panel.state.v1'));
 		await page.reload();
 		await waitForEditorHydrated(page);
@@ -46,8 +46,8 @@ test.describe('/ showcase chrome', () => {
 		// Handles are on by default, so the showcase opens with them like any default embed.
 		await expect.poll(() => handles.count()).toBeGreaterThan(0);
 
-		// The prop is set-once, so the toggle remounts the editor — an edit made first is
-		// the only thing that can show whether the route carried the live source across.
+		// The prop is read once, so the toggle remounts the editor; an edit made beforehand is
+		// the only way to see whether the route carried the current source across.
 		const intro = page.locator('.block-host [contenteditable]').first();
 		await intro.click();
 		await page.keyboard.press('End');
@@ -55,7 +55,7 @@ test.describe('/ showcase chrome', () => {
 		await expect(intro).toContainText('ZZMARKER');
 
 		await page.getByTestId('drag-handles-toggle').click();
-		// Not zero: a picture's grip does not answer to the toggle.
+		// Not zero: an image's own handle does not answer to the toggle.
 		await expect
 			.poll(() =>
 				page.locator('.block-host:not([data-block-kind="paragraph"]) .block-drag-handle').count()
@@ -71,8 +71,8 @@ test.describe('/ showcase chrome', () => {
 		const toggle = page.getByTestId('drag-handles-toggle');
 		await expect(toggle).toBeEnabled();
 
-		// The editor gates handles off in reading mode; a live toggle would paint active
-		// while producing nothing.
+		// The editor turns drag handles off in reading mode; a toggle that stayed enabled would
+		// look active while doing nothing.
 		await page.locator('.showcase-mode[data-mode="reading"]').click();
 		await expect(toggle).toBeDisabled();
 	});
@@ -83,7 +83,7 @@ test.describe('/ showcase chrome', () => {
 
 		await page.keyboard.press('ControlOrMeta+Shift+D');
 		await expect(panel).toBeVisible();
-		// The panel is the "under the hood" pitch element: its CST section must show the
+		// The panel is what shows the editor's inner workings, so its tree section must show the
 		// showcase document's own tree, not an empty or stale one.
 		await expect(
 			panel.locator('.debug-section[data-section-title="CST tree"] .debug-section-body')
@@ -97,8 +97,8 @@ test.describe('/ showcase chrome', () => {
 		page
 	}) => {
 		const toolbar = page.getByTestId('selection-toolbar');
-		// Both toolbars belong to live mode, the showcase's default: a markdown-first mode mounts
-		// neither, and flipping back brings the strip in (the bar waits for a selection).
+		// Both toolbars belong to live mode, which the showcase opens in: a markdown-first mode
+		// mounts neither, and switching back brings the strip in once something is selected.
 		await expect(page.getByTestId('insert-toolbar')).toHaveCount(1);
 		await page.locator('.showcase-mode[data-mode="source"]').click();
 		await expect(toolbar).toHaveCount(0);
@@ -112,14 +112,14 @@ test.describe('/ showcase chrome', () => {
 		for (let i = 0; i < 4; i++) await page.keyboard.press('Shift+ArrowRight');
 		await expect(toolbar).toBeVisible();
 
-		// The first line sits right under the header, so the bar cannot clear the topInset the
-		// showcase passes: it flips below the selection instead of landing on the header.
+		// The first line sits right under the header, so the bar cannot fit above the selection
+		// within the top inset the showcase passes: it moves below instead of onto the header.
 		const bar = await toolbar.boundingBox();
 		const header = await page.locator('.showcase-header').boundingBox();
 		expect(bar!.y).toBeGreaterThan(header!.y + header!.height);
 
 		await page.getByTestId('toolbar-format.toggleStrong').click();
-		// Live paints no markers, so the wrap shows as the rendered strong itself.
+		// Live mode shows no markers, so the wrap shows up as bold text itself.
 		await expect(intro.locator('strong').first()).toBeVisible();
 
 		// A plain arrow collapses the selection, which is the bar's hide signal.
@@ -150,8 +150,8 @@ test.describe('/ showcase chrome', () => {
 	});
 
 	test('the changelog link navigates to the changelog route', async ({ page }) => {
-		// `resolve()` under a configured base path: a wrong href lands on a 404 with the URL
-		// still looking plausible, so the destination's own chrome is the real assertion.
+		// `resolve()` under a configured base path: a wrong href lands on a 404 with a URL that
+		// still looks plausible, so what the destination page shows is the real check.
 		await page.getByRole('link', { name: 'changelog' }).click();
 		await expect(page).toHaveURL(/\/changelog\/?$/);
 		await expect(page.locator('.changelog-tag')).toBeVisible();

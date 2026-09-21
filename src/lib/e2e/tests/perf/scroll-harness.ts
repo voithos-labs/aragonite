@@ -1,8 +1,8 @@
 /**
- * The wheel-tick measurement the scroll-hitch rows share: an in-page probe that counts what a
- * tick does to the editor (hosts mounted and unmounted, programmatic scrollTop writes, long
- * tasks, the worst rAF gap), a pass driver over real wheel ticks, a CPU-profile self-time
- * table, and the per-pass summary. One definition, so a row can only differ in its document.
+ * The wheel measurement the scroll-hitch rows share: an in-page probe counting what one notch
+ * does to the editor (blocks mounted and unmounted, scrollTop written from code, long tasks,
+ * the worst gap between frames), a driver over real wheel notches, a table of CPU time by
+ * function, and the summary per pass. Defined once, so a row can differ only in its document.
  */
 
 import type { Page } from '@playwright/test';
@@ -26,8 +26,8 @@ export interface TickSample {
 	renderMs: number;
 }
 
-/** Counts what a tick does to the editor: block hosts mounted and unmounted, programmatic
- *  scrollTop writes (the correction), long tasks, and the worst rAF gap. */
+/** Counts what one wheel notch does to the editor: blocks mounted and unmounted, scrollTop
+ *  written from code by the correction, long tasks, and the worst gap between frames. */
 export async function installProbe(page: Page): Promise<void> {
 	await page.evaluate(() => {
 		const editor = document.querySelector('.editor') as HTMLElement;
@@ -81,7 +81,7 @@ export async function installProbe(page: Page): Promise<void> {
 		};
 		requestAnimationFrame(loop);
 		(window as any).__scrollProbe = probe;
-		// The demo route carries no bridge; its rows report the DOM census only.
+		// The demo route has no test bridge, so its rows report the DOM counts only.
 		(window as any).__test?.perf.enable();
 		(window as any).__test?.perf.reset();
 	});
@@ -119,7 +119,7 @@ function editorScrollTop(page: Page): Promise<number> {
 	return page.evaluate(() => (document.querySelector('.editor') as HTMLElement).scrollTop);
 }
 
-/** The scroll has stopped moving for two frames: a smooth wheel scroll animates over several. */
+/** The scroll has not moved for two frames; a smooth wheel scroll animates over several. */
 async function settleScroll(page: Page): Promise<void> {
 	await page.evaluate(
 		() =>
@@ -175,8 +175,8 @@ export interface Profile {
 	timeDeltas: number[];
 }
 
-/** Self time by function over the scroll, so a hitch names its owner. Readable on the dev
- *  server only: the production bundle mangles the names. */
+/** CPU time by function over the scroll, so a stutter names what caused it. Readable on the
+ *  dev server only, since the production bundle renames functions. */
 export function topSelfTime(profile: Profile, n: number): Array<{ fn: string; ms: number }> {
 	const byNode = new Map<number, number>();
 	for (let i = 0; i < profile.samples.length; i++) {
@@ -245,7 +245,8 @@ export function summarize(samples: TickSample[]) {
 		scrolledMax: round(max((s) => s.scrolled)),
 		renderCount: sum((s) => s.renderCount),
 		renderMs: round(sum((s) => s.renderMs)),
-		// Every tick that wrote the scroll, with what it mounted: the attribution of a jump.
+		// Every notch that moved the scroll, with what it mounted, which is where a jump came
+		// from.
 		writeTicks: samples
 			.map((s, i) => ({ i, scrolled: s.scrolled, writes: s.writes, addedKinds: s.addedKinds }))
 			.filter((t) => t.writes.length > 0)

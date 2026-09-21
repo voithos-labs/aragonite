@@ -5,17 +5,17 @@ import { attachErrorCollector, type ErrorCollector } from '../../simulation/erro
 import type { ImeDriver } from '../../simulation/ime';
 import { type SimContext } from '../../simulation/invariants';
 
-// Shared bootstrap + probes for the note-taking simulation specs.
+// Shared setup and probes for the note-taking simulation specs.
 
 export interface SimContextOpts {
-	/** A collector already attached and started, for a session that must watch the LOAD phase.
-	 *  Passing one takes the helper's own attach path out of reach, so it can neither move nor
-	 *  restart a collector that is already watching. */
+	/** A collector already attached and started, for a session that must watch the load as well.
+	 *  Passing one skips the helper's own attach step, so it can neither move nor restart a
+	 *  collector that is already watching. */
 	errors?: ErrorCollector;
 	ime?: ImeDriver;
 }
 
-// The SimContext every session runs its oracles against. Call AFTER loading the fixture.
+// The SimContext every session runs its checks against. Call it after loading the fixture.
 export async function makeSimContext(
 	page: Page,
 	editor: EditorPage,
@@ -31,8 +31,8 @@ export async function makeSimContext(
 	return { page, editor, tracker, errors, label, ime: opts.ime };
 }
 
-// Top-level index of the first child with `kind` — re-derived before each phase so
-// a script survives the index shift an insert, paste, or merge introduces.
+// Top-level index of the first child of that kind, worked out again before each phase, so a
+// script survives the shift an insert, paste or merge causes.
 export async function topLevelIndexOf(page: Page, kind: string): Promise<number> {
 	return page.evaluate(
 		(k) =>

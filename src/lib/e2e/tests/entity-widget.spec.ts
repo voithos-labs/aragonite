@@ -2,12 +2,12 @@ import { test, expect } from '../fixtures';
 import { type Page } from '@playwright/test';
 import { EditorPage } from '../editor-page';
 
-// Decoded-entity atomic widget (requirements/entity-widget.md). `&copy;` renders
-// as a `[data-inline-widget]` showing ©; the raw bytes ride data-source-*. The
-// atomic-delete case is the first executable pin of deleteGranularity:'atomic'.
+// The decoded-entity widget (requirements/entity-widget.md). `&copy;` renders as a
+// `[data-inline-widget]` showing ©, with the raw bytes on its data-source attributes. The
+// delete case is the first running test of deleteGranularity:'atomic'.
 
-// Caret offset in raw-content coordinates, widget-aware: text-node lengths plus
-// each widget's data-source span (its glyph contributes 0). Mirrors the raw walk.
+// The caret offset counted in raw bytes: the length of each text node plus each widget's
+// data-source span, since the character it shows counts for nothing.
 async function caretRaw(page: Page): Promise<number | null> {
 	return page.evaluate(() => {
 		const sel = window.getSelection();

@@ -13,17 +13,17 @@ import {
 	typeOverSelection
 } from '../../simulation/gestures/cross-block';
 
-// Reachability self-tests: each asserts the dangerous state the gesture CLAIMS to reach
-// actually engaged, since a build that silently stayed single-block would be an invisible
-// hole in the corruption oracle. The closing negative case proves the guard fails loud.
+// Each case checks that the risky state the gesture is meant to reach really happened, since a
+// range that quietly stayed inside one block would be an invisible hole in the coverage. The
+// last case shows the gesture's own check fails loudly.
 
 function makeCtx(page: Page, editor: EditorPage): Promise<SimContext> {
 	return makeSimContext(page, editor, 'reach');
 }
 
-// Build a cross-block range whose interior is 'pha'..'be': offset 2 in each of the two
-// paragraphs, so a real destroy removes those substrings (a boundary-only range would
-// merely merge). Returns the ctx the destroy gesture runs on.
+// Build a range running from 'pha' to 'be': offset 2 in each of the two paragraphs, so a real
+// delete removes that text, where a range touching only the block edges would merely merge
+// them. Returns the context the delete gesture runs on.
 async function selectAcrossContent(page: Page, editor: EditorPage): Promise<SimContext> {
 	await editor.focusBlockAtPath([0], 2);
 	const ctx = await makeCtx(page, editor);
@@ -65,7 +65,7 @@ test.describe('sim gesture reachability: cross-block', () => {
 		expect(paths!.focus.path[0]).toBe(2);
 	});
 
-	// ── Destroy over covered content ──────────────────────────────────────────
+	// ── Deleting over the covered text ────────────────────────────────────────
 
 	for (const key of ['Backspace', 'Delete'] as const) {
 		test(`${key} deletes the covered cross-block content`, async ({ page }) => {
@@ -111,7 +111,7 @@ test.describe('sim gesture reachability: cross-block', () => {
 		expect(source).toContain('CLIP');
 	});
 
-	// ── Loud no-op guard ──────────────────────────────────────────────────────
+	// ── The check that fires when nothing happened ────────────────────────────
 
 	test('a build that cannot cross fails loudly (single-block document)', async ({ page }) => {
 		await editor.loadContent('lonely\n');

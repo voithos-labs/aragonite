@@ -57,7 +57,8 @@ test.describe('prose keyboard shortcuts', () => {
 	});
 
 	test('Ctrl+3 on a heading preserves cursor position relative to content', async () => {
-		// Regression: old cursor formula (level + 1 + preEditOffset) double-counted old marker length past the prefix.
+		// The caret offset counts the new marker once: the earlier formula counted the old
+		// marker's length again past the prefix.
 		await editor.loadContent('## hello\n');
 		await editor.focusBlockEnd(0);
 		await editor.page.keyboard.press('ControlOrMeta+3');

@@ -5,9 +5,9 @@ import type { SimContext } from '../../simulation/invariants';
 import { mergeBackspaceAtStart } from '../../simulation/gestures/merge';
 import { makeSimContext } from './helpers';
 
-// Reachability self-tests: each asserts a REAL merge or container-exit unwrap happened,
-// since a Backspace that no-oped would be an invisible hole in the corruption oracle. The
-// negative case proves the no-predecessor guard fails loud.
+// Each case checks that a real merge, or a real exit from a container, happened, since a
+// Backspace that did nothing would be an invisible hole in the coverage. The last case shows
+// the gesture throws when there is no block above.
 
 function makeCtx(page: Page, editor: EditorPage): Promise<SimContext> {
 	return makeSimContext(page, editor, 'reach');
@@ -44,8 +44,8 @@ test.describe('sim gesture reachability: merge', () => {
 		expect(await editor.bridge.getSource()).toContain('tail');
 	});
 
-	// The two unwrap shapes delegate to the container exit; they change the source
-	// (a marker is dropped) without necessarily reducing the top-level count.
+	// The two unwrap cases leave the container instead: they change the source, since a marker
+	// goes, without necessarily reducing the number of top-level blocks.
 	test('list U1: Backspace at the first item unwraps it to a paragraph', async ({ page }) => {
 		await editor.loadContent('Before\n\n- one\n- two\n');
 		await mergeBackspaceAtStart(await makeCtx(page, editor), [1]);

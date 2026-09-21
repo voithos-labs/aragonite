@@ -7,16 +7,16 @@ import { makeRng } from '../../simulation/rng';
 import { assertCoreOracles } from '../../simulation/invariants';
 import { makeSimContext, topLevelIndexOf } from './helpers';
 
-// Ungated directive-ops oracle for the `:::name` primitive, whose surface spans three tiers
-// (opaque container, not-mergeable leaf, atomic inline widget) and two dispatch paths (a
-// registered name resolving to a factory node, an unregistered one to the generic lossless
-// kinds) — none of which the oracle stack had seen under a state-accumulating watcher.
-// `:::callout` and `:::mystery` drive both dispatch paths at parse.
+// The `:::name` syntax, run in the default gate. It covers three shapes (an opaque container,
+// a block that cannot merge, and an inline widget) and two paths through the parser: a
+// registered name, which resolves to the plugin's own node, and an unregistered one, which
+// falls back to the generic kinds. None of it had been run through a long session before.
+// `:::callout` and `:::mystery` drive both paths.
 
 const DIRECTIVE_DOC =
 	'Lead paragraph.\n\n' +
-	// `mystery` must stay a name NO harness plugin claims, since the generic-tier assertions
-	// depend on it — a plugin claiming it fails the generic count assertion loudly, by design.
+	// `mystery` has to stay a name no harness plugin takes, since the checks on the generic
+	// kinds depend on it; a plugin taking it fails the count check loudly, by design.
 	':::mystery\nGeneric body.\n:::\n\n' +
 	'Middle paragraph.\n\n' +
 	':::callout Note title\nRegistered body.\n:::\n\n' +
@@ -31,9 +31,9 @@ test.describe('directive-ops simulation', () => {
 
 	test.beforeEach(async ({ page }) => {
 		editor = new PluginsPage(page);
-		// `?seed=sim` installs the standing decoration source (sim-mark-plugin) on top of
-		// the base plugins, so the oracle stack watches the decoration engine run on every
-		// edit. loadContent overrides the seed's (absent) document with DIRECTIVE_DOC.
+		// `?seed=sim` adds the decoration source (sim-mark-plugin) to the base plugins, so the
+		// checks watch decorations run on every edit. `loadContent` replaces the seed's empty
+		// document with DIRECTIVE_DOC.
 		await editor.gotoPlugins('sim');
 	});
 
@@ -45,8 +45,8 @@ test.describe('directive-ops simulation', () => {
 
 		await editor.loadContent(DIRECTIVE_DOC);
 		await editor.waitForRenderFlush();
-		// Both container dispatch paths resolved at parse: the callout factory for the
-		// registered name, the generic container for the unregistered one.
+		// Both paths resolved while parsing: the callout for the registered name, the generic
+		// container for the unregistered one.
 		await expect(page.locator('.callout-block')).toHaveCount(1);
 		await expect(page.locator('.directive-block')).toHaveCount(1);
 
@@ -56,16 +56,16 @@ test.describe('directive-ops simulation', () => {
 		const checkOracles = (label: string) => assertCoreOracles(ctx, label);
 		await checkOracles('loaded');
 
-		// ── Text tier: insert an inline widget, then reveal → edit → commit ──────
+		// ── Inline: insert a widget, then open it, edit it and commit ─────────────
 		await editor.focusBlockEnd(0);
 		await page.keyboard.type(' ');
 		await g.insertTextDirective('abbr', 'HTML');
 		await expect(page.locator('.directive-text-widget')).toHaveCount(1);
 		await checkOracles('text-inserted');
 
-		// Liveness pin: a source that silently stopped emitting would leave the battery green with
-		// zero decoration coverage. It sits after the FIRST EDIT, not at load, because `loadContent`
-		// fires no edit event and the source cannot paint before that commit.
+		// Proves the decoration source is alive: one that quietly stopped would leave this suite
+		// green with no decoration coverage at all. It comes after the first edit, not at load,
+		// since `loadContent` fires no edit event and nothing is drawn before that commit.
 		await expect
 			.poll(() => page.locator('.decoration-overlay.sim-standing-mark').count())
 			.toBeGreaterThan(0);
@@ -75,7 +75,7 @@ test.describe('directive-ops simulation', () => {
 		expect(await editor.bridge.getSource()).toContain(':abbr[XHTML]');
 		await checkOracles('text-edited');
 
-		// ── Leaf tier: insert on a fresh line, edit its info, not-mergeable Backspace ─
+		// ── One-line form: insert on a new line, edit it, Backspace at its start ────
 		await editor.focusBlockEnd((await editor.bridge.getBlockCount()) - 1);
 		await g.pressEnter();
 		await g.insertLeafDirective('toc', 'info');
@@ -87,22 +87,22 @@ test.describe('directive-ops simulation', () => {
 		expect(await editor.bridge.getSource()).toContain('::toc info more');
 		await checkOracles('leaf-edited');
 
-		// Not-mergeable: Backspace at the leaf start must move focus, never concatenate.
+		// It cannot merge, so Backspace at its start moves the focus and joins nothing.
 		await g.leafBackspaceAtStart(leafIndex);
 		await checkOracles('leaf-not-mergeable');
 
-		// ── Container tier (unregistered): body edit, then split the body ────────
+		// ── Container, unregistered: edit the body, then split it ─────────────────
 		let tipIndex = await topLevelIndexOf(page, 'directiveContainer');
 		await g.editContainerBody([tipIndex, 0], ' extra');
 		expect(await editor.bridge.getSource()).toContain('Generic body. extra');
 		await checkOracles('tip-body-edit');
 
-		// The caret sits at the edited body child's end — Enter splits it in place, a
-		// structural op that must grow the container's children, never the root.
+		// The caret sits at the end of the edited child, so Enter splits it in place, which
+		// must add a child to the container, never to the document root.
 		await g.pressEnter();
 		await checkOracles('tip-body-split');
 
-		// ── Container tier (registered): edit the callout's body child ───────────
+		// ── Container, registered: edit the callout's body child ──────────────────
 		const noteIndex = await topLevelIndexOf(page, 'callout');
 		await g.editContainerBody([noteIndex, 1], ' reg');
 		expect(await editor.bridge.getSource()).toContain('Registered body. reg');
@@ -129,7 +129,7 @@ test.describe('directive-ops simulation', () => {
 		await g.undo();
 		await checkOracles('container-paste-undo');
 
-		// ── Undo across the reveal-commit and the leaf promotion ─────────────────
+		// ── Undo across the widget commit and the change of kind ──────────────────
 		await g.undo();
 		await checkOracles('note-body-edit-undo');
 	});

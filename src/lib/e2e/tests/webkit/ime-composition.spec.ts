@@ -2,8 +2,9 @@ import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 import { attachIme } from '../../simulation/ime';
 
-// The WebKit lane's composition arm (requirements/webkit/ime-composition.md): the commit funnel
-// under a hand-fired sequence. Event ORDER is the CDP spec's claim, not this one's.
+// WebKit's composition branch (requirements/webkit/ime-composition.md): the commit path under a
+// sequence of events fired by hand. The order of those events is the CDP spec's claim, not this
+// one's.
 
 function countOf(haystack: string, needle: string): number {
 	return haystack.split(needle).length - 1;
@@ -41,8 +42,8 @@ test.describe('webkit: composition through the hand-fired arm', () => {
 		await ime.compose('か');
 		await ime.abort();
 
-		// No commit runs, so no source predicate can settle on the abort; the block's own text
-		// is what the window wrote, and it must lose the candidate.
+		// Nothing commits, so no wait on the source can see the abort; the block's own text is
+		// what composition wrote, and it must lose the candidate.
 		await editor.page.waitForFunction(
 			() => (document.activeElement?.textContent ?? '') === 'hello world',
 			null,

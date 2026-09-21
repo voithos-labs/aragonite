@@ -4,8 +4,8 @@ import { EditorPage } from '../../editor-page';
 import { attachErrorCollector, type ErrorCollector } from '../../simulation/error-collector';
 
 /**
- * A green session is only meaningful if the collector would have FAILED on a real fault, so
- * each test injects one and asserts `assertNone` throws.
+ * A clean session means something only if the collector would really have failed on a fault, so
+ * each test causes one and checks that `assertNone` throws.
  */
 async function assertThrows(errors: ErrorCollector): Promise<void> {
 	let threw = false;
@@ -17,7 +17,7 @@ async function assertThrows(errors: ErrorCollector): Promise<void> {
 	expect(threw).toBe(true);
 }
 
-/** Console delivery to the Node listener is async, so a verdict is polled, never read once. */
+/** Console messages reach the Node listener asynchronously, so this polls, never reads once. */
 async function pollUntilThrows(errors: ErrorCollector, waive?: string[]): Promise<void> {
 	await expect
 		.poll(async () => {
@@ -34,7 +34,7 @@ async function pollUntilThrows(errors: ErrorCollector, waive?: string[]): Promis
 const warnOnPage = (page: Page, text: string): Promise<void> =>
 	page.evaluate((t) => console.warn(t), text);
 
-/** Svelte's own emission shape, `%c` styling included, so the watch is read against the real one. */
+/** The shape Svelte really emits, `%c` styling included, so the watch is tested against it. */
 const svelteWarnOnPage = (page: Page, code: string): Promise<void> =>
 	page.evaluate(
 		(c) =>
@@ -60,8 +60,8 @@ test.describe('simulation error collector', () => {
 
 	test('catches a structured error event injected after a source resync', async ({ page }) => {
 		const errors = attachErrorCollector(page);
-		// Subscribe BEFORE the resync; the fault fires after it. A pass proves the
-		// editor's events instance survives a source-prop change (no remount).
+		// Subscribe before the source is replaced; the fault happens after. Passing shows the
+		// editor's events object survives a change of the source prop without remounting.
 		await errors.start();
 		await editor.loadContent('alpha\n\nbeta\n\ngamma\n');
 		await page.evaluate(() => (window as any).__test.makeBlockThrowOnRender(1));
@@ -73,14 +73,14 @@ test.describe('simulation error collector', () => {
 		const errors = attachErrorCollector(page);
 		await errors.start();
 		await warnOnPage(page, '[some-dependency] a warning from outside the editor');
-		// Give the console event the same delivery window the sentinel tests rely on.
+		// Give the console event the same time to arrive that the other cases allow.
 		await page.waitForTimeout(200);
 		await errors.assertNone();
 	});
 });
 
-// Scoped per describe: a file-level declaration would also cover the tests above, which
-// trip nothing and so must stay under the shared fixture's watch.
+// Declared per describe block: at file level it would also cover the tests above, which
+// trigger nothing and must stay under the shared watch.
 test.describe('simulation error collector: the dev-warn sentinel', () => {
 	test.use({ expectWarns: ['tree-ops'] });
 
@@ -94,10 +94,10 @@ test.describe('simulation error collector: the dev-warn sentinel', () => {
 	});
 });
 
-// Svelte's runtime warns carry no sentinel, so both watches key on the `[svelte] <code>` head
-// instead. The `test.use` claim proves the spec watch saw it; the waiver proves the collector did.
-// Two codes, because the collector once carried a list of known ones: `derived_inert` is outside
-// any such list, so a narrowing reds here on detection rather than only on the waiver's spelling.
+// Svelte's runtime warnings carry no `[aragonite:…]` tag, so both watches match on
+// `[svelte] <code>` instead. Declaring it in `test.use` shows the spec's watch saw it; waiving
+// it shows the collector did. Two codes, because `derived_inert` would fall outside any list of
+// known ones, so narrowing the match fails here on detection rather than on spelling.
 for (const code of ['state_proxy_equality_mismatch', 'derived_inert']) {
 	test.describe(`simulation error collector: the svelte runtime channel (${code})`, () => {
 		test.use({ expectSvelteWarns: [code] });

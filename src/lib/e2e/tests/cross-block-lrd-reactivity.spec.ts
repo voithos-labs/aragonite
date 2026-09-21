@@ -16,8 +16,8 @@ test.describe('cross-block LRD reactivity', () => {
 		await expect(block0.locator('span.md-unresolved-ref')).toHaveCount(1);
 		await expect(block0.locator('a.md-link-content')).toHaveCount(0);
 
-		// Replace block 1's text with an LRD — a real user edit that never
-		// touches block 0 but changes the LRD signature.
+		// Replace block 1's text with a link reference definition: a real edit that never
+		// touches block 0 but changes what the definitions say.
 		await editor.focusBlockEnd(1);
 		await page.keyboard.press('Shift+Home');
 		await page.keyboard.type('[d]: https://example.com');

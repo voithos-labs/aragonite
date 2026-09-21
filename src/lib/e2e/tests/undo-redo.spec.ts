@@ -72,10 +72,10 @@ test.describe('undo and redo', () => {
 	});
 
 	test('undo across a paragraph→htmlBlock flip restores the rendered DOM, not just the source', async () => {
-		// Typing the last char of `<div` reparses the paragraph to an htmlBlock, and the browser
-		// has already inserted it, so the DOM matches before the render runs. Asserted on the
-		// rendered DOM, not the source: the CST is correct after undo either way, and only the
-		// stale DOM would commit the undone byte back on the next keystroke.
+		// Typing the last character of `<div` reparses the paragraph as an html block, and the
+		// browser has already inserted it, so the DOM matches before the render runs. Checked on
+		// the rendered DOM rather than the source: the tree is right after undo either way, and
+		// only a stale DOM would write the undone byte back on the next keystroke.
 		await editor.loadContent('<di\n');
 		await editor.focusBlockEnd(0);
 		await editor.typeText('v');
@@ -87,7 +87,7 @@ test.describe('undo and redo', () => {
 		expect(await editor.bridge.getBlockKind(0)).toBe('paragraph');
 		expect(await editor.getBlockText(0)).toBe('<di');
 
-		// The undone byte must not resurrect through the next keystroke's readback.
+		// The undone byte must not come back when the next keystroke reads the DOM.
 		await editor.focusBlockEnd(0);
 		await editor.typeText('z');
 		await editor.bridge.waitForSourceContains('z');

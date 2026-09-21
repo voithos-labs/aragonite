@@ -2,11 +2,11 @@ import { test, expect } from '../fixtures';
 import { EditorPage } from '../editor-page';
 import { attachIme } from '../simulation/ime';
 
-// Real IME composition via CDP, producing genuine compositionstart/update/end events
-// (requirements/ime-composition.md). Chromium's order, pinned by the first test: every
-// insertCompositionText fires with isComposing true BEFORE compositionend, and the post-end
-// CST commit is the surface's own funnel, not another DOM input event. These sequences are
-// G1.27's first deliberate real-browser exercise.
+// Real IME composition over CDP, producing genuine compositionstart/update/end events
+// (requirements/ime-composition.md). Chromium's order is pinned by the first test: every
+// insertCompositionText fires with isComposing true before compositionend, and the commit to
+// the tree afterwards comes from the block's own code, not from another DOM input event. These
+// sequences are the first deliberate real-browser exercise of G1.27.
 
 function countOf(haystack: string, needle: string): number {
 	return haystack.split(needle).length - 1;
@@ -66,8 +66,8 @@ test.describe('IME composition', () => {
 		await ime.commit('かん');
 		await editor.bridge.waitForSourceContains('codeかん');
 
-		// The insertLineBreak/newline gates apply mid-composition only: with the
-		// window closed, Enter must splice its newline into the body normally.
+		// The checks on insertLineBreak apply only while composing: once composition has ended,
+		// Enter must put its newline into the body as usual.
 		await page.keyboard.press('Enter');
 		await editor.bridge.waitForSourceContains('codeかん\n\n```');
 		expect(await page.evaluate(() => (window as any).__test.roundTripStable())).toBe(true);
@@ -112,8 +112,8 @@ test.describe('IME composition', () => {
 		await ime.commit('かん');
 		await editor.bridge.waitForSourceContains('かん');
 
-		// One entry per composition: the commit funnels through one
-		// updateBlockContent whose debounced snapshot anchors pre-composition.
+		// One undo entry per composition: the commit goes through a single updateBlockContent,
+		// whose debounced snapshot was taken before the composition started.
 		await editor.undo();
 		await editor.bridge.waitForSourceEquals('hello world\n');
 	});

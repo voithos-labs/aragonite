@@ -2,10 +2,10 @@ import { test, expect } from '../fixtures';
 import { waitForEditorHydrated } from '../page-probes';
 import { repeatedWordInParagraph } from '../showcase-document';
 
-// The `/` showcase at phone width, which is the only place these defects exist: the pinned
-// 1280 viewport sees nothing that pans, falls off an edge, or waits on a hover no touch
-// device has. Nothing here names a sentence of the demo document, which the owner rewrites
-// by hand. Requirements: e2e/requirements/mobile-showcase.md.
+// The `/` showcase at phone width, the only place these defects appear: at the fixed 1280
+// viewport nothing scrolls sideways, falls off an edge, or waits on a hover a touch device
+// cannot do. Nothing here quotes a sentence of the demo document, which is rewritten by hand.
+// Requirements: e2e/requirements/mobile-showcase.md.
 
 const PHONE = { width: 320, height: 640 };
 
@@ -18,8 +18,8 @@ test.describe('/ showcase on a phone', () => {
 	});
 
 	test('neither the page nor the document pans sideways', async ({ page }) => {
-		// Polled, not read once: the demo's widest block animates, so a single sample can
-		// miss the frame that pushes the pan.
+		// Polled rather than read once: the widest block animates, so a single measurement can
+		// miss the frame that pushes the page sideways.
 		await expect
 			.poll(() =>
 				page.evaluate(() => {
@@ -45,7 +45,7 @@ test.describe('/ showcase on a phone', () => {
 		);
 		expect(offscreen).toEqual([]);
 
-		// `live` is the far end of the group, so it is the one an unwrappable strip loses.
+		// `live` sits at the far end of the group, so it is the one a row that cannot wrap loses.
 		await page.locator('.showcase-mode[data-mode="live"]').tap();
 		await expect(page.locator('.editor')).toHaveAttribute('data-presentation', 'live');
 	});
@@ -59,7 +59,7 @@ test.describe('/ showcase on a phone', () => {
 		expect(box.x, 'the bar hangs off the left edge').toBeGreaterThanOrEqual(0);
 		expect(box.x + box.width, 'the bar hangs off the right edge').toBeLessThanOrEqual(PHONE.width);
 
-		// A tap, not the mount's own autofocus: hit-testing the input is the half that failed.
+		// A tap, not the focus the field takes on mount: hitting the field is what failed.
 		const word = repeatedWordInParagraph();
 		expect(word, 'the demo document holds no repeated word to search for').not.toBeNull();
 		await page.locator('.search-input').first().tap();
@@ -71,17 +71,17 @@ test.describe('/ showcase on a phone', () => {
 		// On by default: no toggle tap first.
 		const handle = page.locator('.block-drag-handle').first();
 
-		// Nothing hovers on touch, so a handle the hover rule alone reveals stays transparent.
+		// Nothing hovers on a touch screen, so a handle shown only on hover stays invisible.
 		await expect.poll(() => handle.evaluate((el) => getComputedStyle(el).opacity)).toBe('1');
-		// Playwright's hit test is the assertion: a `pointer-events: none` grip never
-		// becomes the target under the tap point.
+		// Playwright's hit test is the check: a handle with `pointer-events: none` never ends up
+		// as the element under the tap.
 		await handle.locator('.grip').tap();
 	});
 
 	test('the controls a thumb has to hit clear 24px', async ({ page }) => {
-		// WCAG 2.2 AA (2.5.8), not the 44px HIG figure: the header carries eleven controls, and
-		// 44 apiece puts back over the document every row the condensed header just gave it.
-		// Buttons and links both: a census matching one tag name misses the class at the other.
+		// WCAG 2.2 AA (2.5.8), not Apple's 44px: the header carries eleven controls, and 44 each
+		// would put back over the document every row the condensed header just gave it. Buttons
+		// and links both, since counting one tag name would miss the other.
 		const header = await page
 			.locator('.showcase-header button, .showcase-header a')
 			.evaluateAll((els) =>
@@ -106,8 +106,8 @@ test.describe('/ showcase on a phone', () => {
 	});
 
 	test('the header leaves the document three quarters of the screen', async ({ page }) => {
-		// A quarter, not a fifth: thumb-sized controls cost two rows back, and a header that
-		// cannot be operated is not a saved row.
+		// A quarter, not a fifth: controls big enough for a thumb cost two rows back, and a
+		// header nobody can operate saves nothing.
 		const header = (await page.locator('.showcase-header').boundingBox())!;
 		expect(header.height).toBeLessThanOrEqual(PHONE.height / 4);
 	});

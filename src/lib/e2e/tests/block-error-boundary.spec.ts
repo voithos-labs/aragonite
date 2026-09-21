@@ -37,9 +37,9 @@ test.describe('per-block error boundary', () => {
 
 	test('undo restoring healthy bytes retries the render on the same instance', async ({ page }) => {
 		await editor.loadContent('alpha\n\nbeta\n\ngamma\n');
-		// An undoable edit to the block we then break, so a single undo restores BOTH
-		// the healthy bytes and the pre-break (paragraph) kind to the SAME mounted host
-		// — a small doc never windows the block out, so the boundary can't self-heal.
+		// An undoable edit to the block that is then broken, so one undo restores both the good
+		// bytes and the paragraph kind in the same mounted block: a short document never
+		// unmounts it, so the error boundary cannot recover on its own.
 		await editor.clickBlock(1);
 		await editor.typeText('X');
 		await page.evaluate(() => (window as any).__test.makeBlockThrowOnRender(1));
@@ -50,8 +50,8 @@ test.describe('per-block error boundary', () => {
 		await editor.undo();
 		await editor.waitForRenderFlush();
 
-		// Reset-on-heal retries the render once the bytes round-trip again, rather than holding
-		// the fallback for the life of the instance.
+		// The block is rendered again once its bytes round-trip, rather than keeping the
+		// fallback for the life of the editor.
 		await expect(page.locator('[data-failed-block]')).toHaveCount(0);
 		await expect(editor.getBlock(1)).toContainText('beta');
 		await expect(editor.getBlock(1)).toHaveAttribute('contenteditable', 'true');
@@ -62,8 +62,8 @@ test.describe('per-block error boundary', () => {
 		await page.evaluate(() => (window as any).__test.makeBlockThrowOnRender(1));
 		await editor.waitForRenderFlush();
 
-		// Click (not programmatic focus) so the caret has a measurable rect for
-		// the visual-line boundary checks, as a real user's caret would.
+		// A click rather than focusing in code, so the caret has a box that can be measured for
+		// the line-boundary checks, as a real user's caret would.
 		await editor.clickBlock(0);
 		await page.keyboard.press('ArrowDown');
 		await expect(editor.getBlock(2)).toBeFocused();

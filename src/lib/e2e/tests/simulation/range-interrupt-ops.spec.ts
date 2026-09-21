@@ -9,33 +9,32 @@ import { assertCoreOracles } from '../../simulation/invariants';
 import type { RangeInterruptGesture } from '../../simulation/gestures/range-interrupt';
 import { makeSimContext } from './helpers';
 
-// Deterministic reachability for the select-all → gesture → keystroke family: every gesture
-// fires once over a document shaped to reach it, so coverage never depends on which seed drew
-// what. PROBES is keyed by the gesture UNION, so a gesture joining the family without a probe
-// is an `npm run check` error rather than a silent hole — a runtime assertion over the same
-// two typed records could never fail. Per-gesture predictions:
+// Every select-all, gesture, keystroke sequence, run once over a document shaped to reach it,
+// so coverage never depends on which seed drew what. PROBES is keyed by the list of gestures
+// itself, so a new gesture without a probe fails `npm run check` rather than leaving a silent
+// hole. What each gesture is expected to do:
 // requirements/simulation/range-interrupt-ops.md.
 
 const PROSE_DOC = 'first para\n\nsecond para\n\nthird para\n';
-// Prose carries no drag handle; the divider is the grip the press needs.
+// Prose carries no drag handle, so the thematic break is the block whose handle can be pressed.
 const GRIP_DOC = PROSE_DOC + '\n---\n';
 const IMAGE_DOC = 'first para\n\nsecond para\n\n![diagram|440](/test-fixtures/sample.png)\n';
 const MATH_DOC = 'Alpha lead paragraph.\n\nBeta $x^2$ middle.\n\nGamma tail paragraph.\n';
 const BLOCK_MATH_DOC = 'Alpha lead paragraph.\n\n$$x^2$$\n\nGamma tail paragraph.\n';
-// The blank lines are fixture hygiene, not a workaround: a demotion at `# Overview` now
-// folds inside the commit either way, so live and reload agree at any spacing.
+// The blank lines keep the fixture tidy rather than working around anything: demoting
+// `# Overview` behaves the same either way, so the live document and a reload agree.
 const TOC_DOC = '# Overview\n\nSome prose here.\n\n## Details\n\n[[toc]]\n\nFooter line.\n';
-// A table FIRST, so the editor's leading padding is the gap boundary a click can reach; the
-// trailing paragraph is long enough to anchor the select-all the family builds from.
+// A table first, so the editor's top padding is a gap a click can reach; the paragraph at the
+// end is long enough to start the select-all these cases build from.
 const LEADING_TABLE_DOC =
 	'| a | b |\n| --- | --- |\n| 1 | 2 |\n\n```\ncode\n```\n\ntrailing paragraph\n';
 
 interface Probe {
-	/** The plugins route is only for gestures a bundled plugin's surface provides. */
+	/** The plugins route is only for gestures that a bundled plugin provides. */
 	route: 'editor' | 'plugins';
 	title: string;
 	doc: string;
-	/** The mounted surface the gesture aims at, waited for before the range is built. */
+	/** The element the gesture aims at, waited for before the range is built. */
 	ready?: string;
 }
 
@@ -82,17 +81,17 @@ const PROBES: Record<RangeInterruptGesture, Probe> = {
 		doc: MATH_DOC,
 		ready: '.math-inline-widget'
 	},
-	// The render-primary reveal click is the gesture whose missing reset cost a
-	// whole-document delete — the one door with no source text for the cross-block
-	// dispatcher to hit-test, so its rendered view owes the preamble itself.
+	// Clicking a rendered block to open its source is the gesture whose missing reset cost a
+	// whole document: it is the one path with no source text for the cross-block handler to
+	// click into, so the rendered view has to end the range itself.
 	'block-reveal-click': {
 		route: 'plugins',
 		title: 'a render-primary reveal click types into the reveal, not over the document',
 		doc: BLOCK_MATH_DOC,
 		ready: '.math-block-render'
 	},
-	// A TOC entry lands its caret through `rects.navigateTo`, not through any pointer
-	// door — outside the perimeter G2.12 can see at all.
+	// A table-of-contents entry places its caret through `rects.navigateTo` rather than through
+	// any pointer path, so it lies outside what G2.12 can see.
 	'toc-entry-click': {
 		route: 'plugins',
 		title: 'a TOC entry click types at the heading it navigated to',

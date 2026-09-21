@@ -11,43 +11,43 @@ import {
 } from './vr-helpers';
 import { capturePageErrors } from '../../page-probes';
 
-// Windowing bounds the mounted set: a doc whose estimated height clears the
-// activation watermark mounts only a window of blocks (plus spacers); a small doc
-// renders every block with no spacers. Covers flat docs and the giant single
-// blockquote / list / table container cases.
+// Windowing limits how many blocks are mounted: a document whose estimated height passes the
+// activation threshold mounts only a window of them, plus spacers, while a small document
+// renders every block with no spacers. Covers flat documents and the cases of one huge
+// blockquote, list or table.
 
 function mountedBlockCount(page: Page): Promise<number> {
 	return page.evaluate(() => (window as any).__test.perf.snapshot().mountedBlockCount);
 }
 
-/** Every ceiling below pairs with this floor: a ceiling alone is satisfied by mounting
- *  NOTHING, so only the span proves the slice covers what the reader can see. */
+/** Every ceiling below pairs with this: a ceiling alone is met by mounting nothing, so only
+ *  how far the mounted blocks reach shows they cover what the reader can see. */
 async function expectMountedBandSpansViewport(page: Page, selector: string): Promise<void> {
 	const span = await mountedViewportSpan(page, selector);
 	expect(span.topGapPx).toBeLessThan(span.viewportHeight * MAX_UNMOUNTED_EDGE_FRACTION);
 	expect(span.bottomGapPx).toBeLessThan(span.viewportHeight * MAX_UNMOUNTED_EDGE_FRACTION);
 }
 
-// Total mounted BlockHosts, INCLUDING nested (comma-path) hosts. getDomBlockCount
-// counts top-level hosts only, so for a single giant container it would read ~1
-// whether or not the container windows — useless as a windowing assertion.
+// Every mounted block host, nested ones included. getDomBlockCount counts only top-level
+// hosts, so for one huge container it would read about 1 whether the container windows or not,
+// which proves nothing.
 function allHostCount(page: Page): Promise<number> {
 	return page.evaluate(() => document.querySelectorAll('[data-block-path]').length);
 }
 
 test('windowing bounds the mounted set on a multi-thousand-block doc', async ({ page }) => {
-	// 1.2-1.5m alone on a laptop, nearly all of it the 2MB fixture load; a hang guard, not a
-	// budget, so it carries ~3x rather than reading red as calibration drifts.
+	// 1.2 to 1.5 minutes alone on a laptop, nearly all of it loading the 2MB fixture. A limit
+	// against hanging rather than an expectation, so it allows about three times that.
 	test.setTimeout(300_000);
 	const pageErrors = capturePageErrors(page);
 	const editor = new EditorPage(page);
 	await editor.goto();
-	// This test's first post-goto interaction is a 2s-timeout load, not the 90s probe its
-	// neighbours ride; under CPU contention it can fire mid-navigation and abort.
+	// This test's first action after navigating is a load with a 2s timeout, not the 90s wait
+	// its neighbours use, and on a busy machine it can fire mid-navigation and abort.
 	await page.waitForURL(/\/test\/editor/);
 
-	// Reset to a 1-block baseline BEFORE arming perf: the running balance is otherwise
-	// polluted by the showcase mounted while the gauge was off, reading window-minus-showcase.
+	// Reset to a one-block document before turning the counters on: otherwise the running total
+	// includes the showcase mounted while they were off, and reads too low by that much.
 	await editor.loadContent('baseline\n');
 	await page.evaluate(() => {
 		(window as any).__test.perf.enable();
@@ -56,8 +56,8 @@ test('windowing bounds the mounted set on a multi-thousand-block doc', async ({ 
 
 	const blockCount = await editor.loadLargeFixture('many-small-blocks', FIXTURE_BYTES);
 
-	// `many-small-blocks` is flat (no nested hosts), so the top-level DOM census
-	// equals the mounted window and the bound is unambiguous.
+	// `many-small-blocks` is flat, with no nested hosts, so counting top-level blocks in the
+	// DOM gives exactly the mounted window and the bound is unambiguous.
 	const domMounted = await editor.getDomBlockCount();
 	const balance = await mountedBlockCount(page);
 
@@ -66,17 +66,17 @@ test('windowing bounds the mounted set on a multi-thousand-block doc', async ({ 
 	expect(blockCount).toBeGreaterThan(2000);
 	expect(domMounted).toBeLessThan(60);
 	expect(domMounted).toBeLessThan(blockCount / 10);
-	// Cross-check the gauge against the live census; they should agree within the
-	// 1-block baseline the balance was reset on.
+	// Check the counter against the live count; they should agree to within the one block the
+	// total was reset on.
 	expect(Math.abs(balance - domMounted)).toBeLessThanOrEqual(2);
 	await expectMountedBandSpansViewport(page, TOP_LEVEL_HOSTS);
-	// Without this a render-phase throw (state_unsafe_mutation) passes silently green.
+	// Without this, a throw during render (state_unsafe_mutation) would pass unnoticed.
 	expect(pageErrors).toEqual([]);
 });
 
-// VR-8 mitigation #1. The blank gap itself is not harness-drivable (a main-thread scroll
-// driver flushes the new slice before paint), so this guards the MITIGATION instead: the
-// spacer's placeholder tint, which the editor.css rule and --vr-spacer-bg token supply.
+// The first part of the VR-8 fix. The blank gap itself cannot be produced from a test, since a
+// scroll driven on the main thread mounts the new blocks before paint, so this covers the fix
+// instead: the spacer's placeholder tint, from the editor.css rule and the --vr-spacer-bg token.
 test('windowed spacers carry a placeholder background (VR-8 skeleton)', async ({ page }) => {
 	const editor = new EditorPage(page);
 	await editor.goto();
@@ -105,8 +105,8 @@ test('mounted set stays bounded as document size grows (O(viewport), not O(doc))
 	const editor = new EditorPage(page);
 	await editor.goto();
 
-	// `many-small-blocks` is flat, so the top-level DOM census IS the mounted window —
-	// no perf-gauge reset dance needed between loads.
+	// `many-small-blocks` is flat, so counting top-level blocks in the DOM gives the mounted
+	// window directly, with no need to reset the counters between loads.
 	const cstSmall = await editor.loadLargeFixture('many-small-blocks', 500_000);
 	const mountedSmall = await editor.getDomBlockCount();
 	const cstBig = await editor.loadLargeFixture('many-small-blocks', 1_500_000);
@@ -116,12 +116,12 @@ test('mounted set stays bounded as document size grows (O(viewport), not O(doc))
 		`VR size-independence ${JSON.stringify({ cstSmall, mountedSmall, cstBig, mountedBig })}`
 	);
 
-	// The bigger doc must have far more CST blocks — otherwise "size-independent"
-	// is vacuous (two similar docs would also mount similarly).
+	// The larger document must hold far more blocks, or "it does not depend on size" proves
+	// nothing, since two similar documents would also mount similar numbers.
 	expect(cstBig).toBeGreaterThan(cstSmall * 2);
 
-	// Both windows are small in absolute terms AND nearly equal: a regression
-	// where mounting scaled with doc size (bigger doc → more mounted) fails here.
+	// Both windows are small and nearly equal: a regression where the number mounted grew with
+	// the document fails here.
 	expect(mountedSmall).toBeLessThan(60);
 	expect(mountedBig).toBeLessThan(60);
 	expect(Math.abs(mountedBig - mountedSmall)).toBeLessThanOrEqual(10);
@@ -147,23 +147,24 @@ test('giant single blockquote windows its children (phase 3 spike)', async ({ pa
 	await editor.goto();
 	await editor.loadLargeFixture('giant-single-blockquote', 2_000_000);
 
-	// ONE top-level blockquote with thousands of paragraph children — without the
-	// child count the < 150 mounted bound below proves nothing.
+	// One top-level blockquote with thousands of paragraphs inside it: without checking that
+	// count, the limit of 150 mounted below proves nothing.
 	expect(await cstBlockCount(page)).toBe(1);
 	expect(
 		await page.evaluate(() => (window as any).__test.getDocument().children[0].children.length)
 	).toBeGreaterThan(2000);
 
-	// Spacers inside the blockquote (the top scope has one child, so it emits none —
-	// every spacer comes from the nested scope).
+	// Spacers inside the blockquote: the document has one child, so it produces none itself and
+	// every spacer comes from inside.
 	expect(await spacerCount(page, '.blockquote-block')).toBeGreaterThan(0);
 
-	// Mounted hosts (top-level + nested) bounded to viewport+overscan+pin, NOT the
-	// paragraph count. getDomBlockCount excludes nested hosts, so census all paths.
+	// Mounted blocks, top-level and nested, limited by the viewport plus what is kept around it
+	// rather than by the paragraph count. getDomBlockCount leaves out nested blocks, so this
+	// counts every path.
 	expect(await allHostCount(page)).toBeLessThan(150);
 	await expectMountedBandSpansViewport(page, '[data-block-path]');
 
-	// Without this a render-phase throw in the windowed reconcile passes silently green.
+	// Without this, a throw while rendering the windowed list would pass unnoticed.
 	expect(pageErrors).toEqual([]);
 });
 
@@ -173,18 +174,18 @@ test('giant single list windows its items (phase 3)', async ({ page }) => {
 	await editor.goto();
 	await editor.loadLargeFixture('giant-single-list', 2_000_000);
 
-	// ONE top-level list with thousands of items — without the child count the
-	// < 200 mounted bound below proves nothing.
+	// One top-level list with thousands of items: without checking that count, the limit of
+	// 200 mounted below proves nothing.
 	const doc = await page.evaluate(() => (window as any).__test.getDocument());
 	expect(doc.children.length).toBe(1);
 	expect(doc.children[0].children.length).toBeGreaterThan(2000);
 
-	// Windowed INSIDE the list itself — spacers come from the .list-block scope
-	// (the top scope has one child, so it emits none).
+	// Windowed inside the list itself: the spacers come from the list, since the document has
+	// one child and produces none.
 	expect(await spacerCount(page, '.list-block >')).toBeGreaterThan(0);
 
-	// Mounted hosts (top-level + nested) bounded to viewport+overscan+pin, NOT the
-	// item count.
+	// Mounted blocks, top-level and nested, limited by the viewport plus what is kept around
+	// it rather than by the item count.
 	expect(await allHostCount(page)).toBeLessThan(200);
 	await expectMountedBandSpansViewport(page, '[data-block-path]');
 
@@ -197,24 +198,24 @@ test('giant single table windows its rows (phase 4)', async ({ page }) => {
 	await editor.goto();
 	await editor.loadLargeFixture('giant-single-table', 2_000_000);
 
-	// ONE top-level table with thousands of rows — without the row count the
-	// bound below proves nothing.
+	// One top-level table with thousands of rows: without checking that count, the limit
+	// below proves nothing.
 	const doc = await page.evaluate(() => (window as any).__test.getDocument());
 	expect(doc.children.length).toBe(1);
 	expect(doc.children[0].children.length).toBeGreaterThan(2000);
 
-	// Spacers INSIDE the table grid (the top scope has one child, so it emits none).
+	// Spacers inside the table itself, since the document has one child and produces none.
 	expect(await spacerCount(page, '.table-block >')).toBeGreaterThan(0);
 
-	// Mounted rows bounded to viewport + overscan + pin, NOT the row count.
+	// Mounted rows limited by the viewport plus what is kept around it, not by the row count.
 	expect(
 		await page.evaluate(() => document.querySelectorAll('[data-table-row-idx]').length)
 	).toBeLessThan(120);
 	// Cells, not rows: a `display: contents` row has no box to span anything with.
 	await expectMountedBandSpansViewport(page, '[data-table-row-idx] > .table-cell');
 
-	// Deleting the spacers' `grid-column: 1 / -1` shifts cells one track and splits a row
-	// across two bands. Asserted on shared top, not width — a width check survives the shift.
+	// Removing the spacers' `grid-column: 1 / -1` moves cells one column along and splits a row
+	// across two lines. Checked on the shared top rather than the width, which would survive it.
 	const band = await page.evaluate(() => {
 		const table = document.querySelector('.table-block') as HTMLElement;
 		const row = document.querySelector('[data-table-row-idx]') as HTMLElement | null;
@@ -235,6 +236,6 @@ test('giant single table windows its rows (phase 4)', async ({ page }) => {
 	expect(band!.leftGap).toBeLessThan(4);
 	expect(band!.rightGap).toBeLessThan(4);
 
-	// Without this a render-phase throw (effect_update_depth_exceeded) passes silently green.
+	// Without this, a throw during render (effect_update_depth_exceeded) would pass unnoticed.
 	expect(pageErrors).toEqual([]);
 });

@@ -4,19 +4,20 @@ import { EditorPage } from '../../editor-page';
 import { FIXTURE_BYTES, spacerCount } from './vr-helpers';
 import { capturePageErrors } from '../../page-probes';
 
-// VR-4 measure-batching guard. On a fling, many blocks mount in one frame; the
-// per-block measure-then-mutate path must not force one synchronous reflow per
-// mounted block. Read via CDP LayoutCount (real-browser only — jsdom reports zero
-// layout, so no unit suite can see this).
+// VR-4, batching the measurements. On a fast scroll many blocks mount in one frame, and
+// measuring then writing per block must not force one layout per block. Read through CDP's
+// LayoutCount, which needs a real browser: jsdom reports no layout at all, so no unit test can
+// see this.
 
-// One in-page rAF loop is load-bearing: per-step `scrollEditorTo` double-rAFs between
-// writes and mounts only a handful per frame, which inflates layouts/mount and flakes.
-// A viewport per frame mounts a windowful at once, so gross mounts far exceed frames.
+// The single in-page animation-frame loop matters: calling `scrollEditorTo` per step waits two
+// frames between writes and mounts only a handful per frame, which inflates the layouts per
+// mount and flakes. A viewport per frame mounts a whole window at once, so mounts far outnumber
+// frames.
 async function flingAndCountMounts(page: Page, frames: number, selector: string): Promise<number> {
 	return page.evaluate(
 		({ frames, selector }) => {
 			const el = document.querySelector('.editor') as HTMLElement;
-			const step = el.clientHeight; // ~1 viewport per frame
+			const step = el.clientHeight; // about one viewport per frame
 			let mounts = 0;
 			const observer = new MutationObserver((records) => {
 				for (const record of records) {
@@ -47,16 +48,17 @@ async function flingAndCountMounts(page: Page, frames: number, selector: string)
 	);
 }
 
-// One CDP LayoutCount bracket around one fling, per mount-bearing scope. The 0.3 bound sits
-// an order of magnitude below the 1:1 thrash signature (~1.0) and well above the batched
-// values (~0.03 for blocks, ~0.05 for rows), so it fails the regression without flaking.
+// One LayoutCount reading around one fast scroll, for each list that mounts blocks. The limit
+// of 0.3 sits ten times below one layout per mount, which is what the bad case looks like, and
+// well above the batched values of about 0.03 for blocks and 0.05 for rows, so it catches the
+// regression without flaking.
 const PER_MOUNT_BOUND = 0.3;
 
 interface ReflowRow {
-	/** The mounting unit, as the title names it. */
+	/** What mounts here, named as the test title names it. */
 	unit: string;
 	tag: string;
-	/** Loads the fixture and asserts the precondition that keeps the fling non-vacuous. */
+	/** Loads the fixture and checks what has to hold for the scroll to prove anything. */
 	arrange: (page: Page, editor: EditorPage) => Promise<void>;
 	selector: string;
 	log: string;
@@ -64,26 +66,26 @@ interface ReflowRow {
 
 const ROWS: ReflowRow[] = [
 	{
-		// BlockHost's edit `$effect` must skip its mount run, or a per-block rect read
-		// interleaves with the prior block's model write and forces one synchronous reflow
-		// PER mounted block instead of one per batched pass.
+		// BlockHost's edit effect must skip the run it makes on mount, or reading a block's box
+		// comes between the previous block's write and its own and forces one layout per mounted
+		// block instead of one per batch.
 		unit: 'block',
 		tag: 'VR-4',
 		arrange: async (page, editor) => {
 			const blockCount = await editor.loadLargeFixture('many-small-blocks', FIXTURE_BYTES);
-			expect(blockCount).toBeGreaterThan(2000); // enough off-window blocks to fling through
+			expect(blockCount).toBeGreaterThan(2000); // enough unmounted blocks to scroll through
 		},
 		selector: '.block-host',
 		log: 'VR-4 reflow guard'
 	},
 	{
-		// Rows aren't BlockHosts, so reverting TableRowBlock's mount-run skip alone leaves the
-		// row above green — the same blind spot that let VR-4 ship.
+		// Rows are not block hosts, so removing TableRowBlock's skip on mount alone leaves the
+		// case above passing, which is the blind spot that let VR-4 ship.
 		unit: 'table row',
 		tag: 'VR-4 table path',
 		arrange: async (page, editor) => {
 			await editor.loadLargeFixture('giant-single-table', 2_000_000);
-			// Without row windowing the fling scrolls over an already-fully-rendered grid.
+			// Without row windowing the scroll passes over a grid that is already fully rendered.
 			expect(await spacerCount(page, '.table-block >')).toBeGreaterThan(0);
 		},
 		selector: '[data-table-row-idx]',
@@ -110,7 +112,7 @@ for (const row of ROWS) {
 		await row.arrange(page, editor);
 
 		const layoutCount = await cdpLayoutCount(page);
-		// Settle the post-load layout so the before-bracket has no pending reflow.
+		// Let the layout after the load settle, so the first reading has no layout pending.
 		await editor.waitForRenderFlush();
 		const layoutsBefore = await layoutCount();
 		const mounts = await flingAndCountMounts(page, 10, row.selector);
@@ -119,7 +121,8 @@ for (const row of ROWS) {
 		const perMount = mounts > 0 ? layouts / mounts : Infinity;
 		console.log(`${row.log} ${JSON.stringify({ mounts, layouts, perMount })}`);
 
-		// Denominator floor: a fling that mounts nothing makes perMount vacuously small.
+		// A lower bound on what it divides by: a scroll that mounts nothing would make the
+		// layouts per mount meaninglessly small.
 		expect(mounts).toBeGreaterThan(200);
 		expect(perMount).toBeLessThan(PER_MOUNT_BOUND);
 		expect(pageErrors).toEqual([]);

@@ -9,13 +9,15 @@ import {
 } from './vr-helpers';
 import { capturePageErrors } from '../../page-probes';
 
-// VR-2 scroll-anchor correction, once per responsible scope. The discriminator is the SETTLED
-// scrollTop, not a within-flush block drift: model write, spacer height and slice mount share
-// one pre-paint pass, so block-Y reads flat by the time the DOM is observable. Reverting
-// `correctAnchor`'s `scrollTop += delta` pins scrollTop at the exact jump target.
+// VR-2, the scroll correction, once for each list that does it. What tells the two apart is the
+// scrollTop once it has settled, not a block moving mid-flush: the height table, the spacer and
+// the newly mounted blocks all land in one pass before paint, so a block's position reads flat
+// by the time the DOM can be read. Removing `correctAnchor`'s `scrollTop += delta` leaves
+// scrollTop at exactly the jump target.
 
-// Tall `<br>`-heavy paragraphs the char-based estimator under-models ~30×, interleaved with
-// short ones: a deep scroll then lands in an unmeasured band — the VR-2 jump condition.
+// Tall paragraphs full of `<br>`, which the character-count estimate makes about 30 times too
+// short, mixed with short ones, so a deep scroll lands in a stretch nothing has measured, which
+// is what VR-2 is about.
 const NON_UNIFORM_BLOCKS = 1200;
 function buildNonUniformDoc(): string {
 	return (
@@ -25,7 +27,7 @@ function buildNonUniformDoc(): string {
 	);
 }
 
-/** Jump to 60% of the estimate-seeded height and let the band measure in. */
+/** Jump to 60% of the estimated height and let that stretch measure itself. */
 async function jumpAndSettle(editor: EditorPage): Promise<{ target: number; estimate: number }> {
 	const estimate = await editorScrollHeight(editor.page);
 	const target = Math.round(estimate * 0.6);
@@ -34,7 +36,7 @@ async function jumpAndSettle(editor: EditorPage): Promise<{ target: number; esti
 	return { target, estimate };
 }
 
-/** The settled scroll position plus the first mounted box clearing the viewport top. */
+/** The settled scroll position, plus the first mounted block below the viewport's top. */
 function settledView(page: Page, selector: string) {
 	return page.evaluate((sel) => {
 		const editorEl = document.querySelector('.editor') as HTMLElement;
@@ -60,7 +62,7 @@ test('a deep jump into an unmeasured band holds the viewport via scroll-anchor c
 	await editor.goto();
 	await editor.loadContent(buildNonUniformDoc());
 
-	// Without windowing there is no spacer band to jump into and the test is vacuous.
+	// Without windowing there is no spacer to jump into and the test proves nothing.
 	expect(await spacerCount(page)).toBeGreaterThan(0);
 
 	const { target, estimate } = await jumpAndSettle(editor);
@@ -69,20 +71,20 @@ test('a deep jump into an unmeasured band holds the viewport via scroll-anchor c
 	const compensation = settled.scrollTop - target;
 	console.log(`VR-2 anchor ${JSON.stringify({ estimate, target, ...settled, compensation })}`);
 
-	// The floor sits well above jitter and far below the multi-thousand-px compensation a
-	// 30×-under-modeled band produces; the uncorrected build reads exactly 0.
+	// The lower bound sits well above jitter and far below the several thousand pixels of
+	// correction a badly underestimated stretch produces; without the correction it reads 0.
 	expect(compensation).toBeGreaterThan(500);
 
-	// Sanity, not the discriminator: without correction the content is displaced while
-	// scrollTop is unchanged, so a mounted block still sits at the top edge either way.
+	// A sanity check rather than the point: without the correction the content moves while
+	// scrollTop does not, so a mounted block still sits at the top edge either way.
 	expect(settled.topBlockY).not.toBeNull();
 	expect(settled.topBlockY!).toBeLessThan(settled.editorTop + 60);
 	expect(pageErrors).toEqual([]);
 });
 
-// Same revert as the root arm, disjoint responsible scope. What makes the compensation
-// nested-attributable: the doc has exactly ONE top-level block, so the root scope's anchor
-// index is always 0 and `offsetOf(0) ≡ 0` makes its correction structurally a no-op.
+// The same change as the root case, on a different list. What makes the correction
+// attributable to the nested one: the document has exactly one top-level block, so the root
+// list's anchor is always index 0 and its own correction can never move anything.
 test('a deep jump into a giant blockquote holds the viewport via the nested scope anchor correction (VR-2)', async ({
 	page
 }) => {
@@ -95,8 +97,8 @@ test('a deep jump into a giant blockquote holds the viewport via the nested scop
 	expect(await spacerCount(page, '.blockquote-block')).toBeGreaterThan(0);
 
 	const { target, estimate } = await jumpAndSettle(editor);
-	// Comma-path only: proves the visible content is the blockquote's windowed children,
-	// not the container chrome.
+	// Paths with a comma only, which proves the visible content is the blockquote's own
+	// children rather than the container's markers.
 	const settled = await settledView(page, '[data-block-path*=","]');
 
 	const compensation = settled.scrollTop - target;

@@ -6,28 +6,28 @@ import { measureContainerInteriorTyping, measureTypingLatency } from './latency-
 
 declare const process: { env: Record<string, string | undefined> };
 
-// Only the deliberate launcher arms this, so a skipped gate can never read green as if it
-// had run.
+// Only the launcher that means to run this turns it on, so a skipped gate can never look green
+// as if it had run.
 test.skip(!process.env.PERF_GATE, 'run via `npm run perf:check`');
 
-// Single-machine dev-time regression gate. Same-machine p50 spread is ~3-4% measured, so
-// +10% clears the noise; the floor keeps cheap rows from tripping on a few ms of jitter.
-// Gate on the stable p50, report p95. Re-bless baseline.json only for a toolchain bump,
-// with a changelog note — never to silence a regression. Gating the 10MB rows is what
-// guards the O(viewport) claim against an O(doc) regression that would hide at 1MB.
+// A regression gate for one machine during development. The p50 varies by about 3 to 4% on the
+// same machine, so +10% clears the noise, and the floor keeps cheap rows from failing on a few
+// milliseconds of jitter. Gate on the steady p50 and report the p95. Re-measure baseline.json
+// only for a toolchain change, with a changelog note, never to quiet a regression. Gating the
+// 10MB rows is what keeps a cost per viewport from quietly becoming a cost per document.
 const TOLERANCE = 1.1;
 const FLOOR_MS = 5;
-// Slower environments scale the whole ceiling rather than re-blessing baselines per host.
-// Local stays 1 (the tight gate); CI sets it, making its gate a gross-regression net.
+// A slower machine scales every ceiling rather than re-measuring baselines per host. Locally it
+// stays 1, the tight gate; CI sets it, which turns its gate into a net for large regressions.
 const RUNNER_SCALE = Number(process.env.PERF_RUNNER_SCALE ?? '1');
 
 const SIZE_BYTES: Record<string, number> = { '1MB': 1_000_000, '10MB': 10_000_000 };
 const SIZE_KEYSTROKES: Record<string, number> = { '1MB': 30, '10MB': 15 };
 
-// The mode is a row axis, not a second harness: a `live` row measures the same keystroke the
-// source row above it does, on a route that starts in that rung. Marker hiding is CSS over the
-// one render path, so a live row landing outside its source twin's band means per-keystroke
-// work entered with the hidden-run walk.
+// The mode is a variable, not a second harness: a `live` row measures the same keystroke as the
+// source row above it, on a route that starts in that mode. Hiding markers is CSS over the one
+// render path, so a live row outside its source row's range means the walk over hidden text
+// added work to every keystroke.
 const GATED_ROWS: Array<[shape: FixtureShape, size: string, mode?: 'live']> = [
 	['flat-prose', '1MB'],
 	['nested-containers', '1MB'],
@@ -54,8 +54,8 @@ const baseline: { e2e: Record<string, E2eBaselineRow> } = JSON.parse(
 );
 
 /**
- * The blessed row and the ceiling it implies. A gated key with no baseline row fails here,
- * naming itself: the row is only as good as a number somebody measured on the pinned host.
+ * The measured row and the ceiling it sets. A gated row with no baseline fails here and names
+ * itself: a row is only as good as a number somebody measured on the reference machine.
  */
 function gateFor(key: string): { baselineMs: number; ceilingMs: number } {
 	const row = baseline.e2e[key];
@@ -94,10 +94,10 @@ test.describe('perf gate — keystroke p50 within budget', () => {
 	}
 });
 
-// Typing INSIDE a container, not ahead of one: every row above prepends a paragraph, so no
-// other gated caret ever sits inside one. The variable is the container's child COUNT rather
-// than where the caret sits, and the first child is the one windowing guarantees mounted; it is
-// also the expensive end, the only position whose keystroke moves the container's opener line.
+// Typing inside a container, not in front of one: every row above puts a paragraph first, so no
+// other gated caret ever sits inside. What varies is how many children the container has rather
+// than where the caret is, and the first child is the one windowing always keeps mounted. It is
+// also the expensive one: the only position whose keystroke moves the container's opening line.
 const CONTAINER_INTERIOR_ROWS: Array<[shape: FixtureShape, leafPath: number[], size: string]> = [
 	['giant-single-list', [0, 0, 0], '1MB'],
 	['giant-single-blockquote', [0, 0], '1MB'],

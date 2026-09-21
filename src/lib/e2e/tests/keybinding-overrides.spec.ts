@@ -34,14 +34,14 @@ test.describe('keybinding-override prop', () => {
 		await editor.page.keyboard.press('ControlOrMeta+z');
 		await expect.poll(() => editor.bridge.getSource()).toContain('helloX');
 
-		// Clearing the prop restores the built-in undo, proving overrides never mutated the keymap.
+		// Clearing the prop brings the built-in undo back, so overrides never changed the keymap.
 		await setKeybindings(editor, undefined);
 		await editor.page.keyboard.press('ControlOrMeta+z');
 		await expect.poll(() => editor.bridge.getSource()).not.toContain('helloX');
 	});
 
-	// Dropping the entry silently would leave an author guessing why their chord is inert,
-	// so the parser's report is part of the contract this case pins.
+	// Dropping the entry quietly would leave an author guessing why their shortcut does
+	// nothing, so what the parser reports is part of what this case checks.
 	test.describe('a malformed chord', () => {
 		test.use({ expectWarns: ['keybindings'] });
 
@@ -55,8 +55,8 @@ test.describe('keybinding-override prop', () => {
 		});
 	});
 
-	// Kind-scoped override over a TextEditableBlock leaf: resolveBinding's kind tier.
-	// Mod+Alt+Y has no global binding, so it fires only where the heading override exists.
+	// An override scoped to one block kind, resolved by `resolveBinding`. Mod+Alt+Y has no
+	// binding of its own, so it fires only where the heading's override exists.
 	test('per-kind scope: a heading override does not fire in a paragraph', async () => {
 		await editor.loadContent('# title\n\npara\n');
 		await setKeybindings(editor, [
@@ -76,13 +76,13 @@ test.describe('keybinding-override prop', () => {
 		await editor.page.keyboard.press('End');
 		await editor.page.keyboard.type('Z');
 		await expect.poll(() => editor.bridge.getSource()).toContain('paraZ');
-		await editor.page.keyboard.press('ControlOrMeta+Alt+y'); // unbound here — no undo
+		await editor.page.keyboard.press('ControlOrMeta+Alt+y'); // unbound here, so no undo
 		await editor.bridge.waitForSourceContains('paraZ');
 		expect(await editor.bridge.getSource()).toContain('paraZ');
 	});
 
-	// Container-bubble path: the list-item leaf paragraph declines Tab, so the chord
-	// bubbles to ListItemBlock.resolveKindBinding. A kind-scoped disable unbinds it.
+	// The key travels up to the container: the list item's paragraph declines Tab, so it reaches
+	// ListItemBlock.resolveKindBinding. An override scoped to that kind unbinds it.
 	test('per-kind scope: disabling Tab on listItem stops the indent', async () => {
 		await editor.loadContent('- one\n- two\n');
 		await setKeybindings(editor, [{ chord: 'Tab', command: null, kind: 'listItem' }]);
@@ -95,8 +95,8 @@ test.describe('keybinding-override prop', () => {
 		expect(await editor.bridge.getSource()).toContain('- two');
 	});
 
-	// Global (kind-less) scope reaches the container bubble too: resolveKindBinding
-	// consults override(global), so a global Tab-disable stops the list indent.
+	// An override with no kind reaches the container too: resolveKindBinding consults it, so
+	// disabling Tab everywhere stops the list indenting.
 	test('global scope: disabling Tab stops the list indent at the bubble', async () => {
 		await editor.loadContent('- one\n- two\n');
 		await setKeybindings(editor, [{ chord: 'Tab', command: null }]);
@@ -110,10 +110,10 @@ test.describe('keybinding-override prop', () => {
 	});
 });
 
-// The gap caret's proxy is focused DOM of its own, so the editor root's arm declines and the
-// proxy resolves the global tier itself. No leaf is focused and there is no kind scope to fall
-// back on, which makes it the surface where an override-blind pre-gate is fatal rather than
-// merely wrong: nothing else on the path can run the rebound command.
+// A caret in a gap focuses a hidden host of its own, so the editor root's handler declines and
+// that host resolves the binding itself. No block is focused and there is no kind to fall back
+// on, so this is where a check that ignores overrides is fatal rather than merely wrong:
+// nothing else on the way can run the rebound command.
 test.describe('override fires where no block holds focus', () => {
 	test('Mod+Alt+U undo fires at the gap caret between two blocks', async ({ page }) => {
 		const editor = new EditorPage(page);
@@ -134,8 +134,8 @@ test.describe('override fires where no block holds focus', () => {
 	});
 });
 
-// Mod+Alt+U has no built-in binding, so undo fires only via the per-instance override.
-// Drives every contenteditable leaf surface through its own dispatchKeyCommand call.
+// Mod+Alt+U has no built-in binding, so undo fires only through this editor's override. Drives
+// every editable block through its own dispatchKeyCommand call.
 test.describe('override fires on every leaf dispatch surface', () => {
 	const surfaces = [
 		{ name: 'paragraph', content: 'para\n', focus: '.text-editable-block' },

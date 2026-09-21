@@ -1,18 +1,18 @@
 import { test, expect } from '../fixtures';
 import { waitForEditorHydrated } from '../page-probes';
 
-// The `/changelog` route at phone width, where the header's one unwrappable row put the older
-// release families, both mode chips and the link past the right edge with no pan to bring them
-// back. The pinned 1280 viewport sees a row that fits. Everything else about the route lives in
-// plugins/changelog-route.spec.ts. Requirements: e2e/requirements/mobile-changelog.md.
+// The `/changelog` route at phone width, where the header's single row, which could not wrap,
+// pushed the older release groups, both mode chips and the link past the right edge with no way
+// to scroll to them. At the fixed 1280 viewport the row fits. Everything else about the route is
+// in plugins/changelog-route.spec.ts. Requirements: e2e/requirements/mobile-changelog.md.
 
 const PHONE = { width: 320, height: 640 };
 
-// The first release family, so no future one can take its place at the end of the picker.
+// The first release group, so no later one can take its place at the end of the picker.
 const OLDEST = '0.1';
-// Anchored, and read once before the tap: the newest family's title carries this one's as a
-// prefix, so an unanchored match passes on either document. `toHaveText` leaves the heading's
-// trailing marker space in the string it matches, hence the `\s*`.
+// Anchored, and read once before the tap: the newest group's title starts with this one's, so
+// an unanchored match would pass on either document. `toHaveText` keeps the space after the
+// heading's marker in the string it matches, hence the `\s*`.
 const OLDEST_TITLE = /Changelog 0\.1\s*$/;
 
 test.use({ viewport: PHONE, hasTouch: true });
@@ -25,8 +25,8 @@ test.describe('/changelog on a phone', () => {
 	});
 
 	test('neither the page nor the header pans sideways', async ({ page }) => {
-		// Polled, not read once: the mounted window grows as blocks land, so a single sample
-		// can precede the widest one.
+		// Polled rather than read once: more blocks mount as the page settles, so a single
+		// measurement can come before the widest one arrives.
 		await expect
 			.poll(() =>
 				page.evaluate(() => {
@@ -42,7 +42,7 @@ test.describe('/changelog on a phone', () => {
 
 	test('every chip and the showcase link lies inside the viewport', async ({ page }) => {
 		const targets = page.locator('.changelog-chip, .changelog-link');
-		// A floor, not a count: release families only ever get added.
+		// A lower bound, not an exact count: release groups only ever get added.
 		expect(await targets.count(), 'the header census matched nothing').toBeGreaterThanOrEqual(13);
 
 		const offscreen = await targets.evaluateAll(
@@ -69,8 +69,8 @@ test.describe('/changelog on a phone', () => {
 	});
 
 	test('every chip and the link clears the thumb minimum', async ({ page }) => {
-		// WCAG 2.2 AA (2.5.8), not the 44px HIG figure: the header carries a chip per release
-		// family, and 44 apiece costs the document more rows than the condensed header saves.
+		// WCAG 2.2 AA (2.5.8), not Apple's 44px: the header carries a chip per release group,
+		// and 44 each would cost the document more rows than the condensed header saves.
 		const sides = await page.locator('.changelog-chip, .changelog-link').evaluateAll((els) =>
 			els.map((el) => {
 				const box = el.getBoundingClientRect();

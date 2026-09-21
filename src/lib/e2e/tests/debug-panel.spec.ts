@@ -57,7 +57,7 @@ test.describe('debug panel', () => {
 			'Interaction trace'
 		]);
 
-		// CST tree is expanded by default — body must contain block [0].
+		// The tree section is open by default, so its body must contain block [0].
 		await expect(
 			editor.page.locator('.debug-section[data-section-title="CST tree"] .debug-section-body')
 		).toContainText('[0]');
@@ -91,8 +91,8 @@ test.describe('debug panel', () => {
 		expect(clip).toContain('### Interaction trace');
 	});
 
-	// The order IS the subject: the tree must populate whether the block gains focus
-	// before or after the section expands.
+	// The order is the subject: the tree must fill in whether the block gains focus before or
+	// after the section opens.
 	for (const order of ['click-first', 'expand-first'] as const) {
 		test(`inline tree populates when the block is focused ${order === 'click-first' ? 'before' : 'after'} the section expands`, async () => {
 			await editor.page.keyboard.press(TOGGLE_CHORD);
@@ -132,8 +132,8 @@ test.describe('debug panel', () => {
 		await editor.page.evaluate(() => (window as any).__test.trace.enable());
 		await editor.page.keyboard.type('z');
 
-		// The rebuild lands a reactive tick after the keystroke resolves — poll, don't
-		// snapshot synchronously.
+		// The rebuild happens a tick after the keystroke finishes, so poll rather than reading
+		// once straight away.
 		await editor.page.waitForFunction(() =>
 			(window as any).__test.trace
 				.snapshot()
@@ -151,14 +151,15 @@ test.describe('debug panel', () => {
 	});
 
 	test('serializeDiagnostics excludes the document by default, includes it only on opt-in', async () => {
-		// A distinctive token that can only reach the report via the Source section —
-		// the trace/ops/selection sections carry offsets and counts, never raw text.
+		// A distinctive word that can only reach the report through the Source section, since
+		// the trace, operations and selection sections carry offsets and counts, never text.
 		await editor.loadContent('PRIVATEZZ token in the document body\n');
 
 		const byDefault = await editor.page.evaluate(() =>
 			(window as any).__test.serializeDiagnostics()
 		);
-		// The privacy pin lives at the door's `?? false` default, not the builder.
+		// Leaving the text out is decided by the entry point's `?? false` default, not by the
+		// code that builds the report.
 		expect(byDefault).toContain('## Selection');
 		expect(byDefault).not.toContain('PRIVATEZZ');
 

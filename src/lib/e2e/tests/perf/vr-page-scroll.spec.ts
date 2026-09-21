@@ -40,13 +40,13 @@ test('the document owns the scroll and nothing between it and the editor does', 
 			pageOverflowPx: doc.scrollHeight - doc.clientHeight
 		};
 	});
-	// The crux of the shape: the user-scrollable walk finds nothing above the editor, so
-	// every seam that asks "what scrolls" must fall through to the window, not an element.
+	// The point of this layout: the walk for a scrollable ancestor finds nothing above the
+	// editor, so everything that asks what scrolls has to end up at the window, not an element.
 	expect(geometry.scrollable).toEqual([]);
 	expect(geometry.rootOverflowY).toBe('visible');
 	expect(geometry.rootOverflowPx).toBeLessThanOrEqual(1);
-	// Spacers stand in for the windowed-out blocks, so the root's box is still the whole
-	// modeled document and the PAGE is what overflows.
+	// Spacers stand in for the unmounted blocks, so the editor's box is still the height of the
+	// whole document and the page is what overflows.
 	expect(geometry.rootHeight).toBeGreaterThan(3000);
 	expect(geometry.pageScrollHeight).toBeGreaterThan(geometry.rootHeight);
 	expect(geometry.pageOverflowPx).toBeGreaterThan(2000);
@@ -57,8 +57,8 @@ test('windowing activates past the budget and bounds the mounted set', async ({ 
 	const pageErrors = capturePageErrors(page);
 	await gotoPageScroll(page);
 
-	// The behaviour change: a page-scrolled entry over the watermark windows, where it once
-	// mounted whole because the mode disabled windowing outright.
+	// What changed: an editor in a scrolling page windows once it is over the threshold, where
+	// it used to mount whole because this mode turned windowing off.
 	const count = await cstBlockCount(page);
 	expect(count).toBeGreaterThan(100);
 	expect(await mountedTopLevelCount(page)).toBeLessThan(count);
@@ -85,10 +85,10 @@ test('scrolling the page moves the window over the document', async ({ page }) =
 	await scrollPageTo(page, 4000);
 	const deep = await mountedIndices();
 
-	// A page scroll that never reached the height model would leave the same slice mounted.
+	// A page scroll the height table never heard about would leave the same blocks mounted.
 	expect(deep[0]).toBeGreaterThan(atTop[atTop.length - 1]);
 	expect(deep).toEqual(deep.map((_, i) => deep[0] + i));
-	// Still bounded: the slice tracks the viewport rather than accumulating behind it.
+	// Still bounded: the mounted blocks follow the viewport rather than piling up behind it.
 	expect(deep.length).toBeLessThan(atTop.length * 3);
 	expect(pageErrors).toEqual([]);
 });
@@ -97,7 +97,7 @@ test('a document under the budget never activates and renders whole', async ({ p
 	const pageErrors = capturePageErrors(page);
 	await gotoPageScroll(page, UNWINDOWED_ENTRY_BLOCKS);
 
-	// The budget is the only gate, so a small embedded document pays nothing for the feature.
+	// The threshold is the only condition, so a small embedded document pays nothing for this.
 	const count = await cstBlockCount(page);
 	expect(count).toBe(UNWINDOWED_ENTRY_BLOCKS);
 	await expect(page.locator(`.editor ${TOP_LEVEL_HOSTS}`)).toHaveCount(count);
@@ -125,8 +125,9 @@ test('scrollTo on a far block scrolls the page and lands it in the viewport', as
 	expect(pageErrors).toEqual([]);
 });
 
-// #72: the editor's own below-document landing and a host shell's (which clamps against the
-// PARSED document) agreed only while host mode never windowed. They must still name one block.
+// #72: where the editor puts a caret below the document and where an app's own handler puts
+// one, working from the parsed document, agreed only while this mode never windowed. They must
+// still name the same block.
 test('a point below the whole document lands at the document end, not the mounted tail', async ({
 	page
 }) => {
@@ -168,8 +169,8 @@ test('a search jump reveals its match and scrolls the page to it', async ({ page
 	await find.waitFor({ state: 'visible' });
 	await page.keyboard.type('Paragraph 147 ');
 
-	// The jump reveals its target: the match's block mounts and the PAGE scrolls to it. The
-	// reveal settles over several flushes, so this polls rather than reading the first frame.
+	// The jump brings its target into view: the match's block mounts and the page scrolls to
+	// it. That takes several passes, so this polls rather than reading the first frame.
 	await expect(match).toHaveCount(1);
 	await expect
 		.poll(() =>
@@ -195,7 +196,7 @@ test('a windowed-out undo target is revealed before the caret lands', async ({ p
 
 	await page.keyboard.press('ControlOrMeta+z');
 
-	// Reveal-before-act: undo mounts its target and lands the caret in it.
+	// Mount first, then act: undo mounts its target and puts the caret in it.
 	await expect(page.locator('.editor [data-block-path="[2]"]')).toHaveCount(1);
 	const top = await topVisibleBlockInViewport(page);
 	expect(top!.ref).toBe('[2]');

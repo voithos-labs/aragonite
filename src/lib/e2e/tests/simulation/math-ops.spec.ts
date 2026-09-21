@@ -6,24 +6,24 @@ import { makeRng } from '../../simulation/rng';
 import { assertCoreOracles } from '../../simulation/invariants';
 import { makeSimContext } from './helpers';
 
-// Ungated math-ops oracle. Math is the first NONZERO-INTERIOR inline widget (KaTeX renders
-// real glyph text nodes) and the first render-primary block, so its byte survival and
-// mount/unmount churn are the silent-corruption class the oracle stack exists to catch. The
-// ```math fence is a third session: a distinct kind on the same component, whose bytes no
-// session had ever moved or deleted across.
+// Math, run in the default gate. It is the first inline widget with real text inside it, since
+// KaTeX renders characters, and the first block that shows a render rather than its source, so
+// whether its bytes survive, and what mounting and unmounting does, is exactly the quiet
+// corruption these checks exist to catch. The ```math fence is a third session: another kind on
+// the same component, whose bytes no session had ever moved or deleted across.
 
 const MATH_DOC =
 	'Alpha lead paragraph.\n\n' + 'Beta middle paragraph.\n\n' + 'Gamma tail paragraph.\n';
 
-// A mermaid diagram flanked by prose so the whole-block-focus detour has an
-// editable neighbour on each side. The diagram renders through the plugin's
-// dynamic-import engine, so the SVG wait is generous.
+// A mermaid diagram with prose on both sides, so the gestures that focus the whole block have
+// an editable neighbour either way. The diagram renders through a dynamic import, so the wait
+// for its SVG is generous.
 const MERMAID_DOC =
 	'Above text\n\n```mermaid\ngraph TD\n\tA[Start] --> B[Finish]\n```\n\ntail text\n';
 
-// A ```math fence flanked by prose, mirroring the mermaid shape: the structural
-// gestures drive the fence from a neighbour on either side, so both a sibling
-// reorder and a range delete reach its bytes without ever focusing it.
+// A ```math fence with prose on both sides, like the mermaid one: the structural gestures work
+// from a neighbour, so both a move and a range delete reach the fence's bytes without ever
+// focusing it.
 const MATH_FENCE_DOC = 'Above the fence\n\n```math\nx^2\n```\n\nBelow the fence\n';
 
 test.describe('math-ops simulation', () => {
@@ -49,7 +49,7 @@ test.describe('math-ops simulation', () => {
 		const checkOracles = (label: string) => assertCoreOracles(ctx, label);
 		await checkOracles('loaded');
 
-		// ── Inline: insert at the end of a prose block, edit, delete ────────────
+		// ── Inline: insert at the end of a prose block, edit it, delete it ───────
 		await editor.focusBlockEnd(0);
 		await page.keyboard.type(' ');
 		await g.insertInlineMath('x^2');
@@ -58,9 +58,9 @@ test.describe('math-ops simulation', () => {
 		await g.editInlineMath('y');
 		await checkOracles('inline-edited');
 
-		// Caret-entry reveal: arrow-walk through the widget and back out (byte-identical
-		// entry+fold), then Backspace-enter, insert inside the formula, and commit by
-		// escaping the trailing edge (the reveal commit-on-escape path).
+		// Enter the widget with the caret: arrow through it and back out, which must change no
+		// bytes, then Backspace into it, type inside the formula and commit by moving the caret
+		// out past its end.
 		await g.walkThroughInlineMath(0);
 		await expect(page.locator('.math-inline-widget')).toHaveCount(1);
 		await checkOracles('inline-walk-through');
@@ -70,8 +70,8 @@ test.describe('math-ops simulation', () => {
 		expect(await editor.bridge.getSource()).toContain('$x^2yz$');
 		await checkOracles('inline-reveal-commit');
 
-		// Delete text flanking the surviving widget (byte survival under an adjacent
-		// edit), then the widget itself.
+		// Delete text on either side of the widget, which must survive the edit, then the
+		// widget itself.
 		await g.deleteAroundInlineMath(0);
 		await expect(page.locator('.math-inline-widget')).toHaveCount(1);
 		await checkOracles('inline-deleted-around');
@@ -79,7 +79,7 @@ test.describe('math-ops simulation', () => {
 		await g.deleteInlineMathWidget(0);
 		await checkOracles('inline-deleted');
 
-		// ── Block: promote a fresh line, edit through the source reveal ─────────
+		// ── Block: turn a new line into math, then edit it through its source ────
 		await editor.focusBlockEnd(1);
 		await g.pressEnter();
 		await g.insertBlockMath('a+b', 1);
@@ -88,7 +88,7 @@ test.describe('math-ops simulation', () => {
 		await g.editBlockMath('c', 0);
 		await checkOracles('block-edited');
 
-		// ── Undo across the reveal→commit and the promotion ─────────────────────
+		// ── Undo across the commit and the change of kind ────────────────────────
 		await g.pause();
 		await g.undo();
 		await checkOracles('block-edit-undo');
@@ -105,8 +105,8 @@ test.describe('math-ops simulation', () => {
 
 		await editor.loadContent(MERMAID_DOC);
 		await editor.waitForRenderFlush();
-		// The diagram renders through a dynamic import the dev server transforms on
-		// first hit; wait for the SVG before driving the focus gestures.
+		// The diagram renders through a dynamic import the dev server compiles on first use, so
+		// wait for the SVG before driving the focus gestures.
 		await expect(page.locator('.mermaid-viewport svg')).toHaveCount(1, { timeout: 30_000 });
 
 		const ctx = await makeSimContext(page, editor, 'mermaid-focus', { errors });
@@ -143,15 +143,15 @@ test.describe('math-ops simulation', () => {
 		const checkOracles = (label: string) => assertCoreOracles(ctx, label);
 		await checkOracles('loaded');
 
-		// Move the prose above the fence down past it and back. The fence never takes
-		// focus; only its position in the sibling array changes, and its raw + kind must
-		// come back untouched (the gesture asserts both at the intermediate position).
+		// Move the prose above the fence down past it and back. The fence never takes focus;
+		// only its position changes, and its raw text and kind must come back untouched, which
+		// the gesture checks halfway through.
 		await g.reorderPastMathFence(0, 1);
 		expect(await editor.bridge.getBlockKind(1)).toBe('mathFence');
 		await checkOracles('reordered-past');
 
-		// Delete a range that covers the fence whole, then undo. The gesture asserts no
-		// fence byte survived the collapse and the undo restored the document exactly.
+		// Delete a range covering the whole fence, then undo. The gesture checks that no byte of
+		// the fence survived and that the undo restored the document exactly.
 		await g.deleteAcrossMathFence(1);
 		expect(await editor.bridge.getBlockKind(1)).toBe('mathFence');
 		await checkOracles('deleted-across-undone');

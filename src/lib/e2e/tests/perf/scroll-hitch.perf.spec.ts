@@ -14,15 +14,15 @@ import {
 
 declare const process: { env: Record<string, string | undefined> };
 
-// Report-only, like the typing rows: what a wheel tick costs in live mode over a document
-// whose blocks are the heavy kinds. The numbers are per tick, so a hitch reads as a long task
-// or a frame gap, and a thrash as mounts plus unmounts far above the blocks a tick scrolls past.
+// Reporting only, like the typing rows: what one wheel notch costs in live mode over a document
+// of heavy blocks. The numbers are per notch, so a stutter shows up as a long task or a gap
+// between frames, and thrashing as far more mounts and unmounts than blocks scrolled past.
 test.skip(
 	!process.env.PERF || !!process.env.PERF_GATE,
 	'report-only — run via `npm run perf:e2e`; the perf:check gate skips these'
 );
 
-// One notch of a mouse wheel; a fling is several notches in one event.
+// One notch of a mouse wheel; a fast scroll is several notches in one event.
 const NOTCH_PX = 120;
 const FLING_PX = 600;
 
@@ -46,7 +46,8 @@ function section(i: number, withMath: boolean, withDiagram: boolean): string {
 		CODE,
 		'```'
 	];
-	// Distinct per section: a repeated formula hits the render memo and measures nothing.
+	// Different in each section: a repeated formula is served from the render cache and
+	// measures nothing.
 	if (withMath)
 		parts.push('$$', `\\sum_{k=0}^{${i}} \\frac{x_k^2}{${i + 1}} + \\int_0^{${i}} f(t)\\,dt`, '$$');
 	if (withDiagram)
@@ -108,8 +109,8 @@ test.describe('scroll hitch — a wheel tick in live mode over heavy blocks', ()
 		await measure(page, editor, 'code-prose', DOWN_UP);
 	});
 
-	// The caret pin: everything between the focused block and the viewport stays mounted up to
-	// the pin cap, then the pin lets go and drops it all in one flush.
+	// Everything between the focused block and the viewport stays mounted, up to the limit on
+	// how far that reaches, and then it is all dropped in one go.
 	test('code and prose with the caret parked near the top', async ({ page }) => {
 		const editor = new EditorPage(page);
 		await editor.goto('?presentationMode=live');
@@ -137,9 +138,9 @@ test.describe('scroll hitch — a wheel tick in live mode over heavy blocks', ()
 		await measure(page, editor, 'math-code-diagrams', DOWN_UP);
 	});
 
-	// The showcase as shipped: its own document, every demo plugin, the live-only toolbars.
-	// Twice: with a caret in the first block, which pins everything between it and the viewport,
-	// and without one, where the window moves freely.
+	// The showcase as it ships: its own document, every demo plugin and the live-mode toolbars.
+	// Twice: with a caret in the first block, which keeps everything between it and the viewport
+	// mounted, and without one, where the window moves freely.
 	for (const focused of [true, false]) {
 		test(`the showcase document on the demo route, ${focused ? 'caret parked' : 'no caret'}`, async ({
 			page

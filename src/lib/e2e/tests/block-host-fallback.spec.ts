@@ -1,8 +1,8 @@
 import { test, expect } from '../fixtures';
 import { EditorPage } from '../editor-page';
 
-// The fallback reports itself, and that report is half of what these cases pin: a kind
-// rendering raw with no warning would be a silent display-drop.
+// The fallback reports itself, and that report is half of what these cases check: a kind that
+// rendered its raw text with no warning would be a silent loss of display.
 test.describe('BlockHost no-component fallback', () => {
 	test.use({ expectWarns: ['block-host'] });
 
@@ -22,7 +22,7 @@ test.describe('BlockHost no-component fallback', () => {
 		const block = editor.getBlock(0);
 		await expect(block).toBeVisible();
 		await expect(block).toHaveText('orphan text');
-		// The fallback reuses the raw-editable surface, not an empty wrapper.
+		// The fallback reuses the plain editable element, not an empty wrapper.
 		await expect(block).toHaveAttribute('contenteditable', 'true');
 		await expect(block).toHaveClass(/raw-block/);
 	});

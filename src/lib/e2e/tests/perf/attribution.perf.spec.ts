@@ -11,8 +11,8 @@ import {
 } from './latency-harness';
 
 declare const process: { env: Record<string, string | undefined> };
-// Diagnostic instruments that gate nothing, so the gate run skips them. The rule lives
-// here rather than in a caller's `--grep-invert`, so local and CI run the same row set.
+// Diagnostic rows that gate nothing, so the gate run skips them. The rule sits here rather
+// than in a caller's `--grep-invert`, so a local run and CI cover the same rows.
 test.skip(
 	!process.env.PERF || !!process.env.PERF_GATE,
 	'report-only — run via `npm run perf:e2e`; the perf:check gate skips these'
@@ -47,8 +47,9 @@ async function settle(page: Page, min: number): Promise<void> {
 
 const p50 = (xs: number[]): number => percentileMs(xs, 50);
 
-/** Block 0's serialized length, the O(1) settle target: an interior keystroke reaches it
- *  through the ancestry rebuild, and summing every child would dwarf what is measured. */
+/** Block 0's serialized length, which the wait polls: a keystroke inside it reaches this
+ *  through the rebuild up to the root, and summing every child would cost more than is
+ *  being measured. */
 async function block0Len(page: Page): Promise<number> {
 	return page.evaluate(() => {
 		const c = (window as any).__test.getDocument().children[0];
@@ -63,8 +64,8 @@ interface DurationDeltaMs {
 	taskMs: number;
 }
 
-// One CDP measurement window shared by every axis. Whatever must stay OUTSIDE the window
-// (perf.enable/reset, goto, post-run snapshot reads) lives around the `run` closure.
+// One CDP measurement window shared by every row. Anything that must stay outside it
+// (perf.enable and reset, goto, reading the snapshot afterwards) sits around the `run`.
 async function cdpDurationDelta(page: Page, run: () => Promise<void>): Promise<DurationDeltaMs> {
 	const cdp = await page.context().newCDPSession(page);
 	await cdp.send('Performance.enable');
@@ -86,8 +87,8 @@ function write(name: string, result: object): void {
 	writePerfResult(`ATTR ${name}`, `attr-${name}`, result);
 }
 
-/** Arm the in-page instruments for a fresh window: enable is sticky, reset is what makes the
- *  snapshot read only what follows. */
+/** Prepare the in-page counters for a new window: enabling them sticks, and the reset is what
+ *  makes the snapshot cover only what comes after. */
 async function armPerf(page: Page): Promise<void> {
 	await page.evaluate(() => {
 		(window as any).__test.perf.enable();
@@ -95,7 +96,7 @@ async function armPerf(page: Page): Promise<void> {
 	});
 }
 
-/** N keystrokes, each timed to the settle the axis reads its rows from. */
+/** N keystrokes, each timed to the wait this row reports from. */
 async function timedKeystrokes(
 	editor: EditorPage,
 	keystrokes: number,
@@ -111,10 +112,10 @@ async function timedKeystrokes(
 	return harness;
 }
 
-// Block 0 is the only block guaranteed mounted under windowing. Focusing the LAST block of
-// a windowing-scale fixture silently no-ops — its host is unmounted, so the keystroke lands
-// on <body> and the settle hangs to timeout. Container fixtures must PREPEND a prose
-// paragraph so block 0 is editable. Mirrors latency-harness.ts's block-0 target.
+// Block 0 is the only block windowing always keeps mounted. Focusing the last block of a
+// large fixture quietly does nothing, since its host is unmounted, so the keystroke lands on
+// <body> and the wait runs to timeout. A fixture whose first block is a container has to put a
+// prose paragraph in front, so block 0 is editable, as latency-harness.ts does.
 async function loadAndFocusBlock0(page: Page, editor: EditorPage, src: string): Promise<void> {
 	await editor.goto();
 	await page.evaluate((c) => (window as any).__test.setSource(c), src);
@@ -241,7 +242,7 @@ test('axisM: which blocks re-render on one keystroke (nested 1MB)', async ({ pag
 	const editor = new EditorPage(page);
 	const src = 'perf cursor target\n\n' + generateFixture('nested-containers', 1_000_000);
 	await loadAndFocusBlock0(page, editor, src);
-	const editedIndex = 0; // loadAndFocusBlock0 focuses the prepended prose block 0
+	const editedIndex = 0; // loadAndFocusBlock0 focuses the prose block put in front
 	const base = await page.evaluate(docLengthInPage);
 	await armPerf(page);
 	await editor.typeSlowly('x');
@@ -331,7 +332,7 @@ test('axisR: steady-state instrument breakdown (nested 1MB)', async ({ page }) =
 	await loadAndFocusBlock0(page, editor, src);
 	let base = await page.evaluate(docLengthInPage);
 	await page.evaluate(() => (window as any).__test.perf.enable());
-	await editor.typeSlowly('x'); // warm up past the one-time full re-render
+	await editor.typeSlowly('x'); // warm up past the one full re-render
 	await settle(page, base + 1);
 	base += 1;
 	const rows: object[] = [];
@@ -364,12 +365,12 @@ test('axisS: steady-state latency vs flat block count', async ({ page }) => {
 		const src = generateUniformBlocks(blockCount, 4) + '\nperf cursor target\n';
 		await loadAndFocusBlock0(page, editor, src);
 		let b0 = await block0Len(page);
-		await editor.typeSlowly('x'); // warm up past the first-edit re-render
+		await editor.typeSlowly('x'); // warm up past the re-render on the first edit
 		await waitForBlock0Len(page, b0 + 1, 60_000);
 		b0 += 1;
 		await armPerf(page);
-		// CDP ScriptDuration is the airtight measure: immune to where the in-page mark and
-		// the block-0 poll each fire, and with the O(1) settle the poll script is negligible.
+		// CDP's ScriptDuration is the measure that cannot be argued with: it does not depend on
+		// when the in-page marks fire, and the cheap wait makes the polling script negligible.
 		const harness: number[] = [];
 		const N = 10;
 		const delta = await cdpDurationDelta(page, async () => {
@@ -377,8 +378,8 @@ test('axisS: steady-state latency vs flat block count', async ({ page }) => {
 				...(await timedKeystrokes(editor, N, (i) => waitForBlock0Len(page, b0 + i, 60_000)))
 			);
 		});
-		// Mounted top-level host count from the DOM — robust to perf-enable timing
-		// (the net mountedBlockCount counter needs enabling before any block mounts).
+		// The number of mounted top-level hosts, counted in the DOM, so it does not depend on
+		// when the counters were enabled: mountedBlockCount needs enabling before any mount.
 		const mountedTopLevel = await page.evaluate(
 			() => document.querySelectorAll('[data-block-path]:not([data-block-path*=","])').length
 		);
@@ -398,9 +399,10 @@ test('axisS: steady-state latency vs flat block count', async ({ page }) => {
 	expect(rows.length).toBe(3);
 });
 
-// ── Axis Load: flat load-cliff attribution ──────────────────────────────────
-// Separates the two candidate causes of a slow flat load — first-render-mounts-all vs
-// O(count) tree materialization — via mounted-vs-child count and the CDP script/layout split.
+// ── Axis Load: where the time goes on a slow load ───────────────────────────
+// Tells the two possible causes of a slow flat load apart, mounting every block on the first
+// render or building a tree that costs per block, by comparing mounted blocks against total
+// children and splitting the CDP time into scripting and layout.
 test('axisLoad: flat load mounted-count + script/layout split', async ({ page }) => {
 	const editor = new EditorPage(page);
 	const rows: object[] = [];
@@ -437,9 +439,9 @@ test('axisLoad: flat load mounted-count + script/layout split', async ({ page })
 	expect(rows).toHaveLength(3);
 });
 
-// ── Axis T: first-edit full instrument profile (vs steady-state axisR) ───────
-// The LRD resolver is reassigned only on a real signature change, so the first edit after
-// load must not fan out into a full-document re-render.
+// ── Axis T: every counter on the first edit, against axis R's steady state ──
+// The link-definition resolver is replaced only when the definitions really change, so the
+// first edit after a load must not re-render the whole document.
 
 test('axisT: first-edit full instrument profile (nested 1MB)', async ({ page }) => {
 	const editor = new EditorPage(page);
@@ -447,7 +449,7 @@ test('axisT: first-edit full instrument profile (nested 1MB)', async ({ page }) 
 	await loadAndFocusBlock0(page, editor, src);
 	const base = await page.evaluate(docLengthInPage);
 	await armPerf(page);
-	await editor.typeSlowly('x'); // the FIRST edit after load
+	await editor.typeSlowly('x'); // the first edit after the load
 	await settle(page, base + 1);
 	const s = await page.evaluate(() => (window as any).__test.perf.snapshot());
 	write('axisT-first-edit', {
@@ -458,22 +460,22 @@ test('axisT: first-edit full instrument profile (nested 1MB)', async ({ page }) 
 		snapshotCount: s.snapshotCount,
 		rebuildDepths: s.rebuildDepths
 	});
-	// A document-wide fan-out reads in the tens of thousands here, so the generous bound
-	// still catches a regression back to one.
+	// Re-rendering the whole document reads in the tens of thousands here, so even this
+	// generous limit catches a regression back to that.
 	expect(s.blockRenderCount).toBeLessThanOrEqual(50);
 });
 
-// ── Axis I: container-interior direct attribution ───────────────────────────
-// The axis no other row here can see: every one of them prepends a prose target and types
-// AHEAD of the container, so none has ever measured a keystroke from inside one.
+// ── Axis I: typing inside a container ───────────────────────────────────────
+// What no other row here can see: every one of them puts a prose block in front and types
+// before the container, so none has ever measured a keystroke from inside one.
 
 const INTERIOR_LEAF_PATHS = [
 	[0, 0, 0],
 	[0, 20, 0]
 ];
 
-/** A leaf the container windowed out takes the keystroke on `<body>`, so the settle hangs to
- *  timeout instead of reporting. Mirrors loadAndFocusBlock0's block-0 check. */
+/** A child the container unmounted takes the keystroke on `<body>`, so the wait runs to
+ *  timeout instead of reporting, the same check loadAndFocusBlock0 makes. */
 async function assertLeafMounted(page: Page, leafPath: number[]): Promise<void> {
 	const attr = JSON.stringify(leafPath);
 	const mounted = await page.evaluate(
@@ -483,16 +485,16 @@ async function assertLeafMounted(page: Page, leafPath: number[]): Promise<void> 
 	if (!mounted) throw new Error(`interior target ${attr} is off-window — windowing unmounted it`);
 }
 
-/** One interior arm: focus the leaf, absorb the first-edit re-render, then time keystrokes
- *  inside a single CDP window. Leaves the caret and the grown document for the next arm. */
+/** One run inside a container: focus the child, let the first edit's re-render pass, then
+ *  time keystrokes in a single CDP window. Leaves the caret and the document for the next. */
 async function measureInteriorArm(
 	page: Page,
 	editor: EditorPage,
 	leafPath: number[]
 ): Promise<object> {
 	await assertLeafMounted(page, leafPath);
-	// Overshooting the leaf's length lands in focusBlockAtPath's clamp-to-end fallback, so
-	// the caret sits at that leaf's end whatever its content is.
+	// Asking for an offset past the child's length falls back to the end in focusBlockAtPath,
+	// so the caret sits at that child's end whatever it contains.
 	await editor.focusBlockAtPath(leafPath, Number.MAX_SAFE_INTEGER);
 
 	const WARMUP = 2;
@@ -532,19 +534,19 @@ async function measureInteriorArm(
 
 test('axisI: container-interior direct attribution (giant list 1MB)', async ({ page }) => {
 	const editor = new EditorPage(page);
-	// No prose target: block 0 IS the list, which is what puts the caret inside a container
-	// and still leaves the block-0 settle reading the ancestry rebuild.
+	// No prose block in front: block 0 is the list itself, which puts the caret inside a
+	// container while the wait on block 0 still sees the rebuild reach the root.
 	const src = generateFixture('giant-single-list', 1_000_000);
 	await editor.goto();
 	await page.evaluate((c) => (window as any).__test.setSource(c), src);
 	await settle(page, src.replace(/\s+$/, '').length);
 	await editor.waitForRenderFlush();
 
-	// Both arms checked before either runs: a mid-leaf miss after the head arm's minute of
-	// keystrokes would fail the test having written no row at all.
+	// Both targets are checked before either runs: missing the second one after a minute of
+	// keystrokes on the first would fail the test with no row written at all.
 	for (const leafPath of INTERIOR_LEAF_PATHS) await assertLeafMounted(page, leafPath);
 
-	// Head and mid on one loaded document, so the pair differs only in where the caret sits.
+	// Both positions on one loaded document, so the pair differs only in where the caret is.
 	const rows: object[] = [];
 	for (const leafPath of INTERIOR_LEAF_PATHS) {
 		rows.push(await measureInteriorArm(page, editor, leafPath));

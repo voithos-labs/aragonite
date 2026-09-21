@@ -3,14 +3,15 @@ import { EditorPage } from '../../editor-page';
 import { editorScrollHeight, progressiveScrollTo, spacerCount } from './vr-helpers';
 import { capturePageErrors } from '../../page-probes';
 
-// Measured heights must survive a structural rebuild. List items and table rows aren't
-// BlockHosts, so their measured box reaches the model only through the child-subtotal
-// channel; unless that channel persists the box to the oracle by id, a count-changing edit
-// reseeds every surviving sibling from estimate and collapses the spacer-backed height.
-// Both fixtures are non-uniform on purpose: where estimate already equals measured, the
-// reseed is a no-op and the bug is unreachable.
+// Measured heights must survive a structural rebuild. List items and table rows are not block
+// hosts, so their measured size reaches the height table only as part of their parent's total;
+// unless that total is stored by id, an edit that changes the count sends every surviving
+// sibling back to an estimate and the spacer collapses. Both fixtures are uneven on purpose:
+// where the estimate already matches the measurement, going back to it changes nothing and the
+// bug cannot be seen.
 
-/** Fires only after the CST really grew — windowing mounts a slice, so the DOM count lies. */
+/** Returns only once the tree really grew: windowing mounts part of it, so the DOM count
+ *  cannot be trusted. */
 async function waitForChildCount(editor: EditorPage, expected: number): Promise<void> {
 	await editor.page.waitForFunction(
 		(n) => (window as any).__test.getDocument().children[0].children.length === n,
@@ -41,13 +42,13 @@ test('structural edit in a windowed non-uniform list keeps the viewport stable',
 	expect(await spacerCount(page, '.list-block >')).toBeGreaterThan(0);
 	const itemCount = await childCount(editor);
 
-	// Progressive, not a direct jump: list items reach the model only while mounted, so
-	// measuring them in first is what makes the reseed observable.
+	// Step by step rather than a single jump: list items reach the height table only while
+	// mounted, so measuring them first is what makes the loss visible.
 	await progressiveScrollTo(editor, Math.round((await editorScrollHeight(page)) / 2));
 	await editor.waitForRenderFlush();
 
-	// Edit a host LOWER in the viewport than the reference, so the inserted sibling lands
-	// below it and the reference's path stays valid across the edit.
+	// Edit a block lower in the viewport than the reference one, so the new sibling lands below
+	// it and the reference's path stays valid across the edit.
 	const inView = await page.evaluate(() => {
 		const editorEl = document.querySelector('.editor') as HTMLElement;
 		const { top, bottom } = editorEl.getBoundingClientRect();
@@ -64,7 +65,7 @@ test('structural edit in a windowed non-uniform list keeps the viewport stable',
 
 	const scrollHeightBefore = await editorScrollHeight(page);
 
-	// Enter at end splits off a new sibling item, which is what triggers the ListBlock rebuild.
+	// Enter at the end splits off a new item, which is what makes ListBlock rebuild.
 	const editPath = JSON.parse(inView.editTarget.path) as number[];
 	const editLen = await page.evaluate((p) => {
 		const el = document.querySelector(`[data-block-path='${JSON.stringify(p)}']`) as HTMLElement;
@@ -75,11 +76,12 @@ test('structural edit in a windowed non-uniform list keeps the viewport stable',
 	await waitForChildCount(editor, itemCount + 1);
 	await editor.waitForRenderFlush();
 
-	// Primary signal: an unfixed rebuild reseeds every above-window item from estimate and
-	// collapses the spacer-backed height by thousands of px; one added item moves it by one.
+	// The main signal: a rebuild that loses the measurements sends every item above the window
+	// back to an estimate and collapses the spacer by thousands of pixels, where one added item
+	// should move it by one item's height.
 	expect(Math.abs((await editorScrollHeight(page)) - scrollHeightBefore)).toBeLessThan(500);
 
-	// Corroborating signal: the reference host (above the edit) must not teleport.
+	// A second signal: the reference block, above the edit, must not jump.
 	const referenceAfter = await page.evaluate((path) => {
 		const host = document.querySelector(`[data-block-path='${path}']`) as HTMLElement | null;
 		return host ? host.getBoundingClientRect().top : null;
@@ -109,8 +111,8 @@ test('structural edit in a windowed non-uniform table keeps the viewport stable'
 	await progressiveScrollTo(editor, Math.round((await editorScrollHeight(page)) / 2));
 	await editor.waitForRenderFlush();
 
-	// Track a CELL: a display:contents row has no box. Edit a row LOWER in the viewport so
-	// the inserted sibling lands below the reference and its row-idx stays valid.
+	// Follow a cell, since a `display: contents` row has no box. Edit a row lower in the
+	// viewport, so the new row lands below the reference and its index stays valid.
 	const view = await page.evaluate(() => {
 		const editorEl = document.querySelector('.editor') as HTMLElement;
 		const { top, bottom } = editorEl.getBoundingClientRect();
@@ -130,17 +132,17 @@ test('structural edit in a windowed non-uniform table keeps the viewport stable'
 
 	const scrollHeightBefore = await editorScrollHeight(page);
 
-	// Ctrl+Enter inserts a row, which is what triggers the TableBlock rebuild.
+	// Ctrl+Enter inserts a row, which is what makes TableBlock rebuild.
 	await page.locator(`[data-table-row-idx="${view.editIdx}"] [role="cell"]`).first().click();
 	await page.keyboard.press('ControlOrMeta+Enter');
 	await waitForChildCount(editor, rowCount + 1);
 	await editor.waitForRenderFlush();
 
-	// Primary signal: without the oracle-persisting subtotal write the rebuild reseeds every
-	// above-window row from estimate, collapsing the height by thousands of px.
+	// The main signal: unless the row totals are stored, the rebuild sends every row above the
+	// window back to an estimate and collapses the height by thousands of pixels.
 	expect(Math.abs((await editorScrollHeight(page)) - scrollHeightBefore)).toBeLessThan(500);
 
-	// Corroborating signal: the reference row (above the edit) must not teleport.
+	// A second signal: the reference row, above the edit, must not jump.
 	const referenceAfter = await page.evaluate((idx) => {
 		const cell = document
 			.querySelector(`[data-table-row-idx="${idx}"]`)

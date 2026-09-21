@@ -4,14 +4,14 @@ import { EditorPage } from '../../editor-page';
 import { capturePageErrors } from '../../page-probes';
 import { spacerCount } from './vr-helpers';
 
-// A block that remounts at the height it was measured at costs the scroll nothing: the batch
-// reads it after the flush that mounted it, so no transient empty host ever reaches the model
-// and no correction has to be undone a frame later. Requirements:
-// e2e/requirements/perf/vr-remount-measure.md.
+// A block that mounts again at the height it was measured at costs the scroll nothing: it is
+// read after the flush that mounted it, so an empty block never reaches the height table and no
+// correction has to be undone a frame later.
+// Requirements: e2e/requirements/perf/vr-remount-measure.md.
 
 const SECTIONS = 40;
-// A tall inline construct: the rendered fraction raises the line box, so the paragraph's height
-// with its widgets differs from its height without them whatever the wrap.
+// A tall inline construct: the rendered fraction makes the line taller, so the paragraph's
+// height with its widgets differs from its height without them however the text wraps.
 const LONG = (i: number) =>
 	`Section ${i} holds the ratio $\\frac{H_{${i}}}{E_{${i}}}$ beside the pair $\\frac{\\xi_{${i}}}{\\eta_{${i}}}$ in one line.`;
 const HEAVY = Array.from({ length: SECTIONS }, (_, i) =>
@@ -30,8 +30,8 @@ const HEAVY = Array.from({ length: SECTIONS }, (_, i) =>
 const WHEEL_TICKS = 30;
 const WHEEL_TICK_PX = 320;
 
-/** Every programmatic write to the editor's own scrollTop, counted at its setter: the scroll
- *  correction is the only writer while the pointer drives the wheel. */
+/** Every write to the editor's own scrollTop from code, counted where it is set: while the
+ *  pointer drives the wheel, the scroll correction is the only thing that writes it. */
 async function countScrollWrites(page: Page): Promise<void> {
 	await page.evaluate(() => {
 		const editor = document.querySelector('.editor') as HTMLElement;
@@ -69,7 +69,7 @@ async function wheel(page: Page, editor: EditorPage, ticks: number, px: number):
 
 test('wheeling back up over measured blocks writes the scroll never', async ({ page }) => {
 	const pageErrors = capturePageErrors(page);
-	// The plugins route renders the inline math; source mode, so no flip is in play.
+	// The plugins route renders the inline math, in source mode, so no mode switch is involved.
 	await page.goto('/test/plugins');
 	await page.waitForFunction(() => (window as any).__test !== undefined);
 	const editor = new EditorPage(page);
@@ -81,12 +81,13 @@ test('wheeling back up over measured blocks writes the scroll never', async ({ p
 	await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
 	await countScrollWrites(page);
 
-	// Down: first mounts, estimates replaced by measurements below the anchor, no writes.
+	// Downwards: blocks mount for the first time and estimates give way to measurements below
+	// the anchor, with no writes.
 	await wheel(page, editor, WHEEL_TICKS, WHEEL_TICK_PX);
 	expect(await scrollWrites(page), 'writes on the way down').toBe(0);
 
-	// Up: every block re-entering above the anchor was measured on the way down, so a write
-	// here is a transient height that reached the model.
+	// Upwards: every block coming back above the anchor was measured on the way down, so a
+	// write here means a temporary height reached the height table.
 	await wheel(page, editor, WHEEL_TICKS, -WHEEL_TICK_PX);
 	expect(await scrollWrites(page), 'writes on the way up').toBe(0);
 	expect(pageErrors).toEqual([]);

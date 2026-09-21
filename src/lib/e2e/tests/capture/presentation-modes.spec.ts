@@ -1,6 +1,7 @@
 // Regenerates the README's presentation-mode strips, so the picture cannot drift from the modes.
-// Each panel is its own page load because the preview rungs only reveal around a FOCUSED caret and
-// one document holds one focus; composing from data URIs keeps this dependency-free.
+// Each panel is its own page load, because the preview modes show markers only around a focused
+// caret and one document has one focus; building the strip from data URIs keeps this free of
+// dependencies.
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 import { centerOfWord } from '../presentation/helpers';
@@ -21,8 +22,8 @@ const NOTE = [
 	''
 ].join('\n');
 
-// The middle and right panels park the caret in the SAME word: that pairing is the strip's whole
-// argument, since preview-inline reveals the markers around it and live leaves them hidden.
+// The middle and right panels put the caret in the same word, which is the strip's whole point:
+// preview-inline shows the markers around it and live mode leaves them hidden.
 const CARET_WORD = 'anemones';
 
 const PANELS = [
@@ -60,23 +61,24 @@ for (const theme of ['light', 'dark'] as const) {
 
 		for (const { mode } of PANELS) {
 			const ep = new EditorPage(page);
-			// Handles off, default theme: a grip revealed in one panel and not another, or a theme
-			// that differs between strips, reads as a difference between the modes.
+			// Drag handles off and the default theme: a handle showing in one panel and not
+			// another, or a theme that differs between strips, would read as a difference
+			// between the modes.
 			await ep.goto(`?presentationMode=${mode}&dragHandles=false`);
 			await ep.loadContent(NOTE);
 
 			if (mode !== 'source') {
 				await expect(ep.editorContainer).toHaveAttribute('data-presentation', mode);
-				// The harness header sits above the editor, so the word can fall below the fold and a
-				// raw-coordinate click would land on nothing.
+				// The harness header sits above the editor, so the word can fall off screen and a
+				// click at fixed coordinates would land on nothing.
 				await ep.editorContainer.scrollIntoViewIfNeeded();
 				const { x, y } = await centerOfWord(page, CARET_WORD);
 				await page.mouse.click(x, y);
-				// The reveal is caret-driven, so the shot is only honest once the caret has landed.
+				// The markers appear around the caret, so the shot is only honest once it has landed.
 				await expect
 					.poll(async () => (await ep.bridge.getSelectionPaths())?.focus.path.length ?? 0)
 					.toBeGreaterThan(0);
-				// Park the pointer off-canvas so no hover affordance paints into the shot.
+				// Move the pointer off the page, so nothing that appears on hover gets into the shot.
 				await page.mouse.move(0, 0);
 			}
 			shots.push((await ep.editorContainer.screenshot()).toString('base64'));

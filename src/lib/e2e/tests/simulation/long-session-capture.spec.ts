@@ -15,9 +15,9 @@ test.describe('note-taking simulation: long-session capture', () => {
 		await editor.goto();
 	});
 
-	// The full note exercises every HOLD construct and exits three lists; the
-	// always-on oracles (nested-state consistency, round-trip, no-errors,
-	// undo/redo differential) must all hold across the whole session.
+	// The full note types every construct that typing reproduces exactly and leaves three
+	// lists; the checks that always run (nested state, round-trip, no errors, undo and redo)
+	// must all hold across the whole session.
 	test('builds the full biology note and records a checkpoint manifest', async ({ page }) => {
 		await runSession(page, editor, { seed: 7, note: BIOLOGY_NOTE, capture: true });
 	});

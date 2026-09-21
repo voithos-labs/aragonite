@@ -18,27 +18,27 @@ import {
 
 declare const process: { env: Record<string, string | undefined> };
 
-// The `perf:check` gate skips these: they gate nothing, so it should not pay their
-// runtime or flake risk.
+// The `perf:check` gate skips these: they gate nothing, so it should not pay their runtime or
+// their risk of flaking.
 test.skip(
 	!process.env.PERF || !!process.env.PERF_GATE,
 	'report-only — run via `npm run perf:e2e`; the perf:check gate skips these'
 );
 
-// All rows run against the dev server with DEV invariant assertions active,
-// so every number is a conservative upper bound on production latency.
+// Every row runs against the dev server with the dev-mode checks on, so each number is a
+// cautious upper bound on the latency in production.
 const DEV_CAVEAT = 'dev server, DEV invariant assertions active — conservative upper bound';
 
 const SIZES: Array<[label: string, bytes: number, keystrokes: number]> = [
 	['100KB', 100_000, 30],
 	['1MB', 1_000_000, 30],
-	// Fewer keystrokes at 10MB: per-keystroke cost is O(block)+O(doc) there, and
-	// 15 samples already give a stable p50/p95 for second-scale latencies.
+	// Fewer keystrokes at 10MB: each one costs with both the block and the document there, and
+	// 15 samples already give a steady p50 and p95 at latencies of about a second.
 	['10MB', 10_000_000, 15]
 ];
 
-// Rows above a shape's cap are not generated; omissions are recorded in the requirements
-// file. Empty because windowing and lazy inline content removed every former blocker.
+// Rows past a shape's limit are not generated, and anything left out is recorded in the
+// requirements file. Empty, because windowing and lazy inline content removed every blocker.
 const MAX_BYTES: Partial<Record<FixtureShape, number>> = {};
 
 function round(ms: number): number {
@@ -75,9 +75,9 @@ test.describe('typing latency', () => {
 
 // ── Container-interior typing (report companion to the gated rows) ──────────
 
-// The caret INSIDE a giant container — the axis the prose-target rows above cannot reach,
-// since they prepend a paragraph precisely to give the caret a top-level home. The first
-// child is the one windowing guarantees mounted. Gated twins live in perf-gate.
+// The caret inside a huge container, which the rows above cannot reach, since they put a
+// paragraph in front precisely to give the caret a top-level home. The first child is the one
+// windowing always keeps mounted. The gated versions of these rows live in perf-gate.
 const CONTAINER_INTERIOR_SHAPES: Array<[shape: FixtureShape, leafPath: number[]]> = [
 	['giant-single-list', [0, 0, 0]],
 	['giant-single-blockquote', [0, 0]]
@@ -105,8 +105,8 @@ test.describe('typing latency — container interior', () => {
 
 // ── At-depth typing (concern-4 corroboration, report-only) ───────────────────
 
-// Depth 8 × 50KB/level is the realistic worst corner the vitest bench sweeps; the keystroke
-// there pays the full ancestry rebuild the top-level rows skip.
+// Eight levels deep at 50KB each is the realistic worst case the vitest benchmark covers; a
+// keystroke there pays for rebuilding every block above it, which the top-level rows skip.
 test('deep-nested depth 8 × 50KB/level: at-depth typing (report-only)', async ({ page }) => {
 	const editor = new EditorPage(page);
 	const m = await measureDeepNestedTyping(page, editor, 8, 50_000, 30);
@@ -125,29 +125,28 @@ test('deep-nested depth 8 × 50KB/level: at-depth typing (report-only)', async (
 	expect(m.samples).toHaveLength(30);
 });
 
-// ── Installed inline rungs (report-only) ────────────────────────────────────
+// ── Installed inline handlers (report only) ─────────────────────────────────
 
-// The standing ceilings measure an EMPTY inline registry, so no other row sees what a
-// registered rung costs. An UNRESERVED trigger (`:`, `$`) flips `needsScan`'s per-character
-// probe on document-wide, making plain prose more expensive — the blind spot these rows fill.
+// The standing ceilings measure an empty inline registry, so no other row shows what a
+// registered handler costs. A trigger character the scanner does not reserve (`:`, `$`) turns
+// on a per-character check across the whole document, which these rows measure.
 //
-// CONFOUND: `/test/plugins` installs eight base plugins, two deriving over the whole
-// document, so a route delta bounds the rung's cost from ABOVE and is not attributable to
-// the rung alone. Do not read "the bail probe costs X" off one.
+// Careful: `/test/plugins` installs eight base plugins, two working over the whole document, so
+// a difference between routes is an upper bound rather than the handler's own cost.
 const RUNG_KEYSTROKES = 30;
 
 interface RungRow {
 	row: string;
-	// The trigger-dense fixture, or the plain-prose shape for the bail-probe row.
+	// The fixture full of trigger characters, or plain prose for the quick-exit row.
 	fixture: TriggerDenseKind | 'flat-prose';
-	// `?seed=` on the plugins route; latex rides the base set, so its row needs none.
+	// `?seed=` on the plugins route; latex is in the base set, so its row needs none.
 	seed?: string;
-	// A widget the rung mints on the loaded document, proving the rung is live.
+	// A widget the handler creates on the loaded document, which proves it is running.
 	requireWidget?: string;
-	// Loaded before the fixture when the fixture itself mints no widget — the only liveness
-	// evidence the plain-prose row can carry.
+	// Loaded before the fixture when the fixture itself produces no widget: the only evidence
+	// the plain-prose row can carry that the handler is running.
 	probeDocument?: { source: string; widget: string };
-	// One size unless a row's cost is suspected to scale with the document.
+	// One size, unless a row's cost is thought to grow with the document.
 	sizes: Array<[label: string, bytes: number]>;
 }
 
@@ -155,11 +154,11 @@ const ONE_SIZE: Array<[string, number]> = [['100KB', 100_000]];
 
 const RUNG_ROWS: RungRow[] = [
 	{
-		// Two mechanisms in one fixture: the `[^` prefix consultation, and the mounted
-		// reference's number re-deriving over the whole document (the third non-viewport
-		// axis in docs/design/performance.md). The only row with a size axis, because the
-		// consultation is range-bounded while the derivation is not — a 10× document at the
-		// same viewport separates them without a second fixture.
+		// Two costs in one fixture: looking up the `[^` prefix, and working out a mounted
+		// reference's number over the whole document, which is the third cost that does not
+		// scale with the viewport (docs/design/performance.md). The only row that varies the
+		// document size, because the lookup is bounded and the numbering is not, so a document
+		// ten times larger at the same viewport separates them without a second fixture.
 		row: 'bracket-dense-footnotes',
 		fixture: 'bracket-footnote',
 		seed: 'footnotes',
@@ -183,8 +182,8 @@ const RUNG_ROWS: RungRow[] = [
 		sizes: ONE_SIZE
 	},
 	{
-		// Prose with no trigger at all: `:` is held out of SPECIAL_CHARS, so registering
-		// emoji turns on a per-character map lookup before the fast bail decides.
+		// Prose with no trigger character at all: `:` is kept out of SPECIAL_CHARS, so
+		// registering emoji turns on a map lookup for every character before the quick exit.
 		row: 'plain-prose-bail-emoji',
 		fixture: 'flat-prose',
 		seed: 'emoji',
@@ -251,7 +250,7 @@ test.describe('typing latency — installed inline rungs', () => {
 // ── Bridge sanity ───────────────────────────────────────────────────────────
 
 test('perf bridge: a keystroke drives the inline-refresh sweep', async ({ page }) => {
-	// The bridge's instruments arm only in dev, so the prod route has nothing to read here.
+	// The bridge's counters run only in dev, so the production route has nothing to read.
 	test.skip(!!process.env.PERF_PROD, 'dev-only instruments');
 	const editor = new EditorPage(page);
 	await editor.goto();
@@ -263,8 +262,8 @@ test('perf bridge: a keystroke drives the inline-refresh sweep', async ({ page }
 	await editor.focusBlockEnd(0);
 	await editor.typeSlowly('x');
 	await editor.bridge.waitForSourceContains('worldx');
-	// The inline recompute rides the debounced input flush (~250ms after the keystroke),
-	// so the source settle above lands well before it.
+	// The inline recompute happens on the debounced input flush, about 250ms after the
+	// keystroke, so the wait on the source above returns well before it.
 	await page.waitForFunction(
 		() => (window as any).__test.perf.snapshot().inlineComputeCount >= 1,
 		null,

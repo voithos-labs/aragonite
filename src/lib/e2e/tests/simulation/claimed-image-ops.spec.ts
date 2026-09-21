@@ -6,12 +6,12 @@ import { makeRng } from '../../simulation/rng';
 import { assertCoreOracles, assertParseConvergence } from '../../simulation/invariants';
 import { makeSimContext } from './helpers';
 
-// The image gestures under a rung that CLAIMED the image's bytes: `?seed=wiki-embed`
-// installs a `![[` rung minting built-in `image` nodes, so every existing image gesture runs
-// against bytes the editor is forbidden to re-serialize — the borrow-a-built-in-kind class,
-// which ran outside the oracle stack entirely (`docs/contributing/rules.md` § Testing
-// shape). What this adds over the wiki-embed e2e battery is convergence after every move, so
-// a resize writing plausible bytes that no longer reparse fails here, not at the next edit.
+// The image gestures run against bytes an inline handler has taken over: `?seed=wiki-embed`
+// installs a `![[` handler that creates built-in `image` nodes, so every image gesture works on
+// bytes the editor must not re-serialize. A plugin borrowing a built-in kind this way had no
+// coverage here at all (`docs/contributing/rules.md` § Testing shape). What this adds over the
+// wiki-embed specs is a reparse check after every move, so a resize that writes plausible bytes
+// which no longer parse fails here rather than at the next edit.
 
 const EMBED = '![[/test-fixtures/sample.png|400]]';
 const EMBED_DOC = `Alpha lead paragraph.\n\n${EMBED}\n\nBeta tail paragraph.\n`;
@@ -38,21 +38,21 @@ test.describe('claimed-image-ops simulation', () => {
 		const ctx = await makeSimContext(page, editor, 'claimed-image-ops', { errors });
 		const g = new Gestures(ctx, makeRng(1));
 
-		// The embed's bytes are literal in the raw and round-trip cleanly, so
-		// convergence holds unconditionally — no gesture here leaves the tree
-		// mid-divergence.
+		// The embed's bytes sit literally in the raw text and round-trip cleanly, so the
+		// reparse check holds throughout: no gesture here leaves the tree disagreeing with
+		// its own source.
 		const checkOracles = async (label: string): Promise<void> => {
 			await assertCoreOracles(ctx, label);
 			await assertParseConvergence(ctx);
 		};
 		await checkOracles('loaded');
 
-		// ── Grow twice: the rung's hook writes both commits ────────────────────────
+		// ── Grow twice: the plugin's hook writes both commits ──────────────────────
 		await g.resizeImage('right', 2);
 		const grown = await editor.bridge.getSource();
 		expect(grown).toContain('![[/test-fixtures/sample.png|440]]');
-		// The corruption this session exists for: GFM bytes carry a parenthesized
-		// destination, and the embed grammar has none anywhere in the document.
+		// The corruption this session exists for: GFM bytes carry a destination in
+		// parentheses, and the embed syntax has none anywhere in the document.
 		expect(grown).not.toContain('](');
 		await checkOracles('embed-grown');
 

@@ -1,8 +1,8 @@
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 
-// The WebKit lane's clipboard seam (requirements/webkit/paste.md): these run only under
-// `e2e-webkit`, since under Chromium they would re-test the arm the clipboard suite already owns.
+// WebKit's clipboard path (requirements/webkit/paste.md): these run only under `e2e-webkit`,
+// since under Chromium they would repeat what the clipboard suite already covers.
 
 test.describe('webkit: paste through the dispatched clipboard event', () => {
 	let editor: EditorPage;

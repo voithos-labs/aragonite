@@ -5,11 +5,10 @@ import { makeRng } from '../../simulation/rng';
 import { assertCoreOracles } from '../../simulation/invariants';
 import { makeSimContext } from './helpers';
 
-// Deterministic reachability for the live-editing gesture family: every gesture fires once
-// over a document shaped to reach it, so coverage never depends on which seed drew what. The
-// seeded sessions fire the same gestures woven into a note (biology-note) — this spec is what
-// makes each one's absence a failure rather than a gap.
-// Per-gesture predictions: requirements/simulation/live-editing-ops.md.
+// Every live-editing gesture, run once over a document shaped to reach it, so coverage never
+// depends on which seed drew what. The seeded sessions run the same gestures woven into a note
+// (biology-note); this spec is what turns a missing one into a failure rather than a gap.
+// What each gesture is expected to do: requirements/simulation/live-editing-ops.md.
 
 const DOC = [
 	'# Live rules',
@@ -59,14 +58,14 @@ test.describe('note-taking simulation: live-mode editing ops', () => {
 		await g.liveLinkCardEdit('syllabus', 'https://bio.example/next');
 		await assertCoreOracles(ctx, 'after-card-commit');
 
-		// The family is net-identity by construction, so the document it started from is the
-		// document it ends on — the one assertion every gesture above is accountable to.
+		// Every gesture here is built to leave the bytes as they were, so the document ends as
+		// it started, which is the one check they are all answerable to.
 		expect(await editor.bridge.getSource()).toBe(canonical);
 	});
 
-	// The opener class is the one live rule that MINTS chrome rather than editing behind it, so
-	// the tracker is the oracle here: every byte behind the mint is predicted keystroke by
-	// keystroke, and the mint itself is the only resync the gesture is allowed.
+	// Typing an opener is the one live rule that creates a block's markers rather than editing
+	// behind them, so the expected answer is what checks it here: every byte after the new block
+	// is predicted keystroke by keystroke, and creating it is the only resync allowed.
 	test('a typed block opener mints its chrome and predicts the content behind it', async ({
 		page
 	}) => {

@@ -3,9 +3,9 @@ import { test, expect } from '../fixtures';
 import { waitForEditorHydrated } from '../page-probes';
 
 // `/test/host-theme` feeds the editor from a page wrapper with no `.aragonite-editor-theme`
-// anywhere, so it is the route-level G4.6d check: the host's own colour tokens must reach
-// painted editor text unbridged. Only real layout can answer it — computed colour and the
-// `:where()` shadowing rule are what jsdom does not have.
+// anywhere, which is the route-level check for G4.6d: the app's own colour tokens must reach
+// the editor's text on their own. Only a real browser can answer it, since computed colours and
+// how `:where()` loses to other rules are what jsdom does not have.
 // Requirements: e2e/requirements/host-theme.md.
 
 const editorRoot = (page: Page) => page.locator('.editor');
@@ -37,7 +37,7 @@ async function selectWholeDocument(page: Page): Promise<void> {
 	await expect(page.locator('.selection-overlay-middle').first()).toBeVisible();
 }
 
-/** The wash the wrapper's own selection base implies, measured rather than spelled out. */
+/** The tint the wrapper's own selection colour produces, measured rather than written out. */
 function washFromWrapper(page: Page, percent: number): Promise<string> {
 	return page.evaluate((pct) => {
 		const wrapper = document.querySelector('.host-page') as HTMLElement;
@@ -68,8 +68,8 @@ test.describe('/test/host-theme', () => {
 	});
 
 	test('the wrapper supplies the UI font the page chrome reads', async ({ page }) => {
-		// A wrapper value equal to the app stylesheet's proves nothing: the chrome would read
-		// the same font with the wrapper declaring none.
+		// A wrapper value equal to the app stylesheet's would prove nothing: the editor would
+		// show the same font with the wrapper declaring none.
 		const wrapper = await tokenOn(page, '.host-page', '--font-ui');
 		expect(wrapper).not.toBe(await tokenOn(page, 'html', '--font-ui'));
 		expect(
@@ -81,9 +81,9 @@ test.describe('/test/host-theme', () => {
 		page
 	}) => {
 		const before = await accentToken(page);
-		// A default declared at editor scope would beat the inherited host value and pin the
-		// editor at the theme's own green whatever the picker says — hence the comparison
-		// against the wrapper rather than against a hex.
+		// A default declared on the editor itself would beat the value inherited from the app
+		// and hold the editor at the theme's own green whatever the picker says, which is why
+		// this compares against the wrapper rather than against a fixed colour.
 		await page.getByLabel('Accent').selectOption('copper');
 
 		const after = await accentToken(page);
@@ -119,8 +119,8 @@ test.describe('/test/host-theme', () => {
 		const slate = await overlayBackground(page);
 		expect(slate).toBe(await washFromWrapper(page, 30));
 
-		// Non-vacuity without naming a hex: an overlay pinned to the editor's own blue would
-		// paint the same colour under a host whose selection base is copper.
+		// Proves something without naming a colour: an overlay held at the editor's own blue
+		// would show that same blue under an app whose selection colour is copper.
 		await page.getByLabel('Theme').selectOption('warm-dark');
 		await selectWholeDocument(page);
 		const warm = await overlayBackground(page);
@@ -132,8 +132,8 @@ test.describe('/test/host-theme', () => {
 		await page.getByLabel('Accent').selectOption('teal');
 		const dark = await accentToken(page);
 
-		// Each preset carries a per-mode hex, so the same pick resolves to a different value
-		// once the host flips palettes: the pick survives, the value follows the mode.
+		// Each preset holds a colour per mode, so the same choice gives a different value once
+		// the app switches palettes: the choice survives, the colour follows the mode.
 		await page.getByLabel('Theme').selectOption('paper-light');
 		await expect(editorRoot(page)).toHaveAttribute('data-editor-theme', 'light');
 		expect(await accentToken(page)).not.toBe(dark);

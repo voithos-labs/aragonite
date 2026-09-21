@@ -1,8 +1,7 @@
 /**
- * Shared keystroke-latency measurement for the perf e2e specs. The report
- * harness (`typing-latency`) and the regression gate (`perf-gate`) measure the
- * same way and must not drift — one definition of "type into a loaded fixture
- * and time each keystroke" lives here.
+ * Shared keystroke-latency measurement for the perf specs. The reporting harness
+ * (`typing-latency`) and the gate (`perf-gate`) measure the same way and must not drift apart,
+ * so "type into a loaded fixture and time each keystroke" is defined once, here.
  */
 
 import { type Page } from '@playwright/test';
@@ -19,9 +18,9 @@ import {
 const LOAD_TIMEOUT_MS = 480_000;
 const KEYSTROKE_TIMEOUT_MS = 60_000;
 
-// Container-first shapes get a PREPENDED paragraph: focusBlockEnd(0) would target a
-// windowed-out last child, and table-cell edits re-pad the whole table (breaking the
-// +1-length settle). Prepended, not appended — block 0 is the one always mounted at load.
+// A fixture whose first block is a container gets a paragraph in front: focusBlockEnd(0) would
+// aim at an unmounted last child, and editing a table cell re-pads the whole table, which
+// breaks the wait for one more character. In front, not after: block 0 is always mounted.
 const NEEDS_PROSE_TARGET: ReadonlySet<FixtureShape> = new Set([
 	'nested-containers',
 	'table-heavy',
@@ -29,8 +28,8 @@ const NEEDS_PROSE_TARGET: ReadonlySet<FixtureShape> = new Set([
 	'giant-single-blockquote',
 	'giant-single-table'
 ]);
-// The trailing '\n' plus the '\n' separator yields a blank line after the
-// paragraph, so it parses as a standalone block 0 ahead of the container.
+// The trailing newline plus the separator leaves a blank line after the paragraph, so it
+// parses as a block of its own in front of the container.
 const PROSE_TARGET = 'perf cursor target\n';
 
 export interface LatencyMeasurement {
@@ -41,13 +40,14 @@ export interface LatencyMeasurement {
 }
 
 export interface DeepTypingMeasurement extends LatencyMeasurement {
-	// Measured over a short instrumented burst, separate from the timed loop.
+	// Measured over a short counted burst, separate from the timed loop.
 	rendersPerKeystroke: number;
 	rebuildDepths: Record<number, number>;
 }
 
-// getSource() serializes the whole doc per poll, which at 10MB would dwarf the latency
-// being measured; summing raw lengths observes the same commit without building the string.
+// getSource() serializes the whole document on every poll, which at 10MB would cost more than
+// the latency being measured; summing the raw lengths sees the same commit without building
+// the string.
 export function docLengthInPage(): number {
 	const doc = (window as any).__test.getDocument();
 	let length = doc.prefix.length + doc.suffix.length;
@@ -63,9 +63,9 @@ export async function waitForDocLength(page: Page, min: number, timeout: number)
 	);
 }
 
-// Detects the same commit as docLengthInPage but in O(1), never summing the $state-proxy
-// children array: that per-poll cost scaled with block count and inflated flat
-// high-block-count rows with harness cost, not editor cost (docs/design/performance.md).
+// Sees the same commit as docLengthInPage at constant cost, never summing the children array:
+// summing grew with the block count and added the harness's own cost to rows with many blocks
+// (docs/design/performance.md).
 export async function waitForBlock0Len(page: Page, min: number, timeout: number): Promise<void> {
 	await page.waitForFunction(
 		(min) => {
@@ -77,8 +77,8 @@ export async function waitForBlock0Len(page: Page, min: number, timeout: number)
 	);
 }
 
-/** One definition of the results protocol every perf row reports through: a console line the
- *  run log is scraped for, and a JSON file under `perf-results/`. */
+/** How every perf row reports, defined once: a console line the run log is read for, and a
+ *  JSON file under `perf-results/`. */
 export function writePerfResult(consolePrefix: string, fileStem: string, result: object): void {
 	const line = JSON.stringify(result);
 	console.log(`${consolePrefix} ${line}`);
@@ -92,25 +92,25 @@ export function percentileMs(samples: number[], p: number): number {
 }
 
 export interface DocumentTypingMeasurement extends LatencyMeasurement {
-	/** Widgets matching a row's `requireWidget`, counted on the loaded document. */
+	/** Widgets matching the row's `requireWidget`, counted on the loaded document. */
 	mountedWidgets?: number;
 }
 
 // ── Measurement steps ───────────────────────────────────────────────────────
-// Every measure function below composes these in its own order; the sequence of awaits IS
-// the measurement, so a step is moved or added only with a fresh baseline.
+// Every measure function below puts these together in its own order; the sequence of awaits is
+// the measurement, so a step moves or appears only alongside a fresh baseline.
 
 async function loadFixture(page: Page, editor: EditorPage, fixture: string): Promise<number> {
 	const loadStart = performance.now();
 	await page.evaluate((content) => (window as any).__test.setSource(content), fixture);
-	// serialize() may trim trailing whitespace, so settle on the trimmed length.
+	// serialize() may trim trailing whitespace, so wait on the trimmed length.
 	await waitForDocLength(page, fixture.replace(/\s+$/, '').length, LOAD_TIMEOUT_MS);
 	await editor.waitForRenderFlush();
 	return performance.now() - loadStart;
 }
 
-/** A row that typed into an unmounted host measured the wrong thing, silently: the keystroke
- *  lands on `<body>` and the settle times out instead of reporting. */
+/** A row that typed into an unmounted block measured the wrong thing without saying so: the
+ *  keystroke lands on `<body>` and the wait times out instead of reporting. */
 async function assertMounted(page: Page, path: number[], what: string): Promise<void> {
 	const pathAttr = JSON.stringify(path);
 	const mounted = await page.evaluate(
@@ -128,8 +128,8 @@ async function block0Length(page: Page): Promise<number> {
 	});
 }
 
-/** One `x` per sample, each timed to the +1-length commit block 0 must show whatever leaf
- *  took the keystroke — the ancestry rebuild propagates it up to the root. */
+/** One `x` per sample, each timed to block 0 growing by one character, which it must whichever
+ *  child took the keystroke, since the rebuild carries it up to the root. */
 async function sampleKeystrokes(
 	page: Page,
 	editor: EditorPage,
@@ -147,10 +147,11 @@ async function sampleKeystrokes(
 }
 
 /**
- * Type into the end of block 0 of an ALREADY-NAVIGATED page, timing each keystroke to its
- * +1-length commit. The caller owning navigation is what lets a plugins-route row and an
- * editor-route row measure identically. `requireWidget` fails the row when its rung is not
- * live, so a plugin that silently stopped installing cannot report the rung-free number.
+ * Type at the end of block 0 on a page the caller already navigated to, timing each keystroke to
+ * the source growing by one. Leaving navigation to the caller is what lets a row on the plugins
+ * route and one on the editor route measure the same way. `requireWidget` fails the row when the
+ * plugin's handler is not running, so a plugin that quietly stopped installing cannot report the
+ * number for a document without it.
  */
 export async function measureTypingIntoDocument(
 	page: Page,
@@ -161,8 +162,8 @@ export async function measureTypingIntoDocument(
 ): Promise<DocumentTypingMeasurement> {
 	const loadMs = await loadFixture(page, editor, fixture);
 
-	// Counted before typing: the mounted set is what a per-keystroke derivation runs
-	// against, so a row that measured zero widgets measured the wrong mechanism.
+	// Counted before typing: the mounted widgets are what the per-keystroke work runs over, so
+	// a row that measured none measured something else entirely.
 	let mountedWidgets: number | undefined;
 	if (requireWidget !== undefined) {
 		mountedWidgets = await page.locator(requireWidget).count();
@@ -186,8 +187,8 @@ export async function measureTypingIntoDocument(
 
 /**
  * Load a generated fixture on the standard editor route and time typing into it. `mode` is the
- * presentation rung the route starts in — the axis, not a second measurement: a rung that made
- * a keystroke cost more must show up on the same samples the source rows are read from.
+ * presentation mode the route starts in, which is a variable rather than a second measurement:
+ * a mode that made a keystroke cost more has to show up in the same samples.
  */
 export async function measureTypingLatency(
 	page: Page,
@@ -205,11 +206,11 @@ export async function measureTypingLatency(
 }
 
 /**
- * The container-interior companion to {@link measureTypingLatency}: the axis a prose-target row
- * can never see, since every one of those types AHEAD of the container. The caret sits at the
- * container's first child because that is the child windowing guarantees mounted, and it is also
- * the expensive end — a first-child keystroke moves the container's own opener line, so it pays
- * the kind re-derivation gate and the slot seam ask a mid-container keystroke skips.
+ * The inside-a-container companion to {@link measureTypingLatency}: what a row with a prose
+ * target can never see, since all of those type in front of the container. The caret sits on the
+ * container's first child, because that is the child windowing always keeps mounted and it is
+ * also the expensive one: a keystroke there moves the container's own opening line, so it pays
+ * for working out the kind again and for the list bookkeeping a keystroke further in skips.
  */
 export async function measureContainerInteriorTyping(
 	page: Page,
@@ -225,8 +226,8 @@ export async function measureContainerInteriorTyping(
 	const loadMs = await loadFixture(page, editor, fixture);
 	await assertMounted(page, leafPath, 'container interior');
 
-	// Overshooting the leaf's own length lands in focusBlockAtPath's clamp-to-end
-	// fallback, so the caret sits at that leaf's end whatever its content is.
+	// Asking for an offset past the child's own length falls back to the end in
+	// focusBlockAtPath, so the caret sits at that child's end whatever it contains.
 	await editor.focusBlockAtPath(leafPath, Number.MAX_SAFE_INTEGER);
 	const base0 = await block0Length(page);
 	const samples = await sampleKeystrokes(page, editor, base0, keystrokes);
@@ -240,9 +241,9 @@ export async function measureContainerInteriorTyping(
 }
 
 /**
- * The at-depth companion to {@link measureTypingLatency}: the deepest leaf pays the full
- * ancestry raw rebuild a top-level edit skips. The block-0 settle still holds because that
- * rebuild propagates the typed character all the way up to the root container.
+ * The deep-nesting companion to {@link measureTypingLatency}: the deepest child pays for
+ * rebuilding the raw text of every block above it, which a top-level edit skips. The wait on
+ * block 0 still works, because that rebuild carries the typed character up to the root.
  */
 export async function measureDeepNestedTyping(
 	page: Page,
@@ -259,13 +260,13 @@ export async function measureDeepNestedTyping(
 	const leafPath = deepNestedLeafPath(depth);
 	await assertMounted(page, leafPath, 'deep leaf');
 
-	// Overshoots into focusBlockAtPath's clamp-to-end fallback, which is exactly end-of-leaf.
+	// Past the end, so focusBlockAtPath falls back to the end of that child, which is the target.
 	await editor.focusBlockAtPath(leafPath, bytesPerLevel);
 	const base0 = await block0Length(page);
 	const samples = await sampleKeystrokes(page, editor, base0, keystrokes);
 
-	// Instrumented and untimed, because the render count is what separates rebuild cost
-	// from a render cascade — and instrumentation would distort the timings above.
+	// Counted but not timed, because the number of renders is what tells the cost of rebuilding
+	// apart from a cascade of renders, and counting would distort the timings above.
 	await page.evaluate(() => {
 		(window as any).__test.perf.enable();
 		(window as any).__test.perf.reset();
