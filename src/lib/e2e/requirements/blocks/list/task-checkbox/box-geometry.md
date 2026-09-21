@@ -8,6 +8,8 @@ where a translate-centred box once came out a few pixels shorter than wide.
 
 - at 14, 16 and 17px type-scale roots (`--editor-font-size`), the box's computed width equals
   its height, is a whole number of pixels, and carries no transform
+- and those three roots really do give three different box widths, since the assertions above
+  hold whatever size the box settles at
 - the box beside a loaded `- [ ] # beta` is the same size as the box beside `- [ ] plain`, and
   stays that size at every heading level: the marker is the item's own chrome, drawn at the
   item's text size rather than the first child's

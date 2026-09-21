@@ -54,6 +54,22 @@ test.describe('task checkbox — painted box geometry', () => {
 		});
 	}
 
+	// Non-vacuity for the loop above, whose assertions are size-agnostic: they hold even if the
+	// box stops answering the type-scale root at all.
+	test('the drawn box follows the type-scale root', async ({ page }) => {
+		await editor.loadContent('- [ ] open\n');
+		const widths: string[] = [];
+		for (const fontSize of [14, 16, 17]) {
+			await page.evaluate((px) => {
+				document
+					.querySelector<HTMLElement>('.editor')!
+					.style.setProperty('--editor-font-size', `${px}px`);
+			}, fontSize);
+			widths.push((await paintedBoxes(page))[0].width);
+		}
+		expect(new Set(widths).size).toBe(widths.length);
+	});
+
 	// The box is the item's own chrome, so it draws at the item's text size whatever its first
 	// block turns out to be. Sized in `em` against that block, a loaded heading doubled it.
 	test('the box beside a loaded heading matches the box beside a paragraph', async ({ page }) => {
