@@ -1,8 +1,8 @@
 # Feature: Code Block Keyboard Parity
 
-Keyboard behavior inside a code block that diverges from text-block parity: bold/italic shortcuts, horizontal-arrow focus exit, sticky-column preservation, and literal-newline Shift+Enter.
+Keyboard behavior inside a code block where it differs from a text block: the bold and italic shortcuts, moving focus out with the horizontal arrows, keeping the sticky column, and Shift+Enter inserting a literal newline.
 
-## Keyboard — beyond parity
+## Keyboard: beyond parity
 
 - Ctrl+B and Ctrl+I are no-ops inside a code block: no `<b>`/`<i>`/`<strong>`/`<em>` elements appear in the DOM, source is unchanged
 - ArrowLeft at offset 0 moves focus to end of previous block
@@ -12,4 +12,4 @@ Keyboard behavior inside a code block that diverges from text-block parity: bold
 
 ## Copy
 
-- selection inside a code block copies verbatim — fence markers at the boundaries stay on the clipboard, no silent stripping. Round-tripping a copy into another code block is handled by the paste-side fence bump; copying a lone fence yields the fence on the clipboard, not an empty string
+- a selection inside a code block copies verbatim: the fence markers at its edges stay on the clipboard, nothing is quietly stripped. Pasting such a copy into another code block is handled by the paste side bumping the fence; copying a lone fence puts the fence on the clipboard, not an empty string

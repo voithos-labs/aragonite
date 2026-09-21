@@ -3,12 +3,12 @@
 Enter's newline lands on the body, never on a fence line. A caret on the opening
 fence line clamps the newline to the body start, a caret inside the closing fence
 text clamps it to the body end: the fence stays byte-intact, the body gains a blank
-line, and the caret stays with the content — the same result Enter at that body edge
-already produces. A splice before or inside the opener corrupts the raw (phantom
+line, and the caret stays with the content, the same result Enter at that body edge
+already produces. A splice before or inside the opener corrupts the raw (a phantom
 fence rendered from a leading `\n`); one inside the closer breaks the closer apart
 and leaves an unclosed fence. With a selection, Enter replaces it on the selection's
-body span, like every other ranged edit on this surface (`fence-ranged-edit.md`);
-that arm is pinned in `src/lib/test/blocks/code/code-fence-ranged-edit.test.ts`.
+body span, like every other ranged edit in this block (`fence-ranged-edit.md`);
+that branch is pinned in `src/lib/test/blocks/code/code-fence-ranged-edit.test.ts`.
 
 ## Happy paths
 
