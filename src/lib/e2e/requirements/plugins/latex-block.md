@@ -1,11 +1,11 @@
-# Feature: Block `$$…$$` display math: rendered by default, source on focus
+# Feature: Block `$$…$$` display math, render-primary, source-on-focus
 
 A `mathBlock` leaf renders its KaTeX display by default and shows the raw `$$…$$` source in a
 contenteditable on focus or click, re-rendering on blur. That source is painted like a code
 block's, with fence lines the marker-hiding modes collapse and LaTeX highlight tokens, and its
 `textContent` is the bytes. In the default `split` layout the render stays up beside it as a
 live preview, `stacked` puts the preview below, and `source` shows none. The block never merges
-with a neighbour and can take focus, and while its source is shown it behaves like a code block
+with a neighbor and can take focus, and while its source is shown it behaves like a code block
 for caret and selection. Driven through real mouse and keyboard only, because the reactive swap
 between render and source, and the caret surviving it, are exactly what the unit layer cannot
 prove.
@@ -27,7 +27,7 @@ prove.
 
 ## User interactions
 
-- Arrowing into the block from a neighbour shows the source; arrowing back out of either edge
+- Arrowing into the block from a neighbor shows the source; arrowing back out of either edge
   hides it again and puts focus on the next block
 - ArrowUp and ArrowDown cross in and out of the block by sticky column, like a code block
 - A paste into the shown source is taken as plain text: HTML on the clipboard is dropped rather

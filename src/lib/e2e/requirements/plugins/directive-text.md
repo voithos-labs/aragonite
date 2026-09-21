@@ -1,4 +1,4 @@
-# Feature: inline directive widget at the text level, edited by showing its source
+# Feature: text-tier directive inline widget, source-reveal editing
 
 The `:` recognizer marks a `:name[label]{attrs}` span as a `directiveText` inline node, rendered
 as a widget the caret cannot enter (`[data-inline-widget]`, `.directive-text-widget`,

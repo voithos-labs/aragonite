@@ -1,4 +1,4 @@
-# Feature: Plugin container: scrolling to a block expands a collapsed `<details>`
+# Feature: Plugin Container, Reveal Expands a Collapsed `<details>`
 
 Scrolling to a body child of a collapsed container expands its collapsed ancestors first, as a
 real committed edit. The collapse clamp mounts only the title row, so without that expansion the

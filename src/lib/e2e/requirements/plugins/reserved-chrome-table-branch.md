@@ -1,4 +1,4 @@
-# Feature: the reserved child 0 holds the line when a range ends in a table
+# Feature: Reserved-child-0 Chrome Wall × Table Branch
 
 The `:::callout` callout reserves child index 0 as an editable `callout-title` leaf. This file
 proves that a range delete still stops at it when one endpoint of the range is a table cell,

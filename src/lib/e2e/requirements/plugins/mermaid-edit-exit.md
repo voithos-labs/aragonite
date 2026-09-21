@@ -1,4 +1,4 @@
-# Feature: Mermaid edit box: the arrow keys leave at its edges
+# Feature: Mermaid edit box, boundary arrow exits
 
 The diagram's edit box is a textarea the plugin owns, and a textarea swallows every arrow key at
 its own edges. Every other editable area in this editor hands the caret to the next block when
@@ -29,7 +29,7 @@ line boundary.
 - An arrow that extends a selection behaves as the browser's too: Shift+ArrowUp on the first
   line extends inside the box, leaves the caret in it, and commits nothing
 - Escape in an empty diagram's box is not the way out: the box is the block's only view, so
-  cancelling keeps the box and the caret, and leaving is the arrow's job
+  canceling keeps the box and the caret, and leaving is the arrow's job
 
 ## Miss-analysis
 

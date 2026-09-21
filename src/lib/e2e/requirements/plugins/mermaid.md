@@ -1,4 +1,4 @@
-# Feature: Mermaid diagram block, the render-primary reference plugin
+# Feature: Mermaid diagram block, render-primary reference plugin
 
 A ` ```mermaid ` fence takes a childless plugin container whose code lives in metadata. The
 component renders the diagram SVG through an injected renderer, with an edit mode the plugin

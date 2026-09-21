@@ -1,15 +1,15 @@
-# Feature: conformance browser sweep: focus, selection paint, search paint
+# Feature: conformance browser sweep, focus, selection paint, search paint
 
 The closure matrix declares three DOM-only cells per kind (`focus`, `selectionPaint`,
 `searchPaint`). The headless battery records them as `boundary`; this sweep runs them in a real
 browser. It is driven from the live registry: every registered kind that declares a
 `conformanceFixture` is swept, a kind that depends on its context and declares no fixture never
 appears, and a new kind joins the moment it registers with a fixture. Each kind's fixture is
-loaded between two plain neighbour paragraphs, so focus and selection have blocks to cross into
+loaded between two plain neighbor paragraphs, so focus and selection have blocks to cross into
 and out of.
 
-The sweep proves that the three behaviours are present or degrade gracefully, one kind at a
-time. It is not a behavioural suite: the per-kind specs still own the depth.
+The sweep proves that the three behaviors are present or degrade gracefully, one kind at a
+time. It is not a behavioral suite: the per-kind specs still own the depth.
 
 ## Focus walk
 
@@ -25,7 +25,7 @@ time. It is not a behavioural suite: the per-kind specs still own the depth.
 
 - implemented, measurable text: searching for a token drawn from the block paints at least one match overlay inside the block's subtree.
 - implemented, a render-primary leaf showing its rendered form (`mathBlock`, `toc`): the source renders through a component with no measurable text node, so `createEditableLeaf` covers the rendered block box while the source stays hidden; the token is found and paints a cover overlay through the same `implemented` path as a kind with measurable text.
-- not supported (`thematicBreak`): a token shared by the two neighbour paragraphs paints on them but never inside the block, and Enter navigation cycles between the neighbours without the active match landing on the block, so it is skipped and traps nothing.
+- not supported (`thematicBreak`): a token shared by the two neighbor paragraphs paints on them but never inside the block, and Enter navigation cycles between the neighbors without the active match landing on the block, so it is skipped and traps nothing.
 
 ## Enrolment and reachability
 
@@ -33,7 +33,7 @@ time. It is not a behavioural suite: the per-kind specs still own the depth.
 - Enrollment covers a floor of known kinds (paragraph, heading, table, blockquote, mermaid, mathBlock, toc, callout, admonition): a kind quietly dropped from the bridge fails the floor instead of disappearing from the column tests. The floor is a subset assertion, so new kinds can enroll without touching it.
 - Loading each kind's document waits for exact source equality rather than checking for a substring, because every sweep document carries both filler paragraphs and the previous kind's stale document can satisfy a substring wait.
 - Every enrolled kind mounts a node from its own fixture. No kind may be unreachable: a fixture nothing claims means a lost registrar, or a directive name a second plugin took, and both are regressions.
-- Each load clears the document to empty first, so a kind whose fixture is byte-identical to the previous kind's (`list`/`listItem`, `table`/`tableRow`) still gets a real reload rather than inheriting the typed change from the previous round. The document every kind is measured in is exactly three blocks, neighbour and fixture and neighbour, with nothing left over from an earlier load, so the cost of the walk and the index of the located block are the same for the first swept kind and the last, whether the file runs whole or filtered.
+- Each load clears the document to empty first, so a kind whose fixture is byte-identical to the previous kind's (`list`/`listItem`, `table`/`tableRow`) still gets a real reload rather than inheriting the typed change from the previous round. The document every kind is measured in is exactly three blocks, neighbor and fixture and neighbor, with nothing left over from an earlier load, so the cost of the walk and the index of the located block are the same for the first swept kind and the last, whether the file runs whole or filtered.
 
 ## Miss-analysis
 

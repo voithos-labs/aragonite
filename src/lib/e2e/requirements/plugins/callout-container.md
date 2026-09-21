@@ -1,4 +1,4 @@
-# Feature: Plugin container: editing inside a `:::callout`
+# Feature: Plugin Container, :::callout Callout Editability
 
 The `:::callout` callout is a container a plugin defines, built the same way as the built-in
 blockquote. It reserves child 0 as an editable `callout-title` leaf, so its children are

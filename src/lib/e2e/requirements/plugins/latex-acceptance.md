@@ -5,7 +5,7 @@ to the design spec's Goal-2 axis id. A2's memoization and A5's adapter proof hav
 (`math-renderer.test.ts`); the axes that need a browser, including A2's pin on editing one
 equation of many and re-rendering, live in `latex-acceptance.spec.ts`.
 
-## A1, the reveal transition (flagship): no view-jump, no caret loss
+## A1, reveal transition (flagship): no view-jump, no caret loss
 
 - Showing a block's source and closing it again on a scrolling document: the scroll position
   holds through both.
@@ -16,7 +16,7 @@ equation of many and re-rendering, live in `latex-acceptance.spec.ts`.
   block edge.
 - An inline round-trip does not move the following block up or down.
 
-## A2, render memoized (flagship)
+## A2: render memoized (flagship)
 
 - Editing one equation re-renders only that equation; the untouched ones stay cache hits (unit).
 - A full re-render pass over many equations adds no renders after the first, flat to 75 and
@@ -25,12 +25,12 @@ equation of many and re-rendering, live in `latex-acceptance.spec.ts`.
   committing raises only that block's render count and never remounts it; the other blocks keep
   both their mount id and their render count (e2e).
 
-## A5, invalid math is legible, never a raw strip
+## A5: invalid math is legible, never a raw strip
 
 - Invalid inline math renders a readable "error" message through the live widget path.
 - KaTeX's own `.katex-error` source strip never reaches the DOM.
 
-## A7, multiline environments render (table stakes)
+## A7: multiline environments render (table stakes)
 
 - `aligned`, `cases`, `align*`, `array`, `matrix` and `gather` each render as display KaTeX with
   no error node, one fixture per environment.

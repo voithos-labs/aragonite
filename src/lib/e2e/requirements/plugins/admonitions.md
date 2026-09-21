@@ -1,4 +1,4 @@
-# Feature: Admonitions plugin, the dogfood battery
+# Feature: Plugin Admonitions, dogfood battery
 
 The admonitions dogfood registers one `admonition` container kind that five directive names
 (`note`/`tip`/`important`/`warning`/`caution`) resolve into, reading their variant back from

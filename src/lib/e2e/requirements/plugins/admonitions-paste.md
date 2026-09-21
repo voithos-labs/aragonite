@@ -1,4 +1,4 @@
-# Feature: Admonitions plugin, native alert paste
+# Feature: Plugin Admonitions, native alert paste
 
 The admonitions plugin can rewrite a pasted GitHub alert into a `:::name` directive, but only
 when it is asked to (`admonitionsPlugin({ convertAlertsOnPaste: true })`, off by default). The

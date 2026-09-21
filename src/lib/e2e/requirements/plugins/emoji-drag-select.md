@@ -2,7 +2,7 @@
 
 An emoji renders as a widget the caret cannot enter: `contenteditable=false` with
 `user-select: none`. The browser starts no selection from a click on it and answers that point
-with a position in the neighbouring text, so a drag beginning on the glyph used to paint nothing
+with a position in the neighboring text, so a drag beginning on the glyph used to paint nothing
 at all, which surprises the user, for whom the glyph is a character in the line like any other.
 
 The editor runs its own drag from such a click, as it does for one starting in the margin, and

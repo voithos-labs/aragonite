@@ -1,4 +1,4 @@
-# Feature: the element a plugin whole-block kind declares is not a tab stop
+# Feature: a plugin whole-block kind's declared surface is not a tab stop
 
 `whole-block-tab-traversal.md` pins the rule on the built-in separator, which declares
 `tabindex=-1` in its own markup and so satisfies it by hand. This file pins the same rule where

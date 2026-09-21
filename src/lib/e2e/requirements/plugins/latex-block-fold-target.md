@@ -1,4 +1,4 @@
-# Feature: closing an equation's source writes back only the block it read (#161)
+# Feature: a render-primary fold writes back only what its reveal measured (#161)
 
 A render-primary leaf shows its source, holds the edit in DOM the tree never sees, and commits
 once on blur. Undo and a host `source` swap both replace the node at that index before the blur

@@ -1,4 +1,4 @@
-# Feature: emoji shortcodes as glyph widgets
+# Feature: emoji shortcodes as atomic glyph widgets
 
 GitHub `:shortcode:` emoji render as glyph widgets, recognized from a bare `:`. The literal
 `:smile:` bytes stay in the source and the widget shows only the glyph. Seed `emoji`: block 0 is

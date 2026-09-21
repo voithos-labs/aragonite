@@ -1,4 +1,4 @@
-# Feature: Plugin container: a `<details>` that windows its own body, plus the collapse clamp
+# Feature: Plugin Container, `<details>` Nested Windowing × Clamp
 
 Spec §8.2. A details whose body has enough children to start windowing on its own, toggled
 closed, open and closed again. The collapse clamp and the nested window share the same slice

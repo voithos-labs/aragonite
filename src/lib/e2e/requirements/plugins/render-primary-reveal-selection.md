@@ -1,4 +1,4 @@
-# Feature: a click that opens a render-primary leaf's source ends a live cross-block range
+# Feature: a reveal click on a render-primary leaf ends a live cross-block range
 
 A render-primary leaf (block math, the outline, a footnote definition) shows its source when
 clicked and puts a caret in it. That is a caret-placing gesture, so it has to end a live

@@ -1,4 +1,4 @@
-# Feature: an undo that restores a glyph widget leaves the scroll position alone
+# Feature: an undo that restores a glyph widget leaves the scrollport alone
 
 Deleting one `:sunny:` reference and undoing it edits a single block, so neither gesture may
 move what the user is looking at. Driven on `/test/plugins?seed=emoji` with the showcase's own

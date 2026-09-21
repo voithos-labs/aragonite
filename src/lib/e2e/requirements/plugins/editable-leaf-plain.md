@@ -1,4 +1,4 @@
-# Feature: Plain-mode editable leaf: the `%%` memo harness kind
+# Feature: Plain-mode editable leaf, the `%%` memo harness kind
 
 A `memo` leaf built on `createEditableLeaf({ mode: 'plain' })` is an always-editable text area
 that behaves like a built-in one: it commits to the tree per keystroke, batches undo the way
@@ -32,7 +32,7 @@ the rule without wiring anything itself.
   text keeps its newlines (the second line splits off as a paragraph through the shared commit
   code)
 - A copy across blocks with the memo as the focused end reaches the shared collector, which
-  reads the memo's own raw text plus the neighbour the selection swept, rather than copying one
+  reads the memo's own raw text plus the neighbor the selection swept, rather than copying one
   element on its own
 - A cut across blocks with the memo as the focused end writes the same clipboard payload and
   deletes the swept range, collapsing the selection

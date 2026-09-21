@@ -1,4 +1,4 @@
-# Feature: Plugin container: the footnote definition
+# Feature: Plugin Container, Footnote Definition
 
 The GFM `[^label]: content` definition is a built-in container whose marker is stripped from its
 children, built like `listItem`. Its body is real child blocks (a paragraph, or a paragraph plus

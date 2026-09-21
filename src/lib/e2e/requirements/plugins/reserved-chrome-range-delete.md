@@ -1,4 +1,4 @@
-# Feature: the reserved child 0 stops a range delete
+# Feature: Reserved-child-0 Chrome rangeDelete Wall
 
 The `:::callout` callout reserves child index 0 as an editable `callout-title` leaf, the
 container's own title row. These checks prove that a range delete stops at it. They read

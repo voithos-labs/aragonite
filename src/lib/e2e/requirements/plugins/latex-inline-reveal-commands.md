@@ -1,4 +1,4 @@
-# Feature: block commands while an inline source is shown
+# Feature: The fold seam, block commands against a revealed inline source
 
 While a widget shows its editable `$…$` bytes, that edit lives in DOM the tree has never seen. Every block command (merge, split, hard break, heading cycle, format toggle) reads `node.raw`, so a command that fires in that state has to commit the shown source first and then run against the committed bytes, using the caret and selection it read before that commit, since committing puts the caret somewhere of its own.
 

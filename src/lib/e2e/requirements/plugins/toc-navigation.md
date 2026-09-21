@@ -1,4 +1,4 @@
-# Feature: TOC outline: hierarchy and click-to-navigate
+# Feature: TOC outline, hierarchy and click-to-navigate
 
 The `[[toc]]` block renders the document's heading outline: entries indented by heading level,
 labels reduced to clean text, and each entry a target that scrolls its heading into view and

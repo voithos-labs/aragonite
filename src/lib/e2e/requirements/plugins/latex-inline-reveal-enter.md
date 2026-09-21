@@ -1,4 +1,4 @@
-# Feature: Enter inside a shown inline source
+# Feature: Enter inside a revealed inline source
 
 Enter is the block's split key everywhere else in the editor, and a shown source used to take it as a commit gesture instead. That cost the user the keypress twice over: at an edge of the source it moved the caret past the widget rather than pushing content down, and on a source already broken into plain text it did nothing visible, so the split needed a second press. Enter now commits the edit and splits at the caret, through the same commit-first path as the other block commands (`latex-inline-reveal-commands.md`). Escape is the only key a shown source still takes for itself.
 

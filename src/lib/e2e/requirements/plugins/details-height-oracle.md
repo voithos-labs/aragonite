@@ -1,4 +1,4 @@
-# Feature: Plugin container: estimating a collapsed `<details>` at scale
+# Feature: Plugin Container, `<details>` Collapsed Height Estimate at Scale
 
 Spec §8.3. Each kind's height estimator guesses the height of a block that is not mounted, which
 is what top-level windowing sums over. A collapsed details carries its whole hidden body in

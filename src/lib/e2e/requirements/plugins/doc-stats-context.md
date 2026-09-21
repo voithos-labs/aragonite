@@ -1,4 +1,4 @@
-# Feature: doc-stats plugin: the per-instance context, end to end
+# Feature: doc-stats plugin, per-instance context spine
 
 The `doc-stats` dogfood proves the per-instance context all the way through: `onEditor` receives
 an `EditorContext` for that one editor (editorId, live document, subscribe-only events, typed
@@ -7,7 +7,7 @@ disposer runs on unmount. The plugin writes its registry to `window.__docStats`,
 live editor holding a label, a block count and a running edit count, and every scenario asserts
 through that record, driven by real keyboard and mouse input. Single-editor scenarios run on
 `/test/plugins?seed=docstats`; the ones with two editors run on `/test/plugins/multi`, which
-mounts two editors with the same plugin, labelled left and right.
+mounts two editors with the same plugin, labeled left and right.
 
 ## Happy paths
 

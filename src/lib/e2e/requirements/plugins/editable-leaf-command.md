@@ -1,4 +1,4 @@
-# Feature: plugin-registered block commands on an editable leaf
+# Feature: Minted block commands on the editable-leaf tier
 
 A plugin registers a `(kind, id)` block command and binds it in the keymap of a kind built with
 `createEditableLeaf`. Pressing the bound chord over the focused leaf resolves the command

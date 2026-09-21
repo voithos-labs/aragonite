@@ -1,4 +1,4 @@
-# Feature: TOC block: the named user of the `document` prop
+# Feature: TOC block, the `document` prop's named consumer
 
 A `toc` leaf takes the exact line `[[toc]]` and renders a `<nav>` list of the document's
 headings (`heading` and `setextHeading`), each heading's text stripped of its markers through

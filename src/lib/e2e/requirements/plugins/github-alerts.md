@@ -1,4 +1,4 @@
-# Feature: Admonitions plugin, native GitHub alerts
+# Feature: Plugin Admonitions, native GitHub alerts
 
 A blockquote whose first line is exactly `> [!TYPE]` renders as a styled alert box, the shared
 admonition frame styled by the alert type, with its GitHub bytes untouched and never rewritten

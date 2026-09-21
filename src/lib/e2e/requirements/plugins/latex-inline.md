@@ -1,4 +1,4 @@
-# Feature: Plugin inline math: editing by showing the source
+# Feature: Plugin Inline Math, Select → Reveal-Source Editing
 
 Inline `$…$` math renders as a KaTeX widget the caret cannot enter. Focusing it, by clicking it
 or by moving the caret sideways against its edge, shows the editable `$…$` source in place, so
@@ -72,4 +72,4 @@ text lining up under it on line 2, to test where a click lands.
 ## Error cases
 
 - the `[invariant:…]` console watcher stays silent across showing the source, editing, committing,
-  cancelling, and the IME path
+  canceling, and the IME path

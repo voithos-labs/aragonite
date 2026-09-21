@@ -1,4 +1,4 @@
-# Feature: a click on an inline formula puts the caret where it landed
+# Feature: a click on an inline formula seats the caret where it landed
 
 A rendered `$…$` widget shows its editable source on a click. The caret used to land at the
 formula's end whatever the click meant, so editing the head of a formula took a click plus a walk
@@ -35,6 +35,6 @@ Seed (`?seed=math`): `Before $x^2$ after` in block [0], and a `Next` paragraph i
 ## Miss-analysis
 
 - Every scenario that showed an inline source either arrived by keyboard or clicked the widget's
-  centre and then pressed Home or End before typing, so where the click itself landed was never
+  center and then pressed Home or End before typing, so where the click itself landed was never
   the thing under test. The sibling `$$` block grew this scenario and the inline widget's
   identical gesture was never asserted as the same class.

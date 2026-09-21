@@ -1,4 +1,4 @@
-# Feature: Inline math: moving the caret sideways into a formula shows its source
+# Feature: Inline Math, Horizontal Caret Entry Reveals the Source
 
 Moving the caret sideways against an inline-math widget opens its source for editing, the way
 Obsidian does. The caret never lands in the invisible widget-selected state math used to fall

@@ -1,4 +1,4 @@
-# Feature: Plugins prop, installed before the first parse
+# Feature: Plugins Prop, install before the first parse
 
 The `/test/plugins` harness installs its four dogfood plugins through
 `<Editor plugins={[...]}>` rather than registering them at module scope. The prop is processed

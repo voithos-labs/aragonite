@@ -1,4 +1,4 @@
-# Feature: inline-math clipboard while the source is shown
+# Feature: inline-math clipboard during an active source reveal
 
 A cut or a paste fired while an inline-math widget is showing its editable `$…$` source has to
 commit that source into the tree first, then run against a tree that agrees with the screen, the

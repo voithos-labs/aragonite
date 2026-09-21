@@ -1,4 +1,4 @@
-# Feature: an inline handler that creates a built-in image keeps its own bytes
+# Feature: an inline rung that mints a built-in image keeps its own bytes
 
 The `wiki-embed` dogfood takes `![[path|width]]` through an inline handler on the `![[` prefix
 and creates a built-in `image` node, so the embed is an image as far as the whole editor is

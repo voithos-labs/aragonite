@@ -10,7 +10,7 @@ which is where DOM focus sits and what the focus assertions name. The `:focus-wi
 background are still the highlight.
 
 Fixture (loaded per test): a paragraph `Above text`, a valid ` ```mermaid ` diagram, and a
-paragraph `tail text`, so the block has an editable neighbour on each side.
+paragraph `tail text`, so the block has an editable neighbor on each side.
 
 ## Happy paths
 
@@ -52,7 +52,7 @@ paragraph `tail text`, so the block has an editable neighbour on each side.
 
 ## Edge cases
 
-- After the two-step delete, focus lands on the surviving neighbour, as it does after any
+- After the two-step delete, focus lands on the surviving neighbor, as it does after any
   delete, so a Mod+Z straight after resolves at the editor-wide level
 - The error, loading and static states are whole-block focus targets in their own right,
   covered by the sibling `mermaid-broken-focus` requirements, since this file's fixture uses a

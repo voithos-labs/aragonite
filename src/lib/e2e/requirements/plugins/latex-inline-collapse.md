@@ -1,4 +1,4 @@
-# Feature: inline math: when a shown source closes, and switching between two
+# Feature: inline math reveal, collapse scoping and switch
 
 Paired spec: `src/lib/e2e/tests/plugins/latex-inline-collapse.spec.ts`, on the `math-two` seed,
 two inline equations in one paragraph, the shape from the showcase where this class of bug

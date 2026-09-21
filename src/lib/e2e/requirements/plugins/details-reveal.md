@@ -1,4 +1,4 @@
-# Feature: Plugin container: scrolling into a collapsed `<details>`, the caret half
+# Feature: Plugin Container, `<details>` Reveal-into-Collapsed, Caret Half
 
 Scrolling to a body child the collapse clamp has unmounted opens the container the way its kind
 declares and commits that, so the target mounts instead of dead-ending. This file owns the caret

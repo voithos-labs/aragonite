@@ -3,7 +3,7 @@
 A `::name info` line (exactly two colons) has no kind of its own, so it falls back to the
 generic `directiveLeaf`: a single editable line whose `::name` fence renders as a dimmed marker
 and whose info text is ordinary editable text. Editing the info round-trips byte for byte; the
-leaf is one line and never merges with a neighbour.
+leaf is one line and never merges with a neighbor.
 
 ## Happy paths
 

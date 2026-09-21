@@ -1,4 +1,4 @@
-# Feature: escaping a details terminator on paste
+# Feature: details terminator escape at the paste door
 
 Paste builds its nodes before any byte-writing code sees them, so the `<details>` container's
 `bodyWrite` escape has to happen inside the paste path itself (GH #40). A clipboard carrying a

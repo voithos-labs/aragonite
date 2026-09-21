@@ -1,4 +1,4 @@
-# Feature: Plugins prop, a second editor mounted later
+# Feature: Plugins Prop, staggered second-editor mount
 
 A second editor can mount _after_ the first has already parsed, carrying a plugin the first
 never had (`/test/plugins/staggered`: editor 1 is `[calloutPlugin()]`, editor 2 is

@@ -18,7 +18,7 @@ mouse click on the word's own rect, and the paint is read off `getComputedStyle`
 
 - with the highlight off, a caret inside the chosen word paints no
   `.decoration-overlay.hl-occurrence` at all; turning the header toggle on and repeating the
-  same gesture paints the word's neighbours, each with a background alpha above zero
+  same gesture paints the word's neighbors, each with a background alpha above zero
 - the same click in live mode paints the same visible marks, since decorations only affect the
   view and hidden markers change nothing about the overlay's paint
 

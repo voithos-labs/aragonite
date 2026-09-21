@@ -1,4 +1,4 @@
-# Feature: Mermaid empty diagram: the edit box is the view
+# Feature: Mermaid empty diagram, the edit surface IS the view
 
 An empty or whitespace-only ` ```mermaid ` fence has no picture to draw and nothing worth
 reporting: the renderer rejects empty input, so an error card would accuse the user of a mistake

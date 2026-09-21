@@ -1,4 +1,4 @@
-# Feature: Plugin container: the `<details>` collapsible
+# Feature: Plugin Container, `<details>` Collapsible
 
 The `<details>` collapsible is the second container to reserve a child for its own title row. It
 reserves child 0 as an editable `details-summary` leaf and stores its open/closed state as

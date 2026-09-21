@@ -1,4 +1,4 @@
-# Feature: LaTeX math fence: GitHub's fenced `math` form
+# Feature: LaTeX math fence, GitHub's fenced `math` form
 
 A fenced code block whose info string starts with exactly `math` parses as its own `mathFence`
 kind, neither `mathBlock` nor a plain `fencedCode`, and renders through the same render-primary
