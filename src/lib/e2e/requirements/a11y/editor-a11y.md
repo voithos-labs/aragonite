@@ -6,15 +6,16 @@ any violation outside the committed baseline allowlist fails the gate.
 ## Happy paths
 
 - Default multi-block content has no new (non-baselined) axe violations.
-- Reading mode (`data-presentation='reading'`) has no new violations — the read-only
-  surface (`contenteditable=false` + `aria-readonly`), CSS-hidden markers, synthesized
-  bullets, and visible ordered numbers are all axe-relevant.
-- Preview-block (`data-presentation='preview-block'`) has no new violations — focus-keyed
-  marker hiding plus rendered bullet chrome on unfocused list items.
-- Preview-inline (`data-presentation='preview-inline'`) has no new violations — the
-  construct-marker stamps and folded/revealed spans get their own pass.
-- The live-mode link card has no new violations while open — anchored chrome inside `.editor`, so
-  its dialog role and name, labelled field, and named buttons ride the same `include('.editor')` scan.
+- Reading mode (`data-presentation='reading'`) has no new violations: the read-only
+  editable area (`contenteditable=false` plus `aria-readonly`), the markers CSS hides,
+  the synthesized bullets and the visible ordered numbers all matter to axe.
+- Preview-block (`data-presentation='preview-block'`) has no new violations: marker
+  hiding keyed on focus, plus rendered bullet markers on unfocused list items.
+- Preview-inline (`data-presentation='preview-inline'`) has no new violations: the data
+  attributes on construct markers, and the spans whose markers are hidden or shown, get
+  their own pass.
+- The live-mode link card has no new violations while open. It sits inside `.editor`, so
+  its dialog role and name, its labelled field and its named buttons are covered by the same `include('.editor')` scan.
 - An active cross-block selection exposes an ARIA live region announcing the span, and has no new violations.
 - A keyboard block reorder (Alt+Arrow) announces the new position via a live region, and has no new violations.
 
