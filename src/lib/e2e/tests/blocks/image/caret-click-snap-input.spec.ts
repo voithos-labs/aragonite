@@ -100,7 +100,7 @@ test.describe('typing and paste after click-snap', () => {
 		expect(src).toContain(')z');
 	});
 
-	// With the caret at the image's end offset between `contenteditable=false` neighbours, Chromium
+	// With the caret at the image's end offset between `contenteditable=false` neighbors, Chromium
 	// drops printable keys silently (neither `beforeinput` nor `input` fires), so keydown routes the
 	// character through the CST. `keyboard.press`, not `insertText`: this needs a keydown.
 	test('typing after click-snap to image.end inserts the character into the source', async ({

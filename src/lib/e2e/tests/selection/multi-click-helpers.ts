@@ -1,6 +1,6 @@
 import type { Page } from '@playwright/test';
 
-/** Viewport centre of the first rendered run of `needle` in the editor: the aim point for a
+/** Viewport center of the first rendered run of `needle` in the editor: the aim point for a
  *  click on a word, measured live so shown source or a cell reads the same. */
 export async function runCenter(page: Page, needle: string): Promise<{ x: number; y: number }> {
 	const at = await page.evaluate((w) => {
@@ -120,7 +120,7 @@ export async function gutterLeftOf(page: Page, needle: string): Promise<{ x: num
 	return at;
 }
 
-/** The centre of the `- ` marker the container draws inside the editable holding `needle`: a
+/** The center of the `- ` marker the container draws inside the editable holding `needle`: a
  *  widget inside the editable element, not part of its text. */
 export async function markerCenterOf(
 	page: Page,

@@ -11,7 +11,7 @@ const paintedBoxes = (page: Page): Promise<Array<{ width: string; height: string
 		})
 	);
 
-// A transformed box is rasterised at its fractional edges, so centring the drawn box with
+// A transformed box is rasterized at its fractional edges, so centering the drawn box with
 // `translate(-50%, -50%)` half-paints one edge on a scaled display (Windows at 150%) and the
 // square reads shorter than wide. At scale 1 it looks fine, so this project runs at the scale
 // that shows it. What is pinned is the mechanism: no transform, and a whole-pixel size that

@@ -14,7 +14,7 @@ test.describe('reorder hover handle', () => {
 		await editor.goto();
 	});
 
-	/** Signed distance from the handle's centre to the centre of `anchor`'s box, in px. */
+	/** Signed distance from the handle's center to the center of `anchor`'s box, in px. */
 	async function gripOffset(host: import('@playwright/test').Locator, anchor: string) {
 		return host.evaluate((el, sel) => {
 			const grip = el.querySelector(':scope > .block-drag-handle .grip')!.getBoundingClientRect();
@@ -34,7 +34,7 @@ test.describe('reorder hover handle', () => {
 		await expect(handle).toHaveCSS('opacity', '1');
 	});
 
-	// Can it be reached: the earlier tests hover the block's centre and pass even when the handle
+	// Can it be reached: the earlier tests hover the block's center and pass even when the handle
 	// cannot be. If the margin between block and handle is outside the hover region, the handle
 	// hides mid-move and, with `pointer-events: none` once hidden, can never catch the pointer.
 	test('the revealed handle stays reachable as the pointer moves onto it', async ({ page }) => {
@@ -145,8 +145,8 @@ test.describe('reorder hover handle', () => {
 		expect(seat.aboveFirstLine, 'above the first code line').toBeGreaterThan(0);
 	});
 
-	// A one-line block centres on its row, checkbox or bullet alike: level with the row is where
-	// the eye puts it, and the checkbox sits a little below that centre.
+	// A one-line block centers on its row, checkbox or bullet alike: level with the row is where
+	// the eye puts it, and the checkbox sits a little below that center.
 	test('the handle grip centres on a one-line list row', async ({ page }) => {
 		await editor.goto('?presentationMode=live');
 		await editor.loadContent('- [ ] open task\n- plain bullet\n\ntail\n');

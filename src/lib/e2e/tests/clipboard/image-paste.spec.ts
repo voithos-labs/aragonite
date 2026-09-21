@@ -12,7 +12,7 @@ import {
 } from './image-paste-harness';
 
 // The `onPasteImage` host hook where the paste lands inside one block: placement, undo, the
-// cases it declines, and the same behaviour on every editable element. Cross-block replacement
+// cases it declines, and the same behavior on every editable element. Cross-block replacement
 // lives in `image-paste-cross-block.spec.ts`. See `requirements/clipboard/image-paste.md`.
 
 /** Caret between `A` and `B` of the first paragraph, placed by click + keys. */

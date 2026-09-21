@@ -39,7 +39,7 @@ test.describe('whole-block focus — the block is one tab stop', () => {
 	});
 
 	// Tab never navigates out of a paragraph (`block.insertTab` types one), so the backward
-	// press is the only way a tab reaches the block from a neighbour.
+	// press is the only way a tab reaches the block from a neighbor.
 	test('Shift+Tab from the paragraph below lands on the editing host, not the separator', async ({
 		page
 	}) => {

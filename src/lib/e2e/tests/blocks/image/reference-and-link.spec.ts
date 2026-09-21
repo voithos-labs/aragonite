@@ -76,7 +76,7 @@ test.describe('image inside a link + reference-style images', () => {
 	});
 
 	// Changing the url (which inlines a reference image) is a source-mode edit: the toolbar carries
-	// no URL field. That behaviour is unit-covered in `image-source-bytes.test.ts`.
+	// no URL field. That behavior is unit-covered in `image-source-bytes.test.ts`.
 
 	test('a no-op popover dismiss preserves the reference and adds no undo entry', async ({
 		page

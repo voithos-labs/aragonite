@@ -76,7 +76,7 @@ test.describe('editor accessibility (axe baseline-ratchet)', () => {
 
 	test('the live-mode link card has no new violations while open', async ({ page }) => {
 		// The card is anchored inside `.editor`, so axe's `include('.editor')` scans it unchanged:
-		// a role=dialog with a name, a labelled text field, and two named buttons over the
+		// a role=dialog with a name, a labeled text field, and two named buttons over the
 		// editor's own theme colors.
 		await page.evaluate(() => (window as any).__test.setPresentationMode('live'));
 		await editor.loadContent('Visit [example](https://example.com) now.\n');
