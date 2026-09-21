@@ -2,9 +2,9 @@ import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 
 /**
- * Decoration mark overlay (requirements/decorations/mark-overlay.md). Sources register
- * through the public registry via the e2e bridge, needing no plugin, and the find bar rides
- * this same overlay under source `editor:search`.
+ * Decoration mark overlay (requirements/decorations/mark-overlay.md). Sources register through
+ * the public registry via the e2e bridge, needing no plugin, and the find bar paints on this
+ * same overlay under the source name `editor:search`.
  */
 
 test.describe('decoration mark overlay', () => {
@@ -126,8 +126,8 @@ test.describe('decoration mark overlay', () => {
 		});
 		await expect(page.locator('.decoration-overlay.e2e-kind')).toHaveCount(1);
 
-		// The re-measured range now crosses the dimmed marker and may split into per-fragment
-		// rects, so SURVIVAL, not fragment count, is what "repaints correctly" means here.
+		// The re-measured range crosses the dimmed marker and may split into one rect per
+		// fragment, so "repaints correctly" means the overlay survives, not that the count matches.
 		await editor.focusBlockStart(0);
 		await editor.typeSlowly('# ');
 		await page.waitForFunction(() => (window as any).__test.getBlockKind(0) === 'heading', null, {
@@ -151,8 +151,8 @@ test.describe('decoration mark overlay', () => {
 		});
 		await expect(page.locator('.decoration-overlay.e2e-reading')).toHaveCount(1);
 
-		// Reading makes the surface inert (no caret), but a view-only decoration is not
-		// caret-driven — it must still paint over its range in the read-only view.
+		// Reading mode makes the text inert, with no caret, but a view-only decoration does not
+		// follow the caret: it must still paint over its range in the read-only view.
 		await page.evaluate(() => (window as any).__test.setPresentationMode('reading'));
 		await expect(page.locator('.decoration-overlay.e2e-reading')).toHaveCount(1);
 	});

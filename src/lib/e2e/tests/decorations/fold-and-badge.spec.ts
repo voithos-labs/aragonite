@@ -3,10 +3,10 @@ import { PluginsPage } from '../plugins/helpers';
 import { FIXTURE_BYTES } from '../perf/vr-helpers';
 
 /**
- * Fold + block-badge fixtures (requirements/decorations/fold-and-badge.md). `fold` pins
- * ReplaceDecoration.widget with native interactivity inside the island, `block-badge` pins
- * BlockDecoration.badge including survival across windowing, and the fold-table seed pins
- * island rendering inside a table cell.
+ * The fold and block-badge fixtures (requirements/decorations/fold-and-badge.md). `fold` pins
+ * ReplaceDecoration.widget with a clickable element inside it, `block-badge` pins
+ * BlockDecoration.badge including survival across windowing, and the fold-table seed pins a
+ * widget rendered inside a table cell.
  */
 
 const ISLAND = '[data-decoration-island]';
@@ -44,8 +44,8 @@ test.describe('fold fixture', () => {
 });
 
 test.describe('fold fixture: islands in table cells', () => {
-	// "Never dev-warns" rides the shared fixture: the retired cells-unsupported warning is a
-	// `[aragonite:decorations]` sentinel fire, which the teardown watch fails undeclared.
+	// "Never dev-warns" comes from the shared fixture: it fails at teardown on any undeclared
+	// `[aragonite:decorations]` warning, and a cell refusing the decoration would print one.
 	test('a fold range in a cell renders one … island, never dev-warns, and stays byte-safe', async ({
 		page
 	}) => {
@@ -53,7 +53,7 @@ test.describe('fold fixture: islands in table cells', () => {
 		await editor.gotoPlugins('fold-table');
 		await editor.bridge.waitForSourceContains('SECRET');
 
-		// The cell surface now applies island decorations, exactly as the prose path.
+		// A table cell applies widget decorations the same way a prose block does.
 		await editor.waitForRenderFlush();
 		await expect(page.locator(`${ISLAND} .fold-ellipsis`)).toHaveText('…');
 		await expect(page.getByRole('cell').first()).not.toContainText('SECRET');
@@ -69,17 +69,17 @@ test.describe('fold fixture: islands in table cells', () => {
 			await editor.bridge.waitForSourceContains('SECRET');
 			await editor.waitForRenderFlush();
 
-			// Focus the island cell without clicking it (its left edge carries the row
-			// grip, and the `…` opens the fold): enter the sibling cell and Shift+Tab back.
+			// Focus the cell holding the widget without clicking it: its left edge carries the
+			// row's drag handle and the `…` opens the fold, so enter the next cell and Shift+Tab back.
 			await page.getByRole('cell').nth(1).click();
 			await page.keyboard.press('Shift+Tab');
 			await expect(page.getByRole('cell').first()).toBeFocused();
 			await page.keyboard.press('Home');
 			await page.keyboard.press('ArrowRight'); // past `a`
-			await page.keyboard.press('ArrowRight'); // past the space → island leading edge
+			await page.keyboard.press('ArrowRight'); // past the space, to the widget's leading edge
 
-			// First Delete selects the whole island (a hidden byte is the only thing to
-			// eat); the second deletes its covered range through the CST as one edit.
+			// The first Delete selects the whole widget, since a hidden byte is all there is to
+			// delete; the second removes the range it covers through the CST as one edit.
 			await page.keyboard.press('Delete');
 			await page.keyboard.press('Delete');
 

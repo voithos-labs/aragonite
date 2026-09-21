@@ -4,8 +4,8 @@ import { PluginsPage, activeBlockPath } from '../plugins/helpers';
 
 /**
  * Decoration dogfoods (requirements/decorations/dogfoods.md): two reference plugins built on
- * PUBLIC doors only — `highlight-occurrences` over the mark overlay, `ghost-text` over the
- * widget-island render path.
+ * the public API alone. `highlight-occurrences` uses the mark overlay, `ghost-text` the render
+ * path for inline widgets.
  */
 
 const OCCURRENCE = '.decoration-overlay.hl-occurrence';
@@ -16,9 +16,9 @@ async function cursorOffset(page: Page, path: number[]): Promise<number | null> 
 	return page.evaluate((p) => (window as any).__test.getBlockCursorSurface(p).cursorOffset, path);
 }
 
-/** Collapse the caret immediately after the ghost island — the element-level
- *  boundary position with no adjacent text node (the island sits at block end).
- *  Setup only; the keystrokes under test are real. */
+/** Collapse the caret immediately after the ghost widget: the element-level boundary position
+ *  with no adjacent text node, since the widget sits at the block's end. Setup only; the
+ *  keystrokes under test are real. */
 async function placeCaretAfterIsland(page: Page): Promise<void> {
 	await page.evaluate(() => {
 		const island = document.querySelector('[data-decoration-island]');
@@ -56,7 +56,7 @@ test.describe('highlight-occurrences dogfood', () => {
 		await editor.clickBlockAtPath([0], 5);
 		await expect(page.locator(OCCURRENCE)).toHaveCount(3);
 
-		// 'mat' occurs once — the marks must follow the caret, not stick to 'cat'.
+		// 'mat' occurs once: the marks must follow the caret, not stick to 'cat'.
 		await editor.clickBlockAtPath([0], 13);
 		await expect(page.locator(OCCURRENCE)).toHaveCount(1);
 
@@ -119,8 +119,8 @@ test.describe('ghost-text dogfood', () => {
 		await editor.clickBlock(0);
 		await expect(page.locator(GHOST)).toHaveCount(1);
 
-		// The island keydown branch is cross-browser defence for engines that drop printable keys
-		// at an element-level caret; Chromium types natively here, so only the unit suite pins it.
+		// The widget's keydown branch is there for browsers that drop printable keys at an
+		// element-level caret; Chromium types normally here, so only the unit suite pins that branch.
 		await placeCaretAfterIsland(page);
 		await editor.typeSlowly('z');
 		await editor.bridge.waitForSourceContains('Hello worldz');
@@ -133,8 +133,8 @@ test.describe('ghost-text dogfood', () => {
 		await editor.clickBlockAtPath([0], 11);
 		await expect(page.locator(GHOST)).toHaveCount(1);
 
-		// Two presses cover both step orders (over-the-island then out, or straight
-		// out); either way the caret must end up in block 1.
+		// Two keypresses cover both step orders (over the widget then out, or straight out);
+		// either way the caret must end up in block 1.
 		await page.keyboard.press('ArrowRight');
 		await page.keyboard.press('ArrowRight');
 		await expect.poll(() => activeBlockPath(page)).toEqual([1]);
@@ -148,9 +148,9 @@ test.describe('ghost-text dogfood', () => {
 
 		await editor.typeSlowly('x');
 		await editor.bridge.waitForSourceContains('x');
-		// The split-trivia shape is the plain editor's own Enter result, verified
-		// ghost-free; this pins that the ghost island changes none of those bytes
-		// and the empty block still takes input.
+		// The blank lines around the split are the plain editor's own Enter result, checked with
+		// no ghost: this pins that the ghost widget changes none of those bytes and the empty
+		// block still takes input.
 		expect(await editor.bridge.getSource()).toBe('Hello world\n\nx\n\nSecond paragraph\n');
 	});
 });

@@ -4,9 +4,9 @@ import { PluginsPage } from '../plugins/helpers';
 import { freezeInPageClock, PAST_TYPING_PAUSE_MS } from '../../page-probes';
 
 /**
- * The edit epoch follows the keystroke (requirements/decorations/epoch-per-keystroke.md).
+ * The edit counter bumps once per keystroke (requirements/decorations/epoch-per-keystroke.md).
  * The clock is frozen after setup, so the typing batch's pause elapses only when the spec
- * advances it: the marks step aside on the keystroke and the advance is what returns them.
+ * advances it: the marks step aside on the keystroke and the advance is what brings them back.
  */
 
 const WORD = 'alpha';
@@ -15,14 +15,14 @@ const OCCURRENCE = '.decoration-overlay.hl-occurrence';
 interface Probe {
 	/** Occurrences of the word in block [0] whose live Range rect an overlay covers. */
 	aligned: number;
-	/** Overlays painted in block [0] — a stale mark measures into extra fragments. */
+	/** Overlays painted in block [0]: a stale mark measures into extra fragments. */
 	painted: number;
 	words: number;
-	/** Left edge of each occurrence, the liveness half of the oracle. */
+	/** Left edge of each occurrence, the liveness half of the reference check. */
 	wordLefts: number[];
 }
 
-/** Measures each painted overlay against the word's OWN rect, so the oracle is the
+/** Measures each painted overlay against that word's current rect, so the reference is the
  *  document's live geometry rather than a remembered pixel. */
 function probe(page: Page): Promise<Probe> {
 	return page.evaluate((word) => {
@@ -30,8 +30,8 @@ function probe(page: Page): Promise<Probe> {
 		const editable = block?.querySelector('[contenteditable]') as HTMLElement | null;
 		if (!editable) throw new Error('probe: no editable in block [0]');
 
-		// Ambient marker spans contribute to textContent but not to raw, and the marks
-		// address raw — the same reject `pointForOffset` applies.
+		// Marker spans add to textContent but not to raw, and the marks address raw, so this
+		// traversal rejects them exactly as `pointForOffset` does.
 		const walker = document.createTreeWalker(editable, NodeFilter.SHOW_TEXT, {
 			acceptNode: (n) =>
 				(n as Text).parentElement?.closest('.md-marker[contenteditable="false"]')

@@ -2,8 +2,9 @@ import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 
 /**
- * Block-tier decorations (requirements/decorations/block-decoration.md). BlockHost carries
- * the source's class/attrs on the host div and mounts the badge widget as its first child.
+ * Block-level decorations (requirements/decorations/block-decoration.md). BlockHost puts the
+ * source's class and attributes on the block's own div and mounts the badge widget as its
+ * first child.
  */
 
 const HOST = "[data-block-path='[0]']";
@@ -113,8 +114,8 @@ test.describe('block decorations', () => {
 		await expect(page.locator(`${HOST} > .decoration-badge`)).toHaveCount(0);
 	});
 
-	// The refusal reports itself, so the fixture's warn watch is told to require exactly that
-	// tag here: the decoration being dropped silently would be the defect.
+	// Refusing the attribute warns, so this group declares that warning tag: dropping the
+	// decoration with no word about it would be the defect.
 	test.describe('a reserved attribute name', () => {
 		test.use({ expectWarns: ['decorations'] });
 
@@ -139,8 +140,9 @@ test.describe('block decorations', () => {
 		});
 	});
 
-	// The other half of the same hazard, independent of the refusal above: the override reads the
-	// walk container the JS twin reads, so a stamp on the ancestor host paints nothing.
+	// The other half of the same hazard, independent of the refusal above: the CSS rule reads the
+	// same element its JavaScript counterpart does, so the attribute on the outer block div
+	// paints nothing.
 	test('a content-empty stamp on the host paints no marker under live', async ({ page }) => {
 		await editor.goto('?presentationMode=live');
 		await editor.loadContent('# heading\n');

@@ -3,9 +3,9 @@ import { PluginsPage } from '../plugins/helpers';
 
 /**
  * A gesture that ends the document caret still reaches `selectionChange`
- * (requirements/decorations/caret-leaves-document.md). Miss-analysis: the channel was pinned
- * only through gestures that also move an editor-owned selection field, so the gestures whose
- * whole effect is on the NATIVE caret had no test at any level.
+ * (requirements/decorations/caret-leaves-document.md). Miss-analysis: the event was pinned only
+ * through gestures that also move an editor-owned selection field, so the gestures whose whole
+ * effect is on the browser's own caret had no test at any level.
  */
 
 const OCCURRENCE = '.decoration-overlay.hl-occurrence';
