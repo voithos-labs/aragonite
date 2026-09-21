@@ -1,7 +1,6 @@
-// The standard editor context a block component reads when mounted in isolation,
-// so a test mounts one block without hand-enumerating the root-provided interface
-// and re-collapses onto this file whenever a new required context appears.
-// `overrides` takes a per-key value or a subset of a facet's members.
+// The standard editor context a block component reads when mounted on its own, so a test can
+// mount one block without listing everything the root provides, and only this file changes when a
+// new required context appears. `overrides` takes a per-key value or part of a group's members.
 
 import { vi } from 'vitest';
 import {
@@ -51,19 +50,19 @@ export interface MountContextOverrides {
 	containerEdit?: ContainerEditActions;
 	services?: Partial<EditorServices>;
 	policies?: Partial<EditorPolicies>;
-	/** Facet override; the document getter is the `doc` member (`doc: { doc: () => d }`). */
+	/** Overrides one group; the document getter is the `doc` member (`doc: { doc: () => d }`). */
 	doc?: Partial<EditorDoc>;
 }
 
-/** A member a bare mount CALLS is wired to its production factory, empty — a
- *  stub that answers only the members reached today drifts the moment a
- *  component reaches one more. The rest keep a `{}` cast. */
+/** A member a bare mount actually calls is wired to its production factory, empty: a stub that
+ *  answers only the members reached today breaks the moment a component reaches one more. The
+ *  rest keep a `{}` cast. */
 function stubbedServices(getDoc: () => DocumentView): EditorServices {
 	const selection = createSelectionState();
 	return {
 		events: createEditorEvents(),
-		// Real, not a cast: BlockHost and its overlays call four engine members
-		// during mount, and a source-less engine answers all of them honestly.
+		// Real, not a cast: BlockHost and its overlays call four members of the decorations
+		// service during mount, and one with no sources answers all of them honestly.
 		decorations: createDecorationEngine({ getDoc }),
 		selection,
 		search: {} as EditorServices['search'],
@@ -71,10 +70,10 @@ function stubbedServices(getDoc: () => DocumentView): EditorServices {
 		edgeAffinity: makeEdgeAffinity(),
 		pendingMarks: makePendingMarks(),
 		revealAnchor: createRevealAnchorState(),
-		// Real: every keydown on an editable surface asks it what is selected.
+		// Real: every keydown on an editable block asks it what is selected.
 		widgetSelection: createWidgetSelectionState({ onSelect: () => {} }),
-		// Real: a `link.openCard` press asks it to seat a target, and the entry rule reads it back.
-		// The guards mirror production so a component test exercises the entry gates it ships with.
+		// Real: a `link.openCard` keypress asks it to record a target, and the entry rule reads it
+		// back. The checks mirror production, so a component test runs the ones it ships with.
 		linkCard: createLinkCardState({
 			onOpen: () => {},
 			canOpen: () => !selection.isCrossBlock && window.getSelection()?.isCollapsed !== false,
@@ -92,7 +91,7 @@ function stubbedServices(getDoc: () => DocumentView): EditorServices {
 		registryView: defaultRegistryView,
 		activePlugins: everyInstalledPlugin,
 		rects: {} as EditorServices['rects'],
-		// Real, and inert: a bare mount has no cross-block range, so every arm answers no.
+		// Real, and inert: a bare mount has no cross-block range, so every member answers no.
 		crossBlockCommands: { canRun: () => false, run: () => false, isActive: () => false }
 	};
 }
@@ -128,7 +127,7 @@ function stubbedDoc(emptyDoc: Document): EditorDoc {
 		blockElLookup: () => null,
 		focusedPath: () => null,
 		// Real, not a cast: a windowed container (list, table) builds its height
-		// model during init and would throw on a bare object.
+		// table during init and would throw on a bare object.
 		heightOracle: createHeightOracle({
 			lineHeight: HEIGHT_ESTIMATES.proseLineHeight,
 			codeLineHeight: HEIGHT_ESTIMATES.codeLineHeight,
@@ -144,8 +143,9 @@ function stubbedDoc(emptyDoc: Document): EditorDoc {
 	};
 }
 
-/** Self mode's own wiring: an editor root supplied without a port IS the port, so a harness
- *  that stubs scroll geometry on the root gets windowing reading it, as in production. */
+/** Self mode's own wiring: an editor root supplied without a scroll container is the scroll
+ *  container, so a harness that stubs scroll geometry on the root has windowing read it, as in
+ *  production. */
 function withDerivedScrollport(doc: EditorDoc): EditorDoc {
 	if (doc.scrollport() !== null) return doc;
 	let port: Scrollport | null = null;
@@ -161,8 +161,8 @@ function withDerivedScrollport(doc: EditorDoc): EditorDoc {
 
 export function editorMountContext(overrides: MountContextOverrides = {}): Map<symbol, unknown> {
 	const emptyDoc: Document = { kind: 'document', prefix: '', children: [], suffix: '' };
-	// The doc facet is assembled first so services that read the document (the
-	// decoration engine) see the override rather than the empty placeholder.
+	// The document group is assembled first, so services that read the document (decorations)
+	// see the override rather than the empty placeholder.
 	const doc: EditorDoc = withDerivedScrollport({ ...stubbedDoc(emptyDoc), ...overrides.doc });
 	return new Map<symbol, unknown>([
 		[BLOCK_EDIT_KEY, overrides.blockEdit ?? makeStubBlockEdit()],

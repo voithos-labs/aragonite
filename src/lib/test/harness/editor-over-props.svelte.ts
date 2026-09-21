@@ -1,6 +1,6 @@
-// Driving the mounted Editor through the props a host writes. A whole-document swap and a
-// presentation-mode flip are both prop writes whose consequences live inside the component,
-// so the specs that ask about them mount the real thing. One editor at a time.
+// Drives the mounted Editor through the props a host writes. Swapping the whole document and
+// switching presentation mode are both prop writes whose consequences live inside the component,
+// so the suites that ask about them mount the real thing. One editor at a time.
 
 import { mount, unmount, flushSync, tick } from 'svelte';
 import Editor from '$lib/components/Editor.svelte';

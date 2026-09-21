@@ -1,6 +1,6 @@
 /**
- * A position-scoped test kind — `---` front matter that opens only at the document top.
- * The exemplar no shipped kind provides, and the shape issue #52 was found with.
+ * A test kind that only opens at one position: `---` front matter, recognized at the top of the
+ * document and nowhere else. No shipped kind has this shape, so the suites need one that does.
  */
 
 import { joinRaw } from '$lib/core/parser';
@@ -18,9 +18,9 @@ export const FRONT_MATTER = '---\ntitle: x\n---\n';
 type PluginKind = ReturnType<typeof declarePluginKind>;
 
 /**
- * The sanctioned gate. Written `!== false` rather than as a truth test so it still opens
- * where the field is absent: on pre-fix code the regression pins red instead of passing
- * vacuously.
+ * The supported check. Written as `!== false` rather than a plain truth test so the opener still
+ * fires where the field is absent, which is what makes the regression test fail rather than pass
+ * for the wrong reason.
  */
 function atDocumentTop(ctx: OpenContext): boolean {
 	return (

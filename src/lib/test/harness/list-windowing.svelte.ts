@@ -1,7 +1,7 @@
 /**
- * The `createListWindowing` mount ceremony the windowing suites share: a stubbed port and list
- * element, an `$effect.root`, and the wiring every scope takes. A suite passes only the fixture
- * and the option it tunes; everything else comes from the defaults below.
+ * The `createListWindowing` setup the windowing suites share: a stubbed scroll container and list
+ * element, an `$effect.root`, and the wiring every child list takes. A suite passes only the
+ * fixture and the one option it tunes; everything else comes from the defaults below.
  */
 import { flushSync } from 'svelte';
 import {
@@ -28,8 +28,8 @@ export function fixedOracle(px: number): HeightOracle {
 	};
 }
 
-/** Height BY ID, so a permutation the model tracks changes each index's offset. The listed
- *  heights answer as MEASURED, which is what a block with a real box reports. */
+/** Heights keyed by id, so reordering the blocks changes each index's offset. The listed heights
+ *  count as measured, which is what a block with a real box reports. */
 export function heightsOracle(heights: Record<string, number>, estimate = 10): HeightOracle {
 	return {
 		estimate: () => estimate,
@@ -51,7 +51,7 @@ export type MountListWindowingOptions = Partial<ListWindowingDeps> & {
 	viewportTop?: number;
 	maxScrollTop?: number;
 	snapsToPixel?: boolean;
-	/** Chrome between the port's content origin and this list's first block. */
+	/** The space between the scroll container's content origin and this list's first block. */
 	chromeAbove?: number;
 };
 

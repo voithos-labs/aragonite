@@ -1,8 +1,8 @@
 /**
  * The two steps every top-level structural commit runs, for suites driving the primitives
- * directly: the sink over the slotless body parent production hands it, then the ceremony's
- * settle over the document's folded tail line. A test calling the sink alone hands it a parent
- * production never passes, and passes vacuously for everything the settle owns.
+ * directly: the write against the body parent production hands it, which has no `suffix` field,
+ * then the commit's recompute of the document's trailing line. A test calling the write alone
+ * hands it a parent production never passes, and proves nothing about the recompute.
  */
 
 import type { CstNode, Document } from '$lib/core/nodes';
@@ -11,7 +11,7 @@ import { type SeparatorParent } from '$lib/tree-operations/node-primitives';
 import { settleSeparator } from '$lib/tree-operations/settle';
 import type { StructuralChange } from '$lib/tree-operations/structural-change';
 
-/** `editor-actions/block-edit-core.bodyParentOf` — no `suffix` slot, by contract. */
+/** `editor-actions/block-edit-core.bodyParentOf`: no `suffix` field, by contract. */
 const bodyParentOf = (doc: Document): BodyParent => ({
 	children: doc.children,
 	ownerKind: undefined,
@@ -32,7 +32,7 @@ function settleParentOf(doc: Document): SeparatorParent {
 	};
 }
 
-/** Runs `mutate` over the body parent, settles its window, and returns the settled change. */
+/** Runs `mutate` over the body parent, recomputes the separators around it, returns the change. */
 export function settled(
 	doc: Document,
 	mutate: (parent: BodyParent) => StructuralChange

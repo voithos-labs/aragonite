@@ -68,9 +68,9 @@ function median(values: number[]): number {
 }
 
 /**
- * How a size's body is built: a unit to repeat, or a builder for a shape repetition cannot
- * express (one construct with a long tail, a ladder of growing runs). A builder places the
- * distinctness itself, since a shape whose defect lives at its END cannot take a `z` tail.
+ * How a size's body is built: a unit to repeat, or a builder for a shape repetition cannot express
+ * (one construct with a long tail, a series of ever-longer runs). A builder places the per-sample
+ * distinctness itself, since a shape whose defect lives at its end cannot take a `z` tail.
  */
 export type ScanSource = string | ((bytes: number, salt: string) => string);
 
@@ -83,7 +83,7 @@ export function measureScanGrowth(
 	run: (source: string) => void,
 	source: ScanSource,
 	[smallKb, largeKb]: [number, number],
-	/** Clock seam, so the harness's own guard can price virtual milliseconds. */
+	/** The clock, injected so the harness's own test can price virtual milliseconds. */
 	now: () => number = () => performance.now()
 ): ScanGrowth {
 	let sample = 0;

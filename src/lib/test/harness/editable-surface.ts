@@ -1,4 +1,4 @@
-// Shared editable-surface harness for composition/input contract tests.
+// Shared harness for the composition and input contract tests on an editable block.
 
 import {
 	createEditableSurface,
@@ -10,19 +10,19 @@ export interface SurfaceHarness {
 	surface: ReturnType<typeof createEditableSurface>;
 	/** Recorded by the default commitInput; empty when a custom one is passed. */
 	commits: Array<{ text: string; preEdit: number; saved: number }>;
-	/** Every raw offset the surface wrote through `backend.setRaw`, in order. */
+	/** Every raw offset the editable element wrote through `backend.setRaw`, in order. */
 	seats: number[];
 	el: HTMLElement;
 	setCaret: (offset: number) => void;
 }
 
 /**
- * A real contenteditable behind the surface skeleton, so `readText` is honest DOM
- * readback: a test simulates the IME by assigning `el.textContent`, exactly what
- * the browser hands the input funnel. The caret is a settable cell because jsdom
- * has none. Only the two context reads the composition path touches are real —
- * the rest is constructed but never invoked. `presentationMode` mounts the block
- * under a mode-stamped root, which is where the landable walk reads the mode.
+ * A real contenteditable behind the harness, so `readText` reads the DOM honestly: a test
+ * simulates the IME by assigning `el.textContent`, which is exactly what the browser hands the
+ * input path. The caret is a settable value because jsdom has none. Only the two context reads
+ * the composition path touches are real; the rest is built but never called. `presentationMode`
+ * mounts the block under a root marked with that mode, which is where the traversal that finds
+ * caret positions reads it.
  */
 export function makeSurface(
 	commitInput?: EditableSurfaceDeps['commitInput'],

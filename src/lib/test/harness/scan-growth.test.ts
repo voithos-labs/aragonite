@@ -39,8 +39,8 @@ function virtualScan(cost: CostMs, stalls: (durationMs: number) => number = () =
 
 const STALL_MS = 4;
 
-/** Stationary interference: every millisecond of work stalls on a coin flip, so a stall-free run
- *  is rarer the longer the run — the asymmetry a best-of estimator reads as growth. */
+/** Steady interference: every millisecond of work stalls on a coin flip, so a stall-free run is
+ *  rarer the longer the run, which is the bias a best-of estimator reads as growth. */
 function stallStream(seed: number) {
 	let state = seed >>> 0;
 	const stalled = () => {
@@ -129,8 +129,9 @@ describe('measureScanGrowth calibration', () => {
 		expect(quadraticGrowth.attempts).toBe(MAX_ATTEMPTS);
 	});
 
-	// The runner failure this guards: a linear scan priced on a loaded box. Interference lands in
-	// proportion to a sample's length, so the estimator alone has to read 4 — no retry to lean on.
+	// The runner failure this guards against: a linear scan priced on a loaded machine.
+	// Interference scales with a sample's length, so the estimator alone has to read 4, with no
+	// retry to lean on.
 	it('reads a linear scan as linear while interference scales with sample duration', () => {
 		const loaded = virtualScan(linear(CLEARS_FLOOR_AT_32KB), stallStream(2654435761));
 		const growth = measureScanGrowth(loaded.run, 'x', [32, 128], loaded.now);

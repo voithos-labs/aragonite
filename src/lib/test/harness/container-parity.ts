@@ -1,10 +1,8 @@
 /**
- * Container-parity invariant for keyed BlockList rendering: a container whose
- * `children` outgrows its `childIds` hands Svelte's keyed `{#each}` undefined
- * keys, after which post-undo reconciliation drifts from CST. Call after any
- * structural mutation on a keyed container.
- *
- * Does NOT apply to the document root — top-level ids live on `deps.blockIds`.
+ * Checks that a keyed `BlockList` still has one id per child: a container whose `children`
+ * outgrows its `childIds` hands Svelte's keyed `{#each}` undefined keys, after which undo
+ * reconciles to something other than the tree. Call it after any structural mutation on a keyed
+ * container. It does not apply to the document root, whose ids live on `deps.blockIds`.
  */
 
 import { expect } from 'vitest';
@@ -23,8 +21,8 @@ export function assertContainerParity(node: CstNode, path = 'root'): void {
 	}
 }
 
-/** Mirrors `createBlockListState`'s lazy `childIds` seeding, so tests that bypass
- *  the component layer start from the shape Svelte would observe. */
+/** Mirrors how `createBlockListState` fills `childIds` on demand, so a test that bypasses the
+ *  components starts from the shape Svelte would see. */
 export function seedChildIdsRecursive(node: CstNode): void {
 	if (!node.children) return;
 	if (!node.childIds) node.childIds = assignIds(node.children);

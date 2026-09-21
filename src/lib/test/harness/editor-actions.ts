@@ -56,7 +56,7 @@ export function makeNode(kind: string, raw: string, metadata?: Record<string, un
 	return { kind, leadingTrivia: '', raw, ...(metadata ? { metadata } : {}) } as CstNode;
 }
 
-/** The first parsed block of `raw` — the leaf shape the block-edit-core suites drive. */
+/** The first parsed block of `raw`, the leaf shape the block-edit-core suites drive. */
 export function parseLeaf(raw: string): CstNode {
 	return parse(raw).children[0];
 }
@@ -79,7 +79,7 @@ export function makeGapScope(source: string): GapStopScope {
 	return { getDoc: () => doc, selection: createSelectionState() };
 }
 
-/** An inert gap scope, for the walks that assert non-gap landings. */
+/** An inert gap scope, for the traversals that assert the caret lands outside a gap. */
 export function makeEmptyGapScope(): GapStopScope {
 	return makeGapScope('');
 }
@@ -109,11 +109,11 @@ export function makePendingMarks(...kinds: InlineMarkKind[]): PendingMarksState 
 
 // ── BlockListState stub ──────────────────────────────────────────────────────
 
-// Mirrors production createBlockListState minus Svelte reactivity: ids are
-// node-backed so they follow copy-path-on-write node replacement, refs are local.
-// `getNode` must read the LIVE node (e.g. () => doc.children[0]) — a captured node
-// goes stale the first time a commit unshares its spine (tree-operations/unshare.ts).
-// Every harness below carries the same getter rule for the same reason.
+// Mirrors production `createBlockListState` without Svelte reactivity: ids live on the nodes, so
+// they follow the copy-before-write node replacement, and refs are local. `getNode` has to read
+// the live node (`() => doc.children[0]`): a captured node goes stale the first time a commit
+// copies its ancestors (`tree-operations/unshare.ts`). Every harness below takes the same getter
+// for the same reason.
 export function makeBlockListState(getNode: () => CstNode, ids?: string[]): BlockListState {
 	const node = getNode();
 	if (ids) node.childIds = [...ids];
@@ -133,7 +133,7 @@ export function makeBlockListState(getNode: () => CstNode, ids?: string[]): Bloc
 
 // ── CommitScope stub ─────────────────────────────────────────────────────────
 
-/** Runs the REAL mutate against a live children array, recording commits. */
+/** Runs the real mutate against a live children array, recording commits. */
 export function makeCommitScopeStub(
 	children: CstNode[],
 	opts: { refs?: (BlockComponent | undefined)[]; collapse?: boolean; owner?: CstNode } = {}
@@ -178,8 +178,8 @@ function paragraphListNode(childCount: number): CstNode {
 	};
 }
 
-/** The five members every container-shim assembly repeats; `over` layers a test's own axis.
- *  Copied by descriptor, so a getter in `over` stays live rather than freezing at call time. */
+/** The five members every container shim repeats; `over` adds a test's own. Copied by property
+ *  descriptor, so a getter in `over` stays live instead of freezing at call time. */
 export function makeShimDeps(
 	refs: (BlockComponent | undefined)[],
 	over: Partial<ContainerBlockComponentDeps> = {}
@@ -295,17 +295,15 @@ export interface EditorActionsHarness {
 	events: EditorEvents;
 	getBlockIds: () => string[];
 	getBlockRefs: () => (BlockComponent | undefined)[];
-	/** A plain counter standing in for the editor's content version, so a door test can ask
-	 *  whether the door it drove announced its write. */
+	/** A plain counter standing in for the editor's content version, so a test can ask whether the
+	 *  function it drove announced its write. */
 	contentVersion: () => number;
 }
 
-// `onSelectionChange` has to be supplied here rather than attached later:
-// SelectionState takes it at construction, so a test counting emissions cannot
-// install one afterwards.
-// Takes a whole parsed Document, not only its children: the parse folds a trailing blank line
-// into `suffix`, and a children-only fixture silently loses it — with it every structural
-// materialization of that line.
+// `onSelectionChange` is supplied here rather than attached later, because `SelectionState` takes
+// it at construction and a test counting emissions cannot install one afterwards. This takes a
+// whole parsed `Document`, not only its children: the parse puts a trailing blank line into
+// `suffix`, and a children-only fixture loses it, and with it every block that line would become.
 export function makeEditorActionsDeps(
 	source: CstNode[] | Document,
 	options: { onSelectionChange?: () => void; presentationMode?: PresentationMode } = {}
@@ -349,15 +347,15 @@ export function makeEditorActionsDeps(
 		sharing: createSharingState(),
 		stickyColumn: makeStickyColumn(),
 		edgeAffinity: makeEdgeAffinity(),
-		// The doc getter arms the production endpoint normalization — without it a deep table
-		// path stores raw and every dispatch-layer test sees endpoints production never mints.
+		// The document getter turns on the production endpoint normalization; without it a deep
+		// table path is stored raw and every dispatch test sees endpoints production never makes.
 		selectionState: createSelectionState({
 			getDoc: () => doc,
 			...(options.onSelectionChange ? { onChange: options.onSelectionChange } : {})
 		}),
 		getBlockElByPath: () => null,
-		// No render window in unit tests: every block is "mounted", so reveal is the
-		// production fast path — resolve from the live ref slots, descend if nested.
+		// No render window in unit tests: every block counts as mounted, so scrolling one into
+		// view takes the production fast path, reading the live refs and descending if nested.
 		revealPath: async (path: number[]) => {
 			if (path.length === 0) return null;
 			const ref = blockRefs[path[0]];
@@ -387,7 +385,7 @@ export interface TopHarness extends EditorActionsHarness {
 	edits: EditEvent[];
 }
 
-/** makeNestedHarness's top-level twin: deps + controller + block-edit actions over `input`. */
+/** The top-level counterpart of `makeNestedHarness`: deps, controller and block-edit actions. */
 export function makeTopHarness(
 	input: string | CstNode[] | Document,
 	options: Parameters<typeof makeEditorActionsDeps>[1] = {}
@@ -465,8 +463,8 @@ export interface NestedActionsDepsInput {
 	linkRef?: NestedActionsDeps['linkRef'];
 }
 
-// Every call site routes its input through here so the live-getter scope shape is
-// minted once rather than re-derived per test.
+// Every call site routes its input through here, so the shape with the live getters is built
+// once instead of re-derived per test.
 export function makeNestedActionsDeps(input: NestedActionsDepsInput): NestedActionsInput {
 	return {
 		scope: {
