@@ -20,6 +20,12 @@ restore, remove-link — is `live-link-card.md`; the consumption contract is `li
 
 ## Edge cases
 
+- the chord pressed deep in a scrolled document keeps the scroll where it was (nudging down by the
+  card's own height only when the selection sits at the bottom edge and the card opens below it),
+  and the card lands in view beside the selection. The field takes focus before the host has placed the anchor, which
+  still sits at the editor's origin at that moment: a scrolling focus carried the viewport to the
+  top of the document and the card, placed a frame later, was nowhere on screen — the press read
+  as doing nothing
 - the selection survives the create card borrowing the screen. Design choice: focusing the URL
   field moves the native selection into the field, so "stays painted" is not a contract any
   browser keeps — instead the range rides the caret-restore slot (the mechanism built for chrome

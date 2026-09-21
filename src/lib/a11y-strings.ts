@@ -61,7 +61,6 @@ export const COLUMN_ALIGNMENT = 'Column alignment';
 export const ADD_ROW_BELOW = 'Add row';
 export const ADD_COLUMN_RIGHT = 'Add column';
 export const TAIL_ADD_ROW = 'Add a line below';
-export const TAIL_ADD_BLOCK = 'Add a block';
 export const BLOCK_MENU_LABEL = 'Insert a block';
 export const BLOCK_ACTIONS_LABEL = 'Block actions';
 export const ALIGN_LEFT = 'Left';

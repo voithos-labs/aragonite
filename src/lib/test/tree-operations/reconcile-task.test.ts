@@ -124,6 +124,29 @@ describe('reconcileTaskMetadata', () => {
 		expect(meta.taskItem).toBe(false);
 	});
 
+	it('drops the marker when the first block stopped being a paragraph', () => {
+		const item = makeListItem('# beta\n', taskMeta());
+		item.children![0].kind = 'heading';
+		item.children![0].metadata = { level: 1 };
+		reconcileTaskMetadata(item);
+		const meta = item.metadata as ListItemMetadata;
+		expect(meta.taskItem).toBe(false);
+		expect(meta.taskMarker).toBeNull();
+		expect(meta.taskChecked).toBe(false);
+		expect(item.children![0].raw).toBe('# beta\n');
+	});
+
+	it('keeps the marker before the bare `#` a paragraph passes through on its way to `#tag`', () => {
+		const item = makeListItem('#\n', taskMeta('[x] ', true));
+		item.children![0].kind = 'heading';
+		item.children![0].metadata = { level: 1 };
+		reconcileTaskMetadata(item);
+		const meta = item.metadata as ListItemMetadata;
+		expect(meta.taskItem).toBe(true);
+		expect(meta.taskMarker).toBe('[x] ');
+		expect(meta.taskChecked).toBe(true);
+	});
+
 	it('skips when first paragraph is empty', () => {
 		const item = makeListItem('\n', plainMeta());
 		reconcileTaskMetadata(item);

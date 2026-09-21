@@ -20,6 +20,9 @@
 	import { simMarkPlugin } from './sim-mark/sim-mark-plugin';
 	import { simIslandPlugin } from './sim-island/sim-island-plugin';
 	import { wikiEmbedPlugin } from './wiki-embed/wiki-embed-plugin';
+	import { tagsPlugin } from './tags/tag-plugin';
+	import { tagMarksPlugin } from './tags/tag-marks-plugin';
+	import './tags/tag-marks.css';
 	import type { EditorPlugin } from '$lib/plugin';
 
 	// docStatsPlugin is a bare entry (no options), covering the options-default branch.
@@ -47,6 +50,12 @@
 		// The `![[…]]` rung mints a built-in `image`, so it would claim `!` for every
 		// sibling seed's prose once installed; scoped to its own.
 		'wiki-embed': [wikiEmbedPlugin],
+		// The bare `#` trigger claims every sibling seed's `#`-bearing prose once installed
+		// (a heading's own marker is a block opener, not inline, but `#tag` in prose is not);
+		// scoped to its own seed.
+		tags: [tagsPlugin()],
+		// The same tags as mark decorations over plain text: no island, no reveal.
+		'tags-marks': [tagMarksPlugin()],
 		// `%%parrot` is a narrowing of the base memo fixture's `%%`, and the bird animates on
 		// an interval; scoped to its own seed so neither reaches a sibling battery.
 		parrot: [DEMO_PARROT],
@@ -198,7 +207,12 @@
 		'wiki-embed': 'Before\n\n![[/test-fixtures/sample.png|400]]\n\nAfter\n',
 		// The caption is the bytes after the marker, so block 0 is the caption target and
 		// block 1 a plain blur target.
-		parrot: '%%parrot party responsibly\n\nAfter\n'
+		parrot: '%%parrot party responsibly\n\nAfter\n',
+		// A tag mid-prose, one opening a line (the case a bare `#` heading opener contests),
+		// one inside a heading's own content, and a plain typing target.
+		tags: 'Filed under #project and #work/admin today\n\n#inbox leads this line\n\n# Heading with #tag inside\n\nType here\n',
+		'tags-marks':
+			'Filed under #project and #work/admin today\n\n#inbox leads this line\n\n# Heading with #tag inside\n\nType here\n'
 	};
 	// svelte-ignore state_referenced_locally
 	const plugins = [...basePlugins, ...(seedPlugins[data.seed ?? ''] ?? [])];

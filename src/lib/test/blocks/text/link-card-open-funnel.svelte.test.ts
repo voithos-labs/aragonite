@@ -26,8 +26,9 @@ function openCard(url: string, resolveLinkUrl: (raw: string) => string = (u) => 
 		}
 	});
 	flushSync();
+	// An icon button: its name is the accessible label, not text.
 	const button = [...target.querySelectorAll('button')].find((b) =>
-		/open/i.test(b.textContent ?? '')
+		/open/i.test(b.getAttribute('aria-label') ?? '')
 	);
 	return { onOpenLink, button: button as HTMLButtonElement, destroy: () => unmount(app) };
 }

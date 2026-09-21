@@ -9,9 +9,9 @@ takes no keystrokes, so an empty construct there is still allowed to paint nothi
 
 ## Typed openers (live)
 
-- `#` typed into an empty paragraph: the block becomes a heading and its `#` paints on the h1 line.
+- `#` typed into an empty paragraph: the block becomes a heading and its `#` paints — at the paragraph's size, not the h1's. The heading type arrives with the space after the hashes and never before: the bare `#` is CommonMark's empty heading, but to a user it is the first byte of `#tag`, and a line that jumps to h1 size for that one keystroke reads as the editor fighting the tag.
 - a letter typed after that `#`: the byte lands AFTER the marker (`#a`), and the block reads back as a paragraph.
-- a space typed after that `#`: the source is `# `, the block is still a heading, the chrome still paints.
+- a space typed after that `#`: the source is `# `, the block is still a heading, the chrome still paints, and the h1 type is on now that the opener is complete.
 - a letter typed after `# `: the source is `# a` and the chrome hides — the content it stands behind arrived.
 - three backticks typed into an empty paragraph: the block becomes a fenced code block, completes its closer, and offers the language picker.
 - an info string typed into that picker and committed with Enter: the bytes append after the fence (` ```js `), never in front of it, and the caret returns to the body. A fence with a body line keeps its backticks hidden; the next typed byte lands in the body.

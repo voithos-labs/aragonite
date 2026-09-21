@@ -6,7 +6,7 @@ import {
 	__resetDefaultContextActionsForTests
 } from '$lib/components/menu/default-context-actions';
 import { __resetBlockContextActionsForTests } from '$lib/schema/context-actions';
-import { BLOCK_ACTIONS_LABEL, BLOCK_MENU_LABEL } from '$lib/a11y-strings';
+import { BLOCK_ACTIONS_LABEL } from '$lib/a11y-strings';
 import { parse } from '$lib/core/parser';
 import type { PresentationMode } from '$lib/presentation-mode';
 
@@ -169,19 +169,5 @@ describe('editor-root menus — the right-click', () => {
 		expect(h.menu()).toBeNull();
 		expect(h.rightClick(h.menuRow).defaultPrevented).toBe(true);
 		expect(h.menu()).toBeNull();
-	});
-});
-
-describe('editor-root menus — the tail plus', () => {
-	it('mints the trailing paragraph, then offers the insert rows and the clipboard', async () => {
-		const h = harness();
-		const button = document.createElement('button');
-		await h.menus.onTailPlus(button);
-		expect(h.blockEdit.insertParagraph).toHaveBeenCalledWith(2, '');
-		expect(h.menu()?.label).toBe(BLOCK_MENU_LABEL);
-		expect(h.ids()).toEqual(expect.arrayContaining(['code', 'sep', 'clip.paste']));
-		h.menu()!.pick('code');
-		expect(h.menu()).toBeNull();
-		expect(h.insertMarkdown).toHaveBeenCalledWith('```\n\n```\n');
 	});
 });

@@ -3,7 +3,7 @@
  * dispatch.ts for the composer that wires this together with the keydown half.
  */
 
-import type { CrossBlockDispatchContext } from './dispatch';
+import type { CrossBlockDispatchContext, PointerPressOptions } from './dispatch';
 import type { SelectionState } from '../selection-state.svelte';
 import type { StickyColumnState } from '../../cursor/sticky-column';
 import type { EdgeAffinityState } from '../../cursor/edge-affinity';
@@ -17,12 +17,12 @@ import { devWarn } from '../../dev-warn';
 // ── Public API ─────────────────────────────────────────────────────────────
 
 export interface CrossBlockPointer {
-	handlePointerDown(e: PointerEvent): boolean;
+	handlePointerDown(e: PointerEvent, press?: PointerPressOptions): boolean;
 }
 
 export function createCrossBlockPointer(ctx: CrossBlockDispatchContext): CrossBlockPointer {
 	return {
-		handlePointerDown: (e) => handlePointerDown(ctx, e)
+		handlePointerDown: (e, press) => handlePointerDown(ctx, e, press)
 	};
 }
 
@@ -52,7 +52,11 @@ export function resetForPointerDown(
 
 // ── Pointer ────────────────────────────────────────────────────────────────
 
-function handlePointerDown(ctx: CrossBlockDispatchContext, e: PointerEvent): boolean {
+function handlePointerDown(
+	ctx: CrossBlockDispatchContext,
+	e: PointerEvent,
+	press: PointerPressOptions = {}
+): boolean {
 	const el = ctx.getEl();
 	if (!el) return false;
 	const { selection } = ctx;
@@ -85,7 +89,7 @@ function handlePointerDown(ctx: CrossBlockDispatchContext, e: PointerEvent): boo
 	if (!e.shiftKey) {
 		const root = ctx.getEditorRoot();
 		if (!root) return false;
-		const offset = offsetFromViewportPoint(el, e.clientX, e.clientY);
+		const offset = press.anchorOffset ?? offsetFromViewportPoint(el, e.clientX, e.clientY);
 		if (offset === null) return false;
 		// SelectionState normalizes table endpoints on cross-block entry, so the raw block path
 		// is a valid anchor here.
@@ -106,7 +110,8 @@ function handlePointerDown(ctx: CrossBlockDispatchContext, e: PointerEvent): boo
 				scrollContainer: ctx.getScrollHost() ?? root,
 				selection,
 				getBlockElByPath: ctx.getBlockElByPath,
-				lifetimeSignal
+				lifetimeSignal,
+				paintSameBlock: press.paintSameBlock
 			},
 			anchorPoint,
 			e

@@ -9,6 +9,7 @@ import { katexRenderer } from '$lib/plugins/latex/renderer';
 import { mermaidPlugin } from '$lib/plugins/mermaid';
 import { parrotPlugin } from '$lib/plugins/parrot';
 import { mermaidRenderer } from '$lib/plugins/mermaid/renderer';
+import { tagMarksPlugin } from './test/plugins/tags/tag-marks-plugin';
 
 // One mint site for every demo route: definitions are process-global and install first-wins, so a
 // route varying a plugin's configuration passes `{ plugin, options }` rather than its own array.
@@ -22,6 +23,10 @@ export const DEMO_HIGHLIGHT_OCCURRENCES = highlightOccurrencesPlugin();
 export const DEMO_LATEX = latexPlugin({ renderer: katexRenderer });
 export const DEMO_MERMAID = mermaidPlugin({ renderer: mermaidRenderer });
 export const DEMO_PARROT = parrotPlugin();
+// In-body `#tag` as mark decorations over ordinary text: the tag keeps every native gesture, and
+// nothing about it is an island. Deliberately OUTSIDE `DEMO_PLUGINS`, which is the bundled-plugin
+// tour; the showcase installs this on its own.
+export const DEMO_TAGS = tagMarksPlugin();
 
 export const DEMO_PLUGINS = [
 	DEMO_ADMONITIONS,

@@ -22,6 +22,8 @@
 	import { isInlineWidget } from '../../../core/inline/inline-widgets';
 	import { trimTrailingLineEnding, trailingLineEnding } from '../../../core/lines';
 	import { hasSelection as hasSelectionHelper } from '../../../cursor/content-offsets';
+	import { caretIsInTextContent, seatIsInTextContent } from './click-snap-guard';
+	import { caretSeatFromPoint } from '../../../cursor/point-offset';
 	import { FALLBACK_CONTENT_WIDTH } from '../../../cursor/typography-estimates';
 	import {
 		createInlineFormatActiveMemo,
@@ -196,6 +198,24 @@
 	// Survives the click→keydown gap when Chromium clears the caret at CE=false-adjacent
 	// positions. Reactive so the snap-caret overlay sees changes.
 	let lastSnapTargetOffset = $state<number | null>(null);
+	/**
+	 * Bumped by every arm, so re-arming the SAME offset still re-runs the paint. Svelte coalesces
+	 * a null-then-same-value write into no change at all, and the paint is where a block takes the
+	 * caret from every other one: without this, a press that re-armed where it already was left a
+	 * stale caret somewhere else on screen.
+	 */
+	let snapEpoch = $state(0);
+
+	function armSnapTarget(offset: number | null): void {
+		lastSnapTargetOffset = offset;
+		snapEpoch++;
+	}
+	// The press seats the browser's caret before the click arms the synthetic one, and beside an
+	// island that seat is an element-level offset: Chromium paints a caret there at the line
+	// box's height, a taller stroke for the length of the press, which the synthetic then
+	// replaces. Reactive so the overlay darkens it as it lands; the click decides what paints next.
+	let pressSeatedBesideIsland = $state(false);
+	let pressPending = false;
 
 	// The one place a pending cursor is written, tagged so the interaction trace names
 	// which gesture set the restore; the render effect reads and clears it.
@@ -252,7 +272,7 @@
 		},
 		inputPrelude: () => {
 			markKeystrokeStart();
-			lastSnapTargetOffset = null;
+			armSnapTarget(null);
 		}
 	});
 
@@ -277,7 +297,7 @@
 		blockEdit,
 		focusActions,
 		setSnapTarget: (offset) => {
-			lastSnapTargetOffset = offset;
+			armSnapTarget(offset);
 		},
 		setPendingCursor: (offset) => setPendingCursorOffset(offset, 'widget'),
 		readRawText: () => readRawText(),
@@ -367,7 +387,7 @@
 		blockEdit,
 		setPendingCursor: (offset, source) => setPendingCursorOffset(offset, source),
 		setSnapTarget: (offset) => {
-			lastSnapTargetOffset = offset;
+			armSnapTarget(offset);
 		},
 		isRevealing: () => widgetInteraction.isRevealing(),
 		enterWidget: (widget, fromTrailingEdge) =>
@@ -706,15 +726,42 @@
 	function clearSnapTargetIfMoved(root: HTMLElement): void {
 		if (lastSnapTargetOffset === null) return;
 		const sel = window.getSelection();
-		if (!sel || sel.rangeCount === 0) return;
+		// No range at all is a caret that is not there — a cross-block range takes the native
+		// selection away, and chrome that borrows focus can drop it. Either way the synthetic
+		// caret is standing in for nothing, so it goes rather than waiting for a move it will
+		// never hear about.
+		if (!sel) return;
+		if (sel.rangeCount === 0) {
+			armSnapTarget(null);
+			return;
+		}
 		const range = sel.getRangeAt(0);
 		if (!root.contains(range.startContainer)) {
-			lastSnapTargetOffset = null;
+			armSnapTarget(null);
 			return;
 		}
 		const content = domTextOffsetAtNode(root, range.startContainer, range.startOffset);
 		const off = toClampedRawOffset(content, ambientLength);
-		if (off !== lastSnapTargetOffset) lastSnapTargetOffset = null;
+		if (off !== lastSnapTargetOffset) armSnapTarget(null);
+	}
+
+	/** Where the press just seated the caret: a collapsed selection at an element-level offset
+	 *  inside this block, the one seat Chromium paints at the line box's height. */
+	function notePressSeat(root: HTMLElement): void {
+		if (!pressPending) return;
+		const sel = window.getSelection();
+		const seated =
+			!!sel &&
+			sel.isCollapsed &&
+			sel.rangeCount > 0 &&
+			root.contains(sel.getRangeAt(0).startContainer) &&
+			!caretIsInTextContent(root, sel);
+		if (seated !== pressSeatedBesideIsland) pressSeatedBesideIsland = seated;
+	}
+
+	function endPress(): void {
+		pressPending = false;
+		if (pressSeatedBesideIsland) pressSeatedBesideIsland = false;
 	}
 
 	// One listener drives everything this block does on a selection change. The snap clearer
@@ -725,6 +772,7 @@
 		if (!root) return;
 		const handler = () => {
 			clearSnapTargetIfMoved(root);
+			notePressSeat(root);
 			if (composing) return;
 			widgetInteraction.foldRevealIfSelectionEscaped();
 			constructReveal.update();
@@ -735,6 +783,8 @@
 
 	$effect(() => {
 		if (!el) return;
+		// Read, so an arm at the offset already held still repaints — and sweeps.
+		void snapEpoch;
 		for (const w of el.querySelectorAll('.md-snap-after, .md-snap-before')) {
 			w.classList.remove('md-snap-after', 'md-snap-before');
 		}
@@ -742,6 +792,9 @@
 		// contenteditable=false widget, and nothing can ask whether the browser drew it, so
 		// hiding the browser's is the only guarantee available.
 		el.classList.remove('md-snap-caret-active');
+		// Dark from the press, not from the click: nothing paints beside the island until the
+		// click has decided, rather than the native stroke for the press and the synthetic after.
+		if (pressSeatedBesideIsland) el.classList.add('md-snap-caret-active');
 		if (lastSnapTargetOffset === null) return;
 		const off = lastSnapTargetOffset;
 		for (const inline of resolvedInlineContent(node, linkRef)) {
@@ -749,12 +802,40 @@
 			if (inline.end !== off && inline.start !== off) continue;
 			const widget = widgetElByStart(el, inline.start);
 			if (widget) {
+				sweepOtherBlocksSnap();
 				widget.classList.add(inline.end === off ? 'md-snap-after' : 'md-snap-before');
 				el.classList.add('md-snap-caret-active');
+				assertInvariant('snap-caret-unique', () => {
+					const root = getEditorRoot();
+					const painted = root?.querySelectorAll('.md-snap-after, .md-snap-before').length ?? 1;
+					return painted > 1
+						? {
+								code: 'snap-caret-not-unique',
+								message: `${painted} synthetic carets painted at once; one caret is one position`
+							}
+						: null;
+				});
 			}
 			return;
 		}
 	});
+
+	/**
+	 * One caret is one position, so a block arming its own synthetic caret takes the paint from
+	 * every other block. The owning block clears its own on the next selection change, but a
+	 * state it never hears about — its block unmounted while the caret was inside it, a selection
+	 * cleared out from under it — would otherwise leave a second caret on screen for good.
+	 */
+	function sweepOtherBlocksSnap(): void {
+		const root = getEditorRoot();
+		if (!root || !el) return;
+		for (const stale of root.querySelectorAll('.md-snap-after, .md-snap-before')) {
+			if (!el.contains(stale)) stale.classList.remove('md-snap-after', 'md-snap-before');
+		}
+		for (const block of root.querySelectorAll('.md-snap-caret-active')) {
+			if (block !== el) block.classList.remove('md-snap-caret-active');
+		}
+	}
 
 	// ── Event Handlers ──────────────────────────────────────────────────
 
@@ -896,11 +977,32 @@
 	let lastClickClientX: number | null = null;
 	let lastClickClientY: number | null = null;
 
+	/**
+	 * A press ON an atomic island: `contenteditable=false` and, for a glyph kind, `user-select:
+	 * none`, so the browser starts no drag from it and answers its point with a position in the
+	 * neighbouring text. The editor's session paints the range itself, anchored at the island's own
+	 * edge on the press's side. Null for an island running a pointer gesture of its own (an image's
+	 * resize) and for a press on plain text, which the engine already drags from.
+	 */
+	function islandPress(e: PointerEvent): { paintSameBlock: boolean; anchorOffset?: number } {
+		if (!el || e.button !== 0 || e.shiftKey) return { paintSameBlock: false };
+		const anchorOffset = widgetInteraction.islandDragAnchor(e.clientX, e.clientY);
+		if (anchorOffset === null) return { paintSameBlock: false };
+		return { paintSameBlock: true, anchorOffset };
+	}
+
 	function onPointerDown(e: PointerEvent): void {
-		if (crossBlock.handlePointerDown(e)) return;
+		if (crossBlock.handlePointerDown(e, islandPress(e))) return;
 		lastClickClientX = e.clientX;
 		lastClickClientY = e.clientY;
-		lastSnapTargetOffset = null;
+		armSnapTarget(null);
+		// Only a primary press ends in a click; a context-menu press would keep the caret hidden.
+		pressPending = e.button === 0;
+		// Read now, from the browser's own hit test, not at the `selectionchange` that follows:
+		// that event can arrive after a frame has painted the native caret, and refines this.
+		const seat = pressPending && el ? caretSeatFromPoint(document, e.clientX, e.clientY) : null;
+		pressSeatedBesideIsland =
+			!!seat && !!el && el.contains(seat.node) && !seatIsInTextContent(el, seat.node);
 		// A click on a widget that can show its source is this editor's gesture: cancelling the
 		// browser's caret default leaves that code as the only writer of the selection.
 		if (widgetInteraction.isPointOnRevealWidget(e.clientX, e.clientY)) e.preventDefault();
@@ -910,7 +1012,8 @@
 		if (el && e.relatedTarget && el.contains(e.relatedTarget as Node)) return;
 		// Save an edit to a shown source before the caret is gone.
 		widgetInteraction.commitRevealOnBlur();
-		lastSnapTargetOffset = null;
+		armSnapTarget(null);
+		endPress();
 		demoteEmptyHeadingOnBlur();
 	}
 
@@ -931,8 +1034,14 @@
 		cursor.clampOutOfAmbient();
 		widgetInteraction.snapClickToWidgetEdge(x, y, {
 			modified: e.ctrlKey || e.metaKey,
-			clickCount: e.detail
+			clickCount: e.detail,
+			// A release that travelled is the end of a drag, not a click: the reveal it would
+			// otherwise open unmounts the island the drag just painted a range across.
+			moved:
+				x !== null && y !== null && (Math.abs(e.clientX - x) > 3 || Math.abs(e.clientY - y) > 3)
 		});
+		// The click has decided: the snap target carries the dark from here, or nothing does.
+		endPress();
 	}
 
 	// ── Formatting shortcuts ────────────────────────────────────────────

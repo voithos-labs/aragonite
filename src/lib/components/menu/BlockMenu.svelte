@@ -1,8 +1,8 @@
 <script lang="ts" module>
 	/**
-	 * A limestone-styled list menu the editor opens at a point: the block picker behind the
-	 * bottom `+` (rows insert Markdown at the caret) and a block's context menu (rows run that
-	 * kind's registered actions). Pointer- and keyboard-driven without ever taking focus, so the
+	 * A limestone-styled list menu the editor opens at a point: a block's context menu (rows run
+	 * that kind's registered actions) and the prose menu's clipboard rows with its "Insert block"
+	 * flyout (rows insert Markdown into a new paragraph). Pointer- and keyboard-driven without ever taking focus, so the
 	 * caret it acts on stays exactly where it is.
 	 */
 	import { isPluginInstalled } from '../../schema/plugin-install';
@@ -67,22 +67,6 @@
 			...BUILT_IN,
 			...FROM_PLUGINS.filter((entry) => isPluginInstalled(entry.plugin)).map((entry) => entry.item)
 		].map(({ id, label, icon }) => ({ id, label, icon }));
-	}
-
-	const COMMON = new Set(['bullet', 'numbered', 'todo', 'code', 'table', 'math']);
-
-	/** The insert menu: the common blocks, the rest behind "More blocks". */
-	export function insertMenuEntries(): MenuEntry[] {
-		const all = [
-			...BUILT_IN,
-			...FROM_PLUGINS.filter((entry) => isPluginInstalled(entry.plugin)).map((entry) => entry.item)
-		];
-		const row = ({ id, label, icon }: BlockMenuItem): MenuEntry => ({ id, label, icon });
-		const common = all.filter((item) => COMMON.has(item.id)).map(row);
-		const more = all.filter((item) => !COMMON.has(item.id)).map(row);
-		return more.length
-			? [...common, { id: 'more', label: 'More blocks', icon: 'plus', children: more }]
-			: common;
 	}
 </script>
 

@@ -1,25 +1,21 @@
 <script lang="ts">
 	/**
-	 * The row below the last block: a full-width strip that adds an empty paragraph at the end
-	 * of the document and puts the caret in it, with a `+` in the left gutter that does the
-	 * same, so there is always a way to write below whatever the last block is (a table, a
-	 * fence, an equation), and a place to add the next block from.
+	 * The row below the last block: a full-width, invisible strip that adds an empty paragraph at
+	 * the end of the document and puts the caret in it, so there is always a way to write below
+	 * whatever the last block is (a table, a fence, an equation). A drag that starts on it is the
+	 * editor's own drag-select, like one from any margin (`editor-root-gestures.ts`).
 	 */
 	import type { BlockEditActions } from '../action-contracts';
-	import { TAIL_ADD_BLOCK, TAIL_ADD_ROW } from '../a11y-strings';
-	import MenuIcon from './menu/MenuIcon.svelte';
+	import { TAIL_ADD_ROW } from '../a11y-strings';
 
 	let {
 		blockEdit,
 		childCount,
-		readOnly,
-		onPlus
+		readOnly
 	}: {
 		blockEdit: BlockEditActions | undefined;
 		childCount: number;
 		readOnly: boolean;
-		/** The `+`: the editor appends the paragraph and opens the block menu over it. */
-		onPlus: (button: HTMLElement) => void;
 	} = $props();
 
 	// `insertParagraph` focuses the new block, which places the caret; the mousedown is
@@ -34,14 +30,6 @@
 	<div class="editor-tail">
 		<button
 			type="button"
-			class="editor-tail-plus"
-			aria-label={TAIL_ADD_BLOCK}
-			title={TAIL_ADD_BLOCK}
-			onmousedown={(e) => e.preventDefault()}
-			onclick={(e) => onPlus(e.currentTarget)}><MenuIcon name="plus" size={14} /></button
-		>
-		<button
-			type="button"
 			class="editor-tail-row"
 			aria-label={TAIL_ADD_ROW}
 			onmousedown={(e) => e.preventDefault()}
@@ -52,7 +40,6 @@
 
 <style>
 	.editor-tail {
-		position: relative;
 		display: flex;
 		align-items: center;
 		height: 34px;
@@ -70,40 +57,5 @@
 		outline: 1px solid var(--color-border, #3e3e3b);
 		outline-offset: -1px;
 		border-radius: 4px;
-	}
-	/* In the editor's gutter, exactly where a block's drag handle sits (`BlockDragHandle`): the
-	   root's 1rem padding leaves 0.85rem of room, and this is the handle of an imaginary last
-	   line. */
-	.editor-tail-plus {
-		position: absolute;
-		left: -1rem;
-		top: 50%;
-		transform: translateY(-50%);
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		width: 1rem;
-		height: 1rem;
-		padding: 0;
-		border: 0;
-		border-radius: 3px;
-		background: transparent;
-		color: var(--color-ui-muted, #8f8f89);
-		cursor: pointer;
-		opacity: 0;
-		transition: opacity 120ms ease-out;
-	}
-	.editor-tail:hover .editor-tail-plus,
-	.editor-tail-plus:focus-visible {
-		opacity: 1;
-	}
-	.editor-tail-plus:hover {
-		background: var(--color-ui-faint, rgba(255, 255, 255, 0.07));
-		color: var(--color-text-primary, #e8e8e5);
-	}
-	@media (prefers-reduced-motion: reduce) {
-		.editor-tail-plus {
-			transition: none;
-		}
 	}
 </style>

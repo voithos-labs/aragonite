@@ -1385,12 +1385,7 @@
 		reorderable={true}
 	/>
 	<!-- A sibling of the list like the header: windowing wants the list bare. -->
-	<TailInsert
-		{blockEdit}
-		childCount={doc.children.length}
-		readOnly={effectiveMode === 'reading'}
-		onPlus={(button) => void rootMenus.onTailPlus(button)}
-	/>
+	<TailInsert {blockEdit} childCount={doc.children.length} readOnly={effectiveMode === 'reading'} />
 	{#if blockMenu}
 		<BlockMenu
 			x={blockMenu.x}

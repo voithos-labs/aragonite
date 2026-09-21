@@ -1,22 +1,17 @@
 /**
  * Editor-root menus: the block context menu (a right-click on a block runs its kind's registered
- * actions; prose and a selection get the clipboard rows) and the tail `+`'s insert menu. The
- * open menu is `$state` in `Editor.svelte`, written through `setMenu`; a menu takes no focus,
- * so the caret it acts on stays exactly where it is.
+ * actions; prose and a selection get the clipboard rows, and prose an insert flyout). The open
+ * menu is `$state` in `Editor.svelte`, written through `setMenu`; a menu takes no focus, so
+ * the caret it acts on stays exactly where it is.
  */
 
 import type { BlockEditActions } from '../action-contracts';
-import { BLOCK_ACTIONS_LABEL, BLOCK_MENU_LABEL } from '../a11y-strings';
+import { BLOCK_ACTIONS_LABEL } from '../a11y-strings';
 import type { NodeView } from '../core/node-views';
 import type { DocumentGetter } from '../editor-keys';
 import type { PresentationMode } from '../presentation-mode';
 import { blockContextActionsFor, type BlockContextAction } from '../schema/context-actions';
-import {
-	insertFlyoutEntries,
-	insertMenuEntries,
-	insertSnippets,
-	type MenuEntry
-} from './menu/BlockMenu.svelte';
+import { insertFlyoutEntries, insertSnippets, type MenuEntry } from './menu/BlockMenu.svelte';
 import { runClipboardAction, type ClipboardAction } from './menu/clipboard-actions';
 import { isProseBackground } from './menu/default-context-actions';
 
@@ -46,7 +41,6 @@ export interface RootMenusDeps {
 
 export interface RootMenus {
 	onRootContextMenu(event: MouseEvent): void;
-	onTailPlus(button: HTMLElement): Promise<void>;
 }
 
 interface Point {
@@ -102,8 +96,8 @@ export function createRootMenus(deps: RootMenusDeps): RootMenus {
 		return true;
 	}
 
-	// The same two steps the tail's `+` takes: create the empty paragraph, which puts the caret
-	// in it, then hand the snippet to whatever now holds focus.
+	// Two steps: create the empty paragraph, which puts the caret in it, then hand the snippet to
+	// whatever now holds focus, so an inserted block goes through the same paste path.
 	async function insertBlockAfter(index: number, md: string): Promise<void> {
 		await deps.blockEdit.insertParagraph(index + 1, '');
 		deps.insertMarkdown(md);
@@ -195,24 +189,5 @@ export function createRootMenus(deps: RootMenusDeps): RootMenus {
 		openBlockActions(point, host, path, node);
 	}
 
-	async function onTailPlus(button: HTMLElement): Promise<void> {
-		await deps.blockEdit.insertParagraph(deps.getDoc().children.length, '');
-		const rect = button.getBoundingClientRect();
-		const point = { x: rect.left, y: rect.bottom + 4 };
-		const snippets = insertSnippets();
-		deps.setMenu({
-			...point,
-			anchor: anchorOn(button, point),
-			items: [...insertMenuEntries(), { id: 'sep', label: '', divider: true }, ...clipboardRows()],
-			label: BLOCK_MENU_LABEL,
-			pick: (id) => {
-				deps.setMenu(null);
-				if (runClipboardRow(id)) return;
-				const md = snippets.get(id);
-				if (md) deps.insertMarkdown(md);
-			}
-		});
-	}
-
-	return { onRootContextMenu, onTailPlus };
+	return { onRootContextMenu };
 }

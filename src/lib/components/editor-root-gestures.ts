@@ -54,9 +54,9 @@ export interface RootGestures {
 // equation, a diagram, a card's face): the browser cannot grow a selection from a click there,
 // so the editor runs the drag itself. A whole-block input proxy is editable in name only.
 const NOT_A_DRAG_START =
-	'[contenteditable="true"]:not([data-whole-block-input]), button, input, textarea, select, ' +
-	'a, summary, [role="checkbox"], ' +
-	'.code-rail, .table-add-zone, .editor-tail, .md-menu, .block-drag-handle';
+	'[contenteditable="true"]:not([data-whole-block-input]), ' +
+	'button:not(.editor-tail-row), input, textarea, select, a, summary, [role="checkbox"], ' +
+	'.code-rail, .table-add-zone, .md-menu, .block-drag-handle';
 
 const DRAG_SLOP_PX = 3;
 

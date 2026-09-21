@@ -31,22 +31,29 @@ export function offsetFromViewportPoint(
 	clientX: number,
 	clientY: number
 ): number | null {
-	const doc = blockEl.ownerDocument;
-	// caretRangeFromPoint is Chromium/WebKit (all Tauri webviews);
-	// caretPositionFromPoint is the Firefox-style fallback.
-	const ambient = ambientLengthOf(blockEl);
+	const seat = caretSeatFromPoint(blockEl.ownerDocument, clientX, clientY);
+	if (!seat || !blockEl.contains(seat.node)) return null;
+	const content = domTextOffsetAtNode(blockEl, seat.node, seat.offset);
+	return toClampedRawOffset(content, ambientLengthOf(blockEl));
+}
+
+/**
+ * The DOM position a caret placed at this point takes — the browser's own hit test, so the
+ * seat a press is about to make can be read before it lands. `caretRangeFromPoint` is
+ * Chromium/WebKit (all Tauri webviews); `caretPositionFromPoint` the Firefox-style fallback.
+ */
+export function caretSeatFromPoint(
+	doc: Document,
+	clientX: number,
+	clientY: number
+): { node: Node; offset: number } | null {
 	const rangeFromPoint = (
 		doc as Document & {
 			caretRangeFromPoint?: (x: number, y: number) => Range | null;
 		}
 	).caretRangeFromPoint?.(clientX, clientY);
-	if (rangeFromPoint && blockEl.contains(rangeFromPoint.startContainer)) {
-		const content = domTextOffsetAtNode(
-			blockEl,
-			rangeFromPoint.startContainer,
-			rangeFromPoint.startOffset
-		);
-		return toClampedRawOffset(content, ambient);
+	if (rangeFromPoint) {
+		return { node: rangeFromPoint.startContainer, offset: rangeFromPoint.startOffset };
 	}
 	const posFromPoint = (
 		doc as Document & {
@@ -56,11 +63,7 @@ export function offsetFromViewportPoint(
 			) => { offsetNode: Node; offset: number } | null;
 		}
 	).caretPositionFromPoint?.(clientX, clientY);
-	if (posFromPoint && blockEl.contains(posFromPoint.offsetNode)) {
-		const content = domTextOffsetAtNode(blockEl, posFromPoint.offsetNode, posFromPoint.offset);
-		return toClampedRawOffset(content, ambient);
-	}
-	return null;
+	return posFromPoint ? { node: posFromPoint.offsetNode, offset: posFromPoint.offset } : null;
 }
 
 /** A point one pixel inside `rect`, so the topmost element there is the box's own content. */

@@ -8,6 +8,7 @@ Exactly one caret paints for one caret position. Where the cursor lands in a tex
 
 - A snap-target widget renders a synthetic caret on the matching edge with an `::before` overlay (absolute-positioned, ~1.5px thin)
 - The block's native caret goes transparent while the synthetic is painted, and comes back when the snap clears
+- The dark starts at the PRESS, not at the click: the press seats the browser's caret before the click arms the synthetic one, and at the element-level offset beside the island Chromium paints it at the line box's height — a taller stroke for the length of the press, then the synthetic (the flash a text-height widget like an emoji showed). A press that seats in a text node keeps the native caret
 - Synthetic appears after Enter splits the paragraph and the user clicks an image-only block
 
 ## Edge cases
