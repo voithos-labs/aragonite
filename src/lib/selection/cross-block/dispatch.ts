@@ -85,18 +85,13 @@ export interface CrossBlockDispatchContext {
 	afterReactivity: () => Promise<void>;
 }
 
-/** What the pressing surface knows about its own press that the shared arm cannot read. */
+/** What the block handling a press knows about it that the shared pointer handler cannot read. */
 export interface PointerPressOptions {
-	/**
-	 * The press landed where the browser starts no native drag of its own: an atomic island with
-	 * `contenteditable=false` and `user-select: none` (an emoji). The session paints the range
-	 * inside the block itself, as it does for a drag from the margin, or the drag selects nothing.
-	 */
+	/** The press landed on a non-editable inline widget (an emoji), which the browser starts no
+	 *  drag from, so the block paints the range itself or the drag selects nothing. */
 	paintSameBlock?: boolean;
-	/**
-	 * The raw offset the press anchors at, for a surface that resolves its own press better than
-	 * the engine's hit test does (a press on an atomic island). Absent, the point is hit-tested.
-	 */
+	/** The raw offset the press anchors at, from a block that resolves its own press better than
+	 *  the browser's hit test does. Absent, the point is hit-tested. */
 	anchorOffset?: number;
 }
 

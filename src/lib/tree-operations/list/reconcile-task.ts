@@ -24,12 +24,10 @@ export function reconcileTaskMetadata(listItem: CstNode): void {
 	if (!meta) return;
 
 	if (firstChild.kind !== 'paragraph') {
-		// A task marker stands before a PARAGRAPH (GFM § 5.3). The first block just became
-		// something else — `Mod+1`, or `# ` typed at its start — so the checkbox goes with the
-		// paragraph it belonged to, rather than staying to scale itself to an h1 line. The one
-		// exception is the bare `#` a paragraph passes through on its way to `#tag`: a heading
-		// to the parser for a single keystroke, and taking the box then would strip a to-do
-		// for typing a tag into it.
+		// A task marker stands before a paragraph (GFM § 5.3), so a first block that is anything
+		// else loses the checkbox rather than scaling it to a heading line. The exception is the
+		// bare `#` a paragraph passes through on the way to `#tag`: a heading to the parser for
+		// one keystroke, and dropping the checkbox there would strip a to-do for typing a tag.
 		if (meta.taskItem && !(firstChild.kind === 'heading' && isBareHeadingOpener(firstChild.raw))) {
 			meta.taskItem = false;
 			meta.taskMarker = null;

@@ -89,8 +89,8 @@ async function mountHost() {
 	});
 	card.enter({ path: [0], sourceStart: 6 });
 	flushSync();
-	// The entered card takes the focus after the tick that places its anchor, so the Escape
-	// that owes the caret back finds the card holding it.
+	// The card takes focus a tick after its anchor is placed, so the Escape that restores the
+	// caret finds the card holding it.
 	await tick();
 	return { card, restore, destroy: () => unmount(app) };
 }

@@ -38,9 +38,9 @@ export function offsetFromViewportPoint(
 }
 
 /**
- * The DOM position a caret placed at this point takes — the browser's own hit test, so the
- * seat a press is about to make can be read before it lands. `caretRangeFromPoint` is
- * Chromium/WebKit (all Tauri webviews); `caretPositionFromPoint` the Firefox-style fallback.
+ * The DOM position a caret placed at this point would take, from the browser's own hit test, so
+ * where a press is about to land can be read before it lands. `caretRangeFromPoint` is
+ * Chromium/WebKit (all Tauri webviews); `caretPositionFromPoint` is the Firefox-style fallback.
  */
 export function caretSeatFromPoint(
 	doc: Document,
