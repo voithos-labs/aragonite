@@ -817,7 +817,7 @@ directory as well as this table before assuming a rule is unguarded.
 | G4.23 | Every e2e spec pairs with a requirement file, and vice versa                  | L       |
 | G4.24 | The code surface commits through exactly one `updateBlockContent` call        | L       |
 | G4.25 | No `import.meta` env read anywhere under `src/lib`                            | L       |
-| G4.26 | Comments stay inside the budget: block length, and house words per directory  | L       |
+| G4.26 | Comment budget: block length, house words per directory, none in requirements | L       |
 | G4.27 | Every `parse` call outside the parser declares its scope                      | L       |
 | G4.28 | Leaf raw writes reach bytes through the two sanctioned readers                | L       |
 | G4.29 | Every file claiming a hardcoded chord is manifested with its chords and keys  | L       |
@@ -1046,7 +1046,8 @@ header of about five, and the slack leaves the finer cut to review. Vocabulary: 
 words (seam, door, funnel, rung, ceremony, mint, peel, landable, oracle, seat, island, ladder, road,
 dialect, sanctioned, owe, husk) are counted in comments per directory, backticked symbol names
 excluded, and each count is pinned to a baseline in the test that a rewrite lowers and nothing
-raises. Both rules were documented-only and drifted exactly as the ladder predicts. A why that
+raises. The requirement files under `src/lib/e2e/requirements/` are held to none at all in their
+body text, with headings, code spans and fenced samples left out of the count. Both rules were documented-only and drifted exactly as the ladder predicts. A why that
 needs more lines belongs in a design doc; a why that needs a private word belongs in plain English
 (`docs/contributing/code-style.md` § Comments). `lint/comment-budget.test.ts`,
 `lint/comment-house-words.test.ts`.

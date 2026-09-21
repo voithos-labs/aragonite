@@ -478,6 +478,10 @@ The details:
   and why none did, in the requirement file the regression spec pairs with. A unit-level
   regression has no requirement file, so its miss-analysis is that test's own header line
   instead.
+- **Requirement files are written in plain words.** The reader is someone who opened the repo
+  today, same as for a comment ([`code-style.md`](code-style.md) § Comments). The house-word scan
+  holds their body text to zero private words; a heading keeps its wording, since specs and docs
+  point at it.
 
 ### Writing a new E2E spec
 

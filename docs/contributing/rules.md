@@ -206,7 +206,8 @@ list is that you hear it from the terminal instead of from the review.
    `npx vitest run src/lib/e2e/lint/requirement-spec-lockstep.test.ts`
 2. **Every comment fits the budget** (G4.26): no block over six text lines, no file header over
    seven, and no house word (seam, door, funnel, mint, and the rest of
-   [`glossary.md`](glossary.md)) beyond the count its directory already carries.
+   [`glossary.md`](glossary.md)) beyond the count its directory already carries. A requirement
+   file carries none in its body text.
    `npx vitest run src/lib/test/invariants/lint/comment-budget.test.ts src/lib/test/invariants/lint/comment-house-words.test.ts`
 3. **Every token the editor's CSS reads is declared in `src/lib/styles/editor-theme.css`**, every
    host token it reads has a fallback, and `src/app.css` holds no editor rule (G4.6).

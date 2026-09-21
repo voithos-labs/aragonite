@@ -154,6 +154,8 @@ AssertionError: expected [ { dir: 'src/lib', count: 72, …(1) } ] to deeply equ
 + ]
 ```
 
+The same test holds the requirement files under `src/lib/e2e/requirements/` to zero. No baseline there: a private word in a scenario or a miss-analysis line fails the suite. Headings, code spans and fenced samples don't count.
+
 ## Directories
 
 A directory reflects a decision, not an accident. Name the concept that lives there (`parser/`, `selection/`, `undo/`), never the role (`utils/`, `helpers/`, `managers/`). Anything ending in `-ers` is usually a shelf rather than a boundary, and a shelf is where code goes when its author didn't know where else to put it. Beyond the names: what changes together lives together, and directory dependencies form a DAG (arrows flow one way, no cycles), with volatile code depending on stable code and never the reverse.
