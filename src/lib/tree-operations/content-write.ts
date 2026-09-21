@@ -17,6 +17,7 @@ import type { SharingState } from './sharing';
 import { resyncChildIds } from './children';
 import { spliceMany } from './splice-many';
 import { replacePreservingFirst, type StructuralChange } from './structural-change';
+import { reconcileTaskMetadata } from './list/reconcile-task';
 import {
 	NEXT_PROSE_LINE,
 	ensureEditableContainers,
@@ -52,6 +53,21 @@ export interface SettledContent {
  * single-block edit writes in place, so routine typing keeps the node's object identity.
  */
 export function updateNodeContent(
+	parent: BodyParentArg,
+	blockIndex: number,
+	text: string,
+	grammar?: GrammarView,
+	sharing?: SharingState
+): SettledContent {
+	const settled = writeAndSettleContent(parent, blockIndex, text, grammar, sharing);
+	// A list item's task marker belongs to its first block, so the write that changed that block
+	// decides whether it keeps it. Before the container's raw rebuild, which writes the marker.
+	const owner = 'owner' in parent ? parent.owner : undefined;
+	if (owner) reconcileTaskMetadata(owner, blockIndex, settled.change.op === 'replace', sharing);
+	return settled;
+}
+
+function writeAndSettleContent(
 	parent: BodyParentArg,
 	blockIndex: number,
 	text: string,

@@ -8,11 +8,7 @@
 import { tick } from 'svelte';
 import type { BlockEditActions } from '../../action-contracts';
 import type { BlockListState } from '../../reactivity/block-list-state.svelte';
-import {
-	updateNodeContent as performUpdate,
-	ensureUnsharedChild,
-	reconcileTaskMetadata
-} from '../../tree-operations';
+import { updateNodeContent as performUpdate, ensureUnsharedChild } from '../../tree-operations';
 import type { SettledContent } from '../../tree-operations/content-write';
 import { stampStructuralChange } from '../../tree-operations/structural-change';
 import { tryGetBlockKindDescriptor } from '../../schema/block-kind-descriptor';
@@ -172,8 +168,6 @@ export function createNestedBlockEdit(
 				state,
 				snapshot: { path: leafPath, offset: preEditOffset ?? 0 },
 				mutate: (scope) => {
-					// Read before the write: the container's raw is rebuilt from its children after it.
-					const containerRawBefore = scope.node.raw;
 					ensureUnsharedChild(scope.node, innerIndex, scope.sharing);
 					settled = performUpdate(
 						scopeParentOf(scope),
@@ -182,11 +176,6 @@ export function createNestedBlockEdit(
 						deps.grammar,
 						scope.sharing
 					);
-					// A re-kind is exactly the change the task reconcile answers for: the marker
-					// stands before a paragraph, and the first block may have just stopped being one.
-					if (scope.node.kind === 'listItem' && innerIndex === 0) {
-						reconcileTaskMetadata(scope.node, containerRawBefore, deps.grammar);
-					}
 					stampStructuralChange(scope.children, settled.change, scope.sharing);
 					return settled.change;
 				},
@@ -220,8 +209,6 @@ export function createNestedBlockEdit(
 			);
 			const ownedContainer = chain[leafPath.length - 2];
 			if (!ownedContainer?.children) return;
-			// Read before the write: the container's raw is rebuilt from its children after it.
-			const containerRawBefore = ownedContainer.raw;
 			settled = performUpdate(
 				{
 					children: ownedContainer.children,
@@ -233,11 +220,6 @@ export function createNestedBlockEdit(
 				deps.grammar,
 				sharing
 			);
-			// Task-item metadata is read at parse time from the first line, so without this it
-			// stays frozen while the serialized source changes.
-			if (ownedContainer.kind === 'listItem' && innerIndex === 0) {
-				reconcileTaskMetadata(ownedContainer, containerRawBefore, deps.grammar);
-			}
 			return settled.change;
 		});
 		parent.containerEdit.nudgeReactivity();
