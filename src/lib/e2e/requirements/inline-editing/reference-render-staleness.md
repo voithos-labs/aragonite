@@ -1,4 +1,4 @@
-# Feature: Inline Editing: Reference Render Staleness
+# Feature: Inline Editing, Reference Render Staleness
 
 When a link-reference definition (LRD) changes elsewhere in the document, an
 unedited reference block that resolves through it must re-render its `<a href>`

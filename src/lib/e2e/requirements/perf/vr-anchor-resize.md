@@ -1,4 +1,4 @@
-# Feature: Virtual rendering: resize invalidation (VR-1)
+# Feature: Virtual rendering, resize invalidation (VR-1)
 
 A resize invalidates on two independent axes, and the editor treats them separately. A width
 change re-wraps prose, so cached heights computed at the old width are stale: the measured cache

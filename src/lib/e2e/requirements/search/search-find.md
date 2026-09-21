@@ -1,4 +1,4 @@
-# Feature: Find: highlight, navigate, and reveal
+# Feature: Find, highlight, navigate, and reveal
 
 Scanning the live document for a query: painting one highlight per match,
 navigating between them, re-scanning as the document changes, and scrolling an

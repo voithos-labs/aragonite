@@ -1,4 +1,4 @@
-# Feature: Find/replace bar: open, close, and toggles
+# Feature: Find/replace bar, open, close, and toggles
 
 Opening and dismissing the find/replace bar, and the match-set toggles (case,
 whole-word, regex) that narrow or reinterpret the query.

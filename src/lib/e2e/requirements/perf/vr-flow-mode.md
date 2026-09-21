@@ -1,4 +1,4 @@
-# Feature: Host-scroll (flow) mode: `scrollMode="host"`
+# Feature: Host-scroll (flow) mode, `scrollMode="host"`
 
 The editor root stops being a scroll container and grows to its content; an ancestor on
 the host's page owns the scroll. This is the embedding shape a journal page needs:
@@ -17,7 +17,7 @@ block into view has to report failure.
 
 - A 200-block entry in host mode windows: fewer blocks are mounted than the CST holds, and spacers render. The identical source loaded into a self-mode editor mounts a slice of the same order, so one implementation is demonstrably serving both scroll containers.
 - An entry whose blocks are nested containers windows every child list: a 120-item list (a list rendered by a direct each, whose items hold block lists of their own) and a 120-row table (the grid), each long enough to turn windowing on by itself, mount fewer children than they hold. The entry is scrolled into the scroll container first: a list below the fold overlaps it by zero pixels and correctly mounts almost nothing (VR-11), which would pass the count for no reason. Typing inside a nested leaf reaches the source and raises no page error, and that edit drives the measure and subtotal path up through the stacked height tables.
-- The editor root is not a scroll container in host mode (computed `overflow-y` is not `auto`/`scroll`, and its scrollHeight does not exceed its clientHeight); the ancestor scroller carries the entry's whole estimated height, with spacers standing in for the unmounted blocks, and scrolling it moves the entry.
+- The editor root is not a scroll container in host mode (computed `overflow-y` is not `auto`/`scroll`, and its `scrollHeight` does not exceed its `clientHeight`); the ancestor scroller carries the entry's whole estimated height, with spacers standing in for the unmounted blocks, and scrolling it moves the entry.
 
 ## User interactions
 

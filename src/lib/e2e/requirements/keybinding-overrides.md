@@ -31,9 +31,9 @@ mutating the global tables.
 
 ## User interactions (real keys, every leaf dispatch surface)
 
-- a rebound add-chord undoes an edit made in a paragraph (TextEditableBlock)
-- a rebound add-chord undoes an edit made in a code block (CodeBlock)
-- a rebound add-chord undoes an edit made in a table cell (TableCellBlock)
+- a rebound add-chord undoes an edit made in a paragraph (`TextEditableBlock`)
+- a rebound add-chord undoes an edit made in a code block (`CodeBlock`)
+- a rebound add-chord undoes an edit made in a table cell (`TableCellBlock`)
 - a rebound add-chord undoes an edit with the gap caret live between two blocks: no block holds
   focus and there is no kind to fall back on, so the gap's own global handler is the only path
   (miss-analysis: every case in this file drove an editable block, and every override case

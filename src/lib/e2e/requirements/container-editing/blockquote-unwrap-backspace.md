@@ -1,4 +1,4 @@
-# Feature: Container Block Editing: Blockquote Unwrap on Backspace (Rule U2)
+# Feature: Container Block Editing, Blockquote Unwrap on Backspace (Rule U2)
 
 Backspace at offset 0 inside a blockquote inner paragraph lifts content out of the blockquote, one level per keypress.
 

@@ -1,4 +1,4 @@
-# Feature: `/test/host-theme`: a host cascade with no opt-in class
+# Feature: `/test/host-theme`, a host cascade with no opt-in class
 
 The only route that mounts `<Editor>` with no `.aragonite-editor-theme` anywhere: the
 host-chrome tokens are declared on the page wrapper and the editor inherits them straight

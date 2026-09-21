@@ -11,7 +11,7 @@ Undo and redo for structural and text operations.
 ## Edge cases
 
 - undo reverts a merge: Backspace merge then undo restores both original blocks
-- undo across a prose to non-prose kind change restores the rendered DOM, not just the CST: typing to turn a paragraph into an htmlBlock (DOM already carries the character) then undo must repaint the block to the CST; the next keystroke must not commit the undone byte back
+- undo across a prose to non-prose kind change restores the rendered DOM, not just the CST: typing to turn a paragraph into an `htmlBlock` (DOM already carries the character) then undo must repaint the block to the CST; the next keystroke must not commit the undone byte back
 - undo on empty stack: Ctrl+Z when nothing to undo does not crash or corrupt state
 
 ## Cross-block (covered in selection/undo.md)

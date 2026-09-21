@@ -7,8 +7,8 @@ like a leaf: matches are found, painted through the container shim's `measurePar
 Replace rewrites them too: the path substitutes into a private clone's raw and reparses, so the
 kind re-derives its own metadata and nothing goes stale. The one refusal keeps the kind stable: a
 substitution that breaks the opener line comes back as a different kind, and a diagram must not
-silently become a plain code block (issue #41). Lives in the search area but drives the plugins
-harness, since only plugin kinds produce childless opaque containers.
+silently become a plain code block (issue #41). This file lives in the search area but drives
+the plugins harness, since only plugin kinds produce childless opaque containers.
 
 ## Happy paths
 

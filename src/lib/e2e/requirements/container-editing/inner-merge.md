@@ -1,4 +1,4 @@
-# Feature: Container Block Editing: Inner Container+Paragraph Merge
+# Feature: Container Block Editing, Inner Container+Paragraph Merge
 
 Merging a trailing inner paragraph inside a container (blockquote or list item) into the deepest prose leaf of a preceding inner-sibling container.
 

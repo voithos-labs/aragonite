@@ -1,4 +1,4 @@
-# Feature: scroll hitch: what a wheel tick costs in live mode over heavy blocks
+# Feature: scroll hitch, what a wheel tick costs in live mode over heavy blocks
 
 Report-only rows, printed by `npm run perf:e2e` and skipped by the gate. Live
 mode's blocks are the heavy kinds (highlighted fences, rendered math, diagrams),

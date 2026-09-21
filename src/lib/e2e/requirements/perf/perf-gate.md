@@ -1,4 +1,4 @@
-# Feature: E2E Perf: The Keystroke Regression Gate
+# Feature: E2E Perf, The Keystroke Regression Gate
 
 The commit-blocking half of the perf harness. Where `typing-latency.md` _measures_
 every shape × size and reports, this gate _fails_ when a curated subset regresses

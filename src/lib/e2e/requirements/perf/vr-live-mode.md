@@ -1,4 +1,4 @@
-# Feature: Virtual rendering: live mode windows like every other rung
+# Feature: Virtual rendering, live mode windows like every other rung
 
 Windowing activates on a block list's estimated height alone; the presentation mode is
 not an input. Live mode's blocks are the heavy ones (highlighted code, rendered

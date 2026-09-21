@@ -1,4 +1,4 @@
-# Feature: Virtual rendering: non-disappearance after a mid-document scroll
+# Feature: Virtual rendering, non-disappearance after a mid-document scroll
 
 Windowing ships estimate-based spacers, so the box at the top of the viewport must neither
 vanish nor teleport as off-window heights measure in. Some sub-block drift is expected under

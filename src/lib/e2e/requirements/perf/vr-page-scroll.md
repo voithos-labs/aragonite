@@ -1,4 +1,4 @@
-# Feature: Page-scrolled host embedding: `scrollMode="host"` with no scrollable ancestor
+# Feature: Page-scrolled host embedding, `scrollMode="host"` with no scrollable ancestor
 
 The second host shape. `/test/flow` embeds host-mode editors in an ancestor scroller
 and holds its page at 100vh; here nothing between the editor and the document scrolls,

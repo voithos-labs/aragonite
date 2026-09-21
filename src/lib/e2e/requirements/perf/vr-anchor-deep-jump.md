@@ -1,4 +1,4 @@
-# Feature: Virtual rendering: scroll-anchor correction on a deep jump (VR-2)
+# Feature: Virtual rendering, scroll-anchor correction on a deep jump (VR-2)
 
 A single deep `scrollTop` jump lands in a fresh band whose heights are still estimates, and whose
 blocks then measure far taller than the estimate. The editor shifts `scrollTop` forward by the

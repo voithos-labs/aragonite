@@ -1,4 +1,4 @@
-# Feature: Virtual rendering: windowing bounds (top-level + containers)
+# Feature: Virtual rendering, windowing bounds (top-level + containers)
 
 A document whose estimated height clears the activation threshold mounts only a
 window of blocks (visible range + overscan + the caret's block, which is kept

@@ -1,4 +1,4 @@
-# Feature: Virtual rendering: off-window reveal and off-window undo
+# Feature: Virtual rendering, off-window reveal and off-window undo
 
 Off-window blocks are absent from the DOM until a scroll brings them
 in. Ctrl+Shift+End, scroll, and selection-collapse must scroll to, mount, and land the

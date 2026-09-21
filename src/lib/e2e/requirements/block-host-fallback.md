@@ -7,4 +7,4 @@ silently dropped from the display.
 ## Happy paths
 
 - orphan kind renders visibly: a top-level node whose kind has no component shows a non-empty block (its raw text in a contenteditable), not an empty wrapper
-- orphan kind still serializes: getSource() retains the orphan node's raw text after it renders via the fallback
+- orphan kind still serializes: `getSource()` retains the orphan node's raw text after it renders via the fallback

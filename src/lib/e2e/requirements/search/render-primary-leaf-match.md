@@ -5,8 +5,8 @@ component, so a match inside its raw has no measurable DOM text node. Search pai
 while the source is hidden, `createEditableLeaf`'s `measurePartialRects` covers the rendered block
 box, the same single-box treatment the mermaid container shim uses, moved to the one place every
 leaf goes through. Every render-primary leaf, present and future, inherits the highlight with no
-per-kind code. Lives in the search area but drives the plugins harness, since only plugin kinds
-ship render-primary leaves.
+per-kind code. This file lives in the search area but drives the plugins harness, since only
+plugin kinds ship render-primary leaves.
 
 ## Happy paths
 

@@ -1,4 +1,4 @@
-# Feature: Sticky column: container traversal, transparent blocks, edge cases
+# Feature: Sticky column, container traversal, transparent blocks, edge cases
 
 Column memory survives moves into and out of container blocks (blockquote, list), passes through transparent blocks (thematic break), and degrades gracefully in edge conditions (empty blocks, editor blur).
 

@@ -1,4 +1,4 @@
-# Feature: Inline Editing: Editing Formatted Content
+# Feature: Inline Editing, Editing Formatted Content
 
 Editing inside or around inline formatting; split-created blocks correctly carry inline parsing through.
 

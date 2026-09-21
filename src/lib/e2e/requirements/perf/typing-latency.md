@@ -1,4 +1,4 @@
-# Feature: E2E Perf: Fixture Load + Typing Latency
+# Feature: E2E Perf, Fixture Load + Typing Latency
 
 Measures end-to-end editor responsiveness through the real browser pipeline:
 wall-time to load each deterministic fixture (shape × 100KB/1MB/10MB) and
@@ -83,11 +83,11 @@ handler's cost alone.
 All shapes run at 100KB / 1MB / 10MB, with nothing capped. The giant-single
 shapes (list/blockquote/table) were uncapped at 0.8.5: their 10MB load is linear and
 windowing bounds the mount, so the keystroke is O(viewport). reference-heavy was
-uncapped at 0.8.5 too, once computing inlineContent lazily removed the whole-document
+uncapped at 0.8.5 too, once computing `inlineContent` lazily removed the whole-document
 inline sweep per edit that made its keystroke fail to settle. Container-first shapes
 (nested-containers, table-heavy, and the three giant-single shapes) prepend a
-plain paragraph as the block-0 caret target, since focusBlockEnd(0) on a giant
-container would target an unmounted child. (Headline numbers: baseline.json.)
+plain paragraph as the block-0 caret target, since `focusBlockEnd(0)` on a giant
+container would target an unmounted child. (Headline numbers: `baseline.json`.)
 
 One axis is not bounded by the viewport, and so is recorded but not regression-gated
 at 10MB: single-giant-paragraph, whose span rebuild inside the block is O(paragraph

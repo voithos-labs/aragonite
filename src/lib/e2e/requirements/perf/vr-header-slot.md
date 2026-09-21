@@ -1,4 +1,4 @@
-# Feature: header slot: host chrome inside the scroll container
+# Feature: header slot, host chrome inside the scroll container
 
 A `header` snippet renders inside the editor's scroll container, above the first
 block. It is the Obsidian inline-title shape: the host's own document controls (title,
@@ -32,7 +32,7 @@ cannot scroll), and the `entry-header` entry on `/test/flow` for host mode.
 ## User interactions
 
 - Toggling the header between 80px and 240px while scrolled deep leaves the first visible block at the same viewport position (±1px) and keeps it the same block, growing and shrinking alike. "Deep" matters on the shrink side: the correction is a `scrollTop` write, so it is bounded by the scroll available above (at `scrollTop 20` a −160px correction clamps at 0 and the content slides the remaining 140px, which no write could prevent and is not a defect). The contract holds for `scrollTop ≥ |delta|`.
-- The same toggle at the top of the document (scrollTop 0) shifts content down by the full height delta, and scrollTop stays 0: no compensation where the header is visible.
+- The same toggle at the top of the document (`scrollTop` 0) shifts content down by the full height delta, and `scrollTop` stays 0: no compensation where the header is visible.
 - A plain click on a link inside the header follows the link. What the host puts in the header is not document content, so the editor's modifier-click link policy (plain click edits, Ctrl/Cmd-click activates) does not reach inside the slot.
 - A caret in the header is not the document's caret: `rects.caretRect()` reports null while a host field in the slot holds the browser's selection, and reports normally for a block caret. A consumer polling it would otherwise float a caret-following panel over the host's own title.
 - Switching to reading mode leaves a focused header field focused. Reading mode drops the editor's own caret; the host's own field is not the editor's to blur.

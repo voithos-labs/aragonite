@@ -1,7 +1,7 @@
 # Feature: typing at whole-block focus mints a paragraph below
 
 A `blockFocus: 'whole-block'` kind (thematic break here; mermaid pinned in
-plugins/mermaid-focus) is its own focus target, so it holds no caret and a typed character
+`plugins/mermaid-focus`) is its own focus target, so it holds no caret and a typed character
 has nowhere to land. Rather than drop it, the shared whole-block key handling creates a paragraph
 below the block carrying that character, caret after it: the same thing a printable does at a gap
 caret, one undo entry and one insert event, beside the Enter that already splits below.

@@ -1,4 +1,4 @@
-# Feature: Text Editing: Forward Delete
+# Feature: Text Editing, Forward Delete
 
 Forward Delete merges with the next block when at end-of-block; otherwise deletes the next
 character. The merge itself is driven through a list item in `blocks/list/backspace/delete-forward.md`

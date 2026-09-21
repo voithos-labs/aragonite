@@ -1,4 +1,4 @@
-# Feature: Container Block Editing: Cross-Container Merge on Backspace (blockquote prev)
+# Feature: Container Block Editing, Cross-Container Merge on Backspace (blockquote prev)
 
 Backspace at offset 0 of a paragraph following a blockquote merges the paragraph's text into the blockquote's last inner paragraph (or its deepest prose leaf when nested).
 

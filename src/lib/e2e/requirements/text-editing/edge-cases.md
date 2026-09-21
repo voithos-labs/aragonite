@@ -1,11 +1,11 @@
-# Feature: Text Editing: Edge Cases
+# Feature: Text Editing, Edge Cases
 
 Boundary behavior for Enter and Backspace where the caret, the focus or the reload is the
 outcome. What each gesture writes is pinned at the tree level.
 
 ## Edge cases
 
-- Enter at offset 0: covered by enter-at-block-start.md
+- Enter at offset 0: covered by `enter-at-block-start.md`
 - Backspace at start of a heading whose predecessor cannot absorb it: does not merge (the pair
   is ineligible either way round: heading above heading, and prose above prose-absorber), and
   the caret lands at the end of that predecessor. The caret is the outcome here: the block

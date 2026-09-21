@@ -1,4 +1,4 @@
-# Feature: Virtual rendering: measured heights survive a structural rebuild
+# Feature: Virtual rendering, measured heights survive a structural rebuild
 
 List items and table rows are not `BlockHost`s, so their measured box reaches the parent height
 table only through the child-subtotal path. That path must store the box in the height estimator
@@ -8,8 +8,8 @@ measurement, starting over changes nothing and the defect is unreachable.
 
 ## Happy paths
 
-- List-rebuild height persistence: in a windowed non-uniform list, scrolling so off-window items measure in and then making a structural edit that changes the item count (Enter at an item end → +1 item) does not collapse the content height or teleport the viewport. Asserted on `.editor` scrollHeight stability and the top in-view nested host's offset.
-- Table-rebuild height persistence: in a windowed non-uniform table, scrolling so off-window rows measure in and then a structural edit that changes the row count (Ctrl+Enter inserts a row) does not collapse the content height or teleport the viewport. Asserted on `.editor` scrollHeight stability and the reference row (above the edit) not teleporting.
+- List-rebuild height persistence: in a windowed non-uniform list, scrolling so off-window items measure in and then making a structural edit that changes the item count (Enter at an item end → +1 item) does not collapse the content height or teleport the viewport. Asserted on `.editor` `scrollHeight` stability and the top in-view nested host's offset.
+- Table-rebuild height persistence: in a windowed non-uniform table, scrolling so off-window rows measure in and then a structural edit that changes the row count (Ctrl+Enter inserts a row) does not collapse the content height or teleport the viewport. Asserted on `.editor` `scrollHeight` stability and the reference row (above the edit) not teleporting.
 
 ## Edge cases
 

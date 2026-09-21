@@ -1,4 +1,4 @@
-# Feature: Inline Editing: Formatting Shortcuts
+# Feature: Inline Editing, Formatting Shortcuts
 
 Keyboard shortcuts that wrap or unwrap selected text with bold/italic markers.
 

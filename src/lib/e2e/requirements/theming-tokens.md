@@ -1,4 +1,4 @@
-# Feature: theme tokens: host-scalable editor text
+# Feature: theme tokens, host-scalable editor text
 
 Tokens are declared on `.editor` and on the opt-in theme class, never
 `:root`, so an extracted module injects nothing into a consumer's global scope.

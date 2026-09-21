@@ -1,4 +1,4 @@
-# Feature: Virtual rendering: reveal-anchor ownership
+# Feature: Virtual rendering, reveal-anchor ownership
 
 While a programmatic scroll-into-view is in progress, windowing holds the target's
 screen position instead of the top-of-viewport block's, so layout arriving later

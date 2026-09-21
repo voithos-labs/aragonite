@@ -1,6 +1,6 @@
-# Feature: Sticky column: rapid cross-block navigation timing
+# Feature: Sticky column, rapid cross-block navigation timing
 
-Consecutive vertical-arrow keypresses without settling time must still cross block boundaries. The `isAtFirstVisualLine` / `isAtLastVisualLine` geometry checks must tolerate back-to-back keypresses without leaking intermediate layout state, above all when the block's firstChild or lastChild is a non-text node (heading markers, dimmed markup spans).
+Consecutive vertical-arrow keypresses without settling time must still cross block boundaries. The `isAtFirstVisualLine` / `isAtLastVisualLine` geometry checks must tolerate back-to-back keypresses without leaking intermediate layout state, above all when the block's `firstChild` or `lastChild` is a non-text node (heading markers, dimmed markup spans).
 
 ## Edge cases
 

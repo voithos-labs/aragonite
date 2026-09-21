@@ -1,4 +1,4 @@
-# Feature: Inline Editing: Formatting Shortcuts at a Collapsed Caret
+# Feature: Inline Editing, Formatting Shortcuts at a Collapsed Caret
 
 Mod+B / Mod+I with no selection. The contract: unwrap the span the caret sits inside,
 else remove the empty pair a previous keypress left, else insert the pair and put the

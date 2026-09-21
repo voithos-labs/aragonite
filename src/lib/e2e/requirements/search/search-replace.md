@@ -1,4 +1,4 @@
-# Feature: Replace: text, structural, and table rewrites
+# Feature: Replace, text, structural, and table rewrites
 
 Rewriting matched text: single Replace and Replace All (one undo step), regex
 capture and structural replacements that change block kind or split a block, and

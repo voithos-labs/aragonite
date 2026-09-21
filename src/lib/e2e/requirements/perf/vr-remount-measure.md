@@ -1,4 +1,4 @@
-# Feature: Virtual rendering: a remount measures the rendered block, not the mount flush
+# Feature: Virtual rendering, a remount measures the rendered block, not the mount flush
 
 A block host mounts empty and its block component fills it in a later effect
 of the same flush, so a height read inside that flush measures one line of

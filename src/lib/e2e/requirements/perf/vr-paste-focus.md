@@ -1,4 +1,4 @@
-# Feature: Virtual rendering: post-paste caret under container windowing
+# Feature: Virtual rendering, post-paste caret under container windowing
 
 A structural paste lands the caret at the end of the pasted run. That landing index
 scales with the clipboard's item count, not with where the caret was, so a paste

@@ -1,4 +1,4 @@
-# Feature: runCommand: the semantic command door
+# Feature: runCommand, the semantic command door
 
 `editor.runCommand(id)` runs a command at the focused block with no chord in the
 path. It is what a host's selection toolbar calls, so the button keeps working
@@ -30,7 +30,7 @@ is its only user.
   an empty pair at the caret, matching the chord's collapsed-caret behavior
 - the same caret in `'live'`, which paints no delimiter and so may write no empty
   pair: the call reports it handled the key (`true`), no bytes move, and the mark waits
-  until the next typed character carries it (live-mode.md § 4.3)
+  until the next typed character carries it (`live-mode.md` § 4.3)
 - a table cell holds the caret: the call reaches the cell's own handler through the
   component reference the cell publishes
 - a gap caret holds the selection: no block is focused, so every block-local id
