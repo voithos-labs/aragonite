@@ -19,7 +19,7 @@ export function checkSnapshotIntegrity(entry: SnapshotEntry): InvariantViolation
 	if (entry.integrity === undefined || digestDoc(entry.snapshot) === entry.integrity) return null;
 	return {
 		code: 'snapshot-integrity',
-		message: 'snapshot digest mismatch — a mutation wrote through a shared node'
+		message: 'snapshot digest mismatch: a mutation wrote through a shared node'
 	};
 }
 

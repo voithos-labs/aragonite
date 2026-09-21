@@ -98,7 +98,7 @@ function warnIfNonIdempotent(transform: PasteTransform, result: string): void {
 	if (again !== null && again !== result) {
 		devWarn(
 			'paste-transform',
-			`transform '${transform.name}' is not idempotent — re-running it on its own output changed the text again`
+			`transform '${transform.name}' is not idempotent: re-running it on its own output changed the text again`
 		);
 	}
 }

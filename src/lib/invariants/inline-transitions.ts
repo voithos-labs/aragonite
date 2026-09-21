@@ -20,7 +20,7 @@ export function checkPoolBracket(
 		return passOpen
 			? {
 					code: 'begin-unswept',
-					message: 'beginPass while a bracket is already open — the previous pass was never swept'
+					message: 'beginPass while a bracket is already open: the previous pass was never swept'
 				}
 			: null;
 	}
@@ -29,12 +29,12 @@ export function checkPoolBracket(
 		? {
 				code: 'acquire-outside-bracket',
 				message:
-					'acquire outside a beginPass/sweep bracket — adoption is only meaningful inside a rebuild pass'
+					'acquire outside a beginPass/sweep bracket: adoption is only meaningful inside a rebuild pass'
 			}
 		: {
 				code: 'sweep-outside-bracket',
 				message:
-					'sweep without an open bracket — nothing was adopted, so it would destroy every live widget'
+					'sweep without an open bracket, nothing was adopted, so it would destroy every live widget'
 			};
 }
 
@@ -65,6 +65,6 @@ export function checkCompositionEndPaired(composing: boolean): InvariantViolatio
 	if (composing) return null;
 	return {
 		code: 'end-without-start',
-		message: 'compositionend with no open composition — the surface never saw compositionstart'
+		message: 'compositionend with no open composition: the surface never saw compositionstart'
 	};
 }

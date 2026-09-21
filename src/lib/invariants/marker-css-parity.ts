@@ -70,7 +70,7 @@ export function checkMarkerCssParity(editorRoot: HTMLElement): InvariantViolatio
 		if (!diverged) return null;
 		return {
 			code: 'marker-css-parity',
-			message: `the hidden-run answers disagree about "${diverged.name}" — the families in core/inline/visibility.ts, the walk in cursor/widget-offset.ts and styles/editor.css moved apart`,
+			message: `the hidden-run answers disagree about "${diverged.name}": the families in core/inline/visibility.ts, the walk in cursor/widget-offset.ts and styles/editor.css moved apart`,
 			detail: read
 		};
 	} finally {

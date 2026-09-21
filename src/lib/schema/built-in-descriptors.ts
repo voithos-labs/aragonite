@@ -335,7 +335,7 @@ export function registerBuiltInDescriptors(): void {
 			selectionPaint: { mode: 'implemented', via: 'whole-block cover rect (no partial offsets)' },
 			searchPaint: {
 				mode: 'not-supported',
-				reason: 'no editable text content — nothing to search'
+				reason: 'no editable text content, nothing to search'
 			},
 			reorder: { mode: 'implemented', via: 'Alt+Arrow block.move keymap' },
 			undo: { mode: 'inherit-default' },
@@ -424,7 +424,7 @@ export function registerBuiltInDescriptors(): void {
 			reorder: {
 				mode: 'not-supported',
 				reason:
-					'grid child — not a block-level reorder unit; whole rows move via a row-drag gesture inside the table grid, not the BlockList'
+					'grid child: not a block-level reorder unit; whole rows move via a row-drag gesture inside the table grid, not the BlockList'
 			},
 			undo: { mode: 'inherit-default' },
 			// Inherit-default, unlike `table` and `tableCell`: no copy path starts from a row node,
@@ -462,7 +462,7 @@ export function registerBuiltInDescriptors(): void {
 			reorder: {
 				mode: 'not-supported',
 				reason:
-					'grid cell — not a block-level reorder unit; row/column drag gestures inside the table grid move whole rows or columns, not individual cells'
+					'grid cell: not a block-level reorder unit; row/column drag gestures inside the table grid move whole rows or columns, not individual cells'
 			},
 			undo: { mode: 'inherit-default' },
 			clipboard: {

@@ -20,7 +20,7 @@ export function devReplacesRegistration(): boolean {
 export function registerOnce(isDuplicate: boolean, apply: () => void, conflict: string): void {
 	if (isDuplicate) {
 		if (devReplacesRegistration()) {
-			devWarn('registry', `${conflict} — dev re-registration replaces (HMR/SSR survival)`);
+			devWarn('registry', `${conflict}: dev re-registration replaces (HMR/SSR survival)`);
 			apply();
 			return;
 		}

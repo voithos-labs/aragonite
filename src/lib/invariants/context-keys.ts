@@ -12,7 +12,7 @@ export function checkNoContainerHistoryKey(
 	if (setKeys.includes(historyKey)) {
 		return {
 			code: 'container-sets-history-key',
-			message: 'container provides HISTORY_KEY to descendants — undo stack would split'
+			message: 'container provides HISTORY_KEY to descendants: undo stack would split'
 		};
 	}
 	return null;

@@ -148,7 +148,7 @@ export function registerInlineWidgetKind(
 ): void {
 	if (descriptor.component && descriptor.buildWidget) {
 		throw new Error(
-			`registerInlineWidgetKind: "${kind}" declares both a component and a buildWidget — ` +
+			`registerInlineWidgetKind: "${kind}" declares both a component and a buildWidget; ` +
 				`a widget kind renders through exactly one. Drop one.`
 		);
 	}
@@ -172,7 +172,7 @@ export function augmentInlineWidgetKind(
 	const descriptor = registry.get(kind);
 	if (!descriptor) {
 		throw new Error(
-			`augmentInlineWidgetKind: "${kind}" is not registered — register the widget kind before ` +
+			`augmentInlineWidgetKind: "${kind}" is not registered; register the widget kind before ` +
 				`augmenting its editing policy.`
 		);
 	}

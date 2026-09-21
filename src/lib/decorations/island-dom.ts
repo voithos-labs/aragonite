@@ -115,7 +115,7 @@ export function applyIslandDecorations(
 		if (DEV) {
 			const displaced = rawTextOfNode(extracted, raw);
 			if (displaced !== raw.slice(start, end)) {
-				devWarn('decorations', 'replace island span disagrees with the displaced DOM bytes', {
+				devWarn('decorations', 'replace decoration span disagrees with the displaced DOM bytes', {
 					span: [start, end],
 					displaced
 				});

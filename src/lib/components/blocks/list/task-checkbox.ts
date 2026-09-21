@@ -19,7 +19,7 @@ export function buildTaskItemAmbient(
 
 	const taskMarkerPresent = metadata?.taskMarker != null;
 	if (metadata && metadata.taskItem !== taskMarkerPresent) {
-		devWarn('ListItemBlock', 'taskItem / taskMarker inconsistent — rendering as plain list item', {
+		devWarn('ListItemBlock', 'taskItem / taskMarker inconsistent, rendering as plain list item', {
 			taskItem: metadata.taskItem,
 			taskMarker: metadata.taskMarker
 		});

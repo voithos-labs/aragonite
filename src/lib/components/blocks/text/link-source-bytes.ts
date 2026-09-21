@@ -122,7 +122,7 @@ function declineClaimed(link: InlineNode, what: string): boolean {
 	if (!claim) return false;
 	devWarn(
 		'link-edit',
-		`${what} declined: the "${claim.prefix}" inline rung owns these bytes and registered no link rewriter`
+		`${what} declined: the "${claim.prefix}" inline syntax handler owns these bytes and registered no link rewriter`
 	);
 	return true;
 }

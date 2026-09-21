@@ -96,7 +96,7 @@ export function createDecorationEngine(deps: DecorationEngineDeps): DecorationEn
 		if (!isProseKind(node.kind)) {
 			return {
 				key: `non-prose\0${node.kind}`,
-				message: `on a non-prose ${node.kind} block; islands render only in prose blocks`
+				message: `on a non-prose ${node.kind} block; decorations render only in prose blocks`
 			};
 		}
 		// An end offset, not a count: a heading's content starts past its marker, so reporting a
@@ -125,7 +125,7 @@ export function createDecorationEngine(deps: DecorationEngineDeps): DecorationEn
 			warnedUnrenderableIslands.add(key);
 			devWarn(
 				'decorations',
-				`source '${sourceName}' places a ${dec.type} island ${defect.message}`,
+				`source '${sourceName}' places a ${dec.type} decoration ${defect.message}`,
 				{ path: dec.path }
 			);
 		}
@@ -230,7 +230,7 @@ function assertNotInCommit(): void {
 		isCommitInProgress()
 			? {
 					code: 'decoration-run-in-commit',
-					message: 'decoration engine re-ran inside the commit ceremony'
+					message: 'the decorations subsystem re-ran inside the commit sequence'
 				}
 			: null
 	);

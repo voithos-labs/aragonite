@@ -34,7 +34,7 @@ async function reportContestedClaim(
 	if (loser.innerBlockRefs.every((ref) => ref === undefined)) return;
 	devWarn(
 		'state-registry',
-		`two live components claim the same ${node.kind} — the loser's child refs are orphaned. ` +
+		`two live components claim the same ${node.kind}: the loser's child refs are orphaned. ` +
 			`Either both mounts render this node, or the loser's teardown emptied slots the ` +
 			`scope no longer reads.`
 	);
@@ -51,7 +51,7 @@ export function expectStateForNode(node: NodeView): BlockListState {
 	const state = stateRegistry.get(node);
 	if (!state) {
 		throw new Error(
-			`[state-registry] no BlockListState registered for ${node.kind} — ` +
+			`[state-registry] no BlockListState registered for ${node.kind}: ` +
 				`caller assumed a mounted container. If this path can visit non-container ` +
 				`nodes, use getStateForNode and guard on undefined.`
 		);

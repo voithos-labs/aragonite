@@ -25,7 +25,7 @@ const mintedCommandIds = new Map<string, string | null>();
 export function mintCommandId(name: string, owner: string | null = null): PluginCommandId {
 	if (!NAME_PATTERN.test(name)) {
 		throw new Error(
-			`mintCommandId: invalid command name "${name}" — lowercase-first dot-separated segments of letters, digits, and hyphens`
+			`mintCommandId: invalid command name "${name}"; lowercase-first dot-separated segments of letters, digits, and hyphens`
 		);
 	}
 	if (isBuiltinCommandId(name)) {
@@ -38,7 +38,7 @@ export function mintCommandId(name: string, owner: string | null = null): Plugin
 		// one rather than fail the route. Production and test keep the collision throw.
 		if (devReplacesRegistration()) return name as PluginCommandId;
 		throw new Error(
-			`mintCommandId: "${name}" was already minted by ${priorOwner ? `plugin "${priorOwner}"` : 'another registration'}`
+			`mintCommandId: "${name}" was already taken by ${priorOwner ? `plugin "${priorOwner}"` : 'another registration'}`
 		);
 	}
 	mintedCommandIds.set(name, owner);

@@ -102,7 +102,7 @@ function tryRungs(ctx: ScanContext, rungs: InlineRung[] | undefined): InlineNode
 		if (node.end > end) {
 			throw new Error(
 				`inline-syntax "${rung.prefix}" claimed [${node.start}, ${node.end}), past the scan ` +
-					`range end ${end} — a recognizer must bound its search by the \`end\` it is given`
+					`range end ${end}: a recognizer must bound its search by the \`end\` it is given`
 			);
 		}
 		stampClaim(node, rung);

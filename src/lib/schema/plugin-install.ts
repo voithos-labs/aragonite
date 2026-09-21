@@ -66,7 +66,7 @@ export function definePlugin<Options = unknown>(
 	}
 	if (!isValidPluginName(plugin.name)) {
 		throw new Error(
-			`definePlugin: invalid plugin name "${plugin.name}" — lowercase first letter, then letters/digits/hyphens`
+			`definePlugin: invalid plugin name "${plugin.name}"; lowercase first letter, then letters/digits/hyphens`
 		);
 	}
 	return plugin;
@@ -79,14 +79,14 @@ export function installPlugins(plugins: readonly EditorPlugin[]): void {
 			if (alreadyInstalled !== plugin) {
 				devWarn(
 					'plugin-install',
-					`plugin '${pluginLabel(plugin)}' already installed; this definition (including any options) is ignored — definitions are process-global`
+					`plugin '${pluginLabel(plugin)}' already installed; this definition (including any options) is ignored; definitions are process-global`
 				);
 			}
 			continue;
 		}
 		if (failed.has(plugin.name)) {
 			throw new Error(
-				`plugin '${pluginLabel(plugin)}' failed during a previous install; reload the page (or restart the dev server) — register-once registries cannot re-run a partial setup`,
+				`plugin '${pluginLabel(plugin)}' failed during a previous install; reload the page (or restart the dev server); register-once registries cannot re-run a partial setup`,
 				{ cause: failed.get(plugin.name) }
 			);
 		}
@@ -196,7 +196,7 @@ function makeSetupContext(pluginName: string): { ctx: PluginSetupContext; close:
 		onEditor(cb) {
 			if (!open) {
 				throw new Error(
-					`onEditor: '${pluginName}' called onEditor after setup returned — subscriptions are synchronous-only (the same boundary as kind attribution)`
+					`onEditor: '${pluginName}' called onEditor after setup returned; subscriptions are synchronous-only (the same boundary as kind attribution)`
 				);
 			}
 			let list = onEditorSubs.get(pluginName);

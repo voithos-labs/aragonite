@@ -95,7 +95,7 @@ function checkCharOffset(
 	if (isWholeBlockUnit(node) && point.offset !== 0 && point.offset !== end) {
 		return {
 			code: 'endpoint-whole-block-offset',
-			message: `${at} carries offset ${point.offset} inside "${node.kind}", which has no character positions — only 0 and ${end} address it`,
+			message: `${at} carries offset ${point.offset} inside "${node.kind}", which has no character positions: only 0 and ${end} address it`,
 			detail
 		};
 	}

@@ -388,7 +388,7 @@ function mergeBlockKindFields(
 	const existing = registry.get(kind);
 	if (!existing) {
 		throw new Error(
-			`${entry}: cannot augment "${kind}" — no base descriptor. Call registerBlockKind first.`
+			`${entry}: cannot augment "${kind}"; no base descriptor. Call registerBlockKind first.`
 		);
 	}
 	const { container, ...rest } = fields;
@@ -396,7 +396,7 @@ function mergeBlockKindFields(
 	if (container) {
 		if (!existing.isContainer) {
 			throw new Error(
-				`${entry}: cannot augment "${kind}" with container fields — it was registered as a leaf`
+				`${entry}: cannot augment "${kind}" with container fields; it was registered as a leaf`
 			);
 		}
 		// Merge, never unset: skipping undefined keeps an explicitly-undefined group field from
@@ -421,7 +421,7 @@ function mergeBlockKindFields(
 export function augmentBlockKind(kind: AnyBlockKind, fields: BlockKindAugmentation): void {
 	if (isBuiltinBlockKind(kind)) {
 		throw new Error(
-			`augmentBlockKind: "${kind}" is a built-in kind — the plugin surface may only augment ` +
+			`augmentBlockKind: "${kind}" is a built-in kind; the plugin surface may only augment ` +
 				`plugin-declared kinds.`
 		);
 	}

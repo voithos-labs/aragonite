@@ -63,7 +63,7 @@ export function checkOpenerRegistry(
 		if (holder !== undefined) {
 			return {
 				code: 'opener-registry',
-				message: `kinds "${holder}" and "${kind}" share opener priority ${priority} — order falls back to kind name; give each kind its own priority`,
+				message: `kinds "${holder}" and "${kind}" share opener priority ${priority}: order falls back to kind name; give each kind its own priority`,
 				detail: { kinds: [holder, kind], priority }
 			};
 		}
@@ -96,7 +96,7 @@ export function checkKeymapCoherence(
 			if (!isChordWellFormed(binding.chord)) {
 				return {
 					code: 'keymap-coherence',
-					message: `kind "${kind}" binds malformed chord "${binding.chord}" — modifiers must be Mod/Alt/Shift and the key non-empty`,
+					message: `kind "${kind}" binds malformed chord "${binding.chord}": modifiers must be Mod/Alt/Shift and the key non-empty`,
 					detail: { kind, chord: binding.chord, issue: 'malformed' }
 				};
 			}
@@ -132,7 +132,7 @@ export function checkLateOpenerRegistration(
 	if (!grammarConsumed) return null;
 	return {
 		code: 'late-opener-registration',
-		message: `opener for "${kind}" registered after documents were parsed — already-parsed documents will not re-parse; register plugins before first mount`,
+		message: `opener for "${kind}" registered after documents were parsed: already-parsed documents will not re-parse; register plugins before first mount`,
 		detail: { kind }
 	};
 }
@@ -220,14 +220,14 @@ export function checkClosureCoherence(
 		if (entry.hasContainerContract && entry.roundTripMode === 'inherit-default') {
 			return {
 				code: 'closure-coherence',
-				message: `kind "${entry.kind}" declares a container contract but its closure roundTrip is inherit-default — the container's rebuildRaw is the round-trip mechanism; declare roundTrip: implemented`,
+				message: `kind "${entry.kind}" declares a container contract but its closure roundTrip is inherit-default: the container's rebuildRaw is the round-trip mechanism; declare roundTrip: implemented`,
 				detail: { kind: entry.kind, column: 'roundTrip' }
 			};
 		}
 		if (entry.notMergeable && entry.mergeBackspaceMode === 'inherit-default') {
 			return {
 				code: 'closure-coherence',
-				message: `kind "${entry.kind}" is not-mergeable but its closure mergeBackspace is inherit-default — a not-mergeable kind has no default merge to inherit; name the non-merge mechanism (implemented) or mark it not-supported`,
+				message: `kind "${entry.kind}" is not-mergeable but its closure mergeBackspace is inherit-default: a not-mergeable kind has no default merge to inherit; name the non-merge mechanism (implemented) or mark it not-supported`,
 				detail: { kind: entry.kind, column: 'mergeBackspace' }
 			};
 		}
@@ -240,7 +240,7 @@ export function checkClosureCoherence(
 			if (column !== undefined) {
 				return {
 					code: 'closure-coherence',
-					message: `kind "${entry.kind}" claims the focus-then-delete model in its closure ${column} cell but declares no blockFocus: 'whole-block' — without it the caret-adjacent merge fallback deletes on the first press; declare the field or rewrite the cell to say what the kind actually does`,
+					message: `kind "${entry.kind}" claims the focus-then-delete model in its closure ${column} cell but declares no blockFocus: 'whole-block'; without it the caret-adjacent merge fallback deletes on the first press; declare the field or rewrite the cell to say what the kind actually does`,
 					detail: { kind: entry.kind, column }
 				};
 			}
@@ -248,7 +248,7 @@ export function checkClosureCoherence(
 		if (entry.declaresReservedChrome && entry.clipboardMode === 'inherit-default') {
 			return {
 				code: 'closure-coherence',
-				message: `kind "${entry.kind}" declares reservedChrome but its closure clipboard is inherit-default — the chrome bytes live in the container's own opener line, so a slice crossing that boundary has no default semantics; name what a copy produces (implemented) or mark it not-supported`,
+				message: `kind "${entry.kind}" declares reservedChrome but its closure clipboard is inherit-default: the chrome bytes live in the container's own opener line, so a slice crossing that boundary has no default semantics; name what a copy produces (implemented) or mark it not-supported`,
 				detail: { kind: entry.kind, column: 'clipboard' }
 			};
 		}
@@ -284,7 +284,7 @@ export function checkInlineConstructPolicy(
 		if (!isKnownInlineKind(entry.kind)) {
 			return {
 				code: 'inline-construct-policy',
-				message: `inline-construct policy registered for "${entry.kind}", which is neither a built-in inline kind nor a declared plugin one — the row is unreachable`,
+				message: `inline-construct policy registered for "${entry.kind}", which is neither a built-in inline kind nor a declared plugin one: the row is unreachable`,
 				detail: { kind: entry.kind, issue: 'unknown-kind' }
 			};
 		}
@@ -297,7 +297,7 @@ export function checkInlineConstructPolicy(
 			if (!isBuiltinInlineKind(entry.kind) && isBuiltinCommandId(entry.mark.command)) {
 				return {
 					code: 'inline-construct-policy',
-					message: `kind "${entry.kind}" claims built-in command "${entry.mark.command}" for its mark — that id already has a built-in meaning; mint a plugin command id for the mark`,
+					message: `kind "${entry.kind}" claims built-in command "${entry.mark.command}" for its mark: that id already has a built-in meaning; create a plugin command id for the mark`,
 					detail: { kind: entry.kind, command: entry.mark.command, issue: 'builtin-command' }
 				};
 			}
@@ -312,7 +312,7 @@ export function checkInlineConstructPolicy(
 		if (column !== undefined) {
 			return {
 				code: 'inline-construct-policy',
-				message: `kind "${entry.kind}" is not revealable but its ${column} rewrites markers — a never-revealed construct's markers stay hidden, so the rewrite is invisible; mark the kind revealable or make the behavior atomic`,
+				message: `kind "${entry.kind}" is not revealable but its ${column} rewrites markers: a never-revealed construct's markers stay hidden, so the rewrite is invisible; mark the kind revealable or make the behavior atomic`,
 				detail: { kind: entry.kind, column }
 			};
 		}
@@ -330,7 +330,7 @@ function markClashOf(
 	if (rankHolder !== undefined) {
 		return {
 			code: 'inline-construct-policy',
-			message: `kinds "${rankHolder}" and "${kind}" share mark nesting rank ${mark.nestingRank} — which one wraps the other would fall to registration order`,
+			message: `kinds "${rankHolder}" and "${kind}" share mark nesting rank ${mark.nestingRank}: which one wraps the other would fall to registration order`,
 			detail: { kinds: [rankHolder, kind], nestingRank: mark.nestingRank }
 		};
 	}
@@ -338,7 +338,7 @@ function markClashOf(
 	if (commandHolder !== undefined) {
 		return {
 			code: 'inline-construct-policy',
-			message: `kinds "${commandHolder}" and "${kind}" both claim command "${mark.command}" — one press cannot toggle two marks`,
+			message: `kinds "${commandHolder}" and "${kind}" both claim command "${mark.command}": one press cannot toggle two marks`,
 			detail: { kinds: [commandHolder, kind], command: mark.command }
 		};
 	}
@@ -370,35 +370,35 @@ export function checkDescriptorFieldCoherence(
 		if (entry.contextDependentKind && entry.hasOpener) {
 			return {
 				code: 'descriptor-field-coherence',
-				message: `kind "${entry.kind}" declares contextDependentKind but registers an opener — the field suppresses the reparse that would re-derive the kind, so a kind the parser CAN recognize stops re-deriving; drop one`,
+				message: `kind "${entry.kind}" declares contextDependentKind but registers an opener: the field suppresses the reparse that would re-derive the kind, so a kind the parser can recognize stops re-deriving; drop one`,
 				detail: { kind: entry.kind, fields: ['contextDependentKind', 'opener'] }
 			};
 		}
 		if (entry.declaresWholeBlockFocus && entry.supportsInline) {
 			return {
 				code: 'descriptor-field-coherence',
-				message: `kind "${entry.kind}" declares blockFocus: 'whole-block' and supportsInline — a whole-block unit's only addressable offsets are 0 and its display length, so inline constructs parsed from its raw have no caret positions to live at`,
+				message: `kind "${entry.kind}" declares blockFocus: 'whole-block' and supportsInline; a whole-block unit's only addressable offsets are 0 and its display length, so inline constructs parsed from its raw have no caret positions to live at`,
 				detail: { kind: entry.kind, fields: ['blockFocus', 'supportsInline'] }
 			};
 		}
 		if (entry.declaresWholeBlockFocus && entry.declaresReservedChrome) {
 			return {
 				code: 'descriptor-field-coherence',
-				message: `kind "${entry.kind}" declares blockFocus: 'whole-block' and reservedChrome — the chrome slot is always present, so the kind is never childless and the focus-then-delete model it declares can never engage`,
+				message: `kind "${entry.kind}" declares blockFocus: 'whole-block' and reservedChrome; the chrome slot is always present, so the kind is never childless and the focus-then-delete model it declares can never engage`,
 				detail: { kind: entry.kind, fields: ['blockFocus', 'reservedChrome'] }
 			};
 		}
 		if (entry.declaresReservedChrome && entry.unwrapLiftsFirstChild) {
 			return {
 				code: 'descriptor-field-coherence',
-				message: `kind "${entry.kind}" declares reservedChrome and a lifting firstChildBackspace — child 0 is the chrome row, so Backspace at its start would carry the container's own title out as a sibling block; declare 'keep-reserved-chrome'`,
+				message: `kind "${entry.kind}" declares reservedChrome and a lifting firstChildBackspace: child 0 is the chrome row, so Backspace at its start would carry the container's own title out as a sibling block; declare 'keep-reserved-chrome'`,
 				detail: { kind: entry.kind, fields: ['reservedChrome', 'firstChildBackspace'] }
 			};
 		}
 		if (entry.unwrapKeepsReservedChrome && !entry.declaresReservedChrome) {
 			return {
 				code: 'descriptor-field-coherence',
-				message: `kind "${entry.kind}" declares firstChildBackspace: 'keep-reserved-chrome' without reservedChrome — child 0 is body, so the declared decline makes Backspace at the body start a dead key; declare a lifting strategy`,
+				message: `kind "${entry.kind}" declares firstChildBackspace: 'keep-reserved-chrome' without reservedChrome; child 0 is body, so the declared decline makes Backspace at the body start a dead key; declare a lifting strategy`,
 				detail: { kind: entry.kind, fields: ['reservedChrome', 'firstChildBackspace'] }
 			};
 		}
@@ -425,7 +425,7 @@ export function checkContentStartBackspace(
 		if (!demotesFirst || declaresContentRange) continue;
 		return {
 			code: 'content-start-backspace',
-			message: `kind "${kind}" declares contentStartBackspace but no getContentRange — its content starts at raw 0, where the demote arm never fires and the declaration is silently inert`,
+			message: `kind "${kind}" declares contentStartBackspace but no getContentRange: its content starts at raw 0, where the demote branch never fires and the declaration is silently inert`,
 			detail: { kind }
 		};
 	}

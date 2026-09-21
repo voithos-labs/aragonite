@@ -22,7 +22,7 @@ export function createBoundedMemo<K, V>(
 	// Reported at creation, not per read: a non-positive cap would otherwise behave as 1
 	// unnoticed, so the author who meant "no caching" gets caching with nothing to read.
 	if (options.cap < 1) {
-		devWarn('bounded-memo', `cap must be at least 1; got ${options.cap} — using 1`);
+		devWarn('bounded-memo', `cap must be at least 1; got ${options.cap}, using 1`);
 	}
 	const cap = Math.max(1, options.cap);
 	const cache = new Map<K, V>();

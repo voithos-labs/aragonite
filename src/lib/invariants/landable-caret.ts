@@ -22,7 +22,7 @@ export function checkLandableCaret(
 	if (!el || !paintsNoLandableContent(el)) return null;
 	return {
 		code: 'landable-caret',
-		message: `the block at [${blockPath}] is every byte a hidden marker run, so "${mode}" paints it nowhere and the caret being seated there has no position of its own — paint the chrome while it stands over no content`,
+		message: `the block at [${blockPath}] is every byte a hidden marker run, so "${mode}" paints it nowhere and the caret being placed there has no position of its own: paint the chrome while it stands over no content`,
 		detail: { path: [...blockPath], mode }
 	};
 }

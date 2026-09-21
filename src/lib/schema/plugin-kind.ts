@@ -18,7 +18,7 @@ const RESERVED_KIND_NAMES = new Set<string>(['document', 'global']);
 export function declarePluginKind(name: string): PluginBlockKind {
 	if (!isValidPluginName(name)) {
 		throw new Error(
-			`declarePluginKind: invalid kind name "${name}" — lowercase first letter, then letters/digits/hyphens`
+			`declarePluginKind: invalid kind name "${name}"; lowercase first letter, then letters/digits/hyphens`
 		);
 	}
 	if (name in BLOCK_KIND_TABLE) {
@@ -51,7 +51,7 @@ export function declarePluginKind(name: string): PluginBlockKind {
 export function declaredPluginKind(name: string): PluginBlockKind {
 	if (!declaredPluginKinds.has(name)) {
 		throw new Error(
-			`declaredPluginKind: "${name}" has not been declared — call declarePluginKind first`
+			`declaredPluginKind: "${name}" has not been declared; call declarePluginKind first`
 		);
 	}
 	return name as PluginBlockKind;
@@ -75,7 +75,7 @@ const declaredPluginInlineKinds = new Set<string>();
 export function declarePluginInlineKind(name: string): PluginInlineKind {
 	if (!isValidPluginName(name)) {
 		throw new Error(
-			`declarePluginInlineKind: invalid kind name "${name}" — lowercase first letter, then letters/digits/hyphens`
+			`declarePluginInlineKind: invalid kind name "${name}"; lowercase first letter, then letters/digits/hyphens`
 		);
 	}
 	if (isBuiltinInlineKind(name as AnyInlineKind)) {
@@ -94,7 +94,7 @@ export function declarePluginInlineKind(name: string): PluginInlineKind {
 export function declaredPluginInlineKind(name: string): PluginInlineKind {
 	if (!declaredPluginInlineKinds.has(name)) {
 		throw new Error(
-			`declaredPluginInlineKind: "${name}" has not been declared — call declarePluginInlineKind first`
+			`declaredPluginInlineKind: "${name}" has not been declared; call declarePluginInlineKind first`
 		);
 	}
 	return name as PluginInlineKind;

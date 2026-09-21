@@ -40,7 +40,7 @@ export function containerScopeState(
 	if (mounted) return mounted;
 	devWarn(
 		'paste',
-		`committing at an unmounted ${node.kind} scope — ids realign, component refs do not`
+		`committing at an unmounted ${node.kind} scope: ids realign, component refs do not`
 	);
 	return { innerBlockIds: [...(node.childIds ?? [])], innerBlockRefs: [] };
 }

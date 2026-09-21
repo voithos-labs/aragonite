@@ -234,13 +234,13 @@ export function assertPluginGlobalChordAvailable(
 	// (`global-commands.ts`), so a rejected registration leaves no orphaned command.
 	if (!isChordWellFormed(rawChord)) {
 		throw new Error(
-			`plugin global chord "${rawChord}" is malformed — modifiers must be Mod/Alt/Shift and the key non-empty`
+			`plugin global chord "${rawChord}" is malformed: modifiers must be Mod/Alt/Shift and the key non-empty`
 		);
 	}
 	const chord = normalizeChord(rawChord);
 	if (RESERVED_UI_CHORDS.has(chord)) {
 		throw new Error(
-			`plugin global chord "${rawChord}" is reserved by the editor UI (search) — pick another chord`
+			`plugin global chord "${rawChord}" is reserved by the editor UI (search): pick another chord`
 		);
 	}
 	// Activation-blind: registration is process-global register-once, so a chord no editor
@@ -249,7 +249,7 @@ export function assertPluginGlobalChordAvailable(
 	if (collision) {
 		if (devReplacesRegistration() && collision.command === candidateCommand) return;
 		throw new Error(
-			`plugin global chord "${rawChord}" is already bound to "${collision.command}" — global chords are register-once`
+			`plugin global chord "${rawChord}" is already bound to "${collision.command}": global chords are register-once`
 		);
 	}
 }

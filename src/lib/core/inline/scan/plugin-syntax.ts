@@ -119,14 +119,14 @@ export function registerInlineSyntax(
 		if (prefix === undefined) {
 			throw new Error(
 				`registerInlineSyntax: ${JSON.stringify(trigger)} is claimed by the built-in scanner, ` +
-					`which dispatches it before the plugin registry — the recognizer would never fire`
+					`which dispatches it before the plugin registry; the recognizer would never fire`
 			);
 		}
 		if (REJECTED_RESERVED.has(trigger)) {
 			throw new Error(
 				`registerInlineSyntax: reserved trigger ${JSON.stringify(trigger)} is skipped by the ` +
 					`scanner's fast bail (absent from SPECIAL_CHARS in scan/index.ts; it matters only ` +
-					`inside "["-bearing ranges), so a prefix rung on it would never fire in plain text — ` +
+					`inside "["-bearing ranges), so a prefix inline syntax handler on it would never fire in plain text; ` +
 					`make the trigger scan-visible or scan-probed before registering`
 			);
 		}

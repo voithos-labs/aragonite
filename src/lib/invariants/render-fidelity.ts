@@ -26,7 +26,7 @@ export function checkRenderedTextFidelity(
 	const window = (text: string) => text.slice(Math.max(0, at - context), at + context);
 	return {
 		code: 'rendered-text-fidelity',
-		message: `rendered text diverges from the block's raw at index ${at} — the HTML parser normalized a byte the CST still holds`,
+		message: `rendered text diverges from the block's raw at index ${at}: the HTML parser normalized a byte the CST still holds`,
 		detail: {
 			at,
 			renderedLength: rendered.length,

@@ -71,7 +71,7 @@ export function registerInlineConstructPolicy(
 function assertMarkCommandMintable(kind: AnyInlineKind, mark: InlineMarkPolicy | undefined): void {
 	if (!mark || isBuiltinInlineKind(kind) || !isBuiltinCommandId(mark.command)) return;
 	throw new Error(
-		`registerInlineConstructPolicy: "${kind}" claims built-in command "${mark.command}" for its mark — that id already has a built-in meaning; mint a plugin command id for the mark`
+		`registerInlineConstructPolicy: "${kind}" claims built-in command "${mark.command}" for its mark; that id already has a built-in meaning; create a plugin command id for the mark`
 	);
 }
 
@@ -81,7 +81,7 @@ function assertMarkCommandMintable(kind: AnyInlineKind, mark: InlineMarkPolicy |
 function assertCardImpliesRevealable(kind: AnyInlineKind, policy: InlineConstructPolicy): void {
 	if (!policy.cardEditable || policy.revealable) return;
 	throw new Error(
-		`registerInlineConstructPolicy: "${kind}" declares cardEditable without revealable — the card's open chain reaches only revealable kinds, so the door would never open`
+		`registerInlineConstructPolicy: "${kind}" declares cardEditable without revealable; the card's open chain reaches only revealable kinds, so the entry point would never open`
 	);
 }
 

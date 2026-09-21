@@ -251,7 +251,7 @@ export function createTextRender(deps: TextRenderDeps): TextRender {
 				contentLength: contentLengthOf(node),
 				ambientLength: deps.ambientPrefixText.length,
 				mountWidget: (spec, dec) => mountDecorationWidget(spec, dec, deps.reportRenderError),
-				onSkipped: (dec, reason) => devWarn('decorations', `island skipped: ${reason}`, dec)
+				onSkipped: (dec, reason) => devWarn('decorations', `decoration skipped: ${reason}`, dec)
 			});
 			if (islands.length > 0) {
 				recordIslandRebuild();

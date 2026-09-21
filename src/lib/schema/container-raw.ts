@@ -38,7 +38,7 @@ export function rebuildContainerRaw(node: CstNode): void {
 	const rebuild = tryGetBlockKindDescriptor(node.kind)?.rebuildRaw;
 	if (!rebuild) {
 		throw new Error(
-			`rebuildContainerRaw: kind "${node.kind}" has no rebuildRaw — only container kinds are valid`
+			`rebuildContainerRaw: kind "${node.kind}" has no rebuildRaw; only container kinds are valid`
 		);
 	}
 	rebuild(node);

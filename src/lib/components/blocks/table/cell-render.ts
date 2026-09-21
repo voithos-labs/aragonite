@@ -124,7 +124,7 @@ export function createCellRender(deps: CellRenderDeps): CellRender {
 			contentLength: contentLengthOf(node),
 			ambientLength: 0,
 			mountWidget: (spec, dec) => mountDecorationWidget(spec, dec, deps.reportRenderError),
-			onSkipped: (dec, reason) => devWarn('decorations', `island skipped: ${reason}`, dec)
+			onSkipped: (dec, reason) => devWarn('decorations', `decoration skipped: ${reason}`, dec)
 		});
 		widgetPool.sweep();
 		lastRenderedKey = renderKey;

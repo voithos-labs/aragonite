@@ -80,7 +80,7 @@ export function registerChromeLeaf<
 			searchPaint: { mode: 'implemented', via: 'chrome raw scanned; matches painted as marks' },
 			reorder: {
 				mode: 'not-supported',
-				reason: 'reserved child 0 — no independent block identity to move'
+				reason: 'reserved child 0: no independent block identity to move'
 			},
 			undo: { mode: 'inherit-default' },
 			clipboard: {

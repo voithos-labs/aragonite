@@ -26,7 +26,7 @@ export function buildImageEditBytes(
 	if (bytes === null) {
 		devWarn(
 			'image-edit',
-			`declined: the "${claim.prefix}" inline rung owns these bytes and ` +
+			`declined: the "${claim.prefix}" inline syntax handler owns these bytes and ` +
 				`${claim.rewriteImage ? 'its rewriteImage hook cannot represent this edit' : 'registered no rewriteImage hook'}`,
 			fields
 		);

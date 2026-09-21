@@ -203,8 +203,8 @@ function reportNonAdvancingOpener(ctx: OpenContext, result: BlockOpenerResult): 
 	assertInvariant('opener-advance', () => ({
 		code: 'opener-did-not-advance',
 		message:
-			`block opener for kind "${result.node.kind}" claimed no line at ${ctx.index} and was ` +
-			`declined — an opener must consume at least one line (return consumed >= 1)`,
+			`block opener for kind "${result.node.kind}" claimed no line at ${ctx.index} and was declined:` +
+			` an opener must consume at least one line (return consumed >= 1)`,
 		detail: result.node.kind
 	}));
 }

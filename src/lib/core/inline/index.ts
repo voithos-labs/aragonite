@@ -93,7 +93,7 @@ export function parseInline(
 ): InlineNode[] {
 	if (!Number.isFinite(start) || !Number.isFinite(end)) {
 		throw new TypeError(
-			'parseInline requires both scan bounds — to scan a whole string, call parseInline(src, 0, src.length)'
+			'parseInline requires both scan bounds: to scan a whole string, call parseInline(src, 0, src.length)'
 		);
 	}
 	return scanInline(raw, start, end, resolver);
