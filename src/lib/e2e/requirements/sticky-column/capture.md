@@ -1,4 +1,4 @@
-# Feature: Sticky column — capture and survive intermediate clamping
+# Feature: Sticky column: capture and survive intermediate clamping
 
 Cross-block caret column memory for vertical arrow navigation. The first vertical arrow after a reset captures the cursor's editor-relative pixel X; subsequent arrows reuse that X to land the caret at the nearest offset in each target block.
 

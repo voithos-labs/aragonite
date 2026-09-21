@@ -1,4 +1,4 @@
-# Feature: Keyboard Navigation — Arrow Traversal
+# Feature: Keyboard Navigation: Arrow Traversal
 
 Focus traversal across block boundaries via arrow keys, including the geometry checks (visual line
 position rather than logical caret position) that decide when the boundary is reached.

@@ -1,6 +1,6 @@
-# Feature: Keyboard Navigation — After Structural Ops
+# Feature: Keyboard Navigation: After Structural Ops
 
-Cross-feature: navigation after structural operations (split / merge / delete) shifts indices, so container-block navigation must remain correct after the op.
+Cross-feature: navigation after structural operations (split / merge / delete) shifts indices, so container-block navigation must remain correct after the operation.
 
 ## Cross-feature: navigation after structural operations
 

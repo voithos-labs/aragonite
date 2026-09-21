@@ -1,6 +1,6 @@
-# Feature: Container Block Editing — Blockquote Editing
+# Feature: Container Block Editing: Blockquote Editing
 
-Plain content editing inside blockquotes — typing, multi-paragraph round-trip, and the double-Enter exit.
+Plain content editing inside blockquotes: typing, multi-paragraph round-trip, and the double-Enter exit.
 
 ## Happy paths
 
