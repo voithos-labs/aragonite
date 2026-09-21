@@ -1,32 +1,31 @@
 # Feature: Mermaid diagrams follow the editor theme
 
-The engine paints colors INTO the SVG it returns, so no stylesheet can retheme a
-diagram already drawn — the diagram has to be redrawn for the theme. The renderer
-contract therefore carries a theme term (`MermaidRenderContext.theme`, the editor's
-`data-editor-theme` name), the plugin's render memo keys on it, and the block reads
-the theme live so a `theme` prop change re-renders every mounted diagram. Driven on
-`/test/plugins?seed=mermaid` via the header "Light theme" toggle (a real click).
+Mermaid paints the colors into the SVG it returns, so no stylesheet can recolor a diagram that
+is already drawn: the diagram has to be drawn again for the new theme. The renderer contract
+therefore carries a theme (`MermaidRenderContext.theme`, the editor's `data-editor-theme` name),
+the plugin's memoized render keys on it, and the block reads the theme live, so a change to the
+`theme` prop re-renders every mounted diagram. Driven on `/test/plugins?seed=mermaid` through
+the header's "Light theme" toggle, with a real click.
 
-Editor theme names that match one of mermaid's own themes pass through; anything else
-resolves to mermaid's light `default`. A consumer wanting a different mapping wraps
-the injected renderer.
+An editor theme name that matches one of mermaid's own themes passes through; anything else
+falls back to mermaid's light `default`. An app that wants a different mapping wraps the
+injected renderer.
 
 ## Happy paths
 
 - a diagram rendered in the dark theme paints dark node fills
-- flipping the `theme` prop to light re-renders every mounted diagram, and the node
-  fills change
-- flipping back to dark restores the dark fills (the earlier render is still memoized
-  under its own key, so this costs no engine work)
+- switching the `theme` prop to light re-renders every mounted diagram, and the node fills change
+- switching back to dark restores the dark fills, and the earlier render is still memoized under
+  its own key, so this costs no rendering work
 
 ## Edge cases
 
-- every mounted diagram recolors, not just the focused one (both seeded diagrams)
-- a theme flip renders no duplicate diagram: the mounted `<svg>` count is unchanged
-- a theme flip writes no bytes — `getSource()` is byte-identical across the flip and
-  back
+- every mounted diagram recolors, not only the focused one, which both seeded diagrams show
+- a theme switch renders no duplicate diagram: the number of mounted `<svg>` elements is
+  unchanged
+- a theme switch writes no bytes: `getSource()` is byte-identical across the switch and back
 
 ## Error cases
 
-- zero `[invariant:…]` console fires across every scenario (automatic via the shared
-  e2e fixture)
+- no `[invariant:…]` console messages across any scenario (automatic through the shared e2e
+  fixture)
