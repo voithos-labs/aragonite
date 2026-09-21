@@ -1,4 +1,4 @@
-# Feature: Cross-block delete: container survivor caret
+# Feature: Cross-block delete, container survivor caret
 
 When a table-aware cross-block delete consumes every block the caret could land
 in, the caret falls to the nearest surviving block before the range. A surviving

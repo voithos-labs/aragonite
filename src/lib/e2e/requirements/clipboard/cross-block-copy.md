@@ -1,4 +1,4 @@
-# Feature: cross-block clipboard: copy
+# Feature: cross-block clipboard, copy
 
 ## Happy paths
 

@@ -1,4 +1,4 @@
-# Feature: Keyboard cross-block selection: Shift+Arrow contraction (D1)
+# Feature: Keyboard cross-block selection, Shift+Arrow contraction (D1)
 
 Shift+ArrowLeft/Right on a non-collapsed single-block selection contracts the selection without firing cross-block extension.
 

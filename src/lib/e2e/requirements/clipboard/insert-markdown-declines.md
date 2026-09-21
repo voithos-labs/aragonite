@@ -1,4 +1,4 @@
-# Feature: insertMarkdown: the decline gates
+# Feature: insertMarkdown, the decline gates
 
 The method inserts where a paste would and nowhere else. A decline returns `false`
 and mutates nothing: no commit, no undo entry, no source change.

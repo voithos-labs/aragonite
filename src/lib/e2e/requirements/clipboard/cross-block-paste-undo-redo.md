@@ -1,4 +1,4 @@
-# Feature: cross-block paste over selection: undo / redo
+# Feature: cross-block paste over selection, undo / redo
 
 ## Happy paths
 

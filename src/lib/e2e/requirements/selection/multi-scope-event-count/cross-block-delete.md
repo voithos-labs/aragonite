@@ -1,4 +1,4 @@
-# Feature: One Edit Event per Op: Cross-Block Delete (and identity)
+# Feature: One Edit Event per Op, Cross-Block Delete (and identity)
 
 Cross-block delete spanning multiple containers fires exactly one edit event; mixed-scope deletes preserve the start item's id on the surviving list item.
 

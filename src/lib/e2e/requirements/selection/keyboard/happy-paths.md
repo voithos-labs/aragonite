@@ -1,4 +1,4 @@
-# Feature: Keyboard cross-block selection: happy paths
+# Feature: Keyboard cross-block selection, happy paths
 
 Baseline cross-block extension via Shift+Arrow, Ctrl+Shift+End/Home, and double Ctrl+A.
 

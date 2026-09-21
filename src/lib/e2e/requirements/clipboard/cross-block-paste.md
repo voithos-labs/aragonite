@@ -1,4 +1,4 @@
-# Feature: cross-block clipboard: paste basics, multi-block paste, structural discriminator
+# Feature: cross-block clipboard, paste basics, multi-block paste, structural discriminator
 
 ## Happy paths
 

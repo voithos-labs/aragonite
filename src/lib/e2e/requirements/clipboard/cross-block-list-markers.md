@@ -1,4 +1,4 @@
-# Feature: cross-block clipboard: list marker preservation on copy
+# Feature: cross-block clipboard, list marker preservation on copy
 
 Regression coverage for list-marker correctness when cross-block copy spans or partially overlaps a list.
 

@@ -1,4 +1,4 @@
-# Feature: cross-block clipboard: cut, delete/backspace, type-replace
+# Feature: cross-block clipboard, cut, delete/backspace, type-replace
 
 ## Happy paths
 

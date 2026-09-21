@@ -1,4 +1,4 @@
-# Feature: Range interrupt: select-all → gesture → keystroke (note-taking simulation)
+# Feature: Range interrupt, select-all → gesture → keystroke (note-taking simulation)
 
 The setup no suite had ever built: a live cross-block range, an interrupting
 gesture, then one printable key. Two whole-document losses hid behind exactly that:

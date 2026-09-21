@@ -1,4 +1,4 @@
-# Feature: Keyboard cross-block selection: vertical-skip parity
+# Feature: Keyboard cross-block selection, vertical-skip parity
 
 Cross-block Shift+ArrowUp/Down must respect `isVerticallyTransparent()` the
 same way single-block ArrowUp/Down dispatch does. Vertically-transparent

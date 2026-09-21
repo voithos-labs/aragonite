@@ -1,4 +1,4 @@
-# Feature: One Edit Event per Op: Blockquote splitBlock Exit
+# Feature: One Edit Event per Op, Blockquote splitBlock Exit
 
 ## Migrated sites covered
 

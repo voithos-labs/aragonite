@@ -1,4 +1,4 @@
-# Feature: One Edit Event per Op: Paste Sites
+# Feature: One Edit Event per Op, Paste Sites
 
 Paste-dispatch sites that route through `applyStructuralResult`, `applyContainerMatchingPaste`, and `applyContainerMatchingMerge` each emit a deterministic event count.
 

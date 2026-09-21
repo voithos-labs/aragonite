@@ -1,4 +1,4 @@
-# Feature: Cross-block list paste merge: caret at end of pasted content
+# Feature: Cross-block list paste merge, caret at end of pasted content
 
 A cross-block paste of a matching-type list into a non-empty list item merges the
 first pasted item into the target leaf at the caret, splices the remaining items

@@ -1,4 +1,4 @@
-# Feature: cross-block clipboard: paste into list selections
+# Feature: cross-block clipboard, paste into list selections
 
 ## Happy paths
 

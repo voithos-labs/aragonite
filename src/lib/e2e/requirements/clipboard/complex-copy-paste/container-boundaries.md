@@ -1,4 +1,4 @@
-# Feature: Complex cross-block copy-paste: Container Boundary Scenarios
+# Feature: Complex cross-block copy-paste, Container Boundary Scenarios
 
 Cross-block copy across container (list, blockquote) boundaries collects only the selected items and the right surrounding markers.
 

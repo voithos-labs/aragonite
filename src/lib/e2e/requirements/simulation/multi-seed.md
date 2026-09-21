@@ -1,4 +1,4 @@
-# Feature: Note-Taking Simulation: Multi-Seed Fuzz
+# Feature: Note-Taking Simulation, Multi-Seed Fuzz
 
 Fuzzes the typo / detour / undo interleavings of a full authoring session by
 running one representative note (meeting minutes) through `runSession` across many

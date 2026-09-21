@@ -1,4 +1,4 @@
-# Feature: Keyboard cross-block selection: edge cases
+# Feature: Keyboard cross-block selection, edge cases
 
 Boundary, no-op, and degenerate cases for cross-block selection.
 

@@ -1,4 +1,4 @@
-# Feature: One Edit Event per Op: List-Context Operations
+# Feature: One Edit Event per Op, List-Context Operations
 
 Regression guard: every list-context structural op migrated to `commitMultiScope` must fire exactly one `edit` event per user gesture.
 

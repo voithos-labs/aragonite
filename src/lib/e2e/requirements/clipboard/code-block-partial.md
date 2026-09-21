@@ -1,4 +1,4 @@
-# Feature: Code block partial copy: fence boundary stripping
+# Feature: Code block partial copy, fence boundary stripping
 
 A fenced code block stores its opener, body, and closer as one flat string.
 A native single-block selection that includes the fence lines would otherwise

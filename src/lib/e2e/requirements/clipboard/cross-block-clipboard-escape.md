@@ -1,4 +1,4 @@
-# Feature: cross-block clipboard: the event that lands on no block
+# Feature: cross-block clipboard, the event that lands on no block
 
 A cross-block selection is painted by overlays, and the caret the selection code leaves at
 the focus endpoint is best-effort: when that endpoint's block holds no text position (an

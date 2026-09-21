@@ -1,4 +1,4 @@
-# Feature: cross-block delete: BlockListState consistency (0.5.5.3 regression guard)
+# Feature: cross-block delete, BlockListState consistency (0.5.5.3 regression guard)
 
 Regression guard for the 0.5.5.3 multi-scope commit rework. The defect:
 `performCrossBlockDelete` synced only the top-level doc's

@@ -1,4 +1,4 @@
-# Feature: Selection undo: cross-block restore
+# Feature: Selection undo, cross-block restore
 
 ## Happy paths
 

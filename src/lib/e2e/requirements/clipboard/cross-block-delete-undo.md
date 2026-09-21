@@ -1,4 +1,4 @@
-# Feature: cross-block delete: Ctrl+Z restores content and cross-block selection state
+# Feature: cross-block delete, Ctrl+Z restores content and cross-block selection state
 
 ## Happy paths
 

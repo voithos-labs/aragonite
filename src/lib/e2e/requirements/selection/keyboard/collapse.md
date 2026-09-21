@@ -1,4 +1,4 @@
-# Feature: Keyboard cross-block selection: Collapse
+# Feature: Keyboard cross-block selection, Collapse
 
 Unshifted ArrowLeft/Right and click collapse a cross-block selection.
 
