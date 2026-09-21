@@ -47,7 +47,7 @@ test.describe('table block: paste in', () => {
 
 	// ── Structural ──────────────────────────────────────────────────────
 	//
-	// Asserting the exact source is what carries these: a document-level splice routed through the
+	// Asserting the exact source is what makes these bite: a document-level splice routed through
 	// cell's row-level `blockEdit` leaves the substrings a `waitForSourceContains` checks intact
 	// while the structure around them rots.
 

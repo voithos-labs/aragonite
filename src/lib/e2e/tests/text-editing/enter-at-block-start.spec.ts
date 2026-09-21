@@ -4,7 +4,7 @@ import { EditorPage } from '../../editor-page';
 // Enter at raw offset 0 of a non-empty text block: empty block above, content below, caret
 // staying on the content. Requirements: `enter-at-block-start.md`. Source bytes alone cannot
 // tell a real split from an extra blank line, so the block count and the caret path are the
-// assertions that carry this.
+// assertions that decide this.
 
 test.describe('text editing — Enter at block start', () => {
 	let editor: EditorPage;

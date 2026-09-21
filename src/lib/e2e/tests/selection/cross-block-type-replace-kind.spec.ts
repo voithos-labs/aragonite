@@ -37,7 +37,7 @@ test.describe('cross-block type-replace — kind re-derivation', () => {
 
 		// CST kind re-derived.
 		expect(await editor.bridge.getBlockKind(0)).toBe('heading');
-		// DOM re-rendered as a heading: BlockHost stamps the live kind on the wrapper.
+		// DOM re-rendered as a heading: `BlockHost` writes the live kind onto the wrapper.
 		await expect(
 			editor.page.locator("[data-block-path='[0]'][data-block-kind='heading']")
 		).toHaveCount(1);

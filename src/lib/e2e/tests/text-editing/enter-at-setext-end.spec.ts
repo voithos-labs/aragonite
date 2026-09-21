@@ -3,7 +3,7 @@ import { EditorPage } from '../../editor-page';
 
 // Enter in a setext title keeps the trailing underline with the heading half: a plain cut of
 // the raw text demotes it and turns the underline into a thematic break below
-// (`requirements/text-editing/enter-at-setext-end.md`). The block-kind assertions carry this,
+// (`requirements/text-editing/enter-at-setext-end.md`). The block-kind assertions decide it,
 // since the source bytes stay the same through the demotion and nothing else would see it.
 
 test.describe('text editing — Enter at the end of a setext title', () => {
