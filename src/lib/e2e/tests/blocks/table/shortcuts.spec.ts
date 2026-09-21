@@ -137,7 +137,7 @@ test.describe('table block: keyboard vocabulary', () => {
 		await page.keyboard.press('ControlOrMeta+Alt+ArrowUp');
 
 		await editor.bridge.waitForSourceEquals(`${TABLE_2x2}\nlead\n`);
-		// The row reorder still owns the bare chord — the two must not collide.
+		// The row reorder still owns the bare chord: the two must not collide.
 		await page.locator('[role="cell"]').nth(2).click();
 		await editor.pressDeclined('Alt+ArrowUp');
 		expect(await editor.bridge.getSource()).toBe(`${TABLE_2x2}\nlead\n`);
@@ -258,8 +258,8 @@ test.describe('table block: delete-last-row / delete-last-column focus landing',
 		const pageErrors = capturePageErrors(page);
 		await editor.loadContent(TABLE_3ROW);
 
-		// Header + 2 body rows = 6 cells. Focus a cell in the LAST body row
-		// (row index 2 → cell index 4). Body-count is 2, so delete is not a no-op.
+		// Header + 2 body rows = 6 cells. Focus a cell in the last body row (row index 2,
+		// cell index 4). There are two body rows, so the delete is not a no-op.
 		await page.locator('[role="cell"]').nth(4).click();
 		await expect(page.locator('[role="cell"]').nth(4)).toBeFocused();
 
@@ -267,8 +267,8 @@ test.describe('table block: delete-last-row / delete-last-column focus landing',
 		await editor.bridge.waitForSourceNotContains('| 3 | 4 |');
 		await expect(page.locator('[role="cell"]')).toHaveCount(4);
 
-		// Focus must survive on an existing cell. The stale-count bug targeted the
-		// now-removed last row, leaving focus on <body> → :focus count 0.
+		// Focus must survive on an existing cell: targeting the removed last row leaves focus
+		// on `<body>` and a `:focus` count of 0.
 		await expect(page.locator('[role="cell"]:focus')).toHaveCount(1);
 		expect(pageErrors).toEqual([]);
 	});
@@ -278,7 +278,7 @@ test.describe('table block: delete-last-row / delete-last-column focus landing',
 		// 2-column table so delete is not a no-op (no-op fires at 1 column).
 		await editor.loadContent(TABLE_2x2);
 
-		// Focus a body cell in the LAST column (row 1, col 1 → cell index 3).
+		// Focus a body cell in the last column (row 1, col 1, cell index 3).
 		await page.locator('[role="cell"]').nth(3).click();
 		await expect(page.locator('[role="cell"]').nth(3)).toBeFocused();
 

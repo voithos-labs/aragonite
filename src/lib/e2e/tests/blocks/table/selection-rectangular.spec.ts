@@ -24,7 +24,7 @@ test.describe('table block: rectangular selection', () => {
 	});
 
 	test('anti-diagonal rectangular selection paints the full bounding rect', async ({ page }) => {
-		// Cell 2 = (row 0, col 2) — top-right; cell 6 = (row 2, col 0) — bottom-left.
+		// Cell 2 = (row 0, col 2), top right; cell 6 = (row 2, col 0), bottom left.
 		await dragBetweenCells(page, 2, 6);
 		await editor.waitForCrossBlock(true);
 		const sel = await editor.bridge.getSelectionPaths();

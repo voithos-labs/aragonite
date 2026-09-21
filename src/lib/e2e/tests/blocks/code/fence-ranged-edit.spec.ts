@@ -1,9 +1,9 @@
 import { test, expect } from '../../../fixtures';
 import { EditorPage } from '../../../editor-page';
 
-// Every ranged gesture applies to the selection's intersection with the BODY, so neither fence line
-// can be rewritten into an unclosed fence that absorbs the document. Requirements:
-// fence-ranged-edit.md.
+// Every gesture over a range applies only to the part of the selection inside the body, so neither
+// fence line can be rewritten into an unclosed fence that absorbs the document. Requirements:
+// `fence-ranged-edit.md`.
 
 // Fixture display text "```js\nconst x = 1\n```":
 // opener text [0,5) · body [6,17) · closer text [18,21).
@@ -89,7 +89,7 @@ test.describe('code block — ranged edits spanning a fence line', () => {
 		for (const offset of [19, 1]) {
 			await editor.focusBlock(0, offset);
 			await editor.paste();
-			// A paste event, not a keystroke: no keydown, so no verdict.
+			// A paste event, not a keystroke: no keydown, so nothing for the editor to answer.
 			await editor.waitForNoSourceMutation();
 
 			expect(await editor.bridge.getSource()).toBe(SOURCE);
@@ -100,7 +100,7 @@ test.describe('code block — ranged edits spanning a fence line', () => {
 		await editor.seedClipboard('Y');
 		await selectFrom(editor, 18, 3);
 		await editor.paste();
-		// A paste event, not a keystroke: no keydown, so no verdict.
+		// A paste event, not a keystroke: no keydown, so nothing for the editor to answer.
 		await editor.waitForNoSourceMutation();
 
 		expect(await editor.bridge.getSource()).toBe(SOURCE);
@@ -109,7 +109,8 @@ test.describe('code block — ranged edits spanning a fence line', () => {
 	test('Backspace over an opener-into-body selection keeps the opener line', async () => {
 		await selectFrom(editor, 3, 6); // "js\ncon"
 		await editor.page.keyboard.press('Backspace');
-		// Equality, not a fragment: what survives this edit is a substring of the
+		// Equality, not a fragment: what survives this edit is a substring of the fixture, so a
+		// `contains` check would already pass before the gesture.
 		await editor.bridge.waitForSourceEquals('```js\nst x = 1\n```\n');
 	});
 
@@ -151,7 +152,7 @@ test.describe('code block — ranged edits spanning a fence line', () => {
 	// that swallows the document.
 	test('typing inside the closer fence is inert', async () => {
 		await editor.focusBlock(0, 19);
-		// `typeText` is one `insertText`, which fires no keydown: no verdict to wait on.
+		// `typeText` is one `insertText`, which fires no keydown: nothing to wait on.
 		await editor.typeText('x');
 		await editor.waitForNoSourceMutation();
 
@@ -181,8 +182,8 @@ test.describe('code block — ranged edits spanning a fence line', () => {
 		expect(await editor.bridge.getSource()).toBe(SOURCE);
 	});
 
-	// An unclosed fence has no closer to orphan, so its markers stay editable — a just-typed ```
-	// must be un-typable.
+	// An unclosed fence has no closer to orphan, so its markers stay editable: a just-typed ```
+	// must be removable again.
 	test('an unclosed fence keeps its markers editable', async () => {
 		await editor.loadContent('```js\nconst x\n');
 		await editor.getBlock(0).click();

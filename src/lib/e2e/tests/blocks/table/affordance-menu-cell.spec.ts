@@ -2,7 +2,7 @@ import { test, expect } from '../../../fixtures';
 import { EditorPage } from '../../../editor-page';
 import { openFlyout } from './helpers';
 
-// Cells render row-major with the header cells first, so for TABLE the role="cell"
+// Cells render row-major with the header cells first, so for `TABLE` the `role="cell"`
 // order is: 0=A 1=B (header) · 2="1" 3="2" (body row 1) · 4="3" 5="4" (body row 2).
 const TABLE = '| A | B |\n| --- | --- |\n| 1 | 2 |\n| 3 | 4 |\n';
 const TABLE_3COL = '| A | B | C |\n| --- | --- | --- |\n| 1 | 2 | 3 |\n';
@@ -40,7 +40,7 @@ test.describe('table block: cell right-click menu', () => {
 		expect(await editor.bridge.getSource()).toContain('| 3 | 4 |');
 	});
 
-	// Prose has a right-click menu of its own (clipboard), so the oracle is the table's items.
+	// Prose has a right-click menu of its own (clipboard), so what this reads is the table's items.
 	test('right-clicking outside the table does not open the affordance menu', async ({ page }) => {
 		await editor.loadContent(`${TABLE}text below\n`);
 		await page.getByText('text below').click({ button: 'right' });
@@ -66,9 +66,9 @@ test.describe('table block: cell right-click menu', () => {
 
 	// ── Row and Column flyouts ─────────────────────────────────────────────
 	//
-	// The insert/move actions live one level down, behind the "Row" and "Column" rows; a
-	// hover opens the flyout, the same way the pointer really reaches them. These cover the
-	// action semantics the grip menus used to own, now routed off the clicked cell.
+	// The insert and move actions live one level down, behind the "Row" and "Column" rows; a
+	// hover opens the flyout, the same way the pointer really reaches them. These cover what
+	// each action does, routed off the clicked cell.
 
 	test('the Row flyout inserts a body row directly below the clicked row', async ({ page }) => {
 		await openFlyout(page, 2, 'Row'); // body cell ("1"), rowIdx 1
@@ -145,9 +145,9 @@ test.describe('table block: cell right-click menu', () => {
 		await expect(page.getByRole('menu')).toHaveCount(0);
 	});
 
-	// Keyboard alignment once dropped focus to <body> and announced nothing: activating a segment
-	// must return focus to a cell and announce via the live region. Driven through the menu's real
-	// roving focus, not a programmatic press on the segment.
+	// Activating an alignment segment must return focus to a cell and announce through the live
+	// region, not drop focus to `<body>` silently. Driven through the menu's real roving focus,
+	// not a programmatic press on the segment.
 	test('keyboard-driven alignment restores focus to a cell and announces', async ({ page }) => {
 		await editor.loadContent(TABLE_3COL);
 		await page.locator('[role="cell"]').nth(4).click(); // body row, column B ("2")

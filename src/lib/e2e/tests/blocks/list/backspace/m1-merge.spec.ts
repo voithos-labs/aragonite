@@ -103,7 +103,7 @@ test.describe('list Backspace — M1 merge on non-first item', () => {
 	});
 
 	// `children` extended without `childIds` gives the trailing keyed-each entries undefined keys,
-	// which Svelte reports as `each_key_duplicate` — hence the console watch below.
+	// which Svelte reports as `each_key_duplicate`, hence the console watch below.
 	test('M1 keeps children/childIds parity at every depth (rows 3+4 shape)', async ({ page }) => {
 		const consoleErrors: string[] = [];
 		page.on('console', (m) => {
@@ -126,9 +126,9 @@ test.describe('list Backspace — M1 merge on non-first item', () => {
 	test('M1 opaque previous leaf (fenced code): no merge, no crash, caret falls back', async ({
 		page
 	}) => {
-		// Backspace at the start of the item after a fenced-code-only item once threw inside the
-		// commit ceremony (DEV crash / prod dead key); it must no-op structurally and move the
-		// caret into the code block.
+		// Backspace at the start of the item after a fenced-code-only item must change no structure
+		// and move the caret into the code block; throwing inside the commit steps crashes in dev
+		// and does nothing at all in production.
 		const pageErrors = capturePageErrors(page);
 
 		await editor.loadContent('- ```\n  code\n  ```\n- text\n');

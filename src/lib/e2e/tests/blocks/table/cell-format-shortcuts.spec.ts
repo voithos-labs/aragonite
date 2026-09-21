@@ -1,8 +1,8 @@
 import { test, expect } from '../../../fixtures';
 import { EditorPage } from '../../../editor-page';
 
-// Cells declare supportsInline, so Mod+B / Mod+I must format the selection as in prose; they used
-// to fall through to a native no-op — no keymap binding, no command dispatch on the cell surface.
+// Cells declare `supportsInline`, so Mod+B and Mod+I must format the selection the way they do
+// in prose: with no keymap binding and no command dispatch on the cell, they do nothing at all.
 test.describe('table cell: inline-format shortcuts', () => {
 	let editor: EditorPage;
 
@@ -35,8 +35,8 @@ test.describe('table cell: inline-format shortcuts', () => {
 		expect(await editor.bridge.getSource()).toContain('| *hello* | world |');
 	});
 
-	// The cell's caret contract is prose's — the two toggles share one pure core,
-	// and the cell's own escape door runs over its result.
+	// A cell's caret behaves like prose's: the two toggles share one pure core,
+	// and the cell's own escaping runs over the result.
 	test('Ctrl+B at a collapsed caret inserts the empty pair', async ({ page }) => {
 		await editor.loadContent('| A | B |\n| --- | --- |\n| hello | world |\n');
 		await page.locator('[role="cell"]').nth(2).click();

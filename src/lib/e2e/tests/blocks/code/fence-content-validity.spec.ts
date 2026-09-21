@@ -1,8 +1,8 @@
 import { test, expect } from '../../../fixtures';
 import { EditorPage } from '../../../editor-page';
 
-// What a code block's content regions may HOLD, as opposed to where an edit may land
-// (fence-ranged-edit.spec.ts). Requirements: fence-content-validity.md.
+// What a code block's content may hold, as opposed to where an edit may land
+// (`fence-ranged-edit.spec.ts`). Requirements: `fence-content-validity.md`.
 
 const SOURCE = '```js\nconst x = 1\n```\n\n# Heading\n';
 
@@ -56,9 +56,9 @@ test.describe('code block — content the fence cannot hold', () => {
 	});
 });
 
-// A run already in the body is safe until a gesture MOVES it into terminator position — those
-// gestures rewrite the display without adding a character, reaching the same corruption by another
-// door.
+// A run already in the body is safe until a gesture moves it into terminator position: those
+// gestures rewrite the display without adding a character, reaching the same corruption another
+// way.
 test.describe('code block — gestures that make an existing run a terminator', () => {
 	let editor: EditorPage;
 
@@ -92,9 +92,9 @@ test.describe('code block — gestures that make an existing run a terminator', 
 	});
 });
 
-// The escalation is scoped to a CLOSED fence, and a typed fence is closed from its first Enter
-// (the bare opener completes to opener, empty body line, closer), so the authoring exit is Enter
-// on the trailing empty body line rather than a typed closer.
+// Growing the fence only applies to a closed one, and a typed fence is closed from its first
+// Enter (the bare opener completes to opener, empty body line, closer), so the way out while
+// writing is Enter on the trailing empty body line rather than a typed closer.
 test.describe('code block — authoring a fence by typing', () => {
 	test('type ```, Enter, code, Enter, Enter yields one closed block and a paragraph below', async ({
 		page
@@ -107,7 +107,7 @@ test.describe('code block — authoring a fence by typing', () => {
 		await editor.bridge.waitForSourceContains('```');
 
 		await editor.page.keyboard.press('Enter');
-		// The fixture's blank line IS the block the caret sits in, so the fence fills it.
+		// The fixture's blank line is the block the caret sits in, so the fence fills it.
 		await editor.bridge.waitForSourceEquals('```\n\n```\n');
 		await editor.typeText('code');
 		await editor.bridge.waitForSourceEquals('```\ncode\n```\n');
@@ -143,7 +143,7 @@ test.describe('code block — the tilde twin', () => {
 		expect(await editor.bridge.getBlockCount()).toBe(2);
 	});
 
-	// GFM forbids backticks only in a BACKTICK fence's info string, so a tilde fence keeps them.
+	// GFM forbids backticks only in a backtick fence's info string, so a tilde fence keeps them.
 	test('a backtick typed into a tilde info string survives', async () => {
 		await editor.focusBlock(0, 7); // end of "yaml"
 		await editor.typeText('`');

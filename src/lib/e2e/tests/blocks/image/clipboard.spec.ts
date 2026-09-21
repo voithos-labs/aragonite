@@ -4,7 +4,7 @@ import { EditorPage } from '../../../editor-page';
 // Selecting a widget clears the native selection, so what decides whether the chord's event
 // reaches the block is whether the paragraph holds a text position for a caret to survive in.
 // Beside prose one does; in a widget-only paragraph none does, and the browser dispatches at
-// <body> for BOTH selection routes (requirements/blocks/image/clipboard.md).
+// `<body>` for both ways of selecting (`requirements/blocks/image/clipboard.md`).
 
 const IMG_MD = '![cat](/test-fixtures/sample.png)';
 const WIDGET_ONLY = `lead\n\n${IMG_MD}\n\ntail\n`;
@@ -22,13 +22,13 @@ test.describe('selected image-widget copy/cut', () => {
 
 	async function open(doc: string): Promise<void> {
 		await editor.loadContent(doc);
-		// The clipboard outlives the browser context, so a chord that writes NOTHING would
+		// The clipboard outlives the browser context, so a chord that writes nothing would
 		// otherwise read back the previous case's payload and pass.
 		await editor.seedClipboard('SENTINEL');
 	}
 
-	// Stepping OUT of the paragraph above, so the landing runs the cross-block edge entry. A
-	// caret seated programmatically inside a widget-only block never enters the widget at all.
+	// Stepping out of the paragraph above, so the landing runs the cross-block edge entry. A caret
+	// placed programmatically inside a widget-only block never enters the widget at all.
 	async function selectByArrowFromAbove(): Promise<void> {
 		await editor.focusBlockEnd(0);
 		await editor.page.keyboard.press('ArrowRight');
@@ -75,7 +75,7 @@ test.describe('selected image-widget copy/cut', () => {
 		});
 	}
 
-	// The third arm of the same body route: paste over a selected widget replaces its slice.
+	// The third case on the same path: paste over a selected widget replaces it.
 	test('widget-only paragraph, click-selected: Mod+V replaces the widget with the pasted text', async () => {
 		await open(WIDGET_ONLY);
 		await editor.seedClipboard('REPLACED');
@@ -87,8 +87,8 @@ test.describe('selected image-widget copy/cut', () => {
 		expect((await editor.bridge.getSource()).trim()).toBe('lead\n\nREPLACED\n\ntail');
 	});
 
-	// The contrast that isolates the body route from the widget arm: with prose beside the image
-	// a caret survives the selection, so the event reaches the block directly.
+	// The contrast that separates the two: with prose beside the image a caret survives the
+	// selection, so the event reaches the block directly.
 	test('image beside prose keeps reaching the block’s own handlers', async () => {
 		await open(BESIDE_PROSE);
 		const before = await editor.bridge.getSource();

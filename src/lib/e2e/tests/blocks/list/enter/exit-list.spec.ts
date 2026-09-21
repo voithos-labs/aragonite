@@ -8,9 +8,9 @@ test.describe('list Enter — exit list on empty item', () => {
 		await editor.goto();
 	});
 
-	// `assembleListHalf` produced the surviving list with `childIds` undefined; the keyed `{#each}`
-	// read undefined keys and Svelte left the stale empty list-item in the DOM — live tree two
-	// items, DOM three.
+	// `assembleListHalf` must give the surviving list its `childIds`: undefined keys make the keyed
+	// `{#each}` leave the stale empty list item in the DOM, two items in the tree and three on
+	// screen.
 	test('Enter on empty middle item removes the empty item from the DOM', async () => {
 		await editor.loadContent('- alpha\n- beta\n');
 		const beta = editor.page.locator('[contenteditable="true"]', { hasText: 'beta' });
@@ -28,10 +28,9 @@ test.describe('list Enter — exit list on empty item', () => {
 		expect(counts.listItems).toBe(2);
 	});
 
-	// Exiting a list reuses the ListBlock instance (the document-scope replace preserves the list's
-	// id) and swaps in a shorter node; the inner {#each} re-keys but innerBlockRefs kept its stale
-	// trailing slot. The DOM-count assertion above cannot see that — auditBlockListStateConsistency
-	// can.
+	// Exiting a list reuses the `ListBlock` instance (the replace keeps the list's id) and swaps in
+	// a shorter node; the inner `{#each}` re-keys, but `innerBlockRefs` can keep a stale trailing
+	// entry. The DOM count above cannot see that; `auditBlockListStateConsistency` can.
 	test('Enter exiting a list leaves the surviving list BlockListState in sync', async () => {
 		await editor.loadContent('- Alpha\n- Beta\n');
 		const beta = editor.page.locator('[contenteditable="true"]', { hasText: 'Beta' });
@@ -133,7 +132,7 @@ test.describe('list Enter — exit list on empty item', () => {
 		expect(source.indexOf('After')).toBeGreaterThan(source.indexOf('First'));
 	});
 
-	// Regression: a trailing mismatched-type nested list must survive the exit, not vanish.
+	// A trailing nested list of the other type must survive the exit rather than vanish.
 	test('Enter on empty item with mismatched-type nested list lifts the sub-list', async () => {
 		await editor.loadContent('- Item\n  1. NestedOrdered\n');
 		const item = editor.page.locator('[contenteditable="true"]', { hasText: 'Item' }).first();
@@ -150,7 +149,7 @@ test.describe('list Enter — exit list on empty item', () => {
 		expect(source).not.toMatch(/^ {2,}1\. NestedOrdered$/m);
 	});
 
-	// Regression: non-list trailing children of a loose item must be lifted, not dropped.
+	// Trailing non-list children of a loose item must be lifted out, not dropped.
 	test('Enter on emptied loose item lifts trailing paragraph as top-level block', async () => {
 		await editor.loadContent('- First\n\n  second\n');
 		const first = editor.page.locator('[contenteditable="true"]', { hasText: 'First' });

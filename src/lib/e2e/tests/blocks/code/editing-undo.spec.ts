@@ -11,8 +11,8 @@ test.describe('code block editing — user interactions', () => {
 		await editor.goto();
 	});
 
-	// Two ArrowDowns leave the block — the closer fence is its own visual line (see
-	// editing-block-exit.spec.ts).
+	// Two ArrowDowns leave the block: the closer fence is its own visual line (see
+	// `editing-block-exit.spec.ts`).
 	test('type multi-line code then navigate out via ArrowDown', async () => {
 		await editor.loadContent('```\n\n```\n\nTarget\n');
 		await editor.getBlock(0).click();

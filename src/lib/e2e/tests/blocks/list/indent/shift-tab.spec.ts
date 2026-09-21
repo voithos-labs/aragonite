@@ -81,7 +81,7 @@ test.describe('list Shift+Tab', () => {
 		expect(source).toMatch(/^3\. P B$/m);
 	});
 
-	// Regression: stale outer-list refs after promoteNestedItem could make ArrowUp a no-op.
+	// Stale outer-list refs after `promoteNestedItem` would make ArrowUp do nothing.
 	test('ordered: ArrowUp after Shift+Tab moves caret into previous outer item', async () => {
 		await editor.loadContent('1. one\n   1. two\n2. three\n');
 		const two = editor.page.locator('[contenteditable="true"]', { hasText: 'two' });
@@ -98,8 +98,8 @@ test.describe('list Shift+Tab', () => {
 		expect(await editor.bridge.getSource()).not.toMatch(/^2\. .*Z.*two|^2\. Ztwo/m);
 	});
 
-	// Focus must follow the item THROUGH the container mutation: the promoted item's ref is the one
-	// `promoteNestedItem` focuses, and typing is the only oracle that tells it from a stale ref.
+	// Focus must follow the item through the container's change: `promoteNestedItem` focuses the
+	// promoted item's ref, and typing is the only way to tell that from a stale ref.
 	test('Shift+Tab promoting one of several nested items focuses the promoted item', async () => {
 		await editor.loadContent('- one\n  - nested a\n  - nested b\n- three\n');
 

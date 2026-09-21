@@ -9,8 +9,7 @@ test.describe('image widget selection', () => {
 		await editor.goto();
 	});
 
-	// The overlay portal rendered at the widget's bounds is the only externally-observable signal
-	// of widget-selected state.
+	// The overlay rendered at the widget's bounds is the only outward sign that it is selected.
 	const overlay = (page: import('@playwright/test').Page) => page.locator('[data-image-overlay]');
 
 	test('click on widget enters selected state', async ({ page }) => {

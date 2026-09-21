@@ -1,15 +1,16 @@
 import { test, expect } from '../../../fixtures';
 import { EditorPage } from '../../../editor-page';
 
-// The exit guard resolves the next block inside the code block's OWN container scope, never
-// against the root child count. See requirements/blocks/code/forward-delete-exit.md.
+// The exit check finds the next block inside the code block's own container, never against the
+// root's child count. See `requirements/blocks/code/forward-delete-exit.md`.
 
 // Raw offset of the closer boundary for the body "code\n" (== bodyEnd). Shared by every code block
-// here: the offset is local to the block's own contenteditable, and a quote's `> ` is ambient.
+// here: the offset is local to the block's own contenteditable, and the `> ` a quote draws is
+// not part of that text.
 const CLOSER_BOUNDARY = 8;
 
-// Forward-Delete at the closer only ever moves focus, so every call takes the press's own
-// verdict as its settle.
+// Forward Delete at the closer only ever moves focus, so every call waits on the press being
+// declined rather than on the source.
 async function pressDeleteAtCloser(editor: EditorPage, path: number[]) {
 	await editor.focusBlockAtPath(path, CLOSER_BOUNDARY);
 	await editor.pressDeclined('Delete');
@@ -47,8 +48,8 @@ test.describe('code block — forward-Delete at closer exit', () => {
 		expect(await editor.bridge.getBlockKind(1)).toBe('paragraph');
 		const blockCountBefore = await editor.bridge.getBlockCount();
 
-		// The fence ends the blockquote, so the exit meets the container's own scope-end
-		// gap first (requirements/selection/gap-caret-arrival.md); the next Delete leaves.
+		// The fence ends the blockquote, so the exit meets the gap at the end of the container's
+		// own child list first (`requirements/selection/gap-caret-arrival.md`); the next Delete leaves.
 		await pressDeleteAtCloser(editor, [0, 0]);
 		await editor.bridge.waitForGapCaret({ parentPath: [0], index: 1 });
 		await editor.page.keyboard.press('Delete');
@@ -62,14 +63,14 @@ test.describe('code block — forward-Delete at closer exit', () => {
 
 	test('nested code block at the true document end: Delete appends nothing', async () => {
 		await editor.loadContent('para\n\n> ```\n> code\n> ```\n');
-		// paragraph at root 0, blockquote[codeBlock] last at root 1 — the code block
-		// sits at the true document end, reachable only by upward delegation.
+		// paragraph at root 0, blockquote[codeBlock] last at root 1: the code block sits at the
+		// real document end, reachable only by handing the exit upward.
 		expect(await editor.bridge.getBlockKind(0)).toBe('paragraph');
 		expect(await editor.bridge.getBlockKind(1)).toBe('blockquote');
 
 		await pressDeleteAtCloser(editor, [1, 0]);
-		// The caret parks in the blockquote's scope-end gap; the document is untouched,
-		// which is what the container-local-index regression is about.
+		// The caret rests in the gap at the end of the blockquote's child list; the document is
+		// untouched, which is the point: the index is local to the container.
 		await editor.bridge.waitForGapCaret({ parentPath: [1], index: 1 });
 
 		expect(await editor.bridge.getSource()).toBe('para\n\n> ```\n> code\n> ```\n');
@@ -78,8 +79,8 @@ test.describe('code block — forward-Delete at closer exit', () => {
 
 	test('nested code block with a sibling paragraph inside the blockquote: focus moves to the sibling', async () => {
 		await editor.loadContent('> ```\n> code\n> ```\n>\n> sibling\n');
-		// blockquote[codeBlock, paragraph] — the next block is the sibling INSIDE
-		// the container, not a delegation target.
+		// blockquote[codeBlock, paragraph]: the next block is the sibling inside the container,
+		// not something to hand upward.
 		expect(await editor.bridge.getBlockKind(0)).toBe('blockquote');
 		const blockCountBefore = await editor.bridge.getBlockCount();
 

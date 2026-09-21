@@ -4,7 +4,7 @@ import { EditorPage } from '../../../editor-page';
 // 12 columns at ~150px each overflow `.table-block`'s overflow-x in an 800px viewport, so the late
 // columns start scrolled off the right edge. A column moved into that region carries the caret
 // with it, and the caret's cell must scroll into view or the move lands out of sight.
-// Requirements: requirements/blocks/table/reorder-column-wide.md.
+// Requirements: `requirements/blocks/table/reorder-column-wide.md`.
 const COLS = 12;
 const HEAD =
 	'| ' + Array.from({ length: COLS }, (_, i) => `Header-Col-${i + 1}`).join(' | ') + ' |\n';

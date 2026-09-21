@@ -80,7 +80,7 @@ test.describe('table block: navigation', () => {
 		await page.locator('[role="cell"]').nth(2).click();
 		await page.keyboard.press('End');
 		await page.keyboard.press('ArrowUp');
-		// Type a marker and confirm it lands at the START of "AAA", not the end.
+		// Type a character and confirm it lands at the start of "AAA", not the end.
 		await editor.typeText('!');
 		await editor.bridge.waitForSourceContains('| !AAA | BBB |');
 	});

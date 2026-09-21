@@ -63,8 +63,8 @@ test.describe('table block: rendering', () => {
 	test('default alignment leaves text-align at the inherited start value', async ({ page }) => {
 		await editor.loadContent('| A | B |\n| --- | --- |\n| 1 | 2 |\n');
 		const cells = page.locator('[role="cell"]');
-		// 'none' alignment should NOT set inline text-align — falls through to
-		// whatever the document default is (LTR start = 'start').
+		// 'none' alignment sets no inline `text-align`: it falls through to the
+		// document default (left to right gives 'start').
 		await expect(cells.nth(0)).toHaveCSS('text-align', 'start');
 		await expect(cells.nth(1)).toHaveCSS('text-align', 'start');
 	});
@@ -84,9 +84,9 @@ test.describe('table block: rendering', () => {
 		await expect(cells.nth(8)).toHaveText('$100');
 	});
 
-	// A whitespace-only text node directly under a raw-walk container joins the raw-offset walk
-	// (cursor/widget-offset.ts counts every text node, incl. aria-hidden) and shifts a parked
-	// cross-block caret.
+	// A whitespace-only text node directly under one of these containers joins the raw-offset
+	// traversal (`cursor/widget-offset.ts` counts every text node, `aria-hidden` included) and
+	// shifts a resting cross-block caret.
 	test('no whitespace-only direct text nodes under the table containers (raw-offset-walk contract)', async ({
 		page
 	}) => {

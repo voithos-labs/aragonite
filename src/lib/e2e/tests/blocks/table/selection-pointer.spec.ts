@@ -4,8 +4,8 @@ import { boxesOf, dragBetweenBoxes, dragBetweenCells } from './helpers';
 
 const TABLE_3x3 = '| A | B | C |\n| --- | --- | --- |\n| 1 | 2 | 3 |\n| 4 | 5 | 6 |\n';
 
-// Multi-character cells on purpose: the buggy fall-through places the caret at the row-major linear
-// index read as a CHARACTER offset, and with single-char cells the two coincide, hiding the bug.
+// Multi-character cells on purpose: a fall-through places the caret at the row-major index read as
+// a character offset, and with single-character cells the two coincide and hide it.
 const TABLE_MULTICHAR =
 	'| h1 | h2 | h3 |\n| --- | --- | --- |\n| aaa | bbb | ccc |\n| ddd | eee | fff |\n';
 
@@ -101,9 +101,9 @@ test.describe('table block: pointer selection', () => {
 		expect(sel!.focus.path[0]).toBe(1);
 	});
 
-	// A pointer-drag table endpoint must carry cellCoordinate:true so collapse routes to the DEEP
-	// [table,row,col] cell, matching the keyboard path; without the flag, collapse lands on the
-	// table WRAPPER at a meaningless char offset and the typed marker misses the cell.
+	// A table endpoint from a pointer drag must carry `cellCoordinate: true` so the collapse routes
+	// to the deep `[table, row, col]` cell, matching the keyboard path; without it the collapse
+	// lands on the table wrapper at a meaningless offset and the typed character misses the cell.
 	test('collapsing a pointer-dragged table selection lands the caret in the deep cell (F3)', async ({
 		page
 	}) => {
@@ -151,9 +151,9 @@ test.describe('table block: pointer selection', () => {
 		page
 	}) => {
 		await editor.loadContent(TABLE_MULTICHAR);
-		// The windowing-gate story only covered the giant (windowed) table; this is the same
-		// collapse path on an unwindowed grid, where the cell-coordinate branch corrects a
-		// meaningless-offset caret.
+		// The windowing case only covers the giant table; this is the same collapse on a grid
+		// that is not windowed, where the cell-coordinate branch corrects a caret sitting at a
+		// meaningless offset.
 		expect(await page.locator('.table-block > .vr-spacer').count()).toBe(0);
 
 		await page.locator('[role="cell"]').nth(3).click(); // first body cell "aaa"
@@ -171,9 +171,9 @@ test.describe('table block: pointer selection', () => {
 		expect(await cells.nth(4).textContent()).not.toContain('END_MARK');
 	});
 
-	// TableCellBlock ran cellKeydownPlan BEFORE cross-block dispatch, so a plan-claimed key
-	// (ArrowLeft@0, ArrowUp/Down) never collapsed an active cross-block selection and the next
-	// keystroke range-replaced the whole table body.
+	// `TableCellBlock` runs the cross-block dispatch before `cellKeydownPlan`: the other order lets
+	// a key the plan takes (ArrowLeft at 0, ArrowUp, ArrowDown) leave an active cross-block
+	// selection uncollapsed, and the next keystroke replaces the whole table body.
 	test('Ctrl+Shift+End then ArrowLeft collapses to start without wiping the table body', async ({
 		page
 	}) => {

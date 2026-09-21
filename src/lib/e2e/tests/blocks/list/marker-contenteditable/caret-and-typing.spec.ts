@@ -43,9 +43,9 @@ test.describe('list marker — caret placement and typing', () => {
 		await editor.bridge.waitForSourceEquals('- World\n');
 	});
 
-	// Typing `- ` in an empty paragraph live-promotes to a list, and `focus(CURSOR_END)` on the new
-	// ListBlock must clear the contenteditable="false" marker text node — a caret clamped onto its
-	// end has every following keystroke silently dropped by the browser.
+	// Typing `- ` in an empty paragraph turns it into a list, and `focus(CURSOR_END)` on the new
+	// `ListBlock` must move past the `contenteditable="false"` marker text node: a caret clamped to
+	// its end has every following keystroke silently dropped by the browser.
 	test('typing after live-promote of empty paragraph lands caret in editable area', async () => {
 		await editor.loadContent('\n');
 		await editor.focusBlockEnd(0);

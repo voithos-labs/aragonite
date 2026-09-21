@@ -1,10 +1,9 @@
 import { test, expect } from '../../../fixtures';
 import { EditorPage } from '../../../editor-page';
 
-// Inserting a block ABOVE an image shifts its index without touching its raw, so the render memo
-// skips a rebuild. The widget must not depend on a path baked at build time: click-to-select
-// resolves the paragraph from that path, and a stale one resolves the wrong CST node and silently
-// no-ops.
+// Inserting a block above an image shifts its index without touching its raw, so the render memo
+// skips a rebuild. The widget must not hold a path from build time: click-to-select resolves the
+// paragraph from that path, and a stale one finds the wrong CST node and does nothing.
 test.describe('image widget — click-select survives an index shift', () => {
 	let editor: EditorPage;
 

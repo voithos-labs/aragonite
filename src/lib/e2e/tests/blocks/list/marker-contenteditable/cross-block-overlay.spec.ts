@@ -32,9 +32,9 @@ test.describe('list marker — cross-block selection overlay edge', () => {
 		const overlayCount = await overlays.count();
 		expect(overlayCount).toBeGreaterThan(0);
 
-		// No overlay rect may bleed left of the marker's right edge: measurePartialRects(0, n)
-		// emitted DOM offset 0 and painted over the marker before raw offset 0 translated to DOM
-		// offset = ambientLength.
+		// No overlay rect may spill left of the marker's right edge: raw offset 0 has to translate
+		// to the DOM offset past the marker, or `measurePartialRects(0, n)` starts at DOM offset 0
+		// and paints over it.
 		for (let i = 0; i < overlayCount; i++) {
 			const box = await overlays.nth(i).boundingBox();
 			if (!box) continue;

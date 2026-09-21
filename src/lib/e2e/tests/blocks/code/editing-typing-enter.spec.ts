@@ -35,7 +35,8 @@ test.describe('code block editing — happy paths', () => {
 	});
 
 	test('plain Enter inserts a newline at the exact cursor position', async ({ page }) => {
-		// Regression: default browser `insertParagraph` produced <div>/<br> with zero textContent change.
+		// The browser's own `insertParagraph` makes a `<div>`/`<br>` and changes no text, so the
+		// editor has to handle Enter itself.
 		await editor.loadContent('```\nabc\n```\n');
 		await editor.getBlock(0).click();
 		await editor.focusBlockStart(0);
@@ -92,7 +93,8 @@ test.describe('code block editing — happy paths', () => {
 	});
 
 	test('Enter at end of an unclosed fence adds a body line and caret lands on it', async () => {
-		// Regression: Chromium routed the next typed character BEFORE the trailing \n in unclosed fences.
+		// In an unclosed fence Chromium routes the next typed character before the trailing `\n`,
+		// which the editor has to correct.
 		await editor.loadContent('```js\nconst x = 1\n');
 		expect(await editor.bridge.getBlockKind(0)).toBe('fencedCode');
 		await editor.getBlock(0).click();

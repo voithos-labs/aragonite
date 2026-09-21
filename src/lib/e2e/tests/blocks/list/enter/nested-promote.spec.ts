@@ -8,8 +8,8 @@ test.describe('list Enter — nested item promote (Shift+Tab semantics)', () => 
 		await editor.goto();
 	});
 
-	// Enter on an empty nested item once escaped into the containing list item as a bare paragraph,
-	// leaving a trailing orphan; expected is Shift+Tab semantics — promote one level.
+	// Enter on an empty nested item promotes it one level, the same as Shift+Tab; escaping into
+	// the containing list item as a bare paragraph leaves an orphan behind.
 	test('Enter on empty nested item promotes to parent list instead of escaping', async () => {
 		await editor.loadContent('- item\n  - nested\n');
 		const nested = editor.page.locator('[contenteditable="true"]', { hasText: 'nested' });
@@ -25,7 +25,7 @@ test.describe('list Enter — nested item promote (Shift+Tab semantics)', () => 
 		expect(source).toMatch(/^- item$/m);
 		expect(source).toMatch(/^ {2}- nested$/m);
 		expect(source).toMatch(/^- X$/m);
-		// The buggy path produced a bare "X" paragraph (no marker) instead.
+		// A bare "X" paragraph with no marker is the failure.
 		expect(source).not.toMatch(/^X$/m);
 	});
 

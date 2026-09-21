@@ -3,10 +3,10 @@ import { EditorPage } from '../../../editor-page';
 import type { Page } from '@playwright/test';
 import { enterPresentationMode } from '../../presentation/helpers';
 
-// Enter at the end of a lone header row completes the table the adjacent-line grammar could never
-// be typed into. The source bytes are the oracle throughout, and where the caret landed is read by
-// typing a character rather than by asking for it.
-// Requirements: e2e/requirements/blocks/table/typed-formation.md.
+// Enter at the end of a lone header row completes a table the line-by-line grammar could never be
+// typed into. The source bytes are the check throughout, and where the caret landed is read by
+// typing a character rather than by asking.
+// Requirements: `e2e/requirements/blocks/table/typed-formation.md`.
 
 const COMPLETED = '| a | b |\n| --- | --- |\n|  |  |\n';
 
@@ -55,10 +55,10 @@ test.describe('table block: typed formation', () => {
 		await editor.bridge.waitForSourceEquals(COMPLETED);
 	});
 
-	// The mint is a block replacement at the slot, so the table above must not absorb it: the
+	// The completion replaces the block in place, so the table above must not absorb it: the
 	// separating blank line is what keeps a reload seeing two tables rather than one.
 	test('a table typed under an existing one keeps its own identity', async ({ page }) => {
-		// Two trailing blanks, not one: the first separates and folds into trivia, the second is
+		// Two trailing blank lines, not one: the first separates and is absorbed, the second is
 		// the empty paragraph the row gets typed into.
 		await editor.loadContent('| A | B |\n| --- | --- |\n| 1 | 2 |\n\n\n');
 		await editor.clickBlock(1);
@@ -85,7 +85,7 @@ test.describe('table block: typed formation', () => {
 		await editor.bridge.waitForSourceEquals('| a | b |\n');
 		expect(await editor.bridge.getBlockKind(0)).toBe('paragraph');
 
-		// The undo snapshot anchors where the caret WAS, not where the mint sent it.
+		// The undo snapshot anchors where the caret was, not where the completion sent it.
 		await page.keyboard.type('Z');
 		await editor.bridge.waitForSourceEquals('| a | b |Z\n');
 	});
@@ -113,8 +113,8 @@ test.describe('table block: typed formation', () => {
 			expect(await editor.bridge.getBlockKind(0)).toBe('paragraph');
 		});
 
-		// The parser's scan WOULD take `a | b` as a two-cell header; the leading pipe is the
-		// intent gate, so prose carrying a pipe splits like any other paragraph.
+		// The parser's scan would take `a | b` as a two-cell header; the leading pipe is what says
+		// a table was meant, so prose carrying a pipe splits like any other paragraph.
 		test('a row without a leading pipe falls through to the ordinary split', async ({ page }) => {
 			await typeRowAndEnter(editor, page, 'a | b');
 
@@ -124,8 +124,8 @@ test.describe('table block: typed formation', () => {
 		});
 	});
 
-	// The container scope resolves the caret through its OWN ref array, so the landing is a
-	// different code path from the top-level one every case above rides.
+	// A container resolves the caret through its own ref array, so this landing is a different
+	// code path from the top-level one every case above takes.
 	test('a row typed inside a blockquote completes and lands the caret in its body cell', async ({
 		page
 	}) => {
@@ -171,8 +171,8 @@ test.describe('table block: typed formation', () => {
 });
 
 test.describe('table block: typed formation across presentation modes', () => {
-	// The grid paints in every mode, so the minted caret target is a real cell — G1.33 rides the
-	// shared fixture's console watch, and a typed byte is what arms it.
+	// The grid paints in every mode, so the caret target the completion picks is a real cell.
+	// G1.33 runs off the shared fixture's console watch, and a typed byte is what triggers it.
 	test('live mode mints the same table and lands the typed byte in a body cell', async ({
 		page
 	}) => {

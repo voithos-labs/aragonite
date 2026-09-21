@@ -69,7 +69,7 @@ test.describe('horizontal arrow traversal around image widgets', () => {
 		expect(src).toMatch(/lead text\s*X\s*!\[pic\]/);
 	});
 
-	// Cursor trap: the hidden source span must not attract the caret on cross-block focusAtColumn.
+	// The hidden source span must not attract the caret when `focusAtColumn` arrives from elsewhere.
 	test('cross-block ArrowUp landing on standalone image leaves a visible caret', async ({
 		page
 	}) => {
@@ -78,9 +78,9 @@ test.describe('horizontal arrow traversal around image widgets', () => {
 		);
 		await editor.focusBlockEnd(0);
 		await page.keyboard.press('ArrowDown');
-		// One ArrowDown should reach the image paragraph. Image paragraphs are
-		// vertically-transparent, so we move PAST it — but if there's nothing
-		// past it (last block), creating a new paragraph is acceptable.
+		// One ArrowDown reaches the image paragraph. A vertical move passes over an image
+		// paragraph, and if there is nothing past it (the last block), creating a new paragraph
+		// is fine.
 		await page.keyboard.press('ArrowUp');
 		// The real assertion: no step left a caret inside the widget's hidden source span, verified
 		// by typing and reading the source back.

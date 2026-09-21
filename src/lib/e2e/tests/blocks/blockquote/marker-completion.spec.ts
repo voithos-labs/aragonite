@@ -1,9 +1,9 @@
 import { test, expect } from '../../../fixtures';
 import { EditorPage } from '../../../editor-page';
 
-// Requirements: e2e/requirements/blocks/blockquote/marker-completion.md.
+// Requirements: `e2e/requirements/blocks/blockquote/marker-completion.md`.
 
-/** An empty paragraph below `lead`, made by a real Enter — the mint path a load never runs. */
+/** An empty paragraph below `lead`, made by a real Enter: the path a load never runs. */
 async function emptyParagraphBelowLead(editor: EditorPage): Promise<void> {
 	await editor.loadContent('lead\n');
 	await editor.focusBlockEnd(0);
@@ -11,7 +11,7 @@ async function emptyParagraphBelowLead(editor: EditorPage): Promise<void> {
 	await editor.waitForBlockHostCount(2);
 }
 
-/** Type `>` and settle on the mint: the source carries the marker and the caret has moved
+/** Type `>` and wait for the new block: the source carries the marker and the caret has moved
  *  into the quote's child, so the next keystroke cannot race the reclassify. */
 async function typeQuoteOpener(editor: EditorPage, depth: number): Promise<void> {
 	await editor.typeText('>');

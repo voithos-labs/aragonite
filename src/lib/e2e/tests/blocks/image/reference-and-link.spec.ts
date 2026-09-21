@@ -4,7 +4,7 @@ import { undoDepth } from './helpers';
 
 // An image nested inside a link (`[![alt][ref]][repo]`) is click-selectable and keyboard-resizable
 // only where the paths walk past top-level inlines, and a reference-style image keeps its `[ref]:`
-// LRD through a resize or edit — only an explicit url/title change may inline it.
+// definition through a resize or edit: only an explicit url or title change may inline it.
 test.describe('image inside a link + reference-style images', () => {
 	let editor: EditorPage;
 
@@ -15,8 +15,8 @@ test.describe('image inside a link + reference-style images', () => {
 
 	const overlay = (page: import('@playwright/test').Page) => page.locator('[data-image-overlay]');
 
-	// `[shot]` resolves the inner image; `[repo]` resolves the outer link — both
-	// must resolve for the nested link→image structure to form.
+	// `[shot]` resolves the inner image and `[repo]` the outer link; both must resolve
+	// for the nested link-around-image structure to form.
 	const NESTED = [
 		'[![cat][shot]][repo]',
 		'',
@@ -35,8 +35,8 @@ test.describe('image inside a link + reference-style images', () => {
 
 	const REFERENCE = ['![cat|400][ref]', '', '[ref]: /test-fixtures/sample.png', ''].join('\n');
 
-	// Fail-fast guard: without the harness's LRD resolver these render as plain text and every
-	// assertion below would mis-report as "click selects nothing".
+	// Fail fast: without the harness's link-reference resolver these render as plain text, and
+	// every assertion below would read as "click selects nothing".
 	test('a reference image nested in a link renders as a widget', async ({ page }) => {
 		await editor.loadContent(NESTED);
 		await expect(page.locator('[data-image-widget]').first()).toBeVisible();
@@ -71,12 +71,12 @@ test.describe('image inside a link + reference-style images', () => {
 		const src = await editor.bridge.getSource();
 		expect(src).toContain('![cat|420][ref]');
 		expect(src).toContain('[ref]: /test-fixtures/sample.png');
-		// Not inlined — the resolved url is never written into the image span.
+		// Not inlined: the resolved url is never written into the image span.
 		expect(src).not.toContain('![cat|420](');
 	});
 
-	// Changing the url (which inlines a reference image) is a source-mode edit: the toolbar
-	// carries no URL field. The seam's behaviour is unit-covered in image-source-bytes.test.ts.
+	// Changing the url (which inlines a reference image) is a source-mode edit: the toolbar carries
+	// no URL field. That behaviour is unit-covered in `image-source-bytes.test.ts`.
 
 	test('a no-op popover dismiss preserves the reference and adds no undo entry', async ({
 		page

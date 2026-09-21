@@ -3,8 +3,8 @@ import { EditorPage } from '../../../editor-page';
 import { dragBetweenBoxes, dragBetweenCells } from './helpers';
 import { roundTripStable } from '../../plugins/helpers';
 
-// A cross-block range reaching into a table rewrites its CELLS. Endpoints inside a grid are cell
-// indices, so every covered cell is marked whole; which cells those are is the grid's question.
+// A cross-block range reaching into a table rewrites its cells. Endpoints inside a grid are cell
+// indices, so every covered cell is marked whole; which cells those are is the grid's own question.
 
 const TABLE_2x3 = '| A | B |\n| --- | --- |\n| 1 | 2 |\n| 3 | 4 |\n';
 const TABLE_3x3 = '| A | B | C |\n| --- | --- | --- |\n| 1 | 2 | 3 |\n| 4 | 5 | 6 |\n';

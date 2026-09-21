@@ -3,8 +3,8 @@ import { EditorPage } from '../../../editor-page';
 import { openFlyout } from './helpers';
 
 // Header + 1 body row, 3 columns. Cells render row-major, header first: nth 0,1,2 = header A,B,C
-// and nth 3,4,5 = body 1,2,3. The Column flyout is the pointer road for the column actions the
-// chords also reach; requirements/blocks/table/menu-column-flyout.md.
+// and nth 3,4,5 = body 1,2,3. The Column flyout is the pointer path to the column actions the
+// chords also reach; `requirements/blocks/table/menu-column-flyout.md`.
 const TABLE_3COL = '| A | B | C |\n| --- | --- | --- |\n| 1 | 2 | 3 |\n';
 const TABLE_1COL = '| A |\n| --- |\n| 1 |\n| 2 |\n';
 

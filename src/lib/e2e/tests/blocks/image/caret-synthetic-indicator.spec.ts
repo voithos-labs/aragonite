@@ -21,7 +21,7 @@ const paintedCarets = (page: Page): Promise<string[]> =>
 		)
 	);
 
-/** The dead space past the nth image, inside its own paragraph: the press that snaps there. */
+/** The dead space past the nth image, inside its own paragraph: the click that snaps there. */
 async function clickPastImage(page: Page, index: number): Promise<void> {
 	const widget = page.locator('[data-image-widget]').nth(index);
 	const para = widget.locator('xpath=ancestor::*[@contenteditable="true"]');
@@ -39,10 +39,10 @@ const caretColorOfFocusedBlock = (page: Page): Promise<string> =>
 		return getComputedStyle(block).caretColor;
 	});
 
-// The synthetic indicator is the fallback for "native caret can't render": it appears only at a
-// widget boundary AT ELEMENT-LEVEL (no text-node anchor) or when Chromium dropped the caret. Where
-// the native caret renders it stays absent, so the two never compete, and one caret is one
-// position, which is the guard G1.39 catalogs.
+// The editor's own caret marker is the fallback for where the browser cannot render one: it
+// appears only at a widget boundary with no text node to anchor to, or when Chromium dropped the
+// caret. Where the native caret renders it stays absent, so the two never compete and one caret
+// means one position (G1.39).
 test.describe('synthetic caret indicator at widget boundary', () => {
 	let editor: EditorPage;
 
@@ -71,7 +71,7 @@ test.describe('synthetic caret indicator at widget boundary', () => {
 		expect(overlay).not.toBeNull();
 		expect(overlay!.content).not.toBe('none');
 		expect(overlay!.position).toBe('absolute');
-		// width is set to 1.5px; Chromium reports rounded — accept the line being thin.
+		// Width is set to 1.5px and Chromium reports it rounded, so accept any thin line.
 		expect(parseFloat(overlay!.width)).toBeLessThan(4);
 	});
 
@@ -81,15 +81,15 @@ test.describe('synthetic caret indicator at widget boundary', () => {
 		await clickPastImageRightEdge(page);
 		await expect(page.locator('[data-image-widget].md-snap-after')).toHaveCount(1);
 
-		// The other half of "the two indicators don't compete": at an element-level offset the
-		// editor can't see whether Chromium painted a native caret, so suppressing it is the only
-		// mutual exclusion left.
+		// The other half of keeping the two carets from competing: at an element-level offset the
+		// editor cannot see whether Chromium painted a native caret, so hiding it is the only way
+		// left.
 		expect(await caretColorOfFocusedBlock(page)).toBe('rgba(0, 0, 0, 0)');
 	});
 
 	// Beside an image widget the browser puts its own caret at an element-level offset, where
-	// Chromium paints a taller stroke for the length of the press. Hiding it from the press is
-	// what keeps that stroke from showing first and the synthetic caret after it.
+	// Chromium paints a taller stroke for as long as the button is down. Hiding it from the press
+	// keeps that stroke from showing first and the editor's own caret after it.
 	test('the native caret is dark from the press, before the click arms the synthetic', async ({
 		page
 	}) => {
@@ -121,8 +121,8 @@ test.describe('synthetic caret indicator at widget boundary', () => {
 		expect(await caretColorOfFocusedBlock(page)).not.toBe('rgba(0, 0, 0, 0)');
 	});
 
-	// One caret is one position. A block clears its own synthetic caret on the next selection
-	// change, but a block that unmounts with the caret inside never hears that change.
+	// One caret is one position. A block clears its own caret marker on the next selection change,
+	// but a block that unmounts with the caret inside never hears that change.
 	test('a second block arming its own caret takes the paint from the first', async ({ page }) => {
 		await editor.loadContent(TWO_IMAGE_DOC);
 		await waitForAllImagesLoaded(page);
@@ -160,7 +160,7 @@ test.describe('synthetic caret indicator at widget boundary', () => {
 
 		await page.keyboard.press('a');
 		await expect(page.locator('[data-image-widget].md-snap-after')).toHaveCount(0);
-		// Non-vacuity: the suppression is scoped to the snap, not a permanent state.
+		// Non-vacuity: the caret is hidden only for the snap, not permanently.
 		expect(await caretColorOfFocusedBlock(page)).not.toBe('rgba(0, 0, 0, 0)');
 	});
 
@@ -238,8 +238,8 @@ test.describe('synthetic caret indicator at widget boundary', () => {
 		await expect(page.locator('[data-image-widget].md-snap-after')).toHaveCount(0);
 	});
 
-	// The indicator stands in for a caret the browser will not draw, so the state where the
-	// browser holds no range at all is the one it exists for, not a reason to stop painting.
+	// The marker stands in for a caret the browser will not draw, so the state where the browser
+	// holds no range at all is the one it exists for, not a reason to stop painting.
 	test('synthetic caret survives the browser dropping the caret', async ({ page }) => {
 		await editor.loadContent(LIST_IMAGE_DOC);
 		await waitForFirstImageLoaded(page);

@@ -58,8 +58,8 @@ test.describe('image popover commit', () => {
 		await expect(toolbar.getByRole('button', { name: 'Image URL' })).toHaveCount(0);
 	});
 
-	// The stale-draft class: an open surface holds a copy of bytes the document can move past,
-	// and its dismiss commit would put them back over the change.
+	// An open field holds a copy of bytes the document can move past, and committing on dismiss
+	// would put them back over the change.
 	test('an undo taken while the popover is open re-seeds it, so the dismiss commits nothing stale', async ({
 		page
 	}) => {
@@ -90,8 +90,8 @@ test.describe('image popover commit', () => {
 		expect(await editor.bridge.getSource()).not.toContain('cat v1');
 	});
 
-	// The popover was reused across selection changes, so image 1's local state (`url`, `alt`,
-	// closure-captured `initialBytes`) committed against image 2 and overwrote its source bytes.
+	// Reusing the popover across selection changes commits image 1's own state (`url`, `alt`, the
+	// captured `initialBytes`) against image 2 and overwrites its source bytes.
 	test('popover commit targets the image it opened on, not the live selection', async ({
 		page
 	}) => {
@@ -105,7 +105,7 @@ test.describe('image popover commit', () => {
 		if (!w1Box || !w2Box) throw new Error('widget boxes missing');
 		await page.mouse.click(w1Box.x + w1Box.width / 2, w1Box.y + w1Box.height / 2);
 		await (await openImageField(page)).fill('EDITED');
-		// Switch to image 2 — old popover unmounts and commits to image 1.
+		// Switch to image 2: the old popover unmounts and commits to image 1.
 		await page.mouse.click(w2Box.x + w2Box.width / 2, w2Box.y + w2Box.height / 2);
 		await page.locator('[contenteditable="true"]').last().click();
 		await editor.bridge.waitForSourceContains('EDITED');

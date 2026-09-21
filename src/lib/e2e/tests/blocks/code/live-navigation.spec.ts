@@ -1,9 +1,9 @@
 import { test, expect } from '../../../fixtures';
 import { EditorPage } from '../../../editor-page';
 
-// The caret's every door into and out of a fence whose lines the mode hides: the landable
-// bounds are the body's, and no edge press may reach a hidden fence line.
-// Requirements: e2e/requirements/blocks/code/live-navigation.md.
+// Every way the caret enters and leaves a fence whose lines the mode hides: the offsets it can
+// sit at are the body's, and no press at an edge may reach a hidden fence line.
+// Requirements: `e2e/requirements/blocks/code/live-navigation.md`.
 
 const DOC = 'Before\n\n```js\nconst x = 1;\nfoo();\n```\n\nAfter\n';
 // Raw offsets inside block [1]: the opener line is 6 bytes, the body runs 6..25.
@@ -56,7 +56,7 @@ test.describe('code block in live mode — arrows at every edge', () => {
 	test('ArrowDown walks the body lines, then leaves below; ArrowUp mirrors it', async ({
 		page
 	}) => {
-		// A real click seats the caret and settles the sticky column the vertical walk reads;
+		// A real click places the caret and sets the sticky column the vertical moves read;
 		// each read then polls for a landing the handler awaits.
 		await editor.clickBlockAtPath([0], 6);
 		await page.keyboard.press('ArrowDown');
@@ -120,8 +120,8 @@ test.describe('code block in live mode — line extremes and the fence lines', (
 		);
 	});
 
-	// The closer is hidden here, so typing one is the reader asking to leave rather than to
-	// author bytes: the run never lands, and the caret arrives in the block that was already below.
+	// The closer is hidden here, so typing one is the user asking to leave rather than to write
+	// bytes: the run never lands, and the caret arrives in the block already below.
 	test('a closer typed on the empty last line leaves below, writing none of its bytes', async ({
 		page
 	}) => {

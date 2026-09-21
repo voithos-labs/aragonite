@@ -53,9 +53,10 @@ test.describe('list Tab', () => {
 		expect(source).not.toMatch(/^\s+1\. B$/m);
 	});
 
-	// indentItem cascades focus(-1) to the leaf paragraph, and a leaf passing -1 straight to
-	// cursor.setRaw throws IndexSizeError and silently no-ops. Only a cascade target with
-	// ambient = "" — not the first child of its list-item — reaches it, hence the extra paragraph.
+	// `indentItem` passes `focus(-1)` down to the leaf paragraph, and a leaf handing -1 straight to
+	// `cursor.setRaw` throws `IndexSizeError` and silently does nothing. Only a target with no
+	// marker in front of it, so not the first child of its list item, reaches that, hence the
+	// extra paragraph.
 	test('Tab cascades cursor to start of moved item continuation paragraph', async () => {
 		await editor.loadContent('- Item 1\n- Item 2\n\n  continuation\n');
 		// Item 2 is the second listItem at path [0, 1]; its first paragraph is the "Item 2" line,
@@ -68,8 +69,8 @@ test.describe('list Tab', () => {
 		expect(await editor.bridge.getSource()).not.toContain('continuation!');
 	});
 
-	// Focus must follow the item THROUGH the container mutation: the moved item's ref is the one
-	// `indentItem` focuses, and typing is the only oracle that tells it from a stale pre-move ref.
+	// Focus must follow the item through the container's change: `indentItem` focuses the moved
+	// item's ref, and typing is the only way to tell that from a stale pre-move ref.
 	test('Tab into an existing nested list focuses the moved item', async () => {
 		await editor.loadContent('- one\n- two\n  - nested under two\n- three\n');
 

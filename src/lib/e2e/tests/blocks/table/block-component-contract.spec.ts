@@ -28,13 +28,13 @@ test.describe('table block: BlockComponent cursor contract', () => {
 	test('caret in (rowIdx=1, colIdx=1): shallow getCursorOffset is null, deep getCursorPosition reports [1,1]', async ({
 		page
 	}) => {
-		// Click the body-row second cell — "2" — and place caret at offset 1 (end).
+		// Click the body row's second cell ("2") and place the caret at offset 1, the end.
 		await page.locator('[role="cell"]').nth(3).click();
 		await page.keyboard.press('End');
 
 		const surface = await readTableSurface(page);
 		expect(surface.exists).toBe(true);
-		// Null-shallow contract: 2D surfaces never report a shallow integer.
+		// The contract: a two-dimensional block never reports a shallow integer offset.
 		expect(surface.cursorOffset).toBeNull();
 		expect(surface.cursorPosition).not.toBeNull();
 		expect(surface.cursorPosition!.path).toEqual([1, 1]);
@@ -49,7 +49,7 @@ test.describe('table block: BlockComponent cursor contract', () => {
 
 		const surface = await readTableSurface(page);
 		expect(surface.exists).toBe(true);
-		// (0,0) is not a special-cased zero — the contract is "no shallow offset for tables".
+		// (0,0) is not a special case: the contract is that a table reports no shallow offset.
 		expect(surface.cursorOffset).toBeNull();
 		expect(surface.cursorPosition).not.toBeNull();
 		expect(surface.cursorPosition!.path).toEqual([0, 0]);

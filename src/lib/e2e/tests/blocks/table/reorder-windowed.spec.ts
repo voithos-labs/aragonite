@@ -6,8 +6,8 @@ import { capturePageErrors } from '../../../page-probes';
 
 // Header + N distinguishable body rows; row k's first cell is `rk`. Tall enough that body rows
 // window out, so once the editor is scrolled to the bottom row 0 is unmounted and a mounted
-// row's local position no longer equals its CST index. Both roads must move the ABSOLUTE row.
-// Requirements: requirements/blocks/table/reorder-windowed.md.
+// row's local position no longer equals its CST index. Both the chord and the menu must move the
+// row at its absolute index. Requirements: `requirements/blocks/table/reorder-windowed.md`.
 function tallTable(bodyRows: number): string {
 	const lines = ['| key | val |', '| --- | --- |'];
 	for (let i = 1; i <= bodyRows; i++) lines.push(`| r${i} | v${i} |`);
@@ -16,8 +16,8 @@ function tallTable(bodyRows: number): string {
 
 const BODY_ROWS = 300;
 
-// An UNMOUNTED row's cells get no childIds until the row mounts, so the whole-CST walk reports
-// `{tableRow, 2, 0}` for every off-window row; a move must add nothing else.
+// An unmounted row's cells get no `childIds` until the row mounts, so the whole-tree scan reports
+// `{tableRow, 2, 0}` for every unmounted row; a move must add nothing else.
 const benign = (m: { kind: string; children: number; ids: number }) =>
 	m.kind === 'tableRow' && m.children === 2 && m.ids === 0;
 
@@ -37,8 +37,8 @@ test.describe('table block: row moves on a row-windowed table', () => {
 		);
 		await editor.scrollEditorTo(scrollHeight);
 
-		// Load-bearing preconditions: the table windows, and row 0 is off-window at the decisive
-		// instant, so a local index read here would be wrong by the unmounted head.
+		// The preconditions this rests on: the table is windowed, and row 0 is unmounted at the
+		// decisive moment, so a local index read here would be wrong by the unmounted head.
 		expect(
 			await page.evaluate(() => document.querySelectorAll('.table-block > .vr-spacer').length)
 		).toBeGreaterThan(0);

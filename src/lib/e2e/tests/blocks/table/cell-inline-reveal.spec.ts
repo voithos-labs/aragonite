@@ -2,11 +2,11 @@ import { test, expect } from '../../../fixtures';
 import { PluginsPage, revealWidget, roundTripStable } from '../../plugins/helpers';
 
 /**
- * Inline `$…$` reveal-to-edit inside a table cell
- * (requirements/blocks/table/cell-inline-reveal.md). The cell surface threads the same
- * widgetInteraction + caret-edge dispatch as the prose block, so clicking a cell's math reveals its
- * source, Enter/blur commit, Escape cancels. Cell-specific: a `|` typed into a revealed formula
- * escapes on commit, so it can never split the row on reparse.
+ * Showing an inline `$…$` formula's source to edit it, inside a table cell
+ * (`requirements/blocks/table/cell-inline-reveal.md`). A cell runs the same `widgetInteraction`
+ * and caret-edge dispatch as a prose block, so clicking a cell's math shows its source, Enter or
+ * blur commits, Escape cancels. Only in a cell: a `|` typed into a shown formula is escaped on
+ * commit, so it can never split the row on reparse.
  */
 
 const SEED = '| Formula | Note |\n| --- | --- |\n| $x^2$ | ok |\n\nAfter\n';
@@ -39,7 +39,7 @@ test.describe('table cell: inline math reveal-to-edit', () => {
 	test('clicking the cell math reveals its source without touching the CST', async () => {
 		await revealWidget(editor.mathWidget);
 		await expect(editor.formulaCell).toContainText('$x^2$');
-		// Reveal is a view toggle — the source is unchanged.
+		// Showing the source is a view change only: the bytes are unchanged.
 		expect(await editor.bridge.getSource()).toBe(SEED);
 	});
 
@@ -88,7 +88,7 @@ test.describe('table cell: inline math reveal-to-edit', () => {
 		await editor.bridge.waitForSourceContains('$yx^2$');
 		await expect(editor.mathWidget).toHaveCount(1);
 
-		// One Ctrl+Z reverts the whole reveal edit — a single entry, not a per-keystroke stack.
+		// One Ctrl+Z reverts the whole edit: a single entry, not one per keystroke.
 		await editor.undo();
 		await editor.bridge.waitForSourceContains('$x^2$');
 		expect(await editor.bridge.getSource()).toBe(SEED);
@@ -114,8 +114,8 @@ test.describe('table cell: inline math reveal-to-edit', () => {
 		await page.keyboard.press('Shift+Tab');
 		await expect(editor.formulaCell).toBeFocused();
 
-		// Backspace at the widget's trailing edge enters it: a reveal-capable kind reveals its
-		// source rather than deleting the atomic widget.
+		// Backspace at the widget's trailing edge enters it: a kind that can show its source does
+		// so rather than deleting the widget whole.
 		await page.keyboard.press('Backspace');
 		await expect(editor.mathWidget).toHaveCount(0);
 		await expect(editor.formulaCell).toContainText('$x^2$');

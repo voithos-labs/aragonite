@@ -1,9 +1,9 @@
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 
-// Reorder resolves the unit from the caret path and moves it among its siblings. Focus lands at
-// offset 0 of the moved block, so a type-after-move check expects the character PREFIXED, not
-// appended.
+// Reorder finds the block from the caret path and moves it among its siblings. Focus lands at
+// offset 0 of the moved block, so a character typed after the move goes in front of the text,
+// not after it.
 test.describe('keyboard reorder', () => {
 	let editor: EditorPage;
 
@@ -44,8 +44,8 @@ test.describe('keyboard reorder', () => {
 		await editor.bridge.waitForSourceEquals('> a\n>\n> b\n');
 	});
 
-	// The reorder unit is any top-level block, not only prose: the atomic leaf kinds resolve the
-	// chord through their own runCommand → reorder context wiring, not TextEditableBlock's.
+	// Any top-level block can be reordered, not only prose: a leaf kind takes the chord through
+	// its own `runCommand` and reorder context, not through `TextEditableBlock`.
 	test('Alt+ArrowDown moves a fenced code block below its sibling; single undo restores', async () => {
 		await editor.loadContent('```\ncode\n```\n\ntail\n');
 		await editor.getBlock(0).click(); // caret inside the code block
@@ -62,9 +62,9 @@ test.describe('keyboard reorder', () => {
 		await editor.bridge.waitForSourceMatches(/---[\s\S]*lead/);
 	});
 
-	// The same empty slot by chord, on the pair whose join rewrites the prose as well: a rule
-	// flush under a paragraph is a setext underline, so the paragraph became a heading and the
-	// divider was gone.
+	// The same empty position by chord, on the pair whose join rewrites the prose too: a rule flush
+	// under a paragraph is a setext underline, which turns the paragraph into a heading and takes
+	// the divider with it.
 	test('Alt+ArrowUp lands a divider whole under a paragraph', async () => {
 		await editor.loadContent('Intro\n# Heading\n\n---\n');
 		await editor.getBlock(2).click(); // focus the separator
@@ -76,9 +76,9 @@ test.describe('keyboard reorder', () => {
 		expect(await editor.parseConverged()).toBe(true);
 	});
 
-	// A move with no sibling in that direction must change nothing AND push no undo entry, or a
-	// boundary press silently consumes a Ctrl+Z; the unit-level clamp test bypasses the
-	// keymap-dispatch path.
+	// A move with no sibling in that direction must change nothing and add no undo entry, or the
+	// press at the boundary silently eats a Ctrl+Z. The unit test for the clamp skips the keymap
+	// dispatch this goes through.
 	test('Alt+Arrow at a boundary is a no-op and creates no undo entry', async () => {
 		await editor.loadContent('A\n\nB\n');
 		await editor.page.locator('[contenteditable="true"]', { hasText: 'A' }).click();
@@ -89,7 +89,7 @@ test.describe('keyboard reorder', () => {
 		await editor.pressDeclined('Alt+ArrowUp'); // first block — nothing above
 		expect(await editor.bridge.getSource()).toBe('XA\n\nB\n');
 
-		await editor.page.keyboard.press('ControlOrMeta+z'); // undoes the typing, not a phantom reorder
+		await editor.page.keyboard.press('ControlOrMeta+z'); // undoes the typing, not a stray reorder
 		await editor.bridge.waitForSourceEquals('A\n\nB\n');
 	});
 

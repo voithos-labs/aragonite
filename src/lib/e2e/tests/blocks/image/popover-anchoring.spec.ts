@@ -10,9 +10,9 @@ test.describe('image popover anchoring', () => {
 		await editor.goto();
 	});
 
-	// The popover was `position: absolute` with no offsets, so it sat at its static-flow position
-	// at the bottom of `.editor` — in long documents it rendered off-screen while tests could still
-	// find it. It hangs off the image's right edge, level with its top.
+	// The popover hangs off the image's right edge, level with its top. With `position: absolute`
+	// and no offsets it sits at the bottom of `.editor` instead, off screen in a long document
+	// while a locator still finds it.
 	test('popover sits beside the widget, top-aligned, not at end of editor flow', async ({
 		page
 	}) => {
@@ -33,7 +33,7 @@ test.describe('image popover anchoring', () => {
 	// A full-width image leaves no room beside it; the panel tucks into the image's top-right
 	// corner rather than hanging off the viewport.
 	test('popover tucks inside a full-width widget', async ({ page }) => {
-		// Wider than the column AND the viewport: the tuck must clamp to what is on screen.
+		// Wider than the column and the viewport: the tuck must clamp to what is on screen.
 		await page.setViewportSize({ width: 640, height: 720 });
 		await editor.loadContent('![wide|900](/test-fixtures/sample.png)\n');
 		const widget = page.locator('[data-image-widget]').first();
@@ -48,9 +48,9 @@ test.describe('image popover anchoring', () => {
 		expect(popoverBox.y).toBeGreaterThanOrEqual(widgetBox.y);
 	});
 
-	// The overlay listened only for ResizeObserver, `edit`, and window resize. A sibling image's
-	// slow reload shifts the selected widget's y without resizing it, stranding the popover over
-	// the wrong image.
+	// A sibling image's slow reload shifts the selected widget's y without resizing it, so
+	// listening only for `ResizeObserver`, `edit` and window resize strands the popover over the
+	// wrong image.
 	test('overlay re-anchors when a sibling image finishes loading and reflows', async ({ page }) => {
 		await editor.loadContent(
 			'![one|400](/test-fixtures/sample.png)\n\n![two|200](/test-fixtures/sample.png)\n'

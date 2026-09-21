@@ -70,8 +70,8 @@ test.describe('image backspace/delete + type-replace', () => {
 		await editor.bridge.waitForSourceNotContains('![cat]');
 		await page.keyboard.press('ControlOrMeta+z');
 		await editor.bridge.waitForSourceContains('![cat]');
-		// Use keyboard.press so the CST keydown intercept fires (insertText
-		// skips keydown and lands the char natively past the widget).
+		// `keyboard.press`, so the editor's keydown intercept fires: `insertText` skips keydown and
+		// lands the character natively past the widget.
 		await page.keyboard.press('X');
 		await editor.bridge.waitForSourceContains('X![cat]');
 		const src = await editor.bridge.getSource();

@@ -5,7 +5,7 @@ import { roundTripStable } from '../../../plugins/helpers';
 // The exited source must collapse the empty continuation marker at every nesting depth: ancestor
 // quotes must rebuild too, or their stale raw leaks a stranded `> >` / `> > >` line.
 
-/** One rung of the exit ladder, settled on the source it rewrites. */
+/** One level of the exit, waiting on the source it rewrites. */
 async function pressEnterUntilSourceChanges(editor: EditorPage): Promise<void> {
 	const before = await editor.bridge.getSource();
 	await editor.page.keyboard.press('Enter');
@@ -29,22 +29,22 @@ test.describe('blockquote navigation — exit on empty trailing line', () => {
 		await editor.page.keyboard.press('Enter');
 		await editor.waitForBlockHostCount(4);
 		await editor.page.keyboard.press('Enter');
-		// A source predicate can't see this exit — the fixture was typed, so every shape it could
-		// name is already present; the second root block is the only observable.
+		// No source condition can see this exit: the fixture was typed, so every shape one
+		// could name is already present. The second root block is the only sign.
 		await editor.bridge.waitForBlockCount(2);
 
 		const source = await editor.bridge.getSource();
 		expect(source).toContain('> first');
 		expect(source).toContain('> second');
-		// A bare `>` BETWEEN quoted lines is the paragraph separator Enter mints;
+		// A bare `>` between quoted lines is the paragraph separator Enter creates;
 		// the stranded marker this guards is one the quote ends on.
 		expect(source).not.toMatch(/^>[ \t]*\n(?!>)/m);
 		expect(await roundTripStable(editor.page)).toBe(true);
 	});
 
-	// Exiting a NESTED quote once rebuilt the inner quote's raw but left the outer's stale,
-	// stranding `> >`. The exit ladders one level per Enter, the list outdent's convention,
-	// so reaching the document takes one press per depth.
+	// Exiting a nested quote has to rebuild the outer quote's raw too, or a `> >` line is left
+	// stranded. The exit climbs one level per Enter, the same convention a list outdent uses,
+	// so reaching the document takes one press per level.
 	test('nested quote (depth 2) exit leaves no stranded "> >" line', async () => {
 		await editor.loadContent('> Outer\n> > Inner\n');
 		const inner = editor.page.locator('[contenteditable="true"]', { hasText: /^Inner$/ });
@@ -62,8 +62,8 @@ test.describe('blockquote navigation — exit on empty trailing line', () => {
 		expect(await roundTripStable(editor.page)).toBe(true);
 	});
 
-	// Depth-3 discriminates a full ancestor-chain rebuild from a one-level patch:
-	// a fix that only rebuilds the immediate parent strands `> > >` here.
+	// Three levels deep tells a full rebuild of every ancestor from a one-level one: rebuilding
+	// only the immediate parent strands `> > >` here.
 	test('deeply nested quote (depth 3) exit leaves no stranded "> > >" line', async () => {
 		await editor.loadContent('> > > Deep\n');
 		const deep = editor.page.locator('[contenteditable="true"]', { hasText: /^Deep$/ });

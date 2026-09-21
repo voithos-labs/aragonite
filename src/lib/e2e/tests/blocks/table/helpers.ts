@@ -1,8 +1,7 @@
 import { expect, type Locator, type Page } from '@playwright/test';
 
-// Shared pointer helpers for the table block e2e specs. The drag gesture IS the real
-// mouse path (down → interpolated moves → up); the 10-step interpolation matches EditorPage's own
-// dragMouseTo.
+// Shared pointer helpers for the table block e2e specs. The drag is the real mouse path (down,
+// interpolated moves, up), and the 10 steps match `EditorPage`'s own `dragMouseTo`.
 
 type Box = { x: number; y: number; width: number; height: number };
 

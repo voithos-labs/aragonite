@@ -35,8 +35,8 @@ test.describe('table block: caret/selection recovery on undo', () => {
 	test('undo after Ctrl+Shift+Backspace (delete row) restores caret to same cell', async ({
 		page
 	}) => {
-		// Focus cell row 1 col 1 (the "2" cell — picking row 1 not row 2 since
-		// row deletion test should pick a row that wouldn't promote header).
+		// Focus cell row 1, col 1 (the "2" cell): row 1 rather than row 2, so deleting
+		// the row does not promote a new header.
 		await page.locator('[role="cell"]').nth(4).click();
 
 		const before = await editor.bridge.getSource();
@@ -55,7 +55,7 @@ test.describe('table block: caret/selection recovery on undo', () => {
 	});
 
 	test('undo after typing in a cell restores caret to that cell', async ({ page }) => {
-		// Cell index 4 = body row 0, col 1 (middle of 3×3 — the "2" cell).
+		// Cell index 4 = body row 0, col 1: the middle of the 3×3, the "2" cell.
 		await page.locator('[role="cell"]').nth(4).click();
 		await page.keyboard.press('End');
 
@@ -105,8 +105,8 @@ test.describe('table block: caret/selection recovery on undo', () => {
 	});
 
 	test('undo after column delete via cross-block coverage restores selection', async ({ page }) => {
-		// Drag down column 0 (header "A" → body cell "4") to make a column-covering selection — the
-		// 3-stage Ctrl+A escalates cell → table → document without ever isolating a column.
+		// Drag down column 0 (header "A" to body cell "4") to cover a column: the three-stage
+		// Ctrl+A goes cell, table, document without ever isolating a column.
 		const tableInfo = await page.evaluate(() => {
 			const tableEl = document.querySelector('[role="table"]') as HTMLElement;
 			tableEl.scrollIntoView({ block: 'center' });

@@ -13,8 +13,8 @@ test.describe('live raw-HTML widget paste-while-selected', () => {
 		page
 	}) => {
 		await editor.loadContent('before<br>after\n');
-		// Caret at widget.start; ArrowRight enters widget selection via the
-		// atRight=false branch (TextEditableBlock.svelte) with preSelectOffset = 6.
+		// Caret at the widget's start; ArrowRight selects the widget through the
+		// `atRight=false` branch in `TextEditableBlock.svelte`, with `preSelectOffset` 6.
 		await editor.focusBlock(0, 6);
 		await page.keyboard.press('ArrowRight');
 		await expect(page.locator('.md-br-widget')).toHaveCount(1);
@@ -53,9 +53,9 @@ test.describe('live raw-HTML widget paste-while-selected', () => {
 		await page.keyboard.press('ControlOrMeta+z');
 		await editor.bridge.waitForSourceContains('<br>');
 
-		// Typing must land at offset 6 (preSelectOffset), not at the far widget boundary;
-		// keyboard.press fires the CST keydown intercept that routes the character through the
-		// widget-adjacency branch.
+		// Typing must land at offset 6 (`preSelectOffset`), not at the widget's far edge;
+		// `keyboard.press` fires the keydown the editor intercepts, which routes the character
+		// through the branch for a caret beside a widget.
 		await page.keyboard.press('X');
 		await editor.bridge.waitForSourceContains('beforeX');
 		const src = await editor.bridge.getSource();

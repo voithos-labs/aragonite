@@ -4,7 +4,7 @@ import { waitForFirstImageLoaded } from './helpers';
 
 // A selected image is a whole-block stop like a divider or an equation: a plain vertical arrow
 // leaves it for the block above or below, the way the horizontal arrows already step out of it.
-// Requirements: e2e/requirements/blocks/image/selected-image-vertical-arrows.md.
+// Requirements: `e2e/requirements/blocks/image/selected-image-vertical-arrows.md`.
 
 const IMAGE = '![pic|120x120](/test-fixtures/sample.png)';
 const TOP_LEVEL = `above\n\n${IMAGE}\n\nbelow\n`;

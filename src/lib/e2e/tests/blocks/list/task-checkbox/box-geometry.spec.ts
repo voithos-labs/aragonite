@@ -11,12 +11,11 @@ const paintedBoxes = (page: Page): Promise<Array<{ width: string; height: string
 		})
 	);
 
-// The rendered box once centred itself with translate(-50%, -50%). A transformed box is
-// rasterised at its fractional edges, so on a scaled desktop (limestone on a Windows 150%
-// display) one edge came out half-painted and the square read visibly shorter than wide. The
-// harness runs at scale 1, where the same box looked fine; this lane runs at the scale that
-// showed it. The guard is the mechanism: no transform, and a whole-pixel size that snaps the
-// same way on both axes.
+// A transformed box is rasterised at its fractional edges, so centring the drawn box with
+// `translate(-50%, -50%)` half-paints one edge on a scaled display (Windows at 150%) and the
+// square reads shorter than wide. At scale 1 it looks fine, so this project runs at the scale
+// that shows it. What is pinned is the mechanism: no transform, and a whole-pixel size that
+// snaps the same way on both axes.
 test.describe('task checkbox — painted box geometry', () => {
 	test.use({ deviceScaleFactor: 1.5 });
 
@@ -70,8 +69,8 @@ test.describe('task checkbox — painted box geometry', () => {
 		expect(new Set(widths).size).toBe(widths.length);
 	});
 
-	// The box is the item's own chrome, so it draws at the item's text size whatever its first
-	// block turns out to be. Sized in `em` against that block, a loaded heading doubled it.
+	// The box belongs to the item, not to its first block, so it draws at the item's text size
+	// whatever that block is. Sized in `em` against the block instead, a loaded heading doubles it.
 	test('the box beside a loaded heading matches the box beside a paragraph', async ({ page }) => {
 		await editor.loadContent('- [ ] # beta\n- [ ] plain\n');
 		const boxes = await paintedBoxes(page);
@@ -89,7 +88,7 @@ test.describe('task checkbox — painted box geometry', () => {
 		expect(boxes).toEqual(boxes.map(() => boxes[boxes.length - 1]));
 	});
 
-	// The span is a line-height-tall slot; the source-mode hover tint on it drew a tall
+	// The span is as tall as a line, so a hover tint on it (as source mode has) draws a tall
 	// rectangle round the square. In the rendered modes the tint belongs to the box alone.
 	test('hovering tints the box, not the slot around it', async ({ page }) => {
 		await editor.loadContent('- [ ] open\n- [x] done\n');

@@ -1,8 +1,9 @@
 import { test, expect } from '../../../fixtures';
 import { EditorPage } from '../../../editor-page';
 
-// An image-only paragraph is a vertical STOP because it can be entered as an object: one press
-// selects the image, the next moves on. Requirements: e2e/requirements/blocks/image/caret-arrows-vertical.md.
+// An image-only paragraph is a vertical stop because it can be entered as an object: one press
+// selects the image, the next moves on.
+// Requirements: `e2e/requirements/blocks/image/caret-arrows-vertical.md`.
 
 const STANDALONE_IMAGE_DOC =
 	'before paragraph.\n\n![pic](/test-fixtures/sample.png)\n\nafter paragraph.\n';
@@ -32,7 +33,7 @@ test.describe('vertical arrow traversal around image widgets', () => {
 		await editor.goto();
 	});
 
-	// Regression: the caret got stuck inside an image-only first list item.
+	// The caret must not get stuck inside an image-only first list item.
 	test('ArrowUp from a list item below an image-only list item steps out of the list', async () => {
 		await editor.loadContent(LIST_IMAGE_DOC);
 		await editor.focusBlockAtPath([1, 1, 0], 0);
@@ -63,8 +64,8 @@ test.describe('vertical arrow traversal around image widgets', () => {
 		expect(src).not.toMatch(/!\[pic.*X|X.*\(\/test-fixtures/);
 	});
 
-	// Regression: the caret was invisible when landing at the image-only paragraph, which is why
-	// the stop is a widget SELECTION rather than a caret seat.
+	// A caret landing in the image-only paragraph would be invisible, which is why the stop
+	// selects the widget instead of placing a caret.
 	test('ArrowUp from below a standalone image selects it, then reaches the paragraph above', async () => {
 		await editor.loadContent(STANDALONE_IMAGE_DOC);
 		await editor.focusBlockStart(2);

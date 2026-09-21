@@ -1,8 +1,8 @@
 import { test, expect } from '../../../../fixtures';
 import { EditorPage } from '../../../../editor-page';
 
-// A task marker is the first paragraph's (GFM § 5.3). Requirements:
-// e2e/requirements/blocks/list/task-checkbox/heading-cycle.md.
+// A task marker belongs to the item's first paragraph (GFM § 5.3). Requirements:
+// `e2e/requirements/blocks/list/task-checkbox/heading-cycle.md`.
 
 test.describe('task checkbox — the item cycled to a heading', () => {
 	let editor: EditorPage;

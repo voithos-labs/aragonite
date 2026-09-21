@@ -1,8 +1,8 @@
 import { test, expect } from '../../../../fixtures';
 import { EditorPage } from '../../../../editor-page';
 
-// Traversal after a structural edit rebuilt the quote — the stale-`innerBlockRefs` class. Every
-// fixture's empty middle is built by a real Enter, not loaded: the regression these guard is the
+// Traversal after a structural edit rebuilt the quote, where `innerBlockRefs` can go stale.
+// Every fixture's empty middle is built by a real Enter, not loaded: what these guard is the
 // split's own re-render, which a loaded document never runs.
 const QUOTE = '> 1\n>\n> 2\n';
 

@@ -6,8 +6,8 @@ export async function focusCodeBlockAtEnd(editor: EditorPage) {
 	await editor.page.keyboard.press('End');
 }
 
-// Walk to `column` of the code body by keyboard — the deterministic landing a rect-derived click
-// cannot give. The four leading arrows clear a 3-char opener plus its newline in the display text.
+// Step to `column` of the code body by keyboard: a click computed from a rect cannot land on an
+// exact offset. The four leading arrows clear a 3-character opener and its newline in the text.
 export async function focusCodeBody(editor: EditorPage, column = 0) {
 	await editor.getBlock(0).click();
 	await editor.focusBlockStart(0);

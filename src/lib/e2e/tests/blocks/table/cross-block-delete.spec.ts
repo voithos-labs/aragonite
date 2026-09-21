@@ -47,7 +47,7 @@ test.describe('table block: cross-block delete', () => {
 		page
 	}) => {
 		// Whole-row snap: dragging into a body cell selects every touched row in full, so the
-		// header row and row 1 go and row 2 is promoted to header — not a partial-cell clear.
+		// header row and row 1 go and row 2 is promoted to header, rather than cells being cleared.
 		await editor.loadContent(`Before.\n\n${TABLE_2x3}`);
 		const [paraBox, cellBox] = await boxesOf(
 			page.getByText('Before.'),
@@ -64,9 +64,9 @@ test.describe('table block: cross-block delete', () => {
 	});
 
 	test('Case 2 — mid-table → paragraph below Backspace clears whole rows', async ({ page }) => {
-		// Whole-row snap: a drag that STARTS in a body cell flags that anchor as a cell coordinate
-		// (matching the keyboard path), so the anchor's entire row and every row below go —
-		// dragging from row 1 removes body rows 1 and 2.
+		// Whole-row snap: a drag that starts in a body cell marks that anchor as a cell coordinate,
+		// matching the keyboard path, so the anchor's whole row and every row below go: dragging
+		// from row 1 removes body rows 1 and 2.
 		await editor.loadContent(`${TABLE_2x3}\nfollow paragraph\n`);
 		const [cellBox, paraBox] = await boxesOf(
 			page.locator('[role="cell"]').nth(3), // body row 1, col 1 = "2"
@@ -239,8 +239,8 @@ test.describe('table block: cross-block delete', () => {
 		await editor.waitForCrossBlock(true);
 		await editor.pressDeclined('Backspace');
 		const source = await editor.bridge.getSource();
-		// The grid must stay valid: external paragraph text must never fuse into a cell (the old
-		// bug produced `| 3 | 4after |`). Whole-row snap removes the anchor's entire bottom row;
+		// The grid must stay valid: paragraph text from outside must never fuse into a cell, which
+		// would read `| 3 | 4after |`. Whole-row snap removes the anchor's entire bottom row;
 		// "after" stays a paragraph.
 		expect(source).toContain('| --- | --- |');
 		expect(source).not.toContain('4after');
@@ -271,8 +271,8 @@ test.describe('table block: cross-block delete', () => {
 		// Z sits inside a single table cell (between two pipes on one row), never
 		// fused into the grid delimiters.
 		expect(src).toMatch(/\|[^\n|]*Z[^\n|]*\|/);
-		// The second table's surviving rows are intact whole rows — no half-cleared
-		// row with an empty leading cell, which only a mis-offset focus produces.
+		// The second table's surviving rows are whole rows: no half-cleared row with an
+		// empty leading cell, which only a focus at the wrong offset produces.
 		expect(src).toContain('| 1 | 2 |');
 		expect(src).not.toMatch(/\|\s+\|\s*2\s*\|/);
 		expect(src).toContain('| --- | --- |');
@@ -281,10 +281,10 @@ test.describe('table block: cross-block delete', () => {
 	test('Case 2 into a NESTED prose end (blockquote paragraph) truncates the tail without erroring', async ({
 		page
 	}) => {
-		// The nested endpoint is load-bearing: a blockquote paragraph end routes the delete through
-		// the cross-container commit, which runs rangeDelete on the LIVE $state doc. The reparsed
-		// tail spliced there is proxy-wrapped, so resolving the survivor path by node identity
-		// throws "surviving block not found".
+		// The nested endpoint is what makes this bite: a blockquote paragraph end routes the delete
+		// through the cross-container commit, which runs `rangeDelete` on the live `$state`
+		// document. The reparsed tail spliced there is wrapped in a proxy, so resolving the
+		// survivor path by node identity throws "surviving block not found".
 		const pageErrors = capturePageErrors(page);
 
 		const source = `${TABLE_2x3}\n> quoted text\n`;
@@ -311,7 +311,7 @@ test.describe('table block: cross-block delete', () => {
 		expect(capturedErrors, `editor errors:\n${capturedErrors.join('\n')}`).toEqual([]);
 
 		// Whole-row snap removed both body rows, leaving the surviving header table;
-		// the blockquote keeps its tail as its own block — no cross-block merge.
+		// the blockquote keeps its tail as its own block, with no cross-block merge.
 		const src = await editor.bridge.getSource();
 		expect(src).toContain('| A | B |');
 		expect(src).toContain('| --- | --- |');

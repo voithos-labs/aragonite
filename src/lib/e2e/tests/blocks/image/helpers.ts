@@ -1,9 +1,9 @@
 import { type Locator, type Page } from '@playwright/test';
 
-// Shared image-widget probes for the image block e2e specs.
+// Shared image-widget reads for the image block e2e specs.
 
-// Resolve once the first widget's <img> has decoded: a point computed from the 0x0 placeholder box
-// lands INSIDE the widget once it decodes, selecting the image instead of placing a caret near it.
+// Resolve once the first widget's `<img>` has decoded: a point worked out from the 0x0 placeholder
+// box lands inside the widget afterwards, selecting the image instead of placing a caret near it.
 export async function waitForFirstImageLoaded(page: Page): Promise<void> {
 	await page.waitForFunction(
 		() => !!(document.querySelector('[data-image-widget] img') as HTMLImageElement)?.complete
@@ -19,7 +19,7 @@ export async function waitForAllImagesLoaded(page: Page): Promise<void> {
 	);
 }
 
-// Undo-stack depth, 0 before the probe installs — the oracle for "that gesture added no entry".
+// Undo-stack depth, 0 before the hook installs: the read that says a gesture added no entry.
 export async function undoDepth(page: Page): Promise<number> {
 	return page.evaluate(() => (window as any).__test?.dumpUndoStack?.()?.length ?? 0);
 }

@@ -2,8 +2,8 @@ import type { Page } from '@playwright/test';
 import { test, expect } from '../../../fixtures';
 import { EditorPage } from '../../../editor-page';
 
-// The fence-info door for the modes that paint no fence (issue #142).
-// Requirements: e2e/requirements/blocks/code/language-chip.md.
+// The way to set a fence's info string in the modes that paint no fence (issue #142).
+// Requirements: `e2e/requirements/blocks/code/language-chip.md`.
 
 const SOURCE = '```js\nconst x = 1\n```\n\n# Heading\n';
 const EMPTY_FENCE = '```\n```\n\n# Heading\n';
@@ -11,16 +11,16 @@ const EMPTY_FENCE = '```\n```\n\n# Heading\n';
 const PADDED_FENCE = '```js  \nconst x = 1\n```\n\n# Heading\n';
 const NESTED_FENCE = '> a quote\n>\n> ```js\n> const x = 1\n> ```\n';
 
-// The rail is the revealed unit — it carries the opacity the chip used to. The language
-// control is one of its children, named specifically so the action buttons beside it (copy,
-// and the host-gated run/overflow) never resolve into these locators.
+// The `.code-rail` (the code block's side gutter) is what appears on hover and carries the
+// fade. The language control is one of its children, named specifically so the buttons beside
+// it (copy, and the host-controlled run and overflow) never match these locators.
 const rail = (page: Page) => page.locator('.code-rail');
 const chipButton = (page: Page) => page.locator('.code-lang-button');
-// The field lives IN the picker, not in the rail: the chip is a fixed-width button that
+// The field lives in the picker, not in the gutter: the chip is a fixed-width button that
 // never swaps, so opening the picker shifts nothing beside it.
 const chipInput = (page: Page) => page.locator('.code-lang-picker input');
 
-/** The editable rungs that hide a fence — the chip's whole audience, minus reading. */
+/** The editable modes that hide a fence: the chip's whole audience, minus reading. */
 const WRITING_MODES = ['live', 'preview-inline', 'preview-block'] as const;
 
 async function loadIn(page: Page, mode: string, doc = SOURCE): Promise<EditorPage> {
@@ -35,7 +35,7 @@ async function loadIn(page: Page, mode: string, doc = SOURCE): Promise<EditorPag
 
 const loadLive = (page: Page, doc = SOURCE) => loadIn(page, 'live', doc);
 
-/** Hover the block, then open the field — the pointer gesture the chip is revealed by. */
+/** Hover the block, then open the field: the pointer gesture that shows the chip. */
 async function openChip(editor: EditorPage): Promise<void> {
 	await editor.getBlock(0).hover();
 	await chipButton(editor.page).click();
@@ -81,10 +81,10 @@ test.describe('code language chip — when it shows', () => {
 		await expect(chipButton(page)).toHaveText('text');
 	});
 
-	// A content-empty fence gets the rail like any other. Its own markers paint only while the
-	// caret is inside (`cursor/widget-offset.ts` mirrors that gate), and the caret arriving
-	// completes the bare fence so there is a body line to sit on, then offers a language: the
-	// picker is the authoring path, and a fence with no language is exactly where it is wanted.
+	// A fence with no content gets the side gutter like any other. Its own markers paint only
+	// while the caret is inside (`cursor/widget-offset.ts` matches that check), and the caret
+	// arriving completes the bare fence so there is a body line to sit on, then offers a
+	// language: the picker is how a language is set, and a fence with none is where that helps.
 	test('a content-empty fence gets the rail; the caret arriving completes it and asks for a language', async ({
 		page
 	}) => {
@@ -107,7 +107,7 @@ test.describe('code language chip — when it shows', () => {
 		await editor.bridge.waitForSourceEquals('```\nx\n```\n\n# Heading\n');
 	});
 
-	// The reveal takes the child combinator: a container's hover is not its nested block's.
+	// The hover rule uses the child combinator: hovering a container is not hovering its block.
 	test('a container’s hover leaves its nested block’s chip alone', async ({ page }) => {
 		const editor = await loadLive(page, NESTED_FENCE);
 		expect(await editor.bridge.getBlockKind(0)).toBe('blockquote');
@@ -134,8 +134,8 @@ test.describe('code language chip — when it shows', () => {
 });
 
 test.describe('code language chip — the commit', () => {
-	// Every writing rung, because a preview one REVEALS the fence while the field holds focus
-	// (the block reads as focused), so the chip commits over chrome that is on screen again.
+	// Every writing mode, because a preview mode shows the fence again while the field holds
+	// focus (the block reads as focused), so the chip commits over markers back on screen.
 	for (const mode of WRITING_MODES) {
 		test(`${mode}: Enter rewrites the info string and nothing else`, async ({ page }) => {
 			const editor = await loadIn(page, mode);
@@ -150,8 +150,8 @@ test.describe('code language chip — the commit', () => {
 		});
 	}
 
-	// `text` is the picker's spelling of "no language" — the field no longer opens seeded with
-	// the current one, so clearing is choosing that row rather than emptying a field.
+	// `text` is the picker's spelling of "no language": the field opens empty, so clearing means
+	// choosing that row rather than emptying a field.
 	test('choosing “text” clears the info string', async ({ page }) => {
 		const editor = await loadLive(page);
 		await openChip(editor);
@@ -163,8 +163,8 @@ test.describe('code language chip — the commit', () => {
 		expect(await editor.bridge.getBlockKind(0)).toBe('fencedCode');
 	});
 
-	// An alias is a search key, not a row: the list folds `rs` into `rust`, and the spelling the
-	// author typed is still what lands, so the short forms stay authorable through this door.
+	// An alias is a search key, not a row: the list folds `rs` into `rust`, and what the author
+	// typed is still what lands, so the short forms stay writable here.
 	test('an alias filters to its language, listed once, and commits as typed', async ({ page }) => {
 		const editor = await loadLive(page);
 		await openChip(editor);
@@ -194,8 +194,8 @@ test.describe('code language chip — the commit', () => {
 		expect(await editor.bridge.getSource()).toBe('```typescript\nXconst x = 1\n```\n\n# Heading\n');
 	});
 
-	// The undo is the discriminator: a phantom info write would take the trailing spaces back
-	// and leave the typed character standing.
+	// The undo is what tells them apart: a stray write to the info string would take the trailing
+	// spaces back and leave the typed character standing.
 	test('a bare Enter on a padded fence line writes nothing', async ({ page }) => {
 		const editor = await loadLive(page, PADDED_FENCE);
 		await editor.focusBlock(0, 8);
@@ -203,12 +203,12 @@ test.describe('code language chip — the commit', () => {
 		await editor.bridge.waitForSourceContains('Zconst');
 
 		await openChip(editor);
-		// The field opens EMPTY and the highlight sits on the block's own language, so a bare
-		// Enter re-commits `js` — which the commit gate reads as unchanged, and writes nothing.
+		// The field opens empty and the highlight sits on the block's own language, so a bare Enter
+		// commits `js` again, which the commit check reads as unchanged and writes nothing.
 		await expect(chipInput(page)).toHaveValue('');
 		await expect(chipButton(page)).toHaveText('js');
 		await page.keyboard.press('Enter');
-		// The chip is its own input, outside every editable surface: no verdict is recorded.
+		// The chip is its own input, outside every editable block: no keydown answer is recorded.
 		await editor.waitForNoSourceMutation();
 		expect(await editor.bridge.getSource()).toBe('```js  \nZconst x = 1\n```\n\n# Heading\n');
 
@@ -247,7 +247,7 @@ test.describe('code language chip — cancelling', () => {
 		await page.keyboard.type('ts');
 		await page.keyboard.press('Escape');
 		await expect(chipInput(page)).toHaveCount(0);
-		// The chip is its own input, outside every editable surface: no verdict is recorded.
+		// The chip is its own input, outside every editable block: no keydown answer is recorded.
 		await editor.waitForNoSourceMutation();
 
 		expect(await editor.bridge.getSource()).toBe(SOURCE);
@@ -266,8 +266,8 @@ test.describe('code language chip — cancelling', () => {
 	});
 });
 
-// One entry, isolated on BOTH sides: the commit reaches the same debounced batch typing
-// does, so a burst either side of it would otherwise ride the chip's single Mod+Z.
+// One entry, isolated on both sides: the commit joins the same debounced batch typing does, so
+// a burst either side of it would otherwise ride the chip's single Mod+Z.
 test.describe('code language chip — one undo entry', () => {
 	test('a body character typed before the commit survives one Mod+Z', async ({ page }) => {
 		const editor = await loadLive(page);

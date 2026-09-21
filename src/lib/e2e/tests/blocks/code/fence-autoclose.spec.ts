@@ -1,9 +1,9 @@
 import { test, expect } from '../../../fixtures';
 import { EditorPage } from '../../../editor-page';
 
-// Without a minted closer the serialization is an open fence that GFM lazy-continuation absorbs the
-// trailing blocks back into on reload — the live tree diverges from a reparse of its own bytes. The
-// sole authoring escape is Enter on the empty trailing line (computeFenceExit's unclosed branch).
+// Without a closer, the serialized document is an open fence that GFM lazy continuation pulls the
+// blocks below back into on reload, so the live tree stops matching a reparse of its own bytes.
+// The only way out while writing is Enter on the empty trailing line (`computeFenceExit`).
 
 test.describe('code block — unclosed-fence auto-close on escape', () => {
 	let editor: EditorPage;
@@ -29,9 +29,8 @@ test.describe('code block — unclosed-fence auto-close on escape', () => {
 		expect(await editor.parseConverged()).toBe(true);
 	});
 
-	// The other sink that can leave a fence open: the keystroke that MINTS it. Without a closer
-	// the settle converges the live tree to the reload's reading, which swallows everything below
-	// (GH #180).
+	// The other place a fence can be left open: the keystroke that creates it. Without a closer,
+	// the live tree settles to the reload's reading, which swallows everything below (GH #180).
 	test('a fence opener typed above other blocks closes as it is minted', async ({ page }) => {
 		await editor.loadContent('Above\n\ntail\n');
 		await editor.getBlock(0).click();
@@ -68,8 +67,8 @@ test.describe('code block — unclosed-fence auto-close on escape', () => {
 		expect(await editor.bridge.getSource()).not.toContain('```\ncode\n```');
 	});
 
-	// The choke point is the container-scoped blockEdit: a fence nested in a quote must auto-close
-	// within its own scope, leaving the new paragraph inside the quote.
+	// The one place this runs is the container's own `blockEdit`: a fence nested in a quote closes
+	// itself inside that quote, leaving the new paragraph there too.
 	test('nested: escape below an unclosed fence in a blockquote closes it and converges', async () => {
 		await editor.loadContent('> ```\n> code\n');
 		expect(await editor.bridge.getBlockKind(0)).toBe('blockquote');
@@ -83,6 +82,6 @@ test.describe('code block — unclosed-fence auto-close on escape', () => {
 		expect(await editor.parseConverged()).toBe(true);
 		expect(await editor.bridge.getBlockKind(0)).toBe('blockquote');
 		const source = await editor.bridge.getSource();
-		expect(source).toContain('> ```\n> code\n> ```'); // closer minted, still quoted
+		expect(source).toContain('> ```\n> code\n> ```'); // closer written, still quoted
 	});
 });

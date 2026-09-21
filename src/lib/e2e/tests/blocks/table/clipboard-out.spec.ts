@@ -22,8 +22,8 @@ test.describe('table block: clipboard out', () => {
 		await expect.poll(() => editor.readClipboard()).toBe('1');
 	});
 
-	// Copy and Cut must write the same payload: a cell's <br> renders as a zero-textContent widget,
-	// so Copy's old browser-default fallback dropped it while Cut's raw-slice arm kept it.
+	// Copy and Cut must write the same payload: a cell's `<br>` renders as a widget with no
+	// textContent, so falling back to the browser's default drops it where a raw slice keeps it.
 	test('Ctrl+C of a cell with a <br> keeps the widget bytes (Copy/Cut parity)', async ({
 		page
 	}) => {

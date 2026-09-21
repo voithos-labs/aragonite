@@ -49,7 +49,7 @@ test.describe('table block: wide-table horizontal scroll', () => {
 	test('selection overlay tracks horizontal table scroll', async ({ page }) => {
 		await editor.loadContent(WIDE_TABLE);
 
-		// Drag-select cells a1..a3 (body row 0, cols 0..2) — three intra-table cells.
+		// Drag-select cells a1..a3 (body row 0, cols 0..2): three cells inside the table.
 		const tableEl = page.locator('[role="table"]').first();
 		const a1 = await page.locator('[role="cell"]').nth(12).boundingBox();
 		const a3 = await page.locator('[role="cell"]').nth(14).boundingBox();
@@ -117,9 +117,8 @@ test.describe('table block: wide-table horizontal scroll', () => {
 			});
 		await page.mouse.click(b4Center.x, b4Center.y);
 
-		// ArrowDown exits the table capturing the sticky X at b4's cursor; ArrowUp re-enters the
-		// last body row at that column. No typing in between — input events would reset the sticky
-		// column.
+		// ArrowDown exits the table capturing the sticky x at b4's caret; ArrowUp re-enters the
+		// last body row at that column. No typing in between: input events reset the sticky column.
 		await page.keyboard.press('ArrowDown');
 		await page.keyboard.press('ArrowUp');
 		await editor.typeSlowly('Z');
@@ -128,7 +127,7 @@ test.describe('table block: wide-table horizontal scroll', () => {
 		// Z lands at offset 0 of the target cell (focusCell uses 'start') in body row 1, the bottom
 		// row; allow ±1 column of tolerance for sub-pixel boundary crossings.
 		expect(after).toMatch(/\| Zb[345] \|/);
-		// Z must NOT land in the header or in body row 0 (a*).
+		// Z must not land in the header or in body row 0 (a*).
 		expect(after).not.toMatch(/\| ZHeader-Col-\d+ \|/);
 		expect(after).not.toMatch(/\| Za\d+ \|/);
 	});

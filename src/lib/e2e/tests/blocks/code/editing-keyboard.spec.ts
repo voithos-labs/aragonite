@@ -14,8 +14,8 @@ test.describe('code block keyboard — beyond parity', () => {
 		await editor.getBlock(0).click();
 		const sourceBefore = await editor.bridge.getSource();
 		await page.keyboard.press('ControlOrMeta+b');
-		// The marker flushes any async edit Ctrl+B might trigger, so the no-op assertion can't pass
-		// vacuously.
+		// The typed character flushes any async edit Ctrl+B might start, so the assertion that
+		// nothing changed cannot pass vacuously.
 		await editor.typeText('X');
 		await editor.bridge.waitForSourceContains('X');
 		const sourceAfter = (await editor.bridge.getSource()).replace('X', '');

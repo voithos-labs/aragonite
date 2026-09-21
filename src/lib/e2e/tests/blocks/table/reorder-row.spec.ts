@@ -4,8 +4,8 @@ import { getContainerParityMismatches } from '../../../container-parity';
 import { capturePageErrors } from '../../../page-probes';
 
 // Cells render row-major, header first: a 3-body-row 2-col table exposes cells 0,1 (header), 2,3
-// (body row 1), 4,5 (body row 2), 6,7 (body row 3). Alt+↑/↓ reorders BODY rows only — the header is
-// positionally fixed — and focus follows the moved row, staying in its column.
+// (body row 1), 4,5 (body row 2), 6,7 (body row 3). Alt+↑/↓ reorders body rows only, since the
+// header's position is fixed, and focus follows the moved row, staying in its column.
 const TABLE_3BODY = '| A | B |\n| --- | --- |\n| 1 | 2 |\n| 3 | 4 |\n| 5 | 6 |\n';
 const TABLE_2BODY = '| A | B |\n| --- | --- |\n| 1 | 2 |\n| 3 | 4 |\n';
 
@@ -50,15 +50,15 @@ test.describe('table block: keyboard row reorder', () => {
 		expect(await editor.bridge.getSource()).toBe(before);
 	});
 
-	// Boundary clamp: a move with no body row in that direction must change nothing AND push no
-	// undo entry, or the boundary press silently consumes a Ctrl+Z. Type → boundary-press → Ctrl+Z
-	// must undo the TYPING.
+	// At the boundary: a move with no body row in that direction must change nothing and add no
+	// undo entry, or the press silently eats a Ctrl+Z. Type, press at the boundary, then Ctrl+Z
+	// must undo the typing.
 	test('Alt+ArrowUp on the first body row is a no-op and creates no undo entry', async ({
 		page
 	}) => {
 		await editor.loadContent(TABLE_2BODY);
-		// A plain click lands the caret at the click position, not offset 0, so the
-		// marker may land either side of the cell text — assert presence, not position.
+		// A plain click lands the caret where it was clicked, not at offset 0, so the typed
+		// character may land either side of the cell text: assert that it is there, not where.
 		await page.locator('[role="cell"]').nth(2).click();
 		await page.keyboard.type('Z');
 		await editor.bridge.waitForSourceMatches(/\| (?:Z1|1Z) \| 2 \|/);
@@ -110,16 +110,16 @@ test.describe('table block: keyboard row reorder', () => {
 		);
 	});
 
-	// Real-browser undo fidelity on a non-canonical table: reorder's rebuildTableRaw canonicalizes
-	// the live view, so undo must restore the exact original tight bytes. A single reorder→undo
-	// does NOT exercise moveRow's `ensureUnsharedChildren` — that snapshot aliasing needs a prior
-	// shared snapshot.
+	// Undo in a real browser on a table whose bytes are not canonical: the reorder's
+	// `rebuildTableRaw` canonicalizes the live view, so undo must restore the exact original tight
+	// bytes. One reorder and undo does not reach `moveRow`'s `ensureUnsharedChildren`, which needs
+	// an earlier shared snapshot.
 	test('reorder→undo restores a non-canonical table source byte-exactly', async ({ page }) => {
 		const NONCANON = '|A|B|\n|---|---|\n|1|2|\n|3|4|\n';
 		await editor.loadContent(NONCANON);
-		// Compare against the loaded source, not the literal — getSource() normalizes trailing
-		// whitespace. toContain proves load did NOT canonicalize the cells (canonical `| 1 | 2 |`
-		// does not contain `|1|2|`).
+		// Compare against the loaded source, not the literal: `getSource()` normalizes trailing
+		// whitespace. The `toContain` proves the load did not canonicalize the cells (a canonical
+		// `| 1 | 2 |` does not contain `|1|2|`).
 		const original = await editor.bridge.getSource();
 		expect(original).toContain('|1|2|');
 

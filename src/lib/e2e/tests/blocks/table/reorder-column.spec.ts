@@ -40,15 +40,15 @@ test.describe('table block: keyboard column reorder', () => {
 		await editor.bridge.waitForSourceMatches(/\| 2 \| (?:X1|1X) \| 3 \|/);
 	});
 
-	// Boundary clamp: a move with no column in that direction must change nothing AND push no undo
-	// entry, or the boundary press silently consumes a Ctrl+Z. Type → boundary-press → Ctrl+Z must
-	// undo the TYPING.
+	// At the boundary: a move with no column in that direction must change nothing and add no undo
+	// entry, or the press silently eats a Ctrl+Z. Type, press at the boundary, then Ctrl+Z must
+	// undo the typing.
 	test('Alt+ArrowLeft on the first column is a no-op and creates no undo entry', async ({
 		page
 	}) => {
 		await editor.loadContent(TABLE_3COL);
-		// A plain click lands the caret at the click position, so the marker may land
-		// either side of the cell text — assert presence, not position.
+		// A plain click lands the caret where it was clicked, so the typed character may land
+		// either side of the cell text: assert that it is there, not where.
 		await page.locator('[role="cell"]').nth(0).click();
 		await page.keyboard.type('Z');
 		await editor.bridge.waitForSourceMatches(/\| (?:ZA|AZ) \|/);
@@ -86,14 +86,14 @@ test.describe('table block: keyboard column reorder', () => {
 		expect(pageErrors).toEqual([]);
 	});
 
-	// Real-browser undo fidelity on a non-canonical table: the column edit canonicalizes the live
-	// view, so undo must restore the exact original tight bytes. Mirrors the row spec's
-	// non-canonical undo guard.
+	// Undo in a real browser on a table whose bytes are not canonical: the column edit canonicalizes
+	// the live view, so undo must restore the exact original tight bytes. The row spec has the
+	// matching case.
 	test('column move → undo restores a non-canonical table byte-exactly', async ({ page }) => {
 		const NONCANON = '|A|B|C|\n|---|---|---|\n|1|2|3|\n';
 		await editor.loadContent(NONCANON);
-		// Compare against the loaded source, not the literal — getSource() normalizes
-		// trailing whitespace. toContain proves load did NOT canonicalize the cells.
+		// Compare against the loaded source, not the literal: `getSource()` normalizes trailing
+		// whitespace. The `toContain` proves the load did not canonicalize the cells.
 		const original = await editor.bridge.getSource();
 		expect(original).toContain('|1|2|3|');
 

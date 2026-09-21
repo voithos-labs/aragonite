@@ -83,8 +83,8 @@ test.describe('list/blockquote layout for image-bearing paragraphs', () => {
 		expect(imageBox.x - outerBox.x).toBeGreaterThanOrEqual(12);
 	});
 
-	// The rule pinning the list-item ambient marker bottom-left must not reach every `.md-marker`
-	// direct child, or these inline markers stack on the ambient `-`.
+	// The rule pinning the list item's `- ` marker to the bottom left must not reach every
+	// `.md-marker` direct child, or these inline markers stack on that `-`.
 	test('inline emphasis markers in a list-item image paragraph stay in normal flow', async ({
 		page
 	}) => {
@@ -98,7 +98,7 @@ test.describe('list/blockquote layout for image-bearing paragraphs', () => {
 		expect(inlineMarkerPositions.every((p) => p === 'static')).toBe(true);
 	});
 
-	// Sibling guarantee: a non-list image paragraph gets no ambient-marker layout treatment at all.
+	// The sibling case: an image paragraph outside a list gets no marker layout at all.
 	test('inline markers in a non-list image paragraph stay in normal flow', async ({ page }) => {
 		await editor.loadContent('*bold* ![pic|200](/test-fixtures/sample.png)\n');
 		await waitForFirstImageLoaded(page);

@@ -20,7 +20,7 @@ test.describe('code block creation — Enter after typing ```', () => {
 		await editor.page.keyboard.press('Enter');
 		await editor.bridge.waitForSourceEquals('```\n\n```\n');
 		await editor.typeText('body');
-		// Regression: swallowed Enter would land "body" on the opener line ("```body").
+		// Enter must not be swallowed, or "body" lands on the opener line as "```body".
 		await editor.bridge.waitForSourceEquals('```\nbody\n```\n');
 		expect(await editor.bridge.getBlockKind(0)).toBe('fencedCode');
 	});
@@ -50,8 +50,8 @@ test.describe('code block creation — backtick auto-pair in unclosed fence', ()
 		expect(backticks).toBe(4);
 	});
 
-	// Typing never leaves a fence unclosed past its Enter (the bare opener completes), so the
-	// unclosed shape with a body line is LOADED, as a document saved mid-fence is.
+	// Typing never leaves a fence unclosed past its Enter (the bare opener completes itself), so
+	// an unclosed fence with a body line can only be loaded, the way a document saved mid-fence is.
 	test('backtick on the empty body line of a loaded unclosed fence does not auto-pair', async () => {
 		await editor.loadContent('```\n\n');
 		expect(await editor.bridge.getBlockKind(0)).toBe('fencedCode');

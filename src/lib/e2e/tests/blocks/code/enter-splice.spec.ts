@@ -2,8 +2,8 @@ import { test, expect } from '../../../fixtures';
 import { EditorPage } from '../../../editor-page';
 import { roundTripStable } from '../../plugins/helpers';
 
-// A splice inside the opener renders a phantom fence; one inside the closer breaks the fence
-// outright. Requirements: enter-splice.md.
+// A splice inside the opener renders a fence that is not in the bytes; one inside the closer
+// breaks the fence outright. Requirements: `enter-splice.md`.
 
 test.describe('code block — Enter on the opener fence line', () => {
 	let editor: EditorPage;
@@ -21,7 +21,7 @@ test.describe('code block — Enter on the opener fence line', () => {
 
 		expect(await editor.bridge.getBlockCount()).toBe(1);
 		expect(await editor.bridge.getBlockKind(0)).toBe('fencedCode');
-		// Rendered text must match the raw — a phantom fence adds bytes the raw lacks.
+		// Rendered text must match the raw: an extra fence adds bytes the raw does not have.
 		expect(await editor.getBlockText(0)).toBe('```js\n\nconst x = 1;\n```');
 
 		await editor.typeSlowly('y');

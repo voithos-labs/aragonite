@@ -104,7 +104,7 @@ const BASELINE: Record<string, number> = {
 	'src/lib/e2e/simulation/gestures': 0,
 	'src/lib/e2e/simulation/notes': 0,
 	'src/lib/e2e/tests': 0,
-	'src/lib/e2e/tests/blocks': 47,
+	'src/lib/e2e/tests/blocks': 0,
 	'src/lib/e2e/tests/capture': 0,
 	'src/lib/e2e/tests/clipboard': 0,
 	'src/lib/e2e/tests/decorations': 0,

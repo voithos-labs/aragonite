@@ -47,9 +47,9 @@ test.describe('table block: paste in', () => {
 
 	// ── Structural ──────────────────────────────────────────────────────
 	//
-	// Exact-source assertions are load-bearing here: the bug they catch (a doc-level splice routed
-	// through the cell's row-level blockEdit) leaves the substrings a `waitForSourceContains`
-	// checks intact while the surrounding structure rots.
+	// Asserting the exact source is what carries these: a document-level splice routed through the
+	// cell's row-level `blockEdit` leaves the substrings a `waitForSourceContains` checks intact
+	// while the structure around them rots.
 
 	// A grid is data for the cells, not a block to splice between them: a GFM table, or the tabs a
 	// spreadsheet writes, fills from the caret's cell and grows the table to fit, in one commit.
@@ -86,9 +86,9 @@ test.describe('table block: paste in', () => {
 		await editor.bridge.waitForSourceEquals(TABLE_2BODY, 3000);
 	});
 
-	// The bytes came back while the RENDERED cells did not: an expanding paste writes cell raws
-	// at depth two, and unsharing only the rows left each row's cells shared with the undo
-	// snapshot, so the write went through it and undo restored the pasted text.
+	// The bytes can come back while the rendered cells do not: an expanding paste writes cell raws
+	// two levels down, so copying only the rows before writing leaves each row's cells shared with
+	// the undo snapshot, the write goes through it, and undo restores the pasted text.
 	test('undo of an expanding paste restores the rendered cells, not just the bytes', async ({
 		page
 	}) => {
@@ -237,8 +237,8 @@ test.describe('table block: paste in', () => {
 		);
 	});
 
-	// Ctrl+A steps cell → document, so a rectangle over every cell is the road to a whole-table
-	// selection: cells 0..5 of a two-column, two-body-row table.
+	// Ctrl+A steps from cell to document, so a rectangle over every cell is the way to select the
+	// whole table: cells 0..5 of a two-column, two-body-row table.
 	test('whole-table selection (a rectangle over every cell) + paste a paragraph replaces the table', async ({
 		page
 	}) => {

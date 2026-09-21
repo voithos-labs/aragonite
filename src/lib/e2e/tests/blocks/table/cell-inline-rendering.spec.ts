@@ -77,8 +77,8 @@ test.describe('table cell: inline rendering', () => {
 		await expect(cell.locator('[data-inline-widget]')).toHaveCount(0);
 	});
 
-	// The collapse is CSS, so no unit test reaches it: a single unsplit span — either arm — leaves
-	// the whole source painted here, or nothing at all.
+	// The collapse is CSS, so no unit test reaches it: a single unsplit span, from either branch,
+	// leaves the whole source painted here or nothing at all.
 	test('image in a cell paints its alt alone in reading mode', async ({ page }) => {
 		await editor.loadContent(`${HEADER}| ![alt](u) |\n`);
 		const cell = page.locator('[role="cell"]').nth(1);
@@ -90,7 +90,7 @@ test.describe('table cell: inline rendering', () => {
 		await expect(markers.first()).toBeHidden();
 		await expect(markers.last()).toBeHidden();
 		expect(await cell.innerText()).toBe('alt');
-		// Hidden, never omitted — the cell's bytes stay behind the collapse.
+		// Hidden, never left out: the cell's bytes stay behind the collapse.
 		await expect(cell).toHaveText('![alt](u)');
 	});
 
@@ -115,8 +115,8 @@ test.describe('table cell: inline rendering', () => {
 		await editor.loadContent('| H |\n| :- |\n| Left<br> |\n');
 		const cell = page.locator('[role="cell"]').nth(1);
 		await cell.click();
-		// Ctrl+End: very end of cell content — End alone stops at the end of the
-		// first visual line, before the trailing widget.
+		// Ctrl+End: the very end of the cell's content. End alone stops at the end
+		// of the first visual line, before the trailing widget.
 		await page.keyboard.press('Control+End');
 		await editor.typeText('Z');
 		// Without widget-aware offset reads, the caret read would land short of
@@ -131,7 +131,7 @@ test.describe('table cell: inline rendering', () => {
 		await page.keyboard.press('Home');
 		await page.keyboard.press('End');
 		await editor.typeText('Q');
-		// End from line 1 stays on line 1 — before the widget.
+		// End from line 1 stays on line 1, before the widget.
 		await editor.bridge.waitForSourceContains('| LeftQ<br> |');
 	});
 
@@ -156,9 +156,9 @@ test.describe('table cell: inline rendering', () => {
 		await expect(second).toBeFocused();
 	});
 
-	// Crossing a mid-cell `<br>` with arrows is native contenteditable — the keys never reach the
-	// caret-edge dispatch — so this guards only that navigation stays on an editable cell; the
-	// dispatch's non-reveal step-over is pinned by the destructive-key case below.
+	// Crossing a mid-cell `<br>` with arrows is the browser's own contenteditable and the keys
+	// never reach the caret-edge dispatch, so this only guards that navigation stays on an editable
+	// cell. That dispatch's step-over is pinned by the destructive-key case below.
 	test('arrowing across a mid-cell <br> keeps focus on a cell, never stranding it', async ({
 		page
 	}) => {
@@ -174,9 +174,9 @@ test.describe('table cell: inline rendering', () => {
 		expect(await editor.bridge.getSource()).toContain('| x<br>y | z |');
 	});
 
-	// A DESTRUCTIVE key at a `<br>` edge is the one gesture that reaches the caret-edge dispatch
-	// here (arrows go native): the inherited prose select-then-delete needs a selection overlay a
-	// cell never paints, so it showed nothing on press #1 and ate a non-adjacent byte on press #2.
+	// A destructive key at a `<br>` edge is the one gesture that reaches the caret-edge dispatch
+	// here, since arrows go native: prose's select-then-delete needs a selection overlay a cell
+	// never paints, so it shows nothing on the first press and eats a stray byte on the second.
 	test('Backspace at a mid-cell <br> trailing edge deletes the whole tag in one press', async ({
 		page
 	}) => {
@@ -189,8 +189,8 @@ test.describe('table cell: inline rendering', () => {
 		await page.keyboard.press('Backspace');
 
 		await editor.bridge.waitForSourceContains('| xy | z |');
-		// Focus survives on the cell — a prose select would have stranded it — and the
-		// caret sits where the tag was, so the next char lands between x and y.
+		// Focus survives on the cell, where a prose select would strand it, and the caret sits
+		// where the tag was, so the next character lands between x and y.
 		const activeRole = await page.evaluate(() => document.activeElement?.getAttribute('role'));
 		expect(activeRole).toBe('cell');
 		await editor.typeText('Z');
