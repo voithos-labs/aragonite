@@ -1,0 +1,17 @@
+/* The chip a tag mark paints. A mark is an overlay ABOVE the text (`editor.css`: z-index 1), so
+   the background is translucent and the glyphs read through it; the text keeps its own colour,
+   which is the one thing this model cannot restyle. Unscoped on purpose: a decoration's class
+   lands on the editor's own overlay element, which no component's scoped styles reach. */
+.editor .decoration-overlay.body-tag-mark {
+	background: color-mix(in srgb, var(--color-accent, #567b67) 22%, transparent);
+	border-radius: 999px;
+	/* The pill stands a little proud of the glyphs it covers, the way a tag chip reads. The
+	   overlay's width is the measured text width in px, so the padding has to grow the box
+	   rather than eat into it (`content-box` against the app's global `border-box`) — under
+	   `border-box` the padding would shrink the paint back off the tag's last glyph. The
+	   0.15em is half a space (a space is ~0.31em here), so the word after a tag keeps a
+	   visible gap instead of butting against the chip. */
+	box-sizing: content-box;
+	padding: 0 0.15em;
+	margin-left: -0.15em;
+}

@@ -4,10 +4,32 @@ import { EditorPage } from '../../../editor-page';
 import {
 	clickPastImageRightEdge,
 	pointPastImageRightEdge,
+	waitForAllImagesLoaded,
 	waitForFirstImageLoaded
 } from './helpers';
 
 const LIST_IMAGE_DOC = '- ![pic|300x200](/test-fixtures/sample.png)\n';
+// Two islands in two blocks, each ending its own line, with a plain block to park in between.
+const TWO_IMAGE_DOC =
+	'![a|120x80](/test-fixtures/sample.png)\n\n![b|120x80](/test-fixtures/sample.png)\n\nplain text\n';
+
+const paintedCarets = (page: Page): Promise<string[]> =>
+	page.evaluate(() =>
+		Array.from(document.querySelectorAll('.md-snap-after, .md-snap-before')).map(
+			(el) => el.closest('[data-block-path]')?.getAttribute('data-block-path') ?? '?'
+		)
+	);
+
+/** The dead space past the nth image, inside its own paragraph: the press that snaps there. */
+async function clickPastImage(page: Page, index: number): Promise<void> {
+	const widget = page.locator('[data-image-widget]').nth(index);
+	const para = widget.locator('xpath=ancestor::*[@contenteditable="true"]');
+	const widgetBox = await widget.boundingBox();
+	const paraBox = await para.boundingBox();
+	if (!widgetBox || !paraBox) throw new Error('layout boxes missing');
+	const x = Math.min(widgetBox.x + widgetBox.width + 60, paraBox.x + paraBox.width - 20);
+	await page.mouse.click(x, widgetBox.y + widgetBox.height / 2);
+}
 
 const caretColorOfFocusedBlock = (page: Page): Promise<string> =>
 	page.evaluate(() => {
@@ -95,6 +117,38 @@ test.describe('synthetic caret indicator at widget boundary', () => {
 		await expect.poll(() => caretColorOfFocusedBlock(page)).not.toBe('rgba(0, 0, 0, 0)');
 		await page.mouse.up();
 		expect(await caretColorOfFocusedBlock(page)).not.toBe('rgba(0, 0, 0, 0)');
+	});
+
+	// One caret is one position. The block that armed a synthetic caret clears it on the next
+	// selection change, but a state it never hears about — a selection cleared out from under it,
+	// its own block unmounted while the caret was inside — would leave a second caret on screen.
+	test('a second block arming its own caret takes the paint from the first', async ({ page }) => {
+		await editor.loadContent(TWO_IMAGE_DOC);
+		await waitForAllImagesLoaded(page);
+
+		await clickPastImage(page, 0);
+		await expect.poll(() => paintedCarets(page)).toEqual(['[0]']);
+
+		await clickPastImage(page, 1);
+		await expect.poll(() => paintedCarets(page)).toEqual(['[1]']);
+	});
+
+	test('a stale caret left on another block is swept when one arms', async ({ page }) => {
+		await editor.loadContent(TWO_IMAGE_DOC);
+		await waitForAllImagesLoaded(page);
+		await clickPastImage(page, 1);
+		await expect.poll(() => paintedCarets(page)).toEqual(['[1]']);
+
+		// The state no block can clear for itself, painted by hand: the class a block left behind.
+		await page.evaluate(() =>
+			document.querySelectorAll('[data-image-widget]')[0].classList.add('md-snap-after')
+		);
+		expect(await paintedCarets(page)).toEqual(['[0]', '[1]']);
+
+		await editor.clickBlock(2);
+		await clickPastImage(page, 1);
+
+		await expect.poll(() => paintedCarets(page)).toEqual(['[1]']);
 	});
 
 	test('the native caret comes back when the synthetic clears', async ({ page }) => {

@@ -1,7 +1,9 @@
 <script module lang="ts">
-	import { DEMO_PLUGINS, DEMO_HIGHLIGHT_OCCURRENCES } from './demo-plugins';
+	import { DEMO_PLUGINS, DEMO_HIGHLIGHT_OCCURRENCES, DEMO_TAGS } from './demo-plugins';
 
 	// The prop is the enablement set, so the toggle is the plugin's presence in the array.
+	// The tour's bundled set plus in-body tags, which are a consumer's plugin rather than one of
+	// ours: the showcase is where a `#tag` can be felt out beside everything else.
 	const WITHOUT_OCCURRENCES = DEMO_PLUGINS.filter((unit) => unit !== DEMO_HIGHLIGHT_OCCURRENCES);
 </script>
 
@@ -9,6 +11,7 @@
 	import { resolve } from '$app/paths';
 	import { Editor, type PresentationMode } from '$lib';
 	import SHOWCASE_DOCUMENT from './showcase-content.md?raw';
+	import './test/plugins/tags/tag-marks.css';
 	import { trackParityDocument } from './parity-documents.svelte';
 	import DebugPanel from './debug-panel/DebugPanel.svelte';
 	import InsertToolbar from './InsertToolbar.svelte';
@@ -38,7 +41,10 @@
 	let dragHandles = $state(true);
 	let occurrences = $state(false);
 	let selectionMenu = $state(true);
-	const showcasePlugins = $derived(occurrences ? DEMO_PLUGINS : WITHOUT_OCCURRENCES);
+	const showcasePlugins = $derived([
+		...(occurrences ? DEMO_PLUGINS : WITHOUT_OCCURRENCES),
+		DEMO_TAGS
+	]);
 
 	function toggleDragHandles() {
 		if (editor) source = editor.getSource();

@@ -91,6 +91,12 @@ export interface WidgetPress {
 	modified?: boolean;
 	/** `MouseEvent.detail`; two or more is a double-click, which takes the token it just revealed. */
 	clickCount?: number;
+	/**
+	 * The pointer travelled between press and release, so the gesture was a DRAG. A reveal is a
+	 * click's outcome, never a drag's: revealing here would unmount the island the drag painted a
+	 * range across and put a caret where the press landed.
+	 */
+	moved?: boolean;
 }
 
 export interface WidgetInteraction {
@@ -142,6 +148,12 @@ export interface WidgetInteraction {
 	 * neighbouring text that moves with whatever is already selected.
 	 */
 	islandPressAnchor(x: number, y: number): number | null;
+	/**
+	 * The same read for a press that turns out to be a DRAG, which reaches one island more: a
+	 * reveal-source kind (a formula, a tag) owns the CLICK that reveals it, not the drag. Null on
+	 * a point over no island, or over one running a pointer gesture of its own.
+	 */
+	islandDragAnchor(x: number, y: number): number | null;
 }
 
 /**
@@ -555,6 +567,13 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		return seat?.inside ? seat.offset : null;
 	}
 
+	function islandDragAnchor(x: number, y: number): number | null {
+		const el = deps.getEl();
+		if (!el) return null;
+		const seat = nearestWidgetEdgeSeat(measuredWidgets(el, dragsFromIsland), x, y);
+		return seat?.inside ? seat.offset : null;
+	}
+
 	// The whole-token select belongs to the double-click that OPENED a reveal, and nothing in
 	// the second click's own shape tells it apart from a later one inside the same source.
 	let revealOpenedByLastClick = false;
@@ -837,7 +856,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		// The point-in-rect test runs BEFORE the text-node guard below, so a column-aligned
 		// click on real text on another visual line falls through to the caret path.
 		if (clickY !== null) {
-			const hit = hitTestRevealWidget(el, clickX, clickY);
+			const hit = press.moved ? null : hitTestRevealWidget(el, clickX, clickY);
 			if (hit) {
 				// Returns rather than falls through: the edge-snap below would focus this block and
 				// place a caret, stealing back what the widget's own navigation just landed.
@@ -869,7 +888,10 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		if (!caretIsInTextContent(el, window.getSelection())) deps.setSnapTarget(seat.offset);
 	}
 
-	function* measuredWidgets(el: HTMLElement): Generator<WidgetEdgeCandidate> {
+	function* measuredWidgets(
+		el: HTMLElement,
+		seatsInside: (kind: AnyInlineKind) => boolean = isCharacterLikeWidget
+	): Generator<WidgetEdgeCandidate> {
 		for (const inline of widgetsOf()) {
 			const widget = widgetElByStart(el, inline.start);
 			if (widget) {
@@ -877,10 +899,21 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 					start: inline.start,
 					end: inline.end,
 					rect: widget.getBoundingClientRect(),
-					seatsInside: isCharacterLikeWidget(inline.kind)
+					seatsInside: seatsInside(inline.kind)
 				};
 			}
 		}
+	}
+
+	/**
+	 * Which islands a DRAG may start inside. Every island is `contenteditable=false`, so the
+	 * browser starts no selection from any of them — but a kind running a pointer gesture of its
+	 * own (an image's resize handles) owns its press, and a range painted under that gesture would
+	 * fight it. A kind the caret reads as one character, or one whose press only ever ends in a
+	 * click (a reveal-source formula, a tag), has no such gesture.
+	 */
+	function dragsFromIsland(kind: AnyInlineKind): boolean {
+		return isCharacterLikeWidget(kind) || getInlineWidgetEditing(kind)?.revealSource === true;
 	}
 
 	function widgetExtensionTarget(key: 'ArrowRight' | 'ArrowLeft'): number | null {
@@ -924,6 +957,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		foldRevealBeforeMutation,
 		foldRevealIfSelectionEscaped,
 		isPointOnRevealWidget,
-		islandPressAnchor
+		islandPressAnchor,
+		islandDragAnchor
 	};
 }

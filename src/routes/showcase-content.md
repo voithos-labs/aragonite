@@ -4,7 +4,7 @@ Hello. Here's a birb.
 %%parrot Dancing is what to do. Dancing's when I think of you. Dancing's what clears my soul. Dancing's what makes me whole.
 
 
-Hmmm still have to demo. One sec.
+Hmmm still have to demo. One sec. Filed under #editor and #notes/markdown, if you like tags.
 
 [[toc]]
 
