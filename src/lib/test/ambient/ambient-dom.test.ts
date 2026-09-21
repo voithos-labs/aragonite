@@ -66,9 +66,9 @@ describe('buildAmbientSpan', () => {
 	});
 });
 
-// Miss-analysis (GH #115): the raw-0 landing preferred the first text node after the span with
-// no walk pin, so a leading widget's raw bytes were silently skipped and raw 0 read as the
-// widget's end.
+// Miss-analysis (GH #115): the caret at raw 0 preferred the first text node after the span,
+// with no test over the traversal, so a widget at the start had its raw bytes silently skipped
+// and raw 0 read as that widget's end.
 describe('placeCaretAfterAmbientSpan', () => {
 	function mountListBlock(...afterSpan: Node[]): HTMLElement {
 		const block = document.createElement('div');

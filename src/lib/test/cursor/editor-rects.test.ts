@@ -1,21 +1,22 @@
 // @vitest-environment jsdom
-// Geometry is real only in a browser (pixels are e2e-tested), but scrollTo's ORCHESTRATION is
-// pure wiring — claim before mount, mount before scroll, who may release the pin — and regresses
-// independently. Pinned with fakes over the REAL anchor state, since ownership is half the subject.
+// Geometry is real only in a browser (e2e covers the pixels), but the order `scrollTo` does
+// things in is plain wiring (claim before mount, mount before scroll, who may release the hold)
+// and breaks on its own. Tested with fakes over the real claim state, since ownership is half
+// the subject.
 
 import { describe, it, expect, vi } from 'vitest';
 import { createEditorRects } from '../../editor-rects';
 import { createRevealAnchorState, type RevealAnchorState } from '../../cursor/reveal-anchor';
 
-/** `unmountedPath` resolves to no element while every other path resolves to `el` —
- *  the shape a race between a failing reveal and a live one needs. */
+/** `unmountedPath` resolves to no element while every other path resolves to `el`: the shape
+ *  a race between a scroll that fails and one that works needs. */
 function makeRects(el: HTMLElement | null, unmountedPath?: number[]) {
 	const order: string[] = [];
 	const scrollIntoView = vi.fn((_opts?: ScrollIntoViewOptions) => order.push('scroll'));
 	if (el) el.scrollIntoView = scrollIntoView;
 	const real = createRevealAnchorState();
-	// Real ownership semantics, with the claim call recorded in `order` so the
-	// claim-before-mount sequencing stays pinned.
+	// Real ownership rules, with the claim call recorded in `order` so claiming before mounting
+	// stays tested.
 	const revealAnchor: RevealAnchorState = {
 		get: real.get,
 		claim: (path, block) => {
@@ -43,10 +44,10 @@ function makeRects(el: HTMLElement | null, unmountedPath?: number[]) {
 	return { rects, order, scrollIntoView, revealAnchor, landCaretAt };
 }
 
-// ── Settle-loop harness ─────────────────────────────────────────────────────
-// `makeRects` passes a null root, so its settle loop is unreachable. These give the loop a real
-// root and a scriptable per-path top: [initialTop, ...topAfterEachScrollIntoView], visible below
-// ROOT_BOTTOM — the shape of a first scroll landing short and the settle's refine correcting it.
+// ── Harness for the refinement loop ──────────────────────────────────────────
+// `makeRects` passes a null root, so its refinement loop never runs. These give the loop a real
+// root and a scriptable top per path: [initialTop, ...topAfterEachScrollIntoView], visible below
+// ROOT_BOTTOM, the shape of a first scroll landing short and the loop correcting it.
 const ROOT_BOTTOM = 100;
 const EL_HEIGHT = 20;
 
@@ -58,7 +59,7 @@ function makeSettlingRects(scripts: Record<string, number[]>) {
 	const harness = {
 		rects: null as unknown as ReturnType<typeof createEditorRects>,
 		revealAnchor,
-		/** Fires on the first scroll of the whole run — a reader taking over mid-reveal. */
+		/** Fires on the first scroll of the whole run: the user taking over mid-scroll. */
 		onFirstScroll: undefined as (() => void) | undefined,
 		scrollCount: (path: number[]) => scrolls.filter((k) => k === JSON.stringify(path)).length
 	};
@@ -105,15 +106,15 @@ describe('EditorRects.scrollTo', () => {
 	it('claims the reveal anchor before revealing, then scrolls', async () => {
 		const { rects, order } = makeRects(document.createElement('div'));
 		await rects.scrollTo([4]);
-		// The claim must land synchronously before the first await: the gesture that triggers a reveal
-		// (a Previous-match click) releases the anchor on pointerdown.
+		// The claim must happen synchronously before the first await: the gesture that starts the
+		// scroll (a Previous-match click) releases the held block on pointerdown.
 		expect(order).toEqual(['anchor', 'reveal', 'scroll']);
 	});
 
 	it('anchors the full target path at the requested block placement', async () => {
 		const { rects, revealAnchor } = makeRects(document.createElement('div'));
 		await rects.scrollTo([4, 2], { block: 'center' });
-		// 'center' releases on resolve, so read the pin from inside the reveal.
+		// 'center' releases once it resolves, so read the hold from inside the scroll.
 		expect(revealAnchor.get()).toBeNull();
 		await rects.scrollTo([4, 2]);
 		expect(revealAnchor.get()).toEqual({ path: [4, 2], block: 'nearest' });
@@ -130,7 +131,7 @@ describe('EditorRects.scrollTo', () => {
 		const { rects, scrollIntoView, revealAnchor } = makeRects(null);
 		expect(await rects.scrollTo([99])).toBe(false);
 		expect(scrollIntoView).not.toHaveBeenCalled();
-		// A failed reveal leaves no dangling pin fighting the next real scroll.
+		// A scroll that failed leaves nothing held to fight the next real scroll.
 		expect(revealAnchor.get()).toBeNull();
 	});
 
@@ -142,8 +143,9 @@ describe('EditorRects.scrollTo', () => {
 });
 
 describe('EditorRects.scrollTo — claim ownership', () => {
-	// Every terminal release runs through the claim, so a superseded reveal cannot take the fresher
-	// pin with it. Both self-releasing arms are covered — the 'center' refine and the hand-back.
+	// Every final release runs through the claim, so a scroll another one took over cannot take
+	// the newer hold with it. Both cases that release themselves are covered: the 'center'
+	// refinement and the hand-back.
 	for (const [name, opts] of [
 		['a center refine', { block: 'center' } as const],
 		['a hand-back restore', { hold: false } as const]
@@ -176,9 +178,9 @@ describe('EditorRects.scrollTo — claim ownership', () => {
 	});
 });
 
-// Who a claim's loss belongs to decides whether the settle keeps working: a rival reveal owns the
-// viewport, while a reader taking over ends only the durable pin and must not report a restore
-// that had not finished arriving as one that never would.
+// Why a claim was lost decides whether the refinement keeps working: another scroll owns the
+// viewport, while the user taking over ends only the lasting hold, and must not report a
+// restore that had not finished arriving as one that never would.
 describe('EditorRects.scrollTo — the settle, and who may end it', () => {
 	it('a superseded reveal stops scrolling for its own target and reports it out of view', async () => {
 		const h = makeSettlingRects({ '[1]': [500, 0], '[2]': [500, 0] });
@@ -187,15 +189,15 @@ describe('EditorRects.scrollTo — the settle, and who may end it', () => {
 
 		expect(await stale).toBe(false);
 		expect(await fresh).toBe(true);
-		// Zero, not "fewer": the pre-settle scroll is claim-gated too, so a claimant
-		// superseded during its mount wait never yanks the viewport at all.
+		// Zero, not "fewer": the scroll before the loop is also checked against the claim, so one
+		// taken over during its mount wait never yanks the viewport at all.
 		expect(h.scrollCount([1])).toBe(0);
 		expect(h.scrollCount([2])).toBeGreaterThan(0);
 	});
 
 	it('a user release mid-reveal leaves the settle running, so the target still lands in view', async () => {
-		// The first scroll lands short (script holds the target at 500) and the reader
-		// takes over exactly then; only the settle's refine brings it into view.
+		// The first scroll lands short (the script holds the target at 500) and the user takes over
+		// exactly then; only the refinement brings it into view.
 		const h = makeSettlingRects({ '[1]': [500, 500, 0] });
 		h.onFirstScroll = () => h.revealAnchor.releaseAll();
 

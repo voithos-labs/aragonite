@@ -14,8 +14,8 @@ describe('isGapSelection', () => {
 		const entry = entryWith({ gapCaret: { parentPath: [0], index: 1 } });
 
 		expect(isGapSelection(entry.selection)).toBe(true);
-		// The narrow is what lets a consumer read the gap at all; without it neither arm's
-		// fields are reachable on the union.
+		// Narrowing the type is what lets a consumer read the between-blocks case at all; without
+		// it neither case's fields are reachable on the union.
 		if (isGapSelection(entry.selection)) {
 			expect(entry.selection.gapCaret).toEqual({ parentPath: [0], index: 1 });
 		}

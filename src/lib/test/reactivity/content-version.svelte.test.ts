@@ -1,5 +1,5 @@
-// The key itself: a number that moves only when a door says the bytes moved. Who calls the door
-// is `content-version-doors.test.ts`.
+// The key itself: a number that moves only when a writer says the bytes moved. Who does the
+// calling is `content-version-doors.test.ts`.
 import { describe, it, expect } from 'vitest';
 import { createContentVersion } from '../../reactivity/content-version.svelte';
 
@@ -16,7 +16,7 @@ describe('content version', () => {
 		cleanup();
 	});
 
-	// The memo contract: a reader inside a `$derived` recomputes on the bump and not otherwise.
+	// The memo contract: a read inside a `$derived` recomputes on the bump and not otherwise.
 	it('a derived reader recomputes exactly once per bump', () => {
 		const cleanup = $effect.root(() => {
 			const version = createContentVersion();

@@ -1,4 +1,5 @@
-// Miss-analysis: devWarn returned early under Vitest, so the guard channel was unobservable.
+// Miss-analysis: `devWarn` returned early under Vitest, so nothing could see what the dev-mode
+// checks reported.
 
 import { describe, it, expect } from 'vitest';
 import { tick } from 'svelte';
@@ -116,8 +117,8 @@ describe('warn-gate sink', () => {
 	});
 });
 
-// An unrestored sink swap blinds the gate for the rest of the worker: later fires reach the
-// console instead, and every later test passes regardless.
+// A callback swapped in and not restored blinds the gate for the rest of the worker: later
+// warnings go to the console instead, and every later test passes whatever happens.
 describe('warn-gate sink ownership', () => {
 	it('reds the test that stole the sink, and re-arms itself for the next one', async () => {
 		const thief: unknown[] = [];
@@ -135,8 +136,8 @@ describe('warn-gate sink ownership', () => {
 	});
 });
 
-// A guard that awaits a tick before warning (`reportContestedClaim`) fires after its own
-// test's claim door has run: the verdict ticks first so the fire lands on its own test.
+// A check that awaits a tick before warning (`reportContestedClaim`) fires after its own
+// test's registration has run: the tick comes first, so the warning lands in its own test.
 describe('warn-gate deferred fires', () => {
 	it('attributes a tick-deferred fire to the test that provoked it', async () => {
 		void tick().then(() => devWarn('probe', 'deferred past the claim door'));

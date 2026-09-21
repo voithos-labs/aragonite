@@ -2,8 +2,8 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { devWarn, setDevWarnSink, type DevWarnEntry, type DevWarnSink } from '../dev-warn';
 import { configureEditorEnv } from '../env';
 
-// The console arm is what the e2e watchers read, so it is pinned with the unit gate's sink
-// detached — a registered sink takes reporting over and the console line never happens.
+// The console branch is what the e2e watchers read, so it is tested with the unit suite's own
+// callback detached: a registered callback takes over reporting and the console line never runs.
 describe('devWarn — console arm', () => {
 	let warnSpy: ReturnType<typeof vi.spyOn>;
 	let gateSink: DevWarnSink | null;

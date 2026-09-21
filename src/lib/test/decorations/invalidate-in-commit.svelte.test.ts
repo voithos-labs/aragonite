@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 //
-// Miss-analysis: the engine suites drove `invalidate()` from outside any commit and the commit
-// suites drove no decoration source, so nothing ever called the public handle from the `edit`
-// handler the ceremony emits into (GH #262).
+// Miss-analysis: the decoration suites called `invalidate()` from outside any commit and the
+// commit suites registered no decoration source, so nothing ever called the public handle from
+// the `edit` handler a commit emits into (GH #262).
 import { describe, it, expect } from 'vitest';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
 import { createDecorationEngine } from '$lib/decorations/decoration-state.svelte';
@@ -48,7 +48,8 @@ describe('a source that invalidates from its own edit handler', () => {
 			op: { kind: 'insertBlock', eventPath: asDocPath([1]) }
 		});
 
-		// The addSource run and nothing else: the handler's invalidate did not run inline.
+		// The run from `addSource` and nothing else: the handler's `invalidate` did not run there
+		// and then.
 		expect(runsWhenHandlerReturned).toBe(1);
 		expect(runs).toHaveLength(2);
 		expect(runs[1]).toEqual({ inCommit: false, blocks: doc.children.length });

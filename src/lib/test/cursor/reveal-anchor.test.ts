@@ -1,6 +1,6 @@
-// The slot's ownership algebra. One target at a time, but per-call claims decide
-// who may drop it: without that, an earlier reveal's terminal release nukes the pin
-// a later reveal is still riding.
+// Who owns the one held block. One target at a time, but a claim per call decides who may drop
+// it: without that, an earlier scroll's final release would clear the hold a later scroll is
+// still using.
 import { describe, it, expect } from 'vitest';
 import { createRevealAnchorState } from '../../cursor/reveal-anchor';
 
@@ -28,8 +28,8 @@ describe('reveal anchor', () => {
 		expect(fresh.isSuperseded()).toBe(false);
 	});
 
-	// The distinction the settle loop turns on: a successor means another reveal owns the viewport,
-	// an empty slot means nobody does. Supersession is monotone.
+	// The distinction the refinement loop turns on: a later claim means another scroll owns the
+	// viewport, an empty slot means nobody does. Once taken over, a claim stays taken over.
 	it('an empty slot is not supersession, however it was emptied', () => {
 		const anchor = createRevealAnchorState();
 		const byUser = anchor.claim([1]);
@@ -45,8 +45,9 @@ describe('reveal anchor', () => {
 		expect(stale.isSuperseded()).toBe(true);
 	});
 
-	// A claim in flight outlives the pin it lost, so the next reveal owns the viewport over it;
-	// reading the slot instead of the last mint leaves the successor with nobody to supersede.
+	// A claim still in progress outlives the hold it lost, so the next scroll owns the viewport
+	// over it; reading the slot instead of the last claim made leaves the newer one with nobody to
+	// take over from.
 	it('a later claim supersedes an earlier one across an emptied slot', () => {
 		const anchor = createRevealAnchorState();
 		const inFlight = anchor.claim([1]);
@@ -63,8 +64,8 @@ describe('reveal anchor', () => {
 		expect(anchor.get()?.path).toEqual([2]);
 	});
 
-	// Identity, not path equality: two claimants revealing the SAME target are still
-	// two claimants, and the older one's terminal release must not end the newer's band.
+	// Identity, not an equal path: two callers scrolling to the same target are still two
+	// callers, and the older one's final release must not end the newer one's turn.
 	it('a superseded claim on the same path cannot release the fresher pin either', () => {
 		const anchor = createRevealAnchorState();
 		const stale = anchor.claim([7], 'center');

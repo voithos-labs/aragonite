@@ -12,10 +12,10 @@ import {
 	resetPerfInstruments
 } from '$lib/perf/instruments';
 
-// Kind re-derivation costs a `parse` of the container's WHOLE raw, so it is gated on
-// the first line having changed AND that line's opener verdict having moved. The
-// second gate is what keeps keystroke cost off the container-size axis: typing into a
-// list's first item rewrites the opener line without moving any verdict.
+// Re-deriving a container's kind costs a `parse` of its whole raw, so it happens only when
+// the first line changed and that line's opener answer changed with it. The second condition is
+// what keeps the cost of a keystroke off the container-size axis: typing into a list's first
+// item rewrites the opener line without changing any answer.
 
 const KEYSTROKES = 20;
 
@@ -52,9 +52,9 @@ describe('container kind re-derivation gate', () => {
 		expect(reparses()).toBe(0);
 	});
 
-	// First gate passes, second holds: each of these rewrites the container's opener
-	// line on every keystroke while its verdict stays put. The rows that put the cost
-	// on the container-size axis when only the first gate exists.
+	// The first condition passes and the second holds: each of these rewrites the container's
+	// opener line on every keystroke while the opener's answer stays the same. These are the rows
+	// that put the cost on the container-size axis when only the first condition exists.
 	it.each([
 		['blockquote first paragraph', '> head\n>\n> body\n', [0, 0]],
 		['list first item', '- one\n- two\n- three\n', [0, 0, 0]]
@@ -64,18 +64,17 @@ describe('container kind re-derivation gate', () => {
 		expect(reparses()).toBe(0);
 	});
 
-	// A directive's opener declines a one-line probe (it wants its `:::` closer), so
-	// the second gate can never confirm it and only the FIRST gate holds here. Costs
-	// nothing by typing: that line carries only the directive name.
+	// A directive's opener declines when shown one line (it wants its `:::` closer), so the
+	// second condition can never confirm it and only the first holds here. Typing costs nothing:
+	// that line carries only the directive name.
 	it('reparses nothing while typing into a directive container body', () => {
 		typeInto(':::spoiler\n\nbody\n\n:::\n', [0, 0], KEYSTROKES);
 
 		expect(reparses()).toBe(0);
 	});
 
-	// Only the keystroke that closes the marker moves the verdict. The trailing `x`
-	// keeps a post-formation keystroke in the stream, so a latched-open gate
-	// over-counts here.
+	// Only the keystroke that closes the marker changes the answer. The trailing `x` keeps one
+	// keystroke after that in the run, so a check that stayed open once opened over-counts here.
 	it('reparses only on the keystroke that moves the opener verdict', () => {
 		const doc = parse('> [!TI\n');
 		const sharing = createSharingState();

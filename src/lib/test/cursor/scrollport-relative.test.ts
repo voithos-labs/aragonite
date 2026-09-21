@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { withRelativeScroll, type Scrollport } from '../../cursor/scrollport';
 
-/** A scroller with a real one's two refusals: it rounds every write to a whole pixel, and
- *  clamps at both ends. */
+/** A scroller with the two behaviours a real one has: it rounds every write to a whole pixel,
+ *  and clamps at both ends. */
 function snappingScroller(
 	max = Infinity
 ): Omit<Scrollport, 'scrollBy'> & { jumpTo(value: number): void } {

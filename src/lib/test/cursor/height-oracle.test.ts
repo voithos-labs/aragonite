@@ -38,7 +38,7 @@ describe('createHeightOracle', () => {
 			raw: '```\na\nb\n```\n',
 			metadata: { fenceMarker: '`', fenceLength: 3, info: '', closed: true }
 		};
-		// 4 source lines at codeLineHeight + chrome.
+		// 4 source lines at `codeLineHeight`, plus the block's own margins.
 		expect(o.estimate(code, 800)).toBe(20 * 4 + 16);
 	});
 
@@ -57,8 +57,8 @@ describe('createHeightOracle', () => {
 		expect(o.measured('id-1')).toBeUndefined();
 	});
 
-	// table/tableRow are the only arm combining sourceLines with the prose lineHeight — folding it
-	// into the default (wrapped) arm would ship silently without this guard.
+	// `table` and `tableRow` are the only case combining source lines with the prose line height;
+	// folding it into the default wrapped case would ship silently without this check.
 	it('estimates table and tableRow by source-line count at prose line height', () => {
 		const o = createHeightOracle(opts);
 		const table: CstNode = {
@@ -77,8 +77,9 @@ describe('createHeightOracle', () => {
 		expect(o.estimate(row, 800)).toBe(24 * 1 + 16);
 	});
 
-	// Containers use a child-count-aware arm: at least one line + chrome per child, and at least the
-	// blob-wrap of the materialized raw — a blob-only estimate undercounts a several-child container.
+	// Containers estimate from their child count: at least one line plus margins per child, and
+	// at least the wrapped length of the whole raw; going by the raw alone undercounts a container
+	// with several children.
 	it('estimates a child-less container by its blob-wrap (no children term)', () => {
 		const o = createHeightOracle(opts);
 		const quote: CstNode = {
@@ -87,7 +88,7 @@ describe('createHeightOracle', () => {
 			raw: 'x'.repeat(250),
 			metadata: { quoteDepth: 1 }
 		};
-		// blob-wrap (3 lines) dominates the single-child fallback term.
+		// The wrapped-length term (3 lines) is larger than the single-child term.
 		expect(o.estimate(quote, 800)).toBe(24 * 3 + 16);
 	});
 
@@ -108,14 +109,14 @@ describe('createHeightOracle', () => {
 			metadata: { ordered: false },
 			children: [{}, {}, {}, {}, {}] as CstNode[]
 		};
-		// Identical raw, more children => taller: a raw-only estimate gives both the
-		// same ~1-line height.
+		// Same raw, more children, so taller: an estimate from the raw alone gives both the same
+		// height of about one line.
 		expect(o.estimate(many, 800)).toBeGreaterThan(o.estimate(few, 800));
 		expect(o.estimate(many, 800)).toBe(5 * (24 + 16)); // 5 children, >= one line + chrome each
 	});
 
-	// The plugin-contract unknown-kind rule: a kind with no per-kind arm must fall
-	// through to the default wrapped (prose) estimate, never crash the measure path.
+	// The plugin contract's rule for an unknown kind: a kind with no case of its own falls
+	// through to the default wrapped prose estimate, and never crashes the measure path.
 	it('estimates an unknown plugin kind via the default wrapped arm', () => {
 		const o = createHeightOracle(opts);
 		const plugin: CstNode = {
@@ -146,8 +147,9 @@ describe('createHeightOracle', () => {
 		expect(o.estimate(hr, 200)).toBe(24 + 16);
 	});
 
-	// A rendered image is far taller than its `![alt](url)` source, so the char-based estimate seeds
-	// an image-only paragraph at ~1 line; the floor keeps activation and spacers honest.
+	// A rendered image is far taller than its `![alt](url)` source, so the character-based
+	// estimate puts an image-only paragraph at about one line; the floor keeps windowing and the
+	// spacers honest.
 	it('floors an image-bearing paragraph at imageBlockMinHeight', () => {
 		const o = createHeightOracle(opts);
 		const img: CstNode = { kind: 'paragraph', leadingTrivia: '', raw: '![A photo|400](pic.png)' };
@@ -172,8 +174,8 @@ describe('createHeightOracle', () => {
 		expect(o.estimate(para('hello'), 800)).toBe(24 + 16);
 	});
 
-	// Reference-style images (`![alt][ref]`) have no `(`; a detector requiring one misses them and
-	// estimates a wall of reference images at ~1 line.
+	// Reference-style images (`![alt][ref]`) have no `(`; a check that requires one misses them
+	// and estimates a wall of reference images at about one line.
 	it('floors a reference-style image paragraph (the `(`-less form)', () => {
 		const o = createHeightOracle(opts);
 		const ref: CstNode = { kind: 'paragraph', leadingTrivia: '', raw: '![a screenshot][shot]' };
@@ -210,8 +212,8 @@ describe('createHeightOracle', () => {
 		expect(o.estimate(wide, 800)).toBeGreaterThan(2 * 24 + 16);
 	});
 
-	// A collapsed container mounts only its chrome row, so estimating from its full `raw` (which
-	// still carries the hidden body) over-counts several-fold; open, the full-raw arm applies.
+	// A collapsed container mounts only its title row, so estimating from its full `raw`, which
+	// still holds the hidden body, over-counts several times over; open, the full-raw case applies.
 	it('estimates a collapsed container at one chrome row, open at its full raw', () => {
 		const o = createHeightOracle(opts);
 		const summary = declarePluginKind('oracle-collapsible-chrome');
@@ -222,8 +224,8 @@ describe('createHeightOracle', () => {
 			editable: true,
 			supportsInline: false,
 			closure: testClosure,
-			// The oracle only estimates, so an inert strip contract + noop rebuild
-			// satisfy the group's required pairing.
+			// The estimator only estimates, so a do-nothing strip and rebuild are enough to satisfy
+			// the pair the group requires.
 			container: {
 				contract: 'strip',
 				rebuildRaw: () => {},
@@ -244,8 +246,9 @@ describe('createHeightOracle', () => {
 		expect(o.estimate(open, 800)).toBe(20 * 24 + 16);
 	});
 
-	// A descriptor's own O(1) estimate supersedes the char-based default arm (a rendered diagram or
-	// embed dwarfs its source text). Block chrome is still added and a measured height still wins.
+	// A descriptor's own O(1) estimate replaces the character-based default (a rendered diagram
+	// or embed dwarfs its source text). The block's margins are still added, and a measured height
+	// still wins.
 	it('a descriptor estimateHeight wins over the default arm, plus block chrome', () => {
 		const o = createHeightOracle(opts);
 		const estimated = declarePluginKind('oracle-estimate-height');
@@ -261,8 +264,8 @@ describe('createHeightOracle', () => {
 		expect(o.estimate(node, 600)).toBe(320 + opts.blockChrome);
 	});
 
-	// Ordering guard: the collapse arm precedes the estimateHeight arm, so a collapsed container
-	// mounts one chrome row. Swapping the arms would return 320 + chrome here.
+	// Order matters: the collapsed case comes before the `estimateHeight` case, so a collapsed
+	// container mounts one title row. Swapping them would return 320 plus margins here.
 	it('a collapsed container ignores estimateHeight (one chrome row wins)', () => {
 		const o = createHeightOracle(opts);
 		const summary = declarePluginKind('oracle-estimate-chrome');

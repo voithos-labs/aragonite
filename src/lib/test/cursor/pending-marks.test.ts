@@ -11,12 +11,12 @@ import {
 } from '../../cursor/pending-marks';
 import type { InlineMarkKind } from '../../schema/inline-construct-policy';
 
-// The set a collapsed-caret toggle promises the next insertion. Two properties carry the
-// contract: exactly one insertion spends it, and every caret-invalidating seam drops it —
-// the second by composition with the edge affinity rather than by a clear at each seam, so
-// the seam list can never drift out of parity. Miss-analysis (lifecycle, not a bug fix): the
-// column and the affinity are pinned only at their own doors, so a third rider needs its own
-// matrix or its clearing is asserted nowhere.
+// The marks a toggle with no selection promises the next insertion. Two properties carry the
+// contract: exactly one insertion uses them up, and everything that moves the caret drops
+// them. The second holds because they ride along with the edge affinity rather than being
+// cleared in each place, so the list of places can never fall out of step. Miss-analysis (a
+// lifecycle gap, not a bug fix): the sticky column and the affinity are tested only where they
+// are set, so a third rider needs its own table or nothing asserts that it is cleared.
 
 const kinds = (marks: ReadonlySet<InlineMarkKind> | null): InlineMarkKind[] =>
 	marks === null ? [] : [...marks].sort();
@@ -29,8 +29,8 @@ describe('flipMark', () => {
 		expect(kinds(flipMark(one, 'strong'))).toEqual([]);
 	});
 
-	// Null, not an empty set: a read is then the whole question, and no consumer has to
-	// distinguish "nothing pending" from "pending nothing".
+	// Null, not an empty set, so one read answers the whole question and no caller has to tell
+	// "nothing pending" from "pending nothing".
 	it('empties to null rather than to an empty set', () => {
 		expect(flipMark(flipMark(null, 'strong'), 'strong')).toBeNull();
 	});
@@ -69,9 +69,9 @@ describe('pending marks lifecycle', () => {
 	});
 });
 
-// The clearing matrix is the affinity's invalidation matrix, by construction: the marks are
-// composed onto the affinity at the editor root, so every seam that invalidates the arrival
-// side drops the marks too. Driving it through the affinity is what pins that.
+// The table of what clears these is the affinity's own table, by construction: the marks are
+// attached to the affinity at the editor root, so everything that invalidates which side the
+// caret arrived on drops the marks too. Driving it through the affinity is what tests that.
 describe('pending marks clear with the caret side', () => {
 	function composed(): { affinity: EdgeAffinityState; marks: PendingMarksState } {
 		const marks = createPendingMarksState();
@@ -97,8 +97,8 @@ describe('pending marks clear with the caret side', () => {
 		expect(marks.get()).toBeNull();
 	});
 
-	// The whole point of riding `note`: the affinity only records a side there, but a caret
-	// that MOVED is a caret the promise no longer applies to.
+	// The whole point of riding along with `note`: the affinity only records a side there, but a
+	// caret that moved is a caret the promise no longer applies to.
 	const MOVED: Record<string, EdgeAffinityAction> = {
 		ArrowLeft: 'far',
 		ArrowRight: 'near',
@@ -121,8 +121,8 @@ describe('pending marks clear with the caret side', () => {
 		});
 	}
 
-	// The chord that SETS them is a bare modifier followed by a letter, and the byte that
-	// SPENDS them is a printable key — both must reach the seat with the promise intact.
+	// The chord that sets them is a modifier plus a letter, and the byte that uses them up is a
+	// printable key; both have to reach the write with the promise intact.
 	for (const key of ['Control', 'Meta', 'Shift', 'Alt', 'AltGraph', 'CapsLock', 'b', 'X', 'é']) {
 		it(`${key} preserves them`, () => {
 			const { affinity, marks } = pended();

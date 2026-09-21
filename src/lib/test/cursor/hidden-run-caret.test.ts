@@ -1,11 +1,11 @@
 // @vitest-environment jsdom
 //
-// Hidden marker runs are caret-opaque: a mode that hides markers with no reveal leaves
-// `display:none` text in the walk, which reads must canonicalize out of and writes must
-// never seat a range inside.
+// The caret cannot enter a run of hidden markers: a mode that hides markers and shows none of
+// them back leaves `display:none` text in the traversal, which reads have to move out of and
+// writes must never put a range inside.
 // Miss-analysis: every existing offset suite builds a bare container with no
-// `data-presentation` root, so no test could observe a mode-hidden run at all — the walk
-// was only ever exercised in source-mode shape.
+// `data-presentation` root, so no test could see a run hidden by the mode at all, and the
+// traversal was only ever exercised in the shape source mode produces.
 import { describe, it, expect, afterEach } from 'vitest';
 import { asDomTextOffset, asRawOffset } from '../../cursor/coordinate-spaces';
 import {
@@ -29,8 +29,8 @@ interface Fixture {
 	openSpan: HTMLElement;
 }
 
-/** `**bold**` (optionally behind a block-own prefix or a list item's ambient `- `) under one
- *  presentation mode. */
+/** `**bold**`, optionally behind the block's own prefix or a list item's `- ` marker, under
+ *  one presentation mode. */
 function mount(
 	options: { mode?: string; focused?: boolean; ambient?: string; blockPrefix?: string } = {}
 ): Fixture {
@@ -61,7 +61,7 @@ function mount(
 	};
 }
 
-/** A chrome span of any marker family, appended after the block's content. */
+/** A marker span of any family, appended after the block's content. */
 function appendSpan(block: HTMLElement, className: string, text: string): HTMLElement {
 	const span = document.createElement('span');
 	span.className = className;
@@ -129,7 +129,8 @@ describe('isHiddenMarkerText — the marker-hiding CSS families, read structural
 	});
 
 	it('answers false for an unstamped whole-block marker in a focused preview-inline host', () => {
-		// The block-own prefix carries no data-construct-* stamp and reveals with block focus.
+		// The block's own prefix has no `data-construct-*` attribute and shows when the block is
+		// focused.
 		const fx = mount({ mode: 'preview-inline', focused: true });
 		expect(isHiddenMarkerText(fx.openMarker, fx.block)).toBe(false);
 	});
@@ -141,9 +142,9 @@ describe('isHiddenMarkerText — the marker-hiding CSS families, read structural
 	});
 
 	it('answers true for an UNSTAMPED ref label in a focused preview-inline host', () => {
-		// The stylesheet's unstamped-reveal arm is scoped to `.md-marker`; a ref label reveals
-		// only by class. Reachable: a table cell renders inline with no construct stamps in any
-		// mode, so its `[ref]` label is unstamped and still display:none.
+		// The stylesheet's rule for a marker with no attribute is limited to `.md-marker`; a
+		// reference label shows only by class. Reachable: a table cell renders inline with no
+		// construct attributes in any mode, so its `[ref]` label has none and is still display:none.
 		const fx = mount({ mode: 'preview-inline', focused: true });
 		const label = appendSpan(fx.block, 'md-ref-label', '[ref]');
 		expect(isHiddenMarkerText(label.firstChild!, fx.block)).toBe(true);
@@ -155,7 +156,7 @@ describe('isHiddenMarkerText — the marker-hiding CSS families, read structural
 describe('domTextOffsetAtNode — a hidden run has no interior walk positions', () => {
 	it('canonicalizes the three DOM positions that paint at one pixel', () => {
 		const fx = mount({ mode: 'live' });
-		// (blockEl,0) is the block start, outside the run; the two interior reads snap out.
+		// (blockEl,0) is the block start, outside the run; the two reads inside it snap out.
 		expect(domTextOffsetAtNode(fx.block, fx.block, 0)).toBe(0);
 		expect(domTextOffsetAtNode(fx.block, fx.openMarker, 1)).toBe(2);
 		expect(domTextOffsetAtNode(fx.block, fx.body, 0)).toBe(2);
@@ -167,13 +168,13 @@ describe('domTextOffsetAtNode — a hidden run has no interior walk positions', 
 	});
 
 	it('canonicalizes element-level positions inside a coalesced run', () => {
-		// `## **bold**`: two adjacent hidden spans are one run [0,5), so an element-level
-		// position between them is as interior as a text one — and feeds the block-exit arms.
+		// `## **bold**`: two adjacent hidden spans are one run [0,5), so a position between them at
+		// the element level is as much inside as one in text, and feeds the block-exit cases.
 		const fx = mount({ mode: 'live', blockPrefix: '## ' });
 		expect(domTextOffsetAtNode(fx.block, fx.block, 0)).toBe(0);
 		expect(domTextOffsetAtNode(fx.block, fx.block, 1)).toBe(0);
 		expect(domTextOffsetAtNode(fx.block, fx.openSpan, 0)).toBe(0);
-		// The run's far boundary is a real position — the first visible byte.
+		// The run's far boundary is a real position: the first visible byte.
 		expect(domTextOffsetAtNode(fx.block, fx.block, 2)).toBe(5);
 	});
 
@@ -183,9 +184,9 @@ describe('domTextOffsetAtNode — a hidden run has no interior walk positions', 
 		expect(domTextOffsetAtNode(fx.block, fx.body, 0)).toBe(2);
 	});
 
-	// Miss-analysis (GH #126): every coalescing fixture used ADJACENT spans, so the empty text
-	// node Chromium leaves between spans — zero contribution, but a segment boundary — was
-	// never in any walk a test observed, and it split the run into two.
+	// Miss-analysis (GH #126): every fixture for joining runs used adjacent spans, so the empty
+	// text node Chromium leaves between spans, which contributes nothing but is still a boundary,
+	// was never in a traversal any test watched, and it split the run in two.
 	describe('a zero-length text node between hidden spans does not split the run', () => {
 		function mountWithEmptyBetween() {
 			const fx = mount({ mode: 'live', blockPrefix: '## ' });
@@ -207,12 +208,12 @@ describe('domTextOffsetAtNode — a hidden run has no interior walk positions', 
 	});
 });
 
-// The guard is the landing seam these all share, not a snap carried at each door.
+// The check lives where all of these place the caret, not as a snap repeated at each call.
 // `[ab](u) text` as the link renders it, both runs inside the link element. A target at the
 // closer's end is the prose's first position, not the slot after the hidden span: Chromium
-// canonicalizes that slot upstream across the run, so a byte typed there landed inside the link.
-// Miss-analysis: every finder row targeted a run interior or a run start; none asked where a
-// commit's own park past a hidden CLOSER puts the DOM caret.
+// moves that slot back across the run, so a byte typed there landed inside the link.
+// Miss-analysis: every row targeted the inside or the start of a run; none asked where a
+// commit placing the caret past a hidden closer puts the DOM caret.
 describe('a target past a hidden closer lands in the text that follows', () => {
 	it('prefers the following text node over the slot after the hidden span', () => {
 		const fx = mount({ mode: 'live' });
@@ -234,7 +235,7 @@ describe('a target past a hidden closer lands in the text that follows', () => {
 	});
 });
 
-/** A DOM position as text: a diff over the node itself walks into the window and its runes. */
+/** A DOM position as text: diffing the node itself would print the whole window and its runes. */
 function describePosition(pos: { node: Node; offset: number } | null): string {
 	if (!pos) return 'null';
 	return pos.node.nodeType === Node.TEXT_NODE
@@ -264,7 +265,7 @@ describe('caret writes never seat a range in hidden marker text', () => {
 	});
 
 	it('the ambient boundary lands before a hidden run, not inside it', () => {
-		// `- **bold**`: the first text node after the ambient span is the hidden `**`.
+		// `- **bold**`: the first text node after the marker prefix is the hidden `**`.
 		const fx = mount({ mode: 'live', ambient: '- ' });
 		fx.block.focus();
 		const io = cursorIO(fx.block, 2);

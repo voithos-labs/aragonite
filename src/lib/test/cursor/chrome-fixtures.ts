@@ -1,11 +1,11 @@
-/** The chrome vocabulary the widget-offset walk suites mount: marker spans, atomic
- *  widgets, and a block under one presentation mode. Probe fixtures whose divergence
- *  IS a suite's subject stay in their files. */
+/** The marker DOM the widget-offset suites mount: marker spans, widgets the caret cannot
+ *  enter, and a block under one presentation mode. A fixture whose difference from these is a
+ *  suite's own subject stays in that suite's file. */
 
 import { CONTENT_EMPTY_ATTR } from '../../cursor/widget-offset';
 
 export interface MountOptions {
-	/** Leave a stamped block unfocused: its chrome then hides like any other block's. */
+	/** Leave a marked block unfocused: its markers then hide like any other block's. */
 	unfocused?: boolean;
 	mode?: string;
 	stamped?: boolean;
@@ -21,9 +21,9 @@ export function mountBlock(options: MountOptions, ...parts: Node[]): HTMLElement
 	block.append(...parts);
 	root.appendChild(block);
 	document.body.appendChild(root);
-	// The stamp paints only while the block holds focus (`editor.css`'s `:focus-within` rung, which
-	// `screenVisibilityOf` mirrors), and a stamped fixture is asking about the painted state — the
-	// unfocused one is `mountBlock({ stamped: true, unfocused: true })`.
+	// The attribute paints only while the block has focus (the `:focus-within` rule in
+	// `editor.css`, which `screenVisibilityOf` mirrors), and a marked fixture is asking about the
+	// painted state; the unfocused one is `mountBlock({ stamped: true, unfocused: true })`.
 	if (options.stamped && !options.unfocused) block.focus();
 	return block;
 }

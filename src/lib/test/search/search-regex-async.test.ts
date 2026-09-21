@@ -7,13 +7,13 @@ import {
 } from '../../search/regex-executor';
 import { makeSearchHarness, type ReplaceStub } from './harness';
 
-// Regex scans leave the main thread, so their results land after the call that
-// asked for them. These pin what the find bar does in that window.
+// Regex scans leave the main thread, so their results arrive after the call that asked for
+// them. These check what the find bar does in the meantime.
 
 const flush = () => new Promise<void>((resolve) => setTimeout(resolve, 0));
 
-/** An executor that settles only when the test says so, so the window between
- *  kickoff and landing is inspectable. */
+/** An executor that resolves only when the test says so, so the gap between starting and
+ *  finishing can be inspected. */
 function makeHeldExecutor() {
 	const held: { request: RegexScanRequest; settle: (o: RegexScanOutcome) => void }[] = [];
 	const executor: RegexExecutor = {
@@ -32,8 +32,8 @@ function makeState(source: string, regexExecutor?: RegexExecutor, replace?: Repl
 
 describe('SearchState — off-thread regex scans', () => {
 	it('publishes matches when the scan lands, not when the query is set', async () => {
-		// The real executor on its synchronous fallback: still a promise, so the
-		// find bar sees the same two-phase shape it sees in a browser.
+		// The real executor on its synchronous fallback: still a promise, so the find bar sees the
+		// same two-step shape it sees in a browser.
 		const { state } = makeState('cat cat\n\ncat\n', createRegexExecutor());
 		state.setQuery('c.t');
 		expect(state.isScanning).toBe(true);
@@ -60,7 +60,7 @@ describe('SearchState — off-thread regex scans', () => {
 		state.setQuery('d.g');
 		expect(held).toHaveLength(2);
 
-		// The superseded scan settles LAST, so a missing epoch check would let it win.
+		// The scan that was replaced resolves last, so a missing counter check would let it win.
 		held[1].settle({
 			ok: true,
 			epoch: held[1].request.epoch,
@@ -141,8 +141,8 @@ describe('SearchState — off-thread regex scans', () => {
 	});
 
 	it('replaceAll waits for the pending scan instead of reading an empty set', async () => {
-		// Without the await, replaceAll's `if (!matches.length) return` fires on the
-		// scan window and the click silently does nothing.
+		// Without the await, `replaceAll`'s `if (!matches.length) return` fires while the scan is
+		// still running and the click silently does nothing.
 		let replacedWith: number | null = null;
 		const { state } = makeState('cat cat\n', createRegexExecutor(), {
 			replaceOne: async () => 0,

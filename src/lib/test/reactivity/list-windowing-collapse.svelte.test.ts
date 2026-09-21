@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
-// Collapse clamp: a collapsed scope substitutes a fixed [0,1) WindowResult at the
-// returned surface — the window math is bypassed, not fed — and clamps
-// isInWindow/revealChild so reveal-into-collapsed degrades instead of hanging (VR-5).
+// A collapsed list returns a fixed `[0, 1)` window instead of running the window math, and
+// clamps `isInWindow` and `revealChild` so scrolling into a collapsed body gives up rather than
+// hanging (VR-5).
 import { describe, it, expect, vi } from 'vitest';
 import { flushSync, tick } from 'svelte';
 import { fixedOracle, makePara, mountListWindowing } from '../harness/list-windowing.svelte';
@@ -29,8 +29,8 @@ describe('collapsed window substitution', () => {
 	});
 
 	it('clamps to [0,1) with zero spacers when the underlying window is active', () => {
-		// 100×50px activates windowing; feeding the math a clamped slice would emit
-		// a ~4950px bottom spacer — the fixed result proves the math is bypassed.
+		// 100 blocks of 50px turn windowing on; feeding the math a clamped range would emit a
+		// bottom spacer of about 4950px, so the fixed result proves the math is skipped.
 		const { windowing, cleanup } = setup(100, () => true);
 		expect(windowing.window).toEqual(CLAMP);
 		cleanup();
@@ -55,8 +55,8 @@ describe('collapsed window substitution', () => {
 
 describe('isInWindow clamp', () => {
 	it('reports only index 0 in-window while collapsed, even for an inactive-window container', () => {
-		// Unclamped, an inactive window is [0, n) — every index true — so a reveal
-		// into the collapsed body would pass the VR-5 membership check and hang.
+		// Unclamped, a window with windowing off is [0, n), true for every index, so scrolling into
+		// the collapsed body would pass the VR-5 check and then hang.
 		const { windowing, cleanup } = setup(4, () => true);
 		expect(windowing.isInWindow(0)).toBe(true);
 		expect(windowing.isInWindow(1)).toBe(false);
@@ -93,8 +93,8 @@ describe('expand after collapse', () => {
 		collapsed = false;
 		flushSync();
 
-		// The window result can be identical across the flip for a small container, so the
-		// read has to ride the registration itself rather than a window change.
+		// For a small container the window can be identical either way, so the read has to follow
+		// the registration itself rather than a change in the window.
 		const applyHeight = vi.fn();
 		windowing.registerChild('b1', { readHeight: () => 42, applyHeight });
 		await tick();

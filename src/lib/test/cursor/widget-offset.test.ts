@@ -23,7 +23,7 @@ describe('findDomTextOffsetTarget — widget boundary placement', () => {
 		w.setAttribute('contenteditable', 'false');
 		w.setAttribute('data-source-start', String(start));
 		w.setAttribute('data-source-end', String(end));
-		// Non-empty inner so a faulty walker that reads textContent would diverge.
+		// Non-empty inner text, so a faulty traversal that reads `textContent` would disagree.
 		const img = document.createElement('img');
 		w.appendChild(img);
 		return w;
@@ -34,20 +34,20 @@ describe('findDomTextOffsetTarget — widget boundary placement', () => {
 	}
 
 	it('lands inside the trailing text-node sentinel for widget end offset', () => {
-		// Layout: [widget(0..10), sentinel] — image-only paragraph.
+		// Layout: [widget(0..10), marker node]: a paragraph holding only an image.
 		const w = widget(0, 10);
 		const trailing = sentinel();
 		el.append(w, trailing);
 
 		const pos = findDomTextOffsetTarget(el, asDomTextOffset(10));
 		expect(pos).not.toBeNull();
-		// Landing at parent + idx+1 instead makes Chromium drop beforeinput at this position.
+		// Landing at the parent plus idx+1 instead makes Chromium drop `beforeinput` here.
 		expect(pos!.node).toBe(trailing);
 		expect(pos!.offset).toBe(0);
 	});
 
 	it('lands inside the leading text-node sentinel for widget start offset', () => {
-		// Layout: [sentinel, widget(0..10)].
+		// Layout: [marker node, widget(0..10)].
 		const leading = sentinel();
 		const w = widget(0, 10);
 		el.append(leading, w);
@@ -59,7 +59,7 @@ describe('findDomTextOffsetTarget — widget boundary placement', () => {
 	});
 
 	it('lands inside the inter-widget sentinel between two adjacent widgets', () => {
-		// Layout: [widget(0..10), sentinel, widget(10..20)] — target = 10 (between).
+		// Layout: [widget(0..10), marker node, widget(10..20)], target 10, between the two.
 		const w1 = widget(0, 10);
 		const between = sentinel();
 		const w2 = widget(10, 20);
@@ -72,8 +72,8 @@ describe('findDomTextOffsetTarget — widget boundary placement', () => {
 	});
 
 	it('falls back to parent-level position when no text node neighbors the widget', () => {
-		// A widget may render with no neighbouring text node; the parent-level position is
-		// the fallback seat. Layout without sentinels: [widget(0..10)].
+		// A widget may render with no text node next to it, and then the position at the parent
+		// level is the fallback. Layout with no marker nodes: [widget(0..10)].
 		const w = widget(0, 10);
 		el.appendChild(w);
 
@@ -96,8 +96,8 @@ describe('findDomTextOffsetTarget — widget boundary placement', () => {
 	});
 
 	it('falls back to end-of-content when target exceeds the block length', () => {
-		// CURSOR_END (= MAX_SAFE_INTEGER) relies on this fallback to land at the end of any block; a
-		// finite sentinel below the length would instead resolve mid-block.
+		// `CURSOR_END` (`MAX_SAFE_INTEGER`) relies on this fallback to land at the end of any block;
+		// a smaller fixed value below the length would land mid-block instead.
 		const text = document.createTextNode('hello');
 		el.appendChild(text);
 
@@ -119,8 +119,8 @@ describe('findDomTextOffsetTarget — widget boundary placement', () => {
 });
 
 describe('domTextOffsetAtNode — positions at or inside an atomic widget', () => {
-	// Layout: text "ab" [0,2) · island [2,15) · text "cd" [15,17). The island's inner text is 4 chars
-	// against a 13-byte source range, so a walk that descended into it lands 9 bytes short.
+	// Layout: text "ab" [0,2), widget [2,15), text "cd" [15,17). The widget's inner text is 4
+	// characters against a 13-byte source range, so a traversal that went inside lands 9 short.
 	let el: HTMLElement;
 	let island: HTMLElement;
 
@@ -153,16 +153,16 @@ describe('domTextOffsetAtNode — positions at or inside an atomic widget', () =
 	});
 
 	it('snaps a position inside the island — the browser rebinds carets into these', () => {
-		// contenteditable=false islands attract carets, and the walk has no interior positions to
-		// report, so an interior node resolves to an edge rather than the container's total length.
+		// A contenteditable=false widget attracts carets, and the traversal has no positions inside
+		// it to report, so a node inside resolves to an edge rather than the container's length.
 		const inner = island.querySelector('span')!.firstChild!;
 		expect(domTextOffsetAtNode(el, inner, 0)).toBe(2);
 		expect(domTextOffsetAtNode(el, inner, 1)).toBe(15);
 	});
 
 	it('reads a position outside the container as end-of-walk', () => {
-		// Document order against a disconnected tree is implementation-specific, so an unreachable
-		// position must not resolve to a guessed interior offset; callers test containment themselves.
+		// Document order in a disconnected tree is up to the implementation, so an unreachable
+		// position must not resolve to a guessed offset inside; callers check containment themselves.
 		const foreign = document.createElement('span');
 		foreign.append(document.createTextNode('zz'));
 

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-// Needs jsdom for Range.getClientRects. Rects are zero-sized under jsdom, so this suite
-// only verifies boundary handling — real pixel measurement is covered by e2e specs.
+// Needs jsdom for `Range.getClientRects`. Rects are zero-sized under jsdom, so this suite
+// only checks the boundary handling; e2e covers real pixel measurement.
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { asDomTextOffset } from '../../cursor/coordinate-spaces';

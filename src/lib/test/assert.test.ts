@@ -9,8 +9,8 @@ describe('assertInvariant — dev-runtime channel', () => {
 		vi.resetModules();
 	});
 
-	// The tag is namespaced `invariant:<tag>` so the e2e watchers can tell a violation
-	// from a plain dev warning under the shared `[aragonite:…]` console sentinel.
+	// The tag is written `invariant:<tag>` so the e2e watchers can tell a violation from an
+	// ordinary dev warning under the shared `[aragonite:…]` console prefix.
 	it('routes a violation to devWarn under the invariant namespace (non-crashing)', () => {
 		const violation: InvariantViolation = { code: 'stale-raw', message: 'raw drifted' };
 		expect(() => assertInvariant('test', () => violation)).not.toThrow();
@@ -33,8 +33,8 @@ describe('assertInvariant — dev-runtime channel', () => {
 		expect(takeDevWarns()).toEqual([]);
 	});
 
-	// `DEV` is a build-time constant, so the production branch is reachable only by
-	// re-importing the module against a false one.
+	// `DEV` is a build-time constant, so the production branch is reachable only by re-importing
+	// the module with it set to false.
 	it('does not run the predicate in production', async () => {
 		vi.resetModules();
 		vi.doMock('esm-env', () => ({ DEV: false }));

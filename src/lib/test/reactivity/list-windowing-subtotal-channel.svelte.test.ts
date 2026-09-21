@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
-// Miss-analysis: both arms sit on the upward subtotal channel, which no unit suite drove —
-// the self-height report was only ever observed through an e2e where a redundant report is
-// invisible, and the id sourcing self-corrects on the very next rebuild.
+// Miss-analysis: both cases sit on the subtotal a child reports upward, which no unit suite
+// drove: the self-height report was only ever watched through an e2e, where a redundant report
+// is invisible, and where the id comes from corrects itself on the very next rebuild.
 import { describe, it, expect, vi } from 'vitest';
 import { flushSync, tick } from 'svelte';
 import type { HeightOracle } from '../../cursor/height-oracle';
@@ -31,7 +31,7 @@ function mountScope(opts: ScopeOpts) {
 		listHeight: 2000,
 		getOwnEl: opts.getOwnEl,
 		reportSelfHeight: opts.reportSelfHeight,
-		// A nested scope: the subtotal channel only exists below the top level.
+		// A nested list: the subtotal report only exists below the top level.
 		getParentPath: () => [0]
 	});
 }
@@ -47,9 +47,9 @@ describe('list-windowing subtotal channel', () => {
 			reportSelfHeight
 		});
 
-		// Three genuine child height writes, one unchanged box: an ungated reporter re-enters
-		// the parent's model on every one, and the read-write cycle inside the observer's own
-		// delivery frame is what raises the ResizeObserver loop warning.
+		// Three real child height writes and one unchanged box: a reporter with no check writes to
+		// the parent's height table on every one, and reading and writing inside the observer's own
+		// frame is what raises the ResizeObserver loop warning.
 		for (const height of [50, 60, 70]) {
 			windowing.recordMeasuredChild(0, 'b0', height);
 			flushSync();
@@ -67,8 +67,8 @@ describe('list-windowing subtotal channel', () => {
 		const { windowing, cleanup } = mountScope({ ids, oracleRef });
 		oracleRef.recordMeasured.mockClear();
 
-		// A structural change lands before the rebuild effect flushes: the live id list has
-		// already moved while the model still carries the old ordering.
+		// A structural change lands before the rebuild effect flushes: the live id list has already
+		// moved while the height table still holds the old ordering.
 		ids.splice(0, ids.length, 'bNew', 'b0', 'b1', 'b2');
 		windowing.setChildSubtotal(0, 999);
 

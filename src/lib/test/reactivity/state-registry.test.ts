@@ -71,7 +71,7 @@ describe('state-registry', () => {
 	});
 
 	describe('dev-mode contested-claim warning', () => {
-		/** A torn-down mount's `bind:this` slots are cleared; a live one's are not. */
+		/** A torn-down mount's `bind:this` entries are cleared; a live one's are not. */
 		function stateWithRefs(mounted: boolean): BlockListState {
 			const innerBlockRefs: BlockListState['innerBlockRefs'] = [
 				mounted ? ({} as BlockListState['innerBlockRefs'][number]) : undefined
@@ -93,9 +93,9 @@ describe('state-registry', () => {
 			}
 		);
 
-		// The remount handoff: the loser is torn down within the same flush, so by the
-		// time the claim is re-asked it holds no refs to orphan. Warning here would fire
-		// on every list indent.
+		// The handover on a remount: the losing mount is torn down within the same flush, so by the
+		// time the question is asked again it holds no refs to orphan. Warning here would fire on
+		// every list indent.
 		it('stays silent when the loser was torn down in the same flush', async () => {
 			const node = makeFakeNode();
 			const loser = stateWithRefs(true);
@@ -107,8 +107,8 @@ describe('state-registry', () => {
 			expect(takeDevWarns()).toEqual([]);
 		});
 
-		// A third registration means the contested pair is already history — reporting it
-		// would name a winner that no longer owns the node.
+		// A third registration means the earlier pair is already past, so reporting it would name a
+		// winner that no longer owns the node.
 		it('stays silent when a later registration superseded the contested winner', async () => {
 			const node = makeFakeNode();
 			registerBlockListState(node, stateWithRefs(true));
@@ -116,7 +116,7 @@ describe('state-registry', () => {
 			registerBlockListState(node, stateWithRefs(true));
 
 			await tick();
-			// The second contest (2nd vs 3rd) is still live and reports; the first is not.
+			// The second clash (the 2nd against the 3rd) is still current and reports; the first is not.
 			expect(takeDevWarns()).toHaveLength(1);
 		});
 

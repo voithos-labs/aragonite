@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
-// A reveal in flight outranks either anchor rule: both correctors must re-assert the
-// target's absolute position after a mutation, because the browser's scroll auto-clamp
-// outpaces delta compensation while off-window images still measure ~0.
+// A scroll into view wins over either rule for holding a block still: both corrections have to
+// re-assert the target's absolute position after a change, because the browser's own clamping
+// outpaces a relative delta while unmounted images still measure about zero.
 import { describe, it, expect } from 'vitest';
 import { flushSync } from 'svelte';
 import type { RevealAnchorPlacement } from '../../reactivity/list-windowing.svelte';
@@ -25,7 +25,7 @@ const topLevel = (index: number): RevealAnchorPlacement => ({
 	height: null
 });
 
-/** A root scope over six blocks with heights b0..b5 = 10..60. */
+/** A root block list over six blocks with heights b0..b5 = 10..60. */
 function mountScope(overrides: Partial<MountListWindowingOptions> = {}): MountedListWindowing {
 	return mountListWindowing({
 		oracle: heightsOracle(HEIGHTS),
@@ -48,14 +48,14 @@ describe('list-windowing reveal anchor', () => {
 			getRevealAnchorTarget: () => revealTarget
 		});
 
-		// Offsets: b0@0 b1@10 b2@30 b3@60 b4@100 b5@150. Park b1 at the viewport top,
-		// so the top-of-viewport anchor is NOT the reveal target.
+		// Offsets: b0@0 b1@10 b2@30 b3@60 b4@100 b5@150. Put b1 at the top of the viewport, so the
+		// block held by default is not the one being scrolled to.
 		await windowing.revealChild(1);
 		expect(port.scrollTop()).toBe(10);
 		revealTarget = topLevel(5);
 
-		// Delete b3 — BETWEEN the anchor and the target, so the stable-id rule corrects
-		// by zero while the pinned block slides 40px up. The reveal claim must win.
+		// Delete b3, which sits between the held block and the target, so the stable-id rule
+		// corrects by zero while the held block slides 40px up. The scroll into view has to win.
 		children.splice(3, 1);
 		ids.splice(3, 1);
 		revealTarget = topLevel(4);
@@ -65,9 +65,9 @@ describe('list-windowing reveal anchor', () => {
 		cleanup();
 	});
 
-	// Miss-analysis: every reveal-anchor arm drove a corrector (rebuild or measure batch);
-	// none drove the upward subtotal channel, which is correction-free and so had no arm to
-	// fail when growth inside the target's own container displaced it (#32).
+	// Miss-analysis: every case here drove a correction (a rebuild or a measure batch); none
+	// drove the subtotal a child reports upward, which applies no correction and so had no case to
+	// fail when growth inside the target's own container moved it (#32).
 	describe('growth reported upward by a nested scope', () => {
 		function mountWithTarget() {
 			let revealTarget: RevealAnchorPlacement | null = null;
@@ -75,7 +75,7 @@ describe('list-windowing reveal anchor', () => {
 			return { ...scope, claim: (t: RevealAnchorPlacement | null) => (revealTarget = t) };
 		}
 
-		// b2 grows 30 → 130, entirely above the target: b4's offset moves 100 → 200.
+		// b2 grows from 30 to 130, entirely above the target, so b4's offset moves from 100 to 200.
 		const GROW_INDEX = 2;
 		const GROWN_TOTAL = 130;
 		const TARGET = 4;
@@ -103,13 +103,13 @@ describe('list-windowing reveal anchor', () => {
 		});
 	});
 
-	// A nested target is not its container: re-asserting the ancestor's top pushes the
-	// resolved target a container-height out of view on the next measure pass.
+	// A target inside a container is not the container: re-asserting the ancestor's top pushes
+	// the target a container's height out of view on the next measure pass.
 	const NESTED = { innerOffset: 35, height: 8 };
 	const NESTED_CASES: Array<[RevealAnchorPlacement['block'], number, number]> = [
 		// b5 lands at 110 after the delete; the target sits 35px into it.
 		['nearest', 500, 145],
-		// Centred on the TARGET's box: the ancestor's model height (60) would place it 26px off.
+		// Centred on the target's own box: the ancestor's height of 60 would place it 26px off.
 		['center', 100, 145 - (100 - NESTED.height) / 2]
 	];
 	for (const [block, viewport, expected] of NESTED_CASES) {
@@ -140,11 +140,11 @@ describe('list-windowing reveal anchor', () => {
 	}
 });
 
-// `revealHoldsScroll` asks "would `placeRevealTarget()` be a no-op right now", NOT "is a
-// claim live" — the latter answers true over a target the anchor is not holding, and a
-// second writer that trusted it would re-place the reader instead of compensating them.
-// Two rows below are unreachable from the e2e harness (the observer never wins the race
-// in a real trace; the clamped case needs a document shorter than its reveal target).
+// `revealHoldsScroll` asks whether `placeRevealTarget()` would do nothing right now, not
+// whether a claim exists: the second answers true over a target nothing is holding, and another
+// writer that trusted it would move the user instead of compensating them. Two rows below are
+// unreachable from the e2e harness (the observer never wins the race in a real trace, and the
+// clamped case needs a document shorter than its target).
 describe('revealHoldsScroll — the orderings a second writer can land in', () => {
 	const HEADER_BEFORE = 80;
 	const HEADER_AFTER = 240;
@@ -155,8 +155,8 @@ describe('revealHoldsScroll — the orderings a second writer can land in', () =
 
 	function mount(maxScrollTop = Infinity) {
 		let revealTarget: RevealAnchorPlacement | null = null;
-		// Post-resize layout: the callback that asks this question runs after the header
-		// has already grown, so the taller header is what the predicate measures against.
+		// The layout after the resize: the callback that asks this runs once the header has already
+		// grown, so the taller header is what the check measures against.
 		const scope = mountScope({
 			maxScrollTop,
 			chromeAbove: HEADER_AFTER,
@@ -176,11 +176,11 @@ describe('revealHoldsScroll — the orderings a second writer can land in', () =
 	it('answers false when the observer runs first, and the delta then lands on the target', () => {
 		const { windowing, cleanup, port, claim } = mount();
 		claim(topLevel(4));
-		// The anchor last placed against the SHORT header and has not re-placed yet.
+		// The last placement was against the short header, and nothing has replaced it yet.
 		port.setScrollTop(HEADER_BEFORE + TARGET_OFFSET);
 		expect(windowing.revealHoldsScroll()).toBe(false);
-		// Which is the whole reason `false` is safe: the relative correction the caller
-		// falls back to is not merely harmless here, it is exact.
+		// Which is the whole reason `false` is safe: the relative correction the caller falls back
+		// to is not merely harmless here, it is exact.
 		port.setScrollTop(port.scrollTop() + DELTA);
 		expect(port.scrollTop()).toBe(HELD);
 		expect(windowing.revealHoldsScroll()).toBe(true);
@@ -189,8 +189,8 @@ describe('revealHoldsScroll — the orderings a second writer can land in', () =
 
 	it('answers false for a claim the anchor never placed', () => {
 		const { windowing, cleanup, port, claim } = mount();
-		// A `'nearest'` reveal of an already-visible block scrolls nothing, so the claim
-		// rides a target sitting mid-viewport rather than at its pin.
+		// A `'nearest'` scroll to a block already on screen scrolls nothing, so the claim sits over
+		// a target mid-viewport rather than at the position it would hold.
 		port.setScrollTop(HELD - 263);
 		claim(topLevel(4));
 		expect(windowing.revealHoldsScroll()).toBe(false);

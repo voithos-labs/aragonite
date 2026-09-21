@@ -1,9 +1,9 @@
 // @vitest-environment jsdom
 //
-// jsdom has no layout engine, so the browser rect primitives are patched at the prototype level
-// (the SUT calls document.createRange() internally — per-range stubs never reach it). Each mocked
-// rect derives from the collapsed range's (startContainer, startOffset), so the SUT's own
-// candidate scan, line-probe, and nearest-X selection run for real against injected geometry.
+// jsdom lays nothing out, so the browser's rect methods are patched on the prototype (the code
+// under test calls `document.createRange()` itself, so stubbing one range never reaches it).
+// Each fake rect comes from the collapsed range's (startContainer, startOffset), so the code's
+// own candidate scan, line lookup and nearest-X choice all run for real against that geometry.
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { asDomTextOffset, asEditorX } from '../../cursor/coordinate-spaces';
@@ -17,8 +17,8 @@ const CHAR_WIDTH = 8;
 const LINE_HEIGHT = 18;
 const EDITOR_LEFT = 30;
 
-// Maps a character offset in a single text node to a fake rect. `wrapAt` pushes every offset >=
-// it onto a second visual line two line-heights down, so the two bands' filters never overlap.
+// Maps a character offset in one text node to a fake rect. `wrapAt` pushes every offset at or
+// past it onto a second visual line two line-heights down, so the two bands never overlap.
 function rectForOffset(offset: number, wrapAt: number): DOMRect {
 	const onSecondLine = offset >= wrapAt;
 	const top = onSecondLine ? LINE_HEIGHT * 4 : 0;
@@ -116,7 +116,8 @@ describe('sticky-measure geometry', () => {
 
 		it('subtracts the editor-container left from the viewport cursor X', () => {
 			selectAt(text, 5);
-			// cursor rect.left = 5 * CHAR_WIDTH = 40; editor left = 30 → editor-relative 10.
+			// The caret rect's left is 5 * CHAR_WIDTH = 40; the editor's left is 30, so 10 relative
+			// to the editor.
 			expect(getCurrentCursorEditorRelativeX(block)).toBe(5 * CHAR_WIDTH - EDITOR_LEFT);
 		});
 	});
@@ -165,15 +166,16 @@ describe('sticky-measure geometry', () => {
 		});
 
 		it('on a single line, lands on the offset whose X is nearest the target', () => {
-			// Target X is editor-relative; SUT re-adds editor left internally.
-			// editorRelativeX 50 → viewport 80 → nearest offset is 80/8 = 10.
+			// The target X is relative to the editor; the code adds the editor's left back itself.
+			// An editor-relative X of 50 is 80 in the viewport, so the nearest offset is 80/8 = 10.
 			const offset = findOffsetNearestX(block, asEditorX(50), 'above', asDomTextOffset(0));
 			expect(offset).toBe(10);
 		});
 
 		it('above vs below pick the matching X on different wrapped lines', () => {
 			wrapAt = 6; // "hello " on line 1 (offsets 0-5), "world" on line 2 (offsets 6-11).
-			// Target editor-relative X 10 → viewport 40 → column 5 on whichever line `from` probes.
+			// An editor-relative X of 10 is 40 in the viewport, so column 5 on whichever line `from`
+			// looks at.
 			const above = findOffsetNearestX(block, asEditorX(10), 'above', asDomTextOffset(0));
 			const below = findOffsetNearestX(block, asEditorX(10), 'below', asDomTextOffset(0));
 			expect(above).toBe(5); // column 5 on line 1
@@ -182,7 +184,7 @@ describe('sticky-measure geometry', () => {
 		});
 
 		it('respects minOffset, excluding the prefix region from candidates', () => {
-			// Target viewport X 0 would otherwise pick offset 0; minOffset 4 forbids it.
+			// A viewport X of 0 would otherwise pick offset 0; `minOffset` 4 forbids it.
 			const offset = findOffsetNearestX(
 				block,
 				asEditorX(-EDITOR_LEFT),
@@ -193,8 +195,8 @@ describe('sticky-measure geometry', () => {
 		});
 
 		it('bounds the scan to the probed edge instead of the whole block', () => {
-			// 195 chars at 20 per visual line → 10 lines, tops spaced wide so the band filter never
-			// bridges adjacent lines. The bounded scan must read far fewer than all ~196 offsets.
+			// 195 characters at 20 per visual line is 10 lines, with tops spaced far enough apart that
+			// the band never spans two of them. The bounded scan reads far fewer than all 196 offsets.
 			text.data = 'a'.repeat(195);
 			const PER_LINE = 20;
 			const LINE_GAP = LINE_HEIGHT * 3;
@@ -228,7 +230,7 @@ describe('sticky-measure geometry', () => {
 				} as unknown as DOMRectList;
 			};
 
-			// 'above' → first line (offsets 0-19); column 5 ⇒ offset 5.
+			// 'above' means the first line (offsets 0-19), so column 5 is offset 5.
 			expect(
 				findOffsetNearestX(
 					block,
@@ -239,7 +241,7 @@ describe('sticky-measure geometry', () => {
 			).toBe(5);
 			const aboveCalls = rectCalls;
 			rectCalls = 0;
-			// 'below' → last line (offsets 180-195); column 5 ⇒ offset 185.
+			// 'below' means the last line (offsets 180-195), so column 5 is offset 185.
 			expect(
 				findOffsetNearestX(
 					block,

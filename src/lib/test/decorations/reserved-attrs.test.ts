@@ -2,10 +2,10 @@ import { describe, it, expect } from 'vitest';
 import { acceptedBlockAttrs, RESERVED_BLOCK_ATTRS } from '$lib/decorations/reserved-attrs';
 import { takeDevWarns } from '../support/warn-gate';
 
-// The block host is an ancestor of every walk container, so a decoration spelling one of the
-// editor's own `data-` names answers an ancestor lookup the walk and the CSS families read.
-// Miss-analysis: the attrs write had no validation at all and no test named the hazard — the
-// class was invisible to both the CSS-parity probe and the runtime guards it exists to protect.
+// The block host is an ancestor of every element the offset traversal walks, so a decoration
+// using one of the editor's own `data-` names answers an ancestor lookup that traversal and the
+// CSS both read. Miss-analysis: writing those attributes was never validated and no test named
+// the hazard, so it was invisible both to the CSS comparison and to the checks it protects.
 
 describe('acceptedBlockAttrs', () => {
 	it('drops a reserved attribute and warns, naming it', () => {
@@ -25,8 +25,8 @@ describe('acceptedBlockAttrs', () => {
 		expect(takeDevWarns()).toEqual([]);
 	});
 
-	// The skip must not swallow what follows it: a rejected name and an accepted one arrive in
-	// one attrs object, and the applied-key bookkeeping downstream reads only the survivors.
+	// Skipping one must not swallow what comes after it: a rejected name and an accepted one
+	// arrive in the same object, and the record of what was applied reads only the survivors.
 	it('keeps the benign attributes of an object that also carries a reserved one', () => {
 		expect(acceptedBlockAttrs({ 'data-focused': '', title: 'note' }, [1])).toEqual([
 			['title', 'note']
@@ -36,8 +36,8 @@ describe('acceptedBlockAttrs', () => {
 		]);
 	});
 
-	// `setAttribute` lowercases, so every reserved name is one capital away from landing anyway —
-	// and `data-Presentation` lands as the stamp the caret walk and the CSS families both read.
+	// `setAttribute` lowercases, so every reserved name is one capital letter away from landing
+	// anyway, and `data-Presentation` lands as the attribute the caret traversal and the CSS read.
 	it('drops a reserved name spelled with capitals', () => {
 		expect(acceptedBlockAttrs({ 'data-Presentation': 'garbage' }, [0])).toEqual([]);
 		expect(takeDevWarns().map((w) => w.message)).toEqual([
@@ -45,8 +45,8 @@ describe('acceptedBlockAttrs', () => {
 		]);
 	});
 
-	// `setAttribute` throws on these, and the write runs inside a decoration effect: the throw takes
-	// the mount, where dropping the one attribute costs the decoration nothing else.
+	// `setAttribute` throws on these, and the write runs inside a decoration effect, so the throw
+	// takes down the mount, where dropping the one attribute costs the decoration nothing else.
 	it('drops a name the DOM would refuse', () => {
 		expect(acceptedBlockAttrs({ 'data attr': 'x', '2bad': 'y' }, [0])).toEqual([]);
 		expect(takeDevWarns().map((w) => w.message)).toEqual([
@@ -59,8 +59,8 @@ describe('acceptedBlockAttrs', () => {
 		expect(acceptedBlockAttrs(undefined, [0])).toEqual([]);
 	});
 
-	// The names the walk, the CSS families and selection/windowing reach for from an ancestor
-	// position. A consumer added without its name here is a hole the warn cannot see.
+	// The names the offset traversal, the CSS, and selection and windowing look for on an
+	// ancestor. A new reader added without its name here is a hole the warning cannot see.
 	it('reserves the ancestor-read vocabulary', () => {
 		expect([...RESERVED_BLOCK_ATTRS].sort()).toEqual([
 			'data-block-kind',

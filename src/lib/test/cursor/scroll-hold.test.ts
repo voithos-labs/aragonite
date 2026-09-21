@@ -1,14 +1,14 @@
 // @vitest-environment jsdom
 
-// Miss-analysis: the hold shipped as a scroll writer with no test at its own level, so the two
-// rules that keep it out of the editor's way (stand down for a reveal, write nothing when the
-// position never moved) rode entirely on one e2e that exercises neither.
+// Miss-analysis: this shipped as a scroll writer with no test at its own level, so the two
+// rules that keep it out of the editor's way (do nothing while a scroll into view is running,
+// write nothing when the position never moved) rode entirely on one e2e that exercises neither.
 
 import { describe, it, expect, afterEach } from 'vitest';
 import { captureScrollPosition } from '../../cursor/scroll-hold';
 
-/** A scrollport jsdom can actually answer: the instance property shadows the layout-dependent
- *  accessor, so a position and the writes against it are both observable. */
+/** A scroll container jsdom can actually answer: the instance property shadows the accessor
+ *  that needs layout, so both the position and the writes against it can be observed. */
 function mountScroller(at: number) {
 	const port = document.createElement('div');
 	port.style.overflowY = 'auto';
@@ -25,7 +25,7 @@ function mountScroller(at: number) {
 	const block = document.createElement('div');
 	port.appendChild(block);
 	document.body.appendChild(port);
-	/** What the browser's max-scroll clamp does to the port mid-swap. */
+	/** What the browser's maximum-scroll clamp does to the container mid-swap. */
 	const clampTo = (value: number) => {
 		scrollTop = value;
 	};

@@ -5,8 +5,8 @@ function makeHarness(source: string, replace?: ReplaceStub) {
 	let scans = 0;
 	const h = makeSearchHarness(source, {
 		replace,
-		// rescan reads the generation exactly once at its top, and scans the doc the
-		// registry hands `provide` rather than this getter — so this read counts rescans.
+		// The rescan reads the generation exactly once at its top, and scans the document the
+		// registry hands `provide` rather than this getter, so this read counts rescans.
 		getDocumentGeneration: () => {
 			scans++;
 			return 0;
@@ -54,8 +54,8 @@ describe('search as decoration source', () => {
 	});
 
 	it('in-place typing (children identity unchanged) reaches the next scan', () => {
-		// Routine typing mutates the leaf in place — doc.children identity never
-		// changes — so an identity-keyed memo would serve stale matches here.
+		// Routine typing mutates the leaf in place and `doc.children` never changes identity, so a
+		// memo keyed on identity would serve stale matches here.
 		const { doc, engine, state } = makeHarness('cat\n');
 		state.open();
 		state.setQuery('cat');
@@ -66,9 +66,9 @@ describe('search as decoration source', () => {
 		expect(engine.marksForPath([0])).toHaveLength(2);
 	});
 
-	// Replace mutates the doc while the memo key (epoch + query + options) stays put
-	// until the deferred edit notification, so an invalidate-only refresh serves the
-	// pre-replace matches from a memo hit. Rescan must precede invalidate.
+	// Replace mutates the document while the memo key (counter, query, options) stays the same
+	// until the deferred edit notification, so a refresh that only invalidates serves the matches
+	// from before the replace. The rescan has to come before the invalidate.
 	it('replaceCurrent refreshes matches synchronously on the bar-open path', async () => {
 		const { doc, state } = makeHarness('cat cat\n', {
 			replaceOne: async (_m, text) => {

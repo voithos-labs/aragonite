@@ -1,10 +1,10 @@
-// The content version is the memo key every whole-document derivation hangs on, so a door that
-// moves the document's bytes without announcing it silently serves stale answers. One case per
-// door (G4.52): the commit ceremony, the two out-of-ceremony typing writers, the history restore.
+// The content version is the memo key every whole-document computation hangs on, so anything
+// that changes the document's bytes without announcing it silently serves stale answers. One
+// case per writer (G4.52): the commit, the two typing writers outside a commit, and undo.
 //
-// Miss-analysis: the suite this replaces drove five DIRECT `$state` writes and never a door, so it
-// proved the touch walk's read set and nothing about who reaches it. Every write the editor
-// actually makes arrives through one of the doors below, and none of them was exercised.
+// Miss-analysis: the suite this replaces drove five direct `$state` writes and never a real
+// writer, so it proved which state the computation reads and nothing about who reaches it.
+// Every write the editor actually makes arrives through one of the paths below.
 import { describe, it, expect } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
@@ -31,8 +31,8 @@ describe('content version — every byte-writing door announces its write', () =
 		expect(editor.contentVersion()).not.toBe(before);
 	});
 
-	// The common keystroke: `updateNodeContent` writes the leaf's raw in place and reports
-	// `noop`, so a bump placed after the change-shaped early return never fires while typing.
+	// The ordinary keystroke: `updateNodeContent` writes the leaf's raw in place and reports
+	// `noop`, so a bump placed after the early return for "no structural change" never fires.
 	it('the top-level routine-typing write announces a keystroke that changes no structure', async () => {
 		const editor = topLevelEditor('one\n');
 		const before = editor.contentVersion();
@@ -63,8 +63,8 @@ describe('content version — every byte-writing door announces its write', () =
 		expect(editor.contentVersion()).not.toBe(afterUndo);
 	});
 
-	// A discarded commit rolls its own mutation back, so announcing it would claim bytes that
-	// never moved — and the rebound Backspace this discards is a routine gesture.
+	// A discarded commit rolls its own change back, so announcing it would claim bytes that never
+	// moved, and the Backspace it discards is an everyday gesture.
 	it('a commit that discards its own no-op announces nothing', async () => {
 		const editor = topLevelEditor('one\n');
 		const before = editor.contentVersion();

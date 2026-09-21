@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
-// Miss-analysis: the depth pins covered the renderer that BUILDS this DOM
-// (`core/inline-render-nesting.test.ts`) and nothing that reads it back, so every caret-space
-// walk recursed per level over a fragment the renderer had just survived.
+// Miss-analysis: the depth tests covered the renderer that builds this DOM
+// (`core/inline-render-nesting.test.ts`) and nothing that reads it back, so every traversal in
+// caret space recursed once per level over a fragment the renderer had just survived.
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { buildAmbientSpan, placeCaretAfterAmbientSpan } from '../../ambient/ambient-dom';
 import { createRangeFromOffsets } from '../../cursor/content-offsets';
@@ -14,14 +14,15 @@ import {
 	rawTextOfNode
 } from '../../cursor/widget-offset';
 
-// Inline nesting is input-controlled, so the rendered DOM is as deep as the source asks. The cap
-// is jsdom's O(depth²) `matches`/`closest` cost, not the ceiling, and it assumes the default V8
-// stack: raising `--stack-size` turns every pin here green against a recursive walk.
+// Inline nesting comes from the input, so the rendered DOM is as deep as the source asks. The
+// cap is jsdom's O(depth²) `matches` and `closest` cost, not the real ceiling, and it assumes
+// the default V8 stack: raising `--stack-size` makes these pass even against a recursive walk.
 const DOM_DEPTH = 8_000;
 const LEAF = 'mn';
 
-/** `head` + a span chain around `LEAF` + `tail`, built detached so jsdom pays depth once. The
- *  deepest span holds `LEAF` as two text nodes, so a first/last search there has an order. */
+/** `head`, then a chain of spans around `LEAF`, then `tail`, built detached so jsdom pays for
+ *  the depth once. The deepest span holds `LEAF` as two text nodes, so a search for the first
+ *  or last match there has an order to get right. */
 function nestedSpans(depth: number): HTMLElement {
 	let chain = document.createElement('span');
 	for (const char of LEAF) chain.appendChild(document.createTextNode(char));
@@ -72,13 +73,14 @@ describe('caret-space DOM walks at input-controlled nesting depth', () => {
 		expect(findLastTextNode(chain)?.textContent).toBe(LEAF[1]);
 	}, 120_000);
 
-	// The ambient span's own descent asks a different question from the measurable-text search
-	// beside it: it filters hidden marker text at the top level, never during the walk.
+	// Descending into the container's marker prefix asks a different question from the search for
+	// measurable text beside it: it filters hidden marker text at the top level, never on the way down.
 	it('seats the ambient caret on the deepest text node', () => {
 		const block = nestedSpans(DOM_DEPTH);
 		block.replaceChild(buildAmbientSpan('> '), block.firstChild!);
-		// jsdom's own attach walk overflows at this depth and it drops a detached range, so the
-		// seat is read at the door. The real selection is pinned shallow in `ambient-dom.test.ts`.
+		// jsdom's own attach traversal overflows at this depth and it drops a detached range, so
+		// the position is read where it is set. The real selection is tested shallow in
+		// `ambient-dom.test.ts`.
 		const seated: Range[] = [];
 		const addRange = vi
 			.spyOn(window.Selection.prototype, 'addRange')
@@ -95,9 +97,9 @@ describe('caret-space DOM walks at input-controlled nesting depth', () => {
 	}, 120_000);
 });
 
-// `fromEnd` is a MIRROR pre-order, not the walk reversed: each level's children come last-first
-// while a parent still precedes them, so only the leaf order comes back reversed — which is what
-// a last-match search reads off it.
+// `fromEnd` is a mirrored pre-order, not the traversal reversed: each level's children come
+// last first while a parent still comes before them, so only the leaf order ends up reversed,
+// which is what a search for the last match reads off it.
 describe('domDescendants under fromEnd', () => {
 	it('walks each level last child first, with parents still ahead of children', () => {
 		const root = document.createElement('div');

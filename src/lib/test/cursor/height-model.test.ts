@@ -37,8 +37,8 @@ describe('HeightModel', () => {
 		expect(m.indexAtOffset(50)).toBe(0);
 	});
 
-	// The lower-bound seed `1 << floor(log2(count))` is only correct when it
-	// degrades for non-power-of-two counts — exercise count 5 and 7 directly.
+	// The starting value `1 << floor(log2(count))` is only correct when it also works for counts
+	// that are not powers of two, so exercise counts 5 and 7 directly.
 	it('locates offsets on non-power-of-two counts', () => {
 		const five = new HeightModel([10, 20, 30, 40, 50]); // tops 0,10,30,60,100; total 150
 		expect(five.indexAtOffset(0)).toBe(0);
@@ -56,16 +56,16 @@ describe('HeightModel', () => {
 		expect(seven.indexAtOffset(7)).toBe(6);
 	});
 
-	// Zero-height entries make consecutive tops tie; pin that the search lands on
-	// the last tied index so a future refactor can't silently flip the contract.
+	// Zero-height entries make consecutive tops equal; check that the search lands on the last
+	// of them, so a later refactor cannot quietly flip the contract.
 	it('lands on the last index when zero-height entries tie offsets', () => {
 		const m = new HeightModel([5, 0, 0, 0]); // tops 0,5,5,5; total 5
 		expect(m.indexAtOffset(4)).toBe(0);
 		expect(m.indexAtOffset(5)).toBe(3);
 	});
 
-	// VR-9: out-of-range writes/reads must not poison the Fenwick tree — a stale height recorded
-	// at i === count, NaN offsets past it, and a bump that never terminates on a negative index.
+	// VR-9: a read or write out of range must not corrupt the Fenwick tree: an old height
+	// recorded at i === count, NaN offsets past it, and an update that never ends on a negative index.
 	it('ignores a setHeight at or past the count instead of recording a stale height', () => {
 		const m = new HeightModel([10, 20, 30]); // count 3
 		m.setHeight(3, 50);

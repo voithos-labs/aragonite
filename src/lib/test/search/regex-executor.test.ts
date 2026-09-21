@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import { createRegexExecutor } from '../../search/regex-executor';
 
-// The runner has no `Worker` global, so every case here takes the synchronous
-// fallback — the CSP-restricted-embedder and SSR path. The worker path is driven by
-// `e2e/tests/search/pathological-regex.spec.ts`.
+// The runner has no `Worker` global, so every case here takes the synchronous fallback, the
+// path an embedder with a strict CSP and a server render both take. The worker path is driven
+// by `e2e/tests/search/pathological-regex.spec.ts`.
 
 const request = (texts: string[], pattern: string, epoch = 1) => ({
 	texts,
@@ -12,8 +12,8 @@ const request = (texts: string[], pattern: string, epoch = 1) => ({
 	epoch
 });
 
-// Catastrophic backtracking (~2^n on a failing match), sized so one text costs tens
-// of milliseconds: past the deadline below, short of the runner's own timeout.
+// Catastrophic backtracking (about 2^n on a failing match), sized so one text costs tens of
+// milliseconds: past the deadline below, short of the runner's own timeout.
 const SLOW_PATTERN = '(a+)+$';
 const SLOW_TEXT = `${'a'.repeat(22)}!`;
 
@@ -35,8 +35,8 @@ describe('createRegexExecutor — synchronous fallback', () => {
 	});
 
 	it('runs the first text whole, so a spent deadline never returns a vacuous timeout', async () => {
-		// The between-texts check cannot fire before any work exists; a deadline of 0
-		// must still produce the single text's real ranges.
+		// The check between texts cannot fire before there is any work, so a deadline of 0 must
+		// still produce the single text's real ranges.
 		const executor = createRegexExecutor({ deadlineMs: 0 });
 		const outcome = await executor.scan(request(['ab ab'], 'ab'));
 		expect(outcome.ok).toBe(true);
@@ -50,8 +50,8 @@ describe('createRegexExecutor — synchronous fallback', () => {
 	});
 
 	it('scans again after release', async () => {
-		// release() frees the worker, it does not retire the executor — reopening the
-		// find bar must not need a new one.
+		// `release()` frees the worker but does not retire the executor: reopening the find bar
+		// must not need a new one.
 		const executor = createRegexExecutor();
 		await executor.scan(request(['ab'], 'ab'));
 		executor.release();

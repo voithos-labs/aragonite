@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
-// Miss-analysis: the flip seam's own suites assert caret, affinity and the announced event, and
-// the windowing suites stub the oracle out, so nothing asked what a flip does to heights the
-// other mode measured. The no-rebuild leg is the second half of that miss: the first fix paired
-// the drop with a width bump, and only the presentation e2e project saw the scroll it moved.
+// Miss-analysis: the mode switch's own suites assert the caret, the edge affinity and the
+// event, and the windowing suites stub the height estimator out, so nothing asked what a switch
+// does to heights the other mode measured. The "no rebuild" half is the rest of that miss: the
+// first fix paired the drop with a width bump, and only the presentation e2e saw the scroll.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
 import { installLayoutStubs } from '../blocks/editor-mount';
 import {
@@ -35,7 +35,7 @@ function mountAtSource() {
 }
 
 describe('a presentation-mode flip does not keep the heights the other mode measured', () => {
-	// Reading is the largest delta of any rung — every marker stops painting at once.
+	// Reading mode changes the most of any mode: every marker stops painting at once.
 	it('drops every measured height when the mode flips', async () => {
 		const { oracle, props } = mountAtSource();
 		expect(oracle.measured(WINDOWED_OUT_ID)).toBe(OTHER_MODE_HEIGHT);
@@ -46,10 +46,10 @@ describe('a presentation-mode flip does not keep the heights the other mode meas
 		expect(oracle.measured(WINDOWED_OUT_ID)).toBeUndefined();
 	});
 
-	// The drop travels alone. Bumping the width version here forces a scope rebuild, and the
-	// flip has already blurred, so the window recomputes with no caret pin, drops the caret's
-	// block, and the re-seat scrolls it back — the reader loses their place (#221). Each block
-	// re-measures on its own mount instead, which costs the reader nothing.
+	// The drop happens on its own. Bumping the width version here forces a rebuild, and the mode
+	// switch has already blurred, so the window recomputes with no block held, unmounts the
+	// caret's block, and placing the caret again scrolls it back, losing the user's place (#221).
+	// Each block re-measures on its own mount instead, which costs the user nothing.
 	it('forces no rebuild: the flip moves the width version for nobody', async () => {
 		const { editor, props } = mountAtSource();
 		const before = editor.__test.getWidthVersion();
@@ -60,8 +60,8 @@ describe('a presentation-mode flip does not keep the heights the other mode meas
 		expect(editor.__test.getWidthVersion()).toBe(before);
 	});
 
-	// The flip is a mode change, not an edit: rewriting the prop with the mode already in
-	// force must not drop a thing.
+	// A mode switch is not an edit: rewriting the prop with that mode already in force must
+	// drop nothing.
 	it('drops nothing when the prop is rewritten with the mode already in force', async () => {
 		const { oracle, props } = mountAtSource();
 

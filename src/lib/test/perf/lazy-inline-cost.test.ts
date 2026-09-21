@@ -14,13 +14,13 @@ import {
 } from '../../perf/instruments';
 import { allowDevWarns } from '$lib/test/support/warn-gate';
 
-// The measurement edits a snapshotted node by writing raw directly rather than through the commit
-// ceremony, which is what the shared-node oracle reports.
+// The measurement edits a node an undo snapshot shares by writing raw directly rather than
+// through a commit, which is what the shared-node check reports.
 afterEach(() => allowDevWarns(['invariant:snapshot-integrity']));
 
-// inlineComputeCount has a single production caller, computeInlineContent, so it is an
-// exact meter of how often the inline tree is built — a re-introduced eager parse bumps
-// it where these guards expect zero.
+// `inlineComputeCount` has one caller in production, `computeInlineContent`, so it counts
+// exactly how often the inline tree is built: an eager parse reintroduced anywhere bumps it
+// where these checks expect zero.
 
 function para(raw: string): CstNode {
 	return { kind: 'paragraph', leadingTrivia: '', raw };
@@ -32,7 +32,7 @@ beforeEach(() => {
 });
 afterEach(() => disablePerfInstruments());
 
-// ── Guard 1 — one compute per rendered keystroke, none on the update path ────
+// ── Check 1: one compute per rendered keystroke, none on the update path ─────
 
 describe('lazy inline: common keystroke computes once', () => {
 	it('updateNodeContent parses no inline; the render compute is the only one', () => {
@@ -62,14 +62,14 @@ describe('lazy inline: common keystroke computes once', () => {
 		computeInlineContent(parent.children[1]);
 		expect(perfSnapshot().inlineComputeCount).toBe(1);
 
-		// A different, never-read block adds exactly one compute when a consumer
-		// finally reads it — proof no eager whole-doc populate ran.
+		// A different block, never read, adds exactly one compute when something finally reads it,
+		// which proves nothing filled the whole document in advance.
 		getInlineContent(parent.children[2]);
 		expect(perfSnapshot().inlineComputeCount).toBe(2);
 	});
 });
 
-// ── Guard 2 — undo restore parses no inline by itself ────────────────────────
+// ── Check 2: an undo restore parses no inline by itself ──────────────────────
 
 describe('lazy inline: undo restore does no inline work', () => {
 	it('restoring a 50-block snapshot parses no inline', async () => {
@@ -84,8 +84,8 @@ describe('lazy inline: undo restore does no inline work', () => {
 		resetPerfInstruments();
 		await history.requestUndo();
 
-		// The restore primitive reads no inline regardless of doc size; rendered blocks
-		// recompute lazily on demand.
+		// The restore reads no inline content whatever the document's size; a rendered block
+		// recomputes only when something asks.
 		expect(perfSnapshot().inlineComputeCount).toBe(0);
 	});
 });

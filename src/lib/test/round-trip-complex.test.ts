@@ -191,7 +191,7 @@ describeRoundTrips('round-trip: edge cases', [
 	{ name: 'heading then blockquote no gap', source: '# Title\n> Quote\n' }
 ]);
 
-// ── Ambiguity edge cases: what a construct is NOT ───────────────────────────
+// ── Ambiguous cases: what a construct is not ────────────────────────────────
 
 describe('construct-boundary edge cases', () => {
 	it('--- after blank line is thematic break, not setext', () => {

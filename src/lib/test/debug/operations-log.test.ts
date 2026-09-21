@@ -52,7 +52,7 @@ describe('operations-log', () => {
 
 		expect(throwing).toHaveBeenCalledTimes(1);
 		expect(second).toHaveBeenCalledTimes(1);
-		// The dev-warn channel, not the console: a console line reds no gate (GH #246).
+		// The dev-warning channel, not the console: a console line fails no gate (GH #246).
 		expect(takeDevWarns().map((w) => w.tag)).toEqual(['operations-log']);
 	});
 

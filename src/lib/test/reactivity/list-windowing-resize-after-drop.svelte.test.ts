@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
-// Miss-analysis: the resize gate's only test was its pure predicate, and the harness oracle
-// answers `measured()` with undefined for every id, so no mounted scope ever saw a block resize
-// after `dropMeasured()`, which is what a presentation-mode flip does to every mounted block.
+// Miss-analysis: the resize check's only test was its pure predicate, and the harness's
+// estimator answers `measured()` with undefined for every id, so no mounted list ever saw a
+// block resize after `dropMeasured()`, which is what a mode switch does to every mounted block.
 import { describe, it, expect } from 'vitest';
 import { tick } from 'svelte';
 import { createHeightOracle } from '../../cursor/height-oracle';
@@ -37,8 +37,8 @@ describe('a resize after the oracle dropped its cache', () => {
 		await tick();
 		expect(oracle.measured('b0')).toBe(MEASURED);
 
-		// The flip: every measured height goes, and the mounted block's box then moves with the
-		// markers that stopped painting. The observer reports it; the model must follow.
+		// The mode switch: every measured height goes, and the mounted block's box then moves with
+		// the markers that stopped painting. The observer reports it; the height table must follow.
 		oracle.dropMeasured();
 		height = RESIZED;
 		windowing.measureChildOnResize('b0', RESIZED);

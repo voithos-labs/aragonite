@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 // Miss-analysis: every measure test registered a child whose height was already final and then
-// flushed, so no test mounted a host whose content lands in a later effect of the same flush,
-// which is what every BlockHost does; the empty-host read only showed as a scroll jerk in e2e.
+// flushed, so no test mounted a block whose content arrives in a later effect of the same
+// flush, which is what every BlockHost does; reading it empty only showed up as a jerk in e2e.
 import { describe, it, expect } from 'vitest';
 import { flushSync, tick } from 'svelte';
 import { fixedOracle, makePara, mountListWindowing } from '../harness/list-windowing.svelte';
@@ -22,8 +22,8 @@ describe('the batched measure pass reads a host after the flush that mounted it'
 
 		let rendered = false;
 		const applied: number[] = [];
-		// A host registers in one effect and paints its content in a later one of the same
-		// flush, as a BlockHost and its block component do.
+		// A block registers in one effect and paints its content in a later one of the same flush,
+		// as a BlockHost and its block component do.
 		const unmount = $effect.root(() => {
 			$effect(() => {
 				return windowing.registerChild('b0', {
@@ -42,7 +42,7 @@ describe('the batched measure pass reads a host after the flush that mounted it'
 		await tick();
 
 		expect(applied).toEqual([RENDERED]);
-		// The model is what the spacers read: block 1 now starts under the rendered height.
+		// The height table is what the spacers read: block 1 now starts below the rendered height.
 		await windowing.revealChild(1);
 		expect(port.scrollTop()).toBe(RENDERED);
 

@@ -1,14 +1,15 @@
 // @vitest-environment jsdom
-// Miss-analysis: every anchor suite drove a stub port that stored a fractional scrollTop
-// verbatim, so the one thing a real scroller does to a correction — snap the write and report
-// the snapped value back as the base for the next one — was untested at any layer.
+// Miss-analysis: every suite here drove a stub scroll container that stored a fractional
+// `scrollTop` as given, so the one thing a real scroller does to a correction, round the write
+// and report the rounded value back as the base for the next one, was untested at any level.
 import { describe, it, expect } from 'vitest';
 import { tick } from 'svelte';
 import { fixedOracle, makePara, mountListWindowing } from '../harness/list-windowing.svelte';
 
 const BLOCKS = 20;
 const TALL = 100;
-/** A shrink whose fraction no whole-pixel scroller can hold, like a fence losing its markers. */
+/** A shrink whose fraction no whole-pixel scroller can hold, as when a fence loses its
+ *  markers. */
 const SHORT = 55.34;
 const SHRUNK = 10;
 const ANCHOR = 12;
@@ -34,7 +35,7 @@ describe('the anchor correction over a scroller that snaps to whole pixels', () 
 		}
 		await tick();
 
-		// Park the anchor block exactly at the viewport top, then shrink everything above it.
+		// Put the held block exactly at the top of the viewport, then shrink everything above it.
 		await windowing.revealChild(ANCHOR);
 		for (const id of ids.slice(0, SHRUNK)) {
 			heights.set(id, SHORT);

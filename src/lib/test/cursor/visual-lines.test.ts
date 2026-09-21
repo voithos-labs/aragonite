@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
-// The line-position predicates need rect measurement, which jsdom zeroes out, so the browser rect
-// primitives are patched at the prototype level (the SUT calls document.createRange() internally —
-// per-range stubs never reach it). Each mocked rect derives from the range's (startContainer,
-// startOffset), so the SUT's real text-node walk and line-delta comparison run against it.
+// Deciding which visual line a caret is on needs rect measurement, which jsdom zeroes out, so
+// the browser's rect methods are patched on the prototype (the code under test calls
+// `document.createRange()` itself, so stubbing one range never reaches it). Each fake rect comes
+// from the range's (startContainer, startOffset), so the real text-node traversal and the line
+// comparison run against it.
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import {
@@ -163,8 +164,8 @@ describe('isAtFirstVisualLine / isAtLastVisualLine', () => {
 		block.appendChild(text);
 		document.body.appendChild(block);
 
-		// The selection's collapsed range reads cursorTop; char-probe ranges built
-		// inside the SUT around the first/last text node anchor the boundary lines.
+		// The selection's collapsed range reads `cursorTop`; the single-character ranges the code
+		// builds around the first and last text node give it the boundary lines.
 		Range.prototype.getClientRects = function (this: Range): DOMRectList {
 			if (this.collapsed) return rectListOf(rectAt(cursorTop));
 			const probeTop = this.startContainer === text && this.startOffset === 0 ? 0 : 40;
@@ -196,8 +197,8 @@ describe('isAtFirstVisualLine / isAtLastVisualLine', () => {
 	}
 
 	it('resolves via the fallback offset when the selection range is dropped', () => {
-		// Chromium drops the caret range adjacent to atomic contenteditable=false islands under load,
-		// and a hard-false there strands the caret forever; trust the snapped fallback offset instead.
+		// Under load Chromium drops the caret range next to a contenteditable=false widget, and
+		// answering a flat false there strands the caret forever; trust the snapped fallback offset.
 		window.getSelection()?.removeAllRanges();
 		expect(isAtFirstVisualLine(block, 0, 0)).toBe(true);
 		expect(isAtFirstVisualLine(block, 5, 0)).toBe(false);
@@ -246,8 +247,8 @@ describe('isAtFirstVisualLine / isAtLastVisualLine', () => {
 		};
 		expect(isAtFirstVisualLine(block, 0, 0)).toBe(true);
 		expect(isAtFirstVisualLine(block, 5, 0)).toBe(false);
-		// A leading hidden run puts the block's first landable offset past raw 0, and the
-		// fallback answers for the caret the user can actually produce there.
+		// A run of hidden markers at the start puts the first offset the caret can sit at past raw
+		// 0, and the fallback answers for the caret the user can actually produce there.
 		expect(isAtFirstVisualLine(block, 3, 3)).toBe(true);
 	});
 
@@ -261,14 +262,14 @@ describe('isAtFirstVisualLine / isAtLastVisualLine', () => {
 		};
 		expect(isAtLastVisualLine(block, 11, 11)).toBe(true);
 		expect(isAtLastVisualLine(block, 5, 11)).toBe(false);
-		// The mirror of the first-line case: a trailing hidden run moves the bound in.
+		// The mirror of the first-line case: a run of hidden markers at the end moves the bound in.
 		expect(isAtLastVisualLine(block, 8, 8)).toBe(true);
 	});
 });
 
-// Miss-analysis: the rect-less branch was exercised only with the caret inside a text node, the one
-// shape Chromium always measures, so nothing asked the predicates about an element-level caret
-// beside an atomic island, where the island's own box is what names the line.
+// Miss-analysis: the branch with no rect was exercised only with the caret inside a text node,
+// the one shape Chromium always measures, so nothing asked about a caret at the element level
+// beside a widget, where the widget's own box is what says which line it is on.
 describe('a caret with no rect of its own reads the line off the box it sits against', () => {
 	let block: HTMLElement;
 	let island: HTMLElement;
@@ -297,8 +298,8 @@ describe('a caret with no rect of its own reads the line off the box it sits aga
 		window.getSelection()?.removeAllRanges();
 	});
 
-	/** Collapsed ranges measure to nothing, as they do beside a `contenteditable=false` island;
-	 *  every other range answers from `boxes`, keyed by the range's start offset in `block`. */
+	/** A collapsed range measures to nothing, as it does beside a `contenteditable=false`
+	 *  widget; every other range answers from `boxes`, keyed by its start offset in `block`. */
 	function stubRects(boxes: (start: number) => DOMRect): void {
 		Range.prototype.getClientRects = function (this: Range): DOMRectList {
 			return this.collapsed ? rectListOf(null) : rectListOf(boxes(this.startOffset));
@@ -327,11 +328,11 @@ describe('a caret with no rect of its own reads the line off the box it sits aga
 		expect(isAtLastVisualLine(block, 6, 6)).toBe(true);
 	});
 
-	// An island wide enough to wrap sits on its own line below the text, the shape an inline image
+	// A widget wide enough to wrap sits on its own line below the text, the shape an inline image
 	// makes: the caret against it is on the last line but no longer on the first.
 	it('an island on its own line below the text is the last line, not the first', () => {
 		block.insertBefore(document.createTextNode('a'), island);
-		// Island at [1]; the block's whole contents start at [0] and span both lines.
+		// The widget is at [1]; the block's whole contents start at [0] and span both lines.
 		stubRects((start) => (start === 1 ? rectAt(30, 120) : rectAt(0, 150)));
 		placeCursorAt(2);
 		expect(isAtLastVisualLine(block, 0, 6)).toBe(true);

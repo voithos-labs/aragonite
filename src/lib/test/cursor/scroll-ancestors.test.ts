@@ -51,8 +51,8 @@ describe('nearestScrollContainer', () => {
 	});
 
 	it('treats overflow: hidden as scrollable (clipping context)', () => {
-		// jsdom doesn't expand the `overflow` shorthand into the longhand
-		// properties that getComputedStyle reports — set both axes explicitly.
+		// jsdom doesn't expand the `overflow` shorthand into the longhand properties
+		// `getComputedStyle` reports, so set both axes explicitly.
 		const mid = makeChain([{}, { overflowX: 'hidden', overflowY: 'hidden' }, {}]);
 		const expected = mid.parentElement!;
 		expect(nearestScrollContainer(mid, root)).toBe(expected);
@@ -78,8 +78,9 @@ describe('nearestScrollContainer', () => {
 	});
 });
 
-// The two host-seam walks diverge on one real host shape: a rounded card (`overflow: hidden` at
-// auto height) inside a scroller must autoscroll the scroller but be bounded by both boxes.
+// The two searches up the ancestors differ on one real host layout: a rounded card
+// (`overflow: hidden` at auto height) inside a scroller has to autoscroll the scroller while
+// being bounded by both boxes.
 describe('host-seam walks', () => {
 	let root: HTMLDivElement;
 
@@ -107,8 +108,8 @@ describe('host-seam walks', () => {
 
 	it('answers the window when the page viewport is what scrolls and bounds', () => {
 		const leaf = nest([{}, {}]);
-		// Total, not null: a page-scrolled embedding is a real autoscroll answer, and
-		// callers read a null as "nothing to scroll".
+		// The whole page, not null: an editor the page scrolls is a real autoscroll answer, and a
+		// caller reads null as "nothing to scroll".
 		expect(userScrollportFor(leaf)).toBe(window);
 		expect(clippingAncestors(leaf)).toEqual([]);
 	});
@@ -125,8 +126,8 @@ describe('host-seam walks', () => {
 		expect(clippingAncestors(leaf)).toEqual([cardEl, cardEl.parentElement]);
 	});
 
-	// A clip box can never be an autoscroll answer — nothing it hid can be scrolled
-	// back — but it is the tightest visual bound.
+	// A box that clips can never be an autoscroll answer, since nothing it hid can be scrolled
+	// back, but it is the tightest bound on what can be seen.
 	it('a clipping pane bounds visibility and is never an autoscroll target', () => {
 		const leaf = nest([{ overflowX: 'clip', overflowY: 'clip' }, {}]);
 		const pane = leaf.parentElement!;
@@ -135,8 +136,8 @@ describe('host-seam walks', () => {
 		expect(nearestScrollContainer(leaf, root)).toBeNull(); // the inner walk ignores clip
 	});
 
-	// `html`/`body` scrolling IS the window viewport, which the callers already
-	// intersect — neither box is that rect.
+	// `html` or `body` scrolling is the window viewport, which callers already intersect with;
+	// neither box is that rect.
 	it('neither walk returns body or the document element', () => {
 		document.body.style.overflowY = 'auto';
 		try {

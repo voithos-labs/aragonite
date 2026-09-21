@@ -1,15 +1,16 @@
-// Miss-analysis: the snap's geometry was only ever exercised through blocks holding ONE island,
-// where "the first island the point is past" and "the island nearest the point" agree, so no test
-// could tell the two rules apart and a run of flush islands always answered the first. The inside
-// case had the same shape: every candidate selected whole, so "inside declines" read as geometry
-// rather than as the whole-select policy it is.
+// Miss-analysis: the snap's geometry was only ever exercised on blocks holding one widget,
+// where "the first widget the point is past" and "the widget nearest the point" agree, so no
+// test could tell the two rules apart and a row of touching widgets always answered the first.
+// The case for a point inside one had the same shape: every candidate was selected whole, so
+// "inside declines" read as geometry rather than as the select-the-whole-thing rule it is.
 import { describe, it, expect } from 'vitest';
 import { nearestWidgetEdgeSeat, type WidgetEdgeCandidate } from '../../cursor/widget-edge-snap';
 
 const ROW = { top: 0, bottom: 20 };
 
-/** Four flush islands on one row, each 20px wide and 7 raw bytes long. `seatsInside` is the
- *  character-like policy: a press on the glyph names an edge instead of selecting it whole. */
+/** Four touching widgets on one row, each 20px wide and 7 raw bytes long. `seatsInside` is the
+ *  rule for a widget that behaves like a character: a click on the glyph names an edge instead
+ *  of selecting the whole thing. */
 function flushRun(count: number, seatsInside = false): WidgetEdgeCandidate[] {
 	return Array.from({ length: count }, (_, i) => ({
 		start: i * 7,
@@ -36,8 +37,8 @@ describe('nearestWidgetEdgeSeat', () => {
 	});
 
 	it('answers the shared offset on the seam between two flush islands', () => {
-		// The trailing edge of one island and the leading edge of the next are the same byte, so
-		// the tie between them cannot be observed.
+		// The trailing edge of one widget and the leading edge of the next are the same byte, so the
+		// tie between them cannot be observed.
 		expect(edgeAt(flushRun(4), 120, 10)).toBe(7);
 	});
 
@@ -50,7 +51,7 @@ describe('nearestWidgetEdgeSeat', () => {
 	});
 
 	it('prefers an island on the point’s own row over a nearer one on another row', () => {
-		// Two block images stack: the same x-range, different rows. A click beside the lower one
+		// Two block images stack: the same x range, different rows. A click beside the lower one
 		// must not reach the upper one's trailing edge.
 		const stacked: WidgetEdgeCandidate[] = [
 			{ start: 0, end: 31, rect: { left: 24, right: 56, top: 0, bottom: 24 }, seatsInside: false },
@@ -66,10 +67,10 @@ describe('nearestWidgetEdgeSeat', () => {
 		expect(edgeAt(flushRun(4), 200, null)).toBe(28);
 	});
 
-	// ── Inside a character-like island ───────────────────────────────────────
+	// ── Inside a widget that behaves like a character ────────────────────────
 
 	it('seats the nearer edge by side for a point inside a character-like island', () => {
-		// The third island spans 140..160 and raw [14,21): its left half names 14, its right 21.
+		// The third widget spans 140..160 and raw [14,21): its left half names 14, its right 21.
 		expect(edgeAt(flushRun(4, true), 145, 10)).toBe(14);
 		expect(edgeAt(flushRun(4, true), 155, 10)).toBe(21);
 	});

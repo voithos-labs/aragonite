@@ -12,8 +12,8 @@ import {
 	traceRevealFold
 } from '$lib/debug/interaction-trace';
 
-// The trace is module-global (its documented v1 limitation), so every case
-// restores the shared switch + buffer around itself.
+// The trace is module-global (a documented limitation of v1), so every case restores the
+// shared switch and buffer around itself.
 beforeEach(() => {
 	resetInteractionTrace();
 	enableInteractionTrace();
@@ -64,7 +64,7 @@ describe('interaction-trace ring buffer', () => {
 		for (let i = 0; i < 205; i++) traceRebuild(String(i), false);
 		const snap = interactionTraceSnapshot();
 		expect(snap).toHaveLength(200);
-		// First five (0–4) evicted; the tail begins at 5.
+		// The first five (0-4) are dropped; the tail begins at 5.
 		expect(snap[0].detail?.changed).toBe('5');
 		expect(snap[199].detail?.changed).toBe('204');
 	});
@@ -77,9 +77,9 @@ describe('interaction-trace ring buffer', () => {
 	});
 });
 
-// Miss-analysis: the absence oracles it backs read green either way, so nothing but this could
-// catch a count that the ring buffer's eviction rolls back — the e2e helper would simply wait
-// out its timeout and report the key as having reached no surface.
+// Miss-analysis: the checks for absence that rely on it pass either way, so nothing but this
+// could catch a count the ring buffer takes back when it drops an entry; the e2e helper would
+// simply wait out its timeout and report the key as having reached no block.
 describe('interaction-trace keydown verdicts', () => {
 	it('counts only while enabled', () => {
 		disableInteractionTrace();

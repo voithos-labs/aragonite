@@ -25,8 +25,8 @@ describe('moveFocus past the last block', () => {
 		expect(appendEvents[0].path).toEqual([1]);
 	});
 
-	// Separator and paragraph are both pure line ending, so both take the document's
-	// (G4.20) — a defaulted `\n` pair puts two lone LFs at the end of a CRLF file.
+	// The separator and the paragraph are both nothing but a line ending, so both take the
+	// document's (G4.20); defaulting to `\n` would put two lone LFs at the end of a CRLF file.
 	it('takes the last block’s line ending for both the separator and the paragraph', async () => {
 		const { deps, doc } = makeEditorActionsDeps(parse('hello\r\n').children);
 		const focus = createFocusActions(deps, createUndoController(deps));

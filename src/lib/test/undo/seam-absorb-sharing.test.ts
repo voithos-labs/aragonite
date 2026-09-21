@@ -8,11 +8,11 @@ import { createBlockEditActions } from '../../editor-actions/block-edit';
 import { createReorderAction } from '../../editor-actions/reorder-action';
 import { makeEditorActionsDeps } from '../harness/editor-actions';
 
-// A seam absorb splices a window whose HEAD is a pre-existing neighbour, so under an outstanding
-// snapshot the fold reaches nodes an entry still shares — the G1.9 case every earlier absorb pin
-// missed by starting from a fresh sharing state.
-// Miss-analysis: the fold pins all built their own `createSharingState()`, so the copy-on-write
-// branch of the splice was never taken and the integrity oracle never saw these paths.
+// Absorbing at the join between two blocks splices a range whose first node is an existing
+// neighbour, so while an undo snapshot is outstanding the collapse reaches nodes that entry
+// still shares: the G1.9 case every earlier test missed by starting from a fresh sharing state.
+// Miss-analysis: those tests all built their own `createSharingState()`, so the splice never
+// took its copy-before-write branch and the integrity check never saw these paths.
 
 const TIGHT_JOIN = 'a\n# h\nb\n';
 const UNDERLINE_BELOW = '# [t](u)\n===\n\nafter\n';
@@ -66,14 +66,15 @@ describe('a seam absorb under an outstanding snapshot', () => {
 		expect(h.doc.children.map((c) => c.kind)).toEqual(['paragraph', 'heading', 'paragraph']);
 	});
 
-	// GH #255: the fold splices out the underline the entry still shares, and promotes the head
-	// past the kind its own bytes carry alone.
-	// Miss-analysis: no split pin put a combination-only structural line under the second half,
-	// so the fold that changes the head's kind never ran with an entry outstanding.
+	// GH #255: the collapse splices out the underline the entry still shares, and changes the
+	// first block's kind beyond what its own bytes say.
+	// Miss-analysis: no test of splitting put a structural line that only matters in combination
+	// under the second half, so the collapse that changes the first block's kind never ran while
+	// an undo entry was outstanding.
 	it('splices the shared underline into the promoted head, and undo restores it', async () => {
 		const h = harness(UNDERLINE_BELOW);
 
-		// Inside the heading's content: a cut at its head moves the whole heading down instead.
+		// Inside the heading's content: a cut at its start moves the whole heading down instead.
 		await h.actions.splitBlock(0, 3);
 
 		expect(h.doc.children.map((c) => [c.kind, c.raw])).toEqual([

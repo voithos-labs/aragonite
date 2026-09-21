@@ -57,8 +57,8 @@ describe('createStickyColumnState', () => {
 	});
 });
 
-// The door every keydown handler goes through. `reset()` stays public for the lifecycle/commit/
-// paste callers, whose unconditional clear has no key to classify.
+// The call every keydown handler goes through. `reset()` stays public for the mount, commit
+// and paste callers, whose unconditional clear has no key to classify.
 describe('noteKey', () => {
 	const key = (k: string, altKey = false) => ({ key: k, altKey });
 	const measure = (x: number | null) => () => (x === null ? null : asEditorX(x));
@@ -104,8 +104,8 @@ describe('noteKey', () => {
 		expect(s.get()).toBeNull();
 	});
 
-	// A caller holding a range rather than a caret supplies no measurement; a
-	// capture key must then preserve, never silently clear.
+	// A caller holding a range rather than a caret supplies no measurement, so a key that would
+	// capture the column has to preserve it rather than quietly clear it.
 	it('preserves on a vertical arrow when no measurement is available', () => {
 		const s = primed();
 		s.noteKey(key('ArrowDown'));

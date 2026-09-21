@@ -82,8 +82,8 @@ describe('createEditorEvents', () => {
 		events.emit('edit', { op: 'delete', path: [0], timestamp: 0 });
 
 		expect(called).toEqual(['a', 'b-throwing', 'c']);
-		// Through the dev-warn channel, not the console: a swallow no gate can see is how a
-		// subscriber overflowed the stack on every battery unnoticed (GH #246).
+		// Through the dev-warning channel, not the console: an error swallowed where no gate can
+		// see it is how a subscriber overflowed the stack on every run unnoticed (GH #246).
 		expect(takeDevWarns().map((w) => w.tag)).toEqual(['events']);
 	});
 
@@ -98,8 +98,8 @@ describe('createEditorEvents', () => {
 
 		events.emit('edit', { op: 'delete', path: [0], timestamp: 0 });
 
-		// devWarn is silent in production, so without a console arm the consumer's own exception
-		// vanishes where an unguarded throw would have surfaced (GH #246).
+		// `devWarn` is silent in production, so with no console branch the consumer's own exception
+		// vanishes where an unguarded throw would have shown up (GH #246).
 		expect(errSpy.mock.calls.map((args) => args[args.length - 1])).toEqual([thrown]);
 		errSpy.mockRestore();
 	});
@@ -192,8 +192,8 @@ describe('emitCommandError', () => {
 		expect(captured[0].context).toEqual({ kind: 'paragraph', command: 'x.y', plugin: undefined });
 	});
 
-	// A global command reports its owner directly and carries no kind: the direct
-	// `plugin` must win, never be clobbered by a (kind-less) owner lookup.
+	// A global command reports its owner directly and has no kind, so the `plugin` passed in has
+	// to win and must never be overwritten by a lookup that has no kind to work from.
 	it('attributes a global command by its direct plugin, with no kind', () => {
 		const events = createEditorEvents();
 		const captured: EditorError[] = [];

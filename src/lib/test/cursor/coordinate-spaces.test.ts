@@ -1,5 +1,5 @@
-// Pins the conversion directions (a flipped ± is a real caret bug) and, at the
-// type level, that the brands reject cross-space and unbranded values.
+// Tests the conversion directions (a flipped plus or minus is a real caret bug) and, at the
+// type level, that the brands reject values from another space or with no brand at all.
 
 import { describe, it, expect } from 'vitest';
 import {
@@ -41,7 +41,7 @@ describe('coordinate-space conversions', () => {
 
 describe('coordinate-space brands (compile-time pins)', () => {
 	// An unused @ts-expect-error is itself a check error, so a green gate proves both directions:
-	// the mix fails to compile AND the brand has not decayed to plain number.
+	// the mix fails to compile, and the brand has not decayed into a plain number.
 	it('brands reject cross-space and unbranded values but stay usable as numbers', () => {
 		const raw: RawOffset = asRawOffset(3);
 
@@ -49,7 +49,7 @@ describe('coordinate-space brands (compile-time pins)', () => {
 		const mixed: DomTextOffset = raw;
 		void mixed;
 
-		// @ts-expect-error a plain number needs a mint or conversion to enter a space
+		// @ts-expect-error a plain number needs a constructor or a conversion to enter a space
 		const bare: RawOffset = 3;
 		void bare;
 
@@ -74,8 +74,8 @@ describe('coordinate-space brands (compile-time pins)', () => {
 		expect(asCellIndex(3) + 1).toBe(4);
 	});
 
-	// Assignment-shaped (never invoked) so the pins are runtime-free; call-site
-	// checking would be bivariance-exempt on methods, assignment is not.
+	// Written as assignments, never called, so the checks need no runtime; checking at a call
+	// site would be exempt from bivariance on methods, and assignment is not.
 	it('the editable-surface seam rejects wrong-space offsets', () => {
 		type SetRawArg = Parameters<CursorBackend['setRaw']>[0];
 
@@ -109,8 +109,8 @@ describe('DocPath composition', () => {
 		const src = [0, 1];
 		const out = docPathFrom(src);
 		expect(out).toEqual([0, 1]);
-		// Copied: a later mutation of the composer's own array can't leak into the
-		// emitted event path or snapshot coordinate.
+		// Copied, so a later change to the caller's own array cannot leak into the emitted event
+		// path or the snapshot coordinate.
 		expect(out).not.toBe(src);
 	});
 });

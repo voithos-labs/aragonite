@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 //
-// A mark's `interactive.onClick` is plugin code on a user gesture, and editor.md §12
-// makes the `error` channel one seam for every contained failure — so this click
-// handler must route a throw there like every other decoration entry point does.
+// A mark's `interactive.onClick` is plugin code running on a user gesture, and editor.md §12
+// makes the `error` channel the one place every contained failure is reported, so this click
+// handler has to report a throw there like every other decoration entry point does.
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import { mount, unmount, flushSync } from 'svelte';
 import DecorationOverlay from '$lib/components/DecorationOverlay.svelte';
@@ -13,8 +13,8 @@ import type { EditorServices } from '$lib/editor-keys';
 import type { MarkDecoration } from '$lib/decorations/types';
 import { editorMountContext } from '../harness/mount-context';
 
-/** jsdom measures every real range at zero width, which the overlay skips as a
- *  degenerate sliver — so the leaf shim supplies the rect the browser would. */
+/** jsdom measures every real range at zero width, which the overlay skips as too thin to
+ *  paint, so this stand-in supplies the rect a browser would. */
 function paintingLeaf(): BlockComponent {
 	return {
 		focus: () => {},

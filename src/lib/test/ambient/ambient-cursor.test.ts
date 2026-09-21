@@ -6,8 +6,8 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { createAmbientCursorIO } from '../../ambient/ambient-cursor';
 import { asRawOffset } from '../../cursor/coordinate-spaces';
 
-// Fixture: a list-item prose surface — marker span "- " (walk [0,2)) then the
-// block's own raw text "hello" (walk [2,7), raw [0,5)).
+// Fixture: a list item's prose element: the marker span "- " (traversal offsets [0,2)) then
+// the block's own raw text "hello" (traversal [2,7), raw [0,5)).
 const AMBIENT = '- ';
 let el: HTMLElement;
 let marker: HTMLElement;
@@ -67,8 +67,8 @@ describe('getRawSelection', () => {
 	});
 
 	it('reports no selection when the surface does not hold focus', () => {
-		// A foreign selection resolves against neither endpoint of `el`, so an
-		// unguarded walk hands back a plausible end-of-block pair instead of null.
+		// A selection from elsewhere resolves against neither endpoint of `el`, so an unchecked
+		// traversal hands back a plausible end-of-block pair instead of null.
 		const foreign = elsewhere.firstChild!;
 		elsewhere.focus();
 		select(foreign, 0, foreign, 2);
@@ -82,16 +82,16 @@ describe('getRawSelection', () => {
 	});
 
 	it('clamps a marker-interior endpoint to raw 0 rather than dropping the selection', () => {
-		// A snap target is one caret intent and cannot stand in for one end of a pair; marker
-		// interior clamps to raw 0, the correct boundary for a drag that began inside the marker.
+		// A snap target is one caret position and cannot stand in for one end of a pair; inside the
+		// marker clamps to raw 0, the right boundary for a drag that began inside the marker.
 		el.focus();
 		select(marker.firstChild!, 1, text, 2);
 		expect(cursorIO(4).getRawSelection()).toEqual({ start: 0, end: 2 });
 	});
 });
 
-// The door a native ranged edit reads its own range through: `getTargetRanges()` reports a span
-// while the caret stays collapsed, so the selection answers nothing there (G4.44).
+// How an edit the browser performs over a range reads that range: `getTargetRanges()` reports
+// a span while the caret stays collapsed, so the selection answers nothing there (G4.44).
 describe('rawRangeOf', () => {
 	const rangeOver = (
 		startNode: Node,
@@ -109,8 +109,8 @@ describe('rawRangeOf', () => {
 		expect(cursorIO().rawRangeOf(rangeOver(text, 1, text, 3))).toEqual({ start: 1, end: 3 });
 	});
 
-	// The event's range is the argument, so neither focus nor the live selection is consulted —
-	// which is the whole reason a collapsed caret can still carry one.
+	// The event's range is the argument, so neither focus nor the live selection is read, which
+	// is the whole reason a collapsed caret can still have one.
 	it('answers without focus, and answers a collapsed range', () => {
 		elsewhere.focus();
 		select(elsewhere.firstChild!, 0, elsewhere.firstChild!, 2);
@@ -124,7 +124,7 @@ describe('rawRangeOf', () => {
 		});
 	});
 
-	// A range another surface reported: resolving it here would write this block's bytes at
+	// A range another block reported: resolving it here would write this block's bytes at
 	// offsets that address someone else's text.
 	it('declines a range outside the surface', () => {
 		const foreign = elsewhere.firstChild!;
@@ -188,9 +188,9 @@ describe('clampOutOfAmbient', () => {
 		expect(sel.focusNode).toBe(marker.firstChild);
 	});
 
-	// The surface can be gone before a click reaches it: a widget's own handler navigates, the
-	// window re-slices, and the block unmounts mid-dispatch. `getAmbientLength` is an owner-bound
-	// derived at the shipped call site, so reading it before liveness reads a dead owner.
+	// The element can be gone before a click reaches it: a widget's own handler navigates, the
+	// window re-slices, and the block unmounts mid-dispatch. At the real call site
+	// `getAmbientLength` is a `$derived` on that owner, so reading it first reads a dead one.
 	it('reads no ambient length once the surface is gone', () => {
 		let reads = 0;
 		createAmbientCursorIO({

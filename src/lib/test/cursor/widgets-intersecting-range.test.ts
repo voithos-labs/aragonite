@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
-// Verifies the offset/intersection logic of `widgetsIntersectingRange` — which
-// atomic widgets a raw range covers. Pixel geometry (the bounding rects the
-// search/selection overlays actually paint) is covered by e2e.
+// Checks the offset and intersection logic of `widgetsIntersectingRange`: which widgets a raw
+// range covers. e2e covers the pixel geometry, the rects the search and selection overlays
+// actually paint.
 
 import { describe, it, expect, beforeEach } from 'vitest';
 import { asDomTextOffset } from '../../cursor/coordinate-spaces';
@@ -14,8 +14,8 @@ describe('widgetsIntersectingRange', () => {
 		el = document.createElement('div');
 	});
 
-	// A widget spanning raw [start, end) with non-empty inner content, so a walker
-	// that wrongly read textContent (0 chars) would diverge from the source range.
+	// A widget spanning raw [start, end) with non-empty inner content, so a traversal that
+	// wrongly read `textContent` (0 characters) would disagree with the source range.
 	function widget(start: number, end: number): HTMLElement {
 		const w = document.createElement('span');
 		w.setAttribute('data-inline-widget', '');
@@ -28,14 +28,14 @@ describe('widgetsIntersectingRange', () => {
 	}
 
 	it('returns the widget when the range lies entirely inside its source span', () => {
-		// Image-only list item: the marker text counts toward the running offset,
-		// then the widget occupies [2, 32). A match like "In a list" sits inside it.
+		// A list item holding only an image: the marker text counts toward the running offset, then
+		// the widget occupies [2, 32). A match like "In a list" sits inside it.
 		const marker = document.createTextNode('- ');
 		const w = widget(0, 30);
 		el.append(marker, w);
 
-		// A match at ambient-adjusted [5, 9) falls inside the widget span [2, 32)
-		// even though the widget contributes 0 chars to textContent.
+		// A match at [5, 9), adjusted for the marker prefix, falls inside the widget's span [2, 32)
+		// even though the widget adds 0 characters to `textContent`.
 		expect(widgetsIntersectingRange(el, asDomTextOffset(5), asDomTextOffset(9))).toEqual([w]);
 	});
 
@@ -94,8 +94,8 @@ describe('widgetsIntersectingRange', () => {
 		expect(widgetsIntersectingRange(el, asDomTextOffset(0), asDomTextOffset(10))).toEqual([]);
 	});
 
-	// A zero-byte widget decoration island (data-source-start === data-source-end) is deliberately
-	// skipped by selection cover-rects — nothing is selected — so nobody "fixes" the guard.
+	// A zero-byte decoration widget (`data-source-start === data-source-end`) is deliberately
+	// skipped by the selection rects, since nothing is selected, so nobody "fixes" the check.
 	it('ignores a zero-length decoration widget island', () => {
 		const island = document.createElement('span');
 		island.setAttribute('data-inline-widget', '');

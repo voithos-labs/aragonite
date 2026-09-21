@@ -2,9 +2,9 @@ import { describe, it, expect } from 'vitest';
 import { publishRefSlot, whenRefMounted, type RefSlots } from '../../reactivity/publish-ref.svelte';
 import { settlesWithin } from '../harness/microtask-settle';
 
-// One scope: the editor's blockRefs slots behind the accessors it publishes through.
-// A fresh pair per test IS the isolation — the registry keys on this object, so no
-// leftover waiter from another test or scope can reach into this one.
+// One block list: the editor's `blockRefs` entries behind the accessors it writes through. A
+// fresh pair per test is what isolates them, since the registry keys on this object, so no
+// leftover waiter from another test or another list can reach into this one.
 function makeSlots(): RefSlots<object> & { refs: (object | undefined)[] } {
 	const refs: (object | undefined)[] = [];
 	return {
@@ -41,7 +41,7 @@ describe('mount-await registry', () => {
 		publishRefSlot(slots, 0, undefined);
 		expect(await settlesWithin(wait)).toBe(false);
 
-		// A real mount afterward still wakes it.
+		// A real mount afterwards still wakes it.
 		publishRefSlot(slots, 0, {});
 		await expect(wait).resolves.toBeUndefined();
 	});
@@ -64,7 +64,8 @@ describe('mount-await registry', () => {
 		expect(await settlesWithin(wait)).toBe(false);
 	});
 
-	// The multi-instance / nesting collision: a bare-index registry woke both.
+	// The clash between two editors, or two nesting levels: a registry keyed on the index alone
+	// woke both.
 	it('does not wake a waiter when another scope publishes at the same index', async () => {
 		const mine = makeSlots();
 		const foreign = makeSlots();

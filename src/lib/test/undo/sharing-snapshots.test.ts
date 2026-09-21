@@ -61,10 +61,11 @@ describe('structural-sharing snapshots', () => {
 		expect(takeDevWarns()).toEqual([]);
 	});
 
-	// GH #73: filling a blank block hands its follower the separator the blank line had been —
-	// a node the caller's unshare never covered, since it only owns the block being typed into.
-	// Miss-analysis: every sharing case drove a write to the block the gesture NAMES, so the one
-	// op that writes a bystander's bytes had no pin.
+	// GH #73: filling a blank block hands the block after it the separator the blank line used to
+	// be, and the caller's copy-before-write never covered that node, since it owns only the block
+	// being typed into.
+	// Miss-analysis: every sharing case drove a write to the block the gesture names, so the one
+	// operation that writes another block's bytes had no test.
 	it('a blank fill unshares the follower it hands the separator to', async () => {
 		const { deps, controller, history } = makeHarness('alpha\n\n\ndelta\n');
 		const actions = createBlockEditActions(deps, controller);
@@ -80,7 +81,7 @@ describe('structural-sharing snapshots', () => {
 	it('mutating a shared node between push and restore trips the integrity oracle', async () => {
 		const { deps, controller, history } = makeHarness('hello\n');
 		controller.pushUndoSnapshot(0, 0);
-		// Simulates a missed unshare: a raw write through a node the entry shares.
+		// Stands in for a missed copy-before-write: a raw write through a node the entry shares.
 		deps.doc.children[0].raw = 'corrupted\n';
 		await history.requestUndo();
 		const fires = takeDevWarns();
@@ -88,9 +89,11 @@ describe('structural-sharing snapshots', () => {
 		expect(fires[0].message).toContain('undo: snapshot digest mismatch');
 		expect(fires[0].details).toBe('snapshot-integrity');
 	});
-	// GH #73: the nested door hands the follower the same separator, and the spine unshare copies
-	// the CONTAINER, so the snapshot's digest never sees a write to a still-shared grandchild.
-	// Miss-analysis: the oracle only descends the doc root, so no nested sharing case could fire it.
+	// GH #73: the nested path hands the next block the same separator, and copying the ancestor
+	// chain copies the container, so the snapshot's digest never sees a write to a grandchild that
+	// is still shared.
+	// Miss-analysis: the check only descends from the document root, so no nested sharing case
+	// could ever trip it.
 	it('a blank fill inside a container unshares the follower it hands the separator to', async () => {
 		const h = makeNestedHarness('> alpha\n>\n>\n> delta\n', { index: 0 });
 		h.controller.pushUndoSnapshot(0, 0);
@@ -103,10 +106,10 @@ describe('structural-sharing snapshots', () => {
 		expect(shared.leadingTrivia).toBe('');
 	});
 
-	// GH #96: the reverse transition takes a separator BACK, and the run member giving it up can
-	// sit two slots below the block the gesture names — the widest reach any settle has.
-	// Miss-analysis: the #73 cases pinned a write to the immediate follower, so a settle that
-	// walked further would have shipped its bystander writes unshared.
+	// GH #96: the change in the other direction takes a separator back, and the block giving it
+	// up can sit two positions below the one the gesture names, the furthest any fix-up reaches.
+	// Miss-analysis: the #73 cases tested a write to the very next block, so a fix-up reaching
+	// further would have shipped writes to other blocks with no copy first.
 	it('emptying a block unshares the run member two slots below it', async () => {
 		const { deps, controller } = makeHarness('Hello\n\nSecond\n');
 		const actions = createBlockEditActions(deps, controller);

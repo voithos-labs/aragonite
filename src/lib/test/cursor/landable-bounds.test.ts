@@ -1,17 +1,17 @@
 // @vitest-environment jsdom
 //
-// The walk's landable extremes: where a caret can actually sit in a block, which is what every
-// block-edge gate compares against. A hidden marker run holds no caret position at all, and the
-// ambient island's far side IS raw 0, so a bound at either end moves past them; every other
-// opaque island keeps both of its boundaries.
-// Miss-analysis: the exits used to read the kind's declared content range, so no test could
-// observe a block whose unreachable bytes the CST calls content — a fence, a cell's `[ref]`.
+// The furthest a caret can actually sit at each end of a block, which is what every check at a
+// block's edge compares against. A run of hidden markers holds no caret position at all, and
+// the far side of the container's marker prefix is raw 0, so a bound at either end moves past
+// them; every other widget the caret cannot enter keeps both of its boundaries.
+// Miss-analysis: block exits used to read the kind's declared content range, so no test could
+// see a block whose unreachable bytes the CST calls content: a fence, a cell's `[ref]`.
 import { describe, it, expect, afterEach } from 'vitest';
 import { landableDomTextBounds } from '../../cursor/widget-offset';
 import { buildAmbientSpan } from '../../ambient/ambient-dom';
 import { mountBlock, span, text, widget } from './chrome-fixtures';
 
-/** A replace decoration's inert island: contenteditable="false" TEXT, unlike a widget. */
+/** What a `replace` decoration renders: contenteditable="false" text, unlike a widget. */
 function island(text: string): HTMLElement {
 	const el = document.createElement('span');
 	el.setAttribute('data-decoration-island', '');
@@ -39,7 +39,7 @@ describe('landableDomTextBounds — hidden runs move the bound in', () => {
 	});
 
 	it('coalesces adjacent hidden runs of different families', () => {
-		// `## **bold**`: a block-own prefix and a construct's opener are one unreachable run.
+		// `## **bold**`: the block's own prefix and a construct's opener are one unreachable run.
 		const block = mountBlock(
 			{ mode: 'live' },
 			span('md-marker', '## '),
@@ -70,8 +70,8 @@ describe('landableDomTextBounds — hidden runs move the bound in', () => {
 
 describe('landableDomTextBounds — islands the caret cannot enter', () => {
 	it('steps past the AMBIENT marker in every mode', () => {
-		// `- **lead**`: the ambient prefix is inert and the `**` behind it unpainted, so the
-		// first landable walk offset clears both.
+		// `- **lead**`: the marker prefix takes no caret and the `**` behind it is unpainted, so the
+		// first offset the caret can sit at clears both.
 		const live = mountBlock(
 			{ mode: 'live' },
 			buildAmbientSpan('- '),
@@ -85,14 +85,14 @@ describe('landableDomTextBounds — islands the caret cannot enter', () => {
 	});
 
 	it('leaves both boundaries of an atomic widget landable', () => {
-		// A widget is opaque, not unreachable: a caret sits before and after it.
+		// A widget cannot be entered, but it is not unreachable: a caret sits before and after it.
 		const block = mountBlock({ mode: 'live' }, widget('$x$'), text('after'));
 		expect(landableDomTextBounds(block)).toEqual({ start: 0, end: 8 });
 	});
 
 	it('leaves both boundaries of a decoration island landable', () => {
-		// The step-over island is the ambient span's opposite: its far side is a raw offset of
-		// its own, so a bound that moved in front of it would turn the step-over into a block exit.
+		// A widget the caret steps over is the opposite of the marker prefix: its far side is a raw
+		// offset of its own, so a bound moved in front of it would turn that step into a block exit.
 		const block = mountBlock({ mode: 'live' }, text('lead '), island('HIDDEN'), text(' tail'));
 		expect(landableDomTextBounds(block)).toEqual({ start: 0, end: 16 });
 
@@ -101,8 +101,8 @@ describe('landableDomTextBounds — islands the caret cannot enter', () => {
 	});
 });
 
-// Miss-analysis: every trailing-chrome case ended its landable text on a character, so the
-// position after a final `\n`, which sits on the hidden closer's line, was never asked for.
+// Miss-analysis: every case with trailing markers ended its reachable text on a character, so
+// the position after a final `\n`, which sits on the hidden closer's line, was never asked for.
 describe('landableDomTextBounds — a trailing newline before hidden chrome', () => {
 	it('ends before the newline, whose far side is a line nothing paints', () => {
 		const emptyBody = mountBlock(

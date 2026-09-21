@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
 //
-// Regression #48. Miss: the contested-claim suite faked teardown by nulling a hand-rolled
-// array, so cleanup's identity check never ran against the storage a real scope publishes into.
+// Regression #48. Miss: the suite for two components registering the same node faked teardown
+// by nulling its own array, so the cleanup's identity check never ran against the storage a
+// real block list writes into.
 import { describe, it, expect } from 'vitest';
 import { DEV } from 'esm-env';
 import { flushSync, tick } from 'svelte';
@@ -20,15 +21,15 @@ function makeNode(): CstNode {
 		leadingTrivia: '',
 		raw: '',
 		metadata: { quoteDepth: 1 },
-		// One child: the scope's length reconcile truncates the published slot on a
-		// childless node, so an empty container could not hold the ref under test.
+		// One child: the list truncates its refs to the child count, so a childless node could not
+		// hold the ref this test needs.
 		children: [{ kind: 'paragraph', leadingTrivia: '', raw: 'a\n' }],
 		innerPrefix: '',
 		innerSuffix: ''
 	};
 }
 
-/** A real scope over `node`, so registration goes through the factory the editor mounts. */
+/** A real block list over `node`, so registration goes through the factory the editor uses. */
 function mountScope(node: CstNode): { state: BlockListState; stop: () => void } {
 	let state!: BlockListState;
 	const stop = $effect.root(() => {

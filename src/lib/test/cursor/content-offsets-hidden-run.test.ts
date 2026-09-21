@@ -1,10 +1,10 @@
 // @vitest-environment jsdom
 //
-// The widget-free walk carries the same hidden-run rule as the walk beside it: a span the
-// mode paints nothing for holds no landable position, so a range never starts or ends in it.
+// The widget-free traversal follows the same hidden-run rule as the one beside it: a span the
+// mode paints nothing for is nowhere the caret can sit, so a range never starts or ends in it.
 // Miss-analysis: `content-offsets.test.ts` builds bare containers with no `data-presentation`
-// root, so the atomic-widget rule was pinned and the hidden-run one had no fixture to fail in
-// — a live-mode code block seated its caret inside the hidden opener fence unobserved.
+// root, so the widget rule was tested and the hidden-run one had no fixture to fail in, and a
+// live-mode code block put its caret inside the hidden opener fence unobserved.
 import { describe, it, expect, afterEach } from 'vitest';
 import { asDomTextOffset } from '../../cursor/coordinate-spaces';
 import { createRangeFromOffsets, setCursorOffset } from '../../cursor/content-offsets';

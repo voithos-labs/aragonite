@@ -99,8 +99,8 @@ describe('active-editor — isForeignTextEntry', () => {
 		});
 	}
 
-	// Non-text controls stay claimable so a sole editor keeps Ctrl+F when one holds
-	// focus — the presentation-reading toggle is a checkbox.
+	// A control that takes no text still lets an editor take the chord, so a lone editor keeps
+	// Ctrl+F while one has focus; the reading-mode toggle is a checkbox.
 	for (const type of ['checkbox', 'radio', 'button', 'file', 'range', 'color', 'date']) {
 		it(`a foreign non-text <input type="${type}"> keeps the editor's claim`, () => {
 			expect(isForeignTextEntry(input(type))).toBe(false);

@@ -3,11 +3,11 @@
 // one routes through window.getSelection.)
 
 /**
- * Structural-sharing undo keystone: random op sequences over the real action factories
- * with undo/redo interleaved, since one missed copy-path-on-write corrupts one entry and
- * only a byte comparison catches it. Convergence runs at the SETTLED endpoint only: a
- * mid-paragraph split legally serializes as one paragraph per-op (a soft split), so only
- * the drained endpoint catches a restoration whose bytes are right but structure drifted.
+ * The main test for structural sharing in undo: random sequences of operations over the real
+ * action factories with undo and redo mixed in, since one missed copy-before-write corrupts one
+ * entry and only a byte comparison catches it. The comparison runs at the final state only: a
+ * split mid-paragraph may legally serialize as one paragraph after a single operation, so only
+ * the fully unwound state catches a restore whose bytes are right but whose structure drifted.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -38,8 +38,8 @@ describe('undo restoration property (structural sharing)', () => {
 					const original = serialize(h.deps.doc);
 					const stacks = () => h.deps.undoManager.getStacks();
 
-					// Each stack entry modelled as the serialization it restores TO: a push
-					// records the pre-op state, undo/redo move it onto the opposite stack.
+					// Each stack entry is modelled as the text it restores to: a push records the state
+					// before the operation, and undo or redo moves it onto the other stack.
 					const expectedUndo: string[] = [];
 					const expectedRedo: string[] = [];
 
@@ -72,7 +72,7 @@ describe('undo restoration property (structural sharing)', () => {
 					expect(expectedUndo.length).toBe(stacks().undo.length);
 					expect(expectedRedo.length).toBe(stacks().redo.length);
 
-					// Drain phase A — undo everything down to the original source.
+					// Phase A: undo everything back to the original source.
 					while (stacks().undo.length > 0) {
 						const before = serialize(h.deps.doc);
 						const target = expectedUndo.pop()!;
@@ -82,8 +82,8 @@ describe('undo restoration property (structural sharing)', () => {
 					}
 					expect(serialize(h.deps.doc)).toBe(original);
 
-					// Drain phase B — redo everything back up. Random mid-walk redo ops almost
-					// never land on a non-empty redo stack, so this phase is what pins redo.
+					// Phase B: redo everything back up. A random redo mid-run almost never lands on a
+					// non-empty redo stack, so this phase is what tests redo.
 					while (stacks().redo.length > 0) {
 						const before = serialize(h.deps.doc);
 						const target = expectedRedo.pop()!;
@@ -92,7 +92,7 @@ describe('undo restoration property (structural sharing)', () => {
 						expectedUndo.push(before);
 					}
 
-					// Drain phase C — unwind once more to the original.
+					// Phase C: unwind once more to the original.
 					while (stacks().undo.length > 0) {
 						const target = expectedUndo.pop()!;
 						await h.history.requestUndo();
@@ -106,8 +106,8 @@ describe('undo restoration property (structural sharing)', () => {
 		);
 	});
 
-	// Reachability self-test: a generator that cannot reach the class it is meant to
-	// stress proves nothing about it.
+	// A self-test: a generator that cannot produce the shape it is meant to stress proves nothing
+	// about it.
 	it('generates interior-offset marker typing and undo/redo ops', () => {
 		const samples = fc.sample(fc.array(arbOp, { minLength: 1, maxLength: 12 }), {
 			numRuns: 300,
@@ -121,8 +121,8 @@ describe('undo restoration property (structural sharing)', () => {
 		const typeChars = flat.filter((o): o is Extract<Op, { t: 'typeChar' }> => o.t === 'typeChar');
 		expect(typeChars.length).toBeGreaterThan(0);
 
-		// Resolve each generated offset against a fixed 8-code-point body: at least
-		// one must land strictly interior (not offset 0, not the end).
+		// Resolve each generated offset against a fixed 8-code-point body: at least one has to land
+		// strictly inside, neither at offset 0 nor at the end.
 		const body = 'bodyword';
 		const interior = typeChars.filter((o) => {
 			const at = typeCharCodePointOffset(body, o.off);

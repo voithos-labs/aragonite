@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// Visual-line geometry and sticky-measure pixel X require real browser layout — covered by e2e.
+// Visual-line geometry and the sticky column's pixel X need real browser layout; e2e covers them.
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { asDomTextOffset } from '../../cursor/coordinate-spaces';
@@ -59,8 +59,8 @@ describe('content-offsets', () => {
 		});
 	});
 
-	// jsdom keeps activeElement on BODY, so the focused set/read round-trip lives in the e2e
-	// keyboard-navigation/ suite; only the unfocused null read is observable here.
+	// jsdom keeps `activeElement` on `<body>`, so the focused set-and-read round trip lives in
+	// the e2e keyboard-navigation suite; only the unfocused null read can be seen here.
 	describe('setCursorOffset / getCursorOffset round-trip', () => {
 		it('returns null when container is not focused', () => {
 			container.textContent = 'hello';
@@ -89,8 +89,8 @@ describe('content-offsets', () => {
 			expect(getSelectionOffsets(container)).toBeNull();
 		});
 
-		// An endpoint outside the container is not this container's to measure: a 0 fallback would
-		// read as a real offset. Surfaces treat null as "not mine" and decline.
+		// An endpoint outside the container is not this container's to measure: falling back to 0
+		// would read as a real offset. A block treats null as "not mine" and declines.
 		it('returns null when the selection reaches outside the container', () => {
 			container.textContent = 'abcdef';
 			const outside = document.createElement('div');

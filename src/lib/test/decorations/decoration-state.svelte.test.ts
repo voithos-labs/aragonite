@@ -64,8 +64,8 @@ describe('createDecorationEngine', () => {
 		expect(b).toEqual([0, 1, 2]);
 	});
 
-	// "Republish" is a reactive-graph event, so only a subscribed consumer can observe
-	// it — a standalone bucket read recomputes regardless and can't see the skip.
+	// Writing to state again is a reactive event, so only a subscribed reader can see it; a
+	// bucket read on its own recomputes anyway and cannot tell the difference.
 	it('an empty→empty re-run skips the reactive republish; a real change still fires it', () => {
 		const engine = makeEngine();
 		const aHandle = engine.addSource({ name: 'a', provide: () => [mark([0])] });
@@ -98,8 +98,8 @@ describe('createDecorationEngine', () => {
 		expect(() => engine.addSource({ name: 'd', provide: () => [] })).not.toThrow();
 	});
 
-	// Miss-analysis: dispose idempotence was pinned only by re-registering a DIFFERENT literal
-	// under the freed name, so a registry keyed on the source object itself looked identical.
+	// Miss-analysis: calling dispose twice was tested only by registering a different object
+	// under the freed name, so a registry keyed on the source object itself looked the same.
 	it('leaves a disposed handle inert over a re-registration of the same source object', () => {
 		const engine = makeEngine();
 		const source = { name: 'toggled', provide: () => [mark([0])] };
@@ -170,14 +170,14 @@ describe('createDecorationEngine', () => {
 		expect(engine.blockDecorationsForPath([2]).map((d) => d.class)).toEqual(['b']);
 	});
 
-	// A whole-document replacement arrives as the same notifyEdit a keystroke sends, so
+	// Replacing the whole document arrives as the same `notifyEdit` a keystroke sends, so
 	// nothing from the old document may survive in the buckets afterwards.
 	it('a document replacement re-provides every source against the new doc and replaces its bucket', () => {
 		let current = parse('one\n\ntwo\n');
 		const engine = createDecorationEngine({ getDoc: () => current });
 		engine.addSource({ name: 'tail', provide: (d) => [mark([d.children.length - 1])] });
-		// Emits only while the document has a second block, so the swap below drives a
-		// non-empty → empty run: its bucket must be cleared, not left standing.
+		// Emits only while the document has a second block, so the swap below takes it from
+		// non-empty to empty: its bucket has to be cleared, not left standing.
 		engine.addSource({ name: 'pair', provide: (d) => (d.children.length > 1 ? [mark([1])] : []) });
 		expect(engine.marksForPath([1])).toHaveLength(2);
 

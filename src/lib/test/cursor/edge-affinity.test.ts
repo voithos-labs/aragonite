@@ -5,12 +5,12 @@ import {
 	type EdgeAffinityAction
 } from '../../cursor/edge-affinity';
 
-// The arrival matrix decides which of two offsets sharing one pixel a caret means. Pure on
-// the key, so the table is the test. Direction is the rule for STEPS — one stops on the side of
-// the run it approached from, so a press never changes which construct the caret is in — but not
-// for line extremes, which are construct-relative and answer `outside` in both directions.
-// Miss-analysis: the matrix shipped direction-blind (every arrow `inside`) with no consumer to
-// contradict it — the typing seat is the first, and its e2e rows are what caught the polarity.
+// The arrival table decides which of two offsets sharing one pixel a caret means. It depends
+// only on the key, so the table is the test. Direction is the rule for single steps: a step
+// stops on the side of the run it came from, so a keypress never changes which construct the
+// caret is in. It is not the rule for the ends of a line, which are relative to the construct
+// and answer `outside` in both directions. Miss-analysis: the table shipped ignoring direction
+// (every arrow `inside`) with nothing to contradict it until the e2e rows for typing did.
 describe('classifyArrivalKey', () => {
 	const MATRIX: Record<string, EdgeAffinityAction> = {
 		ArrowLeft: 'far',
@@ -48,8 +48,8 @@ describe('classifyArrivalKey', () => {
 		});
 	}
 
-	// macOS line extremes: the caret jumps to the line's edge, a seat rather than a step, so the
-	// answer is Home/End's — construct-relative — not the arrow's direction (GH #124).
+	// On macOS the caret jumps to the line's edge, which is a placement rather than a step, so
+	// the answer is Home and End's, relative to the construct, not the arrow's (GH #124).
 	it('meta+ArrowLeft/Right classify as line extremes, not steps', () => {
 		expect(classifyArrivalKey('ArrowLeft', true)).toBe('outside');
 		expect(classifyArrivalKey('ArrowRight', true)).toBe('outside');
@@ -86,7 +86,7 @@ describe('createEdgeAffinityState', () => {
 		expect(s.get()).toBe('outside');
 	});
 
-	// A collapse rides the same directional key as a step, so the seat needs the two told apart.
+	// Collapsing a selection uses the same arrow key as a step, so the two have to be told apart.
 	it('an extreme overrides the arrow side the same keydown recorded', () => {
 		const s = createEdgeAffinityState();
 		s.note(key('ArrowLeft'));
@@ -95,7 +95,7 @@ describe('createEdgeAffinityState', () => {
 		expect(s.get()).toBe('outside');
 	});
 
-	// A printable key must not blank the arrival its own write seat is about to read.
+	// A printable key must not blank the arrival its own write is about to read.
 	it('a printable key preserves the arrival, and the commit pins it inside', () => {
 		const s = primed('Home');
 		s.note(key('x'));
@@ -110,7 +110,7 @@ describe('createEdgeAffinityState', () => {
 		expect(s.get()).toBe('near');
 	});
 
-	// The door forwards the meta flag, or the matrix's #124 arm is unreachable from a keydown.
+	// The call forwards the meta flag, or the table's #124 case is unreachable from a keydown.
 	it('meta+ArrowRight through the door settles outside', () => {
 		const s = createEdgeAffinityState();
 		s.note({ key: 'ArrowRight', altKey: false, metaKey: true });

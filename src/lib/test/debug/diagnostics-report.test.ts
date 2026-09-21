@@ -24,7 +24,7 @@ describe('buildDiagnosticsReport', () => {
 		expect(out).toContain('text-render/rebuild changed=raw');
 	});
 
-	// The privacy pin: a field report must not leak the document by default.
+	// The privacy rule: a bug report must not leak the document by default.
 	it('EXCLUDES the document source unless opted in', () => {
 		const out = report(false);
 		expect(out).not.toContain(SECRET);
@@ -37,8 +37,8 @@ describe('buildDiagnosticsReport', () => {
 		expect(out).toContain(SECRET);
 	});
 
-	// Miss-analysis: every case fed the report bodies that were prose, so nothing drew the one
-	// content a diagnostics dump most reliably carries — a document with a code fence in it.
+	// Miss-analysis: every case fed the report prose bodies, so nothing produced the one thing a
+	// diagnostics dump most reliably contains: a document with a code fence in it.
 	it('escalates a section fence past a fence run in its own body', () => {
 		const out = buildDiagnosticsReport({
 			timestamp: 't',

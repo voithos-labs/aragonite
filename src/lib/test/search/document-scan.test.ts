@@ -100,8 +100,8 @@ describe('scanDocument — childless opaque containers', () => {
 	});
 
 	it('an EMPTY strip container stays unscanned (its raw is marker bytes, not content)', () => {
-		// These childless containers are editable, but their raw is ambient marker
-		// syntax — scanning it resurrects the marker-match class the ambient rule kills.
+		// These childless containers are editable, but their raw is marker syntax, and scanning it
+		// brings back the matches on markers that the rule for markers exists to prevent.
 		expect(scanDocument(parse('- \n'), matcherFor('- '))).toEqual([]);
 		expect(scanDocument(parse('> \n'), matcherFor('>'))).toEqual([]);
 	});

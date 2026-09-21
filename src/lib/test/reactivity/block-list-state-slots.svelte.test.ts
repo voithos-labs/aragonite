@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 //
-// Regression #48/#62. Miss: the slot-lifetime fixtures hand-rolled a $state scope and
-// published/unpublished in separate flushes, so neither the real storage nor the commit
-// republish overlapping a teardown — the ordering the strand needs — was ever compiled in.
+// Regression #48 and #62. Miss: the fixtures for a ref's lifetime built their own `$state`
+// block list and wrote and cleared it in separate flushes, so neither the real storage nor a
+// commit's rewrite overlapping a teardown, which is the order that strands a ref, ever ran.
 import { describe, it, expect } from 'vitest';
 import { flushSync } from 'svelte';
 import {
@@ -25,7 +25,7 @@ function makeContainer(): CstNode {
 	};
 }
 
-/** A real container scope, so the storage under test is the one the editor mounts. */
+/** A real container's block list, so the storage under test is the one the editor mounts. */
 function mountScope(): { state: BlockListState; stop: () => void } {
 	let state!: BlockListState;
 	const stop = $effect.root(() => {
@@ -35,7 +35,7 @@ function mountScope(): { state: BlockListState; stop: () => void } {
 	return { state, stop };
 }
 
-/** A scope with one published child, plus the switch that tears that mount down. */
+/** A block list with one child ref written, plus the switch that tears that mount down. */
 function mountScopeWithChild(): { state: BlockListState; unmount: () => void; stop: () => void } {
 	let state!: BlockListState;
 	let mounted = $state(true);
@@ -84,10 +84,10 @@ describe('container scope slots', () => {
 		const { state, unmount, stop } = mountScopeWithChild();
 		expect(state.innerBlockRefs[0]).toBeDefined();
 
-		// The commit ceremony's shape (publishScopeView): a copy taken before the flush is
-		// written back to the scope, and the same flush tears the child mount down. Svelte
-		// pins destroy-time reads to pre-flush values, so a replaced array would take the
-		// teardown's clear with it and leave the live array holding a dead ref.
+		// What a commit does (`publishScopeView`): a copy taken before the flush is written back
+		// to the list, and the same flush tears the child mount down. Svelte holds a teardown's
+		// reads to pre-flush values, so a replaced array would take the teardown's clear with it
+		// and leave the live array holding a dead ref.
 		replaceRefs(state.innerBlockRefs, [...state.innerBlockRefs]);
 		unmount();
 		flushSync();
@@ -108,9 +108,9 @@ describe('container scope slots', () => {
 	});
 });
 
-/** The seal, asserted by `npm run check`: making the property settable again leaves the
- *  directive unused and fails the type check. Never invoked. */
+/** Checked by `npm run check`: making the property settable again leaves the directive
+ *  unused, which fails the type check. Never called. */
 export function compileTimePins(state: BlockListState): void {
-	// @ts-expect-error identity is the scope — contents publish through replaceRefs
+	// @ts-expect-error the array's identity is the list; contents are written by replaceRefs
 	state.innerBlockRefs = [];
 }

@@ -16,8 +16,8 @@ function build(raw: string): DocumentFragment {
 	return frag;
 }
 
-// The heading path: a block-own `.md-marker` span over raw.slice(0, markerLen)
-// (editable raw bytes — unlike the contenteditable=false ambient span).
+// The heading case: the block's own `.md-marker` span over `raw.slice(0, markerLen)`, which
+// is editable raw text, unlike the contenteditable=false marker prefix.
 function buildWithMarkerPrefix(raw: string, markerLen: number): DocumentFragment {
 	const frag = document.createDocumentFragment();
 	const marker = document.createElement('span');
@@ -28,7 +28,7 @@ function buildWithMarkerPrefix(raw: string, markerLen: number): DocumentFragment
 	return frag;
 }
 
-/** The shared walk's read-back: text nodes verbatim plus data-source spans. */
+/** What the shared traversal reads back: text nodes verbatim plus `data-source` spans. */
 const walkRawText = (root: Node, raw: string): string => rawTextOfNode(root, raw);
 
 function walkRawTextSkippingAmbient(frag: DocumentFragment, raw: string): string {
@@ -56,7 +56,8 @@ const idx = <D extends WidgetDecoration | ReplaceDecoration>(
 	index = 0
 ): IndexedDecoration<D> => ({ dec, index });
 
-/** Every fixture here renders its whole raw, so a paragraph over it is the CST the gate reads. */
+/** Every fixture here renders its whole raw, so a paragraph over it is the CST the check
+ *  reads. */
 const optsFor = (raw: string): ApplyIslandsOpts => ({
 	mountWidget: (spec, dec) => mountDecorationWidget(spec, dec),
 	contentLength: contentLengthOf({ kind: 'paragraph', leadingTrivia: '', raw })
@@ -119,9 +120,9 @@ describe('applyIslandDecorations', () => {
 		expect(frag.textContent).toBe('## ');
 	});
 
-	// Miss-analysis: this pass never saw the document its decorations were derived from, and
-	// no test drove it with a mismatched pair — so the one shape it cannot judge, a decoration
-	// the document has since outgrown, was the shape it reported as an authoring error.
+	// Miss-analysis: this pass never saw the document its decorations came from, and no test
+	// gave it a mismatched pair, so the one case it cannot judge, a decoration the document has
+	// since outgrown, was the one it reported as an authoring error.
 	it('an island the content no longer holds is dropped silently — staleness is not the author’s', () => {
 		const raw = 'short';
 		const frag = build(raw);
@@ -135,8 +136,8 @@ describe('applyIslandDecorations', () => {
 		expect(frag.textContent).toBe(raw);
 	});
 
-	// A replace island holds bytes the DOM text no longer carries, so a bound measured off
-	// this pass's own output would shrink under it. The gate reads the CST's answer instead.
+	// A `replace` widget holds bytes the DOM text no longer has, so a bound measured from this
+	// pass's own output would shrink underneath it. The check reads the CST's answer instead.
 	it('re-applies over a range a mounted island already covers', () => {
 		const raw = 'hide **me** now';
 		const frag = build(raw);
@@ -154,8 +155,8 @@ describe('applyIslandDecorations', () => {
 	});
 });
 
-// A nonzero-span atomic widget (image / `<br>`): a [data-inline-widget] span
-// carrying its raw bytes via data-source-* while contributing 0 textContent.
+// A widget spanning real bytes (an image, a `<br>`): a `[data-inline-widget]` span holding its
+// raw bytes in `data-source-*` while adding nothing to `textContent`.
 function buildWithAtomicWidget(
 	raw: string,
 	widgetStart: number,
@@ -173,9 +174,9 @@ function buildWithAtomicWidget(
 	return frag;
 }
 
-// A text-position range can't split an atomic widget, so a boundary strictly inside
-// one snaps outward. Sole guard for that branch — the island property's corpus emits
-// no widgets, so its descending pass never reaches it.
+// A range of text positions cannot split a widget, so a boundary strictly inside one snaps
+// outward. The only test for that branch: the property suite's corpus emits no widgets, so its
+// descending pass never reaches it.
 describe('replace boundary inside an atomic widget snaps outward', () => {
 	const raw = 'abIMAGEcd'; // 'ab' + widget over raw[2,7)='IMAGE' + 'cd'
 	const cases = [

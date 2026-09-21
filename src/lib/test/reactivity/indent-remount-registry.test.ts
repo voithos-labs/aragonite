@@ -1,9 +1,9 @@
 // @vitest-environment jsdom
 //
-// Indenting a list item splices the item's NODE into a new parent, so a dying mount
-// and a fresh one claim it at once. The registry must read that as a handoff rather
-// than corruption, and must land it forwards: the entry has to be the LIVE mount's
-// state, or every later commit at that scope addresses refs nothing renders.
+// Indenting a list item moves the item's node into a new parent, so a mount on its way out
+// and a fresh one register it at once. The registry has to read that as a handover rather than
+// corruption, and has to land on the new one: the entry must be the live mount's state, or
+// every later commit on that list addresses refs nothing renders.
 import { describe, it, expect, afterEach, beforeAll } from 'vitest';
 import { installLayoutStubs, mountEditor, pressKeyAt } from '../blocks/editor-mount';
 import { getStateForNode } from '$lib/reactivity/state-registry';

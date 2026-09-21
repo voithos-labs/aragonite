@@ -1,12 +1,12 @@
 import { describe, it, expect, vi } from 'vitest';
 import { runMeasureBatch, type MeasureEntry } from '../../reactivity/measure-batch';
 
-// VR-4: every mounted block's height is read BEFORE any height is written, because a
-// read after a write hits a layout that write dirtied — one forced synchronous reflow
-// per block on a fling.
+// VR-4: every mounted block's height is read before any height is written, because a read
+// after a write hits a layout that write dirtied, which forces one synchronous reflow per block
+// during a fast scroll.
 
-/** Records every read/write as a tagged event on a shared timeline so a test can
- *  assert all reads precede all writes regardless of how many entries there are. */
+/** Records every read and write as a labelled event on one timeline, so a test can assert
+ *  that all the reads come before all the writes however many entries there are. */
 function tracedEntry(id: string, height: number, log: string[]): MeasureEntry {
 	return {
 		readHeight: () => {
@@ -45,8 +45,8 @@ describe('runMeasureBatch', () => {
 		expect(writeB).toHaveBeenCalledWith(99);
 	});
 
-	// jsdom (and a not-yet-laid-out element) reports 0 — recording it would clobber a
-	// good estimate with zero. The read still happens, so the phase split is unaffected.
+	// jsdom, and an element not laid out yet, reports 0, and recording that would overwrite a
+	// good estimate with zero. The read still happens, so the two phases stay separate.
 	it('skips the write for a non-positive height but still reads it', () => {
 		const log: string[] = [];
 		const apply = vi.fn();

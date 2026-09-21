@@ -1,9 +1,10 @@
 // @vitest-environment jsdom
 //
-// Which blocks need an owned Home door: the first landable position abuts an opaque island —
-// no text node holds it, so the engine's Home seats the caret past the island (GH #115).
-// Miss-analysis: the bounds suite pinned WHERE the landable start is, but nothing pinned
-// whether a text position can express it, the fact the Home arm dispatches on.
+// Which blocks need to handle Home themselves: the first position the caret can sit at is next
+// to a widget it cannot enter, so no text node holds that position and the browser's own Home
+// puts the caret past the widget (GH #115).
+// Miss-analysis: the bounds suite tested where that first position is, but nothing tested
+// whether a text position can express it, which is what the Home handler decides on.
 import { describe, it, expect, afterEach } from 'vitest';
 import { landableStartAbutsIsland } from '../../cursor/widget-offset';
 import { buildAmbientSpan } from '../../ambient/ambient-dom';

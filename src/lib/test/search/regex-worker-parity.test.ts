@@ -2,8 +2,8 @@ import { describe, it, expect } from 'vitest';
 import { regexScanWorkerSource } from '../../search/regex-executor';
 import { execAll } from '../../search/matcher';
 
-// The scan worker ships as source text through a Blob URL, so it cannot import
-// `execAll` and carries its own copy of the loop. This is that duplication's guard.
+// The scan worker ships as source text through a blob URL, so it cannot import `execAll` and
+// keeps its own copy of the loop. This is what checks the two copies still agree.
 
 interface WorkerReply {
 	epoch: number;
@@ -19,8 +19,8 @@ function runWorkerSource(texts: string[], pattern: string, flags: string): Worke
 			reply = message;
 		}
 	};
-	// The worker body is a string by construction; evaluating it here is the only
-	// way to test the code that actually ships.
+	// The worker body is a string by construction, so evaluating it here is the only way to test
+	// the code that actually ships.
 	new Function('self', regexScanWorkerSource)(fakeSelf);
 	fakeSelf.onmessage!({ data: { texts, pattern, flags, epoch: 3 } });
 	return reply!;

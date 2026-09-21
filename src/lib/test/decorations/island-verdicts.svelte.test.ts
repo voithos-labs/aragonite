@@ -1,16 +1,17 @@
 // @vitest-environment jsdom
 //
-// The engine's verdict on an island it can see will never render. It belongs at the source
-// seam and nowhere downstream: only here are the decorations held beside the document they
-// were derived from, so only here does "unrenderable" mean the author placed it wrong.
+// What the decoration code answers about an inline widget it can see will never render. That
+// answer belongs where the source runs and nowhere later: only there are the decorations held
+// beside the document they came from, so only there does "cannot render" mean the author
+// placed it wrong.
 import { describe, it, expect } from 'vitest';
 import { parse } from '../../core/parser';
 import { createDecorationEngine } from '../../decorations/decoration-state.svelte';
 import { takeDevWarns } from '../support/warn-gate';
 import { mark, replace, widget } from './fixtures/decorations';
 
-// [1] thematicBreak and [2] fencedCode render no inline pass, so an island targeting
-// them never appears — the engine flags that at the source seam rather than silently.
+// [1] thematicBreak and [2] fencedCode run no inline pass, so a widget aimed at them never
+// appears, and that is reported where the source runs rather than passed over silently.
 const mixedDoc = parse('para\n\n---\n\n```\ncode\n```\n');
 
 describe('non-prose island dev-warn', () => {
@@ -69,9 +70,9 @@ describe('non-prose island dev-warn', () => {
 	});
 });
 
-// Miss-analysis: the render pass owned the out-of-range verdict, and no test paired a source
-// with the document it read — so a decoration one edit stale was indistinguishable from one
-// the author placed wrong, and the engine blamed the author for its own deferred re-run.
+// Miss-analysis: the render pass owned the out-of-range answer, and no test paired a source
+// with the document it read, so a decoration one edit out of date looked exactly like one the
+// author placed wrong, and the author was blamed for a re-run the editor had deferred.
 describe('out-of-range island dev-warn', () => {
 	// 'one\n' and 'two\n': content length 3 apiece.
 	const doc = parse('one\n\ntwo\n');
@@ -100,15 +101,15 @@ describe('out-of-range island dev-warn', () => {
 		expect(takeDevWarns()).toEqual([]);
 	});
 
-	// The trailing newline is not content: a range covering it is out of bounds, so the
-	// engine's answer must be the content range, never `raw.length`.
+	// The trailing newline is not content: a range covering it is out of bounds, so the answer
+	// has to be the content range, never `raw.length`.
 	it('measures against the content range, not the raw bytes', () => {
 		makeSized().addSource({ name: 'nl', provide: () => [replace([0], 0, 4)] });
 		expect(takeDevWarns()).toHaveLength(1);
 	});
 
-	// A setext heading's underline is raw the render path never paints, so its content
-	// range stops short of the block's own display length.
+	// A setext heading's underline is raw the render path never paints, so its content range
+	// stops short of the block's own displayed length.
 	it('respects a kind whose content range stops before the raw ends', () => {
 		const setext = parse('head\n====\n');
 		const engine = createDecorationEngine({ getDoc: () => setext });
@@ -125,8 +126,8 @@ describe('out-of-range island dev-warn', () => {
 		expect(takeDevWarns(), 'subsequent runs stay quiet').toEqual([]);
 	});
 
-	// The two defects are distinct verdicts: sharing a dedupe slot would swallow whichever
-	// arrived second.
+	// The two problems are separate answers: sharing one entry in the de-duplication table would
+	// swallow whichever arrived second.
 	it('reports a range defect even after the same source reported a non-prose one', () => {
 		const engine = createDecorationEngine({ getDoc: () => mixedDoc });
 		engine.addSource({ name: 'both', provide: () => [widget([1], 0), replace([0], 0, 99)] });

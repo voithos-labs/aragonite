@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
-// Miss-analysis: the exact probe was only ever reached through a hit test that had already
+// Miss-analysis: the exact lookup was only ever reached through a hit test that had already
 // clamped the point, so no test named the clamp, and the one kind that needed it (the parrot's
-// reveal) carried its own copy where a regression would show as a caret at byte 0.
+// source view) kept its own copy, where a regression would show up as a caret at byte 0.
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { caretOffsetAtPoint, offsetFromViewportPoint } from '../../cursor/point-offset';
 
@@ -11,7 +11,7 @@ const TEXT = 'p'.repeat(BOX.right - BOX.left);
 
 type PointProbe = ((x: number, y: number) => Range | null) | undefined;
 
-/** jsdom implements neither point API, so stand in for the engine. */
+/** jsdom implements neither point API, so stand in for the browser. */
 function setPointProbe(probe: PointProbe): void {
 	(document as unknown as { caretRangeFromPoint: PointProbe }).caretRangeFromPoint = probe;
 }

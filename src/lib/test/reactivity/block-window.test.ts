@@ -42,7 +42,7 @@ describe('computeWindow', () => {
 		expect(below.end).toBe(32);
 
 		const above = computeWindow(model(), { ...base, scrollTop: 0, pinnedIndex: 20 });
-		// scrollTop 0 -> window start 0, end 12; pin 20 is below end, 9 within cap.
+		// scrollTop 0 gives a window of start 0, end 12; block 20 is below the end, 9 within cap.
 		expect(above.start).toBe(0);
 		expect(above.end).toBe(21);
 	});
@@ -54,7 +54,7 @@ describe('computeWindow', () => {
 			pinnedIndex: 0,
 			pinExtensionCap: 10
 		});
-		// scrollTop 2000 -> start 38; pin 0 is 38 above, beyond cap 10 -> no extension.
+		// scrollTop 2000 gives start 38; block 0 is 38 above, past the cap of 10, so no extension.
 		expect(below.start).toBe(38);
 
 		const above = computeWindow(model(), {
@@ -63,7 +63,7 @@ describe('computeWindow', () => {
 			pinnedIndex: 20,
 			pinExtensionCap: 5
 		});
-		// pin 20 is 9 below end 12, beyond cap 5 -> no extension.
+		// Block 20 is 9 below the end of 12, past the cap of 5, so no extension.
 		expect(above.end).toBe(12);
 	});
 
@@ -73,8 +73,8 @@ describe('computeWindow', () => {
 		expect(w.end).toBe(12);
 	});
 
-	// The budget is the ONLY gate on activation, whoever owns the scroll, so the inactive
-	// result is the whole of what a below-budget document renders: every child, no spacers.
+	// The height threshold is the only thing that turns windowing on, whoever owns the scroll,
+	// so a document under it renders everything: every child, no spacers.
 	it('deactivates when content height drops below the low watermark', () => {
 		const small = new HeightModel(new Array(10).fill(50)); // 500px total < 800
 		const w = computeWindow(small, { ...base, active: true });
@@ -91,8 +91,8 @@ describe('computeWindow', () => {
 		expect(computeWindow(mid, { ...base, active: true }).active).toBe(true);
 	});
 
-	// The under-mount direction of the half-open boundary — a visible gap. The
-	// aligned-scrollTop cases above all miss it.
+	// Getting the half-open boundary wrong the other way leaves a visible gap. The cases above,
+	// with the scroll aligned to a block, all miss it.
 	it('mounts a block straddling the half-open bottom edge', () => {
 		// viewport [1010, 1510); block 30 = [1500, 1550) is partially visible.
 		const w = computeWindow(model(), { ...base, scrollTop: 1010 });

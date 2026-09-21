@@ -6,8 +6,8 @@ import {
 } from '../../reactivity/scope-geometry';
 
 describe('estimateWidth', () => {
-	// VR-3: a nested scope must estimate at its OWN content width, not the scrollport's —
-	// the oracle's line-wrap is monotonic in width, so the wider port systematically
+	// VR-3: a nested list has to estimate at its own content width, not the scroll container's:
+	// the estimator wraps more lines the narrower it gets, so the wider container systematically
 	// undercounts wrapped heights at depth.
 	it('prefers the scope content element width over the scrollport', () => {
 		expect(estimateWidth({ clientWidth: 400 }, 800)).toBe(400);
@@ -18,25 +18,25 @@ describe('estimateWidth', () => {
 		expect(estimateWidth(null, 0)).toBe(800);
 	});
 
-	// A zero-width (pre-layout) list element is unusable — fall through rather than
-	// estimate every block at one char per line.
+	// A list element of zero width, before layout, is unusable, so fall through rather than
+	// estimate every block at one character per line.
 	it('falls through a zero-width list element to the scrollport', () => {
 		expect(estimateWidth({ clientWidth: 0 }, 800)).toBe(800);
 	});
 });
 
 describe('listTopWithinContent', () => {
-	// The editor owns the scrollport: its box top IS the viewport top, so the two port
-	// terms are the identity mapping and the list's rect top is already content-space.
+	// The editor owns the scroll container: its box top is the viewport top, so the two terms
+	// cancel and the list's rect top is already in content coordinates.
 	it('maps a list at the top of a self-scrolled editor to offset zero', () => {
 		expect(listTopWithinContent(0, 0, 0)).toBe(0);
 		// Scrolled 900px down, the list's rect has travelled the same distance up.
 		expect(listTopWithinContent(-900, 0, 900)).toBe(0);
 	});
 
-	// The load-bearing case: a page-scrolled shell puts chrome ABOVE the editor and the
-	// port's own box starts elsewhere. Subtracting only the scroll (or only the viewport
-	// top) leaves the other term in the answer and slices the window a whole band off.
+	// The case that matters: a page that scrolls puts content above the editor and the scroll
+	// container's own box starts elsewhere. Subtracting only the scroll, or only the viewport top,
+	// leaves the other term in the answer and slices the window a whole band off.
 	it('cancels the port offset and the scroll independently', () => {
 		// Editor 400px down a page scrolled 900px: the list's client rect reads
 		// 400 - 900 = -500, and its content-space top is still 400.
@@ -45,8 +45,8 @@ describe('listTopWithinContent', () => {
 		expect(listTopWithinContent(-380, 120, 900)).toBe(400);
 	});
 
-	// Both terms zero is the degenerate reading a stub can produce; it must not be the
-	// only one the arithmetic gets right.
+	// Both terms at zero is what a stub produces, and it must not be the only case the arithmetic
+	// gets right.
 	it('is not satisfied by dropping either term', () => {
 		const listTop = -500;
 		const both = listTopWithinContent(listTop, 120, 900);
@@ -57,20 +57,20 @@ describe('listTopWithinContent', () => {
 });
 
 describe('effectiveViewportHeight', () => {
-	// VR-11: a scope only occupies its intersection with the editor viewport. Windowing
-	// every active scope against the full editor height mounts O(viewport × scopes).
+	// VR-11: a list occupies only its intersection with the editor's viewport. Windowing every
+	// list against the full editor height mounts O(viewport × number of lists) blocks.
 	it('returns the full viewport for a scope spanning the whole viewport', () => {
-		// viewport [0, 600); scope from -100 to +900 covers it entirely.
+		// Viewport [0, 600); a list from -100 to +900 covers it entirely.
 		expect(effectiveViewportHeight(0, 600, -100, 1000)).toBe(600);
 	});
 
 	it('clips a scope that only partially overlaps the viewport top', () => {
-		// viewport [0, 600); scope tops at 400, 1000 tall -> visible band [400, 600) = 200.
+		// Viewport [0, 600); a list starting at 400 and 1000 tall shows [400, 600), so 200.
 		expect(effectiveViewportHeight(0, 600, 400, 1000)).toBe(200);
 	});
 
 	it('clips a scope shorter than the viewport to its own height', () => {
-		// viewport [0, 600); scope [100, 400) is fully inside -> 300.
+		// Viewport [0, 600); a list at [100, 400) is fully inside, so 300.
 		expect(effectiveViewportHeight(0, 600, 100, 300)).toBe(300);
 	});
 
@@ -82,12 +82,12 @@ describe('effectiveViewportHeight', () => {
 		expect(effectiveViewportHeight(800, 600, 0, 400)).toBe(0);
 	});
 
-	// The aggregate VR-11 guarantee: N scopes tiling the viewport sum to ~one viewport,
-	// not N viewports. Reverting to the full editor height (600 each) would give 1800.
+	// The overall VR-11 guarantee: N lists tiling the viewport add up to about one viewport, not
+	// N of them. Going back to the full editor height (600 each) would give 1800.
 	it('keeps total effective viewport bounded across stacked scopes', () => {
 		const viewportTop = 0;
 		const viewportHeight = 600;
-		// Three 300px scopes stacked; only the middle band sits across the viewport.
+		// Three 300px lists stacked; only the middle band sits across the viewport.
 		const scopes = [
 			{ top: -100, height: 300 }, // [-100, 200): visible [0, 200) = 200
 			{ top: 200, height: 300 }, // [200, 500): fully visible = 300

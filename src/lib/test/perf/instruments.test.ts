@@ -72,8 +72,8 @@ afterEach(() => {
 });
 
 describe('perf instruments', () => {
-	// `DEV` is a build-time constant, so the production arm of the switch is reachable
-	// only by re-importing the module against a false one.
+	// `DEV` is a build-time constant, so the production branch is reachable only by re-importing
+	// the module with it set to false.
 	it('enable is a no-op outside dev and Vitest', async () => {
 		vi.resetModules();
 		vi.doMock('esm-env', () => ({ DEV: false }));
@@ -198,7 +198,7 @@ describe('perf seams', () => {
 	it('rebuildUnsharedChain records one depth sample per chain rebuild', () => {
 		const doc = parse('- a\n  - b\n');
 		const sharing = createSharingState();
-		// Nested paragraph's spine: list > listItem > list > listItem > paragraph.
+		// The nested paragraph's ancestors: list > listItem > list > listItem > paragraph.
 		const chain = ensureUnsharedPath(doc, [0, 0, 1, 0, 0], sharing);
 		enablePerfInstruments();
 		rebuildUnsharedChain(doc, chain, sharing, null, undefined);

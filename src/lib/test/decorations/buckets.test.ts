@@ -28,7 +28,7 @@ describe('decoration buckets', () => {
 		expect(byPath.get(pathKey([1, 0]))!.map((d) => d.index)).toEqual([1]);
 	});
 	it('keeps sibling and prefix-adjacent paths distinct', () => {
-		// [1,2] vs [12] — a separator-less path key would collide them.
+		// [1,2] against [12]: a path key with no separator would make them the same.
 		const byPath = groupDecorationsByPath([mark([1]), mark([1, 2]), mark([12])]);
 		expect(byPath.get(pathKey([1]))).toHaveLength(1);
 		expect(byPath.get(pathKey([1, 2]))).toHaveLength(1);

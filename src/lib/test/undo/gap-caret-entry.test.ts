@@ -7,9 +7,9 @@ import { placeGapCaret } from '$lib/selection/caret-doors';
 import { isGapSelection } from '$lib/undo/types';
 import { makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
 
-// What an undo entry records when the caret is in a gap. Every block is mounted here and
-// reports no cursor (jsdom seats no native caret), so the gap must beat the DECLARED
-// fallback coordinate, not merely an absence of refs.
+// What an undo entry records when the caret sits between blocks. Every block is mounted here
+// and reports no cursor (jsdom places no caret of its own), so that position has to win over
+// the declared fallback coordinate, not merely over missing refs.
 
 const TABLE_THEN_FENCE = '| a |\n| - |\n\n```\nx\n```\n';
 const AT_BOUNDARY = { parentPath: [], index: 1 };
@@ -39,7 +39,7 @@ describe('an undo entry pushed while a gap is live records the gap', () => {
 		expect(h.controller.captureCurrentState().selection).toEqual({ gapCaret: AT_BOUNDARY });
 	});
 
-	// Non-vacuity: the same commit with no gap live still takes the declared coordinate.
+	// Control: the same commit with no caret between blocks still takes the declared coordinate.
 	it('falls back to the declared coordinate when no gap is live', async () => {
 		const h = harness();
 
@@ -53,8 +53,8 @@ describe('an undo entry pushed while a gap is live records the gap', () => {
 		});
 	});
 
-	// The entry names a boundary in the PRE-mutation tree: undoing the mint must find the
-	// document that boundary was eligible in.
+	// The entry names a boundary in the tree as it was before the change: undoing the insert has
+	// to find the document that boundary was valid in.
 	it('names a boundary that resolves in its own snapshot', async () => {
 		const h = harness();
 		placeGapCaret(h.deps.selectionState, AT_BOUNDARY);

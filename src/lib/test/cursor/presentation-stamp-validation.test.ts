@@ -1,11 +1,11 @@
 // @vitest-environment jsdom
 //
-// The `data-presentation` stamp is read by the CSS families and by the caret walk, and only the
-// CSS half matches known values: an unrecognized stamp must read as source here or the two mirrors
-// diverge over the same block (#125). A block decoration can write one (E-F3), so this is reachable
-// through a supported API rather than only by direct DOM writes.
-// Miss-analysis: every walk suite stamps a real mode, so no test ever handed the reader a value the
-// stylesheet has no rule for — the fallback arm was exercised by nothing.
+// The `data-presentation` attribute is read by the CSS and by the caret traversal, and only
+// the CSS half matches known values: an unrecognized value has to read as source here, or the
+// two disagree about the same block (#125). A block decoration can write one (E-F3), so this is
+// reachable through a supported API and not only by writing to the DOM directly.
+// Miss-analysis: every traversal suite writes a real mode, so no test ever handed the caret
+// traversal a value the stylesheet has no rule for, and nothing exercised the fallback.
 import { describe, it, expect, afterEach } from 'vitest';
 import { asPresentationMode } from '$lib/presentation-mode';
 import { revealsNoMarkers, screenVisibilityOf } from '$lib/cursor/widget-offset';
@@ -40,8 +40,8 @@ describe('asPresentationMode', () => {
 		expect(asPresentationMode(undefined)).toBe('source');
 	});
 
-	// A membership test written with `in` admits every Object.prototype key, which is exactly the
-	// shape a forged stamp reaches for.
+	// A membership test written with `in` admits every `Object.prototype` key, which is exactly
+	// what a forged value would reach for.
 	it('falls back for an inherited object key', () => {
 		expect(asPresentationMode('constructor')).toBe('source');
 		expect(asPresentationMode('toString')).toBe('source');
