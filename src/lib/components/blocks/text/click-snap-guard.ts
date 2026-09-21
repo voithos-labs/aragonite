@@ -10,7 +10,7 @@ export function caretIsInTextContent(el: HTMLElement, sel: Selection | null): bo
 	return seatIsInTextContent(el, sel.getRangeAt(0).startContainer);
 }
 
-/** The same read for a seat named by its node — the one a press is about to make. */
+/** The same read for a caret position given as a node: the one a press is about to make. */
 export function seatIsInTextContent(el: HTMLElement, node: Node): boolean {
 	return node.nodeType === Node.TEXT_NODE && el.contains(node) && !isHiddenMarkerText(node, el);
 }

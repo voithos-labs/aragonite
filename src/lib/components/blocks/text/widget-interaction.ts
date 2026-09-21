@@ -91,11 +91,8 @@ export interface WidgetPress {
 	modified?: boolean;
 	/** `MouseEvent.detail`; two or more is a double-click, which selects the token it just opened. */
 	clickCount?: number;
-	/**
-	 * The pointer travelled between press and release, so the gesture was a DRAG. A reveal is a
-	 * click's outcome, never a drag's: revealing here would unmount the island the drag painted a
-	 * range across and put a caret where the press landed.
-	 */
+	/** The pointer travelled between press and release, so the gesture was a drag. Showing a
+	 *  widget's source there would unmount the widget the drag just painted a range across. */
 	moved?: boolean;
 }
 
@@ -141,18 +138,16 @@ export interface WidgetInteraction {
 	 *  browser's own caret placement so nothing races this one. */
 	isPointOnRevealWidget(x: number, y: number): boolean;
 	/**
-	 * Where a press ON an atomic island anchors a drag: the island's own raw edge on the point's
-	 * side, for a kind the caret reads as one character. Null for a point on no island, or on one
-	 * that selects whole (an image, a formula) — those own their press. The browser's hit test
-	 * cannot answer this: an island is `user-select: none`, so it returns a position in the
-	 * neighbouring text that moves with whatever is already selected.
+	 * Where a press on a non-editable inline widget anchors a drag: the widget's own raw edge on
+	 * the point's side, for a kind the caret reads as one character. Null over no widget, or over
+	 * one that selects whole (an image, a formula), which owns its own press. The browser cannot
+	 * answer this, since `user-select: none` makes it return a position in the neighbouring text
+	 * that drifts with whatever is already selected.
 	 */
 	islandPressAnchor(x: number, y: number): number | null;
-	/**
-	 * The same read for a press that turns out to be a DRAG, which reaches one island more: a
-	 * reveal-source kind (a formula, a tag) owns the CLICK that reveals it, not the drag. Null on
-	 * a point over no island, or over one running a pointer gesture of its own.
-	 */
+	/** The same read for a press that turns out to be a drag, which reaches one kind more: a kind
+	 *  that shows its source owns the click that opens it, not the drag. Null over no widget, or
+	 *  over one running a pointer gesture of its own. */
 	islandDragAnchor(x: number, y: number): number | null;
 }
 
@@ -903,11 +898,9 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 	}
 
 	/**
-	 * Which islands a DRAG may start inside. Every island is `contenteditable=false`, so the
-	 * browser starts no selection from any of them — but a kind running a pointer gesture of its
-	 * own (an image's resize handles) owns its press, and a range painted under that gesture would
-	 * fight it. A kind the caret reads as one character, or one whose press only ever ends in a
-	 * click (a reveal-source formula, a tag), has no such gesture.
+	 * Which inline widgets a drag may start inside. All of them are `contenteditable=false`, so the
+	 * browser starts no selection from any, but a kind with a pointer gesture of its own (an
+	 * image's resize handles) owns its press, and a range painted under it would fight that gesture.
 	 */
 	function dragsFromIsland(kind: AnyInlineKind): boolean {
 		return isCharacterLikeWidget(kind) || getInlineWidgetEditing(kind)?.revealSource === true;
