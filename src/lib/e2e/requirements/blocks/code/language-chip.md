@@ -22,8 +22,9 @@ a language, and a picker taking focus there would trap that movement.
 
 It comes and goes rather than sitting there: hidden until the pointer hovers the block or the
 caret sits inside it, following the same quiet-by-default rule as the drag handle. It renders
-outside the contenteditable, as a sibling of the element the offset walk reads rather than a
-child, so that walk never sees it and the render effect's `replaceChildren` cannot destroy it.
+outside the contenteditable, as a sibling of the element the DOM-to-offset traversal reads
+rather than a child, so that traversal never sees it and the render effect's `replaceChildren`
+cannot destroy it.
 
 ## Visibility
 
@@ -31,7 +32,7 @@ child, so that walk never sees it and the render effect's `replaceChildren` cann
   when the block is not content-empty, and never in source mode, which always paints its
   fence.
 - A content-empty block (an empty fence) gets the side gutter like any other. Its own dimmed
-  markers paint only while the caret is inside (the caret's own walk applies the same test, and
+  markers paint only while the caret is inside (the caret's own traversal applies the same test, and
   the two must not disagree), and the caret arriving completes the bare fence (opener, empty
   body line, closer) so there is a line to sit on, then opens the picker when the fence has no
   language: the picker is how a language gets written, and a fence with none is exactly where
@@ -90,14 +91,14 @@ the typed and pasted routes already share (`fence-content-validity.md`), so all 
 - **Reading mode on an empty fence paints no markers, but still shows the gutter.** Showing a
   content-empty block's markers covers only `preview-*` and `live`, so an empty fence in
   reading mode shows none; the side gutter renders anyway, as an inert language label beside a
-  copy button, which is what a reader can still use.
+  copy button, which is what someone reading can still use.
 - **A focused preview block shows both.** The preview modes show the fence on the focused
   block, and the chip also shows there (the caret is inside, and an open field counts as
   inside). Redundant, harmless, and cheaper than teaching the chip to read the focus attribute.
 - **The reading-mode chip is an enabled button that does nothing.** No `disabled`, no
   `aria-disabled`: the mode writes nothing anywhere, the label is the useful half, and a
   disabled control cannot be reached by the gesture that proves it does nothing. The
-  `aria-label` still names the language, which is what a reader wants from it.
+  `aria-label` still names the language, which is what someone reading wants from it.
 - **The undo scenarios cannot tell whether the entry was kept apart.** `isolateUndoEntry` is
   the right call and costs nothing, but a Playwright click between the typing and the commit
   already outruns the 250ms batching window, so both undo scenarios would pass without it.

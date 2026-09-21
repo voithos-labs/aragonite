@@ -49,4 +49,5 @@ Fixture: `Before` / a two-line `js` fence / `After`, in `?presentationMode=live`
   bounds passed every check; the hidden-fence shape had no scenario of its own.
 - The cases for those bounds all ended their text on a character, so the position after a final
   newline, which is the hidden closer's line, was never asked for; and the language offer was
-  pinned by clicking in, where no arrival key is recorded, so a keyboard walk never met the picker.
+  pinned by clicking in, where no arrival key is recorded, so arriving by keyboard never met the
+  picker.
