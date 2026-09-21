@@ -2,10 +2,11 @@ import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 import { PluginsPage, activeBlockPath } from '../plugins/helpers';
 
-// An image-only paragraph carries no text column but is enterable as an object, so vertical travel
-// STOPS on it — one press each way (requirements/keyboard-navigation/vertical-travel-object-parity.md).
-// The image sits in a details body, the shape that puts a gap caret between it and the blocks
-// outside, so the walk crosses both vertical doors: the per-block landing and the container entry.
+// An image-only paragraph carries no text column but can be entered as an object, so vertical
+// travel stops on it, one press each way
+// (`requirements/keyboard-navigation/vertical-travel-object-parity.md`). The image sits in a
+// details body, the shape that puts a gap caret between it and the blocks outside, so the
+// traversal crosses both vertical entry points: the per-block landing and the container entry.
 
 const DOC = [
 	'top paragraph.',
@@ -29,8 +30,8 @@ const DOC = [
 
 const TOP = JSON.stringify([0]);
 
-/** Walk one direction to the top paragraph, reporting the presses it took and how many of them
- *  landed on the image. Bounded: a walk that never arrives fails on the count, not by hanging. */
+/** Step one direction to the top paragraph, reporting the presses it took and how many of them
+ *  landed on the image. Bounded: a run that never arrives fails on the count, not by hanging. */
 async function walkUpToTop(editor: PluginsPage): Promise<{ presses: number; imageStops: number }> {
 	let imageStops = 0;
 	for (let presses = 1; presses <= 10; presses++) {
@@ -83,16 +84,16 @@ test.describe('vertical travel past an image-only paragraph', () => {
 	});
 });
 
-// A step-over widget carries a column, so a paragraph holding only one is NOT an object stop: it
-// is a caret stop, seated beside the glyph, and still one press in and one press out each way.
+// A step-over widget carries a column, so a paragraph holding only one is not an object stop: the
+// caret sits beside the glyph, and it is still one press in and one press out each way.
 
 const surrounded = (middle: string) =>
 	['top paragraph.', '', middle, '', 'start here.', ''].join('\n');
 
 const MIDDLE = 1;
 
-/** Walk one direction until the caret reaches `destination`, reporting the presses it took and how
- *  many landed in the middle block. Bounded: a walk that never arrives fails on the count. */
+/** Step one direction until the caret reaches `destination`, reporting the presses it took and how
+ *  many landed in the middle block. Bounded: a run that never arrives fails on the count. */
 async function walkAcross(
 	editor: EditorPage,
 	key: 'ArrowUp' | 'ArrowDown',
@@ -140,7 +141,7 @@ test.describe('vertical travel past an entity-only paragraph', () => {
 			const editor = new EditorPage(page);
 			await editor.goto();
 			await editor.loadContent(surrounded(middle));
-			// One press crosses a whole glyph, so this seat touches no text node on either side.
+			// One press crosses a whole glyph, so the caret here touches no text node either side.
 			await editor.focusBlockAtPath([MIDDLE], 0);
 			await page.keyboard.press('ArrowRight');
 

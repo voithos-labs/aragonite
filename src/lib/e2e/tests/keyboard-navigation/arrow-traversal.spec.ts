@@ -48,13 +48,13 @@ test.describe('keyboard navigation', () => {
 		await editor.focusBlockStart(0);
 		await editor.page.keyboard.press('ArrowUp');
 		await editor.typeText('A');
-		// Anchored to the start of the source: a caret ArrowUp moved to END of block satisfies a
-		// bare `contains`, which is the regression this predicate rules out.
+		// Anchored to the start of the source: a caret that ArrowUp moved to the end of the block
+		// would satisfy a bare `contains`, which is what this predicate rules out.
 		await editor.bridge.waitForSource((s) => s.startsWith('AFirst paragraph'));
 	});
 
 	// A heading's own marker span is its first child, so the first-visual-line check reads
-	// geometry rather than a text node — the arrival paragraphs never exercise.
+	// geometry rather than a text node, a case arriving from a paragraph never covers.
 	test('ArrowUp at the top of a block moves into the heading above', async () => {
 		await editor.loadContent('# Title\n\nParagraph text.\n');
 

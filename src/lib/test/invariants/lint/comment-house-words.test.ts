@@ -108,14 +108,14 @@ const BASELINE: Record<string, number> = {
 	'src/lib/e2e/tests/capture': 0,
 	'src/lib/e2e/tests/clipboard': 19,
 	'src/lib/e2e/tests/decorations': 0,
-	'src/lib/e2e/tests/keyboard-navigation': 3,
+	'src/lib/e2e/tests/keyboard-navigation': 0,
 	'src/lib/e2e/tests/perf': 0,
 	'src/lib/e2e/tests/plugins': 0,
 	'src/lib/e2e/tests/presentation': 0,
 	'src/lib/e2e/tests/search': 1,
 	'src/lib/e2e/tests/selection': 38,
 	'src/lib/e2e/tests/simulation': 0,
-	'src/lib/e2e/tests/text-editing': 3,
+	'src/lib/e2e/tests/text-editing': 0,
 	'src/lib/e2e/tests/webkit': 0
 };
 

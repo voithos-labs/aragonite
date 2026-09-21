@@ -28,8 +28,8 @@ test.describe('editor accessibility (axe baseline-ratchet)', () => {
 	});
 
 	test('preview-block has no new violations', async ({ page }) => {
-		// Live editing with markers hidden by focus-keyed CSS + rendered bullet chrome on
-		// unfocused list items — a distinct DOM/contrast surface from reading and source.
+		// Live editing with markers hidden by focus-keyed CSS, plus rendered bullets on unfocused
+		// list items: a different set of elements and contrasts from reading and source.
 		await editor.loadContent(DEFAULT_CONTENT);
 		await page.getByTestId('preview-block-toggle').click();
 		await expect(editor.editorContainer).toHaveAttribute('data-presentation', 'preview-block');
@@ -38,8 +38,8 @@ test.describe('editor accessibility (axe baseline-ratchet)', () => {
 	});
 
 	test('preview-inline has no new violations', async ({ page }) => {
-		// Inline-granular: construct markers stamped and hidden until caret proximity —
-		// the stamped attributes and the folded/revealed spans get their own axe pass.
+		// This mode marks each construct's markers with a data attribute and hides them until the
+		// caret is near, so those attributes and the shown spans get their own axe pass.
 		await editor.loadContent(DEFAULT_CONTENT);
 		await page.getByTestId('preview-inline-toggle').click();
 		await expect(editor.editorContainer).toHaveAttribute('data-presentation', 'preview-inline');
@@ -75,9 +75,9 @@ test.describe('editor accessibility (axe baseline-ratchet)', () => {
 	});
 
 	test('the live-mode link card has no new violations while open', async ({ page }) => {
-		// Anchored chrome INSIDE `.editor`, so axe's `include('.editor')` scans it unchanged: a
-		// role=dialog with a name, a labelled text field, and two named buttons over the editor's
-		// own token palette.
+		// The card is anchored inside `.editor`, so axe's `include('.editor')` scans it unchanged:
+		// a role=dialog with a name, a labelled text field, and two named buttons over the
+		// editor's own theme colors.
 		await page.evaluate(() => (window as any).__test.setPresentationMode('live'));
 		await editor.loadContent('Visit [example](https://example.com) now.\n');
 		await editor.waitForRenderFlush();

@@ -73,9 +73,9 @@ test.describe('cross-container merge on Backspace (blockquote prev)', () => {
 		await editor.page.keyboard.press('Home');
 		await editor.page.keyboard.press('Backspace');
 
-		// The fallback moves focus into the opaque leaf and changes no bytes, so the
-		// only observable is where the next keystroke lands. A timeout here IS the
-		// failure: focus never moved, or landed somewhere untypable.
+		// The fallback moves focus into the opaque leaf and changes no bytes, so the only thing
+		// left to watch is where the next keystroke lands. A timeout here is the failure: focus
+		// never moved, or moved somewhere that cannot be typed into.
 		await editor.typeText('X');
 		await editor.bridge.waitForSourceContains('X');
 
@@ -84,8 +84,8 @@ test.describe('cross-container merge on Backspace (blockquote prev)', () => {
 		expect(source).toMatch(/^text$/m);
 		expect(source).toContain('```');
 		expect(source).toContain('code');
-		// The marker landed inside the blockquote's fenced leaf — not back in the
-		// paragraph the Backspace came from, and not in the quote's first child.
+		// The typed `X` landed inside the blockquote's fenced leaf, not back in the paragraph
+		// the Backspace came from and not in the quote's first child.
 		expect(source).toMatch(/^> .*X/m);
 	});
 });

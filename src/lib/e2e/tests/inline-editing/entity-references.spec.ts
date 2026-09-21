@@ -1,9 +1,9 @@
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 
-// Recognition + composition of character references
-// (requirements/inline-editing/entity-references.md). The atomic caret/delete behavior of
-// the resulting widget is a separate concern, pinned in entity-widget.spec.ts.
+// How character references are recognized and composed
+// (`requirements/inline-editing/entity-references.md`). How the caret and Delete treat the
+// resulting widget is a separate concern, pinned in `entity-widget.spec.ts`.
 
 test.describe('inline editing — entity references', () => {
 	let editor: EditorPage;

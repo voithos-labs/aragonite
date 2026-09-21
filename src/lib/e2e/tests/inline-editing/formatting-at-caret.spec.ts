@@ -1,7 +1,7 @@
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 
-// Mod+B / Mod+I with no selection (requirements/inline-editing/formatting-at-caret.md).
+// Mod+B / Mod+I with no selection (`requirements/inline-editing/formatting-at-caret.md`).
 // The chord inserts the empty pair, removes one, or unwraps the span the caret is inside.
 
 test.describe('inline formatting at a collapsed caret', () => {
@@ -86,8 +86,8 @@ test.describe('inline formatting at a collapsed caret', () => {
 		expect((await editor.bridge.getSource()).trim()).toBe('a bold b');
 	});
 
-	// The caret contract does NOT toggle the enclosing word — there is no
-	// word-boundary rule anywhere in this editor to be consistent with.
+	// The rule at a collapsed caret is not to bold the surrounding word: this editor has no
+	// word-boundary rule anywhere for that to be consistent with.
 	test('Ctrl+B mid-word inserts the pair at the caret rather than bolding the word', async () => {
 		await editor.loadContent('wordy\n');
 		await editor.focusBlock(0, 2);

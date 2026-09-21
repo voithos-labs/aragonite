@@ -1,12 +1,12 @@
-// One invariant — sticky-column landing-X symmetry on code-block entry — parametrized across
-// code-block shapes, which is why these stay in one file.
+// One rule over several code-block shapes, which is why these stay in one file: entering a code
+// block from above and from below has to land at the same x.
 import { test, expect } from '../../fixtures';
 import { EditorPage, BLOCK_CONTENT_SELECTOR } from '../../editor-page';
 import { DEFAULT_CONTENT } from '../../test-content';
 
 const PIXEL_TOLERANCE = 2;
 
-// Identical bracketing paragraphs isolate any landing-X asymmetry to focusAtColumn.
+// Identical paragraphs above and below, so any difference in landing x comes from `focusAtColumn`.
 const PARAGRAPH_TEXT = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
 const CURSOR_COL = 20;
 
@@ -45,13 +45,14 @@ const SHAPES = [
 		doc: fenced('bbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\ncccccccccccccc\nbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb')
 	},
 	{
-		// Opener (```javascript) is wider than closer (```); interior body offsets must still
-		// dominate the nearest-X search.
+		// The opening fence (```javascript) is wider than the closing ```, and the body's own
+		// offsets must still win the nearest-x search.
 		name: 'code block with info string (```javascript)',
 		doc: fenced('bbbbbbbbbbbbbbbbbbbbbbbbbbbbbb', 'javascript')
 	},
 	{
-		// Guards against rect discontinuity at token-span boundaries in findOffsetNearestX.
+		// Highlighted code splits the line into token spans, whose rects jump at the boundaries
+		// `findOffsetNearestX` searches across.
 		name: 'js-highlighted body (token spans split the line)',
 		doc: fenced('const xxxxxxxxxx = 1234567890 + 9876543210;', 'js')
 	}
@@ -126,8 +127,8 @@ test.describe('sticky column: code block entry symmetry', () => {
 		expect(codeBlockIndex).toBeGreaterThan(0);
 		const landedIn = async () => (await editor.bridge.getSelectionPaths())?.anchor.path[0];
 
-		// The block above is an ordered list, so the line ArrowDown leaves from is its LAST item;
-		// leaving from any other lands in the next item, and a list column is not a code landing.
+		// The block above is an ordered list, so ArrowDown has to leave from its last item:
+		// leaving any other one lands in the next item, and a list column is not a code landing.
 		const aboveLine = editor.page.locator(`[data-block-path='[${codeBlockIndex - 1},2,0]']`);
 		const aboveBox = await aboveLine.boundingBox();
 		expect(aboveBox).not.toBeNull();
@@ -153,11 +154,11 @@ test.describe('sticky column: code block entry symmetry', () => {
 		expect(await landedIn()).toBe(codeBlockIndex);
 		const landBelowX = await editor.getCaretPixelX();
 
-		// Entry from above and below land on DIFFERENT body lines, where nearest-column
-		// quantization can legitimately disagree by a character cell — so the bound is a measured
-		// cell, not the same-line PIXEL_TOLERANCE the sibling tests use, widened by however far
-		// the two clicks' own captured columns fell apart. A sticky regression lands multiple
-		// cells apart and still fails.
+		// Entry from above and from below lands on different body lines, where rounding to the
+		// nearest column can honestly differ by one character cell. So the bound is a measured
+		// cell rather than the same-line `PIXEL_TOLERANCE` the sibling tests use, widened by
+		// however far the two clicks' own captured columns fell apart. A broken sticky column
+		// lands several cells away and still fails.
 		const cellWidth = await editor.getBlock(codeBlockIndex).evaluate((el) => {
 			const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
 			let node: Node | null;

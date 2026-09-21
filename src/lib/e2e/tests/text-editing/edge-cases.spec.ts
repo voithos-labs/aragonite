@@ -21,8 +21,8 @@ test.describe('text editing — edge cases', () => {
 		expect(sourceAfter).toBe(sourceBefore);
 	});
 
-	// The caret is the whole outcome of the ineligible arm: source and block count cannot move,
-	// so asserting only those reads the press as dead (the shape issue #138 was filed as).
+	// Where the merge does not apply, the caret is the whole outcome: source and block count
+	// cannot move, so asserting only those reads the press as doing nothing (issue #138).
 	for (const [label, doc, landing, after] of [
 		['heading above heading', '# Heading A\n\n## Heading B\n', 11, '# Heading A\n\n## Heading B\n'],
 		// The empty heading the caret leaves demotes on blur: a rule of its own, not a merge.
@@ -53,9 +53,9 @@ test.describe('text editing — edge cases', () => {
 		expect(await editor.bridge.getBlockKind(0)).toBe('heading');
 	});
 
-	// The thematic break is a whole-block-focus kind, so a caret-adjacent Backspace
-	// focuses it and only a second press deletes — the same two-step the mermaid
-	// diagram gets (plugins/mermaid-focus.spec.ts pins the plugin twin).
+	// The thematic break takes whole-block focus, so a Backspace beside it focuses it and only
+	// a second press deletes: the same two-step a mermaid diagram gets
+	// (`plugins/mermaid-focus.spec.ts` pins the plugin counterpart).
 	test('Backspace after thematic break focuses it, and a second press deletes it', async () => {
 		await editor.loadContent('Before\n\n---\n\nAfter\n');
 		const original = await editor.bridge.getSource();
@@ -106,8 +106,8 @@ test.describe('text editing — edge cases', () => {
 		await editor.waitForBlockHostCount(2);
 		expect(await editor.bridge.getBlockKind(0)).toBe('heading');
 
-		// The empty block is in the bytes rather than folded into the heading's trailing
-		// trivia, so reloading them shows the same two blocks.
+		// The empty block is in the bytes rather than absorbed into the heading's trailing
+		// blank lines, so reloading them shows the same two blocks.
 		const src = await editor.bridge.getSource();
 		expect(src).toBe('# Heading\n\n\n');
 		await editor.loadContent(src);

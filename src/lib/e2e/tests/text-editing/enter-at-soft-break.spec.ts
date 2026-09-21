@@ -1,8 +1,8 @@
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 
-// GH #95: the caret at the end of a soft-broken line sits ON the paragraph's internal line
-// ending, and Enter there destroyed every line below it. Requirements: enter-at-soft-break.md.
+// GH #95: the caret at the end of a soft-broken line sits on the paragraph's own internal line
+// ending, and Enter there must keep every line below it. Requirements: `enter-at-soft-break.md`.
 
 test.describe('text editing — Enter at a soft line break', () => {
 	let editor: EditorPage;

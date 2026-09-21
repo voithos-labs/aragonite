@@ -22,9 +22,9 @@ test.describe('sticky column: rapid cross-block navigation (timing)', () => {
 		await editor.goto();
 	});
 
-	// Regression: isAtFirstVisualLine / isAtLastVisualLine missed the boundary signal
-	// under rapid input when firstChild/lastChild is a non-text node (heading markers,
-	// inline markup spans), causing the native arrow to clamp within the same block.
+	// `isAtFirstVisualLine` and `isAtLastVisualLine` must still see the block boundary under
+	// rapid input when the first or last child is not a text node (heading markers, inline
+	// markup spans); miss it and the browser's own arrow clamps inside the block.
 	async function crossesRapidly(
 		doc: string,
 		{ key, start, line }: (typeof DIRECTIONS)[number]
@@ -47,13 +47,13 @@ test.describe('sticky column: rapid cross-block navigation (timing)', () => {
 			crossesRapidly(HEADINGS, direction));
 	}
 
-	// The control: plain text on both ends, where the boundary signal was never in doubt.
+	// The control: plain text on both ends, where the block boundary is never in doubt.
 	for (const direction of DIRECTIONS) {
 		test(`rapid ${direction.key} across plain paragraphs crosses to the ${direction.edge}`, () =>
 			crossesRapidly(PARAGRAPHS, direction));
 	}
 
-	// The dimmed `**` marker span as firstChild/lastChild — the same non-text edge headings have,
+	// The dimmed `**` marker span as first or last child: the same non-text edge a heading has,
 	// reached through inline markup instead of a block marker.
 	for (const direction of DIRECTIONS) {
 		test(`rapid ${direction.key} across paragraphs whose ${direction.edge} child is a markup span`, () =>

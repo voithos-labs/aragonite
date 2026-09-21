@@ -22,9 +22,9 @@ test.describe('inline editing — reference render staleness', () => {
 	});
 
 	test('editing only the LRD URL re-renders an unedited reference block href', async () => {
-		// Block 1 is the LRD: `[go]: https://old.com`. Place the caret at end of
-		// the line, select back over `old.com`, and retype `new.com` — a real
-		// user edit that never touches block 0.
+		// Block 1 is the link reference definition: `[go]: https://old.com`. Put the caret at
+		// the end of the line, select back over `old.com`, and retype `new.com`: a real user
+		// edit that never touches block 0.
 		const lrdLine = '[go]: https://old.com';
 		await editor.focusBlock(1, lrdLine.length);
 		for (let i = 0; i < 'old.com'.length; i++) {

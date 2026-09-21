@@ -46,7 +46,8 @@ test.describe('inline editing — editing formatted content', () => {
 	}
 
 	test('typing bold in a split-created block renders strong element', async () => {
-		// Regression: split-created blocks had no inlineContent, so bold rendered as plain **text**.
+		// A block made by a split renders typed `**bold**` as a strong element, the same as a
+		// block that came from the loaded source.
 		await editor.loadContent('First paragraph.\n');
 		await editor.focusBlockEnd(0);
 		await editor.page.keyboard.press('Enter');
@@ -61,7 +62,8 @@ test.describe('inline editing — editing formatted content', () => {
 	});
 
 	test('heading markers are dimmed after typing # to convert', async () => {
-		// Regression: split-created paragraph converted to heading but marker lacked .md-marker class.
+		// A paragraph made by a split and then turned into a heading dims its `#` marker like
+		// any other heading.
 		await editor.loadContent('Some text.\n');
 		await editor.focusBlockEnd(0);
 		await editor.page.keyboard.press('Enter');
@@ -77,7 +79,7 @@ test.describe('inline editing — editing formatted content', () => {
 	});
 
 	test('character-by-character typing produces correct bold rendering', async () => {
-		// Regression: per-character keyboard.type() reversed text via double DOM rebuild.
+		// Typing one character at a time must render the same bold as typing the whole string.
 		await editor.loadContent('Hello.\n');
 		await editor.focusBlockEnd(0);
 		await editor.typeSlowly(' **bold**');

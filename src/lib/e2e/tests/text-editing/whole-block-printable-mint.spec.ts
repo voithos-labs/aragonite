@@ -3,7 +3,7 @@ import { EditorPage } from '../../editor-page';
 import { wholeBlockInput } from '../../whole-block-input';
 import { RULE_DOC, focusTheRule, rule } from './whole-block-rule';
 
-// Requirements: e2e/requirements/text-editing/whole-block-printable-mint.md.
+// Requirements: `e2e/requirements/text-editing/whole-block-printable-mint.md`.
 
 test.describe('whole-block focus — a typed character mints a paragraph below', () => {
 	let editor: EditorPage;
@@ -56,7 +56,7 @@ test.describe('whole-block focus — a typed character mints a paragraph below',
 
 		await page.keyboard.press('ControlOrMeta+c');
 
-		// The whole-block input proxy is the focus target here, not an editable surface.
+		// The whole-block input proxy is the focus target here, not an editable element.
 		await editor.waitForNoSourceMutation();
 		expect(await editor.bridge.getSource()).toBe(original);
 	});

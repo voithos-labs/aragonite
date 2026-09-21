@@ -99,8 +99,8 @@ test.describe('sticky column: edge cases', () => {
 		await editor.goto();
 	});
 
-	// One blank line separates and the next is the empty block, so three newlines is exactly
-	// one empty paragraph between the two — asserted, not guarded, or the arm skips itself.
+	// One blank line separates and the next is the empty block, so three newlines is exactly one
+	// empty paragraph between the two: asserted rather than guarded, or the branch skips itself.
 	test('capture in empty paragraph does not crash', async () => {
 		await editor.loadContent('Above.\n\n\nBelow paragraph with text.\n');
 

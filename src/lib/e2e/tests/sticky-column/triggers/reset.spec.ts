@@ -11,8 +11,8 @@ test.describe('sticky column: reset triggers', () => {
 		await editor.goto();
 	});
 
-	// The column a sticky-reset landing must snap back to. The trailing paragraph guarantees a
-	// downward move lands in a REAL block rather than the past-end append, whose degenerate caret
+	// The column a reset landing must snap back to. The trailing paragraph makes a downward move
+	// land in a real block rather than the append past the end, whose caret has no rect and
 	// collapses to x≈0.
 	async function setupHighColumn(): Promise<number> {
 		await editor.loadContent(
@@ -29,7 +29,7 @@ test.describe('sticky column: reset triggers', () => {
 		return baseColumnX;
 	}
 
-	/** Park the high column on the short line, where every reset gesture below fires. */
+	/** Take the high column down onto the short line, where every reset gesture below fires. */
 	async function clampOntoShortLine(): Promise<number> {
 		const baseColumnX = await setupHighColumn();
 		await editor.page.keyboard.press('ArrowDown');

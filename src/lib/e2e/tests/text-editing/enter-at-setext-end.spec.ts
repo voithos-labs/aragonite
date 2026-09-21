@@ -1,10 +1,10 @@
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 
-// Enter in a setext title keeps the trailing underline with the HEADING half — a plain raw
-// cut demotes it and turns the underline into a thematicBreak below
-// (requirements/text-editing/enter-at-setext-end.md). The block-KIND assertions are
-// load-bearing: source bytes stay stable through the demotion, so nothing else sees it.
+// Enter in a setext title keeps the trailing underline with the heading half: a plain cut of
+// the raw text demotes it and turns the underline into a thematic break below
+// (`requirements/text-editing/enter-at-setext-end.md`). The block-kind assertions carry this,
+// since the source bytes stay the same through the demotion and nothing else would see it.
 
 test.describe('text editing — Enter at the end of a setext title', () => {
 	let editor: EditorPage;
@@ -31,8 +31,8 @@ test.describe('text editing — Enter at the end of a setext title', () => {
 
 			expect(await editor.bridge.getBlockKind(0)).toBe('setextHeading');
 			expect(await editor.bridge.getBlockKind(1)).toBe('paragraph');
-			// The empty half is a blank BLOCK, so it takes a separator of its own: without one
-			// the reload would read the single trailing blank as the document suffix.
+			// The empty half is a blank block, so it takes a separator of its own: without one
+			// the reload would read the single trailing blank as the document's final newline.
 			await editor.bridge.waitForSourceEquals(content + '\n\n');
 			expect(await editor.parseConverged()).toBe(true);
 

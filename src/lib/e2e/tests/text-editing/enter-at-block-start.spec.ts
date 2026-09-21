@@ -1,10 +1,10 @@
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 
-// Enter at raw offset 0 of a non-empty text block: empty block above, content
-// below, caret staying on the content. Requirements: enter-at-block-start.md.
-// Source bytes alone can't discriminate a real split from a trivia bump — the
-// block-host count and the caret path are the load-bearing assertions.
+// Enter at raw offset 0 of a non-empty text block: empty block above, content below, caret
+// staying on the content. Requirements: `enter-at-block-start.md`. Source bytes alone cannot
+// tell a real split from an extra blank line, so the block count and the caret path are the
+// assertions that carry this.
 
 test.describe('text editing — Enter at block start', () => {
 	let editor: EditorPage;
@@ -30,8 +30,8 @@ test.describe('text editing — Enter at block start', () => {
 			expect(await editor.bridge.getBlockKind(1)).toBe(kind);
 			await editor.bridge.waitForSourceEquals('\n' + content);
 			expect(await editor.page.evaluate(() => (window as any).__test.roundTripStable())).toBe(true);
-			// The live tree converges with a reparse of its bytes — the real mutation
-			// oracle; the byte round-trip above is a tautology for valid GFM.
+			// The live tree matches a reparse of its own bytes, which is the real check on the
+			// mutation: the byte round-trip above holds for any valid GFM.
 			expect(await editor.parseConverged()).toBe(true);
 
 			const selection = await editor.bridge.getSelectionPaths();

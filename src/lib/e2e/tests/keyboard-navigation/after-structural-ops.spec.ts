@@ -1,5 +1,5 @@
-// One invariant — container-block navigation surviving the index shift a structural op causes
-// — parametrized across split, M1 merge, and cross-container merge.
+// One rule over split, M1 merge, and cross-container merge: navigating past a container block
+// still works after a structural edit shifts the block indices.
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 
