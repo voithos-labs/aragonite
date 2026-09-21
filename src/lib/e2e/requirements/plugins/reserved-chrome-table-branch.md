@@ -1,24 +1,24 @@
-# Feature: Reserved-child-0 Chrome Wall × Table Branch
+# Feature: the reserved child 0 holds the line when a range ends in a table
 
-The `:::callout` callout reserves child index 0 as an editable `callout-title` chrome
-leaf. This gate proves the rangeDelete wall holds when a range endpoint is a table
-cell (the table branch dispatches ahead of the chrome branch). Behavioral gate:
-CST/selection read by path via `window.__test`, not visuals.
+The `:::callout` callout reserves child index 0 as an editable `callout-title` leaf. This file
+proves that a range delete still stops at it when one endpoint of the range is a table cell,
+since the table branch is dispatched before the title branch. The checks read behavior: the tree
+and the selection read by path through `window.__test`, not visuals.
 
-## Gate 6 — chrome wall × table branch (must pass)
+## Gate 6: chrome wall × table branch (must pass)
 
-Ranges with a table endpoint dispatch to the table branch ahead of the chrome
-branch, so the wall rule must hold there too: covered chrome clears, chrome
-endpoints truncate in place, and a fully-consumed container unit-deletes.
+A range with a table endpoint goes to the table branch before the title branch, so the rule has
+to hold there too: a covered title is emptied, a title at an endpoint is truncated where it is,
+and a container the range covers entirely is deleted as one unit.
 
-- substrate: a table in the callout body parses as a real child (title + table)
-- between (prose → body table cell): the title clears in place to an empty callout-title, the table takes its whole-row-snap semantics, nothing hoists into the opener line; undo restores the title at the CHILD level
-- chrome-start endpoint (mid-title → body table cell): the title truncates by raw write — kind and node survive, no reparse-replacement; the caret stays in the title; undo restores at the child level
-- chrome-end endpoint (table above → mid-title): the title keeps its uncovered tail in the chrome leaf; the start table takes its row semantics
-- table → table across the wall: the strictly-between title clears, never node-deletes (shared deletion-collection coverage)
-- whole-subtree consumed via a table-involving range: the container dies as ONE splice, children intact — undo restores title and body together
-- state audits include table-kind state: a whole-row-snap delete commits the endpoint table as its own scope, so its row ids/refs stay in lockstep with children
+- substrate: a table in the callout body parses as a real child, so the callout is a title plus a table
+- in between, from prose into a body table cell: the title is emptied in place to an empty callout-title, the table snaps to whole rows as it always does, nothing is lifted into the opener line, and undo restores the title at the child level
+- the range starts in the title, mid-title into a body table cell: the title is truncated by a raw write, so its node and kind survive and nothing is replaced by a reparse, the caret stays in the title, and undo restores at the child level
+- the range ends in the title, from a table above into mid-title: the title keeps the tail the range missed, in its own leaf, and the table the range starts in snaps to whole rows
+- table to table across the title: the title strictly in between is emptied rather than deleted as a node, which the shared deletion collection already covers
+- the whole subtree covered by a range involving a table: the container is removed as one splice with its children intact, and undo restores the title and the body together
+- the state audits cover table state too: a delete that snaps to whole rows commits the endpoint table as its own block list, so its row ids and references stay in step with its children
 
 ## User interactions
 
-- pointer drag (cell → cell, prose → cell), Delete, Ctrl+Z are real gestures; assertions read the CST/selection by path, never the DOM shape
+- pointer drags (cell to cell, prose to cell), Delete and Ctrl+Z are real gestures; the assertions read the tree and the selection by path, never the shape of the DOM

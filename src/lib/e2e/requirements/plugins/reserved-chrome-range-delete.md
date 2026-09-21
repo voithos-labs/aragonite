@@ -1,24 +1,24 @@
-# Feature: Reserved-child-0 Chrome rangeDelete Wall
+# Feature: the reserved child 0 stops a range delete
 
-The `:::callout` callout reserves child index 0 as an editable `callout-title` chrome
-leaf. This gate proves the rangeDelete chrome wall. Behavioral gate: CST/selection
-read by path via `window.__test`, not visuals.
+The `:::callout` callout reserves child index 0 as an editable `callout-title` leaf, the
+container's own title row. These checks prove that a range delete stops at it. They read
+behavior: the tree and the selection read by path through `window.__test`, not visuals.
 
-## Gate 4 — rangeDelete chrome wall (must pass)
+## Gate 4: rangeDelete chrome wall (must pass)
 
-Nothing merges across the note's wall: outside endpoints truncate in place,
-covered chrome clears (never node-deletes), and the container dies only when
-the range consumes its whole subtree from outside.
+Nothing merges across the title's boundary. An endpoint outside it is truncated where it is, a
+title the range covers is emptied rather than deleted as a node, and the container itself is
+removed only when the range covers its whole subtree from outside.
 
-- full title coverage: Delete over a selection from the paragraph above through the whole title clears the chrome to an EMPTY callout-title — the body never hoists into the opener line; undo restores byte-for-byte
-- gesture parity: the historical Delete-into-title keyboard gesture (whose sticky column lands at title offset 0) truncates the paragraph above and leaves the chrome intact
-- partial title coverage: the title keeps its uncovered tail in the chrome leaf, never merged into the paragraph above
-- chrome-between: a selection from above the callout into a body child truncates the start in place, clears the chrome, and keeps the end body child's tail in place (later body children untouched)
-- start-in-chrome, end outside: the title keeps its head, all body children delete, the container survives title-only, and the outside end block keeps its tail in place
-- whole-subtree coverage (both variants): a range strictly around the container, and a range ending exactly at its last byte, both delete the container as one unit — no invariant fires on the detached node
-- inside-only whole-callout coverage: a range from the title start through the body end (covering the whole subtree WITHOUT crossing the wall from outside) clears the title and truncates the body to an empty paragraph — the reserved slot holds chrome, not a bare paragraph
-- gate tightness: a body-only range inside the callout stays on the generic path — type-over merges the two body paragraphs exactly like the same gesture in a blockquote
+- the whole title covered: Delete over a selection running from the paragraph above through the whole title empties the title leaf, and the body is never lifted into the opener line; undo restores the bytes exactly
+- the same gesture from the keyboard: the Delete-into-title gesture, whose sticky column lands at title offset 0, truncates the paragraph above and leaves the title intact
+- part of the title covered: the title keeps the tail the range missed, in its own leaf, never merged into the paragraph above
+- the title in the middle: a selection from above the callout into a body child truncates the start where it is, empties the title, and keeps the tail of the body child it ends in, leaving later body children untouched
+- starting in the title and ending outside: the title keeps its head, every body child is deleted, the container survives with only its title, and the block the range ends in keeps its tail where it is
+- the whole subtree covered, both ways: a range strictly around the container, and a range ending exactly at its last byte, each delete the container as one unit, and no invariant fires on the detached node
+- the whole callout covered from inside: a range from the start of the title through the end of the body, covering the whole subtree without crossing the boundary from outside, empties the title and truncates the body to an empty paragraph, because the reserved child holds the title, not a bare paragraph
+- the rule is no wider than it needs to be: a range inside the callout that touches only the body stays on the shared path, so typing over it merges the two body paragraphs exactly as the same gesture does in a blockquote
 
 ## User interactions
 
-- pointer drag, Shift+End/Shift+ArrowDown, Delete, type-over, Ctrl+Z are real gestures; assertions read the CST/selection by path, never the DOM shape
+- a pointer drag, Shift+End and Shift+ArrowDown, Delete, typing over a selection and Ctrl+Z are real gestures; the assertions read the tree and the selection by path, never the shape of the DOM

@@ -1,22 +1,22 @@
-# Feature: Reserved-child-0 Chrome Selection Parity
+# Feature: selection reaches the reserved child 0 like any other block
 
-The `:::callout` callout reserves child index 0 as an editable `callout-title` chrome
-leaf, rendered inside the callout's sole `.block-list`. This de-risking spike
-proves native-block selection parity extends INTO that chrome. Behavioral gate:
-CST/selection read by path via `window.__test`, not visuals.
+The `:::callout` callout reserves child index 0 as an editable `callout-title` leaf, rendered
+inside the callout's single `.block-list`. This early proof shows that selection behaves inside
+that title exactly as it does in a built-in block. The checks read behavior: the tree and the
+selection read by path through `window.__test`, not visuals.
 
-## Gate 1 — selection parity (must pass)
+## Gate 1: selection parity (must pass)
 
-- keyboard cross-select-in: Shift+End then Shift+ArrowDown from the paragraph above paints one cross-block span whose focus reaches the title leaf (`focus.path === [1, 0]`)
-- pointer cross-select-in: a drag from the paragraph into the title is cross-block with the same deep focus path
-- empty-title edge: cross-select-in still reaches `[1, 0]` when the reserved title is empty (an empty child-0 leaf is a real selection endpoint)
-- collapsed caret: collapsing the cross-block selection lands the caret in the title; a typed character appears there (`activeBlockPath === [1, 0]`)
-- undo restore: after a title edit, Ctrl+Z reverts the source and returns the caret to the title leaf
+- selecting into it with the keyboard: Shift+End then Shift+ArrowDown from the paragraph above paints one cross-block span whose focus reaches the title leaf (`focus.path === [1, 0]`)
+- selecting into it with the pointer: a drag from the paragraph into the title is cross-block with the same deep focus path
+- an empty title: selecting in still reaches `[1, 0]` when the reserved title is empty, so an empty child 0 is a real endpoint for a selection
+- collapsed caret: collapsing the cross-block selection puts the caret in the title, and a typed character appears there (`activeBlockPath === [1, 0]`)
+- undo restores: after a title edit, Ctrl+Z takes the source back and returns the caret to the title leaf
 
 ## Substrate
 
-- the seed parses as a real container: the title is a reserved child-0 `callout-title` leaf, the callout round-trips byte-for-byte, and no error is captured
+- the seed parses as a real container: the title is a reserved `callout-title` leaf at child 0, the callout round-trips byte for byte, and no error is captured
 
 ## User interactions
 
-- Shift+End, Shift+ArrowDown, pointer drag, ArrowRight, Ctrl+Z are real gestures; assertions read the CST/selection by path, never the DOM shape
+- Shift+End, Shift+ArrowDown, a pointer drag, ArrowRight and Ctrl+Z are real gestures; the assertions read the tree and the selection by path, never the shape of the DOM
