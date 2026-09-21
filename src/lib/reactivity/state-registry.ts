@@ -1,5 +1,5 @@
-/** Resolve a container node (by identity; views accepted) to its BlockListState.
- *  WeakMap, so entries collect when the node becomes unreachable. */
+/** Find a container node's `BlockListState` by identity (a view works too). A `WeakMap`,
+ *  so entries are collected once the node is unreachable. */
 
 import { DEV } from 'esm-env';
 import { tick } from 'svelte';
@@ -9,7 +9,7 @@ import { devWarn } from '../dev-warn';
 
 const stateRegistry = new WeakMap<NodeView, BlockListState>();
 
-/** Overwrites any existing entry — the new state becomes authoritative on re-mount. */
+/** Overwrites any existing entry: on a remount the new state is the one that counts. */
 export function registerBlockListState(node: NodeView, state: BlockListState): void {
 	const existing = stateRegistry.get(node);
 	stateRegistry.set(node, state);
@@ -19,10 +19,10 @@ export function registerBlockListState(node: NodeView, state: BlockListState): v
 }
 
 /**
- * A dev signal, not a guarantee. Svelte creates a structural remount's new mount before
- * tearing the old one down, so a claim contested INSIDE a flush says nothing about
- * ownership; re-ask once it settles, when a loser still holding child refs means either a
- * second live owner or a teardown whose clear never reached the live slots.
+ * A dev-mode signal, not a guarantee. Svelte creates the new mount of a structural remount
+ * before tearing the old one down, so two components registering inside one flush says nothing
+ * about ownership; ask again afterwards, where a loser still holding child refs means either a
+ * second live owner or a teardown whose clearing never reached the live slots.
  */
 async function reportContestedClaim(
 	node: NodeView,
@@ -44,8 +44,9 @@ export function getStateForNode(node: NodeView): BlockListState | undefined {
 	return stateRegistry.get(node);
 }
 
-/** Strict variant, for a caller holding a live-tree node whose container must be mounted.
- *  `getStateForNode` stays for the ancestor walks where absence is a valid signal. */
+/** The strict version, for a caller holding a live-tree node whose container must be
+ *  mounted. `getStateForNode` stays for the ancestor traversals where a missing entry is a
+ *  valid answer. */
 export function expectStateForNode(node: NodeView): BlockListState {
 	const state = stateRegistry.get(node);
 	if (!state) {

@@ -19,29 +19,29 @@ import {
 } from './list-windowing.svelte';
 
 export interface ContainerWindowingOpts {
-	/** This container's index in its PARENT scope, for the upward subtotal report. A getter, so
-	 *  reorders report under the current slot. Ignored at the root (no parent sink). */
+	/** This container's index in the list above it, for the subtotal it reports upward. A
+	 *  getter, so a reorder reports under the current index. Ignored at the root. */
 	getIndex: () => number;
-	/** This scope's path; the leaf-channel depth is its length. `[]` at the root. */
+	/** This list's path; the depth of its leaf channel is its length. `[]` at the root. */
 	getParentPath: () => number[];
 	getChildren: () => readonly NodeView[];
 	getChildIds: () => string[];
-	/** The content-origin element that scrolls WITH this scope's children. Never the viewport. */
+	/** The element that scrolls with this list's children. Never the viewport. */
 	getListEl: () => HTMLElement | null;
-	/** The element the PARENT measures for this scope's height. Omit at the root. */
+	/** The element the parent measures for this list's height. Omit at the root. */
 	getOwnEl?: () => HTMLElement | null;
-	/** True when this scope's DIRECT children are `BlockHost`s → shadow the leaf channel.
-	 *  False for direct-`{#each}` scopes (list / table). */
+	/** True when this list's direct children are `BlockHost`s, which means it provides the
+	 *  leaf channel. False for a list that renders its children with `{#each}` (list, table). */
 	provideLeafChannel: boolean;
-	/** Collapse clamp; see `ListWindowingDeps.isCollapsed`. */
+	/** True while collapsed; see `ListWindowingDeps.isCollapsed`. */
 	isCollapsed?: () => boolean;
 }
 
 /**
- * Resolve the reveal target into the ROOT scope's coordinates. The model addresses
- * top-level children only, so a nested target contributes its ancestor's index plus the
- * measured drop down to itself — without which the pin re-asserts the CONTAINER's top and
- * pushes an already-resolved nested target back out of view.
+ * Put the block being scrolled into view into the root list's coordinates. The height table
+ * addresses top-level children only, so a target further down contributes its ancestor's index
+ * plus the measured drop to itself; without that, the hold re-asserts the container's top and
+ * pushes a target already in place back out of view.
  */
 export function placementOf(
 	target: RevealTarget | null,
@@ -52,9 +52,9 @@ export function placementOf(
 	if (target.path.length === 1) return shallow;
 	const ancestorEl = blockEl([shallow.index]);
 	const targetEl = blockEl(target.path);
-	// The ancestor's top is a DIFFERENT block, honest only while the ancestor itself is
-	// windowed out and the model's offset is all that is known. A MOUNTED ancestor missing its
-	// target means the reader scrolled past it inside the container: decline, never teleport.
+	// The ancestor's top is a different block, and is only right while the ancestor itself is
+	// unmounted and the height table's offset is all we know. A mounted ancestor whose target is
+	// missing means the user scrolled past it inside the container: decline, never jump.
 	if (!ancestorEl) return shallow;
 	if (!targetEl) return null;
 	const targetRect = targetEl.getBoundingClientRect();
@@ -67,9 +67,9 @@ export function placementOf(
 }
 
 /**
- * One windowing wiring unit per BlockList-bearing or direct-each container scope: reads
- * the windowing contexts, builds `createListWindowing` with the shared constants, and
- * provides the subtotal sink plus the leaf channel. Call synchronously during component init.
+ * One windowing unit per container, whether it renders a `BlockList` or its own `{#each}`:
+ * reads the windowing contexts, builds `createListWindowing` with the shared constants, and
+ * provides the subtotal callback and the leaf channel. Call synchronously during init.
  */
 export function useContainerWindowing(opts: ContainerWindowingOpts): ListWindowing {
 	const {
@@ -83,8 +83,8 @@ export function useContainerWindowing(opts: ContainerWindowingOpts): ListWindowi
 	} = getContext<EditorDoc>(EDITOR_DOC_KEY);
 	const parentSink = getContext<ParentScopeSink | undefined>(PARENT_SCOPE_SINK_KEY);
 	const revealAnchor = getContext<EditorServices | undefined>(EDITOR_SERVICES_KEY)?.revealAnchor;
-	// Single-claimant: nested scopes keep top-of-viewport anchoring, or their deltas would
-	// fight over one scrollTop.
+	// Only one list may do this: a nested list keeps holding the block at the top of the
+	// viewport, or their corrections would fight over one `scrollTop`.
 	const claimsRevealAnchor = opts.getParentPath().length === 0;
 
 	const windowing = createListWindowing({
@@ -106,9 +106,9 @@ export function useContainerWindowing(opts: ContainerWindowingOpts): ListWindowi
 			? (h) => parentSink.setChildSubtotal(opts.getIndex(), h)
 			: undefined,
 		isCollapsed: opts.isCollapsed,
-		// A fling can outrun the deferred window recompute and briefly paint an empty spacer
-		// (VR-8). 6 widens the band without breaching the mounted-set ceiling (the < 60 flat
-		// e2e bound guards that); a skeleton background covers the residual one-frame gap.
+		// A fast scroll can outrun the deferred window recompute and briefly paint an empty
+		// spacer (VR-8). 6 widens the band without breaking the ceiling on mounted blocks (the
+		// e2e bound of under 60 checks that); a skeleton background covers the one-frame gap.
 		overscan: 6,
 		pinExtensionCap: 100,
 		activateAbovePx: 4000,
@@ -116,8 +116,8 @@ export function useContainerWindowing(opts: ContainerWindowingOpts): ListWindowi
 	});
 
 	if (opts.provideLeafChannel) {
-		// Only a DIRECT child measures into this model; a deeper host belongs to its own
-		// scope's channel, so register is a no-op here.
+		// Only a direct child measures into this height table; a deeper block belongs to its own
+		// list's channel, so registering here does nothing.
 		setContext(RECORD_BLOCK_HEIGHT_KEY, {
 			register(path, index, id, readHeight) {
 				const depth = opts.getParentPath().length;

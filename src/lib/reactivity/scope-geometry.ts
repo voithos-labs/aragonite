@@ -1,21 +1,21 @@
 /**
- * Pure per-scope geometry for windowing, isolated from the reactive wiring in
+ * Pure per-list geometry for windowing, kept apart from the reactive wiring in
  * `list-windowing.svelte.ts` so it can be unit-tested without mounting a component.
  */
 import { FALLBACK_CONTENT_WIDTH } from '../cursor/typography-estimates';
 
-/** This scope's own content element, not the scrollport: nested content lays out narrower and
- *  the oracle's line-wrap is monotonic in width, so the port width undercounts at depth. Falls
- *  back to the port, then a constant, when neither is measurable. */
+/** This list's own content element, not the scroll container: nested content lays out
+ *  narrower and the height estimator wraps more lines the narrower it gets, so the container's
+ *  width undercounts at depth. Falls back to the container, then a constant. */
 export function estimateWidth(listEl: { clientWidth: number } | null, portWidth: number): number {
 	return listEl?.clientWidth || portWidth || FALLBACK_CONTENT_WIDTH;
 }
 
 /**
- * This scope's list top in the scrollport's CONTENT space — the offset mapping port scrollTop
- * into the scope's local range. The two port terms are distinct and both load-bearing: an editor
- * embedded partway down a page-scrolled shell has a nonzero scroll AND page chrome above it, and
- * conflating them slices the window a band off.
+ * This list's top in the scroll container's content space: the offset that converts the
+ * container's `scrollTop` into the list's own range. The two container terms are different and
+ * both needed: an editor embedded partway down a page that scrolls has a nonzero scroll and
+ * content above it, and treating them as one slices the window a band off.
  */
 export function listTopWithinContent(
 	listTop: number,
@@ -25,10 +25,10 @@ export function listTopWithinContent(
 	return listTop - viewportTop + scrollTop;
 }
 
-/** The intersection of the port's viewport with this scope's own box. Each nested scope
- *  occupies only part of the viewport, so windowing against the full port height would
- *  mount O(viewport × active-scope-count) blocks. The viewport arrives as top + client
- *  height so the intersection excludes the scrollbar/border. */
+/** The intersection of the scroll container's viewport with this list's own box. Each nested
+ *  list takes up only part of the viewport, so windowing against the full container height
+ *  would mount O(viewport × number of lists) blocks. The viewport arrives as top plus client
+ *  height, so the intersection leaves out the scrollbar and border. */
 export function effectiveViewportHeight(
 	viewportTop: number,
 	viewportHeight: number,
