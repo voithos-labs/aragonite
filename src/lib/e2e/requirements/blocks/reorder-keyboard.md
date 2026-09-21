@@ -20,7 +20,7 @@ whether or not the drag handles are turned on.
 - Alt+ArrowDown on a focused fenced code block moves the whole block below its
   next sibling; a single undo restores the source as it was before the move.
 - Alt+ArrowUp on a focused thematic break moves it above its previous sibling.
-- A divider moved into a gap whose neighbours had no blank line between them (a heading
+- A divider moved into a gap whose neighbors had no blank line between them (a heading
   interrupting the paragraph above it) arrives with one: the paragraph stays a paragraph
   rather than reading the rule as its setext underline, and the source reloads to the same
   three blocks.

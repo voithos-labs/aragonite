@@ -21,7 +21,7 @@ for. The keyboard move is the opposite: the caret travels with the block.
 
 ## Edge cases
 
-- A block dropped into a gap whose neighbours had no blank line between them (a heading
+- A block dropped into a gap whose neighbors had no blank line between them (a heading
   interrupting the paragraph above it) arrives with one: the table stays a table under the
   paragraph, and the source reloads to the same three blocks.
 - Drop outside any valid sibling gap / release without moving: no change.

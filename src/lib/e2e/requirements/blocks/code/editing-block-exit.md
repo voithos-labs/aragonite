@@ -12,8 +12,8 @@ or Backspace-at-start.
 - Backspace at position 0 moves focus to previous block: it does not delete the code block, and the marker typed afterward lands at the end of the previous block, proving focus moved without corrupting the fence
 - Backspace immediately after opener fence edits nothing: caret at the start of the body's first column (just past the opener's `\n`), where Backspace must not delete that newline, which would fuse the body into the opener line. The fence is the document's first block, so leaving it puts the caret in the gap above (requirements/selection/gap-caret-arrival.md)
 - Backspace inside info string trims the info string: the opposite case, confirming the check fires only at the two `\n` boundaries and nowhere inside the opener line
-- Backspace at position 0 of indented code moves focus without deleting: a neighbouring kind that cannot merge behaves the same way, moving focus only
-- Backspace at position 0 of html block moves focus without deleting: a neighbouring kind that cannot merge behaves the same way, moving focus only
+- Backspace at position 0 of indented code moves focus without deleting: a neighboring kind that cannot merge behaves the same way, moving focus only
+- Backspace at position 0 of html block moves focus without deleting: a neighboring kind that cannot merge behaves the same way, moving focus only
 
 ## Miss-analysis
 
