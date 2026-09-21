@@ -1,11 +1,11 @@
 /**
  * Accessible names, tooltips, and live-region announcements in one table, so a future
- * locale pass has one seam. Internal — no barrel exports it.
+ * translation pass has one place to work. Internal: no barrel exports it.
  */
 
 import type { TableAlignment } from './core/nodes';
 
-// ── Editor chrome ────────────────────────────────────────────────────────────
+// ── Editor controls ──────────────────────────────────────────────────────────
 
 export const EDITOR_LABEL = 'Markdown editor';
 export const DRAG_HANDLE_TITLE = 'Drag to reorder — or Alt+↑ / Alt+↓';
@@ -33,7 +33,7 @@ export const CODE_RAIL_LABEL = 'Code block controls';
 export const CODE_LANGUAGE_LIST = 'Code block languages';
 export const SELECTION_TOOLBAR_LABEL = 'Selection formatting';
 
-/** Chrome, not an announcement: the language chip's accessible name. */
+/** A control's name, not an announcement: the language chip's accessible name. */
 export function codeLanguageLabel(language: string): string {
 	return `Code language: ${language}`;
 }

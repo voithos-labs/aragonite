@@ -1,7 +1,7 @@
 /**
- * Dev-runtime invariant channel: routes a violation to devWarn and never throws, since a
- * false positive must not crash a real editor. In production the predicate is not even
- * invoked. Tests call predicates directly rather than going through here.
+ * Where a dev-mode invariant check reports: it sends a violation to `devWarn` and never
+ * throws, since a false positive must not crash a real editor. In production the check is
+ * not even run. Tests call the predicates directly rather than going through here.
  */
 import { DEV } from 'esm-env';
 import { devWarn } from './dev-warn';

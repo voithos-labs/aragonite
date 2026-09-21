@@ -1,8 +1,8 @@
 /**
- * The editor's toolchain-coupling seam: build flags come from `esm-env`, here and at the
- * `if (DEV)` gates whose constant a production build folds away. The override door for a
- * toolchain those defaults read wrong (a bundler resolving no export conditions, a runner
- * other than Vitest) is published on the `@voithos-labs/aragonite/testing` subpath, not from here.
+ * Where the editor reads its build flags: from `esm-env`, here and at the `if (DEV)` checks
+ * whose constant a production build folds away. The way to override them for a toolchain
+ * these defaults read wrong (a bundler resolving no export conditions, a runner other than
+ * Vitest) is published on the `@voithos-labs/aragonite/testing` subpath, not here.
  */
 
 import { DEV } from 'esm-env';

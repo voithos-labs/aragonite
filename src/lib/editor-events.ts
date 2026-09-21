@@ -1,7 +1,7 @@
 /**
- * Observer-pattern event surface reached via `getEvents()`. Events fire synchronously
- * and handlers must NOT mutate the document; an `edit` event fires after its mutation
- * is published, so its handler sees the updated document.
+ * The event subscription object reached through `getEvents()`. Events fire synchronously
+ * and a handler must not mutate the document; an `edit` event fires after its change is
+ * written to state, so its handler sees the updated document.
  */
 
 import type { AnyBlockKind } from './core/nodes';
@@ -14,15 +14,15 @@ import { pluginKindOwner } from './schema/plugin-install';
 
 // ── Edit event union ─────────────────────────────────────────────────────
 
-/** Derived per-arm from OperationDetailMap — see schema/operations.ts. */
+/** Derived per operation from `OperationDetailMap`; see `schema/operations.ts`. */
 export type EditEvent = {
 	[K in OperationKind]: undefined extends OperationDetailMap[K]
 		? { op: K; path: number[]; detail?: OperationDetailMap[K]; timestamp: number }
 		: { op: K; path: number[]; detail: OperationDetailMap[K]; timestamp: number };
 }[OperationKind];
 
-/** The cast is sound by construction: both types derive from OperationDetailMap, which
- *  TS cannot narrow as a correlated union. */
+/** The cast is sound by construction: both types come from `OperationDetailMap`, which
+ *  TypeScript cannot narrow as a correlated union. */
 export function toEditEvent(op: OpDescriptor, path: number[], timestamp: number): EditEvent {
 	return { op: op.kind, path, detail: op.detail, timestamp } as EditEvent;
 }
@@ -31,7 +31,7 @@ export type SelectionChangeEvent = EditorSelection | null;
 
 export interface EditorError {
 	/**
-	 * `clipboard` is a failure on the paste route — the channel a host needs to release
+	 * `clipboard` is a failure while pasting: the channel a host needs in order to release
 	 * an asset `onPasteImage` already imported for it.
 	 */
 	origin: 'subscriber' | 'render' | 'commit' | 'command' | 'decoration' | 'clipboard' | 'link';
@@ -56,13 +56,13 @@ export interface EditorEventMap {
 	edit: EditEvent;
 	selectionChange: SelectionChangeEvent;
 	error: EditorError;
-	/** The EFFECTIVE mode after a `presentationMode` prop change (never fired at mount). */
+	/** The mode in effect after a `presentationMode` prop change (never fired at mount). */
 	presentationModeChange: PresentationMode;
 	/** The theme name after a `theme` prop change (never fired at mount), for a plugin
 	 *  that paints its own colors and so cannot pick the change up from CSS. */
 	themeChange: string;
 	/** `true` when an editor-owned menu (right-click, insert `+`) opens, `false` when it closes,
-	 *  so host chrome over the selection can step aside rather than stack on it. */
+	 *  so a host's own controls over the selection can step aside rather than stack on it. */
 	menuChange: boolean;
 }
 
@@ -71,15 +71,15 @@ export interface EditorEvents {
 		event: K,
 		handler: (payload: EditorEventMap[K]) => void
 	): () => void;
-	/** Internal emit — not exported from index.ts. */
+	/** Internal emit; not exported from `index.ts`. */
 	emit<K extends keyof EditorEventMap>(event: K, payload: EditorEventMap[K]): void;
 }
 
 // ── Factory ──────────────────────────────────────────────────────────────
 
 export function createEditorEvents(): EditorEvents {
-	// Uniform value type sidesteps the generic-K indexed-write unsoundness on mapped
-	// types; per-event safety is preserved at the public on/emit boundary.
+	// One value type for every entry avoids the unsound indexed write on a mapped type with
+	// a generic key; per-event safety still holds at the public `on` and `emit`.
 	type AnyHandler = (payload: unknown) => void;
 	const handlers: Partial<Record<keyof EditorEventMap, Set<AnyHandler>>> = {};
 
@@ -104,15 +104,15 @@ export function createEditorEvents(): EditorEvents {
 			try {
 				(handler as (p: EditorEventMap[K]) => void)(payload);
 			} catch (err) {
-				// Recursion guard: an error-channel subscriber's own throw reports rather than
-				// re-emitting, which would loop. Everything the channel cannot carry reds a gate.
+				// An error-channel subscriber that throws is reported rather than re-emitted,
+				// which would loop. Anything the channel cannot report fails a gate instead.
 				if (event !== 'error' && handlers.error?.size) {
 					emit('error', { origin: 'subscriber', error: err });
 				} else if (editorEnv.isDev) {
 					devWarn('events', `${event} subscriber threw`, err);
 				} else {
-					// devWarn is silent in production, and the swallow is what hides an exception the
-					// consumer's own handler threw, which an unguarded call would have surfaced.
+					// `devWarn` is silent in production, and swallowing here would hide an exception
+					// the consumer's own handler threw, which an unguarded call would have shown.
 					console.error(`[aragonite] ${event} subscriber threw`, err);
 				}
 			}
@@ -123,13 +123,13 @@ export function createEditorEvents(): EditorEvents {
 }
 
 // ── Contained-failure routing ──────────────────────────────────────────────
-// One envelope minter per origin with more than one emission site, living here so the
-// shell that owns the channel owns the payload shape too.
+// One builder per origin that has more than one emission site, kept here so the code that
+// owns the channel owns the payload shape too.
 
 /**
- * Route a contained command throw to the `error` channel, attributing the command and
- * its owning plugin; no-ops when no events surface is present. A direct `plugin` wins
- * over the kind lookup, so a global command's own owner is never clobbered by one.
+ * Report a command that threw to the `error` channel, naming the command and its owning
+ * plugin; does nothing when there is no events object. A `plugin` passed in wins over the
+ * kind lookup, so a global command's own owner is never overwritten by one.
  */
 export function emitCommandError(
 	events: EditorEvents | undefined,
@@ -148,8 +148,8 @@ export function emitCommandError(
 }
 
 /**
- * Route a blocked link activation to the `error` channel: the scheme allowlist refused the URL,
- * which a host may want to log or surface. Fires for the DEFAULT activation only — a consumer
+ * Report a blocked link activation to the `error` channel: the scheme allowlist refused the URL,
+ * which a host may want to log or show. Fires for the default activation only; a consumer
  * supplying `onLinkActivate` owns its own policy.
  */
 export function emitBlockedLinkError(events: EditorEvents | undefined, url: string): void {
@@ -161,9 +161,9 @@ export function emitBlockedLinkError(events: EditorEvents | undefined, url: stri
 }
 
 /**
- * Route a contained clipboard-route failure to the `error` channel. `path` addresses the
- * range the paste was aimed at and is OMITTED where there is none to name — `[]` would
- * report the document root, which holds no caret.
+ * Report a clipboard failure to the `error` channel. `path` addresses the range the paste
+ * was aimed at, and is left out where there is none to name, since `[]` would report the
+ * document root, which holds no caret.
  */
 export function emitClipboardError(
 	events: EditorEvents,

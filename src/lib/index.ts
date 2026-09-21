@@ -43,7 +43,7 @@ export type { CommandId } from './schema/commands';
 
 // ── Commands (pre-freeze: the id space opens up when the command registry unifies) ──
 
-// The ids `editor.runCommand()` supports — what a selection toolbar needs.
+// The ids `editor.runCommand()` supports: what a selection toolbar needs.
 export { TOOLBAR_COMMANDS } from './schema/commands';
 
 // ── CST utilities ────────────────────────────────────────────────────────────

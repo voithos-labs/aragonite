@@ -1,8 +1,8 @@
 /**
- * The bounded decline for a recognizer whose grammar has no early-stop byte: candidate
- * positions are collected once per block and each consultation is a binary search, so a
- * trigger-dense paragraph costs one scan instead of one per trigger. The index memoizes
- * per raw, bounded (cap 2) rather than weak-keyed because a string cannot key a WeakMap.
+ * How a recognizer declines cheaply when its grammar has no early-stop byte: candidate
+ * positions are collected once per block and each lookup is a binary search, so a paragraph
+ * full of triggers costs one scan instead of one per trigger. The index memoizes per raw
+ * string, with room for two, rather than by weak key: a string cannot key a `WeakMap`.
  */
 
 import { createBoundedMemo } from './bounded-memo';

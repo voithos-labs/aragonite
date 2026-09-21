@@ -1,9 +1,9 @@
 /**
- * Which editor a document-level chord routes to when no block holds native focus. The
- * keydown listener sees every editor's keystrokes on the page, so the claimant is the
- * last-interacted editor while that claim is live, else the sole mounted one. Two mounted
- * editors with no live claim resolve to neither — guessing drives the wrong instance.
- * Module-level by design: cross-instance coordination is the point.
+ * Which editor a document-level chord goes to when no block has focus. The keydown listener
+ * sees every editor's keystrokes on the page, so it goes to the last editor the user touched
+ * while that one is still mounted, otherwise to the only mounted editor. Two mounted editors
+ * and no recent one resolve to neither, since guessing drives the wrong instance.
+ * Module-level on purpose: coordinating across instances is the point.
  */
 const mountedEditors = new Set<HTMLElement>();
 let lastInteracted: HTMLElement | null = null;
@@ -28,7 +28,7 @@ export function claimsBodyChord(root: HTMLElement): boolean {
 }
 
 // Text-like <input> types the reserved chords yield to. Non-text types are deliberately
-// absent: they don't consume Ctrl+F, so a sole editor keeps claiming while one has focus.
+// absent: they don't consume Ctrl+F, so a lone editor keeps taking it while one has focus.
 const TEXT_ENTRY_INPUT_TYPES = new Set([
 	'text',
 	'search',
@@ -40,8 +40,8 @@ const TEXT_ENTRY_INPUT_TYPES = new Set([
 ]);
 
 /**
- * True when `active` is a text-entry surface outside every mounted editor. The reserved
- * chords (Ctrl+F / Ctrl+H) yield to it, so an editor never hijacks a consumer's own field.
+ * True when `active` is a text-entry element outside every mounted editor. The reserved
+ * chords (Ctrl+F, Ctrl+H) yield to it, so an editor never hijacks a consumer's own field.
  */
 export function isForeignTextEntry(active: Element | null): boolean {
 	if (!isTextEntrySurface(active)) return false;
@@ -51,7 +51,7 @@ export function isForeignTextEntry(active: Element | null): boolean {
 	return true;
 }
 
-/** True when `el` takes text input — the surfaces a programmatic focus move must yield to. */
+/** True when `el` takes text input: the elements a programmatic focus move must yield to. */
 export function isTextEntrySurface(el: Element | null): boolean {
 	if (el instanceof HTMLTextAreaElement) return true;
 	if (el instanceof HTMLInputElement) return TEXT_ENTRY_INPUT_TYPES.has(el.type);

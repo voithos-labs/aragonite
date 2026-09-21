@@ -11,8 +11,8 @@ export type DevWarnSink = (entry: DevWarnEntry) => void;
 let sink: DevWarnSink | null = null;
 
 /**
- * Route fires to `next` instead of the console, and return the sink it replaced. For a
- * harness that must read fires structurally; runner-agnostic by contract, so nothing here
+ * Send warnings to `next` instead of the console, and return the callback it replaced. For
+ * a harness that needs to read them as data; it must work with any runner, so nothing here
  * may know about a test runner. Nothing registers one in production or on a dev server.
  */
 export function setDevWarnSink(next: DevWarnSink | null): DevWarnSink | null {
@@ -27,8 +27,8 @@ export function devWarn(tag: string, message: string, details?: unknown): void {
 		sink({ tag, message, details });
 		return;
 	}
-	// The `aragonite:` sentinel is what the e2e watchers key on: a console head no page
-	// script or dependency shares, so a browser-side gate can fail on ours alone.
+	// The `aragonite:` prefix is what the e2e watchers key on: a console prefix no page
+	// script or dependency shares, so a browser-side check can fail on ours alone.
 	if (details !== undefined) {
 		console.warn(`[aragonite:${tag}] ${message}`, details);
 	} else {

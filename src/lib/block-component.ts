@@ -72,7 +72,7 @@ export type StickyColumnDirection = 'above' | 'below';
  */
 export type FocusPosition = 'start' | 'end' | number | { stickyColumnFrom: StickyColumnDirection };
 
-// ── Ambient prefix ─────────────────────────────────────────────────────────
+// ── The container's marker prefix ──────────────────────────────────────────
 
 export interface AmbientInteractiveRange {
 	start: number;
@@ -188,8 +188,8 @@ export interface BlockComponent {
 	 */
 	revealByPath?(path: number[]): Promise<BlockComponent | null>;
 	/**
-	 * Deep cursor position for nested-block surfaces (table cells): the path from this
-	 * block to the leaf holding the cursor, plus the within-leaf offset. Preferred over
+	 * Deep cursor position for blocks with nested blocks inside (table cells): the path from
+	 * this block to the leaf holding the cursor, plus the offset in it. Preferred over
 	 * getCursorOffset by getSelection() when implemented.
 	 */
 	getCursorPosition?(): { path: number[]; offset: number } | null;

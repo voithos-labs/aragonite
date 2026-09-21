@@ -55,7 +55,7 @@ export { installEditorDomStubsForTests } from './testing/mount-dom-stubs';
 
 export { applyPasteTransforms } from './tree-operations/paste/paste-transforms';
 
-// ── Dev-warning sink ─────────────────────────────────────────────────────────
+// ── Where dev warnings go ────────────────────────────────────────────────────
 // The channel every editor dev warning reaches, so a suite can build its own fail-on-warning
 // check: register a callback, empty it per case, and fail on anything left unaccounted for.
 // It works with any runner, and registering one silences the console line.

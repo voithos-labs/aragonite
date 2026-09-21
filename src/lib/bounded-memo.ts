@@ -1,9 +1,9 @@
 /**
- * A bounded, LRU-evicting memo for expensive render work — the cache primitive a plugin
- * renderer builds on (see the plugin guide's renderer recipe). Async needs no variant:
- * the caller stores the Promise, so an in-flight render is shared and a rejection is
- * cached verbatim. `cloneOnRead` covers the one case a bare cache cannot — a value
- * holding a live DOM node, which cannot occupy two places at once.
+ * A size-limited cache that evicts the least recently used entry, for expensive render work;
+ * what a plugin renderer builds its cache on (see the plugin guide's renderer recipe). Async
+ * needs no separate version: the caller stores the Promise, so a render in progress is shared
+ * and a rejection is cached as is. `cloneOnRead` covers the one case a plain cache cannot: a
+ * value holding a live DOM node, which cannot be in two places at once.
  */
 
 import { devWarn } from './dev-warn';
