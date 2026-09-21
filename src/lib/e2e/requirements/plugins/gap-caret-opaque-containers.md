@@ -1,45 +1,48 @@
 # Feature: gap caret between opaque containers
 
-Opaque-contract containers (the admonition callouts, details, the generic `:::` directive
-container) are the tier with no textual escape hatch: two adjacent callouts leave no
-position to type a paragraph between them. The tier rule (#93): every opaque-contract kind
-declares `gapEdges: 'both'`; strip containers (blockquote, list, listItem, githubAlert)
-stay undeclared because their unwrap/exit gestures already cover insertion. Eligibility
-stays a descriptor read; no selection code names a kind.
+Opaque containers (the admonition callouts, details, the generic `:::` directive container) are
+the group with no way out through typing: two callouts side by side leave nowhere to type a
+paragraph between them. The rule for that group (#93): every opaque kind declares
+`gapEdges: 'both'`, while the containers whose marker is stripped (blockquote, list, listItem,
+githubAlert) declare nothing, because their own unwrap and exit gestures already let you insert
+a block. Whether a boundary qualifies is read from the descriptor, and no selection code names a
+kind.
 
-Arrival/mint/undo mechanics are pinned generically in `selection/gap-caret-*.md`; this
-file pins the opaque-container boundaries those specs cannot reach, plus the strip
-negative that is the decision's other half.
+How the caret arrives, how the new paragraph is created and how undo behaves are pinned for all
+kinds in `selection/gap-caret-*.md`. This file pins the boundaries between opaque containers
+that those specs cannot reach, plus the case that must not work for a stripped container, which
+is the other half of the decision.
 
 ## Happy paths
 
-- ArrowDown out of a callout's last body child, with a second callout below: the caret
-  parks at their root boundary; typing mints a paragraph between the two callouts,
-  byte-exactly, and the document still round-trips.
-- One undo drops the minted paragraph, restores the source byte-for-byte, and parks the
-  caret back on the boundary.
-- ArrowUp from the second callout's title parks at the same boundary; a second ArrowUp
-  enters the callout above.
-- ArrowDown out of an open details' body, with a callout below: the mixed
-  details|callout boundary parks and mints the same way.
-- A click in the editor's leading padding above a document that starts with a callout
-  parks at the document's start boundary.
+- ArrowDown out of a callout's last body child, with a second callout below: the caret rests at
+  their boundary in the root list; typing creates a paragraph between the two callouts, byte for
+  byte, and the document still round-trips.
+- One undo removes the new paragraph, restores the source byte for byte, and puts the caret back
+  on the boundary.
+- ArrowUp from the second callout's title rests at the same boundary; a second ArrowUp enters
+  the callout above.
+- ArrowDown out of an open details' body, with a callout below: the boundary between the details
+  and the callout rests and creates the same way.
+- A click in the editor's leading padding, above a document that starts with a callout, rests at
+  the boundary at the document's start.
 
 ## Edge cases
 
-- A COLLAPSED details above a callout: ArrowDown from the summary must not dead-end on
-  the clamped-out body — it parks at the details|callout boundary.
-- blockquote|blockquote stays gap-free: ArrowDown out of the first quote enters the
-  second as it always did (the strip tier stays undeclared by decision, not omission).
+- A collapsed details above a callout: ArrowDown from the summary must not stop dead on the
+  clamped-out body; it rests at the boundary between the details and the callout.
+- Two blockquotes have no gap: ArrowDown out of the first quote enters the second as it always
+  did, because the stripped containers are left undeclared by decision, not by oversight.
 
 ## User interactions
 
-- Every arrival is an arrow key or a mouse click; the mint is real typing; undo is the
-  keyboard chord.
+- Every arrival is an arrow key or a mouse click; the new paragraph comes from real typing; undo
+  is the keyboard chord.
 
 ## Miss analysis
 
-No test could have caught the missing declarations: eligibility is declared, never
-inferred, so an undeclared tier is indistinguishable from a decided decline, and only the
-owner decision in #93 turned it into a defect. The strip negative exists so the next tier
-widening has to be a decision too.
+No test could have caught the missing declarations: a kind declares whether it qualifies and
+nothing infers it, so a group that declares nothing looks exactly like a group that decided
+against it, and only the owner's decision in #93 made it a defect. The case that must not work
+for a stripped container is there so that the next widening of the group has to be a decision
+too.

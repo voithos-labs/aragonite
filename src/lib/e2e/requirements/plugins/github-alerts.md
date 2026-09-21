@@ -1,45 +1,42 @@
-# Feature: Plugin Admonitions — native GitHub alerts
+# Feature: Admonitions plugin, native GitHub alerts
 
-A blockquote whose first line is exactly `> [!TYPE]` renders as a styled alert box
-(the shared admonition chrome, keyed off the alert type) with its GitHub bytes
-untouched — never rewritten to `:::name`. The marker line is not editable content;
-it shows as the badge. Editing the body rebuilds through the marker and keeps the
-`githubAlert` kind; the bytes round-trip. On `/test/plugins?seed=admonitions` the
-native alert is a `caution` (block 5); `note`/`warning` are owned by the callout
-dogfood, so a typed-from-scratch alert uses `tip`.
+A blockquote whose first line is exactly `> [!TYPE]` renders as a styled alert box, the shared
+admonition frame styled by the alert type, with its GitHub bytes untouched and never rewritten
+to `:::name`. The marker line is not editable content: it shows as the badge. Editing the body
+rebuilds the container through the marker and keeps the `githubAlert` kind, and the bytes
+round-trip. On `/test/plugins?seed=admonitions` the native alert is a `caution` (block 5), and
+`note`/`warning` belong to the callout dogfood, so an alert typed from scratch uses `tip`.
 
 ## Happy paths
 
-- loaded alert renders styled: the seed's `> [!CAUTION]` mounts as a
-  `.admonition[data-alert-source='github'][data-kind='caution']` box whose badge
-  reads "Caution", and the source still contains the verbatim `> [!CAUTION]` bytes
-- typing an alert from scratch, per keystroke: `>` promotes the block to a blockquote and
-  completing `[!TIP]` reclassifies it to an empty alert with the caret in its body, so
-  typing the body straight on (no second Enter, which exits the quote) lands a
-  `githubAlert` root child whose body carries the typed text, bytes reading
-  `> [!TIP]\n> …`
+- a loaded alert renders styled: the seed's `> [!CAUTION]` mounts as a
+  `.admonition[data-alert-source='github'][data-kind='caution']` box whose badge reads "Caution",
+  and the source still holds the verbatim `> [!CAUTION]` bytes
+- typing an alert from scratch, keystroke by keystroke: `>` turns the block into a blockquote and
+  completing `[!TIP]` turns it into an empty alert with the caret in its body, so typing the body
+  straight on, with no second Enter (which would leave the quote), lands a `githubAlert` root
+  child whose body carries the typed text, with bytes reading `> [!TIP]\n> …`
 
 ## User interactions
 
-- edit inside the body: placing the caret in the alert body and typing appends to
-  the body, the container raw rebuilds through the `> [!CAUTION]` marker (preserved
-  verbatim), the kind stays `githubAlert`, and the document round-trips stable
-- undo after an edit: one `Ctrl+Z` restores the pre-edit document byte-for-byte
-- unwrap on Backspace: pressing Backspace at the very start of the alert body lifts
-  the first body block out and drops the marker — no `githubAlert` remains, the
-  content reparses as a plain block (a multi-block body's remainder is a plain
-  blockquote), and bytes are never rewritten to `:::`
-- merge within on Backspace at a middle body block: pressing Backspace at the start
-  of a non-first body block merges it into the previous body block (the container
-  `default-merge`), the alert stays a single `githubAlert` root with its marker
-  intact — the merge never escapes the alert
-- reorder within on Alt+Arrow: with the caret in a body block, Alt+ArrowUp/Down
-  permutes that body block among its siblings inside the alert — the container keeps
-  its `githubAlert` kind, its `> [!TYPE]` marker, and its child count, the surrounding
-  document siblings never move (no whole-alert teleport), and one `Ctrl+Z` restores
-  the order
+- edit inside the body: placing the caret in the alert body and typing appends to the body, the
+  container's raw text is rebuilt through the `> [!CAUTION]` marker, which is kept verbatim, the
+  kind stays `githubAlert`, and the document round-trips stable
+- undo after an edit: one `Ctrl+Z` restores the document as it was before the edit, byte for byte
+- unwrap on Backspace: pressing Backspace at the very start of the alert body lifts the first
+  body block out and drops the marker. No `githubAlert` is left, the content parses again as a
+  plain block (what remains of a body of several blocks becomes a plain blockquote), and the
+  bytes are never rewritten to `:::`
+- merge inside on Backspace at a middle body block: pressing Backspace at the start of a body
+  block that is not the first merges it into the body block above, through the container's
+  `default-merge`, and the alert stays one `githubAlert` root with its marker intact, so the
+  merge never escapes the alert
+- reorder inside on Alt+Arrow: with the caret in a body block, Alt+ArrowUp and Alt+ArrowDown move
+  that body block among its siblings inside the alert. The container keeps its `githubAlert`
+  kind, its `> [!TYPE]` marker and its child count, the document's own blocks around it never
+  move, so the alert itself never jumps, and one `Ctrl+Z` restores the order
 
 ## Edge cases
 
-- the marker is not a caret target: the badge is static chrome, so focus lands in
-  the body, not on the marker
+- the marker takes no caret: the badge is a static label, so focus lands in the body rather than
+  on the marker
