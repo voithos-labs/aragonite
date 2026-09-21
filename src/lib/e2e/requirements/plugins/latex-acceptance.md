@@ -1,34 +1,37 @@
 # Feature: LaTeX acceptance axes (A1 / A2 / A5 / A7)
 
-Falsifiable acceptance criteria for the first-party LaTeX extension, each mapped to
-the design spec's Goal-2 axis id. A2's memo primitive and A5's adapter proof are
-unit-pinned (`math-renderer.test.ts`); the browser axes — including A2's live
-edit-one-of-N re-render pin — live in `latex-acceptance.spec.ts`.
+Acceptance criteria for the built-in LaTeX extension that can each be proved false, each mapped
+to the design spec's Goal-2 axis id. A2's memoization and A5's adapter proof have unit tests
+(`math-renderer.test.ts`); the axes that need a browser, including A2's pin on editing one
+equation of many and re-rendering, live in `latex-acceptance.spec.ts`.
 
-## A1 — reveal transition (flagship): no view-jump, no caret loss
+## A1, the reveal transition (flagship): no view-jump, no caret loss
 
-- Block reveal then fold on a scrolling document: scroll position holds through both
-  the reveal and the fold.
-- Block fold re-renders the display at its exact prior geometry (zero net shift).
-- Inline reveal → edit → commit: the caret lands at the widget's trailing edge, so a
-  char typed after commit falls past the widget, not at a block edge.
-- Inline round-trip does not shift the following block vertically.
+- Showing a block's source and closing it again on a scrolling document: the scroll position
+  holds through both.
+- Closing the source re-renders the display at exactly the geometry it had before, so nothing
+  shifts.
+- Showing an inline formula's source, editing it and committing: the caret lands at the widget's
+  trailing edge, so a character typed after the commit falls past the widget rather than at a
+  block edge.
+- An inline round-trip does not move the following block up or down.
 
-## A2 — render memoized (flagship)
+## A2, render memoized (flagship)
 
-- Editing one equation re-renders only it; untouched equations stay cache hits (unit).
-- A full re-render pass over N equations after the first adds zero renders (flat to 75+) (unit).
-- Live document, N distinct block equations: revealing one, editing its source, and
-  committing bumps only that block's render count and never remounts it; the other
-  blocks keep both their mount id and their render count (e2e).
+- Editing one equation re-renders only that equation; the untouched ones stay cache hits (unit).
+- A full re-render pass over many equations adds no renders after the first, flat to 75 and
+  beyond (unit).
+- In a live document with many different block equations, showing one, editing its source and
+  committing raises only that block's render count and never remounts it; the other blocks keep
+  both their mount id and their render count (e2e).
 
-## A5 — invalid math is legible, never a raw strip
+## A5, invalid math is legible, never a raw strip
 
-- Invalid inline math renders a legible "error" message through the live widget path.
-- KaTeX's raw `.katex-error` source strip never reaches the DOM.
+- Invalid inline math renders a readable "error" message through the live widget path.
+- KaTeX's own `.katex-error` source strip never reaches the DOM.
 
-## A7 — multiline environments render (table stakes)
+## A7, multiline environments render (table stakes)
 
-- `aligned`, `cases`, `align*`, `array`, `matrix`, `gather` each render as display
-  KaTeX with no error node (one fixture per environment).
-- `\\` line breaks render (exercised where `\\` is meaningful, e.g. `\substack`).
+- `aligned`, `cases`, `align*`, `array`, `matrix` and `gather` each render as display KaTeX with
+  no error node, one fixture per environment.
+- `\\` line breaks render, exercised where `\\` means something, such as `\substack`.

@@ -1,45 +1,46 @@
-# Feature: Inline Math — Horizontal Caret Entry Reveals the Source
+# Feature: Inline math: moving the caret sideways into a formula shows its source
 
-Horizontal caret entry against an inline-math widget opens its source reveal
-(Obsidian model). The caret never enters the invisible widget-selected state math
-used to fall into: ArrowLeft/Backspace from the trailing edge and ArrowRight/Delete
-from the leading edge all reveal the editable `$…$` source at the entered edge, with
-zero CST mutation on the entry press (no undo entry). The reveal-vs-select policy
-keys off the widget kind's `revealSource` flag at one seam — images keep
-select-then-step (pinned in `blocks/image/caret-arrows-horizontal.md` and
-`backspace-delete.md`), reveal-capable kinds reveal.
+Moving the caret sideways against an inline-math widget opens its source for editing, the way
+Obsidian does. The caret never lands in the invisible widget-selected state math used to fall
+into: ArrowLeft and Backspace from the trailing edge, and ArrowRight and Delete from the leading
+edge, all show the editable `$…$` source at the edge that was entered, and the keypress that
+enters changes nothing in the tree, so it pushes no undo entry. Whether a kind shows its source
+or gets selected is decided in one place, from the kind's `revealSource` flag: images keep
+select-then-step (pinned in `blocks/image/caret-arrows-horizontal.md` and `backspace-delete.md`)
+and the kinds that can show a source do that.
 
-Seed (`?seed=math`): `Before $x^2$ after` in block [0], a `Next` paragraph in [1].
+Seed (`?seed=math`): `Before $x^2$ after` in block [0], and a `Next` paragraph in [1].
 Cross-block scenarios load their own two-block seeds.
 
 ## Happy paths
 
-- caret right of the widget, ArrowLeft: source revealed at the trailing edge, source
-  byte-unchanged; a typed char lands after the closing `$`
-- caret left of the widget, ArrowRight: source revealed at the leading edge; a typed
-  char lands before the opening `$`
+- caret to the right of the widget, ArrowLeft: the source is shown at the trailing edge with the
+  bytes unchanged, and a typed character lands after the closing `$`
+- caret to the left of the widget, ArrowRight: the source is shown at the leading edge, and a
+  typed character lands before the opening `$`
 
 ## Edge cases
 
-- walking the caret left out of the revealed source (past the leading boundary) folds
-  the reveal back to the rendered widget, source unchanged
-- Backspace right of the widget reveals with the source fully intact (NOT a silent
-  whole-widget delete); the next Backspace visibly eats the trailing `$`
-- Delete left of the widget reveals at the leading edge; the next Delete eats the
-  opening `$`
-- Shift+ArrowLeft over the widget extends a real (non-collapsed) selection without
-  revealing — a selection sweep never reveals
+- walking the caret left out of the shown source, past its leading boundary, closes it back to
+  the rendered widget with the source unchanged
+- Backspace to the right of the widget shows the source fully intact rather than silently
+  deleting the whole widget; the next Backspace visibly eats the trailing `$`
+- Delete to the left of the widget shows the source at the leading edge; the next Delete eats
+  the opening `$`
+- Shift+ArrowLeft over the widget extends a real selection, one that is not collapsed, without
+  showing anything: a selection sweep never opens a source
 
 ## User interactions
 
-- cross-block ArrowRight from the block above onto a block that STARTS with math:
-  reveal at the leading edge (the near edge the move arrived at)
-- cross-block ArrowLeft from the block below onto a block that ENDS with math: reveal
-  at the trailing edge
-- all gestures are real keyboard input; caret direction is verified by typing a
-  marker char, reveal by the widget count dropping to zero, byte-stability by the
-  serialized source
+- ArrowRight from the block above onto a block that starts with math: the source is shown at the
+  leading edge, the edge the move arrived at
+- ArrowLeft from the block below onto a block that ends with math: the source is shown at the
+  trailing edge
+- all gestures are real keyboard input; which way the caret faces is verified by typing a marker
+  character, the source being shown by the widget count dropping to zero, and the bytes staying
+  put by the serialized source
 
 ## Error cases
 
-- the entry press pushes no undo entry and mutates no bytes — reveal is a view toggle
+- the keypress that enters pushes no undo entry and changes no bytes, since only what is shown
+  changes
