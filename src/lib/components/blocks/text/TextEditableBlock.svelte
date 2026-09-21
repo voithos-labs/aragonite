@@ -810,8 +810,8 @@
 	});
 
 	/** One caret is one position, so a block painting its synthetic caret clears every other
-	 *  block's: a block that unmounts with the caret inside never hears the change that clears its
-	 *  own. */
+	 *  block's (G1.39): a block that unmounts with the caret inside never hears the change that
+	 *  clears its own. */
 	function sweepOtherBlocksSnap(): void {
 		const root = getEditorRoot();
 		if (!root || !el) return;
