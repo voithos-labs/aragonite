@@ -1,4 +1,4 @@
-# Feature: Text Editing — Undo Cursor Anchoring (C2 / C3)
+# Feature: Text Editing: Undo Cursor Anchoring (C2 / C3)
 
 After undo, the caret returns to the pre-edit position so the next keystroke continues at the user's original location.
 

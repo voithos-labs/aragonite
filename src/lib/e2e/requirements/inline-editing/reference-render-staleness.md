@@ -1,10 +1,10 @@
-# Feature: Inline Editing — Reference Render Staleness
+# Feature: Inline Editing: Reference Render Staleness
 
 When a link-reference definition (LRD) changes elsewhere in the document, an
 unedited reference block that resolves through it must re-render its `<a href>`
-to the new target — not keep the stale one. The render path re-parses the
-block's raw with the live resolver but must invalidate its render memo on
-resolver change for reference-bearing blocks.
+to the new target rather than keep the stale one. The render path re-parses the
+block's raw with the live resolver, and for reference-bearing blocks it must drop
+its cached render when the resolver changes.
 
 ## Happy paths
 

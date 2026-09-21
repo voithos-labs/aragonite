@@ -1,4 +1,4 @@
-# Feature: Inline Editing — Editing Formatted Content
+# Feature: Inline Editing: Editing Formatted Content
 
 Editing inside or around inline formatting; split-created blocks correctly carry inline parsing through.
 
@@ -10,6 +10,6 @@ Editing inside or around inline formatting; split-created blocks correctly carry
 ## Edge cases
 
 - bold in split-created block renders: Enter to create new block, type **bold**, <strong> element appears (regression: split blocks had no inlineContent)
-  - Miss-analysis: the auto-pair's grow rule turned the second `*` of an otherwise empty block into `****`, a thematic break, and the arm's own rows all sat inside prose; this scenario is the one that types a pair on a line of its own, so it stays the pin for "a pair never re-kinds the line"
+  - Miss-analysis: the auto-pair's grow rule turned the second `*` of an otherwise empty block into `****`, a thematic break, and that handler's own cases all sat inside prose; this scenario is the one that types a pair on a line of its own, so it stays the test for "a pair never changes the line's kind"
 - heading markers dimmed after # conversion: Enter to create new block, type # prefix, .md-marker span renders with dimmed opacity (regression: markers appeared unstyled)
 - character-by-character typing renders bold correctly: typing **bold** one key at a time via keyboard.type() produces <strong> element (regression: double DOM rebuild caused reversed text)

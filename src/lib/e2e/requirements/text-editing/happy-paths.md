@@ -1,4 +1,4 @@
-# Feature: Text Editing — Happy Paths
+# Feature: Text Editing: Happy Paths
 
 Core editing: typing, splitting (Enter), merging (Backspace), and block kind changes.
 
@@ -12,4 +12,4 @@ Core editing: typing, splitting (Enter), merging (Backspace), and block kind cha
 ## User interactions
 
 - rapid split: press Enter twice quickly, verify three blocks exist
-- Backspace mid-block does not merge: Backspace at offset > 0 deletes a character, doesn't trigger merge
+- Backspace mid-block does not merge: Backspace at offset > 0 deletes a character, does not trigger merge

@@ -1,4 +1,4 @@
-# Feature: Inline Editing — Rendering
+# Feature: Inline Editing: Rendering
 
 How loaded inline-formatted content renders in the DOM (bold, italic, code, links, nesting).
 
