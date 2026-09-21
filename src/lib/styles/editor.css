@@ -299,10 +299,9 @@
 	left: -1px;
 }
 
-/* A picture's island is tall, so its caret is inset from the frame and held clear of the
-   widget's own edge: drawn tight to the frame it reads as part of the border rather than as a
-   caret waiting for the next character. A text-height island keeps the full box instead, since
-   the inset would leave a stub shorter than the native caret beside it. */
+/* A picture is tall, so its caret is inset from the frame: drawn tight to it, the caret reads as
+   part of the border rather than as one waiting for the next character. A text-height widget
+   keeps the full box, where the inset would leave a stub shorter than the native caret. */
 :where(.editor) .md-image-widget.md-snap-after::before,
 :where(.editor) .md-image-widget.md-snap-before::before {
 	top: 4px;

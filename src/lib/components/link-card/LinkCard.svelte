@@ -55,11 +55,10 @@
 	$effect(() => {
 		if (focusEpoch === focusedEpoch) return;
 		focusedEpoch = focusEpoch;
-		// After the tick, not now: this child's effect runs before the host's, so at this moment
-		// the anchor still sits at the editor's origin, and a focus here scrolls THAT into view —
-		// the viewport jumps to the top of the document and the card, placed a frame later beside
-		// the selection, is nowhere on screen. Once the host has placed it, the focus scrolls only
-		// as far as showing the field needs, which is not at all beside a selection in view.
+		// After the tick, not now: this child's effect runs before the host's, so the card still
+		// sits at the editor's origin and focusing the field here would scroll the viewport to
+		// the top of the document. Once the host has placed the card, the focus scrolls no
+		// further than showing the field needs.
 		void tick().then(() => {
 			urlInput?.focus();
 			urlInput?.select();
@@ -162,9 +161,9 @@
 </div>
 
 <style>
-	/* The menu surface (`.md-menu`, editor.css) and the image chrome's field: a caption over an
-	   underlined input, and passive icon buttons beside it, so the card reads as one of the
-	   host's popovers rather than a form. */
+	/* Built like the editor's menus (`.md-menu`, editor.css) and the image toolbar's field: a
+	   caption over an underlined input with icon buttons beside it, so the card reads as one of
+	   the editor's popovers rather than a form. */
 	.md-link-card {
 		position: absolute;
 		top: 0;
@@ -199,8 +198,8 @@
 		text-transform: uppercase;
 		color: var(--color-text-muted, #aaaaaa);
 	}
-	/* Underlined, not boxed: one rule under the text reads as a field to fill in and keeps the
-	   surface calm, where a second rounded box inside a rounded card reads as chrome on chrome. */
+	/* Underlined, not boxed: one rule under the text still reads as a field to fill in, where a
+	   second rounded box inside a rounded card reads as a frame inside a frame. */
 	.md-link-card-field input {
 		width: 100%;
 		box-sizing: border-box;
@@ -225,7 +224,7 @@
 	.md-link-card-actions {
 		display: flex;
 		gap: 2px;
-		/* Level with the input's rule, not the caption. */
+		/* The buttons sit level with the input's rule, not with the caption. */
 		padding-bottom: 1px;
 	}
 	.md-link-card-btn {

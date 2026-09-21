@@ -2,8 +2,8 @@
 	/**
 	 * A limestone-styled list menu the editor opens at a point: a block's context menu (rows run
 	 * that kind's registered actions) and the prose menu's clipboard rows with its "Insert block"
-	 * flyout (rows insert Markdown into a new paragraph). Pointer- and keyboard-driven without ever taking focus, so the
-	 * caret it acts on stays exactly where it is.
+	 * flyout (rows insert Markdown into a new paragraph). Pointer- and keyboard-driven without
+	 * ever taking focus, so the caret it acts on stays exactly where it is.
 	 */
 	import { isPluginInstalled } from '../../schema/plugin-install';
 	import type { MenuIconName } from './MenuIcon.svelte';
