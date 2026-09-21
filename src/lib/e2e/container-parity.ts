@@ -1,11 +1,10 @@
 /**
- * Container-parity invariant for keyed BlockList rendering, the browser mirror of
- * `test/harness/container-parity.ts`: a mutation extending `children` without `childIds`
- * gives trailing keyed-each entries `undefined` keys and drifts post-undo reconciliation.
- * A never-mounted container is tolerated (`childIds` mints lazily); only a defined-but-
- * mismatched array flags. Subjects come from `window.__parityDocuments`, since the
- * `window.__test` handle on a two-editor route audits whichever registered first.
- * Returns mismatches rather than asserting, so the spec owns the diff.
+ * Checks each container's `children` against its `childIds`, the browser-side copy of
+ * `test/harness/container-parity.ts`: extending `children` without `childIds` leaves trailing
+ * keyed-each entries with undefined keys and breaks the redraw after undo. A container that
+ * never mounted is fine, since `childIds` are created on mount. Every editor comes from
+ * `window.__parityDocuments`, since `window.__test` on a two-editor route answers for whichever
+ * registered first. Returns the mismatches rather than asserting, so the spec owns the diff.
  */
 
 import type { Page } from '@playwright/test';
@@ -21,8 +20,8 @@ export async function getContainerParityMismatches(page: Page): Promise<ParityMi
 		const mismatches: ParityMismatch[] = [];
 		const walk = (n: { kind?: string; children?: unknown[]; childIds?: unknown[] }) => {
 			if (!n.children) return;
-			// An unmounted container has no minted childIds yet — not a desync, and it
-			// renders no keyed each to break. Only a defined-but-mismatched array is.
+			// A container that never mounted has no childIds yet: nothing is out of step, and
+			// it renders no keyed each to break. Only a defined array of the wrong length is.
 			if (n.childIds !== undefined && n.children.length !== n.childIds.length) {
 				mismatches.push({
 					kind: n.kind ?? '?',
@@ -34,9 +33,9 @@ export async function getContainerParityMismatches(page: Page): Promise<ParityMi
 		};
 		const documents = (window as { __parityDocuments?: Array<() => { children?: unknown[] }> })
 			.__parityDocuments;
-		// No registered document means the walk would visit nothing and report `[]` —
-		// a vacuous green that hides the desync class this probe exists to catch.
-		// Callers that may run on an editor-less route gate on presence BEFORE calling.
+		// With no registered document the walk visits nothing and reports `[]`, a pass that
+		// hides the very mismatch this check looks for. A caller that may run on a route with
+		// no editor checks that one registered first.
 		if (!documents || documents.length === 0) {
 			throw new Error(
 				'container-parity: no editor registered a live document; the parity walk cannot run and must not report vacuous success'

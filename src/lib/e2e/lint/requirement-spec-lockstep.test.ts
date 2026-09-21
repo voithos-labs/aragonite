@@ -1,11 +1,9 @@
 /**
- * G4.23 — requirement↔spec lockstep. `docs/contributing/testing.md` makes the filesystem the
- * authoritative list of e2e coverage: every spec pairs with a requirement file and vice
- * versa. Three rules, descending: PAIRING (hard, both directions plus stem collision), SHAPE
- * (hard, catches the placeholder written to satisfy pairing), SCENARIO INFLATION (allowlisted
- * ratio; equality was measured and refuted, so divergence is legal and unexplained divergence
- * is not). Bullets are semantic paraphrases: a green run proves pairing, never
- * scenario-to-test mapping. Lives outside `test:editor:invariants`; verify via `src/lib/e2e/lint/`.
+ * G4.23: every spec pairs with a requirement file and every requirement file with a spec, so
+ * the file tree is the list of what e2e covers (`docs/contributing/testing.md`). Three rules,
+ * from strictest: pairing both ways, shape (a placeholder written only to pair fails), and a
+ * scenario count far ahead of the test count, which an allowlist may excuse. A green run
+ * proves pairing alone, never that a bullet maps to a test. Runs outside `test:editor:invariants`.
  */
 import { describe, it, expect } from 'vitest';
 import { readdirSync, readFileSync } from 'node:fs';
@@ -22,8 +20,8 @@ interface InflationException {
 	reason: string;
 }
 
-/** Fails closed and only shrinks: a stale entry is reported, so the list cannot outlive
- *  the shape that justified it. */
+/** The list only shrinks: an entry whose spec no longer diverges is reported, so it cannot
+ *  outlive the divergence that justified it. */
 const INFLATION_ALLOWLIST: readonly InflationException[] = [
 	{
 		spec: 'simulation/',
@@ -122,12 +120,12 @@ export function requirementStem(specPath: string): string {
 export interface RequirementShape {
 	hasTitle: boolean;
 	sections: number;
-	/** Top-level bullets plus `###` subsections — the two forms a scenario takes. */
+	/** Top-level bullets plus `###` subsections: the two forms a scenario takes. */
 	scenarioUnits: number;
 }
 
 /**
- * One `-` at COLUMN 0 is one scenario: continuation lines are indented and nested bullets are
+ * One `-` at column 0 is one scenario: continuation lines are indented and nested bullets are
  * detail of their parent. Ordered items are prose, not scenarios.
  */
 export function readRequirementShape(text: string): RequirementShape {
@@ -150,9 +148,9 @@ export function readRequirementShape(text: string): RequirementShape {
 }
 
 /**
- * A parametrized loop counts ONCE — the shape rule 3's threshold was measured against. A
- * string-literal TITLE is what makes a call a test: `test.skip(condition, reason)` is a run
- * guard, and counting those inflated the test side exactly in the files most likely to drift.
+ * A parametrized loop counts once, the shape rule 3's threshold was measured against. A string
+ * literal for the title is what makes a call a test: `test.skip(condition, reason)` is a run
+ * guard, and counting those inflated the test side in exactly the files most likely to drift.
  */
 export function countTests(code: string): number {
 	const withoutComments = code
@@ -263,11 +261,11 @@ export interface AllowlistAudit {
 }
 
 /**
- * Each entry is audited INDEPENDENTLY: a first-match lookup conflates three failures, since a
- * file entry under a directory entry never wins it and reads as "no longer diverges" while
- * diverging. Shadowing is broken by POSITION, not set inclusion alone — mutually-subsuming
- * entries would name no entry to delete; reporting the later one leaves the earlier covering
- * every spec it named.
+ * Each entry is audited on its own: with a first-match lookup, a file entry sitting under a
+ * directory entry never wins the lookup and reads as "no longer diverges" while it diverges.
+ * An entry counts as shadowed only by an earlier one, since two entries covering each other
+ * would name neither as the one to delete, and reporting the later one leaves the earlier
+ * covering every spec it named.
  */
 export function auditAllowlist(
 	entries: readonly InflationException[],
@@ -444,8 +442,8 @@ describe('G4.23 requirement↔spec lockstep — classifier self-tests', () => {
 		// The common shape: one test walks two or three bullets.
 		expect(isInflated(9, 5)).toBe(false);
 		expect(isInflated(18, 1)).toBe(true);
-		// Ratio without volume stays quiet: the delta floor holds a one-test spec's
-		// scenario list to four before it reads as drift.
+		// The ratio alone stays quiet: a one-test spec may list four scenarios before
+		// it reads as drift.
 		expect(isInflated(4, 1)).toBe(false);
 		expect(isInflated(5, 1)).toBe(true);
 	});

@@ -1,19 +1,19 @@
 import type { FullResult, Reporter, TestCase } from '@playwright/test/reporter';
 
 /**
- * Fails the run when the dev server's OWN console carries a dev-warning head — a guard or a
- * Svelte runtime warning that fired during SSR, which no page-side watcher can see because it
- * happened before the browser existed. Limitation: with `reuseExistingServer`, a server
- * Playwright did not launch has no stream to read, so the gate binds runs that start their own
- * server (CI always does). The heads' taxonomy is `docs/contributing/warnings.md`.
+ * Fails the run when the dev server's own console carries a dev-warning line: a check or a
+ * Svelte runtime warning that fired during server rendering, which no page-side watcher can see
+ * because it happened before the browser existed. With `reuseExistingServer` a server Playwright
+ * did not launch has no output to read, so this binds only runs that start their own server (CI
+ * always does). Which lines count is `docs/contributing/warnings.md`.
  */
 
 const SENTINELS = ['[aragonite:', '[svelte]'];
 
-// Browser-side warns vite relays into the server stream; the page collector already governs them.
+// Browser-side warnings vite copies into the server output; the page watcher already covers them.
 const CLIENT_RELAY = '[vite] (client)';
 
-// Structural to the shared demo SSR process (registration order, not a defect): GH #196.
+// Expected from the shared demo server process: registration order, not a defect (GH #196).
 const EXEMPT_CHANNELS = [
 	'[aragonite:invariant:late-opener-registration]',
 	'[aragonite:plugin-install]'

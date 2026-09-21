@@ -1,10 +1,9 @@
 /**
- * G4.49 — a spec composes through the shared driver (`simulation/ime.ts`), never by constructing
- * composition events itself. A hand-fired `CompositionEvent` skips the browser's own composition
- * window, so the spec asserts against a sequence no IME produces: it can pass while the real
- * gesture breaks, which is what issue #46 was. The driver is the one exemption, since WebKit
- * exposes no CDP and its arm has nowhere else to live. Lives beside the other e2e lints, outside
- * `test:editor:invariants`.
+ * G4.49: a spec composes through the shared driver (`simulation/ime.ts`) instead of building
+ * composition events itself. A hand-built `CompositionEvent` skips the browser's own composition
+ * window, so the spec checks a sequence no IME produces and can pass while real typing breaks.
+ * WebKit exposes no CDP, so the driver holds the one hand-built branch. Runs beside the other
+ * e2e lints, outside `test:editor:invariants`.
  */
 import { describe, it, expect } from 'vitest';
 import { readdirSync, readFileSync } from 'node:fs';
@@ -13,11 +12,11 @@ import { stripComments } from '../../test/invariants/lint/scan-source';
 
 const E2E_DIR = path.resolve('src/lib/e2e');
 
-/** The only file the ban exempts, and the only one that may carry a hand-fired arm. */
+/** The only file the ban exempts, and the only one that may build the events by hand. */
 const DRIVER = 'simulation/ime.ts';
 
-/** Both evasions: the event itself, and the input event that carries a composition's bytes.
- *  Assembled, because this file's own scan reads a source tree it is part of. */
+/** Both ways around the ban: the event itself, and the input event carrying a composition's
+ *  bytes. Built from pieces, so the scan does not match this file, which it also reads. */
 const HAND_FIRED = [
 	new RegExp('new\\s+Composition' + 'Event\\s*\\('),
 	new RegExp('insertComposition' + 'Text')
@@ -25,7 +24,7 @@ const HAND_FIRED = [
 
 interface SourceFile {
 	relPath: string;
-	/** Comments blanked: the specs describe the very tokens this scans for. */
+	/** Comments are blanked: the specs describe in prose the very tokens this scans for. */
 	code: string;
 }
 
@@ -71,7 +70,8 @@ describe('G4.49 e2e composition rides the shared IME driver', () => {
 	});
 
 	it('the hand-fired shape lives in the driver and nowhere else', () => {
-		// Exact both ways: a widened exemption grows this list, and a deleted WebKit arm empties it.
+		// Exact both ways: widening the exemption grows this list, dropping the WebKit branch
+		// empties it.
 		expect(handFiredIn(files), `the hand-fired arm belongs to ${DRIVER} alone`).toEqual([DRIVER]);
 	});
 

@@ -1,10 +1,10 @@
 import { readFileSync } from 'node:fs';
 
 /**
- * The `/` demo document as bytes. The owner rewrites it by hand, so the specs on that route
- * derive what they expect from it here rather than pinning sentences that move on every pass.
- * Node-side only: a spec must not import the parser, so this scanner is deliberately coarse
- * and every count it produces is asserted against the rendered DOM.
+ * The `/` demo document as bytes. It is rewritten by hand, so the specs on that route work out
+ * what to expect from it here rather than hard-coding sentences that move on every pass. Node
+ * side only: a spec must not import the parser, so this scanner is deliberately rough and every
+ * count it produces is checked against the rendered DOM.
  */
 export const SHOWCASE_MD = readFileSync('src/routes/showcase-content.md', 'utf8');
 
@@ -18,7 +18,7 @@ export interface ShowcaseScan {
 	prose: string[];
 	/** Info strings of the document's fenced blocks, one entry per fence. */
 	fences: string[];
-	/** `$$…$$` displays: one mounted math island each. */
+	/** `$$…$$` displays: one mounted math widget each. */
 	blockMath: number;
 	/** ATX headings in document order: one outline entry each. */
 	headings: ShowcaseHeading[];
@@ -66,10 +66,10 @@ export function scanShowcase(md: string = SHOWCASE_MD): ShowcaseScan {
 }
 
 /**
- * The word a caret should light up: the most-repeated alphabetic word of four letters or more
- * inside one plain paragraph, or null when the document holds none. Tokenized the way
- * `highlight-occurrences` tokenizes, so the spec and the plugin agree on what a word is, and
- * scoped to one paragraph so both marks live in a single mounted block.
+ * The word a caret should light up: the most repeated alphabetic word of four letters or more
+ * inside one plain paragraph, or null when the document holds none. Split into words the way
+ * `highlight-occurrences` splits them, so the spec and the plugin agree on what a word is, and
+ * kept inside one paragraph so both marks live in a single mounted block.
  */
 export function repeatedWordInParagraph(scan: ShowcaseScan = scanShowcase()): RepeatedWord | null {
 	let best: RepeatedWord | null = null;

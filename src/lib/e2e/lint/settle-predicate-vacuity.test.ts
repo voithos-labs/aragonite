@@ -1,11 +1,10 @@
 /**
- * G4.22 — settle-predicate vacuity. Inside one `test()` body, a settle predicate must
- * describe the POST-operation shape, something no preceding `loadContent` document already
- * satisfies: a predicate already true returns on its first poll and synchronizes on nothing,
- * so a gesture that silently no-ops satisfies the chain. Limits of a green run: only
- * `loadContent(<literal>)` seeds the already-true set (helper-built fixtures skip rather
- * than guess), checking stops at the first DISCRIMINATING settle after each load, and
- * function-predicate variants are out of scope.
+ * G4.22: inside one `test()` body, a settle predicate must describe the state after the
+ * operation, something no `loadContent` document earlier in that body already satisfies. A
+ * predicate already true returns on its first poll and waits for nothing, so a gesture that
+ * silently does nothing passes it. A green run proves less than it looks: only a literal
+ * `loadContent` argument counts, checking stops at the first predicate that could tell the
+ * two states apart, and function predicates are out of scope.
  */
 import { describe, it, expect } from 'vitest';
 import { readdirSync, readFileSync } from 'node:fs';
@@ -92,9 +91,9 @@ function readRegexLiteral(text: string, i: number): { value: RegExp; end: number
 }
 
 /**
- * A concatenated fixture is SKIPPED rather than truncated to its first segment: a partial
- * value would clear predicates a later segment satisfies, under-reporting the very thing this
- * scan exists to find.
+ * A fixture built by concatenation is skipped rather than cut down to its first piece: a
+ * partial value would clear predicates a later piece satisfies, under-reporting the very
+ * thing this scan exists to find.
  */
 function collectStringConstants(code: string): Map<string, string> {
 	const constants = new Map<string, string>();
@@ -138,7 +137,7 @@ function readArgument(
 
 /**
  * A segment runs to the next declaration, which is what "earlier in the same test body" means
- * here; the most recent preceding `beforeEach` contributes its loads as ambient.
+ * here; the nearest `beforeEach` above it contributes its loads too.
  */
 interface Segment {
 	kind: 'test' | 'beforeEach';
@@ -170,8 +169,8 @@ const SETTLE_CALLS = [
 	'waitForSourceEquals'
 ] as const;
 
-// Settles this scan cannot evaluate but which still mark a transition: after one,
-// the loaded document no longer describes the live state.
+// Waits this scan cannot evaluate but which still mark a change: after one, the loaded
+// document no longer describes the live state.
 const OPAQUE_SETTLES = [
 	'waitForSourceWith',
 	'waitForSource',
@@ -182,8 +181,8 @@ const OPAQUE_SETTLES = [
 ] as const;
 
 /**
- * `NotContains` INVERTS: it is vacuous when no loaded document ever carried the forbidden
- * text, so its disappearance was never observable.
+ * `NotContains` reads the other way round: it waits for nothing when no loaded document ever
+ * held the forbidden text, so its disappearance could never be seen.
  */
 export function isVacuous(
 	call: string,
@@ -221,7 +220,7 @@ function specPaths(): string[] {
 	return found.sort();
 }
 
-/** Every settle site in the tree, partitioned into vacuous and discriminating. */
+/** Every settle call in the tree, split into the ones that wait for nothing and the rest. */
 function scanSettleSites(): { vacuous: SettleSite[]; total: number } {
 	const vacuous: SettleSite[] = [];
 	let total = 0;
@@ -236,9 +235,8 @@ function scanSettleSites(): { vacuous: SettleSite[]; total: number } {
 
 		for (const segment of segments) {
 			const body = code.slice(segment.start, segment.end);
-			// A load whose argument this scan can't evaluate makes the document
-			// unknown; guessing would manufacture false positives, so the segment
-			// opts out entirely.
+			// A load whose argument this scan cannot evaluate leaves the document unknown,
+			// and guessing would report predicates that are fine, so the segment opts out.
 			let loaded: string[] | null = segment.kind === 'test' ? [...(ambient ?? [])] : [];
 			if (segment.kind === 'test' && ambient === null) loaded = null;
 
@@ -261,17 +259,17 @@ function scanSettleSites(): { vacuous: SettleSite[]; total: number } {
 
 			let stateIsKnown = true;
 			for (const event of events) {
-				// A settle this scan cannot evaluate (a function predicate, a DOM-count or
-				// cross-block wait) still observed a transition, so the loaded document
-				// stops describing the live state from there on.
+				// A wait this scan cannot evaluate (a function predicate, a DOM-count or
+				// cross-block wait) still saw a change, so the loaded document stops
+				// describing the live state from there on.
 				if (event.kind === 'opaque') {
 					stateIsKnown = false;
 					continue;
 				}
 				const argument = readArgument(body, event.index, constants);
 				if (event.kind === 'load') {
-					// A load REPLACES the document; unioning would let a stale fixture clear
-					// a predicate that discriminates against the live one.
+					// A load replaces the document; keeping the old one too would let a stale
+					// fixture clear a predicate that the live document would not.
 					loaded = argument?.string === undefined ? null : [argument.string];
 					stateIsKnown = true;
 					continue;

@@ -7,12 +7,12 @@ import {
 	BLOCK_CONTENT_LOCATOR_SELECTOR
 } from '../components/block-content-selector';
 
-// Re-exported so specs route their in-`evaluate` block-content lookups through the
-// one selector definition instead of inlining `:not(.selection-overlay)`.
+// Re-exported so a spec's in-`evaluate` block-content lookup uses the one selector definition
+// instead of inlining `:not(.selection-overlay)`.
 export { BLOCK_CONTENT_SELECTOR } from '../components/block-content-selector';
 
-/** Hang guard on the harness installing `window.__test`, not a budget for it: a battery
- *  saturating one dev server pushes hydration well past the seconds a quiet host takes. */
+/** A ceiling on the harness installing `window.__test`, not an expectation of it: a full battery
+ *  on one dev server pushes hydration well past the seconds a quiet machine takes. */
 export const BRIDGE_INSTALL_TIMEOUT = 60_000;
 
 export class EditorPage {
@@ -35,8 +35,8 @@ export class EditorPage {
 		await this.page.waitForFunction(() => (window as any).__test !== undefined, null, {
 			timeout: BRIDGE_INSTALL_TIMEOUT
 		});
-		// The harness paints a proportional webfont; a caret measured before it lands sits in
-		// the fallback face's geometry, and the block reflows under the spec.
+		// The harness paints a webfont; a caret measured before it arrives is placed by the
+		// fallback font's metrics, and the block reflows under the spec.
 		await this.page.evaluate(() => document.fonts.ready);
 	}
 
@@ -58,9 +58,9 @@ export class EditorPage {
 	}
 
 	/**
-	 * `loadContent` polls a full-document serialize under the harness's short wait, which times
-	 * out at MB scale, so this settles on a cheap in-page doc-length probe instead. `suffix` appends
-	 * trailing markdown so a sibling block exists for cross-block navigation.
+	 * `loadContent` waits on a full serialize of the document, which times out at megabyte scale,
+	 * so this waits on a cheap in-page length check instead. `suffix` appends markdown so a
+	 * sibling block exists for cross-block navigation.
 	 */
 	async loadLargeFixture(shape: FixtureShape, bytes: number, suffix = ''): Promise<number> {
 		const fixture = generateFixture(shape, bytes) + suffix;
@@ -81,8 +81,8 @@ export class EditorPage {
 		return this.page.evaluate(() => (window as any).__test.getDocument().children.length);
 	}
 
-	/** The editor scrolls INTERNALLY, not the page, so `page.mouse.wheel` would miss it; a
-	 *  direct scrollTop write fires the passive listener the window subscribes to. */
+	/** The editor scrolls inside its own box, not the page, so `page.mouse.wheel` would miss it;
+	 *  writing scrollTop fires the passive listener windowing subscribes with. */
 	async scrollEditorTo(scrollTop: number): Promise<void> {
 		await this.page.evaluate((top) => {
 			const el = document.querySelector('.editor') as HTMLElement | null;
@@ -93,9 +93,9 @@ export class EditorPage {
 
 	// ── DOM Queries ─────────────────────────────────────────────────────
 
-	// Top-level addressing only: a comma in `data-block-path` marks a nested host, and the
-	// drag-handle filter drops the hover grip, so the count stays one per block. Nested
-	// addressing goes through `focusBlockAtPath`.
+	// Top-level blocks only: a comma in `data-block-path` marks a nested host, and the content
+	// selector drops the hover drag handle, so the count stays one per block. A nested block
+	// goes through `focusBlockAtPath`.
 	getBlock(index: number): Locator {
 		return this.page
 			.locator(`[data-block-path='${JSON.stringify([index])}']`)
@@ -122,8 +122,8 @@ export class EditorPage {
 		return this.page.evaluate(() => (window as any).__test.parseConverged() as boolean);
 	}
 
-	// Every harness wait defaults to 5s, expect()'s own default: a wait is a ceiling, not a
-	// measurement, and 2s under-provisioned saturated parallel-worker runs.
+	// Every harness wait defaults to 5s, the same as expect(): a wait is a ceiling, not a
+	// measurement, and 2s was too little for runs with every worker busy.
 	async waitForCrossBlock(active: boolean): Promise<void> {
 		if (active) {
 			await this.page.waitForSelector('[data-cross-block]', { state: 'attached', timeout: 5000 });
@@ -146,10 +146,9 @@ export class EditorPage {
 		await this.placeCaretInBlock(index, 'start');
 	}
 
-	// COORDINATE-SPACE WARNING: a numeric `position` is a DOM-textContent offset counting
-	// `.md-marker` spans, NOT the raw-semantic offset `focusBlockAtPath` uses — the two are not
-	// interchangeable on marker-bearing blocks. Pinned by
-	// lint/caret-helper-coordinate-spaces.test.ts.
+	// COORDINATE-SPACE WARNING: a numeric `position` counts DOM text, `.md-marker` spans
+	// included, not the raw offset `focusBlockAtPath` takes; the two differ on any block that
+	// shows markers. Pinned by lint/caret-helper-coordinate-spaces.test.ts.
 	private async placeCaretInBlock(
 		index: number,
 		position: 'start' | 'end' | number
@@ -158,9 +157,9 @@ export class EditorPage {
 			({ pathAttr, position, contentSelector }) => {
 				const wrapper = document.querySelector(`[data-block-path='${pathAttr}']`);
 				const block = wrapper?.querySelector(contentSelector) as HTMLElement | null;
-				// Throw, never silently return: a selector drift (missing wrapper or
-				// editable) must fail the spec, not let a downstream absence-assertion
-				// pass for the wrong reason. Mirrors pointForOffset.
+				// Throws rather than returning quietly: a selector that no longer matches must
+				// fail the spec, not let a later "nothing is there" assertion pass for the
+				// wrong reason.
 				if (!block) throw new Error(`placeCaretInBlock: no editable at ${pathAttr}`);
 				block.focus();
 
@@ -200,16 +199,16 @@ export class EditorPage {
 		);
 	}
 
-	// COORDINATE-SPACE WARNING: `offset` is RAW-SEMANTIC — the walk filters `.md-marker`
-	// spans — NOT the marker-counting space `placeCaretInBlock(index, number)` uses. Pinned
-	// by lint/caret-helper-coordinate-spaces.test.ts.
+	// COORDINATE-SPACE WARNING: `offset` is a raw offset, since the walk skips `.md-marker`
+	// spans, not the marker-counting one `placeCaretInBlock(index, number)` takes. Pinned by
+	// lint/caret-helper-coordinate-spaces.test.ts.
 	async focusBlockAtPath(path: number[], offset: number): Promise<void> {
 		await this.page.evaluate(
 			({ path, offset, contentSelector }) => {
 				const attr = JSON.stringify(path);
 				const wrapper = document.querySelector(`[data-block-path='${attr}']`);
-				// Throw, never silently return: selector drift must fail the spec, not
-				// green an absence-assertion for the wrong reason. Mirrors pointForOffset.
+				// Throws rather than returning quietly: a selector that no longer matches must
+				// fail the spec, not pass a later "nothing is there" assertion for the wrong reason.
 				if (!wrapper) throw new Error(`focusBlockAtPath: no block wrapper at ${attr}`);
 				const block = wrapper.querySelector(contentSelector) as HTMLElement | null;
 				if (!block) throw new Error(`focusBlockAtPath: no editable at ${attr}`);
@@ -217,8 +216,8 @@ export class EditorPage {
 
 				const range = document.createRange();
 				const walker = document.createTreeWalker(block, NodeFilter.SHOW_TEXT, {
-					// Ambient marker spans (contenteditable="false") contribute to DOM
-					// textContent but not to raw. Callers pass raw-semantic offsets.
+					// The marker spans a container draws (contenteditable="false") count toward
+					// DOM text but not toward raw. Callers pass raw offsets.
 					acceptNode(n) {
 						const parent = (n as Text).parentElement;
 						if (parent?.closest('.md-marker[contenteditable="false"]')) {
@@ -258,8 +257,8 @@ export class EditorPage {
 	}
 
 	/**
-	 * Resolves ANY `data-block-path`, comma-paths included, to a pixel point — the nested
-	 * targets `clickBlock`'s top-level-only addressing cannot reach.
+	 * Resolves any `data-block-path`, comma paths included, to a pixel point: the nested blocks
+	 * `clickBlock` cannot reach.
 	 */
 	async clickBlockAtPath(path: number[], offset: number): Promise<void> {
 		const point = await this.pointForOffset(path, offset);
@@ -321,8 +320,8 @@ export class EditorPage {
 		await this.waitForRenderFlush();
 	}
 
-	/** One held drag through `mid` to `end`: two `dragFromTo` calls would release and
-	 *  re-press between segments. */
+	/** One held drag through `mid` to `end`: two `dragFromTo` calls would release and press the
+	 *  button again in between. */
 	async dragFromToThenTo(
 		startPath: number[],
 		startOffset: number,
@@ -362,7 +361,7 @@ export class EditorPage {
 		await this.waitForRenderFlush();
 	}
 
-	/** Pixel point of a raw-semantic offset inside any `data-block-path` block. */
+	/** Pixel point of a raw offset inside any `data-block-path` block. */
 	async pointForOffset(path: number[], offset: number): Promise<{ x: number; y: number }> {
 		const point = await this.page.evaluate(
 			({ path, offset }) => {
@@ -372,8 +371,8 @@ export class EditorPage {
 				const range = document.createRange();
 				let remaining = offset;
 				const walker = document.createTreeWalker(editable, NodeFilter.SHOW_TEXT, {
-					// Ambient marker spans (contenteditable="false") contribute to DOM
-					// textContent but not to raw. Callers pass raw-semantic offsets.
+					// The marker spans a container draws (contenteditable="false") count toward
+					// DOM text but not toward raw. Callers pass raw offsets.
 					acceptNode(n) {
 						const parent = (n as Text).parentElement;
 						if (parent?.closest('.md-marker[contenteditable="false"]')) {
@@ -418,9 +417,9 @@ export class EditorPage {
 	// ── Settle Helpers ──────────────────────────────────────────────────
 
 	/**
-	 * Reads of post-mutation DOM state (mounted overlays, `data-cross-block`, geometry) see
-	 * mid-transition values before this. The DOUBLE rAF covers an `$effect` commit plus a
-	 * child-component mount, or a layout flush after caret-affecting keystrokes.
+	 * Without this, a read of DOM state after a mutation (mounted overlays, `data-cross-block`,
+	 * geometry) catches it mid-change. Two animation frames cover an `$effect` plus a child
+	 * component mounting, or a layout pass after a keystroke that moved the caret.
 	 */
 	async waitForRenderFlush(): Promise<void> {
 		await this.page.evaluate(
@@ -432,9 +431,9 @@ export class EditorPage {
 	}
 
 	/**
-	 * Enter at the end of a list item inserts an empty trailing item whose marker is TRIMMED in
-	 * the serialized source, so `getSource()` predicates see no change. DOM count is the
-	 * cheapest signal that the post-Enter tree flushed.
+	 * Enter at the end of a list item inserts an empty trailing item whose marker is trimmed out
+	 * of the serialized source, so a `getSource()` predicate sees no change. The DOM count is the
+	 * cheapest sign that the tree after Enter has rendered.
 	 */
 	async waitForListItemCount(expected: number, timeout = 5000): Promise<void> {
 		await this.page.waitForFunction(
@@ -445,9 +444,9 @@ export class EditorPage {
 	}
 
 	/**
-	 * Enter inserts a transient empty paragraph whose marker is TRIMMED in the serialized
-	 * source, so `getBlockCount()` — which re-parses it — cannot see it. Every block wraps in
-	 * `.block-host`, so the total moves by one per insertion.
+	 * Enter inserts a short-lived empty paragraph whose marker is trimmed out of the serialized
+	 * source, so `getBlockCount()`, which re-parses it, cannot see it. Every block is wrapped in
+	 * a `.block-host`, so that total moves by one per insertion.
 	 */
 	async waitForBlockHostCount(expected: number, timeout = 5000): Promise<void> {
 		await this.page.waitForFunction(
@@ -458,37 +457,37 @@ export class EditorPage {
 	}
 
 	/**
-	 * A fixed wait, not a predicate: the source already reflects the typed text, so there is no
-	 * shape to poll for. Tests wanting two separate undo batches need the next interaction to
-	 * land outside the prior batch's debounce window.
+	 * A fixed wait, not a predicate: the source already holds the typed text, so there is nothing
+	 * to poll for. A test that wants two separate undo entries needs its next interaction to
+	 * happen after the previous batch's debounce window.
 	 */
 	async waitForUndoBatchFlush(): Promise<void> {
 		await this.page.waitForTimeout(300);
 	}
 
 	/**
-	 * The absence oracle of last resort, for a gesture that produces NO keydown verdict — a
-	 * click, a drag, a paste, a menu item, a programmatic door. A predicate cannot observe a
-	 * non-event, so it waits past the window a wrongly-committed mutation would surface in.
-	 * A keyboard gesture has a verdict: use `pressDeclined` / `typeDeclined` instead.
+	 * The last resort for proving nothing changed, for a gesture the editor records no decision
+	 * for: a click, a drag, a paste, a menu item, a direct call. Nothing can be polled for an
+	 * event that never happens, so this waits past the window a wrongly committed mutation would
+	 * show up in. A keyboard gesture is recorded: use `pressDeclined` or `typeDeclined` instead.
 	 */
 	async waitForNoSourceMutation(): Promise<void> {
 		await this.page.waitForTimeout(150);
 	}
 
 	/**
-	 * ResizeObserver's initial-observe callback fires the frame after attach; without draining
-	 * it, a layout shift in the same callback batch is absorbed silently and the test observing
-	 * that shift sees nothing.
+	 * ResizeObserver's first callback fires the frame after it is attached; without waiting that
+	 * out, a layout shift in the same batch of callbacks is absorbed silently and the test
+	 * watching for that shift sees nothing.
 	 */
 	async waitForResizeObserverFlush(): Promise<void> {
 		await this.page.waitForTimeout(120);
 	}
 
 	/**
-	 * The copy handler writes through a synthetic `copy` event whose flush timing the BROWSER
-	 * owns, and no editor state changes, so no bridge predicate can observe it. The copy-only
-	 * carve-out in docs/contributing/testing.md § Patterns and gotchas.
+	 * The copy handler writes through a synthetic `copy` event whose timing the browser owns, and
+	 * no editor state changes, so no predicate can watch for it. The copy-only exception is in
+	 * docs/contributing/testing.md § Patterns and gotchas.
 	 */
 	async waitForClipboardWrite(): Promise<void> {
 		await this.page.waitForTimeout(150);
@@ -498,26 +497,26 @@ export class EditorPage {
 		await this.clipboard.waitForContains(expected, timeout);
 	}
 
-	// ── Absence Oracles ─────────────────────────────────────────────────
+	// ── Proving nothing happened ────────────────────────────────────────
 
 	/**
-	 * Press a key that must change nothing, returning once the editor's verdict for it is
-	 * recorded — the surface handler's await chain has settled, so the caller's source read is
-	 * ordered after the gesture rather than after a timer.
+	 * Press a key that must change nothing, returning once the editor has recorded whether it
+	 * handled the key: the block's handler has finished, so the caller's source read comes after
+	 * the gesture rather than after a timer.
 	 */
 	async pressDeclined(key: string): Promise<void> {
 		await this.awaitKeydownVerdicts(key, 1, () => this.page.keyboard.press(key));
 	}
 
-	/** Per-character typing: one keydown, and so one verdict, per character. */
+	/** Per-character typing: one keydown, and so one recorded decision, per character. */
 	async typeDeclined(text: string): Promise<void> {
 		await this.awaitKeydownVerdicts(text, text.length, () => this.page.keyboard.type(text));
 	}
 
 	/**
-	 * Reading mode takes no keystrokes, so no verdict exists to wait on; the positive signal is
-	 * the structural one — the editor root holds no editable surface — plus a drained tick for
-	 * whatever an effect would still commit.
+	 * Reading mode takes no keystrokes, so there is no recorded decision to wait on. The signal
+	 * is the structure instead: the editor root holds no editable element, plus one drained tick
+	 * for whatever an effect would still write.
 	 */
 	async expectSurfaceInert(): Promise<void> {
 		try {
@@ -535,7 +534,7 @@ export class EditorPage {
 
 	/**
 	 * A count that never advances is a finding, not a timeout to widen: the key reached no
-	 * instrumented surface, so the gesture the spec believes it made never happened.
+	 * editable element, so the gesture the spec believes it made never happened.
 	 */
 	private async awaitKeydownVerdicts(
 		gesture: string,

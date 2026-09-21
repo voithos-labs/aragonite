@@ -1,13 +1,12 @@
 import { test as base, expect, type ConsoleMessage } from '@playwright/test';
 import { getContainerParityMismatches } from './container-parity';
 
-// Shared e2e `test`, carrying two teardown guards. 1) The console watch: every dev warning
-// reaches the console under the `[aragonite:…]` sentinel, and every Svelte runtime warning under
-// `[svelte] <code>`, rather than the structured error event, so a spec watching only
-// `getCapturedErrors()` lets a fire pass. A spec that trips one declares its tags below,
-// bidirectionally: each named tag must fire and no other may. 2) The container-parity walk, which
-// the console cannot cover: `each_key_duplicate` is swallowed by BlockHost's boundary with no
-// console line; gated on an editor having registered a document, so editor-less routes skip.
+// The shared e2e `test`, with two checks at teardown. The console watch: dev warnings arrive on
+// the console tagged `[aragonite:…]` and Svelte runtime warnings tagged `[svelte] <code>`, not as
+// the structured error event, so a spec watching `getCapturedErrors()` alone would miss them. A
+// spec that trips one declares its tags below, and each declared tag must fire while no other
+// may. The container-parity walk, which the console cannot cover: BlockHost's error boundary
+// swallows `each_key_duplicate` with no console line. A route with no editor skips that walk.
 
 interface WarnFixtures {
 	/** Invariant tags this spec deliberately triggers, e.g. `['late-opener-registration']`. */
@@ -21,18 +20,18 @@ interface WarnFixtures {
 const SENTINEL_TAG = /\[aragonite:([^\]]+)\]/;
 const SVELTE_CODE = /\[svelte\]\s+([a-z0-9_]+)/;
 
-/** A prefix `expectWarns` may not carry: each namespace has a door of its own. */
+/** A prefix `expectWarns` may not carry: `invariant:` and `svelte:` each have their own list. */
 const NAMESPACED = /^(invariant|svelte):/;
 
-/** The two console heads share one tag namespace, so one watch and one claim door cover both. */
+/** Both kinds of console warning carry a tag, so one watch and one declared list cover both. */
 function fireOf(m: ConsoleMessage): { tag: string; text: string } | null {
 	const text = `${m.type()}: ${m.text()}`;
 	const sentinel = SENTINEL_TAG.exec(m.text())?.[1];
 	if (sentinel) return { tag: sentinel, text };
 	const code = SVELTE_CODE.exec(m.text())?.[1];
 	if (!code) return null;
-	// Under the dev server every Svelte warn reports Vite's console proxy as its origin, which
-	// names nothing; the code inside the text is the whole signal there.
+	// Under the dev server every Svelte warning reports Vite's console proxy as its origin, which
+	// names nothing, so the code inside the text is all there is to go on.
 	const at = m.location();
 	const origin = at.url.includes('@vite/client')
 		? ''
@@ -62,8 +61,8 @@ export const test = base.extend<WarnFixtures>({
 		page.on('console', onConsole);
 		await use(page);
 
-		// `assertInvariant` relays under the `invariant:` tag prefix, so the three option lists
-		// meet in one namespace and one watch covers all three classes.
+		// `assertInvariant` reports under the `invariant:` prefix, so the three declared lists
+		// end up in one tag space and one watch covers all three.
 		const expected = new Set([
 			...expectInvariants.map((tag) => `invariant:${tag}`),
 			...expectWarns,
@@ -75,8 +74,8 @@ export const test = base.extend<WarnFixtures>({
 			`unexpected [aragonite:…] / [svelte] console fires:\n${unexpected.join('\n')}`
 		).toEqual([]);
 
-		// Console delivery to the Node listener is async, so a required fire may still
-		// be in flight when the test body ends; poll rather than read once, listener still on.
+		// Console messages reach the Node listener asynchronously, so a required warning may
+		// still be on its way when the test body ends: poll, with the listener still attached.
 		if (expected.size > 0) {
 			await expect
 				.poll(() => [...expected].filter((tag) => !fires.some((f) => f.tag === tag)))

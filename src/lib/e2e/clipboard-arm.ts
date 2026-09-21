@@ -2,11 +2,11 @@ import { type Page } from '@playwright/test';
 import { isWebKit } from './browser-engine';
 
 /**
- * How a spec's bytes reach the editor's clipboard handlers. Chromium rides the real system
- * clipboard behind the context's permission grants. WebKit has none to grant — it rejects them at
- * context creation, and its `writeText` resolves into a clipboard the synthetic paste chord cannot
- * see — so its arm carries the bytes on a dispatched event instead, which both handlers already
- * read (`clipboardData`), and records a copy from the same event the editor writes into.
+ * How a spec's bytes reach the editor's clipboard handlers. Chromium uses the real system
+ * clipboard behind the context's permission grants. WebKit has none to grant, and its `writeText`
+ * lands in a clipboard the synthetic paste keystroke cannot read, so the WebKit branch carries
+ * the bytes on a dispatched event that both handlers already read (`clipboardData`), and records
+ * a copy from the same event the editor writes into.
  */
 export interface ClipboardArm {
 	/** Page-side setup, before the first navigation. */
@@ -21,7 +21,7 @@ export function createClipboardArm(page: Page): ClipboardArm {
 	return isWebKit(page) ? eventClipboard(page) : systemClipboard(page);
 }
 
-// ── Arms ────────────────────────────────────────────────────────────────────
+// ── The two branches ────────────────────────────────────────────────────────
 
 function systemClipboard(page: Page): ClipboardArm {
 	return {
