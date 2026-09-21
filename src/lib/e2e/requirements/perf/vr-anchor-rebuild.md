@@ -1,10 +1,10 @@
-# Feature: Virtual rendering — measured heights survive a structural rebuild
+# Feature: Virtual rendering: measured heights survive a structural rebuild
 
-List items and table rows aren't `BlockHost`s, so their measured box reaches the parent model
-only through the child-subtotal channel. That channel must persist the box to the oracle by id,
-or a count-changing edit reseeds every surviving sibling from estimate and the viewport jumps.
-Both fixtures are non-uniform on purpose: where estimate already equals measured, the reseed is
-a no-op and the defect is unreachable.
+List items and table rows are not `BlockHost`s, so their measured box reaches the parent height
+table only through the child-subtotal path. That path must store the box in the height estimator
+by id, or a count-changing edit starts every surviving sibling from an estimate again and the
+viewport jumps. Both fixtures are non-uniform on purpose: where the estimate already equals the
+measurement, starting over changes nothing and the defect is unreachable.
 
 ## Happy paths
 
@@ -13,8 +13,8 @@ a no-op and the defect is unreachable.
 
 ## Edge cases
 
-- Non-vacuity preconditions carried by both scenarios: the scroll is progressive rather than a direct jump (items and rows reach the model only while mounted, so measuring them in first is what makes the reseed observable), and the rebuild is confirmed by polling the CST child count, never the DOM's — windowing mounts only a slice.
-- The edited sibling sits LOWER in the viewport than the reference, so the insertion lands below it and the reference's path stays valid across the edit.
+- Both scenarios carry preconditions that keep them from passing for nothing: the scroll is progressive rather than a direct jump (items and rows reach the height table only while mounted, so measuring them in first is what makes the defect observable), and the rebuild is confirmed by polling the CST child count, never the DOM's, since windowing mounts only a slice.
+- The edited sibling sits lower in the viewport than the reference, so the insertion lands below it and the reference's path stays valid across the edit.
 
 ## Error cases
 

@@ -1,19 +1,20 @@
-# Feature: Virtual rendering — scroll-anchor correction on a deep jump (VR-2)
+# Feature: Virtual rendering: scroll-anchor correction on a deep jump (VR-2)
 
-A single deep `scrollTop` jump lands in a fresh estimate-seeded band whose blocks then measure
-in far taller than estimate. The editor shifts `scrollTop` forward by the model-offset delta so
-the content the reader was looking at stays in view. The settled `scrollTop` compensation is the
-discriminator — within-flush block drift reads flat, and reverting the correction pins
-`scrollTop` at the exact jump target. Once per responsible scope.
+A single deep `scrollTop` jump lands in a fresh band whose heights are still estimates, and whose
+blocks then measure far taller than the estimate. The editor shifts `scrollTop` forward by the
+difference in the height table's offsets, so the content the user was looking at stays in view.
+The settled `scrollTop` compensation is what tells the two apart: block drift within one flush
+reads flat, and removing the correction leaves `scrollTop` at the exact jump target. One row per
+block list that owns a correction.
 
 ## Happy paths
 
-- Deep jump into an unmeasured band at the ROOT scope holds the viewport: on a doc the estimator badly under-models (tall `<br>`-heavy paragraphs interleaved with short ones), the compensation runs to thousands of px on a 30×-under-modeled fixture.
-- Deep jump into a giant blockquote holds the viewport at the NESTED scope: `correctAnchor` is instantiated per scope, and the root arm guards only the root instance. The compensation is nested-attributable because the single top-level block leaves the root scope's anchor offset structurally 0 (no-op) — only the blockquote's own scope, whose paragraph children enroll in the `correctAnchor`-wrapped batched measure pass, can produce it.
+- Deep jump into an unmeasured band in the root list holds the viewport: on a doc the estimator badly under-models (tall `<br>`-heavy paragraphs interleaved with short ones), the compensation runs to thousands of px on a 30×-under-modeled fixture.
+- Deep jump into a giant blockquote holds the viewport in the nested list: `correctAnchor` is created per block list, and the root case covers only the root instance. The compensation can be attributed to the nested list because the single top-level block leaves the root list's anchor offset at 0 by construction, so only the blockquote's own child list, whose paragraphs take part in the batched measure pass `correctAnchor` wraps, can produce it.
 
 ## Edge cases
 
-- A mounted block still sits at the viewport's top edge either way, so block position is a sanity check and never the discriminator.
+- A mounted block still sits at the viewport's top edge either way, so block position is a sanity check and never what tells the two apart.
 
 ## Error cases
 

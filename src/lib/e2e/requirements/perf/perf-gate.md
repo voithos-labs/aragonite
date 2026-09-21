@@ -1,10 +1,10 @@
-# Feature: E2E Perf — The Keystroke Regression Gate
+# Feature: E2E Perf: The Keystroke Regression Gate
 
 The commit-blocking half of the perf harness. Where `typing-latency.md` _measures_
 every shape × size and reports, this gate _fails_ when a curated subset regresses
-past its recorded baseline. Armed only by `PERF_GATE` (`npm run perf:check`, which
+past its recorded baseline. Turned on only by `PERF_GATE` (`npm run perf:check`, which
 builds and previews the app first and measures that); without it every row skips,
-loudly rather than silently — a skipped gate that reads green would be theater.
+loudly rather than silently, since a skipped gate that reads green proves nothing.
 
 Deliberately outside `npm test`: the timing rows are slow, and a single-machine
 timing gate belongs at a merge/ship boundary, not on every commit.
@@ -13,18 +13,18 @@ timing gate belongs at a merge/ship boundary, not on every commit.
 
 Per-keystroke **p50** for each gated row, against `src/lib/test/perf/baseline.json`.
 
-- p50, not p95 — the median is the stable statistic; p95 catches a single GC pause
+- p50, not p95: the median is the stable statistic; p95 catches a single GC pause
   and is reported, never gated.
 - Gated rows are the ones whose cost should be **O(viewport)**: every ≤1MB shape,
-  plus each renderable shape's 10MB keystroke. Gating at 10MB is the point — it
+  plus each renderable shape's 10MB keystroke. Gating at 10MB is the point: it
   guards the O(viewport) claim against an O(document) regression that would hide
   entirely at 1MB.
 - `single-giant-paragraph` is recorded, not gated: its span rebuild is
   O(paragraph length), a genuinely different axis that windowing cannot bound.
-- The `-interior-` rows type INSIDE a giant container, where every other row types
-  ahead of one. The caret sits at the container's first child, the child windowing
-  guarantees mounted, and the end whose keystroke still moves the container's opener
-  line; the axis they stand for is any keystroke inside a large container.
+- The `-interior-` rows type inside a giant container, where every other row types
+  ahead of one. The caret sits at the container's first child, the one child windowing
+  guarantees is mounted, at the end whose keystroke still moves the container's opener
+  line; what they stand for is any keystroke inside a large container.
 
 ## The budget
 
@@ -33,10 +33,10 @@ Per-keystroke **p50** for each gated row, against `src/lib/test/perf/baseline.js
 - The 10% factor clears measured same-machine run-to-run spread (~3–4%) while
   still catching a real slowdown.
 - The 5ms floor keeps cheap rows from tripping on a few milliseconds of jitter.
-- `PERF_RUNNER_SCALE` defaults to 1 (the calibration machine — the tight gate).
+- `PERF_RUNNER_SCALE` defaults to 1, the calibration machine and the tight gate.
   Slower environments scale the whole ceiling instead of re-blessing baselines
-  per host; CI sets it in the workflow env, which makes the CI gate a
-  gross-regression net rather than a re-tuned one.
+  per host; CI sets it in the workflow env, which makes the CI gate a net for
+  gross regressions rather than a re-tuned one.
 
 ## Baseline policy
 
@@ -46,8 +46,8 @@ regression. A row that regressed is a bug until proven to be a moved floor.
 
 ## What this gate cannot see
 
-Steady-state p50 only. A one-slow-keystroke regression — a first-edit full
-re-render, say — barely moves a 30-sample median. That class is guarded
+Steady-state p50 only. A regression in one slow keystroke, a full re-render on the
+first edit for instance, barely moves a 30-sample median. That class is guarded
 separately, by the block-render-scoping count assertion inside the fast
 `npm test` gate.
 
@@ -57,7 +57,7 @@ large container, most of it Svelte's dev-only bookkeeping.
 
 ## Error cases
 
-- a keystroke whose CST commit never lands fails the row via settle timeout
+- a keystroke whose CST commit never lands fails the row when the wait times out
   rather than recording a bogus latency
 - a baseline row missing for a gated shape × size fails the row, naming the key,
-  rather than passing vacuously or dying on a property read
+  rather than passing for nothing or dying on a property read
