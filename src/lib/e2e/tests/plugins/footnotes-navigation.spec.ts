@@ -133,7 +133,7 @@ test.describe('footnote jump: reference to definition', () => {
 		expect(await capturedErrors(page)).toEqual([]);
 	});
 
-	test('a reference with no definition ignores the gesture — no jump, and no reveal either', async ({
+	test('a reference with no definition ignores the gesture: no jump, and no reveal either', async ({
 		page
 	}) => {
 		await editor.setPresentationMode('source');
@@ -278,7 +278,7 @@ test.describe('footnote jump: definition back to reference', () => {
 		expect(await capturedErrors(page)).toEqual([]);
 	});
 
-	test('live mode: a plain click on the marker seats the caret in the body, no jump', async ({
+	test('live mode: a plain click on the marker puts the caret in the body, no jump', async ({
 		page
 	}) => {
 		await editor.load(SHORT_DOC);

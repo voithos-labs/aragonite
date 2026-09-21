@@ -24,7 +24,7 @@ async function stepRightTo(ep: EditorPage, page: Page, target: number): Promise<
 	expect(offset).toBe(target);
 }
 
-test.describe('preview-inline — caret affinity', () => {
+test.describe('preview-inline: caret affinity', () => {
 	let ep: EditorPage;
 
 	test.beforeEach(async ({ page }) => {

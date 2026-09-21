@@ -15,7 +15,7 @@ test.describe('table block: cross-block delete', () => {
 		await editor.goto();
 	});
 
-	test('Case 3 — paragraph → full-table → paragraph merges and removes the table', async ({
+	test('Case 3: paragraph → full-table → paragraph merges and removes the table', async ({
 		page
 	}) => {
 		await editor.loadContent(`head text\n\n${TABLE_2x3}\ntail text\n`);
@@ -43,7 +43,7 @@ test.describe('table block: cross-block delete', () => {
 		expect((await editor.bridge.getSource()).replace(/\s+$/, '')).toBe(source.replace(/\s+$/, ''));
 	});
 
-	test('Case 1 — paragraph above → mid-table Backspace clears whole rows and promotes the survivor', async ({
+	test('Case 1: paragraph above → mid-table Backspace clears whole rows and promotes the survivor', async ({
 		page
 	}) => {
 		// Whole-row snap: dragging into a body cell selects every touched row in full, so the
@@ -63,7 +63,7 @@ test.describe('table block: cross-block delete', () => {
 		await expect(page.locator('[role="cell"]')).toHaveCount(2);
 	});
 
-	test('Case 2 — mid-table → paragraph below Backspace clears whole rows', async ({ page }) => {
+	test('Case 2: mid-table → paragraph below Backspace clears whole rows', async ({ page }) => {
 		// Whole-row snap: a drag that starts in a body cell marks that anchor as a cell coordinate,
 		// matching the keyboard path, so the anchor's whole row and every row below go: dragging
 		// from row 1 removes body rows 1 and 2.
@@ -86,7 +86,7 @@ test.describe('table block: cross-block delete', () => {
 		expect(src).toMatch(/\|[^\n|]*Z[^\n|]*\|/);
 	});
 
-	test('Case 2 — anchor at col 0 lands at end of previous-row last cell', async ({ page }) => {
+	test('Case 2: anchor at col 0 lands at end of previous-row last cell', async ({ page }) => {
 		const TABLE_3x3 = '| A | B | C |\n| --- | --- | --- |\n| 1 | 2 | 3 |\n| 4 | 5 | 6 |\n';
 		await editor.loadContent(`${TABLE_3x3}\nfollow paragraph\n`);
 		// Drag from cell (1, 0) = "1" to the paragraph below; anchorCol === 0
@@ -278,7 +278,7 @@ test.describe('table block: cross-block delete', () => {
 		expect(src).toContain('| --- | --- |');
 	});
 
-	test('Case 2 into a NESTED prose end (blockquote paragraph) truncates the tail without erroring', async ({
+	test('Case 2 into a nested prose end (blockquote paragraph) truncates the tail without erroring', async ({
 		page
 	}) => {
 		// The nested endpoint is what makes this bite: a blockquote paragraph end routes the delete

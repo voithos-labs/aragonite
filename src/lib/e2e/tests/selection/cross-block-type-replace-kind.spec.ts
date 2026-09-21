@@ -16,7 +16,7 @@ async function nestedKind(page: EditorPage['page'], path: number[]): Promise<str
 	}, path);
 }
 
-test.describe('cross-block type-replace — kind re-derivation', () => {
+test.describe('cross-block type-replace: kind re-derivation', () => {
 	let editor: EditorPage;
 
 	test.beforeEach(async ({ page }) => {

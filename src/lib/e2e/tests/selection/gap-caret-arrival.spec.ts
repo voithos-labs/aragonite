@@ -65,7 +65,7 @@ test.describe('gap caret arrival', () => {
 		expect(await editor.bridge.getBlockKind(2)).toBe('table');
 	});
 
-	test('ArrowDown out of the last table cell parks at the boundary, and again enters the fence', async () => {
+	test('ArrowDown out of the last table cell puts the caret at the boundary, and again enters the fence', async () => {
 		await editor.loadContent(TABLE_THEN_FENCE);
 		await editor.page.locator('[role="cell"]').nth(LAST_CELL).click();
 
@@ -79,7 +79,7 @@ test.describe('gap caret arrival', () => {
 		await editor.bridge.waitForSourceContains('Xcode');
 	});
 
-	test('ArrowUp from the fence body parks at the same boundary, and again enters the table', async () => {
+	test('ArrowUp from the fence body puts the caret at the same boundary, and again enters the table', async () => {
 		await editor.loadContent(TABLE_THEN_FENCE);
 		await editor.focusBlockAtPath([2], 4);
 
@@ -92,7 +92,7 @@ test.describe('gap caret arrival', () => {
 		await editor.bridge.waitForSourceContains('| c | dX |');
 	});
 
-	test('Backspace at fence offset 0 parks at the boundary above it', async () => {
+	test('Backspace at fence offset 0 puts the caret at the boundary above it', async () => {
 		await editor.loadContent(TABLE_THEN_FENCE);
 		await editor.focusBlockAtPath([2], 0);
 
@@ -115,7 +115,7 @@ test.describe('gap caret arrival', () => {
 		expect(await editor.bridge.getGapCaret()).toBeNull();
 	});
 
-	test('Delete at the fence closer parks at the boundary below it', async () => {
+	test('Delete at the fence closer puts the caret at the boundary below it', async () => {
 		await editor.loadContent(FENCE_THEN_TABLE);
 		await editor.focusBlockAtPath([1], CLOSER_BOUNDARY);
 
@@ -125,7 +125,7 @@ test.describe('gap caret arrival', () => {
 		expect(await editor.bridge.getSource()).toBe(FENCE_THEN_TABLE);
 	});
 
-	test('a click above a leading table parks at the document start', async () => {
+	test('a click above a leading table puts the caret at the document start', async () => {
 		await editor.loadContent(LEADING_TABLE);
 		const point = await leadingPaddingPoint(editor);
 
@@ -230,7 +230,7 @@ test.describe('gap caret in reading mode', () => {
 
 	// The click is the case that tells them apart here: reading mode focuses no block, so no
 	// traversal runs to check. That branch is unit-pinned (`editor-actions/focus`).
-	test('a click in an eligible band parks nothing', async () => {
+	test('a click in an eligible band puts the caret nothing', async () => {
 		const point = await leadingPaddingPoint(editor);
 
 		await editor.page.mouse.click(point.x, point.y);

@@ -1,7 +1,7 @@
 import { test, expect } from '../../../fixtures';
 import { EditorPage } from '../../../editor-page';
 
-test.describe('code block paste — fence bumping', () => {
+test.describe('code block paste: fence bumping', () => {
 	let editor: EditorPage;
 
 	test.beforeEach(async ({ page }) => {

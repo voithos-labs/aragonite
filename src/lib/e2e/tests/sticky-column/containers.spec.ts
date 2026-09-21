@@ -68,7 +68,7 @@ test.describe('sticky column: transparent blocks', () => {
 		await editor.goto();
 	});
 
-	test('thematic break is transparent — column preserved through ---', async () => {
+	test('thematic break is transparent: column preserved through ---', async () => {
 		await editor.loadContent(
 			'Long paragraph before thematic break with lots of text.\n\n---\n\nLong paragraph after the thematic break with lots of text.\n'
 		);
@@ -122,7 +122,7 @@ test.describe('sticky column: edge cases', () => {
 		expect(targetX).toBeLessThan(belowRect!.x + 20);
 	});
 
-	test('editor blur resets sticky column — blur, re-focus, fresh capture', async () => {
+	test('editor blur resets sticky column: blur, re-focus, fresh capture', async () => {
 		await editor.loadContent(
 			'Long first paragraph with plenty of characters.\n\nSecond long paragraph here.\n'
 		);

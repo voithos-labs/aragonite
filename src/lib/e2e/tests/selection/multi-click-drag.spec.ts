@@ -16,7 +16,7 @@ import {
 
 const THREE = 'alpha beta gamma\n\nsecond para here\n\nthird one\n';
 
-test.describe('multi-click: the block rung and drags', () => {
+test.describe('multi-click: the block inline syntax handler and drags', () => {
 	let editor: EditorPage;
 
 	test.beforeEach(async ({ page }) => {

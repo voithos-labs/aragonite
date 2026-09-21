@@ -41,7 +41,7 @@ async function arriveFrom(
 	await ep.waitForRenderFlush();
 }
 
-test.describe('live mode — an arrival seats where the walk could have stopped', () => {
+test.describe('live mode: an arrival puts the caret where the walk could have stopped', () => {
 	let ep: EditorPage;
 
 	test.beforeEach(async ({ page }) => {
@@ -87,7 +87,7 @@ test.describe('live mode — an arrival seats where the walk could have stopped'
 	// Arrow keys are not the only way to reach "the block's start": a structural edit puts the
 	// caret on a block it did not create, and a literal 0 would put it before a heading's hidden
 	// marker run, where the next byte turns the heading into a paragraph.
-	test('a reorder landing seats at the content start', async ({ page }) => {
+	test('a reorder landing puts the caret at the content start', async ({ page }) => {
 		await ep.loadContent('Alpha\n\n## Beta\n');
 		await ep.waitForRenderFlush();
 		await clickBlockSettled(ep, 1);
@@ -132,8 +132,8 @@ test.describe('live mode — an arrival seats where the walk could have stopped'
 	});
 });
 
-test.describe('source mode — the raw extremes are landable, so nothing moves in', () => {
-	test('the same arrival seats at the block’s raw end', async ({ page }) => {
+test.describe('source mode: the raw extremes are reachable, so nothing moves in', () => {
+	test('the same arrival puts the caret at the block’s raw end', async ({ page }) => {
 		const ep = await enterPresentationMode(page, 'source', DOC);
 		await arriveFrom(ep, page, MIDDLE, 'ArrowLeft');
 		expect(await focusOffset(ep)).toBe(34);

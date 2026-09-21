@@ -119,7 +119,9 @@ test.describe('dragging a selection', () => {
 		await editor.bridge.waitForSourceEquals(TWO);
 	});
 
-	test("the block rung's content moves and leaves the block behind", async ({ page }) => {
+	test("the block inline syntax handler's content moves and leaves the block behind", async ({
+		page
+	}) => {
 		const at = await runCenter(page, 'beta');
 		await page.mouse.click(at.x, at.y, { clickCount: 3 });
 		await dragSelection(page, at, await runStart(page, 'second para here'));

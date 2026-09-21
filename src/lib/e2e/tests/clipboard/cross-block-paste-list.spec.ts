@@ -64,7 +64,7 @@ test.describe('cross-block clipboard: paste into list selections', () => {
 		expect(source).not.toContain('three');
 	});
 
-	test('paste MULTI-BLOCK content into cross-block selection spanning two list items', async () => {
+	test('paste multi-block content into cross-block selection spanning two list items', async () => {
 		await editor.loadContent('1. one\n2. two\n');
 
 		await editor.seedClipboard('alpha\n\nbeta\n');

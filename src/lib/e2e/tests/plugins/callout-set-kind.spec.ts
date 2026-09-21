@@ -13,7 +13,7 @@ import { PluginsPage, roundTripStable } from './helpers';
 const CALLOUT_DOC = ':::callout\nbody\n:::\n';
 const WARNING_DOC = ':::aside\nbody\n:::\n';
 
-test.describe('callout.setKind — mint → keymap → bubble dispatch → metadata commit', () => {
+test.describe('callout.setKind: create → keymap → bubble dispatch → metadata commit', () => {
 	let editor: PluginsPage;
 
 	test.beforeEach(async ({ page }) => {

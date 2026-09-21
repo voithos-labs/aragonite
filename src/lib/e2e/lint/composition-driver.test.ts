@@ -63,7 +63,7 @@ describe('G4.49 e2e composition rides the shared IME driver', () => {
 		).toEqual([]);
 	});
 
-	it('the CDP arm is where Chromium composition lives', () => {
+	it('the CDP branch is where Chromium composition lives', () => {
 		const driver = files.find((file) => file.relPath === DRIVER);
 		expect(driver, `${DRIVER} is the composition driver`).toBeDefined();
 		expect(driver!.code).toContain('Input.imeSetComposition');

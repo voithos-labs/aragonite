@@ -33,7 +33,7 @@ const CODE = 3;
 
 const enterLive = (page: Page) => enterPresentationMode(page, 'live', DOC);
 
-test.describe('live mode — the caret never reports from inside a hidden run', () => {
+test.describe('live mode: the caret never reports from inside a hidden run', () => {
 	let ep: EditorPage;
 
 	test.beforeEach(async ({ page }) => {
@@ -101,7 +101,7 @@ test.describe('live mode — the caret never reports from inside a hidden run', 
 // Where a block's own start is raw 0 the bound is the ordinary one and Backspace merges as
 // usual. The kinds whose content starts later, which demote instead, are covered in
 // `presentation-live-demote.spec.ts`.
-test.describe('live mode — a destructive key reads the block’s content bounds', () => {
+test.describe('live mode: a destructive key reads the block’s content bounds', () => {
 	let ep: EditorPage;
 
 	test.beforeEach(async ({ page }) => {
@@ -119,7 +119,7 @@ test.describe('live mode — a destructive key reads the block’s content bound
 	});
 });
 
-test.describe('live mode — hidden runs a caret must not be able to type into', () => {
+test.describe('live mode: hidden runs a caret must not be able to type into', () => {
 	let ep: EditorPage;
 
 	test.beforeEach(async ({ page }) => {

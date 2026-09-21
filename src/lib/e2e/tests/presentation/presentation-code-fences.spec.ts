@@ -16,7 +16,7 @@ async function boxHeight(ep: EditorPage): Promise<number> {
 	return box.height;
 }
 
-test.describe('code fences — reading mode collapses the fence lines', () => {
+test.describe('code fences, reading mode collapses the fence lines', () => {
 	let ep: EditorPage;
 
 	test.beforeEach(async ({ page }) => {
@@ -25,7 +25,7 @@ test.describe('code fences — reading mode collapses the fence lines', () => {
 		await ep.loadContent(DOC);
 	});
 
-	test('the code box loses the two fence lines — no blank top/bottom line', async ({ page }) => {
+	test('the code box loses the two fence lines: no blank top/bottom line', async ({ page }) => {
 		const sourceHeight = await boxHeight(ep);
 		const perLine = sourceHeight / SOURCE_LINES;
 
@@ -57,7 +57,7 @@ test.describe('code fences — reading mode collapses the fence lines', () => {
 // An all-blank body has no line the closer can take a separator from, because every line is
 // content. Its reading-mode box must be as tall as a content body with the same line count:
 // N blank lines render as N blank lines, not N-1.
-test.describe('code fences — an all-blank body keeps its blank lines in reading mode', () => {
+test.describe('code fences: an all-blank body keeps its blank lines in reading mode', () => {
 	// Block 0: two content lines. Block 1: two blank body lines. Same fence count.
 	const DOC_BLANK = ['```', 'x', 'y', '```', '', '```', '', '', '```', '', 'end'].join('\n');
 
@@ -94,7 +94,7 @@ for (const mode of [
 	{ name: 'preview-block', testid: 'preview-block-toggle', attr: 'preview-block' },
 	{ name: 'preview-inline', testid: 'preview-inline-toggle', attr: 'preview-inline' }
 ] as const) {
-	test.describe(`code fences — ${mode.name} reveals on focus`, () => {
+	test.describe(`code fences: ${mode.name} reveals on focus`, () => {
 		let ep: EditorPage;
 
 		test.beforeEach(async ({ page }) => {

@@ -44,7 +44,7 @@ async function modKConsumed(ep: EditorPage, page: Page): Promise<boolean | null>
 	);
 }
 
-test.describe('live-mode link card — Mod+K is consumed wherever it is bound', () => {
+test.describe('live-mode link card: Mod+K is consumed wherever it is bound', () => {
 	test('a caret outside every link consumes the press and opens no card', async ({ page }) => {
 		const ep = await enterPresentationMode(page, 'live', DOC);
 		await ep.clickBlock(1);

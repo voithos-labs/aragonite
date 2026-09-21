@@ -16,7 +16,7 @@ async function selectFrom(editor: EditorPage, start: number, presses: number) {
 	for (let i = 0; i < presses; i++) await editor.page.keyboard.press('Shift+ArrowRight');
 }
 
-test.describe('code block — ranged edits spanning a fence line', () => {
+test.describe('code block: ranged edits spanning a fence line', () => {
 	let editor: EditorPage;
 
 	test.beforeEach(async ({ page }) => {

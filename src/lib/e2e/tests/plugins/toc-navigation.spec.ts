@@ -191,9 +191,7 @@ test.describe('toc outline: gesture ownership (entry vs block)', () => {
 		await expect(editor.source).toHaveCount(1);
 	});
 
-	test('in reading mode a non-entry click is inert — no reveal, no navigation', async ({
-		page
-	}) => {
+	test('in reading mode a non-entry click is inert: no reveal, no navigation', async ({ page }) => {
 		await editor.setPresentationMode('reading');
 		const errors = capturePageErrors(page);
 

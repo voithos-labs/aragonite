@@ -42,7 +42,7 @@ async function openChip(editor: EditorPage): Promise<void> {
 	await expect(chipInput(editor.page)).toBeVisible();
 }
 
-test.describe('code language chip — when it shows', () => {
+test.describe('code language chip: when it shows', () => {
 	test('source mode renders no chip: the fence is on screen already', async ({ page }) => {
 		const editor = new EditorPage(page);
 		await editor.goto();
@@ -120,7 +120,7 @@ test.describe('code language chip — when it shows', () => {
 		await expect(rail(page)).toHaveCSS('opacity', '1');
 	});
 
-	test('reading mode shows the chip inert — a click opens no field', async ({ page }) => {
+	test('reading mode shows the chip inert: a click opens no field', async ({ page }) => {
 		const editor = new EditorPage(page);
 		await editor.goto('?presentationMode=reading');
 		await editor.loadContent(SOURCE);
@@ -133,7 +133,7 @@ test.describe('code language chip — when it shows', () => {
 	});
 });
 
-test.describe('code language chip — the commit', () => {
+test.describe('code language chip: the commit', () => {
 	// Every writing mode, because a preview mode shows the fence again while the field holds
 	// focus (the block reads as focused), so the chip commits over markers back on screen.
 	for (const mode of WRITING_MODES) {
@@ -240,7 +240,7 @@ test.describe('code language chip — the commit', () => {
 	});
 });
 
-test.describe('code language chip — cancelling', () => {
+test.describe('code language chip, cancelling', () => {
 	test('Escape leaves the source byte-identical', async ({ page }) => {
 		const editor = await loadLive(page);
 		await openChip(editor);
@@ -268,7 +268,7 @@ test.describe('code language chip — cancelling', () => {
 
 // One entry, isolated on both sides: the commit joins the same debounced batch typing does, so
 // a burst either side of it would otherwise ride the chip's single Mod+Z.
-test.describe('code language chip — one undo entry', () => {
+test.describe('code language chip: one undo entry', () => {
 	test('a body character typed before the commit survives one Mod+Z', async ({ page }) => {
 		const editor = await loadLive(page);
 		await editor.focusBlock(0, 6);

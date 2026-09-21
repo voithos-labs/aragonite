@@ -81,7 +81,7 @@ async function revealAndClick(
 	await editor.clickBlockAtPath(path, offset);
 }
 
-test.describe('selection — setSelection restores a getSelection snapshot', () => {
+test.describe('selection: setSelection restores a getSelection snapshot', () => {
 	let editor: EditorPage;
 
 	test.beforeEach(async ({ page }) => {

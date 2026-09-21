@@ -6,7 +6,7 @@ import { EditorPage } from '../../editor-page';
 // (`requirements/text-editing/enter-at-setext-end.md`). The block-kind assertions decide it,
 // since the source bytes stay the same through the demotion and nothing else would see it.
 
-test.describe('text editing — Enter at the end of a setext title', () => {
+test.describe('text editing: Enter at the end of a setext title', () => {
 	let editor: EditorPage;
 
 	test.beforeEach(async ({ page }) => {
@@ -17,7 +17,7 @@ test.describe('text editing — Enter at the end of a setext title', () => {
 	for (const underline of ['=====', '-----']) {
 		const content = `Title\n${underline}\n`;
 
-		test(`Enter at the end of a ${underline} title — heading survives, empty block below`, async () => {
+		test(`Enter at the end of a ${underline} title, heading survives, empty block below`, async () => {
 			await editor.loadContent(content);
 			await editor.focusBlockEnd(0);
 
@@ -53,7 +53,7 @@ test.describe('text editing — Enter at the end of a setext title', () => {
 		expect(await editor.parseConverged()).toBe(true);
 	});
 
-	test('real click + End + Enter — typing lands in the empty block below', async () => {
+	test('real click + End + Enter, typing lands in the empty block below', async () => {
 		await editor.loadContent('Title\n=====\n');
 		await editor.clickBlock(0);
 		await editor.page.keyboard.press('End');

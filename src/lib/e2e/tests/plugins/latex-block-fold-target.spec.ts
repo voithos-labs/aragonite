@@ -52,7 +52,7 @@ test.describe('a render-primary block folds onto the document it opened over', (
 	// back rather than pushing draft bytes into the document the undo just restored. Exact text
 	// rather than `toHaveText`, which collapses whitespace, since a stray newline in the draft is
 	// one more entry of its own.
-	test('undo from inside a just-minted reveal walks the draft back, then returns the paragraph', async ({
+	test('undo from inside a just-created reveal walks the draft back, then returns the paragraph', async ({
 		page
 	}) => {
 		await editor.setup('\n');

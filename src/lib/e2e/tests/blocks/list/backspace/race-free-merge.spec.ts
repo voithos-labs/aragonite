@@ -3,7 +3,7 @@ import { EditorPage } from '../../../../editor-page';
 
 // A character typed straight after Backspace must land at the merge boundary, not on a stale
 // block from before the parent merge was written to state.
-test.describe('list Backspace — race-free merge then type', () => {
+test.describe('list Backspace: race-free merge then type', () => {
 	let editor: EditorPage;
 	test.beforeEach(async ({ page }) => {
 		editor = new EditorPage(page);

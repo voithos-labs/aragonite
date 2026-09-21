@@ -9,7 +9,7 @@ import { count, findInput, openFind, overlays, typeQuery } from './helpers';
  * and paints overlays over unmatched text.
  */
 
-test.describe('search — an open find bar across a source swap', () => {
+test.describe('search: an open find bar across a source swap', () => {
 	let editor: EditorPage;
 	test.beforeEach(async ({ page }) => {
 		editor = new EditorPage(page);

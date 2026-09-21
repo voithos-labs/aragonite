@@ -22,7 +22,7 @@ class EditExitPage extends MermaidPage {
 	}
 }
 
-test.describe('mermaid edit box — boundary arrow exits', () => {
+test.describe('mermaid edit box: boundary arrow exits', () => {
 	let editor: EditExitPage;
 
 	test.beforeEach(async ({ page }) => {

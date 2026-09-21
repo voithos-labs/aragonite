@@ -80,7 +80,7 @@ test.describe('a diagram pan claims its own drag', () => {
 
 	// Only while panning is ready: an unfocused diagram has no pan to protect, so a press on it is
 	// still the editor's to answer and a drag out of it selects across blocks like any other.
-	test('a drag out of an UNFOCUSED diagram still seeds a cross-block range', async ({ page }) => {
+	test('a drag out of an unfocused diagram still seeds a cross-block range', async ({ page }) => {
 		const box = await editor.viewport.boundingBox();
 		if (!box) throw new Error('the rendered diagram has no bounding box');
 		const from = { x: box.x + box.width / 2, y: box.y + box.height / 2 };

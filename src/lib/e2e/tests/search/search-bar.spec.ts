@@ -11,7 +11,7 @@ import {
 	typeQuery
 } from './helpers';
 
-test.describe('search — open and close', () => {
+test.describe('search: open and close', () => {
 	let editor: EditorPage;
 	test.beforeEach(async ({ page }) => {
 		editor = new EditorPage(page);
@@ -75,7 +75,7 @@ test.describe('search — open and close', () => {
 	});
 });
 
-test.describe('search — toggles', () => {
+test.describe('search: toggles', () => {
 	let editor: EditorPage;
 	test.beforeEach(async ({ page }) => {
 		editor = new EditorPage(page);

@@ -1,7 +1,7 @@
 import { test, expect } from '../../../../fixtures';
 import { EditorPage } from '../../../../editor-page';
 
-test.describe('list marker — hanging-indent style scoped by ambient length', () => {
+test.describe('list marker, hanging-indent style scoped by ambient length', () => {
 	let editor: EditorPage;
 
 	test.beforeEach(async ({ page }) => {

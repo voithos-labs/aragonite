@@ -10,7 +10,7 @@ import { PluginsPage } from '../plugins/helpers';
 
 const MATH_BLOCK_ENDPOINT = "[data-block-path='[1]'] > .selection-overlay-endpoint";
 
-test.describe('cross-block selection endpoint — folded render-primary leaf', () => {
+test.describe('cross-block selection endpoint: folded render-primary leaf', () => {
 	let editor: PluginsPage;
 
 	test.beforeEach(async ({ page }) => {
@@ -20,7 +20,7 @@ test.describe('cross-block selection endpoint — folded render-primary leaf', (
 		await expect(page.locator('.math-block-render .katex')).toHaveCount(1);
 	});
 
-	test('an upward sweep ending ON the folded math block paints its endpoint box', async ({
+	test('an upward sweep ending on the folded math block paints its endpoint box', async ({
 		page
 	}) => {
 		await editor.focusBlockEnd(2);

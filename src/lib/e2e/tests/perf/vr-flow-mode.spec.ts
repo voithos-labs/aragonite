@@ -155,7 +155,7 @@ test('scrollTo on a path that addresses no block resolves false', async ({ page 
 	expect(pageErrors).toEqual([]);
 });
 
-test('scrollTo past a clipping host edge resolves false — nothing can reveal the block', async ({
+test('scrollTo past a clipping host edge resolves false, nothing can reveal the block', async ({
 	page
 }) => {
 	const pageErrors = capturePageErrors(page);

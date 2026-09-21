@@ -1,7 +1,7 @@
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 
-test.describe('selection — pointer: happy paths', () => {
+test.describe('selection: pointer: happy paths', () => {
 	let editor: EditorPage;
 
 	test.beforeEach(async ({ page }) => {
@@ -37,7 +37,7 @@ test.describe('selection — pointer: happy paths', () => {
 	});
 });
 
-test.describe('selection — pointer: edge cases', () => {
+test.describe('selection: pointer: edge cases', () => {
 	let editor: EditorPage;
 
 	test.beforeEach(async ({ page }) => {
@@ -91,7 +91,7 @@ test.describe('selection — pointer: edge cases', () => {
 	});
 });
 
-test.describe('selection — pointer: a leaf taken whole', () => {
+test.describe('selection: pointer: a leaf taken whole', () => {
 	let editor: EditorPage;
 
 	test.beforeEach(async ({ page }) => {
@@ -120,7 +120,7 @@ test.describe('selection — pointer: a leaf taken whole', () => {
 	});
 });
 
-test.describe('selection — pointer: cross-container', () => {
+test.describe('selection: pointer: cross-container', () => {
 	let editor: EditorPage;
 
 	test.beforeEach(async ({ page }) => {

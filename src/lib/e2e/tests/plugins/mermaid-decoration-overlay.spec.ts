@@ -12,7 +12,7 @@ import { PluginsPage } from './helpers';
 
 const MERMAID_DOC = 'before\n\n```mermaid\ngraph TD\n\tA[Start] --> B[Finish]\n```\n\nafter\n';
 
-test.describe('decoration overlay — childless opaque container', () => {
+test.describe('decoration overlay: childless opaque container', () => {
 	let editor: PluginsPage;
 
 	test.beforeEach(async ({ page }) => {

@@ -52,7 +52,7 @@ const soleRecord = (stats: StatsMap): StatsRecord => Object.values(stats)[0];
 
 // ── Single instance: /test/plugins?seed=docstats (two paragraphs) ───────────
 
-test.describe('doc-stats context spine: single instance', () => {
+test.describe('doc-stats context chain: single instance', () => {
 	let editor: PluginsPage;
 
 	test.beforeEach(async ({ page }) => {
@@ -93,7 +93,7 @@ test.describe('doc-stats context spine: single instance', () => {
 // resetting the closure's running edit count and briefly dropping the record. Counting up across a
 // split, an undo and an input, then a chord that still resolves, pins the non-tracking attach.
 
-test.describe('doc-stats context spine: attach survives a structural edit', () => {
+test.describe('doc-stats context chain: attach survives a structural edit', () => {
 	test('Enter split + undo leave the subscription live and the chord resolving', async ({
 		page
 	}) => {
@@ -125,7 +125,7 @@ test.describe('doc-stats context spine: attach survives a structural edit', () =
 
 // ── Two editors: /test/plugins/multi (left: 1 block, right: 2 blocks) ───────
 
-test.describe('doc-stats context spine: two editors', () => {
+test.describe('doc-stats context chain: two editors', () => {
 	test.beforeEach(async ({ page }) => {
 		await page.goto('/test/plugins/multi');
 		await waitForStats(page, (s) => Object.keys(s).length === 2);

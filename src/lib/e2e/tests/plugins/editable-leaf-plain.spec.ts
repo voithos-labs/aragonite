@@ -78,7 +78,7 @@ test.describe('plain-mode editable leaf: the %% memo kind', () => {
 		expect(paths!.focus.path).toEqual([2]);
 	});
 
-	test('Enter + text re-splits the memo through the commit kernel', async ({ page }) => {
+	test('Enter + text re-splits the memo through the commit core', async ({ page }) => {
 		await editor.memo.click();
 		await page.keyboard.press('End');
 		await page.keyboard.press('Enter');

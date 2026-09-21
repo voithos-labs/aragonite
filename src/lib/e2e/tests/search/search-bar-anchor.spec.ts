@@ -16,7 +16,7 @@ const INLINE_FALLBACK = 'rgb(68, 71, 79)';
 const inputBorderColor = (page: Page) =>
 	findInput(page).evaluate((el) => getComputedStyle(el).borderTopColor);
 
-test.describe('search bar — consumer anchor', () => {
+test.describe('search bar: consumer anchor', () => {
 	let editor: EditorPage;
 	test.beforeEach(async ({ page }) => {
 		editor = new EditorPage(page);
@@ -86,7 +86,7 @@ test.describe('search bar — consumer anchor', () => {
 	});
 });
 
-test.describe('search bar — no anchor supplied', () => {
+test.describe('search bar: no anchor supplied', () => {
 	test('the bar renders in the editor root, as it always has', async ({ page }) => {
 		const editor = new EditorPage(page);
 		await editor.goto();

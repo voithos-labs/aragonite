@@ -1,7 +1,7 @@
 import { test, expect } from '../../../fixtures';
 import { EditorPage } from '../../../editor-page';
 
-test.describe('nested list item — typing + undo', () => {
+test.describe('nested list item, typing + undo', () => {
 	let editor: EditorPage;
 
 	test.beforeEach(async ({ page }) => {

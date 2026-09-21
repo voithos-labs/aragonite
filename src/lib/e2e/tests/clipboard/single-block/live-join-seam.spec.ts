@@ -129,7 +129,7 @@ test.describe('table-cell paste over a construct edge', () => {
 
 	// The cell's own escaping and a construct in one cut: the shared join runs first, the cell
 	// escapes what it wrote, and the `|` inside the cell stays escaped.
-	test('live: the escape survives the seam the cut crossed', async ({ page }) => {
+	test('live: the escape survives the join the cut crossed', async ({ page }) => {
 		const ep = new EditorPage(page);
 		await ep.goto('?presentationMode=live');
 		await ep.loadContent('| a\\|b **z** c | y |\n| --- | --- |\n| p | q |\n\nX\n');

@@ -1,7 +1,7 @@
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 
-test.describe('selection — getSelection() reports within-block ranges (Task 4)', () => {
+test.describe('selection: getSelection() reports within-block ranges (Task 4)', () => {
 	let editor: EditorPage;
 
 	test.beforeEach(async ({ page }) => {

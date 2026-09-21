@@ -1,7 +1,7 @@
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 
-test.describe('nested structural paste — ref alignment via registry', () => {
+test.describe('nested structural paste: ref alignment via registry', () => {
 	let editor: EditorPage;
 
 	test.beforeEach(async ({ page }) => {

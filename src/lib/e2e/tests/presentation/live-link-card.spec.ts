@@ -90,7 +90,7 @@ test.describe('live-mode link card', () => {
 		await expect(page.locator(CARD)).toHaveCount(0);
 	});
 
-	test('the opening click leaves the caret in the document, so link TEXT stays editable', async ({
+	test('the opening click leaves the caret in the document, so link text stays editable', async ({
 		page
 	}) => {
 		await openCardOn(ep, page, 'example');
@@ -101,7 +101,7 @@ test.describe('live-mode link card', () => {
 		await ep.bridge.waitForSourceMatches(/\[exam!ple\]/);
 	});
 
-	test('Enter rewrites only the destination, as ONE undo entry', async ({ page }) => {
+	test('Enter rewrites only the destination, as one undo entry', async ({ page }) => {
 		await openCardOn(ep, page, 'example');
 
 		await editUrl(page, 'https://elsewhere.test/x');
@@ -150,7 +150,7 @@ test.describe('live-mode link card', () => {
 		expect(await ep.bridge.getSource()).toContain('[example](https://example.com)');
 	});
 
-	test('Escape writes nothing and puts the caret back where the click seated it', async ({
+	test('Escape writes nothing and puts the caret back where the click placed it', async ({
 		page
 	}) => {
 		const before = await ep.bridge.getSource();

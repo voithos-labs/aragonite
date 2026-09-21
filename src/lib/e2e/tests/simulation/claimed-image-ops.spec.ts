@@ -24,7 +24,7 @@ test.describe('claimed-image-ops simulation', () => {
 		await editor.gotoPlugins('wiki-embed');
 	});
 
-	test('resizing a rung-claimed image keeps its syntax and stays corruption-free', async ({
+	test('resizing an inline syntax handler-claimed image keeps its syntax and stays corruption-free', async ({
 		page
 	}) => {
 		const errors = attachErrorCollector(page);

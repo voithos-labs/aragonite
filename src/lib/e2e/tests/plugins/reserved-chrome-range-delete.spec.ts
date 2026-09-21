@@ -95,7 +95,7 @@ test.describe('reserved child-0 chrome: rangeDelete wall', () => {
 		expect(await capturedErrors(page)).toEqual([]);
 	});
 
-	test('Gate 4c: chrome-between — start truncates, chrome clears, end body child keeps its tail in place', async ({
+	test('Gate 4c: chrome-between; start truncates, chrome clears, end body child keeps its tail in place', async ({
 		page
 	}) => {
 		await editor.loadContent(WALL_FIXTURE);
@@ -120,7 +120,7 @@ test.describe('reserved child-0 chrome: rangeDelete wall', () => {
 		expect(await editor.bridge.getSource()).toBe(WALL_FIXTURE);
 	});
 
-	test('Gate 4d: start-in-chrome — title keeps its head, body deletes, container survives title-only', async ({
+	test('Gate 4d: start-in-chrome; title keeps its head, body deletes, container survives title-only', async ({
 		page
 	}) => {
 		await editor.loadContent(WALL_FIXTURE);
@@ -183,7 +183,7 @@ test.describe('reserved child-0 chrome: rangeDelete wall', () => {
 		expect(await editor.bridge.getSource()).toBe(WALL_FIXTURE);
 	});
 
-	test('Gate 4g: a body-only range never fires the wall — type-over merges exactly like a blockquote', async ({
+	test('Gate 4g: a body-only range never fires the wall; type-over merges exactly like a blockquote', async ({
 		page
 	}) => {
 		await editor.loadContent(WALL_FIXTURE);

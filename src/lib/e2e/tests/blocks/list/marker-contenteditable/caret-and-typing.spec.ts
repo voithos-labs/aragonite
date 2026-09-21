@@ -1,7 +1,7 @@
 import { test, expect } from '../../../../fixtures';
 import { EditorPage } from '../../../../editor-page';
 
-test.describe('list marker — caret placement and typing', () => {
+test.describe('list marker: caret placement and typing', () => {
 	let editor: EditorPage;
 
 	test.beforeEach(async ({ page }) => {

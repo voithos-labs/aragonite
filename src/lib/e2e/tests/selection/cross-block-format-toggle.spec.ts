@@ -20,7 +20,7 @@ async function selectWholeDocument(ep: EditorPage, page: Page): Promise<void> {
 }
 
 for (const mode of ['source', 'live'] as const) {
-	test.describe(`cross-block format toggle — ${mode}`, () => {
+	test.describe(`cross-block format toggle: ${mode}`, () => {
 		let ep: EditorPage;
 
 		test.beforeEach(async ({ page }) => {
@@ -143,7 +143,7 @@ test.describe('what the press skips and what it costs', () => {
 	});
 });
 
-test.describe('the sibling that stays declined — Mod+K over a cross-block range', () => {
+test.describe('the sibling that stays declined: Mod+K over a cross-block range', () => {
 	// Entering cross-block leaves a collapsed native caret at the anchor, so the link card's
 	// native-collapse check on its own reads a painted range as an ordinary caret.
 	const LINKED = 'Visit [example](https://example.com) now\n\nSecond block here\n';
@@ -176,8 +176,8 @@ test.describe('the sibling that stays declined — Mod+K over a cross-block rang
 	});
 });
 
-test.describe('the sibling that stays destructive — cross-block type-replace', () => {
-	test('plain typing over the range still replaces it in ONE undo entry', async ({ page }) => {
+test.describe('the sibling that stays destructive: cross-block type-replace', () => {
+	test('plain typing over the range still replaces it in one undo entry', async ({ page }) => {
 		const ep = new EditorPage(page);
 		await ep.goto();
 		await ep.loadContent('First block here\n\nSecond block here\n\nThird block here\n');

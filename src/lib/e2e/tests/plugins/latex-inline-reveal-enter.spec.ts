@@ -34,7 +34,7 @@ test.describe('Enter splits a block whose inline source is revealed', () => {
 		expect(await capturedErrors(page)).toEqual([]);
 	});
 
-	test('it splits on the FIRST press after the revealed source is broken', async ({ page }) => {
+	test('it splits on the first press after the revealed source is broken', async ({ page }) => {
 		await editor.loadContent('$x^2$\n');
 		await editor.revealFromTrailingEdge(0);
 		// Delete the closing delimiter: the bytes are plain text now, not a construct.

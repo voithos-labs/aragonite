@@ -1,7 +1,7 @@
 import { test, expect } from '../../../fixtures';
 import { EditorPage } from '../../../editor-page';
 
-test.describe('selection — keyboard: shift+arrow contraction (D1)', () => {
+test.describe('selection: keyboard: shift+arrow contraction (D1)', () => {
 	let editor: EditorPage;
 
 	test.beforeEach(async ({ page }) => {

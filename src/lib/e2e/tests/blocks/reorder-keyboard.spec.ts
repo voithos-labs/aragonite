@@ -21,14 +21,14 @@ test.describe('keyboard reorder', () => {
 		await editor.bridge.waitForSourceMatches(/A[\s\S]*C[\s\S]*XB/);
 	});
 
-	test('Alt+ArrowUp moves the THIRD list item up (index >= 2)', async () => {
+	test('Alt+ArrowUp moves the third list item up (index >= 2)', async () => {
 		await editor.loadContent('- one\n- two\n- three\n');
 		await editor.page.locator('[contenteditable="true"]', { hasText: 'three' }).click();
 		await editor.page.keyboard.press('Alt+ArrowUp');
 		await editor.bridge.waitForSourceMatches(/- one[\s\S]*- three[\s\S]*- two/);
 	});
 
-	test('Alt+ArrowDown moves the FIRST list item down', async () => {
+	test('Alt+ArrowDown moves the first list item down', async () => {
 		await editor.loadContent('- one\n- two\n- three\n');
 		await editor.page.locator('[contenteditable="true"]', { hasText: 'one' }).click();
 		await editor.page.keyboard.press('Alt+ArrowDown');

@@ -58,7 +58,7 @@ test.describe('in-body tags as mark decorations', () => {
 		await editor.gotoPlugins('tags-marks');
 	});
 
-	test('every tag paints a chip, and the document holds no island', async () => {
+	test('every tag paints a chip, and the document holds no widget', async () => {
 		await expect(editor.page.locator('.body-tag-mark')).toHaveCount(4);
 		await expect(chip(editor, 'work/admin')).toHaveCount(1);
 		// The whole point of this model: nothing here is `contenteditable=false`.
@@ -66,7 +66,7 @@ test.describe('in-body tags as mark decorations', () => {
 		expect(await capturedErrors(editor.page)).toEqual([]);
 	});
 
-	test('the caret lands INSIDE a tag, where a widget would have made an island', async () => {
+	test('the caret lands inside a tag, where a widget would have made a non-editable span', async () => {
 		await clickInsideChip(editor, 'project');
 		const { start, end } = await tagSpan(editor, 'project');
 		const focus = (await editor.bridge.getSelectionPaths())?.focus;

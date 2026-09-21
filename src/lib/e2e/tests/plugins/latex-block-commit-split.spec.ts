@@ -9,7 +9,7 @@ import { BlockMathPage } from './latex-reveal-helpers';
  * literal newline and never splits as you type, so the split happens when blur commits.
  */
 
-test.describe('block math commit kernel: multi-block source re-splits', () => {
+test.describe('block math commit core: multi-block source re-splits', () => {
 	let editor: BlockMathPage;
 
 	test.beforeEach(async ({ page }) => {
@@ -17,7 +17,7 @@ test.describe('block math commit kernel: multi-block source re-splits', () => {
 		await editor.gotoMathSeed('mathblock');
 	});
 
-	test('editing past the fence re-splits into math + paragraph on blur — no stuck error', async ({
+	test('editing past the fence re-splits into math + paragraph on blur: no stuck error', async ({
 		page
 	}) => {
 		await editor.revealByClick();

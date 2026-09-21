@@ -67,7 +67,7 @@ test.describe('/ showcase on a phone', () => {
 		await expect(page.locator('.search-count')).toContainText(' / ');
 	});
 
-	test('the drag grips show without a hover and answer a tap', async ({ page }) => {
+	test('the drag handles show without a hover and answer a tap', async ({ page }) => {
 		// On by default: no toggle tap first.
 		const handle = page.locator('.block-drag-handle').first();
 

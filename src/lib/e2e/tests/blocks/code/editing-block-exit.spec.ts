@@ -1,7 +1,7 @@
 import { test, expect } from '../../../fixtures';
 import { EditorPage } from '../../../editor-page';
 
-test.describe('code block editing — edge cases', () => {
+test.describe('code block editing: edge cases', () => {
 	let editor: EditorPage;
 
 	test.beforeEach(async ({ page }) => {
@@ -81,7 +81,7 @@ test.describe('code block editing — edge cases', () => {
 	// Home in a fenced block lands the caret just after the opener's `\n`; native Backspace there
 	// deletes it, merging the body into the opener. Guard the boundary so the corruption is
 	// unreachable.
-	test('Backspace immediately after opener fence edits nothing and parks at the document start', async () => {
+	test('Backspace immediately after opener fence edits nothing and puts the caret at the document start', async () => {
 		await editor.loadContent('```\ncode\n```\n');
 		// Raw offset 4: start of the body, just after the opener fence and its newline.
 		await editor.focusBlockAtPath([0], 4);

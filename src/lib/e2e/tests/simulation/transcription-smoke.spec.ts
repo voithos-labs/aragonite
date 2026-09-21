@@ -11,7 +11,7 @@ test.describe('note-taking simulation: transcription smoke', () => {
 		await editor.goto();
 	});
 
-	test('drives a short note from empty and the oracle suite holds', async ({ page }) => {
+	test('drives a short note from empty and the invariant suite holds', async ({ page }) => {
 		await runSession(page, editor, { seed: 1, note: SMOKE_NOTE, capture: false, undoUnwind: true });
 	});
 });

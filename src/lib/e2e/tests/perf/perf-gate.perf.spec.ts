@@ -68,7 +68,7 @@ function gateFor(key: string): { baselineMs: number; ceilingMs: number } {
 	};
 }
 
-test.describe('perf gate — keystroke p50 within budget', () => {
+test.describe('perf gate: keystroke p50 within budget', () => {
 	for (const [shape, size, mode] of GATED_ROWS) {
 		const key = mode ? `${shape}-${size}-${mode}` : `${shape}-${size}`;
 		test(key.replace(/-/g, ' '), async ({ page }) => {
@@ -104,7 +104,7 @@ const CONTAINER_INTERIOR_ROWS: Array<[shape: FixtureShape, leafPath: number[], s
 	['giant-single-list', [0, 0, 0], '10MB']
 ];
 
-test.describe('perf gate — keystroke p50 typing inside a container', () => {
+test.describe('perf gate: keystroke p50 typing inside a container', () => {
 	for (const [shape, leafPath, size] of CONTAINER_INTERIOR_ROWS) {
 		test(`${shape} interior ${size}`, async ({ page }) => {
 			const key = `${shape}-interior-${size}`;

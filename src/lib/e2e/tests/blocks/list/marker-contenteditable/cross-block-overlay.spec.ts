@@ -1,7 +1,7 @@
 import { test, expect } from '../../../../fixtures';
 import { EditorPage } from '../../../../editor-page';
 
-test.describe('list marker — cross-block selection overlay edge', () => {
+test.describe('list marker: cross-block selection overlay edge', () => {
 	let editor: EditorPage;
 
 	test.beforeEach(async ({ page }) => {
@@ -9,7 +9,7 @@ test.describe('list marker — cross-block selection overlay edge', () => {
 		await editor.goto();
 	});
 
-	test('C1: cross-block selection ending in list item — overlay starts at content edge, not marker edge', async () => {
+	test('C1: cross-block selection ending in list item; overlay starts at content edge, not marker edge', async () => {
 		await editor.loadContent('Before.\n\n- Hello\n');
 		const before = editor.page.locator('[contenteditable="true"]', { hasText: 'Before' });
 		await before.click();

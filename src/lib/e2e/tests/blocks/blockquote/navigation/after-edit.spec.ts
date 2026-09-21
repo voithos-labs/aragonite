@@ -6,7 +6,7 @@ import { EditorPage } from '../../../../editor-page';
 // split's own re-render, which a loaded document never runs.
 const QUOTE = '> 1\n>\n> 2\n';
 
-test.describe('blockquote navigation — after a structural edit', () => {
+test.describe('blockquote navigation: after a structural edit', () => {
 	let editor: EditorPage;
 
 	test.beforeEach(async ({ page }) => {

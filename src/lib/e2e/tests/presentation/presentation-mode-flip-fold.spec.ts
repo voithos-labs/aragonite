@@ -10,7 +10,7 @@ import { MathRevealPage } from '../plugins/latex-reveal-helpers';
 
 const DOC = 'above\n\n$x^2$\n';
 
-test.describe('mode flips — an open reveal folds', () => {
+test.describe('mode flips: an open reveal folds', () => {
 	let editor: MathRevealPage;
 
 	test.beforeEach(async ({ page }) => {

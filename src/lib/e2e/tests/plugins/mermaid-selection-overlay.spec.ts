@@ -16,7 +16,7 @@ const CALLOUT_DOC = 'before\n\n:::callout Title\nBody\n:::\n\nafter\n';
 
 const MIDDLE_OVERLAY = "[data-block-path='[1]'] > .selection-overlay-middle";
 
-test.describe('cross-block selection overlay — childless opaque container', () => {
+test.describe('cross-block selection overlay: childless opaque container', () => {
 	let editor: PluginsPage;
 
 	test.beforeEach(async ({ page }) => {
@@ -37,7 +37,7 @@ test.describe('cross-block selection overlay — childless opaque container', ()
 		await expect(page.locator(MIDDLE_OVERLAY)).toHaveCount(1);
 	});
 
-	test('an upward sweep ending ON the diagram paints its endpoint box', async ({ page }) => {
+	test('an upward sweep ending on the diagram paints its endpoint box', async ({ page }) => {
 		await editor.loadContent(STANDARD_DIAGRAM_DOC);
 		await expect(page.locator('.mermaid-viewport svg')).toHaveCount(1, { timeout: 30_000 });
 
@@ -55,7 +55,7 @@ test.describe('cross-block selection overlay — childless opaque container', ()
 		expect(box!.height).toBeGreaterThan(0);
 	});
 
-	test('the sweep paints the overlay on a BROKEN diagram too (error state)', async ({ page }) => {
+	test('the sweep paints the overlay on a broken diagram too (error state)', async ({ page }) => {
 		await editor.loadContent(BROKEN_DOC);
 		await expect(page.locator('.mermaid-error')).toBeVisible({ timeout: 30_000 });
 

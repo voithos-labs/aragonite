@@ -1,7 +1,7 @@
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 
-test.describe('selection undo — cross-block restore', () => {
+test.describe('selection undo: cross-block restore', () => {
 	let editor: EditorPage;
 
 	test.beforeEach(async ({ page }) => {
@@ -105,7 +105,7 @@ test.describe('selection undo — cross-block restore', () => {
 	});
 
 	// After an undo, `blockRefs` must line up again with the components the undo moved.
-	test('post-undo blockRefs realign — table column drag selects cells, not the next paragraph', async ({
+	test('post-undo blockRefs realign: table column drag selects cells, not the next paragraph', async ({
 		page
 	}) => {
 		// A small showcase-shaped fixture: a cross-block delete over two paragraphs, with a

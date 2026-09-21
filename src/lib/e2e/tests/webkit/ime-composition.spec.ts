@@ -10,7 +10,7 @@ function countOf(haystack: string, needle: string): number {
 	return haystack.split(needle).length - 1;
 }
 
-test.describe('webkit: composition through the hand-fired arm', () => {
+test.describe('webkit: composition through the hand-fired branch', () => {
 	let editor: EditorPage;
 
 	test.beforeEach(async ({ page }) => {

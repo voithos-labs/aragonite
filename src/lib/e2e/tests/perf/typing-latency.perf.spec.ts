@@ -83,7 +83,7 @@ const CONTAINER_INTERIOR_SHAPES: Array<[shape: FixtureShape, leafPath: number[]]
 	['giant-single-blockquote', [0, 0]]
 ];
 
-test.describe('typing latency — container interior', () => {
+test.describe('typing latency: container interior', () => {
 	for (const [shape, leafPath] of CONTAINER_INTERIOR_SHAPES) {
 		test(`${shape} interior 1MB`, async ({ page }) => {
 			const editor = new EditorPage(page);
@@ -198,7 +198,7 @@ function rungFixture(fixture: RungRow['fixture'], bytes: number): string {
 		: generateTriggerDense(fixture, bytes);
 }
 
-test.describe('typing latency — installed inline rungs', () => {
+test.describe('typing latency: installed inline syntax handlers', () => {
 	for (const { row, fixture, seed, requireWidget, probeDocument, sizes } of RUNG_ROWS) {
 		for (const [sizeLabel, bytes] of sizes) {
 			test(`${row} ${sizeLabel}`, async ({ page }) => {

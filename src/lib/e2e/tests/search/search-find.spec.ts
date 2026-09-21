@@ -3,7 +3,7 @@ import { capturePageErrors } from '../../page-probes';
 import { EditorPage } from '../../editor-page';
 import { activeOverlays, count, findInput, openFind, overlays, typeQuery } from './helpers';
 
-test.describe('search — find and highlight', () => {
+test.describe('search: find and highlight', () => {
 	let editor: EditorPage;
 	test.beforeEach(async ({ page }) => {
 		editor = new EditorPage(page);
@@ -42,7 +42,7 @@ test.describe('search — find and highlight', () => {
 	});
 });
 
-test.describe('search — navigation', () => {
+test.describe('search: navigation', () => {
 	let editor: EditorPage;
 	test.beforeEach(async ({ page }) => {
 		editor = new EditorPage(page);
@@ -76,7 +76,7 @@ test.describe('search — navigation', () => {
 	});
 });
 
-test.describe('search — edit while open', () => {
+test.describe('search: edit while open', () => {
 	let editor: EditorPage;
 	test.beforeEach(async ({ page }) => {
 		editor = new EditorPage(page);
@@ -97,7 +97,7 @@ test.describe('search — edit while open', () => {
 	});
 });
 
-test.describe('search — bar stays pinned', () => {
+test.describe('search: bar stays pinned', () => {
 	// A zero-height sticky anchor pins the bar to the top of the scroll container, so
 	// navigating to an off-screen match cannot scroll the bar out of view.
 	test('the bar remains in the editor viewport after Next scrolls to an off-screen match', async ({
@@ -150,7 +150,7 @@ test.describe('search — bar stays pinned', () => {
 	});
 });
 
-test.describe('search — off-window reveal', () => {
+test.describe('search: off-window reveal', () => {
 	test('navigating to an off-window match scrolls its block into view', async ({ page }) => {
 		const pageErrors = capturePageErrors(page);
 

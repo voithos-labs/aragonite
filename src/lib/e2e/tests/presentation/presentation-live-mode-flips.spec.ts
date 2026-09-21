@@ -49,8 +49,10 @@ async function flipThrough(
 	await ep.waitForRenderFlush();
 }
 
-test.describe('mode flips — the bytes never move', () => {
-	test('a round trip through every rung leaves the source byte-identical', async ({ page }) => {
+test.describe('mode flips: the bytes never move', () => {
+	test('a round trip through every inline syntax handler leaves the source byte-identical', async ({
+		page
+	}) => {
 		const ep = await enterPresentationMode(page, 'source', DOC);
 		const baseline = await ep.bridge.getSource();
 

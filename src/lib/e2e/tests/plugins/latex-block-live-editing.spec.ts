@@ -31,7 +31,7 @@ test.describe('block math editing edges (live)', () => {
 		await expect(editor.source).toBeFocused();
 	};
 
-	test('Home on the first body line seats at its column 0, not before the hidden opener', async ({
+	test('Home on the first body line puts the caret at its column 0, not before the hidden opener', async ({
 		page
 	}) => {
 		await enterFromAbove(page);
@@ -42,7 +42,7 @@ test.describe('block math editing edges (live)', () => {
 		await expect.poll(() => editor.sourceText()).toBe(`$$\nX${BODY}\n$$`);
 	});
 
-	test('End on the last body line seats after its last byte, not past the hidden closer', async ({
+	test('End on the last body line puts the caret after its last byte, not past the hidden closer', async ({
 		page
 	}) => {
 		await enterFromBelow(page);

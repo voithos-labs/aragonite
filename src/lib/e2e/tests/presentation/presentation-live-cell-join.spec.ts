@@ -35,7 +35,7 @@ async function visibleCellText(page: Page): Promise<string> {
 	});
 }
 
-test.describe('live mode — destructive edits inside a table cell', () => {
+test.describe('live mode: destructive edits inside a table cell', () => {
 	test('Mod+X drops the stranded runs and copies the raw slice', async ({ page }) => {
 		const ep = await enterMode(page, 'live');
 		await selectAcrossConstructs(ep, page);
@@ -47,7 +47,7 @@ test.describe('live mode — destructive edits inside a table cell', () => {
 		expect(await ep.readClipboard()).toBe('ld** *i');
 	});
 
-	test('typing over the selection lands the character at the cleaned seam', async ({ page }) => {
+	test('typing over the selection lands the character at the cleaned join', async ({ page }) => {
 		const ep = await enterMode(page, 'live');
 		await selectAcrossConstructs(ep, page);
 

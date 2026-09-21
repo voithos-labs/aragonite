@@ -310,7 +310,7 @@ describe('G4.22 settle-predicate vacuity', () => {
 	});
 });
 
-describe('G4.22 settle-predicate vacuity — classifier self-tests', () => {
+describe('G4.22 settle-predicate vacuity: classifier self-tests', () => {
 	const table = '| A | B | C | D |\n| --- | --- | --- | --- |\n';
 
 	it('flags a substring of the loaded document and clears the post-op shape', () => {
@@ -318,7 +318,7 @@ describe('G4.22 settle-predicate vacuity — classifier self-tests', () => {
 		expect(isVacuous('waitForSourceContains', { string: '| B |  | C |' }, [table])).toBe(false);
 	});
 
-	it('inverts for NotContains — vacuous when the text was never present', () => {
+	it('inverts for NotContains: vacuous when the text was never present', () => {
 		expect(isVacuous('waitForSourceNotContains', { string: '| A |' }, [table])).toBe(false);
 		expect(isVacuous('waitForSourceNotContains', { string: '| Z |' }, [table])).toBe(true);
 	});

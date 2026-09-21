@@ -10,7 +10,7 @@ import {
 	typeQuery
 } from './helpers';
 
-test.describe('search — replace', () => {
+test.describe('search: replace', () => {
 	let editor: EditorPage;
 	test.beforeEach(async ({ page }) => {
 		editor = new EditorPage(page);
@@ -82,7 +82,7 @@ test.describe('search — replace', () => {
 	});
 });
 
-test.describe('search — structural replace', () => {
+test.describe('search: structural replace', () => {
 	let editor: EditorPage;
 	test.beforeEach(async ({ page }) => {
 		editor = new EditorPage(page);
@@ -128,7 +128,7 @@ test.describe('search — structural replace', () => {
 	});
 });
 
-test.describe('search — tables', () => {
+test.describe('search: tables', () => {
 	let editor: EditorPage;
 	// A normal small table: header + delimiter + three body rows, all mounted.
 	const TABLE =

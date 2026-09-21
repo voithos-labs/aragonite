@@ -18,7 +18,7 @@ const DOC = [
 
 const enterLive = (page: Page) => enterPresentationMode(page, 'live', DOC);
 
-test.describe('live-mode link card — inside containers', () => {
+test.describe('live-mode link card: inside containers', () => {
 	let ep: EditorPage;
 
 	test.beforeEach(async ({ page }) => {
@@ -68,7 +68,7 @@ test.describe('live-mode link card — inside containers', () => {
 		expect(await ep.bridge.getSource()).not.toContain('[alpha]');
 	});
 
-	test('a link in a nested list item opens the card and commits through the container ceremony', async ({
+	test('a link in a nested list item opens the card and commits through the container commit sequence', async ({
 		page
 	}) => {
 		await openCardOn(ep, page, 'beta');

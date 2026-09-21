@@ -17,7 +17,7 @@ test.describe('table block: cell right-click menu', () => {
 		await editor.loadContent(TABLE);
 	});
 
-	test('right-click a cell opens the menu with BOTH row and column actions', async ({ page }) => {
+	test('right-click a cell opens the menu with both row and column actions', async ({ page }) => {
 		await page.locator('[role="cell"]').nth(2).click({ button: 'right' }); // body cell ("1"), row 1 col 0
 
 		await expect(page.getByRole('menuitem', { name: /delete row/i })).toBeVisible();

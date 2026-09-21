@@ -775,7 +775,7 @@ $ npm run test:e2e:isolated -- --project=e2e-simulation transcription-smoke.spec
 
 Running 1 test using 1 worker
 
-  ✓  1 [e2e-simulation] › src\lib\e2e\tests\simulation\transcription-smoke.spec.ts:14:2 › note-taking simulation: transcription smoke › drives a short note from empty and the oracle suite holds (9.9s)
+  ✓  1 [e2e-simulation] › src\lib\e2e\tests\simulation\transcription-smoke.spec.ts:14:2 › note-taking simulation: transcription smoke › drives a short note from empty and the invariant suite holds (9.9s)
 
   1 passed (12.7s)
 ```

@@ -2,7 +2,7 @@ import { test, expect } from '../../../fixtures';
 import { EditorPage, BLOCK_CONTENT_SELECTOR } from '../../../editor-page';
 import { DEFAULT_CONTENT } from '../../../test-content';
 
-test.describe('clipboard — code block boundary and direction', () => {
+test.describe('clipboard: code block boundary and direction', () => {
 	let editor: EditorPage;
 
 	test.beforeEach(async ({ page }) => {

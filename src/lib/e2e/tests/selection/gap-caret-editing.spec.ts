@@ -28,7 +28,7 @@ test.describe('minting a paragraph at the gap', () => {
 		await editor.goto();
 	});
 
-	test('typing mints a paragraph carrying the text, with the caret after it', async () => {
+	test('typing creates a paragraph carrying the text, with the caret after it', async () => {
 		await loadThenArrive(editor);
 
 		await editor.typeSlowly('x');
@@ -39,7 +39,7 @@ test.describe('minting a paragraph at the gap', () => {
 		expect(await editor.bridge.getSource()).toBe(`para\n\n${TABLE}\nxy\n\n${FENCE}\ntail\n`);
 	});
 
-	test('Enter mints an empty paragraph and lands the caret in it', async () => {
+	test('Enter creates an empty paragraph and lands the caret in it', async () => {
 		await loadThenArrive(editor);
 
 		await editor.page.keyboard.press('Enter');
@@ -52,7 +52,7 @@ test.describe('minting a paragraph at the gap', () => {
 
 	// The nested case: the commit runs on the container's own child list, so rebuilding the
 	// quote's ancestors must re-prefix the new line. Byte-exact, or the `> ` never lands.
-	test('a mint at a container scope end lands inside the container', async () => {
+	test('a create at a container scope end lands inside the container', async () => {
 		await editor.loadContent(QUOTED_FENCE);
 		await editor.focusBlockAtPath([1, 1], CLOSER_BOUNDARY);
 		await editor.page.keyboard.press('Delete');
@@ -79,7 +79,7 @@ test.describe('minting a paragraph at the gap', () => {
 	});
 });
 
-test.describe('undo and redo across a mint', () => {
+test.describe('undo and redo across a create', () => {
 	let editor: EditorPage;
 
 	async function mintAtBoundary(): Promise<void> {
@@ -116,7 +116,7 @@ test.describe('undo and redo across a mint', () => {
 
 	// The entry below the new block is an ordinary text edit, so the second undo proves the
 	// gap's entry did not swallow the stack beneath it.
-	test('a second undo carries on past the mint', async () => {
+	test('a second undo carries on past the new block', async () => {
 		await editor.loadContent(TABLE_THEN_FENCE);
 		await editor.focusBlockStart(0);
 		await editor.typeSlowly('EDIT');
@@ -141,7 +141,7 @@ test.describe('undo and redo across a mint', () => {
 test.describe('undo onto a windowed-out boundary', () => {
 	const AT_MID = { parentPath: [], index: 101 };
 
-	test('the restore reveals the boundary and parks the caret there', async ({ page }) => {
+	test('the restore reveals the boundary and puts the caret there', async ({ page }) => {
 		const editor = new EditorPage(page);
 		await editor.goto();
 		await editor.loadContent(WINDOWED);

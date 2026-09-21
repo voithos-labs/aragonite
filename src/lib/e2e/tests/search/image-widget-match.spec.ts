@@ -5,7 +5,7 @@ import { activeOverlays, count, openFind, overlays } from './helpers';
 // An atomic image widget contributes 0 chars to textContent, so a match landing entirely
 // inside its source range collapses to a zero-width range unless the highlight is measured
 // over the widget's own box.
-test.describe('search — image-widget matches', () => {
+test.describe('search: image-widget matches', () => {
 	test('a match inside an image alt text paints a visible overlay over the widget', async ({
 		page
 	}) => {

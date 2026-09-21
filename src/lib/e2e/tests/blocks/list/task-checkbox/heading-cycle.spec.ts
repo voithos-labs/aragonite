@@ -4,7 +4,7 @@ import { EditorPage } from '../../../../editor-page';
 // A task marker belongs to the item's first paragraph (GFM § 5.3). Requirements:
 // `e2e/requirements/blocks/list/task-checkbox/heading-cycle.md`.
 
-test.describe('task checkbox — the item cycled to a heading', () => {
+test.describe('task checkbox: the item cycled to a heading', () => {
 	let editor: EditorPage;
 
 	test.beforeEach(async ({ page }) => {

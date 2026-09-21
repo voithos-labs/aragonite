@@ -11,7 +11,7 @@ import { PluginsPage, capturedErrors } from './helpers';
 
 const EMBED = '![[/test-fixtures/sample.png|400]]';
 
-test.describe('plugin wiki embed minted as a built-in image', () => {
+test.describe('plugin wiki embed created as a built-in image', () => {
 	let editor: PluginsPage;
 
 	test.beforeEach(async ({ page }) => {

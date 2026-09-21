@@ -13,7 +13,7 @@ const GAP_FIXTURE = 'para\n\n| a | b |\n| - | - |\n| c | d |\n\n```\ncode\n```\n
 const LAST_CELL = 3;
 const TAIL_BLOCK = 3;
 
-test.describe('insertMarkdown — declines', () => {
+test.describe('insertMarkdown: declines', () => {
 	let editor: EditorPage;
 
 	const insert = (md: string): Promise<boolean> =>
@@ -62,7 +62,7 @@ test.describe('insertMarkdown — declines', () => {
 		await expectAccepted();
 	});
 
-	test('a parked gap caret declines; a caret in a real block takes the same payload', async () => {
+	test('a resting gap caret declines; a caret in a real block takes the same payload', async () => {
 		await editor.loadContent(GAP_FIXTURE);
 		await editor.page.locator('[role="cell"]').nth(LAST_CELL).click();
 		await editor.page.keyboard.press('ArrowDown');

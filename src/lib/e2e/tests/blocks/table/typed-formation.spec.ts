@@ -173,7 +173,7 @@ test.describe('table block: typed formation', () => {
 test.describe('table block: typed formation across presentation modes', () => {
 	// The grid paints in every mode, so the caret target the completion picks is a real cell.
 	// G1.33 runs off the shared fixture's console watch, and a typed byte is what triggers it.
-	test('live mode mints the same table and lands the typed byte in a body cell', async ({
+	test('live mode creates the same table and lands the typed byte in a body cell', async ({
 		page
 	}) => {
 		const ep = await enterPresentationMode(page, 'live', '\n');

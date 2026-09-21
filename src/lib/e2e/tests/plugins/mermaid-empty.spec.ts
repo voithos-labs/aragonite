@@ -66,7 +66,7 @@ test.describe('mermaid empty diagram', () => {
 		expect(await roundTripStable(page)).toBe(true);
 	});
 
-	test('a whitespace-only body is empty too — the edit surface, not an error card', async ({
+	test('a whitespace-only body is empty too: the edit surface, not an error card', async ({
 		page
 	}) => {
 		// A valid diagram beside it, whose SVG is what the test waits for: it shows the renderer

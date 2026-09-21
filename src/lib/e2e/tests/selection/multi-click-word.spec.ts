@@ -5,7 +5,7 @@ import { nativeSelectionText, pastLineEnd, runCenter } from './multi-click-helpe
 // The word level of the click order (`requirements/selection/multi-click-word.md`), driven with
 // real double-clicks on the plugins page so a rendered formula stands beside the word.
 
-test.describe('multi-click: the word rung', () => {
+test.describe('multi-click: the word inline syntax handler', () => {
 	let editor: PluginsPage;
 
 	test.beforeEach(async ({ page }) => {

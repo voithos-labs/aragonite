@@ -1,7 +1,7 @@
 import { test, expect } from '../../../fixtures';
 import { EditorPage } from '../../../editor-page';
 
-test.describe('selection — keyboard: backward-selection cross-block entry (E-F2)', () => {
+test.describe('selection: keyboard: backward-selection cross-block entry (E-F2)', () => {
 	let editor: EditorPage;
 
 	test.beforeEach(async ({ page }) => {

@@ -9,7 +9,7 @@ test.beforeEach(async ({ page }) => {
 	await editor.goto();
 });
 
-test.describe('one edit event per op — cross-block delete', () => {
+test.describe('one edit event per op: cross-block delete', () => {
 	test('Backspace on cross-block selection spanning two paragraphs emits one edit event', async () => {
 		await editor.loadContent('first\n\nsecond\n');
 		await editor.focusBlockEnd(0);
@@ -41,7 +41,7 @@ test.describe('one edit event per op — cross-block delete', () => {
 	});
 });
 
-test.describe('cross-block delete — list item id identity', () => {
+test.describe('cross-block delete: list item id identity', () => {
 	test('surviving list item keeps start-item id after mixed cross-scope delete', async () => {
 		await editor.loadContent('- alpha\n- beta\n\nfollow\n');
 		const before = await editor.bridge.getSource();

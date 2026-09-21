@@ -49,7 +49,7 @@ async function endpointRects(
 	}, block);
 }
 
-test.describe('live mode — extending across a construct-ending block', () => {
+test.describe('live mode, extending across a construct-ending block', () => {
 	let ep: EditorPage;
 
 	test.beforeEach(async ({ page }) => {
@@ -108,7 +108,7 @@ test.describe('live mode — extending across a construct-ending block', () => {
 		expect(await ep.bridge.getSource()).toContain('**bold**Z');
 	});
 
-	test('extending backward into a block that BEGINS with a construct reaches its neighbour', async ({
+	test('extending backward into a block that begins with a construct reaches its neighbour', async ({
 		page
 	}) => {
 		await clickBlockSettled(ep, LEADS_BOLD);
@@ -214,7 +214,7 @@ const COLLAPSE_ARMS: CollapseArm[] = [
 /** `Lead **bold**`: 13 raw bytes, the far side of the closing run. */
 const RAW_END_OF_LEAD = 13;
 
-test.describe('live mode — a collapse seats outside, on both axes', () => {
+test.describe('live mode: a collapse puts the caret outside, on both axes', () => {
 	for (const arm of COLLAPSE_ARMS) {
 		test(`${arm.edge} + ${arm.key}: the byte lands outside the construct`, async ({ page }) => {
 			const ep = await enterPresentationMode(page, 'live', MATRIX_DOC);
@@ -231,7 +231,7 @@ test.describe('live mode — a collapse seats outside, on both axes', () => {
 	}
 });
 
-test.describe('live mode — collapsing onto a leading construct', () => {
+test.describe('live mode, collapsing onto a leading construct', () => {
 	// The prose counterpart of the cell case below: a collapse is not a step, so reading the
 	// arrow's direction gives the wrong side; the caret jumps to the range's edge.
 	test('the prose arrival types outside the construct the block opens with', async ({ page }) => {
@@ -268,7 +268,7 @@ test.describe('live mode — collapsing onto a leading construct', () => {
 	});
 });
 
-test.describe('source mode — the endpoints are the raw ones', () => {
+test.describe('source mode: the endpoints are the raw ones', () => {
 	test('the collapse lands where the extension stopped', async ({ page }) => {
 		const ep = await enterPresentationMode(page, 'source', DOC);
 		await clickBlockSettled(ep, PLAIN);

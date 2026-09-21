@@ -7,7 +7,7 @@ import { EditorPage } from '../../editor-page';
 // `setSelection` both end the old range; `parkCaret` is the one exception, used by the
 // cross-block dispatcher while an extend is still growing a range.
 
-test.describe('public caret doors with a cross-block range live', () => {
+test.describe('public caret entry points with a cross-block range live', () => {
 	let editor: EditorPage;
 
 	test.beforeEach(async ({ page }) => {

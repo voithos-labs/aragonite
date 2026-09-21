@@ -29,7 +29,7 @@ test.describe('decoration-ops simulation', () => {
 		await editor.gotoPlugins('sim');
 	});
 
-	test('island caret/delete/typing + block-badge reorder + entity widget stay corruption-free', async ({
+	test('widget caret/delete/typing + block-badge reorder + entity widget stay corruption-free', async ({
 		page
 	}) => {
 		const errors = attachErrorCollector(page);

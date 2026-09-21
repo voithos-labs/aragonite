@@ -75,7 +75,7 @@ test.describe('mermaid whole-block focus', () => {
 		await editor.bridge.waitForSourceEquals(original); // one undo restores it byte-exactly
 	});
 
-	test('Delete at the end of the block above focuses it; a second Delete deletes it (forward twin)', async ({
+	test('Delete at the end of the block above focuses it; a second Delete deletes it (forward counterpart)', async ({
 		page
 	}) => {
 		const original = await editor.bridge.getSource();
@@ -155,7 +155,9 @@ test.describe('mermaid whole-block focus', () => {
 		expect(await roundTripStable(page)).toBe(true);
 	});
 
-	test('a typed character while focused mints a paragraph below carrying it', async ({ page }) => {
+	test('a typed character while focused creates a paragraph below carrying it', async ({
+		page
+	}) => {
 		await editor.viewport.click();
 		await expect(editor.inputHost).toBeFocused();
 		await page.keyboard.press('x');

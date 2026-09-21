@@ -14,7 +14,7 @@ test.describe('editor smoke tests', () => {
 		await expect(editor.editorContainer).toBeVisible();
 	});
 
-	test('test bridge is functional — getSource returns non-empty string', async () => {
+	test('test bridge is functional: getSource returns non-empty string', async () => {
 		const source = await editor.bridge.getSource();
 		expect(source.length).toBeGreaterThan(0);
 	});
@@ -42,7 +42,7 @@ test.describe('editor smoke tests', () => {
 		expect(domCount).toBeGreaterThanOrEqual(1);
 	});
 
-	test('loadContent called twice — second call fully replaces first', async () => {
+	test('loadContent called twice: second call fully replaces first', async () => {
 		await editor.loadContent('# First load\n');
 		const afterFirst = await editor.bridge.getSource();
 		expect(afterFirst).toContain('First load');

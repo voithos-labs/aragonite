@@ -60,7 +60,7 @@ test.describe('table cell: inline math reveal-to-edit', () => {
 		expect(await roundTripStable(page)).toBe(true);
 	});
 
-	test('a pipe typed into the revealed formula escapes on commit — the row never splits', async ({
+	test('a pipe typed into the revealed formula escapes on commit: the row never splits', async ({
 		page
 	}) => {
 		await revealWidget(editor.mathWidget);

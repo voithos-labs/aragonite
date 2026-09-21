@@ -28,7 +28,7 @@ async function pressMarkerSpace(editor: EditorPage): Promise<void> {
 	expect(await editor.bridge.getSource()).toBe(before);
 }
 
-test.describe('blockquote — the space that completes the `> ` marker', () => {
+test.describe('blockquote: the space that completes the `> ` marker', () => {
 	let editor: EditorPage;
 
 	test('live: `>` then space then `a` yields `> a`, and the space moves no byte', async ({
@@ -91,7 +91,7 @@ test.describe('blockquote — the space that completes the `> ` marker', () => {
 		expect(await editor.bridge.getSource()).not.toContain('>  ');
 	});
 
-	test('a space at offset 0 of a NON-empty quote child is ordinary content', async ({ page }) => {
+	test('a space at offset 0 of a non-empty quote child is ordinary content', async ({ page }) => {
 		editor = new EditorPage(page);
 		await editor.goto();
 		await editor.loadContent('> abc\n');

@@ -22,7 +22,7 @@ const EDITS = [
 	}
 ] as const;
 
-test.describe('inline editing — editing formatted content', () => {
+test.describe('inline editing, editing formatted content', () => {
 	let editor: EditorPage;
 
 	test.beforeEach(async ({ page }) => {

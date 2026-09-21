@@ -5,7 +5,7 @@ import { RULE_DOC, focusTheRule, rule } from './whole-block-rule';
 
 // Requirements: `e2e/requirements/text-editing/whole-block-printable-mint.md`.
 
-test.describe('whole-block focus — a typed character mints a paragraph below', () => {
+test.describe('whole-block focus: a typed character creates a paragraph below', () => {
 	let editor: EditorPage;
 
 	test.beforeEach(async ({ page }) => {
@@ -26,7 +26,7 @@ test.describe('whole-block focus — a typed character mints a paragraph below',
 		await editor.bridge.waitForSourceMatches(/---\n\nxy\n\nAfter/);
 	});
 
-	test('a space mints too, and the rule itself is unchanged', async ({ page }) => {
+	test('a space creates too, and the rule itself is unchanged', async ({ page }) => {
 		await focusTheRule(editor);
 		const countBefore = await editor.bridge.getBlockCount();
 
@@ -36,7 +36,7 @@ test.describe('whole-block focus — a typed character mints a paragraph below',
 		expect(await editor.bridge.getSource()).toContain('---');
 	});
 
-	test('one Mod+Z restores the pre-mint source — the mint is a single undo entry', async ({
+	test('one Mod+Z restores the source from before: the new block is a single undo entry', async ({
 		page
 	}) => {
 		const original = await editor.bridge.getSource();
@@ -50,7 +50,7 @@ test.describe('whole-block focus — a typed character mints a paragraph below',
 		await editor.bridge.waitForSourceEquals(original);
 	});
 
-	test('Mod+C while the block is focused mints nothing', async ({ page }) => {
+	test('Mod+C while the block is focused creates nothing', async ({ page }) => {
 		const original = await editor.bridge.getSource();
 		await focusTheRule(editor);
 

@@ -59,8 +59,8 @@ async function typeSettled(ep: EditorPage, page: Page, text: string): Promise<vo
 const markerOf = (ep: EditorPage, index: number) =>
 	ep.getBlock(index).locator('.md-marker').first();
 
-test.describe('live mode — a typed block opener paints until it has content', () => {
-	test('typing `#` paints the marker the keystroke just minted', async ({ page }) => {
+test.describe('live mode: a typed block opener paints until it has content', () => {
+	test('typing `#` paints the marker the keystroke just created', async ({ page }) => {
 		const ep = await emptyBlockBelow(page, 'live');
 
 		await typeSettled(ep, page, '#');
@@ -164,7 +164,7 @@ test.describe('live mode — a typed block opener paints until it has content', 
 	});
 });
 
-test.describe('loaded openers — the paint half needs no typing', () => {
+test.describe('loaded openers: the paint half needs no typing', () => {
 	// A content-empty opener is silent until the caret arrives: an unfocused bare `#` or empty
 	// fence shows nothing. Focusing the heading paints its marker; focusing the empty fence
 	// completes it with a body line and offers the language picker instead of painting.
@@ -215,7 +215,7 @@ test.describe('loaded openers — the paint half needs no typing', () => {
 // source, and the assertion is the whole source rather than a substring, since `[](u` sits
 // inside `[](u)` and only equality tells one byte gone from none.
 for (const mode of ['live', 'source'] as const) {
-	test.describe(`painted inline chrome — ${mode} takes what the reader aimed at`, () => {
+	test.describe(`painted inline chrome: ${mode} takes what the reader aimed at`, () => {
 		let ep: EditorPage;
 
 		test.beforeEach(async ({ page }) => {
@@ -261,7 +261,7 @@ for (const mode of ['live', 'source'] as const) {
 // a rewrite that starts reading painted bytes as unseen moves one of them.
 const CARD = '[data-link-card]';
 
-test.describe('painted inline chrome — the live rewrites leave what the reader sees alone', () => {
+test.describe('painted inline chrome: the live rewrites leave what the reader sees alone', () => {
 	let ep: EditorPage;
 
 	test.beforeEach(async ({ page }) => {
@@ -299,7 +299,7 @@ test.describe('painted inline chrome — the live rewrites leave what the reader
 
 // A construct wrapping empty markers paints its own delimiters too, so the two paths that
 // rewrite across a cut meet a painted pair where they usually meet a hidden one.
-test.describe('painted chrome inside a construct the cut seams open', () => {
+test.describe('painted chrome inside a construct the cut leaves open', () => {
 	let ep: EditorPage;
 
 	test.beforeEach(async ({ page }) => {

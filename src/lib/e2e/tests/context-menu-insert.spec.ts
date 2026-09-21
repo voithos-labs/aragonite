@@ -15,7 +15,7 @@ test.describe('right-click menu: Insert block', () => {
 		await editor.goto();
 	});
 
-	test('picking Code block from the flyout mints an empty fence after the paragraph', async ({
+	test('picking Code block from the flyout creates an empty fence after the paragraph', async ({
 		page
 	}) => {
 		await editor.loadContent('first\n\nsecond\n');

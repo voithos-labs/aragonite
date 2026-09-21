@@ -21,7 +21,7 @@ const toggleReading = (page: Page) => page.getByTestId('presentation-toggle').cl
 const hostAt = (page: Page, path: number[]) =>
 	page.locator(`[data-block-path='${JSON.stringify(path)}']`);
 
-test.describe('preview-block — editing stays live', () => {
+test.describe('preview-block, editing stays live', () => {
 	let ep: EditorPage;
 
 	test.beforeEach(async ({ page }) => {
@@ -50,7 +50,7 @@ test.describe('preview-block — editing stays live', () => {
 		expect(await ep.bridge.getSource()).toBe(before);
 	});
 
-	test('task checkbox stays live — clicking it toggles', async ({ page }) => {
+	test('task checkbox stays live, clicking it toggles', async ({ page }) => {
 		await page.locator('.task-checkbox').first().click();
 		await ep.bridge.waitForSourceContains('[x]');
 	});
@@ -75,7 +75,7 @@ test.describe('preview-block — editing stays live', () => {
 	});
 });
 
-test.describe('preview-block — selection, search, mode flips', () => {
+test.describe('preview-block: selection, search, mode flips', () => {
 	let ep: EditorPage;
 
 	test.beforeEach(async ({ page }) => {

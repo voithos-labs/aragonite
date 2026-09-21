@@ -144,7 +144,7 @@ test.describe('inline math: cross-block edge entry reveals the near-edge widget'
 		await editor.gotoMath();
 	});
 
-	test('ArrowRight from the block above onto a block that STARTS with math reveals at the leading edge', async ({
+	test('ArrowRight from the block above onto a block that starts with math reveals at the leading edge', async ({
 		page
 	}) => {
 		await editor.loadContent('above para\n\n$x^2$ tail\n');
@@ -156,7 +156,7 @@ test.describe('inline math: cross-block edge entry reveals the near-edge widget'
 		expect(await editor.getBlockText(1)).toContain('Z$x^2$');
 	});
 
-	test('ArrowLeft from the block below onto a block that ENDS with math reveals at the trailing edge', async ({
+	test('ArrowLeft from the block below onto a block that ends with math reveals at the trailing edge', async ({
 		page
 	}) => {
 		await editor.loadContent('lead $x^2$\n\nbelow para\n');

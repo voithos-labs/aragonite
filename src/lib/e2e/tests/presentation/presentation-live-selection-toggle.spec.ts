@@ -50,7 +50,7 @@ async function selectFrom(
 	await ep.waitForRenderFlush();
 }
 
-test.describe('live mode — a toggle over a selection writes its bytes at once', () => {
+test.describe('live mode: a toggle over a selection writes its bytes at once', () => {
 	let ep: EditorPage;
 
 	test.beforeEach(async ({ page }) => {
@@ -136,7 +136,7 @@ test.describe('live mode — a toggle over a selection writes its bytes at once'
 	});
 });
 
-test.describe('live mode — the toggle is its own undo entry', () => {
+test.describe('live mode: the toggle is its own undo entry', () => {
 	test('one undo after typing then toggling keeps the typed bytes', async ({ page }) => {
 		const ep = await enterPresentationMode(page, 'live', DOC);
 		await clickBlockSettled(ep, PLAIN);
@@ -155,7 +155,7 @@ test.describe('live mode — the toggle is its own undo entry', () => {
 	});
 });
 
-test.describe('source mode — the same chord writes the same bytes', () => {
+test.describe('source mode: the same chord writes the same bytes', () => {
 	test('the delimiters are painted, and the source is identical', async ({ page }) => {
 		const ep = await enterPresentationMode(page, 'source', DOC);
 		await selectFrom(ep, page, PLAIN, 6, 5);

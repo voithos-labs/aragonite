@@ -29,7 +29,7 @@ async function typeAfterClickPastLastIsland(editor: EditorPage): Promise<string>
 }
 
 for (const mode of ['source', 'live'] as const) {
-	test.describe(`click beside a run of atomic islands: ${mode} mode`, () => {
+	test.describe(`click beside a run of atomic widgets: ${mode} mode`, () => {
 		let editor: EditorPage;
 
 		test.beforeEach(async ({ page }) => {
@@ -40,7 +40,7 @@ for (const mode of ['source', 'live'] as const) {
 			}
 		});
 
-		test('a click past the last of four flush islands seats the caret at the end of the line', async () => {
+		test('a click past the last of four flush widgets puts the caret at the end of the line', async () => {
 			await editor.loadContent(RUN);
 			await expect(editor.page.locator('[data-inline-widget]')).toHaveCount(4);
 
@@ -49,7 +49,7 @@ for (const mode of ['source', 'live'] as const) {
 			);
 		});
 
-		test('a click past a lone island still seats after that island', async () => {
+		test('a click past a lone widget still puts the caret after that widget', async () => {
 			await editor.loadContent(LONE);
 			await expect(editor.page.locator('[data-inline-widget]')).toHaveCount(1);
 

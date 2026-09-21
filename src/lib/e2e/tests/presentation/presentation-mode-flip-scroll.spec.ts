@@ -67,8 +67,8 @@ async function topVisibleHost(page: Page): Promise<{ path: string | null; top: n
 	});
 }
 
-test.describe('mode flips — the scrollport stays where the reader left it', () => {
-	test('the round trip through reading holds the scroll and still re-seats the caret', async ({
+test.describe('mode flips: the scrollport stays where the reader left it', () => {
+	test('the round trip through reading holds the scroll and still re-puts the caret', async ({
 		page
 	}) => {
 		const ep = await enterPresentationMode(page, 'source', TALL);

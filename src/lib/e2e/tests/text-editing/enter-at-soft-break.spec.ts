@@ -4,7 +4,7 @@ import { EditorPage } from '../../editor-page';
 // GH #95: the caret at the end of a soft-broken line sits on the paragraph's own internal line
 // ending, and Enter there must keep every line below it. Requirements: `enter-at-soft-break.md`.
 
-test.describe('text editing — Enter at a soft line break', () => {
+test.describe('text editing: Enter at a soft line break', () => {
 	let editor: EditorPage;
 
 	test.beforeEach(async ({ page }) => {
@@ -42,7 +42,7 @@ test.describe('text editing — Enter at a soft line break', () => {
 		expect(await editor.parseConverged()).toBe(true);
 	});
 
-	test('real click + End + Enter — typing lands at the head of the surviving second half', async () => {
+	test('real click + End + Enter, typing lands at the head of the surviving second half', async () => {
 		await editor.loadContent('aaa\nbbb\n');
 		await editor.clickBlockAtPath([0], 1);
 		await editor.page.keyboard.press('End');

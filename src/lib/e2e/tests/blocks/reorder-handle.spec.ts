@@ -112,7 +112,7 @@ test.describe('reorder hover handle', () => {
 
 	// The handle sits at the card's own first line height, not at its first line of text: a card
 	// pads above that text, so a handle level with the first code line hangs below its shoulder.
-	test('the handle grip sits in the top band of a code card, above its first line', async ({
+	test('the drag handle sits in the top band of a code card, above its first line', async ({
 		page
 	}) => {
 		await editor.goto('?presentationMode=live');
@@ -147,7 +147,7 @@ test.describe('reorder hover handle', () => {
 
 	// A one-line block centers on its row, checkbox or bullet alike: level with the row is where
 	// the eye puts it, and the checkbox sits a little below that center.
-	test('the handle grip centres on a one-line list row', async ({ page }) => {
+	test('the drag handle centres on a one-line list row', async ({ page }) => {
 		await editor.goto('?presentationMode=live');
 		await editor.loadContent('- [ ] open task\n- plain bullet\n\ntail\n');
 		for (const text of ['open task', 'plain bullet']) {
@@ -159,7 +159,7 @@ test.describe('reorder hover handle', () => {
 		}
 	});
 
-	test('the handle grip centres on a divider', async ({ page }) => {
+	test('the drag handle centres on a divider', async ({ page }) => {
 		await editor.loadContent('# head\n\n---\n\ntail\n');
 		const hr = page.locator('.block-host[data-block-kind="thematicBreak"]').first();
 		await hr.hover();
@@ -168,7 +168,7 @@ test.describe('reorder hover handle', () => {
 		expect(Math.abs(delta), `off the rule centre by ${delta}px`).toBeLessThanOrEqual(2);
 	});
 
-	test('the grip is the lucide grip-vertical glyph, six dots', async ({ page }) => {
+	test('the drag handle is the lucide grip-vertical glyph, six dots', async ({ page }) => {
 		await editor.loadContent('```js\ncode\n```\n');
 		const card = page.locator('.block-host[data-block-kind="fencedCode"]').first();
 		await expect(card.locator('.block-drag-handle .grip svg path')).toHaveCount(6);
@@ -176,7 +176,9 @@ test.describe('reorder hover handle', () => {
 
 	// The handle is reachable without first hovering the block it belongs to: one you can only
 	// reach by crossing the block is a flyout hanging off it.
-	test('approaching the grip through the gutter alone reveals it and hits it', async ({ page }) => {
+	test('approaching the drag handle through the gutter alone reveals it and hits it', async ({
+		page
+	}) => {
 		await editor.loadContent('```js\nfirst line\nsecond line\nthird line\n```\n\ntail\n');
 		const card = page.locator('.block-host[data-block-kind="fencedCode"]').first();
 		const handle = card.locator('.block-drag-handle');
@@ -196,7 +198,7 @@ test.describe('reorder hover handle', () => {
 		expect(hits, 'the glyph must be the hit target, not the block behind it').toBe(true);
 	});
 
-	test('the grip clears the block content by a few px', async ({ page }) => {
+	test('the drag handle clears the block content by a few px', async ({ page }) => {
 		await editor.loadContent('```js\ncode\n```\n');
 		const card = page.locator('.block-host[data-block-kind="fencedCode"]').first();
 		await card.hover();
@@ -219,7 +221,7 @@ test.describe('reorder hover handle', () => {
 	});
 
 	// A picture has no text line to sit on, and its own top edge puts the handle in the corner.
-	test('the grip on an image paragraph sits a line into the picture, not on its edge', async ({
+	test('the drag handle on an image paragraph sits a line into the picture, not on its edge', async ({
 		page
 	}) => {
 		await editor.loadContent('# head\n\n![cat|300](/test-fixtures/sample.png)\n');

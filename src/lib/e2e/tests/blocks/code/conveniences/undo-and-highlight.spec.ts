@@ -2,7 +2,7 @@ import { test } from '../../../../fixtures';
 import { EditorPage } from '../../../../editor-page';
 import { expectBody, focusCodeBlockAtEnd } from './helpers';
 
-test.describe('code block conveniences — undo and highlight.js interaction', () => {
+test.describe('code block conveniences: undo and highlight.js interaction', () => {
 	let editor: EditorPage;
 
 	test.beforeEach(async ({ page }) => {

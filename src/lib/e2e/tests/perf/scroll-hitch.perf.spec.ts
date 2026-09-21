@@ -101,7 +101,7 @@ async function measure(page: Page, editor: EditorPage, row: string, passes: Pass
 	});
 }
 
-test.describe('scroll hitch — a wheel tick in live mode over heavy blocks', () => {
+test.describe('scroll hitch: a wheel tick in live mode over heavy blocks', () => {
 	test('code and prose on the editor route', async ({ page }) => {
 		const editor = new EditorPage(page);
 		await editor.goto('?presentationMode=live');
@@ -111,7 +111,7 @@ test.describe('scroll hitch — a wheel tick in live mode over heavy blocks', ()
 
 	// Everything between the focused block and the viewport stays mounted, up to the limit on
 	// how far that reaches, and then it is all dropped in one go.
-	test('code and prose with the caret parked near the top', async ({ page }) => {
+	test('code and prose with the caret resting near the top', async ({ page }) => {
 		const editor = new EditorPage(page);
 		await editor.goto('?presentationMode=live');
 		await editor.loadContent(CODE_PROSE);

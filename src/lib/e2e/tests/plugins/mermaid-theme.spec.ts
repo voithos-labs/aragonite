@@ -25,7 +25,7 @@ async function labelFill(page: Page): Promise<string> {
 	return page.$eval('.mermaid-viewport svg text', (el) => getComputedStyle(el).fill);
 }
 
-test.describe('mermaid theme seam', () => {
+test.describe('mermaid theme boundary', () => {
 	let editor: PluginsPage;
 	let svgs: ReturnType<Page['locator']>;
 

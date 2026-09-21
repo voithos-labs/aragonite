@@ -26,7 +26,7 @@ async function selectFromCheckboxIntoContent(editor: EditorPage): Promise<{ coll
 	}, BLOCK_CONTENT_SELECTOR);
 }
 
-test.describe('task checkbox — selection crossing ambient region', () => {
+test.describe('task checkbox: selection crossing ambient region', () => {
 	let editor: EditorPage;
 
 	test.beforeEach(async ({ page }) => {

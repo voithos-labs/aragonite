@@ -5,7 +5,7 @@ import { EditorPage } from '../../../editor-page';
 // blocks below back into on reload, so the live tree stops matching a reparse of its own bytes.
 // The only way out while writing is Enter on the empty trailing line (`computeFenceExit`).
 
-test.describe('code block — unclosed-fence auto-close on escape', () => {
+test.describe('code block: unclosed-fence auto-close on escape', () => {
 	let editor: EditorPage;
 
 	test.beforeEach(async ({ page }) => {
@@ -31,7 +31,7 @@ test.describe('code block — unclosed-fence auto-close on escape', () => {
 
 	// The other place a fence can be left open: the keystroke that creates it. Without a closer,
 	// the live tree settles to the reload's reading, which swallows everything below (GH #180).
-	test('a fence opener typed above other blocks closes as it is minted', async ({ page }) => {
+	test('a fence opener typed above other blocks closes as it is created', async ({ page }) => {
 		await editor.loadContent('Above\n\ntail\n');
 		await editor.getBlock(0).click();
 		await page.keyboard.press('End');

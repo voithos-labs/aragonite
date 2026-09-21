@@ -1,7 +1,7 @@
 import { test, expect } from '../../../../fixtures';
 import { EditorPage } from '../../../../editor-page';
 
-test.describe('list marker — rendering and round-trip', () => {
+test.describe('list marker, rendering and round-trip', () => {
 	let editor: EditorPage;
 
 	test.beforeEach(async ({ page }) => {

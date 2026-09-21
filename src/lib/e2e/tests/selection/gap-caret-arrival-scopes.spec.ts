@@ -41,7 +41,7 @@ test.describe('gap caret arrival inside a container', () => {
 // The unit harness cannot see a windowing flush, so the only proof that the gap renders inside
 // a live window is a document long enough to be windowed.
 test.describe('gap caret under virtual rendering', () => {
-	test('a mid-document boundary parks the caret once revealed', async ({ page }) => {
+	test('a mid-document boundary puts the caret once revealed', async ({ page }) => {
 		const editor = new EditorPage(page);
 		await editor.goto();
 		await editor.loadContent(WINDOWED);

@@ -83,7 +83,7 @@ test.describe('ghost-text dogfood', () => {
 		await editor.gotoPlugins('ghost');
 	});
 
-	test('the ghost island renders at the focused paragraph end, on that block only', async ({
+	test('the ghost widget renders at the focused paragraph end, on that block only', async ({
 		page
 	}) => {
 		await editor.clickBlock(0);
@@ -95,7 +95,7 @@ test.describe('ghost-text dogfood', () => {
 		await expect(page.locator(ISLAND)).toHaveCount(1);
 	});
 
-	test('the caret survives the island appearing where it was clicked', async ({ page }) => {
+	test('the caret survives the widget appearing where it was clicked', async ({ page }) => {
 		await editor.clickBlockAtPath([0], 3);
 		await expect(page.locator(GHOST)).toHaveCount(1);
 		expect(await cursorOffset(page, [0])).toBe(3);
@@ -113,7 +113,7 @@ test.describe('ghost-text dogfood', () => {
 		expect(source).toBe('Hello world!!\n\nSecond paragraph\n');
 	});
 
-	test('typing at the island element-level boundary inserts at the raw offset', async ({
+	test('typing at the widget element-level boundary inserts at the raw offset', async ({
 		page
 	}) => {
 		await editor.clickBlock(0);
@@ -127,7 +127,7 @@ test.describe('ghost-text dogfood', () => {
 		expect(await editor.bridge.getSource()).toBe('Hello worldz\n\nSecond paragraph\n');
 	});
 
-	test('ArrowRight at the last text offset leaves the block — the island never traps', async ({
+	test('ArrowRight at the last text offset leaves the block: the widget never traps', async ({
 		page
 	}) => {
 		await editor.clickBlockAtPath([0], 11);
@@ -140,7 +140,7 @@ test.describe('ghost-text dogfood', () => {
 		await expect.poll(() => activeBlockPath(page)).toEqual([1]);
 	});
 
-	test('an empty paragraph keeps its caret anchor under the ghost island', async ({ page }) => {
+	test('an empty paragraph keeps its caret anchor under the ghost widget', async ({ page }) => {
 		await editor.clickBlockAtPath([0], 11);
 		await page.keyboard.press('Enter');
 		await expect.poll(() => editor.getDomBlockCount()).toBe(3);

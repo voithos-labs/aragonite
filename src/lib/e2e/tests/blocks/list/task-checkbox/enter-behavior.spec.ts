@@ -1,7 +1,7 @@
 import { test, expect } from '../../../../fixtures';
 import { EditorPage } from '../../../../editor-page';
 
-test.describe('task checkbox — Enter in a to-do', () => {
+test.describe('task checkbox: Enter in a to-do', () => {
 	let editor: EditorPage;
 
 	test.beforeEach(async ({ page }) => {

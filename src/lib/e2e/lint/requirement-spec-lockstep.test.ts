@@ -385,7 +385,7 @@ describe('G4.23 requirement↔spec lockstep', () => {
 	});
 });
 
-describe('G4.23 requirement↔spec lockstep — classifier self-tests', () => {
+describe('G4.23 requirement↔spec lockstep: classifier self-tests', () => {
 	it('strips the .perf project selector but keeps the subject stem', () => {
 		expect(requirementStem('perf/attribution.perf.spec.ts')).toBe('perf/attribution');
 		expect(requirementStem('perf/vr-windowing.spec.ts')).toBe('perf/vr-windowing');

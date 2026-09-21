@@ -15,7 +15,7 @@ test.describe('note-taking simulation: fenced-code + image smoke', () => {
 		await editor.goto();
 	});
 
-	test('builds the code-and-image biology note and the oracle suite holds', async ({ page }) => {
+	test('builds the code-and-image biology note and the invariant suite holds', async ({ page }) => {
 		await runSession(page, editor, { seed: 2, note: BIOLOGY_NOTE, capture: false });
 	});
 });

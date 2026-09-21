@@ -15,7 +15,7 @@ async function landedIn(editor: EditorPage): Promise<number | undefined> {
 	return (await editor.bridge.getSelectionPaths())?.anchor.path[0];
 }
 
-test.describe('code block in live mode — arrows at every edge', () => {
+test.describe('code block in live mode: arrows at every edge', () => {
 	let editor: EditorPage;
 
 	test.beforeEach(async ({ page }) => {
@@ -75,7 +75,7 @@ test.describe('code block in live mode — arrows at every edge', () => {
 	});
 });
 
-test.describe('code block in live mode — line extremes and the fence lines', () => {
+test.describe('code block in live mode: line extremes and the fence lines', () => {
 	let editor: EditorPage;
 
 	test.beforeEach(async ({ page }) => {
@@ -85,7 +85,7 @@ test.describe('code block in live mode — line extremes and the fence lines', (
 		await expect(editor.editorContainer).toHaveAttribute('data-presentation', 'live');
 	});
 
-	test('Home on the first body line seats at its column 0, not in the hidden opener', async ({
+	test('Home on the first body line puts the caret at its column 0, not in the hidden opener', async ({
 		page
 	}) => {
 		await editor.focusBlockAtPath([1], BODY_START + 4);
@@ -94,7 +94,7 @@ test.describe('code block in live mode — line extremes and the fence lines', (
 		await editor.bridge.waitForSourceContains('```js\nXconst x = 1;');
 	});
 
-	test('End on the last body line seats after its last byte, not past the hidden closer', async ({
+	test('End on the last body line puts the caret after its last byte, not past the hidden closer', async ({
 		page
 	}) => {
 		await editor.focusBlockAtPath([1], LINE_TWO + 2);
@@ -164,7 +164,7 @@ test.describe('code block in live mode — line extremes and the fence lines', (
 	});
 });
 
-test.describe('code block in live mode — an empty fence', () => {
+test.describe('code block in live mode: an empty fence', () => {
 	let editor: EditorPage;
 
 	test.beforeEach(async ({ page }) => {

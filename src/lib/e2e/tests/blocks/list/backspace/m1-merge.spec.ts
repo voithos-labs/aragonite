@@ -3,7 +3,7 @@ import { EditorPage } from '../../../../editor-page';
 import { getContainerParityMismatches } from '../../../../container-parity';
 import { capturePageErrors } from '../../../../page-probes';
 
-test.describe('list Backspace — M1 merge on non-first item', () => {
+test.describe('list Backspace: M1 merge on non-first item', () => {
 	let editor: EditorPage;
 	test.beforeEach(async ({ page }) => {
 		editor = new EditorPage(page);

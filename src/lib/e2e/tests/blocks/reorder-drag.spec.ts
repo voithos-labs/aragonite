@@ -43,13 +43,13 @@ test.describe('drag to reorder', () => {
 		await editor.page.mouse.up();
 	}
 
-	test('drag a top-level block DOWN past two siblings', async () => {
+	test('drag a top-level block down past two siblings', async () => {
 		await editor.loadContent('```\nA\n```\n\n```\nB\n```\n\n```\nC\n```\n');
 		await dragHandle('.block-host', 'A', '.block-host', 'C', true);
 		await editor.bridge.waitForSourceMatches(/B[\s\S]*C[\s\S]*A/);
 	});
 
-	test('drag a top-level block UP to the top', async () => {
+	test('drag a top-level block up to the top', async () => {
 		await editor.loadContent('```\nA\n```\n\n```\nB\n```\n\n```\nC\n```\n');
 		await dragHandle('.block-host', 'C', '.block-host', 'A', false);
 		await editor.bridge.waitForSourceMatches(/C[\s\S]*A[\s\S]*B/);

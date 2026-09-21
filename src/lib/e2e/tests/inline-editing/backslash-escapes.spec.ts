@@ -1,7 +1,7 @@
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 
-test.describe('inline editing — backslash escapes', () => {
+test.describe('inline editing: backslash escapes', () => {
 	let editor: EditorPage;
 
 	test.beforeEach(async ({ page }) => {

@@ -73,7 +73,7 @@ const TOGGLES = [
 	}
 ];
 
-test.describe('inline editing — formatting shortcuts', () => {
+test.describe('inline editing, formatting shortcuts', () => {
 	let editor: EditorPage;
 
 	test.beforeEach(async ({ page }) => {

@@ -22,7 +22,7 @@ function makeCtx(page: Page, editor: EditorPage): Promise<SimContext> {
 	return makeSimContext(page, editor, 'reach');
 }
 
-test.describe('sim gesture reachability: gap mint', () => {
+test.describe('sim gesture reachability: gap create', () => {
 	let editor: EditorPage;
 	test.beforeEach(async ({ page }) => {
 		editor = new EditorPage(page);
@@ -66,7 +66,7 @@ test.describe('sim gesture reachability: gap mint', () => {
 
 // Opaque containers (#93): the caret has to arrive by arrow-up, because Backspace on the first
 // child of a container with a title row does nothing on purpose.
-test.describe('sim gesture reachability: gap mint between opaque containers', () => {
+test.describe('sim gesture reachability: gap create between opaque containers', () => {
 	const CALLOUT_A = ':::note Alpha\nalpha\n:::\n';
 	const CALLOUT_B = ':::tip Beta\nbeta\n:::\n';
 	/** admonition, admonition, paragraph: the eligible boundary is 1. */
@@ -79,7 +79,7 @@ test.describe('sim gesture reachability: gap mint between opaque containers', ()
 		await editor.loadContent(TWO_CALLOUTS);
 	});
 
-	test('the arrow-up arrival mints a paragraph between the two callouts', async ({ page }) => {
+	test('the arrow-up arrival creates a paragraph between the two callouts', async ({ page }) => {
 		const ctx = await makeSimContext(page, editor, 'reach-opaque');
 
 		await mintAtGap(ctx, 1, 'Q', { arrival: 'arrow-up' });

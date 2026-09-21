@@ -1,7 +1,7 @@
 import { test } from '../../../../fixtures';
 import { EditorPage } from '../../../../editor-page';
 
-test.describe('blockquote navigation — basic traversal', () => {
+test.describe('blockquote navigation: basic traversal', () => {
 	let editor: EditorPage;
 
 	test.beforeEach(async ({ page }) => {

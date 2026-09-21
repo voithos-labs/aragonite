@@ -40,7 +40,7 @@ const italic = (page: Page) => page.keyboard.press('ControlOrMeta+i');
 const struck = (page: Page) => page.keyboard.press('ControlOrMeta+Shift+X');
 const code = (page: Page) => page.keyboard.press('ControlOrMeta+e');
 
-test.describe('live mode — a pended mark rides the next insertion', () => {
+test.describe('live mode: a pended mark rides the next insertion', () => {
 	let ep: EditorPage;
 
 	test.beforeEach(async ({ page }) => {
@@ -102,7 +102,7 @@ test.describe('live mode — a pended mark rides the next insertion', () => {
 // backtick, whose delimiters the resolver has to write itself. The nesting rows pin that the
 // order comes from the mark table and not from the chords: the wrong order gives a code span
 // wrapping literal stars, which the resolver would decline and type plain instead.
-test.describe('live mode — the marks beyond bold and italic', () => {
+test.describe('live mode: the marks beyond bold and italic', () => {
 	let ep: EditorPage;
 
 	test.beforeEach(async ({ page }) => {
@@ -178,7 +178,7 @@ test.describe('live mode — the marks beyond bold and italic', () => {
 // `**hello**X** world**` looks right and renders `helloX** world**`, because a closing run
 // before a space is not left-flanking. The resolver re-parses its own candidate and steps
 // outside the construct instead.
-test.describe('live mode — a removal that would show delimiters steps outside instead', () => {
+test.describe('live mode: a removal that would show delimiters steps outside instead', () => {
 	let ep: EditorPage;
 
 	test.beforeEach(async ({ page }) => {
@@ -206,7 +206,7 @@ test.describe('live mode — a removal that would show delimiters steps outside 
 // An autolink is one span with no children: there is no point inside it a delimiter can go, and
 // its angle brackets are marker spans the user has never seen. Wrapping inside the URL destroys
 // the link and paints them, so the mark declines and the byte types plain.
-test.describe('live mode — a mark inside a URL declines rather than destroy the link', () => {
+test.describe('live mode: a mark inside a URL declines rather than destroy the link', () => {
 	let ep: EditorPage;
 
 	test.beforeEach(async ({ page }) => {
@@ -233,7 +233,7 @@ test.describe('live mode — a mark inside a URL declines rather than destroy th
 	});
 });
 
-test.describe('live mode — a mark is spent once and cleared by any caret move', () => {
+test.describe('live mode: a mark is spent once and cleared by any caret move', () => {
 	let ep: EditorPage;
 
 	test.beforeEach(async ({ page }) => {
@@ -287,7 +287,7 @@ test.describe('live mode — a mark is spent once and cleared by any caret move'
 	});
 });
 
-test.describe('live mode — the insertion that spends a mark owns its undo entry', () => {
+test.describe('live mode: the insertion that spends a mark owns its undo entry', () => {
 	let ep: EditorPage;
 
 	test.beforeEach(async ({ page }) => {
@@ -312,7 +312,7 @@ test.describe('live mode — the insertion that spends a mark owns its undo entr
 	});
 });
 
-test.describe('live mode — an IME commit spends a mark like a keystroke', () => {
+test.describe('live mode: an IME commit spends a mark like a keystroke', () => {
 	let ep: EditorPage;
 
 	test.beforeEach(async ({ page }) => {
@@ -337,7 +337,7 @@ test.describe('live mode — an IME commit spends a mark like a keystroke', () =
 // atomic widget is taken by the marks handler and the widget handler never sees it. These rows
 // pin what that gives: the rewrite is checked against the render path, so a splice that would
 // change painted text is declined and the widget survives whole on either side of it.
-test.describe('live mode — a pending mark beside an inline widget', () => {
+test.describe('live mode: a pending mark beside an inline widget', () => {
 	const WIDGET_DOC = 'see &amp; now\n';
 
 	test('the byte lands before the widget, wrapped, and the entity survives', async ({ page }) => {

@@ -12,7 +12,7 @@ function focusedStop(page: MermaidPage['page']): Promise<'viewport' | 'in-block'
 	});
 }
 
-test.describe('a plugin whole-block kind is one EDITING tab stop', () => {
+test.describe('a plugin whole-block kind is one editing tab stop', () => {
 	let editor: MermaidPage;
 
 	test.beforeEach(async ({ page }) => {

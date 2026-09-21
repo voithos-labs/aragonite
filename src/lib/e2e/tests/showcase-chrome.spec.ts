@@ -39,7 +39,7 @@ test.describe('/ showcase chrome', () => {
 		await expect(editor).toHaveAttribute('data-editor-theme', 'light');
 	});
 
-	test('drag-handles toggle drops the grips and carries the edit across the remount', async ({
+	test('drag-handles toggle drops the drag handles and carries the edit across the remount', async ({
 		page
 	}) => {
 		const handles = page.locator('.block-drag-handle');
@@ -127,7 +127,9 @@ test.describe('/ showcase chrome', () => {
 		await expect(toolbar).toHaveCount(0);
 	});
 
-	test('the insert strip mints a table once the live document holds a caret', async ({ page }) => {
+	test('the insert strip creates a table once the live document holds a caret', async ({
+		page
+	}) => {
 		await page.locator('.showcase-mode[data-mode="live"]').click();
 		const table = page.getByTestId('insert-table');
 		await expect(table).toBeDisabled();

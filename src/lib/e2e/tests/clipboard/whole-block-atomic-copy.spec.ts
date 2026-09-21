@@ -10,7 +10,7 @@ import { wholeBlockInput } from '../../whole-block-input';
 const DOC = 'above\n\n---\n\nbelow\n';
 const BREAK_MD = '---';
 
-test.describe('whole-block atomic copy/cut — thematic break', () => {
+test.describe('whole-block atomic copy/cut: thematic break', () => {
 	let editor: EditorPage;
 
 	test.beforeEach(async ({ page }) => {

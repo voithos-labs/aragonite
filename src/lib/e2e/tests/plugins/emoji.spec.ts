@@ -76,9 +76,7 @@ test.describe('plugin inline emoji shortcodes', () => {
 		expect(await capturedErrors(page)).toEqual([]);
 	});
 
-	test('a click past a run of flush glyphs seats the caret after the last one', async ({
-		page
-	}) => {
+	test('a click past a run of flush glyphs puts the caret after the last one', async ({ page }) => {
 		await editor.loadContent('Mood :smile: today\n\nend :dizzy::dizzy::dizzy::sparkles:\n');
 		await editor.setPresentationMode('live');
 		await expect(emojiIn(editor, 1)).toHaveCount(4);
@@ -100,7 +98,7 @@ test.describe('plugin inline emoji shortcodes', () => {
 			['left', 0.25, 'Mood X:smile: today'],
 			['right', 0.75, 'Mood :smile:X today']
 		] as const) {
-			test(`${mode}: a click on the glyph's ${side} half seats the caret at that edge`, async ({
+			test(`${mode}: a click on the glyph's ${side} half puts the caret at that edge`, async ({
 				page
 			}) => {
 				await editor.setPresentationMode(mode);

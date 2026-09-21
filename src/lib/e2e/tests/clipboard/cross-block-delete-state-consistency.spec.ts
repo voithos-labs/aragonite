@@ -17,7 +17,7 @@ async function auditState(editor: EditorPage): Promise<StateViolation[]> {
 	);
 }
 
-test.describe('cross-block delete — BlockListState consistency', () => {
+test.describe('cross-block delete: BlockListState consistency', () => {
 	let editor: EditorPage;
 
 	test.beforeEach(async ({ page }) => {

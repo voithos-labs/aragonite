@@ -43,7 +43,7 @@ test.describe('clipboard exploration: unusual content', () => {
 		expect(await editor.getDomBlockCount()).toBe(pastedCount);
 	});
 
-	test('paste into thematic break (non-editable) — either no-op or creates paragraph', async () => {
+	test('paste into thematic break (non-editable): either no-op or creates paragraph', async () => {
 		await editor.loadContent('above\n\n---\n\nbelow\n');
 		await editor.seedClipboard('pasted');
 

@@ -49,7 +49,7 @@ test.describe('cross-container merge on Backspace (list prev)', () => {
 		expect(source).toMatch(/^\s+- btext$/m);
 	});
 
-	test('loose list item (multi-paragraph): merge lands in the LAST paragraph of the last item', async () => {
+	test('loose list item (multi-paragraph): merge lands in the last paragraph of the last item', async () => {
 		await editor.loadContent('- first item\n\n- second item\n\n  second para\n\ntext\n');
 		const para = editor.page.locator('[contenteditable="true"]', { hasText: /^text$/ });
 		await para.click();

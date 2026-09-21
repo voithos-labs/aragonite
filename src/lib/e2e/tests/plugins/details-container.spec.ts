@@ -86,7 +86,7 @@ test.describe('plugin container: <details> collapsible', () => {
 		expect(await capturedErrors(page)).toEqual([]);
 	});
 
-	test('M3: Enter in a collapsed summary-only details mints nothing and pushes no undo entry', async ({
+	test('M3: Enter in a collapsed summary-only details creates nothing and pushes no undo entry', async ({
 		page
 	}) => {
 		await editor.loadContent(SUMMARY_ONLY);
@@ -183,7 +183,7 @@ test.describe('plugin container: <details> collapsible', () => {
 		expect(await capturedErrors(page)).toEqual([]);
 	});
 
-	test('Backspace below an OPEN details merges into the last body child', async ({ page }) => {
+	test('Backspace below an open details merges into the last body child', async ({ page }) => {
 		await editor.loadContent(OPEN_WITH_BELOW);
 		await editor.focusBlockAtPath([1], 0); // start of "Below"
 

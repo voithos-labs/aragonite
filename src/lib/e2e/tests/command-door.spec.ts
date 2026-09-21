@@ -13,7 +13,7 @@ const TOGGLES = [
 	['format.toggleCode', 'Hello `world`']
 ] as const;
 
-test.describe('runCommand — the semantic command door', () => {
+test.describe('runCommand: the semantic command entry point', () => {
 	let editor: EditorPage;
 
 	const run = (commandId: string): Promise<boolean> =>
@@ -49,7 +49,7 @@ test.describe('runCommand — the semantic command door', () => {
 		});
 	}
 
-	test('the door and the chord write the same bytes over the same selection', async () => {
+	test('the entry point and the chord write the same bytes over the same selection', async () => {
 		await editor.loadContent('Hello world\n');
 		const before = await editor.bridge.getSource();
 		await selectWorld();
@@ -66,7 +66,7 @@ test.describe('runCommand — the semantic command door', () => {
 	});
 
 	// The whole reason `runCommand` exists: rebinding moves the keys, never the button.
-	test('a rebound chord leaves the door untouched, and both still reach the arm', async () => {
+	test('a rebound chord leaves the entry point untouched, and both still reach the branch', async () => {
 		await editor.loadContent('Hello world\n');
 		const before = await editor.bridge.getSource();
 		await setKeybindings([{ chord: 'Mod+Alt+G', command: 'format.toggleStrong' }]);
@@ -130,7 +130,7 @@ test.describe('runCommand — the semantic command door', () => {
 		await editor.bridge.waitForSourceContains('**X**');
 	});
 
-	test('a table cell takes the door through its published ref slot', async () => {
+	test('a table cell takes the entry point through its published ref slot', async () => {
 		await editor.loadContent('| a | b |\n| --- | --- |\n| 1 | 2 |\n');
 		await editor.page.locator('[role="cell"]').nth(3).click();
 		await editor.page.keyboard.press('Home');
@@ -143,7 +143,7 @@ test.describe('runCommand — the semantic command door', () => {
 	// The `runCommand` half of #127: the shortcut never reaches here, since the cross-block
 	// keydown handler takes it, so only a call by command id reaches that handler rather than a
 	// single-block one that would use the focused block's own offsets.
-	test('a cross-block range routes the toggle to the arm, in one undo entry', async () => {
+	test('a cross-block range routes the toggle to the branch, in one undo entry', async () => {
 		await editor.loadContent('alpha\n\nbeta\n');
 		const before = await editor.bridge.getSource();
 
@@ -160,7 +160,7 @@ test.describe('runCommand — the semantic command door', () => {
 		await editor.bridge.waitForSourceEquals(before, 3000);
 	});
 
-	test('the link editor is the one range command the door still declines', async () => {
+	test('the link editor is the one range command the entry point still declines', async () => {
 		await editor.loadContent('alpha\n\nbeta\n');
 		const before = await editor.bridge.getSource();
 

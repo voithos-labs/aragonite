@@ -1,7 +1,7 @@
 import { test, expect } from '../fixtures';
 import { EditorPage } from '../editor-page';
 
-test.describe('needsUndoCheckpoint — typing / structural / typing', () => {
+test.describe('needsUndoCheckpoint, typing / structural / typing', () => {
 	let editor: EditorPage;
 
 	test.beforeEach(async ({ page }) => {

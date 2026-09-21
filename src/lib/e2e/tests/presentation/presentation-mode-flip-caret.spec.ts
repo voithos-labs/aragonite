@@ -20,7 +20,7 @@ async function focusPoint(ep: EditorPage): Promise<{ path: number[]; offset: num
 	return (await ep.bridge.getSelectionPaths())?.focus ?? null;
 }
 
-test.describe('mode flips — the caret comes back', () => {
+test.describe('mode flips: the caret comes back', () => {
 	test('a caret mid-construct in live survives the flip to source and takes the next byte', async ({
 		page
 	}) => {
@@ -37,7 +37,7 @@ test.describe('mode flips — the caret comes back', () => {
 		await ep.bridge.waitForSourceContains('boXld');
 	});
 
-	test('the caret banked entering reading re-seats on the flip out', async ({ page }) => {
+	test('the caret banked entering reading re-puts the caret on the flip out', async ({ page }) => {
 		const ep = await enterPresentationMode(page, 'source', DOC);
 		await clickWordSettled(ep, page, 'bold');
 		await landAt(ep, page, SEAT);
@@ -83,7 +83,7 @@ test.describe('mode flips — the caret comes back', () => {
 	] as const;
 
 	for (const [mode, testid] of EDITABLE_RUNGS) {
-		test(`a source caret survives the ${mode} round trip, re-seated on both flips`, async ({
+		test(`a source caret survives the ${mode} round trip, re-placed on both flips`, async ({
 			page
 		}) => {
 			const ep = await enterPresentationMode(page, 'source', DOC);

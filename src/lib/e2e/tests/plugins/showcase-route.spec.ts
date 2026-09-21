@@ -142,9 +142,7 @@ test.describe('/ showcase route', () => {
 		expect(sweep.topLevel.length).toBeGreaterThan(10);
 	});
 
-	test('renders an island for every math and mermaid block the document holds', async ({
-		page
-	}) => {
+	test('renders a widget for every math and mermaid block the document holds', async ({ page }) => {
 		const sweep = await sweepShowcase(page);
 
 		expect(

@@ -43,7 +43,7 @@ test.describe('the plugins prop is the enablement set', () => {
 		await expect(page.getByTestId('editor-not-listing').locator('.badge-h')).toHaveCount(0);
 	});
 
-	test('built-ins are untouched — both editors render their heading and body', async ({ page }) => {
+	test('built-ins are untouched: both editors render their heading and body', async ({ page }) => {
 		for (const testId of ['editor-listing', 'editor-not-listing']) {
 			const pane = page.getByTestId(testId);
 			await expect(pane.locator('[data-block-kind="heading"]')).toHaveCount(1);

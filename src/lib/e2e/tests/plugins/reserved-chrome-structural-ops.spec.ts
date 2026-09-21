@@ -25,7 +25,7 @@ test.describe('reserved child-0 chrome: structural ops + paste', () => {
 
 	// ── Part 2: structural edits around the reserved child 0 ─────────────────
 
-	test('Gate 2a: Backspace after the callout merges into the last BODY child, not the title', async ({
+	test('Gate 2a: Backspace after the callout merges into the last body child, not the title', async ({
 		page
 	}) => {
 		// A callout followed by a top-level paragraph to merge into it.
@@ -42,7 +42,7 @@ test.describe('reserved child-0 chrome: structural ops + paste', () => {
 		expect(await capturedErrors(page)).toEqual([]);
 	});
 
-	test('Gate 2b(i): Backspace at start of the first body child does NOT merge into the title', async ({
+	test('Gate 2b(i): Backspace at start of the first body child does not merge into the title', async ({
 		page
 	}) => {
 		await editor.loadContent(FIXTURE);
@@ -99,7 +99,7 @@ test.describe('reserved child-0 chrome: structural ops + paste', () => {
 		expect(await capturedErrors(page)).toEqual([]);
 	});
 
-	test('Gate 2c (empty body): Enter in a title-only callout mints and focuses an empty body paragraph', async ({
+	test('Gate 2c (empty body): Enter in a title-only callout creates and focuses an empty body paragraph', async ({
 		page
 	}) => {
 		await editor.loadContent('Above\n\n:::callout Title\n:::\n');
@@ -123,7 +123,7 @@ test.describe('reserved child-0 chrome: structural ops + paste', () => {
 		expect(await capturedErrors(page)).toEqual([]);
 	});
 
-	test('Gate 2c (undo): descend commits nothing — one undo reverts the edit made before it', async ({
+	test('Gate 2c (undo): descend commits nothing; one undo reverts the edit made before it', async ({
 		page
 	}) => {
 		await editor.loadContent(FIXTURE);
@@ -146,7 +146,7 @@ test.describe('reserved child-0 chrome: structural ops + paste', () => {
 		expect(await capturedErrors(page)).toEqual([]);
 	});
 
-	test('Gate 2d: typing into the title KEEPS the callout-title kind (contextDependentKind)', async ({
+	test('Gate 2d: typing into the title keeps the callout-title kind (contextDependentKind)', async ({
 		page
 	}) => {
 		await editor.loadContent(FIXTURE);

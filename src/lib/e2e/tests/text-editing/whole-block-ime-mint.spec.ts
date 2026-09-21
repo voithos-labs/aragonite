@@ -13,7 +13,7 @@ async function insertTextViaCdp(editor: EditorPage, text: string): Promise<void>
 	await cdp.send('Input.insertText', { text });
 }
 
-test.describe('whole-block focus — AltGr and IME input mint a paragraph below', () => {
+test.describe('whole-block focus: AltGr and IME input create a paragraph below', () => {
 	let editor: EditorPage;
 
 	test.beforeEach(async ({ page }) => {
@@ -22,7 +22,7 @@ test.describe('whole-block focus — AltGr and IME input mint a paragraph below'
 		await editor.loadContent(RULE_DOC);
 	});
 
-	test('an AltGr-shaped insert of `€` mints a paragraph carrying it', async () => {
+	test('an AltGr-shaped insert of `€` creates a paragraph carrying it', async () => {
 		await focusTheRule(editor);
 
 		await insertTextViaCdp(editor, '€');
@@ -30,7 +30,7 @@ test.describe('whole-block focus — AltGr and IME input mint a paragraph below'
 		await editor.bridge.waitForSourceMatches(/---\n\n€\n\nAfter/);
 	});
 
-	test('a committed composition mints the composed text, and one undo takes it back', async () => {
+	test('a committed composition creates the composed text, and one undo takes it back', async () => {
 		const original = await editor.bridge.getSource();
 		await focusTheRule(editor);
 		const ime = await attachIme(editor.page);

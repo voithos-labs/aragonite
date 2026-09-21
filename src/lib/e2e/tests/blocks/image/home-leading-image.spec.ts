@@ -24,7 +24,7 @@ async function homeThenType(ep: EditorPage, page: Page): Promise<void> {
 }
 
 for (const mode of ['source', 'live'] as const) {
-	test(`${mode}: Home seats before the leading image, and a typed byte lands ahead of its bytes`, async ({
+	test(`${mode}: Home puts the caret before the leading image, and a typed byte lands ahead of its bytes`, async ({
 		page
 	}) => {
 		const ep = new EditorPage(page);

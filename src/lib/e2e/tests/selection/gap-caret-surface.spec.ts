@@ -105,7 +105,7 @@ test.describe('a presentation-mode flip ends the gap', () => {
 	});
 });
 
-test.describe('leaving the gap without minting', () => {
+test.describe('leaving the gap without creating', () => {
 	let editor: EditorPage;
 
 	test.beforeEach(async ({ page }) => {

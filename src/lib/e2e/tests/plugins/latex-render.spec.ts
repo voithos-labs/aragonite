@@ -19,7 +19,7 @@ test.describe('plugin math rendering: single visible render', () => {
 		editor = new PluginsPage(page);
 	});
 
-	test('inline math paints once — the MathML half is clipped, the HTML half is not', async () => {
+	test('inline math paints once: the MathML half is clipped, the HTML half is not', async () => {
 		await editor.gotoPlugins('math');
 		const widget = editor.page.locator('.math-inline-widget');
 		await expect(widget.locator('.katex-html')).toHaveCount(1);

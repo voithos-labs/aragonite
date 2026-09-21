@@ -23,7 +23,7 @@ async function toggleReadingMode(page: Page): Promise<void> {
 	await page.getByTestId('presentation-toggle').click();
 }
 
-test.describe('reading mode — markers', () => {
+test.describe('reading mode: markers', () => {
 	let ep: EditorPage;
 
 	test.beforeEach(async ({ page }) => {
@@ -64,7 +64,7 @@ test.describe('reading mode — markers', () => {
 	});
 });
 
-test.describe('reading mode — inertness', () => {
+test.describe('reading mode: inertness', () => {
 	let ep: EditorPage;
 	let baseline: string;
 
@@ -157,7 +157,7 @@ test.describe('reading mode — inertness', () => {
 	});
 });
 
-test.describe('reading mode — what stays live', () => {
+test.describe('reading mode: what stays live', () => {
 	let ep: EditorPage;
 
 	test.beforeEach(async ({ page }) => {

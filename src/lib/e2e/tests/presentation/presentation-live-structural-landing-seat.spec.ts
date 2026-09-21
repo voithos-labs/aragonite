@@ -38,7 +38,7 @@ async function exitFenceUpward(ep: EditorPage, page: Page, word: string): Promis
 	await ep.waitForRenderFlush();
 }
 
-test.describe('live mode — a structural landing seats outside the construct it lands on', () => {
+test.describe('live mode: a structural landing puts the caret outside the construct it lands on', () => {
 	let ep: EditorPage;
 
 	test.beforeEach(async ({ page }) => {
@@ -57,7 +57,7 @@ test.describe('live mode — a structural landing seats outside the construct it
 		await ep.bridge.waitForSourceContains('A **bold**x');
 	});
 
-	test('the exit press itself deletes nothing — the fence survives it whole', async ({ page }) => {
+	test('the exit press itself deletes nothing: the fence survives it whole', async ({ page }) => {
 		await exitFenceUpward(ep, page, 'fence');
 
 		await ep.bridge.waitForSourceContains('```\nfence\n```');

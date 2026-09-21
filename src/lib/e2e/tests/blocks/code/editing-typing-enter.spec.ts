@@ -4,7 +4,7 @@ import { EditorPage } from '../../../editor-page';
 // Block-exit navigation, keyboard parity, highlighting, paste, and indent live in sibling
 // editing-*.spec.ts files.
 
-test.describe('code block editing — happy paths', () => {
+test.describe('code block editing: happy paths', () => {
 	let editor: EditorPage;
 
 	test.beforeEach(async ({ page }) => {

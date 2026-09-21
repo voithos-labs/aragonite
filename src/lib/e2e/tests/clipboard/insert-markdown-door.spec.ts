@@ -7,7 +7,7 @@ import { EditorPage } from '../../editor-page';
 
 const TABLE = '| a | b |\n| --- | --- |\n| 1 | 2 |\n';
 
-test.describe('insertMarkdown — programmatic insertion', () => {
+test.describe('insertMarkdown: programmatic insertion', () => {
 	let editor: EditorPage;
 
 	const insert = (md: string): Promise<boolean> =>
@@ -115,7 +115,7 @@ test.describe('insertMarkdown — programmatic insertion', () => {
 	// Miss-analysis: the cell registers its editable element through `publishRefSlot` rather
 	// than instance exports, and no case here drove that channel; the census (G4.38) only
 	// reads the export side.
-	test('a focused table cell takes the door through its published ref slot', async () => {
+	test('a focused table cell takes the entry point through its published ref slot', async () => {
 		await editor.loadContent(TABLE);
 		await editor.page.locator('[role="cell"]').nth(3).click();
 		await editor.page.keyboard.press('End');

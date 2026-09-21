@@ -12,7 +12,7 @@ class MermaidImePage extends MermaidPage {
 	}
 }
 
-test.describe('mermaid whole-block focus — AltGr and IME input', () => {
+test.describe('mermaid whole-block focus: AltGr and IME input', () => {
 	let editor: MermaidImePage;
 
 	test.beforeEach(async ({ page }) => {
@@ -20,7 +20,7 @@ test.describe('mermaid whole-block focus — AltGr and IME input', () => {
 		await editor.loadDiagram(STANDARD_DIAGRAM_DOC);
 	});
 
-	test('an AltGr-shaped insert of `€` mints a paragraph below, leaving the diagram intact', async ({
+	test('an AltGr-shaped insert of `€` creates a paragraph below, leaving the diagram intact', async ({
 		page
 	}) => {
 		await editor.focusDiagram();
@@ -35,7 +35,7 @@ test.describe('mermaid whole-block focus — AltGr and IME input', () => {
 		expect(doc.texts[1]).toContain('graph TD');
 	});
 
-	test('a committed composition mints the composed text below', async ({ page }) => {
+	test('a committed composition creates the composed text below', async ({ page }) => {
 		await editor.focusDiagram();
 		const ime = await attachIme(page);
 
@@ -48,7 +48,7 @@ test.describe('mermaid whole-block focus — AltGr and IME input', () => {
 
 	// The element the plugin declares is replaced on every redraw, which is why the element that
 	// takes focus sits in the frame: anything mounted inside the diagram would be lost here.
-	test('the host survives a redraw and still mints', async ({ page }) => {
+	test('the host survives a redraw and still creates', async ({ page }) => {
 		await editor.viewport.dblclick();
 		await expect(editor.page.getByTestId('mermaid-source')).toBeFocused();
 		await page.keyboard.press('End');

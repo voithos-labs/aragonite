@@ -7,7 +7,7 @@ import { PluginsPage } from '../plugins/helpers';
 
 const DOC = ':::foo\nBody with **bold** here.\n:::\n';
 
-test.describe('preview-block — directive-body containment', () => {
+test.describe('preview-block: directive-body containment', () => {
 	let ep: PluginsPage;
 
 	test.beforeEach(async ({ page }) => {

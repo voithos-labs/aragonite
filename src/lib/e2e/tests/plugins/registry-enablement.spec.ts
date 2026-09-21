@@ -33,7 +33,7 @@ test.describe('per-instance registry enablement', () => {
 		await expect(enabledMemo.locator('.raw-block')).toHaveCount(0);
 	});
 
-	test('built-ins are untouched — both editors render their paragraphs', async ({ page }) => {
+	test('built-ins are untouched: both editors render their paragraphs', async ({ page }) => {
 		for (const testId of ['editor-disabled', 'editor-enabled']) {
 			const paragraphs = page.getByTestId(testId).locator('[data-block-kind="paragraph"]');
 			// `Before` and `After` around the memo block.

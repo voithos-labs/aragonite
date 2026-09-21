@@ -1,7 +1,7 @@
 import { test, expect } from '../../../fixtures';
 import { EditorPage } from '../../../editor-page';
 
-test.describe('selection — keyboard: collapse', () => {
+test.describe('selection: keyboard: collapse', () => {
 	let editor: EditorPage;
 
 	test.beforeEach(async ({ page }) => {

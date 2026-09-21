@@ -20,7 +20,7 @@ async function caretToOffset(ep: EditorPage, page: Page, offset: number): Promis
 	expect((await ep.bridge.getSelectionPaths())?.focus.offset).toBe(offset);
 }
 
-test.describe('preview-inline — editing stays live', () => {
+test.describe('preview-inline, editing stays live', () => {
 	let ep: EditorPage;
 
 	test.beforeEach(async ({ page }) => {

@@ -18,7 +18,7 @@ async function undoStackDump(page: Page): Promise<string> {
 	);
 }
 
-test.describe('reading mode — transient details disclosure', () => {
+test.describe('reading mode: transient details disclosure', () => {
 	let editor: DetailsPage;
 
 	test.beforeEach(async ({ page }) => {

@@ -2,7 +2,7 @@ import { test, expect } from '../../../fixtures';
 import { EditorPage } from '../../../editor-page';
 import { focusCodeBody } from './conveniences/helpers';
 
-test.describe('code block creation — Enter after typing ```', () => {
+test.describe('code block creation: Enter after typing ```', () => {
 	let editor: EditorPage;
 
 	test.beforeEach(async ({ page }) => {
@@ -26,7 +26,7 @@ test.describe('code block creation — Enter after typing ```', () => {
 	});
 });
 
-test.describe('code block creation — backtick auto-pair in unclosed fence', () => {
+test.describe('code block creation: backtick auto-pair in unclosed fence', () => {
 	let editor: EditorPage;
 
 	test.beforeEach(async ({ page }) => {

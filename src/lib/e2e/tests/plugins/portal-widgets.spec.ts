@@ -99,7 +99,7 @@ test.describe('component-portal inline widgets', () => {
 		await expect(editor.mathWidget.locator('.katex')).toHaveCount(1);
 	});
 
-	test('duplicate identical widgets: revealing the second and Escape restores BOTH in place', async ({
+	test('duplicate identical widgets: revealing the second and Escape restores both in place', async ({
 		page
 	}) => {
 		// Two byte-identical formulas in one paragraph: one pool entry, two instances.

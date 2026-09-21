@@ -65,7 +65,7 @@ test.describe('cross-block selection overlay - a GitHub alert held whole', () =>
 
 	// The range cuts through the alert, so no one box can stand for it: its body block paints its
 	// own endpoint rects and the title row stays unpainted.
-	test('a range ENDING inside the alert leaves the box to the body block', async ({ page }) => {
+	test('a range ending inside the alert leaves the box to the body block', async ({ page }) => {
 		await editor.focusBlockStart(0);
 		await editor.shiftClickBlock([1, 0], 4);
 		await editor.waitForCrossBlock(true);

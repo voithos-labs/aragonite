@@ -2,7 +2,7 @@ import { test, expect } from '../../../fixtures';
 import { EditorPage } from '../../../editor-page';
 import { countEditEvents } from './helpers';
 
-test.describe('one edit event per op — blockquote splitBlock exit', () => {
+test.describe('one edit event per op: blockquote splitBlock exit', () => {
 	let editor: EditorPage;
 
 	test.beforeEach(async ({ page }) => {

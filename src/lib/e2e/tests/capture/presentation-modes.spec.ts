@@ -56,7 +56,7 @@ function compositionHtml(shots: string[], theme: keyof typeof SURFACES): string 
 }
 
 for (const theme of ['light', 'dark'] as const) {
-	test(`presentation-mode strip — ${theme}`, async ({ page }) => {
+	test(`presentation-mode strip: ${theme}`, async ({ page }) => {
 		const shots: string[] = [];
 
 		for (const { mode } of PANELS) {

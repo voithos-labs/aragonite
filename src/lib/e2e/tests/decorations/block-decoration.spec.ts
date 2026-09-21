@@ -143,7 +143,7 @@ test.describe('block decorations', () => {
 	// The other half of the same hazard, independent of the refusal above: the CSS rule reads the
 	// same element its JavaScript counterpart does, so the attribute on the outer block div
 	// paints nothing.
-	test('a content-empty stamp on the host paints no marker under live', async ({ page }) => {
+	test('a content-empty mark on the host paints no marker under live', async ({ page }) => {
 		await editor.goto('?presentationMode=live');
 		await editor.loadContent('# heading\n');
 		const marker = page.locator(`${HOST} .md-marker`).first();

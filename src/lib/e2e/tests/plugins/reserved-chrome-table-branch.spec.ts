@@ -53,7 +53,7 @@ test.describe('reserved child-0 chrome: wall × table branch', () => {
 		expect(await capturedErrors(page)).toEqual([]);
 	});
 
-	test('Gate 6a: prose above → into a body table cell — the title clears, never node-deletes', async ({
+	test('Gate 6a: prose above → into a body table cell; the title clears, never node-deletes', async ({
 		page
 	}) => {
 		await editor.loadContent(TBL_FIXTURE);
@@ -94,7 +94,7 @@ test.describe('reserved child-0 chrome: wall × table branch', () => {
 		expect(await editor.bridge.getSource()).toBe(TBL_FIXTURE);
 	});
 
-	test('Gate 6b: mid-title → body table cell — the title truncates in place, kind kept', async ({
+	test('Gate 6b: mid-title → body table cell; the title truncates in place, kind kept', async ({
 		page
 	}) => {
 		await editor.loadContent(TBL_FIXTURE);
@@ -123,7 +123,7 @@ test.describe('reserved child-0 chrome: wall × table branch', () => {
 		expect(await editor.bridge.getSource()).toBe(TBL_FIXTURE);
 	});
 
-	test('Gate 6c: table above → mid-title — the title keeps its tail in place, no reparse-replacement', async ({
+	test('Gate 6c: table above → mid-title; the title keeps its tail in place, no reparse-replacement', async ({
 		page
 	}) => {
 		await editor.loadContent(TBL_ABOVE_FIXTURE);
@@ -148,7 +148,7 @@ test.describe('reserved child-0 chrome: wall × table branch', () => {
 		expect(await capturedErrors(page)).toEqual([]);
 	});
 
-	test('Gate 6d: table → table across the wall — the between chrome clears, never deletes', async ({
+	test('Gate 6d: table → table across the wall; the between chrome clears, never deletes', async ({
 		page
 	}) => {
 		await editor.loadContent(TBL_BOTH_FIXTURE);

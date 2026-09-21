@@ -3,7 +3,7 @@ import { EditorPage } from '../../../editor-page';
 
 // Pure typing/Enter behavior lives in editing-typing-enter.spec.ts.
 
-test.describe('code block editing — user interactions', () => {
+test.describe('code block editing: user interactions', () => {
 	let editor: EditorPage;
 
 	test.beforeEach(async ({ page }) => {

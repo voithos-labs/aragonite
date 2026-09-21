@@ -41,7 +41,7 @@ const enterMode = (page: Page, mode: 'live' | 'source') => enterPresentationMode
 
 // The heading is the document's first block, where the merge chain returns early, so handling
 // the demote in the command rather than inside the merge is what makes the key work here.
-test.describe('live mode — Backspace at a heading’s content start demotes before it merges', () => {
+test.describe('live mode: Backspace at a heading’s content start demotes before it merges', () => {
 	let ep: EditorPage;
 
 	test.beforeEach(async ({ page }) => {
@@ -152,7 +152,7 @@ test.describe('live mode — Backspace at a heading’s content start demotes be
 
 // The `## ` is on screen and raw 0 is the block's start, so Backspace is the ordinary merge; at
 // document index 0 the merge chain does nothing.
-test.describe('source mode — the prefix is painted, so nothing demotes', () => {
+test.describe('source mode: the prefix is painted, so nothing demotes', () => {
 	test('Backspace inside a heading’s prefix deletes a marker byte', async ({ page }) => {
 		const ep = await enterMode(page, 'source');
 		await clickBlockSettled(ep, HEADING);

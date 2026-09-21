@@ -11,7 +11,7 @@ import { BlockMathPage } from './latex-reveal-helpers';
 
 const SEED_SOURCE = 'Before\n\n$$x^2$$\n\nAfter\n';
 
-test.describe('block math: a click seats the caret where it landed', () => {
+test.describe('block math: a click puts the caret where it landed', () => {
 	let editor: BlockMathPage;
 
 	test.beforeEach(async ({ page }) => {

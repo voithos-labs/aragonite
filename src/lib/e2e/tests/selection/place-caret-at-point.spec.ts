@@ -12,7 +12,7 @@ interface Box {
 	bottom: number;
 }
 
-test.describe('placeCaretAtPoint is the host shell’s caret door', () => {
+test.describe('placeCaretAtPoint is the host shell’s caret entry point', () => {
 	let editor: EditorPage;
 
 	test.beforeEach(async ({ page }) => {

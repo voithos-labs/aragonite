@@ -46,7 +46,7 @@ const TWO_WORD_BOLD = 8;
 
 const enterMode = (page: Page, mode: 'live' | 'source') => enterPresentationMode(page, mode, DOC);
 
-test.describe('live mode — a destructive key at a hidden run takes what the reader sees', () => {
+test.describe('live mode: a destructive key at a hidden run takes what the reader sees', () => {
 	let ep: EditorPage;
 
 	test.beforeEach(async ({ page }) => {
@@ -123,7 +123,7 @@ test.describe('live mode — a destructive key at a hidden run takes what the re
 
 	// The first reachable offset is visual column 0, so Backspace there merges the block, and the
 	// escape's first visible glyph must survive it (GH #108 turned it into a forward delete).
-	test('Backspace at the landable start inside a leading escape merges the blocks', async ({
+	test('Backspace at the first reachable offset inside a leading escape merges the blocks', async ({
 		page
 	}) => {
 		await clickBlockSettled(ep, LEADING_ESCAPE);
@@ -153,7 +153,7 @@ test.describe('live mode — a destructive key at a hidden run takes what the re
 // Two readings of the same key, and the editor takes whichever one parses back. Deleting the
 // character between two bold words joins them; deleting the one before a nested construct has no
 // reading at all, and leaving that key to the browser destroys both constructs.
-test.describe('live mode — the widened cut, and the press with no reading at all', () => {
+test.describe('live mode: the widened cut, and the press with no reading at all', () => {
 	test('deleting the space between two bold words joins them', async ({ page }) => {
 		const ep = await enterMode(page, 'live');
 		await clickBlockSettled(ep, TWO_BOLDS);
@@ -186,7 +186,7 @@ test.describe('live mode — the widened cut, and the press with no reading at a
 });
 
 // Source paints every delimiter, so the byte the caret is against is the byte the user aimed at.
-test.describe('source mode — the same gesture stays byte-literal', () => {
+test.describe('source mode: the same gesture stays byte-literal', () => {
 	test('Backspace inside a bold pair deletes the delimiter it is against', async ({ page }) => {
 		const ep = await enterMode(page, 'source');
 		await clickBlockSettled(ep, TINY_BOLD);

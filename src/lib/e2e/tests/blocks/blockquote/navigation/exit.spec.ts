@@ -12,7 +12,7 @@ async function pressEnterUntilSourceChanges(editor: EditorPage): Promise<void> {
 	await editor.bridge.waitForSourceWith((s, b) => s !== b, before);
 }
 
-test.describe('blockquote navigation — exit on empty trailing line', () => {
+test.describe('blockquote navigation: exit on empty trailing line', () => {
 	let editor: EditorPage;
 
 	test.beforeEach(async ({ page }) => {

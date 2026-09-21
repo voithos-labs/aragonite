@@ -41,7 +41,7 @@ const BLOCKS = DOC.split('\n\n').length;
 
 const enterMode = (page: Page, mode: 'live' | 'source') => enterPresentationMode(page, mode, DOC);
 
-test.describe('live mode — Enter inside a construct closes and reopens it', () => {
+test.describe('live mode: Enter inside a construct closes and reopens it', () => {
 	let ep: EditorPage;
 
 	test.beforeEach(async ({ page }) => {
@@ -123,7 +123,7 @@ test.describe('live mode — Enter inside a construct closes and reopens it', ()
 
 // The caret at a construct's content edge and the caret outside its delimiters are the same
 // pixel, so a cut at that edge is the one that could create a pair enclosing nothing.
-test.describe('live mode — a cut at a construct edge hands it over whole', () => {
+test.describe('live mode: a cut at a construct edge hands it over whole', () => {
 	test('at content end the construct stays whole above', async ({ page }) => {
 		const ep = await enterMode(page, 'live');
 		await clickWordSettled(ep, page, 'bold');
@@ -150,7 +150,7 @@ test.describe('live mode — a cut at a construct edge hands it over whole', () 
 // Whitespace at the end of a block paints nothing (a hard break with no line after it), so a cut
 // that would strand it drops it: keeping it makes the pair reload as a different shape, and a
 // byte-literal cut prints the delimiters the user never saw.
-test.describe('live mode — a cut that would strand terminal whitespace', () => {
+test.describe('live mode: a cut that would strand terminal whitespace', () => {
 	const TRAILING = ['~~foo~~  ', '', 'tail'].join('\n');
 
 	test('leaves no delimiter on screen, and the reload agrees', async ({ page }) => {
@@ -178,7 +178,7 @@ test.describe('live mode — a cut that would strand terminal whitespace', () =>
 // A construct with no children has no interior a cut can land in (live-mode.md § 4.4): two
 // halves of a URL are not two URLs, so the cut moves to the construct's nearer edge and one
 // half takes it whole, every byte intact.
-test.describe('live mode — a cut through a childless construct', () => {
+test.describe('live mode: a cut through a childless construct', () => {
 	test('takes the whole autolink into the half the caret was nearer', async ({ page }) => {
 		const ep = await enterPresentationMode(page, 'live', '<https://example.com> tail\n');
 		await clickWordSettled(ep, page, 'example');
@@ -195,7 +195,7 @@ test.describe('live mode — a cut through a childless construct', () => {
 // The split's inverse. Without cleanup at the join the closing and reopening runs end up back to
 // back, `Some **bo****ld** text`, gaining a pair on every repeat, and a split link comes back as
 // two anchors on one destination.
-test.describe('live mode — Enter then Backspace round-trips', () => {
+test.describe('live mode: Enter then Backspace round-trips', () => {
 	test('merging the halves back restores the original bytes', async ({ page }) => {
 		const ep = await enterMode(page, 'live');
 		await clickWordSettled(ep, page, 'bold');
@@ -227,7 +227,7 @@ test.describe('live mode — Enter then Backspace round-trips', () => {
 
 // The resolver runs inside the split call, so the split sees a reference form as the link the
 // render path drew rather than as a pair of brackets.
-test.describe('live mode — a reference form splits like any other link', () => {
+test.describe('live mode: a reference form splits like any other link', () => {
 	test('both halves carry the reference label', async ({ page }) => {
 		const ep = await enterMode(page, 'live');
 		await clickWordSettled(ep, page, 'refexample');
@@ -241,7 +241,7 @@ test.describe('live mode — a reference form splits like any other link', () =>
 });
 
 // Source paints every delimiter, so the byte the caret is against is the byte the user aimed at.
-test.describe('source mode — the same gesture stays byte-literal', () => {
+test.describe('source mode: the same gesture stays byte-literal', () => {
 	test('Enter inside a bold word splits the pair open', async ({ page }) => {
 		const ep = await enterMode(page, 'source');
 		await clickBlockSettled(ep, BOLD);

@@ -1,7 +1,7 @@
 import { test, expect } from '../../../../fixtures';
 import { EditorPage } from '../../../../editor-page';
 
-test.describe('task checkbox — accessibility', () => {
+test.describe('task checkbox: accessibility', () => {
 	let editor: EditorPage;
 
 	test.beforeEach(async ({ page }) => {

@@ -1,7 +1,7 @@
 import { test, expect } from '../../../../fixtures';
 import { EditorPage } from '../../../../editor-page';
 
-test.describe('list Enter — nested item promote (Shift+Tab semantics)', () => {
+test.describe('list Enter: nested item promote (Shift+Tab semantics)', () => {
 	let editor: EditorPage;
 	test.beforeEach(async ({ page }) => {
 		editor = new EditorPage(page);

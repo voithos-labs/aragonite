@@ -22,7 +22,7 @@ const DOC = [
 
 const togglePreviewInline = (page: Page) => page.getByTestId('preview-inline-toggle').click();
 
-test.describe('preview-inline — markers by caret proximity', () => {
+test.describe('preview-inline: markers by caret proximity', () => {
 	let ep: EditorPage;
 
 	test.beforeEach(async ({ page }) => {

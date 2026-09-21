@@ -107,7 +107,7 @@ test.describe('synthetic caret indicator at widget boundary', () => {
 		expect(await caretColorOfFocusedBlock(page)).toBe('rgba(0, 0, 0, 0)');
 	});
 
-	test('a press that seats in text keeps the native caret', async ({ page }) => {
+	test('a press that puts the caret in text keeps the native caret', async ({ page }) => {
 		await editor.loadContent('- ![pic|300x200](/test-fixtures/sample.png) trailing words\n');
 		await waitForFirstImageLoaded(page);
 		const para = page

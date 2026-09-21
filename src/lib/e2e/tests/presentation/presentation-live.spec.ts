@@ -42,7 +42,7 @@ const AMBIENT_MARKER = ".md-marker[contenteditable='false']";
 
 const enterLive = (page: Page) => enterPresentationMode(page, 'live', DOC);
 
-test.describe('live mode — markers never reveal', () => {
+test.describe('live mode: markers never reveal', () => {
 	let ep: EditorPage;
 
 	test.beforeEach(async ({ page }) => {
@@ -123,7 +123,7 @@ test.describe('live mode — markers never reveal', () => {
 	});
 });
 
-test.describe('live mode — the surface stays editable', () => {
+test.describe('live mode: the surface stays editable', () => {
 	let ep: EditorPage;
 
 	test.beforeEach(async ({ page }) => {
@@ -169,7 +169,7 @@ test.describe('live mode — the surface stays editable', () => {
 
 // The bridge is the third way into live mode (the query param and the toggle are covered above),
 // and the only one that reaches the plugin harness where directive containers render.
-test.describe('live mode — plugin container chrome', () => {
+test.describe('live mode: plugin container chrome', () => {
 	test('directive fences hide and stay hidden with the caret in the body', async ({ page }) => {
 		const ep = new PluginsPage(page);
 		await ep.gotoPlugins();

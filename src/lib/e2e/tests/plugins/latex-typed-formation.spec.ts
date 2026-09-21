@@ -127,7 +127,9 @@ test.describe('block math: typed formation', () => {
 		expect(await editor.bridge.getBlockKind(0)).toBe('paragraph');
 	});
 
-	test('live mode mints the same block and lands the expression in its body', async ({ page }) => {
+	test('live mode creates the same block and lands the expression in its body', async ({
+		page
+	}) => {
 		await editor.loadContent('Before\n\n\n');
 		await editor.setPresentationMode('live');
 		await editor.waitForRenderFlush();

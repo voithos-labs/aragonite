@@ -22,7 +22,7 @@ const mermaidInViewport = (page: Page) =>
 		return !!host && host.bottom > ed.top && host.top < ed.bottom;
 	});
 
-test.describe('search — childless opaque container', () => {
+test.describe('search: childless opaque container', () => {
 	let editor: PluginsPage;
 	test.beforeEach(async ({ page }) => {
 		editor = new PluginsPage(page);

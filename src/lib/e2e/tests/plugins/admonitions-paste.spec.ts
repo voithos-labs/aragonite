@@ -8,7 +8,7 @@ import { PluginsPage, readDoc, roundTripStable } from './helpers';
  * (github-alert-paste-opt-in).
  */
 
-test.describe('plugin admonitions — native alert paste', () => {
+test.describe('plugin admonitions: native alert paste', () => {
 	let editor: PluginsPage;
 
 	test.beforeEach(async ({ page }) => {

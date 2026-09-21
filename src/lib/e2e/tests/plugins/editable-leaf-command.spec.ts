@@ -22,7 +22,7 @@ class MemoPage extends PluginsPage {
 	}
 }
 
-test.describe('minted block commands on the editable-leaf tier: the %% memo kind', () => {
+test.describe('plugin block commands on the editable-leaf level: the %% memo kind', () => {
 	let editor: MemoPage;
 
 	test.beforeEach(async ({ page }) => {
@@ -30,7 +30,7 @@ test.describe('minted block commands on the editable-leaf tier: the %% memo kind
 		await editor.gotoSeed();
 	});
 
-	test('a bound minted command fires on the leaf and commits through the metadata route', async ({
+	test('a bound plugin command fires on the leaf and commits through the metadata route', async ({
 		page
 	}) => {
 		await editor.memo.click();

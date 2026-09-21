@@ -1,7 +1,7 @@
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 
-test.describe('clipboard: silent drop — multi-item list paste over multi-item list selection', () => {
+test.describe('clipboard: silent drop; multi-item list paste over multi-item list selection', () => {
 	let editor: EditorPage;
 
 	test.beforeEach(async ({ page }) => {

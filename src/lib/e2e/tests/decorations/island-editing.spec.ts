@@ -85,7 +85,7 @@ async function cursorOffset(page: Page): Promise<number | null> {
 	return page.evaluate(() => (window as any).__test.getBlockCursorSurface([0]).cursorOffset);
 }
 
-test.describe('decoration island editing', () => {
+test.describe('decoration widget editing', () => {
 	let editor: EditorPage;
 
 	test.beforeEach(async ({ page }) => {
@@ -93,7 +93,7 @@ test.describe('decoration island editing', () => {
 		await editor.goto();
 	});
 
-	test('arrows step over a replace island to its far edge, never selecting it', async ({
+	test('arrows step over a replace decoration to its far edge, never selecting it', async ({
 		page
 	}) => {
 		await editor.loadContent('abHIDDENcd\n');
@@ -113,7 +113,7 @@ test.describe('decoration island editing', () => {
 	});
 
 	test.describe('the two-press delete', () => {
-		test('Backspace against a replace island selects it whole, then deletes it in one undo', async ({
+		test('Backspace against a replace decoration selects it whole, then deletes it in one undo', async ({
 			page
 		}) => {
 			await editor.loadContent('abHIDDENcd\n');
@@ -135,7 +135,7 @@ test.describe('decoration island editing', () => {
 			expect(await editor.bridge.getSource()).toBe('abHIDDENcd\n');
 		});
 
-		test('Delete against a replace island leading edge selects then deletes the hidden range', async ({
+		test('Delete against a replace decoration leading edge selects then deletes the hidden range', async ({
 			page
 		}) => {
 			await editor.loadContent('abHIDDENcd\n');
@@ -152,7 +152,7 @@ test.describe('decoration island editing', () => {
 			expect(await editor.bridge.getSource()).toBe('abcd\n');
 		});
 
-		test('the two-press delete works on a heading island whose offsets include the marker', async ({
+		test('the two-press delete works on a heading widget whose offsets include the marker', async ({
 			page
 		}) => {
 			await editor.loadContent('## abHIDDEN\n');
@@ -187,7 +187,7 @@ test.describe('decoration island editing', () => {
 		});
 	});
 
-	test('a widget island is transparent to Backspace, deleting the adjacent real byte', async ({
+	test('a widget decoration is transparent to Backspace, deleting the adjacent real byte', async ({
 		page
 	}) => {
 		await editor.loadContent('hello\n');
@@ -200,7 +200,7 @@ test.describe('decoration island editing', () => {
 		expect(await editor.bridge.getSource()).toBe('helo\n');
 	});
 
-	test('a widget island at a block start lets Backspace fall through to block merge', async ({
+	test('a widget decoration at a block start lets Backspace fall through to block merge', async ({
 		page
 	}) => {
 		// The widget stands in for no bytes at offset 0, so there is no real byte beside it:
@@ -216,7 +216,9 @@ test.describe('decoration island editing', () => {
 		expect(await editor.bridge.getSource()).toBe('alphabeta\n');
 	});
 
-	test('typing at a widget island boundary inserts into raw at its offset', async ({ page }) => {
+	test('typing at a widget decoration boundary inserts into raw at its offset', async ({
+		page
+	}) => {
 		await editor.loadContent('hello\n');
 		await addWidgetIsland(page, [0], 3);
 		await expect(page.locator(ISLAND)).toHaveCount(1);
@@ -227,7 +229,7 @@ test.describe('decoration island editing', () => {
 		expect(await editor.bridge.getSource()).toBe('helzlo\n');
 	});
 
-	test('copy over a range spanning a widget island yields the byte-identical raw slice', async ({
+	test('copy over a range spanning a widget decoration yields the byte-identical raw slice', async ({
 		page
 	}) => {
 		await editor.loadContent('hello\n');

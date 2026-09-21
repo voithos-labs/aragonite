@@ -16,7 +16,7 @@ const paintedBoxes = (page: Page): Promise<Array<{ width: string; height: string
 // square reads shorter than wide. At scale 1 it looks fine, so this project runs at the scale
 // that shows it. What is pinned is the mechanism: no transform, and a whole-pixel size that
 // snaps the same way on both axes.
-test.describe('task checkbox — painted box geometry', () => {
+test.describe('task checkbox: painted box geometry', () => {
 	test.use({ deviceScaleFactor: 1.5 });
 
 	let editor: EditorPage;

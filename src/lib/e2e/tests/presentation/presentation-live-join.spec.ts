@@ -32,7 +32,7 @@ async function selectBoldIntoItalic(ep: EditorPage, page: Page): Promise<void> {
 	await extendTo(ep, page, 'ArrowRight', [MIXED], 21);
 }
 
-test.describe('live mode — a selection out of one construct and into another', () => {
+test.describe('live mode: a selection out of one construct and into another', () => {
 	test('Backspace joins the text and takes both stranded runs with it', async ({ page }) => {
 		const ep = await enterMode(page, 'live');
 		await selectBoldIntoItalic(ep, page);
@@ -56,7 +56,7 @@ test.describe('live mode — a selection out of one construct and into another',
 		expect(await ep.readClipboard()).toBe('ld** and *it');
 	});
 
-	test('typing over the selection lands the character at the cleaned seam', async ({ page }) => {
+	test('typing over the selection lands the character at the cleaned join', async ({ page }) => {
 		const ep = await enterMode(page, 'live');
 		await selectBoldIntoItalic(ep, page);
 
@@ -76,7 +76,7 @@ test.describe('live mode — a selection out of one construct and into another',
 	});
 });
 
-test.describe('live mode — the join across a block boundary', () => {
+test.describe('live mode: the join across a block boundary', () => {
 	/**
 	 * From inside the bold of one paragraph to the start of the next. Once the selection crosses a
 	 * block boundary it extends whole blocks at a time, so the far endpoint is a block start rather
@@ -99,7 +99,7 @@ test.describe('live mode — the join across a block boundary', () => {
 
 	// A paste landing exactly where the cleanup dropped runs: the cleanup happens in the delete
 	// half, and the re-parse after the insert fixes up the rest.
-	test('a paste at the cleaned seam lands its text there', async ({ page }) => {
+	test('a paste at the cleaned join lands its text there', async ({ page }) => {
 		const ep = await enterMode(page, 'live');
 		await selectAcrossBlocks(ep, page);
 
@@ -110,7 +110,7 @@ test.describe('live mode — the join across a block boundary', () => {
 	});
 });
 
-test.describe('live mode — seams with nothing to clean', () => {
+test.describe('live mode: joins with nothing to clean', () => {
 	test('a selection over plain text deletes exactly what it covered', async ({ page }) => {
 		const ep = await enterMode(page, 'live');
 		await clickWordSettled(ep, page, 'plain');
@@ -137,7 +137,7 @@ test.describe('live mode — seams with nothing to clean', () => {
 });
 
 // Source paints every delimiter, so the byte the selection covered is the byte the user aimed at.
-test.describe('source mode — the same gesture stays byte-literal', () => {
+test.describe('source mode: the same gesture stays byte-literal', () => {
 	test('the stranded runs survive the delete', async ({ page }) => {
 		const ep = await enterMode(page, 'source');
 		await clickWordSettled(ep, page, 'Some');

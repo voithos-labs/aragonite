@@ -27,7 +27,7 @@ test.describe('BlockHost no-component fallback', () => {
 		await expect(block).toHaveClass(/raw-block/);
 	});
 
-	test('the orphan node still serializes — no silent display-drop', async ({ page }) => {
+	test('the orphan node still serializes: no silent display-drop', async ({ page }) => {
 		await editor.loadContent('orphan text\n');
 
 		await page.evaluate(() => (window as any).__test.makeBlockOrphan(0));

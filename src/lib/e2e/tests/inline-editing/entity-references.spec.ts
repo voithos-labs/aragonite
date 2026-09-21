@@ -5,7 +5,7 @@ import { EditorPage } from '../../editor-page';
 // (`requirements/inline-editing/entity-references.md`). How the caret and Delete treat the
 // resulting widget is a separate concern, pinned in `entity-widget.spec.ts`.
 
-test.describe('inline editing — entity references', () => {
+test.describe('inline editing: entity references', () => {
 	let editor: EditorPage;
 
 	test.beforeEach(async ({ page }) => {

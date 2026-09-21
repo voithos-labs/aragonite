@@ -25,7 +25,7 @@ async function dragInside(editor: EditorPage, selector: string): Promise<void> {
 	await editor.waitForCrossBlock(true);
 }
 
-test.describe('a whole-unit range — thematic break', () => {
+test.describe('a whole-unit range: thematic break', () => {
 	let editor: EditorPage;
 
 	test.beforeEach(async ({ page }) => {
@@ -78,7 +78,7 @@ test.describe('a whole-unit range — thematic break', () => {
 	});
 });
 
-test.describe('a whole-unit range — block math', () => {
+test.describe('a whole-unit range: block math', () => {
 	test('a cut writes the equation to the clipboard and takes it out', async ({ page }) => {
 		const editor = new PluginsPage(page);
 		await editor.gotoPlugins('mathblock');

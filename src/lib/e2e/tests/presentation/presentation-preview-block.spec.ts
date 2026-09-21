@@ -24,7 +24,7 @@ async function togglePreview(page: Page): Promise<void> {
 	await page.getByTestId('preview-block-toggle').click();
 }
 
-test.describe('preview-block — markers by focus', () => {
+test.describe('preview-block: markers by focus', () => {
 	let ep: EditorPage;
 
 	test.beforeEach(async ({ page }) => {
@@ -59,7 +59,7 @@ test.describe('preview-block — markers by focus', () => {
 		await expect(paraMarker).toBeHidden();
 	});
 
-	test('markers are hidden, never omitted — the byte stays in the DOM', async () => {
+	test('markers are hidden, never omitted: the byte stays in the DOM', async () => {
 		expect(await ep.getBlockText(0)).toBe('# Heading one');
 		expect(await ep.getBlockText(1)).toBe('alpha **beta** gamma');
 	});
@@ -98,7 +98,7 @@ test.describe('preview-block — markers by focus', () => {
 	});
 });
 
-test.describe('preview-block — caret + traversal', () => {
+test.describe('preview-block: caret + traversal', () => {
 	let ep: EditorPage;
 
 	test.beforeEach(async ({ page }) => {

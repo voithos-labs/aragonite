@@ -16,7 +16,7 @@ async function pressDeleteAtCloser(editor: EditorPage, path: number[]) {
 	await editor.pressDeclined('Delete');
 }
 
-test.describe('code block — forward-Delete at closer exit', () => {
+test.describe('code block: forward-Delete at closer exit', () => {
 	let editor: EditorPage;
 
 	test.beforeEach(async ({ page }) => {

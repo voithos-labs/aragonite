@@ -142,7 +142,7 @@ test.describe('plugin container: reveal expands a collapsed <details>', () => {
 		expect(await capturedErrors(page)).toEqual([]);
 	});
 
-	test('reading mode does not expand — the reveal degrades as it did before the door', async ({
+	test('reading mode does not expand: the reveal degrades as it did before the entry point', async ({
 		page
 	}) => {
 		await editor.setPresentationMode('reading');

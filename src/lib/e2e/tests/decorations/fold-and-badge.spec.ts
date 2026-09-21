@@ -21,20 +21,20 @@ test.describe('fold fixture', () => {
 		await editor.gotoPlugins('fold');
 	});
 
-	test('the delimited range folds to one … island and never leaves getSource', async ({ page }) => {
+	test('the delimited range folds to one … widget and never leaves getSource', async ({ page }) => {
 		await expect(page.locator(`${ISLAND} .fold-ellipsis`)).toHaveText('…');
 		await expect(editor.getBlock(0)).not.toContainText('HIDDEN SECRET');
 		expect(await editor.bridge.getSource()).toBe(FOLD_SEED);
 	});
 
-	test('clicking the … island opens the fold; the source is untouched', async ({ page }) => {
+	test('clicking the … widget opens the fold; the source is untouched', async ({ page }) => {
 		await page.locator(`${ISLAND} .fold-ellipsis`).click();
 		await expect(page.locator(ISLAND)).toHaveCount(0);
 		await expect(editor.getBlock(0)).toContainText('abc [>HIDDEN SECRET<] def');
 		expect(await editor.bridge.getSource()).toBe(FOLD_SEED);
 	});
 
-	test('typing beside the folded range commits around the island', async ({ page }) => {
+	test('typing beside the folded range commits around the widget', async ({ page }) => {
 		await expect(page.locator(ISLAND)).toHaveCount(1);
 		await editor.focusBlockEnd(0);
 		await editor.typeSlowly('!');
@@ -43,10 +43,10 @@ test.describe('fold fixture', () => {
 	});
 });
 
-test.describe('fold fixture: islands in table cells', () => {
+test.describe('fold fixture: widgets in table cells', () => {
 	// "Never dev-warns" comes from the shared fixture: it fails at teardown on any undeclared
 	// `[aragonite:decorations]` warning, and a cell refusing the decoration would print one.
-	test('a fold range in a cell renders one … island, never dev-warns, and stays byte-safe', async ({
+	test('a fold range in a cell renders one … widget, never dev-warns, and stays byte-safe', async ({
 		page
 	}) => {
 		const editor = new PluginsPage(page);
@@ -61,7 +61,7 @@ test.describe('fold fixture: islands in table cells', () => {
 	});
 
 	test.describe('after the covered range is gone', () => {
-		test('an edge press selects the cell fold island whole, then deletes its hidden range', async ({
+		test('an edge press selects the cell fold widget whole, then deletes its hidden range', async ({
 			page
 		}) => {
 			const editor = new PluginsPage(page);

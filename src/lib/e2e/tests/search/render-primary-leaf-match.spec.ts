@@ -30,7 +30,7 @@ async function expectFoundAndPainted(page: Page, kind: string): Promise<void> {
 	expect(box!.height).toBeGreaterThan(0);
 }
 
-test.describe('search — folded render-primary leaf widget', () => {
+test.describe('search: folded render-primary leaf widget', () => {
 	let editor: PluginsPage;
 	test.beforeEach(async ({ page }) => {
 		editor = new PluginsPage(page);

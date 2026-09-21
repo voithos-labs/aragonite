@@ -10,7 +10,7 @@ import { MathRevealPage } from './latex-reveal-helpers';
 
 const LONG_FORMULA = 'Before $alpha+beta$ after\n\nNext\n';
 
-test.describe('inline math: a click seats the caret where it landed', () => {
+test.describe('inline math: a click puts the caret where it landed', () => {
 	let editor: MathRevealPage;
 
 	test.beforeEach(async ({ page }) => {
@@ -54,7 +54,7 @@ test.describe('inline math: a click seats the caret where it landed', () => {
 		});
 	}
 
-	test('a press further along the formula seats a later offset', async ({ page }) => {
+	test('a press further along the formula puts the caret at a later offset', async ({ page }) => {
 		await editor.loadContent(LONG_FORMULA);
 		await expect(editor.mathWidget).toHaveCount(1);
 

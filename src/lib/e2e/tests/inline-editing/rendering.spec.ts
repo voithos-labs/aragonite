@@ -10,7 +10,7 @@ A line with a [link](https://example.com) present.
 Plain paragraph for editing.
 `;
 
-test.describe('inline editing — rendering', () => {
+test.describe('inline editing, rendering', () => {
 	let editor: EditorPage;
 
 	test.beforeEach(async ({ page }) => {

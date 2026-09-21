@@ -1,7 +1,7 @@
 import { test, expect } from '../../../fixtures';
 import { EditorPage } from '../../../editor-page';
 
-test.describe('code block keyboard — beyond parity', () => {
+test.describe('code block keyboard: beyond parity', () => {
 	let editor: EditorPage;
 
 	test.beforeEach(async ({ page }) => {

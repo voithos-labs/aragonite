@@ -32,14 +32,14 @@ async function selectBravo(ep: EditorPage, page: Page): Promise<void> {
 	await selectRight(ep, page, 5);
 }
 
-test.describe('live-mode link card — the create half of Mod+K', () => {
+test.describe('live-mode link card: the create half of Mod+K', () => {
 	let ep: EditorPage;
 
 	test.beforeEach(async ({ page }) => {
 		ep = await enterPresentationMode(page, 'live', DOC);
 	});
 
-	test('the chord over a selected word opens an empty card; Enter mints ONE undo entry', async ({
+	test('the chord over a selected word opens an empty card; Enter creates one undo entry', async ({
 		page
 	}) => {
 		await selectBravo(ep, page);

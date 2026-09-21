@@ -40,7 +40,7 @@ const LEAD = 4;
 
 const enterLive = (page: Page) => enterPresentationMode(page, 'live', DOC);
 
-test.describe('live mode — a symmetric pair extends by arrival', () => {
+test.describe('live mode: a symmetric pair extends by arrival', () => {
 	let ep: EditorPage;
 
 	test.beforeEach(async ({ page }) => {
@@ -125,7 +125,7 @@ test.describe('live mode — a symmetric pair extends by arrival', () => {
 
 // Bold's cases all run over a two-asterisk run. These two say the rule reads the kind's own row
 // and not that run's shape: `~~` is a different two bytes, and a code span's backtick is one.
-test.describe('live mode — the other symmetric pairs seat the same way', () => {
+test.describe('live mode: the other symmetric pairs caret position the same way', () => {
 	let ep: EditorPage;
 
 	test.beforeEach(async ({ page }) => {
@@ -148,7 +148,7 @@ test.describe('live mode — the other symmetric pairs seat the same way', () =>
 	}
 });
 
-test.describe('live mode — a never-extend construct ignores the arrival', () => {
+test.describe('live mode: a never-extend construct ignores the arrival', () => {
 	let ep: EditorPage;
 
 	test.beforeEach(async ({ page }) => {
@@ -157,7 +157,7 @@ test.describe('live mode — a never-extend construct ignores the arrival', () =
 
 	// `A [link](https://example.com) tail`: the link is [2,29), `link` [3,7). Both arrivals
 	// that would extend a symmetric pair put the byte past the closing `)`.
-	test('a link’s trailing content edge never extends, whichever arrival seated the caret', async ({
+	test('a link’s trailing content edge never extends, whichever arrival placed the caret', async ({
 		page
 	}) => {
 		await clickWordSettled(ep, page, 'link');
@@ -182,7 +182,7 @@ test.describe('live mode — a never-extend construct ignores the arrival', () =
 	});
 });
 
-test.describe('live mode — unstamped marker runs are never typed into', () => {
+test.describe('live mode: unstamped marker runs are never typed into', () => {
 	let ep: EditorPage;
 
 	test.beforeEach(async ({ page }) => {
@@ -235,7 +235,7 @@ const AUTOLINK_LEAD = 1;
 const AUTOLINK_TAIL = 2;
 const BOLD_LEAD = 3;
 
-test.describe('live mode — a childless construct is all delimiters', () => {
+test.describe('live mode: a childless construct is all delimiters', () => {
 	let ep: EditorPage;
 
 	test.beforeEach(async ({ page }) => {
@@ -293,7 +293,7 @@ test.describe('live mode — a childless construct is all delimiters', () => {
 
 // The IME half of the same rule: `insertCompositionText` is not cancelable, so the composed run
 // is moved on the commit that compositionend drives: one commit, one undo entry.
-test.describe('live mode — an IME commit takes the same seat as a keystroke', () => {
+test.describe('live mode: an IME commit takes the same caret position as a keystroke', () => {
 	let ep: EditorPage;
 
 	test.beforeEach(async ({ page }) => {

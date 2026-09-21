@@ -13,7 +13,7 @@ function focusedBlockPath(editor: EditorPage): Promise<string | null> {
 	);
 }
 
-test.describe('whole-block focus — the block is one tab stop', () => {
+test.describe('whole-block focus: the block is one tab stop', () => {
 	let editor: EditorPage;
 
 	test.beforeEach(async ({ page }) => {

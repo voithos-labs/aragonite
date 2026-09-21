@@ -15,7 +15,7 @@ function windowedDocWithTransparentTail(): string {
 	return `${text}\n\n![pic](/test-fixtures/sample.png)\n`;
 }
 
-test.describe('selection — keyboard: vertical-skip parity (G1)', () => {
+test.describe('selection: keyboard: vertical-skip parity (G1)', () => {
 	let editor: EditorPage;
 
 	test.beforeEach(async ({ page }) => {
@@ -107,7 +107,7 @@ test.describe('selection — keyboard: vertical-skip parity (G1)', () => {
 		expect(sel!.focus.path).toEqual([1]);
 	});
 
-	test('Ctrl+Shift+End skips an OFF-window transparent last block in a windowed doc (VR-6)', async ({
+	test('Ctrl+Shift+End skips an off-window transparent last block in a windowed doc (VR-6)', async ({
 		page
 	}) => {
 		await editor.loadContent(windowedDocWithTransparentTail());

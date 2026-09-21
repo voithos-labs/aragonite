@@ -1,7 +1,7 @@
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 
-test.describe('selection — overlay: happy paths', () => {
+test.describe('selection: overlay: happy paths', () => {
 	let editor: EditorPage;
 
 	test.beforeEach(async ({ page }) => {
@@ -42,7 +42,7 @@ test.describe('selection — overlay: happy paths', () => {
 	});
 });
 
-test.describe('selection — overlay: edge cases', () => {
+test.describe('selection: overlay: edge cases', () => {
 	let editor: EditorPage;
 
 	test.beforeEach(async ({ page }) => {

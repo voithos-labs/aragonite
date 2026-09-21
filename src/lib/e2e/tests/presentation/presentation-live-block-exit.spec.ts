@@ -42,7 +42,7 @@ async function clickCell(ep: EditorPage, page: Page, text: string): Promise<void
 	await expect.poll(() => focusOffset(ep), { timeout: 5000 }).toBeGreaterThanOrEqual(0);
 }
 
-test.describe('live mode — a horizontal exit fires at the landable bound', () => {
+test.describe('live mode: a horizontal exit fires at the reachable bound', () => {
 	let ep: EditorPage;
 
 	test.beforeEach(async ({ page }) => {
@@ -50,7 +50,7 @@ test.describe('live mode — a horizontal exit fires at the landable bound', () 
 	});
 
 	// `**Lead** in`: the opening `**` is unpainted, so raw 0 is a position no key produces.
-	test('a paragraph opening with a hidden run exits leftward from its landable start', async ({
+	test('a paragraph opening with a hidden run exits leftward from its first reachable offset', async ({
 		page
 	}) => {
 		await clickBlockSettled(ep, BOLD_LEAD);
@@ -86,7 +86,7 @@ test.describe('live mode — a horizontal exit fires at the landable bound', () 
 		expect(await focusPath(ep)).toEqual([CODE]);
 	});
 
-	test('extending leftward from a landable start reaches the previous block', async ({ page }) => {
+	test('extending leftward from a reachable start reaches the previous block', async ({ page }) => {
 		await clickBlockSettled(ep, BOLD_LEAD);
 		await press(ep, page, 'Home');
 		await page.keyboard.press('Shift+ArrowLeft');
@@ -104,7 +104,7 @@ test.describe('live mode — a horizontal exit fires at the landable bound', () 
 	});
 });
 
-test.describe('live mode — a table cell hops at ITS landable bound', () => {
+test.describe('live mode: a table cell hops at its reachable bound', () => {
 	let ep: EditorPage;
 
 	test.beforeEach(async ({ page }) => {
@@ -135,7 +135,7 @@ test.describe('live mode — a table cell hops at ITS landable bound', () => {
 // The cell's bounds do not check the mode on purpose: they follow what the screen shows. In
 // preview-inline a ref label is hidden until the caret comes near it, so the same hop fires
 // there; the key that would otherwise do nothing was never live-only.
-test.describe('preview-inline — a cell hops at whatever is hidden right now', () => {
+test.describe('preview-inline: a cell hops at whatever is hidden right now', () => {
 	test('a cell ending in an unrevealed ref label hops to the next cell', async ({ page }) => {
 		const ep = await enterPresentationMode(page, 'preview-inline', DOC);
 		await clickCell(ep, page, 'text');
@@ -147,7 +147,7 @@ test.describe('preview-inline — a cell hops at whatever is hidden right now', 
 	});
 });
 
-test.describe('source mode — every marker is painted, so nothing moves in', () => {
+test.describe('source mode: every marker is painted, so nothing moves in', () => {
 	test('the same presses step inside the block', async ({ page }) => {
 		const ep = await enterPresentationMode(page, 'source', DOC);
 		await clickBlockSettled(ep, BOLD_LEAD);

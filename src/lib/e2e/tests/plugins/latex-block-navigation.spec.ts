@@ -32,7 +32,7 @@ for (const mode of ['live', 'source'] as const) {
 			await editor.setPresentationMode(mode);
 		});
 
-		test('ArrowRight from above reveals at the first landable byte, and ArrowLeft leaves', async ({
+		test('ArrowRight from above reveals at the first reachable byte, and ArrowLeft leaves', async ({
 			page
 		}) => {
 			await editor.getBlock(0).click();
@@ -46,7 +46,7 @@ for (const mode of ['live', 'source'] as const) {
 			expect(await editor.landedIn()).toBe(0);
 		});
 
-		test('ArrowLeft from below reveals at the last landable byte, and ArrowRight leaves', async ({
+		test('ArrowLeft from below reveals at the last reachable byte, and ArrowRight leaves', async ({
 			page
 		}) => {
 			await editor.getBlock(2).click();
@@ -64,7 +64,7 @@ for (const mode of ['live', 'source'] as const) {
 
 // Live only: source mode paints the fence lines, and entering from above by column lands on the
 // second line there rather than on the `$$` line, which is a question about columns, not this one.
-test.describe('block math navigation (live) — the vertical walk', () => {
+test.describe('block math navigation (live): the vertical walk', () => {
 	let editor: MathNavPage;
 
 	test.beforeEach(async ({ page }) => {
@@ -99,7 +99,7 @@ test.describe('block math navigation (live) — the vertical walk', () => {
 	});
 });
 
-test.describe('block math navigation (live) — an empty block', () => {
+test.describe('block math navigation (live): an empty block', () => {
 	let editor: MathNavPage;
 
 	test.beforeEach(async ({ page }) => {

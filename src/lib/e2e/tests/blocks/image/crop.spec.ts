@@ -137,7 +137,7 @@ test.describe('image crop', () => {
 	// The resize preview follows the frame, not the `<img>`: for a crop the `<img>` is the picture
 	// panned inside the frame, so previewing on it bulges out of the frame mid-drag, and above
 	// zoom 1 the drag starts from the painted picture's width and jumps.
-	test('the grip previews on the frame while resizing a cropped image', async ({ page }) => {
+	test('the drag handle previews on the frame while resizing a cropped image', async ({ page }) => {
 		await editor.loadContent('![cat|300x150@30,60,2](/test-fixtures/sample.png)\n');
 		await waitForFirstImageLoaded(page);
 		const widget = page.locator('[data-image-widget]').first();

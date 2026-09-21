@@ -19,7 +19,7 @@ const FIXTURE = `ready\n\n${'a'.repeat(32)}!\n`;
 // exec costs, so the gap this asserts is an order of magnitude, not a margin.
 const MAIN_THREAD_BUDGET_MS = 8000;
 
-test.describe('search — a pathological regex query', () => {
+test.describe('search: a pathological regex query', () => {
 	let editor: EditorPage;
 
 	test.beforeEach(async ({ page }) => {

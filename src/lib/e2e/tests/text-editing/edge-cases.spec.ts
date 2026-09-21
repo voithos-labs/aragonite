@@ -2,7 +2,7 @@ import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 import { wholeBlockInput } from '../../whole-block-input';
 
-test.describe('text editing — edge cases', () => {
+test.describe('text editing: edge cases', () => {
 	let editor: EditorPage;
 
 	test.beforeEach(async ({ page }) => {
@@ -17,7 +17,7 @@ test.describe('text editing — edge cases', () => {
 		// The empty heading the caret leaves demotes on blur: a rule of its own, not a merge.
 		['prose above a prose-absorber', 'lorem\n\n# \n', 5, 'lorem\n\n\n']
 	] as const) {
-		test(`Backspace at a heading's start under ${label} — no merge, caret lands at its end`, async () => {
+		test(`Backspace at a heading's start under ${label}: no merge, caret lands at its end`, async () => {
 			await editor.loadContent(doc);
 			const countBefore = await editor.bridge.getBlockCount();
 
@@ -54,7 +54,7 @@ test.describe('text editing — edge cases', () => {
 		expect(await editor.bridge.getBlockCount()).toBeLessThan(countBefore);
 	});
 
-	test('Enter at end of heading — heading unchanged, new empty paragraph', async () => {
+	test('Enter at end of heading, heading unchanged, new empty paragraph', async () => {
 		await editor.loadContent('# Heading\n');
 		await editor.focusBlockEnd(0);
 		await editor.page.keyboard.press('Enter');

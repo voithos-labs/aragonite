@@ -29,7 +29,7 @@ function reachesBothEnds(
 	}, tail);
 }
 
-test.describe('multi-click: the block rung beside inline widgets', () => {
+test.describe('multi-click: the block inline syntax handler beside inline widgets', () => {
 	let editor: PluginsPage;
 
 	test.beforeEach(async ({ page }) => {

@@ -37,7 +37,7 @@ test.describe('directive-ops simulation', () => {
 		await editor.gotoPlugins('sim');
 	});
 
-	test('insert / edit / reveal / structural ops across container, leaf, and text tiers stay corruption-free', async ({
+	test('insert / edit / reveal / structural ops across container, leaf, and text levels stay corruption-free', async ({
 		page
 	}) => {
 		const errors = attachErrorCollector(page);

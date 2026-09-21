@@ -5,7 +5,7 @@ import { roundTripStable } from '../../plugins/helpers';
 // A splice inside the opener renders a fence that is not in the bytes; one inside the closer
 // breaks the fence outright. Requirements: `enter-splice.md`.
 
-test.describe('code block — Enter on the opener fence line', () => {
+test.describe('code block: Enter on the opener fence line', () => {
 	let editor: EditorPage;
 
 	test.beforeEach(async ({ page }) => {
@@ -13,7 +13,7 @@ test.describe('code block — Enter on the opener fence line', () => {
 		await editor.goto();
 	});
 
-	test('Enter at raw offset 0 of a closed fence — opener intact, blank first body line', async () => {
+	test('Enter at raw offset 0 of a closed fence: opener intact, blank first body line', async () => {
 		await editor.loadContent('```js\nconst x = 1;\n```\n');
 		await editor.focusBlockStart(0);
 		await editor.page.keyboard.press('Enter');
@@ -40,7 +40,7 @@ test.describe('code block — Enter on the opener fence line', () => {
 		expect(await roundTripStable(editor.page)).toBe(true);
 	});
 
-	test('Enter at the end of the opener line keeps its behavior — caret on the new blank line', async ({
+	test('Enter at the end of the opener line keeps its behavior: caret on the new blank line', async ({
 		page
 	}) => {
 		await editor.loadContent('```js\nconst x = 1;\n```\n');
@@ -52,7 +52,7 @@ test.describe('code block — Enter on the opener fence line', () => {
 	});
 });
 
-test.describe('code block — Enter on the closer fence line', () => {
+test.describe('code block: Enter on the closer fence line', () => {
 	let editor: EditorPage;
 
 	// display "```js\nconst x = 1\n```": body ends at 17, closer text runs [18,21).
@@ -62,7 +62,7 @@ test.describe('code block — Enter on the closer fence line', () => {
 		await editor.loadContent('```js\nconst x = 1\n```\n');
 	});
 
-	test('Enter inside the closer text clamps to the body end — fence intact', async () => {
+	test('Enter inside the closer text clamps to the body end: fence intact', async () => {
 		await editor.focusBlock(0, 19);
 		await editor.page.keyboard.press('Enter');
 		await editor.bridge.waitForSourceEquals('```js\nconst x = 1\n\n```\n');

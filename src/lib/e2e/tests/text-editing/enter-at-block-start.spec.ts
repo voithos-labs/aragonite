@@ -6,7 +6,7 @@ import { EditorPage } from '../../editor-page';
 // tell a real split from an extra blank line, so the block count and the caret path are the
 // assertions that decide this.
 
-test.describe('text editing — Enter at block start', () => {
+test.describe('text editing: Enter at block start', () => {
 	let editor: EditorPage;
 
 	test.beforeEach(async ({ page }) => {
@@ -21,7 +21,7 @@ test.describe('text editing — Enter at block start', () => {
 	];
 
 	for (const { label, content, kind } of kinds) {
-		test(`Enter at offset 0 of a ${label} — empty block above, caret on the content`, async () => {
+		test(`Enter at offset 0 of a ${label}: empty block above, caret on the content`, async () => {
 			await editor.loadContent(content);
 			await editor.focusBlockStart(0);
 			await editor.page.keyboard.press('Enter');
@@ -39,7 +39,7 @@ test.describe('text editing — Enter at block start', () => {
 		});
 	}
 
-	test('real click + Home + Enter on a paragraph — typing lands at the head of the content', async () => {
+	test('real click + Home + Enter on a paragraph, typing lands at the head of the content', async () => {
 		await editor.loadContent('Content\n');
 		await editor.clickBlock(0);
 		await editor.page.keyboard.press('Home');
@@ -50,7 +50,7 @@ test.describe('text editing — Enter at block start', () => {
 		await editor.bridge.waitForSourceEquals('\nXContent\n');
 	});
 
-	test('Enter at offset 0 of a blockquote first child — empty block above at the same nesting level', async () => {
+	test('Enter at offset 0 of a blockquote first child: empty block above at the same nesting level', async () => {
 		await editor.loadContent('> quoted\n');
 		await editor.focusBlockAtPath([0, 0], 0);
 		await editor.page.keyboard.press('Enter');

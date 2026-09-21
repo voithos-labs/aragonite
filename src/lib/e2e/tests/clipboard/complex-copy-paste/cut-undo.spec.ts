@@ -2,7 +2,7 @@ import { test, expect } from '../../../fixtures';
 import { EditorPage } from '../../../editor-page';
 import { DEFAULT_CONTENT } from '../../../test-content';
 
-test.describe('clipboard — cut three blocks then undo', () => {
+test.describe('clipboard: cut three blocks then undo', () => {
 	let editor: EditorPage;
 
 	test.beforeEach(async ({ page }) => {

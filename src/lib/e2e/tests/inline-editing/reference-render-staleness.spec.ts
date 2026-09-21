@@ -6,7 +6,7 @@ const SOURCE = `See [click][go].
 [go]: https://old.com
 `;
 
-test.describe('inline editing — reference render staleness', () => {
+test.describe('inline editing: reference render staleness', () => {
 	let editor: EditorPage;
 
 	test.beforeEach(async ({ page }) => {

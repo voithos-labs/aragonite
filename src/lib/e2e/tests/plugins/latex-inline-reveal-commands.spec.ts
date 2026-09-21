@@ -138,7 +138,7 @@ test.describe('block commands against a revealed inline source', () => {
 // The commit happens in the block's command dispatch, which cannot know which widget kind opened.
 // These two cases prove it: the other two kinds declaring `revealSource: true`, footnote
 // references and inline directive text, take the same merge with no code of their own.
-test.describe('the fold seam is core, not latex-local', () => {
+test.describe('the fold boundary is core, not latex-local', () => {
 	/** Open the widget that is block 1's whole content by Backspacing at its trailing edge, delete
 	 *  its bytes one keypress at a time, then merge into block 0. */
 	async function emptyThenMerge(
