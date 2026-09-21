@@ -1,4 +1,4 @@
-# Feature: Table block — rendering
+# Feature: Table block, rendering
 
 ## Happy paths
 
@@ -16,7 +16,7 @@
 
 ## Structural invariants
 
-- The table grid containers (`.table-block`, `.table-row`) have no whitespace-only direct child text nodes. Such a node joins the raw-offset walk (cursor/widget-offset.ts counts every text node, including aria-hidden grip markup) and shifts a parked cross-block caret, so the grip markup's block boundaries must stay adjacent.
+- The table grid containers (`.table-block`, `.table-row`) have no whitespace-only direct child text nodes. Such a node joins the DOM-to-raw offset traversal (cursor/widget-offset.ts counts every text node, aria-hidden markup included) and shifts a cross-block caret left waiting between blocks, so those blocks' boundaries must stay adjacent.
 
 ## User interactions
 
@@ -25,4 +25,4 @@
 
 ## Error cases
 
-- N/A — the parser and serializer are tested in unit tests.
+- None: the parser and serializer are tested in unit tests.

@@ -1,16 +1,16 @@
-# Feature: Table block — clipboard in (paste)
+# Feature: Table block, clipboard in (paste)
 
 ## Happy paths (inline)
 
 - Paste plain text without `|` or `\n` into a cell: text appears at the caret.
 - Paste plain text containing `|`: pipes auto-escape to `\|` in the cell raw.
 - Paste plain text containing `\n`: newlines collapse to a single space; leading/trailing whitespace trimmed.
-- Paste a single-paragraph clipboard (no blank-line separators): same rules as plain text — single-paragraph clipboards take the inline path.
+- Paste a single-paragraph clipboard (no blank-line separators): same rules as plain text, since a single-paragraph clipboard takes the inline path.
 - Paste text a copy wrapped in blank lines: the blank blocks at either edge are packaging, so one content paragraph still takes the inline path and the table stays whole.
 
 ## Happy paths (grid)
 
-A grid is data for the cells, not a block to splice between them — the spreadsheet convention.
+A grid is data for the cells rather than a block to splice between them, which is the spreadsheet convention.
 
 - Paste a markdown table into a body cell: its cells fill the table from the caret's cell, row by
   row, and the table grows rows and columns as needed; the delimiter row is regenerated. One
@@ -26,12 +26,12 @@ A grid is data for the cells, not a block to splice between them — the spreads
 
 ## Edge cases
 
-- Paste at the header row (row 0): the paste-row goes to the first half — first half is the header-only table, pasted blocks follow, second half is the remaining body rows promoted.
+- Paste at the header row (row 0): the paste-row goes to the first half, so the first half is the header-only table, the pasted blocks follow, and the second half is the remaining body rows promoted.
 - Paste at the last row: second half is empty; pasted blocks are appended after the original (which becomes the first half in full).
 
 ## User interactions
 
-- A single Ctrl+Z undoes the entire paste — both inline and structural variants.
+- A single Ctrl+Z undoes the entire paste, both the inline and the structural variants.
 
 ## Multi-cell selection at paste
 
@@ -43,16 +43,16 @@ A grid is data for the cells, not a block to splice between them — the spreads
 
 ## Miss-analysis
 
-- Blank-line materialization turned a copy's whitespace-only edge lines into blocks, which moved
-  an ordinary cell paste onto the break-the-table route; the sweep that followed the rule picked
-  its e2e projects by the files it touched, so e2e-blocks never ran. Under it sat the real gap:
-  the cell-paste family unit-tested its hooks and never the classification that chooses between
-  them, so no unit run could see a cell target take the wrong route. Both now have pins
+- Moving blank lines onto the blocks turned a copy's whitespace-only edge lines into blocks, which
+  sent an ordinary cell paste down the route that breaks the table; the pass that made that change
+  picked its e2e projects by the files it touched, so e2e-blocks never ran. Under it sat the real
+  gap: the cell-paste family unit-tested its hooks and never the classification that chooses
+  between them, so no unit run could see a cell target take the wrong route. Both now have pins
   (`dispatch-strategy.test.ts`, `cell-paste-classification.test.ts`).
 
 ## Undo
 
 - One Ctrl+Z undoes a whole grid paste, however many rows and columns it added
-- Undo restores the RENDERED cells, not only the bytes: the cell writes land at depth two, so
-  the table's whole subtree (rows AND cells) is unshared before them, or the write goes through
+- Undo restores the rendered cells, not only the bytes: the cell writes land two levels down, so
+  the table's whole subtree (rows and cells) is copied before them, or the write goes through
   the undo snapshot and undo puts the pasted text back

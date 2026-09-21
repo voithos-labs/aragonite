@@ -1,9 +1,9 @@
-# Feature: Table block — cross-block whole-row selection snap
+# Feature: Table block, cross-block whole-row selection snap
 
-A table that is an ENDPOINT of a cross-block (different-block) selection snaps to
+A table that is an endpoint of a cross-block (different-block) selection snaps to
 whole rows, so the painted highlight, clipboard copy, and range delete all agree
-on the same cells (WYSIWYG: what is highlighted is what is copied and deleted).
-Intra-table (same-path) rectangular selection is unaffected.
+on the same cells: what is highlighted is what is copied and deleted. A rectangular
+selection inside one table (same path) is unaffected.
 
 ## Happy paths
 
@@ -13,5 +13,5 @@ Intra-table (same-path) rectangular selection is unaffected.
 
 ## User interactions
 
-- Real pointer drag drives the selection; the overlay is read from the painted
+- A real pointer drag makes the selection; the overlay is read from the painted
   `.selection-overlay` rects, not from internal state.

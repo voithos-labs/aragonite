@@ -1,4 +1,4 @@
-# Feature: Table block — pointer selection
+# Feature: Table block, pointer selection
 
 ## Happy paths
 
@@ -15,6 +15,6 @@
 
 ## Error cases
 
-- Ctrl+Shift+End from a body cell, then ArrowLeft (collapse-to-start) then type: the table body survives (no range-replace wipe) and the marker lands in the anchor cell. Regression for the cell dispatching cellKeydownPlan before cross-block.
-- Ctrl+Shift+End from a body cell, then ArrowDown (collapse-to-end) then type: the table body survives and the marker lands in the last cell. (ArrowDown is claimed unconditionally by the cell plan, so it wiped where ArrowRight lucked out.)
-- Repeated Ctrl+A presses in a cell (cell → document, a third press changing nothing) leave the whole document selected — the cross-block-first gate must not break the stepped select-all.
+- Ctrl+Shift+End from a body cell, then ArrowLeft (collapse-to-start) then type: the table body survives (no range-replace wipe) and the character lands in the anchor cell. A regression test for the cell dispatching cellKeydownPlan before cross-block.
+- Ctrl+Shift+End from a body cell, then ArrowDown (collapse-to-end) then type: the table body survives and the character lands in the last cell. (The cell plan takes ArrowDown whatever the state, so it wiped where ArrowRight got away with it.)
+- Repeated Ctrl+A presses in a cell (cell → document, a third press changing nothing) leave the whole document selected: putting cross-block first must not break the stepped select-all.

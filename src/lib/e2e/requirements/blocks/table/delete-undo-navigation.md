@@ -6,6 +6,6 @@
 
 ## Regression notes
 
-- The pre-fix bug: post-undo, the editor's top-level `blockRefs[tableIdx]` stayed `undefined` because the array was a Svelte 5 `$state` proxy and the BlockHost's publish from inside the post-undo reactive flush was reverted by the proxy's mutation guard. `moveFocus(tableIdx)` would silently no-op on the empty slot.
-- Fix: `blockRefs` is a plain array (no `$state`); `BlockList` publishes through owner-supplied slot accessors instead of `bind:blockRefs`. Reads are synchronous from `focus.ts` / `block-edit.ts` — no reactive subscriber needs the array.
-- Direct click on a cell after delete-undo always worked (DOM focus path), so this regression test specifically exercises the focus-dispatch path that depends on `blockRefs`.
+- The bug: after an undo, the editor's top-level `blockRefs[tableIdx]` stayed `undefined`, because the array was a Svelte 5 `$state` proxy and the write BlockHost made from inside the reactive flush after the undo was reverted by the proxy's mutation guard. `moveFocus(tableIdx)` then quietly did nothing on the empty position.
+- The fix: `blockRefs` is a plain array (no `$state`), and `BlockList` writes through accessors the owner supplies instead of `bind:blockRefs`. Reads are synchronous from `focus.ts` and `block-edit.ts`, and no reactive subscriber needs the array.
+- A direct click on a cell after delete-undo always worked (it goes through DOM focus), so this regression test drives the focus-dispatch path that depends on `blockRefs`.

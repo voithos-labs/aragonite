@@ -2,8 +2,8 @@
 
 Table cells declare `supportsInline`, so the inline-format keyboard shortcuts
 (Mod+B → strong, Mod+I → emphasis) must apply inside a cell exactly as they do
-in prose. They route through the cell's keymap + command dispatch; previously
-the cell had no binding and the chord fell through to a native no-op.
+in prose. They go through the cell's keymap and command dispatch; without a
+binding on the cell, the chord falls through to the browser, which does nothing.
 
 ## Happy paths
 

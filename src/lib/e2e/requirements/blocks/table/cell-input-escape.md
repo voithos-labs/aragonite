@@ -2,7 +2,7 @@
 
 A typed (or IME-composed) `|` inside a table cell must serialize as `\|`, the same
 bytes a paste writes. An unescaped pipe splits the row on the next reparse, shifting
-or dropping every cell after it — silent data loss on reload.
+or dropping every cell after it: silent data loss on reload.
 
 ## Happy paths
 
@@ -17,6 +17,6 @@ or dropping every cell after it — silent data loss on reload.
 ## Edge cases
 
 - Post-reload equivalence: re-parsing the serialized source after typing a pipe
-  yields the identical source (no cell shifted or dropped). This is the regression —
-  pre-fix the raw held a bare `|`, which reparses to an extra cell and truncates the
+  yields the identical source (no cell shifted or dropped). This is the regression:
+  the raw used to hold a bare `|`, which reparses to an extra cell and truncates the
   last cell away.
