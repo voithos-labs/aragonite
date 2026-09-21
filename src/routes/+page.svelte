@@ -2,8 +2,6 @@
 	import { DEMO_PLUGINS, DEMO_HIGHLIGHT_OCCURRENCES, DEMO_TAGS } from './demo-plugins';
 
 	// The prop is the enablement set, so the toggle is the plugin's presence in the array.
-	// The tour's bundled set plus in-body tags, which are a consumer's plugin rather than one of
-	// ours: the showcase is where a `#tag` can be felt out beside everything else.
 	const WITHOUT_OCCURRENCES = DEMO_PLUGINS.filter((unit) => unit !== DEMO_HIGHLIGHT_OCCURRENCES);
 </script>
 
@@ -41,6 +39,8 @@
 	let dragHandles = $state(true);
 	let occurrences = $state(false);
 	let selectionMenu = $state(true);
+	// In-body tags are a consumer's plugin, not one of ours: the showcase runs them beside the
+	// bundled tour so a `#tag` can be tried against everything else.
 	const showcasePlugins = $derived([
 		...(occurrences ? DEMO_PLUGINS : WITHOUT_OCCURRENCES),
 		DEMO_TAGS

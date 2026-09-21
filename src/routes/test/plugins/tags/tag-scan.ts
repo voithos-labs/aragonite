@@ -1,6 +1,6 @@
 /**
  * In-body `#tag` recognition, the shape limestone's own scanner has: a tag opens at a block's
- * start, after whitespace, or after `(` — never mid-word, so `C#` and a URL fragment stay text.
+ * start, after whitespace, or after `(`, never mid-word, so `C#` and a URL fragment stay text.
  * Pure and aragonite-free, so the rules are testable without an editor.
  */
 

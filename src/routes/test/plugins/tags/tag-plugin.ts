@@ -1,8 +1,8 @@
 /**
- * Dogfood for in-body tags, limestone's own integration reproduced here: a bare `#` trigger
- * mints a plugin inline kind whose widget paints the tag and whose source reveals for editing.
- * The registration is limestone's value for value (`revealSource`, `claimsActivationClick`), so
- * what this battery pins is what that app gets.
+ * In-body tags, limestone's own integration reproduced here: a bare `#` trigger declares a plugin
+ * inline kind whose widget paints the tag and whose source shows for editing. The registration
+ * matches limestone's value for value (`revealSource`, `claimsActivationClick`), so what these
+ * tests pin is what that app gets.
  */
 import {
 	definePlugin,
@@ -22,8 +22,8 @@ export function tagsPlugin(): EditorPlugin {
 		name: 'harness-tags',
 		setup() {
 			const tag = declarePluginInlineKind(BODY_TAG_KIND);
-			// `#` is no built-in's trigger, so the default plugin rung takes it with no prefix
-			// or priority of its own.
+			// No built-in claims `#`, so this registers at the default plugin priority with no
+			// prefix of its own.
 			registerInlineSyntax('#', (raw, pos, end): InlineNode | null => {
 				const span = recognizeTag(raw, pos, end);
 				return span ? { kind: tag, start: span.start, end: span.end, text: span.name } : null;

@@ -1,10 +1,9 @@
 /**
- * In-body tags the OTHER way: a mark decoration over ordinary text, not an atomic inline widget.
- * A tag's source IS its display, so a widget's reveal has nothing to uncover, while the island it
- * mints costs the caret that could otherwise walk through the tag. A mark paints over the text and
- * changes nothing else: the caret steps character by character, Backspace takes one byte, and
- * selection, copy and IME stay the browser's own. The decoration engine re-runs `provide` on every
- * document change, so the chip follows the bytes with no invalidation of its own.
+ * In-body tags the other way: a mark decoration over ordinary text, not an inline widget. A tag's
+ * source is its display, so nothing needs uncovering and the caret can walk straight through it:
+ * it steps character by character, Backspace takes one byte, and selection, copy and IME stay the
+ * browser's own. The decorations re-run on every document change, so the chip follows the bytes
+ * with no invalidation of its own.
  */ import { definePlugin } from '$lib/plugin';
 import type { DocumentView, EditorPlugin, MarkDecoration } from '$lib/plugin';
 import { forEachLeaf } from '../walk-views';

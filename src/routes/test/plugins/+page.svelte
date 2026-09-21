@@ -50,11 +50,10 @@
 		// The `![[…]]` rung mints a built-in `image`, so it would claim `!` for every
 		// sibling seed's prose once installed; scoped to its own.
 		'wiki-embed': [wikiEmbedPlugin],
-		// The bare `#` trigger claims every sibling seed's `#`-bearing prose once installed
-		// (a heading's own marker is a block opener, not inline, but `#tag` in prose is not);
-		// scoped to its own seed.
+		// The bare `#` trigger would claim every sibling seed's `#`-bearing prose once installed,
+		// so it is scoped to its own seed.
 		tags: [tagsPlugin()],
-		// The same tags as mark decorations over plain text: no island, no reveal.
+		// The same tags as mark decorations over plain text: no widget, no source to show.
 		'tags-marks': [tagMarksPlugin()],
 		// `%%parrot` is a narrowing of the base memo fixture's `%%`, and the bird animates on
 		// an interval; scoped to its own seed so neither reaches a sibling battery.

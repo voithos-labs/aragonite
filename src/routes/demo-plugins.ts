@@ -24,8 +24,8 @@ export const DEMO_LATEX = latexPlugin({ renderer: katexRenderer });
 export const DEMO_MERMAID = mermaidPlugin({ renderer: mermaidRenderer });
 export const DEMO_PARROT = parrotPlugin();
 // In-body `#tag` as mark decorations over ordinary text: the tag keeps every native gesture, and
-// nothing about it is an island. Deliberately OUTSIDE `DEMO_PLUGINS`, which is the bundled-plugin
-// tour; the showcase installs this on its own.
+// nothing about it is a widget. Kept out of `DEMO_PLUGINS`, which is the bundled-plugin tour;
+// the showcase installs this one on its own.
 export const DEMO_TAGS = tagMarksPlugin();
 
 export const DEMO_PLUGINS = [
