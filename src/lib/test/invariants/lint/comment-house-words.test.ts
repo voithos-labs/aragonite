@@ -106,7 +106,7 @@ const BASELINE: Record<string, number> = {
 	'src/lib/e2e/tests': 0,
 	'src/lib/e2e/tests/blocks': 47,
 	'src/lib/e2e/tests/capture': 0,
-	'src/lib/e2e/tests/clipboard': 19,
+	'src/lib/e2e/tests/clipboard': 0,
 	'src/lib/e2e/tests/decorations': 0,
 	'src/lib/e2e/tests/keyboard-navigation': 0,
 	'src/lib/e2e/tests/perf': 0,

@@ -1,5 +1,5 @@
-// One invariant — paste replacement — parametrized across the selection shapes that span
-// list items, which is why these stay in one file.
+// One rule, paste replacement, over the selection shapes that span list items, which is why
+// these stay in one file.
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 
@@ -107,9 +107,9 @@ test.describe('cross-block clipboard: paste into list selections', () => {
 		expect(source).toMatch(/\bone\b/);
 	});
 
-	// Regression: drag selection leaves the native selection empty, so Chromium
-	// dispatched paste to <body> instead of any block. Fixed by parking a
-	// collapsed caret in the focus block when entering cross-block.
+	// A drag selection leaves the native selection empty, so Chromium would dispatch paste at
+	// `<body>` instead of a block; entering cross-block puts a collapsed caret in the focus
+	// block to stop that.
 	test('drag selection across list items: paste single-block text lands', async () => {
 		await editor.loadContent('1. one\n2. two\n');
 		await editor.seedClipboard('text');

@@ -11,9 +11,9 @@ import {
 	setResponses
 } from './image-paste-harness';
 
-// The `onPasteImage` host hook where the paste lands inside one block: placement,
-// undo, the decline arms, and per-surface parity. Cross-block replacement lives in
-// image-paste-cross-block.spec.ts. See requirements/clipboard/image-paste.md.
+// The `onPasteImage` host hook where the paste lands inside one block: placement, undo, the
+// cases it declines, and the same behaviour on every editable element. Cross-block replacement
+// lives in `image-paste-cross-block.spec.ts`. See `requirements/clipboard/image-paste.md`.
 
 /** Caret between `A` and `B` of the first paragraph, placed by click + keys. */
 async function caretMidParagraph(editor: EditorPage, page: Page): Promise<void> {
@@ -60,8 +60,8 @@ test.describe('image paste: host hook installed', () => {
 		expect(await editor.bridge.getSource()).not.toContain('two.png');
 	});
 
-	// Every other paste route replaces the selection; this one is entry path N+1 and
-	// owes the same rule.
+	// Every other paste route replaces the selection, and this one is another way in that
+	// has to follow the same rule.
 	test('an image pasted over a selection replaces it', async ({ page }) => {
 		await editor.loadContent(PARAGRAPH);
 		await setResponses(page, [{ markdown: '![[shot.png]]' }]);
@@ -137,9 +137,9 @@ test.describe('image paste: host hook installed', () => {
 		expect(await getCalls(page)).toEqual([]);
 	});
 
-	// Surface parity: the arm is one seam, but each surface's insertion tail is its
-	// own (raw walker + escaping for the cell, `currentRange()` for code). A paragraph
-	// pass proves neither.
+	// One shared branch, but each editable element finishes the insertion its own way (a raw
+	// traversal plus escaping for a cell, `currentRange()` for code), so a passing paragraph
+	// case proves neither.
 	test('an image pasted into a table cell lands in that cell', async ({ page }) => {
 		await editor.loadContent('| A | B |\n| --- | --- |\n| 1 | 2 |\n');
 		await setResponses(page, [{ markdown: '![[cell.png]]' }]);

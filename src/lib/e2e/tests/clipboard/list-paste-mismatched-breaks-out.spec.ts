@@ -1,9 +1,9 @@
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 
-// A list whose ordered flag matches no ancestor must SPLIT the enclosing list at the caret
-// and splice between the halves — nesting it inside the target item leaves the trailing
-// slice at item-continuation indent.
+// A list whose ordered flag matches no ancestor must split the enclosing list at the caret
+// and splice between the halves: nesting it inside the target item leaves the trailing slice
+// at the item-continuation indent.
 test.describe('paste: mismatched-type list into list item breaks out', () => {
 	let editor: EditorPage;
 
@@ -26,9 +26,9 @@ test.describe('paste: mismatched-type list into list item breaks out', () => {
 		expect(src).toMatch(/^2\. Ordered second$/m);
 		expect(src).toMatch(/^3\. Ordered third$/m);
 		expect(src).toMatch(/^- three$/m);
-		// Buggy state placed the pasted ordered list at the 2-space item-indent.
+		// The pasted ordered list must not sit at the 2-space item indent.
 		expect(src).not.toMatch(/^ {2,}1\. Ordered first$/m);
-		// Buggy state also placed "three" at the 3-space continuation indent.
+		// And "three" must not sit at the 3-space continuation indent.
 		expect(src).not.toMatch(/^ {2,}three$/m);
 	});
 
@@ -64,9 +64,9 @@ test.describe('paste: mismatched-type list into list item breaks out', () => {
 		expect(src.indexOf('1. a')).toBeLessThan(src.indexOf('- Unordered'));
 	});
 
-	// Regression: clipboards without a trailing newline otherwise leave the
-	// last pasted item un-terminated, concatenating with the next block on
-	// serialization ("3. Ordered" + "- third" → "3. Ordered- third").
+	// A clipboard without a trailing newline must not leave the last pasted item unterminated:
+	// it would join the next block on serialization ("3. Ordered" + "- third" becomes
+	// "3. Ordered- third").
 	test('ordered list without trailing newline pastes cleanly into unordered item', async () => {
 		await editor.loadContent('- Unordered first\n- Unordered second\n- Unordered third\n');
 		await editor.seedClipboard('1. first\n2. Ordered second\n3. Ordered');
@@ -85,9 +85,9 @@ test.describe('paste: mismatched-type list into list item breaks out', () => {
 		await editor.loadContent('- Unordered three\n');
 		await editor.seedClipboard('1. Ordered first\n2. Ordered second\n3. Ordered third\n');
 
-		// Break out in the MIDDLE of the item, so the residue "three" becomes the
-		// trailing second-half list. The caret must land at the end of the last
-		// PASTED item, never on the residue.
+		// Break out in the middle of the item, so the residue "three" becomes the trailing
+		// second-half list. The caret must land at the end of the last pasted item, never
+		// on the residue.
 		await editor.focusBlockAtPath([0, 0, 0], 9);
 		await editor.paste();
 		await editor.bridge.waitForSourceMatches(/^- three$/m);
@@ -97,7 +97,7 @@ test.describe('paste: mismatched-type list into list item breaks out', () => {
 
 		const src = (await editor.bridge.getSource()).replace(/\r\n/g, '\n');
 		expect(src).toMatch(/^3\. Ordered thirdX$/m);
-		// The residue item is untouched — the caret never parked there.
+		// The residue item is untouched: the caret never went there.
 		expect(src).toMatch(/^- three$/m);
 		expect(src).not.toMatch(/threeX/);
 	});
@@ -114,10 +114,10 @@ test.describe('paste: mismatched-type list into list item breaks out', () => {
 		expect(src).toMatch(/^1\. First$/m);
 		expect(src).toMatch(/^- paste one$/m);
 		expect(src).toMatch(/^- paste two$/m);
-		// Continuous numbering across the paste gap: split slot burns one number,
-		// second half starts at 2. Matches the exit-paragraph convention.
+		// Continuous numbering across the paste gap: the split position uses one number, so
+		// the second half starts at 2. Same convention as the exit paragraph.
 		expect(src).toMatch(/^2\. target$/m);
-		// Buggy nesting would indent the unordered list.
+		// Nesting the paste would indent the unordered list.
 		expect(src).not.toMatch(/^ {2,}- paste one$/m);
 	});
 });

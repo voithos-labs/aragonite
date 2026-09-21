@@ -1,9 +1,9 @@
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 
-// editor.insertMarkdown() — the paste pipeline entered without a clipboard
-// (requirements/clipboard/insert-markdown-door.md). Each case asserts the outcome the same
-// bytes pasted at the same caret produce, since the door's whole contract is that parity.
+// `editor.insertMarkdown()`: the paste path entered without a clipboard
+// (`requirements/clipboard/insert-markdown-door.md`). Each case asserts the outcome the same
+// bytes pasted at the same caret produce, since that parity is the whole contract.
 
 const TABLE = '| a | b |\n| --- | --- |\n| 1 | 2 |\n';
 
@@ -66,9 +66,9 @@ test.describe('insertMarkdown — programmatic insertion', () => {
 		expect(source.match(/^- .*$/gm)).toEqual(['- alpha', '- x', '- y', '- beta']);
 	});
 
-	// The one-undo claim held against the STRUCTURAL strategy too, not just the cross-block
-	// replace: a splice that pushed the delete and the insert separately would leave a half-
-	// reverted document here, since one press has to restore the whole insertion.
+	// The one-undo rule holds for the structural strategy too, not just the cross-block
+	// replace: a splice that pushed the delete and the insert separately would leave a
+	// half-reverted document here, since one press has to restore the whole insertion.
 	test('a structural insertion is one undo entry', async () => {
 		await editor.loadContent('before\n\nafter\n');
 		const before = await editor.bridge.getSource();
@@ -98,9 +98,9 @@ test.describe('insertMarkdown — programmatic insertion', () => {
 		await editor.bridge.waitForSourceEquals(before);
 	});
 
-	// A widget-only paragraph seats no native selection, so the BROWSER dispatches its clipboard
-	// events at <body> — but the block still holds DOM focus, which is what the door resolves
-	// from, so it must reach the same widget-replace branch the paste tail takes.
+	// A widget-only paragraph holds no native selection, so the browser dispatches its clipboard
+	// events at `<body>`. The block still holds DOM focus, which is what the call resolves from,
+	// so it must reach the same widget-replace branch a paste takes.
 	test('a selected inline widget is replaced, as pasting over it does', async () => {
 		await editor.loadContent('lead\n\n![cat](/test-fixtures/sample.png)\n\ntail\n');
 		await editor.page.locator('[data-image-widget]').click();
@@ -112,8 +112,9 @@ test.describe('insertMarkdown — programmatic insertion', () => {
 		expect(await editor.bridge.getBlockCount()).toBe(3);
 	});
 
-	// Miss-analysis: the cell publishes its surface through publishRefSlot, not instance exports,
-	// and no door case drove that channel — the census (G4.38) reads only the export axis.
+	// Miss-analysis: the cell registers its editable element through `publishRefSlot` rather
+	// than instance exports, and no case here drove that channel; the census (G4.38) only
+	// reads the export side.
 	test('a focused table cell takes the door through its published ref slot', async () => {
 		await editor.loadContent(TABLE);
 		await editor.page.locator('[role="cell"]').nth(3).click();

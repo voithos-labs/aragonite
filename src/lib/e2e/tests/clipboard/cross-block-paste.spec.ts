@@ -45,9 +45,8 @@ test.describe('cross-block clipboard: multi-block paste at single caret', () => 
 		await editor.goto();
 	});
 
-	// Exact-source assertions catch structural-paste misroutes that leave the
-	// substrings the original waitForSourceContains checks intact while the
-	// surrounding splice rots.
+	// Asserting the exact source catches a structural paste going to the wrong place: the
+	// substrings a `waitForSourceContains` checks survive while the splice around them rots.
 	test('pasting two paragraphs creates multiple blocks', async () => {
 		await editor.loadContent('Hello\n');
 		await editor.focusBlockEnd(0);
@@ -58,7 +57,7 @@ test.describe('cross-block clipboard: multi-block paste at single caret', () => 
 			['Hello', '', '# Heading', '', 'New paragraph'].join('\n')
 		);
 		// The live tree holds what the bytes reparse to: the clipboard's internal blank line
-		// separates rather than minting a row (see paste-blank-line-parity).
+		// separates rather than creating a block of its own (see `paste-blank-line-parity`).
 		expect(await editor.bridge.getBlockCount()).toBe(3);
 	});
 

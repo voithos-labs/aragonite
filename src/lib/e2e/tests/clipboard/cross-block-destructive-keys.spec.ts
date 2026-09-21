@@ -1,8 +1,8 @@
-// A key over a cross-block selection must DELETE the range first, then dispatch its
-// block-level behavior at the collapsed caret. Falling through to the originating block's
-// onKeyDown applies the op to one raw while the selection visually persists. The format
-// toggles are the exception: they mark each block span in place rather than type-replace the
-// range, and the selection survives (#107).
+// A key over a cross-block selection must delete the range first, then run its block-level
+// behavior at the collapsed caret. Falling through to the originating block's `onKeyDown`
+// applies the edit to one raw while the selection is still on screen. The format toggles are
+// the exception: they mark each block's span in place rather than replacing the range, and
+// the selection survives (#107).
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 
@@ -46,9 +46,9 @@ test.describe('cross-block destructive-key dispatch (A1)', () => {
 		expect(source).toContain('al\\');
 	});
 
-	// A format toggle is NOT one of these keys: it marks each block's own span instead of
-	// deleting the range (#107 — the delete-then-dispatch arm turned the document into `****`).
-	// The selection survives, which is also what keeps it off shifted indices.
+	// A format toggle is not one of these keys: it marks each block's own span instead of
+	// deleting the range (#107: deleting first turned the document into `****`). The selection
+	// survives, which is also what keeps it off shifted indices.
 	test('Ctrl+B marks each endpoint span and the range survives', async () => {
 		await editor.loadContent('alpha\n\nbeta\n');
 
@@ -57,7 +57,7 @@ test.describe('cross-block destructive-key dispatch (A1)', () => {
 		await editor.waitForCrossBlock(true);
 
 		await editor.page.keyboard.press('ControlOrMeta+b');
-		// The anchor block's tail and the focus block's head, each marked on its own — no delete.
+		// The anchor block's tail and the focus block's head, each marked on its own, no delete.
 		await editor.bridge.waitForSourceEquals('al**pha**\n\n**be**ta\n', 3000);
 
 		expect(await editor.bridge.isCrossBlockActive()).toBe(true);
@@ -111,9 +111,9 @@ test.describe('cross-block destructive-key dispatch (A1)', () => {
 		expect(source).toContain('\t');
 	});
 
-	// A selection STARTING in a table must reach the cell's runCommand, not the TableBlock
-	// wrapper: the dispatcher reveals the delete's own post-delete caret (a deep cell path),
-	// where revealing `selection.start.path` drops the command after the destructive delete.
+	// A selection starting in a table must reach the cell's `runCommand`, not the `TableBlock`
+	// wrapper: the dispatcher resolves the target from the caret the delete leaves (a deep cell
+	// path), and resolving from `selection.start.path` drops the command after that delete.
 	test('Enter with a table-start cross-block selection reaches the cell, not the wrapper', async ({
 		page
 	}) => {

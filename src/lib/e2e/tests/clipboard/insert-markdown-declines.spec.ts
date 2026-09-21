@@ -1,15 +1,15 @@
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 
-// The three states where insertMarkdown has nowhere to insert
-// (requirements/clipboard/insert-markdown-declines.md). Each asserts BOTH halves of a
-// decline: the false return and an untouched document. Each then LIFTS its one condition and
-// requires the same payload through, so a door that declined for an unrelated reason — or
-// stopped working entirely — cannot read as three passing decline gates.
+// The three states where `insertMarkdown` has nowhere to insert
+// (`requirements/clipboard/insert-markdown-declines.md`). Each asserts both halves of a
+// decline: the false return and an untouched document. Each then lifts its one condition and
+// requires the same payload through, so a call that declined for an unrelated reason, or
+// stopped working entirely, cannot read as three passing decline checks.
 
-// paragraph, table, fencedCode, paragraph — the eligible gap boundary is 2.
+// paragraph, table, fencedCode, paragraph: the eligible gap boundary is 2.
 const GAP_FIXTURE = 'para\n\n| a | b |\n| - | - |\n| c | d |\n\n```\ncode\n```\n\ntail\n';
-// A table is ONE `data-block-path`; its cells are addressed row-major, so `d` is 3.
+// A table is one `data-block-path`; its cells are addressed row-major, so `d` is 3.
 const LAST_CELL = 3;
 const TAIL_BLOCK = 3;
 
@@ -22,7 +22,7 @@ test.describe('insertMarkdown — declines', () => {
 	async function expectDeclinedWithoutMutation(): Promise<void> {
 		const before = await editor.bridge.getSource();
 		expect(await insert('inserted\n')).toBe(false);
-		// The programmatic door, with no keystroke behind it.
+		// The programmatic call, with no keystroke behind it.
 		await editor.waitForNoSourceMutation();
 		expect(await editor.bridge.getSource()).toBe(before);
 	}
@@ -70,8 +70,8 @@ test.describe('insertMarkdown — declines', () => {
 
 		await expectDeclinedWithoutMutation();
 
-		// The gap's clearing rules live at the caret doors, so leaving it is a real
-		// gesture; a bare programmatic DOM write claims nothing and the gap survives it.
+		// The rules that clear the gap live wherever the caret is written, so leaving it takes
+		// a real gesture: a bare programmatic DOM write does not clear it.
 		await editor.page.keyboard.press('ArrowDown');
 		await editor.focusBlockEnd(TAIL_BLOCK);
 		await expectAccepted();

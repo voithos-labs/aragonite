@@ -1,8 +1,8 @@
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 
-// One invariant across selection shapes: copying a list selection and pasting it back over
-// itself reconstructs the original structure exactly — no nested sub-list, no content loss.
+// One rule across selection shapes: copying a list selection and pasting it back over itself
+// rebuilds the original structure exactly, with no nested sub-list and no content lost.
 const ORDERED = '1. one\n2. two\n3. three\n';
 
 const ROUNDTRIPS: {
@@ -68,8 +68,8 @@ test.describe('copy-paste round-trip: list selections preserve structure', () =>
 			await editor.page.keyboard.press('ControlOrMeta+c');
 			await editor.waitForClipboardWrite();
 			await editor.paste();
-			// The round-trip's end state IS its start state, so no source predicate can
-			// observe the paste. The selection collapsing is the one real transition.
+			// The round trip ends where it started, so no source condition can see the paste
+			// happen. The selection collapsing is the one real change.
 			await editor.waitForCrossBlock(false);
 
 			expect((await editor.bridge.getSource()).trim()).toBe(doc.trim());

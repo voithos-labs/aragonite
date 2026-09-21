@@ -37,7 +37,7 @@ test.describe('clipboard exploration: unusual content', () => {
 		const pastedCount = await editor.getDomBlockCount();
 		expect(pastedCount).toBe(4);
 
-		// The run separates from `target` rather than folding into it, so the bytes reload
+		// The run separates from `target` rather than merging into it, so the bytes reload
 		// as the blocks on screen.
 		await editor.loadContent(src);
 		expect(await editor.getDomBlockCount()).toBe(pastedCount);
@@ -51,9 +51,9 @@ test.describe('clipboard exploration: unusual content', () => {
 		await hr.click();
 
 		await editor.paste();
-		// Thematic break paste may no-op or materialize a paragraph; neither
-		// outcome has a settle predicate to poll. Keep a small fixed wait so the
-		// post-paste source read sees whichever branch resolved.
+		// Pasting a thematic break either does nothing or creates a paragraph, and neither
+		// outcome has a condition to poll on. A small fixed wait lets the source read below
+		// see whichever one happened.
 		await editor.page.waitForTimeout(300);
 
 		const src = await editor.bridge.getSource();

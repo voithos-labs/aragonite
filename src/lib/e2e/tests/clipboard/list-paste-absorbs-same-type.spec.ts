@@ -1,5 +1,5 @@
-// One invariant — same-type list paste flattening into the enclosing list — parametrized
-// across paste positions and shapes, which is why these stay in one file.
+// One rule, a same-type list paste flattening into the enclosing list, over the paste
+// positions and shapes, which is why these stay in one file.
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 
@@ -60,7 +60,7 @@ const ROWS: AbsorbRow[] = [
 		clip: '- x\n- y\n',
 		focus: [0, 0, 0],
 		offset: 'a'.length,
-		// All 4 items in a single flat list — exactly 4 top-level bullet lines.
+		// All 4 items in a single flat list: exactly 4 top-level bullet lines.
 		settle: (s: string) => (s.match(/^- /gm) ?? []).length === 4,
 		expected: [/^- a$/m, /^- x$/m, /^- y$/m, /^- b$/m]
 	},
@@ -106,8 +106,8 @@ const ROWS: AbsorbRow[] = [
 		expected: [/^1\. alpha$/m, /^2\. only$/m, /^3\. beta$/m]
 	},
 	{
-		// A list that doesn't start at 1 keeps counting from its own base — the absorb path once
-		// hardcoded base 1, restarting the region at the item index and duplicating markers.
+		// A list that does not start at 1 keeps counting from its own base: hardcoding base 1
+		// restarts the region at the item index and duplicates markers.
 		name: 'ordered paste into a non-1-based list preserves the start number',
 		doc: '3. a\n4. b\n5. c\n',
 		clip: '1. x\n2. y\n',
@@ -120,9 +120,9 @@ const ROWS: AbsorbRow[] = [
 	}
 ];
 
-// Flattens pasted items as SIBLINGS with continuous renumbering — neither three separate
-// lists nor a nested sub-list, matching the Obsidian / Google Docs convention. The
-// mismatched-type complement is list-paste-mismatched-breaks-out.spec.ts.
+// Flattens pasted items as siblings with continuous renumbering: neither three separate lists
+// nor a nested sub-list, matching the Obsidian and Google Docs convention. The mismatched-type
+// counterpart is `list-paste-mismatched-breaks-out.spec.ts`.
 test.describe('paste: same-type list into list item flattens into enclosing list', () => {
 	let editor: EditorPage;
 
@@ -147,9 +147,9 @@ test.describe('paste: same-type list into list item flattens into enclosing list
 		});
 	}
 
-	// `$state` proxies wrap entries LAZILY, so mutating freshly-inserted items bypasses the
-	// set trap and a post-splice renumber never reaches the DOM. Pre-computing final markers
-	// before the splice keeps every reactive mutation on already-proxied items.
+	// `$state` proxies wrap entries lazily, so mutating freshly inserted items misses the set
+	// trap and a renumber after the splice never reaches the DOM. Working out the final markers
+	// before the splice keeps every reactive write on items the proxy already wraps.
 	test('DOM ambient markers match source markers after absorb', async () => {
 		await editor.loadContent('1. Ordered first\n2. Ordered second\n3. Ordered third\n');
 		await editor.seedClipboard('1. first\n2. Ordered second\n3. Ordered\n');

@@ -80,9 +80,8 @@ test.describe('cross-block delete — BlockListState consistency', () => {
 	test('delete from a paragraph into a table body cell leaves the row state in sync', async () => {
 		await editor.loadContent('alpha\n\n| a | b |\n| --- | --- |\n| 1 | 2 |\n| 3 | 4 |\n');
 
-		// Shift+click into body cell (row 1, col 0): the whole-row snap removes
-		// rows 0–1 and promotes "3|4" — the table's own row BlockListState must
-		// shrink with its children.
+		// Shift+click into body cell (row 1, col 0): the whole-row snap removes rows 0-1 and
+		// promotes "3|4", so the table's own row `BlockListState` must shrink with its children.
 		await editor.focusBlock(0, 2);
 		const cell = editor.page.locator('[role="cell"]').nth(2);
 		const box = await cell.boundingBox();

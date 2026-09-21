@@ -3,7 +3,7 @@ import { EditorPage } from '../../editor-page';
 import { wholeBlockInput } from '../../whole-block-input';
 
 // Whole-block atomic copy/cut through the shared `handleWholeBlockKeys` tail
-// (requirements/clipboard/whole-block-atomic-copy.md). Mod+C writes via
+// (`requirements/clipboard/whole-block-atomic-copy.md`). Mod+C writes via
 // `navigator.clipboard.writeText` with no ClipboardEvent on the keydown path, so the
 // clipboard content is the only observable signal for copy.
 

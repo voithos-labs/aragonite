@@ -9,7 +9,7 @@ test.describe('a pasted blank line is the block a typed or loaded one is', () =>
 		await editor.goto();
 	});
 
-	// Enter separates, so the FIRST press already blank-line-separates the halves and
+	// Enter separates, so the first press already puts a blank line between the halves and
 	// the second is what makes the empty block; its own line is the third newline.
 	test('typed: an explicitly created empty block is a third block', async () => {
 		await editor.loadContent('');
@@ -64,8 +64,8 @@ test.describe('a pasted blank line is the block a typed or loaded one is', () =>
 		expect(await editor.getDomBlockCount()).toBe(pastedCount);
 	});
 
-	// Finding 7.6: a mid-paragraph structural paste lands the caret at the end of
-	// the pasted content, not the trailing residue. Typing appends to the paste.
+	// A structural paste mid-paragraph lands the caret at the end of the pasted content, not
+	// on the trailing residue, so typing appends to the paste.
 	test('mid-paragraph multi-block paste lands the caret at the end of the pasted content', async () => {
 		await editor.loadContent('helloworld\n');
 		await editor.seedClipboard('one\n\ntwo');

@@ -31,9 +31,9 @@ test.describe('clipboard exploration: edge targets', () => {
 		);
 	});
 
-	// Exact-source assertion: the structural paste splices into the list item's
-	// container and the bug class would leave 'Big Heading' in the source while
-	// the surrounding list scope gets corrupted.
+	// Asserting the exact source: the structural paste splices into the list item's container,
+	// and a bug here leaves 'Big Heading' in the source while the list's own child list
+	// around it is corrupted.
 	test('paste heading into list item replaces item content (structural path)', async () => {
 		await editor.loadContent('- list item\n');
 		await editor.seedClipboard('# Big Heading\n');
@@ -105,7 +105,7 @@ test.describe('clipboard exploration: edge targets', () => {
 
 		await editor.focusBlockAtPath([0], 'unchanged'.length);
 		await editor.paste();
-		// A paste event, not a keystroke: no keydown, so no verdict.
+		// A paste event, not a keystroke: no keydown, so nothing for the editor to answer.
 		await editor.waitForNoSourceMutation();
 
 		// Byte-exact: a stray newline or a duplicated block would still "contain

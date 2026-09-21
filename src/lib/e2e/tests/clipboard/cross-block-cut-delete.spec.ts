@@ -22,8 +22,8 @@ test.describe('cross-block clipboard: cut', () => {
 		expect(source).toContain('aaa');
 	});
 
-	// Issue #60: a cut whose selection opens at a block's first character kept the survivor but
-	// dropped the blank line above it, so the reload glued it to the block above.
+	// Issue #60: a cut whose selection opens at a block's first character must keep the blank
+	// line above the survivor, or the reload glues it to the block above.
 	test('Ctrl+X from a block start keeps the blank line above the survivor', async () => {
 		await editor.loadContent('alpha\n\nbravo\n\ncharlie\n');
 		await editor.dragFromTo([1], 0, [2], 4);
@@ -31,7 +31,7 @@ test.describe('cross-block clipboard: cut', () => {
 		await editor.page.keyboard.press('ControlOrMeta+x');
 		await editor.bridge.waitForSourceEquals('alpha\n\nlie\n');
 
-		// The symptom was a reload artifact: the bytes reparse as ONE paragraph without it.
+		// The failure only shows on reload: without that line the bytes reparse as one paragraph.
 		await editor.loadContent(await editor.bridge.getSource());
 		expect(await editor.getDomBlockCount()).toBe(2);
 	});
@@ -114,7 +114,7 @@ test.describe('cross-block clipboard: type-replace', () => {
 		expect(await editor.bridge.isCrossBlockActive()).toBe(false);
 	});
 
-	// A2/A3: cross-block typed character + range delete is a single undo unit.
+	// A typed character over a cross-block selection and the range delete are one undo entry.
 	test('typing over cross-block selection then undo restores original document', async () => {
 		await editor.loadContent('alpha\n\nbeta\n');
 		const before = await editor.bridge.getSource();
