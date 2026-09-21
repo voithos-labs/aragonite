@@ -62,7 +62,7 @@ const BASELINE: Record<string, number> = {
 	'src/lib/decorations': 0,
 	'src/lib/e2e': 539,
 	'src/lib/editor-actions': 0,
-	'src/lib/invariants': 19,
+	'src/lib/invariants': 0,
 	'src/lib/perf': 0,
 	'src/lib/plugins': 0,
 	'src/lib/reactivity': 0,
@@ -82,7 +82,7 @@ const BASELINE: Record<string, number> = {
 	'src/lib/test/gfm-conformance': 0,
 	'src/lib/test/harness': 0,
 	'src/lib/test/image': 8,
-	'src/lib/test/invariants': 258,
+	'src/lib/test/invariants': 0,
 	'src/lib/test/perf': 0,
 	'src/lib/test/plugins': 0,
 	'src/lib/test/reactivity': 0,
@@ -93,7 +93,7 @@ const BASELINE: Record<string, number> = {
 	'src/lib/test/support': 0,
 	'src/lib/test/tree-operations': 0,
 	'src/lib/test/undo': 0,
-	'src/lib/testing': 48,
+	'src/lib/testing': 0,
 	'src/lib/tree-operations': 0,
 	'src/routes': 46
 };

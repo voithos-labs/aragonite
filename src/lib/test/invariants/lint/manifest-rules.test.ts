@@ -1,8 +1,8 @@
 /**
- * Manifests over the shipped source: each row pins the files matching a shape to a declared list,
- * both directions, so a new writer, caller or reader is a decision rather than a drift. Where a
- * declared file also owes something, the obligation rides beside its manifest as a file rule
- * under the same G-number. The scan is `file-rule.ts`.
+ * Manifests over the shipped source: each row pins the files matching a pattern to a declared
+ * list, in both directions, so a new writer, caller or reader is a decision and not a drift.
+ * Where a declared file must also do something, that check sits beside its manifest as a file
+ * rule under the same G-number. The scan is `file-rule.ts`.
  */
 
 import { collectEditorSources, type SourceFile } from './scan-source';
