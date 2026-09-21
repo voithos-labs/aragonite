@@ -343,14 +343,14 @@ off();
 
 Six channels:
 
-| Channel                  | Fires                                                                                                                        |
-| ------------------------ | ---------------------------------------------------------------------------------------------------------------------------- |
-| `edit`                   | After every applied edit: a structural operation, a batch of typing (consecutive keystrokes flush as one), an undo or redo   |
-| `selectionChange`        | Whenever the selection changes; the payload is the snapshot, or `null`                                                       |
-| `error`                  | On a failure the editor contained rather than threw                                                                          |
-| `presentationModeChange` | After a `presentationMode` prop change; the payload is the effective mode (never at mount)                                   |
-| `themeChange`            | After a `theme` prop change; the payload is the theme name (never at mount)                                                  |
-| `menuChange`             | `true` when an editor-owned menu (right-click, insert `+`) opens and `false` when it closes; hide selection chrome meanwhile |
+| Channel                  | Fires                                                                                                                      |
+| ------------------------ | -------------------------------------------------------------------------------------------------------------------------- |
+| `edit`                   | After every applied edit: a structural operation, a batch of typing (consecutive keystrokes flush as one), an undo or redo |
+| `selectionChange`        | Whenever the selection changes; the payload is the snapshot, or `null`                                                     |
+| `error`                  | On a failure the editor contained rather than threw                                                                        |
+| `presentationModeChange` | After a `presentationMode` prop change; the payload is the effective mode (never at mount)                                 |
+| `themeChange`            | After a `theme` prop change; the payload is the theme name (never at mount)                                                |
+| `menuChange`             | `true` when the editor's right-click menu opens and `false` when it closes; hide selection chrome meanwhile                |
 
 Events fire synchronously from wherever they happen, and **a handler must not edit the document**: reentrant edits aren't supported.
 
