@@ -1,8 +1,9 @@
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 
-// Mod+B / Mod+I with no selection (`requirements/inline-editing/formatting-at-caret.md`).
-// The chord inserts the empty pair, removes one, or unwraps the span the caret is inside.
+// Mod+B with no selection: where the pair lands and how undo takes it back
+// (`requirements/inline-editing/formatting-at-caret.md`). Which pair the toggle writes is
+// pinned in `test/core/inline/format-toggle-caret.test.ts`.
 
 test.describe('inline formatting at a collapsed caret', () => {
 	let editor: EditorPage;

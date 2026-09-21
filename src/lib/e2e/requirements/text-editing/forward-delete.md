@@ -1,6 +1,9 @@
 # Feature: Text Editing — Forward Delete
 
-Forward Delete merges with the next block when at end-of-block; otherwise deletes the next character.
+Forward Delete merges with the next block when at end-of-block; otherwise deletes the next
+character. The merge itself is driven through a list item in `blocks/list/backspace/delete-forward.md`
+and its bytes are pinned at the tree level; what stays here is what the key does where no merge
+applies.
 
 ## Edge cases
 

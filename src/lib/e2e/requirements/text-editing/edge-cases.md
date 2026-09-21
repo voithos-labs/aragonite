@@ -1,6 +1,7 @@
 # Feature: Text Editing — Edge Cases
 
-Boundary behavior for Enter/Backspace and kind-change reversals.
+Boundary behavior for Enter and Backspace where the caret, the focus or the reload is the
+outcome. What each gesture writes is pinned at the tree level.
 
 ## Edge cases
 

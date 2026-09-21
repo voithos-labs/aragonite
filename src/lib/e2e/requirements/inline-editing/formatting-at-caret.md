@@ -3,7 +3,9 @@
 Mod+B / Mod+I with no selection. They used to bail on the null selection while still
 swallowing the key, so the chord did nothing a user could see. The contract now:
 unwrap the span the caret sits inside, else remove the empty pair a previous press
-left, else insert the pair and put the caret between its halves.
+left, else insert the pair and put the caret between its halves. Which pair each branch
+writes is pinned in `src/lib/test/core/inline/format-toggle-caret.test.ts`; the scenarios
+below are where the caret lands and how undo takes the write back.
 
 ## Happy paths
 
