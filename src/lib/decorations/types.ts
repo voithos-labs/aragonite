@@ -1,6 +1,7 @@
 /**
  * View-only annotations layered over the rendered document. Decorations never enter the
- * CST: pure sources produce them per-instance, and overlays/islands consume them.
+ * CST: pure sources produce them per editor instance, and the overlays and inline widgets
+ * consume them.
  */
 
 import type { DocumentView } from '../core/node-views';
@@ -26,7 +27,7 @@ export interface ReplaceDecoration {
 	path: number[];
 	start: number;
 	end: number;
-	widget?: DecorationWidgetSpec; // absent → island renders `class` span with no content
+	widget?: DecorationWidgetSpec; // absent: renders a `class` span with no content
 	class?: string;
 }
 export interface BlockDecoration {
@@ -45,8 +46,8 @@ export type DecorationWidgetSpec =
 	| { buildDom: (dec: Decoration) => HTMLElement };
 
 export interface ProvideContext {
-	/** Bumped once per document change, never by invalidate(). The memo key for sources that
-	 *  cache their scan; `doc.children` identity is NOT one, since typing mutates in place. */
+	/** Bumped once per document change, never by `invalidate()`. The memo key for a source that
+	 *  caches its scan; `doc.children` identity is not one, since typing mutates in place. */
 	editEpoch: number;
 }
 export interface DecorationSource {
@@ -56,10 +57,10 @@ export interface DecorationSource {
 	provide: (doc: DocumentView, ctx: ProvideContext) => Decoration[];
 }
 export interface DecorationSourceHandle {
-	/** Synchronous by contract: decorations and buckets reflect the new result before this
-	 *  returns. Search's setQuery relies on it — never defer. The one exception is a call
-	 *  from inside a commit (an `edit` handler): those coalesce to one run once it publishes,
-	 *  since a source must never read a half-applied tree. */
+	/** Synchronous by contract: the decorations and their buckets show the new result before
+	 *  this returns. Search's `setQuery` relies on that, so never defer it. The one exception is
+	 *  a call from inside a commit (an `edit` handler): those are collected into one run once
+	 *  the commit writes to state, since a source must never read a half-applied tree. */
 	invalidate(): void;
 	dispose(): void;
 }

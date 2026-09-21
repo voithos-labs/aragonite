@@ -1,6 +1,6 @@
 /**
- * Internal debug engine — never exported from the public barrel (`src/lib/index.ts`).
- * Output format is disposable: assert on structured accessors (getSource, kinds, paths).
+ * Internal debug helpers, never exported from the public barrel (`src/lib/index.ts`). The
+ * output format is disposable: assert on the structured accessors (`getSource`, kinds, paths).
  */
 
 import type { InlineNode } from '../core/nodes';
@@ -117,8 +117,8 @@ function renderTraceEntry(e: InteractionTraceEntry, now: number): string {
 	return detail ? `${base} ${detail}` : base;
 }
 
-/** Detail fields worth printing, per op. An op whose detail carries nothing a reader needs
- *  is simply absent; a variant missing any listed field prints none of them. */
+/** The detail fields worth printing, per operation. An operation whose detail says nothing
+ *  useful is simply absent; one missing any listed field prints none of them. */
 const DETAIL_FIELDS: Partial<Record<OperationKind, readonly string[]>> = {
 	split: ['at'],
 	merge: ['direction'],

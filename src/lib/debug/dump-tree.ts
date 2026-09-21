@@ -73,8 +73,8 @@ function formatMetadata(node: NodeView, opts: Required<DumpTreeOptions>): string
 	const m = node.metadata;
 	if (!m) return '';
 	const frags: string[] = [];
-	// Narrowing to the built-in union lets each arm read its own metadata directly, with no
-	// `'field' in m` probing.
+	// Narrowing to the built-in union lets each branch read its own metadata directly, with no
+	// `'field' in m` checks.
 	if (isBuiltinBlockNode(node)) {
 		switch (node.kind) {
 			case 'heading':

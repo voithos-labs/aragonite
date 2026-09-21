@@ -1,9 +1,9 @@
 /**
- * The `data-` names a block decoration may not spell. `.block-host` is an ancestor of every walk
- * container, so an attribute here answers the ancestor lookups the CSS families, the offset walk
- * and selection/windowing all make — a decoration spelling one diverges the readers from what the
- * DOM actually holds. The list is what those consumers read via `closest()` or an ancestor
- * combinator; a name read only on the element that writes it is not in scope.
+ * The `data-` names a block decoration may not use. `.block-host` is an ancestor of every
+ * element the offset traversal walks, so an attribute here answers the ancestor lookups the CSS,
+ * that traversal, and selection and windowing all make; a decoration using one would make those
+ * readers disagree with the DOM. The list is what they read through `closest()` or an ancestor
+ * selector; a name read only on the element that writes it is not included.
  */
 
 import { devWarn } from '../dev-warn';
@@ -25,12 +25,12 @@ export const RESERVED_BLOCK_ATTRS: ReadonlySet<string> = new Set([
 	'data-table-row-idx'
 ]);
 
-/** The name production `setAttribute` enforces: a name it refuses throws inside the decoration
- *  effect, taking the whole mount rather than one attribute. */
+/** The name grammar `setAttribute` enforces: a name it refuses throws inside the decoration
+ *  effect, taking down the whole mount rather than one attribute. */
 const ATTR_NAME = /^[A-Za-z_:][A-Za-z0-9_.:-]*$/;
 
-/** A block decoration's attributes minus the names it may not spell, which are dropped with a dev
- *  warn. Reserved is asked in lowercase: `setAttribute` lowercases, so a capital is not a
+/** A block decoration's attributes minus the names it may not use, which are dropped with a
+ *  dev warning. The check is in lowercase: `setAttribute` lowercases, so a capital is not a
  *  different name, only a different spelling of the same one. */
 export function acceptedBlockAttrs(
 	attrs: Record<string, string> | undefined,

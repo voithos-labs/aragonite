@@ -5,7 +5,8 @@
 
 import type { Decoration, MarkDecoration } from './types';
 
-/** A decoration paired with its flat-list position — the stable key overlays render against. */
+/** A decoration paired with its position in the flat list: the stable key overlays render
+ *  against. */
 export interface IndexedDecoration<D extends Decoration = Decoration> {
 	dec: D;
 	index: number;
@@ -40,9 +41,9 @@ export function groupDecorationsByPath(
 }
 
 /**
- * Group decorations under every strict ancestor prefix of their owning path. Grid
- * surfaces paint descendant cell decorations themselves, cells having no BlockHost
- * overlay, so this lets them read one bucket instead of the full list.
+ * Group decorations under every strict ancestor of their own path. A grid paints its cells'
+ * decorations itself, since a cell has no BlockHost overlay, so this lets it read one bucket
+ * instead of the full list.
  */
 export function groupDecorationsByAncestor(
 	decs: readonly Decoration[]

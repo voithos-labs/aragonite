@@ -8,7 +8,7 @@ export function createUndoManager(): UndoManager {
 
 	return {
 		push(entry: UndoEntry): void {
-			// Stored as-is: the caller builds entries safe to hold.
+			// Stored as is: the caller builds entries that are safe to keep.
 			undoStack.push(entry);
 			if (undoStack.length > MAX_UNDO) undoStack.shift();
 			redoStack.length = 0;

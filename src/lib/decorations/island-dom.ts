@@ -1,12 +1,10 @@
 /**
- * In-flow decoration islands: zero-width `widget` insertions and byte-carrying `replace`
- * covers. An island is an atomic inline widget, so the shared raw-offset walk reads the
- * block back byte-exact with no walker changes — a widget island spans zero bytes, and a
- * replace island's `data-source-*` span equals the raw span of the DOM it displaced.
- *
- * Whether a range is one the author could place at all is decided where the source and the
- * document it read are provably the same version (`decoration-state.svelte.ts`); a range
- * this pass cannot honour is one the document has since outgrown, so it drops silently.
+ * Decoration widgets placed in the text flow: a zero-width `widget` insertion, and a `replace`
+ * that covers real bytes. Each renders as an inline widget the caret cannot enter, so the shared
+ * raw-offset traversal reads the block back byte-exact: a `widget` spans zero bytes, and a
+ * `replace`'s `data-source-*` span equals the raw span of the DOM it displaced. Whether the
+ * author could place a range at all is decided in `decoration-state.svelte.ts`, where the source
+ * and the document are the same version; a range this pass cannot honour drops silently.
  */
 
 import { DEV } from 'esm-env';
@@ -32,17 +30,17 @@ export interface ApplyIslandsOpts {
 		spec: DecorationWidgetSpec,
 		dec: Decoration
 	) => { el: HTMLElement; destroy(): void } | null;
-	onSkipped?: (dec: Decoration, reason: string) => void; // dev-warn hook
+	onSkipped?: (dec: Decoration, reason: string) => void; // where a dev warning is reported
 	/** Raw-space length of the block's rendered content (see {@link ContentLength}). */
 	contentLength: ContentLength;
-	/** Rendered ambient-marker length. Island offsets are raw-relative and the shared walk
-	 *  counts ambient text as ordinary text, so every boundary adds this (the
-	 *  TextEditableBlock compensation pattern). Default 0. */
+	/** The rendered length of the container's marker prefix. These offsets are relative to raw
+	 *  and the shared traversal counts that prefix as ordinary text, so every boundary adds it.
+	 *  Default 0. */
 	ambientLength?: number;
 }
 
-/** Mutates `root` (the freshly built inline fragment). Returns destroy handles for
- *  mounted widgets — the caller sweeps them next rebuild. */
+/** Mutates `root`, the freshly built inline fragment. Returns one destroy function per
+ *  mounted widget; the caller runs them on the next rebuild. */
 export function applyIslandDecorations(
 	root: ParentNode,
 	raw: string,
@@ -81,8 +79,8 @@ export function applyIslandDecorations(
 
 	function applyReplace(dec: ReplaceDecoration): void {
 		if (dec.start < 0 || dec.end > contentLength || dec.start >= dec.end) return;
-		// A boundary strictly inside an atomic widget snaps outward to whole-element
-		// coverage, so the island's span still equals the bytes it displaces.
+		// A boundary strictly inside a widget snaps outward to cover the whole element, so the
+		// span still equals the bytes it displaces.
 		let start = dec.start;
 		let end = dec.end;
 		const startSpan = widgetSpanContainingOffset(
@@ -135,8 +133,8 @@ export function applyIslandDecorations(
 		range.insertNode(island);
 	}
 
-	// The walk resolves a position at the ambient boundary to the END of the span's text,
-	// but an island must land after the span, never inside the read-only marker.
+	// The traversal resolves a position at the marker prefix's boundary to the end of that
+	// span's text, but the widget has to go after the span, never inside the read-only marker.
 	function insertHoistedOutOfAmbient(range: Range, island: HTMLElement): void {
 		const ambient = ambientSpanOf(root);
 		if (ambient && ambient.contains(range.startContainer)) {
@@ -147,9 +145,9 @@ export function applyIslandDecorations(
 	}
 }
 
-/** Gated island signature for a render key. No islands ⇒ '', keeping an undecorated
- *  block's key byte-identical to the island-free format. Widget identity is deliberately
- *  untracked: same position + class ⇒ equal signature (see DecorationWidgetSpec). */
+/** What these widgets contribute to a render key. None gives `''`, so an undecorated block's
+ *  key stays byte-identical to the format with no widgets. Widget identity is deliberately
+ *  ignored: the same position and class give the same signature (see `DecorationWidgetSpec`). */
 export function islandRenderKeyPart(
 	islands: IndexedDecoration<WidgetDecoration | ReplaceDecoration>[]
 ): string {
@@ -162,7 +160,8 @@ const islandSig = (d: WidgetDecoration | ReplaceDecoration): string =>
 		? `w:${d.offset}:${d.side ?? 'after'}`
 		: `r:${d.start}-${d.end}:${d.class ?? ''}:${d.widget ? 1 : 0}`;
 
-/** An island's ordering position, shared by the application pass and the render order. */
+/** A decoration's position for ordering, shared by the pass that applies them and the
+ *  render order. */
 export function islandPosition(dec: WidgetDecoration | ReplaceDecoration): number {
 	return dec.type === 'widget' ? dec.offset : dec.start;
 }
@@ -170,10 +169,10 @@ export function islandPosition(dec: WidgetDecoration | ReplaceDecoration): numbe
 // ── Internal ────────────────────────────────────────────────────────────────
 
 /**
- * Descending position order, so a replace extraction never spans an island inserted
- * earlier in the pass. Ties put replaces first, since a same-start widget island would be
- * swallowed by the extraction; `side: 'after'` widgets follow, leaving the final DOM order
- * at one offset as [before, after].
+ * Descending position order, so a `replace` extraction never spans a widget inserted earlier
+ * in the pass. On a tie `replace` goes first, since a widget at the same start would be
+ * swallowed by the extraction; `side: 'after'` widgets follow, leaving the final DOM order at
+ * one offset as [before, after].
  */
 function orderForApplication(
 	islands: IndexedDecoration<WidgetDecoration | ReplaceDecoration>[]

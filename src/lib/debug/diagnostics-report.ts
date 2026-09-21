@@ -1,19 +1,19 @@
 /**
- * The attachable field report `getDiagnostics().serializeDiagnostics()` produces:
- * a fenced-markdown snapshot a consumer pastes into a bug report. Pure over its
- * inputs so the privacy pin — the document source is EXCLUDED unless the consumer
- * opts in — is unit-testable without mounting the editor.
+ * The report `getDiagnostics().serializeDiagnostics()` produces: a fenced-markdown snapshot
+ * a consumer pastes into a bug report. A pure function of its inputs, so the privacy rule
+ * (the document source is left out unless the consumer opts in) can be unit-tested without
+ * mounting the editor.
  */
 
 import { escalatedFenceLength } from '../core/parsers/fence-syntax';
 
 export interface DiagnosticsReportInput {
 	timestamp: string;
-	/** Tails pre-rendered by the debug engine. */
+	/** Tails already rendered by the debug helpers. */
 	trace: string;
 	opsLog: string;
 	selection: string;
-	/** Raw document Markdown. Emitted ONLY when `includeSource` is true. */
+	/** Raw document Markdown. Emitted only when `includeSource` is true. */
 	source: string;
 	includeSource: boolean;
 }
@@ -32,7 +32,7 @@ export function buildDiagnosticsReport(input: DiagnosticsReportInput): string {
 		fenced('Operations log', input.opsLog),
 		fenced('Selection', input.selection)
 	];
-	// Default-excluded: a field report must not leak the document unless asked.
+	// Left out by default: a bug report must not leak the document unless asked.
 	if (input.includeSource) sections.push(fenced('Source', input.source));
 	return `# aragonite editor diagnostics — ${input.timestamp}\n\n${sections.join('\n\n')}\n`;
 }

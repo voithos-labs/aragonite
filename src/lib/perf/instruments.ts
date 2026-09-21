@@ -1,8 +1,8 @@
 /**
- * Dev-mode performance counters for the profiling harness. A leaf module, so the seams that
- * record into it can depend on it from anywhere. Recording stays off until a runtime switch
- * that only arms in dev/Vitest, leaving production one boolean check per record call.
- * Internal — never exported from the editor barrel.
+ * Dev-mode performance counters for the profiling harness. It depends on nothing, so anything
+ * that records into it can import it. Recording stays off until a runtime switch that only
+ * turns on in dev or Vitest, leaving production one boolean check per record call. Internal:
+ * never exported from the editor barrel.
  */
 import { DEV } from 'esm-env';
 import type { DocumentView } from '../core/node-views';
@@ -13,13 +13,14 @@ export interface PerfSnapshot {
 	snapshotCount: number;
 	snapshotCloneBytes: number;
 	rebuildDepths: Record<number, number>;
-	/** Container reparses the kind re-derivation gate let through (see rebuildUnsharedChain). */
+	/** Container reparses the kind re-derivation check let through (see
+	 *  `rebuildUnsharedChain`). */
 	containerKindReparses: number;
 	parseCount: number;
 	parseMsTotal: number;
 	parseBlockCount: number;
 	inlineComputeCount: number;
-	/** Inline-format coverage reads that actually parsed — the pressed-state read's cost. */
+	/** Inline-format coverage reads that actually parsed: what a toolbar's pressed state costs. */
 	formatCoverageReads: number;
 	undoLiveBytes: number;
 	undoEntryCount: number;
@@ -139,8 +140,8 @@ export function recordBlockRender(ms: number, path?: number[]): void {
 	if (path) counters.blockRenderPaths.push(path.join(','));
 }
 
-// notifyEdit runs every source, so a typing pass records keystrokes × sources — the
-// ceiling that catches a per-block cascade.
+// `notifyEdit` runs every source, so a typing pass records keystrokes × sources, the ceiling
+// that catches one block's change cascading into the rest.
 export function recordDecorationRun(): void {
 	if (!enabled) return;
 	counters.decorationRuns++;
@@ -151,7 +152,7 @@ export function recordIslandRebuild(): void {
 	counters.islandRebuilds++;
 }
 
-// One querySelectorAll per destructive/printable keystroke, even when the block holds none.
+// One `querySelectorAll` per delete or printable keystroke, even when the block has none.
 export function recordIslandKeyScan(): void {
 	if (!enabled) return;
 	counters.islandKeyScans++;
@@ -179,8 +180,8 @@ export function markKeystrokeSettle(): void {
 }
 
 /**
- * Serialized-byte proxy without building the string. Counts UTF-16 code units: exact
- * against `serialize().length`, approximate against on-disk bytes for non-ASCII.
+ * A stand-in for the serialized byte count that never builds the string. Counts UTF-16 code
+ * units: exact against `serialize().length`, approximate against on-disk bytes for non-ASCII.
  */
 export function docByteLength(doc: DocumentView): number {
 	let length = doc.prefix.length + doc.suffix.length;

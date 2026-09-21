@@ -1,6 +1,6 @@
 /**
- * The `getDiagnostics()` entry point: the interaction-trace switches and the fenced field report
- * (`diagnostics-report.ts`). The document source is excluded unless the consumer opts in.
+ * The `getDiagnostics()` entry point: the switches for the interaction trace, and the fenced
+ * report (`diagnostics-report.ts`). The document source is left out unless the consumer opts in.
  */
 
 import type { EditorDiagnostics } from '../editor-props';
@@ -16,7 +16,8 @@ import {
 import type { OperationsLog } from './operations-log';
 
 export interface EditorDiagnosticsDeps {
-	/** The public snapshot, so it covers single-block carets the cross-block state never holds. */
+	/** The public snapshot, so it covers the single-block carets the cross-block state never
+	 *  holds. */
 	getSelection(): EditorSelection | null;
 	getSource(): string;
 	operationsLog: OperationsLog;

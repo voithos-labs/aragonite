@@ -36,9 +36,9 @@ export interface DecorationEngineDeps {
 export type DecorationEngine = {
 	addSource(source: DecorationSource): DecorationSourceHandle; // dup name throws
 	readonly sourceCount: number;
-	/** Bump the edit epoch, then re-run every provide. `handle.invalidate()` re-runs one
-	 *  source WITHOUT the bump, which is what lets a memoized source tell "document
-	 *  changed" from "my own state changed". */
+	/** Bump the edit counter, then re-run every source's `provide`. `handle.invalidate()`
+	 *  re-runs one source without the bump, which is what lets a memoized source tell "the
+	 *  document changed" from "my own state changed". */
 	notifyEdit(): void;
 	marksForPath(path: number[]): IndexedDecoration<MarkDecoration>[];
 	marksForDescendants(path: number[]): IndexedDecoration<MarkDecoration>[];
@@ -47,14 +47,15 @@ export type DecorationEngine = {
 };
 
 export function createDecorationEngine(deps: DecorationEngineDeps): DecorationEngine {
-	// Non-reactive registry state, index-aligned with `results`. Handles close over the source
-	// object, not its index, so a dispose mid-list never staleness-shifts a surviving handle.
+	// Non-reactive registry state, lined up with `results` by index. A handle closes over the
+	// source object, not its index, so disposing one never leaves another pointing at the wrong
+	// entry.
 	const sources: DecorationSource[] = [];
 	const names = new Set<string>();
 	const warnedUnrenderableIslands = new Set<string>();
 	let results = $state<Decoration[][]>([]);
-	// Deliberately not reactive: an invalidate() that reads it must not schedule a
-	// recompute of the derived buckets.
+	// Deliberately not reactive: an `invalidate()` that reads it must not schedule a recompute
+	// of the derived buckets.
 	let editEpoch = 0;
 
 	const merged = $derived(results.flat());
@@ -70,11 +71,11 @@ export function createDecorationEngine(deps: DecorationEngineDeps): DecorationEn
 			next = source.provide(deps.getDoc(), { editEpoch });
 		} catch (error) {
 			deps.onSourceError?.(source.name, error);
-			return; // keep the source's prior decorations — a throw never blanks the view
+			return; // keep the source's previous decorations; a throw never blanks the view
 		}
 		warnUnrenderableIslands(source.name, next);
-		// An empty→empty re-run must not reassign `results`, or every keystroke would
-		// republish the derived buckets for sources that never emit.
+		// A re-run that was empty and stays empty must not reassign `results`, or every keystroke
+		// would rebuild the derived buckets for sources that never emit anything.
 		if (results[i].length === 0 && next.length === 0) return;
 		const copy = results.slice();
 		copy[i] = next;
@@ -82,24 +83,24 @@ export function createDecorationEngine(deps: DecorationEngineDeps): DecorationEn
 	}
 
 	/**
-	 * Why the render path will apply nothing for this island, or null when it will. The
-	 * verdict belongs here and nowhere downstream: only this pass holds the decorations
-	 * beside the document they were derived from, so only here does an unrenderable island
-	 * mean the author placed it wrong rather than the document having moved since.
+	 * Why the render path will apply nothing for this inline widget, or null when it will. The
+	 * answer belongs here and nowhere later: only this pass holds the decorations beside the
+	 * document they came from, so only here does an unrenderable one mean the author placed it
+	 * wrong rather than the document having changed since.
 	 */
 	function islandDefect(
 		dec: WidgetDecoration | ReplaceDecoration,
 		node: NodeView
 	): { key: string; message: string } | null {
-		// Non-prose kinds run no inline pass, so they apply no islands.
+		// Non-prose kinds run no inline pass, so they apply no inline widgets.
 		if (!isProseKind(node.kind)) {
 			return {
 				key: `non-prose\0${node.kind}`,
 				message: `on a non-prose ${node.kind} block; islands render only in prose blocks`
 			};
 		}
-		// An END offset, not a count: a heading's content starts past its marker, so reporting it as
-		// a byte total would name a number the author cannot place anything at.
+		// An end offset, not a count: a heading's content starts past its marker, so reporting a
+		// byte total would name a number the author cannot place anything at.
 		const contentEnd = contentLengthOf(node);
 		const held = `the block's content ends at ${contentEnd}`;
 		if (dec.type === 'widget') {
@@ -130,8 +131,8 @@ export function createDecorationEngine(deps: DecorationEngineDeps): DecorationEn
 		}
 	}
 
-	// A source invalidating from its own `edit` handler is asking to re-run inside the commit
-	// that emitted the event; deferred here to one run per source once the commit publishes.
+	// A source that invalidates from its own `edit` handler is asking to re-run inside the
+	// commit that emitted the event; deferred to one run per source once the commit is done.
 	const deferred = new Set<DecorationSource>();
 	let flushQueued = false;
 
@@ -162,8 +163,8 @@ export function createDecorationEngine(deps: DecorationEngineDeps): DecorationEn
 		sources.push(source);
 		results = [...results, []];
 		runSource(source);
-		// Not `sources.indexOf`: dispose frees the name, so the same source object may be
-		// registered again, and this handle must stay inert over that second registration.
+		// Not `sources.indexOf`: disposing frees the name, so the same source object may be
+		// registered again, and this handle must do nothing for that second registration.
 		let live = true;
 		return {
 			invalidate: () => {
@@ -223,7 +224,7 @@ export function createDecorationEngine(deps: DecorationEngineDeps): DecorationEn
 	};
 }
 
-// A re-run inside the commit ceremony would let a source read a half-applied tree.
+// A re-run inside a commit would let a source read a half-applied tree.
 function assertNotInCommit(): void {
 	assertInvariant('decoration-run-in-commit', () =>
 		isCommitInProgress()

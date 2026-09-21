@@ -14,7 +14,7 @@ export interface OperationsLog {
 	subscribe(listener: (entry: OperationEntry) => void): () => void;
 }
 
-/** Bounded FIFO; oldest entries evicted past `capacity`. */
+/** First in, first out; the oldest entries are dropped past `capacity`. */
 export function createOperationsLog(capacity = 100): OperationsLog {
 	const buf: OperationEntry[] = [];
 	const listeners = new Set<(entry: OperationEntry) => void>();

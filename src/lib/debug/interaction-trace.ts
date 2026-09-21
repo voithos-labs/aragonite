@@ -1,13 +1,13 @@
 /**
- * Bounded ring buffer of the inline layer's transient state transitions, read through the debug
- * panel and `getDiagnostics()`. Unlike `perf/instruments.ts` it arms from anywhere, production
- * included, so a consumer app can attach it to a bug report — which is why entries carry cheap
- * primitives ONLY, never node references or raw document text. The buffer is module-global, so
- * two editors on one page interleave.
+ * A fixed-size ring buffer of the inline code's short-lived state changes, read through the
+ * debug panel and `getDiagnostics()`. Unlike `perf/instruments.ts` it can be turned on anywhere,
+ * production included, so a consumer app can attach it to a bug report; that is why an entry
+ * holds only cheap values, never node references or raw document text. The buffer is
+ * module-global, so two editors on one page interleave their entries.
  */
 
 export interface InteractionTraceEntry {
-	/** `performance.now()` at record time — monotonic, no wall clock. */
+	/** `performance.now()` at record time: it only ever goes up, and is not a wall clock. */
 	t: number;
 	site: string;
 	kind: string;
@@ -18,8 +18,8 @@ const CAPACITY = 200;
 
 let enabled = false;
 let buf: InteractionTraceEntry[] = [];
-// Monotonic, so the harness poll costs one read and the ring buffer's eviction cannot
-// retract a verdict it already counted.
+// Only ever goes up, so a polling harness costs one read and the ring buffer dropping an
+// old entry cannot take back a result it already counted.
 let keydownVerdicts = 0;
 
 // ── Switch and readout ──────────────────────────────────────────────────────
@@ -36,7 +36,7 @@ export function isInteractionTraceEnabled(): boolean {
 	return enabled;
 }
 
-/** Empty the buffer without touching the enabled flag — test isolation. */
+/** Empty the buffer without touching the enabled flag, so tests stay isolated. */
 export function resetInteractionTrace(): void {
 	buf = [];
 	keydownVerdicts = 0;
@@ -56,8 +56,8 @@ function record(site: string, kind: string, detail?: InteractionTraceEntry['deta
 }
 
 // ── Recorders (one per transition family) ────────────────────────────────────
-// Every recorder opens with the disabled gate. Detail assembly that would allocate stays
-// behind an `isInteractionTraceEnabled()` guard at the call site.
+// Every recorder starts by returning when recording is off. Building a detail that would
+// allocate stays behind an `isInteractionTraceEnabled()` check at the call site.
 
 /** `changed` names the differing render-key segments, comma-joined. */
 export function traceRebuild(changed: string, force: boolean): void {
@@ -80,14 +80,14 @@ export function tracePendingCursorSet(source: string, offset: number | null): vo
 	record('pending-cursor', 'set', { source, offset: offset ?? -1, cleared: offset === null });
 }
 
-/** `applied` false = the block lost focus before the effect ran, so the caret restore was
- *  legally skipped. */
+/** `applied` false means the block lost focus before the effect ran, so skipping the caret
+ *  restore was correct. */
 export function tracePendingCursorConsume(offset: number, applied: boolean): void {
 	if (!enabled) return;
 	record('pending-cursor', 'consume', { offset, applied });
 }
 
-/** `construct` carries a `kind:start-end` descriptor; other tiers record the tier alone. */
+/** `construct` holds a `kind:start-end` descriptor; the other levels record the level alone. */
 export function traceRevealOpen(tier: 'inline' | 'leaf' | 'construct', construct?: string): void {
 	if (!enabled) return;
 	record('reveal', 'open', construct === undefined ? { tier } : { tier, construct });
@@ -101,7 +101,7 @@ export function traceRevealFold(reason: RevealFoldReason, construct?: string): v
 	record('reveal', 'fold', construct === undefined ? { reason } : { reason, construct });
 }
 
-/** One record per rebuild bracket, counted inside the pool rather than per widget. */
+/** One record per rebuild, counted once for the pool rather than once per widget. */
 export function tracePoolPass(adopt: number, build: number, destroyed: number): void {
 	if (!enabled) return;
 	record('widget-pool', 'pass', { adopt, build, destroyed });
@@ -132,8 +132,8 @@ export function traceStickyReset(): void {
 	record('sticky-column', 'reset');
 }
 
-/** `handled` is the event's own `defaultPrevented`: whether the editor claimed the press.
- *  Recorded once per keydown, after the surface handler's await chain has settled. */
+/** `handled` is the event's own `defaultPrevented`: whether the editor took the keystroke.
+ *  Recorded once per keydown, after the block's handler has finished awaiting. */
 export function traceKeydownVerdict(key: string, handled: boolean): void {
 	if (!enabled) return;
 	keydownVerdicts++;
