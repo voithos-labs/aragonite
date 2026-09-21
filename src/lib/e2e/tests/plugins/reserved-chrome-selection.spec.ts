@@ -8,11 +8,11 @@ import {
 } from './reserved-chrome-helpers';
 
 /**
- * The `:::callout` callout reserves child 0 as an editable `callout-title` chrome leaf (see
- * src/routes/test/plugins/callout). Gate 1 — selection parity: a cross-block selection from the
- * paragraph above paints continuously INTO the title, and caret/undo land there, with zero new
- * selection machinery (the title carries a char offset, so none of the `kind === 'table'`
- * coordinate gates fire).
+ * The `:::callout` callout reserves child 0 as an editable `callout-title` row (see
+ * src/routes/test/plugins/callout). Part 1, the selection behaving like any other: a cross-block
+ * selection from the paragraph above paints straight into the title, and the caret and undo land
+ * there, with no new selection code. The title holds a character offset, so none of the
+ * `kind === 'table'` coordinate checks fire.
  */
 test.describe('reserved child-0 chrome: selection parity', () => {
 	let editor: PluginsPage;
@@ -30,21 +30,21 @@ test.describe('reserved child-0 chrome: selection parity', () => {
 		expect(callout.childCount).toBe(2);
 		expect(callout.childKinds).toEqual(['callout-title', 'paragraph']);
 		expect(callout.childTexts).toEqual(['Title', 'Body']);
-		// Non-strip container: raw carries the title in the opener line, and the
-		// document still round-trips (raw is authoritative for serialization).
+		// This container has no line prefix: its raw holds the title in the opener line and the
+		// document still round-trips, since serialization reads that raw.
 		expect(callout.raw).toBe(':::callout Title\nBody\n:::\n');
 		expect(await editor.bridge.getSource()).toBe(FIXTURE);
 		expect(await capturedErrors(page)).toEqual([]);
 	});
 
-	// ── Gate 1 — selection parity ────────────────────────────────────────────
+	// ── Part 1: the selection behaves like any other ─────────────────────────
 
 	test('Gate 1: keyboard Shift+ArrowDown paints one span from the paragraph into the title', async ({
 		page
 	}) => {
 		await editor.loadContent(FIXTURE);
-		// Anchor mid-paragraph, extend to the paragraph end, then cross the boundary —
-		// the span covers the paragraph tail AND reaches into the callout.
+		// Anchor mid-paragraph, extend to the paragraph's end, then cross the boundary, so the
+		// range covers the end of the paragraph and reaches into the callout.
 		await editor.focusBlock(0, 2);
 		await page.keyboard.press('Shift+End');
 		await page.keyboard.press('Shift+ArrowDown');
@@ -53,8 +53,8 @@ test.describe('reserved child-0 chrome: selection parity', () => {
 		const sel = await editor.bridge.getSelectionPaths();
 		expect(sel).not.toBeNull();
 		expect(sel!.anchor.path).toEqual([0]);
-		// The selection reaches the reserved chrome leaf (deep path [1, 0]), proving
-		// cross-select-in with zero new selection machinery.
+		// The selection reaches the title row at path [1, 0], so selecting into it needs no new
+		// selection code.
 		expect(sel!.focus.path).toEqual([1, 0]);
 		expect(await capturedErrors(page)).toEqual([]);
 	});
@@ -76,7 +76,7 @@ test.describe('reserved child-0 chrome: selection parity', () => {
 	test('Gate 1 (edge): cross-select-in reaches child 0 even when the title is empty', async ({
 		page
 	}) => {
-		// The default reserved slot: a callout whose author has not typed a title.
+		// The default title row: a callout whose author has not typed a title.
 		await editor.loadContent('Above\n\n:::callout\nBody\n:::\n');
 		const seed = await readCallout(page, 1);
 		expect(seed.childKinds[0]).toBe('callout-title');
@@ -90,7 +90,7 @@ test.describe('reserved child-0 chrome: selection parity', () => {
 		const sel = await editor.bridge.getSelectionPaths();
 		expect(sel).not.toBeNull();
 		expect(sel!.anchor.path).toEqual([0]);
-		// An empty child-0 leaf is still a real selection endpoint.
+		// An empty child 0 is still a real endpoint for a selection.
 		expect(sel!.focus.path).toEqual([1, 0]);
 		expect(await capturedErrors(page)).toEqual([]);
 	});
@@ -104,10 +104,9 @@ test.describe('reserved child-0 chrome: selection parity', () => {
 		await page.keyboard.press('Shift+ArrowDown');
 		await editor.waitForCrossBlock(true);
 
-		// Collapse to the focus edge (the title), then type — the character must land in the
-		// child-0 leaf, proving it is a real caret target. (The callout-title kind survives the edit
-		// via contextDependentKind, characterized separately; this gate is about the caret reaching
-		// path [1, 0].)
+		// Collapse to the focus end, the title, then type: the character must land in child 0,
+		// which shows the caret can go there. That the callout-title kind survives the edit comes
+		// from contextDependentKind and is covered elsewhere; this is about reaching path [1, 0].
 		await page.keyboard.press('ArrowRight');
 		await editor.waitForCrossBlock(false);
 		await editor.typeText('Z');
@@ -128,12 +127,12 @@ test.describe('reserved child-0 chrome: selection parity', () => {
 		await editor.bridge.waitForSourceContains(':::callout Title!');
 		await editor.waitForUndoBatchFlush();
 
-		// Poll the CST child text, not the source bytes: this epilogue is where the source-bytes
-		// wait once won the race a beat before the title child re-materialized, so readCallout saw a
-		// childless callout.
+		// Poll the child's text in the CST, not the source bytes: waiting on the bytes here can
+		// finish a beat before the title child is rebuilt, and readCallout then sees a callout
+		// with no children.
 		await editor.undo();
 		await expect.poll(() => readCallout(page, 1).then((n) => n.childTexts[0])).toBe('Title');
-		// Undo's selection restore returns the caret to the title leaf.
+		// Undo restores the selection, so the caret returns to the title row.
 		expect(await activeBlockPath(page)).toEqual([1, 0]);
 		expect(await capturedErrors(page)).toEqual([]);
 	});

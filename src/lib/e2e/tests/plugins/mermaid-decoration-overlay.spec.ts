@@ -2,11 +2,11 @@ import { test, expect } from '../../fixtures';
 import { PluginsPage } from './helpers';
 
 /**
- * Decoration overlay over a childless opaque container
- * (requirements/plugins/mermaid-decoration-overlay.md). A mermaid block has no child block-hosts,
- * so a mark on its own path paints on the block itself, measured through the container shim's
- * `measurePartialRects`. This is the SelectionOverlay `delegatesPainting` route applied to
- * decorations; the search-fed twin (same overlay) is driven by
+ * A decoration overlay over a block with no children
+ * (requirements/plugins/mermaid-decoration-overlay.md). A mermaid block has no child hosts, so a
+ * mark on its own path paints on the block itself, measured through the container's
+ * `measurePartialRects`. This is the SelectionOverlay `delegatesPainting` path applied to
+ * decorations; the same overlay fed by search is driven by
  * tests/search/childless-container-match.spec.ts.
  */
 

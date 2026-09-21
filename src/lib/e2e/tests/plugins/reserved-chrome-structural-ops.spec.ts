@@ -9,11 +9,11 @@ import {
 } from './reserved-chrome-helpers';
 
 /**
- * The `:::callout` callout reserves child 0 as an editable `callout-title` chrome leaf (see
- * src/routes/test/plugins/callout). Gate 2 — reserved-index-0 structural ops: the merge walk
- * targets the last BODY child (never the title); an interior Backspace against the not-mergeable
- * title moves focus instead of merging; typing keeps the kind; Enter descends into the body
- * (chrome never splits). Gate 5 — a multi-block paste into the title flattens to one line.
+ * The `:::callout` callout reserves child 0 as an editable `callout-title` row (see
+ * src/routes/test/plugins/callout). Part 2, structural edits around that reserved child 0: a merge
+ * targets the last body child and never the title; a Backspace inside against the unmergeable
+ * title moves focus instead of merging; typing keeps the kind; and Enter moves into the body,
+ * since the title never splits. Part 5: a paste of several blocks into the title becomes one line.
  */
 test.describe('reserved child-0 chrome: structural ops + paste', () => {
 	let editor: PluginsPage;
@@ -23,12 +23,12 @@ test.describe('reserved child-0 chrome: structural ops + paste', () => {
 		await editor.gotoPlugins();
 	});
 
-	// ── Gate 2 — reserved-index-0 structural ops ─────────────────────────────
+	// ── Part 2: structural edits around the reserved child 0 ─────────────────
 
 	test('Gate 2a: Backspace after the callout merges into the last BODY child, not the title', async ({
 		page
 	}) => {
-		// Callout followed by a top-level paragraph to fold in.
+		// A callout followed by a top-level paragraph to merge into it.
 		await editor.loadContent('Above\n\n:::callout Title\nBody\n:::\n\nAfter\n');
 		await editor.focusBlockAtPath([2], 0); // start of "After"
 		await page.keyboard.press('Backspace');
@@ -49,8 +49,8 @@ test.describe('reserved child-0 chrome: structural ops + paste', () => {
 		await editor.focusBlockAtPath([1, 1], 0); // start of "Body"
 		await editor.pressDeclined('Backspace');
 
-		// The not-mergeable title refuses the merge; focus moves to the title end,
-		// the tree is unchanged — body prose never enters chrome.
+		// The unmergeable title refuses the merge, so focus moves to the title's end and the tree
+		// is unchanged: body prose never enters the title.
 		const callout = await readCallout(page, 1);
 		expect(callout.childCount).toBe(2);
 		expect(callout.childTexts).toEqual(['Title', 'Body']);
@@ -63,8 +63,8 @@ test.describe('reserved child-0 chrome: structural ops + paste', () => {
 		await editor.focusBlockAtPath([1, 0], 0); // start of "Title"
 		await editor.pressDeclined('Backspace');
 
-		// The callout declares firstChildBackspace='keep-reserved-chrome', the strategy that says
-		// child 0 is chrome: no lift runs, so the title is neither carried out nor destroyed.
+		// The callout declares firstChildBackspace='keep-reserved-chrome', which says child 0 is
+		// its title row, so nothing is lifted out and the title is neither moved nor destroyed.
 		const callout = await readCallout(page, 1);
 		expect(callout.rootCount).toBe(2);
 		expect(callout.childCount).toBe(2);
@@ -80,9 +80,9 @@ test.describe('reserved child-0 chrome: structural ops + paste', () => {
 		await editor.focusBlockAtPath([1, 0], 5); // end of "Title"
 		await page.keyboard.press('Enter');
 
-		// The reserved-chrome contract: chrome is single-line by serialization, so Enter routes to
-		// chrome.descendToBody (the registerChromeLeaf default) — a pure focus move into the first
-		// body child, no split, no commit.
+		// A title row is one line by the way it serializes, so Enter goes to chrome.descendToBody,
+		// the registerChromeLeaf default: focus moves into the first body child, with no split
+		// and no commit.
 		await expect.poll(() => activeBlockPath(page)).toEqual([1, 1]);
 
 		const callout = await readCallout(page, 1);
@@ -92,7 +92,7 @@ test.describe('reserved child-0 chrome: structural ops + paste', () => {
 		expect(callout.raw).toBe(':::callout Title\nBody\n:::\n');
 		expect(await editor.bridge.getSource()).toBe(FIXTURE);
 
-		// The caret landed at body offset 0: a typed character heads the body text.
+		// The caret landed at body offset 0, so a typed character starts the body text.
 		await editor.typeText('X');
 		await editor.bridge.waitForSourceContains('XBody');
 		expect((await readCallout(page, 1)).childTexts).toEqual(['Title', 'XBody']);
@@ -116,7 +116,7 @@ test.describe('reserved child-0 chrome: structural ops + paste', () => {
 		expect(callout.childKinds).toEqual(['callout-title', 'paragraph']);
 		expect(callout.childTexts).toEqual(['Title', '']);
 
-		// The minted paragraph is a live caret target, not just a CST splice.
+		// The new paragraph is a real place for the caret, not just a splice in the CST.
 		await editor.typeText('New body');
 		await editor.bridge.waitForSourceContains('New body');
 		expect((await readCallout(page, 1)).childTexts).toEqual(['Title', 'New body']);
@@ -136,9 +136,9 @@ test.describe('reserved child-0 chrome: structural ops + paste', () => {
 		await page.keyboard.press('Enter');
 		await expect.poll(() => activeBlockPath(page)).toEqual([1, 1]);
 
-		// Descend on an existing body is a pure focus move: were it to push a dead undo entry, this
-		// single undo would consume it and "BodyQ" would survive. Poll the CST children (not the
-		// source bytes) so the assert waits for the tree to re-materialize the reverted text.
+		// Moving into an existing body only moves focus: if it pushed an empty undo entry, this
+		// one undo would spend it and "BodyQ" would survive. Poll the children in the CST, not the
+		// source bytes, so the assertion waits for the tree to rebuild the reverted text.
 		await editor.undo();
 		await expect
 			.poll(() => readCallout(page, 1).then((n) => n.childTexts))
@@ -154,10 +154,10 @@ test.describe('reserved child-0 chrome: structural ops + paste', () => {
 		await editor.typeText('X');
 		await editor.bridge.waitForSourceContains(':::callout TitleX');
 
-		// callout-title is registered via registerChromeLeaf, so it carries contextDependentKind.
-		// updateNodeContent honors that flag: a content commit writes raw and keeps the kind
-		// instead of re-deriving it from the bare title line (which has no recognizer and would
-		// downgrade to paragraph).
+		// callout-title is registered through registerChromeLeaf, so it has contextDependentKind,
+		// and updateNodeContent honours that: a commit writes the raw and keeps the kind instead
+		// of deriving it again from the bare title line, which nothing recognizes and which would
+		// come back as a paragraph.
 		const callout = await readCallout(page, 1);
 		expect(callout.childKinds[0]).toBe('callout-title');
 		expect(callout.childTexts[0]).toBe('TitleX');
@@ -169,8 +169,8 @@ test.describe('reserved child-0 chrome: structural ops + paste', () => {
 		page
 	}) => {
 		await editor.loadContent(FIXTURE);
-		// A structural edit inside the callout, then a merge — the windowing-adjacent invariant
-		// (ids/refs length === children length) must hold with the reserved chrome row present.
+		// A structural edit inside the callout, then a merge: the rule that the ids and references
+		// match the children in number must hold with the title row there.
 		await editor.focusBlockAtPath([1, 1], 4); // end of "Body"
 		await page.keyboard.press('Enter');
 		await editor.waitForBlockHostCount(5);
@@ -182,7 +182,7 @@ test.describe('reserved child-0 chrome: structural ops + paste', () => {
 		expect(callout.childKinds[0]).toBe('callout-title'); // chrome row still index 0
 		expect(await capturedErrors(page)).toEqual([]);
 	});
-	// ── Gate 5 — paste into the title ────────────────────────────────────────
+	// ── Part 5: pasting into the title ───────────────────────────────────────
 
 	test('Gate 5: pasting a multi-block clipboard into the title flattens inline, one chrome node', async ({
 		page
@@ -193,8 +193,8 @@ test.describe('reserved child-0 chrome: structural ops + paste', () => {
 		await editor.paste();
 		await editor.bridge.waitForSourceContains(':::callout Titlex y');
 
-		// Newlines collapse to a single space; the chrome stays one callout-title node
-		// instead of splitting into paragraphs.
+		// Newlines collapse to one space and the title stays a single callout-title node rather
+		// than splitting into paragraphs.
 		const callout = await readCallout(page, 1);
 		expect(callout.childCount).toBe(2);
 		expect(callout.childKinds).toEqual(['callout-title', 'paragraph']);

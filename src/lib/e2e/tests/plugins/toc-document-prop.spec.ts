@@ -3,12 +3,12 @@ import type { Locator } from '@playwright/test';
 import { PluginsPage, readContainer } from './helpers';
 
 /**
- * The TOC dogfood is the named consumer of `BlockComponentProps.document`
- * (requirements/plugins/toc-document-prop.md). A `[[toc]]` leaf renders a folded `<nav>` list of
- * the document's headings, read straight off the `document` prop — so these gates prove the prop is
- * delivered, live (a heading edit updates the list), and reaches a nested block through editor
- * context. Seeds: `toc` (headings + top-level `[[toc]]`) and `toc-nested` (headings + `[[toc]]` in
- * a blockquote).
+ * The outline dogfood is the named user of `BlockComponentProps.document`
+ * (requirements/plugins/toc-document-prop.md). A `[[toc]]` block renders a `<nav>` list of the
+ * document's headings read straight off the `document` prop, so these tests prove the prop is
+ * delivered, stays current as a heading is edited, and reaches a nested block through the editor's
+ * context. Seeds: `toc`, with headings and a top-level `[[toc]]`, and `toc-nested`, with headings
+ * and a `[[toc]]` inside a blockquote.
  */
 class TocPage extends PluginsPage {
 	async gotoToc(seed: 'toc' | 'toc-nested' = 'toc'): Promise<void> {
@@ -38,8 +38,8 @@ class TocPage extends PluginsPage {
 		return this.page.locator("[data-block-path='[2,0]'] .toc-block-item").nth(index);
 	}
 
-	/** Reveal the folded list by clicking its non-entry area (the accent border/padding,
-	 *  away from any entry, which would navigate); the render swaps to the source. */
+	/** Open the block's source by clicking away from any entry, on its border or padding, since a
+	 *  click on an entry would navigate; the render swaps to the source. */
 	async revealByClick(): Promise<void> {
 		await this.render.click({ position: { x: 2, y: 2 } });
 		await expect(this.source).toHaveCount(1);
@@ -83,8 +83,8 @@ test.describe('toc dogfood: the document prop consumer', () => {
 		const before = await editor.bridge.getSource();
 		await editor.revealByClick();
 
-		// Type a char and delete it back to `[[toc]]`: the render-primary commit only
-		// fires when the text actually changed, so the fold is a pure view toggle.
+		// Type a character and delete it back to `[[toc]]`: the commit only runs when the text
+		// really changed, so closing the source only changes the view.
 		await page.keyboard.press('End');
 		await page.keyboard.type('x');
 		await page.keyboard.press('Backspace');
@@ -103,9 +103,9 @@ test.describe('toc dogfood: the document prop consumer', () => {
 	});
 });
 
-// The nested guard: the prop is delivered by editor context, so it must reach a `[[toc]]` inside a
-// container. A top-level scenario alone can't pin that it survives the nested render path — this is
-// the only runtime guard for that sibling-path hole.
+// The nested case: the prop is delivered through the editor's context, so it must reach a
+// `[[toc]]` inside a container. A top-level scenario alone cannot show that it survives the nested
+// render path, and this is the only test that covers it at runtime.
 test.describe('toc dogfood: the document prop reaches nested depth', () => {
 	let editor: TocPage;
 

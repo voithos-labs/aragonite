@@ -4,10 +4,10 @@ import { dragBetweenPoints } from './helpers';
 import { MermaidPage, STANDARD_DIAGRAM_DOC } from './mermaid-helpers';
 
 /**
- * A drag the diagram claims for its own pan seeds no block range, and a drag it has not claimed
- * still belongs to the editor (requirements/plugins/mermaid-pan-gesture.md). The margin-drag arm
- * reads the press before the plugin's own handler runs, so only a declared surface can decline
- * it, and the diagram declares only while its pan is armed.
+ * A drag the diagram takes for its own panning starts no block selection, and a drag it has not
+ * taken still belongs to the editor (requirements/plugins/mermaid-pan-gesture.md). The editor's
+ * margin-drag handling reads the press before the plugin's own handler runs, so only an element
+ * the plugin declares can decline it, and the diagram declares one only while panning is ready.
  */
 
 const BROKEN_DOC = 'Above text\n\n```mermaid\nnotadiagram broken\n```\n\ntail text\n';
@@ -78,8 +78,8 @@ test.describe('a diagram pan claims its own drag', () => {
 		expect(await editor.bridge.isCrossBlockActive()).toBe(false);
 	});
 
-	// Armed, not permanent: an unfocused diagram has no pan to protect, so a press on it is still
-	// the editor's to answer and a sweep out of it selects across blocks as from any other face.
+	// Only while panning is ready: an unfocused diagram has no pan to protect, so a press on it is
+	// still the editor's to answer and a drag out of it selects across blocks like any other.
 	test('a drag out of an UNFOCUSED diagram still seeds a cross-block range', async ({ page }) => {
 		const box = await editor.viewport.boundingBox();
 		if (!box) throw new Error('the rendered diagram has no bounding box');
@@ -89,14 +89,14 @@ test.describe('a diagram pan claims its own drag', () => {
 
 		await editor.waitForCrossBlock(true);
 		expect(await editor.bridge.isCrossBlockActive()).toBe(true);
-		// Nothing panned: an unclaimed drag is not a gesture the plugin ran too.
+		// Nothing panned: a drag the plugin did not take is not one it also ran.
 		expect(await canvasTransform(page, '.mermaid-viewport .mermaid-canvas')).toBe(
 			'translate(0px, 0px) scale(1)'
 		);
 	});
 
-	// The door is the declared surface, not the kind: the error card declares no gesture, so a
-	// drag on it still takes the block as a unit the way a drag on any rendered face does.
+	// What decides is the element the plugin declares, not the kind: the error box declares no
+	// gesture, so a drag on it still takes the block whole, as a drag on any rendered block does.
 	test('a drag on the error card still takes the block whole', async () => {
 		await editor.loadDiagram(BROKEN_DOC, 'error');
 

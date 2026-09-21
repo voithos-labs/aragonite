@@ -4,10 +4,11 @@ import { MermaidPage } from './mermaid-helpers';
 import { wholeBlockInput } from '../../whole-block-input';
 
 /**
- * Mermaid reference plugin: render-primary block with plugin-owned editing
- * (requirements/plugins/mermaid.md). Seed `?seed=mermaid`: heading, two valid diagrams, one invalid
- * diagram, a ```js fence, a trailing paragraph. The first SVG waits carry a generous timeout — the
- * engine loads through a dynamic import the dev server transforms on first hit.
+ * The mermaid reference plugin: a render-first block whose editing the plugin owns
+ * (requirements/plugins/mermaid.md). Seed `?seed=mermaid`: a heading, two valid diagrams, one
+ * invalid diagram, a ```js fence and a trailing paragraph. The first waits for an SVG allow plenty
+ * of time, because the renderer loads through a dynamic import the dev server transforms on first
+ * use.
  */
 
 const SEED = [
@@ -64,8 +65,8 @@ class MermaidSeedPage extends MermaidPage {
 		return wholeBlockInput(this.block.first());
 	}
 
-	/** Toolbar buttons stay hidden until the block is hovered/focused; a real user
-	 *  hovers to reveal them, so reveal then click. */
+	/** Toolbar buttons stay hidden until the block is hovered or focused, and a real user hovers
+	 *  to bring them up, so hover first and then click. */
 	async clickToolbar(testId: string): Promise<void> {
 		const block = this.block.first();
 		await block.hover();
@@ -111,7 +112,7 @@ test.describe('mermaid reference plugin', () => {
 		await editor.page.keyboard.press('ControlOrMeta+Enter');
 		await editor.bridge.waitForSourceContains(EDITED_CODE);
 
-		// Undo rides the focused leaf's global chord tier, so land the caret first.
+		// Undo goes through the focused block's global chords, so put the caret there first.
 		await editor.getBlock(5).click();
 		await editor.undo();
 		await editor.bridge.waitForSourceNotContains(EDITED_CODE);
@@ -123,8 +124,8 @@ test.describe('mermaid reference plugin', () => {
 		await editor.page.keyboard.press('ControlOrMeta+Enter');
 		await editor.bridge.waitForSourceContains(EDITED_CODE);
 
-		// A keyboard commit hands focus back to the diagram, which is where a user presses
-		// undo next — no click away first.
+		// Committing by keyboard hands focus back to the diagram, which is where a user presses
+		// undo next, with no click away first.
 		await expect(editor.firstInputHost).toBeFocused();
 		await editor.undo();
 		await editor.bridge.waitForSourceNotContains(EDITED_CODE);

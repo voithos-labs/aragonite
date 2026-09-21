@@ -3,9 +3,9 @@ import { activeBlockPath } from './helpers';
 import { MermaidPage } from './mermaid-helpers';
 
 /**
- * Boundary arrow exits out of the diagram's edit box (requirements/plugins/mermaid-edit-exit.md).
- * A textarea swallows arrows at its own edges; an empty diagram, whose box IS its view, turns
- * that into a caret trap.
+ * Leaving the diagram's edit box with an arrow at its edge
+ * (requirements/plugins/mermaid-edit-exit.md). A textarea swallows arrows at its own edges, and an
+ * empty diagram, whose box is all there is to see, turns that into a trap for the caret.
  */
 
 const ONE_DIAGRAM = 'Above\n\n```mermaid\ngraph TD\n```\n\ntail\n';
@@ -44,7 +44,7 @@ test.describe('mermaid edit box — boundary arrow exits', () => {
 		await page.keyboard.type('!');
 		expect(await editor.getBlockText(0)).toBe('Above!');
 
-		// The block survives the exit and still offers its box, so the way back in is an arrow too.
+		// The block survives and still offers its box, so an arrow is also the way back in.
 		await expect(editor.textarea).toHaveCount(1);
 		await page.keyboard.press('ArrowDown');
 		await expect(editor.textarea).toBeFocused();
@@ -114,8 +114,8 @@ test.describe('mermaid edit box — boundary arrow exits', () => {
 		expect(await editor.bridge.getSource()).toBe(ONE_DIAGRAM);
 	});
 
-	// Pinned as it stands: an empty diagram has no other view to cancel back to, so Escape
-	// keeps the box and the caret. The arrow is what leaves.
+	// Pinned as it stands: an empty diagram has no other view to cancel back to, so Escape keeps
+	// the box and the caret, and an arrow is what leaves.
 	test('Escape in an empty diagram’s box keeps the box and the caret', async ({ page }) => {
 		await editor.loadContent('Above\n\n```mermaid\n```\n\ntail\n');
 		await editor.textarea.click();

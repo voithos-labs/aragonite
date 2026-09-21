@@ -2,7 +2,7 @@ import { test, expect } from '../../fixtures';
 
 type Pane = 'listing' | 'notListing';
 
-/** The harness route's read-only window bridge over each instance's chord doors. */
+/** The harness route's read-only bridge over what each editor did with a chord. */
 interface ActivationDoor {
 	reserved(pane: Pane): string[];
 	/** One entry per real keystroke: what each instance answered for that press. */
@@ -10,10 +10,10 @@ interface ActivationDoor {
 }
 
 // Two editors over one seed: the first lists the parrot kind and the block-badge decoration
-// source, the second lists neither. Definitions are process-global, so the difference is
-// activation alone — the `plugins` prop is the enablement set
-// (requirements/plugins/plugins-prop-activation.md). Degrading to raw IS the no-component
-// fallback, which reports itself on the way past, so every load of this route warns once.
+// source, the second lists neither. The definitions are shared by the whole process, so the only
+// difference is which editor turned them on, and the `plugins` prop is that list
+// (requirements/plugins/plugins-prop-activation.md). Falling back to raw text is what happens with
+// no component, and it warns on the way past, so every load of this route warns once.
 test.describe('the plugins prop is the enablement set', () => {
 	test.use({ expectWarns: ['block-host'] });
 
@@ -38,7 +38,7 @@ test.describe('the plugins prop is the enablement set', () => {
 		await expect(parrot).toHaveText(/%%parrot party responsibly/);
 	});
 
-	// The badge rides an onEditor hook, so its absence is the hook never running here.
+	// The badge comes from an onEditor hook, so its absence means the hook never ran here.
 	test('attaches no decoration source from a plugin it did not list', async ({ page }) => {
 		await expect(page.getByTestId('editor-not-listing').locator('.badge-h')).toHaveCount(0);
 	});
@@ -52,9 +52,9 @@ test.describe('the plugins prop is the enablement set', () => {
 	});
 });
 
-// The chord and paste halves of the same set. Each pane is the other's unlisting editor:
-// `editor-not-listing` is the one that lists `doc-stats`, whose global chord the parrot pane
-// never asked for, and the parrot pane is the one that owns `%%parrot`.
+// The chord and paste halves of the same list. Each pane is the one that did not list what the
+// other did: `editor-not-listing` lists `doc-stats`, whose global chord the parrot pane never
+// asked for, and the parrot pane is the one that owns `%%parrot`.
 test.describe('activation scopes the chord and the paste grammar', () => {
 	test.use({ expectWarns: ['block-host'] });
 
@@ -64,8 +64,8 @@ test.describe('activation scopes the chord and the paste grammar', () => {
 		await page.getByTestId('editor-not-listing').locator('[data-block-kind]').first().waitFor();
 	});
 
-	// GH #265: the chord was consumed process-wide, so it died in the editor that never listed
-	// the plugin instead of reaching the app around it.
+	// GH #265: the chord was consumed for the whole process, so it died in the editor that never
+	// listed the plugin instead of reaching the app around it.
 	test('only the editor that listed the plugin claims its global chord', async ({ page }) => {
 		// The panes render server-side, so waiting on a block only proves the markup arrived; the
 		// bridge is an effect, and it exists once the page has hydrated.
@@ -89,8 +89,8 @@ test.describe('activation scopes the chord and the paste grammar', () => {
 		expect(answers.at(-1)).toEqual({ listing: false, notListing: true });
 	});
 
-	// GH #267: the clipboard parsed against the whole process, so `%%parrot` became a parrot
-	// block in an editor that resolves no component for one.
+	// GH #267: the clipboard parsed against the whole process, so `%%parrot` became a parrot block
+	// in an editor that has no component for one.
 	test('pasted plugin syntax lands as prose in the editor that omits the plugin', async ({
 		page
 	}) => {

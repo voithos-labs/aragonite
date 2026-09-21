@@ -3,10 +3,10 @@ import { PluginsPage, dragBetweenPoints } from './helpers';
 import { MERMAID_FENCE, STANDARD_DIAGRAM_DOC } from './mermaid-helpers';
 
 /**
- * Cross-block BYTES for a pointer drag ending inside a rendered diagram
- * (requirements/plugins/mermaid-pointer-selection-bytes.md). The block offers no character
- * surface, so the endpoint must take the unit whole — rects cannot see this class, and the
- * keyboard mint (offset 0 / end) never produces the interior offset a drag does.
+ * The cross-block bytes for a pointer drag ending inside a rendered diagram
+ * (requirements/plugins/mermaid-pointer-selection-bytes.md). The block offers no text to address,
+ * so the endpoint must take it whole. Rects cannot show this, and a keyboard selection, which only
+ * gives offset 0 or the end, never produces the interior offset a drag does.
  */
 
 test.describe('pointer drag into a rendered diagram', () => {
@@ -19,7 +19,7 @@ test.describe('pointer drag into a rendered diagram', () => {
 		await expect(page.locator('.mermaid-viewport svg')).toHaveCount(1, { timeout: 30_000 });
 	});
 
-	/** Press inside "Above text" after "Above ", then hold the drag onto the diagram's middle. */
+	/** Press inside "Above text" after "Above ", then drag onto the diagram's middle. */
 	async function dragIntoDiagram(): Promise<void> {
 		const start = await editor.pointForOffset([0], 6);
 		const box = await editor.page.locator('.mermaid-viewport').boundingBox();

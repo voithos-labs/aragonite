@@ -10,11 +10,11 @@ import {
 } from './reserved-chrome-helpers';
 
 /**
- * The `:::callout` callout reserves child 0 as an editable `callout-title` chrome leaf (see
- * src/routes/test/plugins/callout). Gate 6 — the chrome wall × the table branch: `involvesTable`
- * dispatches before `involvesReservedChrome`, so a range with a table endpoint takes the table
- * branch, and the wall must hold there too — covered chrome clears, chrome endpoints truncate in
- * place, and a consumed container unit-deletes.
+ * The `:::callout` callout reserves child 0 as an editable `callout-title` row (see
+ * src/routes/test/plugins/callout). Part 6, that boundary inside a table: `involvesTable` is
+ * checked before `involvesReservedChrome`, so a range with a table endpoint takes the table path,
+ * and the boundary must hold there too: a covered title is emptied, a title at an endpoint
+ * truncates in place, and a fully covered container is deleted whole.
  */
 test.describe('reserved child-0 chrome: wall × table branch', () => {
 	let editor: PluginsPage;
@@ -24,16 +24,16 @@ test.describe('reserved child-0 chrome: wall × table branch', () => {
 		await editor.gotoPlugins();
 	});
 
-	// ── Gate 6 — chrome wall × table branch ─────────────────────────────
+	// ── Part 6: the same boundary inside a table ────────────────────────
 
 	// Table in the callout body: [0]=para "Above", [1]=callout ([1,0]=title,
 	// [1,1]=table of header row (a,b) + body row (1,2)), [2]=para "Below".
 	const TBL_FIXTURE =
 		'Above\n\n:::callout Title\n| a | b |\n| --- | --- |\n| 1 | 2 |\n:::\n\nBelow\n';
-	// Table ABOVE the callout: [0]=table, [1]=callout ([1,0]=title, [1,1]=para "Body").
+	// A table above the callout: [0]=table, [1]=callout ([1,0]=title, [1,1]=para "Body").
 	const TBL_ABOVE_FIXTURE =
 		'| a | b |\n| --- | --- |\n| 1 | 2 |\n\n:::callout Title\nBody\n:::\n\nBelow\n';
-	// Tables on both sides of the wall: [0]=table, [1]=callout ([1,0]=title, [1,1]=table).
+	// Tables on both sides of the boundary: [0]=table, [1]=callout ([1,0]=title, [1,1]=table).
 	const TBL_BOTH_FIXTURE =
 		'| a | b |\n| --- | --- |\n| 1 | 2 |\n\n:::callout Title\n| c | d |\n| --- | --- |\n| 3 | 4 |\n:::\n\nBelow\n';
 
@@ -57,9 +57,10 @@ test.describe('reserved child-0 chrome: wall × table branch', () => {
 		page
 	}) => {
 		await editor.loadContent(TBL_FIXTURE);
-		// Drop in header cell "a": the whole-row snap covers row 0, so the table takes its
-		// table-branch semantics (header removed, "1|2" promoted) while the strictly-between title
-		// must CLEAR in place: node-deleting it lets the rebuild hoist the table into the opener.
+		// Drop in header cell "a": snapping to whole rows covers row 0, so the table behaves as
+		// the table path says, with the header removed and "1|2" promoted, while the title in
+		// between must be emptied in place. Removing that node lets the rebuild move the table up
+		// into the opener line.
 		await editor.dragFromTo([0], 2, [1, 1], 0);
 		await editor.waitForCrossBlock(true);
 		await page.keyboard.press('Delete');
@@ -70,18 +71,18 @@ test.describe('reserved child-0 chrome: wall × table branch', () => {
 		expect(callout.childKinds).toEqual(['callout-title', 'table']);
 		expect(callout.childTexts[0]).toBe('');
 		expect(callout.raw).toBe(':::callout\n| 1 | 2 |\n| --- | --- |\n:::\n');
-		// The truncated prose head keeps its line ending, so the blank line the source had between
-		// it and the container survives — matching the chrome-start case below, whose arm always
-		// terminated its head.
+		// The truncated start of the prose keeps its line ending, so the blank line the source had
+		// between it and the container survives, matching the case below that starts in the title.
 		expect(await editor.bridge.getSource()).toBe(
 			'Ab\n\n:::callout\n| 1 | 2 |\n| --- | --- |\n:::\n\nBelow\n'
 		);
 		expect(await stateConsistencyViolations(page)).toEqual([]);
 		expect(await capturedErrors(page)).toEqual([]);
 
-		// Child-level undo: the clear went through an unshared copy (G1.9), so the title node
-		// itself is restored — getSource alone is blind to a corrupted child. Poll the CST children
-		// (not the source bytes) so the reads below wait for the tree to re-materialize.
+		// Undo at the child level: the emptying went through a copy made before the write (G1.9),
+		// so the title node itself is restored, where getSource alone cannot see a corrupted
+		// child. Poll the children in the CST, not the bytes, so the reads below wait for the
+		// tree to rebuild.
 		await editor.undo();
 		await expect
 			.poll(() => readCallout(page, 1).then((n) => n.childKinds))
@@ -97,8 +98,8 @@ test.describe('reserved child-0 chrome: wall × table branch', () => {
 		page
 	}) => {
 		await editor.loadContent(TBL_FIXTURE);
-		// Same-container chrome start: the endpoint-reparse hole replaced the title
-		// with a reparsed paragraph (kind destroyed); the wall truncates by raw write.
+		// Starting in the title of the same container: reparsing the endpoint used to replace the
+		// title with a paragraph, losing its kind, where the boundary truncates by writing raw.
 		await editor.dragFromTo([1, 0], 3, [1, 1], 0);
 		await editor.waitForCrossBlock(true);
 		await page.keyboard.press('Delete');
@@ -126,8 +127,8 @@ test.describe('reserved child-0 chrome: wall × table branch', () => {
 		page
 	}) => {
 		await editor.loadContent(TBL_ABOVE_FIXTURE);
-		// Anchor in body cell "1" (row 1): the whole-row snap removes that row and
-		// the header survives; the chrome end must keep "le" in the chrome leaf.
+		// Anchor in body cell "1", row 1: snapping to whole rows removes that row and the header
+		// survives, and the end in the title must keep "le" in the title row.
 		await dragBetweenPoints(
 			page,
 			await cellCenter(page, 2),
@@ -151,8 +152,8 @@ test.describe('reserved child-0 chrome: wall × table branch', () => {
 		page
 	}) => {
 		await editor.loadContent(TBL_BOTH_FIXTURE);
-		// Outer body cell "1" → inner header cell "c": both endpoints ride the
-		// two-table case, and the title sits strictly between — shared-helper coverage.
+		// Outer body cell "1" to inner header cell "c": both endpoints are in tables and the title
+		// sits between them, which covers the shared helper.
 		await dragBetweenPoints(page, await cellCenter(page, 2), await cellCenter(page, 4));
 		await editor.waitForCrossBlock(true);
 		await page.keyboard.press('Delete');
@@ -177,8 +178,9 @@ test.describe('reserved child-0 chrome: wall × table branch', () => {
 		page
 	}) => {
 		await editor.loadContent(TBL_ABOVE_FIXTURE);
-		// Body cell "1" → the container's last byte (end of "Body"): the whole subtree is covered
-		// from outside, so the container dies as ONE unit — never a husk with the title deleted.
+		// Body cell "1" to the container's last byte, the end of "Body": the whole subtree is
+		// covered from outside, so the container goes as one, never leaving an empty leftover
+		// with the title removed.
 		await dragBetweenPoints(
 			page,
 			await cellCenter(page, 2),
@@ -193,7 +195,7 @@ test.describe('reserved child-0 chrome: wall × table branch', () => {
 		expect(await stateConsistencyViolations(page)).toEqual([]);
 		expect(await capturedErrors(page)).toEqual([]);
 
-		// One-splice unit delete undoes to the full container, children intact.
+		// That single-splice delete undoes to the full container, children intact.
 		await editor.undo();
 		await expect
 			.poll(() => readCallout(page, 1).then((n) => n.childKinds))

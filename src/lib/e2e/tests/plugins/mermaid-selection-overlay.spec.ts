@@ -3,12 +3,12 @@ import { PluginsPage } from './helpers';
 import { STANDARD_DIAGRAM_DOC } from './mermaid-helpers';
 
 /**
- * Cross-block selection overlay over childless opaque containers
- * (requirements/plugins/mermaid-selection-overlay.md). A mermaid block swept into a cross-block
- * range has no child block-hosts at all, so the block itself must take the full-block overlay — in
- * the rendered AND the error state — the same box a child-bearing container takes when the range
- * holds it whole. Lives in the plugins project because only plugin kinds produce childless
- * containers; the built-in overlay behavior is pinned in tests/selection/overlay.spec.ts.
+ * The cross-block selection overlay over containers with no children
+ * (requirements/plugins/mermaid-selection-overlay.md). A mermaid block caught in a cross-block
+ * range has no child hosts at all, so the block itself must take the whole-block overlay, both
+ * rendered and in its error state, the same box a container with children takes when the range
+ * covers it whole. It lives in the plugins project because only plugin kinds produce containers
+ * with no children; the built-in overlay is pinned in tests/selection/overlay.spec.ts.
  */
 
 const BROKEN_DOC = 'Above text\n\n```mermaid\nnotadiagram broken\n```\n\ntail text\n';
@@ -46,8 +46,8 @@ test.describe('cross-block selection overlay — childless opaque container', ()
 		await page.keyboard.press('Shift+ArrowUp');
 		await editor.waitForCrossBlock(true);
 
-		// The container surfaces measurePartialRects, so as the range-start endpoint
-		// it paints its own full box (endpoint rects, not the middle overlay).
+		// The container provides measurePartialRects, so as the range's start it paints its own
+		// full box, through the endpoint rects rather than the overlay used in between.
 		const endpoint = page.locator("[data-block-path='[1]'] > .selection-overlay-endpoint");
 		await expect.poll(() => endpoint.count()).toBeGreaterThan(0);
 		const box = await endpoint.first().boundingBox();

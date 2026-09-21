@@ -3,7 +3,7 @@ import { MermaidPage, STANDARD_DIAGRAM_DOC } from './mermaid-helpers';
 
 // Requirements: e2e/requirements/plugins/mermaid-tab-order.md.
 
-/** Where each tab press parked: the diagram surface, some other stop inside the block, or out. */
+/** Where each Tab left focus: the diagram itself, another stop inside the block, or outside. */
 function focusedStop(page: MermaidPage['page']): Promise<'viewport' | 'in-block' | 'outside'> {
 	return page.evaluate(() => {
 		const active = document.activeElement;
@@ -29,8 +29,9 @@ test.describe('a plugin whole-block kind is one EDITING tab stop', () => {
 		await expect(editor.viewport).toHaveAttribute('tabindex', '-1');
 	});
 
-	// The confirmed defect: five presses walked host → viewport → three toolbar buttons and never
-	// left the block, with typing at the viewport stop producing nothing.
+	// The confirmed defect: five keypresses went from the outer element to the diagram and then
+	// through three toolbar buttons, never leaving the block, and typing at the diagram did
+	// nothing.
 	test('continuing backward walks only the toolbar and then leaves the block', async ({ page }) => {
 		await editor.focusBlockStart(2);
 		await page.keyboard.press('Shift+Tab');
@@ -46,11 +47,11 @@ test.describe('a plugin whole-block kind is one EDITING tab stop', () => {
 		expect(stops[stops.length - 1]).toBe('outside');
 	});
 
-	// Inverse control: the edit textarea IS an editing host, so demoting it would put the
-	// diagram's own edit mode out of keyboard reach.
+	// The opposite control: the edit textarea really is an editing element, so taking it out of
+	// the tab order would put the diagram's own edit mode out of keyboard reach.
 	test('the edit textarea keeps its own tab stop', async ({ page }) => {
-		// The toolbar reveals on hover/focus-within, so the block is entered first — by the same
-		// Shift+Tab the siblings measure, which is how a keyboard user reaches Edit at all.
+		// The toolbar appears on hover or focus inside, so the block is entered first, with the
+		// same Shift+Tab the other tests measure, which is how a keyboard user reaches Edit.
 		await editor.focusBlockStart(2);
 		await page.keyboard.press('Shift+Tab');
 		await expect(editor.inputHost).toBeFocused();

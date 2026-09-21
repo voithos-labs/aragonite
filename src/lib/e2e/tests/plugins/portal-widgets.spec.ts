@@ -3,11 +3,11 @@ import { clickWidgetCenter, clickWidgetEnd } from './helpers';
 import { MathRevealPage } from './latex-reveal-helpers';
 
 /**
- * The component-portal seam guarantee: a keyed reuse pool keeps one live instance per `(kind,
- * source)` across the editor's rebuild-everything-per-keystroke render. `MathInline`'s
- * `data-mount-id` is the oracle — stable when a widget is adopted (unchanged source), new when it
- * is remounted (source edited). Only a real browser proves it: the pool, the mount, and the render
- * survival are all runtime.
+ * What mounting a component into the text promises: a keyed pool keeps one live instance per
+ * `(kind, source)` across a render that rebuilds everything on every keystroke. `MathInline`'s
+ * `data-mount-id` is what the tests read: unchanged when a widget is reused with the same source,
+ * new when it is remounted after the source was edited. Only a real browser can prove it, since
+ * the pool, the mount and surviving the render all happen at runtime.
  */
 
 class PortalPage extends MathRevealPage {
@@ -30,14 +30,14 @@ test.describe('component-portal inline widgets', () => {
 	test('adoption: typing next to a widget keeps its mount id and its render', async () => {
 		const idBefore = await editor.mountId();
 
-		// Type in the same paragraph, past the widget — the widget's source is untouched.
+		// Type in the same paragraph, past the widget, so the widget's source is untouched.
 		await editor.focusBlockEnd(0);
 		await editor.typeSlowly('Z');
 		await editor.bridge.waitForSourceContains('afterZ');
 		await editor.waitForRenderFlush();
 
 		await expect(editor.mathWidget).toHaveCount(1);
-		// THE seam guarantee: the instance was adopted, not remounted.
+		// The promise itself: the instance was reused, not remounted.
 		expect(await editor.mountId()).toBe(idBefore);
 		await expect(editor.mathWidget.locator('.katex')).toHaveCount(1);
 	});
@@ -49,15 +49,15 @@ test.describe('component-portal inline widgets', () => {
 
 		await clickWidgetEnd(editor.mathWidget);
 		await expect(editor.mathWidget).toHaveCount(0);
-		// Pressed at the formula's tail, so the caret sits inside the closing `$`; insert there,
-		// then walk the caret out of the source — the gesture that folds an edited reveal.
+		// Clicked at the formula's end, so the caret sits inside the closing `$`: insert there,
+		// then step the caret out of the source, which is what commits an edited one.
 		await page.keyboard.type('y');
 		await page.keyboard.press('End');
 
 		await expect(editor.mathWidget).toHaveCount(1);
 		await editor.bridge.waitForSourceContains('$x^2y$');
 		await expect(editor.mathWidget.locator('.katex')).toHaveCount(1);
-		// Source changed → a fresh instance, so a new id (never the adopted one).
+		// The source changed, so a fresh instance with a new id, never the reused one.
 		expect(await editor.mountId()).not.toBe(idBefore);
 	});
 
@@ -68,8 +68,8 @@ test.describe('component-portal inline widgets', () => {
 		await expect(editor.mathWidget).toHaveCount(0);
 		await page.keyboard.press('Escape');
 
-		// The cancel swap re-inserts the exact detached element — a portal kind must
-		// fold back without a builder-less throw (pageerror fails the fixture watcher).
+		// Cancelling puts the exact detached element back, so a kind mounted this way must render
+		// again without throwing for want of a builder, which the fixture's watcher fails on.
 		await expect(editor.mathWidget).toHaveCount(1);
 		await expect(editor.mathWidget.locator('.katex')).toHaveCount(1);
 		expect(await editor.bridge.getSource()).toContain('Before $x^2$ after');
@@ -80,9 +80,9 @@ test.describe('component-portal inline widgets', () => {
 	}) => {
 		const idBefore = await editor.mountId();
 
-		// Two reveal→cancel cycles with no render between. The cancel swap restores the exact
-		// detached element, so no pool state is disturbed and no duplicate can mount — the id must
-		// hold through both cycles and the next real render.
+		// Two open-then-cancel cycles with no render between. Cancelling restores the exact
+		// detached element, so the pool is left alone and no duplicate can mount: the id must hold
+		// through both cycles and the next real render.
 		for (let cycle = 0; cycle < 2; cycle++) {
 			await clickWidgetCenter(editor.mathWidget);
 			await expect(editor.mathWidget).toHaveCount(0);
@@ -102,26 +102,26 @@ test.describe('component-portal inline widgets', () => {
 	test('duplicate identical widgets: revealing the second and Escape restores BOTH in place', async ({
 		page
 	}) => {
-		// Two byte-identical formulas in one paragraph — one pool bucket, two instances.
+		// Two byte-identical formulas in one paragraph: one pool entry, two instances.
 		await editor.loadContent('Twice $x^2$ and $x^2$ again\n\nNext\n');
 		await expect(editor.mathWidget).toHaveCount(2);
 		const firstId = await editor.mountId(0);
 		const secondId = await editor.mountId(1);
 		expect(firstId).not.toBe(secondId);
 
-		// Reveal the SECOND widget, then Escape. A key-only fold-back lookup returns the oldest
-		// pooled instance, and replaceWith MOVES the first widget's element into the second's slot
-		// — the first formula vanishes and the DOM diverges from the CST.
+		// Open the second widget, then Escape. Looking the instance up by key alone returns the
+		// oldest one in the pool, and replaceWith moves the first widget's element into the
+		// second's place, so the first formula disappears and the DOM no longer matches the CST.
 		await clickWidgetCenter(editor.mathWidget.nth(1));
 		await expect(editor.mathWidget).toHaveCount(1);
 		await page.keyboard.press('Escape');
 
 		await expect(editor.mathWidget).toHaveCount(2);
-		// Identity-exact restore: each widget keeps its own instance, in document order.
+		// Restored exactly: each widget keeps its own instance, in document order.
 		expect(await editor.mountId(0)).toBe(firstId);
 		expect(await editor.mountId(1)).toBe(secondId);
 		await expect(editor.mathWidget.locator('.katex')).toHaveCount(2);
-		// Byte-stable: the cancel touched no source.
+		// The bytes did not move: cancelling touched no source.
 		expect(await editor.bridge.getSource()).toContain('Twice $x^2$ and $x^2$ again');
 	});
 
@@ -132,7 +132,7 @@ test.describe('component-portal inline widgets', () => {
 		await expect(editor.mathWidget).toHaveCount(1);
 		const idBefore = await editor.mountId();
 
-		// The cell render surface is pooled too — type after the cell's widget.
+		// A table cell's render uses the same pool, so type after the cell's widget.
 		const cell = page.locator('.table-cell', { has: editor.mathWidget });
 		await cell.click();
 		await page.keyboard.press('End');

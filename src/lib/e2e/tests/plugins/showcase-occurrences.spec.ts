@@ -3,11 +3,12 @@ import { test, expect } from '../../fixtures';
 import { waitForEditorHydrated } from '../../page-probes';
 import { repeatedWordInParagraph } from '../../showcase-document';
 
-// The `/` showcase as a CONSUMING page (requirements/plugins/showcase-occurrences.md): the
-// library paints `.decoration-overlay` geometry and leaves the color to the host, so the marks
-// mount whether or not the host styles them. Every other occurrence spec runs on the plugins
-// harness, which styles the class, so only a spec on `/` can see the paint go missing. The
-// word is picked off the document's own bytes — the owner rewrites its prose by hand.
+// The `/` showcase as a page that embeds the editor
+// (requirements/plugins/showcase-occurrences.md): the library gives `.decoration-overlay` its
+// geometry and leaves the colour to the host, so the marks mount whether or not the host styles
+// them. Every other occurrence spec runs on the plugins harness, which does style the class, so
+// only a spec on `/` can see the paint go missing. The word is taken from the document's own
+// bytes, because the owner rewrites its prose by hand.
 
 const OCCURRENCE = '.decoration-overlay.hl-occurrence';
 const target = repeatedWordInParagraph();
@@ -28,8 +29,8 @@ function backgroundAlpha(overlay: Locator): Promise<number> {
  * showcase prose is edited.
  */
 async function clickWord(page: Page, word: string): Promise<void> {
-	// The showcase windows its blocks, so the paragraph holding the word is not in the DOM at
-	// all until the page scrolls to it; waiting on a locator for it would hang the full timeout.
+	// The showcase mounts only nearby blocks, so the paragraph holding the word is not in the DOM
+	// until the page scrolls to it, and waiting on a locator for it would hang out the timeout.
 	const path = await scrollUntilMounted(page, word);
 	expect(path, `no mounted block repeats "${word}"`).not.toBeNull();
 
@@ -53,7 +54,7 @@ async function clickWord(page: Page, word: string): Promise<void> {
 	await page.mouse.click(point!.x, point!.y);
 
 	// A click that missed leaves the caret nowhere, and "no marks painted" then passes for the
-	// wrong reason — the whole risk in the off-by-default scenario below.
+	// wrong reason, which is the whole risk in the off-by-default case below.
 	await expect
 		.poll(() =>
 			page.evaluate(
@@ -100,25 +101,25 @@ test.describe('/ showcase occurrence highlight', () => {
 	test.beforeEach(async ({ page }) => {
 		test.skip(target === null, 'no paragraph in the demo document repeats a four-letter word');
 		await page.goto('/');
-		// The route SSRs, and a click landing before hydration reaches no handler.
+		// The route is server-rendered, and a click before hydration reaches no handler.
 		await waitForEditorHydrated(page);
 	});
 
 	test(`the header toggle is what lights the other "${WORD}"s`, async ({ page }) => {
-		// The demo opens with the highlight off — the owner found it distracting on a page
-		// people read. The same gesture in both halves is what keeps the zero honest.
+		// The demo opens with the highlight off, since it distracts on a page people read, and
+		// using the same gesture in both halves is what keeps the zero honest.
 		await clickWord(page, WORD);
 		await expect(page.locator(OCCURRENCE)).toHaveCount(0);
 
-		// The plugin set is set-once at mount, so the toggle remounts the editor and the scroll
-		// resets with it; the click helper finds the paragraph again.
+		// The plugin list is fixed at mount, so the toggle remounts the editor and the scroll
+		// resets with it, and the click helper finds the paragraph again.
 		await page.getByTestId('occurrences-toggle').click();
 		await clickWord(page, WORD);
 		await expectMarksPainted(page);
 	});
 
-	// Live is the other mode the showcase sells itself on. Reading has no caret, so it has no
-	// occurrence highlight to paint (decorations/hloccur-memo owns that).
+	// Live is the other mode the showcase presents. Reading has no caret, so it has no occurrence
+	// highlight to paint; decorations/hloccur-memo covers that.
 	test('the marks paint the same with the markers hidden', async ({ page }) => {
 		await page.getByTestId('occurrences-toggle').click();
 		await page.locator('.showcase-mode[data-mode="live"]').click();

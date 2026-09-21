@@ -3,13 +3,13 @@ import { PluginsPage } from './helpers';
 import type { Page } from '@playwright/test';
 
 /**
- * Mermaid diagrams follow the editor theme (requirements/plugins/mermaid-theme.md). The engine
- * writes its palette INTO the SVG it returns, so the oracle reads painted color — the colors in
- * each diagram's own embedded stylesheet, plus one computed fill. A CSS-variable-only seam would
- * leave both unchanged.
+ * Mermaid diagrams follow the editor theme (requirements/plugins/mermaid-theme.md). The renderer
+ * writes its palette into the SVG it returns, so these tests read painted colour: the colours in
+ * each diagram's own embedded stylesheet, plus one computed fill. A change made only through CSS
+ * variables would leave both unchanged.
  */
 
-/** Per mounted diagram, the palette the engine painted into its own <style> block. */
+/** Per mounted diagram, the palette the renderer painted into its own <style> block. */
 async function paintedPalettes(page: Page): Promise<string[]> {
 	return page.$$eval('.mermaid-viewport svg', (svgs) =>
 		svgs.map((svg) =>
@@ -45,17 +45,17 @@ test.describe('mermaid theme seam', () => {
 		expect(dark.every((palette) => palette !== '')).toBe(true);
 
 		await page.getByTestId('theme-toggle').click();
-		// Poll: the redraw is async (memo miss → engine render → effect writes the SVG).
+		// Poll, because the redraw is asynchronous: a memo miss, a render, then the SVG written.
 		await expect
 			.poll(async () => (await paintedPalettes(page)).join('|'), { timeout: 30_000 })
 			.not.toBe(dark.join('|'));
 
-		// EVERY mounted diagram recolors, not only the first — a per-block render read
-		// is what makes that true, and it is the half a memo key alone would not fix.
+		// Every mounted diagram recolours, not only the first; that holds because each block reads
+		// the theme when it renders, which a memo key alone would not give.
 		const light = await paintedPalettes(page);
 		for (let i = 0; i < dark.length; i++) expect(light[i]).not.toBe(dark[i]);
 		expect(await labelFill(page)).not.toBe(darkLabel);
-		// A redraw REPLACES its diagram; it must not append a second one.
+		// A redraw replaces its diagram and must not add a second one.
 		await expect(svgs).toHaveCount(2);
 
 		await page.getByTestId('theme-toggle').click();
@@ -65,7 +65,7 @@ test.describe('mermaid theme seam', () => {
 		expect(await labelFill(page)).toBe(darkLabel);
 		await expect(svgs).toHaveCount(2);
 
-		// A theme is a view fact: the document's bytes never move.
+		// A theme is only about the view: the document's bytes never move.
 		expect(await editor.bridge.getSource()).toBe(before);
 	});
 });

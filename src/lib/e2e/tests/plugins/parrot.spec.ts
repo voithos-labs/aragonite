@@ -3,7 +3,7 @@ import { PluginsPage, activeBlockPath, capturedErrors, roundTripStable } from '.
 
 /**
  * The bundled party parrot (requirements/plugins/parrot.md), which is the plugin guide's
- * quickstart compiled: a render-primary leaf whose caption is the folded view and whose source
+ * quickstart built: a render-first block whose caption is what you normally see and whose source
  * line exists only while the caret is in the block. Seed `parrot`: block 0
  * `%%parrot party responsibly`, block 1 `After`. The bytes themselves are the unit suite's.
  */
@@ -29,15 +29,15 @@ class ParrotPage extends PluginsPage {
 		await expect(this.block).toHaveCount(1);
 	}
 
-	/** Click the caption and settle on the source line's arrival, caret inside it. */
+	/** Click the caption and wait for the source line to appear, with the caret inside it. */
 	async revealByClick(): Promise<void> {
 		await this.caption.click();
 		await expect(this.source).toHaveCount(1);
 		await expect(this.source).toBeFocused();
 	}
 
-	/** The rendered caption's TEXT box, not the div's: the div spans the block width, so a
-	 *  fraction of it lands past the last glyph. */
+	/** The rendered caption's text box, not the div's: the div spans the block's width, so a
+	 *  fraction of it falls past the last glyph. */
 	async captionTextBox(): Promise<{ x: number; y: number; width: number; height: number }> {
 		return this.page.evaluate(() => {
 			const range = document.createRange();
@@ -47,7 +47,7 @@ class ParrotPage extends PluginsPage {
 		});
 	}
 
-	/** Collapsed caret offset within the revealed source's single text node, or null. */
+	/** The collapsed caret's offset in the open source's single text node, or null. */
 	async sourceCaretOffset(): Promise<number | null> {
 		return this.page.evaluate(() => {
 			const el = document.querySelector('.parrot-source');
@@ -58,7 +58,7 @@ class ParrotPage extends PluginsPage {
 		});
 	}
 
-	/** Press that far across the caption's text and report where the reveal put the caret. */
+	/** Click that far across the caption's text and report where the caret ended up. */
 	async revealByClickAcross(fraction: number): Promise<number | null> {
 		const box = await this.captionTextBox();
 		await this.page.mouse.click(box.x + box.width * fraction, box.y + box.height / 2);
@@ -66,13 +66,13 @@ class ParrotPage extends PluginsPage {
 		return this.sourceCaretOffset();
 	}
 
-	/** Leave the block downward into `After`; the fold is the blur, so the source unmounts. */
+	/** Leave the block downward into `After`; the blur closes the source, so it unmounts. */
 	async leaveDownward(): Promise<void> {
 		await this.page.keyboard.press('ArrowDown');
 		await expect(this.source).toHaveCount(0);
 	}
 
-	/** What the dance actually moves: the reel's own transform, read the way a viewer sees it. */
+	/** What the animation actually moves: the strip's own transform, as a viewer sees it. */
 	reelTransform(): Promise<string> {
 		return this.page.evaluate(
 			() => getComputedStyle(document.querySelector('.parrot-reel')!).transform
@@ -89,7 +89,7 @@ class ParrotPage extends PluginsPage {
 		});
 	}
 
-	/** Where the reel sits, counted in clip windows. A stepped animation only ever reports whole
+	/** Where the strip sits, counted in clip windows. A stepped animation only ever reports whole
 	 *  frames; a smooth one reports the space between them. */
 	reelOffsetRows(): Promise<number> {
 		return this.page.evaluate(() => {
@@ -101,7 +101,7 @@ class ParrotPage extends PluginsPage {
 
 	async expectDancing(): Promise<void> {
 		const first = await this.reelTransform();
-		// A frame is 70ms, so a reel the poll never catches moving is a stopped bird.
+		// A frame is 70ms, so a strip the poll never catches moving is a stopped bird.
 		await expect.poll(() => this.reelTransform(), { timeout: 3000 }).not.toBe(first);
 	}
 }
@@ -138,7 +138,7 @@ test.describe('the bundled party parrot', () => {
 		}
 
 		expect(offsets.filter((rows) => Math.abs(rows - Math.round(rows)) > 0.02)).toEqual([]);
-		// And it did move over those samples, so a frozen reel cannot satisfy the line above.
+		// And it did move over those samples, so a frozen strip cannot satisfy the line above.
 		expect(new Set(offsets.map(Math.round)).size).toBeGreaterThan(1);
 	});
 
@@ -166,9 +166,9 @@ test.describe('the bundled party parrot', () => {
 		await editor.leaveDownward();
 		const late = await editor.revealByClickAcross(0.75);
 
-		// Ordered rather than byte-exact: a rect-derived x lands on whichever side of a glyph the
-		// font metrics put it. Both past the marker, and the righter press further along — which a
-		// landing that ignores the point cannot satisfy, since that one is 0 every time.
+		// Ordered rather than byte-exact: an x taken from a rect falls on whichever side of a
+		// glyph the font metrics put it. Both are past the marker and the righter click is further
+		// along, which a caret that ignored the point could not do, since that one is always 0.
 		expect(early).toBeGreaterThan('%%parrot '.length);
 		expect(late!).toBeGreaterThan(early!);
 		expect(await editor.bridge.getSource()).toBe(SEED);
@@ -192,7 +192,7 @@ test.describe('the bundled party parrot', () => {
 		await editor.revealByClick();
 		await page.keyboard.press('End');
 		await page.keyboard.type(' tonight');
-		// Ephemeral until the caret leaves: nothing has reached the document yet.
+		// Uncommitted until the caret leaves: nothing has reached the document yet.
 		expect(await editor.bridge.getSource()).toBe(SEED);
 
 		await editor.leaveDownward();
@@ -285,8 +285,8 @@ test.describe('the bundled party parrot', () => {
 		expect(await activeBlockPath(page)).toEqual([1]);
 		await editor.expectDancing();
 
-		// One step, not two: the fold's commit is still inside its undo batch when the split
-		// lands on the same press, so the pair shares an entry.
+		// One step, not two: the commit that closes the source is still inside its undo batch when
+		// the split lands on the same keypress, so the two share an entry.
 		await editor.undo();
 		await editor.bridge.waitForSourceEquals(SEED);
 		await expect(editor.caption).toHaveText('party responsibly');
@@ -296,8 +296,8 @@ test.describe('the bundled party parrot', () => {
 	test('Enter mid-caption moves the tail into the paragraph below', async ({ page }) => {
 		await editor.revealByClick();
 		await page.keyboard.press('Home');
-		// Walked, not clicked: a rect-derived point lands on whichever side of a glyph the font
-		// metrics put it, and the assertion below is byte-exact.
+		// Stepped, not clicked: a point taken from a rect falls on whichever side of a glyph the
+		// font metrics put it, and the assertion below is byte-exact.
 		for (let i = 0; i < '%%parrot party'.length; i++) {
 			await page.keyboard.press('ArrowRight');
 		}
@@ -319,7 +319,7 @@ test.describe('the bundled party parrot', () => {
 			await page.keyboard.press('Backspace');
 		}
 		await page.keyboard.type('%%parrot');
-		// The kind flip mounts the bird with its source revealed and the caret still at the end.
+		// Changing kind mounts the bird with its source open and the caret still at the end.
 		await expect(editor.block).toHaveCount(2);
 		await expect(editor.source).toHaveCount(1);
 
@@ -356,7 +356,7 @@ test.describe('the bird under reduced motion', () => {
 		const first = await editor.reelTransform();
 		await page.waitForTimeout(420);
 		expect(await editor.reelTransform()).toBe(first);
-		// Parked at the strip's top, so the bird on screen is a whole frame rather than none.
+		// Held at the strip's top, so the bird on screen is a whole frame rather than none.
 		expect(first === 'none' || first === 'matrix(1, 0, 0, 1, 0, 0)').toBe(true);
 	});
 });
@@ -368,8 +368,8 @@ test.describe('the bird at phone width', () => {
 		const editor = new ParrotPage(page);
 		await editor.gotoSeed();
 
-		// Every frame is wider than a phone column, so the bird overflowing its own box is
-		// the premise; the editor staying unpanned is the claim.
+		// Every frame is wider than a phone column, so the bird overflowing its own box is the
+		// premise, and the claim is that the editor does not scroll sideways.
 		await expect
 			.poll(() =>
 				page.evaluate(() => {

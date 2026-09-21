@@ -1,9 +1,9 @@
 import { test, expect } from '../../fixtures';
 
-// Two editors share one process-global memo registration; the left disables the memo kind through
-// its registry view. Both parse the memo syntax to a memo CST node (global grammar at load), but
-// only the enabled editor resolves a component for it — the disabled one degrades to the
-// raw-editable fallback.
+// Two editors share one memo registration for the whole process, and the left one turns the memo
+// kind off through its own view of the registry. Both parse the memo syntax into a memo node,
+// since the grammar is shared at load, but only the editor that has it on resolves a component;
+// the other falls back to editable raw text.
 test.describe('per-instance registry enablement', () => {
 	test.beforeEach(async ({ page }) => {
 		await page.goto('/test/plugins/enablement');
@@ -11,14 +11,14 @@ test.describe('per-instance registry enablement', () => {
 		await page.getByTestId('editor-enabled').locator('[data-block-kind]').first().waitFor();
 	});
 
-	// Degrading to raw IS the no-component fallback, which reports itself on the way past.
+	// Falling back to raw text is what happens with no component, and it warns on the way past.
 	test.describe('the disabled instance', () => {
 		test.use({ expectWarns: ['block-host'] });
 
 		test('degrades the memo block to raw-editable', async ({ page }) => {
 			const disabledMemo = page.getByTestId('editor-disabled').locator('[data-block-kind="memo"]');
 			await expect(disabledMemo).toBeVisible();
-			// The unknown-kind fallback surface, not the memo component.
+			// The fallback for an unknown kind, not the memo component.
 			await expect(disabledMemo.locator('.raw-block')).toBeVisible();
 			await expect(disabledMemo.locator('.memo-block')).toHaveCount(0);
 			await expect(disabledMemo).toHaveText(/%% memo text/);

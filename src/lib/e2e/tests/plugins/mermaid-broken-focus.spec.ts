@@ -3,9 +3,9 @@ import { readDoc, waitForDoc, activeBlockPath } from './helpers';
 import { MermaidPage } from './mermaid-helpers';
 
 /**
- * Whole-block focus on a BROKEN mermaid fence (requirements/plugins/mermaid-broken-focus.md). The
- * error card is still THE block: arrows stop and focus it, the two-step delete works, Enter-below
- * works, reorder works, and both edit affordances stay reachable — the user's recovery path to fix
+ * Whole-block focus on a broken mermaid fence (requirements/plugins/mermaid-broken-focus.md). The
+ * error box is still the block: arrows stop and focus it, the two-step delete works, Enter below
+ * works, reorder works, and both ways into editing stay reachable, which is how the user fixes
  * the source.
  */
 

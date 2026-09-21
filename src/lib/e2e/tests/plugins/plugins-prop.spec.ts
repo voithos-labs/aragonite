@@ -2,10 +2,10 @@ import { test, expect } from '../../fixtures';
 import { PluginsPage, readContainer, readDoc, roundTripStable } from './helpers';
 
 // The `/test/plugins` harness installs its four dogfood plugins through the `<Editor plugins>`
-// prop. These gates pin the prop pathway itself — that it runs before the seed parses — reading the
-// CST by path via `window.__test`. Per-plugin editing/rendering lives in the sibling specs;
-// repeat-install-in-one-process is unit-pinned, so the reload path is the only repeat this e2e
-// covers.
+// prop. These tests pin the prop itself, and that it runs before the seed parses, reading the CST
+// by path through `window.__test`. Each plugin's editing and rendering lives in its own spec, and
+// installing twice in one process is covered by the unit suite, so reloading the page is the only
+// repeat here.
 
 test.describe('plugins prop: install before the first parse', () => {
 	let editor: PluginsPage;
@@ -20,8 +20,8 @@ test.describe('plugins prop: install before the first parse', () => {
 		const callout = await readContainer(page, 0);
 		expect(callout.kind).toBe('callout');
 		expect(callout.childKinds[0]).toBe('callout-title');
-		// A too-late install shows as one of two fallbacks: grammar off → `paragraph`;
-		// grammar on but callout unregistered → generic `directiveContainer`.
+		// Installing too late shows as one of two fallbacks: with the grammar off the block is a
+		// `paragraph`, and with the grammar on but callout unregistered a `directiveContainer`.
 		expect(callout.kind).not.toBe('paragraph');
 		expect(callout.kind).not.toBe('directiveContainer');
 	});
@@ -29,8 +29,8 @@ test.describe('plugins prop: install before the first parse', () => {
 	test('installs every listed plugin, not just the first', async ({ page }) => {
 		await editor.gotoPlugins('admonitions');
 
-		// admonitions sits last in the prop array; a fallback here would mean the prop
-		// stopped installing after the first entry.
+		// admonitions sits last in the prop's array, so a fallback here would mean installing
+		// stopped after the first entry.
 		expect((await readDoc(page)).kinds).toContain('admonition');
 	});
 

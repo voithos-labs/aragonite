@@ -3,10 +3,10 @@ import { readDoc, waitForDoc, activeBlockPath, roundTripStable } from './helpers
 import { MERMAID_FENCE, MermaidPage, STANDARD_DIAGRAM_DOC } from './mermaid-helpers';
 
 /**
- * Mermaid whole-block focus + two-step delete (requirements/plugins/mermaid-focus.md). The opaque
- * childless diagram opts into `blockFocus: 'whole-block'`, so arrows stop on it, a caret-adjacent
- * Backspace/Delete focuses before a second press deletes, Enter inserts a paragraph below, and
- * Alt+arrows reorder — all through real keyboard/mouse gestures.
+ * Whole-block focus and the two-step delete for mermaid (requirements/plugins/mermaid-focus.md).
+ * The diagram, which has no children, opts into `blockFocus: 'whole-block'`, so arrows stop on it,
+ * a Backspace or Delete beside it focuses it before a second keypress deletes, Enter inserts a
+ * paragraph below and Alt with the arrows reorders, all through real keyboard and mouse gestures.
  */
 
 test.describe('mermaid whole-block focus', () => {
@@ -90,11 +90,11 @@ test.describe('mermaid whole-block focus', () => {
 		await waitForDoc(page, (s) => !s.kinds.includes('mermaid'));
 	});
 
-	// The plugin container's own global-chord arm. No inner leaf carries the tier here and the
-	// editor root declines while the box holds focus, so this surface is the only thing between
-	// the press and the browser's native undo — which would rewrite the document past the CST
-	// stack. The rebind proves the arm consults the override tier rather than the built-in table
-	// alone; a consumer's `Mod+Alt+U` reaches every leaf surface and used to die here.
+	// The plugin container's own handling of global chords. No inner block handles them here and
+	// the editor root declines while the box holds focus, so this block is the only thing between
+	// the keypress and the browser's own undo, which would rewrite the document behind the undo
+	// stack. Rebinding proves it reads the consumer's overrides and not just the built-in table:
+	// a consumer's `Mod+Alt+U` reaches every other block and has to reach this one too.
 	test('undo fires while the diagram holds focus, built-in chord and rebind alike', async ({
 		page
 	}) => {
@@ -135,7 +135,7 @@ test.describe('mermaid whole-block focus', () => {
 
 		await page.keyboard.type('X');
 		await page.keyboard.press('Backspace');
-		// The block survives — a deleted block would unmount the textarea.
+		// The block survives; a deleted block would unmount the textarea.
 		await expect(editor.textarea).toBeVisible();
 		expect((await readDoc(page)).kinds).toContain('mermaid');
 	});
@@ -186,11 +186,11 @@ test.describe('mermaid whole-block focus', () => {
 		expect([doc.texts[0], doc.texts[2]]).toEqual(['Above text', 'tail text']);
 	});
 
-	// Container-factory pin for the shared whole-block copy tail: the gesture lands once in
-	// handleWholeBlockKeys, so mermaid inherits Mod+C/Mod+X like the built-in thematic break
-	// (pinned in clipboard/whole-block-atomic-copy). navigator.clipboard.writeText normalizes line
-	// endings to the OS convention (CRLF on Windows) and the block markdown is authored LF, so
-	// compare LF-normalized.
+	// The container factory's share of whole-block copying: the gesture is handled once in
+	// handleWholeBlockKeys, so mermaid gets Mod+C and Mod+X like the built-in thematic break,
+	// pinned in clipboard/whole-block-atomic-copy. navigator.clipboard.writeText rewrites line
+	// endings to the operating system's, CRLF on Windows, and the block markdown is written with
+	// LF, so the comparison normalizes to LF.
 	const readClipboardLF = () => editor.readClipboard().then((t) => t.replaceAll('\r\n', '\n'));
 
 	test('Mod+C while focused copies the diagram markdown; the document is unchanged', async ({

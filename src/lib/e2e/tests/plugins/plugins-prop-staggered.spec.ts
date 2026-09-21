@@ -1,13 +1,13 @@
 import { test, expect } from '../../fixtures';
 import { type ConsoleMessage, type Page } from '@playwright/test';
 
-// The `/test/plugins/staggered` harness mounts editor 1 (`[calloutPlugin()]`) at load, then editor
-// 2 (adding `detailsPlugin()`) on a button click — a second editor arriving late with a plugin the
-// first never had. Each editor's CST is read by path (`__test` / the distinct `__test2` handle).
+// The `/test/plugins/staggered` harness mounts editor 1, with `[calloutPlugin()]`, at load, then
+// editor 2, which adds `detailsPlugin()`, on a button click: a second editor arriving late with a
+// plugin the first never had. Each editor's CST is read by path, through `__test` and `__test2`.
 //
-// detailsPlugin registers the `details` opener AFTER editor 1 parsed and consumed the grammar, so
+// detailsPlugin registers the `details` opener after editor 1 parsed and used the grammar, so
 // exactly one `[invariant:late-opener-registration]` is expected. The fixture requires that tag and
-// forbids the rest; the local count adds what it cannot express — that it fires once, not twice.
+// forbids the rest, and the count here adds what it cannot say: that it fires once, not twice.
 test.use({ expectInvariants: ['late-opener-registration'] });
 
 interface BlockInfo {
@@ -62,7 +62,7 @@ test.describe('plugins prop: staggered second-editor mount', () => {
 
 	test('the late mount parses its own seed against the just-registered grammar', () => {
 		// Editor 2 installed detailsPlugin before parsing, so `<details>` resolves to the
-		// `details` container (summary chrome at child 0) — not fragmented HTML.
+		// `details` container, with the summary row at child 0, not to broken-up HTML.
 		const details = blockOfKind(editorTwo, 'details');
 		expect(details).toBeDefined();
 		expect(details?.child0).toBe('details-summary');
@@ -71,14 +71,14 @@ test.describe('plugins prop: staggered second-editor mount', () => {
 	});
 
 	test('editor 1 does not re-parse against the later grammar; one expected late-opener warn', async () => {
-		// Editor 1 parsed before detailsPlugin existed, and parsed documents never
-		// re-parse — so its `<details>` stays the built-in htmlBlock, never `details`.
+		// Editor 1 parsed before detailsPlugin existed, and a parsed document never re-parses, so
+		// its `<details>` stays the built-in htmlBlock and never becomes `details`.
 		expect(kindsOf(editorOne)).toContain('htmlBlock');
 		expect(kindsOf(editorOne)).toContain('callout');
 		expect(kindsOf(editorOne)).not.toContain('details');
 
-		// The fixture requires the tag and forbids the rest; only the multiplicity is
-		// left to assert here — a second registration would mean editor 1 re-parsed.
+		// The fixture requires the tag and forbids the rest, so all that is left to assert is the
+		// count: a second registration would mean editor 1 re-parsed.
 		await expect
 			.poll(() => invariantFires.filter((f) => f.includes('late-opener-registration')).length)
 			.toBe(1);

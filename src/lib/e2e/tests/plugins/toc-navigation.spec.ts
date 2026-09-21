@@ -5,14 +5,14 @@ import { capturePageErrors } from '../../page-probes';
 
 /**
  * The `[[toc]]` outline (requirements/plugins/toc-navigation.md): entries indent by heading level
- * and click to navigate, in every presentation mode, including to a heading windowed out by virtual
- * rendering. The document-prop derivation and its pins live in `toc-document-prop`; this spec owns
- * the hierarchy + navigation layer. Every fixture puts `[[toc]]` at block 0 for a stable entry
- * locator.
+ * and navigate when clicked, in every presentation mode, including to a heading that is not
+ * mounted. How the list is derived from the `document` prop is covered in `toc-document-prop`;
+ * this spec covers the hierarchy and the navigation. Every fixture puts `[[toc]]` at block 0 so
+ * the entries have a stable locator.
  */
 
-// Capped viewport → the editor is a real scroll container, so a deep heading windows
-// out and a navigation click must mount and scroll it into view.
+// A capped viewport makes the editor a real scroll container, so a heading far down stays
+// unmounted and a navigation click has to mount it and scroll it into view.
 test.use({ viewport: { width: 1000, height: 700 } });
 
 class TocNavPage extends PluginsPage {
@@ -35,8 +35,8 @@ class TocNavPage extends PluginsPage {
 	}
 }
 
-// A tall document: `[[toc]]` at the top, then h1/h2 amid filler, a deep h3 far below
-// (windowed out at load), then a tail. targetIndex is the deep heading's block index.
+// A tall document: `[[toc]]` at the top, then an h1 and h2 among filler, an h3 far below that is
+// unmounted at load, then a tail. targetIndex is that deep heading's block index.
 function navDoc(): { md: string; targetIndex: number } {
 	const parts = ['[[toc]]', '# Intro Heading'];
 	for (let i = 0; i < 15; i++) parts.push(`Intro paragraph ${i} with enough words to fill a line.`);
@@ -83,14 +83,14 @@ test.describe('toc outline: click-to-navigate', () => {
 		page
 	}) => {
 		const errors = capturePageErrors(page);
-		// Precondition: the deep heading is windowed out (not mounted).
+		// Precondition: the deep heading is not mounted.
 		await expect(page.locator(`[data-block-path='[${target}]']`)).toHaveCount(0);
 
 		await editor.entry('Deep Target Heading').click();
 		await editor.waitForRenderFlush();
 
-		// Scrolling to the target mounts it in view; the top-of-doc toc block itself
-		// windows out on the way, which is why "no reveal" is pinned on a short doc below.
+		// Scrolling to the target mounts it in view, and the outline block at the top unmounts on
+		// the way, which is why the short-document case below pins that nothing opens.
 		await expect.poll(() => blockView(page, [target])).toEqual({ mounted: true, inView: true });
 		expect(errors).toEqual([]);
 	});
@@ -105,10 +105,10 @@ test.describe('toc outline: click-to-navigate', () => {
 		await editor.waitForRenderFlush();
 
 		await expect.poll(() => blockView(page, [target])).toEqual({ mounted: true, inView: true });
-		// Reading mode turns contenteditable off, so no block can hold the caret as activeElement —
-		// the native range is the observable that the selection landed, and it is what makes the
-		// navigation's write the same write in both modes. Offset 4 is the landable start past the
-		// hidden `### ` run: the caret door clamps every landing (G4.36), reading mode included.
+		// Reading mode turns contenteditable off, so no block can hold the caret as activeElement,
+		// and the browser's own range is how the test sees the selection land, which makes the
+		// navigation's write the same in both modes. Offset 4 is the first reachable offset past
+		// the hidden `### `, since every placement is clamped (G4.36), reading mode included.
 		expect(await editor.bridge.getSelection()).toEqual({
 			anchor: { path: [target], offset: 4 },
 			focus: { path: [target], offset: 4 }
@@ -142,8 +142,8 @@ test.describe('toc outline: click-to-navigate', () => {
 		page
 	}) => {
 		const errors = capturePageErrors(page);
-		// Click the middle entry then immediately the deep one: serialization means the
-		// last click wins and no overlapping scroll strands it.
+		// Click the middle entry and then immediately the deep one: the clicks run in order, so
+		// the last one wins and no overlapping scroll strands it.
 		await editor.entry('Middle Heading').click();
 		await editor.entry('Deep Target Heading').click();
 		await editor.waitForRenderFlush();
@@ -152,9 +152,9 @@ test.describe('toc outline: click-to-navigate', () => {
 		expect(errors).toEqual([]);
 	});
 
-	// A navigation lands the caret, so the editor's own chords reach the document straight
+	// Navigating places the caret, so the editor's own chords reach the document straight
 	// afterwards instead of dying on the entry `<button>` that still had focus. Typing is the
-	// user-visible half of the same fact.
+	// same fact as the user sees it.
 	test('the caret lands in the target heading, so the next keystroke edits it', async ({
 		page
 	}) => {
@@ -173,8 +173,8 @@ test.describe('toc outline: gesture ownership (entry vs block)', () => {
 	let editor: TocNavPage;
 	test.beforeEach(async ({ page }) => {
 		editor = new TocNavPage(page);
-		// Short doc: everything stays mounted, so navigation is a no-op scroll and the
-		// block never windows out — isolating the reveal/suppress behavior.
+		// A short document: everything stays mounted, so navigating scrolls nowhere and the block
+		// never unmounts, which isolates whether the source opens.
 		await editor.load('[[toc]]\n\n# A\n\n## B\n');
 	});
 
@@ -185,8 +185,8 @@ test.describe('toc outline: gesture ownership (entry vs block)', () => {
 	});
 
 	test('clicking the block non-entry area reveals the raw source in source mode', async () => {
-		// The render container's left edge (accent border / padding), away from any entry
-		// text, so the block's reveal-on-pointerdown fires instead of an entry navigation.
+		// The left edge of the rendered block, its border and padding, away from any entry text,
+		// so the pointerdown that opens the source fires instead of an entry navigating.
 		await editor.render.click({ position: { x: 2, y: 2 } });
 		await expect(editor.source).toHaveCount(1);
 	});
@@ -200,8 +200,8 @@ test.describe('toc outline: gesture ownership (entry vs block)', () => {
 		await editor.render.click({ position: { x: 2, y: 2 } });
 		await editor.waitForRenderFlush();
 
-		// Reading mode gates the reveal (the folded view's reveal handler early-returns on isReading),
-		// and a non-entry click reaches no navigation button: the outline just stays shown.
+		// Reading mode stops the source from opening, since that handler returns early on
+		// isReading, and a click away from an entry reaches no button, so the outline just stays.
 		await expect(editor.source).toHaveCount(0);
 		await expect(editor.render).toBeVisible();
 		expect(errors).toEqual([]);

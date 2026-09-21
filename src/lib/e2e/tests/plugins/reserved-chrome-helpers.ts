@@ -1,9 +1,9 @@
 import { type Page } from '@playwright/test';
 
-// Suite-specific probes for the `:::callout` reserved-chrome e2e suites (selection parity,
-// reserved-index structural ops, the rangeDelete wall, and the wall × table branch). The shared
-// page/read/error probes come from ./helpers; this module adds the state-consistency audit and the
-// titled-callout fixture.
+// Reads for the `:::callout` suites about its editable title row: matching selection behaviour,
+// structural edits at the title's index, the boundary rangeDelete stops at, and that boundary in a
+// table. The shared page, read and error helpers come from ./helpers; this module adds the
+// consistency audit and the titled-callout fixture.
 
 export {
 	PluginsPage,
@@ -17,6 +17,6 @@ export async function stateConsistencyViolations(page: Page): Promise<unknown[]>
 	return page.evaluate(() => (window as any).__test.auditBlockListStateConsistency());
 }
 
-// Paragraph above + a titled callout. Top-level: [0]=para "Above",
-// [1]=callout; callout children: [1,0]=title "Title", [1,1]=para "Body".
+// A paragraph above a titled callout. At the top level [0] is the paragraph "Above" and [1] the
+// callout; inside it, [1,0] is the title "Title" and [1,1] the paragraph "Body".
 export const FIXTURE = 'Above\n\n:::callout Title\nBody\n:::\n';
