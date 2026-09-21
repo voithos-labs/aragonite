@@ -18,6 +18,9 @@ it. Now the checkbox goes with the paragraph it belonged to.
 
 - a second paragraph of a task item cycles on its own; the first paragraph still carries the
   marker, so the checkbox stays.
+- a document loaded with `- [ ] # beta` keeps those bytes while it is edited: nothing the user
+  did took the paragraph away, so typing into the heading may not rewrite the marker out of the
+  source. Only the write that re-kinds the first block gives the checkbox up.
 - `# ` typed at the start of a to-do is the same road by keyboard: the paragraph re-kinds to a
   heading and the box goes with it (`- # beta`).
 - the bare `#` on the way to `#tag` keeps the box: it is a heading to the parser for one

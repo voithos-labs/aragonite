@@ -21,9 +21,9 @@ test.describe('list marker — hanging-indent style scoped by ambient length', (
 		);
 
 		expect(styles).toEqual([
-			{ textIndent: '-2ch', paddingLeft: '2ch' },
-			{ textIndent: '-3ch', paddingLeft: '3ch' },
-			{ textIndent: '-4ch', paddingLeft: '4ch' }
+			{ textIndent: 'calc(-2ch)', paddingLeft: '2ch' },
+			{ textIndent: 'calc(-3ch)', paddingLeft: '3ch' },
+			{ textIndent: 'calc(-4ch)', paddingLeft: '4ch' }
 		]);
 	});
 
@@ -37,7 +37,7 @@ test.describe('list marker — hanging-indent style scoped by ambient length', (
 			}))
 		);
 
-		expect(styles[0]).toEqual({ textIndent: '-2ch', paddingLeft: '2ch' });
+		expect(styles[0]).toEqual({ textIndent: 'calc(-2ch)', paddingLeft: '2ch' });
 		expect(styles[1]).toEqual({ textIndent: '', paddingLeft: '' });
 	});
 });

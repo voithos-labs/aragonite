@@ -652,6 +652,18 @@
 	overflow: hidden;
 }
 
+/* The marker is the item's own chrome, so it draws at the item's text size: sized in `em`
+   against the first child instead, a heading in a to-do doubled the box. */
+:where(.editor):is(
+		[data-presentation='reading'],
+		[data-presentation^='preview-'],
+		[data-presentation='live']
+	)
+	.list-item-block[data-list-marker='task']
+	.md-marker[contenteditable='false'] {
+	font-size: var(--editor-font-size, 1rem);
+}
+
 :where(.editor):is(
 		[data-presentation='reading'],
 		[data-presentation^='preview-'],

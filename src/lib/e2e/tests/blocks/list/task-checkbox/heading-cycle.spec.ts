@@ -53,6 +53,21 @@ test.describe('task checkbox — the item cycled to a heading', () => {
 		await expect(page.locator('.task-checkbox')).toHaveCount(1);
 	});
 
+	// `- [ ] # note` is valid GFM that arrives by paste and by file. Nothing the user did took the
+	// paragraph away, so no keystroke may rewrite the marker's bytes out from under them.
+	test('typing in a loaded to-do heading leaves the task marker alone', async ({ page }) => {
+		await editor.loadContent('- [ ] # beta\n');
+		await editor.page.getByText('beta').click();
+		await editor.waitForRenderFlush();
+		await page.keyboard.press('End');
+
+		await page.keyboard.type('X');
+
+		await editor.bridge.waitForSourceContains('betaX');
+		expect((await editor.bridge.getSource()).trim()).toBe('- [ ] # betaX');
+		await expect(page.locator('.task-checkbox')).toHaveCount(1);
+	});
+
 	test('`#t` typed at the start of a to-do keeps its box; the space that makes a heading takes it', async ({
 		page
 	}) => {

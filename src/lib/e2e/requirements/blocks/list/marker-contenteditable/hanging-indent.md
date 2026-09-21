@@ -1,6 +1,6 @@
 # Block: List — Hanging-Indent Style
 
-The first prose child of an ambient-wearing list item gets `text-indent: -<ambientLength>ch; padding-left: <ambientLength>ch` so wrapped lines and continuation paragraphs hang under the content rather than under the marker.
+The first prose child of an ambient-wearing list item gets `padding-left: <ambientLength>ch` and the matching negative `text-indent` so wrapped lines and continuation paragraphs hang under the content rather than under the marker. A marker that draws itself, such as the task checkbox, declares its own width in place of the `ch` pair.
 
 ## Edge cases
 

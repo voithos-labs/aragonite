@@ -1,5 +1,15 @@
+import type { Page } from '@playwright/test';
 import { test, expect } from '../../../../fixtures';
 import { EditorPage } from '../../../../editor-page';
+
+/** Each drawn box's size, in document order. */
+const paintedBoxes = (page: Page): Promise<Array<{ width: string; height: string }>> =>
+	page.evaluate(() =>
+		Array.from(document.querySelectorAll('.task-checkbox')).map((el) => {
+			const box = getComputedStyle(el, '::before');
+			return { width: box.width, height: box.height };
+		})
+	);
 
 // The rendered box once centred itself with translate(-50%, -50%). A transformed box is
 // rasterised at its fractional edges, so on a scaled desktop (limestone on a Windows 150%
@@ -22,8 +32,12 @@ test.describe('task checkbox — painted box geometry', () => {
 			page
 		}) => {
 			await editor.loadContent('- [x] done\n- [ ] open\n');
+			// The type-scale root the box sizes off: an inline `font-size` on the editor root moves
+			// the text and leaves the box where it was.
 			await page.evaluate((px) => {
-				document.querySelector<HTMLElement>('.editor')!.style.fontSize = `${px}px`;
+				document
+					.querySelector<HTMLElement>('.editor')!
+					.style.setProperty('--editor-font-size', `${px}px`);
 			}, fontSize);
 			const boxes = await page.evaluate(() =>
 				Array.from(document.querySelectorAll('.task-checkbox')).map((el) => {
@@ -39,6 +53,25 @@ test.describe('task checkbox — painted box geometry', () => {
 			}
 		});
 	}
+
+	// The box is the item's own chrome, so it draws at the item's text size whatever its first
+	// block turns out to be. Sized in `em` against that block, a loaded heading doubled it.
+	test('the box beside a loaded heading matches the box beside a paragraph', async ({ page }) => {
+		await editor.loadContent('- [ ] # beta\n- [ ] plain\n');
+		const boxes = await paintedBoxes(page);
+		expect(boxes).toHaveLength(2);
+		expect(boxes[0]).toEqual(boxes[1]);
+	});
+
+	test('every heading level keeps the paragraph-sized box', async ({ page }) => {
+		const levels = [1, 2, 3, 4, 5, 6];
+		await editor.loadContent(
+			`${levels.map((n) => `- [ ] ${'#'.repeat(n)} head\n`).join('')}- [ ] plain\n`
+		);
+		const boxes = await paintedBoxes(page);
+		expect(boxes).toHaveLength(levels.length + 1);
+		expect(boxes).toEqual(boxes.map(() => boxes[boxes.length - 1]));
+	});
 
 	// The span is a line-height-tall slot; the source-mode hover tint on it drew a tall
 	// rectangle round the square. In the rendered modes the tint belongs to the box alone.

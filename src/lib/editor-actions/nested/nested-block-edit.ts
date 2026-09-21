@@ -172,6 +172,8 @@ export function createNestedBlockEdit(
 				state,
 				snapshot: { path: leafPath, offset: preEditOffset ?? 0 },
 				mutate: (scope) => {
+					// Read before the write: the container's raw is rebuilt from its children after it.
+					const containerRawBefore = scope.node.raw;
 					ensureUnsharedChild(scope.node, innerIndex, scope.sharing);
 					settled = performUpdate(
 						scopeParentOf(scope),
@@ -183,7 +185,7 @@ export function createNestedBlockEdit(
 					// A re-kind is exactly the change the task reconcile answers for: the marker
 					// stands before a paragraph, and the first block may have just stopped being one.
 					if (scope.node.kind === 'listItem' && innerIndex === 0) {
-						reconcileTaskMetadata(scope.node);
+						reconcileTaskMetadata(scope.node, containerRawBefore, deps.grammar);
 					}
 					stampStructuralChange(scope.children, settled.change, scope.sharing);
 					return settled.change;
@@ -218,6 +220,8 @@ export function createNestedBlockEdit(
 			);
 			const ownedContainer = chain[leafPath.length - 2];
 			if (!ownedContainer?.children) return;
+			// Read before the write: the container's raw is rebuilt from its children after it.
+			const containerRawBefore = ownedContainer.raw;
 			settled = performUpdate(
 				{
 					children: ownedContainer.children,
@@ -232,7 +236,7 @@ export function createNestedBlockEdit(
 			// Task-item metadata is read at parse time from the first line, so without this it
 			// stays frozen while the serialized source changes.
 			if (ownedContainer.kind === 'listItem' && innerIndex === 0) {
-				reconcileTaskMetadata(ownedContainer);
+				reconcileTaskMetadata(ownedContainer, containerRawBefore, deps.grammar);
 			}
 			return settled.change;
 		});

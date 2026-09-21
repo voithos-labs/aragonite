@@ -2,8 +2,9 @@ import type { AmbientPrefix } from '../../../block-component';
 import type { ListItemMetadata } from '../../../core/nodes';
 import { devWarn } from '../../../dev-warn';
 
-/** Matches the `.task-checkbox` width and gap in editor.css; the two move together. */
-export const TASK_HANGING_INDENT = '2.1em';
+/** Matches the `.task-checkbox` width and gap in editor.css; the two move together, both off the
+ *  editor's own text size, since the first child may scale its text (a heading). */
+export const TASK_HANGING_INDENT = 'calc(2.1 * var(--editor-font-size, 1rem))';
 
 function isTaskMarkerChecked(taskMarker: string): boolean {
 	const c = taskMarker[1];

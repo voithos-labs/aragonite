@@ -1077,7 +1077,7 @@
 	contenteditable={readOnly ? 'false' : 'true'}
 	aria-readonly={readOnly ? 'true' : undefined}
 	role="textbox"
-	style:text-indent={ambientPrefixText ? `-${ambientIndent}` : null}
+	style:text-indent={ambientPrefixText ? `calc(-1 * ${ambientIndent})` : null}
 	style:padding-left={ambientPrefixText ? ambientIndent : null}
 	oninput={onInput}
 	onkeydown={onKeyDownTraced}
