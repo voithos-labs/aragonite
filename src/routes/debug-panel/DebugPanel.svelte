@@ -4,7 +4,7 @@
 	import { enableInteractionTrace } from '$lib/debug/interaction-trace';
 
 	interface Props {
-		/** Owned by the mounting route, so a header affordance and Ctrl+Shift+D share one state. */
+		/** Kept by the route that mounts the panel, so a header button and Ctrl+Shift+D share it. */
 		panel: ReturnType<typeof createPanelState>;
 		rawSource: string;
 		getCst: () => string;
@@ -31,7 +31,7 @@
 	const selectionText = $derived(getSelection());
 	const undoText = $derived(getUndoStack());
 	const inlineText = $derived(getInlineTree());
-	// opsLogTick read inside $derived.by so a log update triggers re-read.
+	// opsLogTick is read inside $derived.by so a log update re-runs the read.
 	const opsLogText = $derived.by(() => {
 		void opsLogTick;
 		return getOpsLog();
@@ -77,8 +77,8 @@
 		return () => panel.toggleSection(key);
 	}
 
-	// The interaction trace ships default-off; expanding its section is the dev's opt-in,
-	// and it stays armed for the session rather than re-enabling per keystroke.
+	// The interaction trace is off by default; expanding its section turns it on, and it stays
+	// on for the session rather than being re-enabled per keystroke.
 	function toggleTrace() {
 		if (!panel.isExpanded('trace')) enableInteractionTrace();
 		panel.toggleSection('trace');
@@ -238,7 +238,7 @@
 		font-size: 18px;
 		line-height: 1;
 	}
-	/* Custom scrollbars — unified across panel and section bodies. */
+	/* Custom scrollbars, the same in the panel and in the section bodies. */
 	.debug-panel,
 	.debug-panel :global(.debug-section-body) {
 		scrollbar-width: thin;

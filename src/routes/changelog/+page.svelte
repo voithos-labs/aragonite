@@ -15,8 +15,8 @@
 	import { CHANGELOG_FAMILIES } from './changelog-content';
 	import { trackParityDocument } from '../parity-documents.svelte';
 
-	// One live-changeable prop is the whole demo: the same render path over the same bytes,
-	// rendered or as styled source. Reading is the default — this is a document to read.
+	// One prop that can change is the whole demo: the same render path over the same bytes,
+	// rendered or as styled source. Reading is the default, since this is a document to read.
 	const MODES: PresentationMode[] = ['reading', 'source'];
 	let presentationMode = $state<PresentationMode>('reading');
 
@@ -26,8 +26,8 @@
 		CHANGELOG_FAMILIES.find((entry) => entry.id === familyId) ?? CHANGELOG_FAMILIES[0]
 	);
 
-	// This route installs no probe surface, so `trackParityDocument` is the only thing putting
-	// its document under the e2e teardown parity net.
+	// This route installs no test probes, so `trackParityDocument` is the only thing putting
+	// its document under the e2e teardown parity check.
 	let editor = $state<ReturnType<typeof Editor>>();
 	trackParityDocument(() => editor);
 </script>
@@ -81,7 +81,7 @@
 		height: 100vh;
 		display: flex;
 		flex-direction: column;
-		/* The wrapper carries the theme tokens, so the page chrome matches the editor. */
+		/* The wrapper holds the theme tokens, so the page around the editor matches it. */
 		background: var(--color-surface, #1b1c21);
 		color: var(--color-text-secondary, #d6d9e0);
 	}
@@ -144,13 +144,13 @@
 	}
 
 	/* A chip per release family, both modes and the link is more row than a phone column can
-	   hold even wrapped, so the chrome condenses and drops what a phone cannot use. */
+	   hold even wrapped, so the header condenses and drops what a phone cannot use. */
 	@media (max-width: 640px) {
 		.changelog-header {
 			gap: 0.3rem 0.45rem;
 			padding: 0.45rem 0.6rem;
 		}
-		/* No modifier key to press, and the tag is a label the title already carries. */
+		/* No modifier key on a phone, and the tag repeats what the title already says. */
 		.changelog-tag,
 		.changelog-hint {
 			display: none;
@@ -176,7 +176,7 @@
 		}
 	}
 
-	/* Every header control clears the thumb minimum, the link included. */
+	/* Every header control clears the minimum touch size, the link included. */
 	@media (pointer: coarse) {
 		.changelog-chip,
 		.changelog-link {

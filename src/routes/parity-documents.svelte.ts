@@ -1,17 +1,16 @@
 /**
- * Every mounted editor's live document, published for the e2e teardown container-parity
- * walk (`src/lib/e2e/container-parity.ts`). The probe surface (`window.__test`) is
- * single-editor by construction, so every route that mounts an `<Editor>` calls
- * `trackParityDocument` and the walk's subject is "all live documents on this page"
- * rather than "whatever the bridge happens to point at".
+ * Every mounted editor's current document, exposed for the e2e teardown container-parity walk
+ * (`src/lib/e2e/container-parity.ts`). The test hook `window.__test` can only point at one
+ * editor, so every route that mounts an `<Editor>` calls `trackParityDocument` and the walk
+ * covers every document on the page rather than whichever one the hook points at.
  */
 
 export interface ParityDocument {
 	children?: unknown[];
 }
 
-// `bind:this` yields `null` on unmount and `undefined` before mount, so the
-// registration guard must reject both.
+// `bind:this` gives `null` on unmount and `undefined` before mount, so the check before
+// registering must reject both.
 type EditorHandle = { __test: { getDocument(): ParityDocument } } | null | undefined;
 
 const PARITY_DOCUMENTS_KEY = '__parityDocuments';

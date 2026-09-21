@@ -1,9 +1,9 @@
 /**
- * In-body tags the other way: a mark decoration over ordinary text, not an inline widget. A tag's
- * source is its display, so nothing needs uncovering and the caret can walk straight through it:
- * it steps character by character, Backspace takes one byte, and selection, copy and IME stay the
- * browser's own. The decorations re-run on every document change, so the chip follows the bytes
- * with no invalidation of its own.
+ * Tags inside the text, done the other way: a mark decoration over ordinary characters, not an
+ * inline widget. A tag's source is what it shows, so nothing has to be uncovered and the caret
+ * walks straight through: one character per arrow key, one byte per Backspace, and selection,
+ * copy and IME stay the browser's. The decorations re-run on every document change, so the chip
+ * follows the bytes without asking for a refresh of its own.
  */
 
 import { definePlugin } from '$lib/plugin';

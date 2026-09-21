@@ -21,8 +21,8 @@ export interface PanelStateShape {
 export const MIN_PANEL_WIDTH = 300;
 export const DEFAULT_PANEL_WIDTH = 420;
 
-// Expanded by default = has something to show before the user has touched anything.
-// Every other section reads empty until a click, an edit, or an explicit arm.
+// A section is expanded by default when it has something to show before the user has touched
+// anything. Every other one is empty until a click, an edit, or a recorder switched on by hand.
 export function defaultPanelState(): PanelStateShape {
 	return {
 		open: false,
@@ -84,7 +84,7 @@ export function createPanelState() {
 		hydrated = true;
 	});
 
-	// Gated on the read above, or a first write would persist the defaults over it.
+	// Waits for the read above; without that, a first write would save the defaults over it.
 	$effect(() => {
 		if (!hydrated) return;
 		writePanelState(state);

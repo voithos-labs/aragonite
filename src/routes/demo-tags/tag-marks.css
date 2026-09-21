@@ -1,7 +1,7 @@
 /* The chip a tag mark paints. A mark is an overlay over the text (`editor.css`: z-index 1), so
    the background is translucent and the glyphs read through it; the text keeps its own colour,
-   which is the one thing this model cannot restyle. Unscoped on purpose: a decoration's class
-   lands on the editor's own overlay element, which no component's scoped styles reach. */
+   which is the one thing a mark decoration cannot restyle. Not scoped, on purpose: a decoration's
+   class lands on the editor's own overlay element, which no component's scoped styles reach. */
 .editor .decoration-overlay.body-tag-mark {
 	background: color-mix(in srgb, var(--color-accent, #567b67) 22%, transparent);
 	border-radius: 999px;

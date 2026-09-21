@@ -1,7 +1,6 @@
-// The `/changelog` seed: the repo's own changelog, one release family at a time, behind an
-// outline the route contributes. The outline sits inside a collapsed `<details>` so a reader
-// lands on the newest entry rather than on a version index; in reading mode expanding it writes
-// no bytes.
+// The document `/changelog` loads: the repo's own changelog, one release family at a time, behind
+// an outline this route adds. The outline sits inside a collapsed `<details>` so the user lands on
+// the newest entry rather than on a version index; in reading mode expanding it writes no bytes.
 const familySources = import.meta.glob('../../../docs/changelog/*.md', {
 	query: '?raw',
 	import: 'default',

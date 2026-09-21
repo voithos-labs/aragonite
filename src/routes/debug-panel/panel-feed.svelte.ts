@@ -1,7 +1,7 @@
 /**
- * The panel's live wiring, as a `DebugPanel` prop bundle both mounting routes spread.
- * `getEditor` is a getter, never a value: the editor instance is reassigned by
- * `bind:this` (and by a `{#key}` remount), so a captured value goes stale.
+ * The panel's live data, as a bundle of `DebugPanel` props both routes spread. `getEditor` is a
+ * getter, never a value: `bind:this` reassigns the editor instance, and a `{#key}` remount
+ * replaces it, so a captured value goes stale.
  */
 
 import type { Editor } from '$lib';
@@ -18,8 +18,8 @@ import { dumpFocusedInlineTree, liveSelectionText } from './panel-sections';
 type EditorInstance = ReturnType<typeof Editor>;
 
 export function createDebugPanelFeed(getEditor: () => EditorInstance | undefined) {
-	// Bumped by editor ops AND native selectionchange: without the selectionchange half,
-	// clicking in a block moves the caret with no Svelte signal, so the panel never refreshes.
+	// Bumped by editor operations and by the browser's selectionchange: without the second,
+	// clicking in a block moves the caret with no Svelte signal and the panel never refreshes.
 	let tick = $state(0);
 
 	$effect(() => {
@@ -40,8 +40,8 @@ export function createDebugPanelFeed(getEditor: () => EditorInstance | undefined
 		return () => document.removeEventListener('selectionchange', onSelectionChange);
 	});
 
-	// MUST NOT feed back into the `source` prop: Editor re-initializes from source
-	// changes, which would wipe undo / selection / CST on every op.
+	// This must not feed back into the `source` prop: Editor re-initializes from a source change,
+	// which would wipe the undo stack, the selection and the CST on every operation.
 	const liveSource = $derived.by(() => {
 		void tick;
 		return getEditor()?.getSource() ?? '';
@@ -54,8 +54,9 @@ export function createDebugPanelFeed(getEditor: () => EditorInstance | undefined
 		get opsLogTick() {
 			return tick;
 		},
-		// LIVE first: the panel's job is the state a reparse cannot express (a live-kind-vs-raw
-		// desync, a transient block the serializer trims). Where the two views differ IS the bug.
+		// The live tree first: the panel's job is the state a reparse cannot show (a block whose
+		// kind no longer matches its raw text, a passing block the serializer trims). Where the
+		// two differ is the bug.
 		getCst: () => {
 			const reparse = `--- REPARSE OF getSource() ---\n${dumpTree(parse(liveSource))}`;
 			const editor = getEditor();
@@ -72,8 +73,8 @@ export function createDebugPanelFeed(getEditor: () => EditorInstance | undefined
 			return stack ? dumpUndoStack(stack) : '(editor not ready)';
 		},
 		getInlineTree: () => {
-			// tick read FIRST: if the editor is undefined on the first evaluation, the early
-			// return below would skip the signal read and the derived would never subscribe.
+			// tick is read first: if the editor is undefined the first time this runs, the early
+			// return below would skip the signal and this would never re-run.
 			void tick;
 			if (!getEditor()) return '';
 			return dumpFocusedInlineTree(liveSource);
@@ -83,7 +84,7 @@ export function createDebugPanelFeed(getEditor: () => EditorInstance | undefined
 			return log ? dumpOperationsLog(log) : '';
 		},
 		getTrace: () => {
-			// The section's expand arms the recorder (DebugPanel.toggleTrace).
+			// Expanding the section is what starts the recorder (DebugPanel.toggleTrace).
 			void tick;
 			return dumpInteractionTrace(interactionTraceSnapshot());
 		}

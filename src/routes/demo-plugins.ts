@@ -11,9 +11,9 @@ import { parrotPlugin } from '$lib/plugins/parrot';
 import { mermaidRenderer } from '$lib/plugins/mermaid/renderer';
 import { tagMarksPlugin } from './demo-tags/tag-marks-plugin';
 
-// One mint site for every demo route: definitions are process-global and install first-wins, so a
-// route varying a plugin's configuration passes `{ plugin, options }` rather than its own array.
-// Exported unit by unit as well as in a set, because a route may install a subset.
+// The one place the demo routes create their plugins: definitions are process-global and the
+// first install wins, so a route that wants different options passes `{ plugin, options }` rather
+// than its own array. Exported one by one as well as in a set, since a route may install a few.
 export const DEMO_ADMONITIONS = admonitionsPlugin();
 export const DEMO_DETAILS = detailsPlugin();
 export const DEMO_TOC = tocPlugin();
@@ -23,9 +23,9 @@ export const DEMO_HIGHLIGHT_OCCURRENCES = highlightOccurrencesPlugin();
 export const DEMO_LATEX = latexPlugin({ renderer: katexRenderer });
 export const DEMO_MERMAID = mermaidPlugin({ renderer: mermaidRenderer });
 export const DEMO_PARROT = parrotPlugin();
-// In-body `#tag` as mark decorations over ordinary text: the tag keeps every native gesture, and
-// nothing about it is a widget. Kept out of `DEMO_PLUGINS`, which is the bundled-plugin tour;
-// the showcase installs this one on its own.
+// `#tag` inside the text, as mark decorations over ordinary characters: the tag keeps every
+// gesture the browser gives text, and is nowhere a widget. Kept out of `DEMO_PLUGINS`, the tour
+// of the bundled plugins; the showcase installs this one on its own.
 export const DEMO_TAGS = tagMarksPlugin();
 
 export const DEMO_PLUGINS = [
