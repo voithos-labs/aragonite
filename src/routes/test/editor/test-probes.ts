@@ -290,8 +290,8 @@ export function installTestProbes({
 			setPresentationMode(mode);
 		},
 		// getBlockCount, getBlockKind and dumpTree read the live CST, not parse(getSource()): a
-		// reparse cannot see a block whose kind has left its raw text behind, or one the
-		// serializer trims.
+		// reparse cannot see a block whose kind has left its raw text behind, or a short-lived
+		// block the serializer trims.
 		getBlockCount: () => editor.__test.getDocument().children.length,
 		// Rebuilds the windowing of a nested container's child list without moving the scroll,
 		// unlike setSource or undo; a root path is rejected because the root's ids live in a

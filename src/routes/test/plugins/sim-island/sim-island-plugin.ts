@@ -1,5 +1,5 @@
-// A decoration source for the loaded-ops simulation that depends only on the text. Three markers
-// in leaf raws anchor one kind of decoration each: `[>…<]` a replace widget, `WIDGET` a
+// A decoration source for the loaded-ops simulation that depends only on the text. Three
+// sentinels in leaf raws anchor one kind of decoration each: `[>…<]` a replace widget, `WIDGET` a
 // zero-width widget, `BADGE` a block decoration. They appear in no other `?seed=sim` document, so
 // this does nothing there. Every position is worked out from the text again on each edit, so a
 // decoration follows its bytes as the user types.
@@ -58,8 +58,8 @@ function collectReplaceIslands(node: NodeView, path: number[], out: Decoration[]
 	}
 }
 
-// The widget sits at the front edge of the marker word, never inside it, so an insert or
-// delete beside it moves the anchor by one without breaking the word up.
+// The widget sits at the front edge of the `WIDGET` sentinel, never inside it, so an insert
+// or delete beside it moves the anchor by one without breaking the word up.
 function collectWidgetIslands(node: NodeView, path: number[], out: Decoration[]): void {
 	let from = 0;
 	for (;;) {

@@ -38,7 +38,7 @@
 	--color-accent: #567b67;
 	/* The base the selection, search-match and reorder tints derive from, so one declaration
 	   moves all of them; the tints themselves stay editor-owned. Following the accent means
-	   a host that recolours one recolours all four. */
+	   a host that recolors one recolors all four. */
 	--color-selection: var(--color-accent, #567b67);
 	--color-error: #ff5f57;
 }
@@ -150,7 +150,7 @@
 	--vr-spacer-bg: rgba(255, 255, 255, 0.025);
 }
 
-/* The tints follow a host's `--color-selection` where the browser can mix colours; the fixed
+/* The tints follow a host's `--color-selection` where the browser can mix colors; the fixed
    values above are the same tints of the default base, for browsers without `color-mix` (WebKit
    before Safari 16.2). */
 @supports (color: color-mix(in srgb, red, blue)) {

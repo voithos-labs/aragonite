@@ -6,7 +6,7 @@
  */
 
 /* Classes applied by code-renderer.ts; an unknown one falls through to --code-tok-unknown
- * (inherit), so highlighting never changes the text and never forces a colour. */
+ * (inherit), so highlighting never changes the text and never forces a color. */
 :where(.editor) .code-tok-keyword {
 	color: var(--code-tok-keyword);
 	font-weight: 600;
@@ -72,7 +72,7 @@
 	color: var(--code-tok-unknown);
 }
 
-/* One selection colour: a selection inside one block, painted by the browser, matches one across
+/* One selection color: a selection inside one block, painted by the browser, matches one across
    blocks, painted by the overlay. */
 :where(.editor) ::selection {
 	background: var(--selection-overlay-bg, rgba(100, 150, 255, 0.3));
@@ -439,7 +439,7 @@
 
 /* ── Semantic syntax tokens ───────────────────────────────────────────────────
    The defaults in editor-theme.css are neutral, so these rules change nothing until a consumer
-   overrides a token. A rule whose construct is also coloured by a component's <style> shorthand
+   overrides a token. A rule whose construct is also colored by a component's <style> shorthand
    takes the extra selector weight it needs to beat the Svelte scoping class. */
 
 :where(.editor)

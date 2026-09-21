@@ -68,7 +68,7 @@
 		badge: [blockBadgePlugin],
 		// `?seed=sim` puts long-lived decoration sources under the simulation's corruption
 		// checks; the simulations load their own document over the empty seed, and the widget
-		// source keys on markers only that document holds.
+		// source keys on sentinels only that document holds.
 		sim: [simMarkPlugin, simIslandPlugin]
 	};
 </script>
