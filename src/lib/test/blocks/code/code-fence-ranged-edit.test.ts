@@ -78,6 +78,15 @@ describe('CodeBlock — fence-crossing ranged edits', () => {
 		expect(committedText()).toBe('```js\nconst \n```');
 	});
 
+	it('claims a forward delete the same way — direction picks no different bytes', async () => {
+		select(12, 20);
+		const e = beforeInput('deleteContentForward');
+		await settle();
+
+		expect(e.defaultPrevented).toBe(true);
+		expect(committedText()).toBe('```js\nconst \n```');
+	});
+
 	it('claims a type-over and writes the typed character into the body', async () => {
 		select(12, 20);
 		const e = beforeInput('insertText', 'Z');

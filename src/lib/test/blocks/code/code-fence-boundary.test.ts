@@ -169,6 +169,15 @@ describe('clampEnterOffsetToBody', () => {
 		expect(clampEnterOffsetToBody(crlf, 11)).toBe(11);
 	});
 
+	// An unclosed fence still owns its opener line, so a splice there renders a fence the raw
+	// does not hold.
+	it('clamps the opener of an unclosed fence, whose body runs to the display end', () => {
+		const unclosed = fencedCode('```js\nconst x = 1\n', 'js', { closed: false });
+		expect(clampEnterOffsetToBody(unclosed, 0)).toBe(6);
+		expect(clampEnterOffsetToBody(unclosed, 3)).toBe(6);
+		expect(clampEnterOffsetToBody(unclosed, 10)).toBe(10);
+	});
+
 	it('opener-only fence clamps interior offsets to the opener end', () => {
 		const fresh = fencedCode('```', '', { closed: false });
 		expect(clampEnterOffsetToBody(fresh, 1)).toBe(3);
