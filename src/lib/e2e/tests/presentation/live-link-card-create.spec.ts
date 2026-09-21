@@ -67,9 +67,9 @@ test.describe('live-mode link card — the create half of Mod+K', () => {
 		await ep.bridge.waitForSourceEquals(before, 3000);
 	});
 
-	// The card's field takes focus before the host has placed the anchor, which still sits at the
-	// editor's origin: a scrolling focus carried the viewport to the top of the document, and the
-	// card, placed a frame later beside the selection, was nowhere on screen.
+	// Focusing the card's field before the host has placed the card would scroll the viewport to
+	// the top of the document, leaving the card, placed a frame later beside the selection, off
+	// screen.
 	test('the chord deep in a scrolled document keeps the scroll and shows the card', async ({
 		page
 	}) => {
@@ -87,7 +87,7 @@ test.describe('live-mode link card — the create half of Mod+K', () => {
 
 		await expect(page.locator(URL_FIELD)).toBeFocused();
 		await expect(page.locator(CARD)).toBeInViewport();
-		// The scroll stays, or nudges DOWN by the card's own height when the selection sits at the
+		// The scroll stays, or nudges down by the card's own height when the selection sits at the
 		// bottom edge and the card opens below it; it never runs back toward the top.
 		expect(await scrollTop()).toBeGreaterThanOrEqual(before);
 	});

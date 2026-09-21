@@ -6,7 +6,7 @@ import { PluginsPage, capturedErrors } from './helpers';
  * In-body `#tag` as a plugin inline widget, limestone's own integration reproduced in the harness
  * (`routes/test/plugins/tags`): a bare `#` trigger, a widget that paints the tag, `revealSource`
  * for editing and `claimsActivationClick` for navigation. Seed `tags`: a tag mid-prose and a
- * nested one in block 0, a tag OPENING block 1 (the case the heading opener contests), a tag
+ * nested one in block 0, a tag opening block 1 (the case the heading opener contests), a tag
  * inside a heading's content in block 2, and a plain typing target in block 3.
  * Requirements: e2e/requirements/plugins/tags.md.
  */

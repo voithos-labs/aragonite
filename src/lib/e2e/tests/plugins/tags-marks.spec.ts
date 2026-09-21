@@ -2,12 +2,11 @@ import { test, expect } from '../../fixtures';
 import { PluginsPage, capturedErrors } from './helpers';
 
 /**
- * In-body tags the OTHER way (`routes/test/plugins/tags/tag-marks-plugin.ts`): a mark decoration
- * over ordinary text instead of an atomic inline widget. A tag's source IS its display, so there
- * is nothing for a widget's reveal to uncover — and the island a widget mints is what costs the
- * caret, the one-press Backspace and every gesture that must be taught about islands. Seed
- * `tags-marks` carries the same document as the widget battery (`tags.md`), so the two models are
- * compared on the same bytes.
+ * In-body tags the other way (`routes/test/plugins/tags/tag-marks-plugin.ts`): a mark decoration
+ * over ordinary text instead of an inline widget. A tag's source is its display, so there is
+ * nothing for a widget to uncover, and no non-editable widget to cost the caret, the one-press
+ * Backspace or any other gesture. Seed `tags-marks` carries the same document as the widget
+ * tests (`tags.md`), so the two models are compared on the same bytes.
  * Requirements: e2e/requirements/plugins/tags-marks.md.
  */
 
@@ -71,7 +70,7 @@ test.describe('in-body tags as mark decorations', () => {
 		await clickInsideChip(editor, 'project');
 		const { start, end } = await tagSpan(editor, 'project');
 		const focus = (await editor.bridge.getSelectionPaths())?.focus;
-		// `Filed under #project` — the caret sits among the tag's own bytes.
+		// `Filed under #project`: the caret sits among the tag's own bytes.
 		expect(focus?.path).toEqual([0]);
 		expect(focus!.offset).toBeGreaterThan(start);
 		expect(focus!.offset).toBeLessThan(end);
@@ -84,7 +83,7 @@ test.describe('in-body tags as mark decorations', () => {
 
 		// One byte, not the whole construct: a widget's edge would have taken the tag entire.
 		await editor.bridge.waitForSourceContains('#prject');
-		// Still a tag, still one chip on that line, with no reveal in between.
+		// Still a tag, still two chips on that line, with no source shown in between.
 		await expect(editor.page.locator('[data-block-path="[0]"] .body-tag-mark')).toHaveCount(2);
 		expect(await capturedErrors(editor.page)).toEqual([]);
 	});

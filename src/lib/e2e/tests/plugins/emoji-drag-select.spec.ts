@@ -2,10 +2,10 @@ import { test, expect } from '../../fixtures';
 import { PluginsPage, capturedErrors } from './helpers';
 
 /**
- * A drag that STARTS on an emoji selects, like a drag from any other character. The island is
+ * A drag that starts on an emoji selects, like a drag from any other character. The glyph is
  * `contenteditable=false` and `user-select: none`, so the browser starts no drag from it and
- * answers its point with a position in the neighbouring text: the editor's own session paints the
- * range, anchored at the island's raw edge on the press's side.
+ * answers its point with a position in the neighbouring text: the editor paints the range itself,
+ * anchored at the glyph's raw edge on the press's side.
  * Requirements: e2e/requirements/plugins/emoji-drag-select.md.
  */
 
@@ -74,7 +74,7 @@ test.describe('a drag that starts on an emoji selects', () => {
 		await dragBetween(editor, trailingHalf, from(200));
 
 		expect(await selectedText(editor)).toContain('today');
-		// Anchored at the island's own trailing edge, the raw offset after `:smile:`, so the glyph
+		// Anchored at the glyph's own trailing edge, the raw offset after `:smile:`, so the glyph
 		// itself stays out of a range that grows away from it.
 		expect((await selectedRange(editor)).low).toBe(12);
 		expect(await capturedErrors(editor.page)).toEqual([]);
@@ -101,7 +101,7 @@ test.describe('a drag that starts on an emoji selects', () => {
 
 		await editor.page.mouse.up();
 		await editor.waitForRenderFlush();
-		// A press with no drag is the click that seats a caret beside the glyph, not a selection.
+		// A press with no drag is the click that puts a caret beside the glyph, not a selection.
 		expect(await selectedText(editor)).toBe('');
 		expect(await editor.bridge.getSource()).toBe(SOURCE);
 	});

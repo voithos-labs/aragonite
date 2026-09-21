@@ -9,7 +9,7 @@ import {
 } from './helpers';
 
 const LIST_IMAGE_DOC = '- ![pic|300x200](/test-fixtures/sample.png)\n';
-// Two islands in two blocks, each ending its own line, with a plain block to park in between.
+// Two image widgets in two blocks, each ending its own line, with a plain block between them.
 const TWO_IMAGE_DOC =
 	'![a|120x80](/test-fixtures/sample.png)\n\n![b|120x80](/test-fixtures/sample.png)\n\nplain text\n';
 
@@ -85,9 +85,9 @@ test.describe('synthetic caret indicator at widget boundary', () => {
 		expect(await caretColorOfFocusedBlock(page)).toBe('rgba(0, 0, 0, 0)');
 	});
 
-	// The press seats the browser's caret before the click arms the synthetic one, and at the
-	// element-level offset beside the island Chromium paints it at the line box's height: a taller
-	// stroke for the length of the press, then the synthetic. So the dark starts at the press.
+	// Beside an image widget the browser puts its own caret at an element-level offset, where
+	// Chromium paints a taller stroke for the length of the press. Hiding it from the press is
+	// what keeps that stroke from showing first and the synthetic caret after it.
 	test('the native caret is dark from the press, before the click arms the synthetic', async ({
 		page
 	}) => {
@@ -119,9 +119,8 @@ test.describe('synthetic caret indicator at widget boundary', () => {
 		expect(await caretColorOfFocusedBlock(page)).not.toBe('rgba(0, 0, 0, 0)');
 	});
 
-	// One caret is one position. The block that armed a synthetic caret clears it on the next
-	// selection change, but a state it never hears about — a selection cleared out from under it,
-	// its own block unmounted while the caret was inside — would leave a second caret on screen.
+	// One caret is one position. A block clears its own synthetic caret on the next selection
+	// change, but a block that unmounts with the caret inside never hears that change.
 	test('a second block arming its own caret takes the paint from the first', async ({ page }) => {
 		await editor.loadContent(TWO_IMAGE_DOC);
 		await waitForAllImagesLoaded(page);
@@ -139,7 +138,7 @@ test.describe('synthetic caret indicator at widget boundary', () => {
 		await clickPastImage(page, 1);
 		await expect.poll(() => paintedCarets(page)).toEqual(['[1]']);
 
-		// The state no block can clear for itself, painted by hand: the class a block left behind.
+		// The leftover class a block cannot clear for itself, put on the widget by hand.
 		await page.evaluate(() =>
 			document.querySelectorAll('[data-image-widget]')[0].classList.add('md-snap-after')
 		);
