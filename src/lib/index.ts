@@ -1,4 +1,4 @@
-// Public, supported surface of the editor module: adding an export is non-breaking,
+// The editor module's public, supported API: adding an export is non-breaking,
 // removing one is breaking. Anything not re-exported here is internal.
 
 // ── Component ────────────────────────────────────────────────────────────────
@@ -109,7 +109,7 @@ export type {
 // ── Rects ──────────────────────────────────────────────────────────────────────
 
 // Viewport-space geometry over the rendered document, via `editor.getRects()`.
-// SELECTION_END is the sentinel `rangeRects` accepts as `end`.
+// `SELECTION_END` is the special value `rangeRects` accepts as `end`.
 export type { EditorRects } from './editor-rects';
 export { SELECTION_END } from './block-component';
 export type { SelectionEnd } from './block-component';
