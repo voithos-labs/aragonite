@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 //
-// Miss-analysis: G1.33 fired from inside one door's own body, so no test ever drove a caret door
-// the platform did not mint — a plugin's own `parkCaret`, or the render-primary reveal — and the
-// whole bypass class sat outside the suite.
+// Miss-analysis: G1.33 fired from inside one function's own body, so no test ever drove a caret
+// placement the platform did not write itself (a plugin's own `parkCaret`, or the render-primary
+// scroll into view), and the whole bypass class sat outside the suite.
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import type { Component } from 'svelte';
 import type { BlockComponent, BlockComponentExports, BlockComponentProps } from '$lib/plugin';
@@ -28,7 +28,7 @@ const PLAIN_MARKER = '@@plain';
 const REVEAL_MARKER = '@@reveal';
 const INERT_MARKER = '@@inert';
 
-/** A plugin whose kind is one whole line spelled `marker`, the smallest kind an opener can mint. */
+/** A plugin whose kind is one whole line spelled `marker`, the smallest kind an opener can make. */
 function markerLinePlugin<P extends Partial<BlockComponentProps> & Record<string, unknown>>(
 	kind: string,
 	marker: string,
@@ -71,7 +71,7 @@ function markerLinePlugin<P extends Partial<BlockComponentProps> & Record<string
 	});
 }
 
-/** The plugin whose own `parkCaret` is the bypass under test, in both modes. */
+/** The plugin whose own `parkCaret` is the bypass under test, in both editable modes. */
 const ROGUE_CARET_DOOR = markerLinePlugin('rogue-caret-door', ROGUE_MARKER, RogueCaretDoorBlock);
 
 function blockComponentAt(mounted: MountedEditor, path: number[]): BlockComponent {
@@ -83,7 +83,7 @@ function blockComponentAt(mounted: MountedEditor, path: number[]): BlockComponen
 	return block;
 }
 
-/** A stand-down claim is only evidence once the door has actually taken focus. */
+/** A claim that nothing happened is only evidence once focus has actually moved. */
 function expectFocusLandedIn(selector: string): void {
 	expect(
 		document.activeElement?.closest(selector),
@@ -130,7 +130,7 @@ describe('G1.33 fires from the focus seam', () => {
 		expect(takeDevWarns().map((w) => w.tag)).toEqual(['invariant:landable-caret']);
 	});
 
-	// Source paints every byte, so the same door over the same chrome traps nothing.
+	// Source mode paints every byte, so the same call over the same markers traps nothing.
 	it('stands down for the same door in source mode', async () => {
 		const editor = await mountWith(ROGUE_MARKER, ROGUE_CARET_DOOR, 'source');
 
@@ -141,9 +141,9 @@ describe('G1.33 fires from the focus seam', () => {
 		expect(takeDevWarns()).toEqual([]);
 	});
 
-	// The stand-down arm for a surface that takes no keystroke. No built-in reaches it — a built-in
-	// is `contenteditable="false"` only in reading, which the mode gate already excludes — so
-	// nothing else tells the next reader the arm is load-bearing for plugin surfaces.
+	// The branch for a block that takes no keystroke. No built-in reaches it, because a built-in is
+	// `contenteditable="false"` only in reading mode, which the mode check already excludes, so
+	// nothing else tells the next reader this branch matters for plugin blocks.
 	it('stands down for an inert surface, over chrome the rogue door fires on', async () => {
 		const editor = await mountWith(
 			INERT_MARKER,
@@ -158,7 +158,7 @@ describe('G1.33 fires from the focus seam', () => {
 		expect(takeDevWarns()).toEqual([]);
 	});
 
-	// The platform's own door inherits the guard here rather than carrying it in its body.
+	// The platform's own caret call gets the check from here rather than carrying it in its body.
 	it('fires when the shared editable factory parks into a marker-only surface', async () => {
 		const editor = await mountWith(
 			PLAIN_MARKER,

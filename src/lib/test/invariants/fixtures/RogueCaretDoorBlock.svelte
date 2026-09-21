@@ -1,6 +1,6 @@
 <script lang="ts">
-	// A plugin leaf that owns its caret doors outright — no `createEditableLeaf`, no
-	// `createEditableSurface` — over a surface whose every byte is marker chrome.
+	// A plugin leaf that places its own caret, with no `createEditableLeaf` and no
+	// `createEditableSurface`, over a block whose every byte is a marker.
 	import type { BlockComponent, NodeView } from '$lib/plugin';
 
 	let { node }: { node: NodeView } = $props();

@@ -1,22 +1,22 @@
 import fc from 'fast-check';
 import { withDrawnLineEnding } from './line-endings';
 
-// Valid-ish GFM SOURCE strings, whose job is reaching the structured parser paths raw
-// garbage rarely does. Structural validity is never required: round-trip is byte-preserving
-// either way, so a malformed draw is signal, not a false failure.
+// Valid-ish GFM source strings, whose job is reaching the structured parser paths raw garbage
+// rarely does. Structural validity is never required: round-trip preserves bytes either way, so a
+// malformed draw is signal, not a false failure.
 
 // ── Leaf-block source fragments ─────────────────────────────────────────────
 
-// The minority arm, and `inline.ts`'s own vocabulary: what these words move is offset
-// ARITHMETIC (a multi-unit scalar under a slice), not the block grammar, so a rate high enough
-// to reach every structural lane is enough and ASCII stays the bulk of the bytes.
+// The minority case, and the same characters `inline.ts` uses: what these words move is offset
+// arithmetic (a multi-unit scalar under a slice), not the block grammar, so a rate high enough to
+// reach every structural path is enough and ASCII stays the bulk of the bytes.
 export const nonAsciiWord = fc.constantFrom('汉字', '\u00e9m', 'e\u0301m', '😀', '👩‍👦');
 
 /**
- * Construct-minting bytes inside prose. A pipe confined to the table arm makes a pipe-bearing
- * NON-table line undrawable, and a block marker only ever seen at a line's own start never gets
- * to interrupt one — both are shapes whose whole defect class is the disagreement between what
- * the line looks like and what it parses as.
+ * Bytes that start a construct, placed inside prose. A pipe confined to the table generator makes
+ * a pipe-bearing line that is not a table undrawable, and a block marker only ever seen at the
+ * start of a line never gets to interrupt one. Both are shapes whose defects come from the
+ * difference between what a line looks like and what it parses as.
  */
 const mintingWord = fc.constantFrom('|', 'a | b', '|x|', '#', '>', '- x', ':::', '`|`', '---');
 
@@ -93,9 +93,9 @@ const table = fc
 	});
 
 /**
- * Blank runs, not just blank counts: one line separates and every later one is a block of
- * its own (`design/syntax-tree.md`), so the run's LENGTH and each line's own bytes both move
- * the parsed shape. Whitespace-only lines are blank under GFM §2.1 and must survive verbatim.
+ * Blank runs, not just blank counts: one line separates and every later one is a block of its own
+ * (`design/syntax-tree.md`), so the length of the run and each line's own bytes both move the
+ * parsed shape. Whitespace-only lines count as blank under GFM §2.1 and must survive verbatim.
  */
 const blankLine = fc.constantFrom('\n', ' \n', '  \n', '\t\n', ' \t \n');
 const blankRun = fc.array(blankLine, { maxLength: 4 }).map((lines) => lines.join(''));
@@ -148,14 +148,14 @@ const lfDoc = fc
 	.array(fc.tuple(blankRun, block), { minLength: 1, maxLength: 8 })
 	.map((parts) => parts.map(([run, b]) => run + b).join(''));
 
-/** Valid-ish GFM source with bounded nesting depth (~3), emitted as a source STRING. */
+/** Valid-ish GFM source with bounded nesting depth (~3), emitted as a source string. */
 export const arbGfmDoc = withDrawnLineEnding(lfDoc);
 
 /**
- * The same blocks, but every gap holds at least one blank line — a real document's shape,
- * and the lane an editing walk runs on. A TIGHT gap lets a split's kind change fold the next
- * block into the new half (indented code cannot interrupt a paragraph), which is a separate
- * defect class from the blank-line rule and would mask it.
+ * The same blocks, but every gap holds at least one blank line: a real document's shape, and what
+ * an editing pass runs on. A gap with no blank line lets a split's kind change pull the next block
+ * into the new half (indented code cannot interrupt a paragraph), a separate defect class that
+ * would mask the blank-line rule.
  */
 export const arbBlankSeparatedGfmDoc = withDrawnLineEnding(
 	fc
@@ -169,9 +169,9 @@ export const arbBlankSeparatedGfmDoc = withDrawnLineEnding(
 // ── Leading-indent dimension ────────────────────────────────────────────────
 
 /**
- * Indents straddling the CommonMark block-indent boundary — up to three spaces a marker
- * still opens its block, at four the line is indented code, and a tab counts as four
- * columns. Every composed block sits at column 0, so that rule is otherwise unreachable.
+ * Indents straddling the CommonMark block-indent boundary: up to three spaces a marker still
+ * opens its block, at four the line is indented code, and a tab counts as four columns. Every
+ * composed block sits at column 0, so that rule is otherwise unreachable.
  */
 const blockIndent = fc.constantFrom('', ' ', '  ', '   ', '    ', '     ', '\t', ' \t', '   \t');
 

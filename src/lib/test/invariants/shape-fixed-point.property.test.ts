@@ -25,26 +25,26 @@ import {
 import { rebalanceLiveSplit } from '$lib/components/blocks/text/live-split-rebalance';
 import type { PresentationMode } from '$lib/presentation-mode';
 
-// G2.13: an edit on a loaded document leaves a tree that reloads to its own block shape —
-// the load → edit → save → load cycle a consumer runs on every remount. Byte round-trip
-// (G2.1) is blind to it: the blank-line loss preserved bytes exactly while dropping a block.
+// G2.13: an edit on a loaded document leaves a tree that reloads to the same block shape, which
+// is the load, edit, save, load cycle a consumer runs on every remount. Byte round-trip (G2.1)
+// cannot see it: bytes can be preserved exactly while a block disappears.
 
 const PARAMS = { numRuns: 400, seed: freshOrFixedSeed(424242) } as const;
 
 /**
- * The corpus plus the trailing blank line the parse folds into `doc.suffix`. Drawn here rather
- * than in the shared arbitrary, which every suite's seeds ride on: no source it produces carries
- * one, so every tail-materialization arm in the settle was dead by construction.
+ * The corpus plus the trailing blank line the parse puts into `doc.suffix`. Drawn here rather than
+ * in the shared generator, which every suite's seeds depend on: no source it produces carries one,
+ * so every branch that turns that tail into a block went untested.
  */
 const arbDoc = arbBlankSeparatedGfmDoc.chain((source) => fc.constantFrom(source, source + '\n'));
 
 // The gestures whose separator handling the blank-line rule governs: Enter, block delete, a
-// content commit, typing into a blank BLOCK, and the join in both directions.
+// content commit, typing into a blank block, and the join in both directions.
 type GestureOp = 'split' | 'delete' | 'update' | 'fill' | 'empty' | 'mergePrev' | 'mergeNext';
 type Gesture = { op: GestureOp; at: number; offset: number };
 
-// `fill` is drawn by its own property below rather than joining this list: a fourth arm re-rolls
-// every seed of the three-gesture stream, trading the coverage it has for coverage it hasn't.
+// `fill` gets its own property below rather than joining this list: a fourth case re-rolls every
+// seed of the three-gesture stream, trading coverage it has for coverage it does not.
 const arbGesture: fc.Arbitrary<Gesture> = fc.record({
 	op: fc.constantFrom('split', 'delete', 'update'),
 	at: fc.nat({ max: 6 }),
@@ -61,10 +61,10 @@ function applyGesture(doc: Document, gesture: Gesture, mode: PresentationMode | 
 	}
 	const at = gesture.at % count;
 	const node: CstNode = doc.children[at];
-	// Prose leaves only. A container descends to its leaf and a fence takes the newline into
-	// its own body, so neither reaches splitNode; the raw-text leaves that DO reach it (indented
-	// code, html) can split into halves that rejoin on reload, which is GH #61's pre-existing
-	// class rather than the blank-line rule this oracle guards.
+	// Prose leaves only. A container descends to its leaf and a fence takes the newline into its
+	// own body, so neither reaches `splitNode`; the raw-text leaves that do reach it (indented
+	// code, html) can split into halves that rejoin on reload, which is GH #61's known class
+	// rather than the blank-line rule this property checks.
 	const isProseLeaf =
 		node.children === undefined && getBlockKindDescriptor(node.kind).supportsInline === true;
 	switch (gesture.op) {
@@ -78,8 +78,8 @@ function applyGesture(doc: Document, gesture: Gesture, mode: PresentationMode | 
 			settled(doc, (body) => deleteNode(body, at));
 			return;
 		case 'update':
-			// Typing into the block, keeping its kind: the shape must still reload as it stands.
-			// The content door DOES carry the suffix (`block-edit.updateBlockContent`).
+			// Typing into the block, keeping its kind: the shape still has to reload as it stands.
+			// The content-write path does carry the suffix (`block-edit.updateBlockContent`).
 			settled(doc, () => updateNodeContent(doc, at, node.raw).change);
 			return;
 	}
@@ -99,9 +99,10 @@ function applyFill(doc: Document, at: number): void {
 }
 
 /**
- * Backspace and Delete across a block boundary, indexed over the merge-eligible adjacent pairs
- * so the draw always lands on one. Both doors: the forward one reparses the concatenation, the
- * backward one writes prev's deepest prose leaf — different sinks, one shape contract (GH #166).
+ * Backspace and Delete across a block boundary, indexed over the merge-eligible adjacent pairs so
+ * the draw always lands on one. Both paths: the forward one reparses the concatenation, the
+ * backward one writes the previous block's deepest prose leaf. Different writes, one shape
+ * contract (GH #166).
  */
 function applyMerge(doc: Document, at: number, op: 'mergePrev' | 'mergeNext'): void {
 	const pairs = doc.children.flatMap((node, i) =>
@@ -121,7 +122,7 @@ type LeafSlot = { holder: Document | CstNode; index: number; chain: CstNode[] };
 
 function proseLeafSlots(node: Document | CstNode, chain: CstNode[] = []): LeafSlot[] {
 	return (node.children ?? []).flatMap((child, index) => {
-		// A list item's body is delimited by the INDENT its marker sets, so blanking a leaf inside
+		// A list item's body is delimited by the indent its marker sets, so blanking a leaf inside
 		// one re-reads the bytes the way it does around indented code (the exclusion below).
 		if (child.kind === 'listItem') return [];
 		if (child.children !== undefined) return proseLeafSlots(child, [...chain, child]);
@@ -131,10 +132,10 @@ function proseLeafSlots(node: Document | CstNode, chain: CstNode[] = []): LeafSl
 }
 
 /**
- * The reverse transition: a block that BECOMES the blank line (GH #96), indexed over the prose
- * leaves so the draw always lands on an editable one. The gesture is what `commitInput` sends
- * for an emptied block — the line ending alone. Container bodies are in the lane: a body head
- * answers to its container's own opener line, which no top-level draw can reach (GH #96 rework).
+ * The reverse transition: a block that becomes the blank line (GH #96), indexed over the prose
+ * leaves so the draw always lands on an editable one. The gesture is what `commitInput` sends for
+ * an emptied block, the line ending alone. Container bodies are included, because the start of a
+ * body answers to its container's own opener line, which no top-level draw reaches.
  */
 function applyEmpty(doc: Document, at: number): void {
 	const slots = proseLeafSlots(doc);
@@ -142,7 +143,7 @@ function applyEmpty(doc: Document, at: number): void {
 	const { holder, index, chain } = slots[at % slots.length];
 	const children = holder.children!;
 	const text = trailingLineEnding(children[index].raw);
-	// A container body settles inside its own commit scope, which has no document tail to fold.
+	// A container body is fixed up inside its own commit scope, which has no document tail.
 	if (holder === doc) settled(doc, () => updateNodeContent(doc, index, text).change);
 	else {
 		const owner = holder as CstNode;
@@ -154,18 +155,18 @@ function applyEmpty(doc: Document, at: number): void {
 }
 
 /**
- * What a split may not touch: every NON-LINE-ENDING byte must survive. A multiset rather than
- * the string, because the setext rule reorders what survives — the underline moves up to follow
- * the first half; the line-count floor below is what watches the endings themselves.
+ * What a split may not touch: every byte that is not a line ending survives. A multiset rather
+ * than the string, because the setext rule reorders what survives: the underline moves up to
+ * follow the first half. The line-count minimum below watches the endings themselves.
  */
 const survivingBytes = (bytes: string) => [...bytes.replace(/\r?\n/g, '')].sort().join('');
 const lineCount = (t: string) => t.split('\n').length;
 
 /**
- * What a JOIN may not spend: every non-whitespace byte survives somewhere in the result.
- * One-directional and whitespace-blind by design — a join legitimately eats the separating
- * blank line (whose bytes can be spaces and tabs) and legitimately MINTS bytes when it lands
- * inside a container, whose continuation markers re-prefix the absorbed lines.
+ * What a join may not spend: every non-whitespace byte survives somewhere in the result. It is
+ * one-directional and ignores whitespace on purpose: a join legitimately eats the separating blank
+ * line, whose bytes can be spaces and tabs, and legitimately adds bytes when it lands inside a
+ * container, whose continuation markers re-prefix the absorbed lines.
  */
 function keepsEveryContentByte(before: string, after: string): boolean {
 	const counted = (text: string) => {
@@ -181,11 +182,11 @@ function keepsEveryContentByte(before: string, after: string): boolean {
 }
 
 /**
- * A join's shape divergence, minus GH #61's class. The two point opposite ways, which is what
- * separates them: a FOLD reads fewer blocks than the tree holds, because indentation beside the
- * survivor's new bytes claims them, and it is pre-existing at every seam (the split lane excludes
- * the same class by kind). A reload that reads MORE is the join's own: a one-node sink installed
- * bytes describing several, which is GH #166 itself.
+ * A join's shape mismatch, minus GH #61's class. The two point opposite ways, which is what tells
+ * them apart: reading fewer blocks than the tree holds means indentation beside the survivor's new
+ * bytes claimed them, a known problem at every join (the split property excludes the same class by
+ * kind). Reading more blocks is the join's own fault: a one-block write installed bytes describing
+ * several, which is GH #166.
  */
 function joinDivergence(doc: Document): string | null {
 	const divergence = describeConvergence(doc);
@@ -207,11 +208,11 @@ function divergenceAfterEdit(
 	if (divergence) return `${divergence} — after ${gesture.op}@${gesture.at}`;
 	const bytes = serialize(doc);
 	if (serialize(parse(bytes)) !== bytes) return `bytes not a round-trip: ${JSON.stringify(bytes)}`;
-	// GH #95 shipped past both oracles above: the halves it left reload as themselves, and the
-	// lines the drop took with them were simply no longer in the document to disagree.
-	// A live split closes and reopens the construct it cut, so a delimiter run is legitimately
-	// DUPLICATED across the halves; losing one stays forbidden in every mode — or terminal
-	// whitespace the screen never painted, declared by the candidate and checked by the verifier.
+	// GH #95 slipped past both checks above: the halves it left reload as themselves, and the lines
+	// it dropped were no longer in the document to disagree. A live split closes and reopens the
+	// construct it cut, so a delimiter run is legitimately duplicated across the halves; losing one
+	// stays forbidden in every mode, except trailing whitespace the screen never painted, which the
+	// candidate declares and the verifier checks.
 	const keptBytes =
 		mode === 'live'
 			? keepsEveryByte(before, bytes)
@@ -222,8 +223,8 @@ function divergenceAfterEdit(
 	if (gesture.op === 'split' && lineCount(bytes) < lineCount(before)) {
 		return `split dropped a line ending: ${JSON.stringify(before)} → ${JSON.stringify(bytes)}`;
 	}
-	// A truncating join leaves halves that reload as themselves, so the shape oracle above is blind
-	// to it: the lost line's bytes are simply no longer there to disagree (GH #166's forward sink).
+	// A join that truncates leaves halves that reload as themselves, so the shape check above
+	// cannot see it: the lost line's bytes are no longer there to disagree (GH #166, forward path).
 	if (gesture.op.startsWith('merge') && !keepsEveryContentByte(before, bytes)) {
 		return `${gesture.op} dropped content bytes: ${JSON.stringify(before)} → ${JSON.stringify(bytes)}`;
 	}
@@ -241,7 +242,7 @@ describe('G2.13 shape fixed point across load → edit → reload', () => {
 		);
 	});
 
-	// GH #73: `update` rewrites a node's OWN bytes, so no gesture above can change a block's
+	// GH #73: `update` rewrites a node's own bytes, so no gesture above can change a block's
 	// blankness and the transition the blank-line rule lives on was unreachable by construction.
 	it('typing into a blank block leaves a tree that reloads to its own shape', () => {
 		fc.assert(
@@ -253,9 +254,9 @@ describe('G2.13 shape fixed point across load → edit → reload', () => {
 		);
 	});
 
-	// GH #166: the join had no gesture here at all, so neither sink was ever read back — the
-	// forward one dropped every block past the first, the backward one wrote a leaf whose own
-	// reload disagreed with it. Its own property for the same reason `fill` has one.
+	// GH #166: the join had no gesture here at all, so neither write was ever read back: the
+	// forward one dropped every block past the first, and the backward one wrote a leaf whose own
+	// reload disagreed with it. It gets its own property for the same reason `fill` does.
 	it.each(['mergePrev', 'mergeNext'] as const)(
 		'%s leaves a tree that reloads to its own shape',
 		(op) => {
@@ -269,9 +270,9 @@ describe('G2.13 shape fixed point across load → edit → reload', () => {
 		}
 	);
 
-	// GH #96: the mirror of the fill. Blanking a leaf beside indentation-delimited content
-	// re-reads the bytes, so the content-commit door absorbs the seam its neighbours now make,
-	// the way the split and delete doors do (GH #61's class).
+	// GH #96: the mirror of the fill. Blanking a leaf beside indentation-delimited content re-reads
+	// the bytes, so the content-commit path absorbs the join its neighbours now make, the way the
+	// split and delete paths do (GH #61's class).
 	it('emptying a block leaves a tree that reloads to its own shape', () => {
 		fc.assert(
 			fc.property(arbDoc, fc.nat({ max: 6 }), (source, at) => {
@@ -283,15 +284,15 @@ describe('G2.13 shape fixed point across load → edit → reload', () => {
 	});
 
 	/**
-	 * DIFFERENTIAL on purpose: the claim the split rewrite owes is that closing and reopening a
-	 * construct diverges nowhere the byte-literal cut already does — not that the split seam is
-	 * defect-free, which it is not. Over the INLINE corpus, where ~22% of draws actually rewrite
-	 * against ~3% of the block-shaped one. What it sees: reload shape, round-trip, and byte loss.
-	 * What it cannot see is a marker SURFACING, which the rewrite's own verification and the unit
-	 * suite own — a mutation inside the rewrite is caught by that verification before this runs.
+	 * A comparison on purpose: what the split rewrite has to show is that closing and reopening a
+	 * construct differs nowhere the byte-literal cut already does, not that the split itself is
+	 * defect-free, which it is not. Run over the inline corpus, where about 22% of draws rewrite
+	 * against about 3% of the block-shaped one. It sees reload shape, round-trip and byte loss. It
+	 * cannot see a marker appearing on screen: the rewrite's own verification and the unit suite
+	 * cover that, and a mutation inside the rewrite is caught there before this runs.
 	 */
 	describe('with the live split rebalancer registered', () => {
-		// The slot is register-once, so the arm hands it back rather than leaving the production
+		// The registration happens once, so this hands it back rather than leaving the production
 		// value installed for whatever file the runner loads into this worker next.
 		beforeAll(() => registerLiveSplitRebalancer(rebalanceLiveSplit));
 		afterAll(() => __resetLiveSplitRebalancerForTests());
@@ -300,8 +301,8 @@ describe('G2.13 shape fixed point across load → edit → reload', () => {
 			.array(arbInlineSource, { minLength: 1, maxLength: 3 })
 			.map((paragraphs) => paragraphs.join('\n\n') + '\n');
 
-		/** The drawn offset wrapped into the target block, so both arms cut at the same place and
-		 *  the draw lands INSIDE the constructs rather than clamping past them. */
+		/** The drawn offset wrapped into the target block, so both sides cut at the same place and
+		 *  the draw lands inside the constructs rather than clamping past them. */
 		function interiorSplit(source: string, gesture: Gesture): Gesture {
 			const children = parse(source).children;
 			if (children.length === 0) return { ...gesture, op: 'split' };
@@ -309,11 +310,11 @@ describe('G2.13 shape fixed point across load → edit → reload', () => {
 			return { ...gesture, op: 'split', offset: gesture.offset % (displayLength(raw) + 1) };
 		}
 
-		// The collision the two rules make, pinned deterministically rather than left for a seed to
-		// draw: the rebalancer drops a block's TERMINAL whitespace (#106) because the screen never
-		// painted it, and the byte oracle below forbids losing a byte. The exception is the
-		// verifier's own, so the two agree — and it is WHITESPACE-ONLY, which is what keeps a
-		// dropped `<`/`>` pair a loss.
+		// Where the two rules collide, pinned deterministically rather than left to a seed: the
+		// rebalancer drops a block's trailing whitespace because the screen never painted it, and
+		// the byte check below forbids losing a byte. The exception is the verifier's own, so the
+		// two agree, and it covers whitespace only, which is what keeps a dropped `<`/`>` pair a
+		// loss.
 		it('a split may drop terminal whitespace the screen never painted (#106)', () => {
 			expect(
 				divergenceAfterEdit('~~foo~~  \n', { op: 'split', at: 0, offset: 5 }, 'live')
@@ -342,8 +343,8 @@ describe('G2.13 shape fixed point across load → edit → reload', () => {
 		});
 	});
 
-	// Non-vacuity: the oracle must actually fire on a shape the parser would fold away, or
-	// the property above proves nothing about the class it was written for.
+	// The check has to actually fire on a shape the parser would merge away, or the property above
+	// proves nothing about the class it was written for.
 	it('the oracle rejects trivia the parser would read as an extra block', () => {
 		const doc = parse('a\n\nb\n');
 		doc.children[1].leadingTrivia = '\n\n';

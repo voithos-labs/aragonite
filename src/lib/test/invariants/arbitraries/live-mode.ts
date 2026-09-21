@@ -2,8 +2,8 @@ import fc from 'fast-check';
 import { withDrawnLineEnding } from './line-endings';
 
 /**
- * The alphabet live mode's hidden edges are made of. `inline.ts` biases toward the emphasis
- * matcher; this biases toward the shapes § 4's rules are ABOUT — chrome that paints, delimiter runs
+ * The characters live mode's hidden edges are made of. `inline.ts` leans toward the emphasis
+ * matcher; this leans toward the shapes § 4's rules are about: markers that paint, delimiter runs
  * shared between a nested pair, and constructs a cut cannot reopen.
  */
 
@@ -38,8 +38,8 @@ const symmetricPair = fc.constantFrom(
 );
 
 /**
- * Runs of three or more asterisks, where one run serves two constructs at once. The seat and the
- * join cleaner both have to choose which pair a byte belongs to, which is #116's and #136's family.
+ * Runs of three or more asterisks, where one run serves two constructs at once. Both the caret
+ * placement and the join cleaner have to choose which pair a byte belongs to.
  */
 const sharedRun = fc.constantFrom(
 	'***a***',
@@ -51,7 +51,7 @@ const sharedRun = fc.constantFrom(
 	'[**bold**](url)***foo***foo'
 );
 
-/** Links and images, including the two that paint their own chrome (§ 4.1). */
+/** Links and images, including the two that paint their own markers (§ 4.1). */
 const bracketed = fc.constantFrom(
 	'[a](u)',
 	'[](u)',
@@ -67,10 +67,10 @@ const bracketed = fc.constantFrom(
 );
 
 /**
- * A childless construct standing between two LITERAL delimiter runs. Taking it whole abuts the runs
- * into one, and a long enough run is another BLOCK's opener — a tilde or backtick fence, which on
- * reload swallows every block below it. The class a seam verifying its candidate as inline text
- * cannot see, so no draw without these shapes reaches it.
+ * A childless construct standing between two literal delimiter runs. Taking it whole pushes the
+ * runs together into one, and a long enough run opens another block: a tilde or backtick fence,
+ * which on reload swallows every block below it. Code that only checks its candidate as inline
+ * text cannot see this, and no draw without these shapes reaches it.
  */
 const abuttingRuns = fc.constantFrom(
 	'~~[](u)~~a',
@@ -83,7 +83,7 @@ const abuttingRuns = fc.constantFrom(
 	'~~\\*[](u)~~c'
 );
 
-/** Childless constructs a cut cannot reopen: two halves of a URL are not two URLs (#118). */
+/** Childless constructs a cut cannot reopen: two halves of a URL are not two URLs. */
 const neverExtend = fc.constantFrom(
 	'<https://example.com>',
 	'<a@b.com>',
@@ -116,11 +116,11 @@ export const arbLiveInlineSource = fc
 
 // ── Blocks ───────────────────────────────────────────────────────────────────
 
-/** The block's own chrome, which sets where its content range starts — a heading's prefix and a
- *  quote marker are the two the gesture seams have to stay content-side of. */
+/** The block's own markers, which set where its content range starts: a heading's prefix and a
+ *  quote marker are the two that gestures have to stay on the content side of. */
 const blockPrefix = fc.constantFrom('', '', '', '## ', '> ', '- ');
 
-/** Terminal whitespace is the one run a live split may legitimately drop (#106). */
+/** Trailing whitespace is the one run a live split may legitimately drop. */
 const blockSuffix = fc.constantFrom('', '', '  ', ' ');
 
 const arbLiveBlock = fc
@@ -129,7 +129,7 @@ const arbLiveBlock = fc
 
 /**
  * A multi-block document with blank separators: the gestures that cross a block boundary (a merge,
- * a cross-block range delete) need two prose leaves and a seam between them.
+ * a cross-block range delete) need two prose leaves and a join between them.
  */
 export const arbLiveDoc = withDrawnLineEnding(
 	fc.array(arbLiveBlock, { minLength: 1, maxLength: 3 }).map((blocks) => blocks.join('\n\n') + '\n')

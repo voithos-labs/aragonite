@@ -12,8 +12,8 @@ import { trimTrailingLineEnding } from '../../core/lines';
 import type { AnyBlockKind, CstNode } from '../../core/nodes';
 
 // ── Callout-shaped opaque kind with a registered opener ────────────────────
-// A chrome title child at index 0 makes `strip(raw) !== serialize(children)`, and the
-// opener stores extra whitespace verbatim — a faithful but NON-canonical parse.
+// A title child at index 0 makes `strip(raw) !== serialize(children)`, and the opener stores
+// extra whitespace verbatim: a faithful parse that is not the canonical one.
 
 const OPEN = /^::note(?:[ \t]+(.*\S))?[ \t]*$/;
 const CLOSE = /^::$/;
@@ -91,7 +91,7 @@ describe('containerContract opaque — checkStaleRaw exemption', () => {
 
 	it('exempts an opaque container whose raw is not a strip of its children', () => {
 		const kind = registerOpaque('spec-opaque', { rebuildRaw: () => {} });
-		// raw deliberately diverges from serialize(children) — the opaque contract.
+		// raw deliberately differs from serialize(children): that is the opaque contract.
 		const node: CstNode = {
 			kind,
 			leadingTrivia: '',
@@ -107,8 +107,8 @@ describe('containerContract opaque — checkStaleRaw exemption', () => {
 describe('checkOpaqueStaleRaw (opaque containers)', () => {
 	beforeEach(() => __resetSchemaRegistriesForTests());
 
-	// The byte-fixpoint false-fire: a faithful parse may be non-canonical, so raw must
-	// never be byte-compared against a rebuild output.
+	// A faithful parse need not be the canonical one, so raw is never byte-compared against a
+	// rebuild's output.
 	it('passes for a faithful non-canonical parse whose rebuild would emit different bytes', () => {
 		const note = registerNoteKind();
 		const node = parseNote('::note  Title\nbody\n::\n');
@@ -143,9 +143,9 @@ describe('checkOpaqueStaleRaw (opaque containers)', () => {
 		expect(checkOpaqueStaleRaw(node)?.code).toBe('opaque-stale-raw');
 	});
 
-	// ── Declared reservedChrome: chrome bytes live in the opener line ────────
-	// A reparse mints chrome before any body trivia, while the live tree may legally hold
-	// a transient blank after it — so chrome and body are compared separately.
+	// ── Declared reservedChrome: the title's bytes live in the opener line ───
+	// A reparse puts the title before any blank lines, while the live tree may legally hold a
+	// transient blank after it, so the title and the body are compared separately.
 
 	it('passes for a declared-chrome container holding a transient empty body paragraph', () => {
 		registerNoteKind({ declareChrome: true });
@@ -171,8 +171,8 @@ describe('checkOpaqueStaleRaw (opaque containers)', () => {
 		expect(checkOpaqueStaleRaw(node)?.code).toBe('opaque-stale-raw');
 	});
 
-	// Slicing chrome off and diffing the body as a unit must still catch a child added or
-	// removed without a rebuild — the count mismatch alone has to fire.
+	// Slicing the title off and comparing the body as one unit still has to catch a child added
+	// or removed without a rebuild: the count mismatch alone must fire.
 	for (const mutation of ['added', 'removed'] as const) {
 		it(`fires when a body child is ${mutation} without a rebuild (chrome declared)`, () => {
 			registerNoteKind({ declareChrome: true });
@@ -186,8 +186,8 @@ describe('checkOpaqueStaleRaw (opaque containers)', () => {
 		});
 	}
 
-	// The bail split: with an opener registered, a raw that no longer reparses to its kind
-	// is genuine drift, not the openerless can't-validate case.
+	// The split: with an opener registered, a raw that no longer reparses to its kind has really
+	// drifted, rather than being the case with no opener, which cannot be checked at all.
 	it('fires when a registered-opener kind reparses to a divergent kind', () => {
 		const note = registerNoteKind();
 		const node = parseNote('::note Title\nbody\n::\n');
@@ -198,8 +198,8 @@ describe('checkOpaqueStaleRaw (opaque containers)', () => {
 		expect(violation?.detail).toMatchObject({ reason: 'reparse-diverges' });
 	});
 
-	// Without a registered opener the raw reparses to a paragraph, so the check cannot
-	// validate the kind at all — even genuinely stale children must not fire.
+	// Without a registered opener the raw reparses to a paragraph, so the check cannot verify the
+	// kind at all, and even genuinely stale children must not fire.
 	it('bails for a kind whose raw does not reparse standalone (no opener)', () => {
 		const kind = registerOpaque('spec-openerless', { rebuildRaw: () => {} });
 		const node: CstNode = {

@@ -20,11 +20,11 @@ import { replaceRefs } from '$lib/reactivity/publish-ref.svelte';
 import type { CstNode } from '$lib/core/nodes';
 
 /**
- * G2.8 — after every structural op `children` ↔ keyed-id array ↔ ref array stay
- * length-matched and index-aligned. A desync makes Svelte destroy+recreate the wrong
- * component, dropping IME state or stranding focus. Ops drive the real action bundles, so
- * `applyStructuralChangeToIdsRefs` is what is under test; reorder is the shape most likely
- * to desync, since every moved slot reuses an existing id rather than minting one.
+ * G2.8: after every structural op, `children`, the keyed-id array and the ref array stay the same
+ * length and line up index for index. If they do not, Svelte destroys and recreates the wrong
+ * component, dropping IME state or stranding focus. The ops drive the real action bundles, so
+ * `applyStructuralChangeToIdsRefs` is what is under test. Reorder is the shape most likely to
+ * break the alignment, because every moved position reuses an existing id instead of creating one.
  */
 
 // ── Top-level alignment ──────────────────────────────────────────────────────
@@ -40,10 +40,10 @@ interface TopHarness {
 const makeTop = (raws: string[]): TopHarness => makeTopFrom(raws.join('\n'));
 
 /**
- * Blank-separated like a parsed document — a tight paragraph pair is a lazy continuation, which
- * the seam settle absorbs the way a reload would (GH #61) — plus the trailing blank line the
- * parse folds into `suffix`. A children-only fixture cannot hold one, which left every arm that
- * spends it unreachable from this lane (GH #168).
+ * Blank-separated like a parsed document, because two paragraphs with no blank line between them
+ * are a lazy continuation that the fix-up merges the way a reload would (GH #61), plus the
+ * trailing blank line the parse puts into `suffix`. A children-only fixture cannot hold one, which
+ * left every branch that spends it unreachable from here (GH #168).
  */
 function makeTopFrom(source: string): TopHarness {
 	const { deps, doc, getBlockIds, getBlockRefs } = makeEditorActionsDeps(parse(source + '\n'));
@@ -130,8 +130,8 @@ describe('G2.8 top-level id↔ref↔children alignment', () => {
 		expect(h.ids()).toEqual([id1, id0, id2]);
 	});
 
-	// GH #168: the settle materializes the document's folded line when a delete leaves the tail
-	// blank, and a change that does not report the growth costs one id on the NEXT commit.
+	// GH #168: the fix-up turns the document's trailing line into a block when a delete leaves the
+	// tail blank, and a change that does not report that growth costs one id on the next commit.
 	it('a delete whose settle mints the folded tail line keeps arrays aligned', async () => {
 		const h = makeTopFrom('alpha\n\n\nbeta\n');
 
@@ -166,15 +166,15 @@ describe('G2.8 top-level id↔ref↔children alignment', () => {
 
 interface ContainerHarness {
 	doc: ReturnType<typeof makeEditorActionsDeps>['doc'];
-	/** Live container — commits replace the node object (copy-path-on-write). */
+	/** Live container: commits replace the node object (copy before write). */
 	node: () => CstNode;
 	state: BlockListState;
 	bundle: NestedActionsBundle;
 	reorder: ReturnType<typeof createReorderAction>;
 }
 
-// Seed innerBlockRefs to mirror a mounted container: the {#each} that fills them never
-// runs in node env, so an unseeded ref-alignment check chases a harness artifact.
+// Pre-fill innerBlockRefs to mirror a mounted container: the `{#each}` that fills them never runs
+// under node, so without this the alignment check would chase a harness artifact.
 function makeContainer(source: string): ContainerHarness {
 	const initial = parse(source).children[0];
 	expect(initial.children, 'container has children').toBeTruthy();
@@ -196,8 +196,8 @@ function assertContainerAligned(h: ContainerHarness) {
 	expect(new Set(h.state.innerBlockIds).size, 'inner ids unique').toBe(n);
 }
 
-// Prose children so the pairwise merge is eligible — a list of items would not reach the
-// in-container merge path, since listItem↔listItem isn't directly mergeable.
+// Prose children so the pairwise merge is eligible: a list of items would not reach the
+// in-container merge path, since one list item does not merge directly into another.
 const BQ_THREE = '> aaaa\n>\n> bbbb\n>\n> cccc\n';
 const BQ_TWO = '> aaaa\n>\n> bbbb\n';
 
@@ -268,8 +268,8 @@ describe('G2.8 container id↔ref↔children alignment', () => {
 
 	it('round-trip stays byte-stable and serialized raw tracks the mutated children', async () => {
 		const h = makeContainer(BQ_THREE);
-		// A byte round-trip alone passes on a STALE container raw (valid-but-unupdated GFM
-		// self-round-trips), so the convergence oracle is what makes a stale raw fire.
+		// A byte round-trip alone passes on a stale container raw, because valid but out-of-date
+		// GFM still round-trips, so the comparison against a fresh parse is what catches it.
 		const stable = () => {
 			expectParseConverged(h.doc);
 			const live = serialize(h.doc);
@@ -293,12 +293,11 @@ describe('G2.8 container id↔ref↔children alignment', () => {
 // ── Deep childIds backfill on reparse-into-container (G2.8 / #4 class) ─────────
 
 /**
- * A freshly-PARSED subtree spliced under a preserved component id carries no `childIds`,
- * so undefined keys reach Svelte if the reused container renders before the re-init
- * effect — a duplicate-key crash once a nested container holds ≥2 children. The backfill
- * lives in `stampStructuralChange`, the publish seam every new-node op routes through, so
- * the guard covers ALL paths; the fixture nests two such containers to meet the crash
- * condition.
+ * A freshly parsed subtree spliced under a component id that is kept carries no `childIds`, so
+ * undefined keys reach Svelte if the reused container renders before the re-init effect, which
+ * crashes on duplicate keys once a nested container holds two or more children. The fill-in lives
+ * in `stampStructuralChange`, the one function every new-node op routes through, so the check
+ * covers every path; the fixture nests two such containers to meet the crash condition.
  */
 const NESTED_LIST = '1. First.\n\n   Continuation.\n2. Second:\n   - x\n   - y\n';
 
@@ -332,8 +331,8 @@ describe('G2.8 deep childIds backfill on reparse-into-container (#4 class)', () 
 		const h = makeTop(['head\n', 'tail\n']);
 		const nested = parse(NESTED_LIST).children;
 
-		// The live paste path folds the clipboard and splices it through replaceBlock
-		// (defaultStructuralHook → buildPastedReplacement), a second route to the backfill.
+		// The live paste path merges the clipboard and splices it through replaceBlock
+		// (defaultStructuralHook → buildPastedReplacement), a second route to the fill-in.
 		const replacement = buildPastedReplacement(h.doc.children[0], 4, nested);
 		await h.actions.replaceBlock(0, replacement);
 
@@ -341,8 +340,8 @@ describe('G2.8 deep childIds backfill on reparse-into-container (#4 class)', () 
 		assertDeepChildIdsAligned(h.doc.children);
 	});
 
-	// merge-prev is the one new-node-ish path that bypasses the backfill seam: it mints no
-	// container, so a change that made it reparse into one would desync here.
+	// merge-prev is the one path adding nodes that skips the fill-in: it creates no container, so
+	// a change that made it reparse into one would break the alignment here.
 	it('mergeWithPrevious into a container leaf keeps deep childIds aligned', async () => {
 		const list = parse(NESTED_LIST).children[0];
 		expect(list.kind).toBe('list');
@@ -350,7 +349,7 @@ describe('G2.8 deep childIds backfill on reparse-into-container (#4 class)', () 
 		const { deps, doc } = makeEditorActionsDeps([list, makeNode('paragraph', 'tail\n')]);
 		const actions = createBlockEditActions(deps, createUndoController(deps));
 
-		// container + prose is merge-eligible: the paragraph folds into the list's deepest
+		// container + prose is merge-eligible: the paragraph merges into the list's deepest
 		// prose leaf, with no parse().
 		await actions.mergeWithPrevious(1);
 

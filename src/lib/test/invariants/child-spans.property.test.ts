@@ -1,7 +1,7 @@
 // The one-child splice against the full rebuild, byte for byte and span for span, over shapes a
 // per-child decomposition has to survive: CRLF, blank bodies, empty children, an unterminated
 // last child, an inner suffix, wide ordered markers, task markers, non-ASCII. Structural edits
-// run through the real doors, so invalidation is exercised rather than assumed.
+// run through the real entry points, so invalidation is exercised rather than assumed.
 import { describe, it, expect } from 'vitest';
 import fc from 'fast-check';
 import { makeBlockNode, type BlockMetadata, type CstNode } from '$lib/core/nodes';
@@ -106,7 +106,7 @@ function buildContainer(c: Case): CstNode {
 
 const rebuilderFor = (node: CstNode) => getBlockKindDescriptor(node.kind).rebuildRaw!;
 
-/** The same children rebuilt from scratch — the oracle every spliced state is compared to. */
+/** The same children rebuilt from scratch, the reference every spliced state is compared to. */
 function fullRebuildOf(node: CstNode): CstNode {
 	const copy = makeBlockNode({
 		kind: node.kind,
@@ -160,13 +160,13 @@ function applyEdit(node: CstNode, edit: Edit): boolean {
 	return spansBefore !== undefined && node.childSpans === spansBefore;
 }
 
-// The shipped door, where the synthesized hint above cannot reach: `updateBlockContent` mints its
-// own hint and its settle rewrites bytes no hint names. Deep paths (a chain of two hinted levels)
-// live in `test/schema/child-spans-settle.test.ts`'s sweep, which this arm does not repeat.
+// The real entry point, where the hand-made hint above cannot reach: `updateBlockContent` makes
+// its own hint and its fix-up rewrites bytes no hint names. Deep paths (two hinted levels in a
+// row) are covered by `test/schema/child-spans-settle.test.ts`, which this does not repeat.
 /**
- * Containers whose second write can cross a blank line, which is where a settle retires. Every
- * one holds a prose child the harness bundle can address; a nested container's OWN children are
- * the sweep's subject, since this bundle reaches one level.
+ * Containers whose second write can cross a blank line, which is where the fix-up drops a hint.
+ * Every one holds a prose child the harness bundle can address; a nested container's own children
+ * belong to the other suite, since this bundle reaches one level.
  */
 const SETTLING_SOURCES = [
 	'> a\n>\n>\n> c\n',
@@ -176,7 +176,7 @@ const SETTLING_SOURCES = [
 	'> a\n>\n> - x\n> - y\n>\n> z\n'
 ];
 
-/** Containers of plain adjacent leaves: a write into one settles nothing. */
+/** Containers of plain adjacent leaves: a write into one triggers no fix-up. */
 const PLAIN_SOURCES = ['> # a\n> # b\n> # c\n', '> # one\n> body\n'];
 
 const DOOR_RUNS = 300;
@@ -188,8 +188,8 @@ const arbDoorCase = fc.record({
 	),
 	seedAt: fc.nat({ max: 5 }),
 	at: fc.nat({ max: 5 }),
-	// A prose rewrite of a non-blank child crosses no blank line, so its write settles nothing
-	// and the spans carry: the splice class, drawn rather than stumbled into.
+	// A prose rewrite of a non-blank child crosses no blank line, so its write triggers no fix-up
+	// and the spans are kept: the splice case, drawn on purpose rather than stumbled into.
 	prose: fc.oneof(
 		{ arbitrary: fc.constant(true), weight: 3 },
 		{ arbitrary: fc.constant(false), weight: 2 }
@@ -212,7 +212,7 @@ describe('container child spans', () => {
 			}),
 			PARAMS
 		);
-		// Non-vacuity: a run where every rewrite declined would prove nothing about the arithmetic.
+		// A run where every rewrite declined would prove nothing about the arithmetic.
 		expect(splices, 'the splice path never ran').toBeGreaterThan(PARAMS.numRuns / 4);
 	});
 
@@ -226,14 +226,14 @@ describe('container child spans', () => {
 				const count = container().children?.length ?? 0;
 				if (count === 0) return;
 
-				// Prose leaves only: the content door writes a block's own text, and handing it a
+				// Prose leaves only: the content path writes a block's own text, and handing it a
 				// container child's bytes is a different gesture with a stale-raw problem of its own.
 				const leaves = container()
 					.children!.map((child, i) => (child.children ? -1 : i))
 					.filter((i) => i >= 0);
 				if (leaves.length === 0) return;
 
-				// Writing a child's own bytes back seeds the spans without moving anything.
+				// Writing a child's own bytes back fills the spans without moving anything.
 				const seedAt = leaves[c.seedAt % leaves.length];
 				await h.bundle.blockEdit.updateBlockContent(seedAt, container().children![seedAt].raw);
 				expect(container().raw, 'after the seeding write').toBe(fullRebuildOf(container()).raw);
@@ -255,8 +255,8 @@ describe('container child spans', () => {
 			}),
 			{ numRuns: DOOR_RUNS, seed: PARAMS.seed }
 		);
-		// Both classes at a rate rather than at all: an arm drawing the splice path once is the
-		// same vacuity the synthesized arm above would have if its generator went tame.
+		// Both classes at a rate rather than merely once: drawing the splice path a single time
+		// would prove as little as the hand-made case above with a generator gone tame.
 		const floor = DOOR_RUNS / 10;
 		expect(spliced, 'the door arm barely reaches the splice path').toBeGreaterThan(floor);
 		expect(retired, 'the door arm barely reaches a retiring settle').toBeGreaterThan(floor);

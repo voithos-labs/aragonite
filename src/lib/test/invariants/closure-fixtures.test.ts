@@ -15,9 +15,9 @@ import { registerAdmonitions } from '$lib/plugins/admonitions/admonition-kind';
 import { ADMONITION } from '$lib/plugins/admonitions/kinds';
 import { registerTocBlock, TOC_BLOCK } from '$lib/plugins/toc/toc-plugin';
 
-// G1.24 rule (c): every declared `conformanceFixture` parses to a tree containing its
-// declaring kind. A sweep rather than a flush-seam check because a `parse` import there
-// would close a schema → core/parser → schema cycle. Scope is lib-resident kinds only.
+// G1.24 rule (c): every declared `conformanceFixture` parses to a tree containing the kind that
+// declared it. Checked here rather than at registration, because a `parse` import there would
+// close a schema → core/parser → schema cycle. It covers kinds that live in the library only.
 
 function treeContainsKind(
 	node: { kind: string; children?: readonly CstNode[] },

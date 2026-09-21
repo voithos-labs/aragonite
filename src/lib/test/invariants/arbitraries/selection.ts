@@ -4,9 +4,9 @@ import type { EditorSelection } from '../../../selection/primitives';
 import { arbParsedDoc, allBlockPaths } from './cst';
 
 /**
- * A parsed doc paired with a genuinely cross-block selection — two DISTINCT block paths
- * drawn from the doc. Offsets can be any small int: the document-order walk compares them
- * numerically and never slices `raw`.
+ * A parsed document paired with a genuinely cross-block selection: two different block paths drawn
+ * from that document. Offsets can be any small integer, because the document-order traversal
+ * compares them numerically and never slices `raw`.
  */
 export const arbDocWithSelection: fc.Arbitrary<{
 	doc: Document;

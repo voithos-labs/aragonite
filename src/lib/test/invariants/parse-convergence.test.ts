@@ -12,9 +12,9 @@ import {
 	describeConvergence
 } from '$lib/test/harness/parse-converged';
 
-// The belt for the belt. Wiring parse-convergence at every vacuous round-trip site is
-// only sound if it catches the live-tree-vs-raw divergence bytes are blind to AND stays
-// green on the empty-paragraph shapes the editor really reaches — both pinned here.
+// The check on the check. Using the parse comparison wherever a round-trip proves nothing is only
+// sound if it catches the live-tree-versus-raw differences bytes cannot see and stays green on the
+// empty-paragraph shapes the editor really reaches. Both are pinned here.
 
 function docOf(children: CstNode[]): Document {
 	return { kind: 'document', prefix: '', children, suffix: '' };
@@ -24,7 +24,7 @@ function emptyParagraph(): CstNode {
 	return { kind: 'paragraph', leadingTrivia: '', raw: '\n' };
 }
 
-// ── Empty paragraphs converge exactly (the parser mints them too) ─────────────
+// ── Empty paragraphs match exactly (the parser produces them too) ─────────────
 
 describe('parseConverges on the empty-paragraph shapes the editor reaches', () => {
 	it('an empty list item holding an empty-paragraph placeholder', () => {
@@ -37,8 +37,8 @@ describe('parseConverges on the empty-paragraph shapes the editor reaches', () =
 
 	it.each([
 		['LF', '> hi\n', '\n'],
-		// CRLF puts the carriage return in the line's ending, not its text — the one path
-		// where a per-line rule could read a stray one as content.
+		// CRLF puts the carriage return in the line's ending, not its text, which is the one
+		// path where a per-line rule could read a stray one as content.
 		['CRLF', '> hi\r\n', '\r\n']
 	])('a blockquote with a trailing empty paragraph (%s)', (_label, source, lineEnding) => {
 		// Enter at the end of "hi": the split writes the separator, then the empty half.
@@ -66,7 +66,7 @@ describe('parseConverges on the empty-paragraph shapes the editor reaches', () =
 	});
 });
 
-// ── Caught divergence classes (the three bugs the tautology admitted) ─────────
+// ── Differences it catches that a round-trip would not ───────────────────────
 
 describe('parseConverges catches live-tree-vs-raw divergence', () => {
 	it('a stale kind: a paragraph whose raw serializes to a heading', () => {
@@ -91,8 +91,8 @@ describe('parseConverges catches live-tree-vs-raw divergence', () => {
 
 	it('a grid divergence (typed-cell-pipe shape): a body row with an extra live cell', () => {
 		const doc = parse('| a | b |\n| --- | --- |\n| c | d |\n');
-		// A live-grid desync the serializer is blind to. Cells are never filtered, so the
-		// oracle fires where a byte round-trip would not.
+		// A live grid out of step in a way the serializer cannot see. Cells are never filtered,
+		// so the comparison fires where a byte round-trip would not.
 		doc.children[0].children![1].children!.push({ kind: 'tableCell', leadingTrivia: '', raw: 'X' });
 		expect(parseConverges(doc)).toBe(false);
 	});

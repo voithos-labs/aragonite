@@ -1,12 +1,12 @@
 import fc from 'fast-check';
 import type { InlineNode } from '../../../core/nodes';
 
-// Inline fragments interleaved so the emphasis matcher, code-span handler, and bracket
-// stack see realistic adjacency. Images, `<br>`, and ACCEPTING character references are
-// excluded: they are widgets (breaking the widget-free G2.4 spine) or shift commonmark's
-// flanking around a decoded space (a divergence the kind-differential oracle reports).
-// Their coverage lives in the G2.11 conformance corpus,
-// `test/core/inline/character-refs.test.ts`, and `arbAltOnlyImage` below.
+// Inline fragments interleaved so the emphasis matcher, the code-span handler and the bracket
+// stack see realistic adjacency. Images, `<br>` and character references that decode are left
+// out: they are widgets, which G2.4's text comparison cannot hold, or they shift CommonMark's
+// flanking around a decoded space, which the kind comparison reports as a difference. They are
+// covered by the G2.11 conformance corpus, `test/core/inline/character-refs.test.ts` and
+// `arbAltOnlyImage` below.
 
 // Non-ASCII words arm the properties against surrogate/cluster slicing: no node boundary
 // may land mid-pair.
@@ -35,9 +35,9 @@ const codeSpan = fc
 	.map(([ticks, inner]) => ticks + inner + ticks);
 
 /**
- * Nesting the flat `emphasisRun` cannot reach: a run inside a run of the SAME kind. The asterisk
- * spellings carry the SHARED delimiter run, whose bytes serve both pairs at once, so a typed byte
- * beside one can rebind which delimiter pairs with which.
+ * Nesting the flat `emphasisRun` cannot reach: a run inside a run of the same kind. The asterisk
+ * spellings carry the shared delimiter run, whose bytes serve both pairs at once, so a typed byte
+ * beside one can change which delimiter pairs with which.
  */
 const nestedRun = fc.constantFrom(
 	'~~a ~b~ c~~',
@@ -82,8 +82,8 @@ const ampersandDecline = fc.constantFrom('&notreal;', '&');
 
 const hardBreak = fc.constantFrom('\\\n', '\\\r\n', '  \n', '  \r\n');
 
-// U+10100 (astral Po) spaces runs the way `.` does — flanking must classify
-// it via code points, not UTF-16 units.
+// U+10100 (astral Po) spaces runs the way `.` does: flanking has to classify
+// it by code points, not by UTF-16 units.
 const punctSpacer = fc.constantFrom(' ', '. ', ', ', ' (', ') ', '!', '?', ': ', '', '\u{10100}');
 
 const fragment = fc.oneof(
@@ -102,20 +102,20 @@ const fragment = fc.oneof(
 );
 
 /**
- * Inline source string, biased toward emphasis flanking, nested delimiters, and
- * code/link/escape adjacency so the offset-partition and textContent-spine properties
- * exercise parser/renderer interaction rather than plain text. Exclusions: see the header.
+ * Inline source string, biased toward emphasis flanking, nested delimiters and code/link/escape
+ * adjacency, so the offset-partition and `textContent` properties exercise how the parser and the
+ * renderer interact rather than plain text. What is left out: see the header.
  */
 export const arbInlineSource = fc
 	.array(fragment, { minLength: 1, maxLength: 12 })
 	.map((parts) => parts.join(''));
 
-// ── Minted images (the alt-only render path) ─────────────────────────────────
+// ── Hand-built images (the alt-only render path) ─────────────────────────────
 
 /**
- * An `image` node paired with the bytes it spans, minted the way an inline-syntax rung
- * mints one: `alt` need not be a slice of the node, or of the document, at all. No source
- * arbitrary reaches this, because a parsed alt is always read off its own label.
+ * An `image` node paired with the bytes it spans, built the way a plugin's inline handler builds
+ * one: `alt` need not be a slice of the node, or of the document, at all. No source generator
+ * reaches this, because a parsed alt is always read off its own label.
  */
 export const arbAltOnlyImage = fc
 	.record({

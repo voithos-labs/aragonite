@@ -2,9 +2,9 @@ import fc from 'fast-check';
 import { withDrawnLineEnding } from './line-endings';
 
 /**
- * Inputs at the scale superlinear-growth and overflow defects live at — three or four
- * orders of magnitude past the standard lanes, which top out in the hundreds of bytes.
- * Drawn at a low run count: the point is reaching the scale, not sampling it densely.
+ * Inputs at the scale where superlinear growth and overflow defects live: three or four orders of
+ * magnitude past the standard generators, which top out in the hundreds of bytes. Drawn at a low
+ * run count, because the point is reaching that scale, not sampling it densely.
  */
 
 /** One line carrying every multi-unit class at once, the combining cluster included. An offset
@@ -26,7 +26,7 @@ const flood = fc
 	)
 	.map(([char, count]) => char.repeat(count) + '\n');
 
-/** A run of blank lines — the trivia path, which is walked per blank line. */
+/** A run of blank lines: the blank-line path, which is walked once per line. */
 const blankRun = fc.integer({ min: 4_000, max: 20_000 }).map((count) => '\n'.repeat(count));
 
 /** Many small blocks: tens of thousands of inline matches in one document. */
@@ -44,7 +44,7 @@ const manyBlocks = fc
 	)
 	.map(([line, count]) => line.repeat(count));
 
-/** One line with no ending — the unterminated-at-EOF path at scale. */
+/** One line with no ending: the unterminated-at-end-of-file path, at scale. */
 const longLine = fc
 	.tuple(
 		fc.constantFrom('word ', 'a*b ', '\\* ', 'x`y` ', `${NON_ASCII_LINE} `),

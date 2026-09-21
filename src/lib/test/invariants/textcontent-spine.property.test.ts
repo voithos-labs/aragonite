@@ -58,8 +58,8 @@ describe('G2.4 textContent spine (widget-free)', () => {
 		);
 	});
 
-	// Pinned counterexample: a destination terminating inside a code span once duplicated
-	// the straddled bytes in the rendered spine.
+	// A pinned counterexample: a destination ending inside a code span duplicated the straddled
+	// bytes in the rendered text.
 	it('link destination ending inside a code span renders byte-exact', () => {
 		const source = '[a](u`)`)';
 		const nodes = parseInline(source, 0, source.length);
@@ -67,8 +67,8 @@ describe('G2.4 textContent spine (widget-free)', () => {
 		expect(container.textContent).toBe(source);
 	});
 
-	// The spine is blind to which pair a shared delimiter run binds to, so the four spellings the
-	// shared lane draws at random get a deterministic floor of their own.
+	// The rendered text cannot tell which pair a shared delimiter run binds to, so the four
+	// spellings drawn at random get a deterministic minimum of their own.
 	it.each(['*a *b* c*', '**a **b** c**', '**a *b** c*', '*a **b* c**'])(
 		'asterisk delimiter nesting renders byte-exact: %s',
 		(source) => {
@@ -78,8 +78,8 @@ describe('G2.4 textContent spine (widget-free)', () => {
 	);
 });
 
-// Atomic widgets contribute 0 textContent — their bytes live in data-source-* attributes
-// — so the spine is the source with each widget's byte range removed.
+// An atomic widget contributes no textContent, because its bytes live in `data-source-*`
+// attributes, so the expected text is the source with each widget's byte range removed.
 describe('G2.4 textContent spine (atomic-widget delta)', () => {
 	const buildImageWidget = (): Node => {
 		const shell = document.createElement('span');
@@ -122,7 +122,7 @@ describe('G2.4 textContent spine (atomic-widget delta)', () => {
 		const source = 'a&copy;b';
 		const nodes = parseInline(source, 0, source.length);
 		const container = renderToContainer(nodes, source);
-		// The widget contributes its glyph, so only the raw-aware walk recovers the bytes.
+		// The widget contributes its glyph, so only the raw-aware traversal recovers the bytes.
 		expect(container.textContent).toBe('a©b');
 		expect(rawTextOfNode(container, source)).toBe(source);
 	});
@@ -136,9 +136,9 @@ describe('G2.4 textContent spine (atomic-widget delta)', () => {
 	});
 });
 
-// A kind declining image widgets renders the image INTO the spine, so its bytes are the
-// invariant rather than a delta. Minted, not parsed: a rung may derive an alt from
-// anywhere, so no parsed corpus can state the rule the render path needs.
+// A kind that declines image widgets renders the image into the text, so its bytes are the rule
+// rather than a subtraction. Built by hand, not parsed: a plugin's inline handler may derive an
+// alt from anywhere, so no parsed corpus can state the rule the render path needs.
 describe('G2.4 textContent spine (alt-only images)', () => {
 	it('a minted image renders its own bytes, whatever its alt says', () => {
 		fc.assert(
@@ -155,13 +155,13 @@ describe('G2.4 textContent spine (alt-only images)', () => {
 	});
 });
 
-// The spine invariant generalizes over islands: for any placement of N, the walk-summed
-// raw still reproduces the source. Overlapping replaces are what push the descending pass
-// past its two-island floor into end-snap.
+// The rule holds for any number of inline widgets: whatever their placement, the raw summed over
+// the traversal still reproduces the source. Overlapping replaces are what push the descending
+// pass past two widgets into snapping at the end.
 //
-// Start-snap (a boundary inside a NONZERO-span atomic widget) is unreachable here, since
-// the corpus emits no images / `<br>`. Its sole guard is `decorations/island-dom.test.ts`
-// — do not fold it into this property.
+// Snapping at the start (a boundary inside an atomic widget that spans bytes) is unreachable here,
+// because the corpus emits no images or `<br>`. `decorations/island-dom.test.ts` is its only
+// check; do not merge it into this property.
 describe('G2.4 textContent spine (decoration islands)', () => {
 	const opts = { mountWidget: mountDecorationWidget };
 
@@ -203,7 +203,7 @@ describe('G2.4 textContent spine (decoration islands)', () => {
 		});
 	}
 
-	// The optional ambient prefix's bytes are NOT part of raw, so the read-back skips it.
+	// The container's marker prefix is not part of raw, so the read-back skips it.
 	function readBackAfterIslands(source: string, specs: IslandSpec[], prefix?: string): string {
 		const container = document.createElement('div');
 		if (prefix !== undefined) container.appendChild(buildAmbientSpan(prefix));
@@ -222,8 +222,8 @@ describe('G2.4 textContent spine (decoration islands)', () => {
 		return out;
 	}
 
-	// Deterministic pins that end-snap regardless of seed drift: a later boundary lands
-	// inside an earlier replace island.
+	// Deterministic cases that snap at the end whatever the seed: a later boundary lands inside
+	// an earlier replace widget.
 	const overlapExamples: [string, IslandSpec[]][] = [
 		[
 			'abcdef',

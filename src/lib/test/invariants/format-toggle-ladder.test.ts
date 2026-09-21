@@ -1,11 +1,11 @@
 // @vitest-environment jsdom
 //
-// G2.14 — over a RANGE, the pressed-state read and the toggle's direction decide by the same
-// guards: an active range unapplies. One arm sits outside, in one mode: where the delimiters PAINT,
-// a bare wrap writes its literal bytes unverified (live-mode.md § 4.3). A DECLINE is excused, so a
-// new corpus line reds nothing on its own: a shape that should WRITE needs a unit pin. Miss-analysis:
-// the equivalence lived only in prose, so a fourth arm on one side and not the other would misroute
-// writes in silence.
+// G2.14: over a range, the pressed-state read and the toggle's direction decide by the same
+// checks, so an active range unapplies. One case sits outside, in one mode: where the delimiters
+// paint, a bare wrap writes its literal bytes without verifying them (live-mode.md § 4.3). A
+// decline is excused, so a new corpus line fails nothing on its own; a shape that should write
+// needs a unit test. Miss-analysis: the equivalence lived only in prose, so a fourth branch on one
+// side and not the other would send writes to the wrong place in silence.
 import { describe, it, expect } from 'vitest';
 import {
 	isInlineFormatActive,
@@ -70,8 +70,8 @@ function trimmed(display: string, from: number, to: number): Range | null {
 	return start === end ? null : { start, end };
 }
 
-/** Every trimmed range the line offers, collapsed pairs excluded: a caret takes the seam's own
- *  arm, which inserts an empty pair no parse can see, and that is a different ladder. */
+/** Every trimmed range the line offers, collapsed pairs excluded: a caret takes its own branch,
+ *  which inserts an empty pair no parse can see, and that is a different set of rules. */
 function rangesOf(display: string): Range[] {
 	const seen = new Set<string>();
 	const ranges: Range[] = [];
@@ -86,7 +86,7 @@ function rangesOf(display: string): Range[] {
 }
 
 /** The result is the selection, or its whitespace trim, with bytes spliced around it and nothing
- *  else touched: the bare wrap, which only a marker-PAINTING mode may write unverified. */
+ *  else touched: the bare wrap, which only a mode that paints markers may write unverified. */
 function isBareWrap(display: string, selection: Range, result: ToggleInlineFormatResult): boolean {
 	const wrapped = result.newDisplay.slice(result.newSelStart, result.newSelEnd);
 	return [selection, trimmed(display, selection.start, selection.end)].some(

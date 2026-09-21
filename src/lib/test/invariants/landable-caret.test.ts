@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 //
-// Miss-analysis: the caret doors were guarded for WHERE they seat (the landable clamp, G4.36) and
-// never for whether the block they seat into paints anything at all, so a surface with no landable
-// position at all was a shape no guard named.
+// Miss-analysis: the caret-placing calls were checked for where they put the caret (the clamp to
+// a position the caret can sit at, G4.36) and never for whether the block they put it in paints
+// anything at all, so a block with no such position was a shape no check named.
 import { describe, it, expect, afterEach } from 'vitest';
 import { checkLandableCaret } from '../../invariants/landable-caret';
 import { CONTENT_EMPTY_ATTR } from '../../cursor/widget-offset';
@@ -19,8 +19,8 @@ function block(mode: string | undefined, marker: string, stamped = false): HTMLE
 	el.appendChild(span);
 	root.appendChild(el);
 	document.body.appendChild(root);
-	// The stamp paints only under focus (the stylesheet's `:focus-within` rung), which is the
-	// state "once its chrome paints" asks about.
+	// The attribute paints only under focus (the stylesheet's `:focus-within` rule), which is the
+	// state "once its markers paint" asks about.
 	if (stamped) el.focus();
 	return el;
 }
@@ -38,13 +38,13 @@ describe('checkLandableCaret (G1.33)', () => {
 		expect(checkLandableCaret(block('live', '# ', true), 'live', [2])).toBeNull();
 	});
 
-	// Reading takes no keystrokes, and source paints every byte — neither can trap a caret.
+	// Reading takes no keystrokes and source paints every byte, so neither can trap a caret.
 	it('stands down in reading and in source', () => {
 		expect(checkLandableCaret(block('reading', '# '), 'reading', [0])).toBeNull();
 		expect(checkLandableCaret(block(undefined, '# '), 'source', [0])).toBeNull();
 	});
 
-	// The seam hands it whatever took focus, which need not be the walk container itself.
+	// The caller hands it whatever took focus, which need not be the traversal container itself.
 	it('resolves the surface from a landing inside it', () => {
 		const marker = block('live', '# ').querySelector('span');
 		expect(checkLandableCaret(marker as HTMLElement, 'live', [2])?.code).toBe('landable-caret');

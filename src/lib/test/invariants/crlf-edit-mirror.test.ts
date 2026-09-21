@@ -1,12 +1,11 @@
 /**
- * G4.20 CRLF-mirror oracle — an edit's output bytes depend on the document's line
- * ending only through that ending. Each gesture runs twice over one fixture, once
- * LF-authored and once mirrored to CRLF, and the CRLF result must be the LF result
- * mirrored. Any other byte difference is the bug.
+ * G4.20: an edit's output bytes depend on the document's line ending only through that ending.
+ * Each gesture runs twice over one fixture, once written with LF and once mirrored to CRLF, and
+ * the CRLF result has to be the LF result mirrored. Any other byte difference is the bug.
  *
- * An outcome oracle rather than another source-scan arm because most G4.20 breaches carry
- * no literal shape to scan for (a blank-line comparison, a default parameter three calls
- * down), and because this fires for gesture N+1 without being taught about it.
+ * It checks the outcome rather than scanning the source, because most breaches have no literal
+ * shape to scan for (a blank-line comparison, a default parameter three calls down) and because
+ * this catches the next gesture without being taught about it.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -53,8 +52,8 @@ const serializeNodes = (nodes: CstNode[]) =>
 	nodes.map((n) => (n.leadingTrivia ?? '') + n.raw).join('');
 
 /**
- * The separators a paste MINTED, without the clipboard raws it merely spliced: normalization
- * makes the clipboard LF on both runs, so only the editor's own seams can mirror.
+ * The separators a paste created, without the clipboard bytes it merely spliced: normalization
+ * makes the clipboard LF on both runs, so only the editor's own joins can mirror.
  */
 const mintedSeams = (doc: Document) =>
 	doc.children.map((n) => n.leadingTrivia ?? '').join('') + doc.suffix;
@@ -83,8 +82,8 @@ async function pasteInto(
 	return deps.doc;
 }
 
-/** A range delete's emitted bytes. The grammar/mode/resolver slots stay `undefined`: this oracle
- *  reads the line ending, and none of the three moves one. */
+/** A range delete's emitted bytes. The grammar, mode and resolver arguments stay `undefined`:
+ *  this test reads the line ending, and none of the three moves one. */
 const deleteBetween = (doc: Document, start: SelectionPoint, end: SelectionPoint) =>
 	serialize(
 		rangeDelete(doc, start, end, createSharingState(), undefined, undefined, undefined).newDoc
@@ -182,8 +181,8 @@ const GESTURES: EditGesture[] = [
 			)
 	},
 	{
-		// The document empties, so nothing survives to read an ending from — which is why
-		// the ending has to be captured before the delete.
+		// The document empties, so nothing survives to read an ending from, which is why the
+		// ending has to be captured before the delete.
 		name: 'range delete emptying the document across two tables',
 		source: '| a |\n| --- |\n| 1 |\n\n| b |\n| --- |\n| 2 |\n',
 		apply: (doc) =>

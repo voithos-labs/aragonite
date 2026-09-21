@@ -13,15 +13,15 @@ import { isSubsequence } from '$lib/test/harness/live-oracles';
 import { caretPositions, countOnScreen, paintedText } from '$lib/test/harness/painted-text';
 import { arbInlineSource, freshOrFixedSeed } from './arbitraries';
 
-// A pending mark rewrites bytes the user never sees, so the only honest oracle is what the RENDER
-// PATH does with them: at every caret, for every mark subset, the toggle took exactly (or nothing
-// was written), the painted text gained only the typed character with no delimiter beside it, and
-// the original bytes survive.
+// A pending mark rewrites bytes the user never sees, so the only honest check is what the render
+// path does with them: at every caret, for every subset of marks, the toggle took exactly (or
+// nothing was written), the painted text gained only the typed character with no delimiter beside
+// it, and the original bytes survive.
 
-// Miss-analysis, twice: single-WORD fixtures missed every shape needing whitespace, nesting or a
-// non-markable seam; then this file's own oracle was a walk copied from the resolver's, blind in
-// the same place (an autolink's `<`/`>` read as content), so a shape that killed the link passed
-// both. Asking the painter is what closes it — see `paintedText`.
+// Miss-analysis, twice over: single-word fixtures missed every shape needing whitespace, nesting
+// or a boundary that cannot be marked; then this file's own check was a traversal copied from the
+// resolver's, blind in the same place (an autolink's `<` and `>` read as content), so a shape that
+// killed the link passed both. Asking the renderer is what closes it, see `paintedText`.
 
 const PARAMS = { numRuns: 500, seed: freshOrFixedSeed(707707) } as const;
 
@@ -34,14 +34,14 @@ const MARK_SUBSETS: InlineMarkKind[][] = [
 	['strikethrough', 'inlineCode']
 ];
 
-/** Every marker byte any kind can paint, not just the two this resolver writes — a `_` pair it
- *  kills surfaces the same way. */
+/** Every marker byte any kind can paint, not just the two this resolver writes: a `_` pair it
+ *  kills shows up the same way. */
 const DELIMITERS = '*_~`<>';
 
 /**
  * The chain a toggle is resolved against, from the spec's two containment rules: a construct with
- * children is content-INCLUSIVE (its edges are where continued typing extends it), a childless one
- * is STRICT-interior (its edges are ordinary insertion points).
+ * children includes its own edges, where continued typing extends it, and a childless one does
+ * not, so its edges are ordinary insertion points.
  */
 function chainAt(raw: string, offset: number): Set<string> {
 	const kinds = new Set<string>();
@@ -75,9 +75,9 @@ function kindsCovering(raw: string, start: number, end: number): Set<string> {
 }
 
 /**
- * Every construct kind anywhere in the block. A flat census, sharing ZERO code with the resolver:
- * not its chain walk, not the render path its own check reads. That independence is the point — a
- * rewrite can satisfy both of those and still have eaten a construct somewhere else.
+ * Every construct kind anywhere in the block. A flat count that shares no code with the resolver,
+ * neither its chain traversal nor the render path its own check reads. That independence is the
+ * point: a rewrite can satisfy both of those and still have eaten a construct somewhere else.
  */
 function kindsPresent(raw: string): Set<string> {
 	const kinds = new Set<string>();
