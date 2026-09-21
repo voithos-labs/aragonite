@@ -8,4 +8,4 @@
 ## Layout
 
 - Opening the toolbar does not shift the widget or the block below it (no layout reflow)
-- An open field's input stays inside the field surface even when the image is in a list item
+- An open field's input stays inside the field's own box even when the image is in a list item

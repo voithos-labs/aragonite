@@ -1,15 +1,16 @@
 # Feature: Vertical arrow traversal around image widgets
 
-An image-only paragraph carries no text column, so a vertical arrow cannot seat a caret in it. It
-can still be ENTERED as an object, so vertical travel stops on it once: the first press selects
-the image, the second moves on to the next text-bearing block. Both directions read it the same
-way, which is what makes an ArrowUp run and the ArrowDown run back retrace the same stops. The
-rule is the object, not the image: every widget-only block stops, entered however its kind enters.
+An image-only paragraph has no column of text, so a vertical arrow cannot put a caret in it. It
+can still be entered as an object, so vertical travel stops on it once: the first press selects
+the image, the second moves on to the next block with text. Both directions read it the same
+way, which is what makes a run of ArrowUp and the run of ArrowDown back retrace the same stops.
+The rule is about the object, not the image: every widget-only block stops, entered however its
+kind is entered.
 
-Miss-analysis (#326): every case here started and ended on a text-bearing block, so a walk was
-only ever asserted at its destination; the stop in between was invisible to the suite, and the two
-vertical doors, the per-block landing and a container's column entry, each carried their own
-answer for it.
+Miss-analysis (#326): every case here started and ended on a block with text, so a run of arrows
+was only ever checked at its destination; the stop in between was invisible to the suite, and the
+two ways a vertical arrow enters a block, the per-block landing and a container's column entry,
+each had their own answer for it.
 
 ## Happy paths
 

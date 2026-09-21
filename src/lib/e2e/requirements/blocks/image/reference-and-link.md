@@ -2,23 +2,23 @@
 
 Two shapes beyond the plain inline image: a reference image (`![alt][ref]`
 resolved through its `[ref]:` definition) and an image living inside a link
-(`[![alt][ref]][repo]`). Both must behave like any other image — clickable,
-resizable — and edits that don't touch the url must keep the reference form
-intact instead of silently rewriting it to an inline url and orphaning the
+(`[![alt][ref]][repo]`). Both must behave like any other image, clickable and
+resizable, and an edit that does not touch the url must keep the reference form
+intact instead of quietly rewriting it to an inline url and orphaning the
 definition.
 
 ## Happy paths
 
 - A reference image nested inside a link renders as an image widget, not as
   plain text.
-- Clicking the image inside a link selects it — the resize/properties overlay
+- Clicking the image inside a link selects it: the resize and properties overlay
   appears just as it does for a bare image.
 
 ## Edge cases
 
 - Keyboard-resizing the image inside a link preserves both wrappers: the
-  surrounding link survives, the image stays a reference, and its definition
-  line is untouched — the resolved url is never written into the image.
+  surrounding link survives, the image stays a reference, its definition
+  line is untouched, and the resolved url is never written into the image.
 - Keyboard-resizing a standalone reference image updates only the width; the
   reference form and its definition both survive, nothing is inlined.
 
@@ -27,6 +27,6 @@ definition.
 - Changing the url deliberately inlines the image: the new url is written in
   place and the reference form is gone (the one edit that opts out of the
   reference). The toolbar carries no URL field, so that is a source-mode edit;
-  the seam's rule is unit-covered in `image-source-bytes.test.ts`.
-- Dismissing the properties popover without changing anything is a true no-op:
-  the reference and its definition are preserved and no undo entry is added.
+  the rule for that write is unit-covered in `image-source-bytes.test.ts`.
+- Dismissing the properties popover without changing anything does nothing at
+  all: the reference and its definition are preserved and no undo entry is added.

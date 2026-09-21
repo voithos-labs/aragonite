@@ -2,8 +2,9 @@
 
 A click on an inline image selects it as a whole (the overlay and its toolbar mount). From that
 state the horizontal arrows step the caret out to the image's own edges or to the neighbouring
-block; the vertical arrows owe the same exit, since a selected image is a whole-block stop like a
-divider or a folded equation, and a key that does nothing there strands the keyboard user.
+block; the vertical arrows have to offer the same exit, since a selected image is a whole-block
+stop like a divider or a collapsed equation, and a key that does nothing there leaves a keyboard
+user stuck.
 
 ## Happy paths
 

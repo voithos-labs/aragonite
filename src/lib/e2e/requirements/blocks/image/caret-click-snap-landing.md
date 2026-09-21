@@ -1,6 +1,6 @@
 # Feature: Click-to-edge snap landing offset
 
-Browser-native click can't anchor a caret past a `contenteditable=false` widget. The snap mechanism recovers the offset by mapping the click position to the nearest widget edge.
+The browser's own click cannot put a caret past a `contenteditable=false` widget. The snap works the offset out by mapping the click position to the nearest widget edge.
 
 ## Happy paths
 
@@ -9,4 +9,4 @@ Browser-native click can't anchor a caret past a `contenteditable=false` widget.
 
 ## Edge cases
 
-- Click-snap runs even when the browser parked the caret at a degenerate element-level offset (e.g., div offset 0 between two contenteditable=false islands) — only a click that landed in a real text node is a "valid in-text click" the snap respects
+- Click-snap runs even when the browser left the caret at a useless element-level offset (div offset 0 between two contenteditable=false widgets, for one): only a click that landed in a real text node counts as the "valid in-text click" the snap steps aside for
