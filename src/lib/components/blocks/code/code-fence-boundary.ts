@@ -31,8 +31,8 @@ export type FenceBoundaryResult =
 
 /**
  * Classify a Backspace/Delete against the two body boundaries: Backspace at bodyStart
- * would delete the opener's terminating `\n`, Delete at bodyEnd the body's — either
- * re-parses the block in a different shape, so both become a focus-move out instead.
+ * would delete the opener's terminating `\n`, and Delete at bodyEnd the body's; either
+ * reparses the block in a different shape, so both become a move of the focus instead.
  * What else a keystroke may rewrite is `crossesFenceBoundary`'s question.
  */
 export function classifyFenceBoundary(input: FenceBoundaryInput): FenceBoundaryResult {
@@ -50,8 +50,8 @@ export function classifyFenceBoundary(input: FenceBoundaryInput): FenceBoundaryR
 }
 
 /**
- * Clamp an Enter-splice out of both fence lines onto the nearest body edge — a `\n`
- * inside the opener re-shapes the fence, one inside the closer breaks it apart. Each
+ * Clamp an Enter out of both fence lines onto the nearest body edge: a `\n` inside
+ * the opener reshapes the fence, one inside the closer breaks it apart. Each
  * fence line's inner edge is left alone: splicing after the info string, or at the
  * start of the closer line, is already safe.
  */
@@ -63,9 +63,9 @@ export function clampEnterOffsetToBody(node: NodeView, offset: number): number {
 }
 
 /**
- * Clamp a whole range onto the body, unconditionally — for gestures that rewrite entire LINES (Tab
- * indent, Shift+Tab dedent), where a tab on the closer pushes it past GFM's 3-space limit and one
- * on the opener demotes the block. Arbitrary RANGE gestures use `fenceEditSpan` instead.
+ * Clamp a whole range onto the body, unconditionally, for gestures that rewrite entire lines
+ * (Tab indent, Shift+Tab dedent), where a tab on the closer pushes it past GFM's three-space
+ * limit and one on the opener demotes the block. Other range gestures use `fenceEditSpan`.
  */
 export function clampRangeToBody(node: NodeView, range: CodeRange): CodeRange {
 	const { start: lo, end: hi } = bodyWindow(node);
@@ -74,10 +74,10 @@ export function clampRangeToBody(node: NodeView, range: CodeRange): CodeRange {
 }
 
 /**
- * Does a pending edit reach out of the editable content — the body, plus the opener's info string?
- * Every other offset on the fence lines is one keystroke from swallowing the following blocks into
- * the code node. An UNCLOSED fence is the exception: with no closer to orphan, its run is content
- * too, so demoting the block is how a just-typed ` ``` ` gets undone.
+ * Does a pending edit reach out of the editable content, which is the body plus the opener's info
+ * string? Every other offset on the fence lines is one keystroke from swallowing the blocks below
+ * into the code node. An unclosed fence is the exception: with no closer to strand, its run is
+ * content too, so demoting the block is how a just-typed ` ``` ` is undone.
  */
 export function crossesFenceBoundary(node: NodeView, range: CodeRange): boolean {
 	const { openerContent, body } = fenceRegions(node);
@@ -97,9 +97,9 @@ export function fenceEditSpan(node: NodeView, range: CodeRange): CodeRange {
 }
 
 /**
- * Where a caret LANDING may sit — every door that seats a caret on this surface goes
- * through here. A caret parked on a fence line takes keystrokes the guard refuses:
- * the landing looks successful and the next character disappears.
+ * Where a caret may land: every way of placing one in this block goes through here. A caret
+ * left on a fence line takes keystrokes the fence check refuses, so the landing looks like it
+ * worked and the next character disappears.
  */
 export function clampCaretToBody(node: NodeView, offset: number): number {
 	const caret = { start: offset, end: offset };
@@ -120,8 +120,8 @@ export function isStructureOnlyRange(node: NodeView, range: CodeRange): boolean 
 }
 
 /**
- * The one in-place range splice — native delete/type-over (via the beforeinput guard)
- * and cut. Null when there is nothing to rewrite, so no undo entry is spent.
+ * The one splice over a range in place: the browser's delete and type-over, through the
+ * beforeinput check, and cut. Null when there is nothing to rewrite, so no undo entry is used.
  */
 export function computeFenceRangedEdit(
 	node: NodeView,
@@ -179,9 +179,9 @@ function fenceRegions(node: NodeView): FenceRegions {
 }
 
 /**
- * Past the opener's indentation and marker run — where the info string starts. The run's LENGTH is
- * measured rather than read from `fenceLength`, so an opener a paste bumped to four markers
- * measures as four. Past GFM's 3-space indent limit there is no info string at all.
+ * Past the opener's indentation and marker run, which is where the info string starts. The run's
+ * length is measured rather than read from `fenceLength`, so an opener a paste grew to four
+ * markers measures as four. Past GFM's three-space indent limit there is no info string at all.
  */
 function markerRunEnd(openerLine: string, marker: string): number {
 	const MAX_INDENT = 3;

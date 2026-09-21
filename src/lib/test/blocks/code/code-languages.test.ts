@@ -68,7 +68,7 @@ describe('code-languages registry', () => {
 	});
 
 	// A host registers what it likes, and a name it picks can already be somebody's alias. The
-	// name it was registered under wins: a grammar is never shadowed by another's nickname.
+	// name it was registered under wins: a grammar is never hidden behind another's nickname.
 	it('resolves a name of its own over another language’s alias', () => {
 		const hostGrammar = (() => ({ name: 'host' })) as unknown as LanguageFn;
 		registerLanguage('bash', fakeGrammar, ['sh', 'shell']);

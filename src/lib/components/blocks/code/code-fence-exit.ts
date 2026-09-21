@@ -1,8 +1,7 @@
 /**
- * Pure decision for "does pressing Enter exit a fenced code block?". An unclosed
- * fence exits by MINTING its own closer: the gesture authors a block below, and
- * without a closer a reload's lazy continuation absorbs that block back in.
- * `none` means Enter falls through to in-block edit handling.
+ * Whether pressing Enter leaves a fenced code block. An unclosed fence leaves by writing its own
+ * closer: the gesture creates a block below, and without a closer a reload would absorb that
+ * block back into the fence. `none` means Enter falls through to editing inside the block.
  */
 
 import type { FencedCodeMetadata } from '../../../core/nodes';
@@ -18,7 +17,7 @@ export interface FenceExitInput {
 export type FenceExitResult =
 	| { kind: 'exit' }
 	| { kind: 'exitWithEdit'; newText: string }
-	// Unclosed fence: the trailing blank line is replaced by the minted closer line.
+	// Unclosed fence: the trailing blank line is replaced by the closer line written here.
 	| { kind: 'closeAndExit'; newText: string }
 	| { kind: 'none' };
 
@@ -27,7 +26,7 @@ export interface TypedFenceExitInput extends FenceExitInput {
 	typed: string;
 }
 
-/** A typed closer either leaves (taking its own line with it) or is just a byte. */
+/** A typed closer either leaves the block, taking its own line with it, or is just a byte. */
 export type TypedFenceExitResult = Extract<FenceExitResult, { kind: 'exitWithEdit' | 'none' }>;
 
 // ── Public API ──────────────────────────────────────────────────────────────
@@ -60,10 +59,10 @@ export function computeFenceExit(input: FenceExitInput): FenceExitResult {
 }
 
 /**
- * The block's other exit gesture: a closer typed on the body's empty last line. Every other
- * editor reads that run as "done here", and the bytes never land — written, they would be a body
- * line reading as the closer, which the write seam can only answer by growing the fence. A run
- * anywhere else is content, and that escalation keeps its CommonMark meaning.
+ * The block's other way out: a closer typed on the body's empty last line. Every other editor
+ * reads that run as "done here", and the bytes never land, because written they would be a body
+ * line that reads as the closer, which the fence rule can only answer by growing the fence. A run
+ * anywhere else is content, and growing the fence there keeps its CommonMark meaning.
  */
 export function computeTypedFenceExit(input: TypedFenceExitInput): TypedFenceExitResult {
 	const { text, offset, meta, typed } = input;
@@ -79,7 +78,7 @@ export function computeTypedFenceExit(input: TypedFenceExitInput): TypedFenceExi
 
 	const below = offset + ending[0].length;
 	if (!matchFenceClose(lineAt(text, below), meta.fenceMarker, meta.fenceLength)) return none;
-	// The run's line goes with the exit, as Enter's own empty-line exit takes the blank one.
+	// The run's line goes with the exit, as Enter's own exit takes the blank line.
 	return { kind: 'exitWithEdit', newText: text.slice(0, lineStart) + text.slice(below) };
 }
 

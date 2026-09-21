@@ -1,9 +1,9 @@
 // @vitest-environment jsdom
 //
-// The fence guard at its own entry layer: the mounted surface's real beforeinput,
+// The fence check at its own entry point: the mounted block's real beforeinput,
 // cut and compositionstart listeners, driven with a live DOM selection. The pure
-// clamp is covered by code-fence-boundary.test.ts — what only this layer can prove
-// is that the surface CLAIMS the native gesture (preventDefault) and commits the
+// clamp is covered by code-fence-boundary.test.ts; what only this layer can show is
+// that the block takes the browser's gesture, with `preventDefault`, and commits the
 // clamped text instead of letting the browser splice the fence away.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { asDomTextOffset } from '$lib/cursor/coordinate-spaces';
@@ -53,7 +53,7 @@ function replacement(transferred: string): InputEvent {
 	return e;
 }
 
-/** The committed display text, without the trailing line ending the surface reattaches. */
+/** The committed displayed text, without the trailing line ending that is reattached. */
 function committedText(): string {
 	const calls = vi.mocked(mounted.blockEdit.updateBlockContent).mock.calls;
 	expect(calls.length).toBe(1);
@@ -87,7 +87,7 @@ describe('CodeBlock — fence-crossing ranged edits', () => {
 		expect(committedText()).toBe('```js\nconst Z\n```');
 	});
 
-	// A replacement carries its payload on the dataTransfer, which this surface never reads: a
+	// A replacement carries its payload on the `dataTransfer`, which is never read here: a
 	// payload it did not read cannot go through the paste transforms (G4.11), so it is refused.
 	it('refuses a replacement rather than re-siting a payload it never read', async () => {
 		select(12, 20);
@@ -123,7 +123,7 @@ describe('CodeBlock — fence-crossing ranged edits', () => {
 	it('prevents a fence-only delete without spending a commit', async () => {
 		for (const [start, end] of [
 			[17, 18], // the body's own line ending
-			[18, 21], // the closer text — structure, not content
+			[18, 21], // the closer text: structure, not content
 			[0, 3] // the opener's marker run
 		]) {
 			select(start, end);
@@ -173,7 +173,7 @@ describe('CodeBlock — fence-crossing ranged edits', () => {
 		expect(mounted.blockEdit.updateBlockContent).not.toHaveBeenCalled();
 	});
 
-	// A target range reaching outside this block is a cross-block edit the surface cannot
+	// A target range reaching outside this block is a cross-block edit this block cannot
 	// measure, so it declines rather than guessing an offset.
 	it('declines a target range that leaves the surface', async () => {
 		select(12, 20);
@@ -206,8 +206,8 @@ describe('CodeBlock — fence-crossing ranged edits', () => {
 		expect(committedText()).toBe('```js\nconst \n```');
 	});
 
-	// Enter never reaches beforeinput — the keymap claims it at keydown — so its
-	// splice carries the same span rule rather than inheriting the guard.
+	// Enter never reaches beforeinput, since the keymap takes it at keydown, so its
+	// splice carries the same span rule rather than inheriting the check.
 	it('Enter over a fence-crossing selection replaces only the body part', async () => {
 		select(12, 20);
 		mounted.el.dispatchEvent(
@@ -218,8 +218,8 @@ describe('CodeBlock — fence-crossing ranged edits', () => {
 		expect(committedText()).toBe('```js\nconst \n\n```');
 	});
 
-	// A landing door must seat a caret that can type: the cross-container merge fallback moves
-	// focus to this block's END, which is the closer run, where every keystroke is refused.
+	// A landing must leave a caret that can type: the cross-container merge fallback moves
+	// focus to this block's end, which is the closer run, where every keystroke is refused.
 	it.each([
 		['past the display end', 999, 17],
 		['at offset 0', 0, 6]
@@ -229,14 +229,14 @@ describe('CodeBlock — fence-crossing ranged edits', () => {
 		const range = window.getSelection()!.getRangeAt(0);
 		expect(getRangeOffsets(mounted.el, range)).toEqual({ start: seated, end: seated });
 
-		// The guard declines here, which is what "typable" means on this surface.
+		// The check refuses here, which is what "can be typed into" means for this block.
 		const e = beforeInput('insertText', 'X');
 		await settle();
 		expect(e.defaultPrevented).toBe(false);
 	});
 
 	// beforeinput's insertCompositionText is not cancelable, so the guard cannot reach
-	// an IME; the selection has to be shrunk before the composition owns the surface.
+	// an IME; the selection has to be shrunk before the composition takes over.
 	it('compositionstart re-seats a fence-crossing selection onto the body', () => {
 		select(12, 20);
 		mounted.el.dispatchEvent(new CompositionEvent('compositionstart', { bubbles: true }));

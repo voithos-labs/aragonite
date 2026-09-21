@@ -1,6 +1,6 @@
 /**
- * Idempotent bootstrap for code-block languages + the fencedCode PasteSurface.
- * Adding a language = one import + one registerLanguage call.
+ * Sets up the code-block languages and the fencedCode paste handling; safe to call twice.
+ * Adding a language is one import plus one `registerLanguage` call.
  */
 
 import { registerLanguage } from './code-languages';
@@ -75,8 +75,8 @@ export function bootstrapCodeLanguages(): void {
 	registerCodeContextActions();
 }
 
-/** Test-only: reset the booted flag and unregister the paste surface, so a
- *  re-bootstrap doesn't hit the register-once duplicate throw. */
+/** Test-only: reset the flag and unregister the paste handling, so running the
+ *  bootstrap again does not hit the register-once duplicate error. */
 export function __resetBootForTests(): void {
 	booted = false;
 	__removePasteSurfaceForTests(codePasteSurface.kind);

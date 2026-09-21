@@ -27,7 +27,7 @@ describe('computeCodePaste — indented fence opener (J2)', () => {
 		expect(result.text).toBe(' ````\n```\n ````');
 	});
 
-	// The paste lands on its own line, which is where a run threatens the fence — a run
+	// The paste lands on its own line, which is where a run threatens the fence; a run
 	// appended to `foo` is not a closer and leaves the opener alone.
 	it('bumps an indented unclosed opener and preserves the indent', () => {
 		const result = paste({

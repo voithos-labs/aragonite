@@ -1,6 +1,6 @@
 /**
  * Pure paste pipeline for fenced code blocks: splice the text in, then hand the
- * result to the write seam every route shares (`schema/fenced-code-raw.ts`).
+ * result to the fence rule every path shares (`schema/fenced-code-raw.ts`).
  */
 
 import { reconcileFenceWrite } from '../../../schema/fenced-code-raw';
@@ -22,8 +22,8 @@ export interface CodePasteResult {
 // ── Public API ──────────────────────────────────────────────────────────────
 
 /**
- * A paste is literal content, so a run it lands — or forms against the bytes already
- * there — grows the fence instead of terminating the block.
+ * A paste is literal content, so a run it lands, or one it forms against the bytes
+ * already there, grows the fence instead of ending the block.
  */
 export function computeCodePaste(input: CodePasteInput): CodePasteResult {
 	const { display, selection, pasted, fenceMarker, fenceLength, closed } = input;

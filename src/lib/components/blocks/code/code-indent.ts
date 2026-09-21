@@ -1,6 +1,6 @@
 /**
- * Pure tab-indent / tab-dedent for code-block text. Dedent removes one tab OR up to
- * four leading spaces per line, preferring tab.
+ * Tab indent and Shift+Tab dedent for code-block text. Dedent removes one tab, or up to
+ * four leading spaces per line, preferring a tab.
  */
 
 export interface Selection {

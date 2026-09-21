@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 //
 // Miss-analysis: the language offer was pinned by clicking into a fence, where no arrival key
-// is noted, so a keyboard walk through an empty fence in a loaded document never met the picker
+// is recorded, so moving through an empty fence with the keyboard never meets the picker
 // that took its focus.
 import { describe, it, expect, afterEach } from 'vitest';
 import { flushSync, tick } from 'svelte';

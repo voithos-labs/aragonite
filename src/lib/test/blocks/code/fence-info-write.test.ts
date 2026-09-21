@@ -2,7 +2,7 @@
 // come back byte-identical, and the span itself may not hold bytes that stop the line
 // reading as this block's opener.
 //
-// Miss-analysis: nothing could have caught it — the write is new with the chip. The class
+// Miss-analysis: nothing could have caught it, since the write arrived with the chip. The class
 // it belongs to (a byte edit aimed at fence structure) was covered only where a keystroke
 // could reach, and the chip reaches the one span no caret can land in.
 import { describe, it, expect } from 'vitest';
@@ -50,7 +50,7 @@ describe('writeFenceInfo rewrites the opener’s info span alone', () => {
 		);
 	});
 
-	// The seam appends the block's own trailing ending after this write, so a mangled one
+	// The block's own trailing ending is appended after this write, so a mangled one
 	// here would double it or drop it.
 	it('leaves a trailing blank line where it found it', () => {
 		expect(writeFenceInfo('```js\nconst x = 1\n```\n', 'ts', backtick())).toBe(
@@ -76,8 +76,8 @@ describe('writeFenceInfo refuses what the info span cannot hold', () => {
 		expect(writeFenceInfo('```js\nx\n```', 'a`b', backtick())).toBe('```ab\nx\n```');
 	});
 
-	// The display funnel's own sanitize pass stands down on an authored open fence, so this
-	// arm is the only thing between the chip and a block that stops parsing as one.
+	// The commit path's own cleanup does nothing on an open fence the user authored, so this
+	// is the only thing between the chip and a block that stops parsing as one.
 	it('drops it on an unclosed backtick fence too', () => {
 		expect(writeFenceInfo('```js\nx', 'a`b', backtick(3, false))).toBe('```ab\nx');
 	});

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 //
-// The chip's commit gate, at the only layer holding both the field and the write sink —
+// What the chip commits, at the only layer holding both the field and the write,
 // `writeFenceInfo` takes an info string and cannot see that the field never changed one.
 // Miss-analysis: every commit test typed a new language, so no test ever pressed Enter on
 // an untouched field, and the byte comparison passed for the unpadded fence they all used.
@@ -14,7 +14,7 @@ const PADDED = '```js  \nconst x = 1\n```\n';
 let mounted: MountedCode;
 
 /** Click the chip, returning the picker's search field. The chip itself no longer swaps for
- *  a field — it stays a fixed button and the field lives in the menu, so opening moves nothing. */
+ *  a field: it stays a fixed button and the field lives in the menu, so opening moves nothing. */
 function openField(): HTMLInputElement {
 	const button = mounted.target.querySelector('.code-lang-button') as HTMLButtonElement;
 	button.click();
@@ -42,8 +42,8 @@ afterEach(async () => {
 });
 
 describe('CodeBlock — the language chip’s commit gate', () => {
-	// The field opens EMPTY and the highlight seats on the block's own language, so a bare
-	// Enter re-commits `js` — which the gate reads as unchanged and writes nothing, padding
+	// The field opens empty and the highlight starts on the block's own language, so a bare
+	// Enter re-commits `js`, which reads as unchanged and writes nothing, padding
 	// and all.
 	it('writes nothing when Enter submits the language the block already has', () => {
 		const field = openField();

@@ -174,8 +174,8 @@ function restoreLineEndings(root: Node, originalBody: string): void {
 		}
 	};
 	restore(root);
-	// A count mismatch would silently write `undefined` into committed bytes downstream,
-	// so make an hljs-faithfulness regression loud at this seam instead.
+	// A count mismatch would silently write `undefined` into the committed bytes, so a
+	// change in what hljs produces fails loudly here instead.
 	if (next !== endings.length) {
 		devWarn(
 			'code-renderer',
@@ -193,9 +193,9 @@ function makeMarkerSpan(text: string, extraClass?: string): HTMLSpanElement {
 	return span;
 }
 
-// A fence line's newline is a bare text node CSS cannot reach; wrapping the whole line
-// lets reading/preview modes collapse it with `display: none`. Layout-neutral in source
-// mode — an inline span under `white-space: pre` still breaks on its inner `\n`.
+// A fence line's newline is a bare text node CSS cannot reach, so wrapping the whole line lets
+// reading and preview modes collapse it with `display: none`. It changes no layout in source
+// mode, since an inline span under `white-space: pre` still breaks on its inner `\n`.
 function makeFenceLine(parts: Node[]): HTMLSpanElement {
 	const line = document.createElement('span');
 	line.className = 'md-fence-line';
@@ -268,7 +268,7 @@ export function renderCodeBlock(node: NodeView): DocumentFragment {
 	frag.appendChild(tokenizeBody(bodyText, slice.infoString));
 	// An empty last body line ends the body in `\n` with only the (hidden) closer after it.
 	// Chromium paints no caret after a trailing `\n` unless something follows, so it
-	// canonicalises the seat to BEFORE the newline and the next key lands one byte early —
+	// normalises the caret to before the newline and the next key lands one byte early,
 	// the second line of a code block was untypeable in live mode. A `br` anchors the line
 	// without touching textContent; source mode, where the closer line itself follows, hides
 	// it in CSS.
@@ -289,7 +289,7 @@ export function renderCodeBlock(node: NodeView): DocumentFragment {
 // ── Internal ─────────────────────────────────────────────────────────────────
 
 // The block's trailing line ending never enters the fragments: strip it from whichever
-// slice piece carries the tail, so G1.28 holds by construction — CRLF included.
+// part carries the tail, so G1.28 holds without a special case, CRLF included.
 function trimSliceTail(slice: FencedCodeSlice): FencedCodeSlice {
 	if (slice.closerLine.length > 0)
 		return { ...slice, closerLine: trimTrailingLineEnding(slice.closerLine) };

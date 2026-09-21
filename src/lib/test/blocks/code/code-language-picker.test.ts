@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 //
 // Miss-analysis: every picker test read the list through `listLanguages()`, which listed aliases
-// as names, so no test ever asked what a ROW is — one per language, or one per spelling.
+// as names, so no test ever asked what a row is: one per language, or one per spelling.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { flushSync } from 'svelte';
 import type { LanguageFn } from 'highlight.js';
@@ -64,7 +64,7 @@ afterEach(async () => {
 });
 
 describe('CodeBlock — the language picker’s list', () => {
-	// The block's own spelling leads, and its canonical twin does not follow it down the list.
+	// The block's own spelling leads, and its canonical form does not follow it down the list.
 	it('lists one row per language, not one per spelling', () => {
 		openField();
 
@@ -111,7 +111,7 @@ describe('CodeBlock — the language picker’s commit', () => {
 		expect(commits()).toEqual(['```cpp\nconst x = 1\n```\n']);
 	});
 
-	// The pointer is the rule's other arm: a hovered row highlights like an arrowed one, so it
+	// The pointer is the rule's other half: a hovered row highlights like one reached by arrow,
 	// has to outrank the typed spelling the same way.
 	it('takes the row the pointer rests on, the same as an arrowed one', () => {
 		const field = openField();

@@ -43,7 +43,7 @@ describe('CodeBlock — insertLineBreak composition gate', () => {
 		const { el, blockEdit } = mounted;
 		el.dispatchEvent(new CompositionEvent('compositionstart', { bubbles: true }));
 		el.dispatchEvent(new CompositionEvent('compositionend', { bubbles: true }));
-		vi.mocked(blockEdit.updateBlockContent).mockClear(); // drop the end-funnel commit
+		vi.mocked(blockEdit.updateBlockContent).mockClear(); // drop the commit from the end
 
 		el.dispatchEvent(lineBreak());
 		await settle();

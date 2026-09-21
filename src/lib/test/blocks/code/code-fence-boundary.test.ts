@@ -79,7 +79,7 @@ describe('classifyFenceBoundary', () => {
 	});
 
 	it('unclosed fence: only the opener boundary guards Backspace; no closer boundary', () => {
-		// raw `` ```js\nconst x\n ``: opener=[0,6) body=[6,14) — no closer.
+		// raw `` ```js\nconst x\n ``: opener=[0,6) body=[6,14), with no closer.
 		const unclosed = fencedCode('```js\nconst x\n', 'js', { closed: false });
 		expect(classifyFenceBoundary({ node: unclosed, offset: 6, forward: false })).toEqual({
 			kind: 'exitPrev'
@@ -336,7 +336,7 @@ describe('crossesFenceBoundary', () => {
 	});
 
 	// The block a user has just typed ` ``` ` into: no closer, so selecting it all and
-	// deleting must still work — otherwise the fence cannot be un-typed.
+	// deleting must still work, or the fence could never be un-typed.
 	it('an opener-only fence is all one region', () => {
 		const fresh = fencedCode('```', '', { closed: false });
 		expect(crossesFenceBoundary(fresh, { start: 0, end: 3 })).toBe(false);
@@ -366,7 +366,7 @@ describe('fenceEditSpan', () => {
 	});
 });
 
-// The refusal every mutating gesture shares — the guard and cut through
+// The refusal every editing gesture shares, reached by the check and by cut through
 // computeFenceRangedEdit, paste directly, because the tree-op owns its splice.
 describe('isStructureOnlyRange', () => {
 	const closed = fencedCode('```js\nconst x = 1\n```\n', 'js');

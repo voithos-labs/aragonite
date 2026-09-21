@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 //
-// The write seam at the surface's own commit path. A native keystroke mutates the
-// contenteditable and the CST hears about it through `input` — so what this layer
-// proves, and neither the pure seam nor an e2e can, is that BOTH commit routes into
+// The fence rule on the block's own commit path. A keystroke edits the contenteditable
+// and the CST hears about it through `input`, so what this layer shows, and neither the
+// pure rule nor an e2e can, is that both commit paths into
 // that path (a keystroke and an IME composition end) reconcile the bytes before they
 // reach the CST, rather than committing whatever the browser left in the DOM.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
@@ -14,7 +14,7 @@ const SOURCE = '```js\nconst x = 1\n```\n';
 
 let mounted: MountedCode;
 
-/** What the browser leaves behind after a native edit: new text, caret in it. */
+/** What the browser leaves behind after its own edit: new text, with the caret in it. */
 function nativeEdit(display: string, caret: number): void {
 	mounted.el.textContent = display;
 	mounted.el.focus();
@@ -52,8 +52,8 @@ describe('CodeBlock — the write seam on commit', () => {
 		expect(committed()).toBe('```js\nconst x = 1\n```');
 	});
 
-	// The IME route ends at the same funnel — compositionend calls the surface's own
-	// input handler — so a composed backtick is dropped like a typed one.
+	// The IME path ends at the same commit, since `compositionend` calls the block's own
+	// input handler, so a composed backtick is dropped like a typed one.
 	it('reconciles what an IME composition leaves behind', () => {
 		mounted.el.dispatchEvent(new CompositionEvent('compositionstart', { bubbles: true }));
 		nativeEdit('```j`s\nconst x = 1\n```', 5);
