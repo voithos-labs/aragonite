@@ -34,7 +34,7 @@
 		measureRange: (path: number[], start: number, end: number) => DOMRect[];
 		landCaret: (path: number[], offset: number) => Promise<boolean>;
 		activateLink: (url: string, event: MouseEvent) => void;
-		/** The consumer's href rewrite, the render path's first funnel stage. */
+		/** The consumer's href rewrite, the first thing the render path applies. */
 		resolveLinkUrl: (rawUrl: string) => string;
 		caretRestore: CaretRestore;
 		linkRef?: LinkReferenceResolverRef;
@@ -43,7 +43,7 @@
 
 	let cardEl: HTMLDivElement | undefined = $state();
 
-	// Props are stable for the editor's lifetime; reactive values already cross as getters.
+	// Props are stable for the editor's lifetime; reactive values already come in as getters.
 	// svelte-ignore state_referenced_locally
 	const linkCard = createLinkCardCommitter({
 		getDoc,
@@ -72,9 +72,9 @@
 		if (target && !linkCard.resolve(target)) card.close();
 	});
 
-	// A create target addresses bytes by range alone, so a write landing from outside the gesture
-	// moves them under it. The commit path closes before it writes, and the handler re-reads the
-	// target, so only an outside edit closes the card here.
+	// A create target names bytes by range alone, so a write from outside the gesture moves them
+	// under it. The commit path closes before it writes, and the handler re-reads the target, so
+	// only an outside edit closes the card here.
 	$effect(() => {
 		if (!card.getCreateTarget()) return;
 		return events.on('edit', () => {
@@ -82,9 +82,9 @@
 		});
 	});
 
-	// An outside press is a non-destructive dismiss and leaves the caret where it just landed.
-	// Escape is document-level because the opening click leaves the caret in the DOCUMENT: the
-	// card is chrome beside a live caret until the user steps into it, and both states close.
+	// A click outside dismisses the card without changing anything and leaves the caret where it
+	// just landed. Escape is document-level because the opening click leaves the caret in the
+	// document: the card sits beside a live caret until the user steps into it, and both close.
 	$effect(() => {
 		if (!card.getTarget() && !card.getCreateTarget()) return;
 		const onPointerDown = (e: PointerEvent) => {
@@ -96,8 +96,8 @@
 			// A composing Escape cancels the IME's conversion, not the card.
 			if (e.key !== 'Escape' || e.isComposing) return;
 			const inCard = cardEl?.contains(document.activeElement) ?? false;
-			// Only a card that HOLDS the focus consumes the key and owes the caret back; beside a
-			// live caret it just closes, leaving Escape to whatever else was listening.
+			// Only a card that holds the focus takes the key and has to give the caret back;
+			// beside a live caret it just closes, leaving Escape to whatever else was listening.
 			if (inCard) {
 				e.preventDefault();
 				e.stopPropagation();
@@ -122,8 +122,8 @@
 
 	function commitCreate(url: string): void {
 		const target = card.getCreateTarget();
-		// An empty draft has nothing to mint; Enter stays inert rather than closing having done
-		// nothing, which would drop the focus the card holds.
+		// An empty draft has nothing to write; Enter does nothing rather than closing the card
+		// having achieved nothing, which would drop the focus the card holds.
 		if (!target || url.trim() === '') return;
 		card.close();
 		linkCard.commitCreate(target, url);

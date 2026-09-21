@@ -65,10 +65,10 @@
 	}
 
 	/**
-	 * What the drag measures and previews on. A cropped image is a FRAME (the widget) with the
+	 * What the drag measures and previews on. A cropped image is a frame (the widget) with the
 	 * picture panned inside it, so the `<img>` is neither the size being changed nor the box the
-	 * user is dragging: previewing on it bulges the picture out of its frame, and at a zoom above
-	 * 1 the drag would start from the painted image's width and jump.
+	 * user is dragging: previewing on it bulges the picture out of its frame, and above zoom 1
+	 * the drag would start from the painted image's width and jump.
 	 */
 	function isCropped(): boolean {
 		return getWidgetEl()?.classList.contains('md-image-cropped') ?? false;
@@ -95,8 +95,8 @@
 			startHeight,
 			naturalWidth: img.naturalWidth,
 			// A crop's frame keeps its shape through a resize (`commitImageResize` derives the
-			// height from it), so Shift has nothing to unlock here; the crop session's corner
-			// brackets are where a frame's aspect changes.
+			// height from it), so Shift has nothing to unlock here; the corner brackets shown
+			// while cropping are where a frame's shape changes.
 			aspectLocked: isCropped() || !e.shiftKey,
 			currentWidth: startWidth
 		};
@@ -173,8 +173,8 @@
 	}
 </script>
 
-<!-- One grip, on the right edge: width is the only thing a drag sets (Shift unlocks the
-	aspect), so a second corner grip was the same gesture twice. -->
+<!-- One handle, on the right edge: width is the only thing a drag sets (Shift unlocks the
+	aspect ratio), so a second corner handle would be the same gesture twice. -->
 {#if !isBroken}
 	<div
 		class="md-resize-handle md-resize-handle-right"
@@ -187,12 +187,12 @@
 {/if}
 
 <style>
-	/* A neutral grip sitting inside the picture's right edge: the selection ring owns the edge
-	   itself, and the accent is the ring's, so a second accent shape beside it reads as decoration
-	   rather than as a control. White over a hairline rim so it carries on a dark picture and a
-	   pale one alike. The hit strip is wider than the paint, so on a picture too narrow to hold
-	   both the strip and a clickable middle (an icon-sized image) the grip steps back outside
-	   the edge, where it stood before. */
+	/* A neutral handle sitting inside the picture's right edge: the selection ring owns the edge
+	   itself, and the accent colour is the ring's, so a second accent shape beside it reads as
+	   decoration rather than a control. White over a hairline rim so it shows on a dark picture
+	   and a pale one alike. The click strip is wider than the paint, so on a picture too narrow
+	   for both the strip and a clickable middle (an icon-sized image) the handle moves back
+	   outside the edge. */
 	.md-resize-handle {
 		position: absolute;
 		right: clamp(-3px, calc(50% - 20px), 7px);

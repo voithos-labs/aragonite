@@ -1,7 +1,7 @@
 /**
- * What an open link card can read and write: the construct re-resolved from its target identity
- * after every edit, the bytes the write seam would produce, and the anchoring measure. Kept out of
- * the component so the card stays a rendering shell.
+ * What an open link card can read and write: the construct looked up again from its target after
+ * every edit, the bytes the write path would produce, and the measurement that positions it. Kept
+ * out of the component so the card stays a rendering shell.
  */
 
 import type { Document } from '../../core/nodes';
@@ -29,15 +29,15 @@ import type { CreateLinkTarget } from './link-card-state.svelte';
 export interface LinkCardCommitterDeps {
 	getDoc: () => Document;
 	getEditorEl: () => HTMLElement | null;
-	/** The open card's target, read live: the anchor re-measures against whatever it names now. */
+	/** The open card's target, read live: the position re-measures against whatever it names. */
 	getTarget: () => LinkTarget | null;
-	/** The create gesture's range, the anchor when no construct exists yet. */
+	/** The create gesture's range, what the card sits under when no construct exists yet. */
 	getCreateTarget: () => CreateLinkTarget | null;
 	controller: UndoController;
 	events: EditorEvents;
-	/** Rect measure for a raw range in a mounted block — the anchoring geometry. */
+	/** Measures the rectangles of a raw range in a mounted block, which is what positions it. */
 	measureRange: (path: number[], start: number, end: number) => DOMRect[];
-	/** Reveal + land the caret at a raw offset, so the next keystroke addresses the document. */
+	/** Scroll to and place the caret at a raw offset, so the next keystroke goes to the doc. */
 	landCaret: (path: number[], offset: number) => Promise<boolean>;
 	linkRef?: LinkReferenceResolverRef;
 	grammar?: GrammarView;
@@ -46,18 +46,18 @@ export interface LinkCardCommitterDeps {
 export interface ResolvedLinkTarget {
 	block: NodeView;
 	link: InlineNode;
-	/** The destination as the author wrote it, decoded — what the card's field shows. */
+	/** The destination as the author wrote it, decoded: what the card's field shows. */
 	url: string;
 }
 
 export interface LinkCardCommitter {
-	/** The construct the target names, re-read from the live tree; null once an edit removed it. */
+	/** The construct the target names, re-read from the live tree; null once an edit removes it. */
 	resolve(target: LinkTarget): ResolvedLinkTarget | null;
-	/** The bytes a url commit would write, or null if the seam would decline — the card's dirty
-	 *  check compares against these rather than deciding bytes itself. */
+	/** The bytes a url commit would write, or null if the write path would refuse; the card
+	 *  compares against these rather than deciding the bytes itself. */
 	buildBytes(target: LinkTarget, url: string): string | null;
 	commitUrl(target: LinkTarget, url: string): void;
-	/** Mint `[selected text](url)` over the create range — the one write of the create gesture. */
+	/** Write `[selected text](url)` over the create range: the create gesture's one write. */
 	commitCreate(target: CreateLinkTarget, url: string): void;
 	removeLink(target: LinkTarget): void;
 	/** Position `getCard()` under the link and keep it there across edits and scrolls. */
@@ -83,9 +83,9 @@ export function createLinkCardCommitter(deps: LinkCardCommitterDeps): LinkCardCo
 		if (!resolved) return null;
 		const { block, link } = resolved;
 		const current = linkFieldsFromInline(link, block.raw);
-		// A reference form cannot carry a NEW destination without editing its definition, which
-		// lives in another block; changing the url is the user opting into the inline form. The
-		// title rides along either way — the card never shows it, so it is not the card's to drop.
+		// A reference form cannot hold a new destination without editing its definition, which
+		// lives in another block; changing the url is the user choosing the inline form. The
+		// title comes along either way: the card never shows it, so it is not the card's to drop.
 		const fields: LinkFields =
 			url === current.url
 				? current
@@ -103,8 +103,8 @@ export function createLinkCardCommitter(deps: LinkCardCommitterDeps): LinkCardCo
 	}
 
 	function commitUrl(target: LinkTarget, url: string): void {
-		// An unchanged url is a close, not a write: the rebuild would respell author bytes the
-		// serializer normalizes (`(<a b>)` → `(a%20b)`) and mint an undo entry for nothing.
+		// An unchanged url just closes the card: a rebuild would respell author bytes the
+		// serializer normalizes (`(<a b>)` to `(a%20b)`) and add an undo entry for nothing.
 		const resolved = resolve(target);
 		if (!resolved || url === resolved.url) return;
 		const edit = editBytes(target, url);
@@ -142,7 +142,7 @@ export function createLinkCardCommitter(deps: LinkCardCommitterDeps): LinkCardCo
 		await deps.landCaret(path, start);
 	}
 
-	/** The raw range the card anchors under: the resolved construct, or the create range as-is. */
+	/** The raw range the card sits under: the resolved construct, or the create range as it is. */
 	function anchoredRange(): { path: number[]; start: number; end: number } | null {
 		const target = deps.getTarget();
 		if (target) {
@@ -159,8 +159,8 @@ export function createLinkCardCommitter(deps: LinkCardCommitterDeps): LinkCardCo
 		const editorEl = deps.getEditorEl();
 		if (!cardEl || !editorEl) return () => {};
 
-		// Measured through the rects API off RAW offsets, so the anchor survives the DOM rebuild
-		// every commit does — there is no element reference here to go stale.
+		// Measured through the rects API from raw offsets, so the position survives the DOM
+		// rebuild every commit does: there is no element reference here to go stale.
 		const measure = () => {
 			const range = anchoredRange();
 			if (!range) return;

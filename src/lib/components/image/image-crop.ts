@@ -1,7 +1,8 @@
 /**
  * Pure math for the image crop: how a `{x, y, z}` window maps to the styles that paint it, and
- * how a pan or a wheel turn moves it. No DOM here beyond a style bag; the properties surface
- * owns the pointer events and `widget-dom.ts` paints a committed crop from the same styles.
+ * how a pan or a wheel turn moves it. No DOM here beyond a bag of styles; the properties
+ * popover owns the pointer events and `widget-dom.ts` paints a committed crop from the same
+ * styles.
  *
  * The model is CSS `background-size: cover` at `z` times the fill scale, with the image point
  * (`x`%, `y`%) pinned to that point of the frame, so `{50, 50, 1}` is a centred cover fit.

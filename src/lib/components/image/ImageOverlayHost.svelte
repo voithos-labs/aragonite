@@ -41,13 +41,13 @@
 	} = $props();
 
 	let imageOverlayEl: HTMLDivElement | undefined = $state();
-	// The crop session owns the pointer over the image; the resize grip steps aside meanwhile.
+	// While cropping, the pointer over the image belongs to the crop; the handle stands aside.
 	let cropping = $state(false);
 
 	const linkRef = getContext<EditorDoc | undefined>(EDITOR_DOC_KEY)?.linkRef;
 
-	// Props are stable for the editor's lifetime, so capturing once is deliberate —
-	// reactive values already cross as getters.
+	// Props are stable for the editor's lifetime, so capturing once is deliberate:
+	// reactive values already come in as getters.
 	// svelte-ignore state_referenced_locally
 	const imageEdit = createImageEditCommitter({
 		getDoc,
@@ -90,8 +90,8 @@
 	});
 </script>
 
-<!-- Selecting an image stays available in reading mode; the overlay is edit
-	affordances, so reading mode never mounts it. -->
+<!-- Selecting an image stays available in reading mode; the overlay is a set of
+	editing controls, so reading mode never mounts it. -->
 {#if widgetSelection.getSelected() && getPresentationMode() !== 'reading'}
 	{@const sel = widgetSelection.getSelected()!}
 	{@const ctx = imageEdit.getSelectedImageFields()}

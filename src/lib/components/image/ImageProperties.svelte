@@ -28,8 +28,8 @@
 		target: WidgetTarget;
 		fields: ImageFields;
 		getWidgetEl: () => HTMLElement | null;
-		/** The popover's dirty check is a byte comparison, and the bytes are the write
-		 *  seam's to decide. */
+		/** The popover decides it has changes by comparing bytes, and what those bytes are
+		 *  is the image write path's to decide. */
 		buildBytes: (target: WidgetTarget, fields: ImageFields) => string | null;
 		onCommit: (target: WidgetTarget, newFields: ImageFields) => void;
 		onRemove: (target: WidgetTarget) => void;
@@ -45,13 +45,13 @@
 	let rootEl: HTMLDivElement | undefined = $state();
 	let fieldInput: HTMLInputElement | undefined = $state();
 
-	// The seed is the BYTES, not the fields object: a rebuild mints a fresh one per render, so
-	// identity says nothing about whether the image moved.
+	// The starting point is the bytes, not the fields object: a rebuild creates a fresh object
+	// every render, so its identity says nothing about whether the image changed.
 	let seedBytes = $state(untrack(() => buildBytes(target, fields)));
 
-	// The surface follows the document while it is open: an undo — or any write landing from
-	// outside this gesture — moves the image past the draft, and the dismiss commit would put the
-	// old bytes back. The in-flight draft is discarded rather than a committed change reverted.
+	// The popover follows the document while it is open: an undo, or any write from outside this
+	// gesture, moves the image past the draft, and the commit on dismiss would put the old bytes
+	// back. The unfinished draft is discarded rather than a committed change reverted.
 	$effect(() => {
 		const live = buildBytes(target, fields);
 		if (live === seedBytes) return;
@@ -70,9 +70,9 @@
 		return () => document.removeEventListener('pointerdown', handler, true);
 	});
 
-	// The commit runs in $effect cleanup so dismiss, image-switch (key change) and
-	// programmatic clear all commit through one seam. A crop still open is abandoned, not
-	// committed: only the tick writes one.
+	// The commit runs in $effect cleanup so dismissing, switching image and clearing
+	// programmatically all commit in one place. A crop still open is abandoned, not
+	// committed: only the tick button writes one.
 	$effect(() => {
 		return () => {
 			if (cropping) cancelCrop();
@@ -87,7 +87,7 @@
 	// ── Alt ────────────────────────────────────────────────────────────────────
 
 	// The title (`![alt](url "title")`) has no field: it is a tooltip nobody reads in an editor,
-	// and an existing one rides through every commit untouched, as do the url, frame and crop.
+	// and an existing one passes through every commit untouched, as do the url, frame and crop.
 	function draftFields(): ImageFields {
 		return {
 			alt,
@@ -103,7 +103,7 @@
 		const next = draftFields();
 		const newBytes = buildBytes(target, next);
 		if (newBytes === seedBytes) return;
-		// Seeded now rather than when the write lands, so a blur and the unmount that follows
+		// Set now rather than when the write lands, so a blur and the unmount that follows
 		// it cannot commit the same draft twice.
 		seedBytes = newBytes;
 		onCommit(target, next);
@@ -303,7 +303,7 @@
 
 	/** Beside the image, level with its top, when the viewport has room there; otherwise a row
 	 *  inside the image's top-right corner, clamped to the viewport when the image itself runs
-	 *  past it. Re-measured whenever the overlay re-anchors. */
+	 *  past it. Re-measured whenever the overlay moves. */
 	function keepBesideImage(node: HTMLElement): (() => void) | void {
 		const place = () => {
 			node.classList.remove('inside');
@@ -440,7 +440,7 @@
 </div>
 
 <style>
-	/* limestone's cover actions: a stack of small surface buttons beside the image, level with
+	/* limestone's cover actions: a stack of small raised buttons beside the image, level with
 	   its top. `inside` (no room beside) lays them as a row in the image's top-right corner. */
 	.md-image-properties {
 		position: absolute;
@@ -481,8 +481,8 @@
 		background: var(--color-surface, #2d3033);
 	}
 
-	/* The alt field, hung off the toolbar's far side on the menu surface: a caption over its
-	   input, the way a properties row reads, rather than a label beside a box. */
+	/* The alt field, hung off the toolbar's far side on the shared menu panel: a caption over
+	   its input, the way a properties row reads, rather than a label beside a box. */
 	.md-image-field {
 		position: absolute;
 		top: 0;
@@ -515,8 +515,8 @@
 		color: var(--color-text-muted, #aaaaaa);
 	}
 
-	/* Underlined, not boxed: one rule under the text reads as a field to fill in and keeps the
-	   surface calm, where a second rounded box inside a rounded card reads as chrome on chrome. */
+	/* Underlined, not boxed: one line under the text reads as a field to fill in and keeps the
+	   panel quiet, where a second rounded box inside a rounded card is one frame too many. */
 	.md-image-field input {
 		width: 100%;
 		box-sizing: border-box;
@@ -539,7 +539,7 @@
 		color: var(--color-text-muted, #aaaaaa);
 	}
 
-	/* The crop session: the whole image is a pan surface, bracketed at the corners. */
+	/* While cropping: the whole image can be dragged to pan, with brackets at the corners. */
 	.md-image-crop-surface {
 		position: absolute;
 		inset: 0;

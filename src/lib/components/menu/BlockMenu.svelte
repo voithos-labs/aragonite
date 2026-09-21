@@ -23,12 +23,12 @@
 		disabled?: boolean;
 		/** A separator row; nothing else on the entry is read. */
 		divider?: boolean;
-		/** A flyout: hover or ArrowRight opens these beside the row; a pick is one of THEIR ids. */
+		/** A flyout: hover or ArrowRight opens these beside the row; a pick is one of their ids. */
 		children?: MenuEntry[];
 	}
 
-	// Blocks that stand on their own when empty. A heading is not one — it is text turned into a
-	// heading, which the selection popover offers — so it is deliberately not here.
+	// Blocks that stand on their own when empty. A heading is not one: it is text turned into a
+	// heading, which the selection popover offers, so it is deliberately not here.
 	const BUILT_IN: readonly BlockMenuItem[] = [
 		{ id: 'bullet', label: 'Bulleted list', icon: 'list', md: '- ' },
 		{ id: 'numbered', label: 'Numbered list', icon: 'list-ordered', md: '1. ' },
@@ -103,7 +103,7 @@
 	}: {
 		x: number;
 		y: number;
-		/** Where the open point is NOW, re-read on scroll and resize so the menu stays on it. */
+		/** Where the open point is now, re-read on scroll and resize so the menu stays on it. */
 		anchor?: () => { x: number; y: number } | null;
 		items: MenuEntry[];
 		label?: string;
@@ -134,7 +134,7 @@
 		onPick(entry.id);
 	}
 
-	// Same anchoring as the table's menu: follows the content, clamped once when first sized.
+	// Positioned like the table's menu: follows the content, clamped once when first sized.
 	// svelte-ignore state_referenced_locally
 	let at = $state({ x, y });
 	let shift = $state<{ x: number; y: number } | null>(null);
@@ -163,15 +163,15 @@
 	const left = $derived(at.x + (shift?.x ?? 0));
 	const top = $derived(at.y + (shift?.y ?? 0));
 
-	// Keys are read at the document, capture phase: the caret's surface keeps focus, and the
-	// menu answers first while it is open. Anything it does not claim reaches the editor as usual.
+	// Keys are read at the document in the capture phase: the block with the caret keeps focus,
+	// and the menu answers first while it is open. Anything it ignores reaches the editor.
 	$effect(() => {
 		const onPointerDown = (e: PointerEvent) => {
 			if (menuEl && e.target instanceof Node && menuEl.contains(e.target)) return;
 			onClose();
 		};
-		// Claimed keys stop here: the caret's surface would otherwise take the same press (an
-		// Enter splitting the block the menu is about to insert into).
+		// Keys the menu takes stop here: the block with the caret would otherwise get the same
+		// keystroke (an Enter splitting the block the menu is about to insert into).
 		const claim = (e: KeyboardEvent) => {
 			e.preventDefault();
 			e.stopImmediatePropagation();
@@ -291,7 +291,7 @@
 </div>
 
 <style>
-	/* Surface and rows are the shared `.md-menu` family (editor.css). */
+	/* The panel and its rows are the shared `.md-menu` family (editor.css). */
 	.block-menu {
 		min-width: 188px;
 	}
@@ -301,7 +301,7 @@
 	.block-menu-label {
 		flex: 1;
 	}
-	/* limestone's submenu: a second surface hung off the row's right edge. */
+	/* limestone's submenu: a second panel hung off the row's right edge. */
 	.block-menu-flyout {
 		position: absolute;
 		left: 100%;

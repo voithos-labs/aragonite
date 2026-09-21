@@ -1,10 +1,10 @@
-// The open link card's target. Identity only — path plus construct start — because every commit
-// rebuilds the inline tree, so a captured node would address bytes that moved.
+// The open link card's target: only what identifies it, a path plus where the construct starts,
+// because every commit rebuilds the inline tree and a captured node would point at moved bytes.
 
 import type { LinkTarget } from '../blocks/text/link-at-point';
 
-/** The create gesture's target: the raw range a commit would wrap. A range, not a construct —
- *  the document holds nothing until Enter mints it, which is what lets Escape owe no cleanup. */
+/** The create gesture's target: the raw range a commit would wrap. A range, not a construct,
+ *  since the document holds nothing until Enter writes it, so Escape has nothing to clean up. */
 export interface CreateLinkTarget {
 	path: number[];
 	start: number;
@@ -18,33 +18,33 @@ export interface LinkCardState {
 	/**
 	 * Zero for a click, a fresh positive number for each keyboard entry. The card focuses its field
 	 * when this differs from the zero it starts at, which separates the two gestures without a mode
-	 * flag AND survives the case with no remount to key on: `Mod+K` on an already-open card.
+	 * flag and handles the case with no remount to key on: `Mod+K` on an already-open card.
 	 */
 	getFocusEpoch(): number;
-	/** Anchored beside a live caret; the document keeps focus. The click gesture.
-	 *  False when `canOpen` declined and no card opened. */
+	/** Positioned beside a live caret; the document keeps focus. The click gesture.
+	 *  False when `canOpen` refused and no card opened. */
 	open(target: LinkTarget): boolean;
-	/** Opened AND focused, so the trap and Escape's caret restore engage. The chord gesture.
-	 *  False when `canEnter` declined. */
+	/** Opened and focused, so the focus trap and Escape's caret restore both apply. The chord
+	 *  gesture. False when `canEnter` refused. */
 	enter(target: LinkTarget): boolean;
-	/** Entered over the range a commit would wrap. False when `canOpenCreate` declined. */
+	/** Entered over the range a commit would wrap. False when `canOpenCreate` refused. */
 	enterCreate(target: CreateLinkTarget): boolean;
 	close(): void;
 }
 
 export interface LinkCardOptions {
-	/** Runs on every entry path before the card takes the screen — the caret snapshot lives here
-	 *  rather than at each caller, so entry path N+1 cannot forget it. */
+	/** Runs on every entry path before the card takes the screen: the caret snapshot lives here
+	 *  rather than at each caller, so the next entry path cannot forget it. */
 	onOpen: () => void;
-	/** The CLICK door: a live selection — native or the editor's cross-block range — is a gesture
-	 *  an unasked-for card must not interrupt or write over. */
+	/** For a click: a live selection, native or the editor's cross-block range, is a gesture an
+	 *  unasked-for card must not interrupt or write over. */
 	canOpen: () => boolean;
-	/** The CHORD door, looser than the click's by exactly one case: the entry resolves the
-	 *  construct from the selection itself, so a range it admits is the card's own bytes. */
+	/** For the chord, looser than the click's by exactly one case: the entry resolves the
+	 *  construct from the selection itself, so a range it allows is the card's own bytes. */
 	canEnter: () => boolean;
-	/** The create door: gates on the very selection `canOpen` forbids, since the range IS the
-	 *  gesture's target. Separate and required so each entry states which gesture it carries;
-	 *  a cross-block range declines at all three. */
+	/** For create: requires the very selection `canOpen` forbids, since the range is the
+	 *  gesture's target. Separate and required so each entry states which gesture it is;
+	 *  a cross-block range is refused by all three. */
 	canOpenCreate: () => boolean;
 }
 

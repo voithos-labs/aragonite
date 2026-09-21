@@ -1,8 +1,8 @@
 /**
  * The clipboard rows a menu offers where Ctrl+X/C/V would go: cut and copy through the
  * document's own command (so the editor's copy handlers write what they always write), paste by
- * handing the clipboard's text to the focused surface as a paste event — the same road a real
- * Ctrl+V takes — either as it is, or escaped so Markdown syntax in it lands as literal text.
+ * handing the clipboard's text to the focused editable as a paste event, the same way a real
+ * Ctrl+V does, either as it is or escaped so Markdown syntax in it arrives as literal text.
  */
 
 export type ClipboardAction = 'cut' | 'copy' | 'paste' | 'paste-plain';

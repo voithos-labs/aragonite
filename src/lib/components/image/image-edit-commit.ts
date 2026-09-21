@@ -21,7 +21,7 @@ export interface ImageEditCommitterDeps {
 	controller: UndoController;
 	events: EditorEvents;
 	linkRef?: LinkReferenceResolverRef;
-	/** The instance's grammar, for the leaf's own raw-write rule. Absent = the global grammar. */
+	/** This editor's grammar, for the block's own raw-write rule. Absent means the global one. */
 	grammar?: GrammarView;
 }
 
@@ -38,8 +38,8 @@ export interface ImageEditCommitter {
 	 * widget, and writing to the new selection cross-pollinates the two images.
 	 */
 	commitImageEdit(target: WidgetTarget, newFields: ImageFields): void;
-	/** The bytes `commitImageEdit` would write, or `null` if it would decline — the
-	 *  popover's dirty check compares against these. */
+	/** The bytes `commitImageEdit` would write, or `null` if it would refuse; the popover
+	 *  compares against these to see whether anything changed. */
 	buildEditBytes(target: WidgetTarget, newFields: ImageFields): string | null;
 	commitImageResize(newWidth: number, newHeight: number | undefined): void;
 	removeImage(target: WidgetTarget): void;
@@ -66,7 +66,7 @@ export function createImageEditCommitter(deps: ImageEditCommitterDeps): ImageEdi
 	function queryWidgetEl(paragraphPath: number[], sourceStart: number): HTMLElement | null {
 		const root = getEditorEl();
 		if (!root) return null;
-		// Locate by the live block-host path, never a baked attribute on the widget —
+		// Locate by the live block-host path, never an attribute baked into the widget:
 		// see widget-dom.ts's click handler.
 		const host = root.querySelector(`[data-block-path='${JSON.stringify(paragraphPath)}']`);
 		if (!host) return null;
@@ -93,8 +93,8 @@ export function createImageEditCommitter(deps: ImageEditCommitterDeps): ImageEdi
 		if (!paragraph) return null;
 		const image = findImageInParagraph(paragraph, target.sourceStart);
 		if (!image) return null;
-		// Preserve the reference form when url/title are untouched: inlining the
-		// resolved url would orphan the LRD. Changing either is the user opting in.
+		// Keep the reference form when the url and title are untouched: writing the resolved
+		// url inline would leave the definition unused. Changing either is the user asking.
 		const fields: ImageFields =
 			image.label !== undefined && newFields.url === image.url && newFields.title === image.title
 				? { ...newFields, label: image.label }

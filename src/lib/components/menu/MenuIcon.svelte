@@ -1,7 +1,7 @@
 <script lang="ts" module>
 	/**
-	 * Lucide glyphs the editor's own chrome draws (menus, the selection bar, table affordances),
-	 * inlined as path data so the library carries no icon dependency. Every shape is a path so
+	 * Lucide glyphs the editor's own controls draw (menus, the selection bar, table buttons),
+	 * inlined as path data so the library needs no icon dependency. Every shape is a path so
 	 * the stroke styling below covers all of them.
 	 */
 	const GLYPHS = {
@@ -101,7 +101,7 @@
 	} as const;
 
 	/**
-	 * The marks as LETTERS, the way a formatting bar draws them: a bold B, a slanted I, an S with
+	 * The marks as letters, the way a formatting bar draws them: a bold B, a slanted I, an S with
 	 * its own line through it. Lucide's stroked outlines of these read as clip art at 16px.
 	 */
 	const LETTERS = {

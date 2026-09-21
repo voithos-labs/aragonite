@@ -1,7 +1,7 @@
 /**
- * The image widget's selected-key behavior: Shift+Arrow keyboard resize. Attached as
- * the image kind's `onSelectedKey` at mount (built-in-blocks.ts), so the generic
- * selected-widget keydown path stays kind-agnostic.
+ * What a key does while an image widget is selected: Shift+Arrow resizes it. Registered as
+ * the image kind's `onSelectedKey` at mount (built-in-blocks.ts), so the shared
+ * selected-widget keydown path stays the same for every kind.
  */
 
 import type { InlineWidgetEditingContext } from '../../core/inline/inline-widgets';
@@ -16,7 +16,7 @@ export function imageWidgetOnSelectedKey(
 	e: KeyboardEvent,
 	ctx: InlineWidgetEditingContext
 ): boolean {
-	// A resize is an edit; declining lets the caller's generic swallow keep the key inert.
+	// A resize is an edit; refusing here lets the caller swallow the key and do nothing.
 	if (ctx.presentationMode === 'reading') return false;
 	if (!(e.shiftKey && (e.key === 'ArrowLeft' || e.key === 'ArrowRight'))) return false;
 	e.preventDefault();
@@ -26,8 +26,8 @@ export function imageWidgetOnSelectedKey(
 	const currentWidth = inline.width ?? FALLBACK_DEFAULT_WIDTH;
 	const newWidth = keyboardResizeWidth(currentWidth, delta, ctx.editorContentWidth);
 
-	// url and title are untouched, so carry the label through and preserve the
-	// `![alt][label]` form rather than inlining the LRD-resolved url.
+	// The url and title are untouched, so keep the label and the `![alt][label]` form
+	// rather than writing the resolved url inline.
 	const newFields: ImageFields = {
 		alt: inline.alt ?? '',
 		url: inline.url ?? '',
@@ -40,8 +40,8 @@ export function imageWidgetOnSelectedKey(
 		...(inline.label !== undefined ? { label: inline.label } : {})
 	};
 	const newBytes = buildImageEditBytes(inline, node.raw, newFields);
-	// The rung owning these bytes cannot express the resize, but consume the key
-	// anyway: handing a Shift+Arrow on would extend the selection out of the image.
+	// The inline syntax handler that owns these bytes cannot express the resize, but take
+	// the key anyway: passing a Shift+Arrow on would extend the selection out of the image.
 	if (newBytes === null) return true;
 	const newRaw = node.raw.slice(0, ctx.widgetStart) + newBytes + node.raw.slice(ctx.widgetEnd);
 	ctx.updateContent(newRaw, ctx.preSelectOffset, ctx.widgetStart + newBytes.length);

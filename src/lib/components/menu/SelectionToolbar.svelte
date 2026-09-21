@@ -2,8 +2,8 @@
 	/**
 	 * The editor's own formatting popover over a selection, in Notion's shape: a row of the
 	 * marks, then labelled rows for what acts on the selection as a whole. Built on the same
-	 * doors a host's chrome would use (`selectionChange`, the rect API, the command door), so
-	 * the consumer-guide recipe and this component cannot disagree about what a selection
+	 * public API a host's own toolbar would use (`selectionChange`, the rect API, `runCommand`),
+	 * so the consumer-guide recipe and this component cannot disagree about what a selection
 	 * toolbar may read.
 	 */
 	import type { EditorInstance } from '../../editor-props';
@@ -68,20 +68,20 @@
 	let current: EditorSelection | null = null;
 	let barEl: HTMLDivElement | undefined = $state();
 
-	// A labelled row the door declines leaves the bar, where a mark only dims: the icons keep the
-	// bar's shape, a dead row is a line of noise over a selection it cannot act on.
+	// A labelled row the editor refuses is dropped, where a mark only dims: the icons keep the
+	// bar's shape, while a row that does nothing is noise over a selection it cannot act on.
 	const rows = $derived(ROWS.filter((row) => !declined.has(row.command)));
 	const offersHeading = $derived(!declined.has(TURN_INTO_COMMAND));
 
 	interface Placement {
 		x: number;
 		y: number;
-		/** The selection's first rect, for the flip above when there is no room below. */
+		/** The selection's first rectangle, used when the bar has to go above it instead. */
 		flipY: number;
 	}
 
-	// The editor root's top is the floor the flip may not cross: whatever host chrome sits
-	// above the editor ends where the root begins.
+	// The editor root's top is the line the bar may not cross: whatever the host draws above
+	// the editor ends where the root begins.
 	function topInset(): number {
 		return Math.max(0, root?.getBoundingClientRect().top ?? 0);
 	}
@@ -93,7 +93,7 @@
 	}
 
 	// The bar's own size, measured once it is in the DOM, so the placement can keep it on screen:
-	// pushed left at the right edge, flipped above the selection when there is no room below.
+	// pushed left at the right edge, moved above the selection when there is no room below.
 	let size = $state<{ w: number; h: number } | null>(null);
 	$effect(() => {
 		if (!barEl || !placement) return;
@@ -114,13 +114,13 @@
 
 	$effect(() => editor.getEvents().on('selectionChange', update));
 
-	// Only once the drag is over: a bar that appears and re-seats under a moving pointer is in the
-	// way of the very selection being made. The press is watched at the document, since the drag
-	// can end anywhere; the release places the bar from the selection that stood at that moment.
+	// Only once the drag is over: a bar that appears and moves under a moving pointer is in the
+	// way of the very selection being made. The pointer is watched at the document, since the
+	// drag can end anywhere; the release places the bar from the selection at that moment.
 	let pointerHeld = false;
 	$effect(() => {
-		// A press on the bar itself is a button, not a drag: arming the release here would re-place
-		// the bar (and close its flyout) under the click that follows.
+		// A pointer-down on the bar itself is a button, not a drag: watching for its release
+		// would re-place the bar, and close its flyout, under the click that follows.
 		const down = (e: PointerEvent) => {
 			if (e.button === 0 && !barEl?.contains(e.target as Node)) pointerHeld = true;
 		};
@@ -141,7 +141,7 @@
 		};
 	});
 
-	// The editor's own right-click menu takes the selection's spot; two cards over one range read
+	// The editor's own right-click menu takes the selection's spot; two panels over one range read
 	// as a glitch, so the bar hides while it is open and comes back where the selection still is.
 	let menuOpen = false;
 	$effect(() =>
@@ -182,8 +182,8 @@
 		placement = selection ? shownOver(selection) : null;
 	}
 
-	// The door decides where the bar belongs: over a code fence or an equation's source it declines
-	// every mark, and a bar of greyed buttons is worse than none.
+	// The editor decides where the bar belongs: over a code fence or an equation's source it
+	// refuses every mark, and a bar of greyed-out buttons is worse than none.
 	function shownOver(selection: EditorSelection): Placement | null {
 		if (menuOpen || pointerHeld) return null;
 		if (MARKS.every((mark) => declined.has(mark.command))) return null;
@@ -194,10 +194,10 @@
 		const { start, end } = normalizeSelection(selection);
 		const sameBlock = start.path.join('.') === end.path.join('.');
 		if (!sameBlock) {
-			// The bar hangs off where the selection ENDS, so the end block's rects come first. A
-			// selection that starts at the very end of one block (a drag that left the block
-			// upward, or began at the previous paragraph's end) leaves the start block's remaining
-			// range empty, so that read is a fallback, and the start block's whole box the last one.
+			// The bar hangs off where the selection ends, so the end block's rectangles come
+			// first. A selection starting at the very end of one block (a drag that left the
+			// block upward, or began at the previous paragraph's end) leaves the start block's
+			// remaining range empty, so that is the fallback, and its whole box the last resort.
 			const rects = editor.getRects();
 			const endRects =
 				editor.getBlockKindAt(end.path) !== 'table' && end.offset > 0
@@ -209,8 +209,8 @@
 			const measured = anchored.length ? anchored : rects.rangeRects(start.path, 0, SELECTION_END);
 			return measured.length ? belowRight(measured) : null;
 		}
-		// An intra-table rectangle shares the table's path and carries cell indices on endpoints the
-		// flag need not mark, so the kind read is what excludes it rather than the flag.
+		// A rectangle inside one table shares the table's path and holds cell indices on endpoints
+		// the cross-block flag need not set, so the kind is what rules it out, not the flag.
 		if (editor.getBlockKindAt(start.path) === 'table') return null;
 		if (start.offset === end.offset) return null;
 		const rects = editor.getRects().rangeRects(start.path, start.offset, end.offset);
@@ -218,18 +218,18 @@
 	}
 
 	/** The bar opens like a menu: below the selection's last line and to the right of where it
-	 *  ends, never over the text. The clamp above pushes it left at the viewport edge and flips it
-	 *  above the first line when there is no room below. */
+	 *  ends, never over the text. The clamp above pushes it left at the viewport edge and moves
+	 *  it above the first line when there is no room below. */
 	function belowRight(rects: DOMRect[]): Placement | null {
 		const first = rects[0];
 		const last = rects[rects.length - 1];
-		// Scrolled out from under the host's chrome or off the bottom: nothing to anchor to.
+		// Scrolled out from under whatever the host draws above, or off the bottom: nowhere to go.
 		if (last.bottom < topInset() || first.top > window.innerHeight) return null;
 		return { x: last.right + BAR_GAP, y: last.bottom + BAR_GAP, flipY: first.top };
 	}
 
-	// The id, not a synthesized chord: a host rebind moves the shortcut and leaves the button. A
-	// declined run means the bar's premise went stale under it, so the boolean hides the bar.
+	// The command id, not a made-up keystroke: a host rebind moves the shortcut and leaves the
+	// button. A refused run means what the bar assumed is no longer true, so the bar hides.
 	function fire(command: string, arg?: unknown): void {
 		turnIntoOpen = false;
 		if (!editor.runCommand(command, arg)) placement = null;
@@ -336,8 +336,8 @@
 {/if}
 
 <style>
-	/* Surface and rows are the shared `.md-menu` family (editor.css); only the marks row and the
-	   flyout hang are this popover's own. */
+	/* The panel and its rows are the shared `.md-menu` family (editor.css); only the marks row
+	   and where the flyout hangs are this popover's own. */
 	.selection-toolbar {
 		z-index: 100;
 		min-width: 0;

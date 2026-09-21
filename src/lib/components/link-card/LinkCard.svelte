@@ -7,13 +7,13 @@
 		LINK_CARD_URL
 	} from '../../a11y-strings';
 
-	// Anchored chrome over one link construct. Enter commits; Escape is the host's, since it must
-	// also close a card the document still has the caret for.
+	// A small panel positioned over one link construct. Enter commits; Escape is the host's,
+	// since it must also close a card the document still has the caret for.
 	//
-	// `role="dialog"` WITHOUT `aria-modal`: a click leaves the card beside a live caret and the
-	// document behind stays the user's to type in, which is what aria-modal would tell a screen
-	// reader is false. The trap engages on ENTRY (Mod+K, or focus reaching the field), where the
-	// claim is true, and Escape returns the caret it borrowed.
+	// `role="dialog"` without `aria-modal`: a click leaves the card beside a live caret and the
+	// document behind stays the user's to type in, which is the opposite of what aria-modal would
+	// tell a screen reader. The focus trap starts on entry (Mod+K, or focus reaching the field),
+	// where that claim is true, and Escape returns the caret it borrowed.
 	let {
 		url,
 		canWrite,
@@ -26,29 +26,29 @@
 		url: string;
 		/** Bumped by each keyboard entry; the field takes focus when it changes. */
 		focusEpoch: number;
-		/** False when the write seam declines this construct outright — a rung-claimed link, which
-		 *  no url makes writable. Enter then does nothing rather than silently dropping the edit. */
+		/** False when the write path refuses this construct outright: a link owned by an inline
+		 *  syntax handler. Enter then does nothing rather than silently dropping the edit. */
 		canWrite: boolean;
 		onCommit: (url: string) => void;
 		onOpenLink: (url: string, event: MouseEvent) => void;
-		/** Absent in create mode: there is no construct to remove until Enter mints one. */
+		/** Absent in create mode: there is no construct to remove until Enter writes one. */
 		onRemove?: () => void;
-		/** The render path's own href funnel — a consumer rewrite, then the scheme allowlist.
-		 *  Undefined is a blocked scheme, and Open is the sink that must not receive one. */
+		/** The href as the render path resolves it: a consumer rewrite, then the scheme
+		 *  allowlist. Undefined means a blocked scheme, which Open must never be handed. */
 		resolveHref: (url: string) => string | undefined;
 	} = $props();
 
 	let draft = $state(untrack(() => url));
-	// The card OPENS on a blocked link so the URL can be repaired, but may not hand that URL
-	// onward: `onLinkActivate` reaches a shell's own opener, and this is the only door into it
+	// The card opens on a blocked link so the URL can be repaired, but may not pass that URL
+	// on: `onLinkActivate` reaches the host app's own opener, and this is the only way in
 	// carrying a URL the user typed rather than the document's. An empty draft resolves as a
-	// relative URL, so it declines too.
+	// relative URL, so it is refused too.
 	const openable = $derived(draft.trim() === '' ? undefined : resolveHref(draft));
 	let seed = $state(untrack(() => url));
 	let cardEl: HTMLDivElement | undefined = $state();
 	let urlInput: HTMLInputElement | undefined = $state();
-	// Starts at the click's zero rather than at the prop: a card MOUNTED by the chord has a
-	// non-zero epoch already, and seeding from the prop would read that as "nothing to do".
+	// Starts at the click's zero rather than at the prop: a card mounted by the chord already
+	// has a non-zero counter, and starting from the prop would read that as "nothing to do".
 	let focusedEpoch = 0;
 
 	$effect(() => {
@@ -58,9 +58,9 @@
 		urlInput?.select();
 	});
 
-	// The card follows the document while it is open: an undo — or any write landing from outside
-	// this gesture — moves the destination past the draft, and Enter would put the old bytes back.
-	// The in-flight draft is discarded rather than a committed change reverted.
+	// The card follows the document while it is open: an undo, or any write from outside this
+	// gesture, moves the destination past the draft, and Enter would put the old bytes back.
+	// The unfinished draft is discarded rather than a committed change reverted.
 	$effect(() => {
 		if (url === seed) return;
 		seed = url;
@@ -91,8 +91,8 @@
 			stepTrap(e.shiftKey);
 			return;
 		}
-		// The entry chord re-asserts the card the focus is already inside, so it is a no-op here —
-		// but a consumed one: no surface the editor owns hands `Mod+K` back to the browser.
+		// The entry chord asks again for the card focus is already inside, so it does nothing
+		// here, but it is still taken: nothing the editor owns hands `Mod+K` back to the browser.
 		// CapsLock uppercases the key without a Shift modifier, which is still the plain chord.
 		if ((e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey && (e.key === 'k' || e.key === 'K')) {
 			e.preventDefault();

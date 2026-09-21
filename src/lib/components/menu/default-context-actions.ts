@@ -1,6 +1,6 @@
 /**
  * What every non-prose block's context menu offers after the kind's own rows: copy it (its
- * Markdown), replace it with the clipboard, remove it — each named for what the block is
+ * Markdown), replace it with the clipboard, remove it, each named for what the block is
  * ("Remove code block", "Copy image"). Plain, not red: every one is a Ctrl+Z away. Prose blocks
  * are the page's background and keep the browser's own menu (`Editor.svelte`).
  */

@@ -1,8 +1,8 @@
 /**
- * `link.openCard` — the keyboard entry to the link card and the pressed state a toolbar paints for
- * it, off one resolution of the construct holding the caret or a range inside it. The chord ENTERS
- * the card (focus in the URL field), unlike a click, which opens it beside a caret that stays the
- * document's. Live mode only: every other mode paints the destination.
+ * `link.openCard`: the keyboard way into the link card, and the pressed state a toolbar paints
+ * for it, both from one lookup of the construct holding the caret or a range inside it. The chord
+ * enters the card, with focus in the URL field, unlike a click, which opens it beside a caret that
+ * stays in the document. Live mode only: every other mode paints the destination.
  */
 
 import type { PresentationMode } from '../../presentation-mode';
@@ -14,15 +14,15 @@ import {
 } from '../blocks/text/link-at-point';
 import type { LinkCardState } from './link-card-state.svelte';
 
-/** What locating the card's construct takes, whether a press or a pressed-state read asks. */
+/** What locating the card's construct takes, whether a click or a pressed-state read asks. */
 export interface LinkCardTargetQuery extends LinkPointQuery {
 	mode: PresentationMode;
-	/** The block-local raw selection, or null at a collapsed caret. Required, never defaulted:
-	 *  a surface that must mint no link says so by passing null wherever it could create. */
+	/** The raw selection within this block, or null at a collapsed caret. Required, never given a
+	 *  default: a caller that must create no link says so by passing null wherever it could. */
 	selection: { start: number; end: number } | null;
 	/** True while a range crosses block boundaries. Required for the same reason, and because
-	 *  `selection` cannot report it: read off this block's own DOM walk, an endpoint in another
-	 *  block comes back as end-of-walk — a range running to the block's end that nobody made. */
+	 *  `selection` cannot report it: measured against this block's own DOM, an endpoint in another
+	 *  block comes back as the end of this one, a range to the block's end that nobody made. */
 	crossBlockRange: boolean;
 }
 
@@ -31,9 +31,9 @@ export interface LinkCardEntryQuery extends LinkCardTargetQuery {
 }
 
 /**
- * The construct the chord would EDIT: the card-editable one under the caret, which a range must
- * lie wholly inside since the card edits ONE link. Null where the chord creates instead or opens
- * nothing, so a pressed paint and the press it promises resolve the same construct.
+ * The construct the chord would edit: the card-editable one under the caret, which a range must
+ * lie wholly inside since the card edits one link. Null where the chord creates instead or opens
+ * nothing, so the pressed state and the click it promises resolve the same construct.
  */
 export function linkCardTargetAt(query: LinkCardTargetQuery): LinkTarget | null {
 	if (query.mode !== 'live' || query.crossBlockRange) return null;
@@ -45,19 +45,19 @@ export function linkCardTargetAt(query: LinkCardTargetQuery): LinkTarget | null 
 }
 
 /**
- * Enter the card for the chord: the construct the caret — or a range lying wholly inside it —
- * sits in, EDIT mode; failing that, CREATE mode over the range, declined when it crosses another
- * construct's bytes, since wrapping inside or across one is a policy question. The chord is
- * consumed either way, by the keymap arm that calls this.
+ * Enter the card for the chord: edit the construct the caret, or a range lying wholly inside it,
+ * sits in; failing that, create one over the range, refused when the range crosses another
+ * construct's bytes, since wrapping inside or across one has no agreed answer. The chord is
+ * taken either way, by the keymap branch that calls this.
  */
 export function enterLinkCardAtCaret(query: LinkCardEntryQuery): void {
 	if (query.mode !== 'live') return;
-	// The dispatch seam declines `link.openCard` over a cross-block range already
-	// (`RANGE_DECLINED_COMMAND_IDS`); the belt is here because the offsets this arm would
-	// otherwise trust are fabricated in exactly that state rather than absent.
+	// The command dispatch already refuses `link.openCard` over a cross-block range
+	// (`RANGE_DECLINED_COMMAND_IDS`); checked again here because the offsets this would
+	// otherwise trust are made up in exactly that state rather than missing.
 	if (query.crossBlockRange) return;
-	// Edit before create, since create declines a range already inside a construct: taking the
-	// create fork there leaves the press inert under a button the pressed read paints ON.
+	// Edit before create, since create refuses a range already inside a construct: going the
+	// create way there leaves the click doing nothing under a button painted as pressed.
 	const target = linkCardTargetAt(query);
 	if (target) {
 		query.card.enter(target);

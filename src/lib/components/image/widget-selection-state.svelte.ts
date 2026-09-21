@@ -3,8 +3,8 @@
 
 import { pathsEqual } from '../../selection/path-math';
 
-/** What an outside-press dismiss handler must NOT treat as outside: the widget itself and
- *  the overlay chrome anchored to it. One string, because both handlers must move together. */
+/** What a click-outside handler must not count as outside: the widget itself and the overlay
+ *  controls attached to it. One string, because both handlers have to change together. */
 export const IMAGE_CHROME_SELECTOR = '[data-image-widget], [data-image-overlay]';
 
 export interface WidgetTarget {

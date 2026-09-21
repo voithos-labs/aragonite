@@ -1,5 +1,5 @@
 // Pure math for image drag-to-resize: clamp, snap-to-percentage, aspect lock.
-// No DOM — the handles component owns pointer events and calls these.
+// No DOM: the handles component owns pointer events and calls these.
 
 export const MIN_WIDTH = 16;
 
@@ -30,9 +30,9 @@ export function snapWidth(width: number, maxWidth: number, snapThresholdPx: numb
 }
 
 /**
- * The height a release persists — the one the drag showed. An aspect-locked drag lets the height
- * follow the width, so it persists `|N` and leaves the derivation to the renderer; an unlocked
- * drag holds the height the image already had, which only the explicit `|NxM` form can carry.
+ * The height a release saves: the one the drag showed. An aspect-locked drag lets the height
+ * follow the width, so it saves `|N` and leaves the rest to the renderer; an unlocked drag
+ * keeps the height the image already had, which only the explicit `|NxM` form can carry.
  */
 export function resolveDraggedHeight(
 	aspectLocked: boolean,

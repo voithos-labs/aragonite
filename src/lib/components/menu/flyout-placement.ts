@@ -1,6 +1,6 @@
 /**
- * Svelte attachment for a menu flyout: measures the surface once it is in the DOM and moves it
- * to stay inside the viewport (`flyoutPlacement`). The element's own CSS hangs it off the row's
+ * Svelte attachment for a menu flyout: measures the panel once it is in the DOM and moves it to
+ * stay inside the viewport (`flyoutPlacement`). The element's own CSS hangs it off the row's
  * right edge; this writes the correction inline, so the rule lives in one place for every menu.
  */
 
