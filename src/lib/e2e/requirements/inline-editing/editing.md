@@ -13,7 +13,3 @@ Editing inside or around inline formatting; split-created blocks correctly carry
   - Miss-analysis: the auto-pair's grow rule turned the second `*` of an otherwise empty block into `****`, a thematic break, and the arm's own rows all sat inside prose; this scenario is the one that types a pair on a line of its own, so it stays the pin for "a pair never re-kinds the line"
 - heading markers dimmed after # conversion: Enter to create new block, type # prefix, .md-marker span renders with dimmed opacity (regression: markers appeared unstyled)
 - character-by-character typing renders bold correctly: typing **bold** one key at a time via keyboard.type() produces <strong> element (regression: double DOM rebuild caused reversed text)
-
-## User interactions
-
-- split paragraph with inline formatting: Enter in middle of formatted paragraph, both halves render correctly

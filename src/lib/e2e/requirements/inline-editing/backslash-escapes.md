@@ -24,15 +24,12 @@
 - Escape inside an inline code span (`` `\*` ``): no escape node forms; the `\*` sequence renders as raw text inside the code span.
 - Escape inside a paragraph that is also inside a list item: behaves identically to the top-level paragraph case (container nesting does not change inline parsing).
 
-## Round-trip
-
-- `getSource()` after typing escapes returns exactly what the user typed; no normalization, no decoding.
-
 ## Coverage notes
 
 The following scenarios are exercised at the unit-test level (`src/lib/test/core/inline/escapes.test.ts`) rather than via E2E, since they're parser-internal contracts not visible as user-facing DOM behavior:
 
-- The full 32-character escapable punctuation set (parameterized table).
+- The full 32-character escapable punctuation set (parameterized table), and the byte-for-byte
+  round-trip of each escape (`src/lib/test/round-trip.test.ts`).
 - Cursor offset semantics between `\` and the escaped character (covered indirectly via `findNodeAtOffset` tests in `cursor-mapping.test.ts`).
 - Trailing `\` at end-of-input emitted as text (escape scanner contract).
 - `\` followed by `\n` left as text for the hard-line-break post-pass to claim (`post-process.ts`).

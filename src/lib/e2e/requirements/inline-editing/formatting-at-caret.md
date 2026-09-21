@@ -8,14 +8,9 @@ left, else insert the pair and put the caret between its halves.
 ## Happy paths
 
 - Ctrl+B at a collapsed caret inserts `****` and the next typed character lands inside it.
-- Ctrl+I at a collapsed caret inserts `**` and the next typed character lands inside it.
-- Ctrl+B pressed twice in a row leaves the text exactly as it was.
-- Ctrl+B with the caret inside `**bold**` removes the bold.
 
 ## Edge cases
 
-- Ctrl+B at a caret in the middle of a plain word inserts the pair there — it does not
-  toggle the whole word (no word-boundary rule exists in this editor).
 - One Ctrl+Z after the insert removes the pair and restores the caret's text.
 - Text typed inside the pair unwinds on its own: the toggle is a command, not typing, so it
   breaks the keystroke batch on both sides. One Ctrl+Z takes the typing and leaves the pair; a

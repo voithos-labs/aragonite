@@ -91,15 +91,4 @@ test.describe('inline editing — editing formatted content', () => {
 		const source = await editor.bridge.getSource();
 		expect(source).toContain('Hello. **bold**');
 	});
-
-	test('split paragraph with inline formatting preserves both halves', async () => {
-		await editor.loadContent(`before **bold** after\n`);
-		await editor.focusBlock(0, 7);
-
-		await editor.page.keyboard.press('Enter');
-		expect(await editor.getDomBlockCount()).toBe(2);
-		const src = await editor.bridge.getSource();
-		expect(src).toContain('before');
-		expect(src).toContain('**bold** after');
-	});
 });

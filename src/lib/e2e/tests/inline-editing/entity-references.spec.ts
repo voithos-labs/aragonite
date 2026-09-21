@@ -70,14 +70,6 @@ test.describe('inline editing — entity references', () => {
 		await expect(block.locator('code.inline-code-content')).toHaveCount(1);
 	});
 
-	for (const sample of ['&copy;', '&amp;', '&#39;', '&#x22;', '&notreal;']) {
-		test(`round-trips ${JSON.stringify(sample)} unchanged`, async () => {
-			await editor.typeText(sample);
-			await editor.bridge.waitForSourceContains(sample);
-			expect((await editor.bridge.getSource()).trim()).toBe(sample);
-		});
-	}
-
 	test('entity inside link text renders its glyph inside the anchor', async () => {
 		await editor.typeText('[&copy; me](https://example.com)');
 		await editor.bridge.waitForSourceContains('[&copy; me](https://example.com)');

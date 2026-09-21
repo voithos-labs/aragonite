@@ -31,14 +31,12 @@ behavior is the separate concern of `entity-widget.md`.
 - `[&copy; me](https://example.com)`: the entity is a child of the link text and its glyph widget renders inside the anchor.
 - `` `&copy;` ``: the entity is inert inside the code span; the source renders as literal `&copy;` text in monospace (no widget).
 
-## Round-trip
-
-- `getSource()` after typing entities returns the source bytes verbatim — entities are never serialized to their decoded form.
-
 ## Coverage notes
 
 The following scenarios are exercised at the unit-test level (`src/lib/test/core/inline/character-refs.test.ts`) rather than via E2E:
 
 - Malformed forms (`&;`, `&amp` without semicolon, `&#abc;`, `&#xZZ;`) emitted as plain text.
+- The byte-for-byte round-trip of each reference form — entities are never serialized to their
+  decoded form (`src/lib/test/round-trip.test.ts`).
 - Boundary numeric references (`&#0;`, `&#x110000;`, surrogate-range code points) decoded to U+FFFD per CommonMark §6.2 — a U+FFFD glyph is visible, so it renders as a widget.
 - The visibility gate (`&nbsp;` and other whitespace/control decodings keep the literal span) is unit-pinned in `src/lib/test/core/inline/entity-widget.test.ts`.

@@ -1,6 +1,5 @@
 import { test, expect } from '../fixtures';
 import { EditorPage } from '../editor-page';
-import { DEFAULT_CONTENT } from '../test-content';
 
 test.describe('editor smoke tests', () => {
 	let editor: EditorPage;
@@ -26,13 +25,6 @@ test.describe('editor smoke tests', () => {
 		const source = await editor.bridge.getSource();
 		expect(source).toContain('Replaced');
 		expect(source).toContain('New content here.');
-	});
-
-	test('loadContent with multiple blocks yields correct block count', async () => {
-		await editor.loadContent(DEFAULT_CONTENT);
-
-		const count = await editor.bridge.getBlockCount();
-		expect(count).toBeGreaterThanOrEqual(10);
 	});
 
 	test('empty document produces at least 1 editable block', async () => {

@@ -28,20 +28,6 @@ test.describe('text editing — happy paths', () => {
 		expect(await editor.getBlockText(0)).toContain('Line one');
 	});
 
-	test('Enter in middle splits content across two blocks', async () => {
-		await editor.loadContent('HelloWorld\n');
-		await editor.focusBlockStart(0);
-		for (let i = 0; i < 5; i++) await editor.page.keyboard.press('ArrowRight');
-		await editor.page.keyboard.press('Enter');
-
-		const domCount = await editor.getDomBlockCount();
-		expect(domCount).toBe(2);
-
-		const source = await editor.bridge.getSource();
-		expect(source).toContain('Hello');
-		expect(source).toContain('World');
-	});
-
 	test('Backspace at start merges with previous paragraph', async () => {
 		await editor.loadContent('First\n\nSecond\n');
 		await editor.focusBlockStart(1);

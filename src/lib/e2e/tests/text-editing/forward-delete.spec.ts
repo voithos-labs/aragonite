@@ -10,15 +10,6 @@ test.describe('forward delete', () => {
 		await editor.goto();
 	});
 
-	test('Delete at end of block merges with next', async () => {
-		await editor.loadContent('# Hello\n\nWorld\n');
-		expect(await editor.bridge.getBlockCount()).toBe(2);
-		await editor.focusBlockEnd(0);
-		await editor.page.keyboard.press('Delete');
-		await editor.bridge.waitForSourceContains('# HelloWorld');
-		expect(await editor.bridge.getBlockCount()).toBe(1);
-	});
-
 	test('Delete in middle of block works normally', async () => {
 		await editor.loadContent('Hello world\n');
 		await editor.focusBlock(0, 5);

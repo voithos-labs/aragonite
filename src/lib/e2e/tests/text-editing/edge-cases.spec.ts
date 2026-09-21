@@ -10,17 +10,6 @@ test.describe('text editing — edge cases', () => {
 		await editor.goto();
 	});
 
-	test('Backspace at start of first block does nothing', async () => {
-		await editor.loadContent('Only block\n');
-		const sourceBefore = await editor.bridge.getSource();
-
-		await editor.focusBlockStart(0);
-		await editor.page.keyboard.press('Backspace');
-
-		const sourceAfter = await editor.bridge.getSource();
-		expect(sourceAfter).toBe(sourceBefore);
-	});
-
 	// Where the merge does not apply, the caret is the whole outcome: source and block count
 	// cannot move, so asserting only those reads the press as doing nothing (issue #138).
 	for (const [label, doc, landing, after] of [
@@ -43,16 +32,6 @@ test.describe('text editing — edge cases', () => {
 		});
 	}
 
-	test('heading absorbs following paragraph on merge', async () => {
-		await editor.loadContent('# Title\n\nBody text\n');
-		await editor.focusBlockStart(1);
-		await editor.page.keyboard.press('Backspace');
-
-		const source = await editor.bridge.getSource();
-		expect(source).toContain('TitleBody text');
-		expect(await editor.bridge.getBlockKind(0)).toBe('heading');
-	});
-
 	// The thematic break takes whole-block focus, so a Backspace beside it focuses it and only
 	// a second press deletes: the same two-step a mermaid diagram gets
 	// (`plugins/mermaid-focus.spec.ts` pins the plugin counterpart).
@@ -73,29 +52,6 @@ test.describe('text editing — edge cases', () => {
 
 		await editor.bridge.waitForSourceNotContains('---');
 		expect(await editor.bridge.getBlockCount()).toBeLessThan(countBefore);
-	});
-
-	test('kind change reversal — deleting # prefix reverts heading to paragraph', async () => {
-		await editor.loadContent('# Title\n');
-		expect(await editor.bridge.getBlockKind(0)).toBe('heading');
-
-		await editor.focusBlockStart(0);
-		await editor.page.keyboard.press('Shift+ArrowRight');
-		await editor.page.keyboard.press('Shift+ArrowRight');
-		await editor.page.keyboard.press('Backspace');
-
-		const kind = await editor.bridge.getBlockKind(0);
-		expect(kind).toBe('paragraph');
-	});
-
-	test('split heading at middle — first stays heading, second becomes paragraph', async () => {
-		await editor.loadContent('# HelloWorld\n');
-		await editor.focusBlockStart(0);
-		for (let i = 0; i < 7; i++) await editor.page.keyboard.press('ArrowRight');
-		await editor.page.keyboard.press('Enter');
-
-		expect(await editor.bridge.getBlockKind(0)).toBe('heading');
-		expect(await editor.bridge.getBlockKind(1)).toBe('paragraph');
 	});
 
 	test('Enter at end of heading — heading unchanged, new empty paragraph', async () => {

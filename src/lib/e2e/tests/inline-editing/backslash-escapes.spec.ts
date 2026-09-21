@@ -86,14 +86,6 @@ test.describe('inline editing — backslash escapes', () => {
 		expect(markers.filter((t) => t === '\\').length).toBe(2);
 	});
 
-	for (const escape of ['\\*', '\\[', '\\]', '\\_', '\\`', '\\\\', '\\!', '\\#']) {
-		test(`round-trips ${JSON.stringify(escape)} unchanged`, async () => {
-			await editor.typeText(escape);
-			await editor.bridge.waitForSourceContains(escape);
-			expect((await editor.bridge.getSource()).trim()).toBe(escape);
-		});
-	}
-
 	test('prepending backslash to existing *foo* collapses emphasis', async () => {
 		await editor.loadContent('*foo*\n');
 		await editor.focusBlockAtPath([0], 0);

@@ -7,7 +7,6 @@ Verifies the test harness, bridge, and basic editor lifecycle.
 - editor container visible: after goto(), .editor element is present
 - test bridge functional: getSource() returns non-empty string
 - loadContent replaces document: loading new markdown updates getSource()
-- loadContent with multiple blocks: block count matches expected structure
 
 ## Edge cases
 

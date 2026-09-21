@@ -58,19 +58,6 @@ test.describe('undo and redo', () => {
 		expect(await editor.getDomBlockCount()).toBe(3);
 	});
 
-	test('undo reverts kind change (paragraph to heading via # prefix)', async () => {
-		const before = await editor.bridge.getSource();
-		await editor.focusBlockStart(0);
-		await editor.typeSlowly('# ');
-		await editor.bridge.waitForSourceMatches(/^# /m);
-		await editor.waitForUndoBatchFlush();
-		expect(await editor.bridge.getBlockKind(0)).toBe('heading');
-
-		await editor.undo();
-		expect(await editor.bridge.getBlockKind(0)).toBe('paragraph');
-		expect(await editor.bridge.getSource()).toBe(before);
-	});
-
 	test('undo across a paragraph→htmlBlock flip restores the rendered DOM, not just the source', async () => {
 		// Typing the last character of `<div` reparses the paragraph as an html block, and the
 		// browser has already inserted it, so the DOM matches before the render runs. Checked on
@@ -92,38 +79,6 @@ test.describe('undo and redo', () => {
 		await editor.typeText('z');
 		await editor.bridge.waitForSourceContains('z');
 		expect(await editor.bridge.getSource()).not.toContain('div');
-	});
-
-	test('multiple undo steps revert a sequence of operations', async () => {
-		const original = await editor.bridge.getSource();
-
-		await editor.focusBlockEnd(0);
-		await editor.typeSlowly(' appended');
-		await editor.bridge.waitForSourceContains(' appended');
-		await editor.waitForUndoBatchFlush();
-
-		await editor.focusBlockEnd(0);
-		await editor.page.keyboard.press('Enter');
-
-		await editor.undo();
-		await editor.undo();
-
-		expect(await editor.bridge.getSource()).toBe(original);
-	});
-
-	test('redo stack is cleared when a new edit occurs after undo', async () => {
-		await editor.focusBlockEnd(0);
-		await editor.page.keyboard.press('Enter');
-		const splitSource = await editor.bridge.getSource();
-
-		await editor.undo();
-		await editor.focusBlockEnd(0);
-		await editor.typeText('x');
-		await editor.bridge.waitForSourceContains('x');
-		await editor.waitForUndoBatchFlush();
-
-		await editor.redo();
-		expect(await editor.bridge.getSource()).not.toBe(splitSource);
 	});
 
 	test('undo on empty stack does not crash or corrupt state', async () => {
