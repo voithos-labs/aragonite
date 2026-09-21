@@ -21,7 +21,7 @@ describe('command-id mint', () => {
 
 	it('rejects a second mint of the same name (plugin-vs-plugin)', () => {
 		mintCommandId('callout.setKind');
-		expect(() => mintCommandId('callout.setKind')).toThrow(/already minted/i);
+		expect(() => mintCommandId('callout.setKind')).toThrow(/already taken/i);
 	});
 
 	it('lets the same owner re-mint a name (one command shared across its kinds)', () => {
@@ -34,13 +34,13 @@ describe('command-id mint', () => {
 	it('still throws cross-plugin, naming the prior owner', () => {
 		mintCommandId('callout.toggle', 'callouts');
 		expect(() => mintCommandId('callout.toggle', 'intruder')).toThrow(
-			/already minted by plugin "callouts"/
+			/already taken by plugin "callouts"/
 		);
 	});
 
 	it('throws on an unattributed re-mint (no installing plugin)', () => {
 		mintCommandId('callout.toggle', null);
-		expect(() => mintCommandId('callout.toggle', null)).toThrow(/already minted/i);
+		expect(() => mintCommandId('callout.toggle', null)).toThrow(/already taken/i);
 	});
 
 	it('rejects a name colliding with a built-in command id', () => {

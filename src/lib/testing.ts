@@ -23,7 +23,7 @@ import { __resetDirectiveRegistryForTests } from './core/directive/registry';
 export function resetPluginPlatformForTests(): void {
 	if (!editorEnv.isTest) {
 		throw new Error(
-			'resetPluginPlatformForTests() is test-only — it wipes the process-global plugin ' +
+			'resetPluginPlatformForTests() is test-only: it wipes the process-global plugin ' +
 				'registries, which is corruption in a running editor. No test environment was ' +
 				'detected (process.env.VITEST is unset). Detection is Vitest-specific; another ' +
 				'runner opts in with configureEditorEnv({ isTest: true }), exported beside this.'

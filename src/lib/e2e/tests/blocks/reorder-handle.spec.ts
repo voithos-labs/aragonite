@@ -59,7 +59,7 @@ test.describe('reorder hover handle', () => {
 			([x, y]) => !!document.elementFromPoint(x, y)?.closest('.block-drag-handle'),
 			[cx, cy]
 		);
-		expect(hitsHandle, 'pointer over the handle must resolve TO the handle (hittable)').toBe(true);
+		expect(hitsHandle, 'pointer over the handle must resolve to the handle (hittable)').toBe(true);
 	});
 
 	// On an unindented top-level block the only left margin is the editor's own padding, so the
@@ -236,7 +236,7 @@ test.describe('reorder hover handle', () => {
 			const img = el.querySelector('img')!.getBoundingClientRect();
 			return grip.top + grip.height / 2 - img.top;
 		});
-		expect(inset, 'grip must sit inside the picture').toBeGreaterThan(4);
+		expect(inset, 'drag handle must sit inside the picture').toBeGreaterThan(4);
 		expect(inset, 'and within its first line, not adrift down it').toBeLessThan(40);
 	});
 

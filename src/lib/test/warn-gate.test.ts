@@ -140,7 +140,7 @@ describe('warn-gate sink ownership', () => {
 // test's registration has run: the tick comes first, so the warning lands in its own test.
 describe('warn-gate deferred fires', () => {
 	it('attributes a tick-deferred fire to the test that provoked it', async () => {
-		void tick().then(() => devWarn('probe', 'deferred past the claim door'));
+		void tick().then(() => devWarn('probe', 'deferred past the claim point'));
 		await expect(enforceWarnGate()).rejects.toThrow(/\[probe\]/);
 	});
 });

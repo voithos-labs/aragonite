@@ -230,7 +230,7 @@ describe('pending-mark insertion over generated formatted fixtures', () => {
 	});
 
 	it('the run exercised both answers', () => {
-		expect(written, 'every case declined — the properties above proved nothing').toBeGreaterThan(0);
-		expect(declined, 'no case declined — the fallback path is unexercised').toBeGreaterThan(0);
+		expect(written, 'every case declined: the properties above proved nothing').toBeGreaterThan(0);
+		expect(declined, 'no case declined: the fallback path is unexercised').toBeGreaterThan(0);
 	});
 });

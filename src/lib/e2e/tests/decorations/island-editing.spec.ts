@@ -67,7 +67,7 @@ async function placeCaretAtIsland(page: Page, sourceStart: number, side: 'before
 				`[data-decoration-island][data-source-start='${sourceStart}']`
 			);
 			const block = island?.closest('[contenteditable]') as HTMLElement | null;
-			if (!block || !island) throw new Error('island not rendered');
+			if (!block || !island) throw new Error('widget not rendered');
 			block.focus();
 			const range = document.createRange();
 			if (side === 'before') range.setStartBefore(island);

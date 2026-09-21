@@ -37,8 +37,9 @@ export async function composeCommit(
 		await ime.compose(update);
 		if ((await editor.bridge.getSource()) !== before) {
 			throw new Error(
-				`[${ctx.label}] the source changed mid-composition — the compose window must stay ` +
-					`DOM-only until commit.\nBEFORE: ${JSON.stringify(before)}`
+				`[${ctx.label}] the source changed mid-composition: the compose window must stay ` +
+					`DOM-only until commit.
+BEFORE: ${JSON.stringify(before)}`
 			);
 		}
 	}

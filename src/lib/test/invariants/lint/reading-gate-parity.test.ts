@@ -125,7 +125,7 @@ describe('G4.19 reading-gate two-arm parity guard', () => {
 			expect(fileSites.length, `no dispatch site in ${relPath}`).toBeGreaterThan(0);
 			expect(
 				fileSites.some((s) => !isThreaded(s.args, codeOf(relPath))),
-				`${relPath} threads every site — its local-gate entry is dead`
+				`${relPath} threads every site: its local-gate entry is dead`
 			).toBe(true);
 			expect(re.test(codeOf(relPath)), `gate regex missing in ${relPath}`).toBe(true);
 		}

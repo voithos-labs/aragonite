@@ -209,7 +209,7 @@ describe('kind conformance — a broken plugin registration fails', () => {
 				...closure,
 				searchPaint: {
 					mode: 'not-supported',
-					reason: 'FALSE: memo text is searchable — red-test bait'
+					reason: 'FALSE: memo text is searchable; red-test bait'
 				}
 			}
 		});

@@ -314,7 +314,8 @@ describe('G4.23 requirement↔spec lockstep', () => {
 	it('no two specs claim one requirement file', () => {
 		expect(
 			lockstep.stemCollisions,
-			`requirement stems claimed twice — the .perf strip makes these collide, so one spec's scenarios hide behind the other's file:\n  ${lockstep.stemCollisions.join('\n  ')}`
+			`requirement stems claimed twice: the .perf strip makes these collide, so one spec's scenarios hide behind the other's file:
+  ${lockstep.stemCollisions.join('\n  ')}`
 		).toEqual([]);
 	});
 
@@ -335,7 +336,8 @@ describe('G4.23 requirement↔spec lockstep', () => {
 		const empty = lockstep.pairs.filter(({ tests }) => tests === 0).map(({ spec }) => spec);
 		expect(
 			empty,
-			`specs with no test() call — their requirement file's scenarios run nowhere:\n  ${empty.join('\n  ')}`
+			`specs with no test() call: their requirement file's scenarios run nowhere:
+  ${empty.join('\n  ')}`
 		).toEqual([]);
 	});
 
@@ -350,7 +352,8 @@ describe('G4.23 requirement↔spec lockstep', () => {
 			);
 		expect(
 			unexplained,
-			`requirement lists 3× longer than their spec's test count. Either the scenarios lost their tests, or the divergence is deliberate — in which case name it in INFLATION_ALLOWLIST with the reason:\n  ${unexplained.join('\n  ')}`
+			`requirement lists 3× longer than their spec's test count. Either the scenarios lost their tests, or the divergence is deliberate, in which case name it in INFLATION_ALLOWLIST with the reason:
+  ${unexplained.join('\n  ')}`
 		).toEqual([]);
 	});
 
@@ -365,7 +368,8 @@ describe('G4.23 requirement↔spec lockstep', () => {
 	it('no allowlist entry outlived the divergence it explains', () => {
 		expect(
 			audit.stale,
-			`allowlist entries whose spec no longer diverges (delete them — the list only shrinks):\n  ${audit.stale.join('\n  ')}`
+			`allowlist entries whose spec no longer diverges (delete them: the list only shrinks):
+  ${audit.stale.join('\n  ')}`
 		).toEqual([]);
 	});
 

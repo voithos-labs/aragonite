@@ -70,7 +70,7 @@ export async function splitFootnoteDefinitionBody(
 	if (after.root !== before.root) {
 		throw new Error(
 			`[${ctx.label}] footnote-def body split escaped the container to the root ` +
-				`(root ${before.root} → ${after.root}) — the blockquote split override did not hold`
+				`(root ${before.root} → ${after.root}): the blockquote split override did not hold`
 		);
 	}
 	await editor.waitForRenderFlush();
@@ -254,7 +254,7 @@ async function nthRefIsland(
 		const path = host?.getAttribute('data-block-path');
 		const start = island?.getAttribute('data-source-start');
 		if (path === null || path === undefined || start === null || start === undefined) {
-			throw new Error('footnote-ref island/host is missing its offset attributes');
+			throw new Error('footnote-ref widget/host is missing its offset attributes');
 		}
 		return { blockPath: JSON.parse(path) as number[], start: Number(start) };
 	}, refIndex);

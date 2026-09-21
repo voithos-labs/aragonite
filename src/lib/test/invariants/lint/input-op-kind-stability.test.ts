@@ -33,7 +33,7 @@ describe("input-op kind stability — only the debounced flush emits op:'input'"
 
 	it('the flush declares it exactly once (a second op in the same file still fails)', () => {
 		const flush = sources.find((f) => f.relPath === SANCTIONED_EMITTER);
-		expect(flush, `sanctioned emitter not found: ${SANCTIONED_EMITTER}`).toBeDefined();
+		expect(flush, `allowed emitter not found: ${SANCTIONED_EMITTER}`).toBeDefined();
 		expect(flush!.code.match(DECLARES_INPUT_OP)).toHaveLength(1);
 	});
 });

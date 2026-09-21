@@ -136,7 +136,7 @@ describe('G2.10 keydown-door guard', () => {
 		const byPath = new Map(sources.map((f) => [f.relPath, f]));
 		for (const relPath of KEYDOWN_SEAM_FILES) {
 			const file = byPath.get(relPath);
-			expect(file, `keydown seam file not found: ${relPath}`).toBeDefined();
+			expect(file, `keydown join file not found: ${relPath}`).toBeDefined();
 			expect(NOTE_KEY_RE.test(file!.code), `no noteKey call in ${relPath}`).toBe(true);
 		}
 	});
@@ -158,7 +158,7 @@ describe('G2.10 keydown-door guard', () => {
 			.filter(([, role]) => role.startsWith('dispatcher'))
 			.map(([relPath]) => relPath);
 		for (const relPath of dispatchers) {
-			expect(KEYDOWN_SEAM_FILES, `${relPath} is a dispatcher but not a seam`).toContain(relPath);
+			expect(KEYDOWN_SEAM_FILES, `${relPath} is a dispatcher but not a join`).toContain(relPath);
 		}
 	});
 

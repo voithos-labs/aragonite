@@ -68,7 +68,7 @@ describe('G4.59 VR tag catalog ↔ its citations', () => {
 		const uncatalogued = [...cited.keys()].filter((tag) => !catalogued.includes(tag)).sort();
 		expect(
 			uncatalogued,
-			`cited with no row in ${CATALOG} — add one saying what the hazard is and what stays true: ${uncatalogued
+			`cited with no row in ${CATALOG}: add one saying what the hazard is and what stays true: ${uncatalogued
 				.map((tag) => `${tag} (${cited.get(tag)?.[0]})`)
 				.join(', ')}`
 		).toEqual([]);
@@ -78,7 +78,7 @@ describe('G4.59 VR tag catalog ↔ its citations', () => {
 		const orphaned = catalogued.filter((tag) => !cited.has(tag));
 		expect(
 			orphaned,
-			`catalogued but cited nowhere — the catalog says to delete such a row: ${orphaned.join(', ')}`
+			`catalogued but cited nowhere: the catalog says to delete such a row: ${orphaned.join(', ')}`
 		).toEqual([]);
 	});
 

@@ -355,7 +355,7 @@ async function pressDragHandle(ctx: SimContext): Promise<undefined> {
 	await host.hover();
 	await ctx.editor.waitForRenderFlush();
 	const box = await host.locator('.block-drag-handle').first().boundingBox();
-	if (!box) throw new Error(`[${ctx.label}] the reorder grip did not paint on hover`);
+	if (!box) throw new Error(`[${ctx.label}] the reorder drag handle did not paint on hover`);
 	await ctx.page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
 	await ctx.page.mouse.down();
 	await ctx.page.mouse.up();
@@ -446,9 +446,11 @@ async function assertRangeContract(
 	}
 	if (live) {
 		throw new Error(
-			`[${ctx.label}] ${gesture} placed the keystroke's target but left the cross-block range ` +
-				`live — the next printable key type-replaces the whole of it.\n` +
-				`RANGE: ${JSON.stringify(built)}\n` +
+			`[${ctx.label}] ${gesture} placed the keystroke's target but left the cross-block range live:` +
+				` the next printable key type-replaces the whole of it.
+` +
+				`RANGE: ${JSON.stringify(built)}
+` +
 				`NOW:   ${JSON.stringify(await ctx.editor.bridge.getSelectionPaths())}`
 		);
 	}
@@ -467,7 +469,7 @@ async function requireGapLanding(
 	const gap = await ctx.editor.bridge.getGapCaret();
 	if (!gap || gap.parentPath.length > 0 || gap.index >= spanCount) {
 		throw new Error(
-			`[${ctx.label}] ${gesture} was expected to park a top-level gap caret the span table ` +
+			`[${ctx.label}] ${gesture} was expected to put a top-level gap caret the span table ` +
 				`covers, got ${JSON.stringify(gap)} over ${spanCount} blocks.`
 		);
 	}
@@ -585,7 +587,7 @@ function predict(args: PredictArgs): string {
 		// fixtures end lines with LF, and G4.20 gives the neighbour its own.
 		case 'gap-mint': {
 			if (gapBoundary === undefined) {
-				throw new Error(`[${ctx.label}] ${gesture} named no gap boundary to mint at`);
+				throw new Error(`[${ctx.label}] ${gesture} named no gap boundary to create at`);
 			}
 			const at = spans[gapBoundary].start;
 			return splice(before, at, at, `${char}\n\n`);

@@ -269,7 +269,7 @@ describe('code → consumer-guide § Keyboard shortcuts', () => {
 			.map(([chord, kinds]) => `${chord} (${kinds.join(', ')})`);
 		expect(
 			unlisted,
-			`bound but undocumented — give each a row, since the table is the human reference: ${unlisted.join(', ')}`
+			`bound but undocumented: give each a row, since the table is the human reference: ${unlisted.join(', ')}`
 		).toEqual([]);
 	});
 
@@ -281,7 +281,7 @@ describe('code → consumer-guide § Keyboard shortcuts', () => {
 		);
 		expect(
 			unlisted,
-			`claimed but undocumented — add a row, or an UNLISTED_BY_DESIGN entry saying where the guide covers it: ${unlisted.join(', ')}`
+			`claimed but undocumented: add a row, or an UNLISTED_BY_DESIGN entry saying where the guide covers it: ${unlisted.join(', ')}`
 		).toEqual([]);
 	});
 

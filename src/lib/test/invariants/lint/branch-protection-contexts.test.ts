@@ -71,7 +71,7 @@ export function checkNames(yaml: string): string[] {
 		const name = JOB_NAME.exec(line);
 		if (name) label = name[1].replace(/^['"]|['"]$/g, '');
 		if (MATRIX_KEYS_UNPARSED.test(line)) {
-			throw new Error(`${line.trim()} in job "${label}" — this reader expands inline lists only`);
+			throw new Error(`${line.trim()} in job "${label}": this reader expands inline lists only`);
 		}
 		const dimension = MATRIX_DIMENSION.exec(line);
 		if (dimension) dimensions.push(flowSequence(dimension[2]));
@@ -162,7 +162,7 @@ describe('branch protection ↔ workflow check names', () => {
 	it('requires exactly the checks ci.yml reports', () => {
 		expect(
 			[...declaredCi].sort(),
-			`CI_CONTEXTS in ${path.basename(SCRIPT)} and ${CI}'s job names have diverged — a context ci.yml never reports blocks every PR forever, and a job with no context gates nothing`
+			`CI_CONTEXTS in ${path.basename(SCRIPT)} and ${CI}'s job names have diverged: a context ci.yml never reports blocks every PR forever, and a job with no context gates nothing`
 		).toEqual([...ci].sort());
 	});
 
@@ -192,7 +192,7 @@ describe('branch protection ↔ workflow check names', () => {
 		const colliding = undeclaredReporters(required, declaredExternal, outsideCi);
 		expect(
 			colliding,
-			`a second workflow reporting a required check satisfies the rule from outside the PR door: ${colliding.join(', ')}`
+			`a second workflow reporting a required check satisfies the rule from outside the PR entry point: ${colliding.join(', ')}`
 		).toEqual([]);
 	});
 });

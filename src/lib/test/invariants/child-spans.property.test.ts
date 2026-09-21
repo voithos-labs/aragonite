@@ -258,7 +258,9 @@ describe('container child spans', () => {
 		// Both classes at a rate rather than merely once: drawing the splice path a single time
 		// would prove as little as the hand-made case above with a generator gone tame.
 		const floor = DOOR_RUNS / 10;
-		expect(spliced, 'the door arm barely reaches the splice path').toBeGreaterThan(floor);
-		expect(retired, 'the door arm barely reaches a retiring settle').toBeGreaterThan(floor);
+		expect(spliced, 'the entry-point branch barely reaches the splice path').toBeGreaterThan(floor);
+		expect(retired, 'the entry-point branch barely reaches a retiring settle').toBeGreaterThan(
+			floor
+		);
 	});
 });

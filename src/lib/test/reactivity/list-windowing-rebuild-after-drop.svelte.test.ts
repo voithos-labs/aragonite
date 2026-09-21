@@ -46,7 +46,7 @@ describe('a structural rebuild after the oracle dropped its cache', () => {
 		await tick();
 		await windowing.revealChild(ANCHOR);
 		const parked = port.scrollTop();
-		expect(parked, 'parked on measured heights').toBe(ANCHOR * MEASURED);
+		expect(parked, 'the scroll rests on measured heights').toBe(ANCHOR * MEASURED);
 
 		// The mode switch: the cache goes, every height table keeps the heights it took from it,
 		// and a block whose box did not move reports no resize to put them back.

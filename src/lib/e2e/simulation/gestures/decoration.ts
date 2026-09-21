@@ -27,7 +27,7 @@ async function readIsland(ctx: SimContext, blockIndex: number): Promise<IslandSp
 		};
 	}, blockIndex);
 	if (!span || !Number.isInteger(span.start) || !Number.isInteger(span.end)) {
-		throw new Error(`[${ctx.label}] no decoration island in block ${blockIndex}`);
+		throw new Error(`[${ctx.label}] no decoration widget in block ${blockIndex}`);
 	}
 	return { ...span, kind: span.end > span.start ? 'replace' : 'widget' };
 }
@@ -53,7 +53,7 @@ export async function walkAcrossIsland(ctx: SimContext, blockIndex: number): Pro
 		await page.keyboard.press('ArrowRight');
 		await assertCursor(ctx, blockIndex, end, 'replace step-over lands past the hidden range');
 		if ((await page.locator(SELECTED).count()) !== 0) {
-			throw new Error(`[${ctx.label}] a step-over arrow selected the replace island`);
+			throw new Error(`[${ctx.label}] a step-over arrow selected the replace decoration`);
 		}
 		await page.keyboard.press('ArrowLeft');
 		await assertCursor(ctx, blockIndex, start, 'replace step-back lands at the leading edge');
@@ -64,11 +64,11 @@ export async function walkAcrossIsland(ctx: SimContext, blockIndex: number): Pro
 		const after = await cursorOffset(ctx, blockIndex);
 		if (after === null || after <= start) {
 			throw new Error(
-				`[${ctx.label}] widget island trapped the caret at offset ${after} (island offset ${start})`
+				`[${ctx.label}] widget decoration trapped the caret at offset ${after} (widget offset ${start})`
 			);
 		}
 		if ((await page.locator(SELECTED).count()) !== 0) {
-			throw new Error(`[${ctx.label}] arrowing across the widget island selected it`);
+			throw new Error(`[${ctx.label}] arrowing across the widget decoration selected it`);
 		}
 	}
 
@@ -92,7 +92,7 @@ export async function edgeDeleteReplaceIsland(
 	const { start, end, kind } = await readIsland(ctx, blockIndex);
 	if (kind !== 'replace') {
 		throw new Error(
-			`[${ctx.label}] edgeDeleteReplaceIsland needs a replace island in ${blockIndex}`
+			`[${ctx.label}] edgeDeleteReplaceIsland needs a replace decoration in ${blockIndex}`
 		);
 	}
 	const before = await editor.bridge.getSource();
@@ -102,12 +102,13 @@ export async function edgeDeleteReplaceIsland(
 	await page.keyboard.press(key);
 	await editor.waitForRenderFlush();
 	if ((await page.locator(SELECTED).count()) !== 1) {
-		throw new Error(`[${ctx.label}] first ${key} did not select the replace island whole`);
+		throw new Error(`[${ctx.label}] first ${key} did not select the replace decoration whole`);
 	}
 	if ((await editor.bridge.getSource()) !== before) {
 		throw new Error(
-			`[${ctx.label}] first ${key} changed the source — the hidden bytes must survive until the ` +
-				`second press.\nBEFORE: ${JSON.stringify(before)}`
+			`[${ctx.label}] first ${key} changed the source: the hidden bytes must survive until the ` +
+				`second press.
+BEFORE: ${JSON.stringify(before)}`
 		);
 	}
 
@@ -133,17 +134,20 @@ export async function backspaceThroughWidgetIsland(
 	const { start, kind } = await readIsland(ctx, blockIndex);
 	if (kind !== 'widget') {
 		throw new Error(
-			`[${ctx.label}] backspaceThroughWidgetIsland needs a widget island in ${blockIndex}`
+			`[${ctx.label}] backspaceThroughWidgetIsland needs a widget decoration in ${blockIndex}`
 		);
 	}
 	const before = await editor.bridge.getSource();
-	if (start === 0) throw new Error(`[${ctx.label}] widget island at offset 0 has no adjacent byte`);
+	if (start === 0)
+		throw new Error(`[${ctx.label}] widget decoration at offset 0 has no adjacent byte`);
 
 	await arrowRightToOffset(ctx, blockIndex, start);
 	await page.keyboard.press('Backspace');
 	await editor.bridge.waitForSourceWith((s, prev) => s !== prev, before);
 	if ((await islandCount(ctx, blockIndex)) !== 1) {
-		throw new Error(`[${ctx.label}] the widget island vanished after the transparent backspace`);
+		throw new Error(
+			`[${ctx.label}] the widget decoration vanished after the transparent backspace`
+		);
 	}
 
 	await editor.undo();
@@ -167,7 +171,7 @@ export async function typeAdjacentToIsland(ctx: SimContext, blockIndex: number):
 	await editor.bridge.waitForSourceWith((s, prev) => s !== prev, before);
 	if ((await islandCount(ctx, blockIndex)) !== islandsBefore) {
 		throw new Error(
-			`[${ctx.label}] an adjacent insert perturbed the island count in ${blockIndex}`
+			`[${ctx.label}] an adjacent insert perturbed the widget count in ${blockIndex}`
 		);
 	}
 

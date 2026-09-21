@@ -118,7 +118,7 @@ test.describe('mode flips — the scrollport stays where the reader left it', ()
 		await ep.scrollEditorTo(PARKED);
 		const parked = await scrollTop(page);
 		const pinned = { mounted: true, aboveViewport: true };
-		expect(await caretBlockPlacement(page), 'parked, caret block out of sight').toEqual(pinned);
+		expect(await caretBlockPlacement(page), 'held still, caret block out of sight').toEqual(pinned);
 
 		await flipTo(ep, page, 'live-toggle', 'live');
 		await expect.poll(() => focusOffset(ep), { timeout: 5000 }).toBeGreaterThanOrEqual(0);

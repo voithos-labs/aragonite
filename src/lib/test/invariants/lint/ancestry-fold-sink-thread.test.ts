@@ -127,7 +127,7 @@ describe('ancestry-rebuild fold-sink source-scan', () => {
 					declines: own.filter((c) => c.declines).length,
 					sinks: own.filter((c) => !c.declines).length
 				},
-				`${relPath} — ${stance.why}`
+				`${relPath}: ${stance.why}`
 			).toEqual({ declines: stance.declines, sinks: stance.sinks });
 		}
 	});

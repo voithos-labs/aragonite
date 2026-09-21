@@ -66,7 +66,7 @@ describe('G4.31 affinity-reaches-every-sticky-seam guard', () => {
 		expect(
 			offenders,
 			'a stickyColumn.reset() with no edgeAffinity.reset()/noteTyping() beside it leaks the ' +
-				'arrival side across the edit — pair it, or add the file to CLEAR_EXCEPTIONS with why'
+				'arrival side across the edit: pair it, or add the file to CLEAR_EXCEPTIONS with why'
 		).toEqual([]);
 	});
 
@@ -76,8 +76,8 @@ describe('G4.31 affinity-reaches-every-sticky-seam guard', () => {
 		);
 		expect(
 			offenders,
-			'a stickyColumn.noteKey() door with no edgeAffinity.note() lets a stale side survive ' +
-				'the arrival it classified — pair it, or add the file to CAPTURE_EXCEPTIONS with why'
+			'a stickyColumn.noteKey() entry point with no edgeAffinity.note() lets a stale side survive ' +
+				'the arrival it classified: pair it, or add the file to CAPTURE_EXCEPTIONS with why'
 		).toEqual([]);
 	});
 
@@ -102,7 +102,7 @@ describe('G4.31 affinity-reaches-every-sticky-seam guard', () => {
 			.map((f) => f.relPath);
 		expect(
 			composers,
-			'the marks clear at every affinity seam because ONE construction composes them there — ' +
+			'the marks clear at every affinity boundary because one construction composes them there: ' +
 				'a second composer means two lifetimes, none means the marks survive a caret move'
 		).toEqual(['src/lib/components/Editor.svelte']);
 	});
@@ -113,8 +113,8 @@ describe('G4.31 affinity-reaches-every-sticky-seam guard', () => {
 			.map((f) => `${f.relPath}: ${count(f.code, MARKS_CLEAR_CALL_RE)} pendingMarks.reset()`);
 		expect(
 			offenders,
-			'a pendingMarks.reset() call site is seam copy N+1 — the composition above already ' +
-				'clears at every affinity seam, so a hand-written clear can only fall out of parity'
+			'a pendingMarks.reset() call site is copy N+1 of that boundary: the composition above already ' +
+				'clears at every affinity boundary, so a hand-written clear can only fall out of parity'
 		).toEqual([]);
 	});
 
@@ -125,7 +125,7 @@ describe('G4.31 affinity-reaches-every-sticky-seam guard', () => {
 			.sort();
 		expect(
 			spenders,
-			'a set spent outside a byte-writing seat is a promise dropped with nothing written'
+			'a set spent outside a byte-writing path is a promise dropped with nothing written'
 		).toEqual([
 			'src/lib/components/blocks/table/TableCellBlock.svelte',
 			'src/lib/components/blocks/text/TextEditableBlock.svelte',

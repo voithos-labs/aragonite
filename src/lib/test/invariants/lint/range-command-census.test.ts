@@ -61,7 +61,7 @@ describe('G4.50 every block command answers the cross-block range question', () 
 		expect(
 			BLOCK_COMMAND_IDS.filter((id) => classifications(id) === 0),
 			'a new block command joins RANGE_DECLINED_COMMAND_IDS (one block’s own selection, ' +
-				'no cross-block reading), CROSS_BLOCK_RANGE_COMMAND_IDS (the same shape with an arm ' +
+				'no cross-block reading), CROSS_BLOCK_RANGE_COMMAND_IDS (the same shape with a branch ' +
 				'behind it), or the RANGE_SAFE table above, with the reason'
 		).toEqual([]);
 		expect(BLOCK_COMMAND_IDS.filter((id) => classifications(id) > 1)).toEqual([]);

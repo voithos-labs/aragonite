@@ -243,7 +243,7 @@ describe('every bare raw write is sanctioned', () => {
 			const found = writes.filter((w) => w.relPath === relPath).length;
 			expect(
 				found,
-				`${relPath} holds ${found} bare raw writes, sanctioned for ${entry.count} — ${entry.why}`
+				`${relPath} holds ${found} bare raw writes, allowed for ${entry.count}: ${entry.why}`
 			).toBe(entry.count);
 		}
 	});

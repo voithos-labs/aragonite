@@ -174,7 +174,7 @@ describe('pasted gate output ↔ what the gate prints', () => {
 			.map((entry) => `${entry.rel}:${entry.line}  ${entry.text}`);
 		expect(
 			stale,
-			`these pastes no longer match what the script prints — re-run it and copy the line, eliding a count with \`…\`: ${stale.join('\n  ')}`
+			`these pastes no longer match what the script prints: re-run it and copy the line, eliding a count with \`…\`: ${stale.join('\n  ')}`
 		).toEqual([]);
 	});
 });

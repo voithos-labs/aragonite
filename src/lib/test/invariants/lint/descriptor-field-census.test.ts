@@ -42,7 +42,7 @@ describe('G4.53 descriptor field reference ↔ BlockKindDescriptor', () => {
 		const undocumented = DESCRIPTOR_FIELDS.filter((field) => !documented.includes(field));
 		expect(
 			undocumented,
-			`these descriptor fields have no row in ${SECTION_HEADING} — add one carrying its tier, what omitting it means, and what it declares: ${undocumented.join(', ')}`
+			`these descriptor fields have no row in ${SECTION_HEADING}: add one carrying its level, what omitting it means, and what it declares: ${undocumented.join(', ')}`
 		).toEqual([]);
 	});
 

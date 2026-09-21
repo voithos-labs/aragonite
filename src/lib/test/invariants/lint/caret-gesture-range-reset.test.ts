@@ -207,8 +207,8 @@ describe('G2.12 caret placement ends a live cross-block range', () => {
 			.sort();
 		expect(
 			callers,
-			'a file reached through the park door: it must be a selection-extend path (parking ' +
-				'while the range is still growing) or a caret-door implementation. Anything else ' +
+			'a file reached through `parkCaret`: it must be a selection-extend path (placing the caret ' +
+				'while the range is still growing) or a caret-writer implementation. Anything else ' +
 				'wants `focus`, which ends the range.'
 		).toEqual(Object.keys(PARK_DOOR_CALLERS).sort());
 	});
@@ -216,7 +216,7 @@ describe('G2.12 caret placement ends a live cross-block range', () => {
 	it('every declared park caller still calls the door (no dead entry)', () => {
 		for (const [relPath, why] of Object.entries(PARK_DOOR_CALLERS)) {
 			const file = byPath.get(relPath);
-			expect(file, `park caller not found: ${relPath} (${why})`).toBeDefined();
+			expect(file, `\`parkCaret\` caller not found: ${relPath} (${why})`).toBeDefined();
 			expect(PARK_CALL_RE.test(file!.code), `stale entry: ${relPath}`).toBe(true);
 		}
 	});
@@ -237,16 +237,16 @@ describe('G2.12 caret placement ends a live cross-block range', () => {
 			.sort();
 		expect(
 			offenders,
-			'a container calls the seam factory but publishes no `containerApi` instance export. ' +
+			'a container calls the shared caret factory but publishes no `containerApi` instance export. ' +
 				'BlockHost resolves a container ref through that one export, so without it the block ' +
-				'publishes a surface with no verbs — no focus, and no park door for an extend.'
+				'publishes a surface with no verbs: no focus, and no `parkCaret` for an extend.'
 		).toEqual([]);
 	});
 
 	it('every declared container-seam module still mints the surface (no dead entry)', () => {
 		for (const relPath of CONTAINER_SEAM_MODULES) {
 			const file = byPath.get(relPath);
-			expect(file, `container-seam module not found: ${relPath}`).toBeDefined();
+			expect(file, `container caret module not found: ${relPath}`).toBeDefined();
 			expect(CONTAINER_SEAM_RE.test(file!.code), `stale entry: ${relPath}`).toBe(true);
 		}
 	});
@@ -258,9 +258,9 @@ describe('G2.12 caret placement ends a live cross-block range', () => {
 			.sort();
 		expect(
 			offenders,
-			'a block forwards a shared caret seam’s `focus` without its `parkCaret`. parkCaret is ' +
-				'optional on BlockComponent, so this type-checks — and every extend that lands on ' +
-				'the block silently fails to park.'
+			'a block forwards a shared caret helper’s `focus` without its `parkCaret`. parkCaret is ' +
+				'optional on BlockComponent, so this type-checks, and every extend that lands on ' +
+				'the block silently fails to place the caret.'
 		).toEqual([]);
 	});
 

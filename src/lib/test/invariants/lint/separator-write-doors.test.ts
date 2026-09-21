@@ -189,7 +189,7 @@ describe('every separator door retires the child spans it invalidates', () => {
 		);
 		expect(
 			forgot,
-			'a settle door stopped retiring the child spans it invalidates, or retires past a guard'
+			'a settle entry point stopped retiring the child spans it invalidates, or retires past a guard'
 		).toEqual([]);
 		expect(DOORS.filter((name) => !bodies.has(name))).toEqual([]);
 	});
@@ -230,7 +230,7 @@ describe('every separator door retires the child spans it invalidates', () => {
 			.map((fn) => fn.name);
 		expect(
 			missing,
-			'a settle door writes separator bytes without retiring the spans that describe them'
+			'a settle entry point writes separator bytes without retiring the spans that describe them'
 		).toEqual([]);
 	});
 

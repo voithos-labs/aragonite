@@ -107,7 +107,7 @@ describe('cross-node join door census', () => {
 			.map((f) => f.relPath);
 		expect(
 			concatenating.sort(),
-			'a leaf’s bytes are being built from more than one source. A DESTRUCTIVE join crosses ' +
+			'a leaf’s bytes are being built from more than one source. A destructive join crosses ' +
 				'`cleanJoinedRaw`, or live surfaces the delimiter runs the join orphaned; anything else ' +
 				'joins NON_JOIN_CONCATENATIONS with the reason it is not one'
 		).toEqual(Object.keys(NON_JOIN_CONCATENATIONS).sort());

@@ -23,7 +23,7 @@ async function placeCaretAfterIsland(page: Page): Promise<void> {
 	await page.evaluate(() => {
 		const island = document.querySelector('[data-decoration-island]');
 		const block = island?.closest('[contenteditable]') as HTMLElement | null;
-		if (!block || !island) throw new Error('ghost island not rendered');
+		if (!block || !island) throw new Error('ghost widget not rendered');
 		block.focus();
 		const range = document.createRange();
 		range.setStartAfter(island);

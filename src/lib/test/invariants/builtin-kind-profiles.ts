@@ -16,7 +16,7 @@ import type { KindCellContext, KindConformanceProfile } from '$lib/testing';
 function parsesToTable(payload: string, columns: number, rows: number, label: string): void {
 	const doc = parse(payload);
 	if (doc.children.length !== 1 || doc.children[0].kind !== 'table') {
-		throw new Error(`${label}: payload does not parse to a single table — got ${payload}`);
+		throw new Error(`${label}: payload does not parse to a single table; got ${payload}`);
 	}
 	const table = doc.children[0];
 	const colCount = metadataOf(table, 'table').columnCount;
@@ -56,7 +56,7 @@ function checkTableRectCopy(ctx: KindCellContext): void {
 	);
 	parsesToTable(oneColumn, 1, rows, 'single-column sub-rectangle copy');
 	if (oneColumn === table.raw)
-		throw new Error('single-column copy equals the source raw — no synthesis');
+		throw new Error('single-column copy equals the source raw: no synthesis');
 }
 
 export const BUILTIN_KIND_PROFILES: Partial<Record<BlockKind, KindConformanceProfile>> = {

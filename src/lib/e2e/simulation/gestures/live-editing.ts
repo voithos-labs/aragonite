@@ -95,8 +95,10 @@ export async function liveEdgeBackspace(
 		const after = await ctx.editor.bridge.getSource();
 		if (!after.includes(shortened) || after.includes(content)) {
 			throw new Error(
-				`[${ctx.label}] live edge Backspace did not take the last CONTENT character.\n` +
-					`EXPECTED ${JSON.stringify(content)} to become ${JSON.stringify(shortened)}\n` +
+				`[${ctx.label}] live edge Backspace did not take the last content character.
+` +
+					`EXPECTED ${JSON.stringify(content)} to become ${JSON.stringify(shortened)}
+` +
 					`ACTUAL: ${JSON.stringify(after)}`
 			);
 		}
@@ -275,7 +277,7 @@ export async function liveListHomeSeat(ctx: SimContext, itemText: string): Promi
 		await editor.waitForRenderFlush();
 		const at = await caretOffset(ctx);
 		if (at !== 0) {
-			throw new Error(`[${ctx.label}] Home in the list item seated at ${at}, not the start`);
+			throw new Error(`[${ctx.label}] Home in the list item placed at ${at}, not the start`);
 		}
 
 		await editor.typeSlowly('Q');
@@ -407,8 +409,8 @@ async function settleMint(ctx: SimContext, kind: string, what: string): Promise<
 	const minted = at < 0 ? null : await editor.bridge.getBlockKind(at);
 	if (minted !== kind) {
 		throw new Error(
-			`[${ctx.label}] ${what} minted ${minted}, not ${kind}.\n` +
-				`SOURCE: ${JSON.stringify(await editor.bridge.getSource())}`
+			`[${ctx.label}] ${what} created ${minted}, not ${kind}.
+` + `SOURCE: ${JSON.stringify(await editor.bridge.getSource())}`
 		);
 	}
 	tracker.resync(await editor.bridge.getSource());
@@ -462,7 +464,7 @@ async function seatCaret(ctx: SimContext, blockIndex: number, offset: number): P
 		await ctx.editor.waitForRenderFlush();
 	}
 	throw new Error(
-		`[${ctx.label}] could not seat the caret at ${offset} in block ${blockIndex} ` +
+		`[${ctx.label}] could not put the caret at ${offset} in block ${blockIndex} ` +
 			`(stopped at ${await caretOffset(ctx)})`
 	);
 }

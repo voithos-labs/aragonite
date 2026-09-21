@@ -117,8 +117,7 @@ async function assertMounted(page: Page, path: number[], what: string): Promise<
 		(attr) => !!document.querySelector(`[data-block-path='${attr}']`),
 		pathAttr
 	);
-	if (!mounted)
-		throw new Error(`${what} ${pathAttr} is not mounted — windowing left it off-window`);
+	if (!mounted) throw new Error(`${what} ${pathAttr} is not mounted, windowing left it off-window`);
 }
 
 async function block0Length(page: Page): Promise<number> {
@@ -168,7 +167,9 @@ export async function measureTypingIntoDocument(
 	if (requireWidget !== undefined) {
 		mountedWidgets = await page.locator(requireWidget).count();
 		if (mountedWidgets === 0)
-			throw new Error(`no ${requireWidget} mounted — the rung is not live on this route`);
+			throw new Error(
+				`no ${requireWidget} mounted: the inline syntax handler is not live on this route`
+			);
 	}
 
 	await editor.focusBlockEnd(0);

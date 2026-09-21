@@ -84,14 +84,14 @@ describe('theme-token manifest ↔ editor-theme.css', () => {
 		const repeatsDarkValue = declaredValue(base, token) === declaredValue(light, token);
 		expect(
 			repeatsDarkValue ? token in MODE_BLIND_BY_DESIGN : true,
-			`${token} repeats its dark value in the light block — give it a light value or record it in MODE_BLIND_BY_DESIGN`
+			`${token} repeats its dark value in the light block: give it a light value or record it in MODE_BLIND_BY_DESIGN`
 		).toBe(true);
 	});
 
 	it('every MODE_BLIND_BY_DESIGN entry is a live one (no stale exemption)', () => {
 		for (const token of Object.keys(MODE_BLIND_BY_DESIGN)) {
 			expect(THEMED_TOKENS, `${token} is not a themed token`).toContain(token);
-			expect(declaredValue(base, token), `${token} now differs per mode — drop its exemption`).toBe(
+			expect(declaredValue(base, token), `${token} now differs per mode: drop its exemption`).toBe(
 				declaredValue(light, token)
 			);
 		}

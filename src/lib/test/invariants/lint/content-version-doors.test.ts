@@ -53,14 +53,14 @@ describe('content-version door census', () => {
 	it('exactly the declared files announce a byte write', () => {
 		expect(
 			matching(sources, ANNOUNCES),
-			'an announcement was added or dropped: name the door it owns, or the memos over the document go stale'
+			'an announcement was added or dropped: name the entry point it owns, or the memos over the document go stale'
 		).toEqual(Object.keys(ANNOUNCERS).sort());
 	});
 
 	it('exactly the declared files unshare a spine off the editor’s own document', () => {
 		expect(
 			matching(sources, UNSHARES_ROOT),
-			'a new out-of-ceremony write door: announce the bytes it moves, or route it through the commit ceremony'
+			'a new write entry point outside the commit sequence: announce the bytes it moves, or route it through that sequence'
 		).toEqual(Object.keys(ROOT_UNSHARERS).sort());
 	});
 

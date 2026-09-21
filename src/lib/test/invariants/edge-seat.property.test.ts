@@ -158,7 +158,7 @@ describe('the typing seat over generated inline fixtures', () => {
 					}
 					throw new Error(
 						`${JSON.stringify(display)} @${caret} (${affinity}) → ${JSON.stringify(after)}: ` +
-							`${before} delimiters on screen became ${now}, and a seat at ${rescue} keeps them hidden`
+							`${before} delimiters on screen became ${now}, and a caret at ${rescue} keeps them hidden`
 					);
 				}
 			),

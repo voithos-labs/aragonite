@@ -119,7 +119,7 @@ describe('live-mode join seams over random range deletes', () => {
 				const live = deleteRange(source, cut, 'live');
 				if (live === null) return;
 				if (live.shape !== null) {
-					throw new Error(`${JSON.stringify(source)}: reload shape — ${live.shape}`);
+					throw new Error(`${JSON.stringify(source)}: reload shape; ${live.shape}`);
 				}
 				if (serialize(parse(live.bytes)) !== live.bytes) {
 					throw new Error(
@@ -148,7 +148,7 @@ describe('live-mode join seams over random range deletes', () => {
 				// leftovers of its own. What live mode answers for is what exceeds both.
 				if (live.residue > Math.max(unpaintedResidue(parse(source)), literal.residue)) {
 					throw new Error(
-						`${JSON.stringify(source)}: live minted residue in ${JSON.stringify(live.bytes)} ` +
+						`${JSON.stringify(source)}: live mode left residue in ${JSON.stringify(live.bytes)} ` +
 							`against ${JSON.stringify(literal.bytes)}`
 					);
 				}

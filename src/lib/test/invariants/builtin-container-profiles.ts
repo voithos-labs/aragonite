@@ -97,8 +97,8 @@ export const CONTAINER_PROFILES: Partial<Record<BlockKind, ContainerConformanceP
 		ancestry: {
 			mode: 'boundary',
 			reason:
-				'grid containerContract: rebuildTableRaw re-derives the ENTIRE table subtree (every row) ' +
-				'in one rebuild, so the innermost-first ordering of a chained ancestry rebuild is moot — ' +
+				'grid containerContract: rebuildTableRaw re-derives the entire table subtree (every row) ' +
+				'in one rebuild, so the innermost-first ordering of a chained ancestry rebuild is moot; ' +
 				'a single rebuild of the table already reflects any descendant cell edit.'
 		},
 		// commitColumnEdit spans the table scope + every row scope.
@@ -121,7 +121,7 @@ export const CONTAINER_PROFILES: Partial<Record<BlockKind, ContainerConformanceP
 		localIndex: {
 			mode: 'boundary',
 			reason:
-				'tableRow has no standalone author action bundle — its cells are leaves and all row/column ' +
+				'tableRow has no standalone author action bundle: its cells are leaves and all row/column ' +
 				'ops run through the table scope (createTableMutationsContext). Row local addressing is ' +
 				'exercised via the `table` profile.'
 		},

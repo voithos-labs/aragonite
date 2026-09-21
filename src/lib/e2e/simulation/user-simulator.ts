@@ -52,9 +52,9 @@ export async function runSession(page: Page, editor: EditorPage, opts: SessionOp
 	const baseline = await editor.bridge.getSource();
 	if (baseline !== EMPTY_BASELINE) {
 		throw new Error(
-			`CALIBRATION FAILURE: empty baseline is ${JSON.stringify(baseline)}, ` +
+			`Calibration failure: empty baseline is ${JSON.stringify(baseline)}, ` +
 				`expected ${JSON.stringify(EMPTY_BASELINE)}. The tracker insert rule and the ` +
-				`baseline assumption both depend on this — stop and recalibrate.`
+				`baseline assumption both depend on this, so stop and recalibrate.`
 		);
 	}
 
@@ -345,7 +345,7 @@ async function runFullSessionUndoUnwind(ctx: SimContext, initialSource: string):
 	const depth = await undoStackDepth(ctx);
 	if (depth === 0) {
 		throw new Error(
-			`[${ctx.label}] undo-unwind: the build produced an empty undo stack — the ` +
+			`[${ctx.label}] undo-unwind: the build produced an empty undo stack; the ` +
 				`authoring gestures registered no undo entries.`
 		);
 	}

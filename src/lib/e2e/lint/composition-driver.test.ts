@@ -59,7 +59,7 @@ describe('G4.49 e2e composition rides the shared IME driver', () => {
 	it('no spec constructs its own composition events', () => {
 		expect(
 			handFiredIn(files.filter((file) => file.relPath !== DRIVER)),
-			'drive the composition through attachIme (simulation/ime.ts) — a synthetic event skips the browser composition window'
+			'drive the composition through attachIme (simulation/ime.ts): a synthetic event skips the browser composition window'
 		).toEqual([]);
 	});
 
@@ -72,7 +72,9 @@ describe('G4.49 e2e composition rides the shared IME driver', () => {
 	it('the hand-fired shape lives in the driver and nowhere else', () => {
 		// Exact both ways: widening the exemption grows this list, dropping the WebKit branch
 		// empties it.
-		expect(handFiredIn(files), `the hand-fired arm belongs to ${DRIVER} alone`).toEqual([DRIVER]);
+		expect(handFiredIn(files), `the hand-fired branch belongs to ${DRIVER} alone`).toEqual([
+			DRIVER
+		]);
 	});
 
 	// ── Matcher self-test (non-vacuity) ──────────────────────────────────────

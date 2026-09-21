@@ -95,7 +95,7 @@ describe('G4.10 plugin package/pack parity', () => {
 		const missing = missingVerifyPack(names, distPaths);
 		expect(
 			missing,
-			`plugins absent (or half-listed) in the exports-derived REQUIRED manifest: ${missing.join(', ')}`
+			`plugins absent (or half-listed) in the exports-derived required manifest: ${missing.join(', ')}`
 		).toEqual([]);
 	});
 

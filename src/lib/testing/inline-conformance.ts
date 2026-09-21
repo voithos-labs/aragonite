@@ -433,12 +433,12 @@ function checkWidgetAtomicity(profile: InlineConformanceProfile, rung: InlineRun
 		return {
 			status: 'boundary',
 			detail:
-				`${RECOGNITION_HALF} executed; the island wrapper of a \`component\` kind is minted by ` +
+				`${RECOGNITION_HALF} executed; the widget wrapper of a \`component\` kind is created by ` +
 				`the render layer, not by the plugin, so it is not the plugin’s to get wrong`
 		};
 	}
 	if (typeof document === 'undefined') {
-		return { status: 'boundary', detail: `${RECOGNITION_HALF} executed — ${NO_DOM}` };
+		return { status: 'boundary', detail: `${RECOGNITION_HALF} executed: ${NO_DOM}` };
 	}
 
 	for (const fixture of profile.fixtures) {

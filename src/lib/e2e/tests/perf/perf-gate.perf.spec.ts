@@ -60,7 +60,7 @@ const baseline: { e2e: Record<string, E2eBaselineRow> } = JSON.parse(
 function gateFor(key: string): { baselineMs: number; ceilingMs: number } {
 	const row = baseline.e2e[key];
 	if (!row) {
-		throw new Error(`${key}: no row in baseline.json — bless one on the calibration machine`);
+		throw new Error(`${key}: no row in baseline.json; bless one on the calibration machine`);
 	}
 	return {
 		baselineMs: row.keystrokeP50Ms,

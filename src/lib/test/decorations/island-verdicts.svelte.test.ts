@@ -24,7 +24,7 @@ describe('non-prose island dev-warn', () => {
 		const fires = takeDevWarns();
 		expect(fires).toHaveLength(1);
 		expect(fires[0].message).toContain(
-			"source 'w' places a widget island on a non-prose thematicBreak block"
+			"source 'w' places a widget decoration on a non-prose thematicBreak block"
 		);
 		expect(fires[0].details).toEqual({ path: [1] });
 	});
@@ -33,7 +33,9 @@ describe('non-prose island dev-warn', () => {
 		makeMixedEngine().addSource({ name: 'r', provide: () => [replace([2], 0, 1)] });
 		const fires = takeDevWarns();
 		expect(fires).toHaveLength(1);
-		expect(fires[0].message).toContain('places a replace island on a non-prose fencedCode block');
+		expect(fires[0].message).toContain(
+			'places a replace decoration on a non-prose fencedCode block'
+		);
 		expect(fires[0].details).toEqual({ path: [2] });
 	});
 
@@ -84,7 +86,7 @@ describe('out-of-range island dev-warn', () => {
 		makeSized().addSource({ name: 'r', provide: () => [replace([0], 1, 9)] });
 		const fires = takeDevWarns();
 		expect(fires).toHaveLength(1);
-		expect(fires[0].message).toContain("source 'r' places a replace island at 1..9");
+		expect(fires[0].message).toContain("source 'r' places a replace decoration at 1..9");
 		expect(fires[0].message).toContain("block's content ends at 3");
 		expect(fires[0].details).toEqual({ path: [0] });
 	});

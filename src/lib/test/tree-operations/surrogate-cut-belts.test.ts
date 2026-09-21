@@ -65,7 +65,7 @@ describe('the belt set', () => {
 			.map((file) => file.relPath);
 		expect(
 			namers.sort(),
-			'a module started (or stopped) snapping a caret offset: name the cut it owes the belt to'
+			'a module started (or stopped) snapping a caret offset: name the cut the belt is for'
 		).toEqual(Object.keys(BELT_MEMBERS).sort());
 	});
 });

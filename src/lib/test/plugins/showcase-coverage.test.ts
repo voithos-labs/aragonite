@@ -116,7 +116,8 @@ describe('the showcase document demonstrates the surface it ships with', () => {
 		);
 		expect(
 			missing,
-			`kinds the tour installs but never shows — demonstrate them in showcase-content.md, or list them in NOT_YET_DEMONSTRATED with a reason:\n  ${missing.join('\n  ')}`
+			`kinds the tour installs but never shows: demonstrate them in showcase-content.md, or list them in NOT_YET_DEMONSTRATED with a reason:
+  ${missing.join('\n  ')}`
 		).toEqual([]);
 	});
 
@@ -124,7 +125,8 @@ describe('the showcase document demonstrates the surface it ships with', () => {
 		const closed = Object.keys(NOT_YET_DEMONSTRATED).filter((kind) => demonstrated.has(kind));
 		expect(
 			closed,
-			`NOT_YET_DEMONSTRATED entries the document now demonstrates (drop them — the list only shrinks):\n  ${closed.join('\n  ')}`
+			`NOT_YET_DEMONSTRATED entries the document now demonstrates (drop them: the list only shrinks):
+  ${closed.join('\n  ')}`
 		).toEqual([]);
 	});
 

@@ -98,7 +98,7 @@ describe('G4.x no plugin kind name in a core dispatch layer', () => {
 		const found = violations(dispatchSources, forbidden);
 		expect(
 			found,
-			`plugin kind name(s) in a core dispatch layer — route the dispatch through a descriptor capability: ${found
+			`plugin kind name(s) in a core dispatch layer: route the dispatch through a descriptor capability: ${found
 				.map((v) => `${v.file} → ${v.kinds.join(', ')}`)
 				.join('; ')}`
 		).toEqual([]);

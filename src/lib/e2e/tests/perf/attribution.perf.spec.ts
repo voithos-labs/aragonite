@@ -125,7 +125,7 @@ async function loadAndFocusBlock0(page: Page, editor: EditorPage, src: string): 
 	const mounted = await page.evaluate(
 		() => document.querySelector(`[data-block-path='[0]']`) !== null
 	);
-	if (!mounted) throw new Error('perf target block 0 is off-window — windowing unmounted it');
+	if (!mounted) throw new Error('perf target block 0 is off-window, windowing unmounted it');
 }
 
 // ── Axis 1: fan-out ─────────────────────────────────────────────────────────
@@ -482,7 +482,7 @@ async function assertLeafMounted(page: Page, leafPath: number[]): Promise<void> 
 		(a) => document.querySelector(`[data-block-path='${a}']`) !== null,
 		attr
 	);
-	if (!mounted) throw new Error(`interior target ${attr} is off-window — windowing unmounted it`);
+	if (!mounted) throw new Error(`interior target ${attr} is off-window, windowing unmounted it`);
 }
 
 /** One run inside a container: focus the child, let the first edit's re-render pass, then

@@ -247,8 +247,8 @@ export async function mintAtGap(
 		await ctx.editor.bridge.waitForGapCaret({ parentPath: [], index: boundaryIndex });
 	} catch {
 		throw new Error(
-			`[${ctx.label}] mintAtGap: ${options?.arrival ?? 'backspace'} at block ${boundaryIndex} ` +
-				`parked no gap caret there, got ` +
+			`[${ctx.label}] mintAtGap: ${options?.arrival ?? 'backspace'} at block ${boundaryIndex} put` +
+				` no gap caret there, got ` +
 				`${JSON.stringify(await ctx.editor.bridge.getGapCaret())}; both neighbours must ` +
 				`declare the facing edge, and the arrival must fit the block's surface.`
 		);

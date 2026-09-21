@@ -179,7 +179,7 @@ describe('G1.33 fires from the focus seam', () => {
 			markerLinePlugin('marker-source-reveal', REVEAL_MARKER, MarkerSourceRevealBlock),
 			'live'
 		);
-		expect(takeDevWarns(), 'the folded rendered view seats no caret').toEqual([]);
+		expect(takeDevWarns(), 'the folded rendered view holds no caret').toEqual([]);
 
 		blockComponentAt(editor, [0]).parkCaret?.(0);
 		await editor.settle();

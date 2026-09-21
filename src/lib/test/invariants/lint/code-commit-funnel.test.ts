@@ -17,7 +17,7 @@ const CALL = 'blockEdit.updateBlockContent(';
 /** The `commitDisplay` body, by brace matching from its declaration. */
 function commitDisplayBody(source: string): string {
 	const start = source.indexOf('function commitDisplay(');
-	expect(start, 'commitDisplay is gone — the funnel it names is the rule').toBeGreaterThan(-1);
+	expect(start, 'commitDisplay is gone: the shared path it names is the rule').toBeGreaterThan(-1);
 	const open = source.indexOf('{', start);
 	let depth = 0;
 	for (let i = open; i < source.length; i++) {
@@ -34,7 +34,7 @@ describe('G4.24 code-surface commit funnel', () => {
 		const calls = source.split(CALL).length - 1;
 		expect(
 			calls,
-			'every display commit goes through commitDisplay, which is where the fence write seam runs'
+			'every display commit goes through commitDisplay, which is where the fence bytes are written'
 		).toBe(1);
 	});
 

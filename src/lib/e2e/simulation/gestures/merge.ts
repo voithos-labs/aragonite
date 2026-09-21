@@ -19,7 +19,8 @@ export async function mergeBackspaceAtStart(ctx: SimContext, targetPath: number[
 		.catch(() => {
 			throw new Error(
 				`[${ctx.label}] merge Backspace at start of ${JSON.stringify(targetPath)} left the ` +
-					`source unchanged — no predecessor to merge into, or the key fell through.\n` +
+					`source unchanged: no predecessor to merge into, or the key fell through.
+` +
 					`SOURCE: ${JSON.stringify(before)}`
 			);
 		});

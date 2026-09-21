@@ -54,7 +54,7 @@ describe('G4.29 hardcoded-chord manifest ↔ library keydown sites', () => {
 		const unnamed = modifierReaders.map(relToLib).filter((path) => !manifested.has(path));
 		expect(
 			unnamed,
-			`these files read a KeyboardEvent modifier flag but are absent from HARDCODED_CHORD_SITES — add an entry naming the chords each claims (or none, with the reason): ${unnamed.join(', ')}`
+			`these files read a KeyboardEvent modifier flag but are absent from HARDCODED_CHORD_SITES: add an entry naming the chords each claims (or none, with the reason): ${unnamed.join(', ')}`
 		).toEqual([]);
 	});
 
@@ -69,7 +69,7 @@ describe('G4.29 hardcoded-chord manifest ↔ library keydown sites', () => {
 		expect(file, `${site.file} does not exist`).toBeDefined();
 		expect(
 			harvestKeys(file!.code),
-			`${site.file} compares a different key set than the manifest records — re-derive its chords, then update \`keys\``
+			`${site.file} compares a different key set than the manifest records: re-derive its chords, then update \`keys\``
 		).toEqual([...site.keys].sort());
 	});
 

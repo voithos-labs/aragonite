@@ -105,7 +105,7 @@ describe('G2.11 scanner total coverage + construct tiling + kind vocabulary', ()
 		// Without this a failed setup leaves the bare grammar running and the case passes
 		// for the wrong reason.
 		for (const kind of [FOOTNOTE_REF_KIND, EMOJI_KIND, MATH_INLINE]) {
-			expect(isInlineKindDeclared(kind), `rung not installed: ${kind}`).toBe(true);
+			expect(isInlineKindDeclared(kind), `inline syntax handler not installed: ${kind}`).toBe(true);
 		}
 
 		fc.assert(

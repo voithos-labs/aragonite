@@ -39,17 +39,18 @@ function kindsWhoseArmReaches(helper: string, excludeHelper?: string): Set<strin
 	const reaching = [...functions]
 		.filter(([name, body]) => name !== excludeHelper && body.includes(token))
 		.map(([name]) => name);
-	expect(
-		reaching.length,
-		`no render helper calls ${helper} — the scan has drifted`
-	).toBeGreaterThan(0);
+	expect(reaching.length, `no render helper calls ${helper}: the scan has drifted`).toBeGreaterThan(
+		0
+	);
 
 	const dispatch = functions.get('renderNode');
 	if (!dispatch) throw new Error('stamp-revealable-parity: renderNode not found');
 	const arms = [
 		...dispatch.matchAll(/case\s+'([A-Za-z]+)'\s*:([\s\S]*?)(?=\n\t\tcase\s+'|\n\t\tdefault:)/g)
 	];
-	expect(arms.length, 'no renderNode case arms parsed — the scan has drifted').toBeGreaterThan(0);
+	expect(arms.length, 'no renderNode case branches parsed: the scan has drifted').toBeGreaterThan(
+		0
+	);
 
 	const kinds = new Set<string>();
 	for (const [, kind, body] of arms) {
@@ -104,8 +105,8 @@ describe('G4.35 stamp↔revealable parity', () => {
 	it('unstamped marker kinds are not revealable', () => {
 		const stamped = stampedKinds();
 		for (const kind of ['escape', 'hardLineBreak', 'autolink']) {
-			expect(stamped.has(kind), `${kind} unexpectedly stamps`).toBe(false);
-			expect(revealableKinds().has(kind), `${kind} is revealable without a stamp`).toBe(false);
+			expect(stamped.has(kind), `${kind} unexpectedly marks`).toBe(false);
+			expect(revealableKinds().has(kind), `${kind} is revealable without a mark`).toBe(false);
 		}
 	});
 
@@ -115,8 +116,9 @@ describe('G4.35 stamp↔revealable parity', () => {
 		const unrowed = [...markerKinds()].filter((kind) => !rowedKinds().has(kind)).sort();
 		expect(
 			unrowed,
-			`marker spans with no policy row — the typing seat, the split and the join all read the ` +
-				`table, so an unrowed kind is invisible to every one of them:\n  ${unrowed.join('\n  ')}`
+			`marker spans with no policy row: where typing lands, the split and the join all read the ` +
+				`table, so an unrowed kind is invisible to every one of them:
+  ${unrowed.join('\n  ')}`
 		).toEqual([]);
 	});
 

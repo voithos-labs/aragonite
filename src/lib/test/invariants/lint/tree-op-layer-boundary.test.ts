@@ -47,7 +47,7 @@ describe('tree-operations imports no layer above it', () => {
 
 		expect(
 			offenders,
-			'a pure CST mutation may not reach up a layer — declare what it needs on its own deps interface (paste-deps.ts) and let editor-actions supply it'
+			'a pure CST mutation may not reach up a layer: declare what it needs on its own deps interface (paste-deps.ts) and let editor-actions supply it'
 		).toEqual([]);
 	});
 

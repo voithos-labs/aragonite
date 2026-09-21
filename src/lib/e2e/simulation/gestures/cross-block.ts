@@ -84,8 +84,9 @@ async function destroyThenSweep(
 		.waitForSourceWith((source, prior) => source !== prior, before)
 		.catch(() => {
 			throw new Error(
-				`[${ctx.label}] destroy (${how}) left the source unchanged — the selection ` +
-					`never engaged or the key fell through.\nSOURCE: ${JSON.stringify(before)}`
+				`[${ctx.label}] destroy (${how}) left the source unchanged: the selection ` +
+					`never engaged or the key fell through.
+SOURCE: ${JSON.stringify(before)}`
 			);
 		});
 	await assertStructuralIntegrity(ctx);

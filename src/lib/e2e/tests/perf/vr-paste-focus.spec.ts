@@ -53,7 +53,7 @@ test.describe('VR-12: structural paste focus under container windowing', () => {
 		// mounted and this test could not see VR-12 at all.
 		expect(
 			await spacerCount(page, '.list-block >'),
-			'container windowing is not active — the fixture no longer clears the watermark'
+			'container windowing is not active: the fixture no longer clears the watermark'
 		).toBeGreaterThan(0);
 
 		await editor.seedClipboard(CLIPBOARD);
@@ -68,7 +68,7 @@ test.describe('VR-12: structural paste focus under container windowing', () => {
 		// on the bytes would type into whatever still had focus.
 		await expect
 			.poll(() => cursorOffsetAt(page, [0, LANDING_ITEM, 0]), {
-				message: 'the caret never reached the last pasted item — VR-12'
+				message: 'the caret never reached the last pasted item (VR-12)'
 			})
 			.not.toBeNull();
 

@@ -216,14 +216,14 @@ describe('inline-construct policy arm census', () => {
 	it('every gesture arm naming a construct kind is declared with its reason and fate', () => {
 		expect(
 			paths(gestureSources.filter(namesConstructKind)),
-			'a gesture arm started naming a construct kind: give the question a row, or declare the arm in HAND_WRITTEN_ARMS with why it stays'
+			'a gesture branch started naming a construct kind: give the question a row, or declare the branch in HAND_WRITTEN_ARMS with why it stays'
 		).toEqual(unique(kindLiteralArms.map((arm) => arm.path)));
 	});
 
 	it('no hand-written arm is an undecided backlog entry', () => {
 		expect(
 			backlog,
-			'a hand-written arm needs a row, a decided `outside`, or a `deferred` naming its blocker'
+			'a hand-written branch needs a row, a decided `outside`, or a `deferred` naming its blocker'
 		).toEqual([]);
 	});
 

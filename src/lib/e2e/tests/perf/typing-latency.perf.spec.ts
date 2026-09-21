@@ -210,7 +210,7 @@ test.describe('typing latency — installed inline rungs', () => {
 					await plugins.loadContent(probeDocument.source);
 					expect(
 						await page.locator(probeDocument.widget).count(),
-						`the rung is not live on this route — ${probeDocument.widget} never mounted`
+						`the inline syntax handler is not live on this route: ${probeDocument.widget} never mounted`
 					).toBeGreaterThan(0);
 				}
 				const rung = await measureTypingIntoDocument(
@@ -238,7 +238,7 @@ test.describe('typing latency — installed inline rungs', () => {
 					rungFreeLoadMs: round(rungFree.loadMs),
 					rungFreeP50Ms: round(rungFree.p50Ms),
 					rungFreeP95Ms: round(rungFree.p95Ms),
-					note: `${DEV_CAVEAT}; report-only, and the plugins route installs eight base plugins, so the delta bounds the rung's cost from above`
+					note: `${DEV_CAVEAT}; report-only, and the plugins route installs eight base plugins, so the delta bounds the inline syntax handler's cost from above`
 				});
 				expect(rung.samples).toHaveLength(RUNG_KEYSTROKES);
 				expect(rungFree.samples).toHaveLength(RUNG_KEYSTROKES);

@@ -145,7 +145,7 @@ test.describe('search — bar stays pinned', () => {
 		const after = await barPlacement();
 		expect(
 			after!.pinnedToTop,
-			`bar.top=${after!.barTop} drifted from editor.top=${after!.edTop} — it scrolled away`
+			`bar.top=${after!.barTop} drifted from editor.top=${after!.edTop}: it scrolled away`
 		).toBe(true);
 	});
 });

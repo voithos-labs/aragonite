@@ -195,16 +195,16 @@ async function executeCell(
 		case 'clipboard':
 			return execClipboard(cell, ctx);
 		case 'focus':
-			return { status: 'boundary', detail: `native caret / focus policy — ${BROWSER_SWEEP}` };
+			return { status: 'boundary', detail: `native caret / focus policy: ${BROWSER_SWEEP}` };
 		case 'selectionPaint':
-			return { status: 'boundary', detail: `selection cover paint — ${BROWSER_SWEEP}` };
+			return { status: 'boundary', detail: `selection cover paint: ${BROWSER_SWEEP}` };
 		case 'reorder':
 			return execReorder(cell);
 		case 'simOracle':
 			return {
 				status: 'boundary',
 				detail:
-					'note-taking simulation under the corruption oracles — run by the platform sweep ' +
+					'note-taking simulation under the corruption checks: run by the platform sweep ' +
 					'over the kinds it enrolls, never by this runner'
 			};
 	}
@@ -218,7 +218,7 @@ function execRoundTrip(
 	if (!ctx) {
 		return {
 			status: 'boundary',
-			detail: `no conformanceFixture — round-trip runs in the ${BROWSER_SWEEP}`
+			detail: `no conformanceFixture: round-trip runs in the ${BROWSER_SWEEP}`
 		};
 	}
 	assertIs(
@@ -283,7 +283,7 @@ function execMergeBackspace(kind: AnyBlockKind, role: MergeRole): CellResult {
 
 function execSearchPaint(cell: ClosureCell, ctx: KindCellContext | null): CellResult {
 	if (cell.mode !== 'not-supported') {
-		return { status: 'boundary', detail: `search-match mark overlay — ${BROWSER_SWEEP}` };
+		return { status: 'boundary', detail: `search-match mark overlay: ${BROWSER_SWEEP}` };
 	}
 	if (!ctx) return { status: 'exempt', detail: cell.reason };
 	const needle = firstVisibleChar(ctx.node.raw);
@@ -307,7 +307,7 @@ function execReorder(cell: ClosureCell): CellResult {
 	if (cell.mode === 'not-supported') return { status: 'exempt', detail: cell.reason };
 	return {
 		status: 'boundary',
-		detail: `block reorder is an Alt+Arrow / drag gesture — ${BROWSER_SWEEP}`
+		detail: `block reorder is an Alt+Arrow / drag gesture: ${BROWSER_SWEEP}`
 	};
 }
 
@@ -316,13 +316,13 @@ async function execUndo(cell: ClosureCell, ctx: KindCellContext | null): Promise
 	if (cell.mode === 'implemented') {
 		return {
 			status: 'boundary',
-			detail: `kind-specific undo mechanism — supply a profile check or run it in the ${BROWSER_SWEEP}`
+			detail: `kind-specific undo mechanism: supply a profile check or run it in the ${BROWSER_SWEEP}`
 		};
 	}
 	if (!ctx)
 		return {
 			status: 'boundary',
-			detail: `no conformanceFixture — undo depth runs in the ${BROWSER_SWEEP}`
+			detail: `no conformanceFixture: undo depth runs in the ${BROWSER_SWEEP}`
 		};
 
 	const doc = parse(ctx.fixture + '\n\nundo sentinel\n');
@@ -350,19 +350,19 @@ function execClipboard(cell: ClosureCell, ctx: KindCellContext | null): CellResu
 	if (cell.mode === 'implemented') {
 		return {
 			status: 'boundary',
-			detail: `kind-specific clipboard mechanism — supply a profile check or run it in the ${BROWSER_SWEEP}`
+			detail: `kind-specific clipboard mechanism: supply a profile check or run it in the ${BROWSER_SWEEP}`
 		};
 	}
 	if (!ctx)
 		return {
 			status: 'boundary',
-			detail: `no conformanceFixture — copy runs in the ${BROWSER_SWEEP}`
+			detail: `no conformanceFixture: copy runs in the ${BROWSER_SWEEP}`
 		};
 	if (ctx.nodePath.length !== 1) {
 		return {
 			status: 'boundary',
 			detail:
-				'nested kind — copied as part of its container; the enclosing container cell covers its bytes'
+				'nested kind: copied as part of its container; the enclosing container cell covers its bytes'
 		};
 	}
 	checkCopyIsRawByteSlice(ctx.kind, ctx.fixture);

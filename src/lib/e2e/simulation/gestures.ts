@@ -160,7 +160,7 @@ export class Gestures {
 		// would show up as a source mismatch blaming the wrong thing. Fail at the real cause.
 		if (this.caretParkedMidBlock) {
 			throw new Error(
-				`[${this.ctx.label}] typeText after hardBreakAt or mintAtGap: the caret is parked ` +
+				`[${this.ctx.label}] typeText after hardBreakAt or mintAtGap: the caret sits ` +
 					`mid-document, which the tracker's document-end model cannot predict. Both must ` +
 					`be a note's last build gesture.`
 			);

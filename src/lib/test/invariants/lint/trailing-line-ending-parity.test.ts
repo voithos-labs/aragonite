@@ -223,7 +223,7 @@ describe('G4.20 commitInput funnel coverage', () => {
 		const byPath = new Map(commitInputFunnels(sources).map((fn) => [fn.relPath, fn]));
 		for (const relPath of Object.keys(COMMITINPUT_ALLOWLIST)) {
 			const fn = byPath.get(relPath);
-			expect(fn, `allowlisted commitInput funnel not found: ${relPath}`).toBeDefined();
+			expect(fn, `allowlisted commitInput shared path not found: ${relPath}`).toBeDefined();
 			expect(HAS_TRAILING_APPEND.test(fn!.body), `allowlist stale for ${relPath}`).toBe(false);
 		}
 	});
@@ -272,7 +272,7 @@ describe('G4.20 trailing-line-ending seam exclusivity', () => {
 
 	it('the seam still holds both expressions the rules redirect to', () => {
 		const seam = sources.find((f) => f.relPath === LINE_ENDING_SEAM);
-		expect(seam, `line-ending seam not found: ${LINE_ENDING_SEAM}`).toBeDefined();
+		expect(seam, `line-ending module not found: ${LINE_ENDING_SEAM}`).toBeDefined();
 		expect(INLINE_ENDING_TERNARY.test(seam!.code)).toBe(true);
 		expect(INLINE_OWN_ENDING_SLICE.test(seam!.code)).toBe(true);
 		expect(seam!.code).toContain('export function trailingLineEnding');
@@ -300,7 +300,7 @@ describe('G4.20 node.raw write ending provenance', () => {
 				.filter((a) => emittedNewlineLiterals(a.statement).length > 0);
 			expect(
 				found.length,
-				`${relPath} holds ${found.length} literal raw writes, allowlisted for ${entry.count} — ${entry.why}`
+				`${relPath} holds ${found.length} literal raw writes, allowlisted for ${entry.count}: ${entry.why}`
 			).toBe(entry.count);
 		}
 	});

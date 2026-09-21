@@ -28,7 +28,7 @@ interface Arm {
 function armsOf(code: string): Arm[] {
 	const declared = code.indexOf('const arms: readonly DispatchArm[] =');
 	const manifest = balancedRegion(code, code.indexOf('[', code.indexOf('=', declared)));
-	if (manifest === null) throw new Error('arms manifest not found in the dispatch');
+	if (manifest === null) throw new Error('`arms` manifest not found in the dispatch');
 	const out: Arm[] = [];
 	const entry = /id:\s*'([^']+)'[\s\S]*?claims:\s*(?:(\w+)|\(\))/g;
 	let match: RegExpExecArray | null;
@@ -39,7 +39,7 @@ function armsOf(code: string): Arm[] {
 	const declaredIds = (manifest.match(/\bid:\s*'/g) ?? []).length;
 	if (out.length !== declaredIds) {
 		throw new Error(
-			`arm census read ${out.length} of ${declaredIds} arms: a claims shape it cannot parse`
+			`branch census read ${out.length} of ${declaredIds} branches: a claims shape it cannot parse`
 		);
 	}
 	return out;
@@ -74,7 +74,7 @@ describe('every caret-edge arm asks whether a range is held', () => {
 			.map((arm) => arm.id);
 		expect(
 			silent,
-			'an arm reads the range START as its caret without asking whether a range is held: call ' +
+			'a branch reads the range start as its caret without asking whether a range is held: call ' +
 				'heldRange() (or hasSelectionHelper()), or declare it in INLINE_CLAIMS with why'
 		).toEqual([]);
 	});
