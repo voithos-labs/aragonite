@@ -145,6 +145,10 @@
 	import SelectionToolbar from './menu/SelectionToolbar.svelte';
 	import ImageOverlayHost from './image/ImageOverlayHost.svelte';
 	import LinkCardHost from './link-card/LinkCardHost.svelte';
+	import InlineMenuHost from './menu/InlineMenuHost.svelte';
+	import { createInlineMenuState } from '../inline-menu/inline-menu-state.svelte';
+	import type { InlineMenuRegistry } from '../inline-menu/types';
+	import { createInlineRangeCommit } from '../editor-actions/inline-range-commit';
 	import { createLinkCardState } from './link-card/link-card-state.svelte';
 	import { LINK_ELEMENT_SELECTOR, resolveLinkAtPoint } from './blocks/text/link-at-point';
 	import { runStartupInvariantChecks } from '../invariants/install';
@@ -483,7 +487,7 @@
 	// Open/close transitions only, never the mount, so a subscriber's first news is a real menu.
 	let menuWasOpen = false;
 	$effect(() => {
-		const open = blockMenu !== null;
+		const open = blockMenu !== null || inlineMenus.isOpen;
 		if (open === menuWasOpen) return;
 		menuWasOpen = open;
 		events.emit('menuChange', open);
@@ -1017,6 +1021,24 @@
 		landCaretAt: landCaretAtOffset
 	});
 
+	// The typed-trigger menus (`#tag`, `[[link`). The write is the same one-entry range splice the
+	// link card and the image popover use, so a pick undoes in one press.
+	const inlineMenuCommit = createInlineRangeCommit({
+		getDoc,
+		controller,
+		grammar: registryView.grammar
+	});
+	const inlineMenu = createInlineMenuState({
+		getDoc,
+		getSelection,
+		getMode: () => effectiveMode,
+		events,
+		commitRange: inlineMenuCommit.commitInlineRange,
+		landCaret: landCaretAtOffset
+	});
+	const inlineMenus: InlineMenuRegistry = inlineMenu.registry;
+	$effect(() => () => inlineMenu.dispose());
+
 	// After getDoc so it reuses that one live-doc closure: a second getDoc would be a
 	// TDZ reference here, and the rule is one getter, never a captured value.
 	const editorId = mintEditorId();
@@ -1027,6 +1049,7 @@
 		optionsFor: (name) => pluginEntries?.optionsByName.get(name),
 		decorations,
 		rects,
+		inlineMenus,
 		// The one injection point of the mode into the dispatch tiers; they read it back
 		// through the pluginEditor lookup they already thread.
 		getPresentationMode: () => effectiveMode,
@@ -1677,6 +1700,10 @@
 		return decorations;
 	}
 
+	export function getInlineMenus(): InlineMenuRegistry {
+		return inlineMenus;
+	}
+
 	export function getRects(): EditorRects {
 		return rects;
 	}
@@ -1739,6 +1766,7 @@
 		getEvents,
 		getSearch,
 		getDecorations,
+		getInlineMenus,
 		getRects,
 		getDiagnostics,
 		reservedChords,
@@ -1892,6 +1920,12 @@
 		caretRestore={linkCardCaret}
 		linkRef={linkRefView}
 		grammar={registryView.grammar}
+	/>
+	<InlineMenuHost
+		menu={inlineMenu}
+		{events}
+		getEditorEl={() => editorEl ?? null}
+		measureRange={rects.rangeRects}
 	/>
 	<div class="editor-sr-live" role="status" aria-live="polite">{selectionDescription}</div>
 	<div class="editor-sr-live-reorder" role="status" aria-live="polite">{reorderAnnouncement}</div>

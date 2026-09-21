@@ -10,6 +10,7 @@ import { createEditorEvents, type EditorError } from '$lib/editor-events';
 import { createDecorationEngine } from '$lib/decorations/decoration-state.svelte';
 import type { DecorationRegistry } from '$lib/decorations/types';
 import type { EditorRects } from '$lib/editor-rects';
+import type { InlineMenuRegistry } from '$lib/inline-menu/types';
 
 const fakeEvents = { on: () => () => {} } as never;
 const noopDecorations: DecorationRegistry = {
@@ -23,6 +24,12 @@ const noopRects: EditorRects = {
 	scrollTo: async () => false,
 	navigateTo: async () => false
 };
+const noopInlineMenus: InlineMenuRegistry = {
+	addSource: () => ({ dispose() {} }),
+	open: () => false,
+	close() {},
+	isOpen: false
+};
 const deps = (doc: { children: unknown[] }) => ({
 	editorId: 'ed-1',
 	getDoc: () => doc as never,
@@ -30,6 +37,7 @@ const deps = (doc: { children: unknown[] }) => ({
 	optionsFor: (name: string) => (name === 'opts' ? { max: 3 } : undefined),
 	decorations: noopDecorations,
 	rects: noopRects,
+	inlineMenus: noopInlineMenus,
 	getPresentationMode: () => 'source' as const,
 	getTheme: () => 'dark',
 	activation: everyInstalledPlugin
@@ -202,6 +210,28 @@ describe('createEditorPluginContexts', () => {
 		// Identity, not shape: a per-context copy would break the "one door" contract.
 		expect(received).toBe(rects);
 		expect(ctxs.get('measurer')!.rects).toBe(rects);
+	});
+});
+
+describe('inline menus reach a plugin through its context', () => {
+	it('threads editor.inlineMenus: the same registry instance reaches every context', () => {
+		const inlineMenus: InlineMenuRegistry = { ...noopInlineMenus };
+		let received: InlineMenuRegistry | undefined;
+		installPlugins([
+			definePlugin({
+				name: 'suggester',
+				setup(ctx) {
+					ctx.onEditor((editor) => {
+						received = editor.inlineMenus;
+					});
+				}
+			})
+		]);
+		const ctxs = createEditorPluginContexts({ ...deps({ children: [] }), inlineMenus });
+		ctxs.attachAll(() => {});
+
+		expect(received).toBe(inlineMenus);
+		expect(ctxs.get('suggester')!.inlineMenus).toBe(inlineMenus);
 	});
 });
 

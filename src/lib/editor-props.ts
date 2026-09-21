@@ -19,6 +19,7 @@ import type { EditorEvents } from './editor-events';
 import type { SearchState } from './search/search-state.svelte';
 import type { DecorationRegistry } from './decorations/types';
 import type { EditorRects } from './editor-rects';
+import type { InlineMenuRegistry } from './inline-menu/types';
 import type { EditorPluginEntry } from './schema/plugin-install';
 import type { InteractionTraceEntry } from './debug/interaction-trace';
 
@@ -152,6 +153,9 @@ export interface EditorInstance {
 	getEvents(): EditorEvents;
 	getSearch(): SearchState;
 	getDecorations(): DecorationRegistry;
+	/** The same registry a plugin reaches as `editor.inlineMenus`, for a host that owns the menu's
+	 *  data (its document index, its tag list) rather than shipping a plugin for it. */
+	getInlineMenus(): InlineMenuRegistry;
 	getRects(): EditorRects;
 	getDiagnostics(): EditorDiagnostics;
 	/**

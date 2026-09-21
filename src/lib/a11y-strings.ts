@@ -23,6 +23,7 @@ export const LINK_CARD_LABEL = 'Link properties';
 export const LINK_CARD_URL = 'Link URL';
 export const LINK_CARD_OPEN = 'Open link';
 export const LINK_CARD_REMOVE = 'Remove link';
+export const INLINE_MENU_LABEL = 'Suggestions';
 export const CODE_LANGUAGE_FIELD = 'Code block language';
 
 export const CODE_RUN_LABEL = 'Run code block';

@@ -6,6 +6,7 @@
 import type { DocumentView } from '../core/node-views';
 import type { DecorationRegistry } from '../decorations/types';
 import type { EditorRects } from '../editor-rects';
+import type { InlineMenuRegistry } from '../inline-menu/types';
 import type { PresentationMode } from '../presentation-mode';
 import type { PluginActivation } from './plugin-activation';
 import {
@@ -35,6 +36,7 @@ export function createEditorPluginContexts(deps: {
 	optionsFor: (pluginName: string) => unknown;
 	decorations: DecorationRegistry;
 	rects: EditorRects;
+	inlineMenus: InlineMenuRegistry;
 	getPresentationMode: () => PresentationMode;
 	getTheme: () => string;
 	activation: PluginActivation;
@@ -56,6 +58,7 @@ export function createEditorPluginContexts(deps: {
 				options: deps.optionsFor(pluginName),
 				decorations: deps.decorations,
 				rects: deps.rects,
+				inlineMenus: deps.inlineMenus,
 				get presentationMode() {
 					return deps.getPresentationMode();
 				},

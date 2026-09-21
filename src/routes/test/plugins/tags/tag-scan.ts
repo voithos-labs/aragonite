@@ -13,10 +13,20 @@ export interface TagSpan {
 
 const TAG_CHAR = /[\p{L}\p{N}_\-/]/u;
 
+/** Whether a `#` at `pos` could open a tag: the position half of {@link recognizeTag}. */
+export function isTagOpening(raw: string, pos: number): boolean {
+	const prev = pos > 0 ? raw[pos - 1] : '';
+	return prev === '' || /\s/.test(prev) || prev === '(';
+}
+
+/** Whether these bytes could still be a tag's name, the empty name included. */
+export function isTagQuery(query: string): boolean {
+	return [...query].every((ch) => TAG_CHAR.test(ch));
+}
+
 export function recognizeTag(raw: string, pos: number, end: number): TagSpan | null {
 	if (raw[pos] !== '#') return null;
-	const prev = pos > 0 ? raw[pos - 1] : '';
-	if (prev !== '' && !/\s/.test(prev) && prev !== '(') return null;
+	if (!isTagOpening(raw, pos)) return null;
 	let i = pos + 1;
 	while (i < end && TAG_CHAR.test(raw[i])) i++;
 	let name = raw.slice(pos + 1, i);

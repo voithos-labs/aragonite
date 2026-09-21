@@ -63,7 +63,8 @@ test.describe('in-body tags as mark decorations', () => {
 	});
 
 	test('typing inside a tag extends it, with no reveal and no remount', async () => {
-		await clickInsideChip(editor, 'project');
+		// Short of the middle, so the caret snaps to the boundary after `#pro` and not the next one.
+		await clickInsideChip(editor, 'project', 0.45);
 
 		await editor.typeText('X');
 		await editor.bridge.waitForSourceContains('#proXject');

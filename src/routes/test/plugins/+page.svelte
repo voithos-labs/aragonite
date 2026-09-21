@@ -21,7 +21,8 @@
 	import { simIslandPlugin } from './sim-island/sim-island-plugin';
 	import { wikiEmbedPlugin } from './wiki-embed/wiki-embed-plugin';
 	import { tagsPlugin } from './tags/tag-plugin';
-	import { tagMarksPlugin } from './tags/tag-marks-plugin';
+	import { tagMarksPlugin, TAG_MENU } from './tags/tag-marks-plugin';
+	import { docLinkMenuPlugin, DOC_LINK_MENU } from './inline-menu/doc-link-menu-plugin';
 	import './tags/tag-marks.css';
 	import type { EditorPlugin } from '$lib/plugin';
 
@@ -56,6 +57,8 @@
 		tags: [tagsPlugin()],
 		// The same tags as mark decorations over plain text: no island, no reveal.
 		'tags-marks': [tagMarksPlugin()],
+		// Both inline-menu sources at once: `#` and `[[` must not take each other's presses.
+		'inline-menu': [tagMarksPlugin(), docLinkMenuPlugin()],
 		// `%%parrot` is a narrowing of the base memo fixture's `%%`, and the bird animates on
 		// an interval; scoped to its own seed so neither reaches a sibling battery.
 		parrot: [DEMO_PARROT],
@@ -212,7 +215,11 @@
 		// one inside a heading's own content, and a plain typing target.
 		tags: 'Filed under #project and #work/admin today\n\n#inbox leads this line\n\n# Heading with #tag inside\n\nType here\n',
 		'tags-marks':
-			'Filed under #project and #work/admin today\n\n#inbox leads this line\n\n# Heading with #tag inside\n\nType here\n'
+			'Filed under #project and #work/admin today\n\n#inbox leads this line\n\n# Heading with #tag inside\n\nType here\n',
+		// Three tags to suggest (`project` twice, so it ranks first), a typing target, a list item,
+		// and an inline code span where a `#` is not syntax.
+		'inline-menu':
+			'Filed under #project and #work/admin and #project\n\n#inbox leads\n\nType here\n\n- item\n\nIn `code` span\n'
 	};
 	// svelte-ignore state_referenced_locally
 	const plugins = [...basePlugins, ...(seedPlugins[data.seed ?? ''] ?? [])];
@@ -279,6 +286,25 @@
 		<div class="harness-controls">
 			<button onclick={convertAlerts} disabled={!canConvert} data-testid="convert-alerts">
 				Convert GitHub alerts
+			</button>
+		</div>
+	{/if}
+	{#if data.seed === 'inline-menu'}
+		<div class="harness-controls">
+			<!-- preventDefault keeps the document's caret: `open` writes the trigger where it stands. -->
+			<button
+				data-testid="open-tag-menu"
+				onmousedown={(e) => e.preventDefault()}
+				onclick={() => editor?.getInlineMenus().open(TAG_MENU)}
+			>
+				Insert tag
+			</button>
+			<button
+				data-testid="open-doc-link-menu"
+				onmousedown={(e) => e.preventDefault()}
+				onclick={() => editor?.getInlineMenus().open(DOC_LINK_MENU)}
+			>
+				Link document
 			</button>
 		</div>
 	{/if}
