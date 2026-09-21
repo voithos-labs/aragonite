@@ -132,8 +132,8 @@ export function walkCode(
 }
 
 /**
- * The non-code span starting at `i`, string, template, comment or regex literal, or null
- * where code continues. The one place the lexing rules live.
+ * The non-code span starting at `i` (a string, template, comment or regex literal), or null where
+ * code continues. The one place the lexing rules live.
  */
 function spanAt(code: string, i: number): Span | null {
 	const ch = code[i];

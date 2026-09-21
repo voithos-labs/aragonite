@@ -29,7 +29,7 @@ function pluginComponentSources(): Array<{ rel: string; code: string }> {
 }
 
 // ── Non-vacuity: the scan is actually wired to the plugin tree ────────────────
-// The matcher self-tests prove the regexes work; this proves the walk reached the
+// The matcher self-tests prove the regexes work; this proves the scan reached the
 // components, pinning one real read from each allow-set.
 
 describe('plugin CSS ownership — the scan collected the plugin components', () => {

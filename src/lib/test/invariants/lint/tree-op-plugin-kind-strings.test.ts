@@ -18,7 +18,7 @@ const DISPATCH_SRCS = [
 
 // ── Forbidden-set derivation (plugin block-kind literals) ─────────────────────
 
-/** `const NAME = 'value'` / `export const NAME = 'value'` → { name: value }. */
+/** `const NAME = 'value'` or `export const NAME = 'value'`, read as `{ NAME: value }`. */
 function constStringMap(sources: SourceFile[]): Map<string, string> {
 	const map = new Map<string, string>();
 	const re = /(?:export\s+)?const\s+([A-Za-z_$][\w$]*)\s*=\s*(['"])([^'"]*)\2/g;
