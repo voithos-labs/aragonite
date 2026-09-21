@@ -100,23 +100,23 @@ const BASELINE: Record<string, number> = {
 	'src/lib/components/image': 0,
 	'src/lib/components/link-card': 0,
 	'src/lib/components/menu': 0,
-	'src/lib/e2e/simulation': 36,
-	'src/lib/e2e/simulation/gestures': 61,
-	'src/lib/e2e/simulation/notes': 8,
-	'src/lib/e2e/tests': 18,
+	'src/lib/e2e/simulation': 0,
+	'src/lib/e2e/simulation/gestures': 0,
+	'src/lib/e2e/simulation/notes': 0,
+	'src/lib/e2e/tests': 0,
 	'src/lib/e2e/tests/blocks': 47,
-	'src/lib/e2e/tests/capture': 1,
+	'src/lib/e2e/tests/capture': 0,
 	'src/lib/e2e/tests/clipboard': 19,
 	'src/lib/e2e/tests/decorations': 28,
 	'src/lib/e2e/tests/keyboard-navigation': 3,
-	'src/lib/e2e/tests/perf': 21,
+	'src/lib/e2e/tests/perf': 0,
 	'src/lib/e2e/tests/plugins': 90,
 	'src/lib/e2e/tests/presentation': 99,
 	'src/lib/e2e/tests/search': 1,
 	'src/lib/e2e/tests/selection': 38,
-	'src/lib/e2e/tests/simulation': 55,
+	'src/lib/e2e/tests/simulation': 0,
 	'src/lib/e2e/tests/text-editing': 3,
-	'src/lib/e2e/tests/webkit': 2
+	'src/lib/e2e/tests/webkit': 0
 };
 
 const HOUSE_WORD = new RegExp(`\\b(?:${HOUSE_WORDS.join('|')})\\b`, 'gi');
