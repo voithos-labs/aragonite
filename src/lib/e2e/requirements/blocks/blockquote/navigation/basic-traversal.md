@@ -1,6 +1,6 @@
-# Feature: Blockquote Navigation — Basic Traversal
+# Feature: Blockquote Navigation, Basic Traversal
 
-Baseline ArrowUp/Down navigation across blockquote inner paragraphs and across blockquote/outer-block boundaries, without any prior structural edits.
+Plain ArrowUp/ArrowDown navigation across a blockquote's inner paragraphs and across the boundary between the quote and the blocks around it, with no structural edit beforehand.
 
 ## Basic traversal
 

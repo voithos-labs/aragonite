@@ -1,13 +1,13 @@
-# Feature: Blockquote Navigation — After a Structural Edit
+# Feature: Blockquote Navigation, After a Structural Edit
 
-Traversal correctness once a structural edit has rebuilt the quote. All four edit shapes share one hazard: splicing directly on `$state` proxies during a keyed `{#each}` re-render leaves shifted or re-mounted children unable to rebind their slots, so `innerBlockRefs` goes stale and an arrow key lands on a stale ref or a null focus target.
+Navigation once a structural edit has rebuilt the quote. All four kinds of edit share one hazard: splicing directly on `$state` proxies during a keyed `{#each}` re-render leaves children that shifted or re-mounted unable to register themselves at their new list position, so `innerBlockRefs` goes out of date and an arrow key lands on an old reference or on no focus target at all.
 
 ## After Enter (create empty inner paragraph)
 
 - Enter at end of first inner paragraph creates a new empty paragraph; ArrowDown from the empty paragraph lands on the next (formerly second) inner paragraph
 - Enter at end of first inner paragraph creates a new empty paragraph; ArrowUp from the empty paragraph lands on the first inner paragraph
 - Repeatedly: after multiple Enter presses creating multiple empty paragraphs, navigation crosses each empty paragraph correctly
-- Build discipline: `> 1` / `>` / `>` / `> 2` does load to a `{"1", "", "2"}` child layout — the second blank `>` line is an empty paragraph, the first separates — but these tests build the empty middle with a real Enter press, because the regression they guard is the split's own re-render, which a loaded document never runs.
+- How the fixture is built: `> 1` / `>` / `>` / `> 2` does load to a `{"1", "", "2"}` child layout, where the second blank `>` line is an empty paragraph and the first one separates them, but these tests build the empty middle with a real Enter press, because what they guard is the re-render the split itself causes, which a loaded document never runs.
 
 ## After Backspace (delete empty inner paragraph)
 

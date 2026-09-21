@@ -1,6 +1,6 @@
-# Feature: Blockquote Navigation — Nested Blockquote
+# Feature: Blockquote Navigation, Nested Blockquote
 
-Navigation inside `> > deep` and across the inner/outer blockquote boundary.
+Navigation inside `> > deep` and across the boundary between the inner and outer blockquote.
 
 ## Nested blockquote operations
 
