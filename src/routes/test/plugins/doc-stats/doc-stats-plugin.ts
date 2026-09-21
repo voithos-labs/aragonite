@@ -1,5 +1,5 @@
-// Dogfood for the per-instance context spine: the working proof that document, identity,
-// and events replace a state-field API.
+// An example of the per-instance context: the working proof that the document, the identity
+// and the events replace an API of state fields.
 import { definePlugin, registerGlobalCommand, type EditorContext } from '$lib/plugin';
 
 export interface DocStatsOptions {
@@ -37,8 +37,8 @@ function recompute(editor: EditorContext, edits: number) {
 export const docStatsPlugin = definePlugin<DocStatsOptions>({
 	name: 'doc-stats',
 	setup(ctx) {
-		// recompute() keeps its options narrowing: registerGlobalCommand's handler
-		// receives EditorContext<unknown> (the mint is not generic-bound).
+		// recompute() narrows the options itself: the handler registerGlobalCommand takes
+		// receives EditorContext<unknown>, since the registration is not bound to this type.
 		registerGlobalCommand(
 			'docStats.publish',
 			(editor) => {

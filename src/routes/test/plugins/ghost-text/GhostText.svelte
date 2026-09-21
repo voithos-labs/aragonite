@@ -1,8 +1,8 @@
 <script lang="ts">
 	import type { Decoration } from '$lib/plugin';
 
-	// The widget contract delivers the decoration; the ghost is static text, so
-	// the prop only anchors the component's spec type.
+	// The widget contract passes the decoration in; the ghost is fixed text, so the prop
+	// only gives the component the type the contract expects.
 	let { decoration: _decoration }: { decoration: Decoration } = $props();
 </script>
 

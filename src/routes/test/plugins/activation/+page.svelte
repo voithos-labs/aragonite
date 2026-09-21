@@ -22,9 +22,10 @@
 	trackParityDocument(() => listing);
 	trackParityDocument(() => notListing);
 
-	// The chord half of activation has no DOM tell: a chord this instance never claimed is one
-	// the host keeps, and only `reservedChords`/`claimsChord` answer that. Recorded from a real
-	// keystroke on the way past, so the spec presses the chord rather than fabricating one.
+	// Nothing in the DOM shows which chords an instance took: a chord this one never took is a
+	// chord the host keeps, and only `reservedChords` and `claimsChord` answer that. Recorded
+	// from a real keystroke as it passes, so the spec presses the keys rather than inventing an
+	// event.
 	const claims: { listing: boolean; notListing: boolean }[] = [];
 
 	$effect(() => {

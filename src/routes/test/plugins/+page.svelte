@@ -37,38 +37,38 @@
 		DEMO_TOC
 	];
 
-	// Decoration dogfoods annotate ambient content, so each installs only under its own
-	// seed: leaked into siblings, their decorations would perturb those batteries.
+	// The decoration examples annotate whatever text is there, so each installs only under its
+	// own seed: leaking into the others, their decorations would disturb those suites.
 	const seedPlugins: Record<string, EditorPlugin[]> = {
-		// Scoped to its own seed so the `[^…]:` opener only claims lines under the
-		// footnotes battery, leaving sibling seeds' parses untouched.
+		// Kept to its own seed so the `[^…]:` opener takes lines only in the footnotes
+		// suite, leaving the other seeds to parse as they did.
 		footnotes: [DEMO_FOOTNOTES],
 		'footnotes-ref': [DEMO_FOOTNOTES],
-		// Emoji rides the bare `:` trigger process-wide once installed; scoped to its own
-		// seed so its rung never perturbs a sibling battery's `:`-bearing prose.
+		// Emoji takes the bare `:` trigger process-wide once installed, so it is kept to its own
+		// seed and never disturbs prose containing a `:` in another suite.
 		emoji: [DEMO_EMOJI],
-		// The `![[…]]` rung mints a built-in `image`, so it would claim `!` for every
-		// sibling seed's prose once installed; scoped to its own.
+		// The `![[…]]` handler creates a built-in `image`, so once installed it would take `!`
+		// in every other seed's prose; kept to its own.
 		'wiki-embed': [wikiEmbedPlugin],
-		// The bare `#` trigger would claim every sibling seed's `#`-bearing prose once installed,
-		// so it is scoped to its own seed.
+		// The bare `#` trigger would take `#` in every other seed's prose once installed,
+		// so it is kept to its own seed.
 		tags: [tagsPlugin()],
 		// The same tags as mark decorations over plain text: no widget, no source to show.
 		'tags-marks': [tagMarksPlugin()],
-		// `%%parrot` is a narrowing of the base memo fixture's `%%`, and the bird animates on
-		// an interval; scoped to its own seed so neither reaches a sibling battery.
+		// `%%parrot` is a narrower form of the base memo fixture's `%%`, and the bird animates on
+		// an interval; kept to its own seed so neither reaches another suite.
 		parrot: [DEMO_PARROT],
 		hloccur: [DEMO_HIGHLIGHT_OCCURRENCES],
-		// The observability wrapper over the same shipped createOccurrenceSource, so the
-		// battery can read the index-rebuild count off window.
+		// A counting wrapper around the same shipped createOccurrenceSource, so the suite can
+		// read off `window` how often the index rebuilds.
 		'hloccur-memo': [hloccurScanProbePlugin],
 		ghost: [ghostTextPlugin],
 		fold: [foldPlugin],
 		'fold-table': [foldPlugin],
 		badge: [blockBadgePlugin],
-		// `?seed=sim` puts standing decoration sources under the corruption oracle; the sims
-		// loadContent their own document over the absent seed, and the island source is keyed
-		// on sentinels only that document carries.
+		// `?seed=sim` puts long-lived decoration sources under the simulation's corruption
+		// checks; the simulations load their own document over the empty seed, and the widget
+		// source keys on markers only that document holds.
 		sim: [simMarkPlugin, simIslandPlugin]
 	};
 </script>
@@ -83,7 +83,7 @@
 
 	let { data }: { data: PageData } = $props();
 
-	// The fenced `> [!NOTE]` is the convert affordance's negative — it must stay literal.
+	// The `> [!NOTE]` inside a fence is what the Convert button must leave alone: it stays literal.
 	const ADMONITIONS_SEED = [
 		'# Admonitions',
 		'',
@@ -111,8 +111,8 @@
 		''
 	].join('\n');
 
-	// One invalid-code diagram (no diagram type, so the engine rejects deterministically)
-	// and a plain ```js fence that must stay fencedCode.
+	// One diagram with invalid code (no diagram type, so mermaid rejects it every time)
+	// and a plain ```js fence that must stay a code block.
 	const MERMAID_SEED = [
 		'# Mermaid',
 		'',
@@ -139,40 +139,41 @@
 		''
 	].join('\n');
 
-	// `?seed=<name>` swaps in another plugin's document; callout is the default. The seed
-	// arrives via load data so server and client render the same document, once: the harness
-	// never re-navigates, and the probes then own `source`.
+	// `?seed=<name>` swaps in another plugin's document; callout is the default. The seed comes
+	// from the load function, so server and client render the same document once: the harness
+	// never navigates again, and the probes own `source` from then on.
 	const SEEDS: Record<string, string> = {
 		callout: ':::callout Title\nFirst\n:::\n',
 		details: '<details open>\n<summary>Summary</summary>\n\nBody\n\n</details>\n',
 		admonitions: ADMONITIONS_SEED,
 		math: 'Before $x^2$ after\n\nNext\n',
-		// Two inline equations in ONE paragraph: a same-block click-away must fold the revealed
-		// source, and clicking the second widget while the first is revealed must switch.
+		// Two inline equations in one paragraph: clicking elsewhere in the same block must
+		// collapse the shown source, and clicking the second widget while the first is open
+		// must switch.
 		'math-two': 'Sum $E=mc^2$ and $a^2+b^2=c^2$ tail\n\nNext\n',
-		// A second visual line column-aligns real text beneath the widget, giving the reveal
-		// hit-test both X and Y coverage.
+		// A second visual line puts real text directly below the widget, so the hit test that
+		// shows the source is exercised on both axes.
 		'math-multiline': '$x^2$ first line padding\nsecond visual line here\n\nNext\n',
 		// Paragraphs either side, so the block-math e2e can drive arrow nav in and out.
 		mathblock: 'Before\n\n$$x^2$$\n\nAfter\n',
 		// GitHub's third math form: a distinct `mathFence` kind that still renders through the
 		// shared BlockMath component.
 		mathfence: 'Before\n\n```math\nx^2\n```\n\nAfter\n',
-		// A multi-line `aligned` fence: the render must survive internal `\n`s (A7), and
-		// the revealed source must stay a single text node so the offset walk is exact.
+		// A multi-line `aligned` fence: the render must survive the `\n`s inside it (A7), and
+		// the shown source must stay one text node so the offset walk is exact.
 		'mathblock-multiline':
 			'Before\n\n$$\n\\begin{aligned}\na &= b \\\\\nc &= d\n\\end{aligned}\n$$\n\nAfter\n',
-		// Inline math inside a table cell: the cell render surface pools component widgets,
-		// so the mount id stays stable while typing.
+		// Inline math inside a table cell: the cell's render reuses component widgets, so the
+		// mount id stays the same while typing.
 		mathtable: '| Formula | Note |\n| --- | --- |\n| $x^2$ | ok |\n\nAfter\n',
 		mermaid: MERMAID_SEED,
-		// A plain-mode `%%` memo leaf between two paragraphs — the editable-leaf surface.
+		// A plain `%%` memo block between two paragraphs: the editable-leaf case.
 		memo: 'Before\n\n%% memo text\n\nAfter\n',
-		// A deterministic block count, plus a root-level Enter split + undo for the
-		// attach-survives-a-structural-edit pin.
+		// A known block count, plus an Enter split at the root and an undo, for the check that
+		// the plugin stays attached across a structural edit.
 		docstats: 'First\n\nSecond\n',
-		// Both heading syntaxes above a top-level `[[toc]]`, with a trailing paragraph as a
-		// blur target; the toc dogfood reads its heading list off the `document` prop.
+		// Both heading syntaxes above a top-level `[[toc]]`, with a trailing paragraph to click
+		// away to; the toc example reads its heading list off the `document` prop.
 		toc: '# Overview\n\n## Details\n\nAppendix\n========\n\n[[toc]]\n\nFooter\n',
 		// A `[[toc]]` nested inside a blockquote below the headings: the prop reaches a
 		// nested block only through editor context, so this pins the container render path.
@@ -183,29 +184,30 @@
 		// a fenced code block (skipped, a non-prose leaf).
 		'hloccur-memo':
 			'alpha beta alpha\n\n| head | note |\n| --- | --- |\n| alpha | ok |\n\n```\nalpha in code\n```\n',
-		// Two plain paragraphs: the ghost island follows focus between them, and an
-		// Enter split provides the empty-paragraph caret-anchor case.
+		// Two plain paragraphs: the ghost widget follows focus between them, and an Enter split
+		// gives the empty-paragraph case for the caret anchor.
 		ghost: 'Hello world\n\nSecond paragraph\n',
-		// One `[>…<]` fold range mid-paragraph; the trailing paragraph is a blur target.
+		// One `[>…<]` fold range mid-paragraph; the trailing paragraph is there to click away to.
 		fold: 'abc [>HIDDEN SECRET<] def\n\nplain text\n',
-		// A fold range inside a table cell — the islands-in-cells gap pin.
+		// A fold range inside a table cell: the case for a widget inside a cell.
 		'fold-table': '| a [>SECRET<] b | c |\n| --- | --- |\n| d | e |\n',
 		// Two headings among paragraphs for the badge predicate's positive and negative.
 		badge: '# Title\n\nfirst para\n\n## Sub\n\nsecond para\n',
-		// A footnote definition whose body is one editable paragraph — the container's
-		// edit/backspace/undo surface.
+		// A footnote definition whose body is one editable paragraph: the container's editing,
+		// Backspace and undo case.
 		footnotes: 'A note reference [^a] in prose.\n\n[^a]: The note body.\n',
-		// The references sit in block 1, so typing an EARLIER reference into block 0 renumbers
-		// block 1's widgets while block 1 is never edited — the renumber a pool key can't deliver.
+		// The references sit in block 1, so typing an earlier reference into block 0 renumbers
+		// block 1's widgets although block 1 is never edited: a renumber that reusing a widget
+		// by key cannot produce.
 		'footnotes-ref':
 			'Intro line here.\n\nBody has [^a] and [^b] here.\n\n[^a]: First note.\n\n[^b]: Second note.\n',
 		// A `:smile:` mid-prose (block 0) plus a plain typing target (block 1).
 		emoji: 'Mood :smile: today\n\nType here\n',
-		// The rung mints a built-in image; the explicit size makes one resize step visible in
-		// the bytes, with prose either side as blur and caret targets.
+		// The handler creates a built-in image; the explicit size makes one resize step visible
+		// in the bytes, with prose either side to click away to and to put the caret in.
 		'wiki-embed': 'Before\n\n![[/test-fixtures/sample.png|400]]\n\nAfter\n',
-		// The caption is the bytes after the marker, so block 0 is the caption target and
-		// block 1 a plain blur target.
+		// The caption is the bytes after the marker, so block 0 is the caption to edit and
+		// block 1 is there to click away to.
 		parrot: '%%parrot party responsibly\n\nAfter\n',
 		// A tag mid-prose, one opening a line (the case a bare `#` heading opener contests),
 		// one inside a heading's own content, and a plain typing target.
@@ -219,8 +221,8 @@
 	let source = $state(SEEDS[data.seed ?? ''] ?? SEEDS.callout);
 	let keybindings = $state<KeybindingOverride[] | undefined>(undefined);
 	let presentationMode = $state<PresentationMode>('source');
-	// Seeds whose batteries drive a real mode flip / theme flip through the header
-	// controls. Gated per seed so a sibling battery's DOM carries no extra chrome.
+	// The seeds whose suites switch mode or theme for real through the header controls. Kept
+	// per seed, so no other suite's DOM gains extra buttons.
 	const MODE_TOGGLE_SEEDS = ['mathblock', 'details'];
 	const THEME_TOGGLE_SEEDS = ['mermaid'];
 	let theme = $state<'dark' | 'light'>('dark');
@@ -244,23 +246,23 @@
 		});
 	});
 
-	// The docs' sanctioned document-rewrite pattern: rewrite and write back through the
-	// `source` prop. One document swap, so undo history and caret do not survive.
+	// The document-rewrite pattern the guides recommend: rewrite the Markdown and write it back
+	// through the `source` prop. One whole-document swap, so undo history and caret do not survive.
 	function convertAlerts() {
 		if (!editor) return;
 		const { converted, changed } = convertGithubAlertsInDocument(editor.getSource());
 		if (changed) source = converted;
 	}
 
-	// A marker inside a code fence must not light the button, so the cheap text probe
-	// gates the parse-scoped confirmation.
+	// A marker inside a code fence must not light the button, so the cheap text check runs
+	// first and a parse confirms it.
 	function canConvertSource(s: string): boolean {
 		return hasGithubAlert(s) && convertGithubAlertsInDocument(s).changed;
 	}
-	// Deliberately NOT a $derived: canConvertSource parses, and a render-time parse races
-	// the page's async plugin installs — the first parse must land after registration or
-	// every opener fires late-opener-registration.
-	// eslint-disable-next-line svelte/prefer-writable-derived -- deferral is load-bearing (see above)
+	// Deliberately not a $derived: canConvertSource parses, and a parse during render races the
+	// page's asynchronous plugin installs. The first parse has to come after registration, or
+	// every opener reports a late registration.
+	// eslint-disable-next-line svelte/prefer-writable-derived -- the delay is required (see above)
 	let canConvert = $state(false);
 	$effect(() => {
 		canConvert = canConvertSource(source);
@@ -283,8 +285,8 @@
 	{/if}
 	{#if MODE_TOGGLE_SEEDS.includes(data.seed ?? '')}
 		<div class="harness-controls">
-			<!-- preventDefault keeps editor focus: a flip while a render-primary reveal is open
-			     must commit through the blur-class mode effect, not a focus-stealing blur. -->
+			<!-- preventDefault keeps focus in the editor: a mode switch while a block is showing
+			     its source must commit through the mode effect, not through a blur. -->
 			<button
 				data-testid="presentation-toggle"
 				onmousedown={(e) => e.preventDefault()}
@@ -338,8 +340,8 @@
 		background: rgba(96, 165, 250, 0.3);
 	}
 
-	/* Generated content only: the islands stay byte-empty so the raw-offset walk reads
-	   the block back exactly. */
+	/* Generated content only: the widgets add no text, so the raw-offset walk reads the
+	   block back exactly. */
 	.plugins-harness :global(.decoration-island.sim-replace-island)::after {
 		content: '…';
 		color: #9ca3af;

@@ -480,13 +480,13 @@ export function installTestProbes({
 				})
 			),
 		stopSelectionChangeCapture: (): SelectionChangeRecord[] => selectionProbe.stop(),
-		// ── Perf instruments surface ──────────────────────────────────────
+		// ── The performance instruments ───────────────────────────────────
 		perf: {
 			enable: enablePerfInstruments,
 			reset: resetPerfInstruments,
 			snapshot: perfSnapshot
 		},
-		// ── Interaction-trace surface ─────────────────────────────────────
+		// ── The interaction trace ─────────────────────────────────────────
 		trace: {
 			enable: enableInteractionTrace,
 			disable: disableInteractionTrace,

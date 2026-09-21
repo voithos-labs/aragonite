@@ -2,8 +2,8 @@
 	import { calloutPlugin } from '../callout/register';
 	import { detailsPlugin } from '$lib/plugins/details';
 
-	// Editor 2 adds detailsPlugin — the staggered late-mount this harness exercises. Its own
-	// units, not the shared demo set: a set every sibling route installs has no late rung left.
+	// Editor 2 adds detailsPlugin, the late mount this harness is about. Its own plugin objects,
+	// not the shared demo set: a set every other route installs is already registered.
 	const callout = calloutPlugin();
 	const editorOnePlugins = [callout];
 	const editorTwoPlugins = [callout, detailsPlugin()];
@@ -38,8 +38,8 @@
 	trackParityDocument(() => editorOne);
 	trackParityDocument(() => editorTwo);
 
-	// Minimal per-editor bridges: installTestProbes is single-editor (it hardcodes
-	// window.__test), so editor 2 gets a distinct handle rather than clobbering editor 1's.
+	// A small hook per editor: installTestProbes handles only one editor, since it writes
+	// window.__test, so editor 2 gets a handle of its own rather than overwriting editor 1's.
 	$effect(() => {
 		if (!editorOne) return;
 		(window as unknown as { __test: unknown }).__test = {

@@ -1,8 +1,8 @@
 <script module lang="ts">
 	import { docStatsPlugin } from '../doc-stats/doc-stats-plugin';
 
-	// Module scope so the entry arrays stay identity-stable across (SSR) renders: installPlugins
-	// skips a same-object re-install, and per-instance options ride the entries.
+	// Module scope so the entry arrays stay the same objects across renders, SSR included:
+	// installPlugins skips a re-install of the same object, and the options travel with them.
 	const leftPlugins = [{ plugin: docStatsPlugin, options: { label: 'left' } }];
 	const rightPlugins = [{ plugin: docStatsPlugin, options: { label: 'right' } }];
 </script>

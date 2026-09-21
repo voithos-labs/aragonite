@@ -1,5 +1,5 @@
-// Fixture for BlockDecoration on public doors only: every heading host gets a
-// class plus a badge widget (blockDecorationsForPath's consumer), at any depth.
+// A fixture for BlockDecoration through the public API only: every heading block gets a class
+// and a badge widget, at any depth, which is what `blockDecorationsForPath` serves.
 import { definePlugin, type Decoration, type DocumentView } from '$lib/plugin';
 import { forEachLeaf } from '../../../walk-views';
 

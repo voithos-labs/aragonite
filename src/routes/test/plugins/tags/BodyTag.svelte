@@ -1,8 +1,8 @@
 <script lang="ts">
 	/**
-	 * The rendered tag: a chip carrying its own `#name` bytes. Ctrl/Cmd-click (a plain click in
-	 * reading mode) is the activation gesture a host turns into navigation; the harness only
-	 * records it, so a battery can assert the gesture reached the widget.
+	 * The rendered tag: a chip holding its own `#name` bytes. Ctrl/Cmd-click, or a plain click in
+	 * reading mode, is the gesture a host turns into navigation; the harness only records it, so
+	 * a spec can check that the gesture reached the widget.
 	 */
 	import { isWidgetActivationClick, type InlineWidgetComponentProps } from '$lib/plugin';
 

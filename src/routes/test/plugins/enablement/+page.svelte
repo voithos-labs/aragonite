@@ -6,8 +6,8 @@
 	// (register-once), so the two differ only in the per-instance enablement policy.
 	const plugins = [memoPlugin()];
 
-	// Disable the memo kind for the left editor. `__registryEnablement` is the
-	// harness-only door for the enablement proof — not a public prop.
+	// Disables the memo kind for the left editor. `__registryEnablement` is a harness-only prop
+	// for this test, not part of the public API.
 	const disableMemo = (kind: string) => kind !== MEMO_BLOCK;
 </script>
 
@@ -15,8 +15,8 @@
 	import { Editor } from '$lib';
 	import { trackParityDocument } from '../../../parity-documents.svelte';
 
-	// Both editors parse the SAME seed with the global grammar, so both hold a memo CST
-	// node; only the left resolves no component for it and falls back to raw-editable.
+	// Both editors parse the same document with the same global grammar, so both hold a memo
+	// CST node; only the left finds no component for it and falls back to editing the raw text.
 	const SEED = 'Before\n\n%% memo text\n\nAfter\n';
 
 	let disabled = $state<ReturnType<typeof Editor>>();

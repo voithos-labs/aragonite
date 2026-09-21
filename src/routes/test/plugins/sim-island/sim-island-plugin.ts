@@ -1,8 +1,8 @@
-// Deterministic, content-keyed decoration source for the loaded-ops simulation. Three
-// sentinels in leaf raws anchor one decoration tier each: `[>…<]` a replace island,
-// `WIDGET` a zero-width widget island, `BADGE` a block decoration. They are absent from
-// the other `?seed=sim` documents, so this stays inert there. Every position is re-derived
-// from content each per-edit pass, so a decoration follows its bytes across typing.
+// A decoration source for the loaded-ops simulation that depends only on the text. Three markers
+// in leaf raws anchor one kind of decoration each: `[>…<]` a replace widget, `WIDGET` a
+// zero-width widget, `BADGE` a block decoration. They appear in no other `?seed=sim` document, so
+// this does nothing there. Every position is worked out from the text again on each edit, so a
+// decoration follows its bytes as the user types.
 import { definePlugin, type Decoration, type DocumentView, type NodeView } from '$lib/plugin';
 import { forEachLeaf } from '../../../walk-views';
 
@@ -58,8 +58,8 @@ function collectReplaceIslands(node: NodeView, path: number[], out: Decoration[]
 	}
 }
 
-// The widget sits at the sentinel word's leading edge, never inside it, so an adjacent
-// insert or delete moves the anchor by one without dissolving the word.
+// The widget sits at the front edge of the marker word, never inside it, so an insert or
+// delete beside it moves the anchor by one without breaking the word up.
 function collectWidgetIslands(node: NodeView, path: number[], out: Decoration[]): void {
 	let from = 0;
 	for (;;) {
