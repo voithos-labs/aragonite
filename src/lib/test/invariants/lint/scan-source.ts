@@ -1,6 +1,6 @@
 /**
  * Shared primitives for the source-scan guards: editor source off disk, asserted against
- * structural patterns the type system can't express. Comment-stripping matters — an
+ * structural patterns the type system can't express. Comment-stripping matters: an
  * invariant is documented in comments naming the very tokens its scan looks for, so a raw
  * substring match would flag its own documentation. The lexing itself is guarded by
  * `scan-source.differential.test.ts` (G4.57), which holds it against TypeScript's own lexer.
@@ -11,7 +11,7 @@ import path from 'node:path';
 
 export const EDITOR_SRC = path.resolve('src/lib');
 
-/** The demo/dev harness tree. Reachable only with `includeTests` — most of it sits under `test`. */
+/** The demo/dev harness tree. Reachable only with `includeTests`: most of it sits under `test`. */
 export const ROUTES_SRC = path.resolve('src/routes');
 
 /**
@@ -111,7 +111,7 @@ export function readEditorFile(relFromEditor: string): SourceFile {
 // ── Literal-aware walk ───────────────────────────────────────────────────────
 
 /**
- * Visit each character of `code` from `from` that is real code — strings, templates, comments
+ * Visit each character of `code` from `from` that is real code: strings, templates, comments
  * and regex literals are stepped over whole, so a bracket, comma or semicolon inside one never
  * reaches a census. Returns the index `visit` stopped at, or `code.length` if it ran out.
  */
@@ -132,7 +132,7 @@ export function walkCode(
 }
 
 /**
- * The non-code span starting at `i` — string, template, comment or regex literal — or null
+ * The non-code span starting at `i`, string, template, comment or regex literal, or null
  * where code continues. The one place the lexing rules live.
  */
 function spanAt(code: string, i: number): Span | null {
@@ -140,7 +140,7 @@ function spanAt(code: string, i: number): Span | null {
 	if (ch === "'" || ch === '"') return { end: skipString(code, i), kind: 'literal' };
 	if (ch === '`') return { end: skipTemplate(code, i), kind: 'template' };
 	// Markup's comment form, unconditional rather than `.svelte`-only: the walk reaches this
-	// only in code position, and G4.57's TypeScript arm reds if a `.ts` file ever writes one.
+	// only in code position, and G4.57's TypeScript check fails if a `.ts` file ever writes one.
 	if (ch === '<') {
 		return code.startsWith('<!--', i) ? { end: skipMarkupComment(code, i), kind: 'comment' } : null;
 	}
@@ -293,7 +293,7 @@ const INSTALLS_BEFOREINPUT = /\bonbeforeinput\s*=/;
 const READS_INLINE_POLICY =
 	/(?<![\w.])(getInlineConstructPolicy|getInlineMarkPolicy|inlineMarkForCommand|isCardEditableInlineKind|isRevealableInlineKind)\s*\(/;
 
-/** The surfaces every prose `beforeinput` seam has to reach (G4.44, G4.65). */
+/** The editable blocks every prose `beforeinput` handler has to reach (G4.44, G4.65). */
 export function isProseSurface(file: SourceFile): boolean {
 	return (
 		file.relPath.endsWith('.svelte') &&
@@ -337,8 +337,8 @@ function classifyRange(code: string, from: number, to: number, out: Uint8Array):
 const MAX_STATEMENT_SPAN = 600;
 
 /**
- * Every `<expr>.raw = …;` / `.raw += …;` statement, terminated at the semicolon and NOT at a
- * newline: Prettier wraps exactly the long concatenations G4.20's literal arm reads, and
+ * Every `<expr>.raw = …;` / `.raw += …;` statement, terminated at the semicolon and not at a
+ * newline: Prettier wraps exactly the long concatenations G4.20's literal check reads, and
  * stopping at the first newline truncates them to `.raw =` with no right-hand side in sight.
  * G4.28 reads the same statements as its bare-write census.
  */
@@ -371,8 +371,8 @@ export function rawAssignments(
 // ── Call arguments ───────────────────────────────────────────────────────────
 
 /**
- * A call to `name`. A spread (`...name(`) is one — the seam scans read call sites, and a result
- * spread into an array is where one of them hid; a property access (`x.name(`) is not.
+ * A call to `name`. A spread (`...name(`) counts as one, because these scans read call sites and
+ * a result spread into an array is where one of them hid; a property access (`x.name(`) does not.
  */
 function callSiteRegex(name: string): RegExp {
 	return new RegExp(`(?:(?<![\\w$.])|(?<=\\.\\.\\.))${name}\\s*\\(`, 'g');
@@ -402,7 +402,7 @@ export function callsTo(code: string, name: string): string[] {
 	return callSites(code, name).flatMap((site) => (site.args === null ? [] : [site.args]));
 }
 
-/** Whether `code` calls `name` at all — the membership form of {@link callsTo}. */
+/** Whether `code` calls `name` at all: the membership form of {@link callsTo}. */
 export function callsAnywhere(code: string, name: string): boolean {
 	return callSiteRegex(name).test(code);
 }
@@ -420,7 +420,7 @@ export function balancedCall(code: string, openParenIndex: number): string | nul
 	return at === code.length ? null : code.slice(openParenIndex, at);
 }
 
-/** A block's body from just after its opening brace to its matching close, braces balanced — the
+/** A block's body from just after its opening brace to its matching close, braces balanced: the
  *  {@link balancedCall} shape over `{}`, for a census that reads whole function bodies. */
 export function balancedBlock(code: string, openBraceIndex: number): string | null {
 	let depth = 1;
@@ -431,7 +431,7 @@ export function balancedBlock(code: string, openBraceIndex: number): string | nu
 	return at === code.length ? null : code.slice(openBraceIndex, at);
 }
 
-/** The region from the bracket at `openIndex` to its match, both ends included — the
+/** The region from the bracket at `openIndex` to its match, both ends included: the
  *  {@link balancedCall} walk for a census that reads a whole `(…)` or `{…}` rather than an interior. */
 export function balancedRegion(code: string, openIndex: number): string | null {
 	const open = code[openIndex];
@@ -461,7 +461,7 @@ export function callArguments(args: string): string[] {
 	return out;
 }
 
-/** The last top-level argument of a call's argument text — the slot the threading scans read. */
+/** The last top-level argument of a call's argument text: the slot the threading scans read. */
 export function lastArgument(args: string): string {
 	const parts = callArguments(args);
 	return parts[parts.length - 1];

@@ -1,9 +1,8 @@
 /**
- * G4.19 — every dispatcher construction site reaches the reading gate, by threading
- * `getPresentationMode` to the seam or by carrying a local reading/readOnly guard. A
- * one-arm scan misfires because both are load-bearing; a site with neither silently skips
- * the gate, which shipped at four sites before an e2e caught it. The two schema files
- * that OWN the gate are excluded — they ARE the gate.
+ * G4.19: every place a dispatcher is constructed reaches the reading-mode check, either by
+ * passing `getPresentationMode` down or by carrying its own reading/readOnly check. Scanning for
+ * only one of the two misfires, because both are real; a site with neither silently skips the
+ * check. The two schema files that own the check are excluded, because they are the check.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -24,16 +23,16 @@ const GATE_OWNER_FILES = new Set([
 	'src/lib/schema/commands.ts'
 ]);
 
-// Sites gated by a LOCAL reading/readOnly guard instead of a threaded
-// getPresentationMode → the regex the guard must keep present.
+// Sites that check reading mode locally instead of being passed `getPresentationMode`, each
+// mapped to the regex that check has to keep matching.
 const LOCAL_GATE_SITES: Record<string, RegExp> = {
 	'src/lib/components/GapCaret.svelte': /isReading,/,
 	'src/lib/components/editor-root-keydown.ts': /=== 'reading'/,
 	'src/lib/editor-actions/container-block-component.ts': /isReading\s*\(/
 };
 
-// Set equality trips the day a new editable surface is born — the dominant future-site
-// risk, since a new block kind is a new component file.
+// Set equality fails the day a new editable block appears, which is the likeliest new site,
+// since a new block kind is a new component file.
 const DISPATCH_SITE_FILES = [
 	'src/lib/components/blocks/surface-wiring.svelte.ts',
 	'src/lib/editor-actions/plugin/container.ts',
@@ -83,10 +82,10 @@ function namedObjectLiteral(code: string, name: string): string | null {
 }
 
 /**
- * True when the site reaches the gate: the getter inline in the argument list, or inside the
- * object literal a bare-identifier argument resolves to. Resolving from the CALL SITE is the
- * point: a door rewired to a context that skips the getter fails, where a file-wide regex for
- * the old context's name would still pass.
+ * True when the site reaches the check: the getter inline in the argument list, or inside the
+ * object literal a bare-identifier argument resolves to. Resolving from the call site is the
+ * point: a call rewired to a context that skips the getter fails here, where a file-wide regex
+ * for the old context's name would still pass.
  */
 function isThreaded(args: string, code: string): boolean {
 	if (args.includes(GATE_GETTER)) return true;
@@ -141,7 +140,7 @@ describe('G4.19 reading-gate two-arm parity guard', () => {
 		);
 	});
 
-	// Miss-analysis: the private brace walk had no literal awareness at all, and every case fed it
+	// Miss-analysis: the private brace scan had no literal awareness at all, and every case fed it
 	// a plain literal, so the short region a quoted brace ends was never read for the getter.
 	it('a brace inside a string does not end the literal an argument names', () => {
 		const gated = "const ctx = {\n\tlabel: '}',\n\tgetPresentationMode: () => mode\n};";
@@ -158,13 +157,13 @@ describe('G4.19 reading-gate two-arm parity guard', () => {
 		const ungated = 'const other = {\n\thistory,\n\tpluginEditor\n};';
 		expect(isThreaded('id, undefined, target(), ctx, sink', gated)).toBe(true);
 		expect(isThreaded('id, undefined, target(), other, sink', ungated)).toBe(false);
-		// The door rewired to a context that skips the gate: the gated const still exists in the
-		// file, so a file-wide name regex would pass here.
+		// The call rewired to a context that skips the check: the checked const still exists in
+		// the file, so a file-wide name regex would pass here.
 		expect(isThreaded('id, undefined, target(), other, sink', `${gated}\n${ungated}`)).toBe(false);
 	});
 
-	// Non-vacuity for the arm itself: the real door site carries no inline getter, so the whole
-	// file rests on the named-context resolution above.
+	// For this check itself: the real call site carries no inline getter, so the whole file rests
+	// on the named-context resolution above.
 	it('the runCommand door reaches the gate through its named context, not inline', () => {
 		const doorSites = sites.filter((s) => s.relPath === 'src/lib/components/Editor.svelte');
 		expect(doorSites.length).toBe(1);

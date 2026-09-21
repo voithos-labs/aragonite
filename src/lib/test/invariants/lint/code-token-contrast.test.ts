@@ -1,6 +1,6 @@
 /**
  * WCAG AA for code text, computed from the declared palette: every `--code-tok-*` color in
- * `editor-theme.css`, in both themes, against the two backgrounds code paints on — the
+ * `editor-theme.css`, in both themes, against the two backgrounds code paints on: the
  * surface and the fence (`--color-bg-secondary` composited over it). The axe gate cannot
  * certify this, because it scans the harness page, whose own background shows through.
  */

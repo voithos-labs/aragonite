@@ -4,7 +4,7 @@ import type { CstNode, Document } from '../../core/nodes';
 import { serialize } from '../../core/serializer';
 import { arbParsedDoc, freshOrFixedSeed } from './arbitraries';
 
-// G2.6: the serializer reads ONLY raw / trivia / prefix / suffix, never `metadata`,
+// G2.6: the serializer reads only `raw`, `leadingTrivia`, `prefix` and `suffix`, never `metadata`,
 // editor-level fields, or `children`. Guards raw-as-truth against creep toward a
 // serializer that reconstructs its output from parsed fields.
 

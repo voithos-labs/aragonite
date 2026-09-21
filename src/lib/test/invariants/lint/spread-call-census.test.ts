@@ -1,8 +1,8 @@
 /**
- * G4.60 — every spread into a call's ARGUMENT LIST in shipped source is declared. A spread hands
- * the engine one argument per element, and a list past its limit raises "Maximum call stack size
+ * G4.60, every spread into a call's argument list in shipped source is declared. A spread hands
+ * the JavaScript runtime one argument per element, and a list past its limit raises "Maximum call stack size
  * exceeded" at the call, stranding the operation with nothing rendered (#246). A site declares
- * either the ceiling its count can't pass, or that the count is document-scaled — never a silent
+ * either the ceiling its count can't pass, or that the count is document-scaled, never a silent
  * skip. Array-literal spread (`[...x]`) has no argument list and is out of scope.
  */
 

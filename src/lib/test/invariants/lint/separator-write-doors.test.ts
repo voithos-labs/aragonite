@@ -1,9 +1,9 @@
 /**
- * Every splice settles its separators through the funnel, so no module writes a sibling's
- * `leadingTrivia` by hand (syntax-tree.md § Blank lines). The failure mode is silent: byte
- * round-trip stays green while the document reloads to a different block count. Name-level set
- * equality with a reason per exemption, so splice site N+1 fails at birth rather than at the
- * next audit.
+ * Every splice recomputes its blank-line separators through the one shared function, so no module
+ * writes a sibling's `leadingTrivia` by hand (syntax-tree.md § Blank lines). The failure is
+ * silent: byte round-trip stays green while the document reloads to a different block count. It
+ * compares sets of names with a reason for each exemption, so the next splice site fails the
+ * moment it is written rather than at the next review.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -16,8 +16,8 @@ import {
 } from './scan-source';
 
 /**
- * Files that may assign an existing node's `leadingTrivia`. A mint's own `leadingTrivia:`
- * property is a fresh node, not a separator anybody was relying on, and is not a write.
+ * Files that may assign an existing node's `leadingTrivia`. A `leadingTrivia:` property on a node
+ * being created is a fresh node, not a separator anybody relied on, so it is not a write.
  */
 const TRIVIA_WRITERS: Record<string, string> = {
 	'src/lib/tree-operations/settle.ts': 'the settle doors and the two funnel entries live here',
@@ -48,7 +48,7 @@ const TRIVIA_WRITERS: Record<string, string> = {
 	'src/lib/editor-actions/list-context.ts': 'head normalization of a split item’s second half'
 };
 
-/** Files that may name a settle door rather than reaching it through the funnel. */
+/** Files that may name one of those functions directly rather than the shared one. */
 const HAND_SETTLE_CALLERS: Record<string, string> = {
 	'src/lib/tree-operations/settle.ts': 'defines them, and the funnel entries beside them',
 	'src/lib/tree-operations/reorder.ts':
@@ -127,17 +127,17 @@ describe('separator-write-door census', () => {
 	});
 });
 
-// ── The retire parity, inside the doors’ own file ─────────────────────────
+// ── The span drop, inside those functions’ own file ───────────────────────
 
 /**
- * A settle door rewrites bytes the owner's child spans describe, so it retires them
- * (`schema/child-spans.ts`). The censuses above fix which FILES may write a separator; this one
- * fixes which FUNCTIONS may, and every one of them answers for the retire. Door N+1 is born
- * failing this rather than waiting for a sweep case to reach it.
+ * One of these functions rewrites bytes the owner's child spans describe, so it drops those spans
+ * (`schema/child-spans.ts`). The lists above fix which files may write a separator; this one fixes
+ * which functions may, and every one of them has to drop the spans. The next such function fails
+ * this the moment it is written rather than waiting for a test case to reach it.
  */
 const DOORS_FILE = 'tree-operations/settle.ts';
 
-/** The files that inherited node-ops’ other separator carries, held to the same parity. */
+/** The files that took over node-ops’ other separator writes, held to the same rule. */
 const CARRY_FILES = [
 	'tree-operations/node-ops.ts',
 	'tree-operations/content-write.ts',
@@ -157,7 +157,7 @@ function functionBodies(code: string): { name: string; body: string }[] {
 	return out;
 }
 
-/** A write to a sibling’s separating line, or to a wrap slot the spans do not cover. */
+/** A write to a sibling’s separating line, or to a wrap field the spans do not cover. */
 const WRITES_SEPARATOR_BYTES = /(?:\.leadingTrivia|slots\.inner(?:Prefix|Suffix))\s*\+?=(?!=)/;
 
 describe('every separator door retires the child spans it invalidates', () => {
@@ -166,8 +166,8 @@ describe('every separator door retires the child spans it invalidates', () => {
 		.filter((fn) => WRITES_SEPARATOR_BYTES.test(fn.body));
 
 	/**
-	 * Every settle door by name: each retires FIRST, before its own guards. A retire that has
-	 * slid below an early return is a door that stops retiring on the paths that take it.
+	 * Each of these functions by name: every one drops the spans first, before its own checks. A
+	 * drop that has slid below an early return stops happening on the paths that take it.
 	 */
 	const DOORS = [
 		'clearRedundantSeparator',
@@ -206,9 +206,10 @@ describe('every separator door retires the child spans it invalidates', () => {
 	});
 
 	/**
-	 * Writers that answer for the spans some other way, each with the reason. Two are reached
-	 * only from doors that retire before dispatching; the rest write a MINT’s own line, or write
-	 * one inside a splice that moves the child count, which refuses the next region rewrite.
+	 * Writers that account for the spans some other way, each with its reason. Two are reached only
+	 * from functions that drop the spans before dispatching; the rest write the line of a node they
+	 * are creating, or write one inside a splice that changes the child count, which refuses the
+	 * next region rewrite.
 	 */
 	const ANSWERED_ELSEWHERE: Record<string, string> = {
 		mintSeparator: 'reached only from the three doors that retire first',

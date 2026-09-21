@@ -1,8 +1,8 @@
 /**
- * Sibling-path parity: BlockHost dispatches a block to one of TWO component branches, and
- * the instance-delivered props read from editor context must ride BOTH. A prop threaded
- * on one branch only is invisible to any block rendering through the other — a raw
- * fallback, a container's nested child. This scans the source so a NEW context-delivered
+ * Sibling-path parity: BlockHost dispatches a block to one of two component branches, and
+ * the instance-delivered props read from editor context must ride both. A prop threaded
+ * on one branch only is invisible to any block rendering through the other: a raw
+ * fallback, a container's nested child. This scans the source so a new context-delivered
  * prop, or a dropped one, fails the day it lands.
  */
 

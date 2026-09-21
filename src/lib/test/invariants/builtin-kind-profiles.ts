@@ -1,5 +1,5 @@
 /**
- * What the generic battery (`$lib/testing/kind-conformance`) needs BEYOND each built-in
+ * What the generic battery (`$lib/testing/kind-conformance`) needs beyond each built-in
  * descriptor. A profile exists only where a kind's mechanism is unobservable generically:
  * `table.clipboard` synthesizes a fresh GFM sub-table, which no byte-slice check reaches.
  */
@@ -31,7 +31,7 @@ function parsesToTable(payload: string, columns: number, rows: number, label: st
 
 /**
  * Drives `copyRectangleAsSubTable`, the function the closure `via` names. The
- * single-column sub-rectangle is the discriminating case: reparsing to a NARROWER table
+ * single-column sub-rectangle is the discriminating case: reparsing to a narrower table
  * is something no raw byte slice could produce, so the copy genuinely synthesizes.
  */
 function checkTableRectCopy(ctx: KindCellContext): void {

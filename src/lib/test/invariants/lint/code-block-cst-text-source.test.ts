@@ -1,8 +1,8 @@
 /**
  * CodeBlock's edit paths take their text from the CST, never the rendered DOM (design
- * rule 1: CST wins) — a textContent-visible affix would make an `el.textContent` read
- * silently edit the wrong string. Scope is CodeBlock.svelte and READS only;
- * `code-renderer.ts` legitimately reads `textContent` while BUILDING its fragment. The
+ * rule 1: CST wins): a textContent-visible affix would make an `el.textContent` read
+ * silently edit the wrong string. Scope is CodeBlock.svelte and reads only;
+ * `code-renderer.ts` legitimately reads `textContent` while building its fragment. The
  * TS-shaped `stripComments` can over-blank a `.svelte` file, which only loses a
  * violation, never invents one.
  */

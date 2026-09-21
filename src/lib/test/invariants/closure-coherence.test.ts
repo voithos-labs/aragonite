@@ -5,7 +5,7 @@ import { checkClosureCoherence, type ClosureCoherenceEntry } from '$lib/invarian
 import { closureCoherenceEntry } from '$lib/schema/registration-checks';
 import { getBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
 
-// G1.24 — the closure-vs-descriptor cross-checks a compiler can't reach. The
+// G1.24: the closure-vs-descriptor cross-checks a compiler can't reach. The
 // fixture-parses-to-kind rule is a separate sweep (closure-fixtures.test.ts) because a
 // `parse` import here would close a schema → core/parser → schema cycle.
 
@@ -118,7 +118,7 @@ describe('checkClosureCoherence — focus-then-delete claim rule', () => {
 	});
 
 	// The near-miss that must stay outside the vocabulary: an ordinary not-mergeable leaf
-	// moves focus at its edge and deletes on the first press.
+	// moves focus at its edge and deletes on the first keypress.
 	it('leaves an edge-focus-moving leaf alone', () => {
 		expect(
 			checkClosureCoherence([

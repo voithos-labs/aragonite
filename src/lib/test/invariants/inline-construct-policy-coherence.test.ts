@@ -116,7 +116,7 @@ describe('checkInlineConstructPolicy (G1.31)', () => {
 	});
 
 	// A built-in id the mark table does not already claim ties with nothing, so only this rule
-	// catches it — and the surfaces that consult the mark table disagree on where in their command
+	// catches it: and the surfaces that consult the mark table disagree on where in their command
 	// lookup it sits, so the shadow is one surface's and not the other's.
 	it('fires when a plugin row’s mark claims a built-in command id', () => {
 		const violation = check(

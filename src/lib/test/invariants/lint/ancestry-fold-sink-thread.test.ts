@@ -1,9 +1,9 @@
 /**
- * G4.46 — the ancestry rebuild's `folds` sink is a required-nullable capability: a fold splices
- * the PARENT's children array, so only a caller that reconciles that scope's ids/refs may pass
- * one. The type stops an omission; what it cannot stop is caller N+1 answering `null` because
- * reconciling was inconvenient, and a wrong id length is permanent. Hence the site map below —
- * every production call site is enumerated with the stance it takes and why it takes it.
+ * G4.46: the ancestry rebuild's `folds` callback is required but may be null. A merged container
+ * splices the parent's children array, so only a caller that reconciles that list's ids and refs
+ * may pass one. The type stops an omission; it cannot stop the next caller answering `null`
+ * because reconciling was inconvenient, and a wrong id length is permanent. Hence the map below:
+ * every production call site with the position it takes and why.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -11,13 +11,13 @@ import { callArguments, callsTo, collectEditorSources, stripComments } from './s
 
 const SEAMS = ['rebuildUnsharedChain', 'rebuildUnsharedAncestry'] as const;
 
-/** `(root, chain, sharing, folds, grammar)` — the sink is the fourth argument of both seams. */
+/** `(root, chain, sharing, folds, grammar)`: the callback is the fourth argument of both. */
 const FOLDS_ARGUMENT = 3;
 
 interface SiteStance {
 	/** Calls answering the literal `null`. */
 	declines: number;
-	/** Calls passing a sink, which is the claim "I can reconcile a parent-scope splice". */
+	/** Calls passing a callback, which claims the caller can reconcile a splice in the parent. */
 	sinks: number;
 	why: string;
 }
@@ -96,7 +96,7 @@ interface SinkCall {
 	declines: boolean;
 }
 
-/** Every seam call in `code`, classified by whether its sink argument is the literal `null`. */
+/** Every such call in `code`, classified by whether its callback argument is literally `null`. */
 function sinkCalls(relPath: string, rawText: string): SinkCall[] {
 	const code = stripComments(rawText);
 	return SEAMS.flatMap((seam) =>

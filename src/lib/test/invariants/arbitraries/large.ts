@@ -9,7 +9,7 @@ import { withDrawnLineEnding } from './line-endings';
 
 /** One line carrying every multi-unit class at once, the combining cluster included. An offset
  *  defect at 100KB is still an offset defect, and it stays inside a mostly-ASCII line so the scale
- *  lane keeps its bulk. */
+ *  generator keeps its bulk. */
 const NON_ASCII_LINE = '汉字 \u00e9m e\u0301m 😀 x';
 
 /** Roughly the byte budget each drawn document aims for. */

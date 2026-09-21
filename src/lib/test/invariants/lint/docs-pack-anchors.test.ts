@@ -1,7 +1,8 @@
 /**
  * `scripts/build-docs-pack.mjs` resolves every in-pack `#anchor` against its target doc's headings,
  * so a renamed heading reds `npm run lint` instead of stranding a cross-reference inside the npm
- * tarball, where a reader cannot fall back to searching the repo. This is that reader's
+ * tarball, where someone reading it cannot fall back to searching the repo. This is that
+ * reader's
  * non-vacuity half: an empty anchor set, or a parse that finds no fragment at all, would let the
  * gate pass on nothing. Miss-analysis: the gate dropped the fragment before checking, so no test
  * could tell a resolved anchor from an ignored one.
@@ -32,7 +33,7 @@ describe('in-pack anchors — the index', () => {
 	});
 
 	// A `# comment` in a shell snippet is no heading, and an anchor resolving against one would
-	// name a section the reader lands nowhere near.
+	// name a section the link lands nowhere near.
 	it('mints no anchor from a heading-shaped line inside a fence', () => {
 		const fenced = '## Real\n\n```bash\n# install deps\n```\n';
 		expect(anchorsOf(fenced)).toContain('real');
@@ -40,7 +41,7 @@ describe('in-pack anchors — the index', () => {
 	});
 
 	// A `#fragment` means one slug, where the § reader indexes a heading under every spelling a
-	// prose citer writes — reusing that set would let an approximation of an anchor resolve.
+	// prose citer writes: reusing that set would let an approximation of an anchor resolve.
 	it('is the strict half of the § pointer index', () => {
 		const heading = '## Merge eligibility: roles, not pairs\n';
 		expect(headingsOf(heading)).toContain('roles-not-pairs');

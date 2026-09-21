@@ -1,9 +1,9 @@
 /**
- * A kind's own raw-write rule (`normalizeRawWrite`) reaches its bytes through two readers —
- * `writeOwnRaw` in place, `normalizeOwnRaw` for a sink that reparses the result — and every
- * sink writing a leaf's raw without the kind's surface calls one (issues #45, #55). The site
- * lists make sink N+1 a decision; the sanctioned-writes arm makes a sink that names neither
- * reader one too.
+ * A kind's own raw-write rule (`normalizeRawWrite`) reaches its bytes through two functions,
+ * `writeOwnRaw` in place and `normalizeOwnRaw` for a caller that reparses the result, and every
+ * write to a leaf's raw that bypasses the kind's own component calls one (issues #45, #55). The
+ * lists of sites make the next such write a decision; the allowlist of bare writes below makes a
+ * write that names neither function one too.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -19,7 +19,7 @@ const CAPABILITY_SITES: Record<string, string> = {
 	[READERS_HOME]: 'the readers dispatch it'
 };
 
-/** Every sink that writes a leaf's raw in place and owes the kind's rule. */
+/** Every place that writes a leaf's raw in place and has to apply the kind's rule. */
 const READER_SITES: Record<string, string> = {
 	[READERS_HOME]: 'the reader itself',
 	'src/lib/tree-operations/content-write.ts': 'the context-dependent-kind write',
@@ -38,8 +38,8 @@ const READER_SITES: Record<string, string> = {
 };
 
 /**
- * Every sink that REPLACES the leaf with a reparse of the bytes it built. The reparse re-derives
- * metadata, so the rule runs against the OLD node or the structure it would restore is gone.
+ * Every place that replaces the leaf with a reparse of the bytes it built. The reparse re-derives
+ * metadata, so the rule runs against the old node or the structure it would restore is gone.
  */
 const PRE_REPARSE_SITES: Record<string, string> = {
 	[READERS_HOME]: 'the reader itself',
@@ -53,11 +53,11 @@ const PRE_REPARSE_SITES: Record<string, string> = {
 };
 
 /**
- * A branch inherits the rule by routing through that shared endpoint reparse rather than naming
- * a reader, which the per-file scan above cannot see. Rebuilding the reparse locally drops the
- * rule silently, so the inheritance is pinned on the helper's own name. The chrome and table
- * branches inherit one level higher, through the ceremony's whole-truncation atoms; a local
- * reparse regrown there re-enters this exact-set scan and fails it.
+ * A branch inherits the rule by going through that shared reparse rather than naming either
+ * function, which the per-file scan above cannot see. Rebuilding the reparse locally drops the
+ * rule silently, so the inheritance is pinned on the helper's own name. The title and table
+ * branches inherit one level higher, through the commit's whole-block truncation steps; a local
+ * reparse grown back there re-enters this exact-set scan and fails it.
  */
 const PRE_REPARSE_INHERITORS: Record<string, string> = {
 	'src/lib/selection/range-delete-ceremony.ts':
@@ -65,7 +65,7 @@ const PRE_REPARSE_INHERITORS: Record<string, string> = {
 	'src/lib/selection/range-delete.ts': 'the generic merge installs its survivor through it'
 };
 
-/** The fence rule has one implementation, shared by the display funnel and the byte sink. */
+/** The fence rule has one implementation, shared by the display path and the byte write. */
 const FENCE_HOME = 'src/lib/schema/fenced-code-raw.ts';
 const FENCE_READERS: Record<string, string> = {
 	[FENCE_HOME]: 'the implementation',
@@ -121,8 +121,8 @@ describe('the kind’s own raw-write rule runs at every byte sink', () => {
 		expect(namesInCode(sources, CAPABILITY)).toEqual(Object.keys(CAPABILITY_SITES).sort());
 	});
 
-	// Fails when a sink is wired in or unwired, making door N+1 an explicit decision. A bare
-	// `.raw =` write names no reader; the sanctioned-writes arm below is what catches those.
+	// Fails when a write site is added or removed, making the next one an explicit decision. A
+	// bare `.raw =` write names neither function; the allowlist below is what catches those.
 	it('exactly the documented sinks call the reader', () => {
 		expect(namesInCode(sources, READER)).toEqual(Object.keys(READER_SITES).sort());
 	});
@@ -138,12 +138,12 @@ describe('the kind’s own raw-write rule runs at every byte sink', () => {
 	});
 });
 
-// ── The bare write: a byte sink that names neither reader ────────────────────
+// ── The bare write: a byte write that names neither function ─────────────────
 
 /**
  * Files holding a `<node>.raw =` write that consults no kind rule, each with the count it is
- * sanctioned for — a file-granular entry would let write N+1 in unnoticed. A sanctioned write
- * either IS a kind re-emitting its own bytes, or cannot reach a kind that declares a rule.
+ * allowed: an entry per file with no count would let the next write in unnoticed. An allowed write
+ * is either a kind re-emitting its own bytes, or one that cannot reach a kind declaring a rule.
  */
 const BARE_RAW_WRITE_ALLOWLIST: Record<string, { count: number; why: string }> = {
 	[READERS_HOME]: { count: 1, why: 'the sanctioned writer itself' },
@@ -264,7 +264,7 @@ describe('the fence rule has one implementation', () => {
 		);
 	});
 
-	// The rule reads the block's OWN fence shape, so it must live where a headless sink can
+	// The rule reads the block's own fence shape, so it has to live where a headless caller can
 	// reach it: under `components/` it would exist only once the component tree loaded.
 	it('the rule home is in schema, importing no component', () => {
 		const home = sources.find((f) => f.relPath === FENCE_HOME);

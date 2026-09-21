@@ -1,18 +1,18 @@
 /**
- * G4.38 — every editable surface publishes the programmatic insertion door. The shared
- * clipboard skeleton mints `insertMarkdown` for all of them, but Svelte 5 instance exports
- * have no spread, so the last hop is hand-written per component and `BlockComponent` declares
- * it optional — surface N+1 would compile fine and silently decline every `editor.insertMarkdown`.
- * Two channels deliver it, and the census reads whichever one the component actually uses: an
- * instance export, or the surface literal it hands `publishRefSlot` (GH #148).
+ * G4.38: every editable block publishes `insertMarkdown`. The shared clipboard code creates it
+ * for all of them, but Svelte 5 instance exports cannot be spread, so the last step is written by
+ * hand per component and `BlockComponent` declares the member optional: the next block would
+ * compile fine and silently decline every `editor.insertMarkdown`. Two routes deliver it, and
+ * this reads whichever one the component actually uses: an instance export, or the object it
+ * hands `publishRefSlot` (GH #148).
  */
 import { describe, it, expect } from 'vitest';
 import { collectEditorSources } from './scan-source';
 
-/** A component owning an editable surface: the two factories that mint one. */
+/** A component owning an editable element: the two factories that create one. */
 const SURFACE_FACTORY_RE = /\bcreateEditable(?:Surface|Leaf)\s*\(/;
 
-/** The exported hop — an instance export, not a mention. */
+/** The exported step: an instance export, not a mention. */
 const PUBLISHES_DOOR_RE = /\bexport\s+(?:const|function)\s+insertMarkdown\b/;
 
 const RULE =
@@ -26,12 +26,12 @@ function surfaceComponents(): Array<{ relPath: string; code: string }> {
 		.sort((a, b) => a.relPath.localeCompare(b.relPath));
 }
 
-// ── The published-literal channel ────────────────────────────────────────
+// ── The published-object route ───────────────────────────────────────────
 
 /**
- * Members of the surface literal a component hands `publishRefSlot`, or null where it publishes
- * no such literal. Tied to the published argument by NAME: a literal nothing publishes is the
- * decoy an instance export with no reader already was.
+ * Members of the object a component hands `publishRefSlot`, or null where it publishes no such
+ * object. Matched to the published argument by name: an object nothing publishes is as misleading
+ * as an instance export nobody reads.
  */
 function publishedSurfaceMembers(code: string): string[] | null {
 	const at = code.search(/\bsatisfies\s+BlockComponent\b/);
@@ -78,8 +78,8 @@ describe('G4.38 insertion-door surface parity', () => {
 		expect(silent, RULE).toEqual([]);
 	});
 
-	// The cell is the whole literal-channel population, and the arm that would go vacuous first:
-	// losing it leaves the census scanning exports only, which is the blind spot #148 named.
+	// The cell is the whole population for that route, and the first check that would stop proving
+	// anything: losing it leaves this scanning exports only, the blind spot #148 named.
 	it('the table cell is scanned through the literal its row actually mounts', () => {
 		const cell = components.find((f) => f.relPath.endsWith('TableCellBlock.svelte'));
 		expect(cell, 'TableCellBlock left the editable-surface population').toBeDefined();

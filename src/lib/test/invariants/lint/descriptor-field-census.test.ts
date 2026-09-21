@@ -1,5 +1,5 @@
 /**
- * G4.53 — the descriptor field reference (`docs/design/plugin-contract.md`) and
+ * G4.53: the descriptor field reference (`docs/design/plugin-contract.md`) and
  * `BlockKindDescriptor` are one set, both directions. The registration shape freezes at 1.0, so a
  * field landing undocumented and a row outliving its field are the two ways the published
  * inventory stops being the inventory. Keyed on the field-name column alone, so the prose columns
@@ -58,7 +58,7 @@ describe('G4.53 descriptor field reference ↔ BlockKindDescriptor', () => {
 	});
 
 	// The write-side group normalizes into the flat read shape, so its keys are covered by the flat
-	// rows — but only while every group key still names one. `contract` is the lone rename.
+	// rows: but only while every group key still names one. `contract` is the lone rename.
 	it('covers the container group through its flat twins', () => {
 		const missing = CONTAINER_ONLY_KEYS.filter((key) => !documented.includes(key));
 		expect(missing, `container-group fields with no row: ${missing.join(', ')}`).toEqual([]);

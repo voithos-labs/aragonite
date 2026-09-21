@@ -1,6 +1,6 @@
 /**
- * G4.18 — inline-trigger parity. `BUILTIN_TRIGGERS` equals the `scanInline` switch's `case`
- * labels; every reserved trigger is reachable by exactly ONE of scan-visible,
+ * G4.18: inline-trigger parity. `BUILTIN_TRIGGERS` equals the `scanInline` switch's `case`
+ * labels; every reserved trigger is reachable by exactly one of scan-visible,
  * scan-probed, or rejected; and the pre-switch prefix consultation has exactly one home.
  * Literals compare in source-escaped form without unescaping, so the newline trigger
  * can't decay into an actual line break mid-scan. The probed route's wiring is pinned
@@ -29,7 +29,7 @@ function specialChars(): Set<string> {
 	const match = indexSource().match(/SPECIAL_CHARS\s*=\s*'((?:\\.|[^'\\])*)'/);
 	if (!match) throw new Error('inline-trigger-parity: SPECIAL_CHARS literal not found');
 	// `\\.` keeps `\\` and `\n` as one unit each, matching the source-escaped form
-	// `singleQuotedLiterals` produces for BUILTIN_TRIGGERS — so `\n` compares to `\n`.
+	// `singleQuotedLiterals` produces for BUILTIN_TRIGGERS: so `\n` compares to `\n`.
 	const chars = [...match[1].matchAll(/\\.|[^\\]/g)].map((m) => m[0]);
 	return new Set(chars);
 }
@@ -72,7 +72,7 @@ describe('G4.18 inline-trigger parity', () => {
 		).toEqual({ onlyInTriggers: [], onlyInSwitch: [] });
 	});
 
-	// Non-vacuity: both scans found real, populated sets — a broken regex would make
+	// Non-vacuity: both scans found real, populated sets: a broken regex would make
 	// the equality pass vacuously on two empty sets.
 	it('both scans found the triggers they read', () => {
 		expect(triggers.size).toBeGreaterThan(5);
@@ -81,8 +81,8 @@ describe('G4.18 inline-trigger parity', () => {
 		expect(triggers.has('\\\\')).toBe(true); // the '\\' source literal (two backslash chars)
 	});
 
-	// Three rots, one per set: an orphaned trigger whose prefix rung never fires, a route
-	// naming a trigger that became scan-visible, and a trigger claimed by two routes.
+	// Three ways to go stale, one per set: a trigger whose prefix handler never fires, a route
+	// naming a trigger the scan now sees anyway, and a trigger claimed by two routes.
 	it('every reserved trigger takes exactly one route: visible, probed, or rejected', () => {
 		const special = specialChars();
 		const probed = triggerSet('SCAN_PROBED_RESERVED');

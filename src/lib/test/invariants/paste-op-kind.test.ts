@@ -13,7 +13,7 @@ import {
 import type { EditEvent } from '$lib/editor-events';
 import type { BlockListState } from '$lib/reactivity/block-list-state.svelte';
 
-// G2.9: a paste surfaces under MORE THAN ONE op kind, chosen by the paste STRATEGY rather
+// G2.9: a paste surfaces under more than one op kind, chosen by the paste strategy rather
 // than the target's depth, so a consumer counting pastes must watch all three. Driven
 // through the live `pasteDispatch` so the guard tracks the real routing.
 

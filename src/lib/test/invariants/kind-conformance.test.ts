@@ -11,7 +11,7 @@ afterEach(() =>
 	allowDevWarns(['invariant:cross-block-endpoint-coordinates', 'collectCrossBlockText:startTable'])
 );
 
-// Swept over the descriptor registry, so registering a built-in kind ENROLLS it here —
+// Swept over the descriptor registry, so registering a built-in kind enrolls it here:
 // a new kind is auto-covered the moment it registers.
 const builtinKinds = getAllRegisteredKinds().filter(isBuiltinBlockKind);
 const fixturedKinds = builtinKinds.filter((k) => getBlockKindDescriptor(k).conformanceFixture);
@@ -60,7 +60,7 @@ describe('kind conformance — a fixtured kind produces green generic cells', ()
 	});
 
 	// Reverting the declared mode to `inherit-default` with the profile intact makes this
-	// THROW rather than silently downgrade — the mode-contradiction guard below.
+	// throw rather than silently downgrade: the mode-contradiction guard below.
 	it('table clipboard executes its rectangular-copy mechanism', async () => {
 		const report = await runKindConformance('table', BUILTIN_KIND_PROFILES.table);
 		expect(report.cells.find((c) => c.column === 'clipboard')?.status).toBe('executed');
@@ -94,12 +94,12 @@ describe('kind conformance — byte-slice clipboard executor is the false-cell g
 // ── Regression: a profile check may only cover an `implemented` cell ──────────
 // Miss-analysis: a profiled path that bypasses the declared mode runs `executed` whatever
 // the cell claims, leaving a mode revert unverified and the suite green. Pinned for the
-// whole class — any profiled cell reverted off `implemented`, not just table.clipboard.
+// whole class: any profiled cell reverted off `implemented`, not just table.clipboard.
 
 describe('kind conformance — a profile check is refused on a non-implemented cell', () => {
 	it('rejects a custom check declared over an inherit-default cell', async () => {
 		// paragraph.clipboard is inherit-default, so a profile clipboard check contradicts
-		// it — the same shape a reverted table.clipboard raises against its own profile.
+		// it: the same shape a reverted table.clipboard raises against its own profile.
 		await expect(
 			runKindConformance('paragraph', { cells: { clipboard: { check: () => {} } } })
 		).rejects.toThrow(/custom check is only valid on an 'implemented' cell/);

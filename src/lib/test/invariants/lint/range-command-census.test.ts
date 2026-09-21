@@ -1,8 +1,8 @@
 /**
- * G4.50 — the cross-block sets are hand-maintained, so a new block command answers the range
- * question in exactly one of three ways: declined outright, routed to the cross-block arm, or
- * recorded as range-safe with the reason. An id in no table fails here the day it is minted,
- * rather than at the audit that finds the door and the chord path disagreeing under a range.
+ * G4.50: the cross-block sets are maintained by hand, so a new block command answers the range
+ * question in exactly one of three ways: declined outright, routed to the cross-block branch, or
+ * recorded as range-safe with the reason. An id in no table fails here the day it is written,
+ * rather than at the review that finds the command and the chord path disagreeing over a range.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -14,12 +14,12 @@ import {
 } from '$lib/schema/commands';
 
 /**
- * Ids whose arm does NOT spend one block's own offsets, and why. An arm that reads the focused
- * block's caret or selection and writes that block's bytes belongs in the decline set instead.
+ * Ids whose handler does not spend one block's own offsets, and why. A handler that reads the
+ * focused block's caret or selection and writes that block's bytes belongs in the decline set.
  */
 const RANGE_SAFE: Record<string, string> = {
-	// The cross-block keydown arm deletes the range and redispatches, so the arm never runs
-	// against a live one — and through the door the split is the caller's stated intent.
+	// The cross-block keydown handler deletes the range and redispatches, so the handler never
+	// runs against a live one, and called directly the split is the caller's stated intent.
 	'block.split': 'range deleted first by the cross-block arm; the door split is intentional',
 	'block.hardBreak': 'inserts at the caret the range collapses to, never across the range',
 	'block.insertTab': 'inserts one byte at the caret; declines inside a list item',
@@ -67,8 +67,8 @@ describe('G4.50 every block command answers the cross-block range question', () 
 		expect(BLOCK_COMMAND_IDS.filter((id) => classifications(id) > 1)).toEqual([]);
 	});
 
-	// Both tables shrink only through the vocabulary: an id removed from BLOCK_COMMAND_IDS and
-	// left behind here would keep a decline alive for a command nobody can dispatch.
+	// Both tables shrink only through the declared id list: an id removed from BLOCK_COMMAND_IDS
+	// and left behind here would keep a decline alive for a command nobody can dispatch.
 	it('names no id the vocabulary no longer carries', () => {
 		const vocabulary = new Set<string>(BLOCK_COMMAND_IDS);
 		const named = [
@@ -80,7 +80,7 @@ describe('G4.50 every block command answers the cross-block range question', () 
 	});
 
 	// A published toolbar id answering "range-safe" is this bug's shape: the button stays live over
-	// a cross-block selection and the press lands on whichever block holds the anchor (#324).
+	// a cross-block selection and the click lands on whichever block holds the anchor (#324).
 	it('never calls a published toolbar id range-safe', () => {
 		const offered = Object.values(TOOLBAR_COMMANDS);
 		expect(offered.filter((id) => RANGE_SAFE[id] !== undefined)).toEqual([]);
@@ -91,7 +91,7 @@ describe('G4.50 every block command answers the cross-block range question', () 
 		).toEqual([]);
 	});
 
-	// Non-vacuity: the census must actually fail on an unclassified id, not merely on an empty set.
+	// The check has to actually fail on an unclassified id, not merely on an empty set.
 	it('flags an id classified nowhere', () => {
 		const vocabulary = [...BLOCK_COMMAND_IDS, 'block.inventedForThisCase'];
 		expect(vocabulary.filter((id) => classifications(id) === 0)).toEqual([

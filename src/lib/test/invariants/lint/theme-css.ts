@@ -1,6 +1,6 @@
 /**
  * `editor-theme.css` read as declarations. Base and light are each split across the
- * host-chrome and editor-owned tiers, so rules are classified by their own selector rather
+ * host-supplied and editor-owned rules, so each rule is classified by its own selector rather
  * than by one index split.
  */
 import { readEditorFile, stripComments } from './scan-source';

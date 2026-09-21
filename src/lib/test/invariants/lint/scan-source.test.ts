@@ -1,8 +1,8 @@
 /**
  * The scan harness's own coverage guard. Every repo-wide lint inherits its blind spots
  * from `collectEditorSources()`, so a root silently dropping out of the default set
- * narrows a dozen guards at once. A MISSING root throws in `readdirSync`; what needs
- * asserting is the softer regression — a root still present but no longer reached, or a
+ * narrows a dozen guards at once. A missing root throws in `readdirSync`; what needs
+ * asserting is the softer regression: a root still present but no longer reached, or a
  * file collected twice because a lint re-adds a root the default already covers.
  */
 
@@ -55,7 +55,7 @@ describe('repo-wide scan roots', () => {
 
 	it('excludes test, e2e, and declaration files from every root', () => {
 		// `src/routes/test/plugins` is itself a root, so its own `test` segment is
-		// expected; what must not appear is a `test`/`e2e` directory BELOW a root.
+		// expected; what must not appear is a `test`/`e2e` directory below a root.
 		const belowRoot = paths.map((p) => p.replace(/^src\/routes\/test\/plugins\//, ''));
 		expect(belowRoot.filter((p) => /(^|\/)(test|e2e)\//.test(p))).toEqual([]);
 		expect(paths.filter((p) => p.endsWith('.d.ts'))).toEqual([]);
@@ -143,7 +143,7 @@ describe('literal-aware walking', () => {
 	});
 
 	// Miss-analysis: every strip case was TypeScript source, so no fixture ever put a token inside
-	// a `.svelte` markup comment — the one comment form the blanking did not know.
+	// a `.svelte` markup comment: the one comment form the blanking did not know.
 	it('blanks a markup comment, so a census cannot count the site inside one', () => {
 		const markup = '<!-- <BlockHost path={[]} /> -->\n<BlockHost path={[]} />';
 		const code = stripComments(markup);
@@ -155,7 +155,7 @@ describe('literal-aware walking', () => {
 	});
 
 	// A `/` after `}` is Svelte markup (`{a}/{b}`), never a regex opening: reading one as a regex
-	// swallows every byte to the next slash — here, the comment that must still blank.
+	// swallows every byte to the next slash: here, the comment that must still blank.
 	it('reads a slash after a closing brace as code, not a regex opening', () => {
 		expect(stripComments('{a}/{b /* c */}</span>')).toBe('{a}/{b ' + ' '.repeat(7) + '}</span>');
 		expect(stripComments('{a} / {b /* c */}')).toBe('{a} / {b ' + ' '.repeat(7) + '}');

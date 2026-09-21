@@ -1,7 +1,7 @@
 /**
  * Drift guard for the published theme-token manifest, pinning the consumer guide's "Theme
  * tokens" role table to `editor-theme.css`. The contract is both-themes: a themed token
- * carries a light AND a dark value, and since it can satisfy that with the SAME value
+ * carries a light and a dark value, and since it can satisfy that with the same value
  * twice, values are compared too and a deliberate one-value token joins
  * MODE_BLIND_BY_DESIGN. The manifest derives from the guide's own table rather than being
  * a hand-kept mirror.
@@ -59,7 +59,7 @@ function themeTokenSection(): string {
 }
 
 /**
- * Tokens named by the section's role table. Table ROWS only: the surrounding prose names
+ * Tokens named by the section's role table. Table rows only: the surrounding prose names
  * tokens too, and a manifest that absorbed prose would drift on a wording edit.
  */
 function tokensInTable(section: string): string[] {
@@ -124,7 +124,7 @@ describe('theme-token manifest ↔ consumer-guide § Theme tokens', () => {
 	it('the section slice and row filter are non-vacuous', () => {
 		const section = themeTokenSection();
 		expect(section).not.toBe('');
-		// Named by the theming prose ABOVE the section, so reaching it means the slice has
+		// Named by the theming prose above the section, so reaching it means the slice has
 		// no upper bound.
 		expect(tokensInTable(section)).not.toContain('--syntax-heading');
 		expect(tokensInTable('| Role | `--in-table` |\nProse names `--in-prose`.')).toEqual([

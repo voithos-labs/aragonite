@@ -1,8 +1,8 @@
 /**
- * The consumer guide's § Which shortcuts the editor consumes pastes a sample of
- * `reservedChords()` and then makes a claim about what the set never holds. Both are contracts a
- * host builds its accelerator map on, and neither is inside the shortcut table, so the chord
- * lint next door never reads them.
+ * The consumer guide's § Which shortcuts the editor consumes pastes a sample of `reservedChords()`
+ * and then makes a claim about what the set never holds. Both are contracts a host builds its
+ * accelerator map on, and neither is inside the shortcut table, so the chord lint beside this one
+ * never reads them.
  */
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';

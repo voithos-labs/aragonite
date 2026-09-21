@@ -1,9 +1,9 @@
 /**
- * Every live gesture rule is a row in the inline-construct policy table, or an arm that names a
- * construct itself and says why (live-mode.md § 3). This census holds both sets: the arms reading
- * rows, and the ones still answering by hand, each with a decided fate. It also asserts the
- * two-table boundary: rows answer hidden delimiter RUNS, the inline widget registry answers
- * atomic ISLANDS, and a file asking both states why.
+ * Every live gesture rule is a row in the inline-construct policy table, or a branch that names a
+ * construct itself and says why (live-mode.md § 3). This list holds both sets: the branches that
+ * read rows, and the ones still answering by hand, each with a decided fate. It also fixes the
+ * boundary between the two tables: rows answer for hidden delimiter runs, the inline widget
+ * registry answers for non-editable widgets, and a file asking both says why.
  */
 
 import path from 'node:path';
@@ -11,9 +11,10 @@ import { describe, it, expect } from 'vitest';
 import { EDITOR_SRC, collectEditorSources, stripComments, type SourceFile } from './scan-source';
 
 /**
- * Where a live gesture can live: the block surfaces and the caret, selection, tree and view layers
- * they dispatch into. `core/` and `schema/` sit outside on purpose — the parser names every kind to
- * BUILD the tree, and the table's own registration site names every kind to declare its rows.
+ * Where a live gesture can live: the block components and the caret, selection, tree and view
+ * layers they dispatch into. `core/` and `schema/` sit outside on purpose, because the parser
+ * names every kind to build the tree and the table's own registration names every kind to declare
+ * its rows.
  */
 const GESTURE_ROOTS = [
 	'components',
@@ -30,22 +31,22 @@ const WIDGET_REGISTRY = 'src/lib/core/inline/inline-widgets.ts';
 
 // ── Matchers ─────────────────────────────────────────────────────────────────
 
-/** Every door out of the policy table, the table's own module excluded. */
+/** Every function that reads the policy table, the table's own module excluded. */
 const POLICY_READ =
 	/(?<![\w.])(getInlineConstructPolicy|getInlineMarkPolicy|inlineMarkForCommand|isCardEditableInlineKind|isRevealableInlineKind|listInlineConstructPolicies|listInlineMarks|getLiveSplitRebalancer|getLiveJoinSeamCleaner)\s*\(/;
 
 const readsPolicyTable = (file: SourceFile): boolean =>
 	file.relPath !== POLICY_TABLE && POLICY_READ.test(stripComments(file.text));
 
-/** The widget registry's doors — the other table, whose subject is the atomic island. */
+/** The widget registry's functions: the other table, whose subject is the non-editable widget. */
 const WIDGET_READ =
 	/(?<![\w.])(getInlineWidgetEditing|isInlineWidget|isInlineWidgetKind|isCharacterLikeWidget|widgetSourceRange|augmentInlineWidgetKind)\s*\(/;
 
 const readsWidgetRegistry = (file: SourceFile): boolean =>
 	file.relPath !== WIDGET_REGISTRY && WIDGET_READ.test(stripComments(file.text));
 
-/** The kinds the table rows. A quoted literal is the tripwire: naming one in a gesture arm is
- *  answering a per-construct question the row exists to answer. */
+/** The kinds the table has rows for. A quoted literal is the tripwire: naming one in a gesture
+ *  branch answers a per-construct question the row exists to answer. */
 const ROWED_KINDS = [
 	'emphasis',
 	'strong',
@@ -63,10 +64,10 @@ const KIND_LITERAL = new RegExp(`['"](${ROWED_KINDS.join('|')})['"]`);
 const namesConstructKind = (file: SourceFile): boolean =>
 	KIND_LITERAL.test(stripComments(file.text));
 
-// ── The arms that read rows ──────────────────────────────────────────────────
+// ── The branches that read rows ──────────────────────────────────────────────
 
 /** Every reader of the table, and which column it is there for. Set equality both ways, so a new
- *  reader is a census conversation rather than a silent eighth opinion on a row's meaning. */
+ *  reader is a decision rather than a silent eighth opinion on a row's meaning. */
 const POLICY_ARMS: Record<string, string> = {
 	'src/lib/components/blocks/text/construct-edge-delete.ts':
 		'the destructive arm: autoUnwrapOnEmpty',
@@ -89,21 +90,21 @@ const POLICY_ARMS: Record<string, string> = {
 	'src/lib/tree-operations/node-ops.ts': 'the one reader of both registered rewrite slots'
 };
 
-/** A file asking BOTH tables, and why it needs both answers. Only a block SURFACE legitimately
+/** A file asking both tables, and why it needs both answers. Only a whole block legitimately
  *  does: it hosts every inline kind at once, so it meets the delimiter-run question and the
- *  atomic-island one on the same keystroke. An arm below a surface asking both is the boundary
- *  blurring, which is what this manifest is here to make visible. */
+ *  widget question on the same keystroke. Anything below a block asking both is the boundary
+ *  blurring, which is what this list is here to make visible. */
 const BOTH_TABLE_READERS: Record<string, string> = {
 	'src/lib/components/blocks/text/TextEditableBlock.svelte':
 		'the prose surface: which mark a format command toggles, and whether a node is an island',
 	'src/lib/components/blocks/table/TableCellBlock.svelte': 'the same pair on the cell surface'
 };
 
-// ── The arms that answer by hand ─────────────────────────────────────────────
+// ── The branches that answer by hand ─────────────────────────────────────────
 
 interface HandWrittenArm {
 	path: string;
-	/** How the census sees it: a kind literal the scan finds, or a shape only a reader can. */
+	/** How the scan sees it: a kind literal it can find, or a shape only a reader can. */
 	detection: 'kind-literal' | 'declared';
 	/** `backlog` is undecided, and forbidden. `deferred` names what blocks the row. `outside` is a
 	 *  decision: the question is not the table's to answer. */
@@ -273,7 +274,7 @@ describe('inline-construct policy arm census', () => {
 			probe(namesConstructKind, "if (node.kind === 'inlineCode') return codeWrap(slice);")
 		).toBe(true);
 		expect(probe(namesConstructKind, 'const MARKS = ["strong", "emphasis"];')).toBe(true);
-		// The nearby spellings that are NOT a per-construct answer: a command id, a DOM tag read,
+		// The nearby spellings that are not a per-construct answer: a command id, a DOM tag read,
 		// and the same word in prose.
 		expect(probe(namesConstructKind, "if (id === 'format.toggleStrong') return toggle();")).toBe(
 			false

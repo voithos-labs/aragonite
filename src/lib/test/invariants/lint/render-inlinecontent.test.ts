@@ -1,5 +1,5 @@
 /**
- * G4.2 (perf-hygiene) — the prose render path computes inline content via the pure
+ * G4.2 (perf-hygiene): the prose render path computes inline content via the pure
  * `computeInlineContent`, never the caching accessor. The cache is a non-reactive
  * WeakMap, so a render reading it would skip render-relevant changes the pure compute
  * always sees. Non-render consumers may use the accessor, hence the scope: the DOM-build

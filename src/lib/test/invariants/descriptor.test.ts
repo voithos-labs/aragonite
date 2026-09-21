@@ -46,8 +46,8 @@ describe('checkContentRange (G1.8)', () => {
 	});
 });
 
-// Miss-analysis (M-2): the fixtures were all prose kinds, so the gate's premise — that
-// `supportsInline` and `getContentRange` travel together — was never tested against the kind
+// Miss-analysis (M-2): the fixtures were all prose kinds, so the gate's premise, that
+// `supportsInline` and `getContentRange` travel together, was never tested against the kind
 // that breaks it. The directive leaf ships a content range with `supportsInline: false`, and
 // the range is consumed unconditionally (the split-cut clamp reads it).
 describe('checkContentRange (G1.8) covers a non-prose kind that declares a content range', () => {

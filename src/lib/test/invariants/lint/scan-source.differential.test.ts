@@ -1,5 +1,5 @@
 /**
- * G4.57 — the guards' own lexer, held against TypeScript's. Every source-scan census reads code
+ * G4.57: the guards' own lexer, held against TypeScript's. Every source-scan census reads code
  * through `spanAt`, so a literal it misreads shrinks a dozen populations at once with nothing
  * red. Each character of every scanned `.ts` file and every `.svelte` script block is classified
  * comment/string/template/regex/code by both, and the two must agree. TypeScript cannot lex
@@ -19,7 +19,7 @@ import {
 
 const classOf = (name: (typeof LEXICAL_CLASSES)[number]): number => LEXICAL_CLASSES.indexOf(name);
 
-// ── The TypeScript oracle ────────────────────────────────────────────────────
+// ── The TypeScript reference ─────────────────────────────────────────────────
 
 const TOKEN_CLASS = new Map<ts.SyntaxKind, number>([
 	[ts.SyntaxKind.SingleLineCommentTrivia, classOf('comment')],
@@ -33,7 +33,7 @@ const TOKEN_CLASS = new Map<ts.SyntaxKind, number>([
 	[ts.SyntaxKind.RegularExpressionLiteral, classOf('regex')]
 ]);
 
-/** A `/` opens a regex, and a `}` resumes a template, only where the PARSER says so; the bare
+/** A `/` opens a regex, and a `}` resumes a template, only where the parser says so; the bare
  *  scanner lexes a regex body as tokens and finds comments inside it. */
 function rescanPoints(sourceFile: ts.SourceFile): { regex: Set<number>; template: Set<number> } {
 	const regex = new Set<number>();
@@ -182,7 +182,7 @@ describe('G4.57 the scan lexer reads what TypeScript reads', () => {
 		).toEqual([]);
 	});
 
-	// G4.26 and G4.48 lex the test tree and `src/routes` as well, so the oracle has to reach
+	// G4.26 and G4.48 lex the test tree and `src/routes` as well, so the reference has to reach
 	// what they read. Collected inside the test, where the timeout covers it.
 	it('the wider census corpus, tests and routes included, lexes the same', () => {
 		// Deduped by path: `REPO_WIDE_ROOTS` already carries `src/routes/test/plugins`, and a
@@ -224,7 +224,7 @@ describe('G4.57 the scan lexer reads what TypeScript reads', () => {
 		for (const [source, classes] of MARKUP_CORPUS) expect(classLine(source), source).toBe(classes);
 	});
 
-	// ── Oracle self-tests (non-vacuity) ──────────────────────────────────────
+	// ── Reference self-tests (non-vacuity) ───────────────────────────────────
 
 	const PROBE =
 		'const half = total / 2;\nconst re = /\'"/.test(s); // done\nconst t = `a ${b /* c */} d`;';

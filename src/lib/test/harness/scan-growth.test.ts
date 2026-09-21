@@ -2,7 +2,7 @@
 // linear scan as linear even while interference scales with sample duration, and the power to still
 // call a quadratic scan quadratic.
 //
-// Miss-analysis: the harness had no test of its own — its noise floor was implicit and no case ever
+// Miss-analysis: the harness had no test of its own: its noise floor was implicit and no case ever
 // sampled it under load, so the duration bias in a best-of only surfaced on a slow CI runner.
 import { describe, it, expect } from 'vitest';
 import {
@@ -125,7 +125,7 @@ describe('measureScanGrowth calibration', () => {
 		expect(quadraticGrowth.ratio).toBeCloseTo(16, 0);
 		expect(quadraticGrowth.ratio).toBeGreaterThan(BOUNDED_GROWTH_CEILING);
 		// Re-measurement is what a contended runner earns; a quadratic scan spends every attempt
-		// and the verdict stands.
+		// and the answer stands.
 		expect(quadraticGrowth.attempts).toBe(MAX_ATTEMPTS);
 	});
 
@@ -141,7 +141,7 @@ describe('measureScanGrowth calibration', () => {
 	});
 
 	// Contention that lands on one size is what a re-measurement is for: the first attempt reads
-	// far over the ceiling, and only a later attempt taken as the verdict brings the shape back.
+	// far over the ceiling, and only a later attempt taken as the answer brings the shape back.
 	it('re-measures a reading over the ceiling and keeps the lowest ratio', () => {
 		const contended = virtualScan(linear(CLEARS_FLOOR_AT_32KB), fadingBurst());
 		const growth = measureScanGrowth(contended.run, 'x', [32, 128], contended.now);

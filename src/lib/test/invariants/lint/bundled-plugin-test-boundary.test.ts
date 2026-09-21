@@ -1,11 +1,10 @@
 /**
- * G4.63 — bundled-plugin test boundary: a file under a per-plugin test directory reaches
- * into aragonite only where a third-party author can. The published entry points (`$lib`,
- * `$lib/plugin`, `$lib/testing`), the plugin's own source, another plugin's PUBLISHED
- * subpath, the copyable in-repo test support, relative paths outside library code. An npm
- * package is the author's own business. G4.16's twin one layer out: that one proves the
- * barrels can BUILD a plugin, this one that they can TEST it. An allowlist entry is a
- * missing public door, named.
+ * G4.63: a file under a per-plugin test directory reaches into aragonite only where an outside
+ * author could. That means the published entry points (`$lib`, `$lib/plugin`, `$lib/testing`),
+ * the plugin's own source, another plugin's published subpath, the copyable in-repo test support,
+ * and relative paths outside library code; an npm package is the author's own business. G4.16 is
+ * the same check one layer out: that one shows the barrels can build a plugin, this one that they
+ * can test it. An allowlist entry names a public entry point that does not exist yet.
  */
 import { describe, it, expect } from 'vitest';
 import path from 'node:path';
@@ -18,15 +17,15 @@ const PLUGIN_TEST_ROOT = 'src/lib/test/plugins';
 interface Exemption {
 	/** The exact specifiers this file may still reach for. */
 	specifiers: string[];
-	/** The public door that does not exist yet, which is why the reach-in stands. */
+	/** The public entry point that does not exist yet, which is why the reach-in stands. */
 	reason: string;
 }
 
 /**
- * Eight doors are missing, and every entry below names the one it waits on: a headless
- * editor-actions environment, tree mutation off a parsed document, the opaque-raw
- * predicates, parse convergence, registry read-back, the perf instruments, the built-in
- * text surface, and an inline node's raw text. Closing one empties its entries.
+ * Eight entry points are missing, and every entry below names the one it waits on: a headless
+ * editor-actions environment, tree mutation off a parsed document, the opaque-raw checks, the
+ * parse comparison, registry read-back, the perf instruments, the built-in text block, and an
+ * inline node's raw text. Adding one empties its entries.
  */
 const ALLOWLIST: Record<string, Exemption> = {
 	'src/lib/test/plugins/admonitions/blockquote-indent-cap.test.ts': {
@@ -192,7 +191,7 @@ const ALLOWLIST: Record<string, Exemption> = {
 	}
 };
 
-// ── The published surface ────────────────────────────────────────────────────
+// ── The published API ────────────────────────────────────────────────────────
 
 const PUBLIC_BARRELS = new Set(['$lib', '$lib/plugin', '$lib/testing']);
 
@@ -226,8 +225,8 @@ function suiteOf(relPath: string): string | null {
 }
 
 function isAllowedSpecifier(relPath: string, specifier: string): boolean {
-	// A relative path is fine unless it lands in library code, which would be a back door
-	// around every rule below; `../../../core/parser` is the shape being closed.
+	// A relative path is fine unless it lands in library code, which would be a way around every
+	// rule below; `../../../core/parser` is the shape being closed.
 	if (specifier.startsWith('.')) {
 		const resolved = path.posix.normalize(path.posix.join(path.posix.dirname(relPath), specifier));
 		return !resolved.startsWith('src/lib/') || resolved.startsWith('src/lib/test/');

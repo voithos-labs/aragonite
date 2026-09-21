@@ -3,8 +3,8 @@
  * the command it claims, on the kind whose surface the family names, and every chord the code
  * binds or claims has a row. Chords route through several owners: Editing / Block reorder /
  * Tables against the keymap registry; Find / replace against literal presence in the two search
- * dispatch sites plus the reserved-chord source; and Clipboard against BOTH the whole-block key
- * tail and the text block's clipboard seam, since a keydown carries no ClipboardEvent.
+ * dispatch sites plus the reserved-chord source; and Clipboard against both the whole-block key
+ * tail and the text block's clipboard handler, since a keydown carries no ClipboardEvent.
  */
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
@@ -97,7 +97,7 @@ function shortcutSection(): string {
 
 /**
  * The command ids a row's chords must resolve to, and the kind whose surface holds the caret when
- * they do. The kind is load-bearing: `Tab` is three different commands across three rows, and a
+ * they do. The kind matters: `Tab` is three different commands across three rows, and a
  * row that resolved on any kind would say nothing about which one it documents.
  */
 const ROW_TARGETS: Record<string, { kind: AnyBlockKind; commands: CommandId[] }> = {

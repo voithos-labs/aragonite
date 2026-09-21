@@ -1,9 +1,9 @@
 /**
- * G4.3 conformance profiles for the BUILT-IN container kinds — fixture data for the kit
+ * G4.3 conformance profiles for the built-in container kinds, fixture data for the kit
  * in `$lib/testing/container-conformance`, kept out of the shipped package because a
  * plugin author supplies their own. `container-conformance.test.ts` holds this map in
  * lockstep with the registry. Where a grid container's contract makes an invariant moot,
- * the cell is declared BOUNDARY/EXEMPT with a reason — never a silent skip.
+ * the cell is declared boundary/exempt with a reason, never a silent skip.
  */
 
 import type { BlockKind } from '$lib/core/nodes';
@@ -74,7 +74,7 @@ export const CONTAINER_PROFILES: Partial<Record<BlockKind, ContainerConformanceP
 			containerChain: [0, 1],
 			targetChild: 1
 		},
-		// listItem can't be a parse root — it lives inside a list; the kit's walker
+		// listItem can't be a parse root: it lives inside a list; the kit's walker
 		// finds the listItem node (whose child is the inner paragraph).
 		focusSource: '- a\n',
 		localIndex: { mode: 'assert' },

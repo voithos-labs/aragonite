@@ -1,14 +1,15 @@
 /**
- * The content version is announced, not derived, so a byte-writing door that stays silent serves
- * every whole-document memo a stale answer with nothing failing. Two arms: the announcements are
- * a declared set, and the shape an out-of-ceremony write has — unsharing a spine off the editor's
- * own `deps.doc` — enrolls its file, so door N+1 fails at birth rather than at the next audit.
+ * The content version is announced, not derived, so a function that writes bytes and stays silent
+ * serves every whole-document memo a stale answer with nothing failing. Two checks: the
+ * announcements are a declared set, and any write outside a commit, recognized by its copying of
+ * ancestors off the editor's own `deps.doc`, enrols its file, so the next such write fails the
+ * moment it is written rather than at the next review.
  */
 
 import { describe, it, expect } from 'vitest';
 import { collectEditorSources, stripComments, type SourceFile } from './scan-source';
 
-/** Every file naming the announcement, and the door it owns. */
+/** Every file naming the announcement, and the write it owns. */
 const ANNOUNCERS: Record<string, string> = {
 	'src/lib/editor-actions/deps.ts': 'the declaration',
 	'src/lib/editor-actions/commit/undo-controller.ts':
@@ -22,8 +23,9 @@ const ANNOUNCERS: Record<string, string> = {
 };
 
 /**
- * Unsharing off `deps.doc` is what an ACTION-layer byte write looks like: inside a commit the
- * spine is reached through the mutate's own scope view instead. Each is the ceremony or announces.
+ * Copying ancestors off `deps.doc` is what a byte write in the action layer looks like: inside a
+ * commit the ancestors are reached through the mutate's own view instead. Each entry is either
+ * the commit itself or announces the new version.
  */
 const ROOT_UNSHARERS: Record<string, string> = {
 	'src/lib/editor-actions/commit/undo-controller.ts': 'the ceremony itself',

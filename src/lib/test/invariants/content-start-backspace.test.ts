@@ -15,7 +15,7 @@ const row = (over: Partial<ContentStartBackspaceEntry> = {}): ContentStartBacksp
 });
 
 describe('checkContentStartBackspace (G1.32)', () => {
-	// Without the hook the content range IS the whole display, so the demote arm never fires and
+	// Without the hook the content range is the whole display, so the demote branch never fires and
 	// the declaration reads as behavior the kind does not have.
 	it('fires when a demote-first kind declares no content range', () => {
 		const violation = checkContentStartBackspace([row({ declaresContentRange: false })]);

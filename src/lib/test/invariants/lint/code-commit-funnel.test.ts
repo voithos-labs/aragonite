@@ -1,11 +1,11 @@
 /**
- * G4.24 — the code surface commits its display through one door. A fenced block's write
- * rule cannot be carried per gesture: the reconciliation that grows the fence past a body
- * line the parser would read as its closer has to run on EVERY display commit, and two
- * gestures split the block by rewriting bytes without adding a character. So
- * `commitDisplay` is the block's only `updateBlockContent` call site, and this fails the
- * day another gesture writes around it. Scoped to the one file because it is the CARET
- * half; byte sinks reaching a code block without this surface answer to G4.28.
+ * G4.24: the code block commits its display through one function. A fenced block's write rule
+ * cannot be applied per gesture, because the work that grows the fence past a body line the parser
+ * would read as its closer has to run on every display commit, and two gestures split the block by
+ * rewriting bytes without adding a character. So `commitDisplay` is the block's only
+ * `updateBlockContent` call site, and this fails the day another gesture writes around it. It
+ * covers that one file, because it is the caret side; byte writes reaching a code block from
+ * elsewhere answer to G4.28.
  */
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
@@ -42,7 +42,7 @@ describe('G4.24 code-surface commit funnel', () => {
 		expect(commitDisplayBody(source)).toContain(CALL);
 	});
 
-	// Non-vacuity: the count arm is what catches a new gesture, so prove it can.
+	// The count is what catches a new gesture, so show that it can.
 	it('counts a planted second call site', () => {
 		const planted = `${source}\nfunction rogue() { ${CALL}0, 'x'); }\n`;
 		expect(planted.split(CALL).length - 1).toBe(2);

@@ -5,7 +5,7 @@ import { parse } from '../../core/parser';
 import { checkCrossBlockEndpointCoordinates } from '../../invariants/selection-endpoints';
 import { createSelectionState } from '../../selection/selection-state.svelte';
 
-// A table block plus a paragraph — [0] is the table, [1] the prose.
+// A table block plus a paragraph: [0] is the table, [1] the prose.
 const doc = () => parse('| A | B |\n| --- | --- |\n| 1 | 2 |\n\nafter\n');
 
 describe('G1.29 cross-block endpoint coordinates', () => {
@@ -25,7 +25,7 @@ describe('G1.29 cross-block endpoint coordinates', () => {
 	});
 
 	// An intra-table rectangle shares the table path and leaves its focus unflagged
-	// by the SelectionPoint convention — the offsets are cell indices regardless.
+	// by the SelectionPoint convention: the offsets are cell indices regardless.
 	it('exempts a same-path pair', () => {
 		expect(
 			checkCrossBlockEndpointCoordinates(doc(), { path: [0], offset: 0 }, { path: [0], offset: 3 })
@@ -48,7 +48,7 @@ describe('G1.29 cross-block endpoint coordinates', () => {
 	});
 
 	// Miss-analysis (M-3): the fixtures only ever put a char offset on a table, so the flag's
-	// other direction — a cell index stored against a block that has no cells — was never
+	// other direction, a cell index stored against a block that has no cells, was never
 	// asked, and `cellCoordinate` short-circuited before any node was resolved.
 	it('flags a cell coordinate on a block that is not a table', () => {
 		const violation = checkCrossBlockEndpointCoordinates(
@@ -120,7 +120,7 @@ describe('G1.29 character-offset range', () => {
 });
 
 // #normalizePoint's walk runs `path.length - 1` iterations, so a length-1 table path
-// passes through with its character offset intact — the shape the belt exists for.
+// passes through with its character offset intact: the shape the belt exists for.
 describe('G1.29 fires from the storing seam', () => {
 	it('warns when a length-1 table path is stored with a character offset', () => {
 		const tree = doc();

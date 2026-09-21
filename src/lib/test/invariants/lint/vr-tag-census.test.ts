@@ -1,6 +1,6 @@
 /**
- * G4.59 — the VR tag catalog (`docs/design/virtual-rendering.md`) and the tags cited under `src/`
- * are one set, both directions. Scanned over RAW text, comments included: a citation is almost
+ * G4.59: the VR tag catalog (`docs/design/virtual-rendering.md`) and the tags cited under `src/`
+ * are one set, both directions. Scanned over raw text, comments included: a citation is almost
  * always a comment, so the house comment-stripping lexer would erase the population it counts.
  */
 import { describe, it, expect } from 'vitest';

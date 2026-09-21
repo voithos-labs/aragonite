@@ -1,8 +1,8 @@
 /**
- * G4.17 — every `*.spec.ts` under the perf dir is collected by `e2e-vr` or by
- * `e2e-perf` / `e2e-perf-prod`; one matching neither runs in NO project, since `e2e-top`
+ * G4.17, every `*.spec.ts` under the perf dir is collected by `e2e-vr` or by
+ * `e2e-perf` / `e2e-perf-prod`; one matching neither runs in no project, since `e2e-top`
  * ignores `perf/**` outright. Classification is by path relative to the perf dir, not
- * basename, because `*` does not cross a `/` while `**` matches any depth — so a nested
+ * basename, because `*` does not cross a `/` while `**` matches any depth, so a nested
  * `vr/vr-x.spec.ts` reads as a vr spec while being collected by nothing.
  */
 import { describe, it, expect } from 'vitest';
@@ -11,7 +11,7 @@ import path from 'node:path';
 
 const PERF_DIR = path.resolve('src/lib/e2e/tests/perf');
 
-/** Collected by `e2e-vr` (`perf/vr-*.spec.ts` — top level only). */
+/** Collected by `e2e-vr` (`perf/vr-*.spec.ts`: top level only). */
 function matchesVr(relPath: string): boolean {
 	return !relPath.includes('/') && relPath.startsWith('vr-') && relPath.endsWith('.spec.ts');
 }

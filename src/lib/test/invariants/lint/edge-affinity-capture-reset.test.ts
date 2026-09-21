@@ -1,11 +1,11 @@
 /**
- * G4.31 — the affinity reaches every sticky seam, and the pending marks every affinity seam.
- * All three are ephemeral caret state with one lifetime: an arrival sets them, a commit
- * invalidates them. The column paid for that parity at N−1 of N sites (G2.10), so the affinity
- * inherits it as a scan — a `stickyColumn.reset()` beside no affinity clear leaks a side the
- * typing seat then spends on the wrong byte. The MARKS ride one rung higher: one construction
- * composes them onto the affinity's invalidation, so the third axis pins that composition and
- * fails on the first clear written at a seam of their own.
+ * G4.31: wherever the sticky column is touched, the edge affinity is touched too, and wherever
+ * the affinity is, the pending marks are. All three are short-lived caret state with one
+ * lifetime: an arrival sets them, a commit clears them. G2.10 already pairs the column at every
+ * site but one, so the affinity inherits that pairing as a source scan: a `stickyColumn.reset()`
+ * with no affinity clear beside it leaks a side that the next typed byte then goes to. The marks
+ * sit one level up, composed onto the affinity's clear by a single constructor, so the third
+ * check pins that composition and fails on the first clear written somewhere of its own.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -13,11 +13,11 @@ import { collectEditorSources, type SourceFile } from './scan-source';
 
 const STICKY_RESET_RE = /\bstickyColumn\.reset\s*\(/g;
 const STICKY_NOTE_KEY_RE = /\bstickyColumn\.noteKey\s*\(/g;
-// `noteTyping` is the commit-side clear: it overwrites the arrival with the typed side, which
-// is the same invalidation the column's reset performs, so it counts as the pair.
-// `noteExtreme` counts on BOTH axes and is spelled out on both: it classifies an arrival (a
-// collapse seating at the range's own edge) and settles it, which invalidates the marks riding
-// the affinity. A `note` pattern ending in `\(` matches neither of the longer doors.
+// `noteTyping` is the commit-side clear: it overwrites the arrival with the typed side, the same
+// invalidation the column's reset performs, so it counts as the pair. `noteExtreme` counts on both
+// checks and is spelled out in both: it classifies an arrival (a collapse landing at the range's
+// own edge) and settles it, which clears the marks that ride the affinity. A `note` pattern ending
+// in `\(` matches neither of the longer names.
 const AFFINITY_CLEAR_RE = /\bedgeAffinity\.(reset|noteTyping|noteExtreme)\s*\(/g;
 const AFFINITY_NOTE_RE = /\bedgeAffinity\.(note|noteExtreme)\s*\(/g;
 const MARKS_CLEAR_CALL_RE = /\bpendingMarks\.reset\s*\(/g;
@@ -25,14 +25,14 @@ const MARKS_COMPOSITION_RE = /onInvalidate:\s*pendingMarks\.reset\b/g;
 const MARKS_SPEND_RE = /\bpendingMarks\.consume\s*\(/g;
 
 /**
- * Files where the affinity legitimately runs BEHIND the column, each saying why. Empty by
+ * Files where the affinity legitimately runs behind the column, each saying why. Empty by
  * design: an entry is a stated hole, and the reason has to survive review.
  */
 const CLEAR_EXCEPTIONS: Record<string, string> = {};
 
 /**
- * Capture doors that classify for the column but not for the affinity, each saying why.
- * Empty by design — every whole-block and dispatcher door pairs today.
+ * Functions that classify an arrival for the column but not for the affinity, each saying why.
+ * Empty by design: every whole-block and dispatcher entry point pairs today.
  */
 const CAPTURE_EXCEPTIONS: Record<string, string> = {};
 
@@ -94,7 +94,7 @@ describe('G4.31 affinity-reaches-every-sticky-seam guard', () => {
 		]);
 	});
 
-	// ── Third axis: the marks ride the affinity, they do not copy it ──────────
+	// ── Third check: the marks follow the affinity, they do not copy it ───────
 
 	it('exactly one site composes the marks onto the affinity’s invalidation', () => {
 		const composers = sources
@@ -140,7 +140,7 @@ describe('G4.31 affinity-reaches-every-sticky-seam guard', () => {
 		}
 	});
 
-	// ── Mutation tests: a rogue seam breaks the pairing ────────────────────────
+	// ── Mutation tests: a rogue call site breaks the pairing ──────────────────
 
 	it('a new sticky reset with no affinity clear is caught', () => {
 		const rogue: SourceFile = {
@@ -193,8 +193,8 @@ describe('G4.31 affinity-reaches-every-sticky-seam guard', () => {
 		expect(count('stickyColumn.capture(x);', STICKY_RESET_RE)).toBe(0);
 	});
 
-	// The third door had to be spelled out in both patterns; a `note\(`-anchored one reads it as
-	// neither a capture nor a clear, and a file paired only by it scanned as unpaired on both axes.
+	// The third function has to be spelled out in both patterns: a pattern anchored on `note\(`
+	// reads it as neither a capture nor a clear, so a file paired only by it scanned as unpaired.
 	it('the third capture door counts on both axes', () => {
 		expect(count('ctx.edgeAffinity.noteExtreme();', AFFINITY_NOTE_RE)).toBe(1);
 		expect(count('ctx.edgeAffinity.noteExtreme();', AFFINITY_CLEAR_RE)).toBe(1);
@@ -210,7 +210,7 @@ describe('G4.31 affinity-reaches-every-sticky-seam guard', () => {
 		expect(unpaired([collapse], STICKY_RESET_RE, AFFINITY_CLEAR_RE)).toEqual([]);
 	});
 
-	// The composition passes the reset as a VALUE; only a call is the copy-N+1 shape.
+	// The composition passes the reset as a value; only a call would be a second copy.
 	it('the marks matchers tell the composition from a hand-written clear', () => {
 		const composed = 'createEdgeAffinityState({ onInvalidate: pendingMarks.reset });';
 		expect(count(composed, MARKS_COMPOSITION_RE)).toBe(1);

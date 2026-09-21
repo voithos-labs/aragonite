@@ -27,7 +27,7 @@ describe('G1.11 keymap coherence', () => {
 		expect(v?.code).toBe('keymap-coherence');
 	});
 
-	// Without a well-formedness arm `Ctrl+W` collapses to a bare `W` under normalizeChord:
+	// Without a well-formedness check `Ctrl+W` collapses to a bare `W` under normalizeChord:
 	// valid, unique, known-command, and firing on every plain `w`.
 	it('flags a descriptor chord with an unrecognized modifier (the Ctrl+W trap)', () => {
 		const v = check([{ kind: 'paragraph', keymap: [{ chord: 'Ctrl+W', command: 'block.split' }] }]);

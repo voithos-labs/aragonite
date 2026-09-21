@@ -3,7 +3,7 @@ import type { InlineNode } from '../../core/nodes';
 import { parseInline } from '../../core/inline';
 import { FLANKING_CASES, INTRA_WORD_UNDERSCORE_CASES } from '../support/flanking-corpus';
 
-// G2.3 flanking-algorithm edges only — basic emphasis, reference forms, and autolink
+// G2.3 flanking-algorithm edges only: basic emphasis, reference forms, and autolink
 // trimming are covered in test/core/inline/**. The §6.2 tables are single-sourced in
 // test/support/flanking-corpus.ts, shared with scan/emphasis-flanking.test.ts, which
 // runs the same cases against the scanner rather than the full pipeline.
@@ -101,7 +101,7 @@ describe('G2.3 multiple-of-3 rule (CommonMark §6.2)', () => {
 		expect(nodes.filter((n) => n.kind === 'emphasis')).toHaveLength(0);
 	});
 
-	// The rule reads ORIGINAL delimiter-run lengths, not the unconsumed remainder after
+	// The rule reads original delimiter-run lengths, not the unconsumed remainder after
 	// partial matches (commonmark.js `origdelims`); each shape decays differently.
 	const originalRunLengthCases = [
 		{ source: 'x**y*z****w', shape: 'x**y<em>z</em>***w' },

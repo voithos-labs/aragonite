@@ -1,5 +1,5 @@
 /**
- * G4.10 — every directory under `src/lib/plugins/` must surface in package.json
+ * G4.10: every directory under `src/lib/plugins/` must surface in package.json
  * `exports`, which verify-pack derives the tarball's manifest from; a dir absent from it
  * is silently unshippable. Subset, not equality: a plugin may publish extra subpaths. The
  * sideEffects sub-check flags one detectable hazard, an unlisted top-level CSS import.
@@ -51,7 +51,7 @@ function cssImportingModules(): Array<{ plugin: string; file: string }> {
 		});
 }
 
-// ── Parity checkers (pure — driven by both the live scan and the self-tests) ──
+// ── Parity checkers (pure: driven by both the live scan and the self-tests) ──
 
 function missingExports(names: string[], exportKeys: Set<string>): string[] {
 	return names.filter((n) => !exportKeys.has(`./plugins/${n}`));

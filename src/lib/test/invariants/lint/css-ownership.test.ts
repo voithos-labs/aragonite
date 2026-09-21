@@ -28,7 +28,7 @@ const HOST_TOKEN = /^--(?:color|radius)-[a-z0-9-]+$/;
 const ANY_READ = /var\(\s*(--[a-z0-9-]+)/g;
 
 // Bundled plugins own private palettes, guarded by plugin-css-ownership.test.ts, so they
-// are off-family here by design. The exclusion is scoped to family membership ALONE:
+// are off-family here by design. The exclusion is scoped to family membership alone:
 // plugins stay under the G4.6b/G4.6c guards.
 const isPluginSource = (relPath: string): boolean => relPath.startsWith('src/lib/plugins/');
 

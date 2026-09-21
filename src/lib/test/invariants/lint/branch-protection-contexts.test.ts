@@ -108,7 +108,7 @@ export function externalContexts(script: string): Map<string, string[]> {
 	return declared;
 }
 
-/** Declared externals the named workflow does not report — a missing file, a renamed job. */
+/** Declared externals the named workflow does not report: a missing file, a renamed job. */
 export function unreportedExternals(
 	declared: Map<string, string[]>,
 	reported: Map<string, string[]>

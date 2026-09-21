@@ -1,5 +1,5 @@
 /**
- * G4.29 — the hardcoded-chord manifest (`schema/reserved-chords.ts`) covers every library
+ * G4.29: the hardcoded-chord manifest (`schema/reserved-chords.ts`) covers every library
  * file that reads a KeyboardEvent modifier flag, and each entry's key evidence still matches
  * the file. The scan is structural on both axes: a branch cannot claim a chord without
  * reading a modifier flag (file axis) or without comparing a key (evidence axis), so a new
@@ -23,7 +23,7 @@ const CASE_LABEL = /\bcase\s*'([^']*)'\s*:/g;
 
 /**
  * Every KeyboardEvent key name is one character or CapitalCamel (UI Events key values), so
- * the filter admits extra non-key strings but can never drop a key — the safe direction for
+ * the filter admits extra non-key strings but can never drop a key: the safe direction for
  * a gate whose failure mode is a silent miss.
  */
 function isKeyName(literal: string): boolean {
@@ -103,8 +103,8 @@ describe('G4.29 scan non-vacuity', () => {
 		expect(found.some((path) => path.endsWith('.svelte'))).toBe(true);
 	});
 
-	// The link card's ENTRY chord rides the kind keymaps, so `collectReservedChords` enumerates it
-	// from the registry. A card HOST that started reading a modifier flag would be a second,
+	// The link card's entry chord rides the kind keymaps, so `collectReservedChords` enumerates it
+	// from the registry. A card host that started reading a modifier flag would be a second,
 	// unenumerated claim on the same chord; the card's own field swallow is manifested instead.
 	it('Mod+K reaches reservedChords from the keymaps, not from a hand-written branch', () => {
 		registerBuiltInDescriptors();

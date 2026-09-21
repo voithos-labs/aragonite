@@ -1,5 +1,5 @@
 /**
- * An `input` edit event means "this commit held the block's kind" — a premise the LRD
+ * An `input` edit event means "this commit held the block's kind": a premise the LRD
  * signature-epoch gate (`components/lrd-map-gate.ts`) reads and cannot verify, since it
  * runs post-commit. It holds only while exactly one site emits `input`. Both declaration
  * shapes are scanned, so emitter N+1 fails whichever it reaches for; an op kind assembled

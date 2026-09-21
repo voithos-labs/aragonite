@@ -1,13 +1,13 @@
 /**
- * G4.64 — the six files node-ops split into form a ladder, and every import between them points
- * down it. The one module cycle tree-operations ever had (node-ops ↔ unshare) passed every
- * behavioral test, so only a source scan can hold the shape.
+ * G4.64: the six files node-ops split into have a fixed order, and every import between them
+ * points down that order. A module cycle between two of them can pass every behavioral test, so
+ * only a source scan can hold the shape.
  */
 
 import { describe, it, expect } from 'vitest';
 import { collectEditorSources, EDITOR_SRC, stripComments } from './scan-source';
 
-/** Lowest rung first: a file may import only the rungs below its own. */
+/** Lowest level first: a file may import only the levels below its own. */
 const LADDER = [
 	'node-primitives',
 	'unshare',
@@ -23,20 +23,20 @@ const LAYER_DIR = 'src/lib/tree-operations/';
 
 const IMPORT_SOURCE = /\bfrom\s*['"]([^'"]+)['"]|\bimport\s*\(\s*['"]([^'"]+)['"]/g;
 
-/** The rung a file on the ladder sits at, or -1 for every other file. */
+/** The level a listed file sits at, or -1 for every other file. */
 function rungOfFile(relPath: string): number {
 	if (!relPath.startsWith(LAYER_DIR) || !relPath.endsWith('.ts')) return -1;
 	const name = relPath.slice(LAYER_DIR.length, -'.ts'.length);
 	return name.includes('/') ? -1 : LADDER.indexOf(name as Rung);
 }
 
-/** The rung a specifier names (a sibling `./name`, or a full `tree-operations/name`), or -1. */
+/** The level a specifier names (a sibling `./name`, or a full `tree-operations/name`), or -1. */
 function rungOfSpecifier(spec: string): number {
 	const name = /^\.\/([\w-]+)$/.exec(spec)?.[1] ?? /\/tree-operations\/([\w-]+)$/.exec(spec)?.[1];
 	return name === undefined ? -1 : LADDER.indexOf(name as Rung);
 }
 
-/** Every specifier in `text` naming a rung above `rung`, as `file -> specifier`. */
+/** Every specifier in `text` naming a level above `rung`, as `file -> specifier`. */
 function upwardEdges(relPath: string, rung: number, text: string): string[] {
 	const edges: string[] = [];
 	const re = new RegExp(IMPORT_SOURCE.source, IMPORT_SOURCE.flags);
@@ -49,7 +49,7 @@ function upwardEdges(relPath: string, rung: number, text: string): string[] {
 }
 
 describe('G4.64 the tree-ops ladder', () => {
-	// Library-internal: the ladder names six files under src/lib, so the plugin and consumer
+	// Library-internal: the order names six files under src/lib, so the plugin and consumer
 	// stand-ins have nothing to model.
 	const rungs = collectEditorSources(EDITOR_SRC)
 		.map((f) => ({ ...f, rung: rungOfFile(f.relPath) }))

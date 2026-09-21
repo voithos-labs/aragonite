@@ -10,16 +10,16 @@ import { expect } from 'vitest';
  *  `z` runs never complete any construct these suites flood with. */
 const salt = (sample: number) => 'z'.repeat(sample);
 
-/** Discarded samples per size — the warm-up ramp is steepest across the first two. */
+/** Discarded samples per size: the warm-up ramp is steepest across the first two. */
 const WARMUPS = 2;
 
-/** Timed pairs per size — enough that a pair starved by a sibling suite stays out of the median. */
+/** Timed pairs per size: enough that a pair starved by a sibling suite stays out of the median. */
 const REPETITIONS = 16;
 
 /** Floor the median small sample must clear, below which a scheduler hiccup outweighs the scan. */
 export const MIN_SAMPLE_MS = 2;
 
-/** Escalation cap. Each step costs 4x the wall time for the same verdict, and past two the
+/** Escalation cap. Each step costs 4x the wall time for the same answer, and past two the
  *  harness is pricing a size no suite declared. */
 const MAX_ESCALATIONS = 2;
 
@@ -28,7 +28,7 @@ const MAX_ESCALATIONS = 2;
 export const BOUNDED_GROWTH_CEILING = 8;
 
 /** Whole re-measurements a reading over the ceiling earns before it stands; the lowest ratio of
- *  them is the verdict. */
+ *  them is the answer. */
 export const MAX_ATTEMPTS = 3;
 
 export interface ScanGrowth {
@@ -49,7 +49,7 @@ export function describeGrowth({ times, ratio, sizesKb, attempts }: ScanGrowth):
 	return `${sizesKb[0]}KB=${times[0].toFixed(1)}ms ${sizesKb[1]}KB=${times[1].toFixed(1)}ms ratio=${ratio.toFixed(2)}${retried}`;
 }
 
-/** The one bounded-scan verdict: every suite asserts through this, so the ceiling a reading is
+/** The one bounded-scan assertion: every suite goes through this, so the ceiling a reading is
  *  retried against and the ceiling it is judged against cannot drift apart. */
 export function expectBoundedGrowth(growth: ScanGrowth): void {
 	expect(growth.ratio, describeGrowth(growth)).toBeLessThan(BOUNDED_GROWTH_CEILING);

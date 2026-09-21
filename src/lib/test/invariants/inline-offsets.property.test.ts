@@ -4,9 +4,9 @@ import type { InlineNode } from '../../core/nodes';
 import { parseInline } from '../../core/inline';
 import { arbInlineSource, freshOrFixedSeed } from './arbitraries';
 
-// G2.5: the inline tree tiles the content range, which cursor mapping depends on. NOT
-// leaf-exhaustive — a wrapped node's markers live in the edge gaps its children leave, and
-// the renderer pulls them from exactly there. Only the TOP level has no edge gap.
+// G2.5: the inline tree tiles the content range, which cursor mapping depends on. not
+// leaf-exhaustive: a wrapped node's markers live in the edge gaps its children leave, and
+// the renderer pulls them from exactly there. Only the top level has no edge gap.
 
 const PARAMS = { numRuns: 1000, seed: freshOrFixedSeed(424242) } as const;
 
@@ -79,7 +79,7 @@ describe('G2.5 inline-tree offset partition', () => {
 });
 
 // A link destination terminating inside a code span ends the link mid-span, leaving
-// overlapping top-level siblings — unreachable until destinations could hold backticks.
+// overlapping top-level siblings: unreachable until destinations could hold backticks.
 describe('G2.5 pinned counterexamples', () => {
 	const cases = ['[a](u`)`)', '![a](u`)`)'];
 
@@ -92,7 +92,7 @@ describe('G2.5 pinned counterexamples', () => {
 });
 
 // The partition is blind to which pair a shared delimiter run binds to, so the four spellings the
-// shared lane draws at random get a deterministic floor of their own.
+// shared generator draws at random get a deterministic minimum of their own.
 describe('G2.5 asterisk delimiter nesting', () => {
 	const cases = ['*a *b* c*', '**a **b** c**', '**a *b** c*', '*a **b* c**'];
 

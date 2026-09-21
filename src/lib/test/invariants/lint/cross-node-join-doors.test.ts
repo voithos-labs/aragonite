@@ -1,10 +1,11 @@
 /**
- * A leaf's bytes built by concatenating text from more than one source is a JOIN, and every
- * destructive one crosses `cleanJoinedRaw` — live paints no delimiter, so a literal concatenation
+ * A leaf's bytes built by concatenating text from more than one source is a join, and every
+ * destructive one crosses `cleanJoinedRaw`: live paints no delimiter, so a literal concatenation
  * surfaces the marker runs the join orphaned (live-mode.md § 4.5). The census runs both ways: the
- * cleaner's readers are declared, and so is every other file building such a concatenation, each
+ * files that call the cleaner are declared, and so is every other file building such a
+ * concatenation, each
  * with the reason it is not a destructive join. `mergeListItemIntoPrevious` shipped outside both
- * because its SIGNATURE could not reach the cleaner, which no one-directional scan can see.
+ * because its signature could not reach the cleaner, which no one-directional scan can see.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -28,8 +29,8 @@ const CLEANER_READERS: Record<string, string> = {
 
 /**
  * Files whose byte expressions concatenate several sources without being a destructive join,
- * each with the reason. A kind re-emitting its OWN bytes from its own children joins nothing a
- * reader could have been looking at.
+ * each with the reason. A kind re-emitting its own bytes from its own children joins nothing a
+ * caller could have been looking at.
  */
 const NON_JOIN_CONCATENATIONS: Record<string, string> = {
 	'src/lib/plugins/admonitions/github-alert-kind.ts':
@@ -74,7 +75,8 @@ const joinsSources = (expr: string): boolean =>
 
 /**
  * Every byte expression a file writes into a leaf: the right-hand side of a `.raw =` statement,
- * and the bytes argument of the two kind-rule readers — the sinks a join reaches through.
+ * and the bytes argument of the two functions that apply a kind's rule, which is where a join
+ * writes.
  */
 function byteExpressions(file: SourceFile): string[] {
 	const assignments = rawAssignments([file]).map((w) => w.statement.replace(/^\.raw\s*\+?=/, ''));

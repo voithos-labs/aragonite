@@ -1,9 +1,9 @@
 /**
- * G4.56 — every walk over an inline tree or its rendered DOM is iterative. Inline nesting depth is
- * input-controlled, so a per-level call frame overflows the stack and strands the block in the
- * fallback it cannot heal: the renderer knew that and four walks one call later did not (#200).
- * Scope is `core/inline/`, `cursor/`, `ambient/` and the live gesture seams under
- * `components/blocks/text/`, whose join-seam rebuild routes through the same pre-order (#226).
+ * G4.56: every traversal over an inline tree or its rendered DOM is iterative. Inline nesting
+ * depth comes from the input, so one call frame per level overflows the stack and strands the
+ * block in a fallback it cannot recover from (#200). It covers `core/inline/`, `cursor/`,
+ * `ambient/` and the live gesture code under `components/blocks/text/`, whose join rebuild goes
+ * through the same pre-order (#226).
  */
 
 import { describe, it, expect } from 'vitest';
@@ -15,7 +15,7 @@ import {
 	EDITOR_SRC
 } from './scan-source';
 
-/** Library-internal: the rule binds the walks over aragonite's own tree, which no plugin owns. */
+/** Library-internal: the rule binds traversals over aragonite's own tree, which no plugin owns. */
 const SCOPE = [
 	'src/lib/core/inline/',
 	'src/lib/cursor/',
@@ -23,8 +23,8 @@ const SCOPE = [
 	'src/lib/components/blocks/text/'
 ];
 
-/** Keyed by the `path :: name` a hit reads as, which addresses ONE walk because the assertion
- *  below fails a scoped file that spells two walkers alike. A walk that recurses is a stack
+/** Keyed by the `path :: name` a hit reads as, which names one traversal, because the assertion
+ *  below fails a scanned file that spells two walkers alike. A traversal that recurses is a stack
  *  overflow waiting for a deep enough document: empty by design, and an entry states one. */
 const EXCEPTIONS: Record<string, string> = {};
 
@@ -61,9 +61,9 @@ function walkerDeclarations(code: string): Declaration[] {
 }
 
 /**
- * Declarations on a call cycle — a self-call is the one-cycle, so both shapes fall out of one
- * pass. Reachability is per DECLARATION and a call reaches EVERY declaration bearing the name:
- * which one the source means is not decidable here, and over-flagging is the safe direction.
+ * Declarations on a call cycle; a self-call is a cycle of one, so both shapes fall out of a single
+ * pass. Reachability is per declaration, and a call reaches every declaration with that name,
+ * because which one the source means cannot be decided here and over-flagging is the safe side.
  */
 function recursiveDeclarations(declarations: Declaration[]): Declaration[] {
 	const reach = declarations.map(
@@ -94,9 +94,9 @@ function recursiveDeclarations(declarations: Declaration[]): Declaration[] {
 const recursiveWalkNames = (code: string): string[] =>
 	recursiveDeclarations(walkerDeclarations(code)).map((declaration) => declaration.name);
 
-/** Walker names a file spells more than once. An EXCEPTIONS key is a path and a name, so a repeat
- *  would exempt a walk nobody stated — and a detector keyed by name would hide one behind the
- *  other. */
+/** Walker names a file spells more than once. An `EXCEPTIONS` key is a path and a name, so a
+ *  repeat would exempt a traversal nobody stated, and a check keyed by name would hide one behind
+ *  the other. */
 function repeatedWalkerNames(code: string): string[] {
 	const seen = new Set<string>();
 	const repeats = new Set<string>();
@@ -108,7 +108,7 @@ function repeatedWalkerNames(code: string): string[] {
 }
 
 /** A recursive walker and an iterative one under one name, the shape `components/blocks/text/`
- *  spells as `visit`: the guard must report the first and leave the second alone. */
+ *  spells as `visit`: the check reports the first and leaves the second alone. */
 const TWO_WALKERS_ALIKE = `
 function visit(nodes) {
 	for (const node of nodes) if (node.children) visit(node.children);

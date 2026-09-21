@@ -1,7 +1,7 @@
 /**
- * G4.x — no plugin kind name in a core dispatch layer (`editor.md` § 1). The
+ * G4.x: no plugin kind name in a core dispatch layer (`editor.md` § 1). The
  * coupling that shipped read correctly and passed every behavioral test, so only a scan
- * catches the DIRECTIONAL smell of core naming a plugin kind. Scope is
+ * catches the directional smell of core naming a plugin kind. Scope is
  * `tree-operations/`, `editor-actions/` and `selection/`; the forbidden set derives from
  * what the first-party plugins brand, and built-in kinds are core's own vocabulary.
  */
@@ -18,7 +18,7 @@ const DISPATCH_SRCS = [
 
 // ── Forbidden-set derivation (plugin block-kind literals) ─────────────────────
 
-/** `const NAME = 'value'` / `export const NAME = 'value'` → { NAME: value }. */
+/** `const NAME = 'value'` / `export const NAME = 'value'` → { name: value }. */
 function constStringMap(sources: SourceFile[]): Map<string, string> {
 	const map = new Map<string, string>();
 	const re = /(?:export\s+)?const\s+([A-Za-z_$][\w$]*)\s*=\s*(['"])([^'"]*)\2/g;
@@ -83,7 +83,7 @@ describe('G4.x no plugin kind name in a core dispatch layer', () => {
 		expect(forbidden.size).toBeGreaterThan(3);
 		expect(forbidden.has('githubAlert')).toBe(true);
 		expect(forbidden.has('admonition')).toBe(true);
-		// Built-in kinds are core's own vocabulary — never forbidden.
+		// Built-in kinds are core's own vocabulary: never forbidden.
 		expect(forbidden.has('blockquote')).toBe(false);
 	});
 

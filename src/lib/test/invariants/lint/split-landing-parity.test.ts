@@ -1,8 +1,8 @@
 /**
- * G1.34's stated bypass, closed as a ratchet: the guard only fires where a caller calls it, so a
- * split site that seats its caret at `i + 1` never crosses it and re-opens the class (a plural
- * first half pushes the second half down, and the caret lands on the first half's tail). Every
- * split caller must read the primitive's own answer AND assert the landing against it.
+ * The bypass G1.34 names, closed here: the dev-mode check only fires where a caller calls it, so
+ * a split site that puts its caret at `i + 1` never reaches it and reopens the problem, because a
+ * first half that reparses into several blocks pushes the second half down and the caret lands on
+ * the first half's tail. Every split caller reads the primitive's answer and asserts against it.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -57,8 +57,8 @@ describe('G1.34 split-landing parity census', () => {
 		}
 	});
 
-	// Per call site, not per file: an allowlisted caller growing a SECOND split whose landing it
-	// re-derives would pass a file-granular scan, which is the bypass this census exists to close.
+	// Per call site, not per file: an allowlisted caller growing a second split whose landing it
+	// recomputes would pass a scan done per file, which is the bypass this exists to close.
 	it('each split call in a caller carries its own landing assertion', () => {
 		for (const file of sources.filter((f) => namesSplit(f) && !NON_LANDING.has(f.relPath))) {
 			const code = stripComments(file.text);

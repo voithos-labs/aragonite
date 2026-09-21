@@ -1,10 +1,9 @@
 /**
- * The tableCell raw-write seam. A cell's raw is joined verbatim into its row and the
- * parser truncates a row that reparses wider than the delimiter's column count, so one
- * unescaped `|` silently deletes the last column's content. The hook the rule rides is
- * pinned in `leaf-raw-write-rule`; what is cell-specific lives here: one implementation
- * of the escape, and the caret half no seam can absorb — the sink's inserted backslashes
- * move the offset a caller reports.
+ * Writing a table cell's raw. A cell's raw is joined verbatim into its row, and the parser
+ * truncates a row that reparses wider than the delimiter's column count, so one unescaped `|`
+ * silently deletes the last column's content. `leaf-raw-write-rule` pins the hook the rule uses;
+ * what is specific to cells lives here: one implementation of the escape, and the caret side
+ * nothing can absorb, because the backslashes the write inserts move the offset a caller reports.
  */
 
 import { describe, it, expect } from 'vitest';

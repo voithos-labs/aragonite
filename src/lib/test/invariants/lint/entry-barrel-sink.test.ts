@@ -1,5 +1,5 @@
 /**
- * G4.54 — a published entry barrel is a sink: no module in its own import closure may
+ * G4.54: a published entry barrel is a dead end: no module in its own import closure may
  * import it back. Rollup splits such a re-export cycle across chunks and warns that
  * execution order will break, a hazard only a consumer's bundler sees, because in-repo
  * `$lib` resolves to source and assigns no chunks at all.
@@ -63,7 +63,7 @@ function buildGraph(): Map<string, string[]> {
 	return graph;
 }
 
-/** Every `importer → entry` edge reachable from `entry` — empty when the barrel is a sink. */
+/** Every `importer → entry` edge reachable from `entry`: empty when the barrel is a dead end. */
 function backEdgesInto(graph: Map<string, string[]>, entry: string): string[] {
 	const seen = new Set([entry]);
 	const stack = [entry];

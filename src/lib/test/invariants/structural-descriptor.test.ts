@@ -4,7 +4,7 @@ import {
 	checkStructuralDescriptor
 } from '$lib/invariants/structural-descriptor';
 
-// G1.36. Miss-analysis: the descriptor vocabulary had no predicate at all — every producer was
+// G1.36. Miss-analysis: the descriptor vocabulary had no predicate at all: every producer was
 // trusted to derive a fitting window, and the one consumer clamps a negative count to an empty
 // splice, so a wrong window left no trace anywhere a test could read it.
 

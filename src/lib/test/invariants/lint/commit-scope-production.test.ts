@@ -1,6 +1,6 @@
 /**
- * G4.61 — the commit scope is production-live. `invariants/commit-scope.ts` routes the
- * decoration engine's deferral, not only a DEV assertion, so a build-flag guard on its writes
+ * G4.61: the commit scope is production-live. `invariants/commit-scope.ts` routes the
+ * decorations' deferral, not only a DEV assertion, so a build-flag guard on its writes
  * would leave `invalidate()` running inside the commit in production while every test stayed
  * green (`esm-env` resolves DEV to true under vitest, so no behavior test can see this).
  */

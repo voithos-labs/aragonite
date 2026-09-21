@@ -3,11 +3,10 @@ import { installPlugins, parse } from '$lib';
 import { checkOpaqueStaleRaw } from '../../invariants/node-shape';
 import { admonitionsPlugin } from '$lib/plugins/admonitions';
 
-// G1.12's divergence arm bails for a kind with no standalone recognizer. A
-// directive container HAS one — the shared `:::` opener recognizes it on the
-// kind's behalf — but registers no opener under its own kind, so an
-// opener-registry-only probe exempted the entire directive tier: exactly the
-// tier the plugin guide recommends authors use.
+// G1.12's mismatch branch gives up for a kind with no standalone recognizer. A directive
+// container has one, because the shared `:::` opener recognizes it on the kind's behalf, but it
+// registers no opener under its own kind, so a check that looked only at the opener registry
+// exempted every directive kind, which is exactly what the plugin guide recommends authors use.
 beforeAll(() => {
 	installPlugins([admonitionsPlugin()]);
 });

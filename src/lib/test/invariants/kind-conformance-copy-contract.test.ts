@@ -1,10 +1,10 @@
-// The conformance kit's copy cell must assert the CONTRACT, not re-derive the slice under
+// The conformance kit's copy cell must assert the contract, not re-derive the slice under
 // test: for a kind with no character positions a cross-block range carries the unit whole,
 // at either endpoint role.
 import { describe, it, expect, vi, afterEach } from 'vitest';
 
-// A collector that puts an interior offset back on a whole-unit endpoint — the pre-fix bytes.
-// Keyed on the endpoint's own value, so neither arm depends on the kit's anchor/focus order.
+// A collector that puts an interior offset back on a whole-unit endpoint: the pre-fix bytes.
+// Keyed on the endpoint's own value, so neither side depends on the kit's anchor/focus order.
 const stub = vi.hoisted(() => ({ mode: 'off' as 'off' | 'unit-start' | 'unit-end' }));
 vi.mock('$lib/selection/clipboard-text', async (importOriginal) => {
 	const actual = await importOriginal<typeof import('$lib/selection/clipboard-text')>();
@@ -55,7 +55,7 @@ describe('kind conformance — the whole-unit copy contract', () => {
 		expect(() => checkCopyIsRawByteSlice(kind, fixture)).toThrow(/raw byte slice/);
 	});
 
-	// Reds on a kit that only ever drives the kind as the range START: with no end-side
+	// Reds on a kit that only ever drives the kind as the range start: with no end-side
 	// range there is no whole-unit end offset for the stub to cut.
 	it('rejects a copy that truncates the unit it ends in', () => {
 		const { kind, fixture } = mermaidFixture();

@@ -1,16 +1,16 @@
 /**
- * G2.10 sticky-column guards, source-scanned because neither rule fits in a type. Capture
- * without reset leaks the column across unrelated edits, and a capture site's reset may
- * live in a sibling file, so the allowlist pairs them. `noteKey` owns what a key does to
- * the column, so a handler calling `reset()` directly is the N-1-of-N parity shape that
- * let the cross-block dispatcher swallow the reset for every key it consumed.
+ * G2.10's sticky-column rules, checked by scanning the source because neither fits in a type.
+ * Capturing the column without resetting it leaks it across unrelated edits, and a capture site's
+ * reset may live in a sibling file, so the allowlist pairs them. `noteKey` owns what a key does to
+ * the column, so a handler calling `reset()` directly is the shape that let the cross-block
+ * dispatcher swallow the reset for every key it consumed.
  */
 
 import { describe, it, expect } from 'vitest';
 import { collectEditorSources } from './scan-source';
 
-// Matches only the editor-level handles, excluding the table's INTERNAL column — a plain
-// number index, a different concept.
+// Matches only the editor-level handles, excluding the table's own column, which is a plain
+// number index and a different thing.
 const CAPTURE_RE = /\b(stickyColumn|editorStickyColumn)\.capture\s*\(/;
 const RESET_RE = /\b(stickyColumn|editorStickyColumn)\.reset\s*\(/;
 const RESET_RE_ALL = /\b(stickyColumn|editorStickyColumn)\.reset\s*\(/g;
@@ -24,9 +24,9 @@ const CAPTURE_SITES: Record<string, string> = {
 };
 
 /**
- * The keydown entry paths, each of which must route through the door. Listed explicitly
- * rather than derived from the path name, which misses classification entry paths like
- * the whole-block key tail — four arrows consumed with the column left untouched.
+ * The keydown entry paths, each of which has to go through `noteKey`. Listed explicitly rather
+ * than derived from the file name, which misses entry paths like the whole-block key tail, where
+ * four arrows were consumed with the column left untouched.
  */
 const KEYDOWN_SEAM_FILES = [
 	'src/lib/selection/shared-keydown.ts',
@@ -46,10 +46,10 @@ const KEYDOWN_RESET_EXCEPTIONS: Record<string, { count: number; why: string }> =
 const isKeydownFile = (relPath: string) => /keydown/i.test(relPath);
 
 /**
- * Every file the path-name scan sweeps in. The scan is a net for a dispatcher nobody
- * added to `KEYDOWN_SEAM_FILES`, but it also collects files holding no column state,
- * which pass its zero-reset check trivially. Pinning the set exact turns a new
- * keydown-named file into a decision — dispatcher, router, or pure transform.
+ * Every file the file-name scan picks up. The scan catches a dispatcher nobody added to
+ * `KEYDOWN_SEAM_FILES`, but it also picks up files holding no column state, which pass its
+ * zero-reset check trivially. Pinning the set exactly turns a new keydown-named file into a
+ * decision: dispatcher, router, or pure transform.
  */
 const KEYDOWN_PATH_NAMED_FILES: Record<string, string> = {
 	'src/lib/selection/shared-keydown.ts': 'dispatcher — classifies through noteKey',
@@ -164,8 +164,8 @@ describe('G2.10 keydown-door guard', () => {
 
 	// ── Matcher self-tests (non-vacuity) ─────────────────────────────────────
 
-	// The matcher scopes the direct-reset rule only: the seam list is its own enumeration,
-	// so a seam whose path omits "keydown" is still held to the door.
+	// The matcher covers the direct-reset rule only: the list of entry paths is its own, so one
+	// whose file name omits "keydown" is still held to `noteKey`.
 	it('the reset-scan matcher selects the path-named seams and skips unrelated sources', () => {
 		expect(isKeydownFile('src/lib/selection/shared-keydown.ts')).toBe(true);
 		expect(isKeydownFile('src/lib/selection/cross-block/keydown.ts')).toBe(true);

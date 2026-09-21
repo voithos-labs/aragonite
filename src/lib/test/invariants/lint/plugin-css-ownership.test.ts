@@ -1,5 +1,5 @@
 /**
- * Plugin CSS token ownership — the domain G4.6 (css-ownership.test.ts) excludes, covering
+ * Plugin CSS token ownership: the domain G4.6 (css-ownership.test.ts) excludes, covering
  * both the bundled plugins and the dev fixtures. Every `var(--…)` a plugin reads must
  * resolve to a token editor-theme.css declares or one the plugin declares itself; a read
  * in neither set is dead, rendering its inline fallback forever with no theme override
@@ -29,7 +29,7 @@ function pluginComponentSources(): Array<{ rel: string; code: string }> {
 }
 
 // ── Non-vacuity: the scan is actually wired to the plugin tree ────────────────
-// The matcher self-tests prove the regexes work; this proves the WALK reached the
+// The matcher self-tests prove the regexes work; this proves the walk reached the
 // components, pinning one real read from each allow-set.
 
 describe('plugin CSS ownership — the scan collected the plugin components', () => {

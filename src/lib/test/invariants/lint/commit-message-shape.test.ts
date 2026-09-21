@@ -1,7 +1,7 @@
 /**
- * G4.58 — one commit-message rule, two doors: `scripts/lint-commit-message.mjs` holds the only
+ * G4.58: one commit-message rule, two callers. `scripts/lint-commit-message.mjs` holds the only
  * definition of the enforced shape, and both the `commit-msg` hook and the CI step over a pull
- * request's range call it. Documented-only, the rule drifted to a 1,499-character subject.
+ * request's range call it. Left to documentation alone, the rule drifts.
  */
 
 import { describe, it, expect, afterAll } from 'vitest';
@@ -105,7 +105,7 @@ describe('G4.58 commit-message shape — the rule', () => {
 	});
 
 	// A body mixing symbol lines with prose is prose: the relaxed per-change allowance is for
-	// the shape where EVERY body line is a change line.
+	// the shape where every body line is a change line.
 	it('reads a mixed body as prose, not as per-change lines', () => {
 		const mixed =
 			'> (schema) two registries merge\n\n+ (schema) the opener registry\nand a note\nand another\nand a fourth';
@@ -128,15 +128,15 @@ describe('G4.58 commit-message shape — the two doors', () => {
 		expect(readFileSync(hook, 'utf8')).toContain('lint-commit-message.mjs');
 	});
 
-	// The range is the PR's OWN commits, and the release PR is scoped out: dev into main would
-	// otherwise range over every commit on dev and read red on history nobody in it wrote.
+	// The range is the pull request's own commits, and the release one is excluded: dev into main
+	// would otherwise range over every commit on dev and fail on history nobody in it wrote.
 	it('the unit job lints only the commits a pull request adds, never the release PR', () => {
 		expect(unitJob).toMatch(/lint-commit-message\.mjs --range HEAD\^1\.\.HEAD\^2/);
 		expect(unitJob).toContain("base.ref != 'main'");
 	});
 
 	// Miss-analysis: the exemption for a bot subject and the config that decided what dependabot
-	// actually writes lived in different files, and no case ever fed the door a real bot subject.
+	// actually writes lived in different files, and no case ever fed the linter a real bot subject.
 	it('dependabot writes the default `Bump ...` subject the exemption matches', () => {
 		const dependabot = readFileSync(path.join(ROOT, '.github/dependabot.yml'), 'utf8');
 		expect(dependabot).not.toMatch(/^\s*commit-message:/m);
@@ -146,7 +146,7 @@ describe('G4.58 commit-message shape — the two doors', () => {
 describe('G4.58 commit-message shape — the co-founder exemption', () => {
 	const OFFENDING = 'Fixed the thing.';
 
-	/** The `-z --format=%H%n%an%n%B` records the range door reads. */
+	/** The `-z --format=%H%n%an%n%B` records the range check reads. */
 	function log(...records: [hash: string, author: string, message: string][]): string {
 		return records.map((record) => `${record.join('\n')}\n`).join('\0');
 	}

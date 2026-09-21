@@ -1,6 +1,6 @@
 /**
- * The two e2e caret helpers address DIFFERENT coordinate spaces: `placeCaretInBlock`
- * counts ALL text nodes including `.md-marker` ambient spans, `focusBlockAtPath` filters
+ * The two e2e caret helpers address different coordinate spaces: `placeCaretInBlock`
+ * counts all text nodes including `.md-marker` ambient spans, `focusBlockAtPath` filters
  * them for a raw-semantic offset. Dozens of numeric call sites depend on the
  * marker-counting one, so unification is deferred and this fails the day
  * one helper's space flips without the other.

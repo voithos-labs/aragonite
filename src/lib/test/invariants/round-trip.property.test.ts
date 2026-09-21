@@ -13,7 +13,7 @@ import {
 } from './arbitraries';
 import { describeRoundTrips } from '$lib/test/support/round-trip';
 
-// G2.1 marquee invariant: serialize(parse(s)) === s for ALL inputs. The parser is total
+// G2.1 marquee invariant: serialize(parse(s)) === s for all inputs. The parser is total
 // and the serializer is pure byte concatenation, so any counterexample is a real defect.
 
 const PARAMS = { numRuns: 1000, seed: freshOrFixedSeed(424242) } as const;
@@ -58,9 +58,9 @@ describeRoundTrips('G2.2 EOF edge states', [
 	{ name: 'unterminated CDATA', source: '<![CDATA[\ndata' }
 ]);
 
-// The size tier: reaching the scale complexity defects live at, not sampling it densely.
+// The large sizes: reaching the scale complexity defects live at, not sampling it densely.
 // Shrinking is off because a 100KB counterexample shrinks for minutes and the raw case is
-// already the diagnostic — the shapes are chosen, not searched.
+// already the diagnostic: the shapes are chosen, not searched.
 describe('G2.1 round-trip at scale', () => {
 	it('serialize(parse(s)) === s over ~100KB floods, runs and unclosed containers', () => {
 		fc.assert(fc.property(arbLargeDoc, roundTrips), {

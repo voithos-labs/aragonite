@@ -1,8 +1,10 @@
 /**
- * Every arm of the caret-edge dispatch asks whether a range is held. The arms read the range's
- * START as their caret, so one that never asks answers for the construct beside a selection the
- * user meant to replace. No single gate can carry this (two arms want the range, the rest want it
- * absent), so the parity rule is a scan: an arm reads `heldRange()` or `hasSelectionHelper()`.
+ * Every branch of the caret-edge dispatch asks whether a range is held. The branches read the
+ * range's
+ * start as their caret, so one that never asks answers for the construct beside a selection the
+ * user meant to replace. No single check can carry this (two branches want the range, the rest
+ * want it
+ * absent), so the rule is a scan: a branch reads `heldRange()` or `hasSelectionHelper()`.
  */
 import { describe, it, expect } from 'vitest';
 import { balancedRegion, readEditorFile } from './scan-source';
@@ -12,7 +14,7 @@ const DISPATCH = 'components/blocks/text/edge-policy-dispatch.ts';
 /** Either spelling counts: the raw read is surface-scoped, the DOM read is the browser's own. */
 const ASKS_ABOUT_A_RANGE = /\b(heldRange|hasSelectionHelper)\s*\(/;
 
-/** Arms whose claim is written inline rather than as a named handler, and why each is exempt. */
+/** Branches whose claim is written inline rather than as a named handler, and why each is exempt. */
 const INLINE_CLAIMS: Record<string, string> = {
 	'reading-mode': 'a mode cut, not a caret question: it ends the walk for every arm below it'
 };
@@ -33,7 +35,7 @@ function armsOf(code: string): Arm[] {
 	while ((match = entry.exec(manifest)) !== null) {
 		out.push({ id: match[1], handler: match[2] ?? null });
 	}
-	// A `claims` shape the pattern does not read would drop that arm AND the one after it.
+	// A `claims` shape the pattern does not read would drop that branch and the one after it.
 	const declaredIds = (manifest.match(/\bid:\s*'/g) ?? []).length;
 	if (out.length !== declaredIds) {
 		throw new Error(
@@ -77,7 +79,7 @@ describe('every caret-edge arm asks whether a range is held', () => {
 		).toEqual([]);
 	});
 
-	// One spelling of the raw read, so an arm cannot grow a fourth idea of what "a range" is.
+	// One spelling of the raw read, so a branch cannot grow a fourth idea of what "a range" is.
 	it('the raw selection is read in exactly one place', () => {
 		expect(code.match(/deps\.getRawSelection\s*\(/g)).toHaveLength(1);
 		expect(sourceOfFunction(code, 'heldRange')).toContain('deps.getRawSelection(');
