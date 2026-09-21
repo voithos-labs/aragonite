@@ -1,28 +1,27 @@
-# Feature: Plugins Prop — install before the first parse
+# Feature: Plugins prop, installed before the first parse
 
-The `/test/plugins` harness installs its four dogfood plugins through `<Editor
-plugins={[...]}>`, not module-scope registration. The prop is processed
-synchronously before the editor parses its seed, so the seed resolves to plugin
-kinds. This gate pins the prop pathway itself: it asserts the CST read by path via
-`window.__test`, not visuals or editing behavior (those are the per-plugin specs).
+The `/test/plugins` harness installs its four dogfood plugins through
+`<Editor plugins={[...]}>` rather than registering them at module scope. The prop is processed
+synchronously before the editor parses its seed, so the seed resolves to plugin kinds. These
+checks pin the prop's own path: they assert the tree read by path through `window.__test`, not
+visuals and not editing behavior, which belong to the per-plugin specs.
 
-Repeat-install within one process (same plugin installed twice → second is a
-silent no-op) is pinned at the unit layer (`schema/plugin-install.test.ts`, plus
-the latex reset→reinstall case in `plugins/latex-block.test.ts`); a browser reload
-is a fresh process, so the e2e covers only the reload path here.
+Installing the same plugin twice in one process, where the second install does nothing, is
+pinned at the unit layer (`schema/plugin-install.test.ts`, plus the latex reset and reinstall
+case in `plugins/latex-block.test.ts`). A browser reload is a fresh process, so the e2e covers
+only the reload path here.
 
 ## Happy paths
 
-- prop installs the first listed plugin before parse: the default callout seed's first block is a `callout` container whose child 0 is `callout-title` — never a `paragraph` (grammar off) or `directiveContainer` (grammar on, callout not registered)
-- prop installs every listed plugin, not just the first: the admonitions seed parses an `admonition` kind into the document, proving a plugin at the end of the array installed before the seed parsed
+- the prop installs the first listed plugin before the parse: the default callout seed's first block is a `callout` container whose child 0 is `callout-title`, never a `paragraph`, which is what a missing grammar gives, and never a `directiveContainer`, which is what the grammar gives when callout is not registered
+- the prop installs every listed plugin, not only the first: the admonitions seed parses an `admonition` kind into the document, which proves a plugin at the end of the array installed before the seed parsed
 
 ## Edge cases
 
-- reload re-runs the prop cleanly: navigating to the callout seed a second time still yields a `callout` container at mount, with no invariant console fire and stable round-trip — the prop pathway is not first-load-only
+- a reload runs the prop again cleanly: navigating to the callout seed a second time still gives a `callout` container at mount, with no invariant message and a stable round-trip, so the prop's path is not first-load-only
 
-Staggered second-editor mounts are `plugins-prop-staggered.md`'s subject (1:1 with
-its spec file).
+A second editor mounted later is `plugins-prop-staggered.md`'s subject, one file per spec.
 
 ## User interactions
 
-- install-before-first-parse scenarios: navigation only (page load / reload); the CST is read by path via `window.__test`, never through chained DOM locators
+- the install-before-first-parse scenarios navigate and nothing more, by loading and reloading the page; the tree is read by path through `window.__test`, never through chained DOM locators

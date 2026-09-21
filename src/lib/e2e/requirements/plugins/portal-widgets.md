@@ -1,44 +1,46 @@
-# Feature: Component-Portal Inline Widgets — Keyed Reuse Pool
+# Feature: inline widgets rendered by a component, and the keyed reuse pool
 
-A plugin inline widget kind renders through a Svelte `component` mounted in the
-atomic island. A keyed reuse pool keeps one live instance per `(kind, source)` so a
-widget survives the block's rebuild-everything-per-keystroke render: typing next to
-an unchanged widget adopts its instance rather than remounting it. KaTeX inline is
-the migrating validator, so the mount-identity oracle is `MathInline`'s
-`data-mount-id` on `.math-inline-widget` — stable across adoption, new on a remount.
+A plugin inline widget kind renders through a Svelte `component` mounted inside the widget the
+caret cannot enter. A keyed pool keeps one live instance per `(kind, source)` so a widget
+survives the block rebuilding everything on every keystroke: typing next to an unchanged widget
+takes over its instance rather than remounting it. Inline KaTeX is the kind being moved over, so
+mount identity is read from `MathInline`'s `data-mount-id` on `.math-inline-widget`, which stays
+the same when an instance is reused and is new after a remount.
 
 Seed (`?seed=math`): `Before $x^2$ after` in block [0], `Next` in [1].
-Seed (`?seed=mathtable`): a table whose one body cell holds `$x^2$`, `After` below —
-for the cell render surface.
+Seed (`?seed=mathtable`): a table whose one body cell holds `$x^2$`, with `After` below, for the
+cell's render path.
 
 ## Happy paths
 
-- load an inline `$x^2$`, type a character elsewhere in the same paragraph: the
-  widget's `data-mount-id` is unchanged and the formula still renders (KaTeX present)
-  — the seam guarantee, no per-keystroke remount
-- a `$…$` in a table cell renders as a mounted widget (the cell render surface is
-  pooled), and typing in the cell keeps its `data-mount-id` stable
+- load an inline `$x^2$` and type a character elsewhere in the same paragraph: the widget's
+  `data-mount-id` is unchanged and the formula still renders, with KaTeX present, which is what
+  the pool promises, no remount per keystroke
+- a `$…$` in a table cell renders as a mounted widget, so the cell's render path is pooled too,
+  and typing in the cell keeps its `data-mount-id` stable
 
 ## Edge cases
 
-- reveal the widget, edit the formula, commit (walk the caret out): the widget renders a NEW
-  `data-mount-id` (source changed → remount) and shows the edited formula
-- reveal the widget, press Escape: the rendered widget returns (the cancel swap
-  re-inserts the exact element it detached), KaTeX present, source unchanged
-- repeated reveal → Escape cycles with no render between: the mount id stays stable
-  through every cycle and through the next real render — no duplicate instance
-- two byte-identical formulas in one paragraph, reveal the SECOND, Escape: BOTH
-  widgets present in place with their own mount-ids and byte-stable source.
-  Regression pin for the key-only fold-back lookup that moved the wrong instance
-  (miss-analysis: reuse was tested only against a single instance, and every reveal
-  scenario seeded a single widget — duplicate keys were never crossed with reveal)
+- show the widget's source, edit the formula, commit by walking the caret out: the widget
+  renders with a new `data-mount-id`, because the source changed and it remounted, and shows the
+  edited formula
+- show the source, then press Escape: the rendered widget comes back, because cancelling puts
+  back the exact element it detached, KaTeX is present and the source is unchanged
+- showing the source and pressing Escape over and over, with no render in between: the mount id
+  stays the same through every cycle and through the next real render, so no second instance
+  appears
+- two byte-identical formulas in one paragraph, show the second one's source, press Escape: both
+  widgets are present in place with their own mount ids and the source is byte-stable. This
+  pins the regression where closing the source looked the instance up by key alone and moved the
+  wrong one (miss-analysis: reuse was tested only against a single instance, and every scenario
+  that showed a source seeded one widget, so duplicate keys were never crossed with it)
 
 ## User interactions
 
-- real keyboard typing and real mouse click / End / Escape — no programmatic
-  selection, caret placement, or value setting
+- real keyboard typing and a real mouse click, End and Escape, with no programmatic selection,
+  caret placement or value setting
 
 ## Error cases
 
-- the `[invariant:…]` / pageerror console watcher stays silent across adoption,
-  reveal, edit-commit, cancel, and the table-cell path
+- the watcher for `[invariant:…]` messages and page errors stays silent across reuse, showing a
+  source, committing an edit, cancelling, and the table-cell path
