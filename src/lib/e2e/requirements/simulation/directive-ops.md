@@ -1,4 +1,4 @@
-# Feature: Directive ops, container, leaf, and text levels (note-taking simulation)
+# Feature: Directive ops, container, leaf, and text tiers (note-taking simulation)
 
 A loaded-ops session on the plugins route over the `:::name` primitive. The
 directive feature spans three levels (an opaque container, a leaf that cannot merge,
