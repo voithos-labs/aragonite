@@ -1,4 +1,4 @@
-# Feature: decoration dogfoods: highlight-occurrences + ghost-text
+# Feature: decoration dogfoods, highlight-occurrences + ghost-text
 
 Two reference plugins built on the public API only (`definePlugin`, `setup(ctx)`,
 `ctx.onEditor`, `editor.decorations`, `editor.events`): `highlight-occurrences`

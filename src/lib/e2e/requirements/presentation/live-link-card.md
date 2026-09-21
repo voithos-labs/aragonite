@@ -87,7 +87,7 @@ the ordinary one: `Mod+Z`, which restores the construct whole, url intact.
 
 ## Error cases
 
-- Escape writes nothing: the source after a cancelled edit is byte-identical to the source before
+- Escape writes nothing: the source after a canceled edit is byte-identical to the source before
 - a click outside the card closes it without writing, and leaves the caret that click just placed
 - zero `[invariant:…]` console fires across every scenario (automatic via the shared e2e fixture)
 

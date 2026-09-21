@@ -1,4 +1,4 @@
-# Feature: highlight-occurrences: epoch-memoized scan + capability skip
+# Feature: highlight-occurrences, epoch-memoized scan + capability skip
 
 The hardened highlight-occurrences plugin caches its word index against the edit
 epoch (the counter bumped once per document change): a caret move re-filters the

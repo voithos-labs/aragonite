@@ -1,4 +1,4 @@
-# Feature: live-mode link card: the chord's consumption contract
+# Feature: live-mode link card, the chord's consumption contract
 
 `reservedChords()` reports `Mod+K` as a chord this editor takes, so every caret position it can be
 pressed from must consume the keypress, whether or not anything opens. Declining would hand a

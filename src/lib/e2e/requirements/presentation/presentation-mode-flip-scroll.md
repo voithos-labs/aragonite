@@ -44,7 +44,7 @@ half now lives beside the height-estimator pin in
   dropped by the check, held the number and slid the content. Miss-analysis
   (#315): the reference answer was right and its tolerance was a whole two pixels,
   so the fraction the scroller refuses on each correction, one per corrected
-  block, passed here; it surfaced only as this scenario re-labelling the leading
+  block, passed here; it surfaced only as this scenario re-labeling the leading
   block on the runs where the previous block's edge sat within a pixel of the
   viewport top
 

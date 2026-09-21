@@ -1,4 +1,4 @@
-# Feature: inline-granular live preview: editing stays live
+# Feature: inline-granular live preview, editing stays live
 
 `preview-inline` is a fully live editing mode: a construct showing its markers is
 normal source text (the CSS just makes the markers visible again), so typing,

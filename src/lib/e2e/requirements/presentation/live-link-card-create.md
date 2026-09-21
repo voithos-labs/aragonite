@@ -1,4 +1,4 @@
-# Feature: live-mode link card: the create half of Mod+K
+# Feature: live-mode link card, the create half of Mod+K
 
 `Mod+K` over a selection is the other half of the chord (#119): where a caret inside a link enters
 the card, a range over plain text opens it in create mode and writes `[text](url)` on commit. The

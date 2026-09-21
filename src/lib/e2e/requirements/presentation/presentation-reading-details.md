@@ -1,4 +1,4 @@
-# Feature: reading mode: the transient details disclosure
+# Feature: reading mode, the transient details disclosure
 
 Reading mode never writes bytes. But a user has to be able to open a collapsed
 `<details>` to read it, so the disclosure toggle there changes **view state** only:
