@@ -1,30 +1,30 @@
-# Feature: The fold seam — block commands against a revealed inline source
+# Feature: block commands while an inline source is shown
 
-While a reveal-source widget shows its editable `$…$` bytes, the edit is ephemeral DOM the CST has not seen. Every block command — merge, split, hard break, heading cycle, format toggle — reads `node.raw`, so a command that fires in that state must fold the reveal first and run against the committed bytes, at the caret and selection it read BEFORE the fold (the fold parks its own caret).
+While a widget shows its editable `$…$` bytes, that edit lives in DOM the tree has never seen. Every block command (merge, split, hard break, heading cycle, format toggle) reads `node.raw`, so a command that fires in that state has to commit the shown source first and then run against the committed bytes, using the caret and selection it read before that commit, since committing puts the caret somewhere of its own.
 
-The rule lives at the block's command seam, so it holds for every reveal-capable widget kind — inline math, footnote references, inline directive text — and each of the three is driven here. Enter's own contract is a separate concern (`latex-inline-reveal-enter.md`).
+The rule lives where a block dispatches its commands, so it holds for every kind that can show its source: inline math, footnote references and inline directive text, and all three are driven here. What Enter does is a separate concern (`latex-inline-reveal-enter.md`).
 
 ## Happy paths
 
-- Backspace-merging a block whose revealed source was deleted character by character merges the EMPTY block — the deleted math does not reappear in the merged bytes
-- The same merge with an edited but still-valid revealed source (`$x^2$` → `$x^2q$`) merges the EDITED bytes — neither the edit is lost nor the pre-edit source resurrected, which is what rules out construct-breakage as the trigger
-- Mod+1 cycles the heading on the committed bytes, keeping an edit the CST had not been told about
-- Mod+B toggles the range the user selected: the fold parks a caret that collapses the live selection, so the command must act on the range it read before folding, not re-read one after
-- A footnote reference and an inline directive-text widget — the other two `revealSource: true` kinds — take the same merge with no code of their own
-- The emptied block takes its own blank line with it, so the merged bytes reload as the blocks on screen; the widget kind has no say in that, and neither does the successor's
+- Backspace-merging a block whose shown source was deleted character by character merges the now empty block, and the deleted math does not come back in the merged bytes
+- The same merge with an edited but still valid shown source (`$x^2$` becoming `$x^2q$`) merges the edited bytes: the edit is neither lost nor replaced by the source from before it, which is what rules out a broken construct as the trigger
+- Mod+1 cycles the heading on the committed bytes, keeping an edit the tree had not been told about
+- Mod+B toggles the range the user selected: committing puts down a caret that collapses the live selection, so the command has to act on the range it read before committing rather than read one again afterwards
+- A footnote reference and an inline directive-text widget, the other two kinds with `revealSource: true`, take the same merge with no code of their own
+- The emptied block takes its own blank line with it, so the merged bytes reload as the blocks on screen; the widget kind has no say in that, and neither does the kind after it
 
 ## Miss-analysis
 
-- The blank-line materialization changed what an emptied-middle-block merge leaves behind, and this spec pinned the retired shape (`above` / blank / blank / definition), which reloaded one block wider than the live tree. The sweep that landed the rule picked its e2e projects from the FILES touched, so `e2e-plugins` was never run; the honest rule is to pick them from the BEHAVIOR changed — a separator-derivation change in `tree-operations` reaches every spec asserting `getSource()` after Backspace, Enter or a delete, whether or not its fixture mentions a blank line. The tree-level family pin is `test/tree-operations/emptied-block-collapse.test.ts`.
+- Deriving the blank lines changed what merging an emptied middle block leaves behind, and this spec pinned the shape that was retired (`above` / blank / blank / definition), which reloaded one block wider than the live tree. The sweep that landed the rule picked its e2e projects from the files it touched, so `e2e-plugins` never ran; the honest rule is to pick them from the behavior that changed, because a change to how separators are derived in `tree-operations` reaches every spec asserting `getSource()` after Backspace, Enter or a delete, whether or not its fixture mentions a blank line. The tree-level pin for the family is `test/tree-operations/emptied-block-collapse.test.ts`.
 
-- The fold's own caret restore lands inside the formula it just folded, and a restore that reveals a formula closing around a typed byte must not read that as a reason to reopen it; the invariant fire on the commands above is what caught the reopen, since the command then ran with a reveal open again
+- The caret restored after a commit lands inside the formula that was just closed, and a restore that shows a formula closing around a typed byte must not read that as a reason to open it again; the invariant message on the commands above is what caught the reopen, since the command then ran with a source open once more
 
 ## Edge cases
 
-- ArrowRight leaves a block whose EDITED reveal sits at its end (and commits on the way): the live bytes are shorter than `node.raw`, and a boundary test against the stale raw traps the caret in the block forever
-- Backspace with the caret mid-source still edits the revealed source natively — the merge command declines at a non-zero offset, so reveal editing is untouched
-- Escape still cancels the reveal and discards the ephemeral edit
+- ArrowRight leaves a block whose edited source sits at its end, committing on the way: the live bytes are shorter than `node.raw`, and a boundary test against the stale raw traps the caret in the block forever
+- Backspace with the caret mid-source still edits the shown source the way the browser does, because the merge command declines at any non-zero offset, so editing the shown source is untouched
+- Escape still cancels and discards the edit that never reached the tree
 
 ## Error cases
 
-- No `[invariant:…]` fire and no page error while a structural command runs against a revealed block
+- No `[invariant:…]` message and no page error while a structural command runs against a block whose source is shown
