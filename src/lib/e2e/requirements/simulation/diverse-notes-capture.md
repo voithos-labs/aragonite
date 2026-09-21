@@ -1,41 +1,40 @@
 # Feature: Diverse-notes capture (note-taking simulation)
 
-Several longer, more diverse note sessions than the headline biology note, each
+Several note sessions, longer and more varied than the headline biology note, each
 driven entirely through real keyboard, mouse, and clipboard input from an empty
-document and guarded by the full harness oracle suite. They surface bugs over
-constructs the biology note avoided, and some deliberately place a previously
-blind-spot construct into their **equality spine** so typing ≡ loading guards it on
+document and guarded by the harness's full set of reference checks. They find bugs
+over constructs the biology note avoids, and some deliberately put a construct
+nothing else covers into their **end-state check**, so typing ≡ loading guards it on
 every run: dense inline variety (feature-tour), deep container nesting (project-plan),
-a three-level outline (outline), a nested `> >` blockquote (reading-notes — the
-regression spine for the nested-blockquote-exit fix), plus two genre notes
+a three-level outline (outline), a nested `> >` blockquote (reading-notes, the
+regression guard for the nested-blockquote-exit fix), plus two genre notes
 (meeting-minutes, README). Gated behind `SIM_CAPTURE` so they stay out of the default
-suite; each records a screenshot + state manifest per structural unit for an agentic
-visual review.
+suite; each records a screenshot and a state manifest per structural unit for a visual
+review by an agent.
 
 ## Happy paths
 
-- feature-tour note builds inline-rich prose char-by-char — ATX H1/H2 sections,
+- feature-tour note builds inline-rich prose char-by-char: ATX H1/H2 sections,
   multiple paragraphs, bold, italic, bold-italic, code spans, several links,
   strikethrough, bare-URL and bare-email autolinks, HTML entities, backslash
   escapes, a trailing-backslash hard line break, plus a bullet list and an ordered
   list; end-state equals the canonical note (typing ≡ loading)
-- project-plan note builds structurally-deep content char-by-char — two-level
+- project-plan note builds structurally deep content char-by-char: two-level
   nested bullets, an ordered list with a nested ordered sub-item, a mixed
   checked/unchecked task list, a multi-line blockquote, a fenced code block,
   several headings, and a resized image; end-state equals the canonical note
 - outline note builds a three-level nested bullet list via the deep-nesting cadence
-  (type item → indent the empty trailing item → type the fresh item); the
-  three-level structure is in the equality spine, so a nesting regression fails
-  end-state equality
+  (type item, indent the empty trailing item, type the fresh item); the three-level
+  structure is part of the end-state check, so a nesting regression fails that check
 - reading-notes note builds a nested `> >` blockquote (typed `>` then `>` then body);
-  the nested quote is in the equality spine — the regression guard the
-  nested-blockquote-exit fix shipped without
+  the nested quote is part of the end-state check, which is the regression guard for
+  the nested-blockquote-exit fix
 - meeting-minutes note builds headings, attendee bullets, a decision blockquote, an
   ordered agenda, and a task list with a nested action item; end-state equals the
   canonical note
 - README note builds a link-bearing intro, ordered steps with inline code, a fenced
   code block, and a links section; end-state equals the canonical note
-- each session records one screenshot + manifest entry per completed structural
+- each session records one screenshot and one manifest entry per completed structural
   unit, plus the post-build `note-built` and `detour-done` checkpoints; the
   manifest lands at a seed-derived directory so a second run overwrites identically
 
@@ -48,18 +47,18 @@ visual review.
   the line
 - Enter separates: a paragraph split leaves a blank line between the halves, so the
   built source reparses to the same block structure the session shows
-- HTML entities and backslash escapes survive verbatim — the live parser styles
+- HTML entities and backslash escapes survive verbatim: the live parser styles
   them but the source bytes are unchanged on round-trip
 - multi-paragraph blockquote: a single Enter inside a quote adds a `>` blank line
   and starts a second quoted paragraph
 - nested-list cadence: an item is typed at its creation level then indented, and
   the empty trailing item is outdented back to top level before the next item is
   typed
-- deep nesting reaches three levels via press-Enter → indent-the-empty-item →
-  type-fresh-item; indenting the empty item produces no source delta, so the gesture
-  settles on the focused item's path lengthening
+- deep nesting reaches three levels by pressing Enter, indenting the empty item, then
+  typing the fresh item; indenting the empty item changes no bytes, so the gesture
+  waits for the focused item's path to get longer
 - nested blockquote exit: building and round-tripping a `> >` nested quote leaves no
-  stranded empty `> >` continuation line (the reading-notes spine guard for the
+  stranded empty `> >` continuation line (the reading-notes end-state guard for the
   exit-collapse fix)
 - task toggle flips the first checklist item from unchecked to checked via a real
   checkbox click; the resulting `[x]` matches the canonical note
@@ -81,10 +80,10 @@ visual review.
 ## Error cases
 
 - no console or page errors fire across either whole session
-- nested BlockListState stays consistent (`auditBlockListStateConsistency` finds no
-  container id/ref desync) at every oracle checkpoint, including across list nesting,
+- nested `BlockListState` stays consistent (`auditBlockListStateConsistency` finds no
+  container id or ref out of sync) at every checkpoint, including across list nesting,
   the multi-line blockquote, and the list exits
-- the live serializer round-trips the current CST at each oracle checkpoint
+- the live serializer round-trips the current CST at each checkpoint
 - the undo/redo differential restores the exact pre/post source around a forced
   batch boundary
 - both sessions are deterministic: the asserted end-state and captured artifacts are

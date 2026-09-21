@@ -1,26 +1,28 @@
 # Feature: Transcription smoke (note-taking simulation)
 
 A short, deterministic note-taking session driven entirely through real
-keyboard and mouse input from an empty document, guarded by the harness oracle
-suite. The skeleton acceptance gate: green, identical across two runs, under the
-wall-time budget.
+keyboard and mouse input from an empty document, guarded by the harness's
+reference checks. The skeleton acceptance gate: green, identical across two runs,
+under the wall-time budget.
 
 ## Happy paths
 
-- types a short note from empty char-by-char: each printable keystroke settles
-  the source to the predicted string, so content is verified at every character
-- paragraph then bullet list: Enter materializes the next block, the auto-inserted
-  list marker is resynced, and the finished source matches the canonical note
+- types a short note from empty char-by-char: each printable keystroke waits for
+  the source to reach the predicted string, so content is verified at every
+  character
+- paragraph then bullet list: Enter creates the next block, the automatically
+  inserted list marker is re-read from the document, and the finished source
+  matches the canonical note
 - end-state equals canonical: the gesture-built source equals the source the
   editor produces by loading the note's markdown (typing ≡ loading)
 
 ## Edge cases
 
-- injected typos self-correct: a wrong neighbor key is typed, settled, then
+- injected typos self-correct: a wrong neighbor key is typed, waited for, then
   backspaced out before the intended char, netting to identity on the source
 - jump-back edit nets to identity: after clicking into the first block, a char is
   typed mid-document and backspaced out, returning the source to its pre-detour
-  value before the end-state oracle runs
+  value before the end-state check runs
 - empty baseline calibration: after clearing, the source is exactly `"\n"`;
   a different value stops the session loudly rather than masking the drift
 - seed-gated range interrupt: a live cross-block range meets one interrupting gesture
@@ -37,17 +39,17 @@ wall-time budget.
   made there
 - undo / redo use real cross-platform keyboard shortcuts and restore the exact
   pre/post-gesture source around a forced batch boundary
-- whole-session undo unwind: after the build, undoing the entire stack to its floor
+- whole-session undo unwind: after the build, undoing the entire stack to the bottom
   reaches the session's initial source (`"\n"`) byte-exact, then redoing to the top
   reconstructs the built note; the stack depth comes from the debug bridge
 
 ## Error cases
 
 - no console or page errors fire during the session
-- nested BlockListState stays consistent (no container id/ref desync)
-- the serialized source is a byte fixed point (`serialize(parse(src)) === src`) AND the live
-  CST converges structurally with a reparse of that source, so a gesture that left the tree
-  diverging from its own raw is caught where the byte check is blind (checkpoint cadence)
+- nested `BlockListState` stays consistent (no container id or ref out of sync)
+- the serialized source is a byte fixed point (`serialize(parse(src)) === src`) and the
+  live CST matches a reparse of that source structurally, so a gesture that left the tree
+  diverging from its own raw is caught where the byte check is blind (at each checkpoint)
 - both selection endpoints resolve to live CST nodes with leaf offsets within raw length,
   so a gesture that stranded a dangling selection endpoint is caught before the next
   keystroke dereferences it

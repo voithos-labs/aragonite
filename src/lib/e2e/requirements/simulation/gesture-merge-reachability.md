@@ -1,19 +1,19 @@
 # Feature: Merge gesture reachability (note-taking simulation)
 
-Reachability self-tests for the Backspace-at-start merge gesture the corruption
-oracle uses. Each drives the gesture on a fixed document and asserts a real merge or
-container-exit unwrap happened — so a Backspace that no-oped can never pass as
-coverage inside a full session. Isolated (no `runSession`): the gesture is exercised
-directly against a controlled fixture.
+Self-tests that the Backspace-at-start merge gesture the corruption checks use can
+actually reach the state it claims. Each drives the gesture on a fixed document and
+asserts a real merge or container-exit unwrap happened, so a Backspace that did
+nothing can never pass as coverage inside a full session. These run on their own
+(no `runSession`): the gesture is driven directly against a controlled fixture.
 
-## Happy paths — merge
+## Happy paths: merge
 
 - para→para: Backspace at the second block's start merges it into the first, dropping
   a top-level block
 - para→heading (absorber): the paragraph is absorbed and the heading stays a heading
 - para→list: the paragraph merges into the preceding list, dropping a top-level block
 
-## Happy paths — container exit
+## Happy paths: container exit
 
 - list U1: Backspace at the first list item's start unwraps it to a plain paragraph
   while later items stay in the list
