@@ -1,10 +1,10 @@
 // @vitest-environment jsdom
 //
-// Miss-analysis: the cell's destructive edits had unit pins for the escape half only and the e2e
-// cell rows drove paste alone, so every non-paste cut stayed byte-literal in live mode unseen.
-// The seam contract: a live cut through hidden delimiter runs drops what it strands
-// (live-mode.md § 4.5), on
-// every destructive path — event cut, menu cut, and the native type-over/delete of a selection.
+// Miss-analysis: the cell's destructive edits had unit tests for the escaping half only and the
+// e2e cell cases drove paste alone, so every cut that was not a paste stayed literal in live mode
+// unnoticed. The rule: a live cut through hidden delimiter runs drops what it strands
+// (live-mode.md § 4.5), on every destructive path, which is the event cut, the menu cut, and
+// typing or deleting over a selection.
 import { describe, it, expect, beforeAll, afterAll, afterEach, vi } from 'vitest';
 import { cleanLiveJoinSeam } from '$lib/components/blocks/text/live-join-seam';
 import {
@@ -17,7 +17,7 @@ beforeAll(() => registerLiveJoinSeamCleaner(cleanLiveJoinSeam));
 afterAll(() => __resetLiveJoinSeamCleanerForTests());
 
 // Raw `**bold** *it*`: [4, 11) runs from inside the bold out past the italic's opener, so a
-// byte-literal cut strands the `**` opener and the italic's closer.
+// literal cut strands the `**` opener and the italic's closer.
 const MIXED = '**bold** *it*';
 
 let mounted: MountedCell;

@@ -1,10 +1,10 @@
 // @vitest-environment jsdom
 //
-// A column edit scopes the table plus ONE SCOPE PER MOUNTED ROW, resolved from the state
-// registry (`editor-actions/table-context.ts` § mountedColumnScopes) — a row registers its
-// BlockListState on mount and a windowed-out row has none, which is why the scope list is built
-// by probing. That registration only happens inside the mounted components. The windowed-OUT
-// half stays an e2e residual: jsdom boxes are all zero, so test:e2e:vr owns that case.
+// A column edit covers the table plus one state unit per mounted row, resolved from the state
+// registry (`editor-actions/table-context.ts` § mountedColumnScopes): a row registers its
+// `BlockListState` on mount and an unmounted row has none, which is why that list is built by
+// asking. The registration only happens inside the mounted components. The unmounted half is left
+// to e2e, since jsdom boxes are all zero, so `test:e2e:vr` owns that case.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
 import { getStateForNode } from '$lib/reactivity/state-registry';
 import { installTableLayoutStubs, mountTable, type MountedTable } from './mount-table';
@@ -50,8 +50,8 @@ describe('a mounted table registers the row state its column ops scope through',
 	});
 
 	it('gives each row its own state, so a column scope can pair state to row', () => {
-		// commitColumnEdit asserts every row scope's node IS the table child at the index it
-		// covers; one state shared across rows would splice the same id list three times.
+		// `commitColumnEdit` asserts every row's node is the table child at the index it covers;
+		// one state shared across rows would splice the same id list three times.
 		mounted = mountTable(THREE_ROWS);
 
 		const states = mounted.table.children!.map((row) => getStateForNode(row));

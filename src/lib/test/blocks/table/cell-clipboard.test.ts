@@ -12,8 +12,8 @@ import { allowDevWarns } from '$lib/test/support/warn-gate';
 // expects.
 afterEach(() => allowDevWarns(['invariant:cross-block-endpoint-coordinates']));
 
-// A doc whose block at [0] is a table, so a same-path cross-block selection reads
-// as custom-rendered. `cells` is a row-major grid of cell raws.
+// A document whose block at [0] is a table, so a cross-block selection with the same path on
+// both ends reads as custom-rendered. `cells` is a row-major grid of cell raws.
 function tableDoc(cells: string[][], columnCount: number): Document {
 	return {
 		kind: 'document',
@@ -72,8 +72,8 @@ describe('intraTableRect', () => {
 });
 
 describe('intraTableRectPayload', () => {
-	// 3×2 grid: an asymmetric shape catches a row/col mix-up in the index decode —
-	// a swap would address column 2 of a two-column table and change the payload.
+	// A 3x2 grid: an uneven shape catches a row-and-column mix-up in the index decoding,
+	// since a swap would address column 2 of a two-column table and change the payload.
 	const doc = tableDoc(
 		[
 			['a', 'b'],

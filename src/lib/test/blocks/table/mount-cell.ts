@@ -1,8 +1,8 @@
-// One table cell mounted BY ITSELF, over a stub table context. The contrast with `mount-table.ts`
-// is which side of the cell/table boundary is under test: that harness mounts a real TableBlock so
-// a gesture reaches the real coordination; this one stubs `TableContext` so the test reads what
-// the cell ASKED its table for. Read-only questions and single gestures only — a commit replaces
-// the node by copy-path-on-write and no parent re-renders this component with the replacement.
+// One table cell mounted on its own, over a stub table context. The difference from
+// `mount-table.ts` is which side of the cell-to-table boundary is under test: that harness mounts
+// a real TableBlock so a gesture reaches the real coordination, while this one stubs
+// `TableContext` so a test reads what the cell asked its table for. Read-only questions and single
+// gestures only: a commit replaces the node and nothing above re-renders with the replacement.
 
 import { mount, unmount, flushSync, tick } from 'svelte';
 import { vi } from 'vitest';
@@ -25,7 +25,7 @@ export async function settleTicks(done?: () => boolean): Promise<void> {
 	for (let i = 0; i < 12 && !done?.(); i++) await tick();
 }
 
-/** A cell renders no decoration islands unless a test installs some. */
+/** A cell renders no decorations unless a test installs some. */
 const noIslands = { islandsForPath: () => [] } as unknown as EditorServices['decorations'];
 
 /** Every member spied, so a test names the one it means and `npm run check` fails
@@ -69,13 +69,13 @@ export interface MountedCell {
 	blockEdit: ReturnType<typeof makeStubBlockEdit>;
 	selection: ReturnType<typeof createSelectionState>;
 	tableContext: StubTableContext;
-	/** The cell's published ref slot — the channel the right-click menu reaches it through. */
+	/** The cell's published reference, which is how the right-click menu reaches it. */
 	ref(): BlockComponent;
 	dispose(): Promise<void>;
 }
 
-/** The document `myPath` addresses: a real 2x2 table holding this cell at [0, 1, 0]. A door
- *  that reads its own target back out of the document (paste) resolves nothing without it. */
+/** The document `myPath` points into: a real 2x2 table holding this cell at [0, 1, 0]. Anything
+ *  that reads its own target back out of the document, such as paste, resolves nothing without it. */
 function documentAround(node: CstNode): Document {
 	const doc = parse('| A | B |\n| --- | --- |\n| x | keep |\n');
 	doc.children[0].children![1].children![0] = node;

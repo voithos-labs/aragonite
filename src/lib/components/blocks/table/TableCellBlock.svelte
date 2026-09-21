@@ -119,7 +119,7 @@
 		slots?: RefSlots<BlockComponent>;
 	} = $props();
 
-	// A cell's position among its row's children IS its column.
+	// A cell's position among its row's children is its column.
 	const colIdx = $derived(index);
 
 	const wiring = wireSurfaceContexts();
@@ -159,15 +159,15 @@
 	const presentationMode = $derived(getPresentationMode?.() ?? 'source');
 	const readOnly = $derived(presentationMode === 'reading');
 
-	// A constant fallback keeps an empty island set out of the render key.
+	// A shared constant keeps an empty decoration list out of the render key.
 	const NO_ISLANDS: IndexedDecoration<WidgetDecoration | ReplaceDecoration>[] = [];
 
-	// ── The cell's write door ───────────────────────────────────────────────
+	// ── How the cell writes its bytes ───────────────────────────────────────
 	//
-	// Every write of this cell's raw goes through `blockEdit`; the escape is the kind's
-	// (`normalizeRawWrite`, at the write sink). The caret half stays here: `caretAfter` addresses
-	// the text the caller wrote, so the sink's backslashes move it; `caretBefore` addresses the
-	// already-escaped pre-write bytes and stays unmapped.
+	// Every write of this cell's raw goes through `blockEdit`; the escaping is the kind's, in
+	// `normalizeRawWrite`. The caret half stays here: `caretAfter` counts into the text the caller
+	// wrote, so the inserted backslashes move it, while `caretBefore` counts into the
+	// already-escaped bytes and is left alone.
 	const blockEdit: BlockEditActions = {
 		...parentBlockEdit,
 		updateBlockContent(i, text, caretBefore, caretAfter) {
@@ -183,14 +183,14 @@
 
 	let el: HTMLDivElement | undefined = $state();
 	let composing = $state(false);
-	// A revealed widget source is ephemeral DOM, so onInput skips the per-keystroke CST
-	// commit and the cell commits once on reveal exit (mirrors TextEditableBlock).
+	// A widget's shown source lives only in the DOM, so `onInput` skips the per-keystroke CST
+	// commit and the cell commits once when it is hidden, as TextEditableBlock does.
 	let revealing = $state(false);
 	let pendingCursorOffset = $state<number | null>(null);
 
-	// The door's other half, and the ONLY write of `pendingCursorOffset` besides the render
-	// effect's clear. A pending cursor never passes through `blockEdit`, so the caller hands
-	// over the text its offset addresses; no text means it already stands in escaped space.
+	// The other half, and the only write of `pendingCursorOffset` besides the render effect's
+	// clear. A pending cursor never goes through `blockEdit`, so the caller hands over the text
+	// its offset counts into; no text means it already counts into the escaped bytes.
 	function parkCursor(offset: number | null, writtenText?: string): void {
 		pendingCursorOffset =
 			offset === null || writtenText === undefined
@@ -199,13 +199,13 @@
 	}
 
 	let preEditOffset = 0;
-	// Y is load-bearing for the reveal hit-test: a column-aligned click on another
-	// visual line must not reveal.
+	// Y matters for the hit test: a click at the same column on another visual line
+	// must not open a source.
 	let lastClickClientX: number | null = null;
 	let lastClickClientY: number | null = null;
 
-	// Cells carry no ambient marker; at zero ambient the factory is plain widget-aware
-	// raw-unit cursor IO (textContent math undercounts widget bytes).
+	// A cell carries no marker prefix, so the factory gives plain widget-aware cursor reads
+	// in raw units; counting `textContent` would undercount a widget's bytes.
 	const cursor = createAmbientCursorIO({
 		getEl: () => el ?? null,
 		getAmbientLength: () => 0
@@ -213,8 +213,8 @@
 
 	const editableSurface = createEditableSurface({
 		...wiring.deps,
-		// The wiring's blockEdit is the parent door; this surface writes through the
-		// cell's escaping one above.
+		// The shared wiring's `blockEdit` is the parent's; this cell writes through its
+		// own escaping one above.
 		blockEdit,
 		getEl: () => el ?? null,
 		getAmbientLength: () => 0,
@@ -242,14 +242,14 @@
 		readText: () => readCellText(),
 		relocateComposedText: (after, composedAt) => compositionSeat.relocate(after, composedAt),
 		// `saved` re-focuses if the edit remounts the cell, so it is reported through
-		// the door's escape.
+		// the escaping write above.
 		commitInput: (text, preEdit, saved) => {
 			void blockEdit.updateBlockContent(index, text, preEdit, saved);
 			return escapedCellOffset(text, saved);
 		}
 	});
 
-	// The same seat the keydown dispatch takes, for the one insertion a keydown cannot reach.
+	// The same placement rules the keydown dispatch uses, for the one insertion it cannot reach.
 	const compositionSeat = createCompositionSeat({
 		getDisplayText: () => trimTrailingLineEnding(node.raw),
 		getInlines: () => resolvedInlineContent(node, linkRef),
@@ -262,8 +262,8 @@
 	const crossBlock = editableSurface.crossBlock;
 	const sharedCtx = editableSurface.sharedCtx;
 
-	// The prose inline-widget seams, threaded with cell-shaped deps: zero ambient, no
-	// snap overlay (cells render no image widgets), and the escaping blockEdit.
+	// The same inline-widget code prose uses, with cell-shaped dependencies: no marker prefix,
+	// no snap indicator, since cells render no image widgets, and the escaping `blockEdit`.
 	const widgetInteraction = createWidgetInteraction({
 		get node() {
 			return node;
@@ -294,8 +294,8 @@
 		}
 	});
 
-	// The one caret-edge dispatch (G4.12), same seam prose uses: a plain edge key against
-	// a CST widget or a decoration island resolves against its declarative policy.
+	// The one caret-edge dispatch (G4.12), the same code prose uses: a plain edge key against
+	// a CST widget or a decoration widget resolves against its declared policy.
 	const edgeDispatch = createEdgePolicyDispatch({
 		get node() {
 			return node;
@@ -318,8 +318,8 @@
 		setPendingCursor: (offset, _source, writtenText) => parkCursor(offset, writtenText),
 		setSnapTarget: () => {},
 		isRevealing: () => widgetInteraction.isRevealing(),
-		// A non-reveal widget reached through this seam is an ARROW's entry, so step the
-		// caret over it like native contenteditable.
+		// A widget that cannot show its source, reached this way, was reached by an arrow
+		// key, so step the caret over it as contenteditable would.
 		enterWidget: (widget, fromTrailingEdge) => {
 			if (getInlineWidgetEditing(widget.kind)?.revealSource) {
 				widgetInteraction.enterWidget(widget, fromTrailingEdge);
@@ -327,9 +327,9 @@
 				cursor.setRaw(asRawOffset(fromTrailingEdge ? widget.start : widget.end));
 			}
 		},
-		// A cell paints no widget-selection overlay, so the prose select-then-delete default
-		// would show nothing between the presses. Scoped to what the cell actually PAINTS as
-		// a widget, and merged onto the registered policy rather than replacing it.
+		// A cell draws no selection outline around a widget, so the prose select-then-delete
+		// default would show nothing between the two keys. Limited to what the cell actually
+		// draws as a widget, and merged onto the registered policy rather than replacing it.
 		widgetEdgePolicy: (widget) => {
 			const registered = getInlineWidgetEditing(widget.kind);
 			if (!el || registered?.revealSource) return undefined;
@@ -357,8 +357,9 @@
 	export const setSelection = editableSurface.surface.setSelection;
 	export const measurePartialRects = editableSurface.surface.measurePartialRects;
 
-	/** The card's query for this cell. `range` is null at the chord's arm, where a create would
-	 *  have to answer the pipe escapes in cell raw, and the live one at the pressed read. */
+	/** What the link card is asked about here. `range` is null when the chord runs, since a
+	 *  create would have to deal with a cell's pipe escapes, and the live one when the pressed
+	 *  state is read. */
 	const linkCardQuery = (contentEl: HTMLElement, range: { start: number; end: number } | null) => ({
 		contentEl,
 		block: node,
@@ -372,8 +373,8 @@
 	// A toolbar asks once per button on every selection change, so the buttons share the parse.
 	const formatActive = createInlineFormatActiveMemo();
 
-	// The pressed-state read: the same cell text and selection the toggle itself takes, and for
-	// the card the same construct its own entry resolves.
+	// Whether a button shows as pressed: the same cell text and selection the toggle itself
+	// uses, and for the card the same construct its own entry resolves.
 	export function isCommandActive(id: CommandId): boolean {
 		if (!el) return false;
 		const marked = inlineMarkForCommand(id);
@@ -390,25 +391,25 @@
 		);
 	}
 
-	// Claims the chord even with no caret to act on: declining leaves Mod+B to the browser's
-	// own contenteditable bold, an edit this surface never authored.
+	// Takes the chord even with no caret to act on: declining leaves Mod+B to the browser's
+	// own contenteditable bold, an edit this block never wrote.
 	function toggleFormat(format: InlineMarkKind): boolean {
 		if (!el) return true;
 		const caret = cursor.getRaw();
-		// A collapsed caret is the empty-pair contract, not a bail — see toggleInlineFormat.
+		// A collapsed caret is the empty-pair case, not a refusal; see `toggleInlineFormat`.
 		const offsets =
 			cursor.getRawSelection() ?? (caret === null ? null : { start: caret, end: caret });
 		if (!offsets) return true;
-		// Same fork as the prose surface, on the same question the toggle door asks: a surface
-		// painting no delimiter would hold an abandoned empty pair as invisible garbage in the
-		// cell's bytes (live-mode.md § 4.3).
+		// The same branch the prose block takes, on the same question: a block that draws no
+		// delimiter would keep an abandoned empty pair as invisible bytes in the cell
+		// (live-mode.md § 4.3).
 		if (!paintsFocusedMarkers(presentationMode) && offsets.start === offsets.end) {
 			controller.flushDebouncedCheckpoint();
 			pendingMarks.toggle(format);
 			return true;
 		}
-		// A cell has no markers of its own, so the whole read is content — taken from the DOM text
-		// rather than `getContentRange(node)`, whose bytes carry the escapes the door writes.
+		// A cell has no markers of its own, so the whole read is content, taken from the DOM text
+		// rather than `getContentRange(node)`, whose bytes carry the escapes the write adds.
 		const cellText = readCellText();
 		const result = toggleInlineFormat(
 			{ display: cellText, content: { start: 0, end: cellText.length }, selection: offsets },
@@ -422,8 +423,8 @@
 		controller.isolateUndoEntry(() =>
 			blockEdit.updateBlockContent(index, result.newDisplay, result.newSelStart, result.newSelStart)
 		);
-		// The door may have inserted backslashes inside the toggled span, so both selection
-		// edges are read back through the escape.
+		// The write may have inserted backslashes inside the toggled span, so both selection
+		// edges are read back through the escaping.
 		const selStart = escapedCellOffset(result.newDisplay, result.newSelStart);
 		const selEnd = escapedCellOffset(result.newDisplay, result.newSelEnd);
 		void tick().then(() => setSelection(selStart, selEnd));
@@ -431,9 +432,9 @@
 	}
 
 	/**
-	 * The cell's mutation funnel. A live reveal holds this cell's bytes in ephemeral DOM the CST
-	 * has not seen, so a mutation would either splice the pre-reveal source or re-derive the whole
-	 * row from cell raws — dropping the edit. Fold, settle, then act.
+	 * The one place a cell edit starts. A shown source holds this cell's bytes in the DOM, where
+	 * the CST has not seen them, so an edit would either splice the old source or rebuild the
+	 * whole row from the cell raws and drop the edit. Hide it, wait for the write, then act.
 	 */
 	function afterRevealFold(run: () => void): void {
 		if (!widgetInteraction.isRevealing()) {
@@ -444,14 +445,14 @@
 		void (fold?.settled ?? tick()).then(run);
 	}
 
-	/** One arm per command this cell owns, resolved BEFORE any fold so the fold sits between
-	 *  resolution and mutation — the prose surface's split. Null declines the chord. */
+	/** One entry per command this cell owns, resolved before a shown source is hidden, so hiding
+	 *  fits between resolving and writing, as the prose block does. Null declines the chord. */
 	function cellCommand(id: CommandId, contentEl: HTMLElement): (() => void) | null {
-		// The format chords are rows: the construct that declares a mark names the command that
-		// toggles it, so this surface grows a new one without an arm.
+		// The format chords come from the policy table: a construct that declares a mark names
+		// the command that toggles it, so a new one needs no branch here.
 		const marked = inlineMarkForCommand(id);
 		if (marked) return () => void toggleFormat(marked.kind);
-		// Consumed whether or not it enters, the prose surface's rule on this surface too:
+		// Consumed whether or not a card opens, the same rule the prose block follows:
 		// `reservedChords()` reports Mod+K as the editor's wherever the keymaps bind it.
 		if (id === 'link.openCard') {
 			return () => enterLinkCardAtCaret({ ...linkCardQuery(contentEl, null), card: linkCard });
@@ -461,8 +462,8 @@
 			return () =>
 				void tableContext[axisCommand.action](axisCommand.axis === 'row' ? rowIdx : colIdx);
 		}
-		// Moves the whole table: the reorder walk resolves the unit at the nearest ancestor
-		// that reorders its children, which a table's grid rows are not.
+		// Moves the whole table: a reorder resolves at the nearest ancestor that reorders its
+		// children, which a table's grid rows do not.
 		if (id === 'block.moveUp' || id === 'block.moveDown') {
 			return () => void reorder.nudgeReorderUnit(myPath, id === 'block.moveUp' ? -1 : 1);
 		}
@@ -481,8 +482,8 @@
 	}
 
 	// Every chord the `tableCell` keymap binds arrives here, including from cross-block
-	// dispatch, which carries no event — so the 'native'/'select-all-step' plans are
-	// declined by the arm table and only the action plans run.
+	// dispatch, which carries no event, so the 'native' and 'select-all-step' plans are
+	// declined and only the action plans run.
 	export function runCommand(id: CommandId): boolean {
 		if (!el) return false;
 		const perform = cellCommand(id, el);
@@ -491,8 +492,8 @@
 		return true;
 	}
 
-	// The ONE surface literal: the row mounts this cell with no `bind:this`, so the published slot
-	// is the only channel a caller reaches it through — and the parity G4.38 scans.
+	// The one place this shape is written: the row mounts this cell with no `bind:this`, so the
+	// published reference is the only way a caller reaches it, which the G4.38 scan checks.
 	$effect(() => {
 		if (!slots) return;
 		const self = {
@@ -559,8 +560,8 @@
 
 	useParkFocusOnUnmount(() => el ?? null, getEditorRoot);
 
-	// A selection move that leaves a revealed source but stays inside the cell folds the
-	// reveal; blur owns the focus-leaving fold. Composition suppresses it like onInput.
+	// A selection move that leaves a shown source but stays inside the cell hides it; blur
+	// handles focus leaving the cell. A composition suppresses this as it does `onInput`.
 	$effect(() => {
 		const root = el;
 		if (!root) return;
@@ -577,7 +578,7 @@
 		return el ? rawTextOfNode(el, node.raw) : '';
 	}
 
-	// Zero-ambient cell: the walk offset IS the raw offset.
+	// A cell has no marker prefix, so the traversal's offset is the raw offset.
 	function getRawFocusOffset(): RawOffset | null {
 		return el ? selectionFocusWalkOffset(el, 0) : null;
 	}
@@ -585,8 +586,8 @@
 	// ── Event handlers ─────────────────────────────────────────────────────
 
 	const onInput = editableSurface.onInput;
-	// Captured before the surface's own handler: its cross-block half clears the affinity, and
-	// the first mid-composition `input` re-arms it to the typed side.
+	// Captured before the shared handler: its cross-block half clears the arrival side, and the
+	// first `input` during the composition resets that side to the typed one.
 	function onCompositionStart(): void {
 		compositionSeat.noteStart();
 		editableSurface.onCompositionStart();
@@ -600,9 +601,9 @@
 	// Shared by the live keydown path and the cross-block dispatch entry, which differ
 	// only in where the offset comes from; both guard `el` before calling.
 	function cellPlanState(offset: number): CellKeyState {
-		// Zero-ambient cell: the walk offsets ARE the raw offsets the plan compares. Deliberately
-		// unguarded by mode, unlike the prose bounds — a cell's hop follows what is ON SCREEN, so
-		// the bound tracks preview-inline's proximity reveal.
+		// A cell has no marker prefix, so the traversal's offsets are the raw offsets the plan
+		// compares. Deliberately not checked against the mode, unlike the prose bounds: a cell's
+		// move follows what is on screen, so the bound tracks what preview-inline shows.
 		const bounds = landableDomTextBounds(el!);
 		return {
 			rowIdx,
@@ -620,21 +621,21 @@
 	async function onKeyDown(e: KeyboardEvent): Promise<void> {
 		if (composing || !el) return;
 
-		// Ahead of the plan, in the shared prelude's position: the prelude's own reset is
-		// reachable only on the 'native' arm, so every key the plan claims would leave the
-		// select-all run armed. `eventToChord` declines bare modifiers and uppercases.
+		// Ahead of the plan, where the shared handling would run it: that reset is reachable
+		// only on the 'native' branch, so every key the plan takes would leave the select-all
+		// run active. `eventToChord` declines bare modifiers and uppercase letters.
 		const chord = eventToChord(e);
 		if (chord !== null && chord !== SELECT_ALL_CHORD) selection.resetSelectAllCount();
 
-		// Must precede cellKeydownPlan, which claims arrows and preventDefaults without
-		// reaching here — leaving a live selection the next keystroke would range-replace.
+		// Must run before `cellKeydownPlan`, which takes arrows and calls `preventDefault`
+		// without reaching here, leaving a live selection the next keystroke would replace.
 		if (selection.isCrossBlock && (await crossBlock.handleKeyDown(e))) return;
 
-		// Reveal/selection intercepts before the plan, which would otherwise read a
-		// mid-reveal ArrowUp/Down as cell nav.
+		// The source-showing and selection handlers run before the plan, which would otherwise
+		// read an ArrowUp or ArrowDown inside a shown source as cell navigation.
 		if ((await widgetInteraction.handleRevealingKeydown(e)) || editableSurface.isDetached()) return;
-		// Enter is a cell's exception: prose splits, a cell hops rows, and hopping would
-		// carry the ephemeral edit out of the surface that owns it. Commit and stay put.
+		// Enter is a cell's exception: prose splits, a cell moves a row, and moving would
+		// carry the uncommitted edit out of the cell that owns it. Commit and stay put.
 		if (widgetInteraction.isRevealing() && e.key === 'Enter' && !e.ctrlKey && !e.metaKey) {
 			e.preventDefault();
 			widgetInteraction.foldRevealBeforeMutation();
@@ -646,9 +647,9 @@
 
 		preEditOffset = cursor.getRaw() ?? 0;
 
-		// FIRST, because neither the navigation plan's boundary branches nor the shared
-		// prelude's ArrowLeft@0 hop tests modifiers: either would eat the column reorder at
-		// a cell's left edge. Also the only point a consumer `keybindings` override reaches.
+		// First, because neither the navigation plan's boundary branches nor the shared
+		// ArrowLeft-at-0 move tests modifiers: either would eat the column reorder at a cell's
+		// left edge. It is also the only point a consumer's `keybindings` override reaches.
 		if (wiring.dispatchChord(e, { kind: node.kind, runCommand })) return;
 
 		const plan = cellKeydownPlan(
@@ -658,8 +659,8 @@
 
 		switch (plan.kind) {
 			case 'native': {
-				// The first Shift+ArrowUp/Down at a cell's vertical edge takes a whole row;
-				// the shared prose extend would instead walk the next doc-order leaf.
+				// The first Shift+ArrowUp or Down at a cell's vertical edge takes a whole row;
+				// the shared prose extend would instead go to the next block in document order.
 				if (
 					!selection.isCrossBlock &&
 					e.shiftKey &&
@@ -673,13 +674,13 @@
 					return;
 				}
 				if (await handleSharedKeydown(e, sharedCtx)) return;
-				// Runs only where the plan yielded 'native': at the text boundaries the plan
-				// claims, an entered widget sits outside the boundary and the dispatch declines.
+				// Runs only where the plan answered 'native': at the text boundaries the plan
+				// takes, an entered widget sits outside it and the dispatch declines.
 				if (edgeDispatch.handleKeydown(e, cursor.getRaw())) return;
 				return;
 			}
-			// The document-level two-stage Ctrl+A, cell first: the intra-cell step stays native,
-			// the second press takes the document.
+			// The document's two-stage Ctrl+A, cell first: the step inside the cell is the
+			// browser's, and the second keypress takes the document.
 			case 'select-all-step':
 				selection.incrementSelectAllCount();
 				if (plan.step === 'native') return;
@@ -688,7 +689,7 @@
 				return;
 			default:
 				e.preventDefault();
-				// Reading mode keeps navigation and swallows the structural plans.
+				// Reading mode keeps navigation and consumes the structural plans.
 				if (readOnly && plan.kind !== 'focus-cell' && plan.kind !== 'exit') return;
 				await applyCellPlan(plan);
 				return;
@@ -697,9 +698,9 @@
 
 	const onKeyDownTraced = withKeydownVerdict(onKeyDown);
 
-	// The navigation plans, no live event needed; the caller preventDefaults. The fold is here
-	// rather than at each caller: insert-row-below rebuilds every row from cell raws, so an open
-	// reveal's edit would be re-derived away.
+	// The navigation plans, which need no live event; the caller calls `preventDefault`. A shown
+	// source is hidden here rather than at each caller, because insert-row-below rebuilds every
+	// row from the cell raws and would discard the edit.
 	async function applyCellPlan(plan: CellKeyPlan): Promise<void> {
 		const fold = widgetInteraction.foldRevealBeforeMutation();
 		if (fold) await fold.settled;
@@ -717,9 +718,9 @@
 		}
 	}
 
-	// Enter an intra-table rectangle from a collapsed cell caret on the first
-	// Shift+ArrowUp/Down. Gated on the cell's visual edge so a multi-line cell still
-	// extends its own text first (prose parity). Returns false to fall through.
+	// Start a rectangle inside the table from a collapsed cell caret on the first
+	// Shift+ArrowUp or Down. Only at the cell's visual edge, so a multi-line cell still
+	// extends its own text first, as prose does. Returns false to fall through.
 	function startIntraTableRect(key: 'ArrowUp' | 'ArrowDown', offset: number): boolean {
 		if (!el) return false;
 		const bounds = landableDomTextBounds(el);
@@ -744,10 +745,10 @@
 			selection.enterCrossBlock(anchor, { path: tablePath.slice(), offset: ext.offset });
 			return true;
 		}
-		// Enter the rect at the current cell, then hand off to the block-level extend so
-		// the selection leaves the table. The seed is minted before the extend can answer, so
-		// a decline (no block past the table) has to take it back: the stored pair would be an
-		// invisible selection the next Backspace deletes the whole cell through.
+		// Start the rectangle at the current cell, then hand off to the block-level extend so
+		// the selection leaves the table. That start is recorded before the extend can answer,
+		// so a refusal, when there is no block past the table, has to take it back: the stored
+		// pair would be an invisible selection the next Backspace deletes a whole cell through.
 		selection.enterCrossBlock(anchor, { path: tablePath.slice(), offset: currentIdx });
 		const extended =
 			ext.direction === 'forward'
@@ -767,8 +768,8 @@
 		else tableContext.exitDownward(x);
 	}
 
-	// The cell at the prose surface's live ranged-edit arm: a native edit over a range spanning
-	// hidden delimiters is the destructive family with no seam offsets of its own.
+	// The cell's version of the prose block's live range edit: a browser edit over a range
+	// spanning hidden delimiters, the one destructive case with no offsets of its own.
 	function handleLiveSelectionEdit(e: InputEvent): boolean {
 		return applyLiveRangeEdit(
 			e,
@@ -785,7 +786,7 @@
 		);
 	}
 
-	// The cell at the prose surface's self-closing delimiter arm (delimiter-autopair.ts).
+	// The cell's version of the prose block's self-closing delimiters (delimiter-autopair.ts).
 	function handleDelimiterAutoPair(e: InputEvent): boolean {
 		return applyDelimiterAutoPair(e, {
 			text: readCellText,
@@ -813,8 +814,8 @@
 			// which the inline-HTML pipeline renders as a live widget.
 			e.preventDefault();
 			if (!el) return;
-			// Both reads below are taken AFTER the fold: the committed text is what the offset
-			// they splice must be measured against.
+			// Both reads below happen after the source is hidden: the committed text is what
+			// the offset they splice must be measured against.
 			const fold = widgetInteraction.foldRevealBeforeMutation();
 			if (fold) await fold.settled;
 			const offset = cursor.getRaw() ?? 0;
@@ -835,8 +836,8 @@
 		if (e.button === 2) return;
 		lastClickClientX = e.clientX;
 		lastClickClientY = e.clientY;
-		// A press on a reveal-source widget is an owned gesture: suppress the browser caret
-		// default and skip the drag so nothing races the reveal's own placement.
+		// A click on a widget that can show its source is this editor's gesture: cancel the
+		// browser's caret default and skip the drag so nothing races its own placement.
 		if (widgetInteraction.isPointOnRevealWidget(e.clientX, e.clientY)) {
 			e.preventDefault();
 			return;
@@ -877,18 +878,18 @@
 		installCellDragListener({ editorRoot, selection, lifetimeSignal: editorLifetime }, anchor, e);
 	}
 
-	// Copy/cut/paste through the shared skeleton. The cell's extra arms are the intra-table
-	// rectangle (copied as a GFM sub-table) and the intra-cell raw slice, which preserves
-	// widget bytes like `<br>` that the browser's rendered-textContent copy drops.
-	// The rectangle's spreadsheet form rides beside the GFM: Excel and Sheets read text/html.
+	// Copy, cut and paste through the shared handlers. The cell adds two cases: a rectangle
+	// inside the table, copied as a GFM sub-table, and a raw slice of one cell, which keeps
+	// widget bytes such as `<br>` that a copy of the rendered text drops. The rectangle also
+	// goes on the clipboard as a spreadsheet table, because Excel and Sheets read text/html.
 	function writeRectHtml(e: ClipboardEvent): void {
 		const grid = intraTableRectGrid({ selection, getDoc });
 		if (grid) e.clipboardData?.setData('text/html', gridToHtmlTable(grid));
 	}
 
-	// A grid (tabs from a spreadsheet, or a GFM table) fills cells from here — the rectangle's
-	// top-left when one is live, else this cell — growing the table to fit. A whole-table
-	// selection keeps its replace route; a non-grid payload keeps the ordinary paste.
+	// A grid, whether tabs from a spreadsheet or a GFM table, fills cells starting here: the
+	// rectangle's top-left when one is live, otherwise this cell, growing the table to fit. A
+	// whole-table selection still replaces, and a payload that is not a grid pastes as usual.
 	async function pasteGridHere(text: string): Promise<boolean> {
 		const grid = parseClipboardGrid(text);
 		if (!grid) return false;
@@ -930,8 +931,8 @@
 			return true;
 		},
 		pastePreHook: pasteGridHere,
-		// During a reveal the swapped DOM holds an edit `node.raw` hasn't seen; copy never
-		// mutates, so it slices the live DOM text rather than folding first.
+		// While a source is shown the DOM holds an edit `node.raw` has not seen; copy never
+		// writes, so it slices the live DOM text rather than hiding it first.
 		copyTail: (e) => {
 			if (!el) return;
 			const offsets = cursor.getRawSelection();
@@ -942,8 +943,8 @@
 				: trimTrailingLineEnding(node.raw);
 			e.clipboardData?.setData('text/plain', display.slice(offsets.start, offsets.end));
 		},
-		// Clears the cells in place, without `tableCoverageDelete` — only Backspace's
-		// structural delete opts into row/column/table removal.
+		// Clears the cells in place, without `tableCoverageDelete`: only Backspace's
+		// structural delete removes rows, columns or the table.
 		cutPreHook: async (e) => {
 			const rectPayload = intraTableRectPayload({ selection, getDoc });
 			if (rectPayload === null) return false;
@@ -952,8 +953,8 @@
 			await crossBlock.performCrossBlockDeleteFromEvent();
 			return true;
 		},
-		// The write must be sync (clipboardData closes after the event), and the truncation
-		// goes through the CST: native deleteByCut would leave a stale snapshot anchor.
+		// The write has to be synchronous, since `clipboardData` closes after the event, and
+		// the truncation goes through the CST: the browser's own cut leaves a stale undo anchor.
 		cutTail: (e) => {
 			if (!el) return;
 			const offsets = cursor.getRawSelection();
@@ -971,11 +972,11 @@
 	});
 	const { onCopy, onCut, onPaste } = clipboard;
 
-	// ── Shared mutation primitives (event handlers + right-click menu) ───────
+	// ── Shared edit helpers (event handlers and the right-click menu) ────────
 
-	// The truncation is a join like the paste's delete half: in live the runs it strands are
-	// bytes the reader never saw, so it crosses the same seam ahead of the escaping sink
-	// (live-mode.md § 4.5).
+	// The truncation is a join like the paste's delete half: in live mode the runs it strands
+	// are bytes the user never saw, so it goes through the same join rules before the escaping
+	// write (live-mode.md § 4.5).
 	function deleteCellRange(start: number, end: number): void {
 		const display = trimTrailingLineEnding(node.raw);
 		const cut = cutRangeFromDisplay(node, display, { start, end }, presentationMode, linkRef);
@@ -1000,8 +1001,8 @@
 				controller: pasteCoordinator,
 				grammar,
 				activePlugins,
-				// The delete half is a join like any other, and a cell's is no more literal than a
-				// paragraph's: without the seam a live cut pastes the runs it stranded into view.
+				// The delete half is a join like any other, and a cell's is no more literal than
+				// a paragraph's: without it a live cut pastes the runs it stranded into view.
 				seam: { presentationMode, linkRef }
 			}
 		);
@@ -1030,12 +1031,12 @@
 		if (!el) return;
 		// Belt behind TableBlock's menu-open gate: paste and cut mutate.
 		if (readOnly && action !== 'copy') return;
-		// Right-click deliberately skips the pointerdown reset, so the reveal is still open here
-		// and `sel` was captured in the REVEALED DOM's coordinates — a fold before any of it.
+		// Right-click deliberately skips the pointerdown reset, so a source may still be showing
+		// and `sel` was captured against that DOM, which is why it is hidden before anything else.
 		const fold = widgetInteraction.foldRevealBeforeMutation();
 		if (fold) await fold.settled;
-		// A rectangle has no cell-local range to restore: refocusing keeps it live in
-		// SelectionState, and the onCopy/onCut rect arms do the rest.
+		// A rectangle has no range inside one cell to restore: refocusing keeps it live in
+		// `SelectionState`, and the copy and cut branches for a rectangle do the rest.
 		const hasRect = action !== 'paste' && intraTableRectPayload({ selection, getDoc }) !== null;
 		if (action !== 'paste' && !hasRect && sel.start === sel.end) return;
 		// Clicking the menu item moved focus off the cell, so every branch refocuses before

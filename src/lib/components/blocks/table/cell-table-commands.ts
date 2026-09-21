@@ -10,8 +10,8 @@ import type { BlockCommandId } from '../../../schema/commands';
 
 export type CommandAxis = 'row' | 'column';
 
-/** Keying the map by the declared vocabulary makes a new `table.*` id a compile error
- *  here, rather than a bound chord that resolves to nothing at runtime. */
+/** Keying the map by the declared id list makes a new `table.*` id a compile error here,
+ *  rather than a bound chord that resolves to nothing at runtime. */
 type TableCommandId = Extract<BlockCommandId, `table.${string}`>;
 
 const TABLE_AXIS_COMMANDS: Record<TableCommandId, { action: TableAxisAction; axis: CommandAxis }> =

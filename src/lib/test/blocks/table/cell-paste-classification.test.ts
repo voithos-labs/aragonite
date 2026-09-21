@@ -11,9 +11,9 @@ import { createPasteCoordinator } from '$lib/editor-actions/paste-coordinator';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
 import { makeEditorActionsDeps, makeStubBlockEdit } from '$lib/test/harness/editor-actions';
 
-// A cell holds text, never blocks, so what a copy wrapped around its text — a blank line at either
-// edge — must not decide the route: those blocks are trivia, and reading them as content sends
-// an ordinary text paste down the break-the-table path.
+// A cell holds text, never blocks, so whatever a copy wrapped around its text, such as a blank
+// line at either end, must not decide the route: those blocks are just whitespace, and reading
+// them as content sends an ordinary text paste down the path that breaks the table.
 
 const TABLE = '| A | B |\n| --- | --- |\n| 1 | 2 |\n';
 

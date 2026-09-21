@@ -1,11 +1,11 @@
 // @vitest-environment jsdom
 //
-// The three contracts the table's two layers owe the caret machinery, which nothing else
-// observes: the grid and row markup contribute NO characters (a stray text node joins the
-// raw-offset walk and shifts a parked caret by its length; only rendered DOM can say the
-// habit holds); the park door must NOT end the live range (G2.12 reads focus forwards and
-// park callers, so a container's inner door choice is invisible to it); and a path-addressed
-// landing carries its offset down to the cell, which is how undo restores the exact spot.
+// The three rules the table's two layers must keep for the caret code, which nothing else
+// checks: the grid and row markup contribute no characters, since a stray text node joins the
+// raw-offset traversal and shifts a remembered caret by its length, and only rendered DOM can
+// show that holds; placing a caret must not end the live range (G2.12 reads the callers, so what
+// a container does inside is invisible to it); and a landing addressed by path carries its offset
+// down to the cell, which is how undo restores the exact spot.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
 import { CURSOR_END, CURSOR_START } from '$lib/block-component';
 import { createSelectionState } from '$lib/selection/selection-state.svelte';
@@ -40,8 +40,8 @@ describe('the table markup contributes no characters to the raw-offset walk', ()
 		expect(ownTextOf(mounted.el)).toEqual([]);
 	});
 
-	// A sole-child `{#each}` gets an empty text anchor from the Svelte runtime, and the walk
-	// sums lengths: what a row must hold is no CHARACTER, not no text node.
+	// A lone `{#each}` child gets an empty text anchor from the Svelte runtime, and the traversal
+	// sums lengths: what a row must hold is no character, not no text node.
 	it('holds no character inside a row either, between the row and its cells', () => {
 		mounted = mountTable(GRID);
 
@@ -53,9 +53,9 @@ describe('the table markup contributes no characters to the raw-offset walk', ()
 
 describe('the table lands a caret through the door and at the offset it was asked for', () => {
 	it('parks in the corner cell without ending a live cross-block range', () => {
-		// Non-vacuity is the pair of assertions: a park that declined to move the caret would
-		// also leave the range alone. Landing THROUGH the cell's focus door is the regression
-		// — it ends the range, and the next Shift+Arrow extends from a collapsed caret.
+		// Non-vacuity is the pair of assertions: a placement that declined to move the caret
+		// would also leave the range alone. Landing through the cell's focus call is the
+		// failure: it ends the range, and the next Shift+Arrow extends from a collapsed caret.
 		const selection = createSelectionState();
 		selection.enterCrossBlock({ path: [0], offset: 0 }, { path: [1], offset: 0 });
 		mounted = mountTable(GRID, { services: { selection } });
@@ -74,8 +74,8 @@ describe('the table lands a caret through the door and at the offset it was aske
 		expect(mounted.block.getCursorPosition!()).toEqual({ path: [2, 1], offset: 1 });
 	});
 
-	// Miss-analysis (GH #111): the row's doors forwarded literal 0 whatever they received, and
-	// no test addressed a ROW-level landing — every pin went through the table or a full path.
+	// Miss-analysis (GH #111): the row's entry points passed on a literal 0 whatever they were
+	// given, and no test addressed a row directly; every case went through the table or a path.
 	it('a row-level door forwards the received sentinel, not literal 0', () => {
 		mounted = mountTable(GRID);
 		const row = mounted.block.getBlockComponentByPath!([2])!;

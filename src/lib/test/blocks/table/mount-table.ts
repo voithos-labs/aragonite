@@ -1,7 +1,7 @@
-// A whole table mounted from Markdown — TableBlock over real TableRowBlock and
-// TableCellBlock children, so a gesture in a cell reaches the table context the
-// way it does in the editor. Bare-cell mounts (cell-write-escape, cell-reveal-
-// caret) stub that context; these tests are about what the table does with it.
+// A whole table mounted from Markdown: TableBlock over real TableRowBlock and TableCellBlock
+// children, so a gesture in a cell reaches the table context the way it does in the editor.
+// Mounts of a cell on its own (cell-write-escape, cell-reveal-caret) stub that context; these
+// tests are about what the table does with it.
 
 import { mount, unmount, flushSync } from 'svelte';
 import TableBlock from '$lib/components/blocks/table/TableBlock.svelte';
@@ -15,8 +15,8 @@ import { editorMountContext, type MountContextOverrides } from '../../harness/mo
 import { blockHostAt, type MountedEditor } from '../editor-mount';
 import { settleTicks } from './mount-cell';
 
-/** jsdom implements neither the caret geometry an exit gesture measures nor a windowed scope's
- *  observer. Range rect measurement THROWS, so an exit without this takes down the handler. */
+/** jsdom implements neither the caret geometry an exit gesture measures nor a windowing
+ *  observer. Measuring a Range's rectangles throws, so an exit without this kills the handler. */
 export function installTableLayoutStubs(): () => void {
 	const rangeRects = Range.prototype.getClientRects;
 	const rangeBox = Range.prototype.getBoundingClientRect;
@@ -48,8 +48,8 @@ export interface MountedTable {
 	dispose: () => Promise<void>;
 }
 
-/** Mount the table parsed from `source` at document index 0. Read-only questions only — a
- *  COMMIT needs a real parent to re-render with the replaced node (`blocks/editor-mount.ts`). */
+/** Mount the table parsed from `source` at document index 0. Read-only questions only: a commit
+ *  needs a real parent to re-render with the replaced node (`blocks/editor-mount.ts`). */
 export function mountTable(source: string, overrides: MountContextOverrides = {}): MountedTable {
 	const target = document.createElement('div');
 	document.body.appendChild(target);
@@ -97,8 +97,8 @@ export async function press(el: HTMLElement, init: KeyboardEventInit): Promise<v
 	await settleTicks();
 }
 
-/** The mounted cell at (rowIdx, colIdx) of the table block at `tablePath` in a full
- *  Editor mount — the one selector contract for "cell of a mounted editor". */
+/** The mounted cell at (rowIdx, colIdx) of the table block at `tablePath` in a full Editor
+ *  mount: the one place the selector for a cell of a mounted editor is written. */
 export function cellAt(
 	mounted: MountedEditor,
 	rowIdx: number,

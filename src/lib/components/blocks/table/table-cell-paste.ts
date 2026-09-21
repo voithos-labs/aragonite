@@ -1,8 +1,7 @@
 /**
- * Cell text ingestion for tableCell: the caret mapping that follows the sink's
- * inserted backslashes, plus the paste hooks exposed as a PasteSurface. The bytes
- * are the kind's business — every hook hands back plain spliced text and
- * `normalizeCellRaw` runs at the write sink.
+ * How a table cell takes in pasted text: the caret mapping that follows the backslashes the
+ * write path inserts, plus the paste hooks it exposes. The bytes are the kind's business:
+ * every hook hands back plain spliced text and `normalizeCellRaw` runs when it is written.
  */
 
 import { CURSOR_END } from '../../../block-component';
@@ -28,8 +27,8 @@ export function normalizeWhitespace(s: string): string {
 }
 
 /**
- * Where `offset` lands once the sink's `normalizeCellRaw` has run — defined as that
- * same pass over the prefix, so the caret cannot drift out of step with the bytes.
+ * Where `offset` lands once `normalizeCellRaw` has run, worked out by that same pass over
+ * the prefix, so the caret cannot drift out of step with the bytes.
  */
 export function escapedCellOffset(text: string, offset: number): number {
 	return normalizeCellRaw(text.slice(0, offset)).length;
@@ -44,9 +43,9 @@ export function tableCellInlinePaste(
 ): InlinePasteResult {
 	const cleaned = normalizeWhitespace(text);
 
-	// The delete half crosses the join seam BEFORE the escaping stage (live-mode.md § 4.5): the
-	// seam reads and writes the cell's own display bytes, and `normalizeCellRaw` still runs at the
-	// sink over whatever they end up being.
+	// The delete half goes through the join rules before the escaping stage (live-mode.md § 4.5):
+	// those rules read and write the cell's own displayed bytes, and `normalizeCellRaw` still
+	// runs over whatever they produce.
 	const { display: raw, offset: effectiveOffset } = cutRangeFromDisplay(
 		node,
 		node.raw,
@@ -56,8 +55,8 @@ export function tableCellInlinePaste(
 	);
 
 	const spliced = raw.slice(0, effectiveOffset) + cleaned + raw.slice(effectiveOffset);
-	// Escaped space, because the sink escapes the whole spliced raw and not just the
-	// pasted text: the insertion point can sit between a `\` and the `|` it frees.
+	// An escaped space, because the write path escapes the whole spliced raw and not just
+	// the pasted text: the insertion point can sit between a `\` and the `|` it frees.
 	return {
 		newRaw: spliced,
 		caretOffset: escapedCellOffset(spliced, effectiveOffset + cleaned.length)
@@ -79,7 +78,7 @@ async function tableCellScopedStructuralPaste(input: ScopedStructuralPasteInput)
 	const tablePath = input.targetPath.slice(0, -2);
 	const rowIdx = input.targetPath[input.targetPath.length - 2];
 	const table = blockNodeAt(input.doc, tablePath);
-	// Malformed path: swallow the paste.
+	// Malformed path: drop the paste.
 	if (!table || table.kind !== 'table') return;
 
 	const { firstHalf, secondHalf } = sliceTableAtRow(table, rowIdx, 'first');
@@ -95,7 +94,7 @@ async function tableCellScopedStructuralPaste(input: ScopedStructuralPasteInput)
 		replacement,
 		controller: input.controller,
 		undoEntry: input.undoEntry,
-		// The last pasted block, before the second table half (the residue).
+		// The last pasted block, before the second half of the table.
 		focusReplacementIndex: focusIndexBeforeResidue(replacement.length, secondHalf !== null),
 		focusOffset: CURSOR_END,
 		source: 'paste-dispatch-table-cell',

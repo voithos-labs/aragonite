@@ -1,7 +1,7 @@
 /**
  * Which cells of one table a measurement request covers: a live intra-table
  * rectangle, or a plain `[start, end)` run of row-major cell indices. The rectangle
- * wins only when it belongs to THIS table.
+ * wins only when it belongs to this table.
  */
 
 import { SELECTION_END } from '../../../block-component';
@@ -13,7 +13,7 @@ import type { CellCoord } from './table-navigation';
 export interface SelectedCellsInput {
 	/** The live rectangle from anywhere in the document, or null. */
 	rect: IntraTableRect | null;
-	/** This table's doc path — the owner check against `rect.tablePath`. */
+	/** This table's document path, checked against `rect.tablePath`. */
 	myPath: readonly number[];
 	start: number;
 	/** `SELECTION_END` means "through the last cell". */

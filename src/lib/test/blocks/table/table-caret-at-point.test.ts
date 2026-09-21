@@ -81,12 +81,12 @@ describe('tableCaretAtPoint', () => {
 
 	it('maps a point below the last row to that row, x choosing the column', () => {
 		// The below-the-document gesture clamps x to the box's trailing edge, so this
-		// is the shape that must land in the LAST row's last cell.
+		// is the shape that must land in the last row's last cell.
 		expect(at(GRID_LEFT + 3 * CELL_WIDTH - 1, GRID_TOP + 2 * ROW_HEIGHT + 60)).toEqual({
 			path: [1, 2],
 			offset: CURSOR_END
 		});
-		// The same y under column 0 stays in column 0 — the row is nearest, not the corner.
+		// The same y under column 0 stays in column 0: the row is nearest, not the corner.
 		expect(at(GRID_LEFT + 10, GRID_TOP + 2 * ROW_HEIGHT + 60)).toEqual({
 			path: [1, 0],
 			offset: CURSOR_END
@@ -99,7 +99,7 @@ describe('tableCaretAtPoint', () => {
 
 	it('answers from the mounted rows when row windowing has unmounted row 0', () => {
 		// Row 0's absolute index rides `data-table-row-idx`, so the surviving row must
-		// answer as row 1 — not as the first mounted one.
+		// answer as row 1, not as the first mounted one.
 		wrapper.querySelector('[data-table-row-idx="0"]')!.remove();
 		expect(at(GRID_LEFT + 50, GRID_TOP - 40)).toEqual({ path: [1, 0], offset: CURSOR_END });
 	});

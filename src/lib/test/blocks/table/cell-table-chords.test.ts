@@ -1,9 +1,9 @@
 // @vitest-environment jsdom
 //
-// The table's structural keyboard vocabulary end to end: a real keystroke on a real cell, and
-// the document that came out. These chords are `tableCell` keymap bindings, so the planner can
-// only be asked to DECLINE them (cell-keydown-plan.test.ts) and the behavior has to be pinned
-// where it happens. Editor mount, because every arm commits and replaces the node.
+// The table's structural keys end to end: a real keystroke on a real cell, and the document that
+// came out. These chords are `tableCell` keymap bindings, so the planner can only be asked to
+// decline them (cell-keydown-plan.test.ts) and the behaviour has to be covered where it happens.
+// A full Editor mount, because each case writes and replaces the node.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
 import { installLayoutStubs, mountEditor, type MountedEditor } from '../editor-mount';
 import { pressInCell } from './mount-table';
@@ -100,8 +100,8 @@ describe('a chord in a cell mutates the table it names', () => {
 		});
 	}
 
-	// Contrapositive: the reorder target declines at the boundary, so the chord must
-	// neither displace the header nor push an undo entry.
+	// The other way round: the reorder refuses at the boundary, so the chord must neither
+	// move the header nor push an undo entry.
 	it('Alt+ArrowUp on the first body row leaves the table alone', async () => {
 		mounted = mountEditor({ source: GRID });
 
@@ -110,8 +110,8 @@ describe('a chord in a cell mutates the table it names', () => {
 		expect(mounted.source()).toBe(GRID);
 	});
 
-	// The caret's own cell, not row 0 / column 0: a chord indexed off the wrong coordinate hides
-	// whenever the caret happens to be in the first cell.
+	// The caret's own cell, not row 0 or column 0: a chord indexed off the wrong coordinate
+	// looks correct whenever the caret happens to be in the first cell.
 	it('indexes the mutation off the caret’s own cell, not the first one', async () => {
 		mounted = mountEditor({ source: GRID });
 

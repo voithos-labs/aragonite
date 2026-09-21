@@ -57,7 +57,7 @@ export function installCellDragListener(
 
 		if (cellHit) {
 			if (cellHit.rowIdx === anchor.rowIdx && cellHit.colIdx === anchor.colIdx) {
-				// Back in the anchor cell: collapse so native resumes the intra-cell selection.
+				// Back in the anchor cell: collapse so the browser resumes selecting inside it.
 				if (ctx.selection.isCrossBlock) {
 					ctx.selection.collapse();
 				}
@@ -94,7 +94,7 @@ export function installCellDragListener(
 		const near = blockNearPoint(ctx.editorRoot, clientX, clientY);
 		if (!near) return;
 		// Shared with the cross-block drag, so a table destination carries cellCoordinate for the
-		// whole-row snap symmetrically with the anchor, and a surfaceless kind is not hit-tested.
+		// whole-row snap just as the anchor does, and a kind with no editable element is skipped.
 		const focusPoint = near.endpointHere();
 		if (!focusPoint) return;
 		if (!ctx.selection.isCustomRendered) {
@@ -140,13 +140,13 @@ export function handleCellShiftClick(
 // ── DOM geometry ─────────────────────────────────────────────────────────────
 //
 // Selector contract: rows carry `data-table-row-idx`, cells carry `role="cell"`. Two
-// other readers walk the same selectors — `selection/path-lookup.ts` upward and
-// `Editor.svelte`'s `getBlockElByPath` downward — so a markup change lands in all three.
+// other places use the same selectors, `selection/path-lookup.ts` upwards and
+// `Editor.svelte`'s `getBlockElByPath` downwards, so a markup change reaches all three.
 
 /**
- * The mounted table rows, in DOM order. Row windowing unmounts row 0 once the table
- * scrolls past it (VR-K1), so index 0 is the first MOUNTED row — still fine for column
- * geometry, since the column tracks are uniform.
+ * The mounted table rows, in DOM order. Row windowing unmounts row 0 once the table scrolls
+ * past it, so index 0 is the first mounted row, which is still fine for column geometry
+ * because the column tracks are uniform (VR-K1).
  */
 export function mountedRowEls(tableEl: HTMLElement): HTMLElement[] {
 	return Array.from(tableEl.querySelectorAll<HTMLElement>(':scope > [data-table-row-idx]'));

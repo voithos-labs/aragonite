@@ -1,11 +1,11 @@
 // @vitest-environment jsdom
 //
 // A cell's raw is joined verbatim into its row, so an unescaped `|` reaching `cell.raw` reparses
-// the row wider than the delimiter's column count and the parser truncates the last column,
-// silently. Three gestures compute their own bytes and commit them: Mod+B, Shift+Enter, and the
-// menu Cut. Each committed text is read through the write sink, where the kind's escape runs —
-// measuring at the component's own call would only prove the gesture escaped its own bytes. The
-// toggle refuses to splice inside the escape at all, so Mod+B is pinned on both sides of that.
+// the row wider than the delimiter row's column count and the parser truncates the last column,
+// silently. Three gestures compute their own bytes and commit them: Mod+B, Shift+Enter and the
+// menu Cut. Each committed text is read after the kind's escaping has run, since measuring at the
+// component's own call would only show the gesture escaped its own bytes. The toggle refuses to
+// splice inside an escape at all, so Mod+B is covered on both sides of that.
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import type { CstNode } from '$lib/core/nodes';
 import { splitRowCells } from '$lib/core/parsers/table';
@@ -14,8 +14,8 @@ import { writeTableRow } from '$lib/schema/container-rebuilders';
 import { makeStubBlockEdit } from '../../harness/editor-actions';
 import { mountCell, settleTicks } from './mount-cell';
 
-// The cell holds `a\|b` — an escaped pipe. The renderer emits the backslash as a marker span and
-// the `|` as text, so both bytes are in textContent and the caret can sit between them.
+// The cell holds `a\|b`, an escaped pipe. The renderer emits the backslash as a marker span and
+// the `|` as text, so both bytes are in the text content and the caret can sit between them.
 const ESCAPED = 'a\\|b';
 
 /** The raw the gesture committed for this cell. */
@@ -66,8 +66,8 @@ describe('table cell write paths escape the pipes they free', () => {
 		expect(reparsedCells(committedRaw(blockEdit))).toEqual(['a**\\|**b', 'keep']);
 	});
 
-	// Splicing between the backslash and the pipe would free the pipe, so the toggle declines: the
-	// sink's escape is the second line of defence here, not the first.
+	// Splicing between the backslash and the pipe would free the pipe, so the toggle refuses: the
+	// escaping on write is the second line of defence here, not the first.
 	it('Mod+B cutting into the escape writes nothing at all', () => {
 		mounted = mountCell(ESCAPED);
 		const { el, blockEdit } = mounted;

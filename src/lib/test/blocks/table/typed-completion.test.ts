@@ -3,9 +3,9 @@ import { tryCompleteTableRow } from '$lib/core/parsers/table-completion';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 
-// The completer's line predicate and the bytes it answers. The boundary that matters is the
-// pair of gates: the parser's own row scan is the outer bound, and the leading pipe narrows it
-// to an explicit table gesture so prose carrying a pipe is not swallowed.
+// The completer's test for a line and the bytes it answers with. What matters is the pair of
+// checks: the parser's own row scan is the outer bound, and the leading pipe narrows it to a
+// deliberate table gesture, so prose that happens to carry a pipe is left alone.
 
 const claim = (line: string) => tryCompleteTableRow(line);
 
@@ -32,8 +32,8 @@ describe('table Enter completer — which lines it claims', () => {
 		expect(claim(line)).toBeNull();
 	});
 
-	// The escape is the parser's business, not a second rule here: `\|` stays inside its cell,
-	// so a two-cell claim is what the row scan already sees.
+	// The escaping is the parser's business, not a second rule here: `\|` stays inside its
+	// cell, so answering with two cells is what the row scan already sees.
 	it('counts an escaped pipe as cell content, not a cell boundary', () => {
 		expect(claim('| a \\| x | b |')!.lines[0]).toBe('| a \\| x | b |');
 		expect(claim('| a \\| x | b |')!.lines[1]).toBe('| --- | --- |');
@@ -60,8 +60,8 @@ describe('table Enter completer — the bytes it answers', () => {
 		expect(claim('| a | b |')!.caret).toEqual({ path: [1, 0], line: 0, column: 0 });
 	});
 
-	// The claim is only worth anything if the bytes parse back as the table it describes —
-	// the round-trip invariant, asserted on the completer's own output.
+	// The answer is only worth anything if the bytes parse back as the table it describes,
+	// so the round trip is asserted on the completer's own output.
 	it('answers bytes that parse to one table and serialize back unchanged', () => {
 		const source = claim('| a | b |')!
 			.lines.map((l) => l + '\n')

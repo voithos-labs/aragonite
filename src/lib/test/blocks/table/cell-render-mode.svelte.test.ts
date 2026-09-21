@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-// Miss-analysis: the cell render path was tested against raw, references and islands but never
-// against the mode, so nothing asked whether the surface carried the terms its prose sibling does.
+// Miss-analysis: the cell render was tested against raw, references and decorations but never
+// against the mode, so nothing asked whether it carried the same inputs a prose block does.
 import { afterEach, describe, it, expect } from 'vitest';
 import { flushSync } from 'svelte';
 import { createCellRender, type CellRender } from '$lib/components/blocks/table/cell-render';
@@ -22,7 +22,7 @@ import ModeReadingWidget from '../fixtures/ModeReadingWidget.svelte';
 
 const WIDGET_SOURCE = '%%w%%';
 
-/** A `%%…%%` rung whose widget component renders the two live terms. */
+/** A `%%…%%` inline handler whose widget component renders the two live values. */
 function registerModeWidget(): void {
 	const kind = declarePluginInlineKind('modeReadingWidget');
 	registerInlineSyntax('%', (raw, pos, end) => {
@@ -133,8 +133,8 @@ describe('cell-render widget mode/theme threading', () => {
 		cell.setTheme('dark');
 		cell.render.render();
 		flushSync();
-		// The theme is NOT a render-key term: the cell's own DOM is CSS-themed, so only the
-		// widget reading the getter changes.
+		// The theme is not part of the render key: the cell's own DOM is themed by CSS, so only
+		// the widget reading the getter changes.
 		expect(cell.el.firstChild).toBe(before);
 		expect(cell.widgetText()).toBe('source/dark');
 	});

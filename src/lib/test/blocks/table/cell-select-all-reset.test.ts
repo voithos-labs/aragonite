@@ -1,21 +1,21 @@
 // @vitest-environment jsdom
 //
-// The 3-stage Ctrl+A inside a cell (cell text → whole table → whole document) counts presses on
-// the shared SelectionState. The counter's keydown reset must stay reachable from every arm the
-// cell claims, not from the 'native' plan arm alone, or a key the cell handles leaves the stage
-// armed and the next Ctrl+A skips a stage.
+// The three-stage Ctrl+A inside a cell, from the cell's text to the whole table to the whole
+// document, counts keypresses on the shared `SelectionState`. That counter's reset on keydown
+// must stay reachable from every branch the cell takes, not from the 'native' branch alone, or a
+// key the cell handles leaves a stage pending and the next Ctrl+A skips one.
 import { describe, it, expect, afterEach, beforeAll } from 'vitest';
 import { mountCell, settleTicks } from './mount-cell';
 import { installTableLayoutStubs } from './mount-table';
 
-// onKeyDown awaits the widget-reveal intercepts before it reaches the plan.
+// `onKeyDown` awaits the widget handlers before it reaches the plan.
 async function press(el: HTMLElement, init: KeyboardEventInit): Promise<void> {
 	el.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, cancelable: true, ...init }));
 	await settleTicks();
 }
 
 let mounted: ReturnType<typeof mountCell>;
-// The arrow exit captures a sticky X, which measures the caret through Range rects.
+// The arrow exit captures a sticky column, which measures the caret through Range rects.
 let restoreLayout: () => void;
 beforeAll(() => {
 	restoreLayout = installTableLayoutStubs();

@@ -24,9 +24,9 @@ export interface IntraTableRect {
 }
 
 /**
- * Both endpoints share the table path, so each `offset` is a row-major cell index
- * (unflagged — see `selection/primitives` on context-established cell offsets). Callers
- * compare `tablePath` against their own; the rectangle belongs to at most one table.
+ * Both endpoints share the table path, so each `offset` is a row-major cell index (unflagged;
+ * `selection/primitives` covers cell offsets established by context). Callers compare
+ * `tablePath` against their own, since the rectangle belongs to at most one table.
  */
 export function intraTableRect(selection: SelectionState): IntraTableRect | null {
 	const { anchor, focus } = selection;

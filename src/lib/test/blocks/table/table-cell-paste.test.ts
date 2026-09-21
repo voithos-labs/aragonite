@@ -76,8 +76,8 @@ describe('escapedCellOffset — the caret follows the sink’s inserted backslas
 		expect(escapedCellOffset('a|b', 1)).toBe(1);
 	});
 
-	// The door reports where the caret lands in the bytes the sink wrote, so the
-	// two have to agree on every prefix or the caret drifts into a `\|` pair.
+	// The caret is reported against the bytes that were actually written, so the two have
+	// to agree on every prefix or the caret drifts into a `\|` pair.
 	it('agrees with the raw the sink actually writes', () => {
 		const row: CstNode = {
 			kind: 'tableRow',
@@ -111,7 +111,7 @@ describe('tableCellInlinePaste', () => {
 		expect(pasteIntoRow('a\\|b', 2, 'X').cells).toEqual(['a\\X\\|b', 'keep']);
 	});
 
-	// The pasted text carries no pipe at all, so escaping it is a no-op — but the
+	// The pasted text carries no pipe at all, so escaping it changes nothing, but the
 	// backslash it inserts pairs off the one holding the cell's own pipe down.
 	it('re-escapes a pipe the pasted text frees by pairing off a backslash', () => {
 		expect(pasteIntoRow('a\\|b', 2, '\\').cells).toEqual(['a\\\\\\|b', 'keep']);
@@ -122,7 +122,7 @@ describe('tableCellInlinePaste', () => {
 	});
 
 	// The delete half is a join, and a cell's stranded runs are as unpainted as a paragraph's.
-	// The seam runs BEFORE the escaping stage, which is why the sink still sees the final bytes.
+	// The join runs before the escaping stage, which is why the escaping sees the final bytes.
 	describe('the delete half crosses the live join seam', () => {
 		beforeAll(() => registerLiveJoinSeamCleaner(cleanLiveJoinSeam));
 		afterAll(() => __resetLiveJoinSeamCleanerForTests());

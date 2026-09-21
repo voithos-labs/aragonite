@@ -132,8 +132,8 @@
 	export const editable = true;
 	export const focusable = true;
 
-	// The TableBlock twin's rule: a start arrival enters the first cell, anything else the
-	// last, and the sentinel rides into the cell so its door clamps and classifies.
+	// The same rule TableBlock uses: arriving at the start enters the first cell, anything
+	// else the last, and the marker value is passed in so the cell clamps and classifies it.
 	function rowLanding(offset: number): { colIdx: number; at: number } {
 		const atStart = offset === 0 || offset === CURSOR_START;
 		return atStart ? { colIdx: 0, at: CURSOR_START } : { colIdx: columnCount - 1, at: CURSOR_END };
@@ -177,8 +177,8 @@
 		return null;
 	}
 
-	// The ONE surface literal, the cell's twin: a row reaches every caller through its published
-	// slot, so a second literal to type-check against would only be a decoy.
+	// The one place this shape is written, matching the cell's: a row reaches every caller
+	// through its published reference, so a second copy to type-check against would mislead.
 	$effect(() => {
 		if (!slots) return;
 		const self = {
@@ -196,7 +196,7 @@
 </script>
 
 <!-- No whitespace between the row and its cells: a stray text node joins the table's
-	raw-offset walk and misplaces a parked cross-block caret. -->
+	raw-offset traversal and misplaces a remembered cross-block caret. -->
 <div bind:this={rowEl} class="table-row" role="row" data-table-row-idx={rowIdx}>
 	{#each node.children ?? [] as cellNode, colIdx (cellsState.innerBlockIds[colIdx])}
 		<TableCellBlock

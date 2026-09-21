@@ -50,7 +50,7 @@ describe('tableMenuItems: delete enablement', () => {
 	});
 
 	// The wrapper promotes the next row to header, so a header delete only needs a
-	// second row — unlike a body delete at the same dims, which is refused.
+	// second row, unlike a body delete at the same size, which is refused.
 	it('allows a header delete even when one body row remains', () => {
 		const items = menuFor({ rowIdx: 0, colIdx: 0 }, { rowCount: 2, colCount: 2 });
 		expect(actionItem(items, 'deleteRow')?.enabled).toBe(true);
@@ -115,8 +115,8 @@ describe('tableMenuItems: inserts and alignment', () => {
 	});
 });
 
-// A cell menu mixes the groups, so the dispatcher routes each item by its own index — row
-// actions to rowIdx, column actions to colIdx. Distinct values catch a crossed-wires bug.
+// A cell menu mixes the groups, so the dispatcher routes each item by its own index: row
+// actions to rowIdx, column actions to colIdx. Different values catch a crossed wire.
 describe('tableMenuItems: action items carry their own axis index', () => {
 	it('routes row actions by rowIdx and column actions by colIdx', () => {
 		const items = menuFor({ rowIdx: 1, colIdx: 0 }, { rowCount: 3, colCount: 2 });

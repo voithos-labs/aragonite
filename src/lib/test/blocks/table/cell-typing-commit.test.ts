@@ -1,10 +1,10 @@
 // @vitest-environment jsdom
 //
-// The cell's plain-typing commit funnel, end to end. A cell's raw is joined verbatim into its
-// row, so a `|` reaching `cell.raw` unescaped reparses the row wider than the delimiter's column
-// count and the parser truncates — the last column's content is deleted, silently. The three
-// gestures computing their own bytes are cell-write-escape.test.ts's; the funnel every keystroke
-// uses (`commitInput`, the one allowlisted caller in G4.20) had no test until this one.
+// The path every typed character in a cell takes, end to end. A cell's raw is joined verbatim
+// into its row, so a `|` reaching `cell.raw` unescaped reparses the row wider than the delimiter
+// row's column count and the parser truncates it, deleting the last column's content silently.
+// The three gestures that compute their own bytes belong to cell-write-escape.test.ts; this
+// covers `commitInput`, the one allowed caller under G4.20.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { metadataOf } from '$lib/core/nodes';
@@ -47,8 +47,8 @@ describe('a cell commits the bytes it was typed, escaped for its row', () => {
 	});
 
 	it('leaves text with no free pipe exactly as typed', async () => {
-		// Non-vacuity: the sink is not a blanket rewrite, so ordinary typing must
-		// arrive byte-for-byte.
+		// Non-vacuity: the escaping is not a blanket rewrite, so ordinary typing must
+		// arrive byte for byte.
 		mounted = mountEditor({ source: GRID });
 
 		await typeInto(1, 0, 'plain text');
@@ -97,7 +97,7 @@ describe('a composed (IME) cell edit commits once, through the same escape', () 
 		el.textContent = 'x|y';
 		el.dispatchEvent(new InputEvent('input', { bubbles: true }));
 		await mounted.settle();
-		// Mid-composition the document is untouched — the funnel is suppressed.
+		// While a composition runs the document is untouched: the commit is suppressed.
 		expect(mounted.source()).toBe(GRID);
 
 		el.dispatchEvent(new CompositionEvent('compositionend', { bubbles: true }));

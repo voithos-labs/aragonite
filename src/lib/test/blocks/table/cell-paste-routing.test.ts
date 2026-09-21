@@ -1,10 +1,10 @@
 // @vitest-environment jsdom
 //
-// Where a paste dropped on a cell ends up. `table-cell-paste.test.ts` drives the surface's hook
-// with arguments a test supplies; the routing that decides the hook runs at all — the cell's
-// paste handler, the dispatcher, and the surface registered for `tableCell` — was only ever
-// asserted in the browser. Two things can go wrong and both destroy the table silently: the
-// generic inline surface handling the paste, and a pasted newline reaching `cell.raw`.
+// Where a paste dropped on a cell ends up. `table-cell-paste.test.ts` drives the cell's hook with
+// arguments a test supplies; what decides that the hook runs at all, which is the cell's paste
+// handler, the dispatcher, and the handling registered for `tableCell`, was only ever asserted in
+// the browser. Two things can go wrong and both destroy the table silently: the generic inline
+// handling taking the paste, and a pasted newline reaching `cell.raw`.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { metadataOf } from '$lib/core/nodes';
@@ -21,7 +21,7 @@ afterEach(async () => {
 
 const GRID = '| A | B |\n| --- | --- |\n| one | 2 |\n';
 
-/** jsdom builds no ClipboardEvent, so the payload rides a real dispatched event. */
+/** jsdom builds no ClipboardEvent, so the payload travels on a real dispatched event. */
 async function pasteInto(el: HTMLElement, text: string): Promise<void> {
 	const event = new Event('paste', { bubbles: true, cancelable: true });
 	Object.defineProperty(event, 'clipboardData', {
@@ -67,8 +67,8 @@ describe('a paste into a cell lands on the cell’s own paste surface', () => {
 	});
 
 	it('collapses a multi-line paste to one line', async () => {
-		// A raw newline in `cell.raw` splits the row's bytes in two; the surface
-		// folds the lines to spaces rather than letting them through.
+		// A raw newline in `cell.raw` splits the row's bytes in two, so the lines are
+		// joined with spaces rather than let through.
 		mounted = mountEditor({ source: GRID });
 		const el = cellAt(mounted!, 1, 0);
 		selectInCell(el, 0, 3);

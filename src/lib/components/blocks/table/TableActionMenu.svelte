@@ -16,8 +16,8 @@
 	import MenuIcon, { type MenuIconName } from '../../menu/MenuIcon.svelte';
 	import { tick, untrack } from 'svelte';
 
-	// The glyph each entry carries, limestone's context-menu convention: an icon slot per row,
-	// the destructive rows in the accent.
+	// The icon each entry carries, following limestone's context menus: an icon beside every
+	// entry, and the destructive ones in the accent colour.
 	const ICONS: Record<TableAxisAction | ClipboardAction, MenuIconName> = {
 		insertRowAbove: 'plus',
 		insertRowBelow: 'plus',
@@ -49,7 +49,7 @@
 		items: TableMenuItem[];
 		x: number;
 		y: number;
-		/** Where the open point is NOW, re-read on scroll and resize so the menu stays on it. */
+		/** Where the point the menu opened on is now, re-read on scroll and resize. */
 		anchor?: () => { x: number; y: number } | null;
 		onaction: (action: TableAxisAction, index: number) => void;
 		onclipboard: (action: ClipboardAction) => void;
@@ -62,10 +62,10 @@
 	/** The open flyout, if any: hover or ArrowRight on its row opens it, ArrowLeft closes it. */
 	let openGroup = $state<'row' | 'column' | null>(null);
 
-	// The open point, viewport coordinates, re-read on scroll and resize so the menu stays on
-	// what it opened on and leaves the viewport with it — never re-clamped into view, which
-	// would float it over unrelated content. The clamp runs once, when the size is first known,
-	// and its shift rides along as a constant offset.
+	// The point the menu opened on, in viewport coordinates, re-read on scroll and resize so the
+	// menu stays on it and leaves the viewport with it. It is never clamped back into view, which
+	// would float it over unrelated content: the clamp runs once, when the size is first known,
+	// and its shift is kept as a constant offset.
 	// svelte-ignore state_referenced_locally
 	let at = $state({ x, y });
 	let shift = $state<{ x: number; y: number } | null>(null);
@@ -125,7 +125,7 @@
 	// ── Roving focus (ARIA menu pattern) ────────────────────────────────────
 	//
 	// Up/Down (and Tab, trapped) step every enabled item and alignment segment; Left/Right
-	// hop within the alignment trio. Enter/Space fall through to native button activation.
+	// hop within the alignment trio. Enter and Space fall through to the button's own activation.
 
 	function focusableStops(): HTMLElement[] {
 		if (!menuEl) return [];
@@ -344,9 +344,9 @@
 {/snippet}
 
 <style>
-	/* The surface, rows, icons and dividers are the shared `.md-menu` family (editor.css); only
-	   the alignment trio is this menu's own — three glyph buttons on one row, the active one
-	   lifted like a hover. */
+	/* The panel, rows, icons and dividers are the shared `.md-menu` family (editor.css); only
+	   the alignment trio is this menu's own: three icon buttons on one row, with the active
+	   one lifted as if hovered. */
 	.table-action-menu-alignment {
 		display: flex;
 		gap: 2px;
@@ -358,7 +358,7 @@
 	.table-action-menu-group {
 		position: relative;
 	}
-	/* limestone's submenu: a second surface hung off the row's right edge. */
+	/* A submenu, as in limestone: a second panel hung off the row's right edge. */
 	.table-action-menu-flyout {
 		position: absolute;
 		left: 100%;

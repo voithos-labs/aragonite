@@ -1,9 +1,9 @@
 // @vitest-environment jsdom
 //
-// A cell drag that leaves the table and lands off every block — the margin, a side gutter — which
-// is what one coalesced frame hands over when the pointer is moving fast. Miss-analysis: no test
-// drove a MOVE through `installCellDragListener` at all (its suite covers shift+click and the grid
-// selectors), so the foreign-block extend carried the cross-block drag's off-block miss unpinned.
+// A cell drag that leaves the table and lands off every block, in the margin or a side gutter,
+// which is what one coalesced frame hands over when the pointer moves fast. Miss-analysis: no
+// test drove a move through `installCellDragListener` at all, since its suite covers shift-click
+// and the grid selectors, so the extend into a foreign block was never asked about a missed hit.
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import {
 	installCellDragListener,
@@ -34,7 +34,7 @@ describe('a cell drag that leaves the table for dead space', () => {
 		editorRoot.appendChild(para);
 
 		const { host, grid } = mountTableGrid({ path: [1], rows: 1, cols: 2, box: TABLE_BOX });
-		// Far larger than every point below, so no edge band arms the autoscroll loop.
+		// Far larger than every point below, so no edge band starts the autoscroll loop.
 		grid.getBoundingClientRect = () =>
 			({ left: -1000, top: -1000, right: 2000, bottom: 2000 }) as DOMRect;
 		editorRoot.appendChild(host);
@@ -75,7 +75,7 @@ function pointerDown(): PointerEvent {
 	}) as unknown as PointerEvent;
 }
 
-/** One armed callback at a time, mirroring the coalescer's single pending frame. */
+/** One pending callback at a time, matching the coalescer's single pending frame. */
 function stubFrame(): { run(): void } {
 	let armed: FrameRequestCallback | null = null;
 	globalThis.requestAnimationFrame = ((fn: FrameRequestCallback) => {

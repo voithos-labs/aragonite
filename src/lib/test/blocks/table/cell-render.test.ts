@@ -102,8 +102,8 @@ describe('createCellRender', () => {
 	});
 
 	it('rewrites a link href through a non-identity resolveLinkUrl', () => {
-		// An embedder rewriting a relative href to an absolute one — the seam the
-		// paragraph path threads and the cell path dropped.
+		// An embedder rewriting a relative href to an absolute one, which the paragraph
+		// path passes through and the cell path must too.
 		const { el, render } = mount('[t](/wiki/page)', undefined, (u) => `https://host${u}`);
 		render.render();
 		expect(el.querySelector('a.md-link-content')?.getAttribute('href')).toBe(
@@ -130,8 +130,8 @@ describe('createCellRender', () => {
 		]);
 	});
 
-	// A plugin's `![[…]]` rung mints a built-in image whose alt names the target, so
-	// the cell's alt-only path meets a node whose markers aren't the GFM two.
+	// A plugin's `![[…]]` handler makes a built-in image whose alt names the target, so the
+	// cell's alt-only path meets a node whose markers are not the two GFM ones.
 	it('renders a plugin-minted image as its own source bytes', () => {
 		registerEmbedRung();
 		const { el, render } = mount('![[cat.png]]');
@@ -141,8 +141,8 @@ describe('createCellRender', () => {
 
 	// A link with no text renders as two marker spans and nothing else, which a marker-hiding
 	// mode would paint as an empty cell with no caret position.
-	// Miss-analysis: the cell is the third surface minting marker spans, and the two prose
-	// surfaces carried the content-empty rule while this one was never asked the question.
+	// Miss-analysis: the cell is the third place marker spans are created, and the two prose
+	// blocks carried the content-empty rule while this one was never asked the question.
 	it('stamps a cell whose whole content is chrome, and drops the stamp when text arrives', () => {
 		const ctx = mount('[](u)');
 		ctx.render.render();
@@ -212,8 +212,8 @@ describe('createCellRender', () => {
 		render.render();
 		expect(el.querySelector('a.md-link-content')?.getAttribute('href')).toBe('https://old.com');
 
-		// Discriminator: with an epoch supplied the signature string is NOT in the key, so a string
-		// change alone (production-impossible — the reducer moves them in lockstep) does not re-render.
+		// The key assertion: with a token supplied the signature string is not in the key, so a
+		// change to the string alone, which cannot happen in practice, does not re-render.
 		url = 'https://new.com';
 		signature = 'sig-2';
 		render.render();
@@ -243,7 +243,7 @@ describe('createCellRender', () => {
 		expect(el.firstChild).toBe(child);
 	});
 
-	// ── Islands (parity with the prose render path, ambient length 0) ──────────
+	// ── Decorations (the same as the prose render, with no marker prefix) ──────
 
 	it('applies a replace island in a cell, covering the raw range', () => {
 		const { el, render, setIslands } = mount('a SECRET b');
@@ -255,7 +255,7 @@ describe('createCellRender', () => {
 		expect(island).not.toBeNull();
 		expect(island?.getAttribute('data-source-start')).toBe('2');
 		expect(island?.getAttribute('data-source-end')).toBe('8');
-		// The covered bytes leave the DOM text; the island stands for them.
+		// The covered bytes leave the DOM text; the decoration stands for them.
 		expect(el.textContent).not.toContain('SECRET');
 	});
 

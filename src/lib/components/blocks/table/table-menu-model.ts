@@ -14,8 +14,8 @@ import { canDeleteRow, canDeleteColumn } from '../../../tree-operations/table-mu
 export type ClipboardAction = 'cut' | 'copy' | 'paste';
 
 /**
- * Clamp a fixed-position menu's top-left into the viewport (minus `margin`) — menus
- * open at a raw pointer coordinate. Larger than the viewport pins to top/left.
+ * Clamp a fixed-position menu's top-left into the viewport, less `margin`, since menus open
+ * at a raw pointer coordinate. One larger than the viewport is pinned to the top left.
  */
 export function clampMenuToViewport(
 	desired: { x: number; y: number },
@@ -32,10 +32,10 @@ export function clampMenuToViewport(
 }
 
 /**
- * Where a flyout hung off its parent row ends up on screen: shifted UP just enough to clear the
- * viewport bottom (never above the top margin) and, when its right edge would overflow, flipped
- * to the parent menu's left side. Shifting vertically keeps the hovered row pointing into it;
- * flipping horizontally keeps it off its own parent. Pure, so the two flyouts share one rule.
+ * Where a flyout hanging off its parent row ends up on screen: moved up just enough to clear the
+ * viewport bottom, never above the top margin, and, when its right edge would overflow, moved to
+ * the parent menu's left side. Moving it up keeps the hovered row pointing into it; moving it
+ * sideways keeps it off its own parent. Pure, so the two flyouts share one rule.
  */
 export function flyoutPlacement(
 	flyout: { top: number; bottom: number; right: number; width: number },
@@ -71,7 +71,7 @@ export function tableMenuItems(
 	const cols = columnGroup(cell.colIdx, dims.colCount, alignments);
 	const isDelete = (i: TableMenuItem) =>
 		i.kind === 'action' && (i.action === 'deleteRow' || i.action === 'deleteColumn');
-	// A cell knows both axes, so each axis's inserts and moves fold behind one flyout and only
+	// A cell knows both axes, so each axis's inserts and moves go behind one flyout and only
 	// the two deletes and the alignment stay in the list.
 	return [
 		...clipboardGroup(clipboard.hasSelection || clipboard.hasRect === true),
@@ -90,7 +90,7 @@ export function tableMenuItems(
 	];
 }
 
-// Paste always applies: clipboard contents aren't readable synchronously to gate it.
+// Paste always applies: the clipboard cannot be read synchronously to decide otherwise.
 function clipboardGroup(hasContent: boolean): TableMenuItem[] {
 	return [
 		{ kind: 'clipboard', action: 'cut', label: 'Cut', enabled: hasContent },

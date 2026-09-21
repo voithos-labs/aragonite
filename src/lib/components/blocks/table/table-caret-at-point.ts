@@ -1,8 +1,8 @@
 /**
- * Table's `caretTargetAtPoint`: the cell a point lands a caret in, as a `[rowIdx, colIdx]` path
- * plus a within-cell offset. NEAREST, not exact — the difference from `tableDragHitTest` beside
- * it. A point clamped into the table's box can sit in a gutter, a padding gap or a windowing
- * spacer and must still land a caret, where an exact `elementFromPoint` hit declines.
+ * Table's `caretTargetAtPoint`: the cell a point puts a caret in, as a `[rowIdx, colIdx]` path
+ * plus an offset inside the cell. Nearest, not exact, which is the difference from
+ * `tableDragHitTest` beside it. A point clamped into the table's box can sit in a gutter, a
+ * padding gap or a windowing spacer and must still land a caret, where an exact hit refuses.
  */
 
 import { CURSOR_END } from '../../../block-component';
@@ -20,7 +20,7 @@ export function tableCaretAtPoint(
 	let nearest: number[] | null = null;
 	let smallestDistance = Infinity;
 	for (const rowEl of mountedRowEls(tableEl)) {
-		// The ABSOLUTE row index: under row windowing the first mounted row is not row 0.
+		// The absolute row index: under row windowing the first mounted row is not row 0.
 		const rowIdx = Number(rowEl.getAttribute('data-table-row-idx'));
 		if (Number.isNaN(rowIdx)) continue;
 		rowCellEls(rowEl).forEach((cell, colIdx) => {

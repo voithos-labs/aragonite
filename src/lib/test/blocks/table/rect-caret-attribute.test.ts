@@ -1,17 +1,16 @@
 // @vitest-environment jsdom
 //
-// Which predicate the editor root's caret-hiding attribute keys on. Two consumers read two
-// predicates of one state — the overlay paints on `isCustomRendered`, the root hid the native
-// caret on `isCrossBlock` — so every state where those disagree hides the caret with nothing
-// painted in its place. Miss (Sel-F1, class half): the e2e helper waits on the ATTRIBUTE, which
-// made it the oracle for "is a selection live" everywhere, and no test ever compared it against
-// what the overlay would paint.
+// What the editor root's caret-hiding attribute keys on. Two callers ask two questions of one
+// state: the overlay draws when `isCustomRendered`, while the root hid the browser caret when
+// `isCrossBlock`, so every state where those disagree hides the caret with nothing drawn in its
+// place. Miss-analysis (Sel-F1): the e2e helper waits on the attribute, which made it the answer
+// to "is a selection live" everywhere, and no test compared it against what the overlay draws.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
 import { installLayoutStubs, mountEditor, placeCaret, type MountedEditor } from '../editor-mount';
 import { cellAt, installTableLayoutStubs } from './mount-table';
 
-// Without the Range stubs the visual-line probe throws instead of falling back to the
-// offset comparison the cell's edge gate reads.
+// Without the Range stubs the visual-line check throws instead of falling back to the
+// offset comparison the cell's edge test reads.
 let restoreLayout: () => void;
 beforeAll(() => {
 	installLayoutStubs();
@@ -48,7 +47,7 @@ describe('the root hides the native caret only while something paints in its pla
 		expect(editorRoot().hasAttribute('data-cross-block')).toBe(true);
 
 		// Back onto the anchor cell: a one-cell rectangle is a stored pair the overlay declines
-		// to paint (same path, same offset), so hiding the caret leaves nothing on screen.
+		// to draw, same path and offset, so hiding the caret leaves nothing on screen.
 		await press(cellAt(mounted!, 1, 0), { key: 'ArrowUp', shiftKey: true });
 
 		expect(editorRoot().hasAttribute('data-cross-block')).toBe(false);

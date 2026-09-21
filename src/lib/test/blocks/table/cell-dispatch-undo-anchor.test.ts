@@ -1,10 +1,10 @@
 // @vitest-environment jsdom
 //
-// The cell write door's undo-anchor contract (GH #104, falsified): `caretBefore` addresses the
-// PRE-write bytes, which are already escaped — cell caret offsets are raw-space, so the door
-// forwards it unmapped, and mapping it against the NEW text would shift every anchor behind an
-// escape the write inserts. Pinned end to end: a dispatch write, then undo, restores the caret
-// byte-exact with a `\|` escape standing before it.
+// Where a cell write anchors undo (GH #104): `caretBefore` counts into the bytes before the
+// write, which are already escaped, and cell caret offsets are raw offsets, so it is passed
+// through unmapped; mapping it against the new text would shift every anchor that sits behind an
+// escape the write inserts. Covered end to end: a write, then undo, restores the caret exactly
+// with a `\|` escape standing before it.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
 import { tick } from 'svelte';
 import { installLayoutStubs, mountEditor, placeCaret, type MountedEditor } from '../editor-mount';
@@ -39,17 +39,18 @@ describe('a cell dispatch write anchors undo at the exact pre-edit caret', () =>
 	it('undo after a construct-edge delete restores caret and bytes byte-exact', async () => {
 		mounted = mountEditor({ source: GRID, presentationMode: 'live' });
 		const el = cellAt(mounted, 0, 0);
-		// `a\|b **bold**` — caret at the display end (13), past the escape and the hidden closer.
+		// `a\|b **bold**`: caret at the end of the displayed text (13), past the escape and the
+		// hidden closer.
 		placeCaret(el, 13);
 
 		el.dispatchEvent(
 			new KeyboardEvent('keydown', { key: 'Backspace', bubbles: true, cancelable: true })
 		);
 		await mounted.settle();
-		// The construct-edge arm fired: the content character went, the pair survived.
+		// The construct-edge rule fired: the content character went, the pair survived.
 		expect(mounted.source()).toBe('| a\\|b **bol** | B |\n| --- | --- |\n| 1 | 2 |\n');
-		// The stored anchor is the byte-exact pre-edit caret — the #104 contract. Asserted on
-		// the ENTRY, since the restored readback below is the door's clamped seat, not the anchor.
+		// The stored anchor is exactly the caret from before the edit. Asserted on the undo entry
+		// itself, since the restored reading below is the clamped caret, not the anchor.
 		const { undo } = (
 			mounted.instance as unknown as { __test: { getUndoStack(): { undo: UndoEntry[] } } }
 		).__test.getUndoStack();
@@ -62,8 +63,8 @@ describe('a cell dispatch write anchors undo at the exact pre-edit caret', () =>
 		await tick();
 
 		expect(mounted.source()).toBe(GRID);
-		// 11, not the anchor's 13: the park door clamps the restore to the landable end — 13 sits
-		// past the hidden closer, and the typing seat resolves both offsets to the same write.
+		// 11, not the anchor's 13: the restore is clamped to the last reachable offset, since 13
+		// sits past the hidden closer, and both offsets write the same bytes anyway.
 		expect(caretRawOffset(cellAt(mounted, 0, 0))).toBe(11);
 	});
 });

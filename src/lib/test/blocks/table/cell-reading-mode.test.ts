@@ -1,10 +1,10 @@
 // @vitest-environment jsdom
 //
-// Reading mode makes a cell inert without making it dead: navigation still works and every
-// mutation is refused. The refusal has two owners — the structural chords are keymap bindings, so
-// the command seam's own gate (`reading-gate-parity`, G4.19) dead-keys them, while the
-// row-appending end of Tab/Enter is a NAVIGATION plan reading mode must keep, so the keydown
-// switch's default arm carries a guard the seam cannot supply. One test per side of the split.
+// Reading mode makes a cell inert without making it dead: navigation still works and every edit
+// is refused. Two places refuse: the structural chords are keymap bindings, so the command
+// dispatch's own check (`reading-gate-parity`, G4.19) makes them do nothing, while the
+// row-appending end of Tab and Enter is a navigation plan reading mode must keep, so the keydown
+// switch carries a check the dispatch cannot supply. One test per side of that split.
 import { describe, it, expect, beforeAll, afterEach, vi } from 'vitest';
 import { installLayoutStubs, mountEditor, type MountedEditor } from '../editor-mount';
 import { cellAt, installTableLayoutStubs, pressInCell } from './mount-table';
@@ -81,8 +81,8 @@ describe('a reading-mode cell refuses every mutation', () => {
 
 describe('a reading-mode cell still navigates', () => {
 	it('lets Tab move to the next cell', async () => {
-		// The other side of the same switch arm: reading mode keeps 'focus-cell'
-		// and 'exit', so the grid stays walkable.
+		// The other side of the same branch: reading mode keeps 'focus-cell' and
+		// 'exit', so the grid can still be navigated.
 		mountReading();
 
 		await pressInCell(mounted!, 1, 0, { key: 'Tab' });
@@ -100,9 +100,9 @@ describe('a reading-mode cell still navigates', () => {
 });
 
 describe('the right-click menu clipboard refuses to mutate in reading mode', () => {
-	/** A BARE cell, not one inside `mountTable`: a table hands its cells its own nested action
-	 *  bundle as their blockEdit, so a stub passed to that mount records nothing and every
-	 *  refusal below would pass with the gate deleted. */
+	/** A cell on its own, not one inside `mountTable`: a table hands its cells its own nested
+	 *  actions as their `blockEdit`, so a stub passed to that mount records nothing and every
+	 *  refusal below would pass even with the check deleted. */
 	function readingCell(): MountedCell {
 		bareCell = mountCell('one', { presentationMode: () => 'reading' });
 		return bareCell;
@@ -118,8 +118,8 @@ describe('the right-click menu clipboard refuses to mutate in reading mode', () 
 	});
 
 	it('declines paste', async () => {
-		// A clipboard that WOULD answer: with none installed the read throws and the door
-		// returns early whether or not the gate is there.
+		// A clipboard that would answer: with none installed the read throws and the handler
+		// returns early whether or not the check is there.
 		Object.defineProperty(navigator, 'clipboard', {
 			value: { readText: async () => 'pasted' },
 			configurable: true
@@ -132,8 +132,8 @@ describe('the right-click menu clipboard refuses to mutate in reading mode', () 
 	});
 
 	it('still allows copy, which mutates nothing', async () => {
-		// Contrapositive: the gate is action-shaped, not a blanket refusal — a
-		// reader must be able to copy out of the table.
+		// The other way round: the check is per action, not a blanket refusal, since a
+		// user must be able to copy out of the table.
 		const execCommand = vi.fn(() => true);
 		document.execCommand = execCommand;
 

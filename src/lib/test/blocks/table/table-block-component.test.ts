@@ -1,10 +1,10 @@
 // @vitest-environment jsdom
 //
-// TableBlock's BlockComponent surface is a 2D adapter behind a 1D interface, and the seams only
-// exist once rows and cells are mounted: `focus` collapses an offset to a corner cell,
-// `getCursorPosition` reads back through the row refs, and `measurePartialRects` decides between
-// a live intra-table rectangle and the plain cell range its caller asked for. Rect geometry is
-// asserted by COUNT — jsdom boxes are all zero, so only how many were measured is visible.
+// TableBlock's BlockComponent interface is a two-dimensional adapter behind a one-dimensional
+// one, and it only works once rows and cells are mounted: `focus` collapses an offset to a corner
+// cell, `getCursorPosition` reads back through the row references, and `measurePartialRects`
+// chooses between a live rectangle inside the table and the plain cell range its caller asked for.
+// Rectangle geometry is asserted by count, since jsdom boxes are all zero.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
 import { SELECTION_END } from '$lib/block-component';
 import { createSelectionState } from '$lib/selection/selection-state.svelte';
@@ -56,8 +56,8 @@ describe('measurePartialRects answers for this table’s cells only', () => {
 	});
 
 	it('leaves the requested range intact when the rectangle belongs to another table', () => {
-		// Same rectangle, a path this table does not own — the owner check is the
-		// only thing separating these two cases, and both shapes are otherwise equal.
+		// The same rectangle with a path this table does not own: the owner check is the
+		// only thing separating these two cases, which are otherwise identical.
 		mounted = mountTable(GRID, { services: { selection: selectionWithRect([7]) } });
 
 		expect(mounted.block.measurePartialRects(0, 1)).toHaveLength(1);
@@ -89,8 +89,9 @@ describe('the table addresses its own cells for focus and geometry', () => {
 		expect(document.activeElement).toBe(mounted.cell(1, 1));
 	});
 
-	// The two caret verbs reach the same corner cell by DIFFERENT routes — `focus` via the row's
-	// `focusByPath`, `parkCaret` via `getBlockComponentByPath` — so this is what keeps them in step.
+	// The two caret calls reach the same corner cell by different routes, `focus` through the
+	// row's `focusByPath` and `parkCaret` through `getBlockComponentByPath`, so this keeps them
+	// in step.
 	it('both caret verbs land in the same corner cell', () => {
 		mounted = mountTable(GRID);
 
@@ -100,7 +101,7 @@ describe('the table addresses its own cells for focus and geometry', () => {
 			mounted.block.focus(offset);
 			expect(document.activeElement).toBe(corner);
 
-			mounted.cell(1, 0).focus(); // move off, so the park has to place it again
+			mounted.cell(1, 0).focus(); // move off, so the caret has to be placed again
 			mounted.block.parkCaret!(offset);
 			expect(document.activeElement).toBe(corner);
 		}

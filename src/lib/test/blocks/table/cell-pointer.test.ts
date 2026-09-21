@@ -23,8 +23,8 @@ describe('handleCellShiftClick', () => {
 		};
 	}
 
-	// The anchor carries cellCoordinate so a later exit-the-table extend snaps its
-	// whole row (matching the drag anchor); the focus stays context-established.
+	// The anchor carries cellCoordinate so a later extend out of the table snaps its whole row,
+	// matching the drag anchor; the focus keeps the offset its context establishes.
 	it('builds shallow-path multi-cell selection from cold state', () => {
 		const sel = createSelectionState();
 		handleCellShiftClick(sel, makeAnchor(0, 0), { rowIdx: 1, colIdx: 2 });
@@ -56,8 +56,8 @@ describe('handleCellShiftClick', () => {
 		expect(sel.focus!.path).toEqual([2]);
 	});
 
-	// Reading a same-table rectangle (start/end normalize + snap short-circuit) must not trip the
-	// coordinate-space warn that force-flagging every same-table read once caused.
+	// Reading a rectangle inside one table, where the ends normalise and the snap is skipped,
+	// must not fire the coordinate-space warning.
 	it('reads the same-table rectangle without a coordinate-space warn', () => {
 		const doc = {
 			kind: 'document',
@@ -108,8 +108,8 @@ describe('cellCoordsOfElement', () => {
 		tableEl.remove();
 	});
 
-	// Returning the resolved cell element is what lets `cellAtPoint` delegate here
-	// and still yield its `{ rowIdx, colIdx, cellEl }` shape.
+	// Returning the resolved cell element is what lets `cellAtPoint` call through here
+	// and still give back its `{ rowIdx, colIdx, cellEl }` shape.
 	it('cellCoordsOfElement reads coords and the resolved cell from a cell descendant', () => {
 		const cell = tableEl.querySelector('[data-table-row-idx="1"] > [role="cell"]:nth-child(2)');
 		expect(cellCoordsOfElement(cell, tableEl)).toEqual({ rowIdx: 1, colIdx: 1, cellEl: cell });
@@ -182,8 +182,8 @@ describe('mountedRowEls / rowCellEls', () => {
 
 	it('rowCellEls ignores a nested cell in a sub-table', () => {
 		const row = mountedRowEls(tableEl)[0];
-		// A cell that itself holds a nested table's cell must not be counted for the
-		// outer row: `:scope >` keeps the walk to the row's own column cells.
+		// A cell that itself holds a nested table's cell must not be counted for the outer
+		// row: `:scope >` keeps the search to the row's own column cells.
 		const nested = document.createElement('div');
 		nested.setAttribute('role', 'cell');
 		row.firstChild!.appendChild(nested);

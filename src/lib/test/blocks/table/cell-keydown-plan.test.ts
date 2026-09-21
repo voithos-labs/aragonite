@@ -39,8 +39,9 @@ const cell = (
 	position
 });
 
-// The structural chords are keymap bindings now (cell-table-chords.test.ts); an arrow reaching
-// the plan is unclaimed and must navigate — `native` hands it to the prose sibling-index walk.
+// The structural chords are keymap bindings (cell-table-chords.test.ts), so an arrow that
+// reaches the plan was taken by nothing and must navigate; `native` hands it to the prose path,
+// which moves between siblings by index.
 describe('cellKeydownPlan: an unclaimed modified arrow still navigates', () => {
 	const cases: Array<[string, CellKeyInput, Partial<CellKeyState>, CellKeyPlan]> = [
 		[
@@ -91,8 +92,8 @@ describe('cellKeydownPlan: ctrl+a select-all stepping', () => {
 		});
 	}
 
-	// CapsLock reports the letter uppercased; testing only `'a'` dropped the whole
-	// stage machine (the plan fell through to 'native' and the counter never moved).
+	// CapsLock reports the letter uppercased, so testing only `'a'` would miss the staged
+	// select-all entirely: the plan falls through to 'native' and the counter never moves.
 	it('starts the run with CapsLock on', () => {
 		expect(cellKeydownPlan(key('A', { ctrlOrMeta: true }), state({ selectAllCount: 1 }))).toEqual({
 			kind: 'select-all-step',
@@ -130,8 +131,8 @@ describe('cellKeydownPlan: arrow boundary moves', () => {
 			{ offset: 3, collapsed: false },
 			{ kind: 'native' }
 		],
-		// A cell opening or closing with a run the mode paints nothing for: the hop fires at the
-		// offsets the caret can reach, not at raw 0 / raw length.
+		// A cell that opens or closes with a run the mode draws nothing for: the move fires at
+		// the offsets the caret can reach, not at raw 0 and the raw length.
 		[
 			'ArrowLeft at a landable start short of 0',
 			key('ArrowLeft'),
