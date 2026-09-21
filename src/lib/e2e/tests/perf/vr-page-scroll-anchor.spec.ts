@@ -10,7 +10,7 @@ import {
 } from './vr-helpers';
 import { capturePageErrors } from '../../page-probes';
 
-// Who keeps the reader's place when content above them grows late, in a page that does the
+// Who keeps the user's place when content above them grows late, in a page that does the
 // scrolling. The two answers cannot both apply to one editor, so whether windowing is running
 // decides: while it runs the editor corrects the scroll itself and takes its blocks out of the
 // browser's own anchoring; below the threshold it corrects nothing and stays eligible. Either
@@ -33,7 +33,7 @@ async function assertOnlyEntryContentInView(page: Page): Promise<void> {
 	expect(intruders).toEqual([]);
 }
 
-/** Leave the reader just past the image, so it sits above the viewport and among the mounted
+/** Leave the user just past the image, so it sits above the viewport and among the mounted
  *  blocks: an image that is unmounted never decodes and never grows. */
 async function scrollPastImageBlock(page: Page): Promise<void> {
 	const imageTop = await page.evaluate((i) => {
@@ -59,7 +59,7 @@ async function decodedHeight(page: Page, selector: string): Promise<number> {
 
 async function assertReaderHeld(page: Page, grow: () => Promise<void>): Promise<void> {
 	await assertOnlyEntryContentInView(page);
-	// Nothing is adjusted at scroll position 0, so a reader at the top would pass this
+	// Nothing is adjusted at scroll position 0, so a user at the top would pass this
 	// without proving anything.
 	expect(await page.evaluate(() => window.scrollY)).toBeGreaterThan(0);
 	const before = await topVisibleBlockInViewport(page);
@@ -104,7 +104,7 @@ test('a document image decoding in above the fold does not shift the windowed re
 
 	await assertReaderHeld(page, async () => {
 		await page.evaluate(() => (window as any).__pageScroll.loadDocumentImage());
-		// Proves something: the content above the reader really did grow.
+		// Proves something: the content above the user really did grow.
 		expect(await decodedHeight(page, DOCUMENT_IMAGE)).toBeCloseTo(300, 0);
 	});
 	expect(pageErrors).toEqual([]);

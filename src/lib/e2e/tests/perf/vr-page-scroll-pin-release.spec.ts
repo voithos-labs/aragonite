@@ -3,10 +3,10 @@ import { type Page } from '@playwright/test';
 import { gotoPageScroll, settleFrames, spacerCount } from './vr-helpers';
 import { capturePageErrors } from '../../page-probes';
 
-// A held scroll position is released by the reader's next gesture. Under `scrollMode="host"`
+// A held scroll position is released by the user's next gesture. Under `scrollMode="host"`
 // the page is what scrolls, so the gesture that takes the viewport back is one the editor never
 // sees: with the release bound to the editor root, every measure pass re-asserts the position
-// and the page stays stuck at the target until the reader happens to click inside the editor.
+// and the page stays stuck at the target until the user happens to click inside the editor.
 // The listeners follow whatever actually scrolls, not the root.
 
 const TARGET_BLOCK = 120;
@@ -50,7 +50,7 @@ test('a wheel outside the editor releases the reveal pin and the page scrolls', 
 	await page.mouse.wheel(0, 600);
 	await page.waitForFunction((from) => window.scrollY !== from, pinned, { timeout: 5000 });
 
-	// And it must stay moved: the reported failure is the reader being snapped back, which
+	// And it must stay moved: the reported failure is the user being snapped back, which
 	// happens on the next measure pass rather than at once.
 	const moved = await scrollY(page);
 	await settleFrames(page);

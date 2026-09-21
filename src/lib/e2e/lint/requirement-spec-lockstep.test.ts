@@ -252,7 +252,7 @@ function allowedInflation(spec: string): boolean {
 }
 
 export interface AllowlistAudit {
-	/** Names a spec the tree does not have — a typo, or a spec since deleted. */
+	/** Names a spec the tree does not have: a typo, or a spec since deleted. */
 	dangling: string[];
 	/** Every spec it covers is covered by another entry, so it can never be read. */
 	shadowed: string[];

@@ -15,7 +15,7 @@ import { capturePageErrors } from '../../page-probes';
 // The `header` slot: the app's own content inside the editor's scroll container, above the
 // block list. Mounting it beside `.block-list` rather than around it is what leaves the
 // windowing arithmetic alone while the title still scrolls away. The real risk is a header that
-// changes height while the reader is scrolled deep, which has its own scroll correction.
+// changes height while the user is scrolled deep, which has its own scroll correction.
 
 // Enough to window several screens deep without loading megabytes in every scroll case.
 const WINDOWED_BYTES = 500_000;
@@ -129,7 +129,7 @@ test('at the top of the document a header height change pushes content down', as
 	const after = (await editor.getBlock(0).boundingBox())!;
 
 	// The header is on screen here, so content being pushed down is what should happen:
-	// correcting for it would quietly scroll the reader away from the top.
+	// correcting for it would quietly scroll the user away from the top.
 	expect(after.y - before.y).toBeCloseTo(160, 0);
 	expect(await editor.editorContainer.evaluate((el) => el.scrollTop)).toBe(0);
 	expect(pageErrors).toEqual([]);

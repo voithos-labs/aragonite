@@ -21,7 +21,7 @@ function mountedBlockCount(page: Page): Promise<number> {
 }
 
 /** Every ceiling below pairs with this: a ceiling alone is met by mounting nothing, so only
- *  how far the mounted blocks reach shows they cover what the reader can see. */
+ *  how far the mounted blocks reach shows they cover what the user can see. */
 async function expectMountedBandSpansViewport(page: Page, selector: string): Promise<void> {
 	const span = await mountedViewportSpan(page, selector);
 	expect(span.topGapPx).toBeLessThan(span.viewportHeight * MAX_UNMOUNTED_EDGE_FRACTION);

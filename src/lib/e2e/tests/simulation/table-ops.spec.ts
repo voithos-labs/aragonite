@@ -69,7 +69,7 @@ test.describe('note-taking simulation: table row/column moves', () => {
 		await checkOracles('after-delete-row');
 		expect(await columnCount(page)).toBe(3);
 
-		// Delete the middle column (click any body cell in column 1 — index 4).
+		// Delete the middle column, clicking any body cell in column 1, which is index 4.
 		await g.deleteColumn(4);
 		await checkOracles('after-delete-column');
 		expect(await columnCount(page)).toBe(2);

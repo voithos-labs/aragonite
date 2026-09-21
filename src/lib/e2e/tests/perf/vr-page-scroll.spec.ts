@@ -159,7 +159,7 @@ test('a search jump reveals its match and scrolls the page to it', async ({ page
 	const pageErrors = capturePageErrors(page);
 	await gotoPageScroll(page);
 
-	// Unique to one far block, and windowed out while the reader sits at the top.
+	// Unique to one far block, and unmounted while the user sits at the top.
 	const match = page.locator('.editor [data-block-path="[147]"]');
 	await expect(match).toHaveCount(0);
 

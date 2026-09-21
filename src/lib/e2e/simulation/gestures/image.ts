@@ -48,7 +48,7 @@ export async function resizeImage(
 	for (let step = 1; step <= steps; step++) {
 		await page.keyboard.press(direction === 'right' ? 'Shift+ArrowRight' : 'Shift+ArrowLeft');
 		expected = Math.max(KEYBOARD_MIN_WIDTH, start + delta * step);
-		// Match the full `|N]` token — a bare `|420` is a prefix of `|4200`.
+		// Match the whole `|N]`, since a bare `|420` is the start of `|4200`.
 		await editor.bridge.waitForSourceContains(`|${expected}]`);
 	}
 	// The width on screen, not just the `|N` in the source: the image re-renders from an effect
