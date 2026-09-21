@@ -1,5 +1,5 @@
 /**
- * The editor's default theme, in two groups (consumer-guide.md § Theming). Host-chrome tokens
+ * The editor's default theme, in two tiers (consumer-guide.md § Theming). Host-chrome tokens
  * default only behind the opt-in `.aragonite-editor-theme` class, so a themed host's own cascade
  * reaches the editor with nothing in between (G4.6d); editor-owned tokens, and the host-family
  * ones a host theme rarely names, default on `.editor` too. `:where()` holds specificity at 0 so
