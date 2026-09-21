@@ -68,7 +68,7 @@ describe('checkRegistryCompleteness (G1.2)', () => {
 		).toBeNull();
 	});
 
-	it('keeps the exemption narrow — a non-exempt missing component still fires', () => {
+	it('keeps the exemption narrow: a non-exempt missing component still fires', () => {
 		const violation = checkRegistryCompleteness(
 			['listItem', 'list'],
 			() => true,

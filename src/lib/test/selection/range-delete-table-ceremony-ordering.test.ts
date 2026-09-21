@@ -36,7 +36,7 @@ function run(source: string, start: SelectionPoint, end: SelectionPoint) {
 	return { doc: result.newDoc, source: serialize(result.newDoc), caret: result.collapsedCaret };
 }
 
-describe('cross-block delete ceremony — per-case ordering survives the shared path', () => {
+describe('cross-block delete commit sequence: per-case ordering survives the shared path', () => {
 	it('Case 1 (prose→table): the between block drops and the start truncates through the shared path', () => {
 		// para[0], mid[1], table[2]. mid is strictly between → deleted, shifting the table [2]→[1]. The
 		// start truncates after the delete; before would shift the between/end deletion paths mid-plan.
@@ -57,7 +57,7 @@ describe('cross-block delete ceremony — per-case ordering survives the shared 
 		expect(source).not.toContain('mid');
 	});
 
-	it('Case 2 (table→prose): end replaces BEFORE the delete; surviving tail resolves its shifted path by identity', () => {
+	it('Case 2 (table→prose): end replaces before the delete; surviving tail resolves its shifted path by identity', () => {
 		// table[0] survives, mid[1], tail[2]. mid deleted → tail [2]→[1]. The end tail is replaced at
 		// its live path first, then found again by identity; replacing after would hit a stale position.
 		const { doc, source, caret } = run(

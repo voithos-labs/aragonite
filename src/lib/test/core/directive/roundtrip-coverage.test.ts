@@ -295,17 +295,17 @@ describe('directive total-coverage round-trip', () => {
 
 	// Reachability evidence: the SAME arbitrary the properties run on must be able
 	// to produce the bug-carrying shapes, or the coverage is illusory.
-	it('CAN generate a container nested inside a container', () => {
+	it('can generate a container nested inside a container', () => {
 		expect(samples.some((src) => hasNesting(parse(src).children))).toBe(true);
 	});
 
-	it('CAN generate a container whose info carries non-ASCII bytes', () => {
+	it('can generate a container whose info carries non-ASCII bytes', () => {
 		const infos: string[] = [];
 		for (const src of samples) collectContainerInfos(parse(src).children, infos);
 		expect(infos.some(isNonAscii)).toBe(true);
 	});
 
-	it('CAN generate a text directive adjacent to a real link in one paragraph', () => {
+	it('can generate a text directive adjacent to a real link in one paragraph', () => {
 		const found = samples.some((src) =>
 			parse(src).children.some((block) => {
 				if (block.kind !== 'paragraph') return false;
@@ -321,7 +321,7 @@ describe('directive total-coverage round-trip', () => {
 
 // Shapes the generator under-weights, each pinning the structural fact the round-trip
 // cannot see: the serializer emits raw verbatim, so a wrong kind still round-trips.
-describe('directive round-trip — adversarial interleaving + edge cases', () => {
+describe('directive round-trip: adversarial interleaving + edge cases', () => {
 	const containerBodies: Array<[label: string, src: string]> = [
 		['list', ':::box\n- a\n- b\n:::\n'],
 		['table', ':::box\n| h |\n| --- |\n| c |\n:::\n'],
@@ -375,7 +375,7 @@ describe('directive round-trip — adversarial interleaving + edge cases', () =>
 		expect(parse(src).children.map((c) => c.kind)).toEqual(['directiveContainer', 'directiveLeaf']);
 	});
 
-	it('round-trips all three tiers mixed in one document', () => {
+	it('round-trips all three levels mixed in one document', () => {
 		const src = ':::box\ninner\n:::\n::toc\nsee :ab[c]{k=v} and [x](y)\n';
 		expect(serialize(parse(src))).toBe(src);
 	});

@@ -59,7 +59,7 @@ describe('tokenizeBody', () => {
 		}
 	});
 
-	it('restores CRLF endings — textContent equals the CRLF body verbatim', () => {
+	it('restores CRLF endings: textContent equals the CRLF body verbatim', () => {
 		const frag = tokenizeBody('let a = 1\r\nlet b = 2\r\n', 'js');
 		expect(frag.textContent).toBe('let a = 1\r\nlet b = 2\r\n');
 		expect(frag.querySelector('.code-tok-keyword')?.textContent).toBe('let');
@@ -73,7 +73,7 @@ describe('tokenizeBody', () => {
 		expect(frag.querySelector('.code-tok-string')?.textContent).toBe('`a\r\nb`');
 	});
 
-	it('ignoreIllegals — mid-typing invalid syntax does not throw', () => {
+	it('ignoreIllegals: mid-typing invalid syntax does not throw', () => {
 		expect(() => tokenizeBody('const x = ', 'javascript')).not.toThrow();
 	});
 });

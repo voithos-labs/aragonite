@@ -23,7 +23,7 @@ async function settle(): Promise<void> {
 }
 
 describe('createNavigationQueue', () => {
-	it('runs one navigation at a time — a mid-flight navigate starts no concurrent one', async () => {
+	it('runs one navigation at a time: a mid-flight navigate starts no concurrent one', async () => {
 		const { calls, navigateTo, resolveNext } = deferredNavigateTo();
 		const queue = createNavigationQueue({ navigateTo });
 

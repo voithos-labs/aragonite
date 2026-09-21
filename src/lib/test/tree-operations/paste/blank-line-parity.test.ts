@@ -205,7 +205,7 @@ describe('a clipboard’s trailing blank line is content', () => {
 	// and a clipboard normalized to LF at every entry point cannot say which ending (G4.20).
 	// Miss-analysis: the CRLF-mirror check's gestures drew no paste at the document tail, and
 	// G4.20's shape scans see literal newlines only, which a data-derived suffix never is.
-	it('mints the tail separator in a CRLF document’s own ending', async () => {
+	it('creates the tail separator in a CRLF document’s own ending', async () => {
 		const { doc } = await pasteLive(parse('x\r\n'), [0], 1, '# h\n\n');
 
 		expect(doc.suffix).toBe('\r\n');

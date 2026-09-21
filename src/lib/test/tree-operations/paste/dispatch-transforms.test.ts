@@ -71,7 +71,7 @@ describe('paste-dispatch opaque-fallback warning', () => {
 
 // ── Paste transforms rewrite the clipboard text before strategy selection ────
 
-describe('pasteDispatch — paste transforms', () => {
+describe('pasteDispatch: paste transforms', () => {
 	beforeEach(() => {
 		__resetPasteSurfacesForTests();
 		__resetPasteTransformsForTests();

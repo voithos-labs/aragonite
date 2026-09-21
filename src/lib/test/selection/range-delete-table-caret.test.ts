@@ -23,7 +23,7 @@ function run(source: string, start: SelectionPoint, end: SelectionPoint) {
 	return { doc: result.newDoc, caret: result.collapsedCaret };
 }
 
-describe('rangeDelete — across two top-level tables (char-addressable caret)', () => {
+describe('rangeDelete: across two top-level tables (char-addressable caret)', () => {
 	it('both tables survive: caret lands in the start table anchor cell with a char offset', () => {
 		// Tables A=[0], B=[1], 6 cells each. Anchor cell 3 of A (row 1, col 1), focus inclusive cell 2
 		// of B: A's cell (1,1) clears and its last body row drops; B's header row drops.

@@ -19,7 +19,7 @@ const markersOf = (list: CstNode) => list.children!.map((c) => metadataOf(c, 'li
 
 // ── splitItemAtOffset descriptor correctness ───────────────────────────────
 
-describe('list-context — splitItemAtOffset', () => {
+describe('list-context: splitItemAtOffset', () => {
 	it('keeps state ids/refs aligned with item.children after trailing-children split', async () => {
 		const doc = parse('- a\n\n  b\n\n  c\n');
 		const list = doc.children[0];
@@ -166,7 +166,7 @@ describe('list-context — splitItemAtOffset', () => {
 
 // ── insertItemAfter marker + task inheritance ──────────────────────────────
 
-describe('list-context — insertItemAfter', () => {
+describe('list-context: insertItemAfter', () => {
 	it('inherits the task marker and bumps an ordered marker', async () => {
 		const doc = parse('1. [ ] a\n');
 		const list = doc.children[0];
@@ -216,7 +216,7 @@ describe('list-context — insertItemAfter', () => {
 
 // The same rule as a paste into a list: the destination list's marker wins over the moved
 // item's own, and the origin renumbers around the survivor it keeps.
-describe('list-context — a moved item adopts its destination marker', () => {
+describe('list-context: a moved item adopts its destination marker', () => {
 	it.each([
 		{
 			name: 'indent: a "1. " item moved into a "1) " sublist adopts ") "',

@@ -150,7 +150,7 @@ describe('G2.12 caret placement ends a live cross-block range', () => {
 		expect(sources.length).toBeGreaterThan(0);
 	});
 
-	it('every native-caret gesture reaches every door it declares', () => {
+	it('every native-caret gesture reaches every entry point it declares', () => {
 		const offenders: string[] = [];
 		for (const [relPath, door] of Object.entries(CARET_GESTURE_DOORS)) {
 			const file = byPath.get(relPath);
@@ -200,7 +200,7 @@ describe('G2.12 caret placement ends a live cross-block range', () => {
 
 	// ── Calling parkCaret ────────────────────────────────────────────────────
 
-	it('only declared extend paths and door implementations call parkCaret', () => {
+	it('only declared extend paths and entry point implementations call parkCaret', () => {
 		const callers = sources
 			.filter((f) => PARK_CALL_RE.test(f.code))
 			.map((f) => f.relPath)
@@ -213,7 +213,7 @@ describe('G2.12 caret placement ends a live cross-block range', () => {
 		).toEqual(Object.keys(PARK_DOOR_CALLERS).sort());
 	});
 
-	it('every declared park caller still calls the door (no dead entry)', () => {
+	it('every declared `parkCaret` caller still calls it (no dead entry)', () => {
 		for (const [relPath, why] of Object.entries(PARK_DOOR_CALLERS)) {
 			const file = byPath.get(relPath);
 			expect(file, `\`parkCaret\` caller not found: ${relPath} (${why})`).toBeDefined();
@@ -243,7 +243,7 @@ describe('G2.12 caret placement ends a live cross-block range', () => {
 		).toEqual([]);
 	});
 
-	it('every declared container-seam module still mints the surface (no dead entry)', () => {
+	it('every declared container caret module still creates the surface (no dead entry)', () => {
 		for (const relPath of CONTAINER_SEAM_MODULES) {
 			const file = byPath.get(relPath);
 			expect(file, `container caret module not found: ${relPath}`).toBeDefined();
@@ -251,7 +251,7 @@ describe('G2.12 caret placement ends a live cross-block range', () => {
 		}
 	});
 
-	it('a block forwarding a seam’s focus forwards that seam’s parkCaret too', () => {
+	it('a block forwarding a shared helper’s focus forwards its `parkCaret` too', () => {
 		const offenders = sources
 			.filter((f) => unforwardedParkSeams(f.code).length > 0)
 			.map((f) => `${f.relPath}: ${unforwardedParkSeams(f.code).join(', ')}`)
@@ -276,7 +276,7 @@ describe('G2.12 caret placement ends a live cross-block range', () => {
 
 	// A file-level "either call" check reads the sibling handler's delegate call and passes a
 	// rendered view that resets nothing, which is why `both` exists.
-	it('a two-gesture file with only the delegate door is reported', () => {
+	it('a two-gesture file with only the delegate entry point is reported', () => {
 		expect(missingDoors('if (crossBlock.handlePointerDown(e)) return;', 'both')).toEqual([
 			'resetForPointerDown'
 		]);
@@ -291,7 +291,7 @@ describe('G2.12 caret placement ends a live cross-block range', () => {
 		).toEqual([]);
 	});
 
-	it('the park-call matcher reads both call spellings and ignores a bare forward', () => {
+	it('the put the caret-call matcher reads both call spellings and ignores a bare forward', () => {
 		expect(PARK_CALL_RE.test('ref.parkCaret?.(offset)')).toBe(true);
 		expect(PARK_CALL_RE.test('surface.parkCaret(offset)')).toBe(true);
 		expect(PARK_CALL_RE.test('refs[last]?.parkCaret?.(FOCUS_LAST_START)')).toBe(true);
@@ -317,7 +317,7 @@ describe('G2.12 caret placement ends a live cross-block range', () => {
 		expect(CONTAINER_API_EXPORT_RE.test('export { blockListProps };')).toBe(false);
 	});
 
-	it('the forward check names the seam that lost its park door', () => {
+	it('the forward check names the module that lost its `parkCaret`', () => {
 		expect(unforwardedParkSeams('export const focus = leaf.focus;')).toEqual(['leaf']);
 		expect(
 			unforwardedParkSeams(

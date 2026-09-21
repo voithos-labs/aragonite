@@ -66,7 +66,7 @@ describe('a selection running out of one construct and into another', () => {
 
 describe('a selection that closes a construct against the one below it', () => {
 	// The delete's own inverse of the split: what is left of the two blocks meets closer to opener.
-	it('the pair enclosing nothing at the seam goes', () => {
+	it('the pair enclosing nothing at the join goes', () => {
 		expect(deleteRange('Some **bo**\n\nX**ld** text\n', at(0, 11), at(1, 1), 'live')).toBe(
 			'Some **bold** text\n'
 		);
@@ -79,7 +79,7 @@ describe('a selection that closes a construct against the one below it', () => {
 	});
 });
 
-describe('joins the seam has no business touching', () => {
+describe('joins the cleanup has no business touching', () => {
 	it('leaves an ordinary paragraph merge alone', () => {
 		expect(deleteRange('hello world\n\nfoo bar\n', at(0, 6), at(1, 4), 'live')).toBe('hello bar\n');
 	});

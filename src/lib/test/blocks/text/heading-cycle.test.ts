@@ -21,7 +21,7 @@ function block(source: string): {
 	};
 }
 
-describe('cycleHeading — prose shapes', () => {
+describe('cycleHeading: prose shapes', () => {
 	it('marks a paragraph', () => {
 		expect(block('Hello\n').cycle(1, 0)).toEqual({ newRaw: '# Hello\n', caretOffset: 2 });
 	});
@@ -50,7 +50,7 @@ describe('cycleHeading — prose shapes', () => {
 	});
 });
 
-describe('cycleHeading — shapes a marker regex cannot reach', () => {
+describe('cycleHeading: shapes a marker regex cannot reach', () => {
 	// Up to three leading spaces still open an ATX heading, and `^#{1,6}` never reaches that
 	// marker: re-marking by regex leaves the old one standing as heading text, once per keypress.
 	it('gives up a space-indented ATX marker instead of writing a second one', () => {
@@ -74,7 +74,7 @@ describe('cycleHeading — shapes a marker regex cannot reach', () => {
 
 // The `applies` check in TextEditableBlock reads this predicate; these are the kinds that bind
 // TEXT_EDITABLE_KEYMAP without being prose, where an ATX prefix is content, not structure.
-describe('cycleHeading — the kinds the arm must decline', () => {
+describe('cycleHeading: the kinds the branch must decline', () => {
 	it.each([
 		['[a]: /url\n', 'linkReferenceDefinition'],
 		['    code\n', 'indentedCode'],

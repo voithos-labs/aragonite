@@ -45,7 +45,7 @@ describe('one blank line separates; the rest are blocks', () => {
 		]);
 	});
 
-	it('takes the run’s FIRST line as the separator, whatever its bytes', () => {
+	it('takes the run’s first line as the separator, whatever its bytes', () => {
 		expect(layout(parse('a\n  \n\nb\n').children)).toEqual([
 			['paragraph', '', 'a\n'],
 			['paragraph', '  \n', '\n'],
@@ -65,7 +65,7 @@ describe('one blank line separates; the rest are blocks', () => {
 // ── Document head and tail ───────────────────────────────────────────────────
 
 describe('document-leading and -trailing runs', () => {
-	it('materializes a leading run in full — no preceding block to separate from', () => {
+	it('materializes a leading run in full: no preceding block to separate from', () => {
 		const doc = parse('\n\na\n');
 		expect(doc.prefix).toBe('');
 		expect(layout(doc.children)).toEqual([

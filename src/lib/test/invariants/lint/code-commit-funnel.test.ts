@@ -27,7 +27,7 @@ function commitDisplayBody(source: string): string {
 	throw new Error('unbalanced braces in commitDisplay');
 }
 
-describe('G4.24 code-surface commit funnel', () => {
+describe('G4.24 code-surface commit shared path', () => {
 	const source = readFileSync(CODE_BLOCK, 'utf8');
 
 	it('CodeBlock holds exactly one updateBlockContent call', () => {
@@ -38,7 +38,7 @@ describe('G4.24 code-surface commit funnel', () => {
 		).toBe(1);
 	});
 
-	it('that call is the funnel’s own', () => {
+	it('that call is the shared path’s own', () => {
 		expect(commitDisplayBody(source)).toContain(CALL);
 	});
 

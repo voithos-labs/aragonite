@@ -79,7 +79,7 @@ describe('a container the range holds whole paints one box', () => {
 		expect(ownOverlays(mounted).length).toBe(1);
 	});
 
-	it('paints no box of its own when the range ENDS inside it', () => {
+	it('paints no box of its own when the range ends inside it', () => {
 		const doc = parse('lead\n\n> quoted\n>\n> more\n\ntail\n');
 		const selection = createSelectionState();
 		selection.enterCrossBlock({ path: [0], offset: 0 }, { path: [1, 1], offset: 2 });

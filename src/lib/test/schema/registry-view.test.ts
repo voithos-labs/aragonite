@@ -72,7 +72,7 @@ describe('enablement filter', () => {
 		expect(view.component(kind)).toBeUndefined();
 	});
 
-	it('the descriptor is never filtered — a disabled kind still degrades, not throws', () => {
+	it('the descriptor is never filtered: a disabled kind still degrades, not throws', () => {
 		const view = createRegistryView({ isEnabled: (k) => k !== kind });
 		expect(view.descriptor(kind)).toBe(getBlockKindDescriptor(kind));
 	});
@@ -90,7 +90,7 @@ describe('enablement filter', () => {
 		expect(parse('@x hi\n', { grammar: enabled.grammar }).children[0].kind).toBe(kind);
 	});
 
-	it('built-ins are never disableable — the predicate domain is plugin kinds', () => {
+	it('built-ins are never disableable: the predicate domain is plugin kinds', () => {
 		const disableEverything = createRegistryView({ isEnabled: () => false });
 		// A blanket "disable all" must drop only the plugin opener: a built-in losing its opener
 		// here would mean the predicate reached past plugin kinds.

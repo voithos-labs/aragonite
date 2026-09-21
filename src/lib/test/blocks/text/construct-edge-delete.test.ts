@@ -106,7 +106,7 @@ describe('a press past a hidden run takes the content character, never a delimit
 // run here and every byte the key could take is one the user saw.
 // Miss-analysis: every case ran against blocks holding content, where the delimiters really are
 // hidden, so the branch reading a construct as one unseen unit was never asked if it was visible.
-describe('painted chrome leaves the press to the engine', () => {
+describe('painted chrome leaves the press to the browser', () => {
 	it('declines at both ends of a link with no text', () => {
 		expect(del('[](u)', 5, 'backward', true)).toBeNull();
 		expect(del('[](u)', 0, 'forward', true)).toBeNull();
@@ -260,7 +260,7 @@ describe('the whole-construct branch reads the node, not the kind', () => {
 
 	// This module's own rule, not a gesture a user can make: live mode draws the image as an
 	// atomic widget the widget branch takes first. A per-kind `atomic` would delete the picture.
-	it('takes one alt character out of an image, whose alt IS content', () => {
+	it('takes one alt character out of an image, whose alt is content', () => {
 		expect(del('A ![a](u) B', 9)).toEqual({ raw: 'A ![](u) B', caret: 4 });
 	});
 });

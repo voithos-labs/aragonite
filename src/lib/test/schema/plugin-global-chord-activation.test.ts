@@ -75,7 +75,7 @@ describe('a plugin-global chord is claimed only where the plugin is activated', 
 		expect(ran).toBe(0);
 	});
 
-	it('the process-wide tier still enumerates every registered chord', () => {
+	it('the process-wide level still enumerates every registered chord', () => {
 		expect(pluginGlobalChords(everyInstalledPlugin)).toContain(CHORD);
 		expect(pluginGlobalChords(listing)).toContain(CHORD);
 		expect(pluginGlobalChords(notListing)).not.toContain(CHORD);

@@ -23,13 +23,13 @@ afterEach(() => {
 });
 
 describe('block-command registry', () => {
-	it('mints a branded id and resolves the handler by (kind,id)', () => {
+	it('creates a branded id and resolves the handler by (kind,id)', () => {
 		const id = registerBlockCommand(note, 'callout.setKind', () => true);
 		expect(typeof id).toBe('string');
 		expect(getBlockCommand(note, id)).toBeTypeOf('function');
 	});
 
-	it('is register-once — a duplicate (kind,name) throws', () => {
+	it('is register-once: a duplicate (kind,name) throws', () => {
 		registerBlockCommand(note, 'callout.setKind', () => true);
 		expect(() => registerBlockCommand(note, 'callout.setKind', () => true)).toThrow(
 			/register-once/i

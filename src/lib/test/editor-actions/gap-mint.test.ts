@@ -13,7 +13,7 @@ const FENCE = '```\ncode\n```\n';
 /** paragraph, table, fencedCode, paragraph — the eligible boundary is 2. */
 const TABLE_THEN_FENCE = `para\n\n${TABLE}\n${FENCE}\ntail\n`;
 
-describe('a paragraph minted at a boundary round-trips', () => {
+describe('a paragraph created at a boundary round-trips', () => {
 	it('carries its text between a table and a fence', async () => {
 		const h = makeTopHarness(TABLE_THEN_FENCE);
 
@@ -32,7 +32,7 @@ describe('a paragraph minted at a boundary round-trips', () => {
 
 	// A blank block is itself a blank line (G2.13), so it shares the follower's separator rather
 	// than stacking a second one that would reload as an extra empty paragraph.
-	it('is empty when Enter mints it, and shares its follower separator', async () => {
+	it('is empty when Enter creates it, and shares its follower separator', async () => {
 		const h = makeTopHarness(TABLE_THEN_FENCE);
 
 		await h.actions.insertParagraph(2, '');
@@ -45,7 +45,7 @@ describe('a paragraph minted at a boundary round-trips', () => {
 	// The first block's own fill correctly declines a separator at bodyStart, so the block the
 	// new paragraph displaced is the one that needs the line, in source only, which no byte
 	// round-trip sees.
-	it('hands the displaced head its own separator once the mint is typed into', async () => {
+	it('hands the displaced head its own separator once the new block is typed into', async () => {
 		const h = makeTopHarness(`${TABLE}\n${FENCE}`);
 
 		await h.actions.insertParagraph(0, '');
@@ -77,7 +77,7 @@ describe('a paragraph minted at a boundary round-trips', () => {
 		expect(serialize(h.doc)).not.toContain('\n\n');
 	});
 
-	it('emits insertBlock at the minted block, not at the boundary neighbour', async () => {
+	it('emits insertBlock at the created block, not at the boundary neighbour', async () => {
 		const h = makeTopHarness(TABLE_THEN_FENCE);
 
 		await h.actions.insertParagraph(2, 'x');
@@ -87,7 +87,7 @@ describe('a paragraph minted at a boundary round-trips', () => {
 	});
 });
 
-describe('a paragraph minted inside a container', () => {
+describe('a paragraph created inside a container', () => {
 	// The scope-end boundary containers own: index === children.length, which the root excludes.
 	it('lands inside the quote at the scope-end boundary', async () => {
 		const h = makeNestedHarness(`> para\n>\n> \`\`\`\n> code\n> \`\`\`\n`, { index: 0 });

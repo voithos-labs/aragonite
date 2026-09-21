@@ -39,7 +39,7 @@ function makeEnv(source: string) {
 	return { ...harness, controller, mutCtx };
 }
 
-describe('a cross-block delete whose settle folds a seam above the selection', () => {
+describe('a cross-block delete whose settle folds a join above the selection', () => {
 	it('publishes one doc id per surviving block, and the absorber keeps its own', async () => {
 		const env = makeEnv(ABSORBING_NEIGHBOUR);
 		const listId = env.getBlockIds()[0];

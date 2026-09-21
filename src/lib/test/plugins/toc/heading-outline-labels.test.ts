@@ -13,7 +13,7 @@ function label(src: string): string {
 	return projectInlineText(computeInlineContent(node), node.raw);
 }
 
-describe('projectInlineText — clean heading labels', () => {
+describe('projectInlineText: clean heading labels', () => {
 	const cases: Array<[string, string, string]> = [
 		['drops emphasis markers', '# Plain *Bold* text\n', 'Plain Bold text'],
 		['unwraps inline code', '# a `code` span\n', 'a code span'],
@@ -30,7 +30,7 @@ describe('projectInlineText — clean heading labels', () => {
 
 // An emoji shortcode in a heading renders as its glyph, not its `:shortcode:` bytes:
 // the widget branch of the projection rule.
-describe('projectInlineText — emoji glyph projection', () => {
+describe('projectInlineText: emoji glyph projection', () => {
 	beforeEach(resetPluginPlatformForTests);
 	afterEach(resetPluginPlatformForTests);
 

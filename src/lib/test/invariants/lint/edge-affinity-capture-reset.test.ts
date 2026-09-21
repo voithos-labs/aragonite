@@ -52,7 +52,7 @@ function unpaired(sources: SourceFile[], sticky: RegExp, affinity: RegExp): stri
 		.map(({ relPath, sticky, affinity }) => `${relPath}: ${sticky} sticky / ${affinity} affinity`);
 }
 
-describe('G4.31 affinity-reaches-every-sticky-seam guard', () => {
+describe('G4.31 affinity reaches every sticky capture point', () => {
 	const sources = collectEditorSources();
 
 	it('inspected at least one editor source file', () => {
@@ -70,7 +70,7 @@ describe('G4.31 affinity-reaches-every-sticky-seam guard', () => {
 		).toEqual([]);
 	});
 
-	it('every sticky capture door also classifies the arrival side', () => {
+	it('every sticky capture entry point also classifies the arrival side', () => {
 		const offenders = unpaired(sources, STICKY_NOTE_KEY_RE, AFFINITY_NOTE_RE).filter(
 			(line) => !(line.split(':')[0] in CAPTURE_EXCEPTIONS)
 		);
@@ -81,7 +81,7 @@ describe('G4.31 affinity-reaches-every-sticky-seam guard', () => {
 		).toEqual([]);
 	});
 
-	it('the doors the scan finds are the ones the map names', () => {
+	it('the entry points the scan finds are the ones the map names', () => {
 		const captureDoors = sources
 			.filter((f) => count(f.code, STICKY_NOTE_KEY_RE) > 0)
 			.map((f) => f.relPath)
@@ -107,7 +107,7 @@ describe('G4.31 affinity-reaches-every-sticky-seam guard', () => {
 		).toEqual(['src/lib/components/Editor.svelte']);
 	});
 
-	it('no module clears the marks at a seam of its own', () => {
+	it('no module clears the marks at a join of its own', () => {
 		const offenders = sources
 			.filter((f) => count(f.code, MARKS_CLEAR_CALL_RE) > 0)
 			.map((f) => `${f.relPath}: ${count(f.code, MARKS_CLEAR_CALL_RE)} pendingMarks.reset()`);
@@ -118,7 +118,7 @@ describe('G4.31 affinity-reaches-every-sticky-seam guard', () => {
 		).toEqual([]);
 	});
 
-	it('the marks are spent at the seats that write bytes, and nowhere else', () => {
+	it('the marks are spent at the puts the caret that write bytes, and nowhere else', () => {
 		const spenders = sources
 			.filter((f) => count(f.code, MARKS_SPEND_RE) > 0)
 			.map((f) => f.relPath)
@@ -164,7 +164,7 @@ describe('G4.31 affinity-reaches-every-sticky-seam guard', () => {
 		]);
 	});
 
-	it('a new capture door with no affinity classification is caught', () => {
+	it('a new capture entry point with no affinity classification is caught', () => {
 		const rogue: SourceFile = {
 			relPath: 'src/lib/rogue-keydown.ts',
 			text: '',
@@ -177,7 +177,7 @@ describe('G4.31 affinity-reaches-every-sticky-seam guard', () => {
 
 	// ── Matcher self-tests (non-vacuity) ─────────────────────────────────────
 
-	it('an affinity-only clear is not an offence — a mode flip invalidates the side alone', () => {
+	it('an affinity-only clear is not an offence: a mode flip invalidates the side alone', () => {
 		const modeFlip: SourceFile = {
 			relPath: 'src/lib/mode-flip.ts',
 			text: '',
@@ -195,12 +195,12 @@ describe('G4.31 affinity-reaches-every-sticky-seam guard', () => {
 
 	// The third function has to be spelled out in both patterns: a pattern anchored on `note\(`
 	// reads it as neither a capture nor a clear, so a file paired only by it scanned as unpaired.
-	it('the third capture door counts on both axes', () => {
+	it('the third capture entry point counts on both axes', () => {
 		expect(count('ctx.edgeAffinity.noteExtreme();', AFFINITY_NOTE_RE)).toBe(1);
 		expect(count('ctx.edgeAffinity.noteExtreme();', AFFINITY_CLEAR_RE)).toBe(1);
 	});
 
-	it('a door paired only by noteExtreme is not an offence on either axis', () => {
+	it('an entry point paired only by noteExtreme is not an offence on either axis', () => {
 		const collapse: SourceFile = {
 			relPath: 'src/lib/rogue-collapse.ts',
 			text: '',

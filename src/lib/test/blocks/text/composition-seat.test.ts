@@ -65,7 +65,7 @@ describe('the window is captured at noteStart, not read at the commit', () => {
 		});
 	});
 
-	it('answers null outside a window — before any start, and after noteEnd', () => {
+	it('answers null outside a window: before any start, and after noteEnd', () => {
 		const live = liveState(BOLD, 'far');
 		const seat = makeSeat(live);
 		expect(seat.relocate('Some **boldかん** text', 11)).toBeNull();
@@ -124,8 +124,8 @@ describe('a composition that commits nothing returns the marks it took', () => {
 	});
 });
 
-describe('a selection captured at noteStart routes the commit to the join seam', () => {
-	it('hands the seam the range and the extracted run', () => {
+describe('a selection captured at noteStart routes the commit to the join', () => {
+	it('hands the join the range and the extracted run', () => {
 		const live = liveState(BOLD, 'far');
 		live.range = { start: 5, end: 13 };
 		const seat = makeSeat(live);

@@ -136,7 +136,7 @@ describe('editor-root clipboard routing', () => {
 		expect(h.fire('copy', document.body).written.size).toBe(0);
 	});
 
-	it('declines the body arm when a second editor holds the claim', () => {
+	it('declines the body branch when a second editor holds the claim', () => {
 		const h = harness();
 		const other = document.createElement('div');
 		document.body.append(other);
@@ -165,7 +165,7 @@ describe('editor-root clipboard routing', () => {
 
 	// A selected inline widget is the second state whose event lands here: selecting one
 	// clears the native selection, and in a block with no text position nothing restores it.
-	describe('selected-widget arm', () => {
+	describe('selected-widget branch', () => {
 		function widgetBlock() {
 			const seen: string[] = [];
 			const block = {
@@ -210,7 +210,7 @@ describe('editor-root clipboard routing', () => {
 		// The editor never shows both states at once, so the widget is the final answer:
 		// writing the cross-block range as well would serve a selection its own caller
 		// cannot have handed it. The block here writes nothing, so any write is the range's.
-		it('never falls through to the cross-block arm, even with a range live', () => {
+		it('never falls through to the cross-block branch, even with a range live', () => {
 			const { block, seen } = widgetBlock();
 			const h = harness({ widgetBlock: block });
 			h.selection.enterCrossBlock({ path: [0], offset: 0 }, { path: [1], offset: 5 });
@@ -223,7 +223,7 @@ describe('editor-root clipboard routing', () => {
 	// The host hook must be offered the files before the cross-block handling, which
 	// throws an image-only paste away for having no text/plain.
 	describe('image-bearing paste', () => {
-		it('offers the files to the host hook before the cross-block arm', async () => {
+		it('offers the files to the host hook before the cross-block branch', async () => {
 			const imported: string[] = [];
 			const h = harness({
 				onPasteImage: async (image) => {

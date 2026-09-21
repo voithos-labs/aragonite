@@ -29,7 +29,7 @@ function makeMergeFixture() {
 	return { doc, targetLeaf, rawBefore: targetLeaf.raw };
 }
 
-describe('paste-dispatch — applyContainerMatchingMerge mutate-inside-commit invariant', () => {
+describe('paste-dispatch: applyContainerMatchingMerge mutate-inside-commit invariant', () => {
 	it('singleton-merge: targetLeaf.raw is unchanged until commitMultiScope.mutate runs', async () => {
 		const { doc, targetLeaf, rawBefore } = makeMergeFixture();
 
@@ -102,7 +102,7 @@ describe('paste-dispatch — applyContainerMatchingMerge mutate-inside-commit in
 
 // ── Cross-block inline join reparse ──────────────────────────────────────────
 
-describe('pasteDispatch — cross-block inline join reparse', () => {
+describe('pasteDispatch: cross-block inline join reparse', () => {
 	beforeEach(() => {
 		__resetPasteSurfacesForTests();
 		registerPasteSurface(__getDefaultTextSurface('paragraph'));
@@ -110,7 +110,7 @@ describe('pasteDispatch — cross-block inline join reparse', () => {
 
 	// A join paste completing marker syntax at offset 0 must put a node of the reparsed kind in
 	// the position, mirroring the non-join sibling's reparse path, or parse(serialize(live)) diverges.
-	it('completing an ordered-list marker re-mints the block as a list', async () => {
+	it('completing an ordered-list marker re-creates the block as a list', async () => {
 		const { deps } = makeEditorActionsDeps(parse('. item\n').children);
 		expect(deps.doc.children[0].kind).toBe('paragraph');
 
@@ -150,7 +150,7 @@ describe('pasteDispatch — cross-block inline join reparse', () => {
 
 // ── pasteDispatch end-to-end routing ────────────────────────────────────────
 
-describe('pasteDispatch — strategy routing end-to-end', () => {
+describe('pasteDispatch: strategy routing end-to-end', () => {
 	// Registries are register-once, so the reset makes routing see the app's paste handlers
 	// independent of prior describes.
 	beforeEach(() => {

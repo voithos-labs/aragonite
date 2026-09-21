@@ -14,12 +14,12 @@ import { mark, replace, widget } from './fixtures/decorations';
 // appears, and that is reported where the source runs rather than passed over silently.
 const mixedDoc = parse('para\n\n---\n\n```\ncode\n```\n');
 
-describe('non-prose island dev-warn', () => {
+describe('non-prose widget dev-warn', () => {
 	function makeMixedEngine() {
 		return createDecorationEngine({ getDoc: () => mixedDoc });
 	}
 
-	it('warns naming the source, kind, and path when a widget island targets a non-prose block', () => {
+	it('warns naming the source, kind, and path when a widget decoration targets a non-prose block', () => {
 		makeMixedEngine().addSource({ name: 'w', provide: () => [widget([1], 0)] });
 		const fires = takeDevWarns();
 		expect(fires).toHaveLength(1);
@@ -29,7 +29,7 @@ describe('non-prose island dev-warn', () => {
 		expect(fires[0].details).toEqual({ path: [1] });
 	});
 
-	it('warns for a replace island on a fenced code block', () => {
+	it('warns for a replace decoration on a fenced code block', () => {
 		makeMixedEngine().addSource({ name: 'r', provide: () => [replace([2], 0, 1)] });
 		const fires = takeDevWarns();
 		expect(fires).toHaveLength(1);
@@ -39,14 +39,14 @@ describe('non-prose island dev-warn', () => {
 		expect(fires[0].details).toEqual({ path: [2] });
 	});
 
-	it('stays silent for an island on a table cell — the cell surface applies islands', () => {
+	it('stays silent for a widget on a table cell: the cell surface applies widgets', () => {
 		const tableDoc = parse('| a | b |\n| --- | --- |\n| c | d |\n');
 		const engine = createDecorationEngine({ getDoc: () => tableDoc });
 		engine.addSource({ name: 'cell', provide: () => [replace([0, 0, 0], 0, 1)] });
 		expect(takeDevWarns()).toEqual([]);
 	});
 
-	it('stays silent for islands on a prose block and for mark/block decorations anywhere', () => {
+	it('stays silent for widgets on a prose block and for mark/block decorations anywhere', () => {
 		makeMixedEngine().addSource({
 			name: 'ok',
 			provide: () => [
@@ -59,7 +59,7 @@ describe('non-prose island dev-warn', () => {
 		expect(takeDevWarns()).toEqual([]);
 	});
 
-	it('warns once per source+kind, not per island or per re-run', () => {
+	it('warns once per source+kind, not per widget or per re-run', () => {
 		const engine = makeMixedEngine();
 		const handle = engine.addSource({
 			name: 'w',
@@ -75,7 +75,7 @@ describe('non-prose island dev-warn', () => {
 // Miss-analysis: the render pass owned the out-of-range answer, and no test paired a source
 // with the document it read, so a decoration one edit out of date looked exactly like one the
 // author placed wrong, and the author was blamed for a re-run the editor had deferred.
-describe('out-of-range island dev-warn', () => {
+describe('out-of-range widget dev-warn', () => {
 	// 'one\n' and 'two\n': content length 3 apiece.
 	const doc = parse('one\n\ntwo\n');
 	function makeSized() {

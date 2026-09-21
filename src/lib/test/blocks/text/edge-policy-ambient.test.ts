@@ -92,7 +92,7 @@ describe('ambient-marker selection delete', () => {
 		}
 	);
 
-	it('a selection entirely inside the content does not touch the marker — not consumed', () => {
+	it('a selection entirely inside the content does not touch the marker: not consumed', () => {
 		const h = mount('abcd\n', { start: 1, end: 3 });
 		select([h.text, 1], [h.text, 3]);
 

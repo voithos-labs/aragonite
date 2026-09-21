@@ -85,7 +85,7 @@ function parseHtmlBlockFromSource(src: string) {
 	return parseHtmlBlock(lines, 0, lines.length, '', type);
 }
 
-describe('parseHtmlBlock — per-type close conditions', () => {
+describe('parseHtmlBlock: per-type close conditions', () => {
 	describe('type 1 (script/pre/style/textarea)', () => {
 		it('same-line open and close yields a one-line block', () => {
 			const { node, consumed } = parseHtmlBlockFromSource('<script>foo</script>\nafter\n');
@@ -153,12 +153,12 @@ describe('parseHtmlBlock — per-type close conditions', () => {
 	});
 
 	describe('type 6 (listed tag) and type 7 (catch-all)', () => {
-		it('type 6 closes on blank line; blank line is NOT part of block', () => {
+		it('type 6 closes on blank line; blank line is not part of block', () => {
 			const { node, consumed } = parseHtmlBlockFromSource('<div>\ncontent\n\nafter\n');
 			expect(node.raw).toBe('<div>\ncontent\n');
 			expect(consumed).toBe(2);
 		});
-		it('type 7 closes on blank line; blank line is NOT part of block', () => {
+		it('type 7 closes on blank line; blank line is not part of block', () => {
 			const { node, consumed } = parseHtmlBlockFromSource('<custom>\ncontent\n\nafter\n');
 			expect(node.raw).toBe('<custom>\ncontent\n');
 			expect(consumed).toBe(2);
@@ -204,7 +204,7 @@ describe('parse-level dispatch and interruption', () => {
 		expect(doc.children[1].kind).toBe('htmlBlock');
 		expect(doc.children[1].raw).toBe('<div>\ncontent\n');
 	});
-	it('paragraph does NOT split for type 7 (custom tag)', () => {
+	it('paragraph does not split for type 7 (custom tag)', () => {
 		const doc = parse('Hello world\n<custom-tag>\ncontent\n');
 		expect(doc.children).toHaveLength(1);
 		expect(doc.children[0].kind).toBe('paragraph');

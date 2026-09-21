@@ -20,7 +20,7 @@ function inputOpEmitters(sources: SourceFile[]): string[] {
 	return sources.filter((f) => f.code.match(DECLARES_INPUT_OP)).map((f) => f.relPath);
 }
 
-describe("input-op kind stability — only the debounced flush emits op:'input'", () => {
+describe("input-op kind stability: only the debounced flush emits op:'input'", () => {
 	const sources = collectEditorSources();
 
 	it('inspected at least one editor source file', () => {
@@ -38,7 +38,7 @@ describe("input-op kind stability — only the debounced flush emits op:'input'"
 	});
 });
 
-describe('input-op scan — matcher self-tests', () => {
+describe('input-op scan: matcher self-tests', () => {
 	const scan = (src: string) => inputOpEmitters([{ relPath: 'x.ts', text: src, code: src }]);
 
 	it('catches both declaration shapes', () => {

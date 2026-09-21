@@ -229,7 +229,7 @@ describe('G4.57 the scan lexer reads what TypeScript reads', () => {
 	const PROBE =
 		'const half = total / 2;\nconst re = /\'"/.test(s); // done\nconst t = `a ${b /* c */} d`;';
 
-	it('the oracle tells a division from a regex and reads inside both', () => {
+	it('the check tells a division from a regex and reads inside both', () => {
 		const classes = typescriptClasses(PROBE, 'probe.ts');
 		const classAt = (needle: string): string => LEXICAL_CLASSES[classes[PROBE.indexOf(needle)]];
 		expect(classAt('/ 2')).toBe('code');

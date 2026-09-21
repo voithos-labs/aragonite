@@ -7,14 +7,14 @@ import { stateAt, el } from './extend-walk-env';
 // Forward mirror of keyboard-extend-leaf-walk.test.ts.
 
 describe('extendFocusToNextBlock across a container boundary', () => {
-	it('Shift+ArrowDown descends into the container FIRST leaf, not the block after it', () => {
+	it('Shift+ArrowDown descends into the container first leaf, not the block after it', () => {
 		const doc = parse('para\n\n> a\n>\n> b\n');
 		const s = stateAt(doc, [0]);
 		expect(extendFocusToNextBlock(s, doc, el(), [0], 'vertical')).toBe(true);
 		expect(s.focus).toEqual({ path: [1, 0], offset: 0 });
 	});
 
-	it('Shift+ArrowRight from a container LAST leaf steps out to the START of the block below', () => {
+	it('Shift+ArrowRight from a container last leaf steps out to the start of the block below', () => {
 		const doc = parse('> a\n>\n> b\n\npara\n');
 		const s = stateAt(doc, [0, 1]);
 		expect(extendFocusToNextBlock(s, doc, el(), [0, 1], 'horizontal')).toBe(true);

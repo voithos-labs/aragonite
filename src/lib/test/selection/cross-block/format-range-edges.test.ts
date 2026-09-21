@@ -42,11 +42,11 @@ describe('a span whose edge lands on whitespace', () => {
 	for (const mode of [undefined, 'live'] as const) {
 		const label = mode ?? 'source';
 
-		it(`marks the word, not the space, on a head span — ${label}`, () => {
+		it(`marks the word, not the space, on a head span: ${label}`, () => {
 			expect(toggle(HEAD.source, HEAD.start, HEAD.end, mode)).toBe('**alpha**\n\n**beta** gamma\n');
 		});
 
-		it(`marks the word, not the space, on a tail span — ${label}`, () => {
+		it(`marks the word, not the space, on a tail span: ${label}`, () => {
 			expect(toggle(TAIL.source, TAIL.start, TAIL.end, mode)).toBe('alpha **beta**\n\n**gamma**\n');
 		});
 	}

@@ -29,7 +29,7 @@ afterEach(async () => {
 	document.body.innerHTML = '';
 });
 
-describe('CodeBlock — insertLineBreak composition gate', () => {
+describe('CodeBlock: insertLineBreak composition gate', () => {
 	it('mid-composition insertLineBreak does not sync the CST', async () => {
 		const { el, blockEdit } = mounted;
 		el.dispatchEvent(new CompositionEvent('compositionstart', { bubbles: true }));

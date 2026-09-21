@@ -25,7 +25,7 @@ describe('emoji shortcode is dormant until the plugin registers', () => {
 
 // The emoji recognizer on its own makes `:` a character the scanner stops on, with no
 // directive handler present.
-describe('the emoji rung alone makes `:` scan-visible', () => {
+describe('the emoji inline syntax handler alone makes `:` scan-visible', () => {
 	beforeEach(() => registerEmoji());
 
 	it('claims :smile: with only the emoji plugin installed', () => {

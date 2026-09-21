@@ -70,7 +70,7 @@ function makeContainer(source: string) {
 	return { doc: harness.doc, node, reorder, announced, focused };
 }
 
-describe('reorder announcement and landing — document scope', () => {
+describe('reorder announcement and landing: document scope', () => {
 	it('counts the siblings a fold left, not the ones the move started with', async () => {
 		// Moving the heading out from between the two paragraphs joins them.
 		const h = makeTop('a\n# h\nb\n');
@@ -105,7 +105,7 @@ describe('reorder announcement and landing — document scope', () => {
 	});
 });
 
-describe('reorder announcement and landing — container scope', () => {
+describe('reorder announcement and landing: container scope', () => {
 	it('counts the body blocks a fold left, not the pre-commit copy of them', async () => {
 		const h = makeContainer('> a\n> # h\n> b\n');
 

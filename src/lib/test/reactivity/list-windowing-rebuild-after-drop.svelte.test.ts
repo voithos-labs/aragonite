@@ -24,7 +24,7 @@ function proseOracle() {
 	});
 }
 
-describe('a structural rebuild after the oracle dropped its cache', () => {
+describe('a structural rebuild after the check dropped its cache', () => {
 	it('keeps every surviving block at the height the model measured', async () => {
 		const oracle = proseOracle();
 		const children = $state(Array.from({ length: BLOCKS }, (_, i) => makePara(`p${i}\n`)));

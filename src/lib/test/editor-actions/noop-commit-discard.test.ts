@@ -31,7 +31,7 @@ describe('noop structural commit discards its snapshot', () => {
 		registerDetailsKind();
 	});
 
-	it('splitting a chrome leaf (container scope) mints no entry and leaves bytes untouched', async () => {
+	it('splitting a chrome leaf (container scope) creates no entry and leaves bytes untouched', async () => {
 		const details = parse(DETAILS).children[0];
 		expect(details.children?.[0].kind).toBe('details-summary');
 
@@ -67,7 +67,7 @@ describe('noop structural commit discards its snapshot', () => {
 	});
 
 	// Control: a "discard everything" regression fails here.
-	it('a real paragraph split still mints one undo entry and one edit event', async () => {
+	it('a real paragraph split still creates one undo entry and one edit event', async () => {
 		const h = makeTopHarness('hello world\n');
 
 		await h.actions.splitBlock(0, 5);
@@ -81,7 +81,7 @@ describe('noop structural commit discards its snapshot', () => {
 // The rule M1 middle-item merge finds no target when the previous item's deepest leaf has no
 // editable text, and that no-op must discard like its block-edit-core sibling.
 describe('no-target list middle-item merge discards its commit', () => {
-	it('Backspace above an opaque prev leaf mints no entry and no merge event', async () => {
+	it('Backspace above an opaque prev leaf creates no entry and no merge event', async () => {
 		const doc = parse('- ```\n  code\n  ```\n- text\n');
 		const list = doc.children[0];
 		// So the case can fail: a reachable prose leaf would merge and legitimately commit.

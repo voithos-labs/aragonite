@@ -67,7 +67,7 @@ beforeEach(() => {
 });
 
 describe('handleSharedKeydown boundary detection', () => {
-	it('Shift+ArrowLeft crosses on the FOCUS offset even when the anchor is mid-block', async () => {
+	it('Shift+ArrowLeft crosses on the focus offset even when the anchor is mid-block', async () => {
 		const ctx = makeCtx({ cursorOffset: 5, focusOffset: 0, textLen: 5 });
 		const e = keydown('ArrowLeft');
 		expect(await handleSharedKeydown(e, ctx)).toBe(true);

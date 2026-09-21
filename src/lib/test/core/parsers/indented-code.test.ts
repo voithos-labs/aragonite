@@ -6,7 +6,7 @@ import { describeRoundTrips } from '$lib/test/support/round-trip';
 // GFM §4.4: a paragraph absorbs a following indented line structurally, so the only rule
 // the opener must honor is "no open paragraph to interrupt" — no blank line is required.
 
-describe('indented code — opening after a non-paragraph predecessor (GFM §4.4)', () => {
+describe('indented code, opening after a non-paragraph predecessor (GFM §4.4)', () => {
 	it('opens directly after a heading, with no blank line', () => {
 		expect(parse('# T\n    x\n').children.map((n) => n.kind)).toEqual(['heading', 'indentedCode']);
 	});
@@ -27,7 +27,7 @@ describe('indented code — opening after a non-paragraph predecessor (GFM §4.4
 	});
 });
 
-describe('indented code — never interrupts an open paragraph', () => {
+describe('indented code: never interrupts an open paragraph', () => {
 	it('an indented line after paragraph text is lazy continuation, not code', () => {
 		expect(parse('text\n    x\n').children.map((n) => n.kind)).toEqual(['paragraph']);
 	});
@@ -43,7 +43,7 @@ describe('indented code — never interrupts an open paragraph', () => {
 // Miss-analysis (C-M5): every fixture indented with literal spaces or a leading tab, so the
 // matcher's missing tab-column expansion — the one thematic-break.ts already carries — had no
 // case. Expected shapes verified against cmark-gfm via api.github.com/markdown.
-describe('indented code — a tab advances to the next 4-column stop (GFM §2.2)', () => {
+describe('indented code: a tab advances to the next 4-column stop (GFM §2.2)', () => {
 	const indents: { name: string; prefix: string; code: boolean }[] = [
 		{ name: 'two spaces then a tab', prefix: '  \t', code: true },
 		{ name: 'three spaces then a tab', prefix: '   \t', code: true },

@@ -12,7 +12,7 @@ beforeAll(() => {
 	installPlugins([admonitionsPlugin(), footnotesPlugin()]);
 });
 
-describe('resolveReorderUnit — strip plugin containers reorder within', () => {
+describe('resolveReorderUnit: strip plugin containers reorder within', () => {
 	it('a githubAlert body child resolves to the alert, not the document', () => {
 		const doc = parse('> [!NOTE]\n> a\n>\n> b\n');
 		expect(doc.children[0].kind).toBe('githubAlert');

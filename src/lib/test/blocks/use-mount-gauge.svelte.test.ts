@@ -30,7 +30,7 @@ describe('useMountGauge', () => {
 
 	// The gauge is a running balance, so both ends are decided once per mount. Re-reading
 	// `perfEnabled()` at teardown let a flip decrement a mount that was never counted.
-	it('does not decrement a mount it never counted when perf arms mid-life', () => {
+	it('does not decrement a mount it never counted when perf branches mid-life', () => {
 		disablePerfInstruments();
 		const dispose = $effect.root(() => {
 			useMountGauge();
@@ -45,7 +45,7 @@ describe('useMountGauge', () => {
 
 	// The other direction (disarm mid-life) is held by the counters' own gate: with the instrument
 	// off there is nothing to balance, and re-arming goes through resetPerfInstruments.
-	it('never reads negative across an arm flip on many mounts', () => {
+	it('never reads negative across a branch flip on many mounts', () => {
 		disablePerfInstruments();
 		const disposers = [0, 1, 2].map(() => $effect.root(() => useMountGauge()));
 		flushSync();

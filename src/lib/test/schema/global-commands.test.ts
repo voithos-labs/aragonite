@@ -42,7 +42,7 @@ beforeEach(() => {
 });
 
 describe('registerGlobalCommand', () => {
-	it('mints, registers, and the handler receives the per-instance EditorContext', () => {
+	it('creates, registers, and the handler receives the per-instance EditorContext', () => {
 		let got: EditorContext | undefined;
 		const id = registerGlobalCommand('demo.stats', (e) => ((got = e), true));
 		expect(getCommand(id)!(ctx())).toBe(true);
@@ -83,7 +83,7 @@ describe('registerGlobalCommand', () => {
 		expect(reports).toHaveLength(1);
 	});
 
-	it('chord registers into the plugin-global tier; built-in chords are unstealable', () => {
+	it('chord registers into the plugin-global level; built-in chords are unstealable', () => {
 		registerGlobalCommand('demo.chorded', () => true, { chord: 'Mod+Shift+9' });
 		expect(pluginGlobalBinding('Mod+Shift+9', everyInstalledPlugin)?.command).toBe('demo.chorded');
 		expect(isDefaultGlobalChord('Mod+Shift+9', everyInstalledPlugin)).toBe(true);
@@ -112,7 +112,7 @@ describe('registerGlobalCommand', () => {
 		expect(resolveBinding('W', 'paragraph', undefined, everyInstalledPlugin)).toBeNull();
 	});
 
-	it('a chord collision leaves no partial state — the name can still be minted afterward', () => {
+	it('a chord collision leaves no partial state: the name can still be created afterward', () => {
 		expect(() => registerGlobalCommand('demo.retry', () => true, { chord: 'Mod+Z' })).toThrow();
 		expect(() =>
 			registerGlobalCommand('demo.retry', () => true, { chord: 'Mod+Shift+6' })
@@ -173,7 +173,7 @@ describe('registerGlobalCommand owner attribution', () => {
 		__resetInstalledPluginsForTests();
 	});
 
-	it('names the owning plugin when a second plugin re-mints the same command', () => {
+	it('names the owning plugin when a second plugin re-creates the same command', () => {
 		installPlugins([
 			definePlugin({
 				name: 'first',

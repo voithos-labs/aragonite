@@ -47,8 +47,8 @@ function keyboardResize(raw: string): { consumed: boolean; commit: ReturnType<ty
 	return { consumed, commit };
 }
 
-describe('Shift+Arrow resize of an image a rung claimed', () => {
-	it('re-emits the rung’s own syntax when it registered a rewrite hook', () => {
+describe('Shift+Arrow resize of an image an inline syntax handler claimed', () => {
+	it('re-emits the inline syntax handler’s own syntax when it registered a rewrite hook', () => {
 		registerWikiRung(rewriteWikiImage);
 		const { consumed, commit } = keyboardResize('![[cat.png|300]]\n');
 		expect(consumed).toBe(true);
@@ -57,7 +57,7 @@ describe('Shift+Arrow resize of an image a rung claimed', () => {
 
 	// A GFM fallback here would come back `![cat.png|320](cat.png)`, silently
 	// replacing the consumer's grammar.
-	it('commits nothing when the rung registered no hook', () => {
+	it('commits nothing when the inline syntax handler registered no hook', () => {
 		registerWikiRung();
 		const { consumed, commit } = keyboardResize('![[cat.png|300]]\n');
 		expect(commit).not.toHaveBeenCalled();
@@ -74,7 +74,7 @@ describe('Shift+Arrow resize of an image a rung claimed', () => {
 		expect(takeDevWarns().map((w) => w.tag)).toEqual(['image-edit']);
 	});
 
-	it('leaves a GFM image resizing as GFM while the rung is registered', () => {
+	it('leaves a GFM image resizing as GFM while the inline syntax handler is registered', () => {
 		registerWikiRung(rewriteWikiImage);
 		const { consumed, commit } = keyboardResize('![a](x)\n');
 		expect(consumed).toBe(true);
@@ -83,7 +83,7 @@ describe('Shift+Arrow resize of an image a rung claimed', () => {
 
 	// `![[a]](u)` is a built-in image whose alt text is `[a]`: the plugin's handler refuses it, so
 	// the GFM write path still owns those bytes; a test on the `![[` prefix alone would not.
-	it('resizes the image the rung declined', () => {
+	it('resizes the image the inline syntax handler declined', () => {
 		registerWikiRung(rewriteWikiImage);
 		const { consumed, commit } = keyboardResize('![[a]](u)\n');
 		expect(consumed).toBe(true);
@@ -93,8 +93,8 @@ describe('Shift+Arrow resize of an image a rung claimed', () => {
 
 // ── The drag-resize and properties-popover commit path ───────────────────────
 
-describe('a popover or drag commit on an image a rung claimed', () => {
-	it('builds the rung’s bytes and commits them', async () => {
+describe('a popover or drag commit on an image an inline syntax handler claimed', () => {
+	it('builds the inline syntax handler’s bytes and commits them', async () => {
 		registerWikiRung(rewriteWikiImage);
 		const { committer, controller, target } = committerFor('![[cat.png|300]]\n');
 		const resized = { alt: 'cat.png', url: 'cat.png', width: 320 };
@@ -104,7 +104,7 @@ describe('a popover or drag commit on an image a rung claimed', () => {
 		expect(controller.commitStructural).toHaveBeenCalled();
 	});
 
-	it('declines the commit outright when the rung registered no hook', async () => {
+	it('declines the commit outright when the inline syntax handler registered no hook', async () => {
 		registerWikiRung();
 		const { committer, controller, target } = committerFor('![[cat.png|300]]\n');
 		const resized = { alt: 'cat.png', url: 'cat.png', width: 320 };

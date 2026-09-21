@@ -77,7 +77,7 @@ describe('mergeListItemIntoPrevious', () => {
 		expect(mergePoint.offset).toBe('AA'.length);
 	});
 
-	it('row 4: deep target (depth 2) — E stays at depth 1 (preserve-absolute-indent)', () => {
+	it('row 4: deep target (depth 2); E stays at depth 1 (preserve-absolute-indent)', () => {
 		// E must keep its original absolute depth, not deepen to match the merge target's.
 		const list = parseList('- A\n  - B\n    - C\n- D\n  - E\n');
 
@@ -108,7 +108,7 @@ describe('mergeListItemIntoPrevious', () => {
 		expect(mergePoint.offset).toBe('A'.length);
 	});
 
-	it('row 5b: target item is loose — trailing paragraph index is not 0', () => {
+	it('row 5b: target item is loose, trailing paragraph index is not 0', () => {
 		// A loose target lands findDeepestVisibleTextTarget on A.children[1]; a path-slice bug
 		// cascaded focus to A.children[0].
 		const list = parseList('- A\n\n  extra\n- B\n');
@@ -182,7 +182,7 @@ describe('mergeListItemIntoPrevious', () => {
 
 // Isolated because the walker's collapse check needs the details kind registered to read
 // the summary child as opaque.
-describe('mergeListItemIntoPrevious — collapsed container as previous leaf', () => {
+describe('mergeListItemIntoPrevious: collapsed container as previous leaf', () => {
 	beforeEach(() => {
 		__resetSchemaRegistriesForTests();
 		__resetPasteSurfacesForTests();

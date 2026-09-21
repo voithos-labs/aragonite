@@ -57,7 +57,7 @@ function expectLockstep(state: BlockListState, node: CstNode): void {
 	expect(state.innerBlockRefs).toHaveLength(node.children!.length);
 }
 
-describe('performCrossBlockDelete — endpoint table as a commit scope', () => {
+describe('performCrossBlockDelete: endpoint table as a commit scope', () => {
 	it('paragraph → body cell: row state stays in lockstep, promoted header keeps its id', async () => {
 		const env = makeEnv(`lead\n\n${HEADER_PLUS_TWO}`);
 		const state = registerTableState(env, 1);
@@ -174,7 +174,7 @@ describe('performCrossBlockDelete — endpoint table as a commit scope', () => {
 
 // A row registers its BlockListState on mount, so a windowed-out row never does. A full-column
 // delete splices every row's cells, but only the mounted rows need a reactive scope.
-describe('commitColumnDelete — a windowed-out row has no registered state', () => {
+describe('commitColumnDelete: a windowed-out row has no registered state', () => {
 	// Three columns so canDeleteColumn permits removing one (≥2 must remain).
 	const THREE_COL = '| a | b | c |\n| --- | --- | --- |\n| 1 | 2 | 3 |\n| 4 | 5 | 6 |\n';
 

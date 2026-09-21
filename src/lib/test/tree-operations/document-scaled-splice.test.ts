@@ -25,7 +25,7 @@ const clipboard = (): CstNode[] => pasted.children.slice();
 const para = (raw: string): CstNode => ({ kind: 'paragraph', leadingTrivia: '', raw });
 
 describe('a document-scaled splice', () => {
-	it('lands through the childIds door', () => {
+	it('lands through the childIds entry point', () => {
 		const container: CstNode = {
 			kind: 'blockquote',
 			leadingTrivia: '',

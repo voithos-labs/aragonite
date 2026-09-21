@@ -53,7 +53,7 @@ describe('emptying a block inside a container', () => {
 
 	// A body parsed after its container's opener line has a line above its first block, which
 	// stripping `innerPrefix` takes: the run still needs one, though the block sits at index 0.
-	it('keeps the line a wrapped body head still owes its opener', async () => {
+	it('keeps the line a wrapped body head still must supply its opener', async () => {
 		installPlugins([admonitionsPlugin()]);
 		const h = makeNestedHarness(parse('> [!NOTE]\n> one\n>\n> two\n').children, { index: 0 });
 

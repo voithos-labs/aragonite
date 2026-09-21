@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { computeAutoPair } from '$lib/components/blocks/code/code-beforeinput';
 
-describe('computeAutoPair — open-and-pair', () => {
+describe('computeAutoPair: open-and-pair', () => {
 	it.each([
 		['(', ')'],
 		['[', ']'],
@@ -57,7 +57,7 @@ describe('computeAutoPair — open-and-pair', () => {
 	});
 });
 
-describe('computeAutoPair — skip-over', () => {
+describe('computeAutoPair: skip-over', () => {
 	it('skips past an existing closer instead of inserting a duplicate', () => {
 		const r = computeAutoPair({ text: '()', selection: { start: 1, end: 1 }, typed: ')' });
 		expect(r).toEqual({ kind: 'skip', caretOffset: 2 });
@@ -73,7 +73,7 @@ describe('computeAutoPair — skip-over', () => {
 		expect(r).toBeNull();
 	});
 
-	it('returns null at end of text — nothing to skip past', () => {
+	it('returns null at end of text, nothing to skip past', () => {
 		const r = computeAutoPair({ text: '(', selection: { start: 1, end: 1 }, typed: ')' });
 		expect(r).toBeNull();
 	});
@@ -84,7 +84,7 @@ describe('computeAutoPair — skip-over', () => {
 	});
 });
 
-describe('computeAutoPair — wrap selection', () => {
+describe('computeAutoPair: wrap selection', () => {
 	it('wraps a non-collapsed selection with the opener and closer', () => {
 		const r = computeAutoPair({
 			text: 'hello world',
@@ -118,7 +118,7 @@ describe('computeAutoPair — wrap selection', () => {
 	});
 });
 
-describe('computeAutoPair — non-pair input', () => {
+describe('computeAutoPair: non-pair input', () => {
 	it('returns null for plain text characters with a collapsed cursor', () => {
 		const r = computeAutoPair({ text: 'foo', selection: { start: 3, end: 3 }, typed: 'a' });
 		expect(r).toBeNull();

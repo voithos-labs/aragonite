@@ -32,7 +32,7 @@ function pluginComponentSources(): Array<{ rel: string; code: string }> {
 // The matcher self-tests prove the regexes work; this proves the scan reached the
 // components, pinning one real read from each allow-set.
 
-describe('plugin CSS ownership — the scan collected the plugin components', () => {
+describe('plugin CSS ownership: the scan collected the plugin components', () => {
 	it('sees the dogfood plugin components and their real token reads', () => {
 		const sources = pluginComponentSources();
 		expect(sources.length).toBeGreaterThan(0);
@@ -44,7 +44,7 @@ describe('plugin CSS ownership — the scan collected the plugin components', ()
 
 // ── The ownership scan ───────────────────────────────────────────────────────
 
-describe('plugin CSS ownership — every var() read resolves to a real token', () => {
+describe('plugin CSS ownership: every var() read resolves to a real token', () => {
 	it('no read falls outside editor-theme.css and the plugin-local declarations', () => {
 		const themeTokens = new Set(declsIn(readEditorFile('styles/editor-theme.css').code));
 		const sources = pluginComponentSources();
@@ -68,7 +68,7 @@ describe('plugin CSS ownership — every var() read resolves to a real token', (
 
 // ── Matcher self-tests (non-vacuity) ─────────────────────────────────────────
 
-describe('plugin CSS ownership — matcher non-vacuity', () => {
+describe('plugin CSS ownership: matcher non-vacuity', () => {
 	it('readsIn extracts the token and drops the fallback', () => {
 		expect(readsIn('color: var(--color-text-secondary, #aaa);')).toEqual([
 			'--color-text-secondary'

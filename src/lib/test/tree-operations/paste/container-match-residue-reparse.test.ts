@@ -16,7 +16,7 @@ import { expectParseConverged } from '../../harness/parse-converged';
 // Miss-analysis: the residue branch was driven with paragraph targets only, so the reattached
 // slice never held another kind's bytes and no pin read the landed item's children.
 
-describe('container-matching merge reattaches residue through the reparse funnel (GH #56)', () => {
+describe('container-matching merge reattaches residue through the reparse shared path (GH #56)', () => {
 	it('a fence closer landing in the last pasted item re-reads as its own block', async () => {
 		const doc = parse('- ```js\n  code\n  ```\n');
 		expect(doc.children[0].children?.[0].children?.[0].kind).toBe('fencedCode');

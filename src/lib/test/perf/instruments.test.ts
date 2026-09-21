@@ -141,7 +141,7 @@ describe('perf instruments', () => {
 		expect(s.blockRenderMsTotal).toBeCloseTo(4);
 	});
 
-	it('accumulates decoration and island counters while enabled', () => {
+	it('accumulates decoration and widget counters while enabled', () => {
 		enablePerfInstruments();
 		recordDecorationRun();
 		recordDecorationRun();
@@ -185,7 +185,7 @@ describe('perf instruments', () => {
 	});
 });
 
-describe('perf seams', () => {
+describe('perf boundaries', () => {
 	it('parse() records duration and block count when enabled', () => {
 		enablePerfInstruments();
 		parse('# a\n\nb\n\nc\n');

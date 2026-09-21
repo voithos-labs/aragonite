@@ -48,18 +48,18 @@ function upwardEdges(relPath: string, rung: number, text: string): string[] {
 	return edges;
 }
 
-describe('G4.64 the tree-ops ladder', () => {
+describe('G4.64 the tree-ops layer order', () => {
 	// Library-internal: the order names six files under src/lib, so the plugin and consumer
 	// stand-ins have nothing to model.
 	const rungs = collectEditorSources(EDITOR_SRC)
 		.map((f) => ({ ...f, rung: rungOfFile(f.relPath) }))
 		.filter((f) => f.rung >= 0);
 
-	it('found every rung', () => {
+	it('found every inline syntax handler', () => {
 		expect(rungs.map((f) => f.rung).sort((a, b) => a - b)).toEqual(LADDER.map((_, i) => i));
 	});
 
-	it('no import between the rungs points up the ladder', () => {
+	it('no import between the layers points upward', () => {
 		const violations = rungs.flatMap((f) => upwardEdges(f.relPath, f.rung, f.text));
 		expect(violations).toEqual([]);
 	});
@@ -68,7 +68,7 @@ describe('G4.64 the tree-ops ladder', () => {
 
 	const settle = LADDER.indexOf('settle');
 
-	it('names an upward edge, and skips a downward or off-ladder one', () => {
+	it('names an upward edge, and skips a downward or off-list one', () => {
 		expect(upwardEdges('settle.ts', settle, "import { x } from './content-write';")).toEqual([
 			'settle.ts -> ./content-write'
 		]);

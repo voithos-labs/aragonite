@@ -88,7 +88,7 @@ describe('footnote numbering (derived, first-reference order)', () => {
 // The cache key must include the content version: the editor's document is changed in place,
 // so keying on the document alone hits forever and freezes the numbering at whatever the
 // first widget saw.
-describe('footnote numbering — the shared per-version walk', () => {
+describe('footnote numbering: the shared per-version walk', () => {
 	beforeEach(() => {
 		resetPluginPlatformForTests();
 		installPlugins([footnotesPlugin()]);
@@ -99,7 +99,7 @@ describe('footnote numbering — the shared per-version walk', () => {
 		expect(footnoteNumbersFor(doc, 7)).toBe(footnoteNumbersFor(doc, 7));
 	});
 
-	it('re-walks the SAME document object once its version moves (the in-place edit)', () => {
+	it('re-walks the same document object once its version moves (the in-place edit)', () => {
 		const doc = parse('Body has [^a].\n');
 		expect(footnoteNumbersFor(doc, 1).get('a')).toBe(1);
 

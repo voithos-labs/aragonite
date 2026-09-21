@@ -26,7 +26,7 @@ import { makeRenderHarness, type RenderHarness } from '$lib/test/harness/text-re
 // 'alpha **bold** tail': strong spans [6,14), and its two `**` spans carry the attribute.
 const RAW = 'alpha **bold** tail\n';
 
-describe('createConstructReveal — trigger', () => {
+describe('createConstructReveal: trigger', () => {
 	let el: HTMLElement;
 	let node: CstNode;
 	let harness: RenderHarness;
@@ -164,7 +164,7 @@ describe('createConstructReveal — trigger', () => {
 		expect(revealedSpans().length).toBe(2);
 	});
 
-	it('prepareStep never folds — an empty union leaves the applied chain alone', () => {
+	it('prepareStep never folds: an empty union leaves the applied chain alone', () => {
 		setCaret('bold', 2);
 		reveal.update();
 		expect(revealedSpans().length).toBe(2);

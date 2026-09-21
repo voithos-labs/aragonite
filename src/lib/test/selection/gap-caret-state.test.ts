@@ -15,7 +15,7 @@ function stateWithEmissions() {
 	};
 }
 
-describe('SelectionState — the gap caret as a third mode', () => {
+describe('SelectionState: the gap caret as a third mode', () => {
 	it('starts with no gap', () => {
 		expect(createSelectionState().gapCaret).toBeNull();
 	});

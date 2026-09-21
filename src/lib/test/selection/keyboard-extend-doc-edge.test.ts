@@ -5,14 +5,14 @@ import { parse } from '../../core/parser';
 import { stateAt, el } from './extend-walk-env';
 
 describe('extendFocusToDocEdge', () => {
-	it("Ctrl+Shift+End extends to the END offset of the document's last leaf", () => {
+	it("Ctrl+Shift+End extends to the end offset of the document's last leaf", () => {
 		const doc = parse('alpha\n\nbeta\n\ngamma\n');
 		const s = stateAt(doc, [1]);
 		expect(extendFocusToDocEdge(s, doc, el(), [1], 'end')).toBe(true);
 		expect(s.focus).toEqual({ path: [2], offset: 5 });
 	});
 
-	it("Ctrl+Shift+Home extends to the START of the document's first leaf", () => {
+	it("Ctrl+Shift+Home extends to the start of the document's first leaf", () => {
 		const doc = parse('alpha\n\nbeta\n\ngamma\n');
 		const s = stateAt(doc, [1]);
 		expect(extendFocusToDocEdge(s, doc, el(), [1], 'start')).toBe(true);

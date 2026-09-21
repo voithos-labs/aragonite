@@ -9,7 +9,7 @@ import {
 // splice, so a wrong window left no trace anywhere a test could read it.
 
 describe('checkStructuralDescriptor', () => {
-	it('passes the shapes a settle actually mints', () => {
+	it('passes the shapes a settle actually creates', () => {
 		expect(checkStructuralDescriptor({ op: 'noop' }, 0)).toBeNull();
 		expect(checkStructuralDescriptor({ op: 'delete', at: 1, count: 2 }, 3)).toBeNull();
 		expect(checkStructuralDescriptor({ op: 'insert', at: 3, count: 2 }, 3)).toBeNull();

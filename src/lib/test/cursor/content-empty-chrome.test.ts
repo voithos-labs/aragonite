@@ -19,7 +19,7 @@ import { mountBlock, span, text, widget } from './chrome-fixtures';
 
 afterEach(() => document.body.replaceChildren());
 
-describe('holdsOnlyMarkerChrome — the stamp condition', () => {
+describe('holdsOnlyMarkerChrome: the mark condition', () => {
 	it('holds for a block whose only bytes are its own prefix or fence lines', () => {
 		expect(holdsOnlyMarkerChrome(mountBlock({}, span('md-marker', '# ')))).toBe(true);
 		expect(
@@ -33,7 +33,7 @@ describe('holdsOnlyMarkerChrome — the stamp condition', () => {
 		).toBe(true);
 	});
 
-	it('declines the moment anything landable stands behind the chrome', () => {
+	it('declines the moment anything reachable stands behind the chrome', () => {
 		expect(holdsOnlyMarkerChrome(mountBlock({}, span('md-marker', '# '), text('x')))).toBe(false);
 		// A fence with an empty body line still has a line the caret can sit on.
 		expect(
@@ -51,7 +51,7 @@ describe('holdsOnlyMarkerChrome — the stamp condition', () => {
 		expect(holdsOnlyMarkerChrome(mountBlock({}, text('plain')))).toBe(false);
 	});
 
-	it('reads the ambient island as neither chrome nor content', () => {
+	it('reads the ambient widget as neither chrome nor content', () => {
 		// `- ` with an empty child: the marker span keeps its box, so the caret has somewhere to go.
 		expect(holdsOnlyMarkerChrome(mountBlock({}, buildAmbientSpan('- ')))).toBe(false);
 		// `- # `: the heading's own prefix is a marker standing over nothing, span or not.
@@ -62,7 +62,7 @@ describe('holdsOnlyMarkerChrome — the stamp condition', () => {
 
 	// The stylesheet's override names two families; a reference label is metadata that stays
 	// hidden, so a block holding only labels would be marked for a paint that never comes.
-	it('a reference label is chrome the stamp does not paint, and never content', () => {
+	it('a reference label is chrome the mark does not paint, and never content', () => {
 		expect(holdsOnlyMarkerChrome(mountBlock({}, span('md-ref-label', '[ref]')))).toBe(false);
 		// #141's shape: a label beside a paintable marker must not read as content standing behind
 		// it, or the block goes unmarked, paints nothing, and G1.33 fires with nothing to paint.
@@ -76,8 +76,8 @@ describe('holdsOnlyMarkerChrome — the stamp condition', () => {
 	});
 });
 
-describe('the stamp in the walk', () => {
-	it('makes a heading prefix landable in live, and leaves it unreachable unstamped', () => {
+describe('the mark in the walk', () => {
+	it('makes a heading prefix reachable in live, and leaves it unreachable unstamped', () => {
 		const stamped = mountBlock({ mode: 'live', stamped: true }, span('md-marker', '# '));
 		expect(landableDomTextBounds(stamped)).toEqual({ start: 0, end: 2 });
 
@@ -96,7 +96,7 @@ describe('the stamp in the walk', () => {
 		expect(isHiddenMarkerRoot(label.firstElementChild!, label)).toBe(true);
 	});
 
-	it('applies to the preview rungs and never to reading', () => {
+	it('applies to the preview inline syntax handlers and never to reading', () => {
 		for (const mode of ['preview-block', 'preview-inline']) {
 			const block = mountBlock({ mode, stamped: true }, span('md-marker', '# '));
 			expect(landableDomTextBounds(block), mode).toEqual({ start: 0, end: 2 });
@@ -106,8 +106,8 @@ describe('the stamp in the walk', () => {
 	});
 });
 
-describe('screenVisibilityOf — the reading a rewrite seam takes', () => {
-	it('reports the mode and the stamp the container carries', () => {
+describe('screenVisibilityOf: the reading a rewrite takes', () => {
+	it('reports the mode and the mark the container carries', () => {
 		expect(screenVisibilityOf(mountBlock({ mode: 'live', stamped: true }))).toEqual({
 			hidesMarkers: true,
 			chromePaints: true
@@ -139,7 +139,7 @@ describe('screenVisibilityOf — the reading a rewrite seam takes', () => {
 	});
 });
 
-describe('paintsNoLandableContent — what the caret guard refuses', () => {
+describe('paintsNoLandableContent: what the caret guard refuses', () => {
 	it('holds for an unstamped chrome-only block and falls the moment it paints', () => {
 		expect(paintsNoLandableContent(mountBlock({ mode: 'live' }, span('md-marker', '# ')))).toBe(
 			true

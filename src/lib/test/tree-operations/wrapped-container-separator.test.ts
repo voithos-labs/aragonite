@@ -108,7 +108,7 @@ describe('emptying a body block against the wrap’s chrome lines', () => {
 		rebuildAncestryRaw(container, []);
 	}
 
-	it('keeps an emptied LAST body block by handing the closer line to innerSuffix', () => {
+	it('keeps an emptied last body block by handing the closer line to innerSuffix', () => {
 		const doc = parse(':::callout Title\nBody1\n\nBody2\n:::\n');
 		const callout = doc.children[0];
 		expect(callout.innerSuffix ?? '').toBe('');
@@ -119,7 +119,7 @@ describe('emptying a body block against the wrap’s chrome lines', () => {
 		expectParseConverged(doc);
 	});
 
-	it('keeps an emptied FIRST body block by handing the opener line to innerPrefix', () => {
+	it('keeps an emptied first body block by handing the opener line to innerPrefix', () => {
 		const doc = parse(':::callout Title\n```\nc\n```\nBody2\n:::\n');
 		const callout = doc.children[0];
 		expect(callout.children!.map((c) => c.kind)).toEqual([
@@ -136,7 +136,7 @@ describe('emptying a body block against the wrap’s chrome lines', () => {
 
 	// The standing line already is the one the reload strips: the fix-up keeps the first line
 	// that stands rather than rewriting byte-equivalent shapes (§ Blank lines).
-	it('leaves a standing follower separator as the peel line, minting nothing', () => {
+	it('leaves a standing follower separator as the strip line, creating nothing', () => {
 		const doc = parse(':::callout Title\n```\nc\n```\n\nBody2\n:::\n');
 		const callout = doc.children[0];
 		expect(callout.children![2].leadingTrivia).toBe('\n');
@@ -150,7 +150,7 @@ describe('emptying a body block against the wrap’s chrome lines', () => {
 
 	// An all-blank single-line body sits under both fence-line checks (each needs two lines to
 	// engage), so the lean one-line form already reloads as the block.
-	it('an emptied ONLY body block needs no wrap line at all', () => {
+	it('an emptied only body block needs no wrap line at all', () => {
 		const doc = parse(':::callout Title\nBody\n:::\n');
 		const callout = doc.children[0];
 
@@ -162,7 +162,7 @@ describe('emptying a body block against the wrap’s chrome lines', () => {
 		expectParseConverged(doc);
 	});
 
-	it('the CRLF twin hands over CRLF lines', () => {
+	it('the CRLF variant hands over CRLF lines', () => {
 		const doc = parse(':::callout Title\r\nBody1\r\n\r\nBody2\r\n:::\r\n');
 		const callout = doc.children[0];
 
@@ -178,7 +178,7 @@ describe('separator settle inside a strip container', () => {
 
 	// Non-vacuity for the fence check: a blockquote body opens at the container's own first
 	// line, so nothing is stripped and the fix-up must drop the separator it frees.
-	it('drops the freed separator — a blockquote peels nothing', () => {
+	it('drops the freed separator: a blockquote strips nothing', () => {
 		const doc = parse('> a\n>\n>\n> b\n');
 
 		deleteNode(bodyParentOf(doc.children[0]), 2);

@@ -77,7 +77,7 @@ describe('blockquote delegates to its inner BlockList', () => {
 	// cannot be dragged. A reorder unit, not a handle: prose carries no drag handle
 	// (`components/drag-handle.ts`), so the class is all there is to check here, and the quote's
 	// children can be reordered, unlike an opaque container's rows.
-	it('marks its children as reorder units, unlike the seam default', () => {
+	it('marks its children as reorder units, unlike the default', () => {
 		mounted = mountQuote('> alpha\n>\n> beta\n', true);
 
 		const hosts = mounted.target.querySelectorAll('.blockquote-block > .block-list > .block-host');

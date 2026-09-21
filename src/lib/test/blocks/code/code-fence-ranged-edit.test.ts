@@ -68,7 +68,7 @@ afterEach(async () => {
 	document.body.innerHTML = '';
 });
 
-describe('CodeBlock — fence-crossing ranged edits', () => {
+describe('CodeBlock: fence-crossing ranged edits', () => {
 	it('claims a delete whose selection runs into the closer and commits the clamped text', async () => {
 		select(12, 20);
 		const e = beforeInput('deleteContentBackward');
@@ -78,7 +78,7 @@ describe('CodeBlock — fence-crossing ranged edits', () => {
 		expect(committedText()).toBe('```js\nconst \n```');
 	});
 
-	it('claims a forward delete the same way — direction picks no different bytes', async () => {
+	it('claims a forward delete the same way: direction picks no different bytes', async () => {
 		select(12, 20);
 		const e = beforeInput('deleteContentForward');
 		await settle();
@@ -246,7 +246,7 @@ describe('CodeBlock — fence-crossing ranged edits', () => {
 
 	// beforeinput's insertCompositionText is not cancelable, so the guard cannot reach
 	// an IME; the selection has to be shrunk before the composition takes over.
-	it('compositionstart re-seats a fence-crossing selection onto the body', () => {
+	it('compositionstart re-puts the caret at a fence-crossing selection onto the body', () => {
 		select(12, 20);
 		mounted.el.dispatchEvent(new CompositionEvent('compositionstart', { bubbles: true }));
 

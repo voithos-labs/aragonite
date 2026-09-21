@@ -55,16 +55,16 @@ function sourceOfFunction(code: string, name: string): string {
 	return next < 0 ? rest : rest.slice(0, next);
 }
 
-describe('every caret-edge arm asks whether a range is held', () => {
+describe('every caret-edge branch asks whether a range is held', () => {
 	const { code } = readEditorFile(DISPATCH);
 	const arms = armsOf(code);
 
-	it('read the arm manifest', () => {
+	it('read the branch manifest', () => {
 		expect(arms.length).toBeGreaterThan(5);
 		expect(arms.map((arm) => arm.id)).toContain('cst-widget');
 	});
 
-	it('each named arm reads the range, and each inline one is declared', () => {
+	it('each named branch reads the range, and each inline one is declared', () => {
 		const silent = arms
 			.filter((arm) =>
 				arm.handler === null
@@ -87,12 +87,12 @@ describe('every caret-edge arm asks whether a range is held', () => {
 
 	// ── Mutation tests ───────────────────────────────────────────────────────
 
-	it('an arm whose body asks nothing is caught', () => {
+	it('a branch whose body asks nothing is caught', () => {
 		const rogue = 'function handleRogue(e, caretOffset) { return caretOffset === 0; }';
 		expect(ASKS_ABOUT_A_RANGE.test(sourceOfFunction(rogue, 'handleRogue'))).toBe(false);
 	});
 
-	it('the scan reads each arm’s own body, not its neighbour’s', () => {
+	it('the scan reads each branch’s own body, not its neighbour’s', () => {
 		const pair =
 			'\tfunction handleSilent(e) {\n\t\treturn false;\n\t}\n' +
 			'\tfunction handleAsking(e) {\n\t\treturn heldRange() !== null;\n\t}\n';

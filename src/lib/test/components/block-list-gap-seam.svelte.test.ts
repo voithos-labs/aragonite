@@ -80,7 +80,7 @@ function mountWindowedList(gapIndex: number, blockSource = FENCE): Mounted {
 }
 
 describe('the gap indicator at a windowed slice boundary', () => {
-	it('renders the slice short of the document, so the seam is a real state', () => {
+	it('renders the slice short of the document, so the join is a real state', () => {
 		mounted = mountWindowedList(SLICE_END);
 
 		expect(mounted.target.querySelectorAll('.block-host')).toHaveLength(SLICE_END);

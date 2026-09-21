@@ -17,7 +17,7 @@ describe('a position-scoped kind and the commit-time reparse', () => {
 	beforeEach(__resetSchemaRegistriesForTests);
 	afterEach(__resetSchemaRegistriesForTests);
 
-	it('a mid-document content commit does not mint it', () => {
+	it('a mid-document content commit does not create it', () => {
 		const kind = registerDocumentTopKind();
 		const doc = parse('intro\n\nbody\n');
 
@@ -29,7 +29,7 @@ describe('a position-scoped kind and the commit-time reparse', () => {
 	// The narrowing this fix accepts: a position-scoped kind arrives from a document parse
 	// only, so authoring one in place needs a reload. Positional context on the commit
 	// reparse (issue #52's fix direction 1) would flip this pin.
-	it('a document-top content commit does not mint it either', () => {
+	it('a document-top content commit does not create it either', () => {
 		const kind = registerDocumentTopKind();
 		const doc = parse('intro\n\nbody\n');
 

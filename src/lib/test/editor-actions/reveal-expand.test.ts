@@ -21,8 +21,8 @@ function shim(over: {
 	);
 }
 
-describe('revealByPath — expanding a collapsed container', () => {
-	it('opens the door for a body target and resolves the child the expansion mounted', async () => {
+describe('revealByPath, expanding a collapsed container', () => {
+	it('opens the entry point for a body target and resolves the child the expansion mounted', async () => {
 		const body = mockRef();
 		const refs: (BlockComponent | undefined)[] = [mockRef(), undefined];
 		// Awaiting the expand before reading the ref is the whole ordering contract.
@@ -39,7 +39,7 @@ describe('revealByPath — expanding a collapsed container', () => {
 		expect(resolved).toBe(body);
 	});
 
-	it('leaves the chrome row alone — child 0 stays mounted while collapsed', async () => {
+	it('leaves the chrome row alone: child 0 stays mounted while collapsed', async () => {
 		const chrome = mockRef();
 		const expandCollapsed = vi.fn(async () => true);
 
@@ -53,7 +53,7 @@ describe('revealByPath — expanding a collapsed container', () => {
 		expect(resolved).toBe(chrome);
 	});
 
-	it('does not open the door for an already-open container', async () => {
+	it('does not open the entry point for an already-open container', async () => {
 		const expandCollapsed = vi.fn(async () => true);
 		const refs = [mockRef(), mockRef()];
 
@@ -63,7 +63,7 @@ describe('revealByPath — expanding a collapsed container', () => {
 	});
 
 	// The fallback: a kind declaring no expand scrolls into view as it did before the expand existed.
-	it('degrades when the kind declares no door', async () => {
+	it('degrades when the kind declares no entry point', async () => {
 		const resolved = await shim({
 			refs: [mockRef(), undefined],
 			isCollapsed: () => true

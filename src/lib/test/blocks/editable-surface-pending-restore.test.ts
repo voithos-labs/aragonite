@@ -60,7 +60,7 @@ describe('consumePendingRestore', () => {
 		expect(ran).toBe(false);
 	});
 
-	it('carries any pending shape — a range for the code wrap arm', () => {
+	it('carries any pending shape: a range for the code wrap branch', () => {
 		el.focus();
 		let applied: { start: number; end: number } | null = null;
 		const result = consumePendingRestore(el, { start: 2, end: 5 }, (range) => {

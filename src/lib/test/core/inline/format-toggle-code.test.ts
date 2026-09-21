@@ -15,7 +15,7 @@ function soleCodeSpanText(raw: string): string | null {
 	return code.length === 1 ? (code[0].text ?? null) : null;
 }
 
-describe('toggleInlineFormat — inline code wrap', () => {
+describe('toggleInlineFormat: inline code wrap', () => {
 	it('wraps a plain selection in a single backtick', () => {
 		const raw = 'call fetchAll now';
 		const r = toggleFormat(
@@ -55,7 +55,7 @@ describe('toggleInlineFormat — inline code wrap', () => {
 	});
 });
 
-describe('toggleInlineFormat — inline code strip', () => {
+describe('toggleInlineFormat: inline code strip', () => {
 	// The pad a backtick-bearing wrap adds is content once written — the render path paints it —
 	// so a strip takes the fence runs and nothing else.
 	it('strips a multi-backtick fence, leaving the content bytes untouched', () => {

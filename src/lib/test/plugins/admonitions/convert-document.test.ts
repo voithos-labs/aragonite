@@ -15,12 +15,12 @@ describe('convertGithubAlertsInDocument', () => {
 		expect(converted).toBe('# Title\n\n:::warning\nCritical.\nMore.\n:::\n\nAfter.\n');
 	});
 
-	it('does NOT convert alert-shaped lines inside a fenced code block', () => {
+	it('does not convert alert-shaped lines inside a fenced code block', () => {
 		const src = '```markdown\n> [!NOTE]\n> sample\n```\n';
 		expect(convertGithubAlertsInDocument(src)).toEqual({ converted: src, changed: false });
 	});
 
-	it('does NOT convert a marker that is not the first line of its blockquote', () => {
+	it('does not convert a marker that is not the first line of its blockquote', () => {
 		const src = '> plain quote\n> [!NOTE]\n> still a quote\n';
 		expect(convertGithubAlertsInDocument(src)).toEqual({ converted: src, changed: false });
 	});

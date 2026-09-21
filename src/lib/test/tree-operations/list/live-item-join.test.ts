@@ -40,8 +40,8 @@ const rejoined = (mode: 'live' | undefined) => {
 	return serialize(doc);
 };
 
-describe('the list-item merge crosses the live join seam', () => {
-	it('drops the runs the seam orphaned in live, and keeps them in every other mode', () => {
+describe('the list-item merge crosses the live join', () => {
+	it('drops the runs the join orphaned in live, and keeps them in every other mode', () => {
 		expect(rejoined('live')).toBe('- Some **bold** text\n');
 		expect(rejoined(undefined)).toBe('- Some **bo****ld** text\n');
 	});

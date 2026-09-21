@@ -53,7 +53,7 @@ function fakeAdapter(failCreate = false): {
 	return { adapter, created, destroyed };
 }
 
-describe('createWidgetPool — adoption by key', () => {
+describe('createWidgetPool: adoption by key', () => {
 	it('reuses the live instance for an unchanged widget across a rebuild pass', () => {
 		const { adapter, created } = fakeAdapter();
 		const pool = createWidgetPool(adapter);
@@ -88,7 +88,7 @@ describe('createWidgetPool — adoption by key', () => {
 	});
 });
 
-describe('createWidgetPool — multiset', () => {
+describe('createWidgetPool: multiset', () => {
 	it('two identical sources in one pass adopt distinct instances', () => {
 		const { adapter, created } = fakeAdapter();
 		const pool = createWidgetPool(adapter);
@@ -121,7 +121,7 @@ describe('createWidgetPool — multiset', () => {
 	});
 });
 
-describe('createWidgetPool — sweep', () => {
+describe('createWidgetPool: sweep', () => {
 	it('destroys every instance not adopted in the pass, keeps survivors for the next', () => {
 		const { adapter, created, destroyed } = fakeAdapter();
 		const pool = createWidgetPool(adapter);
@@ -141,7 +141,7 @@ describe('createWidgetPool — sweep', () => {
 	});
 });
 
-describe('createWidgetPool — dispose', () => {
+describe('createWidgetPool: dispose', () => {
 	it('destroys every live instance', () => {
 		const { adapter, created, destroyed } = fakeAdapter();
 		const pool = createWidgetPool(adapter);
@@ -158,8 +158,8 @@ describe('createWidgetPool — dispose', () => {
 	});
 });
 
-describe('createWidgetPool — adoption re-stamps offsets', () => {
-	it('re-stamps data-source-start/-end to the new offsets on reuse', () => {
+describe('createWidgetPool: adoption re-marks offsets', () => {
+	it('re-marks data-source-start/-end to the new offsets on reuse', () => {
 		const { adapter, created } = fakeAdapter();
 		const pool = createWidgetPool(adapter);
 
@@ -179,7 +179,7 @@ describe('createWidgetPool — adoption re-stamps offsets', () => {
 	});
 });
 
-describe('createWidgetPool — empty pass sweeps survivors', () => {
+describe('createWidgetPool: empty pass sweeps survivors', () => {
 	it('a pass that acquires nothing destroys the prior survivor (prose→non-prose cleanup)', () => {
 		const { adapter, destroyed } = fakeAdapter();
 		const pool = createWidgetPool(adapter);
@@ -195,7 +195,7 @@ describe('createWidgetPool — empty pass sweeps survivors', () => {
 	});
 });
 
-describe('createWidgetPool — create failure', () => {
+describe('createWidgetPool: create failure', () => {
 	it('returns null and tracks nothing when the adapter cannot build the widget', () => {
 		const { adapter, created } = fakeAdapter(true);
 		const pool = createWidgetPool(adapter);
@@ -213,7 +213,7 @@ describe('createWidgetPool — create failure', () => {
 	});
 });
 
-describe('createWidgetPool — interaction-trace pass record', () => {
+describe('createWidgetPool: interaction-trace pass record', () => {
 	afterEach(() => {
 		disableInteractionTrace();
 		resetInteractionTrace();

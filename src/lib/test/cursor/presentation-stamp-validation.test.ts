@@ -26,7 +26,7 @@ afterEach(() => {
 });
 
 describe('asPresentationMode', () => {
-	it('keeps every rung of the contract', () => {
+	it('keeps every inline syntax handler of the contract', () => {
 		for (const mode of ['source', 'reading', 'preview-block', 'preview-inline', 'live'] as const) {
 			expect(asPresentationMode(mode)).toBe(mode);
 		}
@@ -48,19 +48,19 @@ describe('asPresentationMode', () => {
 	});
 });
 
-describe('the walk over a forged stamp', () => {
-	it('treats an unknown stamp as painting its markers', () => {
+describe('the walk over a forged mark', () => {
+	it('treats an unknown mark as painting its markers', () => {
 		expect(revealsNoMarkers(stamp('garbage'))).toBe(false);
 	});
 
-	it('reads an unknown stamp as the source visibility context', () => {
+	it('reads an unknown mark as the source visibility context', () => {
 		expect(screenVisibilityOf(stamp('garbage'))).toEqual({
 			hidesMarkers: false,
 			chromePaints: false
 		});
 	});
 
-	it('still reads a real stamp as hiding', () => {
+	it('still reads a real mark as hiding', () => {
 		expect(revealsNoMarkers(stamp('live'))).toBe(true);
 		expect(screenVisibilityOf(stamp('live'))).toEqual({ hidesMarkers: true, chromePaints: false });
 	});

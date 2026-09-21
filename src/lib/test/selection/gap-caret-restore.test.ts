@@ -33,7 +33,7 @@ function harness(overrides: Partial<SelectionRestoreDeps> = {}) {
 }
 
 describe('restoreGapCaret', () => {
-	it('parks the boundary and reveals the block it sits before', async () => {
+	it('puts the caret the boundary and reveals the block it sits before', async () => {
 		const h = harness();
 
 		const outcome = await restoreGapCaret({ parentPath: [], index: 1 }, h.deps);
@@ -84,7 +84,7 @@ describe('restoreGapCaret', () => {
 	});
 
 	// The mount is best effort; the caret is still placed, as it is for an endpoint pair.
-	it('reports unplaced but still parks when the reveal misses', async () => {
+	it('reports unplaced but still puts the caret when the reveal misses', async () => {
 		const h = harness({ revealTarget: async () => false });
 
 		const outcome = await restoreGapCaret({ parentPath: [], index: 1 }, h.deps);

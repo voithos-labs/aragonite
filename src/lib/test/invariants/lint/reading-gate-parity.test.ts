@@ -96,7 +96,7 @@ function isThreaded(args: string, code: string): boolean {
 		.some((name) => namedObjectLiteral(code, name)?.includes(GATE_GETTER) ?? false);
 }
 
-describe('G4.19 reading-gate two-arm parity guard', () => {
+describe('G4.19 reading-gate two-branch parity guard', () => {
 	const codeByPath = new Map(collectEditorSources().map((f) => [f.relPath, f.code]));
 	const codeOf = (relPath: string): string => codeByPath.get(relPath) ?? '';
 	const sites = collectDispatchSites();
@@ -164,7 +164,7 @@ describe('G4.19 reading-gate two-arm parity guard', () => {
 
 	// For this check itself: the real call site carries no inline getter, so the whole file rests
 	// on the named-context resolution above.
-	it('the runCommand door reaches the gate through its named context, not inline', () => {
+	it('the runCommand entry point reaches the gate through its named context, not inline', () => {
 		const doorSites = sites.filter((s) => s.relPath === 'src/lib/components/Editor.svelte');
 		expect(doorSites.length).toBe(1);
 		expect(doorSites[0].args.includes(GATE_GETTER)).toBe(false);

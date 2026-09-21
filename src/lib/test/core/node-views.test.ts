@@ -59,7 +59,7 @@ export function viewNarrowingPin(node: NodeView): void {
 
 const SOURCE = '# h\n\n- a\n- b\n';
 
-describe('node views — bytes-scoped readonly (G1.9)', () => {
+describe('node views: bytes-scoped readonly (G1.9)', () => {
 	it('accepts the bookkeeping carve-out writes (childIds, ownerEpoch)', () => {
 		const doc: DocumentView = parse(SOURCE);
 		const node = doc.children[0];
@@ -74,7 +74,7 @@ describe('node views — bytes-scoped readonly (G1.9)', () => {
 		expect(serialize(doc)).toBe(SOURCE);
 	});
 
-	it('a NodeView narrows to its built-in arm and reads typed metadata', () => {
+	it('a NodeView narrows to its built-in branch and reads typed metadata', () => {
 		const doc: DocumentView = parse('## title\n');
 		const node = doc.children[0];
 		let level = 0;

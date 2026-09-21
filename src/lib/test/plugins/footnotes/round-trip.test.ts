@@ -71,7 +71,7 @@ describe('footnote round-trip without the plugin (the uninstall story)', () => {
 		resetPluginPlatformForTests();
 	});
 
-	it('falls back to a paragraph when uninstalled — and still round-trips', () => {
+	it('falls back to a paragraph when uninstalled: and still round-trips', () => {
 		// The built-in reserves leading-caret labels away from link reference
 		// definitions, so an uninstalled `[^label]:` line is a plain paragraph, for both
 		// prose and URL bodies. Either way the bytes survive verbatim.

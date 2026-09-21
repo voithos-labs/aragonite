@@ -97,7 +97,7 @@ afterEach(() => {
 	window.getSelection()?.removeAllRanges();
 });
 
-describe('isHiddenMarkerText — the marker-hiding CSS families, read structurally', () => {
+describe('isHiddenMarkerText: the marker-hiding CSS families, read structurally', () => {
 	it('answers false in source mode, where the root carries no presentation attribute', () => {
 		const fx = mount();
 		expect(isHiddenMarkerText(fx.openMarker, fx.block)).toBe(false);
@@ -120,7 +120,7 @@ describe('isHiddenMarkerText — the marker-hiding CSS families, read structural
 		expect(isHiddenMarkerText(unfocused.openMarker, unfocused.block)).toBe(true);
 	});
 
-	it('answers by reveal class for a stamped construct span under preview-inline', () => {
+	it('answers by reveal class for a marked construct span under preview-inline', () => {
 		const fx = mount({ mode: 'preview-inline', focused: true });
 		fx.openSpan.setAttribute('data-construct-start', '0');
 		expect(isHiddenMarkerText(fx.openMarker, fx.block)).toBe(true);
@@ -141,7 +141,7 @@ describe('isHiddenMarkerText — the marker-hiding CSS families, read structural
 		expect(isHiddenMarkerText(fence.firstChild!, fx.block)).toBe(false);
 	});
 
-	it('answers true for an UNSTAMPED ref label in a focused preview-inline host', () => {
+	it('answers true for an unstamped ref label in a focused preview-inline host', () => {
 		// The stylesheet's rule for a marker with no attribute is limited to `.md-marker`; a
 		// reference label shows only by class. Reachable: a table cell renders inline with no
 		// construct attributes in any mode, so its `[ref]` label has none and is still display:none.
@@ -153,7 +153,7 @@ describe('isHiddenMarkerText — the marker-hiding CSS families, read structural
 	});
 });
 
-describe('domTextOffsetAtNode — a hidden run has no interior walk positions', () => {
+describe('domTextOffsetAtNode: a hidden run has no interior walk positions', () => {
 	it('canonicalizes the three DOM positions that paint at one pixel', () => {
 		const fx = mount({ mode: 'live' });
 		// (blockEl,0) is the block start, outside the run; the two reads inside it snap out.
@@ -178,7 +178,7 @@ describe('domTextOffsetAtNode — a hidden run has no interior walk positions', 
 		expect(domTextOffsetAtNode(fx.block, fx.block, 2)).toBe(5);
 	});
 
-	it('leaves source mode alone — the walk still counts marker text verbatim', () => {
+	it('leaves source mode alone: the walk still counts marker text verbatim', () => {
 		const fx = mount();
 		expect(domTextOffsetAtNode(fx.block, fx.openMarker, 1)).toBe(1);
 		expect(domTextOffsetAtNode(fx.block, fx.body, 0)).toBe(2);
@@ -194,7 +194,7 @@ describe('domTextOffsetAtNode — a hidden run has no interior walk positions', 
 			return fx;
 		}
 
-		it('a landing at the seam resolves past the whole run, not between its halves', () => {
+		it('a landing at the join resolves past the whole run, not between its halves', () => {
 			const fx = mountWithEmptyBetween();
 			const pos = findDomTextOffsetTarget(fx.block, asDomTextOffset(3));
 			expect(pos?.node).toBe(fx.body);
@@ -243,7 +243,7 @@ function describePosition(pos: { node: Node; offset: number } | null): string {
 		: `element <${(pos.node as Element).tagName.toLowerCase()}>@${pos.offset}`;
 }
 
-describe('caret writes never seat a range in hidden marker text', () => {
+describe('caret writes never caret position a range in hidden marker text', () => {
 	function cursorIO(block: HTMLElement, ambientLength = 0) {
 		return createAmbientCursorIO({ getEl: () => block, getAmbientLength: () => ambientLength });
 	}
@@ -286,7 +286,7 @@ describe('caret writes never seat a range in hidden marker text', () => {
 		expect(caretPosition()).toEqual({ node: fx.body, offset: 0 });
 	});
 
-	it('seats carets in marker text in source mode, where markers are visible', () => {
+	it('puts the caret carets in marker text in source mode, where markers are visible', () => {
 		const fx = mount();
 		fx.block.focus();
 		cursorIO(fx.block).setRaw(asRawOffset(1));

@@ -132,7 +132,7 @@ describe('checkInlineConstructPolicy (G1.31)', () => {
 		});
 	});
 
-	it('accepts a plugin row whose mark names a minted command', () => {
+	it('accepts a plugin row whose mark names a created command', () => {
 		expect(
 			check(
 				[row({ kind: kind('spec-mark'), mark: { nestingRank: 9, command: 'spec.toggleMark' } })],

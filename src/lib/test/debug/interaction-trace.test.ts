@@ -40,7 +40,7 @@ describe('interaction-trace gating', () => {
 		expect(typeof entry.t).toBe('number');
 	});
 
-	it('re-arms after a disable/enable cycle', () => {
+	it('re-branches after a disable/enable cycle', () => {
 		disableInteractionTrace();
 		traceCompositionStart();
 		enableInteractionTrace();

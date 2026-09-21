@@ -61,7 +61,7 @@ describe('search/replace into a table cell', () => {
 		expect(bodyCells(deps)).toEqual(['a\\|', 'keep']);
 	});
 
-	it('is idempotent — replacing into an already-escaped cell adds no backslashes', async () => {
+	it('is idempotent, replacing into an already-escaped cell adds no backslashes', async () => {
 		const { deps, sr } = makeSearchReplace('| h1 | h2 |\n| --- | --- |\n| a\\|X | keep |\n');
 
 		await sr.replaceAll(scanCells(deps.doc, 'X'), 'Y');

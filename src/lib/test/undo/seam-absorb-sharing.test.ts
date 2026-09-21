@@ -33,7 +33,7 @@ function harness(source = TIGHT_JOIN) {
 	};
 }
 
-describe('a seam absorb under an outstanding snapshot', () => {
+describe('a join absorb under an outstanding snapshot', () => {
 	it('leaves the demotion fold’s shared predecessor byte-identical, and undo restores it', async () => {
 		const h = harness();
 		h.controller.pushUndoSnapshot(1, 0);

@@ -17,7 +17,7 @@ const parseAlert = (src: string) => {
 	return node;
 };
 
-describe('github alert — unwrap first child drops the marker', () => {
+describe('github alert: unwrap first child drops the marker', () => {
 	it('lifts the sole body block, leaving no alert', () => {
 		const result = unwrapFirstChildFromQuote(parseAlert('> [!NOTE]\n> only line\n'));
 		expect(result).toHaveLength(1);

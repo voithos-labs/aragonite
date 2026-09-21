@@ -88,7 +88,7 @@ function harness(over: Partial<ClipboardSurfaceDeps> = {}, state = liveSurface()
 	return { deps, log, inserted, folds, seated, errors };
 }
 
-describe('image paste — the hook contract', () => {
+describe('image paste: the hook contract', () => {
 	it('hands each image file to the hook in clipboard order, blob and metadata intact', async () => {
 		const seen: PastedImage[] = [];
 		const files = [imageFile('a.png'), imageFile('b.jpg', 'image/jpeg')];
@@ -120,7 +120,7 @@ describe('image paste — the hook contract', () => {
 	});
 });
 
-describe('image paste — replacing a cross-block selection', () => {
+describe('image paste, replacing a cross-block selection', () => {
 	it('hands the markdown to the cross-block route and skips the surface tail', async () => {
 		const log: string[] = [];
 		const h = harness({
@@ -150,7 +150,7 @@ describe('image paste — replacing a cross-block selection', () => {
 		expect(h.inserted).toEqual(['![[a.png]]']);
 	});
 
-	it('the hook decides first — a null result destroys nothing', async () => {
+	it('the hook decides first: a null result destroys nothing', async () => {
 		const log: string[] = [];
 		const h = harness({ crossBlock: claimingCrossBlock(log), onPasteImage: async () => null });
 		await createClipboardHandlers(h.deps).onPaste(pasteEvent([imageFile('a.png')]).e);
@@ -159,7 +159,7 @@ describe('image paste — replacing a cross-block selection', () => {
 	});
 });
 
-describe('image paste — where the markdown lands', () => {
+describe('image paste: where the markdown lands', () => {
 	it('inserts at the caret held when the paste fired, not where it moved to', async () => {
 		const state = liveSurface();
 		state.caret = 7;
@@ -238,7 +238,7 @@ describe('image paste — where the markdown lands', () => {
 	});
 });
 
-describe('image paste — declining and failing', () => {
+describe('image paste, declining and failing', () => {
 	it('a null result inserts nothing and reports nothing', async () => {
 		const h = harness({ onPasteImage: async () => null });
 		await createClipboardHandlers(h.deps).onPaste(pasteEvent([imageFile('a.png')], 'FALLBACK').e);
@@ -276,7 +276,7 @@ describe('image paste — declining and failing', () => {
 	});
 });
 
-describe('image paste — pastes the arm must not claim', () => {
+describe('image paste: pastes the branch must not claim', () => {
 	it('without the hook, an image-bearing paste takes the text/plain path', async () => {
 		const h = harness();
 		await createClipboardHandlers(h.deps).onPaste(pasteEvent([imageFile('a.png')], 'FALLBACK').e);

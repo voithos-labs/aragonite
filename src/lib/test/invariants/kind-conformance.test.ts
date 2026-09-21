@@ -30,7 +30,7 @@ describe.each(builtinKinds)('kind conformance — %s', (kind) => {
 
 // ── Lockstep: no dead profiles ───────────────────────────────────────────────
 
-describe('kind conformance — registry lockstep', () => {
+describe('kind conformance: registry lockstep', () => {
 	// A kind added to the union but never registered (or the reverse) silently leaves the
 	// enrollment sweep, so the two sets are pinned equal.
 	it('sweeps exactly the full built-in kind set', () => {
@@ -47,7 +47,7 @@ describe('kind conformance — registry lockstep', () => {
 
 // ── Green-cell guards ────────────────────────────────────────────────────────
 
-describe('kind conformance — a fixtured kind produces green generic cells', () => {
+describe('kind conformance: a fixtured kind produces green generic cells', () => {
 	// Pinning `executed`, not merely "the run resolved": a mechanism that quietly becomes
 	// `boundary` is an unexercised cell, and stays green under a resolve-only check.
 	it.each(fixturedKinds)('%s executes round-trip, merge, and undo (not boundary)', async (kind) => {
@@ -79,7 +79,7 @@ describe('kind conformance — a fixtured kind produces green generic cells', ()
 // "copy is a plain byte slice" claim round-tripped past every gate. The prose case
 // proves the executor discriminates rather than always throwing.
 
-describe('kind conformance — byte-slice clipboard executor is the false-cell guard', () => {
+describe('kind conformance: byte-slice clipboard executor is the false-cell guard', () => {
 	it('throws for a table declared inherit-default (the shipped bug shape)', () => {
 		const fixture = getBlockKindDescriptor('table').conformanceFixture!;
 		expect(() => checkCopyIsRawByteSlice('table', fixture)).toThrow(/raw byte slice/);
@@ -96,7 +96,7 @@ describe('kind conformance — byte-slice clipboard executor is the false-cell g
 // the cell claims, leaving a mode revert unverified and the suite green. Pinned for the
 // whole class: any profiled cell reverted off `implemented`, not just table.clipboard.
 
-describe('kind conformance — a profile check is refused on a non-implemented cell', () => {
+describe('kind conformance: a profile check is refused on a non-implemented cell', () => {
 	it('rejects a custom check declared over an inherit-default cell', async () => {
 		// paragraph.clipboard is inherit-default, so a profile clipboard check contradicts
 		// it: the same shape a reverted table.clipboard raises against its own profile.

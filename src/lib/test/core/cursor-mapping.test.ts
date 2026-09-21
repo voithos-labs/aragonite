@@ -22,7 +22,7 @@ describe('findNodeAtOffset', () => {
 		expect(result).toEqual({ node: nodes[1], localOffset: 0 });
 	});
 
-	it('finds offset at boundary — prefers right node', () => {
+	it('finds offset at boundary: prefers right node', () => {
 		const nodes: InlineNode[] = [
 			{ kind: 'inlineCode', start: 0, end: 6, text: 'code' },
 			{ kind: 'text', start: 6, end: 12, text: ' world' }

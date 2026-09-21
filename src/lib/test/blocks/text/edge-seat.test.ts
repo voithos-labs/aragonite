@@ -28,7 +28,7 @@ function seatIn(source: string, offset: number, affinity: EdgeAffinity | null, t
 describe('a symmetric pair follows the arrival', () => {
 	const BOLD = 'Some **bold** text';
 
-	it('leaves the near side alone at either edge — where native insertion already lands', () => {
+	it('leaves the near side alone at either edge: where native insertion already lands', () => {
 		expect(seatIn(BOLD, 11, 'near')).toBeNull();
 		expect(seatIn(BOLD, 5, 'near')).toBeNull();
 	});
@@ -40,14 +40,14 @@ describe('a symmetric pair follows the arrival', () => {
 
 	// A click resets the arrival side, and the default, as in Google Docs, is the construct the
 	// caret touches.
-	it('defaults to the near side with no arrival on record — the click default', () => {
+	it('defaults to the near side with no arrival on record: the click default', () => {
 		expect(seatIn(BOLD, 11, null)).toBeNull();
 		expect(seatIn(BOLD, 5, null)).toBeNull();
 	});
 
 	// Relative to the construct, not to a direction: the same value reads as the run's start at
 	// an opener and its end at a closer, so the end of a line never lands between delimiters.
-	it('seats outside the construct at both edges for a line extreme', () => {
+	it('puts the caret outside the construct at both edges for a line extreme', () => {
 		expect(seatIn(BOLD, 11, 'outside')).toEqual({ offset: 13, kind: 'strong' });
 		expect(seatIn(BOLD, 5, 'outside')).toBeNull();
 		expect(seatIn('**Lead** in', 2, 'outside')).toEqual({ offset: 0, kind: 'strong' });
@@ -72,13 +72,13 @@ describe('a symmetric pair follows the arrival', () => {
 describe('a never-extend construct ignores the arrival', () => {
 	const LINK = 'A [link](http://e.com) tail';
 
-	it('seats outside the construct at the trailing edge, whatever the arrival', () => {
+	it('puts the caret outside the construct at the trailing edge, whatever the arrival', () => {
 		for (const affinity of ['near', 'far', 'outside', null] as const) {
 			expect(seatIn(LINK, 7, affinity)).toEqual({ offset: 22, kind: 'link' });
 		}
 	});
 
-	it('seats outside the construct at the leading edge, which is already the near side', () => {
+	it('puts the caret outside the construct at the leading edge, which is already the near side', () => {
 		for (const affinity of ['near', 'far', 'outside', null] as const) {
 			expect(seatIn(LINK, 2, affinity)).toBeNull();
 		}
@@ -96,27 +96,27 @@ describe('a never-extend construct ignores the arrival', () => {
 describe('a childless construct is all delimiters', () => {
 	// `x \* y`: the escape shows `*`, so its backslash is the leading run and offset 3 is that
 	// run's end; never-extend puts the byte outside it.
-	it('seats a byte against an escape outside the pair', () => {
+	it('puts the caret at a byte against an escape outside the pair', () => {
 		expect(seatIn('x \\* y', 3, 'far')).toEqual({ offset: 2, kind: 'escape' });
 		// Already outside it: there is nothing to move.
 		expect(seatIn('x \\* y', 2, 'far')).toBeNull();
 	});
 
 	// `end  \nnext`: the two spaces are the run, and the break's `\n` is what shows.
-	it('seats a byte against a hard break before its spaces', () => {
+	it('puts the caret at a byte against a hard break before its spaces', () => {
 		expect(seatIn('end  \nnext', 4, 'far')).toEqual({ offset: 3, kind: 'hardLineBreak' });
 	});
 
 	// `\\` shows `\`, a visible string that also occurs at the construct's own start. The match
 	// has to be the last one, or the leading backslash reads as content and a byte typed at
 	// offset 1 goes to the pair's end instead of its start.
-	it('seats a byte at an escaped backslash on the near side, not past the pair', () => {
+	it('puts the caret at a byte at an escaped backslash on the near side, not past the pair', () => {
 		expect(seatIn('\\\\x y', 1, 'far')).toEqual({ offset: 0, kind: 'escape' });
 	});
 
 	// `<https://e.com>`: the URL is what shows, so the brackets are the two runs. A byte at
 	// either one goes outside the construct, since the destination is not text to extend.
-	it('seats a byte against an angle autolink outside its brackets', () => {
+	it('puts the caret at a byte against an angle autolink outside its brackets', () => {
 		expect(seatIn('<https://e.com> x', 1, 'outside')).toEqual({ offset: 0, kind: 'autolink' });
 		expect(seatIn('<https://e.com> x', 14, 'outside')).toEqual({ offset: 15, kind: 'autolink' });
 	});
@@ -151,7 +151,7 @@ describe('relocateComposedRun', () => {
 		});
 	});
 
-	it('leaves a run the seat agrees with alone', () => {
+	it('leaves a run the caret position agrees with alone', () => {
 		expect(relocateComposedRun(BOLD, composed(11, 'かん'), 11, inlines, 'near', LIVE)).toBeNull();
 	});
 
@@ -190,7 +190,7 @@ describe('a delimiter run shared between two pairings', () => {
 
 	// Non-vacuity, and the point of checking rather than refusing outright: the run's other end
 	// has a reading that keeps the pairing, and it is still taken.
-	it('still seats where a reading keeps the pairing', () => {
+	it('still puts the caret where a reading keeps the pairing', () => {
 		expect(seatIn(SHARED, 8, 'near')).toEqual({ offset: 6, kind: 'strong' });
 		expect(seatIn(SHARED, 13, 'outside')).toEqual({ offset: 14, kind: 'emphasis' });
 	});
@@ -201,7 +201,7 @@ describe('a delimiter run shared between two pairings', () => {
 describe('a run enclosing a bare autolink', () => {
 	// GFM's bare-autolink scanner takes a trailing `*` into the URL, so a byte outside the closer
 	// strands the opener. Inside it the URL absorbs the byte and both delimiters stay hidden.
-	it('seats inside the closing delimiter, whatever the arrival', () => {
+	it('puts the caret inside the closing delimiter, whatever the arrival', () => {
 		for (const affinity of ['near', 'far', 'outside', null] as const) {
 			expect(seatIn('*www.example.com*', 17, affinity), `${affinity}`).toEqual({
 				offset: 16,
@@ -228,7 +228,7 @@ describe('abutting marker runs are one screen position', () => {
 
 // Miss-analysis: the interior was unreachable while the caret's own offset short-circuited the
 // first candidate, so no case asked what the second one is for a kind that takes no interior.
-describe('a never-extend construct admits no interior seat', () => {
+describe('a never-extend construct admits no interior caret position', () => {
 	// `_foo_` spoils the byte before each construct (an intraword `_` cannot close), the only way
 	// past the first candidate. Offset 4 is inside the emphasis, outside the never-extend kind.
 	it.each([['_foo_[link](url)'], ['_foo_<https://e.com>'], ['_foo_![alt](u)']])(

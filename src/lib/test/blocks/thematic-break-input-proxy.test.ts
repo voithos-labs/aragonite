@@ -34,7 +34,7 @@ afterEach(async () => {
 	document.body.innerHTML = '';
 });
 
-describe('thematic break — the hidden editing host', () => {
+describe('thematic break: the hidden editing host', () => {
 	it('mounts inside the block and takes the whole-block focus landing', () => {
 		mounted = mountBreak();
 		expect(mounted.host).not.toBeNull();
@@ -46,7 +46,7 @@ describe('thematic break — the hidden editing host', () => {
 		expect(mounted.instance.getCursorOffset()).toBe(0);
 	});
 
-	it('mints a paragraph below carrying an AltGr production the keydown gate drops', () => {
+	it('creates a paragraph below carrying an AltGr production the keydown gate drops', () => {
 		mounted = mountBreak();
 		mounted.instance.parkCaret(0);
 
@@ -56,7 +56,7 @@ describe('thematic break — the hidden editing host', () => {
 		expect(event.defaultPrevented).toBe(true);
 	});
 
-	it('mints the composed text on commit and leaves the host empty', () => {
+	it('creates the composed text on commit and leaves the host empty', () => {
 		mounted = mountBreak();
 		mounted.instance.parkCaret(0);
 
@@ -68,7 +68,7 @@ describe('thematic break — the hidden editing host', () => {
 
 	// An aborted composition ends with nothing committed; inserting there would leave an empty
 	// paragraph behind every cancelled IME session.
-	it('mints nothing when a composition ends with no text', () => {
+	it('creates nothing when a composition ends with no text', () => {
 		mounted = mountBreak();
 		mounted.instance.parkCaret(0);
 

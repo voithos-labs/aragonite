@@ -49,7 +49,7 @@ beforeEach(() => {
 });
 
 describe('handleShiftClick out of a table cell', () => {
-	it('mints a cell-coordinate anchor, not the cell caret’s character offset', () => {
+	it('creates a cell-coordinate anchor, not the cell caret’s character offset', () => {
 		const doc = parse(TABLE_DOC);
 		const s = stateOver(doc);
 		const cells = mountTable([0], 3, 3);

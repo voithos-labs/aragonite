@@ -15,7 +15,7 @@ function write(display: string, fence: FenceShape, mode: FenceWriteMode = 'autho
 	return reconcileFenceWrite({ display, caret, fence, mode });
 }
 
-describe('reconcileFenceWrite — escalation', () => {
+describe('reconcileFenceWrite: escalation', () => {
 	// Parser-verified: "```js\n```\nconst x = 1\n```" parses as three blocks, the last
 	// of which swallows everything after the code block.
 	it('grows both runs past a body line the parser would read as the closer', () => {
@@ -24,7 +24,7 @@ describe('reconcileFenceWrite — escalation', () => {
 		);
 	});
 
-	it('grows past the LONGEST colliding body line, not the first', () => {
+	it('grows past the longest colliding body line, not the first', () => {
 		expect(write('```\n```\n`````\n```', backtick()).display).toBe('``````\n```\n`````\n``````');
 	});
 
@@ -57,7 +57,7 @@ describe('reconcileFenceWrite — escalation', () => {
 
 	// Typing a closer is how an open fence is ended by hand; escalating there would
 	// make that gesture impossible. A paste is content by contract, so it still grows.
-	it('lets an AUTHORED write close an open fence, and a LITERAL one grow it', () => {
+	it('lets an authored write close an open fence, and a literal one grow it', () => {
 		const open = '```\ncode\n```';
 		expect(write(open, backtick(3, false), 'authored').display).toBe(open);
 		expect(write(open, backtick(3, false), 'literal').display).toBe('````\ncode\n```');
@@ -72,7 +72,7 @@ describe('reconcileFenceWrite — escalation', () => {
 	});
 });
 
-describe('reconcileFenceWrite — info-string sanitization', () => {
+describe('reconcileFenceWrite: info-string sanitization', () => {
 	// Parser-verified: "```j`s\nconst x = 1\n```" demotes the block and promotes its
 	// closer to an absorbing opener. No fence length can hold the character.
 	it('drops a backtick typed into a backtick fence info string', () => {
@@ -94,25 +94,25 @@ describe('reconcileFenceWrite — info-string sanitization', () => {
 		expect(write('```j``s\ncode\n```', backtick(), 'literal', 7).display).toBe('```js\ncode\n```');
 	});
 
-	it('leaves a tilde fence info string alone — GFM allows backticks there', () => {
+	it('leaves a tilde fence info string alone: GFM allows backticks there', () => {
 		const display = '~~~y`ml\ncode\n~~~';
 		expect(write(display, { marker: '~', length: 3, closed: true }).display).toBe(display);
 	});
 
 	// The marker run of an open fence is editable content (crossesFenceBoundary), and
 	// typing a fourth backtick there widens the fence the user is still authoring.
-	it('leaves an OPEN fence opener alone', () => {
+	it('leaves an open fence opener alone', () => {
 		expect(write('````js\ncode', backtick(3, false), 'authored').display).toBe('````js\ncode');
 	});
 
 	// The exemption belongs to the user typing; a plain write to an open fence is code writing
 	// content, and the backtick it lands turns the block into a paragraph.
-	it('drops a backtick a LITERAL write lands in an open fence’s info string', () => {
+	it('drops a backtick a literal write lands in an open fence’s info string', () => {
 		expect(write('```j`s\ncode', backtick(3, false), 'literal').display).toBe('```js\ncode');
 	});
 });
 
-describe('reconcileFenceWrite — declines what it cannot read', () => {
+describe('reconcileFenceWrite: declines what it cannot read', () => {
 	it('leaves a display whose opener is not this block’s fence shape', () => {
 		const display = 'js\ncode\n```';
 		expect(write(display, backtick()).display).toBe(display);

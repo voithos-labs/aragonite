@@ -78,7 +78,7 @@ describe('changeBetweenIds', () => {
 });
 
 describe('trackChildIds', () => {
-	it('adds up the splices a ceremony makes through several doors', () => {
+	it('adds up the splices a commit sequence makes through several entry points', () => {
 		const doc = parse('a\n\nb\n\nc\n\nd\n');
 		const ledger = trackChildIds(doc);
 		const sharing = createSharingState();

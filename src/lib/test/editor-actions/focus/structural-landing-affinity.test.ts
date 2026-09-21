@@ -30,8 +30,8 @@ function harnessFor(source: string) {
 	};
 }
 
-describe("moveFocus — the side a landing at a block's end settles (#172)", () => {
-	it('answers outside: the caret was seated at an extreme, it did not step there', async () => {
+describe("moveFocus: the side a landing at a block's end settles (#172)", () => {
+	it('answers outside: the caret was placed at an extreme, it did not step there', async () => {
 		const h = harnessFor(BOLD_ABOVE_FENCE);
 
 		await h.move(0, 'end');

@@ -83,7 +83,7 @@ describe('composeExpandDoor', () => {
 
 	// Reading mode commits nothing at all (G4.19, in a place the lint cannot see): opening
 	// there just shows the title row instead of editing the document.
-	it('declines in reading mode — the reveal degrades rather than committing', async () => {
+	it('declines in reading mode: the reveal degrades rather than committing', async () => {
 		const d = door(registerCollapsible('door-reading', true), { mode: 'reading' });
 
 		await expect(d.open()).resolves.toBe(false);

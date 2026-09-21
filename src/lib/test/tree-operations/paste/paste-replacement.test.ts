@@ -3,7 +3,7 @@ import { buildPastedReplacement } from '$lib/tree-operations/paste/paste-replace
 import type { CstNode } from '$lib/core/nodes';
 import { parse } from '$lib/core/parser';
 
-describe('buildPastedReplacement — blank-line preservation between blocks', () => {
+describe('buildPastedReplacement: blank-line preservation between blocks', () => {
 	it('preserves blank line between two pasted paragraphs at end of leaf', () => {
 		const parsed = parse('one\n\ntwo\n');
 		expect(parsed.children).toHaveLength(2);
@@ -16,7 +16,7 @@ describe('buildPastedReplacement — blank-line preservation between blocks', ()
 		expect(replacement[2].leadingTrivia).toBe('\n');
 	});
 
-	it('preserves blank-line trivia on middle pasted blocks', () => {
+	it('preserves the blank-line separator on middle pasted blocks', () => {
 		const parsed = parse('a\n\nb\n\nc\n');
 		expect(parsed.children).toHaveLength(3);
 		expect(parsed.children[1].leadingTrivia).toBe('\n');
@@ -31,7 +31,7 @@ describe('buildPastedReplacement — blank-line preservation between blocks', ()
 	});
 });
 
-describe('buildPastedReplacement — structural separator at leading slice boundary', () => {
+describe('buildPastedReplacement: structural separator at leading slice boundary', () => {
 	it('forces blank-line separator between leading slice and first pasted block', () => {
 		const parsed = parse('one\n\ntwo\n');
 		expect(parsed.children[0].leadingTrivia).toBe('');
@@ -43,7 +43,7 @@ describe('buildPastedReplacement — structural separator at leading slice bound
 		expect(replacement[1].leadingTrivia).toBe('\n');
 	});
 
-	it('does not override an already-meaningful trivia on the first pasted block', () => {
+	it('does not override already-meaningful blank lines on the first pasted block', () => {
 		const parsed = parse('bar\n\nfoo\n');
 		expect(parsed.children[1].leadingTrivia).toBe('\n');
 		const blockWithTrivia = { ...parsed.children[1] };
@@ -55,7 +55,7 @@ describe('buildPastedReplacement — structural separator at leading slice bound
 	});
 });
 
-describe('buildPastedReplacement — cursor at offset 0 (no leading slice)', () => {
+describe('buildPastedReplacement: cursor at offset 0 (no leading slice)', () => {
 	it('does not emit a leading slice node when offset is 0', () => {
 		const parsed = parse('one\n\ntwo\n');
 		const leaf: CstNode = { kind: 'paragraph', leadingTrivia: '\n', raw: 'tail\n' };
@@ -77,7 +77,7 @@ describe('buildPastedReplacement — cursor at offset 0 (no leading slice)', () 
 	});
 });
 
-describe('buildPastedReplacement — trailing slice as separate paragraph', () => {
+describe('buildPastedReplacement, trailing slice as separate paragraph', () => {
 	it('preserves trailing slice as its own block instead of merging into last pasted', () => {
 		const parsed = parse('one\n\ntwo\n');
 		const leaf: CstNode = { kind: 'paragraph', leadingTrivia: '', raw: 'before-after\n' };

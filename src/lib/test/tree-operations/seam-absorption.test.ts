@@ -12,8 +12,8 @@ import type { SettledContent } from '$lib/tree-operations/content-write';
 // Miss-analysis: the property branch excluded every document holding indented code, so the one
 // adjacency no separator can fix was unreachable by construction.
 
-describe('a splice absorbs a seam the reload would fold (GH #61)', () => {
-	it('a split minting a list above indented code absorbs it', () => {
+describe('a splice absorbs a join the reload would fold (GH #61)', () => {
+	it('a split creating a list above indented code absorbs it', () => {
 		const source = '| H0 | H1 | H2 |\n| --- | --- |\n\n    code\n\n- | H0 |\n  | --- |\n';
 		const doc = parse(source);
 		expect(doc.children.map((c) => c.kind)).toEqual(['paragraph', 'indentedCode', 'list']);
@@ -129,7 +129,7 @@ describe('a splice absorbs a seam the reload would fold (GH #61)', () => {
 // Miss-analysis: every join pin merged a window whose head kept its kind, so the check admitting
 // only a kind-preserving merge refused these promotions unasserted.
 
-describe('a splice absorbs a seam whose fold promotes the head (GH #255)', () => {
+describe('a splice absorbs a join whose fold promotes the head (GH #255)', () => {
 	it('a split above a setext underline leaves the pair as one heading', () => {
 		const doc = parse('# [t](u)\n===\n');
 		expect(doc.children.map((c) => c.kind)).toEqual(['heading', 'paragraph']);

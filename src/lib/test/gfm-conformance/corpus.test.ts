@@ -12,13 +12,13 @@ import specExamples from './spec-examples.json';
 // ── Enumeration ──────────────────────────────────────────────────────────────
 
 describe('enumerateCorpus', () => {
-	it('emits every string of length 1..maxLen — 11 + 121 = 132 at maxLen 2', () => {
+	it('emits every string of length 1..maxLen: 11 + 121 = 132 at maxLen 2', () => {
 		const corpus = enumerateCorpus(2);
 		expect(corpus).toHaveLength(ENUM_ALPHABET.length + ENUM_ALPHABET.length ** 2);
 		expect(corpus).toHaveLength(132);
 	});
 
-	it('handles the full-sweep maxLen 5 — 161k strings at the top length', () => {
+	it('handles the full-sweep maxLen 5: 161k strings at the top length', () => {
 		expect(enumerateCorpus(5)).toHaveLength(11 + 121 + 1331 + 14641 + 161051);
 	});
 
@@ -28,7 +28,7 @@ describe('enumerateCorpus', () => {
 		expect(new Set(corpus).size).toBe(corpus.length);
 	});
 
-	it('draws only from ENUM_ALPHABET — never the random-only extras', () => {
+	it('draws only from ENUM_ALPHABET: never the random-only extras', () => {
 		const allowed = new Set<string>(ENUM_ALPHABET);
 		for (const string of enumerateCorpus(2)) {
 			for (const char of string) expect(allowed.has(char)).toBe(true);
@@ -39,7 +39,7 @@ describe('enumerateCorpus', () => {
 // ── Seeded sampling ──────────────────────────────────────────────────────────
 
 describe('sampleCorpus', () => {
-	it('is deterministic — same seed and bounds reproduce the exact strings', () => {
+	it('is deterministic: same seed and bounds reproduce the exact strings', () => {
 		expect(sampleCorpus(42, 200, 1, 12)).toEqual(sampleCorpus(42, 200, 1, 12));
 	});
 

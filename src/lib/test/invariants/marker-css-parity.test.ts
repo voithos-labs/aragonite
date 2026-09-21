@@ -28,7 +28,7 @@ afterEach(() => {
 });
 
 describe('checkMarkerCssParity', () => {
-	it('stands down when no stylesheet computes a hidden family (jsdom, source mode)', () => {
+	it('does nothing when no stylesheet computes a hidden family (jsdom, source mode)', () => {
 		expect(checkMarkerCssParity(mountRoot('live'))).toBeNull();
 		expect(checkMarkerCssParity(mountRoot(undefined))).toBeNull();
 	});

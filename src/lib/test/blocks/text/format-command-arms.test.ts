@@ -35,7 +35,7 @@ afterEach(async () => {
 	document.body.innerHTML = '';
 });
 
-describe('format command arms on a prose block', () => {
+describe('format command branches on a prose block', () => {
 	it.each([
 		['format.toggleStrong', '## **Head**\n'],
 		['format.toggleEmphasis', '## *Head*\n'],

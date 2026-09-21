@@ -37,7 +37,7 @@ describe('moveFocus past the last block', () => {
 		expect(doc.children[1].raw).toBe('\r\n');
 	});
 
-	it('with { append: false } is a no-op at the document end — no block, no event', async () => {
+	it('with { append: false } is a no-op at the document end; no block, no event', async () => {
 		const { deps, doc, events } = makeEditorActionsDeps([
 			{ kind: 'paragraph', leadingTrivia: '\n', raw: 'hello\n' } as any
 		]);

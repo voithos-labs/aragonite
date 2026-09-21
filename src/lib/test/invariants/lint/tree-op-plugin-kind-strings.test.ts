@@ -107,7 +107,7 @@ describe('G4.x no plugin kind name in a core dispatch layer', () => {
 
 // ── Non-vacuity ───────────────────────────────────────────────────────────────
 
-describe('G4.x no plugin kind name in a core dispatch layer — non-vacuity', () => {
+describe('G4.x no plugin kind name in a core dispatch layer: non-vacuity', () => {
 	const forbidden = pluginBlockKindLiterals(collectEditorSources(PLUGIN_SRC));
 
 	it('resolves a const-defined plugin kind and a directly-quoted one', () => {

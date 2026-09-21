@@ -96,7 +96,7 @@ describe('widgetsIntersectingRange', () => {
 
 	// A zero-byte decoration widget (`data-source-start === data-source-end`) is deliberately
 	// skipped by the selection rects, since nothing is selected, so nobody "fixes" the check.
-	it('ignores a zero-length decoration widget island', () => {
+	it('ignores a zero-length decoration widget decoration', () => {
 		const island = document.createElement('span');
 		island.setAttribute('data-inline-widget', '');
 		island.setAttribute('data-decoration-island', '');

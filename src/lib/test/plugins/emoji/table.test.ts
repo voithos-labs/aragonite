@@ -4,7 +4,7 @@ import { EMOJI_TABLE } from '$lib/plugins/emoji';
 // The generated table's shape, pinned; never the full listing. A regeneration that lost its
 // aliases, collapsed to nothing or grew absurdly fails here, and the exact glyph bytes for a
 // couple of entries guard against a mangled decode.
-describe('EMOJI_TABLE — generated gemoji shortcode map', () => {
+describe('EMOJI_TABLE: generated gemoji shortcode map', () => {
 	it('maps a canonical shortcode and a `+`-bearing one to their glyphs', () => {
 		expect(EMOJI_TABLE.get('smile')).toBe('😄');
 		expect(EMOJI_TABLE.get('+1')).toBe('👍');

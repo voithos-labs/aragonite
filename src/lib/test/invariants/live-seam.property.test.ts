@@ -106,7 +106,7 @@ function visibleTextOf(node: Document['children'][number]): string {
 	return renderedText(parseInline(node.raw, range.start, range.end), node.raw, CONTENT_VISIBILITY);
 }
 
-describe('live-mode join seams over random range deletes', () => {
+describe('live-mode joins over random range deletes', () => {
 	beforeAll(() => registerLiveJoinSeamCleaner(cleanLiveJoinSeam));
 	afterAll(() => __resetLiveJoinSeamCleanerForTests());
 
@@ -131,7 +131,7 @@ describe('live-mode join seams over random range deletes', () => {
 		);
 	});
 
-	it('a live delete only ever drops bytes, and never mints unpainted residue', () => {
+	it('a live delete only ever drops bytes, and never creates unpainted residue', () => {
 		fc.assert(
 			fc.property(arbInlineDoc, arbCut, (source, cut) => {
 				const literal = deleteRange(source, cut, undefined);

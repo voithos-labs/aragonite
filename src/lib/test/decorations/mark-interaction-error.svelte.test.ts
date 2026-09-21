@@ -75,7 +75,7 @@ function clickPaintedMark(): void {
 }
 
 describe('an interactive mark contains and attributes its click handler', () => {
-	it('routes a throwing onClick to the error seam as origin decoration', () => {
+	it('routes a throwing onClick to the error path as origin decoration', () => {
 		const errors = mountOverlay({
 			onClick: () => {
 				throw new Error('plugin onClick blew up');

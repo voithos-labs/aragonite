@@ -79,8 +79,8 @@ function revealableKinds(): Set<string> {
 	);
 }
 
-describe('G4.35 stamp↔revealable parity', () => {
-	it('every stamped construct declares revealable, and every revealable one stamps', () => {
+describe('G4.35 mark↔revealable parity', () => {
+	it('every marked construct declares revealable, and every revealable one marks', () => {
 		const stamped = [...stampedKinds()].sort();
 		const revealable = [...revealableKinds()].sort();
 		expect(stamped).toEqual(revealable);
@@ -112,7 +112,7 @@ describe('G4.35 stamp↔revealable parity', () => {
 
 	// The other direction. A list names the kinds someone knew about; this one fails for a kind
 	// nobody thought to name, which is the shape that shipped before.
-	it('every kind that mints a marker span declares a policy row', () => {
+	it('every kind that creates a marker span declares a policy row', () => {
 		const unrowed = [...markerKinds()].filter((kind) => !rowedKinds().has(kind)).sort();
 		expect(
 			unrowed,

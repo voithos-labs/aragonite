@@ -71,7 +71,7 @@ describe('plugin-api § API reference catalogs the whole aragonite/plugin surfac
 		expect(undocumented(exportNames, section)).toEqual([]);
 	});
 
-	it('is not vacuous — a dropped catalog entry is detected', () => {
+	it('is not vacuous: a dropped catalog entry is detected', () => {
 		const withoutOne = section.replaceAll('`createContainerBlock`', '`__dropped__`');
 		expect(undocumented(exportNames, withoutOne)).toEqual(['createContainerBlock']);
 	});
@@ -93,7 +93,7 @@ describe('plugin-testing § Verifying your plugin names every aragonite/testing 
 		expect(undocumented(exportNames, section, true)).toEqual([]);
 	});
 
-	it('is not vacuous — a dropped mention is detected', () => {
+	it('is not vacuous: a dropped mention is detected', () => {
 		const withoutOne = section.replaceAll('applyPasteTransforms', '__dropped__');
 		expect(undocumented(exportNames, withoutOne, true)).toEqual(['applyPasteTransforms']);
 	});

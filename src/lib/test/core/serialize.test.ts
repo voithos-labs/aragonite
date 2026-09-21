@@ -19,7 +19,7 @@ describe('serialize', () => {
 		expect(serialize(doc)).toBe('\n\n# Title\n\n');
 	});
 
-	it('serializes multiple blocks with leading trivia', () => {
+	it('serializes multiple blocks with leading blank lines', () => {
 		const doc = {
 			kind: 'document' as const,
 			prefix: '',

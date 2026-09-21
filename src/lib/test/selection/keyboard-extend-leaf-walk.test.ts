@@ -5,14 +5,14 @@ import { parse } from '../../core/parser';
 import { stateAt, el } from './extend-walk-env';
 
 describe("extendFocusToPreviousBlock from a container's first leaf", () => {
-	it('Shift+ArrowUp extends to the block ABOVE the container, not its last leaf', () => {
+	it('Shift+ArrowUp extends to the block above the container, not its last leaf', () => {
 		const doc = parse('para\n\n> a\n>\n> b\n');
 		const s = stateAt(doc, [1, 0]);
 		expect(extendFocusToPreviousBlock(s, doc, el(), [1, 0], 'start')).toBe(true);
 		expect(s.focus).toEqual({ path: [0], offset: 0 });
 	});
 
-	it('Shift+ArrowLeft extends to the END of the block above the container', () => {
+	it('Shift+ArrowLeft extends to the end of the block above the container', () => {
 		const doc = parse('para\n\n> a\n>\n> b\n');
 		const s = stateAt(doc, [1, 0]);
 		expect(extendFocusToPreviousBlock(s, doc, el(), [1, 0], 'end')).toBe(true);

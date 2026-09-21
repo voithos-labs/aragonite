@@ -85,7 +85,7 @@ describe('pending marks clear with the caret side', () => {
 		return state;
 	}
 
-	it('a structural or lifecycle seam clears them through reset()', () => {
+	it('a structural or lifecycle boundary clears them through reset()', () => {
 		const { affinity, marks } = pended();
 		affinity.reset();
 		expect(marks.get()).toBeNull();

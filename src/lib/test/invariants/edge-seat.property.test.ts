@@ -126,13 +126,13 @@ function typeThroughSeat(
 	return { after: display.slice(0, at) + 'Z' + display.slice(at), relocated: seat !== null };
 }
 
-describe('the typing seat over generated inline fixtures', () => {
+describe('the typing caret position over generated inline fixtures', () => {
 	// Moving the byte is the rare answer, so a run that never moved one proves nothing here.
 	let relocated = 0;
 	let declined = 0;
 	let ambiguous = 0;
 
-	it('a typed letter never puts a delimiter on screen the seat could have kept hidden', () => {
+	it('a typed letter never puts a delimiter on screen the caret position could have kept hidden', () => {
 		fc.assert(
 			fc.property(
 				arbInlineSource,
@@ -174,7 +174,7 @@ describe('the typing seat over generated inline fixtures', () => {
 	// Zero on the fixed seed, and a ceiling rather than a floor: the shape turns up about once in
 	// fifteen thousand draws, so one here means the search range shrank, and a candidate it can no
 	// longer reach reads as markdown's fault. On a fresh seed a hit is a find worth looking at.
-	it('no draw rebinds under every offset the seat can reach', () => {
+	it('no draw rebinds under every offset the caret can reach', () => {
 		expect(ambiguous).toBe(0);
 	});
 });
@@ -197,7 +197,7 @@ describe('a surfaced delimiter is classified, never excluded', () => {
 
 	// What the classification may not swallow: a shared run the code can answer is still an answer,
 	// and it lies in the neighbouring run rather than in this construct's own.
-	it('still claims a shared run the seat can seat', () => {
+	it('still claims a shared run the caret can sit in', () => {
 		expect(rescueOffset('**a *b** c*', 0)).toBe(2);
 		expect(typeThroughSeat('**a *b** c*', 0, 'near').after).toBe('**Za *b** c*');
 	});

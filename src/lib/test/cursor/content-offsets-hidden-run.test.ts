@@ -50,9 +50,9 @@ afterEach(() => {
 	window.getSelection()?.removeAllRanges();
 });
 
-describe('createRangeFromOffsets — hidden marker runs are opaque', () => {
+describe('createRangeFromOffsets: hidden marker runs are opaque', () => {
 	for (const offset of [0, 3, 6]) {
-		it(`seats no endpoint in the hidden opener fence at offset ${offset}`, () => {
+		it(`puts the caret no endpoint in the hidden opener fence at offset ${offset}`, () => {
 			const fx = mount('live');
 			const range = createRangeFromOffsets(
 				fx.block,
@@ -71,7 +71,7 @@ describe('createRangeFromOffsets — hidden marker runs are opaque', () => {
 		expect(range.startOffset).toBe(2);
 	});
 
-	it('seats no endpoint in the hidden closer fence', () => {
+	it('puts the caret no endpoint in the hidden closer fence', () => {
 		const fx = mount('live');
 		const range = createRangeFromOffsets(fx.block, asDomTextOffset(21), asDomTextOffset(21))!;
 		expect(isHiddenMarkerText(range.startContainer, fx.block)).toBe(false);
@@ -94,7 +94,7 @@ describe('createRangeFromOffsets — hidden marker runs are opaque', () => {
 	});
 });
 
-describe('setCursorOffset — the corrupting landing', () => {
+describe('setCursorOffset: the corrupting landing', () => {
 	it('never drops the caret inside the hidden opener fence', () => {
 		const fx = mount('live');
 		setCursorOffset(fx.block, asDomTextOffset(0));

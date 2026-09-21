@@ -69,14 +69,14 @@ function makeSeatHarness(source: string, affinity: EdgeAffinity | null): SeatHar
 	return { surface, compose, selectRange };
 }
 
-describe('the composition seat is gated on the mode, like its keydown sibling', () => {
+describe('the composition caret position is gated on the mode, like its keydown sibling', () => {
 	it('source mode commits the DOM read verbatim: the delimiter the caret touched is visible', () => {
 		const { surface, compose } = makeSeatHarness(BOLD, 'far');
 		compose('Some **boldかん** text', 11);
 		expect(surface.commits.map((c) => c.text)).toEqual(['Some **boldかん** text']);
 	});
 
-	it('live mode relocates the composed run through the seat', () => {
+	it('live mode relocates the composed run through the caret position', () => {
 		const { surface, compose } = makeSeatHarness(BOLD, 'far');
 		surface.el.setAttribute('data-presentation', 'live');
 		compose('Some **boldかん** text', 11);
@@ -84,12 +84,12 @@ describe('the composition seat is gated on the mode, like its keydown sibling', 
 	});
 });
 
-describe('a composition over a selection takes the join seam', () => {
+describe('a composition over a selection takes the join', () => {
 	// Same fixture as live-selection-edit: selecting [9,21) crosses `**`'s closer and `*`'s
 	// opener, so the literal replace strands both runs on screen.
 	const MIXED = 'Some **bold** and *italic* words';
 
-	it('live mode cleans the stranded runs and lands the run at the cleaned seam', () => {
+	it('live mode cleans the stranded runs and lands the run at the cleaned join', () => {
 		const { surface, compose, selectRange } = makeSeatHarness(MIXED, null);
 		surface.el.setAttribute('data-presentation', 'live');
 		selectRange(9, 21);
@@ -97,7 +97,7 @@ describe('a composition over a selection takes the join seam', () => {
 		expect(surface.commits.map((c) => c.text)).toEqual(['Some boかんalic words']);
 	});
 
-	it('a range whose seam has nothing to clean stays the verbatim native edit', () => {
+	it('a range whose join has nothing to clean stays the verbatim native edit', () => {
 		const PLAIN = 'plain words here';
 		const { surface, compose, selectRange } = makeSeatHarness(PLAIN, null);
 		surface.el.setAttribute('data-presentation', 'live');

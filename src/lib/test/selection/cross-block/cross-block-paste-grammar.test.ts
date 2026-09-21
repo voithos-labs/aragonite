@@ -27,7 +27,7 @@ describe('handleCrossBlockPaste forwards the instance grammar to the join repars
 
 	// Control: with the global grammar (grammar undefined) the same paste re-creates the
 	// list, so the assertion above is a real grammar effect, not a vacuous pass.
-	it('the global grammar still re-mints the completion as a list', async () => {
+	it('the global grammar still re-creates the completion as a list', async () => {
 		const env = makeEnv('x\n\n. item\n');
 		selectAcross(env.selectionState, [0], [1]);
 

@@ -29,7 +29,7 @@ const MERGEABLE: ReadonlyArray<[MergeRole, MergeRole]> = [
 	['self-merge', 'self-merge']
 ];
 
-describe('isMergeEligible — every ordered role pair', () => {
+describe('isMergeEligible: every ordered role pair', () => {
 	const roles = Object.keys(ROLE_SAMPLE) as MergeRole[];
 
 	// Non-vacuity: the matrix below is only about roles if its samples still carry them.

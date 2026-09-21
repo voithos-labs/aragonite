@@ -298,7 +298,7 @@ describe('code → consumer-guide § Keyboard shortcuts', () => {
 // A parser that finds no rows, or a resolver that says yes to everything, lets every assertion
 // above pass on nothing.
 
-describe('consumer-guide chord coherence — self-tests', () => {
+describe('consumer-guide chord coherence: self-tests', () => {
 	it('parses every family, and the rows a naive cell split loses', () => {
 		expect([...new Set(rows.map((row) => row.family))].sort()).toEqual(
 			['Block reorder', 'Clipboard', 'Editing', 'Find / replace', 'Tables'].sort()

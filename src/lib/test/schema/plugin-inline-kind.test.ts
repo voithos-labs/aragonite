@@ -42,7 +42,7 @@ describe('declaredPluginInlineKind', () => {
 		);
 	});
 
-	it('does not declare — an accessor call for an undeclared name is not idempotent', () => {
+	it('does not declare: an accessor call for an undeclared name is not idempotent', () => {
 		expect(() => declaredPluginInlineKind('notYetDeclared')).toThrow();
 		// A later collision must still be loud: the failed lookup didn't register it.
 		expect(declarePluginInlineKind('notYetDeclared')).toBe('notYetDeclared');

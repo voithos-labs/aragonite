@@ -25,7 +25,7 @@ describe('admonitions github-alerts paste transform', () => {
 		expect(run('```md\n> [!NOTE]\n> body\n```\n')).toBeNull();
 	});
 
-	it('is idempotent — its own converted output declines a second pass', () => {
+	it('is idempotent: its own converted output declines a second pass', () => {
 		const converted = run('> [!TIP]\n> Handy.\n');
 		expect(converted).not.toBeNull();
 		expect(run(converted as string)).toBeNull();

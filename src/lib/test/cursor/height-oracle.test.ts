@@ -117,7 +117,7 @@ describe('createHeightOracle', () => {
 
 	// The plugin contract's rule for an unknown kind: a kind with no case of its own falls
 	// through to the default wrapped prose estimate, and never crashes the measure path.
-	it('estimates an unknown plugin kind via the default wrapped arm', () => {
+	it('estimates an unknown plugin kind via the default wrapped branch', () => {
 		const o = createHeightOracle(opts);
 		const plugin: CstNode = {
 			kind: declarePluginKind('oracle-unknown-kind'),
@@ -249,7 +249,7 @@ describe('createHeightOracle', () => {
 	// A descriptor's own O(1) estimate replaces the character-based default (a rendered diagram
 	// or embed dwarfs its source text). The block's margins are still added, and a measured height
 	// still wins.
-	it('a descriptor estimateHeight wins over the default arm, plus block chrome', () => {
+	it('a descriptor estimateHeight wins over the default branch, plus block chrome', () => {
 		const o = createHeightOracle(opts);
 		const estimated = declarePluginKind('oracle-estimate-height');
 		registerBlockKind(estimated, {

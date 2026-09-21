@@ -35,7 +35,7 @@ describe('a truncated endpoint ending in a blank line keeps it (GH #97)', () => 
 		expect(survivor).toBe('    a\n\n');
 	});
 
-	it('the CRLF twin keeps its CRLF line', () => {
+	it('the CRLF variant keeps its CRLF line', () => {
 		const survivor = run(
 			'    a\r\n\r\n    b\r\n\r\nafter',
 			{ path: [0], offset: 9 },

@@ -108,10 +108,10 @@ describe('G2.10 capture-without-reset guard', () => {
 	});
 });
 
-describe('G2.10 keydown-door guard', () => {
+describe('G2.10 keydown entry-point guard', () => {
 	const sources = collectEditorSources();
 
-	it('no keydown handler clears the column outside the classification door', () => {
+	it('no keydown handler clears the column outside the classification entry point', () => {
 		const offenders = sources
 			.filter((f) => isKeydownFile(f.relPath))
 			.map((f) => ({
@@ -132,7 +132,7 @@ describe('G2.10 keydown-door guard', () => {
 		}
 	});
 
-	it('every keydown entry path routes through the door', () => {
+	it('every keydown entry path routes through the entry point', () => {
 		const byPath = new Map(sources.map((f) => [f.relPath, f]));
 		for (const relPath of KEYDOWN_SEAM_FILES) {
 			const file = byPath.get(relPath);
@@ -153,7 +153,7 @@ describe('G2.10 keydown-door guard', () => {
 		).toEqual(Object.keys(KEYDOWN_PATH_NAMED_FILES).sort());
 	});
 
-	it('every path-named dispatcher is also on the seam list', () => {
+	it('every path-named dispatcher is also on the module list', () => {
 		const dispatchers = Object.entries(KEYDOWN_PATH_NAMED_FILES)
 			.filter(([, role]) => role.startsWith('dispatcher'))
 			.map(([relPath]) => relPath);
@@ -166,7 +166,7 @@ describe('G2.10 keydown-door guard', () => {
 
 	// The matcher covers the direct-reset rule only: the list of entry paths is its own, so one
 	// whose file name omits "keydown" is still held to `noteKey`.
-	it('the reset-scan matcher selects the path-named seams and skips unrelated sources', () => {
+	it('the reset-scan matcher selects the path-named modules and skips unrelated sources', () => {
 		expect(isKeydownFile('src/lib/selection/shared-keydown.ts')).toBe(true);
 		expect(isKeydownFile('src/lib/selection/cross-block/keydown.ts')).toBe(true);
 		expect(isKeydownFile('src/lib/selection/cross-block/pointer.ts')).toBe(false);

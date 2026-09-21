@@ -108,7 +108,7 @@ describe('the declared surface leaves the tab order', () => {
 
 	// A kind's declared element is per render state, so a demotion applied once at mount reaches
 	// only the state that happened to be showing: mermaid's loading view, never its viewport.
-	it('demotes the surface a LATER render state supplies', () => {
+	it('demotes the surface a later render state supplies', () => {
 		const loading = box();
 		loading.tabIndex = 0;
 		const viewport = box();
@@ -141,7 +141,7 @@ describe('container shim through a composed fallback surface', () => {
 		);
 	}
 
-	it('focus() lands DOM focus on the box, minting tabindex for a plain div', () => {
+	it('focus() lands DOM focus on the box, creating tabindex for a plain div', () => {
 		const boxEl = box();
 		shim(boxEl).focus(0);
 		expect(document.activeElement).toBe(boxEl);

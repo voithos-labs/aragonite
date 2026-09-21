@@ -38,7 +38,7 @@ const picker = () => mounted!.target.querySelector('.code-lang-picker');
 const completions = () => mounted!.blockEdit.updateBlockContent;
 
 describe('a bare fence taking the caret', () => {
-	it('completes and offers a language when the caret was seated, not stepped', async () => {
+	it('completes and offers a language when the caret was placed, not stepped', async () => {
 		await focusFence('seat');
 
 		expect(completions()).toHaveBeenCalledWith(0, '```\n\n```\n', expect.anything());

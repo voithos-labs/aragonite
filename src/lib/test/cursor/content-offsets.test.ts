@@ -110,7 +110,7 @@ describe('content-offsets', () => {
 	});
 
 	describe('getRangeOffsets', () => {
-		it('measures a range the selection does not hold — the pending-edit case', () => {
+		it('measures a range the selection does not hold: the pending-edit case', () => {
 			container.textContent = 'abcdef';
 			const range = createRangeFromOffsets(container, asDomTextOffset(1), asDomTextOffset(4));
 			expect(getRangeOffsets(container, range!)).toEqual({ start: 1, end: 4 });

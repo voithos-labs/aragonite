@@ -3,7 +3,7 @@ import { indentLines, dedentLines } from '../../../components/blocks/code/code-i
 
 // ── indentLines: collapsed selection (single tab insert) ────────────────────
 
-describe('indentLines — collapsed selection', () => {
+describe('indentLines: collapsed selection', () => {
 	it('inserts a single tab at the cursor', () => {
 		const result = indentLines('foo', { start: 1, end: 1 });
 		expect(result.text).toBe('f\too');
@@ -25,7 +25,7 @@ describe('indentLines — collapsed selection', () => {
 
 // ── indentLines: multi-line selection ───────────────────────────────────────
 
-describe('indentLines — multi-line selection', () => {
+describe('indentLines: multi-line selection', () => {
 	it('inserts a tab at every line-start the selection touches', () => {
 		const text = 'alpha\nbeta\ngamma';
 		const result = indentLines(text, { start: 1, end: 14 });
@@ -53,7 +53,7 @@ describe('indentLines — multi-line selection', () => {
 
 // ── dedentLines: collapsed selection ────────────────────────────────────────
 
-describe('dedentLines — collapsed selection', () => {
+describe('dedentLines: collapsed selection', () => {
 	it('removes a leading tab from the current line', () => {
 		const result = dedentLines('\tfoo', { start: 2, end: 2 });
 		expect(result.text).toBe('foo');
@@ -100,7 +100,7 @@ describe('dedentLines — collapsed selection', () => {
 
 // ── dedentLines: multi-line selection ───────────────────────────────────────
 
-describe('dedentLines — multi-line selection', () => {
+describe('dedentLines: multi-line selection', () => {
 	it('removes one tab from every selected line', () => {
 		const text = '\talpha\n\tbeta\n\tgamma';
 		const result = dedentLines(text, { start: 1, end: 18 });

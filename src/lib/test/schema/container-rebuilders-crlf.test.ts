@@ -43,7 +43,7 @@ describe('rebuildTableRaw over a CRLF source', () => {
 		expect(table.raw).toBe(crlfTable);
 	});
 
-	it('gives a row minted by an insert the table ending, not LF', () => {
+	it('gives a row created by an insert the table ending, not LF', () => {
 		const table = parse(crlfTable).children[0];
 		insertEmptyRow(table, 1, 'below');
 		rebuildTableRowRaw(table.children![2]);

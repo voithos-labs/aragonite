@@ -21,7 +21,7 @@ describe('registerDirectiveKinds', () => {
 		expect(isBlockKindRegistered(DIRECTIVE_LEAF)).toBe(true);
 	});
 
-	it('is idempotent — a re-import re-runs it without throwing', () => {
+	it('is idempotent: a re-import re-runs it without throwing', () => {
 		registerDirectiveKinds();
 		expect(() => registerDirectiveKinds()).not.toThrow();
 		expect(isBlockKindRegistered(DIRECTIVE_CONTAINER)).toBe(true);
@@ -91,7 +91,7 @@ describe('rebuildDirectiveContainerRaw', () => {
 
 	const paragraph = (raw: string): CstNode => ({ kind: 'paragraph', leadingTrivia: '', raw });
 
-	it('re-emits opener colons, verbatim info, inner trivia, and the closer', () => {
+	it('re-emits opener colons, verbatim info, inner blank lines, and the closer', () => {
 		const node = build(
 			{
 				name: 'x',

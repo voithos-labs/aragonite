@@ -30,7 +30,7 @@ function restoreHarness(source: string, { mounted = true } = {}) {
 
 // The e2e cannot discriminate this: an over-long DOM offset already degrades to the container end
 // when the range is built, so the browser hides a missing model clamp.
-describe('resolveSelectionPoint — clamping per coordinate space', () => {
+describe('resolveSelectionPoint, clamping per coordinate space', () => {
 	it('clamps a prose offset to the block raw length', () => {
 		const doc = parse(PROSE);
 		const point = resolveSelectionPoint(doc, { path: [1], offset: 999 });
@@ -44,7 +44,7 @@ describe('resolveSelectionPoint — clamping per coordinate space', () => {
 		});
 	});
 
-	it('clamps an UNFLAGGED intra-table endpoint in cell space, not against the markdown', () => {
+	it('clamps an unflagged intra-table endpoint in cell space, not against the markdown', () => {
 		// The case the kind-based discriminant exists for: no flag, yet the offset is a cell index. 2
 		// rows × 2 columns → indices 0..3, while a raw-length clamp leaves the index outside the grid.
 		expect(resolveSelectionPoint(parse(TABLE_2x2), { path: [0], offset: 99 })).toEqual({
@@ -104,7 +104,7 @@ describe('restoreSelection', () => {
 
 	// The undo swap clears on `unresolvable` and must not clear on `unplaced`, where the overlay
 	// route has already stored the correct endpoints.
-	it('reports unplaced — not unresolvable — when a resolvable target is unmounted', async () => {
+	it('reports unplaced (not unresolvable) when a resolvable target is unmounted', async () => {
 		const h = restoreHarness(PROSE, { mounted: false });
 
 		const outcome = await restoreSelection(
@@ -129,7 +129,7 @@ describe('restoreSelection', () => {
 		expect(h.revealed).toEqual([[1]]);
 	});
 
-	it('reveals the deep cell it parks in, not the table block', async () => {
+	it('reveals the deep cell it puts the caret in, not the table block', async () => {
 		const h = restoreHarness(TABLE_2x2);
 
 		// Cell index 3 in a 2-column table is row 1, col 1. Table rows are windowed, so mounting

@@ -105,7 +105,7 @@ describe('G4.18 inline-trigger parity', () => {
 	});
 });
 
-describe('G4.18 pre-switch prefix consultation — one home, ahead of the switch', () => {
+describe('G4.18 pre-switch prefix consultation: one home, ahead of the switch', () => {
 	const switchAt = switchOffset();
 	const gate = callOffsets('hasPrefixRungs()');
 	const consult = callOffsets('getPrefixRungs(');
@@ -117,13 +117,13 @@ describe('G4.18 pre-switch prefix consultation — one home, ahead of the switch
 
 	// A per-case copy of the consultation (the bug shape this pins against) would
 	// add a second `getPrefixRungs(` after the switch offset.
-	it('consults reserved prefix rungs from exactly one site, before the switch', () => {
+	it('consults reserved prefix inline syntax handlers from exactly one site, before the switch', () => {
 		expect(consult).toHaveLength(1);
 		expect(consult[0]).toBeLessThan(switchAt);
 	});
 });
 
-describe('G4.18 inline-trigger parity — extractor self-tests', () => {
+describe('G4.18 inline-trigger parity: extractor self-tests', () => {
 	it('extracts inner literals and keeps escapes in source form (no unescaping)', () => {
 		expect(singleQuotedLiterals("'a', 'b'")).toEqual(['a', 'b']);
 		expect(singleQuotedLiterals("'\\n'")).toEqual(['\\n']); // stays backslash-n, not a newline

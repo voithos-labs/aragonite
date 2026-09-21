@@ -61,7 +61,7 @@ describe('list-windowing subtotal channel', () => {
 		cleanup();
 	});
 
-	it('addresses a subtotal by the id the MODEL is indexed by, not the live child list', () => {
+	it('addresses a subtotal by the id the height table is indexed by, not the live child list', () => {
 		const oracleRef = countingOracle();
 		const ids = ['b0', 'b1', 'b2'];
 		const { windowing, cleanup } = mountScope({ ids, oracleRef });

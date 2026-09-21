@@ -31,7 +31,7 @@ describe('mergedElseFocusPrevious', () => {
 });
 
 describe('mergedElseFocusNext', () => {
-	it('focuses the block that stayed when the door refused the join', () => {
+	it('focuses the block that stayed when the entry point refused the join', () => {
 		const focus = vi.fn();
 
 		expect(mergedElseFocusNext({ op: 'noop' }, mockRef({ focus }))).toBe(false);

@@ -87,7 +87,7 @@ const ILLEGAL: [rule: string, line: number, message: string][] = [
 	['attribution-trailer', 3, '+ (editor) block parser\n\n🤖 Generated with [Claude Code]']
 ];
 
-describe('G4.58 commit-message shape — the rule', () => {
+describe('G4.58 commit-message shape: the rule', () => {
 	it('scans a corpus of both verdicts rather than passing vacuously', () => {
 		expect(LEGAL.length).toBeGreaterThan(5);
 		expect(new Set(ILLEGAL.map(([rule]) => rule)).size).toBeGreaterThan(5);
@@ -113,7 +113,7 @@ describe('G4.58 commit-message shape — the rule', () => {
 	});
 });
 
-describe('G4.58 commit-message shape — the two doors', () => {
+describe('G4.58 commit-message shape: the two entry points', () => {
 	const pkg = JSON.parse(readFileSync(path.join(ROOT, 'package.json'), 'utf8'));
 	const ci = readFileSync(path.join(ROOT, '.github/workflows/ci.yml'), 'utf8');
 	const unitJob = ci.slice(ci.indexOf('\n  unit:'), ci.indexOf('\n  e2e:'));
@@ -143,7 +143,7 @@ describe('G4.58 commit-message shape — the two doors', () => {
 	});
 });
 
-describe('G4.58 commit-message shape — the co-founder exemption', () => {
+describe('G4.58 commit-message shape: the co-founder exemption', () => {
 	const OFFENDING = 'Fixed the thing.';
 
 	/** The `-z --format=%H%n%an%n%B` records the range check reads. */

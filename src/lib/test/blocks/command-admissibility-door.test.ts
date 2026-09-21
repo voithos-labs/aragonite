@@ -35,7 +35,7 @@ function editorWithSelection(props = {}): EditorInstance {
 }
 
 describe('the admissibility read on the instance surface', () => {
-	it('admits every published toolbar id at a live selection, and the door agrees', () => {
+	it('admits every published toolbar id at a live selection, and the entry point agrees', () => {
 		const editor = editorWithSelection();
 		for (const id of TOOLBAR_IDS) expect(editor.canRunCommand(id), id).toBe(true);
 		expect(editor.runCommand(TOOLBAR_COMMANDS.toggleStrong)).toBe(true);
@@ -66,7 +66,7 @@ describe('the admissibility read on the instance surface', () => {
 	// The chord-only boundary, held by the real focused target rather than by prose: it resolves
 	// a block with no command context, so a plugin id reaches neither level. Both halves
 	// spend one walk now, so this is what keeps the contract from moving under the read.
-	it('reaches no minted plugin command, neither read nor run', () => {
+	it('reaches no created plugin command, neither read nor run', () => {
 		const minted = registerBlockCommand('paragraph', 'demo.doorOnly', () => true);
 		const editor = editorWithSelection();
 

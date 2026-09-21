@@ -57,7 +57,7 @@ function dispatchBeforeInput(el: HTMLElement, inputType: string, data?: string):
 	return e;
 }
 
-describe('live mode: every cell cut crosses the join seam', () => {
+describe('live mode: every cell cut crosses the join', () => {
 	it('the clipboard cut drops the runs it strands and copies the raw slice', async () => {
 		mounted = mountCell(MIXED, LIVE);
 		mounted.el.focus();
@@ -70,7 +70,7 @@ describe('live mode: every cell cut crosses the join seam', () => {
 		expect(committedCalls(mounted)).toEqual([[0, 'bot', 4, 2]]);
 	});
 
-	it('the context-menu cut takes the same seam', async () => {
+	it('the context-menu cut takes the same join', async () => {
 		document.execCommand = vi.fn(() => true);
 		mounted = mountCell(MIXED, LIVE);
 		mounted.el.focus();
@@ -80,7 +80,7 @@ describe('live mode: every cell cut crosses the join seam', () => {
 		expect(committedCalls(mounted)).toEqual([[0, 'bot', 4, 2]]);
 	});
 
-	it('typing over the selection lands the character at the cleaned seam', async () => {
+	it('typing over the selection lands the character at the cleaned join', async () => {
 		mounted = mountCell(MIXED, LIVE);
 		mounted.el.focus();
 		mounted.instance.setSelection(4, 11);
@@ -92,7 +92,7 @@ describe('live mode: every cell cut crosses the join seam', () => {
 		expect(committedCalls(mounted)).toEqual([[0, 'boXt', 4, 3]]);
 	});
 
-	it('a native Backspace over the selection takes the same seam', async () => {
+	it('a native Backspace over the selection takes the same join', async () => {
 		mounted = mountCell(MIXED, LIVE);
 		mounted.el.focus();
 		mounted.instance.setSelection(4, 11);
@@ -104,7 +104,7 @@ describe('live mode: every cell cut crosses the join seam', () => {
 		expect(committedCalls(mounted)).toEqual([[0, 'bot', 4, 2]]);
 	});
 
-	it('an escape ahead of the cut survives the seam', async () => {
+	it('an escape ahead of the cut survives the join', async () => {
 		mounted = mountCell('a\\|b **bold** *it*', LIVE);
 		mounted.el.focus();
 		mounted.instance.setSelection(9, 16);

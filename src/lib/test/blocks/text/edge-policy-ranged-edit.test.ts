@@ -102,7 +102,7 @@ describe('a key over a range that opens with a CST widget', () => {
 	});
 });
 
-describe('a key over a range that opens with a decoration island', () => {
+describe('a key over a range that opens with a decoration widget', () => {
 	it('replaces the range with the typed character', () => {
 		const { node, el } = mountIslandBlock('hello\n', 0, 0);
 		selectWholeSurface(el);

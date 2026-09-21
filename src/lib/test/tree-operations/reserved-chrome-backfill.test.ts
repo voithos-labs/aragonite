@@ -28,10 +28,10 @@ function registerChromeContainer(): { container: AnyBlockKind; chrome: AnyBlockK
 	return { container, chrome };
 }
 
-describe('ensureEditableContainers — reserved-chrome backfill', () => {
+describe('ensureEditableContainers: reserved-chrome backfill', () => {
 	beforeEach(() => __resetSchemaRegistriesForTests());
 
-	it('re-mints a chrome leaf + paragraph when a chrome-declaring container empties', () => {
+	it('re-creates a chrome leaf + paragraph when a chrome-declaring container empties', () => {
 		const { container, chrome } = registerChromeContainer();
 		const node: CstNode = { kind: container, leadingTrivia: '', raw: '', children: [] } as CstNode;
 

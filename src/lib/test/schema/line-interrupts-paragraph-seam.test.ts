@@ -38,7 +38,7 @@ beforeEach(() => __resetSchemaRegistriesForTests());
 // forces reports the missing components; what matters here is what else it finds.
 afterEach(() => allowDevWarns(['invariant:registry-completeness']));
 
-describe('lineInterruptsParagraph as a grammar-consumption seam', () => {
+describe('lineInterruptsParagraph as a grammar-consumption join', () => {
 	it('drains pending registration checks like getOrderedOpeners', () => {
 		flushPendingRegistrationChecks();
 		const kind = declarePluginKind('interrupt-flushed');

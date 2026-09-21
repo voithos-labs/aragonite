@@ -21,7 +21,7 @@ function makeScope(mode: PresentationMode = 'source') {
 }
 
 describe('tryGapStop', () => {
-	it('parks the caret at an eligible boundary and reports it stopped', () => {
+	it('puts the caret at an eligible boundary and reports it stopped', () => {
 		const scope = makeScope();
 
 		expect(tryGapStop(scope, [], 2)).toBe(true);
@@ -50,7 +50,7 @@ describe('tryGapStop', () => {
 	});
 });
 
-describe('placeGapCaret — the gap door', () => {
+describe('placeGapCaret: the gap entry point', () => {
 	it('ends a live cross-block range in the same gesture (G2.12)', () => {
 		const selection = createSelectionState({ getDoc: () => DOC });
 		selection.enterCrossBlock(at(0, 0), at(3, 2));

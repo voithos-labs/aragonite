@@ -7,8 +7,8 @@ import {
 
 afterEach(() => __resetMintedCommandIdsForTests());
 
-describe('command-id mint', () => {
-	it('mints a branded id and reports it as a plugin id', () => {
+describe('command-id create', () => {
+	it('creates a branded id and reports it as a plugin id', () => {
 		const id = mintCommandId('callout.setKind');
 		expect(id).toBe('callout.setKind');
 		expect(isPluginCommandId(id)).toBe(true);
@@ -19,12 +19,12 @@ describe('command-id mint', () => {
 		expect(isPluginCommandId('history.undo')).toBe(false);
 	});
 
-	it('rejects a second mint of the same name (plugin-vs-plugin)', () => {
+	it('rejects a second create of the same name (plugin-vs-plugin)', () => {
 		mintCommandId('callout.setKind');
 		expect(() => mintCommandId('callout.setKind')).toThrow(/already taken/i);
 	});
 
-	it('lets the same owner re-mint a name (one command shared across its kinds)', () => {
+	it('lets the same owner re-create a name (one command shared across its kinds)', () => {
 		// The registry key is (kind, name), so one name used across several of a plugin's own kinds
 		// is fine, and asking again returns the branded id rather than throwing.
 		expect(mintCommandId('callout.toggle', 'callouts')).toBe('callout.toggle');
@@ -38,7 +38,7 @@ describe('command-id mint', () => {
 		);
 	});
 
-	it('throws on an unattributed re-mint (no installing plugin)', () => {
+	it('throws on an unattributed re-create (no installing plugin)', () => {
 		mintCommandId('callout.toggle', null);
 		expect(() => mintCommandId('callout.toggle', null)).toThrow(/already taken/i);
 	});

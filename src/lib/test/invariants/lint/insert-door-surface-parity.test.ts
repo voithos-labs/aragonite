@@ -66,7 +66,7 @@ function publishesDoor(code: string): boolean {
 	return published ? published.includes('insertMarkdown') : PUBLISHES_DOOR_RE.test(code);
 }
 
-describe('G4.38 insertion-door surface parity', () => {
+describe('G4.38 insertion entry-point surface parity', () => {
 	const components = surfaceComponents();
 
 	it('found the editable-surface components to inspect', () => {

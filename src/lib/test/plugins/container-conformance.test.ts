@@ -60,7 +60,7 @@ const detailsProfile: ContainerConformanceProfile = {
 	terminatorCollision: { mode: 'assert' }
 };
 
-describe('G4.3 conformance kit — plugin containers', () => {
+describe('G4.3 conformance kit: plugin containers', () => {
 	beforeEach(() => {
 		resetPluginPlatformForTests();
 		registerCalloutKind();
@@ -106,7 +106,7 @@ describe('G4.3 conformance kit — plugin containers', () => {
 
 // Non-vacuity for the kit as a whole. A harness that passes everything guards
 // nothing, so these break a plugin container on purpose and require the red.
-describe('G4.3 conformance kit — a broken plugin container fails', () => {
+describe('G4.3 conformance kit: a broken plugin container fails', () => {
 	beforeEach(() => {
 		resetPluginPlatformForTests();
 		registerCalloutKind();
@@ -190,7 +190,7 @@ describe('G4.3 conformance kit — a broken plugin container fails', () => {
 
 	// A fence container re-emits its body lines verbatim, so consuming the user's space would
 	// swallow a byte no rebuild gives back: the declaration is wrong, not the rebuild.
-	it('fails declaration sanity when contentStartSpace ships on a rebuild that mints no marker space', async () => {
+	it('fails declaration sanity when contentStartSpace ships on a rebuild that creates no marker space', async () => {
 		augmentBlockKind(CALLOUT_KIND(), { container: { contentStartSpace: 'complete-marker' } });
 
 		await expect(runContainerConformance(CALLOUT_KIND(), calloutProfile)).rejects.toThrow(

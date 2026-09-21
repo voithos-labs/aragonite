@@ -55,7 +55,7 @@ describe('constructChainAtOffset', () => {
 		expect(chainKinds('**bold**', 8)).toEqual(['strong']);
 	});
 
-	it('empty wrapped markup is literal text, never a construct — no chain', () => {
+	it('empty wrapped markup is literal text, never a construct: no chain', () => {
 		// CommonMark forbids empty emphasis: `****` is four literal asterisks, so the empty-construct
 		// boundary case does not exist, and a caret among them sees plain text.
 		expect(chainKinds('a **** b', 4)).toEqual([]);

@@ -92,7 +92,7 @@ describe('gapEdges declarations of the bundled plugin kinds', () => {
 	});
 });
 
-describe('gapEdges on the opaque-container tier (#93)', () => {
+describe('gapEdges on the opaque-container level (#93)', () => {
 	// Mixed pairs in both orders cover 'both' on each of the three kinds.
 	it('opens the callout|details boundary in either order', () => {
 		expect(eligibleBetween(CALLOUT, DETAILS)).toBe(true);

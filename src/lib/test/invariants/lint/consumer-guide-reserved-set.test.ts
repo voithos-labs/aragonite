@@ -57,7 +57,7 @@ describe('consumer-guide § Which shortcuts the editor consumes ↔ reservedChor
 // ── Non-vacuity self-tests ───────────────────────────────────────────────────
 // An empty sample, an empty claim or an empty live set lets both assertions pass on nothing.
 
-describe('reserved-set readers — self-tests', () => {
+describe('reserved-set readers: self-tests', () => {
 	it('reads a real sample, a real claim and a real set', () => {
 		expect(section).not.toBe('');
 		expect(sampled.length).toBeGreaterThan(8);

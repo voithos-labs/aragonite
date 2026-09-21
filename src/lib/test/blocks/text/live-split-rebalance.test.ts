@@ -236,7 +236,7 @@ describe('constructs that declare no rewrite decline the whole cut', () => {
 	});
 });
 
-describe('the seam is resolved against the flanking rules, not around them', () => {
+describe('the join is resolved against the flanking rules, not around them', () => {
 	// `** c**` is not left-flanking, so the naive reopen would print literal stars; the space
 	// steps outside instead and the bold reaches the word it belongs to.
 	it('a nested construct at its own trailing edge still reopens outside', () => {
@@ -281,7 +281,7 @@ describe('the first half never parses to more than one block', () => {
 // The resolver is passed on the call, never registered: it is per editor while the registry is
 // process-wide. Without it a reference form reads as brackets and the cut refuses, which is safe
 // but still leaves a marker on screen, which is why the parameter exists.
-describe('a reference form rebalances only when the resolver reaches the seam', () => {
+describe('a reference form rebalances only when the resolver reaches the join', () => {
 	const DOC = 'Visit [example][site] here\n\n[site]: https://example.com\n';
 
 	function splitWithResolver(offset: number, withResolver: boolean) {

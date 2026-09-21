@@ -13,7 +13,7 @@ const makeContainer = (childRaws: string[]): CstNode =>
 
 // publishScopeView writes each scope's ids and refs into reactive state before the
 // ancestor rebuild, so a later throw leaves them reflecting a rolled-back mutation.
-describe('commitMultiScope — ids/refs rollback on a post-publish throw', () => {
+describe('commitMultiScope: ids/refs rollback on a post-publish throw', () => {
 	it('restores top-level blockIds/refs when a later scope throws after the doc scope published', async () => {
 		const { deps, getBlockIds, getBlockRefs } = makeEditorActionsDeps([
 			makeContainer(['- a\n']),

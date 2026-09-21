@@ -54,7 +54,7 @@ afterEach(() => {
 	mounted = null;
 });
 
-describe('gap caret — global chord resolution', () => {
+describe('gap caret: global chord resolution', () => {
 	it('runs the built-in undo chord and consumes the press', () => {
 		mounted = mountGapCaret();
 		const event = mounted.press('z', { ctrlKey: true });

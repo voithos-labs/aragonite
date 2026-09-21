@@ -41,7 +41,7 @@ describe('commitMultiScope', () => {
 		expect(deps.undoManager.getStacks().undo).toHaveLength(1);
 	});
 
-	it('multi-scope: two scopes each get independent descriptors, still ONE snapshot + ONE event', async () => {
+	it('multi-scope: two scopes each get independent descriptors, still one snapshot + one event', async () => {
 		// A separator and a different bullet: two tight `-` lists are one list on reload, which
 		// the ancestor fix-up merges them back into.
 		const { deps, events } = makeEditorActionsDeps([

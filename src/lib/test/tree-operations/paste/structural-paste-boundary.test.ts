@@ -11,7 +11,7 @@ const clipboard = (): CstNode[] => parse('# Heading\n\n\nNew paragraph\n').child
 const raws = (nodes: CstNode[]): string[] => nodes.map((n) => n.raw ?? '');
 
 describe('structural paste at a block boundary', () => {
-	it('paste at block END keeps the clipboard blank-line row and appends no residue', () => {
+	it('paste at block end keeps the clipboard blank-line row and appends no residue', () => {
 		const result = defaultStructuralHook(para('Hello\n'), 5, clipboard());
 		expect(result.replacement.map((n) => n.kind)).toEqual([
 			'paragraph', // Hello (leading slice)
@@ -24,7 +24,7 @@ describe('structural paste at a block boundary', () => {
 		expect(result.focusReplacementIndex).toBe(3); // last node, no trailing residue
 	});
 
-	it('paste at block START mints no leading phantom and trails the original content', () => {
+	it('paste at block start creates no leading phantom and trails the original content', () => {
 		const result = defaultStructuralHook(para('Hello\n'), 0, clipboard());
 		expect(result.replacement.map((n) => n.kind)).toEqual([
 			'heading',

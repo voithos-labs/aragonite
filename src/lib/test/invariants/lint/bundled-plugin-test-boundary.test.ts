@@ -291,7 +291,7 @@ describe('G4.63 bundled-plugin test boundary', () => {
 		expect(suites.size).toBeGreaterThan(1);
 	});
 
-	it('every reach-in past the published surface is an allowlisted missing door', () => {
+	it('every reach-in past the published surface is an allowlisted missing entry point', () => {
 		const violations = reachIns(sources).filter(
 			(hit) => !ALLOWLIST[hit.relPath]?.specifiers.includes(hit.specifier)
 		);
@@ -314,7 +314,7 @@ describe('G4.63 bundled-plugin test boundary', () => {
 		expect(dead, `allowlist entries with no live import: ${dead.join(', ')}`).toEqual([]);
 	});
 
-	it('every allowlist entry names the missing door', () => {
+	it('every allowlist entry names the missing entry point', () => {
 		for (const [relPath, exemption] of Object.entries(ALLOWLIST)) {
 			expect(exemption.specifiers.length, relPath).toBeGreaterThan(0);
 			expect(exemption.reason.length, relPath).toBeGreaterThan(20);

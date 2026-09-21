@@ -77,7 +77,7 @@ describe('a kind demotion settles the join below (GH #21)', () => {
 
 	// A multi-block write puts a new block against the follower, so the join to ask is the one
 	// at the last block written, not at the position the gesture named.
-	it('asks at the last block a multi-block write minted', () => {
+	it('asks at the last block a multi-block write created', () => {
 		const doc = parse('# h\nb\n');
 
 		const { change } = updateNodeContent(doc, 0, '---\nx\n');

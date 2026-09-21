@@ -58,7 +58,7 @@ function emissionHarness() {
 
 const at = (block: number, offset: number) => ({ path: [block], offset });
 
-describe('the restore road settles before it notifies', () => {
+describe('the restore path settles before it notifies', () => {
 	it('a collapsed restore reports the landed caret, not the outgoing one', () => {
 		const h = emissionHarness();
 		h.parkCaretIn(0, 3);
@@ -93,7 +93,7 @@ describe('the restore road settles before it notifies', () => {
 		expect(h.emissions).toEqual([{ caretBlock: 0, isCrossBlock: false }]);
 	});
 
-	it('a cross-block restore notifies once, with the park caret already landed', () => {
+	it('a cross-block restore notifies once, with the gap caret already landed', () => {
 		const h = emissionHarness();
 		h.parkCaretIn(0, 3);
 
@@ -218,7 +218,7 @@ describe('unbatched entry-path emission counts', () => {
 		expect(notifies).toBe(0);
 	});
 
-	it('a repeated clear notifies once — the first one is the mutation', () => {
+	it('a repeated clear notifies once: the first one is the mutation', () => {
 		let notifies = 0;
 		const state = createSelectionState({ onChange: () => notifies++ });
 		state.enterCrossBlock(at(0, 0), at(2, 3));

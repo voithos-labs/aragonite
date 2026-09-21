@@ -14,7 +14,7 @@ beforeAll(() => {
 	installPlugins([admonitionsPlugin(), footnotesPlugin()]);
 });
 
-describe('reorder action — githubAlert body children reorder within', () => {
+describe('reorder action: githubAlert body children reorder within', () => {
 	it('drag move reorders the body child within and keeps the [!TYPE] marker', async () => {
 		const h = makeReorderContainer('> [!NOTE]\n> a\n>\n> b\n');
 		await h.reorder.moveReorderUnit([0, 0], 1);
@@ -38,7 +38,7 @@ describe('reorder action — githubAlert body children reorder within', () => {
 	});
 });
 
-describe('reorder action — footnote-def body children reorder within', () => {
+describe('reorder action: footnote-def body children reorder within', () => {
 	it('drag move reorders the body child within and keeps the [^label]: marker', async () => {
 		const h = makeReorderContainer('[^a]: first\n\n    second\n');
 		await h.reorder.moveReorderUnit([0, 0], 1);
@@ -50,7 +50,7 @@ describe('reorder action — footnote-def body children reorder within', () => {
 });
 
 // Nudging a body child must not move the whole alert among the document's blocks.
-describe('reorder action — no whole-alert teleport', () => {
+describe('reorder action: no whole-alert teleport', () => {
 	it('nudging a body child reorders within; top/bottom siblings stay put', async () => {
 		const h = makeReorderContainer('top\n\n> [!NOTE]\n> a\n>\n> b\n\nbottom\n', { nodeIndex: 1 });
 		await h.reorder.nudgeReorderUnit([1, 0], 1);

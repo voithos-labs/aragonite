@@ -41,7 +41,7 @@ function mount(source: string, start: number, end: number, hasIslands = true): H
 
 installEdgeDispatchCleanup();
 
-describe('modifier chords stay native near islands', () => {
+describe('modifier chords stay native near widgets', () => {
 	const chords: Partial<KeyboardEvent>[] = [{ ctrlKey: true }, { altKey: true }, { metaKey: true }];
 
 	it.each(chords)('%o+Backspace at a replace island trailing edge is not consumed', (mods) => {
@@ -52,14 +52,14 @@ describe('modifier chords stay native near islands', () => {
 		expect(h.edits).toHaveLength(0);
 	});
 
-	it('Ctrl+Delete at a replace island leading edge is not consumed', () => {
+	it('Ctrl+Delete at a replace decoration leading edge is not consumed', () => {
 		const h = mount('abHIDDENcd\n', 2, 8);
 		const e = key('Delete', { ctrlKey: true });
 		expect(h.handleKeydown(e, asRawOffset(2))).toBe(false);
 		expect(e.defaultPrevented).toBe(false);
 	});
 
-	it('Ctrl+Backspace at a widget island is not consumed (native word-delete)', () => {
+	it('Ctrl+Backspace at a widget decoration is not consumed (native word-delete)', () => {
 		const h = mount('hello\n', 3, 3);
 		const e = key('Backspace', { ctrlKey: true });
 		expect(h.handleKeydown(e, asRawOffset(3))).toBe(false);
@@ -67,7 +67,7 @@ describe('modifier chords stay native near islands', () => {
 		expect(h.edits).toHaveLength(0);
 	});
 
-	it('plain Backspace at the trailing edge still selects the island whole', () => {
+	it('plain Backspace at the trailing edge still selects the widget whole', () => {
 		const h = mount('abHIDDENcd\n', 2, 8);
 		const e = key('Backspace');
 		expect(h.handleKeydown(e, asRawOffset(8))).toBe(true);
@@ -77,7 +77,7 @@ describe('modifier chords stay native near islands', () => {
 	});
 });
 
-describe('typing at an element-level caret against a widget island', () => {
+describe('typing at an element-level caret against a widget decoration', () => {
 	it('consumes the key and inserts at the raw offset through one CST edit', () => {
 		const h = mount('hello\n', 5, 5);
 		caretAfter(h.island);
@@ -105,8 +105,8 @@ describe('typing at an element-level caret against a widget island', () => {
 
 // ── Precedence: a CST widget wins the shared caret edge ───────────────────────
 
-describe('a CST widget outranks a decoration island at the same caret edge', () => {
-	it('Backspace at an offset both claim enters the widget, never selects the island', () => {
+describe('a CST widget outranks a decoration widget at the same caret edge', () => {
+	it('Backspace at an offset both claim enters the widget, never selects the widget', () => {
 		// `a![c](x)`: the image widget occupies raw 1..8 and the decoration ends at 8 too.
 		// The dispatch tries the widget class first, so its select-then-delete wins.
 		const node = parse('a![c](x)\n').children[0];
@@ -135,7 +135,7 @@ describe('a CST widget outranks a decoration island at the same caret edge', () 
 
 // ── The per-keystroke DOM scan runs only where a decoration exists ────────────
 
-describe('island-free typing skips the DOM scan', () => {
+describe('widget-free typing skips the DOM scan', () => {
 	beforeEach(() => {
 		resetPerfInstruments();
 		enablePerfInstruments();
@@ -154,14 +154,14 @@ describe('island-free typing skips the DOM scan', () => {
 		return el;
 	}
 
-	it('a printable keydown runs zero DOM scans when the block has no islands', () => {
+	it('a printable keydown runs zero DOM scans when the block has no widgets', () => {
 		const node = parse('hello\n').children[0];
 		const dispatch = makeEdgeDispatch(node, plainBlock());
 		expect(dispatch.handleKeydown(key('z'), asRawOffset(3))).toBe(false);
 		expect(perfSnapshot().islandKeyScans).toBe(0);
 	});
 
-	it('a block that carries islands still scans (the gate does not over-suppress)', () => {
+	it('a block that carries widgets still scans (the gate does not over-suppress)', () => {
 		const h = mount('abHIDDENcd\n', 2, 8);
 		h.handleKeydown(key('Backspace'), asRawOffset(8));
 		expect(perfSnapshot().islandKeyScans).toBeGreaterThanOrEqual(1);

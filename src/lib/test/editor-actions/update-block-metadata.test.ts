@@ -56,7 +56,7 @@ describe('updateBlockMetadata', () => {
 		expect(deps.doc.children[0].metadata).toEqual({ taskChecked: true });
 	});
 
-	it("undoEntry: 'join' — no undo snapshot pushed", async () => {
+	it("undoEntry: 'join'; no undo snapshot pushed", async () => {
 		const node = makeNode('paragraph', 'hello\n', { taskChecked: false });
 		const { deps, actions } = makeTopHarness([node]);
 
@@ -66,7 +66,7 @@ describe('updateBlockMetadata', () => {
 		expect(node.metadata).toEqual({ taskChecked: true });
 	});
 
-	it('empty patch — no snapshot, no event, metadata unchanged', async () => {
+	it('empty patch: no snapshot, no event, metadata unchanged', async () => {
 		const node = makeNode('paragraph', 'hello\n', { taskChecked: false });
 		const { deps, events, actions } = makeTopHarness([node]);
 
@@ -82,7 +82,7 @@ describe('updateBlockMetadata', () => {
 
 	// A `noop` commit leaves the dev-mode stale-raw check unable to infer the touched node, so
 	// the top-level scope must name it or the write gets no G1.1, G1.12 or G1.13 check.
-	it('names the resynced node for the dev oracle (parity with the container scope)', async () => {
+	it('names the resynced node for the dev check (parity with the container scope)', async () => {
 		const node = makeNode('paragraph', 'hello\n', { taskChecked: false });
 		const { deps, controller, actions } = makeTopHarness([node]);
 		const spy = vi.spyOn(controller, 'commitStructural');
@@ -216,7 +216,7 @@ function makeContainerSetup(
 	};
 }
 
-describe('updateBlockMetadata — container scope', () => {
+describe('updateBlockMetadata: container scope', () => {
 	it('mutates inner node metadata and emits metadataUpdate with correct eventPath and fields', async () => {
 		const containerIndex = 2;
 		const { bundle, liveInner, events } = makeContainerSetup(containerIndex);
@@ -235,7 +235,7 @@ describe('updateBlockMetadata — container scope', () => {
 		expect(evt.detail.fields).toEqual(['taskChecked']);
 	});
 
-	it(`undoEntry: 'join' — commitContainer called with "skip" sentinel (no snapshot pushed)`, async () => {
+	it(`undoEntry: 'join'; commitContainer called with "skip" sentinel (no snapshot pushed)`, async () => {
 		const { bundle, deps } = makeContainerSetup(1);
 
 		await bundle.blockEdit.updateBlockMetadata(0, { taskChecked: true }, { undoEntry: 'join' });
@@ -243,7 +243,7 @@ describe('updateBlockMetadata — container scope', () => {
 		expect(deps.undoManager.getStacks().undo).toHaveLength(0);
 	});
 
-	it('empty patch — early-returns with no commitContainer call and no snapshot', async () => {
+	it('empty patch: early-returns with no commitContainer call and no snapshot', async () => {
 		const containerIndex = 1;
 		const { bundle, deps, events } = makeContainerSetup(containerIndex);
 
@@ -264,7 +264,7 @@ describe('updateBlockMetadata — container scope', () => {
 		expect(liveInner().metadata).toEqual({ marker: '- ', taskItem: true, taskChecked: true });
 	});
 
-	it('task taskMarker patch rebuilds inner listItem raw AND parent list raw', async () => {
+	it('task taskMarker patch rebuilds inner listItem raw and parent list raw', async () => {
 		// Without the commit's ancestor rebuild the inner listItem.raw updates while the
 		// list's own raw stays stale.
 		const { bundle, liveInner, liveContainer } = makeContainerSetup(1, 'list');

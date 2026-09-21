@@ -79,7 +79,7 @@ describe('the bodyWrite escape reparse reads the instance grammar', () => {
 			(n) => n.kind
 		);
 
-	it('the global grammar mints the plugin kind', () => {
+	it('the global grammar creates the plugin kind', () => {
 		expect(landedKinds(undefined)).toContain(PARROT);
 	});
 

@@ -81,7 +81,7 @@ describe('nearestScrollContainer', () => {
 // The two searches up the ancestors differ on one real host layout: a rounded card
 // (`overflow: hidden` at auto height) inside a scroller has to autoscroll the scroller while
 // being bounded by both boxes.
-describe('host-seam walks', () => {
+describe('host-boundary walks', () => {
 	let root: HTMLDivElement;
 
 	beforeEach(() => {
@@ -120,7 +120,7 @@ describe('host-seam walks', () => {
 		expect(userScrollportFor(leaf)).toBe(cardEl.parentElement);
 	});
 
-	it('visibility collects the card AND the scroller, innermost first', () => {
+	it('visibility collects the card and the scroller, innermost first', () => {
 		const leaf = nest([{ overflowY: 'auto' }, card, {}]);
 		const cardEl = leaf.parentElement!;
 		expect(clippingAncestors(leaf)).toEqual([cardEl, cardEl.parentElement]);

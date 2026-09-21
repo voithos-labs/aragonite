@@ -5,7 +5,7 @@ import { collectHeadings } from '$lib/plugins/toc/heading-outline';
 // Collects `heading` and `setextHeading` nodes anywhere in the tree, with their
 // document-absolute path and level, filtered by maximum heading level. "Depth" here means
 // heading level (h1 to h6), never how deeply nested the container is.
-describe('collectHeadings — level, path, order', () => {
+describe('collectHeadings: level, path, order', () => {
 	it('collects both ATX and setext headings in document order with levels', () => {
 		const doc = parse('# One\n\n## Two\n\nThree\n=====\n\nbody\n');
 		const entries = collectHeadings(doc, 6);

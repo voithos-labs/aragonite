@@ -60,7 +60,7 @@ describe('block-kind-descriptor registry', () => {
 	});
 });
 
-describe('BlockKindDescriptor — supportsInline + getContentRange', () => {
+describe('BlockKindDescriptor: supportsInline + getContentRange', () => {
 	it('paragraph supports inline with default range (no getContentRange hook)', () => {
 		const d = getBlockKindDescriptor('paragraph');
 		expect(d.supportsInline).toBe(true);
@@ -127,7 +127,7 @@ describe('renderImagesAsWidgets descriptor flag', () => {
 	});
 });
 
-describe('containerContract — strip / grid / opaque container-shape union', () => {
+describe('containerContract: strip / grid / opaque container-shape union', () => {
 	const STRIP: BlockKind[] = ['blockquote', 'list', 'listItem'];
 	const GRID: BlockKind[] = ['table', 'tableRow'];
 
@@ -154,7 +154,7 @@ describe('containerContract — strip / grid / opaque container-shape union', ()
 
 // blockFocus is not container-only, so stripContainerOnlyKeys must keep it whether the kind
 // registers as a leaf or with a container group, which is the mermaid case.
-describe('blockFocus — whole-block-focus opt-in', () => {
+describe('blockFocus: whole-block-focus opt-in', () => {
 	beforeEach(__resetSchemaRegistriesForTests);
 
 	// Pinned as an exact set, so a kind gaining or losing the declaration has to be a

@@ -142,7 +142,7 @@ describe('EditorRects.scrollTo', () => {
 	});
 });
 
-describe('EditorRects.scrollTo — claim ownership', () => {
+describe('EditorRects.scrollTo: claim ownership', () => {
 	// Every final release runs through the claim, so a scroll another one took over cannot take
 	// the newer hold with it. Both cases that release themselves are covered: the 'center'
 	// refinement and the hand-back.
@@ -181,7 +181,7 @@ describe('EditorRects.scrollTo — claim ownership', () => {
 // Why a claim was lost decides whether the refinement keeps working: another scroll owns the
 // viewport, while the user taking over ends only the lasting hold, and must not report a
 // restore that had not finished arriving as one that never would.
-describe('EditorRects.scrollTo — the settle, and who may end it', () => {
+describe('EditorRects.scrollTo: the settle, and who may end it', () => {
 	it('a superseded reveal stops scrolling for its own target and reports it out of view', async () => {
 		const h = makeSettlingRects({ '[1]': [500, 0], '[2]': [500, 0] });
 		const stale = h.rects.scrollTo([1]);
@@ -207,7 +207,7 @@ describe('EditorRects.scrollTo — the settle, and who may end it', () => {
 });
 
 describe('EditorRects.navigateTo', () => {
-	it('lands the caret at the target through the restore road', async () => {
+	it('lands the caret at the target through the restore path', async () => {
 		const { rects, landCaretAt } = makeRects(document.createElement('div'));
 		expect(await rects.navigateTo([4, 1])).toBe(true);
 		expect(landCaretAt).toHaveBeenCalledWith([4, 1], 0);

@@ -72,7 +72,7 @@ describe('collectCrossBlockText', () => {
 			expect(text).toBe('Before.\n\n| A | B | C |\n| --- | --- | --- |\n| 1 | 2 | 3 |\n');
 		});
 
-		it('intra-table same-path selection is NOT snapped — sub-rectangle band preserved', () => {
+		it('intra-table same-path selection is not snapped: sub-rectangle band preserved', () => {
 			// Both endpoints on the same table: rectangular sub-cell copy stays, the
 			// row-band rounding is the existing intra-table behavior, untouched by snap.
 			const doc = parse(fixture);

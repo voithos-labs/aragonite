@@ -37,8 +37,8 @@ function selectInFirstBlock(start: number, end: number): void {
 	selectRange(surfaceAt(mounted!, [0]), start, end);
 }
 
-describe('the runCommand door over a selection', () => {
-	it('a toggle writes the same bytes as the chord and lands ONE undo entry', async () => {
+describe('the runCommand entry point over a selection', () => {
+	it('a toggle writes the same bytes as the chord and lands one undo entry', async () => {
 		mounted = mountEditor({ source: SOURCE });
 		selectInFirstBlock(0, 5);
 
@@ -75,7 +75,7 @@ describe('the runCommand door over a selection', () => {
 		expect(undoStack()).toHaveLength(0);
 	});
 
-	it('a block-local id declines with focus outside the editor; undo still reaches the seam', async () => {
+	it('a block-local id declines with focus outside the editor; undo still reaches the dispatch', async () => {
 		mounted = mountEditor({ source: SOURCE });
 		selectInFirstBlock(0, 5);
 		expect(mounted.instance.runCommand(TOOLBAR_COMMANDS.toggleStrong)).toBe(true);

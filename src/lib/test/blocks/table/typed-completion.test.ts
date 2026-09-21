@@ -9,7 +9,7 @@ import { serialize } from '$lib/core/serializer';
 
 const claim = (line: string) => tryCompleteTableRow(line);
 
-describe('table Enter completer — which lines it claims', () => {
+describe('table Enter completer: which lines it claims', () => {
 	it.each([
 		['| a | b |', 'both edge pipes'],
 		['| a | b', 'no trailing pipe'],
@@ -40,7 +40,7 @@ describe('table Enter completer — which lines it claims', () => {
 	});
 });
 
-describe('table Enter completer — the bytes it answers', () => {
+describe('table Enter completer: the bytes it answers', () => {
 	it('preserves cell content verbatim and re-pads it canonically', () => {
 		expect(claim('|a|b|')!.lines).toEqual(['| a | b |', '| --- | --- |', '|  |  |']);
 		expect(claim('| **x** | `y` |')!.lines[0]).toBe('| **x** | `y` |');
@@ -56,7 +56,7 @@ describe('table Enter completer — the bytes it answers', () => {
 		}
 	});
 
-	it('seats the caret in the first body cell', () => {
+	it('puts the caret in the first body cell', () => {
 		expect(claim('| a | b |')!.caret).toEqual({ path: [1, 0], line: 0, column: 0 });
 	});
 

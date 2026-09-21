@@ -15,7 +15,7 @@ afterEach(async () => {
 	document.body.innerHTML = '';
 });
 
-describe('format command arms on a table cell', () => {
+describe('format command branches on a table cell', () => {
 	it.each([
 		['format.toggleStrong', '**ab**'],
 		['format.toggleEmphasis', '*ab*'],
@@ -35,7 +35,7 @@ describe('format command arms on a table cell', () => {
 // The cross-block plan reads a cell's bytes off the tree where this block reads them off its own
 // DOM; a cell has no marker prefix, so the two readings give the same bytes, and only this pairing
 // holds them together. Bytes only: the range handling also has a direction of its own.
-describe('the cross-block plan reads the cell bytes the surface arm reads', () => {
+describe('the cross-block plan reads the cell bytes the surface branch reads', () => {
 	const wholeCell = (index: number): SelectionPoint => ({
 		path: [0],
 		offset: index,

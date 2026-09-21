@@ -74,7 +74,7 @@ describe('createMemoizedRenderer', () => {
 	// these pin the wrapper's own behavior instead.
 });
 
-describe('the injection seam', () => {
+describe('the injection point', () => {
 	// The cache key includes `display`; this pins the two functions passing the flag through,
 	// since a `renderDisplayMath` passing `display: false` serves inline HTML for every block.
 	it('renderInlineMath and renderDisplayMath each thread their own display flag', () => {

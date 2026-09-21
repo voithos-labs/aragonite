@@ -19,10 +19,10 @@ afterEach(() => __resetInlineSyntaxForTests());
 const RAW = '@tag@ trailing';
 const SHORT_END = 5; // `@tag@` — the block offers only this much
 
-describe('a rung may not claim past the scan range', () => {
+describe('an inline syntax handler may not claim past the scan range', () => {
 	// The unbounded terminator search: a real closer, found by reading the whole
 	// string rather than the range the block offered.
-	it('throws naming the rung, the claimed end and the range end', () => {
+	it('throws naming the inline syntax handler, the claimed end and the range end', () => {
 		registerInlineSyntax('@', (raw, pos) => {
 			const close = raw.indexOf('g', pos + 1);
 			return close < 0 ? null : { kind: 'text', start: pos, end: close + 6, text: 'x' };
@@ -48,7 +48,7 @@ describe('a rung may not claim past the scan range', () => {
 
 	// A handler that honours its range is unaffected by bytes past `end` whatever they spell:
 	// declining a claim that would exceed the range is the contract.
-	it('leaves a rung that honours the range alone', () => {
+	it('leaves an inline syntax handler that honours the range alone', () => {
 		registerInlineSyntax('@', (raw, pos, end) => {
 			const close = raw.indexOf('@', pos + 1);
 			return close < 0 || close + 1 > end

@@ -68,7 +68,7 @@ registerBlockCompleter(declarePluginKind('spec-empty'), {
 			: null
 });
 
-describe('Enter completion — which presses reach a completer', () => {
+describe('Enter completion: which presses reach a completer', () => {
 	it('claims a lone header row with the caret at its end', () => {
 		expect(planEnterCompletion(leaf('| a | b |\n'), 9)).not.toBeNull();
 	});
@@ -105,14 +105,14 @@ describe('Enter completion — which presses reach a completer', () => {
 		expect(planEnterCompletion(undefined, 0)).toBeNull();
 	});
 
-	it('takes the block’s own line ending into the minted bytes (G4.20)', () => {
+	it('takes the block’s own line ending into the created bytes (G4.20)', () => {
 		const plan = planEnterCompletion(leaf('| a | b |\r\n'), 9)!;
 		expect(plan.replacement[0].raw).toBe('| a | b |\r\n| --- | --- |\r\n|  |  |\r\n');
 	});
 
 	// An unterminated last line has no authored ending, so the new blocks take the LF default
 	// and the document ends terminated; the completion adds lines either way.
-	it('terminates an unterminated tail line rather than leaving the mint open', () => {
+	it('terminates an unterminated tail line rather than leaving the new block open', () => {
 		const plan = planEnterCompletion(leaf('| a | b |'), 9)!;
 		expect(plan.replacement[0].raw).toBe('| a | b |\n| --- | --- |\n|  |  |\n');
 	});
@@ -120,7 +120,7 @@ describe('Enter completion — which presses reach a completer', () => {
 
 // A completer answers where the caret sits as a line and a column, because the line ending is
 // picked after it answers: a byte offset from the completer is one short on every CRLF block.
-describe('Enter completion — the caret the seam resolves', () => {
+describe('Enter completion: the caret the join resolves', () => {
 	it.each([
 		['fence me\n', 4],
 		['fence me\r\n', 5]
@@ -137,8 +137,8 @@ describe('Enter completion — the caret the seam resolves', () => {
 	});
 });
 
-describe('Enter completion — what the composed split commits', () => {
-	it('replaces the paragraph with one table and seats the caret in the first body cell', async () => {
+describe('Enter completion: what the composed split commits', () => {
+	it('replaces the paragraph with one table and puts the caret in the first body cell', async () => {
 		const cell = pathFocusSpy();
 		const { scope, commits, children } = stubScope([leaf('| a | b |\n')], [cell.ref]);
 		await seamOver(scope).splitBlock(0, 9);
@@ -186,8 +186,8 @@ describe('Enter completion — what the composed split commits', () => {
 	});
 });
 
-describe('Enter completion — the document it leaves behind', () => {
-	it('keeps a table above from absorbing the mint', async () => {
+describe('Enter completion: the document it leaves behind', () => {
+	it('keeps a table above from absorbing the new block', async () => {
 		const doc = parse('| A | B |\n| --- | --- |\n| 1 | 2 |\n\n| a | b |\n');
 		expect(doc.children.map((c) => c.kind)).toEqual(['table', 'paragraph']);
 

@@ -112,7 +112,7 @@ describe('a container kind declaring editable: false', () => {
 		await opaque.dispose();
 	});
 
-	it('takes no text input: a typed character mints the paragraph below instead', async () => {
+	it('takes no text input: a typed character creates the paragraph below instead', async () => {
 		const opaque = mountOpaque();
 		opaque.containerApi.focus(0);
 

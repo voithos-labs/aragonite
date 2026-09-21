@@ -56,7 +56,7 @@ describe('G4.17 perf spec glob partition', () => {
 	});
 });
 
-describe('G4.17 perf spec glob partition — classifier self-tests', () => {
+describe('G4.17 perf spec glob partition: classifier self-tests', () => {
 	it('classifies the two live shapes and rejects an orphan', () => {
 		expect(matchesVr('vr-windowing.spec.ts')).toBe(true);
 		expect(matchesPerf('typing-latency.perf.spec.ts')).toBe(true);

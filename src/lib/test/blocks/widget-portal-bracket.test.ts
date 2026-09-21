@@ -27,7 +27,7 @@ function makePool(): WidgetPool {
 
 const POOL_BRACKET = ['invariant:pool-bracket'];
 
-describe('widget pool — bracket discipline (G1.25)', () => {
+describe('widget pool: bracket discipline (G1.25)', () => {
 	it('acquire outside a bracket fires', () => {
 		makePool().acquire(KIND, INLINE, '$x$');
 		const fires = takeDevWarns();

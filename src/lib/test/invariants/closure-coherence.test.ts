@@ -23,7 +23,7 @@ const entry = (over: Partial<ClosureCoherenceEntry>): ClosureCoherenceEntry => (
 	...over
 });
 
-describe('checkClosureCoherence — container round-trip rule', () => {
+describe('checkClosureCoherence: container round-trip rule', () => {
 	it('fires when a container declares roundTrip: inherit-default', () => {
 		const v = checkClosureCoherence([
 			entry({
@@ -52,7 +52,7 @@ describe('checkClosureCoherence — container round-trip rule', () => {
 	});
 });
 
-describe('checkClosureCoherence — not-mergeable merge rule', () => {
+describe('checkClosureCoherence: not-mergeable merge rule', () => {
 	it('fires when a not-mergeable kind declares mergeBackspace: inherit-default', () => {
 		const v = checkClosureCoherence([
 			entry({
@@ -81,7 +81,7 @@ describe('checkClosureCoherence — not-mergeable merge rule', () => {
 	});
 });
 
-describe('checkClosureCoherence — focus-then-delete claim rule', () => {
+describe('checkClosureCoherence: focus-then-delete claim rule', () => {
 	it('fires when a focus cell claims the model without blockFocus', () => {
 		const v = checkClosureCoherence([
 			entry({
@@ -136,7 +136,7 @@ describe('checkClosureCoherence — focus-then-delete claim rule', () => {
 	});
 });
 
-describe('checkClosureCoherence — reservedChrome clipboard rule', () => {
+describe('checkClosureCoherence: reservedChrome clipboard rule', () => {
 	it('fires when a chrome declarer leaves clipboard at inherit-default', () => {
 		const v = checkClosureCoherence([
 			entry({
@@ -169,7 +169,7 @@ describe('checkClosureCoherence — reservedChrome clipboard rule', () => {
 	});
 });
 
-describe('checkClosureCoherence — reporting', () => {
+describe('checkClosureCoherence, reporting', () => {
 	it('returns null for an empty batch', () => {
 		expect(checkClosureCoherence([])).toBeNull();
 	});

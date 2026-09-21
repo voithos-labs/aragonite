@@ -173,7 +173,7 @@ describe('installPlugins', () => {
 });
 
 describe('owningPluginEditor', () => {
-	it("resolves the owner's context; an unowned kind takes the base-context '' arm", () => {
+	it("resolves the owner's context; an unowned kind takes the base-context '' branch", () => {
 		const lookup = vi.fn((name: string) => ({ editorId: name }) as unknown as EditorContext);
 		recordPluginKindOwner('owned-kind', 'plug-a');
 

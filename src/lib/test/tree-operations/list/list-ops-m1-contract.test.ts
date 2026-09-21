@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { mergeListItemIntoPrevious } from '$lib/tree-operations/list/unwrap-merge';
 
-describe('mergeListItemIntoPrevious — children-array contract', () => {
+describe('mergeListItemIntoPrevious: children-array contract', () => {
 	it('mutates the caller-owned children copy, not a hidden internal array', () => {
 		const doc = parse('- alpha\n- beta\n- gamma\n');
 		const list = doc.children[0];

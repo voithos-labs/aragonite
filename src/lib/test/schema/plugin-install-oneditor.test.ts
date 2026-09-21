@@ -10,7 +10,7 @@ import {
 
 beforeEach(() => __resetInstalledPluginsForTests());
 
-describe('onEditor subscription seam', () => {
+describe('onEditor subscription join', () => {
 	it('records callbacks per plugin, in registration order', () => {
 		const calls: string[] = [];
 		installPlugins([

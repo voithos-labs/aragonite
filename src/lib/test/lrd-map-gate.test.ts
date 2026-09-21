@@ -34,7 +34,7 @@ describe('lrdMapCouldChange', () => {
 		expect(lrdMapCouldChange(doc, event('updateContent', [0], { length: 24 }))).toBe(true);
 	});
 
-	it('rebuilds on a kind change that DELETES a definition (post-edit node is now prose)', () => {
+	it('rebuilds on a kind change that deletes a definition (post-edit node is now prose)', () => {
 		// It has to rebuild even though the node is no longer a link reference definition after the
 		// edit, or the resolver keeps serving the deleted definition.
 		const doc = parse('plain prose now\n');

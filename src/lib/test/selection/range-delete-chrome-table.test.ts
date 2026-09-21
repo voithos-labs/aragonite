@@ -51,7 +51,7 @@ function run(source: string, start: SelectionPoint, end: SelectionPoint) {
 	return { doc: result.newDoc, source: serialize(result.newDoc), caret: result.collapsedCaret };
 }
 
-describe('chrome wall × table branch — table endpoint inside the container', () => {
+describe('chrome wall × table branch: table endpoint inside the container', () => {
 	beforeEach(registerCalloutForTests);
 
 	it('pins the fixture parse: title + table body child', () => {
@@ -101,7 +101,7 @@ describe('chrome wall × table branch — table endpoint inside the container', 
 	});
 });
 
-describe('chrome wall × table branch — table endpoint outside the container', () => {
+describe('chrome wall × table branch: table endpoint outside the container', () => {
 	beforeEach(registerCalloutForTests);
 
 	it('chrome-end endpoint: table above → mid-title keeps the tail in the chrome leaf', () => {
@@ -157,7 +157,7 @@ describe('chrome wall × table branch — table endpoint outside the container',
 	});
 });
 
-describe('chrome wall × table branch — consumed container unit-deletes', () => {
+describe('chrome wall × table branch: consumed container unit-deletes', () => {
 	beforeEach(registerCalloutForTests);
 
 	it('prose end at the container last byte: one splice, children intact', () => {

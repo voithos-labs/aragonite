@@ -59,7 +59,7 @@ describe('G4.53 descriptor field reference ↔ BlockKindDescriptor', () => {
 
 	// The write-side group normalizes into the flat read shape, so its keys are covered by the flat
 	// rows: but only while every group key still names one. `contract` is the lone rename.
-	it('covers the container group through its flat twins', () => {
+	it('covers the container group through its flat counterparts', () => {
 		const missing = CONTAINER_ONLY_KEYS.filter((key) => !documented.includes(key));
 		expect(missing, `container-group fields with no row: ${missing.join(', ')}`).toEqual([]);
 		expect(documented).toContain('containerContract');
@@ -71,7 +71,7 @@ describe('G4.53 descriptor field reference ↔ BlockKindDescriptor', () => {
 // failure this census exists to prevent.
 
 describe('G4.53 parse non-vacuity', () => {
-	it('finds the real section and a representative field of each tier', () => {
+	it('finds the real section and a representative field of each level', () => {
 		expect(documented.length).toBeGreaterThanOrEqual(DESCRIPTOR_FIELDS.length);
 		expect(documented).toEqual(expect.arrayContaining(['mergeRole', 'rebuildRaw', 'blockFocus']));
 	});

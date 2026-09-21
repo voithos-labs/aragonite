@@ -30,8 +30,8 @@ function registerEmbed(recognizer: InlineSyntaxRecognizer = recognizeEmbed): voi
 	registerInlineSyntax('!', recognizer, { prefix: '![[', priority: 40 });
 }
 
-describe('a reserved-trigger prefix rung stamps what it claims', () => {
-	it('stamps the built-in kind the rung minted', () => {
+describe('a reserved-trigger prefix inline syntax handler marks what it claims', () => {
+	it('marks the built-in kind the inline syntax handler created', () => {
 		registerEmbed((raw, pos, end) => {
 			const embed = recognizeEmbed(raw, pos, end);
 			return embed && { ...embed, kind: 'image', alt: 'a.png', url: 'resolved' };
@@ -42,7 +42,7 @@ describe('a reserved-trigger prefix rung stamps what it claims', () => {
 
 	// The editor has no grammar for a plugin's own kind, so nothing outside the
 	// plugin can re-serialize one and the claim record would have no reader.
-	it('leaves the rung’s own kind unstamped', () => {
+	it('leaves the inline syntax handler’s own kind unstamped', () => {
 		registerEmbed();
 		const raw = '![[a.png]]';
 		expect(parseInline(raw, 0, raw.length)[0].syntaxClaim).toBeUndefined();
@@ -50,7 +50,7 @@ describe('a reserved-trigger prefix rung stamps what it claims', () => {
 
 	// A built-in node inside the claimed range rewrites into the middle of the handler's
 	// bytes, so the claim record reaches descendants on the same rule.
-	it('stamps a built-in node nested inside the rung’s own kind', () => {
+	it('marks a built-in node nested inside the inline syntax handler’s own kind', () => {
 		registerEmbed((raw, pos, end) => {
 			const embed = recognizeEmbed(raw, pos, end);
 			return (
@@ -65,7 +65,7 @@ describe('a reserved-trigger prefix rung stamps what it claims', () => {
 
 	// Nothing claimed these bytes, so the GFM write path still owns them: a claim record would
 	// freeze a plain image the editor is entitled to rewrite.
-	it('leaves an image the rung declined unstamped', () => {
+	it('leaves an image the inline syntax handler declined unstamped', () => {
 		registerEmbed();
 		const raw = '![[a]](u)';
 		expect(parseInline(raw, 0, raw.length)[0].syntaxClaim).toBeUndefined();
@@ -74,8 +74,8 @@ describe('a reserved-trigger prefix rung stamps what it claims', () => {
 
 // The other half of the dispatch: a bare handler on an unreserved trigger is consulted
 // from the switch's `default` branch, a different call site than the prefix handlers above.
-describe('a bare unreserved-trigger rung stamps what it claims', () => {
-	it('stamps a built-in kind minted from the default arm', () => {
+describe('a bare unreserved-trigger inline syntax handler marks what it claims', () => {
+	it('marks a built-in kind created from the default branch', () => {
 		registerInlineSyntax('@', (raw, pos, end) => {
 			const close = raw.indexOf('@', pos + 1);
 			if (close < 0 || close + 1 > end) return null;

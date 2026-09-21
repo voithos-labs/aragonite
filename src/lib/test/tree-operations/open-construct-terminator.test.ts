@@ -39,7 +39,7 @@ describe('a write closes the construct its own bytes leave open (GH #180)', () =
 	});
 
 	// Blank runs are fence content, so a separated neighbour is no safer than a tight one.
-	it('holds against a TIGHT follower too', () => {
+	it('holds against a tight follower too', () => {
 		const doc = parse('# h\ntext\n');
 		expect(doc.children.map((c) => c.kind)).toEqual(['heading', 'paragraph']);
 
@@ -115,7 +115,7 @@ describe('a write closes the construct its own bytes leave open (GH #180)', () =
 	});
 });
 
-describe('the mint declines where nothing is at stake (GH #180)', () => {
+describe('the new block declines where nothing is at stake (GH #180)', () => {
 	// An authored open fence at the tail absorbs nothing, and closing it would rewrite bytes the
 	// user did not type: the exemption `schema/fenced-code-raw.ts` already declares.
 	it('leaves a tail fence open, with no follower to swallow', () => {

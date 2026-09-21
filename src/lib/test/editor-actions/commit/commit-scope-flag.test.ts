@@ -23,7 +23,7 @@ describe('commit-scope flag', () => {
 		expect(isCommitInProgress()).toBe(false);
 	});
 
-	it('clears again once a real commit ceremony resolves — the flag never leaks past the sync body', async () => {
+	it('clears again once a real commit sequence resolves: the flag never leaks past the sync body', async () => {
 		const { deps, doc } = makeEditorActionsDeps([
 			{ kind: 'paragraph', leadingTrivia: '\n', raw: 'hello\n' } as never
 		]);
@@ -38,7 +38,7 @@ describe('commit-scope flag', () => {
 
 	// Tests the bracket itself: the cases above stay green if `beginCommit()` is removed,
 	// since neither observes the flag mid-commit.
-	it('arms the flag for the whole of a real commit mutate callback', async () => {
+	it('branches the flag for the whole of a real commit mutate callback', async () => {
 		const { deps, doc } = makeEditorActionsDeps([makeNode('paragraph', 'hello\n')]);
 		const controller = createUndoController(deps);
 

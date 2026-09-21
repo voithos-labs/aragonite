@@ -23,7 +23,7 @@ const kinds = (doc: Document, path: number[]) => {
 	return children.map((c) => c.kind);
 };
 
-describe('gapEligibleAt — sibling boundaries', () => {
+describe('gapEligibleAt, sibling boundaries', () => {
 	it('pins the fixture shapes the truth table reads', () => {
 		expect(kinds(MIXED, [])).toEqual(['paragraph', 'table', 'fencedCode', 'paragraph']);
 		expect(kinds(TABLE_BREAK, [])).toEqual(['table', 'thematicBreak']);
@@ -49,7 +49,7 @@ describe('gapEligibleAt — sibling boundaries', () => {
 	});
 });
 
-describe('gapEligibleAt — scope boundaries', () => {
+describe('gapEligibleAt: scope boundaries', () => {
 	it('is eligible at the start of the document when the first block declares before', () => {
 		expect(gapEligibleAt(TABLE_BREAK, [], 0)).toBe(true);
 		expect(gapEligibleAt(MIXED, [], 0)).toBe(false);
@@ -73,7 +73,7 @@ describe('gapEligibleAt — scope boundaries', () => {
 	});
 });
 
-describe('gapEligibleAt — unresolvable positions', () => {
+describe('gapEligibleAt: unresolvable positions', () => {
 	it.each([
 		['unresolvable parent', [9], 0],
 		['unresolvable deep parent', [0, 9, 9], 0],

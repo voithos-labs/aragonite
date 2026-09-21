@@ -8,10 +8,10 @@ import { __resetSchemaRegistriesForTests } from '../../schema/registry-reset';
 // the contract is a fresh context per block. The probe declines every block, which lets
 // real parsing proceed while it stashes each context it was offered.
 
-describe('parser mints a fresh OpenContext per block', () => {
+describe('parser creates a fresh OpenContext per block', () => {
 	beforeEach(() => __resetSchemaRegistriesForTests());
 
-	it('offers each block its own context, never a re-stamped shared handle', () => {
+	it('offers each block its own context, never a re-marked shared handle', () => {
 		const stashed: OpenContext[] = [];
 		const offeredFor: { index: number; text: string }[] = [];
 		const kind = declarePluginKind('context-probe');

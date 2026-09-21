@@ -19,7 +19,7 @@ describe('operations-log', () => {
 		expect(snap.map((e) => e.path[0] as number)).toEqual([2, 3, 4]);
 	});
 
-	it('stamps each entry with a monotonically increasing timestamp', () => {
+	it('marks each entry with a monotonically increasing timestamp', () => {
 		const log = createOperationsLog(10);
 		log.record({ op: 'split', path: [0], detail: { at: 0 } });
 		log.record({ op: 'split', path: [1], detail: { at: 0 } });

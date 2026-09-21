@@ -28,7 +28,7 @@ describe('needsScan probes a registered ":" trigger', () => {
 		expect(parseInline(':x', 0, 2)).toEqual([{ kind: 'text', start: 0, end: 2, text: ':x' }]);
 	});
 
-	it('registered ":" recognizer is consulted — ":x{k=v}" does not fast-bail to text', () => {
+	it('registered ":" recognizer is consulted; ":x{k=v}" does not fast-bail to text', () => {
 		registerInlineSyntax(':', recognizeColon);
 		const nodes = parseInline(':x{k=v}', 0, 7);
 		expect(nodes).not.toEqual([{ kind: 'text', start: 0, end: 7, text: ':x{k=v}' }]);
@@ -43,7 +43,7 @@ describe('needsScan probes a registered "w" trigger', () => {
 		expect(parseInline('wx', 0, 2)).toEqual([{ kind: 'text', start: 0, end: 2, text: 'wx' }]);
 	});
 
-	it('registered "w" recognizer is consulted — "w{k=v}" does not fast-bail to text', () => {
+	it('registered "w" recognizer is consulted: "w{k=v}" does not fast-bail to text', () => {
 		registerInlineSyntax('w', recognizer('w'));
 		const nodes = parseInline('w{k=v}', 0, 6);
 		expect(nodes).not.toEqual([{ kind: 'text', start: 0, end: 6, text: 'w{k=v}' }]);
@@ -60,20 +60,20 @@ describe('needsScan probes a registered "w" trigger', () => {
 
 // `!` is reserved yet held out of SPECIAL_CHARS, so its prefix handlers need the same probe.
 // `!{k=v}` carries no `[`, so only the probe can save it from the fast bail.
-describe('needsScan probes a registered "!" prefix rung', () => {
+describe('needsScan probes a registered "!" prefix inline syntax handler', () => {
 	it('empty registry: "!{k=v}" stays one byte-identical text node', () => {
 		expect(parseInline('!{k=v}', 0, 6)).toEqual([
 			{ kind: 'text', start: 0, end: 6, text: '!{k=v}' }
 		]);
 	});
 
-	it('registered "!{" rung is consulted — "!{k=v}" does not fast-bail to text', () => {
+	it('registered "!{" inline syntax handler is consulted: "!{k=v}" does not fast-bail to text', () => {
 		registerInlineSyntax('!', recognizer('!'), { prefix: '!{', priority: 40 });
 		const nodes = parseInline('!{k=v}', 0, 6);
 		expect(nodes).toEqual([{ kind: 'directiveText', start: 0, end: 6 }]);
 	});
 
-	it('a registered "!" rung leaves prose exclamation marks alone', () => {
+	it('a registered "!" inline syntax handler leaves prose exclamation marks alone', () => {
 		registerInlineSyntax('!', recognizer('!'), { prefix: '!{', priority: 40 });
 		const raw = 'wow! really';
 		expect(parseInline(raw, 0, raw.length)).toEqual([

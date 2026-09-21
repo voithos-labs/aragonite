@@ -38,7 +38,7 @@ function editUrl(display: string, url: string): string | null {
 	return buildLinkEditBytes(link, display, { ...linkFieldsFromInline(link, display), url });
 }
 
-describe('link edit bytes — the destination the reader never saw', () => {
+describe('link edit bytes: the destination the reader never saw', () => {
 	it('rewrites an inline destination and keeps the text bytes verbatim', () => {
 		expect(editUrl('[**bold** t](old)', 'new')).toBe('[**bold** t](new)');
 	});
@@ -59,7 +59,7 @@ describe('link edit bytes — the destination the reader never saw', () => {
 	});
 });
 
-describe('link edit bytes — adversarial destinations', () => {
+describe('link edit bytes: adversarial destinations', () => {
 	// The inline arbitrary's destination alphabet (test/invariants/arbitraries/inline.ts): each byte
 	// closes the construct early, or reopens it, if the encoder lets it through raw.
 	const HOSTILE = ['u`)', 'a(b)c', 'u\\)', '<u v>', 'u v', 'u"q'];
@@ -92,7 +92,7 @@ describe('link edit bytes — adversarial destinations', () => {
 	});
 });
 
-describe('link edit bytes — reference forms', () => {
+describe('link edit bytes: reference forms', () => {
 	it.each(['[t][ref]', '[ref][]', '[ref]'])('%s round-trips byte-for-byte', (display) => {
 		const resolver = resolverFor(display);
 		const link = firstLink(display, resolver);
@@ -109,8 +109,8 @@ describe('link edit bytes — reference forms', () => {
 	});
 });
 
-describe('link edit bytes — the seam declines rather than destroy bytes', () => {
-	it('declines a link an inline rung claimed: no rewriteLink hook exists', () => {
+describe('link edit bytes: the join declines rather than destroy bytes', () => {
+	it('declines a link an inline syntax handler claimed: no rewriteLink hook exists', () => {
 		const link = { ...firstLink('[t](old)'), syntaxClaim: { prefix: '[[' } };
 		expect(buildLinkEditBytes(link, '[t](old)', { text: 't', url: 'new' })).toBeNull();
 		expect(takeDevWarns().map((w) => w.tag)).toEqual(['link-edit']);
@@ -123,7 +123,7 @@ describe('link edit bytes — the seam declines rather than destroy bytes', () =
 	});
 });
 
-describe('link unwrap bytes — remove link', () => {
+describe('link unwrap bytes: remove link', () => {
 	it('an inline link unwraps to its text bytes, nested constructs intact', () => {
 		expect(buildLinkUnwrapBytes(firstLink('a [**b** c](u) d'), 'a [**b** c](u) d')).toBe('**b** c');
 	});
@@ -153,7 +153,7 @@ describe('link unwrap bytes — remove link', () => {
 		);
 	});
 
-	it('declines a claimed link rather than drop a rung’s syntax', () => {
+	it('declines a claimed link rather than drop an inline syntax handler’s syntax', () => {
 		const link = { ...firstLink('[t](u)'), syntaxClaim: { prefix: '[[' } };
 		expect(buildLinkUnwrapBytes(link, '[t](u)')).toBeNull();
 		expect(takeDevWarns().map((w) => w.tag)).toEqual(['link-edit']);

@@ -64,7 +64,7 @@ describe('isInWindow clamp', () => {
 		cleanup();
 	});
 
-	it('keeps the inactive all-mounted oracle when not collapsed', () => {
+	it('keeps the inactive all-mounted check when not collapsed', () => {
 		const { windowing, cleanup } = setup(4, () => false);
 		expect(windowing.isInWindow(3)).toBe(true);
 		cleanup();

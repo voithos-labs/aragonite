@@ -14,7 +14,7 @@ function renderedInto(raw: string, tagConstructMarkers = false): HTMLDivElement 
 const markerTexts = (div: HTMLDivElement): (string | null)[] =>
 	[...div.querySelectorAll('.md-marker')].map((span) => span.textContent);
 
-describe('renderInlineNodes — angle autolink brackets', () => {
+describe('renderInlineNodes: angle autolink brackets', () => {
 	it('renders `<` and `>` as marker spans flanking the anchor', () => {
 		const div = renderedInto('Visit <https://example.com> now');
 		expect(markerTexts(div)).toEqual(['<', '>']);
@@ -52,7 +52,7 @@ describe('renderInlineNodes — angle autolink brackets', () => {
 	});
 });
 
-describe('renderInlineNodes — bare autolink forms carry no brackets', () => {
+describe('renderInlineNodes: bare autolink forms carry no brackets', () => {
 	// The over-fix guard: `node.url` is synthesized for these, so a url-driven detection would
 	// invent markers the source never had.
 	it.each([

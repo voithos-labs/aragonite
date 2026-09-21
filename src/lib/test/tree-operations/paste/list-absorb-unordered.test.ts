@@ -16,7 +16,7 @@ import { metadataOf } from '$lib/core/nodes';
 // Absorbing a same-type list paste must normalize markers for both halves: a `*` kept
 // inside a `- ` list is split into two lists by reference parsers.
 
-describe('list-absorb — marker normalization', () => {
+describe('list-absorb: marker normalization', () => {
 	beforeEach(() => {
 		__resetPasteSurfacesForTests();
 		registerPasteSurface(__getDefaultTextSurface('paragraph'));

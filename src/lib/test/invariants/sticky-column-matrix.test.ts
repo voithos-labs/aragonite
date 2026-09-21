@@ -17,7 +17,7 @@ describe('G2.10 classifyStickyKey decision matrix', () => {
 		expect(classifyStickyKey('ArrowDown')).toBe('capture');
 	});
 
-	it('horizontal arrows reset (caret moves horizontally — intent abandoned)', () => {
+	it('horizontal arrows reset (caret moves horizontally: intent abandoned)', () => {
 		expect(classifyStickyKey('ArrowLeft')).toBe('reset');
 		expect(classifyStickyKey('ArrowRight')).toBe('reset');
 	});

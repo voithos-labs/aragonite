@@ -13,7 +13,7 @@ import { describeConvergence } from '$lib/test/harness/parse-converged';
 // shape by direction (a merge reads fewer blocks where #166's class read more).
 
 describe('a merge whose survivor the block above absorbs', () => {
-	it('asks the seam at the survivor’s upper edge', () => {
+	it('asks the join at the survivor’s upper edge', () => {
 		const doc = parse(
 			'- foo@bar.com\n\n  \n| H0 |\n| --- | --- |\n\n\n[ref]: https://example.com\n'
 		);
@@ -29,7 +29,7 @@ describe('a merge whose survivor the block above absorbs', () => {
 
 	// The downward edge the hand-rolled merge already covered, so routing the delete through the
 	// shared window walker (GH #179) cannot have cost it.
-	it('still asks the seam the delete itself opened below', () => {
+	it('still asks the join the delete itself opened below', () => {
 		const doc = parse('a\n# h\nb\n');
 		expect(doc.children).toHaveLength(3);
 

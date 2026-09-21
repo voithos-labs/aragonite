@@ -13,7 +13,7 @@ function selectFirstTwo(env: ReturnType<typeof makeKeydownEnv>) {
 	env.selection.enterCrossBlock({ path: [0], offset: 1 }, { path: [1], offset: 2 });
 }
 
-describe('cross-block keydown — destructive arm', () => {
+describe('cross-block keydown: destructive branch', () => {
 	for (const key of ['Backspace', 'Delete']) {
 		it(`${key} deletes the range and leaves cross-block mode`, async () => {
 			const env = makeKeydownEnv(SOURCE);

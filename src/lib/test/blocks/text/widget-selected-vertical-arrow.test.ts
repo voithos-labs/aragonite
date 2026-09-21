@@ -19,8 +19,8 @@ function selectedImage() {
 	return { ...h, seats };
 }
 
-describe('handleSelectedWidgetKeydown — a plain vertical arrow leaves the widget', () => {
-	it('ArrowDown seats the caret after the widget, clears the selection and declines', async () => {
+describe('handleSelectedWidgetKeydown: a plain vertical arrow leaves the widget', () => {
+	it('ArrowDown puts the caret after the widget, clears the selection and declines', async () => {
 		const { interaction, widgetSelection, seats } = selectedImage();
 		const e = arrow('ArrowDown');
 		expect(await interaction.handleSelectedWidgetKeydown(e)).toBe(false);
@@ -30,7 +30,7 @@ describe('handleSelectedWidgetKeydown — a plain vertical arrow leaves the widg
 		expect(e.defaultPrevented).toBe(false);
 	});
 
-	it('ArrowUp seats the caret before the widget', async () => {
+	it('ArrowUp puts the caret before the widget', async () => {
 		const { interaction, widgetSelection, seats } = selectedImage();
 		expect(await interaction.handleSelectedWidgetKeydown(arrow('ArrowUp'))).toBe(false);
 		expect(seats).toEqual([0]);

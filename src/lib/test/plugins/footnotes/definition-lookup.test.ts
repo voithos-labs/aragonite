@@ -14,7 +14,7 @@ describe('footnote definition lookup (where a reference jump lands)', () => {
 		installPlugins([footnotesPlugin()]);
 	});
 
-	it('lands in the definition body, not on the container that seats no caret', () => {
+	it('lands in the definition body, not on the container that holds no caret', () => {
 		const doc = parse('Prose [^a] and [^b].\n\n[^a]: A def.\n\n[^b]: B def.\n');
 		expect(findFootnoteDefinitionLanding(doc, 'a')).toEqual([1, 0]);
 		expect(findFootnoteDefinitionLanding(doc, 'b')).toEqual([2, 0]);

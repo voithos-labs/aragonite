@@ -4,7 +4,7 @@ import { installReorderDrag } from '$lib/editor-actions/reorder-drag';
 
 // Checks the root pointerdown listener's lifecycle: the unmount-mid-drag leak e2e cannot
 // reach. The per-drag document listeners are covered by the Escape and no-op e2e.
-describe('installReorderDrag — root listener lifecycle', () => {
+describe('installReorderDrag: root listener lifecycle', () => {
 	let editorRoot: HTMLElement;
 	let added: number;
 	let removed: number;

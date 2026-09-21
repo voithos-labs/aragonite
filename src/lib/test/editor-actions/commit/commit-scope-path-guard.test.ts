@@ -52,7 +52,7 @@ describe('commitMultiScope bails on a scope path that ran off the tree', () => {
 		});
 	}
 
-	it('reports the bail on the error seam instead of failing silently', async () => {
+	it('reports the bail on the error path instead of failing silently', async () => {
 		const { events, commit } = harness([99]);
 		const errors: EditorError[] = [];
 		events.on('error', (e) => errors.push(e));

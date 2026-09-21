@@ -91,7 +91,7 @@ function harness(source: string, sourceStart: number, options: HarnessOptions = 
 	return { handlers: createTextClipboard(deps), commits, widgetSelection };
 }
 
-describe('createTextClipboard — selected-widget copy', () => {
+describe('createTextClipboard: selected-widget copy', () => {
 	it('copies the widget raw slice and leaves the document and selection untouched', () => {
 		const { handlers, commits, widgetSelection } = harness('lead![cat](x)\n', 4);
 		const e = capturingEvent();
@@ -116,7 +116,7 @@ describe('createTextClipboard — selected-widget copy', () => {
 	});
 });
 
-describe('createTextClipboard — selected-widget cut', () => {
+describe('createTextClipboard: selected-widget cut', () => {
 	it('copies the slice, splices it out as one commit, and clears the selection', async () => {
 		const { handlers, commits, widgetSelection } = harness('lead![cat](x)\n', 4);
 		const e = capturingEvent();
@@ -139,8 +139,8 @@ describe('createTextClipboard — selected-widget cut', () => {
 // What the editor root hands back: the browser dispatches at `<body>` when the paragraph holds
 // no text position. Forwarding to the same handlers a caret-side event reaches is what brings
 // the reading-mode check and the sticky-column reset along with it.
-describe('createTextClipboard — claimRootClipboard', () => {
-	it('routes each clipboard type to the arm the caret route reaches', async () => {
+describe('createTextClipboard: claimRootClipboard', () => {
+	it('routes each clipboard type to the branch the caret route reaches', async () => {
 		const copy = harness('lead![cat](x)\n', 4);
 		const copyEvent = capturingEvent();
 		copy.handlers.claimRootClipboard({ ...copyEvent, type: 'copy' } as never);
@@ -172,7 +172,7 @@ describe('createTextClipboard — claimRootClipboard', () => {
 		expect(commits).toEqual([]);
 	});
 
-	it('stays inert for an event type no arm owns', () => {
+	it('stays inert for an event type no branch owns', () => {
 		const { handlers, commits } = harness('lead![cat](x)\n', 4);
 		const event = capturingEvent();
 		handlers.claimRootClipboard({ ...event, type: 'beforeinput' } as never);
@@ -239,7 +239,7 @@ function foldSettleHarness() {
 	return { handlers: createTextClipboard(deps), order, releaseWrite };
 }
 
-describe('createTextClipboard — a mutation waits for the reveal fold it triggered', () => {
+describe('createTextClipboard: a mutation waits for the reveal fold it triggered', () => {
 	it('holds the cut splice until the fold’s write settles', async () => {
 		const { handlers, order, releaseWrite } = foldSettleHarness();
 		const cut = handlers.onCut(capturingEvent() as never);

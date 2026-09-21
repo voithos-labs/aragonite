@@ -111,7 +111,7 @@ describe('createEdgeAffinityState', () => {
 	});
 
 	// The call forwards the meta flag, or the table's #124 case is unreachable from a keydown.
-	it('meta+ArrowRight through the door settles outside', () => {
+	it('meta+ArrowRight through the entry point settles outside', () => {
 		const s = createEdgeAffinityState();
 		s.note({ key: 'ArrowRight', altKey: false, metaKey: true });
 		expect(s.get()).toBe('outside');

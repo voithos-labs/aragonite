@@ -39,7 +39,7 @@ function makeTop(raws: string[]) {
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
-describe('reorder action — top level', () => {
+describe('reorder action: top level', () => {
 	it('nudge moves a block down, one undo step, ids preserved via idMap', async () => {
 		const h = makeTop(['a', 'b', 'c']);
 		const idsBefore = h.ids().slice();
@@ -86,7 +86,7 @@ describe('reorder action — top level', () => {
 	});
 });
 
-describe('reorder action — list', () => {
+describe('reorder action: list', () => {
 	it('nudge moves a list item up and down (down at the tail clamps)', async () => {
 		const up = makeReorderContainer('- one\n- two\n- three\n');
 		await up.reorder.nudgeReorderUnit([0, 2, 0], -1);
@@ -113,7 +113,7 @@ describe('reorder action — list', () => {
 	});
 });
 
-describe('reorder action — blockquote', () => {
+describe('reorder action: blockquote', () => {
 	it('drag move (absolute toIndex) reorders and undoes in one byte-exact step', async () => {
 		const h = makeReorderContainer('> a\n>\n> b\n>\n> c\n');
 		await h.reorder.moveReorderUnit([0, 0], 2);
@@ -138,7 +138,7 @@ describe('reorder action — blockquote', () => {
 	});
 });
 
-describe('reorder action — plugin (opaque) container declines', () => {
+describe('reorder action: plugin (opaque) container declines', () => {
 	beforeEach(__resetSchemaRegistriesForTests);
 
 	// The cause of the whole-alert move: a resolver that does not decline hands back the
@@ -196,7 +196,7 @@ describe('reorder action — plugin (opaque) container declines', () => {
 		expect(serialize(harness.doc)).toBe(before);
 	});
 
-	it('a body-leaf drag move is a no-op — the teleport is gone', async () => {
+	it('a body-leaf drag move is a no-op: the teleport is gone', async () => {
 		const { harness, reorder } = makeDeclineHarness();
 		const before = serialize(harness.doc);
 		let edits = 0;

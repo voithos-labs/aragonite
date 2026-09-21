@@ -26,7 +26,7 @@ afterEach(async () => {
 const ENTER = { key: 'Enter' };
 
 describe('blockquote Enter override', () => {
-	it('exits the quote on a second Enter, the minted blank replacing the empty line', async () => {
+	it('exits the quote on a second Enter, the created blank replacing the empty line', async () => {
 		mounted = mountEditor({ source: '> alpha\n' });
 
 		// Two `>` lines: the split's blank-line separator plus the empty paragraph it made.
@@ -44,7 +44,7 @@ describe('blockquote Enter override', () => {
 	// whole "a block follows" class, and with it Enter as a downward move, went unobserved. The
 	// case added later asserted bytes alone, which reparsed into one block more than the exit
 	// left on screen, so a G2.13 divergence read as the expected value.
-	it('exits before a following block by minting the gap, not entering the block', async () => {
+	it('exits before a following block by creating the gap, not entering the block', async () => {
 		mounted = mountEditor({ source: '> alpha\n\nbeta\n' });
 
 		await pressKeyAt(mounted, [0, 0], 5, ENTER);
@@ -60,7 +60,7 @@ describe('blockquote Enter override', () => {
 
 	// A table cannot hold a caret at its top edge and the quote declares no gap edge, so
 	// moving down here would leave the boundary with no insertion point at all.
-	it('mints the gap before a block the caret cannot open one in', async () => {
+	it('creates the gap before a block the caret cannot open one in', async () => {
 		mounted = mountEditor({ source: '> alpha\n\n| a | b |\n| - | - |\n' });
 
 		await pressKeyAt(mounted, [0, 0], 5, ENTER);

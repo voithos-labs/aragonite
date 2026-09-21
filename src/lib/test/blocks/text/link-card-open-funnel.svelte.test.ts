@@ -33,7 +33,7 @@ function openCard(url: string, resolveLinkUrl: (raw: string) => string = (u) => 
 	return { onOpenLink, button: button as HTMLButtonElement, destroy: () => unmount(app) };
 }
 
-describe('the link card’s Open button rides the render path’s URL funnel', () => {
+describe('the link card’s Open button rides the render path’s one URL check', () => {
 	it('a blocked scheme never reaches the hook, and the button says so', () => {
 		const { onOpenLink, button, destroy } = openCard('javascript:alert(1)');
 		expect(button.disabled).toBe(true);

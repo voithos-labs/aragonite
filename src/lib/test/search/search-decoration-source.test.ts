@@ -33,7 +33,7 @@ describe('search as decoration source', () => {
 		expect(classes).toEqual(['match-overlay match-overlay-active', 'match-overlay']);
 	});
 
-	it('navigation remaps classes without rescanning — memo hit', () => {
+	it('navigation remaps classes without rescanning: memo hit', () => {
 		const { engine, state, scanCount } = makeHarness('cat cat\n');
 		state.open();
 		state.setQuery('cat');
@@ -44,7 +44,7 @@ describe('search as decoration source', () => {
 		expect(classes).toEqual(['match-overlay', 'match-overlay match-overlay-active']);
 	});
 
-	it('an edit-epoch bump forces a rescan — memo miss', () => {
+	it('an edit-epoch bump forces a rescan: memo miss', () => {
 		const { engine, state, scanCount } = makeHarness('cat cat\n');
 		state.open();
 		state.setQuery('cat');

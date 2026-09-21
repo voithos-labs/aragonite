@@ -94,7 +94,7 @@ function caretRaw(el: HTMLElement): number {
 	return domTextOffsetAtNode(el, range.startContainer, range.startOffset);
 }
 
-describe('source-reveal — caret-landing model (ambient = 0)', () => {
+describe('source-reveal: caret-landing model (ambient = 0)', () => {
 	let el: HTMLElement;
 
 	beforeEach(() => {
@@ -106,7 +106,7 @@ describe('source-reveal — caret-landing model (ambient = 0)', () => {
 		document.body.innerHTML = '';
 	});
 
-	it('an opaque widget cannot address an interior source offset — it snaps to an edge', () => {
+	it('an opaque widget cannot address an interior source offset: it snaps to an edge', () => {
 		// Why showing the source matters: with the widget rendered, an offset inside its source
 		// (start+2) resolves to the trailing edge, since a widget the caret cannot enter answers
 		// only `SRC_START` or `SRC_END`.
@@ -180,7 +180,7 @@ describe('source-reveal — caret-landing model (ambient = 0)', () => {
 	});
 });
 
-describe('source-reveal — ambient-included offsets (list-item / blockquote math)', () => {
+describe('source-reveal: ambient-included offsets (list-item / blockquote math)', () => {
 	// A two-character marker prefix the DOM traversal counts but the block's source excludes:
 	// every caret lands at `ambientLength + blockSourceOffset`, and passing the bare block offset
 	// lands short by the prefix's length.
@@ -216,7 +216,7 @@ describe('source-reveal — ambient-included offsets (list-item / blockquote mat
 	});
 });
 
-describe('source-reveal — highest-risk edges', () => {
+describe('source-reveal: highest-risk edges', () => {
 	let el: HTMLElement;
 
 	beforeEach(() => {
@@ -228,7 +228,7 @@ describe('source-reveal — highest-risk edges', () => {
 		document.body.innerHTML = '';
 	});
 
-	it('a selection anchored outside crosses INTO revealed source', async () => {
+	it('a selection anchored outside crosses into revealed source', async () => {
 		const reveal = createSourceReveal(depsFor(el));
 
 		// While rendered, a selection reaching from the surrounding text toward a glyph inside the
@@ -257,7 +257,7 @@ describe('source-reveal — highest-risk edges', () => {
 		expect(rawTextOfNode(el, BLOCK_RAW).slice(0, SRC_START + 2)).toBe('a $x');
 	});
 
-	it('reveal→commit with no edit is a CST-free view toggle — nothing for undo to span', async () => {
+	it('reveal→commit with no edit is a CST-free view toggle, nothing for undo to span', async () => {
 		// This suite's limit: the call changes only temporary DOM, so a cycle with no edit is
 		// byte-identical and adds no undo entry; Ctrl+Z across showing the source and committing is
 		// the LaTeX e2e's subject.

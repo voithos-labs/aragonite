@@ -37,7 +37,7 @@ function run(doc: Document, start: SelectionPoint, end: SelectionPoint) {
 	return { doc: result.newDoc, source: serialize(result.newDoc), caret: result.collapsedCaret };
 }
 
-describe('rangeDelete table branch — covered containers die whole', () => {
+describe('rangeDelete table branch: covered containers die whole', () => {
 	it('Case 1 (prose → table): a covered blockquote detaches with its child intact', () => {
 		// [0] para, [1] blockquote(paragraph), [2] table. end.offset 1 = inclusive
 		// last header cell → header removed, body promotes, table survives.
@@ -66,7 +66,7 @@ describe('rangeDelete table branch — covered containers die whole', () => {
 		expect(doc.children[0].raw).toBe('ter\n');
 	});
 
-	it('two-table span: the between container rides the same ceremony', () => {
+	it('two-table span: the between container rides the same commit sequence', () => {
 		// [0] table A (emptied), [1] blockquote(paragraph), [2] table B (header
 		// row cleared by inclusive end.offset 1, body promotes).
 		const input = parse(`${TWO_COL_TWO_ROW}\n> quoted\n\n${TWO_COL_TWO_ROW}`);

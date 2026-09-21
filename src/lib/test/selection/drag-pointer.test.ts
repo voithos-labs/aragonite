@@ -4,7 +4,7 @@ import { installDragListener } from '../../selection/drag-pointer';
 import { createSelectionState } from '../../selection/selection-state.svelte';
 import { parse } from '../../core/parser';
 
-describe('installDragListener — lifetime cleanup', () => {
+describe('installDragListener: lifetime cleanup', () => {
 	let editorRoot: HTMLElement;
 
 	beforeEach(() => {
@@ -97,7 +97,7 @@ describe('installDragListener — lifetime cleanup', () => {
 // Miss-analysis: the drag suite only ever counted listeners. The dispatch caret is the drag's one
 // consumer of endpoint coordinates and the only one of four siblings that never translated a cell
 // endpoint, because nothing asserted where it lands, only that the drag tore down cleanly.
-describe('installDragListener — where the drag parks its dispatch caret', () => {
+describe('installDragListener: where the drag puts the caret its dispatch caret', () => {
 	const TABLE_LAST = 'para\n\n| A | B |\n| --- | --- |\n| 1 | 2 |\n';
 	let editorRoot: HTMLElement;
 
@@ -108,7 +108,7 @@ describe('installDragListener — where the drag parks its dispatch caret', () =
 
 	afterEach(() => editorRoot.remove());
 
-	it('parks in the focus CELL when a drag ends inside a table', () => {
+	it('puts the caret in the focus cell when a drag ends inside a table', () => {
 		const doc = parse(TABLE_LAST);
 		const selection = createSelectionState({ getDoc: () => doc });
 		const requested: number[][] = [];

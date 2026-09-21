@@ -12,7 +12,7 @@ import { generateDeepNested, generateFixture } from './fixtures/generate';
 
 for (const shape of ['nested-containers', 'table-heavy'] as const) {
 	for (const bytes of [100_000, 1_000_000]) {
-		it(`report: container-raw amplification — ${shape} @ ${bytes}B`, () => {
+		it(`report: container-raw amplification; ${shape} @ ${bytes}B`, () => {
 			const doc = parse(generateFixture(shape, bytes));
 			const amplification = containerRawBytes(doc.children) / docByteLength(doc);
 			console.log(`${shape} ${bytes}B: container-raw amplification ×${amplification.toFixed(2)}`);
@@ -28,7 +28,7 @@ for (const [depth, bytes] of [
 	[8, 10_000],
 	[12, 50_000]
 ] as const) {
-	it(`report: container-raw amplification — deep-nested depth ${depth} × ${bytes}B/level`, () => {
+	it(`report: container-raw amplification; deep-nested depth ${depth} × ${bytes}B/level`, () => {
 		const doc = parse(generateDeepNested(depth, bytes));
 		const amplification = containerRawBytes(doc.children) / docByteLength(doc);
 		console.log(

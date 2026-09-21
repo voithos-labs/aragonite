@@ -28,8 +28,8 @@ beforeAll(() => {
 });
 afterAll(() => __resetDirectiveRegistryForTests());
 
-describe('leaf tier registered dispatch', () => {
-	it('stamps a kind-only registration on the leaf node, not directiveLeaf', () => {
+describe('leaf level registered dispatch', () => {
+	it('marks a kind-only registration on the leaf node, not directiveLeaf', () => {
 		expect(parse('::customleaf info\n').children[0].kind).toBe('directiveCustomLeafProbe');
 	});
 
@@ -48,8 +48,8 @@ describe('leaf tier registered dispatch', () => {
 	});
 });
 
-describe('text tier registered dispatch', () => {
-	it('stamps the registered kind on a matched :name[label] span, not directiveText', () => {
+describe('text level registered dispatch', () => {
+	it('marks the registered kind on a matched :name[label] span, not directiveText', () => {
 		const src = 'see :gloss[HTML] here';
 		const nodes = parseInline(src, 0, src.length);
 		const directive = nodes.find((n) => n.kind === GLOSS);

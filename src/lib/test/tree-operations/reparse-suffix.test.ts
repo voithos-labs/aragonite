@@ -11,7 +11,7 @@ import { takeDevWarns } from '$lib/test/support/warn-gate';
 // end in one; only indented code puts a blank line inside a leaf's raw.
 
 describe('a split half ending in a blank line keeps it (GH #97)', () => {
-	it('re-attaches the peeled line as the second half’s separator', () => {
+	it('re-attaches the stripped line as the second half’s separator', () => {
 		const doc = parse('    a\n\n    b\n');
 		expect(doc.children).toHaveLength(1);
 
@@ -24,7 +24,7 @@ describe('a split half ending in a blank line keeps it (GH #97)', () => {
 		expect(serialize(doc)).toBe('    a\n\n    b\n');
 	});
 
-	it('the CRLF twin keeps its CRLF line', () => {
+	it('the CRLF variant keeps its CRLF line', () => {
 		const doc = parse('    a\r\n\r\n    b\r\n');
 		expect(doc.children).toHaveLength(1);
 
@@ -36,7 +36,7 @@ describe('a split half ending in a blank line keeps it (GH #97)', () => {
 
 	// A run past the first line becomes blank blocks, so only one line is ever the parse's
 	// suffix: the split must keep the blocks and the split-off line.
-	it('keeps a longer blank run: blocks plus the peeled line', () => {
+	it('keeps a longer blank run: blocks plus the stripped line', () => {
 		const doc = parse('    a\n\n\n\n    b\n');
 		expect(doc.children).toHaveLength(1);
 
@@ -50,7 +50,7 @@ describe('a split half ending in a blank line keeps it (GH #97)', () => {
 // Miss-analysis: the multi-block update pins all ended flush at a block's last byte, so the
 // fragment parse never split a suffix off a committed text.
 describe('a multi-block content write ending in a blank line keeps it (GH #97)', () => {
-	it('keeps the peeled line in the last minted block', () => {
+	it('keeps the stripped line in the last created block', () => {
 		const doc = parse('x\n');
 
 		updateNodeContent(doc, 0, '# h\na\n\n');
@@ -58,7 +58,7 @@ describe('a multi-block content write ending in a blank line keeps it (GH #97)',
 		expect(serialize(doc)).toBe('# h\na\n\n');
 	});
 
-	it('the CRLF twin keeps its CRLF line', () => {
+	it('the CRLF variant keeps its CRLF line', () => {
 		const doc = parse('x\r\n');
 
 		updateNodeContent(doc, 0, '# h\r\na\r\n\r\n');

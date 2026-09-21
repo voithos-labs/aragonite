@@ -17,7 +17,7 @@ import { describeConvergence } from '../harness/parse-converged';
 import { testClosure } from '$lib/test/support/closure';
 import { takeDevWarns } from '$lib/test/support/warn-gate';
 
-describe('split separator — the half that absorbs gets one', () => {
+describe('split separator: the half that absorbs gets one', () => {
 	it('Enter at the end of a paragraph, then typing, still reparses as two blocks', () => {
 		const doc = parse('Hello world\n');
 		splitNode(doc, 0, 'Hello world'.length, undefined, undefined, undefined);
@@ -61,7 +61,7 @@ describe('split separator — the half that absorbs gets one', () => {
 	});
 });
 
-describe('split separator — the empty half that needs one', () => {
+describe('split separator: the empty half that needs one', () => {
 	// A lone blank line after a block is that block's trailing blank line, so an empty second
 	// half only survives the reload as a block when a separator opens its run.
 	const emptyHalfBecomesBlock: readonly [name: string, source: string, offset: number][] = [
@@ -80,7 +80,7 @@ describe('split separator — the empty half that needs one', () => {
 	}
 });
 
-describe('split separator — the halves that close get none', () => {
+describe('split separator: the halves that close get none', () => {
 	// A body that swallows a blank line as content would take the separator inside itself,
 	// which is why the predicate asks what a blank line does, not whether the join merges.
 	const swallowsTheBlank: readonly [name: string, source: string, offset: number][] = [
@@ -112,7 +112,7 @@ describe('split separator — the halves that close get none', () => {
 	});
 });
 
-describe('split separator — the promoted first half', () => {
+describe('split separator: the promoted first half', () => {
 	// Miss: the fresh property lane carves widened-delimiter-row docs out (#61's exclusion) and
 	// this suite only cut halves that keep their kind, so nothing pinned a promote absorbing
 	// the real head line where the prose stand-in survives.
@@ -128,7 +128,7 @@ describe('split separator — the promoted first half', () => {
 // The stand-in line represents whatever the user types next, so it must be the line no opener
 // takes. Openers are arbitrary code, so a consumer's globally registered plugin is the
 // reachable way to break that, and unit files reset the platform.
-describe('split separator — the probe line', () => {
+describe('split separator: the probe line', () => {
 	beforeEach(__resetSchemaRegistriesForTests);
 	afterEach(__resetSchemaRegistriesForTests);
 
@@ -136,7 +136,7 @@ describe('split separator — the probe line', () => {
 		expect(probeLineOpensAsProse()).toBe(true);
 	});
 
-	it('is reported claimed when an opener takes it, and the mint is what is lost', () => {
+	it('is reported claimed when an opener takes it, and the new block is what is lost', () => {
 		const kind = declarePluginKind('probe-claimer');
 		registerBlockKind(kind, {
 			gapEdges: 'none',

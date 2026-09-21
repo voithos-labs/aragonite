@@ -40,7 +40,7 @@ describe('a blank run that is the whole wrapped body', () => {
 
 	// Through the real write: emptying a paragraph is kind-stable, so both writes take the
 	// routine typing path and the container's raw is rebuilt from the emptied body.
-	it('survives emptying every body block through the content door', async () => {
+	it('survives emptying every body block through the content entry point', async () => {
 		const h = makeNestedHarness(':::callout Title\nBody1\n\nBody2\n:::\n', { index: 0 });
 
 		await h.bundle.blockEdit.updateBlockContent(1, '\n', 0, 0);
@@ -52,7 +52,7 @@ describe('a blank run that is the whole wrapped body', () => {
 
 	// The reload's own layout: both fence lines taken, and every surviving block carries its line
 	// in its own raw rather than in `leadingTrivia` (syntax-tree.md § Blank lines).
-	it('lands the peels in the wrap slots and leaves nothing standing', () => {
+	it('lands the strips in the wrap slots and leaves nothing standing', () => {
 		const doc = parse(':::callout Title\nBody1\n\nBody2\n:::\n');
 		const callout = doc.children[0];
 
@@ -79,7 +79,7 @@ describe('a blank run that is the whole wrapped body', () => {
 		expectParseConverged(doc);
 	});
 
-	it('the CRLF twin hands over CRLF lines', () => {
+	it('the CRLF variant hands over CRLF lines', () => {
 		const doc = parse(':::callout Title\r\nBody1\r\n\r\nBody2\r\n:::\r\n');
 		const callout = doc.children[0];
 
@@ -94,10 +94,10 @@ describe('a blank run that is the whole wrapped body', () => {
 
 // Non-vacuity for the two-line check: a blockquote's body opens at the container's own first
 // line, so nothing is stripped and a whole-blank body needs no fence line at all.
-describe('a blank run that is the whole UNWRAPPED body', () => {
+describe('a blank run that is the whole unwrapped body', () => {
 	beforeEach(activateDirectiveGrammar);
 
-	it('takes no wrap line — a blockquote peels nothing', () => {
+	it('takes no wrap line: a blockquote strips nothing', () => {
 		const doc = parse('> a\n>\n> b\n');
 		const quote = doc.children[0];
 		expect(quote.children!.map((c) => c.raw)).toEqual(['a\n', 'b\n']);

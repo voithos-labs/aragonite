@@ -36,7 +36,7 @@ function mountEdgeMathBlock() {
 
 const settle = () => new Promise((r) => setTimeout(r));
 
-describe('reveal transitions — settle-window re-entry (G1.26)', () => {
+describe('reveal transitions: settle-window re-entry (G1.26)', () => {
 	it('a second entry landing synchronously inside the settle window fires', async () => {
 		const { interaction } = mountEdgeMathBlock();
 		// The first entry shows the source; its settle window spans the microtask chain, so a
@@ -74,7 +74,7 @@ describe('reveal transitions — settle-window re-entry (G1.26)', () => {
 	});
 });
 
-describe('reveal transitions — kernel source-length precondition (G1.26)', () => {
+describe('reveal transitions: the shared core source-length precondition (G1.26)', () => {
 	it('a source not spanning its [sourceStart, sourceEnd) range fires at reveal entry', async () => {
 		const reveal = createSourceReveal({
 			get container() {

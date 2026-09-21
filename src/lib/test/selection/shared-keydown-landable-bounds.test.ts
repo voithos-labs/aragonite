@@ -85,7 +85,7 @@ const FENCE = '```js\nconst x = 1;\n```\n';
 
 beforeEach(() => toPrev.mockReset());
 
-describe('block-exit arms read the landable bounds', () => {
+describe('block-exit branches read the reachable bounds', () => {
 	// `## Title`: the `## ` is unpainted in live, so 3 is the first offset a caret can occupy
 	// and ArrowLeft there is the block exit.
 	it('ArrowLeft exits at a heading’s content start in live', async () => {
@@ -173,7 +173,7 @@ describe('block-exit arms read the landable bounds', () => {
 	});
 });
 
-describe('the keydown door notes the arrival', () => {
+describe('the keydown entry point notes the arrival', () => {
 	// A horizontal step stops on the side it came from (live-mode.md § 4.2): Right records the
 	// near side, Left the far one, so the byte typed next lands where the caret meant.
 	it('a forward arrow records the run’s near side, Home the construct-relative outside', async () => {

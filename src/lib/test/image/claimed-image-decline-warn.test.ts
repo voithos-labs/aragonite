@@ -19,8 +19,8 @@ afterEach(() => __resetInlineSyntaxForTests());
 
 const warnings = (): string[] => takeDevWarns().map((w) => `[${w.tag}] ${w.message}`);
 
-describe('a declined image edit says which rung declined and why', () => {
-	it('names the rung and the missing hook when none was registered', () => {
+describe('a declined image edit says which inline syntax handler declined and why', () => {
+	it('names the inline syntax handler and the missing hook when none was registered', () => {
 		registerWikiRung();
 		const { committer, controller, target } = committerFor(SOURCE);
 		committer.commitImageEdit(target, RESIZED);

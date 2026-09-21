@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { parse } from '../../../core/parser';
 
-describe('thematic break — leading indentation (CommonMark §4.1)', () => {
+describe('thematic break, leading indentation (CommonMark §4.1)', () => {
 	it('does not treat a 4-space-indented rule as a thematic break', () => {
 		// 4+ columns of leading indentation is indented code, not a thematic break.
 		expect(parse('    ---\n').children[0].kind).not.toBe('thematicBreak');

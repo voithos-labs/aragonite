@@ -11,7 +11,7 @@ import {
 // the selected bytes and the destination are escaped on the way. Refusals are covered as closely
 // as wraps.
 
-describe('link wrap bytes — minting a construct over plain text', () => {
+describe('link wrap bytes, creating a construct over plain text', () => {
 	it('wraps the range and percent-encodes the destination stop characters', () => {
 		expect(buildLinkWrapBytes('Alpha bravo charlie', 6, 11, 'https://x.test/a b(c)')).toBe(
 			'[bravo](https://x.test/a%20b%28c%29)'
@@ -32,8 +32,8 @@ describe('link wrap bytes — minting a construct over plain text', () => {
 	});
 });
 
-describe('link wrap bytes — the seam declines rather than corrupt', () => {
-	it('an empty or whitespace destination mints nothing: Escape must owe no cleanup', () => {
+describe('link wrap bytes: the join declines rather than corrupt', () => {
+	it('an empty or whitespace destination creates nothing: Escape leaves no cleanup', () => {
 		expect(buildLinkWrapBytes('Alpha bravo charlie', 6, 11, '')).toBeNull();
 		expect(buildLinkWrapBytes('Alpha bravo charlie', 6, 11, '   ')).toBeNull();
 	});

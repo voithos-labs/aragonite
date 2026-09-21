@@ -11,7 +11,7 @@ import { makeKeydownEnv, press } from './keydown-env';
 
 const SOURCE = 'alpha\n\nbeta\n\ngamma\n';
 
-describe('cross-block keydown — Ctrl+A ladder', () => {
+describe('cross-block keydown: Ctrl+A priority order', () => {
 	it('first press selects within the block, without entering cross-block mode', async () => {
 		const env = makeKeydownEnv(SOURCE);
 
@@ -53,7 +53,7 @@ describe('cross-block keydown — Ctrl+A ladder', () => {
 	});
 });
 
-describe('cross-block keydown — compositionstart', () => {
+describe('cross-block keydown: compositionstart', () => {
 	it('deletes the active range synchronously and reports it handled', () => {
 		const env = makeKeydownEnv(SOURCE);
 		env.selection.enterCrossBlock({ path: [0], offset: 1 }, { path: [1], offset: 2 });

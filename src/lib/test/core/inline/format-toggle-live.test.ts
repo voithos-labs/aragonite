@@ -63,7 +63,7 @@ describe('a toggle takes back the wrap that same selection wrote', () => {
 // answer as source mode does, not as live mode (live-mode.md § 4.3). Miss-analysis: the fork was
 // written as hiding-versus-showing, and no case asked a mode that hides in general while
 // revealing exactly the block being written to.
-describe('the preview rungs write what source writes', () => {
+describe('the preview inline syntax handlers write what source writes', () => {
 	it.each(['preview-block', 'preview-inline'] as const)(
 		'writes an unverified wrap where the marker-hiding fork declines (%s)',
 		(mode) => {

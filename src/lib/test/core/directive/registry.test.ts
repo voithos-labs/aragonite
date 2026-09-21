@@ -23,19 +23,19 @@ describe('registerDirective', () => {
 		expect(isDirectiveRegistered('container', 'note')).toBe(true);
 	});
 
-	it('leaves an unregistered (tier,name) unresolved', () => {
+	it('leaves an unregistered (level,name) unresolved', () => {
 		expect(resolveDirective('container', 'note')).toBeUndefined();
 		expect(isDirectiveRegistered('container', 'note')).toBe(false);
 	});
 
-	it('throws on a duplicate (tier,name)', () => {
+	it('throws on a duplicate (level,name)', () => {
 		registerDirective('container', 'note', { kind, fromDirective: factory });
 		expect(() => registerDirective('container', 'note', { kind, fromDirective: factory })).toThrow(
 			/already registered/i
 		);
 	});
 
-	it('scopes registration by tier — the same name coexists across tiers', () => {
+	it('scopes registration by level: the same name coexists across levels', () => {
 		const container: DirectiveDefinition = { kind, fromDirective: factory };
 		const leaf: DirectiveDefinition = { kind };
 		registerDirective('container', 'note', container);
@@ -45,7 +45,7 @@ describe('registerDirective', () => {
 	});
 });
 
-describe('registerDirective per-tier factory contract', () => {
+describe('registerDirective per-level factory contract', () => {
 	it('rejects a container without a fromDirective factory', () => {
 		expect(() => registerDirective('container', 'x', { kind })).toThrow(
 			/requires a fromDirective/i
@@ -75,7 +75,7 @@ describe('registerDirective per-tier factory contract', () => {
 });
 
 describe('__resetDirectiveRegistryForTests', () => {
-	it('clears registrations so the same (tier,name) re-registers without throwing', () => {
+	it('clears registrations so the same (level,name) re-registers without throwing', () => {
 		registerDirective('container', 'note', { kind, fromDirective: factory });
 		__resetDirectiveRegistryForTests();
 		expect(isDirectiveRegistered('container', 'note')).toBe(false);

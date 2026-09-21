@@ -32,7 +32,7 @@ function makeWindowedEnv() {
 	return { env, handlers, offsets };
 }
 
-describe('cross-block paste — a fold above the pasted bytes', () => {
+describe('cross-block paste: a fold above the pasted bytes', () => {
 	it('reveals the slot the fold landed on before reading it for an element', async () => {
 		const { env, handlers, offsets } = makeWindowedEnv();
 

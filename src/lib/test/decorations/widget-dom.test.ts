@@ -7,7 +7,7 @@ import BadgeFixture from './fixtures/BadgeFixture.svelte';
 const dec: BlockDecoration = { type: 'block', path: [0] };
 
 describe('mountDecorationWidget', () => {
-	it('buildDom arm returns the built element; destroy detaches it', () => {
+	it('buildDom branch returns the built element; destroy detaches it', () => {
 		const handle = mountDecorationWidget(
 			{
 				buildDom: () => {
@@ -25,7 +25,7 @@ describe('mountDecorationWidget', () => {
 		expect(handle!.el.isConnected).toBe(false);
 	});
 
-	it('component arm mounts with the decoration prop; destroy unmounts', () => {
+	it('component branch mounts with the decoration prop; destroy unmounts', () => {
 		const handle = mountDecorationWidget({ component: BadgeFixture }, dec);
 		expect(handle).not.toBeNull();
 		document.body.appendChild(handle!.el);

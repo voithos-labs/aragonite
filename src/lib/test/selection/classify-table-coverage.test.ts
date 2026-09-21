@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { classifyTableSelectionCoverage } from '../../selection/range-delete-table-coverage';
 
-describe('classifyTableSelectionCoverage — 3 columns × 3 rows', () => {
+describe('classifyTableSelectionCoverage: 3 columns × 3 rows', () => {
 	const cols = 3;
 	const rows = 3;
 
@@ -64,7 +64,7 @@ describe('classifyTableSelectionCoverage — 3 columns × 3 rows', () => {
 	});
 });
 
-describe('classifyTableSelectionCoverage — degenerate shapes', () => {
+describe('classifyTableSelectionCoverage: degenerate shapes', () => {
 	it('single-column table: full-table span beats the equivalent column span', () => {
 		// 1 col × 3 rows; cells [0,1,2]
 		expect(classifyTableSelectionCoverage(0, 2, 1, 3)).toEqual({ kind: 'table' });

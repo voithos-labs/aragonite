@@ -9,7 +9,7 @@ import {
 	registerStubBlockListState
 } from '../../harness/editor-actions';
 
-describe('container-matching paste — empty-target newline-termination (A1)', () => {
+describe('container-matching paste: empty-target newline-termination (A1)', () => {
 	it('pasting a list without a trailing newline into a non-last empty item keeps the following sibling separate', async () => {
 		const doc = parse('- a\n- keep\n');
 		const list = doc.children[0];
@@ -32,7 +32,7 @@ describe('container-matching paste — empty-target newline-termination (A1)', (
 	});
 });
 
-describe('findContainerMatchingUnwrap — blockquote non-empty target (no wholesale replace)', () => {
+describe('findContainerMatchingUnwrap: blockquote non-empty target (no wholesale replace)', () => {
 	it('returns null for a single-blockquote clipboard pasted into a non-empty blockquote paragraph', () => {
 		const doc = parse('> hello\n');
 		const blockquote = doc.children[0];
@@ -67,7 +67,7 @@ describe('findContainerMatchingUnwrap — blockquote non-empty target (no wholes
 // whole unwrap and the paste falls through to the routes that splice whole blocks.
 // Miss-analysis: the finder's paragraph check had pins for empty and non-empty targets but none
 // for a clipboard item whose shape the merge cannot address.
-describe('findContainerMatchingUnwrap — the merge arm’s paragraph gate', () => {
+describe('findContainerMatchingUnwrap: the merge branch’s paragraph gate', () => {
 	const target = () => parse('- hello\n');
 
 	it('unwraps with a merge when every clipboard item is one paragraph', () => {

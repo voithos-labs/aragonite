@@ -11,7 +11,7 @@ import { unpaintedResidue } from './live-screen-reading';
 
 const residue = (source: string) => unpaintedResidue(parse(source));
 
-describe('the residue oracle counts what hides, off the policy table', () => {
+describe('the residue check counts what hides, off the policy table', () => {
 	it('counts an emptied construct whose row declares the unwrap', () => {
 		expect(residue('[](url) more\n')).toBe(1);
 		expect(residue('a [x](url) more\n')).toBe(0);

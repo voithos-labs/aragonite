@@ -85,7 +85,7 @@ describe('placeCaretAfterAmbientSpan', () => {
 		return el;
 	}
 
-	it('seats in the first text node when text opens the content', () => {
+	it('puts the caret in the first text node when text opens the content', () => {
 		const block = mountListBlock(document.createTextNode('tail'));
 		expect(placeCaretAfterAmbientSpan(block)).toBe(true);
 		const range = window.getSelection()!.getRangeAt(0);
@@ -93,7 +93,7 @@ describe('placeCaretAfterAmbientSpan', () => {
 		expect(range.startOffset).toBe(0);
 	});
 
-	it('seats at the span boundary when a widget opens the content — its raw is not skippable', () => {
+	it('puts the caret at the span boundary when a widget opens the content: its raw is not skippable', () => {
 		const block = mountListBlock(widget(), document.createTextNode(' tail'));
 		expect(placeCaretAfterAmbientSpan(block)).toBe(true);
 		const range = window.getSelection()!.getRangeAt(0);

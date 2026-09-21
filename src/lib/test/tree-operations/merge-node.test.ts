@@ -23,7 +23,7 @@ describe('mergeIntoPrevDeepLeaf', () => {
 		expect(ids).toEqual(['keep-me']);
 	});
 
-	it('preserves leading trivia of the first block', () => {
+	it('preserves leading blank lines of the first block', () => {
 		const doc = parse('A\n\nB\n\nC\n');
 		mergeIntoPrevDeepLeaf(doc, 2, undefined, undefined, undefined);
 		expect(doc.children[1].leadingTrivia).toBe('\n');
@@ -84,7 +84,7 @@ describe('mergeWithNext', () => {
 		expect(ids).toEqual(['keep-me']);
 	});
 
-	it('preserves leading trivia of the current block', () => {
+	it('preserves leading blank lines of the current block', () => {
 		const source = 'A\n\nB\n\nC\n';
 		const doc = parse(source);
 		mergeWithNext(doc, 1, undefined, undefined);

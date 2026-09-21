@@ -21,7 +21,7 @@ function filled(text: string) {
 	return doc;
 }
 
-describe('filling a blank block settles the seams the fill disturbed', () => {
+describe('filling a blank block settles the joins the fill disturbed', () => {
 	// Both fill branches, because the noop check swallowed the same-kind one even after the early
 	// return went: a blank-to-content transition needs the fix-up whatever its change op says.
 	it.each([

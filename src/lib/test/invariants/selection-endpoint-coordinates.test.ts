@@ -121,7 +121,7 @@ describe('G1.29 character-offset range', () => {
 
 // #normalizePoint's walk runs `path.length - 1` iterations, so a length-1 table path
 // passes through with its character offset intact: the shape the belt exists for.
-describe('G1.29 fires from the storing seam', () => {
+describe('G1.29 fires from the storing site', () => {
 	it('warns when a length-1 table path is stored with a character offset', () => {
 		const tree = doc();
 		const selection = createSelectionState({ getDoc: () => tree });
@@ -133,7 +133,7 @@ describe('G1.29 fires from the storing seam', () => {
 		]);
 	});
 
-	it('stays silent when the funnel snapped a whole-block endpoint', () => {
+	it('stays silent when the shared path snapped a whole-block endpoint', () => {
 		const tree = breakDoc();
 		const selection = createSelectionState({ getDoc: () => tree });
 

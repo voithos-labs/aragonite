@@ -47,7 +47,7 @@ describe('a destructive key at a mid-cell `<br>` edge deletes it whole, in one p
 			expect(caretAfter).toBe(BR_START);
 		});
 
-		it(`${name} — the arrow twin steps over it instead, writing nothing`, async () => {
+		it(`${name}: the arrow counterpart steps over it instead, writing nothing`, async () => {
 			mounted = mountCell(CELL);
 			const { el, blockEdit, instance } = mounted;
 			el.focus();
@@ -90,7 +90,7 @@ describe('a destructive key at a mid-cell `<br>` edge deletes it whole, in one p
 
 	// The scoping case: a cell renders an image as its literal source, not a widget, so the
 	// atomic policy must not reach it, though the CST calls an image a widget on kind alone.
-	it('leaves an image alone — a cell renders its source, not a widget', async () => {
+	it('leaves an image alone: a cell renders its source, not a widget', async () => {
 		const withImage = 'Left![a](b)Right';
 		mounted = mountCell(withImage);
 		const { el, blockEdit, instance } = mounted;

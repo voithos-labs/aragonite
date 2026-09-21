@@ -49,7 +49,7 @@ describe('top-level event paths target the operated block', () => {
 		expect(h.edits).toEqual([]);
 	});
 
-	it('descendToBody minting a body paragraph emits appendBlock at the minted index', async () => {
+	it('descendToBody creating a body paragraph emits appendBlock at the created index', async () => {
 		const h = makeTopHarness('Title\n');
 		await h.actions.descendToBody(0);
 		expect(h.edits).toHaveLength(1);

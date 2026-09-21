@@ -77,7 +77,7 @@ describe('escalatedFenceLength', () => {
 		expect(escalatedFenceLength('code\n   ``` \nmore', '`', 3)).toBe(4);
 	});
 
-	it('grows past the LONGEST collision, scanning every line', () => {
+	it('grows past the longest collision, scanning every line', () => {
 		expect(escalatedFenceLength('```\n`````\n````', '`', 3)).toBe(6);
 	});
 

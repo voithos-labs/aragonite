@@ -120,7 +120,7 @@ describe('warn-gate sink', () => {
 // A callback swapped in and not restored blinds the gate for the rest of the worker: later
 // warnings go to the console instead, and every later test passes whatever happens.
 describe('warn-gate sink ownership', () => {
-	it('reds the test that stole the sink, and re-arms itself for the next one', async () => {
+	it('reds the test that stole the sink, and re-branches itself for the next one', async () => {
 		const thief: unknown[] = [];
 		setDevWarnSink((entry) => thief.push(entry));
 

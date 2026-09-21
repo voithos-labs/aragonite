@@ -115,8 +115,8 @@ function harness(opts: { mode?: PresentationMode } = {}) {
 	};
 }
 
-describe('editor-root gestures — the margin drag', () => {
-	it('a dead-space press ends a live range, arms the drag and suppresses the native one', () => {
+describe('editor-root gestures: the margin drag', () => {
+	it('a dead-space press ends a live range, branches the drag and suppresses the native one', () => {
 		const h = harness();
 		h.withRange();
 		h.press(h.root);
@@ -160,14 +160,14 @@ describe('editor-root gestures — the margin drag', () => {
 		expect(h.selection.isCrossBlock).toBe(false);
 	});
 
-	it('the second press of a click run hands the gesture to the ladder', () => {
+	it('the second press of a click run hands the gesture to the priority order', () => {
 		const h = harness();
 		h.press(h.root);
 		expect(h.mouseDown(h.root, { detail: 2 }).defaultPrevented).toBe(false);
 	});
 });
 
-describe('editor-root gestures — the click ladder', () => {
+describe('editor-root gestures: the click priority order', () => {
 	it('a margin click that did not move leaves what was being edited', () => {
 		const h = harness();
 		h.editable.focus();

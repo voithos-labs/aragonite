@@ -56,7 +56,7 @@ function mountRenderedBlock(): { el: HTMLElement; widget: HTMLElement } {
 }
 
 describe('inline-math widget: nonzero-interior byte survival', () => {
-	it('KaTeX renders interior text that is NOT the source bytes — the leak the walk dodges', () => {
+	it('KaTeX renders interior text that is not the source bytes: the leak the walk dodges', () => {
 		const { el, widget } = mountRenderedBlock();
 		// The premise of the audit: this widget carries real interior text.
 		expect((widget.textContent ?? '').length).toBeGreaterThan(0);
@@ -89,7 +89,7 @@ describe('inline-math widget: nonzero-interior byte survival', () => {
 		expect(rawTextOfNode(el, BLOCK_RAW)).toBe('a$x^2$ b');
 	});
 
-	it('serialize round-trips the block raw — no glyph reaches the serialized output', () => {
+	it('serialize round-trips the block raw: no glyph reaches the serialized output', () => {
 		expect(serialize(parse(BLOCK_RAW))).toBe(BLOCK_RAW);
 	});
 });

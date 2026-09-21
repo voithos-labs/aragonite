@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { parseInline } from '../../../core/inline';
 import { assertTotalCoverage } from './scan/scan-test-helpers';
 
-describe('parseInline — top-level coverage invariant', () => {
+describe('parseInline: top-level coverage invariant', () => {
 	it('link with entity in text: entity belongs to children only, not top-level', () => {
 		const raw = '[&copy; me](https://example.com)';
 		const nodes = parseInline(raw, 0, raw.length);

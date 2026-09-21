@@ -21,7 +21,7 @@ function makeDoor(mode: PresentationMode) {
 	return { door, commit };
 }
 
-describe('composeMetadataDoor — the updateOwnMetadata reading gate', () => {
+describe('composeMetadataDoor: the updateOwnMetadata reading gate', () => {
 	it('declines the write in reading mode and dev-warns naming the kind', () => {
 		const { door, commit } = makeDoor('reading');
 

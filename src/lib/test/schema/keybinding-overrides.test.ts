@@ -32,13 +32,13 @@ describe('normalizeKeybindingOverrides', () => {
 		});
 	});
 
-	it('carries a non-number arg through normalization (widened for minted commands)', () => {
+	it('carries a non-number arg through normalization (widened for created commands)', () => {
 		const command = mintCommandId('demo.setKind');
 		const map = normalizeKeybindingOverrides([{ chord: 'Mod+Shift+K', command, arg: 'warning' }]);
 		expect(lookupOverride(map, 'global', 'Mod+Shift+K')).toMatchObject({ command, arg: 'warning' });
 	});
 
-	it('scopes a minted command chord to a declared plugin kind (widened kind)', () => {
+	it('scopes a created command chord to a declared plugin kind (widened kind)', () => {
 		const kind = declarePluginKind('kb-override-demo');
 		const command = mintCommandId('demo.run');
 		const map = normalizeKeybindingOverrides([{ chord: 'Mod+Shift+M', command, kind }]);
@@ -52,7 +52,7 @@ describe('normalizeKeybindingOverrides', () => {
 		expect(lookupOverride(map, 'global', 'Mod+Z')).toBe('disabled');
 	});
 
-	it('drops a chord with an unrecognized modifier (the Ctrl+B trap) — does NOT bind bare B', () => {
+	it('drops a chord with an unrecognized modifier (the Ctrl+B trap): does not bind bare B', () => {
 		const map = normalizeKeybindingOverrides([{ chord: 'Ctrl+B', command: 'format.toggleStrong' }]);
 		expect(lookupOverride(map, 'global', 'B')).toBeUndefined();
 		expect(map.global.size).toBe(0);
@@ -89,14 +89,14 @@ describe('override-aware resolution (commands.ts)', () => {
 		);
 	});
 
-	it('a global override shadows a built-in KIND binding (source dominates specificity)', () => {
+	it('a global override shadows a built-in kind binding (source dominates specificity)', () => {
 		const map = normalizeKeybindingOverrides([{ chord: 'Enter', command: 'history.undo' }]);
 		expect(resolveBinding('Enter', 'paragraph', map, everyInstalledPlugin)?.command).toBe(
 			'history.undo'
 		);
 	});
 
-	it('a global disable suppresses a chord everywhere and does NOT consult the built-in', () => {
+	it('a global disable suppresses a chord everywhere and does not consult the built-in', () => {
 		const map = normalizeKeybindingOverrides([{ chord: 'Mod+Z', command: null }]);
 		expect(resolveBinding('Mod+Z', 'paragraph', map, everyInstalledPlugin)).toBeNull();
 	});
@@ -115,7 +115,7 @@ describe('override-aware resolution (commands.ts)', () => {
 
 	// The bubble must see a global override (a disable that is invisible here still runs
 	// list.indent) but never the built-in global table, or a bubbled undo fires twice.
-	it('resolveKindBinding honors a GLOBAL override at the bubble, not the built-in global table', () => {
+	it('resolveKindBinding honors a global override at the bubble, not the built-in global table', () => {
 		const disable = normalizeKeybindingOverrides([{ chord: 'Tab', command: null }]);
 		expect(resolveKindBinding('Tab', 'listItem', disable)).toBeNull();
 
@@ -150,7 +150,7 @@ describe('isDefaultGlobalChord', () => {
 		expect(isDefaultGlobalChord('Mod+Shift+Z', everyInstalledPlugin)).toBe(true);
 	});
 
-	it('does NOT match a modified variant — the Ctrl+Alt+Y interception bug guard', () => {
+	it('does not match a modified variant: the Ctrl+Alt+Y interception bug guard', () => {
 		expect(isDefaultGlobalChord('Mod+Alt+Y', everyInstalledPlugin)).toBe(false);
 		expect(isDefaultGlobalChord('Mod+Alt+Z', everyInstalledPlugin)).toBe(false);
 		expect(isDefaultGlobalChord('Mod+B', everyInstalledPlugin)).toBe(false);

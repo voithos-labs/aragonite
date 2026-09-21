@@ -9,7 +9,7 @@ const TABLE = '| a | b |\n| --- | --- |\n| c | d |\n';
 const mutationsFor = (focusedCell: { rowIdx: number; colIdx: number } | null) =>
 	makeTableMutations(TABLE, { focusedCell, rowIds: ['row-0', 'row-1'] });
 
-describe('setColumnAlignment — focus restore + announcement', () => {
+describe('setColumnAlignment: focus restore + announcement', () => {
 	it('refocuses the originating cell in the aligned column and announces', async () => {
 		const { mutations, focusCell, announceReorder } = mutationsFor({ rowIdx: 1, colIdx: 1 });
 

@@ -25,7 +25,7 @@ describe('buildDiagnosticsReport', () => {
 	});
 
 	// The privacy rule: a bug report must not leak the document by default.
-	it('EXCLUDES the document source unless opted in', () => {
+	it('excludes the document source unless opted in', () => {
 		const out = report(false);
 		expect(out).not.toContain(SECRET);
 		expect(out).not.toContain('## Source');

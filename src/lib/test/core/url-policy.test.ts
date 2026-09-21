@@ -7,7 +7,7 @@ import {
 	defaultLinkActivation
 } from '../../core/url-policy';
 
-describe('url-policy — href allowlist', () => {
+describe('url-policy: href allowlist', () => {
 	it.each([
 		['https://example.com', true],
 		['http://example.com', true],
@@ -41,7 +41,7 @@ describe('url-policy — href allowlist', () => {
 	});
 });
 
-describe('url-policy — defaultLinkActivation', () => {
+describe('url-policy: defaultLinkActivation', () => {
 	afterEach(() => vi.restoreAllMocks());
 
 	it('opens allowed http(s) links in a noopener tab', () => {
@@ -65,7 +65,7 @@ describe('url-policy — defaultLinkActivation', () => {
 	});
 });
 
-describe('url-policy — image src allowlist', () => {
+describe('url-policy: image src allowlist', () => {
 	it.each([
 		['https://example.com/a.png', true],
 		['http://example.com/a.png', true],

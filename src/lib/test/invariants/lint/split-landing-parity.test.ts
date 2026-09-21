@@ -80,13 +80,13 @@ describe('G1.34 split-landing parity census', () => {
 		expect(probe('const liveSplitNode = 1;')).toBe(false);
 	});
 
-	it('a split caller landing at i + 1 without the guard fails the parity arm', () => {
+	it('a split caller landing at i + 1 without the guard fails the parity branch', () => {
 		const rogue = 'const r = splitNode(p, i, 0);\nscope.refAt(i + 1)?.focus(0);';
 		expect(namesSplit({ relPath: 'x', text: rogue, code: '' })).toBe(true);
 		expect(countCalls(rogue, 'assertSplitLanding') >= countCalls(rogue, 'splitNode')).toBe(false);
 	});
 
-	it('a SECOND unguarded split inside an already-guarded file fails the per-site arm', () => {
+	it('a second unguarded split inside an already-guarded file fails the per-site branch', () => {
 		const code =
 			"import { splitNode as performSplit } from '../tree-operations';\n" +
 			'performSplit(p, i, 0);\nassertSplitLanding(split, split.secondHalfIndex);\n' +

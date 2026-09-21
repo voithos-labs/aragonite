@@ -75,7 +75,7 @@ async function settle(): Promise<void> {
 	await tick();
 }
 
-describe('editor-root mode flip — the two halves', () => {
+describe('editor-root mode flip: the two halves', () => {
 	it('an unchanged mode is a no-op for both halves', () => {
 		const h = harness();
 		h.flip.beforeFlip('source');
@@ -106,7 +106,7 @@ describe('editor-root mode flip — the two halves', () => {
 	});
 });
 
-describe('editor-root mode flip — the caret carry', () => {
+describe('editor-root mode flip: the caret carry', () => {
 	it('restores the caret captured on the way out after the flush', async () => {
 		const h = harness({ selection: caretAt([1], 3) });
 		h.flipTo('live');

@@ -23,7 +23,7 @@ afterEach(() => {
 
 // Miss-analysis: every selectionChange emitter fired on selections the editor still held, so no
 // test ever moved focus out of the editor and asked whether subscribers heard about it.
-describe('editor-root listeners — blur announcer', () => {
+describe('editor-root listeners: blur announcer', () => {
 	function announcer() {
 		const root = document.createElement('div');
 		const inside = document.createElement('button');
@@ -70,7 +70,7 @@ describe('editor-root listeners — blur announcer', () => {
 
 // ── Mod-active tracker ───────────────────────────────────────────────────────
 
-describe('editor-root listeners — mod-active tracker', () => {
+describe('editor-root listeners: mod-active tracker', () => {
 	function tracker() {
 		const root = document.createElement('div');
 		document.body.append(root);
@@ -122,7 +122,7 @@ describe('editor-root listeners — mod-active tracker', () => {
 
 // ── Selectionchange bridge ───────────────────────────────────────────────────
 
-describe('editor-root listeners — selectionchange bridge', () => {
+describe('editor-root listeners: selectionchange bridge', () => {
 	function bridge() {
 		const root = document.createElement('div');
 		const header = document.createElement('div');
@@ -195,7 +195,7 @@ describe('editor-root listeners — selectionchange bridge', () => {
 
 // ── Releasing the held block ─────────────────────────────────────────────────
 
-describe('editor-root listeners — reveal-anchor release', () => {
+describe('editor-root listeners: reveal-anchor release', () => {
 	function release() {
 		const port = document.createElement('div');
 		document.body.append(port);

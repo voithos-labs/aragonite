@@ -3,7 +3,7 @@ import { createUndoController } from '$lib/editor-actions/commit/undo-controller
 import { rangeSelectionOf } from '$lib/test/support/undo-entry';
 import { makeEditorActionsDeps, mockRef, makeNode } from '$lib/test/harness/editor-actions';
 
-describe('debounced undo snapshot — deep path capture', () => {
+describe('debounced undo snapshot: deep path capture', () => {
 	it('records the live deep path when a ref provides getCursorPosition', () => {
 		const { deps } = makeEditorActionsDeps([makeNode('table', '| a |\n')]);
 		deps.blockRefs[0] = mockRef({

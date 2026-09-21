@@ -97,7 +97,7 @@ afterEach(async () => {
 	document.body.innerHTML = '';
 });
 
-describe('a destructive chord at a collapsed caret reaches the join seam', () => {
+describe('a destructive chord at a collapsed caret reaches the join', () => {
 	// The word delete reports `bold`; the literal cut leaves `**** tail`, four asterisks the user
 	// can neither see nor remove.
 	it.each([
@@ -117,7 +117,7 @@ describe('a destructive chord at a collapsed caret reaches the join seam', () =>
 
 	// A spellcheck replacement is the same range question with a payload. The range crosses the
 	// closer, so the opener is stranded whatever the payload does and the cleanup takes it.
-	it('insertReplacementText writes its text at the cleaned seam', async () => {
+	it('insertReplacementText writes its text at the cleaned join', async () => {
 		mounted = mountText(BOLD);
 		seat(mounted.el, 6, 6);
 		const e = await press(mounted.el, 'insertReplacementText', { start: 2, end: 10 }, 'X');
@@ -128,7 +128,7 @@ describe('a destructive chord at a collapsed caret reaches the join seam', () =>
 
 	// The payload is part of what the cleanup checks (GH #165): `**brave**` strands nothing, so it
 	// refuses and the replacement stays inside the run the user saw.
-	it('leaves a replacement that fills the run to the engine', async () => {
+	it('leaves a replacement that fills the run to the browser', async () => {
 		mounted = mountText(BOLD);
 		seat(mounted.el, 6, 6);
 		const e = await press(mounted.el, 'insertReplacementText', { start: 2, end: 6 }, 'brave');
@@ -162,7 +162,7 @@ describe('the same gestures over a real selection', () => {
 	});
 });
 
-describe('what the arm leaves to the engine', () => {
+describe('what the branch leaves to the browser', () => {
 	it('a range crossing no hidden run', async () => {
 		mounted = mountText('plain words here\n');
 		seat(mounted.el, 6, 6);
@@ -203,8 +203,8 @@ describe('what the arm leaves to the engine', () => {
 	});
 });
 
-describe('the table cell takes the same arm', () => {
-	it('a word delete at a collapsed caret crosses the seam there too', async () => {
+describe('the table cell takes the same branch', () => {
+	it('a word delete at a collapsed caret crosses the join there too', async () => {
 		cell = mountCell('**bold** tail', { presentationMode: () => 'live' });
 		seat(cell.el, 6, 6);
 		const e = await press(cell.el, 'deleteWordBackward', { start: 2, end: 6 });

@@ -35,7 +35,7 @@ afterEach(async () => {
 	document.body.innerHTML = '';
 });
 
-describe('CodeBlock — the write seam on commit', () => {
+describe('CodeBlock: the write path on commit', () => {
 	// Parser-verified: the typed run closes the block early and the tail becomes a
 	// fence that swallows every following block.
 	it('grows both fence runs when typing lands a closer on a body line', () => {

@@ -29,7 +29,7 @@ function itemWithSublist(text: string, sublistSource: string): CstNode {
 const separatorOf = (item: CstNode) => item.children![1].leadingTrivia;
 
 describe('settleSublistSeparator', () => {
-	it('mints a line for a sublist whose marker carries no content', () => {
+	it('creates a line for a sublist whose marker carries no content', () => {
 		const item = itemWithSublist('x\n', '- \n');
 		settleSublistSeparator(item.children!, 1);
 		expect(separatorOf(item)).toBe('\n');
@@ -44,7 +44,7 @@ describe('settleSublistSeparator', () => {
 		expect(separatorOf(item)).toBe('');
 	});
 
-	it('mints a line for every marker glyph, ordered included', () => {
+	it('creates a line for every marker glyph, ordered included', () => {
 		for (const sublist of ['* \n', '+ \n', '1. \n', '3) \n']) {
 			const item = itemWithSublist('x\n', sublist);
 			settleSublistSeparator(item.children!, 1);

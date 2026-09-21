@@ -60,7 +60,7 @@ function typeInto(node: CstNode, chainDepth: number): void {
 
 const SPINE_DEPTH = ['invariant:unshared-spine-depth'];
 
-describe('G1.20 unshared-spine depth', () => {
+describe('G1.20 unshared ancestor-chain depth', () => {
 	it('stays silent when the chain is as deep as the leaf path', () => {
 		typeInto(item(), CONTAINER_PATH.length + 1);
 

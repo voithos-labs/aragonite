@@ -107,7 +107,7 @@ describe('cellIndexOf', () => {
 
 // Compile-time pins for the discriminated union. The assertions that matter are the directives
 // verified by `npm run check`; the runtime expectations only keep the values live for vitest.
-describe('SelectionPoint discriminated union — type pins', () => {
+describe('SelectionPoint discriminated union: type pins', () => {
 	it('discriminates on the flag literal and narrows the union', () => {
 		const cellPoint: CellSelectionPoint = { path: [0], offset: 3, cellCoordinate: true };
 		const charPoint: CharSelectionPoint = { path: [0], offset: 3 };

@@ -189,7 +189,7 @@ const kindLiteralArms = HAND_WRITTEN_ARMS.filter((arm) => arm.detection === 'kin
 
 // ── The census ───────────────────────────────────────────────────────────────
 
-describe('inline-construct policy arm census', () => {
+describe('inline-construct policy branch census', () => {
 	const gestureSources = GESTURE_ROOTS.flatMap((root) =>
 		collectEditorSources(path.join(EDITOR_SRC, root))
 	);
@@ -197,7 +197,7 @@ describe('inline-construct policy arm census', () => {
 	const paths = (files: SourceFile[]) => files.map((file) => file.relPath).sort();
 	const unique = (values: string[]) => [...new Set(values)].sort();
 
-	it('every declared arm is on disk and reachable by the scan', () => {
+	it('every declared branch is on disk and reachable by the scan', () => {
 		const declared = unique([
 			...Object.keys(POLICY_ARMS),
 			...HAND_WRITTEN_ARMS.map((arm) => arm.path)
@@ -213,21 +213,21 @@ describe('inline-construct policy arm census', () => {
 		).toEqual(Object.keys(POLICY_ARMS).sort());
 	});
 
-	it('every gesture arm naming a construct kind is declared with its reason and fate', () => {
+	it('every gesture branch naming a construct kind is declared with its reason and fate', () => {
 		expect(
 			paths(gestureSources.filter(namesConstructKind)),
 			'a gesture branch started naming a construct kind: give the question a row, or declare the branch in HAND_WRITTEN_ARMS with why it stays'
 		).toEqual(unique(kindLiteralArms.map((arm) => arm.path)));
 	});
 
-	it('no hand-written arm is an undecided backlog entry', () => {
+	it('no hand-written branch is an undecided backlog entry', () => {
 		expect(
 			backlog,
 			'a hand-written branch needs a row, a decided `outside`, or a `deferred` naming its blocker'
 		).toEqual([]);
 	});
 
-	it('every declared arm carries a reason', () => {
+	it('every declared branch carries a reason', () => {
 		expect(HAND_WRITTEN_ARMS.filter((arm) => arm.reason.trim() === '')).toEqual([]);
 		expect(Object.entries(POLICY_ARMS).filter(([, reason]) => reason.trim() === '')).toEqual([]);
 	});
@@ -253,7 +253,7 @@ describe('inline-construct policy arm census', () => {
 	const probe = (matcher: (file: SourceFile) => boolean, text: string) =>
 		matcher({ relPath: 'src/lib/components/blocks/text/probe.ts', text, code: '' });
 
-	it('the policy matcher sees every door and skips a mention in prose', () => {
+	it('the policy matcher sees every entry point and skips a mention in prose', () => {
 		expect(probe(readsPolicyTable, 'const p = getInlineConstructPolicy(node.kind);')).toBe(true);
 		expect(probe(readsPolicyTable, 'if (isRevealableInlineKind(kind)) out.push(node);')).toBe(true);
 		expect(probe(readsPolicyTable, 'getLiveJoinSeamCleaner()?.(join)')).toBe(true);
@@ -261,7 +261,7 @@ describe('inline-construct policy arm census', () => {
 		expect(probe(readsPolicyTable, 'const x = myGetInlineConstructPolicy(kind);')).toBe(false);
 	});
 
-	it('the widget matcher sees the registry doors and skips prose', () => {
+	it('the widget matcher sees the registry entry points and skips prose', () => {
 		expect(probe(readsWidgetRegistry, 'getInlineWidgetEditing(widget.kind)?.revealSource')).toBe(
 			true
 		);
@@ -283,7 +283,7 @@ describe('inline-construct policy arm census', () => {
 		expect(probe(namesConstructKind, '// a link never extends at its edges')).toBe(false);
 	});
 
-	it('an undeclared gesture arm naming a kind fails the set equality', () => {
+	it('an undeclared gesture branch naming a kind fails the set equality', () => {
 		const rogue: SourceFile = {
 			relPath: 'src/lib/components/blocks/text/rogue.ts',
 			text: "if (node.kind === 'strikethrough') return null;",

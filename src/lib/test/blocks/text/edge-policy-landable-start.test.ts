@@ -38,20 +38,20 @@ const mountEscapes = () =>
 
 installEdgeDispatchCleanup();
 
-describe('the destructive arm at the block’s landable start', () => {
-	it('declines Backspace at the landable start inside a leading escape', () => {
+describe('the destructive branch at the block’s reachable start', () => {
+	it('declines Backspace at the first reachable offset inside a leading escape', () => {
 		const h = mountEscapes();
 		expect(h.handleKeydown(key('Backspace'), at(1))).toBe(false);
 		expect(h.edits).toHaveLength(0);
 	});
 
-	it('still takes the escape whole one step past the landable start', () => {
+	it('still takes the escape whole one step past the first reachable offset', () => {
 		const h = mountEscapes();
 		expect(h.handleKeydown(key('Backspace'), at(2))).toBe(true);
 		expect(h.edits).toEqual([[0, 'a\\*\n', 2, 0]]);
 	});
 
-	it('still claims Delete at the landable start — forward is a construct edit', () => {
+	it('still claims Delete at the first reachable offset: forward is a construct edit', () => {
 		const h = mountEscapes();
 		expect(h.handleKeydown(key('Delete'), at(1))).toBe(true);
 		expect(h.edits).toEqual([[0, 'a\\*\n', 1, 0]]);

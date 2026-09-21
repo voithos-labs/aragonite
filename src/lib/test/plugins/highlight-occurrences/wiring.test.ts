@@ -135,7 +135,7 @@ describe('highlightOccurrencesPlugin wiring', () => {
 
 	// `onScan` is the plugin's only option; the cache it feeds is pinned at the source
 	// level, so this asserts the wiring and nothing beyond it.
-	it('threads the onScan option into the source it mints', () => {
+	it('threads the onScan option into the source it creates', () => {
 		const onScan = vi.fn();
 		const wired = attach({ onScan });
 		wired.source()!.provide(parse('cat sat cat\n'), { editEpoch: 0 });
@@ -150,7 +150,7 @@ describe('highlightOccurrencesPlugin through the install platform', () => {
 	// A plugin installs once per process, so an author's suite reinstalls between cases: a
 	// registration that ignored the test reset throws here, and a duplicated onEditor call
 	// fails the count.
-	it('reinstalls across the reset seam, registering exactly one callback each time', () => {
+	it('reinstalls across the reset boundary, registering exactly one callback each time', () => {
 		installPlugins([highlightOccurrencesPlugin()]);
 		expect(onEditorCallbacks('highlight-occurrences')).toHaveLength(1);
 
@@ -161,7 +161,7 @@ describe('highlightOccurrencesPlugin through the install platform', () => {
 
 	// One installed plugin, two <Editor> instances: moving the source out of the onEditor
 	// callback would let a caret in one editor decorate the other.
-	it('mints an independent source per editor', () => {
+	it('creates an independent source per editor', () => {
 		installPlugins([highlightOccurrencesPlugin()]);
 		const [onEditor] = onEditorCallbacks('highlight-occurrences');
 		const first = editorStub();

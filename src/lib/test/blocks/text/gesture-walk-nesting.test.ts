@@ -26,7 +26,7 @@ function nested(leaf: string): { raw: string; nodes: InlineNode[] } {
 /** The offset between the leaf's two characters: inside every construct of the chain. */
 const CUT = 2 * DEPTH + 1;
 
-describe('live gesture-seam walks at input-controlled nesting depth', () => {
+describe('live gesture-boundary walks at input-controlled nesting depth', () => {
 	it('reveals the whole chain past the recursion ceiling, outermost first', () => {
 		const chain = constructChainAtOffset(nested('ab').nodes, CUT);
 

@@ -24,7 +24,7 @@ function mount(reading: boolean, source = 'hello world\n') {
 
 installEdgeDispatchCleanup();
 
-describe('the declared arm order', () => {
+describe('the declared branch order', () => {
 	const { dispatch } = mount(false);
 
 	it('ranks the families as the design states, cut line included', () => {
@@ -42,7 +42,7 @@ describe('the declared arm order', () => {
 		]);
 	});
 
-	it('gives every arm a reason, which is what a new entry has to supply', () => {
+	it('gives every branch a reason, which is what a new entry has to supply', () => {
 		expect(dispatch.arms.filter((arm) => arm.reason.trim() === '')).toEqual([]);
 	});
 

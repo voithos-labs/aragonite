@@ -58,7 +58,7 @@ describe('caret-space DOM walks at input-controlled nesting depth', () => {
 		expect(domTextOffsetAtNode(root, leafText, 0)).toBe(4);
 	}, 120_000);
 
-	it('seats a range on the deepest text node', () => {
+	it('puts the caret at a range on the deepest text node', () => {
 		const range = createRangeFromOffsets(
 			root,
 			asDomTextOffset(4),
@@ -75,7 +75,7 @@ describe('caret-space DOM walks at input-controlled nesting depth', () => {
 
 	// Descending into the container's marker prefix asks a different question from the search for
 	// measurable text beside it: it filters hidden marker text at the top level, never on the way down.
-	it('seats the ambient caret on the deepest text node', () => {
+	it('puts the caret at the ambient caret on the deepest text node', () => {
 		const block = nestedSpans(DOM_DEPTH);
 		block.replaceChild(buildAmbientSpan('> '), block.firstChild!);
 		// jsdom's own attach traversal overflows at this depth and it drops a detached range, so

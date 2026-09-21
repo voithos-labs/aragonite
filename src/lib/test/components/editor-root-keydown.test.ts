@@ -141,8 +141,8 @@ beforeEach(() => {
 // The order matters: the global-chord branch returns early for everything below it,
 // so a key an earlier branch takes can never reach a later one.
 
-describe('editor-root keydown — dispatch order is load-bearing', () => {
-	it('a search chord with focus INSIDE a block still opens the bar', () => {
+describe('editor-root keydown: dispatch order is required', () => {
+	it('a search chord with focus inside a block still opens the bar', () => {
 		// The global-chord branch's focus check is false here and returns for everything
 		// below it, so moving the search branch under it drops Mod+F for every block.
 		const h = harness();
@@ -202,7 +202,7 @@ describe('editor-root keydown — dispatch order is load-bearing', () => {
 
 	// A range over a block with no character position focuses the root, where no `beforeinput`
 	// fires: without this branch the character reaches nothing and the range stays untouched.
-	it('a printable key with a cross-block range goes to the range’s text door', () => {
+	it('a printable key with a cross-block range goes to the range’s text entry point', () => {
 		const h = harness();
 		h.setCrossBlock(true);
 		h.root.focus();
@@ -213,7 +213,7 @@ describe('editor-root keydown — dispatch order is load-bearing', () => {
 		expect(event.defaultPrevented).toBe(true);
 	});
 
-	it('a chorded or composing key is not text and keeps its own arm', () => {
+	it('a chorded or composing key is not text and keeps its own branch', () => {
 		const h = harness();
 		h.setCrossBlock(true);
 		h.root.focus();
@@ -224,7 +224,7 @@ describe('editor-root keydown — dispatch order is load-bearing', () => {
 		expect(h.crossBlockKeys.map((e) => e.key)).toEqual(['b', 'x']);
 	});
 
-	it('the cross-block arm stays silent on a collapsed caret', () => {
+	it('the cross-block branch stays silent on a collapsed caret', () => {
 		const h = harness();
 		h.root.focus();
 
@@ -235,7 +235,7 @@ describe('editor-root keydown — dispatch order is load-bearing', () => {
 
 // ── Reading mode (G4.19, second case) ────────────────────────────────────────
 
-describe('editor-root keydown — reading-mode gate', () => {
+describe('editor-root keydown, reading-mode gate', () => {
 	it('runs an editor-global command in source mode', () => {
 		const h = harness();
 		h.root.focus();
@@ -282,7 +282,7 @@ describe('editor-root keydown — reading-mode gate', () => {
 // Miss-analysis for the rebind case below: every override case here re-pointed a chord the
 // built-in table already owned, so the branch's first check answered true for reasons that
 // had nothing to do with the override, and its ignoring overrides never showed.
-describe('editor-root keydown — global-scope binding resolution', () => {
+describe('editor-root keydown: global-scope binding resolution', () => {
 	it('resolves the chord through a consumer override, not the built-in table', () => {
 		const h = harness();
 		h.setOverrides([{ chord: 'Mod+Z', command: 'history.redo' }]);
@@ -338,7 +338,7 @@ describe('editor-root keydown — global-scope binding resolution', () => {
 
 // ── claimsBodyChord ──────────────────────────────────────────────────────────
 
-describe('editor-root keydown — body-chord containment', () => {
+describe('editor-root keydown: body-chord containment', () => {
 	it('the sole registered editor claims a search chord with focus outside it', () => {
 		const h = harness();
 		registerEditor(h.root);
@@ -400,7 +400,7 @@ describe('editor-root keydown — body-chord containment', () => {
 // root". Anything that holds focus, a block or the gap caret's own element, handles its
 // own chords, and widening this would run every such chord twice.
 
-describe('editor-root keydown — a focused surface inside the root owns its chords', () => {
+describe('editor-root keydown: a focused surface inside the root owns its chords', () => {
 	it('a global chord resolves nothing while a focusable child holds focus', () => {
 		const h = harness();
 		registerEditor(h.root);
@@ -417,7 +417,7 @@ describe('editor-root keydown — a focused surface inside the root owns its cho
 
 // ── isForeignTextEntry ───────────────────────────────────────────────────────
 
-describe('editor-root keydown — foreign text-entry yields Find', () => {
+describe('editor-root keydown: foreign text-entry yields Find', () => {
 	it.each([
 		['textarea', () => document.createElement('textarea')],
 		['text input', () => Object.assign(document.createElement('input'), { type: 'text' })]
@@ -443,7 +443,7 @@ describe('editor-root keydown — foreign text-entry yields Find', () => {
 		expect(h.search.calls.open).toBe(1);
 	});
 
-	it('a text-entry surface INSIDE this editor is not foreign', () => {
+	it('a text-entry surface inside this editor is not foreign', () => {
 		const h = harness();
 		registerEditor(h.root);
 		const field = document.createElement('input');
@@ -462,7 +462,7 @@ describe('editor-root keydown — foreign text-entry yields Find', () => {
 // is being typed in. What tells them apart is the header: the same field one level up
 // still counts as the editor's.
 
-describe('editor-root keydown — host chrome owns its own keystrokes', () => {
+describe('editor-root keydown: host chrome owns its own keystrokes', () => {
 	it('yields a search chord to a text field in the header slot', () => {
 		const h = harness();
 		registerEditor(h.root);
@@ -492,7 +492,7 @@ describe('editor-root keydown — host chrome owns its own keystrokes', () => {
 
 // ── Search-chord side effects ────────────────────────────────────────────────
 
-describe('editor-root keydown — search chord arms', () => {
+describe('editor-root keydown: search chord branches', () => {
 	it('Mod+H expands the replace row; Mod+F leaves it collapsed', () => {
 		const h = harness();
 		h.root.focus();
@@ -552,7 +552,7 @@ describe('editor-root keydown — search chord arms', () => {
 
 // ── Non-vacuity ──────────────────────────────────────────────────────────────
 
-describe('editor-root keydown — the harness can observe a miss', () => {
+describe('editor-root keydown: the harness can observe a miss', () => {
 	it('a plain key with no claim reaches nothing at all', () => {
 		const h = harness();
 		const outside = document.createElement('button');

@@ -28,7 +28,7 @@ function doc(children: CstNode[]): Document {
 describe('cascadeCleanupEmptyAncestors', () => {
 	// The walk splices at any depth, so it copies the ancestors itself: without the copy the
 	// splice lands on a node an undo entry still references.
-	it('unshares the spine instead of splicing through a snapshot-shared parent', () => {
+	it('unshares the ancestor chain instead of splicing through a snapshot-shared parent', () => {
 		const sharing = createSharingState();
 		const d = parse('> para\n>\n> - item\n');
 		const sharedQuote = d.children[0];

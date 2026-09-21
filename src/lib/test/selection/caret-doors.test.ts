@@ -28,7 +28,7 @@ function liveRange() {
 	};
 }
 
-describe('placeCaret — the safe caret door', () => {
+describe('placeCaret: the safe caret entry point', () => {
 	it('ends a live cross-block range and lands the caret', () => {
 		const h = liveRange();
 
@@ -40,7 +40,7 @@ describe('placeCaret — the safe caret door', () => {
 
 	// `parkCaret` is untouched: calling it directly with a range live is what a shift-extend
 	// does, and it must still leave the range alone.
-	it('leaves the range live when the park primitive is called directly', () => {
+	it('leaves the range live when the put the caret primitive is called directly', () => {
 		const h = liveRange();
 
 		h.park(7);

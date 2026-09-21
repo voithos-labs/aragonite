@@ -54,7 +54,7 @@ describe('updateNodeContent', () => {
 		expect(quote.childIds).toEqual([survivingId]);
 	});
 
-	it('kind change swaps the node object (mint-and-replace)', () => {
+	it('kind change swaps the node object (create-and-replace)', () => {
 		const doc = parse('Hello\n');
 		const before = doc.children[0];
 		updateNodeContent(doc, 0, '## edited\n');
@@ -97,7 +97,7 @@ describe('updateNodeContent', () => {
 		expect(cell.kind).toBe('tableCell');
 	});
 
-	it('preserves leading trivia and ID position', () => {
+	it('preserves leading blank lines and ID position', () => {
 		const source = 'A\n\nB\n';
 		const doc = parse(source);
 		updateNodeContent(doc, 1, 'Changed\n');
@@ -148,7 +148,7 @@ describe('updateNodeContent', () => {
 		expect(change).toEqual(replacePreservingFirst(0, 1, 2));
 	});
 
-	it('multi-block split preserves the original leading trivia on the first block', () => {
+	it('multi-block split preserves the original leading blank lines on the first block', () => {
 		const doc = parse('A\n\nB\n');
 		updateNodeContent(doc, 1, 'B\n\nC\n');
 		expect(doc.children[1].leadingTrivia).toBe('\n');
@@ -217,7 +217,7 @@ describe('deleteNode edge cases', () => {
 		expect(ids).toHaveLength(0);
 	});
 
-	it('deleting the first node transfers trivia correctly', () => {
+	it('deleting the first node transfers blank lines correctly', () => {
 		const source = 'A\n\nB\n';
 		const doc = parse(source);
 		deleteNode(doc, 0);

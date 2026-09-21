@@ -86,7 +86,7 @@ function parseNote(source: string): CstNode {
 
 // ── checkStaleRaw exemption ─────────────────────────────────────────────────
 
-describe('containerContract opaque — checkStaleRaw exemption', () => {
+describe('containerContract opaque: checkStaleRaw exemption', () => {
 	beforeEach(() => __resetSchemaRegistriesForTests());
 
 	it('exempts an opaque container whose raw is not a strip of its children', () => {

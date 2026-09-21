@@ -14,7 +14,7 @@ function envWithColumn() {
 	return env;
 }
 
-describe('cross-block keydown — sticky column', () => {
+describe('cross-block keydown: sticky column', () => {
 	it('resets the column on a key it consumes to collapse the selection', async () => {
 		const env = envWithColumn();
 
@@ -31,7 +31,7 @@ describe('cross-block keydown — sticky column', () => {
 		expect(env.stickyColumn.get()).toBeNull();
 	});
 
-	it('preserves the column on a vertical arrow — the dispatcher has no caret to measure', async () => {
+	it('preserves the column on a vertical arrow: the dispatcher has no caret to measure', async () => {
 		const env = envWithColumn();
 
 		await env.keydown.handleKeyDown(press('ArrowDown'));

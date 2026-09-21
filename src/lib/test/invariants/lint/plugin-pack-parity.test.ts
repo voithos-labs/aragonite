@@ -111,7 +111,7 @@ describe('G4.10 plugin package/pack parity', () => {
 
 // ── Non-vacuity: the manifests parsed to real, populated sets ─────────────────
 
-describe('G4.10 plugin package/pack parity — non-vacuity', () => {
+describe('G4.10 plugin package/pack parity: non-vacuity', () => {
 	const pkg = readPackage();
 
 	it('parsed a real export surface, derived pack manifest, and sideEffects list', () => {
@@ -134,7 +134,7 @@ describe('G4.10 plugin package/pack parity — non-vacuity', () => {
 
 // ── Matcher self-tests (synthetic positives + benign negatives) ───────────────
 
-describe('G4.10 plugin package/pack parity — matcher self-tests', () => {
+describe('G4.10 plugin package/pack parity: matcher self-tests', () => {
 	it('a plugin dir absent from a manifest is flagged, present ones are not', () => {
 		expect(missingExports(['ghost'], new Set(['./plugins/latex']))).toEqual(['ghost']);
 		expect(missingExports(['latex'], new Set(['./plugins/latex']))).toEqual([]);

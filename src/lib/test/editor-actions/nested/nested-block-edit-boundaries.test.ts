@@ -57,7 +57,7 @@ function collapsedDetails(childCount: number): CstNode {
 	return node;
 }
 
-describe('nested block edit — upward boundaries', () => {
+describe('nested block edit: upward boundaries', () => {
 	it('delegates a first-child merge upward for a container declaring no unwrapRole', async () => {
 		const { blockEdit, parent } = env(container('listItem', 2));
 
@@ -94,7 +94,7 @@ describe('nested block edit — upward boundaries', () => {
 	});
 });
 
-describe('nested block edit — collapsed forward-merge', () => {
+describe('nested block edit: collapsed forward-merge', () => {
 	// The title row is the last visible child while collapsed. `append: false` is required:
 	// without it, exiting past the final block appends a trailing paragraph.
 	it('moves focus past the container instead of merging into the hidden body', async () => {
@@ -119,7 +119,7 @@ describe('nested block edit — collapsed forward-merge', () => {
 	});
 });
 
-describe('nested block edit — childless guards', () => {
+describe('nested block edit: childless guards', () => {
 	// What matters about `if (!deps.node.children) return` is that it returns without
 	// calling the parent, so a childless container never asks its parent to act for it.
 	it('return without delegating upward when the container has no children', async () => {

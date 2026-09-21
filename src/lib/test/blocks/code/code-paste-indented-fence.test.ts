@@ -8,7 +8,7 @@ const paste = (
 	args: Omit<PasteArgs, 'fenceMarker' | 'fenceLength' | 'closed'> & Partial<PasteArgs>
 ) => computeCodePaste({ fenceMarker: '`', fenceLength: 3, closed: true, ...args });
 
-describe('computeCodePaste — indented fence opener (J2)', () => {
+describe('computeCodePaste: indented fence opener (J2)', () => {
 	it('bumps an opener indented by 3 spaces and preserves the indent', () => {
 		const result = paste({
 			display: '   ```\n\n   ```',

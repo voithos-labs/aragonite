@@ -133,7 +133,7 @@ describe('G4.56 inline-tree and rendered-DOM walks are iterative', () => {
 		}
 	});
 
-	it('reads both walk seams out of the scoped sources', () => {
+	it('reads both walk boundaries out of the scoped sources', () => {
 		const seams = [
 			['src/lib/core/inline/walk.ts', 'inlineDescendants'],
 			['src/lib/cursor/dom-walk.ts', 'domDescendants']

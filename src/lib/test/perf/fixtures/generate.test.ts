@@ -156,7 +156,7 @@ describe('fixture generators', () => {
 });
 
 describe('giant-single-container fixtures', () => {
-	it('giant-single-list is ONE list of many items', () => {
+	it('giant-single-list is one list of many items', () => {
 		const md = generateFixture('giant-single-list', 200_000);
 		const lines = md.split('\n').filter((l) => l.trim().length > 0);
 		expect(lines.length).toBeGreaterThan(1000);
@@ -164,7 +164,7 @@ describe('giant-single-container fixtures', () => {
 		expect(md).not.toContain('\n\n'); // no block separators -> single list node
 	});
 
-	it('giant-single-blockquote is ONE blockquote of many paragraphs', () => {
+	it('giant-single-blockquote is one blockquote of many paragraphs', () => {
 		const md = generateFixture('giant-single-blockquote', 200_000);
 		const lines = md.split('\n').filter((l) => l.trim().length > 0);
 		expect(lines.length).toBeGreaterThan(1000);
@@ -178,7 +178,7 @@ describe('giant-single-container fixtures', () => {
 });
 
 describe('giant-single-table fixture', () => {
-	it('giant-single-table is ONE table of many rows', () => {
+	it('giant-single-table is one table of many rows', () => {
 		const md = generateFixture('giant-single-table', 200_000);
 		const lines = md.split('\n').filter((l) => l.trim().length > 0);
 		// Every line is a table row ("| ... |"); no blank-line separators that would
@@ -316,7 +316,7 @@ describe('generateDeepNested', () => {
 
 	// Every level has to hold sibling bytes: a tree that is only the chain passes the shape
 	// checks above while quietly understating the rebuild cost this bench measures.
-	it('each level carries bytes: spine raws non-increasing, outermost ≈ whole doc', () => {
+	it('each level carries bytes: ancestor chain raws non-increasing, outermost ≈ whole doc', () => {
 		const doc = parse(generateDeepNested(8, 10_000, 7));
 		const raws = spineContainerRaws(doc.children[0]);
 		expect(raws[0]).toBeGreaterThanOrEqual(docByteLength(doc) * 0.95);

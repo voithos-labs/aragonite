@@ -13,7 +13,7 @@ afterEach(() => {
 	document.body.innerHTML = '';
 });
 
-describe('editable surface — the composing gate', () => {
+describe('editable surface: the composing gate', () => {
 	it('input events inside the window never commit; the end commits the DOM text once', () => {
 		const { surface, commits, el } = makeSurface();
 		el.textContent = 'hello';
@@ -56,7 +56,7 @@ describe('editable surface — the composing gate', () => {
 	});
 });
 
-describe('editable surface — composition window (G1.27)', () => {
+describe('editable surface: composition window (G1.27)', () => {
 	it('compositionend with no open composition fires', () => {
 		const { surface } = makeSurface();
 		surface.onCompositionEnd();

@@ -87,20 +87,20 @@ function census(
 	).toEqual(Object.keys(allowed).sort());
 }
 
-describe('separator-write-door census', () => {
+describe('separator-write entry-point census', () => {
 	const sources = collectEditorSources();
 
 	it('the files writing a sibling leadingTrivia are the declared ones', () => {
 		census(sources, writesTrivia, TRIVIA_WRITERS);
 	});
 
-	it('the files calling a settle door by hand are the declared ones', () => {
+	it('the files calling a settle entry point by hand are the declared ones', () => {
 		census(sources, namesHandSettle, HAND_SETTLE_CALLERS);
 	});
 
 	// ── Matcher self-tests (non-vacuity) ─────────────────────────────────────
 
-	it('the trivia matcher sees both write forms and skips mints, reads and comments', () => {
+	it('the blank-line matcher sees both write forms and skips creates, reads and comments', () => {
 		const probe = (text: string) => writesTrivia({ relPath: 'x', text, code: '' });
 		expect(probe("node.leadingTrivia = '';")).toBe(true);
 		expect(probe('children[i].leadingTrivia += lineEnding;')).toBe(true);
@@ -160,7 +160,7 @@ function functionBodies(code: string): { name: string; body: string }[] {
 /** A write to a sibling’s separating line, or to a wrap field the spans do not cover. */
 const WRITES_SEPARATOR_BYTES = /(?:\.leadingTrivia|slots\.inner(?:Prefix|Suffix))\s*\+?=(?!=)/;
 
-describe('every separator door retires the child spans it invalidates', () => {
+describe('every separator entry point retires the child spans it invalidates', () => {
 	const doors = [DOORS_FILE, ...CARRY_FILES]
 		.flatMap((file) => functionBodies(readEditorFile(file).code))
 		.filter((fn) => WRITES_SEPARATOR_BYTES.test(fn.body));
@@ -180,7 +180,7 @@ describe('every separator door retires the child spans it invalidates', () => {
 		'handDownVacatedSeparator'
 	];
 
-	it('every named door retires the spans first, one red per door', () => {
+	it('every named entry point retires the spans first, one red per entry point', () => {
 		const bodies = new Map(
 			functionBodies(readEditorFile(DOORS_FILE).code).map((fn) => [fn.name, fn.body])
 		);
@@ -194,7 +194,7 @@ describe('every separator door retires the child spans it invalidates', () => {
 		expect(DOORS.filter((name) => !bodies.has(name))).toEqual([]);
 	});
 
-	it('found the doors (not vacuous)', () => {
+	it('found the entry points (not vacuous)', () => {
 		expect(doors.map((fn) => fn.name).sort()).toEqual(
 			expect.arrayContaining([
 				'clearRedundantSeparator',

@@ -29,7 +29,7 @@ function harnessFor(source: string, presentationMode?: PresentationMode) {
 	};
 }
 
-describe('moveFocus — directional gap stops', () => {
+describe('moveFocus: directional gap stops', () => {
 	it('stops at the boundary a downward move would cross', async () => {
 		const h = harnessFor(MIXED);
 
@@ -86,7 +86,7 @@ describe('moveFocus — directional gap stops', () => {
 	});
 });
 
-describe('moveFocus — document edges', () => {
+describe('moveFocus: document edges', () => {
 	it('stops before the first block when it declares the edge', async () => {
 		const h = harnessFor(`${TABLE}\npara\n`);
 

@@ -63,7 +63,7 @@ const WRAPPED_IMAGES: Array<[string, string]> = [
 	['nested wrappers', '[*![b](i.png)*](https://x.com)']
 ];
 
-describe('image-bearing list paragraph — ambient marker pin', () => {
+describe('image-bearing list paragraph: ambient marker pin', () => {
 	it.each(WRAPPED_IMAGES)('pins the marker out of flow for %s', (_label, content) => {
 		const paragraph = renderListParagraph(content);
 		expect(getComputedStyle(paragraph).position).toBe('relative');
@@ -77,7 +77,7 @@ describe('image-bearing list paragraph — ambient marker pin', () => {
 	});
 });
 
-describe('image-bearing list paragraph — trailing line-box', () => {
+describe('image-bearing list paragraph, trailing line-box', () => {
 	it.each(WRAPPED_IMAGES)('drops the dead line-box for %s', (_label, content) => {
 		expect(getComputedStyle(renderListParagraph(content)).minHeight).toBe('0px');
 	});
@@ -87,7 +87,7 @@ describe('image-bearing list paragraph — trailing line-box', () => {
 	});
 });
 
-describe('image-bearing link anchor — tooltip hugs the image', () => {
+describe('image-bearing link anchor: tooltip hugs the image', () => {
 	it.each([
 		['direct child', '[![b](i.png)](https://x.com "t")'],
 		['nested in emphasis', '[*![b](i.png)*](https://x.com "t")']

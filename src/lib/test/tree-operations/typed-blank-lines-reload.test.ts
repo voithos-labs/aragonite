@@ -34,7 +34,7 @@ describe('a typed blank line survives the reload', () => {
 		expect(layout(parse(serialize(typed)).children)).toEqual(layout(typed.children));
 	});
 
-	it('keeps the empty paragraph a live block, not trivia', () => {
+	it('keeps the empty paragraph a live block, not blank lines', () => {
 		const reloaded = parse(serialize(typeOneEnterEnterTwo()));
 		expect(reloaded.children.map((n) => n.raw)).toEqual(['1\n', '\n', '2\n']);
 	});
@@ -73,7 +73,7 @@ describe('typing into the blank line an Enter opened', () => {
 		expect(layout(parse(serialize(doc)).children)).toEqual(layout(doc.children));
 	});
 
-	it('mints none at the tail, where the blank half already carried one', () => {
+	it('creates none at the tail, where the blank half already carried one', () => {
 		const doc = parse('Hello world\n');
 		splitNode(doc, 0, 11, undefined, undefined, undefined);
 		updateNodeContent(doc, 1, 'x\n');
@@ -81,7 +81,7 @@ describe('typing into the blank line an Enter opened', () => {
 		expect(serialize(doc)).toBe('Hello world\n\nx\n');
 	});
 
-	it('mints none below a blank predecessor, and hands the follower its own', () => {
+	it('creates none below a blank predecessor, and hands the follower its own', () => {
 		const doc = parse('a\n\n\n\nb\n');
 		expect(layout(doc.children)).toEqual([
 			['paragraph', '', 'a\n'],
@@ -115,7 +115,7 @@ describe('typing into the blank line an Enter opened', () => {
 // every reload produces, and the one branch `restoreSeparatorOnFill` alone cannot reach.
 // Miss-analysis: every case above drives the split-produced shape, where the follower already
 // carries the separator; none typed into a blank block the parser had produced.
-describe('typing into a blank line the load minted', () => {
+describe('typing into a blank line the load created', () => {
 	it('hands the separator to the follower the blank line was standing in for', () => {
 		const doc = parse('alpha\n\n\ndelta\n');
 		expect(layout(doc.children)).toEqual([
@@ -131,7 +131,7 @@ describe('typing into a blank line the load minted', () => {
 	});
 
 	// A multi-block fill pushes the follower down, so the fix-up reads its index off the change.
-	it('finds the follower past the blocks a multi-block fill minted', () => {
+	it('finds the follower past the blocks a multi-block fill created', () => {
 		const doc = parse('alpha\n\n\ndelta\n');
 
 		updateNodeContent(doc, 1, 'p\n\nq\n');

@@ -18,7 +18,7 @@ import {
 beforeEach(resetPluginPlatformForTests);
 afterEach(resetPluginPlatformForTests);
 
-describe('block math Enter completer — which lines it claims', () => {
+describe('block math Enter completer: which lines it claims', () => {
 	it.each([
 		['$$', 'the bare fence'],
 		['  $$  ', 'surrounding whitespace, which the typed line may carry']
@@ -37,7 +37,7 @@ describe('block math Enter completer — which lines it claims', () => {
 	});
 });
 
-describe('block math Enter completer — the bytes it answers', () => {
+describe('block math Enter completer: the bytes it answers', () => {
 	it('answers the fence pair around one empty body line, caret on the body', () => {
 		const claim = tryCompleteMathBlock('$$')!;
 		expect(claim.lines).toEqual(['$$', '', '$$']);
@@ -58,7 +58,7 @@ describe('block math Enter completer — the bytes it answers', () => {
 	});
 });
 
-describe('block math Enter completer — registration', () => {
+describe('block math Enter completer: registration', () => {
 	// The plain-GFM guarantee reaches completion too: with nothing installed, `$$` plus Enter
 	// is an ordinary split.
 	it('claims nothing until the kind is registered', () => {
@@ -76,7 +76,7 @@ describe('block math Enter completer — registration', () => {
 	});
 });
 
-describe('block math Enter completion — what the seam plans', () => {
+describe('block math Enter completion: what the join plans', () => {
 	// The caret sits on the second line of the new block, so the byte offset it resolves to
 	// depends on the line ending chosen: what a byte offset fixed by the completer cannot say.
 	it.each([

@@ -4,7 +4,7 @@ import { configureEditorEnv } from '../env';
 
 // The console branch is what the e2e watchers read, so it is tested with the unit suite's own
 // callback detached: a registered callback takes over reporting and the console line never runs.
-describe('devWarn — console arm', () => {
+describe('devWarn: console branch', () => {
 	let warnSpy: ReturnType<typeof vi.spyOn>;
 	let gateSink: DevWarnSink | null;
 
@@ -61,7 +61,7 @@ describe('devWarn — console arm', () => {
 	});
 });
 
-describe('devWarn — sink arm', () => {
+describe('devWarn: sink branch', () => {
 	let warnSpy: ReturnType<typeof vi.spyOn>;
 	let gateSink: DevWarnSink | null;
 	let seen: DevWarnEntry[];

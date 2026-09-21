@@ -178,7 +178,7 @@ const offendersMatching = (
 describe('@voithos-labs/aragonite/testing dependency rules', () => {
 	const sources = testingSurfaceSources();
 
-	it('sees the whole surface — the barrel plus the modules behind it, with their imports', () => {
+	it('sees the whole surface: the barrel plus the modules behind it, with their imports', () => {
 		expect(sources.map((s) => s.relPath)).toContain('src/lib/testing.ts');
 		expect(sources.length).toBeGreaterThan(1);
 		expect(sources.flatMap((s) => s.specifiers).length).toBeGreaterThan(5);

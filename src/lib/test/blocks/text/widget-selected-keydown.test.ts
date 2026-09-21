@@ -19,7 +19,7 @@ function shiftRight(): KeyboardEvent {
 	return new KeyboardEvent('keydown', { key: 'ArrowRight', shiftKey: true });
 }
 
-describe('handleSelectedWidgetKeydown — Shift+Arrow through the editing policy', () => {
+describe('handleSelectedWidgetKeydown: Shift+Arrow through the editing policy', () => {
 	it('resizes a selected image via its onSelectedKey handler', async () => {
 		const { interaction, commits } = harness('![a](x)\n', 0);
 		expect(await interaction.handleSelectedWidgetKeydown(shiftRight())).toBe(true);

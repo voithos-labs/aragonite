@@ -118,7 +118,7 @@ describe('fencedCode keymap', () => {
 	});
 });
 
-describe('tableCell keymap — the table’s whole keyboard vocabulary', () => {
+describe('tableCell keymap: the table’s whole keyboard vocabulary', () => {
 	// The cell holds the caret, so every table chord binds on this kind: a `table`-scoped override
 	// would apply to a block that never sees a keystroke. The behavior is pinned in
 	// blocks/table/cell-table-chords.test.ts.
@@ -153,7 +153,7 @@ describe('tableCell keymap — the table’s whole keyboard vocabulary', () => {
 		}
 	});
 
-	it('leaves the bare arrows and Mod+A unbound — both depend on the caret’s position', () => {
+	it('leaves the bare arrows and Mod+A unbound: both depend on the caret’s position', () => {
 		// Cell navigation and the three-stage select-all read where the caret sits inside
 		// the cell, which a chord cannot express, so they stay with the keydown plan.
 		for (const chord of ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight']) {
@@ -162,13 +162,13 @@ describe('tableCell keymap — the table’s whole keyboard vocabulary', () => {
 		expect(resolveBinding('Mod+A', 'tableCell', undefined, everyInstalledPlugin)).toBeNull();
 	});
 
-	it('binds the whole-table move on the table’s CHILD kind, not the table', () => {
+	it('binds the whole-table move on the table’s child kind, not the table', () => {
 		// The table block never holds the caret; a chord resolved against it is dead.
 		expect(resolveBinding('Mod+Alt+ArrowUp', 'table', undefined, everyInstalledPlugin)).toBeNull();
 	});
 });
 
-describe('thematicBreak keymap — keyboard reorder', () => {
+describe('thematicBreak keymap: keyboard reorder', () => {
 	// The hr's drag handle tooltip promises Alt+↑/↓. Plain arrows stay unbound so the
 	// component's own focus-navigation handles them.
 	it('binds Alt+↑/↓ to block move and leaves plain arrows unbound', () => {
@@ -211,7 +211,7 @@ describe('text-editable keymap breadth', () => {
 		'unrecognized'
 	] as const;
 
-	it('covers prose AND raw-editable kinds', () => {
+	it('covers prose and raw-editable kinds', () => {
 		for (const kind of TEXT_EDITABLE_KINDS) {
 			expect(resolveBinding('Enter', kind, undefined, everyInstalledPlugin)?.command).toBe(
 				'block.split'

@@ -58,7 +58,7 @@ describe('blockAtPoint hook plumbing', () => {
 		return blockAtPoint(root, 10, 10);
 	}
 
-	it('gives a caret-only kind its EDITABLE surface, and still carries the caret hook', () => {
+	it('gives a caret-only kind its editable surface, and still carries the caret hook', () => {
 		// The case that matters: a custom caret landing does not make a kind a grid for a drag, so
 		// the drag paths keep an element they can hit-test characters against.
 		const hit = withKind('caretOnlyKind', { caretTargetAtPoint: () => CARET_TARGET });
@@ -68,7 +68,7 @@ describe('blockAtPoint hook plumbing', () => {
 		expect(hit?.caretTargetAtPoint?.(10, 10)).toEqual(CARET_TARGET);
 	});
 
-	it('withdraws the surface from a drag-addressed kind — its editable is a CELL', () => {
+	it('withdraws the surface from a drag-addressed kind: its editable is a cell', () => {
 		const hit = withKind('dragOnlyKind', { foreignDragHitTest: () => 5 });
 
 		expect(hit?.charSurface).toBeNull();
@@ -126,7 +126,7 @@ describe('blockAtPoint hook plumbing', () => {
 	});
 });
 
-describe('endpointAtPoint — what a pointer may address', () => {
+describe('endpointAtPoint: what a pointer may address', () => {
 	const hit = (over: Partial<BlockHit> = {}): BlockHit => ({
 		path: [2],
 		charSurface: null,

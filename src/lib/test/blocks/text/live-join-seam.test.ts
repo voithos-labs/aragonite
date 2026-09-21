@@ -49,7 +49,7 @@ function deleteBetween(
 const sameBlock = (source: string, from: number, to: number) =>
 	deleteBetween(source, from, source, to);
 
-describe('the split inverse — a closer and an opener meeting at the seam', () => {
+describe('the split inverse: a closer and an opener meeting at the join', () => {
 	it('two bold halves come back as one construct', () => {
 		expect(merge('Some **bo**\n', '**ld** text\n')).toBe('Some **bold** text\n');
 	});
@@ -128,11 +128,11 @@ describe('a truncation that strands a delimiter run', () => {
 	});
 });
 
-describe('a join whose survivors are only terminal hard-break trivia', () => {
+describe('a join whose survivors are only terminal hard-break blank lines', () => {
 	// Miss-analysis (GH #113): the split half's trailing-whitespace rule (GH #106) had matching
 	// deterministic tests; the join half was covered only by the random property suite, so the
 	// case failed about one run in six instead of failing a named test.
-	it('drops the trivia with the stranded run, not the run alone', () => {
+	it('drops the blank lines with the stranded run, not the run alone', () => {
 		// `  \n` alone would reparse as a blank line, not the block that was written.
 		expect(sameBlock('~~foo~~  \n', 0, 5)).toBe('\n');
 	});

@@ -37,7 +37,7 @@ function overridesOver(
 
 // The rule every plugin container is wired with, driven through its blockquote instance.
 describe('container exit delegates one parent replaceBlock', () => {
-	it('hands the parent the trimmed container and the minted gap', async () => {
+	it('hands the parent the trimmed container and the created gap', async () => {
 		// The shape the first Enter leaves: content, the separator line, then the blank
 		// block it made; a single blank inner line would be a blank line, not a child.
 		const quote = parse('> a\n>\n>\n').children[0];

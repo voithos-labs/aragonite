@@ -50,7 +50,7 @@ function listWithChildlessSublist(spelling: 'undefined' | 'empty'): CstNode {
 describe.each([{ spelling: 'undefined' as const }, { spelling: 'empty' as const }])(
 	'indentItem into a childless matching sublist (children: $spelling)',
 	({ spelling }) => {
-		it('seats the moved item in the sublist, never under the item holding it', async () => {
+		it('puts the caret at the moved item in the sublist, never under the item holding it', async () => {
 			const list = listWithChildlessSublist(spelling);
 			const { deps, doc } = makeEditorActionsDeps([list]);
 			expect(serialize(doc)).toBe('1. a\n2. b\n');

@@ -30,7 +30,7 @@ const merged = (
 	return doc.children[0].raw;
 };
 
-describe('each merge primitive drops the seam pair in live', () => {
+describe('each merge primitive drops the join pair in live', () => {
 	it('mergeWithNext', () => {
 		expect(merged('live', (doc) => void mergeWithNext(doc, 0, 'live', undefined))).toBe(REJOINED);
 		expect(merged(undefined, (doc) => void mergeWithNext(doc, 0, undefined, undefined))).toBe(
@@ -55,21 +55,21 @@ describe('the join offset the caret rides moves with the runs the cleanup droppe
 	// The caret lands where the two blocks met. Dropping the closing run ahead of the join point
 	// shortens the first half's bytes, so a `joinOffset` read before the cleanup would put the
 	// caret two characters into the text below it.
-	it('reports the seam in the bytes that were actually written', () => {
+	it('reports the join in the bytes that were actually written', () => {
 		const doc = parse(SPLIT_BOLD);
 		const result = mergeIntoPrevDeepLeaf(doc, 1, undefined, 'live', undefined);
 		expect(result?.joinOffset).toBe(9);
 		expect(doc.children[0].raw.slice(0, result!.joinOffset)).toBe('Some **bo');
 	});
 
-	it('the forward merge reports the same seam', () => {
+	it('the forward merge reports the same join', () => {
 		const doc = parse(SPLIT_BOLD);
 		expect(mergeWithNext(doc, 0, 'live', undefined).joinOffset).toBe(9);
 		expect(mergeWithNext(parse(SPLIT_BOLD), 0, undefined, undefined).joinOffset).toBe(11);
 	});
 });
 
-describe('a merge with nothing on its seam', () => {
+describe('a merge with nothing on its join', () => {
 	it('joins two plain paragraphs unchanged', () => {
 		const doc = parse('abc\n\ndef\n');
 		mergeIntoPrevDeepLeaf(doc, 1, undefined, 'live', undefined);

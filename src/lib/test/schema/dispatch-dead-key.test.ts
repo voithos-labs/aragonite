@@ -44,7 +44,7 @@ describe('leaf-path dispatch of an unresolved plugin command', () => {
 
 	// Miss-analysis: the note had one test and it drove one path; nothing asserted that each path
 	// must emit its own warning, so a direct call doing nothing quietly used up the chord path's.
-	it('warns per dispatch path: a door no-op does not spend the chord path diagnostic', () => {
+	it('warns per dispatch path: an entry point no-op does not spend the chord path diagnostic', () => {
 		const id = registerBlockCommand('paragraph', 'demo.bothPaths', () => true);
 		const overrides = normalizeKeybindingOverrides([
 			{ chord: 'Mod+Shift+K', command: id, kind: 'paragraph' }

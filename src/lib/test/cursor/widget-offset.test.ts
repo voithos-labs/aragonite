@@ -8,7 +8,7 @@ import {
 	rawTextOfNode
 } from '../../cursor/widget-offset';
 
-describe('findDomTextOffsetTarget — widget boundary placement', () => {
+describe('findDomTextOffsetTarget: widget boundary placement', () => {
 	let el: HTMLElement;
 
 	beforeEach(() => {
@@ -118,7 +118,7 @@ describe('findDomTextOffsetTarget — widget boundary placement', () => {
 	});
 });
 
-describe('domTextOffsetAtNode — positions at or inside an atomic widget', () => {
+describe('domTextOffsetAtNode: positions at or inside an atomic widget', () => {
 	// Layout: text "ab" [0,2), widget [2,15), text "cd" [15,17). The widget's inner text is 4
 	// characters against a 13-byte source range, so a traversal that went inside lands 9 short.
 	let el: HTMLElement;
@@ -139,20 +139,20 @@ describe('domTextOffsetAtNode — positions at or inside an atomic widget', () =
 		document.body.innerHTML = '';
 	});
 
-	it('walks the island as its raw source length', () => {
+	it('walks the widget as its raw source length', () => {
 		expect(containerDomTextLength(el)).toBe(17);
 	});
 
-	it('reads a parent-container position past the island as the island end', () => {
+	it('reads a parent-container position past the widget as the widget end', () => {
 		expect(domTextOffsetAtNode(el, el, 2)).toBe(15);
 	});
 
-	it('snaps a position on the island element itself to its own walk boundary', () => {
+	it('snaps a position on the widget element itself to its own walk boundary', () => {
 		expect(domTextOffsetAtNode(el, island, 0)).toBe(2);
 		expect(domTextOffsetAtNode(el, island, island.childNodes.length)).toBe(15);
 	});
 
-	it('snaps a position inside the island — the browser rebinds carets into these', () => {
+	it('snaps a position inside the widget: the browser rebinds carets into these', () => {
 		// A contenteditable=false widget attracts carets, and the traversal has no positions inside
 		// it to report, so a node inside resolves to an edge rather than the container's length.
 		const inner = island.querySelector('span')!.firstChild!;
@@ -170,7 +170,7 @@ describe('domTextOffsetAtNode — positions at or inside an atomic widget', () =
 		expect(domTextOffsetAtNode(el, foreign.firstChild!, 1)).toBe(17);
 	});
 
-	it('snaps past an island with no inner text (image island)', () => {
+	it('snaps past a widget with no inner text (image widget)', () => {
 		// `![alt](url)` renders as an <img>: zero textContent against a 12-byte
 		// source range, so a textContent-driven walk drops the span entirely.
 		const block = document.createElement('div');

@@ -22,7 +22,7 @@ const ENTER = { key: 'Enter' };
 const TAB = { key: 'Tab' };
 const SHIFT_TAB = { key: 'Tab', shiftKey: true };
 
-describe('Enter then Tab mints a readable sublist', () => {
+describe('Enter then Tab creates a readable sublist', () => {
 	it('separates the empty nested item from the paragraph above it', async () => {
 		mounted = mountEditor({ source: '- alpha\n' });
 
@@ -86,7 +86,7 @@ describe('Enter then Tab mints a readable sublist', () => {
 
 	// The rhythm the simulation's deep-nesting notes build with, one level in: the line the
 	// separator needs belongs to the item it lands in, not to the document's top level.
-	it('mints the line at depth too', async () => {
+	it('creates the line at depth too', async () => {
 		mounted = mountEditor({ source: '- alpha\n  - beta\n' });
 
 		await pressKeyAt(mounted, [0, 0, 1, 0, 0], 4, ENTER);

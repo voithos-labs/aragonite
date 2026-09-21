@@ -57,12 +57,12 @@ describe('a container declaring contentStartSpace completes its marker', () => {
 		expect(h.edits).toHaveLength(0);
 	});
 
-	it('completes a nested quote at its own depth — the nearest ancestor answers', () => {
+	it('completes a nested quote at its own depth: the nearest ancestor answers', () => {
 		const h = mount('> >\n', [0, 0, 0]);
 		expect(h.handleKeydown(key(' '), at(0))).toBe(true);
 	});
 
-	it('completes at a MIDDLE empty child, not only the one an Enter just made', () => {
+	it('completes at a middle empty child, not only the one an Enter just made', () => {
 		const h = mount('> a\n>\n>\n> b\n', [0, 1]);
 		expect(h.handleKeydown(key(' '), at(0))).toBe(true);
 		expect(h.edits).toHaveLength(0);
@@ -71,7 +71,7 @@ describe('a container declaring contentStartSpace completes its marker', () => {
 	// The consumed key writes nothing, so the child is byte-identical when the second space
 	// arrives and only this branch's own memory tells them apart. The second space is also the
 	// only way to type a leading space at all, and the indented-code opener needs four (GH #143).
-	it('declines the second space at the same seat, leaving it to land as content', () => {
+	it('declines the second space at the same caret position, leaving it to land as content', () => {
 		const h = mount('>\n', [0, 0]);
 		expect(h.handleKeydown(key(' '), at(0))).toBe(true);
 		const second = key(' ');
@@ -82,7 +82,7 @@ describe('a container declaring contentStartSpace completes its marker', () => {
 
 	// It is taken once per child, not once per component: a component recycled for another
 	// empty child gives that child its own completion.
-	it('re-arms when the surface is re-used for a different empty child', () => {
+	it('re-branches when the surface is re-used for a different empty child', () => {
 		const h = mount('>\n>\n', [0, 0]);
 		expect(h.handleKeydown(key(' '), at(0))).toBe(true);
 		expect(h.handleKeydown(key(' '), at(0))).toBe(false);
@@ -102,7 +102,7 @@ describe('a container declaring contentStartSpace completes its marker', () => {
 });
 
 describe('the marker-completion gate is byte shapes only', () => {
-	it('declines in a NON-empty child, where the space is content', () => {
+	it('declines in a non-empty child, where the space is content', () => {
 		const h = mount('> abc\n', [0, 0]);
 		expect(h.handleKeydown(key(' '), at(0))).toBe(false);
 	});
@@ -120,12 +120,12 @@ describe('the marker-completion gate is byte shapes only', () => {
 		}
 	);
 
-	it('declines every other printable at the same seat', () => {
+	it('declines every other printable at the same caret position', () => {
 		const h = mount('>\n', [0, 0]);
 		expect(h.handleKeydown(key('a'), at(0))).toBe(false);
 	});
 
-	it('declines in reading mode, which stands every editing arm down', () => {
+	it('declines in reading mode, which stands every editing branch down', () => {
 		const h = mount('>\n', [0, 0], true);
 		expect(h.handleKeydown(key(' '), at(0))).toBe(false);
 	});

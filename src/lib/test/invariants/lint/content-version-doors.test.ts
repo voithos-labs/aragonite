@@ -43,7 +43,7 @@ function matching(sources: SourceFile[], re: RegExp): string[] {
 		.sort();
 }
 
-describe('content-version door census', () => {
+describe('content-version entry-point census', () => {
 	const sources = collectEditorSources();
 
 	it('inspected at least one editor source file', () => {
@@ -57,14 +57,14 @@ describe('content-version door census', () => {
 		).toEqual(Object.keys(ANNOUNCERS).sort());
 	});
 
-	it('exactly the declared files unshare a spine off the editor’s own document', () => {
+	it('exactly the declared files unshare an ancestor chain off the editor’s own document', () => {
 		expect(
 			matching(sources, UNSHARES_ROOT),
 			'a new write entry point outside the commit sequence: announce the bytes it moves, or route it through that sequence'
 		).toEqual(Object.keys(ROOT_UNSHARERS).sort());
 	});
 
-	it('every root unsharer is the ceremony or announces for itself', () => {
+	it('every root unsharer is the commit sequence or announces for itself', () => {
 		const silent = Object.keys(ROOT_UNSHARERS).filter((relPath) => !(relPath in ANNOUNCERS));
 		expect(silent).toEqual([]);
 	});
@@ -85,7 +85,7 @@ describe('content-version door census', () => {
 		expect(probe('// ensureUnsharedPath(deps.doc, path, sharing) is the door')).toBe(false);
 	});
 
-	it('an undeclared door fails the set equality', () => {
+	it('an undeclared entry point fails the set equality', () => {
 		const rogue: SourceFile = {
 			relPath: 'src/lib/editor-actions/rogue.ts',
 			text: 'ensureUnsharedPath(deps.doc, path, deps.sharing);',

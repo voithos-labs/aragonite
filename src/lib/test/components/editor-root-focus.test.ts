@@ -54,7 +54,7 @@ function editor(mode: PresentationMode = 'source') {
 	};
 }
 
-describe('editor-root focus attribution — the per-level pin', () => {
+describe('editor-root focus attribution: the per-level pin', () => {
 	it('focus inside a host pins its path; focus on no host clears it', () => {
 		const e = editor();
 		e.focusIn(e.second.leaf);
@@ -83,7 +83,7 @@ describe('editor-root focus attribution — the per-level pin', () => {
 	});
 });
 
-describe('editor-root focus attribution — data-focused', () => {
+describe('editor-root focus attribution: data-focused', () => {
 	it('marks the focused host under a preview mode only, and re-applies on a mode change', () => {
 		const e = editor('source');
 		e.focusIn(e.first.leaf);

@@ -64,7 +64,7 @@ function mount(source: string, widgetKind: string) {
 
 // ── Within-block: edge-policy dispatch ───────────────────────────────────────
 
-describe('edge dispatch — reveal-capable kind opens the reveal', () => {
+describe('edge dispatch: reveal-capable kind opens the reveal', () => {
 	for (const [label, keyName, offsetSide] of [
 		['ArrowLeft at the trailing edge', 'ArrowLeft', 'end'],
 		['Backspace at the trailing edge', 'Backspace', 'end'],
@@ -95,7 +95,7 @@ describe('edge dispatch — reveal-capable kind opens the reveal', () => {
 	});
 });
 
-describe('edge dispatch — image kind keeps select-then-step', () => {
+describe('edge dispatch: image kind keeps select-then-step', () => {
 	it('ArrowLeft at the trailing edge selects, anchoring undo at the trailing edge', () => {
 		const b = mount('lead ![cat](x.png)\n', 'image');
 		expect(b.dispatch.handleKeydown(key('ArrowLeft'), asRawOffset(b.widget.end))).toBe(true);
@@ -119,7 +119,7 @@ describe('edge dispatch — image kind keeps select-then-step', () => {
 
 // ── Atomic deleteGranularity: deleted whole in one key, with no select step ──
 
-describe('edge dispatch — an atomic kind deletes whole on one press', () => {
+describe('edge dispatch: an atomic kind deletes whole on one press', () => {
 	// Reconfiguring the math kind as an atomic widget shows `deleteGranularity` is honoured for
 	// any kind, not just the built-in entity; `installMathInline`'s reset registers math again.
 	// MATH_INLINE is the raw kind string; the augment API takes the branded kind.
@@ -150,7 +150,7 @@ describe('edge dispatch — an atomic kind deletes whole on one press', () => {
 
 // ── Entity widget: the shipped step-over + atomic consumer ───────────────────
 
-describe('edge dispatch — entityReference steps over and deletes atomically', () => {
+describe('edge dispatch: entityReference steps over and deletes atomically', () => {
 	// `a&copy;b` renders © as an atomic widget spanning raw [1,7). Nothing is overridden
 	// here, so this covers the built-in entity policy the registry ships.
 	for (const [label, keyName, offsetSide] of [
@@ -187,7 +187,7 @@ describe('edge dispatch — entityReference steps over and deletes atomically', 
 
 // ── Cross-block: enterEdgeWidget ─────────────────────────────────────────────
 
-describe('enterEdgeWidget — cross-block landing dispatches on the same policy', () => {
+describe('enterEdgeWidget: cross-block landing dispatches on the same policy', () => {
 	it('a trailing reveal-capable widget reveals instead of selecting', () => {
 		const b = mount('tail $x^2$', MATH_INLINE);
 		expect(b.interaction.enterEdgeWidget('end')).toBe(true);

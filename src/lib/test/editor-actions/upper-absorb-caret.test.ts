@@ -21,7 +21,7 @@ function labelledRefs(count: number, calls: FocusCall[]): BlockComponent[] {
 	);
 }
 
-describe('caret after a fold above the edited block — top level', () => {
+describe('caret after a fold above the edited block: top level', () => {
 	function makeTop(source: string) {
 		const harness = makeTopHarness(source);
 		const calls: FocusCall[] = [];
@@ -56,7 +56,7 @@ describe('caret after a fold above the edited block — top level', () => {
 	// The blank case reaches the same path when emptying changes the kind: a heading emptied to
 	// a blank line is a non-noop trial, so the commit runs and the container above swallows the
 	// index; the blank case's textStart, used by the action, not just computed at the tree op.
-	it('spends the blank arm textStart when emptying a heading folds it upward', async () => {
+	it('spends the blank branch textStart when emptying a heading folds it upward', async () => {
 		const h = makeTop('- item\n\n# h\n\n    code\n');
 
 		await h.actions.updateBlockContent(1, '\n', 1, 0);
@@ -78,7 +78,7 @@ describe('caret after a fold above the edited block — top level', () => {
 	});
 });
 
-describe('caret after a fold above the edited block — container body', () => {
+describe('caret after a fold above the edited block: container body', () => {
 	it('lands on the body block the fold left standing', async () => {
 		const h = makeNestedHarness('> a\n> # h\n> b\n', { index: 0 });
 		const calls: FocusCall[] = [];

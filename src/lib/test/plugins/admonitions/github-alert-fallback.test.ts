@@ -5,7 +5,7 @@ import { parse, serialize } from '$lib';
 // plain blockquote: its bytes are never corrupted, so uninstalling the plugin never
 // breaks a saved document. Installed native rendering is github-alert.test.ts.
 
-describe('github alert — uninstalled fallback', () => {
+describe('github alert: uninstalled fallback', () => {
 	const cases = [
 		'> [!NOTE]\n> Body.\n',
 		'> [!WARNING]\r\n> CRLF body.\r\n',

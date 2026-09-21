@@ -9,7 +9,7 @@ import { admonitionsPlugin } from '$lib/plugins/admonitions';
 
 const ALERT = '> [!TIP]\n> Handy.\n';
 
-describe('github alert — paste transform is opt-in', () => {
+describe('github alert: paste transform is opt-in', () => {
 	beforeEach(() => {
 		resetPluginPlatformForTests();
 	});

@@ -3,7 +3,7 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import { takeDevWarns } from './support/warn-gate';
 import { assertInvariant, type InvariantViolation } from '../assert';
 
-describe('assertInvariant — dev-runtime channel', () => {
+describe('assertInvariant: dev-runtime channel', () => {
 	afterEach(() => {
 		vi.doUnmock('esm-env');
 		vi.resetModules();

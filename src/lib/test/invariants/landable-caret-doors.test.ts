@@ -119,8 +119,8 @@ afterEach(async () => {
 	mounted = null;
 });
 
-describe('G1.33 fires from the focus seam', () => {
-	it('fires when a plugin caret door of its own seats a caret in a marker-only surface', async () => {
+describe('G1.33 fires from the focus boundary', () => {
+	it('fires when a plugin caret entry point of its own puts a caret in a marker-only surface', async () => {
 		const editor = await mountWith(ROGUE_MARKER, ROGUE_CARET_DOOR, 'live');
 		expect(takeDevWarns(), 'a block nothing has focused traps no caret').toEqual([]);
 
@@ -131,7 +131,7 @@ describe('G1.33 fires from the focus seam', () => {
 	});
 
 	// Source mode paints every byte, so the same call over the same markers traps nothing.
-	it('stands down for the same door in source mode', async () => {
+	it('does nothing for the same entry point in source mode', async () => {
 		const editor = await mountWith(ROGUE_MARKER, ROGUE_CARET_DOOR, 'source');
 
 		blockComponentAt(editor, [0]).parkCaret?.(0);
@@ -144,7 +144,7 @@ describe('G1.33 fires from the focus seam', () => {
 	// The branch for a block that takes no keystroke. No built-in reaches it, because a built-in is
 	// `contenteditable="false"` only in reading mode, which the mode check already excludes, so
 	// nothing else tells the next reader this branch matters for plugin blocks.
-	it('stands down for an inert surface, over chrome the rogue door fires on', async () => {
+	it('does nothing for an inert surface, over chrome the rogue entry point fires on', async () => {
 		const editor = await mountWith(
 			INERT_MARKER,
 			markerLinePlugin('inert-caret-door', INERT_MARKER, InertSurfaceBlock),
@@ -159,7 +159,7 @@ describe('G1.33 fires from the focus seam', () => {
 	});
 
 	// The platform's own caret call gets the check from here rather than carrying it in its body.
-	it('fires when the shared editable factory parks into a marker-only surface', async () => {
+	it('fires when the shared editable factory puts the caret into a marker-only surface', async () => {
 		const editor = await mountWith(
 			PLAIN_MARKER,
 			markerLinePlugin('marker-source-plain', PLAIN_MARKER, MarkerSourcePlainBlock),
@@ -173,7 +173,7 @@ describe('G1.33 fires from the focus seam', () => {
 		expect(takeDevWarns().map((w) => w.tag)).toEqual(['invariant:landable-caret']);
 	});
 
-	it('fires when the render-primary reveal seats a caret in a marker-only source', async () => {
+	it('fires when the render-primary reveal puts a caret in a marker-only source', async () => {
 		const editor = await mountWith(
 			REVEAL_MARKER,
 			markerLinePlugin('marker-source-reveal', REVEAL_MARKER, MarkerSourceRevealBlock),

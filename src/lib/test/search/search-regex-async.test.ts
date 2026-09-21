@@ -30,7 +30,7 @@ function makeState(source: string, regexExecutor?: RegexExecutor, replace?: Repl
 	return { state };
 }
 
-describe('SearchState — off-thread regex scans', () => {
+describe('SearchState: off-thread regex scans', () => {
 	it('publishes matches when the scan lands, not when the query is set', async () => {
 		// The real executor on its synchronous fallback: still a promise, so the find bar sees the
 		// same two-step shape it sees in a browser.
@@ -45,7 +45,7 @@ describe('SearchState — off-thread regex scans', () => {
 		expect(state.activeIndex).toBe(0);
 	});
 
-	it('literal search stays synchronous — no scanning window at all', () => {
+	it('literal search stays synchronous: no scanning window at all', () => {
 		const { state } = makeState('cat cat\n');
 		state.setOptions({ regex: false });
 		state.setQuery('cat');

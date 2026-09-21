@@ -28,7 +28,7 @@ describe('parse scope', () => {
 	beforeEach(__resetSchemaRegistriesForTests);
 	afterEach(__resetSchemaRegistriesForTests);
 
-	it('a whole-document parse mints a position-scoped kind at the document top', () => {
+	it('a whole-document parse creates a position-scoped kind at the document top', () => {
 		const kind = registerDocumentTopKind();
 
 		expect(parse(FRONT_MATTER + '\nbody\n').children[0].kind).toBe(kind);

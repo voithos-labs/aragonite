@@ -6,7 +6,7 @@ import { registerCalloutKind } from '../../../routes/test/plugins/callout/callou
 // A regression to opener-only activation stays green everywhere else, because every other
 // path turns the inline `:` handler on some other way. The platform reset clears the
 // inline-syntax registry too, leaving registerCalloutKind the only thing that can take `:`.
-describe('registerCalloutKind activates the inline text tier', () => {
+describe('registerCalloutKind activates the inline text level', () => {
 	beforeEach(resetPluginPlatformForTests);
 
 	it('registers the `:` inline recognizer, not just the `:::` opener', () => {

@@ -29,7 +29,7 @@ function run(input: string | Document, start: SelectionPoint, end: SelectionPoin
 // Cross-block table end endpoints are snapped to whole rows before rangeDelete
 // (table-endpoint-snap.ts), so end.offset is the inclusive last cell of its row and the delete
 // clears [0, end.offset].
-describe('rangeDelete — Case 1 (prose anchor → cell focus mid-table)', () => {
+describe('rangeDelete: Case 1 (prose anchor → cell focus mid-table)', () => {
 	it('clears cells [0..end] inclusive, removes fully-covered rows, promotes header', () => {
 		// Doc: paragraph + 4-row table (header + 3 body rows).
 		// end.offset = 2 (inclusive) → clears cells 0,1,2 (header row entirely, plus body row 1's
@@ -113,7 +113,7 @@ describe('rangeDelete — Case 1 (prose anchor → cell focus mid-table)', () =>
 	});
 });
 
-describe('rangeDelete — Case 2 (cell anchor mid-table → prose focus below)', () => {
+describe('rangeDelete: Case 2 (cell anchor mid-table → prose focus below)', () => {
 	it('clears cells [start..lastCell] in start row, removes rows below, header unchanged', () => {
 		// Anchor at cell 3 (row 1, col 1) clears cells 3..end: body rows 2 (4,5) and 3 (6,7) are
 		// fully in range and removed, while row 1 keeps col 0.
@@ -174,7 +174,7 @@ describe('rangeDelete — Case 2 (cell anchor mid-table → prose focus below)',
 	});
 });
 
-describe('rangeDelete — Case 3 (prose → table → prose, full-table span)', () => {
+describe('rangeDelete: Case 3 (prose → table → prose, full-table span)', () => {
 	it('merges anchor and focus paragraphs, table fully consumed', () => {
 		const { doc } = run(
 			`head text\n\n${TWO_COL_FOUR_ROW}\ntail text\n`,
@@ -189,7 +189,7 @@ describe('rangeDelete — Case 3 (prose → table → prose, full-table span)', 
 	});
 });
 
-describe('rangeDelete — intra-table rectangular (same-path)', () => {
+describe('rangeDelete: intra-table rectangular (same-path)', () => {
 	it('Ctrl+A 2nd press: clears every cell, preserves structure and alignments', () => {
 		const input = parse('| L | C | R |\n| :--- | :---: | ---: |\n| a | b | c |\n| d | e | f |\n');
 		const tableBefore = input.children[0];
@@ -256,7 +256,7 @@ describe('rangeDelete — intra-table rectangular (same-path)', () => {
 	});
 });
 
-describe('rangeDelete — table edge cases', () => {
+describe('rangeDelete: table edge cases', () => {
 	it('Case 1 with end at the last cell removes the entire table', () => {
 		const lastCellIdx = 2 * 4 - 1;
 		const { doc } = run(

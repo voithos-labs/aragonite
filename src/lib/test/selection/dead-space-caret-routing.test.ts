@@ -80,7 +80,7 @@ describe('createDeadSpaceCaret routing', () => {
 		expect(resetSelectionForClick).not.toHaveBeenCalled();
 	});
 
-	it('lands a click beside a table in the nearest cell, through the deep door', () => {
+	it('lands a click beside a table in the nearest cell, through the deep entry point', () => {
 		// Left of the box, level with the row → column 0.
 		expect(clickAt(20, TABLE_BOX.top + 20)).toBe(true);
 		expect(focusByPath).toHaveBeenCalledWith([0, 0], CURSOR_END);
@@ -110,7 +110,7 @@ describe('createDeadSpaceCaret routing', () => {
 		}
 	});
 
-	it('declines a block that declares the hook but publishes no deep door', () => {
+	it('declines a block that declares the hook but publishes no deep entry point', () => {
 		component = { editable: true, focusable: true, focus: vi.fn() } as unknown as typeof component;
 		expect(clickAt(20, TABLE_BOX.top + 20)).toBe(false);
 		expect(resetSelectionForClick).not.toHaveBeenCalled();
@@ -134,7 +134,7 @@ describe('createDeadSpaceCaret routing', () => {
 			expect(ownSnap).not.toHaveBeenCalled();
 		});
 
-		it('declines a block that publishes no snap door', () => {
+		it('declines a block that publishes no snap entry point', () => {
 			component = { ...component, getBlockComponentByPath: () => null } as typeof component;
 			expect(clickAt(20, TABLE_BOX.top + 20)).toBe(true);
 			expect(leafSnap).not.toHaveBeenCalled();

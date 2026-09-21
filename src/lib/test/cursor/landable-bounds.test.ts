@@ -22,7 +22,7 @@ function island(text: string): HTMLElement {
 
 afterEach(() => document.body.replaceChildren());
 
-describe('landableDomTextBounds — hidden runs move the bound in', () => {
+describe('landableDomTextBounds: hidden runs move the bound in', () => {
 	it('clears a leading and a trailing marker run in live', () => {
 		const block = mountBlock(
 			{ mode: 'live' },
@@ -58,7 +58,7 @@ describe('landableDomTextBounds — hidden runs move the bound in', () => {
 		expect(landableDomTextBounds(fenced)).toEqual({ start: 4, end: 5 });
 	});
 
-	it('collapses both bounds onto the far end when nothing is landable', () => {
+	it('collapses both bounds onto the far end when nothing is reachable', () => {
 		const block = mountBlock(
 			{ mode: 'live' },
 			span('md-marker', '```'),
@@ -68,8 +68,8 @@ describe('landableDomTextBounds — hidden runs move the bound in', () => {
 	});
 });
 
-describe('landableDomTextBounds — islands the caret cannot enter', () => {
-	it('steps past the AMBIENT marker in every mode', () => {
+describe('landableDomTextBounds: widgets the caret cannot enter', () => {
+	it('steps past the ambient marker in every mode', () => {
 		// `- **lead**`: the marker prefix takes no caret and the `**` behind it is unpainted, so the
 		// first offset the caret can sit at clears both.
 		const live = mountBlock(
@@ -84,13 +84,13 @@ describe('landableDomTextBounds — islands the caret cannot enter', () => {
 		expect(landableDomTextBounds(source)).toEqual({ start: 2, end: 6 });
 	});
 
-	it('leaves both boundaries of an atomic widget landable', () => {
+	it('leaves both boundaries of an atomic widget reachable', () => {
 		// A widget cannot be entered, but it is not unreachable: a caret sits before and after it.
 		const block = mountBlock({ mode: 'live' }, widget('$x$'), text('after'));
 		expect(landableDomTextBounds(block)).toEqual({ start: 0, end: 8 });
 	});
 
-	it('leaves both boundaries of a decoration island landable', () => {
+	it('leaves both boundaries of a decoration widget reachable', () => {
 		// A widget the caret steps over is the opposite of the marker prefix: its far side is a raw
 		// offset of its own, so a bound moved in front of it would turn that step into a block exit.
 		const block = mountBlock({ mode: 'live' }, text('lead '), island('HIDDEN'), text(' tail'));
@@ -103,7 +103,7 @@ describe('landableDomTextBounds — islands the caret cannot enter', () => {
 
 // Miss-analysis: every case with trailing markers ended its reachable text on a character, so
 // the position after a final `\n`, which sits on the hidden closer's line, was never asked for.
-describe('landableDomTextBounds — a trailing newline before hidden chrome', () => {
+describe('landableDomTextBounds: a trailing newline before hidden chrome', () => {
 	it('ends before the newline, whose far side is a line nothing paints', () => {
 		const emptyBody = mountBlock(
 			{ mode: 'live' },

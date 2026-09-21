@@ -31,7 +31,7 @@ function harness() {
 	};
 }
 
-describe('the commit ceremony contains and attributes every throw site', () => {
+describe('the commit sequence contains and attributes every throw site', () => {
 	it('reports a throwing afterTick without unwinding the committed tree', async () => {
 		const { deps, errors, controller, state } = harness();
 

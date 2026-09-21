@@ -51,7 +51,7 @@ describe('splitNode', () => {
 		expect(doc.children[1].raw).toBe('\n');
 	});
 
-	it('preserves leading trivia on the first block when splitting a non-first block', () => {
+	it('preserves leading blank lines on the first block when splitting a non-first block', () => {
 		const source = 'First\n\nSecond\n';
 		const doc = parse(source);
 		splitNode(doc, 1, 3, undefined, undefined, undefined);

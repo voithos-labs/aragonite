@@ -102,7 +102,7 @@ describe('published entry barrels are import sinks', () => {
 
 // ── Self-tests (non-vacuity) ─────────────────────────────────────────────────
 
-describe('entry-barrel sink — classifier non-vacuity', () => {
+describe('entry-barrel sink: classifier non-vacuity', () => {
 	const entry = `${LIB}/plugin.ts`;
 
 	it('reports a back edge however deep in the closure it sits', () => {

@@ -50,7 +50,7 @@ describe('declaredPluginKind', () => {
 		expect(() => declaredPluginKind('neverDeclaredKind')).toThrow(/neverDeclaredKind/);
 	});
 
-	it('does not declare — an accessor call for an undeclared name is not idempotent', () => {
+	it('does not declare: an accessor call for an undeclared name is not idempotent', () => {
 		expect(() => declaredPluginKind('notYetDeclared')).toThrow();
 		// A later collision must still be loud: the failed lookup didn't register it.
 		expect(declarePluginKind('notYetDeclared')).toBe('notYetDeclared');

@@ -132,7 +132,7 @@ describe('G2.8 top-level id↔ref↔children alignment', () => {
 
 	// GH #168: the fix-up turns the document's trailing line into a block when a delete leaves the
 	// tail blank, and a change that does not report that growth costs one id on the next commit.
-	it('a delete whose settle mints the folded tail line keeps arrays aligned', async () => {
+	it('a delete whose settle creates the folded tail line keeps arrays aligned', async () => {
 		const h = makeTopFrom('alpha\n\n\nbeta\n');
 
 		await h.actions.deleteBlock(2);

@@ -73,7 +73,7 @@ function nestedListHarness(): {
 	};
 }
 
-describe('commit ceremony — byte rollback across the chain rebuild', () => {
+describe('commit sequence: byte rollback across the chain rebuild', () => {
 	it('restores every raw the rebuild wrote when a later rebuildRaw throws', async () => {
 		const { deps, controller, scopes } = nestedListHarness();
 

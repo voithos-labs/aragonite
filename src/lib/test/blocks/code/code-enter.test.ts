@@ -9,7 +9,7 @@ const enter = (args: Omit<EnterArgs, 'mode' | 'ending'> & Partial<EnterArgs>) =>
 
 // ── line ending ─────────────────────────────────────────────────────────────
 
-describe('computeCodeEnter — the block’s line ending', () => {
+describe('computeCodeEnter: the block’s line ending', () => {
 	it('splices CRLF into a CRLF body, indent included', () => {
 		const result = enter({
 			display: '```\r\n  code',
@@ -34,7 +34,7 @@ describe('computeCodeEnter — the block’s line ending', () => {
 
 // ── normal mode (auto-indent) ───────────────────────────────────────────────
 
-describe('computeCodeEnter — normal mode', () => {
+describe('computeCodeEnter: normal mode', () => {
 	it('inserts a newline at the cursor in flat content', () => {
 		const result = enter({ display: 'foo', selection: { start: 3, end: 3 } });
 		expect(result.newText).toBe('foo\n');
@@ -89,7 +89,7 @@ describe('computeCodeEnter — normal mode', () => {
 
 // ── soft mode (Shift+Enter / insertLineBreak) ───────────────────────────────
 
-describe('computeCodeEnter — soft mode', () => {
+describe('computeCodeEnter: soft mode', () => {
 	it('inserts a bare newline with no auto-indent', () => {
 		const result = enter({
 			display: '    indented',

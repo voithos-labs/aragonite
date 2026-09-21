@@ -23,7 +23,7 @@ const DOC_EDGE_CHORDS = [
 	['Cmd', { metaKey: true, shiftKey: true }]
 ] as const;
 
-describe('cross-block keydown — collapse', () => {
+describe('cross-block keydown: collapse', () => {
 	for (const key of ['ArrowLeft', 'ArrowUp']) {
 		it(`${key} collapses to the range start`, async () => {
 			const env = envAcrossFirstTwo();
@@ -81,7 +81,7 @@ describe('cross-block keydown — collapse', () => {
 	});
 });
 
-describe('cross-block keydown — extend', () => {
+describe('cross-block keydown: extend', () => {
 	it('Shift+ArrowDown grows the range to the next block', async () => {
 		const env = envAcrossFirstTwo();
 
@@ -123,7 +123,7 @@ describe('cross-block keydown — extend', () => {
 	}
 });
 
-describe('cross-block keydown — doc-edge from a collapsed caret', () => {
+describe('cross-block keydown: doc-edge from a collapsed caret', () => {
 	// The consumed key is what this case can assert: entering cross-block reads the native caret, which
 	// needs `document.activeElement === blockEl`, and the env's block elements are detached.
 	for (const [mod, init] of DOC_EDGE_CHORDS) {

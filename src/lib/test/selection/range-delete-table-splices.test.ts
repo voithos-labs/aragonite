@@ -30,7 +30,7 @@ function run(source: string, start: SelectionPoint, end: SelectionPoint) {
 	return { doc: result.newDoc, splices: result.tableRowSplices };
 }
 
-describe('rangeDelete — tableRowSplices reporting', () => {
+describe('rangeDelete: tableRowSplices reporting', () => {
 	// The cross-block commit reports each endpoint table's structural change from these splices
 	// (matched by node identity) instead of re-deriving the snap.
 	it('Case 1 reports the end table row prefix it removed', () => {

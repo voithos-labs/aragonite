@@ -63,7 +63,7 @@ afterEach(async () => {
 	document.body.innerHTML = '';
 });
 
-describe('CodeBlock — the language picker’s list', () => {
+describe('CodeBlock: the language picker’s list', () => {
 	// The block's own spelling leads, and its canonical form does not follow it down the list.
 	it('lists one row per language, not one per spelling', () => {
 		openField();
@@ -91,7 +91,7 @@ describe('CodeBlock — the language picker’s list', () => {
 	});
 });
 
-describe('CodeBlock — the language picker’s commit', () => {
+describe('CodeBlock: the language picker’s commit', () => {
 	it('keeps a typed alias as typed: a spelling the registry knows is a name, not a query', () => {
 		const field = openField();
 

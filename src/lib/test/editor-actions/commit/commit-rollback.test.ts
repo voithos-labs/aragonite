@@ -18,7 +18,7 @@ function stackBytes(entries: UndoEntry[]): string[] {
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
-describe('commit ceremony — rollback on mutation throw', () => {
+describe('commit sequence: rollback on mutation throw', () => {
 	it('rolls the undo stack back and emits error when a commit mutation throws', async () => {
 		const { deps, events } = makeEditorActionsDeps([makeListNode(['- a\n', '- b\n'])]);
 		const state = makeBlockListState(() => deps.doc.children[0], ['id-a', 'id-b']);
@@ -164,7 +164,7 @@ describe('commit ceremony — rollback on mutation throw', () => {
 
 	// The whole-rollback check: every other case tests the stacks or the tree, never both,
 	// so dropping either from the rollback shows up only here.
-	it('a splice-then-throw restores the document AND both stacks together', async () => {
+	it('a splice-then-throw restores the document and both stacks together', async () => {
 		const { deps } = makeEditorActionsDeps([makeListNode(['- a\n', '- b\n'])]);
 		const state = makeBlockListState(() => deps.doc.children[0], ['id-a', 'id-b']);
 		const controller = createUndoController(deps);

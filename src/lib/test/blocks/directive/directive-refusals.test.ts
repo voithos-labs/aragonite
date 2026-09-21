@@ -40,7 +40,7 @@ afterEach(async () => {
 	document.body.innerHTML = '';
 });
 
-describe('an unconfigured container stands down where the seam declines', () => {
+describe('an unconfigured container does nothing where the dispatch declines', () => {
 	// A kind that declares no `reservedChrome` is never collapsed, so `expandCollapsed` refuses.
 	// Opening anyway would add an undo entry to a container that has no collapsed state.
 	it('reveals a body child without committing a byte to open it', async () => {
@@ -54,7 +54,7 @@ describe('an unconfigured container stands down where the seam declines', () => 
 
 	// A plugin container has no built-in kind commands, so its `runCommand` does nothing and the
 	// key has to keep travelling up to whatever does own it.
-	it('leaves a chord it has no command for to the tier above', () => {
+	it('leaves a chord it has no command for to the level above', () => {
 		mounted = mountDirective(BODY);
 
 		expect(pressOn(mounted.box, { key: 'k', ctrlKey: true })).toBe(false);

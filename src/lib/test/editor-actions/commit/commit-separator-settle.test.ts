@@ -20,7 +20,7 @@ import { asDocPath } from '$lib/selection/path-math';
 // fix-up over the same range does, nor whether a check reading post-splice state could still
 // see which blocks were blank. Both only became askable when the rule moved into the commit.
 
-describe('the ceremony settle over a window its mutate already settled', () => {
+describe('the commit sequence settle over a window its mutate already settled', () => {
 	it('leaves an emptied block alone rather than settling its run twice', async () => {
 		const h = makeTopHarness('alpha\n\nx\n\ndelta\n');
 
@@ -47,7 +47,7 @@ describe('the ceremony settle over a window its mutate already settled', () => {
 // change over the same range. The truncated start block is a new node, so the survivor filter
 // reads the original as removed, and a blank one takes the restore branch on top of what the
 // splice already fixed.
-describe('a delete that crosses both funnel entries in one commit', () => {
+describe('a delete that crosses both shared entries in one commit', () => {
 	function deleteAcross(
 		source: string,
 		anchor: number[],
@@ -154,7 +154,7 @@ describe('an insert whose settle materializes the folded tail line', () => {
 	});
 });
 
-describe('the ceremony settle reads was-blank off the pre-mutate children', () => {
+describe('the commit sequence settle reads was-blank off the pre-mutate children', () => {
 	it('hands both ends back the line a blank slot was holding for them', async () => {
 		const h = makeTopHarness('alpha\n\n\ndelta\n');
 

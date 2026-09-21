@@ -71,7 +71,7 @@ export function compileTimePins(node: CstNode, pluginKind: PluginBlockKind): voi
 }
 
 describe('CstNode discriminated union', () => {
-	it('narrows a parsed node to its built-in arm and reads typed metadata', () => {
+	it('narrows a parsed node to its built-in branch and reads typed metadata', () => {
 		const doc = parse('### deep\n');
 		const node = doc.children[0];
 		let level = 0;
@@ -79,7 +79,7 @@ describe('CstNode discriminated union', () => {
 		expect(level).toBe(3);
 	});
 
-	it('makeBlockNode mints a fresh object so it cannot strip a passed view', () => {
+	it('makeBlockNode creates a fresh object so it cannot strip a passed view', () => {
 		const fields = { kind: 'paragraph' as const, leadingTrivia: '', raw: 'x\n' };
 		const node = makeBlockNode(fields);
 		expect(node).not.toBe(fields);

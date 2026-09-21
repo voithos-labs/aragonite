@@ -86,7 +86,7 @@ afterEach(async () => {
 	resetPluginPlatformForTests();
 });
 
-describe('a painted source at the leaf’s one paint seam', () => {
+describe('a painted source at the leaf’s one paint site', () => {
 	it('keeps textContent equal to the source across the painter’s spans', async () => {
 		mounted = mountLeaf(faithfulPainter);
 		const el = await mounted.revealAtEnd();

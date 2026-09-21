@@ -55,7 +55,7 @@ function mountMathBlock() {
 
 type Block = ReturnType<typeof mountMathBlock>;
 
-describe('canonical reset — every exit lands in the same idle state', () => {
+describe('canonical reset: every exit lands in the same idle state', () => {
 	const exits: [string, (b: Block) => Promise<void>][] = [
 		['fold-commit', async (b) => void b.interaction.foldRevealBeforeMutation()],
 		[
@@ -88,7 +88,7 @@ describe('canonical reset — every exit lands in the same idle state', () => {
 	}
 });
 
-describe('canonical reset — the machine is reusable after a fold', () => {
+describe('canonical reset: the machine is reusable after a fold', () => {
 	it('a fresh reveal → escape-fold cycle still works after Escape-cancel', async () => {
 		const b = mountMathBlock();
 		await b.reveal();
@@ -111,7 +111,7 @@ describe('canonical reset — the machine is reusable after a fold', () => {
 	});
 });
 
-describe('canonical reset — cancel nulls the record before awaiting the kernel restore', () => {
+describe('canonical reset: cancel nulls the record before awaiting the shared core restore', () => {
 	it('reads idle synchronously the instant Escape-cancel returns', async () => {
 		const b = mountMathBlock();
 		await b.reveal();

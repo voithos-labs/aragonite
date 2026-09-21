@@ -10,7 +10,7 @@ const paste = (
 
 // ── computeCodePaste: no fence bump ─────────────────────────────────────────
 
-describe('computeCodePaste — non-bumping paste', () => {
+describe('computeCodePaste: non-bumping paste', () => {
 	it('inserts plain text at a collapsed cursor', () => {
 		const result = paste({
 			display: '```\nfoo\n```',
@@ -55,7 +55,7 @@ describe('computeCodePaste — non-bumping paste', () => {
 
 // ── computeCodePaste: fence bump ────────────────────────────────────────────
 
-describe('computeCodePaste — fence bump', () => {
+describe('computeCodePaste: fence bump', () => {
 	it('bumps closed fence when the paste contains a run equal to the outer fence', () => {
 		const result = paste({ display: '```\n\n```', selection: { start: 4, end: 4 }, pasted: '```' });
 		expect(result.text).toBe('````\n```\n````');
@@ -94,7 +94,7 @@ describe('computeCodePaste — fence bump', () => {
 		expect(result.text).toBe('```\nfoo```\n```');
 	});
 
-	it('bumps for a closer run the splice FORMS against the bytes already there', () => {
+	it('bumps for a closer run the splice forms against the bytes already there', () => {
 		const result = paste({ display: '```\n`\n```', selection: { start: 4, end: 4 }, pasted: '``' });
 		expect(result.text).toBe('````\n```\n````');
 	});

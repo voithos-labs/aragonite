@@ -9,7 +9,7 @@ import { makeEnv, makeHandlers, selectAcross, makeBeforeInputEvent } from './typ
 // Miss-analysis: this path's pins asserted the survivor's kind and bytes, never the path and
 // offset it hands the caret, so a landing aimed at a vacated position could not fail.
 
-describe('cross-block typed character — a fold above the survivor', () => {
+describe('cross-block typed character: a fold above the survivor', () => {
 	it('lands the caret in the block the fold left standing', async () => {
 		const env = makeEnv('a\n# h\n\n# kkk\n');
 		const paths: number[][] = [];

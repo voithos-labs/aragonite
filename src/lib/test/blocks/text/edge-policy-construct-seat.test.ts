@@ -65,13 +65,13 @@ describe('a symmetric pair extends or not by the arrival on record', () => {
 	// the auto-pair's answer, or a byte placed past the closer would arrive without its partner.
 	// Miss-analysis: every case here typed a letter, so the `beforeinput` auto-pair, which keydown
 	// pre-empts by writing first, was never asked about a delimiter placed this way.
-	it('writes a delimiter’s twin at the seat, not a lone byte', () => {
+	it('writes a delimiter’s paired closer at the caret position, not a lone byte', () => {
 		const h = mount(BOLD, 'live', 'far');
 		expect(h.handleKeydown(key('`'), at(11))).toBe(true);
 		expect(h.edits).toEqual([[0, 'Some **bold**`` text\n', 11, 14]]);
 	});
 
-	it('declines with no arrival on record — a click keeps the construct’s near side', () => {
+	it('declines with no arrival on record: a click keeps the construct’s near side', () => {
 		const h = mount(BOLD, 'live', null);
 		expect(h.handleKeydown(key('X'), at(11))).toBe(false);
 	});
@@ -103,7 +103,7 @@ describe('a never-extend construct writes outside whatever the arrival', () => {
 	});
 });
 
-describe('the seat claims only a live caret typing at an edge', () => {
+describe('the caret position claims only a live caret typing at an edge', () => {
 	// Source mode and the preview modes draw the delimiter, so the byte the user sees is the byte
 	// they get and the browser's own insertion is already right.
 	it.each([undefined, 'source', 'preview-block', 'preview-inline'])('declines in %s', (mode) => {

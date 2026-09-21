@@ -24,7 +24,7 @@ describe('warn-gate svelte channel', () => {
 		expect(fires[0].message).toContain('different identities');
 	});
 
-	it('claims a svelte code through the same door every dev-warn tag takes', () => {
+	it('claims a svelte code through the same entry point every dev-warn tag takes', () => {
 		emitSvelteWarn('derived_inert');
 		expect(allowDevWarns(['svelte:derived_inert'])).toHaveLength(1);
 		expect(takeDevWarns()).toEqual([]);

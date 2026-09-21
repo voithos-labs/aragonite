@@ -21,7 +21,7 @@ const minimal = {
 afterEach(() => __resetSchemaRegistriesForTests());
 
 describe('augmentBlockKind rejects built-in kinds', () => {
-	it('throws when the kind is a built-in — a plugin cannot rewrite it', () => {
+	it('throws when the kind is a built-in: a plugin cannot rewrite it', () => {
 		// `editable: true` is a no-op merge, so a missing throw cannot corrupt paragraph.
 		expect(() => augmentBlockKind('paragraph', { editable: true })).toThrow(/built-in/i);
 	});
@@ -31,7 +31,7 @@ describe('augmentBlockKind rejects built-in kinds', () => {
 		expect(() => augmentBlockKind(kind, { editable: false })).toThrow(/no base descriptor/i);
 	});
 
-	it('merges into a registered plugin kind — the surviving public path', () => {
+	it('merges into a registered plugin kind: the surviving public path', () => {
 		const kind = declarePluginKind('augmentablePlugin');
 		registerBlockKind(kind, minimal);
 		augmentBlockKind(kind, { renderImagesAsWidgets: true });
@@ -48,7 +48,7 @@ describe('container-group augments are gated on the registered category', () => 
 		);
 	});
 
-	it('augmentBuiltin shares the gate — a built-in leaf refuses container fields', () => {
+	it('augmentBuiltin shares the gate: a built-in leaf refuses container fields', () => {
 		expect(() => augmentBuiltin('paragraph', { container: { rebuildRaw: () => {} } })).toThrow(
 			/registered as a leaf/
 		);
@@ -122,7 +122,7 @@ describe('augmentBlockKind ownership gate', () => {
 	});
 });
 
-describe('augmentBuiltin — the sanctioned built-in wire-up seam', () => {
+describe('augmentBuiltin: the one allowed built-in wire-up', () => {
 	it('merges into a built-in descriptor where augmentBlockKind refuses', () => {
 		const original = tryGetBlockKindDescriptor('paragraph')!;
 		try {

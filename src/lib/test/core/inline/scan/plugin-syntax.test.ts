@@ -36,7 +36,7 @@ describe('inline-syntax registry', () => {
 		expect(getInlineRungs('%')).toHaveLength(0);
 	});
 
-	it('registers a trigger once — a duplicate throws', () => {
+	it('registers a trigger once: a duplicate throws', () => {
 		registerInlineSyntax('$', recognizeMath);
 		expect(() => registerInlineSyntax('$', recognizeMath)).toThrow(/already registered/);
 	});
@@ -63,12 +63,12 @@ describe('inline-syntax registry', () => {
 
 // The probe set is about cost, not correctness: a handler on a trigger `SPECIAL_CHARS` already
 // checks must stay out of it, or every character pays for a check the fast bail already makes.
-describe('inline-syntax registry — what the fast bail must probe', () => {
+describe('inline-syntax registry: what the fast bail must probe', () => {
 	it('reports nothing to probe until a trigger is registered', () => {
 		expect(hasScanProbeRungs()).toBe(false);
 	});
 
-	it('stays off for a prefix rung on a scan-visible reserved trigger', () => {
+	it('stays off for a prefix inline syntax handler on a scan-visible reserved trigger', () => {
 		registerInlineSyntax('[', recognizeMath, { prefix: '[^', priority: 40 });
 		expect(hasScanProbeRungs()).toBe(false);
 	});
@@ -85,7 +85,7 @@ describe('inline-syntax registry — what the fast bail must probe', () => {
 // ── Scanner integration ──────────────────────────────────────────────────────
 
 describe('inline-syntax recognition', () => {
-	it('is dormant until registered — $ stays plain text', () => {
+	it('is dormant until registered: $ stays plain text', () => {
 		const nodes = parseInline('a $x$ b', 0, 7);
 		expect(nodes).toEqual([textNode(0, 7, 'a $x$ b')]);
 	});

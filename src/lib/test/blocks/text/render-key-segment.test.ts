@@ -56,13 +56,13 @@ describe('renderKeySegmentDiff', () => {
 		);
 	});
 
-	it('names islands when the island part appears', () => {
+	it('names widgets when the widget part appears', () => {
 		const before = key({ raw: 'x' });
 		const after = key({ raw: 'x', islands: islandRenderKeyPart([island(1)]) });
 		expect(renderKeySegmentDiff(before, after)).toBe('islands');
 	});
 
-	it('names mode on a presentation flip, independent of islands', () => {
+	it('names mode on a presentation flip, independent of widgets', () => {
 		expect(renderKeySegmentDiff(key({ raw: 'x' }), key({ raw: 'x', mode: 'reading' }))).toBe(
 			'mode'
 		);

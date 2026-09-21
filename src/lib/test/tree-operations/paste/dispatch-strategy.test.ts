@@ -11,7 +11,7 @@ function makePara(raw: string): CstNode {
 
 const blocksOf = (source: string) => parse(source).children;
 
-describe('paste-dispatch — strategy selection', () => {
+describe('paste-dispatch: strategy selection', () => {
 	it('picks inline for a single-paragraph clipboard', () => {
 		expect(pickPasteStrategy(blocksOf('just some text\n'))).toBe('inline');
 	});
@@ -30,7 +30,7 @@ describe('paste-dispatch — strategy selection', () => {
 
 // A kind that holds no blocks skips over the copy's packaging; every other target reads the
 // clipboard whole, which is what keeps a pasted blank run a blank run in prose.
-describe('paste-dispatch — the clipboard’s content blocks', () => {
+describe('paste-dispatch: the clipboard’s content blocks', () => {
 	const WRAPPED = '  \nhello\nworld\n  ';
 
 	it('drops the blank blocks a copy wrapped around one paragraph', () => {
@@ -54,7 +54,7 @@ describe('paste-dispatch — the clipboard’s content blocks', () => {
 	});
 });
 
-describe('paste-dispatch — default inline hook', () => {
+describe('paste-dispatch: default inline hook', () => {
 	it('splices text at offset into raw', () => {
 		const node = makePara('hello world\n');
 		const result = defaultInlineHook(node, 5, ' XYZ');

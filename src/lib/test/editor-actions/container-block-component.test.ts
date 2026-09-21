@@ -138,7 +138,7 @@ describe('createContainerBlockComponent', () => {
 
 // `focus` ends a live cross-block range so the next keystroke cannot type over the
 // document; `parkCaret` deliberately does not.
-describe('createContainerBlockComponent — the two caret doors', () => {
+describe('createContainerBlockComponent: the two caret entry points', () => {
 	function withRange(refs: BlockComponent[]) {
 		const selection = createSelectionState();
 		selection.enterCrossBlock({ path: [0], offset: 0 }, { path: [4], offset: 2 });
@@ -155,7 +155,7 @@ describe('createContainerBlockComponent — the two caret doors', () => {
 		expect(refs[0].focus).toHaveBeenCalledWith(0);
 	});
 
-	it('parkCaret leaves it live — the extend paths depend on that', () => {
+	it('parkCaret leaves it live: the extend paths depend on that', () => {
 		const refs = [makeRef(), makeRef()];
 		const { selection, api } = withRange(refs);
 
@@ -166,7 +166,7 @@ describe('createContainerBlockComponent — the two caret doors', () => {
 	});
 
 	// The half that matters: the selection extend's range survives (BlockComponent.parkCaret).
-	it('a child without the park door is skipped, not landed through focus', () => {
+	it('a child without `parkCaret` is skipped, not landed through focus', () => {
 		const bare = { focus: vi.fn(), getCursorOffset: () => null } as unknown as BlockComponent;
 		const { selection, api } = withRange([bare]);
 
@@ -178,7 +178,7 @@ describe('createContainerBlockComponent — the two caret doors', () => {
 
 	// `parkCaret` is optional so an external leaf may omit it; the documented cost is a
 	// missed `parkCaret`, never a stranded caret on an ordinary focus walk.
-	it('focus lands in a child without the park door, through its focus', () => {
+	it('focus lands in a child without `parkCaret`, through its focus', () => {
 		const bare = { focus: vi.fn(), getCursorOffset: () => null } as unknown as BlockComponent;
 		const { selection, api } = withRange([bare]);
 
@@ -191,7 +191,7 @@ describe('createContainerBlockComponent — the two caret doors', () => {
 
 // The ThematicBreak model through the container component: with a focus element getter,
 // caret entry lands on that element instead of walking absent children.
-describe('createContainerBlockComponent — whole-block focus (getFocusEl)', () => {
+describe('createContainerBlockComponent: whole-block focus (getFocusEl)', () => {
 	function wholeBlock(focusEl: HTMLElement | null, refs: BlockComponent[] = []): BlockComponent {
 		return createContainerBlockComponent(
 			makeShimDeps(refs, { node: mermaidNode(), getFocusEl: () => focusEl })
@@ -250,7 +250,7 @@ describe('createContainerBlockComponent — whole-block focus (getFocusEl)', () 
 // The component always exposes measurePartialRects, which the search and decoration
 // overlays measure a childless container through. A container with children returns
 // nothing and is never asked: the overlay checks delegatesPainting, not this return.
-describe('createContainerBlockComponent — measurePartialRects (opaque single-unit)', () => {
+describe('createContainerBlockComponent: measurePartialRects (opaque single-unit)', () => {
 	const RECT = { left: 4, top: 8, width: 120, height: 40 } as unknown as DOMRect;
 	const boxEl = () => ({ getBoundingClientRect: () => RECT }) as unknown as HTMLElement;
 
@@ -271,7 +271,7 @@ describe('createContainerBlockComponent — measurePartialRects (opaque single-u
 		expect(shim({}).measurePartialRects).toBeTypeOf('function');
 	});
 
-	it('a child-bearing container returns [] — children self-paint', () => {
+	it('a child-bearing container returns []: children self-paint', () => {
 		expect(shim({ childCount: 2, getBoxEl: boxEl }).measurePartialRects!(0, 5)).toEqual([]);
 	});
 

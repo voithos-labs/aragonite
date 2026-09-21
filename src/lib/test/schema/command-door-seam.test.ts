@@ -50,7 +50,7 @@ function target(ran: string[]): KindCommandTarget {
 
 const reading = (): PresentationMode => 'reading';
 
-describe('runCommandById tier order', () => {
+describe('runCommandById level order', () => {
 	it('the global table wins over a block command registered under the same id', () => {
 		const ranBlock: string[] = [];
 		const id = registerBlockCommand('paragraph', 'demo.dual', () => {

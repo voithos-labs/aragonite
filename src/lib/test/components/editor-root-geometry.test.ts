@@ -50,7 +50,7 @@ function boxed(width: number, height: number) {
 const borderBox = (blockSize: number) =>
 	[{ borderBoxSize: [{ blockSize, inlineSize: 0 }] }] as unknown as ResizeObserverEntry[];
 
-describe('editor-root geometry — width watcher', () => {
+describe('editor-root geometry: width watcher', () => {
 	it('fires on a width change only, and disconnects on teardown', () => {
 		const box = boxed(400, 300);
 		let changes = 0;
@@ -66,7 +66,7 @@ describe('editor-root geometry — width watcher', () => {
 	});
 });
 
-describe('editor-root geometry — viewport-height watcher', () => {
+describe('editor-root geometry: viewport-height watcher', () => {
 	it('bumps on a window resize, and stops after teardown', () => {
 		let bumps = 0;
 		const teardown = installViewportHeightWatcher(window, () => bumps++);
@@ -90,7 +90,7 @@ describe('editor-root geometry — viewport-height watcher', () => {
 	});
 });
 
-describe('editor-root geometry — type-scale probe', () => {
+describe('editor-root geometry: type-scale probe', () => {
 	function probe(fontSizePx: number, scale: number) {
 		const box = boxed(0, fontSizePx);
 		const reported: number[] = [];
@@ -118,7 +118,7 @@ describe('editor-root geometry — type-scale probe', () => {
 	});
 });
 
-describe('editor-root geometry — header slot compensation', () => {
+describe('editor-root geometry: header slot compensation', () => {
 	function slot(opts: { scrollTop?: number; owns?: boolean; holds?: boolean } = {}) {
 		const box = boxed(400, 40);
 		let top = opts.scrollTop ?? 120;

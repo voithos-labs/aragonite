@@ -37,7 +37,7 @@ const recognizeColon: InlineSyntaxRecognizer = (_raw, pos) => ({
 
 // ── Deterministic dispatch order ────────────────────────────────────────────────
 
-describe('inline ladder — deterministic order (registration order never matters)', () => {
+describe('inline priority order: deterministic order (registration order never matters)', () => {
 	// Priority ascending, then prefix length descending, then prefix alphabetical. A bare
 	// handler (no prefix) takes the trigger as its effective prefix.
 	const rungs: Array<{ prefix?: string; priority: number }> = [
@@ -80,8 +80,8 @@ describe('inline ladder — deterministic order (registration order never matter
 
 // ── Reserved-prefix dispatch (the pre-switch consultation) ───────────────────────
 
-describe('inline ladder — reserved-trigger prefix rungs', () => {
-	it('a matching prefix rung claims ahead of the built-in `[` handler', () => {
+describe('inline priority order: reserved-trigger prefix inline syntax handlers', () => {
+	it('a matching prefix inline syntax handler claims ahead of the built-in `[` handler', () => {
 		const raw = 'see [^x] here';
 		registerInlineSyntax('[', recognizeFootnote, { prefix: '[^', priority: 40 });
 		const nodes = parseInline(raw, 0, raw.length);
@@ -99,7 +99,7 @@ describe('inline ladder — reserved-trigger prefix rungs', () => {
 		expect(parseInline(raw, 0, raw.length)).toEqual(clean);
 	});
 
-	it('a plain link bracket never triggers the `[^` rung', () => {
+	it('a plain link bracket never triggers the `[^` inline syntax handler', () => {
 		const raw = '[label](/url)';
 		const clean = scanClean(raw);
 		registerInlineSyntax('[', recognizeFootnote, { prefix: '[^', priority: 40 });

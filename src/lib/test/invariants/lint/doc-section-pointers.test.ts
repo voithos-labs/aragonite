@@ -26,7 +26,7 @@ const pointers = files.flatMap((file) => pointersIn(file, readFileSync(file, 'ut
 
 // ── The corpus ───────────────────────────────────────────────────────────────
 
-describe('§ pointer corpus — non-vacuity', () => {
+describe('§ pointer corpus: non-vacuity', () => {
 	it('reaches every file kind a pointer is cited from', () => {
 		expect(files.length).toBeGreaterThan(1000);
 		for (const ext of ['.ts', '.svelte', '.md']) {
@@ -55,7 +55,7 @@ describe('§ pointer corpus — non-vacuity', () => {
 
 // ── The matcher ──────────────────────────────────────────────────────────────
 
-describe('§ pointer resolution — self-tests', () => {
+describe('§ pointer resolution: self-tests', () => {
 	const editorHeadings = headingsOf(readFileSync('docs/design/editor.md', 'utf8'));
 
 	it('indexes a real doc rather than an empty heading set', () => {
@@ -119,7 +119,7 @@ describe('§ pointer resolution — self-tests', () => {
 // The § reader was added beside these, and a restructure that broke them would still print a
 // clean summary line.
 
-describe('path and symbol references — still enforced', () => {
+describe('path and symbol references: still enforced', () => {
 	it('parses both spellings of a reference out of a doc', () => {
 		const { references, malformed } = referencesIn(
 			'x.md',

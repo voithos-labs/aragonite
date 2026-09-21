@@ -41,7 +41,7 @@ const surface = (runCommand = vi.fn(() => true)): KindCommandTarget => ({
 	isCommandActive: () => true
 });
 
-describe('a range command with the arm wired', () => {
+describe('a range command with the branch wired', () => {
 	const ctx = context({ crossBlockCommands: router() });
 
 	it.each(TOGGLES)('%s is admissible, and the press spends the arm, not the surface', (id) => {
@@ -51,7 +51,7 @@ describe('a range command with the arm wired', () => {
 		expect(run).not.toHaveBeenCalled();
 	});
 
-	it('the link editor stays declined: it mints over one block, and no arm answers for it', () => {
+	it('the link editor stays declined: it creates over one block, and no branch answers for it', () => {
 		expect(canRunCommandById(TOOLBAR_COMMANDS.editLink, surface(), ctx)).toBe(false);
 		expect(runCommandById(TOOLBAR_COMMANDS.editLink, undefined, surface(), ctx)).toBe(false);
 	});
@@ -73,7 +73,7 @@ describe('a range command with the arm wired', () => {
 
 // The case that matters: a caller that passes no router hands `undefined`, and the rewrites must
 // decline there rather than rewriting against the focused block.
-describe('a range command with no arm threaded', () => {
+describe('a range command with no branch threaded', () => {
 	it.each(TOGGLES)('%s declines, and the focused surface is never asked', (id) => {
 		const run = vi.fn(() => true);
 		expect(canRunCommandById(id, surface(), context())).toBe(false);
@@ -83,14 +83,14 @@ describe('a range command with no arm threaded', () => {
 });
 
 describe('the pressed-state read follows the same route', () => {
-	it('the arm answers over a range, and the surface answers at a caret', () => {
+	it('the branch answers over a range, and the surface answers at a caret', () => {
 		const armed = context({ crossBlockCommands: router({ isActive: () => false }) });
 		expect(isCommandActiveById(TOGGLES[0], surface(), armed)).toBe(false);
 		const collapsed = context({ isCrossBlockRange: () => false });
 		expect(isCommandActiveById(TOGGLES[0], surface(), collapsed)).toBe(true);
 	});
 
-	it('a range no arm reads has no pressed state, whatever the parked caret sits inside', () => {
+	it('a range no branch reads has no pressed state, whatever the resting caret sits inside', () => {
 		expect(isCommandActiveById(TOGGLES[0], surface(), context())).toBe(false);
 		expect(isCommandActiveById(TOOLBAR_COMMANDS.editLink, surface(), context())).toBe(false);
 	});

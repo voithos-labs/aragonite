@@ -22,7 +22,7 @@ function run(
 	return { source: serialize(result.newDoc), caret: result.collapsedCaret };
 }
 
-describe('rangeDelete — same-container cases', () => {
+describe('rangeDelete: same-container cases', () => {
 	it('deletes a range within a single paragraph', () => {
 		const { source, caret } = run('abcdef\n', { path: [0], offset: 1 }, { path: [0], offset: 4 });
 		expect(source).toBe('aef\n');
@@ -49,7 +49,7 @@ describe('rangeDelete — same-container cases', () => {
 	});
 });
 
-describe('rangeDelete — cross-container start-wins', () => {
+describe('rangeDelete: cross-container start-wins', () => {
 	it('start outside container, end inside blockquote: merges at top level, blockquote cleans up', () => {
 		const { source, caret } = run(
 			'before paragraph\n\n> quote line 1\n> quote line 2\n',
@@ -91,7 +91,7 @@ describe('rangeDelete — cross-container start-wins', () => {
 	});
 });
 
-describe('rangeDelete — end-container post-end siblings preservation', () => {
+describe('rangeDelete: end-container post-end siblings preservation', () => {
 	it('end inside first item of unordered list preserves later items', () => {
 		const src =
 			'## Unordered Lists\n\n- Unordered one\n- Unordered two\n  - Nested item\n- Unordered three\n';
@@ -130,7 +130,7 @@ describe('rangeDelete — end-container post-end siblings preservation', () => {
 	});
 });
 
-describe('rangeDelete — boundary offsets', () => {
+describe('rangeDelete: boundary offsets', () => {
 	it('start.offset = 0 keeps empty head, re-parses as paragraph from endTail', () => {
 		const { source } = run(
 			'# heading text\n\nfollow paragraph\n',
@@ -146,7 +146,7 @@ describe('rangeDelete — boundary offsets', () => {
 	});
 });
 
-describe('rangeDelete — cascade identity discipline (Tier 2 G2)', () => {
+describe('rangeDelete: cascade identity discipline (Tier 2 G2)', () => {
 	// Cleanup and delete share one identity check: an iteration whose path resolves to a different
 	// node (a survivor that slid into the position after a deeper cleanup) must skip both the
 	// splice and the ancestor walk.

@@ -22,7 +22,7 @@ function build(node: InlineNode, brokenUrlCache: Set<string>): HTMLElement {
 	});
 }
 
-describe('buildImageWidget — broken-URL cache (per-instance isolation)', () => {
+describe('buildImageWidget: broken-URL cache (per-instance isolation)', () => {
 	it('a cached broken URL marks the rebuilt widget broken synchronously', () => {
 		const cache = new Set<string>();
 		const node = imageNode();
@@ -78,7 +78,7 @@ describe('buildImageWidget — broken-URL cache (per-instance isolation)', () =>
 
 // Miss-analysis (#50): every widget-dom test asserted the widget's own DOM, none the path it
 // reports, and no fixture ever put a widget inside a block whose path the lookup stops short of.
-describe('buildImageWidget — the path a click emits', () => {
+describe('buildImageWidget: the path a click emits', () => {
 	it('names the enclosing cell, not the table block the walk stops at (#50)', () => {
 		const host = document.createElement('div');
 		host.setAttribute('data-block-path', '[1]');
@@ -104,7 +104,7 @@ describe('buildImageWidget — the path a click emits', () => {
 // Miss-analysis: nothing asserted what a `|WxH` size puts on the element, so the two attributes
 // read as "sizes the rendered widget" (syntax-tree.md § Inline nodes) while the decoded natural
 // ratio quietly won every layout back through the stylesheet's `height: auto`.
-describe('buildImageWidget — declared dimensions', () => {
+describe('buildImageWidget: declared dimensions', () => {
 	function widgetFor(source: string): HTMLImageElement {
 		const node = parseInline(source, 0, source.length).find((n) => n.kind === 'image');
 		if (!node) throw new Error('expected an image node');

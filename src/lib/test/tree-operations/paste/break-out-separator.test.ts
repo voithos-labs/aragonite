@@ -59,7 +59,7 @@ describe('a paste that breaks a list out settles the slot it spliced', () => {
 
 	// A blank block above the list is the list's separating line, so the list carries none and
 	// the splice must not create one either.
-	it('mints nothing below a blank block the run already answers for', async () => {
+	it('creates nothing below a blank block the run already answers for', async () => {
 		const doc = parse('intro\n\n\n- one\n- two\n');
 		expect(layout(doc)).toEqual([
 			['', 'intro\n'],

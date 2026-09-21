@@ -9,13 +9,13 @@ describe('focusTargetInReplacement', () => {
 		expect(focusTargetInReplacement(nodes, 2)).toEqual({ index: 0, offset: 2 });
 	});
 
-	it('maps an offset in a later block to a local offset (skipping its trivia)', () => {
+	it('maps an offset in a later block to a local offset (skipping its blank lines)', () => {
 		// Fence body [0,9], blank line, paragraph [11,16].
 		const nodes = parse('```\nx\n```\n\nhello\n').children;
 		expect(focusTargetInReplacement(nodes, 16)).toEqual({ index: 1, offset: 5 });
 	});
 
-	it('lands an offset inside inter-block trivia at the next block start', () => {
+	it('lands an offset inside inter-block blank lines at the next block start', () => {
 		const nodes = parse('```\nx\n```\n\nhello\n').children;
 		expect(focusTargetInReplacement(nodes, 10)).toEqual({ index: 1, offset: 0 });
 	});

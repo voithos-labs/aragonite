@@ -78,7 +78,7 @@ describe('structural-sharing snapshots', () => {
 		expect(serialize(deps.doc)).toBe('alpha\n\n\ndelta\n');
 	});
 
-	it('mutating a shared node between push and restore trips the integrity oracle', async () => {
+	it('mutating a shared node between push and restore trips the integrity check', async () => {
 		const { deps, controller, history } = makeHarness('hello\n');
 		controller.pushUndoSnapshot(0, 0);
 		// Stands in for a missed copy-before-write: a raw write through a node the entry shares.

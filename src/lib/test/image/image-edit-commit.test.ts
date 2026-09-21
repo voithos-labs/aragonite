@@ -4,7 +4,7 @@ import { getInlineContent } from '../../core/inline/inline-cache';
 import type { CstNode } from '../../core/nodes';
 import { committerFor } from './committer-harness';
 
-describe('image edit commit — redundant-commit guard (E1)', () => {
+describe('image edit commit: redundant-commit guard (E1)', () => {
 	it('does not commit when the new image bytes equal the current source', async () => {
 		const { committer, controller, doc } = committerFor('![alt](url)\n');
 		const para = doc.children[0] as CstNode;

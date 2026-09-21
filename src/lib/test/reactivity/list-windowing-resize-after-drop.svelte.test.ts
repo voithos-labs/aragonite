@@ -11,7 +11,7 @@ import { makePara, mountListWindowing } from '../harness/list-windowing.svelte';
 const MEASURED = 100;
 const RESIZED = 140;
 
-describe('a resize after the oracle dropped its cache', () => {
+describe('a resize after the check dropped its cache', () => {
 	it('still re-measures the block into the model', async () => {
 		const oracle = createHeightOracle({
 			lineHeight: HEIGHT_ESTIMATES.proseLineHeight,

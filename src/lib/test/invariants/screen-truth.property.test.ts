@@ -61,7 +61,7 @@ function oracleVisibleText(raw: string, mode: PresentationMode, contentEmpty: bo
 
 afterEach(() => document.body.replaceChildren());
 
-describe('the node-space oracle and the DOM walk agree on what the reader sees', () => {
+describe('the node-space check and the DOM walk agree on what the reader sees', () => {
 	it.each(MODES)('over generated inline source in %s', (mode) => {
 		fc.assert(
 			fc.property(arbRawString, fc.boolean(), (raw, contentEmpty) => {

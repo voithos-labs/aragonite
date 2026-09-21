@@ -224,7 +224,7 @@ const GESTURES: EditGesture[] = [
 
 const mirrorToCrlf = (bytes: string) => bytes.replace(/\n/g, '\r\n');
 
-describe('G4.20 CRLF-mirror oracle', () => {
+describe('G4.20 CRLF-mirror check', () => {
 	for (const gesture of GESTURES) {
 		it(`${gesture.name} emits the CRLF mirror of its LF result`, async () => {
 			// Mirror-identity, not "contains no lone LF": an untouched line rewritten under a

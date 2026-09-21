@@ -40,7 +40,7 @@ function deleteSelected(doc: Document, s: ReturnType<typeof stateOver>): string 
 afterEach(() => resetPluginPlatformForTests());
 
 describe('cross-block endpoints inside a whole-block kind', () => {
-	it('snaps a range END to the unit end, so the copy carries the diagram whole', () => {
+	it('snaps a range end to the unit end, so the copy carries the diagram whole', () => {
 		const doc = mermaidDoc();
 		const s = stateOver(doc);
 
@@ -51,7 +51,7 @@ describe('cross-block endpoints inside a whole-block kind', () => {
 		expect(copySelected(doc, s)).toBe('text\n\n```mermaid\ngraph TD\n```');
 	});
 
-	it('snaps a range START to the unit start, so the delete removes the fence whole', () => {
+	it('snaps a range start to the unit start, so the delete removes the fence whole', () => {
 		const doc = mermaidDoc();
 		const s = stateOver(doc);
 

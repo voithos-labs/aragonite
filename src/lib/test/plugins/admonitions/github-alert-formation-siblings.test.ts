@@ -15,7 +15,7 @@ beforeAll(() => {
 	installPlugins([admonitionsPlugin()]);
 });
 
-describe('github alert — formation through sibling paths', () => {
+describe('github alert: formation through sibling paths', () => {
 	it('forms from a multi-block paste into the blockquote body', async () => {
 		const h = containerAt('> x\n', [0]);
 

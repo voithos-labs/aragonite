@@ -56,7 +56,7 @@ describe('the tableCell escape has one implementation', () => {
 describe('every cell content write routes through the caret-mapping wrapper', () => {
 	const sources = collectEditorSources();
 
-	it('the cell writes the raw bundle exactly once — the wrapper itself', () => {
+	it('the cell writes the raw bundle exactly once: the wrapper itself', () => {
 		const cell = sources.find((f) => f.relPath === CELL);
 		expect(cell, `${CELL} not found`).toBeDefined();
 		const raw = receivers(cell!.code).filter((name) => name === 'parentBlockEdit');

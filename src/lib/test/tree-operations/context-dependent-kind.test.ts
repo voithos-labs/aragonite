@@ -22,7 +22,7 @@ function registerChromeKind() {
 	return chrome;
 }
 
-describe('updateNodeContent — contextDependentKind stickiness', () => {
+describe('updateNodeContent: contextDependentKind stickiness', () => {
 	beforeEach(() => __resetSchemaRegistriesForTests());
 
 	it('keeps a context-dependent kind through a content edit (no downgrade)', () => {
@@ -48,7 +48,7 @@ describe('updateNodeContent — contextDependentKind stickiness', () => {
 // Every cell gesture's text reaches the row's verbatim bytes through the write branch
 // above, so the legality pass belongs there. Three gestures carried it individually and
 // each lost it; these pin the write itself so a fourth cannot.
-describe('updateNodeContent — the kind’s normalizeRawWrite runs at the write', () => {
+describe('updateNodeContent: the kind’s normalizeRawWrite runs at the write', () => {
 	beforeEach(() => __resetSchemaRegistriesForTests());
 
 	/**
@@ -87,7 +87,7 @@ describe('updateNodeContent — the kind’s normalizeRawWrite runs at the write
 		expect(writeCellAndReparse(['d', 'e'], 0, 'd\nX')).toEqual(['d X', 'e']);
 	});
 
-	it('is idempotent through the seam — rewriting an escaped cell adds no backslash', () => {
+	it('is idempotent through the join, rewriting an escaped cell adds no backslash', () => {
 		expect(writeCellAndReparse(['a\\|b', 'keep'], 0, 'a\\|bY')).toEqual(['a\\|bY', 'keep']);
 	});
 
@@ -101,7 +101,7 @@ describe('updateNodeContent — the kind’s normalizeRawWrite runs at the write
 	});
 });
 
-describe('splitNode — contextDependentKind is unsplittable', () => {
+describe('splitNode: contextDependentKind is unsplittable', () => {
 	beforeEach(() => __resetSchemaRegistriesForTests());
 
 	it('no-ops on a context-dependent kind without mutating children', () => {

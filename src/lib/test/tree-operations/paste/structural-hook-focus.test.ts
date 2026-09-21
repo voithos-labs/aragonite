@@ -9,7 +9,7 @@ import type { CstNode } from '$lib/core/nodes';
 const para = (raw: string): CstNode => parse(raw).children[0];
 const twoBlocks = (): CstNode[] => parse('one\n\ntwo\n').children;
 
-describe('defaultStructuralHook — caret at end of pasted content', () => {
+describe('defaultStructuralHook: caret at end of pasted content', () => {
 	it('mid-paragraph paste focuses the last pasted block, not the trailing residue', () => {
 		const result = defaultStructuralHook(para('hello world\n'), 5, twoBlocks());
 		expect(result.replacement).toHaveLength(4);

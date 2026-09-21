@@ -62,7 +62,7 @@ describe('normalizeWhitespace', () => {
 	});
 });
 
-describe('escapedCellOffset — the caret follows the sink’s inserted backslashes', () => {
+describe('escapedCellOffset: the caret follows the sink’s inserted backslashes', () => {
 	it('shifts a caret that sits past a newly escaped pipe', () => {
 		// Cell was "ab"; the user typed "|" between a and b, DOM caret at 2.
 		expect(escapedCellOffset('a|b', 2)).toBe(3);
@@ -123,7 +123,7 @@ describe('tableCellInlinePaste', () => {
 
 	// The delete half is a join, and a cell's stranded runs are as unpainted as a paragraph's.
 	// The join runs before the escaping stage, which is why the escaping sees the final bytes.
-	describe('the delete half crosses the live join seam', () => {
+	describe('the delete half crosses the live join', () => {
 		beforeAll(() => registerLiveJoinSeamCleaner(cleanLiveJoinSeam));
 		afterAll(() => __resetLiveJoinSeamCleanerForTests());
 
@@ -144,7 +144,7 @@ describe('tableCellInlinePaste', () => {
 			expect(result.newRaw).toBe('Some bX');
 		});
 
-		it('the escaping stage still runs over what the seam wrote', () => {
+		it('the escaping stage still runs over what the join wrote', () => {
 			const { cells } = pasteIntoRow(
 				'a\\|b **z** c',
 				7,

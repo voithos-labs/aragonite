@@ -134,7 +134,7 @@ describe('details terminator collision through the real commit path', () => {
 });
 
 describe('details terminator escape caret image', () => {
-	it('maps the caret past the inserted entity so the re-render seats it correctly', () => {
+	it('maps the caret past the inserted entity so the re-render puts the caret it correctly', () => {
 		const h = mountDetails(OPEN_DETAILS);
 
 		// Caret after the typed `>` (offset 10) lands after the escaped `>` (13):
@@ -208,7 +208,7 @@ describe('details terminator escape caret image', () => {
 
 	// The structural path: a commit whose kind genuinely changes still escapes. Caret
 	// mapping is pinned in the details e2e; this harness mounts no component refs.
-	it('escapes on a kind-changing commit, the structural door', async () => {
+	it('escapes on a kind-changing commit, the structural entry point', async () => {
 		const h = mountDetails('<details>\n<summary>T</summary>\n\n```\nx\n```\n\n</details>\n');
 		expect(h.deps.doc.children[0].children?.[1].kind).toBe('fencedCode');
 

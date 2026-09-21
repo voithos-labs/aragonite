@@ -15,7 +15,7 @@ function makeHeading(raw: string): CstNode {
 	return { kind: 'heading', leadingTrivia: '', raw, metadata: { level: 1 } };
 }
 
-describe('replaceBlockAtParent — id preservation', () => {
+describe('replaceBlockAtParent: id preservation', () => {
 	it('same-kind first replacement inherits the original block id', async () => {
 		const harness = makeEditorActionsDeps([makePara('original\n')]);
 		const controller = createPasteCoordinator(

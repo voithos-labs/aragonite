@@ -100,7 +100,7 @@ describe('buildImageSourceBytes', () => {
 	});
 });
 
-describe('buildImageSourceBytes — reference form (label preserved)', () => {
+describe('buildImageSourceBytes: reference form (label preserved)', () => {
 	it('emits the reference form when a label is present', () => {
 		expect(buildImageSourceBytes({ alt: 'cat', url: 'resolved.png', label: 'ref' })).toBe(
 			'![cat][ref]'
@@ -125,7 +125,7 @@ describe('buildImageSourceBytes — reference form (label preserved)', () => {
 		).toBe('![cat|400x300][ref]');
 	});
 
-	it('does NOT write url or title in the reference form (they live in the LRD)', () => {
+	it('does not write url or title in the reference form (they live in the LRD)', () => {
 		const out = buildImageSourceBytes({
 			alt: 'cat',
 			url: 'resolved.png',
@@ -149,7 +149,7 @@ describe('buildImageSourceBytes — reference form (label preserved)', () => {
 	});
 });
 
-describe('buildImageSourceBytes — output re-parses as an image', () => {
+describe('buildImageSourceBytes: output re-parses as an image', () => {
 	const parsesToOneImage = (built: string): boolean => {
 		const nodes = parseInline(built, 0, built.length);
 		return nodes.length === 1 && nodes[0].kind === 'image';

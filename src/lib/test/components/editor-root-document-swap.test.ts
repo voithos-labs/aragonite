@@ -24,7 +24,7 @@ describe('initDocument', () => {
 	});
 });
 
-describe('the swap ceremony', () => {
+describe('the swap commit sequence', () => {
 	function harness() {
 		const order: string[] = [];
 		const step = (name: string) => () => void order.push(name);

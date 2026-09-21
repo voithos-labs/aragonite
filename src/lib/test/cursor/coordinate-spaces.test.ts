@@ -76,7 +76,7 @@ describe('coordinate-space brands (compile-time pins)', () => {
 
 	// Written as assignments, never called, so the checks need no runtime; checking at a call
 	// site would be exempt from bivariance on methods, and assignment is not.
-	it('the editable-surface seam rejects wrong-space offsets', () => {
+	it('the editable-surface boundary rejects wrong-space offsets', () => {
 		type SetRawArg = Parameters<CursorBackend['setRaw']>[0];
 
 		// @ts-expect-error a walk-space offset cannot enter the raw-space backend

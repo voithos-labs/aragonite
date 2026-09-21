@@ -33,7 +33,7 @@ function renderToContainer(
 	return container;
 }
 
-describe('G2.4 textContent spine (widget-free)', () => {
+describe('G2.4 textContent chain (widget-free)', () => {
 	it('textContent equals the source bytes', () => {
 		fc.assert(
 			fc.property(arbInlineSource, (source) => {
@@ -45,7 +45,7 @@ describe('G2.4 textContent spine (widget-free)', () => {
 		);
 	});
 
-	it('ambient prefix prepends exactly its text to the spine', () => {
+	it('ambient prefix prepends exactly its text to the chain', () => {
 		fc.assert(
 			fc.property(fc.constantFrom('## ', '- ', '> ', '1. '), arbInlineSource, (prefix, content) => {
 				const nodes = parseInline(content, 0, content.length);
@@ -80,7 +80,7 @@ describe('G2.4 textContent spine (widget-free)', () => {
 
 // An atomic widget contributes no textContent, because its bytes live in `data-source-*`
 // attributes, so the expected text is the source with each widget's byte range removed.
-describe('G2.4 textContent spine (atomic-widget delta)', () => {
+describe('G2.4 textContent chain (atomic-widget delta)', () => {
 	const buildImageWidget = (): Node => {
 		const shell = document.createElement('span');
 		shell.dataset.inlineWidget = '';
@@ -139,8 +139,8 @@ describe('G2.4 textContent spine (atomic-widget delta)', () => {
 // A kind that declines image widgets renders the image into the text, so its bytes are the rule
 // rather than a subtraction. Built by hand, not parsed: a plugin's inline handler may derive an
 // alt from anywhere, so no parsed corpus can state the rule the render path needs.
-describe('G2.4 textContent spine (alt-only images)', () => {
-	it('a minted image renders its own bytes, whatever its alt says', () => {
+describe('G2.4 textContent chain (alt-only images)', () => {
+	it('a created image renders its own bytes, whatever its alt says', () => {
 		fc.assert(
 			fc.property(arbAltOnlyImage, ({ raw, node }) => {
 				const nodes: InlineNode[] = [];
@@ -162,7 +162,7 @@ describe('G2.4 textContent spine (alt-only images)', () => {
 // Snapping at the start (a boundary inside an atomic widget that spans bytes) is unreachable here,
 // because the corpus emits no images or `<br>`. `decorations/island-dom.test.ts` is its only
 // check; do not merge it into this property.
-describe('G2.4 textContent spine (decoration islands)', () => {
+describe('G2.4 textContent chain (decoration widgets)', () => {
 	const opts = { mountWidget: mountDecorationWidget };
 
 	type IslandSpec = { kind: 'widget'; at: number } | { kind: 'replace'; a: number; b: number };
@@ -242,7 +242,7 @@ describe('G2.4 textContent spine (decoration islands)', () => {
 		]
 	];
 
-	it('arbitrary widget + replace islands keep the walk-summed raw byte-exact', () => {
+	it('arbitrary widget + replace decorations keep the walk-summed raw byte-exact', () => {
 		fc.assert(
 			fc.property(arbInlineSource, arbIslandSpecs, (source, specs) => {
 				expect(readBackAfterIslands(source, specs)).toBe(source);
@@ -251,7 +251,7 @@ describe('G2.4 textContent spine (decoration islands)', () => {
 		);
 	});
 
-	it('the same fuzz behind an ambient prefix keeps the content spine byte-exact', () => {
+	it('the same fuzz behind an ambient prefix keeps the content chain byte-exact', () => {
 		fc.assert(
 			fc.property(
 				fc.constantFrom('## ', '- ', '> ', '1. '),

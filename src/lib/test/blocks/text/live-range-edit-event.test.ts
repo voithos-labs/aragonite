@@ -50,7 +50,7 @@ afterEach(() => {
 	window.getSelection()?.removeAllRanges();
 });
 
-describe('a collapsed insertion whose engine target disagrees with the DOM caret', () => {
+describe('a collapsed insertion whose browser target disagrees with the DOM caret', () => {
 	const node = parse(LINK).children[0];
 
 	// Chromium reads the point after a hidden `](u)` as the end of `ab` (raw 8); the caret a
@@ -72,7 +72,7 @@ describe('a collapsed insertion whose engine target disagrees with the DOM caret
 		});
 	});
 
-	it('leaves the engine its insert where the two agree', () => {
+	it('leaves the browser its insert where the two agree', () => {
 		placeCaret();
 		expect(
 			resolveLiveRangeEdit(insertEvent(' '), node, cursorReading(8, 8), 'live', undefined)
@@ -81,7 +81,7 @@ describe('a collapsed insertion whose engine target disagrees with the DOM caret
 
 	// A split leaves the caret at the reopened run's start, and the browser puts the byte past
 	// the hidden opener: after the caret, inside the construct, which is where it belongs.
-	it('leaves the engine an insert downstream of the caret', () => {
+	it('leaves the browser an insert downstream of the caret', () => {
 		placeCaret();
 		expect(
 			resolveLiveRangeEdit(insertEvent(' '), node, cursorReading(6, 5), 'live', undefined)

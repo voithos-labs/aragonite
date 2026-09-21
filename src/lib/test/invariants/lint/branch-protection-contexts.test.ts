@@ -201,7 +201,7 @@ describe('branch protection ↔ workflow check names', () => {
 // A reader that parses nothing makes both directions above pass on two empty sets, which is
 // the failure this census exists to prevent.
 
-describe('branch-protection context readers — self-tests', () => {
+describe('branch-protection context readers: self-tests', () => {
 	it('finds the real job set, matrix shards expanded', () => {
 		expect(ci.length).toBeGreaterThan(4);
 		expect(ci).toContain('unit');

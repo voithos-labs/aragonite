@@ -188,7 +188,7 @@ describe('registry-derived first-flush sweep', () => {
 		expect(byTag('keymap-coherence')[0].violation.message).toContain('pre-mount-keymap');
 	});
 
-	it('accepts a pre-mount plugin keymap binding its own minted command', () => {
+	it('accepts a pre-mount plugin keymap binding its own created command', () => {
 		const kind = declarePluginKind('pre-mount-command');
 		const command = registerBlockCommand(kind, 'toggleThing', () => true);
 		registerBlockKind(kind, { ...leaf, keymap: [{ chord: 'Mod+K', command }] });
@@ -216,7 +216,7 @@ describe('registry-derived first-flush sweep', () => {
 // The same keymap cases on the later, incremental path: the sibling path a first-run-only check,
 // or a known-command set holding only built-ins, would leave unguarded.
 describe('keymap coherence at the incremental flush', () => {
-	it('accepts a plugin keymap binding its own minted command', () => {
+	it('accepts a plugin keymap binding its own created command', () => {
 		flushPendingRegistrationChecks();
 		const kind = declarePluginKind('inc-minted');
 		const command = registerBlockCommand(kind, 'toggleIncThing', () => true);

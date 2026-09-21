@@ -55,7 +55,7 @@ describe('renderCodeBlock', () => {
 	];
 
 	for (const [name, node] of shapes) {
-		it(`preserves textContent invariant — ${name}`, () => {
+		it(`preserves textContent invariant: ${name}`, () => {
 			expect(renderCodeBlock(node).textContent).toBe(trimTrailingLineEnding(node.raw));
 		});
 	}
@@ -63,7 +63,7 @@ describe('renderCodeBlock', () => {
 
 // Each fence line is wrapped so reading/preview modes can collapse the whole line with
 // `display: none`; the wrappers must keep every raw byte in document order.
-describe('renderCodeBlock — fence-line wrappers', () => {
+describe('renderCodeBlock: fence-line wrappers', () => {
 	function fenceLines(frag: DocumentFragment): HTMLElement[] {
 		return Array.from(frag.querySelectorAll('.md-fence-line'));
 	}
@@ -110,14 +110,14 @@ describe('renderCodeBlock — fence-line wrappers', () => {
 	});
 });
 
-describe('renderCodeBlock — indented opener fence (parser accepts 0–3 spaces)', () => {
+describe('renderCodeBlock: indented opener fence (parser accepts 0–3 spaces)', () => {
 	// CodeBlock reads the block back through el.textContent and commits it, so indent bytes
 	// rendered out of order corrupt the fence on the first keystroke (indent 0 is the control).
 	for (const marker of ['`', '~'] as const) {
 		const fence = marker.repeat(3);
 		for (let indent = 0; indent <= 3; indent++) {
 			const pad = ' '.repeat(indent);
-			it(`preserves textContent — ${indent}-space ${marker} opener`, () => {
+			it(`preserves textContent: ${indent}-space ${marker} opener`, () => {
 				const raw = `${pad}${fence}js\ncode\n${fence}\n`;
 				const node = fencedCode(raw, 'js', { fenceMarker: marker });
 				const frag = renderCodeBlock(node);
@@ -138,7 +138,7 @@ describe('renderCodeBlock — indented opener fence (parser accepts 0–3 spaces
 
 // CodeBlock reads its rendered textContent back as raw on commit (CodeBlock.readText), so a
 // stray or dropped trailing `\r` is a CRLF round-trip corruption; interiors are pinned below.
-describe('renderCodeBlock — CRLF trailing line ending', () => {
+describe('renderCodeBlock: CRLF trailing line ending', () => {
 	const shapes: Array<[string, CstNode]> = [
 		['closed no-info', fencedCode('```\r\nhello\r\nworld\r\n```\r\n')],
 		['no-body', fencedCode('```\r\n```\r\n')],
@@ -149,7 +149,7 @@ describe('renderCodeBlock — CRLF trailing line ending', () => {
 	];
 
 	for (const [name, node] of shapes) {
-		it(`preserves textContent — ${name}`, () => {
+		it(`preserves textContent: ${name}`, () => {
 			expect(renderCodeBlock(node).textContent).toBe(trimTrailingLineEnding(node.raw));
 		});
 	}
@@ -157,9 +157,9 @@ describe('renderCodeBlock — CRLF trailing line ending', () => {
 
 // Keeping an all-blank body's separator (so it renders N blank lines, not N−1) must
 // not disturb byte parity: textContent stays trimTrailingLineEnding(raw) in every mode.
-describe('renderCodeBlock — all-blank body byte parity', () => {
+describe('renderCodeBlock: all-blank body byte parity', () => {
 	for (const blanks of [1, 2, 3]) {
-		it(`preserves textContent — ${blanks} blank line(s)`, () => {
+		it(`preserves textContent: ${blanks} blank line(s)`, () => {
 			const node = fencedCode('```\n' + '\n'.repeat(blanks) + '```\n');
 			expect(renderCodeBlock(node).textContent).toBe(trimTrailingLineEnding(node.raw));
 		});
@@ -168,12 +168,12 @@ describe('renderCodeBlock — all-blank body byte parity', () => {
 
 // A closer with no final line ending hits trimTrailingLineEnding's no-op branch in
 // trimSliceTail; textContent must still equal the raw verbatim or the closer dies on readback.
-describe('renderCodeBlock — closer without a final line ending', () => {
+describe('renderCodeBlock: closer without a final line ending', () => {
 	for (const [name, raw] of [
 		['LF', '```\ncode\n```'],
 		['CRLF', '```\r\ncode\r\n```']
 	] as const) {
-		it(`preserves textContent — ${name}`, () => {
+		it(`preserves textContent: ${name}`, () => {
 			const node = fencedCode(raw);
 			const frag = renderCodeBlock(node);
 			expect(frag.textContent).toBe(raw);
@@ -184,7 +184,7 @@ describe('renderCodeBlock — closer without a final line ending', () => {
 
 // tokenizeBody highlights an LF copy (template.innerHTML would drop every interior `\r`) and
 // restores each line's own ending positionally, reaching `\n` INSIDE token spans too.
-describe('renderCodeBlock — CRLF interior in the language path', () => {
+describe('renderCodeBlock: CRLF interior in the language path', () => {
 	const shapes: Array<[string, CstNode]> = [
 		['multi-line tagged body', fencedCode('```js\r\nlet a = 1\r\nlet b = 2\r\n```\r\n', 'js')],
 		[
@@ -204,7 +204,7 @@ describe('renderCodeBlock — CRLF interior in the language path', () => {
 	];
 
 	for (const [name, node] of shapes) {
-		it(`preserves textContent — ${name}`, () => {
+		it(`preserves textContent: ${name}`, () => {
 			expect(renderCodeBlock(node).textContent).toBe(trimTrailingLineEnding(node.raw));
 		});
 	}

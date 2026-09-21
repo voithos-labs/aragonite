@@ -86,7 +86,7 @@ function mountTwoMathBlock() {
 	};
 }
 
-describe('foldRevealIfSelectionEscaped — containment scope', () => {
+describe('foldRevealIfSelectionEscaped: containment scope', () => {
 	it('folds identity-exact, without a CST commit, when the caret leaves the source in-block', async () => {
 		const b = mountTwoMathBlock();
 		await b.revealFirst();
@@ -104,7 +104,7 @@ describe('foldRevealIfSelectionEscaped — containment scope', () => {
 		expect(b.el.childNodes[1] === b.firstWidget).toBe(true);
 	});
 
-	it('leaves the escaped caret alone — no pending-cursor override', async () => {
+	it('leaves the escaped caret alone: no pending-cursor override', async () => {
 		const b = mountTwoMathBlock();
 		await b.revealFirst();
 		b.pendingCursors.length = 0;
@@ -143,7 +143,7 @@ describe('foldRevealIfSelectionEscaped — containment scope', () => {
 		expect(b.commits).toEqual([]);
 	});
 
-	it('holds a reveal still settling — the fold window between showSource and placeCaret', async () => {
+	it('holds a reveal still settling: the fold window between showSource and placeCaret', async () => {
 		const b = mountTwoMathBlock();
 		// The click's own queued selectionchange lands after showSource swapped but before
 		// placeCaret moves into the source, so an unchecked containment test would hide it again.
@@ -166,7 +166,7 @@ describe('foldRevealIfSelectionEscaped — containment scope', () => {
 	});
 });
 
-describe('reveal switch — clicking widget B while A is revealed', () => {
+describe('reveal switch, clicking widget B while A is revealed', () => {
 	// The editor's own click handling hides A in place and shows B as one sequence,
 	// rather than stopping because one is already shown; no selectionchange competes.
 	it('folds A and reveals B in one sequenced gesture through the click dispatch', async () => {

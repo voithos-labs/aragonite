@@ -37,7 +37,7 @@ function isLeafAt(doc: Document, path: number[]): boolean {
 	return !('children' in node) || !node.children || node.children.length === 0;
 }
 
-describe('rangeDelete — survivor caret when both endpoint tables are consumed', () => {
+describe('rangeDelete: survivor caret when both endpoint tables are consumed', () => {
 	it('descends into a surviving container instead of naming its bare path', () => {
 		const { doc, caret } = run(FLAT, { path: [0], offset: 0 }, { path: [1], offset: 3 });
 

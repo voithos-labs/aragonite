@@ -16,7 +16,7 @@ import { describeConvergence } from '$lib/test/harness/parse-converged';
 // could absorb what landed.
 
 describe('a structural paste whose result the block above absorbs', () => {
-	it('settles the seam the splice disturbed', async () => {
+	it('settles the join the splice disturbed', async () => {
 		const { deps } = makeEditorActionsDeps(parse('- a\n\nzz\n'));
 		const controller = createUndoController(deps);
 

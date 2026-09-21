@@ -14,7 +14,7 @@ import { describeConvergence } from '$lib/test/harness/parse-converged';
 // absorb it.
 
 describe('a replace whose result the block above absorbs', () => {
-	it('settles the seam the splice disturbed', async () => {
+	it('settles the join the splice disturbed', async () => {
 		const { deps } = makeEditorActionsDeps(parse('- a\n\nxx\n'));
 		const sr = createSearchReplace(deps, createUndoController(deps));
 

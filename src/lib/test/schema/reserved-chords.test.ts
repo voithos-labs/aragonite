@@ -26,7 +26,7 @@ function ke(init: Partial<KeyboardEventInit> & { key: string }): KeyboardEvent {
 	return new KeyboardEvent('keydown', init);
 }
 
-describe('collectReservedChords — sources', () => {
+describe('collectReservedChords: sources', () => {
 	it('unions the kind keymaps and the editor-global keymap', () => {
 		const set = chords();
 		// Prose keymap, table-cell keymap, and undo/redo.
@@ -75,7 +75,7 @@ describe('collectReservedChords — sources', () => {
 	});
 });
 
-describe('collectReservedChords — per-instance overrides', () => {
+describe('collectReservedChords: per-instance overrides', () => {
 	const withOverrides = (overrides: Parameters<typeof normalizeKeybindingOverrides>[0]) =>
 		collectReservedChords({
 			searchBar: true,
@@ -101,7 +101,7 @@ describe('collectReservedChords — per-instance overrides', () => {
 	// The released half of the disable: the host may take Mod+Z across the app, and its handler
 	// runs while focus is outside the editor. Inside the editor the keypress is still swallowed,
 	// the other half, pinned in `components/gap-caret-global-chord.svelte.test.ts`.
-	it('drops a disabled GLOBAL chord even though the arms still consume it', () => {
+	it('drops a disabled global chord even though the branches still consume it', () => {
 		expect(withOverrides([{ chord: 'Mod+Z', command: null }]).has('Mod+Z')).toBe(false);
 	});
 
@@ -110,14 +110,14 @@ describe('collectReservedChords — per-instance overrides', () => {
 		expect(withOverrides([{ chord: 'Mod+C', command: null }]).has('Mod+C')).toBe(true);
 	});
 
-	it('leaves other instances alone — a kind-scoped disable is not a global one', () => {
+	it('leaves other instances alone: a kind-scoped disable is not a global one', () => {
 		expect(withOverrides([{ chord: 'Mod+B', command: null, kind: 'paragraph' }]).has('Mod+B')).toBe(
 			true
 		);
 	});
 });
 
-describe('chordIsClaimed — the editor normalization, not the caller', () => {
+describe('chordIsClaimed: the editor normalization, not the caller', () => {
 	const set = chords();
 
 	it('folds Ctrl and Cmd to one answer', () => {

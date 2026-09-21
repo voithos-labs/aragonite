@@ -19,7 +19,7 @@ beforeEach(() => {
 // Enter is the second way into the body. Both halves are reachable, which is why the write
 // escapes both: the anchored recognizer spares a tag line with text on either side, and the
 // split is what leaves it alone on its line.
-describe('details terminator escape at the split door', () => {
+describe('details terminator escape at the split entry point', () => {
 	const detailsOwner = () => ({ ownerKind: declaredPluginKind(DETAILS), owner: undefined });
 
 	it('escapes the second half when the cut strands a trailing tag', () => {
@@ -55,13 +55,13 @@ describe('details terminator escape at the split door', () => {
 // The cross-block operations write the body themselves rather than going through the
 // per-block path. Joining two lines can create a terminator line out of two that each held
 // none, which is why they need the rule as much as typing does.
-describe('details terminator escape at the cross-block doors', () => {
+describe('details terminator escape at the cross-block entry points', () => {
 	// Both children are ordinary loaded shapes: the tag sits mid-line, where the
 	// anchored recognizer never sees it. The delete is what strands it at column 0.
 	const MID_LINE_TAG =
 		'<details>\n<summary>T</summary>\n\nalpha\nbeta\n\nxx</details>\nmore\n\n</details>\n';
 
-	it('escapes a terminator the cross-block delete mints at the join', () => {
+	it('escapes a terminator the cross-block delete creates at the join', () => {
 		const doc = parse(MID_LINE_TAG);
 		expect(doc.children[0].children?.length).toBe(3);
 

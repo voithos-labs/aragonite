@@ -17,7 +17,7 @@ const request = (texts: string[], pattern: string, epoch = 1) => ({
 const SLOW_PATTERN = '(a+)+$';
 const SLOW_TEXT = `${'a'.repeat(22)}!`;
 
-describe('createRegexExecutor — synchronous fallback', () => {
+describe('createRegexExecutor: synchronous fallback', () => {
 	it('returns one range list per text, in order, echoing the epoch', async () => {
 		const executor = createRegexExecutor();
 		const outcome = await executor.scan(request(['ab ab', 'zz', 'ab'], 'ab', 7));

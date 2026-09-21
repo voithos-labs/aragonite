@@ -26,7 +26,7 @@ function dispatch(
 	return { done, parentFocus, child, gapStop };
 }
 
-describe('dispatchMoveFocus — scope-edge gap stops', () => {
+describe('dispatchMoveFocus: scope-edge gap stops', () => {
 	it('stops at the scope start instead of delegating upward', async () => {
 		const d = dispatch(-1, 'end', true);
 		await d.done;
@@ -60,7 +60,7 @@ describe('dispatchMoveFocus — scope-edge gap stops', () => {
 	});
 });
 
-describe('dispatchMoveFocus — between-sibling gap stops', () => {
+describe('dispatchMoveFocus: between-sibling gap stops', () => {
 	it('stops before entering the target sibling', async () => {
 		const d = dispatch(1, 'start', true);
 		await d.done;

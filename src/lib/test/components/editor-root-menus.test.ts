@@ -105,7 +105,7 @@ function selectInside(el: Element): void {
 	sel?.addRange(range);
 }
 
-describe('editor-root menus — the right-click', () => {
+describe('editor-root menus: the right-click', () => {
 	it("a block opens its kind's actions, and a pick runs through the block-edit bundle", async () => {
 		const h = harness();
 		expect(h.rightClick(h.fence.firstElementChild!).defaultPrevented).toBe(true);

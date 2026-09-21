@@ -145,7 +145,7 @@ describe('list-windowing reveal anchor', () => {
 // writer that trusted it would move the user instead of compensating them. Two rows below are
 // unreachable from the e2e harness (the observer never wins the race in a real trace, and the
 // clamped case needs a document shorter than its target).
-describe('revealHoldsScroll — the orderings a second writer can land in', () => {
+describe('revealHoldsScroll: the orderings a second writer can land in', () => {
 	const HEADER_BEFORE = 80;
 	const HEADER_AFTER = 240;
 	const DELTA = HEADER_AFTER - HEADER_BEFORE;

@@ -7,7 +7,7 @@ const ranges = (q: string, opts: Partial<Parameters<typeof compileMatcher>[1]> =
 	return r.matcher.findAll(text);
 };
 
-describe('compileMatcher — literal', () => {
+describe('compileMatcher: literal', () => {
 	it('empty query yields no matches', () => {
 		expect(ranges('', {}, 'anything')).toEqual([]);
 	});
@@ -36,7 +36,7 @@ describe('compileMatcher — literal', () => {
 	});
 });
 
-describe('compileMatcher — regex', () => {
+describe('compileMatcher: regex', () => {
 	it('returns an error for an invalid pattern instead of throwing', () => {
 		const r = compileMatcher('(', { caseSensitive: false, wholeWord: false, regex: true });
 		expect(r.ok).toBe(false);

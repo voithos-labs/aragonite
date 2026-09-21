@@ -28,7 +28,7 @@ describe('@voithos-labs/aragonite/plugin inline authoring surface', () => {
 		expect(pluginBarrel.registerInlineWidgetKind).toBe(registerInlineWidgetKind);
 	});
 
-	it('re-exports the inline-kind mint, lookup, and idempotence probe', () => {
+	it('re-exports the inline-kind create, lookup, and idempotence probe', () => {
 		expect(pluginBarrel.declarePluginInlineKind).toBe(declarePluginInlineKind);
 		expect(pluginBarrel.declaredPluginInlineKind).toBe(declaredPluginInlineKind);
 		expect(pluginBarrel.isInlineKindDeclared).toBe(isInlineKindDeclared);
@@ -42,7 +42,7 @@ describe('@voithos-labs/aragonite/plugin inline authoring surface', () => {
 		__clearDeclaredPluginInlineKindsForTests();
 	});
 
-	it('keeps the internal inline seams off the barrel', () => {
+	it('keeps the internal inline modules off the barrel', () => {
 		for (const seam of [
 			'augmentInlineWidgetKind',
 			'getInlineWidgetEditing',

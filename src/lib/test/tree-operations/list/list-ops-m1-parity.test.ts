@@ -27,7 +27,7 @@ function runM1AsCommit(list: CstNode, currentIndex: number): void {
 	list.children = children;
 }
 
-describe('mergeListItemIntoPrevious — container children/childIds parity', () => {
+describe('mergeListItemIntoPrevious: container children/childIds parity', () => {
 	it('row 2: current item has nested sub-list absorbed into target (mutates targetItem)', () => {
 		const doc = parse('- A\n- B\n  - C\n');
 		const list = doc.children[0];
@@ -48,7 +48,7 @@ describe('mergeListItemIntoPrevious — container children/childIds parity', () 
 		assertContainerParity(list);
 	});
 
-	it('row 4: deep nesting — depth-1 list grows with current nested-list items', () => {
+	it('row 4: deep nesting; depth-1 list grows with current nested-list items', () => {
 		const doc = parse('- A\n  - B\n    - C\n- D\n  - E\n');
 		const list = doc.children[0];
 		seedChildIdsRecursive(list);

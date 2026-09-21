@@ -47,7 +47,7 @@ describe('captureScrollPosition', () => {
 		expect(scroller.scrollTop()).toBe(500);
 	});
 
-	it('stands down while a reveal claim holds the viewport', async () => {
+	it('does nothing while a reveal claim holds the viewport', async () => {
 		const scroller = mountScroller(500);
 		const restore = captureScrollPosition(scroller.block, () => true);
 

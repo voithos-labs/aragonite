@@ -132,7 +132,7 @@ describe('createCellRender', () => {
 
 	// A plugin's `![[…]]` handler makes a built-in image whose alt names the target, so the
 	// cell's alt-only path meets a node whose markers are not the two GFM ones.
-	it('renders a plugin-minted image as its own source bytes', () => {
+	it('renders a plugin-created image as its own source bytes', () => {
 		registerEmbedRung();
 		const { el, render } = mount('![[cat.png]]');
 		render.render();
@@ -143,7 +143,7 @@ describe('createCellRender', () => {
 	// mode would paint as an empty cell with no caret position.
 	// Miss-analysis: the cell is the third place marker spans are created, and the two prose
 	// blocks carried the content-empty rule while this one was never asked the question.
-	it('stamps a cell whose whole content is chrome, and drops the stamp when text arrives', () => {
+	it('marks a cell whose whole content is chrome, and drops the mark when text arrives', () => {
 		const ctx = mount('[](u)');
 		ctx.render.render();
 		expect(ctx.el.hasAttribute('data-content-empty')).toBe(true);
@@ -245,7 +245,7 @@ describe('createCellRender', () => {
 
 	// ── Decorations (the same as the prose render, with no marker prefix) ──────
 
-	it('applies a replace island in a cell, covering the raw range', () => {
+	it('applies a replace decoration in a cell, covering the raw range', () => {
 		const { el, render, setIslands } = mount('a SECRET b');
 		setIslands([
 			replaceIsland(2, 8, () => Object.assign(document.createElement('span'), { textContent: '…' }))

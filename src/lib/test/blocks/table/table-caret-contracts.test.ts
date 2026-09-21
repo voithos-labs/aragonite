@@ -51,8 +51,8 @@ describe('the table markup contributes no characters to the raw-offset walk', ()
 	});
 });
 
-describe('the table lands a caret through the door and at the offset it was asked for', () => {
-	it('parks in the corner cell without ending a live cross-block range', () => {
+describe('the table lands a caret through the entry point and at the offset it was asked for', () => {
+	it('puts the caret in the corner cell without ending a live cross-block range', () => {
 		// Non-vacuity is the pair of assertions: a placement that declined to move the caret
 		// would also leave the range alone. Landing through the cell's focus call is the
 		// failure: it ends the range, and the next Shift+Arrow extends from a collapsed caret.
@@ -76,7 +76,7 @@ describe('the table lands a caret through the door and at the offset it was aske
 
 	// Miss-analysis (GH #111): the row's entry points passed on a literal 0 whatever they were
 	// given, and no test addressed a row directly; every case went through the table or a path.
-	it('a row-level door forwards the received sentinel, not literal 0', () => {
+	it('a row-level entry point forwards the received sentinel, not literal 0', () => {
 		mounted = mountTable(GRID);
 		const row = mounted.block.getBlockComponentByPath!([2])!;
 

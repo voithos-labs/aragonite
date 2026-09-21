@@ -19,15 +19,15 @@ function makeState(allowCreate: () => boolean = () => true) {
 	return { card, onOpen };
 }
 
-describe('the create door', () => {
-	it('declines when canOpenCreate says no, seating nothing', () => {
+describe('the create entry point', () => {
+	it('declines when canOpenCreate says no, placing nothing', () => {
 		const { card, onOpen } = makeState(() => false);
 		expect(card.enterCreate({ path: [0], start: 1, end: 3 })).toBe(false);
 		expect(card.getCreateTarget()).toBeNull();
 		expect(onOpen).not.toHaveBeenCalled();
 	});
 
-	it('seats the range, snapshots the caret and bumps the focus epoch', () => {
+	it('puts the caret at the range, snapshots the caret and bumps the focus epoch', () => {
 		const { card, onOpen } = makeState();
 		expect(card.enterCreate({ path: [0], start: 6, end: 11 })).toBe(true);
 		expect(card.getCreateTarget()).toEqual({ path: [0], start: 6, end: 11 });
@@ -49,7 +49,7 @@ describe('the create door', () => {
 	});
 });
 
-describe('the chord entry vets the range before the door', () => {
+describe('the chord entry vets the range before the entry point', () => {
 	function enter(
 		card: ReturnType<typeof makeState>['card'],
 		source: string,

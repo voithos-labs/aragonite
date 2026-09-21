@@ -34,7 +34,7 @@ afterEach(async () => {
 	resetInlineState();
 });
 
-describe('a reveal commit in a cell parks its caret in escaped space', () => {
+describe('a reveal commit in a cell puts the caret its caret in escaped space', () => {
 	it('a `|` typed into the revealed source moves the caret it sits before', async () => {
 		registerMathInline();
 		mounted = mountCell(CELL);
@@ -58,7 +58,7 @@ describe('a reveal commit in a cell parks its caret in escaped space', () => {
 		expect(instance.getCursorOffset()).toBe(committedCaret);
 	});
 
-	it('a source edit with no free pipe parks where it always did', async () => {
+	it('a source edit with no free pipe puts the caret where it always did', async () => {
 		registerMathInline();
 		mounted = mountCell(CELL);
 		const { el, blockEdit, instance } = mounted;

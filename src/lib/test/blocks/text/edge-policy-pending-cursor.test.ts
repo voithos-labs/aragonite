@@ -46,8 +46,8 @@ function mountIsland(source: string, at: number) {
 
 installEdgeDispatchCleanup();
 
-describe('an arm that composes new text reports what its caret addresses', () => {
-	it('typing beside a CST widget parks against the raw it just wrote', () => {
+describe('a branch that composes new text reports what its caret addresses', () => {
+	it('typing beside a CST widget puts the caret against the raw it just wrote', () => {
 		const b = mountWidget('hello ![a](u) world', 'image');
 		caretAfter(b.island);
 
@@ -57,7 +57,7 @@ describe('an arm that composes new text reports what its caret addresses', () =>
 		]);
 	});
 
-	it('typing beside a decoration island parks against the display it just wrote', () => {
+	it('typing beside a decoration widget puts the caret against the display it just wrote', () => {
 		const b = mountIsland('hello\n', 5);
 		caretAfter(b.island);
 
@@ -67,7 +67,7 @@ describe('an arm that composes new text reports what its caret addresses', () =>
 
 	// The decoration edit path reports its text on both branches. Its delete maps to itself, but
 	// the rule belongs to the branch as a whole: splitting it per case is how a later caller misses.
-	it('deleting through an island reports its text too, mapping to identity', () => {
+	it('deleting through a widget reports its text too, mapping to identity', () => {
 		const b = mountIsland('hello\n', 5);
 		caretAfter(b.island);
 
@@ -76,8 +76,8 @@ describe('an arm that composes new text reports what its caret addresses', () =>
 	});
 });
 
-describe('an arm that slices raw reports no text — it parks ahead of every changed byte', () => {
-	it('an atomic widget delete parks at the widget start', () => {
+describe('a branch that slices raw reports no text: it puts the caret ahead of every changed byte', () => {
+	it('an atomic widget delete puts the caret at the widget start', () => {
 		const b = mountWidget('a&copy;b', 'entityReference');
 
 		expect(b.dispatch.handleKeydown(key('Backspace'), asRawOffset(b.widget.end))).toBe(true);

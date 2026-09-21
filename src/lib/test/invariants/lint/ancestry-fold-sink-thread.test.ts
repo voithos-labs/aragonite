@@ -110,7 +110,7 @@ function sinkCalls(relPath: string, rawText: string): SinkCall[] {
 describe('ancestry-rebuild fold-sink source-scan', () => {
 	const calls = collectEditorSources().flatMap((f) => sinkCalls(f.relPath, f.text));
 
-	it('found the seam call sites to validate', () => {
+	it('found the call sites to validate', () => {
 		expect(new Set(calls.map((c) => c.relPath)).size).toBe(Object.keys(SITES).length);
 	});
 

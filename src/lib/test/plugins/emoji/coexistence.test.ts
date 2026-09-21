@@ -19,25 +19,25 @@ afterEach(() => resetPluginPlatformForTests());
 const scan = (raw: string) => parseInline(raw, 0, raw.length);
 const kindsIn = (raw: string) => scan(raw).map((n: InlineNode) => n.kind);
 
-describe('emoji and the directive text tier coexist on `:`', () => {
-	it('a bare :smile: is an emoji — the directive rung declined it', () => {
+describe('emoji and the directive text level coexist on `:`', () => {
+	it('a bare :smile: is an emoji; the directive inline syntax handler declined it', () => {
 		const emoji = scan(':smile:').find((n) => n.kind === EMOJI_KIND);
 		expect(emoji).toMatchObject({ start: 0, end: 7, decoded: '😄' });
 	});
 
-	it(':name[label]{.cls} stays a directive — emoji never sees a closing colon', () => {
+	it(':name[label]{.cls} stays a directive; emoji never sees a closing colon', () => {
 		const nodes = scan(':name[label]{.cls}');
 		expect(nodes[0].kind).toBe(DIRECTIVE_TEXT);
 		expect(kindsIn(':name[label]{.cls}')).not.toContain(EMOJI_KIND);
 	});
 
-	it('a bare :name is literal — neither rung claims it', () => {
+	it('a bare :name is literal; neither inline syntax handler claims it', () => {
 		expect(kindsIn(':name')).toEqual(['text']);
 	});
 
 	// A shortcode not in the table falls through rather than being taken by the `+10`
 	// handler: the directive handler was asked first, so a miss leaves ordinary prose.
-	it('an unknown :notaname: stays literal after both rungs decline', () => {
+	it('an unknown :notaname: stays literal after both inline syntax handlers decline', () => {
 		expect(kindsIn(':notaname:')).toEqual(['text']);
 	});
 });
@@ -45,7 +45,7 @@ describe('emoji and the directive text tier coexist on `:`', () => {
 // The other install order a consumer can write: emoji takes `:` first, so an activation
 // asking "does anyone own `:`" rather than "have I already registered" would skip its own
 // recognizer and leave the directive handler dead. A byte round trip would not notice.
-describe('the directive text tier survives a plugin that took `:` first', () => {
+describe('the directive text level survives a plugin that took `:` first', () => {
 	beforeEach(() => {
 		resetPluginPlatformForTests();
 		installPlugins([emojiPlugin()]);
@@ -62,7 +62,7 @@ describe('the directive text tier survives a plugin that took `:` first', () => 
 });
 
 describe('resetPluginPlatformForTests reaches the emoji registration', () => {
-	it('clears the `:` rung so a re-install does not throw on a duplicate', () => {
+	it('clears the `:` inline syntax handler so a re-install does not throw on a duplicate', () => {
 		resetPluginPlatformForTests();
 		expect(() => installPlugins([emojiPlugin()])).not.toThrow();
 		expect(scan(':smile:').find((n) => n.kind === EMOJI_KIND)).toBeDefined();

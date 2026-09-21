@@ -216,7 +216,7 @@ describe('container child spans', () => {
 		expect(splices, 'the splice path never ran').toBeGreaterThan(PARAMS.numRuns / 4);
 	});
 
-	it('a write through the shipped door leaves the raw a full rebuild would write', async () => {
+	it('a write through the shipped entry point leaves the raw a full rebuild would write', async () => {
 		let spliced = 0;
 		let retired = 0;
 		await fc.assert(

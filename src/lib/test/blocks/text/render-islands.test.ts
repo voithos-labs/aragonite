@@ -23,12 +23,12 @@ const widgetIsland = (offset: number, buildDom?: () => HTMLElement): Island => (
 	}
 });
 
-describe('text-render island wiring', () => {
-	it('no islands contribute nothing to the render key (zero-cost parity)', () => {
+describe('text-render widget wiring', () => {
+	it('no widgets contribute nothing to the render key (zero-cost parity)', () => {
 		expect(islandRenderKeyPart([])).toBe('');
 	});
 
-	it('an empty island set never rebuilds, even across fresh array identities', () => {
+	it('an empty widget set never rebuilds, even across fresh array identities', () => {
 		const { el, deps, setIslands } = makeRenderHarness(blockNode('hello world\n'));
 		const render = createTextRender(deps);
 		render.render();
@@ -38,7 +38,7 @@ describe('text-render island wiring', () => {
 		expect(el.firstChild).toBe(firstChild);
 	});
 
-	it('an island set renders islands; an unchanged signature does not rebuild', () => {
+	it('a widget set renders widgets; an unchanged signature does not rebuild', () => {
 		const { el, deps, setIslands } = makeRenderHarness(blockNode('hello world\n'));
 		const render = createTextRender(deps);
 		setIslands([widgetIsland(5)]);
@@ -71,7 +71,7 @@ describe('text-render island wiring', () => {
 		);
 	});
 
-	it('the caret survives an island-signature rebuild of the focused block', () => {
+	it('the caret survives a widget-signature rebuild of the focused block', () => {
 		const { el, deps, setIslands } = makeRenderHarness(blockNode('hello world\n'));
 		const render = createTextRender(deps);
 		render.render();
@@ -87,7 +87,7 @@ describe('text-render island wiring', () => {
 		expect(domTextOffsetAtNode(el, after.focusNode!, after.focusOffset)).toBe(7);
 	});
 
-	it("an island widget's own <br> does not satisfy the empty block's caret anchor", () => {
+	it("a decoration widget's own <br> does not satisfy the empty block's caret anchor", () => {
 		const emptyParagraph: CstNode = { kind: 'paragraph', leadingTrivia: '', raw: '\n' };
 		const { el, deps, setIslands } = makeRenderHarness(emptyParagraph);
 		const render = createTextRender(deps);
@@ -105,7 +105,7 @@ describe('text-render island wiring', () => {
 		expect(anchorBrs.length).toBe(1);
 	});
 
-	it('a prose→non-prose kind change destroys stranded islands', () => {
+	it('a prose→non-prose kind change destroys stranded widgets', () => {
 		const { el, deps, setIslands, setNode } = makeRenderHarness(blockNode('hello world\n'));
 		const render = createTextRender(deps);
 		setIslands([widgetIsland(5)]);
@@ -152,7 +152,7 @@ describe('caret-carry gate', () => {
 		expect(renderTraceKinds()).not.toContain('cursor-restore');
 	});
 
-	it('the default carry re-anchors the caret across an island-signature rebuild', () => {
+	it('the default carry re-anchors the caret across a widget-signature rebuild', () => {
 		const { el, deps, setIslands } = makeRenderHarness(blockNode('hello world\n'));
 		const render = createTextRender(deps);
 		render.render();

@@ -47,7 +47,7 @@ describe('normalizeCellRaw', () => {
 
 	// `escapedCellOffset` maps a caret by running this pass over the prefix, which
 	// is only exact because each character's output depends on no later character.
-	it('is prefix-composable — a prefix normalizes to the prefix of the normalization', () => {
+	it('is prefix-composable: a prefix normalizes to the prefix of the normalization', () => {
 		const text = 'a|b\\|c\nd|e';
 		const whole = normalizeCellRaw(text);
 		for (let i = 0; i <= text.length; i++) {

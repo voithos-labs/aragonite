@@ -45,7 +45,7 @@ const mermaidProfile: ContainerConformanceProfile = {
 	terminatorCollision: { mode: 'assert' }
 };
 
-describe('G4.3 conformance kit — the childless opaque container', () => {
+describe('G4.3 conformance kit: the childless opaque container', () => {
 	beforeEach(() => {
 		resetPluginPlatformForTests();
 		registerMermaidKind();
@@ -63,7 +63,7 @@ describe('G4.3 conformance kit — the childless opaque container', () => {
 
 	// Non-vacuity: the cell has to see this container's collision, not simply pass over a write
 	// that never reached its bytes.
-	it('fails the terminator cell when the fixture seats the body nowhere', async () => {
+	it('fails the terminator cell when the fixture puts the caret at the body nowhere', async () => {
 		await expect(
 			runContainerConformance(MERMAID_KIND(), {
 				...mermaidProfile,

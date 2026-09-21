@@ -33,7 +33,7 @@ function tailSource(seen: { blocks: number; epoch: number }[]): DecorationSource
 	};
 }
 
-describe('a `source` prop swap signals the decoration engine', () => {
+describe('a `source` prop swap signals the decorations subsystem', () => {
 	it('re-provides every registered source against the new document', async () => {
 		const { editor, props } = mountEditor('one\n\ntwo\n\nthree\n');
 		const seen: { blocks: number; epoch: number }[] = [];

@@ -35,7 +35,7 @@ describe('reclassifyContainer', () => {
 		expect(checkStaleRaw(doc.children[0])).toBeNull();
 	});
 
-	it('carries the slot leading trivia onto the replacement', () => {
+	it('carries the slot leading blank lines onto the replacement', () => {
 		const doc: Document = parse('intro\n\n> [!TI\n');
 		const quoteIndex = 1;
 		const trivia = doc.children[quoteIndex].leadingTrivia;
@@ -81,7 +81,7 @@ describe('reclassifyContainer', () => {
 		expect(container.children[0].kind).toBe(kind);
 	});
 
-	it('leaves leaf blocks alone — updateNodeContent owns their kind', () => {
+	it('leaves leaf blocks alone: updateNodeContent owns their kind', () => {
 		const doc: Document = parse('plain\n');
 		doc.children[0].raw = '# heading\n';
 

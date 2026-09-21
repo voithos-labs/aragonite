@@ -105,7 +105,7 @@ function contentPreserved(before: readonly CstNode[], from: number, after: reado
 }
 
 describe('a reorder lands its block whole beside any neighbour', () => {
-	it('keeps every content block, converges on reload, and mints separators in the document’s own ending', () => {
+	it('keeps every content block, converges on reload, and creates separators in the document’s own ending', () => {
 		fc.assert(
 			fc.property(arbShape, (shape) => {
 				const md = markdownOf(shape);

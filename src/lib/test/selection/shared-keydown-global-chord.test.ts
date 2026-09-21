@@ -59,7 +59,7 @@ beforeEach(() => {
 	__resetMintedCommandIdsForTests();
 });
 
-describe('handleSharedKeydown — plugin-global chord deferral', () => {
+describe('handleSharedKeydown: plugin-global chord deferral', () => {
 	it('preventDefaults a plugin-global chord and returns false so the surface dispatch runs', async () => {
 		registerGlobalCommand('demo.chord', () => true, { chord: 'Mod+Shift+7' });
 		const e = keydown({ key: '7', ctrlKey: true, shiftKey: true });
@@ -70,7 +70,7 @@ describe('handleSharedKeydown — plugin-global chord deferral', () => {
 		expect(e.defaultPrevented).toBe(true);
 	});
 
-	it('leaves an unregistered chord alone — the preventDefault is gated on the predicate', async () => {
+	it('leaves an unregistered chord alone: the preventDefault is gated on the predicate', async () => {
 		const e = keydown({ key: '7', ctrlKey: true, shiftKey: true });
 
 		const handled = await handleSharedKeydown(e, makeCtx());

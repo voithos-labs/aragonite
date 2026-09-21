@@ -85,7 +85,7 @@ describe('a non-breaking space is content on every block axis', () => {
 		expect(editorOutline(source)).toEqual(referenceOutline(source));
 	});
 
-	it('is not vacuous — the outline distinguishes the pre-narrowing structure', () => {
+	it('is not vacuous: the outline distinguishes the pre-narrowing structure', () => {
 		expect(referenceOutline(`a\n${NBSP}\nb\n`)).toEqual(['paragraph']);
 		expect(referenceOutline('a\n\nb\n')).toEqual(['paragraph', 'paragraph']);
 	});

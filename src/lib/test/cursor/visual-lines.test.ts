@@ -237,7 +237,7 @@ describe('isAtFirstVisualLine / isAtLastVisualLine', () => {
 		expect(isAtLastVisualLine(block, 8, 11)).toBe(false);
 	});
 
-	it('isAtFirstVisualLine: falls back to the landable start when the rect is unmeasurable', () => {
+	it('isAtFirstVisualLine: falls back to the first reachable offset when the rect is unmeasurable', () => {
 		placeCursor(0);
 		Range.prototype.getClientRects = function (this: Range): DOMRectList {
 			return this.collapsed ? rectListOf(null) : rectListOf(rectAt(0));
@@ -252,7 +252,7 @@ describe('isAtFirstVisualLine / isAtLastVisualLine', () => {
 		expect(isAtFirstVisualLine(block, 3, 3)).toBe(true);
 	});
 
-	it('isAtLastVisualLine: falls back to the landable end when the rect is unmeasurable', () => {
+	it('isAtLastVisualLine: falls back to the reachable end when the rect is unmeasurable', () => {
 		placeCursor(11);
 		Range.prototype.getClientRects = function (this: Range): DOMRectList {
 			return this.collapsed ? rectListOf(null) : rectListOf(rectAt(40));
@@ -318,7 +318,7 @@ describe('a caret with no rect of its own reads the line off the box it sits aga
 		sel.addRange(range);
 	}
 
-	it('a widget-only block is one visual line from either edge of the island', () => {
+	it('a widget-only block is one visual line from either edge of the widget', () => {
 		stubRects(() => rectAt(40));
 		placeCursorAt(0);
 		expect(isAtFirstVisualLine(block, 0, 0)).toBe(true);
@@ -330,7 +330,7 @@ describe('a caret with no rect of its own reads the line off the box it sits aga
 
 	// A widget wide enough to wrap sits on its own line below the text, the shape an inline image
 	// makes: the caret against it is on the last line but no longer on the first.
-	it('an island on its own line below the text is the last line, not the first', () => {
+	it('a widget on its own line below the text is the last line, not the first', () => {
 		block.insertBefore(document.createTextNode('a'), island);
 		// The widget is at [1]; the block's whole contents start at [0] and span both lines.
 		stubRects((start) => (start === 1 ? rectAt(30, 120) : rectAt(0, 150)));

@@ -31,7 +31,7 @@ describe('the folded trailing blank materializes when the tail turns blank (GH #
 		expect(change).toEqual({ op: 'insert', at: 1, count: 1 });
 	});
 
-	it('the CRLF twin materializes its CRLF line', () => {
+	it('the CRLF variant materializes its CRLF line', () => {
 		const doc = parse('foo\r\n\r\n');
 
 		updateNodeContent(doc, 0, '\r\n');
@@ -87,7 +87,7 @@ describe('the folded trailing blank materializes when the tail turns blank (GH #
 	// The full-table delete fills the emptied document itself (`range-delete-table-coverage`), so
 	// the fix-up meets a blank tail the caller already reported: the block it creates has to
 	// widen that window rather than land outside it.
-	it('widens a caller-minted filler window when the folded line materializes beside it', () => {
+	it('widens a caller-created filler window when the folded line materializes beside it', () => {
 		const doc = parse('| H |\n| - |\n\n');
 
 		const change = settled(doc, (body) => {

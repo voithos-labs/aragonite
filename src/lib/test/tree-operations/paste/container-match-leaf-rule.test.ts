@@ -42,7 +42,7 @@ describe('container-matching paste into a leaf with its own write rule', () => {
 		expectParseConverged(doc);
 	});
 
-	it('leaves a splice that mints no closer alone', async () => {
+	it('leaves a splice that creates no closer alone', async () => {
 		const doc = parse(ITEM_WITH_CODE);
 
 		await pasteInto(doc, [0, 0, 1], '- z\n');

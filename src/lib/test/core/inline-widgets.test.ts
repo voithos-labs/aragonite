@@ -12,7 +12,7 @@ import {
 } from '../../core/inline/inline-widgets';
 import { declarePluginInlineKind } from '../../schema/plugin-kind';
 
-describe('isInlineWidget — registry-driven recognition', () => {
+describe('isInlineWidget: registry-driven recognition', () => {
 	it('treats image as a widget unconditionally', () => {
 		const node: InlineNode = { kind: 'image', start: 0, end: 6, url: 'x', alt: '' };
 		expect(isInlineWidget(node, '![](x)')).toBe(true);
@@ -57,7 +57,7 @@ describe('isInlineWidget — registry-driven recognition', () => {
 	});
 });
 
-describe('buildCoreInlineWidget — core-layer builder dispatch', () => {
+describe('buildCoreInlineWidget: core-layer builder dispatch', () => {
 	it('builds the <br> widget shell for an allowlisted rawHtml node', () => {
 		const raw = '<br>';
 		const node: InlineNode = { kind: 'rawHtml', start: 0, end: raw.length };
@@ -95,7 +95,7 @@ describe('buildCoreInlineWidget — core-layer builder dispatch', () => {
 	});
 });
 
-describe('flattenInlineWidgets — recursion + document order', () => {
+describe('flattenInlineWidgets: recursion + document order', () => {
 	const img = (start: number, end: number): InlineNode => ({
 		kind: 'image',
 		start,
@@ -159,7 +159,7 @@ describe('flattenInlineWidgets — recursion + document order', () => {
 		);
 	});
 
-	it('treats an atomic widget as a leaf — does not descend into its children', () => {
+	it('treats an atomic widget as a leaf: does not descend into its children', () => {
 		// A widget's children belong to the widget; only the widget itself counts.
 		const inner = img(1, 5);
 		const widgetWithChildren: InlineNode = { ...img(0, 6), children: [inner] };
@@ -167,7 +167,7 @@ describe('flattenInlineWidgets — recursion + document order', () => {
 	});
 });
 
-describe('getInlineWidgetEditing — per-kind editing policy', () => {
+describe('getInlineWidgetEditing: per-kind editing policy', () => {
 	const mathKind = declarePluginInlineKind('math');
 	const spoilerKind = declarePluginInlineKind('spoiler');
 
@@ -205,7 +205,7 @@ describe('getInlineWidgetEditing — per-kind editing policy', () => {
 	});
 });
 
-describe('augmentInlineWidgetKind — attaching editor behavior to a registration', () => {
+describe('augmentInlineWidgetKind, attaching editor behavior to a registration', () => {
 	const captionKind = declarePluginInlineKind('caption');
 
 	afterEach(__resetInlineWidgetsForTests);

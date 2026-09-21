@@ -39,7 +39,7 @@ describe('a refused join moves the caret instead of merging', () => {
 		expect(h.focuses[0]).toHaveBeenCalledWith(CURSOR_END);
 	});
 
-	it('mints no undo entry for either refusal', async () => {
+	it('creates no undo entry for either refusal', async () => {
 		const h = makeTop(HEADING_OVER_TWO_LINES);
 
 		await h.actions.mergeWithNext(0);
@@ -49,7 +49,7 @@ describe('a refused join moves the caret instead of merging', () => {
 	});
 
 	// Control: the ordinary join still merges and still puts the caret at the join.
-	it('an ordinary forward join still merges and lands at the seam', async () => {
+	it('an ordinary forward join still merges and lands at the join', async () => {
 		const h = makeTop('alpha\n\nbeta\n');
 
 		await h.actions.mergeWithNext(0);

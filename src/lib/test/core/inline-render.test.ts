@@ -5,7 +5,7 @@ import { renderInlineNodes } from '../../core/inline-render';
 import { rawTextOfNode } from '../../cursor/widget-offset';
 import type { InlineNode } from '../../core/nodes';
 
-describe('renderInlineNodes — hardLineBreak (textContent equals raw)', () => {
+describe('renderInlineNodes: hardLineBreak (textContent equals raw)', () => {
 	const cases: { name: string; raw: string }[] = [
 		{ name: 'LF backslash break', raw: 'a\\\nb' },
 		{ name: 'CRLF backslash break', raw: 'a\\\r\nb' },
@@ -31,7 +31,7 @@ describe('renderInlineNodes — hardLineBreak (textContent equals raw)', () => {
 	}
 });
 
-describe('renderInlineNodes — escape', () => {
+describe('renderInlineNodes: escape', () => {
 	it('renders escape as marker span + text node, textContent equals raw', () => {
 		const raw = '\\*';
 		const node: InlineNode = { kind: 'escape', start: 0, end: 2 };
@@ -51,7 +51,7 @@ describe('renderInlineNodes — escape', () => {
 	});
 });
 
-describe('renderInlineNodes — entityReference widget (visible glyph)', () => {
+describe('renderInlineNodes: entityReference widget (visible glyph)', () => {
 	it('renders a visible entity as an atomic widget of its decoded glyph', () => {
 		const raw = '&copy;';
 		const node: InlineNode = { kind: 'entityReference', start: 0, end: 6, decoded: '©' };
@@ -80,7 +80,7 @@ describe('renderInlineNodes — entityReference widget (visible glyph)', () => {
 	});
 });
 
-describe('renderInlineNodes — entityReference literal span (invisible glyph)', () => {
+describe('renderInlineNodes: entityReference literal span (invisible glyph)', () => {
 	// A whitespace/control/zero-width decoding keeps its literal-source span, because an
 	// invisible widget would be a caret trap.
 	it.each([
@@ -98,7 +98,7 @@ describe('renderInlineNodes — entityReference literal span (invisible glyph)',
 	});
 });
 
-describe('inline-render — unresolvedReference', () => {
+describe('inline-render: unresolvedReference', () => {
 	it('renders <span class="md-unresolved-ref"> with raw source slice', () => {
 		const node: InlineNode = {
 			kind: 'unresolvedReference',
@@ -129,7 +129,7 @@ describe('inline-render — unresolvedReference', () => {
 	});
 });
 
-describe('inline-render — reference label marker class', () => {
+describe('inline-render: reference label marker class', () => {
 	it('reference link emits md-ref-label class on trailing label marker', () => {
 		const raw = '[text][label]';
 		const resolver = (l: string) => (l === 'label' ? { url: 'https://example.com' } : undefined);
@@ -140,7 +140,7 @@ describe('inline-render — reference label marker class', () => {
 		expect(labelMarker?.textContent).toBe('[label]');
 	});
 
-	it('inline link (non-reference) does NOT emit md-ref-label', () => {
+	it('inline link (non-reference) does not emit md-ref-label', () => {
 		const raw = '[text](https://example.com)';
 		const inline = parseInline(raw, 0, raw.length);
 		const frag = renderInlineNodes(inline, raw);
@@ -158,7 +158,7 @@ describe('inline-render — reference label marker class', () => {
 	});
 });
 
-describe('inline-render — href + autolink anchor', () => {
+describe('inline-render: href + autolink anchor', () => {
 	it('link node renders <a href={url}>', () => {
 		const raw = '[text](https://example.com)';
 		const inline = parseInline(raw, 0, raw.length);

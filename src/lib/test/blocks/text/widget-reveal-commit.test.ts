@@ -73,7 +73,7 @@ function commitViaFold(interaction: ReturnType<typeof mountMathBlock>['interacti
 	interaction.foldRevealBeforeMutation();
 }
 
-describe('commitReveal — no-edit short-circuit', () => {
+describe('commitReveal: no-edit short-circuit', () => {
 	it('folds back without a CST commit when the source is unchanged', async () => {
 		const block = mountMathBlock();
 		await block.reveal();
@@ -91,7 +91,7 @@ describe('commitReveal — no-edit short-circuit', () => {
 	});
 });
 
-describe('handleRevealingKeydown — the keys a reveal claims', () => {
+describe('handleRevealingKeydown: the keys a reveal claims', () => {
 	it('leaves Enter to the block, which splits after folding', async () => {
 		const block = mountMathBlock();
 		await block.reveal();
@@ -120,7 +120,7 @@ describe('handleRevealingKeydown — the keys a reveal claims', () => {
 	});
 });
 
-describe('commitReveal — edit persistence and caret precision', () => {
+describe('commitReveal: edit persistence and caret precision', () => {
 	it('commits an in-source edit once, caret at the widget trailing edge', async () => {
 		const block = mountMathBlock();
 		await block.reveal();
@@ -151,7 +151,7 @@ describe('commitReveal — edit persistence and caret precision', () => {
 		expect(block.commits[0].after).toBe(block.math.end);
 	});
 
-	it('parks the caret together with the text that caret addresses', async () => {
+	it('puts the caret together with the text that caret addresses', async () => {
 		const block = mountMathBlock();
 		await block.reveal();
 		block.sourceNode().textContent = '$yx^2$';
@@ -166,7 +166,7 @@ describe('commitReveal — edit persistence and caret precision', () => {
 	});
 });
 
-describe('commitReveal — the cross-block rule lives at the blur caller', () => {
+describe('commitReveal: the cross-block rule lives at the blur caller', () => {
 	it('keeps the source revealed on blur while a selection spans blocks', async () => {
 		const block = mountMathBlock();
 		await block.reveal();
@@ -197,10 +197,10 @@ describe('commitReveal — the cross-block rule lives at the blur caller', () =>
 	});
 });
 
-describe('cancelReveal — identity-exact fold-back', () => {
+describe('cancelReveal: identity-exact fold-back', () => {
 	// Two byte-identical widgets: cancelling must put back the exact element it detached.
 	// Rebuilding by lookup (the pool keys on `${kind} ${source}`) would move the other instance.
-	it('Escape restores the same element it swapped out, leaving its twin untouched', async () => {
+	it('Escape restores the same element it swapped out, leaving its counterpart untouched', async () => {
 		const { el, node, widgets, inlineWidgets } = mountWidgetBlock(
 			'Twice $x^2$ and $x^2$ again',
 			MATH_INLINE

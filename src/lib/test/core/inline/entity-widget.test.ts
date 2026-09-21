@@ -5,7 +5,7 @@ import { entityRendersGlyph, buildEntityWidget } from '../../../core/inline/enti
 
 // Whitespace / control / zero-width decodings stay literal spans because an invisible
 // widget is a caret trap; `&nbsp;` is on the literal side for the same reason.
-describe('entityRendersGlyph — the visibility gate', () => {
+describe('entityRendersGlyph: the visibility gate', () => {
 	it.each([
 		{ name: 'named symbol (©)', decoded: '©' },
 		{ name: 'ampersand (&amp;)', decoded: '&' },
@@ -33,8 +33,8 @@ describe('entityRendersGlyph — the visibility gate', () => {
 	});
 });
 
-describe('buildEntityWidget — atomic-island shell', () => {
-	it('stamps the generic widget marker, source span, and the glyph', () => {
+describe('buildEntityWidget: atomic-widget shell', () => {
+	it('marks the generic widget marker, source span, and the glyph', () => {
 		const node: InlineNode = { kind: 'entityReference', start: 3, end: 9, decoded: '©' };
 		const el = buildEntityWidget(node);
 		expect(el.hasAttribute('data-inline-widget')).toBe(true);

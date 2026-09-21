@@ -20,7 +20,7 @@ function mountUnderScroller() {
 }
 
 describe('editor-root scroll host', () => {
-	it('self mode: the root is the host, nothing clips, and one scrollport is minted', () => {
+	it('self mode: the root is the host, nothing clips, and one scrollport is created', () => {
 		const { root } = mountUnderScroller();
 		const r = createScrollHostResolution({
 			get editorEl() {

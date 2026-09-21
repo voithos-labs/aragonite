@@ -31,7 +31,7 @@ describe('a mermaid body carrying a fence run', () => {
 		registerMermaidKind();
 	});
 
-	it('grows the opener AND the closer past the run, so the block survives its next parse', () => {
+	it('grows the opener and the closer past the run, so the block survives its next parse', () => {
 		const { node, doc } = commitCode('```mermaid\ngraph TD\n```\n', 'graph TD\n```\nafter\n');
 		expect(node.raw).toBe('````mermaid\ngraph TD\n```\nafter\n````\n');
 		expect(describeConvergence(doc)).toBeNull();
@@ -54,7 +54,7 @@ describe('a mermaid body carrying a fence run', () => {
 
 	// An unterminated block has no closer line to grow, and the parser reads it to the end of
 	// the input either way; adding one would invent bytes the author never wrote.
-	it('grows the opener of an unterminated block and mints no closer', () => {
+	it('grows the opener of an unterminated block and creates no closer', () => {
 		const { node } = commitCode('```mermaid\ngraph TD\n', 'graph TD\n```\nafter\n');
 		expect(node.raw).toBe('````mermaid\ngraph TD\n```\nafter\n');
 	});

@@ -128,7 +128,7 @@ describe('createEditorEvents', () => {
 	});
 });
 
-describe('editor-events — error channel', () => {
+describe('editor-events: error channel', () => {
 	it('routes a throwing edit-subscriber to the error channel as origin "subscriber"', () => {
 		const events = createEditorEvents();
 		const errors: { origin: string }[] = [];

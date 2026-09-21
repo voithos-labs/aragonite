@@ -345,7 +345,7 @@ describe('G2.13 shape fixed point across load → edit → reload', () => {
 
 	// The check has to actually fire on a shape the parser would merge away, or the property above
 	// proves nothing about the class it was written for.
-	it('the oracle rejects trivia the parser would read as an extra block', () => {
+	it('the check rejects blank lines the parser would read as an extra block', () => {
 		const doc = parse('a\n\nb\n');
 		doc.children[1].leadingTrivia = '\n\n';
 		expect(describeConvergence(doc)).toMatch(/live has 2 children, reparsed has 3/);

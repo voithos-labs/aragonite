@@ -36,8 +36,8 @@ function extendToOffWindowEnd(ref: BlockComponent) {
 	return { env, scrolled };
 }
 
-describe('revealActiveEndpoint parks in a revealed off-window endpoint', () => {
-	it('parks through the park door, leaving the extend’s range live', async () => {
+describe('revealActiveEndpoint puts the caret in a revealed off-window endpoint', () => {
+	it('puts the caret through `parkCaret`, leaving the extend’s range live', async () => {
 		const ref = endpointRef(true);
 		const { env } = extendToOffWindowEnd(ref);
 
@@ -54,7 +54,7 @@ describe('revealActiveEndpoint parks in a revealed off-window endpoint', () => {
 
 	// Miss-analysis (GH #111): the cell branch placed a literal 0, and this suite pinned only the
 	// text branch's offset; a start sentinel discarded by the cell's `parkCaret` was invisible.
-	it('the cell arm parks the START sentinel, so the cell door clamps and classifies', async () => {
+	it('the cell branch passes the start sentinel, so the cell entry point clamps and classifies', async () => {
 		const ref = endpointRef(true);
 		const env = makeKeydownEnv('alpha\n\n| A | B |\n| --- | --- |\n| 1 | 2 |\n', {
 			revealTo: ref
@@ -72,7 +72,7 @@ describe('revealActiveEndpoint parks in a revealed off-window endpoint', () => {
 
 	// The documented degradation. The range surviving is the half that matters: placing the
 	// caret through `focus` instead would cancel the selection the user is still building.
-	it('degrades to a missed park when the endpoint omits the door — no fallback, no throw', async () => {
+	it('degrades to a missed caret when the endpoint omits `parkCaret`: no fallback, no throw', async () => {
 		const ref = endpointRef(false);
 		const { env, scrolled } = extendToOffWindowEnd(ref);
 

@@ -14,7 +14,7 @@ import { metadataOf } from '../../../core/nodes';
 // spliced with their pasted numbers intact leave the source misnumbered, which reference
 // renderers mask by re-sequencing. Mirrors the list-absorb normalization and renumber.
 
-describe('container-matching paste — marker normalization, both routes', () => {
+describe('container-matching paste: marker normalization, both routes', () => {
 	// An emptied first item stands in for a post-cross-block-delete stub (the empty-target
 	// route); a non-empty target takes the merge-first branch, splicing the trailing pasted
 	// item as a sibling.

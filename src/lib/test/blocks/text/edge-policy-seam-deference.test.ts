@@ -73,7 +73,7 @@ function withWidgetIsland(source: string, mode: string, islandAt: number): Surfa
 	return { node, el, ...wire(node, el, { mode, hasIslands: true }) };
 }
 
-describe('a step-over island beside an unpainted run defers to the construct-edge rule', () => {
+describe('a step-over widget beside an unpainted run defers to the construct-edge rule', () => {
 	// The widget sits just inside `**`, so the raw byte behind the caret is a delimiter the user
 	// never saw. The rule takes the neighbouring content character instead (live-mode.md § 4.4).
 	it('Backspace takes the content character, not the delimiter byte', () => {
@@ -120,7 +120,7 @@ function withAmbientSelection(source: string, mode: string, range: { start: numb
 	return s;
 }
 
-describe('the ambient-marker delete crosses the join seam', () => {
+describe('the ambient-marker delete crosses the join', () => {
 	beforeAll(() => registerLiveJoinSeamCleaner(cleanLiveJoinSeam));
 	afterAll(() => __resetLiveJoinSeamCleanerForTests());
 
@@ -142,7 +142,7 @@ describe('the ambient-marker delete crosses the join seam', () => {
 
 // ── The widget printable insert ──────────────────────────────────────────────
 
-describe('the widget printable insert asks the typing seat', () => {
+describe('the widget printable insert asks the typing caret position', () => {
 	/** `**a&copy;** t` with an element-level caret between the entity widget and the closing run,
 	 *  where Chromium drops the key and this branch writes it through the CST instead. */
 	function withElementCaret(mode: string): Surface {
@@ -160,7 +160,7 @@ describe('the widget printable insert asks the typing seat', () => {
 		return s;
 	}
 
-	it('writes at the seat the arrival names, not at the caret', () => {
+	it('writes at the caret position the arrival names, not at the caret', () => {
 		const s = withElementCaret('live');
 		const e = key('.');
 		expect(s.handleKeydown(e, at(9))).toBe(true);

@@ -16,7 +16,7 @@ function pointer(
 	return event as unknown as PointerEvent;
 }
 
-describe('createPointerDragSession — move coalescing', () => {
+describe('createPointerDragSession: move coalescing', () => {
 	const realRaf = globalThis.requestAnimationFrame;
 	const realCancel = globalThis.cancelAnimationFrame;
 	afterEach(() => {

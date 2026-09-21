@@ -21,7 +21,7 @@ function envWithCommandTarget(runCommand = vi.fn(() => true), presentationMode?:
 	return { env, runCommand };
 }
 
-describe('cross-block keydown — command candidates', () => {
+describe('cross-block keydown: command candidates', () => {
 	it('deletes the range first, then dispatches the chord at the survivor', async () => {
 		const { env, runCommand } = envWithCommandTarget();
 
@@ -114,7 +114,7 @@ gamma
 
 	// The whole-block cut reads Mod+X off the keydown with its own `!e.shiftKey` guard, so a
 	// candidate branch that took the unshifted form would delete the range out from under it.
-	it('Mod+X is not a candidate — the unshifted chord is the whole-block cut', async () => {
+	it('Mod+X is not a candidate: the unshifted chord is the whole-block cut', async () => {
 		const { env, runCommand } = envWithCommandTarget();
 
 		expect(await env.keydown.handleKeyDown(press('x', { ctrlKey: true }))).toBe(false);
@@ -123,7 +123,7 @@ gamma
 		expect(runCommand).not.toHaveBeenCalled();
 	});
 
-	it('Mod+Shift+B is not a candidate — the shifted chord belongs to the block', async () => {
+	it('Mod+Shift+B is not a candidate: the shifted chord belongs to the block', async () => {
 		const { env, runCommand } = envWithCommandTarget();
 
 		expect(await env.keydown.handleKeyDown(press('b', { ctrlKey: true, shiftKey: true }))).toBe(

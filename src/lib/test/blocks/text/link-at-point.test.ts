@@ -98,7 +98,7 @@ describe('resolveLinkAtPoint', () => {
 		expect(resolve('Visit [example](https://x.com) now\n', 'now')).toBeNull();
 	});
 
-	it('resolves the INNERMOST link when one nests inside another construct', () => {
+	it('resolves the innermost link when one nests inside another construct', () => {
 		expect(resolve('a **b [inner](u) c** d\n', 'inner')).toMatchObject({
 			target: { sourceStart: 6 },
 			link: { kind: 'link', url: 'u' }
@@ -106,7 +106,7 @@ describe('resolveLinkAtPoint', () => {
 	});
 });
 
-describe('linkConstructAt — the identity an open card re-resolves through', () => {
+describe('linkConstructAt: the identity an open card re-resolves through', () => {
 	it('finds the construct again by its start offset', () => {
 		const { node, linkRef } = mount('Visit [example](https://x.com) now\n');
 		expect(linkConstructAt(node, 6, linkRef)).toMatchObject({ kind: 'link', end: 30 });

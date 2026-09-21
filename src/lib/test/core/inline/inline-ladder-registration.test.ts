@@ -13,12 +13,12 @@ afterEach(() => __resetInlineSyntaxForTests());
 // decliner stands in for every handler under test.
 const decline: InlineSyntaxRecognizer = () => null;
 
-describe('inline ladder — registration rules', () => {
-	it('exposes the priority ladder as a published const', () => {
+describe('inline priority order: registration rules', () => {
+	it('exposes the priority order as a published const', () => {
 		expect(INLINE_PRIORITIES).toEqual({ prefixOverride: 40, builtin: 50, plugin: 100 });
 	});
 
-	it('rule 1 — rejects a multi-character trigger', () => {
+	it('rule 1: rejects a multi-character trigger', () => {
 		expect(() => registerInlineSyntax('$$', decline)).toThrow(/single character/);
 	});
 
@@ -32,7 +32,7 @@ describe('inline ladder — registration rules', () => {
 		);
 	});
 
-	it('rule 2 — bare reserved registration keeps the built-in-scanner message', () => {
+	it('rule 2: bare reserved registration keeps the built-in-scanner message', () => {
 		expect(() => registerInlineSyntax('[', decline)).toThrow(/claimed by the built-in scanner/);
 		expect(getInlineRungs('[')).toHaveLength(0);
 	});
@@ -46,7 +46,7 @@ describe('inline ladder — registration rules', () => {
 		}
 	);
 
-	it('rule 2 — reserved prefix defaulting its priority is rejected (default is the plugin rung)', () => {
+	it('rule 2: reserved prefix defaulting its priority is rejected (default is the plugin inline syntax handler)', () => {
 		expect(() => registerInlineSyntax('[', decline, { prefix: '[^' })).toThrow(
 			/priority below the built-in boundary/
 		);
@@ -54,19 +54,19 @@ describe('inline ladder — registration rules', () => {
 
 	// The throw names both on-demand routes, so an author reading it is not pointed at
 	// the more expensive remedy when the cheaper one would do.
-	it('rule 2 — a prefix rung on rejected reserved trigger "]" is rejected', () => {
+	it('rule 2: a prefix inline syntax handler on rejected reserved trigger "]" is rejected', () => {
 		expect(() => registerInlineSyntax(']', decline, { prefix: ']]', priority: 40 })).toThrow(
 			/scan-visible or scan-probed/
 		);
 	});
 
-	it('rule 2 — a prefix rung on a scan-visible reserved trigger is accepted', () => {
+	it('rule 2: a prefix inline syntax handler on a scan-visible reserved trigger is accepted', () => {
 		expect(() => registerInlineSyntax('[', decline, { prefix: '[^', priority: 40 })).not.toThrow();
 	});
 
 	// `!` is scan-probed rather than scan-visible: absent from SPECIAL_CHARS, made visible
 	// to the fast bail by the registration itself, yet it registers like any reserved one.
-	it('rule 2 — a prefix rung on the scan-probed reserved trigger "!" is accepted', () => {
+	it('rule 2: a prefix inline syntax handler on the scan-probed reserved trigger "!" is accepted', () => {
 		expect(() => registerInlineSyntax('!', decline, { prefix: '![[', priority: 40 })).not.toThrow();
 		expect(getInlineRungs('!')).toHaveLength(1);
 	});
@@ -80,14 +80,14 @@ describe('inline ladder — registration rules', () => {
 		expect(getInlineRungs('!')).toHaveLength(0);
 	});
 
-	it('rule 3 — an unreserved trigger takes any priority; bare defaults to the plugin rung', () => {
+	it('rule 3: an unreserved trigger takes any priority; bare defaults to the plugin inline syntax handler', () => {
 		registerInlineSyntax(':', decline);
 		expect(getInlineRungs(':')[0].priority).toBe(INLINE_PRIORITIES.plugin);
 		registerInlineSyntax('$', decline, { priority: INLINE_PRIORITIES.prefixOverride });
 		expect(getInlineRungs('$')[0].priority).toBe(INLINE_PRIORITIES.prefixOverride);
 	});
 
-	it('rule 4 — an exact (trigger, prefix, priority) duplicate throws; distinct rungs coexist', () => {
+	it('rule 4: an exact (trigger, prefix, priority) duplicate throws; distinct inline syntax handlers coexist', () => {
 		registerInlineSyntax(':', decline);
 		expect(() => registerInlineSyntax(':', decline)).toThrow(/already registered/);
 		expect(() => registerInlineSyntax(':', decline, { prefix: '::', priority: 40 })).not.toThrow();

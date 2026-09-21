@@ -39,7 +39,7 @@ describe('checkLandableCaret (G1.33)', () => {
 	});
 
 	// Reading takes no keystrokes and source paints every byte, so neither can trap a caret.
-	it('stands down in reading and in source', () => {
+	it('does nothing in reading and in source', () => {
 		expect(checkLandableCaret(block('reading', '# '), 'reading', [0])).toBeNull();
 		expect(checkLandableCaret(block(undefined, '# '), 'source', [0])).toBeNull();
 	});
@@ -50,7 +50,7 @@ describe('checkLandableCaret (G1.33)', () => {
 		expect(checkLandableCaret(marker as HTMLElement, 'live', [2])?.code).toBe('landable-caret');
 	});
 
-	it('stands down for a landing outside any editable surface', () => {
+	it('does nothing for a landing outside any editable surface', () => {
 		const host = block('live', '# ').parentElement;
 		expect(checkLandableCaret(host as HTMLElement, 'live', [2])).toBeNull();
 	});

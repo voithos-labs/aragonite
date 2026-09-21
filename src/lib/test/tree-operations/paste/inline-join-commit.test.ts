@@ -31,7 +31,7 @@ function blockquoteHarness() {
 	};
 }
 
-describe("cross-block inline paste ('join') — commit ceremony participation", () => {
+describe("cross-block inline paste ('join'): commit sequence participation", () => {
 	it('keeps the container childIds aligned with children when the paste reparses to two blocks', async () => {
 		const { deps, liveQuote, coordinator } = blockquoteHarness();
 

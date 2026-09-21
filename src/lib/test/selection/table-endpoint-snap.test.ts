@@ -37,7 +37,7 @@ describe('cellEndpointDeepPath', () => {
 
 	// The intra-table rectangle's focus is unflagged by the same-path convention but its offset is
 	// still a cell index; deciding by the flag would resolve no cell for a forward-extended rectangle.
-	it('expands an unflagged point on a table path — the intra-table convention', () => {
+	it('expands an unflagged point on a table path: the intra-table convention', () => {
 		expect(cellEndpointDeepPath(doc, { path: [2], offset: 5 })).toEqual([2, 2, 1]);
 	});
 

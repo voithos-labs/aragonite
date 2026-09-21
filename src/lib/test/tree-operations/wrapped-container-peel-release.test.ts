@@ -32,7 +32,7 @@ function writeBody(container: CstNode, at: number, text: string): void {
 const emptyBodyChild = (container: CstNode, at: number) =>
 	writeBody(container, at, trailingLineEnding(container.children![at].raw));
 
-describe('the closer peel a blank tail borrowed', () => {
+describe('the closer strip a blank tail borrowed', () => {
 	beforeEach(() => {
 		__resetSchemaRegistriesForTests();
 		__resetPasteSurfacesForTests();

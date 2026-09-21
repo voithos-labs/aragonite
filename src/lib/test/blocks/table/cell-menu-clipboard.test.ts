@@ -63,7 +63,7 @@ describe('a menu paste asks the clipboard and lands through the cell’s paste s
 	});
 });
 
-describe('the door restores the focus the menu click took away', () => {
+describe('the entry point restores the focus the menu click took away', () => {
 	it('focuses the cell before copying, so there is a range to copy', async () => {
 		// Clicking a menu item blurs the cell; `execCommand('copy')` reads the live selection,
 		// so a copy issued against an unfocused cell writes an empty clipboard.

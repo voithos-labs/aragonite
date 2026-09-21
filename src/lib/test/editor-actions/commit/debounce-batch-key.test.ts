@@ -28,7 +28,7 @@ function makeSetup(childRaws: string[]) {
 
 // ── Debounce batches break on focus change between sibling leaves ─────────────
 
-describe('debounce batch key — sibling leaves inside one container', () => {
+describe('debounce batch key, sibling leaves inside one container', () => {
 	it('typing in leaf 0 then leaf 1 produces two undo entries (focus break)', async () => {
 		const { bundle, controller, deps } = makeSetup(['hello\n', 'world\n']);
 
@@ -67,7 +67,7 @@ describe('debounce batch key — sibling leaves inside one container', () => {
 
 // ── The same rule one level up ───────────────────────────────────────────────
 
-describe('debounce batch key — top-level blocks', () => {
+describe('debounce batch key: top-level blocks', () => {
 	it('a different block arriving at the same slot breaks the batch', async () => {
 		const { deps } = makeEditorActionsDeps(parse('a\n\nb\n').children);
 		const controller = createUndoController(deps);

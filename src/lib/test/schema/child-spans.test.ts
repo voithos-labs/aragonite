@@ -112,7 +112,7 @@ describe('the rebuild refuses a splice it cannot place', () => {
 
 	// A reorder mutates a bare children array, which has no owner to drop spans on: the region
 	// check is the whole defense, and without it the moved child's region is written twice.
-	it('re-derives after a reorder no seam could invalidate for it', () => {
+	it('re-derives after a reorder no join could invalidate for it', () => {
 		const node = container('blockquote', [paragraph('a\n'), paragraph('bbbb\n')]);
 		expect(node.raw).toBe('> a\n> bbbb\n');
 		reorderChildren(node.children!, 1, 0);
@@ -138,7 +138,7 @@ describe('the dev belt behind a splice', () => {
 	});
 });
 
-describe('the children doors drop the spans they invalidate', () => {
+describe('the children entry points drop the spans they invalidate', () => {
 	it('drops on a splice and on a push', () => {
 		const node = container('blockquote', [paragraph('a\n'), paragraph('b\n')]);
 		// A typed array, not a plain one: Svelte proxies plain arrays, and the shift would create a

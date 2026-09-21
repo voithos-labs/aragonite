@@ -43,7 +43,7 @@ describe('structural paste landing after the splice settle folds', () => {
 		expect(landCaret).toHaveBeenCalledWith([1], 'more'.length);
 	});
 
-	it('lands the same seat when nothing folds', async () => {
+	it('lands the same caret position when nothing folds', async () => {
 		const { doc, landCaret } = await pasteAt('helloworld\n', 'one\n\ntwo\n\n', [0], 5);
 
 		expect(serialize(doc)).toBe('hello\n\none\n\ntwo\n\nworld\n');
@@ -53,7 +53,7 @@ describe('structural paste landing after the splice settle folds', () => {
 	// A container's raw offsets address no caret position, so the tracked block lands with the
 	// sentinel it was given. The offset inside a merged container head needs a raw-offset-to-leaf
 	// descent the codebase has no primitive for.
-	it('keeps the end-of-block seat when the fold head is a container', async () => {
+	it('keeps the end-of-block caret position when the fold head is a container', async () => {
 		const { doc, landCaret } = await pasteAt('helloworld\n', '- item', [0], 5);
 
 		expect(serialize(doc)).toBe('hello\n\n- item\nworld\n');

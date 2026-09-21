@@ -42,7 +42,7 @@ const CALLOUT_KIND = () => declaredPluginKind(CALLOUT);
 const statusOf = (report: Awaited<ReturnType<typeof runKindConformance>>, column: string) =>
 	report.cells.find((c) => c.column === column)?.status;
 
-describe('kind conformance — plugin kinds enroll', () => {
+describe('kind conformance: plugin kinds enroll', () => {
 	beforeEach(() => {
 		resetPluginPlatformForTests();
 		registerMemoBlock();
@@ -100,7 +100,7 @@ const BUNDLED_INSTALLS: { dir: string; kind: string; install: () => void }[] = [
 
 const NO_BLOCK_KIND_DIRS = new Set(['highlight-occurrences', 'emoji']);
 
-describe('kind conformance — bundled plugin kinds enroll', () => {
+describe('kind conformance: bundled plugin kinds enroll', () => {
 	beforeEach(() => resetPluginPlatformForTests());
 
 	// Every kind the registrar registers, not only the headline one: title kinds with no
@@ -184,7 +184,7 @@ describe('kind conformance — bundled plugin kinds enroll', () => {
 
 // Non-vacuity: a battery that passes everything guards nothing, so these break a
 // plugin registration on purpose and require the red.
-describe('kind conformance — a broken plugin registration fails', () => {
+describe('kind conformance: a broken plugin registration fails', () => {
 	beforeEach(() => {
 		resetPluginPlatformForTests();
 		registerMemoBlock();

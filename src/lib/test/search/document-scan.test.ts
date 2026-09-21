@@ -28,7 +28,7 @@ describe('scanDocument', () => {
 		const m = scan('> quoted cat\n', 'cat');
 		expect(m.map((x) => x.path)).toEqual([[0, 0]]); // blockquote → paragraph
 	});
-	it('does NOT double-count container raw', () => {
+	it('does not double-count container raw', () => {
 		const m = scan('> cat\n', 'cat');
 		expect(m.length).toBe(1); // only the inner paragraph, not the blockquote's raw
 	});
@@ -42,7 +42,7 @@ describe('scanDocument', () => {
 	});
 });
 
-describe('scanDocument — childless opaque containers', () => {
+describe('scanDocument: childless opaque containers', () => {
 	const docWith = (...children: CstNode[]): Document => ({
 		kind: 'document',
 		prefix: '',
@@ -87,7 +87,7 @@ describe('scanDocument — childless opaque containers', () => {
 		expect(scanDocument(doc, matcherFor('cat'))).toEqual([{ path: [0], start: 17, end: 20 }]);
 	});
 
-	it('an opaque container WITH children still walks children only (raw not double-counted)', () => {
+	it('an opaque container with children still walks children only (raw not double-counted)', () => {
 		const doc = docWith(
 			node(diagram, ':::cat\ncat body\n:::\n', [node('paragraph', 'cat body\n')])
 		);
@@ -99,7 +99,7 @@ describe('scanDocument — childless opaque containers', () => {
 		expect(scanDocument(doc, matcherFor('cat'))).toEqual([]);
 	});
 
-	it('an EMPTY strip container stays unscanned (its raw is marker bytes, not content)', () => {
+	it('an empty strip container stays unscanned (its raw is marker bytes, not content)', () => {
 		// These childless containers are editable, but their raw is marker syntax, and scanning it
 		// brings back the matches on markers that the rule for markers exists to prevent.
 		expect(scanDocument(parse('- \n'), matcherFor('- '))).toEqual([]);

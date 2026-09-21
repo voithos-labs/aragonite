@@ -108,7 +108,7 @@ describe('the right-click menu clipboard refuses to mutate in reading mode', () 
 		return bareCell;
 	}
 
-	it('declines cut, which would write through the cell’s door', async () => {
+	it('declines cut, which would write through the cell’s entry point', async () => {
 		document.execCommand = vi.fn(() => true);
 		const door = readingCell();
 

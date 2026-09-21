@@ -31,7 +31,7 @@ const cases: PrefixCase[] = [
 	{ name: 'footnote-def', src: '[^a]: alpha\n\nafter\n', leaf: [0, 0], prefix: '[^a]: ' }
 ];
 
-describe('collectCrossBlockText — sole-child strip-container prefix recovery', () => {
+describe('collectCrossBlockText: sole-child strip-container prefix recovery', () => {
 	for (const c of cases) {
 		it(`${c.name}: a partial mid-leaf slice keeps the ${JSON.stringify(c.prefix)} wrapper`, () => {
 			const doc = parse(c.src);

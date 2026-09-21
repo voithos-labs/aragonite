@@ -96,7 +96,7 @@ const mathRung: InlineConformanceProfile = {
 	imageClaim: { mode: 'exempt', reason: MINTS_ONLY_ITS_OWN_KIND }
 };
 
-describe('every bundled inline rung passes the conformance kit', () => {
+describe('every bundled inline syntax handler passes the conformance kit', () => {
 	beforeEach(() => {
 		resetPluginPlatformForTests();
 		// Emoji before the directive activation on purpose: that order is what leaves the
@@ -126,7 +126,7 @@ describe('every bundled inline rung passes the conformance kit', () => {
 
 // A cell recorded rather than executed proves nothing: a fixture that stopped matching, or a
 // run without jsdom, would otherwise pass as a quiet `boundary`.
-describe('the enrolled rungs execute the cells their shape owns', () => {
+describe('the enrolled inline syntax handlers execute the cells their shape owns', () => {
 	beforeEach(() => {
 		resetPluginPlatformForTests();
 		installPlugins([emojiPlugin(), footnotesPlugin(), latexPlugin({ renderer: stubRenderer })]);
@@ -136,7 +136,7 @@ describe('the enrolled rungs execute the cells their shape owns', () => {
 	const cellOf = (profile: InlineConformanceProfile, cell: string) =>
 		runInlineKindConformance(profile).cells.find((c) => c.cell === cell)!;
 
-	it('drives the offset walk for a rung that builds its own island', () => {
+	it('drives the offset walk for an inline syntax handler that builds its own widget', () => {
 		const cell = cellOf(emojiRung, 'widget');
 		expect(cell.status).toBe('asserted');
 		expect(cell.detail).toContain('offset-walk length');
@@ -144,17 +144,17 @@ describe('the enrolled rungs execute the cells their shape owns', () => {
 
 	// The wrapper span for a `component` kind belongs to the editor, so that half does not
 	// run and the cell has to say so: reporting `asserted` over skipped work hides it.
-	it('reports the island half of a `component` widget as a boundary', () => {
+	it('reports the widget half of a `component` widget as a boundary', () => {
 		const cell = cellOf(footnoteRung, 'widget');
 		expect(cell.status).toBe('boundary');
 		expect(cell.detail).toContain('render layer');
 	});
 
-	it('checks the whole-delete bytes for an atomic-delete rung', () => {
+	it('checks the whole-delete bytes for an atomic-delete inline syntax handler', () => {
 		expect(cellOf(emojiRung, 'editingPolicy').detail).toContain('whole-delete');
 	});
 
-	it('excuses imageClaim only where no fixture mints a built-in', () => {
+	it('excuses imageClaim only where no fixture creates a built-in', () => {
 		expect(cellOf(mathRung, 'imageClaim').status).toBe('exempt');
 	});
 });

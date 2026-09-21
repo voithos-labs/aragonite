@@ -13,7 +13,7 @@ function autolinkUrls(raw: string): (string | undefined)[] {
 		.map((n) => n.url);
 }
 
-describe('www autolink — valid domain (GFM §6.9)', () => {
+describe('www autolink: valid domain (GFM §6.9)', () => {
 	it.each(['www.xxx.yyy._zzz', 'www.xxx._yyy.zzz'])(
 		'keeps %j literal — underscore in one of the last two segments',
 		(raw) => {
@@ -21,22 +21,22 @@ describe('www autolink — valid domain (GFM §6.9)', () => {
 		}
 	);
 
-	it('autolinks www._xxx.yyy.zzz — the underscore is left of the last two segments', () => {
+	it('autolinks www._xxx.yyy.zzz: the underscore is left of the last two segments', () => {
 		expect(autolinkUrls('www._xxx.yyy.zzz')).toEqual(['http://www._xxx.yyy.zzz']);
 	});
 
-	it('autolinks www.google.com/a_b — the underscore is in the path, not the domain', () => {
+	it('autolinks www.google.com/a_b: the underscore is in the path, not the domain', () => {
 		expect(autolinkUrls('www.google.com/a_b')).toEqual(['http://www.google.com/a_b']);
 	});
 
 	// cmark-gfm exempts `-` from its punctuation check, so a segment may begin with one.
 	// A hyphen rule is the intuitive-but-wrong companion to the underscore rule above.
-	it('autolinks www.-b — a leading hyphen is a valid host character', () => {
+	it('autolinks www.-b: a leading hyphen is a valid host character', () => {
 		expect(autolinkUrls('www.-b')).toEqual(['http://www.-b']);
 	});
 });
 
-describe('http/https autolink — valid domain (GFM §6.9)', () => {
+describe('http/https autolink: valid domain (GFM §6.9)', () => {
 	it.each(['http://xxx.yyy._zzz', 'https://xxx._yyy.zzz'])(
 		'keeps %j literal — the underscore rule is not www-only',
 		(raw) => {
@@ -44,7 +44,7 @@ describe('http/https autolink — valid domain (GFM §6.9)', () => {
 		}
 	);
 
-	it('autolinks https://_xxx.yyy.zzz — underscore left of the last two segments', () => {
+	it('autolinks https://_xxx.yyy.zzz; underscore left of the last two segments', () => {
 		expect(autolinkUrls('https://_xxx.yyy.zzz')).toEqual(['https://_xxx.yyy.zzz']);
 	});
 
@@ -61,7 +61,7 @@ describe('http/https autolink — valid domain (GFM §6.9)', () => {
 
 // Miss-analysis: the file header claimed a deliberate divergence without naming one, and no
 // case pinned a dotless host, so the behavior was unpinned in either direction.
-describe("a scheme'd host needs no period — the deliberate divergence", () => {
+describe("a scheme'd host needs no period: the deliberate divergence", () => {
 	// GFM §6.9's valid-domain rule wants at least one period, and cmark-gfm keeps these
 	// literal. Kept because `http://localhost` is what a dev note is full of.
 	it.each(['http://localhost', 'http://foo'])('autolinks %j', (raw) => {

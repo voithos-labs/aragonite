@@ -18,7 +18,7 @@ const ROOT = path.resolve('.');
 
 // ── The heading index ────────────────────────────────────────────────────────
 
-describe('in-pack anchors — the index', () => {
+describe('in-pack anchors: the index', () => {
 	const guide = readFileSync(path.join(ROOT, 'docs/guide/plugin-guide.md'), 'utf8');
 
 	it('indexes a real pack doc rather than an empty set', () => {
@@ -34,7 +34,7 @@ describe('in-pack anchors — the index', () => {
 
 	// A `# comment` in a shell snippet is no heading, and an anchor resolving against one would
 	// name a section the link lands nowhere near.
-	it('mints no anchor from a heading-shaped line inside a fence', () => {
+	it('creates no anchor from a heading-shaped line inside a fence', () => {
 		const fenced = '## Real\n\n```bash\n# install deps\n```\n';
 		expect(anchorsOf(fenced)).toContain('real');
 		expect(anchorsOf(fenced).has('install-deps')).toBe(false);
@@ -84,7 +84,7 @@ const pack = (anchors: [same: string, cross: string]): Record<string, string> =>
 	'b.md': '# Other\n\n## A section\n'
 });
 
-describe('in-pack anchors — the gate', () => {
+describe('in-pack anchors: the gate', () => {
 	it('reds on an anchor no heading spells, same doc or across two', () => {
 		const output = packGateOutput(pack(['the-old-name', 'the-old-section']));
 		expect(output).toContain(DANGLING);

@@ -40,7 +40,7 @@ async function settle(): Promise<void> {
 	await Promise.resolve();
 }
 
-describe('link card commit — which fields survive a url edit', () => {
+describe('link card commit: which fields survive a url edit', () => {
 	it('keeps a title the card never showed', async () => {
 		const card = makeCard('Visit [x](old "Ti") now\n');
 		card.committer.commitUrl(card.target, 'new');
@@ -74,8 +74,8 @@ describe('link card commit — which fields survive a url edit', () => {
 	});
 });
 
-describe('link card commit — the create half', () => {
-	it('mints the wrap over the range and lands the caret at the construct start', async () => {
+describe('link card commit: the create half', () => {
+	it('creates the wrap over the range and lands the caret at the construct start', async () => {
 		const card = makeCard('Alpha bravo charlie\n');
 		card.committer.commitCreate({ path: [0], start: 6, end: 11 }, 'https://n.test/x');
 		await settle();
@@ -84,7 +84,7 @@ describe('link card commit — the create half', () => {
 		expect(card.landCaret).toHaveBeenCalledWith([0], 6);
 	});
 
-	it('a range the seam declines writes nothing', async () => {
+	it('a range the join declines writes nothing', async () => {
 		const card = makeCard('Visit [x](old) now\n');
 		card.committer.commitCreate({ path: [0], start: 2, end: 9 }, 'https://n.test/x');
 		await settle();
@@ -93,7 +93,7 @@ describe('link card commit — the create half', () => {
 	});
 });
 
-describe('link card commit — reference forms', () => {
+describe('link card commit: reference forms', () => {
 	const DOC = 'Read [docs][ref] later\n\n[ref]: https://example.com/d\n';
 
 	it('resolves the destination the definition supplies', () => {
@@ -101,7 +101,7 @@ describe('link card commit — reference forms', () => {
 		expect(card.committer.resolve(card.target)?.url).toBe('https://example.com/d');
 	});
 
-	it('a NEW url inlines the form and leaves the definition alone', async () => {
+	it('a new url inlines the form and leaves the definition alone', async () => {
 		const card = makeCard(DOC);
 		card.committer.commitUrl(card.target, 'https://example.com/new');
 		await settle();

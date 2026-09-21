@@ -13,7 +13,7 @@ beforeAll(() => {
 	installPlugins([admonitionsPlugin()]);
 });
 
-describe('github alert — empty-body backfill stays consistent', () => {
+describe('github alert: empty-body backfill stays consistent', () => {
 	it('reparsing a paragraph into a marker-only alert rebuilds raw for the backfilled body', () => {
 		const doc = parse('para\n');
 		updateNodeContent(doc, 0, '> [!TIP]');

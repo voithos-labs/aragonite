@@ -41,7 +41,7 @@ afterEach(async () => {
 	document.body.innerHTML = '';
 });
 
-describe('CodeBlock — the language chip’s commit gate', () => {
+describe('CodeBlock: the language chip’s commit gate', () => {
 	// The field opens empty and the highlight starts on the block's own language, so a bare
 	// Enter re-commits `js`, which reads as unchanged and writes nothing, padding
 	// and all.

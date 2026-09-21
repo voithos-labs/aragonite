@@ -30,7 +30,7 @@ function makeEnv(revealPath?: CrossBlockMutationContext['revealPath']) {
 	return { ...harness, controller, mutCtx };
 }
 
-describe('performCrossBlockDelete — re-entrancy across the reveal await', () => {
+describe('performCrossBlockDelete: re-entrancy across the reveal await', () => {
 	it("a second call entering during the first's reveal await does not double-delete", async () => {
 		// Reference: the same selection deleted exactly once.
 		const single = makeEnv();

@@ -69,7 +69,7 @@ async function emptyLeaf(source: string, leafPath: number[]): Promise<Document> 
 }
 
 describe('emptying the only nested item separates the sublist', () => {
-	it('mints the line the emptied marker can no longer do without', async () => {
+	it('creates the line the emptied marker can no longer do without', async () => {
 		const doc = await emptyLeaf('- x\n  - y\n', [0, 0, 1, 0, 0]);
 
 		expect(serialize(doc)).toBe('- x\n\n  - \n');

@@ -15,7 +15,7 @@ function parseOne(source: string) {
 
 // ── Escaped brackets in labels (CommonMark §4.7) ────────────────────────────
 
-describe('parseLinkReferenceDefinition — escaped brackets in label', () => {
+describe('parseLinkReferenceDefinition: escaped brackets in label', () => {
 	it('parses a label containing \\]', () => {
 		const result = parseOne('[foo\\]bar]: /url\n');
 		expect(result).not.toBeNull();
@@ -54,7 +54,7 @@ describe('parseLinkReferenceDefinition — escaped brackets in label', () => {
 
 // ── Destination parsing ─────────────────────────────────────────────────────
 
-describe('parseLinkReferenceDefinition — destination', () => {
+describe('parseLinkReferenceDefinition: destination', () => {
 	it('returns null for an unclosed angle-bracket destination', () => {
 		expect(parseOne('[foo]: <bar\n')).toBeNull();
 	});
@@ -67,7 +67,7 @@ describe('parseLinkReferenceDefinition — destination', () => {
 
 // ── Trailing garbage + block-opener interruption (CommonMark §4.7) ───────────
 
-describe('parseLinkReferenceDefinition — invalidating tails and interruptions', () => {
+describe('parseLinkReferenceDefinition, invalidating tails and interruptions', () => {
 	it('rejects non-whitespace after the destination that is not a title', () => {
 		expect(parseOne('[foo]: /url junk\n')).toBeNull();
 	});
@@ -121,7 +121,7 @@ describe('parseLinkReferenceDefinition — invalidating tails and interruptions'
 // Miss-analysis (C-M7): the label cases all carried visible text, so the one label rule that
 // is not about brackets — §4.7's "at least one non-whitespace character" — was never asked.
 // Expected shapes verified against cmark-gfm via api.github.com/markdown.
-describe('parseLinkReferenceDefinition — whitespace-only label', () => {
+describe('parseLinkReferenceDefinition: whitespace-only label', () => {
 	for (const label of [' ', '\t', '   ']) {
 		it(`rejects the label ${JSON.stringify(label)}`, () => {
 			expect(parseOne(`[${label}]: /url\n`)).toBeNull();
@@ -144,7 +144,7 @@ describe('parseLinkReferenceDefinition — whitespace-only label', () => {
 // Miss-analysis: the next-line destination cases all used lines the interrupt registry
 // rejects, so the OTHER way a line closes the label line — underlining it as a setext
 // heading, which no opener knows about — was never asked. cmark-gfm verified.
-describe('parseLinkReferenceDefinition — a setext underline is no next-line destination', () => {
+describe('parseLinkReferenceDefinition: a setext underline is no next-line destination', () => {
 	for (const underline of ['---', '=']) {
 		it(`reads a bare label above ${JSON.stringify(underline)} as a setext heading`, () => {
 			const source = `[a]:\n${underline}\n`;

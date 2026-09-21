@@ -53,7 +53,7 @@ describe('a command-path text edit owns its undo entry', () => {
 	});
 
 	// Control: the same three writes without `isolateUndoEntry` merge into one entry.
-	it('the same writes without the seam coalesce into one entry', async () => {
+	it('the same writes without the boundary coalesce into one entry', async () => {
 		const { deps, controller, blockEdit } = makeEditor('ab\n');
 
 		await blockEdit.updateBlockContent(0, 'abc\n', 2);

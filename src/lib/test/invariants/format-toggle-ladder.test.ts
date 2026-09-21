@@ -96,7 +96,7 @@ function isBareWrap(display: string, selection: Range, result: ToggleInlineForma
 	);
 }
 
-describe('G2.14 — the pressed-state read and the toggle direction', () => {
+describe('G2.14: the pressed-state read and the toggle direction', () => {
 	for (const { kind } of listInlineMarks()) {
 		it(`${kind}: an active range unapplies, an inactive one applies`, () => {
 			const violations: string[] = [];

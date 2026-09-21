@@ -58,7 +58,7 @@ describe('the first byte after a chord carries the mark', () => {
 		expect(h.edits).toEqual([[0, 'hi**X**\n', 2, 5]]);
 	});
 
-	it('spends the set exactly once — the second byte types plain', () => {
+	it('spends the set exactly once: the second byte types plain', () => {
 		const h = mount('hi\n', ['strong']);
 		h.handleKeydown(key('X'), at(2));
 
@@ -85,13 +85,13 @@ describe('the first byte after a chord carries the mark', () => {
 describe('a pending mark outranks every arrival rule', () => {
 	// Offset 11 is bold's trailing content edge with the far side recorded, so the typing rules
 	// would write past the closer. The mark says otherwise, and wins (live-mode.md § 4.2).
-	it('beats the typing seat at a construct edge', () => {
+	it('beats the typing caret position at a construct edge', () => {
 		const h = mount('Some **bold** text\n', ['emphasis'], { affinity: 'far' });
 		expect(h.handleKeydown(key('X'), at(11))).toBe(true);
 		expect(h.edits).toEqual([[0, 'Some **bold*X*** text\n', 11, 13]]);
 	});
 
-	it('leaves the seat in charge once the set is spent', () => {
+	it('leaves the caret position in charge once the set is spent', () => {
 		const h = mount('Some **bold** text\n', ['emphasis'], { affinity: 'far' });
 		h.handleKeydown(key('X'), at(11));
 		h.edits.length = 0;
@@ -101,7 +101,7 @@ describe('a pending mark outranks every arrival rule', () => {
 	});
 });
 
-describe('the toggle seat claims only a plain byte at a collapsed caret', () => {
+describe('the toggle caret position claims only a plain byte at a collapsed caret', () => {
 	it('declines with nothing pending, whatever the key', () => {
 		const h = mount('hi\n', []);
 		expect(h.handleKeydown(key('X'), at(2))).toBe(false);

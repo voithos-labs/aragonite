@@ -43,7 +43,7 @@ describe('buildListBreakOutReplacement', () => {
 	});
 });
 
-describe('buildListBreakOutReplacement — trailing-residue flag drives the caret', () => {
+describe('buildListBreakOutReplacement, trailing-residue flag drives the caret', () => {
 	const list = () => parse('- one\n- two\n- three\n').children[0];
 	const pasted = () => parse('1. a\n2. b\n').children;
 

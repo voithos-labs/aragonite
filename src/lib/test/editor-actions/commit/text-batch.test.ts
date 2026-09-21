@@ -38,7 +38,7 @@ describe('text-batch lifecycle', () => {
 	// could tell a timer that starts when the user stops typing from one that starts when the
 	// editor starts working; on a host where a keystroke's own processing approaches 250 ms
 	// those are the difference between one undo entry per burst and one per character.
-	it('the window opens at the arm, not at the keystroke: a slow settle spends no budget', () => {
+	it('the window opens at the branch, not at the keystroke: a slow settle spends no budget', () => {
 		const { batch, pushSnapshot } = harness();
 		batch.keystroke([1], 0);
 		// The keystroke's own processing, longer than the whole window.

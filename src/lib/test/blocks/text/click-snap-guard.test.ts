@@ -79,7 +79,7 @@ describe('isPlainTypingKey', () => {
 		}
 	});
 
-	it('accepts a shifted character — Shift is not a command modifier', () => {
+	it('accepts a shifted character: Shift is not a command modifier', () => {
 		expect(isPlainTypingKey(key({ key: 'A', shiftKey: true }))).toBe(true);
 	});
 

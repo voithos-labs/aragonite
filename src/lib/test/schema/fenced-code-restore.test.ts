@@ -21,7 +21,7 @@ function reload(raw: string) {
 	};
 }
 
-describe('normalizeFencedRaw — the dropped closer', () => {
+describe('normalizeFencedRaw: the dropped closer', () => {
 	const closed = codeNode('```js\nbody\n```\n');
 
 	it('re-appends the closer a truncating write dropped', () => {
@@ -29,12 +29,12 @@ describe('normalizeFencedRaw — the dropped closer', () => {
 		expect(reload(normalizeFencedRaw('```js\nbo\n', closed))).toEqual({ count: 1, closed: true });
 	});
 
-	it('is idempotent — a second pass finds the closer and declines', () => {
+	it('is idempotent: a second pass finds the closer and declines', () => {
 		const once = normalizeFencedRaw('```js\nbo\n', closed);
 		expect(normalizeFencedRaw(once, closed)).toBe(once);
 	});
 
-	it('mints on the block’s own line ending (G4.20)', () => {
+	it('creates on the block’s own line ending (G4.20)', () => {
 		const crlf = codeNode('```js\r\nbody\r\n```\r\n');
 		expect(normalizeFencedRaw('```js\r\nbo\r\n', crlf)).toBe('```js\r\nbo\r\n```\r\n');
 		expect(reload(normalizeFencedRaw('```js\r\nbo\r\n', crlf))).toEqual({
@@ -46,7 +46,7 @@ describe('normalizeFencedRaw — the dropped closer', () => {
 	// An unterminated slice is what a last block without a trailing newline leaves behind: the
 	// reattached ending falls back to LF, so reading the closer's ending off it downgrades a
 	// CRLF block.
-	it('mints CRLF onto an unterminated slice', () => {
+	it('creates CRLF onto an unterminated slice', () => {
 		const crlf = codeNode('```js\r\nbody\r\n```\r\n');
 		expect(normalizeFencedRaw('```js\r\nbo', crlf)).toBe('```js\r\nbo\r\n```\n');
 		expect(reload(normalizeFencedRaw('```js\r\nbo', crlf))).toEqual({ count: 1, closed: true });

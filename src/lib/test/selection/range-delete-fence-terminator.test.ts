@@ -20,7 +20,7 @@ afterEach(() => allowDevWarns(['deleteFromProseIntoTable:end']));
 const sharing = () => createSharingState();
 
 describe('range delete inside a fenced code block', () => {
-	it('grows the fence when the join mints a closer line', () => {
+	it('grows the fence when the join creates a closer line', () => {
 		const doc = parse('```js\n``\n`\nbody\n```\n\n# Heading\n');
 
 		// Delete the line break between "``" and "`", which forms "```" on one line.
@@ -54,7 +54,7 @@ describe('range delete inside a fenced code block', () => {
 		expect(doc.children.map((c) => c.kind)).toEqual(['fencedCode', 'heading']);
 	});
 
-	it('leaves a join that mints no closer alone', () => {
+	it('leaves a join that creates no closer alone', () => {
 		const doc = parse('```js\nab\ncd\n```\n\n# Heading\n');
 
 		rangeDelete(
@@ -168,7 +168,7 @@ describe('range delete that consumes a fenced code closer', () => {
 		expectParseConverged(doc);
 	});
 
-	it('mints the closer on the block’s own line ending (G4.20)', () => {
+	it('creates the closer on the block’s own line ending (G4.20)', () => {
 		const doc = parse('```js\r\nbody\r\n```\r\n\r\npara\r\n');
 
 		rangeDelete(
@@ -187,7 +187,7 @@ describe('range delete that consumes a fenced code closer', () => {
 
 	// The parser preserves a missing final newline, so the joined slice carries none and the
 	// reattached ending falls back to LF. The closer's ending is the block's, not the slice's.
-	it('mints CRLF when the document’s last block has no trailing newline', () => {
+	it('creates CRLF when the document’s last block has no trailing newline', () => {
 		const doc = parse('```js\r\nbody\r\n```\r\n\r\npara');
 
 		rangeDelete(

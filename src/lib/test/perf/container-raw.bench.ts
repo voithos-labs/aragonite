@@ -50,7 +50,7 @@ function singleFlatList(targetBytes: number): string {
 	return lines.join('');
 }
 
-describe('ancestry rebuild — depth axis', () => {
+describe('ancestry rebuild: depth axis', () => {
 	const doc = parse(generateFixture('nested-containers', 1_000_000));
 	const chain = deepestChain(doc.children.find((c) => c.kind === 'list')!);
 	benchAncestryRebuild(`rebuild depth-${chain.length} ancestry (many tiny lists, 1MB)`, chain[0], {
@@ -58,7 +58,7 @@ describe('ancestry rebuild — depth axis', () => {
 	});
 });
 
-describe('ancestry rebuild — breadth axis', () => {
+describe('ancestry rebuild: breadth axis', () => {
 	const SIZES: Array<[label: string, bytes: number, opts: { iterations?: number; time?: number }]> =
 		[
 			['100KB', 100_000, { iterations: 50 }],
@@ -77,7 +77,7 @@ describe('ancestry rebuild — breadth axis', () => {
 // child's region. Plain objects understate the difference, since what the splice removes is one
 // `$state` proxy read per child; `test/tree-operations/ancestry-splice-read-bounds.test.ts`
 // counts those.
-describe('ancestry rebuild — interior keystroke, hint vs full', () => {
+describe('ancestry rebuild: interior keystroke, hint vs full', () => {
 	const doc = parse(singleFlatList(1_000_000));
 	const list = doc.children[0];
 	const middle = Math.floor(list.children!.length / 2);
@@ -118,7 +118,7 @@ describe('ancestry rebuild — interior keystroke, hint vs full', () => {
 // Every ancestor level holds a lot of raw, so one rebuild costs Σ(raw per level), about the
 // duplication factor times the document's bytes. The extreme point past anything realistic is
 // reported, not judged against the bounds.
-describe('ancestry rebuild — combined depth × bytes axis', () => {
+describe('ancestry rebuild: combined depth × bytes axis', () => {
 	const DEPTHS = [4, 8, 12] as const;
 	const PER_LEVEL: Array<[label: string, bytes: number]> = [
 		['1KB', 1_000],

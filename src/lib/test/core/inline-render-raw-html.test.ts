@@ -4,7 +4,7 @@ import { parseInline } from '../../core/inline';
 import { renderInlineNodes } from '../../core/inline-render';
 import type { InlineNode } from '../../core/nodes';
 
-describe('renderInlineNodes — rawHtml (literal-default)', () => {
+describe('renderInlineNodes: rawHtml (literal-default)', () => {
 	it('renders open tag as md-raw-html span with source bytes', () => {
 		const raw = '<span class="hl">';
 		const node: InlineNode = { kind: 'rawHtml', start: 0, end: raw.length };
@@ -38,8 +38,8 @@ describe('renderInlineNodes — rawHtml (literal-default)', () => {
 	});
 });
 
-describe('renderInlineNodes — rawHtml (live <br> widget)', () => {
-	it('<br> renders as live atomic widget, NOT md-raw-html span', () => {
+describe('renderInlineNodes: rawHtml (live <br> widget)', () => {
+	it('<br> renders as live atomic widget, not md-raw-html span', () => {
 		const raw = '<br>';
 		const node: InlineNode = { kind: 'rawHtml', start: 0, end: raw.length };
 		const frag = renderInlineNodes([node], raw);

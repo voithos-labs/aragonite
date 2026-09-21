@@ -342,12 +342,12 @@ export function judgeGesture(
 			`screen went ${JSON.stringify(screenBefore)} → ${JSON.stringify(liveScreen)}`
 		);
 	}
-	// One-sided, the way the edge-placement tests state it: whatever the parse re-pairs, a rewrite
-	// may never show more delimiters than the document already showed plus the ones the gesture
-	// typed. A `*` the user types is a glyph they asked for, and keeping it visible where the
-	// byte-literal insert buried it in a URL is the honest answer. Measured against the document
-	// before the gesture, not the other run, since the byte-literal edit can form a construct by
-	// accident and hide runs live kept. Where live wrote nothing, there is no claim (§ 4.4).
+	// One-sided, as live-mode.md § 4.2 Typing at a hidden edge states it: whatever the parse
+	// re-pairs, a rewrite may never show more delimiters than the document already showed plus
+	// the ones the gesture typed. A `*` the user types is a glyph they asked for, and keeping it
+	// visible where the byte-literal insert buried it in a URL is the honest answer. Measured
+	// against the document before the gesture, since the byte-literal edit can form a construct
+	// by accident and hide runs live kept. Where live wrote nothing, there is no claim (§ 4.4).
 	const shown = delimitersOnScreen(liveScreen) - delimitersOnScreen(typedRun(gesture));
 	if (live.bytes !== before && shown > delimitersOnScreen(screenBefore)) {
 		const alsoLiteral = delimitersOnScreen(literalScreen) >= shown;

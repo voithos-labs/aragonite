@@ -60,7 +60,7 @@ describe('resolveReorderUnit', () => {
 		});
 	});
 
-	it('returns null for the empty path — no slot to move', () => {
+	it('returns null for the empty path: no slot to move', () => {
 		const doc = parse('a\n\nb\n');
 		expect(resolveReorderUnit(doc, [])).toBeNull();
 	});
@@ -88,7 +88,7 @@ describe('resolveReorderUnit', () => {
 // An opaque container is not a reorderable parent: the resolver declines at its boundary
 // rather than teleporting to the document position. A native reorderable parent nested in
 // the body still wins first, so the decline cannot over-reach.
-describe('resolveReorderUnit — plugin (opaque) container', () => {
+describe('resolveReorderUnit: plugin (opaque) container', () => {
 	beforeEach(__resetSchemaRegistriesForTests);
 
 	// An opaque container at document index 1 whose child 0 is its reserved title child.
@@ -125,7 +125,7 @@ describe('resolveReorderUnit — plugin (opaque) container', () => {
 		};
 	}
 
-	it('a body leaf declines to null — no walk-past to the document slot', () => {
+	it('a body leaf declines to null: no walk-past to the document slot', () => {
 		const doc = opaqueContainer([{ kind: 'paragraph', leadingTrivia: '', raw: 'body\n' }]);
 		// The teleport: returning { parentPath: [], index: 1 }, the whole container's position.
 		expect(resolveReorderUnit(doc, [1, 1])).toBeNull();

@@ -102,7 +102,7 @@ const profileFor = (
 const seatCode = (node: CstNode, body: string): void =>
 	setPluginMetadata<ProbeMetadata>(node, { code: body });
 
-describe('G4.3 terminator collision — the childless, metadata-bodied shape', () => {
+describe('G4.3 terminator collision: the childless, metadata-bodied shape', () => {
 	beforeEach(() => {
 		resetPluginPlatformForTests();
 	});

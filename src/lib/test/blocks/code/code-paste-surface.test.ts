@@ -7,7 +7,7 @@ describe('code-paste-surface', () => {
 		expect(codePasteSurface.kind).toBe('fencedCode');
 	});
 
-	it('omits both structural hooks — code always treats paste as literal text', () => {
+	it('omits both structural hooks: code always treats paste as literal text', () => {
 		expect(codePasteSurface.onStructuralPaste).toBeUndefined();
 		expect(codePasteSurface.onScopedStructuralPaste).toBeUndefined();
 	});

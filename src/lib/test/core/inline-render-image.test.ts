@@ -19,7 +19,7 @@ const withWidget = (opts: RenderInlineOptions = {}): RenderInlineOptions => {
 	};
 };
 
-describe('inline-render image — render-context flag (parameter threading)', () => {
+describe('inline-render image: render-context flag (parameter threading)', () => {
 	const raw = '![cat|400](https://example.com/cat.png)';
 
 	it('alt-only path preserves textContent === raw', () => {
@@ -171,7 +171,7 @@ describe('inline-render image — render-context flag (parameter threading)', ()
 
 // The fallback a kind with `renderImagesAsWidgets: false` (table cells) renders
 // through — and any block whose consumer injects no widget builder.
-describe('inline-render image — alt-only fallback', () => {
+describe('inline-render image: alt-only fallback', () => {
 	const renderFallback = (nodes: InlineNode[], raw: string) =>
 		renderInlineNodes(nodes, raw, { renderImagesAsWidgets: false });
 

@@ -21,7 +21,7 @@ function harness() {
 }
 
 describe('an undo entry pushed while a gap is live records the gap', () => {
-	it('the mint stores the boundary it was minted at, not its snapshot coordinate', async () => {
+	it('the new block stores the boundary it was created at, not its snapshot coordinate', async () => {
 		const h = harness();
 		placeGapCaret(h.deps.selectionState, AT_BOUNDARY);
 

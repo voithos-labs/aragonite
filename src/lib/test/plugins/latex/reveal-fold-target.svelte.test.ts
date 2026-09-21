@@ -99,7 +99,7 @@ describe('a render-primary fold writes back only what its reveal measured', () =
 // pressed its keys there, so the rendered view, where the block spends most of its life, had
 // no keydown handler at all and no case to notice.
 describe('a render-primary block answers chords in either half of the swap', () => {
-	it('undoes a committed edit while the FOLDED view holds focus', async () => {
+	it('undoes a committed edit while the folded view holds focus', async () => {
 		const editor = mountEditorWithLiveSource(OPENED);
 		const el = await revealWithDraft(editor, '$$\nnew\n$$');
 		el.dispatchEvent(new FocusEvent('focusout', { bubbles: true }));

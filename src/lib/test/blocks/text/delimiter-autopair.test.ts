@@ -24,17 +24,17 @@ describe('delimiter auto-pair', () => {
 	});
 	afterEach(resetPluginPlatformForTests);
 
-	it('a typed backtick lands its twin after the caret', () => {
+	it('a typed backtick lands its paired closer after the caret', () => {
 		expect(type('text here', 5, '`')).toEqual(written('text ``here', 6));
 	});
 
 	// A lone `$` typed ahead of an existing formula would otherwise pair with that formula's
 	// closer, wrapping the prose between them.
-	it('a typed $ pairs with its twin, not the next formula', () => {
+	it('a typed $ pairs with its paired closer, not the next formula', () => {
 		expect(type('text and $x^2$ later', 5, '$')).toEqual(written('text $$and $x^2$ later', 6));
 	});
 
-	it('typing the closer over the twin steps past it', () => {
+	it('typing the closer over the paired closer steps past it', () => {
 		expect(type('a ``', 3, '`')).toEqual(stepped(4, false));
 		expect(type('a `code` b', 7, '`')).toEqual(stepped(8, true));
 		expect(type('$x$', 2, '$')).toEqual(stepped(3, true));
@@ -50,7 +50,7 @@ describe('delimiter auto-pair', () => {
 		expect(type('a `code` b', 2, '`')).toBeNull();
 	});
 
-	it('the empty pair keeps its twin when the first byte makes a construct', () => {
+	it('the empty pair keeps its paired closer when the first byte makes a construct', () => {
 		expect(type('a ``', 3, 'x')).toBeNull();
 		expect(type('a $$', 3, 'y')).toBeNull();
 		expect(type('a ``', 3, '1')).toBeNull();
@@ -58,7 +58,7 @@ describe('delimiter auto-pair', () => {
 
 	// `$5` is a price and `$ ` is a shell prompt: the partner the keystroke left would just
 	// show as a stray dollar sign.
-	it('the empty pair drops its twin when the first byte makes no construct', () => {
+	it('the empty pair drops its paired closer when the first byte makes no construct', () => {
 		expect(type('cost $$', 6, '5')).toEqual(written('cost $5', 7));
 		expect(type('$$', 1, ' ')).toEqual(written('$ ', 2));
 	});
@@ -98,7 +98,7 @@ describe('delimiter auto-pair', () => {
 	// byte after it belongs outside, so it is written and the caret goes past the run.
 	// Miss-analysis: every closing case here had a partner to step over, so none typed the byte
 	// that makes the construct and asked which side the next one lands on.
-	it('a closer typed with no twin ahead closes the construct', () => {
+	it('a closer typed with no paired closer ahead closes the construct', () => {
 		expect(type('Some *ab', 8, '*')).toEqual(closed('Some *ab*', 9));
 		expect(type('Some `ab', 8, '`')).toEqual(closed('Some `ab`', 9));
 		expect(type('$ab', 3, '$')).toEqual(closed('$ab$', 4));
@@ -119,7 +119,7 @@ describe('delimiter auto-pair', () => {
 		expect(type('a _x_', 4, '_')).toEqual(stepped(5, true));
 	});
 
-	it('a double empty pair keeps or drops its twin run by what the first byte makes', () => {
+	it('a double empty pair keeps or drops its paired closer run by what the first byte makes', () => {
 		expect(type('a ****', 4, 'x')).toBeNull();
 		expect(type('a ****', 4, ' ')).toEqual(written('a ** ', 5));
 		expect(type('a ~~~~', 4, 'x')).toBeNull();

@@ -74,7 +74,7 @@ afterEach(() => {
 });
 
 describe('the chord over a range inside a link', () => {
-	it('enters THAT link’s card, with the focus epoch the chord owes', () => {
+	it('enters that link’s card, with the focus epoch the chord must supply', () => {
 		const card = press(LINKED, 8, 12);
 		expect(card.getTarget()).toEqual({ path: [0], sourceStart: 6 });
 		expect(card.getCreateTarget()).toBeNull();

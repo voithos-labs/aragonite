@@ -48,7 +48,7 @@ function deleteAcross(doc: Document, startOffset: number, endOffset: number): st
 	return serialize(newDoc);
 }
 
-describe('the char endpoint funnel refuses an offset inside a scalar', () => {
+describe('the one char-endpoint call refuses an offset inside a scalar', () => {
 	it('snaps a mid-pair offset back to the pair start', () => {
 		const doc = parse(BOY);
 		expect(normalizeCharEndpoint(doc, { path: [0], offset: 2 }, [1])).toEqual({
@@ -65,7 +65,7 @@ describe('the char endpoint funnel refuses an offset inside a scalar', () => {
 	});
 
 	// The checker's own self-test: it must see the corruption it is meant to catch.
-	it('the well-formedness oracle names a split pair and passes an intact one', () => {
+	it('the well-formedness check names a split pair and passes an intact one', () => {
 		expect(loneSurrogatesIn('a\u{1F466}b')).toEqual([]);
 		expect(loneSurrogatesIn('a\uD83D')).toEqual([1]);
 		expect(loneSurrogatesIn('\uDC66b')).toEqual([0]);

@@ -20,7 +20,7 @@ import type { BlockListState } from '$lib/reactivity/block-list-state.svelte';
 // The delete's afterTick must clamp against the live post-commit children: a node read
 // before the commit is one too long, so deleting the last item indexes past the refs.
 
-describe('list-overrides deleteBlock — focus after deleting the last item', () => {
+describe('list-overrides deleteBlock: focus after deleting the last item', () => {
 	it('lands the caret on the new last item, not a stale index past the refs', async () => {
 		const { deps } = makeEditorActionsDeps([parse('- a\n- b\n- c\n').children[0]]);
 		const liveList = () => deps.doc.children[0];

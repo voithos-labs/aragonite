@@ -6,7 +6,7 @@ import { makeHarness, runOp } from '$lib/test/undo/restoration-ops';
 // pre-edit raw is not canonical is what proves undo restores the original bytes.
 const NON_CANONICAL = '| h1 | h2 |\n|---|---|\n|a|b|\n|c|d|\n';
 
-describe('table row reorder — undo restoration', () => {
+describe('table row reorder: undo restoration', () => {
 	it('undo after a body-row move restores the original non-canonical source byte-exactly', async () => {
 		const h = makeHarness(NON_CANONICAL);
 		const before = serialize(h.deps.doc);

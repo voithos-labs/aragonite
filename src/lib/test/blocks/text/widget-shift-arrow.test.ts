@@ -16,7 +16,7 @@ import {
 import type { CstNode } from '$lib/core/nodes';
 import { placeCaretAt } from './math-widget-fixture';
 
-describe('handleShiftArrowIntoWidget — non-image inline widget', () => {
+describe('handleShiftArrowIntoWidget: non-image inline widget', () => {
 	let el: HTMLElement;
 	let tA: Text;
 	let tB: Text;

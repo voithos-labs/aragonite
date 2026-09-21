@@ -92,7 +92,7 @@ describe('G2.11 scanner total coverage + construct tiling + kind vocabulary', ()
 		);
 	});
 
-	it('holds with the bundled inline rungs installed', () => {
+	it('holds with the bundled inline syntax handlers installed', () => {
 		// Registries register once, so the handlers install once for the whole property, and
 		// the scan reads no state the cases mutate.
 		resetPluginPlatformForTests();

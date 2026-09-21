@@ -25,7 +25,7 @@ function mountBoxed(): HTMLElement {
 	return el;
 }
 
-describe('caretOffsetAtPoint — the nearest offset in one element', () => {
+describe('caretOffsetAtPoint: the nearest offset in one element', () => {
 	let el: HTMLElement;
 	let asked: { x: number; y: number }[];
 
@@ -59,19 +59,19 @@ describe('caretOffsetAtPoint — the nearest offset in one element', () => {
 		expect(asked).toEqual([{ x: BOX.right - 1, y: 60 }]);
 	});
 
-	it('declines where the element holds no position the engine can name', () => {
+	it('declines where the element holds no position the browser can name', () => {
 		setPointProbe(undefined);
 		expect(caretOffsetAtPoint(el, 140, 60)).toBeNull();
 	});
 });
 
-describe('offsetFromViewportPoint — the exact twin', () => {
+describe('offsetFromViewportPoint: the exact counterpart', () => {
 	afterEach(() => {
 		document.body.innerHTML = '';
 		setPointProbe(undefined);
 	});
 
-	it('declines a point the engine resolves outside the element', () => {
+	it('declines a point the browser resolves outside the element', () => {
 		const el = mountBoxed();
 		const elsewhere = document.createElement('div');
 		elsewhere.textContent = 'elsewhere';

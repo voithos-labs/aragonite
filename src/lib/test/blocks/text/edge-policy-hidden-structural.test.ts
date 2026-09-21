@@ -71,7 +71,7 @@ describe('a hidden structural suffix swallows Delete at content end', () => {
 	);
 });
 
-describe('the prefix side belongs to the block-edge command, not to this arm', () => {
+describe('the prefix side belongs to the block-edge command, not to this branch', () => {
 	// The key falls through the whole dispatch so `block.mergePrev` can demote the heading;
 	// consuming it here would silently take the gesture back.
 	it.each([

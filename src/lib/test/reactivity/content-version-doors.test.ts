@@ -22,8 +22,8 @@ function topLevelEditor(source: string) {
 	};
 }
 
-describe('content version — every byte-writing door announces its write', () => {
-	it('the commit ceremony announces a structural commit', async () => {
+describe('content version: every byte-writing entry point announces its write', () => {
+	it('the commit sequence announces a structural commit', async () => {
 		const editor = topLevelEditor('one\n\ntwo\n');
 		const before = editor.contentVersion();
 		await editor.blockEdit.splitBlock(0, 1);
@@ -41,7 +41,7 @@ describe('content version — every byte-writing door announces its write', () =
 		expect(editor.contentVersion()).not.toBe(before);
 	});
 
-	it('the nested out-of-ceremony write announces a keystroke inside a container', async () => {
+	it('the nested out-of-commit sequence write announces a keystroke inside a container', async () => {
 		const harness = makeNestedHarness('> quoted\n', { index: 0 });
 		const before = harness.contentVersion();
 		await harness.bundle.blockEdit.updateBlockContent(0, 'quotedx\n', 6, 7);

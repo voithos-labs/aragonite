@@ -59,7 +59,7 @@ describe('setext heading split', () => {
 // Miss-analysis: every setext pin cut on a letter or a line boundary; none put the caret
 // inside a content line's trailing whitespace run.
 describe('setext split cutting on trailing whitespace', () => {
-	it('consumes the whitespace into the first half instead of minting a blank line', () => {
+	it('consumes the whitespace into the first half instead of creating a blank line', () => {
 		const doc = parse('Title \nMore\n=====\n');
 		splitNode(doc, 0, 5, undefined, undefined, undefined);
 		expect(doc.children.map((c) => [c.kind, c.raw])).toEqual([
@@ -69,7 +69,7 @@ describe('setext split cutting on trailing whitespace', () => {
 		expect(describeConvergence(doc)).toBeNull();
 	});
 
-	it('the CRLF twin', () => {
+	it('the CRLF variant', () => {
 		const doc = parse('Title \r\nMore\r\n=====\r\n');
 		splitNode(doc, 0, 5, undefined, undefined, undefined);
 		expect(doc.children.map((c) => [c.kind, c.raw])).toEqual([
@@ -89,7 +89,7 @@ describe('setext split cutting on trailing whitespace', () => {
 
 	// A remainder that is only whitespace has no content line to protect: the blank-half branch
 	// already separates it correctly, so the whitespace stays with the second half.
-	it('leaves an all-whitespace remainder to the blank-half arm', () => {
+	it('leaves an all-whitespace remainder to the blank-half branch', () => {
 		const doc = parse('More \n=====\n');
 		splitNode(doc, 0, 4, undefined, undefined, undefined);
 		expect(doc.children[0].kind).toBe('setextHeading');

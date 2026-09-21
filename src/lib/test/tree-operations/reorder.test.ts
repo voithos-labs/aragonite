@@ -71,7 +71,7 @@ describe('reorderChildrenWithTrivia', () => {
 		});
 	});
 
-	it('copies shared nodes before writing trivia (copy-path-on-write)', () => {
+	it('copies shared nodes before writing blank lines (copy-path-on-write)', () => {
 		const children = [triviaNode('', 'a\n'), triviaNode('\n', 'b\n')];
 		const originals = children.slice();
 		const s = sharing();

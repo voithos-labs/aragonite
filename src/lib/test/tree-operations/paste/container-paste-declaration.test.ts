@@ -30,7 +30,7 @@ describe('containerPaste declaration drives the paste-merge decision', () => {
 		expect(findListBreakOut(doc, [0, 1, 0], sameType, 0)).toBeNull();
 	});
 
-	it('blockquote declares siblingAbsorb: false — no absorb path for quote clipboards', () => {
+	it('blockquote declares siblingAbsorb: false; no absorb path for quote clipboards', () => {
 		const doc = parse('- a\n- b\n');
 		const quoteClip = parse('> q\n');
 		expect(findListAbsorb(doc, [0, 1, 0], quoteClip, 0)).toBeNull();

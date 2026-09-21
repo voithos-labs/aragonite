@@ -228,17 +228,17 @@ const BARE_WRITE_RULE =
 	'(ahead of your own reparse), or add the file to BARE_RAW_WRITE_ALLOWLIST with its count and ' +
 	'the reason its writes cannot reach a kind that declares one';
 
-describe('every bare raw write is sanctioned', () => {
+describe('every bare raw write is allowed', () => {
 	const writes = rawAssignments(collectEditorSources());
 
-	it('no file outside the sanctioned set writes a leaf’s raw directly', () => {
+	it('no file outside the allowed set writes a leaf’s raw directly', () => {
 		const unsanctioned = writes
 			.filter((w) => !(w.relPath in BARE_RAW_WRITE_ALLOWLIST))
 			.map((w) => w.relPath);
 		expect([...new Set(unsanctioned)], BARE_WRITE_RULE).toEqual([]);
 	});
 
-	it('each sanctioned file holds exactly the writes its entry accounts for', () => {
+	it('each allowed file holds exactly the writes its entry accounts for', () => {
 		for (const [relPath, entry] of Object.entries(BARE_RAW_WRITE_ALLOWLIST)) {
 			const found = writes.filter((w) => w.relPath === relPath).length;
 			expect(

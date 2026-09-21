@@ -49,10 +49,10 @@ describe('CodeBlock keystroke commit preserves the trailing line ending', () => 
 	});
 });
 
-describe('CodeBlock fence auto-close mints a CRLF paragraph below', () => {
+describe('CodeBlock fence auto-close creates a CRLF paragraph below', () => {
 	// Enter on an unclosed fence's trailing blank line writes the closer and the paragraph
 	// in one replaceBlock; both are pure line ending, so both take the fence's (G4.20).
-	it('the minted paragraph carries the fence’s line ending, not a literal LF', () => {
+	it('the created paragraph carries the fence’s line ending, not a literal LF', () => {
 		mounted = mountCode('```js\r\ncode\r\n\r\n');
 		const { instance, el } = mounted;
 		el.focus();

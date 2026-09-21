@@ -17,7 +17,7 @@ beforeAll(() => {
 	installPlugins([admonitionsPlugin()]);
 });
 
-describe('github alert — per-keystroke marker formation', () => {
+describe('github alert: per-keystroke marker formation', () => {
 	it('reclassifies the blockquote once the marker completes', async () => {
 		const h = containerAt('> [!TI\n', [0]);
 

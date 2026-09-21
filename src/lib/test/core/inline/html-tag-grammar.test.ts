@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { matchHtmlFormAt, type HtmlFormKind } from '../../../core/inline/html-tag-grammar';
 
-describe('matchHtmlFormAt — per-form detection at position', () => {
+describe('matchHtmlFormAt: per-form detection at position', () => {
 	function match(raw: string, pos = 0): { kind: HtmlFormKind; length: number } | null {
 		return matchHtmlFormAt(raw, pos, raw.length);
 	}

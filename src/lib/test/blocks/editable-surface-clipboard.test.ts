@@ -73,7 +73,7 @@ function deps(log: string[], over: Partial<ClipboardSurfaceDeps> = {}): Clipboar
 	};
 }
 
-describe('clipboard skeleton — copy order', () => {
+describe('clipboard skeleton: copy order', () => {
 	it('non-reading, non-cross-block copy runs reset then the intra-block tail', () => {
 		const log: string[] = [];
 		const rec = recorder();
@@ -86,7 +86,7 @@ describe('clipboard skeleton — copy order', () => {
 		expect(rec.prevented).toBe(true);
 	});
 
-	it('reading mode prevents and writes the visible selection, skipping every arm', () => {
+	it('reading mode prevents and writes the visible selection, skipping every branch', () => {
 		const log: string[] = [];
 		const rec = recorder();
 		let tailRan = false;
@@ -118,7 +118,7 @@ describe('clipboard skeleton — copy order', () => {
 	});
 });
 
-describe('clipboard skeleton — cut order', () => {
+describe('clipboard skeleton: cut order', () => {
 	it('folds the reveal before writing, prevents up front', async () => {
 		const log: string[] = [];
 		const rec = recorder();
@@ -134,7 +134,7 @@ describe('clipboard skeleton — cut order', () => {
 		expect(rec.prevented).toBe(true);
 	});
 
-	it('reading mode degrades cut to copy — no fold, no cut tail, no cross-block delete', async () => {
+	it('reading mode degrades cut to copy: no fold, no cut tail, no cross-block delete', async () => {
 		const log: string[] = [];
 		const rec = recorder();
 		let folded = false;
@@ -173,7 +173,7 @@ describe('clipboard skeleton — cut order', () => {
 	});
 });
 
-describe('clipboard skeleton — paste order', () => {
+describe('clipboard skeleton: paste order', () => {
 	it('prevents default synchronously, before the first await', () => {
 		const log: string[] = [];
 		const rec = recorder('X');
@@ -200,7 +200,7 @@ describe('clipboard skeleton — paste order', () => {
 		expect(log).toEqual(['fold', 'crossblock-paste', 'reset', 'pasteTail:HELLO']);
 	});
 
-	it('reading mode prevents and stays inert — no cross-block, no tail', async () => {
+	it('reading mode prevents and stays inert: no cross-block, no tail', async () => {
 		const log: string[] = [];
 		const rec = recorder('X');
 		let tailRan = false;
@@ -229,7 +229,7 @@ const settled = (): Promise<void> => new Promise((resolve) => setTimeout(resolve
 
 // The API call is the gesture's sibling entry path, so what it must carry is the gesture's
 // own order of steps, not a second sequence written beside it.
-describe('clipboard skeleton — programmatic insertMarkdown', () => {
+describe('clipboard skeleton: programmatic insertMarkdown', () => {
 	it('runs the same fold → cross-block → reset → tail order a paste does', async () => {
 		const log: string[] = [];
 		const handlers = createClipboardHandlers(
@@ -245,7 +245,7 @@ describe('clipboard skeleton — programmatic insertMarkdown', () => {
 		expect(log).toEqual(['fold', 'crossblock-paste', 'reset', 'pasteTail:HELLO']);
 	});
 
-	it('hands the cross-block seam the payload, so a range is replaced rather than re-read', async () => {
+	it('hands the cross-block dispatch the payload, so a range is replaced rather than re-read', async () => {
 		const log: string[] = [];
 		const seen: Array<string | undefined> = [];
 		const handlers = createClipboardHandlers(
@@ -263,7 +263,7 @@ describe('clipboard skeleton — programmatic insertMarkdown', () => {
 		expect(seen).toEqual(['PAYLOAD']);
 	});
 
-	it('declines in reading mode without touching an arm', async () => {
+	it('declines in reading mode without touching a branch', async () => {
 		const log: string[] = [];
 		let tailRan = false;
 		const handlers = createClipboardHandlers(

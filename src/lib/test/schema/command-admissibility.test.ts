@@ -58,7 +58,7 @@ describe('the toolbar scenario', () => {
 
 	// No router passed in, which is what an older construction of the checks hands the dispatch:
 	// the rewrites decline rather than falling through to the focused block's own offsets.
-	it('a painted range with no cross-block arm declines the rewrites and nothing else', () => {
+	it('a painted range with no cross-block branch declines the rewrites and nothing else', () => {
 		const ctx = context({ isCrossBlockRange: () => true });
 		for (const id of TOOLBAR_IDS) expect(canRunCommandById(id, surface(), ctx)).toBe(false);
 		expect(canRunCommandById('block.split', surface(), ctx)).toBe(true);
@@ -74,7 +74,7 @@ describe('the toolbar scenario', () => {
 		expect(canRunCommandById('history.undo', null, context())).toBe(true);
 	});
 
-	it('an id the door cannot reach is never admitted: unknown, or minted with no context', () => {
+	it('an id the entry point cannot reach is never admitted: unknown, or created with no context', () => {
 		const minted = registerBlockCommand('paragraph', 'demo.minted', () => true);
 		expect(canRunCommandById(minted, surface(), context())).toBe(false);
 		expect(canRunCommandById('nope.nope' as AnyCommandId, surface(), context())).toBe(false);
@@ -87,7 +87,7 @@ describe('the read agrees with the dispatch it describes', () => {
 	// Miss-analysis: every scenario drove a target with no `getCommandContext`, the one shape where
 	// working the levels out again gives exactly the dispatch's answer, so the check's missing
 	// plugin-command level agreed everywhere the matrix looked.
-	it('every (id, scenario) verdict is what the door then answers', () => {
+	it('every (id, scenario) verdict is what the entry point then answers', () => {
 		const minted = registerBlockCommand('paragraph', 'demo.agree', () => true);
 		const scenarios = [
 			{ name: 'collapsed caret', ctx: () => context(), target: surface },

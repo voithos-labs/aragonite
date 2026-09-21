@@ -40,7 +40,7 @@ afterEach(() => {
 
 // A plugin command bound to a leaf kind resolves once the focused block supplies a command
 // context, through the same code the container-bubble path uses.
-describe('leaf-path dispatch of a minted block command', () => {
+describe('leaf-path dispatch of a created block command', () => {
 	it('runs the handler with the target context + binding arg when a context is supplied', () => {
 		const updateMetadata = vi.fn();
 		const handler = vi.fn(() => true);
@@ -66,7 +66,7 @@ describe('leaf-path dispatch of a minted block command', () => {
 
 // A throw from a plugin goes to the caller's error callback on both dispatch paths; a built-in
 // command is not wrapped, because a throw there is an editor bug and stays loud.
-describe('a throwing plugin handler is contained at the dispatch seam', () => {
+describe('a throwing plugin handler is contained at the command dispatch', () => {
 	it('contains a leaf-path throw, reports it, and consumes the key', () => {
 		const boom = new Error('leaf boom');
 		const id = registerBlockCommand('paragraph', 'demo.boom', () => {
@@ -121,7 +121,7 @@ describe('a throwing plugin handler is contained at the dispatch seam', () => {
 		expect(reports[0]).toMatchObject({ kind: 'listItem', command: id, error: boom });
 	});
 
-	it('contains the throw even with no sink wired — safety is unconditional', () => {
+	it('contains the throw even with no sink wired: safety is unconditional', () => {
 		const id = registerBlockCommand('paragraph', 'demo.boom', () => {
 			throw new Error('unwired');
 		});
@@ -144,7 +144,7 @@ describe('a throwing plugin handler is contained at the dispatch seam', () => {
 		).not.toThrow();
 	});
 
-	it('does NOT contain a built-in command throw — editor bugs stay loud', () => {
+	it('does not contain a built-in command throw: editor bugs stay loud', () => {
 		// Mod+B → format.toggleStrong (a built-in id): its runCommand is the block's
 		// own, executed unwrapped, so a throw propagates.
 		const runCommand = vi.fn(() => {

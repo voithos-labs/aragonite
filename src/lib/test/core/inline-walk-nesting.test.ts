@@ -80,7 +80,7 @@ describe('inline tree walks at input-controlled nesting depth', () => {
 
 	// A recognizer may build any tree, so a plugin handler's claim record inherits the depth its
 	// author chose.
-	it('stamps a rung-minted chain past the recursion ceiling', () => {
+	it('marks an inline syntax handler-created chain past the recursion ceiling', () => {
 		const raw = 'Q' + 'x'.repeat(2 * MODEL_DEPTH + 2);
 		registerInlineSyntax('Q', (_source, pos, end) => {
 			let node: InlineNode = { kind: 'text', start: pos + MODEL_DEPTH, end: end - MODEL_DEPTH };

@@ -45,7 +45,7 @@ const run = (profile: InlineConformanceProfile) => () => runInlineKindConformanc
 
 // ── overlapDecline: the flagship ─────────────────────────────────────────────
 
-describe('overlapDecline reds a rung that swallows the grammar overlap', () => {
+describe('overlapDecline reds an inline syntax handler that swallows the grammar overlap', () => {
 	// `![[a]](u)` is a built-in image, and a handler registered on the `!` prefix is asked
 	// first, so a recognizer taking every `![[…]]` takes those bytes and the document still
 	// round-trips, as a wiki embed the author never wrote.
@@ -70,7 +70,7 @@ describe('overlapDecline reds a rung that swallows the grammar overlap', () => {
 		expect(run(wikiProfile())).toThrow(/overlapDecline: .*swallowed the overlap/s);
 	});
 
-	it('passes for the same rung once it declines the overlap itself', () => {
+	it('passes for the same inline syntax handler once it declines the overlap itself', () => {
 		registerWikiRung(rewriteWikiImage);
 		const report = runInlineKindConformance(wikiProfile());
 		expect(report.cells.find((c) => c.cell === 'overlapDecline')?.status).toBe('asserted');
@@ -88,8 +88,8 @@ describe('overlapDecline reds a rung that swallows the grammar overlap', () => {
 
 // ── imageClaim ───────────────────────────────────────────────────────────────
 
-describe('imageClaim reds a borrowed built-in the rung cannot re-serialize', () => {
-	it('fails when the rung mints an image with no rewriteImage hook', () => {
+describe('imageClaim reds a borrowed built-in the inline syntax handler cannot re-serialize', () => {
+	it('fails when the inline syntax handler creates an image with no rewriteImage hook', () => {
 		registerWikiRung();
 		expect(run(wikiProfile())).toThrow(/imageClaim: .*registers no rewriteImage/s);
 	});
@@ -112,7 +112,7 @@ describe('imageClaim reds a borrowed built-in the rung cannot re-serialize', () 
 
 // ── claims: the anti-vacuity pin ─────────────────────────────────────────────
 
-describe('claims reds a fixture the rung never touches', () => {
+describe('claims reds a fixture the inline syntax handler never touches', () => {
 	it('fails enrollment rather than passing every cell over nothing', () => {
 		registerWikiRung(rewriteWikiImage);
 		expect(run(wikiProfile({ fixtures: ['![[cat.png]]', 'plain prose'] }))).toThrow(
@@ -128,7 +128,7 @@ describe('claims reds a fixture the rung never touches', () => {
 
 // ── registration ─────────────────────────────────────────────────────────────
 
-describe('registration reds a rung that is not where the profile says', () => {
+describe('registration reds an inline syntax handler that is not where the profile says', () => {
 	// The failure the directive handler shipped with: the kind and widget registered,
 	// the recognizer skipped because another plugin already held the trigger.
 	it('fails when nothing is registered at the declared prefix', () => {
@@ -173,8 +173,8 @@ describe('editingPolicy reds a declaration that decides nothing', () => {
 	});
 });
 
-describe('widget reds an island the offset walk cannot measure', () => {
-	it('passes for an island minted through the shared shell', () => {
+describe('widget reds a widget the offset walk cannot measure', () => {
+	it('passes for a widget created through the shared shell', () => {
 		const kind = registerMarkerRung((node) => mintWidgetShell('marker', node));
 		const report = runInlineKindConformance(markerProfile(kind));
 		expect(report.cells.find((c) => c.cell === 'widget')?.status).toBe('asserted');
@@ -182,7 +182,7 @@ describe('widget reds an island the offset walk cannot measure', () => {
 
 	// Every caret offset in the block comes from the DOM-to-offset traversal, and no byte
 	// moves when the span is wrong: the block simply stops agreeing with its own bytes.
-	it('fails an island whose source span is short by one', () => {
+	it('fails a widget whose source span is short by one', () => {
 		const kind = registerMarkerRung((node) => {
 			const shell = mintWidgetShell('marker', node);
 			shell.dataset.sourceEnd = String(node.end - 1);
@@ -191,7 +191,7 @@ describe('widget reds an island the offset walk cannot measure', () => {
 		expect(run(markerProfile(kind))).toThrow(/widget: .*data-source-end/s);
 	});
 
-	it('fails an island that is not marked atomic at all', () => {
+	it('fails a widget that is not marked atomic at all', () => {
 		const kind = registerMarkerRung(() => document.createElement('span'));
 		expect(run(markerProfile(kind))).toThrow(/widget: .*data-inline-widget/s);
 	});
@@ -200,7 +200,7 @@ describe('widget reds an island the offset walk cannot measure', () => {
 describe('widget reds a claim that cannot stand on its own bytes', () => {
 	// The match reaches for a byte outside itself, so the slice `data-source-*` hands the
 	// clipboard, and showing the source does not re-form the same widget.
-	it('fails a rung whose slice only forms in the context it was cut from', () => {
+	it('fails an inline syntax handler whose slice only forms in the context it was cut from', () => {
 		const kind = declarePluginInlineKind(MARKER);
 		registerInlineSyntax('@', (raw, pos, end) => {
 			if (raw.indexOf('!', pos + 2) < 0 || pos + 2 > end) return null;

@@ -73,7 +73,7 @@ describe('list item Enter completion (#146)', () => {
 
 	// A completion only takes a line a completer answers for: an item whose text none answers
 	// for still reaches the three branches above, which keeps Enter in a list a list gesture.
-	it('leaves an unclaimed line to the item’s own arms', async () => {
+	it('leaves an unclaimed line to the item’s own branches', async () => {
 		mounted = mountEditor({ source: '- | a |\n' });
 
 		await pressKeyAt(mounted, [0, 0, 0], 7, ENTER);

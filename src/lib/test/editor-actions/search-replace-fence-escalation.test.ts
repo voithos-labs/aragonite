@@ -149,7 +149,7 @@ describe('search/replace into a fenced code block', () => {
 		expectParseConverged(deps.doc);
 	});
 
-	it('is idempotent — replacing into an already-escalated fence adds no backticks', async () => {
+	it('is idempotent, replacing into an already-escalated fence adds no backticks', async () => {
 		const { deps, sr } = makeSearchReplace('````js\n```\nXX\n````\n\n# Heading\n');
 
 		await sr.replaceAll(scan(deps.doc, 'XX'), 'plain');

@@ -30,7 +30,7 @@ function run(source: string, start: SelectionPoint, end: SelectionPoint) {
 	return { doc: result.newDoc, source: serialize(result.newDoc), caret: result.collapsedCaret };
 }
 
-describe('involvesReservedChrome — gate tightness', () => {
+describe('involvesReservedChrome: gate tightness', () => {
 	beforeEach(registerCalloutForTests);
 
 	const cases: Array<[string, SelectionPoint, SelectionPoint, boolean]> = [
@@ -56,7 +56,7 @@ describe('involvesReservedChrome — gate tightness', () => {
 	});
 });
 
-describe('chrome wall — rangeDelete post-states', () => {
+describe('chrome wall: rangeDelete post-states', () => {
 	beforeEach(registerCalloutForTests);
 
 	it('pins the fixture parse: title + two body paragraphs', () => {
@@ -165,7 +165,7 @@ describe('chrome wall — rangeDelete post-states', () => {
 	});
 });
 
-describe('chrome wall — generic-path parity (gate stays out of the way)', () => {
+describe('chrome wall: generic-path parity (gate stays out of the way)', () => {
 	beforeEach(registerCalloutForTests);
 
 	it('body-only range merges exactly like a blockquote', () => {

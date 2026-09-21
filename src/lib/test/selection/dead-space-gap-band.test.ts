@@ -78,7 +78,7 @@ describe('a dead-space y between two root bands', () => {
 		return caret.handleClick(root, click);
 	}
 
-	it('parks the caret at the boundary the two bands name', () => {
+	it('puts the caret at the boundary the two bands name', () => {
 		const gapScope = makeGapScope(ELIGIBLE_DOC);
 
 		expect(clickBetweenBands(gapScope)).toBe(true);

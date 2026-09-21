@@ -105,7 +105,7 @@ describe('SelectionState.isCustomRendered', () => {
 		expect(s.isCustomRendered).toBe(false);
 	});
 
-	it('never renders custom for a same-path prose range — it collapses to native', () => {
+	it('never renders custom for a same-path prose range: it collapses to native', () => {
 		const doc = parse('paragraph one\n\n> quoted\n');
 		const s = createSelectionState({ getDoc: () => doc });
 		s.enterCrossBlock({ path: [0], offset: 0 }, { path: [0], offset: 5 });

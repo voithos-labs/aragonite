@@ -15,7 +15,7 @@ const codeNode = (source: string): CstNode => parse(source).children[0];
 const reloadWithSibling = (raw: string): string[] =>
 	parse(`${raw}\n# Heading\n`).children.map((c) => c.kind);
 
-describe('normalizeFencedRaw — the stranded closer', () => {
+describe('normalizeFencedRaw: the stranded closer', () => {
 	const closed = codeNode('```js\nbody\n```\n');
 
 	// One input shape per branch from one fixture, so a rule that stops telling them apart fails
@@ -69,7 +69,7 @@ describe('normalizeFencedRaw — the stranded closer', () => {
 		]);
 	});
 
-	it('is idempotent — a second pass finds no closer to drop', () => {
+	it('is idempotent: a second pass finds no closer to drop', () => {
 		const once = normalizeFencedRaw('dy\n```\n', closed);
 		expect(normalizeFencedRaw(once, closed)).toBe(once);
 	});

@@ -12,7 +12,7 @@ beforeAll(() => {
 	installPlugins([admonitionsPlugin()]);
 });
 
-describe('github alert — byte round-trip on load', () => {
+describe('github alert: byte round-trip on load', () => {
 	roundTripCases([
 		'> [!NOTE]\n> Body.\n',
 		'> [!TIP]\n> One.\n>\n> Two.\n',
@@ -24,7 +24,7 @@ describe('github alert — byte round-trip on load', () => {
 	]);
 });
 
-describe('github alert — rebuild after an inner edit', () => {
+describe('github alert: rebuild after an inner edit', () => {
 	const edit = (source: string, newBody: string) => {
 		const node = parse(source).children[0];
 		node.children![0].raw = newBody;

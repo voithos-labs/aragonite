@@ -132,7 +132,7 @@ describe('createEditorPluginContexts', () => {
 		expect(fired).toEqual(['good']);
 	});
 
-	it('threads editor.decorations: addSource fills the engine, the disposer runs, and a throwing source surfaces as origin decoration', () => {
+	it('threads editor.decorations: addSource fills the state, the disposer runs, and a throwing source surfaces as origin decoration', () => {
 		const doc = { children: [] as unknown[] };
 		const events = createEditorEvents();
 		const errorEvents: EditorError[] = [];

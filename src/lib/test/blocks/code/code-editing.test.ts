@@ -26,7 +26,7 @@ describe('getLineLeadingWhitespace', () => {
 		expect(getLineLeadingWhitespace('\tfoo', 4)).toBe('\t');
 	});
 
-	it('returns mixed tabs and spaces verbatim — no normalization', () => {
+	it('returns mixed tabs and spaces verbatim: no normalization', () => {
 		expect(getLineLeadingWhitespace('\t \t foo', 7)).toBe('\t \t ');
 	});
 
@@ -102,7 +102,7 @@ describe('shouldAutoClose', () => {
 			expect(shouldAutoClose('(|)', 1, '(')).toBe(true);
 		});
 
-		it('does NOT pair when the next char is an identifier char', () => {
+		it('does not pair when the next char is an identifier char', () => {
 			expect(shouldAutoClose('foo', 0, '(')).toBe(false);
 		});
 
@@ -116,11 +116,11 @@ describe('shouldAutoClose', () => {
 			expect(shouldAutoClose('a  b', 2, '"')).toBe(true);
 		});
 
-		it('does NOT pair when next char is an identifier (don|t case)', () => {
+		it('does not pair when next char is an identifier (don|t case)', () => {
 			expect(shouldAutoClose('dont', 3, "'")).toBe(false);
 		});
 
-		it('does NOT pair when prev char is an identifier — quote-only rule', () => {
+		it('does not pair when prev char is an identifier: quote-only rule', () => {
 			expect(shouldAutoClose("'don", 4, "'")).toBe(false);
 		});
 
@@ -206,7 +206,7 @@ describe('isBetweenEmptyBracketPair', () => {
 		expect(isBetweenEmptyBracketPair('{}', 1)).toBe(true);
 	});
 
-	it('excludes quote pairs — electric indent should not expand quotes', () => {
+	it('excludes quote pairs: electric indent should not expand quotes', () => {
 		expect(isBetweenEmptyBracketPair('""', 1)).toBe(false);
 		expect(isBetweenEmptyBracketPair("''", 1)).toBe(false);
 		expect(isBetweenEmptyBracketPair('``', 1)).toBe(false);

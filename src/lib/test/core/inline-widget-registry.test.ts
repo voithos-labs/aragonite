@@ -18,7 +18,7 @@ const imageNode: InlineNode = { kind: 'image', start: 0, end: 6, alt: '', url: '
 // Truthy stand-in; the mutual-exclusion guard reads only its presence.
 const FakeComponent = (() => {}) as unknown as Component<InlineWidgetComponentProps>;
 
-describe('registerInlineWidgetKind — register-once', () => {
+describe('registerInlineWidgetKind: register-once', () => {
 	afterEach(__resetInlineWidgetsForTests);
 
 	it('rejects re-registering the built-in image kind, leaving it intact', () => {
@@ -38,7 +38,7 @@ describe('registerInlineWidgetKind — register-once', () => {
 	});
 });
 
-describe('registerInlineWidgetKind — component and buildWidget are mutually exclusive', () => {
+describe('registerInlineWidgetKind: component and buildWidget are mutually exclusive', () => {
 	afterEach(__resetInlineWidgetsForTests);
 
 	it('throws, naming the kind, when a descriptor declares both', () => {

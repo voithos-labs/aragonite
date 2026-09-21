@@ -59,14 +59,14 @@ afterAll(() => {
 });
 
 describe('live-mode gestures at hidden edges', () => {
-	it('leaves no divergence the byte-literal twin does not already have', () => {
+	it('leaves no divergence the byte-literal counterpart does not already have', () => {
 		const seams = stats.violations.filter((v) => v.category === 'seam');
 		expect(seams.map((v) => v.report).join('\n\n'), `seed ${SEED}`).toBe('');
 	});
 
 	// A sweep whose gestures never reach a live rewrite proves nothing about one, and each counter
 	// names a different piece of code: the caret-edge handlers, the split, and the join cleanup.
-	it('reaches every seam it claims to search', () => {
+	it('reaches every join it claims to search', () => {
 		expect(stats.applied).toBeGreaterThan(DOCS * 5);
 		expect(stats.claimed).toBeGreaterThan(20);
 		expect(stats.rewrote.type).toBeGreaterThan(5);
@@ -155,7 +155,7 @@ async function liveAndLiteral(source: string, over: Partial<Gesture>) {
 describe('the shapes that used to need an exclusion', () => {
 	// #116: a run of three or more asterisks shared between a nested pair. No placement keeps the
 	// pairing, so live declines and the byte lands where the caret already was.
-	it('#116 — a byte against a shared asterisk run lands at the caret', async () => {
+	it('#116: a byte against a shared asterisk run lands at the caret', async () => {
 		const at = { kind: 'type' as const, offset: 18, char: 'a' };
 		for (const affinity of ['outside', 'near'] as const) {
 			const drawn = await liveAndLiteral('******foo***![](u)**\n', { ...at, affinity });
@@ -166,7 +166,7 @@ describe('the shapes that used to need an exclusion', () => {
 
 	// #162: a space placed just inside an opener kills the construct and paints both its runs, so
 	// the painter rejects that candidate and the reading outside the run is written instead.
-	it('#162 — a space at an opener seats outside the run it would break', async () => {
+	it('#162: a space at an opener puts the caret outside the run it would break', async () => {
 		const far = await liveAndLiteral('**bold** x\n', { offset: 0, char: ' ', affinity: 'far' });
 		expect(far.live).toBe(' **bold** x\n');
 		expect(far.live).toBe(far.literal);
@@ -175,7 +175,7 @@ describe('the shapes that used to need an exclusion', () => {
 
 	// #162, second shape: no placement across a construct with no content keeps its delimiters
 	// hidden, so the caret's own offset stands.
-	it('#162 — a byte across content-empty chrome surfaces nothing', async () => {
+	it('#162: a byte across content-empty chrome surfaces nothing', async () => {
 		const seated = await liveAndLiteral('**[](u)**&amp; z\n', {
 			offset: 2,
 			char: 'a',
@@ -187,7 +187,7 @@ describe('the shapes that used to need an exclusion', () => {
 
 	// #118: a childless construct has no interior a cut can land in, so the cut moves to its nearer
 	// edge and one half takes it whole: every byte kept, no delimiter on screen.
-	it('#118 — a split inside an autolink takes the whole autolink', async () => {
+	it('#118: a split inside an autolink takes the whole autolink', async () => {
 		const cut = await liveAndLiteral('<https://example.com> tail\n', { kind: 'enter', offset: 13 });
 		expect(cut.live).toBe('<https://example.com>\n\n tail\n');
 		expect(cut.literal).toBe('<https://exam\n\nple.com> tail\n');
@@ -196,7 +196,7 @@ describe('the shapes that used to need an exclusion', () => {
 
 	// #165: the typed run goes into the cleanup's own verification with the join, so the reading
 	// that would show a pair around it is rejected and the byte-literal replace stands.
-	it('#165 — the selection replace verifies the bytes it writes', async () => {
+	it('#165: the selection replace verifies the bytes it writes', async () => {
 		const typed = await liveAndLiteral('lorem*汉[](u)*`a`\n', {
 			kind: 'type-over',
 			offset: 14,
@@ -209,7 +209,7 @@ describe('the shapes that used to need an exclusion', () => {
 
 	// #163: the cleaned body would start with a space the item's marker swallows on reload, so the
 	// cleanup reads its candidate back through the marker and turns it down.
-	it('#163 — a join in a list item keeps the marker the tree holds', async () => {
+	it('#163: a join in a list item keeps the marker the tree holds', async () => {
 		const cut = await liveAndLiteral('- **a b** c\n', {
 			kind: 'range-delete',
 			offset: 0,
@@ -222,7 +222,7 @@ describe('the shapes that used to need an exclusion', () => {
 
 	// #164: the rebalanced split's empty first half must get a blank line of its own, handed to it
 	// by the same fix-up as any other gap between blocks (#183).
-	it('#164 — a split with an empty first half converges', async () => {
+	it('#164: a split with an empty first half converges', async () => {
 		const cut = await liveAndLiteral('## \n**a**b\n', { kind: 'enter', leaf: 1, offset: 2 });
 		expect(cut.live).toBe('## \n\n**a**b\n');
 		expect(cut.shape).toBeNull();
@@ -233,7 +233,7 @@ describe('the shapes that used to need an exclusion', () => {
 	// two blocks does not fit the single child slot the write installs into, so both runs refuse it
 	// and the pair stands. Silently, in both: the refusal is an ordinary editing outcome (G1.35),
 	// so the warning is about installing such bytes, never about meeting them.
-	it('#166 — a join whose bytes reparse to two blocks is refused, not truncated', async () => {
+	it('#166: a join whose bytes reparse to two blocks is refused, not truncated', async () => {
 		const merged = await liveAndLiteral('## \n(u\n)\n', { kind: 'delete', leaf: 0, offset: 0 });
 		expect(merged.live).toBe('## \n(u\n)\n');
 		expect(merged.live).toBe(merged.literal);
@@ -247,7 +247,7 @@ describe('the shapes that used to need an exclusion', () => {
  * saw, so neither the split nor the join may move or drop them. A sweep check for it would fire on
  * live rightly removing residue the byte-literal edit left behind.
  */
-describe('painted chrome survives both cut seams', () => {
+describe('painted chrome survives both cut joins', () => {
 	it('a split inside painted chrome stays byte-literal', async () => {
 		const cut = await liveAndLiteral('**[](u)**\n', { kind: 'enter', offset: 4 });
 		expect(cut.live).toBe('**[]\n\n(u)**\n');
@@ -270,7 +270,7 @@ describe('painted chrome survives both cut seams', () => {
 	// both runs leave one pair enclosing nothing, so the increase belongs to the byte-literal edit.
 	// Miss-analysis: every residue pin started from a source holding none, so no case ever handed
 	// the check a draw where both runs leave one.
-	it('a residue the byte-literal twin leaves too is not live minting one', async () => {
+	it('a residue the byte-literal counterpart leaves too is not live creating one', async () => {
 		const typed = await liveAndLiteral('**[](u)**\n', { offset: 9, char: 'a', affinity: 'near' });
 		expect(typed.live).toBe('**[](u)a**\n');
 		expect(typed.literal).toBe('**[](u)**a\n');

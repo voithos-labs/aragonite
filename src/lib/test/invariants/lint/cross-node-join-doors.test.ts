@@ -86,7 +86,7 @@ function byteExpressions(file: SourceFile): string[] {
 	return [...assignments, ...calls];
 }
 
-describe('cross-node join door census', () => {
+describe('cross-node join entry-point census', () => {
 	const sources = collectEditorSources();
 	const namesCleaner = (file: SourceFile) => /(?<![\w.])cleanJoinedRaw\b/.test(file.code);
 

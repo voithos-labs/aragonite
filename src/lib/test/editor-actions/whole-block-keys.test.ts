@@ -114,7 +114,7 @@ describe('handleWholeBlockKeys', () => {
 		expect(e.preventDefault).toHaveBeenCalled();
 	});
 
-	it('the printable mint gates on reading mode but still consumes the key', () => {
+	it('the printable create gates on reading mode but still consumes the key', () => {
 		const { deps, insertParagraph } = makeDeps(() => true);
 		const e = press('a');
 		handleWholeBlockKeys(e, deps);
@@ -202,7 +202,7 @@ describe('handleWholeBlockKeys: sticky column', () => {
 	});
 });
 
-describe('handleWholeBlockKeys — Mod+C / Mod+X clipboard', () => {
+describe('handleWholeBlockKeys: Mod+C / Mod+X clipboard', () => {
 	let writeText: ReturnType<typeof vi.fn>;
 
 	beforeEach(() => {

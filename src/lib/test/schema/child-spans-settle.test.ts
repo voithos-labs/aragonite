@@ -21,7 +21,7 @@ import { makeNestedHarness } from '$lib/test/harness/editor-actions';
 // The first keystroke fills in the spans and the second one uses them, which is why a single
 // keypress never showed this.
 describe('a settle between two keystrokes', () => {
-	it('mints the separator a blank-fill owes the follower', async () => {
+	it('creates the separator a blank-fill must supply the follower', async () => {
 		const h = makeNestedHarness('> a\n>\n>\n> c\n', { index: 0 });
 		await h.bundle.blockEdit.updateBlockContent(0, 'aa\n', 1, 2);
 		expect(serialize(h.deps.doc)).toBe('> aa\n>\n>\n> c\n');

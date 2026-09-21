@@ -30,8 +30,8 @@ function registerEmbed(): void {
 	registerInlineSyntax('!', recognizeEmbed, { prefix: '![[', priority: 40 });
 }
 
-describe('inline ladder — a prefix rung on the `!` trigger', () => {
-	it('is dormant until registered — `![[a.png]]` stays plain text', () => {
+describe('inline priority order: a prefix inline syntax handler on the `!` trigger', () => {
+	it('is dormant until registered: `![[a.png]]` stays plain text', () => {
 		const raw = '![[a.png]]';
 		expect(parseInline(raw, 0, raw.length)).toEqual([textNode(0, 10, raw)]);
 	});
@@ -82,7 +82,7 @@ describe('inline ladder — a prefix rung on the `!` trigger', () => {
 
 // `!` is the only registerable trigger whose built-in handler pushes the bracket stack, so
 // a claim lands among the label's children while the construct must still close over it.
-describe('inline ladder — a claiming `!` rung inside an open bracket', () => {
+describe('inline priority order: a claiming `!` inline syntax handler inside an open bracket', () => {
 	it.each([
 		['a link label', '[see ![[b.png]] here](u)', 'link'],
 		['an image alt', '![see ![[b.png]] here](u)', 'image']

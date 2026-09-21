@@ -53,7 +53,7 @@ async function pasteInto(
 	return landCaret;
 }
 
-describe('structural paste lands its caret through the reveal seam', () => {
+describe('structural paste lands its caret through the reveal join', () => {
 	it('same-type absorb lands on the last pasted item, past the residue', async () => {
 		const doc = parse('- alpha\n- keep\n');
 

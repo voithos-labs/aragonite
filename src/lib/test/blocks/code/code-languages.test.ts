@@ -50,7 +50,7 @@ describe('code-languages registry', () => {
 		expect(getLanguageGrammar('javascript title="example"')?.name).toBe('javascript');
 	});
 
-	it('lists one entry per language — the canonical name, sorted, aliases folded away', () => {
+	it('lists one entry per language: the canonical name, sorted, aliases folded away', () => {
 		registerLanguage('Python', fakeGrammar, ['py']);
 		registerLanguage('javascript', fakeGrammar, ['js', 'JS']);
 
@@ -93,7 +93,7 @@ describe('code-languages registry', () => {
 		expect(getLanguageAliases('klingon')).toEqual([]);
 	});
 
-	it('is idempotent — registering twice is a no-op', () => {
+	it('is idempotent, registering twice is a no-op', () => {
 		const first = (() => ({ name: 'first' })) as unknown as LanguageFn;
 		const second = (() => ({ name: 'second' })) as unknown as LanguageFn;
 		registerLanguage('javascript', first);

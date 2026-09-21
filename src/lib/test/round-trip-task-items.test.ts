@@ -5,7 +5,7 @@ import { rebuildUnsharedAncestry } from '../tree-operations/chain-rebuild';
 import { createSharingState } from '../tree-operations/sharing';
 import { roundTripCases } from '$lib/test/support/round-trip';
 
-describe('round-trip — task items', () => {
+describe('round-trip: task items', () => {
 	roundTripCases([
 		{ name: 'canonical lowercase [x]', source: '- [x] done\n' },
 		{ name: 'canonical [ ]', source: '- [ ] pending\n' },

@@ -75,7 +75,7 @@ describe('a cell commits the bytes it was typed, escaped for its row', () => {
 		expect(reparsedColumns()).toBe(2);
 	});
 
-	it('commits a header cell through the same door', async () => {
+	it('commits a header cell through the same entry point', async () => {
 		// The header row is the one whose cell count the delimiter must match, so a
 		// leak there truncates the whole table rather than one row.
 		mounted = mountEditor({ source: GRID });

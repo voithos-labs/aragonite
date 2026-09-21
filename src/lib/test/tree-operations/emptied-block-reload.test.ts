@@ -76,7 +76,7 @@ describe('emptying a block settles the run it joins', () => {
 
 	// A multi-block commit puts the new blank at the end of what it created, where it meets the
 	// follower; the position the gesture named is prose.
-	it('settles the last block a multi-block commit minted', () => {
+	it('settles the last block a multi-block commit created', () => {
 		const doc = parse('alpha\n\nx\n\ndelta\n');
 
 		updateNodeContent(doc, 1, 'p\n\n\n');
@@ -90,7 +90,7 @@ describe('emptying a block settles the run it joins', () => {
 // Miss-analysis: the class was filed as doubling, and a doubling-only fix reads the same red as
 // green here; only a check over the run's whole line count sees both signs.
 describe('emptying a block the run above cannot separate from', () => {
-	it('mints the separator a self-terminating predecessor never owed', () => {
+	it('creates the separator a self-terminating predecessor never had to supply', () => {
 		const doc = parse('```\nc\n```\nx\n');
 
 		empty(doc, 1);
@@ -111,7 +111,7 @@ describe('emptying a block the run above cannot separate from', () => {
 	});
 });
 
-describe('emptying a block that owes nothing', () => {
+describe('emptying a block that must supply nothing', () => {
 	it('keeps the tail block its own separator', () => {
 		const doc = parse('a\n\nx\n');
 
@@ -138,7 +138,7 @@ describe('emptying a block that owes nothing', () => {
 // does not draw the shape even with the precondition off, so it could not have failed on this
 // class either way, and the deterministic cases are what actually guard the write.
 describe('emptying a block beside indentation-delimited content', () => {
-	it('absorbs the seam the two neighbours now make', () => {
+	it('absorbs the join the two neighbours now make', () => {
 		const doc = parse('**b**\n\n    code\n\n\n**b**\n\n    code\n\n> q\n');
 
 		empty(doc, 3);
@@ -151,7 +151,7 @@ describe('emptying a block beside indentation-delimited content', () => {
 	// The absorbed window's own bytes end in a blank line, which a fragment parse splits off into
 	// its suffix. Leaving it in the last block's raw is only right at the parent's tail; here the
 	// line is a block of its own, exactly as the reload reads it.
-	it('materializes a peeled trailing blank line instead of hiding it in raw', () => {
+	it('materializes a stripped trailing blank line instead of hiding it in raw', () => {
 		const doc = parse('- - # **b**\n\n| H0 |\n| --- | --- |\n\n    code\n\t\n\n```\n```\n');
 
 		empty(doc, 1);
@@ -167,7 +167,7 @@ describe('emptying a block beside indentation-delimited content', () => {
 
 	// The higher-traffic caller of the same merge: a delete puts the neighbours back to back the
 	// same way, and its window can split off the same trailing line.
-	it('materializes the peel on the delete door too', () => {
+	it('materializes the stripped marker on the delete entry point too', () => {
 		const doc = parse('- - # **b**\n\nmid\n\n    code\n\t\n\n```\n```\n');
 
 		deleteNode(doc, 1);
@@ -178,7 +178,7 @@ describe('emptying a block beside indentation-delimited content', () => {
 });
 
 // The fix-up's line ending comes off the node it writes, never a defaulted LF (G4.20).
-describe('the CRLF twins', () => {
+describe('the CRLF variants', () => {
 	it('drops a CRLF separator', () => {
 		const doc = parse('alpha\r\n\r\nx\r\n\r\ndelta\r\n');
 
@@ -187,7 +187,7 @@ describe('the CRLF twins', () => {
 		expectReloadsAsItStands(doc, 'alpha\r\n\r\n\r\ndelta\r\n');
 	});
 
-	it('mints a CRLF separator', () => {
+	it('creates a CRLF separator', () => {
 		const doc = parse('```\r\nc\r\n```\r\nx\r\n');
 
 		empty(doc, 1);

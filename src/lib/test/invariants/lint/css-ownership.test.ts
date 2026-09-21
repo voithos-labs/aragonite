@@ -43,7 +43,7 @@ function editorCssSurfaces(): Array<{ rel: string; text: string }> {
 // ── G4.6c: contract completeness ─────────────────────────────────────────────
 // Every editor-owned token read anywhere in the editor is declared in editor-theme.css.
 
-describe('G4.6 CSS ownership — editor-theme.css declares every editor-owned token read', () => {
+describe('G4.6 CSS ownership: editor-theme.css declares every editor-owned token read', () => {
 	it('every owned token read has a declaration', () => {
 		const theme = readEditorFile('styles/editor-theme.css').text;
 		const haystack = editorCssSurfaces()
@@ -74,7 +74,7 @@ const EDITOR_MARKERS: RegExp[] = [
 	/\.editor\b/
 ];
 
-describe('G4.6 CSS ownership — app.css holds no editor-owned rules', () => {
+describe('G4.6 CSS ownership: app.css holds no editor-owned rules', () => {
 	const appCss = stripComments(readRepo('src/app.css'));
 	for (const re of EDITOR_MARKERS) {
 		it(`app.css contains no ${re}`, () => {
@@ -88,7 +88,7 @@ describe('G4.6 CSS ownership — app.css holds no editor-owned rules', () => {
 // editor. Editor-owned reads are exempt, since editor-theme.css declares them.
 const HOST_READ_NO_FALLBACK = /var\(\s*--(?:color|radius)-[a-z0-9-]+\s*\)/;
 
-describe('G4.6 CSS ownership — host-token reads carry a fallback', () => {
+describe('G4.6 CSS ownership: host-token reads carry a fallback', () => {
 	it('no host-token var() read is missing a fallback', () => {
 		const offenders = editorCssSurfaces()
 			.filter((f) => HOST_READ_NO_FALLBACK.test(f.text))
@@ -103,7 +103,7 @@ describe('G4.6 CSS ownership — host-token reads carry a fallback', () => {
 // A read outside both families is invisible to the guards above and can never be declared
 // by the theme, so it renders its inline fallback forever.
 
-describe('G4.6 CSS ownership — every token read belongs to a declared family', () => {
+describe('G4.6 CSS ownership: every token read belongs to a declared family', () => {
 	it('no var() read falls outside the owned and host families', () => {
 		const offenders: string[] = [];
 		for (const f of editorCssSurfaces()) {
@@ -153,7 +153,7 @@ function themeRules(): Array<{ selector: string; body: string }> {
 	}));
 }
 
-describe('G4.6 CSS ownership — editor-theme.css keeps host-chrome defaults off `.editor`', () => {
+describe('G4.6 CSS ownership: editor-theme.css keeps host-chrome defaults off `.editor`', () => {
 	it('no host-chrome token is declared in a rule that matches `.editor`', () => {
 		const offenders: string[] = [];
 		for (const { selector, body } of themeRules()) {
@@ -169,7 +169,7 @@ describe('G4.6 CSS ownership — editor-theme.css keeps host-chrome defaults off
 		);
 	});
 
-	it('the class-only tier declares every host-chrome token', () => {
+	it('the class-only level declares every host-chrome token', () => {
 		const classOnly = themeRules()
 			.filter(({ selector }) => !selector.includes('.editor'))
 			.map(({ body }) => body)
@@ -197,7 +197,7 @@ describe('G4.6 CSS ownership — editor-theme.css keeps host-chrome defaults off
 // Without these, a regex that silently stops matching lets every guard above pass on an
 // empty match set.
 
-describe('G4.6 CSS ownership — matcher non-vacuity', () => {
+describe('G4.6 CSS ownership: matcher non-vacuity', () => {
 	it('ANY_READ + OWNED_TOKEN match a synthetic owned read and the completeness check flags it missing', () => {
 		const reads = [...'var(--syntax-keyword)'.matchAll(new RegExp(ANY_READ.source, 'g'))].map(
 			(m) => m[1]

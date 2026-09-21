@@ -9,8 +9,8 @@ import { createSelectionState } from '../../selection/selection-state.svelte';
 import { parse } from '../../core/parser';
 import { mockRef } from '../harness/editor-actions';
 
-describe('readCurrentSelection — unfocused editor', () => {
-	it('returns null when no block reports a cursor (does NOT clamp to block 0 offset 0)', () => {
+describe('readCurrentSelection: unfocused editor', () => {
+	it('returns null when no block reports a cursor (does not clamp to block 0 offset 0)', () => {
 		const selectionState = createSelectionState();
 		const blockRefs = [
 			mockRef({ getCursorOffset: () => null }),
@@ -38,7 +38,7 @@ describe('readCurrentSelection — unfocused editor', () => {
 	});
 });
 
-describe('undo selection snapshots — cellCoordinate round-trip', () => {
+describe('undo selection snapshots: cellCoordinate round-trip', () => {
 	const TABLE_LAST = 'para\n\n| A | B |\n| --- | --- |\n| 1 | 2 |\n';
 
 	it('readCurrentSelection preserves the flag on cross-block table endpoints', () => {
@@ -71,7 +71,7 @@ describe('undo selection snapshots — cellCoordinate round-trip', () => {
 // Miss-analysis (GH #111): the clamp lived at one caller (the collapse path), so a restore
 // arriving through any other caller (a range delete's descended-leaf caret at literal 0) put the
 // native caret behind the hidden run, and no test observed `applyCollapsedCaret` itself.
-describe('applyCollapsedCaret — the landable clamp lives in the door', () => {
+describe('applyCollapsedCaret: the reachable clamp lives in the one writer', () => {
 	afterEach(() => document.body.replaceChildren());
 
 	function mountBlock(mode?: string): { block: HTMLElement; marker: HTMLElement; content: Text } {
@@ -107,7 +107,7 @@ describe('applyCollapsedCaret — the landable clamp lives in the door', () => {
 	});
 });
 
-describe('applySelectionToDom — restore routing', () => {
+describe('applySelectionToDom: restore routing', () => {
 	const TABLE_ONLY = '| A | B |\n| --- | --- |\n| 1 | 2 |\n';
 
 	it('single-block-range restore fires one onChange and never enters cross-block', () => {
@@ -133,7 +133,7 @@ describe('applySelectionToDom — restore routing', () => {
 		expect(s.isCrossBlock).toBe(false);
 	});
 
-	it('parks the restore caret in the focus cell for an intra-table rect', () => {
+	it('puts the caret the restore caret in the focus cell for an intra-table rect', () => {
 		const doc = parse(TABLE_ONLY);
 		const s = createSelectionState({ getDoc: () => doc });
 		const requested: number[][] = [];
@@ -156,7 +156,7 @@ describe('applySelectionToDom — restore routing', () => {
 	// Miss-analysis: the restore path's table coverage all came in through the cross-block branch,
 	// where a cell endpoint had to be translated to paint anything. The collapsed branch looks
 	// like text from the outside, so nothing ever asked which space its offset was in.
-	it('lands a COLLAPSED cell selection in the cell, not at a char offset on the table', () => {
+	it('lands a collapsed cell selection in the cell, not at a char offset on the table', () => {
 		const doc = parse(TABLE_ONLY);
 		const s = createSelectionState({ getDoc: () => doc });
 		const requested: number[][] = [];

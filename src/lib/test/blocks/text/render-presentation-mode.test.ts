@@ -47,7 +47,7 @@ describe('text-render presentation-mode key segment', () => {
 		expect(el.firstChild).toBe(first);
 	});
 
-	it('preview-inline carries its own segment and stamps construct markers; other modes stay unstamped', () => {
+	it('preview-inline carries its own segment and marks construct spans; other modes leave them unmarked', () => {
 		const { el, deps, setMode } = makeRenderHarness(blockNode('**bold** `code`\n'));
 		const render = createTextRender(deps);
 

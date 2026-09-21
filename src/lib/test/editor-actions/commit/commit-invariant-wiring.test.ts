@@ -27,7 +27,7 @@ function corruptNestedBlockquote(outer: CstNode): void {
 	nested.raw = '> DESYNCED\n';
 }
 
-describe('commit ceremony fires the node invariants over its touched nodes', () => {
+describe('commit sequence fires the node invariants over its touched nodes', () => {
 	// ── Family 1: multi-scope container branch (the `touchedNodes` thunk) ────────
 	it('a container-branch commit that leaves a nested raw stale fires stale-raw', async () => {
 		const { deps } = makeEditorActionsDeps(parse(NESTED_BQ).children);

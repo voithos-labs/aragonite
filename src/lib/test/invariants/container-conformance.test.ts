@@ -20,7 +20,7 @@ const registeredContainerKinds = getAllRegisteredKinds()
 // Both directions fail: an unprofiled container kind slips through untested, and a stale
 // profile means the map drifted from the registry.
 
-describe('G4.3 container conformance — registry coverage', () => {
+describe('G4.3 container conformance: registry coverage', () => {
 	it('every registered container kind has a conformance profile', () => {
 		const missing = registeredContainerKinds.filter((k) => !CONTAINER_PROFILES[k]);
 		expect(missing, 'unprofiled registered container kinds').toEqual([]);

@@ -91,7 +91,7 @@ function paletteFor(theme: Theme): Palette {
 	return { surface, fence: composite(veil.color, veil.alpha, surface), colors };
 }
 
-describe('WCAG AA — code tokens against the surfaces the editor paints them on', () => {
+describe('WCAG AA: code tokens against the surfaces the editor paints them on', () => {
 	it.each(THEMES)('%s: every code token clears AA on the surface and on the fence', (theme) => {
 		const { surface, fence, colors } = paletteFor(theme);
 		const violations: string[] = [];

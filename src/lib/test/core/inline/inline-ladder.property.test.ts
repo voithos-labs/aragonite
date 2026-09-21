@@ -29,7 +29,7 @@ const PARAMS = { numRuns: 1000, seed: freshOrFixedSeed(717171) } as const;
 
 afterEach(() => resetPluginPlatformForTests());
 
-describe('inline ladder — all-decline recognizers leave scanInline byte-identical', () => {
+describe('inline priority order: all-decline recognizers leave scanInline byte-identical', () => {
 	it('bare-`:`, `[^`-prefix and `![[`-prefix decliners never perturb the scan output', () => {
 		fc.assert(
 			fc.property(arbLadderSource, (source) => {

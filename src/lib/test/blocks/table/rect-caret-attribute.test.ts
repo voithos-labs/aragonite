@@ -53,7 +53,7 @@ describe('the root hides the native caret only while something paints in its pla
 		expect(editorRoot().hasAttribute('data-cross-block')).toBe(false);
 	});
 
-	it('a live rectangle still hides it — the overlay owns that highlight', async () => {
+	it('a live rectangle still hides it: the overlay owns that highlight', async () => {
 		mounted = mountEditor({ source: DOC });
 		const start = cellAt(mounted!, 1, 0);
 		placeCaret(start, 2);

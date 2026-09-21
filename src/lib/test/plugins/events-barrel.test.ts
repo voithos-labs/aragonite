@@ -12,7 +12,7 @@ import type {
 // needs, so a dropped re-export fails here rather than turning `op` into a bare string in a
 // downstream plugin.
 describe('@voithos-labs/aragonite/plugin event payloads', () => {
-	it('keeps the emitter itself off the barrel — a plugin subscribes, never emits', () => {
+	it('keeps the emitter itself off the barrel: a plugin subscribes, never emits', () => {
 		for (const seam of ['createEditorEvents', 'toEditEvent', 'EditorEvents']) {
 			expect(pluginBarrel).not.toHaveProperty(seam);
 		}

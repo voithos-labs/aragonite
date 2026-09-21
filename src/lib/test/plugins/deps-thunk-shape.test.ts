@@ -60,7 +60,7 @@ export function valueShapeRejected(view: NodeView): void {
 	void leaf;
 }
 
-describe('factory deps liveness — thunk shape (freeze surface)', () => {
+describe('factory deps liveness: thunk shape (freeze surface)', () => {
 	it('accepts the thunk shape and re-reads getNode() live', () => {
 		const view = parse('# h\n').children[0];
 

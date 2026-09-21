@@ -52,13 +52,13 @@ function surfaceOver(
 const typed = (data: string) =>
 	new InputEvent('beforeinput', { inputType: 'insertText', data, cancelable: true });
 
-describe('the arm keeps the line this block', () => {
+describe('the branch keeps the line this block', () => {
 	beforeEach(resetPluginPlatformForTests);
 	afterEach(resetPluginPlatformForTests);
 
 	// `*|*` plus `*` grows to `****`, a thematic break on a line of its own: the key steps past
 	// its partner instead, and a closer typed by hand later completes `**bold**`.
-	it('a grow that would re-kind the line steps past the twin', () => {
+	it('a grow that would re-kind the line steps past the paired closer', () => {
 		const surface = surfaceOver('**', 1, (line) => line !== '****');
 		const e = typed('*');
 		expect(applyDelimiterAutoPair(e, surface)).toBe(true);
@@ -74,7 +74,7 @@ describe('the arm keeps the line this block', () => {
 	});
 
 	// `~|` plus `~` would grow to `~~~~`, a fence opener, and there is no partner to step past.
-	it('a grow that would re-kind the line with no twin ahead stays the engine’s byte', () => {
+	it('a grow that would re-kind the line with no paired closer ahead stays the browser’s byte', () => {
 		const surface = surfaceOver('~', 1, (line) => line !== '~~~~');
 		const e = typed('~');
 		expect(applyDelimiterAutoPair(e, surface)).toBe(false);
@@ -82,7 +82,7 @@ describe('the arm keeps the line this block', () => {
 		expect(surface.writes).toEqual([]);
 	});
 
-	it('a closer typed by hand is written and seats the caret outside', () => {
+	it('a closer typed by hand is written and puts the caret outside', () => {
 		const surface = surfaceOver('Some *ab', 8, () => true);
 		expect(applyDelimiterAutoPair(typed('*'), surface)).toBe(true);
 		expect(surface.writes).toEqual([['Some *ab*', 8, 9]]);

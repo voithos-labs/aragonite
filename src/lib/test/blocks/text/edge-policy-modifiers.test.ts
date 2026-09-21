@@ -60,7 +60,7 @@ describe('a modifier chord at a widget edge is not a widget entry', () => {
 
 	// Shift is a separate rule: a shift-arrow extends a selection into the widget
 	// through widget-interaction, so the edge branch declines it.
-	it('Shift+ArrowLeft still declines, leaving the extend seam to own it', () => {
+	it('Shift+ArrowLeft still declines, leaving the extend path to own it', () => {
 		const b = mount('hello ![a](u) world', 'image');
 
 		expect(

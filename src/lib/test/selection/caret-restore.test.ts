@@ -45,7 +45,7 @@ describe('caret restore', () => {
 		expect(selection.focusOffset).toBe(4);
 	});
 
-	it('falls back to the editor root for a range outside it, never seating a foreign caret', () => {
+	it('falls back to the editor root for a range outside it, never placing a foreign caret', () => {
 		const restore = createCaretRestore(() => root);
 		const foreign = document.createElement('div');
 		foreign.textContent = 'elsewhere';
@@ -68,7 +68,7 @@ describe('caret restore', () => {
 		expect(document.activeElement).toBe(root);
 	});
 
-	it('clears the slot, so a second restore cannot re-seat a stale range', () => {
+	it('clears the slot, so a second restore cannot re-caret position a stale range', () => {
 		const restore = createCaretRestore(() => root);
 		seatCaret(4);
 		restore.saveCurrent();

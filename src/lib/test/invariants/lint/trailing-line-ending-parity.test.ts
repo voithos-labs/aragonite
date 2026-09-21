@@ -204,10 +204,10 @@ describe('G4.20 trailing-line-ending reconstruction parity', () => {
 
 // ── Check 2: every commitInput path is covered ───────────────────────────────
 
-describe('G4.20 commitInput funnel coverage', () => {
+describe('G4.20 commitInput shared path coverage', () => {
 	const sources = collectEditorSources();
 
-	it('every commitInput funnel appends trailingLineEnding (table cells excepted)', () => {
+	it('every commitInput shared path appends trailingLineEnding (table cells excepted)', () => {
 		const missing = commitInputFunnels(sources)
 			.filter((fn) => !(fn.relPath in COMMITINPUT_ALLOWLIST))
 			.filter((fn) => !HAS_TRAILING_APPEND.test(fn.body))
@@ -215,11 +215,11 @@ describe('G4.20 commitInput funnel coverage', () => {
 		expect(missing).toEqual([]);
 	});
 
-	it('the funnel scan found real editable surfaces', () => {
+	it('the shared path scan found real editable surfaces', () => {
 		expect(commitInputFunnels(sources).length).toBeGreaterThanOrEqual(3);
 	});
 
-	it('each allowlist entry still names a funnel that appends nothing (no dead entry)', () => {
+	it('each allowlist entry still names a shared path that appends nothing (no dead entry)', () => {
 		const byPath = new Map(commitInputFunnels(sources).map((fn) => [fn.relPath, fn]));
 		for (const relPath of Object.keys(COMMITINPUT_ALLOWLIST)) {
 			const fn = byPath.get(relPath);
@@ -251,7 +251,7 @@ describe('G4.20 container rebuildRaw ending provenance', () => {
 
 // ── Check 4: the expression has no inline copies ─────────────────────────────
 
-describe('G4.20 trailing-line-ending seam exclusivity', () => {
+describe('G4.20 trailing-line-ending module exclusivity', () => {
 	const sources = collectEditorSources();
 
 	it('no file outside core/lines.ts writes the ending ternary longhand', () => {
@@ -270,7 +270,7 @@ describe('G4.20 trailing-line-ending seam exclusivity', () => {
 		expect(copies, OWN_ENDING_RULE).toEqual([]);
 	});
 
-	it('the seam still holds both expressions the rules redirect to', () => {
+	it('the module still holds both expressions the rules redirect to', () => {
 		const seam = sources.find((f) => f.relPath === LINE_ENDING_SEAM);
 		expect(seam, `line-ending module not found: ${LINE_ENDING_SEAM}`).toBeDefined();
 		expect(INLINE_ENDING_TERNARY.test(seam!.code)).toBe(true);
@@ -285,7 +285,7 @@ describe('G4.20 trailing-line-ending seam exclusivity', () => {
 describe('G4.20 node.raw write ending provenance', () => {
 	const assignments = rawAssignments(collectEditorSources());
 
-	it('no write to <node>.raw mints a newline literal into the bytes', () => {
+	it('no write to <node>.raw creates a newline literal into the bytes', () => {
 		const violations = assignments
 			.filter((a) => emittedNewlineLiterals(a.statement).length > 0)
 			.filter((a) => !(a.relPath in RAW_LITERAL_ALLOWLIST))
@@ -313,7 +313,7 @@ describe('G4.20 node.raw write ending provenance', () => {
 
 // ── Matcher self-tests (non-vacuity) ─────────────────────────────────────────
 
-describe('G4.20 — extractor and matcher self-tests', () => {
+describe('G4.20: extractor and matcher self-tests', () => {
 	// `'\\n'` in this file is the four source characters ' \ n ': a backslash-n
 	// literal, never an actual line break.
 	const violating = "updateBlockContent(index, text + '\\n', preEdit)";
@@ -340,13 +340,13 @@ describe('G4.20 — extractor and matcher self-tests', () => {
 		expect(RECONSTRUCTS_LITERAL.test("x + '\\r\\n'")).toBe(true);
 	});
 
-	it('leaves a raw pass-through commit out of both arms', () => {
+	it('leaves a raw pass-through commit out of both branches', () => {
 		const arg = contentArgs(passthrough)[0];
 		expect(RECONSTRUCTS_LITERAL.test(arg)).toBe(false);
 		expect(RECONSTRUCTS_COMPLIANT.test(arg)).toBe(false);
 	});
 
-	it('funnel scan flags a missing append, passes the compliant form, ignores non-committing bodies', () => {
+	it('shared path scan flags a missing append, passes the compliant form, ignores non-committing bodies', () => {
 		const one = (src: string) => commitInputFunnels([{ relPath: 'x', text: src, code: src }]);
 
 		const missing = one(
@@ -380,7 +380,7 @@ describe('G4.20 — extractor and matcher self-tests', () => {
 		expect(found[0].body).toBe('{ node.raw = a.replace(/}/g, b) + e; }');
 	});
 
-	it('ternary matcher flags the longhand copy and passes the seam call', () => {
+	it('ternary matcher flags the longhand copy and passes the module’s call', () => {
 		// Built by concatenation so this file does not itself contain the banned shape.
 		const longhand = "const e = raw.endsWith('\\r\\n')" + " ? '\\r\\n' : '\\n';";
 		expect(INLINE_ENDING_TERNARY.test(longhand)).toBe(true);
@@ -423,7 +423,7 @@ describe('G4.20 — extractor and matcher self-tests', () => {
 		expect(emittedNewlineLiterals(found[0].statement)).toEqual([]);
 	});
 
-	it('domain arm flags a literal raw write and passes a derived one', () => {
+	it('domain branch flags a literal raw write and passes a derived one', () => {
 		const flagged = (src: string) =>
 			rawAssignments([{ relPath: 'x', text: src, code: src }]).filter(
 				(a) => emittedNewlineLiterals(a.statement).length > 0

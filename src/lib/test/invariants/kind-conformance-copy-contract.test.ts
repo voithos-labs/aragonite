@@ -43,7 +43,7 @@ afterEach(() => {
 	resetPluginPlatformForTests();
 });
 
-describe('kind conformance — the whole-unit copy contract', () => {
+describe('kind conformance: the whole-unit copy contract', () => {
 	it('accepts a childless opaque kind whose range copy carries it whole', () => {
 		const { kind, fixture } = mermaidFixture();
 		expect(() => checkCopyIsRawByteSlice(kind, fixture)).not.toThrow();

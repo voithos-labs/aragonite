@@ -74,7 +74,7 @@ describe('a destructive key past a construct edge takes the content byte', () =>
 	});
 });
 
-describe('the arm claims a press only where the markers are unpainted', () => {
+describe('the branch claims a press only where the markers are unpainted', () => {
 	it('declines in source mode, which paints every delimiter', () => {
 		const h = mount('Some **bold** text\n', undefined);
 		expect(h.handleKeydown(key('Backspace'), at(13))).toBe(false);

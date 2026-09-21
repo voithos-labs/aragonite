@@ -64,7 +64,7 @@ const optsFor = (raw: string): ApplyIslandsOpts => ({
 });
 
 describe('applyIslandDecorations', () => {
-	it('widget island contributes zero raw bytes at its offset', () => {
+	it('widget decoration contributes zero raw bytes at its offset', () => {
 		const raw = 'hello world';
 		const frag = build(raw);
 		applyIslandDecorations(frag, raw, [idx(widgetAt(5))], optsFor(raw));
@@ -76,7 +76,7 @@ describe('applyIslandDecorations', () => {
 		expect(walkRawText(frag, raw)).toBe(raw);
 	});
 
-	it('replace island carries the covered bytes and removes covered DOM', () => {
+	it('replace decoration carries the covered bytes and removes covered DOM', () => {
 		const raw = 'hide **me** now';
 		const frag = build(raw);
 		applyIslandDecorations(frag, raw, [idx(replaceRange(5, 11))], optsFor(raw));
@@ -94,7 +94,7 @@ describe('applyIslandDecorations', () => {
 		);
 	});
 
-	it('two islands apply without offset drift (descending application)', () => {
+	it('two widgets apply without offset drift (descending application)', () => {
 		const raw = 'one two three';
 		const frag = build(raw);
 		applyIslandDecorations(frag, raw, [idx(widgetAt(3)), idx(replaceRange(8, 13))], optsFor(raw));
@@ -123,7 +123,7 @@ describe('applyIslandDecorations', () => {
 	// Miss-analysis: this pass never saw the document its decorations came from, and no test
 	// gave it a mismatched pair, so the one case it cannot judge, a decoration the document has
 	// since outgrown, was the one it reported as an authoring error.
-	it('an island the content no longer holds is dropped silently — staleness is not the author’s', () => {
+	it('a widget the content no longer holds is dropped silently: staleness is not the author’s', () => {
 		const raw = 'short';
 		const frag = build(raw);
 		const onSkipped = vi.fn();
@@ -138,7 +138,7 @@ describe('applyIslandDecorations', () => {
 
 	// A `replace` widget holds bytes the DOM text no longer has, so a bound measured from this
 	// pass's own output would shrink underneath it. The check reads the CST's answer instead.
-	it('re-applies over a range a mounted island already covers', () => {
+	it('re-applies over a range a mounted widget already covers', () => {
 		const raw = 'hide **me** now';
 		const frag = build(raw);
 		applyIslandDecorations(frag, raw, [idx(replaceRange(5, 11))], optsFor(raw));

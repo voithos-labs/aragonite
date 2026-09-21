@@ -27,7 +27,7 @@ describe('wordSpanAt: the segment a press at an offset takes', () => {
 		expect(span('foo,bar', 4)).toBe('bar');
 	});
 
-	it('inside whitespace takes the whitespace run, as the engine would', () => {
+	it('inside whitespace takes the whitespace run, as the browser would', () => {
 		expect(span('a  b', 2)).toBe('  ');
 	});
 
@@ -59,7 +59,7 @@ describe('maskedWalkText: what the word rule reads', () => {
 		expect(maskedWalkText(p)).toBe('  bold   a     b');
 	});
 
-	it('keeps the ambient prefix island as text', () => {
+	it('keeps the ambient prefix widget as text', () => {
 		const p = document.createElement('p');
 		p.innerHTML = '<span class="md-marker" contenteditable="false">- </span>item';
 		expect(maskedWalkText(p)).toBe('- item');

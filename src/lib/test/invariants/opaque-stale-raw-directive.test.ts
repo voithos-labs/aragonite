@@ -11,7 +11,7 @@ beforeAll(() => {
 	installPlugins([admonitionsPlugin()]);
 });
 
-describe('checkOpaqueStaleRaw — the recognizer probe spans both registries', () => {
+describe('checkOpaqueStaleRaw: the recognizer probe spans both registries', () => {
 	it('fires when a directive container raw no longer reparses to its own kind', () => {
 		const node = parse(':::note T\n\nbody\n\n:::\n').children[0];
 		expect(node.kind).toBe('admonition');

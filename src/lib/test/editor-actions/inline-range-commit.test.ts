@@ -20,7 +20,7 @@ function makeTop(source: string) {
 	};
 }
 
-describe('inline-range commit — top level', () => {
+describe('inline-range commit: top level', () => {
 	it('splices the bytes over the range and leaves the rest of the raw alone', async () => {
 		const h = makeTop('Visit [x](old) now\n');
 		await h.commit.commitInlineRange([0], 6, 14, '[x](new)', 6);
@@ -65,8 +65,8 @@ describe('inline-range commit — top level', () => {
 	});
 });
 
-describe('inline-range commit — nested', () => {
-	it('writes through the container ceremony at a nested path', async () => {
+describe('inline-range commit: nested', () => {
+	it('writes through the container commit sequence at a nested path', async () => {
 		const h = makeNestedHarness('- Visit [x](old) now\n');
 		const commit = createInlineRangeCommit({ getDoc: () => h.deps.doc, controller: h.controller });
 		const item = h.getNode().children![0];

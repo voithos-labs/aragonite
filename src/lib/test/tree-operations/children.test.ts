@@ -62,7 +62,7 @@ describe('spliceChildren', () => {
 		expect(c.childIds![3]).toBe('id-c');
 	});
 
-	it('a pure insert mints fresh ids and shifts the slots below', () => {
+	it('a pure insert creates fresh ids and shifts the slots below', () => {
 		const c = bq([para('a\n'), para('b\n')], ['id-a', 'id-b']);
 		spliceChildren(c, 1, 0, [para('x\n')]);
 		expect(c.childIds![0]).toBe('id-a');

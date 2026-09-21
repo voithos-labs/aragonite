@@ -13,7 +13,7 @@ import { allowDevWarns } from '$lib/test/support/warn-gate';
 // unmounted branch the other four routes are pinned on had no case here.
 
 describe('container-matching paste at an unmounted outer scope', () => {
-	it('splices the clipboard through the tolerant door rather than dropping it', async () => {
+	it('splices the clipboard through the tolerant entry point rather than dropping it', async () => {
 		const doc = parse('- a\n- keep\n');
 		const list = doc.children[0];
 		// A post-cross-block-delete stub, with no BlockListState registered for the list.

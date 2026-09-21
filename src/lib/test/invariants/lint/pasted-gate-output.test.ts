@@ -183,7 +183,7 @@ describe('pasted gate output ↔ what the gate prints', () => {
 // A reader that finds no pastes, or a run that captures no output, lets the gate above pass
 // on two empty sets.
 
-describe('pasted gate output — self-tests', () => {
+describe('pasted gate output: self-tests', () => {
 	it('reads a real corpus and finds a paste of every gate prefix', () => {
 		expect(docs.length).toBeGreaterThan(20);
 		expect(docs).not.toContain(`${EXCLUDED_DIR}/queue-2026-08-26.md`);

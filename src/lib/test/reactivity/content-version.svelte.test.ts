@@ -4,7 +4,7 @@ import { describe, it, expect } from 'vitest';
 import { createContentVersion } from '../../reactivity/content-version.svelte';
 
 describe('content version', () => {
-	it('is stable across reads until a bump — otherwise it is a clock, not a key', () => {
+	it('is stable across reads until a bump: otherwise it is a clock, not a key', () => {
 		const cleanup = $effect.root(() => {
 			const version = createContentVersion();
 			const first = version.read();

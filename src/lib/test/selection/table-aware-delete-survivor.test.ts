@@ -37,7 +37,7 @@ function deleteBothTables(source: string, firstTableIndex: number) {
 	);
 }
 
-describe('the placeholder minted when nothing survives takes the document’s line ending', () => {
+describe('the placeholder created when nothing survives takes the document’s line ending', () => {
 	it('a CRLF document keeps CRLF', () => {
 		const result = deleteBothTables(twoTables('\r\n'), 0);
 

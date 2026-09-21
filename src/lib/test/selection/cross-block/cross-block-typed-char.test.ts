@@ -22,7 +22,7 @@ function trackLrdResolver(env: ReturnType<typeof makeEnv>): () => LinkReferenceR
 
 // ── Tests ────────────────────────────────────────────────────────────────────
 
-describe('cross-block typed character — A2/A3 event symmetry', () => {
+describe('cross-block typed character: A2/A3 event symmetry', () => {
 	// The commit re-derives the leaf's kind, so it declares `updateContent`, not `input` — matching
 	// the single-block kind-changing branch, with the post-edit block's full text length as detail.
 	it.each(['X', 'ABC'])('emits op:delete then op:updateContent for a typed "%s"', async (typed) => {
@@ -80,7 +80,7 @@ describe('cross-block typed character — A2/A3 event symmetry', () => {
 
 // The typed splice re-parses the surviving leaf inside the commit, so a marker at offset 0
 // re-derives the kind (parity with the single-block type path) rather than holding it stale.
-describe('cross-block typed character — kind re-derivation at offset 0', () => {
+describe('cross-block typed character: kind re-derivation at offset 0', () => {
 	it('a marker at offset 0 of an emptied survivor re-parses to the new kind', async () => {
 		const env = makeEnv('aaa\n\nbbb\n');
 
@@ -113,7 +113,7 @@ describe('cross-block typed character — kind re-derivation at offset 0', () =>
 
 // A commit that re-derives the kind must declare an op the link-reference gate treats as kind-unstable:
 // under `input` the gate read the post-commit kind and kept serving a destroyed definition.
-describe('cross-block typed character — link-reference resolver freshness', () => {
+describe('cross-block typed character: link-reference resolver freshness', () => {
 	it('a type-replace that destroys a definition stops the resolver serving it', async () => {
 		const env = makeEnv('[label]: /a\n\n[ref]: /b\n\nSee [ref] and [label].\n');
 		const resolver = trackLrdResolver(env);

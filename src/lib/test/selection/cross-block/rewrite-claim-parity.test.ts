@@ -59,7 +59,7 @@ async function pressOverCrossBlockRange(chord: string) {
 describe('G4.40 single-block-rewrite set parity', () => {
 	const keymap = singleBlockRewriteKeymap();
 
-	it('the keymaps bind exactly the rewrite ids the seam answers specially over a range', () => {
+	it('the keymaps bind exactly the rewrite ids the join answers specially over a range', () => {
 		const bound = [...new Set(keymap.map((row) => row.command))].sort();
 		// Scoped to the rewrites: the dispatcher declines the heading commands too, but their chords
 		// reach it through the delete-and-redispatch branch, so no rewrite chord names them.
@@ -94,7 +94,7 @@ describe('G4.40 single-block-rewrite set parity', () => {
 	);
 
 	// Non-vacuity: the branch handles the rewrites, not every modified chord the keymaps bind.
-	it('a keymap chord outside the set is not swallowed by the rewrite arm', async () => {
+	it('a keymap chord outside the set is not swallowed by the rewrite branch', async () => {
 		const { consumed, event } = await pressOverCrossBlockRange('Mod+Enter');
 		expect(consumed).toBe(false);
 		expect(event.defaultPrevented).toBe(false);

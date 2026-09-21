@@ -159,7 +159,7 @@ describe('getRaw', () => {
 });
 
 describe('clampOutOfAmbient', () => {
-	it('parks a marker-interior caret after the marker span', () => {
+	it('puts the caret a marker-interior caret after the marker span', () => {
 		el.focus();
 		select(marker.firstChild!, 1, marker.firstChild!, 1);
 		cursorIO().clampOutOfAmbient();
@@ -206,7 +206,7 @@ describe('clampOutOfAmbient', () => {
 });
 
 describe('setRaw', () => {
-	it('lands raw 0 just after the marker island, never inside it', () => {
+	it('lands raw 0 just after the marker widget, never inside it', () => {
 		el.focus();
 		cursorIO().setRaw(asRawOffset(0));
 

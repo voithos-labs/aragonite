@@ -32,8 +32,8 @@ function scanForLiteral(doc: Document, needle: string) {
 	return out;
 }
 
-describe('replaceAll — per-top-level-subtree, one undo entry', () => {
-	it('two matches in two children of one blockquote, both splitting, commit as ONE undo entry', async () => {
+describe('replaceAll: per-top-level-subtree, one undo entry', () => {
+	it('two matches in two children of one blockquote, both splitting, commit as one undo entry', async () => {
 		const { deps, sr } = makeSearchReplace('> aXa\n>\n> bXb\n');
 
 		await sr.replaceAll(scanForLiteral(deps.doc, 'X'), '\n\n');
@@ -139,7 +139,7 @@ describe('replaceAll — per-top-level-subtree, one undo entry', () => {
 	});
 });
 
-describe('replaceOne — single-subtree case', () => {
+describe('replaceOne: single-subtree case', () => {
 	it('replaces a single match and keeps one undo entry', async () => {
 		const { deps, sr } = makeSearchReplace('the cat sat\n');
 		await sr.replaceOne({ path: [0], start: 4, end: 7 }, 'dog');
@@ -154,7 +154,7 @@ describe('replaceOne — single-subtree case', () => {
 	});
 
 	// Parity with the top-level content commit: the reparse honors the instance grammar.
-	it('honors the instance grammar — a disabled heading marker stays paragraph', async () => {
+	it('honors the instance grammar: a disabled heading marker stays paragraph', async () => {
 		const { deps, sr } = makeSearchReplace('title\n');
 		deps.grammar = createGrammarView((kind) => kind !== 'heading');
 		await sr.replaceOne({ path: [0], start: 0, end: 0 }, '# ');
@@ -162,7 +162,7 @@ describe('replaceOne — single-subtree case', () => {
 	});
 });
 
-describe('replace — matches on childless opaque containers are skipped', () => {
+describe('replace: matches on childless opaque containers are skipped', () => {
 	// The real scanner: only it produces the container matches these test.
 	const DIAGRAM_RAW = '```diagram\ngraph cat\n```\n';
 	let diagramNode: CstNode;
@@ -210,7 +210,7 @@ describe('replace — matches on childless opaque containers are skipped', () =>
 	});
 });
 
-describe('replace — a batch that applies nothing leaves no undo entry', () => {
+describe('replace: a batch that applies nothing leaves no undo entry', () => {
 	// Miss-analysis: the undo assertions all counted entries after a successful batch, and the
 	// throw case was tested on its error event alone, so the snapshot pushed before the loop,
 	// the one thing no commit rolls back, had no case looking at it on the failing path.
@@ -249,7 +249,7 @@ describe('replace — a batch that applies nothing leaves no undo entry', () => 
 	});
 });
 
-describe('replace — a childless opaque container reparses its own bytes', () => {
+describe('replace: a childless opaque container reparses its own bytes', () => {
 	// Miss-analysis (#41): the container case was tested only by its decline, with a fixture
 	// kind whose opener was never registered, so the decline read as "containers are excluded"
 	// when the real rule is kind stability, and the reachable half (a registered kind that

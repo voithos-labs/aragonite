@@ -17,7 +17,7 @@ const firstKind = (src: string) => parse(src).children[0].kind;
 const alertType = (src: string) =>
 	getPluginMetadata<GithubAlertMetadata>(parse(src).children[0])?.alertType;
 
-describe('github alert — the marker grammar claims a githubAlert', () => {
+describe('github alert: the marker grammar claims a githubAlert', () => {
 	it('parses a first-line marker to the githubAlert kind', () => {
 		expect(firstKind('> [!NOTE]\n> Body.\n')).toBe('githubAlert');
 	});
@@ -50,7 +50,7 @@ describe('github alert — the marker grammar claims a githubAlert', () => {
 	});
 });
 
-describe('github alert — MARKER whitespace edges', () => {
+describe('github alert: marker whitespace edges', () => {
 	// The edges `MARKER`'s regex allows but no other case reaches, so a tightening
 	// of the spacing rule cannot slip through green.
 
@@ -69,7 +69,7 @@ describe('github alert — MARKER whitespace edges', () => {
 	}
 });
 
-describe('github alert — the CommonMark block-indent boundary', () => {
+describe('github alert: the CommonMark block-indent boundary', () => {
 	// 4+ spaces makes a line indented code, so `blockquoteExtent` refuses it. A marker
 	// regex accepting the indent anyway consumes nothing and hangs the parse loop.
 
@@ -101,7 +101,7 @@ describe('github alert — the CommonMark block-indent boundary', () => {
 	]);
 });
 
-describe('github alert — non-alert blockquotes stay plain', () => {
+describe('github alert: non-alert blockquotes stay plain', () => {
 	const declines = [
 		{ name: 'mid-quote marker (not the first line)', src: '> plain\n> [!NOTE]\n> more\n' },
 		{ name: 'marker with trailing text', src: '> [!NOTE] and more\n' },

@@ -143,7 +143,7 @@ describe('clampEnterOffsetToBody', () => {
 		}
 	});
 
-	it('leaves the end of the opener text alone — splicing there is already safe', () => {
+	it('leaves the end of the opener text alone, splicing there is already safe', () => {
 		expect(clampEnterOffsetToBody(closed, 5)).toBe(5);
 	});
 
@@ -276,14 +276,14 @@ describe('crossesFenceBoundary', () => {
 
 	// A fence with no closer has nothing to orphan: retyping the markers is how a just-typed
 	// ` ``` ` is undone, and it demotes the block without absorbing anything (parser-verified).
-	it('is false inside the marker run of an UNCLOSED fence', () => {
+	it('is false inside the marker run of an unclosed fence', () => {
 		const unclosed = fencedCode('```js\nconst x\n', 'js', { closed: false });
 		expect(crossesFenceBoundary(unclosed, { start: 0, end: 3 })).toBe(false);
 		expect(crossesFenceBoundary(unclosed, { start: 0, end: 5 })).toBe(false);
 		expect(crossesFenceBoundary(unclosed, { start: 1, end: 1 })).toBe(false);
 	});
 
-	it('treats the opener indentation as structure — a fourth space demotes the block', () => {
+	it('treats the opener indentation as structure: a fourth space demotes the block', () => {
 		const indented = fencedCode(' ```js\nconst x = 1\n ```\n', 'js');
 		expect(crossesFenceBoundary(indented, { start: 0, end: 1 })).toBe(true);
 		expect(crossesFenceBoundary(indented, { start: 4, end: 6 })).toBe(false); // info string
@@ -420,7 +420,7 @@ describe('computeFenceRangedEdit', () => {
 		});
 	});
 
-	it('empties the body — never the block — for a whole-display range', () => {
+	it('empties the body (never the block) for a whole-display range', () => {
 		expect(computeFenceRangedEdit(closed, { start: 0, end: 21 }, '')).toEqual({
 			newText: '```js\n\n```',
 			newCursor: 6
@@ -451,7 +451,7 @@ describe('computeFenceRangedEdit', () => {
 		});
 	});
 
-	it('rewrites an unclosed fence’s marker run verbatim — nothing to orphan', () => {
+	it('rewrites an unclosed fence’s marker run verbatim, nothing to orphan', () => {
 		const unclosed = fencedCode('```js\nconst x\n', 'js', { closed: false });
 		expect(computeFenceRangedEdit(unclosed, { start: 0, end: 3 }, '')).toEqual({
 			newText: 'js\nconst x',

@@ -44,7 +44,7 @@ describe('built-in conformance fixtures parse to their kind', () => {
 		(kind) => getBlockKindDescriptor(kind).conformanceFixture !== undefined
 	);
 
-	it('is not vacuous — the parser-reachable built-ins carry fixtures', () => {
+	it('is not vacuous: the parser-reachable built-ins carry fixtures', () => {
 		expect(withFixture.length).toBeGreaterThan(8);
 	});
 

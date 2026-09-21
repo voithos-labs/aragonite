@@ -11,8 +11,8 @@ afterEach(resetPluginPlatformForTests);
 // Shaped like a decoded entity: a `[data-inline-widget]` span whose text is the glyph and
 // whose source bytes sit on `data-source-*`, so the DOM-to-offset traversal reads `:smile:`
 // back while the DOM shows 😄.
-describe('buildEmojiWidget — atomic island shell', () => {
-	it('stamps the widget marker, source span, and the glyph', () => {
+describe('buildEmojiWidget: atomic widget shell', () => {
+	it('marks the widget marker, source span, and the glyph', () => {
 		const node: InlineNode = {
 			kind: EMOJI_KIND as InlineNode['kind'],
 			start: 2,

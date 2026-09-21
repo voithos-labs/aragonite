@@ -63,7 +63,7 @@ function isAllowedSpecifier(relPath: string, specifier: string): boolean {
 
 // ── The boundary scan ────────────────────────────────────────────────────────
 
-describe('plugin import boundary — bundled plugins import only the public barrel', () => {
+describe('plugin import boundary: bundled plugins import only the public barrel', () => {
 	const sources = collectEditorSources(path.resolve(PLUGIN_ROOT));
 
 	it('collected the bundled plugin source files', () => {
@@ -88,7 +88,7 @@ describe('plugin import boundary — bundled plugins import only the public barr
 
 // ── Classifier self-tests (non-vacuity) ──────────────────────────────────────
 
-describe('plugin import boundary — classifier non-vacuity', () => {
+describe('plugin import boundary: classifier non-vacuity', () => {
 	const file = 'src/lib/plugins/details/register.ts';
 
 	it('allows the public authoring barrel and svelte', () => {
@@ -122,7 +122,7 @@ describe('plugin import boundary — classifier non-vacuity', () => {
 	});
 });
 
-describe('plugin import boundary — specifier extraction', () => {
+describe('plugin import boundary: specifier extraction', () => {
 	it('extracts single-line, multi-line, side-effect, and dynamic specifiers', () => {
 		const code = [
 			"import { a } from '$lib/plugin';",
