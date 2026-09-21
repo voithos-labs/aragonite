@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 //
-// Mounts the kind→component dispatcher per kind class, so a registry mis-wire or a
-// lost fallback fails as a missing surface rather than surviving to review — the
-// source scan (invariants/lint/block-host-prop-thread) cannot see either.
+// Mounts the kind-to-component dispatch once per class of kind, so a mis-wired registry
+// or a lost fallback fails here as a block that did not render rather than reaching
+// review; the source scan (invariants/lint/block-host-prop-thread) cannot see either.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { registerBuiltInBlocks } from '$lib/components/built-in-blocks';
@@ -104,8 +104,8 @@ describe('BlockHost falls back to a raw-editable surface when no component resol
 	});
 
 	it('renders a kind whose component this instance’s registry view disables', () => {
-		// The enablement door to "no component" reaches BlockHost through the
-		// per-instance registry view: a host reading the globals would render it.
+		// Turning a kind off reaches BlockHost through this editor's own registry
+		// view: a host reading the global registry instead would still render it.
 		const kind = declareComponentlessKind('host-disabled');
 		registerBlockComponent(kind, defineBlockComponent(RecordingBlock));
 		const doc = parse('disabled text\n');

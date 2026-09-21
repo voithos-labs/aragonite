@@ -37,8 +37,8 @@ describe('buildImageWidget — broken-URL cache (per-instance isolation)', () =>
 		expect(second.classList.contains('md-image-broken')).toBe(true);
 	});
 
-	// A 200 response the decoder cannot size fires `load`, not `error`, with naturalWidth 0 — the
-	// same state the build-time probe already calls broken, so the event-time arm has to agree.
+	// A 200 response the decoder cannot size fires `load`, not `error`, with naturalWidth 0: the
+	// same state the check at build time already calls broken, so the load handler must agree.
 	it('a load that completes with no intrinsic size marks broken, like the build-time probe', () => {
 		const cache = new Set<string>();
 		const widget = build(imageNode(), cache);
@@ -76,8 +76,8 @@ describe('buildImageWidget — broken-URL cache (per-instance isolation)', () =>
 	});
 });
 
-// Miss (#50): every widget-dom test asserted the widget's own DOM, none the path it emits, and
-// no fixture ever put a widget on a surface whose path the block-path walk stops short of.
+// Miss-analysis (#50): every widget-dom test asserted the widget's own DOM, none the path it
+// reports, and no fixture ever put a widget inside a block whose path the lookup stops short of.
 describe('buildImageWidget — the path a click emits', () => {
 	it('names the enclosing cell, not the table block the walk stops at (#50)', () => {
 		const host = document.createElement('div');
@@ -101,9 +101,9 @@ describe('buildImageWidget — the path a click emits', () => {
 	});
 });
 
-// Miss-analysis: nothing asserted what a `|WxH` hint puts on the element, so the attribute pair
+// Miss-analysis: nothing asserted what a `|WxH` size puts on the element, so the two attributes
 // read as "sizes the rendered widget" (syntax-tree.md § Inline nodes) while the decoded natural
-// ratio silently won every layout back through the stylesheet's `height: auto`.
+// ratio quietly won every layout back through the stylesheet's `height: auto`.
 describe('buildImageWidget — declared dimensions', () => {
 	function widgetFor(source: string): HTMLImageElement {
 		const node = parseInline(source, 0, source.length).find((n) => n.kind === 'image');

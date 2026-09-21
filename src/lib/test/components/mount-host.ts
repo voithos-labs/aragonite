@@ -1,5 +1,5 @@
 // Mounting one BlockHost the way BlockList does: a node from a live document,
-// its index, and the ref slot pair the host publishes into.
+// its index, and the pair of ref entries the host writes into.
 
 import { mount, unmount, flushSync, type ComponentProps } from 'svelte';
 import BlockHost from '$lib/components/BlockHost.svelte';
@@ -27,7 +27,7 @@ export interface HostProps {
 export interface MountedHost {
 	/** The `.block-host` wrapper element. */
 	el: HTMLElement;
-	/** The slot array BlockHost publishes its child component's ref into. */
+	/** The array BlockHost writes its child component's ref into. */
 	refs: (BlockComponent | undefined)[];
 	dispose: () => Promise<void>;
 }
@@ -48,8 +48,8 @@ export function mountBlockHost(
 	props.slots ??= refSlotsOver(refs);
 	const instance = mount(BlockHost, {
 		target,
-		// The required props are filled above, but only at runtime — the declared
-		// shape stays all-optional so a caller can hand in a partial `$state` object.
+		// The required props are filled above, but only at runtime: the declared shape
+		// stays all-optional so a caller can hand in a partial `$state` object.
 		props: props as unknown as ComponentProps<typeof BlockHost>,
 		context: editorMountContext({ doc: { doc: () => doc }, ...overrides })
 	});

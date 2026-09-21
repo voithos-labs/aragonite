@@ -10,8 +10,9 @@ afterEach(() => {
 	document.body.replaceChildren();
 });
 
-// Miss-analysis: the pin and the attribute were only ever asserted through a mounted editor
-// under one mode, so nothing pinned the focusout-within-root keep or the mode re-apply alone.
+// Miss-analysis: the focused path and the attribute were only ever asserted through a mounted
+// editor in one mode, so nothing covered keeping the path on a focusout inside the root, or
+// re-applying the attribute on a mode change, on their own.
 function editor(mode: PresentationMode = 'source') {
 	const root = document.createElement('div');
 	const host = (path: number[]) => {

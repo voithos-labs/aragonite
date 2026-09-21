@@ -1,9 +1,9 @@
 // @vitest-environment jsdom
 //
-// The gap caret's proxy is focused DOM of its own, so the editor root's arm declines and this
-// surface resolves the global tier itself. Miss-analysis: the gap caret had no keydown test at
-// all, so the one surface whose whole reason for existing is "the root cannot answer here" was
-// never asked what it does with a rebound global chord.
+// The gap caret's stand-in element holds focus of its own, so the editor root stands aside and
+// this component resolves the global chords itself. Miss-analysis: the gap caret had no keydown
+// test at all, so the one component that exists because "the root cannot answer here" was never
+// asked what it does with a rebound global chord.
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { mount, unmount, flushSync } from 'svelte';
 import GapCaret from '$lib/components/GapCaret.svelte';
@@ -69,8 +69,8 @@ describe('gap caret — global chord resolution', () => {
 		expect(event.defaultPrevented).toBe(true);
 	});
 
-	// The disable releases the command, never the press: native undo on the proxy would
-	// bypass the CST stack entirely.
+	// Disabling the command frees the command, never the keystroke: the browser's own undo
+	// on this element would bypass the CST stack entirely.
 	it('consumes a disabled built-in chord and runs nothing', () => {
 		mounted = mountGapCaret([{ chord: 'Mod+Z', command: null }]);
 		const event = mounted.press('z', { ctrlKey: true });

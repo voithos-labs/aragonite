@@ -1,10 +1,10 @@
 // @vitest-environment jsdom
 //
-// The two things BlockHost hands its child that nothing else can: the props it reads
-// from editor context, and the ref slot every container's focus, reveal and clipboard
-// walk resolves through. Only the registered-component branch answers behaviorally —
-// the fallback accepts `document` for parity and never binds it, so both branches stay
-// pinned by the source scan in invariants/lint/block-host-prop-thread.
+// The two things BlockHost hands its child that nothing else can: the props it reads from
+// editor context, and the child-ref entry every container's focus, scroll and clipboard
+// descent goes through. Only the registered-component branch is checked by behaviour here;
+// the fallback accepts `document` for symmetry and never binds it, so both stay pinned by
+// the source scan in invariants/lint/block-host-prop-thread.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
 import { flushSync } from 'svelte';
 import { parse } from '$lib/core/parser';
@@ -68,8 +68,8 @@ describe('BlockHost delivers its context-read props to the component it dispatch
 });
 
 describe('BlockHost publishes its component into the caller’s ref slot', () => {
-	// The slot index is the claim, not the document shape, so the node is named
-	// explicitly and the index moved around it. A `$state` props object stays live.
+	// The index of the ref entry is what is being checked, not the document's shape, so
+	// the node is named explicitly and the index moved around it. `$state` keeps it live.
 	function mountAtSlot(props: HostProps): MountedHost {
 		const doc = recordingDoc('recorded\n');
 		props.node = doc.children[0];
@@ -84,8 +84,9 @@ describe('BlockHost publishes its component into the caller’s ref slot', () =>
 	});
 
 	it('moves the ref to the new slot when its index shifts, clearing the old one', () => {
-		// A reorder or a sibling splice re-indexes a live host; the slot must follow
-		// or the container's focus walk resolves the wrong block (publish-ref.svelte).
+		// A reorder or an inserted sibling re-indexes a live host; the ref entry must
+		// follow, or the container's focus descent finds the wrong block
+		// (publish-ref.svelte).
 		const props: HostProps = $state({ index: 1 });
 		mounted = mountAtSlot(props);
 		expect(mounted.refs[1]).toBeDefined();

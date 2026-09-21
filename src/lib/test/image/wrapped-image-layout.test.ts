@@ -1,10 +1,10 @@
 // @vitest-environment jsdom
 /**
- * The ambient-marker pin (`.md-marker[contenteditable=false]` absolutely placed at the image's
- * bottom-left) and the image-only `min-height: 0` are pure CSS, so only the real cascade can pin
- * them. The class under guard is sibling-path parity across wrapper shapes: `renderInlineNodes`
- * wraps children for emphasis, strong, strikethrough and both link forms, putting the widget one
- * level deeper than a bare `![img](x)`.
+ * Placing the container's marker (`.md-marker[contenteditable=false]`, absolutely positioned at
+ * the image's bottom-left) and the image-only `min-height: 0` are pure CSS, so only the real
+ * cascade can check them. What this covers is every wrapper shape behaving the same:
+ * `renderInlineNodes` wraps children for emphasis, strong, strikethrough and both link forms,
+ * putting the widget one level deeper than a plain `![img](x)`.
  */
 import { describe, it, expect, beforeAll } from 'vitest';
 import { readFileSync } from 'node:fs';
@@ -33,7 +33,7 @@ beforeAll(() => {
 	document.body.appendChild(editorRoot);
 });
 
-/** A list-item paragraph: ambient `- ` prefix plus `content` rendered for real. */
+/** A list-item paragraph: the `- ` marker prefix plus `content` rendered for real. */
 function renderListParagraph(content: string): HTMLElement {
 	const paragraph = document.createElement('div');
 	paragraph.className = 'text-editable-block paragraph-block';
@@ -51,8 +51,8 @@ function ambientMarkerOf(paragraph: HTMLElement): Element {
 	return marker;
 }
 
-// Every wrapper shape `renderInlineNodes` can put between the paragraph and the widget. The bare
-// case is the control that already worked; a re-tightened combinator turns the other five red.
+// Every wrapper shape `renderInlineNodes` can put between the paragraph and the widget. The
+// plain case is the control that already worked; a tightened selector turns the other five red.
 const WRAPPED_IMAGES: Array<[string, string]> = [
 	['bare (control — already worked)', '![b](i.png)'],
 	['emphasis', '*![b](i.png)*'],

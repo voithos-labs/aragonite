@@ -22,7 +22,7 @@ afterEach(() => {
 // ── Blur announcer ───────────────────────────────────────────────────────────
 
 // Miss-analysis: every selectionChange emitter fired on selections the editor still held, so no
-// test ever took focus OUT of the editor and asked whether the channel reported the departure.
+// test ever moved focus out of the editor and asked whether subscribers heard about it.
 describe('editor-root listeners — blur announcer', () => {
 	function announcer() {
 		const root = document.createElement('div');
@@ -57,8 +57,8 @@ describe('editor-root listeners — blur announcer', () => {
 		expect(t.count()).toBe(0);
 	});
 
-	// A structural commit unmounts the focused surface (focusout, no relatedTarget) and lands
-	// focus again after its own tick: a departure that came back is no departure at all.
+	// A structural commit unmounts the focused block (focusout, no relatedTarget) and puts
+	// focus back after its own tick: focus that came back never left.
 	it('stays silent when focus returns to the root within the flush', async () => {
 		const t = announcer();
 		t.root.dispatchEvent(new FocusEvent('focusout', { bubbles: true, relatedTarget: null }));
@@ -193,7 +193,7 @@ describe('editor-root listeners — selectionchange bridge', () => {
 	});
 });
 
-// ── Reveal-anchor release ────────────────────────────────────────────────────
+// ── Releasing the held block ─────────────────────────────────────────────────
 
 describe('editor-root listeners — reveal-anchor release', () => {
 	function release() {
@@ -210,7 +210,8 @@ describe('editor-root listeners — reveal-anchor release', () => {
 		expect(r.count()).toBe(1);
 	});
 
-	// A programmatic anchor correction fires `scroll` itself and would self-release mid-settle.
+	// A programmatic scroll correction fires `scroll` itself and would release the hold
+	// half way through.
 	it('a scroll releases nothing', () => {
 		const r = release();
 		r.port.dispatchEvent(new Event('scroll'));

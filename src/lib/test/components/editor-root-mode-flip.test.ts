@@ -15,8 +15,8 @@ const caretAt = (path: number[], offset: number): EditorSelection => ({
 	focus: { path, offset }
 });
 
-// Miss-analysis: every flip test drove a mounted editor, where the caret's return could pass
-// for the restore road's own doing; nothing pinned which mode captured and which restored.
+// Miss-analysis: every mode-change test drove a mounted editor, where the caret coming back
+// could be the restore path's doing; nothing pinned which mode captured and which restored.
 function harness(opts: { mode?: PresentationMode; selection?: EditorSelection | null } = {}) {
 	const root = document.createElement('div');
 	const leaf = document.createElement('button');
@@ -69,7 +69,7 @@ function harness(opts: { mode?: PresentationMode; selection?: EditorSelection | 
 	return { leaf, headerField, flip, calls, selection, flipTo, setMode, setSnapshot };
 }
 
-/** The restore waits one flush of its own before it lands. */
+/** The restore waits one flush of its own before it runs. */
 async function settle(): Promise<void> {
 	await tick();
 	await tick();

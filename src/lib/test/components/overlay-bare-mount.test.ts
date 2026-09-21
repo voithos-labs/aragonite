@@ -1,10 +1,10 @@
 // @vitest-environment jsdom
 //
-// BlockHost reads every context through `| undefined` because bare unit harnesses and
-// the conformance kit mount it without the editor shell; its overlays owe the same
-// contract. Mounted directly rather than through BlockHost, since the in-repo harness
-// always supplies a full context map and every leaf component still requires the
-// shell — so a host-level mount cannot isolate the overlays' own contract.
+// BlockHost reads every context through `| undefined` because unit tests and the
+// conformance kit mount it without the editor shell; its overlays must hold to the same
+// contract. Mounted directly rather than through BlockHost, since the in-repo helper always
+// supplies a full context map and every block component still needs the shell, so mounting
+// through the host cannot isolate the overlays' own contract.
 import { describe, it, expect, afterEach } from 'vitest';
 import { mount, unmount, flushSync } from 'svelte';
 import SelectionOverlay from '$lib/components/SelectionOverlay.svelte';
@@ -18,8 +18,8 @@ afterEach(async () => {
 	document.body.innerHTML = '';
 });
 
-/** Mount one overlay with NO editor context, over a detached block element. Both
- *  painting-ownership prop names ride every mount because they differ per overlay; a
+/** Mount one overlay with no editor context at all, over a detached block element. Both
+ *  "who paints" prop names go in on every mount because they differ per overlay; a
  *  component ignores the one it does not declare. */
 function mountBare(overlay: Component<never>, isContainer: boolean): HTMLElement {
 	const target = document.createElement('div');

@@ -6,8 +6,9 @@ import { serialize } from '$lib/core/serializer';
 import type { Document } from '$lib/core/nodes';
 import type { LinkReferenceResolver } from '$lib/core/inline/link-reference-resolver';
 
-// Miss-analysis: the swap was pinned through a mounted editor one consequence at a time (heights,
-// undo, the selection announce), so a step dropped from the middle of the swap steps failed no unit.
+// Miss-analysis: the swap was pinned through a mounted editor one consequence at a time
+// (heights, undo, the selection announcement), so a step dropped from the middle of the
+// sequence failed no unit test.
 
 describe('initDocument', () => {
 	it('parses the empty source to one empty LF paragraph', () => {

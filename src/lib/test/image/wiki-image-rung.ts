@@ -1,16 +1,16 @@
 /**
- * A minimal `![[target|width]]` rung minting built-in `image` nodes — the shape a consumer's
- * Obsidian-style embed plugin registers, and the fixture every claimed-image suite drives.
- * Registered per test with or without its rewrite hook: "claimed and rewritable" and "claimed and
- * not" are the two halves of the contract.
+ * A minimal `![[target|width]]` inline syntax handler that creates built-in `image` nodes: the
+ * shape a consumer's Obsidian-style embed plugin registers, and the fixture these suites drive.
+ * Registered per test with or without its rewrite hook, since "owned and rewritable" and "owned
+ * and not" are the two halves of the contract.
  */
 
 import type { ImageFields, InlineNode } from '../../core/nodes';
 import { registerInlineSyntax, INLINE_PRIORITIES } from '../../core/inline/scan/plugin-syntax';
 
 const WIKI_EMBED = /^!\[\[([^\]|]+?)(?:\|(\d+))?\]\]/;
-// The two grammars overlap — `![[a]](u)` is a built-in image whose alt is `[a]` —
-// and the rung, consulted first, has to decline that one itself.
+// The two grammars overlap (`![[a]](u)` is a built-in image whose alt is `[a]`), and
+// this handler, tried first, has to refuse that one itself.
 const IMAGE_TARGET = /\.(png|jpg|svg)$/;
 
 export function recognizeWikiImage(raw: string, pos: number, end: number): InlineNode | null {
@@ -27,9 +27,9 @@ export function recognizeWikiImage(raw: string, pos: number, end: number): Inlin
 	};
 }
 
-/** `![[…]]` carries a target and an optional width and nothing else, so a title, a reference
- *  label, or an alt edited away from that target has no form in this grammar and the hook
- *  declines. */
+/** `![[…]]` holds a target and an optional width and nothing else, so a title, a reference
+ *  label, or an alt edited away from that target cannot be written in this grammar and the
+ *  hook refuses. */
 export function rewriteWikiImage(source: string, fields: ImageFields): string | null {
 	if (!source.startsWith('![[')) return null;
 	if (fields.title !== undefined || fields.label !== undefined) return null;

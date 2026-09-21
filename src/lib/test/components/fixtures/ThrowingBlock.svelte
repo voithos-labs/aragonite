@@ -1,6 +1,6 @@
 <script lang="ts">
-	// Throws during init while its raw carries the trigger word, so one mounted host
-	// can be driven from failed to healed by a byte change alone.
+	// Throws during init while its raw holds the trigger word, so one mounted host can
+	// be driven from failed to working again by a byte change alone.
 	import type { NodeView } from '../../../core/node-views';
 
 	let { node }: { node: NodeView } = $props();

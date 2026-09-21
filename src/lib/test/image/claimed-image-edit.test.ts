@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 /**
- * Editing an image whose bytes a plugin inline rung claimed: the hook writes them, or nothing
- * does. Both entry points are driven — each carried the GFM serializer independently before the
- * seam existed. Contract: docs/design/plugin-contract.md § Inline authoring.
+ * Editing an image whose bytes a plugin's inline syntax handler owns: its hook writes them, or
+ * nothing does. Both entry points are driven, since each called the GFM serializer on its own
+ * before they shared one path. Contract: docs/design/plugin-contract.md § Inline authoring.
  */
 
 import { afterEach, describe, it, expect, vi } from 'vitest';
@@ -61,7 +61,7 @@ describe('Shift+Arrow resize of an image a rung claimed', () => {
 		registerWikiRung();
 		const { consumed, commit } = keyboardResize('![[cat.png|300]]\n');
 		expect(commit).not.toHaveBeenCalled();
-		// The gesture was the widget's; handing the arrow on would move the caret
+		// The gesture was the widget's; passing the arrow on would move the caret
 		// out of a widget the user is still resizing.
 		expect(consumed).toBe(true);
 		expect(takeDevWarns().map((w) => w.tag)).toEqual(['image-edit']);
@@ -81,8 +81,8 @@ describe('Shift+Arrow resize of an image a rung claimed', () => {
 		expect(commit).toHaveBeenCalledWith('![a|420](x)\n', 0, 11);
 	});
 
-	// `![[a]](u)` is a built-in image whose alt text is `[a]`: the rung declines it, so the GFM write
-	// path still owns those bytes — a detection keyed on the `![[` prefix would wrongly decline it.
+	// `![[a]](u)` is a built-in image whose alt text is `[a]`: the plugin's handler refuses it, so
+	// the GFM write path still owns those bytes; a test on the `![[` prefix alone would not.
 	it('resizes the image the rung declined', () => {
 		registerWikiRung(rewriteWikiImage);
 		const { consumed, commit } = keyboardResize('![[a]](u)\n');
@@ -91,7 +91,7 @@ describe('Shift+Arrow resize of an image a rung claimed', () => {
 	});
 });
 
-// ── The drag-resize / properties-popover commit path ─────────────────────────
+// ── The drag-resize and properties-popover commit path ───────────────────────
 
 describe('a popover or drag commit on an image a rung claimed', () => {
 	it('builds the rung’s bytes and commits them', async () => {
@@ -115,8 +115,8 @@ describe('a popover or drag commit on an image a rung claimed', () => {
 		expect(takeDevWarns().map((w) => w.tag)).toEqual(['image-edit', 'image-edit']);
 	});
 
-	// The decline a consumer meets first: an embed names one file, so the popover's Alt row edits a
-	// field the grammar cannot store, and a hook that ignored it would return byte-identical bytes.
+	// The refusal a consumer meets first: an embed names one file, so the popover's Alt row edits
+	// a field the grammar cannot store, and a hook that ignored it would return the same bytes.
 	it('declines an alt edited away from the target', async () => {
 		registerWikiRung(rewriteWikiImage);
 		const { committer, controller, target } = committerFor('![[cat.png|300]]\n');
@@ -128,8 +128,8 @@ describe('a popover or drag commit on an image a rung claimed', () => {
 		expect(takeDevWarns().map((w) => w.tag)).toEqual(['image-edit', 'image-edit']);
 	});
 
-	// A hook may model only part of its own grammar's edits — the embed syntax has
-	// nowhere to put a title — and a decline there is a decline, not a fallback.
+	// A hook may cover only part of its own grammar's edits (the embed syntax has
+	// nowhere to put a title), and a refusal there is a refusal, not a fallback.
 	it('declines an edit the hook cannot represent', async () => {
 		registerWikiRung(rewriteWikiImage);
 		const { committer, controller, target } = committerFor('![[cat.png|300]]\n');

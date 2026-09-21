@@ -1,6 +1,6 @@
 /**
- * The image-edit committer over one parsed paragraph — null widget selection, stub events, spy
- * controller — shared by every committer suite; rung registration stays per test.
+ * The image-edit committer over one parsed paragraph, with no widget selected, stub events and a
+ * spy controller. Shared by every committer suite; registering a syntax handler stays per test.
  */
 
 import { vi } from 'vitest';
@@ -16,7 +16,7 @@ export interface CommitterHarness {
 	committer: ReturnType<typeof createImageEditCommitter>;
 	controller: UndoController;
 	doc: Document;
-	/** The paragraph-start edit target the claimed-image suites drive. */
+	/** The edit target at the paragraph's start that these suites drive. */
 	target: { paragraphPath: number[]; sourceStart: number; preSelectOffset: number };
 }
 

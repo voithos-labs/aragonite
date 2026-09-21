@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 //
-// Miss-analysis (#43): the ambient marker was only ever asserted where it PAINTS, so the forward
-// was pinned by its happy shape alone — a first child that ignores the prop dropped it silently,
-// and no case read what the list handed over rather than what the child drew.
+// Miss-analysis (#43): the container's marker prefix was only ever asserted where it paints, so
+// only the happy case was pinned: a first child that ignores the prop dropped it silently, and
+// no case read what the list handed over rather than what the child drew.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
 import { mount, unmount, flushSync } from 'svelte';
 import BlockList from '$lib/components/BlockList.svelte';
@@ -22,8 +22,8 @@ const MARKER = '[^a]: ';
 
 beforeAll(installEditorDomStubsForTests);
 
-/** A recording kind that answers the platform's "does this surface paint inline content?" one
- *  way or the other — the only thing the forward reads. */
+/** A recording kind that answers "does this block paint inline content?" one way or the
+ *  other, which is the only thing the list reads. */
 function recordingKind(name: string, supportsInline: boolean) {
 	const kind = declarePluginKind(name);
 	registerBlockKind(kind, {

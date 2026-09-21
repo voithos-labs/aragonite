@@ -5,9 +5,9 @@ import { parse } from '$lib/core/parser';
 import type { BlockComponent } from '$lib/block-component';
 import type { GapCaretPosition } from '$lib/selection/gap-caret';
 
-// Miss-analysis: the public entry points were tested through a mounted editor with a caret in a block,
-// so nothing named what they answer for a gap caret, a focus outside the root, or a block with
-// no command surface.
+// Miss-analysis: the public entry points were tested through a mounted editor with a caret in
+// a block, so nothing named what they answer for a gap caret, a focus outside the root, or a
+// block that runs no commands.
 
 beforeEach(() => {
 	document.body.replaceChildren();

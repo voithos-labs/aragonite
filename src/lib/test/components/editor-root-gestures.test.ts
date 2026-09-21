@@ -9,12 +9,12 @@ import { parse } from '$lib/core/parser';
 import type { BlockComponent } from '$lib/block-component';
 import type { PresentationMode } from '$lib/presentation-mode';
 
-// Miss-analysis: the press classifier and the margin drag's arming were driven only through
-// Playwright, so no jsdom test named a decline (a widget's gesture surface, a modifier press,
-// reading mode) or the range-ending step the arming runs.
+// Miss-analysis: the click test and the margin drag's setup were driven only through Playwright,
+// so no jsdom test named a refusal (a widget that runs its own gesture, a modifier held down,
+// reading mode) or the step that ends the previous range.
 
 const BOX = { left: 40, right: 400, top: 20, bottom: 60 };
-/** In the root's left margin, level with the block's band. */
+/** In the root's left margin, level with the block's first line. */
 const MARGIN = { clientX: 10, clientY: 40 };
 
 const teardowns: (() => void)[] = [];
@@ -33,8 +33,8 @@ function harness(opts: { mode?: PresentationMode } = {}) {
 	const root = document.createElement('div');
 	const list = document.createElement('div');
 	list.className = 'block-list';
-	// A rendered face with no character surface (a rule, a folded equation): the margin drag
-	// anchors on it as a whole block, which needs no caret-from-point.
+	// A rendered block with no text to click into (a rule, a closed equation): the margin
+	// drag starts from it as a whole block, which needs no caret at the point.
 	const host = document.createElement('div');
 	host.setAttribute('data-block-path', '[0]');
 	host.getBoundingClientRect = () => BOX as DOMRect;
@@ -57,7 +57,7 @@ function harness(opts: { mode?: PresentationMode } = {}) {
 	list.append(host, editable, proxy, widget, link);
 	root.append(header, list);
 	document.body.append(root);
-	// The margin resolves to the root; a point clamped into the box resolves to the face.
+	// The margin resolves to the root; a point pulled into the box resolves to the block.
 	document.elementFromPoint = ((x: number) =>
 		x < BOX.left ? root : face) as typeof document.elementFromPoint;
 

@@ -1,11 +1,12 @@
 // @vitest-environment jsdom
 //
-// Who paints a container's selection box: one the range holds whole paints its own, chrome
-// included; one the range cuts through leaves it to the children it cuts. Pinned at the host
-// that decides, since a `containerApi` publisher's members discriminate neither case.
+// Who paints a container's selection box: one the range covers whole paints its own, markers
+// included; one the range cuts through leaves it to the children it cuts. Asserted at the host
+// that decides, since nothing on a `containerApi` tells the two cases apart.
 //
-// Miss-analysis: the old pin read "a child-bearing container paints nothing", true wherever
-// every visible row is a child block, so derived chrome (#321) had no box at any layer.
+// Miss-analysis: the previous test asserted "a container with children paints nothing", true
+// wherever every visible row is a child block, so a container that draws a row of its own
+// (#321) had no box at any level.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
 import { flushSync } from 'svelte';
 import { parse } from '$lib/core/parser';
@@ -32,13 +33,13 @@ function rangeAcrossThreeBlocks() {
 	return selection;
 }
 
-/** The host's OWN overlay: `:scope >` excludes the children's nested hosts. */
+/** The host's own overlay: `:scope >` excludes the children's nested hosts. */
 function ownOverlays(mountedHost: MountedHost): NodeListOf<Element> {
 	return mountedHost.el.querySelectorAll(':scope > .selection-overlay');
 }
 
-/** Every overlay a nested child host paints inside this one. `:scope` anchors the walk, since a
- *  bare descendant selector would match the host's own overlay through its own path attribute. */
+/** Every overlay a nested child host paints inside this one. `:scope` fixes where the search
+ *  starts; a plain descendant selector would match the host's own overlay as well. */
 function childOverlays(mountedHost: MountedHost): NodeListOf<Element> {
 	return mountedHost.el.querySelectorAll(':scope [data-block-path] .selection-overlay');
 }

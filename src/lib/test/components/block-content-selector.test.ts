@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 //
-// Read against BlockHost's real wrapper layout: the locator form enumerates ALL
-// matches, so an unnamed chrome child inflates the per-block count — and one of them
+// Read against BlockHost's real wrapper layout: the locator form returns every match, so
+// an extra child that is not named in it inflates the per-block count, and one of them
 // (`.decoration-overlay`) varies with the live decoration set.
 import { describe, it, expect } from 'vitest';
 import {
@@ -25,7 +25,7 @@ function blockWrapper(options: {
 		);
 	}
 	wrapper.appendChild(Object.assign(document.createElement('p'), { className: 'md-block' }));
-	// The code surface's own chrome, rendered by the block component rather than by the host.
+	// The code block's own side gutter, rendered by the block component, not by the host.
 	if (options.langChip) {
 		wrapper.appendChild(Object.assign(document.createElement('span'), { className: 'code-rail' }));
 	}

@@ -9,15 +9,15 @@ import type { BlockComponent } from '$lib/block-component';
 import type { PasteImageHook } from '$lib/editor-keys';
 import type { CrossBlockHandlers } from '$lib/selection/cross-block/dispatch';
 
-// The escape this seam exists for: Chromium retargets the clipboard event to <body>
-// when the selection found no caret to park — a cross-block endpoint, or a selected
-// inline widget. Driven through `target`, not `activeElement` — a block still held
+// The case this routing exists for: Chromium retargets the clipboard event to <body> when
+// the selection found no caret to put, which happens at a cross-block endpoint or with a
+// selected inline widget. Driven through `target`, not `activeElement`: a block still held
 // focus in every real reproduction.
 
 interface HarnessOptions {
 	onPasteImage?: PasteImageHook;
-	/** What the cross-block seam answers — false stands in for a selection that
-	 *  collapsed while a host import was in flight. */
+	/** What the cross-block handling answers; false stands in for a selection that
+	 *  collapsed while a host import was still running. */
 	crossBlockClaims?: boolean;
 	/** Stands in for the block owning a selected inline widget. */
 	widgetBlock?: BlockComponent | null;
@@ -37,9 +37,9 @@ function harness(options: HarnessOptions = {}) {
 		handlePaste: async (_e: ClipboardEvent, replacement?: string) => {
 			pasted.push(replacement);
 			if (options.crossBlockClaims ?? true) return true;
-			// The real seam declines only by re-reading a collapsed selection. Leaving
-			// the range standing would make a decline-time `selection.start` read look
-			// correct — the exact bug the path pin exists to catch.
+			// The real code refuses only by re-reading a collapsed selection. Leaving the
+			// range in place would make a `selection.start` read at refusal time look
+			// correct, which is the exact bug this test exists to catch.
 			selection.collapse();
 			return false;
 		},
@@ -122,8 +122,8 @@ describe('editor-root clipboard routing', () => {
 	it('declines a target inside the editor that is not the root', () => {
 		const h = harness();
 		h.selection.enterCrossBlock({ path: [0], offset: 0 }, { path: [1], offset: 5 });
-		// The search bar's input and a host header field both live here and own
-		// their own clipboard; claiming "anywhere inside the root" would eat them.
+		// The search bar's input and a host header field both live here and own their
+		// own clipboard; taking "anywhere inside the root" would swallow them.
 		const input = document.createElement('input');
 		h.root.append(input);
 
@@ -143,7 +143,7 @@ describe('editor-root clipboard routing', () => {
 		registerEditor(other);
 		h.selection.enterCrossBlock({ path: [0], offset: 0 }, { path: [1], offset: 5 });
 
-		// Two mounted editors and no live focus claim: neither may guess.
+		// Two mounted editors and neither holding focus: neither may guess.
 		expect(h.fire('copy', document.body).written.size).toBe(0);
 	});
 
@@ -164,7 +164,7 @@ describe('editor-root clipboard routing', () => {
 	});
 
 	// A selected inline widget is the second state whose event lands here: selecting one
-	// clears the native selection, and in a block with no text position nothing re-seats it.
+	// clears the native selection, and in a block with no text position nothing restores it.
 	describe('selected-widget arm', () => {
 		function widgetBlock() {
 			const seen: string[] = [];
@@ -182,7 +182,7 @@ describe('editor-root clipboard routing', () => {
 				h.fire(type, document.body);
 
 				expect(seen).toEqual([type]);
-				// The cross-block arms must not double-run: they would write the empty range.
+				// The cross-block handlers must not also run: they would write the empty range.
 				expect(h.pasted).toEqual([]);
 			});
 		}
@@ -207,8 +207,8 @@ describe('editor-root clipboard routing', () => {
 			expect(seen).toEqual([]);
 		});
 
-		// The editor never presents both states at once, so the widget target is terminal:
-		// writing the cross-block range too would serve a selection the seam's own caller
+		// The editor never shows both states at once, so the widget is the final answer:
+		// writing the cross-block range as well would serve a selection its own caller
 		// cannot have handed it. The block here writes nothing, so any write is the range's.
 		it('never falls through to the cross-block arm, even with a range live', () => {
 			const { block, seen } = widgetBlock();
@@ -220,8 +220,8 @@ describe('editor-root clipboard routing', () => {
 		});
 	});
 
-	// The host hook must be offered the files before the cross-block arm, which
-	// discards a pure-image paste for carrying no text/plain.
+	// The host hook must be offered the files before the cross-block handling, which
+	// throws an image-only paste away for having no text/plain.
 	describe('image-bearing paste', () => {
 		it('offers the files to the host hook before the cross-block arm', async () => {
 			const imported: string[] = [];
@@ -235,7 +235,7 @@ describe('editor-root clipboard routing', () => {
 
 			const { preventCount } = h.fire('paste', document.body, { files: [pngFile()] });
 
-			// Prevented BEFORE the hook is awaited, or the browser's own paste fires
+			// Prevented before the hook is awaited, or the browser's own paste fires
 			// during the import and injects DOM the CST never sees.
 			expect(preventCount).toBe(1);
 			await vi.waitFor(() => expect(h.pasted).toEqual(['![[shot.png]]']));
@@ -243,8 +243,8 @@ describe('editor-root clipboard routing', () => {
 		});
 
 		it('reports the decline when nothing claims the imported markdown', async () => {
-			// `claims` required a cross-block selection, but the hook is awaited — a
-			// selection collapsed meanwhile leaves the root with no landing at all.
+			// `claims` required a cross-block selection, but the hook is awaited: a
+			// selection that collapsed meanwhile leaves the root nowhere to insert.
 			const h = harness({
 				onPasteImage: async () => '![[shot.png]]',
 				crossBlockClaims: false
