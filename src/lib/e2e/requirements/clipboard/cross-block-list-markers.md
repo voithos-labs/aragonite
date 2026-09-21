@@ -1,4 +1,4 @@
-# Feature: cross-block clipboard — list marker preservation on copy
+# Feature: cross-block clipboard: list marker preservation on copy
 
 Regression coverage for list-marker correctness when cross-block copy spans or partially overlaps a list.
 
@@ -10,4 +10,4 @@ Regression coverage for list-marker correctness when cross-block copy spans or p
 ## Regression notes
 
 - Cross-block copy of a list with nested items does not duplicate content (container+leaf regression).
-- Selecting the last list item through content below copies only that item — earlier items of the list are not promoted into the clipboard (over-promotion regression).
+- Selecting the last list item through content below copies only that item: earlier items of the list are not promoted into the clipboard (over-promotion regression).

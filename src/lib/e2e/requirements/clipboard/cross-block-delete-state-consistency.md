@@ -1,12 +1,12 @@
-# Feature: cross-block delete — BlockListState consistency (0.5.5.3 regression guard)
+# Feature: cross-block delete: BlockListState consistency (0.5.5.3 regression guard)
 
-Regression guard for the 0.5.5.3 multi-scope commit rework. Before the
-rework, `performCrossBlockDelete` synced only the top-level doc's
-`innerBlockIds`/`innerBlockRefs` after a range delete. When the delete
+Regression guard for the 0.5.5.3 multi-scope commit rework. The defect:
+`performCrossBlockDelete` synced only the top-level doc's
+`innerBlockIds`/`innerBlockRefs` after a range delete, so when the delete
 reached into a nested container, that container's registered `BlockListState`
-still held ids/refs from the pre-delete children array. The keyed `{#each}`
-then keyed components against stale ids, producing zombie components (Bug A
-class).
+still held the ids and refs from the children array before the delete. The
+keyed `{#each}` then keyed components against stale ids, producing zombie
+components (Bug A class).
 
 The invariant asserted by these tests: for every container with a registered
 `BlockListState`, `node.children.length === state.innerBlockIds.length`.
@@ -39,8 +39,8 @@ lengths after the delete and any cascade cleanup.
 Outer list contains an item whose children include a nested sub-list. Select
 from the outer first item's paragraph to a paragraph inside the nested sub-
 list's second item; Backspace. Both the outer list's and the nested list's
-`BlockListState` instances must remain consistent — depth is not an excuse for
-desyncing.
+`BlockListState` instances must remain consistent: depth is no excuse for
+falling out of sync.
 
 ### 5. Cross-block delete ending in a table body cell (regression)
 

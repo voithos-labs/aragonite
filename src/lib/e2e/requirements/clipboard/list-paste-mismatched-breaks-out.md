@@ -1,8 +1,8 @@
 # Clipboard: Mismatched-Type List Paste Breaks Out
 
-When the clipboard's top block is a list whose ordered-flag does not match any ancestor list of the target, pasting at a position inside a list item splits the enclosing list and splices the pasted blocks between the halves at the list's parent level — rather than nesting the paste as a sub-list. The matching-type case is handled earlier by `list-paste-flattens-into-matching-list`; this file covers the complementary mismatched-type case.
+When the clipboard's top block is a list whose ordered-flag does not match any ancestor list of the target, pasting at a position inside a list item splits the enclosing list and splices the pasted blocks between the halves at the list's parent level, rather than nesting the paste as a sub-list. The matching-type case is handled earlier by `list-paste-flattens-into-matching-list`; this file covers the complementary mismatched-type case.
 
-Design reason: pasting `1. a\n2. b\n` (ordered) into `- target` (unordered) with the default "splice at target's level" behavior produces a nested sub-list at the listItem's indent plus a trailing-paragraph artifact at the item-continuation indent. Users almost never want that — they copied a top-level list and expect a top-level list. Break-out preserves the pasted structure's semantic level and avoids surprise.
+Design reason: pasting `1. a\n2. b\n` (ordered) into `- target` (unordered) with the default "splice at target's level" behavior produces a nested sub-list at the listItem's indent plus a trailing-paragraph artifact at the item-continuation indent. Users almost never want that: they copied a top-level list and expect a top-level list. Break-out preserves the pasted structure's semantic level and avoids surprise.
 
 ## Happy paths
 
@@ -14,6 +14,6 @@ Design reason: pasting `1. a\n2. b\n` (ordered) into `- target` (unordered) with
 
 ## Edge cases
 
-- Matching-type list paste: handled by `findContainerMatchingUnwrap` earlier in the pipeline — this path does not fire.
+- Matching-type list paste: handled by `findContainerMatchingUnwrap` earlier in the pipeline, so this path does not fire.
 - Target deeper than a direct child of the listItem (e.g. target is inside a nested container within the item): falls through to the default structural paste. The break-out helper intentionally keeps the "target is a direct listItem leaf" precondition narrow to keep the splitting algorithm simple.
 - Trailing slice with a leading space/tab: the first whitespace character is trimmed so the resulting second-half item serializes with a single-space marker (`- three`, not `-  three`).

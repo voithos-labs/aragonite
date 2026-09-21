@@ -1,4 +1,4 @@
-# Clipboard: Nested Structural Paste — Ref Alignment via Registry
+# Clipboard: Nested Structural Paste, Ref Alignment via Registry
 
 Regression coverage for the 0.5.1 rewrite that routed `handlePaste`'s nested structural branch (the path taken when the collapsed caret after cross-block delete has `path.length >= 2` and the clipboard is not a single-paragraph inline paste) through the `BlockListState` registry. Pins that the last-inserted block gets ref-based focus after paste, eliminating the deleted `focusLastInsertedBlock` DOM-focus helper.
 

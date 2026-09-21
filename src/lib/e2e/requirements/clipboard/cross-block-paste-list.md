@@ -1,4 +1,4 @@
-# Feature: cross-block clipboard — paste into list selections
+# Feature: cross-block clipboard: paste into list selections
 
 ## Happy paths
 
@@ -12,4 +12,4 @@
 ## Edge cases
 
 - Mid-paragraph-offset cross-block paste splices the clipboard text between the pre-anchor head and the post-focus tail, producing a single merged item.
-- Drag selection across list items (empty native selection) still receives the paste — the paste handler parks a caret in the focus block regardless of entry gesture.
+- Drag selection across list items (empty native selection) still receives the paste: the paste handler places a caret in the focus block whatever the entry gesture was.

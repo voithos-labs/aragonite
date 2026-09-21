@@ -1,6 +1,6 @@
 # Clipboard Exploration: Deeply Nested
 
-Paste scenarios where the target lives inside multiple layers of containers — the stress-test for the dispatch + container-state machinery's path resolution.
+Paste scenarios where the target lives inside multiple layers of containers: the stress test for how the dispatch and container-state code resolve paths.
 
 ## Happy paths
 

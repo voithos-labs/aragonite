@@ -1,4 +1,4 @@
-# Feature: Code block partial copy — fence boundary stripping
+# Feature: Code block partial copy: fence boundary stripping
 
 A fenced code block stores its opener, body, and closer as one flat string.
 A native single-block selection that includes the fence lines would otherwise
@@ -9,8 +9,8 @@ clipboard never holds a lone ` ``` `.
 ## Happy paths
 
 - Ctrl+A selects the entire code block display and copy preserves the full fence pair on the clipboard (round-trippable as a complete code block).
-- A partial selection that includes the opening fence and some body lines copies only the body lines — the opening fence is stripped.
-- A partial selection that includes body lines and the closing fence copies only the body lines — the closing fence is stripped.
+- A partial selection that includes the opening fence and some body lines copies only the body lines: the opening fence is stripped.
+- A partial selection that includes body lines and the closing fence copies only the body lines: the closing fence is stripped.
 
 ## Edge cases
 

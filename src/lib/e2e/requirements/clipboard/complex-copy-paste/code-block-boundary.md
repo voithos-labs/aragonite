@@ -1,4 +1,4 @@
-# Feature: Complex cross-block copy-paste — Code Block Boundary and Direction
+# Feature: Complex cross-block copy-paste: Code Block Boundary and Direction
 
 Selections that cross a code-block boundary (in either direction) and bottom-to-top reverse selections must copy the right content.
 

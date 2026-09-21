@@ -1,8 +1,8 @@
-# Feature: cross-block delete — Ctrl+Z restores content and cross-block selection state
+# Feature: cross-block delete: Ctrl+Z restores content and cross-block selection state
 
 ## Happy paths
 
-- Select across 3 blocks, press Delete: content deleted, selection collapsed. Ctrl+Z: content restored AND cross-block selection state reactivates with original anchor/focus.
+- Select across 3 blocks, press Delete: content deleted, selection collapsed. Ctrl+Z: content restored and cross-block selection state reactivates with original anchor/focus.
 
 ## Edge cases
 

@@ -1,11 +1,11 @@
-# Feature: cross-block clipboard — the event that lands on no block
+# Feature: cross-block clipboard: the event that lands on no block
 
-A cross-block selection is painted by overlays, and the caret the selection seam parks at
-the focus endpoint is best-effort: when that endpoint's block hosts no text position (an
+A cross-block selection is painted by overlays, and the caret the selection code leaves at
+the focus endpoint is best-effort: when that endpoint's block holds no text position (an
 image-only paragraph, a thematic break), the native selection is left empty or outside the
-focused surface, and Chromium then dispatches `copy`/`cut`/`paste` at `document.body`
-instead of at the block. Nothing above the block surfaces used to listen, so the whole
-gesture died silently.
+focused element, and Chromium then dispatches `copy`/`cut`/`paste` at `document.body`
+instead of at the block. Nothing above the blocks hears that unless the editor root
+listens, and without it the whole gesture dies silently.
 
 ## Happy paths
 
@@ -18,9 +18,9 @@ gesture died silently.
 
 - The class is not about images: a document whose last block is a thematic break escapes
   the same way, and Ctrl+C must still copy the whole document.
-- A cross-block copy that a block surface DOES receive keeps writing exactly once — the
-  root fallback must not double-write or overwrite the block's payload.
+- A cross-block copy a block does receive keeps writing exactly once: the root fallback
+  must not write twice or overwrite what the block wrote.
 - The listeners sit on `document`, so every copy on the page enters them. Copying from a
-  host header field mounted inside the editor root (`?header=on` — both its `<input>` and
-  its `contenteditable`) and from the find bar's input each yields that surface's own
+  host header field mounted inside the editor root (`?header=on`, both its `<input>` and
+  its `contenteditable`) and from the find bar's input each yields that field's own
   text, never the document, even with a whole-document range live.

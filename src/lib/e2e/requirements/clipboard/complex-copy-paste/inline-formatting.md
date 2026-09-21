@@ -1,4 +1,4 @@
-# Feature: Complex cross-block copy-paste — Inline Formatting Preservation
+# Feature: Complex cross-block copy-paste: Inline Formatting Preservation
 
 Cross-block copy across paragraphs containing inline formatting must preserve every marker (bold, italic, code, link, heading marker).
 

@@ -1,4 +1,4 @@
-# Feature: cross-block clipboard — cut, delete/backspace, type-replace
+# Feature: cross-block clipboard: cut, delete/backspace, type-replace
 
 ## Happy paths
 
@@ -15,7 +15,7 @@
 - Backspace merges endpoint blocks into one (start block survives).
 - Cross-block delete spanning three blocks leaves only the merged result.
 - Type-replace inserts the character at the correct offset in the merged block.
-- Type-replace over a cross-block selection is one undo unit: a single Ctrl+Z restores the pre-replace document (delete + typed character share the same undo seam, with op:'delete' followed by op:'updateContent' on the event stream — the typed character re-derives the leaf's kind, so it is not an `input`).
+- Type-replace over a cross-block selection is one undo unit: a single Ctrl+Z restores the pre-replace document (the delete and the typed character share one undo entry, with `op:'delete'` followed by `op:'updateContent'` on the event stream, and the typed character re-derives the leaf's kind, so it is not an `input`).
 
 ## User interactions
 
@@ -25,5 +25,6 @@
 ## Miss-analysis
 
 - The dropped separator (#60) shipped because every cross-block delete fixture selected from
-  MID-block, and from the document's FIRST block, whose leading trivia is empty either way; the
-  byte assertions also never reloaded their result, which is the only place the loss shows.
+  mid-block, and from the document's first block, whose leading blank lines are empty either
+  way; the byte assertions also never reloaded their result, which is the only place the loss
+  shows.

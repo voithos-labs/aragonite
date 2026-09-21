@@ -1,4 +1,4 @@
-# Feature: Single-block clipboard — basics
+# Feature: Single-block clipboard: basics
 
 ## Happy paths
 
