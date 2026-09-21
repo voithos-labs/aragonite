@@ -41,6 +41,23 @@ export async function clickPastImageRightEdge(page: Page): Promise<void> {
 	await page.mouse.click(point.x, point.y);
 }
 
+/** The state Chromium reaches on its own between a click beside an atomic widget and the next
+ *  keystroke: the range is gone, and the `selectionchange` it fires has been handled. */
+export async function dropNativeCaret(page: Page): Promise<void> {
+	await page.evaluate(
+		() =>
+			new Promise<void>((resolve) => {
+				const sel = window.getSelection();
+				if (!sel || sel.rangeCount === 0) return resolve();
+				document.addEventListener('selectionchange', () => resolve(), { once: true });
+				sel.removeAllRanges();
+			})
+	);
+	await page.evaluate(() =>
+		(window as unknown as { __test: { drainTick(): Promise<void> } }).__test.drainTick()
+	);
+}
+
 /** The toolbar's one field, the alt: press its button, then the input is the one there. */
 export async function openImageField(page: Page, name: 'Alt text' = 'Alt text'): Promise<Locator> {
 	await page.locator('.md-image-properties').getByRole('button', { name, exact: true }).click();

@@ -1,6 +1,6 @@
 import { test, expect } from '../../../fixtures';
 import { EditorPage } from '../../../editor-page';
-import { clickPastImageRightEdge, waitForFirstImageLoaded } from './helpers';
+import { clickPastImageRightEdge, dropNativeCaret, waitForFirstImageLoaded } from './helpers';
 
 const LIST_IMAGE_DOC = '- ![pic|300x200](/test-fixtures/sample.png)\n';
 
@@ -132,6 +132,23 @@ test.describe('typing and paste after click-snap', () => {
 		const src = await editor.bridge.getSource();
 		// The hard-break marker belongs after the image source, not at the start of the inner
 		// paragraph.
+		expect(src).toMatch(/!\[pic\|300x200\]\(\/test-fixtures\/sample\.png\)\\/);
+		expect(src).not.toMatch(/^- \\\n {2}!/m);
+	});
+
+	// The keydown's fallback: with the caret dropped there is nothing to read the offset from but
+	// the armed snap target, and a snap target cleared on `rangeCount === 0` put the break at 0.
+	test('Shift+Enter lands after the image when the browser has dropped the caret', async ({
+		page
+	}) => {
+		await editor.loadContent('- ![pic|300x200](/test-fixtures/sample.png)\n- text\n');
+		await waitForFirstImageLoaded(page);
+		await clickPastImageRightEdge(page);
+		await dropNativeCaret(page);
+
+		await page.keyboard.press('Shift+Enter');
+		await editor.bridge.waitForSourceContains(')\\');
+		const src = await editor.bridge.getSource();
 		expect(src).toMatch(/!\[pic\|300x200\]\(\/test-fixtures\/sample\.png\)\\/);
 		expect(src).not.toMatch(/^- \\\n {2}!/m);
 	});

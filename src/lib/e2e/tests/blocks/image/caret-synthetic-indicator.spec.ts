@@ -3,6 +3,7 @@ import { test, expect } from '../../../fixtures';
 import { EditorPage } from '../../../editor-page';
 import {
 	clickPastImageRightEdge,
+	dropNativeCaret,
 	pointPastImageRightEdge,
 	waitForAllImagesLoaded,
 	waitForFirstImageLoaded
@@ -234,6 +235,40 @@ test.describe('synthetic caret indicator at widget boundary', () => {
 		const followingPara = page.locator('[contenteditable="true"]').nth(1);
 		await followingPara.click();
 		await expect(page.locator('[data-image-widget].md-snap-after')).toHaveCount(0);
+	});
+
+	// The indicator stands in for a caret the browser will not draw, so the state where the
+	// browser holds no range at all is the one it exists for, not a reason to stop painting.
+	test('synthetic caret survives the browser dropping the caret', async ({ page }) => {
+		await editor.loadContent(LIST_IMAGE_DOC);
+		await waitForFirstImageLoaded(page);
+		await clickPastImageRightEdge(page);
+		await expect(page.locator('[data-image-widget].md-snap-after')).toHaveCount(1);
+
+		await dropNativeCaret(page);
+		expect(await paintedCarets(page)).toEqual(['[0,0,0]']);
+	});
+
+	// One caret is one position: the editor's own range owns the position while it is up, so no
+	// block may still be painting a caret of its own underneath it.
+	test('no synthetic caret is painted while a cross-block range is up', async ({ page }) => {
+		await editor.loadContent(TWO_IMAGE_DOC);
+		await waitForAllImagesLoaded(page);
+		await clickPastImage(page, 0);
+		await expect.poll(() => paintedCarets(page)).toEqual(['[0]']);
+
+		const widget = page.locator('[data-image-widget]').first();
+		const wb = (await widget.boundingBox())!;
+		const tail = page.locator('[contenteditable="true"]').last();
+		const tb = (await tail.boundingBox())!;
+		await page.mouse.move(tb.x + 40, tb.y + tb.height / 2);
+		await page.mouse.down();
+		for (let step = 1; step <= 6; step++) {
+			await page.mouse.move(wb.x + 20, tb.y - ((tb.y - wb.y) * step) / 6, { steps: 2 });
+		}
+		expect(await editor.bridge.isCrossBlockSelection()).toBe(true);
+		expect(await paintedCarets(page)).toEqual([]);
+		await page.mouse.up();
 	});
 
 	test('synthetic caret clears when arrow keys move the caret away', async ({ page }) => {

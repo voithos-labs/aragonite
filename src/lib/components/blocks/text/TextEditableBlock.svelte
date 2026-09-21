@@ -721,13 +721,9 @@
 	function clearSnapTargetIfMoved(root: HTMLElement): void {
 		if (lastSnapTargetOffset === null) return;
 		const sel = window.getSelection();
-		// With no range there is no caret to stand beside: a cross-block selection takes the native
-		// one away, and a menu that borrows focus can drop it. Either way the synthetic caret goes.
-		if (!sel) return;
-		if (sel.rangeCount === 0) {
-			armSnapTarget(null);
-			return;
-		}
+		// No range means the browser dropped the caret without moving it, which is the state the
+		// snap target stands in for; a press, a blur and typing each clear it in their own handler.
+		if (!sel || sel.rangeCount === 0) return;
 		const range = sel.getRangeAt(0);
 		if (!root.contains(range.startContainer)) {
 			armSnapTarget(null);
