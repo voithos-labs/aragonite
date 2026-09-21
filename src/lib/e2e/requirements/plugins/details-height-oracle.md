@@ -1,7 +1,8 @@
 # Feature: Plugin Container, `<details>` Collapsed Height Estimate at Scale
 
-Spec §8.3. Each kind's height estimator guesses the height of a block that is not mounted, which
-is what top-level windowing sums over. A collapsed details carries its whole hidden body in
+Each kind's height estimator guesses the height of a block that is not mounted, which is what
+top-level windowing sums over (`virtual-rendering.md` § How tall is a block nobody has
+rendered?). A collapsed details carries its whole hidden body in
 `raw` but renders as a single summary row, so estimating from the full `raw` over-counted every
 collapsed details outside the window and inflated the scroll height at load. The estimator now
 reads the declared `reservedChrome.isCollapsed` check and returns one title row for a collapsed

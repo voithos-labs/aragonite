@@ -11,11 +11,12 @@ import {
 import { capturePageErrors } from '../../page-probes';
 
 /**
- * How a collapsed container's height is estimated (spec § 8.3). The `heightOracle` (estimates block
- * heights) reads the declared `reservedChrome.isCollapsed` check and estimates a collapsed details
- * at one title row, ignoring the hidden body its `raw` still holds. The unit suite pins the exact
- * number; this proves it at scale, so the load-time height does not over-count, and stays correct
- * under the small under-estimate that holding a block in place on screen absorbs.
+ * How a collapsed container's height is estimated (`virtual-rendering.md` § How tall is a block
+ * nobody has rendered?). The `heightOracle` (estimates block heights) reads the declared
+ * `reservedChrome.isCollapsed` check and estimates a collapsed details at one title row, ignoring
+ * the hidden body its `raw` still holds. The unit suite pins the exact number; this proves it at
+ * scale, so the load-time height does not over-count, and stays correct under the small
+ * under-estimate that holding a block in place on screen absorbs.
  */
 
 function collapsedDetailsDoc(count: number): string {

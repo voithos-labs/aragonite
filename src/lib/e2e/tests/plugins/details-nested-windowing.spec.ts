@@ -9,7 +9,8 @@ import {
 } from './details-helpers';
 
 /**
- * Nested windowing together with the collapse clamp (spec § 8.2). A details whose body has enough
+ * Nested windowing together with the collapse clamp (`virtual-rendering.md` § Nesting,
+ * `plugin-contract.md` § Collapsible containers). A details whose body has enough
  * children to window on its own, toggled closed, open, closed. The clamp and the nested window
  * share the same slicing, so the risks are the CST and the mounted references drifting apart as
  * children come and go, and the remounted children's measurements sticking in `pending` on
@@ -42,7 +43,7 @@ test.describe('plugin container: <details> nested windowing × clamp', () => {
 
 		// Open: the body windows its own children, with spacers inside the box and only part of
 		// the 200 body hosts mounted. Without this the clamp assertions below would prove nothing,
-		// since a small body that mounts in full never reaches § 8.2.
+		// since a small body that mounts in full never windows at all.
 		expect(await detailsSpacerCount(page)).toBeGreaterThan(0);
 		const openHosts = await bodyHostCount(page);
 		expect(openHosts).toBeGreaterThan(1);

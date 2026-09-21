@@ -1,8 +1,10 @@
 # Feature: Plugin Container, `<details>` Nested Windowing × Clamp
 
-Spec §8.2. A details whose body has enough children to start windowing on its own, toggled
-closed, open and closed again. The collapse clamp and the nested window share the same slice
-code, so this stresses where the two meet: children move in and out of the mounted set, and the
+A details whose body has enough children to start windowing on its own, toggled closed, open and
+closed again. Every container gets a window of its own (`virtual-rendering.md` § Nesting) and a
+collapsed one clamps its body shut (`plugin-contract.md` § Collapsible containers). The clamp and
+the nested window share the same slice code, so this stresses where the two meet: children move
+in and out of the mounted set, and the
 tree has to stay in step with the container's own `BlockListState` (its id and reference arrays)
 throughout.
 
