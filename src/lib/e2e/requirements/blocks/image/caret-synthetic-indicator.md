@@ -12,7 +12,7 @@ Exactly one caret paints for one caret position. Where the cursor lands in a tex
   - Miss-analysis: every indicator test read the paint once the click had completed, so the window between the press and the click, where the browser's caret is the only one on screen, was never observed
 - Synthetic appears after Enter splits the paragraph and the user clicks an image-only block
 - The synthetic caret survives the browser dropping its range: no range at all is the state the indicator exists for, and the click's offset is still where typing goes
-  - Miss-analysis: every indicator test read the paint while a range was live, so nothing said what the paint does once the browser holds no range — the one state the feature was built for
+  - Miss-analysis: every indicator test read the paint while a range was live, so nothing said what the paint does once the browser holds no range, the one state the feature was built for
 - No block paints a synthetic caret while a cross-block range is up: the editor's own range owns the position
   - Miss-analysis: the cross-block specs assert the overlay and the image specs assert the paint, and no test had ever held both at once
 

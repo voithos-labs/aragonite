@@ -26,7 +26,7 @@ formula's reveal).
 
 - An entity reference (`&amp;`) drags exactly as the emoji does: the rule is the kind's own
   declaration, not the emoji component.
-- An inline formula drags too — it shows its source on a click, and a drag is not that click.
+- An inline formula drags too: it shows its source on a click, and a drag is not that click.
 - An inline image does not: it owns its press for the resize drag, so the gesture paints no
   range and writes no bytes. Pinned from this side so a widening of the declaration reds here.
 

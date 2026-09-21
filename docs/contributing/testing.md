@@ -371,7 +371,8 @@ What each fixture is for:
   text into a replace island, a widget island, and a block badge. Both under `?seed=sim`, so
   the simulation runs with the decoration engine live on every keystroke.
 
-`walk-views.ts` is the leaf walk they share. Four subroutes carry the multi-editor cases:
+`src/routes/walk-views.ts` is the leaf walk they share with the showcase's own demo plugins. Four
+subroutes carry the multi-editor cases:
 `multi/` (two editors with per-editor `doc-stats` options and a button that unmounts the
 second), `staggered/` (editor one installs callout, editor two mounts later with details added,
 for the staggered-mount spec), `enablement/` (two editors sharing one memo registration, the

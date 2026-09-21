@@ -155,7 +155,7 @@ describe('reconcileTaskMetadata', () => {
 	});
 
 	// Miss-analysis: the reconcile tests all described a typed opener, so none described the block
-	// the Enter completer puts in the first position — the one write route that carried no
+	// the Enter completer puts in the first position, the one write route that carried no
 	// reconcile at all.
 	it('drops the marker when a write replaced the paragraph with a table', () => {
 		const item = makeListItem('| a | b |\n| --- | --- |\n', taskMeta());
