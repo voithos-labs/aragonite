@@ -1,10 +1,10 @@
 // @vitest-environment jsdom
 //
-// A list item's marker is not in its own bytes — it is an ambient prefix handed to `BlockList`
-// as `ambientPrefixForFirst`, forwarded to child 0 only, and painted only by a prose leaf. So
-// when child 0 is a nested LIST (`- - a`) the outer marker has nowhere to land and is silently
-// dropped. The drop is deliberate, and exactly the kind of behavior a well-meaning fix
-// restores, so it is measured against a positive control through the same `ambientSpanOf` probe.
+// A list item's marker is not in its own bytes: it is a prefix handed to `BlockList` as
+// `ambientPrefixForFirst`, passed on to child 0 only, and drawn only by a prose block. So when
+// child 0 is a nested list (`- - a`) the outer marker has nowhere to go and is silently dropped.
+// That is deliberate, and exactly the kind of behaviour a well-meaning fix restores, so it is
+// measured against a control case through the same `ambientSpanOf` helper.
 import { describe, it, expect, afterEach, beforeAll } from 'vitest';
 import { ambientSpanOf } from '$lib/ambient/ambient-dom';
 import { installLayoutStubs, mountEditor, blockHostAt, surfaceAt } from '../editor-mount';
@@ -30,8 +30,8 @@ describe('list item ambient marker forwarding', () => {
 		expect(ambientSpanOf(surfaceAt(mounted, [0, 1, 0]))?.textContent).toBe('2. ');
 	});
 
-	// The documented drop: child 0 is a list, which takes no `ambientPrefix` prop, so the outer
-	// `- ` never reaches the DOM — one rendered marker for the two the source carries.
+	// The deliberate drop: child 0 is a list, which takes no `ambientPrefix` prop, so the outer
+	// `- ` never reaches the DOM, leaving one marker rendered for the two the source carries.
 	it('drops the marker when child 0 is a nested list rather than a prose leaf', () => {
 		mounted = mountEditor({ source: '- - a\n' });
 
@@ -42,7 +42,7 @@ describe('list item ambient marker forwarding', () => {
 		expect(mounted.source()).toBe('- - a\n');
 	});
 
-	// Forwarding is to child 0 ONLY: a second child of the same item paints nothing,
+	// It is passed to child 0 only: a second child of the same item draws nothing,
 	// or the marker would repeat down every line of a multi-block item.
 	it('forwards to child 0 only', () => {
 		mounted = mountEditor({ source: '- alpha\n\n  beta\n' });

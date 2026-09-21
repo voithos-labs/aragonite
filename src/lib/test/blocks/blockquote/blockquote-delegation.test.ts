@@ -1,10 +1,10 @@
 // @vitest-environment jsdom
 //
-// BlockquoteBlock is pure wiring: every behavior is a delegation published from
-// `createContainerBlock` as one `containerApi`, and a delegation that stops delegating is
-// invisible until a user hits it. Bare mount deliberately — `containerApi` is the
-// component's own surface, and an Editor mount hands it to BlockHost rather than to the
-// test. Nothing here commits, so the node-replacement staleness never arises.
+// BlockquoteBlock is only wiring: every behaviour is handed on from `createContainerBlock` as
+// one `containerApi`, and one that stops handing on is invisible until a user meets it. Mounted
+// on its own deliberately, since `containerApi` is the component's own published interface and
+// an Editor mount hands it to BlockHost rather than to the test. Nothing here commits, so a
+// replaced node never goes stale.
 import { describe, it, expect, afterEach, beforeAll } from 'vitest';
 import { mount, unmount, flushSync } from 'svelte';
 import BlockquoteBlock from '$lib/components/blocks/BlockquoteBlock.svelte';
@@ -72,11 +72,11 @@ describe('blockquote delegates to its inner BlockList', () => {
 		expect(mounted.instance.containerApi.getCursorOffset()).toBe(0);
 	});
 
-	// The seam defaults `reorderable` to false; the blockquote overrides it at its own call
-	// site, so dropping that prop is a silent affordance loss — children render, undraggable.
-	// Reorder UNIT, not grip: prose carries no drag handle (`components/drag-handle.ts`), so the
-	// class is the whole claim here — the quote's children are addressable by reorder, unlike
-	// an opaque container's rows, which the directive test pins.
+	// `createContainerBlock` defaults `reorderable` to false and the blockquote overrides it at
+	// its own call, so dropping that prop silently loses the affordance: the children render but
+	// cannot be dragged. A reorder unit, not a handle: prose carries no drag handle
+	// (`components/drag-handle.ts`), so the class is all there is to check here, and the quote's
+	// children can be reordered, unlike an opaque container's rows.
 	it('marks its children as reorder units, unlike the seam default', () => {
 		mounted = mountQuote('> alpha\n>\n> beta\n', true);
 

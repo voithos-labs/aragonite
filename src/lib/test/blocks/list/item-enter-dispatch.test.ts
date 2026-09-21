@@ -1,9 +1,9 @@
 // @vitest-environment jsdom
 //
-// ListItemBlock's `splitBlock` override routes Enter inside a list: it reads the item's shape
-// and picks one of three ListContext members. The helpers are unit tested; the ROUTING is not,
-// and `exitListAtItem` has no coverage at any level. Each branch lands different bytes, so the
-// real keystroke tells them apart without a spy — the routing is asserted by the document.
+// ListItemBlock's `splitBlock` override decides what Enter does inside a list: it reads the
+// item's shape and picks one of three `ListContext` members. The helpers are tested; the choice
+// is not, and `exitListAtItem` has no coverage at any level. Each branch writes different bytes,
+// so a real keystroke tells them apart without a spy: the choice is asserted by the document.
 import { describe, it, expect, afterEach, beforeAll } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { installLayoutStubs, mountEditor, pressKeyAt } from '../editor-mount';
@@ -34,8 +34,8 @@ describe('list item Enter routing', () => {
 		expect(mounted.source()).toBe('- al\n- pha\n- beta\n');
 	});
 
-	// The empty-item arm, and the only route into `exitListAtItem`. An empty item that can hold a
-	// caret only exists after the append above, so the two presses are the real user gesture.
+	// The empty-item branch, and the only way into `exitListAtItem`. An empty item that can hold
+	// a caret only exists after the append above, so the two keystrokes are the real gesture.
 	it('exits the list on a second Enter in the item the first one appended', async () => {
 		mounted = mountEditor({ source: '- alpha\n' });
 
@@ -45,7 +45,7 @@ describe('list item Enter routing', () => {
 		expect(mounted.source()).toBe('- alpha\n\n\n');
 	});
 
-	// `isAtEnd` needs BOTH the last inner child and the end of its text: an item carrying a nested
+	// `isAtEnd` needs both the last inner child and the end of its text: an item carrying a nested
 	// sub-list has the caret in child 0 with a child 1 behind it.
 	it('splits rather than appends at the end of a non-final child', async () => {
 		mounted = mountEditor({ source: '- alpha\n  - nested\n' });
@@ -56,9 +56,9 @@ describe('list item Enter routing', () => {
 	});
 });
 
-// Miss-analysis: the Enter-completion suite asserted the top-level and blockquote seams only, and
-// the routing suite above asserted the item's three arms only, so nothing asserted the item as an
-// Enter path that owes the completion consult — the sibling-parity class, one entry path short.
+// Miss-analysis: the Enter-completion suite asserted the top level and the blockquote only, and
+// the tests above asserted the item's three branches only, so nothing asserted the item as an
+// Enter path that must also ask the completers, leaving one entry path uncovered.
 describe('list item Enter completion (#146)', () => {
 	it('completes a header row typed in an item instead of appending a sibling', async () => {
 		mounted = mountEditor({ source: '- | a | b |\n' });
@@ -71,8 +71,8 @@ describe('list item Enter completion (#146)', () => {
 		]);
 	});
 
-	// Complete-wins takes only the claimed line: an item whose text no completer claims still
-	// reaches the three arms above, which is what keeps Enter in a list a list gesture.
+	// A completion only takes a line a completer answers for: an item whose text none answers
+	// for still reaches the three branches above, which keeps Enter in a list a list gesture.
 	it('leaves an unclaimed line to the item’s own arms', async () => {
 		mounted = mountEditor({ source: '- | a |\n' });
 

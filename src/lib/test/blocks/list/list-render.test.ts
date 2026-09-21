@@ -1,10 +1,10 @@
 // @vitest-environment jsdom
 //
-// ListBlock is the one container that renders its children through a DIRECT `{#each}` rather
-// than a BlockList, so it owns the slice arithmetic itself: every item's index, path and key is
-// `bounds.start + localIndex`, and only a window with a nonzero start can tell that apart from
-// the loop index. jsdom has no layout, so the windowed cases stub the two geometries the scope
-// maps scrollTop through — the same trade `mount-table.ts` makes for caret rects.
+// ListBlock is the one container that renders its children through an `{#each}` of its own
+// rather than a BlockList, so it does the slice arithmetic itself: every item's index, path and
+// key is `bounds.start + localIndex`, and only a window with a nonzero start tells that apart
+// from the loop index. jsdom has no layout, so the windowed cases stub the two measurements
+// scroll position is mapped through, the same trade `mount-table.ts` makes for caret rects.
 import { describe, it, expect, afterEach, beforeAll } from 'vitest';
 import { mount, unmount, flushSync } from 'svelte';
 import ListBlock from '$lib/components/blocks/list/ListBlock.svelte';
@@ -19,7 +19,7 @@ afterEach(() => allowDevWarns(['block-host']));
 
 beforeAll(installLayoutStubs);
 
-/** A scroll host with the geometry jsdom won't compute; `scrollTo` moves it and reports back. */
+/** A scroll container with the geometry jsdom will not compute; `scrollTo` moves it. */
 function makeScrollHost() {
 	const el = document.createElement('div');
 	let scrollTop = 0;
@@ -84,8 +84,8 @@ describe('list renders its items', () => {
 		expect(mounted.spacers()).toEqual([]);
 	});
 
-	// The marker belongs to the item's own bytes, so a renumber is the parser's business — what
-	// this pins is that the each-block emits them in source order rather than resequencing.
+	// The marker belongs to the item's own bytes, so renumbering is the parser's business; what
+	// this checks is that the each-block emits them in source order rather than renumbering.
 	it('renders ordered markers in source order, from the list start number', () => {
 		mounted = mountList('3. gamma\n4. delta\n5. epsilon\n');
 
@@ -127,8 +127,8 @@ describe('list windows its items', () => {
 		expect(Number.parseFloat(bottom)).toBeGreaterThan(0);
 	});
 
-	// ABSOLUTE-INDEX INVARIANT: with a nonzero window start, `localIndex` in place of
-	// `bounds.start + localIndex` renumbers every mounted item's path from zero.
+	// With a nonzero window start, `localIndex` in place of `bounds.start + localIndex`
+	// renumbers every mounted item's path from zero.
 	it('addresses scrolled-in items by absolute index, never the loop index', () => {
 		mounted = mountList(LONG_LIST);
 

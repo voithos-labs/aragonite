@@ -1,10 +1,11 @@
 // @vitest-environment jsdom
 //
-// Tab reaches a list item by BUBBLING: the inner paragraph declines it without preventDefault,
-// so the item's box is the second consumer of a key still travelling. That is why the item
-// dispatches kind-only — a global tier here would re-resolve the chords the focused leaf owns,
-// undo among them. `dispatchKindCommand`'s own tests prove it returns false; what only a mount
-// says is what false MEANS on this box: no preventDefault, and an untouched ListContext.
+// Tab reaches a list item by bubbling: the inner paragraph declines it without calling
+// `preventDefault`, so the item's box is the second thing to see a key still travelling. That is
+// why the item dispatches kind commands only: resolving global ones here would re-run the chords
+// the focused block owns, undo among them. `dispatchKindCommand`'s own tests show it returns
+// false; what only a mount shows is what false means here: no `preventDefault`, and a
+// `ListContext` nothing touched.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
 import { installLayoutStubs } from '../editor-mount';
 import { mountItem, pressOn, type MountedItem } from './mount-item';
@@ -25,8 +26,8 @@ afterEach(async () => {
 });
 
 describe('a list item claims its own kind chords and nothing else', () => {
-	// The control. Both negatives below are "this key was not claimed"; without a key
-	// that IS claimed on the same box, deleting the handler would leave them green.
+	// The control. Both cases below say "nothing took this key", and without a key that is
+	// taken on the same box, deleting the handler would leave them passing.
 	it('claims the chords its kind declares', () => {
 		mounted = mountItem(NESTABLE, 1);
 
@@ -37,8 +38,8 @@ describe('a list item claims its own kind chords and nothing else', () => {
 		expect(mounted.listContext.unindentItem).toHaveBeenCalledWith(1);
 	});
 
-	// The documented reason the dispatch is kind-only. Were this box to gain a global
-	// tier, these chords would resolve here as well as at the focused leaf.
+	// Why only kind commands are dispatched here: were global ones resolved too, these
+	// chords would run here as well as at the focused block.
 	it('leaves the global chords to the leaf that already owns them', () => {
 		mounted = mountItem(NESTABLE, 1);
 
@@ -54,8 +55,8 @@ describe('a list item claims its own kind chords and nothing else', () => {
 		expect(mounted.listContext.unindentItem).not.toHaveBeenCalled();
 	});
 
-	// `eventToChord` returns null for a modifier being held. The sticky column's own copy of this
-	// set was once short two entries, which is how CapsLock dropped it.
+	// `eventToChord` returns null for a modifier being held. A second copy of this set is how
+	// CapsLock once slipped through and cleared the sticky column.
 	it('treats a held modifier as no chord at all', () => {
 		mounted = mountItem(NESTABLE, 1);
 
@@ -65,8 +66,8 @@ describe('a list item claims its own kind chords and nothing else', () => {
 		expect(mounted.listContext.indentItem).not.toHaveBeenCalled();
 	});
 
-	// A key the inner leaf consumed synchronously has already had its action taken; the
-	// item must not run a second one off the same press.
+	// A key the inner block consumed synchronously has already acted, so the item
+	// must not run a second action off the same keypress.
 	it('ignores a key an inner block already consumed', () => {
 		mounted = mountItem(NESTABLE, 1);
 		mounted.content.addEventListener('keydown', (e) => e.preventDefault(), { capture: true });

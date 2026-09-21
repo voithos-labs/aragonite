@@ -1,11 +1,11 @@
 // @vitest-environment jsdom
 //
-// Enter then Tab mints an empty item and nests it, and `- x\n  - ` is the one shape strict GFM
-// cannot read back: the marker line is a setext underline everywhere the bytes travel, so the
-// mint emits the blank separating line, at the cost of a loose item.
+// Enter then Tab makes an empty item and nests it, and `- x\n  - ` is the one shape strict GFM
+// cannot read back: the marker line is a setext underline wherever the bytes go, so a blank
+// separating line is written too, at the cost of a loose item.
 //
-// Miss-analysis: the Tab suite moved content-bearing items only and the Enter suite never
-// pressed Tab after it, so the pair that reaches the shape was asserted by neither.
+// Miss-analysis: the Tab suite moved only items with content and the Enter suite never pressed
+// Tab afterwards, so the pair that reaches this shape was asserted by neither.
 import { describe, it, expect, afterEach, beforeAll } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { assertParseConverged } from '$lib/testing/parse-convergence';
@@ -66,7 +66,7 @@ describe('Enter then Tab mints a readable sublist', () => {
 	});
 
 	// The control: a marker with content interrupts a paragraph on its own, so nesting it
-	// owes no line and the list stays tight.
+	// needs no extra line and the list stays tight.
 	it('a content-bearing item nests with no separating line', async () => {
 		mounted = mountEditor({ source: '- alpha\n- beta\n' });
 
@@ -84,8 +84,8 @@ describe('Enter then Tab mints a readable sublist', () => {
 		expect(mounted.source()).toBe('1. alpha\n\n   1. \n');
 	});
 
-	// The cadence the simulation's deep-nesting notes build with, one level in: the line the
-	// mint owes is a property of the item it lands in, not of the document's top level.
+	// The rhythm the simulation's deep-nesting notes build with, one level in: the line the
+	// separator needs belongs to the item it lands in, not to the document's top level.
 	it('mints the line at depth too', async () => {
 		mounted = mountEditor({ source: '- alpha\n  - beta\n' });
 

@@ -1,11 +1,11 @@
 // @vitest-environment jsdom
 //
-// Tab inside a list is a two-hop dispatch: the focused paragraph's `block.insertTab` DECLINES
-// (without preventDefault) when a listContext is present, the event bubbles to
-// `.list-item-content`, and ListItemBlock resolves it against the listItem keymap. Either hop
-// breaking stops indenting with no other symptom. The reading-mode arm is this component's own
-// G4.19 obligation: the caller hands the dispatcher no `getPresentationMode`, so the seam's gate
-// cannot dead-key it and `handleKeydown` carries a local `readOnly` guard instead.
+// Tab inside a list is dispatched in two steps: the focused paragraph's `block.insertTab`
+// declines, without calling `preventDefault`, when a list context is present, the event bubbles
+// to `.list-item-content`, and ListItemBlock resolves it against the listItem keymap. Either step
+// breaking stops indenting with no other sign. The reading-mode case is this component's own
+// G4.19 obligation: the caller hands the dispatcher no `getPresentationMode`, so it cannot refuse
+// on its own and `handleKeydown` carries a local `readOnly` check instead.
 import { describe, it, expect, afterEach, beforeAll } from 'vitest';
 import { installLayoutStubs, mountEditor, pressKeyAt } from '../editor-mount';
 
@@ -46,8 +46,9 @@ describe('list item Tab dispatch', () => {
 		expect(mounted.source()).toBe('- alpha\n- beta\n');
 	});
 
-	// G4.19, local-guard arm: reading mode renders the SAME surface (only `contenteditable` flips),
-	// so the key still arrives; without the local guard this indents — the dispatcher has no mode.
+	// G4.19, the local check: reading mode renders the same element, with only `contenteditable`
+	// changed, so the key still arrives; without that check this indents, since the dispatcher
+	// knows no mode.
 	it('does not indent in reading mode', async () => {
 		mounted = mountEditor({ source: '- alpha\n- beta\n', presentationMode: 'reading' });
 		const itemContent = mounted.target.querySelectorAll('.list-item-content')[1];

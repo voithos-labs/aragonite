@@ -1,16 +1,16 @@
 // @vitest-environment jsdom
 //
-// The blockquote's ONE behavioral override: Enter on an empty trailing paragraph leaves
-// the quote. `createContainerBlock` wires `createContainerExitOverrides` into the nested
-// bundle and the component names nothing to select it, so its arrival is invisible from
-// the source — which is why both presses are driven here rather than seeded.
+// The blockquote's one change of behaviour: Enter on an empty trailing paragraph leaves the
+// quote. `createContainerBlock` wires `createContainerExitOverrides` into the nested actions and
+// the component names nothing to choose it, so nothing in the source shows it is there, which is
+// why both keystrokes are driven here rather than set up directly.
 import { describe, it, expect, afterEach, beforeAll } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { installLayoutStubs, mountEditor, pressKeyAt } from '../editor-mount';
 
 beforeAll(installLayoutStubs);
 
-/** G2.13 at the mount: the blocks on screen are the blocks a reload of these bytes mints. */
+/** G2.13 at the mount: the blocks on screen are the blocks these bytes reparse into. */
 function expectReloadsAsMounted(source: string): void {
 	const onScreen = mounted.target.querySelectorAll(
 		'[data-block-path]:not([data-block-path*=","])'
@@ -39,11 +39,11 @@ describe('blockquote Enter override', () => {
 		expect(mounted.source()).toBe('> alpha\n\n\n');
 	});
 
-	// Miss-analysis: the exit's only pins seeded a quote at document end, where the
-	// move-past-end append happened to mint the blank the exit itself never did — so the
-	// whole "a block follows" class, and with it Enter-as-down-nav, went unobserved. The
-	// case it then grew asserted BYTES alone, which reloaded as one block more than the
-	// exit left on screen, so a G2.13 divergence read as the expected value.
+	// Miss-analysis: the only tests for the exit put a quote at the end of the document, where
+	// the append past the end happened to add the blank line the exit itself never did, so the
+	// whole "a block follows" class, and with it Enter as a downward move, went unobserved. The
+	// case added later asserted bytes alone, which reparsed into one block more than the exit
+	// left on screen, so a G2.13 divergence read as the expected value.
 	it('exits before a following block by minting the gap, not entering the block', async () => {
 		mounted = mountEditor({ source: '> alpha\n\nbeta\n' });
 
@@ -52,14 +52,14 @@ describe('blockquote Enter override', () => {
 
 		await pressKeyAt(mounted, [0, 1], 0, ENTER);
 
-		// Three lines, not four: the exited blank IS the separating line of the block below it,
+		// Three lines, not four: the blank left behind is the separating line of the block below,
 		// so a fourth reloads as an empty paragraph nobody typed.
 		expect(mounted.source()).toBe('> alpha\n\n\nbeta\n');
 		expectReloadsAsMounted(mounted.source());
 	});
 
-	// A table can't host a caret at its top edge and the quote declares no gap edge, so
-	// down-nav here left the boundary with no insertion point at all.
+	// A table cannot hold a caret at its top edge and the quote declares no gap edge, so
+	// moving down here would leave the boundary with no insertion point at all.
 	it('mints the gap before a block the caret cannot open one in', async () => {
 		mounted = mountEditor({ source: '> alpha\n\n| a | b |\n| - | - |\n' });
 
@@ -70,7 +70,7 @@ describe('blockquote Enter override', () => {
 		expectReloadsAsMounted(mounted.source());
 	});
 
-	// One level per press, the list outdent's convention: the first exit leaves a quoted
+	// One level per keypress, as the list outdent does: the first exit leaves a quoted
 	// blank inside the outer quote, not a document paragraph two levels down.
 	it('escapes a nested quote one level per Enter', async () => {
 		mounted = mountEditor({ source: '> Outer\n> > Inner\n' });
@@ -85,7 +85,7 @@ describe('blockquote Enter override', () => {
 		expect(mounted.source()).toBe('> Outer\n> > Inner\n\n\n');
 	});
 
-	// Non-vacuity: the exit case alone passes even if the override swallowed every Enter.
+	// Non-vacuity: the exit case alone passes even if every Enter were consumed.
 	it('leaves an Enter on a non-trailing child to the default split', async () => {
 		mounted = mountEditor({ source: '> alpha\n>\n> beta\n' });
 

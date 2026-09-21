@@ -51,7 +51,7 @@
 	// Read parent context before the setContext below shadows it.
 	const parentListContext = getContext<ListContext | undefined>(LIST_CONTEXT_KEY);
 
-	// Minted once, passed by reference to every factory below — never spread.
+	// Created once and passed by reference to every factory below, never spread.
 	const scope: NodeScope = {
 		get index() {
 			return index;
@@ -104,10 +104,10 @@
 		getParentPath: () => myPath,
 		getChildren: () => node.children ?? [],
 		getChildIds: () => listState.innerBlockIds,
-		// The .list-block IS the content origin — it holds the spacers and items.
+		// The .list-block is the content origin: it holds the spacers and the items.
 		getListEl: () => boxEl ?? null,
-		// A list is itself a BlockHost block; match the leaf channel the parent
-		// measured for it, so the subtotal we report up doesn't fight that slot.
+		// A list is itself a BlockHost block, so it reports its height the same way the
+		// parent measured it and the subtotal sent up does not fight that measurement.
 		getOwnEl: () => boxEl?.closest('.block-host') ?? null,
 		provideLeafChannel: false
 	});
@@ -138,7 +138,7 @@
 	{#if win.active}
 		<div class="vr-spacer" style="height: {win.topSpacerPx}px"></div>
 	{/if}
-	<!-- ABSOLUTE-INDEX INVARIANT: index/myPath/key are the absolute item index
+	<!-- `index`, `myPath` and the key are all the absolute item index
 	     (bounds.start + localIndex), never the local loop index — paths and
 	     structural ops key off it. -->
 	{#each (node.children ?? []).slice(bounds.start, bounds.end) as item, localIndex (listState.innerBlockIds[bounds.start + localIndex])}

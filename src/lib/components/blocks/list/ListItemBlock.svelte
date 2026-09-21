@@ -71,15 +71,15 @@
 	// $derived, not a mount-time snapshot: a runtime prop toggle must reach blocks
 	// that window in and out after the change, not just those mounted at mount.
 	const dragHandles = $derived(getDragHandles?.() ?? false);
-	// The grip is the only pointer road into a reorder, and a reorder needs a sibling: a lone
-	// item stays a reorder host (a dragged sibling never arrives, but the class costs nothing)
-	// and simply shows nothing to grab.
+	// The drag handle is the only way to reorder with a pointer, and a reorder needs a sibling:
+	// a lone item still counts as one (a dragged sibling never arrives, and the class costs
+	// nothing) and simply shows nothing to grab.
 	const showsHandle = $derived(showsListItemDragHandle(itemCount, dragHandles));
 	const presentationMode = $derived(getPresentationMode?.() ?? 'source');
 	const readOnly = $derived(presentationMode === 'reading');
 
-	// The marker-hiding CSS tells bullet/ordered/task apart through this hook and the ambient
-	// span carries no such class. Absent in source, so that DOM stays byte-identical.
+	// The marker-hiding CSS tells a bullet from a number from a checkbox through this attribute,
+	// since the marker span carries no such class. Absent in source, so that DOM is unchanged.
 	const presentationMarkerKind = $derived.by(() => {
 		if (!hidesMarkers(presentationMode)) return undefined;
 		const meta = metadataOf(node, 'listItem');
@@ -87,8 +87,8 @@
 		return /^\d/.test(meta?.marker ?? '-') ? 'ordered' : 'bullet';
 	});
 
-	// Wrap getContainingItemIndex so a nested ListBlock inside this item sees
-	// this item's index in the outer list — the coordinate promoteNestedItem needs.
+	// Wrap `getContainingItemIndex` so a nested ListBlock inside this item sees this
+	// item's index in the outer list, which is what `promoteNestedItem` needs.
 	const wrappedListContext: ListContext = {
 		...listContext,
 		getContainingItemIndex: () => index
@@ -158,8 +158,8 @@
 				splitBlock: async (innerIndex: number, offset: number): Promise<void> => {
 					if (!node.children) return;
 
-					// Enter-empty. Deliberately shallower than isItemUserEmpty — trailing
-					// structural children stay until exitListAtItem relocates them.
+					// Enter on an empty item. Deliberately looser than `isItemUserEmpty`:
+					// trailing structural children stay until `exitListAtItem` moves them.
 					const firstChild = node.children[0];
 					const isEmptyItem = firstChild?.kind === 'paragraph' && firstChild.raw.trim() === '';
 					if (isEmptyItem) {
@@ -178,7 +178,7 @@
 
 					await listContext.splitItemAtOffset(index, innerIndex, offset);
 				}
-				// mergeWithPrevious at innerIndex <= 0 is the factory default — no override needed.
+				// `mergeWithPrevious` at an inner index of 0 or less is the default already.
 			}
 		})
 	);
@@ -192,10 +192,10 @@
 		getParentPath: () => myPath,
 		getChildren: () => node.children ?? [],
 		getChildIds: () => listState.innerBlockIds,
-		// .block-list is a direct child of .list-item-content, reached through contentEl.
+		// .block-list is a direct child of .list-item-content, reached through `contentEl`.
 		getListEl: () => contentEl?.querySelector(':scope > .block-list') ?? null,
-		// An item is NOT wrapped in a BlockHost; its own .list-item-block box is what the
-		// parent ListBlock's item-indexed sink expects (no competing leaf channel).
+		// An item is not wrapped in a BlockHost: its own .list-item-block box is what the
+		// parent ListBlock measures by item index, so nothing else reports a height.
 		getOwnEl: () => boxEl ?? null,
 		provideLeafChannel: true
 	});
@@ -225,8 +225,8 @@
 
 	// ── Commands ────────────────────────────────────────────────────────
 
-	// Not on the BlockComponent surface (the published ref is containerApi, not
-	// this instance); the bubble handler below closes over it directly.
+	// Not part of the BlockComponent interface, since the published reference is
+	// `containerApi` rather than this instance; the handler below closes over it.
 	function runCommand(id: AnyCommandId): boolean {
 		switch (id) {
 			case 'list.indent':
@@ -240,9 +240,10 @@
 		}
 	}
 
-	// Tab/Shift+Tab bubble here from the inner paragraph, whose block.insertTab declines
-	// without preventDefault. Dispatch is kind-only: the contenteditable's async handler
-	// preventDefaults only after an await, so a global tier here would re-fire undo/redo.
+	// Tab and Shift+Tab bubble here from the inner paragraph, whose `block.insertTab` declines
+	// without calling `preventDefault`. Only kind commands are dispatched: the contenteditable's
+	// async handler prevents the default only after an await, so resolving global commands here
+	// would fire undo or redo a second time.
 	function handleKeydown(e: KeyboardEvent): void {
 		if (e.defaultPrevented) return;
 		const chord = eventToChord(e);
@@ -254,7 +255,8 @@
 				{
 					getPresentationMode,
 					isCrossBlockRange: () => selection?.isCrossBlock ?? false,
-					// A container bubble carries no range command: the leaf below it owns the format ids.
+					// A key bubbling to a container carries no range command: the block below owns
+					// the format ids.
 					crossBlockCommands: undefined
 				},
 				keybindingOverrides()
@@ -284,7 +286,7 @@
 			ambientPrefixForFirst={buildTaskItemAmbient(metadataOf(node, 'listItem'), toggleTask)}
 		/>
 	</div>
-	<!-- A list item IS a reorder unit; its inner content BlockList passes the
+	<!-- A list item is a reorder unit; its inner content BlockList passes the
 		 default reorderable={false}, so the paragraph inside gets no handle. A lone item
 		 renders none either: its drag is list-scoped and there is no sibling to pass. -->
 	{#if showsHandle}
@@ -299,7 +301,7 @@
 		align-items: flex-start;
 	}
 
-	/* Hover reveal is the shared global `.handle-host` rule in BlockHost; it reveals
+	/* Showing it on hover is the shared `.handle-host` rule in BlockHost; it shows
 	   only the innermost hovered unit, so a sub-item's hover never lights the parent. */
 
 	.list-item-content {

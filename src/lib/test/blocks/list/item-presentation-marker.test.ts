@@ -1,10 +1,10 @@
 // @vitest-environment jsdom
 //
 // `data-list-marker` exists so the marker-hiding CSS can tell a bullet from a number from a
-// checkbox. It is a PRESENTATION-ONLY hook, and the derivation refuses outright in source mode
-// so the source-mode DOM stays byte-identical to what it was before the modes existed. That
-// refusal is the load-bearing half and the invisible one: an unconditional derivation looks
-// correct in every presentation test while reading-mode rules match during ordinary editing.
+// checkbox. It is for presentation only, and it is not set at all in source mode, so the
+// source-mode DOM is unchanged. That refusal is the part that matters and the one nothing shows:
+// setting it unconditionally looks correct in every presentation test while reading-mode rules
+// then match during ordinary editing.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
 import type { PresentationMode } from '$lib/presentation-mode';
 import { installLayoutStubs } from '../editor-mount';
@@ -43,8 +43,8 @@ describe('the list marker hook is presentation-only', () => {
 		expect(markerAttrIn('reading', source)).toBe(marker);
 	});
 
-	// Every other mode shares reading's marker-hiding CSS families, so each needs the same
-	// hook; without it a live bullet is a blank hanging indent (no ::before slot to paint).
+	// Every other mode shares reading mode's marker-hiding CSS, so each needs the same
+	// attribute; without it a live bullet is a blank hanging indent with nothing drawn.
 	it.each(['preview-block', 'preview-inline', 'live'] as const)(
 		'%s names the marker kind too',
 		(mode) => {

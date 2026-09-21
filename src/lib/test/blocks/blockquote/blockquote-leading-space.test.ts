@@ -1,10 +1,10 @@
-// What the declined marker-completion press is FOR: the dispatch standing down hands the space
-// to the surface's ordinary insertion, and the authoring path GH #143 names (leading whitespace,
-// the indented-code opener) is only unblocked if those bytes survive the container's rebuild.
+// What the refused marker completion is for: the dispatch doing nothing hands the space to the
+// block's ordinary insertion, and the case GH #143 names, typing leading whitespace to open an
+// indented code block, only works if those bytes survive the container's rebuild.
 //
-// Miss-analysis: the dispatch arm had a pin, the container's rebuild had a pin, and neither
-// covered a quoted child whose whole content IS whitespace — the state the two presses pass
-// through, and the one a reparse is most likely to normalize away.
+// Miss-analysis: the dispatch had a test, the container's rebuild had a test, and neither covered
+// a quoted child whose whole content is whitespace, which is the state the two keystrokes pass
+// through and the one a reparse is most likely to normalise away.
 import { describe, expect, it } from 'vitest';
 import { serialize } from '$lib/core/serializer';
 import { makeNestedHarness } from '$lib/test/harness/editor-actions';

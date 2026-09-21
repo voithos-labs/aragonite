@@ -1,8 +1,9 @@
-// A list item mounted BY ITSELF, with a recording ListContext underneath it. The gesture suites
-// beside it mount the Editor, which is what asserting SOURCE BYTES needs; this is for the other
-// half — the item's keydown handler is a dispatch decision, and the only honest reading of "let it
-// travel" is `defaultPrevented` plus an untouched ListContext. Through an Editor both are hidden:
-// the editor root handles what the item declines, and a real context turns a claim into a commit.
+// A list item mounted on its own, with a recording `ListContext` underneath it. The gesture
+// suites beside it mount the Editor, which is what asserting source bytes needs; this is for the
+// other half, because the item's keydown handler only decides, and the honest reading of "let it
+// travel" is `defaultPrevented` plus a `ListContext` nothing touched. Through an Editor both are
+// hidden: the editor root handles what the item declines, and a real context turns a decision
+// into a commit.
 
 import { mount, unmount, flushSync } from 'svelte';
 import { vi } from 'vitest';

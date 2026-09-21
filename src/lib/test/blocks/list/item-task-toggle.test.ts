@@ -1,10 +1,10 @@
 // @vitest-environment jsdom
 //
-// The task checkbox is a click target inside the item's ambient marker span — a
-// contenteditable="false" island, not a real input. Its handler is built by
-// `buildTaskItemAmbient` but SUPPLIED by ListItemBlock as `toggleTask`, carrying three rules
-// the builder knows nothing about: the reading-mode gate, the cross-block-selection clear, and
-// the paired metadata write. Only a mounted item connects the rendered span to those rules.
+// The task checkbox is a click target inside the item's marker span, a contenteditable="false"
+// element rather than a real input. Its handler is built by `buildTaskItemAmbient` but supplied
+// by ListItemBlock as `toggleTask`, carrying three rules the builder knows nothing about: the
+// reading-mode check, clearing a cross-block selection, and the paired metadata write. Only a
+// mounted item connects the rendered span to those rules.
 import { describe, it, expect, afterEach, beforeAll } from 'vitest';
 import { installLayoutStubs, mountEditor, blockHostAt } from '../editor-mount';
 
@@ -15,8 +15,8 @@ afterEach(async () => {
 	if (mounted) await mounted.destroy();
 });
 
-// A list item renders no BlockHost of its own (its `.list-item-block` box IS the
-// slot its parent list measures), so items are addressed by position within the list.
+// A list item renders no BlockHost of its own, since its `.list-item-block` box is what the
+// parent list measures, so items are addressed by position within the list.
 function checkbox(at: ReturnType<typeof mountEditor>, itemIndex: number): HTMLElement {
 	const item = blockHostAt(at, [0]).querySelectorAll<HTMLElement>(
 		':scope > .list-block > .list-item-block'
@@ -56,8 +56,8 @@ describe('list item task checkbox', () => {
 		expect(checkbox(mounted, 1).getAttribute('aria-checked')).toBe('true');
 	});
 
-	// Reading mode keeps the checkbox VISIBLE but inert. CSS also drops the pointer affordance,
-	// but the guard has to hold on its own: a synthetic click bypasses CSS entirely.
+	// Reading mode keeps the checkbox visible but inert. CSS also removes the pointer cursor,
+	// but the check has to hold on its own, since a synthetic click bypasses CSS entirely.
 	it('stays inert in reading mode', async () => {
 		mounted = mountEditor({ source: '- [ ] todo\n', presentationMode: 'reading' });
 
