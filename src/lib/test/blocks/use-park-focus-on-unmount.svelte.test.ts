@@ -53,7 +53,7 @@ describe('useParkFocusOnUnmount', () => {
 	});
 
 	// The el is captured at effect run: at unmount the component's binding is already
-	// cleared, and a live re-read would skip the park exactly when it is owed.
+	// cleared, and reading it live would skip moving focus exactly when it is needed.
 	it('parks through the element captured at effect time, not the live getter', () => {
 		const { root, block } = mountPair();
 		block.focus();

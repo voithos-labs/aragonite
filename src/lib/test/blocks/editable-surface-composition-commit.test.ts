@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 //
-// The composition funnel wired to the REAL block-edit actions + undo controller: a composed
+// The composition commit wired to the real block-edit actions and undo controller: a composed
 // commit lands its bytes once and anchors its undo snapshot at the offset captured at
-// compositionstart (what one Ctrl+Z restores — the browser-order counterpart lives in
+// `compositionstart`, which is what one Ctrl+Z restores; the browser-order counterpart is in
 // e2e/tests/ime-composition); a cancelled composition leaves the document byte-identical.
 import { describe, it, expect, beforeEach } from 'vitest';
 import { parse } from '$lib/core/parser';

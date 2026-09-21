@@ -1,5 +1,5 @@
 <script lang="ts">
-	// The stand-in for an engine-painted inline widget: it renders nothing but the two live
+	// Stands in for an inline widget that draws itself: it renders nothing but the two live
 	// terms, read inside a `$derived` so the pool's getters (not a mount-time snapshot) drive it.
 	import type { InlineWidgetComponentProps } from '$lib/core/inline/inline-widgets';
 

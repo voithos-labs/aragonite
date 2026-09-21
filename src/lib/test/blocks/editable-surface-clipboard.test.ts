@@ -1,9 +1,10 @@
 // @vitest-environment jsdom
 //
-// The clipboard skeleton's ORDER contract (docs/contributing/rules.md § the bug shape to
-// fear). The four editable surfaces share createClipboardHandlers, which OWNS the arms that
-// must stay in lockstep — the reading gate, the cross-block copy/cut write, the reveal fold,
-// and the load-bearing scar: paste's preventDefault BEFORE any await. The per-surface tails
+// The order the shared clipboard handling keeps (docs/contributing/rules.md § the bug shape to
+// fear). The four editable blocks share `createClipboardHandlers`, which owns the steps that
+// must stay in step: the reading check, the cross-block copy and cut write, hiding a shown
+// source, and the one that matters most, calling `preventDefault` on a paste before any
+// await. The per-block remainders
 // (widget slice, rect payload, cell escaping) are exercised by the surface suites.
 import { describe, it, expect } from 'vitest';
 import {
@@ -38,7 +39,8 @@ function recorder(pasteText = ''): Recorder {
 	return rec;
 }
 
-/** A fully-instrumented dep set; each test overrides only the arms it exercises. A collapsed
+/** A fully instrumented set of dependencies; each test overrides only what it exercises. A
+ *  collapsed
  *  selection routes past writeCrossBlock{Copy,Cut}, so the intra-block tails run doc-free. */
 function deps(log: string[], over: Partial<ClipboardSurfaceDeps> = {}): ClipboardSurfaceDeps {
 	return {
@@ -222,11 +224,11 @@ describe('clipboard skeleton — paste order', () => {
 	});
 });
 
-/** The door returns synchronously and the insertion runs on; drain the pending chain. */
+/** The call returns synchronously and the insertion runs on; drain the pending chain. */
 const settled = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 0));
 
-// The programmatic door is the gesture's sibling entry path, so what it must carry is the
-// gesture's own arm order — not a second sequence written beside it.
+// The API call is the gesture's sibling entry path, so what it must carry is the gesture's
+// own order of steps, not a second sequence written beside it.
 describe('clipboard skeleton — programmatic insertMarkdown', () => {
 	it('runs the same fold → cross-block → reset → tail order a paste does', async () => {
 		const log: string[] = [];

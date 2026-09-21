@@ -1,9 +1,9 @@
 // @vitest-environment jsdom
 //
-// The image-paste arm of the clipboard skeleton. `onPasteImage` is a host hook, so the arm's
-// whole job is the ceremony around it: read the clipboard's files inside the synchronous event
+// The image branch of the shared clipboard handling. `onPasteImage` is a host hook, so its
+// whole job is what happens around it: read the clipboard's files inside the synchronous event
 // window, prevent before anything awaits, call the hook once per image in clipboard order, and
-// insert at the caret the paste STARTED from — a hook that takes seconds to upload must not
+// insert at the caret the paste started from, since a hook that takes seconds to upload must not
 // follow a caret the user moved meanwhile. Driven through createClipboardHandlers.
 import { describe, it, expect } from 'vitest';
 import {
@@ -16,7 +16,7 @@ const imageFile = (name: string, type = 'image/png'): File =>
 	new File([new Uint8Array([137, 80, 78, 71])], name, { type });
 
 /** A paste event carrying `files`, plus the `text/plain` a real image paste often
- *  ships alongside them — the fallback that must NOT run once the arm consumes. */
+ *  ships alongside them: the fallback that must not run once the image branch takes over. */
 function pasteEvent(files: File[], text = '') {
 	let prevented = false;
 	const e = {
@@ -128,15 +128,15 @@ describe('image paste — replacing a cross-block selection', () => {
 			onPasteImage: async () => '![[a.png]]'
 		});
 		await createClipboardHandlers(h.deps).onPaste(pasteEvent([imageFile('a.png')]).e);
-		// The route deletes the range and inserts by PATH, so the originating
+		// This path deletes the range and inserts by path, so the originating
 		// surface's tail (and its caret) must stay out of it entirely.
 		expect(log).toEqual(['crossblock-claimed:![[a.png]]']);
 		expect(h.inserted).toEqual([]);
 		expect(h.seated).toEqual([]);
 	});
 
-	// The branch reads the selection LIVE, so a cross-block selection collapsed while the host
-	// uploaded leaves nothing to claim — the paste falls back to the anchor captured when it fired.
+	// The branch reads the selection live, so a cross-block selection collapsed while the host
+	// uploaded leaves nothing to act on, and the paste falls back to the caret it captured.
 	it('a selection collapsed before the import lands falls through to the caret', async () => {
 		let stillCrossBlock = true;
 		const h = harness({
@@ -180,8 +180,8 @@ describe('image paste — where the markdown lands', () => {
 	it('leaves an untouched selection alone, so the surface tail replaces it', async () => {
 		const h = harness({ onPasteImage: async () => '![[a.png]]' });
 		await createClipboardHandlers(h.deps).onPaste(pasteEvent([imageFile('a.png')]).e);
-		// Re-seating collapses the DOM range, and every surface tail derives its
-		// replaced span from that range — so a caret that never moved is left alone.
+		// Placing the caret again collapses the DOM range, and every block reads its
+		// replaced span from that range, so a caret that never moved is left alone.
 		expect(h.seated).toEqual([]);
 		expect(h.inserted).toEqual(['![[a.png]]']);
 	});
@@ -205,8 +205,8 @@ describe('image paste — where the markdown lands', () => {
 		expect(h.errors).toEqual([]);
 	});
 
-	// The fold is the one path where the surface reads a null caret — it lands on the
-	// widget's element-level edge — so the committed caret has to carry the anchor.
+	// Hiding a shown source is the one path where the caret reads as null, since it lands on
+	// the widget's element-level edge, so the committed caret has to carry the anchor.
 	it('after a reveal fold, the committed caret anchors the insertion', async () => {
 		const state: SurfaceState = { caret: null, el: document.createElement('div') };
 		const h = harness(

@@ -26,7 +26,7 @@ export interface WidgetPoolAdapter<H> {
 export interface WidgetPool {
 	/**
 	 * Adopt the oldest un-adopted live instance for the key, marking it adopted this
-	 * pass; else build a new one. Render-pass only — every acquire sits inside a
+	 * pass, otherwise build a new one. Only during a render pass: every request sits inside a
 	 * beginPass/sweep bracket. Key-only lookup cannot distinguish byte-identical
 	 * duplicates, so an out-of-pass caller holding a specific element must restore it.
 	 */
@@ -35,7 +35,7 @@ export interface WidgetPool {
 	beginPass(): void;
 	/** Close a rebuild pass: destroy every instance not adopted in it. */
 	sweep(): void;
-	/** Destroy everything — the block is unmounting. */
+	/** Destroy everything, because the block is unmounting. */
 	dispose(): void;
 }
 
@@ -49,7 +49,7 @@ export function createWidgetPool<H>(adapter: WidgetPoolAdapter<H>): WidgetPool {
 	// two entries in one bucket, each adopted at most once per pass.
 	const buckets = new Map<string, PoolEntry<H>[]>();
 	// The acquire bracket (see WidgetPool.acquire) held as explicit state so a
-	// violation fires at this seam instead of surfacing as a widget leak (G1.25).
+	// mistake fails here instead of showing up later as a leaked widget (G1.25).
 	let passOpen = false;
 	// Per-pass adopt/build tallies for the interaction trace, recorded at sweep.
 	let passAdopt = 0;
@@ -74,7 +74,7 @@ export function createWidgetPool<H>(adapter: WidgetPoolAdapter<H>): WidgetPool {
 			reused.adopted = true;
 			passAdopt++;
 			// Source and rendered body are identical by key; only the widget's position
-			// may have shifted, so re-stamp the offsets cursor/selection reads.
+			// may have shifted, so write the offsets the cursor and selection read again.
 			const el = adapter.element(reused.handle);
 			el.dataset.sourceStart = String(inline.start);
 			el.dataset.sourceEnd = String(inline.end);
@@ -135,19 +135,19 @@ export interface SvelteWidgetPoolDeps {
 	 *  channel). Absent leaves the caller falling back to the raw span silently. */
 	reportError?: (error: unknown) => void;
 	getPresentationMode?: () => PresentationMode;
-	/** The editor's theme name — the mode read's sibling, for a widget whose body an
-	 *  engine paints (its own colors, unreachable from CSS) rather than CSS styles. */
+	/** The editor's theme name, beside the mode, for a widget whose body is drawn with
+	 *  its own colours, which CSS cannot reach, rather than styled by CSS. */
 	getTheme?: () => string;
 	getDocument?: () => DocumentView | undefined;
 	getContentVersion?: () => number;
-	/** The editor's navigation door, for a widget whose gesture jumps elsewhere in the
+	/** The editor's navigation call, for a widget whose gesture jumps elsewhere in the
 	 *  document. Absent in a bare harness. */
 	navigateTo?: (path: number[], offset?: number) => Promise<boolean>;
 }
 
 /**
  * The pool wired to Svelte mounting. A synchronous mount throw is caught, reported and surfaced as
- * null so the caller falls back to the raw span. The getters ride ALONGSIDE the frozen
+ * null so the caller falls back to the raw span. The getters sit alongside the frozen
  * `{ inline, source }` snapshot as live props: reuse keys on `${kind} ${source}`, so an instance
  * outlives a mode flip or an edit elsewhere that a frozen value would not.
  */

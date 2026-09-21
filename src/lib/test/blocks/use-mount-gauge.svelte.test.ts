@@ -28,7 +28,7 @@ describe('useMountGauge', () => {
 		expect(perfSnapshot().mountedBlockCount).toBe(0);
 	});
 
-	// The gauge is a net balance, so arm and disarm are decided ONCE per mount. Re-reading
+	// The gauge is a running balance, so both ends are decided once per mount. Re-reading
 	// `perfEnabled()` at teardown let a flip decrement a mount that was never counted.
 	it('does not decrement a mount it never counted when perf arms mid-life', () => {
 		disablePerfInstruments();

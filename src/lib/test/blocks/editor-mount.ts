@@ -1,6 +1,6 @@
 // Driving one block component through a mounted Editor. A bare mount keeps the pre-commit
-// node — commits copy-path-on-write and in production the parent BlockHost re-renders with
-// the fresh one — so a second gesture runs against a detached tree. The Editor mount puts the
+// node, since a commit copies before writing and in production the parent BlockHost re-renders
+// with the fresh one, so a second gesture runs against a detached tree. The Editor mount puts the
 // real reactive document underneath and makes `getSource()` a byte-exact assertion surface.
 // Blocks are addressed by doc-absolute path, the coordinate the CST uses.
 
@@ -11,7 +11,7 @@ import { ambientLengthOf } from '$lib/ambient/ambient-dom';
 import { asRawOffset, toDomTextOffset } from '$lib/cursor/coordinate-spaces';
 import { createRangeFromOffsets } from '$lib/cursor/content-offsets';
 
-/** Every mount suite runs the published seam, so a plugin author's stub installer is gated here. */
+/** Every mount suite runs the published helpers, so a plugin author's stub is checked here. */
 export { installEditorDomStubsForTests as installLayoutStubs } from '$lib/testing';
 
 export interface MountedEditor {
@@ -52,7 +52,7 @@ export function blockHostAt(mounted: MountedEditor, path: number[]): HTMLElement
 	return el;
 }
 
-/** The prose surface of the block at `path`. Matches any `contenteditable` value — reading
+/** The editable element of the block at `path`. Matches any `contenteditable` value, since
  *  mode renders the same surface with `contenteditable="false"`, and its gate is only
  *  testable by delivering the key to it. */
 export function surfaceAt(mounted: MountedEditor, path: number[]): HTMLElement {
@@ -90,7 +90,7 @@ export function selectRange(el: HTMLElement, start: number, end: number): void {
 }
 
 /** Place the caret and dispatch a keydown from the block at `path`. The returned event's
- *  `defaultPrevented` is only meaningful once this has settled — the leaf prevents async. */
+ *  `defaultPrevented` only means anything once this has settled, since the leaf is async. */
 export async function pressKeyAt(
 	mounted: MountedEditor,
 	path: number[],

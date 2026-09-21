@@ -67,7 +67,7 @@ describe('the runCommand door over a selection', () => {
 		selectInFirstBlock(0, 5);
 
 		expect(mounted.instance.runCommand('format.toggleRainbow')).toBe(false);
-		// The seam dev-warns an id no tier resolves; the decline, not the warn, is the subject.
+		// A dev warning fires for an id nothing resolves; the refusal, not the warning, is the point.
 		allowDevWarns(['commands']);
 		await mounted.settle();
 

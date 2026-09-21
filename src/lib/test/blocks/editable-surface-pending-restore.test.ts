@@ -2,7 +2,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { consumePendingRestore } from '../../components/blocks/editable-surface';
 
-// The blur-yank scar: a pending caret armed before a render must NOT be applied once focus
+// A pending caret set before a render must not be applied once focus
 // has left the block, or the restore drags the global selection back into it.
 describe('consumePendingRestore', () => {
 	let el: HTMLDivElement;

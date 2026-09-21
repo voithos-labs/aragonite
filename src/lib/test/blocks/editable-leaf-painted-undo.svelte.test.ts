@@ -2,7 +2,7 @@
 //
 // Miss-analysis: the reveal's own undo matched Ctrl+Z by hand, so no test could ask the keymap
 // what the chord meant, and every case ended before the document moved under an open reveal.
-// Its granularity went the same way: every case made ONE edit, so nothing could see that a
+// How it groups edits went the same way: every case made one edit, so nothing could see that a
 // second keystroke pushed a second entry where the document would have batched both.
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { mount, unmount, flushSync } from 'svelte';
@@ -92,7 +92,7 @@ async function press(el: HTMLElement, init: KeyboardEventInit): Promise<void> {
 const pressEnter = (el: HTMLElement) => press(el, { key: 'Enter' });
 const pressUndoChord = (el: HTMLElement) => press(el, { key: 'z', ctrlKey: true });
 
-/** One typed character the way the engine delivers it: a collapsed target range at the caret. */
+/** One typed character as the browser delivers it: a collapsed target range at the caret. */
 async function typeChar(el: HTMLElement, char: string): Promise<void> {
 	const at = getCursorOffset(el) ?? (el.textContent ?? '').length;
 	const e = new InputEvent('beforeinput', {

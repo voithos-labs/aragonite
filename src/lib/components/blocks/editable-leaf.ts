@@ -1,10 +1,10 @@
 /**
- * The editable-leaf seam a plugin block component builds on: native caret/IME/undo/selection
- * parity in one factory, so a plugin never touches an editor context key. `plain` commits per
- * keystroke; `render-primary` reveals its source and commits on blur. A painted source
- * (`renderSource`) edits only its own DOM: every byte still enters the CST through
- * `commitReveal`'s one `updateBlockContent`. Call synchronously during init. Contract:
- * plugin-guide § The editable leaf.
+ * What a plugin's block component builds on: the same caret, IME, undo and selection behaviour
+ * the built-in blocks have, in one factory, so a plugin never touches an editor context key.
+ * `plain` commits on every keystroke; `render-primary` shows its source and commits on blur. A
+ * source drawn with `renderSource` edits only its own DOM: every byte still enters the CST
+ * through the single `updateBlockContent` in `commitReveal`. Call it synchronously during
+ * initialisation. The contract is plugin-guide § The editable leaf.
  */
 
 import { getContext } from 'svelte';
@@ -81,13 +81,13 @@ export interface EditableLeafDeps {
 	isRevealed?(): boolean;
 	setRevealed?(revealed: boolean): void;
 	/**
-	 * The mounted component's view-state hooks, handed to a minted block command as
+	 * The mounted component's view-state hooks, handed to a plugin block command as
 	 * `ctx.hooks`. Read live at dispatch: return a getter, never a captured value. The
 	 * platform treats it as `unknown`; the plugin casts it.
 	 */
 	commandHooks?: () => unknown;
 	/**
-	 * Paints the source as DOM instead of one text node — fence lines the mode CSS hides,
+	 * Draws the source as DOM instead of one text node: fence lines the mode's CSS hides,
 	 * highlight tokens. Must keep `fragment.textContent === text` (G1.28); the offset walk sees
 	 * through spans, and hidden marker runs behave as they do in a code block.
 	 */
@@ -100,7 +100,7 @@ export interface EditableLeafDeps {
 	onSourceEdit?(text: string): void;
 	/**
 	 * A source that is only its own chrome (a `$$$$` with no body line), completed to the shape
-	 * a caret can sit in, with where the caret goes. Applied as the source is revealed AND after
+	 * a caret can sit in, with where the caret goes. Applied as the source is shown and after
 	 * any edit that empties it, so the block is one the user can type into and delete however it
 	 * got there; null leaves the bytes alone. The edit is the reveal's own, committed on blur.
 	 */
@@ -110,8 +110,8 @@ export interface EditableLeafDeps {
 /**
  * The one-spread source surface: `<div {...leaf.surfaceProps}>` wires every handler and attribute
  * a source contenteditable needs, so a consumer cannot drop one (a forgotten `oncompositionend`
- * breaks IME silently). Symbol-keyed attachments carry the view-lifecycle contracts: a SINGLE text
- * node, so the ambient offset walk stays exact, and the focus-park on unmount.
+ * breaks IME silently). Attachments under symbol keys carry the view's lifecycle rules: one text
+ * node, so the offset traversal stays exact, and moving focus away on unmount.
  */
 export interface EditableLeafSurfaceProps {
 	tabindex: number;
@@ -129,43 +129,44 @@ export interface EditableLeafSurfaceProps {
 	onfocusout: () => void;
 	oncompositionstart: () => void;
 	oncompositionend: () => void;
-	/** View-sync + focus-park ride Svelte attachments under symbol keys. */
+	/** Keeping the view in sync and moving focus away are Svelte attachments, symbol-keyed. */
 	[attachment: symbol]: unknown;
 }
 
 /**
  * The one-spread rendered surface: `<div {...leaf.renderProps}>` on a render-primary block's
- * FOLDED view. One bundle rather than a handler apiece, because a rendered view wired for the
- * reveal click alone swallows every chord while it holds focus — undo included. Both entries
- * stand down while the source is up, so the spread may sit on a wrapper the fold keeps.
+ * rendered view. One bundle rather than a handler apiece, because a rendered view wired only for
+ * the click that shows the source consumes every chord while it holds focus, undo included. Both
+ * do nothing while the source is up, so the spread may sit on a wrapper that stays either way.
  */
 export interface EditableLeafRenderProps {
-	/** Notes the press; the reveal is the CLICK's (shift-click extends a selection instead). */
+	/** Records where the pointer went down; the click is what shows the source, and a
+	 *  shift-click extends a selection instead. */
 	onpointerdown: (e: PointerEvent) => void;
-	/** Reveal on a click that did not drag — a press that moved is a selection, not an entry. */
+	/** Show the source on a click that did not drag: one that moved is a selection. */
 	onclick: (e: MouseEvent) => void;
-	/** Chord dispatch at this block's kind: the global tier, then its own commands. */
+	/** Chord dispatch at this block's kind: the global commands, then its own. */
 	onkeydown: (e: KeyboardEvent) => void;
 }
 
 export interface EditableLeaf {
-	/** The block's source minus its trailing line ending — the editable text. */
+	/** The block's source minus its trailing line ending, which is the editable text. */
 	readonly sourceText: string;
 
 	/**
-	 * Re-run `renderSource` over the surface's CURRENT text with the caret kept, for a host
+	 * Run `renderSource` again over the element's current text, keeping the caret, for a host
 	 * that repaints as the user types (highlighting goes stale otherwise). No-op without it.
 	 */
 	repaintSource(): void;
 
-	/** The one-spread source surface (attributes + handlers + view/park attachments). */
+	/** The source element in one spread: attributes, handlers and the two attachments. */
 	surfaceProps: EditableLeafSurfaceProps;
 
 	/** render-primary: the one-spread folded surface. */
 	renderProps: EditableLeafRenderProps;
 
 	/**
-	 * The live EFFECTIVE presentation mode. The factory already gates itself in
+	 * The presentation mode in effect. The factory already refuses to act in
 	 * 'reading' (no reveal, no commits); a plain-mode component additionally binds
 	 * `contenteditable` off this so its always-mounted source goes structurally inert.
 	 */
@@ -173,12 +174,12 @@ export interface EditableLeaf {
 
 	/**
 	 * The live editor theme name (`data-editor-theme`), for a leaf whose rendered half
-	 * comes from an engine emitting its own colors rather than from CSS.
+	 * is drawn by something that emits its own colours rather than by CSS.
 	 */
 	getTheme(): string;
 
 	/**
-	 * This editor instance's options for the plugin owning this block's kind — the
+	 * This editor's options for the plugin that owns this block's kind, from the
 	 * `{ plugin, options }` entry's channel, so two editors in one process configure the
 	 * same kind differently. `unknown`, like `commandHooks`: the plugin narrows it.
 	 */
@@ -195,7 +196,7 @@ export interface EditableLeaf {
 	runCommand(id: CommandId): boolean;
 
 	// ── Programmatic edits ─────────────────────────────────────────────────────
-	/** Insert markdown at the caret exactly as pasting it here would, minus the clipboard —
+	/** Insert Markdown at the caret exactly as pasting it here would, without the clipboard:
 	 *  publish it as the component's `insertMarkdown` so `editor.insertMarkdown()` reaches
 	 *  this leaf. True means the paste pipeline took the text, not that its commit flushed. */
 	insertMarkdown(md: string): boolean;
@@ -207,8 +208,8 @@ export interface EditableLeaf {
 }
 
 /**
- * The node → metadata bridge (plus `commandHooks`) a minted block command resolves
- * against on the leaf tier — the container factory's `buildContainerKindTarget` sibling.
+ * The node plus a metadata-commit route, and `commandHooks`, that a plugin block command runs
+ * against on a leaf: the counterpart of the container factory's `buildContainerKindTarget`.
  * Every field reads through `deps`' thunks at dispatch, so a node swap or hook rebind is
  * observed live; `pluginEditor` resolves by the kind's recorded owner.
  */
@@ -290,8 +291,8 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		setPreEditOffset: (offset) => {
 			preEditOffset = offset;
 		},
-		// render-primary never restores a pending caret — focus has already left on
-		// commit, and a re-render must not yank it back.
+		// render-primary never restores a pending caret: focus has already left on
+		// commit, and a re-render must not pull it back.
 		setPendingCursor: (offset) => {
 			if (mode === 'plain') pendingCursor = offset;
 		},
@@ -300,8 +301,8 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		getTextLen,
 		readText,
 		commitInput: (text, preEdit, saved) => {
-			// !isReading: the leaf is the seam — even if a plain-mode component keeps
-			// its source editable in reading mode, nothing reaches the CST.
+			// `!isReading` is enforced here, so even if a plain-mode component keeps its
+			// source editable in reading mode, nothing reaches the CST.
 			if (mode === 'plain' && !isReading()) {
 				void blockEdit.updateBlockContent(
 					deps.getIndex(),
@@ -317,7 +318,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 	const crossBlock = editableSurface.crossBlock;
 
 	// The caret core; the swap is the component's reveal flag. Blocks commit on blur via
-	// `commitReveal`, never the kernel's Escape-cancel `commit()`, so only `reveal()` is
+	// `commitReveal`, never the primitive's Escape-cancel `commit()`, so only `reveal()` is
 	// driven here. Plain mode's swap thunks are inert.
 	const revealKernel = createSourceReveal({
 		get container() {
@@ -334,8 +335,8 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		},
 		getAmbientLength: () => 0,
 		isRevealed,
-		// The one point block source is shown — the kernel calls it only when not
-		// already revealed, so it fires once per open.
+		// The one place a block's source is shown: it is called only when none is
+		// showing, so it fires once per open.
 		showSource: () => {
 			traceRevealOpen('leaf');
 			revealedBase = sourceText();
@@ -349,8 +350,8 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		}
 	});
 
-	// Every open goes through here rather than the kernel directly, so a chrome-only source is
-	// completed (see `EditableLeafDeps.completeBareSource`) whatever door revealed it.
+	// Every open goes through here rather than the primitive directly, so a source that is only
+	// markers is completed (see `EditableLeafDeps.completeBareSource`) however it was opened.
 	async function revealSource(atSourceOffset = 0): Promise<void> {
 		await revealKernel.reveal(atSourceOffset);
 		const el = deps.getEl();
@@ -381,7 +382,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 
 	// A blur that arrives with a cross-block range live is the release of a drag that began in
 	// this source and left it: the fold waits one frame, so the range's rects measured real text
-	// under the pointer, then folds unless focus came back — else the source stays open with
+	// under the pointer, then hides it unless focus came back; otherwise the source stays open
 	// nothing focused in it and no further blur to close it.
 	let foldFrame = 0;
 	function foldAfterRange(): void {
@@ -400,14 +401,14 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 			foldAfterRange();
 			return;
 		}
-		// Only wired to onFocusOut — the block leaf folds on blur, never Escape-cancel.
+		// Only wired to `onFocusOut`: a block leaf hides its source on blur, never on Escape.
 		traceRevealFold('blur');
 		const edited = deps.getEl()?.textContent ?? sourceText();
 		const base = revealedBase;
 		revealedBase = null;
 		deps.setRevealed!(false); // reactive re-render of the edited source
 		// The fold writes back only what the reveal measured. An undo, or a `source` prop swap,
-		// can seat a DIFFERENT document at this index before focusout fires — the component is
+		// can put a different document at this index before focusout fires: the component is
 		// destroyed and the blur arrives on the way out, so these bytes belong to a block that is
 		// no longer here and writing them corrupts the one that is (#161).
 		if (base !== null && base !== sourceText()) return;
@@ -431,13 +432,13 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 	const focus = placeCaret(selection, parkCaret);
 
 	// Sticky-column entry: mount the source, then land at the column nearest x
-	// on the first/last visual line — the code-block traversal contract.
+	// on the first or last visual line, as a code block does.
 	function focusAtColumn(x: number, from: StickyColumnDirection): void {
 		void (async () => {
 			if (!isRevealed()) {
 				if (isReading()) return;
-				// Through the kernel like every other open, so this entry gets the same trace pair,
-				// length assert and reveal base; it seats a caret at 0, which the column re-seats.
+				// Through the primitive like every other open, so this entry gets the same trace
+				// pair and length check; it places a caret at 0, which the column lookup moves.
 				await revealSource();
 			}
 			if (!deps.getEl()) return;
@@ -455,7 +456,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 
 	// The one place source bytes become DOM, so G1.28 is asserted here for every painter rather
 	// than trusted per plugin. A painter's chrome-only case (a fence with no body line) takes the
-	// same stamp a code block does, so its markers paint while focused.
+	// same data attribute a code block does, so its markers show while focused.
 	function paintSource(el: HTMLElement, text: string): void {
 		if (deps.renderSource) {
 			const painted = deps.renderSource(text);
@@ -488,7 +489,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 			paintSource(el, text);
 			// The local entries were taken against bytes an external rewrite just replaced.
 			clearSourceHistory();
-			// Restore only under a live caret — an external rewrite (undo, structural
+			// Restore only while a caret is live: a rewrite from outside (undo, structural
 			// replace) must not steal focus.
 			consumePendingRestore(el, pending, (offset) => setCursorOffset(el, asDomTextOffset(offset)));
 		}
@@ -557,24 +558,24 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		if (deps.renderSource) recordSourceEdit(text, getCursorOffset(el) ?? start, keystroke);
 		const spliced = text.slice(0, start) + insert + text.slice(end);
 		// An edit that empties the body leaves the same chrome-only source a bare block arrives
-		// as, so the edit door owes the completion the reveal door applies.
+		// as, so this edit path applies the same marker completion showing the source does.
 		const completed = deps.completeBareSource?.(spliced) ?? null;
 		const next = completed?.text ?? spliced;
 		paintSource(el, next);
 		deps.onSourceEdit?.(next);
 		preEditOffset = start;
 		setCursorOffset(el, asDomTextOffset(completed?.caret ?? start + insert.length));
-		// Armed once the edit has settled, so the window measures the gap the user leaves.
+		// Started once the edit has settled, so the gap measured is the one the user leaves.
 		if (deps.renderSource && keystroke) sourceBatch.armPause();
 		if (mode === 'plain') editableSurface.onInput();
 	}
 
 	// ── Clipboard ────────────────────────────────────────────────────────────
 
-	// The leaf's DOM-text space IS its raw, so copy falls to the seam's visible-selection
+	// The leaf's DOM text is its raw, so copy falls back to the shared visible-selection
 	// default and cut/paste splice verbatim. No structural paste hook: the commit
 	// re-parses the whole raw, re-splitting only where the grammar demands. No reveal
-	// fold — the render-primary source folds on blur instead.
+	// source; a render-primary source is hidden on blur instead.
 	const clipboard = createClipboardHandlers({
 		stickyColumn,
 		edgeAffinity,
@@ -613,7 +614,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		if (composing || !el) return;
 		preEditOffset = getCursorOffset(el) ?? 0;
 
-		// Undo INSIDE an open painted reveal steps back through this session's own edits: the
+		// Undo inside an open drawn source steps back through this session's own edits: the
 		// document's history sees the session as one entry written on blur, so until the local
 		// stack is spent the chord has nothing else to mean. Resolved through the keymap like every
 		// chord, so a host's rebinding or disable reaches it.
@@ -632,10 +633,10 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		}
 
 		// Backspace in a painted source that holds nothing but its own chrome deletes the block, as
-		// it does in a code block: an empty body has no byte the press could mean, and a seat that
+		// it does in a code block: an empty body has no byte the key could mean, and a caret that
 		// only steps out (or eats the one blank line) leaves a block the user just asked to be rid
-		// of. In every mode — the gate is the byte BEFORE the caret: whitespace, or nothing, so a
-		// press that sits right after a visible marker still edits that marker in source mode.
+		// of, in every mode. The test is the byte before the caret, whitespace or nothing, so a
+		// key pressed right after a visible marker still edits that marker in source mode.
 		if (e.key === 'Backspace' && !e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey) {
 			const offset = deps.renderSource ? getCursorOffset(el) : null;
 			const text = el.textContent ?? '';
@@ -662,14 +663,14 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 
 		// Enter stays inside the leaf as a literal newline (multiline source); it never splits
 		// the block, and plain mode commits the insertion. A single-line leaf has nowhere to put
-		// that byte, so it spends the press on the document instead.
+		// that byte, so it spends the keypress on the document instead.
 		if (e.key === 'Enter') {
 			e.preventDefault();
 			if (isReading()) return;
 			// Read before any fold: `setRevealed(false)` unmounts the element the offset lives in.
 			const offset = getCursorOffset(el) ?? (el.textContent ?? '').length;
 			if (singleLine) {
-				// Through the fold, not a bare commit: it is the one door deciding whether an open
+				// Through the hide, not a bare commit: it is the one place that decides whether an open
 				// reveal's bytes may still be written, and the split reads `node.raw` after it.
 				await commitReveal();
 				await blockEdit.splitBlock(deps.getIndex(), offset);
@@ -680,10 +681,10 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 	}
 
 	/**
-	 * A painted source takes plain text edits here, not from the engine: Chromium treats a lone
+	 * A drawn source takes plain text edits here, not from the browser: Chromium treats a lone
 	 * `\n` text node as a placeholder and replaces it on insert (a fresh `$$` block lost the line
 	 * before its closer), and a native delete has no notion of hidden chrome. The edit range is
-	 * clamped to the landable span, so nothing reaches a fence line. Composition stays native.
+	 * clamped to the reachable span, so nothing reaches a fence line. Composition is left alone.
 	 */
 	function onBeforeInput(e: InputEvent): void {
 		if (!deps.renderSource || composing || e.isComposing) return;
@@ -742,9 +743,9 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		return descriptor?.caretTargetAtPoint?.(host, e.clientX, e.clientY)?.offset ?? 0;
 	}
 
-	// The press only notes where it landed: revealing on the press swallowed every drag that
-	// began on a rendered equation. The editor's own drag runs from such a press (its root
-	// handler), and the CLICK — a release that did not move — is what reveals.
+	// Pointer-down only records where it landed: showing the source there would consume every
+	// drag that began on a rendered equation. The editor's own drag runs from that gesture,
+	// through its root handler, and the click, a release that did not move, is what shows it.
 	let renderPress: { x: number; y: number } | null = null;
 	function onRenderPointerDown(e: PointerEvent): void {
 		renderPress = e.shiftKey || isReading() ? null : { x: e.clientX, y: e.clientY };
@@ -755,15 +756,15 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		renderPress = null;
 		if (!press || e.shiftKey || isReading()) return;
 		if (Math.abs(e.clientX - press.x) > 3 || Math.abs(e.clientY - press.y) > 3) return;
-		// The reveal lands a caret, so this owes the shared preamble. NOT through
-		// crossBlock.handlePointerDown: that hit-tests against the SOURCE text, which the
+		// Showing the source lands a caret, so the shared preamble has to run. Not through
+		// `crossBlock.handlePointerDown`: that hit-tests against the source text, which the
 		// rendered view is not.
 		resetForPointerDown(selection, stickyColumn, edgeAffinity, false);
 		void revealSource(revealOffsetAt(e));
 	}
 
-	// The revealed source owns the press and has already spent the chord, so a spread the fold
-	// does not unmount must not re-run either on the way up.
+	// A shown source owns the key and has already spent the chord, so a spread that stays
+	// mounted must not run either handler again on the way up.
 	const renderProps: EditableLeafRenderProps = {
 		onpointerdown: (e) => {
 			if (!isRevealed()) onRenderPointerDown(e);
@@ -794,15 +795,15 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		oncompositionend: editableSurface.onCompositionEnd
 	};
 
-	// Both modes mirror external raw changes (undo, structural replace) into the source —
+	// Both modes mirror raw changes from outside (undo, structural replace) into the source,
 	// tracked, so it re-runs on raw change. A render-primary edit is ephemeral until blur, so
 	// nothing else moves the raw mid-edit and the mirror cannot clobber an in-flight one. No
-	// cleanup, so it never parks focus mid-edit.
+	// cleanup, so it never moves focus mid-edit.
 	const syncAttachment = () => {
 		syncSource();
 	};
-	// Park focus when the source unmounts. A separate, stable, untracked attachment, so a
-	// recompute of the spread never fires the park mid-edit.
+	// Move focus away when the source unmounts. A separate, stable, untracked attachment, so
+	// recomputing the spread never moves focus mid-edit.
 	const parkAttachment = (el: HTMLElement) => () => parkFocusOnEditorRoot(el, getEditorRoot());
 
 	// The mode splits the rest of the view-lifecycle contract: render-primary's

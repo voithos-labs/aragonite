@@ -1,4 +1,4 @@
-// ThematicBreakBlock mounted as the middle block of a three-block document — the reference
+// ThematicBreakBlock mounted as the middle block of a three-block document, which is the
 // whole-block-focus kind, with the editing host it publishes and the stubs its wiring reads.
 
 import { mount, unmount, flushSync } from 'svelte';

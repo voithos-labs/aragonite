@@ -1,16 +1,16 @@
 // @vitest-environment jsdom
 //
 // Regression pin for #144: a printable that arrives as `beforeinput` rather than a plain keydown
-// — an AltGr production, an IME commit — was dropped whole at a whole-block-focused kind, whose
+// such as an AltGr production or an IME commit, was dropped whole at a whole-block-focused kind,
 // focused element was a bare `tabindex=0` div with no editing host under it.
 //
 // Miss-analysis: `whole-block-keys.test.ts` pinned every branch of the keydown tail, and the tail
-// IS the whole mint; no test asked whether the other input door existed at all.
+// is the whole insertion, and no test asked whether the other input path existed at all.
 import { describe, it, expect, afterEach } from 'vitest';
 import { BREAK_INDEX as INDEX, mountBreak, type MountedBreak } from './mount-break';
 
 /** The shape an AltGr production arrives in: no keydown branch admits it, so the editing host is
- *  the only door it has. */
+ *  the only input path it has. */
 function beforeInput(host: HTMLElement, data: string): InputEvent {
 	const event = new InputEvent('beforeinput', {
 		bubbles: true,
@@ -66,7 +66,7 @@ describe('thematic break — the hidden editing host', () => {
 		expect(mounted.host.textContent).toBe('');
 	});
 
-	// An aborted composition ends with nothing committed; minting there would leave an empty
+	// An aborted composition ends with nothing committed; inserting there would leave an empty
 	// paragraph behind every cancelled IME session.
 	it('mints nothing when a composition ends with no text', () => {
 		mounted = mountBreak();

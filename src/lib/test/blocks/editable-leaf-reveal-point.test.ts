@@ -1,10 +1,10 @@
 // @vitest-environment jsdom
 //
 // Miss-analysis: every render-primary case drove the reveal through `parkCaret`, which is handed
-// an offset, so nothing exercised the one entry that has to COMPUTE one and the hardcoded 0 the
+// an offset, so nothing exercised the one entry that has to work one out, and the hardcoded 0
 // click handler passed was never read back; and no fixture ever spread `renderProps` anywhere the
 // fold kept, so both handlers re-firing on the way up from the revealed source went unseen. The
-// press alone then stood in for a click, so the reveal moving to the release went unseen too.
+// pointer-down alone then stood in for a click, so moving it to the release went unseen too.
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { mount, unmount, flushSync } from 'svelte';
 import RevealLeafBlock from './fixtures/RevealLeafBlock.svelte';
@@ -40,8 +40,8 @@ function mountLeaf(caretTargetAtPoint?: BlockKindDescriptor['caretTargetAtPoint'
 
 	const node: CstNode = { kind, leadingTrivia: '', raw: RAW } as CstNode;
 	const doc: Document = { kind: 'document', prefix: '', children: [node], suffix: '' };
-	// The `data-block-path` host BlockHost renders, because that — not the component's own
-	// root — is the element every `caretTargetAtPoint` consumer binds the hook to.
+	// The `data-block-path` element BlockHost renders, because that, not the component's own
+	// root, is what every caller of `caretTargetAtPoint` binds the hook to.
 	const host = document.createElement('div');
 	host.setAttribute('data-block-path', '[0]');
 	document.body.appendChild(host);
@@ -70,8 +70,8 @@ function mountLeaf(caretTargetAtPoint?: BlockKindDescriptor['caretTargetAtPoint'
 			expect(el, 'the reveal mounted no source element').not.toBeNull();
 			return el!;
 		},
-		/** Click the folded view at a viewport point, then settle the reveal it opens. The press
-		 *  and the click both fire, as a real click does: the reveal is the CLICK's. */
+		/** Click the rendered view at a viewport point, then wait for the source it opens. Both
+		 *  pointer-down and click fire, as a real click does, and the click is what opens it. */
 		clickRendered: async (clientX: number, clientY: number) => {
 			const rendered = host.querySelector<HTMLElement>('.reveal-leaf-render');
 			expect(rendered, 'the leaf mounted no rendered view').not.toBeNull();

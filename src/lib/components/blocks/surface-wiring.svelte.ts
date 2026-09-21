@@ -1,7 +1,7 @@
 /**
  * The context wiring every editable-block component threads identically: one init-time bundle
  * of the shared `EditableSurfaceDeps` fields, plus chord dispatch built over the same gates and
- * the shared focus-park teardown. Call during component init — `getContext` requires it, and
+ * the shared teardown that moves focus away. Call it during component init: `getContext`
  * `createEditableSurface` itself stays context-free (the jsdom harness constructs it bare).
  */
 
@@ -27,7 +27,7 @@ import type { AnyCommandId } from '../../schema/command-id';
 import { parkFocusOnEditorRoot } from '../../selection/native-bridge';
 import type { EditableSurfaceDeps } from './editable-surface';
 
-/** The context-threaded half of `EditableSurfaceDeps` — the fields every surface passes verbatim. */
+/** The context half of `EditableSurfaceDeps`: the fields every block passes through unchanged. */
 export type SharedSurfaceDeps = Pick<
 	EditableSurfaceDeps,
 	| 'selection'
@@ -58,7 +58,7 @@ export interface SurfaceWiring {
 	deps: SharedSurfaceDeps;
 	/** Resolve a chord at `target` through the shared gates; consumes the event when spent. */
 	dispatchChord(e: KeyboardEvent, target: KindCommandTarget): boolean;
-	/** The command a press names at `kind`, overrides included, without running it. */
+	/** The command a keypress names at `kind`, overrides included, without running it. */
 	resolveChord(e: KeyboardEvent, kind: AnyBlockKind): AnyCommandId | null;
 }
 

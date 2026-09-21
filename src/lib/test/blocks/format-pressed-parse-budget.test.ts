@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 //
 // A toolbar asks `isCommandActive` once per button on every `selectionChange`, so the mark ids
-// share ONE coverage parse of the focused block, and the next edit misses that read.
+// share one parse of the focused block, and the next edit invalidates that read.
 // Miss-analysis: the perf gate is ship-only and had not run since 2026-08-20, and no unit pin
 // bounded the pressed read's parse count per selection change.
 import { describe, it, expect, beforeAll, beforeEach, afterEach } from 'vitest';
@@ -63,7 +63,7 @@ describe('the pressed read over one prose block', () => {
 		await mounted.settle();
 		expect(mounted.source()).toBe('**alpha** beta gamma\n');
 
-		// The SAME offsets, so only the bytes moved: a memo blind to them would answer plain still.
+		// The same offsets, so only the bytes moved: a memo blind to them would still answer plain.
 		selectRange(surfaceAt(mounted, [0]), 0, 5);
 		const bolded = repaint((id) => mounted.instance.isCommandActive(id));
 		expect(bolded.pressed).toEqual([TOOLBAR_COMMANDS.toggleStrong]);

@@ -1,9 +1,9 @@
 // @vitest-environment jsdom
 //
-// The composition seat at its wiring level: what a compositionend commit writes when the seat
-// is consulted, per presentation mode. Miss: the seat's mode gate lived only at the keydown
+// Where a composed run is placed, at the wiring level: what a `compositionend` commit writes
+// in each presentation mode. Miss-analysis: that mode check lived only at the keydown
 // dispatch; no composition-path test ever ran outside live mode, so the ungated sibling
-// relocated bytes a source-mode user placed beside a VISIBLE delimiter.
+// moved bytes a source-mode user had placed beside a visible delimiter.
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { parseInline } from '$lib/core/inline';
@@ -25,7 +25,7 @@ afterEach(() => {
 	document.body.innerHTML = '';
 });
 
-// `Some **bold** text`: strong [5,13), content [7,11) — 11 is the trailing run's near side.
+// `Some **bold** text`: strong [5,13), content [7,11), and 11 is the trailing run's near side.
 const BOLD = 'Some **bold** text';
 
 interface SeatHarness {
@@ -54,7 +54,7 @@ function makeSeatHarness(source: string, affinity: EdgeAffinity | null): SeatHar
 	const surface = makeSurface(undefined, (after, composedAt) => seat.relocate(after, composedAt));
 	surface.el.textContent = source;
 
-	// Browser order as the block wires it: seat capture, then the surface's own start half.
+	// Browser order as the block wires it: capture first, then the block's own start half.
 	const compose = (domAfter: string, caretAt: number): void => {
 		surface.setCaret(caretAt);
 		seat.noteStart();

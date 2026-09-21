@@ -1,8 +1,8 @@
 /**
  * The zero-ambient, widget-free surface backend shared by CodeBlock and the
- * `editable-leaf` seam: with no ambient marker and no inline widgets, DOM-text space
- * IS raw space, so the brand mint happens once here rather than at each surface.
- * Surfaces with an ambient marker (TextEditableBlock) use the ambient IO instead.
+ * `editable-leaf` factory: with no marker prefix and no inline widgets, a DOM text offset
+ * is a raw offset, so the branded type is made once here rather than in each block. A block
+ * with a marker prefix, such as TextEditableBlock, uses the prefix-aware reads instead.
  */
 
 import type { CursorBackend } from './editable-surface';

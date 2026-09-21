@@ -55,8 +55,8 @@
 	export const editable = false;
 	export const focusable = true;
 
-	// The block IS its own focus target, so the offset carries no meaning — but the
-	// range-ending is still owed: nothing below seats a DOM caret to collapse it.
+	// The block is its own focus target, so the offset means nothing here, but the live
+	// range still has to be ended: nothing below places a DOM caret that would collapse it.
 	export const focus = placeCaret(selection, parkCaret);
 
 	export function parkCaret(_offset: number): void {
@@ -73,8 +73,8 @@
 		return reorderRunCommand(id, reorder, () => myPath);
 	}
 
-	// The rule has no text to measure, so any non-empty range over it is its whole box — what a
-	// range ending on it, or the rule taken as a unit, paints.
+	// The rule has no text to measure, so any non-empty range over it is its whole box, which
+	// is what a range ending on it, or the rule taken as a unit, draws.
 	export function measurePartialRects(startOffset: number, endOffset: number): DOMRect[] {
 		if (endOffset <= startOffset || !boxEl) return [];
 		return [boxEl.getBoundingClientRect()];
@@ -126,7 +126,7 @@
 	}
 </script>
 
-<!-- The box holds the separator and the editor's hidden input host as SIBLINGS: focusable
+<!-- The box holds the separator and the editor's hidden input element as siblings: focusable
      content inside a focusable widget is not reachable by every AT (axe nested-interactive). -->
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div bind:this={boxEl} class="thematic-break-block" onkeydown={onKeyDown}>
@@ -144,7 +144,7 @@
 		position: relative;
 	}
 
-	/* The rule is a hairline, so the SPACE around it is what reads as a division. Cramped
+	/* The rule is a hairline, so the space around it is what reads as a division. Cramped
 	   padding on a heavy line reads as a border instead. */
 	.thematic-break-rule {
 		outline: none;
@@ -161,7 +161,7 @@
 
 	hr {
 		border: none;
-		/* A hairline on the BORDER token, not the muted-UI one: a divider separates, and at
+		/* A hairline on the border token, not the muted-UI one: a divider separates, and at
 		   2px of mid-grey it competed with the text it sits between. */
 		border-top: 1px solid var(--color-border, #3e3e3b);
 		margin: 0;

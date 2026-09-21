@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 //
 // The IME composition window driven through the real surface skeleton in browser order:
-// start → input(s) → end, which funnels to input and reads the DOM back. Pins the composing
+// start, then input events, then end, which ends at `input` and reads the DOM back. Covers
 // gate, the exactly-once end commit, the offset pair the commit receives, and G1.27. The
 // commit's downstream effects are pinned in editable-surface-composition-commit.
 import { describe, it, expect, afterEach } from 'vitest';

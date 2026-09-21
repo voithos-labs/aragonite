@@ -1,16 +1,16 @@
 // @vitest-environment jsdom
 //
-// The park door's clamp funnel: every offset — numeric or sentinel — seats inside the landable
-// range, so no caller can land a caret behind a hidden marker run (G2.12). Source mode proves
-// mode-independence by construction: the landable range is the whole range, so the clamp is
-// identity with no mode branch in the door. CURSOR_EXACT_START is the one contracted exception.
-// Miss-analysis: the sentinel-only door was pinned per gesture (e2e), so no test could observe
-// a NUMERIC offset passing the door raw — the door itself had no seat-level contract test.
+// Where every caret placement clamps: every offset, a number or a marker value, lands inside the
+// reachable range, so no caller can put a caret behind a hidden marker run (G2.12). Source mode
+// is the same by construction, since the reachable range is the whole range and the clamp does
+// nothing; `CURSOR_EXACT_START` is the one declared exception.
+// Miss-analysis: the marker-value form was covered per gesture in e2e, so no test could see a
+// numeric offset passing through unclamped; the clamp itself had no test of its own.
 import { describe, it, expect, beforeEach } from 'vitest';
 import { CURSOR_END, CURSOR_EXACT_START, CURSOR_START } from '../../block-component';
 import { makeSurface, type SurfaceHarness } from '../harness/editable-surface';
 
-/** `**bold** tail`: a hidden leading run [0,2) and content out to 13 — landable [2,13). */
+/** `**bold** tail`: a hidden leading run [0,2) and content out to 13, so [2,13) is reachable. */
 function mountBoldLead(mode?: string): SurfaceHarness {
 	const harness = makeSurface(undefined, undefined, { presentationMode: mode });
 	const marker = document.createElement('span');

@@ -1,9 +1,9 @@
 // @vitest-environment jsdom
 //
 // ThematicBreakBlock is the reference whole-block-focus kind (docs/design/editor.md § 8): the
-// block IS its own focus target. The key TAIL's semantics belong to `whole-block-keys.test.ts`
+// block is its own focus target. What the remaining keys mean belongs to `whole-block-keys.test.ts`
 // and the caret-adjacent Backspace fallback to `block-edit-core.test.ts`; what only a mount can
-// show is this component's own wiring — the focus surface it publishes, and the three-tier
+// show is this component's own wiring: the focus element it publishes, and the three-level
 // keydown order (editor-global chord → kind keymap → tail) with its local reading gate.
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import { displayLength } from '$lib/core/lines';
@@ -29,7 +29,7 @@ afterEach(async () => {
 
 describe('thematic break — the whole-block focus surface', () => {
 	// Miss-analysis: nothing read the two tabindexes together, so the block shipped with two tab
-	// stops and a Shift+Tab that parked on the separator instead of leaving.
+	// stops and a Shift+Tab that stayed on the separator instead of leaving.
 	it('renders a separator and declares itself non-editable, with the host as its one tab stop', () => {
 		mounted = mountBreak();
 		const rule = mounted.el.querySelector('.thematic-break-rule') as HTMLElement;
@@ -43,13 +43,13 @@ describe('thematic break — the whole-block focus surface', () => {
 		expect(mounted.instance.focusable).toBe(true);
 	});
 
-	// Where the park LANDS is pinned finer in thematic-break-input-proxy (activeElement IS the host).
+	// Where focus lands is covered more closely in thematic-break-input-proxy.
 	it('reports no cursor offset before the caret is parked', () => {
 		mounted = mountBreak();
 		expect(mounted.instance.getCursorOffset()).toBeNull();
 	});
 
-	// `focus` owes the range-ending `parkCaret` skips: a whole-block landing seats no DOM
+	// `focus` must end the live range, which `parkCaret` skips: a whole-block landing places no
 	// caret, so a live cross-block range would survive it and the next keystroke type-replaces.
 	it('ends a live cross-block range when focused, unlike the bare park', () => {
 		mounted = mountBreak();
@@ -64,7 +64,7 @@ describe('thematic break — the whole-block focus surface', () => {
 
 describe('thematic break — keydown tiers', () => {
 	// Two rows, not five: the tail's own suite owns every branch's semantics, and the only
-	// distinction this layer adds is that the edit arm gates on reading mode while nav never does.
+	// difference this layer adds is that the edit branch checks reading mode while navigation does not.
 	it.each([
 		['source', 1],
 		['reading', 0]
@@ -98,7 +98,7 @@ describe('thematic break — keydown tiers', () => {
 		expect(mounted.focus.moveFocus).not.toHaveBeenCalled();
 	});
 
-	// A whole-block-focus kind has no editable surface to catch undo, so the command tiers on
+	// A whole-block-focus kind has no editable element to catch undo, so the commands on
 	// this handler are the only route to it while the block itself holds focus.
 	it('honors an editor-global chord while the block itself holds focus', () => {
 		mounted = mountBreak();
@@ -108,9 +108,9 @@ describe('thematic break — keydown tiers', () => {
 		expect(mounted.history.requestUndo).toHaveBeenCalledTimes(1);
 	});
 
-	// What the local global-chord arm is FOR: `dispatchKeyCommand` dead-keys the whole vocabulary
+	// What the local global-chord branch is for: `dispatchKeyCommand` disables every command
 	// in reading mode by declining, which would leave the chord unconsumed and the browser's
-	// native undo free to fire on a document the reader cannot edit.
+	// the browser's undo free to fire on a document the user cannot edit.
 	it('dead-keys an editor-global chord in reading mode while still consuming it', () => {
 		mounted = mountBreak('reading');
 
