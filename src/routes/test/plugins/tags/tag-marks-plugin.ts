@@ -4,7 +4,9 @@
  * it steps character by character, Backspace takes one byte, and selection, copy and IME stay the
  * browser's own. The decorations re-run on every document change, so the chip follows the bytes
  * with no invalidation of its own.
- */ import { definePlugin } from '$lib/plugin';
+ */
+
+import { definePlugin } from '$lib/plugin';
 import type { DocumentView, EditorPlugin, MarkDecoration } from '$lib/plugin';
 import { forEachLeaf } from '../walk-views';
 import { recognizeTag } from './tag-scan';

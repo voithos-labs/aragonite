@@ -140,14 +140,10 @@ export interface WidgetInteraction {
 	/**
 	 * Where a press on a non-editable inline widget anchors a drag: the widget's own raw edge on
 	 * the point's side, for a kind the caret reads as one character. Null over no widget, or over
-	 * one that selects whole (an image, a formula), which owns its own press. The browser cannot
-	 * answer this, since `user-select: none` makes it return a position in the neighbouring text
-	 * that drifts with whatever is already selected.
+	 * one running a pointer gesture of its own. The browser cannot answer this, since
+	 * `user-select: none` makes it return a position in the neighbouring text that drifts with
+	 * whatever is already selected.
 	 */
-	islandPressAnchor(x: number, y: number): number | null;
-	/** The same read for a press that turns out to be a drag, which reaches one kind more: a kind
-	 *  that shows its source owns the click that opens it, not the drag. Null over no widget, or
-	 *  over one running a pointer gesture of its own. */
 	islandDragAnchor(x: number, y: number): number | null;
 }
 
@@ -551,14 +547,6 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		return el !== null && hitTestRevealWidget(el, x, y) !== null;
 	}
 
-	function islandPressAnchor(x: number, y: number): number | null {
-		const el = deps.getEl();
-		if (!el) return null;
-		const seat = nearestWidgetEdgeSeat(measuredWidgets(el), x, y);
-		// Only a press on the widget itself: the browser already answers one in the text beside it.
-		return seat?.inside ? seat.offset : null;
-	}
-
 	function islandDragAnchor(x: number, y: number): number | null {
 		const el = deps.getEl();
 		if (!el) return null;
@@ -947,7 +935,6 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		foldRevealBeforeMutation,
 		foldRevealIfSelectionEscaped,
 		isPointOnRevealWidget,
-		islandPressAnchor,
 		islandDragAnchor
 	};
 }

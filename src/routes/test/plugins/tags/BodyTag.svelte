@@ -8,8 +8,6 @@
 
 	let { source, getPresentationMode }: InlineWidgetComponentProps = $props();
 
-	let el: HTMLElement | null = $state(null);
-
 	function onClick(e: MouseEvent): void {
 		const mode = getPresentationMode?.() ?? 'source';
 		if (!isWidgetActivationClick(e.ctrlKey || e.metaKey, mode)) return;
@@ -20,7 +18,7 @@
 </script>
 
 <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
-<span bind:this={el} class="body-tag" data-tag={source.slice(1)} onclick={onClick}>{source}</span>
+<span class="body-tag" data-tag={source.slice(1)} onclick={onClick}>{source}</span>
 
 <style>
 	.body-tag {
