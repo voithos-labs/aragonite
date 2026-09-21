@@ -11,12 +11,12 @@ import {
 	loadThenArrive
 } from './gap-caret-fixtures';
 
-// What the gap caret does to the DOCUMENT: minting, and the undo road back
-// (requirements/selection/gap-caret-editing.md). The surface itself — paint, mode flips,
-// the ways out — is gap-caret-surface.spec.ts. Bytes are the oracle here: a boundary the
-// editing surfaces cannot reach is exactly where a separator bug would hide.
+// What the gap caret does to the document: creating a block, and the way undo takes back
+// (`requirements/selection/gap-caret-editing.md`). The gap itself (what it paints, mode
+// changes, the ways out) is `gap-caret-surface.spec.ts`. Bytes are the check here: a boundary
+// no editable element can reach is exactly where a separator bug would hide.
 
-/** paragraph, blockquote[paragraph, fencedCode] — the quote's scope end is boundary 2. */
+/** paragraph, blockquote[paragraph, fencedCode]: the end of the quote's list is boundary 2. */
 const QUOTED_FENCE = `para\n\n> quoted\n>\n> \`\`\`\n> code\n> \`\`\`\n`;
 const AT_QUOTE_END = { parentPath: [1], index: 2 };
 
@@ -50,8 +50,8 @@ test.describe('minting a paragraph at the gap', () => {
 		expect(await editor.bridge.getSource()).toBe(`para\n\n${TABLE}\nz\n\n${FENCE}\ntail\n`);
 	});
 
-	// The nested arm: the commit runs on the container's own scope, so the quote's ancestry
-	// rebuild must re-prefix the minted line. Byte-exact, or the `> ` never lands.
+	// The nested case: the commit runs on the container's own child list, so rebuilding the
+	// quote's ancestors must re-prefix the new line. Byte-exact, or the `> ` never lands.
 	test('a mint at a container scope end lands inside the container', async () => {
 		await editor.loadContent(QUOTED_FENCE);
 		await editor.focusBlockAtPath([1, 1], CLOSER_BOUNDARY);
@@ -71,7 +71,7 @@ test.describe('minting a paragraph at the gap', () => {
 		await editor.seedClipboard('pasted\n');
 
 		await editor.paste();
-		// A paste event, not a keystroke: no keydown, so no verdict.
+		// A paste event, not a keystroke: no keydown, so nothing for the editor to answer.
 		await editor.waitForNoSourceMutation();
 
 		expect(await editor.bridge.getSource()).toBe(TABLE_THEN_FENCE);
@@ -114,8 +114,8 @@ test.describe('undo and redo across a mint', () => {
 		await editor.bridge.waitForSourceContains('xy');
 	});
 
-	// The entry below the mint is an ordinary text edit, so the second undo proves the gap
-	// entry did not swallow the stack beneath it.
+	// The entry below the new block is an ordinary text edit, so the second undo proves the
+	// gap's entry did not swallow the stack beneath it.
 	test('a second undo carries on past the mint', async () => {
 		await editor.loadContent(TABLE_THEN_FENCE);
 		await editor.focusBlockStart(0);
@@ -136,8 +136,8 @@ test.describe('undo and redo across a mint', () => {
 	});
 });
 
-// The unit harness cannot see a windowing flush, so a document long enough to window is the
-// only oracle for the restore's reveal.
+// The unit harness cannot see a windowing flush, so a document long enough to be windowed is
+// the only way to check that the restore scrolls the boundary back into view.
 test.describe('undo onto a windowed-out boundary', () => {
 	const AT_MID = { parentPath: [], index: 101 };
 
@@ -154,7 +154,7 @@ test.describe('undo onto a windowed-out boundary', () => {
 		await editor.typeSlowly('x');
 		await editor.bridge.waitForSourceContains('\nx\n');
 
-		// Scroll the boundary out of the window, so the restore has something to reveal.
+		// Scroll the boundary out of the window, so the restore has something to scroll back.
 		await page.evaluate(() => (window as any).__test.rects.scrollTo([0]));
 		await editor.waitForRenderFlush();
 		await editor.undo();

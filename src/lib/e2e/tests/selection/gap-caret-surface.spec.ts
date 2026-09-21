@@ -2,9 +2,9 @@ import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 import { AT_BOUNDARY, LAST_CELL, TABLE_THEN_FENCE, arriveAtBoundary } from './gap-caret-fixtures';
 
-// The gap caret's SURFACE: what it paints, and every way the caret leaves it that is not a
-// mint (requirements/selection/gap-caret-surface.md). Minting and undo are
-// gap-caret-editing.spec.ts.
+// What the gap caret paints, and every way the caret leaves it short of creating a block
+// (`requirements/selection/gap-caret-surface.md`). Creating a block, and undo, are in
+// `gap-caret-editing.spec.ts`.
 
 const LINE = '[data-gap-caret] .gap-caret-line';
 
@@ -46,10 +46,10 @@ test.describe('the gap caret paints a line at the boundary', () => {
 		expect(painted.spansColumn).toBe(true);
 	});
 
-	// The gap is deliberately outside the public `SelectionPoint` union, so a subscriber must
-	// be told the caret LEFT the block it was in. The state write alone cannot say so — it
-	// fires while DOM focus is still in the source block, so the settling emission is the
-	// proxy's own range moving, and a filter over that would strand the stale position.
+	// The gap is deliberately outside the public `SelectionPoint` union, so a subscriber has to
+	// be told the caret left the block it was in. The state write alone cannot say so: it fires
+	// while DOM focus is still in the source block, so the emission that follows is the proxy's
+	// own range moving, and filtering that out would leave the stale position in place.
 	test('a subscriber is left reading no selection once the gap settles', async () => {
 		await editor.page.locator('[role="cell"]').nth(LAST_CELL).click();
 		await editor.page.evaluate(() => (window as any).__test.startSelectionChangeCapture());
@@ -81,7 +81,7 @@ test.describe('the gap caret paints a line at the boundary', () => {
 });
 
 test.describe('a presentation-mode flip ends the gap', () => {
-	// #88: the gap outlived the flip, leaving a caret in a surface with no editing at all.
+	// #88: the gap must not outlive a mode change, or a caret is left in a mode with no editing.
 	test('flipping to reading clears it, and flipping back does not bring it back', async ({
 		page
 	}) => {
@@ -90,13 +90,13 @@ test.describe('a presentation-mode flip ends the gap', () => {
 		await editor.loadContent(TABLE_THEN_FENCE);
 		await arriveAtBoundary(editor);
 
-		// Flip WITHOUT moving DOM focus: a toggle click blurs the proxy, and onFocusOut then
-		// clears the gap before the choke point ever runs — the flip must be the only actor.
+		// Change mode without moving DOM focus: a toggle click blurs the proxy, and `onFocusOut`
+		// then clears the gap before the shared check runs, and the mode change must be alone.
 		await page.evaluate(() => (window as any).__test.setPresentationMode('reading'));
 
 		await editor.bridge.waitForGapCaret(null);
-		// The choke point is what closes #88; this second read is the belt, and it is
-		// non-discriminating on its own — a cleared gap renders no proxy either way.
+		// The shared check is what closes #88; this second read is a backup and proves nothing
+		// on its own, since a cleared gap renders no proxy either way.
 		await expect(page.locator('[data-gap-caret] [contenteditable="true"]')).toHaveCount(0);
 
 		await page.evaluate(() => (window as any).__test.setPresentationMode('source'));
@@ -132,8 +132,8 @@ test.describe('leaving the gap without minting', () => {
 		});
 	}
 
-	// The shift arm builds its anchor from the focused element, and the proxy is not a block:
-	// it degrades to the plain-click landing instead of anchoring on nothing.
+	// The shift branch builds its anchor from the focused element, and the proxy is not a block,
+	// so it falls back to the plain-click landing instead of anchoring on nothing.
 	test('a shift-click out of a live gap lands like a plain click', async () => {
 		await arriveAtBoundary(editor);
 

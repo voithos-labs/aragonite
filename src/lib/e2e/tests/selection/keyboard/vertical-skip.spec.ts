@@ -6,9 +6,9 @@ const TRANSPARENT_MIDDLE = 'first\n\n![pic](/test-fixtures/sample.png)\n\nthird\
 const LIST_ONLY_TRANSPARENT =
 	'above\n\n- ![pic](/test-fixtures/sample.png)\n- ![pic](/test-fixtures/sample.png)\n\nbelow\n';
 
-// Tall enough to window, so at the top scroll position the tail is UNMOUNTED and the
-// transparency decision for the final block cannot come from a component — it must read
-// the CST.
+// Tall enough to be windowed, so at the top scroll position the tail is unmounted and the
+// decision about whether the final block is transparent cannot come from a component: it has
+// to read the CST.
 const WINDOWED_TAIL_BLOCKS = 800;
 function windowedDocWithTransparentTail(): string {
 	const text = Array.from({ length: WINDOWED_TAIL_BLOCKS }, (_, i) => `para ${i}`).join('\n\n');
@@ -114,8 +114,8 @@ test.describe('selection — keyboard: vertical-skip parity (G1)', () => {
 		const lastIdx = WINDOWED_TAIL_BLOCKS; // the image-only paragraph
 		const lastTextIdx = WINDOWED_TAIL_BLOCKS - 1;
 
-		// If the last block were mounted, a component-gated transparency check would pass too and
-		// the test would be vacuous.
+		// If the last block were mounted, a transparency check that asks the component would
+		// pass too and this would prove nothing.
 		await editor.focusBlockStart(0);
 		expect(await topLevelHostPresent(page, lastIdx)).toBe(false);
 		expect(await topLevelHostPresent(page, lastTextIdx)).toBe(false);
@@ -125,15 +125,15 @@ test.describe('selection — keyboard: vertical-skip parity (G1)', () => {
 
 		const sel = await editor.bridge.getSelectionPaths();
 		expect(sel).not.toBeNull();
-		// Matches the non-windowed result. A component-gated check returns null for the off-window
-		// image, so it is not skipped and focus lands on the image block instead.
+		// Matches the result without windowing. A check that asks the component returns null for
+		// the unmounted image, so it is not skipped and focus lands on the image block instead.
 		expect(sel!.focus.path).toEqual([lastTextIdx]);
 	});
 
 	test('Shift+ArrowRight does not skip a transparent next paragraph (horizontal vs vertical)', async () => {
-		// Horizontal extension must NOT apply vertical-skip — Shift+ArrowRight
-		// across a boundary into an image-only paragraph should land focus on
-		// that paragraph, not skip it. This guards against an over-eager fix.
+		// Horizontal extension must not apply the vertical skip: Shift+ArrowRight across a
+		// boundary into an image-only paragraph lands focus on that paragraph rather than
+		// stepping over it.
 		await editor.loadContent(TRANSPARENT_MIDDLE);
 		await editor.focusBlockEnd(0);
 		await editor.page.keyboard.press('Shift+ArrowRight');

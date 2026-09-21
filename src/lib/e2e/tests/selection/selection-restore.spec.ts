@@ -66,9 +66,9 @@ const imageHostHeight = (page: Page) =>
 	});
 
 /**
- * Setting `scrollTop` to the maximum is NOT equivalent: the windowed scroll height is an
- * estimate that converges only once the tail mounts, so one scroll-to-max leaves the last
- * block below the fold and the click lands on <body>.
+ * Setting `scrollTop` to the maximum is not the same thing: the windowed scroll height is an
+ * estimate that only settles once the tail mounts, so one scroll to the maximum leaves the
+ * last block below the fold and the click lands on `<body>`.
  */
 async function revealAndClick(
 	editor: EditorPage,
@@ -134,9 +134,9 @@ test.describe('selection — setSelection restores a getSelection snapshot', () 
 		const snapshot = await editor.bridge.getSelection();
 		expect(snapshot?.focus.path).toEqual([80]);
 
-		// Past the fold but inside the OVERSCAN band, where the mount primitive short-circuits
-		// with no scroll — the state every other in-view scenario skips by windowing the target
-		// out completely.
+		// Past the fold but inside the band windowing mounts ahead, where the mount call returns
+		// early with no scroll: the state every other in-view scenario skips by leaving the
+		// target unmounted altogether.
 		const scrolled = await page.evaluate(() => {
 			const el = document.querySelector('.editor') as HTMLElement;
 			el.scrollTop += 400;
@@ -153,9 +153,9 @@ test.describe('selection — setSelection restores a getSelection snapshot', () 
 		).not.toBe(scrolled);
 	});
 
-	// A persist-on-change host writes the FIRST payload of the burst, not the settled one, so
-	// a route that notifies while the caret still sits where it is leaving corrupts what the
-	// host stores.
+	// A host that saves on every change writes the first payload of the burst, not the final
+	// one, so a path that notifies while the caret still sits where it is leaving corrupts
+	// what the host stores.
 	const RESTORE_ROUTES: Array<[string, EditorSelection]> = [
 		['collapsed caret', { anchor: { path: [0], offset: 3 }, focus: { path: [0], offset: 3 } }],
 		['within-block range', { anchor: { path: [0], offset: 1 }, focus: { path: [0], offset: 6 } }]
@@ -172,9 +172,9 @@ test.describe('selection — setSelection restores a getSelection snapshot', () 
 				(window as any).__test.stopSelectionChangeCapture()
 			);
 
-			// Exactly two is the CONTRACT: the state channel's batched flush plus the browser's own
-			// `selectionchange` bridge, which cannot be silenced. A third means a mutator escaped the
-			// restore's batch; one means the bridge stopped seeing the placed range.
+			// Exactly two is the contract: the state channel's batched flush plus the browser's
+			// own `selectionchange` bridge, which cannot be silenced. A third means a write
+			// escaped the restore's batch; one means the bridge stopped seeing the range.
 			expect(emissions).toHaveLength(2);
 			for (const emission of emissions) expect(emission).toEqual(restored);
 		});
@@ -192,9 +192,9 @@ test.describe('selection — setSelection restores a getSelection snapshot', () 
 		});
 	});
 
-	// The other first-class selection class beside the caret, and the one restore
-	// route the collapsed and cross-block scenarios never touch: a same-path pair
-	// with distinct offsets goes native, not through the overlay.
+	// The other kind of selection beside the caret, and the one restore path the collapsed
+	// and cross-block scenarios never touch: a pair on the same path with different offsets
+	// goes native, not through the overlay.
 	test('restores a within-block range across the same offsets', async () => {
 		await editor.loadContent(PROSE);
 		await editor.clickBlockAtPath([1], 2);
@@ -253,8 +253,8 @@ test.describe('selection — setSelection restores a getSelection snapshot', () 
 
 		expect(await editor.bridge.setSelection(snapshot!)).toBe(true);
 		// Reading mode turns contenteditable off, so no block can hold the caret as
-		// activeElement — the native range is the observable that reading keeps
-		// selection alive.
+		// `activeElement`, and the native range is the only sign that reading mode keeps
+		// the selection alive.
 		const rangeInTarget = await page.evaluate(
 			(attr) => {
 				const sel = window.getSelection();
@@ -299,9 +299,9 @@ test.describe('selection — setSelection restores a getSelection snapshot', () 
 		expect(pageErrors).toEqual([]);
 	});
 
-	// A host restoring both a caret and a scroll position does the scroll LAST. A durable
-	// top-pin left on the restored block would be re-asserted by any later measure pass and
-	// throw that scroll away.
+	// A host restoring both a caret and a scroll position does the scroll last. A lasting hold
+	// on the restored block's top would be re-applied by any later measure pass and would throw
+	// that scroll away.
 	test('hands the scroll position back once it resolves', async ({ page }) => {
 		const pageErrors = capturePageErrors(page);
 		// After the harness is up (beforeEach) but before any content asks for the image.
@@ -316,16 +316,16 @@ test.describe('selection — setSelection restores a getSelection snapshot', () 
 		expect(await editor.bridge.setSelection(DOCUMENT_START)).toBe(true);
 		await editor.scrollEditorTo(400);
 
-		// The baseline is READ BACK, not asserted: measuring blocks on the way down legitimately
-		// nudges the top-of-viewport correction. Far from the document top is the precondition —
-		// a held pin puts this read back at block 0.
+		// The baseline is read back rather than asserted: measuring blocks on the way down
+		// honestly nudges the top-of-viewport correction. Being far from the document top is
+		// the precondition, since a held position puts this read back at block 0.
 		const hostTop = await scrollTopOf(page);
 		expect(hostTop).toBeGreaterThan(200);
 		const collapsedHeight = await imageHostHeight(page);
 
-		// The image grows BELOW the fold, so the honest top-of-viewport correction is a
-		// no-op — nothing above the anchor block moved, so its offset is unchanged and
-		// the delta is exactly zero. Any movement at all is the pin re-asserting.
+		// The image grows below the fold, so the honest top-of-viewport correction does
+		// nothing: nothing above the held block moved, its offset is unchanged, and the
+		// difference is exactly zero. Any movement at all is the hold re-applying.
 		releaseImage();
 		await expect.poll(() => imageHostHeight(page)).toBeGreaterThan(collapsedHeight + 50);
 		await editor.waitForResizeObserverFlush();

@@ -16,9 +16,9 @@ test.describe('selection — keyboard: edge cases', () => {
 		await editor.waitForCrossBlock(false);
 	});
 
-	// The table sibling of the case above. Asserted through the STATE, never through
-	// `[data-cross-block]`: the attribute is what a phantom pair hides the caret with, so a wait
-	// on it reports a selection nothing paints as no selection at all.
+	// The table sibling of the case above. Asserted through the state, never through
+	// `[data-cross-block]`: that attribute is what a stale pair hides the caret with, so waiting
+	// on it reads a selection nothing paints as no selection at all.
 	test('Shift+ArrowDown out of a last-block table leaves the cell editable', async () => {
 		await editor.loadContent('intro\n\n| aa | bb |\n| -- | -- |\n| cc | wxyz |\n');
 		await editor.page.locator('[role="cell"]').last().click();
@@ -29,8 +29,8 @@ test.describe('selection — keyboard: edge cases', () => {
 		await editor.waitForRenderFlush();
 		expect(await editor.bridge.isCrossBlockActive()).toBe(false);
 
-		// One character, not the cell: a stored pair routes this press into the rectangular
-		// delete, which clears every covered cell in one press and never paints a thing.
+		// One character, not the whole cell: a stored pair would route this press into the
+		// rectangular delete, which clears every covered cell at once and paints nothing.
 		await editor.page.keyboard.press('Backspace');
 		await editor.bridge.waitForSourceContains('| cc | wxy |');
 	});
@@ -63,9 +63,9 @@ test.describe('selection — keyboard: edge cases', () => {
 	});
 
 	test('empty document: double Ctrl+A then typed char replaces the empty block without crashing', async () => {
-		// Asserted through a TYPED character, not through `getSource()` being unchanged: Ctrl+A
-		// mutates nothing, so that would pass trivially. A regression in the double-press
-		// escalation or the type-replace path crashes, adds blocks, or loses the char.
+		// Asserted through a typed character, not through `getSource()` being unchanged: Ctrl+A
+		// changes nothing, so that would pass trivially. A break in the double-press escalation
+		// or in type-replace crashes, adds blocks, or loses the character.
 		await editor.loadContent('\n');
 		await editor.focusBlockStart(0);
 
@@ -76,8 +76,8 @@ test.describe('selection — keyboard: edge cases', () => {
 		await editor.bridge.waitForSourceContains('X');
 
 		expect(await editor.getDomBlockCount()).toBe(1);
-		// The typed char must land in the surviving block. Exact line-ending
-		// shape is browser-controlled and not the regression we're guarding.
+		// The typed character must land in the surviving block. The exact line ending is up
+		// to the browser and is not what this guards.
 		expect(await editor.bridge.getSource()).toContain('X');
 	});
 

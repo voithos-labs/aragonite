@@ -2,15 +2,15 @@ import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 import { CLOSER_BOUNDARY, LAST_CELL, WINDOWED } from './gap-caret-fixtures';
 
-// Arrival at boundaries the root's own flat slice does not answer: inside a container, and
-// at the seam a render window cuts (requirements/selection/gap-caret-arrival-scopes.md).
-// Root arrival and the exit keys are gap-caret-arrival.spec.ts.
+// Arrival at boundaries the root's own flat list does not answer: inside a container, and at
+// the join a render window cuts (`requirements/selection/gap-caret-arrival-scopes.md`).
+// Root arrival and the exit keys are in `gap-caret-arrival.spec.ts`.
 
-// A nested boundary is addressed in its CONTAINER's index space. A stop computed against
-// the root would name a boundary one scope too high, and the discriminator is where the
-// NEXT move lands: root [3] if the scope is right, root [1] if it collapsed to the root's.
+// A nested boundary is addressed in its container's index space. A stop worked out against the
+// root would name a boundary one level too high, and what tells them apart is where the next
+// move lands: root [3] if the level is right, root [1] if it fell back to the root's.
 test.describe('gap caret arrival inside a container', () => {
-	// alpha, bravo, blockquote[fence], charlie — the quote's scope end is its boundary 1.
+	// alpha, bravo, blockquote[fence], charlie: the end of the quote's child list is boundary 1.
 	const NESTED = `alpha\n\nbravo\n\n> \`\`\`\n> code\n> \`\`\`\n\ncharlie\n`;
 
 	test('a scope-end gap is the container’s boundary, not the root’s', async ({ page }) => {
@@ -38,8 +38,8 @@ test.describe('gap caret arrival inside a container', () => {
 	});
 });
 
-// The unit harness cannot see a windowing flush, so the only proof that the gap renders
-// inside a live slice is a document long enough to window.
+// The unit harness cannot see a windowing flush, so the only proof that the gap renders inside
+// a live window is a document long enough to be windowed.
 test.describe('gap caret under virtual rendering', () => {
 	test('a mid-document boundary parks the caret once revealed', async ({ page }) => {
 		const editor = new EditorPage(page);
@@ -47,7 +47,7 @@ test.describe('gap caret under virtual rendering', () => {
 		await editor.loadContent(WINDOWED);
 		expect(await editor.bridge.getBlockKind(100)).toBe('table');
 		expect(await editor.bridge.getBlockKind(101)).toBe('fencedCode');
-		// A CST read passes with windowing off; the mounted-host count is what proves a slice.
+		// A CST read passes with windowing off; the mounted-host count is what proves it is on.
 		const mountedRootHosts = await page.evaluate(
 			() =>
 				[...document.querySelectorAll('[data-block-path]')].filter(

@@ -2,7 +2,7 @@ import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 import { pastLineEnd, runCenter, runStart } from './multi-click-helpers';
 
-// Dragging a selection and dropping it (requirements/selection/selection-drag-drop.md). Drops
+// Dragging a selection and dropping it (`requirements/selection/selection-drag-drop.md`). Drops
 // aim past a line's end or at its first glyph: the two points whose offset no font metric moves.
 
 const TWO = 'alpha beta gamma\n\nsecond para here\n';
@@ -23,8 +23,8 @@ function converged(page: import('@playwright/test').Page): Promise<boolean> {
 	return page.evaluate(() => (window as any).__test.parseConverged());
 }
 
-/** A fresh document has nothing to undo, so a Ctrl+Z that still leaves `expected` is the read for
- *  "the declined gesture put no entry on the stack" — and for "it wrote nothing" at the same time. */
+/** A fresh document has nothing to undo, so a Ctrl+Z that still leaves `expected` says both that
+ *  the declined gesture put no entry on the undo stack and that it wrote nothing. */
 async function undoLeavesDocument(editor: EditorPage, expected: string): Promise<void> {
 	await editor.pressDeclined('Control+z');
 	expect(await editor.page.evaluate(() => (window as any).__test.getSource())).toBe(expected);
@@ -52,7 +52,7 @@ function blockCenter(
 	}, index);
 }
 
-/** A table cell's rendered text beside its own raw: the cell is the editing surface, so the
+/** A table cell's rendered text beside its own raw: the cell is the editable element, so the
  *  block-level read above would compare one cell's DOM against the whole table's bytes. */
 function cellMatchesRaw(
 	page: import('@playwright/test').Page,
@@ -71,7 +71,7 @@ function cellMatchesRaw(
 }
 
 /** The top-level block's rendered text beside its raw: in source mode they are the same string,
- *  so a native edit that leaked past the seam shows here where a tree-only read would miss it. */
+ *  so a native edit the editor never saw shows here where a tree-only read would miss it. */
 function domMatchesRaw(page: import('@playwright/test').Page, index: number): Promise<boolean> {
 	return page.evaluate((i) => {
 		const host = document.querySelector(`[data-block-path='[${i}]']`);
@@ -174,7 +174,7 @@ test.describe('dragging a selection', () => {
 		expect(await page.evaluate(() => (window as any).__test.getSource())).toBe(TWO);
 	});
 
-	// ── Shapes the seam declines: cancelled outright, never half-applied ──
+	// ── Drops the editor declines: cancelled outright, never half applied ──
 
 	test('a drop onto a table cell cancels', async ({ page }) => {
 		await editor.loadContent(CELL_DOC);

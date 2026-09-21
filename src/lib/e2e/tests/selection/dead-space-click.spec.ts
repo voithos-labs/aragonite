@@ -3,7 +3,7 @@ import { EditorPage } from '../../editor-page';
 import { waitForFirstImageLoaded } from '../blocks/image/helpers';
 
 // Clicks in the root's own padding and below the last block
-// (requirements/selection/dead-space-click.md). Both must place a caret: focusing the root
+// (`requirements/selection/dead-space-click.md`). Both must place a caret: focusing the root
 // alone does nothing a user could see.
 
 interface Box {
@@ -32,8 +32,8 @@ async function blockBox(editor: EditorPage, index: number): Promise<Box> {
 	return { left: r.x, right: r.x + r.width, top: r.y, bottom: r.y + r.height };
 }
 
-// The band directly under the last block is the tail row's (`TailInsert`: a press there appends
-// a paragraph), so the dead space these clicks aim at starts below it, inside the root.
+// The band directly under the last block belongs to the tail row (`TailInsert`: a click there
+// appends a paragraph), so the dead space these clicks aim at starts below it, inside the root.
 async function belowDocumentY(editor: EditorPage): Promise<number> {
 	const tail = await editor.page.locator('.editor-tail').boundingBox();
 	const root = await rootBox(editor);
@@ -41,7 +41,7 @@ async function belowDocumentY(editor: EditorPage): Promise<number> {
 	return Math.min((tail ? tail.y + tail.height : last.bottom) + 8, root.bottom - 4);
 }
 
-// A press at offset 0 of block 0: a press a few pixels into the box lands after the first
+// A click at offset 0 of block 0: a click a few pixels into the box lands after the first
 // glyph in a proportional face, and the selection then starts one character in.
 async function blockStartPoint(editor: EditorPage): Promise<{ x: number; y: number }> {
 	return editor.pointForOffset([0], 0);
@@ -120,8 +120,8 @@ test.describe('dead-space clicks place a caret', () => {
 		const para = await blockBox(editor, 0);
 		await editor.page.mouse.click(root.right - 5, para.top + 6);
 
-		// Assert the outcome before the mechanism, so a regression reds on "the
-		// document was eaten" rather than on a locator timeout for the overlay.
+		// Assert the outcome before the mechanism, so a break fails on "the document was
+		// eaten" rather than on a locator timeout for the overlay.
 		await editor.typeText('X');
 		await editor.bridge.waitForSourceContains('X');
 		const source = await editor.bridge.getSource();
@@ -130,8 +130,8 @@ test.describe('dead-space clicks place a caret', () => {
 		expect(await editor.bridge.isCrossBlockActive()).toBe(false);
 	});
 
-	// A drag that started ON a block and released in the margin reports the ROOT as
-	// its click target — the common ancestor of press and release — so `click` alone
+	// A drag that started on a block and released in the margin reports the root as its click
+	// target, since the root is the common ancestor of press and release, so `click` alone
 	// cannot tell it from a dead-space click.
 	test('a cross-block drag released in the margin keeps its selection', async () => {
 		await editor.loadContent('first para\n\nsecond para\n\nthird para\n');
@@ -147,10 +147,10 @@ test.describe('dead-space clicks place a caret', () => {
 		expect(await editor.bridge.isCrossBlockActive()).toBe(true);
 	});
 
-	// A table addresses cells, not characters: there is no line for a click beside it to land on,
-	// so a click that was not ON the table never lands in a cell — the thematic-break rule, for
-	// the same reason. Below the document the gap caret's own rule still applies (a trailing
-	// table must stay typable after), so the byte may open a paragraph, never a cell.
+	// A table addresses cells, not characters: there is no line for a click beside it to land
+	// on, so a click that was not on the table never lands in a cell, the same rule a thematic
+	// break gets for the same reason. Below the document the gap caret's own rule still applies
+	// (a trailing table must stay typable after), so the byte may open a paragraph, never a cell.
 	test('a click below a table lands in no cell', async () => {
 		await editor.loadContent('lead\n\n| A | B |\n| --- | --- |\n| 1 | 2 |\n');
 		const root = await rootBox(editor);
@@ -164,9 +164,9 @@ test.describe('dead-space clicks place a caret', () => {
 		expect(source).not.toMatch(/\|[^|\n]*![^|\n]*\|/);
 	});
 
-	// Level with a body row, where the old rule picked that row's cell. No live range here: a
-	// margin press collapses one to its focus end, which can itself be a cell, and that is the
-	// collapse's answer rather than the click's.
+	// Level with a body row, where picking by row would choose that row's cell. No live range
+	// here: a click in the margin collapses one to its focus end, which can itself be a cell,
+	// and that answer comes from the collapse rather than from the click.
 	test('a click beside a table lands in no cell', async () => {
 		await editor.loadContent('lead\n\n| A | B |\n| --- | --- |\n| 1 | 2 |\n| 3 | 4 |\n');
 		const root = await rootBox(editor);
@@ -184,9 +184,9 @@ test.describe('dead-space clicks place a caret', () => {
 		expect(focusedKind).not.toBe('table');
 	});
 
-	// The landed offset abuts an atomic widget, where Chromium paints no caret and nothing can
-	// ask whether it did — so the synthetic indicator is the only observable that says the
-	// landing has a visual representation. A click INSIDE the block at the same point paints it.
+	// The offset it lands on sits against a widget the caret cannot enter, where Chromium paints
+	// no caret and nothing can ask whether it did, so the editor's own marker is the only sign
+	// the landing is visible at all. A click inside the block at the same point paints it.
 	test('a click beside a widget-only line lands the caret on the widget’s edge', async () => {
 		await editor.loadContent('lead\n\n![cat](/test-fixtures/sample.png)\n\ntail\n');
 		// The row's y is derived from the widget's box, which moves when the <img> decodes.
@@ -199,15 +199,15 @@ test.describe('dead-space clicks place a caret', () => {
 
 		await expect(editor.page.locator('[data-image-widget].md-snap-after')).toHaveCount(1);
 		// The offset the snap lands on is the one the click already resolved: after the image.
-		// A real keystroke, because an element-level position beside an atomic widget is
+		// A real keystroke, because a position beside a widget the caret cannot enter is
 		// reached by the caret-edge dispatch, which only a keydown fires.
 		await editor.typeSlowly('Z');
 		await editor.bridge.waitForSourceContains('Z');
 		expect(await editor.bridge.getSource()).toContain('sample.png)Z');
 	});
 
-	// A rule holds no character position, so the click declines rather than handing
-	// it the whole-block focus a click ON the rule means.
+	// A rule holds no character position, so the click declines rather than handing it the
+	// whole-block focus that a click on the rule itself means.
 	test('a document ending in a thematic break is not focused by the click below it', async () => {
 		await editor.loadContent('lead\n\n---\n');
 		const root = await rootBox(editor);
@@ -225,8 +225,9 @@ test.describe('dead-space clicks place a caret', () => {
 });
 
 // A host that widens and pads the block list moves the visible side gutter off the root and
-// onto the LIST, which reports its own identity — so the whole band went unclaimed. The
-// `?paddedList=on` harness applies that layout (requirements/selection/dead-space-click.md).
+// onto the list, which reports itself as the click target, so nothing handles that whole band.
+// The `?paddedList=on` harness applies that layout
+// (`requirements/selection/dead-space-click.md`).
 test.describe('dead-space clicks in a host-padded block list', () => {
 	let editor: EditorPage;
 
@@ -255,8 +256,8 @@ test.describe('dead-space clicks in a host-padded block list', () => {
 		expect((await editor.bridge.getSource()).trim()).toBe('first para!\n\nsecond para');
 	});
 
-	// The press half still discriminates: a drag that STARTED on a block reports the list as
-	// its click target too, and collapsing there would throw away the selection.
+	// The press is still what tells them apart: a drag that started on a block reports the list
+	// as its click target too, and collapsing there would throw away the selection.
 	test('a drag-select released in the list’s padding keeps its selection', async () => {
 		await editor.loadContent('first para\n\nsecond para\n');
 		const list = await listBox();

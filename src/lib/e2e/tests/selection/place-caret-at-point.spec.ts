@@ -1,9 +1,9 @@
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 
-// The public caret door, driven through the bridge the way a host shell answering a click on
-// its own chrome calls it (requirements/selection/place-caret-at-point.md). No mouse: the
-// point is a number pair the shell read off its own element, which is the whole contract.
+// The public caret-placing method, driven through the bridge the way a host shell answering a
+// click on its own toolbar calls it (`requirements/selection/place-caret-at-point.md`). No
+// mouse: the point is a number pair the shell read off its own element, which is the contract.
 
 interface Box {
 	left: number;
@@ -38,8 +38,8 @@ test.describe('placeCaretAtPoint is the host shell’s caret door', () => {
 		return { left: r.x, right: r.x + r.width, top: r.y, bottom: r.y + r.height };
 	}
 
-	// Below the editor box entirely — the shell's own territory, a point no click on the
-	// editor could produce, which is what makes this the method's reason to exist.
+	// Below the editor box entirely: the shell's own area, a point no click on the editor
+	// could produce, which is what makes this the method's reason to exist.
 	test('a point below the whole editor lands the caret at the document end', async () => {
 		await editor.loadContent('first para\n\nsecond para\n');
 		const root = await rootBox();
@@ -65,8 +65,8 @@ test.describe('placeCaretAtPoint is the host shell’s caret door', () => {
 		expect(source.trim().endsWith('!')).toBe(false);
 	});
 
-	// Not dead-space-only: the shell's decision to call is the gate, so a point over the
-	// text resolves there like any other.
+	// Not dead space only: the shell's decision to call is the only check, so a point over
+	// the text resolves there like any other.
 	test('a point over a block’s own text lands the caret in it', async () => {
 		await editor.loadContent('first para\n\nsecond para\n');
 		const para = await blockBox(0);
@@ -94,8 +94,8 @@ test.describe('placeCaretAtPoint is the host shell’s caret door', () => {
 		expect(focusedKind).toBe('none');
 	});
 
-	// The G2.12 shape: a caret placed while a cross-block range stays live leaves the range
-	// painted over it, and the next printable key type-replaces the whole document.
+	// Placing a caret while a cross-block range stays live would leave the range painted over
+	// it, and the next printable key would replace the whole document (G2.12).
 	test('the landing ends a live cross-block range', async () => {
 		await editor.loadContent('first para\n\nsecond para\n\nthird para\n');
 		await editor.focusBlockStart(0);

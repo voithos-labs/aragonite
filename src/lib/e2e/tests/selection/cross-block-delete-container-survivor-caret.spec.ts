@@ -3,8 +3,8 @@ import { EditorPage } from '../../editor-page';
 
 const TABLE_2x3 = '| A | B |\n| --- | --- |\n| 1 | 2 |\n| 3 | 4 |\n';
 
-// A container survivor must be DESCENDED to its deepest leaf's end: a char offset on the
-// container's own path names bytes no leaf owns, and the restore mis-lands.
+// A surviving container must be walked down to its deepest leaf's end: a character offset on
+// the container's own path names bytes no leaf owns, and the restore lands in the wrong place.
 test.describe('cross-block delete: container survivor caret', () => {
 	let editor: EditorPage;
 
@@ -28,9 +28,9 @@ test.describe('cross-block delete: container survivor caret', () => {
 		await page.keyboard.press('Backspace');
 		await editor.bridge.waitForSourceNotContains('| --- | --- |');
 
-		// The typed char must land at the end of the blockquote's last leaf, proving
-		// the survivor descended into the leaf rather than parking on the container
-		// path (where it would clamp to the block start or the wrong leaf).
+		// The typed character must land at the end of the blockquote's last leaf, proving the
+		// caret walked into the leaf rather than stopping on the container path, where it
+		// would clamp to the block start or the wrong leaf.
 		await page.keyboard.type('X');
 		await editor.bridge.waitForSourceContains('bravoX');
 

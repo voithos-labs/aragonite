@@ -9,9 +9,8 @@ test.describe('selection — getSelection() reports within-block ranges (Task 4)
 		await editor.goto();
 	});
 
-	// A single-block selection must surface distinct anchor/focus raw offsets, so a
-	// consumer can read (start, end) for the common selection shape rather than a
-	// collapsed caret.
+	// A single-block selection must report distinct anchor and focus raw offsets, so a consumer
+	// can read (start, end) for the common selection shape rather than a collapsed caret.
 	test('a forward within-block selection reports distinct anchor and focus offsets', async () => {
 		await editor.loadContent('Hello world\n');
 		await editor.focusBlock(0, 0);

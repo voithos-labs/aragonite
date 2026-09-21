@@ -2,7 +2,7 @@ import { test, expect } from '../../fixtures';
 import { PluginsPage } from '../plugins/helpers';
 import { nativeSelectionText, pastLineEnd, runCenter } from './multi-click-helpers';
 
-// The word rung of the click ladder (requirements/selection/multi-click-word.md), driven with
+// The word level of the click order (`requirements/selection/multi-click-word.md`), driven with
 // real double-clicks on the plugins page so a rendered formula stands beside the word.
 
 test.describe('multi-click: the word rung', () => {

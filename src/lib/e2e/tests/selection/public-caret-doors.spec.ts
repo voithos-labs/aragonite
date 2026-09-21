@@ -1,11 +1,11 @@
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 
-// The public caret doors, exercised with a cross-block range LIVE
-// (requirements/selection/public-caret-doors.md). No gesture-level spec reaches them: every
+// The public caret-placing methods, exercised while a cross-block range is live
+// (`requirements/selection/public-caret-doors.md`). No gesture-level spec reaches them: every
 // built-in placement goes through a path that ends the range on its way in. `focus` and
-// `setSelection` both end the old range; `parkCaret` is the marked exception the cross-block
-// dispatcher uses while an extend is still growing one.
+// `setSelection` both end the old range; `parkCaret` is the one exception, used by the
+// cross-block dispatcher while an extend is still growing a range.
 
 test.describe('public caret doors with a cross-block range live', () => {
 	let editor: EditorPage;
@@ -35,8 +35,8 @@ test.describe('public caret doors with a cross-block range live', () => {
 		expect(source).toContain('third para');
 	});
 
-	// The caret lands at a path INSIDE the live range, so a pass cannot come from the position
-	// happening to fall outside it — the shape a whole-document delete slips through.
+	// The caret lands at a path inside the live range, so a pass cannot come from the position
+	// happening to fall outside it, which is the shape a whole-document delete slips through.
 	test('BlockComponent.focus ends the range, so the next keystroke replaces nothing', async () => {
 		const placed = await editor.page.evaluate(() =>
 			(
@@ -56,8 +56,8 @@ test.describe('public caret doors with a cross-block range live', () => {
 		expect(source).toContain('third para');
 	});
 
-	// `parkCaret` is the door `revealActiveEndpoint` uses while an extend is still growing the
-	// range, so it must NOT end one. Ridden by `extend-offwindow-endpoint`,
+	// `parkCaret` is what `revealActiveEndpoint` calls while an extend is still growing the
+	// range, so it must not end one. Also covered by `extend-offwindow-endpoint`,
 	// `keyboard/vertical-skip`, and `cross-block-delete-container-survivor-caret`.
 	test('BlockComponent.parkCaret leaves the range live', async () => {
 		const parked = await editor.page.evaluate(() =>

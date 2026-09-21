@@ -2,13 +2,14 @@ import { test, expect } from '../../fixtures';
 import { PluginsPage } from '../plugins/helpers';
 import { runCenter } from './multi-click-helpers';
 
-// The block rung on a widget-dense paragraph (requirements/selection/multi-click-block-widgets.md),
-// driven on the math seed so the formulas are real rendered islands.
+// Triple-click, the block level of the click order, on a widget-dense paragraph
+// (`requirements/selection/multi-click-block-widgets.md`), driven on the math seed so the
+// formulas are really rendered widgets.
 
 const SHOWCASE_PARAGRAPH =
 	'Let a system of plane waves of light, referred to the system of co-ordinates $(x, y, z)$, possess the energy $l$; let the direction of the ray (the wave-normal) make an angle $\\varphi$ with the axis of $x$ of the system. If we introduce a new system of co-ordinates $(\\xi, \\eta, \\zeta)$ moving in uniform parallel translation with respect to the system $(x, y, z)$, and having its origin of co-ordinates in motion along the axis of $x$ with the velocity $v$, then this quantity of light—measured in the system $(\\xi, \\eta, \\zeta)$—possesses the energy\n';
 
-/** The selected text's two ends, so one read pins both boundaries of the rung's range. */
+/** The selected text's two ends, so one read pins both boundaries of the range. */
 function selectionEnds(page: import('@playwright/test').Page): Promise<[string, string]> {
 	return page.evaluate(() => {
 		const text = window.getSelection()?.toString() ?? '';
@@ -16,8 +17,8 @@ function selectionEnds(page: import('@playwright/test').Page): Promise<[string, 
 	});
 }
 
-/** Whether the selection ends at `tail` and opens before it — the widget-inclusive read for a
- *  paragraph whose leading formula renders as text no assertion can spell. */
+/** Whether the selection ends at `tail` and opens before it: the read that includes the widget,
+ *  for a paragraph whose leading formula renders as text no assertion can spell. */
 function reachesBothEnds(
 	page: import('@playwright/test').Page,
 	tail: string
@@ -45,7 +46,7 @@ test.describe('multi-click: the block rung beside inline widgets', () => {
 			await page.mouse.click(at.x, at.y, { clickCount: 3 });
 			const ends: [string, string] = ['Let a system of plane waves', 'possesses the energy'];
 			await expect.poll(() => selectionEnds(page)).toEqual(ends);
-			// The rung's own release already settled; a caret seated later would drop the range.
+			// The release has already been handled; a caret placed later would drop the range.
 			await page.waitForTimeout(150);
 			await expect.poll(() => selectionEnds(page)).toEqual(ends);
 		});

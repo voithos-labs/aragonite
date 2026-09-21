@@ -2,10 +2,10 @@ import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 
 /**
- * Cross-block type-replace re-derives the surviving leaf's kind
- * (requirements/selection/cross-block-type-replace-kind.md). A block marker typed over a
- * range collapsing to offset 0 must re-parse the survivor INSIDE the commit, at parity with
- * the single-block path — otherwise the raw carries the marker while the kind stays stale.
+ * Typing over a cross-block range works out the surviving leaf's kind again
+ * (`requirements/selection/cross-block-type-replace-kind.md`). A block marker typed over a
+ * range collapsing to offset 0 must reparse the survivor inside the same commit, the way the
+ * single-block path does, or the raw carries the marker while the kind stays stale.
  */
 
 async function nestedKind(page: EditorPage['page'], path: number[]): Promise<string | undefined> {
@@ -45,8 +45,8 @@ test.describe('cross-block type-replace — kind re-derivation', () => {
 		expect((await editor.bridge.getSource()).replace(/\s+$/, '')).toBe('#');
 	});
 
-	// The chord arm of the same replace: the door declines `heading.cycle` while a range is
-	// painted, and this is the path that must keep landing — the range is gone before it dispatches.
+	// The chord branch of the same replace: the command declines `heading.cycle` while a range
+	// is painted, and this path must still land, because the range is gone before it dispatches.
 	test('a heading chord over the same selection deletes the range and marks the survivor', async () => {
 		await editor.loadContent('aaa\n\nbbb\n');
 
@@ -73,8 +73,8 @@ test.describe('cross-block type-replace — kind re-derivation', () => {
 		await editor.waitForCrossBlock(false);
 		await editor.bridge.waitForSourceContains('> >');
 
-		// The container-scope commit path re-derives the survivor's kind and rebuilds
-		// the ancestor raw — the blockquote child becomes a nested blockquote.
+		// The commit inside the container works out the survivor's kind again and rebuilds the
+		// ancestor raw: the blockquote child becomes a nested blockquote.
 		expect(await nestedKind(editor.page, [0, 0])).toBe('blockquote');
 		await expect(
 			editor.page.locator("[data-block-path='[0,0]'][data-block-kind='blockquote']")

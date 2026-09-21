@@ -4,16 +4,16 @@ import { PluginsPage } from '../plugins/helpers';
 
 /**
  * A drag inside a block with no character position selects it whole, and every destructive
- * gesture over that range goes through the range door
- * (requirements/selection/whole-unit-range.md). Focus parks on the editor root, so the root's
- * own arms are the only ones a keystroke or a clipboard event can reach.
+ * gesture over that range goes through the range command
+ * (`requirements/selection/whole-unit-range.md`). Focus stays on the editor root, so the
+ * root's own handlers are the only ones a keystroke or a clipboard event can reach.
  * Miss-analysis: the existing coverage pinned Backspace and the copy bytes; nothing typed a
  * character over such a range, and nothing asked where a pasted block landed.
  */
 
 const DOC = 'above\n\n---\n\nbelow\n';
 
-/** A held sweep across the block's middle: the unit joins the range the moment the pointer moves. */
+/** A held drag across the block's middle: the block joins the range as soon as the pointer moves. */
 async function dragInside(editor: EditorPage, selector: string): Promise<void> {
 	const box = await editor.page.locator(selector).boundingBox();
 	if (!box) throw new Error(`no box for ${selector}`);
@@ -43,7 +43,7 @@ test.describe('a whole-unit range — thematic break', () => {
 		expect(await editor.bridge.getBlockKind(1)).toBe('paragraph');
 		expect(await editor.bridge.isCrossBlockActive()).toBe(false);
 
-		// The caret sits after the character it landed, not at the block's head.
+		// The caret sits after the character that landed, not at the block's start.
 		await editor.typeSlowly('y');
 		await editor.bridge.waitForSourceEquals('above\n\nxy\n\nbelow\n');
 	});

@@ -104,12 +104,12 @@ test.describe('selection undo — cross-block restore', () => {
 		await editor.bridge.waitForSourceEquals(before);
 	});
 
-	// Regression: post-undo blockRefs alignment for moved components.
+	// After an undo, `blockRefs` must line up again with the components the undo moved.
 	test('post-undo blockRefs realign — table column drag selects cells, not the next paragraph', async ({
 		page
 	}) => {
-		// Use a minimal showcase-shaped fixture: paragraph-paragraph cross-block
-		// delete + a table downstream.
+		// A small showcase-shaped fixture: a cross-block delete over two paragraphs, with a
+		// table below it.
 		const fixture = [
 			'one\n',
 			'two\n',
@@ -171,7 +171,7 @@ test.describe('selection undo — cross-block restore', () => {
 		const sel = await editor.bridge.getSelectionPaths();
 		await page.mouse.up();
 
-		// Intra-table selection: anchor.path === focus.path with cell-index
+		// A selection inside the table: `anchor.path` equals `focus.path` with cell-index
 		// offsets, not a cross-block jump into the next paragraph.
 		expect(sel).not.toBeNull();
 		expect(sel!.anchor.path).toEqual(sel!.focus.path);

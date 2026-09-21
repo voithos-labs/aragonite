@@ -1,7 +1,7 @@
 import type { Page } from '@playwright/test';
 
 /** Viewport centre of the first rendered run of `needle` in the editor: the aim point for a
- *  press on a word, measured live so a revealed source or a cell reads the same. */
+ *  click on a word, measured live so shown source or a cell reads the same. */
 export async function runCenter(page: Page, needle: string): Promise<{ x: number; y: number }> {
 	const at = await page.evaluate((w) => {
 		const root = document.querySelector('.editor')!;
@@ -50,7 +50,7 @@ export async function multiClickDrag(
 }
 
 /** A point a little past the end of the first rendered run of `needle`'s line, still inside the
- *  block's box: where a press lands on no glyph. */
+ *  block's box: where a click lands on no glyph. */
 export async function pastLineEnd(page: Page, needle: string): Promise<{ x: number; y: number }> {
 	const at = await page.evaluate((w) => {
 		const walker = document.createTreeWalker(
@@ -120,8 +120,8 @@ export async function gutterLeftOf(page: Page, needle: string): Promise<{ x: num
 	return at;
 }
 
-/** The centre of the ambient `- ` marker inside the editable holding `needle`: an island inside
- *  the surface, not the surface's text. */
+/** The centre of the `- ` marker the container draws inside the editable holding `needle`: a
+ *  widget inside the editable element, not part of its text. */
 export async function markerCenterOf(
 	page: Page,
 	needle: string

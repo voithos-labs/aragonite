@@ -10,8 +10,9 @@ import {
 	runCenter
 } from './multi-click-helpers';
 
-// The block rung and the drags a multi-click starts (requirements/selection/multi-click-drag.md).
-// Cross-block ranges are read from the editor's own endpoints: the native range is blank there.
+// Triple-click and the drags a multi-click starts
+// (`requirements/selection/multi-click-drag.md`). Cross-block ranges are read from the editor's
+// own endpoints: the native range is blank there.
 
 const THREE = 'alpha beta gamma\n\nsecond para here\n\nthird one\n';
 
@@ -30,8 +31,8 @@ test.describe('multi-click: the block rung and drags', () => {
 		await expect.poll(() => nativeSelectionText(page)).toBe('second para here');
 	});
 
-	// The browser seats a caret on the release of a press that landed on no glyph, over whatever
-	// range the press painted; the ladder cancels that release.
+	// The browser puts a caret down on the release of a press that landed on no glyph, over
+	// whatever range the press painted; the click handling cancels that release.
 	test('a triple-click past the end of a line still selects the paragraph', async ({ page }) => {
 		const at = await pastLineEnd(page, 'gamma');
 		await page.mouse.click(at.x, at.y, { clickCount: 3 });

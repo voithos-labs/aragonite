@@ -2,9 +2,9 @@ import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 import type { Page } from '@playwright/test';
 
-// A click beside a run of flush atomic islands snaps to the edge NEAREST the point, not to the
-// first island the point is past (requirements/selection/click-past-widget-run.md). Decoded
-// entities stand in for any glyph island: they need no plugin and no image decode.
+// A click beside a run of touching widgets snaps to the edge nearest the point, not to the
+// first widget the point is past (`requirements/selection/click-past-widget-run.md`). Decoded
+// entities stand in for any glyph widget: they need no plugin and no image decode.
 
 const RUN = 'lead\n\nend &hearts;&hearts;&hearts;&spades;\n\ntail\n';
 const LONE = 'lead\n\nend &hearts;\n\ntail\n';
@@ -17,7 +17,7 @@ async function islandRects(page: Page): Promise<DOMRect[]> {
 	);
 }
 
-/** Click a comfortable margin past the last island, the gesture a reader makes to reach the end
+/** Click a comfortable margin past the last widget, the gesture a user makes to reach the end
  *  of the line, and report the line the typed character landed in. */
 async function typeAfterClickPastLastIsland(editor: EditorPage): Promise<string> {
 	const islands = await islandRects(editor.page);
