@@ -25,7 +25,7 @@ export async function undoDepth(page: Page): Promise<number> {
 }
 
 /** The dead space past the first image's right edge, clamped inside the paragraph box: the
- *  wrap-boundary position where Chromium parks the caret at the image's end offset. */
+ *  wrap-boundary position where Chromium puts the caret at the image's end offset. */
 export async function pointPastImageRightEdge(page: Page): Promise<{ x: number; y: number }> {
 	const widget = page.locator('[data-image-widget]').first();
 	const para = widget.locator('xpath=ancestor::*[@contenteditable="true"]');

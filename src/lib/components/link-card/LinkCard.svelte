@@ -55,10 +55,8 @@
 	$effect(() => {
 		if (focusEpoch === focusedEpoch) return;
 		focusedEpoch = focusEpoch;
-		// After the tick, not now: this child's effect runs before the host's, so the card still
-		// sits at the editor's origin and focusing the field here would scroll the viewport to
-		// the top of the document. Once the host has placed the card, the focus scrolls no
-		// further than showing the field needs.
+		// After the tick, not now: focusing the field before the host has placed the card, while it
+		// still sits at the editor's origin, scrolls the viewport to the top of the document.
 		void tick().then(() => {
 			urlInput?.focus();
 			urlInput?.select();

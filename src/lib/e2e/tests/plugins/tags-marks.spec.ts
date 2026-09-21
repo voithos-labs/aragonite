@@ -5,7 +5,7 @@ import { PluginsPage, capturedErrors } from './helpers';
  * In-body tags the other way (`routes/test/plugins/tags/tag-marks-plugin.ts`): a mark decoration
  * over ordinary text instead of an inline widget. A tag's source is its display, so there is
  * nothing for a widget to uncover, and no non-editable widget to cost the caret, the one-press
- * Backspace or any other gesture. Seed `tags-marks` carries the same document as the widget
+ * Backspace or any other gesture. Seed `tags-marks` holds the same document as the widget
  * tests (`tags.md`), so the two models are compared on the same bytes.
  * Requirements: e2e/requirements/plugins/tags-marks.md.
  */
