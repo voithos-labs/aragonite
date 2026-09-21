@@ -13,7 +13,7 @@ scroll container's height, so the slice must recompute.
 
 ## Edge cases
 
-- The held block is measured relative to the editor, not the browser viewport: a resize reflows the harness's own controls above the editor's slot, a shift the anchor correction is not responsible for.
+- The held block is measured relative to the editor, not the browser viewport: a resize reflows the harness's own controls above the editor, a shift the anchor correction is not responsible for.
 - The height path now runs an anchor correction where none ran before, so the user must not be thrown while the band fills.
 
 ## Error cases

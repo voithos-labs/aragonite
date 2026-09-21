@@ -2,8 +2,8 @@
 
 The right-click menu on a paragraph or heading carries the clipboard rows and, below a divider,
 an "Insert block" flyout listing the empty blocks the editor can add (lists, quote,
-divider, code block, table, and a plugin's blocks while it is installed). A pick mints an empty
-paragraph after the block under the pointer and lands the snippet in it, so the new block is
+divider, code block, table, and a plugin's blocks while it is installed). Choosing one creates an
+empty paragraph after the block under the pointer and puts the snippet in it, so the new block is
 empty and the caret is inside it.
 
 ## Happy paths
@@ -15,7 +15,7 @@ empty and the caret is inside it.
 
 ## Where the row is absent
 
-- Inside a table cell (the table's own menu), a code fence, a revealed equation source, or any
+- Inside a table cell (the table's own menu), a code fence, an equation showing its source, or any
   nested block (a list item, a blockquote child): a sibling there is not what the click meant, so
   the menu is the clipboard alone.
 - Over a live selection: the menu is the selection's clipboard menu.

@@ -2,7 +2,7 @@
 
 ## Happy paths
 
-- Type 5 chars (batch A), press Enter to split (structural op), type 5 chars in the new block (batch B). Three Ctrl+Z presses walk back in order: batch B → split → batch A. Fourth Ctrl+Z is a no-op on the original doc.
+- Type 5 chars (batch A), press Enter to split (structural op), type 5 chars in the new block (batch B). Three Ctrl+Z keypresses walk back in order: batch B → split → batch A. Fourth Ctrl+Z does nothing to the original doc.
 
 ## Edge cases
 

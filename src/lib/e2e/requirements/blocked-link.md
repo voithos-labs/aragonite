@@ -1,6 +1,6 @@
 # Feature: Blocked-scheme links
 
-A rendered link or autolink whose (post-`resolveLinkUrl`) scheme is not allowlisted is neutralized at the render sink so it cannot execute or navigate.
+A rendered link or autolink whose (post-`resolveLinkUrl`) scheme is not allowlisted is made inert in the render path so it cannot execute or navigate.
 
 ## Error cases
 

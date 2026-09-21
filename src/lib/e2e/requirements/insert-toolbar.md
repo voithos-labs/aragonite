@@ -6,8 +6,8 @@ A shared demo component, mounted always by the `/` showcase and behind
 every construct is a canonical Markdown snippet through `insertMarkdown`, a
 plugin's included, so the bar carries no per-construct API. The buttons
 cancel their own mousedown default so the caret never leaves the document,
-and they grey while the editor holds no caret — the same no-caret decline
-`insertMarkdown` answers, read off `selectionChange` ahead of the click.
+and they grey while the editor holds no caret, the same refusal
+`insertMarkdown` would make with no caret, read off `selectionChange` before the click.
 
 ## Happy paths
 
@@ -20,13 +20,13 @@ and they grey while the editor holds no caret — the same no-caret decline
 
 - every button greys before the document holds a caret and enables after a
   real click into a block
-- the buttons grey again when focus leaves the editor for host chrome: the
-  editor announces the departure on `selectionChange` even though the native
-  range survives unfocused (miss-analysis: the greying was only ever driven
-  towards enabled, so the channel's silence on a user blur went unobserved)
-- an insert press cancels its own mousedown default, so the caret survives
-  the click and the door has a position to insert at (the happy paths fail
-  without it: a focus-stealing button makes the door decline)
+- the buttons grey again when focus leaves the editor for the host's own controls: the
+  editor announces the departure on `selectionChange` even though the browser's
+  range survives unfocused (miss-analysis: the greying was only ever tested on
+  the way to enabled, so the event's silence when the user blurs went unobserved)
+- a click on an insert button cancels its own mousedown default, so the caret survives
+  the click and `insertMarkdown` has a position to insert at (the happy paths fail
+  without it: a button that steals focus makes the call decline)
 
 ## Error cases
 
