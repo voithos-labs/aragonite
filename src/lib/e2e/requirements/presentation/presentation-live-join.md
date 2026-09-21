@@ -1,33 +1,35 @@
 # Feature: live-mode destructive joins (the seam a delete leaves)
 
-A selection in live mode runs over bytes the reader cannot see. Deleting from inside `**bold**`
+A selection in live mode runs over bytes the user cannot see. Deleting from inside `**bold**`
 to inside `*italic*` byte-literally leaves `**bo` joined to `alic*`, and both runs print the
-moment the block re-renders — the delimiters the mode exists to hide. The contract: a destructive
-join DROPS the runs its cut stranded and the closer/opener pair it brings back to back, so the
-joined text carries no delimiter the reader never typed; where the two sides still make one
-construct across the seam, the construct survives instead. Delete, cut and type-over take the
-same seam, and so does a paste's delete half. Driven on `/test/editor` via
-`?presentationMode=live` with real clicks, real Shift-extends and real chords; the SOURCE is the
-oracle, since a hidden delimiter and an absent one look identical on screen.
+moment the block re-renders: the delimiters the mode exists to hide. The contract: a destructive
+join drops the runs its cut stranded and the closer and opener it brings back to back, so the
+joined text carries no delimiter the user never typed; where the two sides still make one
+construct across the join, the construct survives instead. Delete, cut and type-over go through
+the same cleanup, and so does the delete half of a paste. Driven on `/test/editor` via
+`?presentationMode=live` with real clicks, real Shift-extends and real chords; the source is
+what each scenario checks against, since a hidden delimiter and an absent one look identical on
+screen.
 
 ## Happy paths
 
 - a selection from inside bold to inside italic, deleted with Backspace, leaves the joined text
   with neither `**` nor `*` in the source
-- the same selection cut with `Mod+X` leaves the same bytes, and the clipboard carries the SOURCE
-  slice the selection covered — live copy yields source bytes, not the visible text
-- the same selection typed over inserts the character at the seam the cleanup left, with no
+- the same selection cut with `Mod+X` leaves the same bytes, and the clipboard carries the source
+  slice the selection covered: a copy in live mode yields source bytes, not the visible text
+- the same selection typed over inserts the character at the join the cleanup left, with no
   delimiter around it
 - a selection from inside a construct in one paragraph into the next joins the two on the same
-  terms; once the selection crosses a boundary the extend walks whole blocks, so the far endpoint
-  is a block head and the two-sided cross-block case is unit-pinned rather than driven here
-- a paste over that selection lands its text at the cleaned seam: the cleanup runs in the delete
-  half, and the re-parse that follows the insert settles the rest
+  terms; once the selection crosses a boundary the extension steps over whole blocks, so the far
+  endpoint is a block head, and the case with a construct on both sides is pinned by unit tests
+  rather than driven here
+- a paste over that selection lands its text at the cleaned join: the cleanup runs in the delete
+  half, and the re-parse after the insert fixes up the rest
 
 ## Edge cases
 
-- a selection that starts and ends inside the SAME construct keeps it: its opener and closer meet
-  across the seam, which is what the reader had, so nothing is dropped
+- a selection that starts and ends inside the same construct keeps it: its opener and closer meet
+  across the join, which is what the user had, so nothing is dropped
 - a selection over plain text is untouched by the mode: the same bytes go, and no rewrite runs
 - one `Mod+Z` restores the original block, bytes identical
 
@@ -46,6 +48,7 @@ oracle, since a hidden delimiter and an absent one look identical on screen.
 
 ## Miss analysis
 
-The split seam got its pin in the wave before this one; the JOIN seam had none, and the residue an
-Enter-then-Backspace left shipped as a known defect for exactly that reason. The generalized
-answer: a gesture that moves a block boundary needs a pin on both directions of the move, not one.
+The split cleanup got its pin in the batch before this one; the join cleanup had none, and the
+residue an Enter-then-Backspace left shipped as a known defect for exactly that reason. The
+general answer: a gesture that moves a block boundary needs a pin on both directions of the move,
+not one.

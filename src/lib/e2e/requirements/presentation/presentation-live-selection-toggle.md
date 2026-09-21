@@ -2,20 +2,20 @@
 
 The § 5 contract row "Mod+B over a selection → wrap/unwrap selection, one undo
 entry". A selection toggle is the half of the chord that writes bytes
-immediately: live's pending-marks fork applies to a COLLAPSED caret only
+immediately: live's pending-marks branch applies to a collapsed caret only
 (`presentation-live-pending-marks.md`), so over a range the same chord takes the
-ordinary construct-aware wrap/strip seam in every mode. What live adds is that
-the delimiters it writes are invisible — the rendered text is the only thing the
-user sees change — and that the toggle interrupts the typing batch, so one
-Ctrl+Z reverses exactly the toggle and leaves the typing before it alone.
-Driven on `/test/editor` via `?presentationMode=live`; the source is the oracle,
-since live paints no delimiter to assert against.
+ordinary construct-aware wrap and strip path in every mode. What live adds is
+that the delimiters it writes are invisible, so the rendered text is the only
+thing the user sees change, and that the toggle interrupts the typing batch, so
+one Ctrl+Z reverses exactly the toggle and leaves the typing before it alone.
+Driven on `/test/editor` via `?presentationMode=live`; the source is what each
+scenario checks against, since live paints no delimiter to assert against.
 
 ## Happy paths
 
 - `Mod+B` over a selected word wraps it in `**` and the word renders bold
 - `Mod+Shift+X` over the same selection wraps it in `~~`, and `Mod+E` in a
-  backtick pair — live's two new chords over the same seam
+  backtick pair: live's two new chords over the same code path
 - `Mod+B` over an already-bold word strips the pair rather than double-wrapping
 - the same strip works for the other two: `Mod+Shift+X` over a struck word and `Mod+E` over a
   code span each take their own delimiters back off, whatever run length they were written with
@@ -23,37 +23,39 @@ since live paints no delimiter to assert against.
 
 ## Edge cases
 
-- typing, then toggling, then one undo leaves the TYPED bytes in place: the
+- typing, then toggling, then one undo leaves the typed bytes in place: the
   toggle interrupts the keystroke batch instead of joining it, so the two are
   separate undo entries
 - a toggle over a selection inside a heading stays inside the heading's content
-  range — the `# ` prefix keeps its bytes whatever the selection reached
-- the selection survives the toggle: a second press on the same selection
+  range: the `# ` prefix keeps its bytes whatever the selection reached
+- the selection survives the toggle: a second keypress on the same selection
   reverses the first
 - a selection carrying a boundary space takes its own wrap back: the wrap left
   that space outside the delimiters, so the same on-screen selection reaches past
-  the run it just made and the second press has to read it as covered.
-  Miss-analysis: the boundary-space scenarios all applied and the strip scenarios
-  all selected the run's own bytes, so no case pressed twice on one selection —
-  the one place the wrap's reading and the coverage read could disagree
-- a selection that ends on a trailing space wraps only the word: markdown closes
-  a run against a word, so the literal wrap would paint four asterisks the reader
+  the run it just made and the second keypress has to read it as covered.
+  Miss-analysis: the boundary-space scenarios all applied a wrap and the strip
+  scenarios all selected the run's own bytes, so no case pressed twice on one
+  selection, which is the one place the wrap's reading and the coverage reading
+  could disagree
+- a selection that ends on a trailing space wraps only the word: Markdown closes
+  a run against a word, so the literal wrap would paint four asterisks the user
   cannot delete. Miss-analysis: every toggle scenario, here and in the unit
-  suites, selected a bare word, so no case handed the seam a slice markdown
-  refuses to wrap — and the seam verified nothing, so nothing could catch it
+  suites, selected a bare word, so no case handed this code a slice Markdown
+  refuses to wrap, and it verified nothing, so nothing could catch it
 
 ## User interactions
 
-- the selection is built with real `Shift+Arrow` presses from a real click, and
-  the chord is a real key press; a programmatic range would skip the command
-  dispatch the chord is claimed at
+- the selection is built with real `Shift+Arrow` keypresses from a real click,
+  and the chord is a real keypress; a programmatic range would skip the command
+  dispatch that takes the chord
 - source mode is asserted for the same gestures, where the delimiters are
-  painted and the result is identical bytes — the toggle is not a live-only rule,
-  only its invisibility is. The boundary-space selection is no exception: the
-  word goes in the run there too, and three presses on that one selection wrap,
-  strip and wrap again. Miss-analysis: every source scenario pressed ONCE, so the
-  `**words **` the boundary-space case asserted was never handed back to a second
-  press — bytes no parse reads as a run, which that press doubled into `****`
+  painted and the result is identical bytes: the toggle is not a live-only rule,
+  only its invisibility is. The boundary-space selection is no exception, since
+  the word goes in the run there too, and three keypresses on that one selection
+  wrap, strip and wrap again. Miss-analysis: every source scenario pressed once,
+  so the `**words **` the boundary-space case asserted was never handed back to a
+  second keypress. No parse reads those bytes as a run, and that keypress doubled
+  them into `****`
 
 ## Error cases
 
