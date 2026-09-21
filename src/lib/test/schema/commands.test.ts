@@ -83,8 +83,8 @@ describe('resolveBinding order', () => {
 });
 
 describe('resolveKindBinding (no global fallthrough)', () => {
-	// Container bubble handlers use kind-only resolution so they never re-handle
-	// global commands the focused leaf already owns — the double-undo regression.
+	// Container bubble handlers resolve by kind only, so they never re-handle global commands the
+	// focused leaf already handles, which is the double-undo regression.
 	it('resolves a kind binding but never a global one', () => {
 		expect(resolveKindBinding('Enter', 'paragraph')?.command).toBe('block.split');
 		expect(resolveKindBinding('Tab', 'listItem')?.command).toBe('list.indent');
@@ -119,8 +119,8 @@ describe('fencedCode keymap', () => {
 });
 
 describe('tableCell keymap — the table’s whole keyboard vocabulary', () => {
-	// The cell holds the caret, so every table chord binds on THIS kind — a `table`-scoped
-	// override resolves against a block that never sees a keystroke. Behavior is pinned in
+	// The cell holds the caret, so every table chord binds on this kind: a `table`-scoped override
+	// would apply to a block that never sees a keystroke. The behavior is pinned in
 	// blocks/table/cell-table-chords.test.ts.
 	const TABLE_CELL_BINDINGS = [
 		['Mod+Enter', 'table.insertRowBelow'],
@@ -199,8 +199,8 @@ describe('listItem keymap', () => {
 });
 
 describe('text-editable keymap breadth', () => {
-	// TextEditableBlock renders prose AND the raw-editable fallback kinds, so the same
-	// transformative chords must resolve for both.
+	// TextEditableBlock renders prose and the raw-editable fallback kinds, so the same
+	// transforming chords must resolve for both.
 	const TEXT_EDITABLE_KINDS = [
 		'paragraph',
 		'heading',

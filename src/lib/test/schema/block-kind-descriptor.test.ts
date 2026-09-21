@@ -34,7 +34,7 @@ describe('block-kind-descriptor registry', () => {
 		}
 	});
 
-	// Derived from ALL_BLOCK_KINDS, so a new kind with no row here fails by name — and
+	// Derived from ALL_BLOCK_KINDS, so a new kind with no row here fails by name, and
 	// merge-rules.test.ts can pin the eligibility rules per role rather than per kind pair.
 	it('assigns every kind the merge role pinned by the design spec', () => {
 		const roles = Object.fromEntries(
@@ -101,7 +101,7 @@ describe('BlockKindDescriptor — supportsInline + getContentRange', () => {
 		const sampleCell = { kind: 'tableCell', leadingTrivia: '', raw: 'hello' } as const;
 		expect(getContentRange(sampleCell)).toEqual({ start: 0, end: 5 });
 
-		// Empty cell — happens when buildRow pads short body rows.
+		// Empty cell: buildRow pads short body rows.
 		const emptyCell = { kind: 'tableCell', leadingTrivia: '', raw: '' } as const;
 		expect(getContentRange(emptyCell)).toEqual({ start: 0, end: 0 });
 	});
@@ -113,8 +113,8 @@ describe('BlockKindDescriptor — supportsInline + getContentRange', () => {
 });
 
 describe('renderImagesAsWidgets descriptor flag', () => {
-	// Exact set over every kind, so a new kind opting out — or an existing one losing its
-	// opt-out — has to be a deliberate edit here rather than a silent widening.
+	// Exact set over every kind, so a new kind opting out, or an existing one losing its opt-out,
+	// has to be a deliberate edit here rather than a silent widening.
 	it('tableCell is the only kind opting out; every other kind keeps the true default', () => {
 		const optedOut = ALL_BLOCK_KINDS.filter(
 			(kind) => getBlockKindDescriptor(kind).renderImagesAsWidgets === false
@@ -152,8 +152,8 @@ describe('containerContract — strip / grid / opaque container-shape union', ()
 	});
 });
 
-// blockFocus is not container-only, so stripContainerOnlyKeys must keep it whether the
-// kind registers as a leaf or with a container group — the mermaid case.
+// blockFocus is not container-only, so stripContainerOnlyKeys must keep it whether the kind
+// registers as a leaf or with a container group, which is the mermaid case.
 describe('blockFocus — whole-block-focus opt-in', () => {
 	beforeEach(__resetSchemaRegistriesForTests);
 

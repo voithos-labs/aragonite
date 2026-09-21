@@ -65,8 +65,8 @@ describe('a plugin-global chord is claimed only where the plugin is activated', 
 		expect(ran).toBe(1);
 	});
 
-	// The dead key: without the activation the press was swallowed and nothing ran, so the
-	// chord reached neither the plugin nor the host.
+	// The key that does nothing: without the activation the keypress is swallowed and nothing
+	// runs, so the chord reaches neither the plugin nor the host.
 	it('the editor that never listed it resolves nothing and lets the press through', () => {
 		expect(resolveGlobalBinding(CHORD, undefined, notListing)).toBeNull();
 		expect(resolveBinding(CHORD, 'paragraph', undefined, notListing)).toBeNull();
@@ -91,8 +91,8 @@ describe('reservedChords answers for the instance that asks', () => {
 		expect(reserved(notListing).has(CHORD)).toBe(false);
 	});
 
-	// `claimsChord` composes over the same set, so a host asking per keystroke gets the
-	// instance's answer rather than the process's.
+	// `claimsChord` reads the same set, so a host asking on each keystroke gets this editor's
+	// answer rather than the whole process's.
 	it('claimsChord follows it', () => {
 		const press = { key: '9', ctrlKey: true, shiftKey: true } as KeyboardEvent;
 		expect(chordIsClaimed(press, reserved(listing))).toBe(true);

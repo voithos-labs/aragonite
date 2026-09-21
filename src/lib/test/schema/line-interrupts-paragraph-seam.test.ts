@@ -15,8 +15,8 @@ import { testClosure } from '$lib/test/support/closure';
 import { allowDevWarns } from '$lib/test/support/warn-gate';
 import { collector } from '$lib/test/harness/violation-collector';
 
-// lineInterruptsParagraph reads the same grammar as getOrderedOpeners, so it carries the
-// same seam duties — sibling-path parity with the dispatch read.
+// lineInterruptsParagraph reads the same grammar as getOrderedOpeners, so it has the same duties
+// around pending registrations: the two sibling paths must behave alike.
 
 const leaf: BlockKindRegistration = {
 	gapEdges: 'none',
@@ -34,8 +34,8 @@ const opener = (priority: number): BlockOpener => ({
 
 beforeEach(() => __resetSchemaRegistriesForTests());
 
-// The unit setup registers built-in descriptors, never components, so every flush this file
-// forces reports the completeness gap; the subject here is what else the flush finds.
+// The unit setup registers built-in descriptors but never components, so every check this file
+// forces reports the missing components; what matters here is what else it finds.
 afterEach(() => allowDevWarns(['invariant:registry-completeness']));
 
 describe('lineInterruptsParagraph as a grammar-consumption seam', () => {

@@ -17,8 +17,8 @@ const coherenceEntry = (kind: AnyBlockKind): ClosureCoherenceEntry =>
 	closureCoherenceEntry(kind, getBlockKindDescriptor(kind));
 
 // ── Compile-time pins ───────────────────────────────────────────────────────
-// Never invoked — `npm run check` is the gate. An "unused '@ts-expect-error'"
-// error on any pin means an illegal closure shape compiled again.
+// Never called: `npm run check` is the gate. An "unused '@ts-expect-error'"
+// error on any of these means an illegal closure shape compiled again.
 const typePins = (): void => {
 	const kind = declarePluginKind('closure-type-pin');
 
@@ -36,14 +36,14 @@ const typePins = (): void => {
 	const missingReason: ClosureBlock = { ...testClosure, focus: { mode: 'not-supported' } };
 	void missingReason;
 
-	// @ts-expect-error simpleLeafClosure still requires the four component-specific cells — simOracle omitted
+	// @ts-expect-error simpleLeafClosure still requires the four component-specific cells, simOracle omitted
 	simpleLeafClosure({
 		focus: { mode: 'implemented', via: 'f' },
 		searchPaint: { mode: 'inherit-default' },
 		undo: { mode: 'inherit-default' }
 	});
 
-	// @ts-expect-error containerClosure still requires the container-specific cells — simOracle omitted
+	// @ts-expect-error containerClosure still requires the container-specific cells, simOracle omitted
 	containerClosure({
 		roundTripVia: 'rebuildRaw',
 		focus: { mode: 'implemented', via: 'f' },
@@ -51,7 +51,7 @@ const typePins = (): void => {
 		undo: { mode: 'inherit-default' }
 	});
 
-	// @ts-expect-error containerClosure requires roundTripVia — a container's roundTrip cannot inherit the default
+	// @ts-expect-error containerClosure requires roundTripVia: a container's roundTrip cannot inherit the default
 	containerClosure({
 		focus: { mode: 'implemented', via: 'f' },
 		mergeBackspace: { mode: 'implemented', via: 'm' },
@@ -62,8 +62,8 @@ const typePins = (): void => {
 void typePins;
 
 // ── Read-side wiring ──────────────────────────────────────────────────────────
-// closure is a flat field, so stripContainerOnlyKeys must keep it whether the kind
-// registers as a leaf or with a container group — the same path blockFocus rides.
+// closure is a flat field, so stripContainerOnlyKeys must keep it whether the kind registers as
+// a leaf or with a container group, the same path blockFocus takes.
 describe('closure lands on the read-side descriptor', () => {
 	it('survives leaf registration', () => {
 		const kind = declarePluginKind('closure-leaf');
@@ -126,8 +126,8 @@ describe('simpleLeafClosure keeps a not-mergeable leaf coherent', () => {
 	});
 });
 
-// The container half of G1.24 the leaf preset cannot cover: a container's roundTrip must
-// be `implemented`, and only a runtime cross-check catches that baked mode loosening.
+// The container half of G1.24 the leaf preset cannot cover: a container's roundTrip must be
+// `implemented`, and only a runtime cross-check catches that fixed mode being loosened.
 describe('containerClosure keeps a strip container coherent', () => {
 	const cells = {
 		roundTripVia: 'container contract=opaque — rebuildRaw',

@@ -51,15 +51,15 @@ const opener = (priority: number): BlockOpener => ({
 	interruptsParagraph: false
 });
 
-// registerChromeLeaf also registers a register-once paste surface, which the
-// schema reset does not clear; reset it so chrome-leaf batches don't accumulate.
+// registerChromeLeaf also registers a register-once paste handler, which the schema reset does
+// not clear; reset it so these batches do not accumulate.
 beforeEach(() => {
 	__resetSchemaRegistriesForTests();
 	__resetPasteSurfacesForTests();
 });
 
-// The unit setup registers built-in descriptors, never components, so every flush this file
-// forces reports the completeness gap; the subject here is what else the flush finds.
+// The unit setup registers built-in descriptors but never components, so every check this file
+// forces reports the missing components; what matters here is what else it finds.
 afterEach(() => allowDevWarns(['invariant:registry-completeness']));
 
 describe('checkLateOpenerRegistration', () => {
@@ -91,8 +91,8 @@ describe('flushPendingRegistrationChecks', () => {
 	});
 
 	it('reports an opener registered pre-flush after an editorless grammar read', () => {
-		// An editorless `parse()` consumes the grammar without flushing (nothing pending),
-		// so `didFirstFlush` stays false — G1.17 pre-flush blindness.
+		// A `parse()` with no editor marks the grammar used without running the checks (nothing is
+		// pending), so `didFirstFlush` stays false, which is the gap G1.17 covers.
 		getOrderedOpeners();
 		const kind = declarePluginKind('pre-flush-late');
 		registerBlockKind(kind, leaf);
@@ -159,8 +159,8 @@ describe('flushPendingRegistrationChecks', () => {
 
 		__resetSchemaRegistriesForTests();
 
-		// Post-reset registrations are bootstrap again: both latches cleared, so they
-		// enqueue nothing and the opener must not warn late.
+		// Registrations after a reset count as startup again: both flags are cleared, so they queue
+		// nothing and the opener must not warn about being late.
 		const fresh = declarePluginKind('post-reset');
 		registerBlockKind(fresh, leaf);
 		registerBlockOpener(fresh, opener(9106));
@@ -213,8 +213,8 @@ describe('registry-derived first-flush sweep', () => {
 	});
 });
 
-// Twins of the first-sweep keymap cases at the INCREMENTAL path — the sibling path that
-// a first-flush-only scope, or a builtin-only known-command set, would leave unguarded.
+// The same keymap cases on the later, incremental path: the sibling path a first-run-only check,
+// or a known-command set holding only built-ins, would leave unguarded.
 describe('keymap coherence at the incremental flush', () => {
 	it('accepts a plugin keymap binding its own minted command', () => {
 		flushPendingRegistrationChecks();

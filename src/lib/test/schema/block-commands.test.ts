@@ -45,8 +45,8 @@ describe('block-command registry', () => {
 		expect(getBlockCommand('paragraph', id)).toBeUndefined();
 	});
 
-	// The mint is name-global, so only owner attribution lets one installer re-mint for
-	// another of its kinds. Driven through the real install path to pin that thread.
+	// Command ids are global by name, so only recording the owner lets one installer create the
+	// same id again for another of its kinds. Driven through the real install path to check that.
 	it('lets one plugin register the same command on two of its kinds', () => {
 		let idA: ReturnType<typeof registerBlockCommand> | undefined;
 		let idB: ReturnType<typeof registerBlockCommand> | undefined;

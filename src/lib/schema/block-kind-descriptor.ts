@@ -367,8 +367,8 @@ export function registerBlockKind(kind: AnyBlockKind, registration: BlockKindReg
 	);
 }
 
-// The flat part is stripped and isContainer derived, so the `container` group is the only
-// source of container fields — a widened or stale-keyed registration object cannot leak.
+// The flat part is stripped and isContainer derived, so the `container` group is the only source
+// of container fields: a widened or stale-keyed registration object cannot leak through.
 function normalizeRegistration(registration: BlockKindRegistration): BlockKindDescriptor {
 	const { container, ...rest } = registration;
 	const flat = stripContainerOnlyKeys(rest);
@@ -463,8 +463,8 @@ export function tryGetBlockKindDescriptor(kind: AnyBlockKind): BlockKindDescript
 }
 
 /**
- * Probe whether a kind descriptor exists — `registerBlockKind` throws on duplicate, so a plugin
- * registering idempotently (HMR / re-import) guards on this. Takes a plain, unbranded name.
+ * Is a kind descriptor registered? `registerBlockKind` throws on a duplicate, so a plugin that
+ * may register twice (hot reload, re-import) checks this first. Takes a plain, unbranded name.
  */
 export function isBlockKindRegistered(kind: string): boolean {
 	return registry.has(kind as AnyBlockKind);

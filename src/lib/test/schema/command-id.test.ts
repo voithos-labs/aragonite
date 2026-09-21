@@ -25,8 +25,8 @@ describe('command-id mint', () => {
 	});
 
 	it('lets the same owner re-mint a name (one command shared across its kinds)', () => {
-		// The registry key is composite (kind, name), so one name across several of a
-		// plugin's own kinds is coherent and the re-mint returns the brand, not a throw.
+		// The registry key is (kind, name), so one name used across several of a plugin's own kinds
+		// is fine, and asking again returns the branded id rather than throwing.
 		expect(mintCommandId('callout.toggle', 'callouts')).toBe('callout.toggle');
 		expect(mintCommandId('callout.toggle', 'callouts')).toBe('callout.toggle');
 	});

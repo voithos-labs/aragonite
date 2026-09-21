@@ -1,10 +1,11 @@
-// A settle rewrites bytes the spans describe without moving the children: a sibling's separating
-// line, a wrap slot. The doors retire the spans, so the next hinted rebuild re-derives.
+// Fixing up a container after an edit rewrites bytes the spans describe without moving the
+// children: a sibling's separating line, a wrapper's position. Those paths drop the spans, so the
+// next rebuild with a hint recomputes them.
 //
-// Miss-analysis: the spans suite synthesized its hint rather than driving the door that mints one,
-// so no test ran a write whose settle touches a sibling; no simulation gesture typed twice into a
-// container holding a blank one; and G1.1, assumed to be the backstop, only ever sees the node
-// after a ceremony rebuild healed it, which is the class G1.38 now belts.
+// Miss-analysis: the spans suite built its hint by hand instead of driving the code that makes
+// one, so no test ran a write whose fix-up touches a sibling; no simulation typed twice into a
+// container holding a blank child; and G1.1, the assumed backstop, only sees the node after a
+// commit rebuild healed it, the class G1.38 now catches.
 import { describe, expect, it } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
@@ -17,8 +18,8 @@ import { rebuildUnsharedChain } from '$lib/tree-operations/chain-rebuild';
 import { updateNodeContent } from '$lib/tree-operations/content-write';
 import { makeNestedHarness } from '$lib/test/harness/editor-actions';
 
-// The first keystroke seeds the spans and the second rides them, which is why one press never
-// showed this.
+// The first keystroke fills in the spans and the second one uses them, which is why a single
+// keypress never showed this.
 describe('a settle between two keystrokes', () => {
 	it('mints the separator a blank-fill owes the follower', async () => {
 		const h = makeNestedHarness('> a\n>\n>\n> c\n', { index: 0 });
@@ -135,8 +136,8 @@ describe('the hinted rebuild after a real settle', () => {
 
 // ── The commit scope ─────────────────────────────────────────────────────────
 
-// The other half of the drop: a ceremony's splice moves every region after it, and the next
-// keystroke rides the spans it left. The container's raw and its own reload are the oracle.
+// The other half of dropping the spans: a commit's splice moves every region after it, and the
+// next keystroke uses the spans it left. The container's raw and its reparse are the check.
 describe('a keystroke after a structural commit in the same container', () => {
 	it('writes bytes the container still reloads as its own children', async () => {
 		const h = makeNestedHarness('> one\n>\n> two\n>\n> three\n', { index: 0 });

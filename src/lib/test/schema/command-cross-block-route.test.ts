@@ -1,6 +1,6 @@
-// The dispatch seam's third answer to a painted range: route to the injected cross-block arm.
-// Which ids take it is the set's, whether they may is the router's, and an entry path that
-// threads no router must still decline rather than reach the focused block's own offsets.
+// The dispatch's third answer to a painted range: hand it to the injected cross-block handler.
+// Which ids take that path is the set's decision, whether they may is the router's, and a caller
+// that passes no router must still decline rather than reach the focused block's own offsets.
 import { describe, it, expect, vi } from 'vitest';
 import {
 	canRunCommandById,
@@ -71,8 +71,8 @@ describe('a range command with the arm wired', () => {
 	});
 });
 
-// The parity that matters: an entry path built before the router existed hands `undefined`, and
-// the rewrites must decline there exactly as they did before the arm was written.
+// The case that matters: a caller that passes no router hands `undefined`, and the rewrites must
+// decline there rather than rewriting against the focused block.
 describe('a range command with no arm threaded', () => {
 	it.each(TOGGLES)('%s declines, and the focused surface is never asked', (id) => {
 		const run = vi.fn(() => true);

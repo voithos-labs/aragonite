@@ -35,15 +35,15 @@ describe('collectReservedChords — sources', () => {
 		);
 	});
 
-	// A keymap-declared chord needs no manifest edit — the registry tier reports it. The two
-	// newest toggles are the standing proof that the tier, not a hand-kept list, is the source.
+	// A chord declared in a keymap needs no edit to the hardcoded list: the registry reports it.
+	// The two newest toggles are the standing proof that the registry is the source.
 	it('picks up a chord from the kind keymaps alone', () => {
 		expect([...chords()]).toEqual(expect.arrayContaining(['Mod+Shift+X', 'Mod+E']));
 	});
 
 	it('includes chords claimed outside every keymap', () => {
-		// Whole-block clipboard, document-edge extend, and the table context menu — none of
-		// these resolve through a keymap, so only the manifest can report them.
+		// Whole-block clipboard, document-edge extend and the table context menu: none of these
+		// resolve through a keymap, so only the hardcoded list can report them.
 		expect([...chords()]).toEqual(
 			expect.arrayContaining(['Mod+C', 'Mod+X', 'Mod+Shift+Home', 'Mod+Shift+End', 'Shift+F10'])
 		);
@@ -98,9 +98,9 @@ describe('collectReservedChords — per-instance overrides', () => {
 		expect(withOverrides([{ chord: 'Mod+B', command: null }]).has('Mod+B')).toBe(false);
 	});
 
-	// The released half of the disable split: the host may claim Mod+Z app-wide, and their
-	// handler fires while focus is outside the editor. Inside it the press is still consumed —
-	// the other half, pinned at `components/gap-caret-global-chord.svelte.test.ts`.
+	// The released half of the disable: the host may take Mod+Z across the app, and its handler
+	// runs while focus is outside the editor. Inside the editor the keypress is still swallowed,
+	// the other half, pinned in `components/gap-caret-global-chord.svelte.test.ts`.
 	it('drops a disabled GLOBAL chord even though the arms still consume it', () => {
 		expect(withOverrides([{ chord: 'Mod+Z', command: null }]).has('Mod+Z')).toBe(false);
 	});

@@ -26,8 +26,8 @@ const UNWRAP = {
 afterEach(() => __resetSchemaRegistriesForTests());
 
 // ── Compile-time pins ───────────────────────────────────────────────────────
-// Never invoked — `npm run check` is the gate. An "unused '@ts-expect-error'"
-// error on any pin means an illegal registration shape compiled again.
+// Never called: `npm run check` is the gate. An "unused '@ts-expect-error'"
+// error on any of these means an illegal registration shape compiled again.
 const typePins = (): void => {
 	const kind = declarePluginKind('shape-pin');
 	// @ts-expect-error rebuildRaw lives in the container group, not at top level
@@ -73,8 +73,8 @@ describe('registerBlockKind normalizes the container group', () => {
 		expect(tryGetBlockKindDescriptor(kind)?.isContainer).toBe(false);
 	});
 
-	// Excess-property checks bite only fresh literals, so the widened calls below compile
-	// with no cast — the runtime strip is the only defense left to pin.
+	// Excess-property checks apply only to fresh literals, so the widened calls below compile with
+	// no cast, leaving what the code strips at runtime as the only protection to test.
 	it('a widened flat descriptor cannot smuggle container-only fields past the group', () => {
 		const kind = declarePluginKind('norm-widened');
 		registerBlockKind(kind, getBlockKindDescriptor('blockquote'));

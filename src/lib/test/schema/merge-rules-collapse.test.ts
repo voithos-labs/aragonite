@@ -8,8 +8,8 @@ import { registerDetailsKind } from '$lib/plugins/details/details-kind';
 import { registerCalloutKind } from '../../../routes/test/plugins/callout/callout-kind';
 import type { CstNode } from '../../core/nodes';
 
-// The Backspace merge walker must not descend past a collapsed container's chrome: the
-// clamped-out body is invisible, so a merge writing there loses text from view.
+// The Backspace merge walk must not go past a collapsed container's title row: the hidden body
+// is invisible, so a merge writing there puts text out of sight.
 
 const OPEN_DETAILS = '<details open>\n<summary>Sum</summary>\n\nBody\n\n</details>\n';
 const CLOSED_DETAILS = '<details>\n<summary>Sum</summary>\n\nHidden\n\n</details>\n';

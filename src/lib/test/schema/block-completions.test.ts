@@ -35,7 +35,7 @@ describe('block-completion registry', () => {
 		expect(completeTypedLine('plain prose')).toBeNull();
 	});
 
-	// The load-bearing half of the openers' order rule: which claim wins is a function of the
+	// The half of the openers' order rule that matters: which completer wins follows from the
 	// declarations, so swapping the registration calls must not swap the winner.
 	it('consults completers in kind-name order, not registration order', () => {
 		registerBlockCompleter(declarePluginKind('spec-zulu'), claims('|', ['zulu']));

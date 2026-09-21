@@ -3,16 +3,15 @@ import { parse } from '$lib/core/parser';
 import { normalizeFencedRaw } from '$lib/schema/fenced-code-raw';
 import { metadataOf, type CstNode } from '$lib/core/nodes';
 
-// The whole-raw door (`normalizeFencedRaw`), where RESTORE lives: the byte sinks reach a node's
-// raw with the OLD metadata still attached, so a closer a truncation consumed is recoverable
-// there and nowhere downstream. `fenced-code-raw.test.ts` covers the display funnel's door
-// (`reconcileFenceWrite`), which the surface guard keeps a closer away from;
-// `fenced-code-stranded-closer.test.ts` covers the door's other arm, for the write that took
-// the OPENER instead.
+// The whole-raw entry point (`normalizeFencedRaw`), where the closer is put back: code writing
+// bytes reaches a node's raw with the old metadata still attached, so a closer a truncation ate
+// can be recovered there and nowhere later. `fenced-code-raw.test.ts` covers the display path
+// (`reconcileFenceWrite`), which the editable element keeps a closer away from;
+// `fenced-code-stranded-closer.test.ts` covers the other branch, for a write that took the opener.
 
 const codeNode = (source: string): CstNode => parse(source).children[0];
 
-/** What the bytes reparse to on their own — the reload the restored closer has to survive. */
+/** What the bytes reparse to on their own: the reload the restored closer has to survive. */
 function reload(raw: string) {
 	const children = parse(raw).children;
 	const first = children[0];
@@ -71,8 +70,9 @@ describe('normalizeFencedRaw — the dropped closer', () => {
 		});
 	});
 
-	// Which is why RESTORE and ESCALATE cannot co-fire on a truncation: escalation triggers on
-	// a body line that reads as this fence's closer, and RESTORE's probe reads it AS the closer.
+	// Which is why putting the closer back and growing the runs cannot both fire on a truncation:
+	// growing triggers on a body line that reads as this fence's closer, and the restore reads it
+	// as the closer.
 	it('treats a body line that reads as the closer as the closer', () => {
 		expect(normalizeFencedRaw('```js\n```\nbo\n', closed)).toBe('```js\n```\nbo\n');
 	});

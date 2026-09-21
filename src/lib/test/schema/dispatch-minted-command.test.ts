@@ -19,7 +19,7 @@ const ctx = {
 	crossBlockCommands: undefined
 };
 
-// No cross-block range in these cases; the seam's range decline has its own suite.
+// No cross-block range in these cases; the dispatch's range decline has its own suite.
 const GATES = {
 	getPresentationMode: () => 'source' as const,
 	isCrossBlockRange: () => false,
@@ -38,8 +38,8 @@ afterEach(() => {
 	vi.restoreAllMocks();
 });
 
-// A minted command bound to a leaf kind resolves once the focused surface supplies a
-// command context — the same seam the container-bubble path uses.
+// A plugin command bound to a leaf kind resolves once the focused block supplies a command
+// context, through the same code the container-bubble path uses.
 describe('leaf-path dispatch of a minted block command', () => {
 	it('runs the handler with the target context + binding arg when a context is supplied', () => {
 		const updateMetadata = vi.fn();
@@ -64,8 +64,8 @@ describe('leaf-path dispatch of a minted block command', () => {
 	});
 });
 
-// A plugin throw routes to the caller's sink on both dispatch paths; built-in command
-// execution stays UNwrapped, because its throws are editor bugs and stay loud.
+// A throw from a plugin goes to the caller's error callback on both dispatch paths; a built-in
+// command is not wrapped, because a throw there is an editor bug and stays loud.
 describe('a throwing plugin handler is contained at the dispatch seam', () => {
 	it('contains a leaf-path throw, reports it, and consumes the key', () => {
 		const boom = new Error('leaf boom');

@@ -204,7 +204,7 @@ interface PluginGlobalBinding extends KeyBinding {
 const pluginGlobalKeymap: PluginGlobalBinding[] = [];
 
 // Chords the editor UI intercepts outside the command resolvers (the search bar's
-// document-level listener) — a plugin binding one would double-fire on a single keypress.
+// document-level listener): a plugin binding one would fire twice on a single keypress.
 const RESERVED_UI_CHORDS = new Set(['Mod+F', 'Mod+H']);
 
 /**

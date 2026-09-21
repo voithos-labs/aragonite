@@ -1,6 +1,6 @@
-// The id-keyed dispatch seam `EditorInstance.runCommand` and chord dispatch share. Pins the
-// tier order and the two gates that must hold whatever invoked the command, so a door call and
-// a chord press cannot diverge.
+// The one dispatch keyed by command id that `EditorInstance.runCommand` and chord dispatch share.
+// Pins the order the levels are tried in and the two checks that must hold whatever started the
+// command, so calling it directly and pressing a chord cannot behave differently.
 import { describe, it, expect, afterEach } from 'vitest';
 import {
 	runCommandById,
@@ -69,7 +69,7 @@ describe('runCommandById tier order', () => {
 		};
 
 		expect(runCommandById(id, undefined, surface, context())).toBe(true);
-		// Same answer by chord: the door enters the seam the chord path resolves into.
+		// The same answer by chord: a direct call enters the dispatch the chord path resolves into.
 		const overrides = normalizeKeybindingOverrides([
 			{ chord: 'Mod+Shift+K', command: id, kind: 'paragraph' }
 		]);
@@ -109,9 +109,9 @@ describe('runCommandById gates', () => {
 		expect(ran).toEqual([]);
 	});
 
-	// Miss-analysis: the set had one member class and the census that guards it read the
-	// `format.` prefix, so the fifth single-block rewrite — bound at the same keymaps, published
-	// on `TOOLBAR_COMMANDS` — was structurally invisible to the guard AND to this case.
+	// Miss-analysis: the set had one class of member and the scan guarding it matched the `format.`
+	// prefix, so the fifth single-block rewrite (bound in the same keymaps, listed on
+	// `TOOLBAR_COMMANDS`) was invisible to both the scan and this case.
 	it('a painted cross-block range declines every single-block rewrite and nothing else', () => {
 		const ran: string[] = [];
 		const ctx = context({ isCrossBlockRange: () => true });
@@ -131,8 +131,8 @@ describe('runCommandById gates', () => {
 		expect(ran).toEqual(['block.split']);
 	});
 
-	// The JS caller the required field cannot reach: absence must be loud, never a skipped
-	// decline. TS callers are covered by the type; this pins what the runtime does.
+	// The JavaScript caller the required field cannot reach: a missing field must be loud, never a
+	// quiet decline. TypeScript callers are covered by the type; this pins what happens at runtime.
 	it('a gates object with no range getter throws rather than admitting the rewrite', () => {
 		const gateless = { history: context().history } as unknown as CommandDispatchContext;
 		expect(() => runCommandById('format.toggleStrong', undefined, target([]), gateless)).toThrow();

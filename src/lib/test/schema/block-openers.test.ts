@@ -85,7 +85,7 @@ describe('block-opener registry', () => {
 		it('drops a disabled kind opener from the ordered dispatch', () => {
 			const enabled = (kind: string) => kind !== 'blockquote';
 			expect(getOrderedOpeners(enabled).map((o) => o.priority)).toEqual([20]);
-			// The unfiltered read is unchanged — filtering never mutates the cache.
+			// The unfiltered read is unchanged: filtering never changes the cache.
 			expect(getOrderedOpeners().map((o) => o.priority)).toEqual([20, 40]);
 		});
 	});

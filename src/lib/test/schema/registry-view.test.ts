@@ -15,8 +15,8 @@ import type { AnyBlockKind, PluginBlockKind } from '$lib/core/nodes';
 
 const stubComponent = {} as BlockComponentEntry;
 
-// An opener that claims a single `@x`-prefixed line as this kind — byte-exact raw
-// so the parser's DEV opener guard passes.
+// An opener that takes a single `@x`-prefixed line as this kind, with byte-exact raw so the
+// parser's dev-mode opener check passes.
 const lineOpener = (kind: PluginBlockKind): BlockOpener => ({
 	priority: 5,
 	tryOpen: (ctx) =>
@@ -45,8 +45,8 @@ function registerCallout(): PluginBlockKind {
 
 afterEach(() => __resetSchemaRegistriesForTests());
 
-// The default view IS the global read — the behavior-preserving guarantee that the
-// full unit suite (mounting BlockHost bare) relies on.
+// The default view is the global read, the guarantee that behavior is unchanged which the rest
+// of the unit suite (mounting BlockHost on its own) relies on.
 describe('defaultRegistryView resolves the global definitions verbatim', () => {
 	it('component + descriptor + grammar match the global registry', () => {
 		const kind = registerCallout();
@@ -92,18 +92,18 @@ describe('enablement filter', () => {
 
 	it('built-ins are never disableable — the predicate domain is plugin kinds', () => {
 		const disableEverything = createRegistryView({ isEnabled: () => false });
-		// A blanket "disable all" must drop only the plugin opener — a built-in losing its
-		// opener here would be the predicate escaping its domain.
+		// A blanket "disable all" must drop only the plugin opener: a built-in losing its opener
+		// here would mean the predicate reached past plugin kinds.
 		const builtinOpenerCount = defaultRegistryView.grammar.orderedOpeners().length - 1;
 		expect(disableEverything.grammar.orderedOpeners().length).toBe(builtinOpenerCount);
 		expect(builtinOpenerCount).toBeGreaterThan(0);
-		// The plugin kind IS disabled by the same predicate.
+		// The plugin kind itself is disabled by the same predicate.
 		expect(disableEverything.component(kind)).toBeUndefined();
 	});
 });
 
-// The second filter is the harness door layered over the instance's own activation, so it must
-// only ever narrow: a door that widened would prove a resolution the shipped path cannot reach.
+// The second filter is the test harness's, layered over the editor's own activation, so it may
+// only narrow: one that widened would allow a resolution the shipped path cannot reach.
 describe('bothEnable', () => {
 	const admitsAll = () => true;
 	const admitsNone = () => false;

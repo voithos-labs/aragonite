@@ -6,7 +6,7 @@ import { normalizeKeybindingOverrides } from '$lib/schema/keybinding-overrides';
 import { takeDevWarns } from '../support/warn-gate';
 import type { CstNode } from '$lib/core/nodes';
 
-// No cross-block range in these cases; the seam's range decline has its own suite.
+// No cross-block range in these cases; the dispatch's range decline has its own suite.
 const GATES = {
 	getPresentationMode: () => 'source' as const,
 	isCrossBlockRange: () => false,
@@ -50,7 +50,7 @@ describe('container-bubble dispatch over the block-command registry', () => {
 	});
 
 	it('dead-keys and warns once when a bound plugin id has no registered handler', () => {
-		// Minted but never registered on any kind → getBlockCommand misses.
+		// Created but never registered on any kind, so getBlockCommand misses.
 		const id = mintCommandId('demo.ghost');
 		const overrides = normalizeKeybindingOverrides([
 			{ chord: 'Mod+Shift+K', command: id, kind: 'listItem' }
@@ -94,9 +94,9 @@ describe('container-bubble dispatch over the block-command registry', () => {
 		expect(takeDevWarns()).toEqual([]);
 	});
 
-	// Miss-analysis: the bubble's override tier had a test per SCOPE but none for the id CLASS it
-	// can resolve, so a global id resolving here fell into `runCommand`'s default arm and read as
-	// an ordinary decline.
+	// Miss-analysis: the bubble's override level had a test per scope but none per class of id it
+	// can resolve, so a global id resolving here fell into `runCommand`'s default branch and looked
+	// like an ordinary decline.
 	it('declines a GLOBAL id an override resolved here, loudly — the bubble has no global tier', () => {
 		const overrides = normalizeKeybindingOverrides([{ chord: 'Mod+J', command: 'history.undo' }]);
 		const runCommand = vi.fn(() => false);

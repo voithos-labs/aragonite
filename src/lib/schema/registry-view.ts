@@ -1,10 +1,11 @@
 /**
- * Per-editor resolution over the process-wide block definitions (docs/design/plugin-contract.md
- * § Schema registries). The default view resolves every kind exactly as registered, so a `parse()`
- * with no editor and every plain component mount stay byte-identical. A view with `isEnabled`
- * resolves no component for a disabled plugin kind and drops its opener; the descriptor is never
- * filtered, since a disabled kind still needs it to degrade rather than throw. The `plugins` prop
- * supplies the predicate: `plugin-activation.ts` turns one editor's list into one.
+ * Per-editor resolution over the process-wide block definitions
+ * (docs/design/plugin-contract.md § The registries: global, register-once). The default view
+ * resolves every kind exactly as registered, so a `parse()` with no editor and every plain
+ * component mount stay byte-identical. A view with `isEnabled` resolves no component for a
+ * disabled plugin kind and drops its opener; the descriptor is never filtered, since a disabled
+ * kind still needs it to degrade rather than throw. `plugin-activation.ts` turns one editor's
+ * `plugins` prop into that predicate.
  */
 import { isBuiltinBlockKind, type AnyBlockKind } from '../core/nodes';
 import { getBlockComponent, type BlockComponentEntry } from './block-component-registry';

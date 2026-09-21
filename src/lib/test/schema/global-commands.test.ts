@@ -56,7 +56,7 @@ describe('registerGlobalCommand', () => {
 	});
 
 	// A plugin installed process-wide but absent from this editor's `plugins` prop resolves no
-	// context here. That is inert, not a dead key, so it must not spend the dead-key diagnostic.
+	// context here. That is inactive by design, so it must not use up the key-does-nothing warning.
 	it('declines quietly when the dispatching editor did not list the owning plugin', () => {
 		__resetInstalledPluginsForTests();
 		let ran = false;
@@ -102,8 +102,8 @@ describe('registerGlobalCommand', () => {
 		);
 	});
 
-	// A non-strict normalize collapses `Ctrl+W` to a bare `W`, which is neither reserved
-	// nor colliding — so the binding registers and fires on every plain `w`.
+	// A non-strict normalize collapses `Ctrl+W` to a bare `W`, which is neither reserved nor
+	// colliding, so the binding registers and fires on every plain `w`.
 	it('rejects a malformed chord and binds nothing (the Ctrl+W trap)', () => {
 		expect(() => registerGlobalCommand('demo.malformed', () => true, { chord: 'Ctrl+W' })).toThrow(
 			/malformed/
@@ -126,10 +126,10 @@ describe('registerGlobalCommand', () => {
 	});
 });
 
-// The SSR/HMR registrar-poison class: a re-evaluated registrar's chord collision must not
-// 500 the route. Only a same-command re-bind in dev-not-test softens; the rest still throw.
+// SSR and hot reload re-run a plugin's registration: a chord collision from that must not break
+// the route. Only re-binding the same command, on a dev server outside tests, is forgiven.
 describe('chorded global command survives dev re-eval', () => {
-	// The dev valve announces every replace it performs; these cases are about what throws.
+	// The dev-server path warns on every replacement it makes; these cases are about what throws.
 	afterEach(() => allowDevWarns(['registry']));
 
 	it('re-binding the same command+chord replaces instead of throwing', () => {
@@ -138,7 +138,7 @@ describe('chorded global command survives dev re-eval', () => {
 		expect(() =>
 			registerGlobalCommand('demo.dev', () => true, { chord: 'Mod+Shift+7' })
 		).not.toThrow();
-		// One binding survives — a re-eval must not stack a duplicate.
+		// One binding survives: a second evaluation must not add a duplicate.
 		expect(pluginGlobalBinding('Mod+Shift+7', everyInstalledPlugin)?.command).toBe('demo.dev');
 		expect(
 			resolveBinding('Mod+Shift+7', 'paragraph', undefined, everyInstalledPlugin)?.command
@@ -166,8 +166,8 @@ describe('chorded global command survives dev re-eval', () => {
 	});
 });
 
-// The mint's owner is what separates a plugin re-minting its own name from a cross-plugin
-// collision, and it is what the collision message names — this mint once passed none.
+// Recording the owner is what separates a plugin reusing its own name from a collision between
+// plugins, and the owner is what the collision message names.
 describe('registerGlobalCommand owner attribution', () => {
 	afterEach(() => {
 		__resetInstalledPluginsForTests();

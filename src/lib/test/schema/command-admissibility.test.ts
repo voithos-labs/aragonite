@@ -1,6 +1,6 @@
-// The read behind `EditorInstance.canRunCommand`, asked at the seam that dispatches. The
-// load-bearing pin is the agreement: a verdict that disagrees with what the door then does is a
-// greyed button lying about the click under it.
+// The check behind `EditorInstance.canRunCommand`, asked where commands are dispatched. What
+// matters is that the two agree: an answer that disagrees with what running the command then does
+// is a greyed-out button lying about the click under it.
 import { describe, it, expect, afterEach } from 'vitest';
 import {
 	canRunCommandById,
@@ -36,10 +36,10 @@ function context(over: Partial<CommandDispatchContext> = {}): CommandDispatchCon
 	};
 }
 
-/** A focused surface that answers every built-in id, so the door's verdict is the seam's alone. */
+/** A focused block that answers every built-in id, so the answer comes from the dispatch alone. */
 const surface = (): KindCommandTarget => ({ kind: 'paragraph', runCommand: () => true });
 
-/** The same surface once it can resolve a minted command — the tier the read must not re-derive. */
+/** The same block once it resolves a plugin command: the level the check must not redo itself. */
 const mintedSurface = (): KindCommandTarget => ({
 	...surface(),
 	getCommandContext: () => ({
@@ -56,8 +56,8 @@ describe('the toolbar scenario', () => {
 		for (const id of TOOLBAR_IDS) expect(canRunCommandById(id, surface(), context())).toBe(true);
 	});
 
-	// No router threaded, which is what an older gates construction site hands the seam: the
-	// rewrites decline rather than falling through to the focused block's own offsets.
+	// No router passed in, which is what an older construction of the checks hands the dispatch:
+	// the rewrites decline rather than falling through to the focused block's own offsets.
 	it('a painted range with no cross-block arm declines the rewrites and nothing else', () => {
 		const ctx = context({ isCrossBlockRange: () => true });
 		for (const id of TOOLBAR_IDS) expect(canRunCommandById(id, surface(), ctx)).toBe(false);
@@ -69,7 +69,7 @@ describe('the toolbar scenario', () => {
 		const inReading = context({ getPresentationMode: reading });
 		expect(canRunCommandById('format.toggleStrong', surface(), inReading)).toBe(false);
 		expect(canRunCommandById('history.undo', null, inReading)).toBe(false);
-		// The gap caret's shape: no block-local surface, the global tier still live.
+		// The gap caret's shape: no focused block, the global commands still available.
 		expect(canRunCommandById('format.toggleStrong', null, context())).toBe(false);
 		expect(canRunCommandById('history.undo', null, context())).toBe(true);
 	});
@@ -78,15 +78,15 @@ describe('the toolbar scenario', () => {
 		const minted = registerBlockCommand('paragraph', 'demo.minted', () => true);
 		expect(canRunCommandById(minted, surface(), context())).toBe(false);
 		expect(canRunCommandById('nope.nope' as AnyCommandId, surface(), context())).toBe(false);
-		// Reachability is the target's to answer: one that resolves the minted handler admits it.
+		// Whether it can run is the target's to answer: one resolving the plugin handler allows it.
 		expect(canRunCommandById(minted, mintedSurface(), context())).toBe(true);
 	});
 });
 
 describe('the read agrees with the dispatch it describes', () => {
-	// Miss-analysis: every scenario drove a target with no `getCommandContext`, the one shape that
-	// makes a re-derived tier walk answer exactly like the seam's, so the read's missing minted
-	// tier agreed everywhere the matrix looked.
+	// Miss-analysis: every scenario drove a target with no `getCommandContext`, the one shape where
+	// working the levels out again gives exactly the dispatch's answer, so the check's missing
+	// plugin-command level agreed everywhere the matrix looked.
 	it('every (id, scenario) verdict is what the door then answers', () => {
 		const minted = registerBlockCommand('paragraph', 'demo.agree', () => true);
 		const scenarios = [
@@ -135,7 +135,7 @@ describe('the read agrees with the dispatch it describes', () => {
 				);
 			}
 		}
-		// The ids no tier resolves dead-key at every surface that had one to try.
+		// The ids no level resolves do nothing at every block that had a level to try.
 		allowDevWarns(['commands']);
 	});
 

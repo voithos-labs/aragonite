@@ -97,8 +97,8 @@ describe('createEditorPluginContexts', () => {
 		]);
 		const ctxs = createEditorPluginContexts(deps({ children: [] }));
 		ctxs.attachAll(() => {});
-		// toBe, not toEqual: the "one context object" litmus is an IDENTITY claim —
-		// a structurally-equal duplicate context must fail this test.
+		// toBe, not toEqual: "one context object" is a claim about identity, so a duplicate with
+		// the same shape must fail this test.
 		expect(seen).toHaveLength(1);
 		expect(seen[0]).toBe(ctxs.get('watcher'));
 		ctxs.dispose();
@@ -137,8 +137,8 @@ describe('createEditorPluginContexts', () => {
 		const events = createEditorEvents();
 		const errorEvents: EditorError[] = [];
 		events.on('error', (e) => errorEvents.push(e));
-		// Mirror Editor.svelte's wiring: the engine's onSourceError routes to the events
-		// surface as an origin: 'decoration' error naming the offending source.
+		// Mirrors Editor.svelte's wiring: onSourceError reports to the editor's events as an
+		// origin: 'decoration' error naming the source at fault.
 		const engine = createDecorationEngine({
 			getDoc: () => doc as never,
 			onSourceError: (source, error) =>
@@ -199,7 +199,7 @@ describe('createEditorPluginContexts', () => {
 		const ctxs = createEditorPluginContexts({ ...deps({ children: [] }), rects });
 		ctxs.attachAll(() => {});
 
-		// Identity, not shape: a per-context copy would break the "one door" contract.
+		// Identity, not shape: a copy per context would break the contract that there is one.
 		expect(received).toBe(rects);
 		expect(ctxs.get('measurer')!.rects).toBe(rects);
 	});
@@ -233,7 +233,7 @@ describe('activation scopes an instance to the plugins it listed', () => {
 		});
 		expect(ctxs.get('alpha')).toBeDefined();
 		expect(ctxs.get('beta')).toBeUndefined();
-		// The empty name is the instance's own base context, never a plugin, so it survives.
+		// The empty name is the editor's own base context, never a plugin, so it survives.
 		expect(ctxs.get('')).toBeDefined();
 	});
 });

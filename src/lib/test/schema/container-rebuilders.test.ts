@@ -8,8 +8,8 @@ import type { CstNode } from '../../core/nodes';
 import { parse } from '../../core/parser';
 import { serialize } from '../../core/serializer';
 
-/** Blank the slot the rebuilder writes: a parse-built node arrives with the right bytes
- *  already there, so a rebuild that wrote nothing would pass silently. */
+/** Blank the field the rebuilder writes: a node built by the parser already holds the right
+ *  bytes, so a rebuild that wrote nothing would pass silently. */
 function cleared(node: CstNode): CstNode {
 	node.raw = '';
 	return node;
@@ -57,9 +57,9 @@ describe('rebuildListRaw', () => {
 });
 
 // GH #76: both kinds open their body on the container's own first line, so `innerPrefix` is
-// pinned empty and honoring it emitted an opener line no parse produces ('- item' rebuilding
-// to '- \n  item'). Miss-analysis: every rebuilder case built its node with the slot already
-// empty, so the arm reading it was reachable only from a hand-built node no test wrote.
+// pinned empty, and using it emitted an opener line no parse produces ('- item' rebuilding to
+// '- \n  item'). Miss-analysis: every rebuilder case built its node with that field already
+// empty, so the branch reading it was reachable only from a hand-built node no test wrote.
 describe('the wrap-less rebuilders ignore innerPrefix', () => {
 	it.each([
 		['blockquote', '> quoted\n', (n: CstNode) => rebuildBlockquoteRaw(n)],

@@ -72,8 +72,8 @@ describe('onEditor subscription seam', () => {
 			}
 		});
 		expect(() => installPlugins([plugin])).toThrow(/setup exploded/);
-		// The install never completes, so its callback must not survive to run against
-		// a later mount — the catch in installOne clears the plugin's subscriptions.
+		// The install never completes, so its callback must not survive to run against a later
+		// mount: the catch in installOne clears the plugin's subscriptions.
 		expect(onEditorCallbacks('boom')).toHaveLength(0);
 		// A partial setup can't be re-run: the second attempt reports the prior failure.
 		expect(() => installPlugins([plugin])).toThrow(/failed during a previous install/);

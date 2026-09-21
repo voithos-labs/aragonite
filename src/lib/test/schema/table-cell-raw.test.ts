@@ -37,8 +37,8 @@ describe('normalizeCellRaw', () => {
 		expect(normalizeCellRaw('a\n|b')).toBe('a \\|b');
 	});
 
-	// The write sink applies this to whole raws that may already have been through
-	// it, so a second pass must be a no-op or the backslashes compound.
+	// The write path applies this to whole raws that may already have been through it, so a second
+	// pass must change nothing or the backslashes pile up.
 	it('is idempotent', () => {
 		for (const input of ['a|b', 'a\\|b', 'a\\\\|b', 'a\nb', 'plain']) {
 			expect(normalizeCellRaw(normalizeCellRaw(input))).toBe(normalizeCellRaw(input));

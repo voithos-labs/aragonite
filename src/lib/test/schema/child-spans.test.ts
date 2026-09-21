@@ -38,7 +38,7 @@ function rebuild(node: CstNode, changed?: { index: number; previousRaw: string }
 	getBlockKindDescriptor(node.kind).rebuildRaw!(node, changed);
 }
 
-/** Rewrite one child's raw and rebuild through the hint, as the typing door does. */
+/** Rewrite one child's raw and rebuild through the hint, the way the typing path does. */
 function rewriteChild(node: CstNode, index: number, raw: string): void {
 	const previousRaw = node.children![index].raw;
 	node.children![index].raw = raw;
@@ -121,13 +121,13 @@ describe('the rebuild refuses a splice it cannot place', () => {
 	});
 });
 
-// G1.38's own arm. The region check reads the NAMED child only, so a sibling's bytes moving
-// underneath it is the one shape that reaches the belt: no door ran, and no count moved.
+// G1.38's own case. The region check reads only the child it was told about, so a sibling's bytes
+// moving underneath it is the one shape that reaches it: nothing dropped the spans, no count moved.
 describe('the dev belt behind a splice', () => {
 	it('fires and re-derives when a sibling moved under the spans', () => {
 		const node = container('blockquote', [paragraph('a\n'), paragraph('b\n')]);
 		expect(node.raw).toBe('> a\n> b\n');
-		// Hand-written, the way a reorder writes: past every door, so nothing retires the spans.
+		// Hand-written, the way a reorder writes: past every entry point, so nothing drops the spans.
 		node.children![1].leadingTrivia = '\n';
 
 		rewriteChild(node, 0, 'aa\n');
@@ -141,8 +141,8 @@ describe('the dev belt behind a splice', () => {
 describe('the children doors drop the spans they invalidate', () => {
 	it('drops on a splice and on a push', () => {
 		const node = container('blockquote', [paragraph('a\n'), paragraph('b\n')]);
-		// Typed, not a plain array: Svelte proxies those, and the shift would mint a source per
-		// element — the O(children) cost the spans exist to remove (`schema/child-spans.ts`).
+		// A typed array, not a plain one: Svelte proxies plain arrays, and the shift would create a
+		// reactive source per element, the per-child cost the spans exist to remove.
 		expect(node.childSpans).toBeInstanceOf(Uint32Array);
 		expect(spans(node)).toEqual([0, 4, 4, 8]);
 		spliceChildren(node, 1, 1, [paragraph('c\n')]);

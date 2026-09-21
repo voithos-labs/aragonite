@@ -113,18 +113,18 @@ describe('override-aware resolution (commands.ts)', () => {
 		expect(resolveKindBinding('Tab', 'listItem', disable)).toBeNull();
 	});
 
-	// The bubble must see a global OVERRIDE (a disable that is invisible here still runs
-	// list.indent) but never the built-in global table, or a bubbled undo double-fires.
+	// The bubble must see a global override (a disable that is invisible here still runs
+	// list.indent) but never the built-in global table, or a bubbled undo fires twice.
 	it('resolveKindBinding honors a GLOBAL override at the bubble, not the built-in global table', () => {
 		const disable = normalizeKeybindingOverrides([{ chord: 'Tab', command: null }]);
 		expect(resolveKindBinding('Tab', 'listItem', disable)).toBeNull();
 
-		// A global BIND shadows the built-in kind binding too (uniform intent).
+		// A global bind also shadows the built-in kind binding, so the two behave alike.
 		const rebind = normalizeKeybindingOverrides([{ chord: 'Tab', command: 'history.undo' }]);
 		expect(resolveKindBinding('Tab', 'listItem', rebind)?.command).toBe('history.undo');
 
-		// The built-in global table itself still never fires at the bubble: Mod+Z
-		// carries no kind or global OVERRIDE, so it stays unbound (no double-undo).
+		// The built-in global table itself still never fires at the bubble: Mod+Z carries no kind or
+		// global override, so it stays unbound and undo cannot fire twice.
 		expect(resolveKindBinding('Mod+Z', 'listItem')).toBeNull();
 	});
 

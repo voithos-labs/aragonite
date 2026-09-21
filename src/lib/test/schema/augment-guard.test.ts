@@ -106,8 +106,8 @@ describe('augmentBlockKind ownership gate', () => {
 			})
 		]);
 
-		// No install is active here (currentInstallingPlugin() is null), so this is a
-		// consumer/harness augment of a plugin-owned kind — still a silent override.
+		// No install is active here (currentInstallingPlugin() is null), so this is a consumer or
+		// harness augmenting a plugin-owned kind, and that is still a silent override.
 		expect(() =>
 			augmentBlockKind(declaredPluginKind('ownedKind'), { renderImagesAsWidgets: true })
 		).toThrow(/only plugin 'owner-plugin'/);
