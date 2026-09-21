@@ -15,7 +15,7 @@ export interface Commit {
 }
 
 /** Wire `createWidgetInteraction` over a real parse with the widget at `sourceStart` already
- *  selected. Deps this path must not reach are proxy traps, so a widening handler fails loudly. */
+ *  selected. Dependencies this path must not reach are proxy traps, so widening it fails loudly. */
 export function harness(
 	source: string,
 	sourceStart: number,

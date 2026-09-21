@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 //
-// The widget edge-snap seats a CARET, so it stands down for a selection the surface already
-// paints. Miss-analysis: every snap test seated from a collapsed caret, and the guard read the
-// start container's node type, so no test ever called the snap over a painted range.
+// Moving a click to a widget edge places a caret, so it does nothing while a range is already
+// selected. Miss-analysis: every such test started from a collapsed caret, and the check read the
+// start container's node type, so no test ever called it over a selected range.
 import { describe, it, expect } from 'vitest';
 import { createWidgetInteraction } from '$lib/components/blocks/text/widget-interaction';
 import { MATH_INLINE } from '$lib/plugins/latex/latex-kind';

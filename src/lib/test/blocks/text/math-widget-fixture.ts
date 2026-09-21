@@ -1,7 +1,7 @@
-// Shared scaffolding for the inline-widget unit suites. The stamped wrapper is a faithful
-// stand-in for the render layer's portal island: the interaction layer reads only the marker
-// attributes and the source text between flanking prose. Mounting the real MathInline
-// (Svelte + KaTeX) is the e2e's job.
+// Shared scaffolding for the inline-widget unit suites. The wrapper with the marker attributes
+// stands in faithfully for the render's own widget element: the interaction code reads only those
+// attributes and the source text between the surrounding prose. Mounting the real MathInline
+// (Svelte plus KaTeX) is the e2e's job.
 import { afterEach, beforeEach } from 'vitest';
 import { __resetInlineWidgetsForTests } from '$lib/core/inline/inline-widgets';
 import { __resetInlineSyntaxForTests } from '$lib/core/inline/scan/plugin-syntax';
@@ -60,14 +60,14 @@ export function placeCaretAt(node: Node, offset: number): Selection {
 export interface MountedWidgetBlock {
 	el: HTMLDivElement;
 	node: CstNode;
-	/** Stamped widget elements, document order. */
+	/** Widget elements, in document order. */
 	widgets: HTMLElement[];
 	/** The inline nodes of `kind` the widgets stand in for, document order. */
 	inlineWidgets: InlineNode[];
 }
 
-// Mounts `source` the way TextEditableBlock renders it: each atomic widget island of `kind`
-// stamped between the surrounding prose (zero-length prose omitted). `kind` is the raw string.
+// Mounts `source` the way TextEditableBlock renders it: each atomic widget of `kind` placed
+// between the surrounding prose, with zero-length prose left out. `kind` is the raw string.
 export function mountWidgetBlock(source: string, kind: string): MountedWidgetBlock {
 	const node = parse(source).children[0];
 	const inlineWidgets = computeInlineContent(node).filter((n) => n.kind === kind);
@@ -90,8 +90,8 @@ export function mountWidgetBlock(source: string, kind: string): MountedWidgetBlo
 	return { el, node, widgets, inlineWidgets };
 }
 
-// Passive-only base for a WidgetInteractionDeps. EVERY behaviour a test asserts on must come
-// from the caller's `overrides` — a baked default would let a test assert against this stub.
+// A base `WidgetInteractionDeps` that does nothing. Every behaviour a test asserts on has to come
+// from the caller's `overrides`, or a test could end up asserting against this stub.
 export function widgetInteractionDeps(
 	base: { node: CstNode; el: HTMLElement },
 	overrides: Record<string, unknown>

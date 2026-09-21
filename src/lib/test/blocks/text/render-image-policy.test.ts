@@ -33,7 +33,7 @@ describe('text-render image-load-policy memo key', () => {
 		setPolicy('placeholder');
 		render.render();
 
-		// Image-free blocks must not subscribe to the policy: the early-return holds,
+		// Blocks with no image must not depend on the policy: the early return holds,
 		// so the DOM is untouched and the child node keeps its identity.
 		expect(el.firstChild).toBe(firstChild);
 	});

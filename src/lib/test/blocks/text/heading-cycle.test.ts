@@ -1,7 +1,7 @@
 // Miss-analysis: every case fed `cycleHeading` a hand-written raw whose marker a `^#` regex could
-// reach, so no fixture ever drew the two shapes where the kind's own content range disagrees with
-// that regex — a space-indented ATX heading and a setext one — and nothing asked what the arm does
-// on the raw-editable kinds that bind the same keymap.
+// reach, so no fixture drew the two shapes where the kind's own content range disagrees with that
+// regex, a space-indented ATX heading and a setext one, and nothing asked what happens on the
+// raw-editable kinds that bind the same keymap.
 import { describe, it, expect } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { getContentRange, isProseKind } from '$lib/core/inline';
@@ -52,15 +52,15 @@ describe('cycleHeading — prose shapes', () => {
 
 describe('cycleHeading — shapes a marker regex cannot reach', () => {
 	// Up to three leading spaces still open an ATX heading, and `^#{1,6}` never reaches that
-	// marker: re-marking by regex left the old one standing as heading TEXT, compounding per press.
+	// marker: re-marking by regex leaves the old one standing as heading text, once per keypress.
 	it('gives up a space-indented ATX marker instead of writing a second one', () => {
 		const indented = block('  ## x\n');
 		expect(indented.kind).toBe('heading');
 		expect(indented.cycle(3, 6)).toEqual({ newRaw: '### x\n', caretOffset: 5 });
 	});
 
-	// A setext heading keeps its structure AFTER the content, so re-marking by prefix left the
-	// underline behind and the block split into an ATX heading plus a stray `===` paragraph.
+	// A setext heading keeps its structure after the content, so re-marking by prefix would leave
+	// the underline behind and split the block into an ATX heading plus a stray `===` paragraph.
 	it('gives up a setext underline instead of leaving it below the new marker', () => {
 		const setext = block('Title\n===\n');
 		expect(setext.kind).toBe('setextHeading');
@@ -72,8 +72,8 @@ describe('cycleHeading — shapes a marker regex cannot reach', () => {
 	});
 });
 
-// The arm's `applies` gate in TextEditableBlock reads this predicate; these are the kinds that
-// bind TEXT_EDITABLE_KEYMAP without being prose, where an ATX prefix is content, not structure.
+// The `applies` check in TextEditableBlock reads this predicate; these are the kinds that bind
+// TEXT_EDITABLE_KEYMAP without being prose, where an ATX prefix is content, not structure.
 describe('cycleHeading — the kinds the arm must decline', () => {
 	it.each([
 		['[a]: /url\n', 'linkReferenceDefinition'],

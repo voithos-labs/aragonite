@@ -28,8 +28,8 @@ describe('delimiter auto-pair', () => {
 		expect(type('text here', 5, '`')).toEqual(written('text ``here', 6));
 	});
 
-	// The bug this exists for: a lone `$` typed ahead of an existing formula paired with that
-	// formula's closer, wrapping the prose between them.
+	// A lone `$` typed ahead of an existing formula would otherwise pair with that formula's
+	// closer, wrapping the prose between them.
 	it('a typed $ pairs with its twin, not the next formula', () => {
 		expect(type('text and $x^2$ later', 5, '$')).toEqual(written('text $$and $x^2$ later', 6));
 	});
@@ -56,8 +56,8 @@ describe('delimiter auto-pair', () => {
 		expect(type('a ``', 3, '1')).toBeNull();
 	});
 
-	// `$5` is a price and `$ ` is a shell prompt: the twin the keystroke left would only paint
-	// as a stray dollar sign.
+	// `$5` is a price and `$ ` is a shell prompt: the partner the keystroke left would just
+	// show as a stray dollar sign.
 	it('the empty pair drops its twin when the first byte makes no construct', () => {
 		expect(type('cost $$', 6, '5')).toEqual(written('cost $5', 7));
 		expect(type('$$', 1, ' ')).toEqual(written('$ ', 2));
@@ -94,10 +94,10 @@ describe('delimiter auto-pair', () => {
 		expect(type('a ~~~', 5, '~')).toBeNull();
 	});
 
-	// A closer typed by hand (no twin was there to step over) completes the construct, and the
-	// byte after it belongs outside: the arm writes it and seats the caret past the run.
-	// Miss-analysis: every closing row here had a twin to step over, so none typed the byte that
-	// makes the construct and asked which side the next one lands on.
+	// A closer typed by hand, with no partner there to step over, completes the construct, and the
+	// byte after it belongs outside, so it is written and the caret goes past the run.
+	// Miss-analysis: every closing case here had a partner to step over, so none typed the byte
+	// that makes the construct and asked which side the next one lands on.
 	it('a closer typed with no twin ahead closes the construct', () => {
 		expect(type('Some *ab', 8, '*')).toEqual(closed('Some *ab*', 9));
 		expect(type('Some `ab', 8, '`')).toEqual(closed('Some `ab`', 9));

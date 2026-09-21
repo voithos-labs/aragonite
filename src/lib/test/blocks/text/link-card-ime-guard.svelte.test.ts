@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
-// Miss: every card key test pressed plain keys; no row ever carried `isComposing`, so the IME
-// confirm/cancel keystrokes (which arrive as Enter/Tab/Escape mid-composition) reached the
-// card's handlers as if the user had pressed them.
+// Miss-analysis: every card key test used plain keys and none carried `isComposing`, so the IME
+// confirm and cancel keystrokes, which arrive as Enter, Tab or Escape during a composition,
+// reached the card's handlers as if the user had pressed them.
 import { describe, it, expect, vi } from 'vitest';
 import { mount, unmount, flushSync } from 'svelte';
 import { parse } from '$lib/core/parser';

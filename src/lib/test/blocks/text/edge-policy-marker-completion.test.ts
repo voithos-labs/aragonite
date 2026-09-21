@@ -1,9 +1,9 @@
 // @vitest-environment jsdom
 //
-// The caret-edge dispatch's container marker-completion arm: a bare space at the content start of
-// an empty child is the marker the opener already minted, so it is consumed and no byte moves.
-// Miss-analysis: the opener minted `>` on one keystroke and the suite only ever LOADED quotes, so
-// the second keystroke of the two-press marker had no test at any level.
+// The caret-edge dispatch's marker-completion branch: a bare space at the content start of an
+// empty child belongs to the marker the parser already made, so it is consumed and no byte moves.
+// Miss-analysis: the parser makes `>` on one keystroke and the suite only ever loaded quotes, so
+// the second keystroke of the two-key marker had no test at any level.
 import { describe, expect, it } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { trimTrailingLineEnding } from '$lib/core/lines';
@@ -18,8 +18,8 @@ import {
 } from './edge-policy-fixture';
 
 interface Harness extends EdgeDispatchHarness {
-	/** Repoint the same dispatch at another child of the mounted container, as a windowed
-	 *  surface re-used for a different block does. */
+	/** Point the same dispatch at another child of the mounted container, as a recycled
+	 *  block component does. */
 	useChild: (index: number) => void;
 }
 
@@ -68,9 +68,9 @@ describe('a container declaring contentStartSpace completes its marker', () => {
 		expect(h.edits).toHaveLength(0);
 	});
 
-	// The consumed press writes nothing, so the child is byte-identical when press 2 arrives and
-	// only this arm's own memory can tell them apart. Press 2 is also the only way to type a
-	// leading space at all — the indented-code opener needs four (GH #143).
+	// The consumed key writes nothing, so the child is byte-identical when the second space
+	// arrives and only this branch's own memory tells them apart. The second space is also the
+	// only way to type a leading space at all, and the indented-code opener needs four (GH #143).
 	it('declines the second space at the same seat, leaving it to land as content', () => {
 		const h = mount('>\n', [0, 0]);
 		expect(h.handleKeydown(key(' '), at(0))).toBe(true);
@@ -80,8 +80,8 @@ describe('a container declaring contentStartSpace completes its marker', () => {
 		expect(h.edits).toHaveLength(0);
 	});
 
-	// The claim is per child, not per surface: a windowed surface re-used for another empty
-	// child owes that child its own completion.
+	// It is taken once per child, not once per component: a component recycled for another
+	// empty child gives that child its own completion.
 	it('re-arms when the surface is re-used for a different empty child', () => {
 		const h = mount('>\n>\n', [0, 0]);
 		expect(h.handleKeydown(key(' '), at(0))).toBe(true);

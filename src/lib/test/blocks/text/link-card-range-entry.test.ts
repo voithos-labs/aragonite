@@ -1,10 +1,10 @@
 // @vitest-environment jsdom
 //
-// The chord over a range that lies WHOLLY inside one link edits that link. Create declines those
-// bytes (they are already a construct's), so without this fork the press is inert while the
-// toolbar paints the button pressed — an enabled affordance that neither opens nor writes.
-// Miss-analysis: every create case drove a range over plain text or one CROSSING a construct, so
-// the contained range — the only shape both forks refuse to claim — was never fed to the entry.
+// The chord over a range that lies wholly inside one link edits that link. Create refuses those
+// bytes, since they already belong to a construct, so without this branch the key does nothing
+// while the toolbar still shows the button pressed: an enabled button that neither opens nor
+// writes. Miss-analysis: every create case drove a range over plain text or one crossing a
+// construct, so a range contained in one, the shape both branches refuse, never reached the entry.
 import { describe, it, expect, afterEach } from 'vitest';
 import { parse } from '$lib/core/parser';
 import type { CstNode } from '$lib/core/nodes';
@@ -30,7 +30,7 @@ function mount(source: string): {
 	return { el: harness.el, node, linkRef: {} };
 }
 
-/** A real DOM range over raw offsets — a zero-ambient prose block walks 1:1. */
+/** A real DOM range over raw offsets: a prose block with no marker prefix maps one to one. */
 function seat(el: HTMLElement, start: number, end: number): void {
 	const sel = window.getSelection()!;
 	sel.removeAllRanges();
@@ -99,7 +99,7 @@ describe('the chord over a range inside a link', () => {
 		expect(press(LINKED, 10, 10).getTarget()).toEqual({ path: [0], sourceStart: 6 });
 	});
 
-	// The one guard the entry cannot prove for itself: block-local offsets are fabricated there.
+	// The one check the entry cannot make for itself: block-local offsets are invented there.
 	it('a cross-block range enters nothing, even with the offsets inside the link', () => {
 		const card = press(LINKED, 8, 12, true);
 		expect(card.getTarget()).toBeNull();

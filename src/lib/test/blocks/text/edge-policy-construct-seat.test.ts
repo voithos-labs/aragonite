@@ -1,11 +1,11 @@
 // @vitest-environment jsdom
 //
-// The caret-edge dispatch's typing seat. A printable key at an inline construct's unpainted
-// delimiter run writes its byte through the CST at the offset the policy and arrival name,
-// because Chromium canonicalizes a collapsed caret upstream across a non-rendered run — a
-// DOM re-seat past the run is normalized away before the native insertion.
-// Miss-analysis: the seat's inputs (policy row + arrival side) both shipped consumer-free, so
-// nothing could disagree with them; this is the level where the two meet.
+// Where the caret-edge dispatch puts a typed byte. A printable key at an inline construct's
+// hidden delimiter run writes its byte through the CST at the offset the policy and the arrival
+// side name, because Chromium moves a collapsed caret back across a run it does not render, so
+// moving the DOM caret past that run is undone before the insertion.
+// Miss-analysis: the policy entry and the arrival side both shipped with no consumer, so nothing
+// could disagree with them; this is the level where the two meet.
 import { describe, expect, it } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { trimTrailingLineEnding } from '$lib/core/lines';
@@ -50,7 +50,7 @@ describe('a symmetric pair extends or not by the arrival on record', () => {
 		const e = key('X');
 		expect(h.handleKeydown(e, at(11))).toBe(true);
 		expect(e.defaultPrevented).toBe(true);
-		// caretBefore is the PRE-seat caret, so Ctrl+Z lands where the user was typing.
+		// `caretBefore` is the caret before the byte moved, so Ctrl+Z lands where the user typed.
 		expect(h.edits).toEqual([[0, 'Some **bold**X text\n', 11, 14]]);
 	});
 
@@ -60,11 +60,11 @@ describe('a symmetric pair extends or not by the arrival on record', () => {
 		expect(h.edits).toEqual([[0, 'Some **Xbold** text\n', 5, 8]]);
 	});
 
-	// A click resets the affinity, so the default IS the click contract (live-mode.md § 4.2).
-	// The seat decides WHERE the byte lands; what a delimiter keystroke writes there is still the
-	// auto-pair's answer, or a byte seated past the closer would arrive without its twin.
-	// Miss-analysis: every seat row typed a letter, so the arm the keydown seat pre-empts by
-	// writing first (the `beforeinput` auto-pair) was never asked about a seated delimiter.
+	// A click resets the arrival side, so the default is what a click means (live-mode.md § 4.2).
+	// These rules decide where the byte lands; what a delimiter keystroke writes there is still
+	// the auto-pair's answer, or a byte placed past the closer would arrive without its partner.
+	// Miss-analysis: every case here typed a letter, so the `beforeinput` auto-pair, which keydown
+	// pre-empts by writing first, was never asked about a delimiter placed this way.
 	it('writes a delimiter’s twin at the seat, not a lone byte', () => {
 		const h = mount(BOLD, 'live', 'far');
 		expect(h.handleKeydown(key('`'), at(11))).toBe(true);
@@ -76,7 +76,7 @@ describe('a symmetric pair extends or not by the arrival on record', () => {
 		expect(h.handleKeydown(key('X'), at(11))).toBe(false);
 	});
 
-	// Construct-relative, not directional: `Home` at a line-leading pair types BEFORE it.
+	// Relative to the construct, not to a direction: `Home` at a line-leading pair types before it.
 	it('writes outside the construct for a line extreme, at either edge', () => {
 		const lead = mount('**Lead** in\n', 'live', 'outside');
 		expect(lead.handleKeydown(key('X'), at(2))).toBe(true);
@@ -104,8 +104,8 @@ describe('a never-extend construct writes outside whatever the arrival', () => {
 });
 
 describe('the seat claims only a live caret typing at an edge', () => {
-	// Source and the preview rungs paint the delimiter, so the byte the user sees is the byte
-	// they get and native insertion is already honest.
+	// Source mode and the preview modes draw the delimiter, so the byte the user sees is the byte
+	// they get and the browser's own insertion is already right.
 	it.each([undefined, 'source', 'preview-block', 'preview-inline'])('declines in %s', (mode) => {
 		const h = mount(BOLD, mode ?? 'source', 'far');
 		expect(h.handleKeydown(key('X'), at(11))).toBe(false);
@@ -118,8 +118,8 @@ describe('the seat claims only a live caret typing at an edge', () => {
 		}
 	});
 
-	// Backspace and Delete are absent by design: the same edge is a seat for a typed byte and a
-	// cut for a destructive key, and the destructive arm owns those two
+	// Backspace and Delete are absent on purpose: the same edge places a typed byte and cuts for
+	// a destructive key, and the destructive branch owns those two
 	// (`edge-policy-construct-delete.test.ts`).
 	it('declines a non-printable key', () => {
 		const h = mount(BOLD, 'live', 'far');

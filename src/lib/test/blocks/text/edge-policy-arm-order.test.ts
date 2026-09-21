@@ -1,9 +1,9 @@
 // @vitest-environment jsdom
 //
-// The caret-edge dispatch's ORDER is the seam (G4.12): which gesture family outranks which decides
-// every contested press, and a family inserted at the wrong rank changes behavior no single arm's
-// tests can see. Miss-analysis: the order lived as nine literal `if` lines with no test naming it,
-// so a reordering read as a refactor.
+// The caret-edge dispatch's order is what the rule fixes (G4.12): which gesture family outranks
+// which decides every contested key, and a family added at the wrong rank changes behavior no
+// single branch's tests can see. Miss-analysis: the order was nine literal `if` lines with no
+// test naming it, so a reordering read as a refactor.
 import { describe, expect, it } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { trimTrailingLineEnding } from '$lib/core/lines';
@@ -46,17 +46,17 @@ describe('the declared arm order', () => {
 		expect(dispatch.arms.filter((arm) => arm.reason.trim() === '')).toEqual([]);
 	});
 
-	// The cut is an ENTRY, not a pre-check: the two arms above it still run in reading mode, and
-	// everything below stands down. A hoisted gate would lose the first half.
+	// The reading-mode entry sits in the list, not ahead of it: the two branches above it still
+	// run in reading mode, and everything below does nothing. A check at the top loses that half.
 	it('reading mode stops the walk at its cut and leaves the key unclaimed', () => {
 		const e = new KeyboardEvent('keydown', { key: 'Backspace', cancelable: true });
 		expect(mount(true).dispatch.handleKeydown(e, asRawOffset(11))).toBe(false);
 		expect(e.defaultPrevented).toBe(false);
 	});
 
-	// The other half of the same cut: the widget arm ABOVE it still runs, so an entity at the caret
-	// takes the destructive press as a selection. Its atomic delete is the leg reading stands down,
-	// which is why the arm reads the mode itself rather than being gated out of the walk.
+	// The other half of the same entry: the widget branch above it still runs, so an entity at the
+	// caret takes the destructive key as a selection. Its atomic delete is the part reading mode
+	// skips, which is why that branch reads the mode itself rather than being skipped entirely.
 	it('enters a widget at the caret in reading mode and commits nothing', () => {
 		const b = mount(true, 'a&copy;b\n');
 		const e = new KeyboardEvent('keydown', { key: 'Backspace', cancelable: true });

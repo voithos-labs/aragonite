@@ -4,8 +4,9 @@ import { parse } from '$lib/core/parser';
 import { displayLength } from '$lib/core/lines';
 import { cleanLiveJoinSeam } from '$lib/components/blocks/text/live-join-seam';
 
-// The bytes a live-mode join writes. Every case states the byte-literal concatenation the cleanup
-// is offered — that is what a decline leaves behind — so a null return is as pinned as a rewrite.
+// The bytes a live-mode join writes. Every case states the plain concatenation the cleanup is
+// offered, which is what a refusal leaves behind, so a null return is covered as closely as a
+// rewrite.
 
 const blockOf = (source: string) => parse(source, { scope: 'fragment' }).children[0];
 
@@ -95,14 +96,14 @@ describe('the split inverse — a closer and an opener meeting at the seam', () 
 });
 
 describe('a truncation that strands a delimiter run', () => {
-	// § 5's row: the reader saw bold, then italic; what survives is the joined TEXT, and the runs
+	// The § 5 case: the user saw bold, then italic; what survives is the joined text, and the runs
 	// whose partners the cut took are dropped rather than printed.
 	it('bold to italic drops both stranded runs', () => {
 		expect(sameBlock('**bold** and *italic*\n', 4, 16)).toBe('boalic\n');
 	});
 
-	// Same kind on both sides: the surviving opener and closer make one construct across the seam,
-	// which is what the reader had, so the literal join already says it and the cleanup declines.
+	// Same kind on both sides: the surviving opener and closer make one construct across the join,
+	// which is what the user had, so the plain concatenation already says it and nothing changes.
 	it('the same construct cut on both sides keeps its pair', () => {
 		expect(sameBlock('**bold**\n', 3, 5)).toBeNull();
 		expect(deleteBetween('a **bold** b\n', 5, 'c **more** d\n', 5)).toBeNull();
@@ -119,8 +120,8 @@ describe('a truncation that strands a delimiter run', () => {
 		expect(deleteBetween('__bold__ x\n', 3, 'y **more**\n', 7)).toBe('be\n');
 	});
 
-	// A construct with no content of its own cannot be cut into halves, so the seam stands down
-	// and the caller keeps bytes that are at least honest about what they are.
+	// A construct with no content of its own cannot be cut into halves, so the cleanup does
+	// nothing and the caller keeps bytes that are at least honest about what they are.
 	it('declines a cut through an atomic run', () => {
 		expect(sameBlock('a <https://example.com> b\n', 10, 24)).toBeNull();
 		expect(sameBlock('a \\* b\n', 3, 5)).toBeNull();
@@ -128,11 +129,11 @@ describe('a truncation that strands a delimiter run', () => {
 });
 
 describe('a join whose survivors are only terminal hard-break trivia', () => {
-	// Miss-analysis (#113): the split half's terminal-trivia rule (#106) had deterministic unit
-	// twins; the join half was covered only by the fresh-seed property lane, so the class flaked
-	// at ~1 run in 6 instead of failing a named row.
+	// Miss-analysis (GH #113): the split half's trailing-whitespace rule (GH #106) had matching
+	// deterministic tests; the join half was covered only by the random property suite, so the
+	// case failed about one run in six instead of failing a named test.
 	it('drops the trivia with the stranded run, not the run alone', () => {
-		// `  \n` alone would reload as blank trivia — a different shape than the block written.
+		// `  \n` alone would reparse as a blank line, not the block that was written.
 		expect(sameBlock('~~foo~~  \n', 0, 5)).toBe('\n');
 	});
 
@@ -159,9 +160,9 @@ describe('a join whose survivors are only terminal hard-break trivia', () => {
 	});
 });
 
-// Miss-analysis: every join case cut a construct so that ONE side kept content, so the shape the
-// two sides jointly empty was never drawn; and the empty-pair oracle spelled residue as an
-// asterisk-family regex, which `[](url)` is not a member of, so the property lane could not see it.
+// Miss-analysis: every join case cut a construct so that one side kept content, so the shape
+// where both sides together empty it was never drawn; and the empty-pair check spelled leftovers
+// as an asterisk-family regex, which `[](url)` does not match, so the property suite missed it.
 describe('a join that would leave a construct enclosing nothing unwraps it', () => {
 	it('unwraps a link the cut emptied rather than leaving [](url) unpainted', () => {
 		expect(sameBlock('[text](url) more\n', 1, 5)).toBe(' more\n');
@@ -187,14 +188,14 @@ describe('a join that would leave a construct enclosing nothing unwraps it', () 
 		expect(sameBlock('x **[a](u)** y\n', 5, 6)).toBe('x  y\n');
 	});
 
-	// The kept-run reading is the one that empties the link here, so "fewest drops" has to be read
-	// among the readings that leave none — found by the property lane once the net could see it.
+	// The reading that keeps the runs is the one that empties the link here, so "fewest drops" has
+	// to be read among the readings that leave none behind.
 	it('prefers the fuller drop where the leaner one empties a construct', () => {
 		expect(sameBlock('[**bold**]()*x***foo**\n', 1, 7)).toBe('*x***foo**\n');
 	});
 
-	// Only what THIS cut emptied: residue the document already carried is bytes the gesture never
-	// aimed at, and dropping it would take more than the reader asked for.
+	// Only what this cut emptied: an empty pair the document already carried is bytes the gesture
+	// never aimed at, and dropping it would take more than the user asked for.
 	it('leaves residue the cut did not create', () => {
 		expect(sameBlock('[](url) some text\n', 9, 13)).toBeNull();
 	});
@@ -244,10 +245,10 @@ describe('what the cleanup refuses to be asked', () => {
 	});
 });
 
-// A construct standing over a content-empty one paints ALL its bytes (live-mode.md § 4.1), so a
-// side that survives as chrome survives as bytes the reader saw. Miss-analysis: the painted-chrome
-// pins used the FLAT `[](u)`, which both seams decline by childless arity (the wrong reason), so no
-// case ever reached the cleaner with a painting side it could classify as a stranded run.
+// A construct standing over an empty one shows all its bytes (live-mode.md § 4.1), so a side that
+// survives as visible markers survives as bytes the user saw. Miss-analysis: the visible-marker
+// cases used the flat `[](u)`, which both rewrites refuse because it has no children, the wrong
+// reason, so none reached the cleanup with a visible side it could call a stranded run.
 describe('a side that is painting chrome is not a stranded run', () => {
 	const PAINTED = '**[](u)**\n';
 
@@ -267,10 +268,10 @@ describe('a side that is painting chrome is not a stranded run', () => {
 	});
 });
 
-// The seam's atomic list is per-NODE too: an empty link has no content range, so a cut inside it
-// leaves halves no reading can repair, while the same cut inside a link WITH text is an ordinary
-// dangling run. Miss-analysis: the two shapes were never contrasted, so a kind-level column looked
-// like it could replace the arity test that produces both answers.
+// Which constructs count as atomic is a fact about the node here too: an empty link has no content
+// range, so a cut inside it leaves halves no reading can repair, while the same cut inside a link
+// with text leaves an ordinary open run. Miss-analysis: the two shapes were never contrasted, so a
+// per-kind column looked like it could replace the test that produces both answers.
 describe('a cut inside a construct with no content declines', () => {
 	// 3 is the empty content point itself, where no delimiter run is cut and the node's own arity
 	// is all that is left to decline on; 4 is inside the closer, which the run test also catches.

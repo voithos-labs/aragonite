@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 //
-// Miss-analysis: every selected-widget key case at this level was a modifier chord or an edit
-// key, and the e2e arrow specs walked PAST an image with a caret beside it, never from a
-// selected one, so the swallow-everything tail ate the vertical arrows unnoticed.
+// Miss-analysis: every selected-widget key case here was a modifier chord or an edit key, and
+// the e2e arrow specs stepped past an image with a caret beside it, never from a selected one,
+// so the catch-all consume at the end ate the vertical arrows unnoticed.
 import { describe, it, expect } from 'vitest';
 import { harness } from './widget-selected-fixture';
 
@@ -26,7 +26,7 @@ describe('handleSelectedWidgetKeydown — a plain vertical arrow leaves the widg
 		expect(await interaction.handleSelectedWidgetKeydown(e)).toBe(false);
 		expect(seats).toEqual([7]);
 		expect(widgetSelection.getSelected()).toBeNull();
-		// The shared pipeline's line walk runs next and owns the default.
+		// The shared line-by-line move runs next and owns the default.
 		expect(e.defaultPrevented).toBe(false);
 	});
 

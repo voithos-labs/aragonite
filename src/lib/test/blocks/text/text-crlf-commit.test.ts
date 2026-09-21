@@ -1,9 +1,8 @@
 // @vitest-environment jsdom
 //
-// A CRLF-authored paragraph must keep its trailing `\r\n` through the keystroke
-// commit funnel: the input path appended a hard `\n`, so the first keystroke
-// normalized the block's trailing ending. Driven through the mounted component's
-// real input listener (the commit closure lives in the component).
+// A paragraph written with CRLF must keep its trailing `\r\n` through the keystroke commit:
+// appending a hard `\n` there would make the first keystroke rewrite the block's line ending.
+// Driven through the mounted component's real input listener, since the commit lives there.
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import { mount, unmount, flushSync } from 'svelte';
 import TextEditableBlock from '$lib/components/blocks/text/TextEditableBlock.svelte';
@@ -12,7 +11,7 @@ import type { EditorServices } from '$lib/editor-keys';
 import { makeStubBlockEdit } from '../../harness/editor-actions';
 import { editorMountContext } from '../../harness/mount-context';
 
-// The render effect reads islands off the decoration engine; the stub returns none.
+// The render effect reads decorations off `decorationEngine`; the stub returns none.
 const noIslands = {
 	islandsForPath: () => []
 } as unknown as EditorServices['decorations'];

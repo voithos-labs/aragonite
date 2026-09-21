@@ -1,6 +1,6 @@
-// Shared scaffolding for the edge-policy-dispatch suites. The deps base is passive-only:
-// EVERY behaviour a test asserts on must come from the caller's `overrides` — a baked
-// default would let a test assert against this stub.
+// Shared scaffolding for the edge-policy-dispatch suites. The base dependencies do nothing:
+// every behaviour a test asserts on has to come from the caller's `overrides`, or a test
+// could end up asserting against this stub.
 import { afterEach } from 'vitest';
 import {
 	createEdgePolicyDispatch,
@@ -66,7 +66,7 @@ export function makeEdgeDispatch(
 
 // ── DOM scaffolding ──────────────────────────────────────────────────────────
 
-/** A contenteditable surface holding `content`, optionally under a data-presentation root. */
+/** A contenteditable element holding `content`, optionally under a data-presentation root. */
 export function mountSurface(content: string | Node[], mode?: string): HTMLElement {
 	const el = document.createElement('div');
 	el.setAttribute('contenteditable', 'true');
@@ -92,8 +92,8 @@ export function decorationIsland(start: number, end = start): HTMLElement {
 	return island;
 }
 
-/** `[text before][island][text after]` for `source`'s first block; a zero-width
- *  `start === end` mounts a widget island. Empty flanks are omitted. */
+/** `[text before][widget][text after]` for `source`'s first block; a zero-width
+ *  `start === end` mounts a widget. Empty sides are left out. */
 export function mountIslandBlock(
 	source: string,
 	start: number,
@@ -110,7 +110,7 @@ export function mountIslandBlock(
 	return { node, el: mountSurface(parts, mode), island };
 }
 
-/** Element-level caret directly after `target` — where the browser drops a printable key. */
+/** Element-level caret directly after `target`, where the browser drops a printable key. */
 export function caretAfter(target: Node): void {
 	const range = document.createRange();
 	range.setStartAfter(target);

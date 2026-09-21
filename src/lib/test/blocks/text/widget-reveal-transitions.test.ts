@@ -1,10 +1,9 @@
 // @vitest-environment jsdom
 //
-// G1.26 fired through the real machinery: the settle-window re-entry through the
-// interaction factory's public surface, the source-length precondition through
-// the reveal kernel — and the legal reveal→commit / reveal→cancel cycles pinned
-// silent, because a false-firing invariant poisons the channel every e2e spec
-// watches.
+// G1.26 fired through the real code: re-entering during the settle window through the public
+// interaction factory, and the source-length precondition through the primitive that swaps the
+// DOM. The legal show-then-commit and show-then-cancel cycles are also covered as silent,
+// because an invariant that fires wrongly floods the console every e2e spec watches.
 import { describe, it, expect } from 'vitest';
 
 import { takeDevWarns } from '$lib/test/support/warn-gate';
@@ -18,7 +17,7 @@ installMathInline();
 const REVEAL_TRANSITION = ['invariant:reveal-transition'];
 
 // A paragraph whose math widget sits at the leading edge, so enterEdgeWidget
-// ('start') — the cross-block edge landing — opens its reveal.
+// ('start'), the arrival from another block, shows its source.
 function mountEdgeMathBlock() {
 	const { el, node } = mountWidgetBlock('$x^2$ tail', MATH_INLINE);
 	const interaction = createWidgetInteraction(
@@ -40,8 +39,8 @@ const settle = () => new Promise((r) => setTimeout(r));
 describe('reveal transitions — settle-window re-entry (G1.26)', () => {
 	it('a second entry landing synchronously inside the settle window fires', async () => {
 		const { interaction } = mountEdgeMathBlock();
-		// First entry opens the reveal; its settle window spans the microtask chain, so a synchronous
-		// second entry lands inside it — an interleaving no real (macrotask) gesture can produce.
+		// The first entry shows the source; its settle window spans the microtask chain, so a
+		// synchronous second entry lands inside it, an ordering no real gesture can produce.
 		interaction.enterEdgeWidget('start');
 		interaction.enterEdgeWidget('start');
 		await settle();

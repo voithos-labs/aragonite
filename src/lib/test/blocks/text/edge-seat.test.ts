@@ -1,14 +1,14 @@
 // @vitest-environment jsdom
-// The typing seat's resolution table: construct edge × policy × arrival → the raw offset a
-// typed byte belongs at. Pure over the inline tree, so no DOM and no dispatch here — the
-// dispatch arm that consumes it is pinned in `edge-policy-construct-seat.test.ts`.
+// The table that decides where a typed byte goes: construct edge, policy and arrival side give
+// the raw offset. Pure over the inline tree, so no DOM and no dispatch here; the dispatch branch
+// that uses it is covered in `edge-policy-construct-seat.test.ts`.
 import { describe, expect, it } from 'vitest';
 import { relocateComposedRun, resolveEdgeSeat } from '$lib/components/blocks/text/edge-seat';
 import { parseInline } from '$lib/core/inline';
 import { screenVisibility } from '$lib/core/inline/visibility';
 import type { EdgeAffinity } from '$lib/cursor/edge-affinity';
 
-/** Every row below is a block holding content, so its chrome hides: the live reading. */
+/** Every case below is a block holding content, so its markers are hidden: the live reading. */
 const LIVE = screenVisibility('live', { chromePaints: false });
 
 function seatIn(source: string, offset: number, affinity: EdgeAffinity | null, typed = 'X') {
@@ -22,9 +22,9 @@ function seatIn(source: string, offset: number, affinity: EdgeAffinity | null, t
 	);
 }
 
-// `Some **bold** text`: strong [5,13), `bold` [7,11). The leading run is [5,7), the trailing
-// run [11,13). A read at either run's pixel canonicalizes to the run's NEAR side, so 5 and 11
-// are the offsets a real gesture produces — every row below starts from one of them.
+// `Some **bold** text`: strong [5,13), `bold` [7,11). The leading run is [5,7), the trailing run
+// [11,13). Reading a point over either run normalises to the run's near side, so 5 and 11 are the
+// offsets a real gesture produces, and every case below starts from one of them.
 describe('a symmetric pair follows the arrival', () => {
 	const BOLD = 'Some **bold** text';
 
@@ -38,14 +38,15 @@ describe('a symmetric pair follows the arrival', () => {
 		expect(seatIn(BOLD, 5, 'far')).toEqual({ offset: 7, kind: 'strong' });
 	});
 
-	// A click resets the affinity, and the gdocs default is the construct the caret touches.
+	// A click resets the arrival side, and the default, as in Google Docs, is the construct the
+	// caret touches.
 	it('defaults to the near side with no arrival on record — the click default', () => {
 		expect(seatIn(BOLD, 11, null)).toBeNull();
 		expect(seatIn(BOLD, 5, null)).toBeNull();
 	});
 
-	// Construct-relative, not directional: the same value reads as the run's start at an opener
-	// and its end at a closer, so a line extreme never lands between delimiter bytes.
+	// Relative to the construct, not to a direction: the same value reads as the run's start at
+	// an opener and its end at a closer, so the end of a line never lands between delimiters.
 	it('seats outside the construct at both edges for a line extreme', () => {
 		expect(seatIn(BOLD, 11, 'outside')).toEqual({ offset: 13, kind: 'strong' });
 		expect(seatIn(BOLD, 5, 'outside')).toBeNull();
@@ -83,50 +84,50 @@ describe('a never-extend construct ignores the arrival', () => {
 		}
 	});
 
-	// `[](url)`: it paints nothing at all, so there is no content edge for a seat to resolve.
+	// `[](url)`: it draws nothing at all, so there is no content edge to resolve.
 	it('declines a pair emptied of content', () => {
 		expect(seatIn('a [](http://e.com) b', 3, 'far')).toBeNull();
 	});
 });
 
-// An escape, a hard break and an angle autolink are never-extend with NO content range: every
-// byte they hold is a delimiter. A seat that stood down there let the byte land between them —
-// the caret gets there legitimately, because the landable floor clears the leading hidden run.
+// An escape, a hard break and an angle autolink are never-extend with no content range: every
+// byte they hold is a delimiter. Doing nothing there would let the byte land between them, and
+// the caret gets there legitimately, since the first reachable offset clears the leading run.
 describe('a childless construct is all delimiters', () => {
-	// `x \* y`: the escape paints `*`, so its backslash is the leading run and offset 3 is that
-	// run's end — never-extend puts the byte outside it.
+	// `x \* y`: the escape shows `*`, so its backslash is the leading run and offset 3 is that
+	// run's end; never-extend puts the byte outside it.
 	it('seats a byte against an escape outside the pair', () => {
 		expect(seatIn('x \\* y', 3, 'far')).toEqual({ offset: 2, kind: 'escape' });
-		// Already outside it: the seat has nothing to move.
+		// Already outside it: there is nothing to move.
 		expect(seatIn('x \\* y', 2, 'far')).toBeNull();
 	});
 
-	// `end  \nnext`: the two spaces are the run, the break's `\n` is what paints.
+	// `end  \nnext`: the two spaces are the run, and the break's `\n` is what shows.
 	it('seats a byte against a hard break before its spaces', () => {
 		expect(seatIn('end  \nnext', 4, 'far')).toEqual({ offset: 3, kind: 'hardLineBreak' });
 	});
 
-	// `\\` paints `\` — a painted string that ALSO occurs at the construct's own start. The
-	// anchor must take the last match, or the leading backslash reads as content and the seat
-	// sends a byte typed at offset 1 to the pair's end instead of its start.
+	// `\\` shows `\`, a visible string that also occurs at the construct's own start. The match
+	// has to be the last one, or the leading backslash reads as content and a byte typed at
+	// offset 1 goes to the pair's end instead of its start.
 	it('seats a byte at an escaped backslash on the near side, not past the pair', () => {
 		expect(seatIn('\\\\x y', 1, 'far')).toEqual({ offset: 0, kind: 'escape' });
 	});
 
-	// `<https://e.com>`: the URL is what paints, so the brackets are the two runs. A byte at
-	// either one goes outside the construct — the destination is not text to extend.
+	// `<https://e.com>`: the URL is what shows, so the brackets are the two runs. A byte at
+	// either one goes outside the construct, since the destination is not text to extend.
 	it('seats a byte against an angle autolink outside its brackets', () => {
 		expect(seatIn('<https://e.com> x', 1, 'outside')).toEqual({ offset: 0, kind: 'autolink' });
 		expect(seatIn('<https://e.com> x', 14, 'outside')).toEqual({ offset: 15, kind: 'autolink' });
 	});
 
-	// ...and a byte inside the URL is ordinary editing: the destination IS the text there.
+	// ...and a byte inside the URL is ordinary editing: the destination is the text there.
 	it('declines inside the painted URL', () => {
 		expect(seatIn('<https://e.com> x', 6, 'outside')).toBeNull();
 	});
 
-	// An entity paints a glyph that is none of its bytes, so its whole span reads as painted and
-	// neither end is a run. The widget arm of the dispatch owns a caret there.
+	// An entity shows a character that is none of its bytes, so its whole span reads as visible
+	// and neither end is a run. The dispatch's widget branch owns a caret there.
 	it('declines at either end of an entity widget', () => {
 		expect(seatIn('a&copy;b', 1, 'near')).toBeNull();
 		expect(seatIn('a&copy;b', 7, 'far')).toBeNull();
@@ -164,8 +165,8 @@ describe('relocateComposedRun', () => {
 		});
 	});
 
-	// The seat claims one insertion, never a range op: a composition that replaced a selection
-	// is a different edit, and rebuilding it from a length delta would corrupt the bytes.
+	// This handles one insertion, never a range edit: a composition that replaced a selection is
+	// a different edit, and rebuilding it from a length difference would corrupt the bytes.
 	it('declines anything that is not a plain insertion at the composition point', () => {
 		expect(relocateComposedRun(BOLD, BOLD, 11, inlines, 'far', LIVE)).toBeNull();
 		expect(relocateComposedRun(BOLD, 'Some **bol**X text', 11, inlines, 'far', LIVE)).toBeNull();
@@ -173,11 +174,11 @@ describe('relocateComposedRun', () => {
 	});
 });
 
-// #116's own draw: a run of three or more asterisks is SHARED between a nested pair, so a byte at
-// either end rebinds which delimiters pair with which. Declining here is no shrug — the caret's
-// own offset is the candidate that verifies, and the run's far end is the one that does not.
-// Miss-analysis: the property net excluded the class by an input regex against an open issue,
-// so neither lane could see it until the exclusion became a classification.
+// A run of three or more asterisks is shared between a nested pair, so a byte at either end
+// changes which delimiters pair with which (GH #116). Declining is not a shrug here: the caret's
+// own offset is the candidate that passes, and the run's far end is the one that does not.
+// Miss-analysis: the property suite excluded this class with an input regex pointing at an open
+// issue, so neither it nor this table could see the case until that exclusion was revisited.
 describe('a delimiter run shared between two pairings', () => {
 	const SHARED = '***foo****foo*';
 
@@ -187,19 +188,19 @@ describe('a delimiter run shared between two pairings', () => {
 		}
 	});
 
-	// Non-vacuity, and the point of verifying rather than blanket-declining: the run's OTHER end
-	// has a reading that keeps the pairing, and the seat still takes it.
+	// Non-vacuity, and the point of checking rather than refusing outright: the run's other end
+	// has a reading that keeps the pairing, and it is still taken.
 	it('still seats where a reading keeps the pairing', () => {
 		expect(seatIn(SHARED, 8, 'near')).toEqual({ offset: 6, kind: 'strong' });
 		expect(seatIn(SHARED, 13, 'outside')).toEqual({ offset: 14, kind: 'emphasis' });
 	});
 });
 
-// #228 miss-analysis: the seat's table held no run enclosing a bare autolink, so no row asked what
-// happens when the caret's own offset is the one the parse rebinds.
+// Miss-analysis (GH #228): this table held no run enclosing a bare autolink, so no case asked
+// what happens when the caret's own offset is the one the parse changes.
 describe('a run enclosing a bare autolink', () => {
-	// GFM's bare-autolink scanner takes a trailing `*` into the URL, so a byte OUTSIDE the closer
-	// orphans the opener. Inside it the URL absorbs the byte and both delimiters stay hidden.
+	// GFM's bare-autolink scanner takes a trailing `*` into the URL, so a byte outside the closer
+	// strands the opener. Inside it the URL absorbs the byte and both delimiters stay hidden.
 	it('seats inside the closing delimiter, whatever the arrival', () => {
 		for (const affinity of ['near', 'far', 'outside', null] as const) {
 			expect(seatIn('*www.example.com*', 17, affinity), `${affinity}`).toEqual({
@@ -210,8 +211,8 @@ describe('a run enclosing a bare autolink', () => {
 	});
 });
 
-// #229 miss-analysis: every escape fixture in this table stood beside plain text, where the
-// construct's own outside edge always verifies, so no row needed a second construct's run.
+// Miss-analysis (GH #229): every escape fixture here stood beside plain text, where the
+// construct's own outside edge always passes, so no case needed a second construct's run.
 describe('abutting marker runs are one screen position', () => {
 	// `_foo_\*x`: the emphasis closer [4,5) and the escape's backslash [5,6) abut, so 4, 5 and 6
 	// are one screen position. 5 kills the underscore pair, 6 kills the escape, 4 keeps both.
@@ -225,11 +226,11 @@ describe('abutting marker runs are one screen position', () => {
 	});
 });
 
-// Miss-analysis: the interior was unreachable while the caret's offset short-circuited candidate
-// one, so no row asked what slot two holds for a kind that may not take an interior at all.
+// Miss-analysis: the interior was unreachable while the caret's own offset short-circuited the
+// first candidate, so no case asked what the second one is for a kind that takes no interior.
 describe('a never-extend construct admits no interior seat', () => {
-	// `_foo_` poisons the byte before each construct (an intraword `_` cannot close), which is the
-	// only way past candidate one. Offset 4 is inside the EMPHASIS, outside the never-extend kind.
+	// `_foo_` spoils the byte before each construct (an intraword `_` cannot close), the only way
+	// past the first candidate. Offset 4 is inside the emphasis, outside the never-extend kind.
 	it.each([['_foo_[link](url)'], ['_foo_<https://e.com>'], ['_foo_![alt](u)']])(
 		'seats outside the construct in %s, never between its delimiters',
 		(source) => {

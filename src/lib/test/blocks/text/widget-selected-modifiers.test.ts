@@ -1,10 +1,11 @@
 // @vitest-environment jsdom
 //
-// The selected-widget keydown handler's swallow contract, on two axes it read wrong: it answered
-// "consumed" for every unclaimed key while leaving the event cancellable, so the browser's default
-// still mutated the contenteditable behind the CST; and its destructive arm read only `e.key`, so
-// the platform word-delete deleted the whole widget (edge-policy-modifiers.test.ts is the same
-// shape). The keymap dispatch sits AFTER this handler, so "consumed" must stay narrow.
+// What the selected-widget keydown handler may consume, on the two points it is easy to get
+// wrong: reporting "consumed" for a key it does not handle while leaving the event cancellable
+// lets the browser's default edit the contenteditable behind the CST, and reading only `e.key`
+// in the destructive branch lets the platform word-delete take the whole widget
+// (edge-policy-modifiers.test.ts is the same shape). The keymap dispatch runs after this
+// handler, so "consumed" has to stay narrow.
 import { describe, it, expect, beforeAll } from 'vitest';
 import { augmentInlineWidgetKind } from '$lib/core/inline/inline-widgets';
 import { imageWidgetOnSelectedKey } from '$lib/components/image/image-widget-editing';
@@ -22,7 +23,7 @@ const SOURCE = 'hello ![a](u) world\n';
 const WIDGET_START = 6;
 
 describe('an unclaimed key is swallowed with its default cancelled', () => {
-	// Every key the arms above do not claim. Each one's native default mutates the
+	// Every key the branches above do not take. Each one's browser default edits the
 	// contenteditable or moves focus out of it while the widget stays selected.
 	it.each(['Enter', 'Tab', 'PageDown', 'Home'])(
 		'%s reports consumed and is preventDefault-ed',
@@ -41,7 +42,7 @@ describe('a platform chord is not a widget gesture', () => {
 	const chords: Partial<KeyboardEvent>[] = [{ ctrlKey: true }, { metaKey: true }];
 
 	// Declining is what lets the chord reach the keymap dispatch further down the
-	// chain; swallowing it would leave undo dead for as long as a widget is selected.
+	// chain; consuming it would leave undo dead for as long as a widget is selected.
 	it.each(chords)('Z with %o declines so the keymap can bind it', async (mods) => {
 		const b = harness(SOURCE, WIDGET_START);
 		const e = key('z', mods);
@@ -59,8 +60,8 @@ describe('a platform chord is not a widget gesture', () => {
 		expect(b.commits).toEqual([]);
 	});
 
-	// Arrows are the deliberate exception: selecting the widget cleared the native range, so a
-	// caret-reading arm would see offset 0 and move focus to a block that is not there.
+	// Arrows are the deliberate exception: selecting the widget cleared the browser range, so a
+	// handler reading the caret would see offset 0 and move focus to a block that is not there.
 	it.each(['ArrowLeft', 'ArrowRight'])('%s with a chord stays swallowed', async (name) => {
 		const b = harness(SOURCE, WIDGET_START);
 		const e = key(name, { ctrlKey: true });
@@ -70,8 +71,8 @@ describe('a platform chord is not a widget gesture', () => {
 	});
 });
 
-// Non-vacuity: the unmodified keys still do their destructive work, so the guard
-// narrows the arms rather than disabling them.
+// Non-vacuity: the keys without a modifier still do their destructive work, so the
+// check narrows these branches rather than disabling them.
 describe('the same keys without a chord still act', () => {
 	it.each(['Backspace', 'Delete'])('%s deletes the selected widget', async (name) => {
 		const b = harness(SOURCE, WIDGET_START);

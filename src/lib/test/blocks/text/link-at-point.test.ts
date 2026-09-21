@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 //
-// Click → construct: the pointer's raw offset through the shared walk, then the construct chain
-// filtered to the kind whose destination is hidden. A blocked-scheme link resolves like any other
-// — the card is how a user fixes a blocked URL.
+// From a click to a construct: the click's raw offset through the shared traversal, then the
+// construct chain filtered to the kinds whose destination is hidden. A link with a blocked scheme
+// resolves like any other, since the card is how a user fixes a blocked URL.
 import { describe, it, expect, afterEach } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { buildLinkReferenceMap } from '$lib/core/inline/link-reference-resolver';
@@ -34,7 +34,7 @@ function mount(source: string): {
 	return { el: harness.el, node, linkRef };
 }
 
-/** A real caret seat inside the rendered link, the way a click leaves one. */
+/** A real caret inside the rendered link, the way a click leaves one. */
 function clickInside(el: HTMLElement, word: string): Element {
 	const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
 	let n: Node | null;

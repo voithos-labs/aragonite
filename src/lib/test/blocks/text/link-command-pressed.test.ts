@@ -1,11 +1,10 @@
 // @vitest-environment jsdom
 //
-// `link.openCard` paints pressed from the construct the card would EDIT, not from the mark table
-// every other toolbar id reads — and a range must lie inside that construct, since the card edits
-// one link.
-// Miss-analysis: the pressed read was a mark-row lookup that returned before any read, and no test
-// at either surface ever asked a NON-mark command what it painted, so the whole id class with no
-// mark row was unasserted.
+// `link.openCard` shows as pressed based on the construct the card would edit, not on the mark
+// table every other toolbar id reads, and a range has to lie inside that construct, since the
+// card edits one link. Miss-analysis: the pressed read was a mark-table lookup that returned
+// before reading anything, and no test in either block ever asked a command with no mark entry
+// what it showed, so that whole class of ids was unasserted.
 import { describe, it, expect, afterEach } from 'vitest';
 import { mount, unmount, flushSync } from 'svelte';
 import TextEditableBlock from '$lib/components/blocks/text/TextEditableBlock.svelte';
@@ -48,7 +47,7 @@ afterEach(async () => {
 	window.getSelection()?.removeAllRanges();
 });
 
-/** Flip the selection's direction, leaving the same two endpoints: the focus moves to the head. */
+/** Reverse the selection's direction, keeping both endpoints: the focus moves to the head. */
 function reverseSelection(): void {
 	const sel = window.getSelection()!;
 	const r = sel.getRangeAt(0);
@@ -78,7 +77,7 @@ describe('the link editor’s pressed state on a prose surface', () => {
 		expect(pressed(LINKED, 2, 10)).toBe(false);
 	});
 
-	// The construct is resolved at the FOCUS end, so only a backward range puts its far endpoint
+	// The construct is resolved at the focus end, so only a backward range puts its far endpoint
 	// past the link: forward, the focus itself lands outside and resolves nothing.
 	it('a backward selection whose anchor left the link is outside it', () => {
 		mounted = mountText(LINKED, 'live');
@@ -91,8 +90,8 @@ describe('the link editor’s pressed state on a prose surface', () => {
 		expect(pressed('[a](u)[b](v) tail\n', 1, 8)).toBe(false);
 	});
 
-	// The construct's own end is inside it, the boundary the reveal chain and the card entry
-	// already share.
+	// The construct's own end counts as inside it, the boundary the marker chain and the card
+	// entry already share.
 	it('the caret at the construct end is still inside it', () => {
 		expect(pressed(LINKED, 30)).toBe(true);
 	});

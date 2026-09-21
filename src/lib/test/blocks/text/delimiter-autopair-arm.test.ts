@@ -1,10 +1,10 @@
 // @vitest-environment jsdom
 //
-// The `beforeinput` arm around the auto-pair resolver: what the surface is asked to do with an
-// edit, and the block-kind guard the surface lends it, whether the written LINE is still this
-// block. The resolver's own table is `delimiter-autopair.test.ts`.
-// Miss-analysis: the resolver rows all sat inside prose, so no row typed the second `*` of an
-// otherwise empty block and watched `****` reload as a thematic break.
+// The `beforeinput` handler around the auto-pair resolver: what the block is asked to do with an
+// edit, and the check the block lends it, whether the written line still parses as this block.
+// The resolver's own table is `delimiter-autopair.test.ts`.
+// Miss-analysis: every resolver case sat inside prose, so none typed the second `*` of an
+// otherwise empty block and watched `****` reparse as a thematic break.
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
 	applyDelimiterAutoPair,
@@ -56,8 +56,8 @@ describe('the arm keeps the line this block', () => {
 	beforeEach(resetPluginPlatformForTests);
 	afterEach(resetPluginPlatformForTests);
 
-	// `*|*` plus `*` grows to `****`, a thematic break on a line of its own: the press steps past
-	// the twin instead, and the closer typed by hand later completes `**bold**`.
+	// `*|*` plus `*` grows to `****`, a thematic break on a line of its own: the key steps past
+	// its partner instead, and a closer typed by hand later completes `**bold**`.
 	it('a grow that would re-kind the line steps past the twin', () => {
 		const surface = surfaceOver('**', 1, (line) => line !== '****');
 		const e = typed('*');
@@ -73,7 +73,7 @@ describe('the arm keeps the line this block', () => {
 		expect(surface.writes).toEqual([['****', 1, 2]]);
 	});
 
-	// `~|` plus `~` would grow to `~~~~`, a fence opener, and there is no twin to step past.
+	// `~|` plus `~` would grow to `~~~~`, a fence opener, and there is no partner to step past.
 	it('a grow that would re-kind the line with no twin ahead stays the engine’s byte', () => {
 		const surface = surfaceOver('~', 1, (line) => line !== '~~~~');
 		const e = typed('~');

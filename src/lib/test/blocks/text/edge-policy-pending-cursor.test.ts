@@ -1,10 +1,10 @@
 // @vitest-environment jsdom
 //
-// A parked caret and the text it addresses travel together. The block-edit door a kind wraps
-// around its writes maps the COMMIT caret through the kind's `normalizeRawWrite` (tableCell
-// escapes every free `|`); `setPendingCursor` bypasses that door, so its offset can only be mapped
-// if the writer hands over the text it addresses. The two arms that COMPOSE new text need it; the
-// atomic-delete arm is the negative half, parking ahead of every byte the write can change.
+// A remembered caret and the text it counts into travel together. The write path a kind wraps
+// around its commits maps the commit caret through that kind's `normalizeRawWrite` (a table cell
+// escapes every free `|`); `setPendingCursor` skips that path, so its offset can only be mapped
+// if the writer hands over the text it counts into. The two branches that compose new text need
+// it; the atomic-delete branch is the other half, leaving the caret ahead of every changed byte.
 import { describe, expect, it } from 'vitest';
 import { asRawOffset } from '$lib/cursor/coordinate-spaces';
 import type { CstNode } from '$lib/core/nodes';
@@ -32,13 +32,13 @@ function dispatchOver(node: CstNode, el: HTMLElement, hasIslands: boolean) {
 	return { dispatch, parks };
 }
 
-/** [prose][CST widget island][prose] — the shape a prose block renders. */
+/** [prose][CST widget][prose], the shape a prose block renders. */
 function mountWidget(source: string, kind: string) {
 	const { node, el, widgets, inlineWidgets } = mountWidgetBlock(source, kind);
 	return { ...dispatchOver(node, el, false), widget: inlineWidgets[0], island: widgets[0] };
 }
 
-/** A zero-width decoration widget island at the block's tail — `onEdge:'step-over'`. */
+/** A zero-width decoration widget at the block's end, with `onEdge: 'step-over'`. */
 function mountIsland(source: string, at: number) {
 	const { node, el, island } = mountIslandBlock(source, at);
 	return { ...dispatchOver(node, el, true), island };
@@ -65,8 +65,8 @@ describe('an arm that composes new text reports what its caret addresses', () =>
 		expect(b.parks).toEqual([{ offset: 6, source: 'island', writtenText: 'helloz' }]);
 	});
 
-	// The island edit funnel reports its text on both branches. Its delete maps to identity, but the
-	// rule belongs to the arm: splitting it per branch is how a later insert-flavoured caller misses.
+	// The decoration edit path reports its text on both branches. Its delete maps to itself, but
+	// the rule belongs to the branch as a whole: splitting it per case is how a later caller misses.
 	it('deleting through an island reports its text too, mapping to identity', () => {
 		const b = mountIsland('hello\n', 5);
 		caretAfter(b.island);

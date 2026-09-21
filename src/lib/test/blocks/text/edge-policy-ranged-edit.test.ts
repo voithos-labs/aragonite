@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 //
-// A plain edit key over a held RANGE. The dispatch reads the range's START as its caret, so the
-// arms that answer for the construct beside a caret would answer for the island a widget-led block
-// opens with. Miss-analysis: every ranged-edit test selected a range starting on prose and every
+// A plain edit key over a selected range. The dispatch reads the range's start as its caret, so
+// the branches that answer for the construct beside a caret would answer for the widget a
+// widget-led block starts with. Miss-analysis: every range test selected from prose and every
 // widget-edge test pressed at a collapsed caret, so nothing crossed the two.
 import { describe, expect, it } from 'vitest';
 import { parse } from '$lib/core/parser';
@@ -18,8 +18,8 @@ import {
 	type EdgeDispatchHarness
 } from './edge-policy-fixture';
 
-/** The whole surface selected, the shape Ctrl+A and a triple-click both paint: the range starts
- *  at the ELEMENT, so no text node fronts it. */
+/** The whole block selected, the shape Ctrl+A and a triple-click both make: the range starts at
+ *  the element, so no text node comes before it. */
 function selectWholeSurface(el: HTMLElement): void {
 	const range = document.createRange();
 	range.selectNodeContents(el);
@@ -30,8 +30,8 @@ function selectWholeSurface(el: HTMLElement): void {
 
 /**
  * A block whose first inline node is a widget: `&copy;` deletes atomically and steps over,
- * `![a](u)` selects then deletes, the two edge policies a leading island can carry. `ranged`
- * selects from `from` to the end of the display text.
+ * `![a](u)` selects then deletes, the two edge policies a leading widget can carry. `ranged`
+ * selects from `from` to the end of the displayed text.
  */
 function mountWidgetLed(
 	source: string,
@@ -53,7 +53,7 @@ function mountWidgetLed(
 
 const ENTITY_LED = '&copy; opens\n';
 const IMAGE_LED = '![a](u) opens\n';
-/** `&copy;`'s trailing edge: a range opening there is the widget's OTHER caret-adjacent side. */
+/** `&copy;`'s trailing edge: a range opening there is the widget's other caret-adjacent side. */
 const ENTITY_END = 6;
 
 installEdgeDispatchCleanup();
@@ -82,7 +82,7 @@ describe('a key over a range that opens with a CST widget', () => {
 	});
 
 	// The collapsed counterparts, so the rule above reads as "the range wins" rather than "the
-	// widget arm stopped answering".
+	// widget branch stopped answering".
 	it('still takes the entity whole on Delete at a collapsed caret', () => {
 		const h = mountWidgetLed(ENTITY_LED, false);
 		expect(h.handleKeydown(key('Delete'), at(0))).toBe(true);

@@ -1,9 +1,9 @@
 // @vitest-environment jsdom
 //
-// The DOM half of preview-inline's marker reveal: the trigger flips
-// md-construct-reveal on the spans the render stamped, folds behind a tick
-// (transient cross-block states manufacture false leaves), freezes during a
-// cross-block selection, and records reveal open/fold on the interaction trace.
+// The DOM half of showing markers in preview-inline mode: md-construct-reveal is toggled on
+// the spans the render marked, hiding waits a tick (a brief cross-block state looks like the
+// caret leaving), everything freezes during a cross-block selection, and both showing and
+// hiding are recorded on the interaction trace.
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { tick } from 'svelte';
 import { parse } from '$lib/core/parser';
@@ -23,7 +23,7 @@ import {
 import { placeCaretAt } from './math-widget-fixture';
 import { makeRenderHarness, type RenderHarness } from '$lib/test/harness/text-render';
 
-// 'alpha **bold** tail' — strong spans [6,14); its two `**` spans carry the stamp.
+// 'alpha **bold** tail': strong spans [6,14), and its two `**` spans carry the attribute.
 const RAW = 'alpha **bold** tail\n';
 
 describe('createConstructReveal — trigger', () => {
@@ -98,7 +98,7 @@ describe('createConstructReveal — trigger', () => {
 
 		setCaret('alpha ', 1);
 		reveal.update();
-		// Not yet — a transient escape must not fold (the cross-block entry race).
+		// Not yet: a brief exit must not hide them (the cross-block entry race).
 		expect(revealedSpans().length).toBe(2);
 		await tick();
 		await tick();
@@ -125,10 +125,10 @@ describe('createConstructReveal — trigger', () => {
 	it('force re-applies onto fresh spans without waiting a tick', () => {
 		setCaret('bold', 2);
 		reveal.update();
-		// A rebuild mints unrevealed spans while the chain key is unchanged.
+		// A rebuild makes fresh spans with no class while the chain key is unchanged.
 		for (const span of revealedSpans()) span.classList.remove(CONSTRUCT_REVEAL_CLASS);
 		reveal.update();
-		expect(revealedSpans().length).toBe(0); // key-equal: the cheap path skips
+		expect(revealedSpans().length).toBe(0); // same key, so the cheap path skips
 		reveal.update(true);
 		expect(revealedSpans().length).toBe(2);
 	});
@@ -143,15 +143,15 @@ describe('createConstructReveal — trigger', () => {
 	});
 
 	it('prepareStep reveals the chain one step ahead, before any selectionchange', () => {
-		// The keydown backstop: rapid input outruns the selectionchange task, so the
-		// step's target chain must be revealed synchronously in keydown.
-		setCaret('alpha ', 5); // raw 5 — one step left of the construct's inclusive start
+		// The keydown backstop: fast input outruns the selectionchange task, so the
+		// chain the step lands in must be shown synchronously in keydown.
+		setCaret('alpha ', 5); // raw 5: one step left of the construct's inclusive start
 		reveal.prepareStep(1);
 		expect(revealedSpans().length).toBe(2);
 	});
 
 	it('prepareStep(0) applies the caret chain synchronously for destructive keys', () => {
-		setCaret(' tail', 0); // raw 14 — the trailing edge; Backspace eats a marker byte
+		setCaret(' tail', 0); // raw 14: the trailing edge, where Backspace takes a marker byte
 		reveal.prepareStep(0);
 		expect(revealedSpans().length).toBe(2);
 	});
@@ -168,7 +168,7 @@ describe('createConstructReveal — trigger', () => {
 		setCaret('bold', 2);
 		reveal.update();
 		expect(revealedSpans().length).toBe(2);
-		setCaret(' tail', 2); // raw 16 — outside; the fold belongs to selection cadence
+		setCaret(' tail', 2); // raw 16: outside, and hiding is the selection handler's job
 		reveal.prepareStep(1);
 		expect(revealedSpans().length).toBe(2);
 	});

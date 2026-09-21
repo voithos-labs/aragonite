@@ -1,10 +1,10 @@
 // @vitest-environment jsdom
 //
-// The caret-edge dispatch's decoration-island branch (edge-policy-dispatch). Pins two contracts
-// e2e cannot: modifier chords (word-delete) must stay native — the island rules own only plain
-// edge presses — and a printable key at an element-level caret is consumed into a CST edit, which
-// native typing can mask byte-for-byte in a real browser. A third describe pins the observable
-// precedence: a CST widget wins the shared caret edge over an island.
+// The caret-edge dispatch's decoration-widget branch (edge-policy-dispatch). It holds two rules
+// e2e cannot: modifier chords such as word-delete stay with the browser, since these rules take
+// only plain edge keys, and a printable key at an element-level caret becomes a CST edit, which
+// ordinary typing can mask byte for byte in a real browser. A third group holds the precedence a
+// user can see: a CST widget wins the shared caret edge over a decoration widget.
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createWidgetSelectionState } from '$lib/components/image/widget-selection-state.svelte';
 import { parse } from '$lib/core/parser';
@@ -32,8 +32,8 @@ interface Harness extends EdgeDispatchHarness {
 	island: HTMLElement;
 }
 
-/** Island block wired to the dispatch: no CST widget, no reveal, editing mode.
- *  `hasIslands` defaults true; the scan-gate tests pass false for the island-free early return. */
+/** A block with a decoration widget wired to the dispatch: no CST widget, no shown source,
+ *  editing mode. `hasIslands` defaults to true; the scan tests pass false for the early return. */
 function mount(source: string, start: number, end: number, hasIslands = true): Harness {
 	const { node, el, island } = mountIslandBlock(source, start, end);
 	return { ...makeEdgeDispatch(node, el, { hasIslands: () => hasIslands }), island };
@@ -103,11 +103,11 @@ describe('typing at an element-level caret against a widget island', () => {
 	});
 });
 
-// ── Precedence: CST widget wins the shared caret edge over an island ───────────
+// ── Precedence: a CST widget wins the shared caret edge ───────────────────────
 
 describe('a CST widget outranks a decoration island at the same caret edge', () => {
 	it('Backspace at an offset both claim enters the widget, never selects the island', () => {
-		// `a![c](x)` — the image widget occupies raw 1..8 and the replace island ends at 8 too.
+		// `a![c](x)`: the image widget occupies raw 1..8 and the decoration ends at 8 too.
 		// The dispatch tries the widget class first, so its select-then-delete wins.
 		const node = parse('a![c](x)\n').children[0];
 		const image = computeInlineContent(node).find((n: InlineNode) => n.kind === 'image')!;
@@ -127,13 +127,13 @@ describe('a CST widget outranks a decoration island at the same caret edge', () 
 
 		expect(h.handleKeydown(key('Backspace'), asRawOffset(image.end))).toBe(true);
 		expect(widgetSelection.getSelected()).toMatchObject({ sourceStart: image.start });
-		// The island's select-whole never ran: no native range wraps it, no edit fired.
+		// The decoration's select-whole never ran: no browser range wraps it, and no edit fired.
 		expect(h.edits).toHaveLength(0);
 		expect(window.getSelection()!.rangeCount).toBe(0);
 	});
 });
 
-// ── The per-keystroke island DOM scan is gated on island presence ──────────────
+// ── The per-keystroke DOM scan runs only where a decoration exists ────────────
 
 describe('island-free typing skips the DOM scan', () => {
 	beforeEach(() => {
@@ -142,7 +142,7 @@ describe('island-free typing skips the DOM scan', () => {
 	});
 	afterEach(() => disablePerfInstruments());
 
-	// A plain paragraph with a text-node caret and no island span — the common block.
+	// A plain paragraph with a text-node caret and no decoration span: the common block.
 	function plainBlock(): HTMLElement {
 		const el = mountSurface([document.createTextNode('hello')]);
 		const range = document.createRange();

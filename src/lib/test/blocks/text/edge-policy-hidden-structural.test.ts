@@ -1,11 +1,11 @@
 // @vitest-environment jsdom
 //
-// The caret-edge dispatch's hidden-structural branch, which now covers one side only: Delete at a
-// block whose own structure sits AFTER its content. The merge that press would reach concatenates
-// past the suffix and surfaces it, so the dispatch consumes the key. The prefix side left this
-// arm with the demote (`merge-prev-demote.test.ts`) — the last row here is what pins that it did.
-// Miss-analysis: the edge-policy suites mount bare containers with no presentation root, so
-// the marker-hiding modes had no fixture to fail in.
+// The caret-edge dispatch's hidden-structure branch, which covers one side only: Delete at a
+// block whose own structure sits after its content. The merge that key would reach joins past the
+// suffix and brings it into view, so the dispatch consumes the key. The prefix side belongs to
+// the demote (`merge-prev-demote.test.ts`), and the last case here holds that split.
+// Miss-analysis: these suites mount bare containers with no presentation root, so the
+// marker-hiding modes had no fixture to fail in.
 import { describe, expect, it } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { trimTrailingLineEnding } from '$lib/core/lines';
@@ -18,7 +18,7 @@ import {
 	type EdgeDispatchHarness
 } from './edge-policy-fixture';
 
-/** `source` as one block under an optional presentation root; markers ride their own spans. */
+/** `source` as one block under an optional presentation root; markers get their own spans. */
 function mount(source: string, mode?: string): EdgeDispatchHarness {
 	const node = parse(source).children[0];
 	return makeEdgeDispatch(node, mountSurface(trimTrailingLineEnding(node.raw), mode));
@@ -36,13 +36,13 @@ describe('a hidden structural suffix swallows Delete at content end', () => {
 		expect(h.edits).toHaveLength(0);
 	});
 
-	// Source paints the underline, so Delete there acts on bytes the user can see.
+	// Source mode draws the underline, so Delete there acts on bytes the user can see.
 	it('declines in source mode', () => {
 		const h = mount('Title\n===\n', undefined);
 		expect(h.handleKeydown(key('Delete'), at(5))).toBe(false);
 	});
 
-	// The preview rungs reveal the focused block's own structure, so its bytes are editable.
+	// The preview modes show the focused block's own structure, so its bytes are editable.
 	for (const mode of ['preview-block', 'preview-inline']) {
 		it(`declines in ${mode}`, () => {
 			const h = mount('Title\n===\n', mode);
@@ -61,7 +61,7 @@ describe('a hidden structural suffix swallows Delete at content end', () => {
 		expect(h.handleKeydown(key('Delete'), at(3))).toBe(false);
 	});
 
-	// A chord is a word-scoped platform command; the swallow owns only the plain press.
+	// A chord is a word-scoped platform command; only the plain key is consumed.
 	it.each([{ ctrlKey: true }, { altKey: true }, { metaKey: true }, { shiftKey: true }])(
 		'declines %o+Delete',
 		(mods) => {
@@ -72,8 +72,8 @@ describe('a hidden structural suffix swallows Delete at content end', () => {
 });
 
 describe('the prefix side belongs to the block-edge command, not to this arm', () => {
-	// The press falls through the whole dispatch so `block.mergePrev` can demote the heading; a
-	// swallow here would silently take the gesture back.
+	// The key falls through the whole dispatch so `block.mergePrev` can demote the heading;
+	// consuming it here would silently take the gesture back.
 	it.each([
 		['a heading’s content start', '## Title\n', 3],
 		['a setext heading’s content start', 'Title\n===\n', 0]

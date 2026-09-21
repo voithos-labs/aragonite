@@ -1,9 +1,9 @@
 // @vitest-environment jsdom
 //
-// The selected-widget keydown path routes custom keys (image Shift+Arrow resize)
-// through the widget kind's editing policy — no `kind === 'image'` branch. These
-// exercise the full dispatch: real parse → flattenInlineWidgets → policy lookup →
-// handler, including the nested `[![alt][ref]][repo]` reference image.
+// Keydown with a widget selected routes custom keys, such as Shift+Arrow to resize an image,
+// through the widget kind's editing policy, with no branch on `kind === 'image'`. These run the
+// whole dispatch: a real parse, `flattenInlineWidgets`, the policy lookup and the handler,
+// including the nested `[![alt][ref]][repo]` reference image.
 import { describe, it, expect, beforeAll } from 'vitest';
 import { augmentInlineWidgetKind } from '$lib/core/inline/inline-widgets';
 import { imageWidgetOnSelectedKey } from '$lib/components/image/image-widget-editing';
@@ -47,8 +47,8 @@ describe('handleSelectedWidgetKeydown — Shift+Arrow through the editing policy
 	});
 
 	it('consumes Shift+Arrow on a non-resizable widget without committing an edit', async () => {
-		// A <br> is a live widget whose policy declares no onSelectedKey: the key is
-		// swallowed (never leaks into step-out) but nothing resizes.
+		// A `<br>` is a live widget whose policy declares no `onSelectedKey`: the key is
+		// consumed, so it never leaks into stepping out, but nothing resizes.
 		const { interaction, commits } = harness('a<br>b\n', 1);
 		expect(await interaction.handleSelectedWidgetKeydown(shiftRight())).toBe(true);
 		expect(commits).toEqual([]);

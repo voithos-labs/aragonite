@@ -5,8 +5,8 @@ import type { NodeView } from '$lib/core/node-views';
 import { createLinkCardState } from '$lib/components/link-card/link-card-state.svelte';
 import { enterLinkCardAtCaret } from '$lib/components/link-card/link-card-entry';
 
-// How create mode opens and declines: the state's own `canOpenCreate` door, and the entry's
-// vetting of the range ahead of it. The chord path is the ONLY entry that may create.
+// How create mode opens and refuses: the state's own `canOpenCreate` check, and the entry's own
+// check of the range before it. The chord is the only entry allowed to create.
 
 function makeState(allowCreate: () => boolean = () => true) {
 	const onOpen = vi.fn();
@@ -93,10 +93,10 @@ describe('the chord entry vets the range before the door', () => {
 		expect(card.getCreateTarget()).toBeNull();
 	});
 
-	// The block-local range is read off this block's own DOM walk, which reports an endpoint in
-	// another block as end-of-walk — so a cross-block drag hands the arm a range nobody selected,
-	// running to the block's end. Miss-analysis: every case here supplied a range the caller had
-	// really measured, so the one input class the arm cannot trust was never fed to it.
+	// The block-local range is read off this block's own DOM traversal, which reports an endpoint
+	// in another block as the end of that traversal, so a cross-block drag hands over a range
+	// nobody selected, running to the block's end. Miss-analysis: every case here supplied a
+	// range the caller had really measured, so the one input that cannot be trusted never got in.
 	it('a cross-block range enters nothing, whatever the block-local offsets say', () => {
 		const { card, onOpen } = makeState();
 		enter(card, 'Alpha bravo charlie\n', { start: 6, end: 19 }, 'live', true);

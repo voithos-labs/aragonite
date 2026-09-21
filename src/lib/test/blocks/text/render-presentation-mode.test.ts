@@ -16,7 +16,7 @@ describe('text-render presentation-mode key segment', () => {
 		render.render();
 		// The key gained its mode segment, so the DOM rebuilt...
 		expect(el.firstChild).not.toBe(before);
-		// ...and hiding is CSS-only: every marker byte is still in the DOM text.
+		// ...and hiding is done with CSS only: every marker byte is still in the DOM text.
 		expect(el.textContent).toBe('**bold**');
 		expect(el.querySelectorAll('.md-marker').length).toBeGreaterThan(0);
 	});
@@ -30,8 +30,8 @@ describe('text-render presentation-mode key segment', () => {
 
 		setMode('preview-block');
 		render.render();
-		// Not folded into source — the segment differs, so the block rebuilds once
-		// on the flip; per-block focus reveal is CSS on data-focused, never a rebuild.
+		// Not merged into source: the segment differs, so the block rebuilds once when the
+		// mode changes; showing a focused block's markers is CSS on data-focused, not a rebuild.
 		expect(el.firstChild).not.toBe(before);
 		expect(el.textContent).toBe('**bold**');
 		expect(el.querySelectorAll('.md-marker').length).toBeGreaterThan(0);
@@ -51,7 +51,7 @@ describe('text-render presentation-mode key segment', () => {
 		const { el, deps, setMode } = makeRenderHarness(blockNode('**bold** `code`\n'));
 		const render = createTextRender(deps);
 
-		// The stamp is mode-gated: source/reading/preview-block DOM is attribute-free.
+		// The attribute is set in this mode only: source, reading and preview-block have none.
 		for (const mode of ['source', 'reading', 'preview-block'] as const) {
 			setMode(mode);
 			render.render();
@@ -61,11 +61,11 @@ describe('text-render presentation-mode key segment', () => {
 		const before = el.firstChild;
 		setMode('preview-inline');
 		render.render();
-		// A distinct segment from preview-block — the flip rebuilds into stamped DOM.
+		// A different segment from preview-block, so the change rebuilds into marked DOM.
 		expect(el.firstChild).not.toBe(before);
 		expect(el.textContent).toBe('**bold** `code`');
-		// strong spans [0,8): both `**` markers carry its range; the ticks carry the
-		// code span's — per-construct addressing, exactly what the reveal CSS keys on.
+		// strong spans [0,8): both `**` markers carry its range, and the ticks carry the code
+		// span's, so each construct is addressed separately, which is what the CSS keys on.
 		const strongMarkers = el.querySelectorAll('[data-construct-start="0"][data-construct-end="8"]');
 		expect(strongMarkers.length).toBe(2);
 		const codeMarkers = el.querySelectorAll('[data-construct-start="9"][data-construct-end="15"]');

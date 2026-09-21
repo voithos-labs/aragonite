@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
-// Miss-analysis: #200's depth pins reached the render and caret paths and stopped there, so the
-// gesture seams reading the same tree one gesture later — reveal, link card, join, split, pending
-// mark — had no pin at all and every one of them still recursed per nesting level.
+// Miss-analysis: the depth tests for GH #200 reached the render and caret paths and stopped
+// there, so the code reading the same tree one gesture later (showing a source, the link card,
+// joins, splits, pending marks) had no test at all and still recursed once per nesting level.
 import { describe, expect, it } from 'vitest';
 import { parseInline } from '$lib/core/inline';
 import type { InlineNode } from '$lib/core/nodes';
@@ -12,12 +12,12 @@ import { clipNodes } from '$lib/components/blocks/text/live-join-seam';
 import { splittableChainAt } from '$lib/components/blocks/text/live-split-rebalance';
 import { constructChainAt } from '$lib/components/blocks/text/pending-mark-insert';
 
-// Assumes the default V8 stack, as the sibling pins do: raising `--stack-size` turns every one of
-// these green against a recursive walk.
+// Assumes the default V8 stack, as the sibling tests do: raising `--stack-size` makes every one
+// of these pass even against a recursive traversal.
 const DEPTH = 32_000;
 
-/** `leaf` under `DEPTH` nested `strong`s — the parser nests one per `**` pair, so the source is
- *  the shape — and the tree a seam reads back out of it. */
+/** `leaf` under `DEPTH` nested `strong`s: the parser nests one per `**` pair, so the source is
+ *  the shape, and this is the tree read back out of it. */
 function nested(leaf: string): { raw: string; nodes: InlineNode[] } {
 	const raw = '**'.repeat(DEPTH) + leaf + '**'.repeat(DEPTH);
 	return { raw, nodes: parseInline(raw, 0, raw.length) };

@@ -1,11 +1,11 @@
 // @vitest-environment jsdom
 //
-// Backspace at the block's landable start is a block gesture (merge or inert), so the
-// destructive edge arm must stand down there: an atomic run straddling the start — an escape's
-// hidden backslash — would otherwise turn the press into a forward delete of the first visible
-// glyph (GH #108).
-// Miss-analysis: the arm's suite drove presses beside and inside constructs but never AT the
-// landable start, the one offset where the press belongs to the block, not the construct.
+// Backspace at the first offset the caret can sit at is a block gesture (merge, or nothing), so
+// the destructive edge branch must do nothing there: a hidden run straddling the start, such as
+// an escape's backslash, would otherwise turn the key into a forward delete of the first visible
+// character (GH #108).
+// Miss-analysis: that branch's suite drove keys beside and inside constructs but never at the
+// block's first reachable offset, the one place the key belongs to the block, not the construct.
 import { describe, expect, it } from 'vitest';
 import { parse } from '$lib/core/parser';
 import {
@@ -17,7 +17,7 @@ import {
 	type EdgeDispatchHarness
 } from './edge-policy-fixture';
 
-/** One live block whose DOM carries the marker spans the landable walk reads. */
+/** One live block whose DOM carries the marker spans the reachable-offset scan reads. */
 function mount(source: string, parts: Node[]): EdgeDispatchHarness {
 	const node = parse(source).children[0];
 	return makeEdgeDispatch(node, mountSurface(parts, 'live'));
@@ -32,7 +32,7 @@ function marker(text: string): HTMLElement {
 
 const text = (s: string) => document.createTextNode(s);
 
-/** `\*a\*` rendered live: the backslashes are hidden runs, so the landable start is 1. */
+/** `\*a\*` rendered live: the backslashes are hidden runs, so the first reachable offset is 1. */
 const mountEscapes = () =>
 	mount('\\*a\\*\n', [marker('\\'), text('*'), text('a'), marker('\\'), text('*')]);
 

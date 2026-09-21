@@ -6,8 +6,8 @@ import {
 } from '$lib/components/blocks/text/text-keydown';
 
 // Backspace at a live heading's content start drops the block's own structural bytes before it
-// merges anything. Which bytes those are is the kind's content range talking: a prefix for ATX, a
-// suffix for setext — the same declaration, read from both ends.
+// merges anything. Which bytes those are comes from the kind's content range: a prefix for ATX,
+// a suffix for setext, the same declaration read from both ends.
 
 describe('demoteToParagraph', () => {
 	it('drops an ATX prefix and lands the caret where the content now starts', () => {
@@ -17,9 +17,9 @@ describe('demoteToParagraph', () => {
 		});
 	});
 
-	// The gate is the kind's content range, which skips up to three leading spaces; a prefix
-	// rewrite that reads the `#`s with its own regex writes the block back unchanged there, and
-	// the press disappears — no demote, and the merge cascade never sees it either.
+	// The check is the kind's content range, which skips up to three leading spaces; a prefix
+	// rewrite that reads the `#`s with its own regex writes the block back unchanged there, so
+	// the key does nothing at all: no demote, and the merge never sees it either.
 	it('drops an indented ATX prefix, which no `#`-anchored regex reaches', () => {
 		expect(demoteToParagraph('  ## Indented\n', { start: 5, end: 13 }, 5)).toEqual({
 			newRaw: 'Indented\n',
@@ -34,8 +34,8 @@ describe('demoteToParagraph', () => {
 		});
 	});
 
-	// A kind whose content IS its whole display has nothing structural to give up, so the press
-	// belongs to the merge cascade rather than to a rewrite that would change no bytes.
+	// A kind whose content is its whole displayed text has nothing structural to give up, so the
+	// key belongs to the merge rather than to a rewrite that would change no bytes.
 	it('declines when the content covers the whole display', () => {
 		expect(demoteToParagraph('Title\n', { start: 0, end: 5 }, 0)).toBeNull();
 	});
@@ -60,7 +60,7 @@ describe('dropStructuralSuffix', () => {
 });
 
 // The blur rule: an ATX heading with no text becomes the empty paragraph it looks like, and
-// nothing else does — a heading with text keeps its marker, and a setext heading has no prefix
+// nothing else does. A heading with text keeps its marker, and a setext heading has no prefix
 // standing over nothing.
 describe('demoteEmptyAtxHeading', () => {
 	it('drops the marker of a heading left with no text', () => {

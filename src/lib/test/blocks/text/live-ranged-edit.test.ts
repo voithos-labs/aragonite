@@ -1,10 +1,10 @@
 // @vitest-environment jsdom
 //
-// Every destructive gesture a prose surface can receive, at the entry layer that decides whether
-// it reaches the join seam: the caret-edge arm declines a chorded press, so it arrives as
-// `beforeinput` at a COLLAPSED caret whose target range is the whole word.
-// Miss-analysis: the seam's own suite drives ranges directly and this layer had no test at all, so
-// both gates that fail open (a null live selection, a three-element inputType list) were invisible.
+// Every destructive gesture a prose block can receive, at the point that decides whether it
+// reaches the join rules: the caret-edge branch declines a chorded key, so it arrives as
+// `beforeinput` at a collapsed caret whose target range is the whole word.
+// Miss-analysis: the join rules' own suite drives ranges directly and this layer had no test at
+// all, so both checks that fail open (a null selection, a three-entry input-type list) were unseen.
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import { mount, unmount, flushSync } from 'svelte';
 import TextEditableBlock from '$lib/components/blocks/text/TextEditableBlock.svelte';
@@ -52,8 +52,8 @@ function seat(el: HTMLElement, start: number, end: number): void {
 	sel?.addRange(createRangeFromOffsets(el, asDomTextOffset(start), asDomTextOffset(end))!);
 }
 
-/** A press the engine reports a target range for — what a word or line delete is, whether or not
- *  anything is selected. `target` omitted leaves the surface to read the live selection. */
+/** A key the browser reports a target range for, which is what a word or line delete is, whether
+ *  or not anything is selected. Omitting `target` leaves the block to read the live selection. */
 async function press(
 	el: HTMLElement,
 	inputType: string,
@@ -98,7 +98,7 @@ afterEach(async () => {
 });
 
 describe('a destructive chord at a collapsed caret reaches the join seam', () => {
-	// The word delete reports `bold`; the literal cut leaves `**** tail`, four asterisks the reader
+	// The word delete reports `bold`; the literal cut leaves `**** tail`, four asterisks the user
 	// can neither see nor remove.
 	it.each([
 		['deleteWordBackward', { start: 2, end: 6 }],
@@ -126,8 +126,8 @@ describe('a destructive chord at a collapsed caret reaches the join seam', () =>
 		expect(committed(mounted.blockEdit)).toEqual(['Xail\n']);
 	});
 
-	// The payload is part of what the seam verifies (#165): `**brave**` strands nothing, so the
-	// cleanup declines and the replacement stays inside the run the reader saw.
+	// The payload is part of what the cleanup checks (GH #165): `**brave**` strands nothing, so it
+	// refuses and the replacement stays inside the run the user saw.
 	it('leaves a replacement that fills the run to the engine', async () => {
 		mounted = mountText(BOLD);
 		seat(mounted.el, 6, 6);
@@ -137,8 +137,8 @@ describe('a destructive chord at a collapsed caret reaches the join seam', () =>
 		expect(committed(mounted.blockEdit)).toEqual([]);
 	});
 
-	// A payload only a `dataTransfer` carries would reach the re-parse without the paste transforms
-	// (G4.11), so the press is taken and nothing is written — never turned into a delete.
+	// A payload carried only on a `dataTransfer` would reach the reparse without the paste
+	// transforms (G4.11), so the key is consumed and nothing is written, never made into a delete.
 	it('swallows a replacement whose text it may not read', async () => {
 		mounted = mountText(BOLD);
 		seat(mounted.el, 6, 6);
@@ -150,8 +150,8 @@ describe('a destructive chord at a collapsed caret reaches the join seam', () =>
 });
 
 describe('the same gestures over a real selection', () => {
-	// The engines that report no target range fall back to the selection, which is the only reader
-	// the surface had.
+	// Browsers that report no target range fall back to the selection, which is the only source
+	// the block had.
 	it('reads the live selection when the event reports no target range', async () => {
 		mounted = mountText(BOLD);
 		seat(mounted.el, 2, 6);
@@ -172,9 +172,9 @@ describe('what the arm leaves to the engine', () => {
 		expect(committed(mounted.blockEdit)).toEqual([]);
 	});
 
-	// Paste and composition carry seams of their own; claiming one here writes the block twice,
-	// once from this arm and once from the seat's commit over the same range. The DELETE half of
-	// the composition family is the sibling the insert-only list missed.
+	// Paste and composition have their own handling; taking one here writes the block twice, once
+	// from this branch and once from the composition's own commit over the same range. The delete
+	// half of the composition family is what an insert-only list misses.
 	it.each([
 		'insertFromPaste',
 		'insertCompositionText',
@@ -189,8 +189,8 @@ describe('what the arm leaves to the engine', () => {
 		expect(committed(mounted.blockEdit)).toEqual([]);
 	});
 
-	// The flag, not the spelling: a delete dispatched mid-composition is the seat's whatever the
-	// engine calls it, which is what keeps a future composition inputType out of this arm.
+	// The flag, not the name: a delete dispatched during a composition belongs to the composition
+	// whatever the browser calls it, which keeps a future composition input type out of here.
 	it('a delete carrying isComposing', async () => {
 		mounted = mountText(BOLD);
 		seat(mounted.el, 6, 6);

@@ -72,8 +72,8 @@ describe('widgetAtCursor', () => {
 	});
 });
 
-// Two adjacent widgets share a boundary, so a forward key must enter B and a backward key A. The
-// old document-order pick always returned A, and a forward Delete wiped B's island in one press.
+// Two adjacent widgets share a boundary, so a forward key must enter B and a backward key A.
+// Picking by document order always returns A, and a forward Delete would then wipe B in one key.
 describe('widgetAtCursor at a shared widget boundary', () => {
 	const TWO_IMAGES = '![a](x.png)![b](y.png)\n';
 	const adjacentInlines: InlineNode[] = [image(0, 11), image(11, 22)];

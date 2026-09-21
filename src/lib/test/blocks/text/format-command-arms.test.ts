@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 //
-// Each format command needs an arm on this block: an id with none is a dead key, and the chord
-// falls through to the browser's own contenteditable bold. The arm is also what carries the
-// content range in — a toggle over a heading must reach `getContentRange`, not the whole raw.
+// Each format command needs a handler on this block: an id with none does nothing, and the chord
+// falls through to the browser's own contenteditable bold. The handler also passes the content
+// range in, since a toggle over a heading must reach `getContentRange`, not the whole raw.
 import { describe, it, expect, afterEach } from 'vitest';
 import { mount, unmount, flushSync } from 'svelte';
 import TextEditableBlock from '$lib/components/blocks/text/TextEditableBlock.svelte';

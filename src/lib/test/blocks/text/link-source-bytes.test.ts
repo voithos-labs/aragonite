@@ -12,8 +12,8 @@ import {
 	linkFieldsFromInline
 } from '$lib/components/blocks/text/link-source-bytes';
 
-// Every case states the DISPLAY bytes the seam is offered, because the seam verifies its candidate
-// against what the render path paints for them — a decline is as pinned as a rewrite.
+// Every case states the displayed bytes the writer is offered, because it checks its candidate
+// against what the render draws for them, and a refusal is covered as closely as a rewrite.
 
 const REFS = '[ref]: https://example.com/a';
 
@@ -80,8 +80,8 @@ describe('link edit bytes — adversarial destinations', () => {
 		expect(editUrl('[t](old)', 'u\\)')).toBe('[t](u%5C%29)');
 	});
 
-	// Miss: the hostile alphabet carried no line breaks, so a multi-line paste built bytes the
-	// verifier refused and the whole edit died silently instead of encoding.
+	// Miss-analysis: the hostile alphabet carried no line breaks, so a multi-line paste built
+	// bytes the check refused, and the whole edit failed silently instead of encoding them.
 	it('encodes line breaks, which otherwise break the construct and decline the edit', () => {
 		expect(editUrl('[t](old)', 'a\nb')).toBe('[t](a%0Ab)');
 		expect(editUrl('[t](old)', 'a\r\nb')).toBe('[t](a%0D%0Ab)');
@@ -117,7 +117,7 @@ describe('link edit bytes — the seam declines rather than destroy bytes', () =
 	});
 
 	it('declines a candidate that would change what the reader sees', () => {
-		// Text bytes closing the construct early: the tail would paint as literal source.
+		// Text bytes closing the construct early: the tail would show as literal source.
 		const link = firstLink('[t](old)');
 		expect(buildLinkEditBytes(link, '[t](old)', { text: 't](x) leak [', url: 'new' })).toBeNull();
 	});

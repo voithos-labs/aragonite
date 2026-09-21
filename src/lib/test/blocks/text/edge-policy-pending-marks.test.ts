@@ -1,10 +1,10 @@
 // @vitest-environment jsdom
 //
-// The caret-edge dispatch's toggle seat. A collapsed-caret chord in live mode writes no bytes;
-// it pends a mark, and the FIRST printable key after it carries that mark into the CST as one
-// commit. This is the level where the promise is spent — the pure rewrite is pinned in
-// pending-mark-insert.test.ts, and this pins that the arm claims the key, spends the set
-// exactly once, and outranks the arrival side the seat below would have read.
+// The caret-edge dispatch's toggle branch. A chord at a collapsed caret in live mode writes no
+// bytes; it leaves a mark pending, and the first printable key after it carries that mark into
+// the CST as one commit. This is where the promise is spent: the pure rewrite is covered in
+// pending-mark-insert.test.ts, and this holds that the branch takes the key, spends the marks
+// exactly once, and outranks the arrival side the rules below would have read.
 import { describe, expect, it } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { trimTrailingLineEnding } from '$lib/core/lines';
@@ -73,8 +73,8 @@ describe('the first byte after a chord carries the mark', () => {
 		expect(h.edits).toEqual([[0, 'hi***X***\n', 2, 6]]);
 	});
 
-	// The chain already carries strong at this caret, so the mark REMOVES: the byte escapes the
-	// construct rather than wrapping in a second pair.
+	// The chain already has strong at this caret, so the mark removes it: the byte escapes the
+	// construct rather than being wrapped in a second pair.
 	it('escapes the construct when the chain already carries the mark', () => {
 		const h = mount('Some **bold** text\n', ['strong']);
 		expect(h.handleKeydown(key('X'), at(9))).toBe(true);
@@ -83,7 +83,7 @@ describe('the first byte after a chord carries the mark', () => {
 });
 
 describe('a pending mark outranks every arrival rule', () => {
-	// Offset 11 is bold's trailing content edge with the far side on record — the typing seat
+	// Offset 11 is bold's trailing content edge with the far side recorded, so the typing rules
 	// would write past the closer. The mark says otherwise, and wins (live-mode.md § 4.2).
 	it('beats the typing seat at a construct edge', () => {
 		const h = mount('Some **bold** text\n', ['emphasis'], { affinity: 'far' });
@@ -113,7 +113,7 @@ describe('the toggle seat claims only a plain byte at a collapsed caret', () => 
 		for (const mods of [{ ctrlKey: true }, { metaKey: true }, { altKey: true }]) {
 			expect(h.handleKeydown(key('X', mods), at(2))).toBe(false);
 		}
-		// Declining a chord must not spend the set — Mod+I after Mod+B pends both.
+		// Declining a chord must not spend the marks: Mod+I after Mod+B leaves both pending.
 		expect(h.marks.get()).not.toBeNull();
 	});
 

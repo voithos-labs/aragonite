@@ -119,7 +119,7 @@ describe('text-render island wiring', () => {
 	});
 });
 
-// ── Caret-carry gate (the edit path skips the render's own walk) ───────────────
+// ── Carrying the caret (the edit path skips the render's own scan) ────────────
 
 describe('caret-carry gate', () => {
 	beforeEach(() => {

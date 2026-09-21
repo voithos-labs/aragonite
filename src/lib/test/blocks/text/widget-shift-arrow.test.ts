@@ -1,10 +1,10 @@
 // @vitest-environment jsdom
 //
-// Guards widgetExtensionTarget's widget filter: Shift+Arrow extension must target ANY atomic
-// inline widget, not only images. A raw-HTML <br> renders as a live widget, so a caret at its edge
-// plus Shift+ArrowRight must extend across it. Chromium straddles the contenteditable=false island
-// natively (so e2e cannot discriminate); jsdom does not, so this catches a regression to
-// `kind !== 'image'`.
+// `widgetExtensionTarget`'s filter: a Shift+Arrow extension must target any atomic inline widget,
+// not only images. A raw-HTML `<br>` renders as a live widget, so a caret at its edge plus
+// Shift+ArrowRight must extend across it. Chromium extends across a contenteditable=false element
+// on its own, so e2e cannot tell the difference; jsdom does not, so this catches a filter that
+// narrows to `kind !== 'image'`.
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { getInlineContent } from '$lib/core/inline/inline-cache';
@@ -24,7 +24,7 @@ describe('handleShiftArrowIntoWidget — non-image inline widget', () => {
 	let node: CstNode;
 
 	beforeEach(() => {
-		// `a<br>b` — text "a" [0,1), rawHtml <br> [1,5), text "b" [5,6).
+		// `a<br>b`: text "a" [0,1), rawHtml `<br>` [1,5), text "b" [5,6).
 		node = parse('a<br>b\n').children[0];
 		const inlines = getInlineContent(node);
 		const br = inlines.find((n) => n.kind === 'rawHtml');
@@ -47,8 +47,8 @@ describe('handleShiftArrowIntoWidget — non-image inline widget', () => {
 	});
 
 	function makeInteraction() {
-		// Only node / getEl / getAmbientLength / linkRef are read on this path; the rest stay throwing
-		// stubs so any accidental coupling introduced later surfaces.
+		// Only `node`, `getEl`, `getAmbientLength` and `linkRef` are read on this path; the rest
+		// stay throwing stubs, so any new dependency added later shows up at once.
 		const trap = () => {
 			throw new Error('unexpected dep access on the shift-arrow extension path');
 		};
@@ -86,11 +86,11 @@ describe('handleShiftArrowIntoWidget — non-image inline widget', () => {
 
 		const consumed = interaction.handleShiftArrowIntoWidget(evt);
 
-		// Primary discriminator: reverting the filter to `kind !== 'image'` skips the rawHtml node (no
-		// image present), the handler returns false, and this assertion fails.
+		// The key assertion: narrowing the filter to `kind !== 'image'` skips the rawHtml node,
+		// since there is no image, the handler returns false, and this fails.
 		expect(consumed).toBe(true);
-		// Secondary: the native selection now spans the widget — focus moved to the
-		// far (trailing) edge, raw offset 5 == text "b" offset 0.
+		// And the browser selection now spans the widget: focus moved to the far
+		// (trailing) edge, raw offset 5 == text "b" offset 0.
 		expect(sel.isCollapsed).toBe(false);
 		expect(sel.focusNode).toBe(tB);
 		expect(sel.focusOffset).toBe(0);
@@ -98,7 +98,7 @@ describe('handleShiftArrowIntoWidget — non-image inline widget', () => {
 
 	it('does not consume when no widget sits at the caret edge', () => {
 		const interaction = makeInteraction();
-		// Caret at text "b" offset 1 == raw offset 6 — past the widget, plain text.
+		// Caret at text "b" offset 1 == raw offset 6: past the widget, in plain text.
 		placeCaretAt(tB, 1);
 		const evt = new KeyboardEvent('keydown', { key: 'ArrowRight', shiftKey: true });
 

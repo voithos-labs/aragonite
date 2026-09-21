@@ -6,8 +6,8 @@ import { blockNode, makeRenderHarness } from '$lib/test/harness/text-render';
 
 describe('text-render key across a prose→non-prose flip', () => {
 	it('rebuilds the DOM when undo returns a matched-DOM non-prose block to prose', () => {
-		// The undo corruption: '<di' + 'v' flips paragraph→htmlBlock, whose render finds textContent
-		// already correct; skipping the render-key update freezes the key and undo shows stale DOM.
+		// Typing 'v' after '<di' turns a paragraph into an HTML block, whose render finds the
+		// text already correct; leaving the render key unchanged then makes undo show old DOM.
 		const paragraph = blockNode('<di\n');
 		const htmlBlock = blockNode('<div\n');
 		expect(paragraph.kind).toBe('paragraph');
@@ -30,8 +30,8 @@ describe('text-render key across a prose→non-prose flip', () => {
 });
 
 describe('text-render key across a prose→prose flip', () => {
-	// Both kinds render through the prose arm, so the key's early return is the only thing between
-	// them — a registry gaining an opener for a raw already in the document mints exactly this pair.
+	// Both kinds render through the same prose branch, so the key's early return is the only thing
+	// between them, and a registry gaining an opener for bytes already in the document makes this.
 	it('rebuilds when the kind changes under an unchanged raw', () => {
 		const heading = blockNode('# a\n');
 		expect(heading.kind).toBe('heading');

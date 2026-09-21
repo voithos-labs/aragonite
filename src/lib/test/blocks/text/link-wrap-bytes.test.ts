@@ -7,8 +7,9 @@ import {
 	canWrapRangeAsLink
 } from '$lib/components/blocks/text/link-source-bytes';
 
-// The create half of the write seam: what `[selected text](url)` may be minted over, and how the
-// selected bytes and the destination are escaped on the way. Declines are as pinned as wraps.
+// The create half of the byte writer: what `[selected text](url)` may be written over, and how
+// the selected bytes and the destination are escaped on the way. Refusals are covered as closely
+// as wraps.
 
 describe('link wrap bytes — minting a construct over plain text', () => {
 	it('wraps the range and percent-encodes the destination stop characters', () => {

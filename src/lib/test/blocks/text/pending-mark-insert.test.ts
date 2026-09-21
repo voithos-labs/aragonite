@@ -6,11 +6,11 @@ import { resolveMarkedInsertion } from '$lib/components/blocks/text/pending-mark
 import type { InlineMarkKind } from '$lib/schema/inline-construct-policy';
 import type { InlineNode } from '$lib/core/nodes';
 
-// The bytes a pending toggle turns the next keystroke into. Live paints no delimiter, so the
-// source IS the oracle, and every case re-parses the result.
-// Miss-analysis, twice: the first cut used single-WORD fixtures, so `**hello world**` split at
-// the space shipped literal stars; the second checked visibility with a private walk that called
-// an autolink's `<`/`>` content, so a splice that destroyed the link read as clean.
+// The bytes a pending toggle turns the next keystroke into. Live mode draws no delimiter, so the
+// source decides, and every case reparses the result.
+// Miss-analysis, twice: the first pass used single-word fixtures, so `**hello world**` split at
+// the space shipped literal stars; the second checked visibility with its own scan that counted
+// an autolink's `<` and `>` as content, so a splice that destroyed the link read as clean.
 
 function insert(
 	display: string,
@@ -43,8 +43,8 @@ function kindsAround(raw: string, probe: string): string[] {
 	return found;
 }
 
-/** What a reader sees, asked of the renderer. The hand-written walk that stood here counted an
- *  angle autolink's `<`/`>` as content, so it could not see them surface. */
+/** What the user sees, asked of the renderer. A hand-written scan would count an angle autolink's
+ *  `<` and `>` as content, so it could not see them appear on screen. */
 function visibleText(raw: string): string {
 	return renderedText(parseInline(raw, 0, raw.length), raw, CONTENT_VISIBILITY);
 }
@@ -89,7 +89,7 @@ describe('removing a mark the chain carries', () => {
 	});
 
 	// At a content edge the split's near half would be empty, and an empty pair is exactly
-	// the invisible `****` residue live mode must never mint: step outside the run instead.
+	// the invisible `****` live mode must never write: step outside the run instead.
 	it('steps past the closer at the trailing content edge', () => {
 		expect(insert('**ab**', 4, 'X', ['strong'])).toEqual({ raw: '**ab**X', caret: 7 });
 		expect(kindsAround('**ab**X', 'X')).toEqual([]);
@@ -107,9 +107,9 @@ describe('removing a mark the chain carries', () => {
 		});
 	});
 
-	// Nested `***ab***` is emphasis around strong. Escaping the OUTER construct escapes the
-	// inner one with it — bytes cannot leave a parent while staying in its child — so the
-	// kind the user kept is re-declared around the payload instead.
+	// Nested `***ab***` is emphasis around strong. Escaping the outer construct escapes the
+	// inner one with it, since bytes cannot leave a parent while staying in its child, so the
+	// kind the user kept is written again around the payload instead.
 	it('escapes the inner construct with the outer one and re-declares what was kept', () => {
 		const result = insert('***ab***', 4, 'X', ['emphasis']);
 		expect(result?.raw).toBe('***a*****X*****b***');
@@ -124,7 +124,7 @@ describe('removing a mark the chain carries', () => {
 	});
 
 	// The escape reaches only as far out as the removed kind: at the inner pair's leading
-	// content edge the byte steps outside STRONG and stays inside the emphasis around it.
+	// content edge the byte steps outside strong and stays inside the emphasis around it.
 	it('escapes only the removed construct, not the one wrapping it', () => {
 		expect(insert('***ab***', 3, 'X', ['strong'])).toEqual({ raw: '*X**ab***', caret: 2 });
 		expect(kindsAround('*X**ab***', 'X')).toEqual(['emphasis']);
@@ -138,11 +138,11 @@ describe('removing a mark the chain carries', () => {
 	});
 });
 
-// Every row here was measured wrong before the resolver verified its own output. The split that
-// reads right — close the pair, insert, reopen — is only legal where CommonMark's flanking rules
-// and rule-of-three read it back that way, and whitespace or a nested pair at the seam is enough
-// to break it. The check is the same three questions each time: the bytes, the construct chain
-// the parser puts around the insertion, and whether a delimiter turned into a visible star.
+// The split that reads right (close the pair, insert, reopen) is only legal where CommonMark's
+// flanking rules and rule of three read it back that way, and whitespace or a nested pair at the
+// cut is enough to break it, which is why the resolver checks its own output. The check is the
+// same three questions each time: the bytes, the construct chain the parser puts around the
+// insertion, and whether a delimiter turned into a visible star.
 describe('a candidate that would not parse back is not written', () => {
 	const spaceCases: [string, number, string][] = [
 		['before the space', 7, 'X**hello world**'],
@@ -174,7 +174,7 @@ describe('a candidate that would not parse back is not written', () => {
 	});
 
 	// The escape would have to cut the link open, and a link's delimiters are not a symmetric
-	// pair: splicing `**` inside its text writes bytes the reader sees.
+	// pair: splicing `**` inside its text writes bytes the user sees.
 	it('declines rather than splice a delimiter inside link text', () => {
 		expect(insert('**[ab](u)**', 4, 'X', ['strong'])).toBeNull();
 	});
@@ -193,8 +193,8 @@ describe('a candidate that would not parse back is not written', () => {
 		expect(visibleText(result!.raw)).toBe('a c bX');
 	});
 
-	// Markdown cannot write two same-kind runs side by side: `*a*` + `*X*` is `*a**X*`, whose
-	// middle run parses as literal text. Declining types the byte plain — the only outcome that
+	// Markdown cannot write two same-kind runs side by side: `*a*` plus `*X*` is `*a**X*`, whose
+	// middle run parses as literal text. Declining types the byte plainly, the only outcome that
 	// keeps § 1's "markers are never visible".
 	it('declines a wrap whose delimiters would merge with the run beside it', () => {
 		expect(insert('*a*', 3, 'X', ['emphasis'])).toBeNull();
@@ -208,7 +208,7 @@ describe('a candidate that would not parse back is not written', () => {
 		expect(visibleText(result!.raw)).toBe('aX');
 	});
 
-	// Non-ASCII content must not change the answer: the seam is delimiter arithmetic, not bytes.
+	// Non-ASCII content must not change the answer: this is delimiter arithmetic, not bytes.
 	it('answers the same for non-ASCII content', () => {
 		const result = insert('**héllo wörld**', 8, 'X', ['strong']);
 		expect(result?.raw).toBe('**héllo wörld**X');
@@ -216,7 +216,7 @@ describe('a candidate that would not parse back is not written', () => {
 	});
 });
 
-// A construct with no CHILDREN has no content range, so the chain walk must hold it by node
+// A construct with no children has no content range, so the chain scan has to hold it by its node
 // bounds or a candidate destroys it unnoticed. An autolink is the reachable case: the URL is one
 // childless span whose angle brackets are marker spans.
 describe('a childless construct is in the chain, so nothing may cut it open', () => {
@@ -224,7 +224,7 @@ describe('a childless construct is in the chain, so nothing may cut it open', ()
 
 	it('declines a mark applied inside an angle autolink’s URL', () => {
 		// The wrap would have been `see <https**X**://example.com> now`, which kills the autolink
-		// and paints its `<` and `>`.
+		// and shows its `<` and `>`.
 		expect(insert(ANGLE, 10, 'X', ['strong'])).toBeNull();
 	});
 
@@ -239,8 +239,8 @@ describe('a childless construct is in the chain, so nothing may cut it open', ()
 		expect(visibleText(after!.raw)).toBe('see https://example.comX now');
 	});
 
-	// A BARE autolink paints no marker, so killing it changes nothing on screen and the render
-	// check is blind here; the CHAIN check declines, since `intended` carries the link kind.
+	// A bare autolink draws no marker, so killing it changes nothing on screen and the render
+	// check cannot see it; the chain check refuses, since `intended` carries the link kind.
 	it('declines a mark applied inside a bare autolink', () => {
 		expect(insert('see https://example.com now', 10, 'X', ['strong'])).toBeNull();
 	});
@@ -251,11 +251,11 @@ describe('a childless construct is in the chain, so nothing may cut it open', ()
 	});
 });
 
-// #194: a delimiter run shared between two pairings rebinds under any splice the resolver can make
-// there, so `__foo__`'s strong vanishes though the painted text and the intended chain both check
-// out. Kind survival is the third question the acceptance predicate has to ask.
-// Miss-analysis: the property net's `no construct kind vanishes` draws this shape only on a fresh
-// seed (568150862), so the pinned seed never met it — the counterexample is spelled out here.
+// A delimiter run shared between two pairings can rebind under any splice made there, so
+// `__foo__`'s strong vanishes although the visible text and the intended chain both check out
+// (GH #194). Whether every construct survives is the third question that has to be asked.
+// Miss-analysis: the property suite's "no construct kind vanishes" draws this shape only on a
+// fresh seed (568150862), so its fixed seed never met it; the counterexample is written out here.
 describe('a candidate that spends a construct is declined', () => {
 	it('declines rather than rebind the strong pairing of a shared underscore run', () => {
 		expect(insert(' __foo__', 2, 'X', ['emphasis'])).toBeNull();

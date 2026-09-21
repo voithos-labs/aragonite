@@ -7,8 +7,8 @@ import { createLinkCardCommitter } from '$lib/components/link-card/link-card-com
 import type { LinkTarget } from '$lib/components/blocks/text/link-at-point';
 import { makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
 
-// What the card decides ON TOP of the write seam: which fields survive a url edit, and when the
-// reference form is kept. The bytes themselves are the seam's business.
+// What the card decides on top of the byte writer: which fields survive a URL edit, and when the
+// reference form is kept. The bytes themselves are the writer's business.
 
 function makeCard(source: string) {
 	const harness = makeEditorActionsDeps(parse(source).children);
@@ -62,8 +62,8 @@ describe('link card commit — which fields survive a url edit', () => {
 		expect(card.raw()).toBe('Visit [x](old) now\n');
 	});
 
-	// Miss: the unchanged-url pin above used a destination the serializer reproduces
-	// byte-identically, so the rebuild-and-rewrite it actually performed looked like a no-op.
+	// Miss-analysis: the unchanged-URL case above used a destination the serializer reproduces
+	// byte for byte, so the rebuild and rewrite it really did looked like doing nothing.
 	it('an unchanged url never respells author bytes the serializer would normalize', async () => {
 		const card = makeCard('Visit [x](<a b>) now\n');
 		// What the field shows for the angle form, committed back untouched.
