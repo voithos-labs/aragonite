@@ -126,6 +126,9 @@
 	--md-unresolved-image-bg: rgba(192, 57, 43, 0.08);
 	--md-raw-html-color: rgba(120, 120, 120, 0.85);
 	--md-marker-hover-bg: rgba(128, 128, 128, 0.15);
+	/* The hanging indent a task item reserves for its marker: the width the visible `- [ ] `
+	   draws, which editor.css overrides where the box is drawn instead. */
+	--md-task-indent: 2.1em;
 	--md-reorder-indicator: var(--color-selection, #6496ff);
 	/* Wash on the container being reordered within during a nested drag. Tinted with the reorder
 	   accent, not neutral grey, so the shift stays perceptible for low-contrast vision. */
