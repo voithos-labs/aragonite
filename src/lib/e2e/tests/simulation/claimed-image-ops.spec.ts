@@ -62,7 +62,7 @@ test.describe('claimed-image-ops simulation', () => {
 		expect(await editor.bridge.getSource()).toBe(loaded);
 		await checkOracles('embed-shrunk');
 
-		// ── Editing a neighbouring block must not disturb the claimed bytes ────────
+		// ── Editing a neighbouring block must not disturb the handler's bytes ──────
 		await g.pause();
 		await g.lateCorrection([0]);
 		expect(await editor.bridge.getSource()).toBe(loaded);

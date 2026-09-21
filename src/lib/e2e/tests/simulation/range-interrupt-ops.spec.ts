@@ -10,7 +10,7 @@ import type { RangeInterruptGesture } from '../../simulation/gestures/range-inte
 import { makeSimContext } from './helpers';
 
 // Every select-all, gesture, keystroke sequence, run once over a document shaped to reach it,
-// so coverage never depends on which seed drew what. PROBES is keyed by the list of gestures
+// so coverage never depends on which seed drew what. `PROBES` is keyed by the list of gestures
 // itself, so a new gesture without a probe fails `npm run check` rather than leaving a silent
 // hole. What each gesture is expected to do:
 // requirements/simulation/range-interrupt-ops.md.

@@ -3,9 +3,9 @@ import { PluginsPage } from '../plugins/helpers';
 import { FIXTURE_BYTES } from '../perf/vr-helpers';
 
 /**
- * The fold and block-badge fixtures (requirements/decorations/fold-and-badge.md). `fold` pins
- * ReplaceDecoration.widget with a clickable element inside it, `block-badge` pins
- * BlockDecoration.badge including survival across windowing, and the fold-table seed pins a
+ * The `fold` and `block-badge` fixtures (requirements/decorations/fold-and-badge.md). `fold` pins
+ * `ReplaceDecoration.widget` with a clickable element inside it, `block-badge` pins
+ * `BlockDecoration.badge` including survival across windowing, and the `fold-table` seed pins a
  * widget rendered inside a table cell.
  */
 
@@ -70,7 +70,7 @@ test.describe('fold fixture: islands in table cells', () => {
 			await editor.waitForRenderFlush();
 
 			// Focus the cell holding the widget without clicking it: its left edge carries the
-			// row's drag handle and the `…` opens the fold, so enter the next cell and Shift+Tab back.
+			// row's drag handle and the `…` uncovers the range, so enter the next cell and Shift+Tab back.
 			await page.getByRole('cell').nth(1).click();
 			await page.keyboard.press('Shift+Tab');
 			await expect(page.getByRole('cell').first()).toBeFocused();

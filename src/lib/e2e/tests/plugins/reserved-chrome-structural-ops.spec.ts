@@ -63,7 +63,7 @@ test.describe('reserved child-0 chrome: structural ops + paste', () => {
 		await editor.focusBlockAtPath([1, 0], 0); // start of "Title"
 		await editor.pressDeclined('Backspace');
 
-		// The callout declares firstChildBackspace='keep-reserved-chrome', which says child 0 is
+		// The callout declares `firstChildBackspace: 'keep-reserved-chrome'`, which says child 0 is
 		// its title row, so nothing is lifted out and the title is neither moved nor destroyed.
 		const callout = await readCallout(page, 1);
 		expect(callout.rootCount).toBe(2);
@@ -80,8 +80,8 @@ test.describe('reserved child-0 chrome: structural ops + paste', () => {
 		await editor.focusBlockAtPath([1, 0], 5); // end of "Title"
 		await page.keyboard.press('Enter');
 
-		// A title row is one line by the way it serializes, so Enter goes to chrome.descendToBody,
-		// the registerChromeLeaf default: focus moves into the first body child, with no split
+		// A title row is one line by the way it serializes, so Enter goes to `chrome.descendToBody`,
+		// the `registerChromeLeaf` default: focus moves into the first body child, with no split
 		// and no commit.
 		await expect.poll(() => activeBlockPath(page)).toEqual([1, 1]);
 
