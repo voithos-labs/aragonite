@@ -1,4 +1,4 @@
-# Feature: the word rung of the click ladder
+# Feature: the word level of the click order
 
 Double-click a word and you get the word. The editor works that out itself
 (`selection/multi-click.ts`) instead of letting the browser do it, because the browser's word

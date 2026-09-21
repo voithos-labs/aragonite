@@ -1,4 +1,4 @@
-# Feature: live-mode destructive joins (the seam a delete leaves)
+# Feature: live-mode destructive joins (the join a delete leaves)
 
 A selection in live mode runs over bytes the user cannot see. Deleting from inside `**bold**`
 to inside `*italic*` byte-literally leaves `**bo` joined to `alic*`, and both runs print the
@@ -46,7 +46,7 @@ screen.
   screen, because there the delimiters are painted and the user aimed at them
 - zero `[invariant:…]` console fires across every scenario (automatic via the shared e2e fixture)
 
-## Miss analysis
+## Miss-analysis
 
 The split cleanup got its pin in the batch before this one; the join cleanup had none, and the
 residue an Enter-then-Backspace left shipped as a known defect for exactly that reason. The

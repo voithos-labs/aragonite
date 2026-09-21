@@ -1,4 +1,4 @@
-# Feature: live-mode typing seat (which side of a hidden delimiter typed bytes land)
+# Feature: live-mode typing, which side of a hidden delimiter typed bytes land
 
 Live mode paints no construct marker, so one screen position names two raw offsets: before
 the closing `**` and after it. Typing is native, and Chromium moves a collapsed caret back

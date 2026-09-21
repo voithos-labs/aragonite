@@ -1,4 +1,4 @@
-# Feature: AltGr and IME input at a focused diagram mints a paragraph below
+# Feature: AltGr and IME input at a focused diagram creates a paragraph below
 
 The plugin's route to the whole-block editing host. The container factory wires that host, not
 the block component, so a plugin kind that declares `blockFocus: 'whole-block'` and hands the

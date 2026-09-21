@@ -1,4 +1,4 @@
-# Feature: header slot, host chrome inside the scroll container
+# Feature: header slot, host controls inside the scroll container
 
 A `header` snippet renders inside the editor's scroll container, above the first
 block. It is the Obsidian inline-title shape: the host's own document controls (title,

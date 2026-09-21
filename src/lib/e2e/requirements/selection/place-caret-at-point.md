@@ -1,4 +1,4 @@
-# Feature: placeCaretAtPoint, the host shell's caret door
+# Feature: placeCaretAtPoint, the host shell's entry point for placing the caret
 
 A shell that owns the frame next to the document (a journal entry's padding, a card's
 footer strip) gets clicks the editor never sees. `editor.placeCaretAtPoint(x, y)` divides

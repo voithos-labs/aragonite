@@ -1,4 +1,4 @@
-# Feature: Block math commit kernel, edits past the fence re-split the document
+# Feature: Block math commit, edits past the fence re-split the document
 
 Committing a `$$…$$` source that has been edited so it no longer parses as one block has to land
 as a structural replacement: the math block plus every trailing block the text parses into.

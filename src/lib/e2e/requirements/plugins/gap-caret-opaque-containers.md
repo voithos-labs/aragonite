@@ -39,7 +39,7 @@ is the other half of the decision.
 - Every arrival is an arrow key or a mouse click; the new paragraph comes from real typing; undo
   is the keyboard chord.
 
-## Miss analysis
+## Miss-analysis
 
 No test could have caught the missing declarations: a kind declares whether it qualifies and
 nothing infers it, so a group that declares nothing looks exactly like a group that decided

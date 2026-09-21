@@ -1,4 +1,4 @@
-# Feature: reading mode (presentation-mode rung 1)
+# Feature: reading mode (presentation mode 1)
 
 `presentationMode="reading"` on `<Editor>` hides Markdown markers with CSS scoped
 to an attribute on the root (the DOM keeps every marker node, so offsets survive),

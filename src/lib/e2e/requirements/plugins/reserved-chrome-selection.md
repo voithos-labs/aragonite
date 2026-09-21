@@ -1,4 +1,4 @@
-# Feature: Reserved-child-0 Chrome Selection Parity
+# Feature: Reserved-child-0 title row, selection parity
 
 The `:::callout` callout reserves child index 0 as an editable `callout-title` leaf, rendered
 inside the callout's single `.block-list`. This early proof shows that selection behaves inside

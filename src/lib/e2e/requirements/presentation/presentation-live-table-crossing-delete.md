@@ -27,7 +27,7 @@ truncation takes the cleaner's unpaired-run half. Driven on `/test/editor` via
 
 ## Error cases
 
-## Miss analysis
+## Miss-analysis
 
 The live-join file pins every prose-to-prose merge across a boundary, where the
 cleaner runs; no spec selected across the table wall, which is the one branch

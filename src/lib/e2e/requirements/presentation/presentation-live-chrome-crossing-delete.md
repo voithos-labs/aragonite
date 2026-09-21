@@ -1,4 +1,4 @@
-# Feature: live-mode chrome-crossing deletes clean their stranded runs
+# Feature: live-mode deletes across a reserved title row clean their stranded runs
 
 A selection crossing the wall of a container with a reserved title row deletes by
 truncating its prose endpoints in place, with no join, so the delimiter runs the
@@ -30,7 +30,7 @@ bridge is what each scenario checks against.
 
 ## Error cases
 
-## Miss analysis
+## Miss-analysis
 
 The fix for the table branch pinned its own prose truncations, but no spec
 selected across a container wall without a table, which is the sibling branch

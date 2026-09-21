@@ -1,4 +1,4 @@
-# Feature: reading-mode flip commits a render-primary reveal (presentation-mode rung 1)
+# Feature: reading-mode flip commits a render-primary reveal (presentation mode 1)
 
 A block that renders rather than shows its markup (LaTeX `$$…$$` display math)
 shows its raw source on focus and commits once on blur. Switching the editor to

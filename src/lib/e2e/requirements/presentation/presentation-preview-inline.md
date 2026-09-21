@@ -1,4 +1,4 @@
-# Feature: inline-granular live preview, construct reveal (presentation-mode rung 3)
+# Feature: inline-granular live preview, construct reveal (presentation mode 3)
 
 `presentationMode="preview-inline"` on `<Editor>` is a live editing mode. Unfocused
 blocks behave exactly as `preview-block` (markers hidden, rendered look). Inside

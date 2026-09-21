@@ -27,14 +27,14 @@ it takes no keystrokes, so an empty construct there is still allowed to paint no
 - Backspace inside a painted `# ` takes the marker byte as source mode would, and does not demote the block: the demote handler reads the bound the offset traversal can land on, which now follows what is painted.
 - Backspace at the start of a painted `# ` (raw 0, reachable only because the markers paint) drops the whole construct in one undoable keypress. In source mode raw 0 is a key that does nothing today, so this is a live-only outcome the painting made reachable, not parity with source.
 
-## Painted inline chrome (`[](u)`, live and source alike)
+## Painted inline markers (`[](u)`, live and source alike)
 
 - `End` then Backspace takes exactly one byte, leaving `[](u`: the delimiters are on screen, so no keypress may take them as a run the user never saw.
 - `Home` then Delete takes exactly one byte, leaving `](u)`.
 - a letter typed at `End` appends (`[](u)a`), the rule for where typed bytes go taking nothing where no run is hidden.
 - each of the three matches source mode byte for byte, since what is painted is what the two modes now agree on.
 
-## The live rewrites against painted chrome
+## The live rewrites against painted markers
 
 Every rewrite that builds candidate bytes for a marker-hiding mode meets this block too, and each
 must leave the painted bytes alone: what the user can see is not a run a rewrite may drop, move

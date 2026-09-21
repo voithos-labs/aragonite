@@ -70,7 +70,7 @@ are in `gap-caret-surface.md`.
   ('type multi-line code then navigate out via ArrowDown'), both Chromium-only. A count
   assertion here would need a `browserName` branch, which the shared harness design forbids.
 
-## Miss analysis
+## Miss-analysis
 
 No test could have caught this: the gap caret is new behavior, not a regression. The
 boundary class it serves (a caret with nowhere to live between two whole-block kinds) was

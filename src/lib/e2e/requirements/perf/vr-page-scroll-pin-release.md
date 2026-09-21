@@ -1,4 +1,4 @@
-# Feature: Virtual rendering, reveal-pin release in a page-scrolled host
+# Feature: Virtual rendering, releasing the scroll-into-view hold in a page-scrolled host
 
 While a scroll-into-view request is live the root list re-asserts the target's position on every
 measure pass, and any deliberate gesture in the document releases it. Under `scrollMode="host"`

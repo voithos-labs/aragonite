@@ -1,11 +1,11 @@
-# Feature: Reserved-child-0 Chrome Wall × Table Branch
+# Feature: Reserved-child-0 title-row wall × table branch
 
 The `:::callout` callout reserves child index 0 as an editable `callout-title` leaf. This file
 proves that a range delete still stops at it when one endpoint of the range is a table cell,
 since the table branch is dispatched before the title branch. The checks read behavior: the tree
 and the selection read by path through `window.__test`, not visuals.
 
-## Gate 6: chrome wall × table branch (must pass)
+## Gate 6: the title-row wall × table branch (must pass)
 
 A range with a table endpoint goes to the table branch before the title branch, so the rule has
 to hold there too: a covered title is emptied, a title at an endpoint is truncated where it is,

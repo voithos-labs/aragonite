@@ -70,7 +70,7 @@ identical on screen.
 
 - zero `[invariant:…]` console fires across every scenario (automatic via the shared e2e fixture)
 
-## Miss analysis
+## Miss-analysis
 
 Nothing pinned the split against markers leaking before this file: the earlier requirements in
 this batch cover typing, toggling and destructive keys at hidden runs, and every one of them

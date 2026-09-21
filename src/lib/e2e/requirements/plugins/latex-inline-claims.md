@@ -1,4 +1,4 @@
-# Feature: what an inline `$…$` run claims in prose
+# Feature: what an inline `$…$` run takes in prose
 
 Inline math recognition is checked so that shell and currency prose keeps its dollar signs, and
 that check reads the whole span a run would take, never the byte after the opening `$`, which is

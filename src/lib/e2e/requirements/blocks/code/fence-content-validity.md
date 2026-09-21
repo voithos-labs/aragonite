@@ -59,7 +59,7 @@ lines itself when it must.
   turned into tildes to make the character legal: rewriting a marker the author chose
   is a bigger surprise than dropping a character the grammar never had room for.
 
-## The tilde twin
+## The tilde form
 
 - A tilde run typed or pasted onto a tilde fence's body line grows the fence exactly as
   a backtick run does: the rule is written for any marker and reads the block's own.
@@ -78,7 +78,7 @@ nor one to restore. A write that must land literally is the exception the paste 
 already made: pasted bytes are content, so an open fence grows its opener rather than
 letting a pasted run end the block.
 
-## One door, not a rule per gesture
+## One place, not a rule per gesture
 
 The repair runs in the one call every display commit goes through
 (`commitDisplay`, pinned by G4.24) and, for routes that never cross the component

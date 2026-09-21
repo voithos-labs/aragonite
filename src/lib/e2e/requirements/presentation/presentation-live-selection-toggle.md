@@ -1,4 +1,4 @@
-# Feature: live-mode format toggles over a SELECTION
+# Feature: live-mode format toggles over a selection
 
 The § 5 contract row "Mod+B over a selection → wrap/unwrap selection, one undo
 entry". A selection toggle is the half of the chord that writes bytes

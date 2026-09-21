@@ -1,4 +1,4 @@
-# Feature: the block rung, and dragging from a multi-click
+# Feature: the block level, and dragging from a multi-click
 
 Triple-click selects the block's content (a paragraph, a code body, a table cell), the same
 range the first Ctrl+A press takes. Keep the mouse down on the second or third click and drag,

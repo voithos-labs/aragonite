@@ -1,4 +1,4 @@
-# Feature: the block rung on a paragraph full of inline widgets
+# Feature: the block level on a paragraph full of inline widgets
 
 Triple-click a paragraph carrying rendered formulas and the whole paragraph stays selected.
 The block-level handler paints a range over the block's whole content, and nothing that runs

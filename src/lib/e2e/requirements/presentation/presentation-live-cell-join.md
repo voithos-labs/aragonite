@@ -34,7 +34,7 @@ reports where each gesture put the caret, and the source is what each scenario c
 
 - zero `[invariant:…]` console fires across every scenario (automatic via the shared e2e fixture)
 
-## Miss analysis
+## Miss-analysis
 
 The cell's paste cleanup got its e2e row in the same batch that fixed it; the cell's other
 destructive edits had neither e2e nor unit pins, so they stayed byte-literal unseen. The general

@@ -1,4 +1,4 @@
-# Feature: a click on an equation seats the caret where it landed
+# Feature: a click on an equation puts the caret where it landed
 
 A `$$` block shows its source on a click. The caret used to land at the end of that source
 whatever the click meant, so editing the head of a formula took a click plus a walk back. A

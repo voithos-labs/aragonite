@@ -1,4 +1,4 @@
-# Feature: doc-stats plugin, per-instance context spine
+# Feature: doc-stats plugin, per-instance context all the way through
 
 The `doc-stats` dogfood proves the per-instance context all the way through: `onEditor` receives
 an `EditorContext` for that one editor (editorId, live document, subscribe-only events, typed

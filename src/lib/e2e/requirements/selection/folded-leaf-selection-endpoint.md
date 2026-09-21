@@ -1,4 +1,4 @@
-# Feature: Folded render-primary leaf paints its cross-block selection endpoint box
+# Feature: A collapsed render-primary leaf paints its cross-block selection endpoint box
 
 A render-primary leaf (block math, TOC) shows a rendered widget while collapsed, with
 no source text node to measure. When such a leaf is the start endpoint of a

@@ -1,4 +1,4 @@
-# Feature: block-granular live preview, rendering (presentation-mode rung 2)
+# Feature: block-granular live preview, rendering (presentation mode 2)
 
 `presentationMode="preview-block"` on `<Editor>` is a live editing mode: every
 block hides its Markdown markers (rendered look) except the one whose leaf holds

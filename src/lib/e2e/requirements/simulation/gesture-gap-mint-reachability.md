@@ -1,4 +1,4 @@
-# Feature: Gap-mint gesture reachability (note-taking simulation)
+# Feature: Gap-insert gesture reachability (note-taking simulation)
 
 Self-tests for the one structural insert the corruption checks could not otherwise
 see: a paragraph created at a caret between two blocks. That boundary belongs to no

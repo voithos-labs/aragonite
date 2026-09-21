@@ -1,10 +1,10 @@
-# Feature: Reserved-child-0 Chrome rangeDelete Wall
+# Feature: Reserved-child-0 title row, the rangeDelete wall
 
 The `:::callout` callout reserves child index 0 as an editable `callout-title` leaf, the
 container's own title row. These checks prove that a range delete stops at it. They read
 behavior: the tree and the selection read by path through `window.__test`, not visuals.
 
-## Gate 4: rangeDelete chrome wall (must pass)
+## Gate 4: the rangeDelete title-row wall (must pass)
 
 Nothing merges across the title's boundary. An endpoint outside it is truncated where it is, a
 title the range covers is emptied rather than deleted as a node, and the container itself is

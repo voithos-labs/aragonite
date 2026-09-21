@@ -22,7 +22,7 @@ contained to a single instance, so one keypress never drives two editors.
   unrelated input) opens no search bar, since focus outside must not steer any
   instance's search bar (regression: it opened the editor's search and stole focus)
 
-## Single-editor document-chord claim
+## Single-editor document-chord ownership
 
 - Ctrl+F on a lone editor while a sibling control outside it holds focus (a toolbar
   toggle, not `<body>`) opens its Find bar: a lone editor takes its own search

@@ -1,4 +1,4 @@
-# Feature: a presentation-mode flip folds an open source reveal
+# Feature: a presentation-mode flip collapses an open source reveal
 
 A mode switch counts as a blur. An inline source reveal holds the block's live
 bytes in temporary DOM the CST has never seen, and the switch's re-render

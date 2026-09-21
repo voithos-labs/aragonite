@@ -1,4 +1,4 @@
-# Feature: Opening a diagram's source keeps the reader's place
+# Feature: Opening a diagram's source keeps the user's place
 
 A rendered diagram is tall and its source card is short, so opening the source takes height out
 of the document. At the end of the document the scroll container is already at its maximum, so

@@ -1,4 +1,4 @@
-# Feature: Public caret doors under a live cross-block range
+# Feature: Public caret entry points under a live cross-block range
 
 The public calls a consumer can move the caret through while a cross-block range is
 live: `setSelection` on the editor API, and `BlockComponent`'s two caret methods through

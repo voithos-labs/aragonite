@@ -32,7 +32,7 @@ are in `gap-caret-arrival.md`.
   step and no scroll position holds it. The honest check is a block-list component test
   with a synthetic window, not a browser gesture.
 
-## Miss analysis
+## Miss-analysis
 
 New behavior, not a regression. The child-list check exists because the most common bug
 here is a rule computed against the wrong index space: the boundary and the landing agree

@@ -30,7 +30,7 @@ clicks, real typing and a real `Mod+Z`; the source is what each scenario checks 
 
 - zero `[invariant:…]` console fires across every scenario (automatic via the shared e2e fixture)
 
-## Miss analysis
+## Miss-analysis
 
 The first report on this batch claimed these paths declined, on a reading of the code rather than
 a run: the cell path resolves through `findCellPathForElement` and the container branch of the

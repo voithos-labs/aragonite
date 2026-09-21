@@ -1,4 +1,4 @@
-# Feature: decoration fixtures, fold (replace) + block-badge (block)
+# Feature: decoration fixtures, `fold` (replace) + `block-badge` (block)
 
 Two fixture plugins that pin the remaining decoration types end-to-end on the
 public API only. `fold` scans prose leaves for `[>…<]` delimiters and covers each

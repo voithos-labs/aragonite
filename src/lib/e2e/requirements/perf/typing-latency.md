@@ -41,7 +41,7 @@ raw length, since the ancestry rebuild carries the typed character up to the roo
 leaf the nested windowing left off-window fails the row through a mounted check rather than
 recording a bogus latency.
 
-## Installed inline rungs (report-only)
+## Installed inline handlers (report-only)
 
 Four rows measuring what a registered inline syntax handler costs, which no standing row can see:
 the editor route installs no plugins, so every ceiling is a number from an empty registry.

@@ -1,4 +1,4 @@
-# Feature: minting a paragraph at the gap caret
+# Feature: creating a paragraph at the gap caret
 
 A boundary the editable areas cannot reach, a table directly above a code fence, is
 where the gap caret rests. This file covers what the caret does there: creating a
@@ -54,7 +54,7 @@ reaches would be invisible to every other spec.
 - The insert always produces a **paragraph**. Choosing another kind at the boundary is not
   offered in v1.
 
-## Miss analysis
+## Miss-analysis
 
 Creating a paragraph here is new behavior, so no test could have caught its absence. The
 undo half belongs to the same class as #88 (see `gap-caret-surface.md`), _editor-owned

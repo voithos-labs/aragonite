@@ -1,4 +1,4 @@
-# Feature: a click on an inline formula seats the caret where it landed
+# Feature: a click on an inline formula puts the caret where it landed
 
 A rendered `$…$` widget shows its editable source on a click. The caret used to land at the
 formula's end whatever the click meant, so editing the head of a formula took a click plus a walk

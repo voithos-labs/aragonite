@@ -1,4 +1,4 @@
-# Feature: clicking beside a run of adjacent atomic islands
+# Feature: clicking beside a run of adjacent atomic widgets
 
 An atomic inline widget (an emoji glyph, a decoded entity, an image) holds no caret position of
 its own, so a click beside one snaps the caret to the widget's raw edge. When several widgets sit

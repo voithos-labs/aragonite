@@ -91,7 +91,7 @@ the ordinary one: `Mod+Z`, which restores the construct whole, url intact.
 - a click outside the card closes it without writing, and leaves the caret that click just placed
 - zero `[invariant:…]` console fires across every scenario (automatic via the shared e2e fixture)
 
-## Miss analysis
+## Miss-analysis
 
 Nothing could have caught this before the card existed: live mode shipped the marker hiding that
 makes a destination unreachable, and the same work that hid it has to provide the replacement.

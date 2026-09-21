@@ -12,7 +12,7 @@ Each gesture fires once here over a document shaped to reach it, so coverage nev
 depends on which seed drew what; the note sessions and the multi-seed fuzz add the
 random dimension (`requirements/simulation/multi-seed.md`).
 
-## The oracle
+## The reference check
 
 Two legal outcomes, and each gesture is pinned to exactly one:
 

@@ -1,4 +1,4 @@
-# Feature: runCommand, the semantic command door
+# Feature: runCommand, the one entry point for semantic commands
 
 `editor.runCommand(id)` runs a command at the focused block with no chord in the
 path. It is what a host's selection toolbar calls, so the button keeps working

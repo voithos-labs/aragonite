@@ -1,4 +1,4 @@
-# Feature: typing at whole-block focus mints a paragraph below
+# Feature: typing at whole-block focus creates a paragraph below
 
 A `blockFocus: 'whole-block'` kind (thematic break here; mermaid pinned in
 `plugins/mermaid-focus`) is its own focus target, so it holds no caret and a typed character

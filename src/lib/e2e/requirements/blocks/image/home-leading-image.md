@@ -28,7 +28,7 @@ through the test hooks is the expected answer.
 
 ## Error cases
 
-## Miss analysis
+## Miss-analysis
 
 The image caret suites pinned clicks, arrows and typing around the widget, but
 no spec pressed Home on a line whose first usable caret position sits against the

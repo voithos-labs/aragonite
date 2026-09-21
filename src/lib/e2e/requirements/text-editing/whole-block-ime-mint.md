@@ -1,4 +1,4 @@
-# Feature: AltGr and IME input at whole-block focus mints a paragraph below
+# Feature: AltGr and IME input at whole-block focus creates a paragraph below
 
 A printable typed at a `blockFocus: 'whole-block'` kind creates a paragraph below, and that path
 reads a plain keydown. Two whole classes of printable never arrive that way: an AltGr production

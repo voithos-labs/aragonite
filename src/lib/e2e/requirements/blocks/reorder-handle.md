@@ -26,7 +26,7 @@ order. This file covers which blocks show a handle and when, not dragging.
 - a table shows one handle, its own: there are no per-row or per-column handles, and every row
   and column action lives in the right-click cell menu
 
-## Grip glyph and placement
+## Handle glyph and placement
 
 - the handle is the lucide `grip-vertical` glyph (six dots), 16px, muted
 - the handle sits within the first line-height of the block's own box, measured on hover, not

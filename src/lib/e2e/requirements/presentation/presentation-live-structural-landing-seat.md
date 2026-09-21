@@ -1,4 +1,4 @@
-# Feature: live-mode seat after a STRUCTURAL landing (a caret placed by a mutation, not a step)
+# Feature: live-mode caret position after a structural landing (a caret placed by a mutation, not a step)
 
 The rule for where typed bytes go reads the arrival that put the caret where it is
 (`presentation-live-typing-affinity.md` holds the matrix of keystroke arrivals). A landing after

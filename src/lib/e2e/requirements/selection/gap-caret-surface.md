@@ -54,7 +54,7 @@ Arrival is in `gap-caret-arrival.md`; creating a paragraph and undoing it are in
   reading the stale block position, so the final value is the contract and the sequence of
   emissions is not.
 
-## Miss analysis
+## Miss-analysis
 
 #88, a gap surviving the switch into reading mode, is the class _editor-owned state that
 outlives a mode switch_. The test that should have caught it is a sweep over every live

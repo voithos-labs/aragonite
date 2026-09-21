@@ -1,4 +1,4 @@
-# Feature: Mermaid broken-fence whole-block focus (the error card is still THE block)
+# Feature: Mermaid broken-fence whole-block focus (the error card is still the block itself)
 
 A ` ```mermaid ` fence whose code the renderer rejects shows an error card instead of a diagram.
 That card is a full whole-block focus target rather than a dead zone: every keyboard gesture the

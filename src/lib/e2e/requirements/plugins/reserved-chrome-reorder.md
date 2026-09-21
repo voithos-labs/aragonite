@@ -1,4 +1,4 @@
-# Feature: Opaque containers decline nested reorder (no chrome/body drag affordance)
+# Feature: Opaque containers decline nested reorder (no handle on the title row or the body)
 
 An opaque plugin container, an admonition, a `<details>` or a callout, is not a parent whose
 children can be reordered. `resolveReorderUnit` stops at its boundary and declines, so a body

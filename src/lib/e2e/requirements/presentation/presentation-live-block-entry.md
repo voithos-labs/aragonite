@@ -1,4 +1,4 @@
-# Feature: live-mode block ENTRY seats a landable caret
+# Feature: live-mode block entry puts the caret at an offset it can reach
 
 The mirror of `presentation-live-block-exit.md`: having left one block, the caret
 has to land somewhere in the next one. The one entry point for landing asks for

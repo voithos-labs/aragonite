@@ -1,4 +1,4 @@
-# Feature: a presentation-mode flip leaves the scrollport where the reader put it
+# Feature: a presentation-mode flip leaves the scroll position where the user put it
 
 A mode switch is a view operation: it repaints markers and puts the caret back,
 and it writes no scroll position. The caret restore therefore mounts the block

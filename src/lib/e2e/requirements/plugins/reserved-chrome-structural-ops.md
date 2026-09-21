@@ -1,4 +1,4 @@
-# Feature: Reserved-child-0 Chrome Structural Ops + Paste
+# Feature: Reserved-child-0 title row, structural ops + paste
 
 The `:::callout` callout reserves child index 0 as an editable `callout-title` leaf. This file
 records what the structural operations do at that reserved index (merge, Backspace, Enter,

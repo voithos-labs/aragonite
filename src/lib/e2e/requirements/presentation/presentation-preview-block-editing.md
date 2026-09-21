@@ -1,4 +1,4 @@
-# Feature: block-granular live preview, editing stays live (rung 2)
+# Feature: block-granular live preview, editing stays live (mode 2)
 
 `presentationMode="preview-block"` is an editing mode: unlike reading mode, no
 edit path is blocked. Typing, Enter and Backspace structural edits, undo,

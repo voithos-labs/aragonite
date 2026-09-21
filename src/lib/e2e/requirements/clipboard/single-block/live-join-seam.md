@@ -1,4 +1,4 @@
-# Feature: single-block paste crosses the live join seam
+# Feature: single-block paste crosses the live join
 
 A paste over a selection inside one block is a delete then an insert, and its delete
 half joins two sides like every merge, range delete, cut and type-over: the two sides

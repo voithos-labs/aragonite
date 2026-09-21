@@ -1,4 +1,4 @@
-# Feature: Claimed-image ops, image gestures over rung-claimed bytes (note-taking simulation)
+# Feature: Handler-owned image ops, image gestures over bytes an inline handler owns (note-taking simulation)
 
 A loaded-ops session on the plugins route where an inline syntax handler owns the image's
 bytes: `?seed=wiki-embed` installs a `![[…]]` handler that creates built-in `image` nodes,

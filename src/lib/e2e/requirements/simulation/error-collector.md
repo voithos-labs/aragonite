@@ -1,4 +1,4 @@
-# Feature: Simulation error collector (oracle wiring)
+# Feature: Simulation error collector (reference-check wiring)
 
 The note-taking simulation's `ErrorCollector` is the check that stands in for the bugs a
 session cannot see directly. It must watch every channel the editor reports a contained

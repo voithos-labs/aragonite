@@ -12,7 +12,7 @@ reference typed into block 0 renumbers block 1 without editing it.
 - Type a reference live: typing `[^c]` into prose renders a fresh superscript once the closing
   `]` lands; until then, `[^c` stays literal text.
 
-## The reactive renumber (load-bearing)
+## The reactive renumber (required)
 
 - Typing an earlier reference `[^z]` into block 0 renumbers block 1's widgets as you type ("1"
   becomes "2", "2" becomes "3") even though block 1 is never edited, because the widget derives

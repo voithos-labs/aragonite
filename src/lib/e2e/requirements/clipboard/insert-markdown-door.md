@@ -1,4 +1,4 @@
-# Feature: insertMarkdown, the programmatic insertion door
+# Feature: insertMarkdown, the programmatic insertion entry point
 
 `editor.insertMarkdown(md)` routes `md` through the paste pipeline at the current
 caret or selection: the same transforms, the same strategy pick, the same

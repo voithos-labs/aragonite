@@ -1,4 +1,4 @@
-# Feature: Plugin Command Mint, callout.setKind
+# Feature: a plugin-registered command, callout.setKind
 
 The `:::callout` callout registers a `callout.setKind` block command on the public
 `@voithos-labs/aragonite/plugin` API and binds it to two chords that carry an argument, in the

@@ -1,4 +1,4 @@
-# Feature: Search inside a folded render-primary leaf widget
+# Feature: Search inside a collapsed render-primary leaf widget
 
 A render-primary leaf (block math `$$…$$`, the `[[toc]]` outline) renders its source through a
 component, so a match inside its raw has no measurable DOM text node. Search paints it anyway:

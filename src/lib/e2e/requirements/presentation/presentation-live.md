@@ -1,4 +1,4 @@
-# Feature: live mode (the fifth presentation rung)
+# Feature: live mode (the fifth presentation mode)
 
 `presentationMode="live"` on `<Editor>` renders the document fully, with every
 Markdown marker hidden by CSS scoped to an attribute on the root, the same

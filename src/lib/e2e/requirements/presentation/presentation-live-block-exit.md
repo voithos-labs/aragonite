@@ -1,4 +1,4 @@
-# Feature: live-mode horizontal block exits (landable bounds, not declared ranges)
+# Feature: live-mode horizontal block exits (the bounds the caret can reach, not declared ranges)
 
 A block's horizontal exit checks ask "is the caret at this block's edge?". In live
 mode a hidden run at either end makes the raw edge unreachable, so a check that

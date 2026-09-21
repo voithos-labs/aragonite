@@ -1,4 +1,4 @@
-# Feature: a cell mutation folds its open reveal first
+# Feature: a cell mutation collapses its open reveal first
 
 A revealed inline source inside a table cell is DOM that exists for the moment and that the CST
 has never seen. Every mutation of the cell either rebuilds the whole row from the cells' `raw`

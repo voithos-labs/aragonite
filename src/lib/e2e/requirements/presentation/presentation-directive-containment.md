@@ -1,4 +1,4 @@
-# Feature: preview-block directive-body containment (presentation-mode rung 2)
+# Feature: preview-block directive-body containment (presentation mode 2)
 
 In `presentationMode="preview-block"`, only the single focused leaf shows its
 Markdown source, and a container's own markers never toggle. This pins that rule

@@ -49,7 +49,7 @@ override the scroll the host wrote last.
   `false`. **The caret is placed either way**, so this `false` means "the viewport is not
   where I asked", not "nothing happened"
 
-## Miss analysis
+## Miss-analysis
 
 The offset clamp is invisible from e2e: an over-long DOM offset already degrades to the
 container end when the range is built, so the browser hides a missing model clamp. The
