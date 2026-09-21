@@ -3,7 +3,7 @@ import { type Page } from '@playwright/test';
 import { EditorPage } from '../../editor-page';
 
 /**
- * Editing around decoration widgets (requirements/decorations/island-editing.md). Both kinds
+ * Editing around decoration widgets (`requirements/decorations/island-editing.md`). Both kinds
  * are atomic: a replace decoration covers raw bytes, a widget decoration stands in for none.
  * Arrows step over them, destructive keys select a replace decoration then delete it whole,
  * and Backspace passes straight through a widget decoration, never corrupting the hidden

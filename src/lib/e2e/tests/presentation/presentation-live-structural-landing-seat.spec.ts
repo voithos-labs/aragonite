@@ -6,7 +6,7 @@ import { centerOfWord, enterPresentationMode, focusPath } from './helpers';
 // Where the caret ends up when an edit places it rather than a key step. The source is the
 // reference: the caret reports the same offset on either side of a hidden closer, so only the
 // bytes tell the two positions apart.
-// Requirements: e2e/requirements/presentation/presentation-live-structural-landing-seat.md.
+// Requirements: `e2e/requirements/presentation/presentation-live-structural-landing-seat.md`.
 
 const DOC = [
 	'A **bold**',

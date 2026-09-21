@@ -25,7 +25,7 @@ interface Sweep {
 	reachedEnd: boolean;
 	/** Block paths that rendered the editable-raw fallback or the render-error box. */
 	degraded: string[];
-	/** Per maths block path: whether its widget mounted, and whether KaTeX painted inside it. */
+	/** Per math block path: whether its widget mounted, and whether KaTeX painted inside it. */
 	math: Record<string, { island: boolean; engine: boolean }>;
 	/** Per mermaid block path: whether its widget mounted. The renderer runs asynchronously behind
 	 *  a dynamic import, so its SVG is left to the mermaid specs rather than pinned here. */

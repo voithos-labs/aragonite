@@ -5,7 +5,7 @@ import { PluginsPage, clickWidgetCenter, clickWidgetEnd } from './helpers';
  * Acceptance coverage for the LaTeX extension, each test labelled with the spec's axis id. These
  * assert what only a real browser can prove: A1, showing the source holds the scroll, the geometry
  * and the caret; A2, one of several equations re-renders alone, with the memoizing itself pinned
- * in math-renderer.test.ts; A7, every multiline environment renders; A5, invalid maths shows a
+ * in math-renderer.test.ts; A7, every multiline environment renders; A5, invalid math shows a
  * readable message.
  */
 
@@ -47,7 +47,7 @@ class AcceptancePage extends PluginsPage {
 	}
 
 	/**
-	 * Scroll the block-maths render to the middle of the viewport, so a height change from showing
+	 * Scroll the block-math render to the middle of the viewport, so a height change from showing
 	 * the source cannot push it off screen, which would force its own scroll and hide what is
 	 * under test. Returns the scrollTop once it stops moving.
 	 */
@@ -229,7 +229,7 @@ test.describe('latex acceptance axes', () => {
 		});
 	}
 
-	// A5: invalid maths renders a readable inline message through the live widget path, never
+	// A5: invalid math renders a readable inline message through the live widget path, never
 	// KaTeX's raw `.katex-error` strip. Swapping the adapter is proven in the unit suite; this
 	// ties it to the render the user actually sees.
 	test('A5: invalid inline math shows a legible error, not a raw strip', async () => {

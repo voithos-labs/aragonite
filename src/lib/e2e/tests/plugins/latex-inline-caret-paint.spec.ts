@@ -2,10 +2,10 @@ import { test, expect } from '../../fixtures';
 import { PluginsPage } from './helpers';
 
 /**
- * Exactly one caret is painted for one caret position, at an inline-maths widget's edge. The rule
+ * Exactly one caret is painted for one caret position, at an inline-math widget's edge. The rule
  * does not depend on the kind and lives with the image tests
  * (blocks/image/caret-synthetic-indicator.spec.ts); this is the plugin counterpart, because the
- * widget a consumer hit it on was maths and the image suite runs on a route with no plugins
+ * widget a consumer hit it on was math and the image suite runs on a route with no plugins
  * installed. Nothing here can assert the pixel, since Playwright never captures a browser's own
  * caret, only that both carets were live.
  */

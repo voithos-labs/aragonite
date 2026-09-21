@@ -3,7 +3,7 @@ import { readDoc, waitForDoc } from './helpers';
 import { attachIme } from '../../simulation/ime';
 import { MermaidPage, STANDARD_DIAGRAM_DOC } from './mermaid-helpers';
 
-// Requirements: e2e/requirements/plugins/mermaid-ime-mint.md.
+// Requirements: `e2e/requirements/plugins/mermaid-ime-mint.md`.
 
 class MermaidImePage extends MermaidPage {
 	async focusDiagram(): Promise<void> {

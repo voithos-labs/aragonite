@@ -86,7 +86,7 @@ export async function capturedErrors(page: Page): Promise<string[]> {
 	return page.evaluate(() => (window as any).__test.getCapturedErrors());
 }
 
-// Click a widget where a user aims, at the visible maths. locator.click()'s default point is the
+// Click a widget where a user aims, at the visible math. locator.click()'s default point is the
 // center of the first content box, and with katex.css loaded the clipped 1px `.katex-mathml` half
 // pulls that point to a corner outside the widget, quietly missing it. Aim at `.katex-html`, the
 // painted glyphs, when it is there, and fall back to the center of the widget's border box.
@@ -109,7 +109,7 @@ async function clickWidgetAt(widget: Locator, xOf: (width: number) => number): P
 }
 
 // Show a render-first widget's source by clicking it and waiting for the swap: the rendered widget
-// disappears (count 0) and its source becomes editable text. Block maths shows a separate
+// disappears (count 0) and its source becomes editable text. Block math shows a separate
 // `.math-block-source` element, so it is waited for its own way.
 export async function revealWidget(widget: Locator): Promise<void> {
 	await clickWidgetCenter(widget);

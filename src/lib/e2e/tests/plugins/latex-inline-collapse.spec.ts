@@ -2,7 +2,7 @@ import { test, expect } from '../../fixtures';
 import { PluginsPage, clickWidgetCenter, clickWidgetEnd } from './helpers';
 
 /**
- * When an open inline-maths source closes again, on the seed with two equations in one paragraph,
+ * When an open inline-math source closes again, on the seed with two equations in one paragraph,
  * the showcase shape this came from. Closing follows where the selection is, not blur: any caret
  * move out inside the block closes the source, and clicking the second widget while the first is
  * open is one gesture that closes one and opens the other. That switch is what catches the race,

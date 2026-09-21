@@ -70,7 +70,7 @@ test.describe('inline math: clipboard during an active source reveal', () => {
 		expect(source).toContain('QQ');
 		expect(source).toContain('P');
 		expect(source).toContain('Z');
-		// Nothing was spliced at a wrong offset: the maths delimiters survive intact.
+		// Nothing was spliced at a wrong offset: the math delimiters survive intact.
 		expect(source).toContain('$x^2$');
 	});
 

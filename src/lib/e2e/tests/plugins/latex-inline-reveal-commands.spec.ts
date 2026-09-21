@@ -43,7 +43,7 @@ test.describe('block commands against a revealed inline source', () => {
 		await editor.loadContent('above\n\n$x^2$\n');
 		await editor.revealFromTrailingEdge(1);
 
-		// Step inside and type: the source still parses as maths, so nothing about the construct
+		// Step inside and type: the source still parses as math, so nothing about the construct
 		// is broken and only the CST is behind. This is the case that rules out "commit when the
 		// edit breaks the construct" as the rule.
 		await page.keyboard.press('ArrowLeft');

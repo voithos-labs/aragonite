@@ -3,7 +3,7 @@ import { roundTripStable, waitForDoc, activeBlockPath } from './helpers';
 import { BlockMathPage } from './latex-reveal-helpers';
 
 /**
- * Committing block maths (requirements/plugins/latex-block-commit-split.md): an open source
+ * Committing block math (requirements/plugins/latex-block-commit-split.md): an open source
  * committed with text that parses to several blocks must split the document again, which is what
  * a stuck fence comes from. Real keyboard and mouse only; Enter inside the source inserts a
  * literal newline and never splits as you type, so the split happens when blur commits.
@@ -32,7 +32,7 @@ test.describe('block math commit kernel: multi-block source re-splits', () => {
 		expect(doc.kinds).toEqual(['paragraph', 'mathBlock', 'paragraph', 'paragraph']);
 		expect(doc.texts[1]).toBe('$$x^2$$');
 		expect(doc.texts[2]).toBe('hello');
-		// The maths went back to a clean render, so the stuck state is gone.
+		// The math went back to a clean render, so the stuck state is gone.
 		await expect(editor.renderedKatex).toHaveCount(1);
 		expect(await roundTripStable(page)).toBe(true);
 	});

@@ -3,7 +3,7 @@ import { roundTripStable } from './helpers';
 import { BlockMathPage } from './latex-reveal-helpers';
 
 /**
- * GitHub's third maths form: a ```math fence parsed as its own `mathFence` kind, not `mathBlock`
+ * GitHub's third math form: a ```math fence parsed as its own `mathFence` kind, not `mathBlock`
  * and not a plain `fencedCode`. It uses the same BlockMath component as `$$…$$`, so these tests
  * cover only what is specific to the fence: the kind itself, a KaTeX render through that shared
  * component, and one open, edit and commit round trip that leaves the fence a `mathFence`. The

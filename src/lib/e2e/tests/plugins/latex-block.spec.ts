@@ -3,7 +3,7 @@ import { roundTripStable } from './helpers';
 import { BlockMathPage } from './latex-reveal-helpers';
 
 /**
- * Block `$$…$$` display maths: rendered first, source shown on focus (design § "Block math", axes
+ * Block `$$…$$` display math: rendered first, source shown on focus (design § "Block math", axes
  * A1, the caret across the swap, and A7, multiline render). The swap between render and source and
  * the caret surviving it are exactly what the unit tests cannot prove, so opening, editing,
  * blurring and moving are all driven by real mouse and keyboard. The render is

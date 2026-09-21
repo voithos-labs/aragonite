@@ -10,7 +10,7 @@ import { capturePageErrors } from '../../page-probes';
 import { attachIme } from '../../simulation/ime';
 
 /**
- * Inline `$…$` maths: select it, its editable source opens, committing re-renders it (design §
+ * Inline `$…$` math: select it, its editable source opens, committing re-renders it (design §
  * "Inline edit UX", axis A1). The swap and the re-render are driven by real mouse and keyboard
  * only, with no programmatic selection, because the caret surviving the re-render is exactly what
  * the unit tests cannot prove. The widget is `.math-inline-widget`, KaTeX output is `.katex`, and
@@ -226,7 +226,7 @@ test.describe('plugin inline math: select → reveal-source editing', () => {
 		expect(await editor.bridge.getSource()).toContain('Before $x^2yy$ after');
 
 		// The commit on blur must not pull the caret back: focus moved to the next block, so the
-		// selection stays there and the maths block just blurred never takes it.
+		// selection stays there and the math block just blurred never takes it.
 		await editor.waitForRenderFlush();
 		expect(await editor.selectionInMathBlock()).toBe(false);
 	});

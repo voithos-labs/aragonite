@@ -29,7 +29,7 @@ export class BlockMathPage extends PluginsPage {
 	}
 
 	/**
-	 * Click the render to open its source. Block maths swaps in a separate `.math-block-source`
+	 * Click the render to open its source. Block math swaps in a separate `.math-block-source`
 	 * element rather than removing the widget, so this waits for that element to appear instead of
 	 * for the shared `revealWidget` count to reach zero.
 	 */
@@ -39,7 +39,7 @@ export class BlockMathPage extends PluginsPage {
 		await this.waitForRenderFlush();
 	}
 
-	/** Enter the maths block from the paragraph above with a real ArrowRight, so the caret lands
+	/** Enter the math block from the paragraph above with a real ArrowRight, so the caret lands
 	 *  through `focus(0)` with no mouseup competing for it. */
 	async revealFromBefore(): Promise<void> {
 		await this.getBlock(0).click();
@@ -55,7 +55,7 @@ export class MathRevealPage extends PluginsPage {
 		return this.page.locator('.math-inline-widget');
 	}
 
-	/** Open the source from the trailing edge of the maths in `block`: put the caret past the
+	/** Open the source from the trailing edge of the math in `block`: put the caret past the
 	 *  widget, then one Backspace, which opens it without touching a byte. */
 	async revealFromTrailingEdge(block: number): Promise<void> {
 		await this.focusBlockEnd(block);
@@ -63,7 +63,7 @@ export class MathRevealPage extends PluginsPage {
 		await expect(this.mathWidget).toHaveCount(0);
 	}
 
-	/** Open the source from the leading edge of a block that starts with maths, then step `into`
+	/** Open the source from the leading edge of a block that starts with math, then step `into`
 	 *  bytes further so an edit lands inside the formula. */
 	async revealFromLeadingEdge(block: number, into = 0): Promise<void> {
 		await this.focusBlockStart(block);
