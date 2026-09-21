@@ -1,34 +1,33 @@
-# Feature: Plugin Container — :::callout Callout Editability
+# Feature: Plugin container: editing inside a `:::callout`
 
-The `:::callout` callout is a plugin-authored container built by mirroring the
-built-in blockquote (WS-B Cycle 1). It reserves child 0 as an editable
-`callout-title` chrome leaf, so its children are `[title, ...body]`.
-Editing inside it must mutate the callout's own children through the
-nested-container wiring — never the document root — and never break byte-for-byte
-round-trip fidelity. This gate is behavioral: it asserts the CST read by path via
+The `:::callout` callout is a container a plugin defines, built the same way as the built-in
+blockquote. It reserves child 0 as an editable `callout-title` leaf, so its children are
+`[title, ...body]`. Editing inside it has to change the callout's own children through the
+nested-container wiring, never the document root, and it must never break byte-for-byte
+round-trip fidelity. These checks read behavior: they assert the tree read by path through
 `window.__test`, not visuals.
 
 ## Happy paths
 
-- callout parses as container: the seeded `:::callout Title` is a `callout` block at document root whose children are `[callout-title, paragraph]`
+- callout parses as container: the seeded `:::callout Title` is a `callout` block at the document root whose children are `[callout-title, paragraph]`
 - type inside callout: typing at the end of the callout's body paragraph appends to that child; the title stays put and the document root keeps one block
-- split inside callout: Enter mid-body splits that body paragraph, growing the callout to three children — the document root still holds exactly one block (the discriminator: a broken container grows the root instead)
+- split inside callout: Enter mid-body splits that body paragraph, growing the callout to three children, and the document root still holds exactly one block. That last count is what tells the two outcomes apart: a broken container grows the root instead
 
 ## Edge cases
 
-- merge inside callout: Backspace at the start of the callout's last child merges it back into the previous body paragraph — never into the title
+- merge inside callout: Backspace at the start of the callout's last child merges it back into the previous body paragraph, never into the title
 - undo after merge: Ctrl+Z restores the three-child split state captured before the merge
 - undo after split-typing: a second Ctrl+Z steps back to the state captured before the last text was typed
-- round-trip stays stable: after every structural edit the document still serializes byte-for-byte (the non-strip callout rebuilds its own raw, title included)
-- cross-block copy ending mid-title: drag-selecting from the prose above into the middle of the title and copying synthesizes closer bytes — pasting below yields a second real `callout` container, not bare paragraphs
+- round-trip stays stable: after every structural edit the document still serializes byte for byte (the callout rebuilds its own raw text, title included, rather than stripping it)
+- cross-block copy ending mid-title: drag-selecting from the prose above into the middle of the title and copying builds the closing bytes the selection is missing, so pasting below yields a second real `callout` container rather than bare paragraphs
 
 ## User interactions
 
 - click into callout body, End, type: real keyboard input lands in the callout body child, not the title
-- Enter / Home+Backspace / Ctrl+Z / drag-select + copy + paste are real keystrokes and pointer events, each asserted against the CST read by path (`[0]`, `[0,n]`) — not the DOM
+- Enter, Home+Backspace, Ctrl+Z, and drag-select plus copy and paste are real keystrokes and pointer events, each asserted against the tree read by path (`[0]`, `[0,n]`) rather than against the DOM
 
 ## Error cases
 
-- another route rendered first: the seed still parses to a `callout` however many other routes the dev/SSR process served before this one. Pinned at the unit level by `route-grammar-order.test.ts`, because whether the e2e battery reaches the poisoned order depends on file sort and worker distribution.
+- another route rendered first: the seed still parses to a `callout` however many other routes the dev or SSR process served before this one. The unit test `route-grammar-order.test.ts` pins this, because whether the e2e battery ever reaches the bad order depends on file sort order and how work is spread across workers.
 
-Miss-analysis: a test asserting a route document's parse is independent of which other route's plugin set installed first would have caught it; none existed, because every plugin-grammar test installed one set into a clean process, which is the one arrangement a shared dev-server process never has.
+Miss-analysis: a test asserting that a route document's parse does not depend on which other route's plugin set was installed first would have caught it; none existed, because every plugin-grammar test installed one set into a clean process, which is the one arrangement a shared dev-server process never has.
