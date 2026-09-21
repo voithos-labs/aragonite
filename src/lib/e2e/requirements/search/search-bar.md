@@ -1,4 +1,4 @@
-# Feature: Find/replace bar — open, close, and toggles
+# Feature: Find/replace bar: open, close, and toggles
 
 Opening and dismissing the find/replace bar, and the match-set toggles (case,
 whole-word, regex) that narrow or reinterpret the query.
@@ -14,7 +14,7 @@ whole-word, regex) that narrow or reinterpret the query.
 - The case toggle (`Aa`) narrows a case-insensitive match set to the case-sensitive subset (count drops).
 - The whole-word toggle (`W`) drops substring-only matches (count drops).
 - The regex toggle (`.*`) interprets the query as a pattern (a metacharacter query matches where a literal one would not).
-- Reopening the bar after Esc with an unchanged query (no edits between) re-scans and re-paints the highlights — a stale scan memo must not serve the closed bar's cleared matches.
+- Reopening the bar after Esc with an unchanged query (no edits between) re-scans and re-paints the highlights: a cached scan must not serve the closed bar's cleared matches.
 
 ## Error cases
 

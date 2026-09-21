@@ -1,4 +1,4 @@
-# Feature: Replace — text, structural, and table rewrites
+# Feature: Replace: text, structural, and table rewrites
 
 Rewriting matched text: single Replace and Replace All (one undo step), regex
 capture and structural replacements that change block kind or split a block, and
@@ -13,7 +13,7 @@ replacement inside table cells.
 
 - A regex `$1` capture reference expands in the replacement.
 - A replacement that introduces a heading marker changes the block's kind.
-- A regex-mode replacement with a `\n` escape splits the matched block into two (the single-line replace input can't carry a real newline).
+- A regex-mode replacement with a `\n` escape splits the matched block into two (the single-line replace input cannot carry a real newline).
 - Replace All is a single undo: one Ctrl+Z restores the entire original document.
 
 ## User interactions

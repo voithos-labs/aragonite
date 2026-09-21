@@ -1,8 +1,8 @@
-# Feature: Find — highlight, navigate, and reveal
+# Feature: Find: highlight, navigate, and reveal
 
 Scanning the live document for a query: painting one highlight per match,
-navigating between them, re-scanning as the document changes, and revealing an
-off-window match.
+navigating between them, re-scanning as the document changes, and scrolling an
+off-window match into view.
 
 ## Happy paths
 
@@ -14,7 +14,7 @@ off-window match.
 
 - Enter on the last match wraps the active index back to the first.
 - Shift+Enter on the first match wraps to the last.
-- A regex that can match empty (e.g. `a*`) paints no zero-width overlay sliver — every painted `.match-overlay` has nonzero width.
+- A regex that can match empty (e.g. `a*`) paints no zero-width overlay sliver: every painted `.match-overlay` has nonzero width.
 - In a tall windowed document, navigating to an off-window match scrolls its block into view and mounts it.
 
 ## User interactions

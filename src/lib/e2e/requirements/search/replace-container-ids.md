@@ -1,9 +1,9 @@
 # Feature: Replace All keeps nested containers intact
 
 Replace All rewrites whole subtrees at once. When the needle sits inside
-nested lists, the rebuilt containers must stay renderable — a past regression
-left the refreshed containers unable to key their children, and list items
-with more than one child crashed with "block failed to render".
+nested lists, the rebuilt containers must stay renderable: when the refreshed
+containers cannot key their children, a list item with more than one child
+crashes with "block failed to render".
 
 ## Happy paths
 
