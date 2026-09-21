@@ -188,9 +188,9 @@
 	let revealing = $state(false);
 	let pendingCursorOffset = $state<number | null>(null);
 
-	// The other half, and the only write of `pendingCursorOffset` besides the render effect's
-	// clear. A pending cursor never goes through `blockEdit`, so the caller hands over the text
-	// its offset counts into; no text means it already counts into the escaped bytes.
+	// The other half of that write path, and the only write of `pendingCursorOffset` besides the
+	// render effect's clear. A pending cursor never goes through `blockEdit`, so the caller hands
+	// over the text its offset counts into; no text means it already counts into escaped bytes.
 	function parkCursor(offset: number | null, writtenText?: string): void {
 		pendingCursorOffset =
 			offset === null || writtenText === undefined
