@@ -3,7 +3,7 @@
 Double-click a word and you get the word. The editor works that out itself
 (`selection/multi-click.ts`) instead of letting the browser do it, because the browser's word
 rule depends on the platform (Windows grabs the space after the word), its traversal wanders
-into whatever non-editable widget sits next door (a formula, an entity glyph), and it paints
+into whatever non-editable widget sits beside it (a formula, an entity glyph), and it paints
 its range before anything could correct it. Here the trimmed word is the first range painted,
 markers never count as part of a word, and a widget beside a word is never taken with it.
 A double-click on an inline widget is the widget's own gesture (`plugins/latex-inline.md`),

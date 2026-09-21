@@ -5,6 +5,8 @@
  * English; `docs/contributing/code-style.md` carries the rule and the plain replacements.
  */
 
+import { readdirSync, readFileSync } from 'node:fs';
+import path from 'node:path';
 import { describe, it, expect } from 'vitest';
 import { collectEditorSources, EDITOR_SRC, ROUTES_SRC } from './scan-source';
 import { findCommentBlocks } from './comment-lines';
@@ -181,5 +183,58 @@ describe('G4.26 house words in comments stay under the baseline', () => {
 		expect(countHouseWords('// seamless, indoors, a mintage, roadmap, seatbelt')).toBe(0);
 		expect(countHouseWords('const seam = door(oracle);')).toBe(0);
 		expect(countHouseWords('// `PasteSeam` reads {@link heightOracle} at the seam')).toBe(1);
+	});
+});
+
+// ── Requirement files ───────────────────────────────────────────────────────
+
+const REQUIREMENTS = path.join(EDITOR_SRC, 'e2e', 'requirements');
+
+/** House words in a requirement file's body text. Headings stay as written (specs and docs
+ *  point at them), and code spans and fenced samples are code, not vocabulary. */
+export function countHouseWordsInRequirement(markdown: string): number {
+	let inFence = false;
+	let hits = 0;
+	for (const line of markdown.split(/\r?\n/)) {
+		if (/^\s*(```|~~~)/.test(line)) {
+			inFence = !inFence;
+			continue;
+		}
+		if (inFence || /^#{1,6}\s/.test(line)) continue;
+		hits += proseOf(line).match(HOUSE_WORD)?.length ?? 0;
+	}
+	return hits;
+}
+
+/** Files whose subject is named by a listed word, glossed at its first use. */
+const NAMED_BY_A_LISTED_WORD = new Set([
+	// The feature's own name, as in `data-decoration-island`, `Island` and `IslandSpan`.
+	'decorations/island-editing.md'
+]);
+
+describe('G4.26 requirement files keep house words out of their body text', () => {
+	const files = (readdirSync(REQUIREMENTS, { recursive: true }) as string[]).filter((f) =>
+		f.endsWith('.md')
+	);
+
+	it('found the requirement files', () => {
+		expect(files.length).toBeGreaterThan(300);
+	});
+
+	it('no requirement file holds a house word outside its headings and code', () => {
+		const offenders = files
+			.map((f) => ({
+				file: f.split(path.sep).join('/'),
+				hits: countHouseWordsInRequirement(readFileSync(path.join(REQUIREMENTS, f), 'utf8'))
+			}))
+			.filter((row) => row.hits > 0 && !NAMED_BY_A_LISTED_WORD.has(row.file));
+		expect(offenders).toEqual([]);
+	});
+
+	it('counts body text, and spares headings, code spans and fenced samples', () => {
+		expect(countHouseWordsInRequirement('- the caret seats past the island')).toBe(2);
+		expect(countHouseWordsInRequirement('## The caret door')).toBe(0);
+		expect(countHouseWordsInRequirement('- `seatsInside` decides it')).toBe(0);
+		expect(countHouseWordsInRequirement('```md\nthe seam\n```')).toBe(0);
 	});
 });

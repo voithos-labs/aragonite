@@ -36,7 +36,7 @@ bytes that are gone.
 - `Backspace` at the first offset the block can land on is a block gesture: in a block opening
   with an escape (`\*c\*`) that offset sits inside the escape, and the keypress merges into the
   previous block with the escaped glyph intact. Miss-analysis (GH #108): the suites for this
-  handler drove keypresses beside constructs but never at the first landable offset, so the
+  handler drove keypresses beside constructs but never at the first offset a caret can land on, so the
   escape's edge rule ate the first visible glyph forward where every other shape merged
 - a keypress between two constructs takes the widened cut: deleting the space in `**a** **b**`
   leaves `**a****b**`, which renders `a****b`, so the cut grows through the delimiter runs it now

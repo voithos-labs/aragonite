@@ -1,4 +1,4 @@
-# Feature: Sticky Column — Reset Triggers
+# Feature: Sticky Column, Reset Triggers
 
 User actions that clear the captured sticky column. Anything other than plain or shifted vertical arrows resets.
 
