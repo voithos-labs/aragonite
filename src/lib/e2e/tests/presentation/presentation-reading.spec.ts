@@ -2,8 +2,8 @@ import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 import type { Page } from '@playwright/test';
 
-// Reading mode on /test/editor: markers hidden by CSS (DOM intact), surface
-// inert (source stable via the bridge), selection/copy/navigation live.
+// Reading mode on /test/editor: markers hidden by CSS with the DOM intact, the text inert with
+// the source stable through the bridge, and selection, copy and navigation still live.
 // Requirements: e2e/requirements/presentation/presentation-reading.md.
 
 const DOC = [
@@ -110,8 +110,8 @@ test.describe('reading mode — inertness', () => {
 	});
 
 	test('task checkbox is visible but inert', async ({ page }) => {
-		// force: CSS drops the checkbox's pointer-events in reading mode — the
-		// click must still be attempted to prove the JS belt behind it.
+		// force: reading mode drops the checkbox's pointer-events in CSS, and the click must still
+		// be attempted to prove the JavaScript check behind it.
 		await page.locator('.task-checkbox').first().click({ force: true });
 		await ep.expectSurfaceInert();
 		expect(await ep.bridge.getSource()).toContain('- [ ] task');
@@ -121,15 +121,15 @@ test.describe('reading mode — inertness', () => {
 		await toggleReadingMode(page); // back to source
 		await ep.clickBlock(1);
 		await ep.typeText('KEPT');
-		await toggleReadingMode(page); // blur-class flip: the edit must survive
+		await toggleReadingMode(page); // a mode change counts as a blur: the edit must survive
 		await ep.bridge.waitForSourceContains('KEPT');
 	});
 
 	test('a focused code block dead-keys its kind commands (dispatch-ctx parity)', async ({
 		page
 	}) => {
-		// A code block is a distinct dispatch site from a paragraph, and each supplies the mode
-		// getter itself — so a missing thread here would let Enter insert a line under reading.
+		// A code block is a separate dispatch site from a paragraph, and each supplies the mode
+		// getter itself, so a missing one here would let Enter insert a line under reading.
 		await ep.loadContent('```js\nconst x = 1;\n```\n'); // reading mode (beforeEach)
 		const before = await ep.bridge.getSource();
 		await ep.clickBlock(0);
@@ -151,7 +151,7 @@ test.describe('reading mode — inertness', () => {
 		await toggleReadingMode(page);
 		await expect(replaceInput).toBeHidden();
 
-		// Flipping back restores it — the expanded state was preserved, only view-gated.
+		// Switching back restores it: the expanded state was kept, only hidden from view.
 		await toggleReadingMode(page);
 		await expect(replaceInput).toBeVisible();
 	});
@@ -177,8 +177,8 @@ test.describe('reading mode — what stays live', () => {
 	});
 
 	test('a plain click on a link fires onLinkActivate', async ({ page }) => {
-		// Source mode places a caret on a link click; reading mode has no caret, so
-		// the plain click activates instead — the harness records the href.
+		// Source mode places a caret on a link click; reading mode has no caret, so the plain
+		// click activates the link instead, and the harness records the href.
 		await page.locator('a.md-link-content').first().click();
 		await page.waitForFunction(
 			() =>
@@ -202,8 +202,8 @@ test.describe('reading mode — what stays live', () => {
 		await ep.clickBlock(0);
 		await page.keyboard.type('zzz');
 		await page.keyboard.press('Enter');
-		// The flip back to source leaves the surfaces editable again, so the inert oracle no
-		// longer applies: the last gesture here is a toggle click.
+		// Switching back to source makes the blocks editable again, so the inert check no longer
+		// applies: the last gesture here is a toggle click.
 		await toggleReadingMode(page);
 		await ep.waitForNoSourceMutation();
 		expect(await ep.bridge.getSource()).toBe(before);

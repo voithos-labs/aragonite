@@ -3,8 +3,8 @@ import { EditorPage } from '../../editor-page';
 import type { Page } from '@playwright/test';
 import { clickWordSettled, enterPresentationMode, extendTo, stepTo } from './helpers';
 
-// A cell's destructive edits cross the same join seam as prose: in live the runs a cut strands
-// are bytes the reader never saw, and the escaping sink runs after the seam.
+// A cell's destructive edits cross the same join as prose does: in live mode the runs a cut
+// strands are bytes the user never saw, and the cell's escaping runs after the join.
 // Requirements: e2e/requirements/presentation/presentation-live-cell-join.md.
 
 const DOC = '| Some **bold** *it* x | y |\n| --- | --- |\n| a | b |\n';
@@ -12,7 +12,7 @@ const CELL_PATH = [0, 0, 0];
 
 const enterMode = (page: Page, mode: 'live' | 'source') => enterPresentationMode(page, mode, DOC);
 
-/** Caret after `bo` inside `**bold**`, then a real Shift-extend to after `i` inside `*it*` — both
+/** Caret after `bo` inside `**bold**`, then a real Shift-extend to after `i` inside `*it*`: both
  *  endpoints strictly inside a construct, which is what strands the two runs. */
 async function selectAcrossConstructs(ep: EditorPage, page: Page): Promise<void> {
 	await clickWordSettled(ep, page, 'Some');

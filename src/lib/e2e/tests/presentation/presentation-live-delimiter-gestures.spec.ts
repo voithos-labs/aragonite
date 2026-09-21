@@ -10,8 +10,8 @@ import {
 	stepTo
 } from './helpers';
 
-// Typing a construct closed and leaving it in live mode: the auto-pair arm and the typing seat
-// as one gesture. The source is the oracle throughout.
+// Typing a construct closed and leaving it in live mode: auto-pairing and where the typed byte
+// goes, as one gesture. The source is the reference throughout.
 // Requirements: e2e/requirements/presentation/presentation-live-delimiter-gestures.md.
 
 const DOC = [
@@ -72,7 +72,7 @@ test.describe('live mode — the closer typed over a hidden closer steps past it
 		await ep.bridge.waitForSourceContains('Some **strong**X text');
 	});
 
-	// The keydown seat owns WHERE a byte lands at a hidden edge; the pair is still the arm's.
+	// Keydown decides where a byte lands at a hidden edge; auto-pairing still adds the pair.
 	test('a delimiter typed at the trailing edge from outside lands its twin past the closer', async ({
 		page
 	}) => {

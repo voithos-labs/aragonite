@@ -39,7 +39,7 @@ test.describe('live-mode link card — inside containers', () => {
 	});
 
 	// The cell's own raw-write rule runs on the card's splice, so a pipe in a destination cannot
-	// cut the row in half — the rung the shared commit primitive climbed.
+	// cut the row in half.
 	test('a pipe-bearing destination is escaped by the cell’s own write rule', async ({ page }) => {
 		await openCardOn(ep, page, 'alpha');
 
@@ -51,8 +51,8 @@ test.describe('live-mode link card — inside containers', () => {
 		// left the tail as literal text with no anchor at all.
 		const anchor = page.locator("[role='cell'] a.md-link-content");
 		await expect(anchor).toHaveText('alpha');
-		// The href is the parsed destination, percent-encoded at the render sink — the escape the
-		// cell added is a SOURCE byte and never reaches it.
+		// The href is the parsed destination, percent-encoded when rendered: the escape the cell
+		// added is a source byte and never reaches it.
 		await expect(anchor).toHaveAttribute('href', 'https://one.test/a%7Cb');
 		expect(await ep.parseConverged()).toBe(true);
 	});

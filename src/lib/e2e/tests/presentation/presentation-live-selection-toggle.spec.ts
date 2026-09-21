@@ -3,9 +3,9 @@ import type { EditorPage } from '../../editor-page';
 import type { Page } from '@playwright/test';
 import { clickBlockSettled, enterPresentationMode, focusOffset, stepTo } from './helpers';
 
-// The § 5 row "Mod+B over a selection": the half of the chord that writes bytes at once, in
-// the mode that paints none of them. The source is the oracle; the rendered element is what
-// the user actually sees change.
+// "Mod+B over a selection": the half of the chord that writes bytes at once, in the mode that
+// paints none of them. The source is the reference; the rendered element is what the user
+// actually sees change.
 // Requirements: e2e/requirements/presentation/presentation-live-selection-toggle.md.
 
 const DOC = [
@@ -32,8 +32,8 @@ const CHORD = {
 	inlineCode: 'ControlOrMeta+e'
 } as const;
 
-/** Seat the caret at `from` and extend `length` characters rightward with real presses. Home
- *  lands at the block's first landable offset, which a leading hidden run moves off raw 0. */
+/** Put the caret at `from` and extend `length` characters rightward with real keypresses. Home
+ *  lands at the block's first reachable offset, which a leading hidden run moves off raw 0. */
 async function selectFrom(
 	ep: EditorPage,
 	page: Page,
@@ -103,7 +103,7 @@ test.describe('live mode — a toggle over a selection writes its bytes at once'
 		});
 	}
 
-	// A run closes against a word, so wrapping the space would print four asterisks the reader
+	// A run closes against a word, so wrapping the space would print four asterisks the user
 	// cannot see to delete. The word goes in the run and the space stays beside it.
 	test('a selection ending on a space wraps the word alone', async ({ page }) => {
 		await selectFrom(ep, page, PLAIN, 6, 6);
@@ -115,7 +115,7 @@ test.describe('live mode — a toggle over a selection writes its bytes at once'
 		expect(await ep.bridge.getSource()).not.toContain('**words **');
 	});
 
-	// The wrap above put the space OUTSIDE the delimiters, so the selection that applied the mark
+	// The wrap above put the space outside the delimiters, so the selection that applied the mark
 	// still reaches past the run it made: the same on-screen selection has to take it back.
 	test('a selection carrying its boundary space takes its own wrap back', async ({ page }) => {
 		await selectFrom(ep, page, PLAIN, 5, 6);
@@ -165,7 +165,7 @@ test.describe('source mode — the same chord writes the same bytes', () => {
 	});
 
 	// A run closes against a word in every mode, painted or not, so the space stays outside the
-	// delimiters here too — and the run the wrap leaves selected is the one the next press takes off.
+	// delimiters here too, and the run the wrap leaves selected is what the next chord takes off.
 	test('a selection ending on a space wraps the word, and a second press takes it back', async ({
 		page
 	}) => {
@@ -174,7 +174,7 @@ test.describe('source mode — the same chord writes the same bytes', () => {
 		await page.keyboard.press(CHORD.strong);
 		await ep.bridge.waitForSourceContains('plain **words** here');
 		expect(await ep.getBlockText(PLAIN)).toBe('plain **words** here');
-		// The wrap leaves its own delimiters selected, so the presses below are the same
+		// The wrap leaves its own delimiters selected, so the chords below act on the same
 		// on-screen selection the user is still holding.
 		expect(await focusOffset(ep)).toBe(15);
 

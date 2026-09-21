@@ -2,8 +2,8 @@ import { test, expect } from '../../fixtures';
 import { PluginsPage } from '../plugins/helpers';
 import { clickWordSettled, landAt } from './helpers';
 
-// A chrome-crossing delete truncates its prose endpoints in place — no join — so without the
-// cleaner's unpaired-run half the cut strands a delimiter run onto the screen.
+// A delete that crosses a container's frame truncates its prose endpoints in place, with no
+// join, so without the cleanup for unpaired runs the cut leaves a delimiter run on screen.
 // Requirements: e2e/requirements/presentation/presentation-live-chrome-crossing-delete.md.
 
 const DOC = ':::callout Title\nSome **bold** text\n:::\n\nBelow\n';
@@ -20,7 +20,7 @@ test('Backspace over a selection from inside bold out of the callout leaves no s
 	await clickWordSettled(ep, page, 'bold');
 	await landAt(ep, page, 9);
 
-	// Two presses: the first extends natively to the body's end; the second crosses the wall.
+	// Two keypresses: the first extends to the body's end, the second crosses out of the callout.
 	await page.keyboard.press('Shift+ArrowDown');
 	await ep.waitForRenderFlush();
 	await page.keyboard.press('Shift+ArrowDown');

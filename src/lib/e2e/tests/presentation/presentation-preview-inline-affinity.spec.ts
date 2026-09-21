@@ -3,13 +3,13 @@ import { EditorPage } from '../../editor-page';
 import type { Page } from '@playwright/test';
 import { focusOffset } from './helpers';
 
-// The caret-affinity contract: the caret is a raw offset, a revealed construct's bytes are
-// visible, and typing lands at that offset — no stored-marks machinery.
+// The caret-affinity rule: the caret is a raw offset, a shown construct's bytes are visible,
+// and typing lands at that offset, with no stored-marks machinery.
 // Requirements: e2e/requirements/presentation/presentation-preview-inline-affinity.md.
 
 const togglePreviewInline = (page: Page) => page.getByTestId('preview-inline-toggle').click();
 
-// Real keyboard walk to a target raw offset (a click can't target hidden markers).
+// Step to a target raw offset with real keys, since a click cannot target hidden markers.
 // Asserts the exact landing so a skipped byte fails loudly rather than typing blind.
 async function stepRightTo(ep: EditorPage, page: Page, target: number): Promise<void> {
 	await page.keyboard.press('Home');
@@ -48,7 +48,7 @@ test.describe('preview-inline — caret affinity', () => {
 		await expect(ep.getBlock(0).locator('[data-construct-start="7"]').first()).toBeVisible();
 
 		await page.keyboard.type('X');
-		// Byte lands at raw 7 — between the two constructs, splitting neither.
+		// The byte lands at raw 7: between the two constructs, splitting neither.
 		await ep.bridge.waitForSourceContains('q **a**X*b* q');
 		expect(await page.evaluate(() => (window as any).__test.roundTripStable())).toBe(true);
 	});
@@ -67,12 +67,12 @@ test.describe('preview-inline — caret affinity', () => {
 	}) => {
 		await load('**bold** here\n', page);
 		await ep.clickBlock(0);
-		// Home lands at the first VISIBLE position (after the folded opening `**`); step
-		// right into the content, then walk LEFT to reach raw offset 0.
+		// Home lands at the first visible position, after the hidden opening `**`; step right
+		// into the content, then step left to reach raw offset 0.
 		await page.keyboard.press('Home');
 		await ep.waitForRenderFlush();
 		await page.keyboard.press('ArrowRight');
-		await page.keyboard.press('ArrowRight'); // now inside "bold", markers revealed
+		await page.keyboard.press('ArrowRight'); // now inside "bold", markers shown
 		let offset = await focusOffset(ep);
 		let guard = 0;
 		while (offset > 0 && guard++ < 20) {
@@ -88,18 +88,18 @@ test.describe('preview-inline — caret affinity', () => {
 	test('fold-then-type lands the byte at the visible caret, never inside hidden markers', async ({
 		page
 	}) => {
-		// "**bold** tail": strong [0,8). Reveal inside, then leave into "tail" so the
-		// construct folds, and type immediately at the folded boundary.
+		// "**bold** tail": strong [0,8). Show it from inside, then leave into "tail" so it hides
+		// again, and type immediately at that boundary.
 		await load('**bold** tail\n', page);
 		await ep.clickBlock(0);
-		await stepRightTo(ep, page, 4); // inside — revealed
+		await stepRightTo(ep, page, 4); // inside, so the markers show
 		await expect(ep.getBlock(0).locator('[data-construct-start="0"]').first()).toBeVisible();
 
-		await stepRightTo(ep, page, 9); // into "tail" — folds
+		await stepRightTo(ep, page, 9); // into "tail", so they hide
 		await expect(ep.getBlock(0).locator('[data-construct-start="0"]').first()).toBeHidden();
 
 		await page.keyboard.type('X');
-		// Raw 9 is between the space and 't' — the byte lands where the caret showed.
+		// Raw 9 is between the space and 't': the byte lands where the caret showed.
 		await ep.bridge.waitForSourceContains('**bold** Xtail');
 		expect(await page.evaluate(() => (window as any).__test.roundTripStable())).toBe(true);
 	});

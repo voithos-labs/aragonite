@@ -4,8 +4,8 @@ import type { Page } from '@playwright/test';
 import { centerOfWord, enterPresentationMode } from './helpers';
 import { PluginsPage } from '../plugins/helpers';
 
-// Live mode: reading's marker-hiding CSS families over an editable surface, and no
-// reveal at all — the property that separates it from both preview rungs.
+// Live mode: reading mode's marker-hiding CSS over an editable document, and markers that never
+// show, which is what separates it from both preview modes.
 // Requirements: e2e/requirements/presentation/presentation-live.md.
 
 const DOC = [
@@ -35,7 +35,7 @@ const DOC = [
 	'See <https://commonmark.org> too'
 ].join('\n');
 
-// Directives render only on `/test/plugins`, so the container-chrome arm is driven there.
+// Directives render only on `/test/plugins`, so the container-marker case is driven there.
 const DIRECTIVE_DOC = ':::foo\nBody with **bold** here.\n:::\n';
 
 const AMBIENT_MARKER = ".md-marker[contenteditable='false']";
@@ -51,7 +51,7 @@ test.describe('live mode — markers never reveal', () => {
 
 	test('every marker family hides from paint while its bytes stay in the DOM', async ({ page }) => {
 		// toHaveCSS, not toBeHidden: a missing element passes toBeHidden, so a fixture that
-		// stopped producing one of these spans would retire its arm silently.
+		// stopped producing one of these spans would drop the check silently.
 		await expect(ep.getBlock(1).locator('.md-marker').first()).toHaveCSS('display', 'none');
 		await expect(page.locator('.md-fence-line').first()).toHaveCSS('display', 'none');
 		await expect(page.locator('.md-ref-label').first()).toHaveCSS('display', 'none');
@@ -83,8 +83,8 @@ test.describe('live mode — markers never reveal', () => {
 		await ep.waitForRenderFlush();
 		expect((await ep.bridge.getSelectionPaths())?.focus.path).toEqual([1]);
 
-		// preview-block would show both emphasis markers here, preview-inline the pair
-		// the caret sits between. Live shows neither, and the heading stays folded too.
+		// preview-block would show both emphasis markers here, preview-inline the pair the caret
+		// sits between. Live shows neither, and the heading's `#` stays hidden too.
 		await expect(emphasisMarkers.first()).toHaveCSS('display', 'none');
 		await expect(emphasisMarkers.nth(1)).toHaveCSS('display', 'none');
 		await expect(headingMarker).toHaveCSS('display', 'none');
@@ -99,9 +99,9 @@ test.describe('live mode — markers never reveal', () => {
 		await expect(page.locator(`[data-list-marker='task'] .task-checkbox`).first()).toBeVisible();
 
 		const bulletAmbient = page.locator(`[data-list-marker='bullet'] ${AMBIENT_MARKER}`).first();
-		// toBeHidden here, deliberately: the bullet's own span is not display:none — it is emptied
-		// and repainted by a `::before`, which the next line reads. The rule at the top of this
-		// file is about spans whose ABSENCE would pass; this one's presence is asserted below it.
+		// toBeHidden here on purpose: the bullet's own span is not display:none, it is emptied and
+		// repainted by a `::before`, which the next line reads. The rule at the top of this file
+		// is about spans a missing element would let pass; this one's presence is asserted below.
 		await expect(bulletAmbient).toBeHidden();
 		const painted = await bulletAmbient.evaluate((el) => getComputedStyle(el, '::before').content);
 		expect(painted).toContain('•');
@@ -153,14 +153,13 @@ test.describe('live mode — the surface stays editable', () => {
 		await ep.waitForRenderFlush();
 
 		expect((await ep.bridge.getSelectionPaths())?.focus.path).toEqual([7]);
-		// 200ms — verifying absence of a popup event; no observable state to predicate on.
+		// 200ms, because a popup that never opens leaves no state to wait on.
 		await page.waitForTimeout(200);
 		expect(popupFired).toBe(false);
 	});
 
-	// The table is the doc's clearest handle host (a plain paragraph is the page background and
-	// carries none), and since the row/column grips retired it is the only drag affordance a
-	// table has left — so it is also the one live must not swallow.
+	// The table is the document's clearest place to show a drag handle, since a plain paragraph
+	// has none, and it is the only way to drag a table, so it is the one live must not swallow.
 	test('the block drag handle still reveals on hover', async ({ page }) => {
 		const host = page.locator('.block-host[data-block-kind="table"]').first();
 		await host.hover();
@@ -168,8 +167,8 @@ test.describe('live mode — the surface stays editable', () => {
 	});
 });
 
-// The bridge is live's third entry door (query param and toggle are covered above), and the
-// only one that reaches the plugin harness where directive containers render.
+// The bridge is the third way into live mode (the query param and the toggle are covered above),
+// and the only one that reaches the plugin harness where directive containers render.
 test.describe('live mode — plugin container chrome', () => {
 	test('directive fences hide and stay hidden with the caret in the body', async ({ page }) => {
 		const ep = new PluginsPage(page);
@@ -182,8 +181,8 @@ test.describe('live mode — plugin container chrome', () => {
 		const directiveMarker = page.locator('.directive-marker').first();
 		await expect(directiveMarker).toHaveCSS('display', 'none');
 
-		// Under preview-block the body's own `**` would reveal here; live reveals neither
-		// the body's markers nor the container's chrome.
+		// Under preview-block the body's own `**` would show here; live shows neither the body's
+		// markers nor the container's fences.
 		await page.locator('.directive-block [contenteditable="true"]', { hasText: /bold/ }).click();
 		await expect(page.locator('.directive-block .md-marker').first()).toHaveCSS('display', 'none');
 		await expect(directiveMarker).toHaveCSS('display', 'none');

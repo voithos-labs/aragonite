@@ -2,17 +2,17 @@ import { test, expect } from '../../fixtures';
 import type { EditorPage } from '../../editor-page';
 import { clickWordSettled, enterPresentationMode, landAt } from './helpers';
 
-// The caret half of the flip family's contract (#109): a mode change moves no byte, so the
-// seat the user had comes back on the other side — banked through reading, which has none.
+// The caret half of the mode-switch rules: a mode change moves no byte, so the caret the user
+// had comes back on the other side, saved across reading mode, which has no caret.
 // Requirements: e2e/requirements/presentation/presentation-mode-flip-caret.md.
 
 const DOC = ['# Title', '', 'Some **bold** and more text'].join('\n');
 
 const PROSE = [1];
-// `Some **bo|ld**` — mid-construct, landable on every rung.
+// `Some **bo|ld**`: mid-construct, reachable in every mode.
 const SEAT = 9;
 
-// A cell's raw is its own, so the same seat reads the same way inside the grid.
+// A cell's raw is its own, so the same offset reads the same way inside a table.
 const TABLE_DOC = ['| Some **bold** cell | b |', '| --- | --- |', '| c | d |'].join('\n');
 const CELL = [0, 0, 0];
 
@@ -55,9 +55,9 @@ test.describe('mode flips — the caret comes back', () => {
 		await ep.bridge.waitForSourceContains('boXld');
 	});
 
-	// A cell keys its rendered DOM on the mode (#39), so a flip rebuilds every mounted cell and
-	// runs the capture/restore pair prose has always run — for a block that carries no
-	// `data-block-path` of its own and reaches the caret three levels deep.
+	// A cell keys its rendered DOM on the mode, so a mode change rebuilds every mounted cell and
+	// runs the same capture and restore prose runs, for a block with no `data-block-path` of its
+	// own whose caret sits three levels deep.
 	test('a caret inside a table cell survives the flip and takes the next byte there', async ({
 		page
 	}) => {
@@ -75,7 +75,7 @@ test.describe('mode flips — the caret comes back', () => {
 		await ep.bridge.waitForSourceContains('boXld');
 	});
 
-	// Reading rides the test above — its inbound half has no caret to assert.
+	// Reading is covered by the test above; on the way in it has no caret to assert.
 	const EDITABLE_RUNGS = [
 		['preview-block', 'preview-block-toggle'],
 		['preview-inline', 'preview-inline-toggle'],

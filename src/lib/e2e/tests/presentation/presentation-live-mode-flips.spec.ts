@@ -3,8 +3,8 @@ import type { EditorPage } from '../../editor-page';
 import type { Page } from '@playwright/test';
 import { clickBlockSettled, enterPresentationMode } from './helpers';
 
-// The flip family's byte-stability contract, now including live: a mode change is CSS over
-// the one render path, so no flip may move a byte.
+// Byte stability across every mode, live included: a mode change is CSS over the one render
+// path, so switching mode may never move a byte.
 // Requirements: e2e/requirements/presentation/presentation-live-mode-flips.md.
 
 const DOC = [
@@ -34,7 +34,7 @@ const RUNGS = [
 	['live', 'live-toggle']
 ] as const;
 
-/** Click a rung's toggle on, then off — the demo's toggles switch between that mode and source. */
+/** Click a mode's toggle on, then off; the demo's toggles switch between that mode and source. */
 async function flipThrough(
 	ep: EditorPage,
 	page: Page,
@@ -69,7 +69,7 @@ test.describe('mode flips — the bytes never move', () => {
 		await page.keyboard.type('EDIT');
 		await ep.bridge.waitForSourceContains('EDIT');
 
-		// Leave live, then take the document through the other three rungs and back.
+		// Leave live, then take the document through the other three modes and back.
 		await page.getByTestId('live-toggle').click();
 		await expect(ep.editorContainer).not.toHaveAttribute('data-presentation');
 		const edited = await ep.bridge.getSource();
@@ -82,8 +82,8 @@ test.describe('mode flips — the bytes never move', () => {
 		}
 	});
 
-	// A pending mark is live-only ephemeral state, and a mode change is one of its declared
-	// clears — a flip that materialized it would leave an invisible `****` behind.
+	// A pending mark is live-only temporary state that a mode change clears; a mode switch that
+	// wrote it out would leave an invisible `****` behind.
 	test('a mark pending at the caret writes nothing across a flip', async ({ page }) => {
 		const ep = await enterPresentationMode(page, 'live', DOC);
 		const baseline = await ep.bridge.getSource();

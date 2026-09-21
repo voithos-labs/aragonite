@@ -3,9 +3,9 @@ import { EditorPage } from '../../editor-page';
 
 // Shared pointer and caret helpers for the presentation specs.
 
-// The attribute check is load-bearing: an unwhitelisted query param falls back to source, where
-// every marker is painted and a live scenario would pass without live. Source itself stamps no
-// attribute, which is the same fact from the other side.
+// The attribute check is what makes the mode real: a query param that is not on the allowed list
+// falls back to source, where every marker is painted and a live scenario would pass without
+// live. Source writes no attribute of its own, the same fact from the other side.
 export async function enterPresentationMode(
 	page: Page,
 	mode: 'live' | 'preview-inline' | 'reading' | 'source',
@@ -34,8 +34,8 @@ export async function press(ep: EditorPage, page: Page, key: string, times = 1):
 	return focusOffset(ep);
 }
 
-/** A click's caret is what every scenario starts from, and the bridge reporting NO selection is
- *  the shape a lost click takes — so settle on the caret existing rather than on the click. */
+/** Every scenario starts from the caret a click leaves, and a lost click shows up as the bridge
+ *  reporting no selection, so wait on the caret existing rather than on the click. */
 export async function clickBlockSettled(ep: EditorPage, index: number): Promise<void> {
 	await ep.clickBlock(index);
 	await expect.poll(() => focusOffset(ep), { timeout: 5000 }).toBeGreaterThanOrEqual(0);
@@ -48,9 +48,9 @@ export async function clickWordSettled(ep: EditorPage, page: Page, word: string)
 	await expect.poll(() => focusOffset(ep), { timeout: 5000 }).toBeGreaterThanOrEqual(0);
 }
 
-/** Step with `key` until the caret reports `target` — the arrival is a real gesture, never a
- *  programmatic seat. A walk that leaves the block is a failure, not a longer walk: the offsets
- *  restart there, and the target would be reached in the wrong block. */
+/** Step with `key` until the caret reports `target`: a real gesture gets it there, never a
+ *  programmatic placement. Leaving the block is a failure rather than just more steps, because
+ *  offsets restart there and the target would be reached in the wrong block. */
 export async function stepTo(
 	ep: EditorPage,
 	page: Page,
@@ -70,17 +70,18 @@ export async function stepTo(
 	throw new Error(`stepTo: ${key} never reached offset ${target} (at ${await focusOffset(ep)})`);
 }
 
-/** Arrow-step from wherever a click landed to `target` — a word-center click resolves mid-glyph,
- *  so which boundary it lands on is font-metric luck; the walk makes the offset deterministic. */
+/** Arrow-step from wherever a click landed to `target`: a click at a word's center resolves
+ *  mid-glyph, so which boundary it picks is font-metric luck, and stepping makes the offset
+ *  deterministic. */
 export async function landAt(ep: EditorPage, page: Page, target: number): Promise<void> {
 	const at = await focusOffset(ep);
 	if (at === target) return;
 	await stepTo(ep, page, at < target ? 'ArrowRight' : 'ArrowLeft', target);
 }
 
-/** Shift-extend with `key` until the FOCUS reports `path`/`offset` — the selection twin of
- *  {@link stepTo}, and a real gesture for the same reason: a programmatic range would skip the
- *  native input event the live seam's interception claims. */
+/** Shift-extend with `key` until the focus reports `path` and `offset`: the selection
+ *  counterpart of {@link stepTo}, and a real gesture for the same reason, since a programmatic
+ *  range would skip the input event live mode intercepts. */
 export async function extendTo(
 	ep: EditorPage,
 	page: Page,
@@ -100,9 +101,9 @@ export async function extendTo(
 	);
 }
 
-/** What a block SHOWS: its content text minus every span a marker-hiding mode paints nothing
- *  for. Read off the page object's own block-content element, never the host — the chrome
- *  between the wrapper's children contributes whitespace text nodes of its own. */
+/** What a block shows: its content text minus every span a marker-hiding mode paints nothing
+ *  for. Read from the page object's own block-content element, never the outer wrapper, whose
+ *  markers and buttons add whitespace text nodes of their own. */
 export async function visibleText(ep: EditorPage, block: number): Promise<string> {
 	return ep.getBlock(block).evaluate((el) => {
 		const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
@@ -117,9 +118,9 @@ export async function visibleText(ep: EditorPage, block: number): Promise<string
 	});
 }
 
-// The client rect of the first visible text node containing `word` — the resolver the point
-// helpers below pick from, without relying on raw-offset geometry (hidden markers have no
-// layout box, so a raw-offset walk mis-measures them).
+// The client rect of the first visible text node holding `word`, which the point helpers below
+// pick from. It avoids raw-offset geometry: hidden markers have no layout box, so measuring from
+// a raw offset gets them wrong.
 async function rectOfWord(
 	page: Page,
 	word: string
@@ -149,8 +150,8 @@ export async function centerOfWord(page: Page, word: string): Promise<{ x: numbe
 	return { x: (rect.left + rect.right) / 2, y: rect.y };
 }
 
-// Pixel just inside `word`'s leading edge — with the trailing twin, the widest drag a word
-// affords, which is what keeps a drag-select off the runner's font-metric knife's edge.
+// The pixel just inside `word`'s leading edge. With its trailing counterpart it is the widest
+// drag a word allows, which keeps a drag-select off the runner's font-metric knife's edge.
 export async function leadingEdgeOfWord(
 	page: Page,
 	word: string
@@ -159,9 +160,9 @@ export async function leadingEdgeOfWord(
 	return { x: rect.left + 1, y: rect.y };
 }
 
-// Pixel just inside `word`'s trailing edge — the one gesture that lands a caret at a
-// construct's content edge by CLICK. A hidden delimiter run has no box, so the nearest
-// character boundary to this pixel is the edge itself.
+// The pixel just inside `word`'s trailing edge, the one gesture that puts a caret at a
+// construct's content edge by clicking. A hidden delimiter run has no box, so the nearest
+// character boundary to this pixel is that edge.
 export async function trailingEdgeOfWord(
 	page: Page,
 	word: string

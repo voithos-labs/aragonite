@@ -1,8 +1,8 @@
 import { test, expect } from '../../fixtures';
 import { PluginsPage } from '../plugins/helpers';
 
-// preview-block containment across a plugin container: a focused body leaf reveals its OWN
-// inline markers, but the directive fences are container CHROME and never reveal.
+// preview-block containment inside a plugin container: a focused body block shows its own
+// inline markers, but the directive fences belong to the container and never show.
 // Requirements: e2e/requirements/presentation/presentation-directive-containment.md.
 
 const DOC = ':::foo\nBody with **bold** here.\n:::\n';
@@ -27,15 +27,15 @@ test.describe('preview-block — directive-body containment', () => {
 			hasText: /bold/
 		});
 
-		// Nothing focused: both the fence chrome and the body's inline markers are hidden.
+		// Nothing focused: both the fences and the body's inline markers are hidden.
 		await expect(directiveMarker).toBeHidden();
 		await expect(bodyMarker).toBeHidden();
 
-		// Focus the body leaf: its `**` reveals (source under the caret's block)...
+		// Focus the body block: its `**` shows, since the block under the caret shows its source...
 		await body.click();
 		await expect(bodyMarker).toBeVisible();
-		// ...but the container's `:::foo` fence stays hidden — it belongs to the
-		// container, not the focused leaf, so the no-reveal path holds.
+		// ...but the container's `:::foo` fence stays hidden: it belongs to the container, not to
+		// the focused block.
 		await expect(directiveMarker).toBeHidden();
 	});
 });

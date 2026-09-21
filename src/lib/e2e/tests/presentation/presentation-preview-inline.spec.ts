@@ -3,8 +3,8 @@ import { EditorPage } from '../../editor-page';
 import type { Page } from '@playwright/test';
 import { centerOfWord } from './helpers';
 
-// Inline-granular live preview: inside the focused block, each construct's markers stay
-// hidden until the caret enters its INCLUSIVE range. Editing scenarios live in
+// Inline-granular live preview: inside the focused block, each construct's markers stay hidden
+// until the caret enters its range, edges included. Editing scenarios live in
 // presentation-preview-inline-editing.spec.ts.
 // Requirements: e2e/requirements/presentation/presentation-preview-inline.md.
 
@@ -47,8 +47,8 @@ test.describe('preview-inline — markers by caret proximity', () => {
 		await expect(headingMarker).toBeHidden();
 		await expect(betaMarkers.first()).toBeHidden();
 
-		// Caret in "alpha" — the block is focused but the caret is outside the
-		// construct, so its markers stay folded.
+		// Caret in "alpha": the block is focused but the caret is outside the construct, so its
+		// markers stay hidden.
 		const point = await centerOfWord(page, 'alpha');
 		await page.mouse.click(point.x, point.y);
 		await ep.waitForRenderFlush();
@@ -72,7 +72,7 @@ test.describe('preview-inline — markers by caret proximity', () => {
 		await expect(betaMarkers.first()).toBeVisible();
 		await expect(betaMarkers.nth(1)).toBeVisible();
 
-		// Same block, outside the construct: fold.
+		// Same block, outside the construct: the markers hide again.
 		const out = await centerOfWord(page, 'alpha');
 		await page.mouse.click(out.x, out.y);
 		await expect(betaMarkers.first()).toBeHidden();
@@ -80,7 +80,7 @@ test.describe('preview-inline — markers by caret proximity', () => {
 	});
 
 	test('nested constructs reveal the full enclosing chain', async ({ page }) => {
-		// `**bold *italic* tail**` — strong [0,22), emphasis [7,15).
+		// `**bold *italic* tail**`: strong [0,22), emphasis [7,15).
 		const strongMarkers = ep.getBlock(3).locator('[data-construct-start="0"]');
 		const emMarkers = ep.getBlock(3).locator('[data-construct-start="7"]');
 		const point = await centerOfWord(page, 'italic');
@@ -90,7 +90,7 @@ test.describe('preview-inline — markers by caret proximity', () => {
 		await expect(strongMarkers.first()).toBeVisible();
 		await expect(strongMarkers.nth(1)).toBeVisible();
 
-		// In the strong but out of the emphasis: the inner wrapper folds alone.
+		// In the strong but out of the emphasis: only the inner pair hides.
 		const tail = await centerOfWord(page, 'tail');
 		await page.mouse.click(tail.x, tail.y);
 		await expect(emMarkers.first()).toBeHidden();
@@ -98,9 +98,9 @@ test.describe('preview-inline — markers by caret proximity', () => {
 	});
 
 	test('caret walk across `a **b** c` never skips or doubles an offset', async ({ page }) => {
-		// The sharp edge this mode lives on: the reveal fires at the construct's
-		// inclusive edge, so the next arrow step enters visible marker text — the
-		// caret must visit every raw offset exactly once.
+		// The sharp edge this mode lives on: the markers appear at the construct's own edge, so
+		// the next arrow step enters visible marker text, and the caret must visit every raw
+		// offset exactly once.
 		const markers = ep.getBlock(2).locator('[data-construct-start]');
 		await ep.clickBlock(2);
 		await page.keyboard.press('Home');
@@ -118,17 +118,17 @@ test.describe('preview-inline — markers by caret proximity', () => {
 			if (offsets.at(-1) === 4) await expect(markers.first()).toBeVisible();
 		}
 		expect(offsets).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9]);
-		// Past the construct: folded again.
+		// Past the construct: hidden again.
 		await expect(markers.first()).toBeHidden();
 	});
 
 	test('cross-construct sweep reveals and folds each construct in sequence', async ({ page }) => {
-		// `*a* b `c`` — emphasis [0,3), inline code [6,9).
+		// `*a* b `c``: emphasis [0,3), inline code [6,9).
 		const emMarkers = ep.getBlock(4).locator('[data-construct-start="0"]');
 		const codeMarkers = ep.getBlock(4).locator('[data-construct-start="6"]');
 		await ep.clickBlock(4);
-		// Home lands on the first VISIBLE position — raw 0 is the em's folded `*` —
-		// so read where it landed and walk to each target by verified single steps.
+		// Home lands on the first visible position, since raw 0 is the emphasis's hidden `*`, so
+		// read where it landed and step to each target one checked step at a time.
 		await page.keyboard.press('Home');
 		await ep.waitForRenderFlush();
 		let offset = (await ep.bridge.getSelectionPaths())?.focus.offset ?? -1;
@@ -146,7 +146,7 @@ test.describe('preview-inline — markers by caret proximity', () => {
 		await expect(emMarkers.first()).toBeVisible();
 		await expect(codeMarkers.first()).toBeHidden();
 
-		await stepTo(5); // the plain gap — both folded
+		await stepTo(5); // the plain gap, where both are hidden
 		await expect(emMarkers.first()).toBeHidden();
 		await expect(codeMarkers.first()).toBeHidden();
 
@@ -158,9 +158,9 @@ test.describe('preview-inline — markers by caret proximity', () => {
 	test('ambient-prefixed blocks (list item, blockquote) reveal at content offsets', async ({
 		page
 	}) => {
-		// The ambient `- `/`> ` prefix shifts DOM offsets off raw offsets; the reveal
-		// subtracts the ambient length, so a click on the wrapped word reveals and a
-		// click outside folds. A missing subtraction would mis-target by the prefix width.
+		// The leading `- ` or `> ` marker span shifts DOM offsets off raw offsets, and the check
+		// subtracts that span's length, so a click on the wrapped word shows the markers and a
+		// click outside hides them. Without the subtraction it misses by the prefix width.
 		await ep.loadContent(['- ab *cd* ef', '', '> gh **ij** kl'].join('\n'));
 		const listEm = ep.getBlock(0).locator('[data-construct-start="3"]').first();
 		const quoteStrong = ep.getBlock(1).locator('[data-construct-start="3"]').first();

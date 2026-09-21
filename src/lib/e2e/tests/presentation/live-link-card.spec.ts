@@ -5,8 +5,9 @@ import { enterPresentationMode, landAt, leadingEdgeOfWord, trailingEdgeOfWord } 
 import { CARD, URL_FIELD, clickLink, editUrl, openCardOn } from './link-card-helpers';
 import { findInput } from '../search/helpers';
 
-// The anchored chrome that replaces the destination live mode hides. The chord's create half
-// rides `live-link-card-create.spec.ts`, its consumption contract `live-link-card-chord.spec.ts`.
+// The anchored panel that stands in for the destination live mode hides. The chord's create
+// half lives in `live-link-card-create.spec.ts`, and what it consumes in
+// `live-link-card-chord.spec.ts`.
 // Requirements: e2e/requirements/presentation/live-link-card.md.
 
 const DOC = [
@@ -21,8 +22,8 @@ const DOC = [
 	'[ref]: https://example.com/docs'
 ].join('\n');
 
-/** Walk the caret to the start of an EARLIER block with arrows alone: a click there would dismiss
- *  the card before the edit could land. */
+/** Step the caret up to the start of an earlier block with arrows alone: a click there would
+ *  dismiss the card before the edit could land. */
 async function stepToBlockStart(ep: EditorPage, page: Page, index: number): Promise<void> {
 	for (let i = 0; i < 12; i++) {
 		const focus = (await ep.bridge.getSelectionPaths())?.focus;
@@ -61,8 +62,8 @@ test.describe('live-mode link card', () => {
 	});
 
 	test('a drag-select inside the link keeps the selection and opens no card', async ({ page }) => {
-		// The drag spans the whole word: a half-word drag sat on the CI runner's font-metric
-		// knife's edge and collapsed to a caret there while passing on every local host.
+		// The drag spans the whole word: a half-word drag sits on the CI runner's font-metric
+		// knife's edge and can collapse to a caret there while passing on every local machine.
 		const from = await leadingEdgeOfWord(page, 'example');
 		const to = await trailingEdgeOfWord(page, 'example');
 		await page.mouse.move(from.x, from.y);
@@ -132,7 +133,7 @@ test.describe('live-mode link card', () => {
 		await page.keyboard.press('Enter');
 		await ep.bridge.waitForSourceContains('https://committed.test/1');
 
-		// Reopen on the SAME link: same path and construct start, so nothing keys a remount.
+		// Reopen on the same link: same path and construct start, so nothing forces a remount.
 		await openCardOn(ep, page, 'example');
 		await expect(page.locator(URL_FIELD)).toHaveValue('https://committed.test/1');
 
@@ -144,7 +145,7 @@ test.describe('live-mode link card', () => {
 		// Enter over the re-seeded draft must not put the undone bytes back.
 		await page.locator(URL_FIELD).click();
 		await page.keyboard.press('Enter');
-		// The card's URL field is its own input, outside every editable surface.
+		// The card's URL field is its own input, outside every editable element.
 		await ep.waitForNoSourceMutation();
 		expect(await ep.bridge.getSource()).toContain('[example](https://example.com)');
 	});
@@ -160,7 +161,7 @@ test.describe('live-mode link card', () => {
 		await page.keyboard.press('Escape');
 
 		await expect(page.locator(CARD)).toHaveCount(0);
-		// The card's URL field is its own input, outside every editable surface.
+		// The card's URL field is its own input, outside every editable element.
 		await ep.waitForNoSourceMutation();
 		expect(await ep.bridge.getSource()).toBe(before);
 		await expect.poll(async () => (await ep.bridge.getSelectionPaths())?.focus).toEqual(seated);
@@ -181,9 +182,9 @@ test.describe('live-mode link card', () => {
 		await openCardOn(ep, page, 'docs');
 		const beforeBox = (await page.locator(CARD).boundingBox())!;
 
-		// The caret is the document's while the card is open, so a block ABOVE the link is reachable
-		// by keyboard alone — no press, which is what would dismiss the card. Typing there grows the
-		// block and moves the link down under an open card.
+		// The caret is the document's while the card is open, so a block above the link is reachable
+		// by keyboard alone, with no click, which is what would dismiss the card. Typing there grows
+		// the block and moves the link down under an open card.
 		await stepToBlockStart(ep, page, 0);
 		await ep.typeText('padding words '.repeat(60));
 		await ep.waitForRenderFlush();
@@ -230,20 +231,20 @@ test.describe('live-mode link card', () => {
 		});
 		await openCardOn(ep, page, 'danger');
 
-		// The button is DISABLED rather than inert on click: the draft rides the render path's own
-		// href funnel now, and a blocked scheme resolves to nothing to hand onward. The card still
-		// opens on the link, which is how its URL gets repaired.
+		// The button is disabled rather than inert on click: the draft goes through the render
+		// path's own href check, and a blocked scheme resolves to nothing to hand on. The card
+		// still opens on the link, which is how its URL gets repaired.
 		const open = page.getByRole('button', { name: 'Open link' });
 		await expect(open).toBeDisabled();
 		await open.click({ force: true });
 
-		// 200ms — verifying the ABSENCE of a popup, which has no observable state to predicate on.
+		// 200ms, because a popup that never opens leaves no state to wait on.
 		await page.waitForTimeout(200);
 		expect(popupFired).toBe(false);
 	});
 
 	test('Mod+K with the caret inside a link enters the card, field focused', async ({ page }) => {
-		// A click seats the caret in the link's text; the chord is what ENTERS the card.
+		// A click puts the caret in the link's text; the chord is what moves focus into the card.
 		await clickLink(ep, page, 'example');
 		await page.keyboard.press('Escape');
 		await expect(page.locator(CARD)).toHaveCount(0);
@@ -288,8 +289,8 @@ test.describe('live-mode link card', () => {
 		await expect.poll(async () => (await ep.bridge.getSelectionPaths())?.focus).toEqual(seated);
 	});
 
-	// A SELECTION creates (#119); a bare collapsed caret minting an empty `[](url)` stays a
-	// separate UX decision, so the no-op is the caret's alone.
+	// A selection is what creates a link; whether a collapsed caret should write an empty
+	// `[](url)` is a separate decision, so doing nothing here is about the caret alone.
 	test('Mod+K at a collapsed caret outside every link stays a no-op', async ({ page }) => {
 		const before = await ep.bridge.getSource();
 		await ep.clickBlock(2);
@@ -300,15 +301,15 @@ test.describe('live-mode link card', () => {
 		expect(await ep.bridge.getSource()).toBe(before);
 	});
 
-	// A card whose target stops resolving unrenders, and a target left SET would resurrect it the
-	// moment an undo made the construct resolve again — holding the draft from before.
+	// A card whose target stops resolving unrenders, and a target left set would bring it back the
+	// moment an undo made the construct resolve again, still holding the earlier draft.
 	test('a card closed by a shifted construct start stays closed through the undo', async ({
 		page
 	}) => {
 		await openCardOn(ep, page, 'example');
 
-		// Typing at the block's START moves the link's `sourceStart`, which is half the card's
-		// target identity: the card addresses a construct that is no longer there.
+		// Typing at the block's start moves the link's `sourceStart`, which is half of what
+		// identifies the card's target: the card now addresses a construct that is not there.
 		await page.keyboard.press('Home');
 		await ep.typeText('Z');
 		await ep.bridge.waitForSourceContains('ZVisit [example]');
@@ -320,8 +321,8 @@ test.describe('live-mode link card', () => {
 		await expect(page.locator(CARD)).toHaveCount(0);
 	});
 
-	// One caret slot per consumer: a card opened over an open search bar must not overwrite the
-	// pre-search caret, or closing the bar lands the user at the link instead.
+	// One saved caret per consumer: a card opened over an open search bar must not overwrite the
+	// caret from before the search, or closing the bar leaves the user at the link instead.
 	test('a card opened over the search bar leaves the pre-search caret alone', async ({ page }) => {
 		await ep.clickBlock(2);
 		await page.keyboard.press('Home');
@@ -334,8 +335,8 @@ test.describe('live-mode link card', () => {
 		await openCardOn(ep, page, 'example');
 		expect((await ep.bridge.getSelectionPaths())?.focus.path).toEqual([0]);
 
-		// One Escape: the card closes without claiming the key (it holds no focus), and the bar's
-		// close restores the caret it saved.
+		// One Escape: the card closes without taking the key, since it holds no focus, and closing
+		// the bar restores the caret it saved.
 		await page.keyboard.press('Escape');
 		await expect(findInput(page)).toHaveCount(0);
 

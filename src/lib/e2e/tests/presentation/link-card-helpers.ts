@@ -7,7 +7,7 @@ import { centerOfWord } from './helpers';
 export const CARD = '[data-link-card]';
 export const URL_FIELD = `${CARD} input`;
 
-/** A real click on the rendered link text — the only gesture that opens the card. */
+/** A real click on the rendered link text, the only gesture that opens the card. */
 export async function clickLink(ep: EditorPage, page: Page, word: string): Promise<void> {
 	const point = await centerOfWord(page, word);
 	await page.mouse.click(point.x, point.y);
@@ -19,7 +19,7 @@ export async function openCardOn(ep: EditorPage, page: Page, word: string): Prom
 	await expect(page.locator(CARD)).toBeVisible();
 }
 
-/** Step into the card's field the way a user does — the caret stays in the document until then. */
+/** Step into the card's field the way a user does; the caret stays in the document until then. */
 export async function editUrl(page: Page, url: string): Promise<void> {
 	await page.locator(URL_FIELD).click();
 	await expect(page.locator(URL_FIELD)).toBeFocused();

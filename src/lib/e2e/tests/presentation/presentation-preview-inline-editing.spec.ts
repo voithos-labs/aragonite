@@ -2,17 +2,17 @@ import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 import type { Page } from '@playwright/test';
 
-// preview-inline is an EDITING mode: a revealed construct is ordinary source text, so
-// typing commits per keystroke and the reveal state survives every rebuild. Rendering lives
-// in presentation-preview-inline.spec.ts.
+// preview-inline is an editing mode: a construct showing its markers is ordinary source text,
+// so typing commits per keystroke and what is shown survives every rebuild. Rendering lives in
+// presentation-preview-inline.spec.ts.
 // Requirements: e2e/requirements/presentation/presentation-preview-inline-editing.md.
 
 const DOC = ['# Title', '', 'alpha **beta** gamma'].join('\n');
 
 const togglePreviewInline = (page: Page) => page.getByTestId('preview-inline-toggle').click();
 
-// Walks the caret to a deterministic raw offset with real key presses — a click
-// can't target hidden marker bytes.
+// Steps the caret to a fixed raw offset with real keypresses, since a click cannot target
+// hidden marker bytes.
 async function caretToOffset(ep: EditorPage, page: Page, offset: number): Promise<void> {
 	await page.keyboard.press('Home');
 	for (let i = 0; i < offset; i++) await page.keyboard.press('ArrowRight');
@@ -35,14 +35,14 @@ test.describe('preview-inline — editing stays live', () => {
 	}) => {
 		const markers = ep.getBlock(1).locator('[data-construct-start]');
 		await ep.clickBlock(1);
-		// "alpha **beta** gamma" — raw 10 is "be|ta", inside strong [6,14).
+		// "alpha **beta** gamma": raw 10 is "be|ta", inside strong [6,14).
 		await caretToOffset(ep, page, 10);
 		await expect(markers.first()).toBeVisible();
 
-		// One key, one committed source update — no fold-to-commit ceremony.
+		// One key, one committed source update: nothing has to be collapsed first.
 		await page.keyboard.press('X');
 		await ep.bridge.waitForSourceContains('**beXta**');
-		// The reveal survived the rebuild (re-applied before paint, no fold flash).
+		// The markers stayed shown across the rebuild, re-applied before paint with no flash.
 		await expect(markers.first()).toBeVisible();
 		await expect(markers.nth(1)).toBeVisible();
 		expect(await page.evaluate(() => (window as any).__test.roundTripStable())).toBe(true);
@@ -61,8 +61,8 @@ test.describe('preview-inline — editing stays live', () => {
 
 	test('typing in revealed marker text edits those bytes honestly', async ({ page }) => {
 		await ep.clickBlock(1);
-		// Raw 13 sits between the closing `*`s — reachable only because the reveal
-		// made the marker text visible, steppable, and editable.
+		// Raw 13 sits between the closing `*`s, reachable only because showing the markers made
+		// that text visible, steppable and editable.
 		await caretToOffset(ep, page, 13);
 		await page.keyboard.press('x');
 		await ep.bridge.waitForSourceContains('alpha **beta*x* gamma');
@@ -77,8 +77,8 @@ test.describe('preview-inline — editing stays live', () => {
 		await page.keyboard.press('Backspace');
 		await page.keyboard.press('Backspace');
 		await ep.bridge.waitForSourceContains('alpha **beta gamma');
-		// The unmatched `**` reparses to plain text: no construct spans remain, and
-		// no orphaned reveal class either.
+		// The unmatched `**` reparses to plain text: no construct spans remain, and no leftover
+		// `md-construct-reveal` class either.
 		await expect(ep.getBlock(1).locator('[data-construct-start]')).toHaveCount(0);
 		await expect(ep.getBlock(1).locator('.md-construct-reveal')).toHaveCount(0);
 	});
@@ -89,7 +89,8 @@ test.describe('preview-inline — editing stays live', () => {
 		await caretToOffset(ep, page, 10);
 		await expect(ep.getBlock(1).locator('[data-construct-start]').first()).toBeVisible();
 
-		// preview-block: the whole focused block reveals (no stamps, focus-keyed CSS).
+		// preview-block: the whole focused block shows its markers, through focus-keyed CSS with
+		// no per-construct attributes.
 		await page.evaluate(() => (window as any).__test.setPresentationMode('preview-block'));
 		await ep.waitForRenderFlush();
 		await expect(ep.getBlock(1).locator('.md-marker').first()).toBeVisible();

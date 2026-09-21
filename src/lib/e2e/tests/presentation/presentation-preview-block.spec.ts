@@ -46,7 +46,7 @@ test.describe('preview-block — markers by focus', () => {
 		const headingMarker = ep.getBlock(0).locator('.md-marker').first();
 		const paraMarker = ep.getBlock(1).locator('.md-marker').first();
 
-		// Nothing focused yet — every block is rendered.
+		// Nothing focused yet, so every block is rendered.
 		await expect(headingMarker).toBeHidden();
 		await expect(paraMarker).toBeHidden();
 
@@ -88,10 +88,10 @@ test.describe('preview-block — markers by focus', () => {
 		// Focus the first item's paragraph.
 		await ep.clickBlockAtPath([3, 0, 0], 0);
 		await expect(firstAmbient).toBeVisible(); // its `- ` reads as source
-		await expect(secondAmbient).toBeHidden(); // sibling keeps rendered bullet chrome
+		await expect(secondAmbient).toBeHidden(); // the sibling keeps its rendered bullet
 
-		// The focused item's rendered bullet is suppressed (no doubled `- •`); the
-		// sibling still paints one — guards the ::before source-order tie.
+		// The focused item's rendered bullet is suppressed, so there is no doubled `- •`, while
+		// the sibling still paints one; this guards the order the two `::before` rules resolve in.
 		const before = (el: Element) => getComputedStyle(el, '::before').content;
 		expect(await firstAmbient.evaluate(before)).not.toContain('•');
 		expect(await secondAmbient.evaluate(before)).toContain('•');
@@ -118,9 +118,9 @@ test.describe('preview-block — caret + traversal', () => {
 
 		const sel = await ep.bridge.getSelectionPaths();
 		expect(sel?.focus.path).toEqual([1]);
-		// "beta" is raw 8..12; the hidden `**` (raw 6..8) is counted, so the caret
-		// sits inside the content — not shifted onto/before the marker (that would
-		// read ~8 as a visible-only offset). Markers now reveal for the focused block.
+		// "beta" is raw 8..12; the hidden `**` (raw 6..8) is counted, so the caret sits inside the
+		// content rather than on or before the marker, which would read ~8 as an offset over
+		// visible text alone. The focused block shows its markers.
 		expect(sel?.focus.offset).toBeGreaterThanOrEqual(8);
 		expect(sel?.focus.offset).toBeLessThanOrEqual(12);
 		await expect(ep.getBlock(1).locator('.md-marker').first()).toBeVisible();

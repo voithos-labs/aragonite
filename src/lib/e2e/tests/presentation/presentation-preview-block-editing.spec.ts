@@ -2,7 +2,7 @@ import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 import type { Page } from '@playwright/test';
 
-// preview-block is an EDITING mode: no edit path is gated, and the focus mark follows the
+// preview-block is an editing mode: no edit path is blocked, and the focus mark follows the
 // caret through structural edits. Rendering lives in presentation-preview-block.spec.ts.
 // Requirements: e2e/requirements/presentation/presentation-preview-block-editing.md.
 
@@ -125,9 +125,9 @@ test.describe('preview-block — selection, search, mode flips', () => {
 	});
 
 	test('flipping the prop into preview-block marks the already-focused block', async ({ page }) => {
-		// The header toggles blur the editor, so they clear the mark via focusout,
-		// never through the mode reconcile. A consumer flipping the prop keeps focus —
-		// this drives that path directly (revert the reconcile effect and it fails).
+		// The header toggles blur the editor, so they clear the mark through focusout rather than
+		// through the mode's own reconcile. A consumer setting the prop keeps focus, and this test
+		// drives that path directly.
 		await page.evaluate(() => (window as any).__test.setPresentationMode('source'));
 		await ep.clickBlock(1);
 		await expect(hostAt(page, [1])).not.toHaveAttribute('data-focused');

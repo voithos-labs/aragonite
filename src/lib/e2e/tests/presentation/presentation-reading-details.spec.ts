@@ -3,10 +3,10 @@ import { DetailsPage, bodyHostCount, capturedErrors } from '../plugins/details-h
 import type { Page } from '@playwright/test';
 
 /**
- * Reading mode's ONE interactive affordance: the `<details>` disclosure flips view state and
+ * Reading mode's one interactive control: the `<details>` disclosure changes what is shown and
  * writes nothing (e2e/requirements/presentation/presentation-reading-details.md).
- * `bodyHostCount` is the load-bearing observable, not the caret or the arrow glyph — it
- * proves the collapse clamp genuinely mounted the body, the half `aria-expanded` would fake.
+ * `bodyHostCount` is what these tests check, not the caret or the arrow glyph, because it proves
+ * the body really mounted, which `aria-expanded` alone could fake.
  */
 
 const CLOSED = '<details>\n<summary>Sum</summary>\n\nHidden\n\n</details>\n\nBelow\n';
@@ -40,8 +40,8 @@ test.describe('reading mode — transient details disclosure', () => {
 		);
 
 		await page.locator('.details-toggle').click();
-		// The clamp mounted the body — the content is genuinely readable, not a caret
-		// parked over an unmounted subtree.
+		// The body really mounted: the content is readable, not a caret sitting over an
+		// unmounted subtree.
 		await expect.poll(() => bodyHostCount(page)).toBe(2);
 		await expect(page.locator('.details-toggle')).toHaveAttribute('aria-expanded', 'true');
 		await expect(page.getByText('Hidden')).toBeVisible();
@@ -61,8 +61,8 @@ test.describe('reading mode — transient details disclosure', () => {
 					).__test.stopEditOpCapture().length
 			)
 		).toBe(0);
-		// In particular the collapse-probe cross-check must stay quiet while the view
-		// deliberately runs ahead of the document.
+		// The collapse cross-check must stay quiet in particular, while the view deliberately
+		// runs ahead of the document.
 		expect(await capturedErrors(page)).toEqual([]);
 	});
 

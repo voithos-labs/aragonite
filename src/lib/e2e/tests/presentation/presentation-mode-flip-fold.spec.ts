@@ -3,9 +3,9 @@ import { test, expect } from '../../fixtures';
 import { capturedErrors } from '../plugins/helpers';
 import { MathRevealPage } from '../plugins/latex-reveal-helpers';
 
-// A flip is a blur-class event, so an open source reveal folds through the same choke point on
-// EVERY flip, and early enough that the mode's render key has not yet rebuilt the block out from
-// under the reveal's ephemeral edit (E-F4).
+// A mode change counts as a blur, so a block showing its source collapses through the same one
+// place on every switch, early enough that the mode's render key has not yet rebuilt the block
+// out from under the edit that block was holding (E-F4).
 // Requirements: e2e/requirements/presentation/presentation-mode-flip-fold.md.
 
 const DOC = 'above\n\n$x^2$\n';
@@ -25,7 +25,7 @@ test.describe('mode flips — an open reveal folds', () => {
 		await editor.waitForRenderFlush();
 	}
 
-	/** Open the reveal and type one byte into the formula; the CST is still behind at this point. */
+	/** Show the source and type one byte into the formula; the CST has not caught up yet. */
 	async function revealAndEdit(page: Page): Promise<void> {
 		await editor.revealFromTrailingEdge(1);
 		await page.keyboard.press('ArrowLeft');
@@ -43,8 +43,8 @@ test.describe('mode flips — an open reveal folds', () => {
 		});
 	}
 
-	// The other half of the fold rule: a reveal with nothing typed into it commits nothing, so the
-	// flip stays byte-neutral like every other flip.
+	// The other half of the same rule: a source shown but not typed into commits nothing, so the
+	// mode change moves no byte, like every other one.
 	test('a reveal opened but not edited writes nothing across the flip', async ({ page }) => {
 		await editor.revealFromTrailingEdge(1);
 		await flipTo(page, 'live');

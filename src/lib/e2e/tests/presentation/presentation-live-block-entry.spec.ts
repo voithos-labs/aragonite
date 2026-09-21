@@ -3,9 +3,9 @@ import type { EditorPage } from '../../editor-page';
 import type { Page } from '@playwright/test';
 import { clickBlockSettled, enterPresentationMode, focusOffset } from './helpers';
 
-// The exit's mirror: a block ENTRY seats CURSOR_END or raw 0, and in live both can sit past the
-// block's landable extremes — same pixel as the content edge, but the typing seat reads them as
-// inside the construct.
+// The mirror of leaving a block: entering one puts the caret at CURSOR_END or raw 0, and in live
+// mode both can sit past the offsets the caret may occupy: the same pixel as the content edge,
+// but typed bytes would go inside the construct.
 // Requirements: e2e/requirements/presentation/presentation-live-block-entry.md.
 
 const DOC = [
@@ -70,9 +70,9 @@ test.describe('live mode — an arrival seats where the walk could have stopped'
 		expect(await ep.bridge.getSource()).toContain('**bold**Z');
 	});
 
-	// The mirror of the two rows above. Every offset clamps at the park door; the split
-	// continuation alone keeps byte 0, through CURSOR_EXACT_START
-	// (`presentation-live-split.spec.ts` "typing continues inside the reopened construct").
+	// The mirror of the two rows above. Every offset is clamped where the caret is placed; only a
+	// split's continuation keeps byte 0, through CURSOR_EXACT_START
+	// (`presentation-live-split.spec.ts`, "typing continues inside the reopened construct").
 	test('entering a block that opens with bold lands at its content start', async ({ page }) => {
 		await arriveFrom(ep, page, BOLD_TAIL, 'ArrowRight');
 		expect((await ep.bridge.getSelectionPaths())?.focus.path).toEqual([BOLD_LEAD]);
@@ -80,13 +80,13 @@ test.describe('live mode — an arrival seats where the walk could have stopped'
 
 		await page.keyboard.type('Z');
 		await ep.bridge.waitForSourceContains('Z');
-		// A line-leading construct seats OUTSIDE, so the byte lands before it.
+		// The caret goes outside a construct that opens the line, so the byte lands before it.
 		expect(await ep.bridge.getSource()).toContain('Z**bold** opens this');
 	});
 
-	// An arrow walk is not the only door that says "the block's start": a structural edit lands
-	// the caret on a block it did not create, and a literal 0 seats it BEFORE a heading's hidden
-	// marker run, where the next byte dissolves the construct into a paragraph.
+	// Arrow keys are not the only way to reach "the block's start": a structural edit puts the
+	// caret on a block it did not create, and a literal 0 would put it before a heading's hidden
+	// marker run, where the next byte turns the heading into a paragraph.
 	test('a reorder landing seats at the content start', async ({ page }) => {
 		await ep.loadContent('Alpha\n\n## Beta\n');
 		await ep.waitForRenderFlush();
@@ -100,8 +100,9 @@ test.describe('live mode — an arrival seats where the walk could have stopped'
 		expect(await ep.bridge.getSource()).toContain('## ZBeta');
 	});
 
-	// The one arrival that seated its caret by direct DOM write instead of the sentinel door
-	// (GH #110): raw 0 sits behind the hidden opener, and the next byte joined the construct.
+	// The one arrival that places its caret by writing the DOM directly rather than through the
+	// shared placement (GH #110): raw 0 sits behind the hidden opener, and the next byte would
+	// join the construct.
 	test('Home in a list item opening with a construct types outside it', async ({ page }) => {
 		await ep.loadContent('- **bold** tail\n');
 		await ep.waitForRenderFlush();
@@ -117,8 +118,8 @@ test.describe('live mode — an arrival seats where the walk could have stopped'
 		expect(await ep.bridge.getSource()).toContain('- Z**bold** tail');
 	});
 
-	// The vertical arrival lands by pixel column rather than by sentinel, so it already stopped
-	// on a landable offset; pinned so the two arrivals cannot drift apart.
+	// Arriving from above or below lands by pixel column rather than by a placement constant, so
+	// it already stops on an offset the caret may occupy; pinned so the two cannot drift apart.
 	test('the vertical arrival lands on the same offset', async ({ page }) => {
 		await clickBlockSettled(ep, MIDDLE);
 		await page.keyboard.press('End');
