@@ -1,8 +1,8 @@
 /**
- * preview-inline's construct-reveal trigger: an inline construct's markers stay CSS-hidden until
- * the caret enters its INCLUSIVE `[start, end]`, revealing the whole enclosing chain. Reveal is a
- * class flip on `data-construct-*` spans, so the DOM text never changes and raw offsets survive it
- * (spec: the preview-inline-affinity e2e requirement).
+ * What shows an inline construct's markers in preview-inline mode: they stay hidden by CSS until
+ * the caret enters the construct's `[start, end]`, bounds included, and then the whole enclosing
+ * chain shows. Showing them only toggles a class on `data-construct-*` spans, so the DOM text
+ * never changes and raw offsets survive it (the preview-inline-affinity e2e requirement).
  */
 
 import { tick } from 'svelte';
@@ -24,8 +24,8 @@ import {
 // ── Chain math (pure) ────────────────────────────────────────────────────────
 
 /**
- * Every revealable construct whose inclusive `[start, end]` contains `offset`, outermost
- * first; at a boundary shared by adjacent siblings both are collected.
+ * Every construct that can show its markers whose `[start, end]` contains `offset`, bounds
+ * included, outermost first; at a boundary two siblings share, both are collected.
  */
 export function constructChainAtOffset(nodes: InlineNode[], offset: number): InlineNode[] {
 	// A child lies inside its parent's range, so a node that misses the offset prunes its subtree.
@@ -37,7 +37,7 @@ export function constructChainAtOffset(nodes: InlineNode[], offset: number): Inl
 	return chain;
 }
 
-// ── Trigger (DOM class flips) ────────────────────────────────────────────────
+// ── Toggling the DOM classes ─────────────────────────────────────────────────
 
 interface ChainEntry {
 	kind: InlineNode['kind'];
@@ -51,22 +51,23 @@ export interface ConstructRevealDeps {
 	getEl: () => HTMLElement | null;
 	getAmbientLength: () => number;
 	getPresentationMode: () => PresentationMode;
-	/** Cross-block selections freeze the reveal state, so a sweep anchored in revealed
-	 *  marker text keeps its layout. */
+	/** A cross-block selection freezes what is shown, so a drag anchored in visible marker
+	 *  text keeps its layout. */
 	isCrossBlock: () => boolean;
 }
 
 export interface ConstructReveal {
-	/** Re-evaluate the caret chain and flip marker classes to match. `force` after a
-	 *  rebuild: fresh spans carry no reveal class even on an unchanged chain key. */
+	/** Work out the caret's chain again and set the marker classes to match. Pass `force`
+	 *  after a rebuild: new spans carry no class even when the chain is unchanged. */
 	update(force?: boolean): void;
-	/** Synchronous keydown backstop, reveal-only: Chromium prioritizes input events over
-	 *  normal tasks, so rapid arrows outrun the selectionchange reveal and would step
-	 *  against still-folded markers. Reveals the caret's chain plus `delta`'s (0 = neither). */
+	/** A synchronous backstop on keydown that only shows markers, never hides them: Chromium
+	 *  runs input events ahead of normal tasks, so fast arrow keys outrun the `selectionchange`
+	 *  update and would step against markers still hidden. Shows the caret's chain plus
+	 *  `delta`'s (0 for neither). */
 	prepareStep(delta: -1 | 0 | 1): void;
-	/** Keydown wiring for `prepareStep`. Owns the key vocabulary so the component stays
-	 *  free of destructive-key literals, which G4.12 scans for as interceptor shape;
-	 *  this module holds no preventDefault and consumes nothing. */
+	/** Keydown wiring for `prepareStep`. It holds the key names so the component carries no
+	 *  destructive-key literals, which the G4.12 scan reads as an interceptor; nothing here
+	 *  calls `preventDefault` or consumes an event. */
 	prepareForKeydown(e: KeyboardEvent): void;
 }
 
@@ -139,8 +140,8 @@ export function createConstructReveal(deps: ConstructRevealDeps): ConstructRevea
 		appliedKey = key;
 	}
 
-	// A fold to no chain must survive a tick: cross-block entry clears the native selection
-	// before the cross-block flag flips, manufacturing a transient fold-shaped state.
+	// Hiding everything has to survive a tick: entering a cross-block selection clears the
+	// browser selection before the cross-block flag is set, which briefly looks like no chain.
 	function queueFoldRecheck(): void {
 		if (foldRecheckQueued) return;
 		foldRecheckQueued = true;
@@ -183,7 +184,7 @@ export function createConstructReveal(deps: ConstructRevealDeps): ConstructRevea
 				if (!chain.some((c) => c.start === n.start && c.end === n.end)) chain.push(toEntry(n));
 			}
 		}
-		// Reveal-only: any fold an empty union implies belongs to the selection cadence.
+		// This only shows markers: hiding them again is the selection handler's job.
 		if (chain.length === 0) return;
 		const key = chainKey(chain);
 		if (key === appliedKey) return;

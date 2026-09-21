@@ -1,8 +1,8 @@
 /**
  * The bytes an insertion produces while marks are pending. A mark resolves against the caret's
- * construct chain (live-mode.md § 4.3): a kind the chain lacks WRAPS the insertion, a kind it
- * carries escapes it. Flanking rules mean a splice that READS right can PARSE wrong
- * (`**hello**X** world**` renders literal stars), so every candidate is re-parsed and checked.
+ * chain of enclosing constructs (live-mode.md § 4.3): a kind the chain lacks wraps the insertion,
+ * a kind it already has escapes it. Flanking rules mean a splice that reads right can parse wrong
+ * (`**hello**X** world**` renders literal stars), so every candidate is reparsed and checked.
  */
 
 import {
@@ -23,16 +23,16 @@ import {
 import { insertsExactly } from './screen-diff';
 
 export interface MarkedInsertion {
-	/** The block's whole display bytes after the insertion. */
+	/** The block's whole displayed text after the insertion. */
 	raw: string;
-	/** Where the caret lands — after the inserted text, inside whatever now wraps it. */
+	/** Where the caret lands: after the inserted text, inside whatever now wraps it. */
 	caret: number;
 }
 
 /**
  * The insertion `text` at `caretOffset` makes under `marks`. Null when the marks name nothing to
- * do, or when no candidate parses back to what was asked — markdown cannot express every
- * combination at every caret, and a byte that types plain beats one that shows delimiters.
+ * do, or when no candidate parses back to what was asked: Markdown cannot express every
+ * combination at every caret, and a byte that types plainly beats one that shows delimiters.
  */
 export function resolveMarkedInsertion(
 	display: string,
@@ -49,9 +49,9 @@ export function resolveMarkedInsertion(
 		.map((entry) => entry.kind)
 		.filter((kind) => marks.has(kind) && !chain.some((node) => node.mark === kind));
 	const removedKinds = new Set<AnyInlineKind>(removed.map((node) => node.kind));
-	// What must enclose the inserted text afterwards: every construct the caret was inside minus
-	// the ones this chord removes, plus the ones it adds. Non-markable ancestors are in it too —
-	// that is what stops an escape from carrying the byte out of a link it was inside.
+	// What must enclose the inserted text afterwards: every construct the caret was inside, minus
+	// the ones this chord removes, plus the ones it adds. Ancestors with no mark are in it too,
+	// which is what stops an escape from carrying the byte out of a link it was inside.
 	const intended = new Set<AnyInlineKind>([
 		...chain.map((node) => node.kind).filter((kind) => !removedKinds.has(kind)),
 		...applied
@@ -77,7 +77,7 @@ export function resolveMarkedInsertion(
 
 interface Candidate {
 	raw: string;
-	/** Where `text` itself begins in `raw` — the span the verification reads the chain around. */
+	/** Where `text` itself begins in `raw`, the span the check reads the chain around. */
 	textAt: number;
 }
 
@@ -117,9 +117,9 @@ function* candidateInsertions(
 	for (const at of sides) yield spliceWrapped(display, at, text, payload);
 }
 
-/** The marks the insertion must declare for itself: the intended ones its surroundings do not
- *  already provide, outermost first. Rows rather than kinds, so nothing downstream can look a
- *  marker up and miss. */
+/** The marks the insertion must write for itself: the intended ones its surroundings do not
+ *  already provide, outermost first. Policy entries rather than bare kinds, so nothing downstream
+ *  has to look a marker up and miss. */
 function marksToWrite(
 	intended: ReadonlySet<AnyInlineKind>,
 	provided: readonly ChainNode[]
@@ -146,9 +146,9 @@ function spliceWrapped(
 	};
 }
 
-/** Close every escaped construct before the insertion and reopen it after — the split that keeps
+/** Close every escaped construct before the insertion and reopen it after, the split that keeps
  *  the user's text where they put it. An empty half would leave a pair enclosing nothing, the
- *  invisible `****` residue live mode must never mint, so that side steps outside the run. */
+ *  invisible `****` live mode must never create, so that side steps outside the run. */
 function splitOpen(
 	display: string,
 	caretOffset: number,
@@ -182,10 +182,10 @@ interface BlockBefore {
 }
 
 /**
- * Three questions, and a candidate answers all of them or it is not written. Did the mark TAKE —
- * do exactly the intended constructs enclose the inserted text? Did every construct the block
- * already held SURVIVE — a delimiter run shared between two pairings rebinds under any splice, and
- * the loser is a construct nobody asked to spend. And is the rewrite invisible otherwise?
+ * Three questions, and a candidate answers all of them or it is not written. Did the mark take,
+ * so that exactly the intended constructs enclose the inserted text? Did every construct the
+ * block already held survive, since a delimiter run shared between two pairings can rebind under
+ * any splice and lose one nobody asked to give up? And is the rewrite invisible otherwise?
  */
 function parsesAsIntended(
 	candidate: Candidate,
@@ -216,11 +216,11 @@ function enclosingKinds(
 	return kinds;
 }
 
-/** What a reader sees, asked of the thing that actually paints it: only the render path knows
- *  which bytes a kind paints as markers (G4.33), so no private walk over the parse. The content
- *  reading, not the block's own: the first byte typed into content-empty chrome folds it away, and
- *  the diff above would read that fold as bytes lost. This arm only ADDS bytes, so no reading of
- *  it licenses dropping one the reader saw. */
+/** What the user sees, asked of the code that draws it: only the render knows which bytes a kind
+ *  draws as markers (G4.33), so nothing here scans the parse tree itself. The content reading, not
+ *  the block's own: the first byte typed into an empty construct hides its markers, and the
+ *  comparison above would read that as bytes lost. This only adds bytes, so no reading of it can
+ *  license dropping one. */
 function visibleText(raw: string, parsed?: readonly InlineNode[]): string {
 	return renderedText(parsed ?? parseInline(raw, 0, raw.length), raw, CONTENT_VISIBILITY);
 }
@@ -249,11 +249,11 @@ function isSymmetricPair(kind: AnyInlineKind): boolean {
 }
 
 /**
- * EVERY construct holding `offset`, outermost first: one missing from the chain is missing from
- * `intended`, which is what lets a candidate destroy it unnoticed. A construct with children is
- * content-INCLUSIVE, a childless one STRICT-interior, its edges being ordinary insertion points.
- * Exported for the depth pin, which has to reach it with a tree no insertion this deep could be
- * rendered at.
+ * Every construct holding `offset`, outermost first: one missing from the chain is missing from
+ * `intended`, which is what lets a candidate destroy it unnoticed. A construct with children
+ * includes its content bounds; one without them counts only its strict interior, since its edges
+ * are ordinary insertion points. Exported for the depth test, which has to reach it with a tree
+ * no real insertion could be rendered at.
  */
 export function constructChainAt(offset: number, inlines: readonly InlineNode[]): ChainNode[] {
 	const holds = (node: InlineNode): boolean => holdsOffset(node, offset);
@@ -273,8 +273,8 @@ export function constructChainAt(offset: number, inlines: readonly InlineNode[])
 	return chain;
 }
 
-/** Whether `offset` sits inside this construct, on the reading the chain doc states. Text is
- *  content, and nothing under it is a construct either. */
+/** Whether `offset` sits inside this construct, on the reading `constructChainAt` describes. Text
+ *  is content, and nothing under it is a construct either. */
 function holdsOffset(node: InlineNode, offset: number): boolean {
 	if (node.kind === 'text') return false;
 	const content = constructContentRange(node);

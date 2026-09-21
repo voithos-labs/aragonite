@@ -1,7 +1,7 @@
 /**
- * Pure raw/caret transforms for TextEditableBlock's structural gestures — heading-level
- * swap, demotion to prose, hard-break insertion, literal-tab insertion. The component
- * owns the plumbing; these own the string math.
+ * Pure raw and caret transforms for TextEditableBlock's structural gestures: changing a
+ * heading's level, demoting it to prose, inserting a hard break, inserting a literal tab.
+ * The component owns the wiring; these own the string math.
  */
 
 import type { ContentRange } from '../../../core/inline';
@@ -19,9 +19,9 @@ export interface TextEditResult {
 
 /**
  * Give up the block's own structural bytes, whichever end the kind keeps them at: a prefix for
- * ATX, an underline line for setext. Both sides read the kind's CONTENT RANGE and nothing else, so
- * a prefix rewrite cannot disagree with the gate that let the press through (`  ## x` is a heading
- * whose `#`s a `^#` regex never reaches). Null where the content IS the whole display.
+ * ATX, an underline line for setext. Both sides read the kind's content range and nothing else, so
+ * a prefix rewrite cannot disagree with the check that let the key through (`  ## x` is a heading
+ * whose `#`s a `^#` regex never reaches). Null where the content is the whole displayed text.
  */
 export function demoteToParagraph(
 	raw: string,
@@ -34,8 +34,8 @@ export function demoteToParagraph(
 	return null;
 }
 
-/** Drop everything before `contentStart` — a heading's marker prefix and any spaces that precede
- *  it, which sit before every caret the content range admits. */
+/** Drop everything before `contentStart`: a heading's marker prefix and any spaces before it,
+ *  which sit ahead of every caret the content range allows. */
 export function dropStructuralPrefix(
 	raw: string,
 	contentStart: number,
@@ -47,8 +47,8 @@ export function dropStructuralPrefix(
 	};
 }
 
-/** Drop everything past `contentEnd` but the block's own trailing line ending — the setext
- *  underline, which sits after every caret the content range admits. */
+/** Drop everything past `contentEnd` but the block's own trailing line ending: the setext
+ *  underline, which sits after every caret the content range allows. */
 export function dropStructuralSuffix(
 	raw: string,
 	contentEnd: number,
@@ -61,9 +61,10 @@ export function dropStructuralSuffix(
 }
 
 /**
- * An ATX heading left with no text is a marker standing over nothing: unfocused it paints
- * nothing (the chrome-only stamp is focus-scoped), so the block would survive invisibly and
- * resurface as a `#` on the next click. On blur it becomes the empty paragraph it looks like.
+ * An ATX heading left with no text is a marker standing over nothing: unfocused it draws
+ * nothing, since the marker-only data attribute only applies while focused, so the block would
+ * survive invisibly and come back as a `#` on the next click. On blur it becomes the empty
+ * paragraph it looks like.
  */
 export function demoteEmptyAtxHeading(raw: string, content: ContentRange): TextEditResult | null {
 	if (content.start === 0 || content.end > content.start) return null;
@@ -71,11 +72,11 @@ export function demoteEmptyAtxHeading(raw: string, content: ContentRange): TextE
 }
 
 /**
- * Re-mark the block's CONTENT with an ATX prefix for `level`, replacing whatever structural bytes
- * the current kind keeps — the same content range {@link demoteToParagraph} reads, so an indented
- * `  ## x` or a setext underline is given up rather than left in the new heading's text.
- * `level === 0` IS the demotion, and null there means the content already is the whole display.
- * Idempotent, not a toggle: stripping is reached only by asking for level 0.
+ * Re-mark the block's content with an ATX prefix for `level`, replacing whatever structural bytes
+ * the current kind keeps. It reads the same content range {@link demoteToParagraph} does, so an
+ * indented `  ## x` or a setext underline is given up rather than left in the new heading's text.
+ * `level === 0` is the demotion, and null there means the content already is the whole displayed
+ * text. Idempotent, not a toggle: stripping happens only by asking for level 0.
  */
 export function cycleHeading(
 	raw: string,

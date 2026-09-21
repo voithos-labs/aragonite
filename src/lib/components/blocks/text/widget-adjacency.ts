@@ -14,7 +14,7 @@ export interface WidgetRange {
 
 export interface WidgetAtCursor extends WidgetRange {
 	atRight: boolean;
-	// Drives the call site's caret-entry policy; carried so it needn't re-walk the content.
+	// The caller picks its caret-entry policy from this; included so it need not scan again.
 	kind: AnyInlineKind;
 }
 
@@ -92,8 +92,8 @@ export function rawHasNoTextAfter(raw: string, offset: number): boolean {
 	return raw.slice(offset).trim() === '';
 }
 
-/** The live inline-widget island whose source starts at `start`, or null. The one home
- *  for this selector — a typo'd copy would fail silently as a null querySelector. */
+/** The inline-widget element whose source starts at `start`, or null. The only place this
+ *  selector is written: a mistyped copy would fail silently as a null `querySelector`. */
 export function widgetElByStart(el: HTMLElement, start: number): HTMLElement | null {
 	return el.querySelector<HTMLElement>(`[data-inline-widget][data-source-start="${start}"]`);
 }

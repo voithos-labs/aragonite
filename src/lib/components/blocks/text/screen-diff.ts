@@ -1,8 +1,8 @@
 /**
- * What a live rewrite claims it did to the SCREEN, as two predicates over the painter's before and
- * after readings (live-mode.md § 2), plus the sole-prose reparse a candidate must survive first.
- * Shared, so the verification arms ask the same questions of the same shapes rather than each
- * carrying its own walk.
+ * What a live rewrite says it did to the screen, as two checks over the text before and after
+ * (live-mode.md § 2), plus the single-prose-block reparse a candidate must survive first.
+ * Shared, so every caller asks the same questions of the same shapes instead of writing its own
+ * traversal.
  */
 
 import { getContentRange, isProseKind, parseInline } from '../../../core/inline';
@@ -20,8 +20,8 @@ export function insertsExactly(before: string, after: string, text: string): boo
 	);
 }
 
-/** Whether `after` is `before` with exactly `removed` gone from one place — the whole claim a cut
- *  makes to the reader, asked of the bytes the parser produced rather than the ones it was given. */
+/** Whether `after` is `before` with exactly `removed` gone from one place: everything a cut
+ *  promises the user, asked of the bytes the parser produced rather than the ones it was given. */
 export function removesExactly(before: string, after: string, removed: string): boolean {
 	if (after.length !== before.length - removed.length) return false;
 	let at = 0;
@@ -32,9 +32,9 @@ export function removesExactly(before: string, after: string, removed: string): 
 	);
 }
 
-/** A candidate's admission gate: its bytes reload as exactly ONE prose block, whose inline tree the
- *  caller then reads its own oracle over. Null declines — a reload that splits or re-kinds the
- *  block is not what the caller is about to install. */
+/** The check a candidate must pass: its bytes reparse as exactly one prose block, whose inline
+ *  tree the caller then runs its own test over. Null refuses, because a reparse that splits the
+ *  block or changes its kind is not what the caller is about to install. */
 export function soleProseReparse(
 	raw: string,
 	resolver?: LinkReferenceResolver

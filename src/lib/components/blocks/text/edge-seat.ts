@@ -1,8 +1,8 @@
 /**
- * Which side of a construct's unpainted marker run a typed byte belongs to: a run painted at zero
- * width leaves one screen position naming two raw offsets. The kind's `edgeAffinity` policy answers
- * first (a link never extends), the arrival affinity second — and the painter has the last word
- * (live-mode.md § 2), since a seat that reads right can parse wrong.
+ * Which side of a construct's hidden marker run a typed byte belongs to: a run drawn at zero width
+ * leaves one screen position standing for two raw offsets. The kind's `edgeAffinity` policy answers
+ * first (a link never extends), the side the caret arrived from second, and the render has the last
+ * word (live-mode.md § 2), since a position that reads right can parse wrong.
  */
 
 import type { AnyInlineKind, InlineNode } from '../../../core/nodes';
@@ -31,8 +31,8 @@ export interface EdgeSeat {
 
 /**
  * Where `typed` belongs when the caret sits at `caretOffset`, or null when the offset touches no
- * construct marker run, the kind declares no policy, or no candidate earns the write. Declining is
- * the honest fallback: the byte then lands at the caret, which is what the engine writes anyway.
+ * construct marker run, the kind declares no policy, or no candidate earns the write. Refusing is
+ * the honest fallback: the byte then lands at the caret, which is what the browser writes anyway.
  */
 export function resolveEdgeSeat(
 	caretOffset: number,
@@ -55,8 +55,8 @@ export function resolveEdgeSeat(
 		return insertsExactly(before, after, typed);
 	};
 	for (const offset of candidateOffsets(run, policy.edgeAffinity, affinity, caretOffset, runs)) {
-		// The walk's read and Chromium's insertion canonicalize the same way, so a verified
-		// `seat === caret` means native typing already lands where the seat wants it.
+		// The DOM-to-offset traversal and Chromium's insertion normalise the same way, so a
+		// verified answer equal to the caret means ordinary typing already lands there.
 		if (offset === caretOffset) {
 			if (holds(offset)) return null;
 			continue;
@@ -67,9 +67,9 @@ export function resolveEdgeSeat(
 }
 
 /**
- * The bytes a COMPOSITION commit should have written. `insertCompositionText` beforeinput is not
- * cancelable, so the seat cannot intercept the keystroke and relocates the composed run once, on
- * the commit that lands it. Null leaves the read as-is.
+ * The bytes an IME composition's commit should have written. The `insertCompositionText`
+ * beforeinput event is not cancelable, so the keystroke cannot be intercepted; the composed run
+ * is moved once instead, on the commit that lands it. Null leaves the reading as it is.
  */
 export function relocateComposedRun(
 	before: string,
@@ -89,8 +89,8 @@ export function relocateComposedRun(
 	};
 }
 
-/** The text a commit's read added at `at`, or null when the read is not a plain insertion
- *  there — a composition over a selection is a range op, and no seat claims a range. */
+/** The text a commit's reading added at `at`, or null when that reading is not a plain insertion
+ *  there: a composition over a selection is a range edit, which nothing here handles. */
 export function plainInsertionAt(before: string, after: string, at: number): string | null {
 	const length = after.length - before.length;
 	if (length <= 0 || at < 0 || at > before.length) return null;
@@ -100,11 +100,11 @@ export function plainInsertionAt(before: string, after: string, at: number): str
 }
 
 /**
- * Every raw offset the caret's screen position ADMITS — the seat's whole reach, and empty where no
- * marker run touches the caret. A hidden run's hidden neighbours name the same position, so the
- * stretch of abutting runs is one position and each boundary in it is a seat; an offset inside a
- * run's own bytes is inside some construct's delimiters, which is where no byte belongs. A caret
- * strictly inside a run is one such offset, so the reach can exclude the caret it was asked about.
+ * Every raw offset the caret's screen position allows, and empty where no marker run touches the
+ * caret. Hidden runs that abut name the same position, so a whole stretch of them is one position
+ * and each boundary in it is allowed; an offset inside a run's own bytes sits inside some
+ * construct's delimiters, where no byte belongs. A caret strictly inside a run is one of those,
+ * so the result can leave out the very caret it was asked about.
  */
 export function seatOffsetsAt(
 	caretOffset: number,
@@ -143,11 +143,12 @@ const otherEnd = (run: MarkerRun, side: EdgeAffinity): number =>
 	offsetForSide(run, side) === run.start ? run.end : run.start;
 
 /**
- * The offsets to try, best first: the policy's side, then the run's other end — the split
- * rebalancer's space-outside reading in the seat's terms, since a byte the run's inner side kills
- * is one its outer side keeps. Then the byte-literal write, verified like any other candidate: a
- * parse it rebinds is no reason to stop looking. The rest of the screen position ends the list,
- * nearest the policy's side first, for the caret whose own construct has no answer to give.
+ * The offsets to try, best first: the side the policy names, then the run's other end, which is
+ * the split rebalancer's "keep the space outside" rule in these terms, since a byte the run's
+ * inner side destroys is one its outer side keeps. Then the literal caret offset, checked like
+ * any other candidate, because a parse it changes is no reason to stop looking. The rest of the
+ * screen position ends the list, nearest the policy's side first, for a caret whose own
+ * construct has no answer.
  */
 function candidateOffsets(
 	run: MarkerRun,
@@ -156,9 +157,9 @@ function candidateOffsets(
 	caretOffset: number,
 	runs: readonly MarkerRun[]
 ): number[] {
-	// Never-extend resolves like a line extreme: past the construct's delimiters, which is the
-	// run's near side at an opener and its far side at a closer. A symmetric pair follows the
-	// arrival, defaulting to the near side — the gdocs click default (live-mode.md § 4.2).
+	// `never-extend` resolves like the end of a line: past the construct's delimiters, which is
+	// the run's near side at an opener and its far side at a closer. A symmetric pair follows the
+	// side the caret arrived from, defaulting to the near side, as Google Docs does (§ 4.2).
 	const side: EdgeAffinity = edgeAffinity === 'never-extend' ? 'outside' : (affinity ?? 'near');
 	const preferred = offsetForSide(run, side);
 	const ranked = [preferred, otherEnd(run, side), caretOffset];
@@ -169,10 +170,10 @@ function candidateOffsets(
 	return edgeAffinity === 'never-extend' ? offsets.filter((o) => outsideSpan(run, o)) : offsets;
 }
 
-/** Whether `offset` lies outside the run's own construct. A `never-extend` row admits nothing
+/** Whether `offset` lies outside the run's own construct. A `never-extend` row allows nothing
  *  inside: half a URL is not a URL, half an escape is a literal backslash, and a destination the
- *  mode never paints is one the painter cannot check. Stated over the SPAN rather than over the
- *  run's inner end, since the screen position reaches an interior through a neighbour's run too. */
+ *  mode never draws is one the render cannot check. Stated over the construct's whole span rather
+ *  than its run's inner end, since the screen position reaches inside through a neighbour's run. */
 const outsideSpan = (run: MarkerRun, offset: number): boolean =>
 	offset <= run.span.start || offset >= run.span.end;
 
@@ -202,14 +203,14 @@ function screenPositionOffsets(run: MarkerRun, runs: readonly MarkerRun[]): numb
 	return [...bounds];
 }
 
-/** The bytes the inline tree covers — the block's content range, read off the tree rather than
- *  taken as a second parameter that could disagree with it. */
+/** The bytes the inline tree covers, which is the block's content range, read off the tree rather
+ *  than passed in as a second parameter that could disagree with it. */
 function contentBounds(inlines: readonly InlineNode[]): ContentRange {
 	return { start: inlines[0].start, end: inlines[inlines.length - 1].end };
 }
 
-/** What a reader sees, asked of the thing that paints it (G4.33). The content reading, not the
- *  block's own: this seam only ADDS bytes, so no reading of it licenses dropping one. */
+/** What the user sees, asked of the code that draws it (G4.33). The content reading, not the
+ *  block's own: this module only adds bytes, so no reading of it can license dropping one. */
 const shown = (raw: string, start: number, end: number): string =>
 	renderedText(parseInline(raw, start, end), raw, CONTENT_VISIBILITY);
 
@@ -235,9 +236,9 @@ function markerRuns(
 }
 
 /**
- * The run `offset` sits in, its own boundaries included — the LAST in pre-order, so the innermost
- * construct at a shared boundary wins. INSIDE counts, not just the two ends: a doubled code fence
- * is a run a caret can be handed the middle of.
+ * The run `offset` sits in, its own boundaries included: the last in pre-order, so the innermost
+ * construct at a shared boundary wins. Inside the run counts too, not only its two ends, because
+ * a doubled code fence is a run a caret can be handed the middle of.
  */
 const runAt = (offset: number, runs: readonly MarkerRun[]): MarkerRun | null =>
 	runs.reduce<MarkerRun | null>(
@@ -246,12 +247,12 @@ const runAt = (offset: number, runs: readonly MarkerRun[]): MarkerRun | null =>
 	);
 
 /**
- * What a CHILDLESS construct paints, as a range in the block's own bytes: the outer bounds of its
- * visible runs, which such a construct has one contiguous stretch of — the precondition the two
- * marker runs below are carved out of, held by `test/core/inline/painted-contiguity.property`.
- * Asked of the render path rather than derived per kind, since which bytes a construct shows only
- * the painter answers (G4.33), and in the block's OWN reading: where its chrome paints, the whole
- * construct is on screen, no run is hidden, and the seat has nothing to relocate.
+ * What a construct with no children draws, as a range in the block's own bytes: the outer bounds
+ * of its visible runs, one continuous stretch for such a construct. That continuity is what the
+ * two marker runs below are carved out of, held by
+ * `test/core/inline/painted-contiguity.property`. Asked of the render rather than worked out per
+ * kind, since only the render knows which bytes a construct shows (G4.33), and read in the
+ * block's own mode: where markers are drawn, nothing is hidden and nothing needs moving.
  */
 function paintedRange(
 	node: InlineNode,

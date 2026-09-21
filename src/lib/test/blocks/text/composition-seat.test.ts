@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
-// The per-composition capture: one window from noteStart to the commit, holding the inputs the
-// commit's own re-arm has spent by the time the run arrives. The relocation table itself is
-// edge-seat's suite; the mode gate sits at the surface (editable-surface-composition-seat).
+// What one composition captures, from `noteStart` to the commit: the values the commit itself has
+// already overwritten by the time the composed run arrives. Where that run moves to is
+// `edge-seat`'s suite; the mode check lives in the block (`editable-surface-composition-seat`).
 import { describe, it, expect } from 'vitest';
 import { parseInline } from '$lib/core/inline';
 import { createCompositionSeat } from '$lib/components/blocks/text/composition-seat';
@@ -15,8 +15,8 @@ const BOLD = 'Some **bold** text';
 
 interface Live {
 	display: string;
-	/** Held at the pre-composition parse, as in production: commits are skipped mid-window,
-	 *  so the component's live inline read still answers the pre-composition tree. */
+	/** Kept at the parse from before the composition, as in production: commits are skipped
+	 *  while one runs, so the component's live read still answers with the old tree. */
 	inlines: ReturnType<typeof parseInline>;
 	affinity: EdgeAffinity | null;
 	marks: ReadonlySet<InlineMarkKind> | null;
@@ -56,7 +56,7 @@ describe('the window is captured at noteStart, not read at the commit', () => {
 		const live = liveState(BOLD, 'far');
 		const seat = makeSeat(live);
 		seat.noteStart();
-		// The surface's own start half re-arms the affinity and the DOM moves mid-window.
+		// The block's own `compositionstart` resets the arrival side, and the DOM moves too.
 		live.affinity = 'near';
 		live.display = 'unrelated';
 		expect(seat.relocate('Some **boldかん** text', 11)).toEqual({
@@ -85,9 +85,9 @@ describe('pending marks beat the arrival side', () => {
 	});
 });
 
-// The window takes the marks out of the affinity's reach at compositionstart, which spends them
-// whether or not the composition ever commits. An IME cancel is a composition that inserts
-// nothing, so the promise the toggle made is still owed to the next insertion.
+// The capture takes the marks at `compositionstart`, which spends them whether or not the
+// composition ever commits. A cancelled IME run inserts nothing, so what the toggle promised is
+// still due to the next insertion.
 describe('a composition that commits nothing returns the marks it took', () => {
 	it('hands back a set no commit spent', () => {
 		const live = liveState('hello', 'far');

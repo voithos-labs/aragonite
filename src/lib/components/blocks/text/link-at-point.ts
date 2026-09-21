@@ -1,7 +1,7 @@
 /**
- * Which link construct a pointer landed in, and how to find that construct again after an edit
- * rebuilt the tree. The offset comes from the shared DOM↔raw walk and the construct from the
- * reveal chain, so the card addresses exactly what the render path drew.
+ * Which link a click landed in, and how to find that link again after an edit rebuilt the tree.
+ * The offset comes from the shared DOM-to-raw traversal and the link from the same chain used
+ * when a construct shows its source, so the card points at exactly what was drawn.
  */
 
 import { ambientLengthOf } from '../../../ambient/ambient-dom';
@@ -16,7 +16,7 @@ import { isCardEditableInlineKind } from '../../../schema/inline-construct-polic
 import { constructChainAtOffset } from './construct-reveal';
 
 /** Both DOM shapes a bracketed link takes: `a` for an allowed scheme, `span.md-link-blocked` for a
- *  rejected one — and a blocked link is precisely the one a user opens the card to fix. */
+ *  rejected one, and a blocked link is exactly the one a user opens the card to fix. */
 export const LINK_ELEMENT_SELECTOR = '.md-link-content';
 
 /** Path plus construct start, never a node reference: every commit rebuilds the inline tree and the
@@ -32,21 +32,21 @@ export interface LinkPointResolution {
 }
 
 export interface LinkPointQuery {
-	/** The block's content element — the walk container the raw offset is measured in. */
+	/** The block's content element, the container the raw offset is measured inside. */
 	contentEl: HTMLElement;
 	block: NodeView;
 	path: number[];
 	linkRef?: LinkReferenceResolverRef;
 }
 
-/** The link the caret sits inside, read after the pointer has seated it. */
+/** The link the caret sits inside, read after the click has placed the caret. */
 export function resolveLinkAtPoint(query: LinkPointQuery): LinkPointResolution | null {
 	const offset = caretRawOffset(query.contentEl);
 	if (offset === null) return null;
 	const inlines = resolvedInlineContent(query.block, query.linkRef);
-	// Outermost-first, so the last card-editable construct in the chain is the one whose bytes
-	// enclose the pointer most tightly. The chain itself is the reveal's, which admits only
-	// revealable kinds, so an autolink never reaches this filter either way.
+	// Outermost first, so the last card-editable link in the chain is the one whose bytes enclose
+	// the click most tightly. It is the same chain used when a construct shows its source, which
+	// admits only kinds that can do so, so an autolink never reaches this filter anyway.
 	const link = constructChainAtOffset(inlines, offset).filter(isCardEditable).at(-1);
 	if (link === undefined) return null;
 	return { target: { path: query.path, sourceStart: link.start }, link };

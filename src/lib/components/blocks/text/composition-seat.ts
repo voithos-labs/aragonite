@@ -1,7 +1,7 @@
 /**
- * One composition's worth of seat inputs, captured at `compositionstart`. Both inputs the commit's
- * relocation needs — the arrival side and the pending marks — belong to the caret the composition
- * OPENED at, and the affinity re-arm has spent them by the time the composed run arrives.
+ * What an IME composition needs remembered, captured at `compositionstart`. The arrival side and
+ * the pending marks both belong to the caret the composition opened at, and by the time the
+ * composed run arrives the arrival side has been overwritten, so they are captured up front.
  */
 
 import type { InlineNode } from '../../../core/nodes';
@@ -12,22 +12,23 @@ import { plainInsertionAt, relocateComposedRun } from './edge-seat';
 import { resolveMarkedInsertion } from './pending-mark-insert';
 
 export interface CompositionSeatDeps {
-	/** The block's display bytes — what a commit's read is compared against. */
+	/** The block's displayed text, which a commit's reading is compared against. */
 	getDisplayText: () => string;
 	getInlines: () => readonly InlineNode[];
 	getAffinity: () => EdgeAffinity | null;
-	/** How the surface reads on screen, for the seat's own painted-range question. */
+	/** How the block reads on screen, for deciding which ranges are actually drawn. */
 	getScreen: () => VisibilityContext;
 	/** Spend the pending marks: a composition is the one insertion they were promised to. */
 	consumePendingMarks: () => ReadonlySet<InlineMarkKind> | null;
-	/** Give them back when the composition committed nothing — an IME cancel inserts no run, so
-	 *  the promise is still owed. Required, so both surfaces answer for it alike. */
+	/** Give them back when the composition wrote nothing: a cancelled IME run inserts nothing, so
+	 *  the marks are still pending. Required, so every block answers the same way. */
 	restorePendingMarks: (marks: ReadonlySet<InlineMarkKind>) => void;
-	/** The block's live selection, read at compositionstart: composing over one is a range op no
-	 *  plain-insertion arm claims, so it routes to `resolveRangeEdit`. Omit to keep ranges verbatim. */
+	/** The block's selection, read at `compositionstart`: composing over one is a range edit none of
+	 *  the plain insertion paths take, so it goes to `resolveRangeEdit`. Omit to keep ranges as the
+	 *  browser wrote them. */
 	getRawSelection?: () => { start: number; end: number } | null;
-	/** The surface's join-seam resolution for a range replace, in display bytes; null keeps the
-	 *  engine's own edit — the same decline contract as the keydown selection-edit arm. */
+	/** How this block resolves a range replace, in displayed bytes; null keeps the browser's own
+	 *  edit, the same refusal the keydown selection-edit path makes. */
 	resolveRangeEdit?: (
 		range: { start: number; end: number },
 		typed: string
@@ -35,9 +36,9 @@ export interface CompositionSeatDeps {
 }
 
 export interface CompositionSeat {
-	/** Capture the window the composition opened in. Call BEFORE the surface's own
-	 *  `compositionstart`, whose cross-block half clears the affinity, and before the first
-	 *  mid-composition `input`, which re-arms it to the typed side. */
+	/** Capture the state the composition opened in. Call it before the block's own
+	 *  `compositionstart`, whose cross-block half clears the arrival side, and before the first
+	 *  `input` during the composition, which resets that side to the typed one. */
 	noteStart(): void;
 	/** The bytes the commit should write, or null to keep the DOM read verbatim. */
 	relocate(after: string, composedAt: number): { raw: string; caret: number } | null;
@@ -49,14 +50,14 @@ interface CompositionWindow {
 	affinity: EdgeAffinity | null;
 	marks: ReadonlySet<InlineMarkKind> | null;
 	range: { start: number; end: number } | null;
-	/** Whether a commit asked this window for bytes. The relocation's own answer does not matter:
-	 *  a run arrived either way, and that run is the insertion the marks were promised to. */
+	/** Whether a commit asked for bytes. The answer given does not matter: a run arrived either
+	 *  way, and that run is the insertion the marks were promised to. */
 	committed: boolean;
 }
 
 export function createCompositionSeat(deps: CompositionSeatDeps): CompositionSeat {
-	// A single nullable capture rather than a stack: the window is compositionstart → the one
-	// commit compositionend drives.
+	// One nullable capture rather than a stack: a composition runs from `compositionstart` to the
+	// single commit `compositionend` drives.
 	let started: CompositionWindow | null = null;
 
 	return {
@@ -72,8 +73,9 @@ export function createCompositionSeat(deps: CompositionSeatDeps): CompositionSea
 		relocate: (after, composedAt) => {
 			if (started === null) return null;
 			started.committed = true;
-			// A selection at the window's open makes this a range replace: the plain arms below
-			// cannot claim it, and the engine's literal replace strands the runs the range crossed.
+			// A selection open when the composition started makes this a range replace: the plain
+			// paths below cannot take it, and the browser's literal replace strands the delimiter
+			// runs the range crossed.
 			if (started.range && started.range.start < started.range.end) {
 				const typed = replacedRangeInsertion(started.before, after, started.range);
 				if (typed === null) return null;
@@ -113,8 +115,8 @@ export function createCompositionSeat(deps: CompositionSeatDeps): CompositionSea
 	};
 }
 
-/** The run the commit's read put over `range`, or null when the read is not a replacement of
- *  exactly that span — then nothing here knows what the engine did, and verbatim is honest. */
+/** The run the commit's reading put over `range`, or null when that reading is not a replacement
+ *  of exactly that span: nothing here can tell what the browser did, so verbatim is honest. */
 function replacedRangeInsertion(
 	before: string,
 	after: string,

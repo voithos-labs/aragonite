@@ -1,9 +1,9 @@
 /**
  * A typed inline delimiter closes itself: a lone `$`, backtick, `*`, `_` or `~~` would pair with
- * whatever matching run comes later on the line, so the keystroke lands its twin after the caret.
- * Typing the closer over the twin steps past it, a closer typed by hand seats the next byte
- * outside, and the empty pair drops its twin when the first body byte makes it no construct.
- * `applyDelimiterAutoPair` is the one `beforeinput` arm every prose surface runs (G4.65).
+ * whatever matching run comes later on the line, so the keystroke writes its partner after the
+ * caret. Typing that partner steps past it, a closer typed by hand puts the next byte outside,
+ * and an empty pair drops its partner when the first body byte makes it no construct.
+ * `applyDelimiterAutoPair` is the one `beforeinput` handler every prose block runs (G4.65).
  */
 
 import {
@@ -18,14 +18,14 @@ export type AutoPairEdit =
 	| { kind: 'write'; text: string; caret: number }
 	/** The typed byte completed a construct's closer; what follows belongs outside it. */
 	| { kind: 'close'; text: string; caret: number }
-	/** Nothing written: the caret passes the twin. Over a construct's closer that run may be
-	 *  unpainted, and then only the SIDE moves, which the surface records as an edge affinity. */
+	/** Nothing written: the caret passes its partner. Over a construct's closer that run may be
+	 *  hidden, and then only the side changes, which the block records as an arrival side. */
 	| { kind: 'step-over'; caret: number; overConstruct: boolean };
 
 interface PairPolicy {
-	/** A lone press pairs (`*|*`); false for a delimiter whose construct needs a double run. */
+	/** One keypress pairs (`*|*`); false for a delimiter whose construct needs a double run. */
 	single: boolean;
-	/** What a press inside the empty pair does: step past the twin, or grow both runs. */
+	/** What a keypress inside the empty pair does: step past the partner, or grow both runs. */
 	inside: 'step-over' | 'grow';
 	/** No pair straight after a word byte: `2*3` and `snake_case` are not emphasis openers. */
 	notAfterWord?: boolean;
@@ -49,10 +49,10 @@ function policyOf(ch: string): PairPolicy | null {
 // ── The resolver ─────────────────────────────────────────────────────────────
 
 /**
- * What a single typed byte does at a collapsed caret, or null to leave the engine its insert.
- * `content` bounds the inline scan (a heading's `# ` is not prose); the caret must lie inside it.
- * `keepsBlockKind` says whether a written line still reloads as this block: a grown `****` is a
- * thematic break and `~~~~` a fence, so such a pair steps past a twin instead, or declines.
+ * What a single typed byte does at a collapsed caret, or null to leave the insertion to the
+ * browser. `content` bounds the inline scan (a heading's `# ` is not prose); the caret must lie
+ * inside it. `keepsBlockKind` says whether the written line still parses as this block: a grown
+ * `****` is a thematic break and `~~~~` a fence, so such a pair steps past its partner instead.
  */
 export function resolveDelimiterAutoPair(
 	text: string,
@@ -88,7 +88,7 @@ export function resolveDelimiterAutoPair(
 		return null;
 	}
 	if (before === typed && !closerEndsAt(text, content, caret, typed)) {
-		// `~|` plus `~`: the double run this delimiter pairs on, as long as it IS a lone run.
+		// `~|` plus `~`: the double run this delimiter pairs on, as long as it is a lone run.
 		const single = text[caret - 2] !== typed;
 		if (policy.inside === 'grow' && single) {
 			return pair(text.slice(0, caret) + typed.repeat(3) + text.slice(caret));
@@ -100,8 +100,8 @@ export function resolveDelimiterAutoPair(
 }
 
 /**
- * Inside a revealed source (`$ab|$`) the twin is the live closer, and typing it means "done":
- * the caret steps past it and the caller folds the reveal, so the formula renders at once.
+ * Inside a construct whose source is showing (`$ab|$`) the partner is the real closer, and typing
+ * it means "done": the caret steps past it and the caller hides the source, so it renders at once.
  */
 export function stepsOverRevealedCloser(text: string, caret: number, typed: string): boolean {
 	return typed.length === 1 && policyOf(typed) !== null && text[caret] === typed;
@@ -118,34 +118,35 @@ export function resolveEmptyPairBackspace(text: string, caret: number): AutoPair
 
 const write = (text: string, caret: number): AutoPairEdit => ({ kind: 'write', text, caret });
 
-// ── The surface arm ──────────────────────────────────────────────────────────
+// ── The beforeinput handler ──────────────────────────────────────────────────
 
-/** What a prose surface lends the arm. Reactive reads are thunks, so nothing here goes stale. */
+/** What a prose block gives the handler. Reactive values arrive as functions, so none go stale. */
 export interface AutoPairSurface {
-	/** The bytes the caret indexes: the display text, or the revealed DOM text during a reveal. */
+	/** The bytes the caret counts into: the displayed text, or the DOM text while a construct's
+	 *  source is showing. */
 	text(): string;
 	content(): ContentRange;
 	caret(): number | null;
 	hasSelection(): boolean;
 	isRevealing(): boolean;
 	foldReveal(): { settled: Promise<void> } | null;
-	/** Whether the closer a step-over passes is on screen; unpainted, only the side moves. */
+	/** Whether the closer a step-over passes is on screen; when it is hidden, only the side moves. */
 	markersPaint(): boolean;
 	setCaret(offset: number): void;
-	/** The arrival the seat reads next: past the construct's delimiters. */
+	/** Record the arrival side the next typed byte reads: past the construct's delimiters. */
 	seatOutside(): void;
-	/** One CST write plus the caret it parks. */
+	/** One CST write plus the caret it leaves behind. */
 	write(text: string, caretBefore: number, caretAfter: number): void;
-	/** A step-over that leaves the line one an on-type completer claims (`$$`), which only a
-	 *  content write consults. */
+	/** Whether a step-over leaves the line one an on-type completer takes (`$$`); only a content
+	 *  write asks. */
 	completesLine?(caret: number): boolean;
-	/** The resolver's block-kind guard, for a surface whose line can become another block. */
+	/** The resolver's block-kind check, for a block whose line can become a different block. */
 	keepsBlockKind?(text: string): boolean;
 }
 
 /**
- * The `beforeinput` arm. True when the press was this seam's: the event is cancelled and the
- * surface has written, moved or re-seated the caret.
+ * The `beforeinput` handler. True when the key belonged here: the event is cancelled and the
+ * block has written bytes, moved the caret, or changed its arrival side.
  */
 export function applyDelimiterAutoPair(e: InputEvent, surface: AutoPairSurface): boolean {
 	const typing = e.inputType === 'insertText';
@@ -217,7 +218,7 @@ function emptyPairEnding(text: string, caret: number): ContentRange | null {
 
 // ── Constructs ───────────────────────────────────────────────────────────────
 
-// `X|X` plus the typed byte: keep the twin run only if the pair then parses as a construct.
+// `X|X` plus the typed byte: keep the partner run only if the pair then parses as a construct.
 function collapseEmptyPair(
 	text: string,
 	content: ContentRange,
