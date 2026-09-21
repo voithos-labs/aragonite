@@ -1,8 +1,8 @@
 /**
- * What the reader sees of a whole document in live mode, in node space. The per-block reading is the
- * render path's own (`core/inline/visibility.ts`); this adds what a document-level oracle needs and
- * a block surface gets from its DOM — the content-empty stamp, and the block's own marker prefix,
- * which paints under the same condition (live-mode.md § 4.1).
+ * What the user sees of a whole document in live mode, read from the tree rather than the DOM. The
+ * per-block reading is the render path's own (`core/inline/visibility.ts`); this adds what a
+ * document-wide check needs and what a block otherwise gets from its DOM: the content-empty data
+ * attribute, and the block's leading marker, which paints under the same rule (live-mode.md § 4.1).
  */
 
 import type { CstNode, Document } from '$lib/core/nodes';
@@ -34,8 +34,8 @@ export function proseLeaves(holder: Document | CstNode, path: number[] = []): Pr
 const readable = (node: CstNode): boolean =>
 	isProseKind(node.kind) && getContentRange(node).end <= displayLength(node.raw);
 
-/** Whether this block's chrome stands over no content and therefore paints — the node-space twin of
- *  the surface's `holdsOnlyMarkerChrome` stamp. */
+/** Whether this block's markers stand over no content and therefore paint: the tree-side version of
+ *  the `holdsOnlyMarkerChrome` data attribute a mounted block carries. */
 export function chromePaints(node: CstNode): boolean {
 	if (!readable(node)) return false;
 	const range = getContentRange(node);
@@ -44,8 +44,9 @@ export function chromePaints(node: CstNode): boolean {
 	return range.start > 0 || paintsOnlyChrome(nodes, node.raw);
 }
 
-/** The content behind every marker family: the reading a before/after conservation diff needs,
- *  since chrome folds the moment content arrives and a screen diff would read that as bytes lost. */
+/** The content behind every marker family: the reading a before/after comparison needs, since a
+ *  block's markers stop painting the moment content arrives and a screen diff would call that
+ *  bytes lost. */
 export function documentContentText(holder: Document | CstNode): string {
 	return (holder.children ?? [])
 		.map((child) => {
@@ -59,9 +60,9 @@ export function documentContentText(holder: Document | CstNode): string {
 }
 
 /**
- * § 4.1's residue, counted where it actually hides: a delimiter pair enclosing nothing whose every
- * byte goes unpainted. The same run spelled as PAINTED literal text is on screen and so is a byte
- * the reader met, not residue — which is the whole distinction § 4.1 draws.
+ * The residue live-mode.md § 4.1 forbids, counted where it actually hides: a delimiter pair
+ * enclosing nothing whose every byte goes unpainted. The same run painted as literal text is on
+ * screen, so it is a byte the user met rather than residue, which is the distinction § 4.1 draws.
  */
 export function unpaintedResidue(holder: Document | CstNode): number {
 	return (holder.children ?? []).reduce((total, child) => {
@@ -82,8 +83,8 @@ export function unpaintedResidue(holder: Document | CstNode): number {
 	}, 0);
 }
 
-/** Terminal whitespace collapses on screen, so an oracle comparing two readings must not see it —
- *  a live split may legitimately drop a run the reader never met (#106). */
+/** Trailing whitespace collapses on screen, so a check comparing two readings must not see it: a
+ *  live split may rightly drop a run the user never met (#106). */
 export const normalizeScreen = (text: string): string =>
 	text
 		.split('\n')
@@ -91,9 +92,9 @@ export const normalizeScreen = (text: string): string =>
 		.join('\n');
 
 /**
- * The offsets a gesture aimed at a hidden edge lands on: every boundary of a run the reader does not
- * see, plus the content extremes. These are the positions live-mode.md § 1's ambiguity lives at, and
- * a uniform draw reaches them too rarely to search the space between the scripted flows.
+ * The offsets a gesture aimed at a hidden edge lands on: every boundary of a run the user cannot
+ * see, plus the start and end of the content. These are the positions live-mode.md § 1 calls
+ * ambiguous, and an even draw reaches them too rarely to search between the scripted flows.
  */
 export function hiddenEdgeOffsets(node: CstNode): number[] {
 	if (!readable(node)) return [];

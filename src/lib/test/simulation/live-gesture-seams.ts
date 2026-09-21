@@ -1,7 +1,8 @@
 /**
- * One drawn gesture, applied through the seams a keystroke actually crosses: the caret-edge
- * dispatch over a mounted block, the block-edit bundle's split and merge, the range-delete seam,
- * and the native selection replace. Never a rewrite slot directly — the slot readers are the point.
+ * One drawn gesture, applied through the same code a real keystroke goes through: the caret-edge
+ * dispatch over a mounted block, the block-edit bundle's split and merge, the range delete, and the
+ * browser's own replace of a selection. Never a registered rewrite function directly: the code that
+ * calls those is what this tests.
  */
 
 import type { CstNode, Document } from '$lib/core/nodes';
@@ -60,29 +61,30 @@ export type GestureKind =
 
 export interface Gesture {
 	kind: GestureKind;
-	/** Index into the addressable leaves, wrapped by the applier. */
+	/** An index into the leaves this gesture can reach; the applier wraps it around that list. */
 	leaf: number;
 	offset: number;
 	endLeaf: number;
 	endOffset: number;
 	char: string;
 	affinity: EdgeAffinity | null;
-	/** Index into the markable kinds, wrapped by the toggle gesture. */
+	/** An index into the kinds a format toggle can write; the toggle wraps it around that list. */
 	mark: number;
 }
 
 export interface Applied {
 	doc: Document;
 	bytes: string;
-	/** Whether a caret-edge arm claimed the press, for the non-vacuity counters. */
+	/** Whether a caret-edge handler took the keypress, counted to prove the sweep reached one. */
 	claimed: boolean;
 }
 
-// ── The block surface, as much of it as a keystroke reads ────────────────────
+// ── The block's editable element, as much as a keystroke reads ───────────────
 
-/** The block's rendered DOM: its own marker prefix, the inline render, the content-empty stamp.
- *  Images render as their source (the render path's own no-widget fallback), which keeps every
- *  byte in one caret space rather than behind an atomic island. */
+/** The block's rendered DOM: its leading marker span, the inline render, and the content-empty
+ *  data attribute. Images render as their source text (the render path's fallback where no widget
+ *  is registered), which keeps every byte in one caret space instead of behind a widget the caret
+ *  cannot enter. */
 function mountBlock(node: CstNode, mode: PresentationMode | undefined): HTMLElement {
 	const root = document.createElement('div');
 	if (mode) root.setAttribute('data-presentation', mode);
@@ -104,8 +106,8 @@ function mountBlock(node: CstNode, mode: PresentationMode | undefined): HTMLElem
 	return el;
 }
 
-/** A collapsed caret in painted text, which is what a real caret is: two dispatch arms read the
- *  DOM selection to tell a text caret from an element-level one. */
+/** A collapsed caret in painted text, which is what a real caret is: two dispatch branches read
+ *  the DOM selection to tell a caret in text from one on an element. */
 function placeCaretInText(el: HTMLElement): void {
 	const sel = window.getSelection();
 	sel?.removeAllRanges();
@@ -143,9 +145,9 @@ function harnessFor(source: string, mode: PresentationMode | undefined): Harness
 }
 
 /**
- * The leaves a gesture can address. A caret-edge press, a split and a selection replace go through
- * the document-level bundle, so they reach top-level prose only; a range delete takes paths and so
- * reaches a container's children too. One function, because the draw biases its offset against the
+ * The leaves a gesture can reach. A caret-edge keypress, a split and a selection replace go through
+ * the document-level action bundle, so they reach top-level prose only; a range delete takes paths,
+ * so it reaches a container's children too. One function, because the draw aims its offset at the
  * very node the applier will pick.
  */
 export function gestureTargets(doc: Document, kind: GestureKind): ProseLeaf[] {
@@ -156,16 +158,17 @@ export function gestureTargets(doc: Document, kind: GestureKind): ProseLeaf[] {
 	);
 }
 
-/** Whether a drawn offset landed inside a surrogate pair, read before any door: the shape a
- *  caller's arithmetic can produce and the one this harness used to snap away unseen. */
+/** Whether a drawn offset landed inside a surrogate pair, read before the offset reaches any
+ *  editing call: that is the shape a caller's own arithmetic can produce, and the one this harness
+ *  must count rather than quietly move. */
 export function drawsMidScalar(doc: Document, gesture: Gesture): boolean {
 	return drawnSites(doc, gesture).some(
 		({ node, offset }) => codePointStart(node.raw, offset) !== offset
 	);
 }
 
-/** The offsets inside an astral scalar's own bytes, for a draw that would otherwise meet one by
- *  accident. Absolute, like {@link hiddenEdgeOffsets}. */
+/** The offsets inside a character that takes two code units, since an even draw would meet one
+ *  only by accident. Absolute offsets, like {@link hiddenEdgeOffsets}. */
 export function scalarInteriors(raw: string, start: number, end: number): number[] {
 	const found: number[] = [];
 	for (let at = start + 1; at < end; at++) if (codePointStart(raw, at) !== at) found.push(at);
@@ -194,10 +197,10 @@ function contentOffset(node: CstNode, offset: number): number {
 }
 
 /**
- * The drawn offset as the gesture's own door delivers it. A native press and a native selection
- * come back from the ENGINE, which reports no offset inside a surrogate pair, so the harness models
- * that. The split takes one a CALLER computed, and the range delete one the selection store holds
- * ({@link storedEndpoint}): both arrive raw, and the production snap is what has to catch them.
+ * The drawn offset as this gesture's own entry point delivers it. A keypress and a selection come
+ * from the browser, which never reports an offset inside a surrogate pair, so the harness matches
+ * that. The split takes an offset a caller computed, and the range delete one the selection store
+ * holds ({@link storedEndpoint}): both arrive raw, and production code is what has to catch them.
  */
 function throughDoor(node: CstNode, offset: number, kind: GestureKind): number {
 	return kind === 'enter' || spansLeaves(kind) ? offset : codePointStart(node.raw, offset);
@@ -206,7 +209,7 @@ function throughDoor(node: CstNode, offset: number, kind: GestureKind): number {
 const drawnOffset = (node: CstNode, gesture: Gesture, offset: number): number =>
 	throughDoor(node, contentOffset(node, offset), gesture.kind);
 
-/** The start of the code point `at` sits inside — what every engine-reported offset already is. */
+/** The start of the code point `at` sits inside, which every browser-reported offset already is. */
 function codePointStart(raw: string, at: number): number {
 	const code = raw.charCodeAt(at);
 	return code >= 0xdc00 && code <= 0xdfff ? at - 1 : at;
@@ -230,17 +233,17 @@ export async function applyGesture(
 	return { doc: h.doc, bytes: serialize(h.doc), claimed };
 }
 
-/** A container's own prose children: the leaves the document-level bundle cannot address. */
+/** A container's own prose children: the leaves the document-level action bundle cannot reach. */
 function containerLeaves(doc: Document): ProseLeaf[] {
 	return proseLeaves(doc).filter((leaf) => leaf.path.length === 2);
 }
 
 /**
- * Writing inside a container, twice. Once cannot reach the class: a container's child spans are
- * seeded by the first write into it and ridden by the second (`schema/child-spans.ts`). The seeding
- * write also mints the sibling the second one's settle moves a separating line for, since the drawn
- * corpus composes containers of a single line. The second write types the drawn character or empties
- * the leaf, and emptying is what makes the settle retire the follower's line.
+ * Writing inside a container, twice. One write cannot reach the bug class: the first write into a
+ * container builds its child spans and the second uses them (`schema/child-spans.ts`). The first
+ * also adds the sibling whose separating line the second write's fix-up moves, since the drawn
+ * documents give a container a single line. The second write types the drawn character or empties
+ * the leaf, and emptying is what makes the fix-up drop the following block's blank line.
  */
 async function writeInsideContainer(
 	source: string,
@@ -252,7 +255,7 @@ async function writeInsideContainer(
 	if (targets.length === 0) return null;
 	const seed = targets[gesture.leaf % targets.length];
 	const target = targets[gesture.endLeaf % targets.length];
-	// One container, or the seeding write leaves the other one's spans unseeded and buys nothing.
+	// One container, or the first write leaves the other one's child spans unbuilt and buys nothing.
 	if (seed.path[0] !== target.path[0]) return null;
 
 	const h = makeNestedHarness(doc, {
@@ -265,7 +268,7 @@ async function writeInsideContainer(
 	if (!seeded) return null;
 	const ending = trailingLineEnding(seeded.raw);
 	const body = trimTrailingLineEnding(seeded.raw);
-	// Delimiter-free, so the run the screen oracles count is the drawn character's alone.
+	// No delimiters, so the only run the screen checks count is the drawn character's.
 	const withSibling = body + ending + ending + 'seed' + ending;
 	await h.bundle.blockEdit.updateBlockContent(seed.path[1], withSibling);
 
@@ -302,7 +305,7 @@ async function applyBlockGesture(
 	return pressEdgeKey(h, index, node, offset, gesture, mode);
 }
 
-/** The mark row a gesture's draw addresses; the applier and the byte oracle read the same pick. */
+/** The mark a gesture's draw addresses; the applier and the byte check read the same pick. */
 export function drawnMark(gesture: Gesture): InlineMark {
 	const marks = listInlineMarks();
 	return marks[gesture.mark % marks.length];
@@ -317,8 +320,8 @@ function drawnRange(node: CstNode, gesture: Gesture): { start: number; end: numb
 	return start === end ? null : { start, end };
 }
 
-/** A printable key or a destructive press at `offset`, through the caret-edge dispatch. A press no
- *  arm claims falls to what the engine would do: the native cut, or the block merge at an edge. */
+/** A printable key or a destructive keypress at `offset`, through the caret-edge dispatch. A press
+ *  no branch takes falls back to the browser's own: its cut, or the block merge at an edge. */
 async function pressEdgeKey(
 	h: Harness,
 	index: number,
@@ -363,7 +366,7 @@ async function pressEdgeKey(
 	return false;
 }
 
-/** What the engine does with a press no arm took. */
+/** What the browser does with a keypress no branch took. */
 async function nativePress(
 	h: Harness,
 	index: number,
@@ -376,8 +379,9 @@ async function nativePress(
 	const write = (raw: string, caret: number) =>
 		h.blockEdit.updateBlockContent(index, raw, offset, caret);
 	if (kind === 'type') {
-		// The engine's byte reaches the surface through the auto-pair arm in every mode (G4.65),
-		// so a typed delimiter lands what that arm writes: its twin, or nothing past a twin.
+		// A typed byte reaches the editable element through the auto-pair handler in every mode
+		// (G4.65), so a typed delimiter writes what that handler writes: the matching closer, or
+		// nothing where the caret steps over one.
 		const paired = resolveDelimiterAutoPair(
 			trimTrailingLineEnding(node.raw),
 			{ start, end },
@@ -393,7 +397,7 @@ async function nativePress(
 		await write(splice(node.raw, offset, offset, key), offset + key.length);
 		return;
 	}
-	// At a content extreme the press is a block gesture instead: the merge the caret is aimed at.
+	// At the start or end of the content the keypress becomes a block gesture: the merge it aims at.
 	if (kind === 'backspace') {
 		if (offset > start) {
 			const from = codePointStart(node.raw, offset - 1);
@@ -414,8 +418,8 @@ async function nativePress(
 const splice = (raw: string, from: number, to: number, insert: string): string =>
 	raw.slice(0, from) + insert + raw.slice(to);
 
-/** A format chord over the drawn range, through the seam both prose surfaces call. A collapsed
- *  range forks to pending marks in live, which is a different seam, so this gesture needs a span. */
+/** A format chord over the drawn range, through the call both prose blocks make. A collapsed range
+ *  goes to pending marks in live mode, which is a different path, so this gesture needs a span. */
 function toggleFormat(
 	h: Harness,
 	index: number,
@@ -434,7 +438,7 @@ function toggleFormat(
 		drawnMark(gesture).kind,
 		mode
 	);
-	// A press with no candidate the painter accepts writes nothing, which is the seam's own answer
+	// A toggle whose candidate the painter rejects writes nothing, which is live mode's own answer
 	// rather than a gesture the fuzzer failed to apply.
 	if (!toggled) return true;
 	void h.blockEdit.updateBlockContent(
@@ -446,8 +450,8 @@ function toggleFormat(
 	return true;
 }
 
-/** A chorded delete over the range the ENGINE reports: the caret stays collapsed, so the range
- *  rides the beforeinput event and the surface's arm is the only reader that can see it. */
+/** A chorded delete over the range the browser reports: the caret stays collapsed, so the range
+ *  arrives on the beforeinput event and the block's own handler is the only code that sees it. */
 function wordDelete(
 	h: Harness,
 	index: number,
@@ -484,8 +488,8 @@ function wordDelete(
 	return true;
 }
 
-/** Typing over a selection inside one block: the native replace, re-expressed as a join
- *  (live-mode.md § 4.5). A decline leaves the engine's own splice. */
+/** Typing over a selection inside one block: the browser's replace, re-expressed as a join of what
+ *  survives on either side (live-mode.md § 4.5). A refusal leaves the browser's own splice. */
 function replaceSelection(
 	h: Harness,
 	index: number,
@@ -509,8 +513,8 @@ function replaceSelection(
 const spansLeaves = (kind: GestureKind): boolean =>
 	kind === 'range-delete' || kind === 'cross-format-toggle';
 
-/** A gesture over any two prose leaves, through the seam its own arm commits: the delete every
- *  cross-block delete, cut and paste crosses, or the plan-and-write the format toggle does. */
+/** A gesture over any two prose leaves, through the call its own kind commits: the delete every
+ *  cross-block delete, cut and paste goes through, or the plan-then-write a format toggle does. */
 function acrossLeaves(
 	h: Harness,
 	gesture: Gesture,
@@ -523,8 +527,8 @@ function acrossLeaves(
 		return false;
 	}
 	const plan = planCrossBlockFormat(h.doc, range.start, range.end, drawnMark(gesture).kind, mode);
-	// A press no block joins writes nothing, which is the arm's own answer rather than a gesture
-	// the fuzzer failed to apply.
+	// A toggle the planner turns down writes nothing, which is that code's own answer rather than
+	// a gesture the fuzzer failed to apply.
 	if (plan) applyCrossBlockFormat(h.doc, plan, h.sharing, undefined);
 	return true;
 }
@@ -550,8 +554,8 @@ function drawnLeafRange(
 	};
 }
 
-/** The offset as the selection store holds it. Every production range delete reads its endpoints
- *  from there, so a raw one here would be testing a door no caller comes through. */
+/** The offset as the selection store holds it. Every range delete in production reads its endpoints
+ *  from there, so a raw offset here would test an entry point no caller comes through. */
 function storedEndpoint(
 	doc: Document,
 	leaf: ProseLeaf,
