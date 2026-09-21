@@ -3,9 +3,9 @@ import { PluginsPage, readContainer, readDoc, roundTripStable } from './helpers'
 
 /**
  * Admonitions dogfood battery. Five directive names resolve to one `admonition` kind that reads its
- * variant from metadata; child 0 is the editable title chrome leaf, and the opener line is rebuilt
- * from children + metadata. The uninstalled-fallback path is unit-covered
- * (test/plugins/admonitions/fallback.test.ts).
+ * variant from metadata; child 0 is the editable title row, and the opener line is rebuilt from the
+ * children and that metadata. What happens when the plugin is not installed is covered in
+ * test/plugins/admonitions/fallback.test.ts.
  */
 
 test.describe('plugin admonitions', () => {
@@ -21,7 +21,7 @@ test.describe('plugin admonitions', () => {
 	});
 
 	test('the seeded kinds each render a box carrying their own data-kind', async ({ page }) => {
-		// Distinct per-kind rendering is the signal a reader tells the kinds apart by.
+		// A different box per kind is how the user tells the kinds apart.
 		for (const kind of ['important', 'tip', 'caution']) {
 			await expect(
 				page.locator(`.admonition[data-alert-source='directive'][data-kind='${kind}']`)
@@ -36,7 +36,7 @@ test.describe('plugin admonitions', () => {
 	test('a titled admonition shows its title; an untitled one shows the kind placeholder', async ({
 		page
 	}) => {
-		// Titled: the chrome leaf renders the opener-line title verbatim.
+		// Titled: the title row renders the opener line's title verbatim.
 		await expect(page.locator(".admonition[data-kind='tip'] .admonition-title")).toHaveText(
 			'Pro tip'
 		);
@@ -77,7 +77,7 @@ test.describe('plugin admonitions', () => {
 
 		await editor.bridge.waitForSourceContains(':::important Pro tip');
 		await editor.bridge.waitForSourceNotContains(':::tip');
-		// Exactly one metadata commit per press — no split, no input op.
+		// Exactly one metadata commit per keypress: no split, no input op.
 		const ops = await page.evaluate(() => (window as any).__test.stopEditOpCapture());
 		expect(ops).toEqual(['metadataUpdate']);
 		expect(await roundTripStable(page)).toBe(true);
@@ -102,8 +102,8 @@ test.describe('plugin admonitions', () => {
 		await expect(page.locator(".admonition[data-alert-source='directive']")).toHaveCount(4);
 		await expect(page.locator(".admonition[data-alert-source='github']")).toHaveCount(0);
 
-		// Selectivity: the `> [!NOTE]` inside the code fence is left byte-identical —
-		// never converted to `:::note` — because only top-level alerts convert.
+		// Only top-level alerts convert, so the `> [!NOTE]` inside the code fence is left
+		// byte-identical and never becomes `:::note`.
 		const source = await editor.bridge.getSource();
 		expect(source).toContain('```markdown\n> [!NOTE]\n> Inside a fence — must not convert.\n```');
 		expect(source).not.toContain(':::note');

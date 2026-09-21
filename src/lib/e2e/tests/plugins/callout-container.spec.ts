@@ -2,7 +2,7 @@ import { test, expect } from '../../fixtures';
 import { PluginsPage, readContainer, waitForContainer, roundTripStable } from './helpers';
 
 // Read the callout by CST path through the bridge: document root child [0] is the callout, and its
-// children are the paragraphs the edits must move — never the document root.
+// children are the paragraphs the edits must move, never the document root.
 
 test.describe('plugin container: :::callout editability', () => {
 	let editor: PluginsPage;
@@ -23,7 +23,7 @@ test.describe('plugin container: :::callout editability', () => {
 		expect(state.childCount).toBe(2);
 		expect(state.childTexts).toEqual(['Title', 'First']);
 
-		// Type into the callout's body paragraph (child 1, NOT the title row).
+		// Type into the callout's body paragraph, child 1, not the title row.
 		await page.locator('.callout-block [contenteditable="true"]', { hasText: /^First$/ }).click();
 		await page.keyboard.press('End');
 		await editor.typeText(' one');
@@ -32,8 +32,8 @@ test.describe('plugin container: :::callout editability', () => {
 		expect(state.childCount).toBe(2);
 		await editor.waitForUndoBatchFlush();
 
-		// Split: Enter mid-body must add a THIRD child to the callout — a broken
-		// container would instead grow the document root (rootCount === 2).
+		// Split: Enter mid-body must add a third child to the callout; a broken container would
+		// grow the document root instead (rootCount === 2).
 		await page.keyboard.press('Enter');
 		state = await waitForContainer(page, 0, (s) => s.childCount === 3);
 		expect(state.rootCount).toBe(1);
@@ -45,16 +45,16 @@ test.describe('plugin container: :::callout editability', () => {
 		expect(afterSplitTyping.rootCount).toBe(1);
 		expect(afterSplitTyping.childCount).toBe(3);
 		expect(afterSplitTyping.childTexts).toEqual(['Title', 'First one', 'two']);
-		// The callout's own raw was rebuilt from ALL children — a stale raw would still read the
+		// The callout's own raw was rebuilt from every child; a stale raw would still read the
 		// seed opener line alone. The blank line between the body paragraphs is the split's
-		// separator, re-emitted by that same rebuild.
+		// separator, written again by that same rebuild.
 		expect(afterSplitTyping.raw).toBe(':::callout Title\nFirst one\n\ntwo\n:::\n');
 		expect(await editor.bridge.getSource()).toBe(':::callout Title\nFirst one\n\ntwo\n:::\n');
 		expect(await roundTripStable(page)).toBe(true);
 		await editor.waitForUndoBatchFlush();
 
-		// Merge: caret to the start of the last child (real Home), then Backspace
-		// folds it back into the previous body paragraph — never into the title.
+		// Merge: caret to the start of the last child with a real Home, then Backspace joins it
+		// back into the previous body paragraph, never into the title.
 		await page.keyboard.press('Home');
 		await page.keyboard.press('Backspace');
 		const afterMerge = await waitForContainer(page, 0, (s) => s.childCount === 2);

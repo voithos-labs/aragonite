@@ -57,9 +57,9 @@ test.describe('plugin admonitions — native alert paste', () => {
 		expect(kinds).toContain('fencedCode');
 	});
 
-	// The whole-table-selection paste route bypasses the shared paste dispatch and carries its own
-	// parse of the pasted text, so this pins that sibling route lands the alert natively too (the
-	// applyPasteTransforms parity itself is source-scan-pinned by G4.11).
+	// Pasting over a whole selected table goes around the shared paste dispatch and parses the
+	// pasted text itself, so this pins that it lands the alert natively too; that the two paths
+	// call `applyPasteTransforms` alike is checked by the source scan G4.11.
 	test('whole-table-selection paste replaces the table with a native alert', async ({ page }) => {
 		await editor.loadContent('before\n\n| A | B |\n| --- | --- |\n| 1 | 2 |\n\nafter\n');
 		await page.locator('[role="cell"]').nth(2).click();

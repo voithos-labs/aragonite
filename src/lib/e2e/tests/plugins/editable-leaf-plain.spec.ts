@@ -2,10 +2,10 @@ import { test, expect } from '../../fixtures';
 import { PluginsPage, roundTripStable, waitForDoc, activeBlockPath } from './helpers';
 
 /**
- * Plain-mode editable leaf (requirements/plugins/editable-leaf-plain.md): the `%%` memo harness
- * kind proves `createEditableLeaf({ mode: 'plain' })` gives a plugin leaf built-in-text-block
- * parity — typing, traversal, undo batching, cross-block selection, and clipboard — through the
- * public factory alone.
+ * A plain-mode editable leaf (requirements/plugins/editable-leaf-plain.md): the `%%` memo harness
+ * kind proves `createEditableLeaf({ mode: 'plain' })` gives a plugin block everything a built-in
+ * text block has, through the public factory alone: typing, moving the caret, undo batching,
+ * cross-block selection and the clipboard.
  */
 
 class MemoPage extends PluginsPage {
@@ -108,8 +108,8 @@ test.describe('plain-mode editable leaf: the %% memo kind', () => {
 		});
 		await editor.paste();
 
-		// The text/plain payload lands verbatim — its newline re-splits the second line off as a
-		// paragraph, so the document carries `a\nb`. Without the leaf's own onpaste the native
+		// The text/plain payload lands verbatim, and its newline splits the second line off as a
+		// paragraph, so the document holds `a\nb`. Without the leaf's own onpaste the browser's
 		// paste drops HTML markup into the block and the per-keystroke commit joins the lines.
 		await editor.bridge.waitForSourceContains('%% memo texta\nb');
 		const html = await page.evaluate(() => document.querySelector('.memo-block')?.innerHTML ?? '');
@@ -127,8 +127,8 @@ test.describe('plain-mode editable leaf: the %% memo kind', () => {
 		await editor.seedClipboard('SENTINEL');
 		await page.keyboard.press('ControlOrMeta+c');
 
-		// The memo (leaf) is the focused anchor: its copy handler must reach the shared cross-block
-		// collector, which reads the memo's own raw. Without one the clipboard keeps the sentinel.
+		// The memo block holds the focus, so its copy handler must reach the shared cross-block
+		// collector, which reads the memo's own raw. Without one the clipboard keeps its marker.
 		await expect.poll(() => editor.readClipboard()).toContain('memo text');
 	});
 
@@ -143,15 +143,15 @@ test.describe('plain-mode editable leaf: the %% memo kind', () => {
 		await editor.seedClipboard('SENTINEL');
 		await page.keyboard.press('ControlOrMeta+x');
 
-		// The leaf's cut handler writes the cross-block payload and deletes the swept range; with
-		// no handler reached, the clipboard keeps the sentinel and nothing is removed.
+		// The leaf's cut handler writes the cross-block payload and deletes the selected range; if
+		// no handler is reached, the clipboard keeps its marker and nothing is removed.
 		await expect.poll(() => editor.readClipboard()).toContain('memo text');
 		await editor.waitForCrossBlock(false);
 		expect(await roundTripStable(page)).toBe(true);
 	});
 
-	// memo registers no paste surface, so the dispatch takes the default hooks and says so;
-	// the declaration is what makes the fallthrough an asserted path rather than a shrug.
+	// memo registers no paste handling, so the dispatch takes the default hooks and reports that;
+	// declaring it is what makes the fallthrough an asserted path rather than an assumption.
 	test.describe('paste over a cross-block selection anchored in the memo', () => {
 		test.use({ expectWarns: ['paste-dispatch'] });
 
@@ -163,8 +163,9 @@ test.describe('plain-mode editable leaf: the %% memo kind', () => {
 			await editor.seedClipboard('INSERTED');
 			await editor.paste();
 
-			// The leaf's paste handler routes the swept range through the cross-block delete + paste,
-			// so the selection collapses and the text lands; unreached, the cross-block state sticks.
+			// The leaf's paste handler sends the selected range through the cross-block delete and
+			// paste, so the selection collapses and the text lands; unreached, the cross-block
+			// state sticks.
 			await editor.waitForCrossBlock(false);
 			await editor.bridge.waitForSourceContains('INSERTED');
 			expect(await roundTripStable(page)).toBe(true);

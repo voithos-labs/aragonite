@@ -2,11 +2,11 @@ import { test, expect } from '../../fixtures';
 import { PluginsPage, revealWidget, roundTripStable } from './helpers';
 
 /**
- * Text-tier directive widget: `:name[label]{attrs}` renders as an atomic `.directive-text-widget`
- * and edits via source-reveal-on-focus — the same shared primitive the inline-math `$…$` widget
- * uses (latex-inline.spec.ts). Reveal signal: unlike math, this widget renders its source
- * verbatim-but-dimmed, so `:abbr[HTML]` sits in the block text in BOTH states — the signal is the
- * widget COUNT (1 rendered → 0 revealed), not the presence of the source string.
+ * The inline directive widget: `:name[label]{attrs}` renders as one atomic
+ * `.directive-text-widget` and is edited by showing its source on focus, the same shared mechanism
+ * the inline-math `$…$` widget uses (latex-inline.spec.ts). Unlike math, this widget renders its
+ * source verbatim but dimmed, so `:abbr[HTML]` sits in the block text either way: what the tests
+ * read is the widget count, 1 rendered and 0 while the source shows, not the source string itself.
  */
 
 const SEED = 'see :abbr[HTML] here\n\nNext\n';
@@ -38,8 +38,8 @@ test.describe('plugin inline directive: caret-entry / click reveal-source editin
 	test('the :name[label] span renders as an atomic source-bearing widget and round-trips', async ({
 		page
 	}) => {
-		// Atomic-widget contract: the generic [data-inline-widget] marker carries the
-		// raw span via data-source-*; the offset walk counts 0 chars for the island.
+		// What an atomic widget promises: the generic [data-inline-widget] attribute holds the raw
+		// span in its data-source-* values, and the offset traversal counts it as no characters.
 		await expect(editor.widget).toHaveAttribute('data-inline-widget', '');
 		await expect(editor.widget).toHaveAttribute('data-source-start', '4');
 		await expect(editor.widget).toHaveAttribute('data-source-end', '15');
@@ -50,15 +50,15 @@ test.describe('plugin inline directive: caret-entry / click reveal-source editin
 	test('ArrowRight left of the widget reveals its source at the leading edge', async ({ page }) => {
 		await editor.getBlock(0).click();
 		await page.keyboard.press('Home');
-		// "see " is 4 chars: 4 steps reach the widget's leading edge; the 5th ENTERS
-		// it — entry reveals the source in place (no invisible select-then-step).
+		// "see " is 4 characters, so 4 steps reach the widget's leading edge and the fifth enters
+		// it, which shows the source in place rather than selecting it invisibly first.
 		for (let i = 0; i < 4; i++) await page.keyboard.press('ArrowRight');
 		await page.keyboard.press('ArrowRight');
 
 		await expect(editor.widget).toHaveCount(0);
-		// Reveal is a view toggle — the CST source is unchanged.
+		// Showing the source only changes the view: the CST source is unchanged.
 		expect(await editor.bridge.getSource()).toContain('see :abbr[HTML] here');
-		// Caret at the leading edge: a typed char lands BEFORE the directive source.
+		// Caret at the leading edge: a typed character lands before the directive source.
 		await page.keyboard.type('Z');
 		expect(await editor.getBlockText(0)).toContain('Z:abbr[HTML]');
 	});
@@ -74,7 +74,7 @@ test.describe('plugin inline directive: caret-entry / click reveal-source editin
 
 		await expect(editor.widget).toHaveCount(0);
 		expect(await editor.bridge.getSource()).toContain('see :abbr[HTML] here');
-		// Caret at the trailing edge: a typed char lands AFTER the directive source.
+		// Caret at the trailing edge: a typed character lands after the directive source.
 		await page.keyboard.type('Z');
 		expect(await editor.getBlockText(0)).toContain(':abbr[HTML]Z');
 	});
@@ -87,7 +87,7 @@ test.describe('plugin inline directive: caret-entry / click reveal-source editin
 		for (let i = 0; i < 5; i++) await page.keyboard.press('ArrowLeft');
 		await page.keyboard.press('Backspace');
 
-		// First Backspace reveals with the directive source fully intact.
+		// The first Backspace shows the source with the directive fully intact.
 		await expect(editor.widget).toHaveCount(0);
 		expect(await editor.getBlockText(0)).toContain(':abbr[HTML]');
 		expect(await editor.bridge.getSource()).toContain('see :abbr[HTML] here');
@@ -109,7 +109,7 @@ test.describe('plugin inline directive: caret-entry / click reveal-source editin
 	test('clicking the rendered widget reveals its source without touching the CST', async () => {
 		expect(await editor.bridge.getSource()).toContain('see :abbr[HTML] here');
 		await editor.revealByClick();
-		// The opaque widget is gone (count 0); the raw span is now editable text.
+		// The widget is gone (count 0) and the raw span is editable text.
 		expect(await editor.bridge.getSource()).toContain('see :abbr[HTML] here');
 	});
 
@@ -117,11 +117,11 @@ test.describe('plugin inline directive: caret-entry / click reveal-source editin
 		page
 	}) => {
 		await editor.revealByClick();
-		// The caret lands at the source's leading edge; step into the label ( past
-		// `:abbr[` ) and insert a char so the edit is inside the directive source.
+		// The caret lands at the source's leading edge; step into the label, past `:abbr[`, and
+		// insert a character so the edit is inside the directive source.
 		for (let i = 0; i < 6; i++) await page.keyboard.press('ArrowRight');
 		await page.keyboard.type('X');
-		// Blur to the sibling paragraph → the reveal commits and the widget re-forms.
+		// Blur to the sibling paragraph: the edit commits and the widget renders again.
 		await editor.getBlock(1).click();
 
 		await expect(editor.widget).toHaveCount(1);
@@ -129,7 +129,7 @@ test.describe('plugin inline directive: caret-entry / click reveal-source editin
 		expect(await editor.bridge.getSource()).toContain('see :abbr[XHTML] here');
 		expect(await roundTripStable(page)).toBe(true);
 
-		// One undo restores the pre-edit source — the whole reveal edit is one entry.
+		// One undo restores the source as it was: the whole edit is a single entry.
 		await editor.undo();
 		await editor.bridge.waitForSourceContains(':abbr[HTML] here');
 		await editor.bridge.waitForSourceNotContains('XHTML');
@@ -139,7 +139,7 @@ test.describe('plugin inline directive: caret-entry / click reveal-source editin
 		await editor.revealByClick();
 		for (let i = 0; i < 6; i++) await page.keyboard.press('ArrowRight');
 		await page.keyboard.type('X');
-		// Escape reverts to the rendered widget from the untouched raw — edit discarded.
+		// Escape renders the widget again from the untouched raw, discarding the edit.
 		await page.keyboard.press('Escape');
 
 		await expect(editor.widget).toHaveCount(1);

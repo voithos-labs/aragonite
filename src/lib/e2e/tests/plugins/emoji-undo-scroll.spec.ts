@@ -3,9 +3,9 @@ import type { Page } from '@playwright/test';
 import { PluginsPage } from './helpers';
 
 /**
- * Deleting a glyph widget and undoing it is an edit to one block, so the scrollport must not
- * move. The flip into live is load-bearing: it drops every measured height, and the undo's
- * document swap is the next thing to rebuild a model off that cache.
+ * Deleting a glyph widget and undoing it is an edit to one block, so the scroll container must not
+ * move. Switching into live matters: it drops every measured height, and the undo's document swap
+ * is the next thing to rebuild the height table from what is left.
  * Requirements: e2e/requirements/plugins/emoji-undo-scroll.md.
  */
 
@@ -32,7 +32,7 @@ ${filler('b')}
 
 const SUNNY = '☀️';
 
-/** Where the reader is: the scroll number, plus the block their eyes are on. */
+/** Where the user is: the scroll number, plus the block their eyes are on. */
 async function viewport(page: Page): Promise<{ scrollTop: number; lead: string | null }> {
 	return page.evaluate(() => {
 		const port = document.querySelector('.editor') as HTMLElement;
@@ -49,9 +49,9 @@ async function viewport(page: Page): Promise<{ scrollTop: number; lead: string |
 }
 
 test.describe('an undo that restores a glyph widget leaves the scrollport alone', () => {
-	// Two positions for the shortcode's own list, below the fold and in view: a reseed of the
-	// whole document slides the reader by its accumulated error either way, and how far depends
-	// on how much of the document sits above them.
+	// Two positions for the shortcode's own list, below the fold and in view: re-estimating the
+	// whole document slides the user by its accumulated error either way, and how far depends on
+	// how much of the document sits above them.
 	for (const offset of [-40, 80]) {
 		test(`the list ${offset < 0 ? 'below the fold' : 'in view'} holds through delete + undo`, async ({
 			page
@@ -59,7 +59,7 @@ test.describe('an undo that restores a glyph widget leaves the scrollport alone'
 			const editor = new PluginsPage(page);
 			await editor.gotoPlugins('emoji');
 			await editor.loadContent(DOC);
-			// An actual flip, not a mode seeded at load: the flip is what drops the measured heights.
+			// A real mode change, not a mode set at load: the change is what drops the heights.
 			await editor.setPresentationMode('live');
 
 			const listIndex = await page.evaluate(() =>
@@ -74,8 +74,8 @@ test.describe('an undo that restores a glyph widget leaves the scrollport alone'
 			}, listIndex);
 			await editor.scrollEditorTo(listTop - 100 + offset);
 
-			// The glyph's right half seats the caret at its trailing edge, where one Backspace
-			// takes the whole reference.
+			// Clicking the glyph's right half puts the caret at its trailing edge, where one
+			// Backspace takes the whole shortcode.
 			const box = await page.locator('.md-emoji-widget', { hasText: SUNNY }).first().boundingBox();
 			if (!box) throw new Error('the sunny glyph is not on screen');
 			await page.mouse.click(box.x + box.width * 0.75, box.y + box.height / 2);

@@ -25,8 +25,8 @@ test.describe('plugin container: generic :::name directive', () => {
 		expect(state.childCount).toBe(1);
 		expect(state.childTexts).toEqual(['hello']);
 
-		// The fence renders as a marker, not a raw-editable fallback line, and `hello`
-		// is reachable in an editable body block.
+		// The fence renders as a marker, not as an editable raw line, and `hello` is reachable in
+		// an editable body block.
 		await expect(editor.page.locator('.directive-marker')).toHaveText(':::foo');
 		await expect(
 			editor.page.locator('.directive-block [contenteditable="true"]', { hasText: /^hello$/ })
@@ -45,8 +45,8 @@ test.describe('plugin container: generic :::name directive', () => {
 		const state = await waitForContainer(page, 0, (s) => s.childTexts[0] === 'hello world');
 		expect(state.rootCount).toBe(1);
 		expect(state.childCount).toBe(1);
-		// A within-paragraph edit: the container raw is regenerated from the body, so
-		// getSource is byte-exact — a stale raw would still read the seed.
+		// An edit inside one paragraph: the container's raw is rebuilt from the body, so getSource
+		// is byte-exact, where a stale raw would still read the seed.
 		expect(state.raw).toBe(':::foo\nhello world\n:::\n');
 		expect(await editor.bridge.getSource()).toBe(':::foo\nhello world\n:::\n');
 		expect(await roundTripStable(page)).toBe(true);
@@ -60,8 +60,8 @@ test.describe('plugin container: generic :::name directive', () => {
 		await page.locator('.directive-block [contenteditable="true"]', { hasText: /^hello$/ }).click();
 		await page.keyboard.press('End');
 
-		// Enter mid-container must grow the container's children, never the document
-		// root — a broken container would push a sibling to the root (rootCount === 2).
+		// Enter inside the container must add to the container's children, never to the document
+		// root; a broken container would push a sibling to the root (rootCount === 2).
 		await page.keyboard.press('Enter');
 		let state = await waitForContainer(page, 0, (s) => s.childCount === 2);
 		expect(state.rootCount).toBe(1);
@@ -70,7 +70,7 @@ test.describe('plugin container: generic :::name directive', () => {
 		state = await waitForContainer(page, 0, (s) => s.childTexts[1] === 'second');
 		expect(state.rootCount).toBe(1);
 		expect(state.childTexts).toEqual(['hello', 'second']);
-		// The rebuild ran over ALL children — the new block reaches the container raw.
+		// The rebuild ran over every child, so the new block reaches the container's raw.
 		expect(state.raw).toContain('second');
 		expect(await roundTripStable(page)).toBe(true);
 	});

@@ -2,9 +2,10 @@ import { test, expect } from '../../fixtures';
 import { PluginsPage, roundTripStable, activeBlockPath } from './helpers';
 
 /**
- * A plugin editable leaf taking keystrokes under `live` (requirements/plugins/editable-leaf-live.md).
- * The mode is the variable — the byte oracle repeats `editable-leaf-plain.spec.ts`'s on purpose —
- * and the regression value is the fixture's console watch: any `[invariant:…]` fire fails the run.
+ * A plugin's editable leaf taking keystrokes under `live`
+ * (requirements/plugins/editable-leaf-live.md). Only the mode differs; the expected bytes repeat
+ * `editable-leaf-plain.spec.ts`'s on purpose, and the value is the fixture's console watch, where
+ * any `[invariant:…]` warning fails the run.
  */
 
 test.describe('plugin editable leaf under live mode: the %% memo kind', () => {
@@ -13,8 +14,8 @@ test.describe('plugin editable leaf under live mode: the %% memo kind', () => {
 		await editor.gotoPlugins('memo');
 		await editor.setPresentationMode('live');
 
-		// Arrow entry, not a click: a click seats the caret natively, and only the structural
-		// route reaches the leaf's `parkCaret` door.
+		// Enter by arrow, not by click: a click lets the browser place the caret, and only the
+		// structural path reaches the leaf's own `parkCaret`.
 		await editor.focusBlockEnd(0);
 		await page.keyboard.press('ArrowRight');
 		expect(await activeBlockPath(page)).toEqual([1]);

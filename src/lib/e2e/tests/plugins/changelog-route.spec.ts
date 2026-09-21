@@ -10,9 +10,9 @@ import type { Page } from '@playwright/test';
 // proves the changelog loads without tripping an invariant under all nine plugins. Requirements:
 // e2e/requirements/plugins/changelog-route.md.
 
-// The `<details>` opener bytes, read off the live document the route registers for the parity
-// walk — with no probe bridge on this route it is the only byte-level read available, and the
-// opener is exactly where a committed disclosure flip would land.
+// The `<details>` opener bytes, read from the live document the route registers for the parity
+// check. With no bridge on this route it is the only byte-level read available, and the opener is
+// exactly where a committed disclosure would land.
 function outlineRaw(page: Page): Promise<string> {
 	return page.evaluate(() => {
 		const registry = (
@@ -36,7 +36,7 @@ test.describe('/changelog route', () => {
 		// A floor well below the mounted window, robust to it shifting.
 		await expect.poll(() => page.locator('.block-host').count()).toBeGreaterThan(5);
 
-		// Collapsed by default: the reader lands on the newest entry, not on a version index.
+		// Collapsed by default: the user lands on the newest entry, not on a version index.
 		await expect(page.locator('.details-toggle')).toHaveAttribute('aria-expanded', 'false');
 		await expect(page.locator('.toc-block-item')).toHaveCount(0);
 	});
@@ -45,8 +45,8 @@ test.describe('/changelog route', () => {
 		page
 	}) => {
 		const entries = page.locator('.toc-block-item');
-		// A first-release family is one short entry that windows nothing out, so pick the
-		// family with the longest outline at runtime — the precondition needs a tall document.
+		// A first-release family is one short entry that leaves nothing unmounted, so pick the
+		// family with the longest outline at runtime: the precondition needs a tall document.
 		const chips = page.locator('.changelog-family');
 		const chipCount = await chips.count();
 		let tallest = 0;
@@ -72,7 +72,7 @@ test.describe('/changelog route', () => {
 		// A blank label would make the windowed-out precondition below vacuously true.
 		expect(label).not.toBe('');
 		const heading = page.locator('[data-block-kind="heading"]', { hasText: label });
-		// Precondition: the tail is windowed out, so the click exercises reveal, not just scroll.
+		// Precondition: the tail is unmounted, so the click has to mount it, not just scroll.
 		await expect(heading).toHaveCount(0);
 
 		await oldest.click();
@@ -97,7 +97,7 @@ test.describe('/changelog route', () => {
 		expect(before.startsWith('<details>\n')).toBe(true);
 
 		await page.locator('.details-toggle').click();
-		// The body genuinely mounted — the half `aria-expanded` alone would fake.
+		// The body really mounted, which `aria-expanded` alone could fake.
 		await expect(page.locator('.toc-block-item').first()).toBeVisible();
 
 		expect(await outlineRaw(page)).toBe(before);
@@ -122,8 +122,8 @@ test.describe('/changelog route', () => {
 	});
 
 	test('the Find chord opens the search bar over the reading-mode document', async ({ page }) => {
-		// Reading mode parks no caret in a block, so the chord reaches the sole mounted editor
-		// through its body-chord claim rather than through a focused surface.
+		// Reading mode puts no caret in a block, so the chord reaches the one mounted editor
+		// because that editor takes body-level chords, not through a focused element.
 		await page.keyboard.press('ControlOrMeta+f');
 		await expect(findInput(page)).toBeFocused();
 	});
@@ -144,8 +144,8 @@ test.describe('/changelog route', () => {
 	});
 
 	test('the header link navigates back to the showcase', async ({ page }) => {
-		// `resolve()` under a configured base path: a wrong href lands on a 404 with the URL
-		// still looking plausible, so the destination's own chrome is the real assertion.
+		// `resolve()` under a configured base path: a wrong href lands on a 404 with the URL still
+		// looking plausible, so what the destination page itself shows is the real assertion.
 		await page.locator('.changelog-link').click();
 		await expect(page).toHaveURL(/\/$/);
 		await expect(page.getByTestId('theme-toggle')).toBeVisible();

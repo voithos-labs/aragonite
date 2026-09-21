@@ -3,11 +3,12 @@ import { PluginsPage, roundTripStable, capturedErrors } from './helpers';
 import { capturePageErrors } from '../../page-probes';
 
 /**
- * Minted block commands on the editable-leaf tier (requirements/plugins/editable-leaf-command.md):
- * the `%%` memo harness kind binds two commands on its keymap — `memo.tag` (Mod+Shift+K, commits
- * metadata) and `memo.boom` (Mod+Shift+J, throws). Proves a minted `(kind, id)` command resolves on
- * the leaf path through the real `createEditableLeaf` factory, and that a handler throw is
- * contained and surfaced as an `origin: 'command'` error rather than escaping.
+ * Block commands a plugin registers on an editable leaf
+ * (requirements/plugins/editable-leaf-command.md): the `%%` memo harness kind binds two commands in
+ * its keymap, `memo.tag` (Mod+Shift+K, commits metadata) and `memo.boom` (Mod+Shift+J, throws).
+ * These tests prove a registered `(kind, id)` command resolves on the leaf path through the real
+ * `createEditableLeaf` factory, and that a throwing handler is caught and reported as an
+ * `origin: 'command'` error rather than escaping.
  */
 
 class MemoPage extends PluginsPage {
@@ -64,7 +65,7 @@ test.describe('minted block commands on the editable-leaf tier: the %% memo kind
 		expect(origins.filter((o) => o === 'command')).toHaveLength(1);
 		expect(pageErrors).toEqual([]);
 
-		// The gesture was a no-op that consumed the key; the editor stays interactive.
+		// The gesture did nothing but consume the key, and the editor stays interactive.
 		await page.keyboard.type('!');
 		await editor.bridge.waitForSourceContains('%% memo text!');
 	});

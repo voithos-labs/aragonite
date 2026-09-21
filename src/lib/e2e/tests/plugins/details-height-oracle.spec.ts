@@ -11,11 +11,11 @@ import {
 import { capturePageErrors } from '../../page-probes';
 
 /**
- * Spec §8.3 — height-oracle estimate for collapsed containers. The oracle reads the declared
- * `reservedChrome.isCollapsed` probe and estimates a collapsed details at one chrome row, ignoring
- * the hidden body its `raw` still carries. The unit suite pins the exact estimate; this proves it
- * at scale — the load-time height no longer over-counts — and stays correct under the residual
- * under-estimate the scroll-anchor machinery absorbs.
+ * How a collapsed container's height is estimated (spec § 8.3). The `heightOracle` (estimates block
+ * heights) reads the declared `reservedChrome.isCollapsed` check and estimates a collapsed details
+ * at one title row, ignoring the hidden body its `raw` still holds. The unit suite pins the exact
+ * number; this proves it at scale, so the load-time height does not over-count, and stays correct
+ * under the small under-estimate that holding a block in place on screen absorbs.
  */
 
 function collapsedDetailsDoc(count: number): string {
@@ -32,8 +32,8 @@ function collapsedDetailsDoc(count: number): string {
 	);
 }
 
-// Large enough that even the tight one-chrome-row estimate (~40px each) exceeds
-// the mounted band — the precondition below needs off-window rows to exist.
+// Large enough that even the tight one-title-row estimate of about 40px each runs past the
+// mounted range, since the precondition below needs rows that stay unmounted.
 const COUNT = 300;
 
 function topLevelSpacerCount(page: Page): Promise<number> {
@@ -69,8 +69,8 @@ test.describe('plugin container: <details> collapsed height estimate at scale', 
 		expect((await readDetails(page, 0)).kind).toBe('details');
 		expect((await editor.bridge.getSource()).includes('<details open>')).toBe(false);
 
-		// Precondition: top-level windowing is active and most details are off-window
-		// (estimated from the collapse probe), or the comparison below is vacuous.
+		// Precondition: top-level windowing is active and most of the details are unmounted, their
+		// heights estimated from the collapse check, or the comparison below proves nothing.
 		expect(await topLevelSpacerCount(page)).toBeGreaterThan(0);
 		expect(await topLevelHostCount(page)).toBeLessThan(COUNT);
 
@@ -80,8 +80,8 @@ test.describe('plugin container: <details> collapsed height estimate at scale', 
 
 		const drift = estimated - measured;
 		const perDetails = drift / COUNT;
-		// A meter, not a gate: the assertion below pins only the direction, so the magnitude is
-		// reported for the run log rather than bounded.
+		// Reported, not asserted: the assertion below pins only the direction, so the size of the
+		// difference goes to the run log rather than into a bound.
 		console.log(
 			`details collapsed-estimate drift ${JSON.stringify({ estimated, measured, drift, perDetails })}`
 		);

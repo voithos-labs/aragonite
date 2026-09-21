@@ -4,20 +4,21 @@ import { DetailsPage, bodyHostCount, capturedErrors } from './details-helpers';
 import { blockView, tocEntry } from './helpers';
 
 /**
- * Reveal into a collapsed container expands it (requirements/plugins/details-reveal-expand.md).
- * A collapsed `<details>` clamps its window to the summary row, so a reveal aimed at a body child
- * finds its target outside the live window and returns — a dead toc click — unless the seam opens
- * the kind's expand door first. This gate proves expand → mount → scroll compose on the real path,
- * as one undo entry. Reading-mode floor: details-reveal.spec.ts.
+ * Scrolling to a block inside a collapsed container expands it
+ * (requirements/plugins/details-reveal-expand.md). A collapsed `<details>` clamps its window to the
+ * summary row, so aiming at a body child finds the target outside the mounted window and gives up,
+ * leaving a dead outline click, unless the kind is asked to expand first. These tests prove that
+ * expanding, mounting and scrolling compose on the real path, as one undo entry. The reading-mode
+ * case is details-reveal.spec.ts.
  */
 
-// Capped viewport → the editor is a real scroll container, so the collapsed section and
-// its tail window out and the navigation click has real work to do.
+// A capped viewport makes the editor a real scroll container, so the collapsed section and its
+// tail stay unmounted and the navigation click has real work to do.
 test.use({ viewport: { width: 1000, height: 700 } });
 
-// `[[toc]]` at block 0 (stable entry locator), a visible heading, then a CLOSED details whose body
-// holds both a heading (the toc target) and a needle found nowhere else (the search target), then
-// filler so the document scrolls.
+// `[[toc]]` at block 0 so the entries have a stable locator, a visible heading, then a closed
+// details whose body holds both a heading, the outline's target, and a word found nowhere else,
+// the search target, and finally filler so the document scrolls.
 function collapsedDoc(): string {
 	const parts = [
 		'[[toc]]',
@@ -57,8 +58,8 @@ test.describe('plugin container: reveal expands a collapsed <details>', () => {
 		editor = new ExpandPage(page);
 		source = collapsedDoc();
 		await editor.load(source);
-		// Precondition: the container is closed and its body genuinely unmounted, so a
-		// reveal that lands a body child had to expand it.
+		// Precondition: the container is closed and its body really unmounted, so anything that
+		// lands on a body child had to expand it first.
 		expect(await editor.bridge.getSource()).toContain('<details>\n');
 		expect(await bodyHostCount(page)).toBe(1);
 		await expect(editor.toggle).toHaveAttribute('aria-expanded', 'false');
@@ -88,9 +89,8 @@ test.describe('plugin container: reveal expands a collapsed <details>', () => {
 		await editor.bridge.waitForSourceContains('<details open>');
 		await editor.waitForUndoBatchFlush();
 
-		// Straight to Ctrl+Z with no click first: the navigation lands the caret in the revealed
-		// heading, so the gesture that made the edit leaves focus where the undo for it can be
-		// typed.
+		// Straight to Ctrl+Z with no click first: the navigation puts the caret in the heading it
+		// mounted, so the gesture that made the edit leaves focus where its undo can be typed.
 		await editor.undo();
 		await editor.waitForRenderFlush();
 
@@ -108,8 +108,8 @@ test.describe('plugin container: reveal expands a collapsed <details>', () => {
 		await page.getByRole('textbox', { name: 'Find' }).click();
 		await page.keyboard.type('Zebra');
 
-		// The scan reaches the unmounted body (search reads the CST), so the reveal of the
-		// body paragraph is genuinely attempted rather than vacuously absent.
+		// The scan reaches the unmounted body, because search reads the CST, so mounting the body
+		// paragraph is really attempted rather than never asked for.
 		await expect(page.locator('.search-count')).toHaveText(/1\s*\/\s*1/);
 
 		await editor.bridge.waitForSourceContains('<details open>');
@@ -135,8 +135,8 @@ test.describe('plugin container: reveal expands a collapsed <details>', () => {
 				inView: true
 			});
 
-		// No collapsed ancestor on the path → no door opened, so the bytes are untouched.
-		// A TOC entry click, not a keystroke.
+		// No collapsed ancestor on the path, so nothing was expanded and the bytes are untouched.
+		// An outline entry click, not a keystroke.
 		await editor.waitForNoSourceMutation();
 		expect(await editor.bridge.getSource()).toBe(opened);
 		expect(await capturedErrors(page)).toEqual([]);

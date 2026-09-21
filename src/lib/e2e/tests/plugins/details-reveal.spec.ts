@@ -2,15 +2,16 @@ import { test, expect } from '../../fixtures';
 import { DetailsPage, activeBlockPath, bodyHostCount, capturedErrors } from './details-helpers';
 
 /**
- * Reveal into a collapsed body from the search side: the caret half. Searching for text in a
- * clamped-out body child drives the real reveal path against a collapsed details, which opens its
- * expand door and commits it. NOT the no-hang proof (VR-5) — that is unit-covered in
- * `list-windowing-collapse.svelte.test.ts` and `reveal-child-or-wait.test.ts`. What this proves is
- * that the expansion leaves a LIVE editor behind it (bytes + undo: details-reveal-expand.spec.ts).
+ * Scrolling into a collapsed body from the search side: the caret half. Searching for text in an
+ * unmounted body child drives the real path against a collapsed details, which expands and commits
+ * that. It is not the proof that nothing hangs (VR-5), which is covered by
+ * `list-windowing-collapse.svelte.test.ts` and `reveal-child-or-wait.test.ts`. What it proves is
+ * that the expansion leaves a working editor behind; the bytes and undo are in
+ * details-reveal-expand.spec.ts.
  */
 
-// A closed details whose body holds a needle found only there, plus a sibling below.
-// Search scans the CST, so it finds the body text even while unmounted.
+// A closed details whose body holds a word found only there, plus a sibling below. Search scans
+// the CST, so it finds the body text even while that text is unmounted.
 const CLOSED_WITH_NEEDLE =
 	'<details>\n<summary>Sum</summary>\n\nZebra body text\n\n</details>\n\nBelow\n';
 
@@ -26,8 +27,8 @@ test.describe('plugin container: <details> reveal-into-collapsed', () => {
 		page
 	}) => {
 		await editor.loadContent(CLOSED_WITH_NEEDLE);
-		// Precondition: the body child is genuinely clamped out, so the reveal below has
-		// to open the container rather than finding its target already mounted.
+		// Precondition: the body child really is unmounted, so the step below has to open the
+		// container rather than find its target already there.
 		expect(await bodyHostCount(page)).toBe(1);
 		expect(
 			await page.evaluate(() =>
@@ -35,20 +36,20 @@ test.describe('plugin container: <details> reveal-into-collapsed', () => {
 			)
 		).toBeNull();
 
-		// Caret on the summary before Ctrl+F, so the search snapshots it and the on-close
-		// restore has a live, in-DOM target to land on.
+		// Caret on the summary before Ctrl+F, so the search saves it and the restore on close has
+		// a live element in the DOM to land on.
 		await editor.focusBlockAtPath([0, 0], 3);
 		await page.keyboard.press('ControlOrMeta+f');
 		await page.getByRole('textbox', { name: 'Find' }).click();
 		await page.keyboard.type('Zebra');
 
-		// The needle is found (the scan reaches the unmounted body), so the reveal of [0, 1] was
-		// genuinely attempted — the count proves the path ran, not that it hung (rescan is
-		// synchronous; the reveal is fire-and-forget).
+		// The word is found, since the scan reaches the unmounted body, so mounting [0, 1] was
+		// really attempted. The count proves the path ran, not that it finished: the rescan is
+		// synchronous and the mount is not awaited.
 		await expect(page.locator('.search-count')).toHaveText(/1\s*\/\s*1/);
 
-		// The expand door opened and committed: the body child mounts and `open` is now
-		// in the serialized bytes.
+		// The container expanded and committed: the body child mounts and `open` is in the
+		// serialized bytes.
 		await editor.bridge.waitForSourceContains('<details open>');
 		await expect(page.locator('.details-toggle')).toHaveAttribute('aria-expanded', 'true');
 		await expect
@@ -59,13 +60,13 @@ test.describe('plugin container: <details> reveal-into-collapsed', () => {
 			)
 			.toBe(true);
 
-		// Close search: focus returns to the summary (its node is still in the DOM),
-		// proving the expansion left the summary as the accessible caret target.
+		// Close search: focus returns to the summary, whose element is still in the DOM, which
+		// shows the expansion left the summary reachable by the caret.
 		await page.keyboard.press('Escape');
 		await expect.poll(() => activeBlockPath(page)).toEqual([0, 0]);
 
-		// The editor is not wedged after the reveal: the restored summary caret is live
-		// and takes an edit (which touches only the summary bytes).
+		// The editor is not stuck afterwards: the restored summary caret is live and takes an
+		// edit, which touches only the summary's bytes.
 		await editor.typeText('!');
 		await editor.bridge.waitForSourceContains('<summary>Sum!</summary>');
 		// The expansion survives that edit: `rebuildDetailsRaw` regenerates the opener line from

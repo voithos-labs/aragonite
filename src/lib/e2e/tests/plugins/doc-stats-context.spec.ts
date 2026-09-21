@@ -2,8 +2,8 @@ import { test, expect } from '../../fixtures';
 import type { Page } from '@playwright/test';
 import { PluginsPage } from './helpers';
 
-// The doc-stats dogfood publishes one record per live editor to `window.__docStats`
-// (requirements/plugins/doc-stats-context.md) — the observable every gate here reads.
+// The doc-stats dogfood writes one record per live editor to `window.__docStats`
+// (requirements/plugins/doc-stats-context.md), which is what every test here reads.
 // Single-instance scenarios run on `/test/plugins?seed=docstats` (docStats is a bare entry there,
 // so its label is the 'default' options fallback); multi-instance scenarios on
 // `/test/plugins/multi` (labels left/right).
@@ -38,10 +38,10 @@ async function waitForStats(
 	return readStats(page);
 }
 
-// `publish()` copies the registry's record REFERENCES into `window.__docStats`, so this write
-// poisons the plugin's own registry entries. Only a recompute for an instance replaces its record —
-// which is what makes "the chord recomputed THIS instance" observable: its blocks recover, a
-// bystander's stay at -1.
+// The plugin copies references to its records into `window.__docStats`, so this write corrupts the
+// plugin's own entries. Only a recompute for one editor replaces that editor's record, which is
+// what makes "the chord recomputed this editor" visible: its block count recovers while another
+// editor's stays at -1.
 async function poisonStats(page: Page): Promise<void> {
 	await page.evaluate(() => {
 		for (const record of Object.values(window.__docStats ?? {})) record.blocks = -1;
@@ -88,11 +88,10 @@ test.describe('doc-stats context spine: single instance', () => {
 	});
 });
 
-// ── The regression pin: attach survives a structural edit ───────────────────
-// A tracking-effect mount attach would dispose + re-fire the spine on the first `children`
-// mutation, resetting the closure's cumulative edit counter (and transiently dropping the record).
-// Cumulative growth across split + undo + input, then a still-resolving chord, pins the
-// non-tracking attach.
+// ── The regression test: the attach survives a structural edit ──────────────
+// Attaching inside a tracking effect would tear down and re-run on the first change to `children`,
+// resetting the closure's running edit count and briefly dropping the record. Counting up across a
+// split, an undo and an input, then a chord that still resolves, pins the non-tracking attach.
 
 test.describe('doc-stats context spine: attach survives a structural edit', () => {
 	test('Enter split + undo leave the subscription live and the chord resolving', async ({
@@ -105,7 +104,7 @@ test.describe('doc-stats context spine: attach survives a structural edit', () =
 		await editor.clickBlock(0);
 		await page.keyboard.press('End');
 		await page.keyboard.press('Enter');
-		// blocks reads the LIVE document: the split's transient empty paragraph counts.
+		// `blocks` reads the live document, so the split's momentary empty paragraph counts.
 		const afterSplit = await waitForStats(page, (s) => Object.values(s)[0]?.blocks === 3);
 		const editsAfterSplit = soleRecord(afterSplit).edits;
 		expect(editsAfterSplit).toBeGreaterThanOrEqual(1);
@@ -136,7 +135,7 @@ test.describe('doc-stats context spine: two editors', () => {
 		page
 	}) => {
 		const stats = await readStats(page);
-		// Two registry keys ARE the distinct-editorId proof: a shared id would
+		// Two keys in the registry are the proof that the editor ids differ: a shared id would
 		// collapse the second set() into the first and leave one record.
 		expect(Object.keys(stats)).toHaveLength(2);
 		const byLabel = Object.fromEntries(Object.values(stats).map((r) => [r.label, r]));

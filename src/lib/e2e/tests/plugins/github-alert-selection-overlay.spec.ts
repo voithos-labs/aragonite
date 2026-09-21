@@ -3,10 +3,9 @@ import { test, expect } from '../../fixtures';
 import { PluginsPage, dragBetweenPoints, textRunCenter } from './helpers';
 
 /**
- * A GitHub alert swept into a cross-block range (requirements/plugins/github-alert-selection-
- * overlay.md). Its title row is chrome derived from the `[!WARNING]` marker, with no child
- * block-host to paint it, so the block the range holds whole must take one box over everything
- * it renders.
+ * A GitHub alert caught in a cross-block selection (requirements/plugins/github-alert-selection-
+ * overlay.md). Its title row is drawn from the `[!WARNING]` marker and has no child block to paint
+ * it, so a block the range covers whole must take one box over everything it renders.
  */
 
 const ALERT_DOC = 'above\n\n> [!WARNING]\n> body line\n\nbelow\n';
@@ -38,7 +37,7 @@ test.describe('cross-block selection overlay - a GitHub alert held whole', () =>
 		expect(await boxCoversTitle(page)).toBe(true);
 	});
 
-	// The issue's own gesture, whose endpoints land mid-word rather than at the block edges.
+	// The gesture from the original report, whose endpoints land mid-word, not at the block edges.
 	test('a pointer drag across the alert paints the same one box', async ({ page }) => {
 		await dragBetweenPoints(
 			page,

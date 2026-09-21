@@ -1,10 +1,10 @@
 import { expect, type Page } from '@playwright/test';
 import { PluginsPage } from './helpers';
 
-// Suite-specific probes for the `<details>` collapsible e2e suites. Collapse is a windowing clamp:
-// closed ⇒ only the summary row mounts, every body child genuinely unmounts. The shared
-// page/read/error probes come from ./helpers; this module adds the mounted-host, spacer, desync,
-// and scroll-height observables the collapse-clamp gates assert against.
+// Reads for the `<details>` collapsible e2e suites. Collapsing clamps the window: closed, only the
+// summary row mounts and every body child really unmounts. The shared page, read and error helpers
+// come from ./helpers; this module adds the mounted-host count, the spacers, the mismatch check and
+// the scroll height those tests assert against.
 
 export { activeBlockPath, capturedErrors, readContainer as readDetails } from './helpers';
 
@@ -14,14 +14,14 @@ export class DetailsPage extends PluginsPage {
 	}
 }
 
-// Body children mount as `.block-host`s inside the box; the count drops to the
-// lone summary host when collapsed — the observable proof the clamp unmounted.
+// Body children mount as `.block-host`s inside the box, and the count drops to the summary host
+// alone when collapsed, which is how the test sees that the clamp unmounted them.
 export async function bodyHostCount(page: Page): Promise<number> {
 	return page.evaluate(() => document.querySelectorAll('.details-block .block-host').length);
 }
 
-// Spacers the nested details scope emits while its body windows; zero when the
-// collapse clamp is active (the clamped window has no spacers).
+// Spacers the nested details list emits while its body is windowed; zero while the collapse clamp
+// is active, because the clamped window has none.
 export async function detailsSpacerCount(page: Page): Promise<number> {
 	return page.evaluate(() => document.querySelectorAll('.details-block .vr-spacer').length);
 }
@@ -34,11 +34,11 @@ export interface RefDesync {
 	refsLen: number;
 }
 
-// The desync guard for the clamp's mount/unmount churn. The bridge's raw audit flags any container
-// with fewer mounted refs than children — true of EVERY windowed or collapse-clamped scope, since
-// `innerBlockRefs` holds only the mounted slice. The genuine invariants are: childIds stay 1:1 with
-// children, and refs never EXCEED children (the stale-trailing-slot bug the list-exit regression
-// guards).
+// The check against CST and DOM drifting apart as the clamp mounts and unmounts. The bridge's raw
+// audit flags any container with fewer mounted references than children, which is true of every
+// windowed or clamped list, since `innerBlockRefs` holds only the mounted part. What must hold is
+// that childIds stay one per child, and that the references never outnumber the children, which is
+// the stale trailing entry the list-exit regression guards.
 export async function auditRealDesyncs(page: Page): Promise<RefDesync[]> {
 	const violations = (await page.evaluate(() =>
 		(window as any).__test.auditBlockListStateConsistency()
@@ -53,9 +53,9 @@ export const CLOSED_WITH_BELOW =
 export const OPEN_WITH_BELOW =
 	'<details open>\n<summary>Sum</summary>\n\nBody\n\n</details>\n\nBelow\n';
 
-// Scroll-height of the editor's internal scroll container — the observable the height oracle's
-// per-block estimates sum into. Drifts when unmounted blocks are estimated far from their rendered
-// height.
+// The scroll height of the editor's own scroll container, which is what the per-block height
+// estimates add up to. It drifts when unmounted blocks are estimated far from the height they
+// would render at.
 export async function editorScrollHeight(page: Page): Promise<number> {
 	return page.evaluate(() => (document.querySelector('.editor') as HTMLElement).scrollHeight);
 }
@@ -67,8 +67,8 @@ export async function scrollThrough(page: Page, editor: DetailsPage): Promise<vo
 		const el = document.querySelector('.editor') as HTMLElement;
 		return { viewport: el.clientHeight, scrollHeight: el.scrollHeight };
 	});
-	// Precondition, not postcondition: a zero scroll height means there is nothing to
-	// pass over, so guard it before the loop consumes it.
+	// A precondition, not a postcondition: a zero scroll height means there is nothing to scroll
+	// through, so check it before the loop runs.
 	expect(scrollHeight).toBeGreaterThan(0);
 	const step = Math.max(1, Math.round(viewport * 0.6));
 	for (let top = 0; top < scrollHeight; top += step) await editor.scrollEditorTo(top);

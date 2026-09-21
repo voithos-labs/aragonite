@@ -1,21 +1,22 @@
 import { test, expect } from '../../fixtures';
 import { PluginsPage, activeBlockPath, roundTripStable } from './helpers';
 
-// Gap caret on the opaque-container tier (#93): callout|callout, details|callout, and the
-// strip negative (requirements/plugins/gap-caret-opaque-containers.md). The generic
-// arrival/mint/undo mechanics live in selection/gap-caret-*.spec.ts; bytes are the oracle
-// here because opaque raws are rebuilt, not sliced.
+// The gap caret between opaque containers (#93): callout beside callout, details beside callout,
+// and the case where a marker-prefixed container declines
+// (requirements/plugins/gap-caret-opaque-containers.md). How a gap caret arrives, creates a block
+// and undoes is covered in selection/gap-caret-*.spec.ts; the bytes are the reference here because
+// an opaque container's raw is rebuilt rather than sliced.
 
 const CALLOUT_A = ':::note Alpha\nalpha\n:::\n';
 const CALLOUT_B = ':::tip Beta\nbeta\n:::\n';
-/** admonition, admonition, paragraph — the eligible boundary is 1. */
+/** admonition, admonition, paragraph: the boundary that qualifies is 1. */
 const TWO_CALLOUTS = `${CALLOUT_A}\n${CALLOUT_B}\ntail\n`;
 const OPEN_DETAILS = '<details open>\n<summary>Sum</summary>\n\nbody a\n\n</details>\n';
 const CLOSED_DETAILS = '<details>\n<summary>Sum</summary>\n\nbody a\n\n</details>\n';
-/** details, admonition, paragraph — the eligible boundary is 1. */
+/** details, admonition, paragraph: the boundary that qualifies is 1. */
 const DETAILS_THEN_CALLOUT = `${OPEN_DETAILS}\n${CALLOUT_B}\ntail\n`;
 const COLLAPSED_THEN_CALLOUT = `${CLOSED_DETAILS}\n${CALLOUT_B}\ntail\n`;
-/** blockquote, blockquote — the strip tier's pinned non-boundary. */
+/** blockquote, blockquote: the pinned case where no gap caret appears. */
 const TWO_QUOTES = '> alpha\n\n> beta\n';
 const AT_BOUNDARY = { parentPath: [], index: 1 };
 const AT_DOC_START = { parentPath: [], index: 0 };
@@ -92,7 +93,8 @@ test.describe('gap caret between opaque containers', () => {
 		expect(await roundTripStable(editor.page)).toBe(true);
 	});
 
-	// The clamped-out body is refless; the move must skip it and park, not dead-end.
+	// The unmounted body has no reference, so the move must skip it and stop in the gap rather
+	// than dead-end.
 	test('ArrowDown from a collapsed details summary parks at the boundary below', async () => {
 		await editor.loadContent(COLLAPSED_THEN_CALLOUT);
 		await editor.focusBlockAtPath([0, 0], 0);
@@ -116,7 +118,8 @@ test.describe('gap caret between opaque containers', () => {
 		await editor.bridge.waitForGapCaret(AT_DOC_START);
 	});
 
-	// The decision's other half: the strip tier keeps its unwrap/exit gestures instead.
+	// The other half of the decision: a marker-prefixed container keeps its unwrap and exit
+	// gestures instead.
 	test('blockquote|blockquote stays gap-free: ArrowDown enters the second quote', async () => {
 		await editor.loadContent(TWO_QUOTES);
 		await editor.focusBlockAtPath([0, 0], 5);

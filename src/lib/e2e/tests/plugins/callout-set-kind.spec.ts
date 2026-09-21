@@ -2,12 +2,12 @@ import { test, expect } from '../../fixtures';
 import { PluginsPage, roundTripStable } from './helpers';
 
 /**
- * Command-mint dogfood driver: the `:::callout` callout mints `callout.setKind` and binds it to two
- * arg-bearing chords (Mod+7→'callout', Mod+8→'aside'). Each test drives a REAL keypress on an inner
- * leaf and proves the bubble-dispatch chain end to end — keypress → eventToChord → leaf declines →
- * container handleKeydown → keymap → registered handler → metadata commit → rebuildCalloutRaw.
- * Chord choice: a Shift-held digit's key token is browser-translated ('1'→'!'), so Mod+Shift+1/2
- * would be dead keys under real keyboard simulation; see callout-kind.ts.
+ * A plugin registering its own command: the `:::callout` container registers `callout.setKind` and
+ * binds it to two chords that carry an argument (Mod+7 for 'callout', Mod+8 for 'aside'). Each test
+ * presses a real key on an inner block and follows the chain end to end: keypress, eventToChord, the
+ * block declining, the container's handleKeydown, the keymap, the registered handler, the metadata
+ * commit and rebuildCalloutRaw. Mod+Shift+1 and Mod+Shift+2 would do nothing under real keyboard
+ * simulation, because the browser translates a Shift-held digit ('1' becomes '!').
  */
 
 const CALLOUT_DOC = ':::callout\nbody\n:::\n';
@@ -56,7 +56,7 @@ test.describe('callout.setKind — mint → keymap → bubble dispatch → metad
 		page
 	}) => {
 		await editor.loadContent(CALLOUT_DOC);
-		await editor.focusBlockAtPath([0, 0], 0); // callout-title chrome leaf (child 0)
+		await editor.focusBlockAtPath([0, 0], 0); // the callout's title row, child 0
 		await page.keyboard.press('ControlOrMeta+8');
 
 		await editor.bridge.waitForSourceContains(':::aside');

@@ -2,10 +2,10 @@ import { test, expect } from '../../fixtures';
 import type { Locator, Page } from '@playwright/test';
 import { PluginsPage, activeBlockPath } from './helpers';
 
-// The three DOM-only closure columns, executed per registered kind. One test per COLUMN iterates
-// the live registry entries, soft-collects a failure line per kind, and rolls them into a final
-// hard assert — Playwright can't parametrize on runtime data across workers, and a per-kind roll-up
-// names every offender in one failure.
+// The three DOM-only closure columns, run for every registered kind. One test per column walks the
+// live registry entries, collects a failure line per kind and asserts on the whole list at the end,
+// because Playwright cannot parametrize on runtime data across workers and one roll-up names every
+// offender in a single failure.
 
 interface SweepEntry {
 	kind: string;
@@ -69,9 +69,9 @@ async function clearDocument(page: Page): Promise<void> {
 	});
 }
 
-// Load `BEFORE / fixture / AFTER` and resolve the fixture block. The kind is sought only among the
-// MIDDLE blocks: `paragraph`'s fixture is itself a paragraph, so a whole-document scan would match
-// the BEFORE neighbour.
+// Load `BEFORE / fixture / AFTER` and resolve the fixture block. The kind is looked for only among
+// the middle blocks: `paragraph`'s fixture is itself a paragraph, so a whole-document scan would
+// match the `BEFORE` neighbour.
 async function loadAndLocate(
 	page: Page,
 	plugins: PluginsPage,
@@ -104,7 +104,7 @@ async function loadAndLocate(
 	}, entry.kind);
 }
 
-// ── Overlay probes ────────────────────────────────────────────────────────────
+// ── Overlay reads ─────────────────────────────────────────────────────────────
 
 async function sizedSelectionOverlayIn(page: Page, topIndex: number): Promise<boolean> {
 	return page.evaluate((t) => {
@@ -132,11 +132,11 @@ async function openSearch(page: Page, plugins: PluginsPage, find: Locator): Prom
 	await find.waitFor({ state: 'visible' });
 }
 
-// fill('') then fill(token): the bar retains its query across close/open and a same-value fill
-// fires no input event, so clearing first forces the re-scan. Settle on the count reaching
-// `expectMatches` before any overlay read — a fixed frame yield races the document scan and would
-// leave the not-supported "block stays clean" assertion vacuous. Returns false rather than
-// throwing, so the caller can name the soft failure.
+// fill('') then fill(token): the bar keeps its query across close and open, and a fill with the
+// same value fires no input event, so clearing first forces the re-scan. Wait for the count to
+// reach `expectMatches` before reading any overlay, since a fixed frame yield races the document
+// scan and would leave the not-supported "block stays clean" assertion empty. Returns false rather
+// than throwing, so the caller can name the failure.
 async function runQuery(
 	page: Page,
 	plugins: PluginsPage,
@@ -163,8 +163,8 @@ async function runQuery(
 	return true;
 }
 
-// Poll until a sized match overlay paints in the block subtree (the painted-kind signal), bounded —
-// mirrors the selection loop's shape so a slow paint flush is waited on, not read once and flaked.
+// Poll, with a bound, until a sized match overlay paints in the block's subtree. It mirrors the
+// selection loop's shape so a slow paint is waited for rather than read once and flaked.
 async function waitForMatchOverlayIn(
 	page: Page,
 	topIndex: number,
@@ -285,9 +285,9 @@ test('focus walk enters and exits each kind without trapping', async ({ page }) 
 	expectSweepClean(await sweepFocusWalk(page, plugins));
 });
 
-// The same walk under a marker-hiding mode, where a caret park and a typed byte are what G1.33
-// watches: a kind minting marker-only chrome into its own surface fires on the shared fixture's
-// console watch here rather than in a consumer's document.
+// The same walk under a marker-hiding mode, where G1.33 watches where the caret rests and where a
+// typed byte lands: a kind that puts marker-only text into its own editable area trips the shared
+// fixture's console watch here rather than in a consumer's document.
 test('focus walk under live mode enters and exits each kind, tripping no invariant', async ({
 	page
 }) => {
@@ -356,10 +356,10 @@ test('search paints or degrades per kind', async ({ page }) => {
 		await openSearch(page, plugins, find);
 
 		if (entry.cells.searchPaint.mode === 'not-supported') {
-			// Degradation: a token shared by both neighbours paints on them but never inside the
-			// block, and navigation cycles between them without trapping. Settling on >= 2 matches
-			// first is what makes "block stays clean" non-vacuous — the neighbours are proven to
-			// carry matches.
+			// Degradation: a token both neighbours share paints on them but never inside the block,
+			// and navigation cycles between them without trapping. Waiting for at least 2 matches
+			// first is what makes "block stays clean" mean something: the neighbours really do
+			// hold matches.
 			if (!(await runQuery(page, plugins, find, NEIGHBOUR_TOKEN, 2))) {
 				failures.push(
 					`${entry.kind} [searchPaint]: the neighbour matches never appeared — degradation unverifiable`

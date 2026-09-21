@@ -12,10 +12,11 @@ import {
 } from './details-helpers';
 
 /**
- * The `<details>` collapsible, the second reserved-chrome consumer. Collapse is a windowing clamp:
- * closed ⇒ only the summary row mounts, every body child genuinely unmounts. This gate proves the
- * toggle (open metadata ↔ opener bytes), the clamp's mount/unmount, and the three decided caret
- * rules — asserted against the CST by path, the serialized bytes, and the mounted body-host count.
+ * The `<details>` collapsible, the second block with an editable title row. Collapsing clamps the
+ * window: closed, only the summary row mounts and every body child really unmounts. These tests
+ * cover the toggle (open metadata against the opener bytes), the clamp mounting and unmounting,
+ * and the three caret rules, checked against the CST by path, the serialized bytes, and how many
+ * body hosts are mounted.
  */
 test.describe('plugin container: <details> collapsible', () => {
 	let editor: DetailsPage;
@@ -77,8 +78,8 @@ test.describe('plugin container: <details> collapsible', () => {
 		await editor.focusBlockAtPath([0, 1], 4); // end of "Body"
 		expect(await activeBlockPath(page)).toEqual([0, 1]);
 
-		// Mouse toggle keeps the body caret (mousedown default suppressed); the clamp
-		// kills the pin, so the commit's afterTick moves the orphaned caret up.
+		// The mouse toggle keeps the body caret, since mousedown's default is suppressed, and the
+		// clamp then unmounts that block, so the commit's afterTick moves the stray caret up.
 		await editor.page.locator('.details-toggle').click();
 		await editor.bridge.waitForSourceContains('<details>\n');
 		await expect.poll(() => activeBlockPath(page)).toEqual([0, 0]);
@@ -97,12 +98,12 @@ test.describe('plugin container: <details> collapsible', () => {
 		await editor.waitForUndoBatchFlush();
 
 		await editor.pressDeclined('Enter');
-		// The gate consumed Enter: no body minted, caret stays in the summary.
+		// The check consumed Enter: no body block was created, and the caret stays in the summary.
 		expect((await readDetails(page, 0)).childCount).toBe(1);
 		expect(await activeBlockPath(page)).toEqual([0, 0]);
 
-		// Enter pushed no undo entry: the single undo reverts the 'X' typing, not a
-		// phantom mint (which would leave 'X' behind).
+		// Enter pushed no undo entry: the one undo reverts the 'X' typing, not a block that was
+		// never created, which would leave the 'X' behind.
 		await editor.undo();
 		await editor.bridge.waitForSourceContains('<summary>Sum</summary>');
 		expect((await readDetails(page, 0)).childCount).toBe(1);
@@ -118,8 +119,8 @@ test.describe('plugin container: <details> collapsible', () => {
 		await editor.focusBlockAtPath([1], 0); // start of "Below"
 
 		await page.keyboard.press('ArrowUp');
-		// The clamped-out last child can't receive focus; the walk must land on the
-		// summary, not silently no-op.
+		// The unmounted last child cannot take focus, so the move must land on the summary rather
+		// than quietly doing nothing.
 		await expect.poll(() => activeBlockPath(page)).toEqual([0, 0]);
 		expect(await capturedErrors(page)).toEqual([]);
 	});
@@ -130,9 +131,9 @@ test.describe('plugin container: <details> collapsible', () => {
 		await editor.loadContent(CLOSED_WITH_BELOW);
 		await editor.focusBlockAtPath([1], 0); // start of "Below"
 
-		// ArrowLeft at a block start routes through `focus(CURSOR_END)`, which targets the
-		// (unmounted) last child — the exact clamp path §4 flags. It must clamp to the summary, not
-		// no-op on the absent ref.
+		// ArrowLeft at a block start goes through `focus(CURSOR_END)`, which targets the last
+		// child, and that child is unmounted. It must fall back to the summary rather than do
+		// nothing against the missing reference.
 		await page.keyboard.press('ArrowLeft');
 		await expect.poll(() => activeBlockPath(page)).toEqual([0, 0]);
 		expect(await capturedErrors(page)).toEqual([]);
@@ -143,8 +144,8 @@ test.describe('plugin container: <details> collapsible', () => {
 		expect(await bodyHostCount(page)).toBe(1); // body clamped out
 		await editor.focusBlockAtPath([0, 0], 3); // end of "Sum"
 
-		// The move targets the unmounted body child; it must delegate past the
-		// container to "Below", not silently dead-end on the absent ref.
+		// The move targets the unmounted body child, so it must carry on past the container to
+		// "Below" rather than stop at the missing reference.
 		await page.keyboard.press('ArrowDown');
 		await expect.poll(() => activeBlockPath(page)).toEqual([1]);
 		expect(await capturedErrors(page)).toEqual([]);
@@ -167,16 +168,16 @@ test.describe('plugin container: <details> collapsible', () => {
 		await editor.loadContent(CLOSED_WITH_BELOW);
 		await editor.focusBlockAtPath([1], 0); // start of "Below"
 
-		// The cross-boundary merge walk must not write into the clamped-out body: no mutation,
-		// caret to the summary end (the interior not-mergeable-title rule, mirrored across the
-		// container boundary).
+		// A merge that crosses the container's edge must not write into the unmounted body: no
+		// edit, and the caret to the summary's end. That is the same rule as the one against
+		// merging into a title from inside, applied across the container's edge.
 		await editor.pressDeclined('Backspace');
 		expect(await editor.bridge.getSource()).toBe(CLOSED_WITH_BELOW);
 		await expect.poll(() => activeBlockPath(page)).toEqual([0, 0]);
 		await expect(page.getByText('Below')).toBeVisible();
 
-		// Typing appends at "Sum|" — the live-caret proof the focus-move landed at
-		// the summary's END, not its start.
+		// Typing appends at "Sum|", the live-caret proof that the focus move landed at the
+		// summary's end and not at its start.
 		await editor.typeText('X');
 		await editor.bridge.waitForSourceContains('<summary>SumX</summary>');
 		expect(await capturedErrors(page)).toEqual([]);
@@ -186,8 +187,8 @@ test.describe('plugin container: <details> collapsible', () => {
 		await editor.loadContent(OPEN_WITH_BELOW);
 		await editor.focusBlockAtPath([1], 0); // start of "Below"
 
-		// The collapse probe must not over-fire: an open details keeps the normal
-		// deep-leaf merge, "Below" joining "Body" with the caret at the join point.
+		// The collapse check must not fire too widely: an open details keeps the ordinary merge
+		// into its deepest block, with "Below" joining "Body" and the caret at the join.
 		await page.keyboard.press('Backspace');
 		await editor.bridge.waitForSourceContains('BodyBelow');
 		expect(await editor.bridge.getSource()).toBe(
@@ -227,8 +228,8 @@ test.describe('plugin container: <details> collapsible', () => {
 		await editor.typeSlowly('</details>');
 		await editor.bridge.waitForSourceContains('&lt;/details>');
 
-		// Still ONE details holding the typed line, and the line is still prose —
-		// the escape runs ahead of the reparse that picks the kind.
+		// Still one details holding the typed line, and the line is still prose, because the
+		// escape runs before the reparse that picks the kind.
 		const d = await readDetails(page, 0);
 		expect(d.kind).toBe('details');
 		expect(d.childKinds).toEqual(['details-summary', 'paragraph', 'paragraph']);
@@ -237,10 +238,10 @@ test.describe('plugin container: <details> collapsible', () => {
 		// The caret sits after the typed `>`, past the entity the escape grew ahead of it, so the
 		// next keystroke continues the line instead of landing mid-word.
 		//
-		// KEEP THE OFFSET. This assertion is the ONLY guard on the commit doors' caret mapping: the
-		// landing goes through `refAt(i)?.focus`, and a unit pin would need jsdom plus mounted
-		// refs. Weakened to a path check it guards nothing — a caret three units into the word
-		// passes it.
+		// Keep the offset: this assertion is the only check on how the commit paths map the caret,
+		// which goes through `refAt(i)?.focus`, and a unit test would need jsdom plus mounted
+		// references. Weakened to a path check it guards nothing, since a caret three units into
+		// the word passes it.
 		const sel = await page.evaluate(() => (window as any).__test.getSelectionPaths());
 		expect(sel.focus).toEqual({ path: [0, 2], offset: 13 });
 		expect(await capturedErrors(page)).toEqual([]);
@@ -259,8 +260,8 @@ test.describe('plugin container: <details> collapsible', () => {
 		await page.keyboard.press('ControlOrMeta+c');
 		await editor.waitForClipboardWrite();
 
-		// Paste into "Below": the synthesized closer makes the bytes reparse to a
-		// second `<details>` carrying the truncated summary and the live open flag.
+		// Paste into "Below": the added closer makes the bytes reparse into a second `<details>`
+		// holding the truncated summary and the live open flag.
 		await editor.clickBlock(2);
 		await editor.waitForCrossBlock(false);
 		await page.keyboard.press('End');

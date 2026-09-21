@@ -3,10 +3,10 @@ import { activeBlockPath, PluginsPage, capturedErrors } from './helpers';
 
 /**
  * `:shortcode:` emoji as atomic glyph widgets on the bare `:` trigger. The literal bytes stay in
- * the source; the widget shows only the glyph and carries the decoded-entity editing policy (atomic
- * delete, step-over). Seed `emoji`: block 0 `Mood :smile: today` (widget at raw [5,12)), block 1
- * `Type here`. The load-bearing gestures are the caret-edge ones, which only the real render path
- * and its edge-policy dispatch exercise.
+ * the source, the widget shows only the glyph, and it edits like a decoded entity: deleted whole,
+ * stepped over. Seed `emoji`: block 0 `Mood :smile: today`, the widget at raw [5,12), and block 1
+ * `Type here`. The gestures that matter are the ones at the caret's edges, which only the real
+ * render path and its edge dispatch reach.
  */
 
 const emojiIn = (editor: PluginsPage, block: number) =>
@@ -43,9 +43,9 @@ test.describe('plugin inline emoji shortcodes', () => {
 	});
 
 	test('a plain arrow steps the caret over the whole widget like a character', async ({ page }) => {
-		// From the block start, five ArrowRights reach the widget's leading edge (past "Mood ");
-		// the sixth crosses the atomic island in one press, so a character typed next lands
-		// immediately after the closing colon — proof the caret stepped over all seven bytes.
+		// From the block start, five ArrowRights reach the widget's leading edge, past "Mood ",
+		// and the sixth crosses the whole widget in one keypress, so a character typed next lands
+		// right after the closing colon, proving the caret stepped over all seven bytes.
 		await editor.focusBlockStart(0);
 		for (let i = 0; i < 6; i++) await page.keyboard.press('ArrowRight');
 		await editor.typeText('X');
@@ -57,8 +57,8 @@ test.describe('plugin inline emoji shortcodes', () => {
 	test('a caret-adjacent Backspace deletes the whole reference in one press and one undo', async ({
 		page
 	}) => {
-		// Six ArrowRights land the caret at the widget's trailing edge (stepping over the
-		// island); one Backspace removes all seven `:smile:` bytes.
+		// Six ArrowRights land the caret at the widget's trailing edge, stepping over it, and one
+		// Backspace removes all seven `:smile:` bytes.
 		await editor.focusBlockStart(0);
 		for (let i = 0; i < 6; i++) await page.keyboard.press('ArrowRight');
 		await page.keyboard.press('Backspace');
@@ -66,8 +66,8 @@ test.describe('plugin inline emoji shortcodes', () => {
 		await expect(emojiIn(editor, 0)).toHaveCount(0);
 		expect(await editor.bridge.getSource()).toContain('Mood  today');
 
-		// One undo restores the reference whole — the atomic delete was a single commit.
-		// Assert the exact original source, not mere containment, so a partial restore fails.
+		// One undo restores the shortcode whole, since the delete was a single commit. Assert the
+		// exact original source rather than containment, so a partial restore fails.
 		await editor.waitForUndoBatchFlush();
 		await editor.undo();
 		await editor.bridge.waitForSourceContains(':smile:');
@@ -93,7 +93,7 @@ test.describe('plugin inline emoji shortcodes', () => {
 		expect(await capturedErrors(page)).toEqual([]);
 	});
 
-	// Quarters, not halves: the box midline is where the two answers meet, and a press there is
+	// Quarters, not halves: the box's midline is where the two answers meet, and a click there is
 	// decided by sub-pixel luck.
 	for (const mode of ['source', 'live'] as const) {
 		for (const [side, fraction, expected] of [
