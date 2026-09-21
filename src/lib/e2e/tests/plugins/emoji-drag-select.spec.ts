@@ -16,16 +16,18 @@ interface Point {
 	y: number;
 }
 
-/** The glyph's centre, a point `dx` from its left edge on the same line, and the line's far end. */
+/** A point in the glyph's trailing half, a point `dx` from its left edge on the same line, and the
+ *  line's far end. The edge to anchor at is chosen by which half of the glyph the press is in, so
+ *  a press at the exact centre would leave the anchor to sub-pixel rounding. */
 async function emojiPoints(
 	editor: PluginsPage
-): Promise<{ centre: Point; from: (dx: number) => Point; lineEnd: Point }> {
+): Promise<{ trailingHalf: Point; from: (dx: number) => Point; lineEnd: Point }> {
 	const box = await editor.page.locator('.md-emoji-widget').first().boundingBox();
 	const block = await editor.getBlock(0).boundingBox();
 	if (!box || !block) throw new Error('no layout box');
 	const y = box.y + box.height / 2;
 	return {
-		centre: { x: box.x + box.width / 2, y },
+		trailingHalf: { x: box.x + box.width * 0.75, y },
 		from: (dx) => ({ x: box.x + dx, y }),
 		lineEnd: { x: block.x + block.width - 4, y }
 	};
@@ -68,8 +70,8 @@ test.describe('a drag that starts on an emoji selects', () => {
 	});
 
 	test('dragging right off the glyph selects the text after it', async () => {
-		const { centre, from } = await emojiPoints(editor);
-		await dragBetween(editor, centre, from(200));
+		const { trailingHalf, from } = await emojiPoints(editor);
+		await dragBetween(editor, trailingHalf, from(200));
 
 		expect(await selectedText(editor)).toContain('today');
 		// Anchored at the island's own trailing edge, the raw offset after `:smile:`, so the glyph
@@ -79,8 +81,8 @@ test.describe('a drag that starts on an emoji selects', () => {
 	});
 
 	test('dragging left off the glyph selects the text before it', async () => {
-		const { centre, from } = await emojiPoints(editor);
-		await dragBetween(editor, centre, from(-45));
+		const { trailingHalf, from } = await emojiPoints(editor);
+		await dragBetween(editor, trailingHalf, from(-45));
 
 		expect(await selectedText(editor)).toContain('ood');
 		const range = await selectedRange(editor);
@@ -90,8 +92,8 @@ test.describe('a drag that starts on an emoji selects', () => {
 	});
 
 	test('the drag paints no range until the pointer moves', async () => {
-		const { centre } = await emojiPoints(editor);
-		await editor.page.mouse.move(centre.x, centre.y);
+		const { trailingHalf } = await emojiPoints(editor);
+		await editor.page.mouse.move(trailingHalf.x, trailingHalf.y);
 		await editor.page.mouse.down();
 		await editor.waitForRenderFlush();
 
@@ -105,8 +107,8 @@ test.describe('a drag that starts on an emoji selects', () => {
 	});
 
 	test('the selection a drag from the glyph paints is the one a key type-replaces', async () => {
-		const { centre, lineEnd } = await emojiPoints(editor);
-		await dragBetween(editor, centre, lineEnd);
+		const { trailingHalf, lineEnd } = await emojiPoints(editor);
+		await dragBetween(editor, trailingHalf, lineEnd);
 
 		await editor.page.keyboard.type('X');
 		await editor.bridge.waitForSourceContains('X');

@@ -16,12 +16,39 @@ const chip = (editor: PluginsPage, name: string) =>
 
 const firstLine = async (editor: PluginsPage) => (await editor.bridge.getSource()).split('\n')[0];
 
-/** Click a fraction along the chip, which is the text beneath it. */
-async function clickInsideChip(editor: PluginsPage, name: string, fraction = 0.6): Promise<void> {
+/** Where `#name` sits on the first line: the hash's offset, and the offset just past the name. */
+async function tagSpan(editor: PluginsPage, name: string): Promise<{ start: number; end: number }> {
+	const start = (await firstLine(editor)).indexOf(`#${name}`);
+	if (start < 0) throw new Error(`no #${name} on the first line`);
+	return { start, end: start + name.length + 1 };
+}
+
+/** Click part way along the chip, which is the text beneath it. */
+async function clickInsideChip(editor: PluginsPage, name: string): Promise<void> {
 	const box = await chip(editor, name).boundingBox();
 	if (!box) throw new Error(`no chip for #${name}`);
-	await editor.page.mouse.click(box.x + box.width * fraction, box.y + box.height / 2);
+	await editor.page.mouse.click(box.x + box.width * 0.6, box.y + box.height / 2);
 	await editor.waitForRenderFlush();
+}
+
+/** Click the chip, then step the caret `into` characters past the tag's `#` with arrow keys.
+ *  Which letter gap a click resolves to is font-metric luck, so a test that names the bytes it
+ *  expects walks to the position it means instead of trusting the click. */
+async function caretInsideChip(editor: PluginsPage, name: string, into: number): Promise<void> {
+	await clickInsideChip(editor, name);
+	const { start, end } = await tagSpan(editor, name);
+	const landed = (await editor.bridge.getSelectionPaths())?.focus;
+	expect(landed?.path).toEqual([0]);
+	expect(landed!.offset).toBeGreaterThan(start);
+	expect(landed!.offset).toBeLessThan(end);
+
+	const target = start + into;
+	const key = target > landed!.offset ? 'ArrowRight' : 'ArrowLeft';
+	for (let step = Math.abs(target - landed!.offset); step > 0; step--) {
+		await editor.page.keyboard.press(key);
+	}
+	await editor.waitForRenderFlush();
+	expect((await editor.bridge.getSelectionPaths())?.focus.offset).toBe(target);
 }
 
 test.describe('in-body tags as mark decorations', () => {
@@ -42,28 +69,28 @@ test.describe('in-body tags as mark decorations', () => {
 
 	test('the caret lands INSIDE a tag, where a widget would have made an island', async () => {
 		await clickInsideChip(editor, 'project');
+		const { start, end } = await tagSpan(editor, 'project');
 		const focus = (await editor.bridge.getSelectionPaths())?.focus;
-		// `Filed under #project` — the tag's bytes run 12..20, and the caret sits among them.
+		// `Filed under #project` — the caret sits among the tag's own bytes.
 		expect(focus?.path).toEqual([0]);
-		expect(focus!.offset).toBeGreaterThan(12);
-		expect(focus!.offset).toBeLessThan(20);
+		expect(focus!.offset).toBeGreaterThan(start);
+		expect(focus!.offset).toBeLessThan(end);
 	});
 
 	test('one Backspace takes one character, and the chip follows the bytes', async () => {
-		await clickInsideChip(editor, 'project');
-		const before = await firstLine(editor);
+		await caretInsideChip(editor, 'project', 4);
 
 		await editor.page.keyboard.press('Backspace');
 
 		// One byte, not the whole construct: a widget's edge would have taken the tag entire.
-		await expect.poll(async () => (await firstLine(editor)).length).toBe(before.length - 1);
+		await editor.bridge.waitForSourceContains('#prject');
 		// Still a tag, still one chip on that line, with no reveal in between.
 		await expect(editor.page.locator('[data-block-path="[0]"] .body-tag-mark')).toHaveCount(2);
 		expect(await capturedErrors(editor.page)).toEqual([]);
 	});
 
 	test('typing inside a tag extends it, with no reveal and no remount', async () => {
-		await clickInsideChip(editor, 'project');
+		await caretInsideChip(editor, 'project', 4);
 
 		await editor.typeText('X');
 		await editor.bridge.waitForSourceContains('#proXject');
@@ -73,13 +100,13 @@ test.describe('in-body tags as mark decorations', () => {
 	});
 
 	test('a selection grows through a tag one character at a time', async () => {
-		await clickInsideChip(editor, 'project', 0.1);
+		await caretInsideChip(editor, 'project', 1);
 		for (let step = 0; step < 4; step++) await editor.page.keyboard.press('Shift+ArrowRight');
 		await editor.waitForRenderFlush();
 
 		// Four presses, four characters: the tag is text, so nothing steps over it whole.
 		const selected = await editor.page.evaluate(() => window.getSelection()?.toString() ?? '');
-		expect(selected).toHaveLength(4);
+		expect(selected).toBe('proj');
 	});
 
 	test('a tag opening a line is a paragraph, painted at paragraph size', async () => {
