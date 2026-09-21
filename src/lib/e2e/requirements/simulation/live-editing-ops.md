@@ -3,12 +3,11 @@
 A loaded-ops session that drives live mode's own editing rules through the
 gesture layer. Live is the only mode that hides every content-backed marker
 without revealing it, so each rule rewrites bytes the user cannot see. That
-makes the source the only thing
-that can check them, and makes a silent divergence invisible on screen by
-construction. Every gesture enters live through the header toggle (a real
-click), drives one rule with real keys, and undoes what it spent, so the whole
-family nets to identity and the session's round-trip and nested-state checks
-run over every step.
+makes the source the only thing that can check them, and makes a silent
+divergence invisible on screen by construction. Every gesture enters live
+through the header toggle (a real click), drives one rule with real keys, and
+undoes what it spent, so the whole family nets to identity and the session's
+round-trip and nested-state checks run over every step.
 
 ## Happy paths
 
