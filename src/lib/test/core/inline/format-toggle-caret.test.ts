@@ -24,6 +24,12 @@ describe.each(MARK_FORMATS)('toggleInlineFormat at a collapsed caret (%s)', (for
 		expect(at('word', 4).newDisplay).toBe(`word${markers}${markers}`);
 	});
 
+	// The editor has no word-boundary rule anywhere, so a caret inside a word marks nothing
+	// around it.
+	it('inserts at a mid-word caret rather than marking the word around it', () => {
+		expect(at('wordy', 2).newDisplay).toBe(`wo${markers}${markers}rdy`);
+	});
+
 	it('removes the empty pair on a second press, restoring the caret', () => {
 		const first = at('ab', 1);
 		const second = at(first.newDisplay, first.newSelStart);
