@@ -1,10 +1,10 @@
 // @vitest-environment jsdom
 //
-// What the container seam's optional deps mean when a plugin supplies NONE of them. Each
-// helper has its own unit test proving it declines; none says what the decline looks like at
-// a mounted caller, and the generic directive container is the only shipped component that
-// takes every one of those branches at once. The failure they guard is uniform and quiet: a
-// container that starts CLAIMING keys or COMMITTING where it should have stood down.
+// What `createContainerBlock`'s optional dependencies mean when a plugin passes none of them.
+// Each helper has its own unit test proving it refuses; none shows what that refusal looks
+// like in a mounted component, and the generic directive container is the only shipped one
+// that takes all those branches at once. The failure they guard is quiet and uniform: a
+// container that starts handling keys or writing bytes where it should have done nothing.
 import { describe, it, expect, beforeAll, afterEach, vi } from 'vitest';
 import type { EditorServices } from '$lib/editor-keys';
 import { makeStubFocus } from '../../harness/editor-actions';
@@ -41,8 +41,8 @@ afterEach(async () => {
 });
 
 describe('an unconfigured container stands down where the seam declines', () => {
-	// A kind declaring no `reservedChrome` is never collapsed, so `expandCollapsed` declines. A
-	// door that opened anyway would mint an undo entry on a container with no collapsed state.
+	// A kind that declares no `reservedChrome` is never collapsed, so `expandCollapsed` refuses.
+	// Opening anyway would add an undo entry to a container that has no collapsed state.
 	it('reveals a body child without committing a byte to open it', async () => {
 		mounted = mountDirective(BODY);
 
@@ -52,8 +52,8 @@ describe('an unconfigured container stands down where the seam declines', () => 
 		expect(mounted.blockEdit.updateBlockMetadata).not.toHaveBeenCalled();
 	});
 
-	// The kind target's `runCommand` is inert by construction — a plugin container owns no
-	// built-in kind commands — so the key must keep travelling to the tier that does own it.
+	// A plugin container has no built-in kind commands, so its `runCommand` does nothing and the
+	// key has to keep travelling up to whatever does own it.
 	it('leaves a chord it has no command for to the tier above', () => {
 		mounted = mountDirective(BODY);
 
@@ -70,8 +70,8 @@ describe('an unconfigured container stands down where the seam declines', () => 
 		expect(pressOn(mounted.box, { key: 'Shift', shiftKey: true })).toBe(false);
 	});
 
-	// The whole-block affordances belong to opaque containers that opt in with `getFocusEl`.
-	// Were the gate to drop, a key reaching the box would split the WHOLE container under a caret.
+	// Whole-block Enter and Backspace belong to opaque containers that opt in with `getFocusEl`.
+	// Without that check, a key reaching the box would split the entire container under a caret.
 	it('grows no whole-block Enter or Backspace without a focus surface', () => {
 		const m = mountWithSpies();
 		mounted = m;
@@ -85,8 +85,8 @@ describe('an unconfigured container stands down where the seam declines', () => 
 		expect(m.focus.moveFocus).not.toHaveBeenCalled();
 	});
 
-	// Alt-arrow reorder is handled inline in the same gated block, so it shares the refusal:
-	// without a focus surface a container is reordered through its parent's BlockList.
+	// Alt-arrow reorder sits inside the same check, so it refuses for the same reason: without a
+	// focus element a container is reordered through its parent's BlockList.
 	it('grows no Alt-arrow reorder without a focus surface', () => {
 		const m = mountWithSpies();
 		mounted = m;

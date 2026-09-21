@@ -1,11 +1,10 @@
 // @vitest-environment jsdom
 //
-// Backspace at the start of a plain directive container's body lifts that block out; the
-// fences ride metadata through `rebuildRaw`, so the remainder is still a directive.
+// Backspace at the start of a plain directive container's body lifts that block out of the
+// container; `rebuildRaw` writes the fences back from metadata, so the rest stays a directive.
 //
-// Miss-analysis: the container declared the quote-shaped lift without the capability that
-// armed it, so the strategy's empty result read as a decline; no test ever pressed
-// Backspace at a directive body's start.
+// Miss-analysis: the container declared the blockquote-shaped lift without the capability that
+// turns it on, so the empty result read as a refusal, and no test pressed Backspace there.
 import { describe, it, expect, afterEach, beforeEach, beforeAll } from 'vitest';
 import { resetPluginPlatformForTests } from '$lib/testing';
 import { activateDirectives } from '$lib/plugin';
@@ -49,8 +48,8 @@ describe('directive container Backspace unwrap (U2)', () => {
 		expect(mounted.source()).toBe('body\n');
 	});
 
-	// The sibling arm, and the proof that an offset-0 press inside the body reaches the
-	// container's dispatch at all: a caret that could not land there would leave this red too.
+	// The other branch, and the proof that a Backspace at offset 0 inside the body reaches the
+	// container at all: a caret that could not get there would fail this test too.
 	it('merges a later body block into its predecessor instead of lifting', async () => {
 		editor(':::spoiler\n\nfirst\n\nsecond\n\n:::\n');
 

@@ -1,7 +1,7 @@
 <script lang="ts">
-	// The generic render surface for an unregistered `:::name` directive, built on the
-	// same `createContainerBlock` seam a plugin reaches through the barrel. Chrome stays a
-	// dimmed marker over a gutter rail, not a card box — a document should feel like a document.
+	// How an unregistered `:::name` directive renders, built on the same `createContainerBlock`
+	// helper a plugin gets from the public barrel. Its marker is a dimmed line over a left
+	// border, not a card box: a document should look like a document.
 	import { createContainerBlock } from '$lib/editor-actions/plugin/container';
 	import BlockList from '$lib/components/BlockList.svelte';
 	import type { NodeView } from '$lib/core/node-views';

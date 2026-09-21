@@ -1,10 +1,9 @@
 // @vitest-environment jsdom
 //
-// The generic `:::name` container's chrome marker is the opener line itself, so it
-// is sliced from `raw`. Rebuilding it from the block's metadata — colon count plus
-// name — silently drops everything else the line can hold: directive attributes
-// and trailing spaces both round-trip through the CST but vanished from the cue
-// rendered directly above the body they label.
+// The generic `:::name` container's marker is the opener line itself, so it is sliced out of
+// `raw`. Rebuilding it from metadata (colon count plus name) drops everything else the line
+// can hold: attributes and trailing spaces round-trip through the CST, and they belong in the
+// marker shown directly above the body they label.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
 import { installDirectiveStubs, mountDirective, type MountedDirective } from './mount-directive';
 import { allowDevWarns } from '$lib/test/support/warn-gate';

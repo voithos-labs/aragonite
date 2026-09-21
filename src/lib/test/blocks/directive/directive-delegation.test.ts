@@ -1,10 +1,10 @@
 // @vitest-environment jsdom
 //
-// The generic directive container is the plugin tier's representative: everything below its
-// own marker is `createContainerBlock`'s, and unlike the blockquote it renders CHROME BESIDE
-// THE LIST — the only mounted container exercising the seam's `:scope > .block-list` lookup.
-// It also supplies none of the seam's optional deps, so what it renders is what an
-// unconfigured plugin container gets: every assertion is a seam decision, not a directive one.
+// The generic directive container stands in for every plugin container: everything below its
+// own marker belongs to `createContainerBlock`, and unlike the blockquote it draws its marker
+// beside the list, the only mounted container that exercises the `:scope > .block-list` lookup.
+// It passes none of the optional dependencies either, so what it renders is what an
+// unconfigured plugin container gets: each assertion tests `createContainerBlock`, not directives.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
 import { installDirectiveStubs, mountDirective, type MountedDirective } from './mount-directive';
 import { allowDevWarns } from '$lib/test/support/warn-gate';
@@ -56,8 +56,8 @@ describe('the directive container delegates its body past its own chrome', () =>
 		expect(mounted.containerApi.getCursorOffset()).toBe(0);
 	});
 
-	// The marker is chrome the container paints, not bytes the body owns. Forwarding the opener
-	// line as `ambientPrefixForFirst` would put the fence into child 0's offset space.
+	// The marker is drawn by the container, not bytes the body owns. Passing the opener line as
+	// `ambientPrefixForFirst` would put the fence into child 0's offset space.
 	it('keeps the opener out of the body child it labels', () => {
 		mounted = mountDirective(BODY);
 
@@ -69,8 +69,8 @@ describe('the directive container delegates its body past its own chrome', () =>
 		expect(mounted.box.textContent?.match(/:::foo/g)).toHaveLength(1);
 	});
 
-	// The seam defaults `reorderable` to false (an opaque container is a reorder boundary), so a
-	// handle on a body row here would be a dead affordance — `resolveReorderUnit` declines inside.
+	// `createContainerBlock` defaults `reorderable` to false (an opaque container is a reorder
+	// boundary), so a drag handle on a body row would do nothing: `resolveReorderUnit` refuses.
 	it('leaves its body rows out of the reorder vocabulary, unlike the blockquote', () => {
 		mounted = mountDirective(BODY, { policies: { blockDragHandles: () => true } });
 

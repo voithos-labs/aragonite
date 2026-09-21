@@ -1,8 +1,8 @@
-// The generic `:::name` container mounted BY ITSELF, over a real CST — the plugin tier's
-// representative. It is built on the public `createContainerBlock` seam and supplies none of
-// its optional deps, so every optional-dep refusal fires here, and a bare mount is what puts
-// the seam's published `containerApi` in the test's hands. Read-only questions only: a commit
-// replaces the container node and no parent re-renders a bare mount with the replacement.
+// The generic `:::name` container mounted on its own over a real CST, standing in for every
+// plugin container. It is built on the public `createContainerBlock` helper and passes none of
+// its optional dependencies, so every refusal fires here, and mounting it alone is what hands a
+// test the published `containerApi`. Ask it read-only questions: a commit replaces the container
+// node, and with no parent above it nothing re-renders with the replacement.
 
 import { mount, unmount, flushSync } from 'svelte';
 import { expect } from 'vitest';
