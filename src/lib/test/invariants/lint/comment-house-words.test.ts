@@ -69,7 +69,7 @@ const BASELINE: Record<string, number> = {
 	'src/lib/schema': 0,
 	'src/lib/search': 0,
 	'src/lib/selection': 0,
-	'src/lib/styles': 5,
+	'src/lib/styles': 0,
 	'src/lib/test': 0,
 	'src/lib/test/ambient': 0,
 	'src/lib/test/blocks': 0,

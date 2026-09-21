@@ -1,33 +1,33 @@
 /**
- * Editor default theme, in two tiers (consumer-guide.md § Theming). Host-chrome tokens
- * default behind the opt-in `.aragonite-editor-theme` class ALONE, so a themed host's own
- * cascade reaches the editor unbridged (G4.6d); editor-owned tokens — and the host-family
- * names a host vocabulary does not carry — default on `.editor` too. `:where()` keeps
- * specificity at 0 so `.editor { --x: … }` wins. Light keys on `data-editor-theme='light'`.
+ * The editor's default theme, in two groups (consumer-guide.md § Theming). Host-chrome tokens
+ * default only behind the opt-in `.aragonite-editor-theme` class, so a themed host's own cascade
+ * reaches the editor with nothing in between (G4.6d); editor-owned tokens, and the host-family
+ * ones a host theme rarely names, default on `.editor` too. `:where()` holds specificity at 0 so
+ * `.editor { --x: … }` wins, and the light theme keys on `data-editor-theme='light'`.
  */
 
-/* ── Host-chrome tier: the consumer's vocabulary, defaults behind the class ── */
+/* ── Host-chrome tokens: the consumer's names, defaults behind the class ── */
 
 :where(.aragonite-editor-theme) {
-	/* Two faces, because they answer different questions. `--font-editor` is the SURFACE
-	   face — prose, headings, markers — and a host may legitimately set it proportional.
+	/* Two typefaces, because they answer different questions. `--font-editor` is the face of the
+	   text itself (prose, headings, markers), and a host may legitimately set it proportional.
 	   `--font-code` is what must stay monospace whatever that choice is: code blocks, code
-	   spans, raw HTML, revealed source. Defaulted to the same stack, so a consumer that
+	   spans, raw HTML, revealed source. Both default to the same stack, so a consumer that
 	   never names the second one sees exactly what it saw before. */
 	--font-editor: 'Cascadia Code', 'Cascadia Mono', 'Consolas', ui-monospace, monospace;
 	--font-code: 'Cascadia Code', 'Cascadia Mono', 'Consolas', ui-monospace, monospace;
 	/* The menus' and popovers' face: the host's own UI font where it names one. */
 	--font-ui: 'Inter', system-ui, sans-serif;
 	/* Type-scale root: headings, code and markers are all `em`-relative, so one override
-	   scales the surface. A themed host sets it on any ancestor instead. */
+	   scales the whole editor. A themed host sets it on any ancestor instead. */
 	--editor-font-size: 1rem;
 
-	/* Corner radii by role: small controls (buttons, inputs, chips) and elevated surfaces
-	   (overlays, popovers). Chrome whose corner is neither keeps its own literal. */
+	/* Corner radii by role: small controls (buttons, inputs, chips) and raised surfaces
+	   (overlays, popovers). A part whose corner is neither keeps its own value. */
 	--radius-ui: 4px;
 	--radius-surface: 8px;
 
-	/* The page ground, which the menus and the image toolbar paint on. */
+	/* The page background the menus and the image toolbar paint on. */
 	--color-bg: #2c2c2a;
 	--color-surface: #1a1a19;
 	--color-text-secondary: #cfcfca;
@@ -36,9 +36,9 @@
 	--color-ui-muted: #8f8f89;
 	--color-ui-dulled: #a3a39d;
 	--color-accent: #567b67;
-	/* Base the selection, search-match and reorder washes derive from, so one declaration
-	   moves all of them; the washes themselves stay editor-owned. Tracking the accent means
-	   a host that recolors one recolors all four. */
+	/* The base the selection, search-match and reorder tints derive from, so one declaration
+	   moves all of them; the tints themselves stay editor-owned. Following the accent means
+	   a host that recolours one recolours all four. */
 	--color-selection: var(--color-accent, #567b67);
 	--color-error: #ff5f57;
 }
@@ -56,26 +56,26 @@
 	--color-error: #d03025;
 }
 
-/* ── Editor-owned tier: defaults on `.editor`, so they hold with or without the class ── */
+/* ── Editor-owned tokens: defaults on `.editor`, so they hold with or without the class ── */
 
 :where(.editor, .aragonite-editor-theme) {
-	/* Host-family surfaces a host theme rarely names, so the editor supplies both modes
-	   rather than falling back to a fixed veil over the host's palette. */
+	/* Host-family backgrounds a host theme rarely names, so the editor supplies both modes
+	   rather than falling back to one fixed tint over the host's palette. */
 	--color-bg-secondary: rgba(128, 128, 128, 0.12);
 	--color-bg-elevated: #2a2c33;
 	--color-bg-muted: #2a2a2a;
 	--color-text-muted: #aaaaaa;
-	/* Hover veil over an ALREADY-elevated surface, so it cannot reuse
-	   --color-bg-secondary, which is measured against the base bg. */
+	/* Hover tint over a surface that is already raised, so it cannot reuse
+	   --color-bg-secondary, which is measured against the page background. */
 	--color-ui-faint: rgba(255, 255, 255, 0.07);
 
 	/* One radius for a picture, the crop frame that clips it and the selection ring on the
 	   overlay above it: half the surface radius, enough to soften a photo without a card look. */
 	--md-image-radius: 4px;
 
-	/* Markdown syntax override points, deliberately neutral so the default rendering carries no
-	   extra palette. Mode-independent: the chrome tokens they chain to carry the light/dark
-	   split. */
+	/* Markdown syntax override points, deliberately neutral so the default rendering adds no
+	   palette of its own. The same in both modes: the host-chrome tokens they chain to hold the
+	   light and dark split. */
 	--syntax-heading: currentColor;
 	--syntax-emphasis: currentColor;
 	--syntax-link: var(--color-accent, #567b67);
@@ -84,14 +84,14 @@
 	--syntax-code: currentColor;
 	--syntax-comment: currentColor;
 	--syntax-list: currentColor;
-	/* The rendered rule's colour, and its ONLY consumer. A divider separates rather than
-	   announces, so it defaults to the border token; mid-grey at this weight competed with
+	/* The colour of the rendered horizontal rule, and its only user. A rule separates rather
+	   than announces, so it defaults to the border token; mid-grey at this weight competed with
 	   the text either side. A host that wants a louder rule still names this token. */
 	--syntax-separator: var(--color-border, #3e3e3b);
 	--syntax-task: currentColor;
 	--syntax-task-done: rgba(128, 128, 128, 0.7);
 
-	/* Code block syntax highlighting — monokai-inspired palette */
+	/* Code block syntax highlighting: a monokai-inspired palette. */
 	--code-tok-keyword: #ff79a8;
 	--code-tok-string: #e6db74;
 	--code-tok-number: #ae81ff;
@@ -113,9 +113,9 @@
 	--code-tok-link: #66d9ef;
 	--code-tok-unknown: inherit;
 
-	/* Presentational tokens (mode-independent). */
-	/* Washes over the host-declarable selection base, alpha apart, so a host that names one
-	   base moves the selection, the search matches and the reorder chrome together. */
+	/* Presentational tokens, the same in both modes. */
+	/* Tints over the selection base a host can declare, differing only in alpha, so naming that
+	   one base moves the selection, the search matches and the reorder highlight together. */
 	--selection-overlay-bg: rgba(100, 150, 255, 0.3);
 	--search-match-bg: rgba(100, 150, 255, 0.22);
 	/* Painted on top of the match text, so it must keep an alpha channel or it hides it. */
@@ -130,8 +130,8 @@
 	   draws, which editor.css overrides where the box is drawn instead. */
 	--md-task-indent: 2.1em;
 	--md-reorder-indicator: var(--color-selection, #6496ff);
-	/* Wash on the container being reordered within during a nested drag. Tinted with the reorder
-	   accent, not neutral grey, so the shift stays perceptible for low-contrast vision. */
+	/* Tint on the container a nested drag is reordering inside. It uses the reorder accent rather
+	   than neutral grey, so the change stays visible to low-contrast vision. */
 	--reorder-scope-bg: rgba(100, 150, 255, 0.14);
 	--syntax-marker-dim: 0.65;
 
@@ -145,14 +145,14 @@
 	--menu-scrollbar-thumb: rgba(255, 255, 255, 0.18);
 	--menu-scrollbar-thumb-hover: rgba(255, 255, 255, 0.3);
 
-	/* Placeholder tint behind off-window content (VR-8), so a spacer that outruns the
-	   window recompute reads as "loading" rather than a white tear. */
+	/* Tint behind the blocks windowing has not mounted, so a spacer that outruns the recompute
+	   reads as "loading" rather than a white tear (VR-8). */
 	--vr-spacer-bg: rgba(255, 255, 255, 0.025);
 }
 
-/* The washes follow a host's `--color-selection` where the engine can mix; the static values
-   above are the same tints of the default base, for engines without `color-mix` (WebKit before
-   Safari 16.2). */
+/* The tints follow a host's `--color-selection` where the browser can mix colours; the fixed
+   values above are the same tints of the default base, for browsers without `color-mix` (WebKit
+   before Safari 16.2). */
 @supports (color: color-mix(in srgb, red, blue)) {
 	:where(.editor, .aragonite-editor-theme) {
 		--selection-overlay-bg: color-mix(in srgb, var(--color-selection, #6496ff) 30%, transparent);
@@ -173,9 +173,9 @@
 	--menu-scrollbar-thumb: rgba(0, 0, 0, 0.2);
 	--menu-scrollbar-thumb-hover: rgba(0, 0, 0, 0.32);
 
-	/* --syntax-* tokens are mode-independent — no light overrides. */
+	/* The --syntax-* tokens are the same in both modes: no light overrides. */
 
-	/* Code block syntax highlighting — GitHub Light-inspired palette */
+	/* Code block syntax highlighting: a GitHub Light-inspired palette. */
 	--code-tok-keyword: #c1202b;
 	--code-tok-string: #0a3069;
 	--code-tok-number: #0550ae;
@@ -193,6 +193,6 @@
 	--code-tok-heading: #0550ae;
 	--code-tok-link: #0550ae;
 
-	/* Dark tint for a light bg (VR-8). */
+	/* Dark tint for a light background (VR-8). */
 	--vr-spacer-bg: rgba(0, 0, 0, 0.03);
 }
