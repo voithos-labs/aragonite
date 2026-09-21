@@ -173,7 +173,7 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 		{
 			id: 'reading-mode',
 			reason:
-				'islands and the ambient marker are destructive-only view guards, so reading skips every arm below; the widget arm above still selects, committing nothing',
+				'inline widgets and the container’s marker prefix are destructive-only view guards, so reading skips every branch below; the widget branch above still selects, committing nothing',
 			cut: true,
 			claims: () => deps.isReading()
 		},
