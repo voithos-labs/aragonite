@@ -16,6 +16,9 @@ formula's reveal).
 
 - A drag right off the glyph selects the text after it, anchored at the raw offset following
   `:smile:`; a drag left off it selects the text before it, from the same anchor.
+  - Miss-analysis: every island test pressed and released in one place, so the press half of a
+    click had no test of its own and a gesture that begins on an island and ends elsewhere was
+    never driven.
 - The painted range is a real selection: the next printable key type-replaces it, leaving the
   emoji and the text before it untouched.
 

@@ -11,6 +11,9 @@ it. Now the checkbox goes with the paragraph it belonged to.
 - `Mod+1` (the heading picker, `runCommand('heading.cycle')`) on a task item's paragraph makes
   the item a bullet holding a heading: `- [ ] beta` → `- # beta`. The checkbox goes with the
   paragraph it belonged to rather than staying to paint `# beta` as literal prose behind a box.
+  - Miss-analysis: the checkbox specs drove a to-do whose first block stays a paragraph and the
+    heading specs drove headings outside a list, so the pair — a command run on a to-do's
+    paragraph — sat between two suites and belonged to neither.
 - one `Mod+Z` puts the checkbox and the paragraph back together: the marker drop joins the
   heading write's undo entry.
 

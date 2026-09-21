@@ -124,6 +124,8 @@ describe('reconcileTaskMetadata', () => {
 		expect(meta.taskItem).toBe(false);
 	});
 
+	// Miss-analysis: the reconcile tests all held a paragraph first child, the only shape the
+	// promote and demote branches read, so the branch for every other kind had no test.
 	it('drops the marker when the first block stopped being a paragraph', () => {
 		const item = makeListItem('# beta\n', taskMeta());
 		item.children![0].kind = 'heading';
@@ -166,6 +168,8 @@ describe('reconcileTaskMetadata', () => {
 		expect(meta.taskMarker).toBeNull();
 	});
 
+	// Miss-analysis: no test typed a heading opener one byte at a time, so the frame where the
+	// bytes are a bare `#` and the parser already calls the block a heading was never described.
 	it('keeps the marker before the bare `#` a paragraph passes through on its way to `#tag`', () => {
 		const item = makeListItem('#\n', taskMeta('[x] ', true));
 		item.children![0].kind = 'heading';

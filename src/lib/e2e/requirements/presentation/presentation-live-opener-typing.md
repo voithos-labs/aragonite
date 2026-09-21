@@ -56,6 +56,9 @@ never saw:
 
 ## Miss-analysis
 
+- Heading styling was asserted on blocks whose opener was already complete, so no scenario held
+  the one keystroke where the bytes are a bare `#` and the parser already calls the block a
+  heading — the frame a `#tag` flashes through.
 - The live requirement families covered typing into paragraphs and typing at hidden INLINE edges, and the destructive side pinned that a construct-edge delete drops the whole `# `. No scenario typed a BLOCK opener, so the path that MINTS a marker-only block had zero coverage while the path that refuses to leave one behind was pinned.
 - The construct-edge delete arm was only ever exercised against blocks holding content, where its delimiters really are hidden. No destructive scenario ran inside a content-empty block, so the arm consulted an oracle that reports every marker as unseen while the screen showed all five bytes.
 - Only the destructive arm was pinned against painted chrome. The other five rewrites reach the same block and answer correctly only because the oracle's wrong answer cancels against their own check, so nothing would have failed the day one of them stopped cancelling.

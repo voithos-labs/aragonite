@@ -16,6 +16,13 @@ aside.
   keys type into it
 - a drag that STARTS on the tail row selects into the block above it and appends nothing: the
   row's click is for a press that stayed put
+  - Miss-analysis: the tail row's tests all clicked it, and the drag tests all started in a
+    block, so the one gesture that begins on the row and ends somewhere else had no test at all
+- the row carries no `+` of its own: empty blocks are added from the right-click menu's "Insert
+  block" flyout (`context-menu-insert.md`), which the keyboard's own menu key reaches too
+  - Miss-analysis: nothing asserted the row's contents, so a button could be added or removed
+    without a test noticing; the reachability of what it offered was covered only where that
+    menu is tested
 - a right-click on a code block opens `Block actions`; its Remove row deletes the block and the
   neighbours close up
 - ArrowUp from the first row wraps to the last selectable row; ArrowDown wraps back

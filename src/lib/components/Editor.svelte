@@ -373,9 +373,9 @@
 
 	// ── Block menu ──────────────────────────────────────────────────────
 
-	// Opened by the bottom `+` and by a right-click on prose with nothing selected; a right-click
-	// over a selection leaves the formatting popover (the host's) in charge and only suppresses
-	// the native menu. Tables run their own cell menu and have prevented the default first.
+	// Opened by a right-click on prose with nothing selected; a right-click over a selection leaves
+	// the formatting popover (the host's) in charge and only suppresses the native menu. Tables run
+	// their own cell menu and have prevented the default first.
 	let blockMenu = $state<BlockMenuModel | null>(null);
 
 	// Open/close transitions only, never the mount, so a subscriber's first news is a real menu.
