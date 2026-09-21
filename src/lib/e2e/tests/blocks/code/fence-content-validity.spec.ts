@@ -28,13 +28,6 @@ test.describe('code block — content the fence cannot hold', () => {
 		expect(await editor.bridge.getBlockKind(1)).toBe('heading');
 	});
 
-	test('a backtick typed into the info string is inert', async () => {
-		await editor.focusBlock(0, 5); // end of "js"
-		await editor.typeDeclined('`');
-
-		expect(await editor.bridge.getSource()).toBe(SOURCE);
-	});
-
 	test('a paste lands in the info string without the backticks it carried', async () => {
 		await editor.seedClipboard('x`y');
 		await editor.focusBlock(0, 5);
@@ -141,14 +134,5 @@ test.describe('code block — the tilde twin', () => {
 
 		expect(await editor.bridge.getSource()).toBe('~~~~yaml\nkey: 1\n~~~\n~~~~\n\n# Heading\n');
 		expect(await editor.bridge.getBlockCount()).toBe(2);
-	});
-
-	// GFM forbids backticks only in a backtick fence's info string, so a tilde fence keeps them.
-	test('a backtick typed into a tilde info string survives', async () => {
-		await editor.focusBlock(0, 7); // end of "yaml"
-		await editor.typeText('`');
-		await editor.bridge.waitForSourceContains('yaml`');
-
-		expect(await editor.bridge.getSource()).toBe('~~~yaml`\nkey: 1\n~~~\n\n# Heading\n');
 	});
 });

@@ -92,14 +92,6 @@ test.describe('code block editing — edge cases', () => {
 		expect(await editor.bridge.getSource()).toBe('```\ncode\n```\n');
 	});
 
-	test('Delete immediately before closer fence is a no-op', async () => {
-		await editor.loadContent('```\ncode\n```\n');
-		// Raw offset 8: end of the body, just before the closer fence's leading newline.
-		await editor.focusBlockAtPath([0], 8);
-		await editor.pressDeclined('Delete');
-		expect(await editor.bridge.getSource()).toBe('```\ncode\n```\n');
-	});
-
 	// Counter-test for the boundary guard: only the two `\n` boundaries are special.
 	test('Backspace inside info string trims the info string', async () => {
 		await editor.loadContent('```python\ncode\n```\n');

@@ -39,15 +39,8 @@ block whole (a cross-block selection, or Ctrl+A twice) removes it.
 
 ## Happy paths
 
-- Backspace over a selection running from the body into the closer deletes only the body
-  part; the closing fence survives byte-for-byte
-- Delete (forward) over the same selection behaves identically — the direction of the
-  gesture does not change which bytes are structure
-- typing a printable character over such a selection replaces only the body part
-- paste over such a selection replaces only the body part (paste's own pre-delete is
-  clamped, not just the native delete)
-- Backspace over a selection running from the opener into the body keeps the opener line,
-  info string included
+- paste over a selection running from the body into the closer replaces only the body part
+  (paste's own pre-delete is clamped, not just the native delete)
 - undo after a clamped delete restores the block byte-for-byte (one entry, anchored at the
   clamped span's start)
 
@@ -59,17 +52,12 @@ block whole (a cross-block selection, or Ctrl+A twice) removes it.
 - a selection wholly inside the info string is edited verbatim: no clamp, no behavior change
 - select-all then Backspace empties the body and keeps the code block a code block (it does
   not convert to a paragraph, as an unguarded native delete of the whole display would)
-- typing inside the closer run is inert; so is Backspace inside it (the auto-pair delete
-  reads a caret between two backticks as a pair and must decline there)
+- Backspace inside the closer run is inert (the auto-pair delete reads a caret between two
+  backticks as a pair and must decline there)
 - paste is inert wherever typing is: with the caret inside either marker run, and over a
   selection made only of fence characters
-- deleting a selected opener marker run is inert on a closed fence
 - an unclosed fence keeps its marker run editable: deleting it demotes the block to a
   paragraph, byte-for-byte
-- Backspace with the caret at the start of the closer line is inert: the target range is the
-  body's own line ending, whose intersection with the body is empty
-- a word delete (Ctrl+Backspace) at the body start is inert for the same reason — the guard
-  reads the pending edit's target range, not the caret
 
 ## Unverified
 

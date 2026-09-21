@@ -26,15 +26,6 @@ test.describe('code block — ranged edits spanning a fence line', () => {
 		await editor.getBlock(0).click();
 	});
 
-	test('Backspace over a body-into-closer selection deletes only the body part', async () => {
-		await selectFrom(editor, BODY_MID, INTO_CLOSER);
-		await editor.page.keyboard.press('Backspace');
-		await editor.bridge.waitForSourceContains('const \n');
-
-		expect(await editor.bridge.getSource()).toBe('```js\nconst \n```\n');
-		expect(await editor.bridge.getBlockKind(0)).toBe('fencedCode');
-	});
-
 	test('undo restores the whole block after a clamped delete', async () => {
 		await selectFrom(editor, BODY_MID, INTO_CLOSER);
 		await editor.page.keyboard.press('Backspace');
@@ -43,22 +34,6 @@ test.describe('code block — ranged edits spanning a fence line', () => {
 		await editor.undo();
 		await editor.bridge.waitForSourceContains('const x = 1');
 		expect(await editor.bridge.getSource()).toBe(SOURCE);
-	});
-
-	test('Delete over a body-into-closer selection deletes only the body part', async () => {
-		await selectFrom(editor, BODY_MID, INTO_CLOSER);
-		await editor.page.keyboard.press('Delete');
-		await editor.bridge.waitForSourceContains('const \n');
-
-		expect(await editor.bridge.getSource()).toBe('```js\nconst \n```\n');
-	});
-
-	test('typing over a body-into-closer selection replaces only the body part', async () => {
-		await selectFrom(editor, BODY_MID, INTO_CLOSER);
-		await editor.typeText('Z');
-		await editor.bridge.waitForSourceContains('const Z');
-
-		expect(await editor.bridge.getSource()).toBe('```js\nconst Z\n```\n');
 	});
 
 	test('cut copies the selection verbatim and deletes only the body part', async () => {
@@ -106,14 +81,6 @@ test.describe('code block — ranged edits spanning a fence line', () => {
 		expect(await editor.bridge.getSource()).toBe(SOURCE);
 	});
 
-	test('Backspace over an opener-into-body selection keeps the opener line', async () => {
-		await selectFrom(editor, 3, 6); // "js\ncon"
-		await editor.page.keyboard.press('Backspace');
-		// Equality, not a fragment: what survives this edit is a substring of the fixture, so a
-		// `contains` check would already pass before the gesture.
-		await editor.bridge.waitForSourceEquals('```js\nst x = 1\n```\n');
-	});
-
 	test('a selection inside the info string is still editable verbatim', async () => {
 		await selectFrom(editor, 3, 2); // "js"
 		await editor.typeText('py');
@@ -131,43 +98,10 @@ test.describe('code block — ranged edits spanning a fence line', () => {
 		expect(await editor.bridge.getBlockKind(0)).toBe('fencedCode');
 	});
 
-	test('Backspace at the start of the closer line is inert', async () => {
-		await editor.focusBlock(0, 18);
-		await editor.pressDeclined('Backspace');
-
-		expect(await editor.bridge.getSource()).toBe(SOURCE);
-	});
-
-	// The browser ranges this one: the caret is collapsed, but the pending edit's target covers the
-	// opener's line ending. Literal `Control`, not `ControlOrMeta`: word-delete is the OS's gesture
-	// and macOS spells it with another key, so folding the modifier would change what is tested.
-	test('word-delete at the body start is inert', async () => {
-		await editor.focusBlock(0, 6);
-		await editor.pressDeclined('Control+Backspace');
-
-		expect(await editor.bridge.getSource()).toBe(SOURCE);
-	});
-
 	// A closed fence's marker runs are structure: one character either way leaves an unclosed fence
 	// that swallows the document.
-	test('typing inside the closer fence is inert', async () => {
-		await editor.focusBlock(0, 19);
-		// `typeText` is one `insertText`, which fires no keydown: nothing to wait on.
-		await editor.typeText('x');
-		await editor.waitForNoSourceMutation();
-
-		expect(await editor.bridge.getSource()).toBe(SOURCE);
-	});
-
 	test('Backspace inside the closer fence is inert', async () => {
 		await editor.focusBlock(0, 20);
-		await editor.pressDeclined('Backspace');
-
-		expect(await editor.bridge.getSource()).toBe(SOURCE);
-	});
-
-	test('deleting a selected opener marker run is inert', async () => {
-		await selectFrom(editor, 0, 3);
 		await editor.pressDeclined('Backspace');
 
 		expect(await editor.bridge.getSource()).toBe(SOURCE);

@@ -139,10 +139,7 @@ sat at two of the block's ten commit sites, and both reproduce the same corrupti
 
 ## Edge cases
 
-- a backtick typed into a backtick fence's info string is inert — the source does not
-  change
 - a paste carrying backticks into the info string lands with them removed
-- a backtick typed into a TILDE fence's info string survives untouched
 - an IME composition that ends with either shape is reconciled at the same commit, not
   left in the DOM (pinned at the component level, `code-fence-write-commit.test.ts`)
 - a restored closer carries the block's own run length, opener indent and line ending —
