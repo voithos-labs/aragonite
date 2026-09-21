@@ -116,3 +116,55 @@ test.describe('a drag that starts on an emoji selects', () => {
 		expect(await editor.bridge.getSource()).toBe('Mood :smile:X\n');
 	});
 });
+
+/** A drag from the trailing half of `selector`'s widget to a point `dx` further along its line. */
+async function dragOffWidget(editor: PluginsPage, selector: string, dx: number): Promise<void> {
+	const box = await editor.page.locator(selector).first().boundingBox();
+	if (!box) throw new Error(`no layout box for ${selector}`);
+	const y = box.y + box.height / 2;
+	await dragBetween(editor, { x: box.x + box.width * 0.75, y }, { x: box.x + box.width + dx, y });
+}
+
+// The rule is declared per kind, not per component: any widget the caret reads as one character
+// drags, and one running a pointer gesture of its own keeps its press. Each sibling of the emoji
+// is here as its own case, so a widening of that declaration reds rather than passing silently.
+test.describe('the same drag from the emoji’s siblings', () => {
+	let editor: PluginsPage;
+
+	test.beforeEach(async ({ page }) => {
+		editor = new PluginsPage(page);
+		await editor.gotoPlugins('emoji');
+	});
+
+	test('a drag from an entity glyph selects the text after it', async () => {
+		await editor.loadContent('Mood &amp; today and more words\n');
+		await dragOffWidget(editor, '.md-entity-widget', 200);
+
+		expect(await selectedText(editor)).toContain('today');
+		expect(await capturedErrors(editor.page)).toEqual([]);
+	});
+
+	test('a drag from an inline formula selects the text after it', async () => {
+		await editor.loadContent('Mood $x^2$ today and more words\n');
+		await dragOffWidget(editor, '.math-inline-widget', 200);
+
+		expect(await selectedText(editor)).toContain('today');
+		expect(await capturedErrors(editor.page)).toEqual([]);
+	});
+
+	// The exclusion, pinned from the other side: the image owns its press for the resize drag, so
+	// a range painted under it would fight that gesture.
+	test('a drag from an inline image paints no range of its own', async () => {
+		const source = 'Mood ![a|60x40](/test-fixtures/sample.png) today and more words\n';
+		await editor.loadContent(source);
+		await editor.page.waitForFunction(
+			() => !!(document.querySelector('[data-image-widget] img') as HTMLImageElement)?.complete
+		);
+		await dragOffWidget(editor, '[data-image-widget]', 200);
+
+		expect(await selectedText(editor)).toBe('');
+		// Nor did the gesture reach a resize handle, which would have rewritten the dimensions.
+		expect(await editor.bridge.getSource()).toBe(source);
+		expect(await capturedErrors(editor.page)).toEqual([]);
+	});
+});

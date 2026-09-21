@@ -12,17 +12,23 @@ import { ensureUnsharedChild } from '../unshare';
 
 const TASK_REGEX = /^\[( |x|X)\]\s+/;
 
+/** Whether a task marker may stand in front of this block: its own paragraph, or the bare `#` a
+ *  line passes through on the way to `#tag`, which is a heading to the parser for one keystroke. */
+export function taskMarkerMayStandBefore(block: CstNode): boolean {
+	return block.kind === 'paragraph' || (block.kind === 'heading' && isBareHeadingOpener(block.raw));
+}
+
 /**
  * Align the item's task fields with what a fresh parse of its first line would produce, after a
  * write to the child at `writtenIndex`. On demote the stripped marker bytes are restored into the
- * paragraph raw, so the user's content survives. `replacedBlock` says the write put a new block in
- * that position instead of rewriting the one there: only such a write may take the marker, since a
- * document can legitimately load as `- [ ] # note`.
+ * paragraph raw, so the user's content survives. `markerStoodBefore` is that same question asked of
+ * the block that was in the position before the write: only a write that takes such a block away
+ * takes the marker with it, since a document can legitimately load as `- [ ] # note`.
  */
 export function reconcileTaskMetadata(
 	listItem: CstNode,
 	writtenIndex: number,
-	replacedBlock: boolean,
+	markerStoodBefore: boolean,
 	sharing?: SharingState
 ): void {
 	if (listItem.kind !== 'listItem' || writtenIndex !== 0) return;
@@ -33,10 +39,10 @@ export function reconcileTaskMetadata(
 	if (!meta) return;
 
 	if (firstChild.kind !== 'paragraph') {
-		// A task marker stands before a paragraph (GFM § 5.3), so the write that puts another block
-		// there gives the checkbox up with it. The bare `#` on the way to `#tag` is not that write.
-		if (!meta.taskItem || !replacedBlock) return;
-		if (firstChild.kind === 'heading' && isBareHeadingOpener(firstChild.raw)) return;
+		// A task marker stands before a paragraph (GFM § 5.3), so the write that puts a block there
+		// the marker cannot stand in front of gives the checkbox up with the paragraph it had.
+		if (!meta.taskItem || !markerStoodBefore) return;
+		if (taskMarkerMayStandBefore(firstChild)) return;
 		meta.taskItem = false;
 		meta.taskMarker = null;
 		meta.taskChecked = false;

@@ -22,7 +22,8 @@ import {
 	dropDoubledSeparator,
 	emptyParagraph,
 	paragraphNode,
-	reconcileTaskMetadata
+	reconcileTaskMetadata,
+	taskMarkerMayStandBefore
 } from '../tree-operations';
 import {
 	replacePreservingFirst,
@@ -332,6 +333,8 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 						view.children.splice(i, 1);
 						return { op: 'delete', at: i, count: 1 };
 					}
+					// Read before the splice, for the task-marker rule below.
+					const stood = taskMarkerMayStandBefore(view.children[i]);
 					const normalized = normalizeReplacementTrivia(view.children[i], replacement);
 					for (const node of normalized) ensureEditableContainers(node);
 					spliceMany(view.children, i, 1, normalized);
@@ -339,7 +342,7 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 					stampStructuralChange(view.children, change, view.sharing);
 					// The other write that can put a new block in a list item's first position, and
 					// so take the task marker with the paragraph that carried it.
-					if (view.owner) reconcileTaskMetadata(view.owner, i, true, view.sharing);
+					if (view.owner) reconcileTaskMetadata(view.owner, i, stood, view.sharing);
 					return change;
 				},
 				afterTick: () => {

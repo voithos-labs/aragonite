@@ -17,7 +17,7 @@ import type { SharingState } from './sharing';
 import { resyncChildIds } from './children';
 import { spliceMany } from './splice-many';
 import { replacePreservingFirst, type StructuralChange } from './structural-change';
-import { reconcileTaskMetadata } from './list/reconcile-task';
+import { reconcileTaskMetadata, taskMarkerMayStandBefore } from './list/reconcile-task';
 import {
 	NEXT_PROSE_LINE,
 	ensureEditableContainers,
@@ -59,11 +59,13 @@ export function updateNodeContent(
 	grammar?: GrammarView,
 	sharing?: SharingState
 ): SettledContent {
+	// Read before the write, which is what can put a block there the marker cannot stand before.
+	const stood = taskMarkerMayStandBefore(parent.children[blockIndex]);
 	const settled = writeAndSettleContent(parent, blockIndex, text, grammar, sharing);
 	// A list item's task marker belongs to its first block, so the write that changed that block
 	// decides whether it keeps it. Before the container's raw rebuild, which writes the marker.
 	const owner = 'owner' in parent ? parent.owner : undefined;
-	if (owner) reconcileTaskMetadata(owner, blockIndex, settled.change.op === 'replace', sharing);
+	if (owner) reconcileTaskMetadata(owner, blockIndex, stood, sharing);
 	return settled;
 }
 

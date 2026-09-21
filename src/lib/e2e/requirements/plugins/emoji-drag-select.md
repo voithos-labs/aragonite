@@ -22,6 +22,14 @@ formula's reveal).
 - The painted range is a real selection: the next printable key type-replaces it, leaving the
   emoji and the text before it untouched.
 
+## The kinds either side of the rule
+
+- An entity reference (`&amp;`) drags exactly as the emoji does: the rule is the kind's own
+  declaration, not the emoji component.
+- An inline formula drags too — it shows its source on a click, and a drag is not that click.
+- An inline image does not: it owns its press for the resize drag, so the gesture paints no
+  range and writes no bytes. Pinned from this side so a widening of the declaration reds here.
+
 ## Edge cases
 
 - A press on the glyph with no movement paints no range and writes no bytes: it is the click

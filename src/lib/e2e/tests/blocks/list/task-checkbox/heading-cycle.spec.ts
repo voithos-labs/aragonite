@@ -68,7 +68,31 @@ test.describe('task checkbox — the item cycled to a heading', () => {
 		await expect(page.locator('.task-checkbox')).toHaveCount(1);
 	});
 
-	test('`#t` typed at the start of a to-do keeps its box; the space that makes a heading takes it', async ({
+	// The bare `#`, where the raw really is one byte: in an empty to-do the parser calls the block
+	// a heading for that one keystroke, and taking the box then strips a to-do for typing a tag.
+	test('`#` alone in an empty to-do keeps its box; the space that makes a heading takes it', async ({
+		page
+	}) => {
+		await editor.loadContent('- [ ] alpha\n- [ ] \n');
+		await editor.focusBlockAtPath([0, 1, 0], 0);
+
+		await page.keyboard.type('#');
+		await editor.bridge.waitForSourceContains('- [ ] #');
+		await expect(page.locator('.task-checkbox')).toHaveCount(2);
+		await expect(page.locator('.heading-1')).toHaveCount(0);
+
+		await page.keyboard.type('t');
+		await editor.bridge.waitForSourceContains('- [ ] #t');
+		await expect(page.locator('.task-checkbox')).toHaveCount(2);
+
+		await page.keyboard.press('Backspace');
+		await page.keyboard.type(' ');
+		await editor.bridge.waitForSourceContains('- # ');
+		await expect(page.locator('.task-checkbox')).toHaveCount(1);
+		await expect(page.locator('.heading-1')).toHaveCount(1);
+	});
+
+	test('`#t` typed in front of a to-do keeps its box; the space that makes a heading takes it', async ({
 		page
 	}) => {
 		await editor.loadContent('- [ ] alpha\n- [ ] beta\n');
@@ -76,7 +100,7 @@ test.describe('task checkbox — the item cycled to a heading', () => {
 		await editor.waitForRenderFlush();
 		await page.keyboard.press('Home');
 
-		// `#` alone is a heading to the parser for one keystroke; the box must survive it.
+		// `#beta` is a paragraph, not a heading: the box has no reason to move for it.
 		await page.keyboard.type('#');
 		await editor.bridge.waitForSourceContains('- [ ] #beta');
 		await expect(page.locator('.task-checkbox')).toHaveCount(2);
