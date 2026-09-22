@@ -3,19 +3,9 @@
 	"version": "0.10.4",
 	"description": "cute svelte-based markdown editor lib",
 	"keywords": [
-		"markdown",
-		"gfm",
 		"editor",
-		"block-editor",
-		"wysiwyg",
-		"contenteditable",
-		"syntax-tree",
-		"svelte",
-		"markdown-editor",
-		"lossless",
-		"plugin",
-		"commonmark",
-		"svelte5"
+		"markdown",
+		"svelte"
 	],
 	"homepage": "https://aragonite.dev",
 	"bugs": {
