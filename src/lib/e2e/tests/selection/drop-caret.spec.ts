@@ -8,6 +8,7 @@ import { blockCenter, runCenter, runStart } from './multi-click-helpers';
 
 const TWO = 'alpha beta gamma\n\nsecond para here\n';
 const RULE_DOC = 'alpha beta gamma\n\n---\n\nsecond para here\n';
+const SOFT_BREAK_DOC = 'alpha\nbeta gamma\n\nsecond para here\n';
 
 type Point = { x: number; y: number };
 
@@ -99,5 +100,32 @@ test.describe('the caret a held drag shows', () => {
 		await page.mouse.up();
 		await editor.waitForNoSourceMutation();
 		expect(await page.evaluate(() => (window as any).__test.getSource())).toBe(RULE_DOC);
+	});
+
+	test('a payload carrying a line break shows none', async ({ page }) => {
+		await editor.loadContent(SOFT_BREAK_DOC);
+		await editor.clickBlockAtPath([0], 0);
+		// "alpha\nbet": the break makes it a payload this handler does not move. A count that
+		// stopped short of the break would move the bytes and change the document below.
+		for (let i = 0; i < 9; i++) await page.keyboard.press('Shift+ArrowRight');
+		await holdOver(page, await runCenter(page, 'bet'), await runCenter(page, 'gamma'));
+
+		await expect(page.locator('.drop-caret')).toHaveCount(0);
+
+		await page.mouse.up();
+		await editor.waitForNoSourceMutation();
+		expect(await page.evaluate(() => (window as any).__test.getSource())).toBe(SOFT_BREAK_DOC);
+	});
+
+	test('a landing inside the dragged range shows none', async ({ page }) => {
+		const alpha = await runCenter(page, 'alpha');
+		await page.mouse.click(alpha.x, alpha.y, { clickCount: 3 });
+		await holdOver(page, alpha, await runCenter(page, 'gamma'));
+
+		await expect(page.locator('.drop-caret')).toHaveCount(0);
+
+		await page.mouse.up();
+		await editor.waitForNoSourceMutation();
+		expect(await page.evaluate(() => (window as any).__test.getSource())).toBe(TWO);
 	});
 });

@@ -62,6 +62,9 @@ interface DragSource {
 	start: number;
 	end: number;
 	inCell: boolean;
+	/** The bytes the release writes, read once at `dragstart` so the caret shown while the drag
+	 *  is held and the release itself cannot disagree about what moves. */
+	text: string;
 }
 
 /** The cut's bytes, at the block whose raw carries them: the source block, or the table a cell's
@@ -73,7 +76,8 @@ interface ScopeCut {
 }
 
 /** A drag that is this gesture but in a shape this module does not move (a range leaving its
- *  element, an empty one). The drop cancels it rather than handing it back to the browser. */
+ *  element, an empty one, bytes holding a line break). The drop cancels it rather than handing
+ *  it back to the browser. */
 const DECLINED = 'declined';
 type DragStash = DragSource | typeof DECLINED;
 
@@ -92,9 +96,15 @@ export function installSelectionDrop(deps: SelectionDropDeps): () => void {
 	}
 
 	function drawCaretAt(clientX: number, clientY: number): void {
-		if (source === DECLINED || deps.isReadOnly()) return hideCaret();
+		const from = source;
+		if (!from || from === DECLINED || deps.isReadOnly()) return hideCaret();
 		const target = dropTarget(deps, clientX, clientY);
 		if (!target) return hideCaret();
+		// The same refusal `dropOffsetAfterCut` makes once the cut has shrunk the block, tested
+		// here before the cut: a move has nowhere to put bytes inside the range it took them from.
+		if (pathsEqual(target.path, from.path) && insideRange(target.offset, from.start, from.end)) {
+			return hideCaret();
+		}
 		if (caretAt && caretAt.offset === target.offset && pathsEqual(caretAt.path, target.path)) {
 			return;
 		}
@@ -105,7 +115,7 @@ export function installSelectionDrop(deps: SelectionDropDeps): () => void {
 	}
 
 	const onDragStart = (e: DragEvent) => {
-		source = readSelectionSource(deps.editorRoot, e.target);
+		source = readSelectionSource(deps, e.target);
 	};
 	const onDragEnd = () => {
 		source = null;
@@ -134,9 +144,7 @@ export function installSelectionDrop(deps: SelectionDropDeps): () => void {
 		if (from === DECLINED || deps.isReadOnly()) return;
 		const target = dropTarget(deps, e.clientX, e.clientY);
 		if (!target) return;
-		const text = movedText(deps, from);
-		if (text === null) return;
-		void runDrop(deps, from, target, text, e.ctrlKey || e.altKey).catch((error) => {
+		void runDrop(deps, from, target, e.ctrlKey || e.altKey).catch((error) => {
 			// A throw between the two writes leaves an undo snapshot pushed and half the move
 			// applied; the host hears about it on the same channel paste errors use.
 			emitClipboardError(deps.events, { error, path: from.path });
@@ -180,7 +188,7 @@ export function dropOffsetAfterCut(
 	end: number,
 	shrunkBy: number
 ): number | null {
-	if (offset > start && offset < end) return null;
+	if (insideRange(offset, start, end)) return null;
 	return offset <= start ? offset : Math.max(0, offset - shrunkBy);
 }
 
@@ -193,9 +201,10 @@ export function dropOffsetAfterCut(
  * overlay paints it and leaves no native range for the browser to drag.
  */
 function readSelectionSource(
-	editorRoot: HTMLElement,
+	deps: SelectionDropDeps,
 	dragged: EventTarget | null
 ): DragStash | null {
+	const editorRoot = deps.editorRoot;
 	const sel = window.getSelection();
 	if (!sel || sel.isCollapsed || sel.rangeCount === 0) return null;
 	const range = sel.getRangeAt(0);
@@ -217,7 +226,9 @@ function readSelectionSource(
 		domTextOffsetAtNode(surface, range.endContainer, range.endOffset),
 		ambient
 	);
-	return start < end ? { ...found, start, end } : DECLINED;
+	if (start >= end) return DECLINED;
+	const text = movedText(deps, { ...found, start, end });
+	return text === null ? DECLINED : { ...found, start, end, text };
 }
 
 /** The block and offset a drop point addresses, as a single-click caret would land. Null where
@@ -255,7 +266,7 @@ function isInside(el: HTMLElement, clientX: number, clientY: number): boolean {
 
 /** The source element's bytes for the range, after the paste transforms. Null for text this
  *  module does not handle: a line break needs the structural paste path. */
-function movedText(deps: SelectionDropDeps, from: DragSource): string | null {
+function movedText(deps: SelectionDropDeps, from: Omit<DragSource, 'text'>): string | null {
 	const node = blockNodeAt(deps.getDoc(), from.path);
 	if (!node) return null;
 	const raw = trimTrailingLineEnding(node.raw).slice(from.start, from.end);
@@ -269,9 +280,9 @@ async function runDrop(
 	deps: SelectionDropDeps,
 	from: DragSource,
 	to: { path: number[]; offset: number },
-	text: string,
 	copy: boolean
 ): Promise<void> {
+	const text = from.text;
 	if (copy) {
 		await writeBlockRaw(deps, to.path, insert(to.offset, text), to.offset + text.length, true);
 		return;
@@ -386,6 +397,11 @@ async function writeBlockRaw(
 function spliceAt(raw: string, offset: number, text: string): string {
 	const at = Math.max(0, Math.min(offset, raw.length));
 	return raw.slice(0, at) + text + raw.slice(at);
+}
+
+/** Strictly inside `[start, end]`: a position the dragged range itself covers. */
+function insideRange(offset: number, start: number, end: number): boolean {
+	return offset > start && offset < end;
 }
 
 function pathsEqual(a: number[], b: number[]): boolean {

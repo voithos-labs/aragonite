@@ -25,3 +25,9 @@ then carries out.
 
 - hold over a thematic break, which holds no character position: no caret, and the release leaves
   the document byte-identical
+- hold a payload carrying a line break over a landing past it: no caret, and the release leaves
+  the document byte-identical
+  - Miss-analysis: each decline was covered by reading the bytes after the release, so the three
+    the caret mirrored read as coverage for all of them and the two it missed were never asked
+- hold over a landing inside the dragged range itself: no caret, and the release leaves the
+  document byte-identical
