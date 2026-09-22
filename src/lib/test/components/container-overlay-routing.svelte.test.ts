@@ -5,8 +5,8 @@
 // that decides, since nothing on a `containerApi` tells the two cases apart.
 //
 // Miss-analysis: the previous test asserted "a container with children paints nothing", true
-// wherever every visible row is a child block, so a container that draws a row of its own
-// (#321) had no box at any level.
+// wherever every visible row is a child block, so a container that draws a row of its own had
+// no box at any level.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
 import { flushSync } from 'svelte';
 import { parse } from '$lib/core/parser';
@@ -89,5 +89,53 @@ describe('a container the range holds whole paints one box', () => {
 
 		expect(ownOverlays(mounted).length).toBe(0);
 		expect(childOverlays(mounted).length).toBeGreaterThan(0);
+	});
+});
+
+// Miss-analysis: every container case above is one BlockHost mounts, so no test covered a
+// container that renders none of its own and had nothing left to paint its box.
+describe('a list item the range holds whole paints its own box', () => {
+	/** Items 0 and 3 hold the endpoints, so items 1 and 2 are the ones held whole. */
+	function rangeAcrossFourItems() {
+		const selection = createSelectionState();
+		selection.enterCrossBlock({ path: [1, 0, 0], offset: 1 }, { path: [1, 3, 0], offset: 1 });
+		return selection;
+	}
+
+	function itemBoxes(mountedHost: MountedHost): NodeListOf<Element> {
+		return mountedHost.el.querySelectorAll(':scope .list-item-block > .selection-overlay-middle');
+	}
+
+	it('paints one box per middle item, which its paragraph leaves alone', () => {
+		const doc = parse('lead\n\n- a\n- b\n- c\n- d\n\ntail\n');
+		expect(doc.children[1].kind).toBe('list');
+
+		mounted = mountBlockHost(
+			doc,
+			{ index: 1 },
+			{ services: { selection: rangeAcrossFourItems() } }
+		);
+		flushSync();
+
+		expect(itemBoxes(mounted).length).toBe(2);
+		expect(
+			mounted.el.querySelectorAll(':scope [data-block-path] .selection-overlay-middle').length
+		).toBe(0);
+	});
+
+	it('leaves a nested sub-list under a middle item painting nothing', () => {
+		const doc = parse('lead\n\n- a\n- b\n  - b1\n- c\n- d\n\ntail\n');
+
+		mounted = mountBlockHost(
+			doc,
+			{ index: 1 },
+			{ services: { selection: rangeAcrossFourItems() } }
+		);
+		flushSync();
+
+		expect(itemBoxes(mounted).length).toBe(2);
+		expect(
+			mounted.el.querySelectorAll("[data-block-path='[1,1,1]'] .selection-overlay").length
+		).toBe(0);
 	});
 });

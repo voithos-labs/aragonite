@@ -74,6 +74,29 @@ test.describe('selection: overlay: edge cases', () => {
 		).toBeAttached();
 	});
 
+	test('a list item the range holds whole paints its own box', async () => {
+		await editor.loadContent('- one\n- two\n- three\n- four\n');
+		await editor.dragFromTo([0, 0, 0], 1, [0, 3, 0], 2);
+		await editor.waitForCrossBlock(true);
+
+		await expect(editor.page.locator('.list-item-block > .selection-overlay-middle')).toHaveCount(
+			2
+		);
+	});
+
+	test('a nested sub-list under a held item paints no second box', async () => {
+		await editor.loadContent('- one\n- two\n  - sub\n- three\n- four\n');
+		await editor.dragFromTo([0, 0, 0], 1, [0, 3, 0], 2);
+		await editor.waitForCrossBlock(true);
+
+		await expect(editor.page.locator('.list-item-block > .selection-overlay-middle')).toHaveCount(
+			2
+		);
+		await expect(editor.page.locator("[data-block-path='[0,1,1]'] .selection-overlay")).toHaveCount(
+			0
+		);
+	});
+
 	test('a container the range holds whole paints one box, its children none', async () => {
 		await editor.loadContent('before\n\n> quote line 1\n> quote line 2\n\nafter\n');
 		await editor.focusBlockStart(0);
