@@ -16,12 +16,15 @@ import type { PresentationMode } from '$lib/presentation-mode';
 const BOX = { left: 40, right: 400, top: 20, bottom: 60 };
 /** In the root's left margin, level with the block's first line. */
 const MARGIN = { clientX: 10, clientY: 40 };
+/** The text of the block a margin click resolves to, which a click run there selects. */
+const NEAREST_TEXT = 'nearest block text';
 
 const teardowns: (() => void)[] = [];
 const origFromPoint = document.elementFromPoint;
 
 beforeEach(() => {
 	document.body.replaceChildren();
+	window.getSelection()?.removeAllRanges();
 });
 
 afterEach(() => {
@@ -48,13 +51,20 @@ function harness(opts: { mode?: PresentationMode } = {}) {
 	proxy.setAttribute('data-whole-block-input', '');
 	const widget = document.createElement('div');
 	widget.setAttribute('data-pointer-gesture', '');
+	// What the path lookup answers with: the block a click outside every editable resolves to,
+	// whose own editable child is where a click run there selects.
+	const nearest = document.createElement('div');
+	const nearestText = document.createElement('div');
+	nearestText.setAttribute('contenteditable', 'true');
+	nearestText.textContent = NEAREST_TEXT;
+	nearest.append(nearestText);
 	const link = document.createElement('a');
 	link.setAttribute('href', 'https://example.com/');
 	const header = document.createElement('div');
 	const headerLink = document.createElement('a');
 	headerLink.setAttribute('href', 'https://host.example/');
 	header.append(headerLink);
-	list.append(host, editable, proxy, widget, link);
+	list.append(host, editable, proxy, widget, link, nearest);
 	root.append(header, list);
 	document.body.append(root);
 	// The margin resolves to the root; a point pulled into the box resolves to the block.
@@ -77,7 +87,7 @@ function harness(opts: { mode?: PresentationMode } = {}) {
 		selection,
 		stickyColumn: createStickyColumnState(),
 		edgeAffinity: createEdgeAffinityState(),
-		getBlockElByPath: () => null,
+		getBlockElByPath: () => nearest,
 		getBlockComponent: () => component,
 		revealPath: async () => component,
 		getScrollHost: () => root,
@@ -164,6 +174,25 @@ describe('editor-root gestures: the margin drag', () => {
 		const h = harness();
 		h.press(h.root);
 		expect(h.mouseDown(h.root, { detail: 2 }).defaultPrevented).toBe(false);
+	});
+
+	// Miss-analysis: the click test was pinned only through the margin drag's own press, so the
+	// second place it decides, the block a click run outside every editable lands in, had no unit.
+	it('a click run on dead space selects in the nearest block; a plain press does not', () => {
+		const h = harness();
+		expect(h.mouseDown(h.root, { detail: 3 }).defaultPrevented).toBe(true);
+		expect(window.getSelection()?.toString()).toBe(NEAREST_TEXT);
+
+		window.getSelection()?.removeAllRanges();
+		h.press(h.root);
+		h.mouseDown(h.root);
+		expect(window.getSelection()?.toString()).toBe('');
+	});
+
+	it('a click run on a surface the drag declines selects nothing', () => {
+		const h = harness();
+		expect(h.mouseDown(h.widget, { detail: 3 }).defaultPrevented).toBe(false);
+		expect(window.getSelection()?.toString()).toBe('');
 	});
 });
 
