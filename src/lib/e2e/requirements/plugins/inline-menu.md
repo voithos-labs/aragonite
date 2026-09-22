@@ -21,7 +21,8 @@ whose pick inserts a block: `insert` is empty and `onCommit` goes through the in
 
 - Typing the trigger opens that source's list under it; the rows are the source's, in its order.
 - The query narrows the list as it grows, and widens it again on Backspace.
-- A caret that merely arrives beside an existing trigger (a click, an arrow key) opens nothing.
+- A caret that merely arrives beside an existing trigger opens nothing, including one that lands
+  in another block and walks up to a tag it never typed.
 - A trigger the source declines by position opens nothing: a mid-word `#` is not a tag.
 - A trigger typed inside an inline code span opens nothing: it is not syntax there.
 - A trigger typed inside a link's destination opens nothing either, and the same holds for its

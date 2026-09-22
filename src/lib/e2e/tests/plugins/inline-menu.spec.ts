@@ -1,6 +1,6 @@
 import { test, expect } from '../../fixtures';
 import { attachIme } from '../../simulation/ime';
-import { PluginsPage, capturedErrors } from './helpers';
+import { activeBlockPath, PluginsPage, capturedErrors } from './helpers';
 
 /**
  * Inline menus (`editor.inlineMenus`): the list under the caret on a typed trigger. Seed
@@ -61,11 +61,23 @@ test.describe('inline menus', () => {
 			await expect.poll(() => rows(editor)).toEqual(['#project', '#inbox', '#work/admin']);
 		});
 
+		// Miss-analysis: the case stayed in the block it had typed ` #` into, so the arrival it
+		// tested was the typist's own caret coming back, never one reaching a trigger it never typed.
 		test('a caret arriving beside an existing trigger opens nothing', async () => {
-			await editor.typeText(' #');
-			await editor.page.keyboard.press('Escape');
-			await editor.page.keyboard.press('ArrowLeft');
+			// `Filed under #project and …`, a block the caret has never been in this run.
+			const beforeTag = { path: [0], offset: 12 };
+			await editor.bridge.setSelection({ anchor: beforeTag, focus: beforeTag });
+			expect(await activeBlockPath(editor.page)).toEqual([0]);
+
+			// Just past the `#`, then past the whole tag: neither is a trigger anyone typed.
 			await editor.page.keyboard.press('ArrowRight');
+			await editor.waitForRenderFlush();
+			await expect(menu(editor)).toHaveCount(0);
+
+			for (let i = 0; i < 7; i++) await editor.page.keyboard.press('ArrowRight');
+			expect(await editor.bridge.getSelection()).toMatchObject({
+				focus: { path: [0], offset: 20 }
+			});
 			await editor.waitForRenderFlush();
 			await expect(menu(editor)).toHaveCount(0);
 		});
