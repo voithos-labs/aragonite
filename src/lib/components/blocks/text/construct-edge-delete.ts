@@ -51,9 +51,7 @@ export interface EdgeDeletionWrite {
 	/** The block's whole displayed text after the cut. */
 	raw: string;
 	caret: number;
-	/** The marks the cut took off: one per construct it emptied whose delimiters a format chord
-	 *  writes. The caret sits inside none of them now, so a caller holding formatting for the
-	 *  next insertion gets them back. */
+	/** The marks of the constructs the cut emptied and unwrapped, for the caller to hold pending. */
 	unwrappedMarks: readonly AnyInlineKind[];
 }
 

@@ -304,9 +304,8 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 	function applyEdgeDeletion(deletion: EdgeDeletion, caretBefore: number): void {
 		if ('swallow' in deletion) return;
 		writeDisplay(deletion.raw, deletion.caret, 'construct-delete', caretBefore);
-		// After the write, which clears what is pending. The construct is gone but the caret is
-		// still where it stood, so its format waits for the next insertion exactly as a toggle
-		// chord would leave it (live-mode.md § 4.4).
+		// Pended after the write, since the write clears pending marks; the caret has not moved, so
+		// the format waits for the next insertion (live-mode.md § 4.4).
 		for (const kind of deletion.unwrappedMarks) deps.pendingMarks.toggle(kind);
 	}
 
@@ -334,7 +333,7 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 		source: string
 	): void {
 		const range = heldRange();
-		if (range) {
+		if (range && range.end > range.start) {
 			const edit = replaceRangeRaw(
 				deps.node,
 				range,

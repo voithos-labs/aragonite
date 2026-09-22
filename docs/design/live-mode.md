@@ -244,7 +244,7 @@ press('Some **bold** text', 9, 'backward'); // null: no hidden run beside the cu
 ```
 
 - A destructive key at a hidden run takes the adjacent content character, never an invisible delimiter byte, plus every delimiter the cut leaves enclosing nothing (`autoUnwrapOnEmpty`, `construct-edge-delete.ts`).
-- A construct the press unwraps hands its mark back. The delimiters are gone but the caret has not moved, so the kind goes pending (§ 4.3) and the next byte is written inside the construct again. That is what makes the next toggle chord turn the format off here, the job the visible empty pair does in the preview rungs. Only a kind a chord can write comes back; a link the cut emptied leaves nothing pending.
+- A construct the press unwraps hands its mark back. The delimiters are gone but the caret has not moved, so the kind goes pending (§ 4.3) and the next byte is written inside the construct again. That is what makes the next toggle chord turn the format off here, the job the visible empty pair does in the preview modes. Only a kind a chord can write comes back; a link the cut emptied leaves nothing pending.
 - A press this branch owns but can't rewrite soundly takes nothing, since the browser's version would paint the markers.
 - Chrome that paints (§ 4.1) isn't a hidden run, so the branch declines the block outright rather than reading its own bytes as unseen.
 - A block's own hidden structure gets the same first claim: `contentStartBackspace: 'demote-first'` makes Backspace at a heading's content start give up the `## ` or the underline before any merge. That's the first press a user can aim at markers they can't see.
