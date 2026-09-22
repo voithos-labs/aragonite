@@ -248,7 +248,7 @@ const DOCS = path.resolve('docs');
  *  lands; never raise one. The glossary defines the words, and releasing.md is an owner file
  *  outside the repository, so neither is a row. */
 const DOC_BASELINE: Record<string, number> = {
-	'design/caret-placement.md': 7,
+	'design/caret-placement.md': 1,
 	'design/editor.md': 0,
 	'design/inline-parsing.md': 0,
 	'design/invariants.md': 147,
