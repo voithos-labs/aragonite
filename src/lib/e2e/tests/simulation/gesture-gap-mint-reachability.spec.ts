@@ -59,7 +59,7 @@ test.describe('sim gesture reachability: gap create', () => {
 		await editor.loadContent(PARA_THEN_FENCE);
 
 		await expect(mintAtGap(await makeCtx(page, editor), 1, 'Q')).rejects.toThrow(
-			/parked no gap caret/
+			/no gap caret there/
 		);
 	});
 });
@@ -94,6 +94,6 @@ test.describe('sim gesture reachability: gap create between opaque containers', 
 	test('the backspace arrival fails loudly at a chrome-container boundary', async ({ page }) => {
 		await expect(
 			mintAtGap(await makeSimContext(page, editor, 'reach-opaque'), 1, 'Q')
-		).rejects.toThrow(/parked no gap caret/);
+		).rejects.toThrow(/no gap caret there/);
 	});
 });
