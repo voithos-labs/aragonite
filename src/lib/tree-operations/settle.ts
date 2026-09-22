@@ -249,7 +249,7 @@ function settleSplicedWindow(
 	const widened = widenForTailMint(change, beforeMint, parent.children.length);
 	// Merging neighbours is part of settling, not a rule each caller repeats, so a new caller
 	// inherits it. A write that reports `noop` splices no window and is asked nothing.
-	return absorbWindowSeams(
+	const absorbed = absorbWindowSeams(
 		parent as NodeParent,
 		at,
 		added,
@@ -261,6 +261,11 @@ function settleSplicedWindow(
 		// refused on that block's first line alone; a wider window names no single block.
 		added === 1 ? at : undefined
 	).change;
+	// Asked again, because a merge can turn the parent's last block blank, which is what makes
+	// the trailing line a block of its own.
+	const beforeTailMint = parent.children.length;
+	materializeTailSuffix(parent, sharing);
+	return widenForTailMint(absorbed, beforeTailMint, parent.children.length);
 }
 
 /** The block that takes the vacated position inherits its separator when it has none of its own

@@ -136,6 +136,24 @@ describe('a splice absorbs a join the reload would fold (GH #61)', () => {
 		expect(describeConvergence(doc)).toBeNull();
 	});
 
+	// The same join at the parent tail: the trailing line the parse keeps in `doc.suffix` reloads
+	// as a block of its own once the merge leaves the last block blank.
+	it('the same join at the tail makes the trailing line a block', () => {
+		const doc = parse('- a\n\nb\n\n    code\n \t \n\t\n\n');
+		expect(doc.suffix).toBe('\n');
+
+		const change = settled(doc, (body) => mergeWithNext(body, 0, undefined, undefined).change);
+
+		expect(doc.children.map((c) => [c.kind, c.leadingTrivia, c.raw])).toEqual([
+			['list', '', '- ab\n\n    code\n'],
+			['paragraph', ' \t \n', '\t\n'],
+			['paragraph', '', '\n']
+		]);
+		expect(doc.suffix).toBe('');
+		expect(change).toEqual({ op: 'replace', at: 0, count: 3, newCount: 3, idMap: { 0: 0 } });
+		expect(describeConvergence(doc)).toBeNull();
+	});
+
 	it('a delete between separated paragraphs stays a plain delete', () => {
 		const doc = parse('a\n\nb\n\nc\n');
 
