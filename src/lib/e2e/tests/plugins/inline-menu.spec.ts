@@ -155,6 +155,24 @@ test.describe('inline menus', () => {
 		});
 	});
 
+	test.describe('what a screen reader is told', () => {
+		test('the active row keeps its id while the query narrows the list', async () => {
+			await editor.typeText(' #');
+			await expect(menu(editor, TAGS)).toBeVisible();
+			const inboxId = await menu(editor, TAGS)
+				.locator('[role="option"]')
+				.filter({ hasText: '#inbox' })
+				.getAttribute('id');
+			expect(inboxId).toBeTruthy();
+
+			// `#inbox` is the only tag starting with `i`, so it becomes the one active row.
+			await editor.typeText('i');
+			await expect.poll(() => rows(editor)).toEqual(['#inbox']);
+			await expect(activeRow(editor)).toHaveText('#inbox');
+			await expect(editable(editor, TARGET)).toHaveAttribute('aria-activedescendant', inboxId!);
+		});
+	});
+
 	test.describe('keys', () => {
 		test('the arrows move the active row with wrap, and touch no byte', async () => {
 			await editor.typeText(' #');

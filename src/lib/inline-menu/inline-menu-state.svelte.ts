@@ -53,8 +53,8 @@ export interface InlineMenuState {
 	getOpen(): InlineMenuOpenView | null;
 	/** The list element's DOM id, which `aria-controls` names. */
 	readonly listboxId: string;
-	/** The DOM id of the row at `index`, which `aria-activedescendant` names. */
-	optionId(index: number): string;
+	/** The DOM id of the row a source gave this item id, which `aria-activedescendant` names. */
+	optionId(itemId: string): string;
 	/** What the editable at `path` must say about the list showing in it, or null when none is.
 	 *  The editable renders these itself; nothing writes onto its element. Reactive. */
 	comboboxFor(path: readonly number[]): InlineMenuCombobox | null;
@@ -85,12 +85,21 @@ export interface InlineMenuOpenView {
 	activeIndex: number;
 }
 
+/**
+ * An item id as one token, since an attribute naming a DOM id can hold no whitespace and a
+ * source is free to hand out `Meeting notes`. Every escape is reversible, so two ids a source
+ * kept distinct never become one id in the page.
+ */
+function asIdToken(id: string): string {
+	return id.replace(/[^A-Za-z0-9-]/gu, (char) => `_${char.codePointAt(0)!.toString(16)}_`);
+}
+
 export function createInlineMenuState(deps: InlineMenuStateDeps): InlineMenuState {
 	const sources = new Map<string, InlineMenuSource>();
 	const listboxId = `${deps.editorId}-inline-menu`;
-	// Rows are numbered rather than named after their item: a source is free to hand out an id
-	// with a space in it, and a DOM id holding one could never be referenced.
-	const optionId = (index: number) => `${listboxId}-${index}`;
+	// A row is named after its own item, not its place in the list, so the row a narrower query
+	// leaves active keeps the id the attribute pointing at it already held.
+	const optionId = (itemId: string) => `${listboxId}-${asIdToken(itemId)}`;
 
 	let session = $state.raw<InlineMenuSession | null>(null);
 	let query = $state('');
@@ -411,7 +420,7 @@ export function createInlineMenuState(deps: InlineMenuStateDeps): InlineMenuStat
 		comboboxFor(path) {
 			if (session === null || items.length === 0) return null;
 			if (session.path.join() !== path.join()) return null;
-			return { listboxId, activeOptionId: optionId(activeIndex) };
+			return { listboxId, activeOptionId: optionId(items[activeIndex].id) };
 		},
 		getOpen() {
 			if (session === null) return null;

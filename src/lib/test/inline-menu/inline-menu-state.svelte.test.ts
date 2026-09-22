@@ -327,6 +327,44 @@ describe('the list a source lands', () => {
 	});
 });
 
+describe('what the editable says about the list', () => {
+	it('names the active row by that row’s own id, so a narrowing list renames it', async () => {
+		const h = harness('see ');
+		h.menu.registry.addSource(tags());
+
+		await h.type('#');
+		const first = h.menu.comboboxFor([0])!.activeOptionId;
+		expect(first).toContain('work');
+
+		await h.type('h');
+		expect(h.menu.getOpen()!.items.map((i) => i.id)).toEqual(['home']);
+		expect(h.menu.comboboxFor([0])!.activeOptionId).toContain('home');
+		expect(h.menu.comboboxFor([0])!.activeOptionId).not.toBe(first);
+	});
+
+	it('takes a row id a source spells with a space and gives back one token', async () => {
+		const h = harness('see ');
+		h.menu.registry.addSource(tags({ items: () => [item('Meeting notes')] }));
+
+		await h.type('#');
+		const id = h.menu.comboboxFor([0])!.activeOptionId;
+		expect(id).not.toMatch(/\s/);
+		expect(id).toBe(h.menu.optionId('Meeting notes'));
+	});
+
+	it('says nothing about a block the list is not open in, or about an empty list', async () => {
+		const h = harness('see ');
+		h.menu.registry.addSource(tags());
+
+		await h.type('#');
+		expect(h.menu.comboboxFor([0])).not.toBeNull();
+		expect(h.menu.comboboxFor([1])).toBeNull();
+
+		await h.type('zz');
+		expect(h.menu.comboboxFor([0])).toBeNull();
+	});
+});
+
 describe('navigation and commit', () => {
 	it('steps the active row with wrap, and resets it when the query moves', async () => {
 		const h = harness('a ');

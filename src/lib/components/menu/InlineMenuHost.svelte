@@ -135,7 +135,7 @@
 		{#each view.items as item, i (item.id)}
 			<!-- svelte-ignore a11y_click_events_have_key_events -->
 			<div
-				id={menu.optionId(i)}
+				id={menu.optionId(item.id)}
 				class="md-menu-item inline-menu-item"
 				role="option"
 				tabindex="-1"

@@ -40,6 +40,8 @@ whose pick inserts a block: `insert` is empty and `onCommit` goes through the in
 
 - While rows show, the editable the author is typing in reads as a combobox: it says the list is
   expanded, names the list, and names the active row, which changes as the arrows move it.
+- The active row is named after itself, so a query that narrows the list to one row leaves the
+  editable naming that same row rather than whatever now sits first.
 - Escape takes all of that back: the editable is a plain text box again.
 
 ## Keys
@@ -105,3 +107,7 @@ as prose, a link's destination and title, an image, an autolink, raw HTML, were 
 
 The arrival case stayed in the block it had just typed the trigger into, so the caret it tested
 was the typist's own coming back, never one reaching a trigger it had never typed.
+
+Every case that read what the editable names moved the active row with the arrows, which moves the
+row's place in the list along with it, so nothing asked what a narrowing query does, where the row
+changes under a place that does not.
