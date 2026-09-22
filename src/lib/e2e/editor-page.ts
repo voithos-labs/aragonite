@@ -41,23 +41,28 @@ export class EditorPage {
 	 */
 	protected async openHarness(url: string): Promise<void> {
 		const failures = watchPageFailures(this.page);
+		const diagnose = (what: string, cause: unknown): never => {
+			const reported = failures.seen();
+			// Playwright's own message is what separates a timeout from a context destroyed by a
+			// reload, which is the other way the bridge goes missing.
+			throw new Error(
+				[
+					`${url}: ${what} in ${BRIDGE_INSTALL_TIMEOUT} ms (${String(cause).split('\n')[0]}).`,
+					'The page reported:',
+					...(reported.length > 0 ? reported : ['nothing captured'])
+				].join('\n')
+			);
+		};
 		try {
 			await this.page.goto(url);
-			await this.editorContainer.waitFor({ state: 'visible' });
+			await this.editorContainer
+				.waitFor({ state: 'visible', timeout: BRIDGE_INSTALL_TIMEOUT })
+				.catch((cause) => diagnose('the editor never mounted', cause));
 			await this.page
 				.waitForFunction(() => (window as any).__test !== undefined, null, {
 					timeout: BRIDGE_INSTALL_TIMEOUT
 				})
-				.catch(() => {
-					const reported = failures.seen();
-					throw new Error(
-						[
-							`${url}: the editor mounted but window.__test never arrived in ` +
-								`${BRIDGE_INSTALL_TIMEOUT} ms. The page reported:`,
-							...(reported.length > 0 ? reported : ['nothing captured'])
-						].join('\n')
-					);
-				});
+				.catch((cause) => diagnose('the editor mounted but window.__test never arrived', cause));
 			// The harness paints a webfont; a caret measured before it arrives is placed by the
 			// fallback font's metrics, and the block reflows under the spec.
 			await this.page.evaluate(() => document.fonts.ready);
