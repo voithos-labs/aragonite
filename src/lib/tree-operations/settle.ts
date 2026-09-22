@@ -261,8 +261,8 @@ function settleSplicedWindow(
 		// refused on that block's first line alone; a wider window names no single block.
 		added === 1 ? at : undefined
 	).change;
-	// Asked again, because a merge can turn the parent's last block blank, which is what makes
-	// the trailing line a block of its own.
+	// The parent's trailing line is asked again: a merge can turn the last block blank, and a
+	// blank last block is what makes that line a block of its own.
 	const beforeTailMint = parent.children.length;
 	materializeTailSuffix(parent, sharing);
 	return widenForTailMint(absorbed, beforeTailMint, parent.children.length);
@@ -411,9 +411,8 @@ export function absorbSeamReading(
 		const reparsed = parse(joinedWindowBytes(window, window.length), { scope: 'fragment' });
 		const blocks = reparsed.children;
 		if (blocks.length === 0 || blocks.length > window.length) break;
-		// An equal count is still a merge where the head took content from the block below it: a
-		// run of blank lines inside that block stays a block of its own, so the count holds even
-		// though the rest of it moved up (GH #285).
+		// An equal count is still a merge when the head took content from the block below: a blank
+		// run inside that block stays its own block, so the count holds while the rest moves up.
 		if (blocks.length === window.length && !headTookContent(blocks[0], window)) break;
 		// A merge may promote the head beyond what its bytes carry alone (a paragraph under the
 		// setext underline below it), so what must survive is the head's own reading, not its kind.

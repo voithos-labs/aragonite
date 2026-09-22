@@ -21,7 +21,7 @@ export interface PageFailures {
 // Attach before navigating: a wait that runs out can then say what the page reported instead of
 // only that it waited.
 export function watchPageFailures(page: Page): PageFailures {
-	const uncaught: string[] = [];
+	const uncaught = new Set<string>();
 	const logged = new Set<string>();
 	const byUrl = new Map<string, string>();
 	const onConsole = (m: ConsoleMessage) => {
@@ -29,7 +29,8 @@ export function watchPageFailures(page: Page): PageFailures {
 		if (m.type() !== 'error' || m.text().startsWith('Failed to load resource')) return;
 		logged.add(`console error: ${m.text()}`);
 	};
-	const onPageError = (e: Error) => uncaught.push(`page error: ${e.message}`);
+	// Once each: an effect that throws on every reactive flush would otherwise bury the cause.
+	const onPageError = (e: Error) => uncaught.add(`page error: ${e.message}`);
 	const onRequestFailed = (r: Request) => {
 		const reason = r.failure()?.errorText ?? 'no reason given';
 		if (!byUrl.has(r.url())) byUrl.set(r.url(), `request failed: ${r.url()} (${reason})`);
