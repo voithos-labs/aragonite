@@ -252,7 +252,7 @@ const DOC_BASELINE: Record<string, number> = {
 	'design/editor.md': 0,
 	'design/inline-parsing.md': 0,
 	'design/invariants.md': 147,
-	'design/live-mode.md': 38,
+	'design/live-mode.md': 0,
 	'design/performance.md': 1,
 	'design/plugin-contract.md': 82,
 	'design/syntax-tree.md': 0,
