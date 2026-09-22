@@ -287,6 +287,44 @@ test.describe('live mode: a mark is spent once and cleared by any caret move', (
 	});
 });
 
+// Emptying the construct a mark just made unwraps it, so the caret ends up inside nothing. The
+// preview modes keep the empty pair there, and the press hands the mark back so live agrees: the
+// next byte is still italic, and the next chord still turns it off.
+test.describe('live mode: a press that empties a construct hands its mark back', () => {
+	let ep: EditorPage;
+
+	test.beforeEach(async ({ page }) => {
+		ep = await enterLive(page);
+
+		await clickBlockSettled(ep, PLAIN);
+		await page.keyboard.press('End');
+		await ep.waitForRenderFlush();
+
+		await italic(page);
+		await page.keyboard.type('x');
+		await ep.bridge.waitForSourceContains('plain*x*');
+
+		await page.keyboard.press('Backspace');
+		await ep.bridge.waitForSourceNotContains('*x*');
+		await ep.waitForRenderFlush();
+	});
+
+	test('the second chord turns the mark off, so the next byte types plain', async ({ page }) => {
+		await italic(page);
+		await page.keyboard.type('y');
+
+		await ep.bridge.waitForSourceContains('plainy');
+		await ep.bridge.waitForSourceNotContains('*y*');
+	});
+
+	test('with no second chord the next byte is still italic', async ({ page }) => {
+		await page.keyboard.type('y');
+
+		await ep.bridge.waitForSourceContains('plain*y*');
+		await expect(ep.getBlock(PLAIN).locator('em')).toHaveText('y');
+	});
+});
+
 test.describe('live mode: the insertion that spends a mark owns its undo entry', () => {
 	let ep: EditorPage;
 

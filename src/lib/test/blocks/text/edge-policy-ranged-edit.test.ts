@@ -116,3 +116,54 @@ describe('a key over a range that opens with a decoration widget', () => {
 		expect(h.edits).toEqual([[0, 'z\n', 0, 1]]);
 	});
 });
+
+/** `[marker][text]`, the shape a list item's prose child renders, with a selection across the
+ *  marker only: non-collapsed to the DOM, empty once clamped into this block's content. */
+function mountMarkerLed(clamped: boolean): EdgeDispatchHarness & { entered: number[] } {
+	const node = parse(ENTITY_LED).children[0];
+	const marker = document.createElement('span');
+	marker.className = 'md-marker';
+	marker.setAttribute('contenteditable', 'false');
+	marker.textContent = '- ';
+	const text = document.createTextNode(trimTrailingLineEnding(node.raw));
+	const el = mountSurface([marker, text]);
+
+	const range = document.createRange();
+	if (clamped) {
+		range.setStart(marker.firstChild!, 0);
+		range.setEnd(marker.firstChild!, 2);
+	} else {
+		range.setStart(text, 0);
+		range.collapse(true);
+	}
+	const sel = window.getSelection()!;
+	sel.removeAllRanges();
+	sel.addRange(range);
+
+	const entered: number[] = [];
+	const harness = makeEdgeDispatch(node, el, {
+		getAmbientLength: () => marker.textContent!.length,
+		enterWidget: (widget) => entered.push(widget.start),
+		getRawSelection: () => (clamped ? { start: asRawOffset(0), end: asRawOffset(0) } : null)
+	});
+	return { ...harness, entered };
+}
+
+// Miss-analysis: the two readings of "a range is held" were never put under one selection, so a
+// shape that is a range to one and a caret to the other had no test to disagree in.
+describe('a range whose ends both clamp into the container marker prefix', () => {
+	it('every branch reads it as a range: the leading entity survives the key', () => {
+		const h = mountMarkerLed(true);
+		expect(h.handleKeydown(key('Delete'), at(0))).toBe(true);
+		expect(h.entered).toEqual([]);
+		expect(h.edits).toEqual([]);
+	});
+
+	// The collapsed counterpart, so the rule above reads as "the range wins" rather than "the
+	// widget branch stopped answering".
+	it('still takes the entity whole at a collapsed caret in the same block', () => {
+		const h = mountMarkerLed(false);
+		expect(h.handleKeydown(key('Delete'), at(0))).toBe(true);
+		expect(h.edits).toEqual([[0, ' opens\n', 0, 0]]);
+	});
+});

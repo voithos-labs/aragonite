@@ -136,3 +136,33 @@ describe('the toggle caret position claims only a plain byte at a collapsed care
 		expect(h.edits).toHaveLength(0);
 	});
 });
+
+// A construct the press empties is unwrapped, so the caret ends up inside nothing and the mark the
+// user had on would be lost. Handing it back keeps the chord's meaning: the next byte is still
+// italic, and the next chord still turns it off.
+describe('a press that empties a construct hands its mark back', () => {
+	it('leaves the emptied construct’s mark pending for the next byte', () => {
+		const h = mount('plain*x*\n', []);
+
+		expect(h.handleKeydown(key('Backspace'), at(7))).toBe(true);
+		expect(h.edits).toEqual([[0, 'plain\n', 7, 5]]);
+		expect(h.marks.get()).toEqual(new Set(['emphasis']));
+	});
+
+	it('pends nothing where the press empties no construct', () => {
+		const h = mount('Some **bold** text\n', []);
+
+		expect(h.handleKeydown(key('Backspace'), at(13))).toBe(true);
+		expect(h.marks.get()).toBeNull();
+	});
+
+	// A link unwraps on empty like a mark does, but no chord writes one, so there is nothing to
+	// hand back and a pended `link` would be a promise the insertion cannot keep.
+	it('pends nothing for an unwrapped kind no format chord writes', () => {
+		const h = mount('a [x](u) b\n', []);
+
+		expect(h.handleKeydown(key('Backspace'), at(4))).toBe(true);
+		expect(h.edits).toEqual([[0, 'a  b\n', 4, 2]]);
+		expect(h.marks.get()).toBeNull();
+	});
+});

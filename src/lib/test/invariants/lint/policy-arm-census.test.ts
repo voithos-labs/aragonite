@@ -70,7 +70,7 @@ const namesConstructKind = (file: SourceFile): boolean =>
  *  reader is a decision rather than a silent eighth opinion on a row's meaning. */
 const POLICY_ARMS: Record<string, string> = {
 	'src/lib/components/blocks/text/construct-edge-delete.ts':
-		'the destructive arm: autoUnwrapOnEmpty',
+		'the destructive arm: autoUnwrapOnEmpty, and the mark column to say which unwrapped construct a chord can write again',
 	'src/lib/components/blocks/text/construct-reveal.ts': "preview-inline's reveal chain: revealable",
 	'src/lib/components/blocks/text/edge-seat.ts': 'the typing seat: edgeAffinity',
 	'src/lib/components/blocks/text/link-at-point.ts': 'the card entry: cardEditable',

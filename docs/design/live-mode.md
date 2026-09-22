@@ -171,6 +171,7 @@ resolveMarkedInsertion(raw, 11, 'X', new Set(['strong']), inlines); // at bold's
 
 - The mark resolves against the caret's construct chain (`pending-mark-insert.ts`; the chain is every construct enclosing the caret, outermost first). A kind the chain lacks wraps the insertion; a kind it carries escapes it, by close-and-reopen or by stepping outside the construct, as above.
 - The marks ride the edge affinity's invalidation (G4.31): whatever settles the arrival side clears them too, and a mode flip clears them.
+- A chord is not the only thing that sets them. A destructive press that unwraps a construct (§ 4.4) pends the kinds it took, so a format survives the delete that emptied it the way it survives a caret that never left.
 - A composition takes them at `compositionstart`, ahead of the affinity reset that would otherwise drop them mid-composition, and hands them back if it commits nothing: an IME cancel inserts no text, so the promise is still owed.
 - A table cell's typing goes through the same seat, so all of this holds in a cell.
 
@@ -236,13 +237,14 @@ const press = (display: string, caret: number, direction: 'backward' | 'forward'
 		installedAs: 'block'
 	});
 
-press('Some **bold** text', 13, 'backward'); // { raw: 'Some **bol** text', caret: 10 }: the content byte, never the run
-press('Some **bold** text', 5, 'forward'); // { raw: 'Some **old** text', caret: 5 }
-press('Some **b** text', 10, 'backward'); // { raw: 'Some  text', caret: 5 }: the cut emptied the pair, so the pair went too
+press('Some **bold** text', 13, 'backward'); // { raw: 'Some **bol** text', caret: 10, unwrappedMarks: [] }: the content byte, never the run
+press('Some **bold** text', 5, 'forward'); // { raw: 'Some **old** text', caret: 5, unwrappedMarks: [] }
+press('Some **b** text', 10, 'backward'); // { raw: 'Some  text', caret: 5, unwrappedMarks: ['strong'] }: the cut emptied the pair, so the pair went too
 press('Some **bold** text', 9, 'backward'); // null: no hidden run beside the cut, so the press is the browser's
 ```
 
 - A destructive key at a hidden run takes the adjacent content character, never an invisible delimiter byte, plus every delimiter the cut leaves enclosing nothing (`autoUnwrapOnEmpty`, `construct-edge-delete.ts`).
+- A construct the press unwraps hands its mark back. The delimiters are gone but the caret has not moved, so the kind goes pending (§ 4.3) and the next byte is written inside the construct again. That is what makes the next toggle chord turn the format off here, the job the visible empty pair does in the preview modes. Only a kind a chord can write comes back; a link the cut emptied leaves nothing pending.
 - A press this branch owns but can't rewrite soundly takes nothing, since the browser's version would paint the markers.
 - Chrome that paints (§ 4.1) isn't a hidden run, so the branch declines the block outright rather than reading its own bytes as unseen.
 - A block's own hidden structure gets the same first claim: `contentStartBackspace: 'demote-first'` makes Backspace at a heading's content start give up the `## ` or the underline before any merge. That's the first press a user can aim at markers they can't see.

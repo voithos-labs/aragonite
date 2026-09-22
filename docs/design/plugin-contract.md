@@ -576,14 +576,14 @@ const source: DecorationSource = {
 };
 ```
 
-| Surface                                                                                                                | Type    |
-| ---------------------------------------------------------------------------------------------------------------------- | ------- |
-| Component props (`node`, `document`), `EditorContext.document`, `DecorationSource.provide` doc                         | view    |
-| Descriptor read hooks (`getContentRange`, `estimateHeight`, `reservedChrome.isCollapsed`)                              | view    |
-| Command / widget-editing contexts (`BlockCommandContext.node`, `InlineWidgetEditingContext.node`), `getPluginMetadata` | view    |
-| `parse` result, opener / directive-factory products, `chromeChild`                                                     | mutable |
-| Write hooks (`rebuildRaw`, `setPluginMetadata`); the commit ceremony hands them owned nodes                            | mutable |
-| Byte rules (`normalizeRawWrite`, `bodyWrite`): text in, text out; they see no node at all                              | strings |
+| Surface                                                                                                                | Type                 |
+| ---------------------------------------------------------------------------------------------------------------------- | -------------------- |
+| Component props (`node`, `document`), `EditorContext.document`, `DecorationSource.provide` doc                         | view                 |
+| Descriptor read hooks (`getContentRange`, `estimateHeight`, `reservedChrome.isCollapsed`)                              | view                 |
+| Command / widget-editing contexts (`BlockCommandContext.node`, `InlineWidgetEditingContext.node`), `getPluginMetadata` | view                 |
+| `parse` result, opener / directive-factory products, `chromeChild`                                                     | mutable              |
+| Write hooks (`rebuildRaw`, `setPluginMetadata`); the commit ceremony hands them owned nodes                            | mutable              |
+| Byte rules: `bodyWrite` is text in, text out and sees no node; `normalizeRawWrite` takes the block it is repairing     | strings, plus a view |
 
 ## Target shapes (designed ahead)
 

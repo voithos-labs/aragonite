@@ -6,7 +6,9 @@ import { BlockMathPage } from './latex-reveal-helpers';
  * Committing block math (requirements/plugins/latex-block-commit-split.md): an open source
  * committed with text that parses to several blocks must split the document again, which is what
  * a stuck fence comes from. Real keyboard and mouse only; Enter inside the source inserts a
- * literal newline and never splits as you type, so the split happens when blur commits.
+ * literal newline and never splits as you type, so the split happens when blur commits. Deleting
+ * the fences here converts the block because the user addressed those bytes; a truncation written
+ * past this element puts the closer back (latex-block-live-editing.spec.ts).
  */
 
 test.describe('block math commit core: multi-block source re-splits', () => {

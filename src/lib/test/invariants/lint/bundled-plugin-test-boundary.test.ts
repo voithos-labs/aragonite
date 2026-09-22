@@ -22,10 +22,10 @@ interface Exemption {
 }
 
 /**
- * Eight entry points are missing, and every entry below names the one it waits on: a headless
+ * Nine entry points are missing, and every entry below names the one it waits on: a headless
  * editor-actions environment, tree mutation off a parsed document, the opaque-raw checks, the
- * parse comparison, registry read-back, the perf instruments, the built-in text block, and an
- * inline node's raw text. Adding one empties its entries.
+ * parse comparison, registry read-back, the perf instruments, the built-in text block, an inline
+ * node's raw text, and applying a kind's own raw-write rule. Adding one empties its entries.
  */
 const ALLOWLIST: Record<string, Exemption> = {
 	'src/lib/test/plugins/admonitions/blockquote-indent-cap.test.ts': {
@@ -169,6 +169,12 @@ const ALLOWLIST: Record<string, Exemption> = {
 	'src/lib/test/plugins/latex/inline.test.ts': {
 		specifiers: ['$lib/core/inline/inline-widgets'],
 		reason: 'no registry read-back for a widget kind, and no published core widget shell builder'
+	},
+	'src/lib/test/plugins/latex/raw-write-rule.test.ts': {
+		specifiers: ['$lib/tree-operations/node-primitives'],
+		reason:
+			'a kind declares normalizeRawWrite but nothing published applies one, so an author cannot ' +
+			'check what their rule makes of bytes a tree operation wrote'
 	},
 	'src/lib/test/plugins/latex/offset-audit.test.ts': {
 		specifiers: ['$lib/cursor/widget-offset'],

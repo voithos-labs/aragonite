@@ -18,7 +18,6 @@ import { trimTrailingLineEnding, trailingLineEnding } from '../../../core/lines'
 import { type RawOffset } from '../../../cursor/coordinate-spaces';
 import type { EdgeAffinity } from '../../../cursor/edge-affinity';
 import type { PendingMarksState } from '../../../cursor/pending-marks';
-import { hasSelection as hasSelectionHelper } from '../../../cursor/content-offsets';
 import {
 	landableRawBounds,
 	revealsNoMarkers,
@@ -260,11 +259,14 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 		);
 	}
 
-	/** The selected range in this block, or null at a plain caret. A key aimed at one edits the
-	 *  whole range; the caret the branches below read is only its start. */
+	/**
+	 * The selected range in this block, or null at a plain caret: the one answer every branch
+	 * below reads, so none of them can hold a second idea of what a held range is. It comes back
+	 * empty for a selection whose ends both clamp into the marker prefix, which is still a range,
+	 * so a branch that writes bytes checks `end > start` first.
+	 */
 	function heldRange(): { start: number; end: number } | null {
-		const selection = deps.getRawSelection();
-		return selection && selection.start < selection.end ? selection : null;
+		return deps.getRawSelection();
 	}
 
 	// ── The shared helpers the branches below use ────────────────────────────
@@ -302,6 +304,9 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 	function applyEdgeDeletion(deletion: EdgeDeletion, caretBefore: number): void {
 		if ('swallow' in deletion) return;
 		writeDisplay(deletion.raw, deletion.caret, 'construct-delete', caretBefore);
+		// Pended after the write, since the write clears pending marks; the caret has not moved, so
+		// the format waits for the next insertion (live-mode.md § 4.4).
+		for (const kind of deletion.unwrappedMarks) deps.pendingMarks.toggle(kind);
 	}
 
 	/** Where a printable byte belongs when the caret sits at a hidden delimiter run
@@ -328,7 +333,7 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 		source: string
 	): void {
 		const range = heldRange();
-		if (range) {
+		if (range && range.end > range.start) {
 			const edit = replaceRangeRaw(
 				deps.node,
 				range,
@@ -526,7 +531,8 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 	// Backspace and Delete silently, with no beforeinput, so delete through the CST instead.
 	function handleAmbient(e: KeyboardEvent): boolean {
 		if (e.key !== 'Backspace' && e.key !== 'Delete') return false;
-		if (!hasSelectionHelper()) return false;
+		const range = heldRange();
+		if (!range) return false;
 		const el = deps.getEl();
 		if (!el || deps.getAmbientLength() <= 0) return false;
 		const ambient = ambientSpanOf(el);
@@ -538,8 +544,9 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 			(ambient.contains(sel.anchorNode) || ambient.contains(sel.focusNode));
 		if (!touchesAmbient) return false;
 		e.preventDefault();
-		const range = heldRange();
-		if (range) {
+		// A selection holding only the marker prefix covers no content byte, so there is nothing
+		// to delete and the press is consumed with no commit.
+		if (range.end > range.start) {
 			// Handled at keydown, so no `beforeinput` carries this range to the shared join rules:
 			// this branch asks them here, or a literal splice would print the delimiter runs the
 			// cut stranded (live-mode.md § 4.5).
@@ -567,7 +574,7 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 	function handleHiddenSuffixDelete(e: KeyboardEvent, caretOffset: RawOffset | null): boolean {
 		if (e.key !== 'Delete') return false;
 		if (e.shiftKey || hasModifier(e)) return false;
-		if (caretOffset === null || hasSelectionHelper()) return false;
+		if (caretOffset === null || heldRange()) return false;
 		if (caretOffset !== getContentRange(deps.node).end) return false;
 		if (!hidesStructuralSuffix(deps.getEl(), deps.node, display().length)) return false;
 		e.preventDefault();
@@ -584,7 +591,7 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 	function handleConstructEdgeDelete(e: KeyboardEvent, caretOffset: RawOffset | null): boolean {
 		if (e.key !== 'Backspace' && e.key !== 'Delete') return false;
 		if (e.shiftKey || hasModifier(e)) return false;
-		if (caretOffset === null || hasSelectionHelper()) return false;
+		if (caretOffset === null || heldRange()) return false;
 		const el = deps.getEl();
 		if (!el) return false;
 		// The first offset the caret can sit at is visual column 0, where Backspace is a block
@@ -617,7 +624,7 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 	 */
 	function handleTransitionalHardBreak(e: KeyboardEvent, caretOffset: RawOffset | null): boolean {
 		if (deps.isReading()) return false;
-		if (!isPlainTypingKey(e) || caretOffset === null || hasSelectionHelper()) return false;
+		if (!isPlainTypingKey(e) || caretOffset === null || heldRange()) return false;
 		const d = display();
 		// Only at the very end, and only when the block's last byte is the break's backslash.
 		if (caretOffset !== d.length || !d.endsWith('\\')) return false;
@@ -640,7 +647,7 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 	 */
 	function handlePendingMarks(e: KeyboardEvent, caretOffset: RawOffset | null): boolean {
 		if (deps.isReading()) return false;
-		if (!isPlainTypingKey(e) || caretOffset === null || hasSelectionHelper()) return false;
+		if (!isPlainTypingKey(e) || caretOffset === null || heldRange()) return false;
 		// The same condition as the branch below: only a block that draws no delimiters can be
 		// asked to write one the user never sees. Switching mode clears the marks, so nothing
 		// is stranded.
@@ -674,7 +681,7 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 	 */
 	function handleMarkerCompletion(e: KeyboardEvent, caretOffset: RawOffset | null): boolean {
 		const bareSpace = e.key === ' ' && !e.shiftKey && !hasModifier(e);
-		if (!bareSpace || caretOffset === null || hasSelectionHelper()) return false;
+		if (!bareSpace || caretOffset === null || heldRange()) return false;
 		if (!markerCompletion.claimSpace(deps.node, deps.containerParent, caretOffset)) return false;
 		e.preventDefault();
 		return true;
@@ -688,7 +695,7 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 	 * byte is written through the CST at the offset the policy and the arrival side name.
 	 */
 	function handleConstructSeat(e: KeyboardEvent, caretOffset: RawOffset | null): boolean {
-		if (!isPlainTypingKey(e) || caretOffset === null || hasSelectionHelper()) return false;
+		if (!isPlainTypingKey(e) || caretOffset === null || heldRange()) return false;
 		// A delimiter typed over its own closing one is the auto-pair's step-over, handled on
 		// beforeinput (delimiter-autopair.ts); placed outside the run it would be typed instead.
 		const content = getContentRange(deps.node);

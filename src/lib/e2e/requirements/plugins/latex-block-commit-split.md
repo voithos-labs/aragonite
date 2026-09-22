@@ -12,7 +12,10 @@ Seed: `Before` / `$$x^2$$` / `After`.
   document splits into math plus paragraph (`Before`, `$$x^2$$`, `hello`, `After`), the math
   re-renders as clean KaTeX, and the round trip is stable
 - Show the source, delete both `$$` fences, then blur: the block becomes a paragraph `x^2`, so
-  changing the kind still works through the factory
+  changing the kind still works through the factory. The bytes go because the user addressed them
+  through the block's own editable element; a truncation written past that element puts the closer
+  back instead, so a range that runs out of the body keeps the block
+  (`latex-block-live-editing.md`)
 
 ## Edge cases
 

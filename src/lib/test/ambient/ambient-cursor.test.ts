@@ -88,6 +88,12 @@ describe('getRawSelection', () => {
 		select(marker.firstChild!, 1, text, 2);
 		expect(cursorIO(4).getRawSelection()).toEqual({ start: 0, end: 2 });
 	});
+
+	it('keeps a selection whose ends both clamp into the marker as an empty range', () => {
+		el.focus();
+		select(marker.firstChild!, 0, marker.firstChild!, 2);
+		expect(cursorIO(4).getRawSelection()).toEqual({ start: 0, end: 0 });
+	});
 });
 
 // How an edit the browser performs over a range reads that range: `getTargetRanges()` reports

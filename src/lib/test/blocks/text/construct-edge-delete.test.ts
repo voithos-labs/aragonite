@@ -47,18 +47,26 @@ describe('a press past a hidden run takes the content character, never a delimit
 	const BOLD = 'Some **bold** text';
 
 	it('deletes the last content byte from the far side of the trailing run', () => {
-		expect(del(BOLD, 13)).toEqual({ raw: 'Some **bol** text', caret: 10 });
+		expect(del(BOLD, 13)).toEqual({ raw: 'Some **bol** text', caret: 10, unwrappedMarks: [] });
 	});
 
 	it('deletes the first content byte from the near side of the leading run', () => {
-		expect(del(BOLD, 5, 'forward')).toEqual({ raw: 'Some **old** text', caret: 5 });
+		expect(del(BOLD, 5, 'forward')).toEqual({
+			raw: 'Some **old** text',
+			caret: 5,
+			unwrappedMarks: []
+		});
 	});
 
 	// Measured: Chromium takes the neighbouring hidden span along with the character, so a key at
 	// the content edge belongs here even though the character it deletes is the obvious one.
 	it('claims the content edge, where native takes the hidden run with the byte', () => {
-		expect(del(BOLD, 11)).toEqual({ raw: 'Some **bol** text', caret: 10 });
-		expect(del(BOLD, 7, 'forward')).toEqual({ raw: 'Some **old** text', caret: 7 });
+		expect(del(BOLD, 11)).toEqual({ raw: 'Some **bol** text', caret: 10, unwrappedMarks: [] });
+		expect(del(BOLD, 7, 'forward')).toEqual({
+			raw: 'Some **old** text',
+			caret: 7,
+			unwrappedMarks: []
+		});
 	});
 
 	// Away from every run the browser is right and keeps the key, grapheme and IME behavior
@@ -81,13 +89,17 @@ describe('a press past a hidden run takes the content character, never a delimit
 		['link, first content byte', 'zz [text](u) yy', 5, 'backward', 'zz [ext](u) yy', 4],
 		['link, last content byte', 'zz [text](u) yy', 7, 'forward', 'zz [tex](u) yy', 7]
 	])('claims %s', (_case, display, caret, direction, raw, after) => {
-		expect(del(display, caret, direction as DeleteDirection)).toEqual({ raw, caret: after });
+		expect(del(display, caret, direction as DeleteDirection)).toEqual({
+			raw,
+			caret: after,
+			unwrappedMarks: []
+		});
 	});
 
 	// A key it does take beside a run still cuts whole characters: half a surrogate pair is
 	// not one, and the browser is not the one deciding.
 	it('takes an astral character whole', () => {
-		expect(del('**b**👍', 5, 'forward')).toEqual({ raw: '**b**', caret: 5 });
+		expect(del('**b**👍', 5, 'forward')).toEqual({ raw: '**b**', caret: 5, unwrappedMarks: [] });
 	});
 
 	// Nothing on the content side of the caret: the key belongs to the block merge.
@@ -120,30 +132,46 @@ describe('painted chrome leaves the press to the browser', () => {
 
 	// The same keys while the markers are hidden still belong here: that one fact separates them.
 	it('still claims them where the block holds content behind its chrome', () => {
-		expect(del('[](u)', 5)).toEqual({ raw: '', caret: 0 });
-		expect(del('[](u)', 0, 'forward')).toEqual({ raw: '', caret: 0 });
+		expect(del('[](u)', 5)).toEqual({ raw: '', caret: 0, unwrappedMarks: [] });
+		expect(del('[](u)', 0, 'forward')).toEqual({ raw: '', caret: 0, unwrappedMarks: [] });
 	});
 });
 
 describe('emptying a construct drops its delimiters in the same cut', () => {
+	// A link unwraps like the rest but no chord writes one, so it reports no mark to hand back.
 	it.each([
-		['strong', '**b** tail', 3],
-		['emphasis', '*b* tail', 2],
-		['strikethrough', '~~b~~ tail', 3],
-		['inlineCode', '`b` tail', 2],
-		['link', '[b](u) tail', 2]
-	])('%s unwraps to its surroundings when its last content byte goes', (_kind, display, caret) => {
-		expect(del(display, caret)).toEqual({ raw: ' tail', caret: 0 });
-	});
+		['strong', '**b** tail', 3, ['strong']],
+		['emphasis', '*b* tail', 2, ['emphasis']],
+		['strikethrough', '~~b~~ tail', 3, ['strikethrough']],
+		['inlineCode', '`b` tail', 2, ['inlineCode']],
+		['link', '[b](u) tail', 2, []]
+	])(
+		'%s unwraps to its surroundings when its last content byte goes',
+		(_kind, display, caret, marks) => {
+			expect(del(display as string, caret as number)).toEqual({
+				raw: ' tail',
+				caret: 0,
+				unwrappedMarks: marks
+			});
+		}
+	);
 
 	// `***x***`: emphasis [0,7) around strong [1,6) around `x` [3,4). Emptying the inner pair
 	// empties the outer one, so the cut grows outward until nothing is left enclosing nothing.
 	it('unwraps every construct the cut empties, innermost outward', () => {
-		expect(del('***x***', 4)).toEqual({ raw: '', caret: 0 });
+		expect(del('***x***', 4)).toEqual({
+			raw: '',
+			caret: 0,
+			unwrappedMarks: ['strong', 'emphasis']
+		});
 	});
 
 	it('unwraps the same way forward', () => {
-		expect(del('**b** tail', 2, 'forward')).toEqual({ raw: ' tail', caret: 0 });
+		expect(del('**b** tail', 2, 'forward')).toEqual({
+			raw: ' tail',
+			caret: 0,
+			unwrappedMarks: ['strong']
+		});
 	});
 
 	// An image is not a pair around content: an empty alt is still an image, so the cut takes the
@@ -151,7 +179,7 @@ describe('emptying a construct drops its delimiters in the same cut', () => {
 	// not a gesture a user can make: live mode renders an image as a widget, and the widget
 	// branch takes a caret at this offset first.
 	it('leaves a construct that stays itself when emptied', () => {
-		expect(del('![a](u)', 7)).toEqual({ raw: '![](u)', caret: 2 });
+		expect(del('![a](u)', 7)).toEqual({ raw: '![](u)', caret: 2, unwrappedMarks: [] });
 	});
 });
 
@@ -159,16 +187,16 @@ describe('emptying a construct drops its delimiters in the same cut', () => {
 // character, and the bytes that produce it have no separate meaning.
 describe('an atomic hidden run deletes as one unit', () => {
 	it('takes both bytes of an escape from either side', () => {
-		expect(del('a \\* b', 4)).toEqual({ raw: 'a  b', caret: 2 });
-		expect(del('a \\* b', 2, 'forward')).toEqual({ raw: 'a  b', caret: 2 });
+		expect(del('a \\* b', 4)).toEqual({ raw: 'a  b', caret: 2, unwrappedMarks: [] });
+		expect(del('a \\* b', 2, 'forward')).toEqual({ raw: 'a  b', caret: 2, unwrappedMarks: [] });
 	});
 
 	it('takes a backslash hard break with its line ending', () => {
-		expect(del('a\\\nb', 3)).toEqual({ raw: 'ab', caret: 1 });
+		expect(del('a\\\nb', 3)).toEqual({ raw: 'ab', caret: 1, unwrappedMarks: [] });
 	});
 
 	it('takes a trailing-space hard break as one unit', () => {
-		expect(del('a  \nb', 4)).toEqual({ raw: 'ab', caret: 1 });
+		expect(del('a  \nb', 4)).toEqual({ raw: 'ab', caret: 1, unwrappedMarks: [] });
 	});
 });
 
@@ -187,7 +215,11 @@ describe('a rewrite the parser would not read back takes nothing', () => {
 	// the key has a second reading a user would call obvious: the two constructs become one.
 	// Widening the cut through the runs it now sits between is that reading, and it parses back.
 	it('widens the cut through the flanking runs where that reads back', () => {
-		expect(del('**a** **b**', 3, 'forward')).toEqual({ raw: '**ab**', caret: 3 });
+		expect(del('**a** **b**', 3, 'forward')).toEqual({
+			raw: '**ab**',
+			caret: 3,
+			unwrappedMarks: []
+		});
 	});
 
 	// The same widening on a shape with no safe reading at all still writes nothing: `*b* c**`
@@ -255,13 +287,13 @@ describe('no accepted rewrite grows a delimiter run', () => {
 // `contentModel` entry read as a safe substitute for it.
 describe('the whole-construct branch reads the node, not the kind', () => {
 	it('takes a content-empty link whole, though its kind normally encloses content', () => {
-		expect(del('A [](u) B', 7)).toEqual({ raw: 'A  B', caret: 2 });
+		expect(del('A [](u) B', 7)).toEqual({ raw: 'A  B', caret: 2, unwrappedMarks: [] });
 	});
 
 	// This module's own rule, not a gesture a user can make: live mode draws the image as an
 	// atomic widget the widget branch takes first. A per-kind `atomic` would delete the picture.
 	it('takes one alt character out of an image, whose alt is content', () => {
-		expect(del('A ![a](u) B', 9)).toEqual({ raw: 'A ![](u) B', caret: 4 });
+		expect(del('A ![a](u) B', 9)).toEqual({ raw: 'A ![](u) B', caret: 4, unwrappedMarks: [] });
 	});
 });
 
@@ -278,7 +310,11 @@ describe('a candidate that re-reads as another block is not written', () => {
 	});
 
 	it('still takes the same construct where the abutted bytes stay one paragraph', () => {
-		expect(del('~~[](u)~~ x', 2, 'forward')).toEqual({ raw: ' x', caret: 0 });
+		expect(del('~~[](u)~~ x', 2, 'forward')).toEqual({
+			raw: ' x',
+			caret: 0,
+			unwrappedMarks: ['strikethrough']
+		});
 	});
 
 	// How a candidate is read back follows how it will be stored: a cell's text is stored as cell
