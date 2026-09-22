@@ -1,12 +1,15 @@
 /**
- * WCAG AA for code text, computed from the declared palette: every `--code-tok-*` color in
- * `editor-theme.css`, in both themes, against the two backgrounds code paints on: the
- * surface and the fence (`--color-bg-secondary` composited over it). The axe gate cannot
- * certify this, because it scans the harness page, whose own background shows through.
+ * WCAG AA for the text the editor paints, computed from the declared palette in both themes
+ * against the surface and the fence (`--color-bg-secondary` composited over it): every
+ * `--code-tok-*` color, the UI grey tokens that paint text, and each marker color at the
+ * `--syntax-marker-dim` opacity markers are drawn with. The axe gate cannot certify this,
+ * because it scans the harness page, whose own background shows through.
  */
 // Miss-analysis: the a11y gate measured the demo shell's background, so nothing ever
 // computed a ratio against the library's declared surfaces, and no gate enumerated the
 // token family, so three declarations sharing one failing hex read as one known failure.
+// Miss-analysis (#290): the gate knew only the code tokens, so the light muted grey and the
+// dimmed markers, both under AA, had no row to fail.
 import { describe, it, expect } from 'vitest';
 import { readEditorFile, stripComments } from './scan-source';
 import { declaredValue, themeBlocks } from './theme-css';
@@ -63,17 +66,23 @@ interface Palette {
 	colors: Map<string, Rgb>;
 }
 
-function paletteFor(theme: Theme): Palette {
+// A light rule overrides the dark default it does not repeat, exactly as the cascade does.
+function themeValue(theme: Theme): (token: string) => string {
 	const { base, light } = themeBlocks();
-	// A light rule overrides the dark default it does not repeat, exactly as the cascade does.
-	const layers = theme === 'light' ? [base, light] : [base];
-	const value = (token: string): string => {
-		for (const block of [...layers].reverse()) {
+	const layers = theme === 'light' ? [light, base] : [base];
+	return (token) => {
+		for (const block of layers) {
 			const declared = declaredValue(block, token);
 			if (declared !== null) return declared;
 		}
 		throw new Error(`${token} is declared in neither theme block`);
 	};
+}
+
+function paletteFor(theme: Theme): Palette {
+	const { base, light } = themeBlocks();
+	const layers = theme === 'light' ? [base, light] : [base];
+	const value = themeValue(theme);
 
 	const surface = parseHex(value('--color-surface'));
 	const veil = parseRgba(value('--color-bg-secondary'));
@@ -90,6 +99,89 @@ function paletteFor(theme: Theme): Palette {
 	}
 	return { surface, fence: composite(veil.color, veil.alpha, surface), colors };
 }
+
+// ── UI text and dimmed markers ──────────────────────────────────────────────
+
+/** The grey tokens menus, rails, cards and toolbars paint text with. */
+const UI_TEXT_TOKENS = ['--color-ui-muted', '--color-text-muted', '--color-text-secondary'];
+
+/** The colors a marker takes before the dim: its construct's syntax token. Every marker not
+ *  listed inherits the prose color, which `currentColor` resolves to. */
+const MARKER_COLOR_TOKENS = ['--syntax-heading', '--syntax-emphasis', '--syntax-list'];
+
+/** A token's color: a hex, `currentColor` (the editor's text color), or a `var()` chain
+ *  whose fallback stands in for an undeclared name. */
+function resolveColor(declared: string, value: (token: string) => string): Rgb {
+	const trimmed = declared.trim();
+	if (trimmed === 'currentColor') return resolveColor(value('--color-text-primary'), value);
+	const reference = /^var\(\s*(--[a-z-]+)\s*(?:,\s*(.+))?\)$/i.exec(trimmed);
+	if (reference) {
+		const [, token, fallback] = reference;
+		try {
+			return resolveColor(value(token), value);
+		} catch (error) {
+			if (fallback === undefined) throw error;
+			return resolveColor(fallback, value);
+		}
+	}
+	const color = parseHex(trimmed);
+	if (color === null) throw new Error(`cannot measure ${trimmed}`);
+	return color;
+}
+
+interface TextSample {
+	name: string;
+	/** The painted color over a given background. */
+	paint: (background: Rgb) => Rgb;
+}
+
+function textSamplesFor(theme: Theme): TextSample[] {
+	const value = themeValue(theme);
+	const dim = Number(value('--syntax-marker-dim'));
+	const ui = UI_TEXT_TOKENS.map((token) => {
+		const color = resolveColor(value(token), value);
+		return { name: token, paint: () => color };
+	});
+	const markers = ['currentColor', ...MARKER_COLOR_TOKENS].map((source) => {
+		const color = resolveColor(source === 'currentColor' ? source : value(source), value);
+		return {
+			name: `a ${source === 'currentColor' ? 'prose' : source} marker at ${dim}`,
+			paint: (background: Rgb) => composite(color, dim, background)
+		};
+	});
+	return [...ui, ...markers];
+}
+
+describe('WCAG AA: UI text and dimmed markers against the surfaces the editor paints them on', () => {
+	it.each(THEMES)('%s: every sample clears AA on the surface and on the fence', (theme) => {
+		const { surface, fence } = paletteFor(theme);
+		const violations: string[] = [];
+		for (const sample of textSamplesFor(theme)) {
+			for (const [name, background] of [
+				['surface', surface],
+				['fence', fence]
+			] as const) {
+				const ratio = contrastRatio(sample.paint(background), background);
+				if (ratio < AA_CONTRAST)
+					violations.push(`${sample.name} on the ${name}: ${ratio.toFixed(2)}:1`);
+			}
+		}
+		expect(violations).toEqual([]);
+	});
+
+	// Non-vacuity: a dim read as NaN or a family that resolved to nothing passes the case above.
+	it('reads a numeric dim and measures every family in both themes', () => {
+		for (const theme of THEMES) {
+			const samples = textSamplesFor(theme);
+			expect(samples).toHaveLength(UI_TEXT_TOKENS.length + MARKER_COLOR_TOKENS.length + 1);
+			expect(Number(themeValue(theme)('--syntax-marker-dim'))).toBeGreaterThan(0);
+		}
+		// The grey this widening was built to catch: the light muted grey that shipped at 3.3:1.
+		expect(contrastRatio([0x83, 0x83, 0x7b], paletteFor('light').surface)).toBeLessThan(
+			AA_CONTRAST
+		);
+	});
+});
 
 describe('WCAG AA: code tokens against the surfaces the editor paints them on', () => {
 	it.each(THEMES)('%s: every code token clears AA on the surface and on the fence', (theme) => {
