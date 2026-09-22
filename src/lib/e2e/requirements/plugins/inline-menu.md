@@ -4,7 +4,7 @@ A list the editor opens under the caret while the author types after a trigger: 
 `[[` for a link to another document. A source registers the trigger and supplies the items
 (`editor.inlineMenus.addSource`, or `getInlineMenus()` on the host's instance); the editor owns
 the rest, because it is the part a host cannot do from outside without racing the editor:
-noticing the trigger at the input seam, holding the navigation keys while the list is up,
+noticing the trigger as the bytes are typed, holding the navigation keys while the list is up,
 anchoring to the typed range, and replacing that range with the pick as ONE undo entry.
 
 The caret never leaves the document. The list takes no focus, so the author keeps typing the
@@ -50,7 +50,7 @@ Seed `inline-menu` installs two sources at once: tag autocomplete over the docum
 - Moving the caret out of the query closes the list.
 - Focus leaving the editor closes the list.
 
-## The shortcut and button door
+## Opening by name: a shortcut or a button
 
 - `open(name)` types the trigger at the caret and opens the list there, exactly as if typed.
 - It opens where the typed trigger would have been declined by position: the gesture is the

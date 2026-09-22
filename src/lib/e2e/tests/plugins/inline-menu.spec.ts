@@ -222,7 +222,7 @@ test.describe('inline menus', () => {
 		});
 	});
 
-	test.describe('the shortcut and button door', () => {
+	test.describe('opening by name: a shortcut or a button', () => {
 		test('open(name) types the trigger at the caret and opens there', async () => {
 			await editor.page.getByTestId('open-doc-link-menu').click();
 			await editor.bridge.waitForSourceContains('Type here[[');

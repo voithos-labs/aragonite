@@ -1,7 +1,7 @@
 /**
- * Inline menus: a list the editor opens under the caret while the author types after a trigger —
- * `#` for a tag, `[[` for a link to another document. The editor owns everything a host cannot
- * do from outside without racing it: noticing the trigger at the input seam, claiming the
+ * Inline menus: a list the editor opens under the caret while the author types after a trigger,
+ * `#` for a tag or `[[` for a link to another document. The editor owns everything a host cannot
+ * do from outside without racing it: noticing the trigger as the bytes are typed, claiming the
  * navigation keys while the list is up, anchoring to the typed range, and replacing that range
  * with the pick as one undo entry. A source supplies the trigger and the items.
  */
@@ -67,8 +67,8 @@ export interface InlineMenuSourceHandle {
 export interface InlineMenuRegistry {
 	addSource(source: InlineMenuSource): InlineMenuSourceHandle;
 	/**
-	 * The shortcut and toolbar-button door: type the source's trigger at the caret, as one undo
-	 * entry, and open its menu there. False, and nothing is written, for an unknown name, in
+	 * The entry for a shortcut or a toolbar button: type the source's trigger at the caret, as one
+	 * undo entry, and open its menu there. False, and nothing is written, for an unknown name, in
 	 * reading mode, and with no collapsed caret in a prose block.
 	 */
 	open(name: string): boolean;

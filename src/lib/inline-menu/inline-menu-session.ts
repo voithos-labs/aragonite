@@ -20,11 +20,10 @@ export interface InlineMenuOpening {
 }
 
 /**
- * The source a just-typed run opens. `from` is where that run began: the editor publishes a
- * burst of keystrokes as one change, so the trigger may sit anywhere in `[from, caret)` with the
- * first bytes of its query already behind it. The trigger nearest the caret wins, and where two
- * end at the same byte the longer does, so `[[` is never read as a `[` source's press. A
- * candidate its source declines, by position or by the query typed so far, hands over to the next.
+ * The source a just-typed run opens. `from` is where that run began: a burst of keystrokes
+ * publishes as one change, so the trigger may sit anywhere in `[from, caret)`. The trigger
+ * nearest the caret wins, and where two end at the same byte the longer does, so `[[` is never
+ * read as a `[` source's press. A source that declines hands over to the next candidate.
  */
 export function findOpening(
 	sources: Iterable<InlineMenuSource>,
@@ -36,7 +35,7 @@ export function findOpening(
 	for (const source of sources) {
 		const length = source.trigger.length;
 		if (length === 0) continue;
-		// A trigger counts when its LAST byte was typed in this run, so the second `[` of `[[`
+		// A trigger counts when its last byte was typed in this run, so the second `[` of `[[`
 		// opens over a first one that was already there.
 		for (let end = Math.max(from + 1, length); end <= caret; end++) {
 			if (raw.startsWith(source.trigger, end - length)) {

@@ -64,6 +64,7 @@ const BASELINE: Record<string, number> = {
 	'src/lib/decorations': 0,
 	'src/lib/e2e': 0,
 	'src/lib/editor-actions': 0,
+	'src/lib/inline-menu': 0,
 	'src/lib/invariants': 0,
 	'src/lib/perf': 0,
 	'src/lib/plugins': 0,

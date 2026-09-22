@@ -88,13 +88,11 @@ export function createInlineMenuState(deps: InlineMenuStateDeps): InlineMenuStat
 
 	let pendingRead: AbortController | null = null;
 	/**
-	 * The caret's leaf as the last evaluation saw it. Typing is read as the DIFFERENCE from it
-	 * (bytes inserted so as to end at the caret), not off the `edit` event, which the editor
-	 * publishes once per burst of keystrokes and after the caret has moved on. A caret that merely
-	 * arrives beside an existing `#` changes no byte, and so opens nothing.
+	 * The caret's leaf as the last read saw it. A trigger is the difference from these bytes, so a
+	 * caret that merely arrives beside an existing `#` has typed nothing and opens nothing.
 	 */
 	let seen: { path: string; raw: string } | null = null;
-	/** Spent once `seen` has been held back for a caret that had not caught up with its bytes. */
+	/** Set once a read has been held back, so the next change a caret cannot explain is adopted. */
 	let heldBack = false;
 	/** True across a write of this menu's own, whose bytes are not the author's typing. */
 	let writing = false;
@@ -190,10 +188,9 @@ export function createInlineMenuState(deps: InlineMenuStateDeps): InlineMenuStat
 		if (writing || !caret || !previous || previous.path !== caret.path.join()) return;
 		const from = typedRunStart(previous.raw, caret.leaf.raw, caret.offset);
 		if (from === null) {
-			// The bytes and the caret do not move as one: a read can land between them, with the
-			// new raw and the old offset. Holding the older snapshot for ONE more read lets the
-			// caret's own selectionchange explain the change; a change it still cannot explain (an
-			// undo, a paste elsewhere in the leaf) is then adopted, so `seen` never goes stale.
+			// The bytes and the caret do not always move as one, so a read can land between them.
+			// Holding the older snapshot for one more read lets the caret that follows explain the
+			// change; a change it still cannot explain is adopted, so `seen` never goes stale.
 			const unexplained = previous.raw !== caret.leaf.raw;
 			if (unexplained && !heldBack) seen = previous;
 			heldBack = unexplained && !heldBack;

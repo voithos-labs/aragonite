@@ -340,7 +340,7 @@ describe('asynchronous sources', () => {
 	});
 });
 
-describe('open(name): the shortcut and button door', () => {
+describe('open(name): opening by name, a shortcut or a button', () => {
 	it('types the trigger at the caret and opens there, position rule or not', async () => {
 		const h = harness('mid');
 		h.menu.registry.addSource(tags());
