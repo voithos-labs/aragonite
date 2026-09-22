@@ -54,6 +54,9 @@ function harness(opts: { mode?: PresentationMode } = {}) {
 	// What the path lookup answers with: the block a click outside every editable resolves to,
 	// whose own editable child is where a click run there selects.
 	const nearest = document.createElement('div');
+	// The same box as the rendered block, so a test that gives this one a block path of its own
+	// does not move the band the margin click resolves against.
+	nearest.getBoundingClientRect = () => BOX as DOMRect;
 	const nearestText = document.createElement('div');
 	nearestText.setAttribute('contenteditable', 'true');
 	nearestText.textContent = NEAREST_TEXT;
@@ -111,6 +114,7 @@ function harness(opts: { mode?: PresentationMode } = {}) {
 		editable,
 		proxy,
 		widget,
+		nearest,
 		link,
 		headerLink,
 		selection,
@@ -187,6 +191,15 @@ describe('editor-root gestures: the margin drag', () => {
 		h.press(h.root);
 		h.mouseDown(h.root);
 		expect(window.getSelection()?.toString()).toBe('');
+	});
+
+	// Miss-analysis: the path read off the surface a click run lands in had its own parse, and no
+	// test ever gave it an attribute a plugin, rather than a block host, had written.
+	it('a click run still lands where the surface carries a foreign block path', () => {
+		const h = harness();
+		h.nearest.setAttribute('data-block-path', 'not-json');
+		expect(h.mouseDown(h.root, { detail: 3 }).defaultPrevented).toBe(true);
+		expect(window.getSelection()?.toString()).toBe(NEAREST_TEXT);
 	});
 
 	it('a click run on a surface the drag declines selects nothing', () => {

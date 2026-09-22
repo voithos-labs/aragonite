@@ -1,7 +1,8 @@
 /**
  * File rules over the shipped source: each row names a shape a file may not hold, the files
  * allowed to hold it, and the snippets its matcher must flag or spare. The scan is `file-rule.ts`;
- * every row keeps its G-number and reads the one source collection taken below.
+ * a row carries its G-number where the invariant catalog has one, and every row reads the one
+ * source collection taken below.
  */
 
 import { collectEditorSources, isProseSurface, type SourceFile } from './scan-source';
