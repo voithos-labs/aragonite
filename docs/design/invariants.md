@@ -1047,7 +1047,7 @@ words (seam, door, funnel, rung, ceremony, mint, peel, landable, oracle, seat, i
 dialect, sanctioned, owe, husk) are counted in comments per directory, backticked symbol names
 excluded, and each count is pinned to a baseline in the test that a rewrite lowers and nothing
 raises. The requirement files under `src/lib/e2e/requirements/` are held to none at all in their
-body text, with headings, code spans and fenced samples left out of the count. Both rules were documented-only and drifted exactly as the ladder predicts. A why that
+body text, with headings, code spans and fenced samples left out of the count, and every design and contributing doc is counted the same way against a baseline of its own. Both rules were documented-only and drifted exactly as the ladder predicts. A why that
 needs more lines belongs in a design doc; a why that needs a private word belongs in plain English
 (`docs/contributing/code-style.md` § Comments). `lint/comment-budget.test.ts`,
 `lint/comment-house-words.test.ts`.

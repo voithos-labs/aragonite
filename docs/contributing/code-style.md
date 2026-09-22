@@ -138,7 +138,7 @@ AssertionError: expected [ { …(4) } ] to deeply equal []
 + ]
 ```
 
-The second counts the private words (the list sits in `src/lib/test/invariants/lint/comment-house-words.test.ts`) in every directory's comments, and pins each count to a baseline that only goes down. Write a new one and the count passes the baseline; delete some and the baseline is stale until you lower it, a one-number edit in that file. The first case, provoked with one planted `seam`:
+The second counts the private words (the list sits in `src/lib/test/invariants/lint/comment-house-words.test.ts`) in every directory's comments, and pins each count to a baseline that only goes down; the same test pins each design and contributing doc's body text to a baseline of its own. Write a new one and the count passes the baseline; delete some and the baseline is stale until you lower it, a one-number edit in that file. The first case, provoked with one planted `seam`:
 
 ```
 $ npx vitest run src/lib/test/invariants/lint/comment-house-words.test.ts
