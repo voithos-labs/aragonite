@@ -424,7 +424,9 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 			// Reading mode: a rendered view has no source to reveal; focus is a no-op
 			// and block-level traversal passes over.
 			if (isReading()) return;
-			void revealSource(offset);
+			// The source has to be shown before a caret can go in it, so this placement announces
+			// itself when the reveal finishes; `placeCaret`'s own announcement is a tick too early.
+			void revealSource(offset).then(() => selection.announceSelection());
 			return;
 		}
 		surface.parkCaret(offset);

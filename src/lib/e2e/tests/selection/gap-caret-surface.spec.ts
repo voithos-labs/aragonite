@@ -61,7 +61,7 @@ test.describe('the gap caret paints a line at the boundary', () => {
 		const emissions: { anchor: unknown }[] = await editor.page.evaluate(() =>
 			(window as any).__test.stopSelectionChangeCapture()
 		);
-		expect(emissions.at(-1)).toEqual({ anchor: null, focus: null });
+		expect(emissions.at(-1)).toMatchObject({ anchor: null, focus: null });
 		expect(await editor.bridge.getSelection()).toBeNull();
 	});
 

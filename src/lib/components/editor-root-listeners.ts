@@ -76,14 +76,15 @@ export interface SelectionChangeBridgeDeps {
 	root: HTMLElement;
 	/** A live check, never captured: the host's header can mount after install. */
 	isHostChrome(node: Node | null): boolean;
-	/** Emits this editor's current selection snapshot, read at event time. */
-	emit(): void;
+	/** Announces this editor's current selection, and does nothing when it is the one
+	 *  subscribers were already told about. */
+	announceIfMoved(): void;
 }
 
 /**
- * Single-block caret motion never goes through SelectionState, so without this
- * bridge subscribers miss every intra-block move. Scoped to `root` to avoid noise
- * from selections elsewhere on the page.
+ * Caret motion the editor did not perform itself: a click, and single-block moves, which never
+ * go through SelectionState. Scoped to `root` to avoid noise from selections elsewhere on the
+ * page, and silent about a position the editor has already announced.
  */
 export function installSelectionChangeBridge(deps: SelectionChangeBridgeDeps): () => void {
 	const handler = () => {
@@ -91,10 +92,10 @@ export function installSelectionChangeBridge(deps: SelectionChangeBridgeDeps): (
 		if (!sel || sel.rangeCount === 0) return;
 		const anchorNode = sel.anchorNode;
 		if (!anchorNode || !deps.root.contains(anchorNode)) return;
-		// A selection in the host's header is not a document selection: emitting there
+		// A selection in the host's header is not a document selection: announcing there
 		// reports this editor's own unchanged selection on every header caret move.
 		if (deps.isHostChrome(anchorNode)) return;
-		deps.emit();
+		deps.announceIfMoved();
 	};
 	return onRoot(document, 'selectionchange', handler);
 }
@@ -107,7 +108,7 @@ export function installSelectionChangeBridge(deps: SelectionChangeBridgeDeps): (
  */
 export function installEditorBlurAnnouncer(deps: {
 	root: HTMLElement;
-	emit: () => void;
+	announce: () => void;
 }): () => void {
 	let pending = false;
 	const handler = (event: FocusEvent) => {
@@ -118,7 +119,7 @@ export function installEditorBlurAnnouncer(deps: {
 			pending = false;
 			const active = document.activeElement;
 			if (active instanceof Node && deps.root.contains(active)) return;
-			deps.emit();
+			deps.announce();
 		});
 	};
 	return onRoot(deps.root, 'focusout', handler);

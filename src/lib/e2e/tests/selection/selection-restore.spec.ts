@@ -172,11 +172,14 @@ test.describe('selection: setSelection restores a getSelection snapshot', () => 
 				(window as any).__test.stopSelectionChangeCapture()
 			);
 
-			// Exactly two is the contract: the state channel's batched flush plus the browser's
-			// own `selectionchange` bridge, which cannot be silenced. A third means a write
-			// escaped the restore's batch; one means the bridge stopped seeing the range.
-			expect(emissions).toHaveLength(2);
-			for (const emission of emissions) expect(emission).toEqual(restored);
+			// Exactly one is the contract: the restore announces the selection itself, in the
+			// batch that spans the state write and the caret, and the browser's `selectionchange`
+			// that follows repeats a position subscribers already have. Two means that repeat got
+			// through; none means the restore stopped announcing.
+			expect(emissions).toHaveLength(1);
+			for (const emission of emissions) {
+				expect({ anchor: emission.anchor, focus: emission.focus }).toEqual(restored);
+			}
 		});
 	}
 

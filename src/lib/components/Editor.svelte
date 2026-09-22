@@ -87,6 +87,7 @@
 		installViewportHeightWatcher,
 		installWidthWatcher
 	} from './editor-root-geometry';
+	import { createSelectionAnnouncer } from '../selection/selection-announcer';
 	import {
 		installEditorBlurAnnouncer,
 		installModActiveTracker,
@@ -253,14 +254,18 @@
 	const revealAnchor = createRevealAnchorState();
 	const operationsLog = createOperationsLog();
 	const events = createEditorEvents();
-	// getSelection is function-hoisted below, so the callback reads a fresh snapshot each time.
+	// getSelection is function-hoisted below, so every read here is a fresh snapshot.
+	const selectionAnnouncer = createSelectionAnnouncer({
+		read: () => getSelection(),
+		emit: (selection) => events.emit('selectionChange', selection)
+	});
 	const selectionState = createSelectionState({
 		onChange: () => {
 			// The other half of the mutual exclusion `onSelect` carries: a range opened while a
 			// widget is selected would leave both live, and every check of "a widget is
 			// selected" would answer for the document-wide selection the user is looking at.
 			if (selectionState.isCrossBlock) widgetSelection.clear();
-			events.emit('selectionChange', getSelection());
+			selectionAnnouncer.announce();
 		},
 		getDoc: () => doc
 	});
@@ -782,6 +787,7 @@
 		},
 		selection: selectionState,
 		getSelection,
+		announceSelection: selectionAnnouncer.announce,
 		getBlockElByPath,
 		isHostChrome,
 		edgeAffinity,
@@ -908,7 +914,7 @@
 		return installSelectionChangeBridge({
 			root: editorEl,
 			isHostChrome,
-			emit: () => events.emit('selectionChange', getSelection())
+			announceIfMoved: selectionAnnouncer.announceIfMoved
 		});
 	});
 
@@ -916,7 +922,7 @@
 		if (!editorEl) return;
 		return installEditorBlurAnnouncer({
 			root: editorEl,
-			emit: () => events.emit('selectionChange', getSelection())
+			announce: selectionAnnouncer.announce
 		});
 	});
 

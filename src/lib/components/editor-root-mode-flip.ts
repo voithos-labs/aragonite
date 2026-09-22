@@ -27,6 +27,8 @@ export interface ModeFlipDeps {
 	selection: Pick<SelectionState, 'isCrossBlock' | 'gapCaret' | 'clearGapCaret'>;
 	/** The public snapshot, which also answers for a native caret no block reports. */
 	getSelection(): EditorSelection | null;
+	/** Sends the current selection to subscribers. */
+	announceSelection(): void;
 	getBlockElByPath: BlockElLookup;
 	isHostChrome(node: Node | null): boolean;
 	edgeAffinity: Pick<EdgeAffinityState, 'reset'>;
@@ -104,7 +106,7 @@ export function createModeFlip(deps: ModeFlipDeps): ModeFlip {
 				active.blur();
 				// A blur the editor performs announces the selection it drops: the document listener
 				// only reports a range the browser still anchors in the root, and this one is gone.
-				deps.events.emit('selectionChange', deps.getSelection());
+				deps.announceSelection();
 			}
 		},
 		afterFlip(to) {

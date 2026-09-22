@@ -31,7 +31,7 @@ describe('editor-root listeners: blur announcer', () => {
 		const outside = document.createElement('button');
 		document.body.append(root, outside);
 		let emitted = 0;
-		teardowns.push(installEditorBlurAnnouncer({ root, emit: () => emitted++ }));
+		teardowns.push(installEditorBlurAnnouncer({ root, announce: () => emitted++ }));
 		return { root, inside, outside, count: () => emitted };
 	}
 
@@ -140,7 +140,7 @@ describe('editor-root listeners: selectionchange bridge', () => {
 		const teardown = installSelectionChangeBridge({
 			root,
 			isHostChrome: (node) => !!node && header.contains(node),
-			emit: () => emits++
+			announceIfMoved: () => emits++
 		});
 		teardowns.push(teardown);
 		return { headerField, content, outside, teardown, emits: () => emits };

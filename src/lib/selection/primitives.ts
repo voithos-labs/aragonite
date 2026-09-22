@@ -73,6 +73,19 @@ export interface EditorSelection {
 	focus: SelectionPoint;
 }
 
+/** Whether two snapshots name the same selection. The coordinate space counts: the same
+ *  numbers as a cell index and as a character offset are different positions. */
+export function selectionsEqual(a: EditorSelection | null, b: EditorSelection | null): boolean {
+	if (a === null || b === null) return a === b;
+	return pointsEqual(a.anchor, b.anchor) && pointsEqual(a.focus, b.focus);
+}
+
+function pointsEqual(a: SelectionPoint, b: SelectionPoint): boolean {
+	return (
+		a.offset === b.offset && !a.cellCoordinate === !b.cellCoordinate && pathsEqual(a.path, b.path)
+	);
+}
+
 /** Offset as a char index into the leaf's `raw`. Warns in dev on a cell point, but always returns. */
 export function charOffsetOf(point: SelectionPoint, tag: string): RawOffset {
 	if (point.cellCoordinate) {

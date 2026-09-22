@@ -350,6 +350,9 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		const max = within ? toDomTextOffset(asRawOffset(within.end), ambientLength) : undefined;
 		const walkOffset = findOffsetNearestX(el, asEditorX(x), from, min, max);
 		deps.backend.setRaw(toClampedRawOffset(walkOffset, ambientLength));
+		// Announced like every other placement, but without `placeCaret`'s range clear: the
+		// vertical move that gets here has already collapsed whatever range it left.
+		deps.selection.announceSelection();
 	}
 
 	function getCursorOffset(): number | null {
