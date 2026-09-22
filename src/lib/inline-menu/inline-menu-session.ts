@@ -1,8 +1,11 @@
 /**
- * The inline menu's string math: which source a just-typed trigger opens, and what an open
- * session's query is now. Pure, so the rules are testable without an editor.
+ * The inline menu's rules: which source a just-typed trigger opens, where in a line of prose it
+ * may open at all, and what an open session's query is now. Pure, so all three are testable
+ * without an editor.
  */
 
+import { constructContentRange } from '../core/inline';
+import type { InlineNode } from '../core/nodes';
 import type { InlineMenuSource } from './types';
 
 /** Identity only, never a captured node: every keystroke republishes the leaf. */
@@ -49,6 +52,44 @@ export function findOpening(
 		return { source, start };
 	}
 	return null;
+}
+
+/** Bytes a reader never reads as prose, wherever the offset falls inside them. */
+const NOT_PROSE_KINDS = new Set(['inlineCode', 'image', 'autolink', 'rawHtml']);
+
+/**
+ * Whether a trigger starting at this offset in the leaf's inline tree sits in prose the author is
+ * writing. It does not inside an inline code span, an image, an autolink or raw HTML, nor in a
+ * link's destination or title; a link's own text is prose and a trigger there opens.
+ */
+export function isProseOffset(nodes: InlineNode[], offset: number): boolean {
+	for (const node of nodes) {
+		if (offset < node.start || offset >= node.end) continue;
+		if (NOT_PROSE_KINDS.has(node.kind)) return false;
+		if (node.kind === 'link') {
+			const text = constructContentRange(node);
+			if (!text || offset < text.start || offset >= text.end) return false;
+		}
+		return node.children ? isProseOffset(node.children, offset) : true;
+	}
+	return true;
+}
+
+/**
+ * Whether the offset sits in a link or image destination the author opened with `](` and has not
+ * closed. Those bytes are text until the `)` lands, so the inline tree has no link to decline,
+ * and a destination reaches no further than its own line.
+ */
+export function isUnclosedDestination(raw: string, offset: number): boolean {
+	const lineStart = raw.lastIndexOf('\n', offset - 1) + 1;
+	for (let i = offset - 1; i >= lineStart; i--) {
+		if (raw[i] === ')') return false;
+		// A `](` with no `[` before it on the line is text, so the scan keeps going back.
+		if (raw[i] === '(' && raw[i - 1] === ']' && raw.lastIndexOf('[', i - 2) >= lineStart) {
+			return true;
+		}
+	}
+	return false;
 }
 
 /**

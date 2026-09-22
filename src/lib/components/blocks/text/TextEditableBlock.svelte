@@ -61,6 +61,7 @@
 		handleSharedBeforeInput
 	} from '../../../selection/shared-keydown';
 	import {
+		comboboxAttributes,
 		createEditableSurface,
 		consumePendingRestore,
 		withKeydownVerdict
@@ -150,6 +151,7 @@
 		pendingMarks,
 		widgetSelection,
 		linkCard,
+		inlineMenuCombobox,
 		decorations: decorationEngine
 	} = getContext<EditorServices>(EDITOR_SERVICES_KEY);
 	const {
@@ -164,6 +166,7 @@
 	const { contentVersion: getContentVersion } = getContext<EditorDoc>(EDITOR_DOC_KEY);
 	const presentationMode = $derived(getPresentationMode?.() ?? 'source');
 	const readOnly = $derived(presentationMode === 'reading');
+	const combobox = $derived(inlineMenuCombobox(myPath));
 
 	/** What the link card is asked about here, the same shape a table cell passes: `range` is the
 	 *  live selection both when the chord runs and when the pressed state is read. */
@@ -1071,14 +1074,16 @@
 </script>
 
 <!-- Reading mode turns contenteditable off, which rules out every browser edit path at once.
-	tabindex and role are separate, so focus and arrow traversal stay. -->
+	tabindex and role are separate, so focus and arrow traversal stay. Both roles the block takes
+	are interactive, which the compiler cannot see through the spread. -->
+<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 <div
 	bind:this={el}
 	tabindex="0"
 	class="text-editable-block {blockClass}"
 	contenteditable={readOnly ? 'false' : 'true'}
 	aria-readonly={readOnly ? 'true' : undefined}
-	role="textbox"
+	{...comboboxAttributes(combobox)}
 	style:text-indent={ambientPrefixText ? `calc(-1 * ${ambientIndent})` : null}
 	style:padding-left={ambientPrefixText ? ambientIndent : null}
 	oninput={onInput}

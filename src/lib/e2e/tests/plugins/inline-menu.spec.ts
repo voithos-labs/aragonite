@@ -1,6 +1,6 @@
 import { test, expect } from '../../fixtures';
 import { attachIme } from '../../simulation/ime';
-import { PluginsPage, capturedErrors } from './helpers';
+import { activeBlockPath, PluginsPage, capturedErrors } from './helpers';
 
 /**
  * Inline menus (`editor.inlineMenus`): the list under the caret on a typed trigger. Seed
@@ -21,6 +21,13 @@ const rows = async (editor: PluginsPage): Promise<string[]> =>
 
 const activeRow = (editor: PluginsPage) =>
 	menu(editor).locator('[role="option"][data-active="true"] .inline-menu-label');
+
+const activeRowId = (editor: PluginsPage): Promise<string | null> =>
+	menu(editor).locator('[role="option"][data-active="true"]').getAttribute('id');
+
+/** The element the author types in: what a screen reader is told about while a list shows. */
+const editable = (editor: PluginsPage, index: number) =>
+	editor.page.locator(`[data-block-path="[${index}]"] [contenteditable]`).first();
 
 const blockRaw = async (editor: PluginsPage, index: number): Promise<string> =>
 	(await editor.bridge.getSource()).split('\n\n')[index];
@@ -55,10 +62,20 @@ test.describe('inline menus', () => {
 		});
 
 		test('a caret arriving beside an existing trigger opens nothing', async () => {
-			await editor.typeText(' #');
-			await editor.page.keyboard.press('Escape');
-			await editor.page.keyboard.press('ArrowLeft');
+			// `Filed under #project and …`, a block the caret has never been in this run.
+			const beforeTag = { path: [0], offset: 12 };
+			await editor.bridge.setSelection({ anchor: beforeTag, focus: beforeTag });
+			expect(await activeBlockPath(editor.page)).toEqual([0]);
+
+			// Just past the `#`, then past the whole tag: neither is a trigger anyone typed.
 			await editor.page.keyboard.press('ArrowRight');
+			await editor.waitForRenderFlush();
+			await expect(menu(editor)).toHaveCount(0);
+
+			for (let i = 0; i < 7; i++) await editor.page.keyboard.press('ArrowRight');
+			expect(await editor.bridge.getSelection()).toMatchObject({
+				focus: { path: [0], offset: 20 }
+			});
 			await editor.waitForRenderFlush();
 			await expect(menu(editor)).toHaveCount(0);
 		});
@@ -76,6 +93,17 @@ test.describe('inline menus', () => {
 			await editor.bridge.setSelection({ anchor: inCode, focus: inCode });
 			await editor.typeText(' #');
 			await editor.bridge.waitForSourceContains('`co #de`');
+			await editor.waitForRenderFlush();
+			await expect(menu(editor)).toHaveCount(0);
+		});
+
+		test('a trigger inside a link’s destination opens nothing', async () => {
+			// `See [the docs](https://example.com/) here`: just past the `(`, where the tag source's
+			// own rule (a `#` after a bracket opens) would otherwise say yes.
+			const inUrl = { path: [5], offset: 15 };
+			await editor.bridge.setSelection({ anchor: inUrl, focus: inUrl });
+			await editor.typeText('#');
+			await editor.bridge.waitForSourceContains('](#https://example.com/)');
 			await editor.waitForRenderFlush();
 			await expect(menu(editor)).toHaveCount(0);
 		});
@@ -98,6 +126,52 @@ test.describe('inline menus', () => {
 			await editor.page.keyboard.press('End');
 			await editor.typeText(' #');
 			await expect(menu(editor, TAGS)).toBeVisible();
+		});
+	});
+
+	test.describe('what a screen reader is told', () => {
+		test('the editable names the list and its active row, and drops them on Escape', async () => {
+			await editor.typeText(' #');
+			await expect(menu(editor, TAGS)).toBeVisible();
+
+			const typing = editable(editor, TARGET);
+			const listId = await menu(editor, TAGS).getAttribute('id');
+			expect(listId).toBeTruthy();
+			await expect(typing).toHaveAttribute('role', 'combobox');
+			await expect(typing).toHaveAttribute('aria-expanded', 'true');
+			await expect(typing).toHaveAttribute('aria-controls', listId!);
+			await expect(typing).toHaveAttribute('aria-autocomplete', 'list');
+			await expect(typing).toHaveAttribute('aria-activedescendant', (await activeRowId(editor))!);
+
+			await editor.page.keyboard.press('ArrowDown');
+			await expect(activeRow(editor)).toHaveText('#inbox');
+			await expect(typing).toHaveAttribute('aria-activedescendant', (await activeRowId(editor))!);
+
+			await editor.page.keyboard.press('Escape');
+			await expect(menu(editor)).toHaveCount(0);
+			await expect(typing).toHaveAttribute('role', 'textbox');
+			await expect(typing).not.toHaveAttribute('aria-expanded', /.*/);
+			await expect(typing).not.toHaveAttribute('aria-controls', /.*/);
+			await expect(typing).not.toHaveAttribute('aria-activedescendant', /.*/);
+			await expect(typing).not.toHaveAttribute('aria-autocomplete', /.*/);
+		});
+	});
+
+	test.describe('what a screen reader is told', () => {
+		test('the active row keeps its id while the query narrows the list', async () => {
+			await editor.typeText(' #');
+			await expect(menu(editor, TAGS)).toBeVisible();
+			const inboxId = await menu(editor, TAGS)
+				.locator('[role="option"]')
+				.filter({ hasText: '#inbox' })
+				.getAttribute('id');
+			expect(inboxId).toBeTruthy();
+
+			// `#inbox` is the only tag starting with `i`, so it becomes the one active row.
+			await editor.typeText('i');
+			await expect.poll(() => rows(editor)).toEqual(['#inbox']);
+			await expect(activeRow(editor)).toHaveText('#inbox');
+			await expect(editable(editor, TARGET)).toHaveAttribute('aria-activedescendant', inboxId!);
 		});
 	});
 

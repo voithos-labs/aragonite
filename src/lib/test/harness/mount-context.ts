@@ -80,6 +80,8 @@ function stubbedServices(getDoc: () => DocumentView): EditorServices {
 			canEnter: () => !selection.isCrossBlock,
 			canOpenCreate: () => !selection.isCrossBlock && window.getSelection()?.isCollapsed === false
 		}),
+		// A bare mount has no inline menu, so no block is ever a combobox.
+		inlineMenuCombobox: () => null,
 		// The two members a format toggle reaches on a bare mount; the rest keep the cast.
 		controller: {
 			flushDebouncedCheckpoint: () => {},

@@ -12,8 +12,9 @@ const item = (id: string, insert = id): InlineMenuItem => ({ id, label: id, inse
 const typedEdit = (path: number[]): EditEvent =>
 	({ op: 'input', path, detail: { byteLength: 1 }, timestamp: 0 }) as EditEvent;
 
-/** Blocks whose bytes and caret the test moves by hand, the way a keystroke would. */
-function harness(initial: string, { arrive = true } = {}) {
+/** Blocks whose bytes and caret the test moves by hand, the way a keystroke would.
+ *  `writeFails` makes the range splice refuse, the way a commit blocked elsewhere would. */
+function harness(initial: string, { arrive = true, writeFails = false } = {}) {
 	let doc = parse(initial) as unknown as DocumentView;
 	/** Which block the caret is in; most tests give one and never leave it. */
 	let block = 0;
@@ -38,9 +39,11 @@ function harness(initial: string, { arrive = true } = {}) {
 				: { anchor: { path: [block], offset: caret }, focus: { path: [block], offset: caret } },
 		getMode: () => mode,
 		events,
+		editorId: 'editor-test',
 		// A pick's write raises the same events a keystroke does, so the read they schedule is
 		// the one the state has to hold off.
 		commitRange: async (path, start, end, bytes) => {
+			if (writeFails) throw new Error('write refused');
 			const raw = doc.children[path[0]].raw;
 			write(path[0], raw.slice(0, start) + bytes + raw.slice(end));
 			events.emit('edit', typedEdit(path));
@@ -247,6 +250,15 @@ describe('a typed trigger opens its source', () => {
 		expect(h.menu.getOpen()).toBeNull();
 	});
 
+	it('does not open in a link destination the author is still typing', async () => {
+		// `see [text](` is plain text until the `)` lands, so the inline tree holds no link here.
+		const h = harness('see [text](');
+		h.menu.registry.addSource(tags({ opensAt: (raw, pos) => /[\s(]/.test(raw[pos - 1]) }));
+		await h.type('#');
+		expect(h.raw()).toBe('see [text](#');
+		expect(h.menu.getOpen()).toBeNull();
+	});
+
 	it('does not open in reading mode', async () => {
 		const h = harness('a ');
 		h.menu.registry.addSource(tags());
@@ -296,6 +308,60 @@ describe('an open session follows the caret', () => {
 		await h.type('#');
 		handle.dispose();
 		expect(h.menu.getOpen()).toBeNull();
+	});
+});
+
+describe('the list a source lands', () => {
+	// Miss-analysis: every source a test wrote made its own ids unique, so nothing ever handed
+	// the list two rows under one id, which is what the keyed render cannot draw.
+	it('keeps the first of two rows sharing an id, and reports the source', async () => {
+		const h = harness('a ');
+		h.menu.registry.addSource(
+			tags({ items: () => [item('one', '#one'), item('one', '#uno'), item('two', '#two')] })
+		);
+		await h.type('#');
+
+		expect(h.menu.getOpen()!.items.map((i) => i.insert)).toEqual(['#one', '#two']);
+		await vi.waitFor(() => expect(h.errors).toHaveLength(1));
+		expect(String(h.errors[0])).toMatch(/tags/);
+	});
+});
+
+describe('what the editable says about the list', () => {
+	it('names the active row by that row’s own id, so a narrowing list renames it', async () => {
+		const h = harness('see ');
+		h.menu.registry.addSource(tags());
+
+		await h.type('#');
+		const first = h.menu.comboboxFor([0])!.activeOptionId;
+		expect(first).toContain('work');
+
+		await h.type('h');
+		expect(h.menu.getOpen()!.items.map((i) => i.id)).toEqual(['home']);
+		expect(h.menu.comboboxFor([0])!.activeOptionId).toContain('home');
+		expect(h.menu.comboboxFor([0])!.activeOptionId).not.toBe(first);
+	});
+
+	it('takes a row id a source spells with a space and gives back one token', async () => {
+		const h = harness('see ');
+		h.menu.registry.addSource(tags({ items: () => [item('Meeting notes')] }));
+
+		await h.type('#');
+		const id = h.menu.comboboxFor([0])!.activeOptionId;
+		expect(id).not.toMatch(/\s/);
+		expect(id).toBe(h.menu.optionId('Meeting notes'));
+	});
+
+	it('says nothing about a block the list is not open in, or about an empty list', async () => {
+		const h = harness('see ');
+		h.menu.registry.addSource(tags());
+
+		await h.type('#');
+		expect(h.menu.comboboxFor([0])).not.toBeNull();
+		expect(h.menu.comboboxFor([1])).toBeNull();
+
+		await h.type('zz');
+		expect(h.menu.comboboxFor([0])).toBeNull();
 	});
 });
 
@@ -355,6 +421,19 @@ describe('navigation and commit', () => {
 		await vi.waitFor(() => expect(h.landed).toEqual([4]));
 		expect(h.raw()).toBe('see ');
 		expect(h.errors).toEqual([]);
+	});
+
+	// Miss-analysis: every commit test gave the state a write that resolves, so none ever let the
+	// range splice refuse, and the rejection nobody was waiting on went unseen.
+	it('reports a pick whose write fails, and leaves the typed bytes alone', async () => {
+		const h = harness('see ', { writeFails: true });
+		h.menu.registry.addSource(tags());
+		await h.type('#wo');
+
+		expect(h.menu.commit()).toBe(true);
+		await vi.waitFor(() => expect(h.errors).toHaveLength(1));
+		expect(String(h.errors[0])).toMatch(/write refused/);
+		expect(h.raw()).toBe('see #wo');
 	});
 
 	it('does not reopen on its own write, even where the pick ends in a trigger', async () => {
@@ -428,6 +507,18 @@ describe('open(name): opening by name, a shortcut or a button', () => {
 		expect(h.menu.getOpen()).toMatchObject({ start: 3, end: 4, query: '' });
 	});
 
+	// Miss-analysis: the only failing write a test had ever given the state was a source that
+	// throws, which never reaches the trigger `open` types before the list would show.
+	it('reports a failed trigger write, and opens nothing', async () => {
+		const h = harness('mid', { writeFails: true });
+		h.menu.registry.addSource(tags());
+
+		expect(h.menu.registry.open('tags')).toBe(true);
+		await vi.waitFor(() => expect(h.errors).toHaveLength(1));
+		expect(String(h.errors[0])).toMatch(/write refused/);
+		expect(h.menu.getOpen()).toBeNull();
+	});
+
 	it('declines an unknown name, reading mode, and a lost caret, writing nothing', async () => {
 		const h = harness('x');
 		h.menu.registry.addSource(tags());
@@ -463,6 +554,14 @@ describe('the registry', () => {
 
 		await h.type(' #');
 		expect(h.menu.getOpen()).toMatchObject({ start: 10, query: '' });
+	});
+
+	// Miss-analysis: every registry test ran against a live editor, so none ever added a source
+	// after the editor unmounted and watched the handle it got back open nothing, ever.
+	it('refuses a source added after the editor is gone', () => {
+		const h = harness('a ');
+		h.menu.dispose();
+		expect(() => h.menu.registry.addSource(tags())).toThrow(/tags/);
 	});
 
 	// An empty trigger would open on every keystroke and a trigger with a line break could never

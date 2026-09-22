@@ -1,11 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import {
 	findOpening,
+	isProseOffset,
+	isUnclosedDestination,
 	sessionQuery,
 	stepActive,
 	typedRunStart
 } from '$lib/inline-menu/inline-menu-session';
 import type { InlineMenuSource } from '$lib/inline-menu/types';
+import { resolvedInlineContent } from '$lib/core/inline/inline-cache';
+import type { NodeView } from '$lib/core/node-views';
+import { parse } from '$lib/core/parser';
 
 const source = (over: Partial<InlineMenuSource> & { name: string; trigger: string }) =>
 	({ items: () => [], ...over }) satisfies InlineMenuSource;
@@ -117,6 +122,80 @@ describe('sessionQuery', () => {
 
 	it('ends on a caret past the leaf, which a stale selection can report', () => {
 		expect(sessionQuery(session, link, 'see [[', 9)).toBeNull();
+	});
+});
+
+// Miss-analysis: the only position any test ever excluded was an inline code span, so the other
+// bytes a reader does not read as prose were never asked about at all.
+describe('isProseOffset', () => {
+	/** Whether a trigger typed at the `|` in `raw` would be in prose. */
+	const at = (raw: string): boolean => {
+		const offset = raw.indexOf('|');
+		const leaf = (parse(raw.replace('|', '') + '\n') as { children: NodeView[] }).children[0];
+		return isProseOffset(resolvedInlineContent(leaf), offset);
+	};
+
+	it('is true in ordinary text and in a link’s own text, which is prose', () => {
+		expect(at('see |x')).toBe(true);
+		expect(at('see [te|xt](https://a/)')).toBe(true);
+		expect(at('see *em|phasis* here')).toBe(true);
+	});
+
+	it('is false inside an inline code span, where the trigger is not syntax', () => {
+		expect(at('see `co|de` here')).toBe(false);
+		expect(at('see *em `co|de`* here')).toBe(false);
+	});
+
+	it('is false in a link’s destination and title, which are not prose', () => {
+		expect(at('see [text](ht|tps://a/)')).toBe(false);
+		expect(at('see [text](https://a/ "ti|tle")')).toBe(false);
+	});
+
+	it('is false anywhere in an image, whose alt text is an attribute', () => {
+		expect(at('see ![al|t](https://a/b.png)')).toBe(false);
+		expect(at('see ![alt](htt|ps://a/b.png)')).toBe(false);
+	});
+
+	it('is false in an autolink and in raw HTML', () => {
+		expect(at('see <https://a/|b> here')).toBe(false);
+		expect(at('see https://a/|b here')).toBe(false);
+		expect(at('see <span data="a|b"> here')).toBe(false);
+	});
+});
+
+// Miss-analysis: every position case ran through the inline tree, which holds a link only once
+// the parser has closed one, so a destination the author was still typing was never asked about.
+describe('isUnclosedDestination', () => {
+	/** Whether a trigger typed at the `|` in `raw` sits in a destination with no `)` yet. */
+	const at = (raw: string): boolean =>
+		isUnclosedDestination(raw.replace('|', ''), raw.indexOf('|'));
+
+	it('is true in a link destination that has no closing bracket yet', () => {
+		expect(at('see [text](|')).toBe(true);
+		expect(at('see [text](https://a/|')).toBe(true);
+		expect(at('see [a](b) and [c](|')).toBe(true);
+	});
+
+	it('is true in an image destination that has none either', () => {
+		expect(at('see ![alt](|')).toBe(true);
+	});
+
+	it('is false once the destination is closed, which the inline tree then reads', () => {
+		expect(at('see [text](https://a/) |')).toBe(false);
+		expect(at('see [a](b) |')).toBe(false);
+	});
+
+	it('is false after brackets that open no destination', () => {
+		expect(at('see [text] |')).toBe(false);
+		expect(at('see (|')).toBe(false);
+	});
+
+	it('is false for a `](` no `[` opened, which is text', () => {
+		expect(at('a ]( b |')).toBe(false);
+	});
+
+	it('reads the trigger’s own line and not the one above it', () => {
+		expect(at('see [text](\nand |')).toBe(false);
 	});
 });
 

@@ -23,6 +23,7 @@ import type {
 	PresentationModeGetter
 } from '../../editor-keys';
 import { emitClipboardError, type EditorEvents } from '../../editor-events';
+import type { InlineMenuCombobox } from '../../inline-menu/inline-menu-state.svelte';
 import type { KeybindingOverrideMap } from '../../schema/keybinding-overrides';
 import type { CommandErrorSink, CrossBlockCommandRouter } from '../../schema/block-commands';
 import type { GrammarView } from '../../schema/block-openers';
@@ -76,6 +77,33 @@ export function withKeydownVerdict(
 			return;
 		}
 		void handle(e).then(() => traceKeydownVerdict(e.key, e.defaultPrevented));
+	};
+}
+
+// ── Inline menu combobox ────────────────────────────────────────────────────
+
+/** What a prose editable says about an inline menu's list while one shows in it. */
+export interface ComboboxAttributes {
+	role: 'textbox' | 'combobox';
+	'aria-expanded'?: 'true';
+	'aria-controls'?: string;
+	'aria-activedescendant'?: string;
+	'aria-autocomplete'?: 'list';
+}
+
+/**
+ * The attributes a prose editable renders for the list open in it, both prose editables from one
+ * place. The role is `combobox` only while rows show, because `textbox` carries no
+ * `aria-expanded` and a screen reader would then hear nothing about the list; `list` is what a
+ * combobox whose rows are suggestions says it does.
+ */
+export function comboboxAttributes(combobox: InlineMenuCombobox | null): ComboboxAttributes {
+	return {
+		role: combobox ? 'combobox' : 'textbox',
+		'aria-expanded': combobox ? 'true' : undefined,
+		'aria-controls': combobox?.listboxId,
+		'aria-activedescendant': combobox?.activeOptionId,
+		'aria-autocomplete': combobox ? 'list' : undefined
 	};
 }
 

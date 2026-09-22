@@ -21,9 +21,13 @@ whose pick inserts a block: `insert` is empty and `onCommit` goes through the in
 
 - Typing the trigger opens that source's list under it; the rows are the source's, in its order.
 - The query narrows the list as it grows, and widens it again on Backspace.
-- A caret that merely arrives beside an existing trigger (a click, an arrow key) opens nothing.
+- A caret that merely arrives beside an existing trigger opens nothing, including one that lands
+  in another block and walks up to a tag it never typed.
 - A trigger the source declines by position opens nothing: a mid-word `#` is not a tag.
 - A trigger typed inside an inline code span opens nothing: it is not syntax there.
+- A trigger typed inside a link's destination opens nothing either, and the same holds for its
+  title, for anywhere in an image, for an autolink and for raw HTML. A link's own text is prose,
+  so a trigger there still opens.
 - With two sources installed, `[[` opens the picker and `#` the tags, never each other's.
 - It works in a list item, not only a top-level paragraph, and on a line just started with Enter.
 - Typed straight after Enter with no keystroke of its own (a paste, an IME commit, a script's
@@ -31,6 +35,15 @@ whose pick inserts a block: `insert` is empty and `onCommit` goes through the in
   not from the caret's arrival, which the browser announces a task later.
 - Typed as fast as a keyboard goes, the trigger still opens: the editor publishes a burst of
   keystrokes as one change, and the query's first bytes may arrive in the same change as the trigger.
+
+## What a screen reader is told
+
+- While rows show, the editable the author is typing in reads as a combobox: it says the list is
+  expanded, says the rows are suggestions, names the list, and names the active row, which changes
+  as the arrows move it.
+- The active row is named after itself, so a query that narrows the list to one row leaves the
+  editable naming that same row rather than whatever now sits first.
+- Escape takes all of that back: the editable is a plain text box again.
 
 ## Keys
 
@@ -86,3 +99,16 @@ The Enter-then-type cases passed while the baseline came only from a keydown or 
 arrival: the harness's bridge reads between the two gave the browser's selection change time to
 fire first. Run back to back, the arrival lost that race to the typed burst on a third of runs,
 and no case typed without a keydown except the ones that also waited.
+
+Every case read the list's own markup and none read the element the author types in, so the
+editable could say nothing at all about the list and the suite still went green.
+
+The only position ever excluded was an inline code span, so the other bytes a reader does not read
+as prose, a link's destination and title, an image, an autolink, raw HTML, were never asked about.
+
+The arrival case stayed in the block it had just typed the trigger into, so the caret it tested
+was the typist's own coming back, never one reaching a trigger it had never typed.
+
+Every case that read what the editable names moved the active row with the arrows, which moves the
+row's place in the list along with it, so nothing asked what a narrowing query does, where the row
+changes under a place that does not.

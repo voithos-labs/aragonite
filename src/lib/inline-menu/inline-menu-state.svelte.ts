@@ -7,7 +7,6 @@
 import { tick } from 'svelte';
 import { isProseKind } from '../core/inline';
 import { resolvedInlineContent } from '../core/inline/inline-cache';
-import type { InlineNode } from '../core/nodes';
 import type { DocumentView, NodeView } from '../core/node-views';
 import type { EditorError, EditorEvents } from '../editor-events';
 import type { PresentationMode } from '../presentation-mode';
@@ -15,6 +14,8 @@ import type { EditorSelection } from '../selection/primitives';
 import { isBlockNode, nodeAt } from '../tree-operations/node-primitives';
 import {
 	findOpening,
+	isProseOffset,
+	isUnclosedDestination,
 	sessionQuery,
 	stepActive,
 	typedRunStart,
@@ -32,6 +33,8 @@ export interface InlineMenuStateDeps {
 	getSelection: () => EditorSelection | null;
 	getMode: () => PresentationMode;
 	events: EditorEvents;
+	/** This instance's id, so two editors on one page never give their lists the same DOM id. */
+	editorId: string;
 	/** Splice `bytes` over `[start, end)` of the leaf at `path` as one undo entry. */
 	commitRange: (
 		path: number[],
@@ -48,6 +51,13 @@ export interface InlineMenuState {
 	registry: InlineMenuRegistry;
 	/** The open session's raw range and list, or null. Reactive. */
 	getOpen(): InlineMenuOpenView | null;
+	/** The list element's DOM id, which `aria-controls` names. */
+	readonly listboxId: string;
+	/** The DOM id of the row a source gave this item id, which `aria-activedescendant` names. */
+	optionId(itemId: string): string;
+	/** What the editable at `path` must say about the list showing in it, or null when none is.
+	 *  The editable renders these itself; nothing writes onto its element. Reactive. */
+	comboboxFor(path: readonly number[]): InlineMenuCombobox | null;
 	move(delta: 1 | -1): void;
 	setActive(index: number): void;
 	/** Take a baseline for the caret's leaf if none is held; the host calls it at beforeinput,
@@ -57,6 +67,12 @@ export interface InlineMenuState {
 	commit(index?: number): boolean;
 	close(): void;
 	dispose(): void;
+}
+
+/** The ids a focused editable points a screen reader at while an inline menu's list shows in it. */
+export interface InlineMenuCombobox {
+	listboxId: string;
+	activeOptionId: string;
 }
 
 export interface InlineMenuOpenView {
@@ -69,19 +85,25 @@ export interface InlineMenuOpenView {
 	activeIndex: number;
 }
 
-function insideInlineCode(nodes: InlineNode[], offset: number): boolean {
-	for (const node of nodes) {
-		if (offset < node.start || offset >= node.end) continue;
-		if (node.kind === 'inlineCode') return true;
-		if (node.children && insideInlineCode(node.children, offset)) return true;
-	}
-	return false;
+/**
+ * An item id as one token, since an attribute naming a DOM id can hold no whitespace and a
+ * source is free to hand out `Meeting notes`. Every escape is reversible, so two ids a source
+ * kept distinct never become one id in the page.
+ */
+function asIdToken(id: string): string {
+	return id.replace(/[^A-Za-z0-9-]/gu, (char) => `_${char.codePointAt(0)!.toString(16)}_`);
 }
 
 export function createInlineMenuState(deps: InlineMenuStateDeps): InlineMenuState {
 	const sources = new Map<string, InlineMenuSource>();
+	const listboxId = `${deps.editorId}-inline-menu`;
+	// A row is named after its own item, not its place in the list, so the row a narrower query
+	// leaves active keeps the id the attribute pointing at it already held.
+	const optionId = (itemId: string) => `${listboxId}-${asIdToken(itemId)}`;
 
 	let session = $state.raw<InlineMenuSession | null>(null);
+	/** The open session's path as one string, joined once per session rather than per read. */
+	const sessionPathKey = $derived(session === null ? '' : session.path.join());
 	let query = $state('');
 	let end = $state(0);
 	let items = $state.raw<InlineMenuItem[]>([]);
@@ -132,6 +154,30 @@ export function createInlineMenuState(deps: InlineMenuStateDeps): InlineMenuStat
 		activeIndex = 0;
 	}
 
+	/**
+	 * The list with at most one row per id. Two rows under one id are one row to the render, which
+	 * keys on it, so the later one is dropped and the source told rather than left to misdraw.
+	 */
+	function uniqueRows(list: InlineMenuItem[], source: string): InlineMenuItem[] {
+		const ids = new Set<string>();
+		const kept: InlineMenuItem[] = [];
+		for (const row of list) {
+			if (ids.has(row.id)) continue;
+			ids.add(row.id);
+			kept.push(row);
+		}
+		if (kept.length !== list.length) {
+			report(
+				new Error(
+					`inlineMenus: source '${source}' offered rows sharing an id; all but the first ` +
+						`of each were dropped`
+				),
+				source
+			);
+		}
+		return kept;
+	}
+
 	function read(source: InlineMenuSource, live: InlineMenuSession): void {
 		pendingRead?.abort();
 		const controller = new AbortController();
@@ -139,8 +185,8 @@ export function createInlineMenuState(deps: InlineMenuStateDeps): InlineMenuStat
 		const isCurrent = () => session === live && !controller.signal.aborted;
 		const land = (next: InlineMenuItem[]) => {
 			if (!isCurrent()) return;
-			items = next;
-			activeIndex = Math.min(activeIndex, Math.max(0, next.length - 1));
+			items = uniqueRows(next, source.name);
+			activeIndex = Math.min(activeIndex, Math.max(0, items.length - 1));
 		};
 		const fail = (error: unknown) => {
 			if (!isCurrent()) return;
@@ -175,7 +221,7 @@ export function createInlineMenuState(deps: InlineMenuStateDeps): InlineMenuStat
 		if (session !== null) {
 			const live = session;
 			const source = sources.get(live.source);
-			if (!caret || !source || caret.path.join() !== live.path.join()) return close();
+			if (!caret || !source || caret.path.join() !== sessionPathKey) return close();
 			const next = sessionQuery(live, source, caret.leaf.raw, caret.offset);
 			if (next === null) return close();
 			if (next === query && caret.offset === end) return;
@@ -200,7 +246,8 @@ export function createInlineMenuState(deps: InlineMenuStateDeps): InlineMenuStat
 		heldBack = false;
 		const opening = findOpening(sources.values(), caret.leaf.raw, caret.offset, from);
 		if (!opening) return;
-		if (insideInlineCode(resolvedInlineContent(caret.leaf), opening.start)) return;
+		if (!isProseOffset(resolvedInlineContent(caret.leaf), opening.start)) return;
+		if (isUnclosedDestination(caret.leaf.raw, opening.start)) return;
 		begin(opening.source, caret.path, opening.start, caret.offset);
 	}
 
@@ -288,6 +335,10 @@ export function createInlineMenuState(deps: InlineMenuStateDeps): InlineMenuStat
 		try {
 			await deps.commitRange(range.path, range.start, range.end, item.insert, caretAfter);
 			await deps.landCaret(range.path, caretAfter);
+		} catch (error) {
+			// Nobody is waiting on this write, so a refused one has to be reported here or vanish.
+			report(error, live.source);
+			return;
 		} finally {
 			writing = false;
 			resnap();
@@ -312,6 +363,9 @@ export function createInlineMenuState(deps: InlineMenuStateDeps): InlineMenuStat
 			try {
 				await deps.commitRange(caret.path, start, start, source.trigger, caretAfter);
 				await deps.landCaret(caret.path, caretAfter);
+			} catch (error) {
+				report(error, name);
+				return;
 			} finally {
 				writing = false;
 				resnap();
@@ -324,6 +378,12 @@ export function createInlineMenuState(deps: InlineMenuStateDeps): InlineMenuStat
 
 	const registry: InlineMenuRegistry = {
 		addSource(source): InlineMenuSourceHandle {
+			if (disposed) {
+				throw new Error(
+					`inlineMenus.addSource: this editor is gone, so source '${source.name}' would ` +
+						`never open; add it from an onEditor callback and dispose it when that returns`
+				);
+			}
 			if (sources.has(source.name)) {
 				throw new Error(`inlineMenus.addSource: a source named '${source.name}' already exists`);
 			}
@@ -357,6 +417,13 @@ export function createInlineMenuState(deps: InlineMenuStateDeps): InlineMenuStat
 
 	return {
 		registry,
+		listboxId,
+		optionId,
+		comboboxFor(path) {
+			if (session === null || items.length === 0) return null;
+			if (sessionPathKey !== path.join()) return null;
+			return { listboxId, activeOptionId: optionId(items[activeIndex].id) };
+		},
 		getOpen() {
 			if (session === null) return null;
 			const source = sources.get(session.source);
