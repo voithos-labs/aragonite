@@ -1,18 +1,16 @@
 /**
- * Every branch of the caret-edge dispatch asks whether a range is held. The branches read the
- * range's
- * start as their caret, so one that never asks answers for the construct beside a selection the
- * user meant to replace. No single check can carry this (two branches want the range, the rest
- * want it
- * absent), so the rule is a scan: a branch reads `heldRange()` or `hasSelectionHelper()`.
+ * Every branch of the caret-edge dispatch asks whether a range is held, through `heldRange()` and
+ * nothing else. A branch that never asks reads the range's start as its caret and answers for the
+ * construct beside a selection the user meant to replace; one that asks the document-wide DOM
+ * selection instead answers about a range another block holds.
  */
 import { describe, it, expect } from 'vitest';
 import { balancedRegion, readEditorFile } from './scan-source';
 
 const DISPATCH = 'components/blocks/text/edge-policy-dispatch.ts';
 
-/** Either spelling counts: the raw read is surface-scoped, the DOM read is the browser's own. */
-const ASKS_ABOUT_A_RANGE = /\b(heldRange|hasSelectionHelper)\s*\(/;
+/** One spelling, and it reads this block's own raw offsets. */
+const ASKS_ABOUT_A_RANGE = /\bheldRange\s*\(/;
 
 /** Branches whose claim is written inline rather than as a named handler, and why each is exempt. */
 const INLINE_CLAIMS: Record<string, string> = {
@@ -75,14 +73,20 @@ describe('every caret-edge branch asks whether a range is held', () => {
 		expect(
 			silent,
 			'a branch reads the range start as its caret without asking whether a range is held: call ' +
-				'heldRange() (or hasSelectionHelper()), or declare it in INLINE_CLAIMS with why'
+				'heldRange(), or declare it in INLINE_CLAIMS with why'
 		).toEqual([]);
 	});
 
-	// One spelling of the raw read, so a branch cannot grow a fourth idea of what "a range" is.
+	// One read, so a branch cannot grow a second idea of what "a range" is.
 	it('the raw selection is read in exactly one place', () => {
 		expect(code.match(/deps\.getRawSelection\s*\(/g)).toHaveLength(1);
 		expect(sourceOfFunction(code, 'heldRange')).toContain('deps.getRawSelection(');
+	});
+
+	// The DOM selection is the whole document's, so a branch reading it stands down for a range
+	// another block holds and answers as a caret for one this block's offsets call empty.
+	it('the dispatch never reads the document-wide DOM selection', () => {
+		expect(code).not.toMatch(/\bhasSelection\b/);
 	});
 
 	// ── Mutation tests ───────────────────────────────────────────────────────
@@ -100,9 +104,9 @@ describe('every caret-edge branch asks whether a range is held', () => {
 		expect(ASKS_ABOUT_A_RANGE.test(sourceOfFunction(pair, 'handleAsking'))).toBe(true);
 	});
 
-	it('either spelling satisfies the scan, and a mention in a name does not', () => {
+	it('only the raw read satisfies the scan, and a mention in a name does not', () => {
 		expect(ASKS_ABOUT_A_RANGE.test('const r = heldRange();')).toBe(true);
-		expect(ASKS_ABOUT_A_RANGE.test('if (!hasSelectionHelper()) return false;')).toBe(true);
+		expect(ASKS_ABOUT_A_RANGE.test('if (!hasSelectionHelper()) return false;')).toBe(false);
 		expect(ASKS_ABOUT_A_RANGE.test('const heldRangeStart = 0;')).toBe(false);
 	});
 });
