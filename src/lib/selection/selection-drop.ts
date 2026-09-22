@@ -3,8 +3,7 @@
  * (`deleteByDrag` on the source, `insertFromDrop` on the target), so undo takes two steps over a
  * document that lost bytes in between, and inside one block the first edit re-renders the
  * element under the drop. The editor does it instead: one undo snapshot over two raw writes,
- * which splice nothing, so no path moves under the second. Cancelling also takes the browser's
- * drop caret away, so the same landing is resolved while the drag is held and drawn as a caret.
+ * which splice nothing, so no path moves under the second.
  */
 
 import type { CstNode, Document } from '../core/nodes';
@@ -95,6 +94,8 @@ export function installSelectionDrop(deps: SelectionDropDeps): () => void {
 		deps.setDropCaret(null);
 	}
 
+	/** The caret saying where a release would land: cancelling the browser's drop takes its own
+	 *  caret away, so this one stands at the landing the drop resolves and declines where it does. */
 	function drawCaretAt(clientX: number, clientY: number): void {
 		const from = source;
 		if (!from || from === DECLINED || deps.isReadOnly()) return hideCaret();
@@ -156,6 +157,8 @@ export function installSelectionDrop(deps: SelectionDropDeps): () => void {
 	deps.editorRoot.addEventListener('dragleave', onDragLeave);
 	deps.editorRoot.addEventListener('drop', onDrop);
 	return () => {
+		// A reinstall mid-drag hands the new listeners no caret to clear, so it goes here.
+		hideCaret();
 		deps.editorRoot.removeEventListener('dragstart', onDragStart);
 		deps.editorRoot.removeEventListener('dragend', onDragEnd);
 		deps.editorRoot.removeEventListener('dragover', onDragOver);
@@ -204,7 +207,6 @@ function readSelectionSource(
 	deps: SelectionDropDeps,
 	dragged: EventTarget | null
 ): DragStash | null {
-	const editorRoot = deps.editorRoot;
 	const sel = window.getSelection();
 	if (!sel || sel.isCollapsed || sel.rangeCount === 0) return null;
 	const range = sel.getRangeAt(0);
@@ -212,7 +214,7 @@ function readSelectionSource(
 	// even with a range painted elsewhere: a selection drag starts on a node the range covers.
 	if (!(dragged instanceof Node) || !range.intersectsNode(dragged)) return null;
 	const surface = surfaceOf(range.startContainer);
-	if (!surface || !editorRoot.contains(surface)) return null;
+	if (!surface || !deps.editorRoot.contains(surface)) return null;
 	// From here the drag is the editor's selection, so every remaining shape is declined.
 	if (!surface.contains(range.endContainer)) return DECLINED;
 	const found = findSurfaceForElement(surface);
@@ -399,7 +401,7 @@ function spliceAt(raw: string, offset: number, text: string): string {
 	return raw.slice(0, at) + text + raw.slice(at);
 }
 
-/** Strictly inside `[start, end]`: a position the dragged range itself covers. */
+/** Strictly between `start` and `end`: a position the dragged range itself covers. */
 function insideRange(offset: number, start: number, end: number): boolean {
 	return offset > start && offset < end;
 }

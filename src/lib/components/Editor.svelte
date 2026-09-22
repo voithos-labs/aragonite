@@ -1625,8 +1625,8 @@
 		z-index: 20;
 	}
 
-	/* Where a held drag will land. The browser's own drop caret goes with the drop the editor
-	   cancels, so this one takes its place and matches the caret beside an inline widget. */
+	/* Where a held drag will land: the browser's own drop caret goes with the drop the editor
+	   cancels, so this one takes its place. */
 	.drop-caret {
 		position: fixed;
 		width: 1.5px;

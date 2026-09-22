@@ -289,7 +289,7 @@
 	</div>
 	<!-- The item paints its own selection box: it renders no BlockHost, so a range that
 		 holds it whole has nothing else to draw one over its marker and its content. -->
-	<SelectionOverlay path={myPath} blockRef={containerApi} blockEl={boxEl} delegatesPainting />
+	<SelectionOverlay path={myPath} delegatesPainting />
 	<!-- A list item is a reorder unit; its inner content BlockList passes the
 		 default reorderable={false}, so the paragraph inside gets no handle. A lone item
 		 renders none either: its drag is list-scoped and there is no sibling to pass. -->

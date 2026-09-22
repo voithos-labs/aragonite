@@ -189,7 +189,7 @@ describe('editor-root gestures: the margin drag', () => {
 
 		window.getSelection()?.removeAllRanges();
 		h.press(h.root);
-		h.mouseDown(h.root);
+		expect(h.mouseDown(h.root).defaultPrevented).toBe(true);
 		expect(window.getSelection()?.toString()).toBe('');
 	});
 

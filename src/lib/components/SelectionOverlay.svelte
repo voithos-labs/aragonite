@@ -26,8 +26,10 @@
 		containerPaintsRects = false
 	}: {
 		path: number[];
-		blockRef: BlockComponent | undefined;
-		blockEl: HTMLElement | null | undefined;
+		/** How the endpoint rects are measured, and where: a delegating container passes neither,
+		 *  since it never measures. */
+		blockRef?: BlockComponent;
+		blockEl?: HTMLElement | null;
 		/** This container's children paint the range's endpoint rects, so it measures none. */
 		delegatesPainting?: boolean;
 		/** This container measures its own rects instead of delegating. Both are decided
