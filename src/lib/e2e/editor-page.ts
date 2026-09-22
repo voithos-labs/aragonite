@@ -13,8 +13,9 @@ import { watchPageFailures } from './page-probes';
 export { BLOCK_CONTENT_SELECTOR } from '../components/block-content-selector';
 
 /** A ceiling on the harness installing `window.__test`, not an expectation of it: a full battery
- *  on one dev server pushes hydration well past the seconds a quiet machine takes. It stays under
- *  the 60 s test timeout, so the wait reports what the page did instead of being killed mid-wait. */
+ *  on one dev server pushes hydration well past the seconds a quiet machine takes. It has to stay
+ *  under Playwright's test timeout so the wait reports what the page did instead of being killed
+ *  mid-wait, which `lint/harness-timeout-headroom.test.ts` pins. */
 export const BRIDGE_INSTALL_TIMEOUT = 45_000;
 
 export class EditorPage {
@@ -41,6 +42,11 @@ export class EditorPage {
 	 */
 	protected async openHarness(url: string): Promise<void> {
 		const failures = watchPageFailures(this.page);
+		// The navigation, the mount and the bridge share one budget: a full ceiling each would sum
+		// past the runner's timeout, and a wait killed by the runner reports none of this.
+		const deadline = Date.now() + BRIDGE_INSTALL_TIMEOUT;
+		// Playwright reads 0 as "no timeout", so an exhausted budget asks for the smallest wait.
+		const budgetLeft = () => Math.max(1, deadline - Date.now());
 		const diagnose = (what: string, cause: unknown): never => {
 			const reported = failures.seen();
 			// Playwright's own message is what separates a timeout from a context destroyed by a
@@ -56,11 +62,11 @@ export class EditorPage {
 		try {
 			await this.page.goto(url);
 			await this.editorContainer
-				.waitFor({ state: 'visible', timeout: BRIDGE_INSTALL_TIMEOUT })
+				.waitFor({ state: 'visible', timeout: budgetLeft() })
 				.catch((cause) => diagnose('the editor never mounted', cause));
 			await this.page
 				.waitForFunction(() => (window as any).__test !== undefined, null, {
-					timeout: BRIDGE_INSTALL_TIMEOUT
+					timeout: budgetLeft()
 				})
 				.catch((cause) => diagnose('the editor mounted but window.__test never arrived', cause));
 			// The harness paints a webfont; a caret measured before it arrives is placed by the

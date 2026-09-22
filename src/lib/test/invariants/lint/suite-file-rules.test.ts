@@ -64,7 +64,9 @@ const RULES: FileRule[] = [
 			'src/lib/test/core/inline/scan/gfm-autolinks.test.ts':
 				'deep-nesting overflow guard: the bound is recursion depth, not scan length, so no N-vs-4N pair can price it',
 			'src/lib/e2e/tests/search/pathological-regex.spec.ts':
-				'main-thread responsiveness while a worker scan runs: elapsed time is the only signal, and a ratio cannot express it'
+				'main-thread responsiveness while a worker scan runs: elapsed time is the only signal, and a ratio cannot express it',
+			'src/lib/e2e/editor-page.ts':
+				'the harness arrival budget: the clock divides one ceiling between two waits, and asserts nothing about how long either took'
 		},
 		reason:
 			'a millisecond ceiling measures the machine; price the scan as a measureScanGrowth ratio, or allowlist the file with the reason no ratio carries its claim',
