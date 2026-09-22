@@ -94,6 +94,7 @@ describe('a plugin’s editable leaf and an open inline menu', () => {
 		expect(el.hasAttribute('aria-expanded')).toBe(false);
 		expect(el.hasAttribute('aria-controls')).toBe(false);
 		expect(el.hasAttribute('aria-activedescendant')).toBe(false);
+		expect(el.hasAttribute('aria-autocomplete')).toBe(false);
 	});
 
 	it('names the list and its active row while one shows, and drops both when it goes', async () => {
@@ -105,6 +106,7 @@ describe('a plugin’s editable leaf and an open inline menu', () => {
 		expect(el.getAttribute('aria-expanded')).toBe('true');
 		expect(el.getAttribute('aria-controls')).toBe(OPEN.listboxId);
 		expect(el.getAttribute('aria-activedescendant')).toBe(OPEN.activeOptionId);
+		expect(el.getAttribute('aria-autocomplete')).toBe('list');
 
 		mounted.openList({ ...OPEN, activeOptionId: 'row-work' });
 		expect(el.getAttribute('aria-activedescendant')).toBe('row-work');
@@ -114,5 +116,6 @@ describe('a plugin’s editable leaf and an open inline menu', () => {
 		expect(el.hasAttribute('aria-expanded')).toBe(false);
 		expect(el.hasAttribute('aria-controls')).toBe(false);
 		expect(el.hasAttribute('aria-activedescendant')).toBe(false);
+		expect(el.hasAttribute('aria-autocomplete')).toBe(false);
 	});
 });

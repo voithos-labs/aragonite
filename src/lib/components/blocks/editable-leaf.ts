@@ -811,9 +811,8 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 	const syncKey = createAttachmentKey();
 	const parkKey = createAttachmentKey();
 
-	// Read on every spread, so the combobox attributes follow the list. The mode splits the rest
-	// of the view-lifecycle contract: render-primary's `contenteditable` is constant, since
-	// reveal never fires in reading mode.
+	// Built on every read, so the combobox attributes follow the list. render-primary's
+	// `contenteditable` is constant, since reveal never fires in reading mode.
 	const buildSurfaceProps = (): EditableLeafSurfaceProps => ({
 		...surfaceHandlers,
 		...comboboxAttributes(inlineMenuCombobox(deps.getPath())),

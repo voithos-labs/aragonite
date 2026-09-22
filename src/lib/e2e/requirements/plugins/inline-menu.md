@@ -39,7 +39,8 @@ whose pick inserts a block: `insert` is empty and `onCommit` goes through the in
 ## What a screen reader is told
 
 - While rows show, the editable the author is typing in reads as a combobox: it says the list is
-  expanded, names the list, and names the active row, which changes as the arrows move it.
+  expanded, says the rows are suggestions, names the list, and names the active row, which changes
+  as the arrows move it.
 - The active row is named after itself, so a query that narrows the list to one row leaves the
   editable naming that same row rather than whatever now sits first.
 - Escape takes all of that back: the editable is a plain text box again.

@@ -166,7 +166,7 @@
 	const { contentVersion: getContentVersion } = getContext<EditorDoc>(EDITOR_DOC_KEY);
 	const presentationMode = $derived(getPresentationMode?.() ?? 'source');
 	const readOnly = $derived(presentationMode === 'reading');
-	const combobox = $derived(inlineMenuCombobox?.(myPath) ?? null);
+	const combobox = $derived(inlineMenuCombobox(myPath));
 
 	/** What the link card is asked about here, the same shape a table cell passes: `range` is the
 	 *  live selection both when the chord runs and when the pressed state is read. */

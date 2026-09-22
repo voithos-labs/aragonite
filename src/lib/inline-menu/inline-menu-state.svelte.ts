@@ -102,6 +102,8 @@ export function createInlineMenuState(deps: InlineMenuStateDeps): InlineMenuStat
 	const optionId = (itemId: string) => `${listboxId}-${asIdToken(itemId)}`;
 
 	let session = $state.raw<InlineMenuSession | null>(null);
+	/** The open session's path as one string, joined once per session rather than per read. */
+	const sessionPathKey = $derived(session === null ? '' : session.path.join());
 	let query = $state('');
 	let end = $state(0);
 	let items = $state.raw<InlineMenuItem[]>([]);
@@ -219,7 +221,7 @@ export function createInlineMenuState(deps: InlineMenuStateDeps): InlineMenuStat
 		if (session !== null) {
 			const live = session;
 			const source = sources.get(live.source);
-			if (!caret || !source || caret.path.join() !== live.path.join()) return close();
+			if (!caret || !source || caret.path.join() !== sessionPathKey) return close();
 			const next = sessionQuery(live, source, caret.leaf.raw, caret.offset);
 			if (next === null) return close();
 			if (next === query && caret.offset === end) return;
@@ -419,7 +421,7 @@ export function createInlineMenuState(deps: InlineMenuStateDeps): InlineMenuStat
 		optionId,
 		comboboxFor(path) {
 			if (session === null || items.length === 0) return null;
-			if (session.path.join() !== path.join()) return null;
+			if (sessionPathKey !== path.join()) return null;
 			return { listboxId, activeOptionId: optionId(items[activeIndex].id) };
 		},
 		getOpen() {

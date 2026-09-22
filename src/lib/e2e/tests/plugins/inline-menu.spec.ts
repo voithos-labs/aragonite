@@ -140,6 +140,7 @@ test.describe('inline menus', () => {
 			await expect(typing).toHaveAttribute('role', 'combobox');
 			await expect(typing).toHaveAttribute('aria-expanded', 'true');
 			await expect(typing).toHaveAttribute('aria-controls', listId!);
+			await expect(typing).toHaveAttribute('aria-autocomplete', 'list');
 			await expect(typing).toHaveAttribute('aria-activedescendant', (await activeRowId(editor))!);
 
 			await editor.page.keyboard.press('ArrowDown');
@@ -152,6 +153,7 @@ test.describe('inline menus', () => {
 			await expect(typing).not.toHaveAttribute('aria-expanded', /.*/);
 			await expect(typing).not.toHaveAttribute('aria-controls', /.*/);
 			await expect(typing).not.toHaveAttribute('aria-activedescendant', /.*/);
+			await expect(typing).not.toHaveAttribute('aria-autocomplete', /.*/);
 		});
 	});
 
