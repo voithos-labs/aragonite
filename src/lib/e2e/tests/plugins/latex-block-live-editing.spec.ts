@@ -1,4 +1,5 @@
 import { test, expect } from '../../fixtures';
+import { roundTripStable } from './helpers';
 import { BlockMathPage } from './latex-reveal-helpers';
 
 // Editing keys at the edges of an open `$$` source whose fence lines live mode hides: the ends of
@@ -95,5 +96,42 @@ test.describe('block math editing edges (live)', () => {
 
 		await expect(editor.source).toHaveCount(0);
 		await editor.bridge.waitForSourceEquals(`Before\n\n$$\nX${BODY}\n$$\n\nAfter\n`);
+	});
+});
+
+// A one-line `$$x^2$$` carries its closer on the body's own line, so a range through the body
+// reaches it and the truncation would leave the block open. Written past the block's editable
+// element, so the closer comes back and the block absorbs what the range reached, as a fenced
+// code block does.
+test.describe('a range out of the body keeps the block (live)', () => {
+	let editor: BlockMathPage;
+
+	test.beforeEach(async ({ page }) => {
+		editor = new BlockMathPage(page);
+		await editor.gotoMathSeed('mathblock');
+		await editor.setPresentationMode('live');
+		await editor.revealByClick();
+		// Six real steps out of the body and into the paragraph below, so the range ends where
+		// keyboard extension actually put it rather than at a computed offset.
+		await page.keyboard.press('Home');
+		for (let i = 0; i < 6; i++) await page.keyboard.press('Shift+ArrowRight');
+	});
+
+	test('Backspace absorbs the text the range reached and the block stays math', async ({
+		page
+	}) => {
+		await page.keyboard.press('Backspace');
+
+		await editor.bridge.waitForSourceEquals('Before\n\n$$After$$\n');
+		expect(await editor.bridge.getBlockKind(1)).toBe('mathBlock');
+		expect(await roundTripStable(page)).toBe(true);
+	});
+
+	test('undo puts the paragraph back in one step', async ({ page }) => {
+		await page.keyboard.press('Backspace');
+		await editor.bridge.waitForSourceEquals('Before\n\n$$After$$\n');
+
+		await editor.undo();
+		await editor.bridge.waitForSourceEquals('Before\n\n$$x^2$$\n\nAfter\n');
 	});
 });

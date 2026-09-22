@@ -19,11 +19,13 @@ import {
 	matchFenceOpen,
 	matchFenceClose,
 	OPENER_PRIORITIES,
+	trimTrailingLineEnding,
 	type CaretTarget,
 	type PluginInlineKind,
 	type InlineNode,
 	type CstNode,
-	type FenceOpen
+	type FenceOpen,
+	type NodeView
 } from '$lib/plugin';
 import MathInline from './MathInline.svelte';
 import { registerMathBlockCompleter } from './math-completion';
@@ -171,6 +173,52 @@ export function mathDisplaySource(source: string): string {
 	return inner.trim();
 }
 
+// ── Writing a block's own bytes ────────────────────────────────────────────────
+
+/** The line ending `raw` carries, or '' where it ends mid-line. */
+const endingOf = (raw: string) => raw.slice(trimTrailingLineEnding(raw).length);
+
+/** A CRLF document leaves a carriage return at the end of every line split on `\n`. */
+function splitCarriageReturn(line: string): { text: string; cr: string } {
+	return line.endsWith('\r') ? { text: line.slice(0, -1), cr: '\r' } : { text: line, cr: '' };
+}
+
+/**
+ * Put back a closer a truncating write dropped, declared on both math kinds as
+ * `normalizeRawWrite`. Bytes reaching a block this way never came from the user typing its fence,
+ * so a range that ran out of the body leaves the block standing rather than degrading it to a
+ * paragraph, the same answer a fenced code block gives. A first line that no longer opens the
+ * block is left alone: those bytes have stopped being its syntax.
+ */
+function normalizeMathBlockRaw(raw: string, node: NodeView): string {
+	const display = trimTrailingLineEnding(raw);
+	const lines = display.split('\n');
+	const { text, cr } = splitCarriageReturn(lines[0]);
+	if (!text.startsWith(BLOCK_FENCE)) return raw;
+	if (text === BLOCK_FENCE) {
+		if (lines.slice(1).some((line) => splitCarriageReturn(line).text === BLOCK_FENCE)) return raw;
+		return display + (endingOf(node.raw) || '\n') + BLOCK_FENCE + endingOf(raw);
+	}
+	if (isBlockMathOpener(text)) return raw;
+	// The one-line form closes on line 0, so the lines a join brought along stay their own blocks.
+	lines[0] = text + BLOCK_FENCE + cr;
+	return lines.join('\n') + endingOf(raw);
+}
+
+/** The same rule for the ```math form, whose closer is always a line of its own. The run to close
+ *  on comes from the written opener, not the block's old one. */
+function normalizeMathFenceRaw(raw: string, node: NodeView): string {
+	const display = trimTrailingLineEnding(raw);
+	const lines = display.split('\n');
+	const fence = matchMathFence(splitCarriageReturn(lines[0]).text);
+	if (!fence) return raw;
+	const closes = (line: string) =>
+		matchFenceClose(splitCarriageReturn(line).text, fence.marker, fence.length);
+	if (lines.slice(1).some(closes)) return raw;
+	const closer = fence.indent + fence.marker.repeat(fence.length);
+	return display + (endingOf(node.raw) || '\n') + closer + endingOf(raw);
+}
+
 // ── Block `$$…$$` display math ─────────────────────────────────────────────────
 
 const BLOCK_FENCE = '$$';
@@ -197,6 +245,7 @@ export function registerMathBlock(): void {
 		gapEdges: 'both',
 		conformanceFixture: '$$\nx^2\n$$\n',
 		caretTargetAtPoint: mathCaretAtPoint,
+		normalizeRawWrite: normalizeMathBlockRaw,
 		closure: simpleLeafClosure({
 			focus: {
 				mode: 'implemented',
@@ -275,6 +324,7 @@ export function registerMathFence(): void {
 		gapEdges: 'both',
 		caretTargetAtPoint: mathCaretAtPoint,
 		conformanceFixture: '```math\nx^2\n```\n',
+		normalizeRawWrite: normalizeMathFenceRaw,
 		closure: simpleLeafClosure({
 			focus: {
 				mode: 'implemented',
