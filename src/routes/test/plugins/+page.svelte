@@ -39,6 +39,10 @@
 		DEMO_TOC
 	];
 
+	// One instance across the two seeds that want it: a second call would define the same plugin
+	// name twice in the process-global registry, which warns on every page load.
+	const tagMarks = tagMarksPlugin();
+
 	// The decoration examples annotate whatever text is there, so each installs only under its
 	// own seed: leaking into the others, their decorations would disturb those suites.
 	const seedPlugins: Record<string, EditorPlugin[]> = {
@@ -56,9 +60,9 @@
 		// so it is kept to its own seed.
 		tags: [tagsPlugin()],
 		// The same tags as mark decorations over plain text: no widget, no source to show.
-		'tags-marks': [tagMarksPlugin()],
+		'tags-marks': [tagMarks],
 		// Both inline-menu sources at once: `#` and `[[` must not take each other's presses.
-		'inline-menu': [tagMarksPlugin(), docLinkMenuPlugin()],
+		'inline-menu': [tagMarks, docLinkMenuPlugin()],
 		// `%%parrot` is a narrower form of the base memo fixture's `%%`, and the bird animates on
 		// an interval; kept to its own seed so neither reaches another suite.
 		parrot: [DEMO_PARROT],
