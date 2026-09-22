@@ -146,3 +146,30 @@ export async function markerCenterOf(
 	if (!at) throw new Error(`no marker beside ${JSON.stringify(needle)}`);
 	return at;
 }
+
+/** The centre of the nth rendered inline widget. A formula's own box holds a clipped half no
+ *  click lands in, so the glyphs inside it are the aim point. */
+export async function widgetCenter(page: Page, index = 0): Promise<{ x: number; y: number }> {
+	const at = await page.evaluate((i) => {
+		const widget = document.querySelectorAll('[data-inline-widget]')[i];
+		const target = widget?.querySelector('.katex-html') ?? widget;
+		const b = target?.getBoundingClientRect();
+		return b && b.width > 0 ? { x: b.left + b.width / 2, y: b.top + b.height / 2 } : null;
+	}, index);
+	if (!at) throw new Error(`no rendered inline widget at index ${index}`);
+	return at;
+}
+
+/** Press `clicks` times at one point, each press its own down and up: the run a real
+ *  double- or triple-click makes, which `clickCount` alone does not. */
+export async function multiClick(
+	page: Page,
+	at: { x: number; y: number },
+	clicks: number
+): Promise<void> {
+	await page.mouse.move(at.x, at.y);
+	for (let i = 1; i <= clicks; i++) {
+		await page.mouse.down({ clickCount: i });
+		await page.mouse.up({ clickCount: i });
+	}
+}

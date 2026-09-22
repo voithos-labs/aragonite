@@ -439,6 +439,15 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 			domTextOffsetAtNode(el, focusNode, sel.focusOffset),
 			ambient
 		);
+		// A selected range that holds the source has not left it, so hiding the source here would
+		// rebuild the block under the range and cut it short. The bytes commit when a mutation
+		// reaches them instead.
+		if (
+			Math.min(anchorOff, focusOff) <= sourceStart &&
+			Math.max(anchorOff, focusOff) >= sourceEnd
+		) {
+			return false;
+		}
 		const inSource = (o: number) => o >= sourceStart && o <= sourceEnd;
 		return !inSource(anchorOff) && !inSource(focusOff);
 	}
@@ -827,15 +836,17 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		press: WidgetPress = {}
 	): void {
 		deps.setSnapTarget(null);
-		const doubleClick = (press.clickCount ?? 1) >= 2;
+		const clickCount = press.clickCount ?? 1;
 		// Every double-click starts with a single click, so that first click is where the flag
 		// is set and any flag left over from an earlier gesture is cleared.
-		if (!doubleClick) revealOpenedByLastClick = false;
+		if (clickCount === 1) revealOpenedByLastClick = false;
 		const el = deps.getEl();
 		if (!el || clickX === null) return;
 		// The point-in-rectangle test runs before the text-node check below, so a click on real
-		// text on another visual line falls through to the caret path.
-		if (clickY !== null) {
+		// text on another visual line falls through to the caret path. A third click selects the
+		// block (`selection/multi-click.ts`), and showing a source under it would place a caret
+		// over the range it just painted.
+		if (clickY !== null && clickCount < 3) {
 			const hit = press.moved ? null : hitTestRevealWidget(el, clickX, clickY);
 			if (hit) {
 				// Returns rather than falls through: the edge-snap below would focus this block and
@@ -851,8 +862,9 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 			}
 		}
 		// The first click of a double-click already showed the source, so the second lands in
-		// that text and the browser's word rule takes `[` or `$` as a word of its own.
-		if (doubleClick && revealOpenedByLastClick && selectRevealedSource(clickX, clickY)) return;
+		// that text and the browser's word rule takes `[` or `$` as a word of its own. Taking the
+		// whole token is that second click's; a third click belongs to the block.
+		if (clickCount === 2 && revealOpenedByLastClick && selectRevealedSource(clickX, clickY)) return;
 		// The snap below places a caret, so it does nothing while this block shows a selected
 		// range, which it would collapse; `clampOutOfAmbient` already carries that rule.
 		const live = window.getSelection();

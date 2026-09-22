@@ -15,3 +15,10 @@ there would collapse the range the user just made.
     handler, so a triple-click on a paragraph holding a widget was never on screen in a spec
 - triple-click a paragraph whose only widget sits at its start: the range reaches the last
   word and opens before the formula
+- triple-click the rendered formula itself, in source and live mode: the whole paragraph is
+  selected and stays selected. A third click belongs to the block, not to the widget under it:
+  the widget's own gesture ends at the second click, so the third neither shows a source nor
+  takes the token again, and the shown source stays open under a range that holds it rather
+  than rebuilding the block and cutting the range short
+  - Miss-analysis: every scenario here pressed on prose beside a widget, and the two gestures
+    that can fight over a click only meet when the press lands on the widget itself

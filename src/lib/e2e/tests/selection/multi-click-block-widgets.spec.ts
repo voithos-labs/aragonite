@@ -1,6 +1,6 @@
 import { test, expect } from '../../fixtures';
 import { PluginsPage } from '../plugins/helpers';
-import { runCenter } from './multi-click-helpers';
+import { multiClick, runCenter, widgetCenter } from './multi-click-helpers';
 
 // Triple-click, the block level of the click order, on a widget-dense paragraph
 // (`requirements/selection/multi-click-block-widgets.md`), driven on the math seed so the
@@ -47,6 +47,19 @@ test.describe('multi-click: the block inline syntax handler beside inline widget
 			const ends: [string, string] = ['Let a system of plane waves', 'possesses the energy'];
 			await expect.poll(() => selectionEnds(page)).toEqual(ends);
 			// The release has already been handled; a caret placed later would drop the range.
+			await page.waitForTimeout(150);
+			await expect.poll(() => selectionEnds(page)).toEqual(ends);
+		});
+
+		test(`${mode}: a triple-click on a rendered formula takes the paragraph`, async ({ page }) => {
+			// The first click of the run shows the formula's source and the second takes the whole
+			// token, so the third arrives with the widget's own gesture already under way.
+			await editor.loadContent(SHOWCASE_PARAGRAPH);
+			await editor.setPresentationMode(mode);
+			await expect(page.locator('[data-inline-widget]')).toHaveCount(9);
+			await multiClick(page, await widgetCenter(page), 3);
+			const ends: [string, string] = ['Let a system of plane waves', 'possesses the energy'];
+			await expect.poll(() => selectionEnds(page)).toEqual(ends);
 			await page.waitForTimeout(150);
 			await expect.poll(() => selectionEnds(page)).toEqual(ends);
 		});
