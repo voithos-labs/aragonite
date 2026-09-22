@@ -38,13 +38,19 @@ function harness(initial: string, { arrive = true } = {}) {
 				: { anchor: { path: [block], offset: caret }, focus: { path: [block], offset: caret } },
 		getMode: () => mode,
 		events,
+		// A pick's write raises the same events a keystroke does, so the read they schedule is
+		// the one the state has to hold off.
 		commitRange: async (path, start, end, bytes) => {
 			const raw = doc.children[path[0]].raw;
 			write(path[0], raw.slice(0, start) + bytes + raw.slice(end));
+			events.emit('edit', typedEdit(path));
+			await tick();
 		},
 		landCaret: async (_path, offset) => {
 			caret = offset;
 			landed.push(offset);
+			events.emit('selectionChange', null);
+			await tick();
 			return true;
 		}
 	});
@@ -346,8 +352,8 @@ describe('navigation and commit', () => {
 		await h.type('#wo');
 
 		expect(h.menu.commit()).toBe(true);
-		await vi.waitFor(() => expect(h.raw()).toBe('see '));
-		expect(h.landed).toEqual([4]);
+		await vi.waitFor(() => expect(h.landed).toEqual([4]));
+		expect(h.raw()).toBe('see ');
 		expect(h.errors).toEqual([]);
 	});
 
@@ -356,8 +362,10 @@ describe('navigation and commit', () => {
 		h.menu.registry.addSource(tags({ items: () => [item('odd', '#odd #')] }));
 		await h.type('#');
 		h.menu.commit();
-		await vi.waitFor(() => expect(h.raw()).toBe('a #odd #'));
+		await vi.waitFor(() => expect(h.landed).toEqual([8]));
 		await tick();
+		await tick();
+		expect(h.raw()).toBe('a #odd #');
 		expect(h.menu.getOpen()).toBeNull();
 	});
 });
