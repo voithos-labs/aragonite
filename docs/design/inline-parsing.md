@@ -29,7 +29,7 @@ So the span structure is always correct, because it's rebuilt after every charac
 
 Reading `raw` back from the DOM is the step with a trap in it. **A prose block's `textContent` is not its `raw`**, for two independent reasons:
 
-- **Atomic widgets contribute zero characters to `textContent`.** An image or an inline formula renders as a `contenteditable="false"` island whose bytes live on `data-source-*` attributes, not in any text node.
+- **Atomic widgets contribute zero characters to `textContent`.** An image or an inline formula renders as a `contenteditable="false"` span whose bytes live on `data-source-*` attributes, not in any text node.
 - **The ambient prefix contributes characters that aren't in `raw` at all.** A list item lends its `- ` marker to its first prose child's rendered content, so `textContent === ambientPrefix + raw`, give or take the trailing line ending (§ The textContent invariant has the exact form).
 
 The first one, with the entity widget (a decoded `&copy;` renders as one atomic glyph):
@@ -107,7 +107,7 @@ parseInline('plain text', 0, 10); // [{ kind: 'text', start: 0, end: 10, text: '
 
 ### The plugin tier
 
-A plugin owns a **single trigger character** and supplies a recognizer: given `raw` and a position, claim a range and return a node, or decline and leave the character as literal text. Registrations form a priority ladder, the inline mirror of the block layer's `OPENER_PRIORITIES`. Rungs (a rung: one level in an ordered ladder) on one trigger are consulted lowest-priority-first, so two plugins on the same character dispatch deterministically regardless of registration order.
+A plugin owns a **single trigger character** and supplies a recognizer: given `raw` and a position, claim a range and return a node, or decline and leave the character as literal text. Registrations form a priority order, the inline mirror of the block layer's `OPENER_PRIORITIES`. Handlers on one trigger are consulted lowest-priority-first, so two plugins on the same character dispatch deterministically regardless of registration order.
 
 ```ts
 INLINE_PRIORITIES; // { prefixOverride: 40, builtin: 50, plugin: 100 }
@@ -128,9 +128,9 @@ parseInline('a %x% b', 0, 7);
 Whether a trigger can outrank a built-in depends on which side of the scanner's switch it falls:
 
 - A character the switch claims no `case` for dispatches from the **default case**, after every built-in construct. That's the `%` above, and inline math, emoji shortcodes, and the inline `:name:` directive all ship this way.
-- A **reserved** trigger, one the switch owns (``\ ` & * _ ~ [ ] ! <`` and the newline), is reachable only through a multi-character **prefix rung** priced below the built-in boundary, which the scanner consults _ahead_ of its switch and only when the prefix matches at the cursor. Footnotes' `[^` beats `[` this way while a plain `[` still opens a link.
-- A bare registration on a reserved trigger throws, rather than accepting a recognizer that could never fire. So does a prefix rung priced at or above the boundary.
-- A prefix rung on a trigger the fast bail never visits in plain text throws too (`]` is the one: it only matters inside a `[` range), unless the trigger is one the bail **probes on demand**, which `!` is. A registration there turns the probe on for that character, so `![[…]]` can outrank the image case without making every prose `!` unconditionally special.
+- A **reserved** trigger, one the switch owns (``\ ` & * _ ~ [ ] ! <`` and the newline), is reachable only through a multi-character **prefix handler** registered at a priority below the built-in boundary, which the scanner consults _ahead_ of its switch and only when the prefix matches at the cursor. Footnotes' `[^` beats `[` this way while a plain `[` still opens a link.
+- A bare registration on a reserved trigger throws, rather than accepting a recognizer that could never fire. So does a prefix handler at a priority at or above the boundary.
+- A prefix handler on a trigger the fast bail never visits in plain text throws too (`]` is the one: it only matters inside a `[` range), unless the trigger is one the bail **probes on demand**, which `!` is. A registration there turns the probe on for that character, so `![[…]]` can outrank the image case without making every prose `!` unconditionally special.
 
 What those throws look like, so you recognize them when you meet one:
 
@@ -179,7 +179,7 @@ renderInlineNodes(parseInline(raw, 0, raw.length), raw);
 | `image`               | An atomic `<img>` widget, unless the kind opts out via `renderImagesAsWidgets` (table cells do, and fall back to alt text)                                                                                                                                                 |
 | `hardLineBreak`       | Marker span for the `\` or the spaces, plus a `\n` **text node** (never a `<br>`)                                                                                                                                                                                          |
 | `escape`              | Dim marker span for the `\`, plus a text node for the escaped character                                                                                                                                                                                                    |
-| `entityReference`     | An atomic widget of the decoded glyph (`&copy;` → ©) when it renders visibly; a whitespace/control/zero-width decoding keeps a styled span over the `&…;` source, so no invisible atomic island is created                                                                 |
+| `entityReference`     | An atomic widget of the decoded glyph (`&copy;` → ©) when it renders visibly; a whitespace/control/zero-width decoding keeps a styled span over the `&…;` source, so no invisible atomic widget is created                                                                 |
 | `unresolvedReference` | Styled span over the literal source of a reference with no matching definition                                                                                                                                                                                             |
 | `rawHtml`             | Allowlisted tags (`<br>`) render as atomic widgets; everything else as a styled source span                                                                                                                                                                                |
 | _plugin kinds_        | A registered widget (§ 6). Anything still unrecognized falls back to a `span.md-unknown-inline` holding its verbatim source, the inline mirror of the unknown-block fallback, so bytes survive a plugin being uninstalled                                                  |
@@ -221,7 +221,7 @@ A widget kind renders one of two ways.
 
 **Component (recommended).** The kind supplies a Svelte component, and the render layer does the rest:
 
-- It builds the atomic island itself, stamping `[data-inline-widget]`, the `data-source-*` offsets, and `contenteditable="false"`.
+- It builds the atomic widget's span itself, stamping `[data-inline-widget]`, the `data-source-*` offsets, and `contenteditable="false"`.
 - It mounts the component inside with a frozen `{ inline, source }` snapshot.
 - Beside the snapshot ride live getters for the presentation mode, the theme, the root document, and the content version. A pooled instance survives a mode flip and an edit elsewhere, so those are read per render rather than captured at mount.
 - A table cell mounts through the same path, threading mode and theme as a prose block does, and a mode flip rebuilds a cell's inline DOM the same way.
@@ -231,4 +231,4 @@ A widget kind renders one of two ways.
 
 Because the editor rebuilds a block's entire inline DOM on every keystroke, component widgets ride a **keyed reuse pool**. An instance is keyed by kind and source text, so a rebuild _adopts_ an unchanged instance, re-stamping only its shifted `data-source-*` offsets, instead of remounting it. Typing next to a rendered formula keeps its mount, and its render cost, stable; editing the formula makes a new one. An instance left unadopted at the end of a pass is torn down, and a mount that throws is caught, reported on the editor's `error` channel, and falls back to the raw source span.
 
-The editing behavior of a widget (reveal-to-edit, select-then-delete, or atomic step-over, what its keys do while selected, and what a press on the rendered island does) is a per-kind **editing policy** on the same registry. `editor.md` § Atomic inline widgets covers the caret model those policies drive.
+The editing behavior of a widget (reveal-to-edit, select-then-delete, or atomic step-over, what its keys do while selected, and what a press on the rendered widget does) is a per-kind **editing policy** on the same registry. `editor.md` § Atomic inline widgets covers the caret model those policies drive.
