@@ -8,7 +8,11 @@
 import { getAllRegisteredKinds, tryGetBlockKindDescriptor } from './block-kind-descriptor';
 import { GLOBAL_KEYMAP, pluginGlobalChords, reservedUiChords } from './commands';
 import type { KeybindingOverrideMap } from './keybinding-overrides';
-import type { PluginActivation } from './plugin-activation';
+import {
+	everyInstalledPlugin,
+	kindEnablementFor,
+	type PluginActivation
+} from './plugin-activation';
 import { eventToChord, normalizeChord } from './keybindings';
 
 // ── The hardcoded-chord list ─────────────────────────────────────────────────
@@ -338,7 +342,7 @@ export interface ReservedChordOptions {
 export function collectReservedChords(options: ReservedChordOptions): ReadonlySet<string> {
 	const claimed = new Set(
 		[
-			...registeredKeymapChords(),
+			...registeredKeymapChords(options.activation),
 			...GLOBAL_KEYMAP.map((binding) => binding.chord),
 			...pluginGlobalChords(options.activation),
 			...HARDCODED_CHORDS,
@@ -370,10 +374,15 @@ function carriesModifier(chord: string): boolean {
 	return chord.includes('+');
 }
 
-function registeredKeymapChords(): string[] {
-	return getAllRegisteredKinds().flatMap(
-		(kind) => tryGetBlockKindDescriptor(kind)?.keymap?.map((binding) => binding.chord) ?? []
-	);
+/** Only the kinds this editor resolves: an unlisted plugin's kind renders nowhere here, so its
+ *  keymap claims nothing. */
+function registeredKeymapChords(activation: PluginActivation | undefined): string[] {
+	const isEnabled = kindEnablementFor(activation ?? everyInstalledPlugin);
+	return getAllRegisteredKinds()
+		.filter(isEnabled)
+		.flatMap(
+			(kind) => tryGetBlockKindDescriptor(kind)?.keymap?.map((binding) => binding.chord) ?? []
+		);
 }
 
 function overrideBoundChords(overrides: KeybindingOverrideMap | undefined): string[] {

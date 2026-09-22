@@ -249,7 +249,7 @@ function settleSplicedWindow(
 	const widened = widenForTailMint(change, beforeMint, parent.children.length);
 	// Merging neighbours is part of settling, not a rule each caller repeats, so a new caller
 	// inherits it. A write that reports `noop` splices no window and is asked nothing.
-	return absorbWindowSeams(
+	const absorbed = absorbWindowSeams(
 		parent as NodeParent,
 		at,
 		added,
@@ -261,6 +261,11 @@ function settleSplicedWindow(
 		// refused on that block's first line alone; a wider window names no single block.
 		added === 1 ? at : undefined
 	).change;
+	// The parent's trailing line is asked again: a merge can turn the last block blank, and a
+	// blank last block is what makes that line a block of its own.
+	const beforeTailMint = parent.children.length;
+	materializeTailSuffix(parent, sharing);
+	return widenForTailMint(absorbed, beforeTailMint, parent.children.length);
 }
 
 /** The block that takes the vacated position inherits its separator when it has none of its own
@@ -405,7 +410,10 @@ export function absorbSeamReading(
 		probe = undefined;
 		const reparsed = parse(joinedWindowBytes(window, window.length), { scope: 'fragment' });
 		const blocks = reparsed.children;
-		if (blocks.length === 0 || blocks.length >= window.length) break;
+		if (blocks.length === 0 || blocks.length > window.length) break;
+		// An equal count is still a merge when the head took content from the block below: a blank
+		// run inside that block stays its own block, so the count holds while the rest moves up.
+		if (blocks.length === window.length && !headTookContent(blocks[0], window)) break;
 		// A merge may promote the head beyond what its bytes carry alone (a paragraph under the
 		// setext underline below it), so what must survive is the head's own reading, not its kind.
 		if (blocks[0].kind !== window[0].kind && !readsAsItselfAlone(window[0])) break;
@@ -419,11 +427,20 @@ export function absorbSeamReading(
 		}
 		if (tracked) retrackThroughFold(tracked, at, window, blocks);
 		spliceMany(children, at, window.length, blocks);
+		// The merge can end on a blank block where a filled one stood, and the block below a blank
+		// one carries no separator line of its own.
+		clearRedundantSeparator(parent, at + blocks.length, sharing);
 		eaten += window.length - blocks.length;
 		span = blocks.length;
 		spliced = true;
 	}
 	return { at, span, eaten, spliced };
+}
+
+/** Whether the reparse moved more than the separating blank line into the head. Its own bytes
+ *  plus that line are what it holds when the division between the two blocks has not moved. */
+function headTookContent(head: CstNode, window: readonly CstNode[]): boolean {
+	return head.raw.length > window[0].raw.length + window[1].leadingTrivia.length;
 }
 
 /**

@@ -1269,7 +1269,8 @@ spellings are scanned; dispatch-target identity is probed-benign and not enumera
 suite is machine-speed-dependent and reds on a loaded host, so outside the perf projects every
 wall-clock budget goes through the growth harness, where `measureScanGrowth`'s N-vs-4N ratio cancels
 the machine. Allowlisted residue carries its reason: the harness itself, a recursion-depth bound, an
-elapsed-time check a ratio can't express. `lint/suite-file-rules.test.ts`.
+elapsed-time check a ratio can't express, and the e2e page object dividing one wait ceiling between
+two waits. `lint/suite-file-rules.test.ts`.
 
 **G4.49 · The shared IME driver.** A spec constructing a `CompositionEvent` or an
 `insertCompositionText` input event by hand exercises a browser no user has, so hand-fired sequences

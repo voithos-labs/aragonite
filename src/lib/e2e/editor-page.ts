@@ -6,14 +6,17 @@ import {
 	BLOCK_CONTENT_SELECTOR,
 	BLOCK_CONTENT_LOCATOR_SELECTOR
 } from '../components/block-content-selector';
+import { watchPageFailures } from './page-probes';
 
 // Re-exported so a spec's in-`evaluate` block-content lookup uses the one selector definition
 // instead of inlining `:not(.selection-overlay)`.
 export { BLOCK_CONTENT_SELECTOR } from '../components/block-content-selector';
 
 /** A ceiling on the harness installing `window.__test`, not an expectation of it: a full battery
- *  on one dev server pushes hydration well past the seconds a quiet machine takes. */
-export const BRIDGE_INSTALL_TIMEOUT = 60_000;
+ *  on one dev server pushes hydration well past the seconds a quiet machine takes. It has to stay
+ *  under Playwright's test timeout so the wait reports what the page did instead of being killed
+ *  mid-wait, which `lint/harness-timeout-headroom.test.ts` pins. */
+export const BRIDGE_INSTALL_TIMEOUT = 45_000;
 
 export class EditorPage {
 	readonly editorContainer: Locator;
@@ -30,14 +33,48 @@ export class EditorPage {
 
 	async goto(query = '') {
 		await this.clipboard.install();
-		await this.page.goto(`/test/editor${query}`);
-		await this.editorContainer.waitFor({ state: 'visible' });
-		await this.page.waitForFunction(() => (window as any).__test !== undefined, null, {
-			timeout: BRIDGE_INSTALL_TIMEOUT
-		});
-		// The harness paints a webfont; a caret measured before it arrives is placed by the
-		// fallback font's metrics, and the block reflows under the spec.
-		await this.page.evaluate(() => document.fonts.ready);
+		await this.openHarness(`/test/editor${query}`);
+	}
+
+	/**
+	 * Navigate to a harness route and wait for its `window.__test`. Both harnesses come through
+	 * here, so a bridge that never arrives names what the page reported rather than only timing out.
+	 */
+	protected async openHarness(url: string): Promise<void> {
+		const failures = watchPageFailures(this.page);
+		// The navigation, the mount and the bridge share one budget: a full ceiling each would sum
+		// past the runner's timeout, and a wait killed by the runner reports none of this.
+		const deadline = Date.now() + BRIDGE_INSTALL_TIMEOUT;
+		// Playwright reads 0 as "no timeout", so an exhausted budget asks for the smallest wait.
+		const budgetLeft = () => Math.max(1, deadline - Date.now());
+		const diagnose = (what: string, cause: unknown): never => {
+			const reported = failures.seen();
+			// Playwright's own message is what separates a timeout from a context destroyed by a
+			// reload, which is the other way the bridge goes missing.
+			throw new Error(
+				[
+					`${url}: ${what} in ${BRIDGE_INSTALL_TIMEOUT} ms (${String(cause).split('\n')[0]}).`,
+					'The page reported:',
+					...(reported.length > 0 ? reported : ['nothing captured'])
+				].join('\n')
+			);
+		};
+		try {
+			await this.page.goto(url);
+			await this.editorContainer
+				.waitFor({ state: 'visible', timeout: budgetLeft() })
+				.catch((cause) => diagnose('the editor never mounted', cause));
+			await this.page
+				.waitForFunction(() => (window as any).__test !== undefined, null, {
+					timeout: budgetLeft()
+				})
+				.catch((cause) => diagnose('the editor mounted but window.__test never arrived', cause));
+			// The harness paints a webfont; a caret measured before it arrives is placed by the
+			// fallback font's metrics, and the block reflows under the spec.
+			await this.page.evaluate(() => document.fonts.ready);
+		} finally {
+			failures.stop();
+		}
 	}
 
 	async loadContent(md: string) {
