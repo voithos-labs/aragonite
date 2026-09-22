@@ -11,6 +11,10 @@ const SHOWCASE_PARAGRAPH =
 
 const SHOWCASE_ENDS: [string, string] = ['Let a system of plane waves', 'possesses the energy'];
 
+// An entity is a widget with no source to show, so the reveal never runs and the third click
+// is the only thing that can select anything.
+const ENTITY_PARAGRAPH = 'before &copy; after some more words on this line\n';
+
 /** The selected text's two ends, so one read pins both boundaries of the range. */
 function selectionEnds(page: import('@playwright/test').Page): Promise<[string, string]> {
 	return page.evaluate(() => {
@@ -90,6 +94,17 @@ test.describe('multi-click: the block inline syntax handler beside inline widget
 			await expect.poll(() => reachesBothEnds(page, 'opens this line')).toEqual([true, true]);
 		});
 	}
+
+	test('a triple-click on a widget that never shows a source takes the paragraph', async ({
+		page
+	}) => {
+		await editor.loadContent(ENTITY_PARAGRAPH);
+		await expect(page.locator('[data-inline-widget]')).toHaveCount(1);
+		await multiClick(page, await widgetCenter(page), 3);
+		await expect.poll(() => reachesBothEnds(page, 'on this line')).toEqual([true, true]);
+		await page.waitForTimeout(150);
+		await expect.poll(() => reachesBothEnds(page, 'on this line')).toEqual([true, true]);
+	});
 
 	test('a triple-click on an inline image leaves the image selected', async ({ page }) => {
 		// An image selects whole on its first click, so the run is its own from the start.

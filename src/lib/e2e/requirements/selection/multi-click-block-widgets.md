@@ -24,5 +24,11 @@ there would collapse the range the user just made.
     that can fight over a click only meet when the press lands on the widget itself
 - typing over that selection replaces the paragraph, formula and all: what the third click
   painted is a range over the block's content, not a highlight over a block nothing can edit
+- triple-click a widget that never shows a source, an entity: the whole paragraph is selected,
+  and it stays selected. The first two clicks of the run leave it to the block, so the third is
+  the only one that can select anything
+  - Miss-analysis: every widget these scenarios pressed on shows its source on the first click,
+    which swaps the widget for editable text before the third press arrives, so the rule the
+    click order carries for a widget that stays a widget was never on screen
 - triple-click an inline image: the image stays selected and a typed character replaces it. A
   widget that selects whole takes the whole run, because its first click already selected it
