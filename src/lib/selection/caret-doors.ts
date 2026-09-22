@@ -12,7 +12,8 @@ import type { SelectionState } from './selection-state.svelte';
 /**
  * Builds a component's public `focus` from its `parkCaret`. Batched because `clear()` notifies
  * listeners, and a notification between the state write and the DOM caret would report a
- * caret that is about to move.
+ * caret that is about to move. The announcement at the end is what makes a placement reach
+ * subscribers at the placement rather than on the browser's later `selectionchange`.
  */
 export function placeCaret(
 	selection: SelectionState,
@@ -22,6 +23,10 @@ export function placeCaret(
 		selection.batch(() => {
 			endLiveCaretClaim(selection);
 			parkCaret(offset);
+			// A caret that was already a plain one moves no field the state checks, so nothing
+			// above notifies and this is the only word subscribers get. Announced as a placement,
+			// so a `focus` that lands where the caret already is says nothing.
+			selection.announcePlacement();
 		});
 }
 

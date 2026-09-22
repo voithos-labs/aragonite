@@ -153,7 +153,7 @@ The `document` reservation matters less than it looks: node-vs-document narrowin
 
 ### Events access: `getEvents()` canonical
 
-The editor's event surface (`edit`, `selectionChange`, `presentationModeChange`, `themeChange`, `error`) has two sanctioned access paths, one per audience. A **consumer** reaches the full surface through the component method `getEvents()` (via `bind:this`), where `on(event, handler)` returns a disposer. A **plugin** reaches it through `EditorContext.events`, the subscribe-only view (`Pick<EditorEvents, 'on'>`, so `on` only, no `emit`) handed to an `onEditor` callback, a global-command handler, or a block command's `ctx.editor`. The narrowing is deliberate: a plugin-visible `emit` would freeze at 1.0, so the plugin path exposes subscription and nothing more. The internal `setContext` wiring that hands the same emitter to child components isn't part of the contract.
+The editor's event surface (`edit`, `selectionChange`, `presentationModeChange`, `themeChange`, `menuChange`, `error`) has two sanctioned access paths, one per audience. A **consumer** reaches the full surface through the component method `getEvents()` (via `bind:this`), where `on(event, handler)` returns a disposer. A **plugin** reaches it through `EditorContext.events`, the subscribe-only view (`Pick<EditorEvents, 'on'>`, so `on` only, no `emit`) handed to an `onEditor` callback, a global-command handler, or a block command's `ctx.editor`. The narrowing is deliberate: a plugin-visible `emit` would freeze at 1.0, so the plugin path exposes subscription and nothing more. The internal `setContext` wiring that hands the same emitter to child components isn't part of the contract.
 
 ## The pre-freeze surface
 

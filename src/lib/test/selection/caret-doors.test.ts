@@ -59,19 +59,18 @@ describe('placeCaret: the safe caret entry point', () => {
 		expect(h.emissions).toEqual([{ isCrossBlock: false, landed: 7 }]);
 	});
 
-	// Most caret placements happen with no range live, and they must not notify selection
-	// subscribers.
-	it('emits nothing when no range is live', () => {
-		const emissions: number[] = [];
-		const selection = createSelectionState({ onChange: () => emissions.push(1) });
+	// Most caret placements happen with no range live, where nothing else notifies at all, so
+	// this is the only word subscribers get about where the caret went.
+	it('notifies once with no range live, after the caret has landed', () => {
+		const landings: (number | null)[] = [];
 		let landed: number | null = null;
+		const selection = createSelectionState({ onChange: () => landings.push(landed) });
 
 		placeCaret(selection, (offset) => {
 			landed = offset;
 		})(3);
 
-		expect(landed).toBe(3);
-		expect(emissions).toEqual([]);
+		expect(landings).toEqual([3]);
 	});
 
 	it('clears the native selection too, so a whole-block landing leaves nothing painted', () => {
@@ -105,6 +104,23 @@ describe('placeCaret: the safe caret entry point', () => {
 		expect(h.selection.gapCaret).toBeNull();
 		expect(h.landed).toBe(7);
 		expect(h.emissions.length).toBe(1);
+	});
+
+	// Miss-analysis: nothing asked what a flush held, so a placement that moved the caret nowhere
+	// announced like any other and repeated a position subscribers already had.
+	it('reports a plain placement as the only thing in its flush', () => {
+		const flushes: boolean[] = [];
+		const selection = createSelectionState({
+			onChange: ({ placementOnly }) => flushes.push(placementOnly)
+		});
+
+		placeCaret(selection, () => {})(3);
+		selection.batch(() => {
+			selection.enterCrossBlock(at(0, 0), at(2, 4));
+			placeCaret(selection, () => {})(3);
+		});
+
+		expect(flushes).toEqual([true, false]);
 	});
 
 	it('nests inside a caller-owned batch without emitting early', () => {

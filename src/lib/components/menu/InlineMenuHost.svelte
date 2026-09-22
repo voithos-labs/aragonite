@@ -88,7 +88,7 @@
 
 	// The baseline the first bytes in a leaf are read against, taken just before they land.
 	// Every input route fires beforeinput (a keystroke, an IME commit, a paste, a script's
-	// insertText); the caret's arrival is announced a task later and can lose the race to them.
+	// insertText), including the ones no caret move precedes.
 	$effect(() => {
 		const root = getEditorEl();
 		if (!root) return;

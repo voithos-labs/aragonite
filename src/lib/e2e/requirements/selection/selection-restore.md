@@ -20,8 +20,8 @@ override the scroll the host wrote last.
 - Within-block range (same path, distinct offsets): the native range is re-established across the same offsets, resolves `true`
 - Cross-block range: the selection re-enters cross-block state and the overlay paints, resolves `true`
 - Intra-table cell rectangle (cell-valued offsets on unflagged endpoints): the same cell selection is restored, resolves `true`
-- Collapsed-caret restore with a `selectionChange` subscriber attached: every emission the restore
-  produces reports the restored selection, never the one being left
+- Collapsed-caret restore with a `selectionChange` subscriber attached: one emission, reporting
+  the restored selection, never the one being left
 - Within-block range restore with the same subscriber: same, on the native-range route
 
 ## Edge cases

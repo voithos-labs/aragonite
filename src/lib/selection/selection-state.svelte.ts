@@ -26,9 +26,10 @@ import { checkCrossBlockEndpointCoordinates } from '../invariants/selection-endp
 export interface SelectionStateOptions {
 	/**
 	 * Fires after any mutation, or once at the end of a {@link SelectionState.batch} that
-	 * contained one. No payload: subscribers read back via `editor.getSelection()`.
+	 * contained one. Subscribers read the selection back via `editor.getSelection()`;
+	 * `placementOnly` says a caret placement was all this flush held.
 	 */
-	onChange?: () => void;
+	onChange?: (change: { placementOnly: boolean }) => void;
 	/**
 	 * Document accessor. Absent in harnesses that only exercise cross-block semantics;
 	 * without it `isCustomRendered` cannot see intra-table rects and mirrors `isCrossBlock`.
@@ -77,11 +78,17 @@ export interface SelectionState {
 
 	/**
 	 * Notifies for a selection change this state cannot see. Subscribers read the editor back
-	 * through `getSelection()`, which also reports a native caret a restore placed and a
-	 * document a `source` swap replaced; neither moves a field the mutators above check.
-	 * Coalesces inside a {@link SelectionState.batch}.
+	 * through `getSelection()`, which also reports a caret the editor just placed, a native
+	 * caret a restore placed and a document a `source` swap replaced; none of those moves a
+	 * field the mutators above check. Coalesces inside a {@link SelectionState.batch}.
 	 */
 	announceSelection(): void;
+
+	/**
+	 * Notifies for a caret placement. The flush says whether a placement was all it held, so a
+	 * listener can drop one that put the caret where it already was.
+	 */
+	announcePlacement(): void;
 
 	/**
 	 * Holds the change notification until `mutate` returns, then fires once if anything
@@ -117,10 +124,12 @@ class SelectionStateImpl implements SelectionState {
 	#gapCaret: GapCaretPosition | null = $state(null);
 	#wholeUnit: number[] | null = $state(null);
 	#selectAllCount: number = $state(0);
-	#onChange?: () => void;
+	#onChange?: (change: { placementOnly: boolean }) => void;
 	#getDoc?: () => DocumentView;
 	#batchDepth = 0;
 	#notifyPending = false;
+	// False once a notification that is not a caret placement joins the pending flush.
+	#placementOnly = true;
 
 	constructor(options?: SelectionStateOptions) {
 		this.#onChange = options?.onChange;
@@ -135,17 +144,24 @@ class SelectionStateImpl implements SelectionState {
 			this.#batchDepth -= 1;
 			if (this.#batchDepth === 0 && this.#notifyPending) {
 				this.#notifyPending = false;
-				this.#onChange?.();
+				this.#flush();
 			}
 		}
 	}
 
-	#notify(): void {
+	#notify(fromPlacement = false): void {
+		if (!fromPlacement) this.#placementOnly = false;
 		if (this.#batchDepth > 0) {
 			this.#notifyPending = true;
 			return;
 		}
-		this.#onChange?.();
+		this.#flush();
+	}
+
+	#flush(): void {
+		const placementOnly = this.#placementOnly;
+		this.#placementOnly = true;
+		this.#onChange?.({ placementOnly });
 	}
 
 	get anchor(): SelectionPoint | null {
@@ -391,5 +407,9 @@ class SelectionStateImpl implements SelectionState {
 
 	announceSelection(): void {
 		this.#notify();
+	}
+
+	announcePlacement(): void {
+		this.#notify(true);
 	}
 }

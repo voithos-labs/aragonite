@@ -200,10 +200,15 @@ interface StateDrift {
 	refsLen: number;
 }
 
-/** One `selectionChange` payload, flattened so it survives `page.evaluate`. */
+/**
+ * One `selectionChange` payload, flattened so it survives `page.evaluate`. `raw` is the focus
+ * block's source bytes as they stood when the event fired, which is how a spec tells an
+ * announcement made before the bytes typed there from one made after them.
+ */
 interface SelectionChangeRecord {
 	anchor: { path: number[]; offset: number } | null;
 	focus: { path: number[]; offset: number } | null;
+	raw: string | null;
 }
 
 // ── The host's image-paste hook ────────────────────────────────────────────
@@ -473,9 +478,13 @@ export function installTestProbes({
 		startSelectionChangeCapture: (): void =>
 			selectionProbe.start((records) =>
 				editor.getEvents().on('selectionChange', (sel) => {
+					const node = sel
+						? (nodeAt(editor.__test.getDocument(), sel.focus.path) as CstNode | null)
+						: null;
 					records.push({
 						anchor: sel && { path: sel.anchor.path, offset: sel.anchor.offset },
-						focus: sel && { path: sel.focus.path, offset: sel.focus.offset }
+						focus: sel && { path: sel.focus.path, offset: sel.focus.offset },
+						raw: node && 'raw' in node ? node.raw : null
 					});
 				})
 			),

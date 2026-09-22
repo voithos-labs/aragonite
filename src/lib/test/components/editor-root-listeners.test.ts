@@ -31,7 +31,7 @@ describe('editor-root listeners: blur announcer', () => {
 		const outside = document.createElement('button');
 		document.body.append(root, outside);
 		let emitted = 0;
-		teardowns.push(installEditorBlurAnnouncer({ root, emit: () => emitted++ }));
+		teardowns.push(installEditorBlurAnnouncer({ root, announce: () => emitted++ }));
 		return { root, inside, outside, count: () => emitted };
 	}
 
@@ -140,7 +140,7 @@ describe('editor-root listeners: selectionchange bridge', () => {
 		const teardown = installSelectionChangeBridge({
 			root,
 			isHostChrome: (node) => !!node && header.contains(node),
-			emit: () => emits++
+			announceIfMoved: () => emits++
 		});
 		teardowns.push(teardown);
 		return { headerField, content, outside, teardown, emits: () => emits };
@@ -155,6 +155,7 @@ describe('editor-root listeners: selectionchange bridge', () => {
 	}
 
 	const fire = () => document.dispatchEvent(new Event('selectionchange'));
+	const click = (el: Element) => el.dispatchEvent(new MouseEvent('click', { bubbles: true }));
 
 	it('emits for a selection in the editor content', () => {
 		const b = bridge();
@@ -184,11 +185,27 @@ describe('editor-root listeners: selectionchange bridge', () => {
 		expect(b.emits()).toBe(0);
 	});
 
-	it('teardown detaches the listener', () => {
+	// The browser reports a click's caret a task later, so the click itself announces too.
+	it('emits for a click in the editor content', () => {
+		const b = bridge();
+		selectInside(b.content);
+		click(b.content);
+		expect(b.emits()).toBe(1);
+	});
+
+	it('stays silent for a click in the host chrome', () => {
+		const b = bridge();
+		selectInside(b.headerField);
+		click(b.headerField);
+		expect(b.emits()).toBe(0);
+	});
+
+	it('teardown detaches both listeners', () => {
 		const b = bridge();
 		b.teardown();
 		selectInside(b.content);
 		fire();
+		click(b.content);
 		expect(b.emits()).toBe(0);
 	});
 });

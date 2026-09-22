@@ -38,7 +38,6 @@ function harness(opts: { mode?: PresentationMode; selection?: EditorSelection | 
 	};
 	const selection = { isCrossBlock: false, gapCaret: null, clearGapCaret: () => calls.gapClears++ };
 	const events = createEditorEvents();
-	events.on('selectionChange', () => calls.selectionEmits++);
 	events.on('presentationModeChange', (next) => calls.modeEmits.push(next));
 	const flip = createModeFlip({
 		get editorEl() {
@@ -49,6 +48,7 @@ function harness(opts: { mode?: PresentationMode; selection?: EditorSelection | 
 		},
 		selection,
 		getSelection: () => snapshot,
+		announceSelection: () => calls.selectionEmits++,
 		getBlockElByPath: () => null,
 		isHostChrome: (node) => !!node && header.contains(node),
 		edgeAffinity: { reset: () => calls.affinityResets++ },
