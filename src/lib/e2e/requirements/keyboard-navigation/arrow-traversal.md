@@ -22,3 +22,14 @@ position rather than logical caret position) that decide when the boundary is re
 
 - navigate down through multiple blocks: ArrowDown repeatedly, type in final block, verify source
 - navigate up then type: ArrowUp from second block, type at end of first block, verify
+
+## Miss-analysis
+
+- Both ArrowDown cases pinned the caret to column 0 of the block it reached, which only the
+  harness's own caret placement ever produced: it anchors the caret past the block's last child,
+  where the browser reports no box, so the column read as the block's left edge. A real click
+  plus End has always crossed the boundary at the column the caret was on, and no case here ran
+  the same assertion after a real gesture.
+- The checks run for the caret-geometry change never included the keyboard-navigation project,
+  so the two cases went red on the change that made the harness's caret measure like everyone
+  else's.

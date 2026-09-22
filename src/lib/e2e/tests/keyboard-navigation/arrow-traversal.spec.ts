@@ -16,7 +16,12 @@ test.describe('keyboard navigation', () => {
 		await editor.focusBlockEnd(0);
 		await editor.page.keyboard.press('ArrowDown');
 		await editor.typeText('X');
-		await editor.bridge.waitForSourceContains('XSecond paragraph');
+		// ArrowDown keeps the caret's pixel column across the boundary, so which character it
+		// ends up beside depends on the font: assert the paragraph reached, not the offset.
+		await editor.bridge.waitForSource((s) => {
+			const [first, , second] = s.split('\n');
+			return first === 'First paragraph.' && second.includes('X');
+		});
 	});
 
 	test('ArrowUp at start of block moves focus to previous block', async () => {
@@ -70,7 +75,10 @@ test.describe('keyboard navigation', () => {
 		await editor.focusBlockEnd(0);
 		await editor.page.keyboard.press('ArrowDown');
 		await editor.typeText('Q');
-		await editor.bridge.waitForSourceMatches(/> .*Inside quoteQ|> .*QInside quote/);
+		await editor.bridge.waitForSource((s) => {
+			const [before, , quote] = s.split('\n');
+			return before === 'Before' && quote.startsWith('> ') && quote.includes('Q');
+		});
 	});
 
 	test('ArrowUp out of container block exits to block before', async () => {
