@@ -10,9 +10,12 @@ anchoring to the typed range, and replacing that range with the pick as ONE undo
 The caret never leaves the document. The list takes no focus, so the author keeps typing the
 query, and an empty list holds no key at all.
 
-Seed `inline-menu` installs two sources at once: tag autocomplete over the document's own tags
-(`tags/tag-marks-plugin.ts`, synchronous) and a document picker on `[[` whose list arrives asynchronously
-(`inline-menu/doc-link-menu-plugin.ts`), the shape a host's wikilink menu takes.
+Seed `inline-menu` installs two plugin sources at once: tag autocomplete over the document's own
+tags (`src/routes/demo-tags/tag-marks-plugin.ts`, synchronous) and a document picker on `[[` whose
+list arrives asynchronously (`inline-menu/doc-link-menu-plugin.ts`), the shape a host's wikilink
+menu takes. The page itself registers a third, a `/` command list (`inline-menu/slash-menu-source.ts`)
+whose pick inserts a block: `insert` is empty and `onCommit` goes through the instance's
+`insertMarkdown`, the shape a slash-command menu takes.
 
 ## Opening
 
@@ -58,6 +61,12 @@ Seed `inline-menu` installs two sources at once: tag autocomplete over the docum
 - `open(name)` types the trigger at the caret and opens the list there, exactly as if typed.
 - It opens where the typed trigger would have been declined by position: the gesture is the
   author's say-so.
+
+## A block through onCommit
+
+- `/` on a fresh line opens the command list, the query narrows it, and the pick removes `/` and
+  the query while the document gains the block `onCommit` inserted.
+- A `/` inside a word opens nothing: a path or a date is text.
 
 ## Host signal
 

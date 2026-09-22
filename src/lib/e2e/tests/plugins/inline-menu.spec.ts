@@ -258,6 +258,25 @@ test.describe('inline menus', () => {
 		});
 	});
 
+	test.describe('a slash source: a block through onCommit', () => {
+		test('the pick removes the trigger and the query, and the block lands through onCommit', async () => {
+			await editor.page.keyboard.press('Enter');
+			await editor.typeText('/ru');
+			await expect.poll(() => rows(editor)).toEqual(['Rule']);
+			await editor.page.keyboard.press('Enter');
+			await editor.bridge.waitForSourceContains('---');
+			expect(await editor.bridge.getSource()).not.toContain('/ru');
+			expect(await editor.bridge.getBlockKind(TARGET + 1)).toBe('thematicBreak');
+		});
+
+		test('a slash inside a word opens nothing', async () => {
+			await editor.typeText('/');
+			await editor.bridge.waitForSourceContains('Type here/');
+			await editor.waitForRenderFlush();
+			await expect(menu(editor)).toHaveCount(0);
+		});
+	});
+
 	test('menuChange reports the list appearing and going', async () => {
 		await editor.page.evaluate(() => (window as any).__test.startMenuChangeCapture());
 		await editor.typeText(' #');

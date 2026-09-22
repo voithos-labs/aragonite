@@ -23,6 +23,7 @@
 	import { tagsPlugin } from './tags/tag-plugin';
 	import { tagMarksPlugin, TAG_MENU } from '../../demo-tags/tag-marks-plugin';
 	import { docLinkMenuPlugin, DOC_LINK_MENU } from './inline-menu/doc-link-menu-plugin';
+	import { slashMenuSource } from './inline-menu/slash-menu-source';
 	import '../../demo-tags/tag-marks.css';
 	import type { EditorPlugin } from '$lib/plugin';
 
@@ -251,6 +252,17 @@
 				presentationMode = mode;
 			}
 		});
+	});
+
+	// The slash source inserts a block through the instance's `insertMarkdown`, which a plugin's
+	// context does not carry, so the page registers it once the editor is bound.
+	$effect(() => {
+		if (data.seed !== 'inline-menu' || !editor) return;
+		const bound = editor;
+		const handle = bound
+			.getInlineMenus()
+			.addSource(slashMenuSource((md) => bound.insertMarkdown(md)));
+		return () => handle.dispose();
 	});
 
 	// The document-rewrite pattern the guides recommend: rewrite the Markdown and write it back
