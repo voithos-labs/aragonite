@@ -23,3 +23,12 @@ any violation outside the committed baseline allowlist fails the gate.
 
 - The failed-block fallback (Wave 0.7.10.1) has no new violations.
 - A blocked-scheme inert link (Wave 0.7.10.2) has no new violations.
+
+## Block names
+
+- Every editable block carries its kind as its accessible name: a heading reads `Heading level N`, a paragraph `Paragraph` (inside a list item too), a code fence `Code block` plus its language, and a thematic break's focusable input `Divider`. The axe scans above fail on any textbox without a name.
+- The thematic break exposes one separator, the `<hr>`; its focusable wrapper carries no role, since a focusable separator is a slider to ARIA.
+
+## Miss-analysis
+
+- Both gaps sat in the axe allowlist, so every scan above passed over them, and no case read a block's name directly.

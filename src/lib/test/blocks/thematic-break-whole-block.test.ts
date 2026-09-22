@@ -35,9 +35,11 @@ describe('thematic break: the whole-block focus surface', () => {
 		const rule = mounted.el.querySelector('.thematic-break-rule') as HTMLElement;
 		const host = mounted.el.querySelector(`[${WHOLE_BLOCK_INPUT_ATTR}]`) as HTMLElement;
 
-		expect(rule.getAttribute('role')).toBe('separator');
+		// The focusable wrapper takes no role, since a focusable separator is a slider to ARIA.
+		expect(rule.hasAttribute('role')).toBe(false);
 		expect(rule.tabIndex).toBe(-1);
 		expect(host.tabIndex).toBe(0);
+		expect(host.getAttribute('aria-label')).toBe('Divider');
 		expect(rule.querySelector('hr')).not.toBeNull();
 		expect(mounted.instance.editable).toBe(false);
 		expect(mounted.instance.focusable).toBe(true);

@@ -1427,8 +1427,9 @@ Target: WCAG 2.1 AA, enforced by an `@axe-core/playwright` baseline gate (`test:
 cross-block selection, the failed-block fallback, a blocked-scheme link) and fails on any violation
 whose rule id isn't in the committed allowlist (`src/lib/e2e/a11y/axe-baseline.json`).
 
-That allowlist is the executable, milestone-tied log of deferred AA work (per-block accessible names
-and the focusable thematic-break separator land at 1.1) and it **only shrinks**. Contrast is the one
+That allowlist is the executable, milestone-tied log of deferred AA work, and it **only shrinks**.
+Every editable block carries its kind as its accessible name, so an unnamed textbox fails the
+gate. Contrast is the one
 entry it cannot settle: the editor paints no background of its own, so axe reports the ratios of
 whatever page it scanned, which is why the palette the library ships is certified by G4.62 instead.
 The cross-block selection is overlay-painted with native selection

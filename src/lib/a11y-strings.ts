@@ -3,7 +3,16 @@
  * translation pass has one place to work. Internal: no barrel exports it.
  */
 
-import type { TableAlignment } from './core/nodes';
+import type { NodeView } from './core/node-views';
+import {
+	headingLevel,
+	isBuiltinBlockKind,
+	metadataOf,
+	type AnyBlockKind,
+	type BlockKind,
+	type TableAlignment
+} from './core/nodes';
+import { tryGetBlockKindDescriptor } from './schema/block-kind-descriptor';
 
 // ── Editor controls ──────────────────────────────────────────────────────────
 
@@ -11,7 +20,6 @@ export const EDITOR_LABEL = 'Markdown editor';
 export const DRAG_HANDLE_TITLE = 'Drag to reorder — or Alt+↑ / Alt+↓';
 export const FAILED_BLOCK_LABEL = 'Block failed to render';
 export const GAP_CARET_LABEL = 'Insertion point between blocks';
-export const WHOLE_BLOCK_INPUT_LABEL = 'Focused block input';
 export const IMAGE_PROPERTIES_LABEL = 'Image properties';
 export const IMAGE_ALT_FIELD = 'Alt text';
 export const IMAGE_ALT_PLACEHOLDER = 'Describe the image';
@@ -37,6 +45,57 @@ export const SELECTION_TOOLBAR_LABEL = 'Selection formatting';
 /** A control's name, not an announcement: the language chip's accessible name. */
 export function codeLanguageLabel(language: string): string {
 	return `Code language: ${language}`;
+}
+
+// ── Block names ──────────────────────────────────────────────────────────────
+
+/** What each built-in kind is called, to a screen reader and in the block menu's rows. */
+const BUILT_IN_BLOCK_LABELS: Record<BlockKind, string> = {
+	paragraph: 'Paragraph',
+	heading: 'Heading',
+	setextHeading: 'Heading',
+	fencedCode: 'Code block',
+	indentedCode: 'Code block',
+	htmlBlock: 'HTML block',
+	thematicBreak: 'Divider',
+	linkReferenceDefinition: 'Link definition',
+	table: 'Table',
+	tableRow: 'Table row',
+	tableCell: 'Table cell',
+	unrecognized: 'Raw block',
+	blockquote: 'Quote',
+	list: 'List',
+	listItem: 'List item'
+};
+
+/** A kind's name: the built-in table, else the plugin descriptor's `label`, else the kind
+ *  itself in words (`mathBlock` reads "Math block"). */
+export function blockKindLabel(kind: AnyBlockKind): string {
+	if (isBuiltinBlockKind(kind)) return BUILT_IN_BLOCK_LABELS[kind];
+	return tryGetBlockKindDescriptor(kind)?.label ?? humanizeKind(kind);
+}
+
+/** A block's accessible name: its kind's name, plus a heading's level or a code fence's
+ *  language, which is what a reader moving block to block needs to tell them apart. */
+export function blockAccessibleName(node: NodeView): string {
+	const label = blockKindLabel(node.kind);
+	const level = headingLevel(node);
+	if (level !== null) return `${label} level ${level}`;
+	if (node.kind === 'fencedCode') {
+		const language = metadataOf(node, 'fencedCode').info.trim().split(/\s+/)[0];
+		if (language) return `${label}, ${language}`;
+	}
+	return label;
+}
+
+function humanizeKind(kind: string): string {
+	const words = kind
+		.replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+		.split(/[\s_:-]+/)
+		.filter(Boolean)
+		.join(' ')
+		.toLowerCase();
+	return words.charAt(0).toUpperCase() + words.slice(1);
 }
 
 // ── Search bar ───────────────────────────────────────────────────────────────

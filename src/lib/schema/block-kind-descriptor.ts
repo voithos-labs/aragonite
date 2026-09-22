@@ -92,6 +92,11 @@ export interface BlockKindDescriptor {
 	 */
 	closure: ClosureBlock;
 	/**
+	 * The block's name, to a screen reader and in the block menu ("Diagram"). Omitted, the kind
+	 * name in words stands in. Built-in kinds are named in `a11y-strings.ts`, not here.
+	 */
+	label?: string;
+	/**
 	 * Markdown that parses to a tree containing this kind, for the conformance suite; omit for
 	 * kinds a document parse never yields on their own. G1.24 checks a declared fixture, not
 	 * whether one exists.
@@ -249,6 +254,7 @@ export const DESCRIPTOR_FIELDS = [
 	'mergeRole',
 	'editable',
 	'closure',
+	'label',
 	'conformanceFixture',
 	'blockFocus',
 	'gapEdges',

@@ -46,6 +46,7 @@ export function registerDirectiveKinds(): void {
 	if (isBlockKindRegistered(DIRECTIVE_CONTAINER)) return; // idempotent for HMR / re-import
 
 	registerBlockKind(declarePluginKind(DIRECTIVE_CONTAINER), {
+		label: 'Directive',
 		mergeRole: 'container',
 		editable: true,
 		supportsInline: false,
@@ -74,6 +75,7 @@ export function registerDirectiveKinds(): void {
 	});
 
 	registerBlockKind(declarePluginKind(DIRECTIVE_LEAF), {
+		label: 'Directive',
 		gapEdges: 'none',
 		mergeRole: 'not-mergeable',
 		editable: true,

@@ -26,6 +26,7 @@ test.describe('a plugin whole-block kind is one editing tab stop', () => {
 		await page.keyboard.press('Shift+Tab');
 
 		await expect(editor.inputHost).toBeFocused();
+		await expect(editor.inputHost).toHaveAccessibleName('Diagram');
 		await expect(editor.viewport).toHaveAttribute('tabindex', '-1');
 	});
 

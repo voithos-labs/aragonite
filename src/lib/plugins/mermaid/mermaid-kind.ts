@@ -117,6 +117,7 @@ export function registerMermaidKind(): void {
 	});
 
 	registerBlockKind(mermaid, {
+		label: 'Diagram',
 		// Backspace from the block below must never merge text into a diagram.
 		mergeRole: 'not-mergeable',
 		editable: true,

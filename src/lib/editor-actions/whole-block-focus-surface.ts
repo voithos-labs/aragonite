@@ -7,7 +7,6 @@
  */
 
 import { onMount } from 'svelte';
-import { WHOLE_BLOCK_INPUT_LABEL } from '../a11y-strings';
 import { devWarn } from '../dev-warn';
 
 // ── Editable-target guards ───────────────────────────────────────────────────
@@ -102,6 +101,8 @@ export interface WholeBlockInputProxyDeps {
 	 *  keeps focus for itself. */
 	getFocusEl: () => HTMLElement | null | undefined;
 	isReading: () => boolean;
+	/** The block's accessible name: the host is the block's tab stop, so it names the block. */
+	getLabel: () => string;
 	/** Commit the bytes the host produced: the same paragraph the keydown path creates. */
 	mint: (text: string) => void;
 }
@@ -174,7 +175,7 @@ export function createWholeBlockInputProxy(deps: WholeBlockInputProxyDeps): Whol
 		proxy.className = 'whole-block-input';
 		proxy.setAttribute('contenteditable', deps.isReading() ? 'false' : 'true');
 		proxy.setAttribute('role', 'textbox');
-		proxy.setAttribute('aria-label', WHOLE_BLOCK_INPUT_LABEL);
+		proxy.setAttribute('aria-label', deps.getLabel());
 		proxy.spellcheck = false;
 		// The block's tab stop, because focus belongs here: a declared element left in the tab
 		// order is a second stop Shift+Tab lands on, where no input can arrive.

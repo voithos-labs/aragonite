@@ -471,7 +471,7 @@
 	border-left-color: var(--syntax-quote, var(--color-ui-muted, #a4a4a4));
 }
 
-:where(.editor) .thematic-break-rule[role='separator'] > hr {
+:where(.editor) .thematic-break-block > .thematic-break-rule > hr {
 	border-top-color: var(--syntax-separator, var(--color-border, #3e3e3b));
 }
 

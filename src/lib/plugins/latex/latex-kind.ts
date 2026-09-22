@@ -237,6 +237,7 @@ export function registerMathBlock(): void {
 	// A block that holds its own source, like `fencedCode`: `serialize` re-emits
 	// `leadingTrivia + raw`, so a raw built from the exact fence bytes round-trips byte for byte.
 	registerBlockKind(mathBlock, {
+		label: 'Math block',
 		mergeRole: 'not-mergeable',
 		editable: true,
 		supportsInline: false,
@@ -318,6 +319,7 @@ export function registerMathFence(): void {
 	const mathFence = declarePluginKind(MATH_FENCE);
 
 	registerBlockKind(mathFence, {
+		label: 'Math block',
 		mergeRole: 'not-mergeable',
 		editable: true,
 		supportsInline: false,

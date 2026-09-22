@@ -61,7 +61,7 @@
 		handleSharedBeforeInput
 	} from '../../../selection/shared-keydown';
 	import {
-		comboboxAttributes,
+		editableSurfaceAttributes,
 		createEditableSurface,
 		consumePendingRestore,
 		withKeydownVerdict
@@ -1083,7 +1083,7 @@
 	class="text-editable-block {blockClass}"
 	contenteditable={readOnly ? 'false' : 'true'}
 	aria-readonly={readOnly ? 'true' : undefined}
-	{...comboboxAttributes(combobox)}
+	{...editableSurfaceAttributes(node, combobox)}
 	style:text-indent={ambientPrefixText ? `calc(-1 * ${ambientIndent})` : null}
 	style:padding-left={ambientPrefixText ? ambientIndent : null}
 	oninput={onInput}
