@@ -84,13 +84,13 @@ test.describe('/test/host-theme', () => {
 		// A default declared on the editor itself would beat the value inherited from the app
 		// and hold the editor at the theme's own green whatever the picker says, which is why
 		// this compares against the wrapper rather than against a fixed colour.
-		await page.getByLabel('Accent').selectOption('copper');
+		await page.getByLabel('Accent', { exact: true }).selectOption('copper');
 
 		const after = await accentToken(page);
 		expect(after).not.toBe(before);
 		expect(after).toBe(await accentToken(page, '.host-page'));
 
-		await page.getByLabel('Accent').selectOption('default');
+		await page.getByLabel('Accent', { exact: true }).selectOption('default');
 		expect(await accentToken(page)).toBe(before);
 	});
 
@@ -103,7 +103,7 @@ test.describe('/test/host-theme', () => {
 		expect(before.link).not.toBe(body);
 		expect(before.footnote).toBe(before.link);
 
-		await page.getByLabel('Accent').selectOption('copper');
+		await page.getByLabel('Accent', { exact: true }).selectOption('copper');
 
 		const after = {
 			link: await colorOf(page, 'a.md-link-content'),
@@ -121,7 +121,7 @@ test.describe('/test/host-theme', () => {
 
 		// Proves something without naming a colour: an overlay held at the editor's own blue
 		// would show that same blue under an app whose selection colour is copper.
-		await page.getByLabel('Theme').selectOption('warm-dark');
+		await page.getByLabel('Theme', { exact: true }).selectOption('warm-dark');
 		await selectWholeDocument(page);
 		const warm = await overlayBackground(page);
 		expect(warm).not.toBe(slate);
@@ -129,12 +129,12 @@ test.describe('/test/host-theme', () => {
 	});
 
 	test('accent and theme are independent axes', async ({ page }) => {
-		await page.getByLabel('Accent').selectOption('teal');
+		await page.getByLabel('Accent', { exact: true }).selectOption('teal');
 		const dark = await accentToken(page);
 
 		// Each preset holds a colour per mode, so the same choice gives a different value once
 		// the app switches palettes: the choice survives, the colour follows the mode.
-		await page.getByLabel('Theme').selectOption('paper-light');
+		await page.getByLabel('Theme', { exact: true }).selectOption('paper-light');
 		await expect(editorRoot(page)).toHaveAttribute('data-editor-theme', 'light');
 		expect(await accentToken(page)).not.toBe(dark);
 	});
