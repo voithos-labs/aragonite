@@ -8,6 +8,7 @@ import type { NodeView } from '../../../core/node-views';
 import { metadataOf } from '../../../core/nodes';
 import { displayLength, trimTrailingLineEnding } from '../../../core/lines';
 import { sliceFencedCode, type FencedCodeSlice } from './code-renderer';
+import type { RawRange } from '../editable-surface';
 
 // ── Public API ──────────────────────────────────────────────────────────────
 
@@ -16,12 +17,6 @@ export interface FenceBoundaryInput {
 	offset: number;
 	/** True when the user pressed Delete (forward) rather than Backspace. */
 	forward: boolean;
-}
-
-/** Display-text offset range, as the code gestures pass it around. */
-export interface CodeRange {
-	start: number;
-	end: number;
 }
 
 export type FenceBoundaryResult =
@@ -67,7 +62,7 @@ export function clampEnterOffsetToBody(node: NodeView, offset: number): number {
  * (Tab indent, Shift+Tab dedent), where a tab on the closer pushes it past GFM's three-space
  * limit and one on the opener demotes the block. Other range gestures use `fenceEditSpan`.
  */
-export function clampRangeToBody(node: NodeView, range: CodeRange): CodeRange {
+export function clampRangeToBody(node: NodeView, range: RawRange): RawRange {
 	const { start: lo, end: hi } = bodyWindow(node);
 	const clamp = (offset: number) => Math.min(Math.max(offset, lo), hi);
 	return { start: clamp(range.start), end: clamp(range.end) };
@@ -79,7 +74,7 @@ export function clampRangeToBody(node: NodeView, range: CodeRange): CodeRange {
  * into the code node. An unclosed fence is the exception: with no closer to strand, its run is
  * content too, so demoting the block is how a just-typed ` ``` ` is undone.
  */
-export function crossesFenceBoundary(node: NodeView, range: CodeRange): boolean {
+export function crossesFenceBoundary(node: NodeView, range: RawRange): boolean {
 	const { openerContent, body } = fenceRegions(node);
 	const lo = Math.min(range.start, range.end);
 	const hi = Math.max(range.start, range.end);
@@ -91,7 +86,7 @@ export function crossesFenceBoundary(node: NodeView, range: CodeRange): boolean 
  * The span a ranged edit actually rewrites: the range itself while it stays inside
  * one content region, its intersection with the body once it reaches structure.
  */
-export function fenceEditSpan(node: NodeView, range: CodeRange): CodeRange {
+export function fenceEditSpan(node: NodeView, range: RawRange): RawRange {
 	const span = orderedRange(range);
 	return crossesFenceBoundary(node, span) ? clampRangeToBody(node, span) : span;
 }
@@ -112,7 +107,7 @@ export function clampCaretToBody(node: NodeView, offset: number): number {
  * no body after the clamp is declined, not re-sited to a body edge the user never pointed at.
  * Paste consults it directly, since it splices through the paste tree-op.
  */
-export function isStructureOnlyRange(node: NodeView, range: CodeRange): boolean {
+export function isStructureOnlyRange(node: NodeView, range: RawRange): boolean {
 	const ordered = orderedRange(range);
 	if (!crossesFenceBoundary(node, ordered)) return false;
 	const span = clampRangeToBody(node, ordered);
@@ -125,7 +120,7 @@ export function isStructureOnlyRange(node: NodeView, range: CodeRange): boolean 
  */
 export function computeFenceRangedEdit(
 	node: NodeView,
-	range: CodeRange,
+	range: RawRange,
 	insert: string
 ): FenceRangedEdit | null {
 	if (isStructureOnlyRange(node, range)) return null;
@@ -141,6 +136,11 @@ export interface FenceRangedEdit {
 	newCursor: number;
 }
 
+/** The body's own span, the only lines a vertical arrival may land a caret on. */
+export function bodyWindow(node: NodeView): RawRange {
+	return bodyWindowOf(sliceFencedCode(node), displayLength(node.raw));
+}
+
 // ── Internal ────────────────────────────────────────────────────────────────
 
 interface FenceRegions {
@@ -150,8 +150,8 @@ interface FenceRegions {
 	 * The editable span of the opener line: the info string of a closed fence, or the
 	 * whole opener text while the fence is still unclosed (see `crossesFenceBoundary`).
 	 */
-	openerContent: CodeRange;
-	body: CodeRange;
+	openerContent: RawRange;
+	body: RawRange;
 	/** Start of the closer's own text, past the body's line ending. */
 	closerTextStart: number;
 }
@@ -192,18 +192,14 @@ function markerRunEnd(openerLine: string, marker: string): number {
 	return index;
 }
 
-function orderedRange(range: CodeRange): CodeRange {
+function orderedRange(range: RawRange): RawRange {
 	return {
 		start: Math.min(range.start, range.end),
 		end: Math.max(range.start, range.end)
 	};
 }
 
-function bodyWindow(node: NodeView): CodeRange {
-	return bodyWindowOf(sliceFencedCode(node), displayLength(node.raw));
-}
-
-function bodyWindowOf(slice: FencedCodeSlice, displayEnd: number): CodeRange {
+function bodyWindowOf(slice: FencedCodeSlice, displayEnd: number): RawRange {
 	const bounds = fenceBodyBounds(slice);
 	// A fence with no body line yet (` ``` ` plus its ending) has a body start past
 	// the display text, so the block's own end is the floor everything collapses to.
@@ -216,7 +212,7 @@ function bodyWindowOf(slice: FencedCodeSlice, displayEnd: number): CodeRange {
  * own trailing ending through `displayLength`, so a CRLF document's boundary does not
  * land between the `\r` and the `\n`.
  */
-function fenceBodyBounds(slice: FencedCodeSlice): CodeRange {
+function fenceBodyBounds(slice: FencedCodeSlice): RawRange {
 	const start = slice.openerLine.length;
 	return { start, end: start + displayLength(slice.body) };
 }

@@ -67,6 +67,19 @@ describe('nearestWidgetEdgeSeat', () => {
 		expect(edgeAt(flushRun(4), 200, null)).toBe(28);
 	});
 
+	// ── Above and below a widget, inside its columns ─────────────────────────
+
+	it('names the edge on the point’s side for a point above or below a widget', () => {
+		// The lone widget spans 100..120 and raw [0,7): an image-only paragraph is one line tall,
+		// so a press in the strip above or below the picture belongs to that line.
+		expect(edgeAt(flushRun(1), 115, 30)).toBe(7);
+		expect(edgeAt(flushRun(1), 105, -10)).toBe(0);
+	});
+
+	it('reads such a point as beside the widget, so a visible caret still wins', () => {
+		expect(nearestWidgetEdgeSeat(flushRun(1), 115, 30)?.inside).toBe(false);
+	});
+
 	// ── Inside a widget that behaves like a character ────────────────────────
 
 	it('puts the caret at the nearer edge by side for a point inside a character-like widget', () => {

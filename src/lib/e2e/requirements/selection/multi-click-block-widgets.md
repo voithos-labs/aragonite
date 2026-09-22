@@ -15,3 +15,22 @@ there would collapse the range the user just made.
     handler, so a triple-click on a paragraph holding a widget was never on screen in a spec
 - triple-click a paragraph whose only widget sits at its start: the range reaches the last
   word and opens before the formula
+- triple-click the rendered formula itself, in source and live mode: the whole paragraph is
+  selected, and it stays selected as the formula re-renders. A third click belongs to the block,
+  not to the widget under it: the widget's own gesture ends at the second click, so the third
+  neither shows a source nor takes the token again, and the range it paints comes back over the
+  block once the source the first click showed is hidden
+  - Miss-analysis: every scenario here pressed on prose beside a widget, and the two gestures
+    that can fight over a click only meet when the press lands on the widget itself
+- typing over that selection replaces the paragraph, formula and all: what the third click
+  painted is a range over the block's content, not a highlight over a block nothing can edit
+- triple-click a widget that never shows a source, an entity: the whole paragraph is selected,
+  and it stays selected. The first two clicks of the run leave it to the block, so the third is
+  the only one that can select anything
+  - Miss-analysis: every widget these scenarios pressed on shows its source on the first click,
+    which swaps the widget for editable text before the third press arrives, so the rule the
+    click order carries for a widget that stays a widget was never on screen
+- triple-click an inline image: the image stays the one selected thing, no range is painted
+  beside it, and a typed character replaces it. The image's own click handling selects it whole
+  on every click of the run, and the click order leaves a run on a widget already selected that
+  way alone

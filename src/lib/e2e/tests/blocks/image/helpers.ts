@@ -41,6 +41,25 @@ export async function clickPastImageRightEdge(page: Page): Promise<void> {
 	await page.mouse.click(point.x, point.y);
 }
 
+/** A point in the strip between the first picture's edge and the edge of the paragraph box
+ *  around it: inside the block, off the picture's own line. `xFraction` picks the column across
+ *  the picture, so a caller can aim either side of its middle. */
+export async function pointOffImageLine(
+	page: Page,
+	side: 'above' | 'below',
+	xFraction: number
+): Promise<{ x: number; y: number }> {
+	const widget = page.locator('[data-image-widget]').first();
+	const para = widget.locator('xpath=ancestor::*[@contenteditable="true"]');
+	const widgetBox = await widget.boundingBox();
+	const paraBox = await para.boundingBox();
+	if (!widgetBox || !paraBox) throw new Error('layout boxes missing');
+	const top = side === 'above' ? paraBox.y : widgetBox.y + widgetBox.height;
+	const bottom = side === 'above' ? widgetBox.y : paraBox.y + paraBox.height;
+	if (bottom - top < 4) throw new Error(`the paragraph box leaves no strip ${side} the picture`);
+	return { x: widgetBox.x + widgetBox.width * xFraction, y: (top + bottom) / 2 };
+}
+
 /** The state Chromium reaches on its own between a click beside an atomic widget and the next
  *  keystroke: the range is gone, and the `selectionchange` it fires has been handled. */
 export async function dropNativeCaret(page: Page): Promise<void> {

@@ -79,6 +79,20 @@ test.describe('sticky column: code block entry symmetry', () => {
 		});
 	}
 
+	for (const from of ['above', 'below'] as const) {
+		test(`entry from ${from} lands in the body, never on a fence line`, async () => {
+			// The opener carries an info string and the closer does not, so a landing on either
+			// fence line is a different column from a landing in the body.
+			await editor.loadContent(fenced('bbbbbbbbbbbbbbbbbbbbbbbbbbbbbb', 'javascript'));
+			await captureEntry(editor, 1, from);
+			await editor.typeText('X');
+			await editor.bridge.waitForSourceContains('X');
+			const src = await editor.bridge.getSource();
+			expect(src).toContain('```javascript\n');
+			expect(src).toMatch(/\nb+Xb+\n/);
+		});
+	}
+
 	test('landing body offset (not just X) matches from both directions', async () => {
 		// A 2px X-match could still hide a one-offset discrepancy; compare byte positions instead.
 		await editor.loadContent(SINGLE_BODY_LINE);

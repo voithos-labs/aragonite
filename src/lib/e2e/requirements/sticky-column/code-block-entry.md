@@ -9,6 +9,10 @@ Entering a code block via ArrowDown from the block above and via ArrowUp from th
 - Info-string opener (` ```javascript `, wider opener line than closer): body-offset landing remains symmetric given matched sticky X
 - highlight.js token spans fragmenting the body line: landing remains symmetric across span boundaries
 
+- Entry from above and from below lands in the body, never on a fence line: the column search is
+  bounded to the body, so the landing keeps the column instead of being pulled to a body edge
+  after the fact
+
 ## Edge cases
 
 - Landing body offset (not just pixel X) matches both directions: a typed character lands at the same byte position in the serialized body whichever direction the caret came from

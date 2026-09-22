@@ -1,6 +1,6 @@
 import { test, expect } from '../../fixtures';
 import { PluginsPage } from '../plugins/helpers';
-import { runCenter } from './multi-click-helpers';
+import { multiClick, nativeSelectionText, runCenter, widgetCenter } from './multi-click-helpers';
 
 // Triple-click, the block level of the click order, on a widget-dense paragraph
 // (`requirements/selection/multi-click-block-widgets.md`), driven on the math seed so the
@@ -8,6 +8,15 @@ import { runCenter } from './multi-click-helpers';
 
 const SHOWCASE_PARAGRAPH =
 	'Let a system of plane waves of light, referred to the system of co-ordinates $(x, y, z)$, possess the energy $l$; let the direction of the ray (the wave-normal) make an angle $\\varphi$ with the axis of $x$ of the system. If we introduce a new system of co-ordinates $(\\xi, \\eta, \\zeta)$ moving in uniform parallel translation with respect to the system $(x, y, z)$, and having its origin of co-ordinates in motion along the axis of $x$ with the velocity $v$, then this quantity of light—measured in the system $(\\xi, \\eta, \\zeta)$—possesses the energy\n';
+
+const SHOWCASE_ENDS: [string, string] = ['Let a system of plane waves', 'possesses the energy'];
+
+/** KaTeX paints its glyphs here; the widget's own box also holds a copy clipped to a pixel. */
+const KATEX_GLYPHS = '.katex-html';
+
+// An entity is a widget with no source to show, so the reveal never runs and the third click
+// is the only thing that can select anything.
+const ENTITY_PARAGRAPH = 'before &copy; after some more words on this line\n';
 
 /** The selected text's two ends, so one read pins both boundaries of the range. */
 function selectionEnds(page: import('@playwright/test').Page): Promise<[string, string]> {
@@ -44,11 +53,37 @@ test.describe('multi-click: the block inline syntax handler beside inline widget
 			await expect(page.locator('[data-inline-widget]')).toHaveCount(9);
 			const at = await runCenter(page, 'possess the energy');
 			await page.mouse.click(at.x, at.y, { clickCount: 3 });
-			const ends: [string, string] = ['Let a system of plane waves', 'possesses the energy'];
-			await expect.poll(() => selectionEnds(page)).toEqual(ends);
+			await expect.poll(() => selectionEnds(page)).toEqual(SHOWCASE_ENDS);
 			// The release has already been handled; a caret placed later would drop the range.
 			await page.waitForTimeout(150);
-			await expect.poll(() => selectionEnds(page)).toEqual(ends);
+			await expect.poll(() => selectionEnds(page)).toEqual(SHOWCASE_ENDS);
+		});
+
+		test(`${mode}: a triple-click on a rendered formula takes the paragraph`, async ({ page }) => {
+			// The first click of the run shows the formula's source and the second takes the whole
+			// token, so the third arrives with the widget's own gesture already under way.
+			await editor.loadContent(SHOWCASE_PARAGRAPH);
+			await editor.setPresentationMode(mode);
+			await expect(page.locator('[data-inline-widget]')).toHaveCount(9);
+			await multiClick(page, await widgetCenter(page, KATEX_GLYPHS), 3);
+			await expect.poll(() => selectionEnds(page)).toEqual(SHOWCASE_ENDS);
+			await page.waitForTimeout(150);
+			await expect.poll(() => selectionEnds(page)).toEqual(SHOWCASE_ENDS);
+		});
+
+		test(`${mode}: typing over that selection replaces the paragraph, formula and all`, async ({
+			page
+		}) => {
+			await editor.loadContent(SHOWCASE_PARAGRAPH);
+			await editor.setPresentationMode(mode);
+			await expect(page.locator('[data-inline-widget]')).toHaveCount(9);
+			await multiClick(page, await widgetCenter(page, KATEX_GLYPHS), 3);
+			// The formula re-renders as its source closes, and the range has to come back with it.
+			await expect(page.locator('[data-inline-widget]')).toHaveCount(9);
+			await expect.poll(() => selectionEnds(page)).toEqual(SHOWCASE_ENDS);
+			await page.keyboard.press('X');
+			await editor.bridge.waitForSourceContains('X');
+			expect(await editor.bridge.getSource()).toBe('X\n');
 		});
 
 		test(`${mode}: a triple-click takes a paragraph that opens on a widget`, async ({ page }) => {
@@ -62,4 +97,33 @@ test.describe('multi-click: the block inline syntax handler beside inline widget
 			await expect.poll(() => reachesBothEnds(page, 'opens this line')).toEqual([true, true]);
 		});
 	}
+
+	test('a triple-click on a widget that never shows a source takes the paragraph', async ({
+		page
+	}) => {
+		await editor.loadContent(ENTITY_PARAGRAPH);
+		await expect(page.locator('[data-inline-widget]')).toHaveCount(1);
+		await multiClick(page, await widgetCenter(page), 3);
+		await expect.poll(() => reachesBothEnds(page, 'on this line')).toEqual([true, true]);
+		await page.waitForTimeout(150);
+		await expect.poll(() => reachesBothEnds(page, 'on this line')).toEqual([true, true]);
+	});
+
+	test('a triple-click on an inline image leaves the image selected, and nothing else', async ({
+		page
+	}) => {
+		// An image selects whole on its first click, so the run is its own from the start: the
+		// image stays the one selected thing, with no range painted beside it.
+		await editor.loadContent('before ![pic|120x80](/test-fixtures/sample.png) after\n');
+		await page.waitForFunction(
+			() => (document.querySelector('[data-image-widget] img') as HTMLImageElement)?.complete
+		);
+		await multiClick(page, await widgetCenter(page), 3);
+		await expect(page.locator('[data-image-overlay]')).toHaveCount(1);
+		await page.waitForTimeout(150);
+		expect(await nativeSelectionText(page)).toBe('');
+		await page.keyboard.press('X');
+		await editor.bridge.waitForSourceContains('X');
+		expect(await editor.bridge.getSource()).toBe('before X after\n');
+	});
 });

@@ -406,13 +406,49 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 	}
 
 	// Clicking away from a source that was not edited: no caret is written, because the
-	// click that left owns the caret and the commit path's trailing edge would steal it.
+	// click that left owns the caret and the commit path's trailing edge would steal it. A
+	// selected range is different: the rebuild leaves its end inside a widget, so it is read in
+	// raw offsets, which no byte here moves, and put back once the block has been rebuilt.
 	function foldRevealNoEdit(reason: RevealFoldReason = 'no-edit'): void {
 		assertFoldTargetsActiveReveal('foldRevealNoEdit');
 		if (!revealState) return;
 		traceRevealFold(reason);
+		const span = liveRangeInBlock();
 		resetReveal();
 		restoreRenderedWidget();
+		if (span) void restoreRangeInBlock(span);
+	}
+
+	/** The live selection in raw offsets, when it is a range with both ends inside this block. */
+	function liveRangeInBlock(): { start: number; end: number } | null {
+		const el = deps.getEl();
+		const sel = window.getSelection();
+		if (!el || !sel || sel.rangeCount === 0 || sel.isCollapsed) return null;
+		const range = sel.getRangeAt(0);
+		if (!el.contains(range.startContainer) || !el.contains(range.endContainer)) return null;
+		const ambient = deps.getAmbientLength();
+		const rawAt = (node: Node, offset: number) =>
+			toClampedRawOffset(domTextOffsetAtNode(el, node, offset), ambient);
+		return {
+			start: rawAt(range.startContainer, range.startOffset),
+			end: rawAt(range.endContainer, range.endOffset)
+		};
+	}
+
+	async function restoreRangeInBlock(span: { start: number; end: number }): Promise<void> {
+		await tick();
+		const el = deps.getEl();
+		const sel = window.getSelection();
+		if (!el || !sel) return;
+		const ambient = deps.getAmbientLength();
+		const range = createRangeAtDomTextOffsets(
+			el,
+			toDomTextOffset(asRawOffset(span.start), ambient),
+			toDomTextOffset(asRawOffset(span.end), ambient)
+		);
+		if (!range) return;
+		sel.removeAllRanges();
+		sel.addRange(range);
 	}
 
 	// Whether the caret is still inside is decided by raw offset through the shared traversal,
@@ -827,15 +863,17 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		press: WidgetPress = {}
 	): void {
 		deps.setSnapTarget(null);
-		const doubleClick = (press.clickCount ?? 1) >= 2;
+		const clickCount = press.clickCount ?? 1;
 		// Every double-click starts with a single click, so that first click is where the flag
 		// is set and any flag left over from an earlier gesture is cleared.
-		if (!doubleClick) revealOpenedByLastClick = false;
+		if (clickCount === 1) revealOpenedByLastClick = false;
 		const el = deps.getEl();
 		if (!el || clickX === null) return;
 		// The point-in-rectangle test runs before the text-node check below, so a click on real
-		// text on another visual line falls through to the caret path.
-		if (clickY !== null) {
+		// text on another visual line falls through to the caret path. A third click selects the
+		// block (`selection/multi-click.ts`), and showing a source under it would place a caret
+		// over the range it just painted.
+		if (clickY !== null && clickCount < 3) {
 			const hit = press.moved ? null : hitTestRevealWidget(el, clickX, clickY);
 			if (hit) {
 				// Returns rather than falls through: the edge-snap below would focus this block and
@@ -851,8 +889,9 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 			}
 		}
 		// The first click of a double-click already showed the source, so the second lands in
-		// that text and the browser's word rule takes `[` or `$` as a word of its own.
-		if (doubleClick && revealOpenedByLastClick && selectRevealedSource(clickX, clickY)) return;
+		// that text and the browser's word rule takes `[` or `$` as a word of its own. Taking the
+		// whole token is that second click's; a third click belongs to the block.
+		if (clickCount === 2 && revealOpenedByLastClick && selectRevealedSource(clickX, clickY)) return;
 		// The snap below places a caret, so it does nothing while this block shows a selected
 		// range, which it would collapse; `clampOutOfAmbient` already carries that rule.
 		const live = window.getSelection();

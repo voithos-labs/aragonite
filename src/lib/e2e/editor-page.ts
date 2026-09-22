@@ -1,4 +1,4 @@
-import { type Page, type Locator } from '@playwright/test';
+import { expect, type Page, type Locator } from '@playwright/test';
 import { EditorBridge } from './editor-bridge';
 import { createClipboardArm, type ClipboardArm } from './clipboard-arm';
 import { generateFixture, type FixtureShape } from '../test/perf/fixtures/generate';
@@ -55,6 +55,17 @@ export class EditorPage {
 			{ timeout: 5000, polling: 16 }
 		);
 		await this.editorContainer.waitFor({ state: 'visible' });
+	}
+
+	/** Waits on the attribute, not the call: a mode that never applied falls back to source, where
+	 *  most assertions pass anyway and the run goes green without ever entering that mode. */
+	async setPresentationMode(mode: string): Promise<void> {
+		await this.page.evaluate((m) => (window as any).__test.setPresentationMode(m), mode);
+		if (mode === 'source') {
+			await expect(this.editorContainer).not.toHaveAttribute('data-presentation');
+			return;
+		}
+		await expect(this.editorContainer).toHaveAttribute('data-presentation', mode);
 	}
 
 	/**

@@ -2,7 +2,8 @@
  * Which atomic inline widget's raw edge a point lands on: the nearest edge among the widgets the
  * caller measures, so a run of adjacent widgets answers the one the point is actually beside. A
  * point inside a widget reads its kind: one that behaves like a character names the edge on the
- * point's side, while one that selects whole declines and keeps its own click handling.
+ * point's side, while one that selects whole declines and keeps its own click handling. A point
+ * above or below a widget, sharing its columns, names the edge on its side too.
  */
 
 export interface WidgetEdgeCandidate {
@@ -23,10 +24,10 @@ export interface WidgetEdgeSeat {
 }
 
 /**
- * The raw offset a point snaps to, in document order for ties. Null where the point snaps to none:
- * inside a widget that selects whole, whose own click handling owns it, or with no widget to
- * either side. A null `y` is a point with no line to compare against, so vertical distance drops
- * out and horizontal containment alone reads as inside.
+ * The raw offset a point snaps to, in document order for ties. Null where the point snaps to
+ * none: inside a widget that selects whole, whose own click handling owns it, or where the
+ * caller measured no widget at all. A null `y` is a point with no line to compare against, so
+ * vertical distance drops out and horizontal containment alone reads as inside.
  */
 export function nearestWidgetEdgeSeat(
 	candidates: Iterable<WidgetEdgeCandidate>,
@@ -45,6 +46,12 @@ export function nearestWidgetEdgeSeat(
 		const rowGap = y === null ? 0 : Math.max(rect.top - y, y - rect.bottom, 0);
 		if (x <= rect.left) best = nearer(best, { offset: start, rowGap, gap: rect.left - x });
 		if (x >= rect.right) best = nearer(best, { offset: end, rowGap, gap: x - rect.right });
+		// A point above or below the widget, inside its columns: no horizontal distance to cover,
+		// so the side it falls on names the edge, as it does for a point on the widget itself.
+		if (rect.left < x && x < rect.right) {
+			const offset = x < (rect.left + rect.right) / 2 ? start : end;
+			best = nearer(best, { offset, rowGap, gap: 0 });
+		}
 	}
 	return best === null ? null : { offset: best.offset, inside: false };
 }

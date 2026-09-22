@@ -146,3 +146,37 @@ export async function markerCenterOf(
 	if (!at) throw new Error(`no marker beside ${JSON.stringify(needle)}`);
 	return at;
 }
+
+/** The centre of the nth rendered inline widget, or of the `aim` element inside it for a kind
+ *  whose own box holds something no click lands in (a formula's clipped half). */
+export async function widgetCenter(
+	page: Page,
+	aim?: string,
+	index = 0
+): Promise<{ x: number; y: number }> {
+	const at = await page.evaluate(
+		(opts) => {
+			const widget = document.querySelectorAll('[data-inline-widget]')[opts.index];
+			const target = (opts.aim ? widget?.querySelector(opts.aim) : null) ?? widget;
+			const b = target?.getBoundingClientRect();
+			return b && b.width > 0 ? { x: b.left + b.width / 2, y: b.top + b.height / 2 } : null;
+		},
+		{ aim, index }
+	);
+	if (!at) throw new Error(`no rendered inline widget at index ${index}`);
+	return at;
+}
+
+/** Press `clicks` times at one point, each press its own down and up: the run a real
+ *  double- or triple-click makes, which `clickCount` alone does not. */
+export async function multiClick(
+	page: Page,
+	at: { x: number; y: number },
+	clicks: number
+): Promise<void> {
+	await page.mouse.move(at.x, at.y);
+	for (let i = 1; i <= clicks; i++) {
+		await page.mouse.down({ clickCount: i });
+		await page.mouse.up({ clickCount: i });
+	}
+}

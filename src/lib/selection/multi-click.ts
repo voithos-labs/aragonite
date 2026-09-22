@@ -103,6 +103,8 @@ export interface MultiClickDeps {
 	/** A click outside every editable element (the margin, a container's own box) names the
 	 *  nearest block, as a single click there does; null when the click is on a button or handle. */
 	marginBlockAt(target: EventTarget | null, clientX: number, clientY: number): number[] | null;
+	/** Whether the press landed on an inline widget the editor already holds selected whole. */
+	pressesSelectedWidget(target: EventTarget | null): boolean;
 }
 
 /**
@@ -125,7 +127,10 @@ export function installMultiClickSelect(deps: MultiClickDeps): () => void {
 		claimed = false;
 		const granularity = granularityForClickCount(e.detail);
 		if (!granularity || e.button !== 0 || e.shiftKey || e.ctrlKey || e.metaKey || e.altKey) return;
-		if (pressesInlineWidget(e.target)) return;
+		if (granularity === 'word' && pressesInlineWidget(e.target)) return;
+		// A widget already selected whole took the run with its first click, so no later click of
+		// that run is the block's: claiming one would paint a range over an object selection.
+		if (deps.pressesSelectedWidget(e.target)) return;
 		const press = pressedSurface(deps, e);
 		if (!press) return;
 		const anchorSpan = selectAtPoint(press.surface, granularity, e.clientX, e.clientY);
@@ -246,8 +251,9 @@ function createGranularity(
 	};
 }
 
-/** A click on an inline widget is that widget's own gesture (a footnote's double-click takes
- *  its whole token), so it is left alone here. */
+/** The second click on an inline widget is that widget's own gesture (a footnote's double-click
+ *  takes its whole token), so the word level stands down there. The third click is the block's,
+ *  unless the editor already holds that widget selected whole. */
 function pressesInlineWidget(target: EventTarget | null): boolean {
 	return target instanceof Element && target.closest('[data-inline-widget]') !== null;
 }

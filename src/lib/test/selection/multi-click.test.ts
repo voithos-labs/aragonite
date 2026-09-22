@@ -1,6 +1,11 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from 'vitest';
-import { granularityForClickCount, wordSpanAt } from '$lib/selection/multi-click';
+import {
+	granularityForClickCount,
+	installMultiClickSelect,
+	wordSpanAt
+} from '$lib/selection/multi-click';
+import { createSelectionState } from '$lib/selection/selection-state.svelte';
 import { maskedWalkText } from '$lib/cursor/widget-offset';
 
 const span = (text: string, offset: number) => {
@@ -72,5 +77,50 @@ describe('granularityForClickCount', () => {
 		expect(granularityForClickCount(2)).toBe('word');
 		expect(granularityForClickCount(3)).toBe('block');
 		expect(granularityForClickCount(5)).toBe('block');
+	});
+});
+
+// Miss-analysis: the click order's refusals were read off the browser only, where a widget that
+// selects whole ends up selected either way, so nothing named the press it must not take.
+describe('installMultiClickSelect: the press the block level declines', () => {
+	function thirdPressOnWidget(widgetSelected: boolean) {
+		const root = document.createElement('div');
+		const surface = document.createElement('div');
+		// The property, not the attribute: jsdom does not reflect one onto the other, and the
+		// surface walk reads the property.
+		surface.contentEditable = 'true';
+		surface.setAttribute('data-block-path', '[0]');
+		const widget = document.createElement('span');
+		widget.setAttribute('data-inline-widget', '');
+		widget.setAttribute('data-source-start', '0');
+		widget.setAttribute('data-source-end', '5');
+		surface.append(widget);
+		root.append(surface);
+		document.body.append(root);
+		// jsdom has no hit testing, and the claimed press goes on to look for its drag anchor.
+		const origFromPoint = document.elementFromPoint;
+		document.elementFromPoint = (() => widget) as typeof document.elementFromPoint;
+		const dispose = installMultiClickSelect({
+			editorRoot: root,
+			selection: createSelectionState(),
+			getBlockElByPath: () => null,
+			getScrollContainer: () => root,
+			marginBlockAt: () => null,
+			pressesSelectedWidget: () => widgetSelected
+		});
+		const press = new MouseEvent('mousedown', { bubbles: true, cancelable: true, detail: 3 });
+		widget.dispatchEvent(press);
+		dispose();
+		root.remove();
+		document.elementFromPoint = origFromPoint;
+		return press.defaultPrevented;
+	}
+
+	it('claims a third click on a widget nothing holds selected', () => {
+		expect(thirdPressOnWidget(false)).toBe(true);
+	});
+
+	it('leaves a third click to a widget the editor already holds selected whole', () => {
+		expect(thirdPressOnWidget(true)).toBe(false);
 	});
 });

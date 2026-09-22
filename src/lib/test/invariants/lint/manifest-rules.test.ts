@@ -297,8 +297,6 @@ const MANIFESTS: ManifestRule[] = [
 				'the caret placement and column entries; the clamp to a position the caret can sit at lives here',
 			'src/lib/components/blocks/plain-text-backend.ts':
 				'the plugin-leaf backend over content offsets',
-			'src/lib/components/blocks/code/CodeBlock.svelte':
-				'its backend forward, plus the fence-line clamp correction after a column landing',
 			'src/lib/components/blocks/table/TableCellBlock.svelte':
 				'its backend forward; widget steps and the pending-cursor restore',
 			'src/lib/components/blocks/text/TextEditableBlock.svelte':
@@ -337,7 +335,7 @@ const MANIFESTS: ManifestRule[] = [
 			'src/lib/components/blocks/text/edge-policy-dispatch.ts':
 				'selects a replace widget whole: a range, not a caret position',
 			'src/lib/components/blocks/text/widget-interaction.ts':
-				"a double-click selects the revealed token whole, over the reveal's own text node",
+				"a double-click selects the revealed token whole, over the reveal's own text node, and a range carries across the rebuild when a shown source is hidden",
 			'src/lib/cursor/content-offsets.ts': 'setCursorOffset, the content-offset write helper',
 			'src/lib/cursor/focused-caret.ts':
 				'restoreCaretAtWalkOffset, the carry across a render rebuild',

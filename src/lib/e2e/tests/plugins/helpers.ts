@@ -16,17 +16,6 @@ export class PluginsPage extends EditorPage {
 		// []` assertion against a capture nobody started would pass for the wrong reason.
 		await this.page.evaluate(() => (window as any).__test.startErrorCapture());
 	}
-
-	/** Waits on the attribute, not the call: a mode that never applied falls back to source, where
-	 *  most assertions pass anyway and the run goes green without ever entering that mode. */
-	async setPresentationMode(mode: string): Promise<void> {
-		await this.page.evaluate((m) => (window as any).__test.setPresentationMode(m), mode);
-		if (mode === 'source') {
-			await expect(this.editorContainer).not.toHaveAttribute('data-presentation');
-			return;
-		}
-		await expect(this.editorContainer).toHaveAttribute('data-presentation', mode);
-	}
 }
 
 export interface Point {

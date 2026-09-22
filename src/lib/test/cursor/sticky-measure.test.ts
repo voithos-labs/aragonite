@@ -9,7 +9,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { asDomTextOffset, asEditorX } from '../../cursor/coordinate-spaces';
 import {
 	getCurrentCursorEditorRelativeX,
-	getOffsetRect,
+	caretBoxAt,
 	findOffsetNearestX
 } from '../../cursor/sticky-measure';
 
@@ -18,10 +18,10 @@ const LINE_HEIGHT = 18;
 const EDITOR_LEFT = 30;
 
 // Maps a character offset in one text node to a fake rect. `wrapAt` pushes every offset at or
-// past it onto a second visual line two line-heights down, so the two bands never overlap.
-function rectForOffset(offset: number, wrapAt: number): DOMRect {
+// past it onto a second visual line `lineGap` pixels down.
+function rectForOffset(offset: number, wrapAt: number, lineGap: number): DOMRect {
 	const onSecondLine = offset >= wrapAt;
-	const top = onSecondLine ? LINE_HEIGHT * 4 : 0;
+	const top = onSecondLine ? lineGap : 0;
 	const col = onSecondLine ? offset - wrapAt : offset;
 	const left = col * CHAR_WIDTH;
 	return {
@@ -42,12 +42,15 @@ describe('sticky-measure geometry', () => {
 	let block: HTMLElement;
 	let text: Text;
 	let wrapAt = Infinity;
+	// Far enough apart that the two lines' bands never touch; a test that needs real page spacing
+	// narrows it.
+	let lineGap = LINE_HEIGHT * 4;
 	const originalRangeRects = Range.prototype.getClientRects;
 	const originalRangeBox = Range.prototype.getBoundingClientRect;
 	const originalElementBox = Element.prototype.getBoundingClientRect;
 
 	function rectListFor(offset: number): DOMRectList {
-		const rect = rectForOffset(offset, wrapAt);
+		const rect = rectForOffset(offset, wrapAt, lineGap);
 		return {
 			length: 1,
 			item: (i: number) => (i === 0 ? rect : null),
@@ -72,7 +75,7 @@ describe('sticky-measure geometry', () => {
 			return rectListFor(this.startContainer === text ? this.startOffset : 0);
 		};
 		Range.prototype.getBoundingClientRect = function (this: Range): DOMRect {
-			return rectForOffset(this.startContainer === text ? this.startOffset : 0, wrapAt);
+			return rectForOffset(this.startContainer === text ? this.startOffset : 0, wrapAt, lineGap);
 		};
 		Element.prototype.getBoundingClientRect = function (this: Element): DOMRect {
 			const left = this === editor ? EDITOR_LEFT : 0;
@@ -97,6 +100,7 @@ describe('sticky-measure geometry', () => {
 		editor.remove();
 		window.getSelection()?.removeAllRanges();
 		wrapAt = Infinity;
+		lineGap = LINE_HEIGHT * 4;
 	});
 
 	function selectAt(node: Node, offset: number): void {
@@ -122,18 +126,19 @@ describe('sticky-measure geometry', () => {
 		});
 	});
 
-	describe('getOffsetRect', () => {
+	describe('caretBoxAt', () => {
 		it('returns null when the offset has no resolvable DOM position', () => {
 			const empty = document.createElement('div');
 			editor.appendChild(empty);
-			expect(getOffsetRect(empty, asDomTextOffset(3))).toBeNull();
+			expect(caretBoxAt(empty, asDomTextOffset(3))).toBeNull();
 		});
 
-		it('returns the measured rect at a resolvable offset', () => {
-			const rect = getOffsetRect(block, asDomTextOffset(4));
-			expect(rect).not.toBeNull();
-			expect(rect!.left).toBe(4 * CHAR_WIDTH);
-			expect(rect!.height).toBe(LINE_HEIGHT);
+		it('returns the measured box at a resolvable offset, under the offset asked for', () => {
+			const probe = caretBoxAt(block, asDomTextOffset(4));
+			expect(probe).not.toBeNull();
+			expect(probe!.offset).toBe(4);
+			expect(probe!.rect.left).toBe(4 * CHAR_WIDTH);
+			expect(probe!.rect.bottom - probe!.rect.top).toBe(LINE_HEIGHT);
 		});
 	});
 
@@ -181,6 +186,21 @@ describe('sticky-measure geometry', () => {
 			expect(above).toBe(5); // column 5 on line 1
 			expect(below).toBe(11); // column 5 on line 2 = offset 6 + 5
 			expect(above).not.toBe(below);
+		});
+
+		it('keeps the line above out of the search when the lines sit a normal gap apart', () => {
+			// Miss-analysis: the fixture spaced wrapped lines four line-heights apart, so the
+			// tolerance the band filter allowed was never asked to be smaller than a real page's
+			// gap between one line's descenders and the next line's ascenders.
+			block.style.lineHeight = `${LINE_HEIGHT + 2}px`;
+			lineGap = LINE_HEIGHT + 2;
+			wrapAt = 12;
+			text.data = 'a'.repeat(18);
+			// Line 1 runs to column 11, line 2 only to column 6, and the target column sits past
+			// the end of line 2: the answer is line 2's last offset, not line 1's exact match.
+			const target = asEditorX(9 * CHAR_WIDTH - EDITOR_LEFT);
+			expect(findOffsetNearestX(block, target, 'below', asDomTextOffset(0))).toBe(18);
+			expect(findOffsetNearestX(block, target, 'above', asDomTextOffset(0))).toBe(9);
 		});
 
 		it('respects minOffset, excluding the prefix region from candidates', () => {
