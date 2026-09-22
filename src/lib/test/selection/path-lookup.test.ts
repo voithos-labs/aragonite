@@ -140,6 +140,17 @@ describe('findBlockPathForElement', () => {
 		expect(findBlockPathForElement(el)).toBeNull();
 	});
 
+	// Miss-analysis: the shape check lived in a second copy of this reader, so nothing asked the
+	// shared one what it does with JSON that parses but is no path.
+	it.each(['"[1]"', '{"0":1}', '[1,"x"]', 'null'])(
+		'returns null for %s, which parses but is no path',
+		(attr) => {
+			const el = document.createElement('div');
+			el.setAttribute('data-block-path', attr);
+			expect(findBlockPathForElement(el)).toBeNull();
+		}
+	);
+
 	it('returns null when given a null element', () => {
 		expect(findBlockPathForElement(null)).toBeNull();
 	});

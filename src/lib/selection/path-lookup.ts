@@ -76,14 +76,16 @@ export function lastLeafAtOrBefore(doc: Document, path: number[]): number[] | nu
 }
 
 /**
- * The document path an element's own `data-block-path` carries. A plugin may own the attribute
- * with non-JSON content, so a parse failure resolves to null, never a throw.
+ * The document path an element's own `data-block-path` carries, and the one place anything reads
+ * that attribute. A plugin may own it with content of its own, so anything but a list of numbers
+ * resolves to null, never a throw or a path-shaped lie.
  */
 export function readBlockPath(el: Element | null): number[] | null {
 	const attr = el?.getAttribute('data-block-path');
 	if (!attr) return null;
 	try {
-		return JSON.parse(attr) as number[];
+		const parsed: unknown = JSON.parse(attr);
+		return Array.isArray(parsed) && parsed.every((n) => typeof n === 'number') ? parsed : null;
 	} catch {
 		return null;
 	}

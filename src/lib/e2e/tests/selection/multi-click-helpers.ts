@@ -23,6 +23,16 @@ export async function runCenter(page: Page, needle: string): Promise<{ x: number
 	return at;
 }
 
+/** The center of a top-level block's box: the aim point for a block that renders no text. */
+export function blockCenter(page: Page, index: number): Promise<{ x: number; y: number }> {
+	return page.evaluate((i) => {
+		const el = document.querySelector(`[data-block-path='[${i}]']`) as HTMLElement | null;
+		if (!el) throw new Error(`no block [${i}]`);
+		const box = el.getBoundingClientRect();
+		return { x: box.left + box.width / 2, y: box.top + box.height / 2 };
+	}, index);
+}
+
 export function nativeSelectionText(page: Page): Promise<string> {
 	return page.evaluate(() => window.getSelection()?.toString() ?? '');
 }

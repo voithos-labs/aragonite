@@ -1,7 +1,8 @@
 /**
  * File rules over the shipped source: each row names a shape a file may not hold, the files
  * allowed to hold it, and the snippets its matcher must flag or spare. The scan is `file-rule.ts`;
- * every row keeps its G-number and reads the one source collection taken below.
+ * a row carries its G-number where the invariant catalog has one, and every row reads the one
+ * source collection taken below.
  */
 
 import { collectEditorSources, isProseSurface, type SourceFile } from './scan-source';
@@ -335,6 +336,22 @@ const RULES: FileRule[] = [
 			'a boundary conversion is a new declared entry into a coordinate space: add the file with the reason its plain value cannot be branded yet',
 		hits: BRANDS.map((brand) => `f(as${brand}(3));`),
 		misses: [BENIGN_BRAND_USES]
+	},
+	{
+		id: 'the block-path attribute is parsed in one reader',
+		population: (file) => /data-block-path|dataset\.blockPath/.test(file.code),
+		matches: /JSON\.parse\s*\(/,
+		allowed: {
+			'src/lib/selection/path-lookup.ts':
+				'readBlockPath: the one parse, and the shape check with it'
+		},
+		reason:
+			'a second parse of `data-block-path` drifts from the shape check the shared reader applies; read it through readBlockPath',
+		hits: ['const raw = el.dataset.blockPath;\nconst p = JSON.parse(raw) as number[];'],
+		misses: [
+			"const host = el.closest('[data-block-path]');\nreadBlockPath(host);",
+			'const parsed = JSON.parse(payload);'
+		]
 	},
 	{
 		id: 'G4.13 no view-stripping cast outside tree-operations and the commit sequence',

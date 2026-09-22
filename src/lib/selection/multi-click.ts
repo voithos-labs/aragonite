@@ -20,6 +20,7 @@ import type { BlockElLookup } from '../editor-keys';
 import { installDragListener, type DragGranularity } from './drag-pointer';
 import { applySingleBlockRange, applySurfaceContentRange } from './native-bridge';
 import { blockNearPoint } from './nearest-block';
+import { readBlockPath } from './path-lookup';
 import type { SelectionEndpoint, SelectionPoint } from './primitives';
 import type { SelectionState } from './selection-state.svelte';
 
@@ -207,9 +208,8 @@ function nearestSurfaceIn(block: HTMLElement, clientY: number): HTMLElement | nu
  *  other way (a table's cell), whose drag is not a character drag. */
 function pathOfSurface(surface: HTMLElement): number[] | null {
 	const host = surface.closest<HTMLElement>('[data-block-path]');
-	const raw = host?.getAttribute('data-block-path');
-	if (!raw || !host?.contains(surface)) return null;
-	const path = JSON.parse(raw) as number[];
+	const path = readBlockPath(host);
+	if (!path || !host?.contains(surface)) return null;
 	return host.querySelector('[contenteditable="true"]') === surface ? path : null;
 }
 

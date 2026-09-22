@@ -14,6 +14,7 @@ import { blockContextActionsFor, type BlockContextAction } from '../schema/conte
 import { insertFlyoutEntries, insertSnippets, type MenuEntry } from './menu/BlockMenu.svelte';
 import { runClipboardAction, type ClipboardAction } from './menu/clipboard-actions';
 import { isProseBackground } from './menu/default-context-actions';
+import { readBlockPath } from '../selection/path-lookup';
 
 export interface BlockMenuModel {
 	x: number;
@@ -57,17 +58,6 @@ export function createRootMenus(deps: RootMenusDeps): RootMenus {
 			const now = el.getBoundingClientRect();
 			return { x: now.left + dx, y: now.top + dy };
 		};
-	}
-
-	function pathOf(host: HTMLElement | null): number[] | null {
-		const raw = host?.dataset.blockPath;
-		if (!raw) return null;
-		try {
-			const parsed: unknown = JSON.parse(raw);
-			return Array.isArray(parsed) && parsed.every((n) => typeof n === 'number') ? parsed : null;
-		} catch {
-			return null;
-		}
 	}
 
 	/** Where a paste goes: whatever editable element holds focus inside the root. */
@@ -172,7 +162,7 @@ export function createRootMenus(deps: RootMenusDeps): RootMenus {
 		// lands on the item the keydown's own menu already focused: that menu is the answer.
 		if (target.closest('.md-menu')) return;
 		const host = target.closest<HTMLElement>('.block-host[data-block-path]');
-		const path = pathOf(host);
+		const path = readBlockPath(host);
 		if (!host || !path) return;
 		const point = { x: e.clientX, y: e.clientY };
 		const native = window.getSelection();
