@@ -9,6 +9,8 @@ import { multiClick, runCenter, widgetCenter } from './multi-click-helpers';
 const SHOWCASE_PARAGRAPH =
 	'Let a system of plane waves of light, referred to the system of co-ordinates $(x, y, z)$, possess the energy $l$; let the direction of the ray (the wave-normal) make an angle $\\varphi$ with the axis of $x$ of the system. If we introduce a new system of co-ordinates $(\\xi, \\eta, \\zeta)$ moving in uniform parallel translation with respect to the system $(x, y, z)$, and having its origin of co-ordinates in motion along the axis of $x$ with the velocity $v$, then this quantity of light—measured in the system $(\\xi, \\eta, \\zeta)$—possesses the energy\n';
 
+const SHOWCASE_ENDS: [string, string] = ['Let a system of plane waves', 'possesses the energy'];
+
 /** The selected text's two ends, so one read pins both boundaries of the range. */
 function selectionEnds(page: import('@playwright/test').Page): Promise<[string, string]> {
 	return page.evaluate(() => {
@@ -44,11 +46,10 @@ test.describe('multi-click: the block inline syntax handler beside inline widget
 			await expect(page.locator('[data-inline-widget]')).toHaveCount(9);
 			const at = await runCenter(page, 'possess the energy');
 			await page.mouse.click(at.x, at.y, { clickCount: 3 });
-			const ends: [string, string] = ['Let a system of plane waves', 'possesses the energy'];
-			await expect.poll(() => selectionEnds(page)).toEqual(ends);
+			await expect.poll(() => selectionEnds(page)).toEqual(SHOWCASE_ENDS);
 			// The release has already been handled; a caret placed later would drop the range.
 			await page.waitForTimeout(150);
-			await expect.poll(() => selectionEnds(page)).toEqual(ends);
+			await expect.poll(() => selectionEnds(page)).toEqual(SHOWCASE_ENDS);
 		});
 
 		test(`${mode}: a triple-click on a rendered formula takes the paragraph`, async ({ page }) => {
@@ -58,10 +59,24 @@ test.describe('multi-click: the block inline syntax handler beside inline widget
 			await editor.setPresentationMode(mode);
 			await expect(page.locator('[data-inline-widget]')).toHaveCount(9);
 			await multiClick(page, await widgetCenter(page), 3);
-			const ends: [string, string] = ['Let a system of plane waves', 'possesses the energy'];
-			await expect.poll(() => selectionEnds(page)).toEqual(ends);
+			await expect.poll(() => selectionEnds(page)).toEqual(SHOWCASE_ENDS);
 			await page.waitForTimeout(150);
-			await expect.poll(() => selectionEnds(page)).toEqual(ends);
+			await expect.poll(() => selectionEnds(page)).toEqual(SHOWCASE_ENDS);
+		});
+
+		test(`${mode}: typing over that selection replaces the paragraph, formula and all`, async ({
+			page
+		}) => {
+			await editor.loadContent(SHOWCASE_PARAGRAPH);
+			await editor.setPresentationMode(mode);
+			await expect(page.locator('[data-inline-widget]')).toHaveCount(9);
+			await multiClick(page, await widgetCenter(page), 3);
+			// The formula re-renders as its source closes, and the range has to come back with it.
+			await expect(page.locator('[data-inline-widget]')).toHaveCount(9);
+			await expect.poll(() => selectionEnds(page)).toEqual(SHOWCASE_ENDS);
+			await page.keyboard.press('X');
+			await editor.bridge.waitForSourceContains('X');
+			expect(await editor.bridge.getSource()).toBe('X\n');
 		});
 
 		test(`${mode}: a triple-click takes a paragraph that opens on a widget`, async ({ page }) => {
@@ -75,4 +90,16 @@ test.describe('multi-click: the block inline syntax handler beside inline widget
 			await expect.poll(() => reachesBothEnds(page, 'opens this line')).toEqual([true, true]);
 		});
 	}
+
+	test('a triple-click on an inline image leaves the image selected', async ({ page }) => {
+		// An image selects whole on its first click, so the run is its own from the start.
+		await editor.loadContent('before ![pic|120x80](/test-fixtures/sample.png) after\n');
+		await page.waitForFunction(
+			() => (document.querySelector('[data-image-widget] img') as HTMLImageElement)?.complete
+		);
+		await multiClick(page, await widgetCenter(page), 3);
+		await page.keyboard.press('X');
+		await editor.bridge.waitForSourceContains('X');
+		expect(await editor.bridge.getSource()).toBe('before X after\n');
+	});
 });

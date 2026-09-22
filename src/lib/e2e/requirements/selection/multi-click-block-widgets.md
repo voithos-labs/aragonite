@@ -16,9 +16,13 @@ there would collapse the range the user just made.
 - triple-click a paragraph whose only widget sits at its start: the range reaches the last
   word and opens before the formula
 - triple-click the rendered formula itself, in source and live mode: the whole paragraph is
-  selected and stays selected. A third click belongs to the block, not to the widget under it:
-  the widget's own gesture ends at the second click, so the third neither shows a source nor
-  takes the token again, and the shown source stays open under a range that holds it rather
-  than rebuilding the block and cutting the range short
+  selected, and it stays selected as the formula re-renders. A third click belongs to the block,
+  not to the widget under it: the widget's own gesture ends at the second click, so the third
+  neither shows a source nor takes the token again, and the range it paints comes back over the
+  block once the source the first click showed is hidden
   - Miss-analysis: every scenario here pressed on prose beside a widget, and the two gestures
     that can fight over a click only meet when the press lands on the widget itself
+- typing over that selection replaces the paragraph, formula and all: what the third click
+  painted is a range over the block's content, not a highlight over a block nothing can edit
+- triple-click an inline image: the image stays selected and a typed character replaces it. A
+  widget that selects whole takes the whole run, because its first click already selected it

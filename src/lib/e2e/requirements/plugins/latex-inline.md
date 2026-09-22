@@ -45,8 +45,9 @@ text lining up under it on line 2, to test where a click lands.
   that opened it
 - a third click on the shown source: the block's own selection takes the paragraph, because the
   widget's gesture ends at the second click
-- a selected range that holds the shown source inside it leaves the source shown: the caret has
-  not left it, and hiding it would rebuild the block under the range
+- a range over the block hides the shown source, as a caret leaving it does, and the range comes
+  back over the rebuilt block: the bytes did not change, so its raw offsets still name the same
+  text
 - click on real text on another visual line that lines up under the widget: the caret lands in
   that text and the widget stays rendered, because the hit test is a point inside a rect, both x
   and y, not x alone

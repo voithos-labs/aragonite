@@ -335,7 +335,7 @@ const MANIFESTS: ManifestRule[] = [
 			'src/lib/components/blocks/text/edge-policy-dispatch.ts':
 				'selects a replace widget whole: a range, not a caret position',
 			'src/lib/components/blocks/text/widget-interaction.ts':
-				"a double-click selects the revealed token whole, over the reveal's own text node",
+				"a double-click selects the revealed token whole, over the reveal's own text node, and a range carries across the rebuild when a shown source is hidden",
 			'src/lib/cursor/content-offsets.ts': 'setCursorOffset, the content-offset write helper',
 			'src/lib/cursor/focused-caret.ts':
 				'restoreCaretAtWalkOffset, the carry across a render rebuild',

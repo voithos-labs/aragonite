@@ -406,13 +406,49 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 	}
 
 	// Clicking away from a source that was not edited: no caret is written, because the
-	// click that left owns the caret and the commit path's trailing edge would steal it.
+	// click that left owns the caret and the commit path's trailing edge would steal it. A
+	// selected range is different: the rebuild leaves its end inside a widget, so it is read in
+	// raw offsets, which no byte here moves, and put back once the block has been rebuilt.
 	function foldRevealNoEdit(reason: RevealFoldReason = 'no-edit'): void {
 		assertFoldTargetsActiveReveal('foldRevealNoEdit');
 		if (!revealState) return;
 		traceRevealFold(reason);
+		const span = liveRangeInBlock();
 		resetReveal();
 		restoreRenderedWidget();
+		if (span) void restoreRangeInBlock(span);
+	}
+
+	/** The live selection in raw offsets, when it is a range with both ends inside this block. */
+	function liveRangeInBlock(): { start: number; end: number } | null {
+		const el = deps.getEl();
+		const sel = window.getSelection();
+		if (!el || !sel || sel.rangeCount === 0 || sel.isCollapsed) return null;
+		const range = sel.getRangeAt(0);
+		if (!el.contains(range.startContainer) || !el.contains(range.endContainer)) return null;
+		const ambient = deps.getAmbientLength();
+		const rawAt = (node: Node, offset: number) =>
+			toClampedRawOffset(domTextOffsetAtNode(el, node, offset), ambient);
+		return {
+			start: rawAt(range.startContainer, range.startOffset),
+			end: rawAt(range.endContainer, range.endOffset)
+		};
+	}
+
+	async function restoreRangeInBlock(span: { start: number; end: number }): Promise<void> {
+		await tick();
+		const el = deps.getEl();
+		const sel = window.getSelection();
+		if (!el || !sel) return;
+		const ambient = deps.getAmbientLength();
+		const range = createRangeAtDomTextOffsets(
+			el,
+			toDomTextOffset(asRawOffset(span.start), ambient),
+			toDomTextOffset(asRawOffset(span.end), ambient)
+		);
+		if (!range) return;
+		sel.removeAllRanges();
+		sel.addRange(range);
 	}
 
 	// Whether the caret is still inside is decided by raw offset through the shared traversal,
@@ -439,15 +475,6 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 			domTextOffsetAtNode(el, focusNode, sel.focusOffset),
 			ambient
 		);
-		// A selected range that holds the source has not left it, so hiding the source here would
-		// rebuild the block under the range and cut it short. The bytes commit when a mutation
-		// reaches them instead.
-		if (
-			Math.min(anchorOff, focusOff) <= sourceStart &&
-			Math.max(anchorOff, focusOff) >= sourceEnd
-		) {
-			return false;
-		}
 		const inSource = (o: number) => o >= sourceStart && o <= sourceEnd;
 		return !inSource(anchorOff) && !inSource(focusOff);
 	}
