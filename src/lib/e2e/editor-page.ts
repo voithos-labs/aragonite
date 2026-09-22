@@ -6,14 +6,16 @@ import {
 	BLOCK_CONTENT_SELECTOR,
 	BLOCK_CONTENT_LOCATOR_SELECTOR
 } from '../components/block-content-selector';
+import { watchPageFailures } from './page-probes';
 
 // Re-exported so a spec's in-`evaluate` block-content lookup uses the one selector definition
 // instead of inlining `:not(.selection-overlay)`.
 export { BLOCK_CONTENT_SELECTOR } from '../components/block-content-selector';
 
 /** A ceiling on the harness installing `window.__test`, not an expectation of it: a full battery
- *  on one dev server pushes hydration well past the seconds a quiet machine takes. */
-export const BRIDGE_INSTALL_TIMEOUT = 60_000;
+ *  on one dev server pushes hydration well past the seconds a quiet machine takes. It stays under
+ *  the 60 s test timeout, so the wait reports what the page did instead of being killed mid-wait. */
+export const BRIDGE_INSTALL_TIMEOUT = 45_000;
 
 export class EditorPage {
 	readonly editorContainer: Locator;
@@ -30,14 +32,38 @@ export class EditorPage {
 
 	async goto(query = '') {
 		await this.clipboard.install();
-		await this.page.goto(`/test/editor${query}`);
-		await this.editorContainer.waitFor({ state: 'visible' });
-		await this.page.waitForFunction(() => (window as any).__test !== undefined, null, {
-			timeout: BRIDGE_INSTALL_TIMEOUT
-		});
-		// The harness paints a webfont; a caret measured before it arrives is placed by the
-		// fallback font's metrics, and the block reflows under the spec.
-		await this.page.evaluate(() => document.fonts.ready);
+		await this.openHarness(`/test/editor${query}`);
+	}
+
+	/**
+	 * Navigate to a harness route and wait for its `window.__test`. Both harnesses come through
+	 * here, so a bridge that never arrives names what the page reported rather than only timing out.
+	 */
+	protected async openHarness(url: string): Promise<void> {
+		const failures = watchPageFailures(this.page);
+		try {
+			await this.page.goto(url);
+			await this.editorContainer.waitFor({ state: 'visible' });
+			await this.page
+				.waitForFunction(() => (window as any).__test !== undefined, null, {
+					timeout: BRIDGE_INSTALL_TIMEOUT
+				})
+				.catch(() => {
+					const reported = failures.seen();
+					throw new Error(
+						[
+							`${url}: the editor mounted but window.__test never arrived in ` +
+								`${BRIDGE_INSTALL_TIMEOUT} ms. The page reported:`,
+							...(reported.length > 0 ? reported : ['nothing captured'])
+						].join('\n')
+					);
+				});
+			// The harness paints a webfont; a caret measured before it arrives is placed by the
+			// fallback font's metrics, and the block reflows under the spec.
+			await this.page.evaluate(() => document.fonts.ready);
+		} finally {
+			failures.stop();
+		}
 	}
 
 	async loadContent(md: string) {

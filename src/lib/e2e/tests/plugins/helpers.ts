@@ -1,17 +1,12 @@
 import { expect, type Locator, type Page } from '@playwright/test';
-import { BRIDGE_INSTALL_TIMEOUT, EditorPage } from '../../editor-page';
+import { EditorPage } from '../../editor-page';
 
 // Shared reads for every spec driving the `/test/plugins` harness. They go through `window.__test`
 // by path, because the chained block locator is too slow at this scale.
 
 export class PluginsPage extends EditorPage {
 	async gotoPlugins(seed?: string): Promise<void> {
-		await this.page.goto(seed ? `/test/plugins?seed=${seed}` : '/test/plugins');
-		await this.editorContainer.waitFor({ state: 'visible' });
-		await this.page.waitForFunction(() => (window as any).__test !== undefined, null, {
-			timeout: BRIDGE_INSTALL_TIMEOUT
-		});
-		await this.page.evaluate(() => document.fonts.ready);
+		await this.openHarness(seed ? `/test/plugins?seed=${seed}` : '/test/plugins');
 		// Started for every spec, not per spec: capturing is passive, and a `capturedErrors() ===
 		// []` assertion against a capture nobody started would pass for the wrong reason.
 		await this.page.evaluate(() => (window as any).__test.startErrorCapture());
