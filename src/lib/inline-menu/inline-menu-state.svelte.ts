@@ -333,6 +333,12 @@ export function createInlineMenuState(deps: InlineMenuStateDeps): InlineMenuStat
 						`not empty; an empty trigger would open on every keystroke`
 				);
 			}
+			// Nothing read the leaf while no source was registered, so the baseline is from before
+			// whatever was typed since; the next event takes a fresh one.
+			if (sources.size === 0) {
+				seen = null;
+				heldBack = false;
+			}
 			sources.set(source.name, source);
 			return {
 				dispose: () => {

@@ -440,6 +440,23 @@ describe('the registry', () => {
 		expect(() => h.menu.registry.addSource(tags())).toThrow(/already exists/);
 	});
 
+	// Miss-analysis: every registry test registered its source before the first keystroke, so none
+	// let `seen` outlive a source.
+	it('starts a source added again from a fresh baseline', async () => {
+		const h = harness('see ');
+		const handle = h.menu.registry.addSource(tags());
+		await h.type('a');
+		handle.dispose();
+		// Typed while no source was listening, so the `#` here is text, not a trigger.
+		await h.type(' #x');
+		h.menu.registry.addSource(tags({ name: 'tags2' }));
+		await h.type('y');
+		expect(h.menu.getOpen()).toBeNull();
+
+		await h.type(' #');
+		expect(h.menu.getOpen()).toMatchObject({ start: 10, query: '' });
+	});
+
 	// An empty trigger would open on every keystroke and a trigger with a line break could never
 	// be typed, so both are refused where a source arrives rather than skipped where it is read.
 	it('refuses a trigger that is empty or holds a line break', () => {
