@@ -33,6 +33,9 @@ Seed `inline-menu` installs two sources at once: tag autocomplete over the docum
 - Escape closes the list and leaves what was typed; typing on does not reopen it.
 - A query that matches nothing hides the list and releases the keys: Enter is the author's own
   Enter again, and splits the block.
+- A composition takes the keys back: composed bytes reach the document only when the IME commits
+  them, so the caret steps out of the query and the session ends, and the Enter that closes the
+  candidate window commits no row.
 
 ## Commit
 

@@ -1,4 +1,5 @@
 import { test, expect } from '../../fixtures';
+import { attachIme } from '../../simulation/ime';
 import { PluginsPage, capturedErrors } from './helpers';
 
 /**
@@ -144,6 +145,22 @@ test.describe('inline menus', () => {
 			await editor.bridge.waitForSourceContains('Type here #in');
 			await editor.waitForRenderFlush();
 			await expect(menu(editor)).toHaveCount(0);
+		});
+
+		test('Enter during a composition is the IME’s, and commits no row', async () => {
+			const ime = await attachIme(editor.page);
+			await editor.typeText(' #');
+			await expect(menu(editor, TAGS)).toBeVisible();
+
+			// The composed bytes reach the document only at the end, so the caret steps out of the
+			// query and the session ends there; the Enter that follows is the candidate window's.
+			await ime.compose('か');
+			await expect(menu(editor)).toHaveCount(0);
+			await editor.page.keyboard.press('Enter');
+			await ime.commit('か');
+
+			await editor.bridge.waitForSourceContains('Type here #か');
+			expect(await blockRaw(editor, TARGET)).toBe('Type here #か');
 		});
 
 		test('an empty list releases the keys: Enter splits the block', async () => {
