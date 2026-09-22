@@ -36,9 +36,13 @@ export function buildAmbientSpan(prefix: AmbientPrefix): HTMLSpanElement {
 		if (range.ariaChecked !== undefined) {
 			inner.setAttribute('aria-checked', String(range.ariaChecked));
 		}
+		if (range.label !== undefined) inner.setAttribute('aria-label', range.label);
+		if (range.focusable) inner.tabIndex = 0;
 		if (range.dragAnchor) inner.setAttribute(DRAG_ANCHOR_ATTR, '');
 		inner.textContent = normalized.text.slice(range.start, range.end);
 		inner.addEventListener('click', range.onClick);
+		const onActivate = range.onActivate;
+		if (onActivate) inner.addEventListener('keydown', (e) => activateOnKey(e, onActivate));
 		outer.appendChild(inner);
 		cursor = range.end;
 	}
@@ -85,6 +89,14 @@ export function placeCaretAfterAmbientSpan(blockEl: HTMLElement): boolean {
 }
 
 // ── Internal ────────────────────────────────────────────────────────────────
+
+// Enter and Space, the keys a link or button answers; the block below must not see them too.
+function activateOnKey(e: KeyboardEvent, onActivate: () => void): void {
+	if (e.key !== 'Enter' && e.key !== ' ') return;
+	e.preventDefault();
+	e.stopPropagation();
+	onActivate();
+}
 
 function firstTextNodeAfter(node: Node): Text | null {
 	let sibling = node.nextSibling;

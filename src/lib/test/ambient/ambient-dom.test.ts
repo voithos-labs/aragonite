@@ -53,6 +53,51 @@ describe('buildAmbientSpan', () => {
 		expect(onClick).toHaveBeenCalledOnce();
 	});
 
+	// Miss-analysis (#254): the range could say only `checkbox` and take only a click, so a
+	// footnote's way back had no role, name or key to offer a keyboard user.
+	it('a focusable link range carries its name and tab stop, and Enter or Space activates it', () => {
+		const onActivate = vi.fn();
+		const span = buildAmbientSpan({
+			text: '[^a]: ',
+			interactive: [
+				{
+					start: 0,
+					end: 4,
+					className: 'back',
+					role: 'link',
+					label: 'Back to reference a',
+					focusable: true,
+					onClick: () => {},
+					onActivate
+				}
+			]
+		});
+		const inner = span.children[0] as HTMLElement;
+		expect(inner.getAttribute('role')).toBe('link');
+		expect(inner.getAttribute('aria-label')).toBe('Back to reference a');
+		expect(inner.tabIndex).toBe(0);
+
+		for (const key of ['Enter', ' ']) {
+			const event = new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true });
+			inner.dispatchEvent(event);
+			expect(event.defaultPrevented).toBe(true);
+		}
+		inner.dispatchEvent(new KeyboardEvent('keydown', { key: 'a', bubbles: true }));
+		expect(onActivate).toHaveBeenCalledTimes(2);
+	});
+
+	it('a range that is not focusable takes no tab stop and no keys', () => {
+		const span = buildAmbientSpan({
+			text: '[^a]: ',
+			interactive: [{ start: 0, end: 4, className: 'back', onClick: () => {} }]
+		});
+		const inner = span.children[0] as HTMLElement;
+		expect(inner.hasAttribute('tabindex')).toBe(false);
+		const event = new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true });
+		inner.dispatchEvent(event);
+		expect(event.defaultPrevented).toBe(false);
+	});
+
 	it('text outside interactive ranges renders as text nodes', () => {
 		const span = buildAmbientSpan({
 			text: 'abXcd',
