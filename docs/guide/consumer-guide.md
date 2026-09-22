@@ -1100,7 +1100,7 @@ The repository's `InsertToolbar` component, the fixed strip the showcase mounts 
 
 ### Recipe: a typed-trigger menu
 
-Tag autocomplete on `#`, a document picker on `[[`, a mention on `@`: a list that follows the caret while the author keeps typing, an inline menu. This is the one piece of chrome to leave alone: building it from `getRects()` and a key listener does not work, because the editor has to be the one to notice the trigger, hold the keys, and write the pick. You hand it a trigger and a list; `getInlineMenus()` does the rest.
+Tag autocomplete on `#`, a document picker on `[[`, a mention on `@`: a list that follows the caret while the author keeps typing, an inline menu. This is the one piece of chrome not to build yourself from `getRects()` and a key listener, because the editor has to be the one to notice the trigger, hold the keys, and write the pick. You hand it a trigger and a list; `getInlineMenus()` does the rest.
 
 ```ts
 const handle = editor.getInlineMenus().addSource({
