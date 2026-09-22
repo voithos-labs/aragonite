@@ -86,13 +86,15 @@
 		return () => root.removeEventListener('keydown', onKeyDown, true);
 	});
 
-	// The baseline a first keystroke is read against, taken before that keystroke's bytes land.
+	// The baseline the first bytes in a leaf are read against, taken just before they land.
+	// Every input route fires beforeinput (a keystroke, an IME commit, a paste, a script's
+	// insertText); the caret's arrival is announced a task later and can lose the race to them.
 	$effect(() => {
 		const root = getEditorEl();
 		if (!root) return;
-		const onKeyDown = () => menu.primeBaseline();
-		root.addEventListener('keydown', onKeyDown, true);
-		return () => root.removeEventListener('keydown', onKeyDown, true);
+		const onBeforeInput = () => menu.primeBaseline();
+		root.addEventListener('beforeinput', onBeforeInput, true);
+		return () => root.removeEventListener('beforeinput', onBeforeInput, true);
 	});
 
 	// Focus leaving the editor ends the session; the list itself never takes focus.

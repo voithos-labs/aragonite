@@ -26,6 +26,9 @@ whose pick inserts a block: `insert` is empty and `onCommit` goes through the in
 - A trigger typed inside an inline code span opens nothing: it is not syntax there.
 - With two sources installed, `[[` opens the picker and `#` the tags, never each other's.
 - It works in a list item, not only a top-level paragraph, and on a line just started with Enter.
+- Typed straight after Enter with no keystroke of its own (a paste, an IME commit, a script's
+  `insertText`), the trigger still opens: the baseline is taken as the bytes are about to land,
+  not from the caret's arrival, which the browser announces a task later.
 - Typed as fast as a keyboard goes, the trigger still opens: the editor publishes a burst of
   keystrokes as one change, and the query's first bytes may arrive in the same change as the trigger.
 
@@ -76,3 +79,10 @@ whose pick inserts a block: `insert` is empty and `onCommit` goes through the in
 ## Error cases
 
 - zero `[invariant:…]` console fires across the battery (asserted through `capturedErrors`)
+
+## Miss analysis
+
+The Enter-then-type cases passed while the baseline came only from a keydown or from the caret's
+arrival: the harness's bridge reads between the two gave the browser's selection change time to
+fire first. Run back to back, the arrival lost that race to the typed burst on a third of runs,
+and no case typed without a keydown except the ones that also waited.

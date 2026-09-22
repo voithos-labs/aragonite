@@ -50,8 +50,8 @@ export interface InlineMenuState {
 	getOpen(): InlineMenuOpenView | null;
 	move(delta: 1 | -1): void;
 	setActive(index: number): void;
-	/** Take a baseline for the caret's leaf if none is held; the host calls it at keydown, before
-	 *  the key's own bytes exist. */
+	/** Take a baseline for the caret's leaf if none is held; the host calls it at beforeinput,
+	 *  before the input's bytes exist. */
 	primeBaseline(): void;
 	/** Commit the active row, or the row at `index`. False with no row to commit. */
 	commit(index?: number): boolean;

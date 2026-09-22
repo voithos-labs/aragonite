@@ -187,7 +187,7 @@ describe('a typed trigger opens its source', () => {
 		expect(h.menu.getOpen()).toMatchObject({ start: 10 });
 	});
 
-	it('opens on the first keystroke in a leaf no read had seen, given the keydown baseline', async () => {
+	it('opens on the first keystroke in a leaf no read had seen, given the baseline taken before it', async () => {
 		// No arrival read: the state has never looked at this leaf.
 		const h = harness('see ', { arrive: false });
 		h.menu.registry.addSource(tags());
