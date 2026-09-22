@@ -123,6 +123,23 @@ describe('a list item the range holds whole paints its own box', () => {
 		).toBe(0);
 	});
 
+	// The `[data-block-path]` helper above cannot see a list item's box, so the silence of every
+	// item under a range that holds the list itself needed a selector of its own.
+	it('leaves every item silent when the range holds the whole list', () => {
+		const doc = parse('lead\n\n- a\n- b\n- c\n\ntail\n');
+		expect(doc.children[1].kind).toBe('list');
+
+		mounted = mountBlockHost(
+			doc,
+			{ index: 1 },
+			{ services: { selection: rangeAcrossThreeBlocks() } }
+		);
+		flushSync();
+
+		expect(ownOverlays(mounted).length).toBe(1);
+		expect(itemBoxes(mounted).length).toBe(0);
+	});
+
 	it('leaves a nested sub-list under a middle item painting nothing', () => {
 		const doc = parse('lead\n\n- a\n- b\n  - b1\n- c\n- d\n\ntail\n');
 

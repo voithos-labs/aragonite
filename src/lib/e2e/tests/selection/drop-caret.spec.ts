@@ -25,6 +25,17 @@ async function holdOver(
 	await page.mouse.move(to.x + 1, to.y, { steps: 2 });
 }
 
+/** A point above the editor's own box, the one side of it the page has room on: where a
+ *  `dragleave` means the drag has left the editor rather than crossed a block inside it. */
+async function outsideEditor(page: import('@playwright/test').Page): Promise<Point> {
+	const at = await page.evaluate(() => {
+		const box = document.querySelector('.editor')!.getBoundingClientRect();
+		return box.top > 24 ? { x: box.left + box.width / 2, y: box.top - 16 } : null;
+	});
+	if (!at) throw new Error('the editor reaches the top of the viewport: no point above its box');
+	return at;
+}
+
 function caretLeft(page: import('@playwright/test').Page): Promise<number> {
 	return page.evaluate(() => {
 		const el = document.querySelector('.drop-caret');
@@ -100,6 +111,20 @@ test.describe('the caret a held drag shows', () => {
 		await page.mouse.up();
 		await editor.waitForNoSourceMutation();
 		expect(await page.evaluate(() => (window as any).__test.getSource())).toBe(RULE_DOC);
+	});
+
+	test('a hold carried out of the editor takes the caret away', async ({ page }) => {
+		const beta = await doubleClickOn('beta');
+		await holdOver(page, beta, await runStart(page, 'para here'));
+		await expect(page.locator('.drop-caret')).toHaveCount(1);
+
+		const away = await outsideEditor(page);
+		await page.mouse.move(away.x, away.y, { steps: 8 });
+		await expect(page.locator('.drop-caret')).toHaveCount(0);
+
+		await page.mouse.up();
+		await editor.waitForNoSourceMutation();
+		expect(await page.evaluate(() => (window as any).__test.getSource())).toBe(TWO);
 	});
 
 	test('a payload carrying a line break shows none', async ({ page }) => {

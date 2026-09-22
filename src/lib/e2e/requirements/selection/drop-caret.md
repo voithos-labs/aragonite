@@ -20,6 +20,10 @@ then carries out.
 
 - move the hold along the target line: one caret, which follows to the newer offset
 - the caret is drawn over the text, so it never takes a hold of its own
+- carry the hold out of the editor: the caret goes, and releasing it out there writes nothing
+  - Miss-analysis: the clear was called undrivable under Playwright's synthetic mouse and left
+    unclaimed, so the one handler with no test anywhere read as a known gap instead of a missing
+    test
 
 ## Error cases
 
