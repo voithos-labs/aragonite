@@ -11,6 +11,9 @@ const SHOWCASE_PARAGRAPH =
 
 const SHOWCASE_ENDS: [string, string] = ['Let a system of plane waves', 'possesses the energy'];
 
+/** KaTeX paints its glyphs here; the widget's own box also holds a copy clipped to a pixel. */
+const KATEX_GLYPHS = '.katex-html';
+
 // An entity is a widget with no source to show, so the reveal never runs and the third click
 // is the only thing that can select anything.
 const ENTITY_PARAGRAPH = 'before &copy; after some more words on this line\n';
@@ -62,7 +65,7 @@ test.describe('multi-click: the block inline syntax handler beside inline widget
 			await editor.loadContent(SHOWCASE_PARAGRAPH);
 			await editor.setPresentationMode(mode);
 			await expect(page.locator('[data-inline-widget]')).toHaveCount(9);
-			await multiClick(page, await widgetCenter(page), 3);
+			await multiClick(page, await widgetCenter(page, KATEX_GLYPHS), 3);
 			await expect.poll(() => selectionEnds(page)).toEqual(SHOWCASE_ENDS);
 			await page.waitForTimeout(150);
 			await expect.poll(() => selectionEnds(page)).toEqual(SHOWCASE_ENDS);
@@ -74,7 +77,7 @@ test.describe('multi-click: the block inline syntax handler beside inline widget
 			await editor.loadContent(SHOWCASE_PARAGRAPH);
 			await editor.setPresentationMode(mode);
 			await expect(page.locator('[data-inline-widget]')).toHaveCount(9);
-			await multiClick(page, await widgetCenter(page), 3);
+			await multiClick(page, await widgetCenter(page, KATEX_GLYPHS), 3);
 			// The formula re-renders as its source closes, and the range has to come back with it.
 			await expect(page.locator('[data-inline-widget]')).toHaveCount(9);
 			await expect.poll(() => selectionEnds(page)).toEqual(SHOWCASE_ENDS);

@@ -6,6 +6,9 @@ paragraph's only content is a widget the browser will not put a caret next to, s
 snap (`cursor/widget-edge-snap.ts`) is the only thing that can place one, and a press in either
 strip belongs to the block's one line.
 
+Every scenario holds in source mode and in live mode: hidden markers are not text a caret can
+land in either way, so the strip reads the same in both.
+
 ## Happy paths
 
 - press in the strip below the picture, right of its middle, then type: the character lands

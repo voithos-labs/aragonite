@@ -117,8 +117,8 @@ export function findOffsetNearestX(
 	// the only positions its caret can take.
 	const pool = edge ? candidates.filter((probe) => !probe.borrowed) : candidates;
 	const edgeLine = edge ?? edgeLineOf(pool, forward);
-	// Which offsets share the edge line: boxes ending within the block's own leading of it, so a
-	// tall widget and the text beside it read as one line while the line above never does.
+	// Which offsets share the edge line: boxes ending within four fifths of the block's line
+	// height of it, which holds a tall widget on the line with a few pixels to spare over the gap.
 	const tolerance = sameLineTolerance(container);
 	let bestOffset = pool[0].offset;
 	let bestDelta = Infinity;

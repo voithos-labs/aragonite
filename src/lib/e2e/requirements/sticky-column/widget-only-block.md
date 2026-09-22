@@ -12,6 +12,11 @@ is read off the widget edge the caret sits on instead of the left edge of the bl
   edge, and a typed character appears after the last entity
 - ArrowDown into the run from the start of the line above: the caret lands at the run's leading
   edge, and a typed character appears before the first entity
+- ArrowDown into the run from a column part-way along the line above: the caret lands on the
+  widget edge nearest that column, which is neither end of the run
+  - Miss-analysis: the two scenarios above aim at the run's own ends, and a search that always
+    answered with the block's first offset satisfied one of them, so neither asked whether the
+    column is read at all
 - click past the run, then ArrowDown: the caret lands in the paragraph below within one character
   of the last widget's right edge
   - Miss-analysis: the sticky-column specs all walk between blocks made of text, where every

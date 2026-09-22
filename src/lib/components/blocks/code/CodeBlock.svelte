@@ -23,7 +23,8 @@
 		createEditableSurface,
 		createClipboardHandlers,
 		consumePendingRestore,
-		withKeydownVerdict
+		withKeydownVerdict,
+		type RawRange
 	} from '../editable-surface';
 	import { wireSurfaceContexts, useParkFocusOnUnmount } from '../surface-wiring.svelte';
 	import { createContentOffsetBackend, anchorTrailingNewline } from '../plain-text-backend';
@@ -53,8 +54,7 @@
 		computeFenceRangedEdit,
 		crossesFenceBoundary,
 		fenceEditSpan,
-		isStructureOnlyRange,
-		type CodeRange
+		isStructureOnlyRange
 	} from './code-fence-boundary';
 	import { metadataOf, type CstNode } from '../../../core/nodes';
 	import { trimTrailingLineEnding, trailingLineEnding } from '../../../core/lines';
@@ -446,7 +446,7 @@
 	 * break): a caret clamps out of the fence lines, a selection is replaced on its
 	 * body span like every other ranged edit here.
 	 */
-	function enterSpliceSpan(range: CodeRange): CodeRange {
+	function enterSpliceSpan(range: RawRange): RawRange {
 		if (range.start !== range.end) return fenceEditSpan(node, range);
 		const at = clampEnterOffsetToBody(node, range.start);
 		return { start: at, end: at };
@@ -481,7 +481,7 @@
 	 * last body character would leave `\n\`\`\`` and reparse the block into a fresh fence. The
 	 * span is clamped to the body.
 	 */
-	function guardHiddenFenceDelete(e: InputEvent, range: CodeRange): boolean {
+	function guardHiddenFenceDelete(e: InputEvent, range: RawRange): boolean {
 		if (!showRail || !/^delete(?!By)/.test(e.inputType)) return false;
 		e.preventDefault();
 		const span = clampRangeToBody(node, range);
@@ -501,7 +501,7 @@
 	 * delete at a collapsed caret reports the word rather than the caret; it is feature-detected
 	 * because jsdom does not implement it.
 	 */
-	function pendingEditRange(e: InputEvent, surface: HTMLElement): CodeRange | null {
+	function pendingEditRange(e: InputEvent, surface: HTMLElement): RawRange | null {
 		const targets = typeof e.getTargetRanges === 'function' ? e.getTargetRanges() : [];
 		if (targets.length > 0) return getRangeOffsets(surface, targets[0]);
 		const selected = getSelectionOffsets(surface);
@@ -516,7 +516,7 @@
 	 * null, the event prevented and nothing committed. Text carried on a `dataTransfer` would
 	 * reach `parse()` without the paste transforms (G4.11).
 	 */
-	function rangedEditInsertion(e: InputEvent, span: CodeRange): string | null {
+	function rangedEditInsertion(e: InputEvent, span: RawRange): string | null {
 		if (e.inputType.startsWith('delete')) return '';
 		switch (e.inputType) {
 			case 'insertText':

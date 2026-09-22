@@ -316,7 +316,8 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		if (!el) return;
 		el.focus({ preventScroll: true });
 		const ambientLength = deps.getAmbientLength();
-		// The walk position of raw 0 keeps the scan out of the container's marker prefix.
+		// `within` is in raw offsets, so the default floor of raw 0 keeps the scan out of the
+		// container's marker prefix.
 		const min = toDomTextOffset(asRawOffset(within?.start ?? 0), ambientLength);
 		const max = within ? toDomTextOffset(asRawOffset(within.end), ambientLength) : undefined;
 		const walkOffset = findOffsetNearestX(el, asEditorX(x), from, min, max);

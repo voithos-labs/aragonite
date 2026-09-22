@@ -34,6 +34,22 @@ function entityRowY(page: Page): Promise<number> {
 	});
 }
 
+/** How many widgets sit left of the edge nearest `columnX`: the landing a column inside the run
+ *  names, read off the boxes rather than assumed from the glyph width. */
+function widgetsLeftOfColumn(page: Page, columnX: number): Promise<number> {
+	return page.evaluate((x) => {
+		const widgets = [...document.querySelectorAll('[data-inline-widget]')];
+		const edges = [widgets[0].getBoundingClientRect().left].concat(
+			widgets.map((w) => w.getBoundingClientRect().right)
+		);
+		let nearest = 0;
+		edges.forEach((edge, i) => {
+			if (Math.abs(edge - x) < Math.abs(edges[nearest] - x)) nearest = i;
+		});
+		return nearest;
+	}, columnX);
+}
+
 /** The width of one character of the last paragraph: the bound a column landing rounds by. */
 function characterWidth(page: Page): Promise<number> {
 	return page.evaluate(() => {
@@ -75,6 +91,23 @@ test.describe('sticky column: a paragraph whose only content is widgets', () => 
 		const src = await editor.bridge.getSource();
 		expect(src).toContain('X&amp;');
 		expect(src).not.toContain('&amp;X');
+	});
+
+	test('ArrowDown from a column inside the run lands on the widget edge nearest it', async ({
+		page
+	}) => {
+		await editor.page.locator('[contenteditable="true"]').nth(0).click();
+		await page.keyboard.press('Home');
+		for (let i = 0; i < 5; i++) await page.keyboard.press('ArrowRight');
+		await editor.waitForRenderFlush();
+		const nearest = await widgetsLeftOfColumn(page, await editor.getCaretPixelX());
+		// Neither end of the run, so the landing is one the pre-fix search could not return.
+		expect(nearest).toBeGreaterThan(0);
+		expect(nearest).toBeLessThan(10);
+		await page.keyboard.press('ArrowDown');
+		await editor.waitForRenderFlush();
+		await page.keyboard.press('X');
+		expect(await editor.bridge.getSource()).toContain(`${'&amp;'.repeat(nearest)}X`);
 	});
 
 	test('a caret beside a widget takes that widget’s edge as its column when it leaves', async ({

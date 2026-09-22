@@ -147,15 +147,22 @@ export async function markerCenterOf(
 	return at;
 }
 
-/** The centre of the nth rendered inline widget. A formula's own box holds a clipped half no
- *  click lands in, so the glyphs inside it are the aim point. */
-export async function widgetCenter(page: Page, index = 0): Promise<{ x: number; y: number }> {
-	const at = await page.evaluate((i) => {
-		const widget = document.querySelectorAll('[data-inline-widget]')[i];
-		const target = widget?.querySelector('.katex-html') ?? widget;
-		const b = target?.getBoundingClientRect();
-		return b && b.width > 0 ? { x: b.left + b.width / 2, y: b.top + b.height / 2 } : null;
-	}, index);
+/** The centre of the nth rendered inline widget, or of the `aim` element inside it for a kind
+ *  whose own box holds something no click lands in (a formula's clipped half). */
+export async function widgetCenter(
+	page: Page,
+	aim?: string,
+	index = 0
+): Promise<{ x: number; y: number }> {
+	const at = await page.evaluate(
+		(opts) => {
+			const widget = document.querySelectorAll('[data-inline-widget]')[opts.index];
+			const target = (opts.aim ? widget?.querySelector(opts.aim) : null) ?? widget;
+			const b = target?.getBoundingClientRect();
+			return b && b.width > 0 ? { x: b.left + b.width / 2, y: b.top + b.height / 2 } : null;
+		},
+		{ aim, index }
+	);
 	if (!at) throw new Error(`no rendered inline widget at index ${index}`);
 	return at;
 }

@@ -3,7 +3,7 @@
  * can't answer it past 2 wrapped lines, so the cursor's line is compared to the edge line's.
  * Collapsed ranges beside non-text children (dimmed markers, atomic widgets) measure to nothing,
  * so the edge line is measured around real text, and a rect-less caret borrows the box it sits
- * against; the sticky column in `cursor/sticky-measure.ts` reads that box and the line tolerance.
+ * against; that borrowed box and the line tolerance are declared here once.
  */
 
 import { domDescendants } from './dom-walk';

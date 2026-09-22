@@ -18,21 +18,29 @@ test.describe('a press above or below a picture, inside its own block', () => {
 		await waitForFirstImageLoaded(page);
 	});
 
-	for (const side of ['above', 'below'] as const) {
-		test(`a press ${side} the picture, right of its middle, types after it`, async ({ page }) => {
-			const at = await pointOffImageLine(page, side, 0.75);
+	for (const mode of ['source', 'live'] as const) {
+		for (const side of ['above', 'below'] as const) {
+			test(`${mode}: a press ${side} the picture, right of its middle, types after it`, async ({
+				page
+			}) => {
+				await editor.setPresentationMode(mode);
+				const at = await pointOffImageLine(page, side, 0.75);
+				await page.mouse.click(at.x, at.y);
+				await page.keyboard.press('X');
+				const src = await editor.bridge.getSource();
+				expect(src).toContain(')X');
+				expect(src).toContain('alpha\n');
+			});
+		}
+
+		test(`${mode}: a press below the picture, left of its middle, types before it`, async ({
+			page
+		}) => {
+			await editor.setPresentationMode(mode);
+			const at = await pointOffImageLine(page, 'below', 0.25);
 			await page.mouse.click(at.x, at.y);
 			await page.keyboard.press('X');
-			const src = await editor.bridge.getSource();
-			expect(src).toContain(')X');
-			expect(src).toContain('alpha\n');
+			expect(await editor.bridge.getSource()).toContain('X![pic');
 		});
 	}
-
-	test('a press below the picture, left of its middle, types before it', async ({ page }) => {
-		const at = await pointOffImageLine(page, 'below', 0.25);
-		await page.mouse.click(at.x, at.y);
-		await page.keyboard.press('X');
-		expect(await editor.bridge.getSource()).toContain('X![pic');
-	});
 });

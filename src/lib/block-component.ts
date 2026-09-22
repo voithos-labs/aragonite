@@ -155,7 +155,7 @@ export interface BlockComponent {
 	setSelection?(start: number, end: number): void;
 	/**
 	 * Position the cursor at the offset nearest editor-relative pixel X on the first
-	 * (`'above'`) or last (`'below'`) visual line; callers fall back to `focus(0)` or
+	 * (`'above'`) or last (`'below'`) visual line that can show a caret; callers fall back to `focus(0)` or
 	 * `CURSOR_END` when a block omits it. Behaves like {@link parkCaret}: it does not end a
 	 * live cross-block range, which vertical movement can never reach.
 	 */
