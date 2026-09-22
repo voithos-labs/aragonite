@@ -29,7 +29,8 @@ export function watchPageFailures(page: Page): PageFailures {
 		if (m.type() !== 'error' || m.text().startsWith('Failed to load resource')) return;
 		logged.add(`console error: ${m.text()}`);
 	};
-	// Once each: an effect that throws on every reactive flush would otherwise bury the cause.
+	// Each page error is listed once: an effect that throws on every reactive flush would
+	// otherwise bury the cause under thousands of copies of itself.
 	const onPageError = (e: Error) => uncaught.add(`page error: ${e.message}`);
 	const onRequestFailed = (r: Request) => {
 		const reason = r.failure()?.errorText ?? 'no reason given';
