@@ -250,6 +250,15 @@ describe('a typed trigger opens its source', () => {
 		expect(h.menu.getOpen()).toBeNull();
 	});
 
+	it('does not open in a link destination the author is still typing', async () => {
+		// `see [text](` is plain text until the `)` lands, so the inline tree holds no link here.
+		const h = harness('see [text](');
+		h.menu.registry.addSource(tags({ opensAt: (raw, pos) => /[\s(]/.test(raw[pos - 1]) }));
+		await h.type('#');
+		expect(h.raw()).toBe('see [text](#');
+		expect(h.menu.getOpen()).toBeNull();
+	});
+
 	it('does not open in reading mode', async () => {
 		const h = harness('a ');
 		h.menu.registry.addSource(tags());

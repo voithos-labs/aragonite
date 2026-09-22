@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
 	findOpening,
 	isProseOffset,
+	isUnclosedDestination,
 	sessionQuery,
 	stepActive,
 	typedRunStart
@@ -159,6 +160,42 @@ describe('isProseOffset', () => {
 		expect(at('see <https://a/|b> here')).toBe(false);
 		expect(at('see https://a/|b here')).toBe(false);
 		expect(at('see <span data="a|b"> here')).toBe(false);
+	});
+});
+
+// Miss-analysis: every position case ran through the inline tree, which holds a link only once
+// the parser has closed one, so a destination the author was still typing was never asked about.
+describe('isUnclosedDestination', () => {
+	/** Whether a trigger typed at the `|` in `raw` sits in a destination with no `)` yet. */
+	const at = (raw: string): boolean =>
+		isUnclosedDestination(raw.replace('|', ''), raw.indexOf('|'));
+
+	it('is true in a link destination that has no closing bracket yet', () => {
+		expect(at('see [text](|')).toBe(true);
+		expect(at('see [text](https://a/|')).toBe(true);
+		expect(at('see [a](b) and [c](|')).toBe(true);
+	});
+
+	it('is true in an image destination that has none either', () => {
+		expect(at('see ![alt](|')).toBe(true);
+	});
+
+	it('is false once the destination is closed, which the inline tree then reads', () => {
+		expect(at('see [text](https://a/) |')).toBe(false);
+		expect(at('see [a](b) |')).toBe(false);
+	});
+
+	it('is false after brackets that open no destination', () => {
+		expect(at('see [text] |')).toBe(false);
+		expect(at('see (|')).toBe(false);
+	});
+
+	it('is false for a `](` no `[` opened, which is text', () => {
+		expect(at('a ]( b |')).toBe(false);
+	});
+
+	it('reads the trigger’s own line and not the one above it', () => {
+		expect(at('see [text](\nand |')).toBe(false);
 	});
 });
 

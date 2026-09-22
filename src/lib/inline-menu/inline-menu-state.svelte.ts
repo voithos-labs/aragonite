@@ -15,6 +15,7 @@ import { isBlockNode, nodeAt } from '../tree-operations/node-primitives';
 import {
 	findOpening,
 	isProseOffset,
+	isUnclosedDestination,
 	sessionQuery,
 	stepActive,
 	typedRunStart,
@@ -235,6 +236,7 @@ export function createInlineMenuState(deps: InlineMenuStateDeps): InlineMenuStat
 		const opening = findOpening(sources.values(), caret.leaf.raw, caret.offset, from);
 		if (!opening) return;
 		if (!isProseOffset(resolvedInlineContent(caret.leaf), opening.start)) return;
+		if (isUnclosedDestination(caret.leaf.raw, opening.start)) return;
 		begin(opening.source, caret.path, opening.start, caret.offset);
 	}
 

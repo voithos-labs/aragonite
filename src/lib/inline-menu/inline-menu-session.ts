@@ -76,6 +76,23 @@ export function isProseOffset(nodes: InlineNode[], offset: number): boolean {
 }
 
 /**
+ * Whether the offset sits in a link or image destination the author opened with `](` and has not
+ * closed. Those bytes are text until the `)` lands, so the inline tree has no link to decline,
+ * and a destination reaches no further than its own line.
+ */
+export function isUnclosedDestination(raw: string, offset: number): boolean {
+	const lineStart = raw.lastIndexOf('\n', offset - 1) + 1;
+	for (let i = offset - 1; i >= lineStart; i--) {
+		if (raw[i] === ')') return false;
+		// A `](` with no `[` before it on the line is text, so the scan keeps going back.
+		if (raw[i] === '(' && raw[i - 1] === ']' && raw.lastIndexOf('[', i - 2) >= lineStart) {
+			return true;
+		}
+	}
+	return false;
+}
+
+/**
  * Where the run the author just typed began, or null if the change from `previous` to `raw` is
  * anything other than bytes inserted so as to end at the caret: a deletion, a caret that only
  * moved, an edit elsewhere in the leaf.
