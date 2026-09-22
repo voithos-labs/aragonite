@@ -61,6 +61,7 @@
 		handleSharedBeforeInput
 	} from '../../../selection/shared-keydown';
 	import {
+		comboboxAttributes,
 		createEditableSurface,
 		consumePendingRestore,
 		withKeydownVerdict
@@ -165,8 +166,6 @@
 	const { contentVersion: getContentVersion } = getContext<EditorDoc>(EDITOR_DOC_KEY);
 	const presentationMode = $derived(getPresentationMode?.() ?? 'source');
 	const readOnly = $derived(presentationMode === 'reading');
-	// An inline menu showing here makes this block a combobox for as long as it does: the role
-	// `textbox` carries no `aria-expanded`, so a screen reader would hear nothing about the list.
 	const combobox = $derived(inlineMenuCombobox?.(myPath) ?? null);
 
 	/** What the link card is asked about here, the same shape a table cell passes: `range` is the
@@ -1076,7 +1075,7 @@
 
 <!-- Reading mode turns contenteditable off, which rules out every browser edit path at once.
 	tabindex and role are separate, so focus and arrow traversal stay. Both roles the block takes
-	are interactive, which the compiler cannot see through a swap. -->
+	are interactive, which the compiler cannot see through the spread. -->
 <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 <div
 	bind:this={el}
@@ -1084,10 +1083,7 @@
 	class="text-editable-block {blockClass}"
 	contenteditable={readOnly ? 'false' : 'true'}
 	aria-readonly={readOnly ? 'true' : undefined}
-	role={combobox ? 'combobox' : 'textbox'}
-	aria-expanded={combobox ? 'true' : undefined}
-	aria-controls={combobox?.listboxId}
-	aria-activedescendant={combobox?.activeOptionId}
+	{...comboboxAttributes(combobox)}
 	style:text-indent={ambientPrefixText ? `calc(-1 * ${ambientIndent})` : null}
 	style:padding-left={ambientPrefixText ? ambientIndent : null}
 	oninput={onInput}

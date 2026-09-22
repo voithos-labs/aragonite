@@ -28,10 +28,12 @@ import {
 } from '../../cursor/content-offsets';
 import { handleSharedKeydown } from '../../selection/shared-keydown';
 import {
+	comboboxAttributes,
 	createEditableSurface,
 	createClipboardHandlers,
 	consumePendingRestore,
-	withKeydownVerdict
+	withKeydownVerdict,
+	type ComboboxAttributes
 } from './editable-surface';
 import { wireSurfaceContexts } from './surface-wiring.svelte';
 import { createContentOffsetBackend, anchorTrailingNewline } from './plain-text-backend';
@@ -113,11 +115,10 @@ export interface EditableLeafDeps {
  * breaks IME silently). Attachments under symbol keys carry the view's lifecycle rules: one text
  * node, so the offset traversal stays exact, and moving focus away on unmount.
  */
-export interface EditableLeafSurfaceProps {
+export interface EditableLeafSurfaceProps extends ComboboxAttributes {
 	tabindex: number;
 	/** Reading mode makes a plain leaf's always-mounted source inert. */
 	contenteditable: 'true' | 'false';
-	role: 'textbox';
 	spellcheck: 'false';
 	oninput: () => void;
 	onbeforeinput: (e: InputEvent) => void;
@@ -249,7 +250,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		activePlugins,
 		events: editorEvents
 	} = wiring.deps;
-	const { reorder } = getContext<EditorServices>(EDITOR_SERVICES_KEY);
+	const { reorder, inlineMenuCombobox } = getContext<EditorServices>(EDITOR_SERVICES_KEY);
 	const {
 		presentationMode: getPresentationModeCtx,
 		theme: getThemeCtx,
@@ -781,7 +782,6 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 
 	const surfaceHandlers = {
 		tabindex: 0,
-		role: 'textbox' as const,
 		spellcheck: 'false' as const,
 		oninput: editableSurface.onInput,
 		onbeforeinput: onBeforeInput,
@@ -806,24 +806,21 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 	// recomputing the spread never moves focus mid-edit.
 	const parkAttachment = (el: HTMLElement) => () => parkFocusOnEditorRoot(el, getEditorRoot());
 
-	// The mode splits the rest of the view-lifecycle contract: render-primary's
-	// `contenteditable` is constant, since reveal never fires in reading mode.
-	const surfaceProps: EditableLeafSurfaceProps =
-		mode === 'render-primary'
-			? {
-					...surfaceHandlers,
-					contenteditable: 'true',
-					[createAttachmentKey()]: syncAttachment,
-					[createAttachmentKey()]: parkAttachment
-				}
-			: {
-					...surfaceHandlers,
-					get contenteditable() {
-						return isReading() ? 'false' : 'true';
-					},
-					[createAttachmentKey()]: syncAttachment,
-					[createAttachmentKey()]: parkAttachment
-				};
+	// One key per attachment, taken once: the spread re-reads the bundle as the list under the
+	// caret opens and closes, and Svelte re-runs an attachment only when its function changes.
+	const syncKey = createAttachmentKey();
+	const parkKey = createAttachmentKey();
+
+	// Read on every spread, so the combobox attributes follow the list. The mode splits the rest
+	// of the view-lifecycle contract: render-primary's `contenteditable` is constant, since
+	// reveal never fires in reading mode.
+	const buildSurfaceProps = (): EditableLeafSurfaceProps => ({
+		...surfaceHandlers,
+		...comboboxAttributes(inlineMenuCombobox(deps.getPath())),
+		contenteditable: mode === 'render-primary' || !isReading() ? 'true' : 'false',
+		[syncKey]: syncAttachment,
+		[parkKey]: parkAttachment
+	});
 
 	return {
 		get sourceText() {
@@ -831,7 +828,9 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		},
 		repaintSource,
 
-		surfaceProps,
+		get surfaceProps() {
+			return buildSurfaceProps();
+		},
 		renderProps,
 
 		getPresentationMode,
