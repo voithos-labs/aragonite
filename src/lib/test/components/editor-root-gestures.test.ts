@@ -85,7 +85,8 @@ function harness(opts: { mode?: PresentationMode } = {}) {
 		isHostChrome: (node) => !!node && header.contains(node),
 		activateLink,
 		linkCard: { open: () => false },
-		linkRef: { current: refs.resolve, signature: refs.signature, epoch: 0 }
+		linkRef: { current: refs.resolve, signature: refs.signature, epoch: 0 },
+		widgetSelection: { isSelected: () => false }
 	});
 	teardowns.push(gestures.install(root));
 

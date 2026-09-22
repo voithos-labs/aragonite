@@ -30,5 +30,7 @@ there would collapse the range the user just made.
   - Miss-analysis: every widget these scenarios pressed on shows its source on the first click,
     which swaps the widget for editable text before the third press arrives, so the rule the
     click order carries for a widget that stays a widget was never on screen
-- triple-click an inline image: the image stays selected and a typed character replaces it. A
-  widget that selects whole takes the whole run, because its first click already selected it
+- triple-click an inline image: the image stays the one selected thing, no range is painted
+  beside it, and a typed character replaces it. The image's own click handling selects it whole
+  on every click of the run, and the click order leaves a run on a widget already selected that
+  way alone

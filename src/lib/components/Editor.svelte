@@ -814,7 +814,8 @@
 		isHostChrome,
 		activateLink,
 		linkCard,
-		linkRef: linkRefView
+		linkRef: linkRefView,
+		widgetSelection
 	});
 	// The drop handler installs on the same root; its deps are the paste pipeline's, not a
 	// gesture's.

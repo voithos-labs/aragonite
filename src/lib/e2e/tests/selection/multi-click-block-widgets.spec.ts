@@ -1,6 +1,6 @@
 import { test, expect } from '../../fixtures';
 import { PluginsPage } from '../plugins/helpers';
-import { multiClick, runCenter, widgetCenter } from './multi-click-helpers';
+import { multiClick, nativeSelectionText, runCenter, widgetCenter } from './multi-click-helpers';
 
 // Triple-click, the block level of the click order, on a widget-dense paragraph
 // (`requirements/selection/multi-click-block-widgets.md`), driven on the math seed so the
@@ -106,13 +106,19 @@ test.describe('multi-click: the block inline syntax handler beside inline widget
 		await expect.poll(() => reachesBothEnds(page, 'on this line')).toEqual([true, true]);
 	});
 
-	test('a triple-click on an inline image leaves the image selected', async ({ page }) => {
-		// An image selects whole on its first click, so the run is its own from the start.
+	test('a triple-click on an inline image leaves the image selected, and nothing else', async ({
+		page
+	}) => {
+		// An image selects whole on its first click, so the run is its own from the start: the
+		// image stays the one selected thing, with no range painted beside it.
 		await editor.loadContent('before ![pic|120x80](/test-fixtures/sample.png) after\n');
 		await page.waitForFunction(
 			() => (document.querySelector('[data-image-widget] img') as HTMLImageElement)?.complete
 		);
 		await multiClick(page, await widgetCenter(page), 3);
+		await expect(page.locator('[data-image-overlay]')).toHaveCount(1);
+		await page.waitForTimeout(150);
+		expect(await nativeSelectionText(page)).toBe('');
 		await page.keyboard.press('X');
 		await editor.bridge.waitForSourceContains('X');
 		expect(await editor.bridge.getSource()).toBe('before X after\n');

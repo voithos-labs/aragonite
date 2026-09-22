@@ -20,6 +20,8 @@ import { findSurfacePathForElement } from '../selection/path-lookup';
 import { claimsPointerGesture } from '../selection/pointer-gesture';
 import type { SelectionState } from '../selection/selection-state.svelte';
 import { isBlockNode, nodeAt } from '../tree-operations/node-primitives';
+import { widgetSourceRange } from '../core/inline/inline-widgets';
+import type { WidgetSelectionState } from './image/widget-selection-state.svelte';
 import { LINK_ELEMENT_SELECTOR, resolveLinkAtPoint } from './blocks/text/link-at-point';
 import { onRoot, removeAll } from './editor-root-listeners';
 import type { LinkCardState } from './link-card/link-card-state.svelte';
@@ -41,6 +43,8 @@ export interface RootGesturesDeps {
 	activateLink(href: string, event: MouseEvent): void;
 	linkCard: Pick<LinkCardState, 'open'>;
 	linkRef: LinkReferenceResolverRef;
+	/** Which inline widget is selected whole, so the click order can leave a run on it alone. */
+	widgetSelection: Pick<WidgetSelectionState, 'isSelected'>;
 }
 
 export interface RootGestures {
@@ -73,6 +77,14 @@ export function createRootGestures(deps: RootGesturesDeps): RootGestures {
 		lastBlockIndex: () => deps.getDoc().children.length - 1,
 		revealBlock: (index) => deps.revealPath([index])
 	});
+
+	function pressesSelectedWidget(target: EventTarget | null): boolean {
+		const el =
+			target instanceof Element ? target.closest('[data-inline-widget][data-source-start]') : null;
+		const source = el && widgetSourceRange(el);
+		const path = el && findSurfacePathForElement(el);
+		return source !== null && path != null && deps.widgetSelection.isSelected(path, source.start);
+	}
 
 	function dragStartsHere(root: HTMLElement, target: EventTarget | null): boolean {
 		if (claimsPointerGesture(target)) return false;
@@ -212,7 +224,8 @@ export function createRootGestures(deps: RootGesturesDeps): RootGestures {
 				marginBlockAt: (target, x, y) =>
 					deps.mode !== 'reading' && dragStartsHere(root, target)
 						? deadSpaceCaret.blockPathNearPoint(root, x, y)
-						: null
+						: null,
+				pressesSelectedWidget
 			}),
 			onRoot(root, 'pointerdown', startMarginDrag),
 			onRoot(root, 'mousedown', handleMouseDown)
