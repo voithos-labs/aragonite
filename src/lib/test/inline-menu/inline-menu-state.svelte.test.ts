@@ -12,8 +12,9 @@ const item = (id: string, insert = id): InlineMenuItem => ({ id, label: id, inse
 const typedEdit = (path: number[]): EditEvent =>
 	({ op: 'input', path, detail: { byteLength: 1 }, timestamp: 0 }) as EditEvent;
 
-/** Blocks whose bytes and caret the test moves by hand, the way a keystroke would. */
-function harness(initial: string, { arrive = true } = {}) {
+/** Blocks whose bytes and caret the test moves by hand, the way a keystroke would.
+ *  `writeFails` makes the range splice refuse, the way a commit blocked elsewhere would. */
+function harness(initial: string, { arrive = true, writeFails = false } = {}) {
 	let doc = parse(initial) as unknown as DocumentView;
 	/** Which block the caret is in; most tests give one and never leave it. */
 	let block = 0;
@@ -42,6 +43,7 @@ function harness(initial: string, { arrive = true } = {}) {
 		// A pick's write raises the same events a keystroke does, so the read they schedule is
 		// the one the state has to hold off.
 		commitRange: async (path, start, end, bytes) => {
+			if (writeFails) throw new Error('write refused');
 			const raw = doc.children[path[0]].raw;
 			write(path[0], raw.slice(0, start) + bytes + raw.slice(end));
 			events.emit('edit', typedEdit(path));
@@ -358,6 +360,19 @@ describe('navigation and commit', () => {
 		expect(h.errors).toEqual([]);
 	});
 
+	// Miss-analysis: every commit test gave the state a write that resolves, so none ever let the
+	// range splice refuse, and the rejection nobody was waiting on went unseen.
+	it('reports a pick whose write fails, and leaves the typed bytes alone', async () => {
+		const h = harness('see ', { writeFails: true });
+		h.menu.registry.addSource(tags());
+		await h.type('#wo');
+
+		expect(h.menu.commit()).toBe(true);
+		await vi.waitFor(() => expect(h.errors).toHaveLength(1));
+		expect(String(h.errors[0])).toMatch(/write refused/);
+		expect(h.raw()).toBe('see #wo');
+	});
+
 	it('does not reopen on its own write, even where the pick ends in a trigger', async () => {
 		const h = harness('a ');
 		h.menu.registry.addSource(tags({ items: () => [item('odd', '#odd #')] }));
@@ -427,6 +442,18 @@ describe('open(name): opening by name, a shortcut or a button', () => {
 		await vi.waitFor(() => expect(h.menu.getOpen()).not.toBeNull());
 		expect(h.raw()).toBe('mid#');
 		expect(h.menu.getOpen()).toMatchObject({ start: 3, end: 4, query: '' });
+	});
+
+	// Miss-analysis: the only failing write a test had ever given the state was a source that
+	// throws, which never reaches the trigger `open` types before the list would show.
+	it('reports a failed trigger write, and opens nothing', async () => {
+		const h = harness('mid', { writeFails: true });
+		h.menu.registry.addSource(tags());
+
+		expect(h.menu.registry.open('tags')).toBe(true);
+		await vi.waitFor(() => expect(h.errors).toHaveLength(1));
+		expect(String(h.errors[0])).toMatch(/write refused/);
+		expect(h.menu.getOpen()).toBeNull();
 	});
 
 	it('declines an unknown name, reading mode, and a lost caret, writing nothing', async () => {

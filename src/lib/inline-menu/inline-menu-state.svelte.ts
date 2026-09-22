@@ -307,6 +307,10 @@ export function createInlineMenuState(deps: InlineMenuStateDeps): InlineMenuStat
 		try {
 			await deps.commitRange(range.path, range.start, range.end, item.insert, caretAfter);
 			await deps.landCaret(range.path, caretAfter);
+		} catch (error) {
+			// Nobody is waiting on this write, so a refused one has to be reported here or vanish.
+			report(error, live.source);
+			return;
 		} finally {
 			writing = false;
 			resnap();
@@ -331,6 +335,9 @@ export function createInlineMenuState(deps: InlineMenuStateDeps): InlineMenuStat
 			try {
 				await deps.commitRange(caret.path, start, start, source.trigger, caretAfter);
 				await deps.landCaret(caret.path, caretAfter);
+			} catch (error) {
+				report(error, name);
+				return;
 			} finally {
 				writing = false;
 				resnap();
