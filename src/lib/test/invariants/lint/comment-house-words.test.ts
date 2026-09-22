@@ -239,3 +239,65 @@ describe('G4.26 requirement files keep house words out of their body text', () =
 		expect(countHouseWordsInRequirement('```md\nthe seam\n```')).toBe(0);
 	});
 });
+
+// ── Design and contributing docs ────────────────────────────────────────────
+
+const DOCS = path.resolve('docs');
+
+/** Hits per doc, counted the way a requirement file's body is. Lower a number when a rewrite
+ *  lands; never raise one. The glossary defines the words, and releasing.md is an owner file
+ *  outside the repository, so neither is a row. */
+const DOC_BASELINE: Record<string, number> = {
+	'design/caret-placement.md': 7,
+	'design/editor.md': 0,
+	'design/inline-parsing.md': 0,
+	'design/invariants.md': 147,
+	'design/live-mode.md': 38,
+	'design/performance.md': 1,
+	'design/plugin-contract.md': 82,
+	'design/syntax-tree.md': 0,
+	'design/virtual-rendering.md': 0,
+	'contributing/adding-a-block.md': 6,
+	'contributing/anatomy-of-a-change.md': 10,
+	'contributing/casebook.md': 14,
+	'contributing/code-style.md': 15,
+	'contributing/codebase-map.md': 0,
+	'contributing/commit-conventions.md': 1,
+	'contributing/debugging.md': 1,
+	'contributing/first-hour.md': 1,
+	'contributing/rules.md': 19,
+	'contributing/testing.md': 19,
+	'contributing/warnings.md': 3
+};
+
+const NOT_A_DOC_ROW = new Set(['glossary.md', 'releasing.md']);
+
+describe('G4.26 design and contributing docs stay under their house-word baseline', () => {
+	const counts: Record<string, number> = {};
+	for (const rel of Object.keys(DOC_BASELINE)) {
+		counts[rel] = countHouseWordsInRequirement(readFileSync(path.join(DOCS, rel), 'utf8'));
+	}
+
+	it('no doc holds more house words in its body text than its baseline', () => {
+		const over = Object.entries(counts)
+			.filter(([rel, n]) => n > DOC_BASELINE[rel])
+			.map(([rel, n]) => ({ doc: rel, count: n, baseline: DOC_BASELINE[rel] }));
+		expect(over).toEqual([]);
+	});
+
+	it('no baseline sits above its count (lower it when a rewrite lands)', () => {
+		const stale = Object.entries(DOC_BASELINE)
+			.filter(([rel, n]) => n > counts[rel])
+			.map(([rel, n]) => ({ doc: rel, count: counts[rel], baseline: n }));
+		expect(stale).toEqual([]);
+	});
+
+	it('every design and contributing doc is a row', () => {
+		const onDisk = ['design', 'contributing'].flatMap((dir) =>
+			readdirSync(path.join(DOCS, dir))
+				.filter((f) => f.endsWith('.md') && !NOT_A_DOC_ROW.has(f))
+				.map((f) => `${dir}/${f}`)
+		);
+		expect(onDisk.sort()).toEqual(Object.keys(DOC_BASELINE).sort());
+	});
+});
