@@ -44,7 +44,7 @@ test.describe('image widget selection', () => {
 		expect(await editor.bridge.getSource()).toContain('leadX![cat]');
 	});
 
-	// The paragraph keeps focus while its image is selected, so the browser can seat a caret at
+	// The paragraph keeps focus while its image is selected, so the browser can put a caret at
 	// its start on any press; a press on the image's own controls must not leave one there.
 	const controls = [
 		{ name: 'the resize handle', opensCrop: false, selector: '.md-resize-handle' },

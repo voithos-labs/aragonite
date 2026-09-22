@@ -206,8 +206,8 @@ describe('editor-root listeners: selectionchange bridge', () => {
 	}
 
 	// Miss-analysis: the image-selection specs read the selected text, which a collapsed caret
-	// leaves empty, so a caret the browser seated beside a selected widget was never asserted.
-	it('drops, and never announces, a caret the browser seats beside a selected widget', () => {
+	// leaves empty, so a caret the browser put beside a selected widget was never asserted.
+	it('drops, and never announces, a caret the browser puts beside a selected widget', () => {
 		const b = bridge(true);
 		caretInside(b.content);
 		fire();

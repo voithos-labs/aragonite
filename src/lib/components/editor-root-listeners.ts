@@ -97,7 +97,7 @@ export function installSelectionChangeBridge(deps: SelectionChangeBridgeDeps): (
 		// A selection in the host's header is not a document selection: announcing there
 		// reports this editor's own unchanged selection on every header caret move.
 		if (deps.isHostChrome(anchorNode)) return;
-		// The paragraph keeps focus while its widget is selected, and the browser seats a caret at
+		// The paragraph keeps focus while its widget is selected, and the browser puts a caret at
 		// its start on any mouse input; a drag's range is the user's own and stays.
 		if (sel.isCollapsed && deps.isWidgetSelected()) {
 			sel.removeAllRanges();

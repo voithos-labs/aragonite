@@ -34,5 +34,5 @@ there would collapse the range the user just made.
   range and no caret beside it, and a typed character replaces it. The first click selects the
   image whole and the second opens its crop frame, so the third press lands on the crop frame
   - Miss-analysis: the case read the selected text, which a collapsed caret leaves empty, and
-    counted overlays, which reads only the image's side, so the caret the browser seated at the
+    counted overlays, which reads only the image's side, so the caret the browser put at the
     paragraph's start on the third press passed both
