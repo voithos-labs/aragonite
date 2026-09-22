@@ -2,6 +2,7 @@
 
 import type { CstNode, Document } from '../core/nodes';
 import { nodeAt } from '../tree-operations/node-primitives';
+import { TABLE_CELL_SELECTOR } from '../components/block-content-selector';
 
 /** Block immediately after `path` in doc order (children before siblings), else null. */
 export function nextPath(doc: Document, path: number[]): number[] | null {
@@ -106,10 +107,10 @@ export function findBlockPathForElement(el: Element | null): number[] | null {
  * `data-block-path`, so {@link findBlockPathForElement} stops at the table and returns a path
  * whose offsets are cell indices, while a caret read from the same element is in characters.
  * Anything resolving an endpoint path from the DOM must come through here. Null outside a
- * grid; the grid is addressed by `data-table-row-idx` and `role="cell"`.
+ * grid; the grid is addressed by `data-table-row-idx` and `TABLE_CELL_SELECTOR`.
  */
 export function findCellPathForElement(el: Element | null): number[] | null {
-	const cellEl = el?.closest('[role="cell"]') ?? null;
+	const cellEl = el?.closest(TABLE_CELL_SELECTOR) ?? null;
 	if (!cellEl) return null;
 	const rowEl = cellEl.closest('[data-table-row-idx]');
 	if (!rowEl) return null;
@@ -118,7 +119,9 @@ export function findCellPathForElement(el: Element | null): number[] | null {
 
 	const rowIdx = Number(rowEl.getAttribute('data-table-row-idx'));
 	if (!Number.isInteger(rowIdx)) return null;
-	const colIdx = Array.from(rowEl.querySelectorAll(':scope > [role="cell"]')).indexOf(cellEl);
+	const colIdx = Array.from(rowEl.querySelectorAll(`:scope > ${TABLE_CELL_SELECTOR}`)).indexOf(
+		cellEl
+	);
 	if (colIdx < 0) return null;
 
 	return [...tablePath, rowIdx, colIdx];

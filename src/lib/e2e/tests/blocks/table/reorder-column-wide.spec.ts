@@ -35,7 +35,7 @@ test.describe('table block: column move on a wide (overflowing) table', () => {
 		const last = await page.evaluate(() => {
 			const table = document.querySelector('[role="table"]') as HTMLElement;
 			const tableRect = table.getBoundingClientRect();
-			const cells = [...table.querySelectorAll('[data-table-row-idx="0"] > [role="cell"]')];
+			const cells = [...table.querySelectorAll('[data-table-row-idx="0"] > .table-cell')];
 			let maxVisible = -1;
 			cells.forEach((c, i) => {
 				const r = c.getBoundingClientRect();
@@ -46,7 +46,7 @@ test.describe('table block: column move on a wide (overflowing) table', () => {
 		expect(last).toBeGreaterThan(0);
 		expect(last).toBeLessThan(COLS - 1);
 
-		await page.locator('[role="cell"]').nth(last).click();
+		await page.locator('.table-cell').nth(last).click();
 		await page.keyboard.press('Alt+ArrowRight');
 
 		// Insert semantics: the column swaps past its clipped neighbour.
@@ -55,7 +55,7 @@ test.describe('table block: column move on a wide (overflowing) table', () => {
 		);
 		// The caret rode the column into the clipped region, and the grid scrolled to show it.
 		const focusedCellVisible = await page.evaluate(() => {
-			const cell = document.activeElement?.closest('[role="cell"]');
+			const cell = document.activeElement?.closest('.table-cell');
 			const table = cell?.closest('[role="table"]');
 			if (!cell || !table) return null;
 			const r = cell.getBoundingClientRect();

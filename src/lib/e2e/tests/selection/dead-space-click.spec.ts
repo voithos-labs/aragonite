@@ -170,7 +170,7 @@ test.describe('dead-space clicks place a caret', () => {
 	test('a click beside a table lands in no cell', async () => {
 		await editor.loadContent('lead\n\n| A | B |\n| --- | --- |\n| 1 | 2 |\n| 3 | 4 |\n');
 		const root = await rootBox(editor);
-		const cell = await editor.page.locator('[role="cell"]').nth(2).boundingBox();
+		const cell = await editor.page.locator('.table-cell').nth(2).boundingBox();
 		if (!cell) throw new Error('no box for the first body cell');
 
 		await editor.page.mouse.click(root.right - 5, cell.y + cell.height / 2);

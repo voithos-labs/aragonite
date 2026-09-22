@@ -128,7 +128,7 @@ test.describe('image paste: cross-block replacement', () => {
 		const TABLE = '| A | B |\n| --- | --- |\n| 1 | 2 |\n\ntrailing\n';
 		const MARKDOWN = '![[shot.png]]';
 		const selectOutOfCell = async () => {
-			await page.locator('[role="cell"]').nth(2).click();
+			await page.locator('.table-cell').nth(2).click();
 			await page.keyboard.press('End');
 			await page.keyboard.press('Shift+ArrowDown');
 			await editor.waitForCrossBlock(true);

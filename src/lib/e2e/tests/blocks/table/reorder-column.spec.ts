@@ -18,21 +18,21 @@ test.describe('table block: keyboard column reorder', () => {
 
 	test('Alt+ArrowRight moves a column right; source round-trips', async ({ page }) => {
 		await editor.loadContent(TABLE_3COL);
-		await page.locator('[role="cell"]').nth(0).click();
+		await page.locator('.table-cell').nth(0).click();
 		await page.keyboard.press('Alt+ArrowRight');
 		await editor.bridge.waitForSourceMatches(/\| B \| A \| C \|/);
 	});
 
 	test('Alt+ArrowLeft moves a column left', async ({ page }) => {
 		await editor.loadContent(TABLE_3COL);
-		await page.locator('[role="cell"]').nth(2).click(); // header "C" (col 2)
+		await page.locator('.table-cell').nth(2).click(); // header "C" (col 2)
 		await page.keyboard.press('Alt+ArrowLeft');
 		await editor.bridge.waitForSourceMatches(/\| A \| C \| B \|/);
 	});
 
 	test('column move keeps focus in the moved column (typing lands there)', async ({ page }) => {
 		await editor.loadContent(TABLE_3COL);
-		await page.locator('[role="cell"]').nth(3).click(); // body cell "1" (row 1, col 0)
+		await page.locator('.table-cell').nth(3).click(); // body cell "1" (row 1, col 0)
 		await page.keyboard.press('Alt+ArrowRight');
 		await editor.bridge.waitForSourceMatches(/\| 2 \| 1 \| 3 \|/);
 		// Focus must have followed col 0 into col 1; otherwise X lands in the wrong cell.
@@ -49,7 +49,7 @@ test.describe('table block: keyboard column reorder', () => {
 		await editor.loadContent(TABLE_3COL);
 		// A plain click lands the caret where it was clicked, so the typed character may land
 		// either side of the cell text: assert that it is there, not where.
-		await page.locator('[role="cell"]').nth(0).click();
+		await page.locator('.table-cell').nth(0).click();
 		await page.keyboard.type('Z');
 		await editor.bridge.waitForSourceMatches(/\| (?:ZA|AZ) \|/);
 
@@ -64,7 +64,7 @@ test.describe('table block: keyboard column reorder', () => {
 		page
 	}) => {
 		await editor.loadContent(TABLE_3COL);
-		await page.locator('[role="cell"]').nth(2).click(); // header "C" (last column)
+		await page.locator('.table-cell').nth(2).click(); // header "C" (last column)
 		await page.keyboard.type('Z');
 		await editor.bridge.waitForSourceMatches(/\| (?:ZC|CZ) \|/);
 
@@ -78,7 +78,7 @@ test.describe('table block: keyboard column reorder', () => {
 	test('column move: container parity holds and no page error', async ({ page }) => {
 		const pageErrors = capturePageErrors(page);
 		await editor.loadContent(TABLE_3COL);
-		await page.locator('[role="cell"]').nth(0).click();
+		await page.locator('.table-cell').nth(0).click();
 		await page.keyboard.press('Alt+ArrowRight');
 		await editor.bridge.waitForSourceMatches(/\| B \| A \| C \|/);
 
@@ -97,7 +97,7 @@ test.describe('table block: keyboard column reorder', () => {
 		const original = await editor.bridge.getSource();
 		expect(original).toContain('|1|2|3|');
 
-		await page.locator('[role="cell"]').nth(0).click();
+		await page.locator('.table-cell').nth(0).click();
 		await page.keyboard.press('Alt+ArrowRight');
 		await editor.bridge.waitForSourceMatches(/\| B \| A \| C \|/);
 
@@ -109,7 +109,7 @@ test.describe('table block: keyboard column reorder', () => {
 		page
 	}) => {
 		await editor.loadContent(TABLE_3COL);
-		await page.locator('[role="cell"]').nth(0).click();
+		await page.locator('.table-cell').nth(0).click();
 		await page.keyboard.press('Alt+ArrowRight');
 		// Column 0 moves to index 1 of a 3-column table (1-based for the user).
 		await expect(page.locator('.editor-sr-live-reorder')).toHaveText(

@@ -9,6 +9,7 @@ import type { CellSelectionPoint, SelectionPoint } from '../../../selection/prim
 import { createPointerDragSession } from '../../../selection/pointer-session';
 import { blockNearPoint } from '../../../selection/nearest-block';
 import { firstScrollableDescendant } from '../../../cursor/scroll-ancestors';
+import { TABLE_CELL_SELECTOR } from '../../block-content-selector';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -139,9 +140,8 @@ export function handleCellShiftClick(
 
 // ── DOM geometry ─────────────────────────────────────────────────────────────
 //
-// Selector contract: rows carry `data-table-row-idx`, cells carry `role="cell"`. Two
-// other places use the same selectors, `selection/path-lookup.ts` upwards and
-// `Editor.svelte`'s `getBlockElByPath` downwards, so a markup change reaches all three.
+// Rows carry `data-table-row-idx` and cells match `TABLE_CELL_SELECTOR`; `selection/path-lookup.ts`
+// and `components/block-el-lookup.ts` read the same markup, so a change to it reaches all three.
 
 /**
  * The mounted table rows, in DOM order. Row windowing unmounts row 0 once the table scrolls
@@ -154,7 +154,7 @@ export function mountedRowEls(tableEl: HTMLElement): HTMLElement[] {
 
 /** The cells of one row, in column order. */
 export function rowCellEls(rowEl: Element): HTMLElement[] {
-	return Array.from(rowEl.querySelectorAll<HTMLElement>(':scope > [role="cell"]'));
+	return Array.from(rowEl.querySelectorAll<HTMLElement>(`:scope > ${TABLE_CELL_SELECTOR}`));
 }
 
 // ── Hit testing ────────────────────────────────────────────────────────────
@@ -181,7 +181,7 @@ export function cellCoordsOfElement(
 	tableEl: HTMLElement
 ): { rowIdx: number; colIdx: number; cellEl: HTMLElement } | null {
 	if (!el) return null;
-	const cellEl = el.closest('[role="cell"]') as HTMLElement | null;
+	const cellEl = el.closest(TABLE_CELL_SELECTOR) as HTMLElement | null;
 	if (!cellEl) return null;
 	const rowEl = cellEl.closest('[data-table-row-idx]') as HTMLElement | null;
 	if (!rowEl) return null;

@@ -17,7 +17,7 @@ test.describe('table block: paste in', () => {
 
 	test('plain text without special chars inserts at caret', async ({ page }) => {
 		await editor.loadContent(TABLE_2BODY);
-		await page.locator('[role="cell"]').nth(0).click();
+		await page.locator('.table-cell').nth(0).click();
 		await page.keyboard.press('End');
 		await editor.seedClipboard('hello');
 		await editor.paste();
@@ -26,7 +26,7 @@ test.describe('table block: paste in', () => {
 
 	test('pipes auto-escape to backslash-pipe in cell raw', async ({ page }) => {
 		await editor.loadContent(TABLE_2BODY);
-		await page.locator('[role="cell"]').nth(2).click();
+		await page.locator('.table-cell').nth(2).click();
 		await page.keyboard.press('End');
 		await editor.seedClipboard('a|b|c');
 		await editor.paste();
@@ -35,7 +35,7 @@ test.describe('table block: paste in', () => {
 
 	test('newlines collapse to a single space and edges are trimmed', async ({ page }) => {
 		await editor.loadContent(TABLE_2BODY);
-		await page.locator('[role="cell"]').nth(3).click();
+		await page.locator('.table-cell').nth(3).click();
 		await page.keyboard.press('Home');
 		// One content paragraph: the blank lines the copy wrapped around it are packaging, so the
 		// cell keeps the inline path rather than breaking the table around them.
@@ -57,7 +57,7 @@ test.describe('table block: paste in', () => {
 		page
 	}) => {
 		await editor.loadContent(TABLE_2BODY);
-		await page.locator('[role="cell"]').nth(2).click();
+		await page.locator('.table-cell').nth(2).click();
 		await editor.seedClipboard('| X | Y |\n| --- | --- |\n| 9 | 8 |\n');
 		await editor.paste();
 		await editor.bridge.waitForSourceContains('| 9 | 8 |');
@@ -69,7 +69,7 @@ test.describe('table block: paste in', () => {
 
 	test('pasting tab-separated rows appends the rows and columns they need', async ({ page }) => {
 		await editor.loadContent(TABLE_2BODY);
-		await page.locator('[role="cell"]').nth(5).click(); // "4": row 2, col 1
+		await page.locator('.table-cell').nth(5).click(); // "4": row 2, col 1
 		await editor.seedClipboard('p\tq\tr\ns\tt\tu\n');
 		await editor.paste();
 		await editor.bridge.waitForSourceContains('| s | t | u |');
@@ -96,7 +96,7 @@ test.describe('table block: paste in', () => {
 			page.evaluate(() =>
 				[...document.querySelectorAll('.table-row')]
 					.map((row) =>
-						[...row.querySelectorAll('[role="cell"], [role="columnheader"]')]
+						[...row.querySelectorAll('.table-cell, [role="columnheader"]')]
 							.map((cell) => cell.textContent?.trim() ?? '')
 							.join('|')
 					)
@@ -106,7 +106,7 @@ test.describe('table block: paste in', () => {
 		await editor.loadContent(TABLE_2BODY);
 		const before = await grid();
 
-		await page.locator('[role="cell"]').nth(2).click(); // "1": row 1, col 0
+		await page.locator('.table-cell').nth(2).click(); // "1": row 1, col 0
 		await editor.seedClipboard('p\tq\tr\ns\tt\tu\n');
 		await editor.paste();
 		await editor.bridge.waitForSourceContains('| s | t | u |');
@@ -118,7 +118,7 @@ test.describe('table block: paste in', () => {
 
 	test('pasting a heading breaks the table at the paste row', async ({ page }) => {
 		await editor.loadContent(TABLE_2BODY);
-		await page.locator('[role="cell"]').nth(2).click();
+		await page.locator('.table-cell').nth(2).click();
 		await editor.seedClipboard('# Hello\n');
 		await editor.paste();
 		await editor.bridge.waitForSourceContains('# Hello');
@@ -133,7 +133,7 @@ test.describe('table block: paste in', () => {
 		page
 	}) => {
 		await editor.loadContent(TABLE_2BODY);
-		await page.locator('[role="cell"]').nth(2).click();
+		await page.locator('.table-cell').nth(2).click();
 		await editor.seedClipboard('Para one.\n\n## Two\n');
 		await editor.paste();
 		await editor.bridge.waitForSourceContains('## Two');
@@ -157,7 +157,7 @@ test.describe('table block: paste in', () => {
 		page
 	}) => {
 		await editor.loadContent(TABLE_2BODY);
-		await page.locator('[role="cell"]').nth(0).click();
+		await page.locator('.table-cell').nth(0).click();
 		await editor.seedClipboard('# Sandwiched\n');
 		await editor.paste();
 		await editor.bridge.waitForSourceContains('# Sandwiched');
@@ -177,7 +177,7 @@ test.describe('table block: paste in', () => {
 		page
 	}) => {
 		await editor.loadContent(TABLE_2BODY);
-		await page.locator('[role="cell"]').nth(4).click();
+		await page.locator('.table-cell').nth(4).click();
 		await editor.seedClipboard('# Tail\n');
 		await editor.paste();
 		await editor.bridge.waitForSourceContains('# Tail');
@@ -191,7 +191,7 @@ test.describe('table block: paste in', () => {
 	test('Ctrl+Z undoes a paste in a single press', async ({ page }) => {
 		await editor.loadContent(TABLE_2BODY);
 		const before = await editor.bridge.getSource();
-		await page.locator('[role="cell"]').nth(0).click();
+		await page.locator('.table-cell').nth(0).click();
 		await page.keyboard.press('End');
 		await editor.seedClipboard('xyz');
 		await editor.paste();

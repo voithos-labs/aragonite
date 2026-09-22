@@ -50,7 +50,7 @@ test.describe('table block: row moves on a row-windowed table', () => {
 	}) => {
 		const pageErrors = capturePageErrors(page);
 		const from = BODY_ROWS - 2;
-		await page.locator(`[data-table-row-idx="${from}"] [role="cell"]`).first().click();
+		await page.locator(`[data-table-row-idx="${from}"] .table-cell`).first().click();
 
 		await page.keyboard.press('Alt+ArrowDown');
 
@@ -69,7 +69,7 @@ test.describe('table block: row moves on a row-windowed table', () => {
 		const from = BODY_ROWS - 3;
 		await openFlyout(
 			page,
-			page.locator(`[data-table-row-idx="${from}"] [role="cell"]`).first(),
+			page.locator(`[data-table-row-idx="${from}"] .table-cell`).first(),
 			'Row'
 		);
 

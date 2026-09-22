@@ -38,7 +38,7 @@ test.describe('reserved child-0 chrome: wall × table branch', () => {
 		'| a | b |\n| --- | --- |\n| 1 | 2 |\n\n:::callout Title\n| c | d |\n| --- | --- |\n| 3 | 4 |\n:::\n\nBelow\n';
 
 	async function cellCenter(page: Page, nth: number): Promise<{ x: number; y: number }> {
-		const box = await page.locator('[role="cell"]').nth(nth).boundingBox();
+		const box = await page.locator('.table-cell').nth(nth).boundingBox();
 		if (!box) throw new Error(`Gate 6: cell ${nth} has no bounding box`);
 		return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
 	}

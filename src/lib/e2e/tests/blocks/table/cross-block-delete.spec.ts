@@ -51,7 +51,7 @@ test.describe('table block: cross-block delete', () => {
 		await editor.loadContent(`Before.\n\n${TABLE_2x3}`);
 		const [paraBox, cellBox] = await boxesOf(
 			page.getByText('Before.'),
-			page.locator('[role="cell"]').nth(3)
+			page.locator('.table-cell').nth(3)
 		);
 		await dragBetweenBoxes(page, paraBox, cellBox);
 		await editor.waitForCrossBlock(true);
@@ -60,7 +60,7 @@ test.describe('table block: cross-block delete', () => {
 		await editor.bridge.waitForSourceNotContains('| 1 | 2 |');
 		await editor.bridge.waitForSourceContains('| 3 | 4 |');
 		// Survivor is the only row left → 2 cells.
-		await expect(page.locator('[role="cell"]')).toHaveCount(2);
+		await expect(page.locator('.table-cell')).toHaveCount(2);
 	});
 
 	test('Case 2: mid-table → paragraph below Backspace clears whole rows', async ({ page }) => {
@@ -69,7 +69,7 @@ test.describe('table block: cross-block delete', () => {
 		// from row 1 removes body rows 1 and 2.
 		await editor.loadContent(`${TABLE_2x3}\nfollow paragraph\n`);
 		const [cellBox, paraBox] = await boxesOf(
-			page.locator('[role="cell"]').nth(3), // body row 1, col 1 = "2"
+			page.locator('.table-cell').nth(3), // body row 1, col 1 = "2"
 			page.getByText('follow paragraph')
 		);
 		await dragBetweenBoxes(page, cellBox, paraBox);
@@ -92,7 +92,7 @@ test.describe('table block: cross-block delete', () => {
 		// Drag from cell (1, 0) = "1" to the paragraph below; anchorCol === 0
 		// removes anchor row entirely. Survivor: end of last cell of row 0 = "C".
 		const [cellBox, paraBox] = await boxesOf(
-			page.locator('[role="cell"]').nth(3),
+			page.locator('.table-cell').nth(3),
 			page.getByText('follow paragraph')
 		);
 		await dragBetweenBoxes(page, cellBox, paraBox);
@@ -105,20 +105,20 @@ test.describe('table block: cross-block delete', () => {
 
 	test('whole-table Ctrl+A 2nd press + Backspace deletes the table block', async ({ page }) => {
 		await editor.loadContent(TABLE_3x3);
-		await page.locator('[role="cell"]').nth(4).click();
+		await page.locator('.table-cell').nth(4).click();
 		await page.keyboard.press('ControlOrMeta+a');
 		await page.keyboard.press('ControlOrMeta+a');
 		await editor.waitForCrossBlock(true);
 		await page.keyboard.press('Backspace');
 		await editor.bridge.waitForSourceNotContains('| --- | --- | --- |');
-		await expect(page.locator('[role="cell"]')).toHaveCount(0);
+		await expect(page.locator('.table-cell')).toHaveCount(0);
 	});
 
 	test('emptying a single-table doc leaves one editable block the user can type into', async ({
 		page
 	}) => {
 		await editor.loadContent(TABLE_3x3);
-		await page.locator('[role="cell"]').nth(4).click();
+		await page.locator('.table-cell').nth(4).click();
 		await page.keyboard.press('ControlOrMeta+a');
 		await page.keyboard.press('ControlOrMeta+a');
 		await editor.waitForCrossBlock(true);
@@ -136,7 +136,7 @@ test.describe('table block: cross-block delete', () => {
 
 	test('emptying a single-table doc keeps the delete in one undo entry', async ({ page }) => {
 		await editor.loadContent(TABLE_3x3);
-		await page.locator('[role="cell"]').nth(4).click();
+		await page.locator('.table-cell').nth(4).click();
 		await page.keyboard.press('ControlOrMeta+a');
 		await page.keyboard.press('ControlOrMeta+a');
 		await editor.waitForCrossBlock(true);
@@ -153,22 +153,22 @@ test.describe('table block: cross-block delete', () => {
 	test('drag-select an entire row + Backspace deletes that row', async ({ page }) => {
 		await editor.loadContent(TABLE_3x3);
 		const [fromBox, toBox] = await boxesOf(
-			page.locator('[role="cell"]').nth(3),
-			page.locator('[role="cell"]').nth(5)
+			page.locator('.table-cell').nth(3),
+			page.locator('.table-cell').nth(5)
 		);
 		await dragBetweenBoxes(page, fromBox, toBox);
 		await editor.waitForCrossBlock(true);
 		await page.keyboard.press('Backspace');
 		await editor.bridge.waitForSourceNotContains('| 1 | 2 | 3 |');
 		await editor.bridge.waitForSourceContains('| 4 | 5 | 6 |');
-		await expect(page.locator('[role="cell"]')).toHaveCount(6);
+		await expect(page.locator('.table-cell')).toHaveCount(6);
 	});
 
 	test('drag-select an entire column + Backspace deletes that column', async ({ page }) => {
 		await editor.loadContent(TABLE_3x3);
 		const [fromBox, toBox] = await boxesOf(
-			page.locator('[role="cell"]').nth(1),
-			page.locator('[role="cell"]').nth(7)
+			page.locator('.table-cell').nth(1),
+			page.locator('.table-cell').nth(7)
 		);
 		await dragBetweenBoxes(page, fromBox, toBox);
 		await editor.waitForCrossBlock(true);
@@ -176,7 +176,7 @@ test.describe('table block: cross-block delete', () => {
 		await editor.bridge.waitForSourceContains('| A | C |');
 		await editor.bridge.waitForSourceContains('| 1 | 3 |');
 		await editor.bridge.waitForSourceContains('| 4 | 6 |');
-		await expect(page.locator('[role="cell"]')).toHaveCount(6);
+		await expect(page.locator('.table-cell')).toHaveCount(6);
 	});
 
 	test('drag-select a partial cell range + Backspace clears the cells (structure preserved)', async ({
@@ -184,8 +184,8 @@ test.describe('table block: cross-block delete', () => {
 	}) => {
 		await editor.loadContent(TABLE_3x3);
 		const [fromBox, toBox] = await boxesOf(
-			page.locator('[role="cell"]').nth(0),
-			page.locator('[role="cell"]').nth(4)
+			page.locator('.table-cell').nth(0),
+			page.locator('.table-cell').nth(4)
 		);
 		await dragBetweenBoxes(page, fromBox, toBox);
 		await editor.waitForCrossBlock(true);
@@ -193,7 +193,7 @@ test.describe('table block: cross-block delete', () => {
 		await editor.bridge.waitForSourceContains('|  |  | C |');
 		await editor.bridge.waitForSourceContains('|  |  | 3 |');
 		await editor.bridge.waitForSourceContains('| 4 | 5 | 6 |');
-		await expect(page.locator('[role="cell"]')).toHaveCount(9);
+		await expect(page.locator('.table-cell')).toHaveCount(9);
 	});
 
 	test('whole-row coverage that would leave only the header is a no-op', async ({ page }) => {
@@ -201,8 +201,8 @@ test.describe('table block: cross-block delete', () => {
 		await editor.loadContent('| A | B |\n| --- | --- |\n| 1 | 2 |\n');
 		const before = await editor.bridge.getSource();
 		const [fromBox, toBox] = await boxesOf(
-			page.locator('[role="cell"]').nth(2),
-			page.locator('[role="cell"]').nth(3)
+			page.locator('.table-cell').nth(2),
+			page.locator('.table-cell').nth(3)
 		);
 		await dragBetweenBoxes(page, fromBox, toBox);
 		await editor.waitForCrossBlock(true);
@@ -215,7 +215,7 @@ test.describe('table block: cross-block delete', () => {
 	}) => {
 		await editor.loadContent(`Before.\n\n${TABLE_2x3}`);
 		const before = await editor.bridge.getSource();
-		await page.locator('[role="cell"]').nth(0).click();
+		await page.locator('.table-cell').nth(0).click();
 		await page.keyboard.press('Home');
 		await page.keyboard.press('Backspace');
 		expect(await editor.bridge.getSource()).toBe(before);
@@ -233,7 +233,7 @@ test.describe('table block: cross-block delete', () => {
 		await editor.loadContent(`${TABLE_2x3}\nafter\n`);
 		// Anchor in the bottom-right cell, then extend into the paragraph below via
 		// the keyboard table-extend path (distinct from pointer drag / Ctrl+Shift+End).
-		await page.locator('[role="cell"]').nth(5).click();
+		await page.locator('.table-cell').nth(5).click();
 		await page.keyboard.press('End');
 		await page.keyboard.press('Shift+ArrowDown');
 		await editor.waitForCrossBlock(true);
@@ -257,7 +257,7 @@ test.describe('table block: cross-block delete', () => {
 		// removes the touched rows in both. Typing over the selection splices the character at a
 		// deep surviving cell, never through the grid markup.
 		await editor.loadContent(`${TABLE_2x3}\n${TABLE_2x3}`);
-		const cells = page.locator('[role="cell"]');
+		const cells = page.locator('.table-cell');
 		// Anchor in the first table's body cell "2" (idx 3), focus in the second table's header
 		// cell "B" (idx 7): the focus must hit-test to a flagged cell coordinate, or the snap
 		// clears the wrong cell and leaves an empty leading cell.
@@ -291,7 +291,7 @@ test.describe('table block: cross-block delete', () => {
 		await editor.loadContent(source);
 		await page.evaluate(() => (window as any).__test.startErrorCapture());
 
-		const cellBox = await page.locator('[role="cell"]').nth(3).boundingBox(); // body "2"
+		const cellBox = await page.locator('.table-cell').nth(3).boundingBox(); // body "2"
 		if (!cellBox) throw new Error('missing cell bounding box');
 		// Nested prose endpoint: the paragraph inside the blockquote at [1, 0].
 		const endPoint = await editor.pointForOffset([1, 0], 3);

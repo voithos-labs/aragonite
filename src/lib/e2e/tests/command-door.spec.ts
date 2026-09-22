@@ -132,7 +132,7 @@ test.describe('runCommand: the semantic command entry point', () => {
 
 	test('a table cell takes the entry point through its published ref slot', async () => {
 		await editor.loadContent('| a | b |\n| --- | --- |\n| 1 | 2 |\n');
-		await editor.page.locator('[role="cell"]').nth(3).click();
+		await editor.page.locator('.table-cell').nth(3).click();
 		await editor.page.keyboard.press('Home');
 		await editor.page.keyboard.press('Shift+ArrowRight');
 

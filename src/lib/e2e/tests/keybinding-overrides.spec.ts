@@ -121,7 +121,7 @@ test.describe('override fires where no block holds focus', () => {
 		await editor.loadContent('| a | b |\n| - | - |\n| c | d |\n\n```\ncode\n```\n');
 		await setKeybindings(editor, [{ chord: 'Mod+Alt+U', command: 'history.undo' }]);
 
-		await editor.page.locator('[role="cell"]').nth(3).click();
+		await editor.page.locator('.table-cell').nth(3).click();
 		await editor.page.keyboard.press('End');
 		await editor.page.keyboard.type('Z');
 		await expect.poll(() => editor.bridge.getSource()).toContain('dZ');

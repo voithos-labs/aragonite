@@ -16,7 +16,7 @@ test.describe('table block: rectangular selection by keyboard', () => {
 
 	test('Shift+ArrowDown extends the rectangle one row per press, then exits', async ({ page }) => {
 		// cellIdx 4 = body row 0, col 1 ("2"); DOM cell order matches cellIdx at 3 cols.
-		await page.locator('[role="cell"]').nth(4).click();
+		await page.locator('.table-cell').nth(4).click();
 
 		await page.keyboard.press('Shift+ArrowDown');
 		await editor.waitForCrossBlock(true);
@@ -40,7 +40,7 @@ test.describe('table block: rectangular selection by keyboard', () => {
 
 	test('Shift+ArrowUp extends up one row per press, then exits upward', async ({ page }) => {
 		// cellIdx 10 = body row 2, col 1 ("8").
-		await page.locator('[role="cell"]').nth(10).click();
+		await page.locator('.table-cell').nth(10).click();
 
 		await page.keyboard.press('Shift+ArrowUp');
 		await editor.waitForCrossBlock(true);

@@ -75,7 +75,7 @@ test.describe('IME composition', () => {
 
 	test('table cell: composed commit updates the cell once and round-trips', async ({ page }) => {
 		await editor.loadContent('| H |\n| :- |\n| Left |\n');
-		await page.locator('[role="cell"]').nth(1).click();
+		await page.locator('.table-cell').nth(1).click();
 		await page.keyboard.press('End');
 		const ime = await attachIme(page);
 

@@ -122,7 +122,7 @@ test.describe('cross-block destructive-key dispatch (A1)', () => {
 		);
 		// Drag from body cell "bbb" (mid-row, mid-col) out to the paragraph below so
 		// the table is the start endpoint of the cross-block range.
-		const from = page.locator('[role="cell"]').nth(4);
+		const from = page.locator('.table-cell').nth(4);
 		const to = page.getByText('After.');
 		const fromBox = await from.boundingBox();
 		const toBox = await to.boundingBox();

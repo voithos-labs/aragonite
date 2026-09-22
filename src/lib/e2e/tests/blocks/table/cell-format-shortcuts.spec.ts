@@ -12,7 +12,7 @@ test.describe('table cell: inline-format shortcuts', () => {
 	});
 
 	async function selectCellWord(page: EditorPage['page'], cellIndex: number, length: number) {
-		await page.locator('[role="cell"]').nth(cellIndex).click();
+		await page.locator('.table-cell').nth(cellIndex).click();
 		await page.keyboard.press('Home');
 		for (let i = 0; i < length; i++) {
 			await page.keyboard.press('Shift+ArrowRight');
@@ -39,7 +39,7 @@ test.describe('table cell: inline-format shortcuts', () => {
 	// and the cell's own escaping runs over the result.
 	test('Ctrl+B at a collapsed caret inserts the empty pair', async ({ page }) => {
 		await editor.loadContent('| A | B |\n| --- | --- |\n| hello | world |\n');
-		await page.locator('[role="cell"]').nth(2).click();
+		await page.locator('.table-cell').nth(2).click();
 		await page.keyboard.press('End');
 		await page.keyboard.press('ControlOrMeta+b');
 		await editor.bridge.waitForSourceContains('hello****');

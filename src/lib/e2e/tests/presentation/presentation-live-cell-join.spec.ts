@@ -23,7 +23,7 @@ async function selectAcrossConstructs(ep: EditorPage, page: Page): Promise<void>
 /** The cell's visible text: its DOM text minus every marker span. */
 async function visibleCellText(page: Page): Promise<string> {
 	return page.evaluate(() => {
-		const cell = document.querySelector('[role="cell"]');
+		const cell = document.querySelector('.table-cell');
 		if (!cell) return '';
 		const walker = document.createTreeWalker(cell, NodeFilter.SHOW_TEXT);
 		let out = '';

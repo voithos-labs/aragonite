@@ -21,7 +21,7 @@ test.describe('selection: keyboard: edge cases', () => {
 	// on it reads a selection nothing paints as no selection at all.
 	test('Shift+ArrowDown out of a last-block table leaves the cell editable', async () => {
 		await editor.loadContent('intro\n\n| aa | bb |\n| -- | -- |\n| cc | wxyz |\n');
-		await editor.page.locator('[role="cell"]').last().click();
+		await editor.page.locator('.table-cell').last().click();
 		await editor.page.keyboard.press('End');
 		await editor.waitForRenderFlush();
 

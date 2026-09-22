@@ -17,10 +17,10 @@ class CellMathPage extends PluginsPage {
 	}
 	// Body row cells follow the two header cells in document order.
 	get formulaCell() {
-		return this.page.getByRole('cell').nth(2);
+		return this.page.locator('.table-cell').nth(2);
 	}
 	get noteCell() {
-		return this.page.getByRole('cell').nth(3);
+		return this.page.locator('.table-cell').nth(3);
 	}
 	async gotoMathTable() {
 		await this.gotoPlugins('mathtable');

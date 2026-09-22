@@ -67,7 +67,7 @@ test.describe('gap caret arrival', () => {
 
 	test('ArrowDown out of the last table cell puts the caret at the boundary, and again enters the fence', async () => {
 		await editor.loadContent(TABLE_THEN_FENCE);
-		await editor.page.locator('[role="cell"]').nth(LAST_CELL).click();
+		await editor.page.locator('.table-cell').nth(LAST_CELL).click();
 
 		await editor.page.keyboard.press('ArrowDown');
 		await editor.bridge.waitForGapCaret(AT_BOUNDARY);

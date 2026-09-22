@@ -14,7 +14,7 @@ test.describe('table block: caret/selection recovery on undo', () => {
 
 	test('undo after Alt+Shift+Backspace restores caret to same cell', async ({ page }) => {
 		// Focus cell at row 2, col 1 (body row 2, middle column = "5" cell).
-		await page.locator('[role="cell"]').nth(7).click();
+		await page.locator('.table-cell').nth(7).click();
 
 		const before = await editor.bridge.getSource();
 		await page.keyboard.press('Alt+Shift+Backspace');
@@ -37,7 +37,7 @@ test.describe('table block: caret/selection recovery on undo', () => {
 	}) => {
 		// Focus cell row 1, col 1 (the "2" cell): row 1 rather than row 2, so deleting
 		// the row does not promote a new header.
-		await page.locator('[role="cell"]').nth(4).click();
+		await page.locator('.table-cell').nth(4).click();
 
 		const before = await editor.bridge.getSource();
 		await page.keyboard.press('ControlOrMeta+Shift+Backspace');
@@ -56,7 +56,7 @@ test.describe('table block: caret/selection recovery on undo', () => {
 
 	test('undo after typing in a cell restores caret to that cell', async ({ page }) => {
 		// Cell index 4 = body row 0, col 1: the middle of the 3×3, the "2" cell.
-		await page.locator('[role="cell"]').nth(4).click();
+		await page.locator('.table-cell').nth(4).click();
 		await page.keyboard.press('End');
 
 		const before = await editor.bridge.getSource();
@@ -82,7 +82,7 @@ test.describe('table block: caret/selection recovery on undo', () => {
 		await editor.loadContent(
 			'| A | Column | C |\n| --- | --- | --- |\n| 1 | Column | 3 |\n| 4 | data | 6 |\n'
 		);
-		await page.locator('[role="cell"]').nth(4).click();
+		await page.locator('.table-cell').nth(4).click();
 		await page.keyboard.press('End');
 
 		const before = await editor.bridge.getSource();

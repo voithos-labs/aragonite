@@ -18,3 +18,7 @@ export const BLOCK_CONTENT_LOCATOR_SELECTOR =
  *  block's first line of text is used. Here rather than beside the handle so the code that
  *  builds the container's marker prefix can set it without reaching into `components/`. */
 export const DRAG_ANCHOR_ATTR = 'data-drag-anchor';
+
+/** A table cell, header row included: row 0's cells are column headers to assistive tech. Used
+ *  under `:scope >` from a row, and with `closest` from inside a cell. */
+export const TABLE_CELL_SELECTOR = ':is([role="cell"], [role="columnheader"])';

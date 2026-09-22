@@ -117,7 +117,7 @@ test.describe('insertMarkdown: programmatic insertion', () => {
 	// reads the export side.
 	test('a focused table cell takes the entry point through its published ref slot', async () => {
 		await editor.loadContent(TABLE);
-		await editor.page.locator('[role="cell"]').nth(3).click();
+		await editor.page.locator('.table-cell').nth(3).click();
 		await editor.page.keyboard.press('End');
 
 		expect(await insert('ZZ')).toBe(true);

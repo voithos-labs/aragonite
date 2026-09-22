@@ -49,7 +49,7 @@ function cellMatchesRaw(
 	return page.evaluate(
 		([r, c]) => {
 			const rowEl = document.querySelector(`[data-table-row-idx='${r}']`);
-			const cell = rowEl?.querySelectorAll(':scope > [role="cell"]')[c];
+			const cell = rowEl?.querySelectorAll(':scope > .table-cell')[c];
 			const table = (window as any).__test.getDocument().children[0];
 			return cell?.textContent === String(table?.children?.[r]?.children?.[c]?.raw ?? '');
 		},

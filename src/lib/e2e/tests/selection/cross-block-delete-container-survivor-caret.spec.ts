@@ -20,7 +20,7 @@ test.describe('cross-block delete: container survivor caret', () => {
 
 		// Select from the first cell of the first table through document end, so both
 		// tables are fully consumed and the blockquote is the only survivor.
-		await page.locator('[role="cell"]').first().click();
+		await page.locator('.table-cell').first().click();
 		await page.keyboard.press('Home');
 		await page.keyboard.press('ControlOrMeta+Shift+End');
 		await editor.waitForCrossBlock(true);

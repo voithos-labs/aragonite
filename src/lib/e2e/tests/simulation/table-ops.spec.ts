@@ -22,7 +22,7 @@ const START_TABLE = 'Intro line above.\n\n| A | B |\n| --- | --- |\n| 1 | 2 |\n|
 async function columnCount(page: Page): Promise<number> {
 	return page.evaluate(() => {
 		const row = document.querySelector('[data-table-row-idx]');
-		return row ? row.querySelectorAll('[role="cell"]').length : 0;
+		return row ? row.querySelectorAll('.table-cell').length : 0;
 	});
 }
 

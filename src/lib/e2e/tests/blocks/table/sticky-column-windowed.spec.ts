@@ -44,7 +44,7 @@ test.describe('table block: sticky-column entry into a row-windowed table', () =
 		// Click the rightmost cell (col 2 of the 3-column fixture): the sticky x then maps
 		// clearly to col 2, so a landing in col 0 stands out.
 		const rightCol = 2;
-		await page.locator(`[data-table-row-idx="${lastRow}"] [role="cell"]`).nth(rightCol).click();
+		await page.locator(`[data-table-row-idx="${lastRow}"] .table-cell`).nth(rightCol).click();
 
 		// ArrowDown exits to the paragraph below, capturing the sticky x at col 2. No
 		// typing in between: input events reset the sticky column.

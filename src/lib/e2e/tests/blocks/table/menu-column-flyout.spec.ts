@@ -45,7 +45,7 @@ test.describe('table block: the cell menu’s Column flyout', () => {
 		page
 	}) => {
 		await editor.loadContent(TABLE_1COL);
-		await page.locator('[role="cell"]').nth(1).click({ button: 'right' }); // body cell "1"
+		await page.locator('.table-cell').nth(1).click({ button: 'right' }); // body cell "1"
 
 		await expect(page.getByRole('menuitem', { name: /delete column/i })).toBeDisabled();
 		await expect(page.getByRole('menuitem', { name: /delete row/i })).toBeEnabled();
@@ -73,14 +73,14 @@ test.describe('table block: the cell menu’s Column flyout', () => {
 
 	test('the alignment trio reflects the clicked column’s current alignment', async ({ page }) => {
 		await editor.loadContent('| A | B |\n| :---: | --- |\n| 1 | 2 |\n');
-		await page.locator('[role="cell"]').nth(0).click({ button: 'right' }); // centred column A
+		await page.locator('.table-cell').nth(0).click({ button: 'right' }); // centred column A
 
 		const trio = page.getByRole('group', { name: 'Column alignment' });
 		await expect(trio.locator('.alignment-segment.active')).toHaveAttribute('aria-label', 'Center');
 	});
 
 	test('the alignment trio sets the clicked (non-first) column to right', async ({ page }) => {
-		await page.locator('[role="cell"]').nth(1).click({ button: 'right' }); // header B, colIdx 1
+		await page.locator('.table-cell').nth(1).click({ button: 'right' }); // header B, colIdx 1
 		await page.getByRole('button', { name: 'Right' }).click();
 
 		// Full-row anchor: only B is `-+:`; A and C stay `-+`, so the test fails if alignment

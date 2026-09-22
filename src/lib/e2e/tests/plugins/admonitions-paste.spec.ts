@@ -62,7 +62,7 @@ test.describe('plugin admonitions: native alert paste', () => {
 	// call `applyPasteTransforms` alike is checked by the source scan G4.11.
 	test('whole-table-selection paste replaces the table with a native alert', async ({ page }) => {
 		await editor.loadContent('before\n\n| A | B |\n| --- | --- |\n| 1 | 2 |\n\nafter\n');
-		await page.locator('[role="cell"]').nth(2).click();
+		await page.locator('.table-cell').nth(2).click();
 		await page.keyboard.press('ControlOrMeta+a');
 		await page.keyboard.press('ControlOrMeta+a');
 		await editor.waitForCrossBlock(true);

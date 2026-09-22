@@ -40,7 +40,7 @@ test.describe('table block: wide-table horizontal scroll', () => {
 	test('columns respect the 80px min-width floor', async ({ page }) => {
 		await editor.loadContent(WIDE_TABLE);
 		const cellWidths = await page
-			.locator('[role="cell"]')
+			.locator('.table-cell')
 			.evaluateAll((cells) => cells.map((c) => (c as HTMLElement).getBoundingClientRect().width));
 		// 80px floor; sub-pixel rounding tolerance.
 		for (const w of cellWidths) expect(w).toBeGreaterThanOrEqual(79);
@@ -51,8 +51,8 @@ test.describe('table block: wide-table horizontal scroll', () => {
 
 		// Drag-select cells a1..a3 (body row 0, cols 0..2): three cells inside the table.
 		const tableEl = page.locator('[role="table"]').first();
-		const a1 = await page.locator('[role="cell"]').nth(12).boundingBox();
-		const a3 = await page.locator('[role="cell"]').nth(14).boundingBox();
+		const a1 = await page.locator('.table-cell').nth(12).boundingBox();
+		const a3 = await page.locator('.table-cell').nth(14).boundingBox();
 		if (!a1 || !a3) throw new Error('cells not laid out');
 		await page.mouse.move(a1.x + a1.width / 2, a1.y + a1.height / 2);
 		await page.mouse.down();
@@ -82,7 +82,7 @@ test.describe('table block: wide-table horizontal scroll', () => {
 		const tableBox = await tableEl.boundingBox();
 		if (!tableBox) throw new Error('table not laid out');
 
-		const firstCell = page.locator('[role="cell"]').nth(12);
+		const firstCell = page.locator('.table-cell').nth(12);
 		const firstBox = await firstCell.boundingBox();
 		if (!firstBox) throw new Error('first cell not laid out');
 
@@ -109,7 +109,7 @@ test.describe('table block: wide-table horizontal scroll', () => {
 		// Body row 1 col 3 = cells[24+3] = cells[27] = "b4". Last body row, so
 		// ArrowDown exits the table to the paragraph below.
 		const b4Center = await page
-			.locator('[role="cell"]')
+			.locator('.table-cell')
 			.nth(27)
 			.evaluate((el) => {
 				const r = el.getBoundingClientRect();

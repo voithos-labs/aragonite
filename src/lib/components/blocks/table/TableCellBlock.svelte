@@ -121,6 +121,8 @@
 
 	// A cell's position among its row's children is its column.
 	const colIdx = $derived(index);
+	// A GFM table's first row is always its header.
+	const isHeaderRow = $derived(rowIdx === 0);
 
 	const wiring = wireSurfaceContexts();
 	const {
@@ -1099,12 +1101,14 @@
 	}
 </script>
 
+<!-- The cell is an editing host, which the compiler cannot see through a role it has to compute. -->
+<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 <div
 	bind:this={el}
 	tabindex="0"
 	class="table-cell"
 	contenteditable={readOnly ? 'false' : 'true'}
-	role="cell"
+	role={isHeaderRow ? 'columnheader' : 'cell'}
 	style:text-align={alignment === 'none' ? undefined : alignment}
 	oninput={onInput}
 	onkeydown={onKeyDownTraced}
