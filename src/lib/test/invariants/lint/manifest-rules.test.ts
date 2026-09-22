@@ -297,8 +297,6 @@ const MANIFESTS: ManifestRule[] = [
 				'the caret placement and column entries; the clamp to a position the caret can sit at lives here',
 			'src/lib/components/blocks/plain-text-backend.ts':
 				'the plugin-leaf backend over content offsets',
-			'src/lib/components/blocks/code/CodeBlock.svelte':
-				'its backend forward, plus the fence-line clamp correction after a column landing',
 			'src/lib/components/blocks/table/TableCellBlock.svelte':
 				'its backend forward; widget steps and the pending-cursor restore',
 			'src/lib/components/blocks/text/TextEditableBlock.svelte':

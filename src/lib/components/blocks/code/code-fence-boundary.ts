@@ -141,6 +141,11 @@ export interface FenceRangedEdit {
 	newCursor: number;
 }
 
+/** The body's own span, the only lines a vertical arrival may land a caret on. */
+export function bodyWindow(node: NodeView): CodeRange {
+	return bodyWindowOf(sliceFencedCode(node), displayLength(node.raw));
+}
+
 // ── Internal ────────────────────────────────────────────────────────────────
 
 interface FenceRegions {
@@ -197,10 +202,6 @@ function orderedRange(range: CodeRange): CodeRange {
 		start: Math.min(range.start, range.end),
 		end: Math.max(range.start, range.end)
 	};
-}
-
-function bodyWindow(node: NodeView): CodeRange {
-	return bodyWindowOf(sliceFencedCode(node), displayLength(node.raw));
 }
 
 function bodyWindowOf(slice: FencedCodeSlice, displayEnd: number): CodeRange {

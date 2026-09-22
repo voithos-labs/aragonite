@@ -9,7 +9,7 @@
 		type EditorPolicies,
 		type EditorServices
 	} from '../../../editor-keys';
-	import { asDomTextOffset, asRawOffset } from '../../../cursor/coordinate-spaces';
+	import { asDomTextOffset } from '../../../cursor/coordinate-spaces';
 	import { CONTENT_EMPTY_ATTR, holdsOnlyMarkerChrome } from '../../../cursor/widget-offset';
 	import {
 		createRangeFromOffsets,
@@ -46,6 +46,7 @@
 	import { computeFenceExit, computeTypedFenceExit } from './code-fence-exit';
 	import {
 		classifyFenceBoundary,
+		bodyWindow,
 		clampCaretToBody,
 		clampEnterOffsetToBody,
 		clampRangeToBody,
@@ -147,14 +148,10 @@
 		editableSurface.surface.parkCaret(clampCaretToBody(node, offset));
 	}
 
-	// The column lookup works from pixels, so it can only be corrected afterwards: move
-	// the caret when it lands on a fence line, and leave it alone when it does not.
+	// A fence line is a visual line the column lookup would otherwise land on, and a caret there
+	// takes keystrokes the fence check refuses, so the search is bounded to the body.
 	export function focusAtColumn(x: number, from: StickyColumnDirection): void {
-		editableSurface.surface.focusAtColumn(x, from);
-		const landed = backend.getRaw();
-		if (landed === null) return;
-		const seated = clampCaretToBody(node, landed);
-		if (seated !== landed) backend.setRaw(asRawOffset(seated));
+		editableSurface.surface.focusAtColumn(x, from, bodyWindow(node));
 	}
 
 	export const getCursorOffset = editableSurface.surface.getCursorOffset;

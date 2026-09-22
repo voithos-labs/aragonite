@@ -491,18 +491,20 @@ ctx.stickyColumn.noteKey(e, () => getCurrentCursorEditorRelativeX(el));
 A hand-rolled surface takes on both halves itself:
 
 1. **Feed every keydown to `noteKey`**, as above. It's the one entry a keydown handler may use (`cursor/sticky-column.ts` says so in its header); pass the live-caret measure as the second argument so a capture key has an X to record. `reset()` stays public only for callers with no key to classify (lifecycle, commit, undo, paste).
-2. **Implement `focusAtColumn(x, from)`** with `findOffsetNearestX(el, x, from)` from `cursor/sticky-measure.ts`: place the cursor at the nearest offset on the first (`from === 'above'`) or last (`from === 'below'`) visual line. The editable surface's version, which also keeps the scan out of the marker region:
+2. **Implement `focusAtColumn(x, from)`** with `findOffsetNearestX(el, x, from)` from `cursor/sticky-measure.ts`: place the cursor at the nearest offset on the first (`from === 'above'`) or last (`from === 'below'`) visual line that can show a caret. The editable surface's version, which also keeps the scan out of the marker region and takes an optional raw range for a block with lines a caret may not land on (a code fence):
 
 ```ts
 // components/blocks/editable-surface.ts
-function focusAtColumn(x: number, from: StickyColumnDirection): void {
+function focusAtColumn(x: number, from: StickyColumnDirection, within?: RawRange): void {
 	const el = deps.getEl();
 	if (!el) return;
 	el.focus();
 	const ambientLength = deps.getAmbientLength();
-	const minOffset = toDomTextOffset(asRawOffset(0), ambientLength);
-	const walkOffset = findOffsetNearestX(el, asEditorX(x), from, minOffset);
-	deps.backend.setRaw(toClampedRawOffset(walkOffset, ambientLength));
+	const min = toDomTextOffset(asRawOffset(within?.start ?? 0), ambientLength);
+	const max = within ? toDomTextOffset(asRawOffset(within.end), ambientLength) : undefined;
+	deps.backend.setRaw(
+		toClampedRawOffset(findOffsetNearestX(el, asEditorX(x), from, min, max), ambientLength)
+	);
 }
 ```
 

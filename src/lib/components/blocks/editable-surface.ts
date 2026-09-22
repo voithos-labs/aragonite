@@ -213,13 +213,21 @@ export interface ClipboardCaretIO {
 	focus: (offset: number) => void;
 }
 
+/** A span of a block's raw text. */
+export interface RawRange {
+	start: number;
+	end: number;
+}
+
 /** The BlockComponent methods shared verbatim across every editable surface. */
 export interface EditableSurfaceMethods {
 	focus(offset: number): void;
 	/** Required here, optional on `BlockComponent`: an editable surface is what the
 	 *  cross-block extend paths leave a caret in, so all of them go through here. */
 	parkCaret(offset: number): void;
-	focusAtColumn(x: number, from: StickyColumnDirection): void;
+	/** `within` is the raw range the landing must stay inside, for a block whose first or last
+	 *  visual line takes no caret (a code fence); the default is the whole block. */
+	focusAtColumn(x: number, from: StickyColumnDirection, within?: RawRange): void;
 	getCursorOffset(): number | null;
 	getSelectedText(): string;
 	setSelection(start: number, end: number): void;
@@ -303,14 +311,15 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 
 	// The vertical move resolves by pixel and reaches `setRaw` on its own path, so it does not
 	// inherit parkCaret's sentinel rule: a column landing already stops on a painted glyph.
-	function focusAtColumn(x: number, from: StickyColumnDirection): void {
+	function focusAtColumn(x: number, from: StickyColumnDirection, within?: RawRange): void {
 		const el = deps.getEl();
 		if (!el) return;
 		el.focus({ preventScroll: true });
 		const ambientLength = deps.getAmbientLength();
-		// minOffset = the walk position of raw 0 keeps the scan out of the marker region.
-		const minOffset = toDomTextOffset(asRawOffset(0), ambientLength);
-		const walkOffset = findOffsetNearestX(el, asEditorX(x), from, minOffset);
+		// The walk position of raw 0 keeps the scan out of the container's marker prefix.
+		const min = toDomTextOffset(asRawOffset(within?.start ?? 0), ambientLength);
+		const max = within ? toDomTextOffset(asRawOffset(within.end), ambientLength) : undefined;
+		const walkOffset = findOffsetNearestX(el, asEditorX(x), from, min, max);
 		deps.backend.setRaw(toClampedRawOffset(walkOffset, ambientLength));
 	}
 
