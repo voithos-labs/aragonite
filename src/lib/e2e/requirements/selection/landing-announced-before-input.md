@@ -17,6 +17,9 @@ reach it before the next input does. What the channel reports overall is in
   payload naming the leaf reports it without the byte. The placement cannot announce the arrival
   there (the source has to be shown first), so this is the case where dropping a repeat must not
   drop the arrival with it.
+- ArrowDown onto a whole-block plugin container, read before any render flush: the payload naming
+  the container is already there. A container with no character position focuses the block itself
+  instead of descending into a column, which is a landing of its own.
 
 ## Edge cases
 
@@ -39,4 +42,6 @@ red: the landings that lose the race are the ones the editor performs after its 
 
 Miss-analysis: the channel was only ever tested for what it reports, never for when, and the one
 ordering guard that existed (the inline menu's baseline) was taken at `beforeinput` precisely to
-work around this, so it passed while the channel stayed late.
+work around this, so it passed while the channel stayed late. The whole-block scenario was missed
+again a step later: the column landing was pinned on the editable surface, and the container's
+branch of the same verb, which lands focus without descending, was never driven.

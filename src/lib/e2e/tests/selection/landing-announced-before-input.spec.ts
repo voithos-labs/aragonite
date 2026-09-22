@@ -27,11 +27,14 @@ const stopCapture = (editor: EditorPage): Promise<Emission[]> =>
  */
 function arrivalVerdict(emissions: Emission[], path: number[]): string {
 	const key = JSON.stringify(path);
-	const first = emissions.find((e) => JSON.stringify(e.focus?.path ?? null) === key);
+	const first = emissions.find((e) => namesPath(e, path));
 	if (!first) return `${key}: never announced`;
 	if (first.raw?.includes(TYPED)) return `${key}: announced after the typed byte`;
 	return `${key}: announced before the typed byte`;
 }
+
+const namesPath = (emission: Emission, path: number[]) =>
+	JSON.stringify(emission.focus?.path ?? null) === JSON.stringify(path);
 
 const before = (path: number[]) => `${JSON.stringify(path)}: announced before the typed byte`;
 
@@ -119,5 +122,40 @@ test.describe('a caret landing in a plugin leaf with its source hidden', () => {
 
 		const emissions = await stopCapture(editor);
 		expect(arrivalVerdict(emissions, [1])).toBe(before([1]));
+	});
+});
+
+// A whole-block plugin container holds no character position, so a vertical arrow focuses the
+// block itself instead of descending into a column. That landing reaches neither the caret entry
+// point nor the editable surface, and it is the one a subscriber keyed on the block at the caret
+// reads wrong while the browser catches up.
+test.describe('a caret landing on a whole-block plugin container', () => {
+	let editor: PluginsPage;
+
+	test.beforeEach(async ({ page }) => {
+		editor = new PluginsPage(page);
+		// Seeds a heading, then three mermaid diagrams and a plain code fence.
+		await editor.gotoPlugins('mermaid');
+	});
+
+	test('is announced at the placement, before any render flush', async () => {
+		await editor.focusBlockStart(0);
+		await startCapture(editor);
+
+		await editor.page.keyboard.press('ArrowDown');
+		const emissions = await stopCapture(editor);
+
+		expect(emissions.filter((e) => namesPath(e, [1]))).toHaveLength(1);
+	});
+
+	test('is announced once, not again when the browser reports it', async () => {
+		await editor.focusBlockStart(0);
+		await startCapture(editor);
+
+		await editor.page.keyboard.press('ArrowDown');
+		await editor.waitForRenderFlush();
+		const emissions = await stopCapture(editor);
+
+		expect(emissions.filter((e) => namesPath(e, [1]))).toHaveLength(1);
 	});
 });

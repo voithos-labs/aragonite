@@ -275,6 +275,9 @@ export function createContainerBlockComponent(
 			const focusEl = deps.getFocusEl?.();
 			if (focusEl) {
 				landFocus(focusEl);
+				// Announced here because this branch reaches neither `placeCaret` nor the
+				// editable surface, the two placements that announce for everything else.
+				deps.selection.announceSelection();
 				return;
 			}
 			if (deps.nodeChildrenLength === 0) return;
