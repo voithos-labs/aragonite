@@ -172,10 +172,8 @@ test.describe('selection: setSelection restores a getSelection snapshot', () => 
 				(window as any).__test.stopSelectionChangeCapture()
 			);
 
-			// Exactly one is the contract: the restore announces the selection itself, in the
-			// batch that spans the state write and the caret, and the browser's `selectionchange`
-			// that follows repeats a position subscribers already have. Two means that repeat got
-			// through; none means the restore stopped announcing.
+			// Exactly one: the restore announces the selection itself, and the browser's
+			// `selectionchange` that follows repeats a position subscribers already have.
 			expect(emissions).toHaveLength(1);
 			for (const emission of emissions) {
 				expect({ anchor: emission.anchor, focus: emission.focus }).toEqual(restored);

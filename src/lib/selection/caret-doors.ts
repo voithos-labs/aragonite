@@ -24,8 +24,9 @@ export function placeCaret(
 			endLiveCaretClaim(selection);
 			parkCaret(offset);
 			// A caret that was already a plain one moves no field the state checks, so nothing
-			// above notifies and this is the only word subscribers get.
-			selection.announceSelection();
+			// above notifies and this is the only word subscribers get. Announced as a placement,
+			// so a `focus` that lands where the caret already is says nothing.
+			selection.announcePlacement();
 		});
 }
 

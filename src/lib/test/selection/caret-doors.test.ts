@@ -106,6 +106,23 @@ describe('placeCaret: the safe caret entry point', () => {
 		expect(h.emissions.length).toBe(1);
 	});
 
+	// Miss-analysis: nothing asked what a flush held, so a placement that moved the caret nowhere
+	// announced like any other and repeated a position subscribers already had.
+	it('reports a plain placement as the only thing in its flush', () => {
+		const flushes: boolean[] = [];
+		const selection = createSelectionState({
+			onChange: ({ placementOnly }) => flushes.push(placementOnly)
+		});
+
+		placeCaret(selection, () => {})(3);
+		selection.batch(() => {
+			selection.enterCrossBlock(at(0, 0), at(2, 4));
+			placeCaret(selection, () => {})(3);
+		});
+
+		expect(flushes).toEqual([true, false]);
+	});
+
 	it('nests inside a caller-owned batch without emitting early', () => {
 		const h = liveRange();
 

@@ -260,12 +260,13 @@
 		emit: (selection) => events.emit('selectionChange', selection)
 	});
 	const selectionState = createSelectionState({
-		onChange: () => {
+		onChange: ({ placementOnly }) => {
 			// The other half of the mutual exclusion `onSelect` carries: a range opened while a
 			// widget is selected would leave both live, and every check of "a widget is
 			// selected" would answer for the document-wide selection the user is looking at.
 			if (selectionState.isCrossBlock) widgetSelection.clear();
-			selectionAnnouncer.announce();
+			if (placementOnly) selectionAnnouncer.announceIfMoved();
+			else selectionAnnouncer.announce();
 		},
 		getDoc: () => doc
 	});
