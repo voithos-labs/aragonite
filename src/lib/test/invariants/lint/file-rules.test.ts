@@ -337,6 +337,22 @@ const RULES: FileRule[] = [
 		misses: [BENIGN_BRAND_USES]
 	},
 	{
+		id: 'the block-path attribute is parsed in one reader',
+		population: (file) => /data-block-path|dataset\.blockPath/.test(file.code),
+		matches: /JSON\.parse\s*\(/,
+		allowed: {
+			'src/lib/selection/path-lookup.ts':
+				'readBlockPath: the one parse, and the shape check with it'
+		},
+		reason:
+			'a second parse of `data-block-path` drifts from the shape check the shared reader applies; read it through readBlockPath',
+		hits: ['const raw = el.dataset.blockPath;\nconst p = JSON.parse(raw) as number[];'],
+		misses: [
+			"const host = el.closest('[data-block-path]');\nreadBlockPath(host);",
+			'const parsed = JSON.parse(payload);'
+		]
+	},
+	{
 		id: 'G4.13 no view-stripping cast outside tree-operations and the commit sequence',
 		population: notUnder(
 			'src/lib/tree-operations/',

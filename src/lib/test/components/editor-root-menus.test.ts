@@ -161,6 +161,13 @@ describe('editor-root menus: the right-click', () => {
 		expect(h.menu()).toBeNull();
 	});
 
+	it('a block path that parses but is no path opens nothing', () => {
+		const h = harness();
+		h.fence.setAttribute('data-block-path', '{"0":1}');
+		h.rightClick(h.fence.firstElementChild!);
+		expect(h.menu()).toBeNull();
+	});
+
 	it("an already-claimed event and a press on a menu's own row open nothing", () => {
 		const h = harness();
 		const claimed = new MouseEvent('contextmenu', { bubbles: true, cancelable: true });
