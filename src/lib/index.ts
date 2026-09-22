@@ -113,3 +113,15 @@ export type {
 export type { EditorRects } from './editor-rects';
 export { SELECTION_END } from './block-component';
 export type { SelectionEnd } from './block-component';
+
+// ── Inline menus ───────────────────────────────────────────────────────────────
+
+// Lists opened under the caret by a typed trigger (`#`, `[[`), via `editor.getInlineMenus()`.
+export type {
+	InlineMenuRegistry,
+	InlineMenuSource,
+	InlineMenuSourceHandle,
+	InlineMenuItem,
+	InlineMenuQuery,
+	InlineMenuRowProps
+} from './inline-menu/types';

@@ -6,6 +6,7 @@ import type { DocumentView } from '../core/node-views';
 import type { EditorEvents } from '../editor-events';
 import type { DecorationRegistry } from '../decorations/types';
 import type { EditorRects } from '../editor-rects';
+import type { InlineMenuRegistry } from '../inline-menu/types';
 import type { PresentationMode } from '../presentation-mode';
 
 export interface EditorPlugin<Options = unknown> {
@@ -36,6 +37,8 @@ export interface EditorContext<Options = unknown> {
 	readonly options: Options;
 	readonly decorations: DecorationRegistry;
 	readonly rects: EditorRects;
+	/** Menus opened under the caret by a typed trigger: tag autocomplete, a document picker. */
+	readonly inlineMenus: InlineMenuRegistry;
 	/** A getter, so always live: the mode in effect. The `presentationModeChange` event signals a change. */
 	readonly presentationMode: PresentationMode;
 	/** A getter, so always live: the theme name written to `data-editor-theme`. The `themeChange`

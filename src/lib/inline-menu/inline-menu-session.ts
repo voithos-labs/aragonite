@@ -1,0 +1,93 @@
+/**
+ * The inline menu's string math: which source a just-typed trigger opens, and what an open
+ * session's query is now. Pure, so the rules are testable without an editor.
+ */
+
+import type { InlineMenuSource } from './types';
+
+/** Identity only, never a captured node: every keystroke republishes the leaf. */
+export interface InlineMenuSession {
+	source: string;
+	path: number[];
+	/** Raw offset of the trigger's first byte. */
+	start: number;
+	triggerLength: number;
+}
+
+export interface InlineMenuOpening {
+	source: InlineMenuSource;
+	start: number;
+}
+
+/**
+ * The source a just-typed run opens. `from` is where that run began: the editor publishes a
+ * burst of keystrokes as one change, so the trigger may sit anywhere in `[from, caret)` with the
+ * first bytes of its query already behind it. The trigger nearest the caret wins, and where two
+ * end at the same byte the longer does, so `[[` is never read as a `[` source's press. A
+ * candidate its source declines, by position or by the query typed so far, hands over to the next.
+ */
+export function findOpening(
+	sources: Iterable<InlineMenuSource>,
+	raw: string,
+	caret: number,
+	from: number
+): InlineMenuOpening | null {
+	const candidates: { source: InlineMenuSource; start: number; end: number }[] = [];
+	for (const source of sources) {
+		const length = source.trigger.length;
+		if (length === 0) continue;
+		// A trigger counts when its LAST byte was typed in this run, so the second `[` of `[[`
+		// opens over a first one that was already there.
+		for (let end = Math.max(from + 1, length); end <= caret; end++) {
+			if (raw.startsWith(source.trigger, end - length)) {
+				candidates.push({ source, start: end - length, end });
+			}
+		}
+	}
+	candidates.sort((a, b) => b.end - a.end || b.source.trigger.length - a.source.trigger.length);
+	for (const { source, start, end } of candidates) {
+		if (source.opensAt && !source.opensAt(raw, start)) continue;
+		if (!acceptsQuery(source, raw.slice(end, caret))) continue;
+		return { source, start };
+	}
+	return null;
+}
+
+/**
+ * Where the run the author just typed began, or null if the change from `previous` to `raw` is
+ * anything other than bytes inserted so as to end at the caret: a deletion, a caret that only
+ * moved, an edit elsewhere in the leaf.
+ */
+export function typedRunStart(previous: string, raw: string, caret: number): number | null {
+	const length = raw.length - previous.length;
+	if (length <= 0 || length > caret) return null;
+	const from = caret - length;
+	return raw.slice(0, from) + raw.slice(caret) === previous ? from : null;
+}
+
+function acceptsQuery(source: InlineMenuSource, query: string): boolean {
+	return source.accepts ? source.accepts(query) : !/[\r\n]/.test(query);
+}
+
+/**
+ * The open session's query at this caret, or null once the session is over: the trigger's bytes
+ * are gone, the caret stepped out in front of the query, or the source declines what was typed.
+ */
+export function sessionQuery(
+	session: InlineMenuSession,
+	source: InlineMenuSource,
+	raw: string,
+	caret: number
+): string | null {
+	const queryStart = session.start + session.triggerLength;
+	if (caret < queryStart || caret > raw.length) return null;
+	if (!raw.startsWith(source.trigger, session.start)) return null;
+	const query = raw.slice(queryStart, caret);
+	return acceptsQuery(source, query) ? query : null;
+}
+
+/** Step the active row, wrapping at both ends; a list of none has no active row. */
+export function stepActive(index: number, delta: 1 | -1, count: number): number {
+	if (count === 0) return 0;
+	return (index + delta + count) % count;
+}

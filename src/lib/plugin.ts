@@ -310,6 +310,17 @@ export type {
 export type { EditEvent, EditorEventMap, SelectionChangeEvent, EditorError } from './editor-events';
 export type { OperationKind } from './schema/operations';
 
+// ── Inline menus (pre-freeze) ────────────────────────────────────────────────
+// Lists opened under the caret by a typed trigger, reached through `editor.inlineMenus`.
+export type {
+	InlineMenuRegistry,
+	InlineMenuSource,
+	InlineMenuSourceHandle,
+	InlineMenuItem,
+	InlineMenuQuery,
+	InlineMenuRowProps
+} from './inline-menu/types';
+
 // ── Rects (pre-freeze) ───────────────────────────────────────────────────────
 // Viewport-space geometry over the rendered document, reached through `editor.rects`.
 export type { EditorRects } from './editor-rects';

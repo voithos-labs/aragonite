@@ -150,6 +150,7 @@ You set the editor up with props when it mounts. After that you talk to it throu
 | `getSearch()`                               | The find/replace controller (see [Driving search yourself](#driving-search-yourself))                                       |
 | `getRects()`                                | Where things are on screen (see [Screen geometry](#screen-geometry))                                                        |
 | `getDecorations()`                          | The registry for your own view-only annotations (see [Decorations](#decorations))                                           |
+| `getInlineMenus()`                          | The registry for lists opened by a typed trigger (see [Recipe: a typed-trigger menu](#recipe-a-typed-trigger-menu))         |
 | `getDiagnostics()`                          | The bug-report tooling (see [Diagnostics](#diagnostics))                                                                    |
 | `reservedChords()` / `claimsChord(event)`   | Which shortcuts this editor consumes (see [Which shortcuts the editor consumes](#which-shortcuts-the-editor-consumes))      |
 
@@ -350,7 +351,7 @@ Six channels:
 | `error`                  | On a failure the editor contained rather than threw                                                                        |
 | `presentationModeChange` | After a `presentationMode` prop change; the payload is the effective mode (never at mount)                                 |
 | `themeChange`            | After a `theme` prop change; the payload is the theme name (never at mount)                                                |
-| `menuChange`             | `true` when the editor's right-click menu opens and `false` when it closes; hide selection chrome meanwhile                |
+| `menuChange`             | `true` when an editor-owned menu (the right-click menu, an inline menu's list) opens and `false` when it closes; hide selection chrome meanwhile |
 
 Events fire synchronously from wherever they happen, and **a handler must not edit the document**: reentrant edits aren't supported.
 
@@ -1096,6 +1097,40 @@ The editor's own bar (`src/lib/components/menu/SelectionToolbar.svelte`) is this
 4. **Read the result on the `edit` channel**, not on the line after the call: the commit lands on the editor's own flush.
 
 The repository's `InsertToolbar` component, the fixed strip the showcase mounts under its header in live mode, is this recipe's reference: canonical snippet buttons, the mousedown cancel, and a no-caret greying read off `selectionChange`, the same decline `insertMarkdown` would answer, surfaced before the click.
+
+### Recipe: a typed-trigger menu
+
+Tag autocomplete on `#`, a document picker on `[[`, a mention on `@`: a list that follows the caret while the author keeps typing. This is the one piece of chrome you should NOT build from `getRects()` and a key listener, because the editor has to be the one to notice the trigger, hold the keys, and write the pick. You hand it a trigger and a list; `getInlineMenus()` does the rest.
+
+```ts
+const handle = editor.getInlineMenus().addSource({
+	name: 'doc-links',
+	trigger: '[[',
+	// End the session once the author closes the link by hand.
+	accepts: (query) => !/[\]\n]/.test(query),
+	items: async ({ query, signal }) => {
+		const hits = await searchTitles(query, { signal });
+		return hits.map((doc) => ({
+			id: doc.id,
+			label: doc.title,
+			detail: doc.folder,
+			insert: `[[${doc.linkText}]]`
+		}));
+	}
+});
+// A shortcut or a toolbar button: types `[[` at the caret and opens the same list.
+editor.getInlineMenus().open('doc-links');
+```
+
+1. **`items` is the whole data contract.** Return an array, or a promise of one for a list read off an index. A slow answer a later keystroke superseded is dropped, and its `signal` aborts so you can cancel the read. A rejection is reported on the `error` event and reads as an empty list.
+2. **`insert` is bytes.** The pick replaces the trigger and the query, the caret lands after it, and the whole replacement is one undo entry. There is no construct-specific call: a tag inserts `#work`, a link `[[Roadmap]]`. Add a trailing space there if your construct wants one.
+3. **An empty list holds no key.** While rows are showing, the editor takes ArrowUp, ArrowDown, Enter, Tab and Escape before the focused block sees them. With nothing to show, the list is gone and Enter is the author's own Enter again, while the session stays alive for the next keystroke.
+4. **`opensAt` and `accepts` are your grammar.** A tag declines a mid-word `#` (so `C#` stays text) and ends on a space; a link accepts spaces and ends on `]`. `open(name)` skips `opensAt`: the gesture is the author's say-so. A trigger typed inside an inline code span never opens.
+5. **Escape dismisses for good.** What was typed stays, and typing on does not reopen the list; only a new trigger does.
+6. **Style it as you would the editor's other menus.** The list is the shared `.md-menu` surface and reads the same tokens. For rows richer than a label and a detail (a snippet, a highlighted match), pass a `row` component; it receives the `item`, whether it is `active`, and the `query`.
+7. **From a plugin, the same registry is `editor.inlineMenus`** on your `onEditor` context; return the handle's `dispose` from the callback.
+
+The tag source in `src/routes/demo-tags/tag-marks-plugin.ts` is this recipe over a synchronous list, and `src/routes/test/plugins/inline-menu/doc-link-menu-plugin.ts` over a late one.
 
 ## Rewriting a document
 
