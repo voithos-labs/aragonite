@@ -31,7 +31,10 @@ describe('a truncating write of a $$ block gets its closer back', () => {
 			'$$\nx^\n',
 			'$$\nx^\n$$\n'
 		],
-		['a write with no trailing ending keeps none', '$$x^2$$\n', '$$After', '$$After$$']
+		['a write with no trailing ending keeps none', '$$x^2$$\n', '$$After', '$$After$$'],
+		// A closer and nothing else: the rule restores bytes, so it never invents the empty body
+		// line the Enter completer writes.
+		['a write cut back to the opener closes with no body', '$$x^2$$\n', '$$\n', '$$\n$$\n']
 	])('%s', (_case, source, written, expected) => {
 		expect(write(source, written)).toBe(expected);
 		expect(parse(write(source, written)).children[0].kind).toBe('mathBlock');
