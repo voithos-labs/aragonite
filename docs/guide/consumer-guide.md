@@ -1100,7 +1100,7 @@ The repository's `InsertToolbar` component, the fixed strip the showcase mounts 
 
 ### Recipe: a typed-trigger menu
 
-Tag autocomplete on `#`, a document picker on `[[`, a mention on `@`: a list that follows the caret while the author keeps typing. This is the one piece of chrome you should NOT build from `getRects()` and a key listener, because the editor has to be the one to notice the trigger, hold the keys, and write the pick. You hand it a trigger and a list; `getInlineMenus()` does the rest.
+Tag autocomplete on `#`, a document picker on `[[`, a mention on `@`: a list that follows the caret while the author keeps typing, an inline menu. This is the one piece of chrome you should NOT build from `getRects()` and a key listener, because the editor has to be the one to notice the trigger, hold the keys, and write the pick. You hand it a trigger and a list; `getInlineMenus()` does the rest.
 
 ```ts
 const handle = editor.getInlineMenus().addSource({
@@ -1123,7 +1123,7 @@ editor.getInlineMenus().open('doc-links');
 ```
 
 1. **`items` is the whole data contract.** Return an array, or a promise of one for a list read off an index. A slow answer a later keystroke superseded is dropped, and its `signal` aborts so you can cancel the read. A rejection is reported on the `error` event and reads as an empty list.
-2. **`insert` is bytes.** The pick replaces the trigger and the query, the caret lands after it, and the whole replacement is one undo entry. There is no construct-specific call: a tag inserts `#work`, a link `[[Roadmap]]`. Add a trailing space there if your construct wants one. One line only: a line break is refused and reported on the `error` event, because those bytes belong to one block. Insert `''` to remove the trigger and the query, and write a block from `onCommit` instead, where `insertMarkdown` puts it in as a paste would.
+2. **`insert` is bytes.** The pick replaces the trigger and the query, the caret lands after it, and the whole replacement is one undo entry. There is no construct-specific call: a tag inserts `#work`, a link `[[Roadmap]]`. Add a trailing space there if your construct wants one. One line only: a line break is refused and reported on the `error` event, because those bytes belong to one block. An empty `insert` is fine and just removes the trigger and the query, which is the shape for a `/` command: the pick clears what was typed, and `onCommit` inserts the block through `insertMarkdown`. Insert `''` to remove the trigger and the query, and write a block from `onCommit` instead, where `insertMarkdown` puts it in as a paste would.
 3. **An empty list holds no key.** While rows are showing, the editor takes ArrowUp, ArrowDown, Enter, Tab and Escape before the focused block sees them. With nothing to show, the list is gone and Enter is the author's own Enter again, while the session stays alive for the next keystroke.
 4. **`opensAt` and `accepts` are your grammar.** A tag declines a mid-word `#` (so `C#` stays text) and ends on a space; a link accepts spaces and ends on `]`. `open(name)` skips `opensAt`: the gesture is the author's say-so. A trigger typed inside an inline code span never opens.
 5. **Escape dismisses for good.** What was typed stays, and typing on does not reopen the list; only a new trigger does.
