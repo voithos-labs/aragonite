@@ -92,7 +92,7 @@ selection: EditorSelection | GapCaretSelection;
 ```
 
 Still nothing painted, and the wave already carried a bug fix: the native pointerdown preamble left
-a live gap standing where the caret door (the one caret-placement entry every caret claim routes
+a live gap standing where the caret entry (the one caret-placement entry every caret claim routes
 through, `src/lib/selection/caret-doors.ts`) ends it. One entry path out of several missing a rule
 its siblings carried is the bug shape [`rules.md`](rules.md) names as the dominant one, and it
 turned up here before there was anything on screen to notice it with.
@@ -110,11 +110,11 @@ flowchart LR
     H["a targeted landing:<br/>numeric offset, setSelection"] -.->|never stops| I["the block itself"]
 ```
 
-No new dispatcher was built, and that's the headline. Every arrival rides a seam that already
-existed (a seam: a boundary where responsibility passes from one piece of code to another). A
+No new dispatcher was built, and that's the headline. Every arrival rides a path that already
+existed. A
 directional focus move learned to stop at an eligible boundary instead of entering its target,
 which covers the arrows and the edge-delete focus fallbacks together; the existing dead-space
-click gained a band test; the restore road already knew how to park a recorded selection. The stop
+click gained a band test; the restore path already knew how to park a recorded selection. The stop
 itself is one call, and it reports whether it took the caret so the traversal knows to stand down:
 
 ```ts
@@ -130,7 +130,7 @@ export function tryGapStop(
 }
 ```
 
-Each road paid a line or two, which is wave 1's dividend. And the dotted edge matters as much as
+Each path paid a line or two, which is wave 1's dividend. And the dotted edge matters as much as
 the solid ones: a targeted landing never stops at a gap, because a consumer asking for a specific
 offset isn't navigating, and second-guessing them there would be rude.
 
@@ -151,7 +151,7 @@ flowchart TD
     F --> X["the caret door ends the gap"]
 ```
 
-The insertion takes the ordinary commit ceremony (the fixed steps a commit always runs) rather
+The insertion takes the ordinary commit steps rather
 than a bespoke one, which is why it costs one undo entry and one edit event without anybody
 arranging that. Everything else the proxy could receive, paste above all, is declined rather than
 guessed at. The whole input policy is four lines:
@@ -228,9 +228,9 @@ proxy, and the blur handler cleared the gap before that point ever ran. The asse
 the mechanism it claimed to cover was never reached. The fix was to flip the mode without moving
 DOM focus, so the flip is the only actor in the test.
 
-**A fix for a browser behavior that doesn't exist.** The proxy carried a helper that seated a
+**A fix for a browser behavior that doesn't exist.** The proxy carried a helper that placed a
 caret by hand, justified by "a contenteditable holding no range receives no `beforeinput`".
-Focusing a contenteditable seats a caret in it in Chromium, so the helper was dead code wearing a
+Focusing a contenteditable places a caret in it in Chromium, so the helper was dead code wearing a
 confident comment, and both were deleted:
 
 ```diff

@@ -159,7 +159,7 @@ Optional, each earning its place:
 - `reservedChrome`: child 0 is a title leaf whose bytes live in the container's own raw (chrome: the parts of a block that are furniture, not content). Register the chrome kind itself through `registerChromeLeaf`.
 - `containerPaste`: kind-specific paste routing, for a clipboard whose top block is your kind landing inside a same-kind ancestor.
 - `unwrapRole`: the Backspace-at-start strategy; see `editor-actions/unwrap-strategies.ts`.
-- `bodyWrap`: for a container whose body sits between its own opener and closer lines (a `:::note` fence, say). Pass the same wrap your opener parsed the body with, and the parser then peels the blank line next to the chrome into the wrap instead of into a body block.
+- `bodyWrap`: for a container whose body sits between its own opener and closer lines (a `:::note` fence, say). Pass the same wrap your opener parsed the body with, and the parser then moves the blank line next to the chrome into the wrap instead of into a body block.
 - `bodyWrite`: for a container with a fixed closing line (`</details>`) that a body edit could accidentally type. `normalize` escapes it out of a child's raw, and `mapOffset` says where the caret lands after the escape.
 - `contentStartSpace: 'complete-marker'`: a space typed at the start of an empty child gets eaten, because the marker your `rebuildRaw` emits already carries it. Only sound when `rebuildRaw` does put that space back.
 - `reorderChildren`: this container's direct children reorder among themselves, by drag or Alt+↑/↓; `{ renumberMarkers: true }` for an ordered list. See `tree-operations/reorder-unit.ts`.
@@ -192,7 +192,7 @@ export function runCommand(id: CommandId): boolean { /* ... */ }
 void ({ editable, focusable, focus, parkCaret, getCursorOffset, runCommand } satisfies BlockComponent);
 ```
 
-What each method owes is the plugin guide's territory; it's identical for built-ins.
+What each method must provide is the plugin guide's territory; it's identical for built-ins.
 
 BlockHost looks your component up by kind and hands every block the same props: `node`, `index`, `myPath`, `ambientPrefix`, plus `document` (the root, read-only, so a block at any depth can read the structure above it) and `rects` (measure, reveal, and scroll by path). `extraProps` is a `(node) => Record<string, unknown>` for anything beyond that, like the heading's `blockClass` above. BlockHost `bind:this`-es your component and reads the surface off its exports; you publish it and never hold a handle to it.
 
@@ -220,7 +220,7 @@ registerBlockOpener('thematicBreak', {
 });
 ```
 
-Priority orders the parser's attempts, ascending, and the built-in ladder is single-sourced in `src/lib/schema/opener-priorities.ts` :: `OPENER_PRIORITIES`, so slot yours against that constant (`OPENER_PRIORITIES.heading + 5`, say) rather than a number copied from a doc, this one included. Give each kind its own priority. A tie is deterministic (dispatch falls back to kind name, never registration order) but almost always unintended, so G1.10 warns on one at bootstrap.
+Priority orders the parser's attempts, ascending, and the built-in order is single-sourced in `src/lib/schema/opener-priorities.ts` :: `OPENER_PRIORITIES`, so slot yours against that constant (`OPENER_PRIORITIES.heading + 5`, say) rather than a number copied from a doc, this one included. Give each kind its own priority. A tie is deterministic (dispatch falls back to kind name, never registration order) but almost always unintended, so G1.10 warns on one at bootstrap.
 
 ## Commands
 
@@ -262,7 +262,7 @@ const { controller, stickyColumn, selection, registryView } =
 | `CONTAINER_EDIT_KEY`        | `ContainerEditActions`: the container commit surface (below)                      |
 | `EDITOR_SERVICES_KEY` facet | `.controller` is the multi-scope commit primitive, for cross-container operations |
 
-`src/lib/action-contracts.ts` is the authority on every member, so read it rather than trusting a list in a doc. This one included. The keys themselves live next door in `src/lib/editor-keys.ts`, which is where you go when you grep the contracts file for `BLOCK_EDIT_KEY` and come up empty. Two members are easy to miss:
+`src/lib/action-contracts.ts` is the authority on every member, so read it rather than trusting a list in a doc. This one included. The keys themselves live beside it in `src/lib/editor-keys.ts`, which is where you go when you grep the contracts file for `BLOCK_EDIT_KEY` and come up empty. Two members are easy to miss:
 
 - **`descendToBody`** (on `BlockEditActions`) is the Enter gesture out of a title row: it moves the caret from a chrome leaf into the container's first body child. Any container with a title row wants it.
 - **`revealPath`** (on `FocusActions`) mounts an off-window block before you place a caret in it. The editor only mounts the blocks near the viewport, so the block you want to focus may not exist in the DOM yet.
@@ -529,7 +529,7 @@ Complex blocks (lists, tables) get a requirement file in `src/lib/e2e/requiremen
 
 **A `conformanceFixture` enrols your kind in the conformance kit.** The field is optional and the enrolment gates on it: declare a source snippet that parses to your kind (`'---\n'` for the thematic break), or the kit never sees your kind and nothing warns you. That's the trap. With it declared, the live registry is the enrolment list, and the cells derive from your closure block's columns: the headless cells run at the unit gate, the mounted-DOM cells in the browser sweep. A cell you declared `implemented` but didn't is caught here, because the closure block's promises get executed rather than merely asserted. Omit the field only for a kind no document scan yields in isolation (a table cell), and say so in review. [`docs/guide/plugin-testing.md`](../guide/plugin-testing.md) documents the kit itself; built-ins run through the same one.
 
-**A built-in container owes a conformance profile too.** `src/lib/test/invariants/builtin-container-profiles.ts` holds one entry per built-in container kind, and `src/lib/test/invariants/container-conformance.test.ts` keeps that map in lockstep with the registry. G4.3 fails in both directions, so a registered container with no profile and a profile for no container each red the suite. Where a contract makes a cell moot, declare it `boundary` or `exempt` with a reason. Never just leave it out. The blockquote's:
+**A built-in container needs a conformance profile too.** `src/lib/test/invariants/builtin-container-profiles.ts` holds one entry per built-in container kind, and `src/lib/test/invariants/container-conformance.test.ts` keeps that map in lockstep with the registry. G4.3 fails in both directions, so a registered container with no profile and a profile for no container each red the suite. Where a contract makes a cell moot, declare it `boundary` or `exempt` with a reason. Never just leave it out. The blockquote's:
 
 ```ts
 // src/lib/test/invariants/builtin-container-profiles.ts

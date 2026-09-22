@@ -34,18 +34,18 @@ one). **Spec:** the `src/lib/tree-operations/unshare.ts` header. ([rule 1](rules
 ## Snapshot-shared nodes are read-only on their bytes
 
 An undo entry doesn't clone the document; it references the same nodes the live tree holds. So
-copy the path before any byte write. The commit ceremony (the fixed steps every commit runs) owns
+copy the path before any byte write. The commit steps own
 that copying and hands each mutation an owned view of its scope, so never write through a node
 reference captured before the commit.
 
 **Incident.** A mutation wrote serialized bytes through a node an undo entry still shared, which
 rewrote history in place, and the corruption surfaced only at the undo that exposed it, far from
-the commit that caused it. A DEV integrity oracle (it fingerprints each snapshot when pushed and
+the commit that caused it. A dev integrity check (it fingerprints each snapshot when pushed and
 re-verifies at every commit and restore) now catches the violation at the offending commit
 instead.
 
 **Guard:** G1.9, and since 0.9.24 mostly a type: readers hold bytes-readonly views (G3.8), and
-the unshare seam is the only way back to mutable (G4.13). The oracle stays as the runtime
+the unshare seam is the only way back to mutable (G4.13). The check stays as the runtime
 backstop, because running JS bypasses types. The type half, as `tsc` reports it:
 
 ```ts
@@ -128,7 +128,7 @@ allowed: {
 },
 ```
 
-**Spec:** `docs/design/editor.md` § 11 (the ceremony's tick step) and § 16 (how the predecessor
+**Spec:** `docs/design/editor.md` § 11 (the commit's tick step) and § 16 (how the predecessor
 died). ([rule 3](rules.md#the-five-rules))
 
 ## Rules live at choke points, not call sites
@@ -191,7 +191,7 @@ The conversions that are allowed are named functions in `src/lib/cursor/coordina
 ## Registries are code, not state
 
 Register-once, throw-on-duplicate, no unregister (the `customElements` model), in production and
-under test. Test isolation goes through the sanctioned reset helpers, never through an unregister.
+under test. Test isolation goes through the supported reset helpers, never through an unregister.
 
 ```ts
 registerBlockKind('paragraph', {
@@ -208,7 +208,7 @@ registration replaces with a console note instead of throwing (a `registry` diag
 unchanged everywhere it's observed.
 
 The same no-unregister rule reaches the public API. A plugin author's suite can't re-install
-between cases without a sanctioned seam, so `@voithos-labs/aragonite/testing` exports
+between cases without a supported entry point, so `@voithos-labs/aragonite/testing` exports
 `resetPluginPlatformForTests()`, and every new registration reachable from the public plugin
 surface must wire its reset into it, or the next author hits the duplicate throw on their second
 `beforeEach`.

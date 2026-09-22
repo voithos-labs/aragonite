@@ -257,17 +257,17 @@ const DOC_BASELINE: Record<string, number> = {
 	'design/plugin-contract.md': 82,
 	'design/syntax-tree.md': 0,
 	'design/virtual-rendering.md': 0,
-	'contributing/adding-a-block.md': 6,
-	'contributing/anatomy-of-a-change.md': 10,
-	'contributing/casebook.md': 14,
+	'contributing/adding-a-block.md': 1,
+	'contributing/anatomy-of-a-change.md': 2,
+	'contributing/casebook.md': 7,
 	'contributing/code-style.md': 15,
 	'contributing/codebase-map.md': 0,
-	'contributing/commit-conventions.md': 1,
-	'contributing/debugging.md': 1,
+	'contributing/commit-conventions.md': 0,
+	'contributing/debugging.md': 0,
 	'contributing/first-hour.md': 1,
-	'contributing/rules.md': 19,
-	'contributing/testing.md': 19,
-	'contributing/warnings.md': 3
+	'contributing/rules.md': 18,
+	'contributing/testing.md': 10,
+	'contributing/warnings.md': 1
 };
 
 const NOT_A_DOC_ROW = new Set(['glossary.md', 'releasing.md']);

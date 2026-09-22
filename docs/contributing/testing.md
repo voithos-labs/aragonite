@@ -102,7 +102,7 @@ Vitest discovers `*.test.ts` anywhere under the root, so adding a file needs no 
 | `test:editor:cursor`         | Cursor utilities, sticky column, overlay rect measurement                                           |
 | `test:editor:reactivity`     | Block-list state and state registry                                                                 |
 | `test:editor:selection`      | Selection-state logic                                                                               |
-| `test:editor:decorations`    | Decoration engine: sources, edit-epoch invalidation, path buckets, island model                     |
+| `test:editor:decorations`    | Decoration engine: sources, edit-epoch invalidation, path buckets, widget model                     |
 | `test:editor:blocks`         | Per-block unit tests                                                                                |
 | `test:editor:image`          | Image dimensions, resize, source bytes, widget selection                                            |
 | `test:editor:plugins`        | Plugin authoring surfaces and dogfood kinds: container round-trips, chrome leaves, paste transforms |
@@ -128,7 +128,7 @@ A block component reads its wiring from the editor's context tree, so a bare
 history, and the three editor facets (services, policies, document) pre-stubbed. A test states
 only what it asserts on and takes sensible stubs for the rest. From
 `test/blocks/text/text-crlf-commit.test.ts`, which mounts a real prose block over a parsed
-document and hands it a decoration engine that reports no islands:
+document and hands it a decoration engine that reports no widgets:
 
 ```ts
 import { mount, flushSync } from 'svelte';
@@ -159,7 +159,7 @@ Every `devWarn` fire reaches a structured sink the unit setup registers, and a f
 claims fails that test. The sink takes reporting over, so under the unit runner the console line
 never happens and a `console.warn` spy sees nothing. Svelte's own runtime warnings have no sink
 to register, so the setup wraps `console.warn` and files them into the same records under
-`svelte:<code>`; they claim through the same doors. The same per-test hook resets `editorEnv`,
+`svelte:<code>`; they claim through the same calls. The same per-test hook resets `editorEnv`,
 so a suite that configures the environment configures it per test; a `beforeAll` override is
 gone by the second case. Which console channel a fire belongs to, and what each one means, is
 [`warnings.md`](warnings.md).
@@ -249,7 +249,7 @@ Editor.svelte (production component, unchanged)
   a timeout to widen. Reading mode takes no keystrokes, so `expectSurfaceInert()` asserts the
   structural fact instead (no editable surface under the root) and drains a tick.
   `waitForNoSourceMutation` is the fallback for a gesture with no verdict — a click, a drag, a
-  paste, a menu item, the `runCommand` door — and each remaining call says which.
+  paste, a menu item, the `runCommand` entry — and each remaining call says which.
 
 The two halves side by side, on a two-block document with the caret parked at the end of the
 paragraph:
@@ -312,7 +312,7 @@ editing, and selection + clipboard.
 | `test:e2e:selection`      | Cross-block selection behavior                                                                                                                                                                                                                                                                                   |
 | `test:e2e:sticky-column`  | Vertical cursor column tracking across block transitions                                                                                                                                                                                                                                                         |
 | `test:e2e:search`         | Find/replace bar and controller behavior                                                                                                                                                                                                                                                                         |
-| `test:e2e:decorations`    | Decoration engine in the browser: mark / island / block paint, search as its first client                                                                                                                                                                                                                        |
+| `test:e2e:decorations`    | Decoration engine in the browser: mark / widget / block paint, search as its first client                                                                                                                                                                                                                        |
 | `test:e2e:presentation`   | Presentation modes: reading-mode inertness, block- and inline-granular preview reveal, mid-session mode flips                                                                                                                                                                                                    |
 | `test:e2e:simulation`     | The note-taking simulation sessions (their own section below)                                                                                                                                                                                                                                                    |
 | `test:e2e:a11y`           | axe over `.editor`: fails on any violation outside the committed allowlist                                                                                                                                                                                                                                       |
@@ -368,7 +368,7 @@ What each fixture is for:
   on `window`, so its spec can count how often it rescans. Seed `hloccur-memo`.
 - `sim-mark/` and `sim-island/`: standing decoration sources for the simulation (its own section
   below). One marks every whole-word `paragraph`; the other turns three sentinel strings in the
-  text into a replace island, a widget island, and a block badge. Both under `?seed=sim`, so
+  text into a replace widget, an inline widget, and a block badge. Both under `?seed=sim`, so
   the simulation runs with the decoration engine live on every keystroke.
 
 `src/routes/walk-views.ts` is the leaf walk they share with the showcase's own demo plugins. Four
@@ -646,8 +646,8 @@ seed for the same reason the other reachability self-tests do.
 A shape a guard's own oracle can't survive belongs in that guard's fixed corpus rather than in a
 shared generator; but shedding the shape is the second answer, and teaching the oracle to
 CLASSIFY it is the first. Asterisk delimiter nesting is the standing example, both ways round:
-it rebinds under a neighbouring byte, so the typing-seat net once read that as its own failure
-and the generator shed it; the net now separates a seat that missed an answer from a parse that
+it rebinds under a neighbouring byte, so the typing-position net once read that as its own failure
+and the generator shed it; the net now separates a typing position that missed an answer from a parse that
 offers none, and the shape is back in `arbInlineSource`.
 
 **Reproducing a fresh find.** The seed line above is the reproduction: pin that seed as the

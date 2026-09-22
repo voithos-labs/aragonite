@@ -44,7 +44,7 @@ fyi, in a dev build the warning's message embeds the comparison operator that tr
 
 Four things watch the console for these warnings. The unit suite and the e2e specs you have already met; the other two are the **simulation sessions** (long scripted editing runs that type whole documents through real keystrokes, see `testing.md`) and the dev server the e2e suite runs the editor on.
 
-One mechanism to know before the table: under Vitest the console line never happens at all. The test setup registers a **sink** (a function `devWarn` hands entries to instead of printing), and the gate reads that. Svelte has no sink to register, so the same setup wraps `console.warn`, and a `[svelte] <code>` line lands in those same records under the tag `svelte:<code>`: one set of fires, one set of claim doors.
+One mechanism to know before the table: under Vitest the console line never happens at all. The test setup registers a **sink** (a function `devWarn` hands entries to instead of printing), and the gate reads that. Svelte has no sink to register, so the same setup wraps `console.warn`, and a `[svelte] <code>` line lands in those same records under the tag `svelte:<code>`: one set of fires, one set of claim routes.
 
 | Gate                    | Watches                                                                                                                             | What goes red                                                                                                             |
 | ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
@@ -81,7 +81,7 @@ takeDevWarns();
 // [{ tag: 'tree-ops', message: 'probe message', details: { at: 3 }, site: 'src/lib/test/probe.test.ts' }]
 ```
 
-`site` is the repo-relative file the fire came from, and it's also what an allowlist row keys on, together with the tag. A Svelte warning takes the same four doors under the tag `svelte:<code>`, so `allowDevWarns(['svelte:derived_inert'])` reads like any other waiver.
+`site` is the repo-relative file the fire came from, and it's also what an allowlist row keys on, together with the tag. A Svelte warning takes the same four routes under the tag `svelte:<code>`, so `allowDevWarns(['svelte:derived_inert'])` reads like any other waiver.
 
 Prefer 1 through 3. An allowlist row hides every fire of that tag at that site, real bugs included, which is why the list only shrinks (it is empty right now, and adding the first row is a conversation, not a shrug), and why an `invariant:` fire may never take one.
 

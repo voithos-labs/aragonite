@@ -301,7 +301,7 @@ Three more places a record lives, or pointedly doesn't:
 - **The changelog is past-only**, and a shipped milestone lands in it in the same commit that
   ships the feature. A decision lives with the contract it binds, not in a plan document;
   forward-looking plans aren't in this repository at all.
-- **A moved seam moves the codebase map in the same commit** ([`codebase-map.md`](codebase-map.md)).
+- **A moved entry point moves the codebase map in the same commit** ([`codebase-map.md`](codebase-map.md)).
   `npm run lint` fails on a path or symbol the map names that no longer exists, which is the
   reminder. The check (`scripts/check-codebase-map.mjs`) reads every backticked `src/`, `docs/`
   and `scripts/` path in `docs/design/` and `docs/contributing/`, so it covers more than the map,
