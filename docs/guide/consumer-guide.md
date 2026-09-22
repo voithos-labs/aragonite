@@ -18,7 +18,7 @@ This is gonna be a long one, so here are the sections:
 | [The public surface](#the-public-surface)                     | What the package exports, and what the version number promises about it                                        |
 | [Props](#props)                                               | Every prop, and which ones you can change after mount                                                          |
 | [The instance surface](#the-instance-surface)                 | The methods on a mounted editor: read the document, move the caret, run commands                               |
-| [Events](#events)                                             | The five channels an editor reports on, and what each one carries                                              |
+| [Events](#events)                                             | The six channels an editor reports on, and what each one carries                                               |
 | [Presentation modes](#presentation-modes)                     | One document shown five ways, from raw Markdown to fully rendered                                              |
 | [Images and links](#images-and-links)                         | Rewriting URLs, importing pasted images, and which URLs the editor refuses to load                             |
 | [Plugins](#plugins)                                           | Installing plugins, why the whole app should share one set, and the nine that ship in the box                  |
@@ -228,7 +228,7 @@ Out-of-range offsets clamp, each in its own coordinate space: a character offset
 What `selectionChange` reports while a restore runs:
 
 - **On success, every emission carries the restored selection.** The editor holds the channel until the state write and the caret landing have both happened, so a handler that treats the first event as authoritative (a persist-on-change host, say) saves the right one. Reading back with `getSelection()` after the await is still correct, just no longer necessary.
-- **The browser's own `selectionchange` may still deliver a trailing duplicate** of the same value, so make the handler idempotent rather than counting events.
+- **One emission, not two.** The editor announces the restored selection itself, so the browser's own `selectionchange` that follows has nothing new to report and is dropped. Make the handler idempotent anyway: the count is not part of the contract.
 - **The failed-placement `false` is the exception.** A collapsed or within-block restore into a resolvable-but-unmounted block clears the old selection and then finds no element, so its one emission reports what was there before. Treat a `false` restore as "read the selection back", not as an authoritative event.
 
 ### Placing the caret at a point
@@ -377,6 +377,8 @@ events.on('selectionChange', (sel) => sel);
 ```
 
 Read the value the channel settles on rather than counting emissions. Most changes emit once, but a caret landing between two blocks emits a short burst, and its last value is `null`, since a between-blocks caret sits outside the public selection shape. Focus leaving the editor reads `null` too, even where the browser's own range survives unfocused, so a button greyed off this channel can't go stale when the user clicks out.
+
+**When it fires matters as much as what it carries.** A caret the editor puts down itself (the paragraph an Enter creates, the block a merge leaves you in, the block an arrow takes you to) is announced at the placement, before anything can be typed there, so a handler keyed on "the caret arrived in this block" is never handed that block's first bytes ahead of the arrival. A caret the browser puts down, which is every click and every move inside one block, is reported from the browser's own `selectionchange` instead, a task later; that is early enough for a click, where the user's next keystroke is a human pause away.
 
 **`error`** carries an `EditorError`, `{ origin, error, context? }`.
 

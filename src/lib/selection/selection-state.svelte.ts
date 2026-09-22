@@ -77,9 +77,9 @@ export interface SelectionState {
 
 	/**
 	 * Notifies for a selection change this state cannot see. Subscribers read the editor back
-	 * through `getSelection()`, which also reports a native caret a restore placed and a
-	 * document a `source` swap replaced; neither moves a field the mutators above check.
-	 * Coalesces inside a {@link SelectionState.batch}.
+	 * through `getSelection()`, which also reports a caret the editor just placed, a native
+	 * caret a restore placed and a document a `source` swap replaced; none of those moves a
+	 * field the mutators above check. Coalesces inside a {@link SelectionState.batch}.
 	 */
 	announceSelection(): void;
 
