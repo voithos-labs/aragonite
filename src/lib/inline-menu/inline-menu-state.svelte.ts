@@ -151,6 +151,30 @@ export function createInlineMenuState(deps: InlineMenuStateDeps): InlineMenuStat
 		activeIndex = 0;
 	}
 
+	/**
+	 * The list with at most one row per id. Two rows under one id are one row to the render, which
+	 * keys on it, so the later one is dropped and the source told rather than left to misdraw.
+	 */
+	function uniqueRows(list: InlineMenuItem[], source: string): InlineMenuItem[] {
+		const ids = new Set<string>();
+		const kept: InlineMenuItem[] = [];
+		for (const row of list) {
+			if (ids.has(row.id)) continue;
+			ids.add(row.id);
+			kept.push(row);
+		}
+		if (kept.length !== list.length) {
+			report(
+				new Error(
+					`inlineMenus: source '${source}' offered rows sharing an id; all but the first ` +
+						`of each were dropped`
+				),
+				source
+			);
+		}
+		return kept;
+	}
+
 	function read(source: InlineMenuSource, live: InlineMenuSession): void {
 		pendingRead?.abort();
 		const controller = new AbortController();
@@ -158,8 +182,8 @@ export function createInlineMenuState(deps: InlineMenuStateDeps): InlineMenuStat
 		const isCurrent = () => session === live && !controller.signal.aborted;
 		const land = (next: InlineMenuItem[]) => {
 			if (!isCurrent()) return;
-			items = next;
-			activeIndex = Math.min(activeIndex, Math.max(0, next.length - 1));
+			items = uniqueRows(next, source.name);
+			activeIndex = Math.min(activeIndex, Math.max(0, items.length - 1));
 		};
 		const fail = (error: unknown) => {
 			if (!isCurrent()) return;

@@ -9,7 +9,8 @@
 import type { Component } from 'svelte';
 
 export interface InlineMenuItem {
-	/** Unique within one result list; the row's key and its option id. */
+	/** The row's key, unique within one result list. Where two rows share one, the first is kept
+	 *  and the rest are dropped and reported on the `error` event. */
 	id: string;
 	label: string;
 	/** Secondary text painted dim beside the label: a path, a count. */

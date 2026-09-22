@@ -302,6 +302,22 @@ describe('an open session follows the caret', () => {
 	});
 });
 
+describe('the list a source lands', () => {
+	// Miss-analysis: every source a test wrote made its own ids unique, so nothing ever handed
+	// the list two rows under one id, which is what the keyed render cannot draw.
+	it('keeps the first of two rows sharing an id, and reports the source', async () => {
+		const h = harness('a ');
+		h.menu.registry.addSource(
+			tags({ items: () => [item('one', '#one'), item('one', '#uno'), item('two', '#two')] })
+		);
+		await h.type('#');
+
+		expect(h.menu.getOpen()!.items.map((i) => i.insert)).toEqual(['#one', '#two']);
+		await vi.waitFor(() => expect(h.errors).toHaveLength(1));
+		expect(String(h.errors[0])).toMatch(/tags/);
+	});
+});
+
 describe('navigation and commit', () => {
 	it('steps the active row with wrap, and resets it when the query moves', async () => {
 		const h = harness('a ');
