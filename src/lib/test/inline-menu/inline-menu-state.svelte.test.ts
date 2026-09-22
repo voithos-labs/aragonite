@@ -493,6 +493,14 @@ describe('the registry', () => {
 		expect(h.menu.getOpen()).toMatchObject({ start: 10, query: '' });
 	});
 
+	// Miss-analysis: every registry test ran against a live editor, so none ever added a source
+	// after the editor unmounted and watched the handle it got back open nothing, ever.
+	it('refuses a source added after the editor is gone', () => {
+		const h = harness('a ');
+		h.menu.dispose();
+		expect(() => h.menu.registry.addSource(tags())).toThrow(/tags/);
+	});
+
 	// An empty trigger would open on every keystroke and a trigger with a line break could never
 	// be typed, so both are refused where a source arrives rather than skipped where it is read.
 	it('refuses a trigger that is empty or holds a line break', () => {

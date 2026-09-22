@@ -350,6 +350,12 @@ export function createInlineMenuState(deps: InlineMenuStateDeps): InlineMenuStat
 
 	const registry: InlineMenuRegistry = {
 		addSource(source): InlineMenuSourceHandle {
+			if (disposed) {
+				throw new Error(
+					`inlineMenus.addSource: this editor is gone, so source '${source.name}' would ` +
+						`never open; add it from an onEditor callback and dispose it when that returns`
+				);
+			}
 			if (sources.has(source.name)) {
 				throw new Error(`inlineMenus.addSource: a source named '${source.name}' already exists`);
 			}
