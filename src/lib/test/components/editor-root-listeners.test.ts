@@ -123,7 +123,7 @@ describe('editor-root listeners: mod-active tracker', () => {
 // ── Selectionchange bridge ───────────────────────────────────────────────────
 
 describe('editor-root listeners: selectionchange bridge', () => {
-	function bridge() {
+	function bridge(widgetSelected = false) {
 		const root = document.createElement('div');
 		const header = document.createElement('div');
 		const headerField = document.createElement('span');
@@ -140,7 +140,8 @@ describe('editor-root listeners: selectionchange bridge', () => {
 		const teardown = installSelectionChangeBridge({
 			root,
 			isHostChrome: (node) => !!node && header.contains(node),
-			announceIfMoved: () => emits++
+			announceIfMoved: () => emits++,
+			isWidgetSelected: () => widgetSelected
 		});
 		teardowns.push(teardown);
 		return { headerField, content, outside, teardown, emits: () => emits };
@@ -198,6 +199,35 @@ describe('editor-root listeners: selectionchange bridge', () => {
 		selectInside(b.headerField);
 		click(b.headerField);
 		expect(b.emits()).toBe(0);
+	});
+
+	function caretInside(el: Node): void {
+		window.getSelection()?.collapse(el.firstChild, 0);
+	}
+
+	// Miss-analysis: the image-selection specs read the selected text, which a collapsed caret
+	// leaves empty, so a caret the browser seated beside a selected widget was never asserted.
+	it('drops, and never announces, a caret the browser seats beside a selected widget', () => {
+		const b = bridge(true);
+		caretInside(b.content);
+		fire();
+		expect(window.getSelection()?.rangeCount).toBe(0);
+		expect(b.emits()).toBe(0);
+	});
+
+	it('keeps a range dragged while a widget is selected', () => {
+		const b = bridge(true);
+		selectInside(b.content);
+		fire();
+		expect(window.getSelection()?.rangeCount).toBe(1);
+		expect(b.emits()).toBe(1);
+	});
+
+	it('keeps a caret when no widget is selected', () => {
+		const b = bridge();
+		caretInside(b.content);
+		fire();
+		expect(window.getSelection()?.rangeCount).toBe(1);
 	});
 
 	it('teardown detaches both listeners', () => {

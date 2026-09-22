@@ -30,7 +30,9 @@ there would collapse the range the user just made.
   - Miss-analysis: every widget these scenarios pressed on shows its source on the first click,
     which swaps the widget for editable text before the third press arrives, so the rule the
     click order carries for a widget that stays a widget was never on screen
-- triple-click an inline image: the image stays the one selected thing, no range is painted
-  beside it, and a typed character replaces it. The image's own click handling selects it whole
-  on every click of the run, and the click order leaves a run on a widget already selected that
-  way alone
+- double-click or triple-click an inline image: the image stays the one selected thing, with no
+  range and no caret beside it, and a typed character replaces it. The first click selects the
+  image whole and the second opens its crop frame, so the third press lands on the crop frame
+  - Miss-analysis: the case read the selected text, which a collapsed caret leaves empty, and
+    counted overlays, which reads only the image's side, so the caret the browser seated at the
+    paragraph's start on the third press passed both

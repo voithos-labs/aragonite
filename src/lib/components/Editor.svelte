@@ -915,7 +915,8 @@
 		return installSelectionChangeBridge({
 			root: editorEl,
 			isHostChrome,
-			announceIfMoved: selectionAnnouncer.announceIfMoved
+			announceIfMoved: selectionAnnouncer.announceIfMoved,
+			isWidgetSelected: () => widgetSelection.getSelected() !== null
 		});
 	});
 

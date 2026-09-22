@@ -109,21 +109,34 @@ test.describe('multi-click: the block inline syntax handler beside inline widget
 		await expect.poll(() => reachesBothEnds(page, 'on this line')).toEqual([true, true]);
 	});
 
-	test('a triple-click on an inline image leaves the image selected, and nothing else', async ({
-		page
-	}) => {
-		// An image selects whole on its first click, so the run is its own from the start: the
-		// image stays the one selected thing, with no range painted beside it.
-		await editor.loadContent('before ![pic|120x80](/test-fixtures/sample.png) after\n');
-		await page.waitForFunction(
-			() => (document.querySelector('[data-image-widget] img') as HTMLImageElement)?.complete
-		);
-		await multiClick(page, await widgetCenter(page), 3);
-		await expect(page.locator('[data-image-overlay]')).toHaveCount(1);
-		await page.waitForTimeout(150);
-		expect(await nativeSelectionText(page)).toBe('');
-		await page.keyboard.press('X');
-		await editor.bridge.waitForSourceContains('X');
-		expect(await editor.bridge.getSource()).toBe('before X after\n');
-	});
+	const IMAGE_PARAGRAPH = 'before ![pic|120x80](/test-fixtures/sample.png) after\n';
+
+	/** The document caret beside a selected image: the native range count and the editor's read. */
+	function documentCaret(page: import('@playwright/test').Page): Promise<[number, unknown]> {
+		return page.evaluate(() => [
+			window.getSelection()?.rangeCount ?? 0,
+			(window as any).__test.getSelection()
+		]);
+	}
+
+	for (const clicks of [2, 3]) {
+		test(`a ${clicks === 2 ? 'double' : 'triple'}-click on an inline image leaves the image selected, and nothing else`, async ({
+			page
+		}) => {
+			// An image selects whole on its first click and its second opens the crop frame, so the
+			// run is the image's from the start: no range and no caret beside it.
+			await editor.loadContent(IMAGE_PARAGRAPH);
+			await page.waitForFunction(
+				() => (document.querySelector('[data-image-widget] img') as HTMLImageElement)?.complete
+			);
+			await multiClick(page, await widgetCenter(page), clicks);
+			await expect(page.locator('[data-image-overlay]')).toHaveCount(1);
+			await page.waitForTimeout(150);
+			expect(await nativeSelectionText(page)).toBe('');
+			expect(await documentCaret(page)).toEqual([0, null]);
+			await page.keyboard.press('X');
+			await editor.bridge.waitForSourceContains('X');
+			expect(await editor.bridge.getSource()).toBe('before X after\n');
+		});
+	}
 });
