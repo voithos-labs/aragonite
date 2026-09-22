@@ -1,11 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import {
 	findOpening,
+	isProseOffset,
 	sessionQuery,
 	stepActive,
 	typedRunStart
 } from '$lib/inline-menu/inline-menu-session';
 import type { InlineMenuSource } from '$lib/inline-menu/types';
+import { resolvedInlineContent } from '$lib/core/inline/inline-cache';
+import type { NodeView } from '$lib/core/node-views';
+import { parse } from '$lib/core/parser';
 
 const source = (over: Partial<InlineMenuSource> & { name: string; trigger: string }) =>
 	({ items: () => [], ...over }) satisfies InlineMenuSource;
@@ -117,6 +121,42 @@ describe('sessionQuery', () => {
 
 	it('ends on a caret past the leaf, which a stale selection can report', () => {
 		expect(sessionQuery(session, link, 'see [[', 9)).toBeNull();
+	});
+});
+
+describe('isProseOffset', () => {
+	/** Whether a trigger typed at the `|` in `raw` would be in prose. */
+	const at = (raw: string): boolean => {
+		const offset = raw.indexOf('|');
+		const leaf = (parse(raw.replace('|', '') + '\n') as { children: NodeView[] }).children[0];
+		return isProseOffset(resolvedInlineContent(leaf), offset);
+	};
+
+	it('is true in ordinary text and in a link’s own text, which is prose', () => {
+		expect(at('see |x')).toBe(true);
+		expect(at('see [te|xt](https://a/)')).toBe(true);
+		expect(at('see *em|phasis* here')).toBe(true);
+	});
+
+	it('is false inside an inline code span, where the trigger is not syntax', () => {
+		expect(at('see `co|de` here')).toBe(false);
+		expect(at('see *em `co|de`* here')).toBe(false);
+	});
+
+	it('is false in a link’s destination and title, which are not prose', () => {
+		expect(at('see [text](ht|tps://a/)')).toBe(false);
+		expect(at('see [text](https://a/ "ti|tle")')).toBe(false);
+	});
+
+	it('is false anywhere in an image, whose alt text is an attribute', () => {
+		expect(at('see ![al|t](https://a/b.png)')).toBe(false);
+		expect(at('see ![alt](htt|ps://a/b.png)')).toBe(false);
+	});
+
+	it('is false in an autolink and in raw HTML', () => {
+		expect(at('see <https://a/|b> here')).toBe(false);
+		expect(at('see https://a/|b here')).toBe(false);
+		expect(at('see <span data="a|b"> here')).toBe(false);
 	});
 });
 

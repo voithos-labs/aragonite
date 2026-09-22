@@ -87,6 +87,17 @@ test.describe('inline menus', () => {
 			await expect(menu(editor)).toHaveCount(0);
 		});
 
+		test('a trigger inside a link’s destination opens nothing', async () => {
+			// `See [the docs](https://example.com/) here`: just past the `(`, where the tag source's
+			// own rule (a `#` after a bracket opens) would otherwise say yes.
+			const inUrl = { path: [5], offset: 15 };
+			await editor.bridge.setSelection({ anchor: inUrl, focus: inUrl });
+			await editor.typeText('#');
+			await editor.bridge.waitForSourceContains('](#https://example.com/)');
+			await editor.waitForRenderFlush();
+			await expect(menu(editor)).toHaveCount(0);
+		});
+
 		test('two sources take their own triggers and not each other’s', async () => {
 			await editor.typeText(' [[');
 			await expect(menu(editor, DOCS)).toBeVisible();

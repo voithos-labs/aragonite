@@ -7,7 +7,6 @@
 import { tick } from 'svelte';
 import { isProseKind } from '../core/inline';
 import { resolvedInlineContent } from '../core/inline/inline-cache';
-import type { InlineNode } from '../core/nodes';
 import type { DocumentView, NodeView } from '../core/node-views';
 import type { EditorError, EditorEvents } from '../editor-events';
 import type { PresentationMode } from '../presentation-mode';
@@ -15,6 +14,7 @@ import type { EditorSelection } from '../selection/primitives';
 import { isBlockNode, nodeAt } from '../tree-operations/node-primitives';
 import {
 	findOpening,
+	isProseOffset,
 	sessionQuery,
 	stepActive,
 	typedRunStart,
@@ -82,15 +82,6 @@ export interface InlineMenuOpenView {
 	query: string;
 	items: InlineMenuItem[];
 	activeIndex: number;
-}
-
-function insideInlineCode(nodes: InlineNode[], offset: number): boolean {
-	for (const node of nodes) {
-		if (offset < node.start || offset >= node.end) continue;
-		if (node.kind === 'inlineCode') return true;
-		if (node.children && insideInlineCode(node.children, offset)) return true;
-	}
-	return false;
 }
 
 export function createInlineMenuState(deps: InlineMenuStateDeps): InlineMenuState {
@@ -243,7 +234,7 @@ export function createInlineMenuState(deps: InlineMenuStateDeps): InlineMenuStat
 		heldBack = false;
 		const opening = findOpening(sources.values(), caret.leaf.raw, caret.offset, from);
 		if (!opening) return;
-		if (insideInlineCode(resolvedInlineContent(caret.leaf), opening.start)) return;
+		if (!isProseOffset(resolvedInlineContent(caret.leaf), opening.start)) return;
 		begin(opening.source, caret.path, opening.start, caret.offset);
 	}
 

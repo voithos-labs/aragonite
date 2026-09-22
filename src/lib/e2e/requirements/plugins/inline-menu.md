@@ -24,6 +24,9 @@ whose pick inserts a block: `insert` is empty and `onCommit` goes through the in
 - A caret that merely arrives beside an existing trigger (a click, an arrow key) opens nothing.
 - A trigger the source declines by position opens nothing: a mid-word `#` is not a tag.
 - A trigger typed inside an inline code span opens nothing: it is not syntax there.
+- A trigger typed inside a link's destination opens nothing either, and the same holds for its
+  title, for anywhere in an image, for an autolink and for raw HTML. A link's own text is prose,
+  so a trigger there still opens.
 - With two sources installed, `[[` opens the picker and `#` the tags, never each other's.
 - It works in a list item, not only a top-level paragraph, and on a line just started with Enter.
 - Typed straight after Enter with no keystroke of its own (a paste, an IME commit, a script's

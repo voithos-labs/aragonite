@@ -223,9 +223,10 @@
 		'tags-marks':
 			'Filed under #project and #work/admin today\n\n#inbox leads this line\n\n# Heading with #tag inside\n\nType here\n',
 		// Three tags to suggest (`project` twice, so it ranks first), a typing target, a list item,
-		// and an inline code span where a `#` is not syntax.
+		// an inline code span where a `#` is not syntax, and a link whose destination is not prose
+		// either.
 		'inline-menu':
-			'Filed under #project and #work/admin and #project\n\n#inbox leads\n\nType here\n\n- item\n\nIn `code` span\n'
+			'Filed under #project and #work/admin and #project\n\n#inbox leads\n\nType here\n\n- item\n\nIn `code` span\n\nSee [the docs](https://example.com/) here\n'
 	};
 	// svelte-ignore state_referenced_locally
 	const plugins = [...basePlugins, ...(seedPlugins[data.seed ?? ''] ?? [])];
