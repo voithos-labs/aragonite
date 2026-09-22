@@ -13,6 +13,10 @@ reach it before the next input does. What the channel reports overall is in
   item reports it empty, on the nested path and past the marker prefix the item draws.
 - ArrowDown into the block below, then a byte typed straight after: same, on the column landing
   the vertical arrow uses instead of a plain caret placement.
+- ArrowRight into a plugin leaf whose source is hidden, then a byte typed straight after: the
+  payload naming the leaf reports it without the byte. The placement cannot announce the arrival
+  there (the source has to be shown first), so this is the case where dropping a repeat must not
+  drop the arrival with it.
 
 ## Edge cases
 

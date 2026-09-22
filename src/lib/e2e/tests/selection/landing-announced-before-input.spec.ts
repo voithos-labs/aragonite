@@ -1,5 +1,6 @@
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
+import { PluginsPage } from '../plugins/helpers';
 
 // The order a `selectionChange` subscriber sees: the caret's arrival in a block, then the bytes
 // typed there (`requirements/selection/landing-announced-before-input.md`).
@@ -92,5 +93,31 @@ test.describe('a caret the editor lands is announced before the next input', () 
 
 		const emissions = await stopCapture(editor);
 		expect(arrived.map((path) => arrivalVerdict(emissions, path))).toEqual(arrived.map(before));
+	});
+});
+
+// A plugin leaf shows its source before a caret can go in it, so the placement has nothing to
+// report yet and the arrival comes from the browser instead. It still has to reach a subscriber
+// before the byte typed there, which is what the announcer's skip-a-repeat rule could break.
+test.describe('a caret landing in a plugin leaf with its source hidden', () => {
+	let editor: PluginsPage;
+
+	test.beforeEach(async ({ page }) => {
+		editor = new PluginsPage(page);
+		// Seeds Before / $$x^2$$ / After, with the equation rendered rather than open.
+		await editor.gotoPlugins('mathblock');
+		await expect(page.locator('.math-block-render .katex')).toHaveCount(1);
+	});
+
+	test('is announced before the byte typed into the source it opens', async () => {
+		await editor.focusBlockEnd(0);
+		await startCapture(editor);
+
+		await editor.page.keyboard.press('ArrowRight');
+		await editor.page.keyboard.insertText(TYPED);
+		await editor.waitForRenderFlush();
+
+		const emissions = await stopCapture(editor);
+		expect(arrivalVerdict(emissions, [1])).toBe(before([1]));
 	});
 });
