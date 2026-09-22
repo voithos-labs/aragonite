@@ -15,6 +15,11 @@ operations, which break the keystroke batch through the commit sequence. A forma
 `updateBlockContent` with typing, so it merged into the surrounding burst and nothing
 contradicted it; the row below is what would have.
 
+Miss-analysis (the mark handed back): every scenario ended at the byte that spent the mark, so no
+scenario ever deleted that byte and asked what the caret was formatted as afterwards. The chord
+suite and the destructive-key suite each covered their own gesture and nothing ran the two in one
+sequence.
+
 ## Happy paths
 
 - `Mod+B` at a collapsed caret then a keystroke: the byte lands wrapped, `**X**` in the source,
@@ -54,6 +59,13 @@ contradicted it; the row below is what would have.
   made, by the ordinary arrival rule, rather than wrapping a second pair of its own
 - an arrow step clears the mark: the caret moved, so the promise no longer applies to it
 - a click clears the mark, the same way it clears the arrival side
+
+- a press that empties the construct a mark just made hands that mark back: after `Mod+I`, a
+  letter and a Backspace, the next letter is still italic. The delimiters went with the letter,
+  but the caret did not move, so the format it was typing in is still the format it is in
+- the handed-back mark is a toggle like any other: `Mod+I` after that Backspace turns italic off,
+  and the next letter types plain, which is what the preview modes give from their visible empty
+  pair
 
 - a mark Markdown cannot express at this caret writes nothing: where no candidate parses back to
   what was asked, whether an escape that would have to cut a link open or a wrap whose delimiters

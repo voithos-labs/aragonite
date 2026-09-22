@@ -16,7 +16,7 @@ import {
 	renderedText,
 	type VisibilityContext
 } from '../../../core/inline/visibility';
-import type { InlineNode } from '../../../core/nodes';
+import type { AnyInlineKind, InlineNode } from '../../../core/nodes';
 import { getInlineConstructPolicy } from '../../../schema/inline-construct-policy';
 import { removesExactly, soleProseReparse } from './screen-diff';
 
@@ -51,6 +51,10 @@ export interface EdgeDeletionWrite {
 	/** The block's whole displayed text after the cut. */
 	raw: string;
 	caret: number;
+	/** The marks the cut took off: one per construct it emptied whose delimiters a format chord
+	 *  writes. The caret sits inside none of them now, so a caller holding formatting for the
+	 *  next insertion gets them back. */
+	unwrappedMarks: readonly AnyInlineKind[];
 }
 
 /** The key belongs here but no rewrite parses back: taking nothing is the only answer that keeps
@@ -95,7 +99,11 @@ export function resolveEdgeDeletion(query: EdgeDeletionQuery): EdgeDeletion | nu
 		if (after === null || !removesExactly(before, after, removed)) continue;
 		// Backward lands where the cut opened; forward keeps the caret where it was, which the cut
 		// only moves when it swallowed delimiters ahead of it.
-		return { raw, caret: direction === 'backward' ? cut.start : Math.min(caret, cut.start) };
+		return {
+			raw,
+			caret: direction === 'backward' ? cut.start : Math.min(caret, cut.start),
+			unwrappedMarks: plain.unwrappedMarks
+		};
 	}
 	return { swallow: true };
 }
@@ -174,17 +182,21 @@ function widenThroughRuns(constructs: readonly PolicyConstruct[], cut: Span): Sp
 
 /** A delimiter pair left around nothing is invisible leftovers, so a construct the cut empties
  *  goes with it, repeatedly, since dropping the inner pair can empty its parent. */
-function expandThroughEmptied(constructs: readonly PolicyConstruct[], target: Target): Span {
-	const cut: Span = { start: target.start, end: target.end };
+function expandThroughEmptied(
+	constructs: readonly PolicyConstruct[],
+	target: Target
+): Span & { unwrappedMarks: AnyInlineKind[] } {
+	const cut = { start: target.start, end: target.end, unwrappedMarks: [] as AnyInlineKind[] };
 	let grew = true;
 	while (grew) {
 		grew = false;
-		for (const { node, content, autoUnwrapOnEmpty } of constructs) {
+		for (const { node, content, autoUnwrapOnEmpty, markable } of constructs) {
 			if (!autoUnwrapOnEmpty || !content) continue;
 			if (content.start < cut.start || content.end > cut.end) continue;
 			if (node.start >= cut.start && node.end <= cut.end) continue;
 			cut.start = Math.min(cut.start, node.start);
 			cut.end = Math.max(cut.end, node.end);
+			if (markable) cut.unwrappedMarks.push(node.kind);
 			grew = true;
 		}
 	}
@@ -199,6 +211,9 @@ interface PolicyConstruct {
 	 *  a hard break, which has nothing to delete a character out of. */
 	content: Span | null;
 	autoUnwrapOnEmpty: boolean;
+	/** Whether a format chord writes this kind's delimiters, so unwrapping it takes a mark off
+	 *  the caret rather than only bytes. */
+	markable: boolean;
 }
 
 /** Only kinds the policy table names take part: a construct with no policy has its bytes read as
@@ -211,7 +226,8 @@ function policyConstructs(inlines: readonly InlineNode[]): PolicyConstruct[] {
 		found.push({
 			node,
 			content: constructContentRange(node),
-			autoUnwrapOnEmpty: policy.autoUnwrapOnEmpty
+			autoUnwrapOnEmpty: policy.autoUnwrapOnEmpty,
+			markable: policy.mark !== undefined
 		});
 	}
 	return found;
