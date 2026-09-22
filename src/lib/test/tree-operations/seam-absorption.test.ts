@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { parse } from '../../core/parser';
 import { serialize } from '../../core/serializer';
-import { deleteNode, splitNode, updateNodeContent } from '../../tree-operations';
+import { deleteNode, mergeWithNext, splitNode, updateNodeContent } from '../../tree-operations';
 import { describeConvergence } from '$lib/test/harness/parse-converged';
 import { settled } from '$lib/test/harness/settle-funnel';
 import type { SettledContent } from '$lib/tree-operations/content-write';
@@ -110,6 +110,30 @@ describe('a splice absorbs a join the reload would fold (GH #61)', () => {
 		expect(doc.children[1].raw).toBe('- > # word\n\n    code\n');
 		expect(describeConvergence(doc)).toBeNull();
 		expect(change).toEqual({ op: 'replace', at: 1, count: 3, newCount: 1, idMap: { 0: 0 } });
+	});
+
+	// GH #285: the swallowed block can carry a run of blank lines long enough to stay a block of
+	// its own, so the joined bytes read as the same number of blocks rather than fewer.
+	// Miss-analysis: every pin here drove a join whose bytes read as strictly fewer blocks, so no
+	// window ever held a blank run that kept the count while the division moved.
+	it('a mergeNext leaving a list above indented code takes its trailing blank run too', () => {
+		const doc = parse('- a\n\nb\n\n    code\n \t \n\t\n\n```\n```\n');
+		expect(doc.children.map((c) => c.kind)).toEqual([
+			'list',
+			'paragraph',
+			'indentedCode',
+			'fencedCode'
+		]);
+
+		const change = settled(doc, (body) => mergeWithNext(body, 0, undefined, undefined).change);
+
+		expect(doc.children.map((c) => [c.kind, c.leadingTrivia, c.raw])).toEqual([
+			['list', '', '- ab\n\n    code\n'],
+			['paragraph', ' \t \n', '\t\n'],
+			['fencedCode', '', '```\n```\n']
+		]);
+		expect(change).toEqual({ op: 'replace', at: 0, count: 3, newCount: 2, idMap: { 0: 0 } });
+		expect(describeConvergence(doc)).toBeNull();
 	});
 
 	it('a delete between separated paragraphs stays a plain delete', () => {

@@ -59,7 +59,7 @@ How the cost got this small, for the curious:
 
 ### 4. The lower join at a large container's tail
 
-After a write in a container's last child, with a block following the container, the editor asks whether the container and that follower now re-read as fewer blocks (a list standing above indented code absorbs it, say), because that's what a reload would do with the bytes. The ask parses the window, the container's own bytes included: **~34-37 ms** per keystroke at ~650KB, against ~0.5 ms with the ask off. Not gated, tracked as #182.
+After a write in a container's last child, with a block following the container, the editor asks whether the container and that follower are still the blocks a reload reads there (a list standing above indented code absorbs it, say), because that's what a reload would do with the bytes. The ask parses the window, the container's own bytes included: **~34-37 ms** per keystroke at ~650KB, against ~0.5 ms with the ask off. Not gated, tracked as #182.
 
 It's the interior-typing axis's twin at the other end, and a different cost: the ask parses bytes where the rebuild read children, so the child spans do nothing for it. The gated fixtures are single top-level blocks, so no ceiling sees it.
 

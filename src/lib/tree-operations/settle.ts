@@ -405,7 +405,11 @@ export function absorbSeamReading(
 		probe = undefined;
 		const reparsed = parse(joinedWindowBytes(window, window.length), { scope: 'fragment' });
 		const blocks = reparsed.children;
-		if (blocks.length === 0 || blocks.length >= window.length) break;
+		if (blocks.length === 0 || blocks.length > window.length) break;
+		// An equal count is still a merge where the head took content from the block below it: a
+		// run of blank lines inside that block stays a block of its own, so the count holds even
+		// though the rest of it moved up (GH #285).
+		if (blocks.length === window.length && !headTookContent(blocks[0], window)) break;
 		// A merge may promote the head beyond what its bytes carry alone (a paragraph under the
 		// setext underline below it), so what must survive is the head's own reading, not its kind.
 		if (blocks[0].kind !== window[0].kind && !readsAsItselfAlone(window[0])) break;
@@ -419,11 +423,20 @@ export function absorbSeamReading(
 		}
 		if (tracked) retrackThroughFold(tracked, at, window, blocks);
 		spliceMany(children, at, window.length, blocks);
+		// The merge can end on a blank block where a filled one stood, and the block below a blank
+		// one carries no separator line of its own.
+		clearRedundantSeparator(parent, at + blocks.length, sharing);
 		eaten += window.length - blocks.length;
 		span = blocks.length;
 		spliced = true;
 	}
 	return { at, span, eaten, spliced };
+}
+
+/** Whether the reparse moved more than the separating blank line into the head. Its own bytes
+ *  plus that line are what it holds when the division between the two blocks has not moved. */
+function headTookContent(head: CstNode, window: readonly CstNode[]): boolean {
+	return head.raw.length > window[0].raw.length + window[1].leadingTrivia.length;
 }
 
 /**
