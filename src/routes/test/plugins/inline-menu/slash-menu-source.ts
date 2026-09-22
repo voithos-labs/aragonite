@@ -1,8 +1,8 @@
 /**
- * A `/` command list, the harness's third inline-menu source and the one that inserts a BLOCK. A
- * pick's bytes can hold no line break, so `insert` is empty (it removes the `/` and the query) and
- * `onCommit` puts the snippet in through the instance's `insertMarkdown`. Registered from the page
- * rather than a plugin, because a plugin's context has no `insertMarkdown`.
+ * A `/` command list, the harness's third inline-menu source and the only one whose pick inserts
+ * a block. A pick's bytes hold no line break, so `insert` is empty (it removes the `/` and the
+ * query) and `onCommit` puts the snippet in through the instance's `insertMarkdown`. Registered
+ * from the page rather than a plugin, because a plugin's context has no `insertMarkdown`.
  */
 import type { InlineMenuSource } from '$lib';
 

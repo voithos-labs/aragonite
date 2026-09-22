@@ -270,8 +270,8 @@ export function createInlineMenuState(deps: InlineMenuStateDeps): InlineMenuStat
 		const source = sources.get(live.source);
 		const range = { query, path: [...live.path], start: live.start, end };
 		close();
-		// A line break inside one leaf's bytes is the corruption issue #285 describes: the tree
-		// would hold one paragraph where a reload reads two.
+		// One leaf's raw must not hold a blank line: the tree would say one paragraph where a
+		// reload reads two.
 		if (/[\r\n]/.test(item.insert)) {
 			report(
 				new Error(

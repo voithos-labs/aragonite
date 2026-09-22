@@ -78,7 +78,7 @@ function harness(initial: string, { arrive = true } = {}) {
 				await tick();
 			}
 		},
-		/** A burst the editor publishes as ONE change: fast typing, an IME commit. */
+		/** A burst the editor publishes as a single change: fast typing, an IME commit. */
 		async burst(text: string) {
 			await settle();
 			const raw = doc.children[block]?.raw ?? '';
@@ -89,8 +89,8 @@ function harness(initial: string, { arrive = true } = {}) {
 			await tick();
 		},
 		/**
-		 * The caret reaches a block no read has seen and the first byte lands there in ONE read:
-		 * the line Enter just made, typed on before the split's own change is read.
+		 * The caret reaches a block no read has seen and the first byte lands there in a single
+		 * read: the line Enter just made, typed on before the split's own change is read.
 		 */
 		async arriveAndType(index: number, text: string) {
 			await settle();
@@ -102,7 +102,7 @@ function harness(initial: string, { arrive = true } = {}) {
 			events.emit('edit', typedEdit([index]));
 			await tick();
 		},
-		/** The bytes land a read BEFORE the caret that typed them catches up. */
+		/** The bytes land a read ahead of the caret that typed them. */
 		async typeWithLateCaret(text: string) {
 			await settle();
 			const raw = doc.children[block].raw;

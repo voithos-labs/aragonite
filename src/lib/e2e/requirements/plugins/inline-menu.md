@@ -5,7 +5,7 @@ A list the editor opens under the caret while the author types after a trigger: 
 (`editor.inlineMenus.addSource`, or `getInlineMenus()` on the host's instance); the editor owns
 the rest, because it is the part a host cannot do from outside without racing the editor:
 noticing the trigger as the bytes are typed, holding the navigation keys while the list is up,
-anchoring to the typed range, and replacing that range with the pick as ONE undo entry.
+anchoring to the typed range, and replacing that range with the pick as one undo entry.
 
 The caret never leaves the document. The list takes no focus, so the author keeps typing the
 query, and an empty list holds no key at all.
@@ -21,7 +21,7 @@ whose pick inserts a block: `insert` is empty and `onCommit` goes through the in
 
 - Typing the trigger opens that source's list under it; the rows are the source's, in its order.
 - The query narrows the list as it grows, and widens it again on Backspace.
-- A caret that merely ARRIVES beside an existing trigger (a click, an arrow key) opens nothing.
+- A caret that merely arrives beside an existing trigger (a click, an arrow key) opens nothing.
 - A trigger the source declines by position opens nothing: a mid-word `#` is not a tag.
 - A trigger typed inside an inline code span opens nothing: it is not syntax there.
 - With two sources installed, `[[` opens the picker and `#` the tags, never each other's.
@@ -42,8 +42,8 @@ whose pick inserts a block: `insert` is empty and `onCommit` goes through the in
 
 ## Commit
 
-- The pick replaces the trigger AND the query, and the caret lands after it: typing continues
-  the line.
+- The pick replaces both the trigger and the query, and the caret lands after it: typing
+  continues the line.
 - One undo restores the typed query; the pick was one entry.
 - A click on a row commits it, and the document keeps its caret (the press does not blur).
 - An asynchronous list settles on the last query typed. (A slow answer a later keystroke

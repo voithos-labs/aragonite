@@ -61,7 +61,8 @@ export interface InlineMenuSource {
 	 * reported on the `error` event.
 	 */
 	items(query: InlineMenuQuery): InlineMenuItem[] | Promise<InlineMenuItem[]>;
-	/** After a pick's bytes have landed. */
+	/** After a pick's bytes have landed. The range is the one the pick replaced, not where the
+	 *  bytes now sit: the caret is at `start + insert.length`. */
 	onCommit?(item: InlineMenuItem, query: Omit<InlineMenuQuery, 'signal'>): void;
 	/** Paints one row's content in place of the default label and detail. */
 	row?: Component<InlineMenuRowProps>;
