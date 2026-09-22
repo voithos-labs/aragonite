@@ -3,7 +3,8 @@
  * (`deleteByDrag` on the source, `insertFromDrop` on the target), so undo takes two steps over a
  * document that lost bytes in between, and inside one block the first edit re-renders the
  * element under the drop. The editor does it instead: one undo snapshot over two raw writes,
- * which splice nothing, so no path moves under the second.
+ * which splice nothing, so no path moves under the second. Cancelling also takes the browser's
+ * drop caret away, so the same landing is resolved while the drag is held and drawn as a caret.
  */
 
 import type { CstNode, Document } from '../core/nodes';
@@ -14,9 +15,10 @@ import type { CommitController } from '../action-contracts';
 import type { PasteCommitCoordinator } from '../tree-operations/paste/paste-deps';
 import { emitClipboardError, type EditorEvents } from '../editor-events';
 import { ambientLengthOf } from '../ambient/ambient-dom';
-import { toClampedRawOffset } from '../cursor/coordinate-spaces';
-import { domTextOffsetAtNode } from '../cursor/widget-offset';
+import { toClampedRawOffset, toDomTextOffset } from '../cursor/coordinate-spaces';
+import { createRangeAtDomTextOffsets, domTextOffsetAtNode } from '../cursor/widget-offset';
 import { trailingLineEnding, trimTrailingLineEnding } from '../core/lines';
+import { blockContentElAt } from '../components/block-el-lookup';
 import { replaceRangeRaw } from '../components/blocks/text/live-selection-edit';
 import { blockNodeAt, emptyParagraph, writeOwnRaw } from '../tree-operations/node-primitives';
 import { cloneNode } from '../tree-operations/clone';
@@ -27,6 +29,7 @@ import { replaceBlockAtParent } from '../tree-operations/paste/replace-block-at-
 import { parseReplacement } from '../tree-operations/paste/replacement-parse';
 import { blockNearPoint } from './nearest-block';
 import { findSurfaceForElement } from './path-lookup';
+import { charOffsetOf } from './primitives';
 import { containerAmbientPrefix } from './range-delete';
 
 export interface SelectionDropDeps {
@@ -40,7 +43,16 @@ export interface SelectionDropDeps {
 	activePlugins: PluginActivation | undefined;
 	/** The editor's event emitter: a move that throws halfway has nowhere else to report. */
 	events: EditorEvents;
+	/** Draws the caret saying where a release lands; null takes it away again. */
+	setDropCaret(rect: DropCaretRect | null): void;
 	isReadOnly(): boolean;
+}
+
+/** Where the drop caret stands, in viewport coordinates. */
+export interface DropCaretRect {
+	left: number;
+	top: number;
+	height: number;
 }
 
 /** Where the drag started, in raw offsets of the element it started in. */
@@ -69,20 +81,52 @@ type DragStash = DragSource | typeof DECLINED;
 
 export function installSelectionDrop(deps: SelectionDropDeps): () => void {
 	let source: DragStash | null = null;
+	// The landing the painted caret stands at. A drag fires `dragover` over and over at one
+	// position, and only a move to a different landing has a new caret to draw.
+	let caretAt: { path: number[]; offset: number } | null = null;
+
+	function hideCaret(): void {
+		if (!caretAt) return;
+		caretAt = null;
+		deps.setDropCaret(null);
+	}
+
+	function drawCaretAt(clientX: number, clientY: number): void {
+		if (source === DECLINED || deps.isReadOnly()) return hideCaret();
+		const target = dropTarget(deps, clientX, clientY);
+		if (!target) return hideCaret();
+		if (caretAt && caretAt.offset === target.offset && pathsEqual(caretAt.path, target.path)) {
+			return;
+		}
+		const rect = dropCaretRect(deps.editorRoot, target.path, target.offset);
+		if (!rect) return hideCaret();
+		caretAt = target;
+		deps.setDropCaret(rect);
+	}
+
 	const onDragStart = (e: DragEvent) => {
 		source = readSelectionSource(deps.editorRoot, e.target);
 	};
 	const onDragEnd = () => {
 		source = null;
+		hideCaret();
 	};
 	// The editor is the drop target for every drag recognised here, declined ones included: the
 	// drop handler below must run to cancel the browser's pair of native edits.
 	const onDragOver = (e: DragEvent) => {
-		if (source) e.preventDefault();
+		if (!source) return;
+		e.preventDefault();
+		drawCaretAt(e.clientX, e.clientY);
+	};
+	// `dragleave` also fires for every child the pointer crosses, so the caret goes only once
+	// the point is outside the editor's own box.
+	const onDragLeave = (e: DragEvent) => {
+		if (source && !isInside(deps.editorRoot, e.clientX, e.clientY)) hideCaret();
 	};
 	const onDrop = (e: DragEvent) => {
 		const from = source;
 		source = null;
+		hideCaret();
 		if (!from) return;
 		// Before every decline below, not after: the browser's two edits land separately and its
 		// undo is not the editor's, so a declined shape changes nothing rather than half of it.
@@ -101,11 +145,13 @@ export function installSelectionDrop(deps: SelectionDropDeps): () => void {
 	deps.editorRoot.addEventListener('dragstart', onDragStart);
 	deps.editorRoot.addEventListener('dragend', onDragEnd);
 	deps.editorRoot.addEventListener('dragover', onDragOver);
+	deps.editorRoot.addEventListener('dragleave', onDragLeave);
 	deps.editorRoot.addEventListener('drop', onDrop);
 	return () => {
 		deps.editorRoot.removeEventListener('dragstart', onDragStart);
 		deps.editorRoot.removeEventListener('dragend', onDragEnd);
 		deps.editorRoot.removeEventListener('dragover', onDragOver);
+		deps.editorRoot.removeEventListener('dragleave', onDragLeave);
 		deps.editorRoot.removeEventListener('drop', onDrop);
 	};
 }
@@ -185,6 +231,26 @@ function dropTarget(
 	const point = near?.endpointHere();
 	if (!point || !('offset' in point) || point.cellCoordinate) return null;
 	return blockNodeAt(deps.getDoc(), point.path) ? { path: point.path, offset: point.offset } : null;
+}
+
+/** Viewport rect of the caret at `offset` in the block at `path`. A block whose offset names no
+ *  text position falls back to its own box, and an unmounted one to null. */
+function dropCaretRect(root: HTMLElement, path: number[], offset: number): DropCaretRect | null {
+	const el = blockContentElAt(root, path);
+	if (!el) return null;
+	const at = toDomTextOffset(
+		charOffsetOf({ path, offset }, 'selection-drop:caret'),
+		ambientLengthOf(el)
+	);
+	const rect = createRangeAtDomTextOffsets(el, at, at)?.getBoundingClientRect();
+	if (rect && rect.height > 0) return { left: rect.left, top: rect.top, height: rect.height };
+	const box = el.getBoundingClientRect();
+	return box.height > 0 ? { left: box.left, top: box.top, height: box.height } : null;
+}
+
+function isInside(el: HTMLElement, clientX: number, clientY: number): boolean {
+	const box = el.getBoundingClientRect();
+	return clientX >= box.left && clientX <= box.right && clientY >= box.top && clientY <= box.bottom;
 }
 
 /** The source element's bytes for the range, after the paste transforms. Null for text this

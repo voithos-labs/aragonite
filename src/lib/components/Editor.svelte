@@ -30,7 +30,7 @@
 	import { createHeightOracle } from '../cursor/height-oracle';
 	import { HEIGHT_ESTIMATES } from '../cursor/typography-estimates';
 	import { createScrollHostResolution } from './editor-root-scroll-host';
-	import { installSelectionDrop } from '../selection/selection-drop';
+	import { installSelectionDrop, type DropCaretRect } from '../selection/selection-drop';
 	import { createContentVersion } from '../reactivity/content-version.svelte';
 	import { useContainerWindowing } from '../reactivity/use-container-windowing.svelte';
 	import { refSlotsOver, replaceRefs, revealChildOrWait } from '../reactivity/publish-ref.svelte';
@@ -291,6 +291,7 @@
 	// component.
 	let reorderGhost = $state<{ clientX: number; clientY: number; label: string } | null>(null);
 	let reorderLine = $state<{ left: number; top: number; width: number } | null>(null);
+	let dropCaret = $state<DropCaretRect | null>(null);
 
 	$effect(() => {
 		const dispose = events.on('edit', (e) => {
@@ -836,6 +837,7 @@
 				grammar: registryView.grammar,
 				activePlugins,
 				events,
+				setDropCaret: (rect) => (dropCaret = rect),
 				isReadOnly: () => effectiveMode === 'reading'
 			})
 		);
@@ -1481,6 +1483,12 @@
 			style="left:{reorderLine.left}px;top:{reorderLine.top}px;width:{reorderLine.width}px"
 		></div>
 	{/if}
+	{#if dropCaret}
+		<div
+			class="drop-caret"
+			style="left:{dropCaret.left}px;top:{dropCaret.top}px;height:{dropCaret.height}px"
+		></div>
+	{/if}
 	{#if reorderGhost}
 		<div class="reorder-ghost" style="left:{reorderGhost.clientX}px;top:{reorderGhost.clientY}px">
 			{reorderGhost.label}
@@ -1613,6 +1621,16 @@
 		height: 2px;
 		background: var(--md-reorder-indicator);
 		border-radius: 2px;
+		pointer-events: none;
+		z-index: 20;
+	}
+
+	/* Where a held drag will land. The browser's own drop caret goes with the drop the editor
+	   cancels, so this one takes its place and matches the caret beside an inline widget. */
+	.drop-caret {
+		position: fixed;
+		width: 1.5px;
+		background: var(--color-text-primary, currentColor);
 		pointer-events: none;
 		z-index: 20;
 	}

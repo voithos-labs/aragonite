@@ -1,6 +1,6 @@
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
-import { pastLineEnd, runCenter, runStart } from './multi-click-helpers';
+import { blockCenter, pastLineEnd, runCenter, runStart } from './multi-click-helpers';
 
 // Dragging a selection and dropping it (`requirements/selection/selection-drag-drop.md`). Drops
 // aim past a line's end or at its first glyph: the two points whose offset no font metric moves.
@@ -37,19 +37,6 @@ function blockRaw(page: import('@playwright/test').Page, index: number): Promise
 		(i) => String((window as any).__test.getDocument().children[i]?.raw ?? ''),
 		index
 	);
-}
-
-/** The centre of a top-level block's box: the aim point for a block that renders no text. */
-function blockCenter(
-	page: import('@playwright/test').Page,
-	index: number
-): Promise<{ x: number; y: number }> {
-	return page.evaluate((i) => {
-		const el = document.querySelector(`[data-block-path='[${i}]']`) as HTMLElement | null;
-		if (!el) throw new Error(`no block [${i}]`);
-		const box = el.getBoundingClientRect();
-		return { x: box.left + box.width / 2, y: box.top + box.height / 2 };
-	}, index);
 }
 
 /** A table cell's rendered text beside its own raw: the cell is the editable element, so the
