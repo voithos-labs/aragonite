@@ -50,7 +50,8 @@ export interface InlineMenuState {
 	getOpen(): InlineMenuOpenView | null;
 	move(delta: 1 | -1): void;
 	setActive(index: number): void;
-	/** The root's keydown, ahead of the key's own bytes. See `primeBaseline`. */
+	/** Take a baseline for the caret's leaf if none is held; the host calls it at keydown, before
+	 *  the key's own bytes exist. */
 	primeBaseline(): void;
 	/** Commit the active row, or the row at `index`. False with no row to commit. */
 	commit(index?: number): boolean;
@@ -204,10 +205,10 @@ export function createInlineMenuState(deps: InlineMenuStateDeps): InlineMenuStat
 	}
 
 	/**
-	 * Called at keydown, before the key's bytes exist. A caret can reach a leaf with no read in
-	 * between (a click into a list item, Enter onto a new line), and the first keystroke there
-	 * would have nothing to be the difference FROM. Only ever fills a missing baseline: within a
-	 * burst the standing one still predates the trigger, and must not be advanced past it.
+	 * Fill in a baseline for a leaf that has none: a caret reaches one with no read in between (a
+	 * click into a list item, Enter onto a new line), and the first keystroke there would have
+	 * nothing to be the difference from. Only ever fills a missing baseline, because within a
+	 * burst the standing one still predates the trigger and must not be advanced past it.
 	 */
 	function primeBaseline(): void {
 		if (disposed || sources.size === 0 || session !== null || writing) return;
@@ -246,8 +247,12 @@ export function createInlineMenuState(deps: InlineMenuStateDeps): InlineMenuStat
 	}
 
 	// Evaluated a tick after the event, so an edit and the selectionchange beside it are one read.
+	// The baseline is taken now rather than then, because those two can carry a caret's arrival in
+	// a leaf no read has seen and the first bytes typed there together.
 	function schedule(): void {
-		if (scheduled || disposed) return;
+		if (disposed || (sources.size === 0 && session === null)) return;
+		primeBaseline();
+		if (scheduled) return;
 		scheduled = true;
 		void tick().then(() => {
 			scheduled = false;

@@ -12,9 +12,11 @@ const item = (id: string, insert = id): InlineMenuItem => ({ id, label: id, inse
 const typedEdit = (path: number[]): EditEvent =>
 	({ op: 'input', path, detail: { byteLength: 1 }, timestamp: 0 }) as EditEvent;
 
-/** One paragraph whose bytes and caret the test moves by hand, the way a keystroke would. */
+/** Blocks whose bytes and caret the test moves by hand, the way a keystroke would. */
 function harness(initial: string, { arrive = true } = {}) {
 	let doc = parse(initial) as unknown as DocumentView;
+	/** Which block the caret is in; most tests give one and never leave it. */
+	let block = 0;
 	let caret: number | null = initial.length;
 	let mode: PresentationMode = 'source';
 	const events = createEditorEvents();
@@ -22,17 +24,23 @@ function harness(initial: string, { arrive = true } = {}) {
 	events.on('error', (e) => errors.push(e.error));
 	const landed: number[] = [];
 
+	/** Put `raw` in one block, reparsing the document the way an edit there would. */
+	function write(index: number, raw: string): void {
+		const raws = doc.children.map((child, i) => (i === index ? raw : child.raw));
+		doc = parse(raws.join('\n')) as unknown as DocumentView;
+	}
+
 	const menu = createInlineMenuState({
 		getDoc: () => doc,
 		getSelection: () =>
 			caret === null
 				? null
-				: { anchor: { path: [0], offset: caret }, focus: { path: [0], offset: caret } },
+				: { anchor: { path: [block], offset: caret }, focus: { path: [block], offset: caret } },
 		getMode: () => mode,
 		events,
-		commitRange: async (_path, start, end, bytes) => {
-			const raw = doc.children[0].raw;
-			doc = parse(raw.slice(0, start) + bytes + raw.slice(end)) as unknown as DocumentView;
+		commitRange: async (path, start, end, bytes) => {
+			const raw = doc.children[path[0]].raw;
+			write(path[0], raw.slice(0, start) + bytes + raw.slice(end));
 		},
 		landCaret: async (_path, offset) => {
 			caret = offset;
@@ -41,44 +49,66 @@ function harness(initial: string, { arrive = true } = {}) {
 		}
 	});
 
-	// The caret arriving in the block is the editor's first news of it, as a click's would be.
-	if (arrive) events.emit('selectionChange', null);
+	// The caret arriving in the block is the editor's first news of it, as a click's would be. It
+	// waits for the first gesture, so the test's source is registered by then, as a plugin's is.
+	let arrived = !arrive;
+	async function settle(): Promise<void> {
+		if (!arrived) {
+			arrived = true;
+			events.emit('selectionChange', null);
+		}
+		await tick();
+	}
 
 	return {
 		menu,
 		errors,
 		landed,
-		raw: () => doc.children[0].raw,
+		raw: (index = 0) => doc.children[index].raw,
 		setMode: (next: PresentationMode) => (mode = next),
 		/** Type at the caret, one keystroke per character: the byte lands, then its `edit`. */
 		async type(text: string) {
-			await tick();
+			await settle();
 			for (const ch of text) {
-				const raw = doc.children[0]?.raw ?? '';
+				const raw = doc.children[block]?.raw ?? '';
 				const at = caret ?? raw.length;
-				doc = parse(raw.slice(0, at) + ch + raw.slice(at)) as unknown as DocumentView;
+				write(block, raw.slice(0, at) + ch + raw.slice(at));
 				caret = at + 1;
-				events.emit('edit', typedEdit([0]));
+				events.emit('edit', typedEdit([block]));
 				await tick();
 			}
 		},
 		/** A burst the editor publishes as ONE change: fast typing, an IME commit. */
 		async burst(text: string) {
-			await tick();
-			const raw = doc.children[0]?.raw ?? '';
+			await settle();
+			const raw = doc.children[block]?.raw ?? '';
 			const at = caret ?? raw.length;
-			doc = parse(raw.slice(0, at) + text + raw.slice(at)) as unknown as DocumentView;
+			write(block, raw.slice(0, at) + text + raw.slice(at));
 			caret = at + text.length;
-			events.emit('edit', typedEdit([0]));
+			events.emit('edit', typedEdit([block]));
+			await tick();
+		},
+		/**
+		 * The caret reaches a block no read has seen and the first byte lands there in ONE read:
+		 * the line Enter just made, typed on before the split's own change is read.
+		 */
+		async arriveAndType(index: number, text: string) {
+			await settle();
+			block = index;
+			caret = 0;
+			events.emit('edit', typedEdit([index]));
+			write(index, text + doc.children[index].raw);
+			caret = text.length;
+			events.emit('edit', typedEdit([index]));
 			await tick();
 		},
 		/** The bytes land a read BEFORE the caret that typed them catches up. */
 		async typeWithLateCaret(text: string) {
-			await tick();
-			const raw = doc.children[0].raw;
+			await settle();
+			const raw = doc.children[block].raw;
 			const at = caret ?? raw.length;
-			doc = parse(raw.slice(0, at) + text + raw.slice(at)) as unknown as DocumentView;
-			events.emit('edit', typedEdit([0]));
+			write(block, raw.slice(0, at) + text + raw.slice(at));
+			events.emit('edit', typedEdit([block]));
 			await tick();
 			caret = at + text.length;
 			events.emit('selectionChange', null);
@@ -86,13 +116,14 @@ function harness(initial: string, { arrive = true } = {}) {
 		},
 		/** Bytes changing under a caret that does not follow them: an undo, a remote rewrite. */
 		async rewrite(raw: string) {
-			await tick();
-			doc = parse(raw) as unknown as DocumentView;
-			events.emit('edit', typedEdit([0]));
+			await settle();
+			write(block, raw);
+			events.emit('edit', typedEdit([block]));
 			await tick();
 		},
 		/** Move the caret with no edit: an arrow key, a click. */
 		async moveTo(offset: number | null) {
+			arrived = true;
 			caret = offset;
 			events.emit('selectionChange', null);
 			await tick();
@@ -162,6 +193,18 @@ describe('a typed trigger opens its source', () => {
 		unprimed.menu.registry.addSource(tags());
 		await unprimed.burst('#');
 		expect(unprimed.menu.getOpen()).toBeNull();
+	});
+
+	// Miss-analysis: every test reached a new leaf through a read of its own, so none ever let the
+	// caret's arrival and the first byte there publish as one change, which is what fast typing
+	// after Enter does.
+	it('opens where a new leaf’s arrival and its first byte are one read', async () => {
+		const h = harness('see\n\n\n');
+		h.menu.registry.addSource(tags());
+		await h.moveTo(3);
+
+		await h.arriveAndType(1, '#');
+		expect(h.menu.getOpen()).toMatchObject({ path: [1], start: 0, query: '' });
 	});
 
 	it('never advances a standing baseline at keydown, which a burst depends on', async () => {
