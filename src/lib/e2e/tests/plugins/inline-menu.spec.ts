@@ -61,8 +61,6 @@ test.describe('inline menus', () => {
 			await expect.poll(() => rows(editor)).toEqual(['#project', '#inbox', '#work/admin']);
 		});
 
-		// Miss-analysis: the case stayed in the block it had typed ` #` into, so the arrival it
-		// tested was the typist's own caret coming back, never one reaching a trigger it never typed.
 		test('a caret arriving beside an existing trigger opens nothing', async () => {
 			// `Filed under #project and …`, a block the caret has never been in this run.
 			const beforeTag = { path: [0], offset: 12 };
@@ -132,8 +130,6 @@ test.describe('inline menus', () => {
 	});
 
 	test.describe('what a screen reader is told', () => {
-		// Miss-analysis: every case read the list's own markup, so none asked what the element the
-		// author types in says about the list, which is all a screen reader hears.
 		test('the editable names the list and its active row, and drops them on Escape', async () => {
 			await editor.typeText(' #');
 			await expect(menu(editor, TAGS)).toBeVisible();

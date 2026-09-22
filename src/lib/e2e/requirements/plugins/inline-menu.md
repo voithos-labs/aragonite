@@ -96,3 +96,12 @@ The Enter-then-type cases passed while the baseline came only from a keydown or 
 arrival: the harness's bridge reads between the two gave the browser's selection change time to
 fire first. Run back to back, the arrival lost that race to the typed burst on a third of runs,
 and no case typed without a keydown except the ones that also waited.
+
+Every case read the list's own markup and none read the element the author types in, so the
+editable could say nothing at all about the list and the suite still went green.
+
+The only position ever excluded was an inline code span, so the other bytes a reader does not read
+as prose, a link's destination and title, an image, an autolink, raw HTML, were never asked about.
+
+The arrival case stayed in the block it had just typed the trigger into, so the caret it tested
+was the typist's own coming back, never one reaching a trigger it had never typed.

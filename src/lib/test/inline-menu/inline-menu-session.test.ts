@@ -124,6 +124,8 @@ describe('sessionQuery', () => {
 	});
 });
 
+// Miss-analysis: the only position any test ever excluded was an inline code span, so the other
+// bytes a reader does not read as prose were never asked about at all.
 describe('isProseOffset', () => {
 	/** Whether a trigger typed at the `|` in `raw` would be in prose. */
 	const at = (raw: string): boolean => {
