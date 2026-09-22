@@ -30,6 +30,7 @@ import type { EdgeAffinityState } from './cursor/edge-affinity';
 import type { PendingMarksState } from './cursor/pending-marks';
 import type { RevealAnchorState } from './cursor/reveal-anchor';
 import type { HeightOracle } from './cursor/height-oracle';
+import type { InlineMenuCombobox } from './inline-menu/inline-menu-state.svelte';
 import type { WidgetSelectionState } from './components/image/widget-selection-state.svelte';
 import type { LinkCardState } from './components/link-card/link-card-state.svelte';
 
@@ -172,6 +173,9 @@ export interface EditorServices {
 	widgetSelection: WidgetSelectionState;
 	/** Which link the live-mode card is editing; `link.openCard` opens it from a kind's keymap. */
 	linkCard: LinkCardState;
+	/** What the editable at `path` says about the inline menu's list while one shows in it, or
+	 *  null. The block renders the attributes itself, rather than the list reaching in. */
+	inlineMenuCombobox: (path: readonly number[]) => InlineMenuCombobox | null;
 	controller: UndoController;
 	pasteCoordinator: PasteCommitCoordinator;
 	reorder: ReorderAction;

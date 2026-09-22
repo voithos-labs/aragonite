@@ -38,6 +38,7 @@ function harness(initial: string, { arrive = true } = {}) {
 				: { anchor: { path: [block], offset: caret }, focus: { path: [block], offset: caret } },
 		getMode: () => mode,
 		events,
+		editorId: 'editor-test',
 		// A pick's write raises the same events a keystroke does, so the read they schedule is
 		// the one the state has to hold off.
 		commitRange: async (path, start, end, bytes) => {

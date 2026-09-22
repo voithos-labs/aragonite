@@ -22,6 +22,13 @@ const rows = async (editor: PluginsPage): Promise<string[]> =>
 const activeRow = (editor: PluginsPage) =>
 	menu(editor).locator('[role="option"][data-active="true"] .inline-menu-label');
 
+const activeRowId = (editor: PluginsPage): Promise<string | null> =>
+	menu(editor).locator('[role="option"][data-active="true"]').getAttribute('id');
+
+/** The element the author types in: what a screen reader is told about while a list shows. */
+const editable = (editor: PluginsPage, index: number) =>
+	editor.page.locator(`[data-block-path="[${index}]"] [contenteditable]`).first();
+
 const blockRaw = async (editor: PluginsPage, index: number): Promise<string> =>
 	(await editor.bridge.getSource()).split('\n\n')[index];
 
@@ -98,6 +105,34 @@ test.describe('inline menus', () => {
 			await editor.page.keyboard.press('End');
 			await editor.typeText(' #');
 			await expect(menu(editor, TAGS)).toBeVisible();
+		});
+	});
+
+	test.describe('what a screen reader is told', () => {
+		// Miss-analysis: every case read the list's own markup, so none asked what the element the
+		// author types in says about the list, which is all a screen reader hears.
+		test('the editable names the list and its active row, and drops them on Escape', async () => {
+			await editor.typeText(' #');
+			await expect(menu(editor, TAGS)).toBeVisible();
+
+			const typing = editable(editor, TARGET);
+			const listId = await menu(editor, TAGS).getAttribute('id');
+			expect(listId).toBeTruthy();
+			await expect(typing).toHaveAttribute('role', 'combobox');
+			await expect(typing).toHaveAttribute('aria-expanded', 'true');
+			await expect(typing).toHaveAttribute('aria-controls', listId!);
+			await expect(typing).toHaveAttribute('aria-activedescendant', (await activeRowId(editor))!);
+
+			await editor.page.keyboard.press('ArrowDown');
+			await expect(activeRow(editor)).toHaveText('#inbox');
+			await expect(typing).toHaveAttribute('aria-activedescendant', (await activeRowId(editor))!);
+
+			await editor.page.keyboard.press('Escape');
+			await expect(menu(editor)).toHaveCount(0);
+			await expect(typing).toHaveAttribute('role', 'textbox');
+			await expect(typing).not.toHaveAttribute('aria-expanded', /.*/);
+			await expect(typing).not.toHaveAttribute('aria-controls', /.*/);
+			await expect(typing).not.toHaveAttribute('aria-activedescendant', /.*/);
 		});
 	});
 

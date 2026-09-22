@@ -32,6 +32,12 @@ whose pick inserts a block: `insert` is empty and `onCommit` goes through the in
 - Typed as fast as a keyboard goes, the trigger still opens: the editor publishes a burst of
   keystrokes as one change, and the query's first bytes may arrive in the same change as the trigger.
 
+## What a screen reader is told
+
+- While rows show, the editable the author is typing in reads as a combobox: it says the list is
+  expanded, names the list, and names the active row, which changes as the arrows move it.
+- Escape takes all of that back: the editable is a plain text box again.
+
 ## Keys
 
 - ArrowDown / ArrowUp move the active row and wrap; the caret does not move and no byte changes.

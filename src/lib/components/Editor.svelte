@@ -590,6 +590,8 @@
 		landCaretAt: landCaretAtOffset
 	});
 
+	const editorId = mintEditorId();
+
 	// The typed-trigger menus (`#tag`, `[[link`). The write is the same one-entry range splice the
 	// link card and the image popover use, so a pick undoes in one press.
 	const inlineMenuCommit = createInlineRangeCommit({
@@ -602,6 +604,7 @@
 		getSelection,
 		getMode: () => effectiveMode,
 		events,
+		editorId,
 		commitRange: inlineMenuCommit.commitInlineRange,
 		landCaret: landCaretAtOffset
 	});
@@ -610,7 +613,6 @@
 
 	// After getDoc so it reuses that one live-doc closure: a second getDoc would be a
 	// TDZ reference here, and the rule is one getter, never a captured value.
-	const editorId = mintEditorId();
 	const pluginContexts = createEditorPluginContexts({
 		editorId,
 		getDoc,
@@ -730,6 +732,7 @@
 		revealAnchor,
 		widgetSelection,
 		linkCard,
+		inlineMenuCombobox: inlineMenu.comboboxFor,
 		controller,
 		pasteCoordinator,
 		reorder,

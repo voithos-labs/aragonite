@@ -121,6 +121,7 @@
 	     and the pick needs that caret. -->
 	<div
 		bind:this={menuEl}
+		id={menu.listboxId}
 		class="md-menu inline-menu"
 		role="listbox"
 		tabindex="-1"
@@ -134,6 +135,7 @@
 		{#each view.items as item, i (item.id)}
 			<!-- svelte-ignore a11y_click_events_have_key_events -->
 			<div
+				id={menu.optionId(i)}
 				class="md-menu-item inline-menu-item"
 				role="option"
 				tabindex="-1"

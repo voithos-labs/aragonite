@@ -32,6 +32,8 @@ export interface InlineMenuStateDeps {
 	getSelection: () => EditorSelection | null;
 	getMode: () => PresentationMode;
 	events: EditorEvents;
+	/** This instance's id, so two editors on one page never give their lists the same DOM id. */
+	editorId: string;
 	/** Splice `bytes` over `[start, end)` of the leaf at `path` as one undo entry. */
 	commitRange: (
 		path: number[],
@@ -48,6 +50,13 @@ export interface InlineMenuState {
 	registry: InlineMenuRegistry;
 	/** The open session's raw range and list, or null. Reactive. */
 	getOpen(): InlineMenuOpenView | null;
+	/** The list element's DOM id, which `aria-controls` names. */
+	readonly listboxId: string;
+	/** The DOM id of the row at `index`, which `aria-activedescendant` names. */
+	optionId(index: number): string;
+	/** What the editable at `path` must say about the list showing in it, or null when none is.
+	 *  The editable renders these itself; nothing writes onto its element. Reactive. */
+	comboboxFor(path: readonly number[]): InlineMenuCombobox | null;
 	move(delta: 1 | -1): void;
 	setActive(index: number): void;
 	/** Take a baseline for the caret's leaf if none is held; the host calls it at beforeinput,
@@ -57,6 +66,12 @@ export interface InlineMenuState {
 	commit(index?: number): boolean;
 	close(): void;
 	dispose(): void;
+}
+
+/** The ids a focused editable points a screen reader at while an inline menu's list shows in it. */
+export interface InlineMenuCombobox {
+	listboxId: string;
+	activeOptionId: string;
 }
 
 export interface InlineMenuOpenView {
@@ -80,6 +95,10 @@ function insideInlineCode(nodes: InlineNode[], offset: number): boolean {
 
 export function createInlineMenuState(deps: InlineMenuStateDeps): InlineMenuState {
 	const sources = new Map<string, InlineMenuSource>();
+	const listboxId = `${deps.editorId}-inline-menu`;
+	// Rows are numbered rather than named after their item: a source is free to hand out an id
+	// with a space in it, and a DOM id holding one could never be referenced.
+	const optionId = (index: number) => `${listboxId}-${index}`;
 
 	let session = $state.raw<InlineMenuSession | null>(null);
 	let query = $state('');
@@ -357,6 +376,13 @@ export function createInlineMenuState(deps: InlineMenuStateDeps): InlineMenuStat
 
 	return {
 		registry,
+		listboxId,
+		optionId,
+		comboboxFor(path) {
+			if (session === null || items.length === 0) return null;
+			if (session.path.join() !== path.join()) return null;
+			return { listboxId, activeOptionId: optionId(activeIndex) };
+		},
 		getOpen() {
 			if (session === null) return null;
 			const source = sources.get(session.source);
