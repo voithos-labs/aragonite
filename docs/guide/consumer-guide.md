@@ -708,6 +708,7 @@ Right-clicking any cell opens the table's action menu: cut/copy/paste, Row and C
 | Hard line break                     | `Shift+Enter`                                                                 |
 | Merge into the block before / after | `Backspace` / `Delete` (at the block's start / end)                           |
 | Indent / outdent a list item        | `Tab` / `Shift+Tab`                                                           |
+| Check / uncheck a task item         | `Mod+Enter`                                                                   |
 | Indent / dedent a code line         | `Tab` / `Shift+Tab`                                                           |
 | Insert a tab in prose               | `Tab`                                                                         |
 | Undo                                | `Mod+Z`                                                                       |

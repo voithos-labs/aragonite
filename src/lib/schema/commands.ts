@@ -44,6 +44,7 @@ export const BLOCK_COMMAND_IDS = [
 	'code.delete',
 	'list.indent',
 	'list.unindent',
+	'list.toggleTask',
 	'cell.enter',
 	'cell.tab',
 	'cell.shiftTab',

@@ -3,9 +3,8 @@
 // Tab inside a list is dispatched in two steps: the focused paragraph's `block.insertTab`
 // declines, without calling `preventDefault`, when a list context is present, the event bubbles
 // to `.list-item-content`, and ListItemBlock resolves it against the listItem keymap. Either step
-// breaking stops indenting with no other sign. The reading-mode case is this component's own
-// G4.19 obligation: the caller hands the dispatcher no `getPresentationMode`, so it cannot refuse
-// on its own and `handleKeydown` carries a local `readOnly` check instead.
+// breaking stops indenting with no other sign. The reading-mode case pins that the item hands
+// the dispatcher its mode getter, which is what refuses the key there (G4.19).
 import { describe, it, expect, afterEach, beforeAll } from 'vitest';
 import { installLayoutStubs, mountEditor, pressKeyAt } from '../editor-mount';
 
@@ -46,9 +45,8 @@ describe('list item Tab dispatch', () => {
 		expect(mounted.source()).toBe('- alpha\n- beta\n');
 	});
 
-	// G4.19, the local check: reading mode renders the same element, with only `contenteditable`
-	// changed, so the key still arrives; without that check this indents, since the dispatcher
-	// knows no mode.
+	// Reading mode renders the same element with only `contenteditable` changed, so the key still
+	// arrives and only the dispatcher's mode check stops the indent (G4.19).
 	it('does not indent in reading mode', async () => {
 		mounted = mountEditor({ source: '- alpha\n- beta\n', presentationMode: 'reading' });
 		const itemContent = mounted.target.querySelectorAll('.list-item-content')[1];

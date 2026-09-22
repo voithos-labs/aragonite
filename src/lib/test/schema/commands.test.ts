@@ -196,6 +196,17 @@ describe('listItem keymap', () => {
 			'list.unindent'
 		);
 	});
+
+	// Kind-scoped, so the table cell's own Mod+Enter (insert row) keeps its meaning.
+	it('resolves Mod+Enter to the task toggle on a list item and to a row insert in a cell', () => {
+		expect(resolveBinding('Mod+Enter', 'listItem', undefined, everyInstalledPlugin)?.command).toBe(
+			'list.toggleTask'
+		);
+		expect(resolveBinding('Mod+Enter', 'tableCell', undefined, everyInstalledPlugin)?.command).toBe(
+			'table.insertRowBelow'
+		);
+		expect(resolveBinding('Mod+Enter', 'paragraph', undefined, everyInstalledPlugin)).toBeNull();
+	});
 });
 
 describe('text-editable keymap breadth', () => {

@@ -23,4 +23,38 @@ test.describe('task checkbox: accessibility', () => {
 		await checkbox.click();
 		await expect(checkbox).toHaveAttribute('aria-checked', 'true');
 	});
+
+	// The box is reached from the caret, so the item stays one tab stop.
+	test('Mod+Enter in a task item toggles its box', async ({ page }) => {
+		await editor.loadContent('intro\n\n- [ ] task\n');
+		await editor.clickBlock(0);
+		await page.keyboard.press('ArrowDown');
+		const checkbox = page.locator('.task-checkbox').first();
+
+		await page.keyboard.press('ControlOrMeta+Enter');
+		await editor.bridge.waitForSourceContains('- [x] task');
+		await expect(checkbox).toHaveAttribute('aria-checked', 'true');
+
+		await page.keyboard.press('ControlOrMeta+Enter');
+		await editor.bridge.waitForSourceContains('- [ ] task');
+		await expect(checkbox).toHaveAttribute('aria-checked', 'false');
+	});
+
+	test('Tab never stops on the box', async ({ page }) => {
+		await editor.loadContent('- [ ] task\n- [ ] second\n');
+		await editor.clickBlock(0);
+		const checkboxes = page.locator('.task-checkbox');
+		await expect(checkboxes.first()).not.toHaveAttribute('tabindex');
+		await page.keyboard.press('Tab');
+		await expect(checkboxes.first()).not.toBeFocused();
+		await expect(checkboxes.nth(1)).not.toBeFocused();
+	});
+
+	test('Mod+Enter in a plain list item changes nothing', async ({ page }) => {
+		await editor.loadContent('intro\n\n- plain\n');
+		await editor.clickBlock(0);
+		await page.keyboard.press('ArrowDown');
+		await editor.pressDeclined('ControlOrMeta+Enter');
+		expect(await editor.bridge.getSource()).toBe('intro\n\n- plain\n');
+	});
 });

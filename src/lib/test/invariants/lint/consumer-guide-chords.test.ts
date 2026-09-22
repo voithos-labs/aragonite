@@ -117,6 +117,7 @@ const ROW_TARGETS: Record<string, { kind: AnyBlockKind; commands: CommandId[] }>
 		kind: 'listItem',
 		commands: ['list.indent', 'list.unindent']
 	},
+	'Check / uncheck a task item': { kind: 'listItem', commands: ['list.toggleTask'] },
 	'Indent / dedent a code line': {
 		kind: 'fencedCode',
 		commands: ['code.indent', 'code.dedent']

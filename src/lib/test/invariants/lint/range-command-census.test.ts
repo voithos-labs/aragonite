@@ -34,6 +34,7 @@ const RANGE_SAFE: Record<string, string> = {
 	'code.delete': 'fence-body edit at the caret inside one code block',
 	'list.indent': 'structural: re-parents a list item',
 	'list.unindent': 'structural: re-parents a list item',
+	'list.toggleTask': 'rewrites the focused item’s task marker, never the range',
 	'cell.enter': 'grid navigation, or a row insert; spends no cell offsets',
 	'cell.tab': 'grid navigation between cells',
 	'cell.shiftTab': 'grid navigation between cells',

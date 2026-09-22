@@ -103,12 +103,13 @@
 
 	useMountGauge();
 
-	function toggleTask(): void {
+	// False on a plain item, so the chord that asked falls through.
+	function toggleTask(): boolean {
 		// Reading mode keeps checkboxes visible but inert: a toggle rewrites the
 		// document, and reading mode writes no bytes.
-		if (readOnly) return;
+		if (readOnly) return false;
 		const meta = metadataOf(node, 'listItem');
-		if (!meta?.taskItem) return;
+		if (!meta?.taskItem) return false;
 
 		if (selection?.isCrossBlock) {
 			selection.clear();
@@ -120,6 +121,7 @@
 			taskChecked: nextChecked,
 			taskMarker: nextMarker
 		});
+		return true;
 	}
 
 	const taskCheckedAttr = $derived.by(() => {
@@ -236,13 +238,15 @@
 			case 'list.unindent':
 				listContext.unindentItem(index);
 				return true;
+			case 'list.toggleTask':
+				return toggleTask();
 			default:
 				return false;
 		}
 	}
 
-	// Tab and Shift+Tab bubble here from the inner paragraph, whose `block.insertTab` declines
-	// without calling `preventDefault`. Only kind commands are dispatched: the contenteditable's
+	// Tab, Shift+Tab and Mod+Enter bubble here from the inner paragraph, which binds none of them
+	// or declines without calling `preventDefault`. Only kind commands are dispatched: the contenteditable's
 	// async handler prevents the default only after an await, so resolving global commands here
 	// would fire undo or redo a second time.
 	function handleKeydown(e: KeyboardEvent): void {
