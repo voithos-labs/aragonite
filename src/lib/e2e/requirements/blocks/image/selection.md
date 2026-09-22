@@ -13,9 +13,9 @@
 - ArrowRight while selected: caret moves to right boundary, widget deselects
 - ArrowLeft from left boundary exits the paragraph (or moves into preceding text)
 - Escape deselects the widget
-- A press on the resize handle, or on the crop frame, of a selected image leaves no document
-  caret: the paragraph keeps focus while its image is selected, and the browser puts a caret at
-  its start on any mouse input, which the editor drops while the image stays selected
+- Moving the mouse off a selected image, or pressing its resize handle or its crop frame, leaves
+  no document caret: the paragraph keeps focus while its image is selected, and the browser puts
+  a caret at its start on any mouse input, which the editor drops while the image stays selected
   - Miss-analysis: no spec read the native selection after a press on the image's controls, and
     the one that pressed the image three times read only the selected text
 

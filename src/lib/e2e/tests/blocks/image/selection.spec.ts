@@ -44,25 +44,38 @@ test.describe('image widget selection', () => {
 		expect(await editor.bridge.getSource()).toContain('leadX![cat]');
 	});
 
-	// The paragraph keeps focus while its image is selected, so the browser can put a caret at
-	// its start on any press; a press on the image's own controls must not leave one there.
+	// The paragraph keeps focus while its image is selected, so the browser puts a caret at its
+	// start on the next mouse input of any kind; none may outlive the selected image.
+	const documentCaret = (page: import('@playwright/test').Page) =>
+		page.evaluate(() => [
+			window.getSelection()?.rangeCount ?? 0,
+			(window as any).__test.getSelection()
+		]);
+	const IMAGE_PARAGRAPH = 'before ![pic|120x80](/test-fixtures/sample.png) after\n';
+
+	test('moving the mouse off a selected image leaves no document caret', async ({ page }) => {
+		await editor.loadContent(IMAGE_PARAGRAPH);
+		const image = page.locator('[data-image-widget]').first();
+		await image.click();
+		const box = (await image.boundingBox())!;
+		await page.mouse.move(box.x + box.width + 40, box.y + box.height + 40);
+		await expect(overlay(page)).toBeVisible();
+		await expect.poll(() => documentCaret(page)).toEqual([0, null]);
+	});
+
 	const controls = [
 		{ name: 'the resize handle', opensCrop: false, selector: '.md-resize-handle' },
 		{ name: 'the crop frame', opensCrop: true, selector: '.md-image-crop-surface' }
 	];
 	for (const { name, opensCrop, selector } of controls) {
 		test(`a press on ${name} of a selected image leaves no document caret`, async ({ page }) => {
-			await editor.loadContent('before ![pic|120x80](/test-fixtures/sample.png) after\n');
+			await editor.loadContent(IMAGE_PARAGRAPH);
 			const image = page.locator('[data-image-widget]').first();
 			if (opensCrop) await image.dblclick();
 			else await image.click();
 			await page.locator(selector).click();
 			await expect(overlay(page)).toBeVisible();
-			const caret = await page.evaluate(() => [
-				window.getSelection()?.rangeCount ?? 0,
-				(window as any).__test.getSelection()
-			]);
-			expect(caret).toEqual([0, null]);
+			await expect.poll(() => documentCaret(page)).toEqual([0, null]);
 		});
 	}
 
