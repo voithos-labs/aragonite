@@ -265,6 +265,18 @@ export function createInlineMenuState(deps: InlineMenuStateDeps): InlineMenuStat
 		const source = sources.get(live.source);
 		const range = { query, path: [...live.path], start: live.start, end };
 		close();
+		// A line break inside one leaf's bytes is the corruption issue #285 describes: the tree
+		// would hold one paragraph where a reload reads two.
+		if (/[\r\n]/.test(item.insert)) {
+			report(
+				new Error(
+					`inlineMenus: source '${live.source}' offered an insert with a line break; a pick ` +
+						`writes one line of inline bytes, and a block belongs in onCommit`
+				),
+				live.source
+			);
+			return;
+		}
 		const caretAfter = range.start + item.insert.length;
 		// The write is this menu's own, not a keystroke: bytes ending in a trigger reopen nothing.
 		writing = true;
@@ -309,6 +321,12 @@ export function createInlineMenuState(deps: InlineMenuStateDeps): InlineMenuStat
 		addSource(source): InlineMenuSourceHandle {
 			if (sources.has(source.name)) {
 				throw new Error(`inlineMenus.addSource: a source named '${source.name}' already exists`);
+			}
+			if (source.trigger === '' || /[\r\n]/.test(source.trigger)) {
+				throw new Error(
+					`inlineMenus.addSource: source '${source.name}' needs a trigger of one line that is ` +
+						`not empty; an empty trigger would open on every keystroke`
+				);
 			}
 			sources.set(source.name, source);
 			return {

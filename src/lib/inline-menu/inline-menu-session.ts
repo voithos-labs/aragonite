@@ -34,7 +34,6 @@ export function findOpening(
 	const candidates: { source: InlineMenuSource; start: number; end: number }[] = [];
 	for (const source of sources) {
 		const length = source.trigger.length;
-		if (length === 0) continue;
 		// A trigger counts when its last byte was typed in this run, so the second `[` of `[[`
 		// opens over a first one that was already there.
 		for (let end = Math.max(from + 1, length); end <= caret; end++) {

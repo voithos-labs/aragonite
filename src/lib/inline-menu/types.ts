@@ -14,7 +14,11 @@ export interface InlineMenuItem {
 	label: string;
 	/** Secondary text painted dim beside the label: a path, a count. */
 	detail?: string;
-	/** The bytes that replace the trigger and the query. The caret lands after them. */
+	/**
+	 * The bytes that replace the trigger and the query, the caret landing after them. One line of
+	 * inline bytes: a line break is refused and reported, and a block-level insert is `onCommit`'s
+	 * job. Empty is legal, and removes the trigger and the query.
+	 */
 	insert: string;
 }
 
@@ -39,7 +43,10 @@ export interface InlineMenuRowProps {
 export interface InlineMenuSource {
 	/** Unique per editor; the name `open()` addresses. */
 	name: string;
-	/** The typed opener. Where two sources' triggers both end at the caret, the longer wins. */
+	/**
+	 * The typed opener, one line and never empty; `addSource` throws otherwise. Where two sources'
+	 * triggers both end at the caret, the longer wins.
+	 */
 	trigger: string;
 	/**
 	 * Whether a trigger whose first byte is `raw[pos]` opens. Absent means anywhere. A tag declines

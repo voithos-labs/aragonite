@@ -83,10 +83,6 @@ describe('findOpening', () => {
 		expect(findOpening([tag], 'C#', 2, 1)).toBeNull();
 		expect(findOpening([tag], '(#', 2, 1)).toEqual({ source: tag, start: 1 });
 	});
-
-	it('ignores a source with an empty trigger, which would open on every keystroke', () => {
-		expect(findOpening([source({ name: 'empty', trigger: '' })], 'abc', 3, 2)).toBeNull();
-	});
 });
 
 describe('sessionQuery', () => {

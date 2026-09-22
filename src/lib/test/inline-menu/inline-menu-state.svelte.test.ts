@@ -281,6 +281,33 @@ describe('navigation and commit', () => {
 		expect(onCommit.mock.calls[0][1]).toEqual({ query: 'wo', path: [0], start: 4, end: 7 });
 	});
 
+	// Miss-analysis: every commit test used a one-line insert, so nothing ever offered the write
+	// point bytes a paragraph's raw cannot hold, and no test could see it take them.
+	it('refuses a pick whose insert holds a line break, and reports it', async () => {
+		const h = harness('see ');
+		h.menu.registry.addSource(tags({ items: () => [item('bad', 'a\n\nb')] }));
+		await h.type('#');
+
+		expect(h.menu.commit()).toBe(true);
+		await tick();
+		await tick();
+		expect(h.raw()).toBe('see #');
+		await vi.waitFor(() => expect(h.errors).toHaveLength(1));
+		expect(String(h.errors[0])).toMatch(/tags/);
+		expect(h.menu.getOpen()).toBeNull();
+	});
+
+	it('takes an empty insert, which removes the trigger and the query', async () => {
+		const h = harness('see ');
+		h.menu.registry.addSource(tags({ items: () => [item('blank', '')] }));
+		await h.type('#wo');
+
+		expect(h.menu.commit()).toBe(true);
+		await vi.waitFor(() => expect(h.raw()).toBe('see '));
+		expect(h.landed).toEqual([4]);
+		expect(h.errors).toEqual([]);
+	});
+
 	it('does not reopen on its own write, even where the pick ends in a trigger', async () => {
 		const h = harness('a ');
 		h.menu.registry.addSource(tags({ items: () => [item('odd', '#odd #')] }));
@@ -368,5 +395,15 @@ describe('the registry', () => {
 		const h = harness('a ');
 		h.menu.registry.addSource(tags());
 		expect(() => h.menu.registry.addSource(tags())).toThrow(/already exists/);
+	});
+
+	// An empty trigger would open on every keystroke and a trigger with a line break could never
+	// be typed, so both are refused where a source arrives rather than skipped where it is read.
+	it('refuses a trigger that is empty or holds a line break', () => {
+		const h = harness('a ');
+		expect(() => h.menu.registry.addSource(tags({ trigger: '' }))).toThrow(/trigger/);
+		expect(() => h.menu.registry.addSource(tags({ name: 'nl', trigger: '#\n' }))).toThrow(
+			/trigger/
+		);
 	});
 });
