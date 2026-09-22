@@ -9,6 +9,8 @@ const PROSE = 'alpha one\n\nbravo two\n\ncharlie three\n';
 const LIST = '- alpha\n- bravo\n- charlie\n';
 const TYPED = 'z';
 const CYCLES = 5;
+// What a block a split just created holds, top level and list item alike.
+const EMPTY = '\n';
 
 interface Emission {
 	focus: { path: number[]; offset: number } | null;
@@ -23,13 +25,15 @@ const stopCapture = (editor: EditorPage): Promise<Emission[]> =>
 
 /**
  * What the subscriber heard first about the caret arriving at `path`. A phrase rather than a
- * boolean, so a failure names which of the two ways it went wrong.
+ * boolean, so a failure names which of the two ways it went wrong. `rawBefore` is the whole of
+ * the block's source before the byte goes in: searching the payload for the byte instead would
+ * read as late on any fixture that already holds one.
  */
-function arrivalVerdict(emissions: Emission[], path: number[]): string {
+function arrivalVerdict(emissions: Emission[], path: number[], rawBefore: string): string {
 	const key = JSON.stringify(path);
 	const first = emissions.find((e) => namesPath(e, path));
 	if (!first) return `${key}: never announced`;
-	if (first.raw?.includes(TYPED)) return `${key}: announced after the typed byte`;
+	if (first.raw !== rawBefore) return `${key}: announced after the typed byte`;
 	return `${key}: announced before the typed byte`;
 }
 
@@ -59,7 +63,9 @@ test.describe('a caret the editor lands is announced before the next input', () 
 
 		const created = Array.from({ length: CYCLES }, (_, i) => [i + 1]);
 		const emissions = await stopCapture(editor);
-		expect(created.map((path) => arrivalVerdict(emissions, path))).toEqual(created.map(before));
+		expect(created.map((path) => arrivalVerdict(emissions, path, EMPTY))).toEqual(
+			created.map(before)
+		);
 	});
 
 	// A list item lands its own caret, past the marker prefix the item draws, so the nested
@@ -77,7 +83,9 @@ test.describe('a caret the editor lands is announced before the next input', () 
 
 		const created = Array.from({ length: CYCLES }, (_, i) => [0, i + 1, 0]);
 		const emissions = await stopCapture(editor);
-		expect(created.map((path) => arrivalVerdict(emissions, path))).toEqual(created.map(before));
+		expect(created.map((path) => arrivalVerdict(emissions, path, EMPTY))).toEqual(
+			created.map(before)
+		);
 	});
 
 	// The vertical arrow lands by pixel column, a placement of its own rather than the one every
@@ -87,7 +95,10 @@ test.describe('a caret the editor lands is announced before the next input', () 
 		await editor.focusBlockStart(0);
 		await startCapture(editor);
 
-		const arrived = [[1], [2]];
+		const arrived: [number[], string][] = [
+			[[1], 'bravo two\n'],
+			[[2], 'charlie three\n']
+		];
 		for (let i = 0; i < arrived.length; i++) {
 			await editor.page.keyboard.press('ArrowDown');
 			await editor.page.keyboard.insertText(TYPED);
@@ -95,7 +106,26 @@ test.describe('a caret the editor lands is announced before the next input', () 
 		await editor.waitForRenderFlush();
 
 		const emissions = await stopCapture(editor);
-		expect(arrived.map((path) => arrivalVerdict(emissions, path))).toEqual(arrived.map(before));
+		expect(arrived.map(([path, raw]) => arrivalVerdict(emissions, path, raw))).toEqual(
+			arrived.map(([path]) => before(path))
+		);
+	});
+
+	// The browser places a click's caret and reports it a task later, which the byte a script or
+	// a fast typist sends next can beat. No render flush between the click and the byte: a flush
+	// hands that report its turn, and then the race never happens.
+	test('the list item a click lands in is announced before the byte typed there', async () => {
+		await editor.loadContent(LIST);
+		await editor.focusBlockAtPath([0, 0, 0], 1);
+		await startCapture(editor);
+
+		const point = await editor.pointForOffset([0, 2, 0], 3);
+		await editor.page.mouse.click(point.x, point.y);
+		await editor.page.keyboard.insertText(TYPED);
+		await editor.waitForRenderFlush();
+
+		const emissions = await stopCapture(editor);
+		expect(arrivalVerdict(emissions, [0, 2, 0], 'charlie\n')).toBe(before([0, 2, 0]));
 	});
 });
 
@@ -121,7 +151,7 @@ test.describe('a caret landing in a plugin leaf with its source hidden', () => {
 		await editor.waitForRenderFlush();
 
 		const emissions = await stopCapture(editor);
-		expect(arrivalVerdict(emissions, [1])).toBe(before([1]));
+		expect(arrivalVerdict(emissions, [1], '$$x^2$$\n')).toBe(before([1]));
 	});
 });
 

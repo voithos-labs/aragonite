@@ -1,6 +1,6 @@
 /**
- * Editor-root document listeners: the mod-active cursor tracker, the selectionchange bridge,
- * the blur announcer and the double-click word select. Pure dispatch over live getters; each
+ * Editor-root document listeners: the mod-active cursor tracker, the reveal-anchor release,
+ * the selectionchange bridge and the blur announcer. Pure dispatch over live getters; each
  * installing `$effect` stays in `Editor.svelte` as a check plus one install call, returning
  * the teardown. `onRoot` and `removeAll` hold the add/remove pair in one place.
  */
@@ -97,7 +97,12 @@ export function installSelectionChangeBridge(deps: SelectionChangeBridgeDeps): (
 		if (deps.isHostChrome(anchorNode)) return;
 		deps.announceIfMoved();
 	};
-	return onRoot(document, 'selectionchange', handler);
+	return removeAll(
+		onRoot(document, 'selectionchange', handler),
+		// The browser reports a click's caret on a later task, which a byte typed straight after
+		// beats. On `document` so the block's own click handling refines the caret first.
+		onRoot(document, 'click', handler)
+	);
 }
 
 /**
