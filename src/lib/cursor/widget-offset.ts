@@ -102,10 +102,23 @@ export function findDomTextOffsetTarget(
 	container: ParentNode,
 	target: DomTextOffset
 ): DomPosition | null {
+	return findDomTextLanding(container, target)?.position ?? null;
+}
+
+/**
+ * {@link findDomTextOffsetTarget}, also saying whether the position sits in visible text at
+ * `target` itself, whose walk offset is then `target` with no second walk to read it back.
+ */
+export function findDomTextLanding(
+	container: ParentNode,
+	target: DomTextOffset
+): { position: DomPosition; inTextAtTarget: boolean } | null {
 	let last: DomPosition | null = null;
 	for (const seg of landingSegments(container, markerHidingMode(container))) {
 		if (seg.kind === 'text') {
-			if (seg.start + seg.len >= target) return { node: seg.node, offset: target - seg.start };
+			if (seg.start + seg.len >= target) {
+				return { position: { node: seg.node, offset: target - seg.start }, inTextAtTarget: true };
+			}
 			last = { node: seg.node, offset: seg.len };
 			continue;
 		}
@@ -113,18 +126,18 @@ export function findDomTextOffsetTarget(
 		// the position beside it; the walk offset is unchanged, only its DOM spelling differs.
 		if (seg.start === target) {
 			const before = positionBeside(seg.first, 'before');
-			if (before) return before;
+			if (before) return { position: before, inTextAtTarget: false };
 		}
 		const after = positionBeside(seg.last, 'after');
 		if (!after) continue;
 		// Chromium moves a caret placed after a hidden run to before it, so a byte typed there
 		// would land before the run; the text node starting at the target is the position that keeps it.
 		if (seg.start + seg.len > target || (seg.start + seg.len === target && !seg.hidden)) {
-			return after;
+			return { position: after, inTextAtTarget: false };
 		}
 		last = after;
 	}
-	return last;
+	return last && { position: last, inTextAtTarget: false };
 }
 
 /**
@@ -158,6 +171,15 @@ export function maskedWalkText(container: ParentNode): string {
 		out += content ? (seg.node.textContent ?? '') : ' '.repeat(seg.len);
 	}
 	return out;
+}
+
+/** Whether any visible text in `container` ends past `from`: a caret there has a box of its own,
+ *  which a block of widgets alone never offers. */
+export function holdsTextPast(container: ParentNode, from: DomTextOffset): boolean {
+	for (const seg of landingSegments(container, markerHidingMode(container))) {
+		if (seg.kind === 'text' && seg.len > 0 && seg.start + seg.len > from) return true;
+	}
+	return false;
 }
 
 /** Total walk length of `container`: its one-past-end walk position. */

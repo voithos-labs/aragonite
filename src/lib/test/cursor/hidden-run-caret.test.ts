@@ -10,6 +10,7 @@ import { describe, it, expect, afterEach } from 'vitest';
 import { asDomTextOffset, asRawOffset } from '../../cursor/coordinate-spaces';
 import {
 	domTextOffsetAtNode,
+	findDomTextLanding,
 	findDomTextOffsetTarget,
 	isHiddenMarkerText
 } from '../../cursor/widget-offset';
@@ -317,4 +318,22 @@ describe('the caret-in-text guards agree that hidden text holds no caret', () =>
 		expect(findFirstTextNode(fx.block)).toBe(fx.openMarker);
 		expect(findLastTextNode(fx.block)).toBe(fx.closeMarker);
 	});
+});
+
+// The sticky-column scan reads a landing in visible text as its own target without walking back.
+describe('a landing in visible text reads back as its own target', () => {
+	for (const mode of ['source', 'live', 'preview-inline']) {
+		it(`in ${mode} mode, behind a list marker`, () => {
+			const fx = mount({ mode, focused: true, blockPrefix: '- ' });
+			let inText = 0;
+			for (let target = 0; target <= 10; target++) {
+				const landing = findDomTextLanding(fx.block, asDomTextOffset(target));
+				if (!landing?.inTextAtTarget) continue;
+				inText++;
+				const { node, offset } = landing.position;
+				expect(domTextOffsetAtNode(fx.block, node, offset)).toBe(target);
+			}
+			expect(inText).toBeGreaterThan(0);
+		});
+	}
 });
