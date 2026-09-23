@@ -126,3 +126,10 @@ export type {
 	InlineMenuQuery,
 	InlineMenuRowProps
 } from './inline-menu/types';
+
+// ── Insert catalogue ───────────────────────────────────────────────────────────
+
+// The blocks the insert menus offer, plugin blocks included, via `editor.getInsertCatalogue()`.
+export { registerInsertEntry } from './schema/insert-catalogue';
+export type { InsertEntry } from './schema/insert-catalogue';
+export type { MenuIconName } from './menu-icons';

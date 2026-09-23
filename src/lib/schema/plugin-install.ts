@@ -8,6 +8,7 @@ import type { DecorationRegistry } from '../decorations/types';
 import type { EditorRects } from '../editor-rects';
 import type { InlineMenuRegistry } from '../inline-menu/types';
 import type { PresentationMode } from '../presentation-mode';
+import type { InsertEntry } from './insert-catalogue';
 
 export interface EditorPlugin<Options = unknown> {
 	readonly name: string;
@@ -42,6 +43,9 @@ export interface EditorContext<Options = unknown> {
 	readonly rects: EditorRects;
 	/** Menus opened under the caret by a typed trigger: tag autocomplete, a document picker. */
 	readonly inlineMenus: InlineMenuRegistry;
+	/** A getter, so always live: the blocks the insert menus offer in this editor, plugin blocks
+	 *  included; the same list as `EditorInstance.getInsertCatalogue()`. */
+	readonly insertCatalogue: readonly InsertEntry[];
 	/** A getter, so always live: the mode in effect. The `presentationModeChange` event signals a change. */
 	readonly presentationMode: PresentationMode;
 	/** A getter, so always live: the theme name written to `data-editor-theme`. The `themeChange`

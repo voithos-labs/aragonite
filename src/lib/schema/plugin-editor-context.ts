@@ -8,6 +8,7 @@ import type { DecorationRegistry } from '../decorations/types';
 import type { EditorRects } from '../editor-rects';
 import type { InlineMenuRegistry } from '../inline-menu/types';
 import type { PresentationMode } from '../presentation-mode';
+import { insertCatalogue } from './insert-catalogue';
 import type { PluginActivation } from './plugin-activation';
 import {
 	installedPluginNames,
@@ -63,6 +64,9 @@ export function createEditorPluginContexts(deps: {
 				decorations: deps.decorations,
 				rects: deps.rects,
 				inlineMenus: deps.inlineMenus,
+				get insertCatalogue() {
+					return insertCatalogue(deps.activation.isActive);
+				},
 				get presentationMode() {
 					return deps.getPresentationMode();
 				},

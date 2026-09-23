@@ -8,6 +8,7 @@ import {
 import { __resetBlockContextActionsForTests } from '$lib/schema/context-actions';
 import { BLOCK_ACTIONS_LABEL } from '$lib/a11y-strings';
 import { parse } from '$lib/core/parser';
+import { insertCatalogue } from '$lib/schema/insert-catalogue';
 import type { PresentationMode } from '$lib/presentation-mode';
 
 // Miss-analysis: which menu a right-click opens (a block's actions, the clipboard rows with or
@@ -65,6 +66,7 @@ function harness(opts: { mode?: PresentationMode } = {}) {
 		blockEdit,
 		placeCaretAtPoint,
 		insertMarkdown,
+		insertCatalogue: () => insertCatalogue(() => true),
 		setMenu: (next) => (menu = next)
 	});
 	root.addEventListener('contextmenu', menus.onRootContextMenu);

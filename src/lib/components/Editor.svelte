@@ -120,6 +120,7 @@
 		kindEnablementFor
 	} from '../schema/plugin-activation';
 	import { createEditorPluginContexts, mintEditorId } from '../schema/plugin-editor-context';
+	import { insertCatalogue, type InsertEntry } from '../schema/insert-catalogue';
 	import { bothEnable, createRegistryView, type KindEnablement } from '../schema/registry-view';
 	import BlockList from './BlockList.svelte';
 	import SearchBar from './SearchBar.svelte';
@@ -868,6 +869,7 @@
 		blockEdit,
 		placeCaretAtPoint,
 		insertMarkdown,
+		insertCatalogue: getInsertCatalogue,
 		setMenu: (menu) => (blockMenu = menu)
 	});
 
@@ -1320,6 +1322,10 @@
 		return inlineMenus;
 	}
 
+	export function getInsertCatalogue(): readonly InsertEntry[] {
+		return insertCatalogue(activePlugins.isActive);
+	}
+
 	export function getRects(): EditorRects {
 		return rects;
 	}
@@ -1359,6 +1365,7 @@
 		getSearch,
 		getDecorations,
 		getInlineMenus,
+		getInsertCatalogue,
 		getRects,
 		getDiagnostics,
 		reservedChords,

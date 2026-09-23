@@ -20,6 +20,7 @@ import type { SearchState } from './search/search-state.svelte';
 import type { DecorationRegistry } from './decorations/types';
 import type { EditorRects } from './editor-rects';
 import type { InlineMenuRegistry } from './inline-menu/types';
+import type { InsertEntry } from './schema/insert-catalogue';
 import type { EditorPluginEntry } from './schema/plugin-install';
 import type { InteractionTraceEntry } from './debug/interaction-trace';
 
@@ -156,6 +157,12 @@ export interface EditorInstance {
 	/** The same registry a plugin reaches as `editor.inlineMenus`, for a host that owns the menu's
 	 *  data (its document index, its tag list) rather than shipping a plugin for it. */
 	getInlineMenus(): InlineMenuRegistry;
+	/**
+	 * The blocks the insert menus offer, in menu order: the built-ins, then each block a plugin this
+	 * editor activated registered. The list the right-click flyout draws, for a host building its own
+	 * insert button; each entry's `markdown` is what to hand `insertMarkdown`. A fresh frozen list per call.
+	 */
+	getInsertCatalogue(): readonly InsertEntry[];
 	getRects(): EditorRects;
 	getDiagnostics(): EditorDiagnostics;
 	/**

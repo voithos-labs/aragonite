@@ -11,7 +11,8 @@ import type { NodeView } from '../core/node-views';
 import type { DocumentGetter } from '../editor-keys';
 import type { PresentationMode } from '../presentation-mode';
 import { blockContextActionsFor, type BlockContextAction } from '../schema/context-actions';
-import { insertFlyoutEntries, insertSnippets, type MenuEntry } from './menu/BlockMenu.svelte';
+import type { InsertEntry } from '../schema/insert-catalogue';
+import type { MenuEntry } from './menu/BlockMenu.svelte';
 import { runClipboardAction, type ClipboardAction } from './menu/clipboard-actions';
 import { isProseBackground } from './menu/default-context-actions';
 import { readBlockPath } from '../selection/path-lookup';
@@ -37,6 +38,8 @@ export interface RootMenusDeps {
 	placeCaretAtPoint(x: number, y: number): boolean;
 	/** The public insert entry point: a snippet goes to the editable that holds focus. */
 	insertMarkdown(md: string): boolean;
+	/** The insert entries this editor lists, read fresh per menu. */
+	insertCatalogue(): readonly InsertEntry[];
 	setMenu(menu: BlockMenuModel | null): void;
 }
 
@@ -96,12 +99,18 @@ export function createRootMenus(deps: RootMenusDeps): RootMenus {
 	/** `insertAfter` names the top-level block an "Insert block" flyout creates an empty sibling
 	 *  after; null leaves the menu to the clipboard rows alone. */
 	function openClipboardMenu(point: Point, anchorEl: Element, insertAfter: number | null): void {
+		const catalogue = deps.insertCatalogue();
 		const insert: MenuEntry[] =
 			insertAfter === null
 				? []
 				: [
 						{ id: 'sep', label: '', divider: true },
-						{ id: 'insert', label: 'Insert block', icon: 'plus', children: insertFlyoutEntries() }
+						{
+							id: 'insert',
+							label: 'Insert block',
+							icon: 'plus',
+							children: catalogue.map(({ id, label, icon }) => ({ id, label, icon }))
+						}
 					];
 		deps.setMenu({
 			...point,
@@ -111,8 +120,8 @@ export function createRootMenus(deps: RootMenusDeps): RootMenus {
 			pick: (id) => {
 				deps.setMenu(null);
 				if (runClipboardRow(id)) return;
-				const md = insertSnippets().get(id);
-				if (md && insertAfter !== null) void insertBlockAfter(insertAfter, md);
+				const entry = catalogue.find((e) => e.id === id);
+				if (entry && insertAfter !== null) void insertBlockAfter(insertAfter, entry.markdown);
 			}
 		});
 	}

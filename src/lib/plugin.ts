@@ -327,6 +327,13 @@ export type {
 	InlineMenuRowProps
 } from './inline-menu/types';
 
+// ── Insert catalogue (pre-freeze) ────────────────────────────────────────────
+// The blocks the insert menus offer, read through `editor.insertCatalogue`. A plugin adds its own
+// block from `setup`, listed only in the editors that activate it; the icon is a menu glyph name.
+export { registerInsertEntry } from './schema/insert-catalogue';
+export type { InsertEntry } from './schema/insert-catalogue';
+export type { MenuIconName } from './menu-icons';
+
 // ── Rects (pre-freeze) ───────────────────────────────────────────────────────
 // Viewport-space geometry over the rendered document, reached through `editor.rects`.
 export type { EditorRects } from './editor-rects';

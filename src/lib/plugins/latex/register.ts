@@ -9,6 +9,7 @@ import {
 	registerBlockComponent,
 	defineBlockComponent,
 	declaredPluginKind,
+	registerInsertEntry,
 	type EditorPlugin
 } from '$lib/plugin';
 import { registerMathInline, registerMathBlock, MATH_BLOCK, MATH_FENCE } from './latex-kind';
@@ -39,6 +40,13 @@ export function latexPlugin(options: LatexPluginOptions): EditorPlugin {
 			const blockMath = defineBlockComponent(BlockMath, () => ({ blockLayout }));
 			registerBlockComponent(declaredPluginKind(MATH_BLOCK), blockMath);
 			registerBlockComponent(declaredPluginKind(MATH_FENCE), blockMath);
+			registerInsertEntry({
+				id: 'math',
+				label: 'Math block',
+				icon: 'sigma',
+				keywords: ['math', 'latex', 'equation', 'tex'],
+				markdown: '$$\n\n$$\n'
+			});
 		}
 	});
 }

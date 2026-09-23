@@ -37,6 +37,8 @@ The groups, in page order:
 | [Commands and keybindings](#commands-and-keybindings)   | Keyboard shortcuts and commands, per block type or editor-wide                               |
 | [Paste transforms](#paste-transforms)                   | Rewriting pasted text before the editor parses it                                            |
 | [Decorations](#decorations)                             | View-only annotations over content your plugin does not own                                  |
+| [Inline menus](#inline-menus)                           | A list under the caret that a typed trigger opens                                            |
+| [Insert catalogue](#insert-catalogue)                   | The blocks the insert menus offer, and adding your own                                       |
 | [Events](#events)                                       | What the editor tells your plugin has happened, and the shapes it says it in                 |
 | [Rects](#rects)                                         | Where things are on screen: block boxes, ranges, the caret, scrolling to a block             |
 | [Caret geometry](#caret-geometry)                       | Answering where a press inside your block puts the caret                                     |
@@ -277,6 +279,16 @@ _(pre-freeze / unstable)_ A list the editor opens under the caret while the auth
 | `InlineMenuItem`         | One row: an `id` unique within the list, a `label`, an optional dim `detail`, and `insert`, the bytes that replace the trigger and the query. Where two rows share an id the first is kept and the rest are dropped and reported on the `error` event. One line of inline bytes, empty allowed; a line break is refused and reported, and a block belongs in `onCommit`                                         |
 | `InlineMenuQuery`        | What `items` is asked: the `query` typed so far, the leaf's `path`, the raw range `[start, end)` a pick would replace, and a `signal` aborted once a later keystroke supersedes the read                                                                                                                                                                                                                        |
 | `InlineMenuRowProps`     | What a `row` component receives: the `item`, whether it is `active`, and the `query` (for highlighting the match)                                                                                                                                                                                                                                                                                               |
+
+### Insert catalogue
+
+_(pre-freeze / unstable)_ The blocks the insert menus offer: the built-in lists, quote, divider, code block and table, then the blocks plugins add. Read it through `editor.insertCatalogue` (your `onEditor` context); a host reads the same list as `getInsertCatalogue()`.
+
+| Export                | Role                                                                                                                                                                               |
+| --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `registerInsertEntry` | Add your block to every insert menu, called from `setup`. It is listed only in the editors that activate your plugin. Throws on a duplicate id and on an icon the menu cannot draw |
+| `InsertEntry`         | One entry: an `id`, a `label`, an `icon`, `keywords` a filter should also match, and the `markdown` it inserts                                                                     |
+| `MenuIconName`        | The glyph names a menu row can draw                                                                                                                                                |
 
 ### Events
 
