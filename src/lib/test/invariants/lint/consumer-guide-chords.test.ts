@@ -24,13 +24,15 @@ import { normalizeChord } from '$lib/schema/keybindings';
 import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
 import { HARDCODED_CHORD_SITES } from '$lib/schema/reserved-chords';
 import { installPlugins } from '$lib';
+import { declaredPluginKind } from '$lib/plugin';
 import { admonitionsPlugin } from '$lib/plugins/admonitions';
-import { detailsPlugin } from '$lib/plugins/details';
+import { ADMONITION, ADMONITION_TITLE } from '$lib/plugins/admonitions/kinds';
+import { detailsPlugin, DETAILS_SUMMARY } from '$lib/plugins/details';
 import { emojiPlugin } from '$lib/plugins/emoji';
 import { footnotesPlugin } from '$lib/plugins/footnotes';
 import { highlightOccurrencesPlugin } from '$lib/plugins/highlight-occurrences';
 import { latexPlugin } from '$lib/plugins/latex';
-import { mermaidPlugin } from '$lib/plugins/mermaid';
+import { mermaidPlugin, MERMAID } from '$lib/plugins/mermaid';
 import { parrotPlugin } from '$lib/plugins/parrot';
 import { slashCommandsPlugin, SLASH_COMMANDS_OPEN } from '$lib/plugins/slash-commands';
 import { tocPlugin } from '$lib/plugins/toc';
@@ -194,10 +196,33 @@ const ROW_TARGETS: Record<string, { kind: AnyBlockKind; commands: CommandId[] }>
 	'Open the list at the caret': {
 		kind: 'paragraph',
 		commands: [SLASH_COMMANDS_OPEN as CommandId]
+	},
+	'Cycle the admonition kind': {
+		kind: declaredPluginKind(ADMONITION),
+		commands: ['admonition.cycleKind' as CommandId]
+	},
+	'Move from the title into the body': {
+		kind: declaredPluginKind(ADMONITION_TITLE),
+		commands: ['chrome.descendToBody']
+	},
+	'Move from the summary into the body': {
+		kind: declaredPluginKind(DETAILS_SUMMARY),
+		commands: ['chrome.descendToBody']
+	},
+	"Open the diagram's focus view": {
+		kind: declaredPluginKind(MERMAID),
+		commands: ['mermaid.focus' as CommandId]
 	}
 };
 
-const KEYMAP_FAMILIES = ['Editing', 'Block reorder', 'Tables', 'Slash commands'];
+const KEYMAP_FAMILIES = [
+	'Editing',
+	'Block reorder',
+	'Tables',
+	'Slash commands',
+	'Admonitions',
+	'Details'
+];
 
 // ── Dispatch sites outside the keymap ───────────────────────────────────────
 
@@ -344,17 +369,13 @@ const CLAIM_ROWS: Record<ClaimKey, string> = {
 const SELECTION_PREAMBLE = 'selection: the section preamble names it and says it is unlisted';
 const FOCUS_TRAP = 'the backward step of an open popup focus trap, which a bare Tab mirrors';
 const SHIFT_ARROWS = ['Shift+ArrowUp', 'Shift+ArrowDown', 'Shift+ArrowLeft', 'Shift+ArrowRight'];
-// Not a design reason: an open question about the table, kept visible here until it is answered.
-const NO_ROW_YET =
-	'a bundled plugin chord the table has no row for yet; whether it gets one is open';
 
 const unlisted = (chords: string[], owner: string, reason: string) =>
 	Object.fromEntries(chords.map((chord) => [claimKey(chord, owner), reason]));
 
 /**
- * Claims the table has no row for, each with the guide's own reason or, under `NO_ROW_YET`, an open
- * question about the table. A stale entry is a failure of its own, so a claim that goes away, or
- * gains a row, shows up.
+ * Claims the table has no row for, each with the guide's own reason. A stale entry is a failure of
+ * its own, so a claim that goes away, or gains a row, shows up.
  */
 const UNLISTED_BY_DESIGN: Record<ClaimKey, string> = {
 	...unlisted(
@@ -385,17 +406,16 @@ const UNLISTED_BY_DESIGN: Record<ClaimKey, string> = {
 		['Shift+ArrowLeft', 'Shift+ArrowRight'],
 		'components/blocks/text/widget-interaction.ts',
 		SELECTION_PREAMBLE
-	),
-	...unlisted(['Mod+7'], 'admonition', NO_ROW_YET),
-	...unlisted(['Enter'], 'admonition-title', NO_ROW_YET),
-	...unlisted(['Enter'], 'details-summary', NO_ROW_YET),
-	...unlisted(['Mod+M'], 'mermaid', NO_ROW_YET)
+	)
 };
 
 // ── The gate ────────────────────────────────────────────────────────────────
 
 const rows = parseRows(shortcutSection());
-const keymapRows = rows.filter((row) => KEYMAP_FAMILIES.includes(row.family));
+// A token family can hold a keymap row too (Mermaid's `Mod+M`); its ROW_TARGETS entry routes it.
+const keymapRows = rows.filter(
+	(row) => KEYMAP_FAMILIES.includes(row.family) || row.action in ROW_TARGETS
+);
 
 describe('consumer-guide § Keyboard shortcuts → code', () => {
 	it.each(keymapRows)('$family — $action resolves to the command it names', (row) => {
@@ -411,7 +431,7 @@ describe('consumer-guide § Keyboard shortcuts → code', () => {
 		).toEqual([...new Set(target.commands)].sort());
 	});
 
-	it.each(rows.filter((row) => row.family in TOKEN_RESOLVERS))(
+	it.each(rows.filter((row) => row.family in TOKEN_RESOLVERS && !(row.action in ROW_TARGETS)))(
 		'$family — $action reaches its dispatch site',
 		(row) => {
 			const unresolved = row.chords.filter((chord) => !tokensResolve(row.family, chord));
@@ -447,6 +467,7 @@ describe('code → consumer-guide § Keyboard shortcuts', () => {
 		).toEqual([]);
 	});
 
+	// Checks that the row exists and lists the chord, not that it means what the keydown branch runs.
 	it.each(Object.entries(CLAIM_ROWS))('%s is documented by the row "%s"', (key, action) => {
 		const chord = key.split(' @ ')[0];
 		const row = rows.find((candidate) => candidate.action === action);
@@ -486,8 +507,10 @@ describe('consumer-guide chord coherence: self-tests', () => {
 	it('parses every family, and the rows a naive cell split loses', () => {
 		expect([...new Set(rows.map((row) => row.family))].sort()).toEqual(
 			[
+				'Admonitions',
 				'Block reorder',
 				'Clipboard',
+				'Details',
 				'Editing',
 				'Find / replace',
 				'Images',
