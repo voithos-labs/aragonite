@@ -190,6 +190,15 @@ const ALLOWLIST: Record<string, Exemption> = {
 		specifiers: ['$lib/testing/parse-convergence'],
 		reason: 'parse convergence lives in src/lib/testing without reaching the testing barrel'
 	},
+	'src/lib/test/plugins/mermaid/raw-write-rule.test.ts': {
+		specifiers: [
+			'$lib/tree-operations/node-primitives',
+			'$lib/selection/range-delete',
+			'$lib/tree-operations/sharing'
+		],
+		reason:
+			'nothing published applies a kind’s normalizeRawWrite or range-deletes a parsed document'
+	},
 	'src/lib/test/plugins/toc/options.test.ts': {
 		specifiers: ['$lib/schema/block-component-registry'],
 		reason:

@@ -71,6 +71,8 @@ const autolink = fc.constantFrom(
 	'https://example.com',
 	'www.example.com',
 	'foo@bar.com',
+	'mailto:foo@bar.com',
+	'xmpp:foo@bar.com/home',
 	'<foo@bar.com>'
 );
 

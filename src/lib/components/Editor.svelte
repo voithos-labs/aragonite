@@ -39,6 +39,7 @@
 	import { EDITOR_LABEL, movedBlockToPosition } from '../a11y-strings';
 	import TailInsert from './TailInsert.svelte';
 	import BlockMenu from './menu/BlockMenu.svelte';
+	import { createMenuPresence } from './menu/menu-presence.svelte';
 	import { registerDefaultContextActions } from './menu/default-context-actions';
 	import type { EditorSelection } from '../selection/primitives';
 	import { createWidgetSelectionState } from './image/widget-selection-state.svelte';
@@ -358,7 +359,8 @@
 			currentResolver = resolver;
 			currentSignature = next.signature;
 			signatureEpoch = next.epoch;
-		}
+		},
+		events
 	});
 
 	// The `source !== lastSource` check is required:
@@ -388,10 +390,12 @@
 	// their own cell menu and have prevented the default first.
 	let blockMenu = $state<BlockMenuModel | null>(null);
 
-	// Open/close transitions only, never the mount, so a subscriber's first news is a real menu.
+	// Every menu counts itself in on mount; transitions only, so a subscriber's first news is a
+	// real menu.
+	const menuPresence = createMenuPresence();
 	let menuWasOpen = false;
 	$effect(() => {
-		const open = blockMenu !== null || inlineMenus.isOpen;
+		const open = menuPresence.isOpen;
 		if (open === menuWasOpen) return;
 		menuWasOpen = open;
 		events.emit('menuChange', open);
@@ -627,6 +631,7 @@
 		decorations,
 		rects,
 		inlineMenus,
+		getDocumentGeneration: documentSwap.generation,
 		// The one place the mode enters the dispatch levels; they read it back through
 		// the pluginEditor lookup they already pass around.
 		getPresentationMode: () => effectiveMode,
@@ -746,7 +751,8 @@
 		registryView,
 		activePlugins,
 		rects,
-		crossBlockCommands
+		crossBlockCommands,
+		menuPresence
 	} satisfies EditorServices);
 
 	setContext(EDITOR_POLICIES_KEY, {
@@ -1436,6 +1442,7 @@
 			label={blockMenu.label}
 			onPick={blockMenu.pick}
 			onClose={() => (blockMenu = null)}
+			{menuPresence}
 		/>
 	{/if}
 	{#if selectionToolbar && effectiveMode !== 'reading'}
@@ -1463,6 +1470,7 @@
 		getPresentationMode={() => effectiveMode}
 		grammar={registryView.grammar}
 		lifetime={lifetimeController.signal}
+		{menuPresence}
 	/>
 	<LinkCardHost
 		card={linkCard}
@@ -1477,10 +1485,12 @@
 		caretRestore={linkCardCaret}
 		linkRef={linkRefView}
 		grammar={registryView.grammar}
+		{menuPresence}
 	/>
 	<InlineMenuHost
 		menu={inlineMenu}
 		{events}
+		{menuPresence}
 		getEditorEl={() => editorEl ?? null}
 		measureRange={rects.rangeRects}
 	/>

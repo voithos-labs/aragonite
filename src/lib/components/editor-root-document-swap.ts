@@ -16,6 +16,7 @@ import type { StickyColumnState } from '../cursor/sticky-column';
 import type { SelectionState } from '../selection/selection-state.svelte';
 import { emptyParagraph, ensureEditableContainers } from '../tree-operations';
 import type { UndoManager } from '../undo/types';
+import type { EditorEvents } from '../editor-events';
 import type { WidgetSelectionState } from './image/widget-selection-state.svelte';
 
 export interface ParsedDocument {
@@ -53,6 +54,7 @@ export interface DocumentSwapDeps {
 	selection: Pick<SelectionState, 'batch' | 'clear' | 'announceSelection'>;
 	/** Unconditional: the outgoing resolver closes over the swapped-out document. */
 	adoptLinkReferences(resolver: LinkReferenceResolver, signature: string): void;
+	events: Pick<EditorEvents, 'emit'>;
 }
 
 export interface DocumentSwap {
@@ -89,6 +91,8 @@ export function createDocumentSwap(deps: DocumentSwapDeps): DocumentSwap {
 			});
 			generation++;
 			deps.adoptLinkReferences(reset.resolver, reset.signature);
+			// Last, so a subscriber reading the document sees the new tree, selection and resolver.
+			deps.events.emit('sourceSwap', { generation });
 		},
 		generation: () => generation
 	};

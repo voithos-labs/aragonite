@@ -29,7 +29,16 @@ const inlineText = fc
 				arbitrary: fc.constantFrom('[t](u)', '![a](i.png)', '&copy;', '\\*', '<br>'),
 				weight: 4
 			},
-			{ arbitrary: fc.constantFrom('foo@bar.com', '<https://x.com>', 'www.x.com'), weight: 4 },
+			{
+				arbitrary: fc.constantFrom(
+					'foo@bar.com',
+					'mailto:foo@bar.com',
+					'xmpp:foo@bar.com/r',
+					'<https://x.com>',
+					'www.x.com'
+				),
+				weight: 4
+			},
 			{ arbitrary: mintingWord, weight: 3 },
 			{ arbitrary: nonAsciiWord, weight: 2 }
 		),

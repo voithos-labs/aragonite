@@ -525,16 +525,18 @@ setup(ctx) {
 }
 ```
 
-| Field              | What it gives you                                                                                                                 |
-| ------------------ | --------------------------------------------------------------------------------------------------------------------------------- |
-| `editorId`         | A stable per-mount id. Key your own `Map` / `WeakMap` on it for per-editor state                                                  |
-| `document`         | A live getter for the root document, as a read-only `DocumentView` ([Views](#views-what-you-read-what-you-own))                   |
-| `events`           | The subscribe-only event view; `events.on('edit', …)` returns a disposer                                                          |
-| `options`          | The options this editor passed, typed once you write `definePlugin<Options>` (recipe below)                                       |
-| `decorations`      | This editor's decoration registry, where you register a source ([Decorations](#decorations))                                      |
-| `rects`            | This editor's viewport-space geometry: block box, range rects, caret, reveal, navigation                                          |
-| `presentationMode` | The effective presentation mode, live, paired with the `presentationModeChange` event ([Presentation modes](#presentation-modes)) |
-| `theme`            | The editor's theme name, live, paired with the `themeChange` event, for content whose colors an engine paints                     |
+| Field                | What it gives you                                                                                                                          |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| `editorId`           | A stable per-mount id. Key your own `Map` / `WeakMap` on it for per-editor state                                                           |
+| `document`           | A live getter for the root document, as a read-only `DocumentView` ([Views](#views-what-you-read-what-you-own))                            |
+| `documentGeneration` | How many times a `source` write has replaced the document, live but not reactive: subscribe to the `sourceSwap` event to hear a change     |
+| `events`             | The subscribe-only event view; `events.on('edit', …)` returns a disposer                                                                   |
+| `options`            | The options this editor passed, typed once you write `definePlugin<Options>` (recipe below)                                                |
+| `decorations`        | This editor's decoration registry, where you register a source ([Decorations](#decorations))                                               |
+| `rects`              | This editor's viewport-space geometry: block box, range rects, caret, reveal, navigation                                                   |
+| `inlineMenus`        | This editor's registry for lists opened by a typed trigger ([Recipe: a typed-trigger menu](consumer-guide.md#recipe-a-typed-trigger-menu)) |
+| `presentationMode`   | The effective presentation mode, live, paired with the `presentationModeChange` event ([Presentation modes](#presentation-modes))          |
+| `theme`              | The editor's theme name, live, paired with the `themeChange` event, for content whose colors an engine paints                              |
 
 Return a disposer from the callback and the editor runs it at unmount. Registration is synchronous-only: call `onEditor` from `setup`, not from some later callback.
 
@@ -1518,7 +1520,7 @@ Islands (`widget` / `replace`) render in prose blocks and in table cells, applie
 
 ### Recipe: memoize the scan on `editEpoch`
 
-`provide` runs on every document change, so an expensive scan wants a memo. Do **not** key it on `doc.children` identity, because routine typing mutates the tree in place. The second `provide` argument carries `editEpoch`, a counter that bumps once per document change (an edit, or a whole-document `source` replacement) and **never** on `invalidate()`, which is exactly the split a memo needs: epoch miss, the document changed, rescan; epoch hit, only your own state changed, remap the cached scan.
+`provide` runs on every document change, so an expensive scan wants a memo. Do **not** key it on `doc.children` identity, because routine typing mutates the tree in place. The second `provide` argument carries `editEpoch`, a counter that bumps once per document change (an edit, or a whole-document `source` replacement) and **never** on `invalidate()`, which is exactly the split a memo needs: epoch miss, the document changed, rescan; epoch hit, only your own state changed, remap the cached scan. The epoch can't tell a keystroke from a swap; the `sourceSwap` event can, since it fires ahead of the swap's epoch.
 
 ```ts
 let lastEpoch = -1;
@@ -1543,7 +1545,7 @@ editor.events.on('selectionChange', (sel) => {
 });
 ```
 
-Keying the cache on an index (word to marks) rather than a flat list makes the per-invalidate step a map read, not a re-filter of every mark. The bundled `highlight-occurrences` plugin (`@voithos-labs/aragonite/plugins/highlight-occurrences`) is this recipe end to end, plus one capability gate: it indexes only inline-prose leaves (`isProseKind`, the descriptor's `supportsInline`), so a fenced code block's bytes are neither scanned nor a valid anchor. It carries a second memo inside the rebuild, because routine typing bumps the epoch on every keystroke: each leaf's token list is keyed on that leaf's own text, so a rebuild re-tokenizes only the block you are typing in and rebuilds the word map from the cached lists. And it steps its marks aside while you're typing, since a word lighting up under your own caret mid-sentence is maddening. The tell is an epoch that arrives with no `edit` event ahead of it (a keystroke announces nothing until its burst flushes), so the source serves nothing until the batched `input` event lands at the end of the burst. That's the editor's own typing pause, not a timer of the plugin's.
+Keying the cache on an index (word to marks) rather than a flat list makes the per-invalidate step a map read, not a re-filter of every mark. The bundled `highlight-occurrences` plugin (`@voithos-labs/aragonite/plugins/highlight-occurrences`) is this recipe end to end, plus one capability gate: it indexes only inline-prose leaves (`isProseKind`, the descriptor's `supportsInline`), so a fenced code block's bytes are neither scanned nor a valid anchor. It carries a second memo inside the rebuild, because routine typing bumps the epoch on every keystroke: each leaf's token list is keyed on that leaf's own text, so a rebuild re-tokenizes only the block you are typing in and rebuilds the word map from the cached lists. And it steps its marks aside while you're typing, since a word lighting up under your own caret mid-sentence is maddening. The tell is an epoch that arrives with no `edit` or `sourceSwap` event ahead of it (a keystroke announces nothing until its burst flushes), so the source serves nothing until the batched `input` event lands at the end of the burst. That's the editor's own typing pause, not a timer of the plugin's.
 
 A source that throws is contained: the editor emits an `error` event attributed to your source name and keeps the previous decorations on screen, so a throw never blanks the view.
 

@@ -37,6 +37,7 @@ export function createEditorPluginContexts(deps: {
 	decorations: DecorationRegistry;
 	rects: EditorRects;
 	inlineMenus: InlineMenuRegistry;
+	getDocumentGeneration: () => number;
 	getPresentationMode: () => PresentationMode;
 	getTheme: () => string;
 	activation: PluginActivation;
@@ -53,6 +54,9 @@ export function createEditorPluginContexts(deps: {
 				editorId: deps.editorId,
 				get document() {
 					return deps.getDoc();
+				},
+				get documentGeneration() {
+					return deps.getDocumentGeneration();
 				},
 				events: deps.events,
 				options: deps.optionsFor(pluginName),

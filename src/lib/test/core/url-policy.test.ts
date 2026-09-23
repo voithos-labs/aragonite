@@ -13,6 +13,7 @@ describe('url-policy: href allowlist', () => {
 		['http://example.com', true],
 		['mailto:foo@bar.com', true],
 		['tel:+15551234', true],
+		['xmpp:foo@bar.com/home', true],
 		['/relative/path', true],
 		['#fragment', true],
 		['./rel.md', true],

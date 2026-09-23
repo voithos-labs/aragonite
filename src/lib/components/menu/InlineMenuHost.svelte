@@ -3,6 +3,7 @@
 	import { INLINE_MENU_LABEL } from '../../a11y-strings';
 	import type { EditorEvents } from '../../editor-events';
 	import type { InlineMenuState } from '../../inline-menu/inline-menu-state.svelte';
+	import type { MenuPresence } from './menu-presence.svelte';
 	import { eventToChord } from '../../schema/keybindings';
 
 	// Mounted unconditionally by Editor: the key claim and the anchoring must observe the session
@@ -11,10 +12,12 @@
 		menu,
 		events,
 		getEditorEl,
-		measureRange
+		measureRange,
+		menuPresence
 	}: {
 		menu: InlineMenuState;
 		events: EditorEvents;
+		menuPresence: MenuPresence;
 		getEditorEl: () => HTMLElement | null;
 		measureRange: (path: number[], start: number, end: number) => DOMRect[];
 	} = $props();
@@ -124,6 +127,7 @@
 		id={menu.listboxId}
 		class="md-menu inline-menu"
 		role="listbox"
+		{@attach menuPresence.track}
 		tabindex="-1"
 		aria-label={INLINE_MENU_LABEL}
 		data-inline-menu={view.source.name}

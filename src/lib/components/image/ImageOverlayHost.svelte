@@ -11,6 +11,7 @@
 	import ImageResizeHandles from './ImageResizeHandles.svelte';
 	import { createImageEditCommitter } from './image-edit-commit';
 	import { imageFieldsFromInline } from './image-source-bytes';
+	import type { MenuPresence } from '../menu/menu-presence.svelte';
 	import {
 		IMAGE_CHROME_SELECTOR,
 		type WidgetSelectionState
@@ -28,7 +29,8 @@
 		getSelectionIsCustomRendered,
 		getPresentationMode,
 		grammar,
-		lifetime
+		lifetime,
+		menuPresence
 	}: {
 		widgetSelection: WidgetSelectionState;
 		controller: UndoController;
@@ -38,6 +40,7 @@
 		getEditorEl: () => HTMLElement | null;
 		getSelectionIsCustomRendered: () => boolean;
 		getPresentationMode: () => PresentationMode;
+		menuPresence: MenuPresence;
 		grammar?: GrammarView;
 		lifetime: AbortSignal;
 	} = $props();
@@ -123,6 +126,7 @@
 					onRemove={imageEdit.removeImage}
 					onDismiss={imageEdit.dismissImagePopover}
 					maxFrameWidth={imageEdit.getEditorContentWidth}
+					{menuPresence}
 					bind:cropping
 				/>
 			{/key}

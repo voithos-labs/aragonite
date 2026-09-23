@@ -1,8 +1,9 @@
 /**
  * `<` dispatch (spec autolinks §6.5, then raw HTML §6.6) plus the GFM §6.9 bare/www/email pass
  * over completed text runs. No conformance reference covers the extension: these rules follow
- * the GFM spec text, then cmark-gfm where its prose runs out (`scanEmailDomain`), and diverge
- * from both at `hasValidDomain`: a scheme'd host needs no period, so `http://localhost` links.
+ * the GFM spec text, then cmark-gfm where its prose runs out (the email domain and its `mailto:`
+ * and `xmpp:` prefixes), and diverge from both at `hasValidDomain`: a scheme'd host needs no
+ * period, so `http://localhost` links.
  */
 
 import type { InlineNode } from '../../nodes';
@@ -232,14 +233,17 @@ function spliceRun(raw: string, runNodes: InlineNode[], matches: InlineNode[]): 
 function scanRunForBareAutolinks(raw: string, start: number, end: number): InlineNode[] {
 	const out: InlineNode[] = [];
 	let pos = start;
+	// The email form walks backwards from its `@`, so it must stop where the last link ended.
+	let claimedEnd = start;
 	while (pos < end) {
 		const ch = raw[pos];
 		let matched: InlineNode | null = null;
 		if (ch === 'h' || ch === 'H') matched = matchBareHttpAutolink(raw, pos, start, end);
 		else if (ch === 'w' || ch === 'W') matched = matchBareWwwAutolink(raw, pos, start, end);
-		else if (ch === '@') matched = matchBareEmailAutolink(raw, pos, start, end);
+		else if (ch === '@') matched = matchBareEmailAutolink(raw, pos, start, end, claimedEnd);
 		if (matched !== null) {
 			out.push(matched);
+			claimedEnd = matched.end;
 			pos = matched.end;
 			continue;
 		}
@@ -311,9 +315,15 @@ const EMAIL_DOMAIN_END = /[A-Za-z]/;
  * The email domain per GFM §6.9: alphanumerics/`-`/`_` separated by periods, at least one
  * period, no `-`/`_` at the end. Past that prose the rule is cmark-gfm's: the last character
  * must be a LETTER, and a `.` separates labels only when an alphanumeric follows (`a@b._c` and
- * `a@b.c1` stay literal; `a@.b` is accepted). Returns the domain end, or -1.
+ * `a@b.c1` stay literal; `a@.b` is accepted). An xmpp address also takes `/` for its resource
+ * part, as cmark-gfm does. Returns the domain end, or -1.
  */
-function scanEmailDomain(raw: string, domainStart: number, regionEnd: number): number {
+function scanEmailDomain(
+	raw: string,
+	domainStart: number,
+	regionEnd: number,
+	allowsResource: boolean
+): number {
 	let end = domainStart;
 	let separators = 0;
 	while (end < regionEnd) {
@@ -321,7 +331,7 @@ function scanEmailDomain(raw: string, domainStart: number, regionEnd: number): n
 		if (ch === '.') {
 			if (end + 1 >= regionEnd || !EMAIL_LABEL_START.test(raw[end + 1])) break;
 			separators++;
-		} else if (!EMAIL_DOMAIN_CHAR.test(ch)) {
+		} else if (!EMAIL_DOMAIN_CHAR.test(ch) && !(allowsResource && ch === '/')) {
 			break;
 		}
 		end++;
@@ -331,25 +341,41 @@ function scanEmailDomain(raw: string, domainStart: number, regionEnd: number): n
 	return EMAIL_DOMAIN_END.test(raw[end - 1]) ? end : -1;
 }
 
+/** The scheme a bare address may carry in front of its local part, matched byte for byte and
+ *  lowercase only, as cmark-gfm matches it. */
+const EMAIL_PREFIXES = ['mailto:', 'xmpp:'] as const;
+
+function emailPrefixBefore(raw: string, localStart: number, floor: number) {
+	return EMAIL_PREFIXES.find(
+		(prefix) =>
+			localStart - prefix.length >= floor && raw.startsWith(prefix, localStart - prefix.length)
+	);
+}
+
+/** `claimedEnd` is where the last link in this run ended: no byte before it can join this one. */
 function matchBareEmailAutolink(
 	raw: string,
 	atPos: number,
 	regionStart: number,
-	regionEnd: number
+	regionEnd: number,
+	claimedEnd: number
 ): InlineNode | null {
 	let localStart = atPos;
-	while (localStart > regionStart && EMAIL_LOCAL.test(raw[localStart - 1])) localStart--;
+	while (localStart > claimedEnd && EMAIL_LOCAL.test(raw[localStart - 1])) localStart--;
 	if (localStart === atPos) return null; // empty local-part
-	// The boundary applies at the URL's start, which for email is the local-part start.
-	if (!isValidLeadingBoundary(raw, localStart, regionStart)) return null;
+	const prefix = emailPrefixBefore(raw, localStart, claimedEnd);
+	const linkStart = localStart - (prefix?.length ?? 0);
+	// The boundary applies at the URL's start: the prefix when there is one, else the local part.
+	if (!isValidLeadingBoundary(raw, linkStart, regionStart)) return null;
 
-	const domainEnd = scanEmailDomain(raw, atPos + 1, regionEnd);
+	const domainEnd = scanEmailDomain(raw, atPos + 1, regionEnd, prefix === 'xmpp:');
 	if (domainEnd < 0) return null;
 
+	const text = raw.slice(linkStart, domainEnd);
 	return {
 		kind: 'autolink',
-		start: localStart,
+		start: linkStart,
 		end: domainEnd,
-		url: `mailto:${raw.slice(localStart, domainEnd)}`
+		url: prefix ? text : `mailto:${text}`
 	};
 }

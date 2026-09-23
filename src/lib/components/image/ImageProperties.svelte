@@ -12,6 +12,7 @@
 		IMAGE_REMOVE
 	} from '../../a11y-strings';
 	import MenuIcon from '../menu/MenuIcon.svelte';
+	import type { MenuPresence } from '../menu/menu-presence.svelte';
 	import { DEFAULT_CROP, applyCropToWidget, panCrop, zoomCrop, type Size } from './image-crop';
 
 	let {
@@ -23,6 +24,7 @@
 		onRemove,
 		onDismiss,
 		maxFrameWidth,
+		menuPresence,
 		cropping = $bindable(false)
 	}: {
 		target: WidgetTarget;
@@ -36,6 +38,8 @@
 		onDismiss: () => void;
 		/** The column width: the widest frame a corner drag can open. */
 		maxFrameWidth: () => number;
+		/** The alt field is a popover over the document, so it counts as an open menu. */
+		menuPresence: MenuPresence;
 		cropping?: boolean;
 	} = $props();
 
@@ -425,7 +429,7 @@
 		</button>
 	{/if}
 	{#if fieldOpen}
-		<label class="md-image-field" {@attach keepFieldOnScreen}>
+		<label class="md-image-field" {@attach keepFieldOnScreen} {@attach menuPresence.track}>
 			<span class="md-image-field-label">Alt</span>
 			<input
 				type="text"

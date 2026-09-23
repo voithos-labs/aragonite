@@ -9,6 +9,7 @@
 	import LinkCard from './LinkCard.svelte';
 	import { createLinkCardCommitter } from './link-card-commit';
 	import type { LinkCardState } from './link-card-state.svelte';
+	import type { MenuPresence } from '../menu/menu-presence.svelte';
 
 	// Mounted unconditionally by Editor: the anchoring and dismiss effects must observe the card's
 	// target changing, so the open/closed `{#if}` lives here rather than at the mount site.
@@ -24,7 +25,8 @@
 		resolveLinkUrl,
 		caretRestore,
 		linkRef,
-		grammar
+		grammar,
+		menuPresence
 	}: {
 		card: LinkCardState;
 		controller: UndoController;
@@ -39,6 +41,7 @@
 		caretRestore: CaretRestore;
 		linkRef?: LinkReferenceResolverRef;
 		grammar?: GrammarView;
+		menuPresence: MenuPresence;
 	} = $props();
 
 	let cardEl: HTMLDivElement | undefined = $state();
@@ -141,7 +144,7 @@
 	{@const target = card.getTarget()!}
 	{@const resolved = linkCard.resolve(target)}
 	{#if resolved}
-		<div bind:this={cardEl} class="md-link-card-anchor">
+		<div bind:this={cardEl} class="md-link-card-anchor" {@attach menuPresence.track}>
 			{#key `${target.path.join(',')}@${target.sourceStart}`}
 				<LinkCard
 					url={resolved.url}
@@ -157,7 +160,7 @@
 	{/if}
 {:else if card.getCreateTarget()}
 	{@const create = card.getCreateTarget()!}
-	<div bind:this={cardEl} class="md-link-card-anchor">
+	<div bind:this={cardEl} class="md-link-card-anchor" {@attach menuPresence.track}>
 		{#key `${create.path.join(',')}@${create.start}-${create.end}`}
 			<LinkCard
 				url=""

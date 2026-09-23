@@ -88,6 +88,8 @@ const neverExtend = fc.constantFrom(
 	'<https://example.com>',
 	'<a@b.com>',
 	'https://example.com',
+	'mailto:a@b.com',
+	'xmpp:a@b.com/r',
 	'\\*',
 	'\\\\',
 	'\\[',

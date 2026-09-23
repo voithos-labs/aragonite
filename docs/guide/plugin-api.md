@@ -51,18 +51,18 @@ The groups, in page order:
 
 _(pre-freeze / unstable)_ The installable package, and the per-editor context it gets back. Wiring and the traps: [The plugin unit](plugin-guide.md#the-plugin-unit) and [One process, many editors](plugin-guide.md#one-process-many-editors).
 
-| Export               | Role                                                                                                                                                                                                                |
-| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `definePlugin`       | Validate a `{ name, setup }` unit at definition time and return it, ready for the editor's `plugins` prop                                                                                                           |
-| `definePluginBlock`  | The single-block shortcut: one kind, one component, one register step, packaged as a unit                                                                                                                           |
-| `isPluginInstalled`  | Has a plugin of this name installed? For the rare setup that has to branch on it                                                                                                                                    |
-| `EditorPlugin`       | The unit's shape; the `plugins` prop and the main entry's `installPlugins` take these                                                                                                                               |
-| The `plugins` prop   | Installs once per process, and activates per editor: an editor runs the hooks, kinds, commands and paste transforms of exactly the plugins it lists (no prop at all activates every installed one)                  |
-| `EditorPluginEntry`  | One `plugins` prop entry: a bare unit, or `{ plugin, options }` to vary options per editor                                                                                                                          |
-| `PluginSetupContext` | What `setup(ctx)` receives; its `onEditor(cb)` registers a per-editor callback (call it from `setup`, synchronously)                                                                                                |
-| `OnEditorCallback`   | The callback itself: receives the `EditorContext` of each mounted editor that listed your plugin, may return a cleanup function the editor runs at unmount                                                          |
-| `EditorContext`      | One editor's view for your plugin: `editorId`, the live read-only `document`, subscribe-only `events`, this editor's `options`, its `decorations` and `rects` surfaces, and the live `presentationMode` and `theme` |
-| `PresentationMode`   | The union of the editor's view modes (source, reading, the previews, live); every mode read reports the effective one, meaning the mode actually in force. [Presentation modes](plugin-guide.md#presentation-modes) |
+| Export               | Role                                                                                                                                                                                                                                                            |
+| -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `definePlugin`       | Validate a `{ name, setup }` unit at definition time and return it, ready for the editor's `plugins` prop                                                                                                                                                       |
+| `definePluginBlock`  | The single-block shortcut: one kind, one component, one register step, packaged as a unit                                                                                                                                                                       |
+| `isPluginInstalled`  | Has a plugin of this name installed? For the rare setup that has to branch on it                                                                                                                                                                                |
+| `EditorPlugin`       | The unit's shape; the `plugins` prop and the main entry's `installPlugins` take these                                                                                                                                                                           |
+| The `plugins` prop   | Installs once per process, and activates per editor: an editor runs the hooks, kinds, commands and paste transforms of exactly the plugins it lists (no prop at all activates every installed one)                                                              |
+| `EditorPluginEntry`  | One `plugins` prop entry: a bare unit, or `{ plugin, options }` to vary options per editor                                                                                                                                                                      |
+| `PluginSetupContext` | What `setup(ctx)` receives; its `onEditor(cb)` registers a per-editor callback (call it from `setup`, synchronously)                                                                                                                                            |
+| `OnEditorCallback`   | The callback itself: receives the `EditorContext` of each mounted editor that listed your plugin, may return a cleanup function the editor runs at unmount                                                                                                      |
+| `EditorContext`      | One editor's view for your plugin: `editorId`, the live read-only `document` and its `documentGeneration`, subscribe-only `events`, this editor's `options`, its `decorations`, `rects` and `inlineMenus` surfaces, and the live `presentationMode` and `theme` |
+| `PresentationMode`   | The union of the editor's view modes (source, reading, the previews, live); every mode read reports the effective one, meaning the mode actually in force. [Presentation modes](plugin-guide.md#presentation-modes)                                             |
 
 ### Kind declaration
 
@@ -288,6 +288,7 @@ _(pre-freeze / unstable)_ The payloads `EditorContext.events` delivers to an `on
 | `EditEvent`                           | The `edit` payload: `op`, the `path` it landed at, a per-op `detail`, and a `timestamp`. `op` and `detail` are correlated, so narrowing `op` narrows `detail` with it |
 | `OperationKind`                       | The structural-operation vocabulary `EditEvent.op` draws from                                                                                                         |
 | `SelectionChangeEvent`, `EditorError` | The other two payloads worth naming: the anchor/focus pair (or null), and a contained failure with its `origin` and context                                           |
+| `SourceSwapEvent`                     | The `sourceSwap` payload: the `generation` a `source` write replaced the document at                                                                                  |
 
 ### Rects
 

@@ -188,6 +188,7 @@ function createSessionProbe<T>(init: () => T): {
 const editOpProbe = createSessionProbe<string[]>(() => []);
 const errorProbe = createSessionProbe<string[]>(() => []);
 const menuProbe = createSessionProbe<boolean[]>(() => []);
+const sourceSwapProbe = createSessionProbe<number[]>(() => []);
 const caretProbe = createSessionProbe<CaretProbeState>(() => ({ captured: false, rect: null }));
 const selectionProbe = createSessionProbe<SelectionChangeRecord[]>(() => []);
 
@@ -270,6 +271,7 @@ export function installTestProbes({
 	editOpProbe.invalidate(remounted);
 	errorProbe.invalidate(remounted);
 	menuProbe.invalidate(remounted);
+	sourceSwapProbe.invalidate(remounted);
 	caretProbe.invalidate(remounted);
 	selectionProbe.invalidate(remounted);
 
@@ -540,6 +542,14 @@ export function installTestProbes({
 				})
 			),
 		stopMenuChangeCapture: (): boolean[] => menuProbe.stop(),
+		// ── Source-swap capture probe ─────────────────────────────────────
+		startSourceSwapCapture: (): void =>
+			sourceSwapProbe.start((generations) =>
+				editor.getEvents().on('sourceSwap', ({ generation }) => {
+					generations.push(generation);
+				})
+			),
+		stopSourceSwapCapture: (): number[] => sourceSwapProbe.stop(),
 		// ── List item id probe ────────────────────────────────────────────
 		getListItemIds: (blockIndex: number): string[] => {
 			const doc = editor.__test.getDocument();

@@ -87,7 +87,8 @@ export type {
 	EditEvent,
 	EditorEventMap,
 	EditorError,
-	SelectionChangeEvent
+	SelectionChangeEvent,
+	SourceSwapEvent
 } from './editor-events';
 
 // ── Decorations ──────────────────────────────────────────────────────────────

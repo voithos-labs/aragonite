@@ -61,9 +61,17 @@ export interface EditorEventMap {
 	/** The theme name after a `theme` prop change (never fired at mount), for a plugin
 	 *  that paints its own colors and so cannot pick the change up from CSS. */
 	themeChange: string;
-	/** `true` when an editor-owned menu (the right-click menu and its flyouts) opens, `false` when
-	 *  it closes, so a host's own controls over the selection can step aside rather than stack. */
+	/** `true` when an editor-owned menu or popover opens while none was, `false` when the last one
+	 *  closes, so a host's own controls over the selection can step aside rather than stack. */
 	menuChange: boolean;
+	/** A `source` prop write replaced the whole document. Fires once the new tree, its selection
+	 *  and its link references are in place; an `edit` never fires for it. */
+	sourceSwap: SourceSwapEvent;
+}
+
+/** `generation` counts whole-document replacements since mount, starting at 1. */
+export interface SourceSwapEvent {
+	generation: number;
 }
 
 export interface EditorEvents {

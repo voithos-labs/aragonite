@@ -70,7 +70,8 @@
 		stickyColumn: editorStickyColumn,
 		selection,
 		reorderAnnounce: announceReorder,
-		registryView
+		registryView,
+		menuPresence
 	} = getContext<EditorServices>(EDITOR_SERVICES_KEY);
 	const {
 		editorRoot: getEditorRoot,
@@ -663,6 +664,7 @@
 			anchor={menu.anchor}
 			onclose={() => (menu = null)}
 			onescape={closeMenuRestoringFocus}
+			{menuPresence}
 		/>
 	{/if}
 </div>

@@ -21,6 +21,7 @@ import type { DocumentView } from '$lib/core/node-views';
 import { createDecorationEngine } from '$lib/decorations/decoration-state.svelte';
 import { createWidgetSelectionState } from '$lib/components/image/widget-selection-state.svelte';
 import { createLinkCardState } from '$lib/components/link-card/link-card-state.svelte';
+import { createMenuPresence } from '$lib/components/menu/menu-presence.svelte';
 import { defaultRegistryView } from '$lib/schema/registry-view';
 import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
 import { createEditorEvents } from '$lib/editor-events';
@@ -82,6 +83,8 @@ function stubbedServices(getDoc: () => DocumentView): EditorServices {
 		}),
 		// A bare mount has no inline menu, so no block is ever a combobox.
 		inlineMenuCombobox: () => null,
+		// Real: a table or code block opening its menu counts itself in.
+		menuPresence: createMenuPresence(),
 		// The two members a format toggle reaches on a bare mount; the rest keep the cast.
 		controller: {
 			flushDebouncedCheckpoint: () => {},

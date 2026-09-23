@@ -83,7 +83,7 @@
 		activePlugins,
 		events: editorEvents
 	} = wiring.deps;
-	const { reorder } = getContext<EditorServices>(EDITOR_SERVICES_KEY);
+	const { reorder, menuPresence } = getContext<EditorServices>(EDITOR_SERVICES_KEY);
 	const {
 		presentationMode: getPresentationMode,
 		onPasteImage,
@@ -858,6 +858,7 @@
 		onRun={onRunCode ? () => onRunCode(runRequest()) : undefined}
 		onCopy={copyBody}
 		menuItems={codeMenuItems ? () => codeMenuItems(runRequest()) : undefined}
+		{menuPresence}
 	/>
 {/if}
 

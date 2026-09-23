@@ -104,4 +104,27 @@ test.describe('search: childless opaque container', () => {
 		await expect(count(page)).toHaveText(/1\s*\/\s*1/);
 		expect(await page.evaluate(() => (window as any).__test.getSearchReplacedCount())).toBe(1);
 	});
+
+	test('a replacement that eats the closing fence gets the fence back, and the block below stands', async ({
+		page
+	}) => {
+		await editor.loadContent(`${MERMAID_FENCE}\nTail\n`);
+		await expect(mermaidHost(page)).toHaveCount(1);
+
+		await openReplace(editor);
+		await page.getByRole('button', { name: 'Regex' }).click();
+		await findInput(page).click();
+		await typeQuery(editor, 'B\\n```');
+		await expect(count(page)).toHaveText(/1\s*\/\s*1/);
+		await replaceInput(page).fill('C');
+
+		await page.getByRole('button', { name: 'All', exact: true }).click();
+		await editor.bridge.waitForSourceContains('ZZNEEDLE --> C');
+
+		expect(await editor.bridge.getSource()).toBe(
+			'```mermaid\ngraph TD\n\tZZNEEDLE --> C\n```\n\nTail\n'
+		);
+		expect(await editor.bridge.getBlockCount()).toBe(2);
+		expect(await editor.bridge.getBlockKind(1)).toBe('paragraph');
+	});
 });

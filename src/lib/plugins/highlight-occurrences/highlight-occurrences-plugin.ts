@@ -1,7 +1,7 @@
 /**
  * A decoration source built on public API alone: `onEditor` wires a mark source to the
- * selection and edit events, while the scan, its cache and the pause-while-typing rule stay
- * pure in the sibling modules.
+ * selection, edit and source-swap events; the scan, its cache and the pause-while-typing rule
+ * stay pure in the sibling modules.
  */
 
 import { definePlugin, type EditorPlugin } from '$lib/plugin';
@@ -32,9 +32,13 @@ export function highlightOccurrencesPlugin(
 				const offEdit = editor.events.on('edit', ({ op }) => {
 					if (occurrences.noteEdit(op)) handle.invalidate();
 				});
+				const offSourceSwap = editor.events.on('sourceSwap', () => {
+					if (occurrences.noteSourceSwap()) handle.invalidate();
+				});
 				return () => {
 					offSelection();
 					offEdit();
+					offSourceSwap();
 					handle.dispose();
 				};
 			});
