@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { getContext, untrack } from 'svelte';
-	import type { Document } from '../../core/nodes';
+	import type { Document, ImageFields } from '../../core/nodes';
 	import type { PresentationMode } from '../../presentation-mode';
 	import type { UndoController } from '../../editor-actions/deps';
 	import type { GrammarView } from '../../schema/block-openers';
@@ -13,7 +13,8 @@
 	import { imageFieldsFromInline } from './image-source-bytes';
 	import {
 		IMAGE_CHROME_SELECTOR,
-		type WidgetSelectionState
+		type WidgetSelectionState,
+		type WidgetTarget
 	} from './widget-selection-state.svelte';
 
 	// Mounted unconditionally by Editor: the effects below must observe
@@ -81,6 +82,16 @@
 		untrack(imageEdit.clearStaleSelection);
 	});
 
+	// The popover's effects and cleanup can run once more after the selection or its image is
+	// gone, before the branch that mounts it tears down, so they read the last live pair.
+	let lastPopover: { target: WidgetTarget; fields: ImageFields } | null = null;
+	const popover = $derived.by(() => {
+		const target = widgetSelection.getSelected();
+		const image = imageEdit.getSelectedImageFields()?.image;
+		if (target && image) lastPopover = { target, fields: imageFieldsFromInline(image) };
+		return lastPopover;
+	});
+
 	$effect(() => {
 		widgetSelection.getSelected(); // re-run + reposition when the selected widget changes
 		return imageEdit.syncOverlayToWidget(() => imageOverlayEl ?? null);
@@ -101,9 +112,8 @@
 <!-- Selecting an image stays available in reading mode; the overlay is a set of
 	editing controls, so reading mode never mounts it. -->
 {#if widgetSelection.getSelected() && getPresentationMode() !== 'reading'}
-	{@const sel = widgetSelection.getSelected()!}
 	{@const ctx = imageEdit.getSelectedImageFields()}
-	{#if ctx?.widgetEl}
+	{#if ctx?.widgetEl && popover}
 		<div bind:this={imageOverlayEl} class="md-image-overlay" data-image-overlay>
 			{#if !cropping}
 				<ImageResizeHandles
@@ -113,10 +123,10 @@
 					onCommit={imageEdit.commitImageResize}
 				/>
 			{/if}
-			{#key `${sel.paragraphPath.join(',')}@${sel.sourceStart}`}
+			{#key `${popover.target.paragraphPath.join(',')}@${popover.target.sourceStart}`}
 				<ImageProperties
-					target={sel}
-					fields={imageFieldsFromInline(ctx.image)}
+					target={popover.target}
+					fields={popover.fields}
 					getWidgetEl={() => imageEdit.getSelectedImageFields()?.widgetEl ?? null}
 					buildBytes={imageEdit.buildEditBytes}
 					onCommit={imageEdit.commitImageEdit}

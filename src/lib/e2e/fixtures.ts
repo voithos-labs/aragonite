@@ -1,12 +1,11 @@
 import { test as base, expect, type ConsoleMessage } from '@playwright/test';
 import { getContainerParityMismatches } from './container-parity';
 
-// The shared e2e `test`, with two checks at teardown. The console watch: dev warnings arrive on
-// the console tagged `[aragonite:…]` and Svelte runtime warnings tagged `[svelte] <code>`, not as
-// the structured error event, so a spec watching `getCapturedErrors()` alone would miss them. A
-// spec that trips one declares its tags below, and each declared tag must fire while no other
-// may. The container-parity walk, which the console cannot cover: BlockHost's error boundary
-// swallows `each_key_duplicate` with no console line. A route with no editor skips that walk.
+// The shared e2e `test`, with two checks at teardown. The console watch: dev warnings tagged
+// `[aragonite:…]`, Svelte warnings tagged `[svelte] <code>`, and uncaught client errors, which
+// carry no tag. A spec that trips one declares its tags below, and each declared tag must fire
+// while no other may. The container-parity walk, which the console cannot cover: BlockHost's error
+// boundary swallows `each_key_duplicate` with no console line. A route with no editor skips it.
 
 interface WarnFixtures {
 	/** Invariant tags this spec deliberately triggers, e.g. `['late-opener-registration']`. */
@@ -19,17 +18,21 @@ interface WarnFixtures {
 
 const SENTINEL_TAG = /\[aragonite:([^\]]+)\]/;
 const SVELTE_CODE = /\[svelte\]\s+([a-z0-9_]+)/;
+// Both the bare form and Vite's `[vite] (client) [Unhandled error]` relay of it.
+const UNHANDLED = /Unhandled error/;
 
 /** A prefix `expectWarns` may not carry: `invariant:` and `svelte:` each have their own list. */
 const NAMESPACED = /^(invariant|svelte):/;
 
-/** Both kinds of console warning carry a tag, so one watch and one declared list cover both. */
+/** Every console fire maps to a tag, so one watch and one declared list cover them all. */
 function fireOf(m: ConsoleMessage): { tag: string; text: string } | null {
 	const text = `${m.type()}: ${m.text()}`;
 	const sentinel = SENTINEL_TAG.exec(m.text())?.[1];
 	if (sentinel) return { tag: sentinel, text };
 	const code = SVELTE_CODE.exec(m.text())?.[1];
-	if (!code) return null;
+	if (!code) {
+		return m.type() === 'error' && UNHANDLED.test(m.text()) ? { tag: 'unhandled', text } : null;
+	}
 	// Under the dev server every Svelte warning reports Vite's console proxy as its origin, which
 	// names nothing, so the code inside the text is all there is to go on.
 	const at = m.location();
@@ -58,7 +61,10 @@ export const test = base.extend<WarnFixtures>({
 			const fire = fireOf(m);
 			if (fire) fires.push(fire);
 		};
+		const onPageError = (e: Error) =>
+			fires.push({ tag: 'pageerror', text: `pageerror: ${e.stack || e.message || String(e)}` });
 		page.on('console', onConsole);
+		page.on('pageerror', onPageError);
 		await use(page);
 
 		// `assertInvariant` reports under the `invariant:` prefix, so the three declared lists
@@ -71,7 +77,7 @@ export const test = base.extend<WarnFixtures>({
 		const unexpected = fires.filter((f) => !expected.has(f.tag)).map((f) => f.text);
 		expect(
 			unexpected,
-			`unexpected [aragonite:…] / [svelte] console fires:\n${unexpected.join('\n')}`
+			`unexpected [aragonite:…] / [svelte] console fires or uncaught errors:\n${unexpected.join('\n')}`
 		).toEqual([]);
 
 		// Console messages reach the Node listener asynchronously, so a required warning may
@@ -82,6 +88,7 @@ export const test = base.extend<WarnFixtures>({
 				.toEqual([]);
 		}
 		page.off('console', onConsole);
+		page.off('pageerror', onPageError);
 
 		const hasEditor = await page
 			.evaluate(
