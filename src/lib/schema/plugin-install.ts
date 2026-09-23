@@ -33,8 +33,8 @@ export type EditorEventSubscriptions = Pick<EditorEvents, 'on'>;
 export interface EditorContext<Options = unknown> {
 	readonly editorId: string;
 	readonly document: DocumentView; // getter-backed, live; mutation goes through commits
-	/** A getter, so always live: how many times a `source` write has replaced the document, 0 at
-	 *  mount. The `sourceSwap` event signals a change. */
+	/** A getter, so always live, but not reactive: how many times a `source` write has replaced
+	 *  the document, 0 at mount. Subscribe to the `sourceSwap` event to hear a change. */
 	readonly documentGeneration: number;
 	readonly events: EditorEventSubscriptions;
 	readonly options: Options;

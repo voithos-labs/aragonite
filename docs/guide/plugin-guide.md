@@ -525,17 +525,18 @@ setup(ctx) {
 }
 ```
 
-| Field                | What it gives you                                                                                                                 |
-| -------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
-| `editorId`           | A stable per-mount id. Key your own `Map` / `WeakMap` on it for per-editor state                                                  |
-| `document`           | A live getter for the root document, as a read-only `DocumentView` ([Views](#views-what-you-read-what-you-own))                   |
-| `documentGeneration` | How many times a `source` write has replaced the document, live, paired with the `sourceSwap` event                               |
-| `events`             | The subscribe-only event view; `events.on('edit', …)` returns a disposer                                                          |
-| `options`            | The options this editor passed, typed once you write `definePlugin<Options>` (recipe below)                                       |
-| `decorations`        | This editor's decoration registry, where you register a source ([Decorations](#decorations))                                      |
-| `rects`              | This editor's viewport-space geometry: block box, range rects, caret, reveal, navigation                                          |
-| `presentationMode`   | The effective presentation mode, live, paired with the `presentationModeChange` event ([Presentation modes](#presentation-modes)) |
-| `theme`              | The editor's theme name, live, paired with the `themeChange` event, for content whose colors an engine paints                     |
+| Field                | What it gives you                                                                                                                          |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| `editorId`           | A stable per-mount id. Key your own `Map` / `WeakMap` on it for per-editor state                                                           |
+| `document`           | A live getter for the root document, as a read-only `DocumentView` ([Views](#views-what-you-read-what-you-own))                            |
+| `documentGeneration` | How many times a `source` write has replaced the document, live but not reactive: subscribe to the `sourceSwap` event to hear a change     |
+| `events`             | The subscribe-only event view; `events.on('edit', …)` returns a disposer                                                                   |
+| `options`            | The options this editor passed, typed once you write `definePlugin<Options>` (recipe below)                                                |
+| `decorations`        | This editor's decoration registry, where you register a source ([Decorations](#decorations))                                               |
+| `rects`              | This editor's viewport-space geometry: block box, range rects, caret, reveal, navigation                                                   |
+| `inlineMenus`        | This editor's registry for lists opened by a typed trigger ([Recipe: a typed-trigger menu](consumer-guide.md#recipe-a-typed-trigger-menu)) |
+| `presentationMode`   | The effective presentation mode, live, paired with the `presentationModeChange` event ([Presentation modes](#presentation-modes))          |
+| `theme`              | The editor's theme name, live, paired with the `themeChange` event, for content whose colors an engine paints                              |
 
 Return a disposer from the callback and the editor runs it at unmount. Registration is synchronous-only: call `onEditor` from `setup`, not from some later callback.
 
