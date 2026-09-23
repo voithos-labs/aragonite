@@ -40,6 +40,7 @@ import {
 	fail,
 	type ConformanceCoverage
 } from './conformance-core';
+import { defaultGrammarView } from '../schema/block-openers';
 
 // ── Profile ──────────────────────────────────────────────────────────────────
 
@@ -369,7 +370,7 @@ function checkOverlapDecline(profile: InlineConformanceProfile, rung: InlineRung
 		for (let pos = 0; pos < source.length; pos++) {
 			if (!source.startsWith(rung.prefix, pos)) continue;
 			positions++;
-			const claimed = rung.recognizer(source, pos, source.length);
+			const claimed = rung.recognizer(source, pos, source.length, defaultGrammarView);
 			if (claimed !== null) {
 				fail(
 					`the "${rung.prefix}" rung swallowed the overlap in ${JSON.stringify(source)} at ` +

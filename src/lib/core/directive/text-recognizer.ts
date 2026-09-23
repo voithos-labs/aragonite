@@ -8,6 +8,7 @@
 import type { AnyInlineKind, InlineNode, PluginInlineKind } from '../nodes';
 import { createBoundedMemo } from '../../bounded-memo';
 import { resolveDirective } from './registry';
+import type { GrammarView } from '../../schema/block-openers';
 
 const isNameStart = (code: number): boolean =>
 	(code >= 0x41 && code <= 0x5a) || (code >= 0x61 && code <= 0x7a); // A-Z a-z
@@ -68,7 +69,8 @@ export function recognizeTextDirective(
 	raw: string,
 	pos: number,
 	end: number,
-	kind: PluginInlineKind
+	kind: PluginInlineKind,
+	grammar: GrammarView
 ): InlineNode | null {
 	// `://` is a scheme separator (http://, mailto:), never a directive.
 	if (raw[pos + 1] === '/' && raw[pos + 2] === '/') return null;
@@ -98,6 +100,6 @@ export function recognizeTextDirective(
 
 	// Sibling-path parity with the block opener: a registered name resolves to the plugin's own
 	// inline kind, an unregistered one keeps the generic `kind`.
-	const def = resolveDirective('text', raw.slice(pos + 1, nameEnd));
+	const def = resolveDirective('text', raw.slice(pos + 1, nameEnd), grammar);
 	return { kind: (def?.kind ?? kind) as AnyInlineKind, start: pos, end: i };
 }

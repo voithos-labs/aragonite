@@ -12,6 +12,7 @@ import type { LinkReferenceResolverRef } from '../../../editor-keys';
 import type { InlineNode } from '../../../core/nodes';
 import type { InlineWidgetEditingPolicy } from '../../../core/inline/inline-widgets';
 import { resolvedInlineContent } from '../../../core/inline/inline-cache';
+import type { GrammarView } from '../../../schema/block-openers';
 import { getContentRange } from '../../../core/inline';
 import { getInlineWidgetEditing } from '../../../core/inline/inline-widgets';
 import { trimTrailingLineEnding, trailingLineEnding } from '../../../core/lines';
@@ -41,9 +42,12 @@ import { widgetAtCursor } from './widget-adjacency';
 import { resolveDelimiterAutoPair } from './delimiter-autopair';
 import { soleProseReparse } from './screen-diff';
 
-/** Whether `line` still parses back as `node`'s kind, which the auto-pair resolver checks. */
-export function keepsBlockKind(node: NodeView, line: string): boolean {
-	return soleProseReparse(line + trailingLineEnding(node.raw))?.block.kind === node.kind;
+/** Whether `line` still parses back as `node`'s kind in the editor's grammar, which the auto-pair
+ *  resolver checks. */
+export function keepsBlockKind(node: NodeView, line: string, grammar?: GrammarView): boolean {
+	return (
+		soleProseReparse(line + trailingLineEnding(node.raw), { grammar })?.block.kind === node.kind
+	);
 }
 
 /** The part of the inline-widget editing policy the built-in widget rules reuse, in the same
@@ -359,7 +363,8 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 		// Forward keys enter the widget after the caret, backward keys the one before, so
 		// a caret between two adjacent widgets enters the one the key is aimed at.
 		const direction = e.key === 'ArrowRight' || e.key === 'Delete' ? 'forward' : 'backward';
-		const widgetAt = widgetAtCursor(caretOffset, inlinesOf(node), node.raw, direction);
+		const grammar = deps.linkRef?.grammar;
+		const widgetAt = widgetAtCursor(caretOffset, inlinesOf(node), node.raw, direction, grammar);
 		if (!widgetAt) return false;
 		// Past the early return: every keystroke in every prose block reaches the line above, so
 		// the work below stays off that path.
@@ -374,7 +379,8 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 			plainEdgeKey && !widgetAt.atRight && (e.key === 'ArrowRight' || e.key === 'Delete');
 		if (enterFromRight || enterFromLeft) {
 			const isDestructive = e.key === 'Backspace' || e.key === 'Delete';
-			const policy = deps.widgetEdgePolicy?.(widgetAt) ?? getInlineWidgetEditing(widgetAt.kind);
+			const policy =
+				deps.widgetEdgePolicy?.(widgetAt) ?? getInlineWidgetEditing(widgetAt.kind, grammar);
 			// A step-over widget reads as one character to navigation, so decline and let the
 			// browser carry the caret across. Only navigation steps over; a destructive key
 			// still runs the atomic-delete branch below.
@@ -699,7 +705,15 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 		// A delimiter typed over its own closing one is the auto-pair's step-over, handled on
 		// beforeinput (delimiter-autopair.ts); placed outside the run it would be typed instead.
 		const content = getContentRange(deps.node);
-		const autoPair = resolveDelimiterAutoPair(display(), content, caretOffset, e.key);
+		const grammar = deps.linkRef?.grammar;
+		const autoPair = resolveDelimiterAutoPair(
+			display(),
+			content,
+			caretOffset,
+			e.key,
+			undefined,
+			grammar
+		);
 		if (autoPair?.kind === 'step-over') return false;
 		const el = deps.getEl();
 		const seat = el && typingSeatAt(el, caretOffset, e.key);
@@ -709,8 +723,13 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 		// Those rules decide where the byte lands; what a delimiter keystroke writes there is
 		// still the auto-pair's answer, or a byte placed past a run would arrive without its
 		// closing partner. The kind goes into the debug trace, naming the construct involved.
-		const paired = resolveDelimiterAutoPair(display(), content, seat.offset, e.key, (line) =>
-			keepsBlockKind(deps.node, line)
+		const paired = resolveDelimiterAutoPair(
+			display(),
+			content,
+			seat.offset,
+			e.key,
+			(line) => keepsBlockKind(deps.node, line, grammar),
+			grammar
 		);
 		if (paired && paired.kind !== 'step-over') {
 			writeDisplay(paired.text, paired.caret, `seat:${seat.kind}`, caretOffset);

@@ -1,9 +1,9 @@
 /**
- * Per-editor resolution over the process-wide block definitions
- * (docs/design/plugin-contract.md § The registries: global, register-once). The default view
- * resolves every kind exactly as registered, so a `parse()` with no editor and every plain
- * component mount stay byte-identical. A view with `isEnabled` resolves no component for a
- * disabled plugin kind and drops its opener, and `syntax` drops the built-in syntaxes a host
+ * Per-editor resolution over the process-wide definitions
+ * (docs/design/plugin-contract.md § Per-instance enablement). The default view resolves
+ * everything as registered, so a `parse()` with no editor stays byte-identical. A view with
+ * `plugins` leaves out what an unlisted plugin registered (its components, openers, inline syntax,
+ * widgets, directive names and completers), and `syntax` drops the built-in syntaxes a host
  * switched off; the descriptor is never filtered, since a disabled kind still needs it.
  */
 import { isBuiltinBlockKind, type AnyBlockKind } from '../core/nodes';
@@ -14,6 +14,7 @@ import {
 	type BlockKindDescriptor
 } from './block-kind-descriptor';
 import { defaultGrammarView, createGrammarView, type GrammarView } from './block-openers';
+import { kindEnablementFor, type PluginActivation } from './plugin-activation';
 
 /** `false` disables a plugin kind for one editor; built-ins are switched only by `syntax`. */
 export type KindEnablement = (kind: AnyBlockKind) => boolean;
@@ -48,10 +49,14 @@ export function bothEnable(
 }
 
 export function createRegistryView(opts?: {
+	/** The plugins this editor lists; absent activates every installed plugin. */
+	plugins?: PluginActivation;
+	/** A further kind filter, narrowing what `plugins` allows. */
 	isEnabled?: KindEnablement;
 	syntax?: SyntaxOptions;
 }): RegistryView {
-	const filter = opts?.isEnabled;
+	const plugins = opts?.plugins;
+	const filter = bothEnable(plugins && kindEnablementFor(plugins), opts?.isEnabled);
 	const indentedCode = opts?.syntax?.indentedCode ?? true;
 	const setextHeading = opts?.syntax?.setextHeading ?? true;
 	if (!filter && indentedCode && setextHeading) return defaultRegistryView;
@@ -63,7 +68,10 @@ export function createRegistryView(opts?: {
 		component: (kind) => (enabled(kind) ? getBlockComponent(kind) : undefined),
 		descriptor: (kind) => getBlockKindDescriptor(kind),
 		tryDescriptor: (kind) => tryGetBlockKindDescriptor(kind),
-		grammar: createGrammarView(opens, { setextHeading })
+		grammar: createGrammarView(opens, {
+			setextHeading,
+			isPluginEnabled: plugins && ((owner) => plugins.isActive(owner))
+		})
 	};
 }
 

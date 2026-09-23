@@ -1,15 +1,18 @@
 <script module lang="ts">
 	import { parrotPlugin } from '$lib/plugins/parrot';
+	import { emojiPlugin } from '$lib/plugins/emoji';
+	import { admonitionsPlugin } from '$lib/plugins/admonitions';
 	import { blockBadgePlugin } from '../block-badge/block-badge-plugin';
 	import { docStatsPlugin } from '../doc-stats/doc-stats-plugin';
 
 	// Module scope so the entry arrays stay identity-stable across (SSR) renders.
-	const listedPlugins = [parrotPlugin(), blockBadgePlugin];
+	const listedPlugins = [parrotPlugin(), blockBadgePlugin, emojiPlugin(), admonitionsPlugin()];
 	const unlistedPlugins = [docStatsPlugin];
 
-	// Each editor parses the seed in its own grammar: the first reads a parrot block, the second,
-	// which did not list the plugin, reads the same bytes as a paragraph.
-	const SEED = '# Heading\n\n%%parrot party responsibly\n\nBody\n';
+	// Each editor parses the seed in its own grammar: the first reads a parrot block, an emoji and
+	// a note, the second, which listed none of those plugins, reads the parrot bytes as a paragraph,
+	// the shortcode as text and the fence as the generic directive.
+	const SEED = '# Heading :smile:\n\n%%parrot party responsibly\n\n:::note\n\nTip\n\n:::\n\nBody\n';
 </script>
 
 <script lang="ts">
@@ -53,7 +56,7 @@
 
 <div class="activation-harness aragonite-editor-theme">
 	<div class="pane" data-testid="editor-listing">
-		<h2>lists parrot + block-badge</h2>
+		<h2>lists parrot, block-badge, emoji, admonitions</h2>
 		<Editor bind:this={listing} source={SEED} plugins={listedPlugins} />
 	</div>
 	<div class="pane" data-testid="editor-not-listing">

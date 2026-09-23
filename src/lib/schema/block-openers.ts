@@ -139,24 +139,35 @@ export function lineInterruptsParagraph(lineText: string): boolean {
 }
 
 /**
- * A per-editor view of the global openers, passed in as `parse(source, { grammar })`. The
- * opener dispatch and the setext underline check are resolved per editor; the
- * paragraph-interrupt scan uses the global grammar.
+ * A per-editor view of the global syntax, passed in as `parse(source, { grammar })` and to the
+ * inline scan. The opener dispatch, the setext underline check and every plugin's inline syntax,
+ * widgets, directive names and completers are resolved per editor; the paragraph-interrupt scan
+ * uses the global grammar.
  */
 export interface GrammarView {
 	orderedOpeners(): readonly BlockOpener[];
 	/** Whether a `===` or `---` line under paragraph text makes it a heading. */
 	readonly setextHeading: boolean;
+	/** Whether this editor lists the plugin that registered an entry; built-ins have no owner. */
+	isPluginEnabled(owner: string): boolean;
 }
+
+const everyPlugin = (): boolean => true;
 
 export const defaultGrammarView: GrammarView = {
 	orderedOpeners: () => getOrderedOpeners(),
-	setextHeading: true
+	setextHeading: true,
+	isPluginEnabled: everyPlugin
 };
+
+/** Whether an entry registered by `owner` (null for a built-in) resolves under `grammar`. */
+export function ownerEnabled(grammar: GrammarView, owner: string | null): boolean {
+	return owner === null || grammar.isPluginEnabled(owner);
+}
 
 export function createGrammarView(
 	isEnabled: OpenerEnablement,
-	options: { setextHeading?: boolean } = {}
+	options: { setextHeading?: boolean; isPluginEnabled?: (owner: string) => boolean } = {}
 ): GrammarView {
 	// A reparse reads this once per block, so the filtered list is cached against the global
 	// ordering array: a later registration replaces that array, which rebuilds the filter.
@@ -164,6 +175,7 @@ export function createGrammarView(
 	let filtered: readonly BlockOpener[] = [];
 	return {
 		setextHeading: options.setextHeading ?? true,
+		isPluginEnabled: options.isPluginEnabled ?? everyPlugin,
 		orderedOpeners() {
 			const entries = consumedEntries();
 			if (entries !== builtFrom) {

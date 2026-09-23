@@ -10,6 +10,7 @@ import type { BlockEditActions } from '../action-contracts';
 import type { CstNode } from '../core/nodes';
 import type { NodeView } from '../core/node-views';
 import { getBlockKindDescriptor } from '../schema/block-kind-descriptor';
+import { defaultGrammarView, type GrammarView } from '../schema/block-openers';
 import {
 	completeLineOnType,
 	completeTypedLine,
@@ -30,12 +31,13 @@ export interface EnterCompletion {
  */
 export function withEnterCompletion(
 	blockEdit: BlockEditActions,
-	childAt: (index: number) => NodeView | undefined
+	childAt: (index: number) => NodeView | undefined,
+	grammar: GrammarView | undefined
 ): BlockEditActions {
 	return {
 		...blockEdit,
 		async splitBlock(index: number, offset: number): Promise<void> {
-			const completion = planEnterCompletion(childAt(index), offset);
+			const completion = planEnterCompletion(childAt(index), offset, grammar);
 			if (!completion) {
 				await blockEdit.splitBlock(index, offset);
 				return;
@@ -57,7 +59,7 @@ export function withEnterCompletion(
 			await blockEdit.updateBlockContent(index, text, preEditOffset, postEditFocusOffset);
 			const offset = postEditFocusOffset ?? preEditOffset;
 			if (offset === undefined) return;
-			const completion = planTypedCompletion(childAt(index), offset);
+			const completion = planTypedCompletion(childAt(index), offset, grammar);
 			if (!completion) return;
 			await blockEdit.replaceBlock(
 				index,
@@ -72,17 +74,19 @@ export function withEnterCompletion(
 /** The completion Enter at `offset` produces, or null when the block or the caret rules it out. */
 export function planEnterCompletion(
 	node: NodeView | undefined,
-	offset: number
+	offset: number,
+	grammar: GrammarView = defaultGrammarView
 ): EnterCompletion | null {
-	return planCompletion(node, offset, completeTypedLine);
+	return planCompletion(node, offset, (line) => completeTypedLine(line, grammar));
 }
 
 /** The completion a keystroke produces, asking only the completers that answer on type. */
 export function planTypedCompletion(
 	node: NodeView | undefined,
-	offset: number
+	offset: number,
+	grammar: GrammarView = defaultGrammarView
 ): EnterCompletion | null {
-	return planCompletion(node, offset, completeLineOnType);
+	return planCompletion(node, offset, (line) => completeLineOnType(line, grammar));
 }
 
 function planCompletion(

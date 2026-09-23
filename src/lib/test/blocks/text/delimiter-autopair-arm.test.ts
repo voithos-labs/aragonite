@@ -37,6 +37,7 @@ function surfaceOver(
 		seatOutside: () => recorded.outside++,
 		write: (next, before, after) => recorded.writes.push([next, before, after]),
 		keepsBlockKind,
+		grammar: undefined,
 		get writes() {
 			return recorded.writes;
 		},

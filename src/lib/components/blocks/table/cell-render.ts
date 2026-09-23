@@ -11,6 +11,7 @@ import type { LinkReferenceResolverRef, ResolveLinkUrl } from '../../../editor-k
 import type { PresentationMode } from '../../../presentation-mode';
 import { computeInlineContent, contentLengthOf } from '../../../core/inline';
 import { renderInlineNodes } from '../../../core/inline-render';
+import type { GrammarView } from '../../../schema/block-openers';
 import { trimTrailingLineEnding } from '../../../core/lines';
 import {
 	captureFocusedCaretWalkOffset,
@@ -29,6 +30,8 @@ export interface CellRenderDeps {
 	get el(): HTMLElement | null;
 	get node(): NodeView;
 	get linkRef(): LinkReferenceResolverRef | undefined;
+	/** The editor's grammar: a plugin it left out claims no bytes and draws no widget here. */
+	grammar: GrammarView;
 	resolveLinkUrl: ResolveLinkUrl;
 	/** The mode in effect. Read inside the render pass on purpose: that read is the
 	 *  reactive dependency that re-renders every mounted cell when the mode changes. */
@@ -71,7 +74,8 @@ export function createCellRender(deps: CellRenderDeps): CellRender {
 		getTheme: deps.getTheme,
 		getDocument: deps.getDocument,
 		getContentVersion: deps.getContentVersion,
-		navigateTo: deps.navigateTo
+		navigateTo: deps.navigateTo,
+		grammar: deps.grammar
 	});
 	let islandDestroys: Array<() => void> = [];
 
@@ -103,7 +107,11 @@ export function createCellRender(deps: CellRenderDeps): CellRender {
 		const forceRebuild = opts?.forceRebuild ?? false;
 		if (renderKey === lastRenderedKey && !forceRebuild) return;
 
-		const content = computeInlineContent(node, hasRef ? deps.linkRef?.current : undefined);
+		const content = computeInlineContent(
+			node,
+			hasRef ? deps.linkRef?.current : undefined,
+			deps.grammar
+		);
 		// A change to the decorations rebuilds a focused cell with no pending offset from the
 		// edit path, so the caret is carried across; the edit path opts out because its own
 		// restore runs after and wins, as text-render does.
@@ -116,7 +124,8 @@ export function createCellRender(deps: CellRenderDeps): CellRender {
 			renderInlineNodes(content, node.raw, {
 				renderImagesAsWidgets: getBlockKindDescriptor(node.kind).renderImagesAsWidgets ?? true,
 				resolveLinkUrl: deps.resolveLinkUrl,
-				buildPortalWidget
+				buildPortalWidget,
+				grammar: deps.grammar
 			})
 		);
 		// A prefix length of 0: a cell has no marker, so decoration offsets are raw offsets.

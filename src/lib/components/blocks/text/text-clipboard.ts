@@ -102,7 +102,7 @@ export function createTextClipboard(deps: TextClipboardDeps): TextClipboard {
 			return null;
 		}
 		const inline = resolvedInlineContent(deps.node, deps.linkRef).find(
-			(n) => isInlineWidget(n, deps.node.raw) && n.start === selected.sourceStart
+			(n) => isInlineWidget(n, deps.node.raw, deps.grammar) && n.start === selected.sourceStart
 		);
 		return inline ? { inline, preSelectOffset: selected.preSelectOffset } : null;
 	}

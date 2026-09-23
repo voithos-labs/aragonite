@@ -456,6 +456,7 @@
 		get linkStamp(): string {
 			return String(linkRef?.epoch ?? 0);
 		},
+		grammar,
 		get islands() {
 			return decorationEngine ? decorationEngine.islandsForPath(myPath) : NO_ISLANDS;
 		},
@@ -805,7 +806,7 @@
 		if (lastSnapTargetOffset === null || selection.isCrossBlock) return;
 		const off = lastSnapTargetOffset;
 		for (const inline of resolvedInlineContent(node, linkRef)) {
-			if (!isInlineWidget(inline, node.raw)) continue;
+			if (!isInlineWidget(inline, node.raw, grammar)) continue;
 			if (inline.end !== off && inline.start !== off) continue;
 			const widget = widgetElByStart(el, inline.start);
 			if (widget) {
@@ -951,8 +952,9 @@
 			markersPaint: () => paintsFocusedMarkers(presentationMode),
 			setCaret: (offset) => cursor.setRaw(asRawOffset(offset)),
 			seatOutside: edgeAffinity.noteExtreme,
-			completesLine: (caret) => planTypedCompletion(node, caret) !== null,
-			keepsBlockKind: (text) => keepsBlockKind(node, text),
+			completesLine: (caret) => planTypedCompletion(node, caret, grammar) !== null,
+			keepsBlockKind: (text) => keepsBlockKind(node, text, grammar),
+			grammar,
 			write: (text, caretBefore, caretAfter) => {
 				const raw = text + trailingLineEnding(node.raw);
 				void blockEdit.updateBlockContent(index, raw, caretBefore, caretAfter);

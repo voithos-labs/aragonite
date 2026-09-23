@@ -8,6 +8,7 @@
 
 import type { InlineNode } from './nodes';
 import { buildCoreInlineWidget } from './inline/inline-widgets';
+import type { GrammarView } from '../schema/block-openers';
 import { isAllowedHrefScheme } from './url-policy';
 
 // ── Render options ──────────────────────────────────────────────────────────
@@ -35,6 +36,8 @@ export interface RenderInlineOptions {
 	 * as `buildImageWidget`; absent or null falls the widget back to its raw source.
 	 */
 	buildPortalWidget?: (node: InlineNode, raw: string) => HTMLElement | null;
+	/** The editor's grammar: a widget kind whose plugin it leaves out renders as its source. */
+	grammar?: GrammarView;
 	/**
 	 * Render a lone backslash ending the display as the hard break it is about to become: the
 	 * byte as a (hidden) marker plus two `br` anchors so the caret has a second line to sit on.
@@ -403,7 +406,7 @@ function renderNode(
 			// literal-source span; anything the registry does not claim falls back the same way,
 			// mirroring the unknown-block fallback so every byte round-trips.
 			container.appendChild(
-				buildCoreInlineWidget(node, raw, opts.buildPortalWidget) ??
+				buildCoreInlineWidget(node, raw, opts.buildPortalWidget, opts.grammar) ??
 					sourceSpan(
 						raw,
 						node,

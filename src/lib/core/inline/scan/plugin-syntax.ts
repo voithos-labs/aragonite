@@ -7,6 +7,8 @@
  */
 
 import type { ImageSyntaxRewriter, InlineNode, InlineSyntaxClaim } from '../../nodes';
+import { ownerEnabled, type GrammarView } from '../../../schema/block-openers';
+import { currentInstallingPlugin } from '../../../schema/plugin-install';
 import { registerOnce } from '../../../schema/register-once';
 
 /**
@@ -51,9 +53,19 @@ export interface InlineSyntaxOptions {
 	autoPair?: boolean;
 }
 
+/** The scan hands its grammar on as a fourth argument, which only the core text directive reads. */
+type ScopedRecognizer = (
+	raw: string,
+	pos: number,
+	end: number,
+	grammar: GrammarView
+) => InlineNode | null;
+
 export interface InlineRung extends InlineSyntaxClaim {
-	recognizer: InlineSyntaxRecognizer;
+	recognizer: ScopedRecognizer;
 	priority: number;
+	/** The plugin whose setup registered the handler; null for a core one. */
+	owner: string | null;
 }
 
 /**
@@ -85,9 +97,9 @@ const NO_RUNGS: readonly InlineRung[] = [];
 const reservedRegistry = new Map<string, InlineRung[]>();
 const unreservedRegistry = new Map<string, InlineRung[]>();
 
-// Triggers that close themselves as they are typed (`autoPair`); the built-in backtick is not
-// here, the typing path knows it on its own.
-const autoPairTriggers = new Set<string>();
+// Triggers that close themselves as they are typed (`autoPair`), each with the plugin that asked;
+// the built-in backtick is not here, the typing path knows it on its own.
+const autoPairTriggers = new Map<string, string | null>();
 
 // Triggers the fast bail (`needsScan`, scan/index.ts) must check while a handler is registered
 // on them. Filled at registration, so a handler on a trigger `SPECIAL_CHARS` already checks
@@ -158,12 +170,13 @@ export function registerInlineSyntax(
 				recognizer,
 				prefix: effectivePrefix,
 				priority,
-				rewriteImage
+				rewriteImage,
+				owner: currentInstallingPlugin()
 			});
 			// A handler on a trigger the fast bail would skip must make the scan check it,
 			// or the recognizer is the silent no-op this registry refuses to accept.
 			if (!reserved || SCAN_PROBED_RESERVED.has(trigger)) scanProbeTriggers.add(trigger);
-			if (autoPair) autoPairTriggers.add(trigger);
+			if (autoPair) autoPairTriggers.set(trigger, currentInstallingPlugin());
 		},
 		`registerInlineSyntax: ${JSON.stringify(trigger)} already registered at prefix ` +
 			`${JSON.stringify(effectivePrefix)}, priority ${priority}`
@@ -230,9 +243,10 @@ export function isScanProbeTrigger(char: string): boolean {
 	return scanProbeTriggers.has(char);
 }
 
-/** Whether a plugin asked for `char` to close itself as it is typed. */
-export function isAutoPairTrigger(char: string): boolean {
-	return autoPairTriggers.has(char);
+/** Whether a plugin the editor's grammar lists asked for `char` to close itself as it is typed. */
+export function isAutoPairTrigger(char: string, grammar: GrammarView): boolean {
+	const owner = autoPairTriggers.get(char);
+	return owner !== undefined && ownerEnabled(grammar, owner);
 }
 
 /** False costs the scan loop nothing. */

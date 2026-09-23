@@ -59,9 +59,27 @@ test.describe('the plugins prop is the enablement set', () => {
 		await page.keyboard.press('Home');
 		await page.keyboard.press('Enter');
 
-		await expect(pane.locator('[data-block-kind="paragraph"]')).toHaveCount(3);
+		// The new empty paragraph, the parrot bytes, the note's body and `Body`.
+		await expect(pane.locator('[data-block-kind="paragraph"]')).toHaveCount(4);
 		await expect(pane.locator('[data-block-kind="parrot"]')).toHaveCount(0);
 		expect(await convergedIn(page, 'notListing')).toBe(true);
+	});
+
+	// GH #266: inline syntax, widgets and directive names reached every editor in the process.
+	test('an unlisted inline plugin leaves its shortcode as text', async ({ page }) => {
+		const listed = page.getByTestId('editor-listing').locator('[data-block-kind="heading"]');
+		const unlisted = page.getByTestId('editor-not-listing').locator('[data-block-kind="heading"]');
+		await expect(listed.locator('.md-emoji-widget')).toHaveCount(1);
+		await expect(unlisted.locator('.md-emoji-widget')).toHaveCount(0);
+		await expect(unlisted).toHaveText(/Heading :smile:/);
+	});
+
+	test('an unlisted directive name reads as the generic directive', async ({ page }) => {
+		const listed = page.getByTestId('editor-listing');
+		const unlisted = page.getByTestId('editor-not-listing');
+		await expect(listed.locator('[data-block-kind="admonition"]')).toHaveCount(1);
+		await expect(unlisted.locator('[data-block-kind="admonition"]')).toHaveCount(0);
+		await expect(unlisted.locator('[data-block-kind="directiveContainer"]')).toHaveCount(1);
 	});
 
 	// The badge comes from an onEditor hook, so its absence means the hook never ran here.

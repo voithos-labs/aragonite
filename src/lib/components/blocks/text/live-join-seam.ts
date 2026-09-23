@@ -18,7 +18,8 @@ import {
 	renderedText
 } from '../../../core/inline/visibility';
 import { trimTrailingLineEnding } from '../../../core/lines';
-import type { LinkReferenceResolver } from '../../../core/inline/link-reference-resolver';
+import type { InlineResolverRef } from '../../../schema/inline-construct-policy';
+import type { GrammarView } from '../../../schema/block-openers';
 import type { AnyInlineKind, InlineNode } from '../../../core/nodes';
 import { parse } from '../../../core/parser';
 import {
@@ -31,9 +32,9 @@ import { soleProseReparse } from './screen-diff';
 // ── The rewrite ──────────────────────────────────────────────────────────────
 
 export const cleanLiveJoinSeam: LiveJoinSeamCleaner = (join) => {
-	const resolver = join.linkRef?.current;
-	const left = readSide(join.start, 'before', resolver);
-	const right = readSide(join.end, 'after', resolver);
+	const ref = join.linkRef;
+	const left = readSide(join.start, 'before', ref);
+	const right = readSide(join.end, 'after', ref);
 	if (left === null || right === null) return null;
 	// Nothing sits at the join, so the plain concatenation is already the answer, and an ordinary
 	// Backspace between two paragraphs pays for no parse.
@@ -57,7 +58,7 @@ export const cleanLiveJoinSeam: LiveJoinSeamCleaner = (join) => {
 				spans,
 				raw,
 				seam,
-				read: readCandidate(raw.slice(0, seam) + typed + raw.slice(seam), resolver, join)
+				read: readCandidate(raw.slice(0, seam) + typed + raw.slice(seam), ref, join)
 			};
 		}
 	);
@@ -127,14 +128,14 @@ interface Side {
 function readSide(
 	endpoint: JoinEndpoint,
 	keep: 'before' | 'after',
-	resolver: LinkReferenceResolver | undefined
+	ref: InlineResolverRef | undefined
 ): Side | null {
 	const { node, offset } = endpoint;
 	if (!isProseKind(node.kind)) return null;
 	const content = getContentRange(node);
 	if (offset < content.start || offset > content.end) return null;
 
-	const inlines = parseInline(node.raw, content.start, content.end, resolver);
+	const inlines = parseInline(node.raw, content.start, content.end, ref?.current, ref?.grammar);
 	// Markers standing over nothing are all on screen (live-mode.md § 4.1), so a run that survives
 	// this cut is bytes the user saw, not a stranded one: the plain concatenation stands.
 	if (paintsOnlyChrome(inlines, node.raw)) return null;
@@ -374,11 +375,11 @@ export function clipNodes(
  */
 function readCandidate(
 	raw: string,
-	resolver: LinkReferenceResolver | undefined,
+	ref: InlineResolverRef | undefined,
 	join: { ambientPrefix?: string }
 ): { visible: string; residue: number } | null {
-	if (!keepsContainerMarker(join.ambientPrefix ?? '', raw)) return null;
-	const sole = soleProseReparse(raw, resolver);
+	if (!keepsContainerMarker(join.ambientPrefix ?? '', raw, ref?.grammar)) return null;
+	const sole = soleProseReparse(raw, ref);
 	if (sole === null) return null;
 	const { block, nodes } = sole;
 	return {
@@ -393,9 +394,9 @@ function readCandidate(
  * in these bytes but takes width from them, so a body the cut left starting with a space reparses
  * under a wider marker than the live tree holds, and a load-then-save cycle would change the tree.
  */
-function keepsContainerMarker(prefix: string, raw: string): boolean {
+function keepsContainerMarker(prefix: string, raw: string, grammar?: GrammarView): boolean {
 	if (prefix === '') return true;
-	const blocks = parse(prefix + raw, { scope: 'fragment' }).children;
+	const blocks = parse(prefix + raw, { grammar, scope: 'fragment' }).children;
 	if (blocks.length !== 1) return false;
 	return (blocks[0] as { marker?: string }).marker === prefix;
 }

@@ -8,6 +8,7 @@ import { getBlockKindDescriptor } from '../../schema/block-kind-descriptor';
 // side-effect import is tree-shaken from the production build.
 import { registerBuiltInDescriptors } from '../../schema/built-in-descriptors';
 import type { LinkReferenceResolver } from './link-reference-resolver';
+import type { GrammarView } from '../../schema/block-openers';
 import { scanInline } from './scan';
 import { inlineDescendants } from './walk';
 import { recordInlineCompute } from '../../perf/instruments';
@@ -66,15 +67,17 @@ export function constructContentRange(node: InlineNode): ContentRange | null {
 
 /**
  * A prose node's inline tree, pure: no caching, no reactive reads. The render path calls this
- * directly; the caching accessor (inline-cache.ts) calls it on a miss.
+ * directly; the caching accessor (inline-cache.ts) calls it on a miss. An editor passes its own
+ * grammar, so a plugin it left out claims no bytes.
  */
 export function computeInlineContent(
 	node: NodeView,
-	resolver?: LinkReferenceResolver
+	resolver?: LinkReferenceResolver,
+	grammar?: GrammarView
 ): InlineNode[] {
 	recordInlineCompute();
 	const range = getContentRange(node);
-	return parseInline(node.raw, range.start, range.end, resolver);
+	return parseInline(node.raw, range.start, range.end, resolver, grammar);
 }
 
 // ── Inline Parser ──────────────────────────────────────────────────────────
@@ -89,14 +92,15 @@ export function parseInline(
 	raw: string,
 	start: number,
 	end: number,
-	resolver?: LinkReferenceResolver
+	resolver?: LinkReferenceResolver,
+	grammar?: GrammarView
 ): InlineNode[] {
 	if (!Number.isFinite(start) || !Number.isFinite(end)) {
 		throw new TypeError(
 			'parseInline requires both scan bounds: to scan a whole string, call parseInline(src, 0, src.length)'
 		);
 	}
-	return scanInline(raw, start, end, resolver);
+	return scanInline(raw, start, end, resolver, grammar);
 }
 
 // ── Inline Tree Walks ──────────────────────────────────────────────────────

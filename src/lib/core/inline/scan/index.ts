@@ -5,6 +5,7 @@
 
 import { isBuiltinInlineKind, type InlineNode, type InlineSyntaxClaim } from '../../nodes';
 import type { LinkReferenceResolver } from '../link-reference-resolver';
+import { defaultGrammarView, ownerEnabled, type GrammarView } from '../../../schema/block-openers';
 import { inlineDescendants } from '../walk';
 import { handleAngle, scanGfmAutolinks } from './autolinks';
 import { handleBang, handleCloseBracket, handleOpenBracket } from './brackets';
@@ -79,15 +80,19 @@ function needsScan(raw: string, start: number, end: number): boolean {
 	return false;
 }
 
-// Tries a trigger's plugin handlers in dispatch order: the first whose prefix matches at `ctx.pos`
-// and whose recognizer claims wins. The claim checks live here once, for both dispatch paths,
-// after the decline so a declining handler pays nothing and leaves `ctx` untouched.
-function tryRungs(ctx: ScanContext, rungs: InlineRung[] | undefined): InlineNode | null {
+// Tries a trigger's plugin handlers in dispatch order: the first whose prefix matches at `ctx.pos`,
+// whose plugin this editor lists, and whose recognizer claims wins. The claim checks live here
+// once, for both dispatch paths, after the decline so a declining handler leaves `ctx` untouched.
+function tryRungs(
+	ctx: ScanContext,
+	rungs: InlineRung[] | undefined,
+	grammar: GrammarView
+): InlineNode | null {
 	if (!rungs) return null;
 	const { raw, pos, end } = ctx;
 	for (const rung of rungs) {
-		if (!raw.startsWith(rung.prefix, pos)) continue;
-		const node = rung.recognizer(raw, pos, end);
+		if (!raw.startsWith(rung.prefix, pos) || !ownerEnabled(grammar, rung.owner)) continue;
+		const node = rung.recognizer(raw, pos, end, grammar);
 		if (!node) continue;
 		if (node.start !== pos) {
 			throw new Error(`inline-syntax "${rung.prefix}" started at ${node.start}, expected ${pos}`);
@@ -122,11 +127,13 @@ function stampClaim(node: InlineNode, claim: InlineSyntaxClaim): void {
 	}
 }
 
+/** `grammar` is the editor's: a handler whose plugin it leaves out never runs, so its bytes stay text. */
 export function scanInline(
 	raw: string,
 	start: number,
 	end: number,
-	resolver?: LinkReferenceResolver
+	resolver?: LinkReferenceResolver,
+	grammar: GrammarView = defaultGrammarView
 ): InlineNode[] {
 	if (start >= end) return [];
 	if (!needsScan(raw, start, end)) {
@@ -141,7 +148,7 @@ export function scanInline(
 	const consultPrefixRungs = hasPrefixRungs();
 	while (ctx.pos < ctx.end) {
 		if (consultPrefixRungs) {
-			const node = tryRungs(ctx, getPrefixRungs(raw[ctx.pos]));
+			const node = tryRungs(ctx, getPrefixRungs(raw[ctx.pos]), grammar);
 			if (node) {
 				appendNode(ctx, node);
 				continue;
@@ -179,7 +186,7 @@ export function scanInline(
 				break;
 			default: {
 				if (hasInlineSyntax()) {
-					const node = tryRungs(ctx, getUnreservedRungs(raw[ctx.pos]));
+					const node = tryRungs(ctx, getUnreservedRungs(raw[ctx.pos]), grammar);
 					if (node) {
 						appendNode(ctx, node);
 						break;

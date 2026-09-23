@@ -15,6 +15,7 @@ import {
 	makeTopHarness,
 	parseLeaf as leaf
 } from '$lib/test/harness/editor-actions';
+import { defaultGrammarView } from '$lib/schema/block-openers';
 
 // The split command's completion step: which Enters reach a completer at all, and what the
 // commit it routes to writes. The registry's own semantics live in test/schema, the table
@@ -41,7 +42,11 @@ function seamOver(scope: CommitScope): BlockEditActions {
 		replaceBlock: (i, replacement, focus, options) =>
 			core.replaceBlock(i, replacement, focus, options)
 	};
-	return withEnterCompletion(consulted as BlockEditActions, (index) => scope.children()[index]);
+	return withEnterCompletion(
+		consulted as BlockEditActions,
+		(index) => scope.children()[index],
+		defaultGrammarView
+	);
 }
 
 // A second completer whose caret sits on a line the completion creates, which the table's

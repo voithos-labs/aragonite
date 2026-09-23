@@ -3,16 +3,18 @@
  * Non-reactive by design: never call from the render path (which uses computeInlineContent),
  * since a reactive read plus write here corrupts a keyed `{#each}` (G4.2).
  * One sub-entry per signature space, so resolver-less and signature-bearing callers cannot
- * evict each other on a bracket-bearing block.
+ * evict each other on a bracket-bearing block. A slot answers only the grammar it was parsed in.
  */
 import type { InlineNode } from '../nodes';
 import type { NodeView } from '../node-views';
 import type { LinkReferenceResolver } from './link-reference-resolver';
+import { defaultGrammarView, type GrammarView } from '../../schema/block-openers';
 import { computeInlineContent, isProseKind } from './index';
 
 interface CacheSlot {
 	raw: string;
 	signature: string;
+	grammar: GrammarView;
 	content: InlineNode[];
 }
 
@@ -26,7 +28,8 @@ const cache = new WeakMap<NodeView, CacheEntry>();
 export function getInlineContent(
 	node: NodeView,
 	resolver?: LinkReferenceResolver,
-	signature = ''
+	signature = '',
+	grammar: GrammarView = defaultGrammarView
 ): InlineNode[] {
 	if (!isProseKind(node.kind)) return [];
 	// A block resolves through an LRD only if it holds a bracket; mirroring the render gate keeps
@@ -38,21 +41,23 @@ export function getInlineContent(
 
 	const slot = sig === '' ? 'plain' : 'resolved';
 	const hit = entry?.[slot];
-	if (hit && hit.raw === node.raw && hit.signature === sig) return hit.content;
-	const content = computeInlineContent(node, effectiveResolver);
+	if (hit && hit.raw === node.raw && hit.signature === sig && hit.grammar === grammar) {
+		return hit.content;
+	}
+	const content = computeInlineContent(node, effectiveResolver, grammar);
 	// Spread, so refilling one slot keeps the other one untouched.
-	cache.set(node, { ...entry, [slot]: { raw: node.raw, signature: sig, content } });
+	cache.set(node, { ...entry, [slot]: { raw: node.raw, signature: sig, grammar, content } });
 	return content;
 }
 
 /**
- * The one spelling of `getInlineContent(node, ref.current, ref.signature)`, so a non-render
- * call site cannot drop the signature and silently desync from what render drew. `linkRef`
- * stays structural: naming editor-keys' type would create an import cycle with that module.
+ * The one spelling of `getInlineContent(node, ref.current, ref.signature, ref.grammar)`, so a
+ * non-render call site cannot drop the signature or the grammar and silently desync from what
+ * render drew. `linkRef` stays structural: naming editor-keys' type would create an import cycle.
  */
 export function resolvedInlineContent(
 	node: NodeView,
-	linkRef?: { current?: LinkReferenceResolver; signature?: string }
+	linkRef?: { current?: LinkReferenceResolver; signature?: string; grammar?: GrammarView }
 ): InlineNode[] {
-	return getInlineContent(node, linkRef?.current, linkRef?.signature ?? '');
+	return getInlineContent(node, linkRef?.current, linkRef?.signature ?? '', linkRef?.grammar);
 }

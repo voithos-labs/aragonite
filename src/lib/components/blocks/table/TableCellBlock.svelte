@@ -23,7 +23,7 @@
 		type EditorPolicies,
 		type EditorServices
 	} from '../../../editor-keys';
-	import type { TableAlignment } from '../../../core/nodes';
+	import type { AnyInlineKind, TableAlignment } from '../../../core/nodes';
 	import { trimTrailingLineEnding, normalizeLineEndings } from '../../../core/lines';
 	import { pasteDispatch } from '../../../tree-operations/paste/dispatch';
 	import { blockNodeAt, isBlockNode, nodeAt } from '../../../tree-operations/node-primitives';
@@ -303,6 +303,9 @@
 		}
 	});
 
+	// A widget's editing policy under this editor's grammar, the one the cell rendered with.
+	const widgetEditing = (kind: AnyInlineKind) => getInlineWidgetEditing(kind, grammar);
+
 	// The one caret-edge dispatch (G4.12), the same code prose uses: a plain edge key against
 	// a CST widget or a decoration widget resolves against its declared policy.
 	const edgeDispatch = createEdgePolicyDispatch({
@@ -330,7 +333,7 @@
 		// A widget that cannot show its source, reached this way, was reached by an arrow
 		// key, so step the caret over it as contenteditable would.
 		enterWidget: (widget, fromTrailingEdge) => {
-			if (getInlineWidgetEditing(widget.kind)?.revealSource) {
+			if (widgetEditing(widget.kind)?.revealSource) {
 				widgetInteraction.enterWidget(widget, fromTrailingEdge);
 			} else {
 				cursor.setRaw(asRawOffset(fromTrailingEdge ? widget.start : widget.end));
@@ -340,7 +343,7 @@
 		// default would show nothing between the two keys. Limited to what the cell actually
 		// draws as a widget, and merged onto the registered policy rather than replacing it.
 		widgetEdgePolicy: (widget) => {
-			const registered = getInlineWidgetEditing(widget.kind);
+			const registered = widgetEditing(widget.kind);
 			if (!el || registered?.revealSource) return undefined;
 			return widgetElByStart(el, widget.start)
 				? { ...registered, deleteGranularity: 'atomic' }
@@ -535,6 +538,7 @@
 		get linkRef() {
 			return linkRef;
 		},
+		grammar,
 		resolveLinkUrl,
 		get presentationMode() {
 			return presentationMode;
@@ -806,6 +810,7 @@
 			markersPaint: () => paintsFocusedMarkers(presentationMode),
 			setCaret: (offset) => cursor.setRaw(asRawOffset(offset)),
 			seatOutside: edgeAffinity.noteExtreme,
+			grammar,
 			write: (text, caretBefore, caretAfter) => {
 				void blockEdit.updateBlockContent(index, text, caretBefore, caretAfter);
 				parkCursor(caretAfter, text);

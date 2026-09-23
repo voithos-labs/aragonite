@@ -296,7 +296,7 @@ function findImageInParagraph(
 	// Resolver-aware so a reference-style image resolves as the render path saw it,
 	// and flattened so an image nested in a link (`[![alt][ref]][repo]`) is found.
 	const inlines = resolvedInlineContent(para, linkRef);
-	for (const widget of flattenInlineWidgets(inlines, para.raw)) {
+	for (const widget of flattenInlineWidgets(inlines, para.raw, linkRef?.grammar)) {
 		if (widget.kind === 'image' && widget.start === sourceStart) return widget;
 	}
 	return null;

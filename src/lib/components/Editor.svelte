@@ -122,14 +122,10 @@
 	} from '../schema/block-commands';
 	import type { AnyCommandId } from '../schema/command-id';
 	import { installPlugins, normalizePluginEntries } from '../schema/plugin-install';
-	import {
-		activationFor,
-		everyInstalledPlugin,
-		kindEnablementFor
-	} from '../schema/plugin-activation';
+	import { activationFor, everyInstalledPlugin } from '../schema/plugin-activation';
 	import { createEditorPluginContexts, mintEditorId } from '../schema/plugin-editor-context';
 	import { insertCatalogue, type InsertEntry } from '../schema/insert-catalogue';
-	import { bothEnable, createRegistryView, type KindEnablement } from '../schema/registry-view';
+	import { createRegistryView, type KindEnablement } from '../schema/registry-view';
 	import BlockList from './BlockList.svelte';
 	import SearchBar from './SearchBar.svelte';
 	import SelectionToolbar from './menu/SelectionToolbar.svelte';
@@ -222,10 +218,8 @@
 	// (#429 lists the routes still on the global one). The test hook narrows the plugins prop.
 	// svelte-ignore state_referenced_locally
 	const registryView = createRegistryView({
-		isEnabled: bothEnable(
-			pluginEntries ? kindEnablementFor(activePlugins) : undefined,
-			__registryEnablement
-		),
+		plugins: pluginEntries ? activePlugins : undefined,
+		isEnabled: __registryEnablement,
 		syntax
 	});
 
@@ -254,7 +248,8 @@
 		},
 		get epoch(): number {
 			return signatureEpoch;
-		}
+		},
+		grammar: registryView.grammar
 	};
 	// Plain, not `$state`: where the root list's child refs are stored (see `refSlotsOver`).
 	const blockRefs: (BlockComponent | undefined)[] = [];
