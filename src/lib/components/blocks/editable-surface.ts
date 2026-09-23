@@ -154,8 +154,6 @@ export interface EditableSurfaceDeps {
 	getIndex: () => number;
 	getComposing: () => boolean;
 	setComposing: (value: boolean) => void;
-	getPreEditOffset: () => number;
-	setPreEditOffset: (offset: number) => void;
 	setPendingCursor: (offset: number | null) => void;
 
 	// ── Cross-block context ───────────────────────────────────────────────────
@@ -219,6 +217,8 @@ export interface EditableSurfaceDeps {
 	commitInput: (text: string, preEditOffset: number, savedOffset: number) => number | void;
 	/** Extra input prelude before the shared body (text resets snap target + keystroke mark). */
 	inputPrelude?: () => void;
+	/** The block's own beforeinput handling, run after the surface records the pre-edit caret. */
+	handleBeforeInput?: (e: InputEvent) => unknown;
 }
 
 export interface EditableSurface {
@@ -233,9 +233,16 @@ export interface EditableSurface {
 	 * while a step is suspended; every awaited step asks this before reading on.
 	 */
 	isDetached(): boolean;
+	/** Bound to the element's `beforeinput`: every input route fires it, keydown or not, so the
+	 *  caret the undo entry restores is read here. */
+	onBeforeInput: (e: InputEvent) => void;
 	onInput: () => void;
 	onCompositionStart: () => void;
 	onCompositionEnd: () => void;
+	/** The caret before the edit in progress: what an edit a block commits itself anchors on. */
+	getPreEditOffset(): number;
+	/** Name the pre-edit caret for an edit the block splices itself rather than the browser. */
+	notePreEditOffset(offset: number): void;
 }
 
 /**
@@ -405,6 +412,15 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 
 	// ── Input / composition skeleton ──────────────────────────────────────────
 
+	// The caret before the edit, so undo puts it back there. A composition keeps the one read at
+	// its start: Chromium fires the composition's own beforeinput events after that.
+	let preEditOffset = 0;
+
+	function onBeforeInput(e: InputEvent): void {
+		if (!deps.getComposing() && !e.isComposing) preEditOffset = deps.backend.getRaw() ?? 0;
+		void deps.handleBeforeInput?.(e);
+	}
+
 	/** The DOM `input` handler. Arity zero on purpose: it is bound straight to the event, so a
 	 *  parameter here would be the InputEvent. */
 	function onInput(): void {
@@ -425,12 +441,12 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		// keeps the reading verbatim, since the caret sat beside a byte the user could see.
 		const seated =
 			fromComposition && revealsNoMarkers(el)
-				? (deps.relocateComposedText?.(text, deps.getPreEditOffset()) ?? null)
+				? (deps.relocateComposedText?.(text, preEditOffset) ?? null)
 				: null;
 		const caret = seated?.caret ?? savedOffset;
 		// preEdit anchors the undo snapshot; caret drives focus when a kind change remounts the
 		// block. A commit that rewrites bytes reports the post-rewrite caret.
-		const committedCaret = deps.commitInput(seated?.raw ?? text, deps.getPreEditOffset(), caret);
+		const committedCaret = deps.commitInput(seated?.raw ?? text, preEditOffset, caret);
 		deps.setPendingCursor(committedCaret ?? caret);
 	}
 
@@ -438,7 +454,7 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		if (!deps.getEl()) return;
 		traceCompositionStart();
 		// Capture before `crossBlock.handleCompositionStart()`, whose delete moves the caret.
-		deps.setPreEditOffset(deps.backend.getRaw() ?? 0);
+		preEditOffset = deps.backend.getRaw() ?? 0;
 		crossBlock.handleCompositionStart();
 		deps.setComposing(true);
 	}
@@ -465,9 +481,14 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		surface,
 		caret,
 		isDetached,
+		onBeforeInput,
 		onInput,
 		onCompositionStart,
-		onCompositionEnd
+		onCompositionEnd,
+		getPreEditOffset: () => preEditOffset,
+		notePreEditOffset: (offset) => {
+			preEditOffset = offset;
+		}
 	};
 }
 

@@ -27,7 +27,10 @@ export interface SurfaceHarness {
 export function makeSurface(
 	commitInput?: EditableSurfaceDeps['commitInput'],
 	relocateComposedText?: EditableSurfaceDeps['relocateComposedText'],
-	options: { presentationMode?: string } = {}
+	options: {
+		presentationMode?: string;
+		handleBeforeInput?: EditableSurfaceDeps['handleBeforeInput'];
+	} = {}
 ): SurfaceHarness {
 	const el = document.createElement('div');
 	el.setAttribute('contenteditable', 'true');
@@ -42,7 +45,6 @@ export function makeSurface(
 
 	let caret = 0;
 	let composing = false;
-	let preEditOffset = 0;
 	const commits: SurfaceHarness['commits'] = [];
 	const seats: number[] = [];
 
@@ -61,10 +63,6 @@ export function makeSurface(
 		getComposing: () => composing,
 		setComposing: (value: boolean) => {
 			composing = value;
-		},
-		getPreEditOffset: () => preEditOffset,
-		setPreEditOffset: (offset: number) => {
-			preEditOffset = offset;
 		},
 		setPendingCursor: () => {},
 		selection: { isCrossBlock: false },
@@ -89,6 +87,7 @@ export function makeSurface(
 		getTextLen: () => (el.textContent ?? '').length,
 		readText: () => el.textContent ?? '',
 		relocateComposedText,
+		handleBeforeInput: options.handleBeforeInput,
 		commitInput:
 			commitInput ??
 			((text: string, preEdit: number, saved: number) => {

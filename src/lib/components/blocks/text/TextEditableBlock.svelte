@@ -196,8 +196,6 @@
 	let revealing = $state(false);
 	/** Cursor offset to restore after the next $effect render. Null = don't touch cursor. */
 	let pendingCursorOffset = $state<number | null>(null);
-	// Captured before each edit; keydown fires before the DOM changes.
-	let preEditOffset = 0;
 	// Survives the click→keydown gap when Chromium clears the caret at CE=false-adjacent
 	// positions. Reactive so the snap-caret overlay sees changes.
 	let lastSnapTargetOffset = $state<number | null>(null);
@@ -251,10 +249,6 @@
 		setComposing: (value) => {
 			composing = value;
 		},
-		getPreEditOffset: () => preEditOffset,
-		setPreEditOffset: (offset) => {
-			preEditOffset = offset;
-		},
 		setPendingCursor: (offset) => setPendingCursorOffset(offset, 'surface'),
 		getPresentationMode: () => presentationMode,
 		getFocusOffset: () => (el ? selectionFocusWalkOffset(el, ambientLength) : null),
@@ -271,7 +265,8 @@
 		inputPrelude: () => {
 			markKeystrokeStart();
 			armSnapTarget(null);
-		}
+		},
+		handleBeforeInput: onBeforeInput
 	});
 
 	const crossBlock = editableSurface.crossBlock;
@@ -610,8 +605,7 @@
 	}
 
 	export function runCommand(id: CommandId, arg?: unknown): boolean {
-		// Read live: cross-block dispatch arrives with no preceding onKeyDown, so
-		// `preEditOffset` would be stale here.
+		// Read live: a command dispatched from another block arrives with no input event here.
 		const offset = cursor.getRaw() ?? 0;
 		const command = blockCommand(id, arg, offset, cursor.getRawSelection());
 		if (!command || !command.applies()) return false;
@@ -860,8 +854,6 @@
 	async function onKeyDown(e: KeyboardEvent): Promise<void> {
 		if (composing || editableSurface.isDetached()) return;
 
-		preEditOffset = cursor.getRaw() ?? 0;
-
 		// Shows markers only, before any default runs: fast arrows outrun the async
 		// `selectionchange` update, and a step against still-hidden markers skips their bytes.
 		constructReveal.prepareForKeydown(e);
@@ -1088,7 +1080,7 @@
 	style:padding-left={ambientPrefixText ? ambientIndent : null}
 	oninput={onInput}
 	onkeydown={onKeyDownTraced}
-	onbeforeinput={onBeforeInput}
+	onbeforeinput={editableSurface.onBeforeInput}
 	oncopy={clipboardHandlers.onCopy}
 	oncut={clipboardHandlers.onCut}
 	onpaste={clipboardHandlers.onPaste}

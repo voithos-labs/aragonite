@@ -200,7 +200,6 @@
 				: escapedCellOffset(writtenText, offset);
 	}
 
-	let preEditOffset = 0;
 	// Y matters for the hit test: a click at the same column on another visual line
 	// must not open a source.
 	let lastClickClientX: number | null = null;
@@ -233,10 +232,6 @@
 		setComposing: (value) => {
 			composing = value;
 		},
-		getPreEditOffset: () => preEditOffset,
-		setPreEditOffset: (offset) => {
-			preEditOffset = offset;
-		},
 		setPendingCursor: (offset) => parkCursor(offset),
 		getPresentationMode,
 		getFocusOffset: () => getRawFocusOffset(),
@@ -248,7 +243,8 @@
 		commitInput: (text, preEdit, saved) => {
 			void blockEdit.updateBlockContent(index, text, preEdit, saved);
 			return escapedCellOffset(text, saved);
-		}
+		},
+		handleBeforeInput: onBeforeInput
 	});
 
 	// The same placement rules the keydown dispatch uses, for the one insertion it cannot reach.
@@ -419,9 +415,8 @@
 			presentationMode
 		);
 		if (!result) return true;
-		// Anchor undo at the live post-toggle caret: cross-block dispatch arrives with no
-		// preceding onKeyDown, so `preEditOffset` would be stale (mirrors TextEditableBlock).
-		// A command is not typing, so the toggle's bytes are their own undo step.
+		// Anchor undo at the post-toggle caret, and keep it out of any typing batch: a command
+		// is not typing, so the toggle's bytes are their own undo step.
 		controller.isolateUndoEntry(() =>
 			blockEdit.updateBlockContent(index, result.newDisplay, result.newSelStart, result.newSelStart)
 		);
@@ -647,7 +642,7 @@
 			return;
 		if (widgetInteraction.handleShiftArrowIntoWidget(e)) return;
 
-		preEditOffset = cursor.getRaw() ?? 0;
+		const caretBeforeKey = cursor.getRaw() ?? 0;
 
 		// First, because neither the navigation plan's boundary branches nor the shared
 		// ArrowLeft-at-0 move tests modifiers: either would eat the column reorder at a cell's
@@ -656,7 +651,7 @@
 
 		const plan = cellKeydownPlan(
 			{ key: e.key, ctrlOrMeta: e.ctrlKey || e.metaKey, shiftKey: e.shiftKey, altKey: e.altKey },
-			cellPlanState(preEditOffset)
+			cellPlanState(caretBeforeKey)
 		);
 
 		switch (plan.kind) {
@@ -670,7 +665,7 @@
 					!e.ctrlKey &&
 					!e.metaKey &&
 					(e.key === 'ArrowUp' || e.key === 'ArrowDown') &&
-					startIntraTableRect(e.key, preEditOffset)
+					startIntraTableRect(e.key, caretBeforeKey)
 				) {
 					e.preventDefault();
 					return;
@@ -1112,7 +1107,7 @@
 	style:text-align={alignment === 'none' ? undefined : alignment}
 	oninput={onInput}
 	onkeydown={onKeyDownTraced}
-	onbeforeinput={onBeforeInput}
+	onbeforeinput={editableSurface.onBeforeInput}
 	onpointerdown={onPointerDown}
 	onclick={onClick}
 	oncopy={onCopy}
