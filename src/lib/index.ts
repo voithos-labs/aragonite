@@ -5,7 +5,12 @@
 
 export { default as Editor } from './components/Editor.svelte';
 
-export type { EditorProps, EditorInstance, InsertMarkdownOptions } from './editor-props';
+export type {
+	EditorProps,
+	EditorInstance,
+	InsertMarkdownOptions,
+	SyntaxOptions
+} from './editor-props';
 
 export type { EditorDiagnostics, InteractionTraceEntry } from './editor-props';
 

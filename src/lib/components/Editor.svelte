@@ -171,6 +171,7 @@
 		presentationMode = 'source',
 		scrollMode = 'self',
 		plugins,
+		syntax,
 		__registryEnablement
 	}: EditorProps & { __registryEnablement?: KindEnablement } = $props();
 
@@ -218,8 +219,19 @@
 
 	// doc/blockIds are mutable state structural ops write through directly, so they
 	// cannot be $derived: snapshot at mount, re-sync via the $effect below.
+	// This editor's view of the global block definitions, which every parse here reads, the first
+	// included. The test hook narrows the plugins prop rather than replacing it.
 	// svelte-ignore state_referenced_locally
-	const initial = initDocument(source);
+	const registryView = createRegistryView({
+		isEnabled: bothEnable(
+			pluginEntries ? kindEnablementFor(activePlugins) : undefined,
+			__registryEnablement
+		),
+		syntax
+	});
+
+	// svelte-ignore state_referenced_locally
+	const initial = initDocument(source, registryView.grammar);
 	let doc: Document = $state(initial.doc);
 	// svelte-ignore state_referenced_locally
 	let blockIds = $state<string[]>(assignIds(doc.children));
@@ -354,6 +366,7 @@
 	});
 
 	const documentSwap = createDocumentSwap({
+		grammar: registryView.grammar,
 		// Built below; a swap runs post-init, so the closures read past the TDZ.
 		flushDebouncedCheckpoint: () => controller.flushDebouncedCheckpoint(),
 		adoptDocument: (next) => {
@@ -544,19 +557,6 @@
 			? await ref.revealByPath(path.slice(1))
 			: (ref.getBlockComponentByPath?.(path.slice(1)) ?? null);
 	}
-
-	// The instance's resolution over the global block definitions: an unlisted plugin's kind
-	// resolves no component here and its opener leaves this grammar. A prop-less editor reads
-	// the global registry verbatim.
-	// The test hook composes rather than replaces: widening past what the prop activated
-	// would prove a resolution the shipped path cannot reach.
-	// svelte-ignore state_referenced_locally
-	const registryView = createRegistryView({
-		isEnabled: bothEnable(
-			pluginEntries ? kindEnablementFor(activePlugins) : undefined,
-			__registryEnablement
-		)
-	});
 
 	const editorActionsDeps: EditorActionsDeps = {
 		get doc() {
@@ -1413,6 +1413,7 @@
 
 	export const __test: EditorTestSurface = {
 		getDocument: () => doc,
+		getGrammar: () => registryView.grammar,
 		getContentVersion: contentVersion.read,
 		getBlockComponent,
 		getUndoStack: () => undoManager.getStacks(),

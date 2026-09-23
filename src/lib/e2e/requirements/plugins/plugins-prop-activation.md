@@ -2,18 +2,17 @@
 
 Plugin definitions are global to the process and the first one wins, but what is switched on is
 per editor: an editor activates exactly the plugins its `plugins` prop lists. A plugin another
-editor on the page installed, but this one did not list, runs no `onEditor` hook here and
-resolves no component for its kinds, which fall back to the raw editable block. An editor
-mounted with no prop keeps the documented default, where everything installed in the process is
-active.
+editor on the page installed, but this one did not list, runs no `onEditor` hook here, and its
+syntax is not in this editor's grammar, so its bytes read as the plain Markdown they are. An
+editor mounted with no prop keeps the documented default, where everything installed in the
+process is active.
 
 `/test/plugins/activation` mounts two editors over the same seed. The first lists
 `parrotPlugin()`, a kind, and `blockBadgePlugin`, a decoration source; the second lists only
-`docStatsPlugin`, which contributes a global chord and neither of those. The first renders
-before the second, so the parrot opener is live for both initial parses, since the initial parse
-reads the global grammar, and the two editors differ only in what they resolve. Each pane is the
-other's editor that did not list: the chord belongs to the second, the parrot syntax to the
-first.
+`docStatsPlugin`, which contributes a global chord and neither of those. Each editor parses the
+seed in its own grammar, so the first holds a parrot block and the second a paragraph with the
+same bytes. Each pane is the other's editor that did not list: the chord belongs to the second,
+the parrot syntax to the first.
 
 Miss-analysis: every plugin spec mounted one editor with every plugin it cared about, so no spec
 could see two editors disagree about a plugin. `registry-enablement.md` came closest, but it
@@ -21,17 +20,18 @@ read its answer from the harness-only `__registryEnablement` hook rather than fr
 
 ## Happy paths
 
-- both editors hold the parrot node: each editor's seed parses `%%parrot party responsibly` into a `[data-block-kind="parrot"]` block
+- the editor that lists it holds the parrot node: its seed parses `%%parrot party responsibly` into a `[data-block-kind="parrot"]` block
+- both trees reload as themselves in their own editor's grammar (miss-analysis: the reload check read the global grammar, so a pane whose tree followed its own grammar could not be checked at all, and no spec asked)
 - the editor that lists it renders the plugin component: its parrot block shows `.parrot-block` and no `.raw-block` fallback
 - the editor that lists it attaches the decoration source: its heading carries the `.badge-h` badge widget
 - built-ins are untouched on both sides: each editor renders its heading and its `Body` paragraph
 
 ## Edge cases
 
-- the editor that did not list it degrades the kind: its parrot block renders the `.raw-block` fallback with the `%%parrot` bytes visible, and no `.parrot-block`
+- the editor that did not list it reads the syntax as prose: it holds no parrot block, and a paragraph shows the `%%parrot` bytes
 - the editor that did not list it attaches no decoration source: its heading carries no `.badge-h`, which proves the `onEditor` hook never ran there
 - the chord belongs to one editor, not to the process: `reservedChords()` and `claimsChord()` report `Mod+Shift+S` in the editor that lists `doc-stats` and withhold it from the one that does not (regression #265: the chord was taken process-wide, so it was swallowed and ran nothing in the editor that never listed the plugin)
-- a paste parses against that editor's grammar: `%%parrot dance` pasted into the editor that omits the parrot lands as prose in the paragraph it was pasted into, leaving that pane with the seed's one parrot block (regression #267: the clipboard parsed against every installed plugin, so the paste created a kind that editor resolves no component for)
+- a paste parses against that editor's grammar: `%%parrot dance` pasted into the editor that omits the parrot lands as prose in the paragraph it was pasted into, leaving that pane with no parrot block (regression #267: the clipboard parsed against every installed plugin, so the paste created a kind that editor resolves no component for)
 
 ## User interactions
 

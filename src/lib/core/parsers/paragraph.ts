@@ -5,14 +5,21 @@
 
 import type { ParsedLine } from '../lines';
 import { joinRaw, isBlankLine } from '../parser';
-import { lineInterruptsParagraph, type BlockOpenerResult } from '../../schema/block-openers';
+import {
+	defaultGrammarView,
+	lineInterruptsParagraph,
+	type BlockOpenerResult,
+	type GrammarView
+} from '../../schema/block-openers';
 import { matchTableDelimiterRow, parseTable, tableHeaderCells } from './table';
+import { matchThematicBreak } from './thematic-break';
 
 export function parseParagraph(
 	lines: ParsedLine[],
 	startIndex: number,
 	endIndex: number,
-	leadingTrivia: string
+	leadingTrivia: string,
+	grammar: GrammarView = defaultGrammarView
 ): BlockOpenerResult {
 	if (startIndex + 1 < endIndex) {
 		const delimiter = matchTableDelimiterRow(lines[startIndex + 1].text);
@@ -28,7 +35,10 @@ export function parseParagraph(
 
 	while (i < endIndex && !isBlankLine(lines[i].text) && !lineInterruptsParagraph(lines[i].text)) {
 		const setext = matchSetextUnderline(lines[i].text);
-		if (setext) {
+		// With setext headings off, `---` is the thematic break GFM reads once setext is out.
+		if (setext && !grammar.setextHeadings) {
+			if (matchThematicBreak(lines[i].text)) break;
+		} else if (setext) {
 			const raw = joinRaw(lines, startIndex, i + 1);
 			return {
 				node: { kind: 'setextHeading', leadingTrivia, raw, metadata: { level: setext.level } },

@@ -86,7 +86,7 @@ function writeAndSettleContent(
 		restoreSeparatorOnFill(parent, blockIndex, sharing);
 		restoreSeparatorAfterBlank(parent, followerIndexAfter(change, blockIndex), sharing);
 		releaseWrapPeel(parent, lastWritten);
-		return settleWriteSeams(parent, blockIndex, lastWritten, change, sharing);
+		return settleWriteSeams(parent, blockIndex, lastWritten, change, sharing, grammar);
 	}
 	// The reverse transition: the block is the separating line now, so the run it joins gives
 	// back the second one. The last block created is the one that meets the follower.
@@ -94,11 +94,11 @@ function writeAndSettleContent(
 		const settled = parent.children.length;
 		settleSeparatorOnBlank(parent, lastWritten, sharing);
 		const widened = widenForTailMint(change, settled, parent.children.length);
-		return settleWriteSeams(parent, blockIndex, lastWritten, widened, sharing);
+		return settleWriteSeams(parent, blockIndex, lastWritten, widened, sharing, grammar);
 	}
 	// Same-kind typing inside content must never pay for a neighbour reparse.
 	if (change.op === 'noop') return { change, textStart: 0 };
-	return settleWriteSeams(parent, blockIndex, lastWritten, change, sharing);
+	return settleWriteSeams(parent, blockIndex, lastWritten, change, sharing, grammar);
 }
 
 /**
@@ -111,7 +111,8 @@ function settleWriteSeams(
 	blockIndex: number,
 	lastWritten: number,
 	change: StructuralChange,
-	sharing?: SharingState
+	sharing: SharingState | undefined,
+	grammar: GrammarView | undefined
 ): SettledContent {
 	const tracked: TrackedPosition = { index: blockIndex, offset: 0 };
 	const settled = absorbWindowSeams(
@@ -121,7 +122,10 @@ function settleWriteSeams(
 		blockIndex,
 		change,
 		sharing,
-		tracked
+		tracked,
+		undefined,
+		undefined,
+		grammar
 	);
 	return {
 		change: settled.change,

@@ -8,10 +8,10 @@ import type { CstNode } from '../nodes';
 import { remapStrippedLines, type ParsedLine } from '../lines';
 import { joinRaw, isBlankLine, parseBlocks } from '../parser';
 import {
-	defaultGrammarView,
 	lineInterruptsParagraph,
 	lineStartsOuterBlock,
-	type BlockOpenerResult
+	type BlockOpenerResult,
+	type GrammarView
 } from '../../schema/block-openers';
 
 export function matchListItem(
@@ -45,6 +45,7 @@ export function parseList(
 	startIndex: number,
 	endIndex: number,
 	leadingTrivia: string,
+	grammar: GrammarView,
 	depth: number = 0,
 	isDocumentParse: boolean = false
 ): BlockOpenerResult {
@@ -80,7 +81,7 @@ export function parseList(
 			} else if (
 				paragraphOpen &&
 				wouldKeepParagraphOpen(lines[i].text) &&
-				!lineStartsOuterBlock(lines[i], { paragraphOpen: true })
+				!lineStartsOuterBlock(lines[i], { paragraphOpen: true, grammar })
 			) {
 				// Lazy continuation: the verbatim bytes stay in raw, and stripListItemLines
 				// feeds the paragraph parser one continuous paragraph.
@@ -106,7 +107,7 @@ export function parseList(
 			strippedLines,
 			0,
 			strippedLines.length,
-			defaultGrammarView,
+			grammar,
 			depth + 1,
 			isDocumentParse,
 			task !== null

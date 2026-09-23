@@ -284,10 +284,10 @@ Every GFM block type is implemented with its own kind:
 | Block type                 | Kind                      | Notes                                                                                                      |
 | -------------------------- | ------------------------- | ---------------------------------------------------------------------------------------------------------- |
 | ATX headings               | `heading`                 | `# ` through `###### `                                                                                     |
-| Setext headings            | `setextHeading`           | Underline-style `===` / `---`                                                                              |
+| Setext headings            | `setextHeading`           | Underline-style `===` / `---`; an editor can switch it off (`syntax` prop)                                 |
 | Paragraphs                 | `paragraph`               | The fallback for unstructured text                                                                         |
 | Fenced code                | `fencedCode`              | ` ``` ` and `~~~`; the info string is the text after the opening fence                                     |
-| Indented code              | `indentedCode`            | 4-space indent                                                                                             |
+| Indented code              | `indentedCode`            | 4-space indent; an editor can switch it off (`syntax` prop)                                                |
 | Blockquotes                | `blockquote`              | Strip container, recursive                                                                                 |
 | Lists / list items         | `list` / `listItem`       | Ordered, unordered, task checkboxes (the rest of a task marker's line is paragraph text). Strip containers |
 | Thematic breaks            | `thematicBreak`           | `---`, `***`, `___`                                                                                        |

@@ -120,3 +120,23 @@ describe('bothEnable', () => {
 		expect(bothEnable(undefined, undefined)).toBeUndefined();
 	});
 });
+
+describe('the syntax switch composes with the plugin filter', () => {
+	beforeEach(() => __resetSchemaRegistriesForTests());
+
+	it('drops the plugin kind the filter leaves out and indented code together', () => {
+		const kind = registerCallout();
+		const view = createRegistryView({
+			isEnabled: (k) => k !== kind,
+			syntax: { indentedCode: false }
+		});
+		const doc = parse('@x one\n\n\tnotes\n', { grammar: view.grammar });
+		expect(doc.children.map((c) => c.kind)).toEqual(['paragraph', 'paragraph']);
+	});
+
+	it('a view with every syntax on and no filter is the default view', () => {
+		expect(createRegistryView({ syntax: { indentedCode: true, setextHeading: true } })).toBe(
+			defaultRegistryView
+		);
+	});
+});

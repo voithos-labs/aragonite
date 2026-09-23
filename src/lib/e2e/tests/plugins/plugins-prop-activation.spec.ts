@@ -1,4 +1,5 @@
 import { test, expect } from '../../fixtures';
+import { type Page } from '@playwright/test';
 
 type Pane = 'listing' | 'notListing';
 
@@ -7,16 +8,21 @@ interface ActivationDoor {
 	reserved(pane: Pane): string[];
 	/** One entry per real keystroke: what each instance answered for that press. */
 	claims(): { listing: boolean; notListing: boolean }[];
+	/** Whether the pane's tree reloads as itself in that editor's own grammar. */
+	converged(pane: Pane): boolean;
 }
+
+const convergedIn = (page: Page, pane: Pane) =>
+	page.evaluate(
+		(p) => (window as unknown as { __activation: ActivationDoor }).__activation.converged(p),
+		pane
+	);
 
 // Two editors over one seed: the first lists the parrot kind and the block-badge decoration
 // source, the second lists neither. The definitions are shared by the whole process, so the only
 // difference is which editor turned them on, and the `plugins` prop is that list
-// (requirements/plugins/plugins-prop-activation.md). Falling back to raw text is what happens with
-// no component, and it warns on the way past, so every load of this route warns once.
+// (requirements/plugins/plugins-prop-activation.md).
 test.describe('the plugins prop is the enablement set', () => {
-	test.use({ expectWarns: ['block-host'] });
-
 	test.beforeEach(async ({ page }) => {
 		await page.goto('/test/plugins/activation');
 		await page.getByTestId('editor-listing').locator('[data-block-kind]').first().waitFor();
@@ -30,12 +36,18 @@ test.describe('the plugins prop is the enablement set', () => {
 		await expect(pane.locator('[data-block-kind="heading"] .badge-h')).toHaveCount(1);
 	});
 
-	test('degrades the unlisted kind to raw-editable', async ({ page }) => {
-		const parrot = page.getByTestId('editor-not-listing').locator('[data-block-kind="parrot"]');
-		await expect(parrot).toBeVisible();
-		await expect(parrot.locator('.raw-block')).toBeVisible();
-		await expect(parrot.locator('.parrot-block')).toHaveCount(0);
-		await expect(parrot).toHaveText(/%%parrot party responsibly/);
+	test('reads the unlisted syntax as the prose it is', async ({ page }) => {
+		const pane = page.getByTestId('editor-not-listing');
+		await expect(pane.locator('[data-block-kind="parrot"]')).toHaveCount(0);
+		await expect(pane.locator('[data-block-kind="paragraph"]').first()).toHaveText(
+			/%%parrot party responsibly/
+		);
+	});
+
+	test('both trees reload as themselves in their own grammar', async ({ page }) => {
+		await page.waitForFunction(() => '__activation' in window);
+		expect(await convergedIn(page, 'listing')).toBe(true);
+		expect(await convergedIn(page, 'notListing')).toBe(true);
 	});
 
 	// The badge comes from an onEditor hook, so its absence means the hook never ran here.
@@ -47,7 +59,7 @@ test.describe('the plugins prop is the enablement set', () => {
 		for (const testId of ['editor-listing', 'editor-not-listing']) {
 			const pane = page.getByTestId(testId);
 			await expect(pane.locator('[data-block-kind="heading"]')).toHaveCount(1);
-			await expect(pane.locator('[data-block-kind="paragraph"]')).toHaveCount(1);
+			await expect(pane.locator('[data-block-kind="paragraph"]').last()).toHaveText('Body');
 		}
 	});
 });
@@ -56,8 +68,6 @@ test.describe('the plugins prop is the enablement set', () => {
 // other did: `editor-not-listing` lists `doc-stats`, whose global chord the parrot pane never
 // asked for, and the parrot pane is the one that owns `%%parrot`.
 test.describe('activation scopes the chord and the paste grammar', () => {
-	test.use({ expectWarns: ['block-host'] });
-
 	test.beforeEach(async ({ page }) => {
 		await page.goto('/test/plugins/activation');
 		await page.getByTestId('editor-listing').locator('[data-block-kind]').first().waitFor();
@@ -80,7 +90,11 @@ test.describe('activation scopes the chord and the paste grammar', () => {
 		});
 		expect(reserved).toEqual({ owner: true, other: false });
 
-		await page.getByTestId('editor-not-listing').locator('[data-block-kind="paragraph"]').click();
+		await page
+			.getByTestId('editor-not-listing')
+			.locator('[data-block-kind="paragraph"]')
+			.last()
+			.click();
 		await page.keyboard.press('ControlOrMeta+Shift+S');
 
 		const answers = await page.evaluate(() =>
@@ -95,7 +109,7 @@ test.describe('activation scopes the chord and the paste grammar', () => {
 		page
 	}) => {
 		const pane = page.getByTestId('editor-not-listing');
-		const body = pane.locator('[data-block-kind="paragraph"]');
+		const body = pane.locator('[data-block-kind="paragraph"]').last();
 		await body.click();
 		await page.keyboard.press('End');
 
@@ -103,7 +117,6 @@ test.describe('activation scopes the chord and the paste grammar', () => {
 		await page.keyboard.press('ControlOrMeta+v');
 
 		await expect(body).toHaveText(/%%parrot dance/);
-		// Still only the seed's parrot, which renders as the raw fallback here.
-		await expect(pane.locator('[data-block-kind="parrot"]')).toHaveCount(1);
+		await expect(pane.locator('[data-block-kind="parrot"]')).toHaveCount(0);
 	});
 });

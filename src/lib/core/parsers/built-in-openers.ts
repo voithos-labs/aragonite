@@ -91,6 +91,7 @@ export function registerBuiltInOpeners(): void {
 				ctx.index,
 				ctx.end,
 				ctx.leadingTrivia,
+				ctx.grammar,
 				ctx.depth,
 				ctx.isDocumentParse
 			);
@@ -107,6 +108,7 @@ export function registerBuiltInOpeners(): void {
 				ctx.index,
 				ctx.end,
 				ctx.leadingTrivia,
+				ctx.grammar,
 				ctx.depth,
 				ctx.isDocumentParse
 			);

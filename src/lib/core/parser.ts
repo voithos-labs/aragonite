@@ -38,10 +38,8 @@ export type ParseScope = 'document' | 'fragment';
 
 /**
  * Parse GFM to a lossless CST. `opts.grammar` is the per-instance grammar view, defaulting to
- * the global openers. It filters only the top-level opener dispatch: nested container reparses
- * and the paragraph-interrupt scan read the global grammar, the documented enablement boundary,
- * so a top-level disabled kind is skipped and a nested one is not. `opts.scope` reaches openers
- * as `ctx.isDocumentParse`; it defaults to `'document'`, so whole-source callers need nothing.
+ * the global openers; container bodies parse through it too. `opts.scope` reaches openers as
+ * `ctx.isDocumentParse`; it defaults to `'document'`, so whole-source callers need nothing.
  */
 export function parse(
 	source: string,
@@ -132,7 +130,7 @@ export function parseBlocks(
 		};
 		const { node, consumed } =
 			firstLineIsParagraph && index === start
-				? parseParagraph(lines, index, end, pendingTrivia)
+				? parseParagraph(lines, index, end, pendingTrivia, grammar)
 				: parseNextBlock(ctx);
 		children.push(node);
 		pendingTrivia = '';
@@ -160,7 +158,7 @@ export interface ContainerBodyWrap {
 export function parseContainerBody(
 	bodyText: string,
 	wrap: ContainerBodyWrap,
-	opts: { scope: ParseScope; depth?: number }
+	opts: { scope: ParseScope; depth?: number; grammar?: GrammarView }
 ): Document {
 	const lines = splitLines(bodyText);
 	let first = 0;
@@ -181,7 +179,7 @@ export function parseContainerBody(
 		lines,
 		first,
 		last,
-		defaultGrammarView,
+		opts.grammar ?? defaultGrammarView,
 		opts.depth ?? 0,
 		opts.scope === 'document'
 	);
@@ -193,7 +191,7 @@ export function parseContainerBody(
 function parseNextBlock(ctx: OpenContext): BlockOpenerResult {
 	// At the cap everything becomes a paragraph, covering the bytes without another stack frame.
 	if (ctx.depth >= MAX_NESTING_DEPTH) {
-		return parseParagraph(ctx.lines, ctx.index, ctx.end, ctx.leadingTrivia);
+		return parseParagraph(ctx.lines, ctx.index, ctx.end, ctx.leadingTrivia, ctx.grammar);
 	}
 	for (const opener of ctx.grammar.orderedOpeners()) {
 		const result = opener.tryOpen(ctx);
@@ -206,7 +204,7 @@ function parseNextBlock(ctx: OpenContext): BlockOpenerResult {
 		return result;
 	}
 	// Paragraph is the total fallback; it also detects setext headings and tables.
-	return parseParagraph(ctx.lines, ctx.index, ctx.end, ctx.leadingTrivia);
+	return parseParagraph(ctx.lines, ctx.index, ctx.end, ctx.leadingTrivia, ctx.grammar);
 }
 
 /**

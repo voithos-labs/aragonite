@@ -22,9 +22,11 @@ import type { EditorRects } from './editor-rects';
 import type { InlineMenuRegistry } from './inline-menu/types';
 import type { InsertEntry } from './schema/insert-catalogue';
 import type { EditorPluginEntry } from './schema/plugin-install';
+import type { SyntaxOptions } from './schema/registry-view';
 import type { InteractionTraceEntry } from './debug/interaction-trace';
 
 export type { EditorPluginEntry } from './schema/plugin-install';
+export type { SyntaxOptions } from './schema/registry-view';
 export type { InteractionTraceEntry } from './debug/interaction-trace';
 
 export interface EditorProps {
@@ -87,6 +89,11 @@ export interface EditorProps {
 	 *  array also says which plugins are enabled: this editor activates exactly what it
 	 *  lists, and no prop at all activates everything installed. */
 	plugins?: readonly EditorPluginEntry[];
+	/** GFM syntaxes to switch off in this editor, each on by default and read once at mount:
+	 *  `indentedCode: false` reads a line indented by a tab or four spaces as prose, and
+	 *  `setextHeading: false` reads `===` or `---` under text as prose or a divider. Only the
+	 *  reading changes: a loaded file keeps every byte, and saves as it came. */
+	syntax?: SyntaxOptions;
 }
 
 export interface InsertMarkdownOptions {

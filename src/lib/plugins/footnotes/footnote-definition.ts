@@ -95,7 +95,7 @@ function tryOpen(ctx: OpenContext): BlockOpenerResult | null {
 		.map((line, i) => line.raw.replace(i === 0 ? MARKER_STRIP : CONTINUATION_INDENT, ''))
 		.join('');
 	// A fresh parse entry, so the body's own line 0 must not read as the document top.
-	const body = parse(stripped, { scope: 'fragment' });
+	const body = parse(stripped, { scope: 'fragment', grammar: ctx.grammar });
 
 	const node: CstNode = {
 		kind: declaredPluginKind(FOOTNOTE_DEF_KIND),

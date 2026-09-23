@@ -11,11 +11,14 @@ import type { OperationsLog } from '../debug/operations-log';
 import type { DecorationEngine } from '../decorations/decoration-state.svelte';
 import type { RefSlots } from '../reactivity/publish-ref.svelte';
 import type { GapCaretPosition } from '../selection/gap-caret';
+import type { GrammarView } from '../schema/block-openers';
 import type { UndoManager } from '../undo/types';
 
 export interface EditorTestSurface {
 	/** The live CST; read-only by contract, since a write bypasses the undo pipeline. */
 	getDocument(): Document;
+	/** The grammar this editor parses with, so a reload check reads the bytes as the editor does. */
+	getGrammar(): GrammarView;
 	/** The only place the `source` prop's reset can be observed; it lives in the root. */
 	getContentVersion(): number;
 	getBlockComponent(path: number[]): BlockComponent | null;
