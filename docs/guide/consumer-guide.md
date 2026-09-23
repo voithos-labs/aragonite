@@ -344,15 +344,15 @@ off();
 
 Seven channels:
 
-| Channel                  | Fires                                                                                                                          |
-| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------ |
-| `edit`                   | After every applied edit: a structural operation, a batch of typing (consecutive keystrokes flush as one), an undo or redo     |
-| `selectionChange`        | Whenever the selection changes; the payload is the snapshot, or `null`                                                         |
-| `error`                  | On a failure the editor contained rather than threw                                                                            |
-| `presentationModeChange` | After a `presentationMode` prop change; the payload is the effective mode (never at mount)                                     |
-| `themeChange`            | After a `theme` prop change; the payload is the theme name (never at mount)                                                    |
-| `sourceSwap`             | After a `source` prop write replaces the whole document; the payload is `{ generation }` (never at mount, and never on `edit`) |
-| `menuChange`             | `true` when an editor-owned menu or popover opens and `false` when the last one closes; hide selection chrome meanwhile        |
+| Channel                  | Fires                                                                                                                                                                                       |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `edit`                   | After every applied edit: a structural operation, a batch of typing (consecutive keystrokes flush as one), an undo or redo                                                                  |
+| `selectionChange`        | Whenever the selection changes; the payload is the snapshot, or `null`                                                                                                                      |
+| `error`                  | On a failure the editor contained rather than threw                                                                                                                                         |
+| `presentationModeChange` | After a `presentationMode` prop change; the payload is the effective mode (never at mount)                                                                                                  |
+| `themeChange`            | After a `theme` prop change; the payload is the theme name (never at mount)                                                                                                                 |
+| `sourceSwap`             | After a `source` prop write replaces the whole document; the payload is `{ generation }` (never at mount, and never on `edit`)                                                              |
+| `menuChange`             | `true` when an editor-owned menu or popover opens and `false` when the last one closes (not the selection toolbar's own flyout, nor a view a plugin draws); hide selection chrome meanwhile |
 
 Events fire synchronously from wherever they happen, and **a handler must not edit the document**: reentrant edits aren't supported.
 
