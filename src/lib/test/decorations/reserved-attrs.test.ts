@@ -55,6 +55,21 @@ describe('acceptedBlockAttrs', () => {
 		]);
 	});
 
+	// A table cell renders `contenteditable` itself, and the decoration's cleanup removes what it
+	// set, so an overwrite would leave the cell uneditable once the source is disposed.
+	it('drops an attribute the decorated element renders itself, in any spelling', () => {
+		expect(
+			acceptedBlockAttrs(
+				{ ContentEditable: 'false', title: 'note' },
+				[0, 1, 0],
+				['contenteditable']
+			)
+		).toEqual([['title', 'note']]);
+		expect(takeDevWarns().map((w) => w.message)).toEqual([
+			expect.stringContaining("'ContentEditable' is reserved")
+		]);
+	});
+
 	it('is empty for a decoration carrying no attrs', () => {
 		expect(acceptedBlockAttrs(undefined, [0])).toEqual([]);
 	});

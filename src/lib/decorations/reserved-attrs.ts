@@ -1,8 +1,8 @@
 /**
- * The `data-` names a block decoration may not use. A block host or a list item's box is an
- * ancestor of every element the offset traversal walks, so an attribute here answers the ancestor
- * lookups the CSS, that traversal, and selection and windowing all make. The list is what they
- * read through `closest()` or an ancestor selector; a name read only where it is written is not.
+ * The `data-` names a block decoration may not use. A decorated element (a block host, a list
+ * item's box, a table row or cell) holds every element the offset traversal walks, so an
+ * attribute here answers the ancestor lookups the CSS, that traversal, and selection and
+ * windowing all make. The list is what they read through `closest()` or an ancestor selector.
  */
 
 import { devWarn } from '../dev-warn';
@@ -31,17 +31,19 @@ export const RESERVED_BLOCK_ATTRS: ReadonlySet<string> = new Set([
 const ATTR_NAME = /^[A-Za-z_:][A-Za-z0-9_.:-]*$/;
 
 /** A block decoration's attributes minus the names it may not use, which are dropped with a
- *  dev warning. The check is in lowercase: `setAttribute` lowercases, so a capital is not a
- *  different name, only a different spelling of the same one. */
+ *  dev warning: the reserved set, and `ownAttrs`, the ones the decorated element renders itself.
+ *  The check is in lowercase: `setAttribute` lowercases, so a capital is only another spelling. */
 export function acceptedBlockAttrs(
 	attrs: Record<string, string> | undefined,
-	path: number[]
+	path: number[],
+	ownAttrs: readonly string[] = []
 ): Array<[string, string]> {
 	const accepted: Array<[string, string]> = [];
 	for (const [name, value] of Object.entries(attrs ?? {})) {
+		const lowered = name.toLowerCase();
 		const refusal = !ATTR_NAME.test(name)
 			? 'is not a valid attribute name'
-			: RESERVED_BLOCK_ATTRS.has(name.toLowerCase())
+			: RESERVED_BLOCK_ATTRS.has(lowered) || ownAttrs.includes(lowered)
 				? 'is reserved by the editor'
 				: null;
 		if (refusal !== null) {
