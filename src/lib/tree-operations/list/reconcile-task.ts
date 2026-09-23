@@ -6,16 +6,14 @@
 
 import type { CstNode } from '../../core/nodes';
 import { metadataOf } from '../../core/nodes';
-import { isBareHeadingOpener } from '../../core/parsers/heading';
 import type { SharingState } from '../sharing';
 import { ensureUnsharedChild } from '../unshare';
 
 const TASK_REGEX = /^\[( |x|X)\]\s+/;
 
-/** Whether a task marker may stand in front of this block: its own paragraph, or the bare `#` a
- *  line passes through on the way to `#tag`, which is a heading to the parser for one keystroke. */
+/** Whether a task marker may stand in front of this block: only its own paragraph (GFM task lists). */
 export function taskMarkerMayStandBefore(block: CstNode): boolean {
-	return block.kind === 'paragraph' || (block.kind === 'heading' && isBareHeadingOpener(block.raw));
+	return block.kind === 'paragraph';
 }
 
 /**
@@ -23,7 +21,7 @@ export function taskMarkerMayStandBefore(block: CstNode): boolean {
  * write to the child at `writtenIndex`. On demote the stripped marker bytes are restored into the
  * paragraph raw, so the user's content survives. `markerStoodBefore` is that same question asked of
  * the block that was in the position before the write: only a write that takes such a block away
- * takes the marker with it, since a document can legitimately load as `- [ ] # note`.
+ * takes the marker with it, since a document can load with a setext heading or table there.
  */
 export function reconcileTaskMetadata(
 	listItem: CstNode,

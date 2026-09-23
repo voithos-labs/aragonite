@@ -67,11 +67,22 @@ interface ParseBlocksResult {
 }
 
 /**
+ * A task item's body read on its own, as a write into the item's first paragraph reads it: the
+ * line after the task marker is paragraph text (GFM task lists), and later lines parse as blocks.
+ */
+export function parseTaskItemBody(source: string, grammar?: GrammarView): Document {
+	const lines = splitLines(source);
+	const result = parseBlocks(lines, 0, lines.length, grammar, 0, false, true);
+	return { kind: 'document', prefix: '', children: result.children, suffix: result.suffix };
+}
+
+/**
  * The entry point incremental parsing re-parses ranges through: a block-aligned window parses
  * identically to a full parse of the window's text. A window is a fragment unless its caller
  * says otherwise, so `parse` alone defaults to document scope. Blank-line rule
  * (`design/syntax-tree.md`): the first blank line of a run separates and becomes the next
  * block's `leadingTrivia`; every later one is an empty paragraph carrying its own bytes.
+ * `firstLineIsParagraph` makes a non-blank first line paragraph text whatever it would open.
  */
 export function parseBlocks(
 	lines: ParsedLine[],
@@ -79,7 +90,8 @@ export function parseBlocks(
 	end: number,
 	grammar: GrammarView = defaultGrammarView,
 	depth: number = 0,
-	isDocumentParse: boolean = false
+	isDocumentParse: boolean = false,
+	firstLineIsParagraph: boolean = false
 ): ParseBlocksResult {
 	const children: CstNode[] = [];
 	let pendingTrivia = '';
@@ -118,7 +130,10 @@ export function parseBlocks(
 			grammar,
 			depth
 		};
-		const { node, consumed } = parseNextBlock(ctx);
+		const { node, consumed } =
+			firstLineIsParagraph && index === start
+				? parseParagraph(lines, index, end, pendingTrivia)
+				: parseNextBlock(ctx);
 		children.push(node);
 		pendingTrivia = '';
 		separatorSpent = false;

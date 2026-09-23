@@ -5,7 +5,7 @@
 
 import { updateNodeContent } from '../tree-operations';
 import { settledCaretTarget, type SettledContent } from '../tree-operations/content-write';
-import { makeBlockNode, type AnyBlockKind } from '../core/nodes';
+import { makeBlockNode, metadataOf, type AnyBlockKind } from '../core/nodes';
 import type { NodeView } from '../core/node-views';
 import type { StructuralChange } from '../tree-operations/structural-change';
 import { readBlockPath } from '../selection/path-lookup';
@@ -24,7 +24,8 @@ export function previewContentReparse(
 	text: string,
 	grammar: Parameters<typeof updateNodeContent>[3],
 	ownerKind: AnyBlockKind | undefined,
-	tailSuffix: string
+	tailSuffix: string,
+	taskItem?: NodeView
 ): StructuralChange {
 	const probe = makeBlockNode({
 		kind: node.kind,
@@ -34,8 +35,19 @@ export function previewContentReparse(
 	// The owner kind goes along, or the trial answers about different bytes than the commit
 	// writes; the owner node stays out, since a trial must not write the real container. The
 	// suffix goes by value for the same reason: the trial may only consume the copy.
+	// `taskItem` is the task item whose paragraph this is: a copy of it makes the trial read the
+	// text after the marker as the commit will.
+	const owner =
+		taskItem &&
+		makeBlockNode({
+			kind: taskItem.kind,
+			leadingTrivia: '',
+			raw: taskItem.raw,
+			metadata: { ...metadataOf(taskItem, 'listItem') },
+			children: [probe]
+		});
 	return updateNodeContent(
-		{ children: [probe], ownerKind, owner: undefined, suffix: tailSuffix },
+		{ children: [probe], ownerKind, owner, suffix: tailSuffix },
 		0,
 		text,
 		grammar

@@ -1,10 +1,9 @@
 # Block: List, Task Checkbox (the item cycled to a heading)
 
-A task marker belongs to the item's first paragraph (GFM § 5.3): `- [ ] # note` is a task whose
-text reads `# note` on GitHub. This editor parses the bytes after the marker as blocks, so a
-first block that stops being a paragraph cannot keep the marker: `Mod+1` on a to-do, or `# `
-typed into one, used to create a heading inside a task item, an h1 line with a checkbox scaled
-to it. Now the checkbox goes with the paragraph it belonged to.
+A task marker belongs to the item's first paragraph (GFM task lists): `- [ ] # note` is a task
+whose text reads `# note`. A command that turns that paragraph into another kind of block
+cannot keep the marker, so the checkbox goes with the paragraph it belonged to. Typing `# ` into
+a to-do is text, not a command; `marker-text.md` covers it.
 
 ## Happy paths
 
@@ -21,17 +20,6 @@ to it. Now the checkbox goes with the paragraph it belonged to.
 
 - a second paragraph of a task item cycles on its own; the first paragraph still carries the
   marker, so the checkbox stays.
-- a document loaded with `- [ ] # beta` keeps those bytes while it is edited: nothing the user
-  did took the paragraph away, so typing into the heading may not rewrite the marker out of the
-  source. Only a write that changes the first block's kind gives the checkbox up.
-  - Miss-analysis: every scenario here described a write that had just changed the first block's
-    kind, so nothing described an item that arrived from the parser already holding a heading,
-    and a rule keyed on the child's kind alone read the two states the same.
-- `# ` typed at the start of a to-do takes the same path by keyboard: the paragraph becomes a
-  heading and the box goes with it (`- # beta`).
-- the bare `#` on the way to `#tag` keeps the box: it is a heading to the parser for one
-  keystroke, and taking the box then would strip a to-do for typing a tag into it. `#t` is a
-  paragraph again, box intact.
 
 ## Error cases
 

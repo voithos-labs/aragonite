@@ -87,3 +87,24 @@ describe('previewContentReparse reads the owning container', () => {
 		);
 	});
 });
+
+// Miss-analysis: the trial always read a body leaf standalone, so `# ` typed into a to-do looked
+// like a kind change and sent every later keystroke through its own structural commit.
+describe('previewContentReparse reads a task paragraph as the commit does', () => {
+	const todo = () => parse('- [ ] beta\n').children[0].children![0];
+
+	it('reports a same-kind edit for `# ` typed after the task marker', () => {
+		const item = todo();
+		const text = '# beta\n';
+		expect(previewContentReparse(item.children![0], text, undefined, 'listItem', '', item).op).toBe(
+			'noop'
+		);
+	});
+
+	it('reports the kind change for the same text in a plain item', () => {
+		const item = parse('- beta\n').children[0].children![0];
+		expect(
+			previewContentReparse(item.children![0], '# beta\n', undefined, 'listItem', '').op
+		).not.toBe('noop');
+	});
+});

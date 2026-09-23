@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { getContext, tick, untrack } from 'svelte';
 	import { CURSOR_START, type AmbientPrefix, type BlockComponent } from '../../../block-component';
+	import { parse } from '../../../core/parser';
+	import { ambientHoldsTaskBox } from '../list/task-checkbox';
 	import type { DocumentView, NodeView } from '../../../core/node-views';
 	import type { EditorRects } from '../../../editor-rects';
 	import { enterLinkCardAtCaret, linkCardTargetAt } from '../../link-card/link-card-entry';
@@ -584,6 +586,14 @@
 						const level = typeof arg === 'number' && arg >= 0 && arg <= 6 ? arg : 0;
 						const cycled = cycleHeading(node.raw, getContentRange(node), level, offset);
 						if (!cycled) return;
+						// Text after a task box is the to-do's own text, so a written `# ` would stay
+						// text there; replacing the block makes the heading and gives the box up.
+						if (ambientHoldsTaskBox(ambientPrefix)) {
+							const heading = parse(cycled.newRaw, { grammar, scope: 'fragment' }).children;
+							const focus = { replacementIndex: 0, offset: cycled.caretOffset };
+							void blockEdit.replaceBlock(index, heading, focus, { snapshotOffset: offset });
+							return;
+						}
 						blockEdit.updateBlockContent(index, cycled.newRaw, offset, cycled.caretOffset);
 						setPendingCursorOffset(cycled.caretOffset, 'heading-cycle');
 					}

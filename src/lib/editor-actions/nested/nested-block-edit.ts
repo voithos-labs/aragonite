@@ -10,6 +10,7 @@ import type { BlockEditActions } from '../../action-contracts';
 import type { BlockListState } from '../../reactivity/block-list-state.svelte';
 import { updateNodeContent as performUpdate, ensureUnsharedChild } from '../../tree-operations';
 import type { SettledContent } from '../../tree-operations/content-write';
+import { followsTaskMarker } from '../../tree-operations/list/task-paragraph';
 import { stampStructuralChange } from '../../tree-operations/structural-change';
 import { tryGetBlockKindDescriptor } from '../../schema/block-kind-descriptor';
 import { isCollapsedContainer } from '../../schema/reserved-chrome';
@@ -151,7 +152,8 @@ export function createNestedBlockEdit(
 			text,
 			deps.grammar,
 			deps.node.kind,
-			''
+			'',
+			followsTaskMarker(deps.node, innerIndex) ? deps.node : undefined
 		);
 
 		const leafPath = extendDocPath(deps.path, innerIndex);

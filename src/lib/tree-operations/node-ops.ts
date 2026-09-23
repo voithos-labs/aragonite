@@ -49,6 +49,7 @@ import {
 } from './node-primitives';
 import { absorbSeamReading, deleteNode } from './settle';
 import { adoptReparsedFields, probeLineOpensAsProse } from './content-write';
+import { fragmentReaderAt, type FragmentReader } from './list/task-paragraph';
 
 // ── Split ──
 
@@ -390,7 +391,8 @@ export function mergeIntoPrevDeepLeaf(
 	const curr = parent.children[blockIndex];
 	const lineEnding = trailingLineEnding(target.raw);
 	const { raw: mergedRaw, seam: joinOffset } = joinRaw(target, curr, presentationMode, linkRef);
-	const merged = mergedLeafFor(target, trimTrailingLineEnding(mergedRaw) + lineEnding, grammar);
+	const read = fragmentReaderAt(ownerAt(parent, leafPath), slot, grammar);
+	const merged = mergedLeafFor(target, trimTrailingLineEnding(mergedRaw) + lineEnding, read);
 	if (!merged) return null;
 
 	// The merge writes the deep leaf's raw plus every ancestor's rebuilt raw, so copy the whole
@@ -405,6 +407,14 @@ export function mergeIntoPrevDeepLeaf(
 
 	const change = deleteNode(parent, blockIndex, sharing);
 	return { targetPath: mergeTarget.path, joinOffset, change };
+}
+
+/** The container holding `path`'s last index: the parent's own owner for a one-step path. */
+function ownerAt(parent: BodyParentArg, path: number[]): CstNode | undefined {
+	if (path.length === 1) return 'owner' in parent ? parent.owner : undefined;
+	let owner = parent.children[path[0]];
+	for (const index of path.slice(1, -1)) owner = owner.children![index];
+	return owner;
 }
 
 /** The children array holding `path`'s last index, walked from `children`. */
@@ -426,18 +436,14 @@ interface MergedLeaf {
  * The deep-leaf merge's decision: the absorbed bytes pass through the kind's own write rule and
  * a fragment reparse. Null when they read as several blocks, since the leaf holds one (G1.35).
  */
-function mergedLeafFor(
-	target: CstNode,
-	raw: string,
-	grammar: GrammarView | undefined
-): MergedLeaf | null {
+function mergedLeafFor(target: CstNode, raw: string, read: FragmentReader): MergedLeaf | null {
 	const written = normalizeOwnRaw(target, raw);
 	// A context-dependent kind has no standalone recognizer, so its bytes are never read back
 	// as blocks and the write keeps the kind.
 	if (tryGetBlockKindDescriptor(target.kind)?.contextDependentKind) {
 		return { written, blocks: [] };
 	}
-	const blocks = parse(written, { grammar, scope: 'fragment' }).children;
+	const blocks = read(written).children;
 	return blocks.length > 1 ? null : { written, blocks };
 }
 

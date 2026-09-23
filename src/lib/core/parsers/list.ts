@@ -93,7 +93,8 @@ export function parseList(
 		const itemRaw = joinRaw(lines, itemStartIndex, i);
 		const baseLines = stripListItemLines(lines, itemStartIndex, i, contentIndent);
 
-		// A leading `[ ] ` is the task marker; rebuild the lines so body offsets match the new bytes.
+		// A leading `[ ] ` is the task marker, and the rest of its line starts the item's paragraph
+		// (GFM task lists). The lines are rebuilt so body offsets match the stripped bytes.
 		const task = matchTaskCheckbox(baseLines.length > 0 ? baseLines[0].text : '');
 		const strippedLines = task
 			? remapStrippedLines(baseLines, (line, index) =>
@@ -107,7 +108,8 @@ export function parseList(
 			strippedLines.length,
 			defaultGrammarView,
 			depth + 1,
-			isDocumentParse
+			isDocumentParse,
+			task !== null
 		);
 
 		items.push({
