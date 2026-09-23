@@ -22,6 +22,7 @@ import {
 	softEnter,
 	startQuote,
 	toggleTask,
+	toggleTaskByKeyboard,
 	typeFreshItem,
 	typeFenceOpener,
 	exitFence
@@ -318,6 +319,11 @@ export class Gestures {
 
 	toggleTask(listItemPath: number[]): Promise<void> {
 		return toggleTask(this.ctx, listItemPath);
+	}
+
+	/** Mod+Enter with the caret in the item, the path a keyboard user takes to the box. */
+	toggleTaskByKeyboard(itemParagraphPath: number[]): Promise<void> {
+		return toggleTaskByKeyboard(this.ctx, itemParagraphPath);
 	}
 
 	/**

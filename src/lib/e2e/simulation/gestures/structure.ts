@@ -1,4 +1,4 @@
-import { type SimContext, settleTypedSource } from '../invariants';
+import { type SimContext, assertFocusBlock, settleTypedSource } from '../invariants';
 
 /**
  * Structural gestures set off behaviour of the editor's own, so none can be predicted character
@@ -225,6 +225,19 @@ export async function toggleTask(ctx: SimContext, listItemPath: number[]): Promi
 	const pathAttr = JSON.stringify(listItemPath);
 	const checkbox = ctx.page.locator(`[data-block-path='${pathAttr}'] .task-checkbox`).first();
 	await actThenResync(ctx, () => checkbox.click());
+}
+
+/**
+ * The keyboard way to the same toggle: a click puts the caret in the item's paragraph, checked
+ * before the chord, so a landing in another item never records as this one's toggle.
+ */
+export async function toggleTaskByKeyboard(
+	ctx: SimContext,
+	itemParagraphPath: number[]
+): Promise<void> {
+	await ctx.editor.clickBlockAtPath(itemParagraphPath, 1);
+	await assertFocusBlock(ctx, itemParagraphPath);
+	await actThenResync(ctx, () => ctx.page.keyboard.press('ControlOrMeta+Enter'));
 }
 
 /**

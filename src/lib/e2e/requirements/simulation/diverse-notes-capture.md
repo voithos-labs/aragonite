@@ -62,6 +62,9 @@ review by an agent.
   exit-collapse fix)
 - task toggle flips the first checklist item from unchecked to checked via a real
   checkbox click; the resulting `[x]` matches the canonical note
+- keyboard task toggle flips the second checklist item by a click into its text, a
+  check that the caret landed in that item, then Mod+Enter; the resulting `[x]`
+  matches the canonical note
 
 ## User interactions
 
