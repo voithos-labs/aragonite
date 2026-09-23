@@ -131,6 +131,28 @@ export function walkCode(
 	return code.length;
 }
 
+export interface LiteralSpan {
+	start: number;
+	/** Index just past the literal's closing quote, backtick or regex flags. */
+	end: number;
+	kind: 'string' | 'template' | 'regex';
+}
+
+/** Every string, template and regex literal in `code`, outermost first; comments are skipped. */
+export function literalSpans(code: string): LiteralSpan[] {
+	const out: LiteralSpan[] = [];
+	for (let i = 0; i < code.length; i++) {
+		const span = spanAt(code, i);
+		if (span === null) continue;
+		if (span.kind === 'template') out.push({ start: i, end: span.end, kind: 'template' });
+		else if (span.kind === 'literal') {
+			out.push({ start: i, end: span.end, kind: code[i] === '/' ? 'regex' : 'string' });
+		}
+		i = span.end - 1;
+	}
+	return out;
+}
+
 /**
  * The non-code span starting at `i` (a string, template, comment or regex literal), or null where
  * code continues. The one place the lexing rules live.
@@ -277,9 +299,6 @@ function opensRegex(code: string, at: number): boolean {
 	return REGEX_OPERAND_WORDS.has(code.slice(start, i + 1));
 }
 
-// ── Lexical classification ───────────────────────────────────────────────────
-
-/** Class names in the order {@link lexicalClasses} numbers them. */
 // ── Prose surfaces ──────────────────────────────────────────────────────
 
 /** A component mounting an editable surface of its own. */
@@ -303,6 +322,9 @@ export function isProseSurface(file: SourceFile): boolean {
 	);
 }
 
+// ── Lexical classification ───────────────────────────────────────────────────
+
+/** Class names in the order {@link lexicalClasses} numbers them. */
 export const LEXICAL_CLASSES = ['code', 'comment', 'string', 'template', 'regex'] as const;
 
 const [CODE, COMMENT, STRING, TEMPLATE, REGEX] = LEXICAL_CLASSES.map((_, index) => index);

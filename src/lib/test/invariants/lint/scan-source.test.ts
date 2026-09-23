@@ -13,6 +13,7 @@ import {
 	collectEditorSources,
 	EDITOR_SRC,
 	isProseSurface,
+	literalSpans,
 	rawAssignments,
 	REPO_WIDE_ROOTS,
 	stripComments
@@ -159,6 +160,16 @@ describe('literal-aware walking', () => {
 	it('reads a slash after a closing brace as code, not a regex opening', () => {
 		expect(stripComments('{a}/{b /* c */}</span>')).toBe('{a}/{b ' + ' '.repeat(7) + '}</span>');
 		expect(stripComments('{a} / {b /* c */}')).toBe('{a} / {b ' + ' '.repeat(7) + '}');
+	});
+
+	it('lists each literal whole, a quote inside a comment or another literal opening none', () => {
+		const code = "a('x\"y'); // it's\nb(`t ${'u'}`, /'/g);";
+		const spans = literalSpans(code).map((span) => [span.kind, code.slice(span.start, span.end)]);
+		expect(spans).toEqual([
+			['string', "'x\"y'"],
+			['template', "`t ${'u'}`"],
+			['regex', "/'/g"]
+		]);
 	});
 
 	it('terminates a raw-write statement at the semicolon past a regex literal', () => {

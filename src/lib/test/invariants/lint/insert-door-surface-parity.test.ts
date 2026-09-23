@@ -7,7 +7,7 @@
  * hands `publishRefSlot` (GH #148).
  */
 import { describe, it, expect } from 'vitest';
-import { collectEditorSources } from './scan-source';
+import { balancedRegion, callArguments, callsTo, collectEditorSources } from './scan-source';
 
 /** A component owning an editable element: the two factories that create one. */
 const SURFACE_FACTORY_RE = /\bcreateEditable(?:Surface|Leaf)\s*\(/;
@@ -34,31 +34,19 @@ function surfaceComponents(): Array<{ relPath: string; code: string }> {
  * as an instance export nobody reads.
  */
 function publishedSurfaceMembers(code: string): string[] | null {
-	const at = code.search(/\bsatisfies\s+BlockComponent\b/);
-	if (at < 0) return null;
-	const close = code.lastIndexOf('}', at);
-	if (close < 0) return null;
-
-	let depth = 0;
-	let open = -1;
-	for (let i = close; i >= 0; i--) {
-		if (code[i] === '}') depth += 1;
-		else if (code[i] === '{' && --depth === 0) {
-			open = i;
-			break;
-		}
+	for (const declared of code.matchAll(/(?:const|let)\s+([A-Za-z_$][\w$]*)\s*=\s*\{/g)) {
+		const open = declared.index + declared[0].length - 1;
+		const literal = balancedRegion(code, open);
+		if (literal === null) continue;
+		if (!/^\s*satisfies\s+BlockComponent\b/.test(code.slice(open + literal.length))) continue;
+		const name = new RegExp(String.raw`\b${declared[1]}\b`);
+		if (!callsTo(code, 'publishRefSlot').some((args) => name.test(args))) return null;
+		return callArguments(literal.slice(1, -1)).flatMap((member) => {
+			const key = /^([A-Za-z_$][\w$]*)\s*(?::|\(|$)/.exec(member);
+			return key ? [key[1]] : [];
+		});
 	}
-	if (open < 0) return null;
-
-	const declared = /(?:const|let)\s+([A-Za-z_$][\w$]*)\s*=\s*$/.exec(code.slice(0, open));
-	if (!declared) return null;
-	if (!new RegExp(String.raw`publishRefSlot\s*\([^)]*\b${declared[1]}\b`).test(code)) return null;
-
-	return code
-		.slice(open + 1, close)
-		.split(/[,\n]/)
-		.map((entry) => entry.split(':')[0].trim())
-		.filter((name) => /^[A-Za-z_$][\w$]*$/.test(name));
+	return null;
 }
 
 function publishesDoor(code: string): boolean {
@@ -120,6 +108,14 @@ describe('G4.38 insertion entry-point surface parity', () => {
 			'measurePartialRects',
 			'insertMarkdown'
 		]);
+	});
+
+	it('the literal reader reads past a brace inside a string member', () => {
+		const src = [
+			"const self = { label: '}', focus, insertMarkdown } satisfies BlockComponent;",
+			'return publishRefSlot(slots, index, self);'
+		].join('\n');
+		expect(publishedSurfaceMembers(src)).toEqual(['label', 'focus', 'insertMarkdown']);
 	});
 
 	it('a literal nothing publishes is not a channel', () => {
