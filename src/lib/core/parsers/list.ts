@@ -26,8 +26,12 @@ export function matchListItem(
 	};
 }
 
-function matchTaskCheckbox(text: string): { checked: boolean; rawMarker: string } | null {
-	const m = text.match(/^\[( |x|X)\]\s+/);
+/**
+ * The task marker at the start of `text`, the one reading of its extent: the box, then spaces or
+ * tabs. Never a line ending, so a CRLF line's `\r` stays with the line (G4.20).
+ */
+export function matchTaskCheckbox(text: string): { checked: boolean; rawMarker: string } | null {
+	const m = text.match(/^\[( |x|X)\][ \t]+/);
 	return m ? { checked: m[1].toLowerCase() === 'x', rawMarker: m[0] } : null;
 }
 

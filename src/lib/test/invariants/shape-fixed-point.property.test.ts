@@ -18,6 +18,7 @@ import { keepsEveryByte } from '$lib/test/harness/live-oracles';
 import { arbBlankSeparatedGfmDoc, arbInlineSource, freshOrFixedSeed } from './arbitraries';
 import { displayLength, trailingLineEnding } from '$lib/core/lines';
 import { getBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
+import { followsTaskMarker } from '$lib/tree-operations/list/task-paragraph';
 import {
 	registerLiveSplitRebalancer,
 	__resetLiveSplitRebalancerForTests
@@ -122,22 +123,22 @@ function applyMerge(doc: Document, at: number, op: 'mergePrev' | 'mergeNext'): v
 /** A prose leaf plus the container holding it and the ancestors whose raw the write rebuilds. */
 type LeafSlot = { holder: Document | CstNode; index: number; chain: CstNode[] };
 
-function proseLeafSlots(
-	node: Document | CstNode,
-	intoListItems: boolean,
-	chain: CstNode[] = []
-): LeafSlot[] {
+function proseLeafSlots(node: Document | CstNode, chain: CstNode[] = []): LeafSlot[] {
 	return (node.children ?? []).flatMap((child, index) => {
-		// A list item's body is delimited by the indent its marker sets, so blanking a leaf inside
-		// one re-reads the bytes the way it does around indented code (the exclusion below).
-		if (child.kind === 'listItem' && !intoListItems) return [];
-		if (child.children !== undefined) {
-			return proseLeafSlots(child, intoListItems, [...chain, child]);
-		}
+		if (child.children !== undefined) return proseLeafSlots(child, [...chain, child]);
 		const editable = getBlockKindDescriptor(child.kind).supportsInline === true;
 		return editable ? [{ holder: node, index, chain }] : [];
 	});
 }
+
+/**
+ * Inside a list item only the paragraph after a task marker is emptied: the rest of an item body
+ * reloads other shapes than it holds once emptied (GH #406 for its last block, and an item left
+ * empty after a paragraph, which stops interrupting it), which seed 424242 draws first.
+ */
+const emptiesCleanly = ({ holder, index, chain }: LeafSlot) =>
+	!chain.some((node) => node.kind === 'listItem') ||
+	followsTaskMarker('raw' in holder ? holder : undefined, index);
 
 /**
  * The reverse transition: a block that becomes the blank line (GH #96), indexed over the prose
@@ -146,7 +147,7 @@ function proseLeafSlots(
  * body answers to its container's own opener line, which no top-level draw reaches.
  */
 function applyEmpty(doc: Document, at: number): void {
-	const slots = proseLeafSlots(doc, false);
+	const slots = proseLeafSlots(doc).filter(emptiesCleanly);
 	if (slots.length === 0) return;
 	const slot = slots[at % slots.length];
 	writeLeaf(doc, slot, trailingLineEnding(slot.holder.children![slot.index].raw));
@@ -159,7 +160,7 @@ function applyEmpty(doc: Document, at: number): void {
 function applyRetype(doc: Document, at: number): void {
 	// A table row rebuilds from its column count, so a row carrying surplus cells loses them on
 	// any write: a byte rule of the table's own, not the reading this gesture checks.
-	const slots = proseLeafSlots(doc, true).filter(({ holder }) => holder.kind !== 'tableRow');
+	const slots = proseLeafSlots(doc).filter(({ holder }) => holder.kind !== 'tableRow');
 	if (slots.length === 0) return;
 	const slot = slots[at % slots.length];
 	writeLeaf(doc, slot, slot.holder.children![slot.index].raw);

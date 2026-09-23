@@ -61,6 +61,20 @@ describe('task marker: the lines after it parse as blocks', () => {
 		expect(item.children![1].leadingTrivia).toBe('\n');
 	});
 
+	// The editor's write path reads the marker with this same matcher.
+	it.each([
+		['- [x] \r\n', '[x] ', '\r\n'],
+		['- [x] \rfoo\n', '[x] ', '\rfoo\n'],
+		['- [ ]\t foo\r\n', '[ ]\t ', 'foo\r\n']
+	])(
+		'%j: the marker is the box and its spaces or tabs, never a carriage return',
+		(source, marker, text) => {
+			const item = taskItem(source);
+			expect(item.metadata).toMatchObject({ taskMarker: marker });
+			expect(item.children![0].raw).toBe(text);
+		}
+	);
+
 	it('a plain item still opens a block after its marker', () => {
 		const doc = parse('- # heading\n');
 		expect(doc.children[0].children![0].children![0].kind).toBe('heading');
