@@ -1,9 +1,8 @@
 /**
- * The `data-` names a block decoration may not use. `.block-host` is an ancestor of every
- * element the offset traversal walks, so an attribute here answers the ancestor lookups the CSS,
- * that traversal, and selection and windowing all make; a decoration using one would make those
- * readers disagree with the DOM. The list is what they read through `closest()` or an ancestor
- * selector; a name read only on the element that writes it is not included.
+ * The `data-` names a block decoration may not use. A block host or a list item's box is an
+ * ancestor of every element the offset traversal walks, so an attribute here answers the ancestor
+ * lookups the CSS, that traversal, and selection and windowing all make. The list is what they
+ * read through `closest()` or an ancestor selector; a name read only where it is written is not.
  */
 
 import { devWarn } from '../dev-warn';
@@ -20,9 +19,11 @@ export const RESERVED_BLOCK_ATTRS: ReadonlySet<string> = new Set([
 	'data-image-widget',
 	'data-inline-widget',
 	'data-link-card',
+	'data-list-marker',
 	'data-pointer-gesture',
 	'data-presentation',
-	'data-table-row-idx'
+	'data-table-row-idx',
+	'data-task-checked'
 ]);
 
 /** The name grammar `setAttribute` enforces: a name it refuses throws inside the decoration

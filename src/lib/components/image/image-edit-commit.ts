@@ -9,7 +9,7 @@ import type { EditorEvents } from '../../editor-events';
 import type { GrammarView } from '../../schema/block-openers';
 import { FALLBACK_CONTENT_WIDTH } from '../../cursor/typography-estimates';
 import { blockNodeAt } from '../../tree-operations/node-primitives';
-import { buildImageEditBytes } from './image-source-bytes';
+import { buildImageEditBytes, imageFieldsFromInline, sameImageFields } from './image-source-bytes';
 import type { WidgetSelectionState, WidgetTarget } from './widget-selection-state.svelte';
 
 // ── Public API ──────────────────────────────────────────────────────────
@@ -33,11 +33,11 @@ export interface SelectedImageFields {
 export interface ImageEditCommitter {
 	getSelectedImageFields(): SelectedImageFields | null;
 	/**
-	 * `target` is captured at popover-mount time, not read from the live
-	 * widgetSelection: a popover commit can fire after the user clicked a different
-	 * widget, and writing to the new selection cross-pollinates the two images.
+	 * The popover's write. `target` and `seenFields` are the image the popover last showed, not
+	 * the live selection; nothing is written unless the image at `target` still reads as
+	 * `seenFields`, so a draft never lands on another image, even after a document swap.
 	 */
-	commitImageEdit(target: WidgetTarget, newFields: ImageFields): void;
+	commitImageEdit(target: WidgetTarget, seenFields: ImageFields, newFields: ImageFields): void;
 	/** The bytes `commitImageEdit` would write, or `null` if it would refuse; the popover
 	 *  compares against these to see whether anything changed. */
 	buildEditBytes(target: WidgetTarget, newFields: ImageFields): string | null;
@@ -112,7 +112,17 @@ export function createImageEditCommitter(deps: ImageEditCommitterDeps): ImageEdi
 		return resolveEdit(target, newFields)?.bytes ?? null;
 	}
 
-	function commitImageEdit(target: WidgetTarget, newFields: ImageFields): void {
+	function commitImageEdit(
+		target: WidgetTarget,
+		seenFields: ImageFields,
+		newFields: ImageFields
+	): void {
+		const image = imageAt(target);
+		if (!image || !sameImageFields(imageFieldsFromInline(image), seenFields)) return;
+		writeImageEdit(target, newFields);
+	}
+
+	function writeImageEdit(target: WidgetTarget, newFields: ImageFields): void {
 		const edit = resolveEdit(target, newFields);
 		if (!edit) return;
 		void inlineRange.commitInlineRange(
@@ -143,7 +153,7 @@ export function createImageEditCommitter(deps: ImageEditCommitterDeps): ImageEdi
 			...(framedHeight !== undefined ? { height: framedHeight } : {}),
 			...(image.crop !== undefined && framedHeight !== undefined ? { crop: image.crop } : {})
 		};
-		commitImageEdit(sel, newFields);
+		writeImageEdit(sel, newFields);
 	}
 
 	/** The whole `![...](...)` span goes; the caret lands where the image began. */

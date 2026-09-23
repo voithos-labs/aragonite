@@ -96,20 +96,20 @@ describe('Shift+Arrow resize of an image an inline syntax handler claimed', () =
 describe('a popover or drag commit on an image an inline syntax handler claimed', () => {
 	it('builds the inline syntax handler’s bytes and commits them', async () => {
 		registerWikiRung(rewriteWikiImage);
-		const { committer, controller, target } = committerFor('![[cat.png|300]]\n');
+		const { committer, controller, target, seen } = committerFor('![[cat.png|300]]\n');
 		const resized = { alt: 'cat.png', url: 'cat.png', width: 320 };
 		expect(committer.buildEditBytes(target, resized)).toBe('![[cat.png|320]]');
-		committer.commitImageEdit(target, resized);
+		committer.commitImageEdit(target, seen, resized);
 		await Promise.resolve();
 		expect(controller.commitStructural).toHaveBeenCalled();
 	});
 
 	it('declines the commit outright when the inline syntax handler registered no hook', async () => {
 		registerWikiRung();
-		const { committer, controller, target } = committerFor('![[cat.png|300]]\n');
+		const { committer, controller, target, seen } = committerFor('![[cat.png|300]]\n');
 		const resized = { alt: 'cat.png', url: 'cat.png', width: 320 };
 		expect(committer.buildEditBytes(target, resized)).toBeNull();
-		committer.commitImageEdit(target, resized);
+		committer.commitImageEdit(target, seen, resized);
 		await Promise.resolve();
 		expect(controller.commitStructural).not.toHaveBeenCalled();
 		expect(takeDevWarns().map((w) => w.tag)).toEqual(['image-edit', 'image-edit']);
@@ -119,10 +119,10 @@ describe('a popover or drag commit on an image an inline syntax handler claimed'
 	// a field the grammar cannot store, and a hook that ignored it would return the same bytes.
 	it('declines an alt edited away from the target', async () => {
 		registerWikiRung(rewriteWikiImage);
-		const { committer, controller, target } = committerFor('![[cat.png|300]]\n');
+		const { committer, controller, target, seen } = committerFor('![[cat.png|300]]\n');
 		const renamed = { alt: 'A cat', url: 'cat.png', width: 300 };
 		expect(committer.buildEditBytes(target, renamed)).toBeNull();
-		committer.commitImageEdit(target, renamed);
+		committer.commitImageEdit(target, seen, renamed);
 		await Promise.resolve();
 		expect(controller.commitStructural).not.toHaveBeenCalled();
 		expect(takeDevWarns().map((w) => w.tag)).toEqual(['image-edit', 'image-edit']);
@@ -132,10 +132,10 @@ describe('a popover or drag commit on an image an inline syntax handler claimed'
 	// nowhere to put a title), and a refusal there is a refusal, not a fallback.
 	it('declines an edit the hook cannot represent', async () => {
 		registerWikiRung(rewriteWikiImage);
-		const { committer, controller, target } = committerFor('![[cat.png|300]]\n');
+		const { committer, controller, target, seen } = committerFor('![[cat.png|300]]\n');
 		const titled = { alt: 'cat.png', url: 'cat.png', width: 300, title: 'Cat' };
 		expect(committer.buildEditBytes(target, titled)).toBeNull();
-		committer.commitImageEdit(target, titled);
+		committer.commitImageEdit(target, seen, titled);
 		await Promise.resolve();
 		expect(controller.commitStructural).not.toHaveBeenCalled();
 		expect(takeDevWarns().map((w) => w.tag)).toEqual(['image-edit', 'image-edit']);

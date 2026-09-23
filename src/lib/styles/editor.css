@@ -130,6 +130,17 @@
 	user-select: none;
 }
 
+/* A list item's box is a flex row; with a badge it stacks its children instead, so the badge
+   sits above the marker and the text, as a block host's badge does, and moves neither. */
+:where(.editor) .list-item-block:has(> .decoration-badge) {
+	flex-direction: column;
+}
+/* Set per child: the item's own align-items would tie with a rule on the box. */
+:where(.editor) .list-item-block:has(> .decoration-badge) > .decoration-badge,
+:where(.editor) .list-item-block:has(> .decoration-badge) > .list-item-content {
+	align-self: stretch;
+}
+
 /* A non-editable inline widget the caret cannot enter; its own class styles it on top. */
 :where(.editor) .decoration-island {
 	user-select: none;

@@ -10,8 +10,7 @@ export const IMAGE_CHROME_SELECTOR = '[data-image-widget], [data-image-overlay]'
 
 export interface WidgetTarget {
 	// A deliberate snapshot, unlike the click path's live resolve (widget-dom.ts): a popover commit
-	// must target the image it opened on. Safe to hold because the selection clears on any edit
-	// that leaves no image at these bytes, and on a document swap.
+	// must target the image it opened on, and writes nothing once another image holds these bytes.
 	paragraphPath: number[];
 	sourceStart: number;
 	// The caret's raw offset just before widget selection took over; drives the undo

@@ -96,14 +96,16 @@ export function installSelectionDrop(deps: SelectionDropDeps): () => void {
 
 	/** The caret saying where a release would land: cancelling the browser's drop takes its own
 	 *  caret away, so this one stands at the landing the drop resolves and declines where it does. */
-	function drawCaretAt(clientX: number, clientY: number): void {
+	function drawCaretAt(clientX: number, clientY: number, copy: boolean): void {
 		const from = source;
 		if (!from || from === DECLINED || deps.isReadOnly()) return hideCaret();
 		const target = dropTarget(deps, clientX, clientY);
 		if (!target) return hideCaret();
 		// The same refusal `dropOffsetAfterCut` makes once the cut has shrunk the block, tested
 		// here before the cut: a move has nowhere to put bytes inside the range it took them from.
-		if (pathsEqual(target.path, from.path) && insideRange(target.offset, from.start, from.end)) {
+		const inside =
+			pathsEqual(target.path, from.path) && insideRange(target.offset, from.start, from.end);
+		if (inside && !copy) {
 			return hideCaret();
 		}
 		if (caretAt && caretAt.offset === target.offset && pathsEqual(caretAt.path, target.path)) {
@@ -127,7 +129,7 @@ export function installSelectionDrop(deps: SelectionDropDeps): () => void {
 	const onDragOver = (e: DragEvent) => {
 		if (!source) return;
 		e.preventDefault();
-		drawCaretAt(e.clientX, e.clientY);
+		drawCaretAt(e.clientX, e.clientY, isCopyDrag(e));
 	};
 	// `dragleave` also fires for every child the pointer crosses, so the caret goes only once
 	// the point is outside the editor's own box.
@@ -145,7 +147,7 @@ export function installSelectionDrop(deps: SelectionDropDeps): () => void {
 		if (from === DECLINED || deps.isReadOnly()) return;
 		const target = dropTarget(deps, e.clientX, e.clientY);
 		if (!target) return;
-		void runDrop(deps, from, target, e.ctrlKey || e.altKey).catch((error) => {
+		void runDrop(deps, from, target, isCopyDrag(e)).catch((error) => {
 			// A throw between the two writes leaves an undo snapshot pushed and half the move
 			// applied; the host hears about it on the same channel paste errors use.
 			emitClipboardError(deps.events, { error, path: from.path });
@@ -165,6 +167,11 @@ export function installSelectionDrop(deps: SelectionDropDeps): () => void {
 		deps.editorRoot.removeEventListener('dragleave', onDragLeave);
 		deps.editorRoot.removeEventListener('drop', onDrop);
 	};
+}
+
+/** Ctrl, or Alt (Option, macOS's copy key for a drag): the release copies instead of moving. */
+function isCopyDrag(e: DragEvent): boolean {
+	return e.ctrlKey || e.altKey;
 }
 
 /** Where `target` ends up after a splice of `delta` blocks at `at` inside `parent`: what the

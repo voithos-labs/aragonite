@@ -6,6 +6,7 @@ import { blockCenter, pastLineEnd, runCenter, runStart } from './multi-click-hel
 // aim past a line's end or at its first glyph: the two points whose offset no font metric moves.
 
 const TWO = 'alpha beta gamma\n\nsecond para here\n';
+const COPIED = 'alpha beta gamma\n\nbetasecond para here\n';
 
 type Point = { x: number; y: number };
 
@@ -105,6 +106,26 @@ test.describe('dragging a selection', () => {
 		await page.keyboard.press('Control+z');
 		await editor.bridge.waitForSourceEquals(TWO);
 	});
+
+	// Chromium reads the drop's modifier keys off the held keyboard state, so the key goes down
+	// before the press and comes up after the release.
+	for (const modifier of ['Control', 'Alt'] as const) {
+		test(`a word released with ${modifier} held is copied, the source kept`, async ({ page }) => {
+			const beta = await doubleClickOn('beta');
+			const target = await runStart(page, 'second para here');
+			await page.keyboard.down(modifier);
+			await dragSelection(page, beta, target);
+			await page.keyboard.up(modifier);
+			await editor.bridge.waitForSourceEquals(COPIED);
+			expect(await converged(page)).toBe(true);
+			expect(await domMatchesRaw(page, 0)).toBe(true);
+			expect(await domMatchesRaw(page, 1)).toBe(true);
+			await page.keyboard.press('Control+z');
+			await editor.bridge.waitForSourceEquals(TWO);
+			await page.keyboard.press('Control+y');
+			await editor.bridge.waitForSourceEquals(COPIED);
+		});
+	}
 
 	test("the block inline syntax handler's content moves and leaves the block behind", async ({
 		page
