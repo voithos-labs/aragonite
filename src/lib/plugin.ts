@@ -135,7 +135,8 @@ export type {
 } from './schema/context-actions';
 export type { BlockCommandContext, BlockCommandHandler } from './schema/block-commands';
 export type { PluginCommandId, AnyCommandId } from './schema/command-id';
-// A global command is process-wide but runs against the dispatching instance's `EditorContext`.
+// A global command is process-wide but runs against the dispatching instance's `EditorContext`,
+// with the argument `runCommand(id, arg)` or the chord's binding carried.
 export { registerGlobalCommand } from './schema/global-commands';
 
 // ── Parse / serialize helpers (pre-freeze) ───────────────────────────────────
