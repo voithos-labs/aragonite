@@ -917,7 +917,9 @@ checkbox).
 **G4.8 · Documented-chord dispatch.** Every chord the consumer guide's keyboard table lists resolves
 in the surface that actually dispatches it: the keymap registry (which the table's structural chords
 joined at 0.9.36), the search components, or the clipboard seams (the whole-block key tail and the
-text block's clipboard seam). `lint/consumer-guide-chords.test.ts`.
+text block's clipboard seam). The reverse sweep keys each claim by chord and owner (the kind whose
+keymap binds it, or the file whose keydown branch claims it), so `Mod+Enter` on a task item and in
+a table cell each need their own row, or a recorded reason. `lint/consumer-guide-chords.test.ts`.
 
 **G4.9 · Theme-token manifest.** Every token the consumer and plugin guides publish is declared in
 `editor-theme.css`, and a themed token carries both a light and a dark value.
