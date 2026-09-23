@@ -32,3 +32,4 @@ only the perf gate's live rows saw it, as a 26x keystroke.
 ## Error cases
 
 - no page errors surface during load, scroll or the mode switch
+- No ResizeObserver loop error reaches `window.onerror` when a height correction mounts another block. Miss-analysis: the shared fixture relayed only thrown page errors until it also relayed `window.onerror`, so this loop error went unseen.

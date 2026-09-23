@@ -188,3 +188,43 @@ export async function progressiveScrollTo(editor: EditorPage, target: number): P
 	}
 	await editor.scrollEditorTo(target);
 }
+
+// ── Host mount counting ─────────────────────────────────────────────
+
+export interface HostChanges {
+	added: number;
+	removed: number;
+}
+
+/** Counts every block host added to or removed from the editor from now on, nested ones inside
+ *  an added or removed subtree included, and one mounted and torn down within one flush, which
+ *  the settled DOM hides. Call the returned function to stop counting and read the totals. */
+export async function startCountingHostChanges(page: Page): Promise<() => Promise<HostChanges>> {
+	await page.evaluate(() => {
+		const w = window as any;
+		w.__hostChanges = { added: 0, removed: 0 };
+		const hostsIn = (node: Node) =>
+			node instanceof Element
+				? Number(node.matches('[data-block-path]')) +
+					node.querySelectorAll('[data-block-path]').length
+				: 0;
+		w.__countHostChanges = (records: MutationRecord[]) => {
+			for (const record of records) {
+				for (const node of record.addedNodes) w.__hostChanges.added += hostsIn(node);
+				for (const node of record.removedNodes) w.__hostChanges.removed += hostsIn(node);
+			}
+		};
+		w.__hostChangeObserver = new MutationObserver(w.__countHostChanges);
+		w.__hostChangeObserver.observe(document.querySelector('.editor')!, {
+			childList: true,
+			subtree: true
+		});
+	});
+	return () =>
+		page.evaluate(() => {
+			const w = window as any;
+			w.__countHostChanges(w.__hostChangeObserver.takeRecords());
+			w.__hostChangeObserver.disconnect();
+			return w.__hostChanges as { added: number; removed: number };
+		});
+}

@@ -1,4 +1,4 @@
-import { test, expect, RESIZE_OBSERVER_LOOP } from '../../fixtures';
+import { test, expect } from '../../fixtures';
 import type { Page } from '@playwright/test';
 import { EditorPage } from '../../editor-page';
 import { enterPresentationMode } from '../presentation/helpers';
@@ -90,10 +90,6 @@ test('live mode keeps the mounted set bounded while wheel-scrolling a heavy docu
 });
 
 test.describe('with mounted blocks resizing at the flip', () => {
-	// A known defect, claimed until fixed (#423): a height correction made inside the block
-	// height observer (BlockHost) leaves resize notifications the browser cannot deliver that frame.
-	test.use({ expectPageErrors: [RESIZE_OBSERVER_LOOP] });
-
 	test('a flip into live keeps the window it entered with', async ({ page }) => {
 		const pageErrors = capturePageErrors(page);
 		const editor = await enterPresentationMode(page, 'source', HEAVY);

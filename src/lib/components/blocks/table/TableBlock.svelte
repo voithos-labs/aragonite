@@ -29,6 +29,7 @@
 	} from '../../../editor-keys';
 	import { metadataOf } from '../../../core/nodes';
 	import { asEditorX } from '../../../cursor/coordinate-spaces';
+	import { observeResize } from '../../../cursor/observe-resize';
 	import { pathsEqual } from '../../../selection/path-math';
 	import { placeCaret } from '../../../selection/caret-doors';
 	import { columnNearestX } from './cell-x-mapping';
@@ -347,9 +348,7 @@
 			};
 		};
 		void tick().then(measure);
-		const observer = typeof ResizeObserver === 'function' ? new ResizeObserver(measure) : null;
-		observer?.observe(el);
-		return () => observer?.disconnect();
+		return observeResize(el, measure);
 	});
 
 	// The open point as an offset into an element's box, so a scroll re-reads it where the

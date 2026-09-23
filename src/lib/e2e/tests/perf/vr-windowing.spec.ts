@@ -7,7 +7,8 @@ import {
 	TOP_LEVEL_HOSTS,
 	cstBlockCount,
 	mountedViewportSpan,
-	spacerCount
+	spacerCount,
+	startCountingHostChanges
 } from './vr-helpers';
 import { capturePageErrors } from '../../page-probes';
 
@@ -36,9 +37,6 @@ function allHostCount(page: Page): Promise<number> {
 }
 
 test('windowing bounds the mounted set on a multi-thousand-block doc', async ({ page }) => {
-	// 1.2 to 1.5 minutes alone on a laptop, nearly all of it loading the 2MB fixture. A limit
-	// against hanging rather than an expectation, so it allows about three times that.
-	test.setTimeout(300_000);
 	const pageErrors = capturePageErrors(page);
 	const editor = new EditorPage(page);
 	await editor.goto();
@@ -54,18 +52,26 @@ test('windowing bounds the mounted set on a multi-thousand-block doc', async ({ 
 		(window as any).__test.perf.reset();
 	});
 
+	// The swap is windowed from its first render pass, so it mounts the final band and not the
+	// one-block document's "every block" over the new children.
+	const hostChangesDuringSwap = await startCountingHostChanges(page);
 	const blockCount = await editor.loadLargeFixture('many-small-blocks', FIXTURE_BYTES);
+	const mountedDuringSwap = (await hostChangesDuringSwap()).added;
 
 	// `many-small-blocks` is flat, with no nested hosts, so counting top-level blocks in the
 	// DOM gives exactly the mounted window and the bound is unambiguous.
 	const domMounted = await editor.getDomBlockCount();
 	const balance = await mountedBlockCount(page);
 
-	console.log(`VR headline ${JSON.stringify({ blockCount, domMounted, balance })}`);
+	console.log(
+		`VR headline ${JSON.stringify({ blockCount, domMounted, balance, mountedDuringSwap })}`
+	);
 
 	expect(blockCount).toBeGreaterThan(2000);
 	expect(domMounted).toBeLessThan(60);
 	expect(domMounted).toBeLessThan(blockCount / 10);
+	// The measure pass after the first render may shift the band by its six blocks of overscan.
+	expect(mountedDuringSwap).toBeLessThanOrEqual(domMounted + 6);
 	// Check the counter against the live count; they should agree to within the one block the
 	// total was reset on.
 	expect(Math.abs(balance - domMounted)).toBeLessThanOrEqual(2);
