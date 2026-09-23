@@ -1,16 +1,19 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { createEditorPluginContexts } from '$lib/schema/plugin-editor-context';
-import { activationFor, everyInstalledPlugin } from '$lib/schema/plugin-activation';
 import {
-	definePlugin,
-	installPlugins,
-	__resetInstalledPluginsForTests
-} from '$lib/schema/plugin-install';
+	activationFor,
+	everyInstalledPlugin,
+	type PluginActivation
+} from '$lib/schema/plugin-activation';
+import { registerInsertEntry } from '$lib/schema/insert-catalogue';
+import { definePlugin, installPlugins } from '$lib/schema/plugin-install';
+import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { createEditorEvents, type EditorError } from '$lib/editor-events';
 import { createDecorationEngine } from '$lib/decorations/decoration-state.svelte';
 import type { DecorationRegistry } from '$lib/decorations/types';
 import type { EditorRects } from '$lib/editor-rects';
 import type { InlineMenuRegistry } from '$lib/inline-menu/types';
+import type { InsertMarkdownOptions } from '$lib/editor-props';
 
 const fakeEvents = { on: () => () => {} } as never;
 const noopDecorations: DecorationRegistry = {
@@ -41,7 +44,9 @@ const deps = (doc: { children: unknown[] }) => ({
 	getDocumentGeneration: () => 0,
 	getPresentationMode: () => 'source' as const,
 	getTheme: () => 'dark',
-	activation: everyInstalledPlugin
+	activation: everyInstalledPlugin as PluginActivation,
+	insertMarkdown: (() => false) as (md: string, options?: InsertMarkdownOptions) => boolean,
+	runCommand: (() => false) as (commandId: string, arg?: unknown) => boolean
 });
 
 /** Two installed plugins, each recording the editors its hook attached to. */
@@ -58,7 +63,7 @@ function installPair(attached: string[]) {
 	]);
 }
 
-beforeEach(() => __resetInstalledPluginsForTests());
+beforeEach(() => __resetSchemaRegistriesForTests());
 
 describe('createEditorPluginContexts', () => {
 	it('get() returns one stable identity per plugin, with per-plugin options', () => {
@@ -88,6 +93,55 @@ describe('createEditorPluginContexts', () => {
 		expect(ctx.documentGeneration).toBe(0);
 		generation = 2;
 		expect(ctx.documentGeneration).toBe(2);
+	});
+
+	// Miss-analysis: the context carried no way to insert or run anything, so a plugin that wanted
+	// a block had to be registered by the page; nothing asked the context to reach the instance.
+	it('insertMarkdown and runCommand reach the instance, with its answer, false included', () => {
+		const inserted: unknown[][] = [];
+		const ran: unknown[][] = [];
+		let answer = true;
+		const ctx = createEditorPluginContexts({
+			...deps({ children: [] }),
+			insertMarkdown: (...args) => (inserted.push(args), answer),
+			runCommand: (...args) => (ran.push(args), answer)
+		}).get('p')!;
+
+		expect(ctx.insertMarkdown('> ', { placement: 'below' })).toBe(true);
+		expect(ctx.runCommand('heading.cycle', 2)).toBe(true);
+		answer = false;
+		expect(ctx.insertMarkdown('x')).toBe(false);
+		expect(ctx.runCommand('nope')).toBe(false);
+		expect(inserted).toEqual([
+			['> ', { placement: 'below' }],
+			['x', undefined]
+		]);
+		expect(ran).toEqual([
+			['heading.cycle', 2],
+			['nope', undefined]
+		]);
+	});
+
+	it('insertCatalogue lists a plugin block only where this editor activated its plugin', () => {
+		installPlugins([
+			definePlugin({
+				name: 'blocky',
+				setup: () =>
+					registerInsertEntry({
+						id: 'blocky',
+						label: 'Blocky',
+						icon: 'plus',
+						keywords: [],
+						markdown: ':::blocky\n\n:::\n'
+					})
+			})
+		]);
+		const listed = (activation: PluginActivation) =>
+			createEditorPluginContexts({ ...deps({ children: [] }), activation })
+				.get('')!
+				.insertCatalogue.map((e) => e.id);
+		expect(listed(everyInstalledPlugin)).toContain('blocky');
+		expect(listed(activationFor([]))).not.toContain('blocky');
 	});
 
 	it('presentationMode is a live getter, not a snapshot', () => {

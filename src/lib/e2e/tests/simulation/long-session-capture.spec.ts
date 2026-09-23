@@ -12,7 +12,7 @@ test.describe('note-taking simulation: long-session capture', () => {
 
 	test.beforeEach(async ({ page }) => {
 		editor = new EditorPage(page);
-		await editor.goto();
+		await editor.goto('?slash=on');
 	});
 
 	// The full note types every construct that typing reproduces exactly and leaves three

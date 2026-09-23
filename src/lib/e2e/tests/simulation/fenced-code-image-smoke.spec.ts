@@ -12,7 +12,7 @@ test.describe('note-taking simulation: fenced-code + image smoke', () => {
 
 	test.beforeEach(async ({ page }) => {
 		editor = new EditorPage(page);
-		await editor.goto();
+		await editor.goto('?slash=on');
 	});
 
 	test('builds the code-and-image biology note and the invariant suite holds', async ({ page }) => {

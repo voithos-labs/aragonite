@@ -13,9 +13,9 @@ query, and an empty list holds no key at all.
 Seed `inline-menu` installs two plugin sources at once: tag autocomplete over the document's own
 tags (`src/routes/demo-tags/tag-marks-plugin.ts`, synchronous) and a document picker on `[[` whose
 list arrives asynchronously (`inline-menu/doc-link-menu-plugin.ts`), the shape a host's wikilink
-menu takes. The page itself registers a third, a `/` command list (`inline-menu/slash-menu-source.ts`)
-whose pick inserts a block: `insert` is empty and `onCommit` goes through the instance's
-`insertMarkdown`, the shape a slash-command menu takes.
+menu takes. The seed also lists the bundled slash-commands plugin, a `/` list whose pick inserts a
+block: `insert` is empty and `onCommit` goes through the context's `insertMarkdown`. Its own
+cases are `slash-commands.md`; here it is the third source sharing the page.
 
 ## Opening
 

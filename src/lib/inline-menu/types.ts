@@ -7,6 +7,7 @@
  */
 
 import type { Component } from 'svelte';
+import type { MenuIconName } from '../menu-icons';
 
 export interface InlineMenuItem {
 	/** The row's key, unique within one result list. Where two rows share one, the first is kept
@@ -15,6 +16,8 @@ export interface InlineMenuItem {
 	label: string;
 	/** Secondary text painted dim beside the label: a path, a count. */
 	detail?: string;
+	/** A menu glyph drawn before the label by the default row. */
+	icon?: MenuIconName;
 	/**
 	 * The bytes that replace the trigger and the query, the caret landing after them. One line of
 	 * inline bytes: a line break is refused and reported, and a block-level insert is `onCommit`'s
@@ -73,14 +76,21 @@ export interface InlineMenuSourceHandle {
 	dispose(): void;
 }
 
+export interface InlineMenuOpenOptions {
+	/** Typed after the trigger, so the list opens already narrowed. */
+	query?: string;
+}
+
 export interface InlineMenuRegistry {
 	addSource(source: InlineMenuSource): InlineMenuSourceHandle;
 	/**
-	 * The entry for a shortcut or a toolbar button: type the source's trigger at the caret, as one
-	 * undo entry, and open its menu there. False, and nothing is written, for an unknown name, in
-	 * reading mode, and with no collapsed caret in a prose block.
+	 * The entry for a shortcut or a toolbar button: type the source's trigger at the caret, then
+	 * `options.query` if given, as one undo entry, and open its menu there over that query. False,
+	 * and nothing is written, for an unknown name, in reading mode, with no collapsed caret in a
+	 * prose block, and for a query holding a line break. A query the source's `accepts` declines is
+	 * still written, and opens nothing.
 	 */
-	open(name: string): boolean;
+	open(name: string, options?: InlineMenuOpenOptions): boolean;
 	/** Close the open menu, leaving what was typed. */
 	close(): void;
 	/** True while a list is on screen, which is also while the editor holds the arrow keys, Enter,

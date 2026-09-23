@@ -5,7 +5,7 @@
 
 export { default as Editor } from './components/Editor.svelte';
 
-export type { EditorProps, EditorInstance } from './editor-props';
+export type { EditorProps, EditorInstance, InsertMarkdownOptions } from './editor-props';
 
 export type { EditorDiagnostics, InteractionTraceEntry } from './editor-props';
 
@@ -120,9 +120,17 @@ export type { SelectionEnd } from './block-component';
 // Lists opened under the caret by a typed trigger (`#`, `[[`), via `editor.getInlineMenus()`.
 export type {
 	InlineMenuRegistry,
+	InlineMenuOpenOptions,
 	InlineMenuSource,
 	InlineMenuSourceHandle,
 	InlineMenuItem,
 	InlineMenuQuery,
 	InlineMenuRowProps
 } from './inline-menu/types';
+
+// ── Insert catalogue ───────────────────────────────────────────────────────────
+
+// The blocks the insert menus offer, plugin blocks included, via `editor.getInsertCatalogue()`.
+export { registerInsertEntry } from './schema/insert-catalogue';
+export type { InsertEntry } from './schema/insert-catalogue';
+export type { MenuIconName } from './menu-icons';

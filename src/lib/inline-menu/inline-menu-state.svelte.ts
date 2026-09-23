@@ -11,6 +11,7 @@ import type { DocumentView, NodeView } from '../core/node-views';
 import type { EditorError, EditorEvents } from '../editor-events';
 import type { PresentationMode } from '../presentation-mode';
 import type { EditorSelection } from '../selection/primitives';
+import { tryGetBlockKindDescriptor } from '../schema/block-kind-descriptor';
 import { isBlockNode, nodeAt } from '../tree-operations/node-primitives';
 import {
 	findOpening,
@@ -23,6 +24,7 @@ import {
 } from './inline-menu-session';
 import type {
 	InlineMenuItem,
+	InlineMenuOpenOptions,
 	InlineMenuRegistry,
 	InlineMenuSource,
 	InlineMenuSourceHandle
@@ -94,6 +96,17 @@ function asIdToken(id: string): string {
 	return id.replace(/[^A-Za-z0-9-]/gu, (char) => `_${char.codePointAt(0)!.toString(16)}_`);
 }
 
+/** Whether the leaf at `path` sits in a grid container's row, the way a table cell does. */
+function isGridCell(doc: DocumentView, path: readonly number[]): boolean {
+	if (path.length < 2) return false;
+	const parent = nodeAt(doc, path.slice(0, -1));
+	return (
+		parent !== null &&
+		isBlockNode(parent) &&
+		tryGetBlockKindDescriptor(parent.kind)?.containerContract === 'grid'
+	);
+}
+
 export function createInlineMenuState(deps: InlineMenuStateDeps): InlineMenuState {
 	const sources = new Map<string, InlineMenuSource>();
 	const listboxId = `${deps.editorId}-inline-menu`;
@@ -127,15 +140,20 @@ export function createInlineMenuState(deps: InlineMenuStateDeps): InlineMenuStat
 		deps.events.emit('error', payload);
 	}
 
-	/** The collapsed caret in a prose leaf, with that leaf: the only place a session lives. */
+	/**
+	 * The collapsed caret in a prose leaf, with that leaf: the only place a session lives. Never a
+	 * table cell, whose line cannot take the blocks a pick may insert.
+	 */
 	function caretLeaf(): { path: number[]; offset: number; leaf: NodeView } | null {
 		const selection = deps.getSelection();
 		if (!selection) return null;
 		const { anchor, focus } = selection;
 		if (anchor.cellCoordinate || focus.cellCoordinate) return null;
 		if (anchor.offset !== focus.offset || anchor.path.join() !== focus.path.join()) return null;
-		const leaf = nodeAt(deps.getDoc(), focus.path);
+		const doc = deps.getDoc();
+		const leaf = nodeAt(doc, focus.path);
 		if (leaf === null || !isBlockNode(leaf) || !isProseKind(leaf.kind)) return null;
+		if (isGridCell(doc, focus.path)) return null;
 		return { path: focus.path, offset: focus.offset, leaf };
 	}
 
@@ -278,6 +296,8 @@ export function createInlineMenuState(deps: InlineMenuStateDeps): InlineMenuStat
 			nodeRaw(path),
 			caret
 		);
+		// `open()` may have written a query the source declines: that session is over already.
+		if (typedQuery === null) return;
 		const live: InlineMenuSession = {
 			source: source.name,
 			path: [...path],
@@ -286,7 +306,7 @@ export function createInlineMenuState(deps: InlineMenuStateDeps): InlineMenuStat
 		};
 		session = live;
 		// A burst can carry the query's first bytes in with the trigger.
-		query = typedQuery ?? '';
+		query = typedQuery;
 		end = caret;
 		activeIndex = 0;
 		items = [];
@@ -350,18 +370,19 @@ export function createInlineMenuState(deps: InlineMenuStateDeps): InlineMenuStat
 		}
 	}
 
-	function open(name: string): boolean {
+	function open(name: string, options?: InlineMenuOpenOptions): boolean {
 		const source = sources.get(name);
-		if (!source || deps.getMode() === 'reading') return false;
+		const typed = source ? source.trigger + (options?.query ?? '') : '';
+		if (!source || deps.getMode() === 'reading' || /[\r\n]/.test(typed)) return false;
 		const caret = caretLeaf();
 		if (!caret) return false;
 		close();
 		const start = caret.offset;
-		const caretAfter = start + source.trigger.length;
+		const caretAfter = start + typed.length;
 		void (async () => {
 			writing = true;
 			try {
-				await deps.commitRange(caret.path, start, start, source.trigger, caretAfter);
+				await deps.commitRange(caret.path, start, start, typed, caretAfter);
 				await deps.landCaret(caret.path, caretAfter);
 			} catch (error) {
 				report(error, name);

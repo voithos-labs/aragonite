@@ -13,7 +13,8 @@
 		COLUMN_ALIGNMENT,
 		TABLE_ACTIONS
 	} from '../../../a11y-strings';
-	import MenuIcon, { type MenuIconName } from '../../menu/MenuIcon.svelte';
+	import MenuIcon from '../../menu/MenuIcon.svelte';
+	import type { MenuIconName } from '../../../menu-icons';
 	import { tick, untrack } from 'svelte';
 	import type { MenuPresence } from '../../menu/menu-presence.svelte';
 

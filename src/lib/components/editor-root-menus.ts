@@ -9,9 +9,11 @@ import type { BlockEditActions } from '../action-contracts';
 import { BLOCK_ACTIONS_LABEL } from '../a11y-strings';
 import type { NodeView } from '../core/node-views';
 import type { DocumentGetter } from '../editor-keys';
+import type { InsertMarkdownOptions } from '../editor-props';
 import type { PresentationMode } from '../presentation-mode';
 import { blockContextActionsFor, type BlockContextAction } from '../schema/context-actions';
-import { insertFlyoutEntries, insertSnippets, type MenuEntry } from './menu/BlockMenu.svelte';
+import type { InsertEntry } from '../schema/insert-catalogue';
+import type { MenuEntry } from './menu/BlockMenu.svelte';
 import { runClipboardAction, type ClipboardAction } from './menu/clipboard-actions';
 import { isProseBackground } from './menu/default-context-actions';
 import { readBlockPath } from '../selection/path-lookup';
@@ -31,12 +33,14 @@ export interface RootMenusDeps {
 	get mode(): PresentationMode;
 	getDoc: DocumentGetter;
 	isHostChrome(node: Node | null): boolean;
-	blockEdit: Pick<BlockEditActions, 'deleteBlock' | 'updateBlockContent' | 'insertParagraph'>;
+	blockEdit: Pick<BlockEditActions, 'deleteBlock' | 'updateBlockContent'>;
 	/** Where a click on empty space puts the caret, so a right-click on prose acts at the
 	 *  pointer. */
 	placeCaretAtPoint(x: number, y: number): boolean;
-	/** The public insert entry point: a snippet goes to the editable that holds focus. */
-	insertMarkdown(md: string): boolean;
+	/** The public insert entry point; a flyout row inserts `below` the block the caret is in. */
+	insertMarkdown(md: string, options?: InsertMarkdownOptions): boolean;
+	/** The insert entries this editor lists, read fresh per menu. */
+	insertCatalogue(): readonly InsertEntry[];
 	setMenu(menu: BlockMenuModel | null): void;
 }
 
@@ -86,23 +90,21 @@ export function createRootMenus(deps: RootMenusDeps): RootMenus {
 		return true;
 	}
 
-	// Two steps: create the empty paragraph, which puts the caret in it, then hand the snippet to
-	// whatever now holds focus, so an inserted block goes through the same paste path.
-	async function insertBlockAfter(index: number, md: string): Promise<void> {
-		await deps.blockEdit.insertParagraph(index + 1, '');
-		deps.insertMarkdown(md);
-	}
-
-	/** `insertAfter` names the top-level block an "Insert block" flyout creates an empty sibling
-	 *  after; null leaves the menu to the clipboard rows alone. */
-	function openClipboardMenu(point: Point, anchorEl: Element, insertAfter: number | null): void {
-		const insert: MenuEntry[] =
-			insertAfter === null
-				? []
-				: [
-						{ id: 'sep', label: '', divider: true },
-						{ id: 'insert', label: 'Insert block', icon: 'plus', children: insertFlyoutEntries() }
-					];
+	/** `withInsert` adds the "Insert block" flyout, whose rows land below the block the caret was
+	 *  just placed in; false leaves the menu to the clipboard rows alone. */
+	function openClipboardMenu(point: Point, anchorEl: Element, withInsert: boolean): void {
+		const catalogue = deps.insertCatalogue();
+		const insert: MenuEntry[] = !withInsert
+			? []
+			: [
+					{ id: 'sep', label: '', divider: true },
+					{
+						id: 'insert',
+						label: 'Insert block',
+						icon: 'plus',
+						children: catalogue.map(({ id, label, icon }) => ({ id, label, icon }))
+					}
+				];
 		deps.setMenu({
 			...point,
 			anchor: anchorOn(anchorEl, point),
@@ -111,8 +113,8 @@ export function createRootMenus(deps: RootMenusDeps): RootMenus {
 			pick: (id) => {
 				deps.setMenu(null);
 				if (runClipboardRow(id)) return;
-				const md = insertSnippets().get(id);
-				if (md && insertAfter !== null) void insertBlockAfter(insertAfter, md);
+				const entry = catalogue.find((e) => e.id === id);
+				if (entry && withInsert) deps.insertMarkdown(entry.markdown, { placement: 'below' });
 			}
 		});
 	}
@@ -172,8 +174,7 @@ export function createRootMenus(deps: RootMenusDeps): RootMenus {
 		if (selected || !node || isProseBackground(node)) {
 			if (!selected) deps.placeCaretAtPoint(e.clientX, e.clientY);
 			// Top-level prose is where a sibling block makes sense.
-			const insertAfter = !selected && node && isProseBackground(node) ? path[0] : null;
-			openClipboardMenu(point, host, insertAfter);
+			openClipboardMenu(point, host, !selected && !!node && isProseBackground(node));
 			return;
 		}
 		openBlockActions(point, host, path, node);

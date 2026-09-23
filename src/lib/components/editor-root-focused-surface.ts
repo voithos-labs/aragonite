@@ -7,6 +7,7 @@
 
 import type { BlockComponent } from '../block-component';
 import type { DocumentGetter } from '../editor-keys';
+import type { InsertMarkdownOptions } from '../editor-props';
 import type { KindCommandTarget } from '../schema/block-commands';
 import { findSurfacePathForElement } from '../selection/path-lookup';
 import type { SelectionState } from '../selection/selection-state.svelte';
@@ -18,6 +19,9 @@ export interface FocusedSurfaceDeps {
 	selection: Pick<SelectionState, 'gapCaret'>;
 	getDoc: DocumentGetter;
 	getBlockComponent(path: number[]): BlockComponent | null;
+	isReading(): boolean;
+	/** Makes an empty top-level paragraph at `boundary` and focuses it. */
+	insertParagraph(boundary: number, text: string): void | Promise<void>;
 }
 
 export interface FocusedSurface {
@@ -26,8 +30,8 @@ export interface FocusedSurface {
 	 *  still reach the dispatch, exactly as the gap caret's own chord handling does. */
 	commandTarget(): KindCommandTarget | null;
 	/** Routed the way a paste event is: transforms, delete-first, one undo entry and focus
-	 *  all live in the block. */
-	insertMarkdown(md: string): boolean;
+	 *  all live in the block. `below` pastes into a new paragraph after the top-level block. */
+	insertMarkdown(md: string, options?: InsertMarkdownOptions): boolean;
 }
 
 export function createFocusedSurface(deps: FocusedSurfaceDeps): FocusedSurface {
@@ -36,6 +40,17 @@ export function createFocusedSurface(deps: FocusedSurfaceDeps): FocusedSurface {
 		const active = document.activeElement;
 		if (!(active instanceof HTMLElement) || !deps.editorEl?.contains(active)) return null;
 		return findSurfacePathForElement(active);
+	}
+
+	function insertAtFocus(md: string): boolean {
+		const at = path();
+		if (!at) return false;
+		return deps.getBlockComponent(at)?.insertMarkdown?.(md) ?? false;
+	}
+
+	async function insertBelow(topIndex: number, md: string): Promise<void> {
+		await deps.insertParagraph(topIndex + 1, '');
+		insertAtFocus(md);
 	}
 
 	return {
@@ -54,10 +69,12 @@ export function createFocusedSurface(deps: FocusedSurfaceDeps): FocusedSurface {
 					: undefined
 			};
 		},
-		insertMarkdown(md) {
+		insertMarkdown(md, options) {
+			if (options?.placement !== 'below') return insertAtFocus(md);
 			const at = path();
-			if (!at) return false;
-			return deps.getBlockComponent(at)?.insertMarkdown?.(md) ?? false;
+			if (!at || deps.isReading() || !deps.getBlockComponent(at)?.insertMarkdown) return false;
+			void insertBelow(at[0], md);
+			return true;
 		}
 	};
 }

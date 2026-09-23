@@ -52,7 +52,8 @@ export const BIOLOGY_NOTE: NoteFixture = {
 		await g.softEnter();
 		await g.checkpoint('study-checklist', 'task-list');
 
-		await g.startQuote('Remember: oxygen is released, not consumed.');
+		// Picked from the slash list rather than typed as `>`, so the default run covers a pick.
+		await g.slashInsert('quote', '> ', 'Remember: oxygen is released, not consumed.');
 		await g.pressEnter();
 		await g.softEnter();
 		await g.checkpoint('blockquote', 'blockquote');

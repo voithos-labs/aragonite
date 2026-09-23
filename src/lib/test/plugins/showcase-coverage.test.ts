@@ -61,7 +61,9 @@ const PLUGIN_DEMONSTRATED_BY: Record<string, string[]> = {
 	toc: [TOC_BLOCK],
 	// Declares no kind at all: its demonstration is a paragraph repeating a word, asserted
 	// on its own below and chosen the same way by `plugins/showcase-occurrences.spec.ts`.
-	'highlight-occurrences': []
+	'highlight-occurrences': [],
+	// Declares no kind either: typing `/` opens it, which a document's bytes cannot show.
+	'slash-commands': []
 };
 
 /** The inline kinds the bundled plugins add. No registry lists them, so the plugin

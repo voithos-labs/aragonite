@@ -2,11 +2,13 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { configureEditorEnv } from '$lib/env';
 import { allowDevWarns, takeDevWarns } from '../support/warn-gate';
 import { registerGlobalCommand } from '$lib/schema/global-commands';
+import { dispatchKeyCommand, runCommandById } from '$lib/schema/block-commands';
 import {
 	getCommand,
 	resolveBinding,
 	resolveGlobalBinding,
 	isDefaultGlobalChord,
+	runGlobalChord,
 	pluginGlobalBinding,
 	__resetPluginGlobalKeymapForTests,
 	__removePluginCommandsForTests,
@@ -123,6 +125,46 @@ describe('registerGlobalCommand', () => {
 		registerGlobalCommand('demo.overridable', () => true, { chord: 'Mod+Shift+8' });
 		const overrides = normalizeKeybindingOverrides([{ chord: 'Mod+Shift+8', command: null }]);
 		expect(resolveBinding('Mod+Shift+8', 'paragraph', overrides, everyInstalledPlugin)).toBeNull();
+	});
+});
+
+// Miss-analysis: every handler test ignored the argument, so neither dispatch site was ever asked
+// to carry one through to a plugin-global handler.
+describe('a global command handler receives the dispatch argument', () => {
+	const dispatchContext = {
+		...ctx(),
+		getPresentationMode: () => 'source' as const,
+		isCrossBlockRange: () => false,
+		crossBlockCommands: undefined
+	};
+
+	function recordingCommand(chord?: string) {
+		const received: unknown[] = [];
+		const id = registerGlobalCommand('demo.withArg', (_editor, arg) => (received.push(arg), true), {
+			chord
+		});
+		return { id, received };
+	}
+
+	it('through runCommand(id, arg)', () => {
+		const { id, received } = recordingCommand();
+		expect(runCommandById(id, 'table', null, dispatchContext)).toBe(true);
+		expect(received).toEqual(['table']);
+	});
+
+	it('through a chord binding that carries an argument, at a block and at the root', () => {
+		const { id, received } = recordingCommand();
+		const overrides = normalizeKeybindingOverrides([{ chord: 'Mod+Shift+9', command: id, arg: 3 }]);
+		const target = { kind: 'paragraph' as const, runCommand: () => false };
+		expect(dispatchKeyCommand('Mod+Shift+9', target, dispatchContext, overrides)).toBe(true);
+		expect(runGlobalChord('Mod+Shift+9', overrides, { ...ctx(), isReading: false })).toBe(true);
+		expect(received).toEqual([3, 3]);
+	});
+
+	it('as undefined from a chord with no argument', () => {
+		const { received } = recordingCommand('Mod+Shift+9');
+		runGlobalChord('Mod+Shift+9', undefined, { ...ctx(), isReading: false });
+		expect(received).toEqual([undefined]);
 	});
 });
 

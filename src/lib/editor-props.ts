@@ -20,6 +20,7 @@ import type { SearchState } from './search/search-state.svelte';
 import type { DecorationRegistry } from './decorations/types';
 import type { EditorRects } from './editor-rects';
 import type { InlineMenuRegistry } from './inline-menu/types';
+import type { InsertEntry } from './schema/insert-catalogue';
 import type { EditorPluginEntry } from './schema/plugin-install';
 import type { InteractionTraceEntry } from './debug/interaction-trace';
 
@@ -88,6 +89,12 @@ export interface EditorProps {
 	plugins?: readonly EditorPluginEntry[];
 }
 
+export interface InsertMarkdownOptions {
+	/** `caret` (the default) inserts where the caret is; `below` inserts into a new paragraph
+	 *  after the top-level block that holds it. */
+	placement?: 'caret' | 'below';
+}
+
 /** The `bind:this` handle a consumer can name and hold a ref to. */
 export interface EditorInstance {
 	getSource(): string;
@@ -117,13 +124,13 @@ export interface EditorInstance {
 	 */
 	placeCaretAtPoint(x: number, y: number): boolean;
 	/**
-	 * Insert markdown at the caret exactly as pasting it would, minus the clipboard: paste
-	 * transforms, every container-aware strategy, delete-selection-first, one undo entry, and
-	 * focus at the end of the insertion. True means the pipeline took the text, not that its
-	 * commit has flushed; read the result back through the `edit` event. False, and nothing
-	 * mutates, when this editor holds no caret, in reading mode, or at a gap caret.
+	 * Insert markdown exactly as pasting it would, minus the clipboard: paste transforms, every
+	 * container-aware strategy, delete-selection-first, one undo entry, focus at the end. True
+	 * means the pipeline took the text; read the result through the `edit` event. False, and
+	 * nothing mutates, with no caret, in reading mode, or at a gap caret. `placement: 'below'`
+	 * first makes an empty paragraph after the caret's top-level block (a second undo entry).
 	 */
-	insertMarkdown(md: string): boolean;
+	insertMarkdown(md: string, options?: InsertMarkdownOptions): boolean;
 	/**
 	 * Run a command by id at the focused element, or across a painted range where the id has a
 	 * cross-block handler (a format toggle marks every block it touches, a table works by its
@@ -156,6 +163,12 @@ export interface EditorInstance {
 	/** The same registry a plugin reaches as `editor.inlineMenus`, for a host that owns the menu's
 	 *  data (its document index, its tag list) rather than shipping a plugin for it. */
 	getInlineMenus(): InlineMenuRegistry;
+	/**
+	 * The blocks the insert menus offer, in menu order: the built-ins, then each block a plugin this
+	 * editor activated registered. The list the right-click flyout draws, for a host building its own
+	 * insert button; each entry's `markdown` is what to hand `insertMarkdown`. A fresh frozen list per call.
+	 */
+	getInsertCatalogue(): readonly InsertEntry[];
 	getRects(): EditorRects;
 	getDiagnostics(): EditorDiagnostics;
 	/**

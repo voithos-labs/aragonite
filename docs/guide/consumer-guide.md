@@ -21,7 +21,7 @@ This is gonna be a long one, so here are the sections:
 | [Events](#events)                                             | The seven channels an editor reports on, and what each one carries                                             |
 | [Presentation modes](#presentation-modes)                     | One document shown five ways, from raw Markdown to fully rendered                                              |
 | [Images and links](#images-and-links)                         | Rewriting URLs, importing pasted images, and which URLs the editor refuses to load                             |
-| [Plugins](#plugins)                                           | Installing plugins, why the whole app should share one set, and the nine that ship in the box                  |
+| [Plugins](#plugins)                                           | Installing plugins, why the whole app should share one set, and the ten that ship in the box                   |
 | [Theming](#theming)                                           | The CSS variables the editor reads, and three ways to restyle it                                               |
 | [Keyboard shortcuts](#keyboard-shortcuts)                     | Every shortcut, how to rebind or disable one, and which keys the editor swallows                               |
 | [Embedding in a host layout](#embedding-in-a-host-layout)     | Letting your page scroll the editor, and putting your own content above the document                           |
@@ -140,28 +140,29 @@ Everything supported is exported from `@voithos-labs/aragonite`. Before 1.0 the 
 
 You set the editor up with props when it mounts. After that you talk to it through the `bind:this` handle. Here's what you can read:
 
-| Method                                      | What it answers                                                                                                             |
-| ------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
-| `getSource()`                               | The live document, serialized back to Markdown                                                                              |
-| `getSelection()`                            | A frozen snapshot of the current selection, or `null`                                                                       |
-| `getBlockKindAt(path)`                      | What kind of block sits at a path, or `null`                                                                                |
-| `canRunCommand(id)` / `isCommandActive(id)` | Whether a toolbar button should be enabled, and whether it should paint pressed (see [Toolbar commands](#toolbar-commands)) |
-| `getEvents()`                               | The subscription surface (see [Events](#events))                                                                            |
-| `getSearch()`                               | The find/replace controller (see [Driving search yourself](#driving-search-yourself))                                       |
-| `getRects()`                                | Where things are on screen (see [Screen geometry](#screen-geometry))                                                        |
-| `getDecorations()`                          | The registry for your own view-only annotations (see [Decorations](#decorations))                                           |
-| `getInlineMenus()`                          | The registry for lists opened by a typed trigger (see [Recipe: a typed-trigger menu](#recipe-a-typed-trigger-menu))         |
-| `getDiagnostics()`                          | The bug-report tooling (see [Diagnostics](#diagnostics))                                                                    |
-| `reservedChords()` / `claimsChord(event)`   | Which shortcuts this editor consumes (see [Which shortcuts the editor consumes](#which-shortcuts-the-editor-consumes))      |
+| Method                                      | What it answers                                                                                                                     |
+| ------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| `getSource()`                               | The live document, serialized back to Markdown                                                                                      |
+| `getSelection()`                            | A frozen snapshot of the current selection, or `null`                                                                               |
+| `getBlockKindAt(path)`                      | What kind of block sits at a path, or `null`                                                                                        |
+| `canRunCommand(id)` / `isCommandActive(id)` | Whether a toolbar button should be enabled, and whether it should paint pressed (see [Toolbar commands](#toolbar-commands))         |
+| `getEvents()`                               | The subscription surface (see [Events](#events))                                                                                    |
+| `getSearch()`                               | The find/replace controller (see [Driving search yourself](#driving-search-yourself))                                               |
+| `getRects()`                                | Where things are on screen (see [Screen geometry](#screen-geometry))                                                                |
+| `getDecorations()`                          | The registry for your own view-only annotations (see [Decorations](#decorations))                                                   |
+| `getInlineMenus()`                          | The registry for lists opened by a typed trigger (see [Recipe: a typed-trigger menu](#recipe-a-typed-trigger-menu))                 |
+| `getInsertCatalogue()`                      | The blocks the insert menus offer, plugin blocks included (see [Inserting Markdown at the caret](#inserting-markdown-at-the-caret)) |
+| `getDiagnostics()`                          | The bug-report tooling (see [Diagnostics](#diagnostics))                                                                            |
+| `reservedChords()` / `claimsChord(event)`   | Which shortcuts this editor consumes (see [Which shortcuts the editor consumes](#which-shortcuts-the-editor-consumes))              |
 
 And what you can write:
 
-| Method                    | What it does                                                                                                                            |
-| ------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
-| `setSelection(snapshot)`  | Puts a `getSelection()` snapshot back on the document (see [Restoring a selection](#restoring-a-selection))                             |
-| `placeCaretAtPoint(x, y)` | Lands the caret at a viewport point, exactly as a click there would (see [Placing the caret at a point](#placing-the-caret-at-a-point)) |
-| `insertMarkdown(md)`      | Inserts Markdown at the caret, exactly as pasting it would (see [Inserting Markdown at the caret](#inserting-markdown-at-the-caret))    |
-| `runCommand(id, arg?)`    | Runs an editor command by name, no keystroke involved (see [Toolbar commands](#toolbar-commands))                                       |
+| Method                         | What it does                                                                                                                                                                |
+| ------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `setSelection(snapshot)`       | Puts a `getSelection()` snapshot back on the document (see [Restoring a selection](#restoring-a-selection))                                                                 |
+| `placeCaretAtPoint(x, y)`      | Lands the caret at a viewport point, exactly as a click there would (see [Placing the caret at a point](#placing-the-caret-at-a-point))                                     |
+| `insertMarkdown(md, options?)` | Inserts Markdown at the caret, or in a new paragraph below its block, exactly as pasting it would (see [Inserting Markdown at the caret](#inserting-markdown-at-the-caret)) |
+| `runCommand(id, arg?)`         | Runs an editor command by name, no keystroke involved (see [Toolbar commands](#toolbar-commands))                                                                           |
 
 ### Reading the document and the selection
 
@@ -251,7 +252,7 @@ Two things about where a point lands:
 
 ### Inserting Markdown at the caret
 
-`insertMarkdown(md: string): boolean`
+`insertMarkdown(md: string, options?: { placement?: 'caret' | 'below' }): boolean`
 
 Inserts Markdown at the caret the way a paste would. `md` is any Markdown string, `**hi**` or a whole table. The usual caller is a toolbar button inserting a canned snippet; [the insert toolbar recipe](#recipe-an-insert-toolbar) is built on this call.
 
@@ -268,6 +269,10 @@ One call runs the whole paste route:
 3. Focus lands at the end of the insertion, and the whole thing is one undo entry.
 
 `false` means nothing changed: no caret in this editor, reading mode, or a caret parked between two blocks. `true` means the pipeline took the text, not that the edit has landed yet, so read the result off the `edit` channel rather than calling `getSource()` on the next line.
+
+`placement: 'below'` is what the right-click "Insert block" rows do: an empty paragraph goes in after the top-level block holding the caret, and the text is pasted into it, so a sentence is never split around a new block. That is two undo entries, the paragraph and the insert.
+
+`getInsertCatalogue()` lists the blocks those rows offer, in their order: an `id`, a `label`, an `icon` name, `keywords` and the `markdown` to hand this call. A plugin's block is in the list while this editor lists its plugin, so a `+` button or a menu of your own shows it without naming it.
 
 ### Toolbar commands
 
@@ -558,7 +563,7 @@ The same rule covers [directive](directives.md) names. A plugin that claims an a
 
 ### Bundled plugins
 
-Nine first-party plugins ship in the package as subpath exports. Install them like any other plugin:
+Ten first-party plugins ship in the package as subpath exports. Install them like any other plugin:
 
 ```ts
 import { admonitionsPlugin } from '@voithos-labs/aragonite/plugins/admonitions';
@@ -570,19 +575,21 @@ import { highlightOccurrencesPlugin } from '@voithos-labs/aragonite/plugins/high
 import { latexPlugin } from '@voithos-labs/aragonite/plugins/latex';
 import { mermaidPlugin } from '@voithos-labs/aragonite/plugins/mermaid';
 import { parrotPlugin } from '@voithos-labs/aragonite/plugins/parrot';
+import { slashCommandsPlugin } from '@voithos-labs/aragonite/plugins/slash-commands';
 ```
 
-| Plugin                                    | What it teaches the editor                                                                                                                                                                                                                                                                                                                                                              |
-| ----------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `admonitionsPlugin()`                     | `:::name` directive callouts and native GitHub alerts (`> [!NOTE]` blockquotes) render as styled boxes, GitHub bytes untouched                                                                                                                                                                                                                                                          |
-| `detailsPlugin()`                         | A canonical `<details>` HTML block (`<details>` or `<details open>`, a `<summary>` line, a Markdown body, `</details>`) becomes an editable collapsible section whose summary is a real editable child; a non-canonical `<details …>` stays a plain HTML block                                                                                                                          |
-| `tocPlugin()`                             | A `[[toc]]` line becomes a live table of contents: every heading in the document, indented by level, each entry navigating to its heading on click or on Enter from the keyboard                                                                                                                                                                                                        |
-| `footnotesPlugin()`                       | GFM footnotes: `[^label]: content` definitions render as an editable block, and `[^label]` references render as superscript numbers in first-reference order                                                                                                                                                                                                                            |
-| `emojiPlugin()`                           | GitHub `:shortcode:` emoji: a bare `:name:` renders as a glyph while the literal `:name:` bytes stay in the source; without the plugin, `:name:` is ordinary prose                                                                                                                                                                                                                      |
-| `highlightOccurrencesPlugin()`            | Every other occurrence of the word under the caret is highlighted across the document's prose blocks once you stop typing, as a view-only decoration, never a byte change                                                                                                                                                                                                               |
-| `latexPlugin({ renderer, blockLayout? })` | All three GitHub math forms through one injected engine: inline `$…$`, block `$$…$$`, and the fenced ` ```math ` form; uninstalled, each stays its plain reading (prose, or a plain `math` code block). `blockLayout` (`'split'` default, `'stacked'`, `'source'`) is how a block opens for editing; an editor's `{ plugin, options: { blockLayout } }` entry overrides it per instance |
-| `mermaidPlugin({ renderer? })`            | A ` ```mermaid ` fence renders as a diagram through an injected engine; without one, the fence renders statically (the source, styled)                                                                                                                                                                                                                                                  |
-| `parrotPlugin()`                          | A `%%parrot` line renders as an animated ASCII party parrot, with whatever follows the marker as its caption; uninstalled, the line is ordinary prose                                                                                                                                                                                                                                   |
+| Plugin                                        | What it teaches the editor                                                                                                                                                                                                                                                                                                                                                              |
+| --------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `admonitionsPlugin()`                         | `:::name` directive callouts and native GitHub alerts (`> [!NOTE]` blockquotes) render as styled boxes, GitHub bytes untouched                                                                                                                                                                                                                                                          |
+| `detailsPlugin()`                             | A canonical `<details>` HTML block (`<details>` or `<details open>`, a `<summary>` line, a Markdown body, `</details>`) becomes an editable collapsible section whose summary is a real editable child; a non-canonical `<details …>` stays a plain HTML block                                                                                                                          |
+| `tocPlugin()`                                 | A `[[toc]]` line becomes a live table of contents: every heading in the document, indented by level, each entry navigating to its heading on click or on Enter from the keyboard                                                                                                                                                                                                        |
+| `footnotesPlugin()`                           | GFM footnotes: `[^label]: content` definitions render as an editable block, and `[^label]` references render as superscript numbers in first-reference order                                                                                                                                                                                                                            |
+| `emojiPlugin()`                               | GitHub `:shortcode:` emoji: a bare `:name:` renders as a glyph while the literal `:name:` bytes stay in the source; without the plugin, `:name:` is ordinary prose                                                                                                                                                                                                                      |
+| `highlightOccurrencesPlugin()`                | Every other occurrence of the word under the caret is highlighted across the document's prose blocks once you stop typing, as a view-only decoration, never a byte change                                                                                                                                                                                                               |
+| `latexPlugin({ renderer, blockLayout? })`     | All three GitHub math forms through one injected engine: inline `$…$`, block `$$…$$`, and the fenced ` ```math ` form; uninstalled, each stays its plain reading (prose, or a plain `math` code block). `blockLayout` (`'split'` default, `'stacked'`, `'source'`) is how a block opens for editing; an editor's `{ plugin, options: { blockLayout } }` entry overrides it per instance |
+| `mermaidPlugin({ renderer? })`                | A ` ```mermaid ` fence renders as a diagram through an injected engine; without one, the fence renders statically (the source, styled)                                                                                                                                                                                                                                                  |
+| `parrotPlugin()`                              | A `%%parrot` line renders as an animated ASCII party parrot, with whatever follows the marker as its caption; uninstalled, the line is ordinary prose                                                                                                                                                                                                                                   |
+| `slashCommandsPlugin({ entries?, exclude? })` | `/` at the start of a line or after a space opens a list of blocks to insert and headings to turn the line into; nothing is added to the document's syntax, so uninstalled, `/` is just a character                                                                                                                                                                                     |
 
 A few of them take options or need a word more.
 
@@ -599,6 +606,13 @@ const plugins = [{ plugin: tocPlugin(), options: { maxDepth: 3 } satisfies TocOp
 Two editors in one process can list different depths this way; the factory form, `tocPlugin({ maxDepth: 3 })`, is the default for an instance that declares none. The `satisfies TocOptions` is there because `options` is `unknown` to the editor, and with it a typo or an out-of-range level stays a compile error. At runtime anything that isn't a level from 1 to 6 falls back to the factory value.
 
 **Footnotes.** A reference jumps to its definition, on plain click in reading mode and on Ctrl/Cmd+click elsewhere (the same gesture links take); a plain click in an editing mode still opens the reference's source to edit. The definition's own `[^label]` marker is the way back, on the same gesture, and it lands the caret right after the first citation. In reading mode both are links a keyboard reaches with Tab and follows with Enter; the editing modes give them no tab stop. Backspace at the start of a note's body unwraps it: the first block lifts out and the marker stays on whatever's left. One clipboard consequence: copying part of a single-paragraph definition's body carries its `[^label]: ` marker along (the marker is that block's own source, and a slice without it would re-parse as a bare paragraph), so pasting that slice elsewhere lands a second definition under the same label.
+
+**Slash commands.** Type `/` at the start of a line or after a space and a list opens under the caret: every block the right-click "Insert block" menu offers (your plugins' blocks included), then Heading 1 to 3. Typing narrows it by label or keyword (`/td` finds the to-do list), Enter picks, and Escape closes it and leaves what you typed. On an empty line the block replaces the line. On a line with text, the `/query` goes and the block lands below it, except a heading row, which turns the line itself into a heading. It never opens in a table cell. Two rows take a word after a space: `/code js` opens a fence tagged `js`, and `/table 3x4` makes three columns by four rows. `Mod+/` types the `/` for you, and `runCommand('slashCommands.open', 'table')` opens the list already narrowed, which is how a toolbar button or a touch UI gets there.
+
+The two options:
+
+- `entries` adds rows of your own. A row either inserts Markdown (`insert`) or runs a function (`run`, handed the plugin's editor context and the typed word). A row whose id matches a built-in one takes that row's place.
+- `exclude` hides built-in rows by id: `bullet`, `numbered`, `todo`, `quote`, `divider`, `code`, `table`, `h1`, `h2`, `h3`, plus whatever ids your installed plugins add to `getInsertCatalogue()` (`math`, `note`).
 
 **Math and diagrams.** latex and mermaid render through injected engines that never ride the main bundle: each has a `/renderer` subpath adapter, and its engine (`katex` / `mermaid`) is an optional peer dependency you install only if you use it.
 
@@ -1133,14 +1147,14 @@ editor.getInlineMenus().open('doc-links');
 ```
 
 1. **`items` is the whole data contract.** Return an array, or a promise of one for a list read off an index. A slow answer a later keystroke superseded is dropped, and its `signal` aborts so you can cancel the read. A rejection is reported on the `error` event and reads as an empty list.
-2. **`insert` is bytes.** The pick replaces the trigger and the query, the caret lands after it, and the whole replacement is one undo entry. There is no construct-specific call: a tag inserts `#work`, a link `[[Roadmap]]`. Add a trailing space there if your construct wants one. One line only: a line break is refused and reported on the `error` event, because those bytes belong to one block. An empty `insert` is fine and just removes the trigger and the query, which is the shape for a `/` command: the pick clears what was typed, and `onCommit` inserts the block through `insertMarkdown`, which puts it in as a paste would.
+2. **`insert` is bytes.** The pick replaces the trigger and the query, the caret lands after it, and the whole replacement is one undo entry. There is no construct-specific call: a tag inserts `#work`, a link `[[Roadmap]]`. Add a trailing space there if your construct wants one. One line only: a line break is refused and reported on the `error` event, because those bytes belong to one block. An empty `insert` is fine and just removes the trigger and the query, which is the shape for a `/` command: the pick clears what was typed, and `onCommit` inserts the block through `insertMarkdown`, which puts it in as a paste would. The bundled slash-commands plugin is that shape.
 3. **An empty list holds no key.** While rows are showing, the editor takes ArrowUp, ArrowDown, Enter, Tab and Escape before the focused block sees them. With nothing to show, the list is gone and Enter is the author's own Enter again, while the session stays alive for the next keystroke.
-4. **`opensAt` and `accepts` are your grammar.** A tag declines a mid-word `#` (so `C#` stays text) and ends on a space; a link accepts spaces and ends on `]`. `open(name)` skips `opensAt`: the gesture is the author's say-so. A trigger you type only ever opens where the bytes are prose: inside an inline code span, a link's destination or title, an image, an autolink or raw HTML it opens nothing, whatever your grammar says, so a `#` in a URL fragment stays a fragment, and a destination still being typed, one whose closing `)` has not arrived yet, counts as a destination too. A link's own text is prose, and a trigger there opens.
+4. **`opensAt` and `accepts` are your grammar.** A tag declines a mid-word `#` (so `C#` stays text) and ends on a space; a link accepts spaces and ends on `]`. `open(name)` skips `opensAt`: the gesture is the author's say-so. `open(name, { query })` types a query after the trigger too, so the list opens narrowed. A trigger you type only ever opens where the bytes are prose: inside an inline code span, a link's destination or title, an image, an autolink or raw HTML it opens nothing, whatever your grammar says, so a `#` in a URL fragment stays a fragment, and a destination still being typed, one whose closing `)` has not arrived yet, counts as a destination too. A link's own text is prose, and a trigger there opens.
 5. **Escape dismisses for good.** What was typed stays, and typing on does not reopen the list; only a new trigger does.
 6. **Style it as you would the editor's other menus.** The list is the shared `.md-menu` surface and reads the same tokens. For rows richer than a label and a detail (a snippet, a highlighted match), pass a `row` component; it receives the `item`, whether it is `active`, and the `query`.
 7. **From a plugin, the same registry is `editor.inlineMenus`** on your `onEditor` context; return the handle's `dispose` from the callback.
 
-The tag source in `src/routes/demo-tags/tag-marks-plugin.ts` is this recipe over a synchronous list, and `src/routes/test/plugins/inline-menu/doc-link-menu-plugin.ts` over a late one.
+The tag source in `src/routes/demo-tags/tag-marks-plugin.ts` is this recipe over a synchronous list, `src/routes/test/plugins/inline-menu/doc-link-menu-plugin.ts` over a late one, and `src/lib/plugins/slash-commands/slash-source.ts` over picks that insert blocks.
 
 ## Rewriting a document
 

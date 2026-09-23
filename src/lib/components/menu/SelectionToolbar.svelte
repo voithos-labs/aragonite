@@ -14,7 +14,8 @@
 	import { SELECTION_TOOLBAR_LABEL } from '../../a11y-strings';
 	import { keepFlyoutOnScreen } from './flyout-placement';
 	import { runClipboardAction } from './clipboard-actions';
-	import MenuIcon, { type MenuIconName } from './MenuIcon.svelte';
+	import MenuIcon from './MenuIcon.svelte';
+	import type { MenuIconName } from '../../menu-icons';
 
 	type ToolbarEditor = Pick<
 		EditorInstance,

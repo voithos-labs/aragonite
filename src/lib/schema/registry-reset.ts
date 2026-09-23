@@ -12,6 +12,7 @@ import { __clearDeclaredPluginKindsForTests } from './plugin-kind';
 import { __resetRegistrationChecksForTests } from './registration-checks';
 import { __resetInstalledPluginsForTests } from './plugin-install';
 import { __resetInlineConstructPoliciesForTests } from './inline-construct-policy';
+import { __removePluginInsertEntriesForTests } from './insert-catalogue';
 
 /**
  * Test-only. Clears every non-built-in registration; built-ins stay. Also clears the warning
@@ -27,6 +28,7 @@ export function __resetSchemaRegistriesForTests(): void {
 	__removePluginCommandsForTests();
 	__resetBlockCommandsForTests();
 	__resetInlineConstructPoliciesForTests();
+	__removePluginInsertEntriesForTests();
 	__resetPluginGlobalKeymapForTests();
 	__resetCommandWarningsForTests();
 	__clearDeclaredPluginKindsForTests();

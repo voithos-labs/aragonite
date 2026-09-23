@@ -20,7 +20,7 @@ export interface BlockActionContext {
 export interface BlockContextAction {
 	id: string;
 	label: string;
-	/** An icon name the menu knows (`components/menu/MenuIcon.svelte`); absent draws none. */
+	/** An icon name the menu knows (`src/lib/menu-icons.ts`); absent draws none. */
 	icon?: string;
 	danger?: boolean;
 	run(ctx: BlockActionContext): void | Promise<void>;

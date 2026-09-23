@@ -15,6 +15,7 @@
 	import InsertToolbar from '../../InsertToolbar.svelte';
 	import { harnessPasteImage, installTestProbes } from './test-probes';
 	import { trackParityDocument } from '../../parity-documents.svelte';
+	import { slashCommandsPlugin } from '$lib/plugins/slash-commands';
 
 	// Harness flags all arrive as URL params; SSR has no location, so the guard lives here once.
 	const param = (name: string): string | null =>
@@ -53,6 +54,11 @@
 		registerLanguage('elixir', elixir, ['ex', 'exs']);
 		registerLanguage('swift', swift);
 	}
+
+	// `?slash=on` lists the slash-commands plugin, for the simulation's slash gesture. Off by
+	// default: `/` would open a list in every spec that types one after a space. Created here, not
+	// taken from the showcase's set, whose module would load KaTeX's stylesheet into this page.
+	const slashPlugins = param('slash') === 'on' ? [slashCommandsPlugin()] : undefined;
 
 	// `?codeActions=on` installs stand-in host hooks for the code block's side gutter, so the run
 	// and overflow buttons render. Off by default: that gutter's width is geometry the block
@@ -231,6 +237,7 @@
 					header={headerOn ? documentHero : undefined}
 					theme={editorTheme}
 					searchBarAnchor={anchorAttached ? searchAnchorEl : null}
+					plugins={slashPlugins}
 				/>
 			{/key}
 		</div>

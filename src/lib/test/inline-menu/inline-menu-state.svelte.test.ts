@@ -24,6 +24,8 @@ function harness(initial: string, { arrive = true, writeFails = false } = {}) {
 	const errors: unknown[] = [];
 	events.on('error', (e) => errors.push(e.error));
 	const landed: number[] = [];
+	/** Each range splice, one undo entry apiece. */
+	const commits: string[] = [];
 
 	/** Put `raw` in one block, reparsing the document the way an edit there would. */
 	function write(index: number, raw: string): void {
@@ -44,6 +46,7 @@ function harness(initial: string, { arrive = true, writeFails = false } = {}) {
 		// the one the state has to hold off.
 		commitRange: async (path, start, end, bytes) => {
 			if (writeFails) throw new Error('write refused');
+			commits.push(bytes);
 			const raw = doc.children[path[0]].raw;
 			write(path[0], raw.slice(0, start) + bytes + raw.slice(end));
 			events.emit('edit', typedEdit(path));
@@ -73,6 +76,7 @@ function harness(initial: string, { arrive = true, writeFails = false } = {}) {
 		menu,
 		errors,
 		landed,
+		commits,
 		raw: (index = 0) => doc.children[index].raw,
 		setMode: (next: PresentationMode) => (mode = next),
 		/** Type at the caret, one keystroke per character: the byte lands, then its `edit`. */
@@ -519,6 +523,36 @@ describe('open(name): opening by name, a shortcut or a button', () => {
 		expect(h.menu.getOpen()).toBeNull();
 	});
 
+	it('types a given query after the trigger in the same write, and opens over it', async () => {
+		const h = harness('see ');
+		const writes: string[] = [];
+		h.menu.registry.addSource(
+			tags({ onCommit: () => {}, items: ({ query }) => (writes.push(query), [item(query)]) })
+		);
+		expect(h.menu.registry.open('tags', { query: 'wo' })).toBe(true);
+		await vi.waitFor(() => expect(h.menu.getOpen()).not.toBeNull());
+		expect(h.raw()).toBe('see #wo');
+		expect(h.commits).toEqual(['#wo']);
+		expect(h.landed).toEqual([7]);
+		expect(h.menu.getOpen()).toMatchObject({ start: 4, end: 7, query: 'wo' });
+		expect(writes).toEqual(['wo']);
+	});
+
+	it('writes a query the source does not accept, and opens nothing over it', async () => {
+		const h = harness('see ');
+		h.menu.registry.addSource(tags());
+		expect(h.menu.registry.open('tags', { query: 'two words' })).toBe(true);
+		await vi.waitFor(() => expect(h.raw()).toBe('see #two words'));
+		expect(h.menu.getOpen()).toBeNull();
+	});
+
+	it('refuses a query holding a line break, writing nothing', () => {
+		const h = harness('see ');
+		h.menu.registry.addSource(tags());
+		expect(h.menu.registry.open('tags', { query: 'a\nb' })).toBe(false);
+		expect(h.raw()).toBe('see ');
+	});
+
 	it('declines an unknown name, reading mode, and a lost caret, writing nothing', async () => {
 		const h = harness('x');
 		h.menu.registry.addSource(tags());
@@ -572,5 +606,62 @@ describe('the registry', () => {
 		expect(() => h.menu.registry.addSource(tags({ name: 'nl', trigger: '#\n' }))).toThrow(
 			/trigger/
 		);
+	});
+});
+
+// Miss-analysis: no test, unit or e2e, typed a trigger in a table cell, so the contract's
+// "never a table cell" rule held only for a selection that covers whole cells.
+describe('a table cell', () => {
+	const CELL = [0, 1, 1];
+
+	/** A caret in the empty cell of a two-row table, typed into a byte at a time. */
+	function cellHarness() {
+		const doc = parse('| a | b |\n| --- | --- |\n| c |  |\n') as unknown as DocumentView;
+		const cell = doc.children[0].children![1].children![1] as { raw: string };
+		let caret = 0;
+		const commits: string[] = [];
+		const events = createEditorEvents();
+		const menu = createInlineMenuState({
+			getDoc: () => doc,
+			getSelection: () => ({
+				anchor: { path: CELL, offset: caret },
+				focus: { path: CELL, offset: caret }
+			}),
+			getMode: () => 'source',
+			events,
+			editorId: 'editor-cell',
+			commitRange: async (_path, _start, _end, bytes) => {
+				commits.push(bytes);
+			},
+			landCaret: async () => true
+		});
+		menu.registry.addSource(tags());
+		return {
+			menu,
+			commits,
+			async type(text: string) {
+				events.emit('selectionChange', null);
+				await tick();
+				for (const ch of text) {
+					cell.raw = cell.raw.slice(0, caret) + ch + cell.raw.slice(caret);
+					caret += 1;
+					events.emit('edit', typedEdit(CELL));
+					await tick();
+				}
+			}
+		};
+	}
+
+	it('a trigger typed in a cell stays text and opens nothing', async () => {
+		const h = cellHarness();
+		await h.type('#wo');
+		expect(h.menu.getOpen()).toBeNull();
+		expect(h.menu.registry.isOpen).toBe(false);
+	});
+
+	it('open(name) with the caret in a cell declines, writing nothing', () => {
+		const h = cellHarness();
+		expect(h.menu.registry.open('tags')).toBe(false);
+		expect(h.commits).toEqual([]);
 	});
 });

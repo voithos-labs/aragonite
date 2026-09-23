@@ -8,6 +8,7 @@ import {
 import { __resetBlockContextActionsForTests } from '$lib/schema/context-actions';
 import { BLOCK_ACTIONS_LABEL } from '$lib/a11y-strings';
 import { parse } from '$lib/core/parser';
+import { insertCatalogue } from '$lib/schema/insert-catalogue';
 import type { PresentationMode } from '$lib/presentation-mode';
 
 // Miss-analysis: which menu a right-click opens (a block's actions, the clipboard rows with or
@@ -48,8 +49,7 @@ function harness(opts: { mode?: PresentationMode } = {}) {
 	let menu: BlockMenuModel | null = null;
 	const blockEdit = {
 		deleteBlock: vi.fn(async () => {}),
-		updateBlockContent: vi.fn(async () => {}),
-		insertParagraph: vi.fn(async () => {})
+		updateBlockContent: vi.fn(async () => {})
 	};
 	const placeCaretAtPoint = vi.fn(() => true);
 	const insertMarkdown = vi.fn(() => true);
@@ -65,6 +65,7 @@ function harness(opts: { mode?: PresentationMode } = {}) {
 		blockEdit,
 		placeCaretAtPoint,
 		insertMarkdown,
+		insertCatalogue: () => insertCatalogue(() => true),
 		setMenu: (next) => (menu = next)
 	});
 	root.addEventListener('contextmenu', menus.onRootContextMenu);
@@ -130,10 +131,9 @@ describe('editor-root menus: the right-click', () => {
 		]);
 		// No editable holds focus, so there is nothing to cut or copy.
 		expect(h.menu()!.items[0].disabled).toBe(true);
-		// A flyout pick creates the sibling first, then hands the snippet to whatever it focused.
+		// A flyout pick inserts below the block the press placed the caret in.
 		h.menu()!.pick('bullet');
-		await vi.waitFor(() => expect(h.insertMarkdown).toHaveBeenCalledWith('- '));
-		expect(h.blockEdit.insertParagraph).toHaveBeenCalledWith(2, '');
+		expect(h.insertMarkdown).toHaveBeenCalledWith('- ', { placement: 'below' });
 	});
 
 	it('a selection gets the clipboard rows alone, over the selection as it stands', () => {

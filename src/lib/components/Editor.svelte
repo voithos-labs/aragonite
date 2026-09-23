@@ -3,7 +3,12 @@
 	import '../styles/editor.css';
 	import type { BlockComponent } from '../block-component';
 	import type { AnyBlockKind, Document } from '../core/nodes';
-	import type { EditorProps, EditorInstance, EditorDiagnostics } from '../editor-props';
+	import type {
+		EditorProps,
+		EditorInstance,
+		EditorDiagnostics,
+		InsertMarkdownOptions
+	} from '../editor-props';
 	import type { EditorEvents } from '../editor-events';
 	import {
 		BLOCK_EDIT_KEY,
@@ -120,6 +125,7 @@
 		kindEnablementFor
 	} from '../schema/plugin-activation';
 	import { createEditorPluginContexts, mintEditorId } from '../schema/plugin-editor-context';
+	import { insertCatalogue, type InsertEntry } from '../schema/insert-catalogue';
 	import { bothEnable, createRegistryView, type KindEnablement } from '../schema/registry-view';
 	import BlockList from './BlockList.svelte';
 	import SearchBar from './SearchBar.svelte';
@@ -636,7 +642,10 @@
 		// the pluginEditor lookup they already pass around.
 		getPresentationMode: () => effectiveMode,
 		getTheme: () => theme,
-		activation: activePlugins
+		activation: activePlugins,
+		// Called at use, never here: both read state declared further down this component.
+		insertMarkdown: (md, options) => insertMarkdown(md, options),
+		runCommand: (commandId, arg) => runCommand(commandId, arg)
 	});
 
 	// One definition, passed by every dispatch level that can reach a plugin-global
@@ -868,6 +877,7 @@
 		blockEdit,
 		placeCaretAtPoint,
 		insertMarkdown,
+		insertCatalogue: getInsertCatalogue,
 		setMenu: (menu) => (blockMenu = menu)
 	});
 
@@ -1258,11 +1268,13 @@
 		},
 		selection: selectionState,
 		getDoc,
-		getBlockComponent
+		getBlockComponent,
+		isReading: () => effectiveMode === 'reading',
+		insertParagraph: (boundary, text) => blockEdit.insertParagraph(boundary, text)
 	});
 
-	export function insertMarkdown(md: string): boolean {
-		return focusedSurface.insertMarkdown(md);
+	export function insertMarkdown(md: string, options?: InsertMarkdownOptions): boolean {
+		return focusedSurface.insertMarkdown(md, options);
 	}
 
 	const commandDispatchContext: CommandDispatchContext = {
@@ -1320,6 +1332,10 @@
 		return inlineMenus;
 	}
 
+	export function getInsertCatalogue(): readonly InsertEntry[] {
+		return insertCatalogue(activePlugins.isActive);
+	}
+
 	export function getRects(): EditorRects {
 		return rects;
 	}
@@ -1359,6 +1375,7 @@
 		getSearch,
 		getDecorations,
 		getInlineMenus,
+		getInsertCatalogue,
 		getRects,
 		getDiagnostics,
 		reservedChords,

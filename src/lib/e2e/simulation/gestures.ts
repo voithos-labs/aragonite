@@ -118,6 +118,7 @@ import {
 	unwrapGithubAlert
 } from './gestures/github-alert';
 import { composeAbort, composeCommit, type CompositionCase } from './gestures/ime';
+import { slashInsert } from './gestures/slash';
 
 /**
  * The vocabulary of human gestures on top of EditorPage. Each gesture makes a real keyboard or
@@ -306,6 +307,11 @@ export class Gestures {
 
 	startQuote(text: string): Promise<void> {
 		return startQuote(this.ctx, text);
+	}
+
+	/** Needs the slash-commands plugin: `/test/editor?slash=on`. */
+	slashInsert(query: string, inserted: string, text: string): Promise<void> {
+		return slashInsert(this.ctx, query, inserted, text);
 	}
 
 	continueQuote(text: string): Promise<void> {

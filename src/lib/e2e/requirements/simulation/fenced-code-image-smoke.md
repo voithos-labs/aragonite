@@ -12,6 +12,9 @@ reference checks on every run.
   with bold/italic/code/links, a nested bullet list, an ordered list, a task
   list, a blockquote, an unclosed fenced code block, a thematic break, and an
   image inserted then resized
+- the blockquote comes from the slash list: `/quote` typed on the empty line,
+  Enter on the showing list, then the quote's text typed into the block the pick
+  made; the note ends byte-identical to one whose quote was typed as `>`
 - end-state equality holds: after the build and every detour, the typed
   document equals the canonical note byte-for-byte (typing ≡ loading)
 
@@ -34,7 +37,9 @@ reference checks on every run.
 ## User interactions
 
 - typing uses per-character keyboard events; structure markers (`#`, `-`,
-  `>`, ` ``` `, `---`) are typed literally and the live parser forms the block
+  ` ``` `, `---`) are typed literally and the live parser forms the block
+- the page is opened with the slash-commands plugin listed (`?slash=on`); the
+  pick is a real Enter on the list, which holds the key while it shows
 - the jump-back detour repositions with a real pointer click into the first
   top-level block; landing in the wrong block is a hard failure
 - the image insert waits for the loaded widget before resizing with Shift+Arrow

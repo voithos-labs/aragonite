@@ -213,7 +213,7 @@ list is that you hear it from the terminal instead of from the review.
    host token it reads has a fallback, and `src/app.css` holds no editor rule (G4.6).
    `npx vitest run src/lib/test/invariants/lint/css-ownership.test.ts`
 4. **Every icon a menu row names is a key of the glyph table** in
-   `src/lib/components/menu/MenuIcon.svelte`: a new icon is a new entry there, and a name that
+   `src/lib/menu-icons.ts`: a new icon is a new entry there, and a name that
    isn't one fails the `MenuIconName` type.
    `npm run check`
 5. **Nothing sequences on `setTimeout`, `requestAnimationFrame` or a microtask trick** (G4.4):
