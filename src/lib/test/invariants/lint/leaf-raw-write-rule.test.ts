@@ -17,6 +17,7 @@ const CAPABILITY_SITES: Record<string, string> = {
 	'src/lib/schema/block-kind-descriptor.ts': 'the field declaration',
 	'src/lib/schema/built-in-descriptors.ts': 'tableCell and fencedCode declare it',
 	'src/lib/plugins/latex/latex-kind.ts': 'mathBlock and mathFence declare it, for their closers',
+	'src/lib/plugins/mermaid/mermaid-kind.ts': 'mermaid declares it, for its closing fence',
 	[READERS_HOME]: 'the readers dispatch it'
 };
 
