@@ -15,7 +15,7 @@ const row = (label: string, keywords: string[] = [], takesArgument = false): Fil
 const ROWS = [
 	row('Bulleted list', ['bullet', 'list']),
 	row('To-do list', ['todo', 'td', 'task', 'list']),
-	row('Divider', ['rule', 'hr']),
+	row('Divider', ['rule']),
 	row('Code block', ['fence'], true),
 	row('Table', ['grid'], true),
 	row('Tag', [])

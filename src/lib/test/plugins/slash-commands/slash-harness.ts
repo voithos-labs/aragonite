@@ -26,7 +26,7 @@ export const CATALOGUE: readonly InsertEntry[] = [
 	entry('bullet', 'Bulleted list', ['bullet', 'list'], '- '),
 	entry('todo', 'To-do list', ['todo', 'td', 'task', 'list'], '- [ ] '),
 	entry('quote', 'Quote', ['blockquote'], '> '),
-	entry('divider', 'Divider', ['rule', 'hr'], '---\n'),
+	entry('divider', 'Divider', ['rule'], '---\n'),
 	entry('code', 'Code block', ['fence'], '```\n\n```\n'),
 	entry('table', 'Table', ['grid'], '| Column | Column |\n| --- | --- |\n|  |  |\n')
 ];

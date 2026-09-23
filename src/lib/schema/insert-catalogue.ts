@@ -23,7 +23,7 @@ const BUILT_IN: readonly InsertEntry[] = [
 	entry('numbered', 'Numbered list', 'list-ordered', ['number', 'ordered', 'ol', 'list'], '1. '),
 	entry('todo', 'To-do list', 'square-check', ['todo', 'td', 'task', 'checkbox', 'list'], '- [ ] '),
 	entry('quote', 'Quote', 'text-quote', ['blockquote', 'citation'], '> '),
-	entry('divider', 'Divider', 'minus', ['rule', 'hr', 'separator', 'line'], '---\n'),
+	entry('divider', 'Divider', 'minus', ['rule', 'separator', 'line'], '---\n'),
 	entry('code', 'Code block', 'code', ['fence', 'pre', 'snippet'], '```\n\n```\n'),
 	entry('table', 'Table', 'table', ['grid'], '| Column | Column |\n| --- | --- |\n|  |  |\n')
 ];

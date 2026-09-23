@@ -14,6 +14,9 @@ and `runCommand('slashCommands.open', query)` opens the list already narrowed.
   rows) replaces the line.
 - `/h2` at the end of a text line turns that line into a level-2 heading, its text intact and the
   `/h2` gone.
+- `/h` then Enter on an empty line makes a level-1 heading: the first row is Heading 1, never the
+  divider. Miss-analysis: the pick cases each typed a full name, so none met the order a short
+  query lists rows in.
 - `/quote` at the end of a text line keeps the line as it was and lands a quote in a new block
   directly below it, with the caret in the quote.
 

@@ -63,6 +63,15 @@ test.describe('slash commands', () => {
 			await expect.poll(async () => (await blocks(editor))[TARGET]).toBe('## Type here ');
 		});
 
+		test('/h then Enter on an empty line makes a level-1 heading, not a divider', async () => {
+			await editor.page.keyboard.press('Enter');
+			await editor.typeText('/h');
+			await expect.poll(async () => (await rows(editor))[0]).toBe('Heading 1');
+			await editor.page.keyboard.press('Enter');
+			await expect.poll(() => editor.bridge.getBlockKind(TARGET + 1)).toBe('heading');
+			expect(await editor.bridge.getSource()).not.toContain('---');
+		});
+
 		test('/quote at the end of a text line lands a quote below, the line untouched', async () => {
 			await editor.typeText(' /quote');
 			await expect.poll(() => rows(editor)).toEqual(['Quote']);
