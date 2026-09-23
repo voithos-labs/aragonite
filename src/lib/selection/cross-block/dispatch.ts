@@ -16,6 +16,7 @@ import type {
 } from '../../editor-keys';
 import type { UserScrollport } from '../../cursor/scroll-ancestors';
 import type { SelectionState } from '../selection-state.svelte';
+import type { SelectedWidgetHandle } from '../primitives';
 import type { StickyColumnState } from '../../cursor/sticky-column';
 import type { EdgeAffinityState } from '../../cursor/edge-affinity';
 import type { CrossBlockMutationContext } from './ops';
@@ -80,6 +81,8 @@ export interface CrossBlockDispatchContext {
 	events: EditorEvents;
 
 	getCursorOffset: () => number | null;
+	/** An image selected whole, which a shift-press grows its range from. */
+	selectedWidget: SelectedWidgetHandle;
 
 	/** Svelte's `tick()`, awaited after mutations so the DOM has updated. */
 	afterReactivity: () => Promise<void>;

@@ -4,6 +4,7 @@ import type { StickyColumnState } from '../cursor/sticky-column';
 import type { EdgeAffinityState } from '../cursor/edge-affinity';
 import type { BlockElLookup, PresentationModeGetter } from '../editor-keys';
 import type { SelectionState } from '../selection/selection-state.svelte';
+import type { EditorSelection } from '../selection/primitives';
 import type { UndoEntry, UndoManager } from '../undo/types';
 import type { SharingState } from '../tree-operations/sharing';
 import type { EditorEvents } from '../editor-events';
@@ -31,6 +32,9 @@ export interface EditorActionsDeps {
 	stickyColumn: StickyColumnState;
 	edgeAffinity: EdgeAffinityState;
 	selectionState: SelectionState;
+	/** The caret the user had before an image was selected whole, or null with none selected:
+	 *  no block reports a caret meanwhile, so an undo entry reads this one. Absent in harnesses. */
+	getSelectedWidgetCaret?: () => EditorSelection | null;
 	getBlockElByPath: BlockElLookup;
 	/** Scroll an unmounted top-level block into the rendered window, wait for it to mount,
 	 *  and return its component (null if unreachable). An already-mounted block returns

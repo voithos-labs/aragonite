@@ -13,12 +13,9 @@ import { asDomTextOffset } from '$lib/cursor/coordinate-spaces';
 import { createRangeFromOffsets } from '$lib/cursor/content-offsets';
 import { cleanLiveJoinSeam } from '$lib/components/blocks/text/live-join-seam';
 import { registerLiveJoinSeamCleaner } from '$lib/schema/inline-construct-policy';
-import type { EditorServices } from '$lib/editor-keys';
 import { makeStubBlockEdit } from '../../harness/editor-actions';
 import { editorMountContext } from '../../harness/mount-context';
-import { mountCell, type MountedCell } from '../table/mount-cell';
-
-const noIslands = { islandsForPath: () => [] } as unknown as EditorServices['decorations'];
+import { mountCell, noIslands, type MountedCell } from '../table/mount-cell';
 
 /** The async beforeinput chain resolves after the dispatch returns. */
 const settle = () => new Promise((r) => setTimeout(r));

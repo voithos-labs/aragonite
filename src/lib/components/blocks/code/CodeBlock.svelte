@@ -97,7 +97,6 @@
 	let pendingCursorOffset = $state<number | null>(null);
 	let pendingSelection = $state<{ start: number; end: number } | null>(null);
 	let lastRenderedRaw = '';
-	let preEditOffset = 0;
 
 	const { backend, getFocusOffset, getTextLen, readText } = createContentOffsetBackend(
 		() => el ?? null
@@ -114,10 +113,6 @@
 		setComposing: (value) => {
 			composing = value;
 		},
-		getPreEditOffset: () => preEditOffset,
-		setPreEditOffset: (offset) => {
-			preEditOffset = offset;
-		},
 		setPendingCursor: (offset) => {
 			pendingCursorOffset = offset;
 		},
@@ -127,7 +122,8 @@
 		readText,
 		// Gives back the caret the reconciled bytes need: the write rule can grow the
 		// fence or drop a character, either of which moves the caret off the DOM's.
-		commitInput: (text, preEdit, savedOffset) => commitDisplay(text, preEdit, savedOffset)
+		commitInput: (text, preEdit, savedOffset) => commitDisplay(text, preEdit, savedOffset),
+		handleBeforeInput: onBeforeInput
 	});
 
 	const crossBlock = editableSurface.crossBlock;
@@ -385,15 +381,17 @@
 		// Gated on !composing so an IME emitting it mid-composition does not sync.
 		if (e.inputType === 'insertLineBreak' && !composing && el) {
 			e.preventDefault();
-			// Mobile/IME paths skip onKeyDown so preEditOffset may be stale; capture fresh.
-			const branchPreEditOffset = backend.getRaw() ?? 0;
 			const result = computeCodeEnter({
 				display: getDisplayText(),
 				selection: enterSpliceSpan(currentRange()),
 				mode: 'soft',
 				ending: trailingLineEnding(node.raw)
 			});
-			pendingCursorOffset = commitDisplay(result.newText, branchPreEditOffset, result.newCursor);
+			pendingCursorOffset = commitDisplay(
+				result.newText,
+				editableSurface.getPreEditOffset(),
+				result.newCursor
+			);
 			return;
 		}
 		if (composing || e.inputType !== 'insertText' || !el) return;
@@ -432,11 +430,19 @@
 		if (result.kind === 'wrap') {
 			// Both endpoints sit inside the body, so whatever is inserted ahead of the
 			// wrap's start moves its end by the same amount.
-			const start = commitDisplay(result.newText, preEditOffset, result.selection.start);
+			const start = commitDisplay(
+				result.newText,
+				editableSurface.getPreEditOffset(),
+				result.selection.start
+			);
 			const shift = start - result.selection.start;
 			pendingSelection = { start, end: result.selection.end + shift };
 		} else {
-			pendingCursorOffset = commitDisplay(result.newText, preEditOffset, result.caretOffset);
+			pendingCursorOffset = commitDisplay(
+				result.newText,
+				editableSurface.getPreEditOffset(),
+				result.caretOffset
+			);
 		}
 	}
 
@@ -469,9 +475,11 @@
 		if (insert === null) return true;
 		const edit = computeFenceRangedEdit(node, range, insert);
 		if (!edit) return true;
-		// Mobile/IME beforeinput arrives without a preceding keydown, so the undo
-		// anchor is read fresh rather than trusting `preEditOffset` (see the soft break above).
-		pendingCursorOffset = commitDisplay(edit.newText, backend.getRaw() ?? 0, edit.newCursor);
+		pendingCursorOffset = commitDisplay(
+			edit.newText,
+			editableSurface.getPreEditOffset(),
+			edit.newCursor
+		);
 		return true;
 	}
 
@@ -539,8 +547,6 @@
 		if (composing) return;
 		if (!el) return;
 
-		preEditOffset = backend.getRaw() ?? 0;
-
 		if ((await handleSharedKeydown(e, sharedCtx)) || editableSurface.isDetached()) return;
 
 		if (wiring.dispatchChord(e, { kind: node.kind, runCommand })) return;
@@ -604,7 +610,7 @@
 		const pairSpan = { start: offset - 1, end: offset + 1 };
 		if (isBetweenEmptyPair(text, offset) && !crossesFenceBoundary(node, pairSpan)) {
 			const newText = text.slice(0, offset - 1) + text.slice(offset + 1);
-			pendingCursorOffset = commitDisplay(newText, preEditOffset, offset - 1);
+			pendingCursorOffset = commitDisplay(newText, offset, offset - 1);
 			return true;
 		}
 		return false;
@@ -626,8 +632,7 @@
 	// textContent, so the CST never sees the edit; Enter goes through the CST instead.
 	function codeNewline(): boolean {
 		if (!el) return false;
-		// Read the caret live: cross-block dispatch calls runCommand without an
-		// onKeyDown to refresh preEditOffset, so the undo anchor must read fresh.
+		// Read live: a command dispatched from another block arrives with no input event here.
 		const offset = backend.getRaw() ?? 0;
 		const text = getDisplayText();
 		const meta = metadataOf(node, 'fencedCode');
@@ -838,7 +843,7 @@
 	oninput={onInput}
 	onfocus={onSurfaceFocus}
 	onkeydown={onKeyDownTraced}
-	onbeforeinput={onBeforeInput}
+	onbeforeinput={editableSurface.onBeforeInput}
 	oncopy={onCopy}
 	oncut={onCut}
 	onpaste={onPaste}

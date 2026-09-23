@@ -73,6 +73,7 @@ function stubbedServices(getDoc: () => DocumentView): EditorServices {
 		revealAnchor: createRevealAnchorState(),
 		// Real: every keydown on an editable block asks it what is selected.
 		widgetSelection: createWidgetSelectionState({ onSelect: () => {} }),
+		selectedWidget: { range: () => null, clear: () => {} },
 		// Real: a `link.openCard` keypress asks it to record a target, and the entry rule reads it
 		// back. The checks mirror production, so a component test runs the ones it ships with.
 		linkCard: createLinkCardState({

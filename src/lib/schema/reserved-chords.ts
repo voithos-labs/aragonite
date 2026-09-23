@@ -195,6 +195,12 @@ export const HARDCODED_CHORD_SITES: readonly HardcodedChordSite[] = [
 		note: 'Shift-click declines, so the block keeps cross-block extension.'
 	},
 	{
+		file: 'components/image/widget-selection-state.svelte.ts',
+		chords: [],
+		keys: [],
+		note: 'A Shift-press on a block is left to that block, which grows a range from the image.'
+	},
+	{
 		file: 'cursor/edge-affinity.ts',
 		chords: [],
 		keys: ['ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'End', 'Home', 'PageDown', 'PageUp'],

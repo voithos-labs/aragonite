@@ -8,7 +8,7 @@ import type { LinkReferenceResolver } from '$lib/core/inline/link-reference-reso
 
 // Miss-analysis: the swap was pinned through a mounted editor one consequence at a time
 // (heights, undo, the selection announcement), so a step dropped from the middle of the
-// sequence failed no unit test.
+// sequence failed no unit test; and no step closed a menu, since no spec swapped under one.
 
 describe('initDocument', () => {
 	it('parses the empty source to one empty LF paragraph', () => {
@@ -44,6 +44,7 @@ describe('the swap commit sequence', () => {
 			undoManager: { clear: step('undo') },
 			stickyColumn: { reset: step('sticky') },
 			edgeAffinity: { reset: step('affinity') },
+			closeMenus: step('menus'),
 			widgetSelection: { clear: step('widget') },
 			selection,
 			adoptLinkReferences: (resolver, signature) => {
@@ -74,6 +75,7 @@ describe('the swap commit sequence', () => {
 			'undo',
 			'sticky',
 			'affinity',
+			'menus',
 			'widget',
 			'announce',
 			'links',

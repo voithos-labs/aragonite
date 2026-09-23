@@ -264,7 +264,6 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 	const isReading = () => getPresentationMode() === 'reading';
 
 	let composing = false;
-	let preEditOffset = 0;
 	let pendingCursor: number | null = null;
 	/** The bytes the open reveal was measured against; null while folded. */
 	let revealedBase: string | null = null;
@@ -288,10 +287,6 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		setComposing: (value) => {
 			composing = value;
 		},
-		getPreEditOffset: () => preEditOffset,
-		setPreEditOffset: (offset) => {
-			preEditOffset = offset;
-		},
 		// render-primary never restores a pending caret: focus has already left on
 		// commit, and a re-render must not pull it back.
 		setPendingCursor: (offset) => {
@@ -312,7 +307,8 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 					saved
 				);
 			}
-		}
+		},
+		handleBeforeInput: onBeforeInput
 	});
 
 	const surface = editableSurface.surface;
@@ -369,13 +365,13 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 	// Returns the commit's own promise, so a caller that has to act on the committed bytes
 	// (a single-line Enter's split) can wait for the write to land.
 	function commitSource(edited: string): Promise<void> {
-		// One undo entry: the anchor is where the caret entered the edit; the post-edit
-		// caret follows the edit position.
+		// One undo entry, anchored at the caret before the last edit; the post-edit caret follows
+		// the edit position.
 		return Promise.resolve(
 			blockEdit.updateBlockContent(
 				deps.getIndex(),
 				edited + trailingLineEnding(deps.getNode().raw),
-				preEditOffset,
+				editableSurface.getPreEditOffset(),
 				edited.length
 			)
 		);
@@ -564,7 +560,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		const next = completed?.text ?? spliced;
 		paintSource(el, next);
 		deps.onSourceEdit?.(next);
-		preEditOffset = start;
+		editableSurface.notePreEditOffset(start);
 		setCursorOffset(el, asDomTextOffset(completed?.caret ?? start + insert.length));
 		// Started once the edit has settled, so the gap measured is the one the user leaves.
 		if (deps.renderSource && keystroke) sourceBatch.armPause();
@@ -613,7 +609,8 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 	async function handleKeydown(e: KeyboardEvent): Promise<void> {
 		const el = deps.getEl();
 		if (composing || !el) return;
-		preEditOffset = getCursorOffset(el) ?? 0;
+		// Enter in a shown source commits it from here, with no input event to read the caret at.
+		editableSurface.notePreEditOffset(getCursorOffset(el) ?? 0);
 
 		// Undo inside an open drawn source steps back through this session's own edits: the
 		// document's history sees the session as one entry written on blur, so until the local
@@ -784,7 +781,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		tabindex: 0,
 		spellcheck: 'false' as const,
 		oninput: editableSurface.onInput,
-		onbeforeinput: onBeforeInput,
+		onbeforeinput: editableSurface.onBeforeInput,
 		onkeydown: withKeydownVerdict(handleKeydown),
 		oncopy: clipboard.onCopy,
 		oncut: clipboard.onCut,

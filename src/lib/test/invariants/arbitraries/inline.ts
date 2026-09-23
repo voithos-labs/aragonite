@@ -58,13 +58,18 @@ const decliningRun = fc.constantFrom('~~ a ~~', '_ a _', '*foo@bar.com*', '*www.
 // are reachable: backticks in either side, `)` inside a code span, balanced parens.
 const inlineLink = fc
 	.tuple(
-		fc.constantFrom('text', 'a', '**bold**', '', 'x`y'),
+		fc.constantFrom('text', 'a', '**bold**', '', 'x`y', 'foo@bar.com', 'https://x.co', 'www.x.co'),
 		fc.constantFrom('url', 'u`x`', 'u`)`', 'a(b)c', 'u\\)', '<u v>', ''),
 		fc.constantFrom('', ' "t"')
 	)
 	.map(([label, dest, title]) => `[${label}](${dest}${title})`);
 
-const referenceLink = fc.constantFrom('[label][ref]', '[collapsed][]', '[shortcut]');
+const referenceLink = fc.constantFrom(
+	'[label][ref]',
+	'[collapsed][]',
+	'[shortcut]',
+	'[www.x.co][ref]'
+);
 
 const autolink = fc.constantFrom(
 	'<https://example.com>',

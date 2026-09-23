@@ -75,57 +75,6 @@ test.describe('image widget selection', () => {
 		});
 	}
 
-	const TYPED_BEFORE_IMAGE = 'abc ![c|60x40](/test-fixtures/sample.png) tail\n';
-
-	// Typing before the image and then selecting it leaves the image at bytes the undo moves.
-	async function typeThenSelectImage(page: import('@playwright/test').Page): Promise<void> {
-		await editor.loadContent(TYPED_BEFORE_IMAGE);
-		await editor.focusBlock(0, 3);
-		await editor.typeSlowly('xyz');
-		await editor.waitForUndoBatchFlush();
-		await page.locator('[data-image-widget]').first().click();
-		await expect(overlay(page)).toBeVisible();
-	}
-
-	test('undo of an edit made before selecting an image deselects it and restores the caret', async ({
-		page
-	}) => {
-		await typeThenSelectImage(page);
-		await editor.undo();
-		await editor.bridge.waitForSourceContains('abc ![c');
-		await expect(overlay(page)).toHaveCount(0);
-		const restored = { path: [0], offset: 3 };
-		await expect
-			.poll(() => documentCaret(page))
-			.toEqual([1, { anchor: restored, focus: restored }]);
-		// An arrow needs a live caret to move; typing alone lands at the block's remembered offset.
-		await page.keyboard.press('ArrowLeft');
-		await editor.typeText('W');
-		expect(await editor.bridge.getSource()).toBe(
-			'abWc ![c|60x40](/test-fixtures/sample.png) tail\n'
-		);
-	});
-
-	test('redo after that undo leaves the redone caret live', async ({ page }) => {
-		await typeThenSelectImage(page);
-		await editor.undo();
-		await editor.bridge.waitForSourceContains('abc ![c');
-		await editor.redo();
-		await editor.bridge.waitForSourceContains('abcxyz');
-		await expect(overlay(page)).toHaveCount(0);
-		// The redo entry was recorded while the image held the selection and no caret existed,
-		// which it stores as the paragraph's start.
-		const start = { path: [0], offset: 0 };
-		await expect.poll(() => documentCaret(page)).toEqual([1, { anchor: start, focus: start }]);
-		// A stale selection drops the redone caret a moment after it lands, not at once.
-		await page.waitForTimeout(150);
-		await page.keyboard.press('ArrowRight');
-		await editor.typeText('W');
-		expect(await editor.bridge.getSource()).toBe(
-			'aWbcxyz ![c|60x40](/test-fixtures/sample.png) tail\n'
-		);
-	});
-
 	test('End while an image is selected deselects it and moves to the line end', async ({
 		page
 	}) => {

@@ -26,7 +26,10 @@ export async function settleTicks(done?: () => boolean): Promise<void> {
 }
 
 /** A cell renders no decorations unless a test installs some. */
-const noIslands = { islandsForPath: () => [] } as unknown as EditorServices['decorations'];
+export const noIslands = {
+	islandsForPath: () => [],
+	blockDecorationsForPath: () => []
+} as unknown as EditorServices['decorations'];
 
 /** Every member spied, so a test names the one it means and `npm run check` fails
  *  when `TableContext` grows a member this stub would silently answer `undefined` for. */

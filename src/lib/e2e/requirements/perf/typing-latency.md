@@ -86,11 +86,15 @@ handler's cost alone.
 
 ## Vertical arrival (report-only)
 
-One row times an arrow instead of a keystroke: ArrowDown into a paragraph of 200 decoded
+Two rows time an arrow instead of a keystroke: ArrowDown into a paragraph of 200 decoded
 entities from the prose line above it, and ArrowUp into it from the prose line below, each
-sample waiting on the caret reaching that paragraph, 15 of each, reported as p50/p95. No caret
-position in that paragraph has a box of its own, so the column the arrow carries is matched
-against the widgets' boxes alone, and the row is what shows that scan staying on one line.
+sample waiting on the caret reaching that paragraph, 15 of each, reported as p50/p95. The caret
+goes back to the line it left by a placement between samples, since an arrow out of a
+multi-line paragraph can stop on a line inside it. In `arrival-widget-only` no caret position
+in the paragraph has a box of its own, so the column the arrow carries is matched against the
+widgets' boxes alone, and the row shows that scan staying on one line. `arrival-mixed` puts one
+letter before the same entities, which gives the scan a box of its own to set the edge by, and
+the row shows each widget measured once rather than at every byte of its source.
 
 - a paragraph that did not mount all 200 widgets fails the row rather than timing a shorter one
 

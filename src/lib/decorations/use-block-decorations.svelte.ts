@@ -6,6 +6,7 @@
 import type { EditorError } from '../editor-events';
 import type { DecorationEngine } from './decoration-state.svelte';
 import type { BlockDecoration } from './types';
+import { devWarn } from '../dev-warn';
 import { acceptedBlockAttrs } from './reserved-attrs';
 import { mountDecorationWidget } from './widget-dom';
 
@@ -15,6 +16,8 @@ export interface BlockDecorationDeps {
 	/** Absent when a block mounts without the editor shell, as unit tests do. */
 	engine: DecorationEngine | undefined;
 	onRenderError: (error: EditorError) => void;
+	/** Why this element cannot hold a badge; when set, every badge is dropped with a dev warning. */
+	badgeRefusal?: string;
 }
 
 const NO_BLOCK_DECORATIONS: BlockDecoration[] = [];
@@ -53,6 +56,12 @@ export function useBlockDecorations(deps: BlockDecorationDeps): { readonly class
 		const badges = document.createDocumentFragment();
 		for (const dec of decs) {
 			if (!dec.badge) continue;
+			if (deps.badgeRefusal !== undefined) {
+				devWarn('decorations', `block decoration badge dropped: ${deps.badgeRefusal}`, {
+					path: deps.getPath()
+				});
+				continue;
+			}
 			const handle = mountDecorationWidget(dec.badge, dec, (error) =>
 				deps.onRenderError({ origin: 'render', error, context: { path: deps.getPath() } })
 			);

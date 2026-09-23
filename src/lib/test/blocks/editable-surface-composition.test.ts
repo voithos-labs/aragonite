@@ -35,9 +35,10 @@ describe('editable surface: the composing gate', () => {
 		setCaret(5);
 		surface.onCompositionStart();
 
-		// The IME advances the caret as it composes; keydowns that would refresh
-		// preEditOffset are gated on the composing flag, so 5 must survive.
+		// The IME advances the caret as it composes, and its beforeinput events are gated on the
+		// composing flag, so 5 must survive.
 		setCaret(7);
+		surface.onBeforeInput(new InputEvent('beforeinput', { inputType: 'insertCompositionText' }));
 		el.textContent = 'helloかん';
 		surface.onCompositionEnd();
 

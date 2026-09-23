@@ -78,7 +78,8 @@ function handlePointerDown(
 			e.clientX,
 			e.clientY,
 			prevFocusEl,
-			prevFocusPath
+			prevFocusPath,
+			ctx.selectedWidget
 		);
 		if (handled) {
 			e.preventDefault();

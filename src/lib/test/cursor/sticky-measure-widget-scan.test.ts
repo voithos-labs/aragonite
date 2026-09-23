@@ -14,6 +14,9 @@ import { findOffsetNearestX } from '../../cursor/sticky-measure';
 const WIDGETS = 200;
 const PER_LINE = 70;
 const LINES = Math.ceil(WIDGETS / PER_LINE);
+// Set per test: how many widgets fill a line, and which line the block's text sits on.
+let perLine = PER_LINE;
+let textLine = 2;
 const WIDGET_WIDTH = 20;
 const LINE_HEIGHT = 20;
 const SOURCE_LENGTH = 5;
@@ -22,8 +25,8 @@ const SOURCE_LENGTH = 5;
 const ONE_LINE_OF_PROBES = (PER_LINE + 1) * SOURCE_LENGTH;
 
 function widgetBox(index: number): DOMRect {
-	const line = Math.floor(index / PER_LINE);
-	const left = (index % PER_LINE) * WIDGET_WIDTH;
+	const line = Math.floor(index / perLine);
+	const left = (index % perLine) * WIDGET_WIDTH;
 	const top = line * LINE_HEIGHT;
 	return {
 		left,
@@ -48,9 +51,9 @@ const ZERO = {
 	height: 0
 } as DOMRect;
 
-/** A caret in the text after the second line of widgets: on the third line, a glyph apart. */
+/** A caret in the block's text, on `textLine`, a glyph apart. */
 function textCaretBox(offset: number): DOMRect {
-	const box = widgetBox(2 * PER_LINE);
+	const box = widgetBox(textLine * perLine);
 	return { ...box, left: offset * 8, right: offset * 8, width: 0 } as DOMRect;
 }
 
@@ -85,6 +88,8 @@ describe('a vertical arrival into a paragraph made only of widgets', () => {
 		editor.appendChild(block);
 		document.body.appendChild(editor);
 		probes = 0;
+		perLine = PER_LINE;
+		textLine = 2;
 
 		// A collapsed range is one caret probe; a range around a widget measures its box.
 		Range.prototype.getClientRects = function (this: Range): DOMRectList {
@@ -130,5 +135,43 @@ describe('a vertical arrival into a paragraph made only of widgets', () => {
 		block.appendChild(document.createTextNode('abc'));
 		const landed = findOffsetNearestX(block, asEditorX(16), 'above', asDomTextOffset(0));
 		expect(landed).toBe(2 * PER_LINE * SOURCE_LENGTH + 2);
+	});
+
+	// Miss-analysis: every case above held widgets alone or text past them, so no walk started on
+	// a letter and then met widget boxes, which never ended it and were probed at every offset.
+	describe('with one letter before the widgets', () => {
+		beforeEach(() => {
+			block.prepend(document.createTextNode('x'));
+			textLine = 0;
+		});
+
+		it('from above, probes each widget once and lands on the letter', () => {
+			const landed = findOffsetNearestX(block, column, 'above', asDomTextOffset(0));
+			expect(landed).toBe(1);
+			expect(probes).toBeLessThanOrEqual(2 + WIDGETS);
+		});
+
+		it('from above, stops three lines past the letter once the widgets run further', () => {
+			perLine = 20;
+			const landed = findOffsetNearestX(block, column, 'above', asDomTextOffset(0));
+			expect(landed).toBe(1);
+			expect(probes).toBeLessThanOrEqual(2 + 4 * perLine + 1);
+		});
+
+		it('from below, probes each widget once on the way to the letter', () => {
+			const landed = findOffsetNearestX(block, column, 'below', asDomTextOffset(0));
+			expect(landed).toBe(1);
+			expect(probes).toBeLessThanOrEqual(2 + WIDGETS);
+		});
+	});
+
+	// The shape `widget-run-beside-text.spec.ts` drives in the browser: a short run, then words.
+	it('in a run of five widgets before text, probes each widget once', () => {
+		while (block.childNodes.length > 5) block.lastChild!.remove();
+		block.appendChild(document.createTextNode('alpha beta gamma'));
+		textLine = 0;
+		const landed = findOffsetNearestX(block, asEditorX(16), 'above', asDomTextOffset(0));
+		expect(landed).toBe(5 * SOURCE_LENGTH + 2);
+		expect(probes).toBeLessThanOrEqual(1 + 5 + 'alpha beta gamma'.length);
 	});
 });

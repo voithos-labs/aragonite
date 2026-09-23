@@ -16,7 +16,8 @@ import {
 	containerDomTextLength,
 	domTextOffsetAtNode,
 	findDomTextLanding,
-	holdsTextPast
+	holdsTextPast,
+	widgetSpanContainingOffset
 } from './widget-offset';
 import {
 	firstUsefulRect,
@@ -99,12 +100,24 @@ export function findOffsetNearestX(
 	const borrowed = holdsTextPast(container, minOffset)
 		? null
 		: createEdgeTracker(forward, () => tolerance);
+	const walkEndsAt = (probe: CaretProbe): boolean => {
+		if (!probe.borrowed) return owned.passes(probe.rect);
+		// Once text has set the edge, a widget box as far past it ends the walk as a text box would.
+		return owned.edge ? owned.isPast(probe.rect) : (borrowed?.passes(probe.rect) ?? false);
+	};
 	const candidates: CaretProbe[] = [];
 	for (let k = 0; k <= totalLen - minOffset; k++) {
-		const probe = caretBoxAt(container, asDomTextOffset(forward ? minOffset + k : totalLen - k));
+		const target = asDomTextOffset(forward ? minOffset + k : totalLen - k);
+		// Every offset inside a widget lands beside it, where one of its boundaries measures: skip
+		// to the far boundary so the widget costs one probe.
+		const inside = widgetSpanContainingOffset(container, target);
+		if (inside) {
+			k = (forward ? inside.end - minOffset : totalLen - inside.start) - 1;
+			continue;
+		}
+		const probe = caretBoxAt(container, target);
 		if (!probe) continue;
-		const tracker = probe.borrowed ? borrowed : owned;
-		if (tracker?.passes(probe.rect)) break;
+		if (walkEndsAt(probe)) break;
 		candidates.push(probe);
 	}
 	if (candidates.length === 0) return minOffset;
@@ -139,18 +152,24 @@ const STOP_AFTER_LINES = 3;
 function createEdgeTracker(forward: boolean, allowance: (first: CaretRect) => number) {
 	let edge: CaretRect | null = null;
 	let limit = 0;
+	const isPast = (rect: CaretRect): boolean => {
+		if (!edge) return false;
+		return (forward ? rect.bottom - edge.bottom : edge.bottom - rect.bottom) > limit;
+	};
 	return {
 		get edge() {
 			return edge;
 		},
+		/** Reads the box against the edge without letting it move the edge. */
+		isPast,
+		/** Takes the box as the edge when it is the first, or sits nearer the edge than it. */
 		passes(rect: CaretRect): boolean {
 			if (!edge) {
 				edge = rect;
 				limit = allowance(rect);
 				return false;
 			}
-			const distancePastEdge = forward ? rect.bottom - edge.bottom : edge.bottom - rect.bottom;
-			if (distancePastEdge > limit) return true;
+			if (isPast(rect)) return true;
 			if (forward ? rect.top < edge.top : rect.bottom > edge.bottom) edge = rect;
 			return false;
 		}

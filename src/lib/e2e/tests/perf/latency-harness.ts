@@ -307,8 +307,8 @@ async function waitForCaretInBlock(page: Page, index: number): Promise<void> {
 
 /**
  * Time a vertical arrow arriving into block 1 of a three-block fixture, from block 0 above it and
- * from block 2 below it, each sample to the caret reaching block 1. The arrow back out is not
- * timed; it only sets up the next arrival.
+ * from block 2 below it, each sample to the caret reaching block 1. The caret goes back by a
+ * placement, not an arrow: an arrow from a multi-line target can land on a line inside it.
  */
 export async function measureVerticalArrival(
 	page: Page,
@@ -319,23 +319,25 @@ export async function measureVerticalArrival(
 	const loadMs = await loadFixture(page, editor, fixture);
 	await assertMounted(page, [1], 'arrival target block');
 
-	const timeArrivals = async (from: number, toward: string, back: string): Promise<number[]> => {
+	const timeArrivals = async (
+		from: number,
+		toward: string,
+		placeBack: () => Promise<void>
+	): Promise<number[]> => {
 		const samples: number[] = [];
 		for (let i = 0; i < arrivals; i++) {
+			await placeBack();
+			await waitForCaretInBlock(page, from);
 			const keyStart = performance.now();
 			await page.keyboard.press(toward);
 			await waitForCaretInBlock(page, 1);
 			samples.push(performance.now() - keyStart);
-			await page.keyboard.press(back);
-			await waitForCaretInBlock(page, from);
 		}
 		return samples;
 	};
 
-	await editor.focusBlockEnd(0);
-	const fromAbove = await timeArrivals(0, 'ArrowDown', 'ArrowUp');
-	await editor.focusBlockStart(2);
-	const fromBelow = await timeArrivals(2, 'ArrowUp', 'ArrowDown');
+	const fromAbove = await timeArrivals(0, 'ArrowDown', () => editor.focusBlockEnd(0));
+	const fromBelow = await timeArrivals(2, 'ArrowUp', () => editor.focusBlockStart(2));
 	return { loadMs, fromAbove, fromBelow };
 }
 

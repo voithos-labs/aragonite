@@ -13,7 +13,7 @@
 	import { imageFieldsFromInline } from './image-source-bytes';
 	import type { MenuPresence } from '../menu/menu-presence.svelte';
 	import {
-		IMAGE_CHROME_SELECTOR,
+		pressLeavesImage,
 		type WidgetSelectionState,
 		type WidgetTarget
 	} from './widget-selection-state.svelte';
@@ -69,9 +69,7 @@
 		const root = getEditorEl();
 		if (!root) return;
 		const handlePointerDown = (e: PointerEvent) => {
-			const target = e.target as Element | null;
-			if (target?.closest(IMAGE_CHROME_SELECTOR)) return;
-			widgetSelection.clear();
+			if (pressLeavesImage(e, root)) widgetSelection.clear();
 		};
 		root.addEventListener('pointerdown', handlePointerDown);
 		return () => root.removeEventListener('pointerdown', handlePointerDown);
