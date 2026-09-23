@@ -644,6 +644,25 @@
 	padding-bottom: 24px;
 }
 
+/* A hard break whose bytes do not show draws a dimmed return glyph where they are, so a line that
+   starts under the one before it inside a paragraph has a visible cause. Trailing spaces are blank
+   even in source mode. The glyph is generated content on a mark with no text of its own, so the
+   caret walk and a copy see only the bytes, and a screen reader is given no text for it. */
+:where(.editor):is([data-presentation^='preview-'], [data-presentation='live'])
+	.md-hard-break::before,
+:where(.editor):not([data-presentation]) .md-hard-break[data-trailing-spaces]::before {
+	content: '↵';
+	content: '↵' / '';
+	opacity: var(--syntax-marker-dim, 0.65);
+}
+
+/* A focused preview block paints the backslash itself, so the glyph would say it twice. */
+:where(.editor)[data-presentation^='preview-']
+	.block-host[data-focused]
+	.md-hard-break:not([data-trailing-spaces])::before {
+	content: none;
+}
+
 /* A list item's leading marker owns the hanging indent (padding and text-indent are keyed to
    the span's ch width), so it keeps its box: visibility, not display. */
 :where(.editor):is(

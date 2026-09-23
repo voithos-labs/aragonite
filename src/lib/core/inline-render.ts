@@ -58,6 +58,19 @@ function markerSpan(text: string): HTMLSpanElement {
 	return span;
 }
 
+/**
+ * A hard break's marker, wrapped in the element the stylesheet draws a return glyph on where the
+ * marker's bytes do not show: the wrapper holds no text, so every offset and copy reads the bytes.
+ */
+function hardBreakMark(marker: HTMLSpanElement): HTMLSpanElement {
+	const mark = document.createElement('span');
+	mark.className = 'md-hard-break';
+	// Trailing spaces are blank even where they paint, so source mode draws the glyph for them too.
+	if (marker.textContent?.startsWith(' ')) mark.setAttribute('data-trailing-spaces', '');
+	mark.appendChild(marker);
+	return mark;
+}
+
 function tagConstruct(el: HTMLElement, node: InlineNode, opts: RenderInlineOptions): HTMLElement {
 	if (opts.tagConstructMarkers) {
 		el.setAttribute('data-construct-start', String(node.start));
@@ -338,7 +351,7 @@ function renderNode(
 						? nlIdx - 1
 						: nlIdx;
 			if (lineEndingStart > 0) {
-				container.appendChild(markerSpan(breakRaw.slice(0, lineEndingStart)));
+				container.appendChild(hardBreakMark(markerSpan(breakRaw.slice(0, lineEndingStart))));
 			}
 			container.appendChild(document.createTextNode(breakRaw.slice(lineEndingStart)));
 			return null;
