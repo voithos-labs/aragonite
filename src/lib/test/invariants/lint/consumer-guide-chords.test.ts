@@ -1,10 +1,9 @@
 /**
  * Consumer-guide chord coherence, both directions: every row of § Keyboard shortcuts resolves to
  * the command it claims, on the kind whose surface the family names, and every chord the code
- * binds or claims has a row. Chords route through several owners: Editing / Block reorder /
- * Tables against the keymap registry; Find / replace against literal presence in the two search
- * dispatch sites plus the reserved-chord source; and Clipboard against both the whole-block key
- * tail and the text block's clipboard handler, since a keydown carries no ClipboardEvent.
+ * binds or claims has its own row. Keymap families resolve against the registry, the rest against
+ * literal tokens in their dispatch sites; the reverse sweep matches a chord together with the kind
+ * or file that owns it, so a chord with two meanings needs a row for each.
  */
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
@@ -192,9 +191,19 @@ const CLIPBOARD_CHORD_TOKENS: Record<string, string[]> = {
 	]
 };
 
+const IMAGE_RESIZE = "e.shiftKey && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')";
+
 const TOKEN_RESOLVERS: Record<string, { source: string; tokens: Record<string, string[]> }> = {
 	'Find / replace': { source: SEARCH_SOURCE, tokens: SEARCH_CHORD_TOKENS },
-	Clipboard: { source: CLIPBOARD_SOURCE, tokens: CLIPBOARD_CHORD_TOKENS }
+	Clipboard: { source: CLIPBOARD_SOURCE, tokens: CLIPBOARD_CHORD_TOKENS },
+	Images: {
+		source: readEditorFile('components/image/image-widget-editing.ts').code,
+		tokens: { 'Shift+ArrowLeft': [IMAGE_RESIZE], 'Shift+ArrowRight': [IMAGE_RESIZE] }
+	},
+	'Mermaid diagrams': {
+		source: readEditorFile('plugins/mermaid/MermaidBlock.svelte').code,
+		tokens: { 'Mod+Enter': ["e.key === 'Enter' && (e.ctrlKey || e.metaKey)", 'commitEdit(true)'] }
+	}
 };
 
 export function tokensResolve(family: string, chord: string): boolean {
@@ -205,35 +214,104 @@ export function tokensResolve(family: string, chord: string): boolean {
 
 // ── What the code claims ────────────────────────────────────────────────────
 
-function boundChords(): Map<string, AnyBlockKind[]> {
-	const bound = new Map<string, AnyBlockKind[]>();
-	for (const kind of getAllRegisteredKinds()) {
-		for (const binding of tryGetBlockKindDescriptor(kind)?.keymap ?? []) {
-			bound.set(binding.chord, [...(bound.get(binding.chord) ?? []), kind]);
-		}
-	}
-	return bound;
+/**
+ * A chord and its owner: the block kind whose keymap binds it, or the `src/lib` file whose keydown
+ * branch claims it. One chord can mean different things to different owners (`Mod+Enter` checks
+ * a task item and inserts a table row), so the reverse sweep matches a claim, never a bare chord.
+ */
+type ClaimKey = `${string} @ ${string}`;
+
+const claimKey = (chord: string, owner: string): ClaimKey => `${chord} @ ${owner}`;
+
+interface BoundClaim {
+	chord: string;
+	kind: AnyBlockKind;
+	command: string;
 }
 
+function boundClaims(): BoundClaim[] {
+	return getAllRegisteredKinds().flatMap((kind) =>
+		(tryGetBlockKindDescriptor(kind)?.keymap ?? []).map(({ chord, command }) => ({
+			chord,
+			kind,
+			command
+		}))
+	);
+}
+
+const hardcodedClaims = HARDCODED_CHORD_SITES.flatMap((site) =>
+	site.chords.map((chord) => claimKey(chord, site.file))
+);
+
+/** Whether some row lists `chord` for `command`: the row's chord cell and its target must agree. */
+export function rowsDocument(docRows: DocRow[], chord: string, command: string): boolean {
+	return docRows.some(
+		(row) =>
+			row.chords.includes(chord) &&
+			(ROW_TARGETS[row.action]?.commands as string[] | undefined)?.includes(command) === true
+	);
+}
+
+/** The row documenting each chord a keydown branch claims, by its Action cell. */
+const CLAIM_ROWS: Record<ClaimKey, string> = {
+	'Shift+Enter @ components/SearchBar.svelte': 'Next / previous match',
+	'Mod+K @ components/link-card/LinkCard.svelte': "Edit a link's URL (live mode)",
+	'Shift+Tab @ components/blocks/table/cell-keydown-plan.ts': 'Move between cells',
+	'Shift+ArrowLeft @ components/image/image-widget-editing.ts': 'Resize a selected image',
+	'Shift+ArrowRight @ components/image/image-widget-editing.ts': 'Resize a selected image',
+	'Mod+C @ editor-actions/container-block-component.ts': 'Copy / cut a focused block',
+	'Mod+X @ editor-actions/container-block-component.ts': 'Copy / cut a focused block',
+	'Alt+ArrowUp @ editor-actions/plugin/container.ts': 'Move block up / down',
+	'Alt+ArrowDown @ editor-actions/plugin/container.ts': 'Move block up / down',
+	'Mod+Enter @ plugins/mermaid/MermaidBlock.svelte': 'Finish editing a diagram'
+};
+
+const SELECTION_PREAMBLE = 'selection: the section preamble names it and says it is unlisted';
+const FOCUS_TRAP = 'the backward step of an open popup focus trap, which a bare Tab mirrors';
+const SHIFT_ARROWS = ['Shift+ArrowUp', 'Shift+ArrowDown', 'Shift+ArrowLeft', 'Shift+ArrowRight'];
+
+const unlisted = (chords: string[], owner: string, reason: string) =>
+	Object.fromEntries(chords.map((chord) => [claimKey(chord, owner), reason]));
+
 /**
- * Chords the code claims that the table deliberately has no row for, each with the guide's own
- * reason. A stale entry is a failure of its own, so a chord that stops being claimed shows up.
+ * Claims the table deliberately has no row for, each with the guide's own reason. A stale entry is
+ * a failure of its own, so a claim that goes away, or gains a row, shows up.
  */
-const UNLISTED_BY_DESIGN: Record<string, string> = {
-	'Shift+F10': 'the Tables preamble documents it in prose as the keyboard route to the cell menu',
-	'Mod+A': 'selection: the section says the escalation routes outside the keymap and is unlisted',
-	'Mod+Shift+Home': 'selection: routes outside the keymap, so it is not rebindable or listed',
-	'Mod+Shift+End': 'selection: routes outside the keymap, so it is not rebindable or listed',
-	'Shift+ArrowUp': 'Shift+Arrow selection, named as a family in the section preamble',
-	'Shift+ArrowDown': 'Shift+Arrow selection, named as a family in the section preamble',
-	'Shift+ArrowLeft': 'Shift+Arrow selection, named as a family in the section preamble',
-	'Shift+ArrowRight': 'Shift+Arrow selection, named as a family in the section preamble'
+const UNLISTED_BY_DESIGN: Record<ClaimKey, string> = {
+	...unlisted(
+		['Backspace', 'Delete'],
+		'fencedCode',
+		'at a fence edge, Backspace and Delete step the caret out of the block instead of merging, which the merge row does not promise'
+	),
+	...unlisted(['Shift+Tab'], 'components/link-card/LinkCard.svelte', FOCUS_TRAP),
+	...unlisted(['Shift+Tab'], 'components/blocks/table/TableActionMenu.svelte', FOCUS_TRAP),
+	...unlisted(
+		['Shift+F10'],
+		'components/blocks/table/TableBlock.svelte',
+		'the Tables preamble documents it in prose as the keyboard route to the cell menu'
+	),
+	...unlisted(['Mod+A'], 'components/blocks/table/cell-keydown-plan.ts', SELECTION_PREAMBLE),
+	...unlisted(
+		['Mod+A', 'Mod+Shift+Home', 'Mod+Shift+End', ...SHIFT_ARROWS],
+		'selection/cross-block/keydown.ts',
+		SELECTION_PREAMBLE
+	),
+	...unlisted(SHIFT_ARROWS, 'selection/shared-keydown.ts', SELECTION_PREAMBLE),
+	...unlisted(
+		['Shift+ArrowUp', 'Shift+ArrowDown'],
+		'components/blocks/table/TableCellBlock.svelte',
+		SELECTION_PREAMBLE
+	),
+	...unlisted(
+		['Shift+ArrowLeft', 'Shift+ArrowRight'],
+		'components/blocks/text/widget-interaction.ts',
+		SELECTION_PREAMBLE
+	)
 };
 
 // ── The gate ────────────────────────────────────────────────────────────────
 
 const rows = parseRows(shortcutSection());
-const documented = new Set(rows.flatMap((row) => row.chords));
 const keymapRows = rows.filter((row) => KEYMAP_FAMILIES.includes(row.family));
 
 describe('consumer-guide § Keyboard shortcuts → code', () => {
@@ -264,34 +342,52 @@ describe('consumer-guide § Keyboard shortcuts → code', () => {
 });
 
 describe('code → consumer-guide § Keyboard shortcuts', () => {
-	it('every chord a built-in keymap binds has a row', () => {
-		const unlisted = [...boundChords()]
-			.filter(([chord]) => !documented.has(chord))
-			.map(([chord, kinds]) => `${chord} (${kinds.join(', ')})`);
+	it('every chord a built-in keymap binds has a row for the command it runs there', () => {
+		const undocumented = boundClaims()
+			.filter(({ chord, kind }) => !(claimKey(chord, kind) in UNLISTED_BY_DESIGN))
+			.filter(({ chord, command }) => !rowsDocument(rows, chord, command))
+			.map(({ chord, kind, command }) => `${claimKey(chord, kind)} (${command})`);
 		expect(
-			unlisted,
-			`bound but undocumented: give each a row, since the table is the human reference: ${unlisted.join(', ')}`
+			undocumented,
+			`bound but undocumented: give each a row whose ROW_TARGETS entry names the command: ${undocumented.join(', ')}`
 		).toEqual([]);
 	});
 
-	it('every chord a keydown branch claims has a row or a recorded reason', () => {
-		const unlisted = HARDCODED_CHORD_SITES.flatMap((site) =>
-			site.chords
-				.filter((chord) => !documented.has(chord) && !(chord in UNLISTED_BY_DESIGN))
-				.map((chord) => `${chord} (${site.file})`)
+	it('every chord a keydown branch claims names the row that documents it, or a reason', () => {
+		const missing = hardcodedClaims.filter(
+			(key) => !(key in CLAIM_ROWS) && !(key in UNLISTED_BY_DESIGN)
 		);
 		expect(
-			unlisted,
-			`claimed but undocumented: add a row, or an UNLISTED_BY_DESIGN entry saying where the guide covers it: ${unlisted.join(', ')}`
+			missing,
+			`claimed but unaccounted for: add a CLAIM_ROWS entry naming its row, or an UNLISTED_BY_DESIGN entry saying where the guide covers it: ${missing.join(', ')}`
 		).toEqual([]);
 	});
 
-	it('holds no UNLISTED_BY_DESIGN entry nothing claims any more', () => {
-		const claimed = new Set(HARDCODED_CHORD_SITES.flatMap((site) => site.chords));
-		const stale = Object.keys(UNLISTED_BY_DESIGN).filter(
-			(chord) => !claimed.has(chord) || documented.has(chord)
+	it.each(Object.entries(CLAIM_ROWS))('%s is documented by the row "%s"', (key, action) => {
+		const chord = key.split(' @ ')[0];
+		const row = rows.find((candidate) => candidate.action === action);
+		expect(row, `no row "${action}" in the guide`).toBeDefined();
+		expect(row!.chords, `the row "${action}" does not list ${chord}`).toContain(chord);
+	});
+
+	it('holds no entry for a claim that went away or is documented twice', () => {
+		const bound = boundClaims();
+		const live = new Set<string>([
+			...hardcodedClaims,
+			...bound.map(({ chord, kind }) => claimKey(chord, kind))
+		]);
+		const stale = [...Object.keys(CLAIM_ROWS), ...Object.keys(UNLISTED_BY_DESIGN)].filter(
+			(key) => !live.has(key)
 		);
-		expect(stale, `drop these exemptions: ${stale.join(', ')}`).toEqual([]);
+		const twice = Object.keys(UNLISTED_BY_DESIGN).filter((key) => key in CLAIM_ROWS);
+		const alreadyRowed = bound
+			.filter(({ chord, kind }) => claimKey(chord, kind) in UNLISTED_BY_DESIGN)
+			.filter(({ chord, command }) => rowsDocument(rows, chord, command))
+			.map(({ chord, kind }) => claimKey(chord, kind));
+		expect(
+			[...stale, ...twice, ...alreadyRowed],
+			'drop these entries: the claim is gone, or a row already documents it'
+		).toEqual([]);
 	});
 });
 
@@ -302,7 +398,15 @@ describe('code → consumer-guide § Keyboard shortcuts', () => {
 describe('consumer-guide chord coherence: self-tests', () => {
 	it('parses every family, and the rows a naive cell split loses', () => {
 		expect([...new Set(rows.map((row) => row.family))].sort()).toEqual(
-			['Block reorder', 'Clipboard', 'Editing', 'Find / replace', 'Tables'].sort()
+			[
+				'Block reorder',
+				'Clipboard',
+				'Editing',
+				'Find / replace',
+				'Images',
+				'Mermaid diagrams',
+				'Tables'
+			].sort()
 		);
 		expect(rows.length).toBeGreaterThan(25);
 		// Its chord cell spells a header row out, escaped pipes and all.
@@ -342,8 +446,17 @@ describe('consumer-guide chord coherence: self-tests', () => {
 	});
 
 	it('finds a non-empty claim set on both code axes', () => {
-		expect(boundChords().size).toBeGreaterThan(20);
-		expect(HARDCODED_CHORD_SITES.flatMap((site) => site.chords).length).toBeGreaterThan(10);
+		expect(boundClaims().length).toBeGreaterThan(100);
+		expect(hardcodedClaims.length).toBeGreaterThan(10);
+	});
+
+	// Miss-analysis: the sweep keyed documented chords by string alone, and no case gave it one chord
+	// with two meanings, so a row for either meaning satisfied both.
+	it('matches a bound chord to the row for its command, not to any row sharing the chord', () => {
+		const tablesOnly = rows.filter((row) => row.action === 'Insert row below / above');
+		expect(rowsDocument(tablesOnly, 'Mod+Enter', 'table.insertRowBelow')).toBe(true);
+		expect(rowsDocument(tablesOnly, 'Mod+Enter', 'list.toggleTask')).toBe(false);
+		expect(rowsDocument(rows, 'Mod+Enter', 'list.toggleTask')).toBe(true);
 	});
 
 	it('rejects a chord that is dispatched nowhere', () => {

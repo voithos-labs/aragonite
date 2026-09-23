@@ -1,37 +1,29 @@
 /**
- * G4.24: the code block commits its display through one function. A fenced block's write rule
- * cannot be applied per gesture, because the work that grows the fence past a body line the parser
- * would read as its closer has to run on every display commit, and two gestures split the block by
- * rewriting bytes without adding a character. So `commitDisplay` is the block's only
- * `updateBlockContent` call site, and this fails the day another gesture writes around it. It
- * covers that one file, because it is the caret side; byte writes reaching a code block from
- * elsewhere answer to G4.28.
+ * G4.24: the code block commits its display through one function, `commitDisplay`, because the
+ * fence has to grow past any body line the parser would read as its closer on every commit. This
+ * fails the day another gesture in `CodeBlock.svelte` writes around it; byte writes reaching a code
+ * block from elsewhere answer to G4.28.
  */
 import { describe, it, expect } from 'vitest';
-import { readFileSync } from 'node:fs';
-import path from 'node:path';
+import { balancedBlock, balancedRegion, readEditorFile, stripComments } from './scan-source';
 
-const CODE_BLOCK = path.resolve('src/lib/components/blocks/code/CodeBlock.svelte');
 const CALL = 'blockEdit.updateBlockContent(';
 
-/** The `commitDisplay` body, by brace matching from its declaration. */
-function commitDisplayBody(source: string): string {
-	const start = source.indexOf('function commitDisplay(');
-	expect(start, 'commitDisplay is gone: the shared path it names is the rule').toBeGreaterThan(-1);
-	const open = source.indexOf('{', start);
-	let depth = 0;
-	for (let i = open; i < source.length; i++) {
-		if (source[i] === '{') depth++;
-		else if (source[i] === '}' && --depth === 0) return source.slice(open, i);
-	}
-	throw new Error('unbalanced braces in commitDisplay');
+/** The `commitDisplay` body, or null where the declaration is gone; pass comment-stripped code. */
+function commitDisplayBody(code: string): string | null {
+	const start = code.indexOf('function commitDisplay(');
+	if (start < 0) return null;
+	const params = balancedRegion(code, code.indexOf('(', start));
+	if (params === null) return null;
+	const open = code.indexOf('{', code.indexOf('(', start) + params.length);
+	return open < 0 ? null : balancedBlock(code, open + 1);
 }
 
 describe('G4.24 code-surface commit shared path', () => {
-	const source = readFileSync(CODE_BLOCK, 'utf8');
+	const { code } = readEditorFile('components/blocks/code/CodeBlock.svelte');
 
 	it('CodeBlock holds exactly one updateBlockContent call', () => {
-		const calls = source.split(CALL).length - 1;
+		const calls = code.split(CALL).length - 1;
 		expect(
 			calls,
 			'every display commit goes through commitDisplay, which is where the fence bytes are written'
@@ -39,12 +31,27 @@ describe('G4.24 code-surface commit shared path', () => {
 	});
 
 	it('that call is the shared path’s own', () => {
-		expect(commitDisplayBody(source)).toContain(CALL);
+		const body = commitDisplayBody(code);
+		expect(body, 'commitDisplay is gone: the shared path it names is the rule').not.toBeNull();
+		expect(body).toContain(CALL);
 	});
 
 	// The count is what catches a new gesture, so show that it can.
 	it('counts a planted second call site', () => {
-		const planted = `${source}\nfunction rogue() { ${CALL}0, 'x'); }\n`;
+		const planted = `${code}\nfunction rogue() { ${CALL}0, 'x'); }\n`;
 		expect(planted.split(CALL).length - 1).toBe(2);
+	});
+
+	it('reads the body past a brace inside a comment or a string', () => {
+		const source = [
+			'function commitDisplay(display: string): number {',
+			'	// a stray } in a comment',
+			"	const close = '}';",
+			`	void ${CALL}display);`,
+			'	return 0;',
+			'}'
+		].join('\n');
+		const code = stripComments(source);
+		expect(commitDisplayBody(code)).toContain(CALL);
 	});
 });

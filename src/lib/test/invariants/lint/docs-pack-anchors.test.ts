@@ -1,18 +1,20 @@
 /**
  * `scripts/build-docs-pack.mjs` resolves every in-pack `#anchor` against its target doc's headings,
- * so a renamed heading reds `npm run lint` instead of stranding a cross-reference inside the npm
- * tarball, where someone reading it cannot fall back to searching the repo. This is that
- * reader's
- * non-vacuity half: an empty anchor set, or a parse that finds no fragment at all, would let the
- * gate pass on nothing. Miss-analysis: the gate dropped the fragment before checking, so no test
- * could tell a resolved anchor from an ignored one.
+ * slugged as GitHub renders them, so a renamed heading reds `npm run lint` instead of stranding a
+ * link inside the npm tarball. These tests keep that check from passing on nothing. Miss-analysis:
+ * the gate dropped the fragment before checking, so no test could tell a resolved anchor from an
+ * ignored one.
  */
 import { describe, it, expect } from 'vitest';
 import { execFileSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { anchorsOf, headingsOf } from '../../../../../scripts/check-codebase-map.mjs';
+import {
+	anchorsOf,
+	githubAnchors,
+	headingsOf
+} from '../../../../../scripts/check-codebase-map.mjs';
 
 const ROOT = path.resolve('.');
 
@@ -38,6 +40,36 @@ describe('in-pack anchors: the index', () => {
 		const fenced = '## Real\n\n```bash\n# install deps\n```\n';
 		expect(anchorsOf(fenced)).toContain('real');
 		expect(anchorsOf(fenced).has('install-deps')).toBe(false);
+	});
+
+	// Miss-analysis: every heading the index was tested on was plain words, where the repo's slug
+	// and GitHub's agree, so the rule that decides a punctuated or repeated heading was never pinned.
+	it('slugs a heading the way GitHub renders its anchor', () => {
+		expect(
+			githubAnchors([
+				'What you get on `@voithos-labs/aragonite/plugin`',
+				'Views: what you read, what you own',
+				'Recipe: per-instance options (and the factory-closure trap)',
+				'`rebuildRaw`, the write hook',
+				'A / B — snake_case & [a link](x.md)'
+			])
+		).toEqual([
+			'what-you-get-on-voithos-labsaragoniteplugin',
+			'views-what-you-read-what-you-own',
+			'recipe-per-instance-options-and-the-factory-closure-trap',
+			'rebuildraw-the-write-hook',
+			'a--b--snake_case--a-link'
+		]);
+	});
+
+	it('numbers a repeated heading within one document', () => {
+		expect(githubAnchors(['Example', 'Example', 'Example-1', 'Example'])).toEqual([
+			'example',
+			'example-1',
+			'example-1-1',
+			'example-2'
+		]);
+		expect(anchorsOf('## Options\n\n## Options\n')).toEqual(new Set(['options', 'options-1']));
 	});
 
 	// A `#fragment` means one slug, where the § reader indexes a heading under every spelling a
@@ -97,5 +129,23 @@ describe('in-pack anchors: the gate', () => {
 		// The summary line prints past both gates, so a green here cannot be a crash before Gate 1.
 		expect(output).toContain('docs-pack: 2 docs link-closed');
 		expect(output).not.toContain(DANGLING);
+	});
+
+	it('resolves the anchor GitHub gives a punctuated heading', () => {
+		const output = packGateOutput({
+			'a.md': '# A\n\n[api](b.md#what-you-get-on-voithos-labsaragoniteplugin)\n',
+			'b.md': '# B\n\n## What you get on `@voithos-labs/aragonite/plugin`\n'
+		});
+		expect(output).toContain('docs-pack: 2 docs link-closed');
+	});
+
+	// A guide teaching cross-references shows one in a fence; the file it names must still ship.
+	it('checks a link shown in code for its file, not its anchor', () => {
+		const example = '```md\n[see](b.md#some-heading)\n```\n';
+		expect(packGateOutput({ 'a.md': `# A\n\n${example}`, 'b.md': '# B\n' })).toContain(
+			'docs-pack: 2 docs link-closed'
+		);
+		const deadFile = packGateOutput({ 'a.md': '# A\n\n```md\n[see](gone.md#x)\n```\n' });
+		expect(deadFile).toContain('docs-pack: dead pointers');
 	});
 });

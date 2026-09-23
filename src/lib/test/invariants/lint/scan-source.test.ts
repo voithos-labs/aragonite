@@ -12,7 +12,9 @@ import {
 	callArguments,
 	collectEditorSources,
 	EDITOR_SRC,
+	importSpecifiers,
 	isProseSurface,
+	literalSpans,
 	rawAssignments,
 	REPO_WIDE_ROOTS,
 	stripComments
@@ -82,6 +84,48 @@ describe('isProseSurface', () => {
 		expect(
 			probe('const s = createEditableSurface({}); const p = getInlineConstructPolicy(k);')
 		).toBe(false);
+	});
+});
+
+describe('importSpecifiers', () => {
+	const specifiers = importSpecifiers;
+
+	it('reads the four forms, a multi-line clause and a type-only one included', () => {
+		const code = [
+			"import { a,\n\tb } from './static';",
+			"import type * as T from '$lib/types';",
+			"import './side-effect.css';",
+			"const m = await import('./dynamic');",
+			"export { c } from './reexport';",
+			"export type * from './reexport-types';"
+		].join('\n');
+		expect(specifiers(code)).toEqual([
+			{ specifier: './static', kind: 'static' },
+			{ specifier: '$lib/types', kind: 'static' },
+			{ specifier: './side-effect.css', kind: 'side-effect' },
+			{ specifier: './dynamic', kind: 'dynamic' },
+			{ specifier: './reexport', kind: 'reexport' },
+			{ specifier: './reexport-types', kind: 'reexport' }
+		]);
+	});
+
+	it('reads no import inside a template literal or a comment', () => {
+		const code = [
+			"const example = `\nimport { x } from './in-template';\n`;",
+			"// import { y } from './in-line-comment';",
+			"/* export * from './in-block-comment'; */"
+		].join('\n');
+		expect(specifiers(code)).toEqual([]);
+	});
+
+	it('reads no import from a declaration, import.meta, or a CSS @import', () => {
+		const code = [
+			"export const from = 'x';",
+			'export { local };',
+			'const url = import.meta.url;',
+			"\t@import 'theme.css';"
+		].join('\n');
+		expect(specifiers(code)).toEqual([]);
 	});
 });
 
@@ -159,6 +203,16 @@ describe('literal-aware walking', () => {
 	it('reads a slash after a closing brace as code, not a regex opening', () => {
 		expect(stripComments('{a}/{b /* c */}</span>')).toBe('{a}/{b ' + ' '.repeat(7) + '}</span>');
 		expect(stripComments('{a} / {b /* c */}')).toBe('{a} / {b ' + ' '.repeat(7) + '}');
+	});
+
+	it('lists each literal whole, a quote inside a comment or another literal opening none', () => {
+		const code = "a('x\"y'); // it's\nb(`t ${'u'}`, /'/g);";
+		const spans = literalSpans(code).map((span) => [span.kind, code.slice(span.start, span.end)]);
+		expect(spans).toEqual([
+			['string', "'x\"y'"],
+			['template', "`t ${'u'}`"],
+			['regex', "/'/g"]
+		]);
 	});
 
 	it('terminates a raw-write statement at the semicolon past a regex literal', () => {

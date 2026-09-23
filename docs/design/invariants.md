@@ -917,7 +917,9 @@ checkbox).
 **G4.8 · Documented-chord dispatch.** Every chord the consumer guide's keyboard table lists resolves
 in the surface that actually dispatches it: the keymap registry (which the table's structural chords
 joined at 0.9.36), the search components, or the clipboard seams (the whole-block key tail and the
-text block's clipboard seam). `lint/consumer-guide-chords.test.ts`.
+text block's clipboard seam). The reverse sweep keys each claim by chord and owner (the kind whose
+keymap binds it, or the file whose keydown branch claims it), so `Mod+Enter` on a task item and in
+a table cell each need their own row, or a recorded reason. `lint/consumer-guide-chords.test.ts`.
 
 **G4.9 · Theme-token manifest.** Every token the consumer and plugin guides publish is declared in
 `editor-theme.css`, and a themed token carries both a light and a dark value.
@@ -961,7 +963,10 @@ arrives at a brand through a mint or a named conversion. G3.7's runtime-source c
 **G4.16 · Bundled-plugin import boundary.** Every file under `src/lib/plugins/**` imports only the
 public authoring barrel (`$lib/plugin`), its own plugin directory, `svelte`, or, for a
 `renderer.ts`, its one declared rendering engine. This is the dogfood proof that the authoring
-barrel is complete. `lint/plugin-import-boundary.test.ts`.
+barrel is complete. Every import-boundary scan (this one, G4.63, G4.64, the tree-operations layer
+rule) reads specifiers through `src/lib/test/invariants/lint/scan-source.ts :: importSpecifiers`,
+which skips strings, templates and comments, so an import quoted in an example is no edge.
+`lint/plugin-import-boundary.test.ts`.
 
 **G4.17 · Perf spec glob partition.** Every `*.spec.ts` under `e2e/tests/perf/` is collected by
 `e2e-vr` or by `e2e-perf`/`e2e-perf-prod`; a spec matching neither runs in no Playwright project and
@@ -1077,11 +1082,12 @@ what the truncation took. The companion branches pin the fence rule to one imple
 
 **G4.29 · Hardcoded-chord manifest.** Every library file that reads a `KeyboardEvent` modifier flag
 is named in `schema/reserved-chords.ts`, with the chords it claims outside the keymaps and the key
-literals it compares. A new claiming site, or a new key compared in an existing one, fails the gate
-until the entry is re-derived, which is what keeps the editor's public `reservedChords()` method
-(`editor-props.ts`) from rotting. Authoring constraint: a manifested file must keep literal key
-comparisons and literal modifier reads, since the scan is structural on both axes; factoring either
-behind a shared helper fails the gate until the scan learns that helper.
+literals it compares, a negated `key !== 'X'` guard included. A new claiming site, or a new key
+compared in an existing one, fails the gate until the entry is re-derived, which is what keeps the
+editor's public `reservedChords()` method (`editor-props.ts`) from rotting. Authoring constraint: a
+manifested file must keep literal key comparisons and literal modifier reads, since the scan is
+structural on both axes; factoring either behind a shared helper fails the gate until the scan
+learns that helper.
 `lint/reserved-chord-manifest.test.ts`.
 
 **G4.30 · Hidden-run classification.** One rule, two spaces. `core/inline/visibility.ts` states the

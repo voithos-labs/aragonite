@@ -13,6 +13,7 @@ import {
 	balancedRegion,
 	callArguments,
 	collectEditorSources,
+	literalSpans,
 	rawAssignments,
 	type SourceFile
 } from './scan-source';
@@ -33,17 +34,11 @@ function contentArgs(code: string): string[] {
 	return out;
 }
 
-/** Every string literal in `code`, as `{ start, text }` with `text` including its quotes. */
+/** Every string and template literal in `code`, as `{ start, text }` with `text` including its quotes. */
 function stringLiterals(code: string): Array<{ start: number; text: string }> {
-	const out: Array<{ start: number; text: string }> = [];
-	for (let i = 0; i < code.length; i++) {
-		const quote = code[i];
-		if (quote !== "'" && quote !== '"' && quote !== '`') continue;
-		const start = i++;
-		while (i < code.length && code[i] !== quote) i += code[i] === '\\' ? 2 : 1;
-		out.push({ start, text: code.slice(start, i + 1) });
-	}
-	return out;
+	return literalSpans(code)
+		.filter((span) => span.kind !== 'regex')
+		.map((span) => ({ start: span.start, text: code.slice(span.start, span.end) }));
 }
 
 interface CommitFunnel {

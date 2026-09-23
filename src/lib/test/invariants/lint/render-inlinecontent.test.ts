@@ -7,7 +7,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { readEditorFile, stripComments } from './scan-source';
+import { balancedRegion, readEditorFile, stripComments } from './scan-source';
 
 const RENDER_DOM_FILE = 'components/blocks/text/text-render.ts';
 const TEXT_BLOCK_FILE = 'components/blocks/text/TextEditableBlock.svelte';
@@ -33,16 +33,7 @@ export function extractRenderEffect(rawText: string, anchor = 'textRender.render
 
 	const braceOpen = code.indexOf('{', effectStart);
 	if (braceOpen === -1 || braceOpen > anchorAt) return null;
-
-	let depth = 0;
-	for (let i = braceOpen; i < code.length; i++) {
-		if (code[i] === '{') depth++;
-		else if (code[i] === '}') {
-			depth--;
-			if (depth === 0) return code.slice(braceOpen, i + 1);
-		}
-	}
-	return null;
+	return balancedRegion(code, braceOpen);
 }
 
 describe('G4.2 render path computes inline, never the caching accessor', () => {
@@ -89,6 +80,13 @@ describe('G4.2 render path computes inline, never the caching accessor', () => {
 		expect(callsCachingAccessor(effect!)).toBe(true);
 		// The leading call outside the effect is excluded from the extracted block.
 		expect(effect!.includes('const x')).toBe(false);
+	});
+
+	it('extractRenderEffect reads past a brace inside a string or a comment', () => {
+		const effect = extractRenderEffect(
+			"$effect(() => {\n  const close = '}'; // }\n  textRender.render();\n  getInlineContent(node);\n});\n"
+		);
+		expect(callsCachingAccessor(effect!)).toBe(true);
 	});
 
 	it('extractRenderEffect returns null when the anchor is missing', () => {
