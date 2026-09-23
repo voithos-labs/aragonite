@@ -364,6 +364,11 @@
 		undoManager,
 		stickyColumn,
 		edgeAffinity,
+		closeMenus: () => {
+			blockMenu = null;
+			inlineMenu.close();
+			linkCard.close();
+		},
 		widgetSelection,
 		selection: selectionState,
 		// The counter bumps only when the link-reference signature differs; the resolver

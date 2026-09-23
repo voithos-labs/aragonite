@@ -50,6 +50,9 @@ export interface DocumentSwapDeps {
 	undoManager: Pick<UndoManager, 'clear'>;
 	stickyColumn: Pick<StickyColumnState, 'reset'>;
 	edgeAffinity: Pick<EdgeAffinityState, 'reset'>;
+	/** Every menu Editor owns acts on a block or bytes of the outgoing document; a block's own
+	 *  menus unmount with it. Closed before the blocks unmount, which a menu may react to. */
+	closeMenus(): void;
 	widgetSelection: Pick<WidgetSelectionState, 'clear'>;
 	selection: Pick<SelectionState, 'batch' | 'clear' | 'announceSelection'>;
 	/** Unconditional: the outgoing resolver closes over the swapped-out document. */
@@ -81,6 +84,7 @@ export function createDocumentSwap(deps: DocumentSwapDeps): DocumentSwap {
 			deps.undoManager.clear();
 			deps.stickyColumn.reset();
 			deps.edgeAffinity.reset();
+			deps.closeMenus();
 			deps.widgetSelection.clear();
 			// Announced, not left to the clear: the swap usually arrives on a native-only caret, so
 			// nothing editor-owned moves and subscribers would keep painting the outgoing document's
