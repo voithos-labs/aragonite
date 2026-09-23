@@ -96,6 +96,7 @@
 		installWidthWatcher
 	} from './editor-root-geometry';
 	import { createSelectionAnnouncer } from '../selection/selection-announcer';
+	import { createKindCue } from './kind-cue.svelte';
 	import {
 		installEditorBlurAnnouncer,
 		installModActiveTracker,
@@ -744,6 +745,19 @@
 		announceReorder(movedBlockToPosition(to + 1, total));
 	});
 
+	// Cleared first for the same reason as the reorder announcement: two headings typed in a row
+	// would otherwise announce once.
+	let kindAnnouncement = $state('');
+	const kindCue = createKindCue({
+		getDoc,
+		getPresentationMode: () => effectiveMode,
+		announce: async (label) => {
+			kindAnnouncement = '';
+			await tick();
+			kindAnnouncement = label;
+		}
+	});
+
 	// ── Context provision ───────────────────────────────────────────────
 
 	// One per instance, shared by every dispatch site's checks: the chord handler, a block's
@@ -787,7 +801,8 @@
 		activePlugins,
 		rects,
 		crossBlockCommands,
-		menuPresence
+		menuPresence,
+		kindCue
 	} satisfies EditorServices);
 
 	setContext(EDITOR_POLICIES_KEY, {
@@ -1541,6 +1556,7 @@
 	/>
 	<div class="editor-sr-live" role="status" aria-live="polite">{selectionDescription}</div>
 	<div class="editor-sr-live-reorder" role="status" aria-live="polite">{reorderAnnouncement}</div>
+	<div class="editor-sr-live-kind" role="status" aria-live="polite">{kindAnnouncement}</div>
 	{#if reorderLine}
 		<div
 			class="reorder-line"
@@ -1657,7 +1673,8 @@
 	}
 
 	.editor-sr-live,
-	.editor-sr-live-reorder {
+	.editor-sr-live-reorder,
+	.editor-sr-live-kind {
 		position: absolute;
 		width: 1px;
 		height: 1px;

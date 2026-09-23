@@ -3,6 +3,7 @@
 	import { CURSOR_START, type AmbientPrefix, type BlockComponent } from '../../../block-component';
 	import { parse } from '../../../core/parser';
 	import { ambientHoldsTaskBox } from '../list/task-checkbox';
+	import { shownKind } from '../../kind-cue.svelte';
 	import type { DocumentView, NodeView } from '../../../core/node-views';
 	import type { EditorRects } from '../../../editor-rects';
 	import { enterLinkCardAtCaret, linkCardTargetAt } from '../../link-card/link-card-entry';
@@ -154,8 +155,10 @@
 		widgetSelection,
 		linkCard,
 		inlineMenuCombobox,
-		decorations: decorationEngine
+		decorations: decorationEngine,
+		kindCue
 	} = getContext<EditorServices>(EDITOR_SERVICES_KEY);
+
 	const {
 		resolveImageUrl,
 		resolveLinkUrl,
@@ -259,7 +262,10 @@
 		relocateComposedText: (after, composedAt) => compositionSeat.relocate(after, composedAt),
 		commitInput: (text, preEdit, saved) => {
 			const committed = text + trailingLineEnding(node.raw);
-			void blockEdit.updateBlockContent(index, committed, preEdit, saved);
+			// Typed text is the one write whose kind change the block names (`kind-cue.svelte.ts`).
+			const before = shownKind(node);
+			const write = blockEdit.updateBlockContent(index, committed, preEdit, saved);
+			void kindCue.afterTypedWrite(write, myPath, before);
 			// An enclosing container may rewrite these bytes on the way in, so the caret
 			// restore reads the text actually stored, not the offset the keystroke produced.
 			return blockEdit.mapCommittedOffset?.(committed, saved);
@@ -538,7 +544,10 @@
 					// A literal tab, because the browser default moves focus out of the editor.
 					perform: () => {
 						const { newRaw, caretOffset } = insertLiteralTab(node.raw, offset);
-						blockEdit.updateBlockContent(index, newRaw, offset);
+						// The key types its own character, so its kind change is named as typing's is.
+						const before = shownKind(node);
+						const write = blockEdit.updateBlockContent(index, newRaw, offset);
+						void kindCue.afterTypedWrite(write, myPath, before);
 						setPendingCursorOffset(caretOffset, 'insert-tab');
 					}
 				};

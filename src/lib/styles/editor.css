@@ -141,6 +141,36 @@
 	align-self: stretch;
 }
 
+/* A typed kind change names the new kind at the block's corner until the fade ends, which is what
+   removes the attribute. The empty alternative text keeps it out of the accessibility tree: the
+   editor's own announcer says the name once. */
+:where(.editor) .block-host[data-kind-cue]::after {
+	content: attr(data-kind-cue);
+	content: attr(data-kind-cue) / '';
+	position: absolute;
+	top: 0;
+	right: 0;
+	font-family: var(--font-ui);
+	font-size: 0.75em;
+	color: var(--md-kind-cue-color);
+	pointer-events: none;
+	user-select: none;
+	animation: kind-cue-fade var(--md-kind-cue-duration) ease-out forwards;
+}
+
+@keyframes kind-cue-fade {
+	0% {
+		opacity: 0;
+	}
+	10%,
+	70% {
+		opacity: 1;
+	}
+	100% {
+		opacity: 0;
+	}
+}
+
 /* A non-editable inline widget the caret cannot enter; its own class styles it on top. */
 :where(.editor) .decoration-island {
 	user-select: none;

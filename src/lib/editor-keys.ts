@@ -35,6 +35,7 @@ import type { HeightOracle } from './cursor/height-oracle';
 import type { InlineMenuCombobox } from './inline-menu/inline-menu-state.svelte';
 import type { WidgetSelectionState } from './components/image/widget-selection-state.svelte';
 import type { LinkCardState } from './components/link-card/link-card-state.svelte';
+import type { KindCue } from './components/kind-cue.svelte';
 
 // ── Shared value-shape types ─────────────────────────────────────────────────
 
@@ -198,6 +199,8 @@ export interface EditorServices {
 	crossBlockCommands: CrossBlockCommandRouter;
 	/** How many editor menus are showing; a block's own menu attaches `track` to its root. */
 	menuPresence: MenuPresence;
+	/** The label a typed kind change leaves on its block for a moment (`kind-cue.svelte.ts`). */
+	kindCue: KindCue;
 }
 
 /** Host-supplied render/behavior policies. The getter members read live editor state
