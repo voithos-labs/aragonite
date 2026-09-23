@@ -1,5 +1,6 @@
 import { test, expect } from '../../../../fixtures';
 import { EditorPage } from '../../../../editor-page';
+import { focusedStop } from '../../../../page-probes';
 
 test.describe('task checkbox: accessibility', () => {
 	let editor: EditorPage;
@@ -32,22 +33,22 @@ test.describe('task checkbox: accessibility', () => {
 		const checkbox = page.locator('.task-checkbox').first();
 
 		await page.keyboard.press('ControlOrMeta+Enter');
-		await editor.bridge.waitForSourceContains('- [x] task');
+		await expect.poll(() => editor.bridge.getSource()).toBe('intro\n\n- [x] task\n');
 		await expect(checkbox).toHaveAttribute('aria-checked', 'true');
 
 		await page.keyboard.press('ControlOrMeta+Enter');
-		await editor.bridge.waitForSourceContains('- [ ] task');
+		await expect.poll(() => editor.bridge.getSource()).toBe('intro\n\n- [ ] task\n');
 		await expect(checkbox).toHaveAttribute('aria-checked', 'false');
 	});
 
-	test('Tab never stops on the box', async ({ page }) => {
-		await editor.loadContent('- [ ] task\n- [ ] second\n');
-		await editor.clickBlock(0);
-		const checkboxes = page.locator('.task-checkbox');
-		await expect(checkboxes.first()).not.toHaveAttribute('tabindex');
-		await page.keyboard.press('Tab');
-		await expect(checkboxes.first()).not.toBeFocused();
-		await expect(checkboxes.nth(1)).not.toBeFocused();
+	// Shift+Tab leaves a paragraph natively, so it lands on the previous tab stop in the page:
+	// the box if it had one, else the item's own editing surface.
+	test('Shift+Tab from the next block skips the box', async ({ page }) => {
+		await editor.loadContent('- [ ] task\n\nafter\n');
+		await expect(page.locator('.task-checkbox').first()).not.toHaveAttribute('tabindex');
+		await editor.focusBlockStart(1);
+		await page.keyboard.press('Shift+Tab');
+		expect(await focusedStop(page)).toEqual({ path: [0, 0, 0], isSurface: true });
 	});
 
 	test('Mod+Enter in a plain list item changes nothing', async ({ page }) => {

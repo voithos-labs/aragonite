@@ -1,6 +1,7 @@
 import { test, expect } from '../../fixtures';
 import type { Locator } from '@playwright/test';
 import { expectNoNewA11yViolations } from '../../a11y/axe-helper';
+import { focusedStop } from '../../page-probes';
 import { PluginsPage, blockView, capturedErrors, textRunCenter } from './helpers';
 
 // Following a footnote from the keyboard (requirements/plugins/footnotes-keyboard.md): both
@@ -33,11 +34,11 @@ class FootnotePage extends PluginsPage {
 		await this.setPresentationMode(mode);
 		await this.waitForRenderFlush();
 	}
-	/** Click a word of the block's text, away from any marker, then Tab once. */
-	async tabFromText(path: number[], word: string): Promise<void> {
+	/** Click a word of the block's text, away from any marker, then press the key once. */
+	async pressFromText(path: number[], word: string, key = 'Tab'): Promise<void> {
 		const point = await textRunCenter(this.page, path, word);
 		await this.page.mouse.click(point.x, point.y);
-		await this.page.keyboard.press('Tab');
+		await this.page.keyboard.press(key);
 	}
 }
 
@@ -52,7 +53,7 @@ test.describe('footnotes: reading mode keyboard navigation', () => {
 		await editor.load(md, 'reading');
 		await expect(editor.refs().nth(0)).toHaveAccessibleName('Footnote 1');
 
-		await editor.tabFromText([0], 'Body');
+		await editor.pressFromText([0], 'Body');
 		await expect(editor.refs().nth(0)).toBeFocused();
 		await page.keyboard.press('Enter');
 
@@ -65,14 +66,14 @@ test.describe('footnotes: reading mode keyboard navigation', () => {
 	}) => {
 		const { md, defA } = navDoc();
 		await editor.load(md, 'reading');
-		await editor.tabFromText([0], 'Body');
+		await editor.pressFromText([0], 'Body');
 		await page.keyboard.press('Enter');
 		await expect.poll(() => blockView(page, [defA])).toEqual({ mounted: true, inView: true });
 		await expect(page.locator("[data-block-path='[0]']")).toHaveCount(0);
 
 		const marker = editor.defMarker(defA);
 		await expect(marker).toHaveAccessibleName('Back to reference a');
-		await editor.tabFromText([defA, 0], 'First');
+		await editor.pressFromText([defA, 0], 'First');
 		await expect(marker).toBeFocused();
 		await page.keyboard.press('Enter');
 
@@ -87,18 +88,18 @@ test.describe('footnotes: reading mode keyboard navigation', () => {
 });
 
 test.describe('footnotes: no tab stop in the editing modes', () => {
-	test('live mode: neither marker is a tab stop, and Tab never lands on the reference', async ({
-		page
-	}) => {
+	// Shift+Tab leaves a prose block natively (Tab inserts a tab), so each press lands on the
+	// previous tab stop in the page: a marker if it had one, else the block's own editing surface.
+	test('live mode: neither marker is a tab stop, and Shift+Tab skips both', async ({ page }) => {
 		const editor = new FootnotePage(page);
 		await editor.load(SHORT_DOC, 'live');
 		await expect(editor.refs().nth(0)).not.toHaveAttribute('tabindex');
 		await expect(editor.defMarker(1)).not.toHaveAttribute('tabindex');
 
-		await editor.tabFromText([0], 'Body');
-
-		await expect(editor.refs().nth(0)).not.toBeFocused();
-		await expect(editor.refs().nth(1)).not.toBeFocused();
+		await editor.pressFromText([2, 0], 'Second', 'Shift+Tab');
+		expect(await focusedStop(page)).toEqual({ path: [1, 0], isSurface: true });
+		await page.keyboard.press('Shift+Tab');
+		expect(await focusedStop(page)).toEqual({ path: [0], isSurface: true });
 		expect(await capturedErrors(page)).toEqual([]);
 	});
 });

@@ -20,8 +20,9 @@ jump has to mount its target.
 
 ## Edge cases
 
-- **Live mode:** neither the reference nor the marker carries a `tabindex`, and Tab from the
-  referencing paragraph never focuses a reference
+- **Live mode:** neither the reference nor the marker carries a `tabindex`, and Shift+Tab from
+  the last definition lands on the first definition's editing surface, then on the referencing
+  paragraph's, never on a marker or a reference
 
 ## Error cases
 
@@ -31,3 +32,5 @@ jump has to mount its target.
 
 - Every navigation scenario drove a pointer, and the interactive-range API could express no link
   role or key, so the keyboard half of the feature had neither a way to exist nor a test to fail.
+- The live-mode case pressed Tab inside a paragraph, where Tab inserts a tab and focus never
+  moves, so it passed whatever the markup said; Shift+Tab leaves the block natively.

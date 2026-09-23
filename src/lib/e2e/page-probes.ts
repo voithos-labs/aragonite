@@ -90,3 +90,16 @@ export function topLevelHostPresent(page: Page, index: number): Promise<boolean>
 		index
 	);
 }
+
+// Where keyboard focus sits: the block holding it, and whether it is that block's editing
+// surface rather than a stop inside the block.
+export function focusedStop(page: Page): Promise<{ path: number[] | null; isSurface: boolean }> {
+	return page.evaluate(() => {
+		const active = document.activeElement as HTMLElement | null;
+		const attr = active?.closest('[data-block-path]')?.getAttribute('data-block-path');
+		return {
+			path: attr ? (JSON.parse(attr) as number[]) : null,
+			isSurface: active?.getAttribute('contenteditable') === 'true'
+		};
+	});
+}
