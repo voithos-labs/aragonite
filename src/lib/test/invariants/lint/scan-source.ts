@@ -488,3 +488,89 @@ export function lastArgument(args: string): string {
 	const parts = callArguments(args);
 	return parts[parts.length - 1];
 }
+
+// ── Import specifiers ────────────────────────────────────────────────────────
+
+export interface ImportSpecifier {
+	specifier: string;
+	kind: 'static' | 'side-effect' | 'dynamic' | 'reexport';
+}
+
+/**
+ * Every module a file imports or re-exports from, read in code position only: an import-shaped
+ * line inside a string, template or comment is text. A static, side-effect or re-export form must
+ * start its line, so a CSS `@import` in a `<style>` block is never one.
+ */
+export function importSpecifiers(code: string): ImportSpecifier[] {
+	const out: ImportSpecifier[] = [];
+	walkCode(code, 0, (ch, at) => {
+		if (ch !== 'i' && ch !== 'e') return;
+		const keyword = code.startsWith('import', at) ? 'import' : 'export';
+		if (!code.startsWith(keyword, at) || !isWordAt(code, at, keyword.length)) return;
+		const found = readImport(code, at, keyword);
+		if (found !== null) out.push(found);
+	});
+	return out;
+}
+
+function isWordAt(code: string, at: number, length: number): boolean {
+	return !/[\w$.@]/.test(code[at - 1] ?? '') && !/[\w$]/.test(code[at + length] ?? '');
+}
+
+function readImport(
+	code: string,
+	at: number,
+	keyword: 'import' | 'export'
+): ImportSpecifier | null {
+	const next = skipSpaces(code, at + keyword.length);
+	if (keyword === 'import' && code[next] === '(') {
+		return stringSpecifier(code, skipSpaces(code, next + 1), 'dynamic');
+	}
+	if (!startsLine(code, at)) return null;
+	if (keyword === 'import') {
+		if (code[next] === "'" || code[next] === '"') return stringSpecifier(code, next, 'side-effect');
+	} else {
+		const clause = code.startsWith('type', next) ? skipSpaces(code, next + 4) : next;
+		if (code[clause] !== '{' && code[clause] !== '*') return null;
+	}
+	const from = fromClauseEnd(code, next);
+	return from === null
+		? null
+		: stringSpecifier(code, from, keyword === 'import' ? 'static' : 'reexport');
+}
+
+/** Just past the `from` that ends an import clause, or null where the statement has none. */
+function fromClauseEnd(code: string, from: number): number | null {
+	let depth = 0;
+	let found: number | null = null;
+	walkCode(code, from, (ch, i) => {
+		if (ch === '{') depth++;
+		else if (ch === '}') depth--;
+		else if (depth === 0 && (ch === ';' || ch === '=' || ch === '(')) return true;
+		else if (depth === 0 && code.startsWith('from', i) && isWordAt(code, i, 4)) {
+			found = skipSpaces(code, i + 4);
+			return true;
+		}
+	});
+	return found;
+}
+
+function stringSpecifier(
+	code: string,
+	at: number,
+	kind: ImportSpecifier['kind']
+): ImportSpecifier | null {
+	if (code[at] !== "'" && code[at] !== '"') return null;
+	return { specifier: code.slice(at + 1, skipString(code, at) - 1), kind };
+}
+
+function skipSpaces(code: string, at: number): number {
+	while (at < code.length && /\s/.test(code[at])) at++;
+	return at;
+}
+
+function startsLine(code: string, at: number): boolean {
+	let i = at - 1;
+	while (i >= 0 && (code[i] === ' ' || code[i] === '\t')) i--;
+	return i < 0 || code[i] === '\n';
+}

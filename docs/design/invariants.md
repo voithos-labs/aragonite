@@ -961,7 +961,10 @@ arrives at a brand through a mint or a named conversion. G3.7's runtime-source c
 **G4.16 · Bundled-plugin import boundary.** Every file under `src/lib/plugins/**` imports only the
 public authoring barrel (`$lib/plugin`), its own plugin directory, `svelte`, or, for a
 `renderer.ts`, its one declared rendering engine. This is the dogfood proof that the authoring
-barrel is complete. `lint/plugin-import-boundary.test.ts`.
+barrel is complete. Every import-boundary scan (this one, G4.63, G4.64, the tree-operations layer
+rule) reads specifiers through `src/lib/test/invariants/lint/scan-source.ts :: importSpecifiers`,
+which skips strings, templates and comments, so an import quoted in an example is no edge.
+`lint/plugin-import-boundary.test.ts`.
 
 **G4.17 · Perf spec glob partition.** Every `*.spec.ts` under `e2e/tests/perf/` is collected by
 `e2e-vr` or by `e2e-perf`/`e2e-perf-prod`; a spec matching neither runs in no Playwright project and

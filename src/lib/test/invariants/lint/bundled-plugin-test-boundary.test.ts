@@ -9,7 +9,7 @@
 import { describe, it, expect } from 'vitest';
 import path from 'node:path';
 import { readFileSync, readdirSync } from 'node:fs';
-import { collectEditorSources } from './scan-source';
+import { collectEditorSources, importSpecifiers } from './scan-source';
 
 const PLUGIN_SRC_ROOT = 'src/lib/plugins';
 const PLUGIN_TEST_ROOT = 'src/lib/test/plugins';
@@ -260,24 +260,6 @@ function isAllowedSpecifier(relPath: string, specifier: string): boolean {
 	return specifier === own || specifier.startsWith(`${own}/`);
 }
 
-// ── Specifier extraction ─────────────────────────────────────────────────────
-
-// Line-anchored so a CSS `@import` inside a <style> block can't read as a JS
-// side-effect import.
-const FROM_IMPORT = /^\s*(?:import|export)\b[\s\S]*?\bfrom\s*['"]([^'"]+)['"]/gm;
-const SIDE_EFFECT_IMPORT = /^\s*import\s+['"]([^'"]+)['"]/gm;
-const DYNAMIC_IMPORT = /\bimport\s*\(\s*['"]([^'"]+)['"]/g;
-
-function importSpecifiers(code: string): string[] {
-	const specs: string[] = [];
-	for (const source of [FROM_IMPORT, SIDE_EFFECT_IMPORT, DYNAMIC_IMPORT]) {
-		const re = new RegExp(source.source, source.flags);
-		let match: RegExpExecArray | null;
-		while ((match = re.exec(code)) !== null) specs.push(match[1]);
-	}
-	return specs;
-}
-
 interface Reach {
 	relPath: string;
 	specifier: string;
@@ -287,7 +269,7 @@ function reachIns(sources: ReturnType<typeof collectEditorSources>): Reach[] {
 	const out: Reach[] = [];
 	for (const file of sources) {
 		if (suiteOf(file.relPath) === null) continue;
-		for (const specifier of importSpecifiers(file.code)) {
+		for (const { specifier } of importSpecifiers(file.code)) {
 			if (!isAllowedSpecifier(file.relPath, specifier)) {
 				out.push({ relPath: file.relPath, specifier });
 			}
@@ -388,26 +370,5 @@ describe('G4.63 classifier non-vacuity', () => {
 		expect(suiteOf(`${PLUGIN_TEST_ROOT}/details/round-trip.test.ts`)).toBe('details');
 		expect(suiteOf(`${PLUGIN_TEST_ROOT}/kind-conformance.test.ts`)).toBe(null);
 		expect(suiteOf(`${PLUGIN_TEST_ROOT}/fixtures/showcase.ts`)).toBe(null);
-	});
-});
-
-describe('G4.63 specifier extraction', () => {
-	it('extracts single-line, multi-line, side-effect, and dynamic specifiers', () => {
-		const code = [
-			"import { a } from '$lib';",
-			'import {',
-			'\tb,',
-			'\tc',
-			"} from './local';",
-			"import 'katex/dist/katex.min.css';",
-			"const m = await import('mermaid');"
-		].join('\n');
-		expect(importSpecifiers(code).sort()).toEqual(
-			['$lib', './local', 'katex/dist/katex.min.css', 'mermaid'].sort()
-		);
-	});
-
-	it('ignores a CSS @import in a style block', () => {
-		expect(importSpecifiers("\t@import 'reset.css';")).toEqual([]);
 	});
 });
