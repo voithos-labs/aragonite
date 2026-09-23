@@ -14,6 +14,10 @@ import { rangeDelete } from '$lib/selection/range-delete';
 import { planEnterCompletion } from '$lib/editor-actions/enter-completion';
 import type { CstNode } from '$lib/core/nodes';
 import { describeConvergence } from '../harness/parse-converged';
+import { pasteDispatch } from '$lib/tree-operations/paste/dispatch';
+import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
+import { createPasteCoordinator } from '$lib/editor-actions/paste-coordinator';
+import { makeEditorActionsDeps, makeStubBlockEdit, pasteContext } from '../harness/editor-actions';
 
 const noIndentedCode = createRegistryView({ syntax: { indentedCode: false } }).grammar;
 const read = (source: string) => parse(source, { grammar: noIndentedCode });
@@ -60,5 +64,22 @@ describe('an edit route reparses in the editor grammar', () => {
 		);
 		expect(kindsOf(doc.children)).toEqual(['paragraph']);
 		expect(describeConvergence(doc, noIndentedCode)).toBeNull();
+	});
+
+	// A context with no join cleanup, as the insertMarkdown route builds one: the split halves
+	// still read the dispatch's own grammar.
+	it('a structural paste that splits an indented paragraph leaves both halves prose', async () => {
+		const { deps } = makeEditorActionsDeps(read('    lead tail\n'));
+		await pasteDispatch(
+			{ pastedText: 'a\n\nb\n', targetPath: [0], offset: '    lead'.length },
+			pasteContext({
+				doc: deps.doc,
+				blockEdit: makeStubBlockEdit(),
+				controller: createPasteCoordinator(createUndoController(deps), deps.revealPath),
+				grammar: noIndentedCode
+			})
+		);
+		expect(kindsOf(deps.doc.children)).not.toContain('indentedCode');
+		expect(describeConvergence(deps.doc, noIndentedCode)).toBeNull();
 	});
 });

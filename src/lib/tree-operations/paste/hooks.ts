@@ -84,8 +84,7 @@ export function defaultStructuralHook(
 	const synthLeaf =
 		cut.display === display ? node : { ...node, raw: cut.display + trailingLineEnding(node.raw) };
 
-	// The editor's grammar rides on its link context, and the split halves reparse in it.
-	const replacement = buildPastedReplacement(synthLeaf, cut.offset, blocks, seam?.linkRef?.grammar);
+	const replacement = buildPastedReplacement(synthLeaf, cut.offset, blocks, seam?.grammar);
 	return {
 		replacement,
 		focusReplacementIndex: pastedContentFocusIndex(cut.display, cut.offset, replacement.length),

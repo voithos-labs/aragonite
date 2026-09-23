@@ -23,6 +23,9 @@ export interface PasteRange {
 export interface PasteSeam {
 	presentationMode: PresentationMode | undefined;
 	linkRef: InlineResolverRef | undefined;
+	/** The editor's grammar, which a hook's reparse of the split halves reads; the dispatch
+	 *  fills it from its own context, so a hook sees it even where the caller sent no join context. */
+	grammar?: GrammarView;
 }
 
 export interface InlinePasteResult {

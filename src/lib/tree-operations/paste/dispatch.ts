@@ -93,6 +93,11 @@ export async function pasteDispatch(
 	// Once, before any branch below reads the text; a transform that empties it is an
 	// empty paste.
 	const { activePlugins } = ctx;
+	const seam: PasteSeam = {
+		presentationMode: ctx.seam?.presentationMode,
+		linkRef: ctx.seam?.linkRef,
+		grammar: ctx.grammar
+	};
 	const transformed = applyPasteTransforms(input.pastedText, activePlugins);
 	if (!transformed) return {};
 
@@ -118,7 +123,7 @@ export async function pasteDispatch(
 		const flattened = pastedText.replace(/(\r?\n)+/g, ' ').trim();
 		const hook =
 			getPasteSurface(targetNode.kind, activePlugins)?.onInlinePaste ?? defaultInlineHook;
-		const result = hook(targetNode, input.offset, flattened, input.preDelete, ctx.seam);
+		const result = hook(targetNode, input.offset, flattened, input.preDelete, seam);
 		const landing = await applyInlineResult(input.targetPath, result, ctx);
 		return inlineCaretResult(result.caretOffset, landing);
 	}
@@ -126,7 +131,7 @@ export async function pasteDispatch(
 	// The delete half, applied once and before the strategy pick since the container routes never
 	// run it: each finder decides on the target's bytes, and a range still standing there answers
 	// about bytes the paste is removing. The hook routes cut their own, kind rules included.
-	const target = targetAfterPreDelete(targetNode, input, ctx.seam);
+	const target = targetAfterPreDelete(targetNode, input, seam);
 
 	const unwrap = findContainerMatchingUnwrap(
 		ctx.doc,
@@ -190,13 +195,13 @@ export async function pasteDispatch(
 
 	if (strategy === 'inline') {
 		const hook = surface?.onInlinePaste ?? defaultInlineHook;
-		const result = hook(targetNode, input.offset, pastedText, input.preDelete, ctx.seam);
+		const result = hook(targetNode, input.offset, pastedText, input.preDelete, seam);
 		const landing = await applyInlineResult(input.targetPath, result, ctx);
 		return inlineCaretResult(result.caretOffset, landing);
 	}
 
 	const hook = surface?.onStructuralPaste ?? defaultStructuralHook;
-	const result = hook(targetNode, input.offset, blocks.slice(), input.preDelete, ctx.seam);
+	const result = hook(targetNode, input.offset, blocks.slice(), input.preDelete, seam);
 	await applyStructuralResult(
 		input.targetPath,
 		result,
