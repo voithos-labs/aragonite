@@ -7,6 +7,7 @@
  */
 
 import type { Component } from 'svelte';
+import type { MenuIconName } from '../menu-icons';
 
 export interface InlineMenuItem {
 	/** The row's key, unique within one result list. Where two rows share one, the first is kept
@@ -15,6 +16,8 @@ export interface InlineMenuItem {
 	label: string;
 	/** Secondary text painted dim beside the label: a path, a count. */
 	detail?: string;
+	/** A menu glyph drawn before the label by the default row. */
+	icon?: MenuIconName;
 	/**
 	 * The bytes that replace the trigger and the query, the caret landing after them. One line of
 	 * inline bytes: a line break is refused and reported, and a block-level insert is `onCommit`'s

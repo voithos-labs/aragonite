@@ -98,7 +98,7 @@ const BUNDLED_INSTALLS: { dir: string; kind: string; install: () => void }[] = [
 	{ dir: 'parrot', kind: PARROT, install: () => installPlugins([parrotPlugin()]) }
 ];
 
-const NO_BLOCK_KIND_DIRS = new Set(['highlight-occurrences', 'emoji']);
+const NO_BLOCK_KIND_DIRS = new Set(['highlight-occurrences', 'emoji', 'slash-commands']);
 
 describe('kind conformance: bundled plugin kinds enroll', () => {
 	beforeEach(() => resetPluginPlatformForTests());

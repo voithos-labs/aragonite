@@ -3,6 +3,7 @@
 	import { INLINE_MENU_LABEL } from '../../a11y-strings';
 	import type { EditorEvents } from '../../editor-events';
 	import type { InlineMenuState } from '../../inline-menu/inline-menu-state.svelte';
+	import MenuIcon from './MenuIcon.svelte';
 	import type { MenuPresence } from './menu-presence.svelte';
 	import { eventToChord } from '../../schema/keybindings';
 
@@ -151,6 +152,7 @@
 				{#if Row}
 					<Row {item} active={i === view.activeIndex} query={view.query} />
 				{:else}
+					{#if item.icon}<span class="md-menu-icon"><MenuIcon name={item.icon} /></span>{/if}
 					<span class="inline-menu-label">{item.label}</span>
 					{#if item.detail}<span class="inline-menu-detail">{item.detail}</span>{/if}
 				{/if}

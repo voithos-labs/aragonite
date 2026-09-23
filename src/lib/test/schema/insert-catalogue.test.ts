@@ -41,6 +41,12 @@ describe('insertCatalogue', () => {
 		expect(byId.get('divider')).toBe('---\n');
 	});
 
+	it('carries the keywords a filter narrows by: `td` for the to-do list, `rule` for the divider', () => {
+		const keywords = new Map(insertCatalogue(everyone).map((e) => [e.id, e.keywords]));
+		expect(keywords.get('todo')).toContain('td');
+		expect(keywords.get('divider')).toEqual(expect.arrayContaining(['rule', 'hr']));
+	});
+
 	it('lists a plugin entry only where its plugin is installed and active', () => {
 		installPlugins([pluginWith('shown', block('shown-block'))]);
 		expect(ids()).toContain('shown-block');

@@ -22,10 +22,11 @@ interface Exemption {
 }
 
 /**
- * Nine entry points are missing, and every entry below names the one it waits on: a headless
+ * Eleven entry points are missing, and every entry below names the one it waits on: a headless
  * editor-actions environment, tree mutation off a parsed document, the opaque-raw checks, the
  * parse comparison, registry read-back, the perf instruments, the built-in text block, an inline
- * node's raw text, and applying a kind's own raw-write rule. Adding one empties its entries.
+ * node's raw text, a kind's own raw-write rule, a headless inline-menu session, and command
+ * dispatch off a mounted editor. Adding one empties its entries.
  */
 const ALLOWLIST: Record<string, Exemption> = {
 	'src/lib/test/plugins/admonitions/blockquote-indent-cap.test.ts': {
@@ -204,6 +205,18 @@ const ALLOWLIST: Record<string, Exemption> = {
 		reason:
 			'no registry read-back: a component entry registers its extraProps closure but nothing ' +
 			'published reads it, so option threading needs a mounted editor'
+	},
+	'src/lib/test/plugins/slash-commands/slash-harness.ts': {
+		specifiers: ['$lib/editor-events', '$lib/inline-menu/inline-menu-state.svelte'],
+		reason:
+			'no headless inline-menu session on the testing barrel: a source can be called directly, ' +
+			'but typing a trigger and the write a pick makes need the menu state of the editor itself'
+	},
+	'src/lib/test/plugins/slash-commands/open-command.test.ts': {
+		specifiers: ['$lib/schema/commands', '$lib/schema/keybindings'],
+		reason:
+			'no command dispatch or chord read off a mounted editor: the handler of a global command and ' +
+			'its chord binding are reachable only through the schema registries'
 	}
 };
 

@@ -89,6 +89,11 @@
 			"svelte": "./dist/plugins/highlight-occurrences/index.js",
 			"default": "./dist/plugins/highlight-occurrences/index.js"
 		},
+		"./plugins/slash-commands": {
+			"types": "./dist/plugins/slash-commands/index.d.ts",
+			"svelte": "./dist/plugins/slash-commands/index.js",
+			"default": "./dist/plugins/slash-commands/index.js"
+		},
 		"./testing": {
 			"types": "./dist/testing.d.ts",
 			"svelte": "./dist/testing.js",
