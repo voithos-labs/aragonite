@@ -412,9 +412,10 @@
 	border-radius: 2px;
 }
 
-/* linkReferenceDefinition blocks render as metadata rather than content. */
+/* Link reference definitions render as metadata rather than content. The fade stacks on the
+   raw block's own opacity, and 0.8 is the lowest that keeps light-theme text at AA. */
 :where(.editor) .block-host[data-block-kind='linkReferenceDefinition'] {
-	opacity: 0.75;
+	opacity: 0.8;
 	font-size: 0.9em;
 	font-style: italic;
 }

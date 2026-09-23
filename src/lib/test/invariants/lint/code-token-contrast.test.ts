@@ -2,14 +2,16 @@
  * WCAG AA for the text the editor paints, computed from the declared palette in both themes
  * against the surface and the fence (`--color-bg-secondary` composited over it): every
  * `--code-tok-*` color, the UI grey tokens that paint text (also over the menu background),
- * the greys that mark text as done or inert, and each marker color at the `--syntax-marker-dim`
- * opacity markers are drawn with. The axe gate cannot certify this: it scans the harness page.
+ * the greys that mark text as done or inert, each marker color at the `--syntax-marker-dim`
+ * opacity, and raw-block text at the opacity its block is drawn with. The axe gate cannot
+ * certify this: it scans the harness page.
  */
 // Miss-analysis: the a11y gate measured the demo shell's background, so nothing ever
 // computed a ratio against the library's declared surfaces, and no gate enumerated the
 // token family, so three declarations sharing one failing hex read as one known failure.
-// Miss-analysis (#290 #396 #397): the gate knew only the code tokens, then only named greys on
-// the document's surfaces, so dimmed markers, greys over menus and alpha greys failed unseen.
+// Miss-analysis (#290 #396 #397 #427 #428): the gate knew only the code tokens, then only named
+// greys on the document's surfaces, so dimmed markers, greys over menus, alpha greys, a grey left
+// off the list and text faded by its block's opacity all failed unseen.
 import { describe, it, expect } from 'vitest';
 import { readEditorFile, stripComments } from './scan-source';
 import { declaredValue, themeBlocks } from './theme-css';
@@ -103,7 +105,7 @@ function paletteFor(theme: Theme): Palette {
 	return { surface, fence: composite(veil.color, veil.alpha, surface), menu, colors };
 }
 
-// ── UI text and dimmed markers ──────────────────────────────────────────────
+// ── UI text, done or inert text, dimmed markers and faded blocks ────────────
 
 /** The grey tokens menus, rails, cards and toolbars paint text with. */
 const UI_TEXT_TOKENS = [
@@ -125,6 +127,28 @@ const DE_EMPHASIS_TOKENS = [
 	'--md-link-blocked-color',
 	'--md-raw-html-color'
 ];
+
+/** Blocks that draw their text at a reduced opacity: raw source text, and the link reference
+ *  definition, which fades its whole block again on top of the raw text's own opacity. */
+const RAW_BLOCK_RULE = {
+	file: 'components/blocks/text/TextEditableBlock.svelte',
+	selector: '.text-editable-block.raw-block'
+};
+const REFERENCE_DEFINITION_RULE = {
+	file: 'styles/editor.css',
+	selector: ":where(.editor) .block-host[data-block-kind='linkReferenceDefinition']"
+};
+
+/** A rule's `opacity`, read from the file that declares it so a retuned fade is measured. */
+function ruleOpacity({ file, selector }: { file: string; selector: string }): number {
+	const css = readEditorFile(file).code;
+	const start = css.indexOf(`${selector} {`);
+	if (start === -1) throw new Error(`${file} has no \`${selector}\` rule`);
+	const body = css.slice(start, css.indexOf('}', start));
+	const opacity = Number(/\bopacity:\s*([^;]+);/.exec(body)?.[1]);
+	if (Number.isNaN(opacity)) throw new Error(`\`${selector}\` sets no numeric opacity`);
+	return opacity;
+}
 
 /** A token's color: a hex, `currentColor` (the editor's text color), or a `var()` chain
  *  whose fallback stands in for an undeclared name. */
@@ -190,10 +214,22 @@ function textSamplesFor(theme: Theme): TextSample[] {
 		paint: resolvePaint(value(token), value),
 		backgrounds: ['surface', 'fence']
 	}));
-	return [...ui, ...markers, ...deEmphasis];
+	// Raw-block text takes `--syntax-comment`; nested opacities multiply over the backdrop.
+	const rawText = resolveColor(value('--syntax-comment'), value);
+	const rawOpacity = ruleOpacity(RAW_BLOCK_RULE);
+	const fadedBlocks: Array<[string, number]> = [
+		['a raw block', rawOpacity],
+		['a link reference definition', rawOpacity * ruleOpacity(REFERENCE_DEFINITION_RULE)]
+	];
+	const faded = fadedBlocks.map(([block, opacity]): TextSample => ({
+		name: `text in ${block} at ${Number(opacity.toFixed(4))}`,
+		paint: (background: Rgb) => composite(rawText, opacity, background),
+		backgrounds: ['surface', 'fence']
+	}));
+	return [...ui, ...markers, ...deEmphasis, ...faded];
 }
 
-describe('WCAG AA: UI text, done or inert text and dimmed markers on the backgrounds they use', () => {
+describe('WCAG AA: UI text, done or inert text, dimmed markers and faded blocks on their backgrounds', () => {
 	it.each(THEMES)('%s: every sample clears AA on each background it paints on', (theme) => {
 		const palette = paletteFor(theme);
 		const violations: string[] = [];
@@ -213,7 +249,7 @@ describe('WCAG AA: UI text, done or inert text and dimmed markers on the backgro
 		for (const theme of THEMES) {
 			const samples = textSamplesFor(theme);
 			expect(samples).toHaveLength(
-				UI_TEXT_TOKENS.length + MARKER_COLOR_TOKENS.length + 1 + DE_EMPHASIS_TOKENS.length
+				UI_TEXT_TOKENS.length + MARKER_COLOR_TOKENS.length + 1 + DE_EMPHASIS_TOKENS.length + 2
 			);
 			expect(Number(themeValue(theme)('--syntax-marker-dim'))).toBeGreaterThan(0);
 		}
@@ -229,6 +265,10 @@ describe('WCAG AA: UI text, done or inert text and dimmed markers on the backgro
 		const surface = paletteFor('light').surface;
 		const taskDone = resolvePaint('rgba(128, 128, 128, 0.7)', themeValue('light'));
 		expect(contrastRatio(taskDone(surface), surface)).toBeLessThan(AA_CONTRAST);
+		// And light prose in a reference definition at 0.85 x 0.75, which read 4.2:1.
+		expect(contrastRatio(composite([0x2a, 0x2a, 0x27], 0.6375, surface), surface)).toBeLessThan(
+			AA_CONTRAST
+		);
 	});
 });
 
