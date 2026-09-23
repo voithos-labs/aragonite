@@ -188,10 +188,8 @@ export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
 		return { model: new HeightModel(heights), ids, widthVersion };
 	}
 
-	// Rebuilt in the render pass that receives new children, so the window, and with it the
-	// choice to window at all, is never computed from the previous children (VR-14). Tracks the
-	// sequence of ids, not the count, so a same-length reorder rebuilds too; the estimates are
-	// untracked, or every keystroke would rebuild the table.
+	// A derived, so the render pass that receives new children windows them from their own table
+	// (VR-14). Tracks ids, not estimates, or every keystroke would rebuild it.
 	let latestTable: HeightTable | null = null;
 	const table = $derived.by(() => {
 		const ids = deps.getChildIds();
