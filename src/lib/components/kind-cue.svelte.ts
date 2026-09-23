@@ -19,7 +19,7 @@ export interface KindCue {
 		path: readonly number[],
 		before: AnyBlockKind
 	): Promise<void>;
-	/** The label the block at `path` shows, until its fade ends. */
+	/** The label the block at `path` shows, until its fade ends or the block there changes kind. */
 	labelAt(path: readonly number[]): string | undefined;
 	dismiss(path: readonly number[]): void;
 }
@@ -45,7 +45,12 @@ export function createKindCue(deps: KindCueDeps): KindCue {
 			labels.set(keyOf(path), label);
 			deps.announce(label);
 		},
-		labelAt: (path) => labels.get(keyOf(path)),
+		// Keyed by path, so the label shows only while the block there still carries that name.
+		labelAt(path) {
+			const label = labels.get(keyOf(path));
+			const node = label === undefined ? undefined : blockNodeAt(deps.getDoc(), [...path]);
+			return node && blockAccessibleName(node) === label ? label : undefined;
+		},
 		dismiss: (path) => void labels.delete(keyOf(path))
 	};
 }

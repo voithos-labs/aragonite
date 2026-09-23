@@ -44,6 +44,21 @@ test.describe('live mode: the kind cue', () => {
 		await expect(announcer(page)).toHaveText('Heading level 1');
 	});
 
+	test('an undo inside the fade takes the heading cue off the paragraph', async ({ page }) => {
+		const ep = await enterPresentationMode(page, 'live', DOC);
+		await atStartOfFirst(ep, page);
+		await page.keyboard.type('# ');
+		await ep.bridge.waitForSourceEquals('# notes\n');
+		await expect(host(page)).toHaveAttribute('data-kind-cue', 'Heading level 1');
+
+		await ep.undo();
+		await ep.bridge.waitForSourceEquals('notes\n');
+		await ep.waitForRenderFlush();
+
+		// Read once, well inside the fade: a retrying assertion would pass when the fade ends.
+		expect(await host(page).getAttribute('data-kind-cue')).toBeNull();
+	});
+
 	test('the same keystrokes in source mode show no cue', async ({ page }) => {
 		const ep = await enterPresentationMode(page, 'source', DOC);
 		await atStartOfFirst(ep, page);

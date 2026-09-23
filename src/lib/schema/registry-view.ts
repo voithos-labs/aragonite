@@ -53,8 +53,8 @@ export function createRegistryView(opts?: {
 }): RegistryView {
 	const filter = opts?.isEnabled;
 	const indentedCode = opts?.syntax?.indentedCode ?? true;
-	const setextHeadings = opts?.syntax?.setextHeading ?? true;
-	if (!filter && indentedCode && setextHeadings) return defaultRegistryView;
+	const setextHeading = opts?.syntax?.setextHeading ?? true;
+	if (!filter && indentedCode && setextHeading) return defaultRegistryView;
 	const enabled: KindEnablement = (kind) => isBuiltinBlockKind(kind) || !filter || filter(kind);
 	// A switched-off syntax leaves the grammar only: a block of that kind still renders.
 	const opens: KindEnablement = (kind) =>
@@ -63,7 +63,7 @@ export function createRegistryView(opts?: {
 		component: (kind) => (enabled(kind) ? getBlockComponent(kind) : undefined),
 		descriptor: (kind) => getBlockKindDescriptor(kind),
 		tryDescriptor: (kind) => tryGetBlockKindDescriptor(kind),
-		grammar: createGrammarView(opens, { setextHeadings })
+		grammar: createGrammarView(opens, { setextHeading })
 	};
 }
 

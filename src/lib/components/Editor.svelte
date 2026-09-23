@@ -218,10 +218,8 @@
 
 	// ── State ───────────────────────────────────────────────────────────
 
-	// doc/blockIds are mutable state structural ops write through directly, so they
-	// cannot be $derived: snapshot at mount, re-sync via the $effect below.
-	// This editor's view of the global block definitions, which every parse here reads, the first
-	// included. The test hook narrows the plugins prop rather than replacing it.
+	// This editor's view of the global block definitions, read by the first parse and most edits
+	// (#429 lists the routes still on the global one). The test hook narrows the plugins prop.
 	// svelte-ignore state_referenced_locally
 	const registryView = createRegistryView({
 		isEnabled: bothEnable(
@@ -231,6 +229,8 @@
 		syntax
 	});
 
+	// doc/blockIds are mutable state structural ops write through directly, so they
+	// cannot be $derived: snapshot at mount, re-sync via the $effect below.
 	// svelte-ignore state_referenced_locally
 	const initial = initDocument(source, registryView.grammar);
 	let doc: Document = $state(initial.doc);

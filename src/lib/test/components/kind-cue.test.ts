@@ -20,7 +20,8 @@ function cueOver(source: string, mode: PresentationMode) {
 		doc = parse(next);
 		return cue.afterTypedWrite(Promise.resolve(), [0], before);
 	};
-	return { cue, announced, typeTo };
+	const undoTo = (previous: string) => void (doc = parse(previous));
+	return { cue, announced, typeTo, undoTo };
 }
 
 describe('the kind cue', () => {
@@ -62,6 +63,15 @@ describe('the kind cue', () => {
 		await typeTo('- title\n');
 		expect(cue.labelAt([0])).toBe('List');
 		cue.dismiss([0]);
+		expect(cue.labelAt([0])).toBeUndefined();
+	});
+
+	// Miss-analysis: the label was keyed by path alone and every case left the cued block in place,
+	// so none saw an undo inside the fade put a paragraph where the heading was.
+	it('drops the label once an undo inside the fade takes the kind back', async () => {
+		const { cue, typeTo, undoTo } = cueOver('title\n', 'live');
+		await typeTo('# title\n');
+		undoTo('title\n');
 		expect(cue.labelAt([0])).toBeUndefined();
 	});
 });

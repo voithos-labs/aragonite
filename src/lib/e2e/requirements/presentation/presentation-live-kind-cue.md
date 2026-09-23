@@ -23,6 +23,9 @@ kinds, which were right; what was missing was a cause on screen, which no assert
 
 - the same `# ` in source mode changes the kind with no cue and no announcement.
 - `Mod+2`, a command, changes the kind with no cue and no announcement.
+- `# ` then an undo inside the fade: the paragraph that comes back carries no heading cue.
+  Miss-analysis: every case left the cued block in place, so none saw a label keyed by position
+  outlive the kind it named.
 - a bare `#` still paints as the paragraph it was, so it shows no cue (unit: `kind-cue.test.ts`).
 
 ## User interactions

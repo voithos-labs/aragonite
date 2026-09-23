@@ -121,8 +121,8 @@ function consumedEntries(): readonly [AnyBlockKind, BlockOpener][] {
 
 /**
  * Paragraph-interrupt check built from the registry, handling pending registrations the way
- * `getOrderedOpeners` does. Not filtered per editor: indented code never interrupts, and the
- * paragraph parser itself stops at a `---` line once setext headings are off.
+ * `getOrderedOpeners` does. Not filtered per editor, so an unlisted plugin's line still ends a
+ * paragraph; indented code never interrupts, and the paragraph parser stops at `---` itself.
  */
 export function lineInterruptsParagraph(lineText: string): boolean {
 	if (hasPendingRegistrationChecks()) flushPendingRegistrationChecks();
@@ -146,24 +146,24 @@ export function lineInterruptsParagraph(lineText: string): boolean {
 export interface GrammarView {
 	orderedOpeners(): readonly BlockOpener[];
 	/** Whether a `===` or `---` line under paragraph text makes it a heading. */
-	readonly setextHeadings: boolean;
+	readonly setextHeading: boolean;
 }
 
 export const defaultGrammarView: GrammarView = {
 	orderedOpeners: () => getOrderedOpeners(),
-	setextHeadings: true
+	setextHeading: true
 };
 
 export function createGrammarView(
 	isEnabled: OpenerEnablement,
-	options: { setextHeadings?: boolean } = {}
+	options: { setextHeading?: boolean } = {}
 ): GrammarView {
 	// A reparse reads this once per block, so the filtered list is cached against the global
 	// ordering array: a later registration replaces that array, which rebuilds the filter.
 	let builtFrom: readonly [AnyBlockKind, BlockOpener][] | null = null;
 	let filtered: readonly BlockOpener[] = [];
 	return {
-		setextHeadings: options.setextHeadings ?? true,
+		setextHeading: options.setextHeading ?? true,
 		orderedOpeners() {
 			const entries = consumedEntries();
 			if (entries !== builtFrom) {
