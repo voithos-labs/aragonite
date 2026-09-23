@@ -145,7 +145,7 @@ test.describe('slash commands', () => {
 
 		test('a tag typed in a cell opens no tag list', async () => {
 			await editor.typeText('#wo');
-			await editor.bridge.waitForSourceContains('#wo');
+			await editor.bridge.waitForSourceContains('#wo |');
 			await editor.waitForRenderFlush();
 			await expect(anyMenu(editor)).toHaveCount(0);
 		});
