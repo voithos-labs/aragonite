@@ -43,6 +43,7 @@ describe('the swap commit sequence', () => {
 			undoManager: { clear: step('undo') },
 			stickyColumn: { reset: step('sticky') },
 			edgeAffinity: { reset: step('affinity') },
+			widgetSelection: { clear: step('widget') },
 			selection,
 			adoptLinkReferences: (resolver, signature) => {
 				links = { resolver, signature };
@@ -64,6 +65,7 @@ describe('the swap commit sequence', () => {
 			'undo',
 			'sticky',
 			'affinity',
+			'widget',
 			'announce',
 			'links'
 		]);

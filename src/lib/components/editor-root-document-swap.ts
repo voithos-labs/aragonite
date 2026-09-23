@@ -16,6 +16,7 @@ import type { StickyColumnState } from '../cursor/sticky-column';
 import type { SelectionState } from '../selection/selection-state.svelte';
 import { emptyParagraph, ensureEditableContainers } from '../tree-operations';
 import type { UndoManager } from '../undo/types';
+import type { WidgetSelectionState } from './image/widget-selection-state.svelte';
 
 export interface ParsedDocument {
 	doc: Document;
@@ -48,6 +49,7 @@ export interface DocumentSwapDeps {
 	undoManager: Pick<UndoManager, 'clear'>;
 	stickyColumn: Pick<StickyColumnState, 'reset'>;
 	edgeAffinity: Pick<EdgeAffinityState, 'reset'>;
+	widgetSelection: Pick<WidgetSelectionState, 'clear'>;
 	selection: Pick<SelectionState, 'batch' | 'clear' | 'announceSelection'>;
 	/** Unconditional: the outgoing resolver closes over the swapped-out document. */
 	adoptLinkReferences(resolver: LinkReferenceResolver, signature: string): void;
@@ -77,6 +79,7 @@ export function createDocumentSwap(deps: DocumentSwapDeps): DocumentSwap {
 			deps.undoManager.clear();
 			deps.stickyColumn.reset();
 			deps.edgeAffinity.reset();
+			deps.widgetSelection.clear();
 			// Announced, not left to the clear: the swap usually arrives on a native-only caret, so
 			// nothing editor-owned moves and subscribers would keep painting the outgoing document's
 			// selection. Batched, so a real range still emits once.

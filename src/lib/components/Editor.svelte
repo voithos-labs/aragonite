@@ -261,9 +261,7 @@
 	});
 	const selectionState = createSelectionState({
 		onChange: ({ placementOnly }) => {
-			// The other half of the mutual exclusion `onSelect` carries: a range opened while a
-			// widget is selected would leave both live, and every check of "a widget is
-			// selected" would answer for the document-wide selection the user is looking at.
+			// A range and a selected widget never coexist (widget-selection-state.svelte.ts).
 			if (selectionState.isCrossBlock) widgetSelection.clear();
 			if (placementOnly) selectionAnnouncer.announceIfMoved();
 			else selectionAnnouncer.announce();
@@ -351,6 +349,7 @@
 		undoManager,
 		stickyColumn,
 		edgeAffinity,
+		widgetSelection,
 		selection: selectionState,
 		// The counter bumps only when the link-reference signature differs; the resolver
 		// refreshes regardless.
@@ -1458,6 +1457,7 @@
 		{controller}
 		{events}
 		{getDoc}
+		getContentVersion={contentVersion.read}
 		getEditorEl={() => editorEl ?? null}
 		getSelectionIsCustomRendered={() => selectionState.isCustomRendered}
 		getPresentationMode={() => effectiveMode}
