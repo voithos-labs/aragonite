@@ -132,8 +132,8 @@ test.describe('mode flips: the scrollport stays where the reader left it', () =>
 	});
 
 	test.describe('with mounted blocks resizing above the viewport', () => {
-		// A known defect, claimed until fixed: a height correction made inside the block height
-		// observer (BlockHost) leaves resize notifications the browser cannot deliver that frame.
+		// A known defect, claimed until fixed (#423): a height correction made inside the block
+		// height observer (BlockHost) leaves resize notifications the browser cannot deliver that frame.
 		test.use({ expectPageErrors: [RESIZE_OBSERVER_LOOP] });
 
 		// The block under the user's eyes, not the scroll number: when mounted blocks above the

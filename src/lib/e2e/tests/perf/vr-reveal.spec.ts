@@ -109,8 +109,7 @@ test('reveals a deep off-window nested item and lands the caret there', async ({
 		await page.evaluate((p) => !!document.querySelector(`[data-block-path='${p}']`), deepHostPath)
 	).toBe(false);
 
-	// Click the paragraph rather than calling focusBlockStart(0): path [0] is the `.list-block`
-	// container, which cannot take focus, so a keydown there goes nowhere.
+	// A click in the first item starts the selection the way a user does, from a caret they placed.
 	await editor.clickBlockAtPath([0, 0, 0], 0);
 	await page.keyboard.press('ControlOrMeta+Shift+End');
 	await editor.waitForCrossBlock(true);

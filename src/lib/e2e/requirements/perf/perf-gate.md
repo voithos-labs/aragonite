@@ -28,7 +28,9 @@ Per-keystroke (or, for the structural row, per-edit) **p50** for each gated row,
 - `flat-prose-10MB-structural` times a top-level Enter at the end of block 0 and the
   Backspace that merges the new block back, each a change to the top-level block list that
   rebuilds the whole windowing model. A typed character never runs that rebuild, so no other
-  row sees it; the row pins it at pointer work per block, not work per byte.
+  row sees it. The row gates what that split and merge cost on a 10 MB flat document
+  against its own baseline, so a change that makes a structural edit read the whole
+  document reds it.
 
 ## The budget
 

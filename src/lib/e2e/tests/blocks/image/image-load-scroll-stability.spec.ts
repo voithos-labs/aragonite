@@ -174,8 +174,8 @@ test('unsized image loading above the viewport does not shift the reading positi
 });
 
 test.describe('windowing active', () => {
-	// A known defect, claimed until fixed: a height correction made inside the block height
-	// observer (BlockHost) leaves resize notifications the browser cannot deliver that frame.
+	// A known defect, claimed until fixed (#423): a height correction made inside the block
+	// height observer (BlockHost) leaves resize notifications the browser cannot deliver that frame.
 	test.use({ expectPageErrors: [RESIZE_OBSERVER_LOOP] });
 
 	test('unsized image loading above the viewport does not shift the reading position (windowing active)', async ({
