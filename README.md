@@ -195,7 +195,7 @@ Also, shipping a kind forces the boring questions up front: the registration typ
 
 This is the bet. Aragonite cannot top Obsidian in plugin count (in the short term, at least), but what it can try to do is trade plugin count for plugin quality. Score it against my three criterias: reach is the whole own a kind story above, safety is the lossless promise doing double duty, and ergonomics is the part I haven't argued yet, so here it is: svelte and typescript end to end, the entire authoring surface on one import path (`@voithos-labs/aragonite/plugin`), and a public testing seam so your plugin's own test suite isn't an afterthought.
 
-Does the design actually work in practice? Well, the nine bundled first party plugins (admonitions, details, footnotes, emoji, math, diagrams, table of contents, occurrence highlighting, and a party parrot) are built on the exact surface third parties get, so I would describe it as "so far, so good".
+Does the design actually work in practice? Well, the ten bundled first party plugins (admonitions, details, footnotes, emoji, math, diagrams, table of contents, occurrence highlighting, slash commands, and a party parrot) are built on the exact surface third parties get, so I would describe it as "so far, so good".
 
 # Fast
 
