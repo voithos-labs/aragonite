@@ -10,13 +10,14 @@
 import type { BlockEditActions, UndoEntryMode } from '../../action-contracts';
 import type { CstNode, Document } from '../../core/nodes';
 import type { GrammarView } from '../../schema/block-openers';
-import type { PluginActivation } from '../../schema/plugin-activation';
+import { everyInstalledPlugin, type PluginActivation } from '../../schema/plugin-activation';
 import { parse } from '../../core/parser';
 import { isBlockNode, nodeAt } from '../node-primitives';
 import { cutRangeFromDisplay } from '../node-ops';
 import { trailingLineEnding, trimTrailingLineEnding } from '../../core/lines';
 import {
 	getPasteSurface,
+	isPasteSurfaceRegistered,
 	type PasteRange,
 	type PasteSeam,
 	type PasteSurface,
@@ -93,7 +94,8 @@ export async function pasteDispatch(
 
 	// Once, before any branch below reads the text; a transform that empties it is an
 	// empty paste.
-	const transformed = applyPasteTransforms(input.pastedText, ctx.activePlugins);
+	const activePlugins = ctx.activePlugins ?? everyInstalledPlugin;
+	const transformed = applyPasteTransforms(input.pastedText, activePlugins);
 	if (!transformed) return {};
 
 	// Ahead of the fragment parse, so the strategy pick and every landed kind follow the
@@ -116,7 +118,8 @@ export async function pasteDispatch(
 		isReservedChromeChild(chromeParent, input.targetPath[input.targetPath.length - 1])
 	) {
 		const flattened = pastedText.replace(/(\r?\n)+/g, ' ').trim();
-		const hook = getPasteSurface(targetNode.kind)?.onInlinePaste ?? defaultInlineHook;
+		const hook =
+			getPasteSurface(targetNode.kind, activePlugins)?.onInlinePaste ?? defaultInlineHook;
 		const result = hook(targetNode, input.offset, flattened, input.preDelete, ctx.seam);
 		const landing = await applyInlineResult(input.targetPath, result, ctx);
 		return inlineCaretResult(result.caretOffset, landing);
@@ -154,8 +157,9 @@ export async function pasteDispatch(
 		return {};
 	}
 
-	const surface = getPasteSurface(targetNode.kind);
-	if (surface === undefined) {
+	const surface = getPasteSurface(targetNode.kind, activePlugins);
+	// A plugin's surface this editor left out is no gap to warn about: the default hooks are meant.
+	if (surface === undefined && !isPasteSurfaceRegistered(targetNode.kind)) {
 		devWarn(
 			'paste-dispatch',
 			'no paste surface registered for this kind; falling through to default hooks. Register ' +

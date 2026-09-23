@@ -4,6 +4,8 @@ import type { PresentationMode } from '../presentation-mode';
 import type { InlineResolverRef } from '../schema/inline-construct-policy';
 import type { GrammarView } from '../schema/block-openers';
 import type { PasteCommitCoordinator } from './paste/paste-deps';
+import type { PluginActivation } from '../schema/plugin-activation';
+import { currentInstallingPlugin } from '../schema/plugin-install';
 import { registerOnce } from '../schema/register-once';
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -80,18 +82,36 @@ export interface PasteSurface {
 
 // ── Registry ───────────────────────────────────────────────────────────────
 
-const surfaces = new Map<AnyBlockKind, PasteSurface>();
+interface RegisteredSurface {
+	surface: PasteSurface;
+	/** The plugin whose setup registered it; null for the built-ins. */
+	owner: string | null;
+}
+
+const surfaces = new Map<AnyBlockKind, RegisteredSurface>();
 
 export function registerPasteSurface(surface: PasteSurface): void {
 	registerOnce(
 		surfaces.has(surface.kind),
-		() => surfaces.set(surface.kind, surface),
+		() => surfaces.set(surface.kind, { surface, owner: currentInstallingPlugin() }),
 		`registerPasteSurface: "${surface.kind}" is already registered. Paste surfaces are register-once.`
 	);
 }
 
-export function getPasteSurface(kind: AnyBlockKind): PasteSurface | undefined {
-	return surfaces.get(kind);
+/** The kind's surface in an editor with this activation; a plugin's surface is absent where the
+ *  editor left that plugin out, so the paste takes the default hooks. */
+export function getPasteSurface(
+	kind: AnyBlockKind,
+	activation: PluginActivation
+): PasteSurface | undefined {
+	const entry = surfaces.get(kind);
+	if (!entry || (entry.owner !== null && !activation.isActive(entry.owner))) return undefined;
+	return entry.surface;
+}
+
+/** Whether any plugin or built-in registered a surface for the kind, whatever the activation. */
+export function isPasteSurfaceRegistered(kind: AnyBlockKind): boolean {
+	return surfaces.has(kind);
 }
 
 export function __resetPasteSurfacesForTests(): void {
