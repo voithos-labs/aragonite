@@ -95,6 +95,7 @@ describe('a truncating write of a mermaid block gets its closing fence back', ()
 	// Applied twice by two write paths in one operation, the second pass must add nothing.
 	it('is idempotent', () => {
 		const once = write('```mermaid\ngraph TD\n```\n', '```mermaid\nA\n');
+		expect(once).toBe('```mermaid\nA\n```\n');
 		expect(write('```mermaid\ngraph TD\n```\n', once)).toBe(once);
 	});
 });
