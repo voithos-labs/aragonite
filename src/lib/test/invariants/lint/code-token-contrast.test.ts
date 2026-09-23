@@ -106,7 +106,12 @@ function paletteFor(theme: Theme): Palette {
 // ── UI text and dimmed markers ──────────────────────────────────────────────
 
 /** The grey tokens menus, rails, cards and toolbars paint text with. */
-const UI_TEXT_TOKENS = ['--color-ui-muted', '--color-text-muted', '--color-text-secondary'];
+const UI_TEXT_TOKENS = [
+	'--color-ui-muted',
+	'--color-ui-dulled',
+	'--color-text-muted',
+	'--color-text-secondary'
+];
 
 /** The colors a marker takes before the dim: its construct's syntax token. Every marker not
  *  listed inherits the prose color, which `currentColor` resolves to. */
@@ -219,6 +224,7 @@ describe('WCAG AA: UI text, done or inert text and dimmed markers on the backgro
 		);
 		expect(contrastRatio([0x67, 0x67, 0x61], paletteFor('light').menu)).toBeLessThan(AA_CONTRAST);
 		expect(contrastRatio([0x8f, 0x8f, 0x89], paletteFor('dark').menu)).toBeLessThan(AA_CONTRAST);
+		expect(contrastRatio([0x71, 0x71, 0x6a], paletteFor('light').menu)).toBeLessThan(AA_CONTRAST);
 		// And the checked task's alpha grey, which read 2.2:1 composited over the light surface.
 		const surface = paletteFor('light').surface;
 		const taskDone = resolvePaint('rgba(128, 128, 128, 0.7)', themeValue('light'));

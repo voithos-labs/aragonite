@@ -189,7 +189,7 @@
 		--color-border: #c9c7c0;
 		--color-text-primary: #2a2a27;
 		--color-text-secondary: #4a4a45;
-		--color-ui-dulled: #71716a;
+		--color-ui-dulled: #5c5c56;
 		--color-ui-muted: #62625c;
 	}
 	.showcase-header {
