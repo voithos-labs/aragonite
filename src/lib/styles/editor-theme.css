@@ -90,6 +90,8 @@
 	--syntax-separator: var(--color-border, #3e3e3b);
 	--syntax-task: currentColor;
 	--syntax-task-done: rgba(128, 128, 128, 0.7);
+	--syntax-task-checked: var(--color-text-primary, currentColor);
+	--syntax-task-checked-tick: var(--color-bg, #2c2c2a);
 
 	/* Code block syntax highlighting: a monokai-inspired palette. */
 	--code-tok-keyword: #ff79a8;

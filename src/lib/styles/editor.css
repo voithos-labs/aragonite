@@ -723,9 +723,9 @@
 	background: transparent;
 }
 
-/* Checked: the box fills with the text colour and the tick is cut out of it in the page's
-   background, drawn as two borders of a rotated box, so it needs no glyph and scales with the
-   type. */
+/* Checked: the box fills with `--syntax-task-checked` (the text colour by default) and the tick
+   is cut out of it in `--syntax-task-checked-tick` (the page's background by default), drawn
+   as two borders of a rotated box, so it needs no glyph and scales with the type. */
 :where(.editor):is(
 		[data-presentation='reading'],
 		[data-presentation^='preview-'],
@@ -733,8 +733,8 @@
 	)
 	.list-item-block[data-task-checked='true']
 	.task-checkbox::before {
-	background: var(--color-text-primary, currentColor);
-	border-color: var(--color-text-primary, currentColor);
+	background: var(--syntax-task-checked, var(--color-text-primary, currentColor));
+	border-color: var(--syntax-task-checked, var(--color-text-primary, currentColor));
 }
 
 :where(.editor):is(
@@ -754,7 +754,7 @@
 	width: 0.32em;
 	height: 0.6em;
 	box-sizing: border-box;
-	border: solid var(--color-bg, #2c2c2a);
+	border: solid var(--syntax-task-checked-tick, var(--color-bg, #2c2c2a));
 	border-width: 0 0.15em 0.15em 0;
 	transform: translate(-50%, -50%) rotate(45deg);
 }
