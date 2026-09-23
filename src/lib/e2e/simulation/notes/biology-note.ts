@@ -77,6 +77,7 @@ export const BIOLOGY_NOTE: NoteFixture = {
 		// The nearest ancestor of the checkbox with a path is the item's paragraph, not the list
 		// item: only the list and the item paragraphs carry a data-block-path.
 		await g.toggleTask([7, 0, 0]);
+		await g.toggleTaskByKeyboard([7, 1, 0]);
 
 		// Live mode's own rules, run over the opening paragraph, which holds every construct
 		// they need. Each gesture switches into live mode, drives one rule and undoes it in one
@@ -122,7 +123,7 @@ export const BIOLOGY_NOTE: NoteFixture = {
 		'## Study checklist\n' +
 		'\n' +
 		'- [x] Redraw the light reactions\n' +
-		'- [ ] Label oxygen as a byproduct\n' +
+		'- [x] Label oxygen as a byproduct\n' +
 		'\n' +
 		'> Remember: oxygen is released, not consumed.\n' +
 		'\n' +

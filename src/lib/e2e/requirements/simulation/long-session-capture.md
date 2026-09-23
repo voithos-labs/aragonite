@@ -43,8 +43,9 @@ guard every gesture here.
 - the image insert waits for the loaded widget (resize handle visible) before
   resizing; the resize uses Shift+Arrow steps and rewrites the `|width`
   deterministically
-- task toggle uses a real checkbox click; undo / redo use real cross-platform
-  shortcuts around a forced batch boundary
+- the first task toggle uses a real checkbox click and the second a click into the
+  item's text followed by Mod+Enter; undo / redo use real cross-platform shortcuts
+  around a forced batch boundary
 
 ## Error cases
 

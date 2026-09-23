@@ -38,8 +38,9 @@ reference checks on every run.
 - the jump-back detour repositions with a real pointer click into the first
   top-level block; landing in the wrong block is a hard failure
 - the image insert waits for the loaded widget before resizing with Shift+Arrow
-  steps; the task toggle is a real checkbox click; undo / redo use real
-  cross-platform shortcuts around forced batch boundaries
+  steps; the first task toggle is a real checkbox click and the second a click into
+  the item's text followed by Mod+Enter; undo / redo use real cross-platform
+  shortcuts around forced batch boundaries
 
 ## Error cases
 
