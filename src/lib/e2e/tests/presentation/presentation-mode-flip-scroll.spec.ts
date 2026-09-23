@@ -1,4 +1,4 @@
-import { test, expect } from '../../fixtures';
+import { test, expect, RESIZE_OBSERVER_LOOP } from '../../fixtures';
 import type { EditorPage } from '../../editor-page';
 import type { Page } from '@playwright/test';
 import { clickBlockSettled, enterPresentationMode, focusOffset } from './helpers';
@@ -131,22 +131,28 @@ test.describe('mode flips: the scrollport stays where the reader left it', () =>
 		expect(await scrollTop(page), 'out of live').toBeCloseTo(parked, 0);
 	});
 
-	// The block under the user's eyes, not the scroll number: when mounted blocks above the
-	// viewport change height at the switch, holding the number would slide the content, so the
-	// windowing correction moves the number by exactly what those blocks lost.
-	test('a flip that resizes mounted blocks above the viewport holds the block in view', async ({
-		page
-	}) => {
-		const ep = await enterPresentationMode(page, 'source', FENCED);
-		await ep.scrollEditorTo(PARKED * 3);
-		const before = await topVisibleHost(page);
-		expect(before, 'a block is in view').not.toBeNull();
+	test.describe('with mounted blocks resizing above the viewport', () => {
+		// A known defect, claimed until fixed (#423): a height correction made inside the block
+		// height observer (BlockHost) leaves resize notifications the browser cannot deliver that frame.
+		test.use({ expectPageErrors: [RESIZE_OBSERVER_LOOP] });
 
-		await flipTo(ep, page, 'live-toggle', 'live');
-		const after = await topVisibleHost(page);
-		expect(after?.path, 'the same block leads the viewport').toBe(before!.path);
-		// One tolerance, not one per fence: each correction is a fraction of a pixel, and the
-		// scroll container keeps the pixel the scroller refuses for the next correction.
-		expect(Math.abs(after!.top - before!.top), 'at the same place').toBeLessThan(1);
+		// The block under the user's eyes, not the scroll number: when mounted blocks above the
+		// viewport change height at the switch, holding the number would slide the content, so the
+		// windowing correction moves the number by exactly what those blocks lost.
+		test('a flip that resizes mounted blocks above the viewport holds the block in view', async ({
+			page
+		}) => {
+			const ep = await enterPresentationMode(page, 'source', FENCED);
+			await ep.scrollEditorTo(PARKED * 3);
+			const before = await topVisibleHost(page);
+			expect(before, 'a block is in view').not.toBeNull();
+
+			await flipTo(ep, page, 'live-toggle', 'live');
+			const after = await topVisibleHost(page);
+			expect(after?.path, 'the same block leads the viewport').toBe(before!.path);
+			// One tolerance, not one per fence: each correction is a fraction of a pixel, and the
+			// scroll container keeps the pixel the scroller refuses for the next correction.
+			expect(Math.abs(after!.top - before!.top), 'at the same place').toBeLessThan(1);
+		});
 	});
 });

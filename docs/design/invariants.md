@@ -916,10 +916,13 @@ checkbox).
 
 **G4.8 · Documented-chord dispatch.** Every chord the consumer guide's keyboard table lists resolves
 in the surface that actually dispatches it: the keymap registry (which the table's structural chords
-joined at 0.9.36), the search components, or the clipboard seams (the whole-block key tail and the
-text block's clipboard seam). The reverse sweep keys each claim by chord and owner (the kind whose
-keymap binds it, or the file whose keydown branch claims it), so `Mod+Enter` on a task item and in
-a table cell each need their own row, or a recorded reason. `lint/consumer-guide-chords.test.ts`.
+joined at 0.9.36), the search components, or the clipboard paths (the whole-block key tail and the
+text block's clipboard handler). The reverse sweep covers the code this repo ships: built-in and
+bundled plugin kind keymaps, the editor-global keymap, bundled plugins' global chords, and the
+keydown branches the hardcoded-chord list names. It keys each claim by chord and owner (a kind,
+`global`, a plugin's name, or a file), so `Mod+Enter` on a task item and in a table cell each need
+their own row, or a recorded reason; an exemption for a claim a row already covers fails as stale.
+A third-party plugin's chords are outside it. `lint/consumer-guide-chords.test.ts`.
 
 **G4.9 · Theme-token manifest.** Every token the consumer and plugin guides publish is declared in
 `editor-theme.css`, and a themed token carries both a light and a dark value.

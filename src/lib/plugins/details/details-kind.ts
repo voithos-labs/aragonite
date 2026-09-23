@@ -172,6 +172,7 @@ export function registerDetailsKind(): void {
 	const detailsSummary = declarePluginKind(DETAILS_SUMMARY);
 
 	registerBlockKind(details, {
+		label: 'Details',
 		mergeRole: 'container',
 		editable: true,
 		supportsInline: false,

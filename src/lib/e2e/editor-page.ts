@@ -4,7 +4,8 @@ import { createClipboardArm, type ClipboardArm } from './clipboard-arm';
 import { generateFixture, type FixtureShape } from '../test/perf/fixtures/generate';
 import {
 	BLOCK_CONTENT_SELECTOR,
-	BLOCK_CONTENT_LOCATOR_SELECTOR
+	BLOCK_CONTENT_LOCATOR_SELECTOR,
+	TABLE_CELL_SELECTOR
 } from '../components/block-content-selector';
 import { watchPageFailures } from './page-probes';
 
@@ -194,62 +195,59 @@ export class EditorPage {
 		await this.placeCaretInBlock(index, 'start');
 	}
 
-	// COORDINATE-SPACE WARNING: a numeric `position` counts DOM text, `.md-marker` spans
-	// included, not the raw offset `focusBlockAtPath` takes; the two differ on any block that
-	// shows markers. Pinned by lint/caret-helper-coordinate-spaces.test.ts.
+	/**
+	 * Places the caret through the editor's own `setSelection`, so it is the text-node caret
+	 * every real placement ends in. Setup only: a spec whose subject is the click or the key
+	 * drives `clickBlockAtPath` or the keyboard instead. A number is a raw offset; a container
+	 * or table takes its first leaf, or its last one for `'end'`.
+	 */
 	private async placeCaretInBlock(
 		index: number,
 		position: 'start' | 'end' | number
 	): Promise<void> {
-		await this.page.evaluate(
-			({ pathAttr, position, contentSelector }) => {
+		const placed = await this.page.evaluate(
+			async ({ pathAttr, position, contentSelector, cellSelector }) => {
 				const wrapper = document.querySelector(`[data-block-path='${pathAttr}']`);
-				const block = wrapper?.querySelector(contentSelector) as HTMLElement | null;
+				const content = wrapper?.querySelector(contentSelector) as HTMLElement | null;
 				// Throws rather than returning quietly: a selector that no longer matches must
 				// fail the spec, not let a later "nothing is there" assertion pass for the
 				// wrong reason.
-				if (!block) throw new Error(`placeCaretInBlock: no editable at ${pathAttr}`);
-				block.focus();
+				if (!content) throw new Error(`placeCaretInBlock: no editable at ${pathAttr}`);
 
-				const range = document.createRange();
-				if (position === 'start' || position === 'end') {
-					range.selectNodeContents(block);
-					range.collapse(position === 'start');
-				} else {
-					let remaining = position;
-					function walk(node: Node): { node: Node; offset: number } | null {
-						if (node.nodeType === Node.TEXT_NODE) {
-							const len = node.textContent?.length ?? 0;
-							if (remaining <= len) return { node, offset: remaining };
-							remaining -= len;
-							return null;
-						}
-						for (const child of node.childNodes) {
-							const result = walk(child);
-							if (result) return result;
-						}
-						return null;
-					}
-					const pos = walk(block);
-					if (pos) {
-						range.setStart(pos.node, pos.offset);
-						range.collapse(true);
-					} else {
-						range.selectNodeContents(block);
-						range.collapse(false);
-					}
+				const editables = content.matches('[contenteditable="true"]')
+					? [content]
+					: [...content.querySelectorAll<HTMLElement>('[contenteditable="true"]')];
+				// A block with no editable of its own (a rule, an image) takes the caret at its path.
+				const leaf = (position === 'end' ? editables.at(-1) : editables[0]) ?? content;
+
+				const owner = leaf.closest('[data-block-path]')!;
+				const path = JSON.parse(owner.getAttribute('data-block-path')!) as number[];
+				// A table cell has no wrapper of its own; its caret path is [table, row, column].
+				if (leaf.matches(cellSelector)) {
+					const row = leaf.closest('[data-table-row-idx]') as HTMLElement;
+					const cells = [...row.querySelectorAll(`:scope > ${cellSelector}`)];
+					path.push(Number(row.dataset.tableRowIdx), cells.indexOf(leaf));
 				}
-				const sel = window.getSelection()!;
-				sel.removeAllRanges();
-				sel.addRange(range);
+				// `setSelection` clamps an offset past the content to the block's end.
+				const offset = position === 'start' ? 0 : position === 'end' ? Infinity : position;
+				leaf.focus();
+				return (window as any).__test.setSelection({
+					anchor: { path, offset },
+					focus: { path, offset }
+				}) as Promise<boolean>;
 			},
-			{ pathAttr: JSON.stringify([index]), position, contentSelector: BLOCK_CONTENT_SELECTOR }
+			{
+				pathAttr: JSON.stringify([index]),
+				position,
+				contentSelector: BLOCK_CONTENT_SELECTOR,
+				cellSelector: TABLE_CELL_SELECTOR
+			}
 		);
+		if (!placed) throw new Error(`placeCaretInBlock: the editor declined [${index}] @ ${position}`);
 	}
 
-	// COORDINATE-SPACE WARNING: `offset` is a raw offset, since the walk skips `.md-marker`
-	// spans, not the marker-counting one `placeCaretInBlock(index, number)` takes. Pinned by
-	// lint/caret-helper-coordinate-spaces.test.ts.
+	// `offset` is a raw offset: the walk skips the container marker spans, which are DOM text
+	// but not raw.
 	async focusBlockAtPath(path: number[], offset: number): Promise<void> {
 		await this.page.evaluate(
 			({ path, offset, contentSelector }) => {

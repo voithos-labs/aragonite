@@ -94,6 +94,7 @@ export function registerAdmonitions(options?: AdmonitionsOptions): void {
 	});
 
 	registerBlockKind(admonition, {
+		label: 'Admonition',
 		mergeRole: 'container',
 		editable: true,
 		supportsInline: false,

@@ -18,6 +18,7 @@ const CAPABILITY_SITES: Record<string, string> = {
 	'src/lib/schema/built-in-descriptors.ts': 'tableCell and fencedCode declare it',
 	'src/lib/plugins/latex/latex-kind.ts': 'mathBlock and mathFence declare it, for their closers',
 	'src/lib/plugins/mermaid/mermaid-kind.ts': 'mermaid declares it, for its closing fence',
+	'src/lib/testing/kind-conformance.ts': "the kind kit's raw-write cell runs for every declarer",
 	[READERS_HOME]: 'the readers dispatch it'
 };
 
@@ -49,7 +50,9 @@ const PRE_REPARSE_SITES: Record<string, string> = {
 	'src/lib/selection/range-delete-ceremony.ts':
 		'the endpoint-survivor reparse, shared by all three branches',
 	'src/lib/editor-actions/inline-range-commit.ts':
-		'reads the rule ahead of the write to decide whether the splice changes a byte at all'
+		'reads the rule ahead of the write to decide whether the splice changes a byte at all',
+	'src/lib/testing/kind-conformance.ts':
+		"the kind kit's raw-write cell drives each declarer's rule over its fixture"
 };
 
 /**
@@ -219,6 +222,10 @@ const BARE_RAW_WRITE_ALLOWLIST: Record<string, { count: number; why: string }> =
 	'src/lib/testing/container-conformance.ts': {
 		count: 5,
 		why: "the published kit's own fixture bytes, written into a throwaway parse"
+	},
+	'src/lib/testing/kind-conformance.ts': {
+		count: 1,
+		why: "the raw-write cell lands bytes that already crossed the kind's rule, in a throwaway parse"
 	}
 };
 

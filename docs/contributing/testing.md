@@ -209,7 +209,9 @@ review. Every `devWarn` reaches the browser console under the `[aragonite:…]` 
 Svelte runtime warning under `[svelte] <code>`, and the shared `test` fails any spec whose page
 emitted one, so a dev-guard violation surfaces at the spec that _caused_ it rather than passing
 silently and turning up a release later. An uncaught page error or rejection fails it the same way,
-under the tag `pageerror`. The verdict lands at teardown and names the fire:
+under the tag `pageerror`, and so does an error only `window.onerror` sees (Chromium reports a
+ResizeObserver loop there and nowhere else), which the fixture relays under `onerror:<message>`.
+The verdict lands at teardown and names the fire:
 
 ```
 Error: unexpected [aragonite:…] / [svelte] console fires or uncaught errors:
@@ -219,9 +221,10 @@ warning: [aragonite:demo] a fire the spec did not declare
 A spec that deliberately trips one names its tags,
 `test.use({ expectInvariants: ['late-opener-registration'] })` for an invariant fire,
 `test.use({ expectWarns: ['tree-ops'] })` for a plain dev warning, or
-`test.use({ expectSvelteWarns: ['derived_inert'] })` for a Svelte code, and the fire above would
-have passed under `test.use({ expectWarns: ['demo'] })`. All three run in both directions: a named
-tag that stops firing fails too.
+`test.use({ expectSvelteWarns: ['derived_inert'] })` for a Svelte code, or
+`test.use({ expectPageErrors: [RESIZE_OBSERVER_LOOP] })` for a `window.onerror` message, and the
+fire above would have passed under `test.use({ expectWarns: ['demo'] })`. All four run in both
+directions: a named tag that stops firing fails too.
 
 ### Architecture
 
@@ -528,9 +531,10 @@ genuinely time-dependent waits (sticky-column layout settle, copy-only clipboard
 the absence oracle of a gesture with no keydown verdict) and gets an inline comment when used. The raw rebuild itself is synchronous; you're waiting on
 reactivity and render flush, not a debouncer.
 
-**Use `focusBlockEnd` / `focusBlockStart` for precise cursor placement.** They set the cursor
-through the Selection API. Native `End`/`Home` work for simple cases but are unreliable across
-inline-rendered spans.
+**Use `focusBlockEnd` / `focusBlockStart` / `focusBlock` to set up a caret.** They place it
+through the editor's own `setSelection`, so the caret sits in a text node the way a click or a
+key leaves it; `focusBlock` takes a raw offset. When the placement itself is under test, click
+(`clickBlockAtPath`) and walk with the keyboard instead.
 
 **Use `getBlockCount()` for structural assertions after a split.** The bridge reads the live
 CST, so it sees a transient block the serializer would trim and a live-kind-vs-raw desync a
