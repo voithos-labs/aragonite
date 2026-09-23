@@ -150,42 +150,61 @@ function listTopInPort(port: Scrollport, listEl: HTMLElement): number {
 	);
 }
 
+/** The height table for one child list, with the ids it was built from lined up by index. */
+interface HeightTable {
+	model: HeightModel;
+	/** A snapshot, not read live: the scroll correction needs the old ordering to find the held
+	 *  block by id after the children change. */
+	ids: string[];
+	widthVersion: number;
+}
+
+/** The heights a table holds, keyed by id, for the next build to keep. */
+function heightsById(table: HeightTable): Map<string, number> {
+	const carried = new Map<string, number>();
+	const known = Math.min(table.ids.length, table.model.size);
+	for (let i = 0; i < known; i++) carried.set(table.ids[i], table.model.heightOf(i));
+	return carried;
+}
+
 export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
-	// The ids lined up with the current `model` by index. A snapshot, not read live: a
-	// structural rebuild needs the old ordering to find the held block by id, and by then
-	// `getChildIds()` already shows the new children. Copied, because it is spliced in place.
-	let modelChildIds: string[] = [];
-
-	/** The heights the current table holds, keyed by id, for a rebuild to keep. The two lengths
-	 *  differ for one tick after a child change, and an index past the table's end reads 0. */
-	function heightsById(): Map<string, number> {
-		const carried = new Map<string, number>();
-		const known = Math.min(modelChildIds.length, model.size);
-		for (let i = 0; i < known; i++) carried.set(modelChildIds[i], model.heightOf(i));
-		return carried;
-	}
-
 	/**
 	 * A block that survives a rebuild keeps its measured height (`carried`); re-estimating would
 	 * swap a document of measurements for guesses and scroll the user by the difference (VR-15).
 	 * Null after a width or font-size change, when the old heights are wrong anyway.
 	 */
-	function buildModel(carried: Map<string, number> | null): HeightModel {
+	function buildTable(carried: Map<string, number> | null, widthVersion: number): HeightTable {
 		const width = estimateWidth(deps.getListEl(), deps.getPort()?.contentWidth() ?? 0);
 		const children = deps.getChildren();
 		// Indexed, and off the snapshot: `map` pays a `has` trap beside every `get`, once per child.
-		modelChildIds = deps.getChildIds().slice();
+		const ids = deps.getChildIds().slice();
 		const count = children.length;
 		const heights = new Array<number>(count);
 		for (let i = 0; i < count; i++) {
-			const id = modelChildIds[i];
+			const id = ids[i];
 			heights[i] =
 				deps.oracle.measured(id) ?? carried?.get(id) ?? deps.oracle.estimate(children[i], width);
 		}
-		return new HeightModel(heights);
+		return { model: new HeightModel(heights), ids, widthVersion };
 	}
 
-	let model = $state<HeightModel>(buildModel(null));
+	// Rebuilt in the render pass that receives new children, so the window, and with it the
+	// choice to window at all, is never computed from the previous children (VR-14). Tracks the
+	// sequence of ids, not the count, so a same-length reorder rebuilds too; the estimates are
+	// untracked, or every keystroke would rebuild the table.
+	let latestTable: HeightTable | null = null;
+	const table = $derived.by(() => {
+		const ids = deps.getChildIds();
+		for (let i = 0; i < ids.length; i++) void ids[i];
+		void deps.getPort();
+		const widthVersion = deps.getWidthVersion();
+		return untrack(() => {
+			const previous = latestTable;
+			const keepsHeights = previous !== null && previous.widthVersion === widthVersion;
+			latestTable = buildTable(keepsHeights ? heightsById(previous) : null, widthVersion);
+			return latestTable;
+		});
+	});
 	let heightVersion = $state(0);
 
 	// One batched pass owned by this list rather than an effect per child, which would
@@ -205,14 +224,14 @@ export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
 		const port = deps.getPort();
 		const listEl = deps.getListEl();
 		const reveal = deps.getRevealAnchorTarget?.() ?? null;
-		if (reveal == null || reveal.index >= model.size || !port || !listEl) return null;
+		if (reveal == null || reveal.index >= table.model.size || !port || !listEl) return null;
 
 		const targetTop =
-			listTopInPort(port, listEl) + model.offsetOf(reveal.index) + reveal.innerOffset;
+			listTopInPort(port, listEl) + table.model.offsetOf(reveal.index) + reveal.innerOffset;
 		// Centre on the scroll container's own height, not `scopeViewportHeight()`: the
 		// container's is stable while the content shrinks, whereas the per-list intersection reads
 		// `listEl` geometry mid-change and would centre on a briefly tiny viewport.
-		const targetHeight = reveal.height ?? model.heightOf(reveal.index);
+		const targetHeight = reveal.height ?? table.model.heightOf(reveal.index);
 		return reveal.block === 'center'
 			? targetTop - Math.max(0, (port.viewportHeight() - targetHeight) / 2)
 			: targetTop;
@@ -251,7 +270,7 @@ export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
 	 */
 	function reassertRevealAnchor(mutate: () => void): boolean {
 		const reveal = deps.getRevealAnchorTarget?.() ?? null;
-		if (reveal == null || reveal.index >= model.size || !deps.getPort()) return false;
+		if (reveal == null || reveal.index >= table.model.size || !deps.getPort()) return false;
 		mutate();
 		placeRevealTarget();
 		return true;
@@ -267,7 +286,7 @@ export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
 	 */
 	function anchorIndexFor(topIndex: number): number {
 		const pinned = pinnedIndex();
-		if (pinned === null || pinned < topIndex || pinned >= model.size) return topIndex;
+		if (pinned === null || pinned < topIndex || pinned >= table.model.size) return topIndex;
 		return pinned;
 	}
 
@@ -280,61 +299,57 @@ export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
 		if (skipWhileHostAnchors(mutate)) return;
 		if (reassertRevealAnchor(mutate)) return;
 		const port = deps.getPort();
-		const anchorIndex = anchorIndexFor(model.indexAtOffset(localScrollTop()));
-		const before = model.offsetOf(anchorIndex);
+		const anchorIndex = anchorIndexFor(table.model.indexAtOffset(localScrollTop()));
+		const before = table.model.offsetOf(anchorIndex);
 		mutate();
-		const delta = model.offsetOf(anchorIndex) - before;
+		const delta = table.model.offsetOf(anchorIndex) - before;
 		if (delta !== 0 && port) port.scrollBy(delta);
 	}
 
-	// The version of `correctAnchor` for a structural rebuild. A change in the child count
-	// shifts every index after it, so the index-based version would measure a different block at
-	// index N and correct by about one block's height too much (the VR-2 jump on an edit above
-	// the viewport). Find the block by its stable id instead, against the old ordering in
-	// `modelChildIds`; a held block that was deleted has nothing left to hold, so skip.
-	function correctAnchorByStableId(mutate: () => void): void {
+	// The version of `correctAnchor` for a new table. A change in the child count shifts every
+	// index after it, so the index-based version would measure a different block at index N and
+	// correct by about one block's height too much (the VR-2 jump on an edit above the viewport).
+	// Find the block by its stable id instead, against the old table's ordering; a held block
+	// that was deleted has nothing left to hold, so skip.
+	function correctAnchorByStableId(
+		before: HeightTable,
+		after: HeightTable,
+		mutate: () => void
+	): void {
 		if (skipWhileHostAnchors(mutate)) return;
 		if (reassertRevealAnchor(mutate)) return;
 		const port = deps.getPort();
 		const lst = localScrollTop();
-		const anchorIndex = model.indexAtOffset(lst);
-		const before = model.offsetOf(anchorIndex);
-		const anchorId = modelChildIds[anchorIndex];
+		const anchorIndex = before.model.indexAtOffset(lst);
+		const offsetBefore = before.model.offsetOf(anchorIndex);
+		const anchorId = before.ids[anchorIndex];
 		mutate();
 		// At `lst === 0` the block at the top of the viewport belongs to a list above this one,
 		// so this list holds nothing: a nonzero delta could only come from the block moving within
 		// this list, and following it would shift the shared `scrollTop` for no reason. The
 		// index-based version needs no such check: `offsetOf` of the same index is 0 here anyway.
 		if (lst === 0) return;
-		const newIndex = anchorId !== undefined ? modelChildIds.indexOf(anchorId) : -1;
+		const newIndex = anchorId !== undefined ? after.ids.indexOf(anchorId) : -1;
 		if (newIndex === -1) return;
-		const delta = model.offsetOf(newIndex) - before;
+		const delta = after.model.offsetOf(newIndex) - offsetBefore;
 		if (delta !== 0 && port) port.scrollBy(delta);
 	}
 
-	let lastWidthVersion = deps.getWidthVersion();
-
-	// Rebuild on any structural change to the children or a change in editor width, never per
-	// keystroke. Depending on the sequence of ids rather than their count is required: a reorder
-	// that leaves the count unchanged would skip the rebuild. `untrack` stops the effect
-	// subscribing to every child's raw through the height estimator; the shift in offsets that
-	// follows is corrected by stable id.
+	// The scroll correction for a new table waits for the flush, when the list's geometry is
+	// readable; the table itself is already in place.
+	let correctedTable = untrack(() => table);
 	$effect(() => {
-		const ids = deps.getChildIds();
-		for (let i = 0; i < ids.length; i++) void ids[i];
-		void deps.getPort();
-		const widthVersion = deps.getWidthVersion();
+		const next = table;
 		untrack(() => {
-			const widthChanged = widthVersion !== lastWidthVersion;
-			lastWidthVersion = widthVersion;
+			if (next === correctedTable) return;
+			const before = correctedTable;
+			const widthChanged = next.widthVersion !== before.widthVersion;
+			correctedTable = next;
 			// One correction across one change of table: a delta taken between the new estimates and
 			// the re-measure compares measured-before against estimated-after, and lands a block off
 			// wherever the wrong table names a different top child (#188). Width only: re-measuring
-			// on a structural edit costs a reflow per split. Read off the old table, so the heights
-			// are taken before the rebuild replaces it.
-			const carried = widthChanged ? null : heightsById();
-			correctAnchorByStableId(() => {
-				model = buildModel(carried);
+			// on a structural edit costs a reflow per split.
+			correctAnchorByStableId(before, next, () => {
 				heightVersion++;
 				if (widthChanged) remeasureMounted();
 			});
@@ -381,7 +396,7 @@ export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
 	const win: BlockWindow = createBlockWindow({
 		getModel: () => {
 			void heightVersion;
-			return model;
+			return table.model;
 		},
 		getPort: deps.getPort,
 		getLocalScrollTop: localScrollTop,
@@ -399,7 +414,7 @@ export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
 	const effectiveWindow = $derived.by(() => (deps.isCollapsed?.() ? collapsedWindow : win.result));
 
 	// Children measuring in resize the spacers, so the box height the parent measured when this
-	// container mounted goes stale. The box height, not `model.total()`, so it matches what this
+	// container mounted goes stale. The box height, not the table's total, so it matches what this
 	// container's own BlockHost measured; otherwise two writers fight over one entry. Checked
 	// against the box actually moving: without that, the rect read and the upward write chain
 	// through the lists inside the observer's own frame and raise its loop warning (#189).
@@ -469,22 +484,21 @@ export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
 		// the spacers.
 		recordMeasuredChild(index, id, height) {
 			deps.oracle.recordMeasured(id, height);
-			if (index < model.size && model.heightOf(index) !== height) {
-				model.setHeight(index, height);
+			if (index < table.model.size && table.model.heightOf(index) !== height) {
+				table.model.setHeight(index, height);
 				heightVersion++;
 			}
 		},
 		// List items aren't BlockHosts and nothing else records their heights, so without this
 		// write a parent rebuild would fall back to estimates for them and the viewport jumps.
-		// Harmless to repeat for hosted children. `modelChildIds`, not the live list, for the same
-		// reason `recordMeasuredChild` takes its id from the caller: both write a table indexed by
-		// the snapshot.
+		// Harmless to repeat for hosted children. The id comes from the table's own snapshot, so
+		// it names the child at the index the table is written at.
 		setChildSubtotal(index, total) {
-			const id = modelChildIds[index];
+			const id = table.ids[index];
 			if (id !== undefined) deps.oracle.recordMeasured(id, total);
-			if (index >= model.size || model.heightOf(index) === total) return;
+			if (index >= table.model.size || table.model.heightOf(index) === total) return;
 			const write = () => {
-				model.setHeight(index, total);
+				table.model.setHeight(index, total);
 				heightVersion++;
 			};
 			// No correction unless a scroll into view is in progress; that is the only exception, so
@@ -537,7 +551,7 @@ export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
 			const port = deps.getPort();
 			const listEl = deps.getListEl();
 			if (!port || !listEl) return;
-			port.setScrollTop(listTopInPort(port, listEl) + model.offsetOf(index));
+			port.setScrollTop(listTopInPort(port, listEl) + table.model.offsetOf(index));
 			win.syncScrollTop();
 			await tick();
 		},

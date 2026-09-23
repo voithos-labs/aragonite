@@ -10,22 +10,10 @@ const active = (start: number, end: number): WindowResult => ({
 	bottomSpacerPx: 0
 });
 
-// What an inactive window over `size` children looks like: every sized child, no spacers.
-const inactive = (size: number): WindowResult => ({ ...active(0, size), active: false });
-
 describe('sliceWindow', () => {
-	it('returns the full range when the window is absent', () => {
+	it('returns the full range when the window is inactive or absent', () => {
 		expect(sliceWindow(10, undefined)).toEqual({ start: 0, end: 10 });
-	});
-
-	it('returns every sized child when the window is inactive', () => {
-		expect(sliceWindow(10, inactive(10))).toEqual({ start: 0, end: 10 });
-	});
-
-	// VR-14. Missed: no case fed a window sized for fewer children than the list holds, and the
-	// one spec that swaps a small document for a large one passed while mounting every block.
-	it('mounts only the sized children when an inactive window is older than the children', () => {
-		expect(sliceWindow(78_000, inactive(1))).toEqual({ start: 0, end: 1 });
+		expect(sliceWindow(10, { ...active(2, 5), active: false })).toEqual({ start: 0, end: 10 });
 	});
 
 	it('returns the window range when active', () => {

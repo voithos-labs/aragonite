@@ -7,7 +7,8 @@ import {
 	TOP_LEVEL_HOSTS,
 	cstBlockCount,
 	mountedViewportSpan,
-	spacerCount
+	spacerCount,
+	startCountingHostChanges
 } from './vr-helpers';
 import { capturePageErrors } from '../../page-probes';
 
@@ -35,32 +36,6 @@ function allHostCount(page: Page): Promise<number> {
 	return page.evaluate(() => document.querySelectorAll('[data-block-path]').length);
 }
 
-/** Counts every block host added to the editor from now on, including any mounted and torn
- *  down within one flush, which the settled DOM and the mount balance both hide. */
-async function startCountingHostMounts(page: Page): Promise<() => Promise<number>> {
-	await page.evaluate(() => {
-		const w = window as any;
-		w.__hostMounts = 0;
-		w.__countHostMounts = (records: MutationRecord[]) => {
-			for (const record of records)
-				for (const added of record.addedNodes)
-					if (added instanceof Element && added.matches('[data-block-path]')) w.__hostMounts++;
-		};
-		w.__hostMountObserver = new MutationObserver(w.__countHostMounts);
-		w.__hostMountObserver.observe(document.querySelector('.editor')!, {
-			childList: true,
-			subtree: true
-		});
-	});
-	return () =>
-		page.evaluate(() => {
-			const w = window as any;
-			w.__countHostMounts(w.__hostMountObserver.takeRecords());
-			w.__hostMountObserver.disconnect();
-			return w.__hostMounts as number;
-		});
-}
-
 test('windowing bounds the mounted set on a multi-thousand-block doc', async ({ page }) => {
 	const pageErrors = capturePageErrors(page);
 	const editor = new EditorPage(page);
@@ -77,11 +52,11 @@ test('windowing bounds the mounted set on a multi-thousand-block doc', async ({ 
 		(window as any).__test.perf.reset();
 	});
 
-	// The one-block document's window is inactive and sized for one block; the swap must not
-	// read that as "mount everything" for the pass before the window catches up.
-	const hostMountsDuringSwap = await startCountingHostMounts(page);
+	// The swap is windowed from its first render pass, so it mounts the final band and not the
+	// one-block document's "every block" over the new children.
+	const hostChangesDuringSwap = await startCountingHostChanges(page);
 	const blockCount = await editor.loadLargeFixture('many-small-blocks', FIXTURE_BYTES);
-	const mountedDuringSwap = await hostMountsDuringSwap();
+	const mountedDuringSwap = (await hostChangesDuringSwap()).added;
 
 	// `many-small-blocks` is flat, with no nested hosts, so counting top-level blocks in the
 	// DOM gives exactly the mounted window and the bound is unambiguous.
@@ -95,7 +70,8 @@ test('windowing bounds the mounted set on a multi-thousand-block doc', async ({ 
 	expect(blockCount).toBeGreaterThan(2000);
 	expect(domMounted).toBeLessThan(60);
 	expect(domMounted).toBeLessThan(blockCount / 10);
-	expect(mountedDuringSwap).toBeLessThan(2 * domMounted);
+	// The measure pass after the first render may shift the band by its six blocks of overscan.
+	expect(mountedDuringSwap).toBeLessThanOrEqual(domMounted + 6);
 	// Check the counter against the live count; they should agree to within the one block the
 	// total was reset on.
 	expect(Math.abs(balance - domMounted)).toBeLessThanOrEqual(2);
