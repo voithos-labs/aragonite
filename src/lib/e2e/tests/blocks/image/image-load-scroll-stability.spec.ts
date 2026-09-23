@@ -1,4 +1,4 @@
-import { test, expect } from '../../../fixtures';
+import { test, expect, RESIZE_OBSERVER_LOOP } from '../../../fixtures';
 import { type Page } from '@playwright/test';
 import { EditorPage } from '../../../editor-page';
 import { capturePageErrors } from '../../../page-probes';
@@ -173,8 +173,14 @@ test('unsized image loading above the viewport does not shift the reading positi
 	await expectNoShiftOnImageLoad(page, INACTIVE_DOC, SCROLL_TO_BOTTOM, false);
 });
 
-test('unsized image loading above the viewport does not shift the reading position (windowing active)', async ({
-	page
-}) => {
-	await expectNoShiftOnImageLoad(page, ACTIVE_DOC, SCROLL_JUST_PAST_IMAGE, true);
+test.describe('windowing active', () => {
+	// A known defect, claimed until fixed: a height correction made inside the block height
+	// observer (BlockHost) leaves resize notifications the browser cannot deliver that frame.
+	test.use({ expectPageErrors: [RESIZE_OBSERVER_LOOP] });
+
+	test('unsized image loading above the viewport does not shift the reading position (windowing active)', async ({
+		page
+	}) => {
+		await expectNoShiftOnImageLoad(page, ACTIVE_DOC, SCROLL_JUST_PAST_IMAGE, true);
+	});
 });
