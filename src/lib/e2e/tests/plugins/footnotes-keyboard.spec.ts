@@ -1,7 +1,7 @@
 import { test, expect } from '../../fixtures';
 import type { Locator } from '@playwright/test';
 import { expectNoNewA11yViolations } from '../../a11y/axe-helper';
-import { focusedStop } from '../../page-probes';
+import { focusedBlockSurface } from '../../page-probes';
 import { PluginsPage, blockView, capturedErrors, textRunCenter } from './helpers';
 
 // Following a footnote from the keyboard (requirements/plugins/footnotes-keyboard.md): both
@@ -97,9 +97,9 @@ test.describe('footnotes: no tab stop in the editing modes', () => {
 		await expect(editor.defMarker(1)).not.toHaveAttribute('tabindex');
 
 		await editor.pressFromText([2, 0], 'Second', 'Shift+Tab');
-		expect(await focusedStop(page)).toEqual({ path: [1, 0], isSurface: true });
+		expect(await focusedBlockSurface(page)).toEqual({ path: [1, 0], isSurface: true });
 		await page.keyboard.press('Shift+Tab');
-		expect(await focusedStop(page)).toEqual({ path: [0], isSurface: true });
+		expect(await focusedBlockSurface(page)).toEqual({ path: [0], isSurface: true });
 		expect(await capturedErrors(page)).toEqual([]);
 	});
 });

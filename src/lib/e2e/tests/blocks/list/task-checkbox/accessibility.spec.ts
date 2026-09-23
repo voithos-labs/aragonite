@@ -1,6 +1,6 @@
 import { test, expect } from '../../../../fixtures';
 import { EditorPage } from '../../../../editor-page';
-import { focusedStop } from '../../../../page-probes';
+import { focusedBlockSurface } from '../../../../page-probes';
 
 test.describe('task checkbox: accessibility', () => {
 	let editor: EditorPage;
@@ -48,7 +48,7 @@ test.describe('task checkbox: accessibility', () => {
 		await expect(page.locator('.task-checkbox').first()).not.toHaveAttribute('tabindex');
 		await editor.focusBlockStart(1);
 		await page.keyboard.press('Shift+Tab');
-		expect(await focusedStop(page)).toEqual({ path: [0, 0, 0], isSurface: true });
+		expect(await focusedBlockSurface(page)).toEqual({ path: [0, 0, 0], isSurface: true });
 	});
 
 	test('Mod+Enter in a plain list item changes nothing', async ({ page }) => {
