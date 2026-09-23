@@ -133,6 +133,35 @@ describe('applySelectionToDom: restore routing', () => {
 		expect(s.isCrossBlock).toBe(false);
 	});
 
+	// A backward snapshot keeps its direction on restore; a range built from its two ends in
+	// order would collapse to a caret at the focus.
+	it('restores a backward single-block range with the anchor after the focus', () => {
+		const doc = parse('paragraph one\n');
+		const s = createSelectionState({ getDoc: () => doc });
+		const block = document.createElement('div');
+		block.setAttribute('contenteditable', 'true');
+		const content = document.createTextNode('paragraph one');
+		block.appendChild(content);
+		document.body.appendChild(block);
+		// Focused first: jsdom's focus() on an editing host resets the selection, which a browser
+		// only does when the selection sits outside the host.
+		block.focus();
+
+		const placed = applySelectionToDom(
+			{ anchor: { path: [0], offset: 9 }, focus: { path: [0], offset: 3 } },
+			s,
+			() => block
+		);
+
+		const sel = window.getSelection()!;
+		expect(placed).toBe(true);
+		expect(sel.anchorNode).toBe(content);
+		expect(sel.anchorOffset).toBe(9);
+		expect(sel.focusNode).toBe(content);
+		expect(sel.focusOffset).toBe(3);
+		document.body.replaceChildren();
+	});
+
 	it('puts the caret the restore caret in the focus cell for an intra-table rect', () => {
 		const doc = parse(TABLE_ONLY);
 		const s = createSelectionState({ getDoc: () => doc });
