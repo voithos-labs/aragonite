@@ -718,7 +718,7 @@ Two terms before the table. A **chord** is one key plus its modifiers, written a
 
 Shifted symbols aren't modeled: `Shift+1` reaches the editor as whatever symbol the keyboard layout produces, so bind digits and letters (`Mod+7`), never the shifted symbol.
 
-This table is for a reader. An app deriving an accelerator map should read `editor.reservedChords()` instead, since that set is composed from the live keymaps and covers chords claimed outside them (see [Which shortcuts the editor consumes](#which-shortcuts-the-editor-consumes)). The selection chords are one example: Shift+Arrow to extend a selection, `Mod+Shift+Home` / `Mod+Shift+End`, and the repeated `Mod+A` escalation go through the cross-block selection code rather than the keymap, so they aren't rebindable and aren't listed here.
+This table is for a reader. Bundled plugins list their chords here under their own family; a third-party plugin documents its own. An app deriving an accelerator map should read `editor.reservedChords()` instead, since that set is composed from the live keymaps and covers chords claimed outside them (see [Which shortcuts the editor consumes](#which-shortcuts-the-editor-consumes)). The selection chords are one example: Shift+Arrow to extend a selection, `Mod+Shift+Home` / `Mod+Shift+End`, and the repeated `Mod+A` escalation go through the cross-block selection code rather than the keymap, so they aren't rebindable and aren't listed here.
 
 Right-clicking any cell opens the table's action menu: cut/copy/paste, Row and Column flyouts (insert, move), the two deletes, and the column's alignment. Shift+F10 or the Context Menu key opens it from the keyboard. A table has no per-row or per-column grips — its one drag handle, in the editor's gutter, moves the whole table.
 
@@ -765,8 +765,14 @@ Right-clicking any cell opens the table's action menu: cut/copy/paste, Row and C
 | Copy / cut a selected image         | `Mod+C` / `Mod+X`                                                               |
 | **Images**                          |                                                                                 |
 | Resize a selected image             | `Shift+←` / `Shift+→`                                                           |
+| **Admonitions**                     |                                                                                 |
+| Cycle the admonition kind           | `Mod+7` (in an admonition; needs `admonitionsPlugin`)                           |
+| Move from the title into the body   | `Enter` (in the title; needs `admonitionsPlugin`)                               |
+| **Details**                         |                                                                                 |
+| Move from the summary into the body | `Enter` (in the summary; needs `detailsPlugin`)                                 |
 | **Mermaid diagrams**                |                                                                                 |
 | Finish editing a diagram            | `Mod+Enter` (in the diagram's source box; `Esc` cancels; needs `mermaidPlugin`) |
+| Open the diagram's focus view       | `Mod+M` (the diagram focused; `Esc` closes it; needs `mermaidPlugin`)           |
 | **Slash commands**                  |                                                                                 |
 | Open the list at the caret          | `Mod+/` (types the `/` for you; needs `slashCommandsPlugin`)                    |
 

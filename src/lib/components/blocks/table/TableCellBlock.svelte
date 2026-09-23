@@ -84,6 +84,7 @@
 		type CellAnchor
 	} from './cell-pointer';
 	import { createCellRender } from './cell-render';
+	import { useBlockDecorations } from '../../../decorations/use-block-decorations.svelte';
 	import type { IndexedDecoration } from '../../../decorations/buckets';
 	import type { ReplaceDecoration, WidgetDecoration } from '../../../decorations/types';
 	import { createWidgetInteraction } from '../text/widget-interaction';
@@ -184,6 +185,16 @@
 	};
 
 	let el: HTMLDivElement | undefined = $state();
+
+	// The cell renders no block host, so its own element carries the decorations addressed to it.
+	const blockDecorations = useBlockDecorations({
+		getPath: () => myPath,
+		getEl: () => el ?? null,
+		engine: decorationEngine,
+		onRenderError: (error) => editorEvents?.emit('error', error),
+		badgeRefusal: "a table cell's children are its editable text, re-rendered on every edit"
+	});
+
 	let composing = $state(false);
 	// A widget's shown source lives only in the DOM, so `onInput` skips the per-keystroke CST
 	// commit and the cell commits once when it is hidden, as TextEditableBlock does.
@@ -1101,7 +1112,7 @@
 <div
 	bind:this={el}
 	tabindex="0"
-	class="table-cell"
+	class={['table-cell', ...blockDecorations.classes]}
 	contenteditable={readOnly ? 'false' : 'true'}
 	role={isHeaderRow ? 'columnheader' : 'cell'}
 	style:text-align={alignment === 'none' ? undefined : alignment}

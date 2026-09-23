@@ -208,7 +208,7 @@ function openLink(
 
 	const lastChild = children[children.length - 1];
 	// The close marker splits into the text bracket's `]` and the trailing marker. Reference forms
-	// get their own `md-ref-label` class so CSS can dim them harder than inline markers.
+	// get their own `md-ref-label` class so CSS can style the label as metadata.
 	const closingTextBracket =
 		lastChild.end < node.end && raw[lastChild.end] === ']'
 			? raw.slice(lastChild.end, lastChild.end + 1)

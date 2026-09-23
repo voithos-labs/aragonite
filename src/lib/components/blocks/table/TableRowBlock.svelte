@@ -29,6 +29,7 @@
 		type NodeScope
 	} from '../../../editor-actions/nested/nested-actions';
 	import { publishRefSlot, type RefSlots } from '../../../reactivity/publish-ref.svelte';
+	import { useBlockDecorations } from '../../../decorations/use-block-decorations.svelte';
 	import TableCellBlock from './TableCellBlock.svelte';
 
 	let {
@@ -57,7 +58,8 @@
 	const parentBlockEdit = getContext<BlockEditActions>(BLOCK_EDIT_KEY);
 	const parentFocus = getContext<FocusActions>(FOCUS_KEY);
 	const parentContainerEdit = getContext<ContainerEditActions>(CONTAINER_EDIT_KEY);
-	const { stickyColumn, registryView } = getContext<EditorServices>(EDITOR_SERVICES_KEY);
+	const { stickyColumn, registryView, decorations, events } =
+		getContext<EditorServices>(EDITOR_SERVICES_KEY);
 	const getPresentationMode = getContext<EditorPolicies | undefined>(
 		EDITOR_POLICIES_KEY
 	)?.presentationMode;
@@ -69,6 +71,15 @@
 	const parentSink = getContext<ParentScopeSink | undefined>(PARENT_SCOPE_SINK_KEY);
 
 	useMountGauge();
+
+	// The row renders no block host, so its own element carries the decorations addressed to it.
+	const blockDecorations = useBlockDecorations({
+		getPath: () => myPath,
+		getEl: () => rowEl ?? null,
+		engine: decorations,
+		onRenderError: (error) => events.emit('error', error),
+		badgeRefusal: 'a table row renders no box of its own to hold one'
+	});
 
 	// A `display: contents` row has no box, so measure a cell: every cell stretches to
 	// the grid row track, making its border-box height the row height. Enrolling in the
@@ -197,7 +208,12 @@
 
 <!-- No whitespace between the row and its cells: a stray text node joins the table's
 	raw-offset traversal and misplaces a remembered cross-block caret. -->
-<div bind:this={rowEl} class="table-row" role="row" data-table-row-idx={rowIdx}>
+<div
+	bind:this={rowEl}
+	class={['table-row', ...blockDecorations.classes]}
+	role="row"
+	data-table-row-idx={rowIdx}
+>
 	{#each node.children ?? [] as cellNode, colIdx (cellsState.innerBlockIds[colIdx])}
 		<TableCellBlock
 			node={cellNode}

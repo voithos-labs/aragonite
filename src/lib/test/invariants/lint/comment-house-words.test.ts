@@ -251,7 +251,7 @@ const DOC_BASELINE: Record<string, number> = {
 	'design/caret-placement.md': 1,
 	'design/editor.md': 0,
 	'design/inline-parsing.md': 0,
-	'design/invariants.md': 147,
+	'design/invariants.md': 145,
 	'design/live-mode.md': 0,
 	'design/performance.md': 1,
 	'design/plugin-contract.md': 82,

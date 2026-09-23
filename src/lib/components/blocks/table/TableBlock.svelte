@@ -741,7 +741,7 @@
 		border: 1px solid var(--color-border, #3e3e3b);
 		border-radius: 3px;
 		background: var(--color-bg-secondary, rgba(128, 128, 128, 0.12));
-		color: var(--color-ui-muted, #8f8f89);
+		color: var(--color-ui-muted, #93938d);
 		cursor: pointer;
 		opacity: 0;
 		transition: opacity 120ms ease-out;

@@ -235,7 +235,7 @@
 		border: none;
 		border-radius: 6px;
 		background: transparent;
-		color: var(--color-ui-muted, #8f8f89);
+		color: var(--color-ui-muted, #93938d);
 		cursor: pointer;
 	}
 	.md-link-card-btn:hover:not(:disabled),

@@ -1,4 +1,4 @@
-import { test, expect } from '../../fixtures';
+import { test, expect, RESIZE_OBSERVER_LOOP } from '../../fixtures';
 import type { Locator, Page } from '@playwright/test';
 import { PluginsPage } from '../plugins/helpers';
 import { capturePageErrors } from '../../page-probes';
@@ -111,6 +111,10 @@ const imageHostHeight = (page: Page) =>
 	});
 
 test.describe('reveal anchor: the pin names the full target path', () => {
+	// A known defect, claimed until fixed (#423): a height correction made inside the block
+	// height observer (BlockHost) leaves resize notifications the browser cannot deliver that frame.
+	test.use({ expectPageErrors: [RESIZE_OBSERVER_LOOP] });
+
 	test('a nested target survives a measure pass that lands after the reveal settles', async ({
 		page
 	}) => {

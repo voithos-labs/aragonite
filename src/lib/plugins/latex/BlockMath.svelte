@@ -329,7 +329,7 @@
 		border: none;
 		border-radius: 5px;
 		background: transparent;
-		color: var(--color-ui-muted, #8f8f89);
+		color: var(--color-ui-muted, #93938d);
 		cursor: pointer;
 		opacity: 0;
 		transition: opacity 120ms ease-out;

@@ -66,3 +66,17 @@ describe('renderInlineNodes: bare autolink forms carry no brackets', () => {
 		expect(div.textContent).toBe(raw);
 	});
 });
+
+describe('renderInlineNodes: an address as a link text', () => {
+	it.each(['[foo@bar.com](u)', '[https://x.co](u)', '[www.x.co](u)'])(
+		'%s renders one anchor whose text is the address',
+		(raw) => {
+			const div = renderedInto(raw);
+			const anchors = div.querySelectorAll('a');
+			expect(anchors).toHaveLength(1);
+			expect(anchors[0].getAttribute('href')).toBe('u');
+			expect(anchors[0].textContent).toContain(raw.slice(1, raw.indexOf(']')));
+			expect(div.textContent).toBe(raw);
+		}
+	);
+});

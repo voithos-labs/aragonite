@@ -357,7 +357,7 @@
 		width: 34px;
 		height: 30px;
 		padding: 0;
-		color: var(--color-ui-muted, #8f8f89);
+		color: var(--color-ui-muted, #93938d);
 	}
 	.selection-toolbar-mark:hover:not(:disabled),
 	.selection-toolbar-mark[aria-pressed='true'] {

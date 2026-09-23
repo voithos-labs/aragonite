@@ -71,7 +71,7 @@ const INFLATION_ALLOWLIST: readonly InflationException[] = [
 	{
 		spec: 'perf/perf-gate.perf.spec.ts',
 		reason:
-			'two parametrized loops run 13 gated rows, and the bullets state budget, baseline policy and what the gate cannot see rather than scenarios'
+			'three parametrized loops run 17 gated rows, and the bullets state budget, baseline policy and what the gate cannot see rather than scenarios'
 	},
 	{
 		spec: 'perf/vr-reveal-anchor.spec.ts',
