@@ -153,4 +153,20 @@ test.describe('the caret a held drag shows', () => {
 		await editor.waitForNoSourceMutation();
 		expect(await page.evaluate(() => (window as any).__test.getSource())).toBe(TWO);
 	});
+
+	// A copy leaves its source in place, so it can write inside the range a move could not.
+	test('a copy held over a landing inside the dragged range shows one', async ({ page }) => {
+		await editor.clickBlockAtPath([0], 0);
+		// "alpha beta", whose "beta" starts strictly inside it.
+		for (let i = 0; i < 10; i++) await page.keyboard.press('Shift+ArrowRight');
+		await page.keyboard.down('Control');
+		await holdOver(page, await runCenter(page, 'alpha'), await runStart(page, 'beta'));
+
+		await expect(page.locator('.drop-caret')).toHaveCount(1);
+
+		await page.mouse.up();
+		await page.keyboard.up('Control');
+		await editor.bridge.waitForSourceEquals('alpha alpha betabeta gamma\n\nsecond para here\n');
+		await expect(page.locator('.drop-caret')).toHaveCount(0);
+	});
 });
