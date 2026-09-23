@@ -49,6 +49,20 @@ export function imageFieldsFromInline(image: InlineNode): ImageFields {
 	};
 }
 
+export function sameImageFields(a: ImageFields, b: ImageFields): boolean {
+	return (
+		a.alt === b.alt &&
+		a.url === b.url &&
+		a.title === b.title &&
+		a.width === b.width &&
+		a.height === b.height &&
+		a.label === b.label &&
+		a.crop?.x === b.crop?.x &&
+		a.crop?.y === b.crop?.y &&
+		a.crop?.z === b.crop?.z
+	);
+}
+
 // ── The GFM serializer ──────────────────────────────────────────────────────
 
 /** The inverse of the built-in grammar. Reach it through `buildImageEditBytes`, the only

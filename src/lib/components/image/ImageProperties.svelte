@@ -31,7 +31,9 @@
 		/** The popover decides it has changes by comparing bytes, and what those bytes are
 		 *  is the image write path's to decide. */
 		buildBytes: (target: WidgetTarget, fields: ImageFields) => string | null;
-		onCommit: (target: WidgetTarget, newFields: ImageFields) => void;
+		/** `fields` goes back with each write, so a draft for an image the document has since
+		 *  replaced is dropped. */
+		onCommit: (target: WidgetTarget, seenFields: ImageFields, newFields: ImageFields) => void;
 		onRemove: (target: WidgetTarget) => void;
 		onDismiss: () => void;
 		/** The column width: the widest frame a corner drag can open. */
@@ -106,7 +108,7 @@
 		// Set now rather than when the write lands, so a blur and the unmount that follows
 		// it cannot commit the same draft twice.
 		seedBytes = newBytes;
-		onCommit(target, next);
+		onCommit(target, fields, next);
 	}
 
 	function toggleField() {
@@ -204,7 +206,7 @@
 		snapshot = null;
 		cropping = false;
 		seedBytes = buildBytes(target, next);
-		onCommit(target, next);
+		onCommit(target, fields, next);
 	}
 
 	function onCropPointerDown(e: PointerEvent) {

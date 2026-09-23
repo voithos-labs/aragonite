@@ -22,8 +22,8 @@ const warnings = (): string[] => takeDevWarns().map((w) => `[${w.tag}] ${w.messa
 describe('a declined image edit says which inline syntax handler declined and why', () => {
 	it('names the inline syntax handler and the missing hook when none was registered', () => {
 		registerWikiRung();
-		const { committer, controller, target } = committerFor(SOURCE);
-		committer.commitImageEdit(target, RESIZED);
+		const { committer, controller, target, seen } = committerFor(SOURCE);
+		committer.commitImageEdit(target, seen, RESIZED);
 		expect(controller.commitStructural).not.toHaveBeenCalled();
 		const fires = warnings();
 		expect(fires).toHaveLength(1);
@@ -36,8 +36,8 @@ describe('a declined image edit says which inline syntax handler declined and wh
 	// this edit" send a plugin author to different places.
 	it('distinguishes a hook that declined this particular edit', () => {
 		registerWikiRung(rewriteWikiImage);
-		const { committer, controller, target } = committerFor(SOURCE);
-		committer.commitImageEdit(target, { ...RESIZED, title: 'Cat' });
+		const { committer, controller, target, seen } = committerFor(SOURCE);
+		committer.commitImageEdit(target, seen, { ...RESIZED, title: 'Cat' });
 		expect(controller.commitStructural).not.toHaveBeenCalled();
 		const fires = warnings();
 		expect(fires).toHaveLength(1);
@@ -48,8 +48,8 @@ describe('a declined image edit says which inline syntax handler declined and wh
 	// source unchanged, so nothing refuses and the equality check drops it in silence.
 	it('says nothing when a hook returns the bytes it was given', () => {
 		registerWikiRung(() => '![[cat.png|300]]');
-		const { committer, controller, target } = committerFor(SOURCE);
-		committer.commitImageEdit(target, RESIZED);
+		const { committer, controller, target, seen } = committerFor(SOURCE);
+		committer.commitImageEdit(target, seen, RESIZED);
 		expect(controller.commitStructural).not.toHaveBeenCalled();
 		expect(warnings()).toEqual([]);
 	});

@@ -5,9 +5,11 @@
 
 import { vi } from 'vitest';
 import { createImageEditCommitter } from '../../components/image/image-edit-commit';
+import { imageFieldsFromInline } from '../../components/image/image-source-bytes';
+import { getInlineContent } from '../../core/inline/inline-cache';
 import { parse } from '../../core/parser';
 import { makeStubController } from '../harness/editor-actions';
-import type { Document } from '../../core/nodes';
+import type { CstNode, Document, ImageFields } from '../../core/nodes';
 import type { UndoController } from '../../editor-actions/deps';
 import type { EditorEvents } from '../../editor-events';
 import type { WidgetSelectionState } from '../../components/image/widget-selection-state.svelte';
@@ -18,6 +20,8 @@ export interface CommitterHarness {
 	doc: Document;
 	/** The edit target at the paragraph's start that these suites drive. */
 	target: { paragraphPath: number[]; sourceStart: number; preSelectOffset: number };
+	/** The fields of the image at `target`, as a popover showing it would pass them back. */
+	seen: ImageFields;
 }
 
 export function committerFor(raw: string): CommitterHarness {
@@ -30,10 +34,14 @@ export function committerFor(raw: string): CommitterHarness {
 		controller,
 		events: { emit: vi.fn(), on: vi.fn() } as unknown as EditorEvents
 	});
+	const image = getInlineContent(doc.children[0] as CstNode).find(
+		(node) => node.kind === 'image' && node.start === 0
+	);
 	return {
 		committer,
 		controller,
 		doc,
-		target: { paragraphPath: [0], sourceStart: 0, preSelectOffset: 0 }
+		target: { paragraphPath: [0], sourceStart: 0, preSelectOffset: 0 },
+		seen: image ? imageFieldsFromInline(image) : { alt: '', url: '' }
 	};
 }
