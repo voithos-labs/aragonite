@@ -1,10 +1,11 @@
 // @vitest-environment jsdom
-import { describe, it, expect, afterEach, beforeEach } from 'vitest';
+import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest';
 import { allowDevWarns } from '$lib/test/support/warn-gate';
 import { createContainerBlockComponent } from '$lib/editor-actions/container-block-component';
 import {
 	WHOLE_BLOCK_INPUT_ATTR,
 	composeWholeBlockFocusSurface,
+	createWholeBlockInputProxy,
 	holdsWholeBlockFocus,
 	isEditableEventTarget,
 	isWholeBlockInputProxy,
@@ -12,6 +13,13 @@ import {
 } from '$lib/editor-actions/whole-block-focus-surface';
 import type { AnyBlockKind, CstNode } from '$lib/core/nodes';
 import { makeShimDeps } from '$lib/test/harness/editor-actions';
+
+// The proxy factory mounts its host in `onMount`; outside a component the test runs the callback.
+const mountCallbacks = vi.hoisted(() => [] as (() => unknown)[]);
+vi.mock('svelte', async (original) => ({
+	...(await original<typeof import('svelte')>()),
+	onMount: (fn: () => unknown) => mountCallbacks.push(fn)
+}));
 
 // The hidden editing host is contenteditable, so every check that asks "is a plugin's own
 // editor holding this?" would answer yes about the editor's own host. These are the three
@@ -38,6 +46,7 @@ function proxyIn(host: HTMLElement): HTMLElement {
 
 beforeEach(() => {
 	document.body.innerHTML = '';
+	mountCallbacks.length = 0;
 });
 
 describe('the editing host is not a plugin editable', () => {
@@ -125,5 +134,30 @@ describe('container shim routing through the host', () => {
 		elsewhere.tabIndex = 0;
 		elsewhere.focus();
 		expect(shimApi.getCursorOffset()).toBeNull();
+	});
+});
+
+// Miss-analysis: the only label pin mounted a divider, whose name never changes, so no test
+// asked whether a name read at mount could go stale.
+describe('the editing host names its block', () => {
+	it('reads the name again on each focus, so a changed name is the one announced', () => {
+		const boxEl = box();
+		const declared = attach(document.createElement('div'));
+		let label = 'Chart';
+		const proxy = createWholeBlockInputProxy({
+			getBoxEl: () => boxEl,
+			getFocusEl: () => declared,
+			isReading: () => false,
+			getLabel: () => label,
+			mint: () => {}
+		});
+		mountCallbacks.forEach((run) => run());
+		expect(proxy.el()?.getAttribute('aria-label')).toBe('Chart');
+
+		label = 'Diagramme';
+		proxy.focus(declared);
+
+		expect(document.activeElement).toBe(proxy.el());
+		expect(proxy.el()?.getAttribute('aria-label')).toBe('Diagramme');
 	});
 });
