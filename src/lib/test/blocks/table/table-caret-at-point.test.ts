@@ -8,6 +8,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { CURSOR_END } from '../../../block-component';
 import { registerBuiltInBlocks } from '../../../components/built-in-blocks';
 import { tableCaretAtPoint } from '../../../components/blocks/table/table-caret-at-point';
+import { mountTableGrid } from '../../selection/table-grid';
 
 registerBuiltInBlocks();
 import { tryGetBlockKindDescriptor } from '../../../schema/block-kind-descriptor';
@@ -18,50 +19,33 @@ const CELL_WIDTH = 100;
 const ROW_HEIGHT = 20;
 const GRID_LEFT = 100;
 const GRID_TOP = 50;
+const GRID_BOX = {
+	left: GRID_LEFT,
+	right: GRID_LEFT + 3 * CELL_WIDTH,
+	top: GRID_TOP,
+	bottom: GRID_TOP + 2 * ROW_HEIGHT
+};
 
 describe('tableCaretAtPoint', () => {
 	let wrapper: HTMLElement;
+	let cells: HTMLElement[][];
 
 	beforeEach(() => {
-		wrapper = document.createElement('div');
-		wrapper.setAttribute('data-block-path', '[0]');
-		wrapper.setAttribute('data-block-kind', 'table');
-		const table = document.createElement('div');
-		table.setAttribute('role', 'table');
-		wrapper.appendChild(table);
-		for (let r = 0; r < 2; r++) {
-			const row = document.createElement('div');
-			row.setAttribute('data-table-row-idx', String(r));
-			table.appendChild(row);
-			for (let c = 0; c < 3; c++) {
-				const cell = document.createElement('div');
-				cell.setAttribute('role', 'cell');
-				stubRect(cell, {
-					left: GRID_LEFT + c * CELL_WIDTH,
-					top: GRID_TOP + r * ROW_HEIGHT
-				});
-				row.appendChild(cell);
-			}
-		}
+		({ host: wrapper, cells } = mountTableGrid({ path: [0], rows: 2, cols: 3, box: GRID_BOX }));
 		document.body.appendChild(wrapper);
 	});
 
 	afterEach(() => wrapper.remove());
 
-	function stubRect(cell: HTMLElement, at: { left: number; top: number }): void {
-		cell.getBoundingClientRect = () =>
-			({
-				left: at.left,
-				right: at.left + CELL_WIDTH,
-				top: at.top,
-				bottom: at.top + ROW_HEIGHT
-			}) as DOMRect;
-	}
-
 	const at = (x: number, y: number) => tableCaretAtPoint(wrapper, x, y);
 
 	it('lands at the end of the cell the point is inside', () => {
 		expect(at(GRID_LEFT + 150, GRID_TOP + 10)).toEqual({ path: [0, 1], offset: CURSOR_END });
+	});
+
+	it('lands in a column header of row 0 like any other cell', () => {
+		expect(cells[0][2].matches('[role="columnheader"]')).toBe(true);
+		expect(at(GRID_LEFT + 250, GRID_TOP + 5)).toEqual({ path: [0, 2], offset: CURSOR_END });
 	});
 
 	it('maps x to the nearest column for a point in the gutter before the first column', () => {
