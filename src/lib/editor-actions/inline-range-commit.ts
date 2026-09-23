@@ -1,21 +1,19 @@
 /**
- * Rewrite a byte range inside one leaf's raw as a single undo entry. The inline popovers
- * (image properties, link card) all write their bytes this way, so the choice of commit
- * (top-level or container) and the no-op discard live here rather than in each popover.
+ * Rewrite a byte range inside one leaf's raw as a single undo entry. The inline popovers and the
+ * inline menus all write their bytes this way, through the content write every keystroke takes, so
+ * a splice that fills or empties a blank line keeps the separators a reload reads.
  */
 
-import type { CstNode, Document } from '../core/nodes';
+import type { Document } from '../core/nodes';
 import type { DocumentView, NodeView } from '../core/node-views';
 import { docPathFrom } from '../cursor/coordinate-spaces';
 import { expectStateForNode } from '../reactivity/state-registry';
 import type { GrammarView } from '../schema/block-openers';
-import {
-	isBlockNode,
-	nodeAt,
-	normalizeOwnRaw,
-	writeOwnRaw
-} from '../tree-operations/node-primitives';
+import { updateNodeContent } from '../tree-operations/content-write';
+import { isBlockNode, nodeAt, normalizeOwnRaw } from '../tree-operations/node-primitives';
+import { stampStructuralChange } from '../tree-operations/structural-change';
 import { ensureUnsharedChild, ensureUnsharedPath } from '../tree-operations/unshare';
+import { scopeParentOf } from './block-edit-scope';
 import type { UndoController } from './deps';
 
 export interface InlineRangeCommitDeps {
@@ -62,17 +60,32 @@ export function createInlineRangeCommit(deps: InlineRangeCommitDeps): InlineRang
 			detail: { length: legal.length },
 			eventPath: docPathFrom(path)
 		};
-		const writeRaw = (node: CstNode) => {
-			writeOwnRaw(node, newRaw, deps.grammar);
-		};
-
 		if (path.length === 1) {
 			await controller.commitStructural({
 				snapshot,
 				mutate: (children) => {
-					const [owned] = ensureUnsharedPath({ children }, [leafIdx], controller.sharing);
-					writeRaw(owned);
-					return { op: 'noop' as const };
+					ensureUnsharedPath({ children }, [leafIdx], controller.sharing);
+					const doc = deps.getDoc();
+					const parent = {
+						children,
+						ownerKind: undefined,
+						owner: undefined,
+						get suffix() {
+							return doc.suffix;
+						},
+						set suffix(value: string) {
+							doc.suffix = value;
+						}
+					};
+					const { change } = updateNodeContent(
+						parent,
+						leafIdx,
+						newRaw,
+						deps.grammar,
+						controller.sharing
+					);
+					stampStructuralChange(children, change, controller.sharing);
+					return change;
 				},
 				op
 			});
@@ -91,8 +104,16 @@ export function createInlineRangeCommit(deps: InlineRangeCommitDeps): InlineRang
 			state: expectStateForNode(container),
 			snapshot,
 			mutate: (scope) => {
-				writeRaw(ensureUnsharedChild(scope.node, leafIdx, scope.sharing));
-				return { op: 'noop' as const };
+				ensureUnsharedChild(scope.node, leafIdx, scope.sharing);
+				const { change } = updateNodeContent(
+					scopeParentOf(scope),
+					leafIdx,
+					newRaw,
+					deps.grammar,
+					scope.sharing
+				);
+				stampStructuralChange(scope.children, change, scope.sharing);
+				return change;
 			},
 			op
 		});

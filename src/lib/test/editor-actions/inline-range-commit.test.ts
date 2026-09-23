@@ -4,6 +4,8 @@ import { makeNestedHarness, makeTopHarness } from '$lib/test/harness/editor-acti
 import { rangeSelectionOf } from '$lib/test/support/undo-entry';
 import type { EditEvent } from '$lib/editor-events';
 import { allowDevWarns } from '$lib/test/support/warn-gate';
+import { parse } from '$lib/core/parser';
+import { serialize } from '$lib/core/serializer';
 
 // The container fixtures are hand-built, not parser output, so the dev-mode stale-raw check
 // reads them as stale.
@@ -88,5 +90,45 @@ describe('inline-range commit: nested', () => {
 
 		expect(edits).toHaveLength(1);
 		expect(edits[0]).toMatchObject({ op: 'updateContent', path: [0, 0] });
+	});
+});
+
+// Miss-analysis: every splice here wrote over existing bytes, and the one `open()` e2e typed its
+// trigger mid-word, so no test ever filled or emptied a blank paragraph through this path.
+describe('inline-range commit: a blank paragraph filled or emptied', () => {
+	/** What a reload of the saved bytes reads, next to what the tree holds. */
+	function reloadDiff(doc: { children: readonly { kind: string }[] }) {
+		const reloaded = parse(serialize(doc as never)).children.map((node) => node.kind);
+		return { live: doc.children.map((node) => node.kind), reloaded };
+	}
+
+	it('filling the blank line Enter made keeps a blank line on both sides of it', async () => {
+		const h = makeTop('Above\n\n\nBelow\n');
+		expect(h.doc.children.map((node) => node.raw.trim())).toEqual(['Above', '', 'Below']);
+		await h.commit.commitInlineRange([1], 0, 0, '/', 1);
+		expect(serialize(h.doc)).toBe('Above\n\n/\n\nBelow\n');
+		const { live, reloaded } = reloadDiff(h.doc);
+		expect(reloaded).toEqual(live);
+	});
+
+	it('emptying a line leaves the blank paragraph a reload reads back', async () => {
+		const h = makeTop('Above\n\n/quote\n\nBelow\n');
+		await h.commit.commitInlineRange([1], 0, 6, '', 0);
+		const { live, reloaded } = reloadDiff(h.doc);
+		expect(reloaded).toEqual(live);
+		expect(parse(serialize(h.doc)).children.map((node) => node.raw)).toEqual(
+			h.doc.children.map((node) => node.raw)
+		);
+	});
+
+	it('emptying a line inside a container does the same', async () => {
+		const h = makeNestedHarness('> Above\n>\n> /quote\n>\n> Below\n');
+		const commit = createInlineRangeCommit({ getDoc: () => h.deps.doc, controller: h.controller });
+		await commit.commitInlineRange([0, 1], 0, 6, '', 0);
+		const quote = h.deps.doc.children[0];
+		const reloaded = parse(serialize(h.deps.doc)).children[0];
+		expect(reloaded.children?.map((node) => node.raw)).toEqual(
+			quote.children?.map((node) => node.raw)
+		);
 	});
 });
