@@ -13,6 +13,7 @@ import { trailingLineEnding } from '../core/lines';
 import { extendDocPath, docPathFrom } from '../cursor/coordinate-spaces';
 import type { PresentationModeGetter } from '../editor-keys';
 import type { InlineResolverRef } from '../schema/inline-construct-policy';
+import type { GrammarView } from '../schema/block-openers';
 import type { MultiScopeTarget } from '../action-contracts';
 import type { UndoController } from './deps';
 import {
@@ -47,6 +48,8 @@ export interface ListContextDeps {
 	getPresentationMode: PresentationModeGetter | undefined;
 	/** The instance's link-reference resolver, nullable for the same reason as the mode. */
 	linkRef: InlineResolverRef | undefined;
+	/** The instance's block grammar, for the mid-item split's reparse. Absent = the global one. */
+	grammar?: GrammarView;
 }
 
 /** The item Enter creates: the previous item's marker bumped, its task checkbox inherited
@@ -216,7 +219,8 @@ export function createListContext(deps: ListContextDeps): ListContext {
 						offset,
 						sharing,
 						deps.getPresentationMode?.(),
-						deps.linkRef
+						deps.linkRef,
+						deps.grammar
 					);
 					stampStructuralChange(itemChildren, split.change, sharing);
 					// The primitive's index, not `innerIndex + 1`: a first half that parses to several

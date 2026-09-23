@@ -29,6 +29,9 @@ quote, the first parse of a file, or the join check after a keystroke.
 - `Plan` over `---` pasted on a new line is a paragraph and a divider in the first pane, which
   land as two blocks with a blank line between them, and a setext heading in the second; both
   trees reload as themselves.
+- Enter before the tab of the loaded `code` line in the first pane leaves an empty paragraph
+  above a paragraph, no indented code, and a tree that reloads as itself. Miss-analysis: the split
+  reread both halves in the global grammar, and no spec pressed Enter in the switched-off pane.
 
 ## User interactions
 

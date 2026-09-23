@@ -87,7 +87,8 @@ export function splitNode(
 	offset: number,
 	sharing: SharingState | undefined,
 	presentationMode: PresentationMode | undefined,
-	linkRef: InlineResolverRef | undefined
+	linkRef: InlineResolverRef | undefined,
+	grammar?: GrammarView
 ): SplitResult {
 	const noop: SplitResult = { change: { op: 'noop' }, secondHalfIndex: blockIndex + 1 };
 	if (blockIndex < 0 || blockIndex >= parent.children.length) return noop;
@@ -134,10 +135,11 @@ export function splitNode(
 		lineEnding,
 		parent.children[blockIndex + 1]
 	);
-	const first = reparseAsNodes(firstRaw, node.leadingTrivia);
+	const read: FragmentReader = (text) => parse(text, { grammar, scope: 'fragment' });
+	const first = reparseAsNodes(firstRaw, node.leadingTrivia, read);
 	// The blank line the parse split off the first half stands between the halves, so it is the
 	// second half's separator; `separator` is empty when the bytes already end in a blank line.
-	const second = reparseAsNodes(secondRaw, first.suffix + separator);
+	const second = reparseAsNodes(secondRaw, first.suffix + separator, read);
 	if (DEV && first.nodes.length > 1) {
 		// Legal, since the result carries the caret index, but rare enough to keep visible.
 		devWarn('tree-ops', `splitNode: the first half parsed to ${first.nodes.length} blocks`);
@@ -506,8 +508,12 @@ export function mergeWithNext(
  * Reparse a half's bytes as the blocks they hold, plus the trailing blank line the fragment
  * parse splits off into `doc.suffix`: every caller must put it somewhere, or the bytes are lost.
  */
-function reparseAsNodes(raw: string, leadingTrivia: string): { nodes: CstNode[]; suffix: string } {
-	const doc = parse(raw, { scope: 'fragment' });
+function reparseAsNodes(
+	raw: string,
+	leadingTrivia: string,
+	read: FragmentReader
+): { nodes: CstNode[]; suffix: string } {
+	const doc = read(raw);
 	if (doc.children.length === 0) {
 		return { nodes: [{ kind: 'paragraph', leadingTrivia, raw }], suffix: doc.suffix };
 	}
@@ -521,7 +527,9 @@ function reparseAsNodes(raw: string, leadingTrivia: string): { nodes: CstNode[];
  * not fit one position, so null refuses it rather than truncating (G1.35).
  */
 function reparseAsNode(raw: string, leadingTrivia: string): CstNode | null {
-	const { nodes, suffix } = reparseAsNodes(raw, leadingTrivia);
+	const { nodes, suffix } = reparseAsNodes(raw, leadingTrivia, (text) =>
+		parse(text, { scope: 'fragment' })
+	);
 	if (nodes.length > 1) return null;
 	// A single-block write has no follower to give the split-off blank line to, so it stays in
 	// the block's bytes.

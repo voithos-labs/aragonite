@@ -92,7 +92,8 @@
 		parentListContext,
 		controller,
 		getPresentationMode,
-		linkRef
+		linkRef,
+		grammar: registryView.grammar
 	});
 
 	setContext(LIST_CONTEXT_KEY, listContext);

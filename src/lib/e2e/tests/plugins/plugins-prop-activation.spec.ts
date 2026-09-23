@@ -50,6 +50,20 @@ test.describe('the plugins prop is the enablement set', () => {
 		expect(await convergedIn(page, 'notListing')).toBe(true);
 	});
 
+	test('Enter before the unlisted fence leaves it prose that reloads as itself', async ({
+		page
+	}) => {
+		await page.waitForFunction(() => '__activation' in window);
+		const pane = page.getByTestId('editor-not-listing');
+		await pane.getByText('%%parrot party responsibly').click();
+		await page.keyboard.press('Home');
+		await page.keyboard.press('Enter');
+
+		await expect(pane.locator('[data-block-kind="paragraph"]')).toHaveCount(3);
+		await expect(pane.locator('[data-block-kind="parrot"]')).toHaveCount(0);
+		expect(await convergedIn(page, 'notListing')).toBe(true);
+	});
+
 	// The badge comes from an onEditor hook, so its absence means the hook never ran here.
 	test('attaches no decoration source from a plugin it did not list', async ({ page }) => {
 		await expect(page.getByTestId('editor-not-listing').locator('.badge-h')).toHaveCount(0);

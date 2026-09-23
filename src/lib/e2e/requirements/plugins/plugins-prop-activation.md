@@ -32,9 +32,10 @@ read its answer from the harness-only `__registryEnablement` hook rather than fr
 - the editor that did not list it attaches no decoration source: its heading carries no `.badge-h`, which proves the `onEditor` hook never ran there
 - the chord belongs to one editor, not to the process: `reservedChords()` and `claimsChord()` report `Mod+Shift+S` in the editor that lists `doc-stats` and withhold it from the one that does not (regression #265: the chord was taken process-wide, so it was swallowed and ran nothing in the editor that never listed the plugin)
 - a paste parses against that editor's grammar: `%%parrot dance` pasted into the editor that omits the parrot lands as prose in the paragraph it was pasted into, leaving that pane with no parrot block (regression #267: the clipboard parsed against every installed plugin, so the paste created a kind that editor resolves no component for)
+- Enter at the start of the `%%parrot` paragraph in the editor that omits the parrot leaves an empty paragraph above a `%%parrot` paragraph, no parrot block, and a tree that reloads as itself (miss-analysis: the split reread both halves in the global grammar, and no spec pressed Enter in the pane that left the plugin out)
 
 ## User interactions
 
 - the activation scenarios navigate and nothing more; both editors are read by DOM class, since what matters is what each instance resolved rather than what either can edit
-- the paste scenario is a real gesture: click into the paragraph, End, then Ctrl/Cmd+V over a seeded clipboard
+- the paste scenario is a real gesture: click into the paragraph, End, then Ctrl/Cmd+V over a seeded clipboard; the split one is a click, Home, then Enter
 - the chord scenario asks the instance's own API rather than pressing the key: what a host needs to know is whether the editor takes the chord, and only `reservedChords` and `claimsChord` answer that

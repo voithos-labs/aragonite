@@ -76,6 +76,16 @@ test.describe('the syntax prop switches a syntax off in one editor', () => {
 		await expectBothConverge(page);
 	});
 
+	test('Enter before the tab of the loaded `code` line leaves a paragraph', async ({ page }) => {
+		await paneOf(page, 'off').getByText('code').click();
+		await page.keyboard.press('Home');
+		await page.keyboard.press('Enter');
+
+		expect(await sourceOf(page, 'off')).toBe('Loaded\n\n\n\tcode\n\nPlan\n---\n');
+		expect(await kindsIn(page, 'off')).not.toContain('indentedCode');
+		await expectBothConverge(page);
+	});
+
 	// The pasted blocks land as blocks of their own, so the editor that reads two puts a blank
 	// line between them; the one that reads a heading keeps it whole.
 	test('`Plan` over `---` pasted is text and a divider in one editor, a heading in the other', async ({
