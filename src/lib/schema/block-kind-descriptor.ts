@@ -359,6 +359,7 @@ const registry = new Map<AnyBlockKind, BlockKindDescriptor>();
 // ── Public API ──────────────────────────────────────────────────────────────
 
 export function registerBlockKind(kind: AnyBlockKind, registration: BlockKindRegistration): void {
+	rejectBlankLabel('registerBlockKind', kind, registration.label);
 	const isDuplicate = registry.has(kind);
 	const owner = isDuplicate ? pluginKindOwner(kind) : null;
 	registerOnce(
@@ -370,6 +371,14 @@ export function registerBlockKind(kind: AnyBlockKind, registration: BlockKindReg
 		`registerBlockKind: "${kind}" is already registered. Kinds are register-once — ` +
 			`use augmentBlockKind to merge fields into an existing registration.` +
 			(owner ? ` — first declared by plugin '${owner}'` : '')
+	);
+}
+
+// A blank label would render as an empty `aria-label`, leaving the block's textbox unnamed.
+function rejectBlankLabel(entry: string, kind: AnyBlockKind, label: string | undefined): void {
+	if (label === undefined || label.trim() !== '') return;
+	throw new Error(
+		`${entry}: "${kind}" has a blank label; give it a name or omit label to use the kind's name.`
 	);
 }
 
@@ -397,6 +406,7 @@ function mergeBlockKindFields(
 			`${entry}: cannot augment "${kind}"; no base descriptor. Call registerBlockKind first.`
 		);
 	}
+	rejectBlankLabel(entry, kind, fields.label);
 	const { container, ...rest } = fields;
 	const next: BlockKindDescriptor = { ...existing, ...stripContainerOnlyKeys(rest) };
 	if (container) {
