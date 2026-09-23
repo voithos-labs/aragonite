@@ -74,9 +74,11 @@ describe('acceptedBlockAttrs', () => {
 			'data-image-widget',
 			'data-inline-widget',
 			'data-link-card',
+			'data-list-marker',
 			'data-pointer-gesture',
 			'data-presentation',
-			'data-table-row-idx'
+			'data-table-row-idx',
+			'data-task-checked'
 		]);
 	});
 });

@@ -41,6 +41,7 @@
 	import BlockDragHandle from '../../BlockDragHandle.svelte';
 	import SelectionOverlay from '../../SelectionOverlay.svelte';
 	import { showsListItemDragHandle } from '../../drag-handle';
+	import { useBlockDecorations } from '../../../decorations/use-block-decorations.svelte';
 
 	let {
 		node,
@@ -60,7 +61,8 @@
 	const parentBlockEdit = getContext<BlockEditActions>(BLOCK_EDIT_KEY);
 	const parentFocus = getContext<FocusActions>(FOCUS_KEY);
 	const parentContainerEdit = getContext<ContainerEditActions>(CONTAINER_EDIT_KEY);
-	const { stickyColumn, selection, registryView } = getContext<EditorServices>(EDITOR_SERVICES_KEY);
+	const { stickyColumn, selection, registryView, decorations, events } =
+		getContext<EditorServices>(EDITOR_SERVICES_KEY);
 	const {
 		keybindingOverrides,
 		blockDragHandles: getDragHandles,
@@ -102,6 +104,14 @@
 	let contentEl: HTMLElement | undefined = $state();
 
 	useMountGauge();
+
+	// The item renders no block host, so its own box carries the decorations addressed to it.
+	const blockDecorations = useBlockDecorations({
+		getPath: () => myPath,
+		getEl: () => boxEl ?? null,
+		engine: decorations,
+		onRenderError: (error) => events.emit('error', error)
+	});
 
 	// False on a plain item, so the chord that asked falls through.
 	function toggleTask(): boolean {
@@ -276,9 +286,11 @@
 </script>
 
 <div
-	class="list-item-block"
-	class:reorder-host={dragHandles}
-	class:handle-host={showsHandle}
+	class={[
+		'list-item-block',
+		{ 'reorder-host': dragHandles, 'handle-host': showsHandle },
+		...blockDecorations.classes
+	]}
 	data-task-checked={taskCheckedAttr}
 	data-list-marker={presentationMarkerKind}
 	bind:this={boxEl}

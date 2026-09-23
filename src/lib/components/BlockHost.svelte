@@ -7,9 +7,7 @@
 		type BlockComponentExports
 	} from '../block-component';
 	import type { NodeView } from '../core/node-views';
-	import type { BlockDecoration } from '../decorations/types';
-	import { acceptedBlockAttrs } from '../decorations/reserved-attrs';
-	import { mountDecorationWidget } from '../decorations/widget-dom';
+	import { useBlockDecorations } from '../decorations/use-block-decorations.svelte';
 	import SelectionOverlay from './SelectionOverlay.svelte';
 	import DecorationOverlay from './DecorationOverlay.svelte';
 	import BlockDragHandle from './BlockDragHandle.svelte';
@@ -72,11 +70,6 @@
 	const showsHandle = $derived(reorderable && !isReading && showsDragHandle(node, dragHandles));
 
 	let myPath = $derived([...parentPath, index]);
-
-	const NO_BLOCK_DECORATIONS: BlockDecoration[] = [];
-	const blockDecs = $derived(
-		engine ? engine.blockDecorationsForPath(myPath) : NO_BLOCK_DECORATIONS
-	);
 
 	let descriptor = $derived(registryView.descriptor(node.kind));
 	let isContainer = $derived(descriptor.isContainer);
@@ -184,54 +177,11 @@
 		return () => observer.disconnect();
 	});
 
-	// Set imperatively, not spread, so a source change or dispose removes exactly the
-	// keys it applied and leaves the host's own attributes alone.
-	$effect(() => {
-		const decs = blockDecs;
-		const el = hostEl;
-		if (!el || decs.length === 0) return;
-		const appliedKeys: string[] = [];
-		for (const dec of decs) {
-			for (const [key, value] of acceptedBlockAttrs(dec.attrs, myPath)) {
-				el.setAttribute(key, value);
-				appliedKeys.push(key);
-			}
-		}
-		return () => {
-			for (const key of appliedKeys) el.removeAttribute(key);
-		};
-	});
-
-	// Badges go in ahead of the block component, so BLOCK_CONTENT_SELECTOR
-	// (block-content-selector.ts) excludes `.decoration-badge`; keep the two in step
-	// if this wrapper class changes.
-	$effect(() => {
-		const decs = blockDecs;
-		const el = hostEl;
-		if (!el) return;
-		const destroys: Array<() => void> = [];
-		const badges = document.createDocumentFragment();
-		for (const dec of decs) {
-			if (!dec.badge) continue;
-			const handle = mountDecorationWidget(dec.badge, dec, (error) =>
-				editorEvents?.emit('error', { origin: 'render', error, context: { path: myPath } })
-			);
-			if (!handle) continue;
-			const wrapper = document.createElement('div');
-			wrapper.className = 'decoration-badge';
-			wrapper.setAttribute('contenteditable', 'false');
-			wrapper.appendChild(handle.el);
-			badges.appendChild(wrapper);
-			destroys.push(() => {
-				handle.destroy();
-				wrapper.remove();
-			});
-		}
-		if (destroys.length === 0) return;
-		el.insertBefore(badges, el.firstChild);
-		return () => {
-			for (const destroy of destroys) destroy();
-		};
+	const blockDecorations = useBlockDecorations({
+		getPath: () => myPath,
+		getEl: () => hostEl,
+		engine,
+		onRenderError: (error) => editorEvents?.emit('error', error)
 	});
 </script>
 
@@ -239,7 +189,7 @@
 	class={[
 		'block-host',
 		{ 'reorder-host': reorderable && dragHandles, 'handle-host': showsHandle },
-		...blockDecs.flatMap((d) => d.class ?? [])
+		...blockDecorations.classes
 	]}
 	data-block-path={JSON.stringify(myPath)}
 	data-block-kind={node.kind}
