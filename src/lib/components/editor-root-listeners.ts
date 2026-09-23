@@ -6,6 +6,7 @@
  */
 
 import { tick } from 'svelte';
+import { findSurfacePathForElement } from '../selection/path-lookup';
 
 // ── Listener plumbing ───────────────────────────────────────────────
 
@@ -86,7 +87,7 @@ export interface SelectionChangeBridgeDeps {
 /**
  * Caret motion the editor did not perform itself: a click, and single-block moves, which never
  * go through SelectionState. Scoped to `root`, silent about a position already announced, and
- * it drops a caret that appears while an inline widget is selected whole.
+ * it drops a caret that appears in a block while an inline widget is selected whole.
  */
 export function installSelectionChangeBridge(deps: SelectionChangeBridgeDeps): () => void {
 	const handler = () => {
@@ -98,8 +99,8 @@ export function installSelectionChangeBridge(deps: SelectionChangeBridgeDeps): (
 		// reports this editor's own unchanged selection on every header caret move.
 		if (deps.isHostChrome(anchorNode)) return;
 		// The paragraph keeps focus while its widget is selected, and the browser puts a caret at
-		// its start on any mouse input; a drag's range is the user's own and stays.
-		if (sel.isCollapsed && deps.isWidgetSelected()) {
+		// its start on any mouse input. A drag's range and a caret in a popover field stay.
+		if (sel.isCollapsed && deps.isWidgetSelected() && inBlockSurface(anchorNode)) {
 			sel.removeAllRanges();
 			return;
 		}
@@ -111,6 +112,11 @@ export function installSelectionChangeBridge(deps: SelectionChangeBridgeDeps): (
 		// beats. On `document` so the block's own click handling refines the caret first.
 		onRoot(document, 'click', handler)
 	);
+}
+
+function inBlockSurface(node: Node): boolean {
+	const el = node instanceof Element ? node : node.parentElement;
+	return findSurfacePathForElement(el) !== null;
 }
 
 /**

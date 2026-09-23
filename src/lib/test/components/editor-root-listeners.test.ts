@@ -130,8 +130,13 @@ describe('editor-root listeners: selectionchange bridge', () => {
 		headerField.textContent = 'title';
 		header.append(headerField);
 		const content = document.createElement('p');
+		content.setAttribute('data-block-path', '[0]');
 		content.textContent = 'body text';
-		root.append(header, content);
+		// The image popover mounts inside the root but outside every block.
+		const popover = document.createElement('div');
+		const popoverField = document.createElement('input');
+		popover.append(popoverField);
+		root.append(header, content, popover);
 		const outside = document.createElement('p');
 		outside.textContent = 'elsewhere';
 		document.body.append(root, outside);
@@ -144,7 +149,7 @@ describe('editor-root listeners: selectionchange bridge', () => {
 			isWidgetSelected: () => widgetSelected
 		});
 		teardowns.push(teardown);
-		return { headerField, content, outside, teardown, emits: () => emits };
+		return { headerField, content, popover, outside, teardown, emits: () => emits };
 	}
 
 	function selectInside(el: Node): void {
@@ -221,6 +226,15 @@ describe('editor-root listeners: selectionchange bridge', () => {
 		fire();
 		expect(window.getSelection()?.rangeCount).toBe(1);
 		expect(b.emits()).toBe(1);
+	});
+
+	// Miss-analysis: the popover spec types into the alt field and reads the source, which a drop
+	// that only resets the field's cursor position leaves right most of the time.
+	it('keeps a caret in a popover field while a widget is selected', () => {
+		const b = bridge(true);
+		window.getSelection()?.collapse(b.popover, 0);
+		fire();
+		expect(window.getSelection()?.rangeCount).toBe(1);
 	});
 
 	it('keeps a caret when no widget is selected', () => {
