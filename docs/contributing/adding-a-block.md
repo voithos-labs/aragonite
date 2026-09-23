@@ -452,7 +452,7 @@ Copy from `ListBlock.svelte` (direct-each) or `TableBlock.svelte` (row windowing
 A container's `ambientPrefix` (the read-only marker a container lends its first child, like a list's `- `) is either inert text, the default, or carries interactive character ranges, meaning clickable regions inside the read-only prefix. The shape is `AmbientPrefix` in `src/lib/block-component.ts`, and the contract is `docs/design/editor.md` § Ambient markers.
 
 - **Inert:** return a string, the list item's `- `. (The blockquote passes no prefix at all; its `> ` markers render as border-only chrome.)
-- **Interactive:** return the object form: `text` plus one or more ranges, each a character span, a class name, an optional role and ARIA state, and a click handler.
+- **Interactive:** return the object form: `text` plus one or more ranges, each a character span, a class name and a click handler, plus optionally a role and ARIA state, an accessible name, a tab stop, and an Enter/Space handler.
 
 Keep the component thin: a pure `buildXAmbient(metadata, onAction)` helper beside it, called from the prefix getter. The task checkbox is the shipped example, and the list item hands it to its `BlockList` as `ambientPrefixForFirst={buildTaskItemAmbient(metadataOf(node, 'listItem'), toggleTask)}`:
 
@@ -467,6 +467,7 @@ return {
 			className: 'task-checkbox',
 			role: 'checkbox',
 			ariaChecked: isTaskMarkerChecked(metadata.taskMarker),
+			dragAnchor: true,
 			onClick: onToggle
 		}
 	]
