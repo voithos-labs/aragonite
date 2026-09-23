@@ -56,6 +56,50 @@ test.describe('block decorations on a list item', () => {
 		await expect(page.locator(`${ITEMS} > .decoration-badge`)).toHaveCount(0);
 	});
 
+	test('a badge stacks above the item and moves neither its marker nor its text', async ({
+		page
+	}) => {
+		const second = page.locator(ITEMS).nth(1);
+		const leftEdges = () =>
+			second.evaluate((el) => ({
+				marker: el.querySelector('.md-marker')!.getBoundingClientRect().left,
+				content: el.querySelector('.list-item-content')!.getBoundingClientRect().left,
+				contentWidth: el.querySelector('.list-item-content')!.getBoundingClientRect().width
+			}));
+		const before = await leftEdges();
+
+		await page.evaluate(() => {
+			(window as any).__test.decorations.addSource({
+				name: 'e2e-item-badge',
+				provide: () => [
+					{
+						type: 'block',
+						path: [0, 1],
+						badge: {
+							buildDom: () => {
+								const el = document.createElement('span');
+								el.textContent = 'BADGE';
+								return el;
+							}
+						}
+					}
+				]
+			});
+		});
+		const badge = second.locator(':scope > .decoration-badge');
+		await expect(badge).toHaveCount(1);
+
+		const after = await leftEdges();
+		expect(Math.abs(after.marker - before.marker)).toBeLessThanOrEqual(1);
+		expect(Math.abs(after.content - before.content)).toBeLessThanOrEqual(1);
+		expect(Math.abs(after.contentWidth - before.contentWidth)).toBeLessThanOrEqual(1);
+		const badgeBottom = await badge.evaluate((el) => el.getBoundingClientRect().bottom);
+		const contentTop = await second
+			.locator(':scope > .list-item-content')
+			.evaluate((el) => el.getBoundingClientRect().top);
+		expect(badgeBottom).toBeLessThanOrEqual(contentTop + 1);
+	});
+
 	test('a decoration on the list lands on its host and on none of its items', async ({ page }) => {
 		await page.evaluate(() => {
 			(window as any).__test.decorations.addSource({
