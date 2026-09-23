@@ -200,7 +200,7 @@ export const GLOBAL_KEYMAP: KeyBinding[] = [
 
 /** A plugin-global binding plus the plugin that installed it, so an editor's activation decides
  *  whether the chord applies there. A null owner always applies. */
-interface PluginGlobalBinding extends KeyBinding {
+export interface PluginGlobalBinding extends KeyBinding {
 	plugin: string | null;
 }
 
@@ -285,12 +285,17 @@ export function pluginGlobalBinding(
 	return entry && claimedHere(entry, activation) ? entry : null;
 }
 
-/** Every plugin-global chord bound for `activation`. Registration is process-global, so an
- *  absent activation reports the plugins any mounted editor installed. */
+/** Every plugin-global binding claimed for `activation`, each with the plugin that installed it.
+ *  Registration is process-global, so an absent activation reports every installed plugin's. */
+export function pluginGlobalBindings(
+	activation: PluginActivation | undefined
+): readonly PluginGlobalBinding[] {
+	return pluginGlobalKeymap.filter((entry) => claimedHere(entry, activation));
+}
+
+/** The chords of {@link pluginGlobalBindings}, normalized. */
 export function pluginGlobalChords(activation: PluginActivation | undefined): readonly string[] {
-	return pluginGlobalKeymap
-		.filter((entry) => claimedHere(entry, activation))
-		.map((b) => normalizeChord(b.chord));
+	return pluginGlobalBindings(activation).map((b) => normalizeChord(b.chord));
 }
 
 export function __resetPluginGlobalKeymapForTests(): void {
