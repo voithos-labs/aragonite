@@ -608,3 +608,60 @@ describe('the registry', () => {
 		);
 	});
 });
+
+// Miss-analysis: no test, unit or e2e, typed a trigger in a table cell, so the contract's
+// "never a table cell" rule held only for a selection that covers whole cells.
+describe('a table cell', () => {
+	const CELL = [0, 1, 1];
+
+	/** A caret in the empty cell of a two-row table, typed into a byte at a time. */
+	function cellHarness() {
+		const doc = parse('| a | b |\n| --- | --- |\n| c |  |\n') as unknown as DocumentView;
+		const cell = doc.children[0].children![1].children![1] as { raw: string };
+		let caret = 0;
+		const commits: string[] = [];
+		const events = createEditorEvents();
+		const menu = createInlineMenuState({
+			getDoc: () => doc,
+			getSelection: () => ({
+				anchor: { path: CELL, offset: caret },
+				focus: { path: CELL, offset: caret }
+			}),
+			getMode: () => 'source',
+			events,
+			editorId: 'editor-cell',
+			commitRange: async (_path, _start, _end, bytes) => {
+				commits.push(bytes);
+			},
+			landCaret: async () => true
+		});
+		menu.registry.addSource(tags());
+		return {
+			menu,
+			commits,
+			async type(text: string) {
+				events.emit('selectionChange', null);
+				await tick();
+				for (const ch of text) {
+					cell.raw = cell.raw.slice(0, caret) + ch + cell.raw.slice(caret);
+					caret += 1;
+					events.emit('edit', typedEdit(CELL));
+					await tick();
+				}
+			}
+		};
+	}
+
+	it('a trigger typed in a cell stays text and opens nothing', async () => {
+		const h = cellHarness();
+		await h.type('#wo');
+		expect(h.menu.getOpen()).toBeNull();
+		expect(h.menu.registry.isOpen).toBe(false);
+	});
+
+	it('open(name) with the caret in a cell declines, writing nothing', () => {
+		const h = cellHarness();
+		expect(h.menu.registry.open('tags')).toBe(false);
+		expect(h.commits).toEqual([]);
+	});
+});

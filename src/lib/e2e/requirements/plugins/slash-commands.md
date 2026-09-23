@@ -28,6 +28,15 @@ and `runCommand('slashCommands.open', query)` opens the list already narrowed.
 - `runCommand('slashCommands.open', 'table')` types `/table` and opens the list narrowed to the
   table row.
 
+## A table cell
+
+No inline menu opens in a table cell, whose line cannot take a block. Miss-analysis: no test typed
+a trigger in a cell, so the rule held only for a selection covering whole cells.
+
+- `/quote` typed in an empty cell stays text: the bytes land in the cell and no list shows.
+- `Mod+/` with the caret in a cell declines: nothing is written and no list shows.
+- A tag typed in a cell opens no tag list, though the document holds a matching tag.
+
 ## Leaving without a pick
 
 - `/something`, then Escape, then typing ` more` leaves `/something more` in the line with the

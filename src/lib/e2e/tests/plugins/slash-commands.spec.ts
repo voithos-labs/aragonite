@@ -117,6 +117,40 @@ test.describe('slash commands', () => {
 		});
 	});
 
+	test.describe('a table cell', () => {
+		// The tag after the table gives the tag list a row to show, were it to open.
+		const TABLE = '| a | b |\n| --- | --- |\n| c |  |\n\nFiled under #work\n';
+		const anyMenu = (editor: PluginsPage) => editor.page.locator('[data-inline-menu]');
+
+		test.beforeEach(async () => {
+			await editor.loadContent(TABLE);
+			// Row-major: the empty cell beside `c`.
+			await editor.page.locator('.table-cell').nth(3).click();
+		});
+
+		test('/quote in an empty cell stays text and opens nothing', async () => {
+			await editor.typeText('/quote');
+			await editor.bridge.waitForSourceContains('/quote');
+			await editor.waitForRenderFlush();
+			await expect(anyMenu(editor)).toHaveCount(0);
+			expect(await editor.bridge.getBlockCount()).toBe(2);
+		});
+
+		test('Mod+/ in a cell declines, writing nothing', async () => {
+			await editor.page.keyboard.press('ControlOrMeta+/');
+			await editor.waitForRenderFlush();
+			await expect(anyMenu(editor)).toHaveCount(0);
+			expect(await editor.bridge.getSource()).not.toContain('/');
+		});
+
+		test('a tag typed in a cell opens no tag list', async () => {
+			await editor.typeText('#wo');
+			await editor.bridge.waitForSourceContains('#wo');
+			await editor.waitForRenderFlush();
+			await expect(anyMenu(editor)).toHaveCount(0);
+		});
+	});
+
 	test.describe('leaving without a pick', () => {
 		test('/something, Escape, then ` more`: the bytes stay, the caret after them', async () => {
 			await editor.page.keyboard.press('Enter');
