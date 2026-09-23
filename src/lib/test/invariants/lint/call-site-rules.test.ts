@@ -111,6 +111,8 @@ const RULES: CallSiteRule[] = [
 		calls: ['pasteDispatch', 'replaceBlockAtParent'],
 		// Both spellings an argument object has: an explicit `grammar:` and the shorthand.
 		holds: (args) => /\bgrammar\s*[:,}]/.test(args),
+		// The type rejects an omitted or undefined grammar; the scan asks each route to name it
+		// rather than spread in a context the reader cannot see.
 		reason:
 			'pasted bytes, or the bodyWrite reparse of them, read an unlisted plugin’s syntax without the instance grammar (#267)',
 		// Four clipboard routes and three splice sites.

@@ -6,7 +6,11 @@ import { serialize } from '$lib/core/serializer';
 import { pasteDispatch } from '$lib/tree-operations/paste/dispatch';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
 import { createPasteCoordinator } from '$lib/editor-actions/paste-coordinator';
-import { makeEditorActionsDeps, makeStubBlockEdit } from '$lib/test/harness/editor-actions';
+import {
+	makeEditorActionsDeps,
+	makeStubBlockEdit,
+	pasteContext
+} from '$lib/test/harness/editor-actions';
 
 // The structural counterpart of `inline-join-upper-absorb`: the fix-up merges the paste's
 // window, so the precomputed block index and its `CURSOR_END` both stop naming the end of the
@@ -22,7 +26,12 @@ async function pasteAt(source: string, pastedText: string, targetPath: number[],
 
 	await pasteDispatch(
 		{ pastedText, targetPath, offset },
-		{ doc: deps.doc, blockEdit: makeStubBlockEdit(), controller: coordinator, undoEntry: 'own' }
+		pasteContext({
+			doc: deps.doc,
+			blockEdit: makeStubBlockEdit(),
+			controller: coordinator,
+			undoEntry: 'own'
+		})
 	);
 	return { doc: deps.doc, landCaret };
 }

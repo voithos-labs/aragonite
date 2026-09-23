@@ -49,7 +49,7 @@ export interface TextClipboardDeps {
 	blockEdit: BlockEditActions;
 	pasteCoordinator: PasteCommitCoordinator;
 	/** This editor's grammar, so an unlisted plugin's opener never takes pasted bytes here. */
-	grammar: GrammarView | undefined;
+	grammar: GrammarView;
 	/** The plugins this instance activated, so an unlisted plugin's paste transform stays out. */
 	activePlugins: PluginActivation;
 	getDoc: DocumentGetter;

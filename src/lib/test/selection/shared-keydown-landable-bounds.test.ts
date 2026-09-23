@@ -22,6 +22,7 @@ import { renderCodeBlock } from '../../components/blocks/code/code-renderer';
 import { createStickyColumnState } from '../../cursor/sticky-column';
 import { createEdgeAffinityState } from '../../cursor/edge-affinity';
 import { makeRenderHarness } from '$lib/test/harness/text-render';
+import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
 
 const toPrev = vi.mocked(extendFocusToPreviousBlock);
 
@@ -53,7 +54,7 @@ function makeEnv(source: string, offset: number | null, mode?: string): Env {
 		// is what let a new required reader ship unanswered here.
 		ctx: {
 			// No plugins stood up here, so every installed one is active.
-			activePlugins: undefined,
+			activePlugins: everyInstalledPlugin,
 			getEl: () => el,
 			getCursorOffset: () => offset,
 			getFocusOffset: () => offset,

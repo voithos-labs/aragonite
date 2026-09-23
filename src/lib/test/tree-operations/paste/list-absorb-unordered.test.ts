@@ -9,7 +9,8 @@ import { parse } from '$lib/core/parser';
 import {
 	makeRunningPasteController,
 	makeStubBlockEdit,
-	registerStubBlockListState
+	registerStubBlockListState,
+	pasteContext
 } from '../../harness/editor-actions';
 import { metadataOf } from '$lib/core/nodes';
 
@@ -30,7 +31,11 @@ describe('list-absorb: marker normalization', () => {
 		// A single-caret paste routes to list-absorb rather than the container-match merge.
 		await pasteDispatch(
 			{ pastedText: '* one\n* two\n', targetPath: [0, 0, 0], offset: 'alpha'.length },
-			{ doc, blockEdit: makeStubBlockEdit(), controller: makeRunningPasteController() }
+			pasteContext({
+				doc,
+				blockEdit: makeStubBlockEdit(),
+				controller: makeRunningPasteController()
+			})
 		);
 
 		const markers = list.children!.map((it) => metadataOf(it, 'listItem').marker);

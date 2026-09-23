@@ -10,7 +10,7 @@
 import type { BlockEditActions, UndoEntryMode } from '../../action-contracts';
 import type { CstNode, Document } from '../../core/nodes';
 import type { GrammarView } from '../../schema/block-openers';
-import { everyInstalledPlugin, type PluginActivation } from '../../schema/plugin-activation';
+import type { PluginActivation } from '../../schema/plugin-activation';
 import { parse } from '../../core/parser';
 import { isBlockNode, nodeAt } from '../node-primitives';
 import { cutRangeFromDisplay } from '../node-ops';
@@ -57,12 +57,10 @@ export interface PasteDispatchContext {
 	/** `'join'`: the cross-block caller owns the undo entry, so no snapshot is pushed here. */
 	undoEntry?: UndoEntryMode;
 	/** The instance's grammar: the clipboard parse below and the join branch's same-slot
-	 *  reparse both read it, so an unlisted plugin's opener never takes pasted bytes here.
-	 *  Absent = global. */
-	grammar?: GrammarView;
-	/** The plugins this instance activated, so an unlisted plugin's paste transform stays out
-	 *  of the pipeline; absent = every installed plugin. */
-	activePlugins?: PluginActivation;
+	 *  reparse both read it, so an unlisted plugin's opener never takes pasted bytes here. */
+	grammar: GrammarView;
+	/** The plugins this instance activated, so an unlisted plugin's paste hooks stay out. */
+	activePlugins: PluginActivation;
 	/** What the paste's delete half needs for the join cleanup; absent leaves it byte-literal. */
 	seam?: PasteSeam;
 }
@@ -94,7 +92,7 @@ export async function pasteDispatch(
 
 	// Once, before any branch below reads the text; a transform that empties it is an
 	// empty paste.
-	const activePlugins = ctx.activePlugins ?? everyInstalledPlugin;
+	const { activePlugins } = ctx;
 	const transformed = applyPasteTransforms(input.pastedText, activePlugins);
 	if (!transformed) return {};
 

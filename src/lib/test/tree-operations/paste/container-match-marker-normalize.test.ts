@@ -5,7 +5,8 @@ import { parse } from '../../../core/parser';
 import {
 	makeRunningPasteController,
 	makeStubBlockEdit,
-	registerStubBlockListState
+	registerStubBlockListState,
+	pasteContext
 } from '../../harness/editor-actions';
 import { metadataOf } from '../../../core/nodes';
 
@@ -63,12 +64,12 @@ describe('container-matching paste: marker normalization, both routes', () => {
 
 		await pasteDispatch(
 			{ pastedText, targetPath: [0, 0, 0], offset },
-			{
+			pasteContext({
 				doc,
 				blockEdit: makeStubBlockEdit(),
 				controller: makeRunningPasteController(),
 				undoEntry: 'join'
-			}
+			})
 		);
 
 		expect(list.children!.map((it) => metadataOf(it, 'listItem').marker)).toEqual(markers);

@@ -55,7 +55,7 @@ describe("a kind keymap's chord is reserved only where its plugin is activated",
 		installKeymapPlugin('listed');
 
 		expect(reserved(everyInstalledPlugin).has(CHORD)).toBe(true);
-		expect(reserved(undefined).has(CHORD)).toBe(true);
+		expect(reserved(everyInstalledPlugin).has(CHORD)).toBe(true);
 	});
 
 	// The filter narrows to plugin kinds: a built-in keymap answers the same to every editor.

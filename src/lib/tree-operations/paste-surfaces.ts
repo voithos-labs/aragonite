@@ -44,9 +44,8 @@ export interface ScopedStructuralPasteInput {
 	blocks: CstNode[];
 	controller: PasteCommitCoordinator;
 	undoEntry: UndoEntryMode;
-	/** The instance grammar the splice's `bodyWrite` escape reparses in. Nullable on purpose, so
-	 *  a new scoped paste target cannot silently drop it; `undefined` means the global grammar. */
-	grammar: GrammarView | undefined;
+	/** The instance grammar the splice's `bodyWrite` escape reparses in. */
+	grammar: GrammarView;
 }
 
 export interface PasteSurface {

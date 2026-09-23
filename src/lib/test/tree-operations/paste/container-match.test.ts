@@ -6,7 +6,8 @@ import { parse } from '../../../core/parser';
 import {
 	makeRunningPasteController,
 	makeStubBlockEdit,
-	registerStubBlockListState
+	registerStubBlockListState,
+	pasteContext
 } from '../../harness/editor-actions';
 
 describe('container-matching paste: empty-target newline-termination (A1)', () => {
@@ -19,12 +20,12 @@ describe('container-matching paste: empty-target newline-termination (A1)', () =
 
 		await pasteDispatch(
 			{ pastedText: '- x\n- y', targetPath: [0, 0, 0], offset: 0 },
-			{
+			pasteContext({
 				doc,
 				blockEdit: makeStubBlockEdit(),
 				controller: makeRunningPasteController(),
 				undoEntry: 'join'
-			}
+			})
 		);
 
 		// An un-terminated last pasted item mashes into the following sibling on one line.

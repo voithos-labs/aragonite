@@ -18,6 +18,8 @@ import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import { installEditorDomStubsForTests } from '$lib/testing';
 import { makeEditorActionsDeps } from '../../harness/editor-actions';
+import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
+import { defaultGrammarView } from '$lib/schema/block-openers';
 
 export interface KeydownEnvOptions {
 	presentationMode?: PresentationMode;
@@ -66,7 +68,7 @@ export function makeKeydownEnv(source: string | Document, opts: KeydownEnvOption
 		revealPath,
 		controller,
 		pushUndoSnapshot: () => controller.pushUndoSnapshot(0, 0),
-		grammar: undefined,
+		grammar: defaultGrammarView,
 		getPresentationMode: undefined,
 		linkRef: undefined
 	};
@@ -80,7 +82,7 @@ export function makeKeydownEnv(source: string | Document, opts: KeydownEnvOption
 		revealPath,
 		controller,
 		getPresentationMode,
-		grammar: undefined,
+		grammar: defaultGrammarView,
 		getContentVersion: harness.contentVersion
 	});
 
@@ -102,6 +104,8 @@ export function makeKeydownEnv(source: string | Document, opts: KeydownEnvOption
 		onCommandError,
 		crossBlockCommands,
 		getKeybindingOverrides: () => ({ global: new Map(), byKind: new Map() }),
+		grammar: defaultGrammarView,
+		activePlugins: everyInstalledPlugin,
 		afterReactivity: async () => {}
 	} as unknown as CrossBlockDispatchContext;
 

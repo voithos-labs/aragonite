@@ -8,7 +8,8 @@ import { parse } from '$lib/core/parser';
 import {
 	makeBlockListState,
 	makeEditorActionsDeps,
-	makeStubBlockEdit
+	makeStubBlockEdit,
+	pasteContext
 } from '$lib/test/harness/editor-actions';
 import type { BlockListState } from '$lib/reactivity/block-list-state.svelte';
 import type { EditEvent } from '$lib/editor-events';
@@ -37,12 +38,12 @@ describe("cross-block inline paste ('join'): commit sequence participation", () 
 
 		await pasteDispatch(
 			{ pastedText: 'foo\nbar', targetPath: [0, 0], offset: 'Head'.length + 2 },
-			{
+			pasteContext({
 				doc: deps.doc,
 				blockEdit: makeStubBlockEdit(),
 				controller: coordinator,
 				undoEntry: 'join'
-			}
+			})
 		);
 
 		const quote = liveQuote();
@@ -57,12 +58,12 @@ describe("cross-block inline paste ('join'): commit sequence participation", () 
 
 		await pasteDispatch(
 			{ pastedText: 'foo\nbar', targetPath: [0, 0], offset: 'Head'.length + 2 },
-			{
+			pasteContext({
 				doc: deps.doc,
 				blockEdit: makeStubBlockEdit(),
 				controller: coordinator,
 				undoEntry: 'join'
-			}
+			})
 		);
 
 		expect(onEdit.mock.calls.map(([e]) => e.op)).toContain('updateContent');
@@ -75,12 +76,12 @@ describe("cross-block inline paste ('join'): commit sequence participation", () 
 
 		await pasteDispatch(
 			{ pastedText: 'ing', targetPath: [0, 0], offset: 'Head'.length + 2 },
-			{
+			pasteContext({
 				doc: deps.doc,
 				blockEdit: makeStubBlockEdit(),
 				controller: coordinator,
 				undoEntry: 'join'
-			}
+			})
 		);
 
 		expect(deps.doc.children[0].children![0].raw).toBe('# Heading\n');
@@ -95,12 +96,12 @@ describe("cross-block inline paste ('join'): commit sequence participation", () 
 
 		await pasteDispatch(
 			{ pastedText: 'foo\nbar', targetPath: [0, 0], offset: 'Head'.length + 2 },
-			{
+			pasteContext({
 				doc: deps.doc,
 				blockEdit: makeStubBlockEdit(),
 				controller: coordinator,
 				undoEntry: 'join'
-			}
+			})
 		);
 
 		const quote = deps.doc.children[0];
@@ -115,12 +116,12 @@ describe("cross-block inline paste ('join'): commit sequence participation", () 
 
 		await pasteDispatch(
 			{ pastedText: 'foo\nbar', targetPath: [0], offset: 'Head'.length + 2 },
-			{
+			pasteContext({
 				doc: deps.doc,
 				blockEdit: makeStubBlockEdit(),
 				controller: coordinator,
 				undoEntry: 'join'
-			}
+			})
 		);
 
 		expect(deps.doc.children).toHaveLength(2);

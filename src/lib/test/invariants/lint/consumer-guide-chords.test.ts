@@ -321,11 +321,13 @@ function boundClaims(): BoundClaim[] {
 		owner: 'global',
 		command
 	}));
-	const pluginClaims = pluginGlobalBindings(undefined).map(({ chord, command, plugin }) => ({
-		chord: normalizeChord(chord),
-		owner: plugin ?? 'global',
-		command
-	}));
+	const pluginClaims = pluginGlobalBindings(everyInstalledPlugin).map(
+		({ chord, command, plugin }) => ({
+			chord: normalizeChord(chord),
+			owner: plugin ?? 'global',
+			command
+		})
+	);
 	return [...kindClaims, ...globalClaims, ...pluginClaims];
 }
 

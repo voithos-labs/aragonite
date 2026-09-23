@@ -97,6 +97,6 @@ export async function applyStructuralResult(
 		focusOffset: result.focusOffset,
 		source: 'paste-dispatch',
 		trailingSeparator,
-		...(ctx.grammar ? { grammar: ctx.grammar } : {})
+		grammar: ctx.grammar
 	});
 }

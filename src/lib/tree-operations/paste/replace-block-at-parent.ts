@@ -34,8 +34,8 @@ export interface ReplaceBlockAtParentArgs {
 	focusReplacementIndex: number;
 	focusOffset: number;
 	source: Extract<OperationDetailMap['replaceBlock'], { source: unknown }>['source'];
-	/** Instance grammar for the escape's kind re-derive; absent = global. */
-	grammar?: GrammarView;
+	/** Instance grammar for the escape's kind re-derive. */
+	grammar: GrammarView;
 	/** The clipboard's own trailing blank line, where nothing in the splice stands for it. */
 	trailingSeparator?: string;
 }

@@ -18,6 +18,7 @@ import {
 import { parse } from '../../core/parser';
 import { createStickyColumnState } from '../../cursor/sticky-column';
 import { createEdgeAffinityState } from '../../cursor/edge-affinity';
+import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
 
 const toPrev = vi.mocked(extendFocusToPreviousBlock);
 const toNext = vi.mocked(extendFocusToNextBlock);
@@ -32,7 +33,7 @@ function makeCtx(over: {
 	// blanket cast is what let a new required reader ship unanswered here.
 	return {
 		// No plugins stood up here, so every installed one is active.
-		activePlugins: undefined,
+		activePlugins: everyInstalledPlugin,
 		getEl: () => document.createElement('div'),
 		getCursorOffset: () => over.cursorOffset,
 		getFocusOffset: () => over.focusOffset,

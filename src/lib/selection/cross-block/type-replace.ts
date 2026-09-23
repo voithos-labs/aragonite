@@ -184,7 +184,7 @@ async function replaceCoveredBlockWithText(
 		focusReplacementIndex: parsed.replacement.length - 1,
 		focusOffset: CURSOR_END,
 		source: 'cross-block-covered-block',
-		...(ctx.grammar ? { grammar: ctx.grammar } : {})
+		grammar: ctx.grammar
 	});
 }
 

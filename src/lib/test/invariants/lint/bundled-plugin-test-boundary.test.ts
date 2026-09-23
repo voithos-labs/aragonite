@@ -101,6 +101,7 @@ const ALLOWLIST: Record<string, Exemption> = {
 			'$lib/editor-actions/paste-coordinator',
 			'$lib/invariants/node-shape',
 			'$lib/reactivity/state-registry',
+			'$lib/schema/block-openers',
 			'$lib/tree-operations/paste-surfaces',
 			'$lib/tree-operations/paste/dispatch',
 			'$lib/tree-operations/paste/hooks',
@@ -213,10 +214,14 @@ const ALLOWLIST: Record<string, Exemption> = {
 			'but typing a trigger and the write a pick makes need the menu state of the editor itself'
 	},
 	'src/lib/test/plugins/slash-commands/open-command.test.ts': {
-		specifiers: ['$lib/schema/commands', '$lib/schema/keybindings'],
+		specifiers: [
+			'$lib/schema/commands',
+			'$lib/schema/keybindings',
+			'$lib/schema/plugin-activation'
+		],
 		reason:
-			'no command dispatch or chord read off a mounted editor: the handler of a global command and ' +
-			'its chord binding are reachable only through the schema registries'
+			'no command dispatch or chord read off a mounted editor: the handler of a global command, ' +
+			'its chord binding and the activation it resolves under are reachable only through the schema registries'
 	}
 };
 

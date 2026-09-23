@@ -30,6 +30,7 @@ import {
 	makeStubBlockEdit,
 	makeStubFocus
 } from '../harness/editor-actions';
+import { defaultGrammarView } from '$lib/schema/block-openers';
 
 // ── Arbitraries ──────────────────────────────────────────────────────────────
 
@@ -405,7 +406,7 @@ async function runRangeDelete(
 		revealPath: h.deps.revealPath,
 		controller: h.controller,
 		pushUndoSnapshot: () => h.controller.pushUndoSnapshot(startIdx, 0),
-		grammar: undefined,
+		grammar: defaultGrammarView,
 		getPresentationMode: undefined,
 		linkRef: undefined
 	});
