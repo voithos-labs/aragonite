@@ -84,6 +84,41 @@ test.describe('block decorations on table rows and cells', () => {
 		await expect(page.locator(`${TABLE} [data-e2e-row], ${TABLE} [data-e2e-cell]`)).toHaveCount(0);
 	});
 
+	test("a cell's class survives typing in the cell and an undo", async ({ page }) => {
+		await addSource(page, 'e2e-cell-edit', { path: [0, 1, 0], class: 'e2e-cell-dec' });
+		const cellC = page.locator(CELLS).nth(2);
+		await expect(cellC).toHaveClass(/\be2e-cell-dec\b/);
+
+		await cellC.click();
+		await page.keyboard.press('End');
+		await editor.typeText('x');
+		await expect(cellC).toHaveText('cx');
+		await expect(cellC).toHaveClass(/\be2e-cell-dec\b/);
+		await editor.undo();
+		await expect(cellC).toHaveText('c');
+		await expect(cellC).toHaveClass(/\be2e-cell-dec\b/);
+	});
+
+	test('a decorated row outside the mounted window paints when it scrolls in', async ({ page }) => {
+		const bodyRows = Array.from({ length: 200 }, (_, i) => `| row ${i} | data ${i} |\n`);
+		await editor.loadContent('| a | b |\n| - | - |\n' + bodyRows.join(''));
+		await editor.waitForRenderFlush();
+		const deepRow = page.locator(ROWS).filter({ hasText: 'row 190' });
+		// Without row windowing and an unmounted row 190, the paint below proves nothing.
+		expect(await page.locator('.vr-spacer').count()).toBeGreaterThan(0);
+		await expect(deepRow).toHaveCount(0);
+
+		await addSource(page, 'e2e-deep-row', { path: [0, 191], class: 'e2e-row-dec' });
+		await page.evaluate(() => {
+			const scroller = document.querySelector('.editor') as HTMLElement;
+			scroller.scrollTop = scroller.scrollHeight;
+		});
+		await editor.waitForRenderFlush();
+
+		await expect(deepRow).toHaveClass(/\be2e-row-dec\b/);
+		await expect(page.locator(`${ROWS}.e2e-row-dec`)).toHaveCount(1);
+	});
+
 	test.describe('what a row or a cell cannot hold', () => {
 		test.use({ expectWarns: ['decorations'] });
 

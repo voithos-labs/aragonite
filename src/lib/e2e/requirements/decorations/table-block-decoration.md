@@ -11,6 +11,8 @@ addressed to either is refused with a `decorations` warning and the rest still l
 - A decoration on a body row puts its class and attributes on that row only
 - A decoration on a cell puts its class and attributes on that cell only
 - Disposing the source removes the class and the attributes from the row and the cell
+- A cell's class stays on the cell through typing in it and an undo of that typing
+- A decoration on a row outside the mounted window paints on that row when it scrolls in
 
 ## Edge cases
 
