@@ -12,7 +12,7 @@ function emailAutolinks(source: string) {
 	return inlineOf(source).filter((node) => node.kind === 'autolink');
 }
 
-/** Label, source, the linked text, and the href when it is not the text with `mailto:` prepended. */
+/** Label, source, linked text, and the href when it is not `mailto:` plus the text. */
 const LINKS: [string, string, string, string?][] = [
 	['at sentence position', 'Email me at foo@bar.com please', 'foo@bar.com'],
 	['at start of region', 'foo@bar.com', 'foo@bar.com'],

@@ -1,7 +1,7 @@
 /**
  * A decoration source built on public API alone: `onEditor` wires a mark source to the
- * selection, edit and source-swap events, while the scan, its cache and the pause-while-typing rule stay
- * pure in the sibling modules.
+ * selection, edit and source-swap events; the scan, its cache and the pause-while-typing rule
+ * stay pure in the sibling modules.
  */
 
 import { definePlugin, type EditorPlugin } from '$lib/plugin';

@@ -55,9 +55,7 @@ test.describe('code block: the gutter menus on menuChange', () => {
 		await page.locator('.code-lang-button').click();
 		await expect(picker(page)).toBeVisible();
 		await expect(railMenu(page)).toHaveCount(0);
-		expect(await page.evaluate(() => (window as any).__test.stopMenuChangeCapture())).toEqual([
-			true
-		]);
+		expect(await stopCapture(page)).toEqual([true]);
 
 		await startCapture(page);
 		await page.keyboard.press('Escape');
