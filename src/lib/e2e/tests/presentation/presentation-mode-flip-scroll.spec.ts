@@ -1,4 +1,4 @@
-import { test, expect, RESIZE_OBSERVER_LOOP } from '../../fixtures';
+import { test, expect } from '../../fixtures';
 import type { EditorPage } from '../../editor-page';
 import type { Page } from '@playwright/test';
 import { clickBlockSettled, enterPresentationMode, focusOffset } from './helpers';
@@ -132,10 +132,6 @@ test.describe('mode flips: the scrollport stays where the reader left it', () =>
 	});
 
 	test.describe('with mounted blocks resizing above the viewport', () => {
-		// A known defect, claimed until fixed (#423): a height correction made inside the block
-		// height observer (BlockHost) leaves resize notifications the browser cannot deliver that frame.
-		test.use({ expectPageErrors: [RESIZE_OBSERVER_LOOP] });
-
 		// The block under the user's eyes, not the scroll number: when mounted blocks above the
 		// viewport change height at the switch, holding the number would slide the content, so the
 		// windowing correction moves the number by exactly what those blocks lost.

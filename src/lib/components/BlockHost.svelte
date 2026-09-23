@@ -26,6 +26,7 @@
 		type EditorServices
 	} from '../editor-keys';
 	import { useMountGauge } from '../perf/use-mount-gauge.svelte';
+	import { observeResize } from '../cursor/observe-resize';
 	import { publishRefSlot, type RefSlots } from '../reactivity/publish-ref.svelte';
 	import { devWarn } from '../dev-warn';
 
@@ -168,13 +169,11 @@
 	// growth would slide the viewport. The list compares against the height it applied.
 	$effect(() => {
 		if (!hostEl || !measureChannel) return;
-		const observer = new ResizeObserver((entries) => {
+		return observeResize(hostEl, (entries) => {
 			const box = entries[0]?.borderBoxSize?.[0];
 			const height = box ? box.blockSize : entries[0]?.contentRect.height;
 			if (height != null) measureChannel.measureOnResize(id, height);
 		});
-		observer.observe(hostEl);
-		return () => observer.disconnect();
 	});
 
 	const blockDecorations = useBlockDecorations({
