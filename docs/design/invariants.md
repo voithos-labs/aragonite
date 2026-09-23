@@ -1077,11 +1077,12 @@ what the truncation took. The companion branches pin the fence rule to one imple
 
 **G4.29 · Hardcoded-chord manifest.** Every library file that reads a `KeyboardEvent` modifier flag
 is named in `schema/reserved-chords.ts`, with the chords it claims outside the keymaps and the key
-literals it compares. A new claiming site, or a new key compared in an existing one, fails the gate
-until the entry is re-derived, which is what keeps the editor's public `reservedChords()` method
-(`editor-props.ts`) from rotting. Authoring constraint: a manifested file must keep literal key
-comparisons and literal modifier reads, since the scan is structural on both axes; factoring either
-behind a shared helper fails the gate until the scan learns that helper.
+literals it compares, a negated `key !== 'X'` guard included. A new claiming site, or a new key
+compared in an existing one, fails the gate until the entry is re-derived, which is what keeps the
+editor's public `reservedChords()` method (`editor-props.ts`) from rotting. Authoring constraint: a
+manifested file must keep literal key comparisons and literal modifier reads, since the scan is
+structural on both axes; factoring either behind a shared helper fails the gate until the scan
+learns that helper.
 `lint/reserved-chord-manifest.test.ts`.
 
 **G4.30 · Hidden-run classification.** One rule, two spaces. `core/inline/visibility.ts` states the

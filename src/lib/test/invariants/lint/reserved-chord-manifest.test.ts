@@ -18,6 +18,8 @@ import { collectEditorSources, EDITOR_SRC, type SourceFile } from './scan-source
 const MODIFIER_READ = /\.(?:ctrlKey|metaKey|altKey|shiftKey)\b|\bctrlOrMeta\b/;
 
 const KEY_EQUALITY = /\bkey\s*===\s*'([^']*)'/g;
+// `if (e.key !== 'X') return;` consumes X on the branch below it as surely as an equality does.
+const KEY_INEQUALITY = /\bkey\s*!==\s*'([^']*)'/g;
 const KEY_PREFIX = /\bkey\.startsWith\('([^']*)'\)/g;
 const CASE_LABEL = /\bcase\s*'([^']*)'\s*:/g;
 
@@ -34,6 +36,8 @@ function isKeyName(literal: string): boolean {
 export function harvestKeys(code: string): string[] {
 	const keys = new Set<string>();
 	for (const [, literal] of code.matchAll(KEY_EQUALITY)) if (isKeyName(literal)) keys.add(literal);
+	for (const [, literal] of code.matchAll(KEY_INEQUALITY))
+		if (isKeyName(literal)) keys.add(literal);
 	for (const [, literal] of code.matchAll(CASE_LABEL)) if (isKeyName(literal)) keys.add(literal);
 	for (const [, prefix] of code.matchAll(KEY_PREFIX)) if (isKeyName(prefix)) keys.add(`${prefix}*`);
 	return [...keys].sort();
@@ -129,9 +133,10 @@ describe('G4.29 scan non-vacuity', () => {
 				switch (e.key) { case 'F10': break; }
 				if (e.key.startsWith('Arrow')) {}
 				if (key === 'a') {}
+				if (e.key !== 'Tab') return;
 				switch (plan.kind) { case 'select-all-step': break; }
 			`)
-		).toEqual(['Arrow*', 'ArrowUp', 'F10', 'a']);
+		).toEqual(['Arrow*', 'ArrowUp', 'F10', 'Tab', 'a']);
 	});
 
 	it('the evidence assertion can fail', () => {
