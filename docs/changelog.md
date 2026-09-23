@@ -8,6 +8,7 @@ A word on the numbers. Everything before 0.10.1 was a working number: the label 
 
 ## [0.10](changelog/0.10.md)
 
+- [0.10.5](changelog/0.10.md#0105-inline-menus-and-slash-commands-a-name-for-every-block-finns-behavior-pass): a typed trigger opens a list, slash commands ship as a plugin, every block has a name and a keyboard road, a selected image keeps no stray caret, and Finn's behavior pass
 - [0.10.4](changelog/0.10.md#0104-the-click-ladder-a-selection-toolbar-and-a-drop-that-moves): the editor owns the word and block clicks and the drop of a dragged selection, a toolbar opens over a selection, inline math opens with a digit, the picker lists each language once
 - [0.10.3](changelog/0.10.md#0103-finns-uiux-once-over): context menus and the block menu, table flyouts and strips, the code rail and the language picker, math layouts, image crop, delimiters that pair themselves
 - [0.10.2](changelog/0.10.md#0102-an-editor-you-can-see-on-a-white-page): an unthemed editor inherits its page's text color, and the quickstart mounts one you can read
