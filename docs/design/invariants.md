@@ -1389,16 +1389,18 @@ its writes would run a source over a half-published tree in production alone: `e
 DEV to true under vitest, which leaves no behavior test able to see it. A source scan is the only
 rung that can. `lint/commit-scope-production.test.ts`.
 **G4.62 · Text contrast.** Every `--code-tok-*` color `editor-theme.css` declares, the grey UI
-tokens that paint text (`--color-ui-muted`, `--color-text-muted`, `--color-text-secondary`), and
-every marker colour as it is drawn (composited at the `--syntax-marker-dim` opacity) clears WCAG
-AA (4.5:1) in each theme against the backgrounds text paints on: `--color-surface`, the fence
-(`--color-bg-secondary` composited over it), and for the UI greys `--color-bg` too, which the
-menus, toolbars and link card paint on. Computed from the declarations rather than a browser,
-because the editor paints no background of its own: an axe run measures whatever page the
-editor was dropped onto, so it can report the shell's palette and never the library's.
+tokens that paint text (`--color-ui-muted`, `--color-text-muted`, `--color-text-secondary`), the
+greys that set text apart as done or inert (a checked task, a reference label, a blocked link,
+inline raw HTML), and every marker colour as it is drawn (composited at the `--syntax-marker-dim`
+opacity) clears WCAG AA (4.5:1) in each theme against the backgrounds text paints on:
+`--color-surface`, the fence (`--color-bg-secondary` composited over it), and for the UI greys
+`--color-bg` too, which the menus, toolbars and link card paint on. An `rgba()` value is
+composited over each background before it is measured. Computed from the declarations rather
+than a browser, because the editor paints no background of its own: an axe run measures whatever
+page the editor was dropped onto, so it can report the shell's palette and never the library's.
 Completeness is the load-bearing half: the code family is derived from the CSS by prefix, so a
 token added tomorrow is measured, and a value in a form the reader can't parse fails instead of
-escaping. The UI and marker families are named lists.
+escaping. The UI, marker and done-or-inert families are named lists.
 `lint/code-token-contrast.test.ts`.
 
 **G4.63 · Bundled-plugin test boundary.** Every file under a per-plugin test directory

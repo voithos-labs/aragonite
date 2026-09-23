@@ -89,7 +89,7 @@
 	   the text either side. A host that wants a louder rule still names this token. */
 	--syntax-separator: var(--color-border, #3e3e3b);
 	--syntax-task: currentColor;
-	--syntax-task-done: rgba(128, 128, 128, 0.7);
+	--syntax-task-done: var(--color-ui-muted, #93938d);
 	--syntax-task-checked: var(--color-text-primary, currentColor);
 	--syntax-task-checked-tick: var(--color-bg, #2c2c2a);
 
@@ -122,11 +122,12 @@
 	--search-match-bg: rgba(100, 150, 255, 0.22);
 	/* Painted on top of the match text, so it must keep an alpha channel or it hides it. */
 	--search-match-active-bg: rgba(216, 166, 87, 0.55);
-	--md-ref-label-color: rgba(128, 128, 128, 0.45);
-	--md-link-blocked-color: rgba(128, 128, 128, 0.7);
+	/* Text set apart as metadata or inert takes the muted grey, which clears AA in both modes. */
+	--md-ref-label-color: var(--color-ui-muted, #93938d);
+	--md-link-blocked-color: var(--color-ui-muted, #93938d);
 	--md-unresolved-color: #c0392b;
 	--md-unresolved-image-bg: rgba(192, 57, 43, 0.08);
-	--md-raw-html-color: rgba(120, 120, 120, 0.85);
+	--md-raw-html-color: var(--color-ui-muted, #93938d);
 	--md-marker-hover-bg: rgba(128, 128, 128, 0.15);
 	/* The hanging indent a task item reserves for its marker: the width the visible `- [ ] `
 	   draws, which editor.css overrides where the box is drawn instead. */

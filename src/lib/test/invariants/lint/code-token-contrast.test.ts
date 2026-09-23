@@ -2,14 +2,14 @@
  * WCAG AA for the text the editor paints, computed from the declared palette in both themes
  * against the surface and the fence (`--color-bg-secondary` composited over it): every
  * `--code-tok-*` color, the UI grey tokens that paint text (also over the menu background),
- * and each marker color at the `--syntax-marker-dim` opacity markers are drawn with. The axe
- * gate cannot certify this, because it scans the harness page, whose background shows through.
+ * the greys that mark text as done or inert, and each marker color at the `--syntax-marker-dim`
+ * opacity markers are drawn with. The axe gate cannot certify this: it scans the harness page.
  */
 // Miss-analysis: the a11y gate measured the demo shell's background, so nothing ever
 // computed a ratio against the library's declared surfaces, and no gate enumerated the
 // token family, so three declarations sharing one failing hex read as one known failure.
-// Miss-analysis (#290 #396): the gate knew only the code tokens, then only the document's
-// surfaces, so the dimmed markers and the greys over menus, all under AA, had no row to fail.
+// Miss-analysis (#290 #396 #397): the gate knew only the code tokens, then only named greys on
+// the document's surfaces, so dimmed markers, greys over menus and alpha greys failed unseen.
 import { describe, it, expect } from 'vitest';
 import { readEditorFile, stripComments } from './scan-source';
 import { declaredValue, themeBlocks } from './theme-css';
@@ -112,6 +112,15 @@ const UI_TEXT_TOKENS = ['--color-ui-muted', '--color-text-muted', '--color-text-
  *  listed inherits the prose color, which `currentColor` resolves to. */
 const MARKER_COLOR_TOKENS = ['--syntax-heading', '--syntax-emphasis', '--syntax-list'];
 
+/** The greys that set text apart as done or inert: a checked task, a reference label, a link
+ *  whose scheme is refused, and inline raw HTML. All paint inside the document. */
+const DE_EMPHASIS_TOKENS = [
+	'--syntax-task-done',
+	'--md-ref-label-color',
+	'--md-link-blocked-color',
+	'--md-raw-html-color'
+];
+
 /** A token's color: a hex, `currentColor` (the editor's text color), or a `var()` chain
  *  whose fallback stands in for an undeclared name. */
 function resolveColor(declared: string, value: (token: string) => string): Rgb {
@@ -140,6 +149,15 @@ const BACKGROUND_NAMES: Record<Background, string> = {
 	menu: 'menu background'
 };
 
+/** A token's paint over a background: an `rgba()` composites, any other color is opaque. */
+function resolvePaint(declared: string, value: (token: string) => string): (under: Rgb) => Rgb {
+	const translucent = parseRgba(declared);
+	if (translucent !== null)
+		return (under) => composite(translucent.color, translucent.alpha, under);
+	const color = resolveColor(declared, value);
+	return () => color;
+}
+
 interface TextSample {
 	name: string;
 	/** The painted color over a given background. */
@@ -162,10 +180,15 @@ function textSamplesFor(theme: Theme): TextSample[] {
 			backgrounds: ['surface', 'fence']
 		};
 	});
-	return [...ui, ...markers];
+	const deEmphasis = DE_EMPHASIS_TOKENS.map((token): TextSample => ({
+		name: token,
+		paint: resolvePaint(value(token), value),
+		backgrounds: ['surface', 'fence']
+	}));
+	return [...ui, ...markers, ...deEmphasis];
 }
 
-describe('WCAG AA: UI text and dimmed markers against the surfaces the editor paints them on', () => {
+describe('WCAG AA: UI text, done or inert text and dimmed markers on the backgrounds they use', () => {
 	it.each(THEMES)('%s: every sample clears AA on each background it paints on', (theme) => {
 		const palette = paletteFor(theme);
 		const violations: string[] = [];
@@ -184,7 +207,9 @@ describe('WCAG AA: UI text and dimmed markers against the surfaces the editor pa
 	it('reads a numeric dim and measures every family in both themes', () => {
 		for (const theme of THEMES) {
 			const samples = textSamplesFor(theme);
-			expect(samples).toHaveLength(UI_TEXT_TOKENS.length + MARKER_COLOR_TOKENS.length + 1);
+			expect(samples).toHaveLength(
+				UI_TEXT_TOKENS.length + MARKER_COLOR_TOKENS.length + 1 + DE_EMPHASIS_TOKENS.length
+			);
 			expect(Number(themeValue(theme)('--syntax-marker-dim'))).toBeGreaterThan(0);
 		}
 		// The greys the widenings were built to catch: the light muted grey that shipped at 3.3:1,
@@ -194,6 +219,10 @@ describe('WCAG AA: UI text and dimmed markers against the surfaces the editor pa
 		);
 		expect(contrastRatio([0x67, 0x67, 0x61], paletteFor('light').menu)).toBeLessThan(AA_CONTRAST);
 		expect(contrastRatio([0x8f, 0x8f, 0x89], paletteFor('dark').menu)).toBeLessThan(AA_CONTRAST);
+		// And the checked task's alpha grey, which read 2.2:1 composited over the light surface.
+		const surface = paletteFor('light').surface;
+		const taskDone = resolvePaint('rgba(128, 128, 128, 0.7)', themeValue('light'));
+		expect(contrastRatio(taskDone(surface), surface)).toBeLessThan(AA_CONTRAST);
 	});
 });
 
