@@ -1,15 +1,17 @@
 /**
  * WCAG AA for the text the editor paints, computed from the declared palette in both themes
  * against the surface and the fence (`--color-bg-secondary` composited over it): every
- * `--code-tok-*` color, the UI grey tokens that paint text, and each marker color at the
- * `--syntax-marker-dim` opacity markers are drawn with. The axe gate cannot certify this,
- * because it scans the harness page, whose own background shows through.
+ * `--code-tok-*` color, the UI grey tokens that paint text (also over the menu background),
+ * the greys that mark text as done or inert, each marker color at the `--syntax-marker-dim`
+ * opacity, and raw-block text at the opacity its block is drawn with. The axe gate cannot
+ * certify this: it scans the harness page.
  */
 // Miss-analysis: the a11y gate measured the demo shell's background, so nothing ever
 // computed a ratio against the library's declared surfaces, and no gate enumerated the
 // token family, so three declarations sharing one failing hex read as one known failure.
-// Miss-analysis (#290): the gate knew only the code tokens, so the light muted grey and the
-// dimmed markers, both under AA, had no row to fail.
+// Miss-analysis (#290 #396 #397 #427 #428): the gate knew only the code tokens, then only named
+// greys on the document's surfaces, so dimmed markers, greys over menus, alpha greys, a grey left
+// off the list and text faded by its block's opacity all failed unseen.
 import { describe, it, expect } from 'vitest';
 import { readEditorFile, stripComments } from './scan-source';
 import { declaredValue, themeBlocks } from './theme-css';
@@ -62,6 +64,8 @@ const CODE_TOKEN_DECL = /(--code-tok-[a-z-]+)\s*:\s*([^;]+);/g;
 interface Palette {
 	surface: Rgb;
 	fence: Rgb;
+	/** `--color-bg`: the menus, toolbars and link card paint on it. */
+	menu: Rgb;
 	/** Only the tokens naming a color; `inherit` takes the surrounding text color. */
 	colors: Map<string, Rgb>;
 }
@@ -86,7 +90,8 @@ function paletteFor(theme: Theme): Palette {
 
 	const surface = parseHex(value('--color-surface'));
 	const veil = parseRgba(value('--color-bg-secondary'));
-	if (surface === null || veil === null)
+	const menu = parseHex(value('--color-bg'));
+	if (surface === null || veil === null || menu === null)
 		throw new Error(`${theme} surfaces are no longer literals`);
 
 	const colors = new Map<string, Rgb>();
@@ -97,17 +102,53 @@ function paletteFor(theme: Theme): Palette {
 			else colors.set(token, color);
 		}
 	}
-	return { surface, fence: composite(veil.color, veil.alpha, surface), colors };
+	return { surface, fence: composite(veil.color, veil.alpha, surface), menu, colors };
 }
 
-// ── UI text and dimmed markers ──────────────────────────────────────────────
+// ── UI text, done or inert text, dimmed markers and faded blocks ────────────
 
 /** The grey tokens menus, rails, cards and toolbars paint text with. */
-const UI_TEXT_TOKENS = ['--color-ui-muted', '--color-text-muted', '--color-text-secondary'];
+const UI_TEXT_TOKENS = [
+	'--color-ui-muted',
+	'--color-ui-dulled',
+	'--color-text-muted',
+	'--color-text-secondary'
+];
 
 /** The colors a marker takes before the dim: its construct's syntax token. Every marker not
  *  listed inherits the prose color, which `currentColor` resolves to. */
 const MARKER_COLOR_TOKENS = ['--syntax-heading', '--syntax-emphasis', '--syntax-list'];
+
+/** The greys that set text apart as done or inert: a checked task, a reference label, a link
+ *  whose scheme is refused, and inline raw HTML. All paint inside the document. */
+const DE_EMPHASIS_TOKENS = [
+	'--syntax-task-done',
+	'--md-ref-label-color',
+	'--md-link-blocked-color',
+	'--md-raw-html-color'
+];
+
+/** Blocks that draw their text at a reduced opacity: raw source text, and the link reference
+ *  definition, which fades its whole block again on top of the raw text's own opacity. */
+const RAW_BLOCK_RULE = {
+	file: 'components/blocks/text/TextEditableBlock.svelte',
+	selector: '.text-editable-block.raw-block'
+};
+const REFERENCE_DEFINITION_RULE = {
+	file: 'styles/editor.css',
+	selector: ":where(.editor) .block-host[data-block-kind='linkReferenceDefinition']"
+};
+
+/** A rule's `opacity`, read from the file that declares it so a retuned fade is measured. */
+function ruleOpacity({ file, selector }: { file: string; selector: string }): number {
+	const css = readEditorFile(file).code;
+	const start = css.indexOf(`${selector} {`);
+	if (start === -1) throw new Error(`${file} has no \`${selector}\` rule`);
+	const body = css.slice(start, css.indexOf('}', start));
+	const opacity = Number(/\bopacity:\s*([^;]+);/.exec(body)?.[1]);
+	if (Number.isNaN(opacity)) throw new Error(`\`${selector}\` sets no numeric opacity`);
+	return opacity;
+}
 
 /** A token's color: a hex, `currentColor` (the editor's text color), or a `var()` chain
  *  whose fallback stands in for an undeclared name. */
@@ -129,41 +170,75 @@ function resolveColor(declared: string, value: (token: string) => string): Rgb {
 	return color;
 }
 
+type Background = 'surface' | 'fence' | 'menu';
+
+const BACKGROUND_NAMES: Record<Background, string> = {
+	surface: 'surface',
+	fence: 'fence',
+	menu: 'menu background'
+};
+
+/** A token's paint over a background: an `rgba()` composites, any other color is opaque. */
+function resolvePaint(declared: string, value: (token: string) => string): (under: Rgb) => Rgb {
+	const translucent = parseRgba(declared);
+	if (translucent !== null)
+		return (under) => composite(translucent.color, translucent.alpha, under);
+	const color = resolveColor(declared, value);
+	return () => color;
+}
+
 interface TextSample {
 	name: string;
 	/** The painted color over a given background. */
 	paint: (background: Rgb) => Rgb;
+	backgrounds: Background[];
 }
 
 function textSamplesFor(theme: Theme): TextSample[] {
 	const value = themeValue(theme);
 	const dim = Number(value('--syntax-marker-dim'));
-	const ui = UI_TEXT_TOKENS.map((token) => {
+	const ui = UI_TEXT_TOKENS.map((token): TextSample => {
 		const color = resolveColor(value(token), value);
-		return { name: token, paint: () => color };
+		return { name: token, paint: () => color, backgrounds: ['surface', 'fence', 'menu'] };
 	});
-	const markers = ['currentColor', ...MARKER_COLOR_TOKENS].map((source) => {
+	const markers = ['currentColor', ...MARKER_COLOR_TOKENS].map((source): TextSample => {
 		const color = resolveColor(source === 'currentColor' ? source : value(source), value);
 		return {
 			name: `a ${source === 'currentColor' ? 'prose' : source} marker at ${dim}`,
-			paint: (background: Rgb) => composite(color, dim, background)
+			paint: (background: Rgb) => composite(color, dim, background),
+			backgrounds: ['surface', 'fence']
 		};
 	});
-	return [...ui, ...markers];
+	const deEmphasis = DE_EMPHASIS_TOKENS.map((token): TextSample => ({
+		name: token,
+		paint: resolvePaint(value(token), value),
+		backgrounds: ['surface', 'fence']
+	}));
+	// Raw-block text takes `--syntax-comment`; nested opacities multiply over the backdrop.
+	const rawText = resolveColor(value('--syntax-comment'), value);
+	const rawOpacity = ruleOpacity(RAW_BLOCK_RULE);
+	const fadedBlocks: Array<[string, number]> = [
+		['a raw block', rawOpacity],
+		['a link reference definition', rawOpacity * ruleOpacity(REFERENCE_DEFINITION_RULE)]
+	];
+	const faded = fadedBlocks.map(([block, opacity]): TextSample => ({
+		name: `text in ${block} at ${Number(opacity.toFixed(4))}`,
+		paint: (background: Rgb) => composite(rawText, opacity, background),
+		backgrounds: ['surface', 'fence']
+	}));
+	return [...ui, ...markers, ...deEmphasis, ...faded];
 }
 
-describe('WCAG AA: UI text and dimmed markers against the surfaces the editor paints them on', () => {
-	it.each(THEMES)('%s: every sample clears AA on the surface and on the fence', (theme) => {
-		const { surface, fence } = paletteFor(theme);
+describe('WCAG AA: UI text, done or inert text, dimmed markers and faded blocks on their backgrounds', () => {
+	it.each(THEMES)('%s: every sample clears AA on each background it paints on', (theme) => {
+		const palette = paletteFor(theme);
 		const violations: string[] = [];
 		for (const sample of textSamplesFor(theme)) {
-			for (const [name, background] of [
-				['surface', surface],
-				['fence', fence]
-			] as const) {
+			for (const name of sample.backgrounds) {
+				const background = palette[name];
 				const ratio = contrastRatio(sample.paint(background), background);
 				if (ratio < AA_CONTRAST)
-					violations.push(`${sample.name} on the ${name}: ${ratio.toFixed(2)}:1`);
+					violations.push(`${sample.name} on the ${BACKGROUND_NAMES[name]}: ${ratio.toFixed(2)}:1`);
 			}
 		}
 		expect(violations).toEqual([]);
@@ -173,11 +248,25 @@ describe('WCAG AA: UI text and dimmed markers against the surfaces the editor pa
 	it('reads a numeric dim and measures every family in both themes', () => {
 		for (const theme of THEMES) {
 			const samples = textSamplesFor(theme);
-			expect(samples).toHaveLength(UI_TEXT_TOKENS.length + MARKER_COLOR_TOKENS.length + 1);
+			expect(samples).toHaveLength(
+				UI_TEXT_TOKENS.length + MARKER_COLOR_TOKENS.length + 1 + DE_EMPHASIS_TOKENS.length + 2
+			);
 			expect(Number(themeValue(theme)('--syntax-marker-dim'))).toBeGreaterThan(0);
 		}
-		// The grey this widening was built to catch: the light muted grey that shipped at 3.3:1.
+		// The greys the widenings were built to catch: the light muted grey that shipped at 3.3:1,
+		// and the muted greys that read 4.2 and 4.3:1 over the menu background.
 		expect(contrastRatio([0x83, 0x83, 0x7b], paletteFor('light').surface)).toBeLessThan(
+			AA_CONTRAST
+		);
+		expect(contrastRatio([0x67, 0x67, 0x61], paletteFor('light').menu)).toBeLessThan(AA_CONTRAST);
+		expect(contrastRatio([0x8f, 0x8f, 0x89], paletteFor('dark').menu)).toBeLessThan(AA_CONTRAST);
+		expect(contrastRatio([0x71, 0x71, 0x6a], paletteFor('light').menu)).toBeLessThan(AA_CONTRAST);
+		// And the checked task's alpha grey, which read 2.2:1 composited over the light surface.
+		const surface = paletteFor('light').surface;
+		const taskDone = resolvePaint('rgba(128, 128, 128, 0.7)', themeValue('light'));
+		expect(contrastRatio(taskDone(surface), surface)).toBeLessThan(AA_CONTRAST);
+		// And light prose in a reference definition at 0.85 x 0.75, which read 4.2:1.
+		expect(contrastRatio(composite([0x2a, 0x2a, 0x27], 0.6375, surface), surface)).toBeLessThan(
 			AA_CONTRAST
 		);
 	});

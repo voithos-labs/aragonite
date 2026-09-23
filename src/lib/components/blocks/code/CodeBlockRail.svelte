@@ -619,7 +619,7 @@
 		margin: -4px -4px 4px;
 		padding: 8px 12px;
 		border-bottom: 1px solid var(--menu-search-divider, rgba(255, 255, 255, 0.08));
-		color: var(--color-ui-muted, #8f8f89);
+		color: var(--color-ui-muted, #93938d);
 	}
 
 	.code-lang-search input {

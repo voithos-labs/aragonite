@@ -388,14 +388,14 @@
 
 /* Blocked-scheme link: inert metadata, kept visually distinct from a clickable one. */
 :where(.editor) .md-link-content.md-link-blocked {
-	color: var(--md-link-blocked-color, var(--color-text-muted, #888));
+	color: var(--md-link-blocked-color, #8f8f89);
 	text-decoration: none;
 	cursor: text;
 }
 
-/* Dimmer than the structural-content `[text]` / `(url)` markers, so it reads as metadata. */
+/* A faded grey and italic, so the label reads as metadata beside the link's own markers. */
 :where(.editor) .md-ref-label {
-	color: var(--md-ref-label-color, rgba(128, 128, 128, 0.45));
+	color: var(--md-ref-label-color, #8f8f89);
 	font-style: italic;
 }
 
@@ -412,16 +412,17 @@
 	border-radius: 2px;
 }
 
-/* linkReferenceDefinition blocks render as metadata rather than content. */
+/* Link reference definitions render as metadata rather than content. The fade stacks on the
+   raw block's own opacity, and 0.8 is the lowest that keeps light-theme text at AA. */
 :where(.editor) .block-host[data-block-kind='linkReferenceDefinition'] {
-	opacity: 0.75;
+	opacity: 0.8;
 	font-size: 0.9em;
 	font-style: italic;
 }
 
 /* Dimmed monospace gives inline raw HTML a code-ish feel without becoming a code span. */
 :where(.editor) .md-raw-html {
-	color: var(--md-raw-html-color, rgba(120, 120, 120, 0.85));
+	color: var(--md-raw-html-color, #8f8f89);
 	font-family: var(--font-code, ui-monospace, monospace);
 	font-size: 0.92em;
 }
@@ -552,7 +553,7 @@
 	display: inline-flex;
 	align-items: center;
 	flex-shrink: 0;
-	color: var(--color-ui-muted, #8f8f89);
+	color: var(--color-ui-muted, #93938d);
 }
 
 :where(.editor) .md-menu-divider {
@@ -729,7 +730,7 @@
 	width: round(1.2em, 1px);
 	height: round(1.2em, 1px);
 	box-sizing: border-box;
-	border: 1.5px solid var(--color-ui-muted, #8f8f89);
+	border: 1.5px solid var(--color-ui-muted, #93938d);
 	border-radius: 0.28em;
 	background: transparent;
 }
