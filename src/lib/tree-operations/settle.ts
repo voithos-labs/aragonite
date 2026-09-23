@@ -215,8 +215,8 @@ function materializeTailSuffix(parent: SeparatorParent, sharing?: SharingState):
 }
 
 /**
- * Where a body keeps its trailing blank line. A container that declares a `bodyWrap` counts its
- * edge lines against its opener and closer, which {@link settleSeparatorOnBlank} reconciles.
+ * Where a body keeps its trailing blank line. A closer line strips a line of its own, which
+ * {@link settleSeparatorOnBlank} reconciles, so a body under one has no such slot here.
  */
 function tailSuffixSlotOf(
 	parent: SeparatorParent
@@ -225,7 +225,17 @@ function tailSuffixSlotOf(
 		return { read: () => parent.suffix ?? '', clear: () => (parent.suffix = '') };
 	}
 	const owner = ownerNodeOf(parent);
-	if (!owner || bodyWrapOf(parent)) return undefined;
+	const wrap = bodyWrapOf(parent);
+	if (!owner || wrap?.beforeCloserLine) return undefined;
+	// An all-blank body under an opener line gives its first line to the opener on reload, which
+	// is the one the trailing line would have added.
+	const children = parent.children ?? [];
+	const openerTakesLine =
+		wrap?.afterOpenerLine === true &&
+		!owner.innerPrefix &&
+		children.length > 0 &&
+		children.every(isBlankParagraph);
+	if (openerTakesLine) return undefined;
 	return { read: () => owner.innerSuffix ?? '', clear: () => (owner.innerSuffix = '') };
 }
 

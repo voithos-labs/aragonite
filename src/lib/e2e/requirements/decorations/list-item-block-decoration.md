@@ -2,7 +2,8 @@
 
 A list item renders its own `.list-item-block` box instead of a block host, so a `block`
 decoration addressed to an item's path lands on that box: the class and attributes on it, and a
-badge as its first child.
+badge as its first child. The box lays its children out in a row, so the badge sits beside the
+marker rather than above the content; positioning it is the consumer's CSS, as for any badge.
 
 ## Happy paths
 

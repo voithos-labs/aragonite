@@ -1,4 +1,6 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeAll } from 'vitest';
+import { installPlugins } from '$lib';
+import { admonitionsPlugin } from '$lib/plugins/admonitions';
 import type { CstNode, Document } from '$lib/core/nodes';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
@@ -14,6 +16,10 @@ import { describeConvergence } from '$lib/test/harness/parse-converged';
 // reload reads the line as one more empty paragraph, so the fix-up makes it a block (GH #393).
 // Miss-analysis: the shape property drew a quote ending on a bare `>` line under a blanked
 // paragraph only eight shrink steps deep, and no unit case blanked the paragraph above that line.
+
+beforeAll(() => {
+	installPlugins([admonitionsPlugin()]);
+});
 
 /** The chain from the document down to the container holding `path`'s block. */
 function containersAlong(doc: Document, path: number[]): CstNode[] {
@@ -97,6 +103,20 @@ describe("blanking a blockquote's last block turns its trailing line into a bloc
 		);
 		settleSeparator(quote, before, change);
 		rebuild([quote]);
+
+		expect(describeConvergence(doc)).toBeNull();
+	});
+
+	// A GitHub alert has an opener line and no closer, so its body keeps the trailing line the
+	// same way; only an all-blank body gives that line to the opener on reload instead.
+	it.each([
+		['the last of two paragraphs', '> [!NOTE]\n> a\n>\n> b\n>\n', [0, 1]],
+		['its one paragraph', '> [!NOTE]\n> b\n>\n', [0, 0]],
+		['a paragraph under a blank line', '> [!NOTE]\n>\n> b\n>\n', [0, 0]]
+	])('an alert blanking %s reloads to its own shape', (_, source, path) => {
+		const doc = parse(source);
+
+		empty(doc, path);
 
 		expect(describeConvergence(doc)).toBeNull();
 	});
