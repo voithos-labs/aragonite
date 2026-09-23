@@ -5,6 +5,7 @@ import type {
 	EditorEventMap,
 	SelectionChangeEvent,
 	EditorError,
+	SourceSwapEvent,
 	OperationKind
 } from '$lib/plugin';
 
@@ -35,11 +36,12 @@ describe('@voithos-labs/aragonite/plugin event payloads', () => {
 		} = {
 			edit: (e) => e.path,
 			selectionChange: (sel: SelectionChangeEvent) => sel?.anchor.offset,
-			error: (err: EditorError) => err.origin
+			error: (err: EditorError) => err.origin,
+			sourceSwap: (swap: SourceSwapEvent) => swap.generation
 		};
 
 		expect(kind).toBe(event.op);
 		expect(length).toBe(3);
-		expect(Object.keys(handlers)).toHaveLength(3);
+		expect(Object.keys(handlers)).toHaveLength(4);
 	});
 });

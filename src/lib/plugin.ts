@@ -307,7 +307,13 @@ export type {
 // The payloads `EditorContext.events` delivers. `EditEvent` is the matched pair a structural
 // change reports, so an `edit` handler narrows `op` against the real set of operation names
 // instead of a bare string.
-export type { EditEvent, EditorEventMap, SelectionChangeEvent, EditorError } from './editor-events';
+export type {
+	EditEvent,
+	EditorEventMap,
+	SelectionChangeEvent,
+	EditorError,
+	SourceSwapEvent
+} from './editor-events';
 export type { OperationKind } from './schema/operations';
 
 // ── Inline menus (pre-freeze) ────────────────────────────────────────────────

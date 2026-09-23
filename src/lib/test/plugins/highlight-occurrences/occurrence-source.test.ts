@@ -101,10 +101,10 @@ describe('createOccurrenceSource', () => {
 	});
 });
 
-// The marks step aside while you type. A keystroke happens under a caret and bumps
-// `editEpoch` with no `edit` event before it; every other document change fails one of those
-// two, so the marks stay on. Miss-analysis: no unit test reached the source through an `edit`
-// op at all, so nothing told a keystroke apart from an undo or a whole-document swap.
+// The marks step aside while you type. A keystroke bumps `editEpoch` with no `edit` or
+// `sourceSwap` event before it; every other document change announces itself, so the marks stay
+// on. Miss-analysis: no unit test reached the source through an `edit` op at all, so nothing
+// told a keystroke apart from an undo or a whole-document swap.
 describe('createOccurrenceSource typing gate', () => {
 	const doc = parse('cat sat on cat\n\ndog ran\n');
 
@@ -148,17 +148,25 @@ describe('createOccurrenceSource typing gate', () => {
 		expect(provideMarks(source, doc, 2)).toHaveLength(2);
 	});
 
-	// A whole-document swap announces no op at all; it drops the caret before its
-	// `editEpoch` arrives, and that is what separates it from a keystroke.
-	it('never hides an epoch that arrived with no caret', () => {
-		const { source, setSelection } = createOccurrenceSource();
+	// The `sourceSwap` event fires before the swap's `editEpoch` arrives, and a host may place a
+	// caret in the new document before that epoch lands.
+	it('never hides the epoch a source swap announced ahead of, caret or none', () => {
+		const { source, setSelection, noteSourceSwap } = createOccurrenceSource();
 		setSelection(caret([0], 0));
 		provideMarks(source, doc, 1);
 
-		setSelection(null);
-		expect(provideMarks(source, doc, 2)).toEqual([]); // no anchor word, not a hold
+		expect(noteSourceSwap()).toBe(false); // nothing held back to reveal
+		const swapped = parse('dog sat on dog\n');
+		expect(provideMarks(source, swapped, 2)).toHaveLength(2);
+	});
 
-		setSelection(caret([0], 0)); // the click into the swapped-in document
+	it('paints held marks again when a source swap lands after a keystroke epoch', () => {
+		const { source, setSelection, noteSourceSwap } = createOccurrenceSource();
+		setSelection(caret([0], 0));
+		provideMarks(source, doc, 1);
+		expect(provideMarks(source, doc, 2)).toEqual([]);
+
+		expect(noteSourceSwap()).toBe(true);
 		expect(provideMarks(source, doc, 2)).toHaveLength(2);
 	});
 

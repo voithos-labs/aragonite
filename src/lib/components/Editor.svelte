@@ -358,7 +358,8 @@
 			currentResolver = resolver;
 			currentSignature = next.signature;
 			signatureEpoch = next.epoch;
-		}
+		},
+		events
 	});
 
 	// The `source !== lastSource` check is required:
@@ -627,6 +628,7 @@
 		decorations,
 		rects,
 		inlineMenus,
+		getDocumentGeneration: documentSwap.generation,
 		// The one place the mode enters the dispatch levels; they read it back through
 		// the pluginEditor lookup they already pass around.
 		getPresentationMode: () => effectiveMode,

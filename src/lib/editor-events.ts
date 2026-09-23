@@ -64,6 +64,14 @@ export interface EditorEventMap {
 	/** `true` when an editor-owned menu (the right-click menu and its flyouts) opens, `false` when
 	 *  it closes, so a host's own controls over the selection can step aside rather than stack. */
 	menuChange: boolean;
+	/** A `source` prop write replaced the whole document. Fires once the new tree, its selection
+	 *  and its link references are in place; an `edit` never fires for it. */
+	sourceSwap: SourceSwapEvent;
+}
+
+/** `generation` counts whole-document replacements since mount, starting at 1. */
+export interface SourceSwapEvent {
+	generation: number;
 }
 
 export interface EditorEvents {

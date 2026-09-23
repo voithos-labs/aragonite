@@ -18,7 +18,7 @@ This is gonna be a long one, so here are the sections:
 | [The public surface](#the-public-surface)                     | What the package exports, and what the version number promises about it                                        |
 | [Props](#props)                                               | Every prop, and which ones you can change after mount                                                          |
 | [The instance surface](#the-instance-surface)                 | The methods on a mounted editor: read the document, move the caret, run commands                               |
-| [Events](#events)                                             | The six channels an editor reports on, and what each one carries                                               |
+| [Events](#events)                                             | The seven channels an editor reports on, and what each one carries                                             |
 | [Presentation modes](#presentation-modes)                     | One document shown five ways, from raw Markdown to fully rendered                                              |
 | [Images and links](#images-and-links)                         | Rewriting URLs, importing pasted images, and which URLs the editor refuses to load                             |
 | [Plugins](#plugins)                                           | Installing plugins, why the whole app should share one set, and the nine that ship in the box                  |
@@ -342,7 +342,7 @@ const off = events.on('edit', (e) => console.log(e.op, e.path));
 off();
 ```
 
-Six channels:
+Seven channels:
 
 | Channel                  | Fires                                                                                                                                            |
 | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -351,6 +351,7 @@ Six channels:
 | `error`                  | On a failure the editor contained rather than threw                                                                                              |
 | `presentationModeChange` | After a `presentationMode` prop change; the payload is the effective mode (never at mount)                                                       |
 | `themeChange`            | After a `theme` prop change; the payload is the theme name (never at mount)                                                                      |
+| `sourceSwap`             | After a `source` prop write replaces the whole document; the payload is `{ generation }` (never at mount, and never on `edit`)                   |
 | `menuChange`             | `true` when an editor-owned menu (the right-click menu, an inline menu's list) opens and `false` when it closes; hide selection chrome meanwhile |
 
 Events fire synchronously from wherever they happen, and **a handler must not edit the document**: reentrant edits aren't supported.
@@ -401,6 +402,8 @@ events.on('error', (err) => err);
 | `subscriber` | nothing; one of your own handlers threw                        |
 
 **`presentationModeChange`** and **`themeChange`** carry bare values (`'reading'`, `'light'`), not envelopes, and never fire at mount. Only plugin content that paints its own colors needs `themeChange`; anything styled through the tokens rethemes itself through the CSS cascade.
+
+**`sourceSwap`** carries `{ generation }`, how many times a `source` write has replaced the document since mount (the first swap is 1). It fires once the new document, its cleared selection and its link references are all in place, so a handler reading `getSource()` sees the new document. A swap is not an edit: it fires nothing on `edit`, so a host that marks a document dirty on `edit` never hears its own `source` write echoed back.
 
 ## Presentation modes
 
@@ -1156,7 +1159,7 @@ For rewriting a whole document (converting legacy syntax, migrating content, app
 <Editor bind:this={editor} {source} />
 ```
 
-The replacement is one document swap, so undo history and the caret don't survive it. That's the honest shape for an import-or-convert affordance; pretending otherwise would only hide the swap.
+The replacement is one document swap, so undo history and the caret don't survive it, and it's announced on `sourceSwap` rather than `edit`. That's the honest shape for an import-or-convert affordance; pretending otherwise would only hide the swap.
 
 A transformer working over `parse`'s output can lean on how the document is put back together: `serialize` is exactly `prefix + Σ(child.leadingTrivia + child.raw) + suffix` over the document's children, so a rewrite can replace individual blocks' bytes and reassemble without touching the rest.
 

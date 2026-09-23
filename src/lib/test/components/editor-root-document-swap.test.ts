@@ -31,6 +31,7 @@ describe('the swap commit sequence', () => {
 		const selection = createSelectionState({ onChange: step('announce') });
 		let adopted: Document | null = null;
 		let links: { resolver: LinkReferenceResolver; signature: string } | null = null;
+		const swaps: { generation: number; source: string }[] = [];
 		const swap = createDocumentSwap({
 			flushDebouncedCheckpoint: step('flush'),
 			adoptDocument: (doc) => {
@@ -48,12 +49,20 @@ describe('the swap commit sequence', () => {
 			adoptLinkReferences: (resolver, signature) => {
 				links = { resolver, signature };
 				order.push('links');
+			},
+			events: {
+				emit: (event, payload) => {
+					order.push(event);
+					// What a subscriber reads inside its handler: the document already adopted.
+					if (event === 'sourceSwap')
+						swaps.push({ ...(payload as { generation: number }), source: serialize(adopted!) });
+				}
 			}
 		});
-		return { swap, selection, order, adopted: () => adopted, links: () => links };
+		return { swap, selection, order, swaps, adopted: () => adopted, links: () => links };
 	}
 
-	it('runs every reset in order, the checkpoint flush first and the link references last', () => {
+	it('runs every reset in order, the checkpoint flush first and the announcement last', () => {
 		const h = harness();
 		h.swap.swapTo('# B\n');
 		expect(h.order).toEqual([
@@ -67,7 +76,8 @@ describe('the swap commit sequence', () => {
 			'affinity',
 			'widget',
 			'announce',
-			'links'
+			'links',
+			'sourceSwap'
 		]);
 		expect(serialize(h.adopted()!)).toBe('# B\n');
 	});
@@ -82,11 +92,15 @@ describe('the swap commit sequence', () => {
 		expect(h.links()!.resolver('x')?.url).toBe('https://x.example');
 	});
 
-	it('counts whole-document replacements', () => {
+	it('counts whole-document replacements and announces each with the new document in place', () => {
 		const h = harness();
 		expect(h.swap.generation()).toBe(0);
 		h.swap.swapTo('a\n');
 		h.swap.swapTo('b\n');
 		expect(h.swap.generation()).toBe(2);
+		expect(h.swaps).toEqual([
+			{ generation: 1, source: 'a\n' },
+			{ generation: 2, source: 'b\n' }
+		]);
 	});
 });

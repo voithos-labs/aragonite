@@ -38,6 +38,7 @@ const deps = (doc: { children: unknown[] }) => ({
 	decorations: noopDecorations,
 	rects: noopRects,
 	inlineMenus: noopInlineMenus,
+	getDocumentGeneration: () => 0,
 	getPresentationMode: () => 'source' as const,
 	getTheme: () => 'dark',
 	activation: everyInstalledPlugin
@@ -75,6 +76,18 @@ describe('createEditorPluginContexts', () => {
 		const ctx = ctxs.get('p')!;
 		doc = { children: [1] };
 		expect((ctx.document as never as { children: unknown[] }).children).toHaveLength(1);
+	});
+
+	it('documentGeneration is a live getter, not a snapshot', () => {
+		let generation = 0;
+		const ctxs = createEditorPluginContexts({
+			...deps({ children: [] }),
+			getDocumentGeneration: () => generation
+		});
+		const ctx = ctxs.get('p')!;
+		expect(ctx.documentGeneration).toBe(0);
+		generation = 2;
+		expect(ctx.documentGeneration).toBe(2);
 	});
 
 	it('presentationMode is a live getter, not a snapshot', () => {
