@@ -7,6 +7,7 @@ import { parse } from '../../core/parser';
 import { serialize } from '../../core/serializer';
 import { reorderChildrenWithTrivia } from '../../tree-operations/reorder';
 import { createSharingState } from '../../tree-operations/sharing';
+import { defaultGrammarView } from '$lib/schema/block-openers';
 
 // The joins that bite: a table and a list under prose (a paragraph continues into both), a
 // quote, a heading, and a fence that cannot be continued into. Blank-line nodes throughout.
@@ -46,7 +47,7 @@ function realBlocks(markdown: string): string[] {
 
 function afterMove(from: number, to: number): string[] {
 	const doc = parse(DOC);
-	reorderChildrenWithTrivia(doc.children, from, to, createSharingState(), true);
+	reorderChildrenWithTrivia(doc.children, from, to, createSharingState(), defaultGrammarView, true);
 	return realBlocks(serialize(doc));
 }
 
@@ -85,7 +86,14 @@ describe('a reorder keeps every block it moves past', () => {
 		const doc = parse(DOC);
 		const before = doc.children.length;
 		// A fence and a quote: neither can be continued into, so neither needs a separator.
-		reorderChildrenWithTrivia(doc.children, fence, quote, createSharingState(), true);
+		reorderChildrenWithTrivia(
+			doc.children,
+			fence,
+			quote,
+			createSharingState(),
+			defaultGrammarView,
+			true
+		);
 		expect(doc.children.length).toBe(before);
 	});
 });

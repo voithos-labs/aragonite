@@ -214,8 +214,8 @@
 
 	// ── State ───────────────────────────────────────────────────────────
 
-	// This editor's view of the global block definitions, read by the first parse and most edits
-	// (#429 lists the routes still on the global one). The test hook narrows the plugins prop.
+	// This editor's view of the global definitions, read by the first parse, every edit's reparse
+	// and the inline scan. The test hook narrows the plugins prop.
 	// svelte-ignore state_referenced_locally
 	const registryView = createRegistryView({
 		plugins: pluginEntries ? activePlugins : undefined,

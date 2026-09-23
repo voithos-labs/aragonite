@@ -6,6 +6,7 @@ import { reorderChildrenWithTrivia } from '$lib/tree-operations/reorder';
 import { createSharingState } from '$lib/tree-operations/sharing';
 import { rebuildContainerRaw } from '$lib/schema/container-raw';
 import { describeConvergence } from '$lib/test/harness/parse-converged';
+import { defaultGrammarView } from '$lib/schema/block-openers';
 
 // GH #180: a write leaving an unterminated construct that runs to end of file made the neighbour
 // merge bring the live tree to the reload's reading, which is the whole rest of the document as
@@ -163,7 +164,13 @@ describe('a gesture that writes no bytes still absorbs (GH #180)', () => {
 		const doc = parse('a\n\n```\nx\n');
 		expect(doc.children.map((c) => c.kind)).toEqual(['paragraph', 'fencedCode']);
 
-		const settled = reorderChildrenWithTrivia(doc.children, 1, 0, createSharingState());
+		const settled = reorderChildrenWithTrivia(
+			doc.children,
+			1,
+			0,
+			createSharingState(),
+			defaultGrammarView
+		);
 
 		expect(doc.children.map((c) => [c.kind, c.raw])).toEqual([['fencedCode', '```\nx\n\na\n']]);
 		expect(describeConvergence(doc)).toBeNull();

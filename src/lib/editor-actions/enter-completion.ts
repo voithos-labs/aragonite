@@ -77,7 +77,7 @@ export function planEnterCompletion(
 	offset: number,
 	grammar: GrammarView = defaultGrammarView
 ): EnterCompletion | null {
-	return planCompletion(node, offset, (line) => completeTypedLine(line, grammar));
+	return planCompletion(node, offset, grammar, (line) => completeTypedLine(line, grammar));
 }
 
 /** The completion a keystroke produces, asking only the completers that answer on type. */
@@ -86,12 +86,13 @@ export function planTypedCompletion(
 	offset: number,
 	grammar: GrammarView = defaultGrammarView
 ): EnterCompletion | null {
-	return planCompletion(node, offset, (line) => completeLineOnType(line, grammar));
+	return planCompletion(node, offset, grammar, (line) => completeLineOnType(line, grammar));
 }
 
 function planCompletion(
 	node: NodeView | undefined,
 	offset: number,
+	grammar: GrammarView,
 	consult: (line: string) => CompletionResult | null
 ): EnterCompletion | null {
 	if (!node) return null;
@@ -100,11 +101,11 @@ function planCompletion(
 	const claim = consult(line);
 	if (!claim) return null;
 
-	// Through the parser rather than a hand-built node, so the new blocks are exactly what a
-	// reload of those bytes produces. Global grammar, like every other structural reparse.
+	// Through the parser in the editor's grammar rather than a hand-built node, so the new blocks
+	// are exactly what a reload of those bytes produces.
 	const lineEnding = trailingLineEnding(node.raw);
 	const raw = claim.lines.map((text) => text + lineEnding).join('');
-	const replacement = parse(raw, { scope: 'fragment' }).children;
+	const replacement = parse(raw, { grammar, scope: 'fragment' }).children;
 	// A completion that shows nothing would replace the typed line with a delete, or with blank
 	// lines a reload reads as neither. Blank lines parse back as empty paragraphs, so the check
 	// is per node rather than by child count.

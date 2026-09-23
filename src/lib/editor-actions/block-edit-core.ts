@@ -245,7 +245,8 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 						{ children: view.children },
 						i,
 						view.getPresentationMode?.(),
-						view.linkRef
+						view.linkRef,
+						view.grammar
 					);
 					stampStructuralChange(view.children, merged.change, view.sharing);
 					return merged.change;
