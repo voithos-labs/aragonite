@@ -208,9 +208,8 @@ The editor component driven in real Chromium. No backend needed; it's self-conta
 review. Every `devWarn` reaches the browser console under the `[aragonite:…]` prefix and every
 Svelte runtime warning under `[svelte] <code>`, and the shared `test` fails any spec whose page
 emitted one, so a dev-guard violation surfaces at the spec that _caused_ it rather than passing
-silently and turning up a release later. An uncaught page error fails it the same way, under the
-tag `pageerror`, and so does an `Unhandled error` console line, under `unhandled`. The verdict
-lands at teardown and names the fire:
+silently and turning up a release later. An uncaught page error or rejection fails it the same way,
+under the tag `pageerror`. The verdict lands at teardown and names the fire:
 
 ```
 Error: unexpected [aragonite:…] / [svelte] console fires or uncaught errors:
