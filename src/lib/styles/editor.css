@@ -552,7 +552,7 @@
 	display: inline-flex;
 	align-items: center;
 	flex-shrink: 0;
-	color: var(--color-ui-muted, #8f8f89);
+	color: var(--color-ui-muted, #93938d);
 }
 
 :where(.editor) .md-menu-divider {
@@ -729,7 +729,7 @@
 	width: round(1.2em, 1px);
 	height: round(1.2em, 1px);
 	box-sizing: border-box;
-	border: 1.5px solid var(--color-ui-muted, #8f8f89);
+	border: 1.5px solid var(--color-ui-muted, #93938d);
 	border-radius: 0.28em;
 	background: transparent;
 }

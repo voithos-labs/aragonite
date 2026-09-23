@@ -1,15 +1,15 @@
 /**
  * WCAG AA for the text the editor paints, computed from the declared palette in both themes
  * against the surface and the fence (`--color-bg-secondary` composited over it): every
- * `--code-tok-*` color, the UI grey tokens that paint text, and each marker color at the
- * `--syntax-marker-dim` opacity markers are drawn with. The axe gate cannot certify this,
- * because it scans the harness page, whose own background shows through.
+ * `--code-tok-*` color, the UI grey tokens that paint text (also over the menu background),
+ * and each marker color at the `--syntax-marker-dim` opacity markers are drawn with. The axe
+ * gate cannot certify this, because it scans the harness page, whose background shows through.
  */
 // Miss-analysis: the a11y gate measured the demo shell's background, so nothing ever
 // computed a ratio against the library's declared surfaces, and no gate enumerated the
 // token family, so three declarations sharing one failing hex read as one known failure.
-// Miss-analysis (#290): the gate knew only the code tokens, so the light muted grey and the
-// dimmed markers, both under AA, had no row to fail.
+// Miss-analysis (#290 #396): the gate knew only the code tokens, then only the document's
+// surfaces, so the dimmed markers and the greys over menus, all under AA, had no row to fail.
 import { describe, it, expect } from 'vitest';
 import { readEditorFile, stripComments } from './scan-source';
 import { declaredValue, themeBlocks } from './theme-css';
@@ -62,6 +62,8 @@ const CODE_TOKEN_DECL = /(--code-tok-[a-z-]+)\s*:\s*([^;]+);/g;
 interface Palette {
 	surface: Rgb;
 	fence: Rgb;
+	/** `--color-bg`: the menus, toolbars and link card paint on it. */
+	menu: Rgb;
 	/** Only the tokens naming a color; `inherit` takes the surrounding text color. */
 	colors: Map<string, Rgb>;
 }
@@ -86,7 +88,8 @@ function paletteFor(theme: Theme): Palette {
 
 	const surface = parseHex(value('--color-surface'));
 	const veil = parseRgba(value('--color-bg-secondary'));
-	if (surface === null || veil === null)
+	const menu = parseHex(value('--color-bg'));
+	if (surface === null || veil === null || menu === null)
 		throw new Error(`${theme} surfaces are no longer literals`);
 
 	const colors = new Map<string, Rgb>();
@@ -97,7 +100,7 @@ function paletteFor(theme: Theme): Palette {
 			else colors.set(token, color);
 		}
 	}
-	return { surface, fence: composite(veil.color, veil.alpha, surface), colors };
+	return { surface, fence: composite(veil.color, veil.alpha, surface), menu, colors };
 }
 
 // ── UI text and dimmed markers ──────────────────────────────────────────────
@@ -129,41 +132,49 @@ function resolveColor(declared: string, value: (token: string) => string): Rgb {
 	return color;
 }
 
+type Background = 'surface' | 'fence' | 'menu';
+
+const BACKGROUND_NAMES: Record<Background, string> = {
+	surface: 'surface',
+	fence: 'fence',
+	menu: 'menu background'
+};
+
 interface TextSample {
 	name: string;
 	/** The painted color over a given background. */
 	paint: (background: Rgb) => Rgb;
+	backgrounds: Background[];
 }
 
 function textSamplesFor(theme: Theme): TextSample[] {
 	const value = themeValue(theme);
 	const dim = Number(value('--syntax-marker-dim'));
-	const ui = UI_TEXT_TOKENS.map((token) => {
+	const ui = UI_TEXT_TOKENS.map((token): TextSample => {
 		const color = resolveColor(value(token), value);
-		return { name: token, paint: () => color };
+		return { name: token, paint: () => color, backgrounds: ['surface', 'fence', 'menu'] };
 	});
-	const markers = ['currentColor', ...MARKER_COLOR_TOKENS].map((source) => {
+	const markers = ['currentColor', ...MARKER_COLOR_TOKENS].map((source): TextSample => {
 		const color = resolveColor(source === 'currentColor' ? source : value(source), value);
 		return {
 			name: `a ${source === 'currentColor' ? 'prose' : source} marker at ${dim}`,
-			paint: (background: Rgb) => composite(color, dim, background)
+			paint: (background: Rgb) => composite(color, dim, background),
+			backgrounds: ['surface', 'fence']
 		};
 	});
 	return [...ui, ...markers];
 }
 
 describe('WCAG AA: UI text and dimmed markers against the surfaces the editor paints them on', () => {
-	it.each(THEMES)('%s: every sample clears AA on the surface and on the fence', (theme) => {
-		const { surface, fence } = paletteFor(theme);
+	it.each(THEMES)('%s: every sample clears AA on each background it paints on', (theme) => {
+		const palette = paletteFor(theme);
 		const violations: string[] = [];
 		for (const sample of textSamplesFor(theme)) {
-			for (const [name, background] of [
-				['surface', surface],
-				['fence', fence]
-			] as const) {
+			for (const name of sample.backgrounds) {
+				const background = palette[name];
 				const ratio = contrastRatio(sample.paint(background), background);
 				if (ratio < AA_CONTRAST)
-					violations.push(`${sample.name} on the ${name}: ${ratio.toFixed(2)}:1`);
+					violations.push(`${sample.name} on the ${BACKGROUND_NAMES[name]}: ${ratio.toFixed(2)}:1`);
 			}
 		}
 		expect(violations).toEqual([]);
@@ -176,10 +187,13 @@ describe('WCAG AA: UI text and dimmed markers against the surfaces the editor pa
 			expect(samples).toHaveLength(UI_TEXT_TOKENS.length + MARKER_COLOR_TOKENS.length + 1);
 			expect(Number(themeValue(theme)('--syntax-marker-dim'))).toBeGreaterThan(0);
 		}
-		// The grey this widening was built to catch: the light muted grey that shipped at 3.3:1.
+		// The greys the widenings were built to catch: the light muted grey that shipped at 3.3:1,
+		// and the muted greys that read 4.2 and 4.3:1 over the menu background.
 		expect(contrastRatio([0x83, 0x83, 0x7b], paletteFor('light').surface)).toBeLessThan(
 			AA_CONTRAST
 		);
+		expect(contrastRatio([0x67, 0x67, 0x61], paletteFor('light').menu)).toBeLessThan(AA_CONTRAST);
+		expect(contrastRatio([0x8f, 0x8f, 0x89], paletteFor('dark').menu)).toBeLessThan(AA_CONTRAST);
 	});
 });
 

@@ -190,7 +190,7 @@
 		--color-text-primary: #2a2a27;
 		--color-text-secondary: #4a4a45;
 		--color-ui-dulled: #71716a;
-		--color-ui-muted: #676761;
+		--color-ui-muted: #62625c;
 	}
 	.showcase-header {
 		flex: 0 0 auto;

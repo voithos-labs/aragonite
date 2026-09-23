@@ -853,7 +853,7 @@ directory as well as this table before assuming a rule is unguarded.
 | G4.59 | The VR tag catalog and the tags cited in source are one set                   | L       |
 | G4.60 | Every spread into a call's argument list declares what bounds its count       | L       |
 | G4.61 | The commit scope is set in production, not behind a build flag                | L       |
-| G4.62 | Code tokens, UI greys and dimmed markers clear AA on surface and fence        | L       |
+| G4.62 | Code tokens, UI greys and dimmed markers clear AA on the backgrounds they use | L       |
 | G4.63 | The bundled plugins' own suites import only the published entry points        | L       |
 | G4.64 | The tree-ops ladder has no upward import                                      | L       |
 | G4.65 | Every prose surface hands typed delimiters to the one auto-pair arm           | L       |
@@ -1391,10 +1391,11 @@ rung that can. `lint/commit-scope-production.test.ts`.
 **G4.62 · Text contrast.** Every `--code-tok-*` color `editor-theme.css` declares, the grey UI
 tokens that paint text (`--color-ui-muted`, `--color-text-muted`, `--color-text-secondary`), and
 every marker colour as it is drawn (composited at the `--syntax-marker-dim` opacity) clears WCAG
-AA (4.5:1) in each theme against both backgrounds text paints on: `--color-surface`, and the
-fence (`--color-bg-secondary` composited over it). Computed from the declarations rather
-than a browser, because the editor paints no background of its own: an axe run measures whatever
-page the editor was dropped onto, so it can report the shell's palette and never the library's.
+AA (4.5:1) in each theme against the backgrounds text paints on: `--color-surface`, the fence
+(`--color-bg-secondary` composited over it), and for the UI greys `--color-bg` too, which the
+menus, toolbars and link card paint on. Computed from the declarations rather than a browser,
+because the editor paints no background of its own: an axe run measures whatever page the
+editor was dropped onto, so it can report the shell's palette and never the library's.
 Completeness is the load-bearing half: the code family is derived from the CSS by prefix, so a
 token added tomorrow is measured, and a value in a form the reader can't parse fails instead of
 escaping. The UI and marker families are named lists.
