@@ -217,6 +217,8 @@ const NUMBERING = /^\d+(?:\.\d+)*[.)]?\s+/;
 const LEADING_NUMBER = /^\d+(?:-\d+)*/;
 
 /**
+ * The lenient key a `§` pointer matches on: every non-alphanumeric run folds to one dash. An
+ * anchor is stricter and slugs the way GitHub renders it ({@link githubAnchors}).
  * @param {string} text
  * @returns {string}
  */
@@ -279,7 +281,55 @@ export function headingsOf(text) {
  * @returns {Set<string>}
  */
 export function anchorsOf(text) {
-	return new Set(headingLines(stripFencedBlocks(text)).map(slug));
+	return new Set(githubAnchors(headingLines(stripFencedBlocks(text))));
+}
+
+// GitHub keeps letters, marks, numbers, connector punctuation (`_`), spaces and `-`, and drops the
+// rest, emoji included, before turning each space into its own `-`.
+const GITHUB_DROPPED = /[^\p{L}\p{M}\p{N}\p{Pc} -]/gu;
+
+/**
+ * The anchor GitHub gives each heading of one document, in order: the rendered text (code-span
+ * backticks, emphasis and link syntax gone) slugged, with `-1`, `-2` appended to a repeat.
+ * @param {string[]} headings
+ * @returns {string[]}
+ */
+export function githubAnchors(headings) {
+	/** @type {Map<string, number>} */
+	const seen = new Map();
+	return headings.map((heading) => {
+		const base = renderedHeadingText(heading)
+			.toLowerCase()
+			.replace(GITHUB_DROPPED, '')
+			.replace(/ /g, '-');
+		let anchor = base;
+		while (seen.has(anchor)) {
+			const count = (seen.get(base) ?? 0) + 1;
+			seen.set(base, count);
+			anchor = `${base}-${count}`;
+		}
+		seen.set(anchor, 0);
+		return anchor;
+	});
+}
+
+/**
+ * A heading's text as a reader sees it: a link or image keeps its text, an HTML tag goes, and an
+ * emphasis `_` goes while a snake_case one, or any inside a code span, stays.
+ * @param {string} heading
+ * @returns {string}
+ */
+function renderedHeadingText(heading) {
+	return heading
+		.replace(/!?\[([^\]]*)\]\([^)]*\)/g, '$1')
+		.split(/(`+[^`]*`+)/)
+		.map((part, index) =>
+			index % 2 === 1
+				? part.replace(/^`+|`+$/g, '')
+				: part.replace(/<[^>]+>/g, '').replace(/(^|[^\p{L}\p{N}])_+|_+(?=[^\p{L}\p{N}]|$)/gu, '$1')
+		)
+		.join('')
+		.trim();
 }
 
 /**

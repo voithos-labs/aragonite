@@ -1,8 +1,8 @@
 // Two documentation gates, both run on every invocation. With a <dir> argument the pack
 // is also written there (the directory is cleared first — see the refusal below).
 // Gate 1: the public docs pack (docs/guide/, subfolders included) leaves the repo as one tree, so
-// every relative pointer must land on a file the pack carries — a doc, or an asset beside it — and
-// a `#fragment` on one must name a heading that doc still has.
+// every relative pointer must land on a file the pack carries (a doc, or an asset beside it), and
+// a `#fragment` outside code must name a heading that doc still has, slugged as GitHub does.
 // Gate 2: the rest of the corpus (README, CONTRIBUTING, docs/) must have every relative link
 // resolve to a real file or directory.
 import { execSync } from 'node:child_process';
@@ -72,6 +72,28 @@ function isExternal(target) {
 	);
 }
 
+// A markdown link written inside code never navigates, so blank fenced and inline code before
+// scanning. Inline spans go per line, so one unbalanced backtick can't desync the rest.
+const INLINE_CODE = /(`+)(?:(?!\1).)*?\1/g;
+function stripCode(text) {
+	let fence = null;
+	return text
+		.split('\n')
+		.map((line) => {
+			const fenceMark = line.match(/^\s*(```+|~~~+)/);
+			if (fence) {
+				if (fenceMark && line.trim().startsWith(fence)) fence = null;
+				return '';
+			}
+			if (fenceMark) {
+				fence = fenceMark[1][0].repeat(3);
+				return '';
+			}
+			return line.replace(INLINE_CODE, '');
+		})
+		.join('\n');
+}
+
 const anchorIndex = new Map();
 function anchorsIn(name) {
 	if (!anchorIndex.has(name)) {
@@ -84,11 +106,13 @@ const deadPointers = [];
 const deadAnchors = [];
 for (const name of packNames) {
 	const text = readFileSync(join(SOURCE_DIR, name), 'utf8');
-	const rawTargets = [
-		...[...text.matchAll(INLINE_TARGET)].map((m) => m[1]),
-		...[...text.matchAll(REFERENCE_TARGET)].map((m) => m[1])
+	const targetsIn = (source) => [
+		...[...source.matchAll(INLINE_TARGET)].map((m) => m[1]),
+		...[...source.matchAll(REFERENCE_TARGET)].map((m) => m[1])
 	];
-	for (const raw of rawTargets) {
+	// A link shown inside code is an example: its file must still ship, but its anchor may be made up.
+	const proseTargets = targetsIn(stripCode(text));
+	for (const raw of targetsIn(text)) {
 		const target = normalizeTarget(raw);
 		if (isExternal(target)) continue; // off-pack URL
 		// A `..` that climbs out of the pack can never land on a listed file; an empty target is
@@ -98,8 +122,10 @@ for (const name of packNames) {
 			deadPointers.push(`${name}: ${raw.trim()}`);
 			continue;
 		}
+		const shownInCode = !proseTargets.includes(raw);
+		if (!shownInCode) proseTargets.splice(proseTargets.indexOf(raw), 1);
 		const fragment = targetFragment(raw);
-		if (fragment === '' || !doc.endsWith('.md')) continue;
+		if (fragment === '' || shownInCode || !doc.endsWith('.md')) continue;
 		if (!anchorsIn(doc).has(fragment)) deadAnchors.push(`${name}: ${raw.trim()}`);
 	}
 }
@@ -142,28 +168,6 @@ function corpusMarkdownFiles(path, out) {
 			out.push(child);
 	}
 	return out;
-}
-
-// A markdown link written inside code never navigates, so blank fenced and inline code before
-// scanning. Inline spans go per line, so one unbalanced backtick can't desync the rest.
-const INLINE_CODE = /(`+)(?:(?!\1).)*?\1/g;
-function stripCode(text) {
-	let fence = null;
-	return text
-		.split('\n')
-		.map((line) => {
-			const fenceMark = line.match(/^\s*(```+|~~~+)/);
-			if (fence) {
-				if (fenceMark && line.trim().startsWith(fence)) fence = null;
-				return '';
-			}
-			if (fenceMark) {
-				fence = fenceMark[1][0].repeat(3);
-				return '';
-			}
-			return line.replace(INLINE_CODE, '');
-		})
-		.join('\n');
 }
 
 const corpusFiles = [];
