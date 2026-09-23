@@ -53,7 +53,7 @@ function policyOf(ch: string, grammar: GrammarView): PairPolicy | null {
 /**
  * What a single typed byte does at a collapsed caret, or null to leave the insertion to the
  * browser. `content` bounds the inline scan (a heading's `# ` is not prose); the caret must lie
- * inside it. `keepsBlockKind` says whether the written line still parses as this block: a grown
+ * inside it. `keepsKind` says whether the written line still parses as this block: a grown
  * `****` is a thematic break and `~~~~` a fence, so such a pair steps past its partner instead.
  */
 export function resolveDelimiterAutoPair(
@@ -61,7 +61,7 @@ export function resolveDelimiterAutoPair(
 	content: ContentRange,
 	caret: number,
 	typed: string,
-	keepsBlockKind: (text: string) => boolean = () => true,
+	keepsKind: (text: string) => boolean = () => true,
 	grammar: GrammarView = defaultGrammarView
 ): AutoPairEdit | null {
 	if (typed.length !== 1 || caret < content.start || caret > content.end) return null;
@@ -77,7 +77,7 @@ export function resolveDelimiterAutoPair(
 		return { kind: 'close', text: paired, caret: caret + 1 };
 	}
 	const pair = (next: string): AutoPairEdit | null => {
-		if (keepsBlockKind(next)) return write(next, caret + 1);
+		if (keepsKind(next)) return write(next, caret + 1);
 		return after === typed ? { kind: 'step-over', caret: caret + 1, overConstruct: false } : null;
 	};
 	if (after === typed) {
