@@ -858,6 +858,7 @@ directory as well as this table before assuming a rule is unguarded.
 | G4.64 | The tree-ops ladder has no upward import                                      | L       |
 | G4.65 | Every prose surface hands typed delimiters to the one auto-pair arm           | L       |
 | G4.66 | A relative scroll is written through `scrollBy`, never read-plus-delta        | L       |
+| G4.67 | Every editor menu counts itself on `menuChange`                               | L       |
 
 ### The entries
 
@@ -1422,6 +1423,13 @@ fractional write to a device pixel and reports the snapped value back, so the ha
 loses that fraction once per correction, and a mode flip corrects once per re-measured block
 (#315). `scrollBy` carries the refused fraction into the next call; the rule is a source scan
 because the lossy spelling type-checks. `lint/file-rules.test.ts`.
+
+**G4.67 · Menu presence census.** `menuChange` reads one count of open menus, and a menu joins it
+by attaching the count to its root element, so it reads open for exactly as long as it is mounted
+(#370). Every component that renders a menu root (the shared menu class, or a menu, listbox or
+dialog role) attaches it or is listed with the reason it doesn't: the selection toolbar, which
+hides itself on the event, and the mermaid focus view, which a plugin owns.
+`lint/menu-presence-census.test.ts`.
 
 ## Accessibility
 

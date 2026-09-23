@@ -75,6 +75,7 @@
 	import { BLOCK_MENU_LABEL } from '../../a11y-strings';
 	import { keepFlyoutOnScreen } from './flyout-placement';
 	import MenuIcon from './MenuIcon.svelte';
+	import type { MenuPresence } from './menu-presence.svelte';
 
 	let {
 		x,
@@ -83,7 +84,8 @@
 		items,
 		label = BLOCK_MENU_LABEL,
 		onPick,
-		onClose
+		onClose,
+		menuPresence
 	}: {
 		x: number;
 		y: number;
@@ -93,6 +95,7 @@
 		label?: string;
 		onPick: (id: string) => void;
 		onClose: () => void;
+		menuPresence: MenuPresence;
 	} = $props();
 
 	let menuEl: HTMLDivElement | undefined = $state();
@@ -212,6 +215,7 @@
 	class="md-menu block-menu"
 	role="menu"
 	aria-label={label}
+	{@attach menuPresence.track}
 	style:left="{left}px"
 	style:top="{top}px"
 >
@@ -249,6 +253,7 @@
 						class="md-menu block-menu block-menu-flyout"
 						role="menu"
 						{@attach keepFlyoutOnScreen}
+						{@attach menuPresence.track}
 					>
 						{#each item.children as child, j (child.id)}
 							<button

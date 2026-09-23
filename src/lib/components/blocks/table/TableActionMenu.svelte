@@ -15,6 +15,7 @@
 	} from '../../../a11y-strings';
 	import MenuIcon, { type MenuIconName } from '../../menu/MenuIcon.svelte';
 	import { tick, untrack } from 'svelte';
+	import type { MenuPresence } from '../../menu/menu-presence.svelte';
 
 	// The icon each entry carries, following limestone's context menus: an icon beside every
 	// entry, and the destructive ones in the accent colour.
@@ -44,7 +45,8 @@
 		onalign,
 		onclose,
 		onescape,
-		anchor
+		anchor,
+		menuPresence
 	}: {
 		items: TableMenuItem[];
 		x: number;
@@ -56,6 +58,7 @@
 		onalign: (alignment: 'left' | 'center' | 'right') => void;
 		onclose: () => void;
 		onescape: () => void;
+		menuPresence: MenuPresence;
 	} = $props();
 
 	let menuEl: HTMLDivElement | undefined = $state();
@@ -256,6 +259,7 @@
 	class="md-menu table-action-menu"
 	role="menu"
 	aria-label={TABLE_ACTIONS}
+	{@attach menuPresence.track}
 	tabindex="-1"
 	style:left="{left}px"
 	style:top="{top}px"
@@ -289,6 +293,7 @@
 						role="menu"
 						aria-label={item.label}
 						{@attach keepFlyoutOnScreen}
+						{@attach menuPresence.track}
 					>
 						{#each item.items as sub, j (j)}
 							{#if sub.kind === 'action' || sub.kind === 'clipboard'}

@@ -10,6 +10,7 @@
 		codeLanguageLabel
 	} from '../../../a11y-strings';
 	import type { CodeMenuItem } from '../../../editor-keys';
+	import type { MenuPresence } from '../../menu/menu-presence.svelte';
 	import { getLanguageAliases, getLanguageGrammar, listLanguages } from './code-languages';
 
 	// What the modes that draw no fence show instead: the language control plus whatever
@@ -23,7 +24,8 @@
 		onCancel,
 		onRun,
 		onCopy,
-		menuItems
+		menuItems,
+		menuPresence
 	}: {
 		/** The opener's full info string; the button shows its first token. */
 		info: string;
@@ -43,6 +45,7 @@
 		onCopy: () => Promise<boolean>;
 		/** Consulted on each open, so items read live state. Empty renders no affordance. */
 		menuItems?: () => readonly CodeMenuItem[];
+		menuPresence: MenuPresence;
 	} = $props();
 
 	const language = $derived(info.split(/\s+/)[0] || 'text');
@@ -429,6 +432,7 @@
 		bind:this={pickerEl}
 		class="md-menu code-rail-popout code-lang-picker"
 		style={popoutStyle(listAt)}
+		{@attach menuPresence.track}
 	>
 		<div class="code-lang-search">
 			{@render icon('<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>')}
@@ -496,6 +500,7 @@
 		role="menu"
 		aria-label={CODE_MENU_LABEL}
 		style={popoutStyle(menuAt)}
+		{@attach menuPresence.track}
 	>
 		{#each openMenuItems as item (item.id)}
 			<li role="none">

@@ -6,6 +6,7 @@
  * plugin extension point; a facet object is not itself reactive, but the getters on it are.
  */
 
+import type { MenuPresence } from './components/menu/menu-presence.svelte';
 import type { Document } from './core/nodes';
 import type { LinkReferenceResolver } from './core/inline/link-reference-resolver';
 import type { ImageLoadPolicy } from './core/inline-render';
@@ -192,6 +193,8 @@ export interface EditorServices {
 	/** The branch a format command takes while a cross-block range is painted, threaded into
 	 *  every dispatch check so the chord, the per-kind rebinding and `runCommand` share it. */
 	crossBlockCommands: CrossBlockCommandRouter;
+	/** How many editor menus are showing; a block's own menu attaches `track` to its root. */
+	menuPresence: MenuPresence;
 }
 
 /** Host-supplied render/behavior policies. The getter members read live editor state

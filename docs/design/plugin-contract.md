@@ -481,7 +481,7 @@ The decisions riding this surface:
 - **`open(name)` is the author's say-so.** It types the trigger at the caret as one undo entry and opens the list there, skipping `opensAt`, which is how a shortcut or a toolbar button reaches the same list. It declines and writes nothing for an unknown name, in reading mode, and without a collapsed caret in a prose leaf.
 - **Where a session lives.** A collapsed caret in prose the author is writing. Never a table cell, never a code block, and inside the leaf never an inline code span, a link's destination or title, anywhere in an image, an autolink or raw HTML: a `#` there is a fragment or an attribute, not a tag. A destination the author is still typing counts too, read off the line's own bytes: until its closing `)` arrives those bytes are text, and the inline tree holds no link to decline. A link's own text is prose and a trigger opens there. Those last bounds are a typed trigger's: `open(name)` skips them the way it skips `opensAt`, since the gesture is the author's say-so. The cell is a limitation rather than a rule; the range splice addresses leaves, and a cell would need the cell surface's own offsets.
 
-`menuChange` reports the list the way it reports the right-click menu. The harness's three sources (tags, synchronous; document links, asynchronous; the `/` command list) are the validating consumers.
+`menuChange` reports the list the way it reports every other editor menu. The harness's three sources (tags, synchronous; document links, asynchronous; the `/` command list) are the validating consumers.
 
 ## Payloads bound as-is
 
