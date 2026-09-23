@@ -233,14 +233,17 @@ function spliceRun(raw: string, runNodes: InlineNode[], matches: InlineNode[]): 
 function scanRunForBareAutolinks(raw: string, start: number, end: number): InlineNode[] {
 	const out: InlineNode[] = [];
 	let pos = start;
+	// The email form walks backwards from its `@`, so it must stop where the last link ended.
+	let claimedEnd = start;
 	while (pos < end) {
 		const ch = raw[pos];
 		let matched: InlineNode | null = null;
 		if (ch === 'h' || ch === 'H') matched = matchBareHttpAutolink(raw, pos, start, end);
 		else if (ch === 'w' || ch === 'W') matched = matchBareWwwAutolink(raw, pos, start, end);
-		else if (ch === '@') matched = matchBareEmailAutolink(raw, pos, start, end);
+		else if (ch === '@') matched = matchBareEmailAutolink(raw, pos, start, end, claimedEnd);
 		if (matched !== null) {
 			out.push(matched);
+			claimedEnd = matched.end;
 			pos = matched.end;
 			continue;
 		}
@@ -342,24 +345,25 @@ function scanEmailDomain(
  *  lowercase only, as cmark-gfm matches it. */
 const EMAIL_PREFIXES = ['mailto:', 'xmpp:'] as const;
 
-function emailPrefixBefore(raw: string, localStart: number, regionStart: number) {
+function emailPrefixBefore(raw: string, localStart: number, floor: number) {
 	return EMAIL_PREFIXES.find(
 		(prefix) =>
-			localStart - prefix.length >= regionStart &&
-			raw.startsWith(prefix, localStart - prefix.length)
+			localStart - prefix.length >= floor && raw.startsWith(prefix, localStart - prefix.length)
 	);
 }
 
+/** `claimedEnd` is where the last link in this run ended: no byte before it can join this one. */
 function matchBareEmailAutolink(
 	raw: string,
 	atPos: number,
 	regionStart: number,
-	regionEnd: number
+	regionEnd: number,
+	claimedEnd: number
 ): InlineNode | null {
 	let localStart = atPos;
-	while (localStart > regionStart && EMAIL_LOCAL.test(raw[localStart - 1])) localStart--;
+	while (localStart > claimedEnd && EMAIL_LOCAL.test(raw[localStart - 1])) localStart--;
 	if (localStart === atPos) return null; // empty local-part
-	const prefix = emailPrefixBefore(raw, localStart, regionStart);
+	const prefix = emailPrefixBefore(raw, localStart, claimedEnd);
 	const linkStart = localStart - (prefix?.length ?? 0);
 	// The boundary applies at the URL's start: the prefix when there is one, else the local part.
 	if (!isValidLeadingBoundary(raw, linkStart, regionStart)) return null;

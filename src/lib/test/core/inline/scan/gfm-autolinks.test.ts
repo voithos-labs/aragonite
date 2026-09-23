@@ -68,6 +68,12 @@ describeScanCases('recognition boundaries and trimming', [
 		[textNode(0, 3, 'at '), autolinkNode(3, 16, 'mailto:a@b.co'), textNode(16, 17, '.')]
 	],
 	[
+		// The earlier address ends at `xmpp`, so the later prefix would begin inside that link.
+		'a prefix never reaches back into the link before it',
+		'mailto:a@b.co_x_xmpp:c@d.co',
+		[autolinkNode(0, 20, 'mailto:a@b.co_x_xmpp'), textNode(20, 27, ':c@d.co')]
+	],
+	[
 		'an xmpp: prefix joins the email link with its resource',
 		'xmpp:a@b.co/r x',
 		[autolinkNode(0, 13, 'xmpp:a@b.co/r'), textNode(13, 15, ' x')]
