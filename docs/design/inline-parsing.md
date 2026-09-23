@@ -101,7 +101,7 @@ parseInline('plain text', 0, 10); // [{ kind: 'text', start: 0, end: 10, text: '
 - **Character dispatch.** Each construct-starting character runs its handler; handlers append completed nodes (code spans, escapes, entities, spec autolinks (the `<url>` form), raw HTML, hard breaks) and advance the scan. Unclaimed bytes accumulate as pending text.
 - **Delimiter stack.** `*` / `_` / `~~` runs are classified as opener or closer by the CommonMark flanking rules (the spec's test for whether a run can open or close emphasis) and pushed. Pairing is deferred.
 - **Bracket stack.** `[` and `![` push a candidate; `]` attempts an inline or reference link/image and, on success, pairs emphasis over the construct's interior. Links never contain links. A reference-form label with no matching definition commits to an `unresolvedReference` node rather than falling apart.
-- **Deferred passes.** GFM bare autolinks claim maximal text runs (a delimiter absorbed into a URL can never pair), then emphasis pairing consumes the remaining delimiter stack, then adjacent text nodes merge.
+- **Deferred passes.** GFM bare autolinks claim maximal text runs outside a link's text, as cmark-gfm does (a delimiter absorbed into a URL can never pair), then emphasis pairing consumes the remaining delimiter stack, then adjacent text nodes merge.
 
 **Precedence is positional.** The construct that completes earliest claims its bytes, and the scan never re-enters a claimed range, so code spans, autolinks, and raw HTML are mutually inert with no occupied-range bookkeeping. Sibling overlap is structurally unrepresentable rather than defended against, which is the nicest kind of bug to not have.
 

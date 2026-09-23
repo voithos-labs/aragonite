@@ -7,8 +7,6 @@ import {
 	emphasisNode,
 	entityNode,
 	hardBreak,
-	imageNode,
-	linkNode,
 	rawHtmlNode,
 	strikethroughNode,
 	textNode
@@ -145,16 +143,6 @@ describeScanCases('autolinks interleave with emphasis and links', [
 		'delimiter run consumed by an email cannot pair',
 		'_a@b.c',
 		[autolinkNode(0, 6, 'mailto:_a@b.c')]
-	],
-	[
-		'autolink inside link text',
-		'[see www.x.com](/u)',
-		[linkNode(0, 19, [textNode(1, 5, 'see '), autolinkNode(5, 14, 'http://www.x.com')], '/u')]
-	],
-	[
-		'autolink inside image alt structure',
-		'![www.x.com](/u)',
-		[imageNode(0, 16, [autolinkNode(2, 11, 'http://www.x.com')], 'www.x.com', '/u')]
 	]
 ]);
 

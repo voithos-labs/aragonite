@@ -130,7 +130,7 @@ function matchAngleConstruct(raw: string, pos: number, end: number): InlineNode 
 
 /**
  * Runs before emphasis pairing so a delimiter absorbed into a URL can never pair; consumed
- * delimiters are pruned. Children of already-wrapped link/image nodes are scanned too.
+ * delimiters are pruned. Children of already-built nodes are scanned too, except a link's.
  */
 export function scanGfmAutolinks(ctx: ScanContext): void {
 	const matches = spliceBareAutolinks(ctx.raw, ctx.nodes);
@@ -157,6 +157,9 @@ function scanChildren(raw: string, nodes: InlineNode[]): void {
 	const pending: InlineNode[][] = [nodes];
 	while (pending.length > 0) {
 		for (const node of pending.pop()!) {
+			// Text inside a link never becomes a nested link, as in cmark-gfm; inline and
+			// reference links are both built before this pass, so both skip here.
+			if (node.kind === 'link') continue;
 			if (node.children !== undefined && node.children.length > 0) {
 				spliceBareAutolinks(raw, node.children);
 				pending.push(node.children);

@@ -55,6 +55,32 @@ describe('acceptedBlockAttrs', () => {
 		]);
 	});
 
+	// Every decorated element renders these, and cleanup would strip them. Miss-analysis: only
+	// each element's extras were refused and no row passed `class`, so `class` got through.
+	it.each(['class', 'contenteditable', 'role', 'style', 'tabindex'])(
+		"drops '%s', an attribute every decorated element renders itself",
+		(name) => {
+			expect(acceptedBlockAttrs({ [name]: 'x', title: 'note' }, [1])).toEqual([['title', 'note']]);
+			expect(takeDevWarns().map((w) => w.message)).toEqual([
+				expect.stringContaining(`'${name}' is reserved`)
+			]);
+		}
+	);
+
+	it('drops an element-rendered attribute in any spelling', () => {
+		expect(acceptedBlockAttrs({ ContentEditable: 'false' }, [0, 1, 0])).toEqual([]);
+		expect(takeDevWarns().map((w) => w.message)).toEqual([
+			expect.stringContaining("'ContentEditable' is reserved")
+		]);
+	});
+
+	it("points a refused class at the decoration's class field", () => {
+		acceptedBlockAttrs({ class: 'x' }, [1]);
+		expect(takeDevWarns().map((w) => w.message)).toEqual([
+			expect.stringContaining("decoration's class field")
+		]);
+	});
+
 	it('is empty for a decoration carrying no attrs', () => {
 		expect(acceptedBlockAttrs(undefined, [0])).toEqual([]);
 	});
