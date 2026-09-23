@@ -5,7 +5,8 @@
 
 import { devWarn } from '../dev-warn';
 
-const ALLOWED_HREF_SCHEMES = new Set(['http', 'https', 'mailto', 'tel']);
+// `xmpp` hands the address to a chat client the way `mailto` hands it to a mail client.
+const ALLOWED_HREF_SCHEMES = new Set(['http', 'https', 'mailto', 'tel', 'xmpp']);
 // `asset:` is a desktop shell's local-file protocol off Windows, where the same URL arrives as
 // `http://asset.localhost/...`, so omitting it blocks every image on macOS and Linux while
 // passing on a Windows dev box. It carries no script capability: no browser resolves it.

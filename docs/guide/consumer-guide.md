@@ -510,10 +510,10 @@ The editor runs nothing. `onRunCode` is the hook that says your app can: install
 
 The scheme check runs at render time, on whatever `resolveImageUrl` / `resolveLinkUrl` returned. A URL outside the admitted set renders inert: the image never loads and its widget is marked blocked, a link becomes an unlinked span, and the Markdown bytes are untouched either way. That blocked state isn't `imageLoadPolicy: 'placeholder'`, which defers loading an image the policy allows.
 
-| Where     | Admitted schemes                 |
-| --------- | -------------------------------- |
-| `img` src | `http`, `https`, `data`, `asset` |
-| link href | `http`, `https`, `mailto`, `tel` |
+| Where     | Admitted schemes                         |
+| --------- | ---------------------------------------- |
+| `img` src | `http`, `https`, `data`, `asset`         |
+| link href | `http`, `https`, `mailto`, `tel`, `xmpp` |
 
 A URL with no scheme at all (relative, fragment) is admitted at both. The two sets differ on purpose: `asset:` hands bytes to an `<img>`, and nothing has asked to navigate to one, so the same URL that renders as an image is refused as a link destination.
 

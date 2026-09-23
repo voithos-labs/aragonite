@@ -63,6 +63,16 @@ describeScanCases('recognition boundaries and trimming', [
 	['word character before the scheme rejects', 'xhttps://a.b', [textNode(0, 12, 'xhttps://a.b')]],
 	['dotless email domain rejects', 'x@y', [textNode(0, 3, 'x@y')]],
 	[
+		'a mailto: prefix joins the email link',
+		'at mailto:a@b.co.',
+		[textNode(0, 3, 'at '), autolinkNode(3, 16, 'mailto:a@b.co'), textNode(16, 17, '.')]
+	],
+	[
+		'an xmpp: prefix joins the email link with its resource',
+		'xmpp:a@b.co/r x',
+		[autolinkNode(0, 13, 'xmpp:a@b.co/r'), textNode(13, 15, ' x')]
+	],
+	[
 		// GFM §6.9: a trailing `&…;` resembling an entity reference is excluded
 		// from the url (the `&` and everything after), landing as sibling text.
 		'entity-shaped semicolon is excluded',
