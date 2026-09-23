@@ -885,9 +885,8 @@ rAF placement in `components/drag-handle.ts` (the handle waits for its block to 
 start of a size watch in `cursor/observe-resize.ts` (one begun while the browser reports sizes is
 skipped and logged as a loop error); the `setTimeout` wall-clock undo debounce in
 `editor-actions/commit/text-batch.ts` (a tick-grained microtask can't express "the user stopped
-typing"); the `setTimeout` scan deadline in `search/regex-executor.ts` (a cancellation budget,
-not an ordering primitive, since nothing awaits the timer); and the `setInterval` frame cadence in
-`plugins/parrot/ParrotBlock.svelte` (an animation, sequencing nothing). `lint/file-rules.test.ts`.
+typing"); and the `setTimeout` scan deadline in `search/regex-executor.ts` (a cancellation
+budget, not an ordering primitive, since nothing awaits the timer). `lint/file-rules.test.ts`.
 
 **G4.5 · No synthetic keyboard events.** No synthetic `KeyboardEvent` in editor runtime source. The
 cross-block redispatch hack is retired and stays that way.
