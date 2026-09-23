@@ -18,7 +18,7 @@ export interface BlockDecorationDeps {
 	onRenderError: (error: EditorError) => void;
 	/** Attributes the element renders itself, refused like the reserved names. */
 	ownAttrs?: readonly string[];
-	/** Why this element cannot hold a badge; set, every badge is dropped with a dev warning. */
+	/** Why this element cannot hold a badge; when set, every badge is dropped with a dev warning. */
 	badgeRefusal?: string;
 }
 

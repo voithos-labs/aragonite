@@ -58,7 +58,8 @@ describeScanCases(
 			]
 		],
 		[
-			// An image's text is its alt, not a link, so a URL there still scans as one.
+			// The editor's reading: an alt is not a link, so a URL there scans as one. cmark-gfm links
+			// only the email form inside an alt, not www or url; that gap is tracked separately.
 			'image alt keeps its autolink',
 			'![www.x.com](/u)',
 			[imageNode(0, 16, [autolinkNode(2, 11, 'http://www.x.com')], 'www.x.com', '/u')]
