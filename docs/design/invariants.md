@@ -1426,9 +1426,11 @@ because the lossy spelling type-checks. `lint/file-rules.test.ts`.
 
 **G4.67 · Menu presence census.** `menuChange` reads one count of open menus, and a menu joins it
 by attaching the count to its root element, so it reads open for exactly as long as it is mounted
-(#370). Every component that renders a menu root (the shared menu class, or a menu, listbox or
-dialog role) attaches it or is listed with the reason it doesn't: the selection toolbar, which
-hides itself on the event, and the mermaid focus view, which a plugin owns.
+(#370). Every menu element (the shared menu class, or a menu, listbox or dialog role) carries
+the attach in its own opening tag or is listed with the reason it doesn't, so a second menu in a
+file that already counts one is still checked. The listed ones are the selection toolbar, which
+hides itself on the event, the list inside the counted language picker, the link card its host
+counts, and the mermaid focus view, which a plugin owns.
 `lint/menu-presence-census.test.ts`.
 
 ## Accessibility
