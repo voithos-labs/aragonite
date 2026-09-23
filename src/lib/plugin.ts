@@ -17,6 +17,8 @@ export { definePlugin, isPluginInstalled } from './schema/plugin-install';
 export type { EditorPlugin, EditorPluginEntry } from './schema/plugin-install';
 // `setup(ctx)` registers `onEditor` callbacks that receive a per-instance `EditorContext`.
 export type { PluginSetupContext, OnEditorCallback, EditorContext } from './schema/plugin-install';
+// `EditorContext.insertMarkdown`'s options: at the caret, or in a new paragraph below its block.
+export type { InsertMarkdownOptions } from './editor-props';
 // The names every presentation-mode read reports, the `data-presentation` attribute included.
 export type { PresentationMode } from './presentation-mode';
 // The single-block shortcut: one kind, one component, one register step.
@@ -320,6 +322,7 @@ export type { OperationKind } from './schema/operations';
 // Lists opened under the caret by a typed trigger, reached through `editor.inlineMenus`.
 export type {
 	InlineMenuRegistry,
+	InlineMenuOpenOptions,
 	InlineMenuSource,
 	InlineMenuSourceHandle,
 	InlineMenuItem,

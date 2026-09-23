@@ -23,6 +23,7 @@ import {
 } from './inline-menu-session';
 import type {
 	InlineMenuItem,
+	InlineMenuOpenOptions,
 	InlineMenuRegistry,
 	InlineMenuSource,
 	InlineMenuSourceHandle
@@ -278,6 +279,8 @@ export function createInlineMenuState(deps: InlineMenuStateDeps): InlineMenuStat
 			nodeRaw(path),
 			caret
 		);
+		// `open()` may have written a query the source declines: that session is over already.
+		if (typedQuery === null) return;
 		const live: InlineMenuSession = {
 			source: source.name,
 			path: [...path],
@@ -286,7 +289,7 @@ export function createInlineMenuState(deps: InlineMenuStateDeps): InlineMenuStat
 		};
 		session = live;
 		// A burst can carry the query's first bytes in with the trigger.
-		query = typedQuery ?? '';
+		query = typedQuery;
 		end = caret;
 		activeIndex = 0;
 		items = [];
@@ -350,18 +353,19 @@ export function createInlineMenuState(deps: InlineMenuStateDeps): InlineMenuStat
 		}
 	}
 
-	function open(name: string): boolean {
+	function open(name: string, options?: InlineMenuOpenOptions): boolean {
 		const source = sources.get(name);
-		if (!source || deps.getMode() === 'reading') return false;
+		const typed = source ? source.trigger + (options?.query ?? '') : '';
+		if (!source || deps.getMode() === 'reading' || /[\r\n]/.test(typed)) return false;
 		const caret = caretLeaf();
 		if (!caret) return false;
 		close();
 		const start = caret.offset;
-		const caretAfter = start + source.trigger.length;
+		const caretAfter = start + typed.length;
 		void (async () => {
 			writing = true;
 			try {
-				await deps.commitRange(caret.path, start, start, source.trigger, caretAfter);
+				await deps.commitRange(caret.path, start, start, typed, caretAfter);
 				await deps.landCaret(caret.path, caretAfter);
 			} catch (error) {
 				report(error, name);

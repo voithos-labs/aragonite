@@ -24,6 +24,8 @@ function harness(initial: string, { arrive = true, writeFails = false } = {}) {
 	const errors: unknown[] = [];
 	events.on('error', (e) => errors.push(e.error));
 	const landed: number[] = [];
+	/** Each range splice, one undo entry apiece. */
+	const commits: string[] = [];
 
 	/** Put `raw` in one block, reparsing the document the way an edit there would. */
 	function write(index: number, raw: string): void {
@@ -44,6 +46,7 @@ function harness(initial: string, { arrive = true, writeFails = false } = {}) {
 		// the one the state has to hold off.
 		commitRange: async (path, start, end, bytes) => {
 			if (writeFails) throw new Error('write refused');
+			commits.push(bytes);
 			const raw = doc.children[path[0]].raw;
 			write(path[0], raw.slice(0, start) + bytes + raw.slice(end));
 			events.emit('edit', typedEdit(path));
@@ -73,6 +76,7 @@ function harness(initial: string, { arrive = true, writeFails = false } = {}) {
 		menu,
 		errors,
 		landed,
+		commits,
 		raw: (index = 0) => doc.children[index].raw,
 		setMode: (next: PresentationMode) => (mode = next),
 		/** Type at the caret, one keystroke per character: the byte lands, then its `edit`. */
@@ -517,6 +521,36 @@ describe('open(name): opening by name, a shortcut or a button', () => {
 		await vi.waitFor(() => expect(h.errors).toHaveLength(1));
 		expect(String(h.errors[0])).toMatch(/write refused/);
 		expect(h.menu.getOpen()).toBeNull();
+	});
+
+	it('types a given query after the trigger in the same write, and opens over it', async () => {
+		const h = harness('see ');
+		const writes: string[] = [];
+		h.menu.registry.addSource(
+			tags({ onCommit: () => {}, items: ({ query }) => (writes.push(query), [item(query)]) })
+		);
+		expect(h.menu.registry.open('tags', { query: 'wo' })).toBe(true);
+		await vi.waitFor(() => expect(h.menu.getOpen()).not.toBeNull());
+		expect(h.raw()).toBe('see #wo');
+		expect(h.commits).toEqual(['#wo']);
+		expect(h.landed).toEqual([7]);
+		expect(h.menu.getOpen()).toMatchObject({ start: 4, end: 7, query: 'wo' });
+		expect(writes).toEqual(['wo']);
+	});
+
+	it('writes a query the source does not accept, and opens nothing over it', async () => {
+		const h = harness('see ');
+		h.menu.registry.addSource(tags());
+		expect(h.menu.registry.open('tags', { query: 'two words' })).toBe(true);
+		await vi.waitFor(() => expect(h.raw()).toBe('see #two words'));
+		expect(h.menu.getOpen()).toBeNull();
+	});
+
+	it('refuses a query holding a line break, writing nothing', () => {
+		const h = harness('see ');
+		h.menu.registry.addSource(tags());
+		expect(h.menu.registry.open('tags', { query: 'a\nb' })).toBe(false);
+		expect(h.raw()).toBe('see ');
 	});
 
 	it('declines an unknown name, reading mode, and a lost caret, writing nothing', async () => {

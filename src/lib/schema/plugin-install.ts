@@ -4,6 +4,7 @@ import { isValidPluginName } from './plugin-name';
 // would close a cycle from `schema/` to the root.
 import type { DocumentView } from '../core/node-views';
 import type { EditorEvents } from '../editor-events';
+import type { InsertMarkdownOptions } from '../editor-props';
 import type { DecorationRegistry } from '../decorations/types';
 import type { EditorRects } from '../editor-rects';
 import type { InlineMenuRegistry } from '../inline-menu/types';
@@ -46,6 +47,12 @@ export interface EditorContext<Options = unknown> {
 	/** A getter, so always live: the blocks the insert menus offer in this editor, plugin blocks
 	 *  included; the same list as `EditorInstance.getInsertCatalogue()`. */
 	readonly insertCatalogue: readonly InsertEntry[];
+	/** `EditorInstance.insertMarkdown` for this editor, with the same answers: false, and nothing
+	 *  written, with no caret, in reading mode or at a gap caret. */
+	insertMarkdown(md: string, options?: InsertMarkdownOptions): boolean;
+	/** `EditorInstance.runCommand` for this editor: false, and nothing written, on an unknown id,
+	 *  in reading mode, or with nothing focused for a block command. */
+	runCommand(commandId: string, arg?: unknown): boolean;
 	/** A getter, so always live: the mode in effect. The `presentationModeChange` event signals a change. */
 	readonly presentationMode: PresentationMode;
 	/** A getter, so always live: the theme name written to `data-editor-theme`. The `themeChange`

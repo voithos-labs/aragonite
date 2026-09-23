@@ -6,6 +6,7 @@
 import type { DocumentView } from '../core/node-views';
 import type { DecorationRegistry } from '../decorations/types';
 import type { EditorRects } from '../editor-rects';
+import type { InsertMarkdownOptions } from '../editor-props';
 import type { InlineMenuRegistry } from '../inline-menu/types';
 import type { PresentationMode } from '../presentation-mode';
 import { insertCatalogue } from './insert-catalogue';
@@ -42,6 +43,9 @@ export function createEditorPluginContexts(deps: {
 	getPresentationMode: () => PresentationMode;
 	getTheme: () => string;
 	activation: PluginActivation;
+	/** The instance's own entry points; the context only delegates. */
+	insertMarkdown: (md: string, options?: InsertMarkdownOptions) => boolean;
+	runCommand: (commandId: string, arg?: unknown) => boolean;
 }): EditorPluginContexts {
 	const contexts = new Map<string, EditorContext>();
 	const disposers: { plugin: string; dispose: () => void }[] = [];
@@ -67,6 +71,8 @@ export function createEditorPluginContexts(deps: {
 				get insertCatalogue() {
 					return insertCatalogue(deps.activation.isActive);
 				},
+				insertMarkdown: (md, options) => deps.insertMarkdown(md, options),
+				runCommand: (commandId, arg) => deps.runCommand(commandId, arg),
 				get presentationMode() {
 					return deps.getPresentationMode();
 				},

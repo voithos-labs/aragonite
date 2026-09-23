@@ -5,7 +5,7 @@
 
 export { default as Editor } from './components/Editor.svelte';
 
-export type { EditorProps, EditorInstance } from './editor-props';
+export type { EditorProps, EditorInstance, InsertMarkdownOptions } from './editor-props';
 
 export type { EditorDiagnostics, InteractionTraceEntry } from './editor-props';
 
@@ -120,6 +120,7 @@ export type { SelectionEnd } from './block-component';
 // Lists opened under the caret by a typed trigger (`#`, `[[`), via `editor.getInlineMenus()`.
 export type {
 	InlineMenuRegistry,
+	InlineMenuOpenOptions,
 	InlineMenuSource,
 	InlineMenuSourceHandle,
 	InlineMenuItem,

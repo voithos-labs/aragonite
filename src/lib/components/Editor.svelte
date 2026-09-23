@@ -3,7 +3,12 @@
 	import '../styles/editor.css';
 	import type { BlockComponent } from '../block-component';
 	import type { AnyBlockKind, Document } from '../core/nodes';
-	import type { EditorProps, EditorInstance, EditorDiagnostics } from '../editor-props';
+	import type {
+		EditorProps,
+		EditorInstance,
+		EditorDiagnostics,
+		InsertMarkdownOptions
+	} from '../editor-props';
 	import type { EditorEvents } from '../editor-events';
 	import {
 		BLOCK_EDIT_KEY,
@@ -637,7 +642,10 @@
 		// the pluginEditor lookup they already pass around.
 		getPresentationMode: () => effectiveMode,
 		getTheme: () => theme,
-		activation: activePlugins
+		activation: activePlugins,
+		// Called at use, never here: both read state declared further down this component.
+		insertMarkdown: (md, options) => insertMarkdown(md, options),
+		runCommand: (commandId, arg) => runCommand(commandId, arg)
 	});
 
 	// One definition, passed by every dispatch level that can reach a plugin-global
@@ -1260,11 +1268,13 @@
 		},
 		selection: selectionState,
 		getDoc,
-		getBlockComponent
+		getBlockComponent,
+		isReading: () => effectiveMode === 'reading',
+		insertParagraph: (boundary, text) => blockEdit.insertParagraph(boundary, text)
 	});
 
-	export function insertMarkdown(md: string): boolean {
-		return focusedSurface.insertMarkdown(md);
+	export function insertMarkdown(md: string, options?: InsertMarkdownOptions): boolean {
+		return focusedSurface.insertMarkdown(md, options);
 	}
 
 	const commandDispatchContext: CommandDispatchContext = {

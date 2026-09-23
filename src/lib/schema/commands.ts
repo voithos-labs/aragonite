@@ -122,6 +122,8 @@ export interface GlobalCommandContext {
 	getPresentationMode?: () => PresentationMode;
 	/** Injected by `dispatchKeyCommand`; receives a caught handler throw. */
 	onCommandError?: CommandErrorSink;
+	/** The argument `runCommand(id, arg)` or the chord's binding carried, injected per dispatch. */
+	arg?: unknown;
 }
 
 export type GlobalCommandRun = (ctx: GlobalCommandContext) => boolean;
@@ -447,6 +449,6 @@ function runClaimedGlobalChord(
 		warnDeadKeyCommand(binding.command, 'global-chord');
 	}
 	if (!consumed) return false;
-	if (!context.isReading) run?.(context);
+	if (!context.isReading) run?.({ ...context, arg: binding?.arg });
 	return true;
 }

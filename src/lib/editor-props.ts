@@ -89,6 +89,12 @@ export interface EditorProps {
 	plugins?: readonly EditorPluginEntry[];
 }
 
+export interface InsertMarkdownOptions {
+	/** `caret` (the default) inserts where the caret is; `below` inserts into a new paragraph
+	 *  after the top-level block that holds it. */
+	placement?: 'caret' | 'below';
+}
+
 /** The `bind:this` handle a consumer can name and hold a ref to. */
 export interface EditorInstance {
 	getSource(): string;
@@ -118,13 +124,13 @@ export interface EditorInstance {
 	 */
 	placeCaretAtPoint(x: number, y: number): boolean;
 	/**
-	 * Insert markdown at the caret exactly as pasting it would, minus the clipboard: paste
-	 * transforms, every container-aware strategy, delete-selection-first, one undo entry, and
-	 * focus at the end of the insertion. True means the pipeline took the text, not that its
-	 * commit has flushed; read the result back through the `edit` event. False, and nothing
-	 * mutates, when this editor holds no caret, in reading mode, or at a gap caret.
+	 * Insert markdown exactly as pasting it would, minus the clipboard: paste transforms, every
+	 * container-aware strategy, delete-selection-first, one undo entry, focus at the end. True
+	 * means the pipeline took the text; read the result through the `edit` event. False, and
+	 * nothing mutates, with no caret, in reading mode, or at a gap caret. `placement: 'below'`
+	 * first makes an empty paragraph after the caret's top-level block (a second undo entry).
 	 */
-	insertMarkdown(md: string): boolean;
+	insertMarkdown(md: string, options?: InsertMarkdownOptions): boolean;
 	/**
 	 * Run a command by id at the focused element, or across a painted range where the id has a
 	 * cross-block handler (a format toggle marks every block it touches, a table works by its

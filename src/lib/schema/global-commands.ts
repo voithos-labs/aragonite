@@ -1,6 +1,6 @@
 /**
  * Plugin-facing global commands: create a process-wide command id, register a handler that
- * receives the dispatching editor's `EditorContext`, and optionally bind a chord among the
+ * receives the dispatching editor's `EditorContext` and the dispatch's argument, and optionally bind a chord among the
  * plugin-global chords (last in precedence). Beside `block-commands`, not in `commands.ts`, so
  * `commands → command-id` stays one-directional.
  */
@@ -16,7 +16,7 @@ import type { EditorContext } from './plugin-install';
 
 export function registerGlobalCommand(
 	name: string,
-	handler: (editor: EditorContext) => boolean,
+	handler: (editor: EditorContext, arg?: unknown) => boolean,
 	opts?: { chord?: string }
 ): PluginCommandId {
 	// Validate the chord before creating the id: a collision must not leave a created name and a
@@ -36,7 +36,7 @@ export function registerGlobalCommand(
 		const editor = ctx.pluginEditor(owner ?? '');
 		if (!editor) return false;
 		try {
-			return handler(editor);
+			return handler(editor, ctx.arg);
 		} catch (error) {
 			ctx.onCommandError?.({ command: id, plugin: owner ?? undefined, error });
 			return true;

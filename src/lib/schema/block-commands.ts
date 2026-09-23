@@ -269,7 +269,7 @@ function runResolvedCommand(
 	const resolved = resolveCommand(id, target);
 	// Pass the error callback so a plugin global command's caught throw reports through the same
 	// channel as a block command's; only the global path can reach one.
-	if (resolved.tier === 'global') return resolved.run({ ...ctx, onCommandError });
+	if (resolved.tier === 'global') return resolved.run({ ...ctx, onCommandError, arg });
 	return runBlockLocalCommand(resolved, id, arg, path, onCommandError);
 }
 
