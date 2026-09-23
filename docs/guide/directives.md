@@ -8,7 +8,7 @@ Some body markdown.
 :::
 ```
 
-Claim the `note` name and you get a real block kind for it: your own component, keymap, commands, the works. A name nobody claimed still parses, renders as a plain labelled box, and saves back byte for byte (i.e. a document written with your plugin survives being opened without it).
+Claim the `note` name and you get a real block kind for it: your own component, keymap, commands, the works. A name nobody claimed, or claimed by a plugin this editor's `plugins` prop leaves out, still parses, renders as a plain labelled box, and saves back byte for byte (i.e. a document written with your plugin survives being opened without it).
 
 ---
 
