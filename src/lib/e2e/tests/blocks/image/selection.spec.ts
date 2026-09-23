@@ -94,9 +94,15 @@ test.describe('image widget selection', () => {
 		await editor.undo();
 		await editor.bridge.waitForSourceContains('abc ![c');
 		await expect(overlay(page)).toHaveCount(0);
+		const restored = { path: [0], offset: 3 };
+		await expect
+			.poll(() => documentCaret(page))
+			.toEqual([1, { anchor: restored, focus: restored }]);
+		// An arrow needs a live caret to move; typing alone lands at the block's remembered offset.
+		await page.keyboard.press('ArrowLeft');
 		await editor.typeText('W');
 		expect(await editor.bridge.getSource()).toBe(
-			'abcW ![c|60x40](/test-fixtures/sample.png) tail\n'
+			'abWc ![c|60x40](/test-fixtures/sample.png) tail\n'
 		);
 	});
 

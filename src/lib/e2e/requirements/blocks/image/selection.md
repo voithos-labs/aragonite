@@ -28,8 +28,8 @@
 - Selecting a different widget replaces the previous selection
 - Cross-block selection clears widget selection
 - Undo of an edit made before the image was selected moves the image's bytes: the image
-  deselects and the caret goes back where the undone typing began, so the next character lands
-  there
+  deselects and a live caret goes back where the undone typing began, so an arrow moves it and
+  the next character lands beside it
   - Miss-analysis: no spec edited the document under a selected image, so nothing noticed the
     selection kept pointing at bytes the image had left
 - Redo after that undo: no image is selected and the caret the redo puts back stays live
