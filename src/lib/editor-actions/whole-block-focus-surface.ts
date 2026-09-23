@@ -148,6 +148,8 @@ export function createWholeBlockInputProxy(deps: WholeBlockInputProxyDeps): Whol
 	// A click or a Tab lands natively on the kind's own element, where no beforeinput fires;
 	// without this hand-off the first character after a click goes through keydown again.
 	function onFocusIn(event: FocusEvent): void {
+		// A Tab lands on the host without passing `focusProxy`, so the name is refreshed here too.
+		if (proxy && event.target === proxy) syncProxyState();
 		// Read before the identity test, so focus arriving anywhere in the box (the host's own
 		// included) re-applies the demotion to whatever element the current render state
 		// supplies, which takes it out of the tab order before the next keypress, not after.
@@ -162,9 +164,16 @@ export function createWholeBlockInputProxy(deps: WholeBlockInputProxyDeps): Whol
 
 	function focusProxy(): void {
 		if (!proxy) return;
-		// Read per focus, not per mount: reading mode writes no bytes, so its host is inert.
-		proxy.setAttribute('contenteditable', deps.isReading() ? 'false' : 'true');
+		syncProxyState();
 		proxy.focus();
+	}
+
+	// Read per focus, not per mount: reading mode makes the host inert, and a kind's name can
+	// change while the block stays mounted.
+	function syncProxyState(): void {
+		if (!proxy) return;
+		proxy.setAttribute('contenteditable', deps.isReading() ? 'false' : 'true');
+		proxy.setAttribute('aria-label', deps.getLabel());
 	}
 
 	onMount(() => {
@@ -173,9 +182,8 @@ export function createWholeBlockInputProxy(deps: WholeBlockInputProxyDeps): Whol
 		proxy = document.createElement('div');
 		proxy.setAttribute(WHOLE_BLOCK_INPUT_ATTR, '');
 		proxy.className = 'whole-block-input';
-		proxy.setAttribute('contenteditable', deps.isReading() ? 'false' : 'true');
 		proxy.setAttribute('role', 'textbox');
-		proxy.setAttribute('aria-label', deps.getLabel());
+		syncProxyState();
 		proxy.spellcheck = false;
 		// The block's tab stop, because focus belongs here: a declared element left in the tab
 		// order is a second stop Shift+Tab lands on, where no input can arrive.

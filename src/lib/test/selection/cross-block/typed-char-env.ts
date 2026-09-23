@@ -93,6 +93,7 @@ export function makeHandlers(
 		getBlockElByPath: opts.getBlockElByPath ?? (() => null),
 		revealPath: opts.revealPath ?? env.deps.revealPath,
 		getEditorRoot: () => null,
+		selectedWidget: { range: () => null, clear: () => {} },
 		getScrollHost: () => null,
 		getEditorLifetime: () => null,
 		stickyColumn: env.stickyColumn,

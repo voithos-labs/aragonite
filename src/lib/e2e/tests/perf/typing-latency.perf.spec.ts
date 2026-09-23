@@ -251,37 +251,44 @@ test.describe('typing latency: installed inline syntax handlers', () => {
 
 // ── Vertical arrival (report only) ──────────────────────────────────────────
 
-// An arrow into a paragraph of widgets alone, where no caret position has a box of its own, so
-// the column scan has only the widgets' boxes to bound it. The other rows all measure typing.
+// An arrow into a paragraph of widgets, where only a text character's caret position has a box
+// of its own: alone, the column scan has only the widgets' boxes to bound it; after one letter,
+// the letter's box sets the edge and every widget box after it is a candidate the scan must skip.
 const ARRIVAL_WIDGETS = 200;
 const ARRIVALS = 15;
+const ARRIVAL_ROWS = [
+	{ row: 'arrival-widget-only', lead: '', title: 'a widget-only paragraph' },
+	{ row: 'arrival-mixed', lead: 'x', title: 'one letter then' }
+];
 
-test('arrival into a widget-only paragraph of 200 entities (report-only)', async ({ page }) => {
-	const editor = new EditorPage(page);
-	await editor.goto();
-	const fixture = `perf arrival above
+for (const { row, lead, title } of ARRIVAL_ROWS) {
+	test(`arrival into ${title} 200 entities (report-only)`, async ({ page }) => {
+		const editor = new EditorPage(page);
+		await editor.goto();
+		const fixture = `perf arrival above
 
-${'&amp;'.repeat(ARRIVAL_WIDGETS)}
+${lead}${'&amp;'.repeat(ARRIVAL_WIDGETS)}
 
 perf arrival below
 `;
-	const m = await measureVerticalArrival(page, editor, fixture, ARRIVALS);
-	expect(await page.locator("[data-block-path='[1]'] [data-inline-widget]").count()).toBe(
-		ARRIVAL_WIDGETS
-	);
-	writeResult('arrival-widget-only', `${ARRIVAL_WIDGETS}-entities`, {
-		widgets: ARRIVAL_WIDGETS,
-		arrivals: ARRIVALS,
-		loadMs: round(m.loadMs),
-		fromAboveP50Ms: round(percentileMs(m.fromAbove, 50)),
-		fromAboveP95Ms: round(percentileMs(m.fromAbove, 95)),
-		fromBelowP50Ms: round(percentileMs(m.fromBelow, 50)),
-		fromBelowP95Ms: round(percentileMs(m.fromBelow, 95)),
-		note: DEV_CAVEAT
+		const m = await measureVerticalArrival(page, editor, fixture, ARRIVALS);
+		expect(await page.locator("[data-block-path='[1]'] [data-inline-widget]").count()).toBe(
+			ARRIVAL_WIDGETS
+		);
+		writeResult(row, `${ARRIVAL_WIDGETS}-entities`, {
+			widgets: ARRIVAL_WIDGETS,
+			arrivals: ARRIVALS,
+			loadMs: round(m.loadMs),
+			fromAboveP50Ms: round(percentileMs(m.fromAbove, 50)),
+			fromAboveP95Ms: round(percentileMs(m.fromAbove, 95)),
+			fromBelowP50Ms: round(percentileMs(m.fromBelow, 50)),
+			fromBelowP95Ms: round(percentileMs(m.fromBelow, 95)),
+			note: DEV_CAVEAT
+		});
+		expect(m.fromAbove).toHaveLength(ARRIVALS);
+		expect(m.fromBelow).toHaveLength(ARRIVALS);
 	});
-	expect(m.fromAbove).toHaveLength(ARRIVALS);
-	expect(m.fromBelow).toHaveLength(ARRIVALS);
-});
+}
 
 // ── Bridge sanity ───────────────────────────────────────────────────────────
 

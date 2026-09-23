@@ -1,3 +1,4 @@
+import { tick } from 'svelte';
 import { resolvedInlineContent } from '../../core/inline/inline-cache';
 import { flattenInlineWidgets } from '../../core/inline/inline-widgets';
 import type { Document, ImageFields, InlineNode } from '../../core/nodes';
@@ -13,6 +14,16 @@ import { buildImageEditBytes, imageFieldsFromInline, sameImageFields } from './i
 import type { WidgetSelectionState, WidgetTarget } from './widget-selection-state.svelte';
 
 // ── Public API ──────────────────────────────────────────────────────────
+
+/** The image `target` names in `doc`, or null once no image starts at its bytes. */
+export function imageAtTarget(
+	doc: Document,
+	target: WidgetTarget,
+	linkRef?: LinkReferenceResolverRef
+): InlineNode | null {
+	const paragraph = blockNodeAt(doc, target.paragraphPath);
+	return paragraph ? findImageInParagraph(paragraph, target.sourceStart, linkRef) : null;
+}
 
 export interface ImageEditCommitterDeps {
 	getDoc: () => Document;
@@ -47,7 +58,8 @@ export interface ImageEditCommitter {
 	getEditorContentWidth(): number;
 	attachWidgetSelectListener(): () => void;
 	/** Clears the widget selection when the document no longer holds an image at its bytes; the
-	 *  image's own commits keep its start byte, so they keep it selected. */
+	 *  image's own commits keep its start byte, and one to an image before it moves the selection
+	 *  with its bytes, so both keep it selected. */
 	clearStaleSelection(): void;
 	syncOverlayToWidget(getOverlay: () => HTMLElement | null): () => void;
 }
@@ -55,16 +67,6 @@ export interface ImageEditCommitter {
 export function createImageEditCommitter(deps: ImageEditCommitterDeps): ImageEditCommitter {
 	const { getDoc, getEditorEl, widgetSelection, controller, events } = deps;
 	const inlineRange = createInlineRangeCommit({ getDoc, controller, grammar: deps.grammar });
-
-	function findImageInParagraph(para: NodeView, sourceStart: number): InlineNode | null {
-		// Resolver-aware so a reference-style image resolves as the render path saw it,
-		// and flattened so an image nested in a link (`[![alt][ref]][repo]`) is found.
-		const inlines = resolvedInlineContent(para, deps.linkRef);
-		for (const widget of flattenInlineWidgets(inlines, para.raw)) {
-			if (widget.kind === 'image' && widget.start === sourceStart) return widget;
-		}
-		return null;
-	}
 
 	function queryWidgetEl(paragraphPath: number[], sourceStart: number): HTMLElement | null {
 		const root = getEditorEl();
@@ -78,10 +80,12 @@ export function createImageEditCommitter(deps: ImageEditCommitterDeps): ImageEdi
 		) as HTMLElement | null;
 	}
 
-	function imageAt(target: WidgetTarget): InlineNode | null {
-		const paragraph = blockNodeAt(getDoc(), target.paragraphPath);
-		return paragraph ? findImageInParagraph(paragraph, target.sourceStart) : null;
-	}
+	const imageAt = (target: WidgetTarget): InlineNode | null =>
+		imageAtTarget(getDoc(), target, deps.linkRef);
+
+	// The bytes the last popover write moved, applied by the next stale check: the write runs as
+	// the popover unmounts, where a read of the selection still returns the one before the click.
+	let lastShift: { paragraphPath: number[]; editEnd: number; delta: number } | null = null;
 
 	function getSelectedImageFields(): SelectedImageFields | null {
 		const sel = widgetSelection.getSelected();
@@ -96,7 +100,7 @@ export function createImageEditCommitter(deps: ImageEditCommitterDeps): ImageEdi
 	): { image: InlineNode; bytes: string } | null {
 		const paragraph = blockNodeAt(getDoc(), target.paragraphPath);
 		if (!paragraph) return null;
-		const image = findImageInParagraph(paragraph, target.sourceStart);
+		const image = findImageInParagraph(paragraph, target.sourceStart, deps.linkRef);
 		if (!image) return null;
 		// Keep the reference form when the url and title are untouched: writing the resolved
 		// url inline would leave the definition unused. Changing either is the user asking.
@@ -122,15 +126,21 @@ export function createImageEditCommitter(deps: ImageEditCommitterDeps): ImageEdi
 		writeImageEdit(target, newFields);
 	}
 
+	// The caret from before the image was selected anchors the undo entry when no other caret
+	// answers: the popover can commit after the selection has moved on.
 	function writeImageEdit(target: WidgetTarget, newFields: ImageFields): void {
 		const edit = resolveEdit(target, newFields);
 		if (!edit) return;
+		const delta = edit.bytes.length - (edit.image.end - edit.image.start);
+		if (delta !== 0) {
+			lastShift = { paragraphPath: target.paragraphPath, editEnd: edit.image.end, delta };
+		}
 		void inlineRange.commitInlineRange(
 			target.paragraphPath,
 			edit.image.start,
 			edit.image.end,
 			edit.bytes,
-			0
+			target.preSelectOffset
 		);
 	}
 
@@ -156,13 +166,19 @@ export function createImageEditCommitter(deps: ImageEditCommitterDeps): ImageEdi
 		writeImageEdit(sel, newFields);
 	}
 
-	/** The whole `![...](...)` span goes; the caret lands where the image began. */
+	/** The whole `![...](...)` span goes. The selection clears first, so the undo entry is told
+	 *  the caret the user had before selecting the image rather than reading it. */
 	function removeImage(target: WidgetTarget): void {
-		const paragraph = blockNodeAt(getDoc(), target.paragraphPath);
-		const image = paragraph && findImageInParagraph(paragraph, target.sourceStart);
+		const image = imageAt(target);
 		if (!image) return;
 		widgetSelection.clear();
-		void inlineRange.commitInlineRange(target.paragraphPath, image.start, image.end, '', 0);
+		void inlineRange.commitInlineRange(
+			target.paragraphPath,
+			image.start,
+			image.end,
+			'',
+			target.preSelectOffset
+		);
 	}
 
 	function dismissImagePopover(): void {
@@ -182,6 +198,21 @@ export function createImageEditCommitter(deps: ImageEditCommitterDeps): ImageEdi
 	}
 
 	function clearStaleSelection(): void {
+		const shift = lastShift;
+		lastShift = null;
+		if (!shift) {
+			dropSelectionIfStale();
+			return;
+		}
+		// The overlay finds the widget by the bytes its element names, so the move waits for the
+		// block to render the write.
+		void tick().then(() => {
+			widgetSelection.followEdit(shift.paragraphPath, shift.editEnd, shift.delta);
+			dropSelectionIfStale();
+		});
+	}
+
+	function dropSelectionIfStale(): void {
 		const sel = widgetSelection.getSelected();
 		if (sel && !imageAt(sel)) widgetSelection.clear();
 	}
@@ -253,4 +284,20 @@ export function createImageEditCommitter(deps: ImageEditCommitterDeps): ImageEdi
 		clearStaleSelection,
 		syncOverlayToWidget
 	};
+}
+
+// ── Internal ────────────────────────────────────────────────────────────
+
+function findImageInParagraph(
+	para: NodeView,
+	sourceStart: number,
+	linkRef: LinkReferenceResolverRef | undefined
+): InlineNode | null {
+	// Resolver-aware so a reference-style image resolves as the render path saw it,
+	// and flattened so an image nested in a link (`[![alt][ref]][repo]`) is found.
+	const inlines = resolvedInlineContent(para, linkRef);
+	for (const widget of flattenInlineWidgets(inlines, para.raw)) {
+		if (widget.kind === 'image' && widget.start === sourceStart) return widget;
+	}
+	return null;
 }

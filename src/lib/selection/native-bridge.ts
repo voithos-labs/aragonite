@@ -109,16 +109,18 @@ export function applySurfaceContentRange(el: HTMLElement): void {
 	sel?.addRange(range);
 }
 
+/** Selects raw `[anchorOffset, focusOffset]` in one block, backward when the focus comes first. */
 export function applySingleBlockRange(
 	blockEl: HTMLElement,
-	startOffset: number,
-	endOffset: number
+	anchorOffset: number,
+	focusOffset: number
 ): void {
+	const startOffset = Math.min(anchorOffset, focusOffset);
 	const ambient = ambientLengthOf(blockEl);
 	const range = createRangeAtDomTextOffsets(
 		blockEl,
 		toDomTextOffset(asRawOffset(startOffset), ambient),
-		toDomTextOffset(asRawOffset(endOffset), ambient)
+		toDomTextOffset(asRawOffset(Math.max(anchorOffset, focusOffset)), ambient)
 	);
 	if (!range) return;
 	const sel = window.getSelection();
@@ -126,6 +128,15 @@ export function applySingleBlockRange(
 	// a range that opens inside `contenteditable="false"`.
 	if (ambient > 0 && startOffset <= 0 && placeCaretAfterAmbientSpan(blockEl)) {
 		sel?.extend(range.endContainer, range.endOffset);
+		return;
+	}
+	if (focusOffset < anchorOffset) {
+		sel?.setBaseAndExtent(
+			range.endContainer,
+			range.endOffset,
+			range.startContainer,
+			range.startOffset
+		);
 		return;
 	}
 	sel?.removeAllRanges();

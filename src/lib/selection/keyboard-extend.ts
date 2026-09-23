@@ -1,7 +1,7 @@
 /** Cross-block keyboard extension and collapse. Pure helpers over SelectionState. */
 
 import type { SelectionState } from './selection-state.svelte';
-import type { SelectionPoint } from './primitives';
+import type { SelectedWidgetHandle, SelectedWidgetRange, SelectionPoint } from './primitives';
 import type { Document } from '../core/nodes';
 import { isVerticallyTransparentNode } from '../core/inline/transparency';
 import type { BlockComponent } from '../block-component';
@@ -242,9 +242,10 @@ export function selectWholeDocument(
 // ── Shift+Click ────────────────────────────────────────────────────────────
 
 /**
- * Shift+click on a block: extend the cross-block selection, or enter cross-block mode using the
- * previously focused block's caret as the anchor. False when no anchor could be recovered, or
- * the click stayed within the same block (native shift-click handles that).
+ * Shift+click on a block: extend the cross-block selection, grow a range from an image selected
+ * whole, or enter cross-block mode using the previously focused block's caret as the anchor.
+ * False when no anchor could be recovered, or the click stayed within the same block (native
+ * shift-click handles that).
  */
 export function handleShiftClick(
 	selection: SelectionState,
@@ -253,14 +254,30 @@ export function handleShiftClick(
 	clickedX: number,
 	clickedY: number,
 	previouslyFocusedBlockEl: HTMLElement | null,
-	previouslyFocusedBlockPath: number[] | null
+	previouslyFocusedBlockPath: number[] | null,
+	selectedWidget: SelectedWidgetHandle
 ): boolean {
+	// While an image is selected whole there is no caret to grow from, so the image is the
+	// anchor; the press ends that selection either way, as a range and it never coexist.
+	const widget = selectedWidget.range();
+	if (widget) selectedWidget.clear();
 	const clickOffset = offsetFromViewportPoint(clickedBlockEl, clickedX, clickedY);
 	if (clickOffset === null) return false;
 	const focusPoint: SelectionPoint = { path: clickedBlockPath.slice(), offset: clickOffset };
 
 	if (selection.isCrossBlock) {
 		selection.extendFocus(focusPoint);
+		return true;
+	}
+
+	if (widget) {
+		const anchor = widgetShiftAnchor(widget, focusPoint);
+		if (comparePaths(anchor.path, focusPoint.path) === 0) {
+			applySingleBlockRange(clickedBlockEl, anchor.offset, focusPoint.offset);
+			return true;
+		}
+		selection.enterCrossBlock(anchor, focusPoint);
+		applyCollapsedCaret(clickedBlockEl, focusPoint);
 		return true;
 	}
 
@@ -280,6 +297,17 @@ export function handleShiftClick(
 	// default is not relied on.
 	applyCollapsedCaret(clickedBlockEl, focusPoint);
 	return true;
+}
+
+/** The edge of a selected widget a shift-press grows from: the one away from the press, so the
+ *  range covers the widget and everything up to the press. */
+export function widgetShiftAnchor(
+	widget: SelectedWidgetRange,
+	press: SelectionPoint
+): SelectionPoint {
+	const order = comparePaths(press.path, widget.path);
+	const pressAfter = order > 0 || (order === 0 && press.offset > widget.start);
+	return { path: widget.path.slice(), offset: pressAfter ? widget.start : widget.end };
 }
 
 // ── Internal ───────────────────────────────────────────────────────────────

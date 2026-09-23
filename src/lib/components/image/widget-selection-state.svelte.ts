@@ -3,10 +3,21 @@
 // listener drops a caret the browser puts in a block while an image is selected.
 
 import { pathsEqual } from '../../selection/path-math';
+import { findSurfacePathForElement } from '../../selection/path-lookup';
 
 /** What a click-outside handler must not count as outside: the widget itself and the overlay
- *  controls attached to it. One string, because both handlers have to change together. */
+ *  controls attached to it. */
 export const IMAGE_CHROME_SELECTOR = '[data-image-widget], [data-image-overlay]';
+
+/** Whether a press should end the image selection, for both click-outside handlers. A Shift-press
+ *  on this editor's text is left to that block, which grows a range from the image and ends it. */
+export function pressLeavesImage(press: PointerEvent, editorRoot: Element | null): boolean {
+	const target = press.target instanceof Element ? press.target : null;
+	if (target?.closest(IMAGE_CHROME_SELECTOR)) return false;
+	const ownedByBlock =
+		press.shiftKey && !!editorRoot?.contains(target) && findSurfacePathForElement(target) !== null;
+	return !ownedByBlock;
+}
 
 export interface WidgetTarget {
 	// A deliberate snapshot, unlike the click path's live resolve (widget-dom.ts): a popover commit
@@ -22,6 +33,9 @@ export interface WidgetSelectionState {
 	getSelected(): WidgetTarget | null;
 	select(target: WidgetTarget): void;
 	clear(): void;
+	/** Moves the selection by `delta` bytes when it sits in `paragraphPath` at or past `editEnd`:
+	 *  an edit to another image earlier in the paragraph moved its bytes, not its identity. */
+	followEdit(paragraphPath: number[], editEnd: number, delta: number): void;
 	isSelected(paragraphPath: number[], sourceStart: number): boolean;
 }
 
@@ -44,6 +58,15 @@ export function createWidgetSelectionState(opts: CreateWidgetSelectionOpts): Wid
 		},
 		clear: () => {
 			selected = null;
+		},
+		followEdit: (path, editEnd, delta) => {
+			if (!selected || selected.sourceStart < editEnd) return;
+			if (!pathsEqual(selected.paragraphPath, path)) return;
+			selected = {
+				paragraphPath: selected.paragraphPath,
+				sourceStart: selected.sourceStart + delta,
+				preSelectOffset: selected.preSelectOffset + delta
+			};
 		},
 		isSelected: (path, start) =>
 			selected !== null &&

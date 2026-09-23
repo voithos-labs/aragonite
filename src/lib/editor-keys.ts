@@ -24,6 +24,7 @@ import type { UndoController } from './editor-actions/deps';
 import type { ReorderAction } from './editor-actions/reorder-action';
 import type { PasteCommitCoordinator } from './tree-operations/paste/paste-deps';
 import type { SelectionState } from './selection/selection-state.svelte';
+import type { SelectedWidgetHandle } from './selection/primitives';
 import type { SearchState } from './search/search-state.svelte';
 import type { DecorationEngine } from './decorations/decoration-state.svelte';
 import type { StickyColumnState } from './cursor/sticky-column';
@@ -172,6 +173,8 @@ export interface EditorServices {
 	pendingMarks: PendingMarksState;
 	revealAnchor: RevealAnchorState;
 	widgetSelection: WidgetSelectionState;
+	/** The image `widgetSelection` holds, as a raw span read from the live document. */
+	selectedWidget: SelectedWidgetHandle;
 	/** Which link the live-mode card is editing; `link.openCard` opens it from a kind's keymap. */
 	linkCard: LinkCardState;
 	/** What the editable at `path` says about the inline menu's list while one shows in it, or

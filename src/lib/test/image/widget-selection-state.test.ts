@@ -61,6 +61,17 @@ describe('WidgetSelectionState', () => {
 		expect(s.getSelected()?.paragraphPath).toEqual([0, 1]);
 	});
 
+	it('followEdit moves a selection at or past the edit, and nothing before it or elsewhere', () => {
+		const s = createWidgetSelectionState({ onSelect: () => {} });
+		s.select({ paragraphPath: [0], sourceStart: 12, preSelectOffset: 23 });
+		s.followEdit([1], 0, 7);
+		s.followEdit([0], 13, 7);
+		expect(s.getSelected()).toEqual({ paragraphPath: [0], sourceStart: 12, preSelectOffset: 23 });
+
+		s.followEdit([0], 12, 7);
+		expect(s.getSelected()).toEqual({ paragraphPath: [0], sourceStart: 19, preSelectOffset: 30 });
+	});
+
 	it('select preserves preSelectOffset distinct from sourceStart', () => {
 		const s = createWidgetSelectionState({ onSelect: () => {} });
 		s.select({ paragraphPath: [0], sourceStart: 10, preSelectOffset: 22 });

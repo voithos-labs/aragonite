@@ -22,6 +22,8 @@ import { mountTableGrid } from './table-grid';
 
 const clickOffset = vi.mocked(offsetFromViewportPoint);
 const anchorCaret = vi.mocked(readNativeCaretInBlock);
+// No image is selected whole in these cases.
+const NO_SELECTED_WIDGET = { range: () => null, clear: () => {} };
 
 const TABLE_DOC = '| a | b | c |\n|---|---|---|\n| 1 | 2 | 3 |\n| 4 | 5 | 6 |\n\nSome paragraph.\n';
 
@@ -56,9 +58,18 @@ describe('handleShiftClick out of a table cell', () => {
 		clickOffset.mockReturnValue(4);
 
 		// Caret 5 characters into header cell (0,0); shift+click into the paragraph.
-		expect(handleShiftClick(s, document.createElement('div'), [1], 0, 0, cells[0][0], [0])).toBe(
-			true
-		);
+		expect(
+			handleShiftClick(
+				s,
+				document.createElement('div'),
+				[1],
+				0,
+				0,
+				cells[0][0],
+				[0],
+				NO_SELECTED_WIDGET
+			)
+		).toBe(true);
 
 		expect(s.anchor).toEqual({ path: [0], offset: 0, cellCoordinate: true });
 		expect(s.focus).toEqual({ path: [1], offset: 4 });
@@ -70,9 +81,18 @@ describe('handleShiftClick out of a table cell', () => {
 		const cells = mountTable([0], 3, 3);
 		clickOffset.mockReturnValue(0);
 
-		expect(handleShiftClick(s, document.createElement('div'), [1], 0, 0, cells[2][1], [0])).toBe(
-			true
-		);
+		expect(
+			handleShiftClick(
+				s,
+				document.createElement('div'),
+				[1],
+				0,
+				0,
+				cells[2][1],
+				[0],
+				NO_SELECTED_WIDGET
+			)
+		).toBe(true);
 
 		// Cell (2,1) → index 7; the start side snaps down to its row's first cell.
 		expect(s.anchor).toEqual({ path: [0], offset: 7, cellCoordinate: true });
@@ -86,7 +106,9 @@ describe('handleShiftClick out of a table cell', () => {
 		clickOffset.mockReturnValue(2);
 
 		// The cell is its own editable element, so its `getMyPath()` is the cell path.
-		expect(handleShiftClick(s, cells[1][2], [0, 1, 2], 0, 0, cells[1][2], [0])).toBe(false);
+		expect(
+			handleShiftClick(s, cells[1][2], [0, 1, 2], 0, 0, cells[1][2], [0], NO_SELECTED_WIDGET)
+		).toBe(false);
 		expect(s.isCrossBlock).toBe(false);
 	});
 
@@ -97,7 +119,16 @@ describe('handleShiftClick out of a table cell', () => {
 		clickOffset.mockReturnValue(1);
 
 		expect(
-			handleShiftClick(s, document.createElement('div'), [0, 0, 0], 0, 0, paragraph, [1])
+			handleShiftClick(
+				s,
+				document.createElement('div'),
+				[0, 0, 0],
+				0,
+				0,
+				paragraph,
+				[1],
+				NO_SELECTED_WIDGET
+			)
 		).toBe(true);
 		expect(s.anchor).toEqual({ path: [1], offset: 5 });
 	});
