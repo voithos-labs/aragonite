@@ -80,6 +80,7 @@ export function assertSingleNodeSink(sink: string, installed: readonly CstNode[]
  * Split the node at `blockIndex` at raw `offset` (display-relative). The first half inherits the
  * original ID and the whole structural suffix (a setext underline); the second half opens with a
  * blank separator wherever one does structural work ({@link separatorSplitsOffNextLine}).
+ * A caller that moves the second half elsewhere passes how its new position reads it.
  */
 export function splitNode(
 	parent: BodyParentArg,
@@ -88,7 +89,12 @@ export function splitNode(
 	sharing: SharingState | undefined,
 	presentationMode: PresentationMode | undefined,
 	linkRef: InlineResolverRef | undefined,
-	grammar?: GrammarView
+	grammar?: GrammarView,
+	readSecondHalf: FragmentReader = fragmentReaderAt(
+		ownerAt(parent, [blockIndex]),
+		blockIndex + 1,
+		grammar
+	)
 ): SplitResult {
 	const noop: SplitResult = { change: { op: 'noop' }, secondHalfIndex: blockIndex + 1 };
 	if (blockIndex < 0 || blockIndex >= parent.children.length) return noop;
@@ -135,11 +141,14 @@ export function splitNode(
 		lineEnding,
 		parent.children[blockIndex + 1]
 	);
-	const read: FragmentReader = (text) => parse(text, { grammar, scope: 'fragment' });
-	const first = reparseAsNodes(firstRaw, node.leadingTrivia, read);
+	const first = reparseAsNodes(
+		firstRaw,
+		node.leadingTrivia,
+		fragmentReaderAt(ownerAt(parent, [blockIndex]), blockIndex, grammar)
+	);
 	// The blank line the parse split off the first half stands between the halves, so it is the
 	// second half's separator; `separator` is empty when the bytes already end in a blank line.
-	const second = reparseAsNodes(secondRaw, first.suffix + separator, read);
+	const second = reparseAsNodes(secondRaw, first.suffix + separator, readSecondHalf);
 	if (DEV && first.nodes.length > 1) {
 		// Legal, since the result carries the caret index, but rare enough to keep visible.
 		devWarn('tree-ops', `splitNode: the first half parsed to ${first.nodes.length} blocks`);

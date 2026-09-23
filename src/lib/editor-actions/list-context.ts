@@ -30,6 +30,7 @@ import {
 	bumpOrderedMarker
 } from '../tree-operations/list/ordered-markers';
 import { buildListItem, buildListShell } from '../tree-operations/list/list-builders';
+import { fragmentReaderAt } from '../tree-operations/list/task-paragraph';
 import { buildExitReplacement } from '../tree-operations/list/exit-replacement';
 import { settleSublistSeparator } from '../tree-operations/list/sublist-separator';
 import type { BlockListState } from '../reactivity/block-list-state.svelte';
@@ -220,7 +221,10 @@ export function createListContext(deps: ListContextDeps): ListContext {
 						sharing,
 						deps.getPresentationMode?.(),
 						deps.linkRef,
-						deps.grammar
+						deps.grammar,
+						// The new item inherits this one's task marker, so its first block reads
+						// as this item's first block does.
+						fragmentReaderAt(itemScope.node, 0, deps.grammar)
 					);
 					stampStructuralChange(itemChildren, split.change, sharing);
 					// The primitive's index, not `innerIndex + 1`: a first half that parses to several
