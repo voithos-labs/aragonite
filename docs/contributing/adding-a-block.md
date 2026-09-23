@@ -85,7 +85,7 @@ export interface BlockMetadataByKind {
 
 ### 1. The descriptor
 
-Call `registerBlockKind(kind, registration)` from `schema/built-in-descriptors.ts` (the registry itself is `schema/block-kind-descriptor.ts`). Five fields are required: `gapEdges`, `mergeRole`, `editable`, `supportsInline`, and the `closure` block. Here's the thematic break's, the smallest built-in:
+Call `registerBlockKind(kind, registration)` from `schema/built-in-descriptors.ts` (the registry itself is `schema/block-kind-descriptor.ts`). Five fields are required: `gapEdges`, `mergeRole`, `editable`, `supportsInline`, and the `closure` block. The kind's name is not one of them: a built-in's lives in `BUILT_IN_BLOCK_LABELS` in `src/lib/a11y-strings.ts` (what a screen reader and the block menu call it), a `Record<BlockKind, string>`, so the compiler flags the entry you forgot. Here's the thematic break's descriptor, the smallest built-in:
 
 ```ts
 // schema/built-in-descriptors.ts
