@@ -145,11 +145,14 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 	}
 
 	/**
-	 * What an entry records as "where the caret was". The gap caret outranks the caller's
-	 * fallback but not the live caret: it is a live caret, but no block ref can report it, so
-	 * it would otherwise fall through to a fallback naming a block it is not in.
+	 * What an entry records as "where the caret was". A selected image comes first: the browser
+	 * puts a caret back in its paragraph that the editor drops a moment later, so a live read
+	 * then names the paragraph start. The gap caret outranks only the caller's fallback, since
+	 * no block ref reports it.
 	 */
 	function entrySelection(fallback: () => EditorSelection): EditorSelection | GapCaretSelection {
+		const beforeImage = deps.getSelectedWidgetCaret?.();
+		if (beforeImage) return beforeImage;
 		const live = readCurrentSelection(deps.selectionState, deps.blockRefs);
 		if (live) return live;
 		const gap = deps.selectionState.gapCaret;
@@ -691,8 +694,8 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 	let historyGeneration = 0;
 
 	function captureCurrentState(): UndoEntry {
-		// The same three-way selection read as the snapshot pushes: this is the entry an undo
-		// or redo pushes onto the opposite stack, so a live gap caret must survive the return.
+		// The same selection read as the snapshot pushes: this is the entry an undo or redo
+		// pushes onto the opposite stack, so a gap caret or a selected image's caret survives.
 		return {
 			...shareSnapshot(),
 			blockIds: [...deps.blockIds],

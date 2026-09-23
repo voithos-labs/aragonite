@@ -122,6 +122,8 @@ export function createImageEditCommitter(deps: ImageEditCommitterDeps): ImageEdi
 		writeImageEdit(target, newFields);
 	}
 
+	// The caret from before the image was selected anchors the undo entry when no other caret
+	// answers: the popover can commit after the selection has moved on.
 	function writeImageEdit(target: WidgetTarget, newFields: ImageFields): void {
 		const edit = resolveEdit(target, newFields);
 		if (!edit) return;
@@ -130,7 +132,7 @@ export function createImageEditCommitter(deps: ImageEditCommitterDeps): ImageEdi
 			edit.image.start,
 			edit.image.end,
 			edit.bytes,
-			0
+			target.preSelectOffset
 		);
 	}
 
@@ -156,13 +158,20 @@ export function createImageEditCommitter(deps: ImageEditCommitterDeps): ImageEdi
 		writeImageEdit(sel, newFields);
 	}
 
-	/** The whole `![...](...)` span goes; the caret lands where the image began. */
+	/** The whole `![...](...)` span goes. The selection clears first, so the undo entry is told
+	 *  the caret the user had before selecting the image rather than reading it. */
 	function removeImage(target: WidgetTarget): void {
 		const paragraph = blockNodeAt(getDoc(), target.paragraphPath);
 		const image = paragraph && findImageInParagraph(paragraph, target.sourceStart);
 		if (!image) return;
 		widgetSelection.clear();
-		void inlineRange.commitInlineRange(target.paragraphPath, image.start, image.end, '', 0);
+		void inlineRange.commitInlineRange(
+			target.paragraphPath,
+			image.start,
+			image.end,
+			'',
+			target.preSelectOffset
+		);
 	}
 
 	function dismissImagePopover(): void {

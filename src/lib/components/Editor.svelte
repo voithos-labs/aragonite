@@ -557,6 +557,12 @@
 		stickyColumn,
 		edgeAffinity,
 		selectionState,
+		getSelectedWidgetCaret: () => {
+			const selected = widgetSelection.getSelected();
+			if (!selected) return null;
+			const point = { path: [...selected.paragraphPath], offset: selected.preSelectOffset };
+			return { anchor: point, focus: point };
+		},
 		getBlockElByPath,
 		revealPath,
 		events,
