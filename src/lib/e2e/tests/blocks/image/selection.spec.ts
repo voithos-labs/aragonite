@@ -1,5 +1,6 @@
 import { test, expect } from '../../../fixtures';
 import { EditorPage } from '../../../editor-page';
+import { documentCaret } from './helpers';
 
 test.describe('image widget selection', () => {
 	let editor: EditorPage;
@@ -46,11 +47,6 @@ test.describe('image widget selection', () => {
 
 	// The paragraph keeps focus while its image is selected, so the browser puts a caret at its
 	// start on the next mouse input of any kind; none may outlive the selected image.
-	const documentCaret = (page: import('@playwright/test').Page) =>
-		page.evaluate(() => [
-			window.getSelection()?.rangeCount ?? 0,
-			(window as any).__test.getSelection()
-		]);
 	const IMAGE_PARAGRAPH = 'before ![pic|120x80](/test-fixtures/sample.png) after\n';
 
 	test('moving the mouse off a selected image leaves no document caret', async ({ page }) => {

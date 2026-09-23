@@ -1,4 +1,5 @@
 import { test, expect } from '../../fixtures';
+import { documentCaret } from '../blocks/image/helpers';
 import { PluginsPage } from '../plugins/helpers';
 import { multiClick, nativeSelectionText, runCenter, widgetCenter } from './multi-click-helpers';
 
@@ -110,14 +111,6 @@ test.describe('multi-click: the block inline syntax handler beside inline widget
 	});
 
 	const IMAGE_PARAGRAPH = 'before ![pic|120x80](/test-fixtures/sample.png) after\n';
-
-	/** The document caret beside a selected image: the native range count and the editor's read. */
-	function documentCaret(page: import('@playwright/test').Page): Promise<[number, unknown]> {
-		return page.evaluate(() => [
-			window.getSelection()?.rangeCount ?? 0,
-			(window as any).__test.getSelection()
-		]);
-	}
 
 	for (const clicks of [2, 3]) {
 		test(`a ${clicks === 2 ? 'double' : 'triple'}-click on an inline image leaves the image selected, and nothing else`, async ({
