@@ -6,8 +6,7 @@ import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import { trailingLineEnding } from '$lib/core/lines';
 import { updateNodeContent } from '$lib/tree-operations';
-import { settleSeparator } from '$lib/tree-operations/settle';
-import { deleteNode } from '$lib/tree-operations/settle';
+import { deleteNode, settleSeparator } from '$lib/tree-operations/settle';
 import { getBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
 import { describeConvergence } from '$lib/test/harness/parse-converged';
 

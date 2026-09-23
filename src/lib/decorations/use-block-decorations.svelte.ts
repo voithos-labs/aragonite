@@ -48,7 +48,7 @@ export function useBlockDecorations(deps: BlockDecorationDeps): { readonly class
 	$effect(() => {
 		const decs = decorations;
 		const el = deps.getEl();
-		if (!el) return;
+		if (!el || decs.length === 0) return;
 		const destroys: Array<() => void> = [];
 		const badges = document.createDocumentFragment();
 		for (const dec of decs) {

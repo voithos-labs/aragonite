@@ -285,6 +285,8 @@
 	}
 </script>
 
+<!-- No `data-block-path` on the item box: a lookup by that attribute treats the match as a
+	 block host, and the item renders none. -->
 <div
 	class={[
 		'list-item-block',

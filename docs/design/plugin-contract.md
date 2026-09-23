@@ -439,7 +439,7 @@ Four decoration types, spanning the overlay and in-flow render paths:
 - an inline **mark**: a positioned overlay span carrying the source's class. The same surface search's own highlights ride, since search is a decoration source of this engine; same-cell marks from multiple sources collapse to one rect with unioned classes.
 - a zero-width **widget** island.
 - a range **replace** island: the displaced bytes stay in the document and never leave `getSource()`.
-- a whole-**block** treatment: class and attrs on the block host (a list item's own box, which has no host), plus an optional badge widget.
+- a whole-**block** treatment: class and attrs on the block host, plus an optional badge widget. A list item has no host, so its treatment lands on the item's own box, which the item paints itself.
 
 The union grows by addition: a new decoration type is a new member, a new capability on an existing type is an optional field, and a shipped member is never restructured. That's safe because a source _produces_ decorations and never switches over them; the editor is the only exhaustive consumer, so a new member is a render case on the editor's side, not a break on the plugin's.
 
