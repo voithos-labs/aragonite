@@ -247,7 +247,7 @@ function openLink(
 /**
  * The angle form's `<`/`>` are construct syntax, so they render as markers the mode CSS can hide;
  * the bare URL/www/email forms are url text throughout. Read off the raw bytes, never `node.url`:
- * the bare forms synthesize a url (`http://`, `mailto:`) that is not a slice of the source.
+ * the bare forms may synthesize a url (`http://`, `mailto:`) that is not a slice of the source.
  */
 function appendAutolink(
 	node: InlineNode,
