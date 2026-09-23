@@ -117,6 +117,13 @@ test.describe('image widget selection', () => {
 		// which it stores as the paragraph's start.
 		const start = { path: [0], offset: 0 };
 		await expect.poll(() => documentCaret(page)).toEqual([1, { anchor: start, focus: start }]);
+		// A stale selection drops the redone caret a moment after it lands, not at once.
+		await page.waitForTimeout(150);
+		await page.keyboard.press('ArrowRight');
+		await editor.typeText('W');
+		expect(await editor.bridge.getSource()).toBe(
+			'aWbcxyz ![c|60x40](/test-fixtures/sample.png) tail\n'
+		);
 	});
 
 	test('End while an image is selected deselects it and moves to the line end', async ({
