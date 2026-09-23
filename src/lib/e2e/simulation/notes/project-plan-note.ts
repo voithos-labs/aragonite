@@ -80,6 +80,7 @@ export const PROJECT_PLAN_NOTE: NoteFixture = {
 		// The checkbox renders on the item's paragraph, and only the list and the item
 		// paragraphs carry a data-block-path, so the path stops at the paragraph.
 		await g.toggleTask([7, 0, 0]);
+		await g.toggleTaskByKeyboard([7, 1, 0]);
 	},
 	landmarks: [
 		'Q3 Editor Project Plan',
@@ -119,7 +120,7 @@ export const PROJECT_PLAN_NOTE: NoteFixture = {
 		'## Release checklist\n' +
 		'\n' +
 		'- [x] Audit round-trip fixtures\n' +
-		'- [ ] Run the simulation suite\n' +
+		'- [x] Run the simulation suite\n' +
 		'- [ ] Tag the release branch\n' +
 		'\n' +
 		'> Risk: the nested-list rewrite touches selection,\n' +

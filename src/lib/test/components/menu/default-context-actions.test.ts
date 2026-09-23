@@ -48,6 +48,7 @@ describe("the noun a block's menu uses", () => {
 		expect(blockNoun(block(FENCE))).toBe('code block');
 		expect(blockNoun(block('> quote\n'))).toBe('quote');
 		expect(blockNoun(block('---\n'))).toBe('divider');
+		expect(blockNoun(block('<div>\n</div>\n'))).toBe('HTML block');
 	});
 
 	it('calls a paragraph holding nothing but an image an image', () => {
@@ -55,8 +56,10 @@ describe("the noun a block's menu uses", () => {
 		expect(blockNoun(block('see ![a](x)\n'))).toBe('paragraph');
 	});
 
-	it('falls back to "block" for a kind it has no word for', () => {
-		expect(blockNoun({ kind: 'mystery', raw: '' } as unknown as NodeView)).toBe('block');
+	it('names a kind with no label by its kind name in words', () => {
+		expect(blockNoun({ kind: 'mysteryWidget', raw: '' } as unknown as NodeView)).toBe(
+			'mystery widget'
+		);
 	});
 });
 

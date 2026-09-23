@@ -14,7 +14,7 @@ test.describe('table cell Shift+Enter inserts <br>', () => {
 	test('Shift+Enter splits cell content with <br>; source preserves the tag', async ({ page }) => {
 		await editor.loadContent(TABLE_1COL);
 		// Focus the data cell (header is nth(0), data is nth(1) for a 1-column table).
-		await page.locator('[role="cell"]').nth(1).click();
+		await page.locator('.table-cell').nth(1).click();
 		await page.keyboard.press('End');
 		await page.keyboard.press('Shift+Enter');
 		await editor.typeText('Right');
@@ -28,7 +28,7 @@ test.describe('table cell Shift+Enter inserts <br>', () => {
 	// then eats a non-adjacent one.
 	test('Backspace at the <br> edge removes the whole tag in one press', async ({ page }) => {
 		await editor.loadContent(TABLE_1COL);
-		await page.locator('[role="cell"]').nth(1).click();
+		await page.locator('.table-cell').nth(1).click();
 		await page.keyboard.press('End');
 		await page.keyboard.press('Shift+Enter');
 		await editor.typeText('Right');
@@ -41,17 +41,17 @@ test.describe('table cell Shift+Enter inserts <br>', () => {
 		await editor.bridge.waitForSourceContains('| LeftRight |');
 		// The neighbouring characters survive: a step-over's second press eats one of these.
 		expect(await editor.bridge.getSource()).toContain('| LeftRight |');
-		await expect(page.locator('[role="cell"]').nth(1).locator('.md-br-widget')).toHaveCount(0);
+		await expect(page.locator('.table-cell').nth(1).locator('.md-br-widget')).toHaveCount(0);
 	});
 
 	test('the inserted <br> renders as a visible widget, not literal text', async ({ page }) => {
 		await editor.loadContent(TABLE_1COL);
-		await page.locator('[role="cell"]').nth(1).click();
+		await page.locator('.table-cell').nth(1).click();
 		await page.keyboard.press('End');
 		await page.keyboard.press('Shift+Enter');
 		await editor.bridge.waitForSourceContains('Left<br>');
 
-		const cell = page.locator('[role="cell"]').nth(1);
+		const cell = page.locator('.table-cell').nth(1);
 		await expect(cell.locator('.md-br-widget')).toHaveCount(1);
 		await expect(cell).not.toContainText('<br>');
 	});

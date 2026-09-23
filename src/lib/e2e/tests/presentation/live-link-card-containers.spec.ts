@@ -49,7 +49,7 @@ test.describe('live-mode link card: inside containers', () => {
 		expect(await ep.bridge.getSource()).toContain('| see [alpha](https://one.test/a\\|b) |');
 		// The construct survived the escape: an unescaped pipe would have cut the cell in half and
 		// left the tail as literal text with no anchor at all.
-		const anchor = page.locator("[role='cell'] a.md-link-content");
+		const anchor = page.locator('.table-cell a.md-link-content');
 		await expect(anchor).toHaveText('alpha');
 		// The href is the parsed destination, percent-encoded when rendered: the escape the cell
 		// added is a source byte and never reaches it.

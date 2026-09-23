@@ -64,7 +64,7 @@ test.describe('insertMarkdown: declines', () => {
 
 	test('a resting gap caret declines; a caret in a real block takes the same payload', async () => {
 		await editor.loadContent(GAP_FIXTURE);
-		await editor.page.locator('[role="cell"]').nth(LAST_CELL).click();
+		await editor.page.locator('.table-cell').nth(LAST_CELL).click();
 		await editor.page.keyboard.press('ArrowDown');
 		await editor.bridge.waitForGapCaret({ parentPath: [], index: 2 });
 

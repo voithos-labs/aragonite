@@ -23,6 +23,7 @@
 		createEditableSurface,
 		createClipboardHandlers,
 		consumePendingRestore,
+		editableSurfaceAttributes,
 		withKeydownVerdict,
 		type RawRange
 	} from '../editable-surface';
@@ -824,13 +825,15 @@
 	}
 </script>
 
+<!-- The textbox role arrives through the spread, where the compiler cannot see it. -->
+<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 <div
 	bind:this={el}
 	tabindex="0"
 	class="code-block"
 	contenteditable={readOnly ? 'false' : 'true'}
 	aria-readonly={readOnly ? 'true' : undefined}
-	role="textbox"
+	{...editableSurfaceAttributes(node, null)}
 	spellcheck="false"
 	oninput={onInput}
 	onfocus={onSurfaceFocus}

@@ -84,7 +84,7 @@ const CELL_DOC = '| Some **bold** text | y |\n| --- | --- |\n| a | b |\n\nX\n';
 test.describe('table-cell paste over a construct edge', () => {
 	/** The selection the prose row uses, one level down: inside `**bold**`, then past its closer. */
 	async function selectAcrossTheCellCloser(ep: EditorPage, page: Page): Promise<void> {
-		await page.getByRole('cell').first().click();
+		await page.locator('.table-cell').first().click();
 		await page.keyboard.press('Home');
 		await ep.waitForRenderFlush();
 		for (let i = 0; i < 6; i++) await page.keyboard.press('ArrowRight');
@@ -136,7 +136,7 @@ test.describe('table-cell paste over a construct edge', () => {
 		await ep.waitForRenderFlush();
 
 		await copyPayload(ep, page);
-		await page.getByRole('cell').first().click();
+		await page.locator('.table-cell').first().click();
 		await page.keyboard.press('End');
 		await ep.waitForRenderFlush();
 		for (let i = 0; i < 4; i++) await page.keyboard.press('Shift+ArrowLeft');

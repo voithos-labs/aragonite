@@ -49,7 +49,7 @@
 	--color-text-secondary: #4a4a45;
 	--color-text-primary: #2a2a27;
 	--color-border: #c9c7c0;
-	--color-ui-muted: #83837b;
+	--color-ui-muted: #676761;
 	--color-ui-dulled: #71716a;
 	--color-accent: #567b67;
 	--color-selection: var(--color-accent, #567b67);
@@ -133,6 +133,7 @@
 	/* Tint on the container a nested drag is reordering inside. It uses the reorder accent rather
 	   than neutral grey, so the change stays visible to low-contrast vision. */
 	--reorder-scope-bg: rgba(100, 150, 255, 0.14);
+	/* Unlike the tokens around it, the light theme sets its own dim. */
 	--syntax-marker-dim: 0.65;
 
 	/* Menu/popout elevation, per mode: a shadow tuned for a near-black surface is invisible
@@ -173,7 +174,9 @@
 	--menu-scrollbar-thumb: rgba(0, 0, 0, 0.2);
 	--menu-scrollbar-thumb-hover: rgba(0, 0, 0, 0.32);
 
-	/* The --syntax-* tokens are the same in both modes: no light overrides. */
+	/* The syntax colours are the same in both modes. The dim is not: at the dark theme's 0.65 the
+	   light prose colour falls under AA on the light surface. */
+	--syntax-marker-dim: 0.68;
 
 	/* Code block syntax highlighting: a GitHub Light-inspired palette. */
 	--code-tok-keyword: #c1202b;

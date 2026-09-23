@@ -36,7 +36,7 @@ test.describe('right-click menu: Insert block', () => {
 		await expect(page.getByRole('menuitem', { name: 'Insert block' })).toHaveCount(0);
 		await page.keyboard.press('Escape');
 
-		await page.locator('[role="cell"]').nth(2).click({ button: 'right' });
+		await page.locator('.table-cell').nth(2).click({ button: 'right' });
 		await expect(page.getByRole('menuitem', { name: /delete row/i })).toBeVisible();
 		await expect(page.getByRole('menuitem', { name: 'Insert block' })).toHaveCount(0);
 	});

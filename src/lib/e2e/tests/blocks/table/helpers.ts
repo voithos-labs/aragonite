@@ -28,11 +28,11 @@ export async function dragBetweenBoxes(page: Page, from: Box, to: Box): Promise<
 	await page.mouse.up();
 }
 
-// Drag between the centers of two `[role="cell"]` cells addressed by row-major index.
+// Drag between the centers of two `.table-cell` cells addressed by row-major index.
 export async function dragBetweenCells(page: Page, fromIdx: number, toIdx: number): Promise<void> {
 	const [from, to] = await boxesOf(
-		page.locator('[role="cell"]').nth(fromIdx),
-		page.locator('[role="cell"]').nth(toIdx)
+		page.locator('.table-cell').nth(fromIdx),
+		page.locator('.table-cell').nth(toIdx)
 	);
 	await dragBetweenBoxes(page, from, to);
 }
@@ -44,7 +44,7 @@ export async function openFlyout(
 	cell: number | Locator,
 	group: 'Row' | 'Column'
 ): Promise<void> {
-	const target = typeof cell === 'number' ? page.locator('[role="cell"]').nth(cell) : cell;
+	const target = typeof cell === 'number' ? page.locator('.table-cell').nth(cell) : cell;
 	await target.click({ button: 'right' });
 	const row = page.getByRole('menuitem', { name: group, exact: true });
 	await expect(row).toBeVisible();

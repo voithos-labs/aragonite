@@ -55,7 +55,7 @@ test.describe('table block: the cell menu’s Row flyout', () => {
 		page
 	}) => {
 		await editor.loadContent(TABLE_1ROW);
-		await page.locator('[role="cell"]').nth(2).click({ button: 'right' }); // the sole body row
+		await page.locator('.table-cell').nth(2).click({ button: 'right' }); // the sole body row
 
 		const deleteRow = page.getByRole('menuitem', { name: /delete row/i });
 		await expect(deleteRow).toBeDisabled();

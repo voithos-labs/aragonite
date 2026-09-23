@@ -98,7 +98,7 @@ describe('cellCoordsOfElement', () => {
 			tableEl.appendChild(rowEl);
 			for (let c = 0; c < 3; c++) {
 				const cellEl = document.createElement('div');
-				cellEl.setAttribute('role', 'cell');
+				cellEl.setAttribute('role', r === 0 ? 'columnheader' : 'cell');
 				rowEl.appendChild(cellEl);
 			}
 		}
@@ -117,7 +117,7 @@ describe('cellCoordsOfElement', () => {
 
 	it('cellCoordsOfElement resolves from a nested descendant, not just the cell itself', () => {
 		const cell = tableEl.querySelector(
-			'[data-table-row-idx="0"] > [role="cell"]:nth-child(3)'
+			'[data-table-row-idx="0"] > [role="columnheader"]:nth-child(3)'
 		) as HTMLElement;
 		const inner = document.createElement('span');
 		cell.appendChild(inner);
@@ -146,8 +146,8 @@ describe('cellCoordsOfElement', () => {
 	});
 });
 
-// The one selector contract for the cell grid: rows by `data-table-row-idx`,
-// cells by `role="cell"`, direct children only.
+// The one selector contract for the cell grid: rows by `data-table-row-idx`, cells by
+// `role="cell"` or, in the header row, `role="columnheader"`, direct children only.
 describe('mountedRowEls / rowCellEls', () => {
 	let tableEl: HTMLElement;
 
@@ -163,7 +163,7 @@ describe('mountedRowEls / rowCellEls', () => {
 			tableEl.appendChild(rowEl);
 			for (let c = 0; c < 2; c++) {
 				const cellEl = document.createElement('div');
-				cellEl.setAttribute('role', 'cell');
+				cellEl.setAttribute('role', r === 0 ? 'columnheader' : 'cell');
 				rowEl.appendChild(cellEl);
 			}
 		}
@@ -178,6 +178,14 @@ describe('mountedRowEls / rowCellEls', () => {
 		const row = mountedRowEls(tableEl)[1];
 		expect(rowCellEls(row)).toHaveLength(2);
 		expect(rowCellEls(row).every((c) => c.getAttribute('role') === 'cell')).toBe(true);
+	});
+
+	it('rowCellEls counts the header row’s column headers as its cells', () => {
+		const header = mountedRowEls(tableEl)[0];
+		expect(rowCellEls(header).map((c) => c.getAttribute('role'))).toEqual([
+			'columnheader',
+			'columnheader'
+		]);
 	});
 
 	it('rowCellEls ignores a nested cell in a sub-table', () => {

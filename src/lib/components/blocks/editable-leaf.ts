@@ -28,12 +28,12 @@ import {
 } from '../../cursor/content-offsets';
 import { handleSharedKeydown } from '../../selection/shared-keydown';
 import {
-	comboboxAttributes,
+	editableSurfaceAttributes,
 	createEditableSurface,
 	createClipboardHandlers,
 	consumePendingRestore,
 	withKeydownVerdict,
-	type ComboboxAttributes
+	type EditableSurfaceAttributes
 } from './editable-surface';
 import { wireSurfaceContexts } from './surface-wiring.svelte';
 import { createContentOffsetBackend, anchorTrailingNewline } from './plain-text-backend';
@@ -115,7 +115,7 @@ export interface EditableLeafDeps {
  * breaks IME silently). Attachments under symbol keys carry the view's lifecycle rules: one text
  * node, so the offset traversal stays exact, and moving focus away on unmount.
  */
-export interface EditableLeafSurfaceProps extends ComboboxAttributes {
+export interface EditableLeafSurfaceProps extends EditableSurfaceAttributes {
 	tabindex: number;
 	/** Reading mode makes a plain leaf's always-mounted source inert. */
 	contenteditable: 'true' | 'false';
@@ -815,7 +815,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 	// `contenteditable` is constant, since reveal never fires in reading mode.
 	const buildSurfaceProps = (): EditableLeafSurfaceProps => ({
 		...surfaceHandlers,
-		...comboboxAttributes(inlineMenuCombobox(deps.getPath())),
+		...editableSurfaceAttributes(deps.getNode(), inlineMenuCombobox(deps.getPath())),
 		contenteditable: mode === 'render-primary' || !isReading() ? 'true' : 'false',
 		[syncKey]: syncAttachment,
 		[parkKey]: parkAttachment

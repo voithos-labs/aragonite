@@ -4,33 +4,21 @@
  * ("Remove code block", "Copy image"). Plain, not red: every one is a Ctrl+Z away. Prose blocks
  * are the page's background and keep the browser's own menu (`Editor.svelte`).
  */
+import { blockKindLabel } from '../../a11y-strings';
 import type { NodeView } from '../../core/node-views';
 import { EVERY_KIND, registerBlockContextActions } from '../../schema/context-actions';
 import { applyPasteTransforms } from '../../tree-operations/paste/paste-transforms';
 
-const KIND_NAMES: Record<string, string> = {
-	paragraph: 'paragraph',
-	heading: 'heading',
-	setextHeading: 'heading',
-	fencedCode: 'code block',
-	indentedCode: 'code block',
-	mathBlock: 'math block',
-	mathFence: 'math block',
-	table: 'table',
-	blockquote: 'quote',
-	list: 'list',
-	thematicBreak: 'divider',
-	html: 'HTML block',
-	linkReferenceDefinition: 'link definition'
-};
-
 const IMAGE_ONLY = /^\s*!\[[^\]]*\]\([^)]*\)\s*$/;
 const PROSE_KINDS: ReadonlySet<string> = new Set(['paragraph', 'heading', 'setextHeading']);
 
-/** The noun the menu uses for a block: a paragraph holding nothing but an image is "image". */
+/** The noun the menu uses for a block: its kind's name mid-sentence, and "image" for a
+ *  paragraph holding nothing but an image. */
 export function blockNoun(node: NodeView): string {
 	if (node.kind === 'paragraph' && IMAGE_ONLY.test(node.raw)) return 'image';
-	return KIND_NAMES[node.kind] ?? 'block';
+	const label = blockKindLabel(node.kind);
+	// An initialism keeps its capitals: "HTML block", not "hTML block".
+	return /^.[A-Z]/.test(label) ? label : label.charAt(0).toLowerCase() + label.slice(1);
 }
 
 /** Prose is the page's background: it takes no block menu of its own. An image alone in a

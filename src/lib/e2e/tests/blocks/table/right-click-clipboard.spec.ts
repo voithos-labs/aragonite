@@ -21,7 +21,7 @@ test.describe('table block: cell right-click clipboard', () => {
 	test('the cell menu shows Cut/Copy/Paste at the top level, not inside the axis flyouts', async ({
 		page
 	}) => {
-		await page.locator('[role="cell"]').nth(2).click({ button: 'right' });
+		await page.locator('.table-cell').nth(2).click({ button: 'right' });
 		await expect(page.getByRole('menuitem', { name: /^cut$/i })).toBeVisible();
 		await expect(page.getByRole('menuitem', { name: /^copy$/i })).toBeVisible();
 		await expect(page.getByRole('menuitem', { name: /^paste$/i })).toBeVisible();
@@ -35,7 +35,7 @@ test.describe('table block: cell right-click clipboard', () => {
 	});
 
 	test('Copy writes the cell selection to the clipboard', async ({ page }) => {
-		const cell = page.locator('[role="cell"]').nth(2); // "hello"
+		const cell = page.locator('.table-cell').nth(2); // "hello"
 		await cell.click();
 		await page.keyboard.press('ControlOrMeta+a');
 		await cell.click({ button: 'right' }); // right-click inside the selection
@@ -48,7 +48,7 @@ test.describe('table block: cell right-click clipboard', () => {
 	test('Cut removes the selection from the cell and writes it to the clipboard', async ({
 		page
 	}) => {
-		const cell = page.locator('[role="cell"]').nth(2); // "hello"
+		const cell = page.locator('.table-cell').nth(2); // "hello"
 		await cell.click();
 		await page.keyboard.press('ControlOrMeta+a');
 		await cell.click({ button: 'right' });
@@ -60,7 +60,7 @@ test.describe('table block: cell right-click clipboard', () => {
 
 	test('Cut is a single undo entry', async ({ page }) => {
 		const before = await editor.bridge.getSource();
-		const cell = page.locator('[role="cell"]').nth(2);
+		const cell = page.locator('.table-cell').nth(2);
 		await cell.click();
 		await page.keyboard.press('ControlOrMeta+a');
 		await cell.click({ button: 'right' });
@@ -74,7 +74,7 @@ test.describe('table block: cell right-click clipboard', () => {
 	test('Cut and Copy are disabled with a collapsed caret; Paste stays enabled', async ({
 		page
 	}) => {
-		const cell = page.locator('[role="cell"]').nth(2);
+		const cell = page.locator('.table-cell').nth(2);
 		await cell.click(); // collapsed caret, no selection
 		await cell.click({ button: 'right' });
 		await expect(page.getByRole('menuitem', { name: /^cut$/i })).toBeDisabled();
@@ -87,7 +87,7 @@ test.describe('table block: cell right-click clipboard', () => {
 		// so the paste position is deterministic (a right-click repositions the caret).
 		await editor.loadContent('| A | B |\n| --- | --- |\n|  | world |\n');
 		await editor.seedClipboard('pasted');
-		await page.locator('[role="cell"]').nth(2).click({ button: 'right' }); // empty body cell
+		await page.locator('.table-cell').nth(2).click({ button: 'right' }); // empty body cell
 		await page.getByRole('menuitem', { name: /^paste$/i }).click();
 		await editor.bridge.waitForSourceContains('| pasted | world |');
 
@@ -105,7 +105,7 @@ test.describe('table block: cell right-click clipboard', () => {
 		await editor.waitForCrossBlock(true);
 
 		// Right-click a rectangle cell preserves the rect (button-2 pointerdown no-ops).
-		await page.locator('[role="cell"]').nth(2).click({ button: 'right' });
+		await page.locator('.table-cell').nth(2).click({ button: 'right' });
 		await expect(page.getByRole('menuitem', { name: /^cut$/i })).toBeEnabled();
 		await expect(page.getByRole('menuitem', { name: /^copy$/i })).toBeEnabled();
 
@@ -119,7 +119,7 @@ test.describe('table block: cell right-click clipboard', () => {
 
 	test('Paste over a selection replaces the selected text', async ({ page }) => {
 		await editor.seedClipboard('bye');
-		const cell = page.locator('[role="cell"]').nth(2); // "hello"
+		const cell = page.locator('.table-cell').nth(2); // "hello"
 		await cell.click();
 		await page.keyboard.press('ControlOrMeta+a');
 		await cell.click({ button: 'right' });

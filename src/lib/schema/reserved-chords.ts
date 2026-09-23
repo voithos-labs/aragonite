@@ -233,8 +233,8 @@ export const HARDCODED_CHORD_SITES: readonly HardcodedChordSite[] = [
 	{
 		file: 'plugins/footnotes/FootnoteReference.svelte',
 		chords: [],
-		keys: [],
-		note: 'Mod-click jump to the definition, the link click’s gesture: no keystroke is consumed.'
+		keys: [' ', 'Enter'],
+		note: 'Mod-click jump to the definition, the link click’s gesture; Enter and Space on the reference, a tab stop in reading mode only, are bare keys.'
 	},
 	{
 		file: 'plugins/mermaid/MermaidBlock.svelte',

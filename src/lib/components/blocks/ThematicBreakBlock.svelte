@@ -16,6 +16,7 @@
 	} from '../../editor-actions/container-block-component';
 	import { reorderRunCommand } from '../../editor-actions/reorder-action';
 	import { createWholeBlockInputProxy } from '../../editor-actions/whole-block-focus-surface';
+	import { blockAccessibleName } from '../../a11y-strings';
 	import { placeCaret } from '../../selection/caret-doors';
 	import { wireSurfaceContexts } from './surface-wiring.svelte';
 
@@ -47,6 +48,7 @@
 		getBoxEl: () => boxEl,
 		getFocusEl: () => el,
 		isReading,
+		getLabel: () => blockAccessibleName(node),
 		mint: (text) => void blockEdit.insertParagraph(index + 1, text)
 	});
 
@@ -126,13 +128,14 @@
 	}
 </script>
 
-<!-- The box holds the separator and the editor's hidden input element as siblings: focusable
+<!-- The box holds the rule and the editor's hidden input element as siblings: focusable
      content inside a focusable widget is not reachable by every AT (axe nested-interactive). -->
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div bind:this={boxEl} class="thematic-break-block" onkeydown={onKeyDown}>
-	<!-- Focusable by pointer and by the editor, never by Tab: the host beside it is the block's
-	     one tab stop. The role/naming question is the 1.1 shell a11y decision. -->
-	<div bind:this={el} tabindex="-1" class="thematic-break-rule" role="separator">
+	<!-- Focusable by pointer and by the editor, never by Tab: the named host beside it is the
+	     block's one tab stop. No role, since a focusable separator is a slider to ARIA; the
+	     `<hr>` carries the separator semantics. -->
+	<div bind:this={el} tabindex="-1" class="thematic-break-rule">
 		<hr />
 	</div>
 </div>
@@ -151,9 +154,8 @@
 		padding: 14px 0;
 	}
 
-	/* `:focus-within`: whole-block focus lands on the host, not the separator. Painted as the
-	   SAME wash the selection overlay uses, not an accent ring: a rule that showed focus one
-	   way and selection another read as two different states of the same block. */
+	/* `:focus-within`, since whole-block focus lands on the host beside the rule. Painted as
+	   the selection overlay's wash, so focus and selection read as one state of the block. */
 	.thematic-break-block:focus-within .thematic-break-rule {
 		background: var(--selection-overlay-bg, rgba(100, 150, 255, 0.3));
 		border-radius: 2px;

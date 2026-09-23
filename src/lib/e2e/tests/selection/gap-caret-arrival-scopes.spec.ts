@@ -57,7 +57,7 @@ test.describe('gap caret under virtual rendering', () => {
 		expect(mountedRootHosts).toBeLessThan(60);
 
 		await page.evaluate(() => (window as any).__test.rects.scrollTo([100], { block: 'center' }));
-		await page.locator('[role="cell"]').nth(LAST_CELL).click();
+		await page.locator('.table-cell').nth(LAST_CELL).click();
 		await editor.page.keyboard.press('ArrowDown');
 
 		await editor.bridge.waitForGapCaret({ parentPath: [], index: 101 });

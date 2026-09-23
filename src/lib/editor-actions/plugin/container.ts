@@ -27,6 +27,7 @@ import { dispatchKindCommand, type KindCommandTarget } from '../../schema/block-
 import { eventToChord } from '../../schema/keybindings';
 import { isReadingMode, type PresentationMode } from '../../presentation-mode';
 import { devWarn } from '../../dev-warn';
+import { blockAccessibleName } from '../../a11y-strings';
 import {
 	BLOCK_EDIT_KEY,
 	CONTAINER_EDIT_KEY,
@@ -428,6 +429,7 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 				getBoxEl: () => deps.getBoxEl(),
 				getFocusEl: wholeBlockSurface,
 				isReading: () => isReadingMode(getPresentationMode),
+				getLabel: () => blockAccessibleName(deps.getNode()),
 				mint: (text) => void parentBlockEdit.insertParagraph(deps.getIndex() + 1, text)
 			})
 		: undefined;

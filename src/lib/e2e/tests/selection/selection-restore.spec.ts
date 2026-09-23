@@ -234,7 +234,7 @@ test.describe('selection: setSelection restores a getSelection snapshot', () => 
 
 		// Collapse into a cell outside the rectangle. Table cells carry no
 		// data-block-path (no BlockHost), so they are addressed by role.
-		await page.locator('[role="cell"]').nth(8).click();
+		await page.locator('.table-cell').nth(8).click();
 		await editor.waitForCrossBlock(false);
 
 		expect(await editor.bridge.setSelection(snapshot!)).toBe(true);

@@ -24,6 +24,8 @@ import type {
 } from '../../editor-keys';
 import { emitClipboardError, type EditorEvents } from '../../editor-events';
 import type { InlineMenuCombobox } from '../../inline-menu/inline-menu-state.svelte';
+import type { NodeView } from '../../core/node-views';
+import { blockAccessibleName } from '../../a11y-strings';
 import type { KeybindingOverrideMap } from '../../schema/keybinding-overrides';
 import type { CommandErrorSink, CrossBlockCommandRouter } from '../../schema/block-commands';
 import type { GrammarView } from '../../schema/block-openers';
@@ -80,11 +82,13 @@ export function withKeydownVerdict(
 	};
 }
 
-// ── Inline menu combobox ────────────────────────────────────────────────────
+// ── Accessibility attributes ────────────────────────────────────────────────
 
-/** What a prose editable says about an inline menu's list while one shows in it. */
-export interface ComboboxAttributes {
+/** What an editable block tells assistive tech: its name, and the inline menu's list while
+ *  one shows in it. */
+export interface EditableSurfaceAttributes {
 	role: 'textbox' | 'combobox';
+	'aria-label': string;
 	'aria-expanded'?: 'true';
 	'aria-controls'?: string;
 	'aria-activedescendant'?: string;
@@ -92,14 +96,17 @@ export interface ComboboxAttributes {
 }
 
 /**
- * The attributes a prose editable renders for the list open in it, both prose editables from one
- * place. The role is `combobox` only while rows show, because `textbox` carries no
- * `aria-expanded` and a screen reader would then hear nothing about the list; `list` is what a
- * combobox whose rows are suggestions says it does.
+ * The role and name every editable block renders, from one place. The role is `combobox` only
+ * while inline menu rows show, because `textbox` carries no `aria-expanded` and a screen reader
+ * would then hear nothing about the list; `list` is what a combobox of suggestions says it does.
  */
-export function comboboxAttributes(combobox: InlineMenuCombobox | null): ComboboxAttributes {
+export function editableSurfaceAttributes(
+	node: NodeView,
+	combobox: InlineMenuCombobox | null
+): EditableSurfaceAttributes {
 	return {
 		role: combobox ? 'combobox' : 'textbox',
+		'aria-label': blockAccessibleName(node),
 		'aria-expanded': combobox ? 'true' : undefined,
 		'aria-controls': combobox?.listboxId,
 		'aria-activedescendant': combobox?.activeOptionId,

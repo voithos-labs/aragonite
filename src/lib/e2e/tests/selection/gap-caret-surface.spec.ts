@@ -51,7 +51,7 @@ test.describe('the gap caret paints a line at the boundary', () => {
 	// while DOM focus is still in the source block, so the emission that follows is the proxy's
 	// own range moving, and filtering that out would leave the stale position in place.
 	test('a subscriber is left reading no selection once the gap settles', async () => {
-		await editor.page.locator('[role="cell"]').nth(LAST_CELL).click();
+		await editor.page.locator('.table-cell').nth(LAST_CELL).click();
 		await editor.page.evaluate(() => (window as any).__test.startSelectionChangeCapture());
 
 		await editor.page.keyboard.press('ArrowDown');

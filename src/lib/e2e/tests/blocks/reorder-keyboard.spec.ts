@@ -57,7 +57,7 @@ test.describe('keyboard reorder', () => {
 
 	test('Alt+ArrowUp moves a thematic break above its sibling', async () => {
 		await editor.loadContent('lead\n\n---\n');
-		await editor.getBlock(1).click(); // focus the separator (role=separator, tabindex 0)
+		await editor.getBlock(1).click(); // focus the divider, which lands on its editing host
 		await editor.page.keyboard.press('Alt+ArrowUp');
 		await editor.bridge.waitForSourceMatches(/---[\s\S]*lead/);
 	});
@@ -67,7 +67,7 @@ test.describe('keyboard reorder', () => {
 	// the divider with it.
 	test('Alt+ArrowUp lands a divider whole under a paragraph', async () => {
 		await editor.loadContent('Intro\n# Heading\n\n---\n');
-		await editor.getBlock(2).click(); // focus the separator
+		await editor.getBlock(2).click(); // focus the divider
 		await editor.page.keyboard.press('Alt+ArrowUp');
 
 		await editor.bridge.waitForSourceEquals('Intro\n\n---\n\n# Heading\n');

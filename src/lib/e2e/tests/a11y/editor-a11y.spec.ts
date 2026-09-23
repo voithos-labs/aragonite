@@ -97,4 +97,20 @@ test.describe('editor accessibility (axe baseline-ratchet)', () => {
 		await expect(page.locator('.editor-sr-live-reorder')).toContainText('Moved block to position');
 		await expectNoNewA11yViolations(page, 'reorder-announce');
 	});
+
+	// A reader moving block to block tells them apart by these names; a renamed label is a
+	// visible diff here.
+	test('each block exposes its kind as its accessible name', async ({ page }) => {
+		await editor.loadContent('## Title\n\nPlain text\n\n```js\ncode\n```\n\n- item\n\n---\n');
+		await editor.waitForRenderFlush();
+		const surface = (path: number[], selector: string) =>
+			page.locator(`[data-block-path='${JSON.stringify(path)}'] ${selector}`).first();
+
+		await expect(surface([0], '.text-editable-block')).toHaveAccessibleName('Heading level 2');
+		await expect(surface([1], '.text-editable-block')).toHaveAccessibleName('Paragraph');
+		await expect(surface([2], '.code-block')).toHaveAccessibleName('Code block, js');
+		await expect(surface([3, 0, 0], '.text-editable-block')).toHaveAccessibleName('Paragraph');
+		await expect(surface([4], '[data-whole-block-input]')).toHaveAccessibleName('Divider');
+		await expect(page.getByRole('separator')).toHaveCount(1);
+	});
 });

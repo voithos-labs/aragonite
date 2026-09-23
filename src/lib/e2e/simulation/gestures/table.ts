@@ -5,9 +5,9 @@ import { type SimContext } from '../invariants';
 // neither is the append at the end that the expected answer predicts.
 //
 // A table renders as an interactive `.table-block` only once a document is loaded: typed pipe
-// syntax stays a paragraph and never grows a `[role="cell"]`, so a session must start from one.
+// syntax stays a paragraph and never grows a `.table-cell`, so a session must start from one.
 
-const CELL = '[role="cell"]';
+const CELL = '.table-cell';
 
 /** Click the cell at `cellIndex`, counted across the rendered grid row by row. */
 async function clickCell(ctx: SimContext, cellIndex: number): Promise<void> {

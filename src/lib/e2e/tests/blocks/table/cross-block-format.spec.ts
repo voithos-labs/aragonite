@@ -47,7 +47,7 @@ test.describe('table block: cross-block format toggle', () => {
 		// A measured start point rather than the text box's centre, which lands past "head" and
 		// gives the paragraph an empty span.
 		const start = await editor.pointForOffset([0], 0);
-		const cell = await page.locator('[role="cell"]').nth(3).boundingBox();
+		const cell = await page.locator('.table-cell').nth(3).boundingBox();
 		if (!cell) throw new Error('missing cell bounding box');
 		await dragBetweenBoxes(page, { x: start.x, y: start.y, width: 0, height: 0 }, cell);
 		await editor.waitForCrossBlock(true);
@@ -79,7 +79,7 @@ test.describe('table block: cross-block format toggle', () => {
 		page
 	}) => {
 		await editor.loadContent(`${TABLE_2x3}\nafter\n`);
-		await page.locator('[role="cell"]').nth(5).click();
+		await page.locator('.table-cell').nth(5).click();
 		await page.keyboard.press('End');
 		await page.keyboard.press('Shift+ArrowDown');
 		await editor.waitForCrossBlock(true);
@@ -99,7 +99,7 @@ test.describe('table block: cross-block format toggle', () => {
 	}) => {
 		const source = '| A |  |\n| --- | --- |\n| 1 |  |\n';
 		await editor.loadContent(source);
-		await page.locator('[role="cell"]').nth(0).click();
+		await page.locator('.table-cell').nth(0).click();
 		await page.keyboard.press('ControlOrMeta+a');
 		await page.keyboard.press('ControlOrMeta+a');
 		await editor.waitForCrossBlock(true);
@@ -121,7 +121,7 @@ test.describe('table block: cross-block format toggle', () => {
 			'| **a\\|b** | **c** |\n| --- | --- |\n| d | e |\n',
 			3000
 		);
-		await expect(page.locator('[role="cell"]')).toHaveCount(4);
+		await expect(page.locator('.table-cell')).toHaveCount(4);
 		expect(await roundTripStable(page)).toBe(true);
 	});
 });

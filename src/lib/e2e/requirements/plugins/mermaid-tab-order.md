@@ -19,7 +19,8 @@ Fixture: `/test/plugins?seed=mermaid`, a rendered diagram between two paragraphs
 ## Happy paths
 
 - The rendered `.mermaid-viewport` reports `tabindex=-1` once the block has been entered
-- Shift+Tab from the paragraph below lands on the editing host, never on the diagram
+- Shift+Tab from the paragraph below lands on the editing host, never on the diagram, and the
+  host is named for the kind (`Diagram`, the descriptor's `label`)
 - Carrying on with Shift+Tab from the host walks the toolbar buttons and leaves the block, and
   no press stops on the diagram
 

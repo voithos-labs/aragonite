@@ -12,6 +12,7 @@ import {
 } from '../../selection/path-lookup';
 import { nodeAt } from '../../tree-operations/node-primitives';
 import type { CstNode } from '../../core/nodes';
+import { TABLE_CELL_SELECTOR } from '../../components/block-content-selector';
 import { mountTableGrid } from './table-grid';
 import { para, bq, doc } from './cst-builders';
 
@@ -166,13 +167,18 @@ describe('findCellPathForElement', () => {
 	}
 
 	const cellAt = (host: HTMLElement, row: number, col: number) =>
-		host.querySelectorAll('[data-table-row-idx]')[row].querySelectorAll('[role="cell"]')[
+		host.querySelectorAll('[data-table-row-idx]')[row].querySelectorAll(TABLE_CELL_SELECTOR)[
 			col
 		] as HTMLElement;
 
 	it('extends the table’s own path with the cell’s row and column', () => {
 		const host = grid(3, 4);
 		expect(findCellPathForElement(cellAt(host, 2, 3))).toEqual([3, 2, 3]);
+	});
+
+	it('resolves a header-row cell, which is a column header rather than a cell', () => {
+		const { cells } = mountTableGrid({ path: [3], rows: 2, cols: 3 });
+		expect(findCellPathForElement(cells[0][2])).toEqual([3, 0, 2]);
 	});
 
 	it('resolves from a descendant of the cell', () => {

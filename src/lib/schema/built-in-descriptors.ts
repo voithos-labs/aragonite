@@ -566,7 +566,8 @@ export function registerBuiltInDescriptors(): void {
 		container: { contract: 'strip', rebuildRaw: rebuildListItemRaw },
 		keymap: [
 			{ chord: 'Tab', command: 'list.indent' },
-			{ chord: 'Shift+Tab', command: 'list.unindent' }
+			{ chord: 'Shift+Tab', command: 'list.unindent' },
+			{ chord: 'Mod+Enter', command: 'list.toggleTask' }
 		],
 		conformanceFixture: '- item\n',
 		closure: containerClosure({

@@ -113,6 +113,7 @@ export function registerGithubAlert(): void {
 	});
 
 	registerBlockKind(kind, {
+		label: 'Alert',
 		gapEdges: 'none',
 		mergeRole: 'container',
 		editable: true,

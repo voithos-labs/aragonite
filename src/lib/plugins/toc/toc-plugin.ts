@@ -29,6 +29,7 @@ export function registerTocBlock(): void {
 	// A block that holds its own source, like `fencedCode`: `serialize` re-emits
 	// `leadingTrivia + raw`, so a raw taken verbatim from the line round-trips.
 	registerBlockKind(toc, {
+		label: 'Table of contents',
 		mergeRole: 'not-mergeable',
 		editable: true,
 		supportsInline: false,

@@ -2,6 +2,7 @@
 	import { isWidgetActivationClick, type InlineWidgetComponentProps } from '$lib/plugin';
 	import { assignFootnoteNumbers, footnoteNumbersFor } from './footnote-numbering';
 	import { findFootnoteDefinitionLanding } from './footnote-lookup';
+	import { footnoteReferenceLabel } from './constants';
 
 	let {
 		source,
@@ -27,20 +28,42 @@
 		return String(numbers.get(label) ?? label);
 	});
 
-	// Looked up on the click, never derived: a reference nobody clicks costs nothing beyond the
+	// A tab stop only in reading mode: inside an editable block it would interrupt the caret.
+	const isReading = $derived((getPresentationMode?.() ?? 'source') === 'reading');
+
+	// Looked up on each jump, never derived: a reference nobody follows costs nothing beyond the
 	// numbering pass it already pays for.
-	function onClick(e: MouseEvent): void {
-		const mode = getPresentationMode?.() ?? 'source';
-		if (!isWidgetActivationClick(e.ctrlKey || e.metaKey, mode)) return;
+	function jumpToDefinition(): void {
 		const doc = getDocument?.();
 		if (!doc) return;
 		const path = findFootnoteDefinitionLanding(doc, label);
 		if (path) void navigateTo?.(path);
 	}
+
+	function onClick(e: MouseEvent): void {
+		const mode = getPresentationMode?.() ?? 'source';
+		if (isWidgetActivationClick(e.ctrlKey || e.metaKey, mode)) jumpToDefinition();
+	}
+
+	function onKeydown(e: KeyboardEvent): void {
+		if (e.key === 'Enter' || e.key === ' ') {
+			e.preventDefault();
+			e.stopPropagation();
+			jumpToDefinition();
+		}
+	}
 </script>
 
-<!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_noninteractive_element_interactions -->
-<sup class="footnote-ref" onclick={onClick}>{display}</sup>
+<!-- The superscript stays a `<sup>` for its layout; the role says what it does. -->
+<!-- svelte-ignore a11y_no_noninteractive_element_to_interactive_role -->
+<sup
+	class="footnote-ref"
+	role="link"
+	aria-label={footnoteReferenceLabel(display)}
+	tabindex={isReading ? 0 : undefined}
+	onclick={onClick}
+	onkeydown={onKeydown}>{display}</sup
+>
 
 <style>
 	.footnote-ref {

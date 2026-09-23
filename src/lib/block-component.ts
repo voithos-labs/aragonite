@@ -74,12 +74,27 @@ export type FocusPosition = 'start' | 'end' | number | { stickyColumnFrom: Stick
 
 // ── The container's marker prefix ──────────────────────────────────────────
 
-export interface AmbientInteractiveRange {
+/** A focusable range must say what Enter and Space do, so a tab stop is never a dead key. */
+export type AmbientInteractiveRange = AmbientRangeBase &
+	(
+		| {
+				/** Gives the span a tab stop. Decide by mode: a stop inside an editable block
+				 *  interrupts the caret's Tab, so the footnote marker takes one in reading mode only. */
+				focusable: true;
+				/** Enter or Space on the focused span. */
+				onActivate: () => void;
+		  }
+		| { focusable?: false; onActivate?: () => void }
+	);
+
+interface AmbientRangeBase {
 	start: number;
 	end: number;
 	className: string;
-	role?: 'checkbox';
+	role?: 'checkbox' | 'link' | 'button';
 	ariaChecked?: boolean;
+	/** The span's accessible name, rendered as `aria-label`. */
+	label?: string;
 	/** The block's drag handle centres on this span's box rather than on its text line. */
 	dragAnchor?: boolean;
 	/** The click lands on the range's own span, before the leaf's caret handling; a handler
