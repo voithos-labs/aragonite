@@ -134,6 +134,13 @@ describe('blank runs inside containers', () => {
 		]);
 	});
 
+	// The document's rule for its own trailing line: held aside while the block above is prose.
+	it('keeps a blockquote’s trailing blank line in innerSuffix below prose', () => {
+		const bq = parse('> b\n>\n').children[0];
+		expect(bq.innerSuffix).toBe('\n');
+		expect(layout(bq.children!)).toEqual([['paragraph', '', 'b\n']]);
+	});
+
 	it('materializes inside a list item', () => {
 		const item = parse('- a\n\n\n  b\n').children[0].children![0];
 		expect(layout(item.children!)).toEqual([

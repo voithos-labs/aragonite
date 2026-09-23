@@ -193,23 +193,40 @@ export function releaseWrapPeel(parent: SeparatorParent, index: number): void {
 }
 
 /**
- * The parser keeps the document's one trailing blank line in `suffix` only while the tail block
- * is non-blank; once the tail turns blank the reload reads that line as its own empty paragraph,
- * so it becomes a block here. Document level only. Returns the number of blocks appended.
+ * The parser keeps a body's one trailing blank line aside (the document's `suffix`, a strip
+ * container's `innerSuffix`) only while the tail block is non-blank; once the tail turns blank the
+ * reload reads that line as its own empty paragraph, so it becomes a block here. Returns the
+ * number of blocks appended.
  */
 function materializeTailSuffix(parent: SeparatorParent, sharing?: SharingState): number {
 	retireChildSpans(parent);
 	const children = parent.children;
-	const suffix = parent.suffix;
-	if (!children || !suffix) return 0;
-	// An emptied parent has no tail block for the line to attach to, so the line is the document's
+	const slot = tailSuffixSlotOf(parent);
+	const suffix = slot?.read();
+	if (!children || !slot || !suffix) return 0;
+	// An emptied parent has no tail block for the line to attach to, so the line is the body's
 	// whole content and the reload reads it as the one block there is.
 	if (children.length > 0 && !isBlankParagraph(children[children.length - 1])) return 0;
 	const minted: CstNode = { kind: 'paragraph', leadingTrivia: '', raw: suffix };
 	if (sharing) sharing.stamp(minted);
 	children.push(minted);
-	parent.suffix = '';
+	slot.clear();
 	return 1;
+}
+
+/**
+ * Where a body keeps its trailing blank line. A container that declares a `bodyWrap` counts its
+ * edge lines against its opener and closer, which {@link settleSeparatorOnBlank} reconciles.
+ */
+function tailSuffixSlotOf(
+	parent: SeparatorParent
+): { read: () => string; clear: () => void } | undefined {
+	if (parent.suffix !== undefined) {
+		return { read: () => parent.suffix ?? '', clear: () => (parent.suffix = '') };
+	}
+	const owner = ownerNodeOf(parent);
+	if (!owner || bodyWrapOf(parent)) return undefined;
+	return { read: () => owner.innerSuffix ?? '', clear: () => (owner.innerSuffix = '') };
 }
 
 // ── Settling a spliced window ──
