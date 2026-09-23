@@ -17,7 +17,7 @@ import { acceptsQuery, filterEntries, splitQuery, type FilterableEntry } from '.
 export const SLASH_COMMANDS_MENU = 'slash-commands';
 
 interface SlashCommandEntryBase {
-	/** Unique in the list; a built-in id here hides nothing, use `exclude` for that. */
+	/** Unique among host rows; a built-in id here replaces that built-in row. */
 	id: string;
 	label: string;
 	icon?: MenuIconName;
@@ -65,7 +65,7 @@ export function createSlashSource(
 ): InlineMenuSource {
 	function rows(): SlashRow[] {
 		const { entries = [], exclude = [] } = getOptions();
-		const hidden = new Set(exclude);
+		const hidden = new Set([...exclude, ...entries.map((entry) => entry.id)]);
 		const builtIn = [
 			...editor.insertCatalogue.map(catalogueRow),
 			...HEADING_LEVELS.map(headingRow)

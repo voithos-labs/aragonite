@@ -27,6 +27,17 @@ describe('the slash list', () => {
 		]);
 	});
 
+	it("a host row with a built-in id takes that row's place, and the pick is the host's", async () => {
+		const pullQuote: SlashCommandEntry = { id: 'quote', label: 'Pull quote', insert: '> Pull: ' };
+		const h = slashHarness('', { entries: [pullQuote] });
+		await h.type('/');
+		expect(h.rows()).toContain('Pull quote');
+		expect(h.rows()).not.toContain('Quote');
+		await h.type('pull');
+		await h.pick();
+		expect(h.inserted).toEqual([{ markdown: '> Pull: ', placement: 'caret' }]);
+	});
+
 	it('shows the parsed argument on the one row a space kept', async () => {
 		const h = slashHarness('');
 		await h.type('/table 3x4');

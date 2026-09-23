@@ -1,8 +1,8 @@
 /**
  * Plugin-facing global commands: create a process-wide command id, register a handler that
- * receives the dispatching editor's `EditorContext` and the dispatch's argument, and optionally bind a chord among the
- * plugin-global chords (last in precedence). Beside `block-commands`, not in `commands.ts`, so
- * `commands → command-id` stays one-directional.
+ * receives the dispatching editor's `EditorContext` and the dispatch's argument, and optionally
+ * bind a chord among the plugin-global chords (last in precedence). Beside `block-commands`, not
+ * in `commands.ts`, so `commands → command-id` stays one-directional.
  */
 import { mintCommandId, type PluginCommandId } from './command-id';
 import {
