@@ -1383,9 +1383,9 @@ DEV to true under vitest, which leaves no behavior test able to see it. A source
 rung that can. `lint/commit-scope-production.test.ts`.
 **G4.62 · Text contrast.** Every `--code-tok-*` color `editor-theme.css` declares, the grey UI
 tokens that paint text (`--color-ui-muted`, `--color-text-muted`, `--color-text-secondary`), and
-each marker color at the `--syntax-marker-dim` opacity markers are drawn with, clears WCAG AA
-(4.5:1) in each theme against both backgrounds text paints on: `--color-surface`, and the fence
-(`--color-bg-secondary` composited over it). Computed from the declarations rather
+every marker colour as it is drawn (composited at the `--syntax-marker-dim` opacity) clears WCAG
+AA (4.5:1) in each theme against both backgrounds text paints on: `--color-surface`, and the
+fence (`--color-bg-secondary` composited over it). Computed from the declarations rather
 than a browser, because the editor paints no background of its own: an axe run measures whatever
 page the editor was dropped onto, so it can report the shell's palette and never the library's.
 Completeness is the load-bearing half: the code family is derived from the CSS by prefix, so a
