@@ -88,7 +88,7 @@ describe('isProseSurface', () => {
 });
 
 describe('importSpecifiers', () => {
-	const specifiers = (code: string) => importSpecifiers(stripComments(code));
+	const specifiers = importSpecifiers;
 
 	it('reads the four forms, a multi-line clause and a type-only one included', () => {
 		const code = [

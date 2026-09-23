@@ -263,7 +263,7 @@ const CLAIM_ROWS: Record<ClaimKey, string> = {
 	'Mod+X @ editor-actions/container-block-component.ts': 'Copy / cut a focused block',
 	'Alt+ArrowUp @ editor-actions/plugin/container.ts': 'Move block up / down',
 	'Alt+ArrowDown @ editor-actions/plugin/container.ts': 'Move block up / down',
-	'Mod+Enter @ plugins/mermaid/MermaidBlock.svelte': 'Commit a diagram edit'
+	'Mod+Enter @ plugins/mermaid/MermaidBlock.svelte': 'Finish editing a diagram'
 };
 
 const SELECTION_PREAMBLE = 'selection: the section preamble names it and says it is unlisted';
@@ -281,7 +281,7 @@ const UNLISTED_BY_DESIGN: Record<ClaimKey, string> = {
 	...unlisted(
 		['Backspace', 'Delete'],
 		'fencedCode',
-		"a code block's Backspace and Delete only edit its text, which needs no row"
+		'at a fence edge, Backspace and Delete step the caret out of the block instead of merging, which the merge row does not promise'
 	),
 	...unlisted(['Shift+Tab'], 'components/link-card/LinkCard.svelte', FOCUS_TRAP),
 	...unlisted(['Shift+Tab'], 'components/blocks/table/TableActionMenu.svelte', FOCUS_TRAP),

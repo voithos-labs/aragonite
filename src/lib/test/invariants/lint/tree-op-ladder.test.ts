@@ -34,9 +34,9 @@ function rungOfSpecifier(spec: string): number {
 	return name === undefined ? -1 : LADDER.indexOf(name as Rung);
 }
 
-/** Every specifier in `text` naming a level above `rung`, as `file -> specifier`. */
-function upwardEdges(relPath: string, rung: number, text: string): string[] {
-	return importSpecifiers(text)
+/** Every specifier in `code` naming a level above `rung`, as `file -> specifier`. */
+function upwardEdges(relPath: string, rung: number, code: string): string[] {
+	return importSpecifiers(code)
 		.filter(({ specifier }) => rungOfSpecifier(specifier) > rung)
 		.map(({ specifier }) => `${relPath} -> ${specifier}`);
 }
@@ -53,7 +53,7 @@ describe('G4.64 the tree-ops layer order', () => {
 	});
 
 	it('no import between the layers points upward', () => {
-		const violations = rungs.flatMap((f) => upwardEdges(f.relPath, f.rung, f.text));
+		const violations = rungs.flatMap((f) => upwardEdges(f.relPath, f.rung, f.code));
 		expect(violations).toEqual([]);
 	});
 
