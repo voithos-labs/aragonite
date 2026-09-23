@@ -11,7 +11,7 @@ timing gate belongs at a merge/ship boundary, not on every commit.
 
 ## What it gates
 
-Per-keystroke **p50** for each gated row, against `src/lib/test/perf/baseline.json`.
+Per-keystroke (or, for the structural row, per-edit) **p50** for each gated row, against `src/lib/test/perf/baseline.json`.
 
 - p50, not p95: the median is the stable statistic; p95 catches a single GC pause
   and is reported, never gated.
@@ -25,6 +25,10 @@ Per-keystroke **p50** for each gated row, against `src/lib/test/perf/baseline.js
   ahead of one. The caret sits at the container's first child, the one child windowing
   guarantees is mounted, at the end whose keystroke still moves the container's opener
   line; what they stand for is any keystroke inside a large container.
+- `flat-prose-10MB-structural` times a top-level Enter at the end of block 0 and the
+  Backspace that merges the new block back, each a change to the top-level block list that
+  rebuilds the whole windowing model. A typed character never runs that rebuild, so no other
+  row sees it; the row pins it at pointer work per block, not work per byte.
 
 ## The budget
 

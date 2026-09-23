@@ -455,6 +455,12 @@
 			"loadMs": 1636.4,
 			"keystrokeP50Ms": 5.4,
 			"keystrokeP95Ms": 692.5
+		},
+		"flat-prose-10MB-structural": {
+			"provisional": "dev-server p50 per Enter/Backspace edit from a worktree run; re-bless from perf:check on the calibration machine",
+			"loadMs": 778.3,
+			"keystrokeP50Ms": 637.8,
+			"keystrokeP95Ms": 693.1
 		}
 	}
 }

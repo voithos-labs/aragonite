@@ -30,6 +30,12 @@ and the gated row for the same shape are not comparable numbers.
   lengths, O(top-level blocks) per poll, because serializing the source on every
   poll at 10MB would dwarf the latency being measured
 
+## Structural edits (report companion to the gated row)
+
+One row alternates a top-level Enter at the end of block 0 and the Backspace that merges the new
+block back, 16 edits on flat-prose at 10MB, each timed to the top-level block count changing.
+It writes the result a re-bless of the gated `flat-prose-10MB-structural` row reads.
+
 ## At-depth typing (report-only)
 
 One row types into the deepest leaf of a deep-nested document (`generateDeepNested`,

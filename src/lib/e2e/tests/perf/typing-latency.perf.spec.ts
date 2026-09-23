@@ -11,6 +11,7 @@ import {
 import {
 	measureContainerInteriorTyping,
 	measureDeepNestedTyping,
+	measureStructuralRebuild,
 	measureTypingIntoDocument,
 	measureTypingLatency,
 	measureVerticalArrival,
@@ -103,6 +104,26 @@ test.describe('typing latency: container interior', () => {
 			expect(m.samples).toHaveLength(30);
 		});
 	}
+});
+
+// ── Structural edits (report companion to the gated row) ───────────────────
+
+// Enter and Backspace at the top level, each rebuilding the whole windowing model. The gated
+// version of this row lives in perf-gate; this one writes the result a re-bless reads.
+test('flat-prose 10MB structural', async ({ page }) => {
+	const editor = new EditorPage(page);
+	const edits = 16;
+	const m = await measureStructuralRebuild(page, editor, 'flat-prose', 10_000_000, edits);
+	writeResult('flat-prose-10MB', 'structural', {
+		shape: 'flat-prose',
+		bytes: 10_000_000,
+		loadMs: round(m.loadMs),
+		edits,
+		keystrokeP50Ms: round(m.p50Ms),
+		keystrokeP95Ms: round(m.p95Ms),
+		note: DEV_CAVEAT
+	});
+	expect(m.samples).toHaveLength(edits);
 });
 
 // ── At-depth typing (concern-4 corroboration, report-only) ───────────────────

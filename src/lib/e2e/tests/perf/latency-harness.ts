@@ -338,3 +338,50 @@ export async function measureVerticalArrival(
 	const fromBelow = await timeArrivals(2, 'ArrowUp', 'ArrowDown');
 	return { loadMs, fromAbove, fromBelow };
 }
+
+/** Whether the document has exactly `count` top-level blocks: an O(1) read, whatever its size. */
+async function waitForTopLevelCount(page: Page, count: number): Promise<void> {
+	await page.waitForFunction(
+		(n) => (window as any).__test.getDocument().children.length === n,
+		count,
+		{ timeout: KEYSTROKE_TIMEOUT_MS, polling: 16 }
+	);
+}
+
+/**
+ * Time top-level structural edits on a loaded fixture: Enter at the end of block 0 splits off an
+ * empty block, and Backspace in it merges it back, alternating. Each one changes the top-level
+ * block list, so each rebuilds the whole windowing model, which a typed character never does.
+ * Each sample runs to the block count changing; the p50 is over every edit.
+ */
+export async function measureStructuralRebuild(
+	page: Page,
+	editor: EditorPage,
+	shape: FixtureShape,
+	bytes: number,
+	edits: number
+): Promise<LatencyMeasurement> {
+	await editor.goto();
+	const loadMs = await loadFixture(page, editor, generateFixture(shape, bytes));
+	await editor.focusBlockEnd(0);
+	await assertMounted(page, [0], 'structural edit target block');
+	const baseCount = await page.evaluate(
+		() => (window as any).__test.getDocument().children.length as number
+	);
+
+	const samples: number[] = [];
+	for (let i = 0; i < edits; i++) {
+		const isSplit = i % 2 === 0;
+		const editStart = performance.now();
+		await page.keyboard.press(isSplit ? 'Enter' : 'Backspace');
+		await waitForTopLevelCount(page, isSplit ? baseCount + 1 : baseCount);
+		samples.push(performance.now() - editStart);
+	}
+
+	return {
+		loadMs,
+		samples,
+		p50Ms: percentileMs(samples, 50),
+		p95Ms: percentileMs(samples, 95)
+	};
+}

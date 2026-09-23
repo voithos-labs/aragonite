@@ -2,7 +2,11 @@ import { test, expect } from '../../fixtures';
 import { readFileSync } from 'node:fs';
 import { EditorPage } from '../../editor-page';
 import { type FixtureShape } from '../../../test/perf/fixtures/generate';
-import { measureContainerInteriorTyping, measureTypingLatency } from './latency-harness';
+import {
+	measureContainerInteriorTyping,
+	measureStructuralRebuild,
+	measureTypingLatency
+} from './latency-harness';
 
 declare const process: { env: Record<string, string | undefined> };
 
@@ -118,6 +122,35 @@ test.describe('perf gate: keystroke p50 typing inside a container', () => {
 				leafPath,
 				SIZE_BYTES[size],
 				SIZE_KEYSTROKES[size]
+			);
+
+			console.log(
+				`PERF-GATE ${key} p50=${m.p50Ms.toFixed(1)}ms ` +
+					`ceiling=${ceilingMs.toFixed(1)}ms (baseline ${baselineMs}ms) p95=${m.p95Ms.toFixed(1)}ms`
+			);
+			expect(m.p50Ms, `${key} p50 regressed past baseline+budget`).toBeLessThanOrEqual(ceilingMs);
+		});
+	}
+});
+
+// A split or merge at the top level rebuilds the whole windowing model, which no typed character
+// does. On a large flat document that rebuild must stay proportional to the block count.
+const STRUCTURAL_ROWS: Array<[shape: FixtureShape, size: string]> = [['flat-prose', '10MB']];
+const STRUCTURAL_EDITS = 16;
+
+test.describe('perf gate: structural edit p50 within budget', () => {
+	for (const [shape, size] of STRUCTURAL_ROWS) {
+		test(`${shape} ${size} structural`, async ({ page }) => {
+			const key = `${shape}-${size}-structural`;
+			const { baselineMs, ceilingMs } = gateFor(key);
+
+			const editor = new EditorPage(page);
+			const m = await measureStructuralRebuild(
+				page,
+				editor,
+				shape,
+				SIZE_BYTES[size],
+				STRUCTURAL_EDITS
 			);
 
 			console.log(
