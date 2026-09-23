@@ -355,6 +355,6 @@
 		> :global(.block-list)
 		> :global(.block-host:first-child)
 		> :global(:not(.list-block)) {
-		color: var(--syntax-task-done, var(--color-ui-muted, #93938d));
+		color: var(--syntax-task-done, #8f8f89);
 	}
 </style>

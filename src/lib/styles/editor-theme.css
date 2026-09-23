@@ -74,8 +74,8 @@
 	--md-image-radius: 4px;
 
 	/* Markdown syntax override points, deliberately neutral so the default rendering adds no
-	   palette of its own. The same in both modes: the host-chrome tokens they chain to hold the
-	   light and dark split. */
+	   palette of its own. Most chain to a host-chrome token that holds the light and dark split;
+	   the done-task grey sets its own per mode. */
 	--syntax-heading: currentColor;
 	--syntax-emphasis: currentColor;
 	--syntax-link: var(--color-accent, #567b67);
@@ -89,7 +89,7 @@
 	   the text either side. A host that wants a louder rule still names this token. */
 	--syntax-separator: var(--color-border, #3e3e3b);
 	--syntax-task: currentColor;
-	--syntax-task-done: var(--color-ui-muted, #93938d);
+	--syntax-task-done: #8f8f89;
 	--syntax-task-checked: var(--color-text-primary, currentColor);
 	--syntax-task-checked-tick: var(--color-bg, #2c2c2a);
 
@@ -115,19 +115,19 @@
 	--code-tok-link: #66d9ef;
 	--code-tok-unknown: inherit;
 
-	/* Presentational tokens, the same in both modes. */
+	/* Presentational tokens. */
 	/* Tints over the selection base a host can declare, differing only in alpha, so naming that
 	   one base moves the selection, the search matches and the reorder highlight together. */
 	--selection-overlay-bg: rgba(100, 150, 255, 0.3);
 	--search-match-bg: rgba(100, 150, 255, 0.22);
 	/* Painted on top of the match text, so it must keep an alpha channel or it hides it. */
 	--search-match-active-bg: rgba(216, 166, 87, 0.55);
-	/* Text set apart as metadata or inert takes the muted grey, which clears AA in both modes. */
-	--md-ref-label-color: var(--color-ui-muted, #93938d);
-	--md-link-blocked-color: var(--color-ui-muted, #93938d);
+	/* Greys for text set apart as metadata or inert: the faintest that clear AA, set per mode. */
+	--md-ref-label-color: #8f8f89;
+	--md-link-blocked-color: #8f8f89;
 	--md-unresolved-color: #c0392b;
 	--md-unresolved-image-bg: rgba(192, 57, 43, 0.08);
-	--md-raw-html-color: var(--color-ui-muted, #93938d);
+	--md-raw-html-color: #8f8f89;
 	--md-marker-hover-bg: rgba(128, 128, 128, 0.15);
 	/* The hanging indent a task item reserves for its marker: the width the visible `- [ ] `
 	   draws, which editor.css overrides where the box is drawn instead. */
@@ -136,7 +136,7 @@
 	/* Tint on the container a nested drag is reordering inside. It uses the reorder accent rather
 	   than neutral grey, so the change stays visible to low-contrast vision. */
 	--reorder-scope-bg: rgba(100, 150, 255, 0.14);
-	/* Unlike the tokens around it, the light theme sets its own dim. */
+	/* The light theme sets its own dim. */
 	--syntax-marker-dim: 0.65;
 
 	/* Menu/popout elevation, per mode: a shadow tuned for a near-black surface is invisible
@@ -177,9 +177,13 @@
 	--menu-scrollbar-thumb: rgba(0, 0, 0, 0.2);
 	--menu-scrollbar-thumb-hover: rgba(0, 0, 0, 0.32);
 
-	/* The syntax colours are the same in both modes. The dim is not: at the dark theme's 0.65 the
-	   light prose colour falls under AA on the light surface. */
+	/* At the dark theme's 0.65 marker dim, light prose falls under AA on the light surface. */
 	--syntax-marker-dim: 0.68;
+	/* Done and inert text greys: the faintest that clear AA on the light surface and fence. */
+	--syntax-task-done: #666660;
+	--md-ref-label-color: #666660;
+	--md-link-blocked-color: #666660;
+	--md-raw-html-color: #666660;
 
 	/* Code block syntax highlighting: a GitHub Light-inspired palette. */
 	--code-tok-keyword: #c1202b;
