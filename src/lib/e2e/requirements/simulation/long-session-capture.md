@@ -9,8 +9,9 @@ guard every gesture here.
 ## Happy paths
 
 - builds a multi-section note from empty char-by-char: ATX headings, paragraphs
-  with bold/italic/code/links, bullet + ordered + task lists, a blockquote, a
-  fenced code block, a thematic break, and a resized image
+  with bold/italic/code/links, bullet + ordered + task lists, a blockquote picked
+  from the slash list (the page opens with `?slash=on`), a fenced code block, a
+  thematic break, and a resized image
 - the recorder writes one screenshot and one manifest entry per completed structural
   unit (heading, each list, blockquote, code block, image resized), pairing each
   PNG with the source at that moment; the post-build `note-built` and `detour-done`
