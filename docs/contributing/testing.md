@@ -528,9 +528,10 @@ genuinely time-dependent waits (sticky-column layout settle, copy-only clipboard
 the absence oracle of a gesture with no keydown verdict) and gets an inline comment when used. The raw rebuild itself is synchronous; you're waiting on
 reactivity and render flush, not a debouncer.
 
-**Use `focusBlockEnd` / `focusBlockStart` for precise cursor placement.** They set the cursor
-through the Selection API. Native `End`/`Home` work for simple cases but are unreliable across
-inline-rendered spans.
+**Use `focusBlockEnd` / `focusBlockStart` / `focusBlock` to set up a caret.** They place it
+through the editor's own `setSelection`, so the caret sits in a text node the way a click or a
+key leaves it; `focusBlock` takes a raw offset. When the placement itself is under test, click
+(`clickBlockAtPath`) and walk with the keyboard instead.
 
 **Use `getBlockCount()` for structural assertions after a split.** The bridge reads the live
 CST, so it sees a transient block the serializer would trim and a live-kind-vs-raw desync a
