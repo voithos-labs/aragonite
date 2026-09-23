@@ -126,6 +126,8 @@ describe('G4.29 scan non-vacuity', () => {
 		expect(MODIFIER_READ.test('if (e.ctrlOrMeta) return;')).toBe(true);
 	});
 
+	// Miss-analysis: the harvest's own cases used only `===` and `case`, so a branch guarding with
+	// `!==` alone never met the matcher.
 	it('harvests each key-comparison shape and drops non-key literals', () => {
 		expect(
 			harvestKeys(`
