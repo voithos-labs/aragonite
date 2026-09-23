@@ -3,7 +3,7 @@
 ## User interactions
 
 - Shift+click in the text after a selected image: the image deselects and the range runs from
-  the image's start to the press, so a typed character replaces the image and the text after it
+  the image's start to the press, so a typed character replaces the image and the text after it up to the press
   and leaves the text before it
 - Shift+click in the text before a selected image: the range runs from the press to the image's
   end, and a typed character leaves the text after it
