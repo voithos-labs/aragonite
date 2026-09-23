@@ -396,9 +396,9 @@ export function installTestProbes({
 		placeCaretAtPoint: (x: number, y: number): boolean => editor.placeCaretAtPoint(x, y),
 		// The insertion call, made the way a consumer's toolbar makes it.
 		insertMarkdown: (md: string): boolean => editor.insertMarkdown(md),
-		// The command call, made the way a selection toolbar's button makes it: an id alone,
+		// The command call, made the way a toolbar's button makes it: an id and its argument,
 		// no key combination, no keydown.
-		runCommand: (commandId: string): boolean => editor.runCommand(commandId),
+		runCommand: (commandId: string, arg?: unknown): boolean => editor.runCommand(commandId, arg),
 		// A plugin-shaped paste transform without a plugin. Transforms are register-once and
 		// process-global, so the probe asks before registering rather than catching the throw.
 		registerPasteTransform: (name: string, find: string, replace: string): void => {

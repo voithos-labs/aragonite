@@ -9,6 +9,7 @@ import { katexRenderer } from '$lib/plugins/latex/renderer';
 import { mermaidPlugin } from '$lib/plugins/mermaid';
 import { parrotPlugin } from '$lib/plugins/parrot';
 import { mermaidRenderer } from '$lib/plugins/mermaid/renderer';
+import { slashCommandsPlugin } from '$lib/plugins/slash-commands';
 import { tagMarksPlugin } from './demo-tags/tag-marks-plugin';
 
 // The one place the demo routes create their plugins: definitions are process-global and the
@@ -23,6 +24,8 @@ export const DEMO_HIGHLIGHT_OCCURRENCES = highlightOccurrencesPlugin();
 export const DEMO_LATEX = latexPlugin({ renderer: katexRenderer });
 export const DEMO_MERMAID = mermaidPlugin({ renderer: mermaidRenderer });
 export const DEMO_PARROT = parrotPlugin();
+// Opt-in for a consumer; the showcase opts in, so `/` lists the blocks there.
+export const DEMO_SLASH_COMMANDS = slashCommandsPlugin();
 // `#tag` inside the text, as mark decorations over ordinary characters: the tag keeps every
 // gesture the browser gives text, and is nowhere a widget. Kept out of `DEMO_PLUGINS`, the tour
 // of the bundled plugins; the showcase installs this one on its own.
@@ -37,5 +40,6 @@ export const DEMO_PLUGINS = [
 	DEMO_HIGHLIGHT_OCCURRENCES,
 	DEMO_LATEX,
 	DEMO_MERMAID,
-	DEMO_PARROT
+	DEMO_PARROT,
+	DEMO_SLASH_COMMANDS
 ];

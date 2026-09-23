@@ -9,6 +9,7 @@
 		DEMO_LATEX,
 		DEMO_MERMAID,
 		DEMO_PARROT,
+		DEMO_SLASH_COMMANDS,
 		DEMO_TOC
 	} from '../../demo-plugins';
 	import { memoPlugin } from './memo/register';
@@ -23,7 +24,6 @@
 	import { tagsPlugin } from './tags/tag-plugin';
 	import { tagMarksPlugin, TAG_MENU } from '../../demo-tags/tag-marks-plugin';
 	import { docLinkMenuPlugin, DOC_LINK_MENU } from './inline-menu/doc-link-menu-plugin';
-	import { slashMenuSource } from './inline-menu/slash-menu-source';
 	import '../../demo-tags/tag-marks.css';
 	import type { EditorPlugin } from '$lib/plugin';
 
@@ -61,8 +61,8 @@
 		tags: [tagsPlugin()],
 		// The same tags as mark decorations over plain text: no widget, no source to show.
 		'tags-marks': [tagMarks],
-		// Both inline-menu sources at once: `#` and `[[` must not take each other's presses.
-		'inline-menu': [tagMarks, docLinkMenuPlugin()],
+		// Every inline-menu source at once: `#`, `[[` and `/` must not take each other's presses.
+		'inline-menu': [tagMarks, docLinkMenuPlugin(), DEMO_SLASH_COMMANDS],
 		// `%%parrot` is a narrower form of the base memo fixture's `%%`, and the bird animates on
 		// an interval; kept to its own seed so neither reaches another suite.
 		parrot: [DEMO_PARROT],
@@ -257,17 +257,6 @@
 				presentationMode = mode;
 			}
 		});
-	});
-
-	// The slash source inserts a block through the instance's `insertMarkdown`, which a plugin's
-	// context does not carry, so the page registers it once the editor is bound.
-	$effect(() => {
-		if (data.seed !== 'inline-menu' || !editor) return;
-		const bound = editor;
-		const handle = bound
-			.getInlineMenus()
-			.addSource(slashMenuSource((md) => bound.insertMarkdown(md)));
-		return () => handle.dispose();
 	});
 
 	// The document-rewrite pattern the guides recommend: rewrite the Markdown and write it back
