@@ -853,7 +853,7 @@ directory as well as this table before assuming a rule is unguarded.
 | G4.59 | The VR tag catalog and the tags cited in source are one set                   | L       |
 | G4.60 | Every spread into a call's argument list declares what bounds its count       | L       |
 | G4.61 | The commit scope is set in production, not behind a build flag                | L       |
-| G4.62 | Code tokens, UI greys and dimmed markers clear AA on the backgrounds they use | L       |
+| G4.62 | Code, grey, marker and faded-block text clear AA on the backgrounds under it  | L       |
 | G4.63 | The bundled plugins' own suites import only the published entry points        | L       |
 | G4.64 | The tree-ops ladder has no upward import                                      | L       |
 | G4.65 | Every prose surface hands typed delimiters to the one auto-pair arm           | L       |
@@ -1389,18 +1389,21 @@ its writes would run a source over a half-published tree in production alone: `e
 DEV to true under vitest, which leaves no behavior test able to see it. A source scan is the only
 rung that can. `lint/commit-scope-production.test.ts`.
 **G4.62 · Text contrast.** Every `--code-tok-*` color `editor-theme.css` declares, the grey UI
-tokens that paint text (`--color-ui-muted`, `--color-text-muted`, `--color-text-secondary`), the
-greys that set text apart as done or inert (a checked task, a reference label, a blocked link,
-inline raw HTML), and every marker colour as it is drawn (composited at the `--syntax-marker-dim`
-opacity) clears WCAG AA (4.5:1) in each theme against the backgrounds text paints on:
-`--color-surface`, the fence (`--color-bg-secondary` composited over it), and for the UI greys
-`--color-bg` too, which the menus, toolbars and link card paint on. An `rgba()` value is
-composited over each background before it is measured. Computed from the declarations rather
-than a browser, because the editor paints no background of its own: an axe run measures whatever
-page the editor was dropped onto, so it can report the shell's palette and never the library's.
-Completeness is the load-bearing half: the code family is derived from the CSS by prefix, so a
-token added tomorrow is measured, and a value in a form the reader can't parse fails instead of
-escaping. The UI, marker and done-or-inert families are named lists.
+tokens that paint text (`--color-ui-muted`, `--color-ui-dulled`, `--color-text-muted`,
+`--color-text-secondary`), the greys that set text apart as done or inert (a checked task, a
+reference label, a blocked link, inline raw HTML), every marker colour at the
+`--syntax-marker-dim` opacity, and raw-block text at the opacity its block is drawn with (a link
+reference definition fades again on top, and the two multiply) clears WCAG AA (4.5:1) in each
+theme against the backgrounds text paints on: `--color-surface`, the fence (`--color-bg-secondary`
+composited over it), and for the UI greys `--color-bg` too, which the menus, toolbars and link
+card paint on. A translucent colour or a block's opacity is composited over each background
+before it is measured, and each block's opacity is read from the rule that sets it. Computed from
+the declarations rather than a browser, because the editor paints no background of its own: an
+axe run measures whatever page the editor was dropped onto, so it can report the shell's palette
+and never the library's. Completeness is the load-bearing half: the code family is derived from
+the CSS by prefix, so a token added tomorrow is measured, and a value in a form the reader can't
+parse fails instead of escaping. The UI, marker and done-or-inert families and the faded blocks
+are named lists.
 `lint/code-token-contrast.test.ts`.
 
 **G4.63 · Bundled-plugin test boundary.** Every file under a per-plugin test directory
