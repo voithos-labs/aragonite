@@ -55,18 +55,29 @@ describe('acceptedBlockAttrs', () => {
 		]);
 	});
 
-	// A table cell renders `contenteditable` itself, and the decoration's cleanup removes what it
-	// set, so an overwrite would leave the cell uneditable once the source is disposed.
-	it('drops an attribute the decorated element renders itself, in any spelling', () => {
-		expect(
-			acceptedBlockAttrs(
-				{ ContentEditable: 'false', title: 'note' },
-				[0, 1, 0],
-				['contenteditable']
-			)
-		).toEqual([['title', 'note']]);
+	// Every decorated element renders these, and cleanup would strip them. Miss-analysis: only
+	// each element's extras were refused and no row passed `class`, so `class` got through.
+	it.each(['class', 'contenteditable', 'role', 'style', 'tabindex'])(
+		"drops '%s', an attribute every decorated element renders itself",
+		(name) => {
+			expect(acceptedBlockAttrs({ [name]: 'x', title: 'note' }, [1])).toEqual([['title', 'note']]);
+			expect(takeDevWarns().map((w) => w.message)).toEqual([
+				expect.stringContaining(`'${name}' is reserved`)
+			]);
+		}
+	);
+
+	it('drops an element-rendered attribute in any spelling', () => {
+		expect(acceptedBlockAttrs({ ContentEditable: 'false' }, [0, 1, 0])).toEqual([]);
 		expect(takeDevWarns().map((w) => w.message)).toEqual([
 			expect.stringContaining("'ContentEditable' is reserved")
+		]);
+	});
+
+	it("points a refused class at the decoration's class field", () => {
+		acceptedBlockAttrs({ class: 'x' }, [1]);
+		expect(takeDevWarns().map((w) => w.message)).toEqual([
+			expect.stringContaining("decoration's class field")
 		]);
 	});
 

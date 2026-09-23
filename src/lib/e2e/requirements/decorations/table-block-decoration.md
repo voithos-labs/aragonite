@@ -20,8 +20,12 @@ addressed to either is refused with a `decorations` warning and the rest still l
   badge enters the table, and the cell's text is unchanged
 - An attribute the cell renders itself (`contenteditable`) is refused with a `decorations`
   warning, and the cell stays editable after the source is disposed
+- A `class` passed in a row decoration's attrs is refused with a `decorations` warning; the row
+  keeps `table-row` while the source is live and after it is disposed
 
 ## Miss-analysis
 
 - The list item fix gave its own box the shared decoration code, and no case addressed the other
   nodes that render without a block host, so rows and cells stayed undecorated
+- A decoration's attrs could replace the `class` an element renders itself: the refused names
+  covered each element's own extras, and no case passed `class` through attrs

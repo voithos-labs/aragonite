@@ -103,6 +103,19 @@ test.describe('block decorations on table rows and cells', () => {
 			await expect(cellC).toHaveText('c');
 		});
 
+		test('a class passed in attrs is refused and the row keeps its own', async ({ page }) => {
+			const warnings: string[] = [];
+			page.on('console', (m) => warnings.push(m.text()));
+			await addSource(page, 'e2e-row-class', { path: [0, 1], attrs: { class: 'e2e-clobber' } });
+
+			const bodyRow = page.locator(ROWS).nth(1);
+			await expect.poll(() => warnings.some((w) => w.includes("'class' is reserved"))).toBe(true);
+			await expect(bodyRow).toHaveClass(/\btable-row\b/);
+			await expect(bodyRow).not.toHaveClass(/\be2e-clobber\b/);
+			await page.evaluate(() => (window as any).__test.decorations.disposeSource('e2e-row-class'));
+			await expect(bodyRow).toHaveClass(/\btable-row\b/);
+		});
+
 		test('an attribute the cell renders itself is refused and the cell stays editable', async ({
 			page
 		}) => {

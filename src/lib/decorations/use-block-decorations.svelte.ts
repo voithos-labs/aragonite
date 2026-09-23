@@ -16,8 +16,6 @@ export interface BlockDecorationDeps {
 	/** Absent when a block mounts without the editor shell, as unit tests do. */
 	engine: DecorationEngine | undefined;
 	onRenderError: (error: EditorError) => void;
-	/** Attributes the element renders itself, refused like the reserved names. */
-	ownAttrs?: readonly string[];
 	/** Why this element cannot hold a badge; when set, every badge is dropped with a dev warning. */
 	badgeRefusal?: string;
 }
@@ -38,7 +36,7 @@ export function useBlockDecorations(deps: BlockDecorationDeps): { readonly class
 		if (!el || decs.length === 0) return;
 		const appliedKeys: string[] = [];
 		for (const dec of decs) {
-			for (const [key, value] of acceptedBlockAttrs(dec.attrs, deps.getPath(), deps.ownAttrs)) {
+			for (const [key, value] of acceptedBlockAttrs(dec.attrs, deps.getPath())) {
 				el.setAttribute(key, value);
 				appliedKeys.push(key);
 			}

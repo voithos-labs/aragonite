@@ -192,7 +192,6 @@
 		getEl: () => el ?? null,
 		engine: decorationEngine,
 		onRenderError: (error) => editorEvents?.emit('error', error),
-		ownAttrs: ['contenteditable', 'role', 'style', 'tabindex'],
 		badgeRefusal: "a table cell's children are its editable text, re-rendered on every edit"
 	});
 

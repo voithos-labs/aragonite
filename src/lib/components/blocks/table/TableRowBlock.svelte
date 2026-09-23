@@ -78,7 +78,6 @@
 		getEl: () => rowEl ?? null,
 		engine: decorations,
 		onRenderError: (error) => events.emit('error', error),
-		ownAttrs: ['role'],
 		badgeRefusal: 'a table row renders no box of its own to hold one'
 	});
 
