@@ -46,6 +46,9 @@ export interface ImageEditCommitter {
 	dismissImagePopover(): void;
 	getEditorContentWidth(): number;
 	attachWidgetSelectListener(): () => void;
+	/** Clears the widget selection when the document no longer holds an image at its bytes; the
+	 *  image's own commits keep its start byte, so they keep it selected. */
+	clearStaleSelection(): void;
 	syncOverlayToWidget(getOverlay: () => HTMLElement | null): () => void;
 }
 
@@ -75,13 +78,15 @@ export function createImageEditCommitter(deps: ImageEditCommitterDeps): ImageEdi
 		) as HTMLElement | null;
 	}
 
+	function imageAt(target: WidgetTarget): InlineNode | null {
+		const paragraph = blockNodeAt(getDoc(), target.paragraphPath);
+		return paragraph ? findImageInParagraph(paragraph, target.sourceStart) : null;
+	}
+
 	function getSelectedImageFields(): SelectedImageFields | null {
 		const sel = widgetSelection.getSelected();
-		if (!sel) return null;
-		const paragraph = blockNodeAt(getDoc(), sel.paragraphPath);
-		if (!paragraph) return null;
-		const image = findImageInParagraph(paragraph, sel.sourceStart);
-		if (!image) return null;
+		const image = sel && imageAt(sel);
+		if (!sel || !image) return null;
 		return { image, widgetEl: queryWidgetEl(sel.paragraphPath, sel.sourceStart) };
 	}
 
@@ -166,6 +171,11 @@ export function createImageEditCommitter(deps: ImageEditCommitterDeps): ImageEdi
 		return () => root.removeEventListener('image-widget-select', handler);
 	}
 
+	function clearStaleSelection(): void {
+		const sel = widgetSelection.getSelected();
+		if (sel && !imageAt(sel)) widgetSelection.clear();
+	}
+
 	function syncOverlayToWidget(getOverlay: () => HTMLElement | null): () => void {
 		const noop = () => {};
 		const overlayEl = getOverlay();
@@ -230,6 +240,7 @@ export function createImageEditCommitter(deps: ImageEditCommitterDeps): ImageEdi
 		dismissImagePopover,
 		getEditorContentWidth,
 		attachWidgetSelectListener,
+		clearStaleSelection,
 		syncOverlayToWidget
 	};
 }

@@ -1,5 +1,6 @@
-// Image-widget selection is mutually exclusive with caret and cross-block
-// selection; `select` fires `onSelect` so the editor shell can clear the others.
+// A selected image never coexists with a document caret or range: `select` fires `onSelect` so
+// the editor clears them, a cross-block range clears the image, and the editor's selectionchange
+// listener drops a caret the browser puts in a block while an image is selected.
 
 import { pathsEqual } from '../../selection/path-math';
 
@@ -9,8 +10,8 @@ export const IMAGE_CHROME_SELECTOR = '[data-image-widget], [data-image-overlay]'
 
 export interface WidgetTarget {
 	// A deliberate snapshot, unlike the click path's live resolve (widget-dom.ts): a popover commit
-	// must target the image it opened on. Safe to hold because widget selection clears on every
-	// structural edit and navigation, so it cannot outlive a shift of its own path.
+	// must target the image it opened on. Safe to hold because the selection clears on any edit
+	// that leaves no image at these bytes, and on a document swap.
 	paragraphPath: number[];
 	sourceStart: number;
 	// The caret's raw offset just before widget selection took over; drives the undo

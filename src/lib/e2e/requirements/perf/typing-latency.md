@@ -78,6 +78,16 @@ installs eight base plugins, two of which derive over the whole document, so the
 between the two routes is an upper bound on an installed handler's cost rather than the
 handler's cost alone.
 
+## Vertical arrival (report-only)
+
+One row times an arrow instead of a keystroke: ArrowDown into a paragraph of 200 decoded
+entities from the prose line above it, and ArrowUp into it from the prose line below, each
+sample waiting on the caret reaching that paragraph, 15 of each, reported as p50/p95. No caret
+position in that paragraph has a box of its own, so the column the arrow carries is matched
+against the widgets' boxes alone, and the row is what shows that scan staying on one line.
+
+- a paragraph that did not mount all 200 widgets fails the row rather than timing a shorter one
+
 ## Sizes
 
 All shapes run at 100KB / 1MB / 10MB, with nothing capped. The giant-single

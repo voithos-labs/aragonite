@@ -74,11 +74,6 @@ const INFLATION_ALLOWLIST: readonly InflationException[] = [
 			'two parametrized loops run 13 gated rows, and the bullets state budget, baseline policy and what the gate cannot see rather than scenarios'
 	},
 	{
-		spec: 'perf/typing-latency.perf.spec.ts',
-		reason:
-			'five test calls, three of them parametrized loops, run ~35 report rows, and the bullets state measurement semantics (caret target, settle predicate, sizes, artifacts, the inline-handler rows and their confound) rather than scenarios'
-	},
-	{
 		spec: 'perf/vr-reveal-anchor.spec.ts',
 		reason:
 			'the edge-case bullets are properties the two race cases carry jointly, including one explicitly not-covered case'

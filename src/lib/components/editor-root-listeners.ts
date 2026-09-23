@@ -6,6 +6,7 @@
  */
 
 import { tick } from 'svelte';
+import { findSurfacePathForElement } from '../selection/path-lookup';
 
 // ── Listener plumbing ───────────────────────────────────────────────
 
@@ -79,12 +80,14 @@ export interface SelectionChangeBridgeDeps {
 	/** Announces this editor's current selection, and does nothing when it is the one
 	 *  subscribers were already told about. */
 	announceIfMoved(): void;
+	/** Whether an inline widget is selected whole, which owns the keys while it is. */
+	isWidgetSelected(): boolean;
 }
 
 /**
  * Caret motion the editor did not perform itself: a click, and single-block moves, which never
- * go through SelectionState. Scoped to `root` to avoid noise from selections elsewhere on the
- * page, and silent about a position the editor has already announced.
+ * go through SelectionState. Scoped to `root`, silent about a position already announced, and
+ * it drops a caret that appears in a block while an inline widget is selected whole.
  */
 export function installSelectionChangeBridge(deps: SelectionChangeBridgeDeps): () => void {
 	const handler = () => {
@@ -95,6 +98,12 @@ export function installSelectionChangeBridge(deps: SelectionChangeBridgeDeps): (
 		// A selection in the host's header is not a document selection: announcing there
 		// reports this editor's own unchanged selection on every header caret move.
 		if (deps.isHostChrome(anchorNode)) return;
+		// The paragraph keeps focus while its widget is selected, and the browser puts a caret at
+		// its start on any mouse input. A drag's range and a caret in a popover field stay.
+		if (sel.isCollapsed && deps.isWidgetSelected() && inBlockSurface(anchorNode)) {
+			sel.removeAllRanges();
+			return;
+		}
 		deps.announceIfMoved();
 	};
 	return removeAll(
@@ -103,6 +112,11 @@ export function installSelectionChangeBridge(deps: SelectionChangeBridgeDeps): (
 		// beats. On `document` so the block's own click handling refines the caret first.
 		onRoot(document, 'click', handler)
 	);
+}
+
+function inBlockSurface(node: Node): boolean {
+	const el = node instanceof Element ? node : node.parentElement;
+	return findSurfacePathForElement(el) !== null;
 }
 
 /**

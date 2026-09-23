@@ -147,6 +147,22 @@ export interface WidgetInteraction {
 	islandDragAnchor(x: number, y: number): number | null;
 }
 
+/** The widget edge a selected widget hands a caret-moving key off from, or null for any other key. */
+function caretMoveEdge(key: string): 'start' | 'end' | null {
+	switch (key) {
+		case 'ArrowUp':
+		case 'Home':
+		case 'PageUp':
+			return 'start';
+		case 'ArrowDown':
+		case 'End':
+		case 'PageDown':
+			return 'end';
+		default:
+			return null;
+	}
+}
+
 /**
  * The inline-code tint over a shown source, drawn with the CSS Custom Highlight API
  * (`::highlight(md-inline-reveal)` in editor.css) rather than a wrapper span: the contract, and
@@ -748,10 +764,11 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 			}
 			return true;
 		}
-		// A vertical arrow is the shared line-by-line move, which needs a real caret to read:
-		// put one at the edge the arrow leaves from and decline, so that move runs from there.
-		if (!e.shiftKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
-			deps.cursor.setRaw(asRawOffset(e.key === 'ArrowUp' ? widget.start : widget.end));
+		// A vertical arrow, Home, End and the page keys are shared moves that need a real caret to
+		// read: put one at the edge the key leaves from and decline, so the move runs from there.
+		const moveEdge = e.shiftKey ? null : caretMoveEdge(e.key);
+		if (moveEdge) {
+			deps.cursor.setRaw(asRawOffset(moveEdge === 'start' ? widget.start : widget.end));
 			deps.widgetSelection.clear();
 			return false;
 		}

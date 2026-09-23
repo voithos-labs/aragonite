@@ -19,6 +19,14 @@ export async function waitForAllImagesLoaded(page: Page): Promise<void> {
 	);
 }
 
+/** The document caret: the native range count and the editor's own read of the selection. */
+export async function documentCaret(page: Page): Promise<[number, unknown]> {
+	return page.evaluate(() => [
+		window.getSelection()?.rangeCount ?? 0,
+		(window as any).__test.getSelection()
+	]);
+}
+
 // Undo-stack depth, 0 before the hook installs: the read that says a gesture added no entry.
 export async function undoDepth(page: Page): Promise<number> {
 	return page.evaluate(() => (window as any).__test?.dumpUndoStack?.()?.length ?? 0);

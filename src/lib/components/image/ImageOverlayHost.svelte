@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { getContext } from 'svelte';
+	import { getContext, untrack } from 'svelte';
 	import type { Document } from '../../core/nodes';
 	import type { PresentationMode } from '../../presentation-mode';
 	import type { UndoController } from '../../editor-actions/deps';
@@ -23,6 +23,7 @@
 		controller,
 		events,
 		getDoc,
+		getContentVersion,
 		getEditorEl,
 		getSelectionIsCustomRendered,
 		getPresentationMode,
@@ -33,6 +34,7 @@
 		controller: UndoController;
 		events: EditorEvents;
 		getDoc: () => Document;
+		getContentVersion: () => number;
 		getEditorEl: () => HTMLElement | null;
 		getSelectionIsCustomRendered: () => boolean;
 		getPresentationMode: () => PresentationMode;
@@ -72,6 +74,12 @@
 	});
 
 	$effect(() => imageEdit.attachWidgetSelectListener());
+	// On every document change, so the selection is gone before a caret an undo or a commit
+	// puts back reaches the selectionchange listener, which drops carets while it lives.
+	$effect(() => {
+		getContentVersion();
+		untrack(imageEdit.clearStaleSelection);
+	});
 
 	$effect(() => {
 		widgetSelection.getSelected(); // re-run + reposition when the selected widget changes
