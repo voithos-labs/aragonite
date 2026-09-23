@@ -1,3 +1,4 @@
+import { tick } from 'svelte';
 import { resolvedInlineContent } from '../../core/inline/inline-cache';
 import { flattenInlineWidgets } from '../../core/inline/inline-widgets';
 import type { Document, ImageFields, InlineNode } from '../../core/nodes';
@@ -57,7 +58,8 @@ export interface ImageEditCommitter {
 	getEditorContentWidth(): number;
 	attachWidgetSelectListener(): () => void;
 	/** Clears the widget selection when the document no longer holds an image at its bytes; the
-	 *  image's own commits keep its start byte, so they keep it selected. */
+	 *  image's own commits keep its start byte, and one to an image before it moves the selection
+	 *  with its bytes, so both keep it selected. */
 	clearStaleSelection(): void;
 	syncOverlayToWidget(getOverlay: () => HTMLElement | null): () => void;
 }
@@ -80,6 +82,10 @@ export function createImageEditCommitter(deps: ImageEditCommitterDeps): ImageEdi
 
 	const imageAt = (target: WidgetTarget): InlineNode | null =>
 		imageAtTarget(getDoc(), target, deps.linkRef);
+
+	// The bytes the last popover write moved, applied by the next stale check: the write runs as
+	// the popover unmounts, where a read of the selection still returns the one before the click.
+	let lastShift: { paragraphPath: number[]; editEnd: number; delta: number } | null = null;
 
 	function getSelectedImageFields(): SelectedImageFields | null {
 		const sel = widgetSelection.getSelected();
@@ -125,6 +131,10 @@ export function createImageEditCommitter(deps: ImageEditCommitterDeps): ImageEdi
 	function writeImageEdit(target: WidgetTarget, newFields: ImageFields): void {
 		const edit = resolveEdit(target, newFields);
 		if (!edit) return;
+		const delta = edit.bytes.length - (edit.image.end - edit.image.start);
+		if (delta !== 0) {
+			lastShift = { paragraphPath: target.paragraphPath, editEnd: edit.image.end, delta };
+		}
 		void inlineRange.commitInlineRange(
 			target.paragraphPath,
 			edit.image.start,
@@ -188,6 +198,21 @@ export function createImageEditCommitter(deps: ImageEditCommitterDeps): ImageEdi
 	}
 
 	function clearStaleSelection(): void {
+		const shift = lastShift;
+		lastShift = null;
+		if (!shift) {
+			dropSelectionIfStale();
+			return;
+		}
+		// The overlay finds the widget by the bytes its element names, so the move waits for the
+		// block to render the write.
+		void tick().then(() => {
+			widgetSelection.followEdit(shift.paragraphPath, shift.editEnd, shift.delta);
+			dropSelectionIfStale();
+		});
+	}
+
+	function dropSelectionIfStale(): void {
 		const sel = widgetSelection.getSelected();
 		if (sel && !imageAt(sel)) widgetSelection.clear();
 	}

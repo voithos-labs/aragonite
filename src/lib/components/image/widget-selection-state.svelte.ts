@@ -33,6 +33,9 @@ export interface WidgetSelectionState {
 	getSelected(): WidgetTarget | null;
 	select(target: WidgetTarget): void;
 	clear(): void;
+	/** Moves the selection by `delta` bytes when it sits in `paragraphPath` at or past `editEnd`:
+	 *  an edit to another image earlier in the paragraph moved its bytes, not its identity. */
+	followEdit(paragraphPath: number[], editEnd: number, delta: number): void;
 	isSelected(paragraphPath: number[], sourceStart: number): boolean;
 }
 
@@ -55,6 +58,15 @@ export function createWidgetSelectionState(opts: CreateWidgetSelectionOpts): Wid
 		},
 		clear: () => {
 			selected = null;
+		},
+		followEdit: (path, editEnd, delta) => {
+			if (!selected || selected.sourceStart < editEnd) return;
+			if (!pathsEqual(selected.paragraphPath, path)) return;
+			selected = {
+				paragraphPath: selected.paragraphPath,
+				sourceStart: selected.sourceStart + delta,
+				preSelectOffset: selected.preSelectOffset + delta
+			};
 		},
 		isSelected: (path, start) =>
 			selected !== null &&
