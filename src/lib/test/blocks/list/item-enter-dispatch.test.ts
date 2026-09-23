@@ -81,3 +81,23 @@ describe('list item Enter completion (#146)', () => {
 		expect(mounted.source()).toBe('- | a |\n- \n');
 	});
 });
+
+// Miss-analysis: the new item's task marker was pinned only on the list context's own method,
+// an unchecked ordered item, so a checked item's Enter bytes had an e2e row and no unit row.
+describe('list item Enter: the new item’s task marker', () => {
+	const ROWS: Array<[name: string, source: string, contentEnd: number, expected: string]> = [
+		['a checked to-do starts an unchecked one', '- [x] done\n', 4, '- [x] done\n- [ ] \n'],
+		['an unchecked to-do starts an unchecked one', '- [ ] pending\n', 7, '- [ ] pending\n- [ ] \n'],
+		['a plain item stays plain', '- plain\n', 5, '- plain\n- \n']
+	];
+
+	for (const [name, source, contentEnd, expected] of ROWS) {
+		it(name, async () => {
+			mounted = mountEditor({ source });
+
+			await pressKeyAt(mounted, [0, 0, 0], contentEnd, ENTER);
+
+			expect(mounted.source()).toBe(expected);
+		});
+	}
+});
