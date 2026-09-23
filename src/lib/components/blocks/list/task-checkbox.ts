@@ -11,6 +11,11 @@ function isTaskMarkerChecked(taskMarker: string): boolean {
 	return c === 'x' || c === 'X';
 }
 
+/** Whether a block's ambient prefix draws a task box, which makes the block the to-do's text. */
+export function ambientHoldsTaskBox(prefix: AmbientPrefix): boolean {
+	return typeof prefix !== 'string' && !!prefix.interactive?.some((r) => r.role === 'checkbox');
+}
+
 export function buildTaskItemAmbient(
 	metadata: ListItemMetadata | undefined,
 	onToggle: () => void

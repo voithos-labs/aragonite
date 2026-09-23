@@ -133,6 +133,9 @@
 	   draws, which editor.css overrides where the box is drawn instead. */
 	--md-task-indent: 2.1em;
 	--md-reorder-indicator: var(--color-selection, #6496ff);
+	/* The name a typed kind change leaves on its block, and how long it stays before it fades. */
+	--md-kind-cue-color: var(--color-ui-muted, #8f8f89);
+	--md-kind-cue-duration: 1.2s;
 	/* Tint on the container a nested drag is reordering inside. It uses the reorder accent rather
 	   than neutral grey, so the change stays visible to low-contrast vision. */
 	--reorder-scope-bg: rgba(100, 150, 255, 0.14);

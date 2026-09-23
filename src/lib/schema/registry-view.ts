@@ -3,9 +3,8 @@
  * (docs/design/plugin-contract.md § The registries: global, register-once). The default view
  * resolves every kind exactly as registered, so a `parse()` with no editor and every plain
  * component mount stay byte-identical. A view with `isEnabled` resolves no component for a
- * disabled plugin kind and drops its opener; the descriptor is never filtered, since a disabled
- * kind still needs it to degrade rather than throw. `plugin-activation.ts` turns one editor's
- * `plugins` prop into that predicate.
+ * disabled plugin kind and drops its opener, and `syntax` drops the built-in syntaxes a host
+ * switched off; the descriptor is never filtered, since a disabled kind still needs it.
  */
 import { isBuiltinBlockKind, type AnyBlockKind } from '../core/nodes';
 import { getBlockComponent, type BlockComponentEntry } from './block-component-registry';
@@ -16,8 +15,16 @@ import {
 } from './block-kind-descriptor';
 import { defaultGrammarView, createGrammarView, type GrammarView } from './block-openers';
 
-/** `false` disables a plugin kind for one editor; built-ins can never be disabled. */
+/** `false` disables a plugin kind for one editor; built-ins are switched only by `syntax`. */
 export type KindEnablement = (kind: AnyBlockKind) => boolean;
+
+/** GFM syntaxes a host can switch off for one editor (the `syntax` prop); each is on by default. */
+export interface SyntaxOptions {
+	/** A line indented four columns (or by a tab) opens a code block. */
+	indentedCode?: boolean;
+	/** A `===` or `---` line under paragraph text makes it a heading. */
+	setextHeading?: boolean;
+}
 
 export interface RegistryView {
 	/** The kind's component, or `undefined` when it is unregistered or disabled for this editor. */
@@ -40,15 +47,23 @@ export function bothEnable(
 	return (kind) => a(kind) && b(kind);
 }
 
-export function createRegistryView(opts?: { isEnabled?: KindEnablement }): RegistryView {
+export function createRegistryView(opts?: {
+	isEnabled?: KindEnablement;
+	syntax?: SyntaxOptions;
+}): RegistryView {
 	const filter = opts?.isEnabled;
-	if (!filter) return defaultRegistryView;
-	const enabled: KindEnablement = (kind) => isBuiltinBlockKind(kind) || filter(kind);
+	const indentedCode = opts?.syntax?.indentedCode ?? true;
+	const setextHeading = opts?.syntax?.setextHeading ?? true;
+	if (!filter && indentedCode && setextHeading) return defaultRegistryView;
+	const enabled: KindEnablement = (kind) => isBuiltinBlockKind(kind) || !filter || filter(kind);
+	// A switched-off syntax leaves the grammar only: a block of that kind still renders.
+	const opens: KindEnablement = (kind) =>
+		enabled(kind) && (indentedCode || kind !== 'indentedCode');
 	return {
 		component: (kind) => (enabled(kind) ? getBlockComponent(kind) : undefined),
 		descriptor: (kind) => getBlockKindDescriptor(kind),
 		tryDescriptor: (kind) => tryGetBlockKindDescriptor(kind),
-		grammar: createGrammarView(enabled)
+		grammar: createGrammarView(opens, { setextHeading })
 	};
 }
 

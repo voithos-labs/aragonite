@@ -9,7 +9,8 @@ import {
 	defaultGrammarView,
 	lineInterruptsParagraph,
 	lineStartsOuterBlock,
-	type BlockOpenerResult
+	type BlockOpenerResult,
+	type GrammarView
 } from '../../schema/block-openers';
 
 export function matchBlockquote(text: string): boolean {
@@ -36,7 +37,8 @@ function wouldKeepParagraphOpen(strippedText: string): boolean {
 export function blockquoteExtent(
 	lines: ParsedLine[],
 	startIndex: number,
-	endIndex: number
+	endIndex: number,
+	grammar: GrammarView = defaultGrammarView
 ): { raw: string; nextIndex: number } {
 	let i = startIndex;
 	let paragraphOpen = false;
@@ -51,7 +53,7 @@ export function blockquoteExtent(
 		if (
 			paragraphOpen &&
 			wouldKeepParagraphOpen(lineText) &&
-			!lineStartsOuterBlock(lines[i], { paragraphOpen: true })
+			!lineStartsOuterBlock(lines[i], { paragraphOpen: true, grammar })
 		) {
 			i++;
 			continue;
@@ -66,10 +68,11 @@ export function parseBlockquote(
 	startIndex: number,
 	endIndex: number,
 	leadingTrivia: string,
+	grammar: GrammarView,
 	depth: number = 0,
 	isDocumentParse: boolean = false
 ): BlockOpenerResult {
-	const { raw, nextIndex: i } = blockquoteExtent(lines, startIndex, endIndex);
+	const { raw, nextIndex: i } = blockquoteExtent(lines, startIndex, endIndex, grammar);
 
 	// Lazy lines have no `> ` to strip; verbatim keeps the recursive parse seeing one paragraph.
 	const strippedLines = remapStrippedLines(lines.slice(startIndex, i), (line) =>
@@ -80,7 +83,7 @@ export function parseBlockquote(
 		strippedLines,
 		0,
 		strippedLines.length,
-		defaultGrammarView,
+		grammar,
 		depth + 1,
 		isDocumentParse
 	);

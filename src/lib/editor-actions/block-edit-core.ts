@@ -108,7 +108,8 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 						offset,
 						view.sharing,
 						view.getPresentationMode?.(),
-						view.linkRef
+						view.linkRef,
+						view.grammar
 					);
 					secondHalfIndex = split.secondHalfIndex;
 					stampStructuralChange(view.children, split.change, view.sharing);

@@ -28,11 +28,8 @@ export interface OpenContext {
 	isDocumentParse: boolean;
 	/** Container-nesting depth of this parse level (0 at the document root). A container opener that reparses its body recurses at `depth + 1`; past the cap (`MAX_NESTING_DEPTH`) deeper input becomes paragraph content. */
 	depth: number;
-	/**
-	 * The per-editor view of the global openers. A nested container reparse builds its own
-	 * context and falls back to the global grammar, so per-instance enablement stops there
-	 * (see `parse`).
-	 */
+	/** The editor's grammar. A container opener hands it to its body parse, so a kind this
+	 *  editor switched off stays off inside a list item or a quote too. */
 	grammar: GrammarView;
 }
 
@@ -124,8 +121,8 @@ function consumedEntries(): readonly [AnyBlockKind, BlockOpener][] {
 
 /**
  * Paragraph-interrupt check built from the registry, handling pending registrations the way
- * `getOrderedOpeners` does. Not filtered by enablement: the parsers call it directly rather
- * than through a `GrammarView`, so the interrupt scan always uses the global grammar.
+ * `getOrderedOpeners` does. Not filtered per editor, so an unlisted plugin's line still ends a
+ * paragraph; indented code never interrupts, and the paragraph parser stops at `---` itself.
  */
 export function lineInterruptsParagraph(lineText: string): boolean {
 	if (hasPendingRegistrationChecks()) flushPendingRegistrationChecks();
@@ -142,24 +139,31 @@ export function lineInterruptsParagraph(lineText: string): boolean {
 }
 
 /**
- * A per-editor view of the global openers, passed in as `parse(source, { grammar })`. Only the
- * opener dispatch is resolved per editor; the paragraph-interrupt scan always uses the global
- * grammar.
+ * A per-editor view of the global openers, passed in as `parse(source, { grammar })`. The
+ * opener dispatch and the setext underline check are resolved per editor; the
+ * paragraph-interrupt scan uses the global grammar.
  */
 export interface GrammarView {
 	orderedOpeners(): readonly BlockOpener[];
+	/** Whether a `===` or `---` line under paragraph text makes it a heading. */
+	readonly setextHeading: boolean;
 }
 
 export const defaultGrammarView: GrammarView = {
-	orderedOpeners: () => getOrderedOpeners()
+	orderedOpeners: () => getOrderedOpeners(),
+	setextHeading: true
 };
 
-export function createGrammarView(isEnabled: OpenerEnablement): GrammarView {
+export function createGrammarView(
+	isEnabled: OpenerEnablement,
+	options: { setextHeading?: boolean } = {}
+): GrammarView {
 	// A reparse reads this once per block, so the filtered list is cached against the global
 	// ordering array: a later registration replaces that array, which rebuilds the filter.
 	let builtFrom: readonly [AnyBlockKind, BlockOpener][] | null = null;
 	let filtered: readonly BlockOpener[] = [];
 	return {
+		setextHeading: options.setextHeading ?? true,
 		orderedOpeners() {
 			const entries = consumedEntries();
 			if (entries !== builtFrom) {

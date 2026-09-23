@@ -96,6 +96,7 @@
 		installWidthWatcher
 	} from './editor-root-geometry';
 	import { createSelectionAnnouncer } from '../selection/selection-announcer';
+	import { createKindCue } from './kind-cue.svelte';
 	import {
 		installEditorBlurAnnouncer,
 		installModActiveTracker,
@@ -171,6 +172,7 @@
 		presentationMode = 'source',
 		scrollMode = 'self',
 		plugins,
+		syntax,
 		__registryEnablement
 	}: EditorProps & { __registryEnablement?: KindEnablement } = $props();
 
@@ -216,10 +218,21 @@
 
 	// ── State ───────────────────────────────────────────────────────────
 
+	// This editor's view of the global block definitions, read by the first parse and most edits
+	// (#429 lists the routes still on the global one). The test hook narrows the plugins prop.
+	// svelte-ignore state_referenced_locally
+	const registryView = createRegistryView({
+		isEnabled: bothEnable(
+			pluginEntries ? kindEnablementFor(activePlugins) : undefined,
+			__registryEnablement
+		),
+		syntax
+	});
+
 	// doc/blockIds are mutable state structural ops write through directly, so they
 	// cannot be $derived: snapshot at mount, re-sync via the $effect below.
 	// svelte-ignore state_referenced_locally
-	const initial = initDocument(source);
+	const initial = initDocument(source, registryView.grammar);
 	let doc: Document = $state(initial.doc);
 	// svelte-ignore state_referenced_locally
 	let blockIds = $state<string[]>(assignIds(doc.children));
@@ -354,6 +367,7 @@
 	});
 
 	const documentSwap = createDocumentSwap({
+		grammar: registryView.grammar,
 		// Built below; a swap runs post-init, so the closures read past the TDZ.
 		flushDebouncedCheckpoint: () => controller.flushDebouncedCheckpoint(),
 		adoptDocument: (next) => {
@@ -545,19 +559,6 @@
 			: (ref.getBlockComponentByPath?.(path.slice(1)) ?? null);
 	}
 
-	// The instance's resolution over the global block definitions: an unlisted plugin's kind
-	// resolves no component here and its opener leaves this grammar. A prop-less editor reads
-	// the global registry verbatim.
-	// The test hook composes rather than replaces: widening past what the prop activated
-	// would prove a resolution the shipped path cannot reach.
-	// svelte-ignore state_referenced_locally
-	const registryView = createRegistryView({
-		isEnabled: bothEnable(
-			pluginEntries ? kindEnablementFor(activePlugins) : undefined,
-			__registryEnablement
-		)
-	});
-
 	const editorActionsDeps: EditorActionsDeps = {
 		get doc() {
 			return doc;
@@ -744,6 +745,19 @@
 		announceReorder(movedBlockToPosition(to + 1, total));
 	});
 
+	// Cleared first for the same reason as the reorder announcement: two headings typed in a row
+	// would otherwise announce once.
+	let kindAnnouncement = $state('');
+	const kindCue = createKindCue({
+		getDoc,
+		getPresentationMode: () => effectiveMode,
+		announce: async (label) => {
+			kindAnnouncement = '';
+			await tick();
+			kindAnnouncement = label;
+		}
+	});
+
 	// ── Context provision ───────────────────────────────────────────────
 
 	// One per instance, shared by every dispatch site's checks: the chord handler, a block's
@@ -787,7 +801,8 @@
 		activePlugins,
 		rects,
 		crossBlockCommands,
-		menuPresence
+		menuPresence,
+		kindCue
 	} satisfies EditorServices);
 
 	setContext(EDITOR_POLICIES_KEY, {
@@ -1413,6 +1428,7 @@
 
 	export const __test: EditorTestSurface = {
 		getDocument: () => doc,
+		getGrammar: () => registryView.grammar,
 		getContentVersion: contentVersion.read,
 		getBlockComponent,
 		getUndoStack: () => undoManager.getStacks(),
@@ -1540,6 +1556,7 @@
 	/>
 	<div class="editor-sr-live" role="status" aria-live="polite">{selectionDescription}</div>
 	<div class="editor-sr-live-reorder" role="status" aria-live="polite">{reorderAnnouncement}</div>
+	<div class="editor-sr-live-kind" role="status" aria-live="polite">{kindAnnouncement}</div>
 	{#if reorderLine}
 		<div
 			class="reorder-line"
@@ -1656,7 +1673,8 @@
 	}
 
 	.editor-sr-live,
-	.editor-sr-live-reorder {
+	.editor-sr-live-reorder,
+	.editor-sr-live-kind {
 		position: absolute;
 		width: 1px;
 		height: 1px;

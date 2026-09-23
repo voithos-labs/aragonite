@@ -72,7 +72,8 @@ export function registerDirectiveOpeners(): void {
 			// body stays inside this parse entry, so it inherits its scope.
 			const body = parseContainerBody(bodyText, DIRECTIVE_BODY_WRAP, {
 				scope: ctx.isDocumentParse ? 'document' : 'fragment',
-				depth: ctx.depth + 1
+				depth: ctx.depth + 1,
+				grammar: ctx.grammar
 			});
 			// isDirectiveCloser guarantees an all-colon line, so its length is the colon count.
 			const closerColonCount = closerLine.text.length;

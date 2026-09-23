@@ -98,7 +98,9 @@ function stubbedServices(getDoc: () => DocumentView): EditorServices {
 		activePlugins: everyInstalledPlugin,
 		rects: {} as EditorServices['rects'],
 		// Real, and inert: a bare mount has no cross-block range, so every member answers no.
-		crossBlockCommands: { canRun: () => false, run: () => false, isActive: () => false }
+		crossBlockCommands: { canRun: () => false, run: () => false, isActive: () => false },
+		// A bare mount has no announcer and no host to show a label on.
+		kindCue: { afterTypedWrite: async () => {}, labelAt: () => undefined, dismiss: () => {} }
 	};
 }
 

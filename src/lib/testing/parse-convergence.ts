@@ -3,10 +3,11 @@
  * trivially true (G2.1 makes `serialize∘parse` the identity), so this compares structure instead:
  * kinds, the shape of the children, and the metadata the parser derives. The comparison is exact,
  * because the parser turns blank lines into blocks, so an empty paragraph reparses as itself. The
- * reparse uses the registered grammar, so an unregistered kind reads as a false mismatch.
+ * reparse uses `grammar`, the registered one by default: pass the editor's own when it has one.
  */
 
 import type { BlockMetadataByKind, CstNode, Document } from '../core/nodes';
+import type { GrammarView } from '../schema/block-openers';
 import { parse } from '../core/parser';
 import { serialize } from '../core/serializer';
 import { show } from './conformance-core';
@@ -30,13 +31,13 @@ const METADATA_FIELDS: {
 };
 
 /** True when the live tree matches a fresh parse of its own serialization, structurally. */
-export function parseConverges(doc: Document): boolean {
-	return describeConvergence(doc) === null;
+export function parseConverges(doc: Document, grammar?: GrammarView): boolean {
+	return describeConvergence(doc, grammar) === null;
 }
 
 /** The first structural difference from `parse(serialize(doc))`, or null when they match. */
-export function describeConvergence(doc: Document): string | null {
-	return diffChildren(doc, parse(serialize(doc)), []);
+export function describeConvergence(doc: Document, grammar?: GrammarView): string | null {
+	return diffChildren(doc, parse(serialize(doc), { grammar }), []);
 }
 
 /** Asserts the two match, throwing a plain `Error` on a difference so any runner can use it. */

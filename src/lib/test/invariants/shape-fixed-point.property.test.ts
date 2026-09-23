@@ -18,6 +18,7 @@ import { keepsEveryByte } from '$lib/test/harness/live-oracles';
 import { arbBlankSeparatedGfmDoc, arbInlineSource, freshOrFixedSeed } from './arbitraries';
 import { displayLength, trailingLineEnding } from '$lib/core/lines';
 import { getBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
+import { followsTaskMarker } from '$lib/tree-operations/list/task-paragraph';
 import {
 	registerLiveSplitRebalancer,
 	__resetLiveSplitRebalancerForTests
@@ -40,7 +41,8 @@ const arbDoc = arbBlankSeparatedGfmDoc.chain((source) => fc.constantFrom(source,
 
 // The gestures whose separator handling the blank-line rule governs: Enter, block delete, a
 // content commit, typing into a blank block, and the join in both directions.
-type GestureOp = 'split' | 'delete' | 'update' | 'fill' | 'empty' | 'mergePrev' | 'mergeNext';
+type GestureOp =
+	'split' | 'delete' | 'update' | 'fill' | 'empty' | 'retype' | 'mergePrev' | 'mergeNext';
 type Gesture = { op: GestureOp; at: number; offset: number };
 
 // `fill` gets its own property below rather than joining this list: a fourth case re-rolls every
@@ -56,6 +58,7 @@ function applyGesture(doc: Document, gesture: Gesture, mode: PresentationMode | 
 	if (count === 0) return;
 	if (gesture.op === 'fill') return applyFill(doc, gesture.at);
 	if (gesture.op === 'empty') return applyEmpty(doc, gesture.at);
+	if (gesture.op === 'retype') return applyRetype(doc, gesture.at);
 	if (gesture.op === 'mergePrev' || gesture.op === 'mergeNext') {
 		return applyMerge(doc, gesture.at, gesture.op);
 	}
@@ -122,14 +125,20 @@ type LeafSlot = { holder: Document | CstNode; index: number; chain: CstNode[] };
 
 function proseLeafSlots(node: Document | CstNode, chain: CstNode[] = []): LeafSlot[] {
 	return (node.children ?? []).flatMap((child, index) => {
-		// A list item's body is delimited by the indent its marker sets, so blanking a leaf inside
-		// one re-reads the bytes the way it does around indented code (the exclusion below).
-		if (child.kind === 'listItem') return [];
 		if (child.children !== undefined) return proseLeafSlots(child, [...chain, child]);
 		const editable = getBlockKindDescriptor(child.kind).supportsInline === true;
 		return editable ? [{ holder: node, index, chain }] : [];
 	});
 }
+
+/**
+ * Inside a list item only the paragraph after a task marker is emptied: the rest of an item body
+ * reloads other shapes than it holds once emptied (GH #406 for its last block, and an item left
+ * empty after a paragraph, which stops interrupting it), which seed 424242 draws first.
+ */
+const emptiesCleanly = ({ holder, index, chain }: LeafSlot) =>
+	!chain.some((node) => node.kind === 'listItem') ||
+	followsTaskMarker('raw' in holder ? holder : undefined, index);
 
 /**
  * The reverse transition: a block that becomes the blank line (GH #96), indexed over the prose
@@ -138,11 +147,27 @@ function proseLeafSlots(node: Document | CstNode, chain: CstNode[] = []): LeafSl
  * body answers to its container's own opener line, which no top-level draw reaches.
  */
 function applyEmpty(doc: Document, at: number): void {
-	const slots = proseLeafSlots(doc);
+	const slots = proseLeafSlots(doc).filter(emptiesCleanly);
 	if (slots.length === 0) return;
-	const { holder, index, chain } = slots[at % slots.length];
+	const slot = slots[at % slots.length];
+	writeLeaf(doc, slot, trailingLineEnding(slot.holder.children![slot.index].raw));
+}
+
+/**
+ * A prose leaf's own bytes written back, the commit a keystroke and its undo add up to. Inside a
+ * list item too: a task item's first paragraph reads its text differently from a standalone one.
+ */
+function applyRetype(doc: Document, at: number): void {
+	// A table row rebuilds from its column count, so a row carrying surplus cells loses them on
+	// any write: a byte rule of the table's own, not the reading this gesture checks.
+	const slots = proseLeafSlots(doc).filter(({ holder }) => holder.kind !== 'tableRow');
+	if (slots.length === 0) return;
+	const slot = slots[at % slots.length];
+	writeLeaf(doc, slot, slot.holder.children![slot.index].raw);
+}
+
+function writeLeaf(doc: Document, { holder, index, chain }: LeafSlot, text: string): void {
 	const children = holder.children!;
-	const text = trailingLineEnding(children[index].raw);
 	// A container body is fixed up inside its own commit scope, which has no document tail.
 	if (holder === doc) settled(doc, () => updateNodeContent(doc, index, text).change);
 	else {
@@ -220,6 +245,10 @@ function divergenceAfterEdit(
 	if (gesture.op === 'split' && !keptBytes) {
 		return `split dropped non-line-ending bytes: ${JSON.stringify(before)} → ${JSON.stringify(bytes)}`;
 	}
+	// Content bytes only: a list item's rebuild writes its blank lines unindented (GH #406).
+	if (gesture.op === 'retype' && !keepsEveryContentByte(before, bytes)) {
+		return `retype changed the bytes: ${JSON.stringify(before)} → ${JSON.stringify(bytes)}`;
+	}
 	if (gesture.op === 'split' && lineCount(bytes) < lineCount(before)) {
 		return `split dropped a line ending: ${JSON.stringify(before)} → ${JSON.stringify(bytes)}`;
 	}
@@ -277,6 +306,16 @@ describe('G2.13 shape fixed point across load → edit → reload', () => {
 		fc.assert(
 			fc.property(arbDoc, fc.nat({ max: 6 }), (source, at) => {
 				const divergence = divergenceAfterEdit(source, { op: 'empty', at, offset: 0 });
+				if (divergence) throw new Error(`${JSON.stringify(source)}: ${divergence}`);
+			}),
+			PARAMS
+		);
+	});
+
+	it('writing a leaf its own bytes leaves them and the shape as they were', () => {
+		fc.assert(
+			fc.property(arbDoc, fc.nat({ max: 6 }), (source, at) => {
+				const divergence = divergenceAfterEdit(source, { op: 'retype', at, offset: 0 });
 				if (divergence) throw new Error(`${JSON.stringify(source)}: ${divergence}`);
 			}),
 			PARAMS

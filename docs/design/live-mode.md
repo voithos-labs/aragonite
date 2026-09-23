@@ -4,19 +4,20 @@
 
 A `live-mode.md § 4.x` citation in source or a test resolves to § 4 below, and those numbers never move. Jump by section:
 
-| §                                                                  | Section                             | What's in it                                                                            |
-| ------------------------------------------------------------------ | ----------------------------------- | --------------------------------------------------------------------------------------- |
-| [1](#1-the-problem)                                                | The problem                         | why a hidden marker is an editing problem and not just a paint one                      |
-| [2](#2-the-discipline-candidates-verified-by-the-painter)          | The discipline                      | how every rewrite checks its own bytes before writing them                              |
-| [3](#3-policy-is-data)                                             | Policy is data                      | the table where each construct declares what its delimiters do                          |
-| [4.1](#41-what-live-never-writes)                                  | What live never writes              | the two prohibitions every rule applies, and a loaded document that already breaks them |
-| [4.2](#42-typing-at-a-hidden-edge)                                 | Typing at a hidden edge             | which side of an invisible delimiter a typed byte lands on                              |
-| [4.3](#43-format-toggles-at-a-collapsed-caret-pending-marks)       | Format toggles at a collapsed caret | what Mod+B does when there's nothing to show for it, and what it does over a selection  |
-| [4.4](#44-cutting-a-construct-open-splits-and-destructive-presses) | Cutting a construct open            | what happens to delimiters an Enter or a delete cuts through or empties                 |
-| [4.5](#45-joins-clean-up-where-they-meet)                          | Joins clean up where they meet      | the cleanup every destructive join runs where two pieces of text meet                   |
-| [4.6](#46-the-link-card)                                           | The link card                       | the only way to read or change a link's destination while live paints none              |
-| [4.7](#47-the-code-rail)                                           | The code rail                       | the way into a code fence's language label, and the host's affordances                  |
-| [5](#5-what-does-not-change)                                       | What does not change                | the things live leaves exactly as source mode has them                                  |
+| §                                                                  | Section                               | What's in it                                                                              |
+| ------------------------------------------------------------------ | ------------------------------------- | ----------------------------------------------------------------------------------------- |
+| [1](#1-the-problem)                                                | The problem                           | why a hidden marker is an editing problem and not just a paint one                        |
+| [2](#2-the-discipline-candidates-verified-by-the-painter)          | The discipline                        | how every rewrite checks its own bytes before writing them                                |
+| [3](#3-policy-is-data)                                             | Policy is data                        | the table where each construct declares what its delimiters do                            |
+| [4.1](#41-what-live-never-writes)                                  | What live never writes                | the two prohibitions every rule applies, and a loaded document that already breaks them   |
+| [4.2](#42-typing-at-a-hidden-edge)                                 | Typing at a hidden edge               | which side of an invisible delimiter a typed byte lands on                                |
+| [4.3](#43-format-toggles-at-a-collapsed-caret-pending-marks)       | Format toggles at a collapsed caret   | what Mod+B does when there's nothing to show for it, and what it does over a selection    |
+| [4.4](#44-cutting-a-construct-open-splits-and-destructive-presses) | Cutting a construct open              | what happens to delimiters an Enter or a delete cuts through or empties                   |
+| [4.5](#45-joins-clean-up-where-they-meet)                          | Joins clean up where they meet        | the cleanup every destructive join runs where two pieces of text meet                     |
+| [4.6](#46-the-link-card)                                           | The link card                         | the only way to read or change a link's destination while live paints none                |
+| [4.7](#47-the-code-rail)                                           | The code rail                         | the way into a code fence's language label, and the host's affordances                    |
+| [4.8](#48-what-the-hidden-markers-would-have-explained)            | What the markers would have explained | the name a typed kind change leaves on its block, and the mark a hidden hard break leaves |
+| [5](#5-what-does-not-change)                                       | What does not change                  | the things live leaves exactly as source mode has them                                    |
 
 Where the same material lives elsewhere:
 
@@ -308,6 +309,21 @@ The card's second client, for the one hidden run a caret can't reach at all. A f
 - Copy writes the fence body to the clipboard; a run button and an overflow menu appear only for a host that installed `onRunCode` or `codeMenuItems`, and neither touches a byte.
 
 Scenarios: `src/lib/e2e/requirements/blocks/code/language-chip.md`.
+
+### 4.8 What the hidden markers would have explained
+
+Some keystrokes change what a block is, and in source mode the markers on screen say why: a tab at the start of a line makes indented code, `# ` makes a heading. With the markers hidden, all the reader sees is a new font. So a typed keystroke that turns its block into another kind names the new kind at the block's top-right corner for about a second, a dimmed label that fades, and the editor's screen-reader announcer says the same name once. The name is the block's accessible name, the one the block menu uses.
+
+- Only typed text cues. Tab counts, since the key types its own character; a command, a paste or a menu pick already named what it made.
+- Source mode shows the markers, so it cues nothing, and reading mode can't type.
+- A bare `#` still paints as the paragraph it was (the `#tag` rule), so nothing cues until the space lands.
+- The fade's end removes the label, so no timer runs (G4.4). `src/lib/components/kind-cue.svelte.ts` holds the comparison.
+
+Scenarios: `src/lib/e2e/requirements/presentation/presentation-live-kind-cue.md`.
+
+A hard break has the same problem with no kind change at all. Its backslash hides, and two trailing spaces are blank in any mode, so the next line starts under the previous one inside the same paragraph for no visible reason. Where the break's bytes don't show, the stylesheet draws a dimmed `↵` in their place: generated content on a mark that wraps the break's marker and holds no text of its own, so the caret walk, a selection and a copy read only the bytes, and the hiding rule (§ 2) is untouched. Source mode draws it for the trailing-space form only, reading mode draws none since nobody edits there, and a focused preview block that shows the backslash draws none. A soft break (a bare newline) already shows as the line break it is, so it gets no mark.
+
+Scenarios: `src/lib/e2e/requirements/presentation/presentation-live-hard-break.md`.
 
 ## 5. What does not change
 

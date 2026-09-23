@@ -415,7 +415,8 @@ export function installTestProbes({
 		// The check that the live tree still parses to itself. roundTripStable above holds for
 		// all valid GFM whatever the tree looks like; this compares the live CST against a
 		// reparse of its own serialization, so it catches a tree that has drifted from its raw.
-		parseConverged: (): boolean => parseConverges(editor.__test.getDocument()),
+		parseConverged: (): boolean =>
+			parseConverges(editor.__test.getDocument(), editor.__test.getGrammar()),
 		// The bar shows a match count instead of "N replaced" whenever matches survive a
 		// replace (skipped container matches), so specs read the replaced count here.
 		getSearchReplacedCount: (): number | null => editor.getSearch().replacedCount,

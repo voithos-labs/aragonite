@@ -12,6 +12,7 @@ import { trailingLineEnding, trimTrailingLineEnding } from '../core/lines';
 import { devWarn } from '../dev-warn';
 import { assignChildIdsDeep } from '../block-id';
 import { tryGetBlockKindDescriptor } from '../schema/block-kind-descriptor';
+import type { GrammarView } from '../schema/block-openers';
 import { dropChildSpans } from '../schema/child-spans';
 import { assertInvariant } from '../assert';
 import { checkStructuralDescriptor } from '../invariants/structural-descriptor';
@@ -253,7 +254,8 @@ function settleSplicedWindow(
 	added: number,
 	change: StructuralChange,
 	sharing?: SharingState,
-	tracked?: TrackedPosition
+	tracked?: TrackedPosition,
+	grammar?: GrammarView
 ): StructuralChange {
 	if (!parent.children) return change;
 	// Read before the branches below: `settleSeparatorOnBlank` can append the tail line as a
@@ -286,7 +288,9 @@ function settleSplicedWindow(
 		tracked,
 		// A one-block window names the block whose bytes changed, which lets the join above it be
 		// refused on that block's first line alone; a wider window names no single block.
-		added === 1 ? at : undefined
+		added === 1 ? at : undefined,
+		undefined,
+		grammar
 	).change;
 	// The parent's trailing line is asked again: a merge can turn the last block blank, and a
 	// blank last block is what makes that line a block of its own.
@@ -320,7 +324,8 @@ export function settleSeparator(
 	before: readonly CstNode[],
 	change: StructuralChange,
 	sharing?: SharingState,
-	tracked?: TrackedPosition
+	tracked?: TrackedPosition,
+	grammar?: GrammarView
 ): StructuralChange {
 	const window = splicedWindow(change);
 	const children = parent.children;
@@ -332,7 +337,16 @@ export function settleSeparator(
 	const removed = before
 		.slice(window.at, window.at + window.removed)
 		.filter((node) => !survivors.has(node));
-	return settleSplicedWindow(parent, window.at, removed, window.added, change, sharing, tracked);
+	return settleSplicedWindow(
+		parent,
+		window.at,
+		removed,
+		window.added,
+		change,
+		sharing,
+		tracked,
+		grammar
+	);
 }
 
 function splicedWindow(
@@ -412,8 +426,10 @@ export function absorbSeamReading(
 	sharing?: SharingState,
 	tracked?: TrackedPosition,
 	headProbe?: number,
-	onBeforeSplice?: () => void
+	onBeforeSplice?: () => void,
+	grammar?: GrammarView
 ): SeamAbsorption {
+	const read = (bytes: string) => parse(bytes, { grammar, scope: 'fragment' });
 	const children = parent.children;
 	if (seamLeft < 0) return { at: 0, span: 0, eaten: 0, spliced: false };
 	let left = seamLeft;
@@ -433,9 +449,9 @@ export function absorbSeamReading(
 		if (window.length <= span || window.length < 2) break;
 		// A context-dependent kind has no standalone reading, so a join touching it cannot be asked.
 		if (window.some((node) => tryGetBlockKindDescriptor(node.kind)?.contextDependentKind)) break;
-		if (probe !== undefined && declinesOnHeadLine(window, probe - at)) break;
+		if (probe !== undefined && declinesOnHeadLine(window, probe - at, read)) break;
 		probe = undefined;
-		const reparsed = parse(joinedWindowBytes(window, window.length), { scope: 'fragment' });
+		const reparsed = read(joinedWindowBytes(window, window.length));
 		const blocks = reparsed.children;
 		if (blocks.length === 0 || blocks.length > window.length) break;
 		// An equal count is still a merge when the head took content from the block below: a blank
@@ -443,7 +459,7 @@ export function absorbSeamReading(
 		if (blocks.length === window.length && !headTookContent(blocks[0], window)) break;
 		// A merge may promote the head beyond what its bytes carry alone (a paragraph under the
 		// setext underline below it), so what must survive is the head's own reading, not its kind.
-		if (blocks[0].kind !== window[0].kind && !readsAsItselfAlone(window[0])) break;
+		if (blocks[0].kind !== window[0].kind && !readsAsItselfAlone(window[0], read)) break;
 		onBeforeSplice?.();
 		absorbFragmentPeel(parent, at + window.length, reparsed.suffix, blocks, sharing);
 		blocks[0].leadingTrivia = window[0].leadingTrivia;
@@ -475,8 +491,8 @@ function headTookContent(head: CstNode, window: readonly CstNode[]): boolean {
  * this by construction (one list item's bytes read as a list), which is how a child list a
  * document parse does not reproduce stays out of the merge.
  */
-function readsAsItselfAlone(node: CstNode): boolean {
-	const alone = parse(node.raw, { scope: 'fragment' }).children;
+function readsAsItselfAlone(node: CstNode, read: (bytes: string) => Document): boolean {
+	const alone = read(node.raw).children;
 	return alone.length === 1 && alone[0].kind === node.kind;
 }
 
@@ -485,7 +501,11 @@ function readsAsItselfAlone(node: CstNode): boolean {
  * others with only that block's first line. Block parsing is a left-to-right line scan, so a
  * block that opens here opens in the full join too; a pass falls through to the real parse.
  */
-function declinesOnHeadLine(window: readonly CstNode[], member: number): boolean {
+function declinesOnHeadLine(
+	window: readonly CstNode[],
+	member: number,
+	read: (bytes: string) => Document
+): boolean {
 	if (member <= 0 || member !== window.length - 1) return false;
 	const raw = window[member].raw;
 	const nl = raw.indexOf('\n');
@@ -493,7 +513,7 @@ function declinesOnHeadLine(window: readonly CstNode[], member: number): boolean
 		joinedWindowBytes(window, member) +
 		window[member].leadingTrivia +
 		(nl < 0 ? raw : raw.slice(0, nl + 1));
-	return parse(joined, { scope: 'fragment' }).children.length >= window.length;
+	return read(joined).children.length >= window.length;
 }
 
 /** The bytes a merge parses: the head's raw, then each of the next `count - 1` members' leading
@@ -576,7 +596,8 @@ export function absorbWindowSeams(
 	sharing?: SharingState,
 	tracked?: TrackedPosition,
 	headProbe?: number,
-	onBeforeSplice?: () => void
+	onBeforeSplice?: () => void,
+	grammar?: GrammarView
 ): SettledSplice {
 	let settled: SeamAbsorption | null = null;
 	let moved = landing;
@@ -590,7 +611,8 @@ export function absorbWindowSeams(
 			sharing,
 			tracked,
 			settled ? undefined : headProbe,
-			onBeforeSplice
+			onBeforeSplice,
+			grammar
 		);
 		if (!seam.spliced) {
 			seamLeft++;

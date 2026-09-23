@@ -168,19 +168,6 @@ describe('reconcileTaskMetadata', () => {
 		expect(meta.taskMarker).toBeNull();
 	});
 
-	// Miss-analysis: no test typed a heading opener one byte at a time, so the frame where the
-	// bytes are a bare `#` and the parser already calls the block a heading was never described.
-	it('keeps the marker before the bare `#` a paragraph passes through on its way to `#tag`', () => {
-		const item = makeListItem('#\n', taskMeta('[x] ', true));
-		item.children![0].kind = 'heading';
-		item.children![0].metadata = { level: 1 };
-		reconcileTaskMetadata(item, 0, true);
-		const meta = item.metadata as ListItemMetadata;
-		expect(meta.taskItem).toBe(true);
-		expect(meta.taskMarker).toBe('[x] ');
-		expect(meta.taskChecked).toBe(true);
-	});
-
 	it('skips when first paragraph is empty', () => {
 		const item = makeListItem('\n', plainMeta());
 		reconcileTaskMetadata(item, 0, false);

@@ -49,6 +49,7 @@ import {
 } from './node-primitives';
 import { absorbSeamReading, deleteNode } from './settle';
 import { adoptReparsedFields, probeLineOpensAsProse } from './content-write';
+import { fragmentReaderAt, type FragmentReader } from './list/task-paragraph';
 
 // ── Split ──
 
@@ -79,6 +80,7 @@ export function assertSingleNodeSink(sink: string, installed: readonly CstNode[]
  * Split the node at `blockIndex` at raw `offset` (display-relative). The first half inherits the
  * original ID and the whole structural suffix (a setext underline); the second half opens with a
  * blank separator wherever one does structural work ({@link separatorSplitsOffNextLine}).
+ * A caller that moves the second half elsewhere passes how its new position reads it.
  */
 export function splitNode(
 	parent: BodyParentArg,
@@ -86,7 +88,13 @@ export function splitNode(
 	offset: number,
 	sharing: SharingState | undefined,
 	presentationMode: PresentationMode | undefined,
-	linkRef: InlineResolverRef | undefined
+	linkRef: InlineResolverRef | undefined,
+	grammar?: GrammarView,
+	readSecondHalf: FragmentReader = fragmentReaderAt(
+		ownerAt(parent, [blockIndex]),
+		blockIndex + 1,
+		grammar
+	)
 ): SplitResult {
 	const noop: SplitResult = { change: { op: 'noop' }, secondHalfIndex: blockIndex + 1 };
 	if (blockIndex < 0 || blockIndex >= parent.children.length) return noop;
@@ -133,10 +141,14 @@ export function splitNode(
 		lineEnding,
 		parent.children[blockIndex + 1]
 	);
-	const first = reparseAsNodes(firstRaw, node.leadingTrivia);
+	const first = reparseAsNodes(
+		firstRaw,
+		node.leadingTrivia,
+		fragmentReaderAt(ownerAt(parent, [blockIndex]), blockIndex, grammar)
+	);
 	// The blank line the parse split off the first half stands between the halves, so it is the
 	// second half's separator; `separator` is empty when the bytes already end in a blank line.
-	const second = reparseAsNodes(secondRaw, first.suffix + separator);
+	const second = reparseAsNodes(secondRaw, first.suffix + separator, readSecondHalf);
 	if (DEV && first.nodes.length > 1) {
 		// Legal, since the result carries the caret index, but rare enough to keep visible.
 		devWarn('tree-ops', `splitNode: the first half parsed to ${first.nodes.length} blocks`);
@@ -390,7 +402,8 @@ export function mergeIntoPrevDeepLeaf(
 	const curr = parent.children[blockIndex];
 	const lineEnding = trailingLineEnding(target.raw);
 	const { raw: mergedRaw, seam: joinOffset } = joinRaw(target, curr, presentationMode, linkRef);
-	const merged = mergedLeafFor(target, trimTrailingLineEnding(mergedRaw) + lineEnding, grammar);
+	const read = fragmentReaderAt(ownerAt(parent, leafPath), slot, grammar);
+	const merged = mergedLeafFor(target, trimTrailingLineEnding(mergedRaw) + lineEnding, read);
 	if (!merged) return null;
 
 	// The merge writes the deep leaf's raw plus every ancestor's rebuilt raw, so copy the whole
@@ -405,6 +418,14 @@ export function mergeIntoPrevDeepLeaf(
 
 	const change = deleteNode(parent, blockIndex, sharing);
 	return { targetPath: mergeTarget.path, joinOffset, change };
+}
+
+/** The container holding `path`'s last index: the parent's own owner for a one-step path. */
+function ownerAt(parent: BodyParentArg, path: number[]): CstNode | undefined {
+	if (path.length === 1) return 'owner' in parent ? parent.owner : undefined;
+	let owner = parent.children[path[0]];
+	for (const index of path.slice(1, -1)) owner = owner.children![index];
+	return owner;
 }
 
 /** The children array holding `path`'s last index, walked from `children`. */
@@ -426,18 +447,14 @@ interface MergedLeaf {
  * The deep-leaf merge's decision: the absorbed bytes pass through the kind's own write rule and
  * a fragment reparse. Null when they read as several blocks, since the leaf holds one (G1.35).
  */
-function mergedLeafFor(
-	target: CstNode,
-	raw: string,
-	grammar: GrammarView | undefined
-): MergedLeaf | null {
+function mergedLeafFor(target: CstNode, raw: string, read: FragmentReader): MergedLeaf | null {
 	const written = normalizeOwnRaw(target, raw);
 	// A context-dependent kind has no standalone recognizer, so its bytes are never read back
 	// as blocks and the write keeps the kind.
 	if (tryGetBlockKindDescriptor(target.kind)?.contextDependentKind) {
 		return { written, blocks: [] };
 	}
-	const blocks = parse(written, { grammar, scope: 'fragment' }).children;
+	const blocks = read(written).children;
 	return blocks.length > 1 ? null : { written, blocks };
 }
 
@@ -500,8 +517,12 @@ export function mergeWithNext(
  * Reparse a half's bytes as the blocks they hold, plus the trailing blank line the fragment
  * parse splits off into `doc.suffix`: every caller must put it somewhere, or the bytes are lost.
  */
-function reparseAsNodes(raw: string, leadingTrivia: string): { nodes: CstNode[]; suffix: string } {
-	const doc = parse(raw, { scope: 'fragment' });
+function reparseAsNodes(
+	raw: string,
+	leadingTrivia: string,
+	read: FragmentReader
+): { nodes: CstNode[]; suffix: string } {
+	const doc = read(raw);
 	if (doc.children.length === 0) {
 		return { nodes: [{ kind: 'paragraph', leadingTrivia, raw }], suffix: doc.suffix };
 	}
@@ -515,7 +536,9 @@ function reparseAsNodes(raw: string, leadingTrivia: string): { nodes: CstNode[];
  * not fit one position, so null refuses it rather than truncating (G1.35).
  */
 function reparseAsNode(raw: string, leadingTrivia: string): CstNode | null {
-	const { nodes, suffix } = reparseAsNodes(raw, leadingTrivia);
+	const { nodes, suffix } = reparseAsNodes(raw, leadingTrivia, (text) =>
+		parse(text, { scope: 'fragment' })
+	);
 	if (nodes.length > 1) return null;
 	// A single-block write has no follower to give the split-off blank line to, so it stays in
 	// the block's bytes.

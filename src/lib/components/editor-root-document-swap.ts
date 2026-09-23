@@ -6,6 +6,7 @@
 
 import type { Document } from '../core/nodes';
 import { parse } from '../core/parser';
+import type { GrammarView } from '../schema/block-openers';
 import {
 	buildLinkReferenceMap,
 	type LinkReferenceResolver
@@ -25,9 +26,9 @@ export interface ParsedDocument {
 	signature: string;
 }
 
-/** The parse every document goes through, at mount and at each swap. */
-export function initDocument(source: string): ParsedDocument {
-	const doc = parse(source, { scope: 'document' });
+/** The parse every document goes through, at mount and at each swap, in the editor's grammar. */
+export function initDocument(source: string, grammar: GrammarView): ParsedDocument {
+	const doc = parse(source, { grammar, scope: 'document' });
 	if (doc.children.length === 0) {
 		// Only the empty source parses to zero blocks (a blank line is a block of its own), so
 		// there is no authored ending to inherit and LF is the whole answer.
@@ -39,6 +40,7 @@ export function initDocument(source: string): ParsedDocument {
 }
 
 export interface DocumentSwapDeps {
+	grammar: GrammarView;
 	/** A pending typing batch belongs to the outgoing document, so it flushes while its path
 	 *  still resolves; left running, the timer would apply note A's path to note B. */
 	flushDebouncedCheckpoint(): void;
@@ -74,7 +76,7 @@ export function createDocumentSwap(deps: DocumentSwapDeps): DocumentSwap {
 	return {
 		swapTo(source) {
 			deps.flushDebouncedCheckpoint();
-			const reset = initDocument(source);
+			const reset = initDocument(source, deps.grammar);
 			deps.adoptDocument(reset.doc);
 			deps.bumpContentVersion();
 			deps.clearBlockRefs();

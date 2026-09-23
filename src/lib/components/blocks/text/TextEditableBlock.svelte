@@ -1,6 +1,9 @@
 <script lang="ts">
 	import { getContext, tick, untrack } from 'svelte';
 	import { CURSOR_START, type AmbientPrefix, type BlockComponent } from '../../../block-component';
+	import { parse } from '../../../core/parser';
+	import { ambientHoldsTaskBox } from '../list/task-checkbox';
+	import { shownKind } from '../../kind-cue.svelte';
 	import type { DocumentView, NodeView } from '../../../core/node-views';
 	import type { EditorRects } from '../../../editor-rects';
 	import { enterLinkCardAtCaret, linkCardTargetAt } from '../../link-card/link-card-entry';
@@ -152,8 +155,10 @@
 		widgetSelection,
 		linkCard,
 		inlineMenuCombobox,
-		decorations: decorationEngine
+		decorations: decorationEngine,
+		kindCue
 	} = getContext<EditorServices>(EDITOR_SERVICES_KEY);
+
 	const {
 		resolveImageUrl,
 		resolveLinkUrl,
@@ -257,7 +262,10 @@
 		relocateComposedText: (after, composedAt) => compositionSeat.relocate(after, composedAt),
 		commitInput: (text, preEdit, saved) => {
 			const committed = text + trailingLineEnding(node.raw);
-			void blockEdit.updateBlockContent(index, committed, preEdit, saved);
+			// Typed text is the one write whose kind change the block names (`kind-cue.svelte.ts`).
+			const before = shownKind(node);
+			const write = blockEdit.updateBlockContent(index, committed, preEdit, saved);
+			void kindCue.afterTypedWrite(write, myPath, before);
 			// An enclosing container may rewrite these bytes on the way in, so the caret
 			// restore reads the text actually stored, not the offset the keystroke produced.
 			return blockEdit.mapCommittedOffset?.(committed, saved);
@@ -536,7 +544,10 @@
 					// A literal tab, because the browser default moves focus out of the editor.
 					perform: () => {
 						const { newRaw, caretOffset } = insertLiteralTab(node.raw, offset);
-						blockEdit.updateBlockContent(index, newRaw, offset);
+						// The key types its own character, so its kind change is named as typing's is.
+						const before = shownKind(node);
+						const write = blockEdit.updateBlockContent(index, newRaw, offset);
+						void kindCue.afterTypedWrite(write, myPath, before);
 						setPendingCursorOffset(caretOffset, 'insert-tab');
 					}
 				};
@@ -584,6 +595,14 @@
 						const level = typeof arg === 'number' && arg >= 0 && arg <= 6 ? arg : 0;
 						const cycled = cycleHeading(node.raw, getContentRange(node), level, offset);
 						if (!cycled) return;
+						// Text after a task box is the to-do's own text, so a written `# ` would stay
+						// text there; replacing the block makes the heading and gives the box up.
+						if (ambientHoldsTaskBox(ambientPrefix)) {
+							const heading = parse(cycled.newRaw, { grammar, scope: 'fragment' }).children;
+							const focus = { replacementIndex: 0, offset: cycled.caretOffset };
+							void blockEdit.replaceBlock(index, heading, focus, { snapshotOffset: offset });
+							return;
+						}
 						blockEdit.updateBlockContent(index, cycled.newRaw, offset, cycled.caretOffset);
 						setPendingCursorOffset(cycled.caretOffset, 'heading-cycle');
 					}

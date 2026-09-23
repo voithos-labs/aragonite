@@ -257,7 +257,10 @@ export function registerDetailsKind(): void {
 				.map((l) => l.raw)
 				.join('');
 			// A fresh parse entry, so the body's own line 0 must not read as the document top.
-			const body = parseContainerBody(bodyText, BODY_WRAP, { scope: 'fragment' });
+			const body = parseContainerBody(bodyText, BODY_WRAP, {
+				scope: 'fragment',
+				grammar: ctx.grammar
+			});
 			const raw = ctx.lines
 				.slice(ctx.index, closeIdx + 1)
 				.map((l) => l.raw)

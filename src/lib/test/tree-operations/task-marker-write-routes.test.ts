@@ -33,21 +33,17 @@ beforeEach(() => {
 });
 
 describe('every write that can replace a to-do’s first block drops the marker with it', () => {
-	it('the content write, where a typed opener re-kinds the paragraph', () => {
+	it('the content write, where a typed delimiter row makes the paragraph a table', () => {
 		const item = todoItem('- [ ] alpha\n');
 
-		updateNodeContent(
-			{ children: item.children!, ownerKind: item.kind, owner: item },
-			0,
-			'# alpha\n'
-		);
+		updateNodeContent({ children: item.children!, ownerKind: item.kind, owner: item }, 0, TABLE);
 
-		expect(item.children![0].kind).toBe('heading');
+		expect(item.children![0].kind).toBe('table');
 		expect(metaOf(item).taskItem).toBe(false);
 		expect(metaOf(item).taskMarker).toBeNull();
 	});
 
-	it('the content write leaves an item that was loaded holding a heading alone', () => {
+	it('the content write keeps the marker of a to-do whose text starts with `#`', () => {
 		const item = todoItem('- [ ] # alpha\n');
 
 		updateNodeContent(

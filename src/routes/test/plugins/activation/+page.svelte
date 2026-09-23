@@ -7,13 +7,14 @@
 	const listedPlugins = [parrotPlugin(), blockBadgePlugin];
 	const unlistedPlugins = [docStatsPlugin];
 
-	// The listing editor renders first, so the parrot opener is live before the second editor
-	// parses: both hold a parrot CST node, and only the second resolves no component for it.
+	// Each editor parses the seed in its own grammar: the first reads a parrot block, the second,
+	// which did not list the plugin, reads the same bytes as a paragraph.
 	const SEED = '# Heading\n\n%%parrot party responsibly\n\nBody\n';
 </script>
 
 <script lang="ts">
 	import { Editor } from '$lib';
+	import { parseConverges } from '$lib/testing/parse-convergence';
 	import { trackParityDocument } from '../../../parity-documents.svelte';
 
 	let listing = $state<ReturnType<typeof Editor>>();
@@ -40,7 +41,11 @@
 			reserved: (pane: 'listing' | 'notListing') => [
 				...((pane === 'listing' ? listing : notListing)?.reservedChords() ?? [])
 			],
-			claims: () => claims
+			claims: () => claims,
+			converged: (pane: 'listing' | 'notListing') => {
+				const editor = pane === 'listing' ? listing : notListing;
+				return !!editor && parseConverges(editor.__test.getDocument(), editor.__test.getGrammar());
+			}
 		};
 		return () => document.removeEventListener('keydown', record, true);
 	});

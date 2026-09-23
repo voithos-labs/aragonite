@@ -125,7 +125,8 @@ export function rebuildUnsharedChain(
 			settleSlotSeams(
 				{ siblings, owner, depth: i, index, openerMoved, closerMoved },
 				sharing,
-				folds
+				folds,
+				grammar
 			);
 			// A merge re-divided the owner's children, so its child spans describe a shape that
 			// is gone.
@@ -176,7 +177,12 @@ interface ChainSlot {
  * a neighbour. `absorbWindowSeams` walks `at - 1 … at + added - 1`, so the two arguments below
  * name exactly the sides whose line moved.
  */
-function settleSlotSeams(slot: ChainSlot, sharing: SharingState, folds: AncestrySeamFold[]): void {
+function settleSlotSeams(
+	slot: ChainSlot,
+	sharing: SharingState,
+	folds: AncestrySeamFold[],
+	grammar: GrammarView | undefined
+): void {
 	const { siblings, index, openerMoved, closerMoved } = slot;
 	// The rollback snapshot is captured only once a merge is certain: an eager copy here cost
 	// O(children) reactive reads on every keystroke inside a large container.
@@ -193,7 +199,8 @@ function settleSlotSeams(slot: ChainSlot, sharing: SharingState, folds: Ancestry
 		index,
 		() => {
 			before ??= siblings.slice();
-		}
+		},
+		grammar
 	);
 	if (settled.change.op === 'noop') return;
 	folds.push({

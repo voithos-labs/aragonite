@@ -5,6 +5,8 @@ import { createSelectionState } from '$lib/selection/selection-state.svelte';
 import { serialize } from '$lib/core/serializer';
 import type { Document } from '$lib/core/nodes';
 import type { LinkReferenceResolver } from '$lib/core/inline/link-reference-resolver';
+import { defaultGrammarView } from '$lib/schema/block-openers';
+import { createRegistryView } from '$lib/schema/registry-view';
 
 // Miss-analysis: the swap was pinned through a mounted editor one consequence at a time
 // (heights, undo, the selection announcement), so a step dropped from the middle of the
@@ -12,15 +14,20 @@ import type { LinkReferenceResolver } from '$lib/core/inline/link-reference-reso
 
 describe('initDocument', () => {
 	it('parses the empty source to one empty LF paragraph', () => {
-		const { doc } = initDocument('');
+		const { doc } = initDocument('', defaultGrammarView);
 		expect(doc.children.map((c) => c.kind)).toEqual(['paragraph']);
 		expect(serialize(doc)).toBe('\n');
 	});
 
 	it('resolves the link references the source defines', () => {
-		const { resolver, signature } = initDocument('[a]: https://a.example\n');
+		const { resolver, signature } = initDocument('[a]: https://a.example\n', defaultGrammarView);
 		expect(resolver('a')?.url).toBe('https://a.example');
-		expect(signature).not.toBe(initDocument('plain\n').signature);
+		expect(signature).not.toBe(initDocument('plain\n', defaultGrammarView).signature);
+	});
+
+	it('reads the source in the editor grammar, so a switched-off syntax loads as prose', () => {
+		const grammar = createRegistryView({ syntax: { indentedCode: false } }).grammar;
+		expect(initDocument('\tnotes\n', grammar).doc.children[0].kind).toBe('paragraph');
 	});
 });
 
@@ -33,6 +40,7 @@ describe('the swap commit sequence', () => {
 		let links: { resolver: LinkReferenceResolver; signature: string } | null = null;
 		const swaps: { generation: number; source: string }[] = [];
 		const swap = createDocumentSwap({
+			grammar: defaultGrammarView,
 			flushDebouncedCheckpoint: step('flush'),
 			adoptDocument: (doc) => {
 				adopted = doc;

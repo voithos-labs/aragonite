@@ -6,16 +6,14 @@
 
 import type { CstNode } from '../../core/nodes';
 import { metadataOf } from '../../core/nodes';
-import { isBareHeadingOpener } from '../../core/parsers/heading';
+import { trimTrailingLineEnding } from '../../core/lines';
+import { matchTaskCheckbox } from '../../core/parsers/list';
 import type { SharingState } from '../sharing';
 import { ensureUnsharedChild } from '../unshare';
 
-const TASK_REGEX = /^\[( |x|X)\]\s+/;
-
-/** Whether a task marker may stand in front of this block: its own paragraph, or the bare `#` a
- *  line passes through on the way to `#tag`, which is a heading to the parser for one keystroke. */
+/** Whether a task marker may stand in front of this block: only its own paragraph (GFM task lists). */
 export function taskMarkerMayStandBefore(block: CstNode): boolean {
-	return block.kind === 'paragraph' || (block.kind === 'heading' && isBareHeadingOpener(block.raw));
+	return block.kind === 'paragraph';
 }
 
 /**
@@ -23,7 +21,7 @@ export function taskMarkerMayStandBefore(block: CstNode): boolean {
  * write to the child at `writtenIndex`. On demote the stripped marker bytes are restored into the
  * paragraph raw, so the user's content survives. `markerStoodBefore` is that same question asked of
  * the block that was in the position before the write: only a write that takes such a block away
- * takes the marker with it, since a document can legitimately load as `- [ ] # note`.
+ * takes the marker with it, since a document can load with a setext heading or table there.
  */
 export function reconcileTaskMetadata(
 	listItem: CstNode,
@@ -49,16 +47,19 @@ export function reconcileTaskMetadata(
 		return;
 	}
 
+	// The first line's text without its ending, which stays with the rest of the paragraph.
 	const firstLineEnd = firstChild.raw.indexOf('\n');
-	const firstLineRaw = firstLineEnd === -1 ? firstChild.raw : firstChild.raw.slice(0, firstLineEnd);
-	const restRaw = firstLineEnd === -1 ? '' : firstChild.raw.slice(firstLineEnd);
-	const effectiveFirstLine = (meta.taskMarker ?? '') + firstLineRaw;
+	const firstLine =
+		firstLineEnd === -1 ? firstChild.raw : firstChild.raw.slice(0, firstLineEnd + 1);
+	const firstLineText = trimTrailingLineEnding(firstLine);
+	const restRaw = firstChild.raw.slice(firstLineText.length);
+	const effectiveFirstLine = (meta.taskMarker ?? '') + firstLineText;
 
-	const match = effectiveFirstLine.match(TASK_REGEX);
+	const match = matchTaskCheckbox(effectiveFirstLine);
 
 	if (match) {
-		const newTaskMarker = match[0];
-		const newTaskChecked = match[1].toLowerCase() === 'x';
+		const newTaskMarker = match.rawMarker;
+		const newTaskChecked = match.checked;
 		const drift =
 			meta.taskItem !== true ||
 			meta.taskMarker !== newTaskMarker ||

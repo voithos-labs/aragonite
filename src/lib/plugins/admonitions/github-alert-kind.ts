@@ -40,13 +40,14 @@ function tryOpen(ctx: OpenContext): BlockOpenerResult | null {
 	// The built-in extent scan, not the marker regex, decides whether this line opens a
 	// blockquote: backing out when it covers no lines keeps a marker-rule change from
 	// reaching the parse loop as a return that consumes nothing.
-	const { raw, nextIndex } = blockquoteExtent(ctx.lines, ctx.index, ctx.end);
+	const { raw, nextIndex } = blockquoteExtent(ctx.lines, ctx.index, ctx.end, ctx.grammar);
 	const consumed = nextIndex - ctx.index;
 	if (consumed <= 0) return null;
 
 	// A fresh parse entry, so the body's own line 0 must not read as the document top.
 	const body = parseContainerBody(stripBody(ctx.lines, ctx.index + 1, nextIndex), BODY_WRAP, {
-		scope: 'fragment'
+		scope: 'fragment',
+		grammar: ctx.grammar
 	});
 
 	const node: CstNode = {

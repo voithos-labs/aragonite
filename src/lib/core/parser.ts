@@ -38,10 +38,8 @@ export type ParseScope = 'document' | 'fragment';
 
 /**
  * Parse GFM to a lossless CST. `opts.grammar` is the per-instance grammar view, defaulting to
- * the global openers. It filters only the top-level opener dispatch: nested container reparses
- * and the paragraph-interrupt scan read the global grammar, the documented enablement boundary,
- * so a top-level disabled kind is skipped and a nested one is not. `opts.scope` reaches openers
- * as `ctx.isDocumentParse`; it defaults to `'document'`, so whole-source callers need nothing.
+ * the global openers; container bodies parse through it too. `opts.scope` reaches openers as
+ * `ctx.isDocumentParse`; it defaults to `'document'`, so whole-source callers need nothing.
  */
 export function parse(
 	source: string,
@@ -67,11 +65,22 @@ interface ParseBlocksResult {
 }
 
 /**
+ * A task item's body read on its own, as a write into the item's first paragraph reads it: the
+ * line after the task marker is paragraph text (GFM task lists), and later lines parse as blocks.
+ */
+export function parseTaskItemBody(source: string, grammar?: GrammarView): Document {
+	const lines = splitLines(source);
+	const result = parseBlocks(lines, 0, lines.length, grammar, 0, false, true);
+	return { kind: 'document', prefix: '', children: result.children, suffix: result.suffix };
+}
+
+/**
  * The entry point incremental parsing re-parses ranges through: a block-aligned window parses
  * identically to a full parse of the window's text. A window is a fragment unless its caller
  * says otherwise, so `parse` alone defaults to document scope. Blank-line rule
  * (`design/syntax-tree.md`): the first blank line of a run separates and becomes the next
  * block's `leadingTrivia`; every later one is an empty paragraph carrying its own bytes.
+ * `firstLineIsParagraph` makes a non-blank first line paragraph text whatever it would open.
  */
 export function parseBlocks(
 	lines: ParsedLine[],
@@ -79,7 +88,8 @@ export function parseBlocks(
 	end: number,
 	grammar: GrammarView = defaultGrammarView,
 	depth: number = 0,
-	isDocumentParse: boolean = false
+	isDocumentParse: boolean = false,
+	firstLineIsParagraph: boolean = false
 ): ParseBlocksResult {
 	const children: CstNode[] = [];
 	let pendingTrivia = '';
@@ -118,7 +128,10 @@ export function parseBlocks(
 			grammar,
 			depth
 		};
-		const { node, consumed } = parseNextBlock(ctx);
+		const { node, consumed } =
+			firstLineIsParagraph && index === start
+				? parseParagraph(lines, index, end, pendingTrivia, grammar)
+				: parseNextBlock(ctx);
 		children.push(node);
 		pendingTrivia = '';
 		separatorSpent = false;
@@ -145,7 +158,7 @@ export interface ContainerBodyWrap {
 export function parseContainerBody(
 	bodyText: string,
 	wrap: ContainerBodyWrap,
-	opts: { scope: ParseScope; depth?: number }
+	opts: { scope: ParseScope; depth?: number; grammar?: GrammarView }
 ): Document {
 	const lines = splitLines(bodyText);
 	let first = 0;
@@ -166,7 +179,7 @@ export function parseContainerBody(
 		lines,
 		first,
 		last,
-		defaultGrammarView,
+		opts.grammar ?? defaultGrammarView,
 		opts.depth ?? 0,
 		opts.scope === 'document'
 	);
@@ -178,7 +191,7 @@ export function parseContainerBody(
 function parseNextBlock(ctx: OpenContext): BlockOpenerResult {
 	// At the cap everything becomes a paragraph, covering the bytes without another stack frame.
 	if (ctx.depth >= MAX_NESTING_DEPTH) {
-		return parseParagraph(ctx.lines, ctx.index, ctx.end, ctx.leadingTrivia);
+		return parseParagraph(ctx.lines, ctx.index, ctx.end, ctx.leadingTrivia, ctx.grammar);
 	}
 	for (const opener of ctx.grammar.orderedOpeners()) {
 		const result = opener.tryOpen(ctx);
@@ -191,7 +204,7 @@ function parseNextBlock(ctx: OpenContext): BlockOpenerResult {
 		return result;
 	}
 	// Paragraph is the total fallback; it also detects setext headings and tables.
-	return parseParagraph(ctx.lines, ctx.index, ctx.end, ctx.leadingTrivia);
+	return parseParagraph(ctx.lines, ctx.index, ctx.end, ctx.leadingTrivia, ctx.grammar);
 }
 
 /**

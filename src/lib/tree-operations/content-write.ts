@@ -18,6 +18,7 @@ import { resyncChildIds } from './children';
 import { spliceMany } from './splice-many';
 import { replacePreservingFirst, type StructuralChange } from './structural-change';
 import { reconcileTaskMetadata, taskMarkerMayStandBefore } from './list/reconcile-task';
+import { fragmentReaderAt, type FragmentReader } from './list/task-paragraph';
 import {
 	NEXT_PROSE_LINE,
 	ensureEditableContainers,
@@ -85,7 +86,7 @@ function writeAndSettleContent(
 		restoreSeparatorOnFill(parent, blockIndex, sharing);
 		restoreSeparatorAfterBlank(parent, followerIndexAfter(change, blockIndex), sharing);
 		releaseWrapPeel(parent, lastWritten);
-		return settleWriteSeams(parent, blockIndex, lastWritten, change, sharing);
+		return settleWriteSeams(parent, blockIndex, lastWritten, change, sharing, grammar);
 	}
 	// The reverse transition: the block is the separating line now, so the run it joins gives
 	// back the second one. The last block created is the one that meets the follower.
@@ -93,11 +94,11 @@ function writeAndSettleContent(
 		const settled = parent.children.length;
 		settleSeparatorOnBlank(parent, lastWritten, sharing);
 		const widened = widenForTailMint(change, settled, parent.children.length);
-		return settleWriteSeams(parent, blockIndex, lastWritten, widened, sharing);
+		return settleWriteSeams(parent, blockIndex, lastWritten, widened, sharing, grammar);
 	}
 	// Same-kind typing inside content must never pay for a neighbour reparse.
 	if (change.op === 'noop') return { change, textStart: 0 };
-	return settleWriteSeams(parent, blockIndex, lastWritten, change, sharing);
+	return settleWriteSeams(parent, blockIndex, lastWritten, change, sharing, grammar);
 }
 
 /**
@@ -110,7 +111,8 @@ function settleWriteSeams(
 	blockIndex: number,
 	lastWritten: number,
 	change: StructuralChange,
-	sharing?: SharingState
+	sharing: SharingState | undefined,
+	grammar: GrammarView | undefined
 ): SettledContent {
 	const tracked: TrackedPosition = { index: blockIndex, offset: 0 };
 	const settled = absorbWindowSeams(
@@ -120,7 +122,10 @@ function settleWriteSeams(
 		blockIndex,
 		change,
 		sharing,
-		tracked
+		tracked,
+		undefined,
+		undefined,
+		grammar
 	);
 	return {
 		change: settled.change,
@@ -167,17 +172,15 @@ function closeWrittenConstruct(
 	blockIndex: number,
 	text: string,
 	oldKind: AnyBlockKind,
-	grammar: GrammarView | undefined
+	read: FragmentReader
 ): { text: string; parsed: Document } {
-	// Fragment scope: this is one block's bytes, whatever its position, so a kind that depends on
-	// document position must not be produced here.
-	const parsed = parse(text, { grammar, scope: 'fragment' });
+	const parsed = read(text);
 	if (blockIndex + 1 >= parent.children.length) return { text, parsed };
 	if (parsed.children.length === 1 && parsed.children[0].kind === oldKind) return { text, parsed };
-	const terminator = openConstructTerminator(text, parsed.children, grammar);
+	const terminator = openConstructTerminator(text, parsed.children, read);
 	if (!terminator) return { text, parsed };
 	const closed = text + terminator;
-	return { text: closed, parsed: parse(closed, { grammar, scope: 'fragment' }) };
+	return { text: closed, parsed: read(closed) };
 }
 
 /**
@@ -188,13 +191,13 @@ function closeWrittenConstruct(
 function openConstructTerminator(
 	text: string,
 	blocks: readonly CstNode[],
-	grammar: GrammarView | undefined
+	read: FragmentReader
 ): string | null {
 	// The closer is a line of its own, so bytes whose last line is unterminated have nowhere to
 	// put one (the unterminated tail slice of G4.20, which absorbs nothing while it stands alone).
 	if (!text.endsWith('\n') || blocks.length === 0) return null;
 	const ending = trailingLineEnding(text);
-	const probe = parse(text + ending + NEXT_PROSE_LINE + ending, { grammar, scope: 'fragment' });
+	const probe = read(text + ending + NEXT_PROSE_LINE + ending);
 	if (probe.children.length !== blocks.length) return null;
 	const raw = blocks[blocks.length - 1].raw;
 	const nl = raw.indexOf('\n');
@@ -230,7 +233,7 @@ function writeParsedContent(
 		blockIndex,
 		bodyText,
 		oldKind,
-		grammar
+		fragmentReaderAt('owner' in parent ? parent.owner : undefined, blockIndex, grammar)
 	);
 	const parsed = reparsed.children;
 	const first: CstNode | undefined = parsed[0];

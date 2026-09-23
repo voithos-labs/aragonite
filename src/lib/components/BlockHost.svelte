@@ -177,6 +177,14 @@
 		return () => observer.disconnect();
 	});
 
+	const kindCue = services?.kindCue;
+	// The label stays until its own fade ends; a nested host's fade bubbles here, so the target
+	// has to be this host.
+	function endKindCue(event: AnimationEvent): void {
+		if (event.target === hostEl && event.animationName === 'kind-cue-fade')
+			kindCue?.dismiss(myPath);
+	}
+
 	const blockDecorations = useBlockDecorations({
 		getPath: () => myPath,
 		getEl: () => hostEl,
@@ -193,6 +201,8 @@
 	]}
 	data-block-path={JSON.stringify(myPath)}
 	data-block-kind={node.kind}
+	data-kind-cue={kindCue?.labelAt(myPath)}
+	onanimationend={endKindCue}
 	bind:this={hostEl}
 >
 	<svelte:boundary onerror={onRenderError}>

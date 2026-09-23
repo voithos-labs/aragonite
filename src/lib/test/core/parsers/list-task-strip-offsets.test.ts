@@ -23,20 +23,22 @@ describe('task-checkbox strip recomputes stripped-line offsets', () => {
 			priority: 1, // below every built-in: offered first, stashes, then declines
 			interruptsParagraph: false,
 			tryOpen: (ctx: OpenContext) => {
-				if (ctx.line.text === 'todo') taskBody = ctx.lines;
+				if (ctx.line.text === 'more') taskBody = ctx.lines;
 				return null;
 			}
 		});
 
-		parse('- [ ] todo\nmore\n');
+		// `more` is the first line an opener is offered: the task line itself is paragraph text.
+		parse('- [ ] todo\n\n  more\n');
 
 		expect(taskBody).not.toBeNull();
 		const lines = taskBody!;
 
-		// `todo\n` (5 bytes) then `more\n` (5 bytes): a contiguous stream from 0.
+		// `todo\n` (5 bytes), the blank line, then `more\n` (5 bytes): a contiguous stream from 0.
 		expect(offsetPairs(lines)).toEqual([
 			[0, 5],
-			[5, 10]
+			[5, 6],
+			[6, 11]
 		]);
 
 		// The ParsedLine contract: each span equals its own bytes, and the stream is

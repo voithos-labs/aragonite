@@ -8,10 +8,10 @@ import type { CstNode } from '../nodes';
 import { remapStrippedLines, type ParsedLine } from '../lines';
 import { joinRaw, isBlankLine, parseBlocks } from '../parser';
 import {
-	defaultGrammarView,
 	lineInterruptsParagraph,
 	lineStartsOuterBlock,
-	type BlockOpenerResult
+	type BlockOpenerResult,
+	type GrammarView
 } from '../../schema/block-openers';
 
 export function matchListItem(
@@ -26,8 +26,12 @@ export function matchListItem(
 	};
 }
 
-function matchTaskCheckbox(text: string): { checked: boolean; rawMarker: string } | null {
-	const m = text.match(/^\[( |x|X)\]\s+/);
+/**
+ * The task marker at the start of `text`, the one reading of its extent: the box, then spaces or
+ * tabs. Never a line ending, so a CRLF line's `\r` stays with the line (G4.20).
+ */
+export function matchTaskCheckbox(text: string): { checked: boolean; rawMarker: string } | null {
+	const m = text.match(/^\[( |x|X)\][ \t]+/);
 	return m ? { checked: m[1].toLowerCase() === 'x', rawMarker: m[0] } : null;
 }
 
@@ -45,6 +49,7 @@ export function parseList(
 	startIndex: number,
 	endIndex: number,
 	leadingTrivia: string,
+	grammar: GrammarView,
 	depth: number = 0,
 	isDocumentParse: boolean = false
 ): BlockOpenerResult {
@@ -80,7 +85,7 @@ export function parseList(
 			} else if (
 				paragraphOpen &&
 				wouldKeepParagraphOpen(lines[i].text) &&
-				!lineStartsOuterBlock(lines[i], { paragraphOpen: true })
+				!lineStartsOuterBlock(lines[i], { paragraphOpen: true, grammar })
 			) {
 				// Lazy continuation: the verbatim bytes stay in raw, and stripListItemLines
 				// feeds the paragraph parser one continuous paragraph.
@@ -93,7 +98,8 @@ export function parseList(
 		const itemRaw = joinRaw(lines, itemStartIndex, i);
 		const baseLines = stripListItemLines(lines, itemStartIndex, i, contentIndent);
 
-		// A leading `[ ] ` is the task marker; rebuild the lines so body offsets match the new bytes.
+		// A leading `[ ] ` is the task marker, and the rest of its line starts the item's paragraph
+		// (GFM task lists). The lines are rebuilt so body offsets match the stripped bytes.
 		const task = matchTaskCheckbox(baseLines.length > 0 ? baseLines[0].text : '');
 		const strippedLines = task
 			? remapStrippedLines(baseLines, (line, index) =>
@@ -105,9 +111,10 @@ export function parseList(
 			strippedLines,
 			0,
 			strippedLines.length,
-			defaultGrammarView,
+			grammar,
 			depth + 1,
-			isDocumentParse
+			isDocumentParse,
+			task !== null
 		);
 
 		items.push({
