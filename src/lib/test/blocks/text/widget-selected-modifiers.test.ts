@@ -25,7 +25,7 @@ const WIDGET_START = 6;
 describe('an unclaimed key is swallowed with its default cancelled', () => {
 	// Every key the branches above do not take. Each one's browser default edits the
 	// contenteditable or moves focus out of it while the widget stays selected.
-	it.each(['Enter', 'Tab', 'PageDown', 'Home'])(
+	it.each(['Enter', 'Tab', 'Insert'])(
 		'%s reports consumed and is preventDefault-ed',
 		async (name) => {
 			const b = harness(SOURCE, WIDGET_START);

@@ -117,6 +117,20 @@ test.describe('image widget selection', () => {
 		await expect.poll(() => documentCaret(page)).toEqual([1, { anchor: start, focus: start }]);
 	});
 
+	test('End while an image is selected deselects it and moves to the line end', async ({
+		page
+	}) => {
+		await editor.loadContent(IMAGE_PARAGRAPH);
+		await page.locator('[data-image-widget]').first().click();
+		await expect(overlay(page)).toBeVisible();
+		await page.keyboard.press('End');
+		await expect(overlay(page)).toHaveCount(0);
+		await editor.typeText('W');
+		expect(await editor.bridge.getSource()).toBe(
+			'before ![pic|120x80](/test-fixtures/sample.png) afterW\n'
+		);
+	});
+
 	test('Escape deselects', async ({ page }) => {
 		await editor.loadContent('![cat](/test-fixtures/sample.png)\n');
 		await page.locator('[data-image-widget]').first().click();

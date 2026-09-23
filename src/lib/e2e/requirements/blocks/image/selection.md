@@ -13,6 +13,10 @@
 - ArrowRight while selected: caret moves to right boundary, widget deselects
 - ArrowLeft from left boundary exits the paragraph (or moves into preceding text)
 - Escape deselects the widget
+- End while selected: the widget deselects and the caret moves to the end of the line, as Home,
+  PageUp and PageDown move it from the widget's edge
+  - Miss-analysis: only the arrow keys were asserted on a selected image; the remaining keys were
+    swallowed, and no spec pressed one
 - Moving the mouse off a selected image, or pressing its resize handle or its crop frame, leaves
   no document caret: the paragraph keeps focus while its image is selected, and the browser puts
   a caret at its start on any mouse input, which the editor drops while the image stays selected

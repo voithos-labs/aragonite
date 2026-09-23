@@ -168,9 +168,13 @@ export const HARDCODED_CHORD_SITES: readonly HardcodedChordSite[] = [
 			'ArrowUp',
 			'Backspace',
 			'Delete',
-			'Escape'
+			'End',
+			'Escape',
+			'Home',
+			'PageDown',
+			'PageUp'
 		],
-		note: 'Extends a selection into a widget. A modified arrow is also swallowed while a widget is selected, but that is a caret-coherence guard in a transient state, not a binding; a plain vertical arrow places a caret and declines.'
+		note: 'Extends a selection into a widget. A modified arrow is also swallowed while a widget is selected, but that is a caret-coherence guard in a transient state, not a binding; a plain vertical arrow, Home, End or page key places a caret and declines.'
 	},
 	{
 		file: 'components/image/ImageResizeHandles.svelte',
