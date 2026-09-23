@@ -57,4 +57,12 @@ test.describe('task checkbox: accessibility', () => {
 		await editor.pressDeclined('ControlOrMeta+Enter');
 		expect(await editor.bridge.getSource()).toBe('intro\n\n- plain\n');
 	});
+
+	test('Mod+Enter in a plain item nested under a task leaves the task alone', async ({ page }) => {
+		await editor.loadContent('- [ ] parent\n  - child\n');
+		await editor.clickBlockAtPath([0, 0, 1, 0, 0], 5);
+		await editor.pressDeclined('ControlOrMeta+Enter');
+		expect(await editor.bridge.getSource()).toBe('- [ ] parent\n  - child\n');
+		await expect(page.locator('.task-checkbox').first()).toHaveAttribute('aria-checked', 'false');
+	});
 });

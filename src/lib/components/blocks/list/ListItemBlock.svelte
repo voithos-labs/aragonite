@@ -251,6 +251,9 @@
 	// would fire undo or redo a second time.
 	function handleKeydown(e: KeyboardEvent): void {
 		if (e.defaultPrevented) return;
+		// A key a nested item declined is still that item's: the task toggle must not reach the
+		// task it sits in.
+		if (!(e.target instanceof Element) || e.target.closest('.list-item-block') !== boxEl) return;
 		const chord = eventToChord(e);
 		if (!chord) return;
 		if (

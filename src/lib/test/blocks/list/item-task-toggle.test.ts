@@ -108,6 +108,17 @@ describe('list item task toggle on Mod+Enter', () => {
 		expect(mounted.source()).toBe('- one\n');
 	});
 
+	// The key bubbles through every enclosing item, so a declining child must not hand the
+	// toggle to the task item it sits in.
+	it('leaves an enclosing task alone when the caret is in a plain child item', async () => {
+		mounted = mountEditor({ source: '- [ ] parent\n  - child\n' });
+
+		const event = await pressKeyAt(mounted, [0, 0, 1, 0, 0], 0, MOD_ENTER);
+
+		expect(event.defaultPrevented).toBe(false);
+		expect(mounted.source()).toBe('- [ ] parent\n  - child\n');
+	});
+
 	it('declines in reading mode', async () => {
 		mounted = mountEditor({ source: '- [ ] one\n', presentationMode: 'reading' });
 
