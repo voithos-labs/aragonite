@@ -14,6 +14,16 @@ import type { WidgetSelectionState, WidgetTarget } from './widget-selection-stat
 
 // ── Public API ──────────────────────────────────────────────────────────
 
+/** The image `target` names in `doc`, or null once no image starts at its bytes. */
+export function imageAtTarget(
+	doc: Document,
+	target: WidgetTarget,
+	linkRef?: LinkReferenceResolverRef
+): InlineNode | null {
+	const paragraph = blockNodeAt(doc, target.paragraphPath);
+	return paragraph ? findImageInParagraph(paragraph, target.sourceStart, linkRef) : null;
+}
+
 export interface ImageEditCommitterDeps {
 	getDoc: () => Document;
 	getEditorEl: () => HTMLElement | null;
@@ -56,16 +66,6 @@ export function createImageEditCommitter(deps: ImageEditCommitterDeps): ImageEdi
 	const { getDoc, getEditorEl, widgetSelection, controller, events } = deps;
 	const inlineRange = createInlineRangeCommit({ getDoc, controller, grammar: deps.grammar });
 
-	function findImageInParagraph(para: NodeView, sourceStart: number): InlineNode | null {
-		// Resolver-aware so a reference-style image resolves as the render path saw it,
-		// and flattened so an image nested in a link (`[![alt][ref]][repo]`) is found.
-		const inlines = resolvedInlineContent(para, deps.linkRef);
-		for (const widget of flattenInlineWidgets(inlines, para.raw)) {
-			if (widget.kind === 'image' && widget.start === sourceStart) return widget;
-		}
-		return null;
-	}
-
 	function queryWidgetEl(paragraphPath: number[], sourceStart: number): HTMLElement | null {
 		const root = getEditorEl();
 		if (!root) return null;
@@ -78,10 +78,8 @@ export function createImageEditCommitter(deps: ImageEditCommitterDeps): ImageEdi
 		) as HTMLElement | null;
 	}
 
-	function imageAt(target: WidgetTarget): InlineNode | null {
-		const paragraph = blockNodeAt(getDoc(), target.paragraphPath);
-		return paragraph ? findImageInParagraph(paragraph, target.sourceStart) : null;
-	}
+	const imageAt = (target: WidgetTarget): InlineNode | null =>
+		imageAtTarget(getDoc(), target, deps.linkRef);
 
 	function getSelectedImageFields(): SelectedImageFields | null {
 		const sel = widgetSelection.getSelected();
@@ -96,7 +94,7 @@ export function createImageEditCommitter(deps: ImageEditCommitterDeps): ImageEdi
 	): { image: InlineNode; bytes: string } | null {
 		const paragraph = blockNodeAt(getDoc(), target.paragraphPath);
 		if (!paragraph) return null;
-		const image = findImageInParagraph(paragraph, target.sourceStart);
+		const image = findImageInParagraph(paragraph, target.sourceStart, deps.linkRef);
 		if (!image) return null;
 		// Keep the reference form when the url and title are untouched: writing the resolved
 		// url inline would leave the definition unused. Changing either is the user asking.
@@ -161,8 +159,7 @@ export function createImageEditCommitter(deps: ImageEditCommitterDeps): ImageEdi
 	/** The whole `![...](...)` span goes. The selection clears first, so the undo entry is told
 	 *  the caret the user had before selecting the image rather than reading it. */
 	function removeImage(target: WidgetTarget): void {
-		const paragraph = blockNodeAt(getDoc(), target.paragraphPath);
-		const image = paragraph && findImageInParagraph(paragraph, target.sourceStart);
+		const image = imageAt(target);
 		if (!image) return;
 		widgetSelection.clear();
 		void inlineRange.commitInlineRange(
@@ -262,4 +259,20 @@ export function createImageEditCommitter(deps: ImageEditCommitterDeps): ImageEdi
 		clearStaleSelection,
 		syncOverlayToWidget
 	};
+}
+
+// ── Internal ────────────────────────────────────────────────────────────
+
+function findImageInParagraph(
+	para: NodeView,
+	sourceStart: number,
+	linkRef: LinkReferenceResolverRef | undefined
+): InlineNode | null {
+	// Resolver-aware so a reference-style image resolves as the render path saw it,
+	// and flattened so an image nested in a link (`[![alt][ref]][repo]`) is found.
+	const inlines = resolvedInlineContent(para, linkRef);
+	for (const widget of flattenInlineWidgets(inlines, para.raw)) {
+		if (widget.kind === 'image' && widget.start === sourceStart) return widget;
+	}
+	return null;
 }

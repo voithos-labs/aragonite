@@ -43,6 +43,8 @@
 	import { registerDefaultContextActions } from './menu/default-context-actions';
 	import type { EditorSelection } from '../selection/primitives';
 	import { createWidgetSelectionState } from './image/widget-selection-state.svelte';
+	import { imageAtTarget } from './image/image-edit-commit';
+	import type { SelectedWidgetHandle } from '../selection/primitives';
 	import { bootstrapCodeLanguages } from './blocks/code/code-bootstrap';
 	import { assignIds } from '../block-id';
 	import { createDocumentSwap, initDocument } from './editor-root-document-swap';
@@ -281,6 +283,18 @@
 			});
 		}
 	});
+
+	// Resolved from the live document on each read: an image's own commits move its end byte.
+	const selectedWidget: SelectedWidgetHandle = {
+		range: () => {
+			const target = widgetSelection.getSelected();
+			const image = target && imageAtTarget(doc, target, linkRefView);
+			return target && image
+				? { path: [...target.paragraphPath], start: image.start, end: image.end }
+				: null;
+		},
+		clear: () => widgetSelection.clear()
+	};
 
 	let selectionDescription = $derived(
 		selectionState.isCrossBlock && selectionState.anchor && selectionState.focus
@@ -748,6 +762,7 @@
 		pendingMarks,
 		revealAnchor,
 		widgetSelection,
+		selectedWidget,
 		linkCard,
 		inlineMenuCombobox: inlineMenu.comboboxFor,
 		controller,
@@ -971,6 +986,7 @@
 		activePlugins,
 		events,
 		getCursorOffset: () => selectionState.focus?.offset ?? null,
+		selectedWidget,
 		afterReactivity: () => tick()
 	});
 

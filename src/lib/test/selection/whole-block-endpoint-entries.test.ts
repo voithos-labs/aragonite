@@ -25,6 +25,8 @@ import { parse } from '$lib/core/parser';
 
 const BREAK_DOC = 'Above text\n\n---\n\ntail text\n';
 const clickOffset = vi.mocked(offsetFromViewportPoint);
+// No image is selected whole in these cases.
+const NO_SELECTED_WIDGET = { range: () => null, clear: () => {} };
 const anchorCaret = vi.mocked(readNativeCaretInBlock);
 const el = () => document.createElement('div');
 
@@ -40,7 +42,7 @@ describe('whole-block endpoints arriving from an entry path', () => {
 		clickOffset.mockReturnValue(1);
 		anchorCaret.mockReturnValue({ path: [0], offset: 6 });
 
-		expect(handleShiftClick(s, el(), [1], 0, 0, el(), [0])).toBe(true);
+		expect(handleShiftClick(s, el(), [1], 0, 0, el(), [0], NO_SELECTED_WIDGET)).toBe(true);
 		expect(s.focus).toEqual({ path: [1], offset: 3 });
 	});
 

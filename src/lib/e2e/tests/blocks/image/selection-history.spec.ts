@@ -87,9 +87,7 @@ test.describe('image selection and history', () => {
 	});
 
 	test('undo of a removal puts the caret back where the image ended', async ({ page }) => {
-		await editor.loadContent(`${TYPED_BEFORE_IMAGE}
-second
-`);
+		await editor.loadContent(`${TYPED_BEFORE_IMAGE}\nsecond\n`);
 		await page.locator('[data-image-widget]').first().click();
 		await page
 			.locator('.md-image-properties')
@@ -105,9 +103,7 @@ second
 	test('undo of an alt edit a click elsewhere committed puts the caret back at the image', async ({
 		page
 	}) => {
-		await editor.loadContent(`${TYPED_BEFORE_IMAGE}
-second
-`);
+		await editor.loadContent(`${TYPED_BEFORE_IMAGE}\nsecond\n`);
 		await page.locator('[data-image-widget]').first().click();
 		const alt = await openImageField(page);
 		await alt.fill('cat');

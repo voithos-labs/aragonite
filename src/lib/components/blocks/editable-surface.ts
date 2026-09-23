@@ -35,6 +35,7 @@ import type { PasteCommitCoordinator } from '../../tree-operations/paste/paste-d
 import type { StickyColumnState } from '../../cursor/sticky-column';
 import type { EdgeAffinityState } from '../../cursor/edge-affinity';
 import type { SelectionState } from '../../selection/selection-state.svelte';
+import type { SelectedWidgetHandle } from '../../selection/primitives';
 import { placeCaret } from '../../selection/caret-doors';
 import {
 	asEditorX,
@@ -193,6 +194,8 @@ export interface EditableSurfaceDeps {
 	/** This editor's events, passed to the cross-block clipboard's error reporting: the
 	 *  same `EditorServices.events` the shared clipboard code takes. */
 	events: EditorEvents;
+	/** The image selected whole, passed to the shift-press that grows a range from it. */
+	selectedWidget: SelectedWidgetHandle;
 
 	// ── The per-block reads `SharedKeydownContext` needs ──────────────────────
 	/** The selection's focus endpoint as a raw offset; each block converts its own DOM read. */
@@ -304,6 +307,7 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		activePlugins: deps.activePlugins,
 		events: deps.events,
 		getCursorOffset: () => deps.backend.getRaw(),
+		selectedWidget: deps.selectedWidget,
 		afterReactivity: () => tick()
 	});
 

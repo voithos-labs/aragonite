@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
 	import type { ImageCrop, ImageFields } from '../../core/nodes';
-	import { IMAGE_CHROME_SELECTOR, type WidgetTarget } from './widget-selection-state.svelte';
+	import { pressLeavesImage, type WidgetTarget } from './widget-selection-state.svelte';
 	import {
 		IMAGE_ALT_FIELD,
 		IMAGE_ALT_PLACEHOLDER,
@@ -68,9 +68,7 @@
 	$effect(() => {
 		if (!rootEl) return;
 		const handler = (e: PointerEvent) => {
-			const target = e.target as Element | null;
-			if (target?.closest(IMAGE_CHROME_SELECTOR)) return;
-			onDismiss();
+			if (pressLeavesImage(e, getWidgetEl()?.closest('.editor') ?? null)) onDismiss();
 		};
 		document.addEventListener('pointerdown', handler, true);
 		return () => document.removeEventListener('pointerdown', handler, true);

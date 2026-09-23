@@ -31,6 +31,19 @@ export interface CharSelectionPoint {
 	cellCoordinate?: false;
 }
 
+/** An inline widget selected whole (an image), as the raw span of the block at `path`. */
+export interface SelectedWidgetRange {
+	path: number[];
+	start: number;
+	end: number;
+}
+
+/** The widget selected whole, read live, and the way to end that selection. */
+export interface SelectedWidgetHandle {
+	range(): SelectedWidgetRange | null;
+	clear(): void;
+}
+
 /** Cell-space endpoint: `offset` is a row-major table cell index; `path` addresses the table block. */
 export interface CellSelectionPoint {
 	path: number[];

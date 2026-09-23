@@ -48,6 +48,7 @@ export type SharedSurfaceDeps = Pick<
 	| 'grammar'
 	| 'activePlugins'
 	| 'events'
+	| 'selectedWidget'
 	| 'linkRef'
 	| 'onCommandError'
 	| 'crossBlockCommands'
@@ -75,7 +76,8 @@ export function wireSurfaceContexts(): SurfaceWiring {
 		registryView,
 		activePlugins,
 		events,
-		crossBlockCommands
+		crossBlockCommands,
+		selectedWidget
 	} = getContext<EditorServices>(EDITOR_SERVICES_KEY);
 	const { keybindingOverrides, presentationMode: getPresentationMode } =
 		getContext<EditorPolicies>(EDITOR_POLICIES_KEY);
@@ -108,6 +110,7 @@ export function wireSurfaceContexts(): SurfaceWiring {
 		grammar: registryView.grammar,
 		activePlugins,
 		events,
+		selectedWidget,
 		linkRef,
 		crossBlockCommands,
 		onCommandError: (report) => emitCommandError(events, report)
