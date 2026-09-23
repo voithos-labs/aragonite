@@ -756,6 +756,8 @@ Right-clicking any cell opens the table's action menu: cut/copy/paste, Row and C
 | Resize a selected image             | `Shift+←` / `Shift+→`                                                           |
 | **Mermaid diagrams**                |                                                                                 |
 | Finish editing a diagram            | `Mod+Enter` (in the diagram's source box; `Esc` cancels; needs `mermaidPlugin`) |
+| **Slash commands**                  |                                                                                 |
+| Open the list at the caret          | `Mod+/` (types the `/` for you; needs `slashCommandsPlugin`)                    |
 
 **Typing a table into existence.** A table's header and delimiter lines have to be adjacent, which Enter alone could never produce, so a paragraph holding just a header row (`| a | b |`) is completed by `Enter` into a finished table (delimiter, one empty body row, caret in the first body cell) as one undoable step. It needs the leading pipe, so a paragraph that merely contains one (`ls | grep foo`) is left alone, and one undo restores the row you typed.
 

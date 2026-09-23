@@ -203,6 +203,10 @@ const TOKEN_RESOLVERS: Record<string, { source: string; tokens: Record<string, s
 	'Mermaid diagrams': {
 		source: readEditorFile('plugins/mermaid/MermaidBlock.svelte').code,
 		tokens: { 'Mod+Enter': ["e.key === 'Enter' && (e.ctrlKey || e.metaKey)", 'commitEdit(true)'] }
+	},
+	'Slash commands': {
+		source: readEditorFile('plugins/slash-commands/slash-commands-plugin.ts').code,
+		tokens: { 'Mod+/': ["'Mod+/'", 'registerGlobalCommand'] }
 	}
 };
 
@@ -405,6 +409,7 @@ describe('consumer-guide chord coherence: self-tests', () => {
 				'Find / replace',
 				'Images',
 				'Mermaid diagrams',
+				'Slash commands',
 				'Tables'
 			].sort()
 		);
