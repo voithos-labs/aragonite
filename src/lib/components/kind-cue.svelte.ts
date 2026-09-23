@@ -19,7 +19,7 @@ export interface KindCue {
 		path: readonly number[],
 		before: AnyBlockKind
 	): Promise<void>;
-	/** The label the block at `path` shows, until its fade ends or the block there changes kind. */
+	/** The label the block at `path` shows, until its fade ends or the block there loses that name. */
 	labelAt(path: readonly number[]): string | undefined;
 	dismiss(path: readonly number[]): void;
 }

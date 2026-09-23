@@ -74,4 +74,21 @@ test.describe('task checkbox: the text after the marker', () => {
 		await expect(page.locator('.heading-1')).toHaveCount(0);
 		expect(await editor.parseConverged()).toBe(true);
 	});
+
+	for (const { what, seed, offset, halves } of [
+		{ what: 'inside `# adwada`', seed: '- [ ] # adwada', offset: 4, halves: ['# ad', 'wada'] },
+		{ what: 'before the `#` of `ab# cd`', seed: '- [ ] ab# cd', offset: 2, halves: ['ab', '# cd'] }
+	]) {
+		test(`Enter ${what} leaves two to-dos with text beside each box`, async ({ page }) => {
+			await editor.loadContent(`${seed}\n`);
+			await editor.focusBlockAtPath([0, 0, 0], offset);
+
+			await page.keyboard.press('Enter');
+
+			await editor.bridge.waitForSourceEquals(halves.map((text) => `- [ ] ${text}\n`).join(''));
+			await expect(page.locator('.task-checkbox')).toHaveCount(2);
+			await expect(page.locator('.heading-1')).toHaveCount(0);
+			expect(await editor.parseConverged()).toBe(true);
+		});
+	}
 });

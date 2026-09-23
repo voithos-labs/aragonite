@@ -23,6 +23,12 @@ Later lines of the item still open blocks as they do in any list item.
   - Miss-analysis: a write into a task paragraph read its new text on its own, where `# ` opens a
     heading, so the live tree dropped the box while the bytes reloaded as a to-do; the parser
     tests never typed, and the typing tests never compared against a reload.
+- Enter inside `- [ ] # adwada` leaves `- [ ] # ad` above `- [ ] wada`, and Enter before the `#`
+  of `- [ ] ab# cd` leaves `- [ ] ab` above `- [ ] # cd`: each half is text beside its box, no
+  heading, and the tree reloads to the same shape.
+  - Miss-analysis: the task-aware reader reached typed writes and merges but not the list split,
+    and the shape property keeps list-item bodies out of its split gesture, so no test split a
+    to-do whose text would open a block on its own.
 
 ## Error cases
 
