@@ -56,8 +56,8 @@ export interface KindCellReport {
 export interface KindConformanceReport {
 	kind: AnyBlockKind;
 	cells: KindCellReport[];
-	/** The leaf raw-write cell, run for every kind whatever its closure block declares:
-	 *  `executed` when the kind declares `normalizeRawWrite`, `exempt` when it does not. */
+	/** The leaf raw-write cell, run for every kind with a top-level fixture: a kind with no
+	 *  `normalizeRawWrite` must survive its closing line cut, a declarer its three writes. */
 	rawWrite: { status: KindCellStatus; detail: string };
 }
 
@@ -388,17 +388,32 @@ function execRawWrite(
 	descriptor: BlockKindDescriptor,
 	ctx: KindCellContext | null
 ): CellResult {
+	const hasTopLevelFixture = ctx !== null && ctx.nodePath.length === 1;
 	if (!descriptor.normalizeRawWrite) {
-		return { status: 'exempt', detail: 'declares no normalizeRawWrite: its writes need no repair' };
+		if (!hasTopLevelFixture) {
+			return {
+				status: 'exempt',
+				detail: 'declares no normalizeRawWrite and has no top-level conformanceFixture to cut'
+			};
+		}
+		checkClosingCutNeedsNoRule(kind, ctx.fixture);
+		return {
+			status: 'executed',
+			detail:
+				'declares no normalizeRawWrite, and the closing line cut leaves the next block its own'
+		};
 	}
-	if (!ctx || ctx.nodePath.length !== 1) {
+	if (!hasTopLevelFixture) {
 		return {
 			status: 'boundary',
 			detail: 'declares normalizeRawWrite but has no top-level conformanceFixture to write over'
 		};
 	}
 	checkLeafRawWrite(kind, ctx.fixture);
-	return { status: 'executed', detail: 'three truncating writes: idempotent, converged' };
+	return {
+		status: 'executed',
+		detail: 'three truncating writes, each idempotent and leaving the next block its own'
+	};
 }
 
 // ── Exported executors (direct-drive for regression tests) ───────────────────
@@ -523,6 +538,27 @@ function firstVisibleChar(raw: string): string | null {
 
 const RAW_WRITE_SENTINEL = 'raw write sentinel\n';
 
+function fixtureLines(fixture: string) {
+	const ending = ownTrailingLineEnding(fixture) || '\n';
+	const lines = trimTrailingLineEnding(fixture).split(ending);
+	return { ending, lines, closingCut: lines.slice(0, -1).join(ending) + ending };
+}
+
+/**
+ * For a kind with no `normalizeRawWrite`: the fixture with its closing line cut must not absorb
+ * the block after it, or a range delete over the closer turns the document below into its body.
+ */
+function checkClosingCutNeedsNoRule(kind: AnyBlockKind, fixture: string): void {
+	const { ending, closingCut } = fixtureLines(fixture);
+	const following = parse(closingCut + ending + RAW_WRITE_SENTINEL).children.at(-1);
+	if (following?.raw === RAW_WRITE_SENTINEL) return;
+	fail(
+		`"${kind}" declares no normalizeRawWrite, and the closing line cut (${show(closingCut)}) ` +
+			`swallows the next block (${show(RAW_WRITE_SENTINEL)}): declare normalizeRawWrite to ` +
+			`put the closer back`
+	);
+}
+
 /**
  * Drives three truncating writes over `kind`'s fixture through its `normalizeRawWrite` rule: the
  * closing line cut, everything past the first line cut, and an empty write. Each result must be
@@ -534,10 +570,9 @@ export function checkLeafRawWrite(
 	fixture: string,
 	normalize: (node: NodeView, raw: string) => string = normalizeOwnRaw
 ): void {
-	const ending = ownTrailingLineEnding(fixture) || '\n';
-	const lines = trimTrailingLineEnding(fixture).split(ending);
+	const { ending, lines, closingCut } = fixtureLines(fixture);
 	const writes: Array<[label: string, raw: string, keepsKind: boolean]> = [
-		['the closing line cut', lines.slice(0, -1).join(ending) + ending, lines.length > 2],
+		['the closing line cut', closingCut, lines.length > 2],
 		['everything past the first line cut', lines[0] + ending, false],
 		['an empty write', '', false]
 	];
