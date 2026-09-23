@@ -211,6 +211,7 @@ Takes your kind (the value `declaredPluginKind` returns) and executes the headle
 - A `clipboard: inherit-default` cell proves a copy is a plain byte slice, with your kind at each end of the copied range in turn.
 - An `undo: inherit-default` cell proves one structural operation pushes exactly one undo entry.
 - A `searchPaint: not-supported` cell proves the document scan genuinely finds nothing in your kind.
+- A kind that declares `normalizeRawWrite` has the rule driven through three truncating writes over the fixture: the closing line cut, everything past the first line cut, and an empty write. Each result has to come back unchanged from a second pass of the rule and leave the block after it alone, and the first write has to keep your kind. This cell reads your descriptor rather than your closure block, so it reports on its own as `report.rawWrite`, `exempt` for a kind with no rule.
 
 Cells whose mechanism only exists in a browser (focus, selection and search painting, reorder, and the note-taking simulation the platform runs over the kinds it enrolls) are recorded `boundary`; the kit won't fake them green. Covering those is a browser test's job (the editor's own e2e sweep does it for every registered kind that declares a `conformanceFixture`). For the parrot, the whole checkup is the test the [guide's quickstart](plugin-guide.md#the-first-fifteen-minutes) ends on:
 
