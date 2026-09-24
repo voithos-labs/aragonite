@@ -24,6 +24,7 @@ export function harness(
 ) {
 	const node: CstNode = parse(source).children[0];
 	const commits: Commit[] = [];
+	const carets: (number | null)[] = [];
 	const widgetSelection = createWidgetSelectionState({ onSelect: () => {} });
 	widgetSelection.select({ paragraphPath: [0], sourceStart, preSelectOffset: sourceStart });
 
@@ -52,12 +53,12 @@ export function harness(
 		},
 		focusActions: new Proxy({}, { get: trap }),
 		setSnapTarget: trap,
-		setPendingCursor: trap,
+		setPendingCursor: (offset: number | null) => void carets.push(offset),
 		get linkRef() {
 			return linkRef;
 		},
 		...extra
 	} as unknown as WidgetInteractionDeps;
 
-	return { interaction: createWidgetInteraction(deps), commits, widgetSelection };
+	return { interaction: createWidgetInteraction(deps), commits, carets, widgetSelection };
 }

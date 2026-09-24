@@ -80,6 +80,7 @@ describe('the same keys without a chord still act', () => {
 		expect(await b.interaction.handleSelectedWidgetKeydown(key(name))).toBe(true);
 		expect(b.commits).toHaveLength(1);
 		expect(b.commits[0].raw).toBe('hello  world\n');
+		expect(b.carets).toEqual([WIDGET_START]);
 	});
 
 	it('a printable key replaces the selected widget', async () => {
@@ -88,5 +89,8 @@ describe('the same keys without a chord still act', () => {
 		expect(await b.interaction.handleSelectedWidgetKeydown(key('x'))).toBe(true);
 		expect(b.commits).toHaveLength(1);
 		expect(b.commits[0].raw).toBe('hello x world\n');
+		// Miss-analysis (GH #441): the bytes were pinned and the caret was not, so a second key
+		// landing at the paragraph start went unseen.
+		expect(b.carets).toEqual([WIDGET_START + 1]);
 	});
 });
