@@ -148,19 +148,17 @@ describe('emptying a block beside indentation-delimited content', () => {
 		expectParseConverged(doc);
 	});
 
-	// The absorbed window's own bytes end in a blank line, which a fragment parse splits off into
-	// its suffix. Leaving it in the last block's raw is only right at the parent's tail; here the
-	// line is a block of its own, exactly as the reload reads it.
-	it('materializes a stripped trailing blank line instead of hiding it in raw', () => {
+	// The code's tab-indented blank line reaches the item's content column, so the list takes it
+	// along with the code, exactly as the reload reads it.
+	it('lets the list take the code’s indented blank line with it', () => {
 		const doc = parse('- - # **b**\n\n| H0 |\n| --- | --- |\n\n    code\n\t\n\n```\n```\n');
 
 		empty(doc, 1);
 
 		expect(serialize(doc)).toBe('- - # **b**\n\n\n    code\n\t\n\n```\n```\n');
 		expect(layout(doc.children)).toEqual([
-			['list', '', '- - # **b**\n\n\n    code\n'],
-			['paragraph', '\t\n', '\n'],
-			['fencedCode', '', '```\n```\n']
+			['list', '', '- - # **b**\n\n\n    code\n\t\n'],
+			['fencedCode', '\n', '```\n```\n']
 		]);
 		expectParseConverged(doc);
 	});

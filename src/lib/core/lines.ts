@@ -97,6 +97,40 @@ export function splitLines(source: string): ParsedLine[] {
 	return lines;
 }
 
+// ── Indentation ──────────────────────────────────────────────────────────────
+
+/** Columns of leading indentation, a tab advancing to the next multiple of four (GFM §2.2). */
+export function indentColumns(text: string): number {
+	let col = 0;
+	for (const char of text) {
+		if (char === ' ') col++;
+		else if (char === '\t') col += 4 - (col % 4);
+		else break;
+	}
+	return col;
+}
+
+/**
+ * `text` with up to `columns` columns of indentation removed. A tab the cut splits, or one left
+ * off a multiple of four, is written as the spaces it spans: the stripped line is a child's raw,
+ * which every later reparse reads from column zero.
+ */
+export function stripIndentColumns(text: string, columns: number): string {
+	const leadLength = text.length - text.replace(/^[ \t]+/, '').length;
+	let col = 0;
+	let cut = 0;
+	while (cut < leadLength) {
+		const width = text[cut] === '\t' ? 4 - (col % 4) : 1;
+		if (col + width > columns) break;
+		col += width;
+		cut++;
+	}
+	const straddles = cut < leadLength && col < columns;
+	const tabShifts = columns % 4 !== 0 && text.slice(cut, leadLength).includes('\t');
+	if (!straddles && !tabShifts) return text.slice(cut);
+	return ' '.repeat(indentColumns(text) - columns) + text.slice(leadLength);
+}
+
 /**
  * Rebuild a `ParsedLine[]` after a per-line strip, as the container parsers do when they reparse
  * a prefix-stripped body. Recompute, not spread: reusing an input line's offsets after shortening

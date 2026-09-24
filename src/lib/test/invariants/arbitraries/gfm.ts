@@ -138,9 +138,16 @@ const { block } = fc.letrec<{ block: string; body: string }>((tie) => ({
 		},
 		{
 			arbitrary: fc
-				.tuple(fc.constantFrom('- ', '* ', '+ ', '1. ', '- [ ] ', '- [x] '), tie('body'))
-				.map(([marker, inner]) => {
-					const pad = ' '.repeat(marker.length);
+				.tuple(
+					fc.constantFrom('- ', '* ', '+ ', '1. ', '- [ ] ', '- [x] '),
+					fc.boolean(),
+					tie('body')
+				)
+				.map(([marker, tabbed, inner]) => {
+					// A tab reaches column four, past a short marker's content column (GFM §2.2).
+					const pad = tabbed
+						? '\t' + ' '.repeat(Math.max(0, marker.length - 4))
+						: ' '.repeat(marker.length);
 					return inner
 						.split('\n')
 						.map((line, i, arr) =>

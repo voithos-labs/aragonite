@@ -480,10 +480,11 @@ export function absorbSeamReading(
 	return { at, span, eaten, spliced };
 }
 
-/** Whether the reparse moved more than the separating blank line into the head. Its own bytes
- *  plus that line are what it holds when the division between the two blocks has not moved. */
+/** Whether the reparse moved content into the head: more than the separating blank line, or,
+ *  for a container, that line alone, since its body reads an indented one as its own. */
 function headTookContent(head: CstNode, window: readonly CstNode[]): boolean {
-	return head.raw.length > window[0].raw.length + window[1].leadingTrivia.length;
+	const grew = head.raw.length - window[0].raw.length;
+	return grew > window[1].leadingTrivia.length || (head.children !== undefined && grew > 0);
 }
 
 /**

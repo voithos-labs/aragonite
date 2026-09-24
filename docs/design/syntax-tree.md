@@ -233,6 +233,8 @@ One separator has no splice to derive it from: a sublist whose first item is emp
 
 A container inherits all of this through strip-and-recurse. In a body that ends where its indentation ends (a list item, a footnote definition), a whitespace-only line indented to the body belongs to the body, which is why a rebuild writes that indent on an empty block's line closing one; a separator line stays bare, as the parser reads it. The exception is a container whose body sits between chrome lines of its own (`:::note` ... `:::`, `<summary>` ... `</details>`): there the blank line against a chrome line is a separator like any other, so it lands in `innerPrefix` / `innerSuffix` while the rest of its run materializes. The kind declares the wrap it parses with and the separator settle reads that declaration, which makes this a property of the plugin API rather than a per-kind branch in the parser: inside a wrap, the line a settle frees above the body head belongs to the wrap, not to the run. A run that is the whole body sits against both chrome lines and has to give a line to each, since a reload strips both before it materializes any block.
 
+Indentation counts in columns, and a tab reaches the next multiple of four, as CommonMark expands it. The document keeps its tabs. Where a body's content column cuts through a tab, or leaves one off a multiple of four, the child holds those columns as spaces, so a child's bytes read on their own the way they read in the body; the first edit inside that item then writes its indentation in spaces.
+
 ### Scope boundaries
 
 - **Inline parsing is separate.** The block parser doesn't parse inline syntax; the editor layer triggers it. See `inline-parsing.md`.
