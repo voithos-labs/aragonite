@@ -49,7 +49,8 @@ const deps = (doc: { children: unknown[] }) => ({
 		md: string,
 		options?: InsertMarkdownOptions
 	) => Promise<boolean>,
-	runCommand: (() => false) as (commandId: string, arg?: unknown) => boolean
+	runCommand: (() => false) as (commandId: string, arg?: unknown) => boolean,
+	computeInlineContent: () => []
 });
 
 /** Two installed plugins, each recording the editors its hook attached to. */

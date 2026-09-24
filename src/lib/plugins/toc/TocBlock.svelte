@@ -48,7 +48,9 @@
 
 	// This reads heading bytes through the prop, subscribing to the CST's $state proxy, so an
 	// edit above re-runs it; left uncached so the derived stays reactive.
-	const headings = $derived(collectHeadings(document, depth));
+	const headings = $derived(
+		collectHeadings(document, depth, leaf.getEditor()?.computeInlineContent)
+	);
 
 	// One navigation at a time per block (`navigation-queue.ts` says why). `navigateTo` moves
 	// the caret as well as scrolling, so focus never stays somewhere the keyboard cannot reach.

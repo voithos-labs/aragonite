@@ -198,9 +198,9 @@ export { headingLevel } from './core/nodes';
 export { isProseKind } from './core/inline';
 
 /**
- * Inline-parse a prose leaf. No link-reference resolver is available to a plugin, so
- * reference links parse as `unresolvedReference`; every other construct fully resolves. It
- * reads every installed plugin's syntax, whatever the editor's `plugins` prop lists (#433).
+ * Inline-parse a prose leaf with every installed plugin's syntax, for a pipeline with no editor
+ * mounted. Inside an editor use `EditorContext.computeInlineContent`, which reads only the plugins
+ * that editor lists. Reference links parse as `unresolvedReference`: no resolver reaches a plugin.
  */
 export function computeInlineContent(node: NodeView): InlineNode[] {
 	return parseLeafInline(node, undefined, defaultGrammarView);

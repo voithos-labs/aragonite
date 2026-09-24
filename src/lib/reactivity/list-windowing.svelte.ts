@@ -14,6 +14,7 @@ import { estimateWidth, effectiveViewportHeight, listTopWithinContent } from './
 import { runMeasureBatch, type MeasureEntry } from './measure-batch';
 import type { NodeView } from '../core/node-views';
 import type { RevealBlock } from '../cursor/reveal-anchor';
+import { recordHeightTableBuild } from '../perf/instruments';
 
 /**
  * The block being scrolled into view, in one list's coordinates. The height table addresses
@@ -157,6 +158,8 @@ interface HeightTable {
 	 *  block by id after the children change. */
 	ids: string[];
 	widthVersion: number;
+	/** False when the list had no element yet, so every estimate used the scroll container's width. */
+	atListWidth: boolean;
 }
 
 /** The heights a table holds, keyed by id, for the next build to keep. */
@@ -174,7 +177,9 @@ export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
 	 * Null after a width or font-size change, when the old heights are wrong anyway.
 	 */
 	function buildTable(carried: Map<string, number> | null, widthVersion: number): HeightTable {
-		const width = estimateWidth(deps.getListEl(), deps.getPort()?.contentWidth() ?? 0);
+		const listEl = deps.getListEl();
+		const width = estimateWidth(listEl, deps.getPort()?.contentWidth() ?? 0);
+		recordHeightTableBuild(deps.getParentPath(), width);
 		const children = deps.getChildren();
 		// Indexed, and off the snapshot: `map` pays a `has` trap beside every `get`, once per child.
 		const ids = deps.getChildIds().slice();
@@ -185,20 +190,22 @@ export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
 			heights[i] =
 				deps.oracle.measured(id) ?? carried?.get(id) ?? deps.oracle.estimate(children[i], width);
 		}
-		return { model: new HeightModel(heights), ids, widthVersion };
+		return { model: new HeightModel(heights), ids, widthVersion, atListWidth: listEl !== null };
 	}
 
-	// A derived, so the render pass that receives new children windows them from their own table
-	// (VR-14). Tracks ids, not estimates, or every keystroke would rebuild it.
+	// A derived, so new children window from their own table (VR-14); it tracks ids, not estimates,
+	// and the list element, so the first table, built before the element exists, is redone (VR-3).
 	let latestTable: HeightTable | null = null;
 	const table = $derived.by(() => {
 		const ids = deps.getChildIds();
 		for (let i = 0; i < ids.length; i++) void ids[i];
 		void deps.getPort();
+		void deps.getListEl();
 		const widthVersion = deps.getWidthVersion();
 		return untrack(() => {
 			const previous = latestTable;
-			const keepsHeights = previous !== null && previous.widthVersion === widthVersion;
+			const keepsHeights =
+				previous !== null && previous.widthVersion === widthVersion && previous.atListWidth;
 			latestTable = buildTable(keepsHeights ? heightsById(previous) : null, widthVersion);
 			return latestTable;
 		});

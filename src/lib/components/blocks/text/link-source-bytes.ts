@@ -7,7 +7,7 @@
 
 import { inlineDescendants, parseInline } from '../../../core/inline';
 import { encodeDestination, escapeTitle } from '../../../core/inline/destination-bytes';
-import type { LinkReferenceResolver } from '../../../core/inline/link-reference-resolver';
+import type { InlineResolverRef } from '../../../schema/inline-construct-policy';
 import { CONTENT_VISIBILITY, renderedText } from '../../../core/inline/visibility';
 import type { InlineNode } from '../../../core/nodes';
 import { devWarn } from '../../../dev-warn';
@@ -34,10 +34,10 @@ export function buildLinkEditBytes(
 	link: InlineNode,
 	display: string,
 	fields: LinkFields,
-	resolver?: LinkReferenceResolver
+	ref?: InlineResolverRef
 ): string | null {
 	if (declineClaimed(link, 'edit')) return null;
-	return verified(buildLinkSourceBytes(fields), link.start, link.end, display, resolver);
+	return verified(buildLinkSourceBytes(fields), link.start, link.end, display, ref);
 }
 
 /** Bytes that unwrap `link` down to the text the user already sees, which is remove-link. An
@@ -45,17 +45,17 @@ export function buildLinkEditBytes(
 export function buildLinkUnwrapBytes(
 	link: InlineNode,
 	display: string,
-	resolver?: LinkReferenceResolver
+	ref?: InlineResolverRef
 ): string | null {
 	if (declineClaimed(link, 'remove')) return null;
 	const [textStart, textEnd] = textRange(link, display);
 	const plain = display.slice(textStart, textEnd);
 	return verified(
-		escapeRelinkingText(plain, link, display, resolver),
+		escapeRelinkingText(plain, link, display, ref),
 		link.start,
 		link.end,
 		display,
-		resolver
+		ref
 	);
 }
 
@@ -67,14 +67,14 @@ export function buildLinkWrapBytes(
 	start: number,
 	end: number,
 	url: string,
-	resolver?: LinkReferenceResolver
+	ref?: InlineResolverRef
 ): string | null {
-	if (url.trim() === '' || !canWrapRangeAsLink(display, start, end, resolver)) return null;
+	if (url.trim() === '' || !canWrapRangeAsLink(display, start, end, ref)) return null;
 	// A bare bracket would close the construct early; an existing `\x` pair passes through whole.
 	const text = display
 		.slice(start, end)
 		.replace(/\\[\s\S]|[[\]]/g, (m) => (m.length === 2 ? m : '\\' + m));
-	return verified(`[${text}](${encodeDestination(url)})`, start, end, display, resolver);
+	return verified(`[${text}](${encodeDestination(url)})`, start, end, display, ref);
 }
 
 const WRAP_SAFE_KINDS: ReadonlySet<string> = new Set(['text', 'escape', 'entityReference']);
@@ -85,10 +85,10 @@ export function canWrapRangeAsLink(
 	display: string,
 	start: number,
 	end: number,
-	resolver?: LinkReferenceResolver
+	ref?: InlineResolverRef
 ): boolean {
 	if (start >= end || end > display.length) return false;
-	return flattenInline(parseInline(display, 0, display.length, resolver)).every(
+	return flattenInline(parseInline(display, 0, display.length, ref?.current, ref?.grammar)).every(
 		(n) => WRAP_SAFE_KINDS.has(n.kind) || n.end <= start || n.start >= end
 	);
 }
@@ -131,8 +131,12 @@ function declineClaimed(link: InlineNode, what: string): boolean {
  *  block's own: the card edits a destination whose markers may be on screen, and comparing against
  *  the screen would refuse every such edit as a visible change. The write swaps bytes for bytes
  *  and drops none, so no reading of it can license losing one. */
-function visibleText(raw: string, resolver?: LinkReferenceResolver): string {
-	return renderedText(parseInline(raw, 0, raw.length, resolver), raw, CONTENT_VISIBILITY);
+function visibleText(raw: string, ref?: InlineResolverRef): string {
+	return renderedText(
+		parseInline(raw, 0, raw.length, ref?.current, ref?.grammar),
+		raw,
+		CONTENT_VISIBILITY
+	);
 }
 
 /** A candidate becomes bytes only if splicing it over `[start, end)` leaves the visible text
@@ -142,11 +146,11 @@ function verified(
 	start: number,
 	end: number,
 	display: string,
-	resolver?: LinkReferenceResolver
+	ref?: InlineResolverRef
 ): string | null {
 	if (candidate === null) return null;
-	const before = visibleText(display, resolver);
-	const after = visibleText(spliced(candidate, start, end, display), resolver);
+	const before = visibleText(display, ref);
+	const after = visibleText(spliced(candidate, start, end, display), ref);
 	return before === after ? candidate : null;
 }
 
@@ -186,12 +190,12 @@ function escapeRelinkingText(
 	text: string,
 	link: InlineNode,
 	display: string,
-	resolver?: LinkReferenceResolver
+	ref?: InlineResolverRef
 ): string | null {
 	let candidate = text;
 	// One pass per surviving autolink; the text is finite and each pass kills one match.
 	for (let guard = 0; guard <= text.length; guard++) {
-		const offender = relinkedRange(candidate, link, display, resolver);
+		const offender = relinkedRange(candidate, link, display, ref);
 		if (offender === null) return candidate;
 		const escaped = escapeTrigger(candidate, offender);
 		if (escaped === null) return null;
@@ -205,11 +209,11 @@ function relinkedRange(
 	candidate: string,
 	link: InlineNode,
 	display: string,
-	resolver?: LinkReferenceResolver
+	ref?: InlineResolverRef
 ): [number, number] | null {
 	const raw = spliced(candidate, link.start, link.end, display);
 	const end = link.start + candidate.length;
-	const found = flattenInline(parseInline(raw, 0, raw.length, resolver)).find(
+	const found = flattenInline(parseInline(raw, 0, raw.length, ref?.current, ref?.grammar)).find(
 		(n) => (n.kind === 'link' || n.kind === 'autolink') && n.start < end && n.end > link.start
 	);
 	if (!found) return null;

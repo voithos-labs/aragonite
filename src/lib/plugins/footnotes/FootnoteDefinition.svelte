@@ -36,7 +36,7 @@
 	// Only `[^label]` is clickable; the colon and space after it are syntax nobody aims at.
 	const marker = $derived(`[^${label}]`);
 
-	const { blockListProps, containerApi, getPresentationMode } = createContainerBlock({
+	const { blockListProps, containerApi, getPresentationMode, getEditor } = createContainerBlock({
 		getNode: () => node,
 		getIndex: () => index,
 		getPath: () => myPath,
@@ -74,7 +74,9 @@
 		if (!document) return;
 		// GFM numbers by first-reference order, so the first reference is the one this
 		// definition's number comes from.
-		const first = collectFootnoteReferences(document).find((ref) => ref.label === label);
+		const first = collectFootnoteReferences(document, getEditor()?.computeInlineContent).find(
+			(ref) => ref.label === label
+		);
 		if (first) void rects?.navigateTo(first.path, first.end);
 	}
 

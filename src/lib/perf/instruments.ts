@@ -32,6 +32,8 @@ export interface PerfSnapshot {
 	decorationRuns: number;
 	islandRebuilds: number;
 	islandKeyScans: number;
+	/** One entry per windowing height table built: the list's path and the width it estimated at. */
+	heightTableBuilds: { path: string; width: number }[];
 }
 
 let enabled = false;
@@ -58,7 +60,8 @@ function emptySnapshot(): PerfSnapshot {
 		mountedBlockCount: 0,
 		decorationRuns: 0,
 		islandRebuilds: 0,
-		islandKeyScans: 0
+		islandKeyScans: 0,
+		heightTableBuilds: []
 	};
 }
 
@@ -88,7 +91,8 @@ export function perfSnapshot(): PerfSnapshot {
 		...counters,
 		rebuildDepths: { ...counters.rebuildDepths },
 		keystrokeInPageMs: [...counters.keystrokeInPageMs],
-		blockRenderPaths: [...counters.blockRenderPaths]
+		blockRenderPaths: [...counters.blockRenderPaths],
+		heightTableBuilds: [...counters.heightTableBuilds]
 	};
 }
 
@@ -156,6 +160,11 @@ export function recordIslandRebuild(): void {
 export function recordIslandKeyScan(): void {
 	if (!enabled) return;
 	counters.islandKeyScans++;
+}
+
+export function recordHeightTableBuild(path: readonly number[], width: number): void {
+	if (!enabled) return;
+	counters.heightTableBuilds.push({ path: path.join(','), width });
 }
 
 export function incMountedBlocks(): void {

@@ -9,6 +9,7 @@ import { mount, unmount } from 'svelte';
 import type { AnyInlineKind, InlineNode } from '../../core/nodes';
 import type { DocumentView } from '../../core/node-views';
 import type { PresentationMode } from '../../presentation-mode';
+import { inlineReaderFor } from '../../core/inline';
 import { getInlineWidgetComponent } from '../../core/inline/inline-widgets';
 import type { GrammarView } from '../../schema/block-openers';
 import { tracePoolPass } from '../../debug/interaction-trace';
@@ -164,6 +165,7 @@ export function createSvelteWidgetPool(deps: SvelteWidgetPoolDeps): WidgetPool {
 		navigateTo,
 		grammar
 	} = deps;
+	const readInline = inlineReaderFor(grammar);
 	return createWidgetPool<PortalHandle>({
 		create(kind, inline, source) {
 			const component = getInlineWidgetComponent(kind, grammar);
@@ -183,7 +185,8 @@ export function createSvelteWidgetPool(deps: SvelteWidgetPoolDeps): WidgetPool {
 						getTheme,
 						getDocument,
 						getContentVersion,
-						navigateTo
+						navigateTo,
+						computeInlineContent: readInline
 					}
 				});
 				return { wrapper, instance };

@@ -17,6 +17,7 @@ import {
 	type VisibilityContext
 } from '../../../core/inline/visibility';
 import type { AnyInlineKind, InlineNode } from '../../../core/nodes';
+import type { GrammarView } from '../../../schema/block-openers';
 import { getInlineConstructPolicy } from '../../../schema/inline-construct-policy';
 import { removesExactly, soleProseReparse } from './screen-diff';
 
@@ -41,6 +42,8 @@ export interface EdgeDeletionQuery {
 	/** What the caller installs the rewrite as, which is what the candidate is read back as.
 	 *  Required for the same reason `screen` is: a cell's text is never a block. */
 	installedAs: EdgeDeletionSurface;
+	/** The editor's grammar, so a candidate reads back as the syntax the editor draws. */
+	grammar: GrammarView;
 }
 
 /** A prose block stores a block; a table cell stores cell text, whose bytes read as a list or a
@@ -86,14 +89,14 @@ export function resolveEdgeDeletion(query: EdgeDeletionQuery): EdgeDeletion | nu
 		isDelimiterByte(constructs, target.start - 1) || isDelimiterByte(constructs, target.end);
 	if (!touchesHiddenRun && plain.start === native.start && plain.end === native.end) return null;
 
-	const before = visibleText(display, query.installedAs);
+	const before = visibleText(display, query.installedAs, query.grammar);
 	if (before === null) return null;
 	const removed = target.atomic
 		? renderedText([target.atomic], display, CONTENT_VISIBILITY)
 		: display.slice(target.start, target.end);
 	for (const cut of [plain, widenThroughRuns(constructs, plain)]) {
 		const raw = display.slice(0, cut.start) + display.slice(cut.end);
-		const after = visibleText(raw, query.installedAs);
+		const after = visibleText(raw, query.installedAs, query.grammar);
 		if (after === null || !removesExactly(before, after, removed)) continue;
 		// Backward lands where the cut opened; forward keeps the caret where it was, which the cut
 		// only moves when it swallowed delimiters ahead of it.
@@ -251,16 +254,24 @@ function isDelimiterByte(constructs: readonly PolicyConstruct[], at: number): bo
  * a cut that empties a construct brings its markers into view, and the comparison would read that
  * as bytes lost. Safe, because the case where markers are drawn returned above.
  */
-function visibleText(raw: string, surface: EdgeDeletionSurface): string | null {
+function visibleText(
+	raw: string,
+	surface: EdgeDeletionSurface,
+	grammar: GrammarView
+): string | null {
 	// Cell text is never a block, so it reads as its inline content and nothing else can refuse it.
 	if (surface === 'cell')
-		return renderedText(parseInline(raw, 0, raw.length), raw, CONTENT_VISIBILITY);
+		return renderedText(
+			parseInline(raw, 0, raw.length, undefined, grammar),
+			raw,
+			CONTENT_VISIBILITY
+		);
 	// A cut that empties the block is the one candidate with no block to read: empty stays empty
 	// through a reparse, so it answers for itself rather than through the parser.
 	if (raw === '') return '';
 	// A candidate that parses back as a different block is not what the caller is about to store:
 	// a cut can push two literal runs together into a fence opener, which then swallows the rest.
-	const sole = soleProseReparse(raw);
+	const sole = soleProseReparse(raw, { grammar });
 	if (sole === null) return null;
 	return renderedText(sole.nodes, sole.block.raw, CONTENT_VISIBILITY);
 }

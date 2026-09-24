@@ -407,16 +407,24 @@ export interface CallSite {
 	args: string | null;
 }
 
-/** Every call to `name` in comment-stripped code, the declaration skipped. */
+/** Every call to `name` in comment-stripped code, declarations skipped. */
 export function callSites(code: string, name: string): CallSite[] {
 	const out: CallSite[] = [];
 	const re = callSiteRegex(name);
 	let m: RegExpExecArray | null;
 	while ((m = re.exec(code)) !== null) {
 		if (/function\s+$/.test(code.slice(Math.max(0, m.index - 12), m.index))) continue;
-		out.push({ index: m.index, args: balancedCall(code, m.index + m[0].length) });
+		const args = balancedCall(code, m.index + m[0].length);
+		if (args !== null && hasTypedParameter(args)) continue;
+		out.push({ index: m.index, args });
 	}
 	return out;
+}
+
+/** A top-level `name:` or `name?:` is a typed parameter, which only a declaration has: a method
+ *  signature in an interface or class. */
+function hasTypedParameter(args: string): boolean {
+	return callArguments(args).some((arg) => /^[\w$]+\??:/.test(arg));
 }
 
 /** The argument text of every balanced call to `name`; pass comment-stripped code. */
