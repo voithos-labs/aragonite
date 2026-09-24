@@ -10,8 +10,8 @@ import { getBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
 import { describeConvergence } from '$lib/test/harness/parse-converged';
 import { settled } from '$lib/test/harness/settle-funnel';
 
-// A list item's or footnote's body ends where its indentation ends, so an emptied last block is
-// written with the body's indent and reloads as the empty paragraph the editor holds (GH #406).
+// A list item's or footnote's body ends where its indentation ends, so an emptied last block's
+// own line is written with the body's indent and reloads as the empty paragraph it is (GH #406).
 // Miss-analysis: the shape property skipped every list-item body for a different shape, and no
 // unit case blanked the last block of an indent-delimited body.
 
@@ -43,15 +43,15 @@ function empty(doc: Document, path: number[]): void {
 
 describe('blanking the last block of an indent-delimited body', () => {
 	it.each([
-		['a list item', '- a\n\n  b\n\n- c\n', [0, 0, 1], '- a\n  \n  \n\n- c\n'],
-		['a footnote', '[^1]: a\n\n    b\n\n', [0, 1], '[^1]: a\n    \n    \n\n'],
+		['a list item', '- a\n\n  b\n\n- c\n', [0, 0, 1], '- a\n\n  \n\n- c\n'],
+		['a footnote', '[^1]: a\n\n    b\n\n', [0, 1], '[^1]: a\n\n    \n\n'],
 		[
 			'a CRLF list item',
 			'- a\r\n\r\n  b\r\n\r\n- c\r\n',
 			[0, 0, 1],
-			'- a\r\n  \r\n  \r\n\r\n- c\r\n'
+			'- a\r\n\r\n  \r\n\r\n- c\r\n'
 		],
-		['a CRLF footnote', '[^1]: a\r\n\r\n    b\r\n', [0, 1], '[^1]: a\r\n    \r\n    \r\n']
+		['a CRLF footnote', '[^1]: a\r\n\r\n    b\r\n', [0, 1], '[^1]: a\r\n\r\n    \r\n']
 	])('%s writes the body indent and reloads as the tree it holds', (_, source, path, after) => {
 		const doc = parse(source);
 

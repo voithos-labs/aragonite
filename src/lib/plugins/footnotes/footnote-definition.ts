@@ -18,7 +18,6 @@ import {
 	registerBlockComponent,
 	registerBlockKind,
 	registerBlockOpener,
-	serializeChildren,
 	setPluginMetadata,
 	splitLines,
 	type BlockOpenerResult,
@@ -112,24 +111,37 @@ function tryOpen(ctx: OpenContext): BlockOpenerResult | null {
 }
 
 /**
- * A blank continuation stays unindented unless only blank lines follow it in the body, where the
- * indent is what keeps it inside the definition on reload.
+ * A separator line stays unindented, as the parser reads it. An empty block's line at the body's
+ * end, and the body's trailing blank line, take the indent that keeps them in the definition.
  */
 export function rebuildFootnoteDefRaw(node: CstNode): void {
 	const meta = getPluginMetadata<FootnoteDefMetadata>(node);
 	const marker = `[^${meta?.label ?? ''}]: `;
-	const inner =
-		(node.innerPrefix ?? '') + serializeChildren(node.children ?? []) + (node.innerSuffix ?? '');
-	const lines = splitLines(inner);
-	const lastContent = lines.findLastIndex((line) => !isBlankLine(line.text));
-	node.raw = lines
-		.map(({ text, lineEnding }, i) => {
-			if (i === 0) return marker + text + lineEnding;
-			if (text === '' && i < lastContent) return lineEnding;
-			return CONTINUATION_MARKER + text + lineEnding;
-		})
-		.join('');
+	const children = node.children ?? [];
+	const suffix = node.innerSuffix ?? '';
+	let blankTail = children.length;
+	if (isWhitespaceOnly(suffix)) {
+		while (blankTail > 0 && isWhitespaceOnly(children[blankTail - 1].raw)) blankTail--;
+	}
+	// Each piece is whole lines, paired with whether its blank lines are indented.
+	const pieces: [string, boolean][] = [[node.innerPrefix ?? '', false]];
+	children.forEach((child, i) => {
+		pieces.push([child.leadingTrivia, false], [child.raw, i >= blankTail]);
+	});
+	pieces.push([suffix, true]);
+
+	let raw = '';
+	for (const [bytes, indentsBlank] of pieces) {
+		for (const { text, lineEnding } of splitLines(bytes)) {
+			if (raw === '') raw += marker + text + lineEnding;
+			else if (text === '' && !indentsBlank) raw += lineEnding;
+			else raw += CONTINUATION_MARKER + text + lineEnding;
+		}
+	}
+	node.raw = raw;
 }
+
+const isWhitespaceOnly = (text: string): boolean => !/[^ \t\r\n]/.test(text);
 
 export function registerFootnoteDefinition(): void {
 	const kind = declarePluginKind(FOOTNOTE_DEF_KIND);
