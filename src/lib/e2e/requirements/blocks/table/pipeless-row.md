@@ -1,6 +1,6 @@
 # Feature: a line with no pipe after a table's rows
 
-GFM reads a line straight after a table's rows as one more row when it opens no other block (spec example 201): its text is the row's first cell, and the row has the header's column count.
+GFM reads a line straight after a table's rows as one more row when it opens no other block (spec example 201): its text is the row's first cell, and the row has the header's column count. A block an edit turns into text there is the exception: it gets a blank line above it and stays a paragraph (`text-under-table.md`).
 
 ## Happy paths
 
