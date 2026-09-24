@@ -60,13 +60,28 @@ export function defaultInlineHook(
 		seam
 	);
 
-	const newDisplay =
-		effectiveDisplay.slice(0, effectiveOffset) + text + effectiveDisplay.slice(effectiveOffset);
+	const after = effectiveDisplay.slice(effectiveOffset);
+	const inserted = atLineEnd(after) ? dropClosingLineEnding(text) : text;
+	const newDisplay = effectiveDisplay.slice(0, effectiveOffset) + inserted + after;
 
 	return {
 		newRaw: newDisplay + lineEnding,
-		caretOffset: effectiveOffset + text.length
+		caretOffset: effectiveOffset + inserted.length
 	};
+}
+
+const atLineEnd = (after: string): boolean => after === '' || /^\r?\n/.test(after);
+
+/**
+ * `text` without the one line ending that closes its last line: pasted against the end of a line
+ * it breaks nothing, and kept it would leave a blank line inside the paragraph. A whole blank line
+ * at the end stays, since the clipboard carried it as a block of its own.
+ */
+function dropClosingLineEnding(text: string): string {
+	const closing = /\r?\n$/.exec(text);
+	if (!closing) return text;
+	const rest = text.slice(0, closing.index);
+	return rest === '' || /\r?\n$/.test(rest) ? text : rest;
 }
 
 export function defaultStructuralHook(
