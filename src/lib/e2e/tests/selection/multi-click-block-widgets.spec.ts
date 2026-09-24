@@ -126,7 +126,9 @@ test.describe('multi-click: the block inline syntax handler beside inline widget
 			await expect(page.locator('[data-image-overlay]')).toHaveCount(1);
 			await page.waitForTimeout(150);
 			expect(await nativeSelectionText(page)).toBe('');
-			expect(await documentCaret(page)).toEqual([0, null]);
+			// No native caret; the editor's read answers the image's end, where the click left it.
+			const imageEnd = { path: [0], offset: IMAGE_PARAGRAPH.indexOf(')') + 1 };
+			expect(await documentCaret(page)).toEqual([0, { anchor: imageEnd, focus: imageEnd }]);
 			await page.keyboard.press('X');
 			await editor.bridge.waitForSourceContains('X');
 			expect(await editor.bridge.getSource()).toBe('before X after\n');
