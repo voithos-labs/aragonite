@@ -40,6 +40,8 @@ export function getContentRange(node: NodeView): ContentRange {
  * them put back before a write, and the caret's reach ends where they start.
  */
 export function undrawnSuffix(node: NodeView): string {
+	// A kind that is not prose renders its whole display, so nothing past its content is undrawn.
+	if (!isProseKind(node.kind)) return '';
 	return node.raw.slice(getContentRange(node).end, displayLength(node.raw));
 }
 

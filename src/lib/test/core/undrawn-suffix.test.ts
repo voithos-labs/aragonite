@@ -1,0 +1,46 @@
+// The bytes a block keeps past its drawn text: only a prose kind's DOM stops at its content end.
+// Miss-analysis: every kind with bytes past its content range was prose, so no test asked about a
+// kind whose component draws its whole display.
+import { describe, it, expect, afterEach } from 'vitest';
+import { undrawnSuffix } from '../../core/inline';
+import type { CstNode } from '../../core/nodes';
+import { declarePluginKind, registerBlockKind, simpleLeafClosure } from '$lib/plugin';
+import { resetPluginPlatformForTests } from '$lib/testing';
+
+const node = (kind: string, raw: string) => ({ kind, leadingTrivia: '', raw }) as CstNode;
+
+afterEach(resetPluginPlatformForTests);
+
+describe('undrawnSuffix', () => {
+	it.each([
+		['a setext underline', 'Plan\n===\n', '\n==='],
+		['a CRLF setext underline', 'Plan\r\n---\r\n', '\r\n---'],
+		['a two-line title', 'Plan\nmore\n---\n', '\n---']
+	])('is %s', (_label, raw, suffix) => {
+		expect(undrawnSuffix(node('setextHeading', raw))).toBe(suffix);
+	});
+
+	it('is empty for a paragraph and an ATX heading', () => {
+		expect(undrawnSuffix(node('paragraph', 'Plan\n'))).toBe('');
+		expect(undrawnSuffix(node('heading', '# Plan\n'))).toBe('');
+	});
+
+	it('is empty for a kind that is not prose, whatever its content range', () => {
+		const kind = declarePluginKind('short-range-leaf');
+		registerBlockKind(kind, {
+			gapEdges: 'none',
+			mergeRole: 'not-mergeable',
+			editable: true,
+			supportsInline: false,
+			getContentRange: () => ({ start: 0, end: 2 }),
+			closure: simpleLeafClosure({
+				focus: { mode: 'implemented', via: 'native caret in the raw-editable surface' },
+				searchPaint: { mode: 'inherit-default' },
+				undo: { mode: 'inherit-default' },
+				simOracle: { mode: 'inherit-default' }
+			})
+		});
+
+		expect(undrawnSuffix(node(kind, '@@ one\n'))).toBe('');
+	});
+});
