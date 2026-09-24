@@ -15,6 +15,7 @@ import {
 	recordDecorationRun,
 	recordFormatCoverageRead,
 	recordInlineCompute,
+	recordHeightTableBuild,
 	recordIslandKeyScan,
 	recordIslandRebuild,
 	recordParse,
@@ -43,7 +44,8 @@ const EMPTY: PerfSnapshot = {
 	mountedBlockCount: 0,
 	decorationRuns: 0,
 	islandRebuilds: 0,
-	islandKeyScans: 0
+	islandKeyScans: 0,
+	heightTableBuilds: []
 };
 
 function recordOneOfEach(): void {
@@ -57,6 +59,7 @@ function recordOneOfEach(): void {
 	recordDecorationRun();
 	recordIslandRebuild();
 	recordIslandKeyScan();
+	recordHeightTableBuild([0, 1], 640);
 	markKeystrokeStart();
 	markKeystrokeSettle();
 }
@@ -153,6 +156,16 @@ describe('perf instruments', () => {
 		expect(s.decorationRuns).toBe(2);
 		expect(s.islandRebuilds).toBe(1);
 		expect(s.islandKeyScans).toBe(3);
+	});
+
+	it('records each height table build with its list path and width', () => {
+		enablePerfInstruments();
+		recordHeightTableBuild([], 1280);
+		recordHeightTableBuild([2, 0], 1183);
+		expect(perfSnapshot().heightTableBuilds).toEqual([
+			{ path: '', width: 1280 },
+			{ path: '2,0', width: 1183 }
+		]);
 	});
 
 	it('records the block path when one is supplied', () => {
