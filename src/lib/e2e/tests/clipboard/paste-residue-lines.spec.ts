@@ -35,6 +35,11 @@ test.describe('a multi-block paste keeps the lines after the caret', () => {
 
 		expect(asLf(await editor.bridge.getSource())).toBe('abc\n\n> q\nAfter\n');
 		expect(await editor.parseConverged()).toBe(true);
+
+		// The quote took `After` in, and the caret stays after the pasted `q` (GH #447).
+		await editor.typeText('Z');
+		await editor.bridge.waitForSourceContains('qZ');
+		expect(asLf(await editor.bridge.getSource())).toBe('abc\n\n> qZ\n> After\n');
 	});
 
 	test('one undo gives the paragraph back', async () => {

@@ -14,7 +14,7 @@ import { spliceMany } from '../splice-many';
 import { trailingLineEnding } from '../../core/lines';
 import { normalizeReplacementForBody } from './body-write';
 import { reconcileTaskMetadata, taskMarkerMayStandBefore } from '../list/reconcile-task';
-import { landedPasteOffset, trackedPasteCaret } from './focus-target';
+import { landedPastePosition, trackedPasteCaret } from './focus-target';
 import { resolveParentScope } from './parent-scope';
 import { docPathFrom } from '../../cursor/coordinate-spaces';
 import {
@@ -117,10 +117,8 @@ export async function replaceBlockAtParent(args: ReplaceBlockAtParentArgs): Prom
 			// Re-read from the document: the commit copies the ancestors, so the scope node the
 			// caller resolved is a stale copy by now.
 			const landed = nodeAt(doc, scope.path)?.children?.[caret.index];
-			return controller.landCaret(
-				[...scope.path, caret.index],
-				landedPasteOffset(landed, caret, focusOffset)
-			);
+			const at = landedPastePosition(landed, caret, focusOffset);
+			return controller.landCaret([...scope.path, caret.index, ...at.path], at.offset);
 		}
 	});
 	return replacement.length;
