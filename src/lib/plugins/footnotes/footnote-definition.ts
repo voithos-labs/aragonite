@@ -20,6 +20,7 @@ import {
 	registerBlockOpener,
 	serializeChildren,
 	setPluginMetadata,
+	splitLines,
 	type BlockOpenerResult,
 	type CstNode,
 	type OpenContext
@@ -49,9 +50,10 @@ function keepsParagraphOpen(strippedText: string, grammar: OpenContext['grammar'
 }
 
 /**
- * Blank lines are taken in only while a later indented line still follows; a trailing run of
- * blanks belongs to the document. An unindented non-blank line continues the definition only
- * as a lazy continuation of an open body paragraph (CommonMark §5.1, as cmark-gfm applies it).
+ * A line indented to the body, whitespace-only or not, continues the definition; bare blank lines
+ * are taken in only while such a line follows, so a trailing bare run belongs to the document. An
+ * unindented non-blank line continues only as a lazy continuation of an open body paragraph
+ * (CommonMark §5.1, as cmark-gfm applies it).
  */
 function scanDefinitionEnd(ctx: OpenContext): number {
 	let lastContent = ctx.index;
@@ -59,14 +61,14 @@ function scanDefinitionEnd(ctx: OpenContext): number {
 	let i = ctx.index + 1;
 	while (i < ctx.end) {
 		const text = ctx.lines[i].text;
-		if (isBlankLine(text)) {
-			paragraphOpen = false;
-			i++;
-			continue;
-		}
 		if (CONTINUATION_INDENT.test(text)) {
 			paragraphOpen = keepsParagraphOpen(text.replace(CONTINUATION_INDENT, ''), ctx.grammar);
 			lastContent = i;
+			i++;
+			continue;
+		}
+		if (isBlankLine(text)) {
+			paragraphOpen = false;
 			i++;
 			continue;
 		}
@@ -109,22 +111,24 @@ function tryOpen(ctx: OpenContext): BlockOpenerResult | null {
 	return { node, consumed: next - ctx.index };
 }
 
-/** Splitting on `\n` keeps a `\r` at each segment's tail, so CRLF rides through; a blank
- *  continuation stays unindented. */
+/**
+ * A blank continuation stays unindented unless only blank lines follow it in the body, where the
+ * indent is what keeps it inside the definition on reload.
+ */
 export function rebuildFootnoteDefRaw(node: CstNode): void {
 	const meta = getPluginMetadata<FootnoteDefMetadata>(node);
 	const marker = `[^${meta?.label ?? ''}]: `;
 	const inner =
 		(node.innerPrefix ?? '') + serializeChildren(node.children ?? []) + (node.innerSuffix ?? '');
-	const lines = inner.split('\n');
+	const lines = splitLines(inner);
+	const lastContent = lines.findLastIndex((line) => !isBlankLine(line.text));
 	node.raw = lines
-		.map((line, i) => {
-			if (i === lines.length - 1 && line === '') return '';
-			if (i === 0) return marker + line;
-			if (line === '' || line === '\r') return line;
-			return CONTINUATION_MARKER + line;
+		.map(({ text, lineEnding }, i) => {
+			if (i === 0) return marker + text + lineEnding;
+			if (text === '' && i < lastContent) return lineEnding;
+			return CONTINUATION_MARKER + text + lineEnding;
 		})
-		.join('\n');
+		.join('');
 }
 
 export function registerFootnoteDefinition(): void {

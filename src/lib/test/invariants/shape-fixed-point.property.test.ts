@@ -132,13 +132,21 @@ function proseLeafSlots(node: Document | CstNode, chain: CstNode[] = []): LeafSl
 }
 
 /**
- * Inside a list item only the paragraph after a task marker is emptied: the rest of an item body
- * reloads other shapes than it holds once emptied (GH #406 for its last block, and an item left
- * empty after a paragraph, which stops interrupting it), which seed 424242 draws first.
+ * Skips one slot: the opening paragraph of a list that sits right under a paragraph. Emptied, it
+ * leaves a bare marker, which cannot interrupt a paragraph and reloads as its text; seed 424242
+ * draws it first. A task marker is content, so a task item's paragraph stays in.
  */
-const emptiesCleanly = ({ holder, index, chain }: LeafSlot) =>
-	!chain.some((node) => node.kind === 'listItem') ||
-	followsTaskMarker('raw' in holder ? holder : undefined, index);
+const emptiesCleanly = (doc: Document, { holder, index, chain }: LeafSlot) => {
+	if (holder === chain.at(-1) && holder.kind === 'listItem' && index === 0) {
+		const list = chain.at(-2)!;
+		const listHolder: Document | CstNode = chain.at(-3) ?? doc;
+		const above = listHolder.children![listHolder.children!.indexOf(list) - 1];
+		const opensUnderParagraph =
+			list.children![0] === holder && list.leadingTrivia === '' && above?.kind === 'paragraph';
+		return !opensUnderParagraph || followsTaskMarker(holder, index);
+	}
+	return true;
+};
 
 /**
  * The reverse transition: a block that becomes the blank line (GH #96), indexed over the prose
@@ -147,7 +155,7 @@ const emptiesCleanly = ({ holder, index, chain }: LeafSlot) =>
  * body answers to its container's own opener line, which no top-level draw reaches.
  */
 function applyEmpty(doc: Document, at: number): void {
-	const slots = proseLeafSlots(doc).filter(emptiesCleanly);
+	const slots = proseLeafSlots(doc).filter((slot) => emptiesCleanly(doc, slot));
 	if (slots.length === 0) return;
 	const slot = slots[at % slots.length];
 	writeLeaf(doc, slot, trailingLineEnding(slot.holder.children![slot.index].raw));
@@ -245,7 +253,7 @@ function divergenceAfterEdit(
 	if (gesture.op === 'split' && !keptBytes) {
 		return `split dropped non-line-ending bytes: ${JSON.stringify(before)} → ${JSON.stringify(bytes)}`;
 	}
-	// Content bytes only: a list item's rebuild writes its blank lines unindented (GH #406).
+	// Content bytes only: a list item's rebuild may change the indentation of its blank lines.
 	if (gesture.op === 'retype' && !keepsEveryContentByte(before, bytes)) {
 		return `retype changed the bytes: ${JSON.stringify(before)} → ${JSON.stringify(bytes)}`;
 	}

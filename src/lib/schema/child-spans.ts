@@ -12,7 +12,7 @@ import { makeBlockNode, type CstNode } from '../core/nodes';
 import { assertInvariant } from '../assert';
 import { perfEnabled } from '../perf/instruments';
 import { concatChildren } from '../core/serializer';
-import { splitLines } from '../core/lines';
+import { isBlankLine, splitLines } from '../core/lines';
 
 /** The child a rebuild is re-rendering, and the bytes its region currently holds. */
 export interface ChildRawChange {
@@ -20,11 +20,14 @@ export interface ChildRawChange {
 	previousRaw: string;
 }
 
-/** A strip container's per-line transform; `first` marks the container's own opening line. */
-export type LinePrefix = (text: string, first: boolean) => string;
+/**
+ * A strip container's per-line transform. `first` marks the container's own opening line, and
+ * `trailingBlank` a whitespace-only line with nothing but such lines after it in the body.
+ */
+export type LinePrefix = (text: string, first: boolean, trailingBlank: boolean) => string;
 
-/** One child's contribution to its container's raw. */
-type RenderChild = (text: string, first: boolean) => string;
+/** One child's contribution to its container's raw; `tailIsBlank` asks about the body after it. */
+type RenderChild = (text: string, first: boolean, tailIsBlank: () => boolean) => string;
 
 /** Drop the spans a change to the children invalidated; the next full rebuild recomputes them. */
 export function dropChildSpans(node: CstNode): void {
@@ -65,7 +68,8 @@ export function rebuildConcatRaw(node: CstNode, changed?: ChildRawChange): void 
  */
 export function rebuildStripRaw(node: CstNode, prefix: LinePrefix, changed?: ChildRawChange): void {
 	const children = node.children!;
-	const render: RenderChild = (text, first) => renderPrefixed(text, prefix, first);
+	const render: RenderChild = (text, first, tailIsBlank) =>
+		renderPrefixed(text, prefix, first, tailIsBlank);
 	if (
 		changed &&
 		spliceChildRegion(node, children, changed, render) &&
@@ -74,25 +78,34 @@ export function rebuildStripRaw(node: CstNode, prefix: LinePrefix, changed?: Chi
 		return;
 	}
 
+	// One indexed read per child: the array is a `$state` proxy, so every read is a proxy trap.
+	const texts = children.map((child) => child.leadingTrivia + child.raw);
+	const suffix = node.innerSuffix ?? '';
+	// Every child from `blankTail` on, and the suffix, holds whitespace only.
+	let blankTail = texts.length;
+	if (isWhitespaceOnly(suffix)) {
+		while (blankTail > 0 && isWhitespaceOnly(texts[blankTail - 1])) blankTail--;
+	} else {
+		blankTail = texts.length + 1;
+	}
+
 	const spans = new Uint32Array(children.length * 2);
 	let out = '';
 	// A child ending mid-line shares that line with whatever follows, so the two would be
 	// prefixed separately: the whole-body rebuild is the only faithful answer for that shape.
 	let openLine = false;
-	for (let i = 0; i < children.length; i++) {
-		const child = children[i];
-		const text = child.leadingTrivia + child.raw;
+	for (let i = 0; i < texts.length; i++) {
+		const text = texts[i];
 		if (openLine && text !== '') return rebuildWholeStrip(node, prefix);
 		spans[i * 2] = out.length;
-		out += render(text, out.length === 0);
+		out += render(text, out.length === 0, () => blankTail <= i + 1);
 		spans[i * 2 + 1] = out.length;
 		if (text !== '') openLine = !text.endsWith('\n');
 	}
 
-	const suffix = node.innerSuffix ?? '';
 	if (suffix !== '') {
 		if (openLine) return rebuildWholeStrip(node, prefix);
-		out += render(suffix, out.length === 0);
+		out += render(suffix, out.length === 0, () => true);
 	}
 	node.raw = out;
 	node.childSpans = spans;
@@ -103,7 +116,8 @@ function rebuildWholeStrip(node: CstNode, prefix: LinePrefix): void {
 	node.raw = renderPrefixed(
 		concatChildren(node.children!) + (node.innerSuffix ?? ''),
 		prefix,
-		true
+		true,
+		() => true
 	);
 }
 
@@ -111,12 +125,24 @@ function rebuildWholeStrip(node: CstNode, prefix: LinePrefix): void {
 
 const renderVerbatim: RenderChild = (text) => text;
 
-function renderPrefixed(text: string, prefix: LinePrefix, first: boolean): string {
+const isWhitespaceOnly = (text: string): boolean => !/[^ \t\r\n]/.test(text);
+
+/** `tailIsBlank` says whether everything in the body after `text` is whitespace-only. */
+function renderPrefixed(
+	text: string,
+	prefix: LinePrefix,
+	first: boolean,
+	tailIsBlank: () => boolean
+): string {
 	if (text === '') return '';
 	let out = '';
 	const lines = splitLines(text);
+	let lastContent = lines.length - 1;
+	while (lastContent >= 0 && isBlankLine(lines[lastContent].text)) lastContent--;
+	const endsBlank = lastContent < lines.length - 1 && tailIsBlank();
 	for (let i = 0; i < lines.length; i++) {
-		out += prefix(lines[i].text, first && i === 0) + lines[i].lineEnding;
+		const line = lines[i];
+		out += prefix(line.text, first && i === 0, endsBlank && i > lastContent) + line.lineEnding;
 	}
 	return out;
 }
@@ -172,9 +198,20 @@ function spliceChildRegion(
 
 	const first = start === 0;
 	const trivia = child.leadingTrivia;
-	if (raw.slice(start, end) !== render(trivia + changed.previousRaw, first)) return false;
+	// A child turning blank, or back, decides whether the blank lines before it end the body.
+	if (isWhitespaceOnly(trivia + changed.previousRaw) !== isWhitespaceOnly(trivia + child.raw)) {
+		return false;
+	}
+	const tailIsBlank = () =>
+		isWhitespaceOnly(node.innerSuffix ?? '') &&
+		children
+			.slice(changed.index + 1)
+			.every((later) => isWhitespaceOnly(later.leadingTrivia + later.raw));
+	if (raw.slice(start, end) !== render(trivia + changed.previousRaw, first, tailIsBlank)) {
+		return false;
+	}
 
-	const rendered = render(trivia + child.raw, first);
+	const rendered = render(trivia + child.raw, first, tailIsBlank);
 	if (end < raw.length) {
 		// Nothing may run into the regions that follow: a child not ending in a line ending would
 		// share its last line, and an emptied first region hands line 0 to the next child.

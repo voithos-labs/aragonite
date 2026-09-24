@@ -68,20 +68,26 @@ export function parseList(
 		let paragraphOpen = wouldKeepParagraphOpen(lines[i].text.slice(contentIndent));
 		i++;
 
-		// Blank lines are absorbed if followed by indented content, making multi-paragraph items.
+		// Any line indented to the content column belongs to the body, a whitespace-only one too; a
+		// run of bare blank lines is taken in only when such a line follows it.
 		while (i < endIndex) {
-			if (isBlankLine(lines[i].text)) {
+			if (getIndent(lines[i].text) >= contentIndent) {
+				paragraphOpen = wouldKeepParagraphOpen(lines[i].text.slice(contentIndent));
+				i++;
+			} else if (isBlankLine(lines[i].text)) {
 				let j = i;
-				while (j < endIndex && isBlankLine(lines[j].text)) j++;
+				while (
+					j < endIndex &&
+					isBlankLine(lines[j].text) &&
+					getIndent(lines[j].text) < contentIndent
+				) {
+					j++;
+				}
 				if (j < endIndex && getIndent(lines[j].text) >= contentIndent) {
-					paragraphOpen = wouldKeepParagraphOpen(lines[j].text.slice(contentIndent));
-					i = j + 1;
+					i = j;
 				} else {
 					break;
 				}
-			} else if (getIndent(lines[i].text) >= contentIndent) {
-				paragraphOpen = wouldKeepParagraphOpen(lines[i].text.slice(contentIndent));
-				i++;
 			} else if (
 				paragraphOpen &&
 				wouldKeepParagraphOpen(lines[i].text) &&

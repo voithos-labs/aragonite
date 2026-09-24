@@ -5,7 +5,7 @@
 
 import { DEV } from 'esm-env';
 import type { CstNode, Document } from './nodes';
-import { splitLines, type ParsedLine } from './lines';
+import { isBlankLine, splitLines, type ParsedLine } from './lines';
 import { perfEnabled, recordParse } from '../perf/instruments';
 import {
 	defaultGrammarView,
@@ -243,16 +243,7 @@ function assertOpenerRawMatches(ctx: OpenContext, result: BlockOpenerResult): vo
 
 // ── Shared utilities ────────────────────────────────────────────────────
 
-/**
- * GFM §2.1: a blank line holds nothing but spaces and tabs. Deliberately not `String.trim()`,
- * which admits all Unicode whitespace: a non-breaking space is content, and a line holding one
- * continues its block.
- */
-const NON_BLANK_CHAR = /[^ \t]/;
-
-export function isBlankLine(text: string): boolean {
-	return !NON_BLANK_CHAR.test(text);
-}
+export { isBlankLine };
 
 /**
  * Nothing but blank lines: what the blank-line rule makes an empty paragraph from. Blankness is
