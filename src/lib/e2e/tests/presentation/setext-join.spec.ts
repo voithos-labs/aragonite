@@ -77,6 +77,43 @@ for (const mode of ['source', 'live', 'preview-inline'] as const) {
 	});
 }
 
+for (const mode of ['source', 'live'] as const) {
+	test.describe(`${mode} mode: a range delete ending in a setext heading`, () => {
+		for (const [label, doc, endPath, joined, kind] of [
+			[
+				'from another setext title',
+				'Setext\n======\n\nOther\n---\n',
+				[1],
+				'Sether\n======\n',
+				'setextHeading'
+			],
+			['from a paragraph', 'Setext para\n\nOther\n---\n', [1], 'Sether\n', 'paragraph'],
+			[
+				'inside a quote',
+				'> Setext\n> ======\n>\n> Other\n> ---\n',
+				[0, 1],
+				'> Sether\n> ======\n',
+				'blockquote'
+			]
+		] as const) {
+			test(`${label}, the underline below goes with its block`, async ({ page }) => {
+				const ep = await enterPresentationMode(page, mode, doc);
+				await clickBlockSettled(ep, 0);
+				await page.keyboard.press('Home');
+				await stepTo(ep, page, 'ArrowRight', 3);
+				await ep.shiftClickBlock([...endPath], 2);
+
+				await page.keyboard.press('Backspace');
+				await expectSource(ep, joined);
+				expect(await ep.bridge.getBlockKind(0)).toBe(kind);
+
+				await ep.undo();
+				await expectSource(ep, doc);
+			});
+		}
+	});
+}
+
 test.describe('live mode: Delete at a setext heading’s end before a block that is not prose', () => {
 	for (const [label, next, landing] of [
 		['a list', '- item\n', { path: [1, 0, 0], offset: 0 }],

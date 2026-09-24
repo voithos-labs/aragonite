@@ -9,7 +9,9 @@ the block kind and the caret are what each scenario checks.
 Miss-analysis: the one pin on this join encoded Delete's refusal in live mode as the contract, so
 no test asked what the join should write; Backspace from the block below and a range delete out of
 the title were never driven against a setext heading, and ArrowRight at the title end was only
-driven in live mode, the one mode whose caret bound read the screen.
+driven in live mode, the one mode whose caret bound read the screen. The range delete was then only
+driven into blocks with nothing past their text, so the underline of a heading it ended in was
+never asked about.
 
 ## Happy paths
 
@@ -20,6 +22,7 @@ driven in live mode, the one mode whose caret bound read the screen.
 ## Edge cases
 
 - a range deleted from inside the title into the block below keeps the underline under the joined text, and the heading stays a heading
+- a range that ends inside a setext title, in source and live mode, takes that title's underline with it: from another setext title the first underline alone stays (`Setext\n======\n\nOther\n---\n` becomes `Sether\n======\n`), from a paragraph the result is a paragraph, and inside a quote the same holds; one undo puts both blocks back
 - ArrowRight at the title end moves the caret to the start of the next block in every mode: the underline is not a place the caret can reach
 - before a block that is not prose (a list, a table, a fenced code block), Delete at the title end does what it does at a paragraph's end there: the caret moves into that block and no byte changes
 
