@@ -227,11 +227,19 @@ function runAfter(text: string, at: number, ch: string): number {
 
 // `X..X|X..X`: equal runs of a pair delimiter, one or two bytes, with nothing of it either side.
 function emptyPairAround(text: string, caret: number, grammar: GrammarView): ContentRange | null {
+	const k = emptyPairRun(text, caret, grammar);
+	return k === null ? null : { start: caret - k, end: caret + k };
+}
+
+// The run length of the empty pair around the caret, when it is a pair the auto-pair writes: a
+// delimiter that pairs only as a double run never writes `X|X`, so those two bytes are the user's.
+function emptyPairRun(text: string, caret: number, grammar: GrammarView): number | null {
 	const d = text[caret - 1];
-	if (d === undefined || !policyOf(d, grammar)) return null;
+	const policy = d === undefined ? null : policyOf(d, grammar);
+	if (!policy) return null;
 	const k = runBefore(text, caret, d);
-	if (k > 2 || runAfter(text, caret, d) !== k) return null;
-	return { start: caret - k, end: caret + k };
+	if (k > 2 || runAfter(text, caret, d) !== k || (k === 1 && !policy.single)) return null;
+	return k;
 }
 
 // `XX|`: a stepped-over empty pair with the caret after it. Only the delimiters that step (the
@@ -255,10 +263,8 @@ function collapseEmptyPair(
 	typed: string,
 	linkRef: InlineResolverRef
 ): AutoPairEdit | null {
-	const d = text[caret - 1];
-	if (d === undefined || !policyOf(d, linkRef.grammar)) return null;
-	const k = runBefore(text, caret, d);
-	if (k > 2 || runAfter(text, caret, d) !== k) return null;
+	const k = emptyPairRun(text, caret, linkRef.grammar);
+	if (k === null) return null;
 	const paired = text.slice(0, caret) + typed + text.slice(caret);
 	const shifted = { start: content.start, end: content.end + 1 };
 	if (constructAt(paired, shifted, caret - k, caret + 1 + k, linkRef)) return null;
