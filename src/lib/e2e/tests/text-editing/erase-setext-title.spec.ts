@@ -16,6 +16,16 @@ async function open(page: Page, mode: 'source' | 'live', doc: string): Promise<E
 const expectSource = (ep: EditorPage, expected: string) =>
 	expect.poll(() => ep.bridge.getSource(), { timeout: 5000 }).toBe(expected);
 
+async function kinds(ep: EditorPage): Promise<string[]> {
+	const count = await ep.bridge.getBlockCount();
+	return Promise.all(Array.from({ length: count }, (_, i) => ep.bridge.getBlockKind(i)));
+}
+
+async function caret(ep: EditorPage) {
+	const focus = (await ep.bridge.getSelectionPaths())?.focus;
+	return focus && { path: focus.path, offset: focus.offset };
+}
+
 async function backspace(page: Page, times: number): Promise<void> {
 	for (let i = 0; i < times; i++) await page.keyboard.press('Backspace');
 }
@@ -29,9 +39,9 @@ for (const mode of ['source', 'live'] as const) {
 				await page.keyboard.press('End');
 				await backspace(page, 4);
 
+				await expect.poll(() => kinds(ep)).toEqual(['paragraph', 'paragraph']);
 				await expectSource(ep, '\nnext\n');
-				expect(await ep.bridge.getBlockKind(0)).toBe('paragraph');
-				await expect(page.locator('.editor hr')).toHaveCount(0);
+				expect(await caret(ep)).toEqual({ path: [0], offset: 0 });
 			});
 		}
 
@@ -41,9 +51,8 @@ for (const mode of ['source', 'live'] as const) {
 			await page.keyboard.press('End');
 			await backspace(page, 4);
 
+			await expect.poll(() => kinds(ep)).toEqual(['paragraph']);
 			await expectSource(ep, 'Plan\n\n');
-			expect(await ep.bridge.getBlockKind(0)).toBe('paragraph');
-			await expect(page.locator('.editor hr')).toHaveCount(0);
 		});
 	});
 }
