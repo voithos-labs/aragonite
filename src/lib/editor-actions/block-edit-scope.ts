@@ -69,9 +69,28 @@ export interface CommitScope {
 	/** Read only; mutation goes through the commit's copied view, never this. */
 	children(): readonly NodeView[];
 	refAt(i: number): BlockComponent | undefined;
+	/** Mount the block at `path` below child `index`, scrolling it into the render window and
+	 *  waiting at each level; null when it cannot be mounted. */
+	reveal(index: number, path: readonly number[]): Promise<BlockComponent | null>;
 	/** An empty replaceBlock emits `delete` (container) or `replaceBlock{count:0}` (top-level). */
 	collapseEmptyReplaceToDelete: boolean;
 	commit(args: ScopeCommitArgs): Promise<void>;
+}
+
+/**
+ * Put the caret at `path` below child `index`, mounting that block first: a write can move the
+ * caret into a block the render window has not drawn yet.
+ */
+export async function landCaretInScope(
+	scope: CommitScope,
+	index: number,
+	path: readonly number[],
+	offset: number
+): Promise<void> {
+	await scope.reveal(index, path);
+	const ref = scope.refAt(index);
+	if (path.length === 0) ref?.focus(offset);
+	else ref?.focusByPath?.([...path], offset);
 }
 
 /** The owner the tree operations read for a container commit; {@link MutationView}'s
@@ -91,6 +110,7 @@ export function createTopLevelScope(
 	return {
 		children: () => deps.doc.children,
 		refAt: (i) => deps.blockRefs[i],
+		reveal: (index, path) => deps.revealPath([index, ...path]),
 		collapseEmptyReplaceToDelete: false,
 		commit({
 			snapshot,
@@ -133,6 +153,7 @@ export function createContainerScope(state: BlockListState, deps: NestedActionsD
 		// so a post-commit read can find the container gone rather than merely empty.
 		children: () => deps.node?.children ?? [],
 		refAt: (i) => state.innerBlockRefs[i],
+		reveal: (index, path) => deps.parent.focus.revealPath([...deps.path, index, ...path]),
 		collapseEmptyReplaceToDelete: true,
 		commit({ snapshot, eventTarget, op, mutate, afterTick, discardIfNoop }): Promise<void> {
 			return deps.parent.containerEdit.commitContainer({

@@ -244,7 +244,7 @@ export function createNestedBlockEdit(
 		// bytes as they now lie.
 		if (settled.change.op === 'noop') return;
 		await tick();
-		focusAfterContentReplace(deps.path, innerIndex, settled, focusOffset, scope);
+		await focusAfterContentReplace(deps.path, innerIndex, settled, focusOffset, scope);
 	}
 
 	return blockEdit;
