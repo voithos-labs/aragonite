@@ -24,6 +24,12 @@ whether or not the drag handles are turned on.
   interrupting the paragraph above it) arrives with one: the paragraph stays a paragraph
   rather than reading the rule as its setext underline, and the source reloads to the same
   three blocks.
+- A paragraph moved up out from under an HTML block, whose next line was a quote, leaves a blank
+  line between the HTML block and the quote: an HTML block runs to the next blank line, so without
+  it the quote and the list below would reload as HTML text. One undo restores the source.
+  - Miss-analysis: the join a moved block vacates was only ever pinned between two paragraphs,
+    which rejoin as a reload reads them; no case put a block that ends only at a blank line above
+    it, so the absorption below it went unasked.
 
 ## Edge cases
 
