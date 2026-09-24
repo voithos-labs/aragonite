@@ -44,7 +44,7 @@ function editorListing(names: string[], source: string, plugin: string) {
 		getTheme: () => 'dark',
 		activation: activationFor(names),
 		computeInlineContent: inlineReaderFor(grammar),
-		insertMarkdown: () => false,
+		insertMarkdown: async () => false,
 		runCommand: () => false
 	});
 	return { doc, editor: contexts.get(plugin) as EditorContext };
