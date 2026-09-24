@@ -31,6 +31,7 @@ import {
 	makeStubFocus
 } from '../harness/editor-actions';
 import { defaultGrammarView } from '$lib/schema/block-openers';
+import { fixtureLinkRef } from '../harness/fixture-grammar';
 
 // ── Arbitraries ──────────────────────────────────────────────────────────────
 
@@ -258,7 +259,7 @@ async function runListOp(
 		parentListContext: undefined,
 		controller: h.controller,
 		getPresentationMode: undefined,
-		linkRef: undefined
+		linkRef: fixtureLinkRef()
 	});
 
 	if (op.t === 'insertItem') {
@@ -408,7 +409,7 @@ async function runRangeDelete(
 		pushUndoSnapshot: () => h.controller.pushUndoSnapshot(startIdx, 0),
 		grammar: defaultGrammarView,
 		getPresentationMode: undefined,
-		linkRef: undefined
+		linkRef: fixtureLinkRef()
 	});
 }
 

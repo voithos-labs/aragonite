@@ -53,14 +53,13 @@ export interface NestedActionsDeps {
 	/** Document-absolute path of `node`; the copy-before-write and the ancestor rebuild use it. */
 	path: number[];
 	stickyColumn: StickyColumnState;
-	/** The instance's block grammar, so a disabled kind's opener stays skipped when a
-	 *  nested block re-parses. Absent = the global grammar. */
-	grammar?: GrammarView;
+	/** The instance's grammar, so a nested re-parse or completer leaves out what the editor did. */
+	grammar: GrammarView;
 	/** The live effective mode, for mutations whose bytes depend on what the mode shows (the
 	 *  split's marker rebalance). Nullable rather than optional so each container answers. */
 	getPresentationMode: PresentationModeGetter | undefined;
-	/** The instance's link-reference resolver, nullable for the same reason as the mode. */
-	linkRef: InlineResolverRef | undefined;
+	/** The instance's link-reference resolver and grammar. */
+	linkRef: InlineResolverRef;
 	/** The enclosing list's context, when this container is a list nested in one. */
 	parentListContext?: ListContext;
 	parent: {

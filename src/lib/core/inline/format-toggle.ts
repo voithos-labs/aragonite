@@ -549,7 +549,8 @@ function screenOf(display: string, content: ContentRange, grammar: GrammarView):
 	return renderedText(
 		parseInline(display, content.start, content.end, undefined, grammar),
 		display,
-		CONTENT_VISIBILITY
+		CONTENT_VISIBILITY,
+		{ grammar }
 	);
 }
 

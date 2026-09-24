@@ -47,8 +47,8 @@ export interface ListContextDeps {
 	/** The live effective mode, for the mid-item split's marker rebalance. Nullable rather
 	 *  than optional so the composing container answers. */
 	getPresentationMode: PresentationModeGetter | undefined;
-	/** The instance's link-reference resolver, nullable for the same reason as the mode. */
-	linkRef: InlineResolverRef | undefined;
+	/** The instance's link-reference resolver and grammar. */
+	linkRef: InlineResolverRef;
 	/** The instance's block grammar, for the mid-item split's reparse. Absent = the global one. */
 	grammar?: GrammarView;
 }

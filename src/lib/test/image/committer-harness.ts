@@ -14,6 +14,7 @@ import type { CstNode, Document, ImageFields } from '../../core/nodes';
 import type { UndoController } from '../../editor-actions/deps';
 import type { EditorEvents } from '../../editor-events';
 import type { WidgetSelectionState } from '../../components/image/widget-selection-state.svelte';
+import { fixtureLinkRef } from '../harness/fixture-grammar';
 
 export interface CommitterHarness {
 	committer: ReturnType<typeof createImageEditCommitter>;
@@ -34,7 +35,8 @@ export function committerFor(raw: string): CommitterHarness {
 		widgetSelection: { getSelected: () => null } as unknown as WidgetSelectionState,
 		controller,
 		events: { emit: vi.fn(), on: vi.fn() } as unknown as EditorEvents,
-		grammar: defaultGrammarView
+		grammar: defaultGrammarView,
+		linkRef: fixtureLinkRef()
 	});
 	const image = getInlineContent(
 		doc.children[0] as CstNode,

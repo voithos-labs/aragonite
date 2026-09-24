@@ -19,6 +19,7 @@ import type { BlockComponent } from '$lib/block-component';
 import { defaultGrammarView, type GrammarView } from '$lib/schema/block-openers';
 import type { SelectionState } from '$lib/selection/selection-state.svelte';
 import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
+import { fixtureLinkRef } from '../../harness/fixture-grammar';
 
 /** Override focus to vi.fn() so cross-block dispatch tests can assert calls. */
 const makeRef = (): BlockComponent => mockRef({ focus: vi.fn() });
@@ -61,7 +62,9 @@ export function makeEnv(source: string) {
 		selectionState,
 		getBlockElByPath: () => null,
 		revealPath: async (path: number[]) => (path.length === 1 ? (blockRefs[path[0]] ?? null) : null),
-		events
+		events,
+		grammar: defaultGrammarView,
+		linkRef: fixtureLinkRef()
 	};
 	const controller = createUndoController(deps);
 	const blockEdit = createBlockEditActions(deps, controller);
@@ -104,7 +107,7 @@ export function makeHandlers(
 		history: { requestUndo() {}, requestRedo() {} },
 		pluginEditor: undefined,
 		getPresentationMode: () => 'source' as const,
-		linkRef: undefined,
+		linkRef: fixtureLinkRef(),
 		onCommandError: undefined,
 		crossBlockCommands: { canRun: () => false, run: () => false, isActive: () => false },
 		getKeybindingOverrides: () => normalizeKeybindingOverrides(undefined),

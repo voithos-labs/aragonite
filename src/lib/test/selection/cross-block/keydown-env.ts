@@ -20,6 +20,7 @@ import { installEditorDomStubsForTests } from '$lib/testing';
 import { makeEditorActionsDeps } from '../../harness/editor-actions';
 import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
 import { defaultGrammarView } from '$lib/schema/block-openers';
+import { fixtureLinkRef } from '../../harness/fixture-grammar';
 
 export interface KeydownEnvOptions {
 	presentationMode?: PresentationMode;
@@ -70,7 +71,7 @@ export function makeKeydownEnv(source: string | Document, opts: KeydownEnvOption
 		pushUndoSnapshot: () => controller.pushUndoSnapshot(0, 0),
 		grammar: defaultGrammarView,
 		getPresentationMode: undefined,
-		linkRef: undefined
+		linkRef: fixtureLinkRef()
 	};
 
 	const getPresentationMode = opts.presentationMode ? () => opts.presentationMode! : undefined;

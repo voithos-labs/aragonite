@@ -346,9 +346,7 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 		presentationMode: getPresentationMode,
 		theme: getTheme
 	} = getContext<EditorPolicies>(EDITOR_POLICIES_KEY);
-	const editorDoc = getContext<EditorDoc | undefined>(EDITOR_DOC_KEY);
-	const pluginEditor = editorDoc?.pluginEditor;
-	const linkRef = editorDoc?.linkRef;
+	const { pluginEditor, linkRef } = getContext<EditorDoc>(EDITOR_DOC_KEY);
 
 	// Resolved by the kind's recorded owner, like the kind-command context's `editor`.
 	const getEditor = (): EditorContext | undefined =>

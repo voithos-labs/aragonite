@@ -11,6 +11,7 @@ import type { LinkReferenceResolverRef, ResolveLinkUrl } from '../../../editor-k
 import type { IndexedDecoration } from '../../../decorations/buckets';
 import type { ReplaceDecoration, WidgetDecoration } from '../../../decorations/types';
 import { defaultGrammarView } from '$lib/schema/block-openers';
+import { fixtureLinkRef } from '../../harness/fixture-grammar';
 
 type Island = IndexedDecoration<WidgetDecoration | ReplaceDecoration>;
 
@@ -177,14 +178,14 @@ describe('createCellRender', () => {
 	it('re-resolves a reference when the LRD signature changes (raw contains "[")', () => {
 		let url = 'https://old.com';
 		let signature = 'sig-old';
-		const linkRef: LinkReferenceResolverRef = {
+		const linkRef: LinkReferenceResolverRef = fixtureLinkRef({
 			get current() {
 				return (label: string) => (label === 'r' ? { url } : undefined);
 			},
 			get signature() {
 				return signature;
 			}
-		};
+		});
 		const { el, render } = mount('[t][r]', linkRef);
 		render.render();
 		expect(el.querySelector('a.md-link-content')?.getAttribute('href')).toBe('https://old.com');
@@ -199,7 +200,7 @@ describe('createCellRender', () => {
 		let url = 'https://old.com';
 		let signature = 'sig-1';
 		let epoch = 1;
-		const linkRef: LinkReferenceResolverRef = {
+		const linkRef: LinkReferenceResolverRef = fixtureLinkRef({
 			get current() {
 				return (label: string) => (label === 'r' ? { url } : undefined);
 			},
@@ -209,7 +210,7 @@ describe('createCellRender', () => {
 			get epoch() {
 				return epoch;
 			}
-		};
+		});
 		const { el, render } = mount('[t][r]', linkRef);
 		render.render();
 		expect(el.querySelector('a.md-link-content')?.getAttribute('href')).toBe('https://old.com');
@@ -228,14 +229,14 @@ describe('createCellRender', () => {
 
 	it('does not fold signature into the key when raw has no bracket', () => {
 		let signature = 'sig-old';
-		const linkRef: LinkReferenceResolverRef = {
+		const linkRef: LinkReferenceResolverRef = fixtureLinkRef({
 			get current() {
 				return undefined;
 			},
 			get signature() {
 				return signature;
 			}
-		};
+		});
 		const { el, render } = mount('plain text', linkRef);
 		render.render();
 		const child = el.firstChild;

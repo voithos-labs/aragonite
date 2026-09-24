@@ -12,6 +12,7 @@ import { screenVisibility, visibleRuns, type VisibleRun } from '$lib/core/inline
 import type { AnyInlineKind, InlineNode } from '$lib/core/nodes';
 import { arbInlineSource, freshOrFixedSeed } from '$lib/test/invariants/arbitraries';
 import '$lib/schema/built-in-descriptors';
+import { renderOptions } from '../../harness/fixture-grammar';
 
 const PARAMS = { numRuns: 400, seed: freshOrFixedSeed(413771) } as const;
 
@@ -29,7 +30,7 @@ function childlessConstructs(nodes: readonly InlineNode[], out: InlineNode[] = [
 
 /** The same filter `paintedRange` applies before taking its outer bounds. */
 const paintedRunsOf = (node: InlineNode, raw: string): VisibleRun[] =>
-	visibleRuns([node], raw, LIVE).filter((run) => run.visible && run.text !== '');
+	visibleRuns([node], raw, LIVE, renderOptions()).filter((run) => run.visible && run.text !== '');
 
 /** The first gap between two painted runs, or null when they are one stretch. */
 function firstGap(runs: readonly VisibleRun[]): string | null {

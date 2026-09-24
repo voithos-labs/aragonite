@@ -44,7 +44,7 @@ import { soleProseReparse } from './screen-diff';
 
 /** Whether `line` still parses back as `node`'s kind in the editor's grammar, which the auto-pair
  *  resolver checks. */
-export function keepsBlockKind(node: NodeView, line: string, grammar?: GrammarView): boolean {
+export function keepsBlockKind(node: NodeView, line: string, grammar: GrammarView): boolean {
 	return (
 		soleProseReparse(line + trailingLineEnding(node.raw), { grammar })?.block.kind === node.kind
 	);
@@ -74,7 +74,7 @@ export interface EdgePolicyDispatchDeps {
 	/** The nearest ancestor container, or null at the document root. A key at the content start
 	 *  resolves against its declaration. */
 	get containerParent(): NodeView | null;
-	get linkRef(): LinkReferenceResolverRef | undefined;
+	get linkRef(): LinkReferenceResolverRef;
 	/** The editor's grammar, the one the render path drew widgets with. */
 	grammar: GrammarView;
 	getEl: () => HTMLElement | null;

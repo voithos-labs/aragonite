@@ -15,6 +15,7 @@ import {
 import { createWidgetSelectionState } from '$lib/components/image/widget-selection-state.svelte';
 import type { CstNode } from '$lib/core/nodes';
 import type { Commit } from './widget-selected-fixture';
+import { fixtureLinkRef } from '../../harness/fixture-grammar';
 
 function capturingEvent() {
 	const store = new Map<string, string>();
@@ -84,7 +85,7 @@ function harness(source: string, sourceStart: number, options: HarnessOptions = 
 		isReadOnly: () => options.readOnly === true,
 		foldRevealBeforeMutation: () => null,
 		get linkRef() {
-			return undefined;
+			return fixtureLinkRef();
 		}
 	} as unknown as TextClipboardDeps;
 
@@ -232,7 +233,7 @@ function foldSettleHarness() {
 			settled: writeGate.then(() => void order.push('fold-write'))
 		}),
 		get linkRef() {
-			return undefined;
+			return fixtureLinkRef();
 		}
 	} as unknown as TextClipboardDeps;
 

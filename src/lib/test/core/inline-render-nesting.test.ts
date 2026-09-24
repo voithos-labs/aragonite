@@ -2,8 +2,10 @@
 import { describe, it, expect } from 'vitest';
 import { parseInline } from '../../core/inline';
 import { findNodeAtOffset, renderInlineNodes } from '../../core/inline-render';
+import { renderOptions } from '../harness/fixture-grammar';
 
-const render = (raw: string) => renderInlineNodes(parseInline(raw, 0, raw.length), raw);
+const render = (raw: string) =>
+	renderInlineNodes(parseInline(raw, 0, raw.length), raw, renderOptions());
 
 const markersOf = (frag: DocumentFragment) =>
 	[...frag.querySelectorAll('.md-marker, .md-ref-label')].map((el) => el.textContent);

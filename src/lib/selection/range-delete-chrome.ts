@@ -60,8 +60,8 @@ export function chromeAwareRangeDelete(
 	end: SelectionPoint,
 	sharing: SharingState,
 	grammar: GrammarView | undefined,
-	presentationMode?: PresentationMode,
-	linkRef?: InlineResolverRef
+	presentationMode: PresentationMode | undefined,
+	linkRef: InlineResolverRef
 ): RangeDeleteResult {
 	const startC = nearestChromeContainer(doc, start.path);
 	const endC = nearestChromeContainer(doc, end.path);

@@ -7,6 +7,7 @@ import { splitNode } from '$lib/tree-operations/node-ops';
 import { trailingLineEnding } from '$lib/core/lines';
 import { expectParseConverged, layoutOf as layout } from '$lib/test/harness/parse-converged';
 import type { Document } from '$lib/core/nodes';
+import { fixtureLinkRef } from '../harness/fixture-grammar';
 
 // The reverse of the typed-blank-line cases (`typed-blank-lines-reload.test.ts`): a block that
 // becomes blank joins the blank run around it, and a run carries exactly the one separating line
@@ -49,8 +50,8 @@ describe('emptying a block settles the run it joins', () => {
 	// past the block being emptied: a fix-up reaching only `index + 1` finds a blank block with none.
 	it('reaches past a blank follower to the separator a split left below it', () => {
 		const doc = parse('Hello\n\nSecond\n');
-		splitNode(doc, 0, 5, undefined, undefined, undefined);
-		splitNode(doc, 1, 0, undefined, undefined, undefined);
+		splitNode(doc, 0, 5, undefined, undefined, fixtureLinkRef());
+		splitNode(doc, 1, 0, undefined, undefined, fixtureLinkRef());
 		updateNodeContent(doc, 1, 'x\n');
 		expect(layout(doc.children)).toEqual([
 			['paragraph', '', 'Hello\n'],

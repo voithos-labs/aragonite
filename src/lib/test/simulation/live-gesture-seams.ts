@@ -46,6 +46,7 @@ import {
 	makePendingMarks
 } from '$lib/test/harness/editor-actions';
 import { proseLeaves, type ProseLeaf } from './live-screen-reading';
+import { fixtureLinkRef, renderOptions } from '../harness/fixture-grammar';
 
 export type GestureKind =
 	| 'type'
@@ -99,7 +100,9 @@ function mountBlock(node: CstNode, mode: PresentationMode | undefined): HTMLElem
 		span.textContent = prefix;
 		el.appendChild(span);
 	}
-	el.appendChild(renderInlineNodes(parseInline(node.raw, range.start, range.end), node.raw));
+	el.appendChild(
+		renderInlineNodes(parseInline(node.raw, range.start, range.end), node.raw, renderOptions())
+	);
 	el.toggleAttribute(CONTENT_EMPTY_ATTR, holdsOnlyMarkerChrome(el));
 	root.appendChild(el);
 	document.body.appendChild(root);
@@ -346,7 +349,7 @@ async function pressEdgeKey(
 			return null;
 		},
 		get linkRef() {
-			return undefined;
+			return fixtureLinkRef();
 		},
 		getEl: () => el,
 		getAmbientLength: () => 0,
@@ -389,7 +392,7 @@ async function nativePress(
 			{ start, end },
 			offset,
 			key,
-			(line) => keepsBlockKind(node, line),
+			(line) => keepsBlockKind(node, line, defaultGrammarView),
 			defaultGrammarView
 		);
 		if (paired?.kind === 'step-over') return;
@@ -475,7 +478,7 @@ function wordDelete(
 		node,
 		{ rawRangeOf: () => range, getRawSelection: () => null },
 		mode,
-		undefined
+		fixtureLinkRef()
 	);
 	if (edit === null) {
 		void h.blockEdit.updateBlockContent(
@@ -503,7 +506,7 @@ function replaceSelection(
 ): boolean {
 	const range = drawnRange(node, gesture);
 	if (range === null) return false;
-	const edit = resolveSelectionEdit(node, range, gesture.char, mode, undefined);
+	const edit = resolveSelectionEdit(node, range, gesture.char, mode, fixtureLinkRef());
 	if (edit) {
 		void h.blockEdit.updateBlockContent(index, edit.raw, range.start, edit.caret);
 		return true;
@@ -527,7 +530,7 @@ function acrossLeaves(
 	const range = drawnLeafRange(h.doc, gesture);
 	if (!range) return null;
 	if (gesture.kind === 'range-delete') {
-		rangeDelete(h.doc, range.start, range.end, h.sharing, undefined, mode, undefined);
+		rangeDelete(h.doc, range.start, range.end, h.sharing, undefined, mode, fixtureLinkRef());
 		return false;
 	}
 	const plan = planCrossBlockFormat(

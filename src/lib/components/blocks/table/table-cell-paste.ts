@@ -40,8 +40,8 @@ export function tableCellInlinePaste(
 	node: CstNode,
 	offset: number,
 	text: string,
-	preDelete?: PasteRange,
-	seam?: PasteSeam
+	preDelete: PasteRange | undefined,
+	seam: PasteSeam
 ): InlinePasteResult {
 	const cleaned = normalizeWhitespace(text);
 
@@ -52,8 +52,8 @@ export function tableCellInlinePaste(
 		node,
 		node.raw,
 		preDelete ?? { start: offset, end: offset },
-		seam?.presentationMode,
-		seam?.linkRef
+		seam.presentationMode,
+		seam.linkRef
 	);
 
 	const spliced = raw.slice(0, effectiveOffset) + cleaned + raw.slice(effectiveOffset);

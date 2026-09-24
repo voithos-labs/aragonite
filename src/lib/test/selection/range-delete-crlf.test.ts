@@ -9,6 +9,7 @@ import { createSharingState } from '../../tree-operations/sharing';
 import { registerCalloutForTests } from './chrome-plugins';
 import { expectParseConverged } from '../harness/parse-converged';
 import type { SelectionPoint } from '../../selection/primitives';
+import { fixtureLinkRef } from '../harness/fixture-grammar';
 
 function run(source: string, start: SelectionPoint, end: SelectionPoint): string {
 	const doc = rangeDelete(
@@ -18,7 +19,7 @@ function run(source: string, start: SelectionPoint, end: SelectionPoint): string
 		createSharingState(),
 		undefined,
 		undefined,
-		undefined
+		fixtureLinkRef()
 	).newDoc;
 	// The new paragraph is a blank line, so its own separator is fixed up with the rest of the
 	// run; bytes alone would pass on a shape that reloads one empty paragraph wider (GH #96).

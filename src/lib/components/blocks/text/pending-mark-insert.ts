@@ -228,7 +228,8 @@ function visibleText(raw: string, grammar: GrammarView, parsed?: readonly Inline
 	return renderedText(
 		parsed ?? parseInline(raw, 0, raw.length, undefined, grammar),
 		raw,
-		CONTENT_VISIBILITY
+		CONTENT_VISIBILITY,
+		{ grammar }
 	);
 }
 

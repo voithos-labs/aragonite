@@ -11,6 +11,7 @@ import { serialize } from '$lib/core/serializer';
 import { makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
 import type { EditEvent } from '$lib/editor-events';
 import { defaultGrammarView } from '$lib/schema/block-openers';
+import { fixtureLinkRef } from '../../harness/fixture-grammar';
 
 const SOURCE = '# A\n\npara B\n\npara C\n';
 
@@ -26,7 +27,7 @@ function makeEnv(revealPath?: CrossBlockMutationContext['revealPath']) {
 		pushUndoSnapshot: () => controller.pushUndoSnapshot(0, 0),
 		grammar: defaultGrammarView,
 		getPresentationMode: undefined,
-		linkRef: undefined
+		linkRef: fixtureLinkRef()
 	};
 	return { ...harness, controller, mutCtx };
 }

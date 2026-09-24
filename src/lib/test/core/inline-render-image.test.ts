@@ -7,16 +7,17 @@ import { renderInlineNodes, type RenderInlineOptions } from '$lib/core/inline-re
 import type { InlineNode } from '$lib/core/nodes';
 import { buildImageWidget } from '$lib/components/image/widget-dom';
 import { takeDevWarns } from '../support/warn-gate';
+import { renderOptions } from '../harness/fixture-grammar';
 
 // Core owns no image-widget code; the component injects it along with a per-editor
 // broken-URL cache, mirrored here as one fresh Set per options object.
-const withWidget = (opts: RenderInlineOptions = {}): RenderInlineOptions => {
+const withWidget = (opts: Partial<RenderInlineOptions> = {}): RenderInlineOptions => {
 	const brokenUrlCache = new Set<string>();
-	return {
+	return renderOptions({
 		buildImageWidget: (node, raw, imgOpts) =>
 			buildImageWidget(node, raw, { ...imgOpts, brokenUrlCache }),
 		...opts
-	};
+	});
 };
 
 describe('inline-render image: render-context flag (parameter threading)', () => {
@@ -24,13 +25,13 @@ describe('inline-render image: render-context flag (parameter threading)', () =>
 
 	it('alt-only path preserves textContent === raw', () => {
 		const nodes = parseInline(raw, 0, raw.length);
-		const frag = renderInlineNodes(nodes, raw, { renderImagesAsWidgets: false });
+		const frag = renderInlineNodes(nodes, raw, renderOptions({ renderImagesAsWidgets: false }));
 		expect(frag.textContent).toBe(raw);
 	});
 
 	it('without an injected buildImageWidget, images render alt-only even with widgets enabled', () => {
 		const nodes = parseInline(raw, 0, raw.length);
-		const frag = renderInlineNodes(nodes, raw);
+		const frag = renderInlineNodes(nodes, raw, renderOptions());
 		expect(frag.querySelector('[data-image-widget]')).toBeNull();
 		expect(frag.textContent).toBe(raw);
 	});
@@ -44,7 +45,11 @@ describe('inline-render image: render-context flag (parameter threading)', () =>
 
 	it('produces widget DOM with explicit renderImagesAsWidgets=true', () => {
 		const nodes = parseInline(raw, 0, raw.length);
-		const frag = renderInlineNodes(nodes, raw, withWidget({ renderImagesAsWidgets: true }));
+		const frag = renderInlineNodes(
+			nodes,
+			raw,
+			withWidget(renderOptions({ renderImagesAsWidgets: true }))
+		);
 		expect(frag.querySelector('[data-image-widget]')).not.toBeNull();
 		expect(frag.querySelector('img')).not.toBeNull();
 	});
@@ -54,7 +59,7 @@ describe('inline-render image: render-context flag (parameter threading)', () =>
 		const frag = renderInlineNodes(
 			nodes,
 			raw,
-			withWidget({ resolveImageUrl: () => 'https://cdn.example.com/resolved.png' })
+			withWidget(renderOptions({ resolveImageUrl: () => 'https://cdn.example.com/resolved.png' }))
 		);
 		const img = frag.querySelector('img');
 		expect(img?.getAttribute('src')).toBe('https://cdn.example.com/resolved.png');
@@ -65,11 +70,13 @@ describe('inline-render image: render-context flag (parameter threading)', () =>
 		const frag = renderInlineNodes(
 			nodes,
 			raw,
-			withWidget({
-				resolveImageUrl: () => {
-					throw new Error('boom');
-				}
-			})
+			withWidget(
+				renderOptions({
+					resolveImageUrl: () => {
+						throw new Error('boom');
+					}
+				})
+			)
 		);
 		expect(frag.querySelector('img')?.getAttribute('src')).toBe('https://example.com/cat.png');
 		expect(takeDevWarns().map((w) => w.tag)).toEqual(['image-widget']);
@@ -80,7 +87,9 @@ describe('inline-render image: render-context flag (parameter threading)', () =>
 		const frag = renderInlineNodes(
 			nodes,
 			raw,
-			withWidget({ resolveImageUrl: (() => undefined) as unknown as (u: string) => string })
+			withWidget(
+				renderOptions({ resolveImageUrl: (() => undefined) as unknown as (u: string) => string })
+			)
 		);
 		expect(frag.querySelector('img')?.getAttribute('src')).toBe('https://example.com/cat.png');
 		expect(takeDevWarns().map((w) => w.tag)).toEqual(['image-widget']);
@@ -151,7 +160,7 @@ describe('inline-render image: render-context flag (parameter threading)', () =>
 		const frag = renderInlineNodes(
 			inline,
 			raw,
-			withWidget({ resolveImageUrl: (u) => `asset://localhost/vault/${u}` })
+			withWidget(renderOptions({ resolveImageUrl: (u) => `asset://localhost/vault/${u}` }))
 		);
 		expect(frag.querySelector('img')?.getAttribute('src')).toBe(
 			'asset://localhost/vault/assets/a.png'
@@ -162,7 +171,11 @@ describe('inline-render image: render-context flag (parameter threading)', () =>
 	it('imageLoadPolicy "placeholder" defers loading (no src, placeholder class)', () => {
 		const raw = '![x](https://example.com/a.png)';
 		const inline = parseInline(raw, 0, raw.length);
-		const frag = renderInlineNodes(inline, raw, withWidget({ imageLoadPolicy: 'placeholder' }));
+		const frag = renderInlineNodes(
+			inline,
+			raw,
+			withWidget(renderOptions({ imageLoadPolicy: 'placeholder' }))
+		);
 		const img = frag.querySelector('img');
 		expect(img?.getAttribute('src')).toBeNull();
 		expect(frag.querySelector('.md-image-placeholder')).not.toBeNull();
@@ -173,7 +186,7 @@ describe('inline-render image: render-context flag (parameter threading)', () =>
 // through — and any block whose consumer injects no widget builder.
 describe('inline-render image: alt-only fallback', () => {
 	const renderFallback = (nodes: InlineNode[], raw: string) =>
-		renderInlineNodes(nodes, raw, { renderImagesAsWidgets: false });
+		renderInlineNodes(nodes, raw, renderOptions({ renderImagesAsWidgets: false }));
 
 	// The shape a plugin inline handler creates for an Obsidian-style embed: an `image`
 	// node whose alt names the target, over markers three characters wide.

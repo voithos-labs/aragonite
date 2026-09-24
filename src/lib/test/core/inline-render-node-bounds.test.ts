@@ -6,10 +6,11 @@
 import { describe, it, expect } from 'vitest';
 import { renderInlineNodes } from '../../core/inline-render';
 import type { InlineNode } from '../../core/nodes';
+import { renderOptions } from '../harness/fixture-grammar';
 
 function renderedText(node: InlineNode, raw: string): string {
 	const div = document.createElement('div');
-	div.appendChild(renderInlineNodes([node], raw));
+	div.appendChild(renderInlineNodes([node], raw, renderOptions()));
 	return div.textContent ?? '';
 }
 

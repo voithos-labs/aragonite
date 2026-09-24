@@ -92,7 +92,7 @@ export function resolveEdgeDeletion(query: EdgeDeletionQuery): EdgeDeletion | nu
 	const before = visibleText(display, query.installedAs, query.grammar);
 	if (before === null) return null;
 	const removed = target.atomic
-		? renderedText([target.atomic], display, CONTENT_VISIBILITY)
+		? renderedText([target.atomic], display, CONTENT_VISIBILITY, { grammar: query.grammar })
 		: display.slice(target.start, target.end);
 	for (const cut of [plain, widenThroughRuns(constructs, plain)]) {
 		const raw = display.slice(0, cut.start) + display.slice(cut.end);
@@ -264,7 +264,8 @@ function visibleText(
 		return renderedText(
 			parseInline(raw, 0, raw.length, undefined, grammar),
 			raw,
-			CONTENT_VISIBILITY
+			CONTENT_VISIBILITY,
+			{ grammar }
 		);
 	// A cut that empties the block is the one candidate with no block to read: empty stays empty
 	// through a reparse, so it answers for itself rather than through the parser.
@@ -273,5 +274,5 @@ function visibleText(
 	// a cut can push two literal runs together into a fence opener, which then swallows the rest.
 	const sole = soleProseReparse(raw, { grammar });
 	if (sole === null) return null;
-	return renderedText(sole.nodes, sole.block.raw, CONTENT_VISIBILITY);
+	return renderedText(sole.nodes, sole.block.raw, CONTENT_VISIBILITY, { grammar });
 }

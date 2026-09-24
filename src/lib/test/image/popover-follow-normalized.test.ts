@@ -14,6 +14,7 @@ import type { CstNode, Document } from '../../core/nodes';
 import { createEditorEvents } from '../../editor-events';
 import { makeStubController } from '../harness/editor-actions';
 import { testClosure } from '../support/closure';
+import { fixtureLinkRef } from '../harness/fixture-grammar';
 
 afterEach(() => resetPluginPlatformForTests());
 
@@ -42,7 +43,8 @@ function secondImageSelected(kind: string) {
 		widgetSelection,
 		controller: makeStubController(),
 		events: createEditorEvents(),
-		grammar: defaultGrammarView
+		grammar: defaultGrammarView,
+		linkRef: fixtureLinkRef()
 	});
 	widgetSelection.select({ paragraphPath: [0], sourceStart: 12, preSelectOffset: 0 });
 	const first = getInlineContent(

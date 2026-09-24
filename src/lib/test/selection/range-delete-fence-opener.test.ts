@@ -6,6 +6,7 @@ import { createSharingState } from '$lib/tree-operations/sharing';
 import { registerCalloutForTests } from './chrome-plugins';
 import { expectParseConverged } from '../harness/parse-converged';
 import { allowDevWarns } from '$lib/test/support/warn-gate';
+import { fixtureLinkRef } from '../harness/fixture-grammar';
 
 // rangeDelete is driven with hand-built endpoints, so the table branch sees a character offset
 // `SelectionState` would have snapped to a cell coordinate.
@@ -32,7 +33,7 @@ describe('range delete that consumes a fenced code opener', () => {
 			sharing(),
 			undefined,
 			undefined,
-			undefined
+			fixtureLinkRef()
 		);
 
 		expect(serialize(doc)).toBe('pady\n\ntail\n');
@@ -54,7 +55,7 @@ describe('range delete that consumes a fenced code opener', () => {
 			sharing(),
 			undefined,
 			undefined,
-			undefined
+			fixtureLinkRef()
 		);
 
 		expect(serialize(doc)).toBe('pa~~~\nbody\n\ntail\n');
@@ -73,7 +74,7 @@ describe('range delete that consumes a fenced code opener', () => {
 			sharing(),
 			undefined,
 			undefined,
-			undefined
+			fixtureLinkRef()
 		);
 
 		expect(serialize(doc)).toBe('pady\n\ntail\n');
@@ -90,7 +91,7 @@ describe('range delete that consumes a fenced code opener', () => {
 			sharing(),
 			undefined,
 			undefined,
-			undefined
+			fixtureLinkRef()
 		);
 
 		expect(serialize(doc)).toBe('pady\r\n\r\ntail\r\n');
@@ -107,7 +108,7 @@ describe('range delete that consumes a fenced code opener', () => {
 			sharing(),
 			undefined,
 			undefined,
-			undefined
+			fixtureLinkRef()
 		);
 
 		expect(serialize(doc)).toBe('pady\n\ntail\n');
@@ -126,7 +127,7 @@ describe('range delete that consumes a fenced code opener', () => {
 			sharing(),
 			undefined,
 			undefined,
-			undefined
+			fixtureLinkRef()
 		);
 
 		expect(serialize(doc)).toBe('pa\n\ntail\n');
@@ -147,7 +148,7 @@ describe('range delete that consumes a fenced code opener', () => {
 			sharing(),
 			undefined,
 			undefined,
-			undefined
+			fixtureLinkRef()
 		);
 
 		expect(serialize(doc)).toBe('dy\n\ntail\n');
@@ -164,7 +165,7 @@ describe('range delete that consumes a fenced code opener', () => {
 			sharing(),
 			undefined,
 			undefined,
-			undefined
+			fixtureLinkRef()
 		);
 
 		expect(kindsOf(doc)).toEqual(['paragraph', 'paragraph']);
@@ -184,7 +185,7 @@ describe('range delete that consumes a fenced code opener', () => {
 				sharing(),
 				undefined,
 				undefined,
-				undefined
+				fixtureLinkRef()
 			);
 
 			expect(kindsOf(doc)).toEqual(['callout', 'paragraph', 'paragraph']);
@@ -204,7 +205,7 @@ describe('range delete that consumes a fenced code opener', () => {
 				sharing(),
 				undefined,
 				undefined,
-				undefined
+				fixtureLinkRef()
 			);
 
 			expect(kindsOf(doc)).toEqual(['callout', 'paragraph', 'paragraph']);

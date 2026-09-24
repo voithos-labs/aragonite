@@ -8,6 +8,7 @@ import { describe, it, expect, beforeAll } from 'vitest';
 import { augmentInlineWidgetKind } from '$lib/core/inline/inline-widgets';
 import { imageWidgetOnSelectedKey } from '$lib/components/image/image-widget-editing';
 import { harness } from './widget-selected-fixture';
+import { fixtureLinkRef } from '../../harness/fixture-grammar';
 
 beforeAll(() => {
 	// Mirrors the mount-time wire-up (built-in-blocks.ts): the core image kind
@@ -35,10 +36,14 @@ describe('handleSelectedWidgetKeydown: Shift+Arrow through the editing policy', 
 			if (norm === 'repo') return { url: 'https://repo' };
 			return undefined;
 		};
-		const { interaction, commits } = harness('[![cat][shot]][repo]\n', 1, {
-			current: resolve,
-			signature: 'shot|repo'
-		});
+		const { interaction, commits } = harness(
+			'[![cat][shot]][repo]\n',
+			1,
+			fixtureLinkRef({
+				current: resolve,
+				signature: 'shot|repo'
+			})
+		);
 		expect(await interaction.handleSelectedWidgetKeydown(shiftRight())).toBe(true);
 		expect(commits).toHaveLength(1);
 		expect(commits[0]).toMatchObject({ index: 0, before: 1, after: 17 });

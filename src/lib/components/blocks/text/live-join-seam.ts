@@ -20,6 +20,7 @@ import {
 import { trimTrailingLineEnding } from '../../../core/lines';
 import type { InlineResolverRef } from '../../../schema/inline-construct-policy';
 import type { GrammarView } from '../../../schema/block-openers';
+import type { RenderInlineOptions } from '../../../core/inline-render';
 import type { AnyInlineKind, InlineNode } from '../../../core/nodes';
 import { parse } from '../../../core/parser';
 import {
@@ -109,6 +110,8 @@ interface SideConstruct {
 
 interface Side {
 	raw: string;
+	/** The editor's grammar, which the render reading of this side draws in. */
+	grammar: GrammarView;
 	content: Span;
 	cut: number;
 	inlines: readonly InlineNode[];
@@ -128,17 +131,17 @@ interface Side {
 function readSide(
 	endpoint: JoinEndpoint,
 	keep: 'before' | 'after',
-	ref: InlineResolverRef | undefined
+	ref: InlineResolverRef
 ): Side | null {
 	const { node, offset } = endpoint;
 	if (!isProseKind(node.kind)) return null;
 	const content = getContentRange(node);
 	if (offset < content.start || offset > content.end) return null;
 
-	const inlines = parseInline(node.raw, content.start, content.end, ref?.current, ref?.grammar);
+	const inlines = parseInline(node.raw, content.start, content.end, ref.current, ref.grammar);
 	// Markers standing over nothing are all on screen (live-mode.md § 4.1), so a run that survives
 	// this cut is bytes the user saw, not a stranded one: the plain concatenation stands.
-	if (paintsOnlyChrome(inlines, node.raw)) return null;
+	if (paintsOnlyChrome(inlines, node.raw, { grammar: ref.grammar })) return null;
 	const { ranged, atomic } = classifyConstructs(inlines);
 	// Neither an atomic construct's interior nor the middle of a delimiter run leaves halves any
 	// reading can repair. A live-mode caret cannot land there; a plugin's can.
@@ -155,6 +158,7 @@ function readSide(
 
 	return {
 		raw: node.raw,
+		grammar: ref.grammar,
 		content,
 		cut: offset,
 		inlines,
@@ -326,7 +330,9 @@ const shownAfterJoin = (left: Side, right: Side, typed: string): string =>
  * has already established by refusing a side whose markers are visible.
  */
 function visibleSide(side: Side, keep: 'before' | 'after'): string {
-	return renderedText(clipNodes(side.inlines, side.cut, keep), side.raw, CONTENT_VISIBILITY);
+	return renderedText(clipNodes(side.inlines, side.cut, keep), side.raw, CONTENT_VISIBILITY, {
+		grammar: side.grammar
+	});
 }
 
 /**
@@ -375,17 +381,18 @@ export function clipNodes(
  */
 function readCandidate(
 	raw: string,
-	ref: InlineResolverRef | undefined,
+	ref: InlineResolverRef,
 	join: { ambientPrefix?: string }
 ): { visible: string; residue: number } | null {
-	if (!keepsContainerMarker(join.ambientPrefix ?? '', raw, ref?.grammar)) return null;
+	if (!keepsContainerMarker(join.ambientPrefix ?? '', raw, ref.grammar)) return null;
 	const sole = soleProseReparse(raw, ref);
 	if (sole === null) return null;
 	const { block, nodes } = sole;
+	const render = { grammar: ref.grammar };
 	return {
-		visible: renderedText(nodes, block.raw, CONTENT_VISIBILITY),
+		visible: renderedText(nodes, block.raw, CONTENT_VISIBILITY, render),
 		// Markers over nothing are all on screen (§ 4.1), so a block that shows them hides no pair.
-		residue: paintsOnlyChrome(nodes, block.raw) ? 0 : countResidue(nodes, block.raw)
+		residue: paintsOnlyChrome(nodes, block.raw, render) ? 0 : countResidue(nodes, block.raw, render)
 	};
 }
 
@@ -394,7 +401,7 @@ function readCandidate(
  * in these bytes but takes width from them, so a body the cut left starting with a space reparses
  * under a wider marker than the live tree holds, and a load-then-save cycle would change the tree.
  */
-function keepsContainerMarker(prefix: string, raw: string, grammar?: GrammarView): boolean {
+function keepsContainerMarker(prefix: string, raw: string, grammar: GrammarView): boolean {
 	if (prefix === '') return true;
 	const blocks = parse(prefix + raw, { grammar, scope: 'fragment' }).children;
 	if (blocks.length !== 1) return false;
@@ -403,13 +410,17 @@ function keepsContainerMarker(prefix: string, raw: string, grammar?: GrammarView
 
 /** Constructs the user would meet as nothing at all: no visible byte, and a policy that unwraps
  *  them when emptied rather than leaving delimiters over nothing. */
-function countResidue(nodes: readonly InlineNode[], raw: string): number {
+function countResidue(
+	nodes: readonly InlineNode[],
+	raw: string,
+	render: RenderInlineOptions
+): number {
 	let found = 0;
 	for (const node of inlineDescendants(nodes, isConstruct)) {
 		if (node.kind === 'text') continue;
 		if (
 			node.end > node.start &&
-			renderedText([node], raw, CONTENT_VISIBILITY) === '' &&
+			renderedText([node], raw, CONTENT_VISIBILITY, render) === '' &&
 			getInlineConstructPolicy(node.kind)?.autoUnwrapOnEmpty === true
 		) {
 			found++;

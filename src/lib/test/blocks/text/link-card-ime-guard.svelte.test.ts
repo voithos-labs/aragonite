@@ -12,6 +12,7 @@ import LinkCardHost from '$lib/components/link-card/LinkCardHost.svelte';
 import { createLinkCardState } from '$lib/components/link-card/link-card-state.svelte';
 import type { UndoController } from '$lib/editor-actions/deps';
 import type { CaretRestore } from '$lib/selection/caret-restore';
+import { fixtureLinkRef } from '../../harness/fixture-grammar';
 
 function key(name: string, isComposing: boolean): KeyboardEvent {
 	return new KeyboardEvent('keydown', { key: name, isComposing, bubbles: true, cancelable: true });
@@ -85,6 +86,7 @@ async function mountHost() {
 			landCaret: async () => true,
 			activateLink: vi.fn(),
 			resolveLinkUrl: (u: string) => u,
+			linkRef: fixtureLinkRef(),
 			caretRestore: { save: vi.fn(), saveCurrent: vi.fn(), restore } as CaretRestore,
 			menuPresence: createMenuPresence()
 		}

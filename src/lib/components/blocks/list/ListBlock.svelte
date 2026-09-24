@@ -42,7 +42,7 @@
 	const getPresentationMode = getContext<EditorPolicies | undefined>(
 		EDITOR_POLICIES_KEY
 	)?.presentationMode;
-	const linkRef = getContext<EditorDoc | undefined>(EDITOR_DOC_KEY)?.linkRef;
+	const { linkRef } = getContext<EditorDoc>(EDITOR_DOC_KEY);
 
 	const listState = createBlockListState(() => node);
 

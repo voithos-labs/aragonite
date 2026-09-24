@@ -63,7 +63,7 @@ export interface CrossBlockDispatchContext {
 	getPresentationMode: PresentationModeGetter | undefined;
 	/** The instance's link-reference resolver, forwarded to the delete's join cleanup. Required
 	 *  but nullable like `pluginEditor`, so a new construction site cannot silently skip it. */
-	linkRef: LinkReferenceResolverRef | undefined;
+	linkRef: LinkReferenceResolverRef;
 	onCommandError: CommandErrorSink | undefined;
 	/** The handler a format chord takes over the live range; the dispatcher routes there rather
 	 *  than declining. Non-nullable: without it a format chord is swallowed and nothing happens. */

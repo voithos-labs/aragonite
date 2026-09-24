@@ -88,7 +88,7 @@ export function splitNode(
 	offset: number,
 	sharing: SharingState | undefined,
 	presentationMode: PresentationMode | undefined,
-	linkRef: InlineResolverRef | undefined,
+	linkRef: InlineResolverRef,
 	grammar?: GrammarView,
 	readSecondHalf: FragmentReader = fragmentReaderAt(
 		ownerAt(parent, [blockIndex]),
@@ -333,7 +333,7 @@ export function cutRangeFromDisplay(
 	display: string,
 	range: { start: number; end: number },
 	presentationMode: PresentationMode | undefined,
-	linkRef: InlineResolverRef | undefined
+	linkRef: InlineResolverRef
 ): { display: string; offset: number } {
 	// Both ends are moved off the middle of a surrogate pair before the slice: half a pair here
 	// is unrecoverable bytes, not a recoverable edit. Snapping both the same direction cannot
@@ -359,7 +359,7 @@ function joinRaw(
 	prev: NodeView,
 	curr: NodeView,
 	presentationMode: PresentationMode | undefined,
-	linkRef: InlineResolverRef | undefined
+	linkRef: InlineResolverRef
 ): CleanedJoin {
 	const seam = displayLength(prev.raw);
 	return cleanJoinedRaw(
@@ -401,7 +401,7 @@ export function mergeIntoPrevDeepLeaf(
 	blockIndex: number,
 	sharing: SharingState | undefined,
 	presentationMode: PresentationMode | undefined,
-	linkRef: InlineResolverRef | undefined,
+	linkRef: InlineResolverRef,
 	grammar?: GrammarView
 ): MergeIntoPrevResult | null {
 	if (blockIndex <= 0 || blockIndex >= parent.children.length) return null;
@@ -508,7 +508,7 @@ export function mergeWithNext(
 	parent: NodeParent,
 	blockIndex: number,
 	presentationMode: PresentationMode | undefined,
-	linkRef: InlineResolverRef | undefined,
+	linkRef: InlineResolverRef,
 	grammar: GrammarView | undefined
 ): MergeResult {
 	if (blockIndex < 0 || blockIndex >= parent.children.length - 1) {

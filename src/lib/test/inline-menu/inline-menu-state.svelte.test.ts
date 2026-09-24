@@ -6,6 +6,7 @@ import { createEditorEvents, type EditEvent } from '$lib/editor-events';
 import { createInlineMenuState } from '$lib/inline-menu/inline-menu-state.svelte';
 import type { InlineMenuItem, InlineMenuSource } from '$lib/inline-menu/types';
 import type { PresentationMode } from '$lib/presentation-mode';
+import { fixtureLinkRef } from '../harness/fixture-grammar';
 
 const item = (id: string, insert = id): InlineMenuItem => ({ id, label: id, insert });
 
@@ -14,7 +15,10 @@ const typedEdit = (path: number[]): EditEvent =>
 
 /** Blocks whose bytes and caret the test moves by hand, the way a keystroke would.
  *  `writeFails` makes the range splice refuse, the way a commit blocked elsewhere would. */
-function harness(initial: string, { arrive = true, writeFails = false } = {}) {
+function harness(
+	initial: string,
+	{ arrive = true, writeFails = false, linkRef = fixtureLinkRef() } = {}
+) {
 	let doc = parse(initial) as unknown as DocumentView;
 	/** Which block the caret is in; most tests give one and never leave it. */
 	let block = 0;
@@ -45,6 +49,7 @@ function harness(initial: string, { arrive = true, writeFails = false } = {}) {
 		getMode: () => mode,
 		events,
 		editorId: 'editor-test',
+		linkRef,
 		// A pick's write raises the same events a keystroke does, so the read they schedule is
 		// the one the state has to hold off.
 		commitRange: async (path, start, end, bytes) => {
@@ -275,6 +280,23 @@ describe('a typed trigger opens its source', () => {
 		await h.type('#');
 		expect(h.raw()).toBe('see [text](#');
 		expect(h.menu.getOpen()).toBeNull();
+	});
+
+	// Miss-analysis: the prose check read the leaf with no link-reference ref, so a resolved
+	// reference link read as brackets, and no harness handed the menu a ref to read.
+	it('reads the editor’s link definitions, so a reference link’s label is not prose', async () => {
+		const resolver = (label: string) => (label === 'r#' ? { url: 'x' } : undefined);
+		for (const [linkRef, opens] of [
+			[fixtureLinkRef({ current: resolver }), false],
+			[fixtureLinkRef(), true]
+		] as const) {
+			const h = harness('[t][r]', { linkRef });
+			h.menu.registry.addSource(tags({ opensAt: () => true }));
+			await h.moveTo(5);
+			await h.type('#');
+			expect(h.raw()).toBe('[t][r#]');
+			expect(h.menu.getOpen() !== null).toBe(opens);
+		}
 	});
 
 	it('does not open in reading mode', async () => {
@@ -662,6 +684,7 @@ describe('a table cell', () => {
 			getMode: () => 'source',
 			events,
 			editorId: 'editor-cell',
+			linkRef: fixtureLinkRef(),
 			commitRange: async (_path, _start, _end, bytes) => {
 				commits.push(bytes);
 			},

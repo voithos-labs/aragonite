@@ -13,13 +13,14 @@ import { parseInline } from '$lib/core/inline';
 import { renderInlineNodes, type RenderInlineOptions } from '$lib/core/inline-render';
 import { buildImageWidget } from '$lib/components/image/widget-dom';
 import { buildAmbientSpan } from '$lib/ambient/ambient-dom';
+import { renderOptions } from '../harness/fixture-grammar';
 
 function widgetOptions(): RenderInlineOptions {
 	const brokenUrlCache = new Set<string>();
-	return {
+	return renderOptions({
 		buildImageWidget: (node, raw, imgOpts) =>
 			buildImageWidget(node, raw, { ...imgOpts, brokenUrlCache })
-	};
+	});
 }
 
 let editorRoot: HTMLElement;

@@ -15,6 +15,7 @@ import { enterLinkCardAtCaret } from '$lib/components/link-card/link-card-entry'
 import { asDomTextOffset } from '$lib/cursor/coordinate-spaces';
 import { createRangeFromOffsets } from '$lib/cursor/content-offsets';
 import { makeRenderHarness } from '$lib/test/harness/text-render';
+import { fixtureLinkRef } from '../../harness/fixture-grammar';
 
 /** `Visit [example](https://x.com) now`: the link spans [6, 30), ` now` runs to 34. */
 const LINKED = 'Visit [example](https://x.com) now\n';
@@ -27,7 +28,7 @@ function mount(source: string): {
 	const node = parse(source).children[0];
 	const harness = makeRenderHarness(node, { mode: 'live' });
 	createTextRender(harness.deps).render();
-	return { el: harness.el, node, linkRef: {} };
+	return { el: harness.el, node, linkRef: fixtureLinkRef() };
 }
 
 /** A real DOM range over raw offsets: a prose block with no marker prefix maps one to one. */

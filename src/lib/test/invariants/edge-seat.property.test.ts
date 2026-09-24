@@ -10,6 +10,7 @@ import type { EdgeAffinity } from '../../cursor/edge-affinity';
 import { caretPositions, countOnScreen, paintedText } from '$lib/test/harness/painted-text';
 import { arbInlineSource, freshOrFixedSeed } from './arbitraries';
 import '../../schema/built-in-descriptors';
+import { renderOptions } from '../harness/fixture-grammar';
 
 // Where a typed byte goes decides which side of an unpainted delimiter run it lands on. The check
 // is the renderer, as it is in the split and join properties: a plain letter may never put a
@@ -51,7 +52,7 @@ const LIVE = screenVisibility('live', { chromePaints: false });
  * autolink drops its brackets rather than wrapping them, which is the construct at issue here.
  */
 function unpaintedBytes(raw: string): boolean[] {
-	const fragment = renderInlineNodes(parseInline(raw, 0, raw.length), raw);
+	const fragment = renderInlineNodes(parseInline(raw, 0, raw.length), raw, renderOptions());
 	const host = document.createElement('div');
 	host.appendChild(fragment);
 	const unpainted = new Array<boolean>(raw.length).fill(true);
@@ -103,9 +104,14 @@ function splicesTyped(before: string, after: string): boolean {
  *  one the code can reach, so a failure never names an offset it could not have chosen. */
 function rescueOffset(display: string, caret: number): number | undefined {
 	const painted = paintedText(display);
-	return seatOffsetsAt(caret, parseInline(display, 0, display.length), display, LIVE).find(
-		(offset) =>
-			splicesTyped(painted, paintedText(display.slice(0, offset) + 'Z' + display.slice(offset)))
+	return seatOffsetsAt(
+		caret,
+		parseInline(display, 0, display.length),
+		display,
+		LIVE,
+		defaultGrammarView
+	).find((offset) =>
+		splicesTyped(painted, paintedText(display.slice(0, offset) + 'Z' + display.slice(offset)))
 	);
 }
 

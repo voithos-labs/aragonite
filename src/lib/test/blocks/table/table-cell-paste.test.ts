@@ -16,6 +16,7 @@ import {
 	registerLiveJoinSeamCleaner,
 	__resetLiveJoinSeamCleanerForTests
 } from '../../../schema/inline-construct-policy';
+import { fixtureLinkRef, pasteSeam } from '../../harness/fixture-grammar';
 
 function makeCell(raw: string): CstNode {
 	return { kind: 'tableCell', leadingTrivia: '', raw };
@@ -28,7 +29,7 @@ function pasteIntoRow(
 	offset: number,
 	text: string,
 	preDelete?: PasteRange,
-	seam?: PasteSeam
+	seam: PasteSeam = pasteSeam()
 ) {
 	const result = tableCellInlinePaste(makeCell(cellRaw), offset, text, preDelete, seam);
 	const row: CstNode = {
@@ -130,7 +131,7 @@ describe('tableCellInlinePaste', () => {
 		const CUT = { start: 8, end: 18 };
 		const seamIn = (presentationMode: PresentationMode) => ({
 			presentationMode,
-			linkRef: undefined
+			linkRef: fixtureLinkRef()
 		});
 
 		it('live: the run the cut stranded goes with it', () => {

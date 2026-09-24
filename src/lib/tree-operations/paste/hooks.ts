@@ -36,18 +36,18 @@ function applyPreDelete(
 	display: string,
 	preDelete: PasteRange | undefined,
 	offset: number,
-	seam: PasteSeam | undefined
+	seam: PasteSeam
 ): { display: string; offset: number } {
 	if (!preDelete) return { display, offset };
-	return cutRangeFromDisplay(node, display, preDelete, seam?.presentationMode, seam?.linkRef);
+	return cutRangeFromDisplay(node, display, preDelete, seam.presentationMode, seam.linkRef);
 }
 
 export function defaultInlineHook(
 	node: CstNode,
 	offset: number,
 	text: string,
-	preDelete?: PasteRange,
-	seam?: PasteSeam
+	preDelete: PasteRange | undefined,
+	seam: PasteSeam
 ): InlinePasteResult {
 	const display = trimTrailingLineEnding(node.raw);
 	const lineEnding = trailingLineEnding(node.raw);
@@ -88,8 +88,8 @@ export function defaultStructuralHook(
 	node: CstNode,
 	offset: number,
 	blocks: CstNode[],
-	preDelete?: PasteRange,
-	seam?: PasteSeam
+	preDelete: PasteRange | undefined,
+	seam: PasteSeam
 ): StructuralPasteResult {
 	const display = trimTrailingLineEnding(node.raw);
 	const cut = applyPreDelete(node, display, preDelete, offset, seam);
@@ -102,7 +102,7 @@ export function defaultStructuralHook(
 		synthLeaf,
 		cut.offset,
 		blocks,
-		seam?.grammar
+		seam.grammar
 	);
 	// The caret lands at the end of the last pasted block.
 	return { replacement: nodes, focusReplacementIndex: lastPastedIndex, focusOffset: CURSOR_END };

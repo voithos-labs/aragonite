@@ -42,7 +42,7 @@ export interface CrossBlockMutationContext {
 	getPresentationMode: PresentationModeGetter | undefined;
 	/** The instance's link-reference resolver, so the join cleanup parses the reference forms the
 	 *  renderer drew. Required but nullable, like the mode. */
-	linkRef: LinkReferenceResolverRef | undefined;
+	linkRef: LinkReferenceResolverRef;
 }
 
 /** Options for {@link performCrossBlockDelete}. Absent = plain delete, own snapshot and caret. */
