@@ -434,10 +434,10 @@ export interface TrackedPosition {
 }
 
 /**
- * A splice can leave neighbours whose adjacent bytes re-read as fewer blocks on reload. Merge
- * while the window's own bytes parse to fewer blocks, which is the reload's reading; blank lines
- * do not stop a container's continuation, so the window starts at the nearest non-blank block
- * above the join, never below `floor`, and repeats downward.
+ * A splice can leave neighbours whose adjacent bytes re-read differently on reload. Merge while
+ * the window's own bytes parse to fewer blocks, or its head takes content from below, which is the
+ * reload's reading; blank lines do not stop a container's continuation, so the window starts at
+ * the nearest non-blank block above the join, never below `floor`, and repeats downward.
  */
 export function absorbSeamReading(
 	parent: NodeParent,
@@ -474,10 +474,11 @@ export function absorbSeamReading(
 		probe = undefined;
 		const reparsed = read(joinedWindowBytes(window, window.length));
 		const blocks = reparsed.children;
-		if (blocks.length === 0 || blocks.length > window.length) break;
-		// An equal count is still a merge when the head took content from the block below: a blank
-		// run inside that block stays its own block, so the count holds while the rest moves up.
-		if (blocks.length === window.length && !headTookContent(blocks[0], window)) break;
+		// Content blocks only: the blank lines an absorbed block held come back as blank blocks.
+		if (blocks.length === 0 || contentCount(blocks) > contentCount(window)) break;
+		// A count that did not drop is still a merge when the head took content from the block
+		// below: a blank run inside that block stays blank blocks while the rest moves up.
+		if (blocks.length >= window.length && !headTookContent(blocks[0], window)) break;
 		// A merge may promote the head beyond what its bytes carry alone (a paragraph under the
 		// setext underline below it), so what must survive is the head's own reading, not its kind.
 		if (blocks[0].kind !== window[0].kind && !readsAsItselfAlone(window[0], read)) break;
@@ -491,9 +492,6 @@ export function absorbSeamReading(
 		}
 		if (tracked) retrackThroughFold(tracked, at, window, blocks);
 		spliceMany(children, at, window.length, blocks);
-		// The merge can end on a blank block where a filled one stood, and the block below a blank
-		// one carries no separator line of its own.
-		clearRedundantSeparator(parent, at + blocks.length, sharing);
 		eaten += window.length - blocks.length;
 		span = blocks.length;
 		spliced = true;
@@ -522,6 +520,9 @@ function separateTableFollower(
 	mintSeparator(parent, index, sharing);
 	return true;
 }
+
+const contentCount = (nodes: readonly CstNode[]): number =>
+	nodes.filter((node) => !isBlankParagraph(node)).length;
 
 /** Whether the reparse moved content into the head: more than the separating blank line, or,
  *  for a container, that line alone, since its body reads an indented one as its own. */
@@ -787,12 +788,17 @@ function absorbFragmentPeel(
 		blocks[blocks.length - 1].raw += peel;
 		return;
 	}
-	if (peel === '') return;
+	// Blocks ending blank already hold the run's one separating line, so every line of the
+	// follower's own becomes a blank block of the run instead of a second separator.
+	const runSeparated = isBlankParagraph(blocks[blocks.length - 1]);
+	if (peel === '' && !(runSeparated && follower.leadingTrivia !== '')) return;
 	const lines = blankLinesOf(peel + follower.leadingTrivia);
 	const owned = sharing ? ensureUnsharedChild(parent, followerIndex, sharing) : follower;
-	owned.leadingTrivia = lines.length > 1 ? '' : lines[0];
-	for (let i = 1; i < lines.length; i++) {
-		blocks.push({ kind: 'paragraph', leadingTrivia: i === 1 ? lines[0] : '', raw: lines[i] });
+	owned.leadingTrivia = lines.length > 1 || runSeparated ? '' : lines[0];
+	const first = runSeparated ? 0 : 1;
+	for (let i = first; i < lines.length; i++) {
+		const trivia = !runSeparated && i === 1 ? lines[0] : '';
+		blocks.push({ kind: 'paragraph', leadingTrivia: trivia, raw: lines[i] });
 	}
 }
 

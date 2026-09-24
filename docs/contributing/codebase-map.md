@@ -261,9 +261,9 @@ insert in `src/lib/editor-actions/list-context.ts`, the chain rebuild in
 `docs/design/syntax-tree.md` § Blank lines before touching any of it: two byte-equivalent trivia
 shapes exist, and which one you're holding decides which helper applies.
 
-Its sibling family is the **join absorb**, for the joins a reload reads as fewer blocks, or as the
-same count with the upper block holding content from the lower (a list newly standing above
-indented code, a demoted heading no longer interrupting the paragraph under it, a paragraph put
+Its sibling family is the **join absorb**, for the joins a reload reads as fewer blocks, or as no
+fewer with the upper block holding content from the lower (a list newly standing above
+indented code, a paragraph taking indented code whose whitespace lines come back as blank blocks, a demoted heading no longer interrupting the paragraph under it, a paragraph put
 directly above its own `===` underline); the tree converges to the reload's reading of such a join, and `docs/design/editor.md` § 8
 says why. `src/lib/tree-operations/settle.ts` :: `absorbSeamReading` answers one join, and
 everything that disturbs one has to ask it the question: `splitNode` asks it directly, while

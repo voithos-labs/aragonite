@@ -158,23 +158,45 @@ describe('a splice absorbs a join the reload would fold (GH #61)', () => {
 		expect(describeConvergence(doc)).toBeNull();
 	});
 
-	// GH #285 with a paragraph for the head: the code's blank run stays a block of its own, so the
-	// joined bytes keep the block count while the code moves up into the paragraph.
-	it('a delete leaving a paragraph over indented code takes the code as its continuation', () => {
-		const doc = parse('para\n# h\n    code\n    \n    \n\n```\n```\n');
+	// GH #285 with a paragraph for the head: the code's blank lines come back as a blank run while
+	// the code moves up into the paragraph, and the blank line above the next block joins that run
+	// as a block of its own rather than going with the delete.
+	// Miss-analysis (#450, #451): the one pin on this join encoded the lost line as known, and no
+	// case gave the code more whitespace lines than the join had blocks to hold them.
+	it.each([
+		[
+			'two whitespace lines (#450)',
+			'para\n# h\n    code\n    \n    \n\n```\n```\n',
+			[
+				['paragraph', '', 'para\n    code\n'],
+				['paragraph', '    \n', '    \n'],
+				['paragraph', '', '\n'],
+				['fencedCode', '', '```\n```\n']
+			]
+		],
+		[
+			'three whitespace lines (#451)',
+			'para\n***\n    code\n    \n    \n    \n\n```\n```\n',
+			[
+				['paragraph', '', 'para\n    code\n'],
+				['paragraph', '    \n', '    \n'],
+				['paragraph', '', '    \n'],
+				['paragraph', '', '\n'],
+				['fencedCode', '', '```\n```\n']
+			]
+		]
+	])(
+		'a delete leaving a paragraph over indented code takes the code as its continuation: %s',
+		(_label, source, layout) => {
+			const doc = parse(source);
 
-		const change = settled(doc, (body) => deleteNode(body, 1));
+			settled(doc, (body) => deleteNode(body, 1));
 
-		// The blank line above the fence goes with the delete: a known loss, GH #450.
-		expect(serialize(doc)).toBe('para\n    code\n    \n    \n```\n```\n');
-		expect(doc.children.map((c) => [c.kind, c.leadingTrivia, c.raw])).toEqual([
-			['paragraph', '', 'para\n    code\n'],
-			['paragraph', '    \n', '    \n'],
-			['fencedCode', '', '```\n```\n']
-		]);
-		expect(change).toEqual({ op: 'replace', at: 0, count: 3, newCount: 2, idMap: { 0: 0 } });
-		expect(describeConvergence(doc)).toBeNull();
-	});
+			expect(serialize(doc)).toBe(source.replace(/^para\n[^\n]*\n/, 'para\n'));
+			expect(doc.children.map((c) => [c.kind, c.leadingTrivia, c.raw])).toEqual(layout);
+			expect(describeConvergence(doc)).toBeNull();
+		}
+	);
 
 	it('a delete between separated paragraphs stays a plain delete', () => {
 		const doc = parse('a\n\nb\n\nc\n');
