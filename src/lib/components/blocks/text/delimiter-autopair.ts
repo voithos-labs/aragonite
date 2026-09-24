@@ -14,6 +14,7 @@ import {
 } from '../../../core/inline';
 import { isAutoPairTrigger } from '../../../core/inline/scan/plugin-syntax';
 import type { GrammarView } from '../../../schema/block-openers';
+import type { InlineResolverRef } from '../../../schema/inline-construct-policy';
 
 export type AutoPairEdit =
 	| { kind: 'write'; text: string; caret: number }
@@ -62,18 +63,20 @@ export function resolveDelimiterAutoPair(
 	caret: number,
 	typed: string,
 	keepsKind: (text: string) => boolean = () => true,
-	grammar: GrammarView
+	linkRef: InlineResolverRef
 ): AutoPairEdit | null {
 	if (typed.length !== 1 || caret < content.start || caret > content.end) return null;
 	const before = text[caret - 1];
 	const after = text[caret];
-	const policy = policyOf(typed, grammar);
-	if (!policy) return collapseEmptyPair(text, content, caret, typed, grammar);
-	if (after === typed && closingRunAt(text, content, caret, typed, grammar)) {
+	const policy = policyOf(typed, linkRef.grammar);
+	if (!policy) return collapseEmptyPair(text, content, caret, typed, linkRef);
+	if (after === typed && closingRunAt(text, content, caret, typed, linkRef)) {
 		return { kind: 'step-over', caret: caret + 1, overConstruct: true };
 	}
 	const paired = text.slice(0, caret) + typed + text.slice(caret);
-	if (closerEndsAt(paired, content, caret + 1, typed, grammar)) {
+	// The typed byte lengthens the content, so a scan of the paired line reads one byte further.
+	const pairedContent = { start: content.start, end: content.end + 1 };
+	if (closerEndsAt(paired, pairedContent, caret + 1, typed, linkRef)) {
 		return { kind: 'close', text: paired, caret: caret + 1 };
 	}
 	const pair = (next: string): AutoPairEdit | null => {
@@ -90,7 +93,7 @@ export function resolveDelimiterAutoPair(
 		// A byte in front of another run's opener is spelling something out, not opening a span.
 		return null;
 	}
-	if (before === typed && !closerEndsAt(text, content, caret, typed, grammar)) {
+	if (before === typed && !closerEndsAt(text, content, caret, typed, linkRef)) {
 		// `~|` plus `~`: the double run this delimiter pairs on, as long as it is a lone run.
 		const single = text[caret - 2] !== typed;
 		if (policy.inside === 'grow' && single) {
@@ -154,8 +157,9 @@ export interface AutoPairSurface {
 	completesLine?(caret: number): boolean;
 	/** The resolver's block-kind check, for a block whose line can become a different block. */
 	keepsBlockKind?(text: string): boolean;
-	/** The editor's grammar, so a plugin's delimiter pairs only where the plugin is listed. */
-	grammar: GrammarView;
+	/** The link definitions and grammar the block was drawn with: a plugin's delimiter pairs only
+	 *  where the plugin is listed, and a reference link is read as the link it draws. */
+	linkRef: InlineResolverRef;
 }
 
 /**
@@ -170,7 +174,7 @@ export function applyDelimiterAutoPair(e: InputEvent, surface: AutoPairSurface):
 	if (caret === null) return false;
 	const text = surface.text();
 	if (surface.isRevealing()) {
-		if (!typing || !stepsOverRevealedCloser(text, caret, e.data ?? '', surface.grammar)) {
+		if (!typing || !stepsOverRevealedCloser(text, caret, e.data ?? '', surface.linkRef.grammar)) {
 			return false;
 		}
 		e.preventDefault();
@@ -185,9 +189,9 @@ export function applyDelimiterAutoPair(e: InputEvent, surface: AutoPairSurface):
 				caret,
 				e.data ?? '',
 				surface.keepsBlockKind,
-				surface.grammar
+				surface.linkRef
 			)
-		: resolveEmptyPairBackspace(text, caret, surface.grammar);
+		: resolveEmptyPairBackspace(text, caret, surface.linkRef.grammar);
 	if (!edit) return false;
 	e.preventDefault();
 	switch (edit.kind) {
@@ -249,15 +253,15 @@ function collapseEmptyPair(
 	content: ContentRange,
 	caret: number,
 	typed: string,
-	grammar: GrammarView
+	linkRef: InlineResolverRef
 ): AutoPairEdit | null {
 	const d = text[caret - 1];
-	if (d === undefined || !policyOf(d, grammar)) return null;
+	if (d === undefined || !policyOf(d, linkRef.grammar)) return null;
 	const k = runBefore(text, caret, d);
 	if (k > 2 || runAfter(text, caret, d) !== k) return null;
 	const paired = text.slice(0, caret) + typed + text.slice(caret);
 	const shifted = { start: content.start, end: content.end + 1 };
-	if (constructAt(paired, shifted, caret - k, caret + 1 + k, grammar)) return null;
+	if (constructAt(paired, shifted, caret - k, caret + 1 + k, linkRef)) return null;
 	return write(text.slice(0, caret) + typed + text.slice(caret + k), caret + 1);
 }
 
@@ -268,10 +272,10 @@ function closingRunAt(
 	content: ContentRange,
 	caret: number,
 	typed: string,
-	grammar: GrammarView
+	linkRef: InlineResolverRef
 ): boolean {
 	for (const node of inlineDescendants(
-		parseInline(text, content.start, content.end, undefined, grammar)
+		parseInline(text, content.start, content.end, linkRef.current, linkRef.grammar)
 	)) {
 		if (node.kind === 'text' || text[node.start] !== typed || node.end <= caret) continue;
 		let closer = node.end;
@@ -281,18 +285,16 @@ function closingRunAt(
 	return false;
 }
 
-// A construct of `typed`'s family ends exactly at `end`, its last byte in the closing run. The
-// scan's bound grows past the content by the byte a caller has just inserted.
+// A construct of `typed`'s family ends exactly at `end`, its last byte in the closing run.
 function closerEndsAt(
 	text: string,
 	content: ContentRange,
 	end: number,
 	typed: string,
-	grammar: GrammarView
+	linkRef: InlineResolverRef
 ): boolean {
-	const bound = Math.max(content.end, end);
 	for (const node of inlineDescendants(
-		parseInline(text, content.start, bound, undefined, grammar)
+		parseInline(text, content.start, content.end, linkRef.current, linkRef.grammar)
 	)) {
 		if (node.kind === 'text' || node.end !== end || text[end - 1] !== typed) continue;
 		const inner = constructContentRange(node);
@@ -306,10 +308,10 @@ function constructAt(
 	content: ContentRange,
 	start: number,
 	end: number,
-	grammar: GrammarView
+	linkRef: InlineResolverRef
 ): boolean {
 	for (const node of inlineDescendants(
-		parseInline(text, content.start, content.end, undefined, grammar)
+		parseInline(text, content.start, content.end, linkRef.current, linkRef.grammar)
 	)) {
 		if (node.kind !== 'text' && node.start === start && node.end === end) return true;
 	}

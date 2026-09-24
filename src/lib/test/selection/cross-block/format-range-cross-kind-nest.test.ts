@@ -29,7 +29,9 @@ function toggle(
 	mode: 'source' | 'live'
 ) {
 	const doc = parse(source);
-	const plan = planCrossBlockFormat(doc, start, end, 'strong', mode, defaultGrammarView);
+	const plan = planCrossBlockFormat(doc, start, end, 'strong', mode, {
+		grammar: defaultGrammarView
+	});
 	if (!plan) return null;
 	applyCrossBlockFormat(doc, plan, createSharingState(), defaultGrammarView);
 	return serialize(doc);

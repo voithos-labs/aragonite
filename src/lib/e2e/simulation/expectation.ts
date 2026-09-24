@@ -43,7 +43,7 @@ export class ExpectationTracker {
 					caret,
 					ch,
 					(next) => kindOfLine(next) === kindOfLine(line),
-					defaultGrammarView
+					{ grammar: defaultGrammarView }
 				)
 			: null;
 		if (edit?.kind === 'step-over') {

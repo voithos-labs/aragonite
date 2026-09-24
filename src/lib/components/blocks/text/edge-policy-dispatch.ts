@@ -713,14 +713,14 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 		// A delimiter typed over its own closing one is the auto-pair's step-over, handled on
 		// beforeinput (delimiter-autopair.ts); placed outside the run it would be typed instead.
 		const content = getContentRange(deps.node);
-		const { grammar } = deps;
+		const { grammar, linkRef } = deps;
 		const autoPair = resolveDelimiterAutoPair(
 			display(),
 			content,
 			caretOffset,
 			e.key,
 			undefined,
-			grammar
+			linkRef
 		);
 		if (autoPair?.kind === 'step-over') return false;
 		const el = deps.getEl();
@@ -737,7 +737,7 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 			seat.offset,
 			e.key,
 			(line) => keepsBlockKind(deps.node, line, grammar),
-			grammar
+			linkRef
 		);
 		if (paired && paired.kind !== 'step-over') {
 			writeDisplay(paired.text, paired.caret, `seat:${seat.kind}`, caretOffset);

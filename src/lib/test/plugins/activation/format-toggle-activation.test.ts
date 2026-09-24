@@ -28,8 +28,8 @@ function toggledWithoutEither(
 ): string | null {
 	const edit = { display, content: { start: 0, end: display.length }, selection };
 	return (
-		toggleInlineFormat({ ...edit, grammar: grammarListing([]) }, format, 'source')?.newDisplay ??
-		null
+		toggleInlineFormat({ ...edit, linkRef: { grammar: grammarListing([]) } }, format, 'source')
+			?.newDisplay ?? null
 	);
 }
 

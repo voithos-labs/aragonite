@@ -93,7 +93,7 @@ describe('a selection inside a same-format construct splits it', () => {
 				display: raw,
 				content: whole(raw),
 				selection: { start: 7, end: 12 },
-				grammar: defaultGrammarView
+				linkRef: { grammar: defaultGrammarView }
 			},
 			'strong',
 			'live'
@@ -112,7 +112,7 @@ describe('a selection inside a same-format construct splits it', () => {
 				display: raw,
 				content: whole(raw),
 				selection: { start: 6, end: 8 },
-				grammar: defaultGrammarView
+				linkRef: { grammar: defaultGrammarView }
 			},
 			'strong',
 			'source'
@@ -129,7 +129,7 @@ describe('a selection inside a same-format construct splits it', () => {
 				display: raw,
 				content: whole(raw),
 				selection: { start: 7, end: 11 },
-				grammar: defaultGrammarView
+				linkRef: { grammar: defaultGrammarView }
 			},
 			'strong',
 			'source'

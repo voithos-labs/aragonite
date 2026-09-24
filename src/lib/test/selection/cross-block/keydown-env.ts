@@ -83,7 +83,7 @@ export function makeKeydownEnv(source: string | Document, opts: KeydownEnvOption
 		revealPath,
 		controller,
 		getPresentationMode,
-		grammar: defaultGrammarView,
+		linkRef: { grammar: defaultGrammarView },
 		getContentVersion: harness.contentVersion
 	});
 

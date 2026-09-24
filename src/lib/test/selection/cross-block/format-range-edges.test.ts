@@ -28,7 +28,9 @@ function toggle(
 	mode?: 'source' | 'live'
 ): string | null {
 	const doc = parse(source);
-	const plan = planCrossBlockFormat(doc, start, end, 'strong', mode, defaultGrammarView);
+	const plan = planCrossBlockFormat(doc, start, end, 'strong', mode, {
+		grammar: defaultGrammarView
+	});
 	if (!plan) return null;
 	applyCrossBlockFormat(doc, plan, createSharingState(), defaultGrammarView);
 	return serialize(doc);
@@ -61,7 +63,7 @@ describe('a span whose edge lands on whitespace', () => {
 			HEAD.end,
 			'strong',
 			undefined,
-			defaultGrammarView
+			{ grammar: defaultGrammarView }
 		)!;
 		expect(head.endOffset).toBe('**beta**'.length);
 
@@ -71,7 +73,7 @@ describe('a span whose edge lands on whitespace', () => {
 			TAIL.end,
 			'strong',
 			undefined,
-			defaultGrammarView
+			{ grammar: defaultGrammarView }
 		)!;
 		expect(tail.startOffset).toBe('alpha '.length);
 	});

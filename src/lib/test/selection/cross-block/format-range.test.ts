@@ -26,7 +26,7 @@ function toggle(
 	mode?: 'source' | 'live'
 ): string | null {
 	const doc = parse(source);
-	const plan = planCrossBlockFormat(doc, start, end, format, mode, defaultGrammarView);
+	const plan = planCrossBlockFormat(doc, start, end, format, mode, { grammar: defaultGrammarView });
 	if (!plan) return null;
 	applyCrossBlockFormat(doc, plan, createSharingState(), defaultGrammarView);
 	return serialize(doc);
@@ -93,7 +93,9 @@ describe('direction is the whole range’s coverage, not each block’s', () => 
 
 describe('the pressed-state read', () => {
 	const active = (source: string, start: SelectionPoint, end: SelectionPoint) =>
-		crossBlockActiveFormats(parse(source), start, end, defaultGrammarView).has('strong');
+		crossBlockActiveFormats(parse(source), start, end, { grammar: defaultGrammarView }).has(
+			'strong'
+		);
 
 	it('is true only when every participating span carries the mark', () => {
 		expect(active('**alpha**\n\n**beta**\n', at([0], 0), at([1], 8))).toBe(true);
@@ -114,14 +116,9 @@ describe('the pressed-state read', () => {
 describe('the endpoints the plan hands back', () => {
 	it('shift by each endpoint block’s own delta', () => {
 		const doc = parse('alpha one\n\ngamma two\n');
-		const plan = planCrossBlockFormat(
-			doc,
-			at([0], 6),
-			at([1], 5),
-			'strong',
-			undefined,
-			defaultGrammarView
-		)!;
+		const plan = planCrossBlockFormat(doc, at([0], 6), at([1], 5), 'strong', undefined, {
+			grammar: defaultGrammarView
+		})!;
 		// `alpha **one**` — the tail span now starts two bytes later and ends at the closer.
 		expect(plan.startOffset).toBe(6);
 		expect(plan.endOffset).toBe(9);

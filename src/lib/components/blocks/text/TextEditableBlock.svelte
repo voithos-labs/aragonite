@@ -661,7 +661,7 @@
 		const caret = cursor.getRaw() ?? 0;
 		const selection = cursor.getRawSelection() ?? { start: caret, end: caret };
 		return formatActive(
-			{ display: getDisplayText(), content: getContentRange(node), selection, grammar },
+			{ display: getDisplayText(), content: getContentRange(node), selection, linkRef },
 			marked.kind
 		);
 	}
@@ -958,7 +958,7 @@
 			seatOutside: edgeAffinity.noteExtreme,
 			completesLine: (caret) => planTypedCompletion(node, caret, grammar) !== null,
 			keepsBlockKind: (text) => keepsBlockKind(node, text, grammar),
-			grammar,
+			linkRef,
 			write: (text, caretBefore, caretAfter) => {
 				const raw = text + trailingLineEnding(node.raw);
 				void blockEdit.updateBlockContent(index, raw, caretBefore, caretAfter);
@@ -1072,7 +1072,12 @@
 		}
 
 		const toggled = toggleInlineFormat(
-			{ display: getDisplayText(), content: getContentRange(node), selection: range, grammar },
+			{
+				display: getDisplayText(),
+				content: getContentRange(node),
+				selection: range,
+				linkRef
+			},
 			format,
 			presentationMode
 		);

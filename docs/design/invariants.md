@@ -1462,10 +1462,9 @@ link-reference ref and the render options carry it as a required field for the s
 readers whose grammar stays optional (the published `parseInline` and `computeInlineContent` among
 them) are held to passing it in its own argument slot, and a fallback to every installed plugin
 is spelled only in the listed places. The reads still left unthreaded are listed with their
-reasons: navigation's transparency check. A live rewrite that checks its candidate against the
-drawn tree also reparses with the link resolver that tree was read with, or a reference link reads
-as brackets beside it (#443); the auto-pair scans, which read no drawn tree, are the listed gap,
-and the bold and italic toggle outside this directory reads without the resolver too (#455).
+reasons: navigation's transparency check. A write that reparses a block the editor drew (the
+prose block's live rewrites and auto-pair, and the bold and italic toggle) reads with the link
+resolver the block was drawn with, or a reference link reads as brackets beside it (#443, #455).
 `lint/registry-view-reads.test.ts`.
 
 **G4.69 · Reparses take the editor's grammar.** Every `parse` call outside the parser passes a

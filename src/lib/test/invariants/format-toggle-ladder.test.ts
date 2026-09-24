@@ -110,7 +110,7 @@ describe('G2.14: the pressed-state read and the toggle direction', () => {
 						display,
 						content,
 						selection,
-						grammar: defaultGrammarView
+						linkRef: { grammar: defaultGrammarView }
 					};
 					const active = isInlineFormatActive(edit, kind);
 					for (const mode of MODES) {

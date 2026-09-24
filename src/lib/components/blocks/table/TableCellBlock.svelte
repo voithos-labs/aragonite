@@ -402,7 +402,7 @@
 		const selection = cursor.getRawSelection() ?? { start: caret, end: caret };
 		const cellText = readCellText();
 		return formatActive(
-			{ display: cellText, content: { start: 0, end: cellText.length }, selection, grammar },
+			{ display: cellText, content: { start: 0, end: cellText.length }, selection, linkRef },
 			marked.kind
 		);
 	}
@@ -432,7 +432,7 @@
 				display: cellText,
 				content: { start: 0, end: cellText.length },
 				selection: offsets,
-				grammar
+				linkRef
 			},
 			format,
 			presentationMode
@@ -819,7 +819,7 @@
 			markersPaint: () => paintsFocusedMarkers(presentationMode),
 			setCaret: (offset) => cursor.setRaw(asRawOffset(offset)),
 			seatOutside: edgeAffinity.noteExtreme,
-			grammar,
+			linkRef,
 			write: (text, caretBefore, caretAfter) => {
 				void blockEdit.updateBlockContent(index, text, caretBefore, caretAfter);
 				parkCursor(caretAfter, text);

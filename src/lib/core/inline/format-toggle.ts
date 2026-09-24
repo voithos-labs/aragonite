@@ -14,9 +14,9 @@ import {
 	getInlineMarkPolicy,
 	listInlineMarks,
 	type InlineMarkKind,
-	type InlineMarkPolicy
+	type InlineMarkPolicy,
+	type InlineResolverRef
 } from '../../schema/inline-construct-policy';
-import type { GrammarView } from '../../schema/block-openers';
 import type { InlineNode } from '../nodes';
 import { constructContentRange, inlineDescendants, parseInline, type ContentRange } from './index';
 import { CONTENT_VISIBILITY, renderedText } from './visibility';
@@ -31,8 +31,9 @@ export interface InlineFormatEdit {
 	/** The bytes the block's own kind calls content; every write clamps into them. */
 	content: ContentRange;
 	selection: { start: number; end: number };
-	/** The editor's grammar, so the toggle reads the syntax the editor draws. */
-	grammar: GrammarView;
+	/** The link definitions and grammar the block was drawn with: without the definitions a
+	 *  reference link reads as plain brackets, and a wrap cuts through it. */
+	linkRef: InlineResolverRef;
 }
 
 export interface ToggleInlineFormatResult {
@@ -55,7 +56,13 @@ export function toggleInlineFormat(
 	const end = clampToContent(selection.end, content);
 	// Parsed with the block's own content bounds, so no construct can straddle the structural
 	// bytes the clamp above keeps the write out of.
-	const inlines = parseInline(display, content.start, content.end, undefined, edit.grammar);
+	const inlines = parseInline(
+		display,
+		content.start,
+		content.end,
+		edit.linkRef.current,
+		edit.linkRef.grammar
+	);
 	if (start === end) return toggleAtCaret(display, inlines, start, format, mark);
 
 	// A mode that shows the delimiters writes its candidate unverified: the user sees the markers.
@@ -68,9 +75,9 @@ export function toggleInlineFormat(
 	const sole =
 		covering.length > 1
 			? null
-			: soleStripCandidate(display, inlines, from, to, format, edit.grammar);
+			: soleStripCandidate(display, inlines, from, to, format, edit.linkRef);
 	if (sole)
-		return paints || preservesScreen(sole, edit, screenOf(display, content, edit.grammar))
+		return paints || preservesScreen(sole, edit, screenOf(display, content, edit.linkRef))
 			? sole
 			: null;
 
@@ -131,7 +138,7 @@ export function isInlineFormatActiveAfter(
 			display: result.newDisplay,
 			content: shiftedContent(edit.content, edit.display, result),
 			selection: { start: result.newSelStart, end: result.newSelEnd },
-			grammar: edit.grammar
+			linkRef: edit.linkRef
 		},
 		format
 	);
@@ -165,9 +172,17 @@ export function createInlineFormatActiveMemo(): (
 	edit: InlineFormatEdit,
 	format: InlineMarkKind
 ) => boolean {
-	let slot: { edit: InlineFormatEdit; coverage: Coverage } | null = null;
+	// The resolver is kept apart from the edit because the editor's ref reads it through a getter,
+	// so a definition edited elsewhere changes it under the same ref.
+	let slot: {
+		edit: InlineFormatEdit;
+		resolver: InlineResolverRef['current'];
+		coverage: Coverage;
+	} | null = null;
 	return (edit, format) => {
-		if (!slot || !sameEdit(slot.edit, edit)) slot = { edit, coverage: coverageOf(edit) };
+		const resolver = edit.linkRef.current;
+		if (!slot || slot.resolver !== resolver || !sameEdit(slot.edit, edit))
+			slot = { edit, resolver, coverage: coverageOf(edit) };
 		return coverageCarries(slot.coverage, format);
 	};
 }
@@ -190,7 +205,13 @@ function coverageOf(edit: InlineFormatEdit): Coverage {
 	const { display, content, selection } = edit;
 	const start = clampToContent(selection.start, content);
 	const end = clampToContent(selection.end, content);
-	const inlines = parseInline(display, content.start, content.end, undefined, edit.grammar);
+	const inlines = parseInline(
+		display,
+		content.start,
+		content.end,
+		edit.linkRef.current,
+		edit.linkRef.grammar
+	);
 	// A selection spanning the whole display parses the same as the block, and that is every
 	// middle block of a cross-block range, so the second parse is skipped.
 	const sliceIsDisplay = start === 0 && end === display.length;
@@ -204,7 +225,13 @@ function coverageOf(edit: InlineFormatEdit): Coverage {
 				? []
 				: sliceIsDisplay
 					? inlines
-					: parseInline(display.slice(start, end), 0, end - start, undefined, edit.grammar)
+					: parseInline(
+							display.slice(start, end),
+							0,
+							end - start,
+							edit.linkRef.current,
+							edit.linkRef.grammar
+						)
 	};
 }
 
@@ -217,7 +244,7 @@ function sameEdit(a: InlineFormatEdit, b: InlineFormatEdit): boolean {
 		a.content.end === b.content.end &&
 		a.selection.start === b.selection.start &&
 		a.selection.end === b.selection.end &&
-		a.grammar === b.grammar
+		a.linkRef.grammar === b.linkRef.grammar
 	);
 }
 
@@ -269,10 +296,10 @@ function soleStripCandidate(
 	start: number,
 	end: number,
 	format: InlineMarkKind,
-	grammar: GrammarView
+	linkRef: InlineResolverRef
 ): ToggleInlineFormatResult | null {
 	const slice = display.slice(start, end);
-	const sliceNodes = parseInline(slice, 0, slice.length, undefined, grammar);
+	const sliceNodes = parseInline(slice, 0, slice.length, linkRef.current, linkRef.grammar);
 	const selfSpan = soleSpanOfSelection(sliceNodes, inlines, start, end, format);
 	if (!selfSpan) return null;
 	const unwrapped = stripKindMarkers(
@@ -545,12 +572,12 @@ function wrapRange(
 
 /** A toggle changes formatting, never the text on screen, so the render path's own reading of the
  *  content is what a candidate has to leave unchanged (live-mode.md § 2). */
-function screenOf(display: string, content: ContentRange, grammar: GrammarView): string {
+function screenOf(display: string, content: ContentRange, linkRef: InlineResolverRef): string {
 	return renderedText(
-		parseInline(display, content.start, content.end, undefined, grammar),
+		parseInline(display, content.start, content.end, linkRef.current, linkRef.grammar),
 		display,
 		CONTENT_VISIBILITY,
-		{ grammar }
+		{ grammar: linkRef.grammar }
 	);
 }
 
@@ -561,7 +588,7 @@ function preservesScreen(
 ): boolean {
 	const { display, content } = edit;
 	const shifted = shiftedContent(content, display, candidate);
-	return screenOf(candidate.newDisplay, shifted, edit.grammar) === shown;
+	return screenOf(candidate.newDisplay, shifted, edit.linkRef) === shown;
 }
 
 /** The two checks a candidate must pass when the mode hides its markers: the on-screen text is
@@ -574,7 +601,7 @@ function firstFlipVerified(
 	direction: 'apply' | 'unapply'
 ): ToggleInlineFormatResult | null {
 	const { display, content } = edit;
-	const shown = screenOf(display, content, edit.grammar);
+	const shown = screenOf(display, content, edit.linkRef);
 	return (
 		candidates.find(
 			(candidate) =>
@@ -594,7 +621,13 @@ function coverageFlipped(
 ): boolean {
 	const { newDisplay, newSelStart: from, newSelEnd: to } = candidate;
 	const content = shiftedContent(edit.content, edit.display, candidate);
-	const inlines = parseInline(newDisplay, content.start, content.end, undefined, edit.grammar);
+	const inlines = parseInline(
+		newDisplay,
+		content.start,
+		content.end,
+		edit.linkRef.current,
+		edit.linkRef.grammar
+	);
 	if (direction === 'apply') return coveringSpansOf(inlines, from, to, format).length > 0;
 	const spans: { start: number; end: number }[] = [];
 	for (const node of inlineDescendants(inlines))

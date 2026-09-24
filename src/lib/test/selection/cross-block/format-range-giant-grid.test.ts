@@ -38,13 +38,15 @@ describe('cross-block format over a grid larger than an argument list', () => {
 	it('reads the pressed state over every covered cell', () => {
 		expect(doc.children[0].children).toHaveLength(ROWS);
 		expect(() =>
-			crossBlockActiveFormats(doc, cell(0), cell(LAST_CELL), defaultGrammarView)
+			crossBlockActiveFormats(doc, cell(0), cell(LAST_CELL), { grammar: defaultGrammarView })
 		).not.toThrow();
 	});
 
 	it('plans the toggle over every covered cell', () => {
 		expect(() =>
-			planCrossBlockFormat(doc, cell(0), cell(LAST_CELL), 'strong', 'source', defaultGrammarView)
+			planCrossBlockFormat(doc, cell(0), cell(LAST_CELL), 'strong', 'source', {
+				grammar: defaultGrammarView
+			})
 		).not.toThrow();
 	});
 });

@@ -51,14 +51,9 @@ describe('the cross-block plan reads the cell bytes the surface branch reads', (
 		const surfaceBytes = vi.mocked(mounted.blockEdit.updateBlockContent).mock.calls[0][1];
 
 		const doc = parse(`| ${raw} | b |\n| --- | --- |\n| c | d |\n`);
-		const plan = planCrossBlockFormat(
-			doc,
-			wholeCell(0),
-			wholeCell(0),
-			'strong',
-			undefined,
-			defaultGrammarView
-		)!;
+		const plan = planCrossBlockFormat(doc, wholeCell(0), wholeCell(0), 'strong', undefined, {
+			grammar: defaultGrammarView
+		})!;
 		expect(plan.writes[0].newDisplay).toBe(surfaceBytes);
 	});
 });

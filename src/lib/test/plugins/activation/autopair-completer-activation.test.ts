@@ -32,7 +32,7 @@ beforeEach(() => {
 afterEach(resetPluginPlatformForTests);
 
 const typedPercent = (grammar: GrammarView) =>
-	resolveDelimiterAutoPair('a ', { start: 0, end: 2 }, 2, '%', () => true, grammar);
+	resolveDelimiterAutoPair('a ', { start: 0, end: 2 }, 2, '%', () => true, { grammar });
 
 describe("an unlisted plugin's delimiter does not auto-pair", () => {
 	it('types a lone `%` where the plugin is left out', () => {
