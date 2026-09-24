@@ -29,7 +29,7 @@ function lastLineOwningChild(node: CstNode): CstNode | null {
  * above it: such a container's raw is derived from its children, so appending to it directly
  * leaves the two disagreeing (G1.1) and its tail item still unterminated.
  */
-function terminateLastLine(node: CstNode, ending: '\n' | '\r\n'): void {
+export function terminateLastLine(node: CstNode, ending: '\n' | '\r\n'): void {
 	if (node.raw.endsWith('\n')) return;
 	const child = lastLineOwningChild(node);
 	if (!child) {
