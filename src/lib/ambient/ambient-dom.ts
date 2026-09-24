@@ -68,24 +68,29 @@ export function ambientLengthOf(blockEl: HTMLElement): number {
 }
 
 export function placeCaretAfterAmbientSpan(blockEl: HTMLElement): boolean {
-	const span = ambientSpanOf(blockEl);
-	if (!span) return false;
+	const point = pointAfterAmbientSpan(blockEl);
+	if (!point) return false;
 	const range = document.createRange();
-	// Prefer the first text node after the span so visual-line geometry returns real rects;
-	// setStartAfter yields a collapsed range with no textbox in empty-item state. A hidden
-	// marker run next to the span is not that text node: it paints nothing, and descending
-	// into it would put raw offset 0 inside unpainted bytes.
-	const textAfter = firstTextNodeAfter(span);
-	if (textAfter && !isHiddenMarkerText(textAfter, blockEl)) {
-		range.setStart(textAfter, 0);
-	} else {
-		range.setStartAfter(span);
-	}
+	range.setStart(point.node, point.offset);
 	range.collapse(true);
 	const sel = window.getSelection();
 	sel?.removeAllRanges();
 	sel?.addRange(range);
 	return true;
+}
+
+/** Where raw offset 0 sits in the DOM of a block with a marker span; null without one. */
+export function pointAfterAmbientSpan(blockEl: HTMLElement): { node: Node; offset: number } | null {
+	const span = ambientSpanOf(blockEl);
+	if (!span) return null;
+	// Prefer the first text node after the span so visual-line geometry returns real rects; the
+	// spot after the span has no textbox in empty-item state. A hidden marker run next to the span
+	// is not that text node: it paints nothing, and descending into it would put raw offset 0
+	// inside unpainted bytes.
+	const textAfter = firstTextNodeAfter(span);
+	if (textAfter && !isHiddenMarkerText(textAfter, blockEl)) return { node: textAfter, offset: 0 };
+	const parent = span.parentNode!;
+	return { node: parent, offset: Array.prototype.indexOf.call(parent.childNodes, span) + 1 };
 }
 
 // ── Internal ────────────────────────────────────────────────────────────────

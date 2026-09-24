@@ -10,3 +10,7 @@
   - Miss-analysis: every shift-click spec grew from a caret, and no spec pressed Shift while an
     image held the selection, where no caret exists and the popover's outside-press handler ended
     the selection before the block read it
+- Shift+click at the start of a list item's text before a selected image, then Shift+ArrowRight:
+  the press stays the moving end, so the range shrinks from the text's first letter
+  - Miss-analysis: the unit restore case had no marker span, and the only shift-click specs ran
+    in paragraphs, so no test started a backward range at raw 0 behind a list marker

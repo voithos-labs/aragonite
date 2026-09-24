@@ -32,8 +32,9 @@ export interface EditorActionsDeps {
 	stickyColumn: StickyColumnState;
 	edgeAffinity: EdgeAffinityState;
 	selectionState: SelectionState;
-	/** The caret the user had before an image was selected whole, or null with none selected:
-	 *  no block reports a caret meanwhile, so an undo entry reads this one. Absent in harnesses. */
+	/** The edge of the image selected whole, as a collapsed caret, or null with none selected:
+	 *  no block reports a caret meanwhile, so every live selection read answers with this one.
+	 *  Absent in harnesses. */
 	getSelectedWidgetCaret?: () => EditorSelection | null;
 	getBlockElByPath: BlockElLookup;
 	/** Scroll an unmounted top-level block into the rendered window, wait for it to mount,

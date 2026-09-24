@@ -123,9 +123,16 @@ test.describe('table block: paste in', () => {
 		await editor.paste();
 		await editor.bridge.waitForSourceContains('# Hello');
 		expect((await editor.bridge.getSource()).replace(/\s+$/, '')).toBe(
-			['| A | B |', '| --- | --- |', '| 1 | 2 |', '# Hello', '| 3 | 4 |', '| --- | --- |'].join(
-				'\n'
-			)
+			[
+				'| A | B |',
+				'| --- | --- |',
+				'| 1 | 2 |',
+				'',
+				'# Hello',
+				'',
+				'| 3 | 4 |',
+				'| --- | --- |'
+			].join('\n')
 		);
 	});
 
@@ -142,9 +149,11 @@ test.describe('table block: paste in', () => {
 				'| A | B |',
 				'| --- | --- |',
 				'| 1 | 2 |',
+				'',
 				'Para one.',
 				'',
 				'## Two',
+				'',
 				'| 3 | 4 |',
 				'| --- | --- |'
 			].join('\n')
@@ -165,7 +174,9 @@ test.describe('table block: paste in', () => {
 			[
 				'| A | B |',
 				'| --- | --- |',
+				'',
 				'# Sandwiched',
+				'',
 				'| 1 | 2 |',
 				'| --- | --- |',
 				'| 3 | 4 |'
@@ -182,7 +193,7 @@ test.describe('table block: paste in', () => {
 		await editor.paste();
 		await editor.bridge.waitForSourceContains('# Tail');
 		expect((await editor.bridge.getSource()).replace(/\s+$/, '')).toBe(
-			['| A | B |', '| --- | --- |', '| 1 | 2 |', '| 3 | 4 |', '# Tail'].join('\n')
+			['| A | B |', '| --- | --- |', '| 1 | 2 |', '| 3 | 4 |', '', '# Tail'].join('\n')
 		);
 	});
 

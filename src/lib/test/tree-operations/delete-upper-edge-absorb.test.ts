@@ -14,16 +14,14 @@ import { describeConvergence } from '$lib/test/harness/parse-converged';
 
 describe('a merge whose survivor the block above absorbs', () => {
 	it('asks the join at the survivor’s upper edge', () => {
-		const doc = parse(
-			'- foo@bar.com\n\n  \n| H0 |\n| --- | --- |\n\n\n[ref]: https://example.com\n'
-		);
+		// Indented code: a list item or footnote already takes an indented blank line in on load.
+		const doc = parse('    code\n\n    \nx\n\n\n[ref]: https://example.com\n');
 		expect(doc.children).toHaveLength(5);
 
 		mergeIntoPrevDeepLeaf(doc, 2, undefined, undefined, undefined);
 
-		expect(serialize(doc)).toBe(
-			'- foo@bar.com\n\n  | H0 |\n| --- | --- |\n\n\n[ref]: https://example.com\n'
-		);
+		expect(serialize(doc)).toBe('    code\n\n    x\n\n\n[ref]: https://example.com\n');
+		expect(doc.children[0].raw).toBe('    code\n\n    x\n');
 		expect(describeConvergence(doc)).toBeNull();
 	});
 

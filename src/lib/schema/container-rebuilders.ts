@@ -23,8 +23,9 @@ const quoteLine = (text: string): string => (text === '' ? '>' : '> ' + text);
 // ── List ─────────────────────────────────────────────────────────────────────
 
 /**
- * Rebuild a list item's `raw`: marker on the first line, indentation on continuations. Blank
- * lines stay unindented, the GFM loose-list form.
+ * Rebuild a list item's `raw`: marker on the first line, indentation on continuations. A separator
+ * line stays unindented; an empty block's line at the body's end is indented, which keeps it
+ * inside the item on reload.
  */
 export function rebuildListItemRaw(node: CstNode, changed?: ChildRawChange): void {
 	if (!node.children || !node.metadata) return;
@@ -36,9 +37,9 @@ export function rebuildListItemRaw(node: CstNode, changed?: ChildRawChange): voi
 
 	rebuildStripRaw(
 		node,
-		(text, first) => {
+		(text, first, trailingBlank) => {
 			if (first) return marker + taskMarker + text;
-			return text === '' ? '' : indent + text;
+			return text === '' && !trailingBlank ? '' : indent + text;
 		},
 		changed
 	);

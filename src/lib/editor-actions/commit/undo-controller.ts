@@ -144,16 +144,19 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 		setUndoGauge(liveBytes, undo.length);
 	}
 
+	const readLive = () =>
+		readCurrentSelection(
+			deps.selectionState,
+			deps.blockRefs,
+			deps.getSelectedWidgetCaret ?? (() => null)
+		);
+
 	/**
-	 * What an entry records as "where the caret was". A selected image comes first: the browser
-	 * puts a caret back in its paragraph that the editor drops a moment later, so a live read
-	 * then names the paragraph start. The gap caret outranks only the caller's fallback, since
-	 * no block ref reports it.
+	 * What an entry records as "where the caret was". The gap caret outranks only the caller's
+	 * fallback, since no block ref reports it.
 	 */
 	function entrySelection(fallback: () => EditorSelection): EditorSelection | GapCaretSelection {
-		const beforeImage = deps.getSelectedWidgetCaret?.();
-		if (beforeImage) return beforeImage;
-		const live = readCurrentSelection(deps.selectionState, deps.blockRefs);
+		const live = readLive();
 		if (live) return live;
 		const gap = deps.selectionState.gapCaret;
 		return gap ? { gapCaret: gap } : fallback();
@@ -230,7 +233,7 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 	// past the edit, but its path still points at the same leaf.
 	function pushTypingSnapshot(leafPath: number[], offset: number): void {
 		if (isJoinedPush()) return;
-		const live = readCurrentSelection(deps.selectionState, deps.blockRefs);
+		const live = readLive();
 		const liveIsCollapsed =
 			!!live &&
 			pathsEqual(live.anchor.path, live.focus.path) &&

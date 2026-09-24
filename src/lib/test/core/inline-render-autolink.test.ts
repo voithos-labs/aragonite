@@ -80,3 +80,17 @@ describe('renderInlineNodes: an address as a link text', () => {
 		}
 	);
 });
+
+// An open bracket keeps a www or url address as text, as cmark-gfm reads it; an email still links.
+describe('renderInlineNodes: an address after an unclosed bracket', () => {
+	it.each(['[a www.x.co', '[a https://x.co'])('%s renders no anchor', (raw) => {
+		const div = renderedInto(raw);
+		expect(div.querySelector('a, .md-autolink')).toBeNull();
+		expect(div.textContent).toBe(raw);
+	});
+
+	it('an email there still renders its mailto anchor', () => {
+		const div = renderedInto('[a foo@bar.com');
+		expect(div.querySelector('a.md-autolink')?.getAttribute('href')).toBe('mailto:foo@bar.com');
+	});
+});

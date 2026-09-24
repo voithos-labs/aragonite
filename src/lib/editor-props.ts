@@ -112,6 +112,10 @@ export interface EditorInstance {
 	 * own declared kind name.
 	 */
 	getBlockKindAt(path: number[]): AnyBlockKind | null;
+	/**
+	 * The live selection, or null when nothing is focused. While an image is selected whole it is
+	 * a caret at the image's edge its selection came from (its end after a click).
+	 */
 	getSelection(): EditorSelection | null;
 	/**
 	 * Restore a `getSelection()` snapshot. Async because the target is scrolled into view

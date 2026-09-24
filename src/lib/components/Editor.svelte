@@ -311,6 +311,18 @@
 		clear: () => widgetSelection.clear()
 	};
 
+	// The caret a selected image stands for: the edge its selection came from, read off the live
+	// image, since a resize moves its end while it stays selected.
+	function selectedWidgetCaret(): EditorSelection | null {
+		const selected = widgetSelection.getSelected();
+		if (!selected) return null;
+		const live = selectedWidget.range();
+		const fromStart = selected.preSelectOffset === selected.sourceStart;
+		const offset = live ? (fromStart ? live.start : live.end) : selected.preSelectOffset;
+		const point = { path: [...selected.paragraphPath], offset };
+		return { anchor: point, focus: point };
+	}
+
 	let selectionDescription = $derived(
 		selectionState.isCrossBlock && selectionState.anchor && selectionState.focus
 			? createSelectionDescription({ anchor: selectionState.anchor, focus: selectionState.focus })
@@ -596,12 +608,7 @@
 		stickyColumn,
 		edgeAffinity,
 		selectionState,
-		getSelectedWidgetCaret: () => {
-			const selected = widgetSelection.getSelected();
-			if (!selected) return null;
-			const point = { path: [...selected.paragraphPath], offset: selected.preSelectOffset };
-			return { anchor: point, focus: point };
-		},
+		getSelectedWidgetCaret: selectedWidgetCaret,
 		getBlockElByPath,
 		revealPath,
 		events,
@@ -1265,7 +1272,7 @@
 	 * Path arrays are copies, so mutating the result does not affect internal state.
 	 */
 	export function getSelection(): EditorSelection | null {
-		return readCurrentSelection(selectionState, blockRefs);
+		return readCurrentSelection(selectionState, blockRefs, selectedWidgetCaret);
 	}
 
 	/**
