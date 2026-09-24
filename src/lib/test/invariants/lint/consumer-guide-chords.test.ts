@@ -305,6 +305,8 @@ const claimKey = (chord: string, owner: string): ClaimKey => `${chord} @ ${owner
 interface BoundClaim {
 	chord: string;
 	owner: string;
+	/** Set when a block kind's keymap binds the chord, so a row for another kind cannot document it. */
+	ownerKind?: AnyBlockKind;
 	command: string;
 }
 
@@ -313,6 +315,7 @@ function boundClaims(): BoundClaim[] {
 		(tryGetBlockKindDescriptor(kind)?.keymap ?? []).map(({ chord, command }) => ({
 			chord,
 			owner: kind,
+			ownerKind: kind,
 			command
 		}))
 	);
@@ -335,13 +338,24 @@ const hardcodedClaims = HARDCODED_CHORD_SITES.flatMap((site) =>
 	site.chords.map((chord) => claimKey(chord, site.file))
 );
 
-/** Whether some row lists `chord` for `command`: the row's chord cell and its target must agree. */
-export function rowsDocument(docRows: DocRow[], chord: string, command: string): boolean {
-	return docRows.some(
-		(row) =>
-			row.chords.includes(chord) &&
-			(ROW_TARGETS[row.action]?.commands as string[] | undefined)?.includes(command) === true
-	);
+/** Whether some row lists the claim's chord for its command: the row's chord cell and its target
+ *  must agree. */
+export function rowsDocument(docRows: DocRow[], claim: BoundClaim): boolean {
+	return docRows.some((row) => {
+		const target = ROW_TARGETS[row.action];
+		return (
+			target !== undefined &&
+			row.chords.includes(claim.chord) &&
+			(target.commands as string[]).includes(claim.command) &&
+			rowCoversKind(target.kind, claim.ownerKind)
+		);
+	});
+}
+
+/** A paragraph row documents a default every text block shares, so it covers any kind binding the
+ *  same command; any other row covers only its own kind. A global claim has no kind to match. */
+function rowCoversKind(rowKind: AnyBlockKind, ownerKind: AnyBlockKind | undefined): boolean {
+	return ownerKind === undefined || rowKind === ownerKind || rowKind === 'paragraph';
 }
 
 /**
@@ -357,16 +371,54 @@ export function familyRowFor(docRows: DocRow[], key: ClaimKey): string | null {
 	return row?.action ?? null;
 }
 
+/** A keydown claim's row in a keymap family, and the command the claiming branch runs. */
+interface ClaimRow {
+	row: string;
+	command: CommandId;
+}
+
 /**
  * The row documenting a keydown claim whose row sits in a keymap family, where no file list can
  * derive it. A claim a token family already rows must not appear here.
  */
-const CLAIM_ROWS: Record<ClaimKey, string> = {
-	'Mod+K @ components/link-card/LinkCard.svelte': "Edit a link's URL (live mode)",
-	'Shift+Tab @ components/blocks/table/cell-keydown-plan.ts': 'Move between cells',
-	'Alt+ArrowUp @ editor-actions/plugin/container.ts': 'Move block up / down',
-	'Alt+ArrowDown @ editor-actions/plugin/container.ts': 'Move block up / down'
+const CLAIM_ROWS: Record<ClaimKey, ClaimRow> = {
+	'Mod+K @ components/link-card/LinkCard.svelte': {
+		row: "Edit a link's URL (live mode)",
+		command: 'link.openCard'
+	},
+	'Shift+Tab @ components/blocks/table/cell-keydown-plan.ts': {
+		row: 'Move between cells',
+		command: 'cell.shiftTab'
+	},
+	'Alt+ArrowUp @ editor-actions/plugin/container.ts': {
+		row: 'Move block up / down',
+		command: 'block.moveUp'
+	},
+	'Alt+ArrowDown @ editor-actions/plugin/container.ts': {
+		row: 'Move block up / down',
+		command: 'block.moveDown'
+	}
 };
+
+/** Why `entry` does not document the keydown claim `key`, or null when it does. */
+export function claimRowProblem(docRows: DocRow[], key: ClaimKey, entry: ClaimRow): string | null {
+	const chord = key.split(' @ ')[0];
+	const row = docRows.find((candidate) => candidate.action === entry.row);
+	if (!row) return `no row "${entry.row}" in the guide`;
+	if (!KEYMAP_FAMILIES.includes(row.family)) {
+		return `"${entry.row}" is a token family row, which rows it itself`;
+	}
+	if (!row.chords.includes(chord)) return `the row "${entry.row}" does not list ${chord}`;
+	const target = ROW_TARGETS[entry.row];
+	if (!target.commands.includes(entry.command)) {
+		return `the row "${entry.row}" documents ${target.commands.join(', ')}, not ${entry.command}`;
+	}
+	const resolved = resolveBinding(chord, target.kind, undefined, everyInstalledPlugin)?.command;
+	if (resolved !== entry.command) {
+		return `${chord} runs ${resolved} on ${target.kind}, not ${entry.command}`;
+	}
+	return null;
+}
 
 const SELECTION_PREAMBLE = 'selection: the section preamble names it and says it is unlisted';
 const FOCUS_TRAP = 'the backward step of an open popup focus trap, which a bare Tab mirrors';
@@ -450,7 +502,7 @@ describe('code → consumer-guide § Keyboard shortcuts', () => {
 	it('every chord a keymap binds, built-in or bundled, has a row for the command it runs', () => {
 		const undocumented = boundClaims()
 			.filter(({ chord, owner }) => !(claimKey(chord, owner) in UNLISTED_BY_DESIGN))
-			.filter(({ chord, command }) => !rowsDocument(rows, chord, command))
+			.filter((claim) => !rowsDocument(rows, claim))
 			.map(({ chord, owner, command }) => `${claimKey(chord, owner)} (${command})`);
 		expect(
 			undocumented,
@@ -469,15 +521,8 @@ describe('code → consumer-guide § Keyboard shortcuts', () => {
 		).toEqual([]);
 	});
 
-	// Checks that the row exists and lists the chord, not that it means what the keydown branch runs.
-	it.each(Object.entries(CLAIM_ROWS))('%s is documented by the row "%s"', (key, action) => {
-		const chord = key.split(' @ ')[0];
-		const row = rows.find((candidate) => candidate.action === action);
-		expect(row, `no row "${action}" in the guide`).toBeDefined();
-		expect(KEYMAP_FAMILIES, `"${action}" is a token family row, which rows it itself`).toContain(
-			row!.family
-		);
-		expect(row!.chords, `the row "${action}" does not list ${chord}`).toContain(chord);
+	it.each(Object.entries(CLAIM_ROWS))('%s is documented by the row it names', (key, entry) => {
+		expect(claimRowProblem(rows, key as ClaimKey, entry)).toBeNull();
 	});
 
 	it('holds no entry for a claim that went away or is documented twice', () => {
@@ -492,7 +537,7 @@ describe('code → consumer-guide § Keyboard shortcuts', () => {
 		const familyRowed = entries.filter((key) => familyRowFor(rows, key) !== null);
 		const alreadyRowed = bound
 			.filter(({ chord, owner }) => claimKey(chord, owner) in UNLISTED_BY_DESIGN)
-			.filter(({ chord, command }) => rowsDocument(rows, chord, command))
+			.filter((claim) => rowsDocument(rows, claim))
 			.map(({ chord, owner }) => claimKey(chord, owner));
 		expect(
 			[...stale, ...twice, ...familyRowed, ...alreadyRowed],
@@ -586,9 +631,39 @@ describe('consumer-guide chord coherence: self-tests', () => {
 	// with two meanings, so a row for either meaning satisfied both.
 	it('matches a bound chord to the row for its command, not to any row sharing the chord', () => {
 		const tablesOnly = rows.filter((row) => row.action === 'Insert row below / above');
-		expect(rowsDocument(tablesOnly, 'Mod+Enter', 'table.insertRowBelow')).toBe(true);
-		expect(rowsDocument(tablesOnly, 'Mod+Enter', 'list.toggleTask')).toBe(false);
-		expect(rowsDocument(rows, 'Mod+Enter', 'list.toggleTask')).toBe(true);
+		const insertRow = { chord: 'Mod+Enter', owner: 'tableCell', ownerKind: 'tableCell' as const };
+		const toggleTask = { chord: 'Mod+Enter', owner: 'listItem', ownerKind: 'listItem' as const };
+		expect(rowsDocument(tablesOnly, { ...insertRow, command: 'table.insertRowBelow' })).toBe(true);
+		expect(rowsDocument(tablesOnly, { ...toggleTask, command: 'list.toggleTask' })).toBe(false);
+		expect(rowsDocument(rows, { ...toggleTask, command: 'list.toggleTask' })).toBe(true);
+	});
+
+	// Miss-analysis: the sweep keyed a bound claim by chord and command alone, so the admonition
+	// title's Enter row documented the details summary's Enter, and removing the Details row passed.
+	it('matches a bound claim to a row for its own kind, not a sibling kind running the same command', () => {
+		const summary = declaredPluginKind(DETAILS_SUMMARY);
+		const summaryEnter = {
+			chord: 'Enter',
+			owner: summary,
+			ownerKind: summary,
+			command: 'chrome.descendToBody'
+		};
+		expect(rowsDocument(rows, summaryEnter)).toBe(true);
+		expect(
+			rowsDocument(
+				rows.filter((row) => row.family !== 'Details'),
+				summaryEnter
+			)
+		).toBe(false);
+	});
+
+	// Miss-analysis: a hand-written entry named only its row, so pointing a claim at another row that
+	// lists the same chord with another meaning passed.
+	it('refuses a hand-written entry whose row gives its chord another meaning', () => {
+		const key: ClaimKey = 'Shift+Tab @ components/blocks/table/cell-keydown-plan.ts';
+		const listRow = { row: 'Indent / outdent a list item', command: 'cell.shiftTab' as const };
+		expect(claimRowProblem(rows, key, listRow)).not.toBeNull();
+		expect(claimRowProblem(rows, key, CLAIM_ROWS[key])).toBeNull();
 	});
 
 	it('rejects a chord that is dispatched nowhere', () => {
