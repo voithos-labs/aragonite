@@ -137,15 +137,16 @@ Only `'strip'` carries that equation as a checked invariant. `'grid'` and `'opaq
 
 - **Grid.** A cell has no standalone line recognizer, so `parse(cell.raw)` would come back a paragraph. That's why table cells are `contextDependentKind`, and why the container's `rebuildRaw` owns the surrounding pipes.
 
-  One accepted normalization: GFM (§ 4.10) ignores body cells beyond the header width, so the parser truncates a wider row's children to the column count while the row's `raw` keeps the authored bytes.
+  GFM (§ 4.10) ignores body cells beyond the header width, so a wider row's children stop at the column count, and the cells past it live on the row as surplus, bytes the file holds that nothing renders.
 
   ```ts
   const table = parse('| a | b |\n| - | - |\n| 1 | 2 | 3 |\n').children[0];
   table.children[1].raw; // '| 1 | 2 | 3 |\n': the authored bytes, third cell included
   table.children[1].children.length; // 2: the model holds the header's column count
+  table.children[1].metadata.surplusCells; // ['3']: the cells past it, as written
   ```
 
-  A pure load-and-save round-trips the surplus untouched; the first table edit rebuilds the row from its children and drops it. Preserving the surplus would need phantom children, or a `raw` that disagrees with `children`, and either breaks the tree being the truth. So the truncation normalizes on first edit, like padding and delimiter normalization, and the dropped cells never entered the model and never rendered.
+  The row's rebuild writes its surplus back after its rendered cells, so an edit anywhere in the row or the table keeps those bytes, the way a load-and-save does; the first edit only tidies their padding. A row that becomes the header (the header row deleted, a table split) takes its surplus as columns and the table widens, since a header wider than its delimiter row is no table at all.
 
 - **Opaque.** Chrome (the parts of a block that are furniture, not content, like a callout's title) lives in the container's own bytes: the title on a `:::note My title` opener line appears in no child at all. So `rebuildRaw` is the _single_ reconstruction path, and correctness is enforced differently: a DEV probe runs the rebuild twice and compares the two outputs to each other (never against `raw`, which a faithful non-canonical parse may legally differ from), and a separate DEV check reparses `raw` to catch children mutated without a rebuild.
 

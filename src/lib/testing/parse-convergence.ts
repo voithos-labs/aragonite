@@ -24,7 +24,7 @@ const METADATA_FIELDS: {
 	thematicBreak: ['marker'],
 	linkReferenceDefinition: ['label', 'url', 'title'],
 	table: ['columnCount', 'alignments'],
-	tableRow: ['isHeader'],
+	tableRow: ['isHeader', 'surplusCells'],
 	blockquote: ['quoteDepth'],
 	list: ['ordered'],
 	listItem: ['marker', 'taskItem', 'taskChecked', 'taskMarker']

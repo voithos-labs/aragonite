@@ -153,9 +153,7 @@ function applyEmpty(doc: Document, at: number): void {
  * a task item's first paragraph reads its text differently from a standalone one.
  */
 function applyRetype(doc: Document, at: number): void {
-	// A table row rebuilds from its column count, so a row carrying surplus cells loses them on
-	// any write: a byte rule of the table's own, not the reading this gesture checks.
-	const slots = proseLeafSlots(doc).filter(({ holder }) => holder.kind !== 'tableRow');
+	const slots = proseLeafSlots(doc);
 	if (slots.length === 0) return;
 	const slot = slots[at % slots.length];
 	const node = slot.holder.children![slot.index];

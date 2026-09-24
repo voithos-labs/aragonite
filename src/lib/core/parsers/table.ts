@@ -120,12 +120,13 @@ export function parseTable(
 	};
 }
 
-// GFM pads short body rows and truncates long ones to the delimiter column count. The header
-// always matches: a mismatch rejects the whole table at recognition (GFM §4.10, paragraph.ts).
+// GFM pads short body rows and renders a long one's first cells only; the rest stay on the row
+// as surplus bytes. The header always matches: a mismatch rejects the whole table at recognition
+// (GFM §4.10, paragraph.ts).
 function buildRow(line: ParsedLine, columnCount: number, isHeader: boolean): CstNode {
 	const cellTexts = splitRowCells(line.text);
 	while (cellTexts.length < columnCount) cellTexts.push('');
-	if (cellTexts.length > columnCount) cellTexts.length = columnCount;
+	const surplusCells = cellTexts.splice(columnCount);
 	const cells: CstNode[] = cellTexts.map((text) => ({
 		kind: 'tableCell',
 		leadingTrivia: '',
@@ -135,7 +136,7 @@ function buildRow(line: ParsedLine, columnCount: number, isHeader: boolean): Cst
 		kind: 'tableRow',
 		leadingTrivia: '',
 		raw: line.raw,
-		metadata: { isHeader },
+		metadata: surplusCells.length > 0 ? { isHeader, surplusCells } : { isHeader },
 		children: cells
 	};
 }
