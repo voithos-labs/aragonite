@@ -19,6 +19,10 @@ and `runCommand('slashCommands.open', query)` opens the list already narrowed.
   query lists rows in.
 - `/quote` at the end of a text line keeps the line as it was and lands a quote in a new block
   directly below it, with the caret in the quote.
+- On a slowed CPU, `quote` typed fast after the list opens and Enter pressed at once still makes
+  the quote, with no `quote` left behind on the line. Miss-analysis: every pick waited for the list
+  to narrow first, so none pressed Enter before the menu had read the last keys; a loaded CI runner
+  was the first to.
 
 ## Undo
 

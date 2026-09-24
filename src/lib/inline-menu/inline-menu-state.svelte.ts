@@ -473,9 +473,9 @@ export function createInlineMenuState(deps: InlineMenuStateDeps): InlineMenuStat
 			if (index >= 0 && index < items.length) activeIndex = index;
 		},
 		commit(index?: number) {
-			// Enter can beat the read the last keystroke scheduled; take it now so the pick
-			// replaces the query the leaf holds, not the one last read.
-			if (scheduled) evaluate();
+			// Enter can beat the last keystroke's read, and even its deferred edit event; read the
+			// leaf now so the pick replaces the query it holds, not the one last read.
+			evaluate();
 			const item = items[index ?? activeIndex];
 			if (!item) return false;
 			void commitItem(item);
