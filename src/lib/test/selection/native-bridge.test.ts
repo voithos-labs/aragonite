@@ -10,6 +10,8 @@ import { createSelectionState } from '../../selection/selection-state.svelte';
 import { parse } from '../../core/parser';
 import { mockRef } from '../harness/editor-actions';
 
+const NO_WIDGET = () => null;
+
 describe('readCurrentSelection: unfocused editor', () => {
 	it('returns null when no block reports a cursor (does not clamp to block 0 offset 0)', () => {
 		const selectionState = createSelectionState();
@@ -19,7 +21,7 @@ describe('readCurrentSelection: unfocused editor', () => {
 			mockRef({ getCursorOffset: () => null })
 		];
 
-		const result = readCurrentSelection(selectionState, blockRefs);
+		const result = readCurrentSelection(selectionState, blockRefs, NO_WIDGET);
 
 		expect(result).toBeNull();
 	});
@@ -31,11 +33,27 @@ describe('readCurrentSelection: unfocused editor', () => {
 			mockRef({ getCursorOffset: () => 7 }),
 			mockRef({ getCursorOffset: () => null })
 		];
-		const result = readCurrentSelection(selectionState, blockRefs);
+		const result = readCurrentSelection(selectionState, blockRefs, NO_WIDGET);
 		expect(result).toEqual({
 			anchor: { path: [1], offset: 7 },
 			focus: { path: [1], offset: 7 }
 		});
+	});
+});
+
+// Miss-analysis: the undo capture read the selected image first, and no test asked the public
+// read, which answered with the caret the browser puts back at the paragraph's start.
+describe('readCurrentSelection: an image selected whole', () => {
+	it("answers the image's edge, not the caret a block reports", () => {
+		const imageEnd = { path: [0], offset: 41 };
+		const blockRefs = [mockRef({ getCursorOffset: () => 0 })];
+
+		const result = readCurrentSelection(createSelectionState(), blockRefs, () => ({
+			anchor: imageEnd,
+			focus: imageEnd
+		}));
+
+		expect(result).toEqual({ anchor: imageEnd, focus: imageEnd });
 	});
 });
 
@@ -47,7 +65,7 @@ describe('undo selection snapshots: cellCoordinate round-trip', () => {
 		const s = createSelectionState({ getDoc: () => doc });
 		s.enterCrossBlock({ path: [0], offset: 1 }, { path: [1], offset: 2, cellCoordinate: true });
 
-		const snap = readCurrentSelection(s, []);
+		const snap = readCurrentSelection(s, [], NO_WIDGET);
 
 		expect(snap?.focus).toEqual({ path: [1], offset: 2, cellCoordinate: true });
 		expect(snap?.anchor).toEqual({ path: [0], offset: 1 });
@@ -57,7 +75,7 @@ describe('undo selection snapshots: cellCoordinate round-trip', () => {
 		const doc = parse(TABLE_LAST);
 		const s = createSelectionState({ getDoc: () => doc });
 		s.enterCrossBlock({ path: [0], offset: 1 }, { path: [1], offset: 2, cellCoordinate: true });
-		const snap = readCurrentSelection(s, [])!;
+		const snap = readCurrentSelection(s, [], NO_WIDGET)!;
 
 		const restored = createSelectionState({ getDoc: () => doc });
 		applySelectionToDom(snap, restored, () => null);

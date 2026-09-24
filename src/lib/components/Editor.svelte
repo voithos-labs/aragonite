@@ -315,6 +315,14 @@
 		clear: () => widgetSelection.clear()
 	};
 
+	// The caret a selected image stands for: its paragraph at the offset its click left the caret.
+	function selectedWidgetCaret(): EditorSelection | null {
+		const selected = widgetSelection.getSelected();
+		if (!selected) return null;
+		const point = { path: [...selected.paragraphPath], offset: selected.preSelectOffset };
+		return { anchor: point, focus: point };
+	}
+
 	let selectionDescription = $derived(
 		selectionState.isCrossBlock && selectionState.anchor && selectionState.focus
 			? createSelectionDescription({ anchor: selectionState.anchor, focus: selectionState.focus })
@@ -583,12 +591,7 @@
 		stickyColumn,
 		edgeAffinity,
 		selectionState,
-		getSelectedWidgetCaret: () => {
-			const selected = widgetSelection.getSelected();
-			if (!selected) return null;
-			const point = { path: [...selected.paragraphPath], offset: selected.preSelectOffset };
-			return { anchor: point, focus: point };
-		},
+		getSelectedWidgetCaret: selectedWidgetCaret,
 		getBlockElByPath,
 		revealPath,
 		events,
@@ -1251,7 +1254,7 @@
 	 * Path arrays are copies, so mutating the result does not affect internal state.
 	 */
 	export function getSelection(): EditorSelection | null {
-		return readCurrentSelection(selectionState, blockRefs);
+		return readCurrentSelection(selectionState, blockRefs, selectedWidgetCaret);
 	}
 
 	/**

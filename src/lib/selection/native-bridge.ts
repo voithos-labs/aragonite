@@ -164,16 +164,23 @@ export function parkFocusOnEditorRoot(
 	if (document.activeElement === blockEl) editorRoot.focus({ preventScroll: true });
 }
 
-// ── Selection read/restore for undo ─────────────────────────────────────────
+// ── Selection read/restore ───────────────────────────────────────────────────
 
 /**
- * Cross-block from SelectionState if active; otherwise the focused block's cursor as a deep
- * path (via getCursorPosition) or a shallow one. Null when no block reports a cursor.
+ * The editor's live selection, for every reader outside a gesture: a selected image's caret
+ * first, then the cross-block range, then the focused block's cursor. Null when nothing answers.
+ * The image comes first because the browser puts a caret back at its paragraph's start, which
+ * the editor drops a moment later.
  */
 export function readCurrentSelection(
 	selectionState: SelectionState,
-	blockRefs: (BlockComponent | undefined)[]
+	blockRefs: (BlockComponent | undefined)[],
+	selectedWidgetCaret: () => EditorSelection | null
 ): EditorSelection | null {
+	const widget = selectedWidgetCaret();
+	if (widget) {
+		return { anchor: copySelectionPoint(widget.anchor), focus: copySelectionPoint(widget.focus) };
+	}
 	if (selectionState.isCrossBlock && selectionState.anchor && selectionState.focus) {
 		return {
 			anchor: copySelectionPoint(selectionState.anchor),
