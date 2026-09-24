@@ -104,7 +104,7 @@ export function defaultStructuralHook(
 		blocks,
 		seam?.grammar
 	);
-	// The caret lands at the end of the pasted content, never in the text after the cut.
+	// The caret lands at the end of the last pasted block.
 	return { replacement: nodes, focusReplacementIndex: lastPastedIndex, focusOffset: CURSOR_END };
 }
 

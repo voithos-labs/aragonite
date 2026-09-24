@@ -10,4 +10,4 @@ A marker with nothing after it cannot interrupt a paragraph, so `para\n-\n` relo
 
 ## Miss-analysis
 
-- GH #438: the shape property skipped exactly this slot, and its harness rebuilt the list without the separator settle typing runs, so the find bar's replace, which rebuilt the same way, was never checked; convergence passed because the fold read the heading the bytes spelled.
+- GH #438: the shape property skipped exactly this slot, and its harness rebuilt the list without the blank line typing writes, so the find bar's replace, which rebuilt the same way, was never checked; convergence passed because the parser read the heading the bytes spelled.

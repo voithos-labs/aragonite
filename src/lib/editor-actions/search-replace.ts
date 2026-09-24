@@ -66,7 +66,7 @@ export function createSearchReplace(deps: EditorActionsDeps, controller: UndoCon
 			writeOwnRaw(leaf, substituted, deps.grammar);
 		}
 		// A nested leaf's edit must be written up into the clone's container raws before the
-		// reparse from `child.raw`, through the rebuild typing uses, which also settles the blank
+		// reparse from `child.raw`, through the rebuild typing uses, which also recomputes the blank
 		// line above a list emptied to its marker. A top-level leaf needs none.
 		const cloneSharing = createSharingState();
 		for (const ranges of byLeaf.values()) {

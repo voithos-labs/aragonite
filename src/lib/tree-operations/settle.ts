@@ -303,7 +303,7 @@ function settleSplicedWindow(
 
 /**
  * A list landing under a paragraph with an empty first item, or left there by the splice, takes
- * the blank line that keeps it a list; the typing route settles the same line in its rebuild.
+ * the blank line that keeps it a list; typing writes the same line when it rebuilds the list.
  */
 function settleEmptyMarkerLists(
 	parent: SeparatorParent,

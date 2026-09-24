@@ -167,7 +167,7 @@ function writeLeaf(doc: Document, { holder, index, chain }: LeafSlot, text: stri
 		const owner = holder as CstNode;
 		updateNodeContent({ children, ownerKind: owner.kind, owner }, index, text);
 	}
-	// The rebuild typing runs, which settles the blank line a changed opener line needs above it.
+	// The rebuild typing runs, which recomputes the blank line a changed opener line needs above it.
 	rebuildUnsharedChain(doc, chain, createSharingState(), null, defaultGrammarView);
 }
 
