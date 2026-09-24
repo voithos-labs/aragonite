@@ -719,7 +719,6 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 			if (paired.kind === 'close') deps.noteOutside?.();
 			return true;
 		}
-		ownPairs.forget();
 		editDisplay(seat.offset, seat.offset, e.key, `seat:${seat.kind}`, caretOffset);
 		return true;
 	}
