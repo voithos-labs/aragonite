@@ -2,7 +2,7 @@
 //
 // Miss-analysis: no plugin test ran under an editor whose plugins prop left something out, so a
 // plugin's inline read agreed with the render in every case the suite drew.
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { parse, type DocumentView } from '$lib';
 import { resetPluginPlatformForTests } from '$lib/testing';
 import { installPlugins } from '$lib/schema/plugin-install';
@@ -10,11 +10,20 @@ import { activationFor } from '$lib/schema/plugin-activation';
 import { createEditorPluginContexts } from '$lib/schema/plugin-editor-context';
 import { latexPlugin } from '$lib/plugins/latex';
 import { footnotesPlugin } from '$lib/plugins/footnotes';
-import { assignFootnoteNumbers } from '$lib/plugins/footnotes/footnote-numbering';
+import {
+	assignFootnoteNumbers,
+	footnoteNumbersFor
+} from '$lib/plugins/footnotes/footnote-numbering';
 import { tocPlugin } from '$lib/plugins/toc';
 import { collectHeadings } from '$lib/plugins/toc/heading-outline';
 import type { EditorContext } from '$lib/plugin';
 import { inlineReaderFor } from '$lib/core/inline';
+import {
+	disablePerfInstruments,
+	enablePerfInstruments,
+	perfSnapshot,
+	resetPerfInstruments
+} from '$lib/perf/instruments';
 import { grammarListing } from './grammar-listing';
 
 beforeAll(() => {
@@ -26,6 +35,7 @@ beforeAll(() => {
 	]);
 });
 afterAll(resetPluginPlatformForTests);
+afterEach(disablePerfInstruments);
 
 /** One editor listing `names`, its document parsed in its grammar, and one plugin's context. */
 function editorListing(names: string[], source: string, plugin: string) {
@@ -87,5 +97,21 @@ describe('the numbering cache keeps each editor’s answer apart', () => {
 		const withLatex = inlineReaderFor(grammarListing(['footnotes', 'latex']));
 		expect(assignFootnoteNumbers(doc, withoutLatex).has('x')).toBe(true);
 		expect(assignFootnoteNumbers(doc, withLatex).has('x')).toBe(false);
+	});
+
+	// Each block's widget pool asks for its own reader, so the cache hits only if one grammar
+	// always hands back the same function.
+	it('shares one numbering across the readers one grammar hands out', () => {
+		const grammar = grammarListing(['footnotes']);
+		const blocks = Array.from({ length: 10 }, (_, i) => `Paragraph ${i} [^r${i}].`);
+		const doc = parse(blocks.join('\n\n') + '\n', { grammar });
+		footnoteNumbersFor(doc, 1, inlineReaderFor(grammar));
+
+		resetPerfInstruments();
+		enablePerfInstruments();
+		expect(footnoteNumbersFor(doc, 1, inlineReaderFor(grammar)).get('r9')).toBe(10);
+		doc.children[3].raw = 'Paragraph 3 [^r3] [^extra].';
+		expect(footnoteNumbersFor(doc, 2, inlineReaderFor(grammar)).get('extra')).toBe(5);
+		expect(perfSnapshot().inlineComputeCount).toBe(1);
 	});
 });
