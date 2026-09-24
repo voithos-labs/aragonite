@@ -371,10 +371,14 @@ export function familyRowFor(docRows: DocRow[], key: ClaimKey): string | null {
 	return row?.action ?? null;
 }
 
-/** A keydown claim's row in a keymap family, and the command the claiming branch runs. */
+/**
+ * A keydown claim's row in a keymap family, the command the claiming branch runs, and the kind
+ * whose surface holds the caret when it runs. The row must serve that kind, as a bound claim's must.
+ */
 interface ClaimRow {
 	row: string;
 	command: CommandId;
+	kind: AnyBlockKind;
 }
 
 /**
@@ -382,21 +386,28 @@ interface ClaimRow {
  * derive it. A claim a token family already rows must not appear here.
  */
 const CLAIM_ROWS: Record<ClaimKey, ClaimRow> = {
+	// The card opens over a link in any text block, so it claims for the paragraph they share.
 	'Mod+K @ components/link-card/LinkCard.svelte': {
 		row: "Edit a link's URL (live mode)",
-		command: 'link.openCard'
+		command: 'link.openCard',
+		kind: 'paragraph'
 	},
 	'Shift+Tab @ components/blocks/table/cell-keydown-plan.ts': {
 		row: 'Move between cells',
-		command: 'cell.shiftTab'
+		command: 'cell.shiftTab',
+		kind: 'tableCell'
 	},
+	// Any plugin container focused as a whole takes this branch; it has no kind of its own, so it
+	// claims for the paragraph whose reorder every block shares.
 	'Alt+ArrowUp @ editor-actions/plugin/container.ts': {
 		row: 'Move block up / down',
-		command: 'block.moveUp'
+		command: 'block.moveUp',
+		kind: 'paragraph'
 	},
 	'Alt+ArrowDown @ editor-actions/plugin/container.ts': {
 		row: 'Move block up / down',
-		command: 'block.moveDown'
+		command: 'block.moveDown',
+		kind: 'paragraph'
 	}
 };
 
@@ -410,12 +421,15 @@ export function claimRowProblem(docRows: DocRow[], key: ClaimKey, entry: ClaimRo
 	}
 	if (!row.chords.includes(chord)) return `the row "${entry.row}" does not list ${chord}`;
 	const target = ROW_TARGETS[entry.row];
+	if (!rowCoversKind(target.kind, entry.kind)) {
+		return `the row "${entry.row}" is for ${target.kind}, not the ${entry.kind} that claims ${chord}`;
+	}
 	if (!target.commands.includes(entry.command)) {
 		return `the row "${entry.row}" documents ${target.commands.join(', ')}, not ${entry.command}`;
 	}
-	const resolved = resolveBinding(chord, target.kind, undefined, everyInstalledPlugin)?.command;
+	const resolved = resolveBinding(chord, entry.kind, undefined, everyInstalledPlugin)?.command;
 	if (resolved !== entry.command) {
-		return `${chord} runs ${resolved} on ${target.kind}, not ${entry.command}`;
+		return `${chord} runs ${resolved} on ${entry.kind}, not ${entry.command}`;
 	}
 	return null;
 }
@@ -657,12 +671,18 @@ describe('consumer-guide chord coherence: self-tests', () => {
 		).toBe(false);
 	});
 
-	// Miss-analysis: a hand-written entry named only its row, so pointing a claim at another row that
-	// lists the same chord with another meaning passed.
-	it('refuses a hand-written entry whose row gives its chord another meaning', () => {
+	// Miss-analysis: a hand-written entry was checked only against its own row, so re-pointing a
+	// claim at another kind's row, together with that row's own command, passed.
+	it('refuses a hand-written entry whose row serves another kind than the claiming surface', () => {
 		const key: ClaimKey = 'Shift+Tab @ components/blocks/table/cell-keydown-plan.ts';
-		const listRow = { row: 'Indent / outdent a list item', command: 'cell.shiftTab' as const };
-		expect(claimRowProblem(rows, key, listRow)).not.toBeNull();
+		const listRow = {
+			row: 'Indent / outdent a list item',
+			command: 'list.unindent' as const,
+			kind: 'tableCell' as const
+		};
+		expect(claimRowProblem(rows, key, listRow)).toBe(
+			'the row "Indent / outdent a list item" is for listItem, not the tableCell that claims Shift+Tab'
+		);
 		expect(claimRowProblem(rows, key, CLAIM_ROWS[key])).toBeNull();
 	});
 
