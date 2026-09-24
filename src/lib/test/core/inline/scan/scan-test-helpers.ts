@@ -1,3 +1,4 @@
+import { defaultGrammarView } from '$lib/schema/block-openers';
 import { describe, it, expect } from 'vitest';
 import type { InlineNode } from '../../../../core/nodes';
 import { parseInline } from '../../../../core/inline';
@@ -215,7 +216,7 @@ export function describeScanCases(
 	describe(family, () => {
 		for (const [name, raw, expected] of cases) {
 			it(name, () => {
-				const nodes = scanInline(raw, 0, raw.length, resolver);
+				const nodes = scanInline(raw, 0, raw.length, resolver, defaultGrammarView);
 				assertTotalCoverage(nodes, 0, raw.length);
 				assertConstructCoverage(nodes);
 				expect(nodes).toEqual(expected);

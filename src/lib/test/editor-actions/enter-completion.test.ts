@@ -15,6 +15,7 @@ import {
 	makeTopHarness,
 	parseLeaf as leaf
 } from '$lib/test/harness/editor-actions';
+import { defaultGrammarView } from '$lib/schema/block-openers';
 
 // The split command's completion step: which Enters reach a completer at all, and what the
 // commit it routes to writes. The registry's own semantics live in test/schema, the table
@@ -41,7 +42,11 @@ function seamOver(scope: CommitScope): BlockEditActions {
 		replaceBlock: (i, replacement, focus, options) =>
 			core.replaceBlock(i, replacement, focus, options)
 	};
-	return withEnterCompletion(consulted as BlockEditActions, (index) => scope.children()[index]);
+	return withEnterCompletion(
+		consulted as BlockEditActions,
+		(index) => scope.children()[index],
+		defaultGrammarView
+	);
 }
 
 // A second completer whose caret sits on a line the completion creates, which the table's
@@ -70,12 +75,12 @@ registerBlockCompleter(declarePluginKind('spec-empty'), {
 
 describe('Enter completion: which presses reach a completer', () => {
 	it('claims a lone header row with the caret at its end', () => {
-		expect(planEnterCompletion(leaf('| a | b |\n'), 9)).not.toBeNull();
+		expect(planEnterCompletion(leaf('| a | b |\n'), 9, defaultGrammarView)).not.toBeNull();
 	});
 
 	it('declines when the caret is anywhere but the end of the line', () => {
 		for (const offset of [0, 4, 8]) {
-			expect(planEnterCompletion(leaf('| a | b |\n'), offset)).toBeNull();
+			expect(planEnterCompletion(leaf('| a | b |\n'), offset, defaultGrammarView)).toBeNull();
 		}
 	});
 
@@ -84,7 +89,7 @@ describe('Enter completion: which presses reach a completer', () => {
 	it('declines a multi-line paragraph even when its last line would claim', () => {
 		const paragraph = leaf('intro\n| a | b |\n');
 		expect(paragraph.raw).toBe('intro\n| a | b |\n');
-		expect(planEnterCompletion(paragraph, paragraph.raw.length - 1)).toBeNull();
+		expect(planEnterCompletion(paragraph, paragraph.raw.length - 1, defaultGrammarView)).toBeNull();
 	});
 
 	// The firing gates are the prose merge role and the whole-raw content range; together they
@@ -97,23 +102,23 @@ describe('Enter completion: which presses reach a completer', () => {
 	])('declines %j, which parses as a non-prose kind', (raw, kind) => {
 		const node = leaf(raw);
 		expect(node.kind).toBe(kind);
-		expect(planEnterCompletion(node, node.raw.length - 1)).toBeNull();
+		expect(planEnterCompletion(node, node.raw.length - 1, defaultGrammarView)).toBeNull();
 	});
 
 	it('declines a line no completer claims, and a missing block', () => {
-		expect(planEnterCompletion(leaf('just prose\n'), 10)).toBeNull();
-		expect(planEnterCompletion(undefined, 0)).toBeNull();
+		expect(planEnterCompletion(leaf('just prose\n'), 10, defaultGrammarView)).toBeNull();
+		expect(planEnterCompletion(undefined, 0, defaultGrammarView)).toBeNull();
 	});
 
 	it('takes the block’s own line ending into the created bytes (G4.20)', () => {
-		const plan = planEnterCompletion(leaf('| a | b |\r\n'), 9)!;
+		const plan = planEnterCompletion(leaf('| a | b |\r\n'), 9, defaultGrammarView)!;
 		expect(plan.replacement[0].raw).toBe('| a | b |\r\n| --- | --- |\r\n|  |  |\r\n');
 	});
 
 	// An unterminated last line has no authored ending, so the new blocks take the LF default
 	// and the document ends terminated; the completion adds lines either way.
 	it('terminates an unterminated tail line rather than leaving the new block open', () => {
-		const plan = planEnterCompletion(leaf('| a | b |'), 9)!;
+		const plan = planEnterCompletion(leaf('| a | b |'), 9, defaultGrammarView)!;
 		expect(plan.replacement[0].raw).toBe('| a | b |\n| --- | --- |\n|  |  |\n');
 	});
 });
@@ -125,14 +130,14 @@ describe('Enter completion: the caret the join resolves', () => {
 		['fence me\n', 4],
 		['fence me\r\n', 5]
 	])('resolves line 1 column 0 against %j to offset %i', (raw, offset) => {
-		const plan = planEnterCompletion(leaf(raw), 8)!;
+		const plan = planEnterCompletion(leaf(raw), 8, defaultGrammarView)!;
 		expect(plan.caret).toEqual({ path: [], offset });
 	});
 
 	// The table's caret addresses an empty cell, whose raw holds no lines at all — the resolution
 	// must read that as column 0 in the cell rather than falling off the line list.
 	it('resolves a path-addressed caret inside a childless empty cell', () => {
-		const plan = planEnterCompletion(leaf('| a | b |\r\n'), 9)!;
+		const plan = planEnterCompletion(leaf('| a | b |\r\n'), 9, defaultGrammarView)!;
 		expect(plan.caret).toEqual({ path: [1, 0], offset: 0 });
 	});
 });
@@ -171,7 +176,7 @@ describe('Enter completion: what the composed split commits', () => {
 	// shapes parse to paragraphs, which is why a count alone cannot see them.
 	it.each(Object.keys(PAINTS_NOTHING))('falls through on the %j claim', async (line) => {
 		const raw = `${line}\n`;
-		expect(planEnterCompletion(leaf(raw), line.length)).toBeNull();
+		expect(planEnterCompletion(leaf(raw), line.length, defaultGrammarView)).toBeNull();
 		const { scope, commits, children } = stubScope([leaf(raw)]);
 		await seamOver(scope).splitBlock(0, line.length);
 		expect(commits[0].op.kind).toBe('split');

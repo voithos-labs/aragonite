@@ -38,8 +38,8 @@ export function registerDirectiveOpeners(): void {
 			const lineEnding = trailingLineEnding(ctx.line.raw);
 
 			if (fence.tier === 'leaf') {
-				const def = resolveDirective('leaf', fence.name);
-				const factory = resolveBlockDirectiveFactory('leaf', fence.name);
+				const def = resolveDirective('leaf', fence.name, ctx.grammar);
+				const factory = resolveBlockDirectiveFactory('leaf', fence.name, ctx.grammar);
 				if (factory) {
 					const parsed: ParsedDirective = {
 						fence,
@@ -79,7 +79,7 @@ export function registerDirectiveOpeners(): void {
 			const closerColonCount = closerLine.text.length;
 			const closerNewline = closerLine.raw.endsWith('\n');
 
-			const factory = resolveBlockDirectiveFactory('container', fence.name);
+			const factory = resolveBlockDirectiveFactory('container', fence.name, ctx.grammar);
 			if (factory) {
 				const parsed: ParsedDirective = {
 					fence,

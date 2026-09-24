@@ -14,7 +14,8 @@ import {
 	makeEditorActionsDeps,
 	makeStubBlockEdit,
 	makeStubController,
-	registerStubBlockListState
+	registerStubBlockListState,
+	pasteContext
 } from '../../harness/editor-actions';
 import type { CstNode } from '../../../core/nodes';
 import type { PasteCommitCoordinator } from '../../../tree-operations/paste/paste-deps';
@@ -50,12 +51,12 @@ describe('paste-dispatch: applyContainerMatchingMerge mutate-inside-commit invar
 
 		await pasteDispatch(
 			{ pastedText, targetPath: [0, 0, 0], offset: 'one'.length },
-			{
+			pasteContext({
 				doc,
 				blockEdit: makeStubBlockEdit(),
 				controller,
 				undoEntry: 'join'
-			}
+			})
 		);
 
 		expect(captured.mutate).not.toBeNull();
@@ -87,12 +88,12 @@ describe('paste-dispatch: applyContainerMatchingMerge mutate-inside-commit invar
 
 		await pasteDispatch(
 			{ pastedText, targetPath: [0, 0, 0], offset: 'one'.length },
-			{
+			pasteContext({
 				doc,
 				blockEdit: makeStubBlockEdit(),
 				controller,
 				undoEntry: 'join'
-			}
+			})
 		);
 
 		expect(rawAtCommit).toBe(rawBefore);
@@ -116,12 +117,12 @@ describe('pasteDispatch: cross-block inline join reparse', () => {
 
 		await pasteDispatch(
 			{ pastedText: '1', targetPath: [0], offset: 0 },
-			{
+			pasteContext({
 				doc: deps.doc,
 				blockEdit: makeStubBlockEdit(),
 				controller: createPasteCoordinator(createUndoController(deps), deps.revealPath),
 				undoEntry: 'join'
-			}
+			})
 		);
 
 		expect(deps.doc.children[0].raw).toBe('1. item\n');
@@ -134,13 +135,13 @@ describe('pasteDispatch: cross-block inline join reparse', () => {
 
 		await pasteDispatch(
 			{ pastedText: '1', targetPath: [0], offset: 0 },
-			{
+			pasteContext({
 				doc: deps.doc,
 				blockEdit: makeStubBlockEdit(),
 				controller: createPasteCoordinator(createUndoController(deps), deps.revealPath),
 				undoEntry: 'join',
 				grammar: createGrammarView((kind) => kind !== 'list')
-			}
+			})
 		);
 
 		expect(deps.doc.children[0].raw).toBe('1. item\n');
@@ -164,7 +165,7 @@ describe('pasteDispatch: strategy routing end-to-end', () => {
 
 		await pasteDispatch(
 			{ pastedText: 'XYZ', targetPath: [0], offset: 6 },
-			{ doc, blockEdit, controller: makeStubController() }
+			pasteContext({ doc, blockEdit, controller: makeStubController() })
 		);
 
 		expect(blockEdit.updateBlockContent).toHaveBeenCalledOnce();
@@ -192,7 +193,7 @@ describe('pasteDispatch: strategy routing end-to-end', () => {
 
 		await pasteDispatch(
 			{ pastedText: '# heading\n\nbody\n', targetPath: [0], offset: 6 },
-			{ doc, blockEdit, controller }
+			pasteContext({ doc, blockEdit, controller })
 		);
 
 		expect(controller.commitMultiScope).toHaveBeenCalledOnce();

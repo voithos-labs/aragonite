@@ -6,7 +6,8 @@ import { pasteDispatch } from '../../../tree-operations/paste/dispatch';
 import {
 	makeRunningPasteController,
 	makeStubBlockEdit,
-	registerStubBlockListState
+	registerStubBlockListState,
+	pasteContext
 } from '../../harness/editor-actions';
 import { expectParseConverged } from '../../harness/parse-converged';
 
@@ -25,12 +26,12 @@ describe('container-matching merge reattaches residue through the reparse shared
 		// Caret after `code`, so the residue is the fence's own closing line.
 		await pasteDispatch(
 			{ pastedText: '- one\n- two\n', targetPath: [0, 0, 0], offset: 10 },
-			{
+			pasteContext({
 				doc,
 				blockEdit: makeStubBlockEdit(),
 				controller: makeRunningPasteController(),
 				undoEntry: 'join'
-			}
+			})
 		);
 
 		const lastItem = doc.children[0].children?.[1];

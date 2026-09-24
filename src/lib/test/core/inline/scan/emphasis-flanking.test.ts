@@ -1,3 +1,4 @@
+import { defaultGrammarView } from '$lib/schema/block-openers';
 import { describe, it, expect } from 'vitest';
 import type { InlineNode } from '../../../../core/nodes';
 import { scanInline } from '../../../../core/inline/scan';
@@ -29,7 +30,7 @@ function describeFlankingCases(
 	describe(family, () => {
 		for (const { name, source, emphasis, runs } of cases) {
 			it(`${name}: ${JSON.stringify(source)}`, () => {
-				const nodes = scanInline(source, 0, source.length);
+				const nodes = scanInline(source, 0, source.length, undefined, defaultGrammarView);
 				assertTotalCoverage(nodes, 0, source.length);
 				if (!emphasis) {
 					expect(hasKind(nodes, 'emphasis') || hasKind(nodes, 'strong')).toBe(false);
@@ -56,7 +57,7 @@ describe('astral punctuation flanking (code points, not UTF-16 units)', () => {
 		// U+10100 is category Po, so it must flank like `.`. Reading UTF-16 units instead of
 		// code points classifies the lone surrogate as "other" and drops the pair.
 		const source = '\u{10100}_x_\u{10100}';
-		const nodes = scanInline(source, 0, source.length);
+		const nodes = scanInline(source, 0, source.length, undefined, defaultGrammarView);
 		assertTotalCoverage(nodes, 0, source.length);
 		expect(sortedSpans(nodes, source)).toEqual(['_x_']);
 	});

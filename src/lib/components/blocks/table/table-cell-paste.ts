@@ -105,6 +105,6 @@ async function tableCellScopedStructuralPaste(input: ScopedStructuralPasteInput)
 		focusReplacementIndex: focusIndexBeforeResidue(replacement.length, secondHalf !== null),
 		focusOffset: CURSOR_END,
 		source: 'paste-dispatch-table-cell',
-		...(input.grammar ? { grammar: input.grammar } : {})
+		grammar: input.grammar
 	});
 }

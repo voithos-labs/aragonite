@@ -34,9 +34,8 @@ export interface CrossBlockMutationContext {
 	controller: CommitController;
 	/** Push an undo snapshot immediately, bypassing the debounce. */
 	pushUndoSnapshot: () => void;
-	/** Block grammar for the delete's ancestor rebuild. Required but nullable so a new construction
-	 *  site cannot silently skip it; `undefined` means the global grammar. */
-	grammar: GrammarView | undefined;
+	/** Block grammar for the delete's ancestor rebuild. */
+	grammar: GrammarView;
 	/** The effective mode the delete's join cleanup reads (live-mode.md § 4.5). Required but
 	 *  nullable for the same reason as `grammar`; `undefined` reads as not live, so the join keeps
 	 *  every byte. */

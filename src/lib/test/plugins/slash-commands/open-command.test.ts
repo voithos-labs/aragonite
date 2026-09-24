@@ -9,6 +9,7 @@ import {
 } from '$lib/plugins/slash-commands';
 import { getCommand, resolveGlobalBinding } from '$lib/schema/commands';
 import { eventToChord } from '$lib/schema/keybindings';
+import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
 
 const slashKey = {
 	key: '/',
@@ -29,7 +30,7 @@ describe('slashCommands.open', () => {
 		const dispatch = (arg?: unknown) =>
 			run({
 				history: { requestUndo() {}, requestRedo() {} },
-				activation: undefined,
+				activation: everyInstalledPlugin,
 				pluginEditor: () => editor,
 				arg
 			});
@@ -48,7 +49,9 @@ describe('slashCommands.open', () => {
 		installPlugins([slashCommandsPlugin()]);
 		const chord = eventToChord(slashKey);
 		expect(chord).toBe('Mod+/');
-		expect(resolveGlobalBinding(chord!, undefined, undefined)?.command).toBe(SLASH_COMMANDS_OPEN);
+		expect(resolveGlobalBinding(chord!, undefined, everyInstalledPlugin)?.command).toBe(
+			SLASH_COMMANDS_OPEN
+		);
 	});
 
 	it('refuses a host row that neither inserts nor runs', () => {

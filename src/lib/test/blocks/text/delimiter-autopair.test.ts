@@ -1,3 +1,4 @@
+import { defaultGrammarView } from '$lib/schema/block-openers';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
 	resolveDelimiterAutoPair,
@@ -8,7 +9,7 @@ import { registerMathInline } from '$lib/plugins/latex/latex-kind';
 
 const whole = (text: string) => ({ start: 0, end: text.length });
 const type = (text: string, caret: number, typed: string) =>
-	resolveDelimiterAutoPair(text, whole(text), caret, typed);
+	resolveDelimiterAutoPair(text, whole(text), caret, typed, undefined, defaultGrammarView);
 const written = (text: string, caret: number) => ({ kind: 'write', text, caret });
 const closed = (text: string, caret: number) => ({ kind: 'close', text, caret });
 const stepped = (caret: number, overConstruct: boolean) => ({
@@ -64,7 +65,16 @@ describe('delimiter auto-pair', () => {
 	});
 
 	it('declines outside the content range and for multi-byte input', () => {
-		expect(resolveDelimiterAutoPair('# head', { start: 2, end: 6 }, 1, '`')).toBeNull();
+		expect(
+			resolveDelimiterAutoPair(
+				'# head',
+				{ start: 2, end: 6 },
+				1,
+				'`',
+				undefined,
+				defaultGrammarView
+			)
+		).toBeNull();
 		expect(type('ab', 1, '``')).toBeNull();
 	});
 
@@ -126,19 +136,19 @@ describe('delimiter auto-pair', () => {
 	});
 
 	it('Backspace at an empty pair takes both runs, between them or after them', () => {
-		expect(resolveEmptyPairBackspace('pay $$', 5)).toEqual(written('pay ', 4));
-		expect(resolveEmptyPairBackspace('pay $$', 6)).toEqual(written('pay ', 4));
-		expect(resolveEmptyPairBackspace('a ****', 4)).toEqual(written('a ', 2));
-		expect(resolveEmptyPairBackspace('a `` b', 4)).toEqual(written('a  b', 2));
+		expect(resolveEmptyPairBackspace('pay $$', 5, defaultGrammarView)).toEqual(written('pay ', 4));
+		expect(resolveEmptyPairBackspace('pay $$', 6, defaultGrammarView)).toEqual(written('pay ', 4));
+		expect(resolveEmptyPairBackspace('a ****', 4, defaultGrammarView)).toEqual(written('a ', 2));
+		expect(resolveEmptyPairBackspace('a `` b', 4, defaultGrammarView)).toEqual(written('a  b', 2));
 	});
 
 	it('Backspace leaves a longer run, a lone delimiter and a non-pair byte alone', () => {
-		expect(resolveEmptyPairBackspace('```', 2)).toBeNull();
-		expect(resolveEmptyPairBackspace('```', 3)).toBeNull();
-		expect(resolveEmptyPairBackspace('x$', 1)).toBeNull();
-		expect(resolveEmptyPairBackspace('x$', 2)).toBeNull();
+		expect(resolveEmptyPairBackspace('```', 2, defaultGrammarView)).toBeNull();
+		expect(resolveEmptyPairBackspace('```', 3, defaultGrammarView)).toBeNull();
+		expect(resolveEmptyPairBackspace('x$', 1, defaultGrammarView)).toBeNull();
+		expect(resolveEmptyPairBackspace('x$', 2, defaultGrammarView)).toBeNull();
 		// `**|` is a double opener with content ahead, never a stepped-over pair.
-		expect(resolveEmptyPairBackspace('a **x', 4)).toBeNull();
-		expect(resolveEmptyPairBackspace('a ****', 6)).toBeNull();
+		expect(resolveEmptyPairBackspace('a **x', 4, defaultGrammarView)).toBeNull();
+		expect(resolveEmptyPairBackspace('a ****', 6, defaultGrammarView)).toBeNull();
 	});
 });

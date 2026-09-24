@@ -10,7 +10,8 @@ import { parse } from '$lib/core/parser';
 import {
 	makeRunningPasteController,
 	makeStubBlockEdit,
-	registerStubBlockListState
+	registerStubBlockListState,
+	pasteContext
 } from '../../harness/editor-actions';
 import type { UndoEntryMode } from '$lib/action-contracts';
 import { CURSOR_END } from '$lib/block-component';
@@ -48,7 +49,7 @@ async function pasteInto(
 	registerStubBlockListState(doc.children[0]);
 	await pasteDispatch(
 		{ pastedText, targetPath, offset },
-		{ doc, blockEdit: makeStubBlockEdit(), controller, undoEntry }
+		pasteContext({ doc, blockEdit: makeStubBlockEdit(), controller, undoEntry })
 	);
 	return landCaret;
 }

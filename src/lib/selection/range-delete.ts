@@ -171,7 +171,7 @@ export function rangeDelete(
 
 	// The survivor takes the start block's write rule before the reparse derives metadata, and
 	// keeps the start's leading blank lines, which a fragment reparse would drop.
-	const replacement = reparseTruncatedEndpoint(startBlock, joined.raw);
+	const replacement = reparseTruncatedEndpoint(startBlock, joined.raw, grammar);
 
 	// walkBetween includes ancestors of `end` whose subtrees extend past it, so filter to
 	// subtrees fully inside (start, end). Cascade-cleanup handles ancestors emptied afterwards.

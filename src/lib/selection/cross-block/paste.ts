@@ -179,7 +179,7 @@ async function replaceCoveredBlockWithPaste(
 		focusReplacementIndex: parsed.replacement.length - 1,
 		focusOffset: CURSOR_END,
 		source: 'cross-block-covered-block',
-		...(ctx.grammar ? { grammar: ctx.grammar } : {}),
+		grammar: ctx.grammar,
 		// Nothing is reattached after the pasted text here, since the block's whole position is
 		// the target, so the trailing blank line comes in unfiltered (`paste/dispatch.ts` states
 		// the rule).

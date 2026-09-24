@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { defaultGrammarView } from '$lib/schema/block-openers';
 import { describe, it, expect, afterEach } from 'vitest';
 import type { InlineNode } from '../../core/nodes';
 import {
@@ -15,25 +16,25 @@ import { declarePluginInlineKind } from '../../schema/plugin-kind';
 describe('isInlineWidget: registry-driven recognition', () => {
 	it('treats image as a widget unconditionally', () => {
 		const node: InlineNode = { kind: 'image', start: 0, end: 6, url: 'x', alt: '' };
-		expect(isInlineWidget(node, '![](x)')).toBe(true);
+		expect(isInlineWidget(node, '![](x)', defaultGrammarView)).toBe(true);
 	});
 
 	it('treats an allowlisted rawHtml tag (<br>) as a widget', () => {
 		const raw = '<br>';
 		const node: InlineNode = { kind: 'rawHtml', start: 0, end: raw.length };
-		expect(isInlineWidget(node, raw)).toBe(true);
+		expect(isInlineWidget(node, raw, defaultGrammarView)).toBe(true);
 	});
 
 	it('treats a non-allowlisted rawHtml tag (<span>) as not a widget', () => {
 		const raw = '<span>';
 		const node: InlineNode = { kind: 'rawHtml', start: 0, end: raw.length };
-		expect(isInlineWidget(node, raw)).toBe(false);
+		expect(isInlineWidget(node, raw, defaultGrammarView)).toBe(false);
 	});
 
 	it('treats an HTML comment as not a widget', () => {
 		const raw = '<!-- c -->';
 		const node: InlineNode = { kind: 'rawHtml', start: 0, end: raw.length };
-		expect(isInlineWidget(node, raw)).toBe(false);
+		expect(isInlineWidget(node, raw, defaultGrammarView)).toBe(false);
 	});
 
 	it.each([
@@ -43,17 +44,17 @@ describe('isInlineWidget: registry-driven recognition', () => {
 		{ kind: 'autolink', extra: { url: 'x' } }
 	] as const)('treats $kind as not a widget', ({ kind, extra }) => {
 		const node = { kind, start: 0, end: 3, ...extra } as InlineNode;
-		expect(isInlineWidget(node, 'foo')).toBe(false);
+		expect(isInlineWidget(node, 'foo', defaultGrammarView)).toBe(false);
 	});
 
 	it('treats a visible-glyph entity as a widget', () => {
 		const node: InlineNode = { kind: 'entityReference', start: 0, end: 6, decoded: '©' };
-		expect(isInlineWidget(node, '&copy;')).toBe(true);
+		expect(isInlineWidget(node, '&copy;', defaultGrammarView)).toBe(true);
 	});
 
 	it('treats a whitespace-decoding entity (&nbsp;) as not a widget', () => {
 		const node: InlineNode = { kind: 'entityReference', start: 0, end: 6, decoded: ' ' };
-		expect(isInlineWidget(node, '&nbsp;')).toBe(false);
+		expect(isInlineWidget(node, '&nbsp;', defaultGrammarView)).toBe(false);
 	});
 });
 
@@ -61,7 +62,7 @@ describe('buildCoreInlineWidget: core-layer builder dispatch', () => {
 	it('builds the <br> widget shell for an allowlisted rawHtml node', () => {
 		const raw = '<br>';
 		const node: InlineNode = { kind: 'rawHtml', start: 0, end: raw.length };
-		const el = buildCoreInlineWidget(node, raw);
+		const el = buildCoreInlineWidget(node, raw, undefined, defaultGrammarView);
 		expect(el).not.toBeNull();
 		expect(el!.hasAttribute('data-inline-widget')).toBe(true);
 		expect(el!.querySelector('br')).not.toBeNull();
@@ -69,19 +70,19 @@ describe('buildCoreInlineWidget: core-layer builder dispatch', () => {
 
 	it('returns null for image (built via injected per-render builder, not core)', () => {
 		const node: InlineNode = { kind: 'image', start: 0, end: 6, url: 'x', alt: '' };
-		expect(buildCoreInlineWidget(node, '![](x)')).toBeNull();
+		expect(buildCoreInlineWidget(node, '![](x)', undefined, defaultGrammarView)).toBeNull();
 	});
 
 	it('returns null for a non-widget rawHtml tag', () => {
 		const raw = '<span>';
 		const node: InlineNode = { kind: 'rawHtml', start: 0, end: raw.length };
-		expect(buildCoreInlineWidget(node, raw)).toBeNull();
+		expect(buildCoreInlineWidget(node, raw, undefined, defaultGrammarView)).toBeNull();
 	});
 
 	it('builds the decoded-glyph widget for a visible entity, carrying its source span', () => {
 		const raw = '&copy;';
 		const node: InlineNode = { kind: 'entityReference', start: 0, end: raw.length, decoded: '©' };
-		const el = buildCoreInlineWidget(node, raw);
+		const el = buildCoreInlineWidget(node, raw, undefined, defaultGrammarView);
 		expect(el?.hasAttribute('data-inline-widget')).toBe(true);
 		expect(el?.textContent).toBe('©');
 		expect(el?.dataset.sourceStart).toBe('0');
@@ -91,7 +92,7 @@ describe('buildCoreInlineWidget: core-layer builder dispatch', () => {
 	it('returns null for a whitespace-decoding entity (keeps its literal span)', () => {
 		const raw = '&nbsp;';
 		const node: InlineNode = { kind: 'entityReference', start: 0, end: raw.length, decoded: ' ' };
-		expect(buildCoreInlineWidget(node, raw)).toBeNull();
+		expect(buildCoreInlineWidget(node, raw, undefined, defaultGrammarView)).toBeNull();
 	});
 });
 
@@ -112,7 +113,9 @@ describe('flattenInlineWidgets: recursion + document order', () => {
 
 	it('returns top-level widgets in document order', () => {
 		const nodes = [img(0, 6), txt(6, 7, ' '), img(7, 13)];
-		expect(flattenInlineWidgets(nodes, '![](x) ![](x)').map((n) => n.start)).toEqual([0, 7]);
+		expect(
+			flattenInlineWidgets(nodes, '![](x) ![](x)', defaultGrammarView).map((n) => n.start)
+		).toEqual([0, 7]);
 	});
 
 	it('finds an image nested inside a link node', () => {
@@ -127,7 +130,7 @@ describe('flattenInlineWidgets: recursion + document order', () => {
 			label: 'repo',
 			children: [nestedImage]
 		};
-		expect(flattenInlineWidgets([link], raw)).toEqual([nestedImage]);
+		expect(flattenInlineWidgets([link], raw, defaultGrammarView)).toEqual([nestedImage]);
 	});
 
 	it('returns nothing for a link with no widget children', () => {
@@ -139,7 +142,7 @@ describe('flattenInlineWidgets: recursion + document order', () => {
 			url: 'url',
 			children: [txt(1, 5, 'text')]
 		};
-		expect(flattenInlineWidgets([link], raw)).toEqual([]);
+		expect(flattenInlineWidgets([link], raw, defaultGrammarView)).toEqual([]);
 	});
 
 	it('preserves document order across a top-level widget and a nested one', () => {
@@ -154,16 +157,20 @@ describe('flattenInlineWidgets: recursion + document order', () => {
 			label: 'q',
 			children: [nestedImage]
 		};
-		expect(flattenInlineWidgets([topImage, txt(7, 8, ' '), link], raw).map((n) => n.start)).toEqual(
-			[0, 9]
-		);
+		expect(
+			flattenInlineWidgets([topImage, txt(7, 8, ' '), link], raw, defaultGrammarView).map(
+				(n) => n.start
+			)
+		).toEqual([0, 9]);
 	});
 
 	it('treats an atomic widget as a leaf: does not descend into its children', () => {
 		// A widget's children belong to the widget; only the widget itself counts.
 		const inner = img(1, 5);
 		const widgetWithChildren: InlineNode = { ...img(0, 6), children: [inner] };
-		expect(flattenInlineWidgets([widgetWithChildren], '![](x)')).toEqual([widgetWithChildren]);
+		expect(flattenInlineWidgets([widgetWithChildren], '![](x)', defaultGrammarView)).toEqual([
+			widgetWithChildren
+		]);
 	});
 });
 
@@ -182,23 +189,23 @@ describe('getInlineWidgetEditing: per-kind editing policy', () => {
 				onSelectedKey
 			}
 		});
-		const policy = getInlineWidgetEditing(mathKind);
+		const policy = getInlineWidgetEditing(mathKind, defaultGrammarView);
 		expect(policy?.revealSource).toBe(true);
 		expect(policy?.onSelectedKey).toBe(onSelectedKey);
 	});
 
 	it('returns undefined for a widget kind registered without an editing policy', () => {
 		registerInlineWidgetKind(spoilerKind, { isWidget: () => true });
-		expect(getInlineWidgetEditing(spoilerKind)).toBeUndefined();
+		expect(getInlineWidgetEditing(spoilerKind, defaultGrammarView)).toBeUndefined();
 	});
 
 	it('exposes the built-in editing policies: image carries a base, rawHtml carries none', () => {
-		expect(getInlineWidgetEditing('image')).toEqual({});
-		expect(getInlineWidgetEditing('rawHtml')).toBeUndefined();
+		expect(getInlineWidgetEditing('image', defaultGrammarView)).toEqual({});
+		expect(getInlineWidgetEditing('rawHtml', defaultGrammarView)).toBeUndefined();
 	});
 
 	it('entityReference is the shipped atomic + step-over consumer', () => {
-		expect(getInlineWidgetEditing('entityReference')).toEqual({
+		expect(getInlineWidgetEditing('entityReference', defaultGrammarView)).toEqual({
 			deleteGranularity: 'atomic',
 			onEdge: 'step-over'
 		});
@@ -217,7 +224,7 @@ describe('augmentInlineWidgetKind, attaching editor behavior to a registration',
 		});
 		const onSelectedKey = () => true;
 		augmentInlineWidgetKind(captionKind, { onSelectedKey });
-		expect(getInlineWidgetEditing(captionKind)).toEqual({
+		expect(getInlineWidgetEditing(captionKind, defaultGrammarView)).toEqual({
 			revealSource: true,
 			onSelectedKey
 		});
@@ -227,7 +234,7 @@ describe('augmentInlineWidgetKind, attaching editor behavior to a registration',
 		registerInlineWidgetKind(captionKind, { isWidget: () => true });
 		const onSelectedKey = () => true;
 		augmentInlineWidgetKind(captionKind, { onSelectedKey });
-		expect(getInlineWidgetEditing(captionKind)).toEqual({ onSelectedKey });
+		expect(getInlineWidgetEditing(captionKind, defaultGrammarView)).toEqual({ onSelectedKey });
 	});
 
 	it('throws when the kind was never registered', () => {

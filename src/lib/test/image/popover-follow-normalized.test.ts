@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { tick } from 'svelte';
 import { declarePluginKind, registerBlockKind } from '$lib/plugin';
 import { resetPluginPlatformForTests } from '$lib/testing';
+import { defaultGrammarView } from '$lib/schema/block-openers';
 import { createImageEditCommitter } from '../../components/image/image-edit-commit';
 import { imageFieldsFromInline } from '../../components/image/image-source-bytes';
 import { createWidgetSelectionState } from '../../components/image/widget-selection-state.svelte';
@@ -40,10 +41,16 @@ function secondImageSelected(kind: string) {
 		getEditorEl: () => null,
 		widgetSelection,
 		controller: makeStubController(),
-		events: createEditorEvents()
+		events: createEditorEvents(),
+		grammar: defaultGrammarView
 	});
 	widgetSelection.select({ paragraphPath: [0], sourceStart: 12, preSelectOffset: 0 });
-	const first = getInlineContent(doc.children[0] as CstNode).find((n) => n.kind === 'image')!;
+	const first = getInlineContent(
+		doc.children[0] as CstNode,
+		undefined,
+		undefined,
+		defaultGrammarView
+	).find((n) => n.kind === 'image')!;
 	committer.commitImageEdit(
 		{ paragraphPath: [0], sourceStart: 0, preSelectOffset: 11 },
 		imageFieldsFromInline(first),

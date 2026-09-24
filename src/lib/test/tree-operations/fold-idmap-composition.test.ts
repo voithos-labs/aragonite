@@ -4,6 +4,7 @@ import { createSharingState } from '$lib/tree-operations/sharing';
 import { applyStructuralChangeToIdsRefs } from '$lib/tree-operations/structural-change';
 import { parse } from '$lib/core/parser';
 import type { BlockComponent } from '$lib/block-component';
+import { defaultGrammarView } from '$lib/schema/block-openers';
 
 // GH #178: a merge reported `idMap: {0:0}`, so every position below it took a fresh id and
 // remounted, including blocks the gesture never touched, whose identity the incoming change still
@@ -22,7 +23,13 @@ function reorderedIds(): string[] {
 	const refs: (BlockComponent | undefined)[] = [undefined, undefined, undefined];
 
 	// Move `  b` up beside the list, which invalidates the join above it.
-	const settled = reorderChildrenWithTrivia(doc.children, 2, 1, createSharingState());
+	const settled = reorderChildrenWithTrivia(
+		doc.children,
+		2,
+		1,
+		createSharingState(),
+		defaultGrammarView
+	);
 	expect(doc.children.map((c) => c.kind)).toEqual(['list', 'paragraph']);
 
 	applyStructuralChangeToIdsRefs(settled.change, ids, refs);

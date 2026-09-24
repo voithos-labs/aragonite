@@ -6,6 +6,7 @@
 // decline is excused, so a new corpus line fails nothing on its own; a shape that should write
 // needs a unit test. Miss-analysis: the equivalence lived only in prose, so a fourth branch on one
 // side and not the other would send writes to the wrong place in silence.
+import { defaultGrammarView } from '$lib/schema/block-openers';
 import { describe, it, expect } from 'vitest';
 import {
 	isInlineFormatActive,
@@ -105,7 +106,12 @@ describe('G2.14: the pressed-state read and the toggle direction', () => {
 			for (const display of CORPUS) {
 				const content = { start: 0, end: display.length };
 				for (const selection of rangesOf(display)) {
-					const edit: InlineFormatEdit = { display, content, selection };
+					const edit: InlineFormatEdit = {
+						display,
+						content,
+						selection,
+						grammar: defaultGrammarView
+					};
 					const active = isInlineFormatActive(edit, kind);
 					for (const mode of MODES) {
 						const result = toggleInlineFormat(edit, kind, mode);

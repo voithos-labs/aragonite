@@ -7,6 +7,8 @@
 
 import { isBuiltinBlockKind, type AnyBlockKind } from '../core/nodes';
 import { deletePluginEntries, registerOnce } from './register-once';
+import { ownerEnabled, type GrammarView } from './block-openers';
+import { pluginKindOwner } from './plugin-install';
 
 /**
  * The replacement, as lines with no line endings: the Enter handler attaches the block's own
@@ -32,7 +34,7 @@ export interface BlockCompleter {
 }
 
 const completers = new Map<AnyBlockKind, BlockCompleter>();
-let orderedCache: BlockCompleter[] | null = null;
+let orderedCache: [AnyBlockKind, BlockCompleter][] | null = null;
 
 export function registerBlockCompleter(kind: AnyBlockKind, completer: BlockCompleter): void {
 	registerOnce(
@@ -47,18 +49,18 @@ export function registerBlockCompleter(kind: AnyBlockKind, completer: BlockCompl
 
 // Kind-name order, so which completer runs first depends on the declarations and never on
 // registration order. The openers' rule, without a priority number no conflict has needed yet.
-function ordered(): readonly BlockCompleter[] {
+function ordered(): readonly [AnyBlockKind, BlockCompleter][] {
 	if (!orderedCache) {
-		orderedCache = [...completers.entries()]
-			.sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
-			.map(([, completer]) => completer);
+		orderedCache = [...completers.entries()].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
 	}
 	return orderedCache;
 }
 
-/** The first completion for `line`, or null when no registered completer takes it. */
-export function completeTypedLine(line: string): CompletionResult | null {
-	for (const completer of ordered()) {
+/** The first completion for `line`, or null when no completer the editor's grammar allows takes
+ *  it. A kind's completer belongs to the plugin that declared the kind. */
+export function completeTypedLine(line: string, grammar: GrammarView): CompletionResult | null {
+	for (const [kind, completer] of ordered()) {
+		if (!ownerEnabled(grammar, pluginKindOwner(kind))) continue;
 		const claim = completer.tryComplete(line);
 		if (claim) return claim;
 	}
@@ -66,9 +68,9 @@ export function completeTypedLine(line: string): CompletionResult | null {
 }
 
 /** The first completion for `line` among the completers that answer as the line is typed. */
-export function completeLineOnType(line: string): CompletionResult | null {
-	for (const completer of ordered()) {
-		if (!completer.onType) continue;
+export function completeLineOnType(line: string, grammar: GrammarView): CompletionResult | null {
+	for (const [kind, completer] of ordered()) {
+		if (!completer.onType || !ownerEnabled(grammar, pluginKindOwner(kind))) continue;
 		const claim = completer.tryComplete(line);
 		if (claim) return claim;
 	}

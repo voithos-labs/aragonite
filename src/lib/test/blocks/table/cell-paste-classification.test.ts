@@ -9,7 +9,11 @@ import {
 import { tableCellPasteSurface } from '$lib/components/blocks/table/table-cell-paste';
 import { createPasteCoordinator } from '$lib/editor-actions/paste-coordinator';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
-import { makeEditorActionsDeps, makeStubBlockEdit } from '$lib/test/harness/editor-actions';
+import {
+	makeEditorActionsDeps,
+	makeStubBlockEdit,
+	pasteContext
+} from '$lib/test/harness/editor-actions';
 
 // A cell holds text, never blocks, so whatever a copy wrapped around its text, such as a blank
 // line at either end, must not decide the route: those blocks are just whitespace, and reading
@@ -24,12 +28,12 @@ async function pasteIntoCell(clipboard: string) {
 
 	await pasteDispatch(
 		{ pastedText: clipboard, targetPath: [0, 1, 0], offset: 0 },
-		{
+		pasteContext({
 			doc: deps.doc,
 			blockEdit,
 			controller: createPasteCoordinator(createUndoController(deps), deps.revealPath),
 			undoEntry: 'own'
-		}
+		})
 	);
 	return {
 		doc: deps.doc,

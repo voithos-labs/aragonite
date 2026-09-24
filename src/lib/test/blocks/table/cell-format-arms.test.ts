@@ -3,6 +3,7 @@
 // The cell binds every format chord the prose keymap does, so it must handle every one: a
 // missing handler returns false and leaves the chord to the browser's own contenteditable bold,
 // an edit this block never wrote.
+import { defaultGrammarView } from '$lib/schema/block-openers';
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { planCrossBlockFormat } from '$lib/selection/cross-block/format-range';
@@ -50,7 +51,14 @@ describe('the cross-block plan reads the cell bytes the surface branch reads', (
 		const surfaceBytes = vi.mocked(mounted.blockEdit.updateBlockContent).mock.calls[0][1];
 
 		const doc = parse(`| ${raw} | b |\n| --- | --- |\n| c | d |\n`);
-		const plan = planCrossBlockFormat(doc, wholeCell(0), wholeCell(0), 'strong', undefined)!;
+		const plan = planCrossBlockFormat(
+			doc,
+			wholeCell(0),
+			wholeCell(0),
+			'strong',
+			undefined,
+			defaultGrammarView
+		)!;
 		expect(plan.writes[0].newDisplay).toBe(surfaceBytes);
 	});
 });

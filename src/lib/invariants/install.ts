@@ -4,6 +4,7 @@
  */
 
 import type { CstNode, Document } from '../core/nodes';
+import type { GrammarView } from '../schema/block-openers';
 import type { DocPath } from '../selection/path-math';
 import { assertInvariant } from '../assert';
 import { checkCommitPathAddressable } from './commit-paths';
@@ -25,12 +26,13 @@ import { checkSnapshotIntegrity, type SnapshotEntry } from './snapshot-integrity
 /**
  * Checks only the nodes a commit touched, never the whole tree. Each predicate filters by kind
  * itself. Call it after the commit's `rebuildRaw`, so a strip container's raw is the output
- * that rebuild just produced.
+ * that rebuild just produced. The reparses read the editor's grammar, so syntax the editor left
+ * out cannot make a node look stale.
  */
-export function assertCommittedNodes(nodes: CstNode[]): void {
+export function assertCommittedNodes(nodes: CstNode[], grammar: GrammarView | undefined): void {
 	for (const node of nodes) {
-		assertInvariant('stale-raw', () => checkStaleRaw(node));
-		assertInvariant('opaque-stale-raw', () => checkOpaqueStaleRaw(node));
+		assertInvariant('stale-raw', () => checkStaleRaw(node, grammar));
+		assertInvariant('opaque-stale-raw', () => checkOpaqueStaleRaw(node, grammar));
 		assertInvariant('opaque-rebuild-determinism', () => checkOpaqueRebuildDeterminism(node));
 		assertInvariant('reserved-chrome-slot', () => checkReservedChromeSlot(node));
 		assertInvariant('category-fields', () => checkCategoryFields(node));

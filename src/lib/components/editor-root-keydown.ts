@@ -31,9 +31,8 @@ export interface EditorRootKeydownDeps {
 	search: SearchState;
 	history: GlobalCommandContext['history'];
 	pluginEditor: PluginEditorLookup;
-	/** The plugins this instance activated, so the root takes only its own plugins'
-	 *  chords. `undefined` means every installed plugin. */
-	activation: PluginActivation | undefined;
+	/** The plugins this instance activated, so the root takes only its own plugins' chords. */
+	activation: PluginActivation;
 	onCommandError: CommandErrorSink;
 	crossBlock: Pick<CrossBlockHandlers, 'handleKeyDown' | 'insertText'>;
 	/** True for nodes in the host's own header: they sit inside `root.contains`

@@ -25,6 +25,7 @@ import {
 } from '$lib/schema/inline-construct-policy';
 import { rebalanceLiveSplit } from '$lib/components/blocks/text/live-split-rebalance';
 import type { PresentationMode } from '$lib/presentation-mode';
+import { defaultGrammarView } from '$lib/schema/block-openers';
 
 // G2.13: an edit on a loaded document leaves a tree that reloads to the same block shape, which
 // is the load, edit, save, load cycle a consumer runs on every remount. Byte round-trip (G2.1)
@@ -116,7 +117,7 @@ function applyMerge(doc: Document, at: number, op: 'mergePrev' | 'mergeNext'): v
 	settled(doc, (body) =>
 		op === 'mergePrev'
 			? (mergeIntoPrevDeepLeaf(body, i, undefined, undefined, undefined)?.change ?? { op: 'noop' })
-			: mergeWithNext(body, i - 1, undefined, undefined).change
+			: mergeWithNext(body, i - 1, undefined, undefined, defaultGrammarView).change
 	);
 }
 

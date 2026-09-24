@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { defaultGrammarView } from '$lib/schema/block-openers';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { parseInline, type InlineNode } from '$lib';
 import { resetPluginPlatformForTests } from '$lib/testing';
@@ -82,10 +83,14 @@ describe('footnote reference widget registration', () => {
 	beforeEach(() => registerFootnoteReference());
 
 	it('registers a component widget that reveals its source and claims the activation click', () => {
-		expect(getInlineWidgetComponent(FOOTNOTE_REF_KIND as InlineNode['kind'])).toBeDefined();
+		expect(
+			getInlineWidgetComponent(FOOTNOTE_REF_KIND as InlineNode['kind'], defaultGrammarView)
+		).toBeDefined();
 		// Both fields: `revealSource` is what a plain click does, and `claimsActivationClick`
 		// turns that off so the click jumps instead. Drop it and the source opens on a click.
-		expect(getInlineWidgetEditing(FOOTNOTE_REF_KIND as InlineNode['kind'])).toEqual({
+		expect(
+			getInlineWidgetEditing(FOOTNOTE_REF_KIND as InlineNode['kind'], defaultGrammarView)
+		).toEqual({
 			revealSource: true,
 			claimsActivationClick: true
 		});

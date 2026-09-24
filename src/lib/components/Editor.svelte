@@ -122,14 +122,10 @@
 	} from '../schema/block-commands';
 	import type { AnyCommandId } from '../schema/command-id';
 	import { installPlugins, normalizePluginEntries } from '../schema/plugin-install';
-	import {
-		activationFor,
-		everyInstalledPlugin,
-		kindEnablementFor
-	} from '../schema/plugin-activation';
+	import { activationFor, everyInstalledPlugin } from '../schema/plugin-activation';
 	import { createEditorPluginContexts, mintEditorId } from '../schema/plugin-editor-context';
 	import { insertCatalogue, type InsertEntry } from '../schema/insert-catalogue';
-	import { bothEnable, createRegistryView, type KindEnablement } from '../schema/registry-view';
+	import { createRegistryView, type KindEnablement } from '../schema/registry-view';
 	import BlockList from './BlockList.svelte';
 	import SearchBar from './SearchBar.svelte';
 	import SelectionToolbar from './menu/SelectionToolbar.svelte';
@@ -218,14 +214,12 @@
 
 	// ── State ───────────────────────────────────────────────────────────
 
-	// This editor's view of the global block definitions, read by the first parse and most edits
-	// (#429 lists the routes still on the global one). The test hook narrows the plugins prop.
+	// This editor's view of the global definitions, read by the first parse, every edit's reparse
+	// and the inline scan. The test hook narrows the plugins prop.
 	// svelte-ignore state_referenced_locally
 	const registryView = createRegistryView({
-		isEnabled: bothEnable(
-			pluginEntries ? kindEnablementFor(activePlugins) : undefined,
-			__registryEnablement
-		),
+		plugins: pluginEntries ? activePlugins : undefined,
+		isEnabled: __registryEnablement,
 		syntax
 	});
 
@@ -254,7 +248,8 @@
 		},
 		get epoch(): number {
 			return signatureEpoch;
-		}
+		},
+		grammar: registryView.grammar
 	};
 	// Plain, not `$state`: where the root list's child refs are stored (see `refSlotsOver`).
 	const blockRefs: (BlockComponent | undefined)[] = [];
@@ -307,7 +302,7 @@
 	const selectedWidget: SelectedWidgetHandle = {
 		range: () => {
 			const target = widgetSelection.getSelected();
-			const image = target && imageAtTarget(doc, target, linkRefView);
+			const image = target && imageAtTarget(doc, target, linkRefView, registryView.grammar);
 			return target && image
 				? { path: [...target.paragraphPath], start: image.start, end: image.end }
 				: null;

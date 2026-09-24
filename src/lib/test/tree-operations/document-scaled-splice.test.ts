@@ -10,6 +10,7 @@ import { createPasteCoordinator } from '$lib/editor-actions/paste-coordinator';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
 import { makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
 import type { CstNode, Document } from '$lib/core/nodes';
+import { defaultGrammarView } from '$lib/schema/block-openers';
 
 /** Past V8's argument limit (~125k), so one spread would raise a RangeError. */
 const OVER_LIMIT = 200_000;
@@ -49,6 +50,7 @@ describe('a document-scaled splice', () => {
 		);
 
 		await replaceBlockAtParent({
+			grammar: defaultGrammarView,
 			doc: harness.doc,
 			blockPath: [0],
 			replacement: clipboard(),

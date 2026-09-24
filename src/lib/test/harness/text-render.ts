@@ -9,6 +9,7 @@ import type { PresentationMode } from '$lib/presentation-mode';
 import type { ImageLoadPolicy } from '$lib/core/inline-render';
 import type { IndexedDecoration } from '$lib/decorations/buckets';
 import type { ReplaceDecoration, WidgetDecoration } from '$lib/decorations/types';
+import { defaultGrammarView } from '$lib/schema/block-openers';
 
 export type Island = IndexedDecoration<WidgetDecoration | ReplaceDecoration>;
 
@@ -67,6 +68,7 @@ export function makeRenderHarness(
 		get presentationMode() {
 			return mode;
 		},
+		grammar: defaultGrammarView,
 		get linkResolver() {
 			return overrides.linkResolver;
 		},

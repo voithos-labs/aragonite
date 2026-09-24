@@ -18,7 +18,7 @@ import {
 } from './keybinding-overrides';
 // Type-only imports, so this file has no runtime dependency on plugin-install or block-commands.
 import type { EditorContext } from './plugin-install';
-import type { PluginActivation } from './plugin-activation';
+import { everyInstalledPlugin, type PluginActivation } from './plugin-activation';
 import type { CommandErrorSink } from './block-commands';
 import type { PresentationMode } from '../presentation-mode';
 
@@ -114,9 +114,8 @@ export interface GlobalCommandContext {
 	 *  for a plugin installed in the process that this editor did not activate. */
 	pluginEditor?: (pluginName: string) => EditorContext | undefined;
 	/** The plugins the dispatching editor activated, so a plugin's global chord (registered
-	 *  process-wide) fires only where its plugin is active. Required but nullable: a new dispatch
-	 *  context must answer, and `undefined` is the answer of a caller with no editor instance. */
-	activation: PluginActivation | undefined;
+	 *  process-wide) fires only where its plugin is active; `everyInstalledPlugin` with no editor. */
+	activation: PluginActivation;
 	/** The effective presentation mode, read live; the reading-mode check reads this, not the
 	 *  plugin lookup. Absent (a history-only context) means source mode. */
 	getPresentationMode?: () => PresentationMode;
@@ -248,7 +247,7 @@ export function assertPluginGlobalChordAvailable(
 	}
 	// Activation-blind: registration is process-global register-once, so a chord no editor
 	// has activated yet still collides.
-	const collision = builtinGlobalBinding(chord, undefined);
+	const collision = builtinGlobalBinding(chord, everyInstalledPlugin);
 	if (collision) {
 		if (devReplacesRegistration() && collision.command === candidateCommand) return;
 		throw new Error(
@@ -268,33 +267,26 @@ export function registerPluginGlobalBinding(binding: KeyBinding, plugin: string 
 	else pluginGlobalKeymap.push(entry);
 }
 
-/** The one activation check: every read of a plugin-global chord passes through it, and an
- *  absent activation means every installed plugin. */
-function claimedHere(
-	entry: PluginGlobalBinding,
-	activation: PluginActivation | undefined
-): boolean {
-	return entry.plugin === null || activation === undefined || activation.isActive(entry.plugin);
+/** The one activation check: every read of a plugin-global chord passes through it. */
+function claimedHere(entry: PluginGlobalBinding, activation: PluginActivation): boolean {
+	return entry.plugin === null || activation.isActive(entry.plugin);
 }
 
 export function pluginGlobalBinding(
 	chord: string,
-	activation: PluginActivation | undefined
+	activation: PluginActivation
 ): KeyBinding | null {
 	const entry = findByChord(pluginGlobalKeymap, chord);
 	return entry && claimedHere(entry, activation) ? entry : null;
 }
 
-/** Every plugin-global binding claimed for `activation`, each with the plugin that installed it.
- *  Registration is process-global, so an absent activation reports every installed plugin's. */
-export function pluginGlobalBindings(
-	activation: PluginActivation | undefined
-): readonly PluginGlobalBinding[] {
+/** Every plugin-global binding claimed for `activation`, each with the plugin that installed it. */
+export function pluginGlobalBindings(activation: PluginActivation): readonly PluginGlobalBinding[] {
 	return pluginGlobalKeymap.filter((entry) => claimedHere(entry, activation));
 }
 
 /** The chords of {@link pluginGlobalBindings}, normalized. */
-export function pluginGlobalChords(activation: PluginActivation | undefined): readonly string[] {
+export function pluginGlobalChords(activation: PluginActivation): readonly string[] {
 	return pluginGlobalBindings(activation).map((b) => normalizeChord(b.chord));
 }
 
@@ -330,10 +322,7 @@ function overrideTier(
 
 /** The built-in global keymap, then the plugin-global chords: the shared tail of leaf
  *  resolution and both global-only resolvers. */
-function builtinGlobalBinding(
-	chord: string,
-	activation: PluginActivation | undefined
-): KeyBinding | null {
+function builtinGlobalBinding(chord: string, activation: PluginActivation): KeyBinding | null {
 	return findByChord(GLOBAL_KEYMAP, chord) ?? pluginGlobalBinding(chord, activation);
 }
 
@@ -361,7 +350,7 @@ export function resolveBinding(
 	chord: string,
 	kind: AnyBlockKind,
 	overrides: KeybindingOverrideMap | undefined,
-	activation: PluginActivation | undefined
+	activation: PluginActivation
 ): KeyBinding | null {
 	const override = overrideTier(overrides, kind, chord);
 	if (override !== undefined) return override;
@@ -374,10 +363,7 @@ export function resolveBinding(
  * overrides on purpose: it answers which chords have a browser default to suppress, not which
  * command runs. `runGlobalChord`/`runGlobalChordOnKind` answer the dispatch question.
  */
-export function isDefaultGlobalChord(
-	chord: string,
-	activation: PluginActivation | undefined
-): boolean {
+export function isDefaultGlobalChord(chord: string, activation: PluginActivation): boolean {
 	return builtinGlobalBinding(chord, activation) !== null;
 }
 
@@ -388,7 +374,7 @@ export function isDefaultGlobalChord(
 export function resolveGlobalBinding(
 	chord: string,
 	overrides: KeybindingOverrideMap | undefined,
-	activation: PluginActivation | undefined
+	activation: PluginActivation
 ): KeyBinding | null {
 	const decision = overrideDecision(lookupOverride(overrides, 'global', chord));
 	if (decision !== undefined) return decision;

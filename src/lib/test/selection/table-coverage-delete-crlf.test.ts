@@ -10,6 +10,7 @@ import { registerBlockListState } from '$lib/reactivity/state-registry';
 import { makeBlockListState, makeEditorActionsDeps } from '../harness/editor-actions';
 import type { CrossBlockMutationContext } from '$lib/selection/cross-block/ops';
 import type { SelectionPoint } from '$lib/selection/primitives';
+import { defaultGrammarView } from '$lib/schema/block-openers';
 
 function soleTableEnv(source: string) {
 	const { deps } = makeEditorActionsDeps(parse(source).children);
@@ -26,7 +27,7 @@ function soleTableEnv(source: string) {
 		revealPath: deps.revealPath,
 		controller,
 		pushUndoSnapshot: () => controller.pushUndoSnapshot(0, 0),
-		grammar: undefined,
+		grammar: defaultGrammarView,
 		getPresentationMode: undefined,
 		linkRef: undefined
 	};

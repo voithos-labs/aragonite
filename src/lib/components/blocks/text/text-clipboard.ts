@@ -49,7 +49,7 @@ export interface TextClipboardDeps {
 	blockEdit: BlockEditActions;
 	pasteCoordinator: PasteCommitCoordinator;
 	/** This editor's grammar, so an unlisted plugin's opener never takes pasted bytes here. */
-	grammar: GrammarView | undefined;
+	grammar: GrammarView;
 	/** The plugins this instance activated, so an unlisted plugin's paste transform stays out. */
 	activePlugins: PluginActivation;
 	getDoc: DocumentGetter;
@@ -102,7 +102,7 @@ export function createTextClipboard(deps: TextClipboardDeps): TextClipboard {
 			return null;
 		}
 		const inline = resolvedInlineContent(deps.node, deps.linkRef).find(
-			(n) => isInlineWidget(n, deps.node.raw) && n.start === selected.sourceStart
+			(n) => isInlineWidget(n, deps.node.raw, deps.grammar) && n.start === selected.sourceStart
 		);
 		return inline ? { inline, preSelectOffset: selected.preSelectOffset } : null;
 	}

@@ -6,6 +6,7 @@ import { ensureUnsharedChild } from './unshare';
 import { absorbWindowSeams, settleSeparatorOnBlank, type SettledSplice } from './settle';
 import type { StructuralChange } from './structural-change';
 import { devWarn } from '../dev-warn';
+import type { GrammarView } from '../schema/block-openers';
 
 // A stale index (a mid-drag delete shrank the array) would splice `undefined` into the
 // $state tree, so both entry points bail through this before any copy or write.
@@ -47,6 +48,8 @@ export function reorderChildrenWithTrivia(
 	from: number,
 	to: number,
 	sharing: SharingState,
+	/** The editor's grammar, in which the checks below reread each pair of moved blocks. */
+	grammar: GrammarView | undefined,
 	/** Top-level blocks only: a blank line is a document separator, not a list's or a quote's,
 	 *  whose own children carry their marker and would read a bare blank line as an end. */
 	separators = false
@@ -72,7 +75,7 @@ export function reorderChildrenWithTrivia(
 		// leaves is the reload's own reading, which the merge below applies.
 		const vacated = from < to ? from : from + 1;
 		for (let at = lo; at <= hi + 1; at++) {
-			if (at !== vacated) separateSeam(children, at, sharing);
+			if (at !== vacated) separateSeam(children, at, sharing, grammar);
 		}
 		// A blank block moved by position can hold a line its follower holds too; the run needs
 		// exactly one, and none at the document head, where the reload reads each as a block.
@@ -80,7 +83,18 @@ export function reorderChildrenWithTrivia(
 			if (isBlankParagraph(children[at])) settleSeparatorOnBlank({ children }, at, sharing);
 		}
 	}
-	return absorbWindowSeams({ children }, lo, hi - lo + 1, to, change, sharing);
+	return absorbWindowSeams(
+		{ children },
+		lo,
+		hi - lo + 1,
+		to,
+		change,
+		sharing,
+		undefined,
+		undefined,
+		undefined,
+		grammar
+	);
 }
 
 /**
@@ -89,13 +103,19 @@ export function reorderChildrenWithTrivia(
  * unterminated fence taking the prose below it) is the reload's true reading, left to the
  * neighbour merge, which its tests pin.
  */
-function separateSeam(children: CstNode[], at: number, sharing: SharingState): void {
+function separateSeam(
+	children: CstNode[],
+	at: number,
+	sharing: SharingState,
+	grammar: GrammarView | undefined
+): void {
 	if (at <= 0 || at >= children.length) return;
 	const prev = children[at - 1];
 	const next = children[at];
 	const apart = withLeadingLine(next.leadingTrivia, trailingLineEnding(next.raw));
 	if (apart === next.leadingTrivia) return;
-	if (readsAsBoth(prev, next.leadingTrivia, next) || !readsAsBoth(prev, apart, next)) return;
+	const readsAsBoth = (trivia: string) => readsAsPair(prev, trivia, next, grammar);
+	if (readsAsBoth(next.leadingTrivia) || !readsAsBoth(apart)) return;
 	ensureUnsharedChild({ children }, at, sharing).leadingTrivia = apart;
 }
 
@@ -105,8 +125,13 @@ function withLeadingLine(trivia: string, eol: string): string {
 
 // Two blocks of the same shape, not merely two: a quote lazily taking the first line of the
 // prose below it still reads as two, with the remainder a different kind.
-function readsAsBoth(prev: CstNode, trivia: string, next: CstNode): boolean {
-	const blocks = parse(prev.raw + trivia + next.raw, { scope: 'fragment' }).children;
+function readsAsPair(
+	prev: CstNode,
+	trivia: string,
+	next: CstNode,
+	grammar: GrammarView | undefined
+): boolean {
+	const blocks = parse(prev.raw + trivia + next.raw, { grammar, scope: 'fragment' }).children;
 	return (
 		blocks.length === 2 &&
 		blocks[0].kind === prev.kind &&

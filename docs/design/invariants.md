@@ -859,6 +859,8 @@ directory as well as this table before assuming a rule is unguarded.
 | G4.65 | Every prose surface hands typed delimiters to the one auto-pair arm           | L       |
 | G4.66 | A relative scroll is written through `scrollBy`, never read-plus-delta        | L       |
 | G4.67 | Every editor menu counts itself on `menuChange`                               | L       |
+| G4.68 | Every plugin registry read outside its module passes the editor's grammar     | L       |
+| G4.69 | Every `parse` call outside the parser reads the editor's grammar              | L       |
 
 ### The entries
 
@@ -1450,6 +1452,21 @@ file that already counts one is still checked. The listed ones are the selection
 hides itself on the event, the list inside the counted language picker, the link card its host
 counts, and the mermaid focus view, which a plugin owns.
 `lint/menu-presence-census.test.ts`.
+
+**G4.68 · Registry reads take the editor's grammar.** The inline syntax, widget kind, directive
+and completer registries are process-wide, and the editor's grammar is what leaves out a plugin
+its `plugins` prop did not list (#266). The internal readers declare the grammar as a required
+parameter, so the type checker refuses a call without one. The readers whose grammar stays
+optional (the published `parseInline` and `computeInlineContent` among them) are held to passing
+it in its own argument slot, and a fallback to every installed plugin is spelled only in the
+listed places. The reads still left unthreaded are listed with their reasons: the verification
+reads (#432), navigation's transparency check, and the plugin API's inline read (#433).
+`lint/registry-view-reads.test.ts`.
+
+**G4.69 · Reparses take the editor's grammar.** Every `parse` call outside the parser passes a
+grammar, so no edit reads a syntax the editor switched off or an unlisted plugin's opener (#429).
+The published whole-document conversion is the listed exception.
+`lint/registry-view-reads.test.ts`.
 
 ## Accessibility
 

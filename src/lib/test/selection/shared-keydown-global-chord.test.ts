@@ -11,6 +11,7 @@ import {
 	__removePluginCommandsForTests
 } from '$lib/schema/commands';
 import { __resetMintedCommandIdsForTests } from '$lib/schema/command-id';
+import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
 
 // The shared keydown that runs before every editable block's own dispatch. A plugin-global chord
 // must have its default prevented and still be deferred (return false) so the block's own
@@ -31,7 +32,7 @@ function makeCtx(): SharedKeydownContext {
 	const el = document.createElement('div');
 	return {
 		// No plugins stood up here, so every installed one is active.
-		activePlugins: undefined,
+		activePlugins: everyInstalledPlugin,
 		getEl: () => el,
 		getCursorOffset: () => 0,
 		getFocusOffset: () => null,

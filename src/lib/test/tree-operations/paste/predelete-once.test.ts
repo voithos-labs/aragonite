@@ -9,7 +9,8 @@ import { registerBlockListState } from '$lib/reactivity/state-registry';
 import {
 	makeBlockListState,
 	makeEditorActionsDeps,
-	makeStubBlockEdit
+	makeStubBlockEdit,
+	pasteContext
 } from '$lib/test/harness/editor-actions';
 
 // GH #121: the container-match, sibling-absorb and break-out strategies never read `preDelete`, so
@@ -40,7 +41,12 @@ describe('a paste over a selection inside a list item', () => {
 				offset: 0,
 				preDelete: { start: 0, end: 'alpha'.length }
 			},
-			{ doc: deps.doc, blockEdit: makeStubBlockEdit(), controller: coordinator, undoEntry: 'own' }
+			pasteContext({
+				doc: deps.doc,
+				blockEdit: makeStubBlockEdit(),
+				controller: coordinator,
+				undoEntry: 'own'
+			})
 		);
 
 		expect(serialize(deps.doc)).toBe('- x\n- y\n');
@@ -57,7 +63,12 @@ describe('a paste over a selection inside a list item', () => {
 				offset: 0,
 				preDelete: { start: 0, end: 'alpha '.length }
 			},
-			{ doc: deps.doc, blockEdit: makeStubBlockEdit(), controller: coordinator, undoEntry: 'own' }
+			pasteContext({
+				doc: deps.doc,
+				blockEdit: makeStubBlockEdit(),
+				controller: coordinator,
+				undoEntry: 'own'
+			})
 		);
 
 		expect(serialize(deps.doc)).toBe('- x\n- beta\n');

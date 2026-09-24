@@ -6,7 +6,8 @@ import { pasteDispatch } from '../../../tree-operations/paste/dispatch';
 import {
 	makeRunningPasteController,
 	makeStubBlockEdit,
-	registerStubBlockListState
+	registerStubBlockListState,
+	pasteContext
 } from '../../harness/editor-actions';
 import { expectParseConverged } from '../../harness/parse-converged';
 
@@ -22,12 +23,12 @@ async function pasteInto(doc: ReturnType<typeof parse>, targetPath: number[], te
 	registerStubBlockListState(doc.children[0]);
 	await pasteDispatch(
 		{ pastedText: text, targetPath, offset: 8 },
-		{
+		pasteContext({
 			doc,
 			blockEdit: makeStubBlockEdit(),
 			controller: makeRunningPasteController(),
 			undoEntry: 'join'
-		}
+		})
 	);
 }
 

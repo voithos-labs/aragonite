@@ -13,6 +13,7 @@ import { registerBlockListState } from '$lib/reactivity/state-registry';
 import { makeBlockListState, makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
 import { expectParseConverged } from '$lib/test/harness/parse-converged';
 import type { EditEvent } from '$lib/editor-events';
+import { defaultGrammarView } from '$lib/schema/block-openers';
 
 function makeEnv(source: string) {
 	const harness = makeEditorActionsDeps(parse(source).children);
@@ -24,7 +25,7 @@ function makeEnv(source: string) {
 		revealPath: harness.deps.revealPath,
 		controller,
 		pushUndoSnapshot: () => controller.pushUndoSnapshot(0, 0),
-		grammar: undefined,
+		grammar: defaultGrammarView,
 		getPresentationMode: undefined,
 		linkRef: undefined
 	};

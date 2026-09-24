@@ -11,7 +11,11 @@ import { __getDefaultTextSurface } from '$lib/tree-operations/paste/hooks';
 import { tableCellPasteSurface } from '$lib/components/blocks/table/table-cell-paste';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
 import { createPasteCoordinator } from '$lib/editor-actions/paste-coordinator';
-import { makeEditorActionsDeps, makeStubBlockEdit } from '$lib/test/harness/editor-actions';
+import {
+	makeEditorActionsDeps,
+	makeStubBlockEdit,
+	pasteContext
+} from '$lib/test/harness/editor-actions';
 import { describeConvergence } from '$lib/test/harness/parse-converged';
 
 // A block pasted or inserted with no line ending of its own took the next block's blank line as
@@ -32,12 +36,12 @@ async function insert(source: string, targetPath: number[], offset: number, mark
 	const { deps } = makeEditorActionsDeps(parse(source).children);
 	await pasteDispatch(
 		{ pastedText: markdown, targetPath, offset },
-		{
+		pasteContext({
 			doc: deps.doc,
 			blockEdit: makeStubBlockEdit(),
 			controller: createPasteCoordinator(createUndoController(deps), deps.revealPath),
 			undoEntry: 'own'
-		}
+		})
 	);
 	return deps.doc;
 }

@@ -1,3 +1,4 @@
+import { defaultGrammarView } from '$lib/schema/block-openers';
 import { describe, it, expect } from 'vitest';
 import { scanInline } from '../../../../core/inline/scan';
 import {
@@ -153,7 +154,7 @@ describe('child walk under deep image nesting (DoS guard)', () => {
 		const depth = 20000;
 		const raw = '!['.repeat(depth) + 'a' + '](u)'.repeat(depth);
 		const startedAt = performance.now();
-		const nodes = scanInline(raw, 0, raw.length);
+		const nodes = scanInline(raw, 0, raw.length, undefined, defaultGrammarView);
 		const elapsed = performance.now() - startedAt;
 		expect(elapsed).toBeLessThan(2000);
 		expect(nodes).toHaveLength(1);

@@ -69,7 +69,14 @@ export function createReorderAction(
 					eventPath: docPathFrom([unit.index])
 				},
 				mutate: (children) => {
-					const settled = reorderChildrenWithTrivia(children, unit.index, to, deps.sharing, true);
+					const settled = reorderChildrenWithTrivia(
+						children,
+						unit.index,
+						to,
+						deps.sharing,
+						deps.grammar,
+						true
+					);
 					landing = settled.landing;
 					return settled.change;
 				},
@@ -95,7 +102,13 @@ export function createReorderAction(
 				eventPath: docPathFrom(unit.parentPath)
 			},
 			mutate: (scope) => {
-				const settled = reorderChildrenWithTrivia(scope.children, unit.index, to, scope.sharing);
+				const settled = reorderChildrenWithTrivia(
+					scope.children,
+					unit.index,
+					to,
+					scope.sharing,
+					deps.grammar
+				);
 				landing = settled.landing;
 				if (unit.renumberMarkers) {
 					// Ordered markers depend on position, so this copies each item whose marker it

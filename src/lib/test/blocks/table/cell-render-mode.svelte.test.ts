@@ -19,6 +19,7 @@ import {
 import type { CstNode } from '$lib/core/nodes';
 import type { PresentationMode } from '$lib/presentation-mode';
 import ModeReadingWidget from '../fixtures/ModeReadingWidget.svelte';
+import { defaultGrammarView } from '$lib/schema/block-openers';
 
 const WIDGET_SOURCE = '%%w%%';
 
@@ -57,6 +58,7 @@ function mountCell(raw: string) {
 		get node() {
 			return node;
 		},
+		grammar: defaultGrammarView,
 		get linkRef() {
 			return undefined;
 		},

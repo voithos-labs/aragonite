@@ -11,6 +11,7 @@ import { rebuildContainerRaw } from '$lib/schema/container-raw';
 import { makeNestedHarness } from '$lib/test/harness/editor-actions';
 import { describeConvergence } from '$lib/test/harness/parse-converged';
 import type { CstNode } from '$lib/core/nodes';
+import { defaultGrammarView } from '$lib/schema/block-openers';
 
 // GH #21: a mutation can break a join that was already correct (a demoted heading stops
 // interrupting the paragraph under it, a reorder pulls an interrupter out from between two), and
@@ -96,7 +97,7 @@ describe('a reorder settles the joins the move disturbed (GH #21)', () => {
 	it('folds the pair an interrupter moved out from between', () => {
 		const doc = parse('a\n# h\nb\n');
 
-		const result = reorderChildrenWithTrivia(doc.children, 1, 2, sharing());
+		const result = reorderChildrenWithTrivia(doc.children, 1, 2, sharing(), defaultGrammarView);
 
 		expect(serialize(doc)).toBe('a\nb\n# h\n');
 		expect(describeConvergence(doc)).toBeNull();
@@ -118,7 +119,7 @@ describe('a reorder settles the joins the move disturbed (GH #21)', () => {
 	it('folds the pair the move left below the window', () => {
 		const doc = parse('a\n# h\nb\n');
 
-		const result = reorderChildrenWithTrivia(doc.children, 1, 0, sharing());
+		const result = reorderChildrenWithTrivia(doc.children, 1, 0, sharing(), defaultGrammarView);
 
 		expect(serialize(doc)).toBe('# h\na\nb\n');
 		expect(describeConvergence(doc)).toBeNull();
@@ -129,7 +130,7 @@ describe('a reorder settles the joins the move disturbed (GH #21)', () => {
 	it('stays a plain permutation where every join holds', () => {
 		const doc = parse('a\n\nb\n\nc\n');
 
-		const result = reorderChildrenWithTrivia(doc.children, 0, 2, sharing());
+		const result = reorderChildrenWithTrivia(doc.children, 0, 2, sharing(), defaultGrammarView);
 
 		expect(serialize(doc)).toBe('b\n\nc\n\na\n');
 		expect(result.change).toEqual({
@@ -149,7 +150,7 @@ describe('a reorder settles the joins the move disturbed (GH #21)', () => {
 		const doc = parse('- a\n- # h\n- b\n');
 		const items = doc.children[0].children!;
 
-		const result = reorderChildrenWithTrivia(items, 1, 2, sharing());
+		const result = reorderChildrenWithTrivia(items, 1, 2, sharing(), defaultGrammarView);
 
 		expect(items.map((c) => c.raw)).toEqual(['- a\n', '- b\n', '- # h\n']);
 		expect(result.landing).toBe(2);
