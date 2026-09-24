@@ -57,7 +57,8 @@ describe.each(['source', 'live'] as const)(
 		it.each([
 			['from a === title into a --- one', 'Setext\n======\n\nOther\n---\n', 'Sether\n======\n'],
 			['from a --- title into a === one', 'Setext\n---\n\nOther\n===\n', 'Sether\n---\n'],
-			['to the raw end of the title below', 'Setext\n======\n\nOther\n---\n', 'Set\n======\n', 9]
+			['to the raw end of the title below', 'Setext\n======\n\nOther\n---\n', 'Set\n======\n', 9],
+			['to the raw end of a bold title', 'Setext\n======\n\n**Other**\n---\n', 'Set\n======\n', 13]
 		])('%s keeps only the start block’s underline', (_label, source, joined, endOffset = 2) => {
 			const { doc, caret } = run(
 				source,

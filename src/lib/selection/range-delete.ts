@@ -125,11 +125,15 @@ export function rangeDelete(
 	// start's rule below covers only the start's bytes and a cut from the end block's head would
 	// otherwise leave its closer stranded. A same-block merge takes that rule once, below.
 	const join = sameBlock
-		? { raw: startRaw.slice(0, startCut) + startRaw.slice(endOffset), offset: startCut }
+		? {
+				raw: startRaw.slice(0, startCut) + startRaw.slice(endOffset),
+				start: startCut,
+				end: endOffset
+			}
 		: joinAboveUndrawn(startBlock, startCut, endBlock, endOffset, (tail) =>
 				normalizeOwnRaw(endBlock, tail)
 			);
-	const startOffset = join.offset;
+	const startOffset = join.start;
 	// A join can create a line neither side held: two lines each with a mid-line `</details>`
 	// become one that opens with it. The survivor lands in the start's container, so that
 	// container's body rule is applied here, before the kinds are derived from the bytes.
@@ -142,7 +146,7 @@ export function rangeDelete(
 			mergedRaw,
 			seam: startOffset,
 			start: { node: startBlock, offset: startOffset },
-			end: { node: endBlock, offset: endOffset },
+			end: { node: endBlock, offset: join.end },
 			linkRef,
 			ambientPrefix: containerAmbientPrefix(doc, start.path)
 		},

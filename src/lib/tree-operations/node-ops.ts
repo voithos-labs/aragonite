@@ -360,7 +360,7 @@ export function cutRangeFromDisplay(
  * The bytes of a join: `survivor` cut at `cut`, then `absorbed`'s text from `from`, then the
  * survivor's undrawn structure (a setext underline), which stays under the joined text. The
  * absorbed block's own undrawn structure goes with that block. `writeTail` is the absorbed kind's
- * write rule; `offset` is where the joined text starts.
+ * write rule; `start` and `end` are the offsets the join cut each block at.
  */
 export function joinAboveUndrawn(
 	survivor: NodeView,
@@ -368,24 +368,26 @@ export function joinAboveUndrawn(
 	absorbed: NodeView,
 	from: number,
 	writeTail: (tail: string) => string = (tail) => tail
-): { raw: string; offset: number } {
+): { raw: string; start: number; end: number } {
 	const kept = undrawnSuffix(survivor);
 	const dropped = undrawnSuffix(absorbed);
 	// No caret stands inside undrawn structure, so a cut past it is a cut at the content end.
-	const offset = kept ? Math.min(cut, displayLength(survivor.raw) - kept.length) : cut;
+	const start = kept ? Math.min(cut, displayLength(survivor.raw) - kept.length) : cut;
 	const textEnd = displayLength(absorbed.raw) - dropped.length;
+	const end = dropped ? Math.min(from, textEnd) : from;
 	const tail = writeTail(
 		dropped
-			? absorbed.raw.slice(Math.min(from, textEnd), textEnd) + ownTrailingLineEnding(absorbed.raw)
-			: absorbed.raw.slice(from)
+			? absorbed.raw.slice(end, textEnd) + ownTrailingLineEnding(absorbed.raw)
+			: absorbed.raw.slice(end)
 	);
 	return {
 		raw:
-			survivor.raw.slice(0, offset) +
+			survivor.raw.slice(0, start) +
 			trimTrailingLineEnding(tail) +
 			kept +
 			ownTrailingLineEnding(tail),
-		offset
+		start,
+		end
 	};
 }
 
@@ -396,12 +398,12 @@ function joinRaw(
 	presentationMode: PresentationMode | undefined,
 	linkRef: InlineResolverRef | undefined
 ): CleanedJoin {
-	const { raw, offset } = joinAboveUndrawn(prev, displayLength(prev.raw), curr, 0);
+	const { raw, start } = joinAboveUndrawn(prev, displayLength(prev.raw), curr, 0);
 	return cleanJoinedRaw(
 		{
 			mergedRaw: raw,
-			seam: offset,
-			start: { node: prev, offset },
+			seam: start,
+			start: { node: prev, offset: start },
 			end: { node: curr, offset: 0 },
 			linkRef
 		},
