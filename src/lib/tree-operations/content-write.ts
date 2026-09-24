@@ -79,6 +79,7 @@ function writeAndSettleContent(
 	sharing?: SharingState
 ): SettledContent {
 	const wasBlank = isBlankParagraph(parent.children[blockIndex]);
+	const indentMoved = leadingIndent(parent.children[blockIndex].raw) !== leadingIndent(text);
 	const change = writeParsedContent(parent, blockIndex, text, grammar);
 	const lastWritten = lastMintedIndex(change, blockIndex);
 	// One blank line served both sides: it separated this block from the one above and stood in
@@ -97,11 +98,14 @@ function writeAndSettleContent(
 		const widened = widenForTailMint(change, settled, parent.children.length);
 		return settleWriteSeams(parent, blockIndex, lastWritten, widened, sharing, grammar);
 	}
-	// Same-kind typing inside content must never pay for a neighbour reparse. A blank line that
-	// stays blank is the exception: its indent decides whether a list item above takes it in.
-	if (change.op === 'noop' && !wasBlank) return { change, textStart: 0 };
+	// Same-kind typing inside content must never pay for a neighbour reparse. The exceptions are
+	// the writes whose first-line indent is new, and a blank line that stays blank: the indent
+	// decides whether a list item above takes the block in (editor.md § 8).
+	if (change.op === 'noop' && !wasBlank && !indentMoved) return { change, textStart: 0 };
 	return settleWriteSeams(parent, blockIndex, lastWritten, change, sharing, grammar);
 }
+
+const leadingIndent = (text: string): string => /^[ \t]*/.exec(text)![0];
 
 /**
  * Ask every join the write disturbed whether it merges, and report where the written text ended
