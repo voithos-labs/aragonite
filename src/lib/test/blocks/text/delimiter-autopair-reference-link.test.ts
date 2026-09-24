@@ -39,3 +39,16 @@ describe('auto-pair beside a reference link', () => {
 		});
 	});
 });
+
+// The paired line is a byte longer than the line typed into, and a scan bounded by the shorter
+// line cut off its last byte: a link's closing bracket there, so the link read as text.
+// Miss-analysis: the closer scan was only asked with the caret at the line's end, where the typed
+// byte itself widened the bound.
+describe('auto-pair reads the whole paired line', () => {
+	it.each([
+		{ form: 'a reference link', text: '*[a][ref]' },
+		{ form: 'an inline link', text: '*[a](u)' }
+	])('does not close a run across $form that ends the line', ({ text }) => {
+		expect(type(text, 3, '*')).toBeNull();
+	});
+});
