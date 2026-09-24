@@ -148,9 +148,9 @@ function applyEmpty(doc: Document, at: number): void {
 }
 
 /**
- * A prose leaf's text written back the way a keystroke and its undo commit it: what the DOM holds
- * (up to the content end), the suffix no mode draws, then the line ending. Inside a list item too:
- * a task item's first paragraph reads its text differently from a standalone one.
+ * A prose leaf's bytes rebuilt from its content, the suffix no mode draws and its line ending,
+ * which is the stored raw: it holds the suffix helper to the content range, not the DOM read.
+ * Inside a list item too: a task item's first paragraph reads its text differently.
  */
 function applyRetype(doc: Document, at: number): void {
 	const slots = proseLeafSlots(doc);

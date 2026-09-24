@@ -7,7 +7,8 @@ must change one character, and nothing else in the file.
 
 Miss-analysis: the setext specs covered Enter and the merges and none typed into the heading, the
 unit suites had typing tests for cells and code blocks but not for prose blocks, and the shape
-property wrote the stored bytes back rather than the text the block reads from the screen.
+property's retype writes the stored bytes back, so it checks the underline helper and never the
+text the block reads from the screen.
 
 ## Happy paths
 
