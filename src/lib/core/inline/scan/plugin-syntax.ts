@@ -97,9 +97,9 @@ const NO_RUNGS: readonly InlineRung[] = [];
 const reservedRegistry = new Map<string, InlineRung[]>();
 const unreservedRegistry = new Map<string, InlineRung[]>();
 
-// Triggers that close themselves as they are typed (`autoPair`), each with the plugin that asked;
-// the built-in backtick is not here, the typing path knows it on its own.
-const autoPairTriggers = new Map<string, string | null>();
+// Triggers that close themselves as they are typed (`autoPair`), each with every plugin that asked
+// (null for a registration outside a plugin); the built-in backtick is not here.
+const autoPairTriggers = new Map<string, Set<string | null>>();
 
 // Triggers the fast bail (`needsScan`, scan/index.ts) must check while a handler is registered
 // on them. Filled at registration, so a handler on a trigger `SPECIAL_CHARS` already checks
@@ -176,11 +176,17 @@ export function registerInlineSyntax(
 			// A handler on a trigger the fast bail would skip must make the scan check it,
 			// or the recognizer is the silent no-op this registry refuses to accept.
 			if (!reserved || SCAN_PROBED_RESERVED.has(trigger)) scanProbeTriggers.add(trigger);
-			if (autoPair) autoPairTriggers.set(trigger, currentInstallingPlugin());
+			if (autoPair) addAutoPairOwner(trigger, currentInstallingPlugin());
 		},
 		`registerInlineSyntax: ${JSON.stringify(trigger)} already registered at prefix ` +
 			`${JSON.stringify(effectivePrefix)}, priority ${priority}`
 	);
+}
+
+function addAutoPairOwner(trigger: string, owner: string | null): void {
+	const owners = autoPairTriggers.get(trigger) ?? new Set<string | null>();
+	owners.add(owner);
+	autoPairTriggers.set(trigger, owners);
 }
 
 // Kept sorted at insert so dispatch order does not depend on registration order.
@@ -243,10 +249,12 @@ export function isScanProbeTrigger(char: string): boolean {
 	return scanProbeTriggers.has(char);
 }
 
-/** Whether a plugin the editor's grammar lists asked for `char` to close itself as it is typed. */
+/** Whether any plugin the editor's grammar lists asked for `char` to close itself as it is typed. */
 export function isAutoPairTrigger(char: string, grammar: GrammarView): boolean {
-	const owner = autoPairTriggers.get(char);
-	return owner !== undefined && ownerEnabled(grammar, owner);
+	const owners = autoPairTriggers.get(char);
+	if (!owners) return false;
+	for (const owner of owners) if (ownerEnabled(grammar, owner)) return true;
+	return false;
 }
 
 /** False costs the scan loop nothing. */
