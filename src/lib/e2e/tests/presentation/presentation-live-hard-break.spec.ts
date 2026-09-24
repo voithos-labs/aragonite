@@ -26,7 +26,9 @@ test.describe('the hidden hard break shows a mark', () => {
 		await ep.bridge.waitForSourceContains('one  \ntwo');
 
 		expect(await glyphOf(page)).toContain('↵');
-		expect(await ep.getBlockText(1)).toBe('one  \ntwo\n');
+		// The clipboard's closing line ending ends the paragraph; it is not a line inside it.
+		expect(await ep.getBlockText(1)).toBe('one  \ntwo');
+		expect(await ep.bridge.getSource()).toBe('start\n\none  \ntwo\n');
 
 		// The paste leaves the caret after `two`; Home is the start of its own line.
 		await page.keyboard.press('Home');
