@@ -1012,7 +1012,8 @@ rebuilders, the list terminator and the range-delete branches that sit outside b
 legitimately-literal writes allowlisted by reason AND count. The scans see literal shapes only, so
 an outcome-level check runs each gesture over an LF fixture and its CRLF mirror and requires the
 results to mirror. It catches the creation sites no shape matches (defaulted parameters, placeholder
-paragraphs), and fires for gesture N+1 untaught. `lint/trailing-line-ending-parity.test.ts`
+paragraphs), and fires for gesture N+1 untaught. Every paste route has a row there, pasting LF text
+into both, since a paste writes its own lines in the document's ending too. `lint/trailing-line-ending-parity.test.ts`
 (branches); `crlf-edit-mirror.test.ts` (the outcome check).
 
 **G4.21 · Image byte-write seam.** A name-presence file-set scan, not a behavioral one: the GFM

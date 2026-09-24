@@ -16,6 +16,7 @@ import { displayLength, trimTrailingLineEnding } from '../../core/lines';
 import { insertHardBreak } from '../../components/blocks/text/text-keydown';
 import { computeFenceExit } from '../../components/blocks/code/code-fence-exit';
 import { codePasteSurface } from '../../components/blocks/code/code-paste-surface';
+import { tableCellPasteSurface } from '../../components/blocks/table/table-cell-paste';
 import { metadataOf } from '../../core/nodes';
 import {
 	rebuildBlockquoteRaw,
@@ -38,6 +39,7 @@ import { createPasteCoordinator } from '../../editor-actions/paste-coordinator';
 import { createUndoController } from '../../editor-actions/commit/undo-controller';
 import { createBlockEditActions } from '../../editor-actions/block-edit';
 import { makeEditorActionsDeps, pasteContext } from '../harness/editor-actions';
+import { allowDevWarns } from '../support/warn-gate';
 
 interface EditGesture {
 	name: string;
@@ -51,14 +53,9 @@ interface EditGesture {
 const serializeNodes = (nodes: CstNode[]) =>
 	nodes.map((n) => (n.leadingTrivia ?? '') + n.raw).join('');
 
-/**
- * The separators a paste created, without the clipboard bytes it merely spliced: normalization
- * makes the clipboard LF on both runs, so only the editor's own joins can mirror.
- */
-const mintedSeams = (doc: Document) =>
-	doc.children.map((n) => n.leadingTrivia ?? '').join('') + doc.suffix;
-
-/** Paste `clipboard` into `doc` through the real per-level bundle. */
+/** Paste `clipboard` into `doc` through the real per-level bundle. The clipboard is LF on both
+ *  runs, as every paste entry point normalizes it, so the pasted lines mirror only when the
+ *  paste writes them in the document's ending. */
 async function pasteInto(
 	doc: Document,
 	targetPath: number[],
@@ -68,6 +65,8 @@ async function pasteInto(
 	__resetPasteSurfacesForTests();
 	registerPasteSurface(__getDefaultTextSurface('paragraph'));
 	registerPasteSurface(__getDefaultTextSurface('heading'));
+	registerPasteSurface(tableCellPasteSurface);
+	registerPasteSurface(codePasteSurface);
 	const { deps } = makeEditorActionsDeps(doc);
 	const controller = createUndoController(deps);
 	await pasteDispatch(
@@ -218,9 +217,61 @@ const GESTURES: EditGesture[] = [
 	{
 		name: 'structural paste landing the clipboard’s trailing blank at the document tail',
 		source: 'x\n',
-		apply: async (doc) => mintedSeams(await pasteInto(doc, [0], 1, '# h\n\n'))
-	}
+		apply: async (doc) => serialize(await pasteInto(doc, [0], 1, '# h\n\n'))
+	},
+	...pasteRoutes()
 ];
+
+/** One row per route a paste can take into the tree, each pasting lines of its own. A drop has
+ *  no row: it moves no text holding a line break. */
+function pasteRoutes(): EditGesture[] {
+	const paste =
+		(path: number[], offset: number | ((doc: Document) => number), clipboard: string) =>
+		async (doc: Document): Promise<string> => {
+			const at = typeof offset === 'number' ? offset : offset(doc);
+			return serialize(await pasteInto(doc, path, at, clipboard));
+		};
+	// The harness mounts no container, so a route committing at one warns that its scope is
+	// unmounted, which is not what these rows are about.
+	const inContainer =
+		(apply: EditGesture['apply']) =>
+		async (doc: Document): Promise<string> => {
+			const bytes = await apply(doc);
+			allowDevWarns(['paste']);
+			return bytes;
+		};
+	// A code block's offsets count its opening fence line, whose ending the mirror lengthens.
+	const afterCode = (doc: Document) => doc.children[0].raw.indexOf('code') + 'code'.length;
+	return [
+		{ name: 'block paste at a soft break', source: 'abc\nAfter\n', apply: paste([0], 3, 'x\n\ny') },
+		{ name: 'inline paste of two lines', source: 'abc\nAfter\n', apply: paste([0], 3, 'x\ny') },
+		{
+			name: 'blocks pasted into a table cell',
+			source: '| a | b |\n| --- | --- |\n| c |  |\n\nAfter\n',
+			apply: paste([0, 1, 1], 0, 'x\n\ny')
+		},
+		{
+			name: 'items into a list',
+			source: '- a\n- b\n',
+			apply: inContainer(paste([0, 0, 0], 1, '- one\n- two'))
+		},
+		{
+			name: 'a list breaking out of a list',
+			source: '1. a\n',
+			apply: paste([0, 0, 0], 1, '- x\n- y')
+		},
+		{
+			name: 'a quote into a quote',
+			source: '> a\n',
+			apply: inContainer(paste([0, 0], 1, '> q\n> r'))
+		},
+		{
+			name: 'lines into a code block',
+			source: '```\ncode\n```\n',
+			apply: paste([0], afterCode, 'x\ny')
+		}
+	];
+}
 
 const mirrorToCrlf = (bytes: string) => bytes.replace(/\n/g, '\r\n');
 
