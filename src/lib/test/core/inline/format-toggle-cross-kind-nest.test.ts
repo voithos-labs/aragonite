@@ -4,6 +4,7 @@ import { parseInline } from '$lib/core/inline';
 import { CONTENT_VISIBILITY, renderedText } from '$lib/core/inline/visibility';
 import type { PresentationMode } from '$lib/presentation-mode';
 import { press } from './format-toggle-fixture';
+import { renderOptions } from '../../harness/fixture-grammar';
 
 // A selection taking another construct whole, so no span of the pressed mark starts at its own
 // edge: the markers a wrap writes merge with a same-family run (`*ab*` in `**` re-reads as
@@ -15,7 +16,12 @@ import { press } from './format-toggle-fixture';
 const MODES: PresentationMode[] = ['source', 'live'];
 
 const screenOf = (display: string) =>
-	renderedText(parseInline(display, 0, display.length), display, CONTENT_VISIBILITY);
+	renderedText(
+		parseInline(display, 0, display.length),
+		display,
+		CONTENT_VISIBILITY,
+		renderOptions()
+	);
 
 describe.each(MODES)('a selection taking another construct whole (%s)', (mode) => {
 	// The `_ab_` row is the contrast: the same shape spelled so the runs cannot merge, which the

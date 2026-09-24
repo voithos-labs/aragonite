@@ -52,8 +52,8 @@ export function tableAwareRangeDelete(
 	end: SelectionPoint,
 	sharing: SharingState,
 	grammar: GrammarView | undefined,
-	presentationMode?: PresentationMode,
-	linkRef?: InlineResolverRef
+	presentationMode: PresentationMode | undefined,
+	linkRef: InlineResolverRef
 ): RangeDeleteResult {
 	const sameBlock = comparePaths(start.path, end.path) === 0;
 	const live = { presentationMode, linkRef };

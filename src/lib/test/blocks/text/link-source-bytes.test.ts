@@ -11,6 +11,7 @@ import {
 	buildLinkUnwrapBytes,
 	linkFieldsFromInline
 } from '$lib/components/blocks/text/link-source-bytes';
+import { fixtureLinkRef } from '../../harness/fixture-grammar';
 
 // Every case states the displayed bytes the writer is offered, because it checks its candidate
 // against what the render draws for them, and a refusal is covered as closely as a rewrite.
@@ -35,7 +36,12 @@ function firstLink(display: string, resolver?: LinkReferenceResolver): InlineNod
 
 function editUrl(display: string, url: string): string | null {
 	const link = firstLink(display);
-	return buildLinkEditBytes(link, display, { ...linkFieldsFromInline(link, display), url });
+	return buildLinkEditBytes(
+		link,
+		display,
+		{ ...linkFieldsFromInline(link, display), url },
+		fixtureLinkRef()
+	);
 }
 
 describe('link edit bytes: the destination the reader never saw', () => {
@@ -51,7 +57,9 @@ describe('link edit bytes: the destination the reader never saw', () => {
 		const display = '[t](u "Ti")';
 		const link = firstLink(display);
 		const fields = { ...linkFieldsFromInline(link, display), title: 'a "q" b' };
-		expect(buildLinkEditBytes(link, display, fields)).toBe('[t](u "a \\"q\\" b")');
+		expect(buildLinkEditBytes(link, display, fields, fixtureLinkRef())).toBe(
+			'[t](u "a \\"q\\" b")'
+		);
 	});
 
 	it('an empty-text link keeps its empty brackets', () => {
@@ -97,7 +105,9 @@ describe('link edit bytes: reference forms', () => {
 		const resolver = resolverFor(display);
 		const link = firstLink(display, resolver);
 		const fields = linkFieldsFromInline(link, display);
-		expect(buildLinkEditBytes(link, display, fields, { current: resolver })).toBe(display);
+		expect(buildLinkEditBytes(link, display, fields, fixtureLinkRef({ current: resolver }))).toBe(
+			display
+		);
 	});
 
 	it('inlines the destination when the caller drops the reference tail', () => {
@@ -105,35 +115,45 @@ describe('link edit bytes: reference forms', () => {
 		const resolver = resolverFor(display);
 		const link = firstLink(display, resolver);
 		const { text } = linkFieldsFromInline(link, display);
-		expect(buildLinkEditBytes(link, display, { text, url: 'new' }, { current: resolver })).toBe(
-			'[t](new)'
-		);
+		expect(
+			buildLinkEditBytes(link, display, { text, url: 'new' }, fixtureLinkRef({ current: resolver }))
+		).toBe('[t](new)');
 	});
 });
 
 describe('link edit bytes: the join declines rather than destroy bytes', () => {
 	it('declines a link an inline syntax handler claimed: no rewriteLink hook exists', () => {
 		const link = { ...firstLink('[t](old)'), syntaxClaim: { prefix: '[[' } };
-		expect(buildLinkEditBytes(link, '[t](old)', { text: 't', url: 'new' })).toBeNull();
+		expect(
+			buildLinkEditBytes(link, '[t](old)', { text: 't', url: 'new' }, fixtureLinkRef())
+		).toBeNull();
 		expect(takeDevWarns().map((w) => w.tag)).toEqual(['link-edit']);
 	});
 
 	it('declines a candidate that would change what the reader sees', () => {
 		// Text bytes closing the construct early: the tail would show as literal source.
 		const link = firstLink('[t](old)');
-		expect(buildLinkEditBytes(link, '[t](old)', { text: 't](x) leak [', url: 'new' })).toBeNull();
+		expect(
+			buildLinkEditBytes(link, '[t](old)', { text: 't](x) leak [', url: 'new' }, fixtureLinkRef())
+		).toBeNull();
 	});
 });
 
 describe('link unwrap bytes: remove link', () => {
 	it('an inline link unwraps to its text bytes, nested constructs intact', () => {
-		expect(buildLinkUnwrapBytes(firstLink('a [**b** c](u) d'), 'a [**b** c](u) d')).toBe('**b** c');
+		expect(
+			buildLinkUnwrapBytes(firstLink('a [**b** c](u) d'), 'a [**b** c](u) d', fixtureLinkRef())
+		).toBe('**b** c');
 	});
 
 	it('a reference link unwraps to its text and leaves the definition alone', () => {
 		const resolver = resolverFor('[t][ref]');
 		expect(
-			buildLinkUnwrapBytes(firstLink('[t][ref]', resolver), '[t][ref]', { current: resolver })
+			buildLinkUnwrapBytes(
+				firstLink('[t][ref]', resolver),
+				'[t][ref]',
+				fixtureLinkRef({ current: resolver })
+			)
 		).toBe('t');
 	});
 
@@ -142,24 +162,24 @@ describe('link unwrap bytes: remove link', () => {
 		['[https://x.com](u)', 'https\\://x.com'],
 		['[foo@bar.com](u)', 'foo\\@bar.com']
 	])('%s unwraps with the re-linking trigger escaped', (display, expected) => {
-		expect(buildLinkUnwrapBytes(firstLink(display), display)).toBe(expected);
+		expect(buildLinkUnwrapBytes(firstLink(display), display, fixtureLinkRef())).toBe(expected);
 	});
 
 	it('removing an autolink is a text mutation, not an unwrap: the trigger escapes', () => {
-		expect(buildLinkUnwrapBytes(firstLink('<https://x.com>'), '<https://x.com>')).toBe(
-			'https\\://x.com'
-		);
+		expect(
+			buildLinkUnwrapBytes(firstLink('<https://x.com>'), '<https://x.com>', fixtureLinkRef())
+		).toBe('https\\://x.com');
 	});
 
 	it('a bare autolink keeps its visible bytes and escapes in place', () => {
-		expect(buildLinkUnwrapBytes(firstLink('see www.x.com now'), 'see www.x.com now')).toBe(
-			'www\\.x.com'
-		);
+		expect(
+			buildLinkUnwrapBytes(firstLink('see www.x.com now'), 'see www.x.com now', fixtureLinkRef())
+		).toBe('www\\.x.com');
 	});
 
 	it('declines a claimed link rather than drop an inline syntax handler’s syntax', () => {
 		const link = { ...firstLink('[t](u)'), syntaxClaim: { prefix: '[[' } };
-		expect(buildLinkUnwrapBytes(link, '[t](u)')).toBeNull();
+		expect(buildLinkUnwrapBytes(link, '[t](u)', fixtureLinkRef())).toBeNull();
 		expect(takeDevWarns().map((w) => w.tag)).toEqual(['link-edit']);
 	});
 });

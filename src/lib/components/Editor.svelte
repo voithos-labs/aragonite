@@ -304,7 +304,7 @@
 	const selectedWidget: SelectedWidgetHandle = {
 		range: () => {
 			const target = widgetSelection.getSelected();
-			const image = target && imageAtTarget(doc, target, linkRefView, registryView.grammar);
+			const image = target && imageAtTarget(doc, target, linkRefView);
 			return target && image
 				? { path: [...target.paragraphPath], start: image.start, end: image.end }
 				: null;
@@ -668,6 +668,7 @@
 		getMode: () => effectiveMode,
 		events,
 		editorId,
+		linkRef: linkRefView,
 		commitRange: inlineMenuCommit.commitInlineRange,
 		landCaret: landCaretAtOffset,
 		joinUndoEntries: (run) => controller.joinUndoEntries(run)

@@ -35,6 +35,7 @@ import {
 } from '$lib/editor-actions/nested/nested-actions';
 import type { PresentationMode } from '$lib/presentation-mode';
 import { defaultGrammarView, type GrammarView } from '$lib/schema/block-openers';
+import { fixtureLinkRef } from './fixture-grammar';
 import { parse } from '$lib/core/parser';
 import type { EditEvent, EditorEvents } from '$lib/editor-events';
 import { createBlockListState } from '$lib/reactivity/block-list-state.svelte';
@@ -155,7 +156,7 @@ export function makeCommitScopeStub(
 				ownerKind: opts.owner?.kind,
 				owner: opts.owner,
 				getPresentationMode: undefined,
-				linkRef: undefined,
+				linkRef: fixtureLinkRef(),
 				unshareChild: (i) => children[i]
 			});
 			await args.afterTick?.();
@@ -377,6 +378,8 @@ export function makeEditorActionsDeps(
 			return ref.getBlockComponentByPath?.(path.slice(1)) ?? null;
 		},
 		events,
+		grammar: defaultGrammarView,
+		linkRef: fixtureLinkRef(),
 		getPresentationMode: options.presentationMode ? () => options.presentationMode! : undefined
 	};
 	return {
@@ -488,10 +491,9 @@ export function makeNestedActionsDeps(input: NestedActionsDepsInput): NestedActi
 			path: input.path
 		},
 		stickyColumn: input.stickyColumn ?? makeStickyColumn(),
-		// Optional field: omit when absent rather than set undefined (exactOptionalPropertyTypes-safe).
-		...(input.grammar ? { grammar: input.grammar } : {}),
+		grammar: input.grammar ?? defaultGrammarView,
 		getPresentationMode: input.getPresentationMode,
-		linkRef: input.linkRef,
+		linkRef: input.linkRef ?? fixtureLinkRef(),
 		parent: input.parent
 	};
 }

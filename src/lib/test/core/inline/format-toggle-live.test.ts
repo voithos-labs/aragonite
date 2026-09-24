@@ -6,6 +6,7 @@ import { CONTENT_VISIBILITY, renderedText } from '$lib/core/inline/visibility';
 import { defaultGrammarView } from '$lib/schema/block-openers';
 import type { InlineMarkKind } from '$lib/schema/inline-construct-policy';
 import { MARK_FORMATS, markersOf, whole } from './format-toggle-fixture';
+import { renderOptions } from '../../harness/fixture-grammar';
 
 // What a toggle may write where the delimiters are hidden: the bytes are a candidate until the
 // render path agrees the screen still reads the same (live-mode.md § 2). Miss-analysis: every
@@ -20,7 +21,12 @@ const live = (raw: string, selection: { start: number; end: number }, format: In
 	);
 
 const screenOf = (display: string) =>
-	renderedText(parseInline(display, 0, display.length), display, CONTENT_VISIBILITY);
+	renderedText(
+		parseInline(display, 0, display.length),
+		display,
+		CONTENT_VISIBILITY,
+		renderOptions()
+	);
 
 describe('a live toggle verifies its bytes against the screen', () => {
 	// The contract every mark must keep, whatever its delimiters can enclose: a toggle changes

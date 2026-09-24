@@ -9,6 +9,7 @@ import { makeBlockListState, makeEditorActionsDeps } from '$lib/test/harness/edi
 import { makeTableMutations } from './table-mutations-harness';
 import type { EditEvent } from '$lib/editor-events';
 import { defaultGrammarView } from '$lib/schema/block-openers';
+import { fixtureLinkRef } from '../harness/fixture-grammar';
 
 // A column is not a child node, so column edits address the table and carry the column
 // index in the event detail. Two sites share the contract: the alignment edits
@@ -76,7 +77,7 @@ function makeColumnCoverageEnv() {
 		pushUndoSnapshot: () => controller.pushUndoSnapshot(0, 0),
 		grammar: defaultGrammarView,
 		getPresentationMode: undefined,
-		linkRef: undefined
+		linkRef: fixtureLinkRef()
 	};
 	return { deps, table, ctx, edits };
 }

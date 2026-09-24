@@ -12,6 +12,7 @@ import type { ReplaceDecoration, WidgetDecoration } from '../../decorations/type
 import { mountDecorationWidget } from '../../decorations/widget-dom';
 import { arbAltOnlyImage, arbInlineSource, freshOrFixedSeed } from './arbitraries';
 import { allowDevWarns } from '$lib/test/support/warn-gate';
+import { renderOptions } from '../harness/fixture-grammar';
 
 // Arbitrary replace spans land inside atomic widgets, and snapping outward is the behaviour under
 // test.
@@ -26,7 +27,7 @@ const PARAMS = { numRuns: 1000, seed: freshOrFixedSeed(424242) } as const;
 function renderToContainer(
 	nodes: InlineNode[],
 	raw: string,
-	options?: Parameters<typeof renderInlineNodes>[2]
+	options: Parameters<typeof renderInlineNodes>[2] = renderOptions()
 ): HTMLElement {
 	const container = document.createElement('div');
 	container.appendChild(renderInlineNodes(nodes, raw, options));
@@ -51,7 +52,7 @@ describe('G2.4 textContent chain (widget-free)', () => {
 				const nodes = parseInline(content, 0, content.length);
 				const container = document.createElement('div');
 				container.appendChild(buildAmbientSpan(prefix));
-				container.appendChild(renderInlineNodes(nodes, content));
+				container.appendChild(renderInlineNodes(nodes, content, renderOptions()));
 				expect(container.textContent).toBe(prefix + content);
 			}),
 			PARAMS
@@ -105,7 +106,7 @@ describe('G2.4 textContent chain (atomic-widget delta)', () => {
 	it('image widget contributes 0; surrounding text remains', () => {
 		const source = 'see ![alt](/x.png) end';
 		const nodes = parseInline(source, 0, source.length);
-		const container = renderToContainer(nodes, source, { buildImageWidget });
+		const container = renderToContainer(nodes, source, renderOptions({ buildImageWidget }));
 		expect(container.textContent).toBe(expectedWithWidgetsRemoved(source, nodes));
 		expect(container.textContent).toBe('see  end');
 	});
@@ -147,7 +148,11 @@ describe('G2.4 textContent chain (alt-only images)', () => {
 				if (node.start > 0) nodes.push({ kind: 'text', start: 0, end: node.start });
 				nodes.push(node);
 				if (node.end < raw.length) nodes.push({ kind: 'text', start: node.end, end: raw.length });
-				const container = renderToContainer(nodes, raw, { renderImagesAsWidgets: false });
+				const container = renderToContainer(
+					nodes,
+					raw,
+					renderOptions({ renderImagesAsWidgets: false })
+				);
 				expect(container.textContent).toBe(raw);
 			}),
 			PARAMS
@@ -207,7 +212,9 @@ describe('G2.4 textContent chain (decoration widgets)', () => {
 	function readBackAfterIslands(source: string, specs: IslandSpec[], prefix?: string): string {
 		const container = document.createElement('div');
 		if (prefix !== undefined) container.appendChild(buildAmbientSpan(prefix));
-		container.appendChild(renderInlineNodes(parseInline(source, 0, source.length), source));
+		container.appendChild(
+			renderInlineNodes(parseInline(source, 0, source.length), source, renderOptions())
+		);
 		const contentLength = contentLengthOf({ kind: 'paragraph', leadingTrivia: '', raw: source });
 		applyIslandDecorations(container, source, toIslands(specs, contentLength), {
 			...opts,

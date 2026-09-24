@@ -12,6 +12,7 @@ import { __resetSchemaRegistriesForTests } from '../../schema/registry-reset';
 import { __resetPasteSurfacesForTests } from '../../tree-operations/paste-surfaces';
 import { registerDetailsKind } from '../../plugins/details/details-kind';
 import type { CellSelectionPoint } from '../../selection/primitives';
+import { fixtureLinkRef } from '../harness/fixture-grammar';
 
 /** Row-major cell index on the table block's own path. */
 const cell = (path: number[], index: number): CellSelectionPoint => ({
@@ -33,7 +34,9 @@ function deleteBothTables(source: string, firstTableIndex: number) {
 		cell([firstTableIndex], 0),
 		cell([firstTableIndex + 1], 3),
 		createSharingState(),
-		undefined
+		undefined,
+		undefined,
+		fixtureLinkRef()
 	);
 }
 

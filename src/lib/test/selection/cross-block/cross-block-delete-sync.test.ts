@@ -14,6 +14,7 @@ import { makeBlockListState, makeEditorActionsDeps } from '$lib/test/harness/edi
 import { expectParseConverged } from '$lib/test/harness/parse-converged';
 import type { EditEvent } from '$lib/editor-events';
 import { defaultGrammarView } from '$lib/schema/block-openers';
+import { fixtureLinkRef } from '../../harness/fixture-grammar';
 
 function makeEnv(source: string) {
 	const harness = makeEditorActionsDeps(parse(source).children);
@@ -27,7 +28,7 @@ function makeEnv(source: string) {
 		pushUndoSnapshot: () => controller.pushUndoSnapshot(0, 0),
 		grammar: defaultGrammarView,
 		getPresentationMode: undefined,
-		linkRef: undefined
+		linkRef: fixtureLinkRef()
 	};
 	return {
 		...harness,

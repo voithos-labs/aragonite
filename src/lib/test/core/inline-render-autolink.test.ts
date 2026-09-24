@@ -4,10 +4,13 @@
 import { describe, it, expect } from 'vitest';
 import { parseInline } from '../../core/inline';
 import { renderInlineNodes } from '../../core/inline-render';
+import { renderOptions } from '../harness/fixture-grammar';
 
 function renderedInto(raw: string, tagConstructMarkers = false): HTMLDivElement {
 	const div = document.createElement('div');
-	div.appendChild(renderInlineNodes(parseInline(raw, 0, raw.length), raw, { tagConstructMarkers }));
+	div.appendChild(
+		renderInlineNodes(parseInline(raw, 0, raw.length), raw, renderOptions({ tagConstructMarkers }))
+	);
 	return div;
 }
 

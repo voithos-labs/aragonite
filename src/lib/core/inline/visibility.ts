@@ -128,7 +128,7 @@ export function visibleRuns(
 	nodes: readonly InlineNode[],
 	raw: string,
 	ctx: VisibilityContext,
-	opts: RenderInlineOptions = {}
+	opts: RenderInlineOptions
 ): VisibleRun[] {
 	const runs: VisibleRun[] = [];
 	for (const node of nodes) {
@@ -142,7 +142,7 @@ export function renderedText(
 	nodes: readonly InlineNode[],
 	raw: string,
 	ctx: VisibilityContext,
-	opts: RenderInlineOptions = {}
+	opts: RenderInlineOptions
 ): string {
 	let out = '';
 	for (const run of visibleRuns(nodes, raw, ctx, opts)) if (run.visible) out += run.text;
@@ -159,7 +159,7 @@ export function renderedText(
 export function paintsOnlyChrome(
 	nodes: readonly InlineNode[],
 	raw: string,
-	opts: RenderInlineOptions = {}
+	opts: RenderInlineOptions
 ): boolean {
 	return (
 		renderedText(nodes, raw, CONTENT_VISIBILITY, opts) === '' &&

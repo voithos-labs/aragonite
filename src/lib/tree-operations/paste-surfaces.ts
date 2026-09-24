@@ -22,7 +22,7 @@ export interface PasteRange {
  */
 export interface PasteSeam {
 	presentationMode: PresentationMode | undefined;
-	linkRef: InlineResolverRef | undefined;
+	linkRef: InlineResolverRef;
 	/** The editor's grammar, which a hook's reparse of the split halves reads; the dispatch
 	 *  fills it from its own context, so a hook sees it even where the caller sent no join context. */
 	grammar?: GrammarView;
@@ -64,16 +64,16 @@ export interface PasteSurface {
 		node: CstNode,
 		offset: number,
 		text: string,
-		preDelete?: PasteRange,
-		seam?: PasteSeam
+		preDelete: PasteRange | undefined,
+		seam: PasteSeam
 	): InlinePasteResult;
 	/** Splice CST blocks at the target. Pure data transform. */
 	onStructuralPaste?(
 		node: CstNode,
 		offset: number,
 		blocks: CstNode[],
-		preDelete?: PasteRange,
-		seam?: PasteSeam
+		preDelete: PasteRange | undefined,
+		seam: PasteSeam
 	): StructuralPasteResult;
 	/**
 	 * Structural paste whose splice scope is an ancestor (a tableCell splices at the

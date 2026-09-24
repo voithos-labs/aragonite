@@ -180,7 +180,7 @@ export interface EditableSurfaceDeps {
 	 *  sibling to `pluginEditor`, never smuggled through it. */
 	getPresentationMode: PresentationModeGetter | undefined;
 	/** This editor's link-reference resolver, passed to the cross-block join rules. */
-	linkRef: LinkReferenceResolverRef | undefined;
+	linkRef: LinkReferenceResolverRef;
 	onCommandError: CommandErrorSink | undefined;
 	/** The handler a range command goes to, passed to the cross-block composer. */
 	crossBlockCommands: CrossBlockCommandRouter;

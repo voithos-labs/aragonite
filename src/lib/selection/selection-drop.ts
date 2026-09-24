@@ -37,7 +37,7 @@ export interface SelectionDropDeps {
 	controller: CommitController;
 	coordinator: PasteCommitCoordinator;
 	getPresentationMode: PresentationModeGetter | undefined;
-	linkRef: LinkReferenceResolverRef | undefined;
+	linkRef: LinkReferenceResolverRef;
 	grammar: GrammarView;
 	activePlugins: PluginActivation;
 	/** The editor's event emitter: a move that throws halfway has nowhere else to report. */

@@ -19,6 +19,7 @@ import {
 } from '$lib/schema/inline-construct-policy';
 import { arbInlineSource, freshOrFixedSeed } from './arbitraries';
 import type { PresentationMode } from '$lib/presentation-mode';
+import { fixtureLinkRef, renderOptions } from '../harness/fixture-grammar';
 
 /**
  * The join described in live-mode.md § 4.5, under random range deletes. A comparison, like the
@@ -89,7 +90,7 @@ function deleteRange(
 		createSharingState(),
 		undefined,
 		mode,
-		undefined
+		fixtureLinkRef()
 	);
 	const bytes = serialize(doc);
 	return {
@@ -103,7 +104,12 @@ function deleteRange(
 function visibleTextOf(node: Document['children'][number]): string {
 	const range = getContentRange(node);
 	if (range.end > displayLength(node.raw)) return node.raw;
-	return renderedText(parseInline(node.raw, range.start, range.end), node.raw, CONTENT_VISIBILITY);
+	return renderedText(
+		parseInline(node.raw, range.start, range.end),
+		node.raw,
+		CONTENT_VISIBILITY,
+		renderOptions()
+	);
 }
 
 describe('live-mode joins over random range deletes', () => {

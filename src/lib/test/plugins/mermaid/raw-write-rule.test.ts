@@ -5,6 +5,7 @@ import { normalizeOwnRaw } from '$lib/tree-operations/node-primitives';
 import { rangeDelete } from '$lib/selection/range-delete';
 import { createSharingState } from '$lib/tree-operations/sharing';
 import { registerMermaidKind } from '$lib/plugins/mermaid/mermaid-kind';
+import { fixtureLinkRef } from '../../harness/fixture-grammar';
 
 // The mermaid kind declares a raw-write rule that puts back a closing fence a truncating write
 // dropped, so bytes written past the diagram's own editor cannot swallow the blocks below it.
@@ -33,7 +34,7 @@ describe('a truncating write of a mermaid block gets its closing fence back', ()
 			createSharingState(),
 			undefined,
 			undefined,
-			undefined
+			fixtureLinkRef()
 		);
 
 		expect(serialize(doc)).toBe('Before\n\n```mermaid\ner\n```\n\nTail\n');

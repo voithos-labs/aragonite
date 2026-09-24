@@ -73,10 +73,10 @@ export function deleteSubtreesIdentityGated(
 	}
 }
 
-/** What a text truncation needs from live mode; both undefined outside it. */
+/** What a text truncation needs from live mode; the mode is undefined outside it. */
 export interface LiveSeamContext {
 	presentationMode: PresentationMode | undefined;
-	linkRef: InlineResolverRef | undefined;
+	linkRef: InlineResolverRef;
 }
 
 /**

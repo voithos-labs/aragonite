@@ -23,6 +23,7 @@ import { sliceTableAtRow } from '$lib/tree-operations/paste/table-slice';
 import { rangeDelete } from '$lib/selection/range-delete';
 import { allowDevWarns } from '$lib/test/support/warn-gate';
 import { describeConvergence } from '$lib/test/harness/parse-converged';
+import { fixtureLinkRef } from '../harness/fixture-grammar';
 
 const WIDE = '| H0 |\n| --- |\n| x | y |\n';
 
@@ -139,7 +140,15 @@ describe('the table’s structural edits keep them', () => {
 			{ path: [1], offset: 0 }
 		];
 
-		rangeDelete(doc, start, end, createSharingState(), defaultGrammarView, undefined, undefined);
+		rangeDelete(
+			doc,
+			start,
+			end,
+			createSharingState(),
+			defaultGrammarView,
+			undefined,
+			fixtureLinkRef()
+		);
 		// The end is given in cells, the unit the selection snaps a table endpoint to.
 		allowDevWarns(['deleteFromProseIntoTable:end']);
 

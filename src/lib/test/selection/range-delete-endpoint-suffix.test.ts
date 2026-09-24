@@ -3,6 +3,7 @@ import { rangeDelete } from '../../selection/range-delete';
 import { parse } from '../../core/parser';
 import { serialize } from '../../core/serializer';
 import { createSharingState } from '../../tree-operations/sharing';
+import { fixtureLinkRef } from '../harness/fixture-grammar';
 
 // Miss-analysis: every truncated-endpoint pin cut inside prose lines, so no surviving slice
 // ever ended in a blank line — only indented code holds one inside a leaf's raw.
@@ -19,7 +20,7 @@ function run(
 		createSharingState(),
 		undefined,
 		undefined,
-		undefined
+		fixtureLinkRef()
 	);
 	return serialize(result.newDoc);
 }

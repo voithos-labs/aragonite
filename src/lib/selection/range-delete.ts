@@ -86,7 +86,7 @@ export function rangeDelete(
 	sharing: SharingState,
 	grammar: GrammarView | undefined,
 	presentationMode: PresentationMode | undefined,
-	linkRef: InlineResolverRef | undefined
+	linkRef: InlineResolverRef
 ): RangeDeleteResult {
 	const startBlock = blockNodeAt(doc, start.path);
 	const endBlock = blockNodeAt(doc, end.path);

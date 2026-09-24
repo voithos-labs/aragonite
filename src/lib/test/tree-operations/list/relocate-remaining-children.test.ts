@@ -4,6 +4,7 @@ import { serialize } from '$lib/core/serializer';
 import { mergeListItemIntoPrevious } from '$lib/tree-operations/list/unwrap-merge';
 import { expectParseConverged } from '$lib/test/harness/parse-converged';
 import type { Document } from '$lib/core/nodes';
+import { fixtureLinkRef } from '../../harness/fixture-grammar';
 
 // merge-list-item.test.ts pins tree shape and mergePoint; this file pins the serialized
 // markdown plus its convergence with a reparse: the byte round-trip alone is a
@@ -21,7 +22,7 @@ function mergeAndConverge(src: string, currentIndex: number): { doc: Document; s
 		currentIndex,
 		undefined,
 		undefined,
-		undefined
+		fixtureLinkRef()
 	);
 	return { doc, source: serialize(doc) };
 }

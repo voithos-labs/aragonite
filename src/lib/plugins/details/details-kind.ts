@@ -217,7 +217,7 @@ export function registerDetailsKind(): void {
 		})
 	});
 
-	registerChromeLeaf(detailsSummary, { blockClass: 'details-summary' });
+	registerChromeLeaf(detailsSummary, { label: 'Summary', blockClass: 'details-summary' });
 
 	registerBlockOpener(details, {
 		// Just below htmlBlock, which would otherwise take `<details>` as a type-6 block.

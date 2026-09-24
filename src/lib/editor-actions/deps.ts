@@ -42,15 +42,15 @@ export interface EditorActionsDeps {
 	 *  at once without scrolling. */
 	revealPath(path: number[]): Promise<BlockComponent | null>;
 	events: EditorEvents;
-	/** The instance's block grammar, so a disabled kind's opener stays skipped when
-	 *  the editor re-parses an edited block. Absent = the global grammar. */
-	grammar?: GrammarView;
+	/** The instance's grammar, so a re-parse or a completer reads only the plugins and syntax the
+	 *  editor has switched on. */
+	grammar: GrammarView;
 	/** The live effective presentation mode, for the actions that must not write in reading
 	 *  mode. Absent in harnesses, which `isReadingMode` reads as not reading. */
 	getPresentationMode?: PresentationModeGetter;
-	/** The instance's link-reference resolver, for byte rewrites that must parse the reference
-	 *  links the renderer drew. Absent in harnesses, which have no definitions to resolve. */
-	linkRef?: InlineResolverRef;
+	/** The instance's link-reference resolver and grammar, for byte rewrites that must parse the
+	 *  reference links the renderer drew. */
+	linkRef: InlineResolverRef;
 }
 
 /**

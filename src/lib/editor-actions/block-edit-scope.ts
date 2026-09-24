@@ -37,9 +37,9 @@ export interface MutationView {
 	/** The live effective mode, for mutations whose bytes depend on what the mode shows. Nullable
 	 *  rather than optional so each adapter answers; `undefined` reads as not live. */
 	getPresentationMode: PresentationModeGetter | undefined;
-	/** The instance's link-reference resolver, so a rewrite parses the reference links the
-	 *  renderer drew. Nullable for the same reason as the mode; `undefined` reads them as brackets. */
-	linkRef: InlineResolverRef | undefined;
+	/** The instance's link-reference resolver and grammar, so a rewrite parses the reference links
+	 *  and the syntax the renderer drew. */
+	linkRef: InlineResolverRef;
 	/** Copy the child at `i` out of the undo snapshot before an in-place write; returns the copy. */
 	unshareChild(i: number): CstNode;
 }

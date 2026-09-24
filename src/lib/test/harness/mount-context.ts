@@ -38,6 +38,7 @@ import {
 	makeStubContainerEdit,
 	makeStubFocus
 } from './editor-actions';
+import { fixtureLinkRef } from './fixture-grammar';
 
 interface HistoryStub {
 	requestUndo: () => void;
@@ -128,7 +129,7 @@ function stubbedDoc(emptyDoc: Document): EditorDoc {
 	return {
 		doc: () => emptyDoc,
 		contentVersion: () => ++version,
-		linkRef: {},
+		linkRef: fixtureLinkRef(),
 		pluginEditor: (() => undefined) as unknown as EditorDoc['pluginEditor'],
 		lifetime: new AbortController().signal,
 		editorRoot: () => null,

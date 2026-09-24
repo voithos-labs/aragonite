@@ -49,7 +49,7 @@ export function resolveLiveRangeEdit(
 	node: NodeView,
 	cursor: LiveEditCursor,
 	presentationMode: PresentationMode | undefined,
-	linkRef: InlineResolverRef | undefined,
+	linkRef: InlineResolverRef,
 	ambientPrefix = ''
 ): LiveRangeEdit | null {
 	if (presentationMode !== 'live' || !rewritesTargetRange(e)) return null;
@@ -109,7 +109,7 @@ export function applyLiveRangeEdit(
 	node: NodeView,
 	cursor: LiveEditCursor,
 	presentationMode: PresentationMode | undefined,
-	linkRef: InlineResolverRef | undefined,
+	linkRef: InlineResolverRef,
 	ambientPrefix: string,
 	isRevealing: () => boolean,
 	commit: (edit: LiveRangeRewrite) => void
@@ -132,7 +132,7 @@ export function resolveSelectionEdit(
 	selection: { start: number; end: number },
 	typed: string,
 	presentationMode: PresentationMode | undefined,
-	linkRef: InlineResolverRef | undefined,
+	linkRef: InlineResolverRef,
 	ambientPrefix = ''
 ): SelectionEdit | null {
 	// Both ends off any scalar interior before the slice: a half-pair here is unrecoverable
@@ -173,7 +173,7 @@ export function replaceRangeRaw(
 	range: { start: number; end: number },
 	typed: string,
 	presentationMode: PresentationMode | undefined,
-	linkRef: InlineResolverRef | undefined,
+	linkRef: InlineResolverRef,
 	ambientPrefix: string
 ): SelectionEdit {
 	const cleaned = resolveSelectionEdit(

@@ -5,6 +5,7 @@ import { describe, it, expect } from 'vitest';
 import { renderInlineNodes } from '../../core/inline-render';
 import { parseInline } from '../../core/inline';
 import { renderedText, screenVisibility } from '../../core/inline/visibility';
+import { renderOptions } from '../harness/fixture-grammar';
 
 // A hard break carries a mark the stylesheet draws as a dimmed return glyph where its bytes do not
 // show (editor.css). The mark wraps the marker and holds no text of its own, so the offsets, the
@@ -13,7 +14,7 @@ import { renderedText, screenVisibility } from '../../core/inline/visibility';
 function render(raw: string) {
 	const nodes = parseInline(raw, 0, raw.length);
 	const host = document.createElement('div');
-	host.appendChild(renderInlineNodes(nodes, raw));
+	host.appendChild(renderInlineNodes(nodes, raw, renderOptions()));
 	return { nodes, host };
 }
 
@@ -37,7 +38,7 @@ describe('the hard-break mark', () => {
 		const raw = 'one  \ntwo';
 		const { nodes } = render(raw);
 		const shown = (mode: 'live' | 'source') =>
-			renderedText(nodes, raw, screenVisibility(mode, { chromePaints: false }));
+			renderedText(nodes, raw, screenVisibility(mode, { chromePaints: false }), renderOptions());
 		expect(shown('live')).toBe('one\ntwo');
 		expect(shown('source')).toBe(raw);
 	});

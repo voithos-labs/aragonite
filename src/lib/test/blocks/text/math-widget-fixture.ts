@@ -15,6 +15,7 @@ import { rawTextOfNode } from '$lib/cursor/widget-offset';
 import { createWidgetSelectionState } from '$lib/components/image/widget-selection-state.svelte';
 import type { WidgetInteractionDeps } from '$lib/components/blocks/text/widget-interaction';
 import type { CstNode, InlineNode } from '$lib/core/nodes';
+import { fixtureLinkRef } from '../../harness/fixture-grammar';
 
 export function stampMathWidget(node: InlineNode): HTMLElement {
 	const wrapper = document.createElement('span');
@@ -120,7 +121,7 @@ export function widgetInteractionDeps(
 				''
 			),
 		get linkRef() {
-			return undefined;
+			return fixtureLinkRef();
 		},
 		...overrides
 	} as unknown as WidgetInteractionDeps;

@@ -498,7 +498,11 @@ function assertIslandContract(fixture: string, node: InlineNode, kind: AnyInline
  */
 function assertWalkLengthIsRawLength(fixture: string): void {
 	const container = document.createElement('div');
-	container.appendChild(renderInlineNodes(parseInline(fixture, 0, fixture.length), fixture));
+	container.appendChild(
+		renderInlineNodes(parseInline(fixture, 0, fixture.length), fixture, {
+			grammar: defaultGrammarView
+		})
+	);
 	assertIs(
 		Number(containerDomTextLength(container)),
 		fixture.length,

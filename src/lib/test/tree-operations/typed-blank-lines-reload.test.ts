@@ -5,6 +5,7 @@ import { updateNodeContent } from '$lib/tree-operations/content-write';
 import { splitNode } from '$lib/tree-operations/node-ops';
 import { expectParseConverged, layoutOf as layout } from '$lib/test/harness/parse-converged';
 import type { Document } from '$lib/core/nodes';
+import { fixtureLinkRef } from '../harness/fixture-grammar';
 
 // The typing-equals-loading rule at tree level: the simulation compares source bytes across the
 // two paths, so a shape that only the typed side holds survived it.
@@ -12,8 +13,8 @@ import type { Document } from '$lib/core/nodes';
 /** "1", Enter, Enter, "2": the Enter-split byte policy, driven through the ops. */
 function typeOneEnterEnterTwo(): Document {
 	const doc = parse('1\n');
-	splitNode(doc, 0, 1, undefined, undefined, undefined);
-	splitNode(doc, 1, 0, undefined, undefined, undefined);
+	splitNode(doc, 0, 1, undefined, undefined, fixtureLinkRef());
+	splitNode(doc, 1, 0, undefined, undefined, fixtureLinkRef());
 	updateNodeContent(doc, 2, '2\n');
 	return doc;
 }
@@ -21,9 +22,9 @@ function typeOneEnterEnterTwo(): Document {
 describe('a typed blank line survives the reload', () => {
 	it('holds the Enter-split byte policy', () => {
 		const doc = parse('1\n');
-		splitNode(doc, 0, 1, undefined, undefined, undefined);
+		splitNode(doc, 0, 1, undefined, undefined, fixtureLinkRef());
 		expect(serialize(doc)).toBe('1\n\n\n');
-		splitNode(doc, 1, 0, undefined, undefined, undefined);
+		splitNode(doc, 1, 0, undefined, undefined, fixtureLinkRef());
 		expect(serialize(doc)).toBe('1\n\n\n\n');
 		updateNodeContent(doc, 2, '2\n');
 		expect(serialize(doc)).toBe('1\n\n\n2\n');
@@ -64,7 +65,7 @@ describe('a lone blank document is the block you type into', () => {
 describe('typing into the blank line an Enter opened', () => {
 	it('takes back the separator the blank line was standing in for', () => {
 		const doc = parse('Hello world\n\nSecond paragraph\n');
-		splitNode(doc, 0, 11, undefined, undefined, undefined);
+		splitNode(doc, 0, 11, undefined, undefined, fixtureLinkRef());
 		expect(serialize(doc)).toBe('Hello world\n\n\nSecond paragraph\n');
 
 		updateNodeContent(doc, 1, 'x\n');
@@ -75,7 +76,7 @@ describe('typing into the blank line an Enter opened', () => {
 
 	it('creates none at the tail, where the blank half already carried one', () => {
 		const doc = parse('Hello world\n');
-		splitNode(doc, 0, 11, undefined, undefined, undefined);
+		splitNode(doc, 0, 11, undefined, undefined, fixtureLinkRef());
 		updateNodeContent(doc, 1, 'x\n');
 
 		expect(serialize(doc)).toBe('Hello world\n\nx\n');
@@ -100,8 +101,8 @@ describe('typing into the blank line an Enter opened', () => {
 	// carries its line; a second one there reloads as one more empty paragraph.
 	it('leaves a follower that already carries the separator alone', () => {
 		const doc = parse('Hello\n\nSecond\n');
-		splitNode(doc, 0, 5, undefined, undefined, undefined);
-		splitNode(doc, 1, 0, undefined, undefined, undefined);
+		splitNode(doc, 0, 5, undefined, undefined, fixtureLinkRef());
+		splitNode(doc, 1, 0, undefined, undefined, fixtureLinkRef());
 
 		updateNodeContent(doc, 1, 'x\n');
 
@@ -155,7 +156,7 @@ describe('typing into a blank line the load created', () => {
 describe('an Enter at block start survives the reload', () => {
 	it('reloads a leading empty paragraph as a block', () => {
 		const doc = parse('a\n');
-		splitNode(doc, 0, 0, undefined, undefined, undefined);
+		splitNode(doc, 0, 0, undefined, undefined, fixtureLinkRef());
 		expect(serialize(doc)).toBe('\na\n');
 		expect(layout(parse('\na\n').children)).toEqual(layout(doc.children));
 	});

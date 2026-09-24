@@ -7,6 +7,7 @@ import type { Document, TableMetadata, TableRowMetadata } from '../../core/nodes
 import type { SelectionPoint } from '../../selection/primitives';
 import { allowDevWarns } from '$lib/test/support/warn-gate';
 import { TWO_COL_FOUR_ROW, findTable } from './table-fixtures';
+import { fixtureLinkRef } from '../harness/fixture-grammar';
 
 // rangeDelete is driven with hand-built endpoints, so the table branches see character offsets
 // `SelectionState` would have snapped to cell coordinates first.
@@ -21,7 +22,7 @@ function run(input: string | Document, start: SelectionPoint, end: SelectionPoin
 		createSharingState(),
 		undefined,
 		undefined,
-		undefined
+		fixtureLinkRef()
 	);
 	return { doc: result.newDoc, source: serialize(result.newDoc), caret: result.collapsedCaret };
 }

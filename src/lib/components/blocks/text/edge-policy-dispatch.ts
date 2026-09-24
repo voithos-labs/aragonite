@@ -43,7 +43,7 @@ import { soleProseReparse } from './screen-diff';
 
 /** Whether `line` still parses back as `node`'s kind in the editor's grammar, which the auto-pair
  *  resolver checks. */
-export function keepsBlockKind(node: NodeView, line: string, grammar?: GrammarView): boolean {
+export function keepsBlockKind(node: NodeView, line: string, grammar: GrammarView): boolean {
 	return (
 		soleProseReparse(line + trailingLineEnding(node.raw), { grammar })?.block.kind === node.kind
 	);
@@ -73,7 +73,7 @@ export interface EdgePolicyDispatchDeps {
 	/** The nearest ancestor container, or null at the document root. A key at the content start
 	 *  resolves against its declaration. */
 	get containerParent(): NodeView | null;
-	get linkRef(): LinkReferenceResolverRef | undefined;
+	get linkRef(): LinkReferenceResolverRef;
 	/** The editor's grammar, the one the render path drew widgets with. */
 	grammar: GrammarView;
 	getEl: () => HTMLElement | null;
@@ -296,6 +296,7 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 			screen: screenVisibilityOf(el),
 			inlines: inlinesOf(deps.node),
 			installedAs: deps.installedAs,
+			resolver: deps.linkRef?.current,
 			grammar: deps.grammar
 		});
 	}
@@ -321,6 +322,7 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 			deps.node.raw,
 			screenVisibilityOf(el),
 			typed,
+			deps.linkRef?.current,
 			deps.grammar
 		);
 	}
@@ -650,6 +652,7 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 			e.key,
 			marks,
 			inlinesOf(deps.node),
+			deps.linkRef?.current,
 			deps.grammar
 		);
 		if (!marked) return false;

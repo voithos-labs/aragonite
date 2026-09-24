@@ -1,15 +1,15 @@
 /**
  * The caret a `[prefix?, ...pasted, residue?]` replacement lands, on both sides of the separator
  * fix-up: which node the paste aims at, the position the fix-up's merges keep updated for it,
- * and the offset the caret can actually sit at there.
+ * and the leaf and offset the caret can actually sit at there.
  */
 
 import { CURSOR_END } from '../../block-component';
 import type { CstNode } from '../../core/nodes';
 import type { NodeView } from '../../core/node-views';
 import { trimTrailingLineEnding } from '../../core/lines';
-import { tryGetBlockKindDescriptor } from '../../schema/block-kind-descriptor';
 import type { TrackedPosition } from '../settle';
+import { leafAtRawOffset, type LeafPosition } from '../container-offsets';
 
 /**
  * Focus index for the replacement: the last pasted node. Defined once so every structural route
@@ -41,16 +41,16 @@ export function trackedPasteCaret(
 }
 
 /**
- * The offset the caret can sit at, given {@link trackedPasteCaret}'s updated position. Only a
- * known leaf uses the tracked byte: a container walks any numeric offset to its last child, so
- * its raw offsets address no caret position. Anything the caller named itself stands as given.
+ * Where the caret sits, given {@link trackedPasteCaret}'s updated position: the leaf inside the
+ * landed block holding the tracked byte, as a path below that block and an offset in the leaf.
+ * Anything the caller named itself stands as given, and a block whose bytes map to no leaf
+ * (a table) takes the caret at its end.
  */
-export function landedPasteOffset(
+export function landedPastePosition(
 	landed: NodeView | undefined,
 	tracked: TrackedPosition,
 	focusOffset: number
-): number {
-	if (focusOffset !== CURSOR_END) return focusOffset;
-	const leaf = landed && tryGetBlockKindDescriptor(landed.kind)?.isContainer === false;
-	return leaf ? tracked.offset : CURSOR_END;
+): LeafPosition {
+	if (focusOffset !== CURSOR_END) return { path: [], offset: focusOffset };
+	return (landed && leafAtRawOffset(landed, tracked.offset)) ?? { path: [], offset: CURSOR_END };
 }

@@ -8,9 +8,10 @@
 import { parseInline } from '$lib/core/inline';
 import { renderInlineNodes } from '$lib/core/inline-render';
 import { MARKER_FAMILY_SELECTOR } from '$lib/core/inline/visibility';
+import { renderOptions } from './fixture-grammar';
 
 export function paintedText(raw: string): string {
-	const fragment = renderInlineNodes(parseInline(raw, 0, raw.length), raw);
+	const fragment = renderInlineNodes(parseInline(raw, 0, raw.length), raw, renderOptions());
 	const host = document.createElement('div');
 	host.appendChild(fragment);
 	const walker = document.createTreeWalker(host, NodeFilter.SHOW_TEXT);

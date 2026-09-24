@@ -18,6 +18,7 @@ import {
 } from '../../../core/inline/visibility';
 import type { AnyInlineKind, InlineNode } from '../../../core/nodes';
 import type { GrammarView } from '../../../schema/block-openers';
+import type { LinkReferenceResolver } from '../../../core/inline/link-reference-resolver';
 import { getInlineConstructPolicy } from '../../../schema/inline-construct-policy';
 import { removesExactly, soleProseReparse } from './screen-diff';
 
@@ -42,6 +43,9 @@ export interface EdgeDeletionQuery {
 	/** What the caller installs the rewrite as, which is what the candidate is read back as.
 	 *  Required for the same reason `screen` is: a cell's text is never a block. */
 	installedAs: EdgeDeletionSurface;
+	/** The resolver `inlines` was read with, so a candidate keeps its reference links. Required:
+	 *  a check read without one sees every reference link as brackets. */
+	resolver: LinkReferenceResolver | undefined;
 	/** The editor's grammar, so a candidate reads back as the syntax the editor draws. */
 	grammar: GrammarView;
 }
@@ -89,14 +93,14 @@ export function resolveEdgeDeletion(query: EdgeDeletionQuery): EdgeDeletion | nu
 		isDelimiterByte(constructs, target.start - 1) || isDelimiterByte(constructs, target.end);
 	if (!touchesHiddenRun && plain.start === native.start && plain.end === native.end) return null;
 
-	const before = visibleText(display, query.installedAs, query.grammar);
+	const before = visibleText(display, query);
 	if (before === null) return null;
 	const removed = target.atomic
-		? renderedText([target.atomic], display, CONTENT_VISIBILITY)
+		? renderedText([target.atomic], display, CONTENT_VISIBILITY, { grammar: query.grammar })
 		: display.slice(target.start, target.end);
 	for (const cut of [plain, widenThroughRuns(constructs, plain)]) {
 		const raw = display.slice(0, cut.start) + display.slice(cut.end);
-		const after = visibleText(raw, query.installedAs, query.grammar);
+		const after = visibleText(raw, query);
 		if (after === null || !removesExactly(before, after, removed)) continue;
 		// Backward lands where the cut opened; forward keeps the caret where it was, which the cut
 		// only moves when it swallowed delimiters ahead of it.
@@ -249,29 +253,29 @@ function isDelimiterByte(constructs: readonly PolicyConstruct[], at: number): bo
 // ── Verification ─────────────────────────────────────────────────────────────
 
 /**
- * What the user sees, asked of the code that draws it, over the bytes read back the way `surface`
+ * What the user sees, asked of the code that draws it, over the bytes read back as the caller
  * stores them; null where they do not read back at all. The content reading, not the block's own:
  * a cut that empties a construct brings its markers into view, and the comparison would read that
  * as bytes lost. Safe, because the case where markers are drawn returned above.
  */
 function visibleText(
 	raw: string,
-	surface: EdgeDeletionSurface,
-	grammar: GrammarView
+	{ installedAs, resolver, grammar }: EdgeDeletionQuery
 ): string | null {
 	// Cell text is never a block, so it reads as its inline content and nothing else can refuse it.
-	if (surface === 'cell')
+	if (installedAs === 'cell')
 		return renderedText(
-			parseInline(raw, 0, raw.length, undefined, grammar),
+			parseInline(raw, 0, raw.length, resolver, grammar),
 			raw,
-			CONTENT_VISIBILITY
+			CONTENT_VISIBILITY,
+			{ grammar }
 		);
 	// A cut that empties the block is the one candidate with no block to read: empty stays empty
 	// through a reparse, so it answers for itself rather than through the parser.
 	if (raw === '') return '';
 	// A candidate that parses back as a different block is not what the caller is about to store:
 	// a cut can push two literal runs together into a fence opener, which then swallows the rest.
-	const sole = soleProseReparse(raw, { grammar });
+	const sole = soleProseReparse(raw, { current: resolver, grammar });
 	if (sole === null) return null;
-	return renderedText(sole.nodes, sole.block.raw, CONTENT_VISIBILITY);
+	return renderedText(sole.nodes, sole.block.raw, CONTENT_VISIBILITY, { grammar });
 }

@@ -3,6 +3,7 @@ import { parse } from '../../core/parser';
 import { serialize } from '../../core/serializer';
 import { splitNode, updateNodeContent } from '../../tree-operations';
 import { takeDevWarns } from '$lib/test/support/warn-gate';
+import { fixtureLinkRef } from '../harness/fixture-grammar';
 
 // GH #97: a fragment parse splits a half's trailing blank line off into `doc.suffix`, and the
 // reparse path dropped it. The line stands between the halves, so it is the second half's
@@ -15,7 +16,7 @@ describe('a split half ending in a blank line keeps it (GH #97)', () => {
 		const doc = parse('    a\n\n    b\n');
 		expect(doc.children).toHaveLength(1);
 
-		splitNode(doc, 0, 7, undefined, undefined, undefined);
+		splitNode(doc, 0, 7, undefined, undefined, fixtureLinkRef());
 
 		expect(doc.children.map((c) => [c.kind, c.leadingTrivia, c.raw])).toEqual([
 			['indentedCode', '', '    a\n'],
@@ -28,7 +29,7 @@ describe('a split half ending in a blank line keeps it (GH #97)', () => {
 		const doc = parse('    a\r\n\r\n    b\r\n');
 		expect(doc.children).toHaveLength(1);
 
-		splitNode(doc, 0, 9, undefined, undefined, undefined);
+		splitNode(doc, 0, 9, undefined, undefined, fixtureLinkRef());
 
 		expect(doc.children[1].leadingTrivia).toBe('\r\n');
 		expect(serialize(doc)).toBe('    a\r\n\r\n    b\r\n');
@@ -40,7 +41,7 @@ describe('a split half ending in a blank line keeps it (GH #97)', () => {
 		const doc = parse('    a\n\n\n\n    b\n');
 		expect(doc.children).toHaveLength(1);
 
-		splitNode(doc, 0, 9, undefined, undefined, undefined);
+		splitNode(doc, 0, 9, undefined, undefined, fixtureLinkRef());
 
 		expect(serialize(doc)).toBe('    a\n\n\n\n    b\n');
 		expect(takeDevWarns().map((w) => w.tag)).toEqual(['tree-ops']);

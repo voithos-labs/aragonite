@@ -6,6 +6,7 @@ import {
 import { createWidgetSelectionState } from '$lib/components/image/widget-selection-state.svelte';
 import type { CstNode } from '$lib/core/nodes';
 import type { LinkReferenceResolverRef } from '$lib/editor-keys';
+import { fixtureLinkRef } from '../../harness/fixture-grammar';
 
 export interface Commit {
 	index: number;
@@ -19,7 +20,7 @@ export interface Commit {
 export function harness(
 	source: string,
 	sourceStart: number,
-	linkRef?: LinkReferenceResolverRef,
+	linkRef: LinkReferenceResolverRef = fixtureLinkRef(),
 	extra: Partial<WidgetInteractionDeps> = {}
 ) {
 	const node: CstNode = parse(source).children[0];

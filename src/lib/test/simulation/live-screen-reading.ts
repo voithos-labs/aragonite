@@ -16,6 +16,7 @@ import {
 } from '$lib/core/inline/visibility';
 import { displayLength } from '$lib/core/lines';
 import { emptyConstructSpans } from '$lib/test/harness/live-oracles';
+import { renderOptions } from '../harness/fixture-grammar';
 
 /** A prose leaf and the path that addresses it. */
 export interface ProseLeaf {
@@ -40,8 +41,8 @@ export function chromePaints(node: CstNode): boolean {
 	if (!readable(node)) return false;
 	const range = getContentRange(node);
 	const nodes = parseInline(node.raw, range.start, range.end);
-	if (renderedText(nodes, node.raw, CONTENT_VISIBILITY) !== '') return false;
-	return range.start > 0 || paintsOnlyChrome(nodes, node.raw);
+	if (renderedText(nodes, node.raw, CONTENT_VISIBILITY, renderOptions()) !== '') return false;
+	return range.start > 0 || paintsOnlyChrome(nodes, node.raw, renderOptions());
 }
 
 /** The content behind every marker family: the reading a before/after comparison needs, since a
@@ -54,7 +55,7 @@ export function documentContentText(holder: Document | CstNode): string {
 			if (!readable(child)) return child.raw;
 			const range = getContentRange(child);
 			const nodes = parseInline(child.raw, range.start, range.end);
-			return renderedText(nodes, child.raw, CONTENT_VISIBILITY);
+			return renderedText(nodes, child.raw, CONTENT_VISIBILITY, renderOptions());
 		})
 		.join('\n');
 }
@@ -72,7 +73,7 @@ export function unpaintedResidue(holder: Document | CstNode): number {
 		const nodes = parseInline(child.raw, range.start, range.end);
 		const ctx = screenVisibility('live', { chromePaints: chromePaints(child) });
 		const painted = new Array<boolean>(child.raw.length).fill(false);
-		for (const run of visibleRuns(nodes, child.raw, ctx)) {
+		for (const run of visibleRuns(nodes, child.raw, ctx, renderOptions())) {
 			if (!run.visible) continue;
 			for (let at = run.start; at < run.end; at++) painted[at] = true;
 		}
@@ -102,7 +103,7 @@ export function hiddenEdgeOffsets(node: CstNode): number[] {
 	const nodes = parseInline(node.raw, range.start, range.end);
 	const ctx = screenVisibility('live', { chromePaints: chromePaints(node) });
 	const stops = new Set<number>([range.start, range.end]);
-	for (const run of visibleRuns(nodes, node.raw, ctx)) {
+	for (const run of visibleRuns(nodes, node.raw, ctx, renderOptions())) {
 		if (run.visible) continue;
 		stops.add(run.start);
 		stops.add(run.end);

@@ -33,6 +33,8 @@ import { applyListAbsorb, findListAbsorb } from './list-absorb';
 import { applyListBreakOut, findListBreakOut } from './list-break-out';
 import type { PasteCommitCoordinator } from './paste-deps';
 import { applyPasteTransforms } from './paste-transforms';
+import { inlineResultInEnding, pasteLineEnding } from './line-ending';
+import { withLineEnding } from '../../core/lines';
 import { contentBlocks, pickPasteStrategy } from './strategy';
 
 export type PasteStrategy = 'inline' | 'structural';
@@ -95,7 +97,8 @@ export async function pasteDispatch(
 	const { activePlugins } = ctx;
 	const seam: PasteSeam = {
 		presentationMode: ctx.seam?.presentationMode,
-		linkRef: ctx.seam?.linkRef,
+		// No join context means no live mode, so the cut stays literal and reads no definition.
+		linkRef: ctx.seam?.linkRef ?? { grammar: ctx.grammar },
 		grammar: ctx.grammar
 	};
 	const transformed = applyPasteTransforms(input.pastedText, activePlugins);
@@ -105,11 +108,17 @@ export async function pasteDispatch(
 	// bytes a bodyWrite-declaring ancestor will actually accept.
 	const pastedText = normalizeClipboardForBody(ctx.doc, input.targetPath, transformed);
 
-	const parsed = parse(pastedText, { grammar: ctx.grammar, scope: 'fragment' });
-	if (parsed.children.length === 0) return {};
-
 	const targetNode = nodeAt(ctx.doc, input.targetPath) as CstNode | null;
 	if (!targetNode) return {};
+
+	// The hooks read the LF text; the blocks are parsed in the document's own ending, since their
+	// bytes are what every block route writes.
+	const ending = pasteLineEnding(ctx.doc, input.targetPath, targetNode, input.offset);
+	const parsed = parse(withLineEnding(pastedText, ending), {
+		grammar: ctx.grammar,
+		scope: 'fragment'
+	});
+	if (parsed.children.length === 0) return {};
 
 	// A reserved title child is single-line when serialized, so paste there is forced inline
 	// ahead of the container-paste family: a multi-block clipboard must never split it. The trim
@@ -195,7 +204,11 @@ export async function pasteDispatch(
 
 	if (strategy === 'inline') {
 		const hook = surface?.onInlinePaste ?? defaultInlineHook;
-		const result = hook(targetNode, input.offset, pastedText, input.preDelete, seam);
+		const result = inlineResultInEnding(
+			targetNode.raw,
+			hook(targetNode, input.offset, pastedText, input.preDelete, seam),
+			ending
+		);
 		const landing = await applyInlineResult(input.targetPath, result, ctx);
 		return inlineCaretResult(result.caretOffset, landing);
 	}
@@ -215,15 +228,15 @@ export async function pasteDispatch(
 function targetAfterPreDelete(
 	node: CstNode,
 	input: PasteDispatchInput,
-	seam: PasteSeam | undefined
+	seam: PasteSeam
 ): { raw: string; offset: number } {
 	if (!input.preDelete) return { raw: node.raw, offset: input.offset };
 	const cut = cutRangeFromDisplay(
 		node,
 		trimTrailingLineEnding(node.raw),
 		input.preDelete,
-		seam?.presentationMode,
-		seam?.linkRef
+		seam.presentationMode,
+		seam.linkRef
 	);
 	return { raw: cut.display + trailingLineEnding(node.raw), offset: cut.offset };
 }

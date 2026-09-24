@@ -8,7 +8,7 @@
 import type { InlineNode } from '../nodes';
 import type { NodeView } from '../node-views';
 import type { LinkReferenceResolver } from './link-reference-resolver';
-import { defaultGrammarView, type GrammarView } from '../../schema/block-openers';
+import type { GrammarView } from '../../schema/block-openers';
 import { computeInlineContent, isProseKind } from './index';
 
 interface CacheSlot {
@@ -52,18 +52,12 @@ export function getInlineContent(
 
 /**
  * The one spelling of `getInlineContent(node, ref.current, ref.signature, ref.grammar)`, so a
- * non-render call site cannot drop the signature or the grammar and silently desync from what
- * render drew. With no `linkRef`, or no grammar on it, it reads every installed plugin. `linkRef`
- * stays structural: naming editor-keys' type would create an import cycle.
+ * non-render call site cannot drop the signature or the grammar and desync from what render drew.
+ * `linkRef` stays structural: naming editor-keys' type would create an import cycle.
  */
 export function resolvedInlineContent(
 	node: NodeView,
-	linkRef?: { current?: LinkReferenceResolver; signature?: string; grammar?: GrammarView }
+	linkRef: { current?: LinkReferenceResolver; signature?: string; grammar: GrammarView }
 ): InlineNode[] {
-	return getInlineContent(
-		node,
-		linkRef?.current,
-		linkRef?.signature ?? '',
-		linkRef?.grammar ?? defaultGrammarView
-	);
+	return getInlineContent(node, linkRef.current, linkRef.signature ?? '', linkRef.grammar);
 }

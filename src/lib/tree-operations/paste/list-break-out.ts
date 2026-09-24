@@ -17,7 +17,7 @@ import { trailingLineEnding } from '../../core/lines';
 import { assembleListHalf, buildSplitItems } from '../list/list-builders';
 import { orderedBaseOf } from '../list/ordered-markers';
 import { findEnclosingListForPaste } from './find-enclosing-list';
-import { focusIndexBeforeResidue, landedPasteOffset, trackedPasteCaret } from './focus-target';
+import { focusIndexBeforeResidue, landedPastePosition, trackedPasteCaret } from './focus-target';
 import { docPathFrom } from '../../cursor/coordinate-spaces';
 import { resolveParentScope } from './parent-scope';
 import type { PasteDispatchContext } from './dispatch';
@@ -128,10 +128,8 @@ export async function applyListBreakOut(
 		trackCaret: [caret],
 		afterTick: () => {
 			const landed = nodeAt(ctx.doc, parentScope.path)?.children?.[caret.index];
-			return ctx.controller.landCaret(
-				[...parentScope.path, caret.index],
-				landedPasteOffset(landed, caret, CURSOR_END)
-			);
+			const at = landedPastePosition(landed, caret, CURSOR_END);
+			return ctx.controller.landCaret([...parentScope.path, caret.index, ...at.path], at.offset);
 		}
 	});
 }

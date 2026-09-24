@@ -4,6 +4,7 @@ import { serialize } from '$lib/core/serializer';
 import { deleteNode } from '$lib/tree-operations/settle';
 import { mergeIntoPrevDeepLeaf } from '$lib/tree-operations/node-ops';
 import { describeConvergence } from '$lib/test/harness/parse-converged';
+import { fixtureLinkRef } from '../harness/fixture-grammar';
 
 // GH #173: `deleteNode`'s neighbour merge looked downward only, so a merge whose rewritten
 // survivor gained indentation stopped interrupting the indentation-delimited block above it and
@@ -18,11 +19,17 @@ describe('a merge whose survivor the block above absorbs', () => {
 		const doc = parse('    code\n\n    \nx\n\n\n[ref]: https://example.com\n');
 		expect(doc.children).toHaveLength(5);
 
-		mergeIntoPrevDeepLeaf(doc, 2, undefined, undefined, undefined);
+		const merged = mergeIntoPrevDeepLeaf(doc, 2, undefined, undefined, fixtureLinkRef());
 
 		expect(serialize(doc)).toBe('    code\n\n    x\n\n\n[ref]: https://example.com\n');
 		expect(doc.children[0].raw).toBe('    code\n\n    x\n');
 		expect(describeConvergence(doc)).toBeNull();
+		// The join now sits in the block that absorbed it, before the `x` (GH #193).
+		expect(merged).toMatchObject({
+			index: 0,
+			targetPath: [],
+			joinOffset: '    code\n\n    '.length
+		});
 	});
 
 	// The downward edge the hand-rolled merge already covered, so routing the delete through the

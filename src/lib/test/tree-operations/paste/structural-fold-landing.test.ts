@@ -1,6 +1,5 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi } from 'vitest';
-import { CURSOR_END } from '$lib/block-component';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import { pasteDispatch } from '$lib/tree-operations/paste/dispatch';
@@ -59,13 +58,26 @@ describe('structural paste landing after the splice settle folds', () => {
 		expect(landCaret).toHaveBeenCalledWith([2], 'two'.length);
 	});
 
-	// A container's raw offsets address no caret position, so the tracked block lands with the
-	// sentinel it was given. The offset inside a merged container head needs a raw-offset-to-leaf
-	// descent the codebase has no primitive for.
-	it('keeps the end-of-block caret position when the fold head is a container', async () => {
+	// The merged head is a container here, so the pasted bytes end inside one of its leaves (GH #193).
+	it('lands inside the container leaf that absorbed the residue', async () => {
 		const { doc, landCaret } = await pasteAt('helloworld\n', '- item', [0], 5);
 
 		expect(serialize(doc)).toBe('hello\n\n- item\nworld\n');
-		expect(landCaret).toHaveBeenCalledWith([1], CURSOR_END);
+		expect(landCaret).toHaveBeenCalledWith([1, 0, 0], 'item'.length);
+	});
+
+	// The quote takes the line after the caret in lazily (GH #447).
+	it('lands after the pasted quote text, not after the line it absorbed', async () => {
+		const { doc, landCaret } = await pasteAt('abc\nAfter\n', '> q', [0], 3);
+
+		expect(serialize(doc)).toBe('abc\n\n> q\nAfter\n');
+		expect(landCaret).toHaveBeenCalledWith([1, 0], 'q'.length);
+	});
+
+	it('descends through nested containers', async () => {
+		const { doc, landCaret } = await pasteAt('helloworld\n', '> - item', [0], 5);
+
+		expect(serialize(doc)).toBe('hello\n\n> - item\nworld\n');
+		expect(landCaret).toHaveBeenCalledWith([1, 0, 0, 0], 'item'.length);
 	});
 });

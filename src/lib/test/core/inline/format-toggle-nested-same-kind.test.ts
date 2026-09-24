@@ -4,6 +4,7 @@ import { parseInline } from '$lib/core/inline';
 import { CONTENT_VISIBILITY, renderedText } from '$lib/core/inline/visibility';
 import type { PresentationMode } from '$lib/presentation-mode';
 import { press } from './format-toggle-fixture';
+import { renderOptions } from '../../harness/fixture-grammar';
 
 // A run nested inside a run of its OWN kind: shedding the inner one leaves the selection covered by
 // the outer, so the answer the coverage read promised is both coming off — the outer split around
@@ -14,7 +15,12 @@ import { press } from './format-toggle-fixture';
 const MODES: PresentationMode[] = ['source', 'live'];
 
 const screenOf = (display: string) =>
-	renderedText(parseInline(display, 0, display.length), display, CONTENT_VISIBILITY);
+	renderedText(
+		parseInline(display, 0, display.length),
+		display,
+		CONTENT_VISIBILITY,
+		renderOptions()
+	);
 
 describe.each(MODES)('a same-kind run nested inside another (%s)', (mode) => {
 	it('splits the outer run around the inner one it strips', () => {

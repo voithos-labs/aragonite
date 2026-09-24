@@ -20,6 +20,7 @@ import {
 	type InlineConstructPolicy
 } from '../../../schema/inline-construct-policy';
 import type { GrammarView } from '../../../schema/block-openers';
+import type { LinkReferenceResolver } from '../../../core/inline/link-reference-resolver';
 import { insertsExactly } from './screen-diff';
 
 export interface EdgeSeat {
@@ -34,6 +35,7 @@ export interface EdgeSeat {
  * Where `typed` belongs when the caret sits at `caretOffset`, or null when the offset touches no
  * construct marker run, the kind declares no policy, or no candidate earns the write. Refusing is
  * the honest fallback: the byte then lands at the caret, which is what the browser writes anyway.
+ * `resolver` must be the one `inlines` was read with, or a reference link reads as brackets.
  */
 export function resolveEdgeSeat(
 	caretOffset: number,
@@ -42,18 +44,28 @@ export function resolveEdgeSeat(
 	raw: string,
 	screen: VisibilityContext,
 	typed: string,
+	resolver: LinkReferenceResolver | undefined,
 	grammar: GrammarView
 ): EdgeSeat | null {
-	const runs = markerRuns(inlines, raw, screen);
+	const runs = markerRuns(inlines, raw, screen, grammar);
 	const run = runAt(caretOffset, runs);
 	if (!run) return null;
 	const policy = getInlineConstructPolicy(run.kind);
 	if (!policy) return null;
 	const content = contentBounds(inlines);
-	const before = shown(raw, content.start, content.end, grammar);
+	// What the user sees, asked of the renderer (G4.33), in the content reading: this only adds
+	// bytes, so no reading of it can license dropping one.
+	const shown = (bytes: string, end: number): string =>
+		renderedText(
+			parseInline(bytes, content.start, end, resolver, grammar),
+			bytes,
+			CONTENT_VISIBILITY,
+			{ grammar }
+		);
+	const before = shown(raw, content.end);
 	const holds = (offset: number): boolean => {
 		const candidate = raw.slice(0, offset) + typed + raw.slice(offset);
-		const after = shown(candidate, content.start, content.end + typed.length, grammar);
+		const after = shown(candidate, content.end + typed.length);
 		return insertsExactly(before, after, typed);
 	};
 	for (const offset of candidateOffsets(run, policy.edgeAffinity, affinity, caretOffset, runs)) {
@@ -80,11 +92,21 @@ export function relocateComposedRun(
 	inlines: readonly InlineNode[],
 	affinity: EdgeAffinity | null,
 	screen: VisibilityContext,
+	resolver: LinkReferenceResolver | undefined,
 	grammar: GrammarView
 ): { raw: string; caret: number } | null {
 	const composed = plainInsertionAt(before, after, composedAt);
 	if (composed === null) return null;
-	const seat = resolveEdgeSeat(composedAt, inlines, affinity, before, screen, composed, grammar);
+	const seat = resolveEdgeSeat(
+		composedAt,
+		inlines,
+		affinity,
+		before,
+		screen,
+		composed,
+		resolver,
+		grammar
+	);
 	if (!seat) return null;
 	return {
 		raw: before.slice(0, seat.offset) + composed + before.slice(seat.offset),
@@ -113,9 +135,10 @@ export function seatOffsetsAt(
 	caretOffset: number,
 	inlines: readonly InlineNode[],
 	raw: string,
-	screen: VisibilityContext
+	screen: VisibilityContext,
+	grammar: GrammarView
 ): readonly number[] {
-	const runs = markerRuns(inlines, raw, screen);
+	const runs = markerRuns(inlines, raw, screen, grammar);
 	const run = runAt(caretOffset, runs);
 	if (!run) return [];
 	const offsets = screenPositionOffsets(run, runs);
@@ -213,20 +236,16 @@ function contentBounds(inlines: readonly InlineNode[]): ContentRange {
 	return { start: inlines[0].start, end: inlines[inlines.length - 1].end };
 }
 
-/** What the user sees, asked of the code that draws it (G4.33). The content reading, not the
- *  block's own: this module only adds bytes, so no reading of it can license dropping one. */
-const shown = (raw: string, start: number, end: number, grammar: GrammarView): string =>
-	renderedText(parseInline(raw, start, end, undefined, grammar), raw, CONTENT_VISIBILITY);
-
 /** Every construct marker run, in pre-order. */
 function markerRuns(
 	inlines: readonly InlineNode[],
 	raw: string,
-	screen: VisibilityContext
+	screen: VisibilityContext,
+	grammar: GrammarView
 ): MarkerRun[] {
 	const runs: MarkerRun[] = [];
 	for (const node of inlineDescendants(inlines)) {
-		const content = constructContentRange(node) ?? paintedRange(node, raw, screen);
+		const content = constructContentRange(node) ?? paintedRange(node, raw, screen, grammar);
 		if (!content) continue;
 		const span = { start: node.start, end: node.end };
 		if (node.start < content.start) {
@@ -261,10 +280,13 @@ const runAt = (offset: number, runs: readonly MarkerRun[]): MarkerRun | null =>
 function paintedRange(
 	node: InlineNode,
 	raw: string,
-	screen: VisibilityContext
+	screen: VisibilityContext,
+	grammar: GrammarView
 ): ContentRange | null {
 	if (node.kind === 'text') return null;
-	const painted = visibleRuns([node], raw, screen).filter((run) => run.visible && run.text !== '');
+	const painted = visibleRuns([node], raw, screen, { grammar }).filter(
+		(run) => run.visible && run.text !== ''
+	);
 	if (painted.length === 0) return null;
 	return { start: painted[0].start, end: painted[painted.length - 1].end };
 }

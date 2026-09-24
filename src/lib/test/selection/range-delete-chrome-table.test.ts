@@ -6,6 +6,7 @@ import { createSharingState } from '../../tree-operations/sharing';
 import { registerCalloutForTests } from './chrome-plugins';
 import type { SelectionPoint } from '../../selection/primitives';
 import { allowDevWarns } from '$lib/test/support/warn-gate';
+import { fixtureLinkRef } from '../harness/fixture-grammar';
 
 // rangeDelete is driven with hand-built endpoints, so the table branches see character offsets
 // `SelectionState` would have snapped to cell coordinates first.
@@ -46,7 +47,7 @@ function run(source: string, start: SelectionPoint, end: SelectionPoint) {
 		createSharingState(),
 		undefined,
 		undefined,
-		undefined
+		fixtureLinkRef()
 	);
 	return { doc: result.newDoc, source: serialize(result.newDoc), caret: result.collapsedCaret };
 }
@@ -96,7 +97,15 @@ describe('chrome wall × table branch: table endpoint inside the container', () 
 		const snapshotTitle = doc.children[1].children![0];
 		const sharing = createSharingState();
 		sharing.markSnapshotTaken();
-		rangeDelete(doc, point([0], 2), point([1, 1], 1), sharing, undefined, undefined, undefined);
+		rangeDelete(
+			doc,
+			point([0], 2),
+			point([1, 1], 1),
+			sharing,
+			undefined,
+			undefined,
+			fixtureLinkRef()
+		);
 		expect(snapshotTitle.raw).toBe('Title\n');
 	});
 });
@@ -131,7 +140,7 @@ describe('chrome wall × table branch: table endpoint outside the container', ()
 			sharing,
 			undefined,
 			undefined,
-			undefined
+			fixtureLinkRef()
 		);
 
 		expect(newDoc.children[1].children![0].raw).toBe('le\n');
@@ -170,7 +179,7 @@ describe('chrome wall × table branch: consumed container unit-deletes', () => {
 			createSharingState(),
 			undefined,
 			undefined,
-			undefined
+			fixtureLinkRef()
 		);
 		expect(serialize(result.newDoc)).toBe('| a | b |\n| --- | --- |\n\nBelow\n');
 		// One splice, not an emptying followed by cleanup: the detached node keeps its children,
@@ -190,7 +199,7 @@ describe('chrome wall × table branch: consumed container unit-deletes', () => {
 			createSharingState(),
 			undefined,
 			undefined,
-			undefined
+			fixtureLinkRef()
 		);
 		expect(serialize(result.newDoc)).toBe('| a | b |\n| --- | --- |\n\nBelow\n');
 		expect(note.children?.length).toBe(2);

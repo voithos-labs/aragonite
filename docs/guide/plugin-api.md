@@ -167,7 +167,7 @@ _(pre-freeze / unstable)_ A container's **chrome** is its own furniture: the bor
 | `ContainerBlock`, `ContainerBlockComponent`     | What the factory returns (the child-list props, the `containerApi` you publish, the keydown handler, plus the commit, focus-exit, mode, theme, options and scroll-hold entries, and `getEditor` for this editor's `EditorContext`), and the shape that `containerApi` must satisfy |
 | `ContainerBlockDeps`, `ContainerBlockListProps` | The factory's inputs, live getters rather than captured values, and the props `BlockList` takes                                                                                                                                                                                    |
 | `RefSlots`                                      | The per-child reference accessors the child-list props carry                                                                                                                                                                                                                       |
-| `ChromeLeafOptions`                             | `registerChromeLeaf`'s options: a CSS class for styling the line, keymap overrides, the merge role                                                                                                                                                                                 |
+| `ChromeLeafOptions`                             | `registerChromeLeaf`'s options: the name a screen reader and the block menu give the line, a CSS class for styling it, keymap overrides, the merge role                                                                                                                            |
 
 ### Editable-leaf authoring
 

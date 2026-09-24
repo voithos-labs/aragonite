@@ -11,6 +11,7 @@ import type { CstNode, Document } from '../core/nodes';
 import type { StickyColumnState } from '../cursor/sticky-column';
 import type { EdgeAffinityState } from '../cursor/edge-affinity';
 import type { EditorActionsDeps } from '../editor-actions/deps';
+import { defaultGrammarView } from '../schema/block-openers';
 import { createEditorEvents, type EditorEvents } from '../editor-events';
 import { createBlockListState, type BlockListState } from '../reactivity/block-list-state.svelte';
 import { refSlotsOver, replaceRefs } from '../reactivity/publish-ref.svelte';
@@ -142,7 +143,10 @@ export function createHeadlessActions(docChildren: CstNode[]): HeadlessActions {
 			if (path.length === 1) return ref;
 			return ref.getBlockComponentByPath?.(path.slice(1)) ?? null;
 		},
-		events
+		events,
+		// An author's suite runs with no editor, so every installed plugin is in the grammar.
+		grammar: defaultGrammarView,
+		linkRef: { grammar: defaultGrammarView }
 	};
 	return { deps, doc, events };
 }

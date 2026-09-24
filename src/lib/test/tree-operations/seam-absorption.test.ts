@@ -6,6 +6,7 @@ import { describeConvergence } from '$lib/test/harness/parse-converged';
 import { settled } from '$lib/test/harness/settle-funnel';
 import type { SettledContent } from '$lib/tree-operations/content-write';
 import { defaultGrammarView } from '$lib/schema/block-openers';
+import { fixtureLinkRef } from '../harness/fixture-grammar';
 
 // GH #61: a splice can leave neighbours whose adjacent bytes re-read as one block on reload
 // (a list newly standing above indented code absorbs it, since no separator line can hold
@@ -19,7 +20,7 @@ describe('a splice absorbs a join the reload would fold (GH #61)', () => {
 		const doc = parse(source);
 		expect(doc.children.map((c) => c.kind)).toEqual(['paragraph', 'indentedCode', 'list']);
 
-		const result = splitNode(doc, 0, 21, undefined, undefined, undefined);
+		const result = splitNode(doc, 0, 21, undefined, undefined, fixtureLinkRef());
 
 		expect(doc.children.map((c) => c.kind)).toEqual(['paragraph', 'list', 'list']);
 		expect(doc.children[1].raw).toBe('- | --- |\n\n    code\n');
@@ -128,7 +129,7 @@ describe('a splice absorbs a join the reload would fold (GH #61)', () => {
 
 		const change = settled(
 			doc,
-			(body) => mergeWithNext(body, 0, undefined, undefined, defaultGrammarView).change
+			(body) => mergeWithNext(body, 0, undefined, fixtureLinkRef(), defaultGrammarView).change
 		);
 
 		// Both blank lines reach the item's content column (a tab counts to the next four).
@@ -147,7 +148,7 @@ describe('a splice absorbs a join the reload would fold (GH #61)', () => {
 
 		const change = settled(
 			doc,
-			(body) => mergeWithNext(body, 0, undefined, undefined, defaultGrammarView).change
+			(body) => mergeWithNext(body, 0, undefined, fixtureLinkRef(), defaultGrammarView).change
 		);
 
 		expect(doc.children.map((c) => [c.kind, c.leadingTrivia, c.raw])).toEqual([
@@ -235,7 +236,7 @@ describe('a splice absorbs a join whose fold promotes the head (GH #255)', () =>
 		expect(doc.children.map((c) => c.kind)).toEqual(['heading', 'paragraph']);
 
 		// Inside the content: a cut at or before it moves the whole heading down instead.
-		const result = splitNode(doc, 0, 4, undefined, undefined, undefined);
+		const result = splitNode(doc, 0, 4, undefined, undefined, fixtureLinkRef());
 
 		expect(doc.children.map((c) => [c.kind, c.raw])).toEqual([
 			['heading', '# [t\n'],
@@ -249,7 +250,7 @@ describe('a splice absorbs a join whose fold promotes the head (GH #255)', () =>
 		const doc = parse('# | a |\n| --- |\n');
 		expect(doc.children.map((c) => c.kind)).toEqual(['heading', 'paragraph']);
 
-		splitNode(doc, 0, 4, undefined, undefined, undefined);
+		splitNode(doc, 0, 4, undefined, undefined, fixtureLinkRef());
 
 		expect(doc.children.map((c) => [c.kind, c.raw])).toEqual([
 			['heading', '# | \n'],

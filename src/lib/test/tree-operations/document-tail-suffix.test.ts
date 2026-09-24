@@ -6,6 +6,7 @@ import { emptyParagraph } from '../../tree-operations/node-primitives';
 import { settleSeparatorOnBlank } from '../../tree-operations/settle';
 import { describeConvergence } from '$lib/test/harness/parse-converged';
 import { settled } from '$lib/test/harness/settle-funnel';
+import { fixtureLinkRef } from '../harness/fixture-grammar';
 
 // GH #129: the parser keeps a document's one trailing blank line in `doc.suffix` only while
 // the tail block is non-blank; when a gesture blanks the tail, the reload reads that line as
@@ -49,7 +50,7 @@ describe('the folded trailing blank materializes when the tail turns blank (GH #
 
 		const change = settled(
 			doc,
-			(body) => splitNode(body, 0, 14, undefined, undefined, undefined).change
+			(body) => splitNode(body, 0, 14, undefined, undefined, fixtureLinkRef()).change
 		);
 
 		expect(doc.children).toHaveLength(3);

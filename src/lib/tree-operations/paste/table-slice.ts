@@ -6,6 +6,7 @@
 import type { CstNode, TableMetadata, TableRowMetadata } from '../../core/nodes';
 import { metadataOf } from '../../core/nodes';
 import { rebuildContainerRaw } from '../../schema/container-raw';
+import { trailingLineEnding } from '../../core/lines';
 import { promoteFirstRowToHeader } from '../table-mutations';
 
 export type RowGoes = 'first' | 'second';
@@ -22,8 +23,9 @@ export function sliceTableAtRow(
 	const firstRows = rows.slice(0, splitAt);
 	const secondRows = rows.slice(splitAt);
 
-	const firstHalf = buildHalf(firstRows, meta);
-	const secondHalf = buildHalf(secondRows, meta);
+	const ending = trailingLineEnding(table.raw);
+	const firstHalf = buildHalf(firstRows, meta, ending);
+	const secondHalf = buildHalf(secondRows, meta, ending);
 
 	if (firstHalf) rebuildContainerRaw(firstHalf);
 	if (secondHalf) rebuildContainerRaw(secondHalf);
@@ -31,7 +33,11 @@ export function sliceTableAtRow(
 	return { firstHalf, secondHalf };
 }
 
-function buildHalf(rows: CstNode[], sourceMeta: TableMetadata): CstNode | null {
+function buildHalf(
+	rows: CstNode[],
+	sourceMeta: TableMetadata,
+	ending: '\n' | '\r\n'
+): CstNode | null {
 	if (rows.length === 0) return null;
 	const cloned: CstNode[] = rows.map(
 		(row) =>
@@ -44,7 +50,8 @@ function buildHalf(rows: CstNode[], sourceMeta: TableMetadata): CstNode | null {
 	const half: CstNode = {
 		kind: 'table',
 		leadingTrivia: '',
-		raw: '',
+		// The rebuild reads the line ending off the raw it replaces (G4.20).
+		raw: ending,
 		metadata: {
 			columnCount: sourceMeta.columnCount,
 			alignments: sourceMeta.alignments.slice()

@@ -110,7 +110,7 @@ export type LinkReferenceResolverRef = {
 	signature?: string;
 	epoch?: number;
 	/** The editor's grammar, so the scan leaves out the inline syntax of a plugin it did not list. */
-	grammar?: GrammarView;
+	grammar: GrammarView;
 };
 
 // ── Action triple (per-key: containers re-provide these three) ───────────────

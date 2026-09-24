@@ -5,6 +5,7 @@ import {
 	type EditableSurfaceDeps
 } from '$lib/components/blocks/editable-surface';
 import { asRawOffset } from '$lib/cursor/coordinate-spaces';
+import { fixtureLinkRef } from './fixture-grammar';
 
 export interface SurfaceHarness {
 	surface: ReturnType<typeof createEditableSurface>;
@@ -79,7 +80,7 @@ export function makeSurface(
 		history: {},
 		pluginEditor: undefined,
 		getPresentationMode: () => 'source' as const,
-		linkRef: undefined,
+		linkRef: fixtureLinkRef(),
 		onCommandError: undefined,
 		getKeybindingOverrides: () => ({}),
 		pasteCoordinator: {},

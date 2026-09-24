@@ -36,7 +36,7 @@ export interface LinkPointQuery {
 	contentEl: HTMLElement;
 	block: NodeView;
 	path: number[];
-	linkRef?: LinkReferenceResolverRef;
+	linkRef: LinkReferenceResolverRef;
 }
 
 /** The link the caret sits inside, read after the click has placed the caret. */
@@ -59,7 +59,7 @@ const isCardEditable = (node: InlineNode): boolean => isCardEditableInlineKind(n
 export function linkConstructAt(
 	block: NodeView,
 	sourceStart: number,
-	linkRef?: LinkReferenceResolverRef
+	linkRef: LinkReferenceResolverRef
 ): InlineNode | null {
 	for (const node of inlineDescendants(resolvedInlineContent(block, linkRef))) {
 		if (isCardEditable(node) && node.start === sourceStart) return node;
