@@ -391,7 +391,8 @@ export function settledCaretTarget(
 	return caretInBlock(children, change.at + target.index, target.offset);
 }
 
-/** A table's bytes map to no leaf, so its caret keeps the raw offset, as every leaf's does. */
+/** A container whose bytes map to no leaf (any but a strip container, a table say) keeps the raw
+ *  offset, as a leaf does. */
 function caretInBlock(children: readonly NodeView[], index: number, offset: number): SettledCaret {
 	const block = children[index];
 	const leaf = block?.children?.length ? leafAtRawOffset(block, offset) : null;

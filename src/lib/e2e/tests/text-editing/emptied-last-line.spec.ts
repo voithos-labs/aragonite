@@ -24,6 +24,7 @@ test.describe('text editing, a last line erased to nothing', () => {
 			await page.keyboard.type('x');
 
 			await expect.poll(() => editor.bridge.getSource()).toBe('Plan\nx\n');
+			expect(await editor.parseConverged()).toBe(true);
 		});
 	}
 });
