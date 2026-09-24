@@ -54,6 +54,7 @@
 	import { assignIds } from '../block-id';
 	import { createDocumentSwap, initDocument } from './editor-root-document-swap';
 	import { blockNodeAt } from '../tree-operations/node-primitives';
+	import { inlineReaderFor } from '../core/inline';
 	import { serialize } from '../core/serializer';
 	import { defaultLinkActivation } from '../core/url-policy';
 	import { advanceSignatureEpoch, lrdMapCouldChange } from './lrd-map-gate';
@@ -666,7 +667,8 @@
 		activation: activePlugins,
 		// Called at use, never here: both read state declared further down this component.
 		insertMarkdown: (md, options) => insertMarkdown(md, options),
-		runCommand: (commandId, arg) => runCommand(commandId, arg)
+		runCommand: (commandId, arg) => runCommand(commandId, arg),
+		computeInlineContent: inlineReaderFor(registryView.grammar)
 	});
 
 	// One definition, passed by every dispatch level that can reach a plugin-global

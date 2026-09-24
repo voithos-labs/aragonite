@@ -43,7 +43,7 @@ import {
 } from '../../editor-keys';
 import { captureScrollPosition } from '../../cursor/scroll-hold';
 import { emitCommandError } from '../../editor-events';
-import { owningPluginEditor } from '../../schema/plugin-install';
+import { owningPluginEditor, type EditorContext } from '../../schema/plugin-install';
 import { createBlockListState } from '../../reactivity/block-list-state.svelte';
 import type { WindowResult } from '../../reactivity/block-window.svelte';
 import type { RefSlots } from '../../reactivity/publish-ref.svelte';
@@ -145,6 +145,9 @@ export interface ContainerBlock {
 	 * differently. `unknown`, like `commandHooks`: the plugin narrows it.
 	 */
 	getOptions(): unknown;
+	/** This editor's context for the plugin that owns this block's kind; undefined in a bare
+	 *  harness. Its `computeInlineContent` reads the inline syntax this editor draws. */
+	getEditor(): EditorContext | undefined;
 	/** The `BlockComponent` the host re-exports for BlockHost. */
 	containerApi: ContainerBlockComponent;
 	/**
@@ -347,7 +350,9 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 	const linkRef = editorDoc?.linkRef;
 
 	// Resolved by the kind's recorded owner, like the kind-command context's `editor`.
-	const getOptions = (): unknown => owningPluginEditor(pluginEditor, deps.getNode().kind)?.options;
+	const getEditor = (): EditorContext | undefined =>
+		owningPluginEditor(pluginEditor, deps.getNode().kind);
+	const getOptions = (): unknown => getEditor()?.options;
 
 	const listState = createBlockListState(deps.getNode);
 
@@ -600,6 +605,7 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 			captureScrollPosition(deps.getBoxEl(), () => revealAnchor.get() !== null),
 		getPresentationMode,
 		getTheme,
-		getOptions
+		getOptions,
+		getEditor
 	};
 }

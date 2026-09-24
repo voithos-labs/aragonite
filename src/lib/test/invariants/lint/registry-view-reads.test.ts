@@ -77,7 +77,7 @@ describe('G4.68 the internal registry readers take the grammar as a required par
 /** The places outside the parser, the grammar's own modules, the plugin barrel and the published
  *  kits that fall back to every installed plugin, each where an optional grammar arrives. */
 const EVERY_PLUGIN_FALLBACKS: Record<string, string> = {
-	'src/lib/core/inline/index.ts:104': 'the published parseInline takes an optional grammar',
+	'src/lib/core/inline/index.ts:117': 'the published parseInline takes an optional grammar',
 	'src/lib/core/inline/inline-cache.ts:67': 'the action deps carry the link context optionally',
 	'src/lib/core/inline/transparency.ts:15': 'navigation reads transparency with no editor context',
 	'src/lib/core/inline-render.ts:414': 'the render options reach renderedText with no grammar',
@@ -124,15 +124,11 @@ const RULES: CallSiteRule[] = [
 		// Each a known gap: the inline tree these sites read can hold a construct an unlisted plugin
 		// claimed, which this editor draws as text.
 		allowed: {
-			'src/lib/core/inline/index.ts:101': 'an error message naming the call, not a call',
+			'src/lib/core/inline/index.ts:114': 'an error message naming the call, not a call',
 			'src/lib/editor-actions/container-block-component.ts:286':
 				'the whole-block component deps carry no grammar; a container is transparent only if every child is',
 			'src/lib/selection/keyboard-extend.ts:334':
-				'the vertical-extend path walks paths off the document with no editor context',
-			'src/lib/plugins/footnotes/footnote-numbering.ts:42':
-				'the published computeInlineContent takes no grammar: the plugin API exposes none (#433)',
-			'src/lib/plugins/toc/heading-outline.ts:68':
-				'the published computeInlineContent takes no grammar: the plugin API exposes none (#433)'
+				'the vertical-extend path walks paths off the document with no editor context'
 		},
 		reason:
 			'a read without the grammar resolves every installed plugin, so an unlisted plugin’s inline syntax, widget, directive name or completer reaches this editor (#266)',

@@ -2,7 +2,8 @@ import { devWarn } from '../dev-warn';
 import { isValidPluginName } from './plugin-name';
 // Type-only: `editor-events` already imports this module at runtime, so importing a value back
 // would close a cycle from `schema/` to the root.
-import type { DocumentView } from '../core/node-views';
+import type { DocumentView, NodeView } from '../core/node-views';
+import type { InlineNode } from '../core/nodes';
 import type { EditorEvents } from '../editor-events';
 import type { InsertMarkdownOptions } from '../editor-props';
 import type { DecorationRegistry } from '../decorations/types';
@@ -53,6 +54,10 @@ export interface EditorContext<Options = unknown> {
 	/** `EditorInstance.runCommand` for this editor: false, and nothing written, on an unknown id,
 	 *  in reading mode, or with nothing focused for a block command. */
 	runCommand(commandId: string, arg?: unknown): boolean;
+	/** Inline-parse a prose leaf in this editor's syntax, so a plugin its `plugins` prop left out
+	 *  reads as text, as the editor draws it. Uncached, safe to pass on its own; reference links
+	 *  come back unresolved. */
+	readonly computeInlineContent: (node: NodeView) => InlineNode[];
 	/** A getter, so always live: the mode in effect. The `presentationModeChange` event signals a change. */
 	readonly presentationMode: PresentationMode;
 	/** A getter, so always live: the theme name written to `data-editor-theme`. The `themeChange`

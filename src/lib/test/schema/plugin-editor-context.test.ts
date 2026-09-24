@@ -46,7 +46,8 @@ const deps = (doc: { children: unknown[] }) => ({
 	getTheme: () => 'dark',
 	activation: everyInstalledPlugin as PluginActivation,
 	insertMarkdown: (() => false) as (md: string, options?: InsertMarkdownOptions) => boolean,
-	runCommand: (() => false) as (commandId: string, arg?: unknown) => boolean
+	runCommand: (() => false) as (commandId: string, arg?: unknown) => boolean,
+	computeInlineContent: () => []
 });
 
 /** Two installed plugins, each recording the editors its hook attached to. */

@@ -1460,7 +1460,7 @@ parameter, so the type checker refuses a call without one. The readers whose gra
 optional (the published `parseInline` and `computeInlineContent` among them) are held to passing
 it in its own argument slot, and a fallback to every installed plugin is spelled only in the
 listed places. The reads still left unthreaded are listed with their reasons: navigation's transparency
-check and the plugin API's inline read (#433).
+check.
 `lint/registry-view-reads.test.ts`.
 
 **G4.69 · Reparses take the editor's grammar.** Every `parse` call outside the parser passes a

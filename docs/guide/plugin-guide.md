@@ -538,6 +538,7 @@ setup(ctx) {
 | `insertCatalogue`              | The blocks this editor's insert menus offer, live, yours included once you `registerInsertEntry` from `setup`                                                          |
 | `insertMarkdown(md, options?)` | Insert Markdown the way the instance's own call does ([Inserting Markdown at the caret](consumer-guide.md#inserting-markdown-at-the-caret)); false where that would be |
 | `runCommand(id, arg?)`         | Run a command by id the way the instance's own call does; false where that would be                                                                                    |
+| `computeInlineContent(node)`   | Inline-parse a prose leaf in this editor's syntax, so a plugin its `plugins` prop left out reads as the text the editor draws; pass it where you walk inline nodes     |
 | `presentationMode`             | The effective presentation mode, live, paired with the `presentationModeChange` event ([Presentation modes](#presentation-modes))                                      |
 | `theme`                        | The editor's theme name, live, paired with the `themeChange` event, for content whose colors an engine paints                                                          |
 
@@ -892,6 +893,7 @@ The factory returns more than the walkthrough destructures:
 | `getPresentationMode`   | Your rendering or a gesture needs the live presentation mode ([Presentation modes](#presentation-modes))                                                                                                                                                                                                            |
 | `getTheme`              | Your content's colors are painted by an engine rather than styled by CSS; token-styled chrome needs neither this nor `getPresentationMode`, it rethemes through the cascade                                                                                                                                         |
 | `getOptions`            | This editor instance's options for the plugin owning your kind, typed `unknown`; the per-instance channel a factory argument can't reach ([the options recipe](#recipe-per-instance-options-and-the-factory-closure-trap))                                                                                          |
+| `getEditor`             | This editor's `EditorContext` for the plugin owning your kind, undefined in a bare harness; its `computeInlineContent` reads the syntax this editor draws                                                                                                                                                           |
 | `captureScrollPosition` | Your component is about to swap its view for one of a different height (a tall diagram for its short source card) and the reader is scrolled right at it. Call it before the swap, await what it hands back after, and the page stays where the reader left it instead of clamping to the shorter layout in between |
 
 ```ts
@@ -1169,6 +1171,7 @@ const leaf = createEditableLeaf({
 leaf.sourceText; // the block's raw minus its trailing line ending
 leaf.getPresentationMode(); // 'source'
 leaf.getOptions(); // this editor's options for your plugin, typed unknown
+leaf.getEditor(); // this editor's EditorContext for your plugin, undefined in a bare harness
 ```
 
 **Native parity is the tier's whole claim**: the editor's caret enters and leaves your block like any built-in text block (including keeping its column as it walks up or down lines), IME composition is respected, undo batches like prose, the clipboard is intercepted for plain-Markdown copy/cut/paste like every editable surface, and a cross-block selection sweeps through your text.
@@ -1390,6 +1393,8 @@ A widget renders through one of two paths, and the descriptor rejects declaring 
 - `getContentVersion`: a number that changes whenever the document's bytes change, and is stable otherwise.
 
 A fourth prop, `navigateTo`, is the editor's jump route: hand it a block path and the editor reveals that block, scrolls it into view, and lands the caret in it. Aim at a leaf: a container seats no caret, so a container path scrolls the block into view and leaves the caret where it was. Use it when your widget points at somewhere else in the document, the way a footnote reference points at its definition. It's absent in a bare harness mount, so call it optionally.
+
+A fifth, `computeInlineContent`, is the editor's own inline parse, the same function as `EditorContext.computeInlineContent`: walk inline nodes through it and syntax the editor left out reads as the text it draws. It's absent in a bare harness mount too, where the published free function stands in.
 
 If your `revealSource` widget takes a click of its own, declare `claimsActivationClick` in its editing policy and read `isWidgetActivationClick` to decide when to act: the surface stands its reveal down for exactly the gesture that predicate names, so the widget isn't swapped for its source bytes under a click meant to navigate. Without `revealSource` there's no reveal to stand down, and the field is inert.
 

@@ -22,7 +22,7 @@
 	const toc = tocPlugin();
 	const listedReadsPlugins = [...listedPlugins, toc];
 	const unlistedReadsPlugins = [...unlistedPlugins, toc];
-	const READS_SEED = '# Title $x$\n\n[[toc]]\n\na :smile: b\n\na $x$ b\n';
+	const READS_SEED = '# Title $*x*$\n\n[[toc]]\n\na :smile: b\n\na $x$ b\n';
 
 	// Each editor parses the seed in its own grammar: the first reads a parrot block, an emoji, a
 	// note and math; the second, which listed none of those plugins, reads the parrot bytes as a

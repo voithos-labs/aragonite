@@ -45,3 +45,18 @@ test.describe('checks and plugin reads follow the plugins prop', () => {
 		await expect.poll(() => sourceOf(page, 'notListing')).toContain('\n\na $x**y**$ b\n');
 	});
 });
+
+test.describe('a plugin reads inline syntax the way its editor draws it', () => {
+	test.beforeEach(async ({ page }) => {
+		await page.goto('/test/plugins/activation?reads');
+		await page.getByTestId('editor-not-listing').locator('.toc-block-item').first().waitFor();
+	});
+
+	test('the toc label reads the dollars as text only in the editor without latex', async ({
+		page
+	}) => {
+		const labelIn = (testId: string) => page.getByTestId(testId).locator('.toc-block-item').first();
+		await expect(labelIn('editor-not-listing')).toHaveText('Title $x$');
+		await expect(labelIn('editor-listing')).toHaveText('Title $*x*$');
+	});
+});

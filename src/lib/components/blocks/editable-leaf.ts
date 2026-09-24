@@ -57,7 +57,7 @@ import type { PresentationMode } from '../../presentation-mode';
 import { tryGetBlockKindDescriptor } from '../../schema/block-kind-descriptor';
 import { type CommandId } from '../../schema/commands';
 import { type BlockCommandContext } from '../../schema/block-commands';
-import { owningPluginEditor } from '../../schema/plugin-install';
+import { owningPluginEditor, type EditorContext } from '../../schema/plugin-install';
 import { reorderRunCommand } from '../../editor-actions/reorder-action';
 import { createTextBatch } from '../../editor-actions/commit/text-batch';
 
@@ -185,6 +185,9 @@ export interface EditableLeaf {
 	 * same kind differently. `unknown`, like `commandHooks`: the plugin narrows it.
 	 */
 	getOptions(): unknown;
+	/** This editor's context for the plugin that owns this block's kind; undefined in a bare
+	 *  harness. Its `computeInlineContent` reads the inline syntax this editor draws. */
+	getEditor(): EditorContext | undefined;
 
 	// ── BlockComponent surface (mode-guarded; re-export as one-liners) ────────
 	focus(offset: number): void;
@@ -260,7 +263,9 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 	const getPresentationMode = (): PresentationMode => getPresentationModeCtx?.() ?? 'source';
 	const getTheme = (): string => getThemeCtx?.() ?? 'dark';
 	// Resolved by the kind's recorded owner, like the command context's `editor`.
-	const getOptions = (): unknown => owningPluginEditor(pluginEditor, deps.getNode().kind)?.options;
+	const getEditor = (): EditorContext | undefined =>
+		owningPluginEditor(pluginEditor, deps.getNode().kind);
+	const getOptions = (): unknown => getEditor()?.options;
 	const isReading = () => getPresentationMode() === 'reading';
 
 	let composing = false;
@@ -832,6 +837,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		getPresentationMode,
 		getTheme,
 		getOptions,
+		getEditor,
 
 		focus,
 		parkCaret,

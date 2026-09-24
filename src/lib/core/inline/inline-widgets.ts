@@ -66,6 +66,9 @@ export interface InlineWidgetComponentProps {
 	/** `EditorRects.navigateTo`: mount, scroll to and put the caret at a raw offset in a block
 	 *  path. Absent in a bare harness, so a widget that navigates declines rather than throws. */
 	navigateTo?: (path: number[], offset?: number) => Promise<boolean>;
+	/** `EditorContext.computeInlineContent` for the widget's editor: a parse that reads only the
+	 *  inline syntax that editor draws. Absent in a bare harness. */
+	computeInlineContent?: (node: NodeView) => InlineNode[];
 }
 
 /**

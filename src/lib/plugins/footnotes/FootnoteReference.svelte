@@ -9,7 +9,8 @@
 		getDocument,
 		getContentVersion,
 		getPresentationMode,
-		navigateTo
+		navigateTo,
+		computeInlineContent
 	}: InlineWidgetComponentProps = $props();
 
 	// Read once: the widget remounts on any source change, so this can never go stale.
@@ -24,7 +25,9 @@
 		if (!doc) return label;
 		const version = getContentVersion?.();
 		const numbers =
-			version === undefined ? assignFootnoteNumbers(doc) : footnoteNumbersFor(doc, version);
+			version === undefined
+				? assignFootnoteNumbers(doc, computeInlineContent)
+				: footnoteNumbersFor(doc, version, computeInlineContent);
 		return String(numbers.get(label) ?? label);
 	});
 
