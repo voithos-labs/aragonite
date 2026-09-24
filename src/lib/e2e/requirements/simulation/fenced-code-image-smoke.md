@@ -15,6 +15,9 @@ reference checks on every run.
 - the blockquote comes from the slash list: `/quote` typed on the empty line,
   Enter on the showing list, then the quote's text typed into the block the pick
   made; the note ends byte-identical to one whose quote was typed as `>`
+  - miss: the pick's wait read variables from the test's scope inside the page, where they do
+    not exist, and no run caught it because this project runs only in the full battery; the
+    bridge's source wait now runs its check in the test process
 - end-state equality holds: after the build and every detour, the typed
   document equals the canonical note byte-for-byte (typing ≡ loading)
 

@@ -1,4 +1,4 @@
-import { type Page } from '@playwright/test';
+import { expect, type Page } from '@playwright/test';
 import type { GapCaretPosition } from '../selection/gap-caret';
 import type { EditorSelection } from '../selection/primitives';
 
@@ -51,16 +51,15 @@ export class EditorBridge {
 		);
 	}
 
+	/** The predicate runs in the test process, not the page, so it may read any variable in scope. */
 	async waitForSource(predicate: (source: string) => boolean, timeout = 5000): Promise<void> {
-		await this.page.waitForFunction(
-			(predSrc) => {
-				const source = (window as any).__test?.getSource() as string | undefined;
-				if (source === undefined) return false;
-				return new Function('source', `return (${predSrc})(source);`)(source);
-			},
-			predicate.toString(),
-			{ timeout, polling: 16 }
-		);
+		const settled = async () => {
+			const source = await this.page.evaluate(
+				() => (window as any).__test?.getSource() as string | undefined
+			);
+			return source !== undefined && predicate(source);
+		};
+		await expect.poll(settled, { timeout, intervals: [16] }).toBe(true);
 	}
 
 	async waitForSourceWith<T>(
