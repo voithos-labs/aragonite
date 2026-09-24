@@ -71,11 +71,12 @@ export interface BlockEditActions {
 		postEditFocusOffset?: number
 	): void | Promise<void>;
 	/**
-	 * Where a caret at `offset` ends up once this list has committed `text`: the result of a
-	 * container's `bodyWrite` rewrite, so a block whose committed bytes differ from its DOM
-	 * puts the caret on the bytes. Returns `offset` unchanged when nothing is rewritten.
+	 * Where a caret at `offset` ends up once this list has committed `text` to the block at
+	 * `blockIndex`: past a container's `bodyWrite` rewrite, and past a task marker the item moves
+	 * out of its first paragraph or back in. Ask before the write; returns `offset` unchanged
+	 * when nothing is rewritten.
 	 */
-	mapCommittedOffset?(text: string, offset: number): number;
+	mapCommittedOffset?(blockIndex: number, text: string, offset: number): number;
 	/**
 	 * Change block metadata without touching raw: for state held as metadata (task
 	 * checkboxes), not for metadata derived from raw like a heading's level (use

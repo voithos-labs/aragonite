@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
 //
 // The caret-edge dispatch's marker-completion branch: a bare space at the content start of an
-// empty child belongs to the marker the parser already made, so it is consumed and no byte moves.
+// empty child, or of a child right after a bare marker, belongs to the marker the parser already
+// made, so it is consumed and no byte moves.
 // Miss-analysis: the parser makes `>` on one keystroke and the suite only ever loaded quotes, so
 // the second keystroke of the two-key marker had no test at any level.
 import { describe, expect, it } from 'vitest';
@@ -93,6 +94,22 @@ describe('a container declaring contentStartSpace completes its marker', () => {
 	it('declines in an equally empty child of a container that declares nothing', () => {
 		const h = mount('- \n', [0, 0, 0]);
 		expect(h.handleKeydown(key(' '), at(0))).toBe(false);
+	});
+
+	// Typing `>` before existing text makes the quote at once, and the caret lands before the text
+	// (GH #456), so the space typed next is the marker's, not a leading space in the text.
+	// Miss-analysis: the caret never reached a non-empty child's start after a bare marker before
+	// that fix, so only the empty child was ever asked.
+	it('consumes the space at the content start of a child right after a bare marker', () => {
+		const h = mount('>abc\n', [0, 0]);
+		expect(h.handleKeydown(key(' '), at(0))).toBe(true);
+		expect(h.edits).toHaveLength(0);
+		expect(h.handleKeydown(key(' '), at(0))).toBe(false);
+	});
+
+	it('completes a bare marker nested in a list item at its own depth', () => {
+		const h = mount('- a\n\n  >abc\n', [0, 0, 1, 0]);
+		expect(h.handleKeydown(key(' '), at(0))).toBe(true);
 	});
 
 	it('declines at the document root, where there is no container to complete', () => {

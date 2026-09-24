@@ -261,13 +261,14 @@
 		relocateComposedText: (after, composedAt) => compositionSeat.relocate(after, composedAt),
 		commitInput: (text, preEdit, saved) => {
 			const committed = text + trailingLineEnding(node.raw);
+			// An enclosing container may rewrite these bytes on the way in, so the caret restore
+			// reads the text actually stored; asked before the write, as the mapping requires.
+			const caret = blockEdit.mapCommittedOffset?.(index, committed, saved);
 			// Typed text is the one write whose kind change the block names (`kind-cue.svelte.ts`).
 			const before = shownKind(node);
 			const write = blockEdit.updateBlockContent(index, committed, preEdit, saved);
 			void kindCue.afterTypedWrite(write, myPath, before);
-			// An enclosing container may rewrite these bytes on the way in, so the caret
-			// restore reads the text actually stored, not the offset the keystroke produced.
-			return blockEdit.mapCommittedOffset?.(committed, saved);
+			return caret;
 		},
 		inputPrelude: () => {
 			markKeystrokeStart();
@@ -655,7 +656,7 @@
 		const caret = cursor.getRaw() ?? 0;
 		const selection = cursor.getRawSelection() ?? { start: caret, end: caret };
 		return formatActive(
-			{ display: getDisplayText(), content: getContentRange(node), selection, grammar },
+			{ display: getDisplayText(), content: getContentRange(node), selection, linkRef },
 			marked.kind
 		);
 	}
@@ -958,7 +959,7 @@
 			seatOutside: edgeAffinity.noteExtreme,
 			completesLine: (caret) => planTypedCompletion(node, caret, grammar) !== null,
 			keepsBlockKind: (text) => keepsBlockKind(node, text, grammar),
-			grammar,
+			linkRef,
 			write: (text, caretBefore, caretAfter) => {
 				const raw = text + trailingLineEnding(node.raw);
 				void blockEdit.updateBlockContent(index, raw, caretBefore, caretAfter);
@@ -1072,7 +1073,12 @@
 		}
 
 		const toggled = toggleInlineFormat(
-			{ display: getDisplayText(), content: getContentRange(node), selection: range, grammar },
+			{
+				display: getDisplayText(),
+				content: getContentRange(node),
+				selection: range,
+				linkRef
+			},
 			format,
 			presentationMode
 		);

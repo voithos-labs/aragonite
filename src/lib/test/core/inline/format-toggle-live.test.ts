@@ -15,7 +15,7 @@ import { renderOptions } from '../../harness/fixture-grammar';
 
 const live = (raw: string, selection: { start: number; end: number }, format: InlineMarkKind) =>
 	toggleInlineFormat(
-		{ display: raw, content: whole(raw), selection, grammar: defaultGrammarView },
+		{ display: raw, content: whole(raw), selection, linkRef: { grammar: defaultGrammarView } },
 		format,
 		'live'
 	);
@@ -80,7 +80,12 @@ describe('the preview inline syntax handlers write what source writes', () => {
 		(mode) => {
 			const at = (raw: string, selection: { start: number; end: number }) =>
 				toggleInlineFormat(
-					{ display: raw, content: whole(raw), selection, grammar: defaultGrammarView },
+					{
+						display: raw,
+						content: whole(raw),
+						selection,
+						linkRef: { grammar: defaultGrammarView }
+					},
 					'strong',
 					mode
 				);
@@ -93,7 +98,7 @@ describe('the preview inline syntax handlers write what source writes', () => {
 describe('source mode reads a run through the space beside it', () => {
 	const source = (raw: string, selection: { start: number; end: number }) =>
 		toggleInlineFormat(
-			{ display: raw, content: whole(raw), selection, grammar: defaultGrammarView },
+			{ display: raw, content: whole(raw), selection, linkRef: { grammar: defaultGrammarView } },
 			'strong',
 			'source'
 		);

@@ -35,7 +35,7 @@ function presses(
 		display: PLAIN,
 		content: whole(PLAIN),
 		selection,
-		grammar: defaultGrammarView
+		linkRef: { grammar: defaultGrammarView }
 	};
 	for (let press = 0; press < count; press++) {
 		const result = toggleInlineFormat(edit, format, mode);
@@ -45,7 +45,7 @@ function presses(
 			display: result.newDisplay,
 			content: whole(result.newDisplay),
 			selection: { start: result.newSelStart, end: result.newSelEnd },
-			grammar: defaultGrammarView
+			linkRef: { grammar: defaultGrammarView }
 		};
 	}
 	return written;
@@ -76,7 +76,7 @@ describe.each(MODES)('a toggle over boundary whitespace (%s)', (mode) => {
 			display: PLAIN,
 			content: whole(PLAIN),
 			selection: SELECTIONS['both spaces'],
-			grammar: defaultGrammarView
+			linkRef: { grammar: defaultGrammarView }
 		};
 		const result = toggleInlineFormat(edit, format, mode);
 		expect(result?.newDisplay.slice(result.newSelStart, result.newSelEnd)).toBe(`${m}word${m}`);

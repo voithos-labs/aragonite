@@ -28,14 +28,9 @@ describe('a grid whose kind carries no table metadata', () => {
 	it('contributes its cells instead of throwing out of the plan', () => {
 		const doc = docAround(gridOf(registerPluginGrid(), [['a', 'b']]));
 
-		const plan = planCrossBlockFormat(
-			doc,
-			at([0], 0),
-			at([2], 4),
-			'strong',
-			undefined,
-			defaultGrammarView
-		)!;
+		const plan = planCrossBlockFormat(doc, at([0], 0), at([2], 4), 'strong', undefined, {
+			grammar: defaultGrammarView
+		})!;
 		expect(plan.writes.map((write) => [write.path, write.newDisplay])).toEqual([
 			[[0], '**head**'],
 			[[1, 0, 0], '**a**'],
@@ -59,7 +54,7 @@ describe('a grid whose kind carries no table metadata', () => {
 			at([2], 4),
 			'strong',
 			undefined,
-			defaultGrammarView
+			{ grammar: defaultGrammarView }
 		)!;
 		expect(plan.writes.map((write) => write.path)).toEqual([[0], [1, 0, 0], [1, 0, 1], [2]]);
 	});
@@ -75,14 +70,9 @@ describe('a grid whose kind carries no table metadata', () => {
 			children: [{ kind: kinds.cell, leadingTrivia: '', raw: 'a' }]
 		});
 
-		const plan = planCrossBlockFormat(
-			doc,
-			at([0], 0),
-			at([2], 4),
-			'strong',
-			undefined,
-			defaultGrammarView
-		)!;
+		const plan = planCrossBlockFormat(doc, at([0], 0), at([2], 4), 'strong', undefined, {
+			grammar: defaultGrammarView
+		})!;
 		expect(plan.writes.map((write) => write.path)).toEqual([[0], [2]]);
 	});
 
@@ -92,7 +82,9 @@ describe('a grid whose kind carries no table metadata', () => {
 		doc.children[2].raw = '**tail**\n';
 
 		expect(
-			crossBlockActiveFormats(doc, at([0], 0), at([2], 8), defaultGrammarView).has('strong')
+			crossBlockActiveFormats(doc, at([0], 0), at([2], 8), { grammar: defaultGrammarView }).has(
+				'strong'
+			)
 		).toBe(true);
 	});
 });
@@ -150,7 +142,9 @@ describe('a range endpoint deep inside a plugin grid', () => {
 		doc.children[0].raw = '**head**\n';
 
 		expect(
-			crossBlockActiveFormats(doc, at([0], 0), at([1, 0, 0], 1), defaultGrammarView).has('strong')
+			crossBlockActiveFormats(doc, at([0], 0), at([1, 0, 0], 1), {
+				grammar: defaultGrammarView
+			}).has('strong')
 		).toBe(true);
 	});
 
@@ -183,14 +177,9 @@ describe('a grid whose rows differ in width', () => {
 	it('never writes the surplus cell of a wider row', () => {
 		const doc = docAround(gridOf(registerPluginGrid(), RAGGED));
 
-		const plan = planCrossBlockFormat(
-			doc,
-			at([0], 0),
-			at([2], 4),
-			'strong',
-			undefined,
-			defaultGrammarView
-		)!;
+		const plan = planCrossBlockFormat(doc, at([0], 0), at([2], 4), 'strong', undefined, {
+			grammar: defaultGrammarView
+		})!;
 		expect(plan.writes.map((write) => write.path)).toEqual([
 			[0],
 			[1, 0, 0],

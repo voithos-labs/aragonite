@@ -34,7 +34,7 @@ import { spliceMany } from '../tree-operations/splice-many';
 import { isMergeEligible, isBlockEditable } from '../schema/merge-rules';
 import { getBlockKindDescriptor } from '../schema/block-kind-descriptor';
 import type { CommitAfterTick, UndoEntryMode } from '../action-contracts';
-import type { CommitScope, MutationView } from './block-edit-scope';
+import { landCaretInScope, type CommitScope, type MutationView } from './block-edit-scope';
 import { mergedElseFocusNext, mergedElseFocusPrevious } from './merge-fallback';
 
 /** The owner the tree operations read, taken live off the commit's copied view. */
@@ -209,13 +209,11 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 					);
 					return mergeResult?.change ?? { op: 'noop' };
 				},
-				afterTick: () => {
+				afterTick: async () => {
 					const merged = mergedElseFocusPrevious(mergeResult, scope.refAt(i - 1));
 					if (!merged) return;
 					// The fix-up after the delete can merge the joined block into the one above it.
-					const ref = scope.refAt(merged.index);
-					if (merged.targetPath.length === 0) ref?.focus(merged.joinOffset);
-					else ref?.focusByPath?.(merged.targetPath, merged.joinOffset);
+					await landCaretInScope(scope, merged.index, merged.targetPath, merged.joinOffset);
 				},
 				// A merge with no target changes nothing; discard the undo entry but keep
 				// afterTick, which still places the caret.
@@ -348,11 +346,9 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 					if (view.owner) reconcileTaskMetadata(view.owner, i, stood, view.sharing);
 					return change;
 				},
-				afterTick: () => {
+				afterTick: async () => {
 					if (!focus || replacement.length === 0) return;
-					const ref = scope.refAt(i + focus.replacementIndex);
-					if (focus.path?.length) ref?.focusByPath?.(focus.path, focus.offset);
-					else ref?.focus(focus.offset);
+					await landCaretInScope(scope, i + focus.replacementIndex, focus.path ?? [], focus.offset);
 				}
 			});
 		}

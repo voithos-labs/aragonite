@@ -98,7 +98,7 @@ export function createBlockEditActions(
 		deps.bumpContentVersion();
 		if (settled.change.op === 'noop') return;
 		await tick();
-		focusAfterContentReplace(
+		await focusAfterContentReplace(
 			[],
 			blockIndex,
 			settled,

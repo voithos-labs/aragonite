@@ -9,7 +9,7 @@ import { makeBlockNode, metadataOf, type AnyBlockKind } from '../core/nodes';
 import type { NodeView } from '../core/node-views';
 import type { StructuralChange } from '../tree-operations/structural-change';
 import { readBlockPath } from '../selection/path-lookup';
-import type { CommitScope } from './block-edit-scope';
+import { landCaretInScope, type CommitScope } from './block-edit-scope';
 
 // ── Reparse probe ────────────────────────────────────────────────────────────
 
@@ -59,20 +59,20 @@ export function previewContentReparse(
 /**
  * Restore the caret after a structural content commit. A no-op when focus already moved on.
  */
-export function focusAfterContentReplace(
+export async function focusAfterContentReplace(
 	scopePath: number[],
 	at: number,
 	settled: SettledContent,
 	focusOffset: number,
 	scope: CommitScope
-): void {
+): Promise<void> {
 	const { change } = settled;
 	const count = change.op === 'replace' ? change.newCount : 1;
 	// The index after the fix-up, not the one the edit named: a collapse above moved both.
 	const windowAt = change.op === 'replace' ? change.at : at;
 	if (focusMovedOutsideReplacement(scopePath, windowAt, count)) return;
 	const target = settledCaretTarget(settled, at, focusOffset, scope.children());
-	scope.refAt(target.index)?.focus(target.offset);
+	await landCaretInScope(scope, target.index, target.path, target.offset);
 }
 
 /**

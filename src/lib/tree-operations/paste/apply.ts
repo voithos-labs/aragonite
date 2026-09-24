@@ -78,7 +78,10 @@ async function commitInlineJoin(
 	// The paste can demote the block's kind, and a merge into the block above left that block
 	// holding the pasted bytes, so the caller's own caret target is stale.
 	const target = settledCaretTarget(settled, leafIndex, result.caretOffset, siblings);
-	return { path: [...targetPath.slice(0, -1), target.index], offset: target.offset };
+	return {
+		path: [...targetPath.slice(0, -1), target.index, ...target.path],
+		offset: target.offset
+	};
 }
 
 export async function applyStructuralResult(

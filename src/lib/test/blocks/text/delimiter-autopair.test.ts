@@ -9,7 +9,9 @@ import { registerMathInline } from '$lib/plugins/latex/latex-kind';
 
 const whole = (text: string) => ({ start: 0, end: text.length });
 const type = (text: string, caret: number, typed: string) =>
-	resolveDelimiterAutoPair(text, whole(text), caret, typed, undefined, defaultGrammarView);
+	resolveDelimiterAutoPair(text, whole(text), caret, typed, undefined, {
+		grammar: defaultGrammarView
+	});
 const written = (text: string, caret: number) => ({ kind: 'write', text, caret });
 const closed = (text: string, caret: number) => ({ kind: 'close', text, caret });
 const stepped = (caret: number, overConstruct: boolean) => ({
@@ -66,14 +68,9 @@ describe('delimiter auto-pair', () => {
 
 	it('declines outside the content range and for multi-byte input', () => {
 		expect(
-			resolveDelimiterAutoPair(
-				'# head',
-				{ start: 2, end: 6 },
-				1,
-				'`',
-				undefined,
-				defaultGrammarView
-			)
+			resolveDelimiterAutoPair('# head', { start: 2, end: 6 }, 1, '`', undefined, {
+				grammar: defaultGrammarView
+			})
 		).toBeNull();
 		expect(type('ab', 1, '``')).toBeNull();
 	});

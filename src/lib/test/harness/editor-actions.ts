@@ -147,6 +147,9 @@ export function makeCommitScopeStub(
 	const scope: CommitScope = {
 		children: () => children,
 		refAt: (i) => refs[i],
+		// No render window here: every ref counts as mounted.
+		reveal: async (i, path) =>
+			(path.length === 0 ? refs[i] : refs[i]?.getBlockComponentByPath?.([...path])) ?? null,
 		collapseEmptyReplaceToDelete: opts.collapse ?? true,
 		async commit(args) {
 			commits.push(args);

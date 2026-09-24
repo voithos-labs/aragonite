@@ -665,15 +665,16 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 	// ── Container marker completion ────────────────────────────────────────────
 
 	/**
-	 * A bare space at the content start of an empty child whose container declares
-	 * `contentStartSpace`. Consumed, not written: the container's `rebuildRaw` writes it back the
-	 * moment content arrives, so inserting it here would double the marker's own space. It is
+	 * A bare space at a child's content start while its container's marker lacks its space
+	 * (`contentStartSpace`). Consumed, not written: the container's `rebuildRaw` writes it back
+	 * with the next write inside, so inserting it here would double the marker's own space. It is
 	 * taken once per child; a later space at the same position is content.
 	 */
 	function handleMarkerCompletion(e: KeyboardEvent, caretOffset: RawOffset | null): boolean {
 		const bareSpace = e.key === ' ' && !e.shiftKey && !hasModifier(e);
 		if (!bareSpace || caretOffset === null || heldRange()) return false;
-		if (!markerCompletion.claimSpace(deps.node, deps.containerParent, caretOffset)) return false;
+		const { node, containerParent, index } = deps;
+		if (!markerCompletion.claimSpace(node, containerParent, index, caretOffset)) return false;
 		e.preventDefault();
 		return true;
 	}
@@ -690,14 +691,14 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 		// A delimiter typed over its own closing one is the auto-pair's step-over, handled on
 		// beforeinput (delimiter-autopair.ts); placed outside the run it would be typed instead.
 		const content = getContentRange(deps.node);
-		const { grammar } = deps;
+		const { grammar, linkRef } = deps;
 		const autoPair = resolveDelimiterAutoPair(
 			display(),
 			content,
 			caretOffset,
 			e.key,
 			undefined,
-			grammar
+			linkRef
 		);
 		if (autoPair?.kind === 'step-over') return false;
 		const el = deps.getEl();
@@ -714,7 +715,7 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 			seat.offset,
 			e.key,
 			(line) => keepsBlockKind(deps.node, line, grammar),
-			grammar
+			linkRef
 		);
 		if (paired && paired.kind !== 'step-over') {
 			writeDisplay(paired.text, paired.caret, `seat:${seat.kind}`, caretOffset);

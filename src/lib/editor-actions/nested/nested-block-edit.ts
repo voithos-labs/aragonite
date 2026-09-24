@@ -11,6 +11,7 @@ import type { BlockListState } from '../../reactivity/block-list-state.svelte';
 import { updateNodeContent as performUpdate, ensureUnsharedChild } from '../../tree-operations';
 import type { SettledContent } from '../../tree-operations/content-write';
 import { followsTaskMarker } from '../../tree-operations/list/task-paragraph';
+import { taskMarkerCaretShift } from '../../tree-operations/list/reconcile-task';
 import { stampStructuralChange } from '../../tree-operations/structural-change';
 import { tryGetBlockKindDescriptor } from '../../schema/block-kind-descriptor';
 import { isCollapsedContainer } from '../../schema/reserved-chrome';
@@ -31,13 +32,15 @@ export function createNestedBlockEdit(
 	const core = createBlockEditCore(scope);
 
 	/**
-	 * Where a caret at `offset` lands once this container's body-write rule has rewritten
-	 * `text`. Both caret placements read it, since either can come from a component that
-	 * measured the DOM before the rewrite.
+	 * Where a caret at `offset` lands once this container has rewritten `text` on the way in.
+	 * Both caret placements read it, since either can come from a component that measured the
+	 * DOM before the rewrite; it reads the container as it stands before the write.
 	 */
-	function mapCommittedOffset(text: string, offset: number): number {
+	function mapCommittedOffset(innerIndex: number, text: string, offset: number): number {
 		const bodyWrite = tryGetBlockKindDescriptor(deps.node.kind)?.bodyWrite;
-		return bodyWrite ? bodyWrite.mapOffset(text, offset) : offset;
+		const mapped = bodyWrite ? bodyWrite.mapOffset(text, offset) : offset;
+		if (innerIndex !== 0) return mapped;
+		return Math.max(mapped + taskMarkerCaretShift(deps.node, text), 0);
 	}
 
 	const blockEdit: BlockEditActions = {
@@ -144,6 +147,13 @@ export function createNestedBlockEdit(
 		postEditFocusOffset?: number
 	): Promise<void> {
 		if (!deps.node.children) return;
+		// Mapped before the write, while the container still holds what the rewrite reads, because
+		// a caret measured before the rewrite names a position in bytes that were never stored.
+		const focusOffset = mapCommittedOffset(
+			innerIndex,
+			text,
+			postEditFocusOffset ?? preEditOffset ?? 0
+		);
 
 		// No trailing-line suffix: only the document keeps its last blank line in a suffix, a
 		// container does not.
@@ -159,10 +169,6 @@ export function createNestedBlockEdit(
 		const leafPath = extendDocPath(deps.path, innerIndex);
 
 		if (preview.op !== 'noop') {
-			// Mapped, because a caret measured before the rewrite names a position in bytes that
-			// were never stored. Reachable here and not only on the routine path: completing
-			// `</details>` is a kind change, and a kind change commits.
-			const focusOffset = mapCommittedOffset(text, postEditFocusOffset ?? preEditOffset ?? 0);
 			let settled: SettledContent = { change: { op: 'noop' }, textStart: 0 };
 			await parent.containerEdit.commitContainer({
 				containerNode: deps.node,
@@ -238,13 +244,7 @@ export function createNestedBlockEdit(
 		// bytes as they now lie.
 		if (settled.change.op === 'noop') return;
 		await tick();
-		focusAfterContentReplace(
-			deps.path,
-			innerIndex,
-			settled,
-			mapCommittedOffset(text, postEditFocusOffset ?? preEditOffset ?? 0),
-			scope
-		);
+		await focusAfterContentReplace(deps.path, innerIndex, settled, focusOffset, scope);
 	}
 
 	return blockEdit;

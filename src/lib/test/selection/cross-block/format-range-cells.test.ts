@@ -42,7 +42,9 @@ function toggle(
 	format: 'strong' | 'emphasis' = 'strong'
 ): string | null {
 	const doc = parse(source);
-	const plan = planCrossBlockFormat(doc, start, end, format, undefined, defaultGrammarView);
+	const plan = planCrossBlockFormat(doc, start, end, format, undefined, {
+		grammar: defaultGrammarView
+	});
 	if (!plan) return null;
 	applyCrossBlockFormat(doc, plan, createSharingState(), defaultGrammarView);
 	return serialize(doc);
@@ -150,7 +152,9 @@ describe('direction is the whole range’s coverage, cells included', () => {
 
 describe('the pressed-state read', () => {
 	const active = (source: string, start: SelectionPoint, end: SelectionPoint) =>
-		crossBlockActiveFormats(parse(source), start, end, defaultGrammarView).has('strong');
+		crossBlockActiveFormats(parse(source), start, end, { grammar: defaultGrammarView }).has(
+			'strong'
+		);
 
 	it('is true only when every covered cell carries the mark too', () => {
 		expect(
@@ -177,28 +181,18 @@ describe('the endpoints the plan hands back', () => {
 	// prose side takes the offset its own rewrite produced.
 	it('leaves a cell endpoint on its cell index and re-offsets the prose one', () => {
 		const doc = parse(`head\n\n${TWO_COL}\ntail\n`);
-		const plan = planCrossBlockFormat(
-			doc,
-			cell([1], 2),
-			at([2], 4),
-			'strong',
-			undefined,
-			defaultGrammarView
-		)!;
+		const plan = planCrossBlockFormat(doc, cell([1], 2), at([2], 4), 'strong', undefined, {
+			grammar: defaultGrammarView
+		})!;
 		expect(plan.startOffset).toBe(2);
 		expect(plan.endOffset).toBe('**tail**'.length);
 	});
 
 	it('keeps both corners of a rectangle in cell space', () => {
 		const doc = parse(THREE_COL);
-		const plan = planCrossBlockFormat(
-			doc,
-			corner([0], 4),
-			corner([0], 7),
-			'strong',
-			undefined,
-			defaultGrammarView
-		)!;
+		const plan = planCrossBlockFormat(doc, corner([0], 4), corner([0], 7), 'strong', undefined, {
+			grammar: defaultGrammarView
+		})!;
 		expect(plan.startOffset).toBe(4);
 		expect(plan.endOffset).toBe(7);
 	});

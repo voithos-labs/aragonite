@@ -19,9 +19,9 @@ import {
 	type InlineMarkKind
 } from '$lib/schema/inline-construct-policy';
 
-/** An edit without its grammar: `toggleFormat` reads it with every installed plugin, as an
- *  editor with no `plugins` prop does. */
-export type BareEdit = Omit<InlineFormatEdit, 'grammar'>;
+/** An edit without its link definitions and grammar: `toggleFormat` reads it with every installed
+ *  plugin and no definitions, as an editor with no `plugins` prop and no reference links does. */
+export type BareEdit = Omit<InlineFormatEdit, 'linkRef'>;
 
 /** Source mode by default: these suites pin the bytes a painting mode writes, and the marker-hiding
  *  fork has its own file. */
@@ -30,7 +30,11 @@ export function toggleFormat(
 	format: InlineMarkKind,
 	mode: PresentationMode = 'source'
 ): ToggleInlineFormatResult {
-	const result = toggleInlineFormat({ ...edit, grammar: defaultGrammarView }, format, mode);
+	const result = toggleInlineFormat(
+		{ ...edit, linkRef: { grammar: defaultGrammarView } },
+		format,
+		mode
+	);
 	if (!result) throw new Error(`toggleInlineFormat declined "${format}": no mark row registered`);
 	return result;
 }
@@ -54,7 +58,7 @@ export function press({ display, start, end, format, mode }: Press) {
 		display,
 		content: whole(display),
 		selection: { start, end },
-		grammar: defaultGrammarView
+		linkRef: { grammar: defaultGrammarView }
 	};
 	const active = isInlineFormatActive(edit, format);
 	const result = toggleInlineFormat(edit, format, mode);

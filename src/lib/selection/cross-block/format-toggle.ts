@@ -11,8 +11,11 @@ import { ownTrailingLineEnding } from '../../core/lines';
 import { docPathFrom } from '../../cursor/coordinate-spaces';
 import type { BlockElLookup, DocumentGetter, PresentationModeGetter } from '../../editor-keys';
 import type { CrossBlockCommandRouter } from '../../schema/block-commands';
-import type { GrammarView } from '../../schema/block-openers';
-import { inlineMarkForCommand, type InlineMarkKind } from '../../schema/inline-construct-policy';
+import {
+	inlineMarkForCommand,
+	type InlineMarkKind,
+	type InlineResolverRef
+} from '../../schema/inline-construct-policy';
 import { blockNodeAt } from '../../tree-operations/node-primitives';
 import { comparePaths } from '../path-math';
 import type { SelectionPoint } from '../primitives';
@@ -36,7 +39,8 @@ export interface CrossBlockCommandDeps {
 	/** The mode each per-block rewrite verifies against. Required but nullable, like the
 	 *  cross-block dispatch context's fields; `undefined` reads as source mode. */
 	getPresentationMode: PresentationModeGetter | undefined;
-	grammar: GrammarView;
+	/** The link definitions and grammar the blocks were drawn with, which each span's toggle reads. */
+	linkRef: InlineResolverRef;
 	/** The active-marks memo's key alongside the range: the document is mutated in place, so its
 	 *  identity says nothing about whether it changed (`docs/design/editor.md` § 7). */
 	getContentVersion: () => number;
@@ -76,7 +80,7 @@ function createActiveFormatMemo(deps: CrossBlockCommandDeps): () => ReadonlySet<
 		if (!start || !end) return NO_MARKS;
 		const key = `${deps.getContentVersion()}|${pointKey(start)}|${pointKey(end)}`;
 		if (slot?.key !== key) {
-			slot = { key, marks: crossBlockActiveFormats(deps.getDoc(), start, end, deps.grammar) };
+			slot = { key, marks: crossBlockActiveFormats(deps.getDoc(), start, end, deps.linkRef) };
 		}
 		return slot.marks;
 	};
@@ -102,7 +106,7 @@ async function toggleFormatOverRange(
 		end,
 		format,
 		deps.getPresentationMode?.(),
-		deps.grammar
+		deps.linkRef
 	);
 	if (!plan) return;
 
@@ -115,7 +119,12 @@ async function toggleFormatOverRange(
 		// reads a grid's path as cell indices.
 		snapshot: { path: docPathFrom(start.path), offset: start.offset },
 		mutate: ([docScope]) => {
-			applyCrossBlockFormat({ children: docScope.children }, plan, docScope.sharing, deps.grammar);
+			applyCrossBlockFormat(
+				{ children: docScope.children },
+				plan,
+				docScope.sharing,
+				deps.linkRef.grammar
+			);
 			return [{ op: 'noop' }];
 		},
 		op: {

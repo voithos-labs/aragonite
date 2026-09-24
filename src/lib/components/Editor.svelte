@@ -793,7 +793,7 @@
 		revealPath,
 		controller,
 		getPresentationMode: () => effectiveMode,
-		grammar: registryView.grammar,
+		linkRef: linkRefView,
 		getContentVersion: contentVersion.read
 	});
 

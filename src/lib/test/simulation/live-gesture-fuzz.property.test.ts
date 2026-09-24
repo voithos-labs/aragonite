@@ -229,6 +229,18 @@ describe('the shapes that used to need an exclusion', () => {
 		expect(cut.literalShape).toBeNull();
 	});
 
+	// #462, seed 3069811188 (doc 4, step 3): a tilde pairs only as a double run, so the empty-pair
+	// collapse has no partner of its own to drop between two single tildes, in either mode.
+	it('#462: a space between two tildes keeps both', async () => {
+		const typed = await liveAndLiteral('*foo~![](u)*~~b &https://example.com \n', {
+			offset: 13,
+			char: ' ',
+			affinity: 'far'
+		});
+		expect(typed.live).toBe('*foo~![](u)*~ ~b &https://example.com \n');
+		expect(typed.live).toBe(typed.literal);
+	});
+
 	// #166, the one class the sweep found that shows in every mode: a join whose bytes reparse to
 	// two blocks does not fit the single child slot the write installs into, so both runs refuse it
 	// and the pair stands. Silently, in both: the refusal is an ordinary editing outcome (G1.35),

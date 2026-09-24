@@ -28,7 +28,8 @@ const OPTIONAL_GRAMMAR_POSITION: Record<string, number> = {
 	soleProseReparse: 2
 };
 
-/** The readers whose grammar is a required parameter, so the checker refuses a call without one. */
+/** The readers whose grammar is a required parameter, alone or inside the link-resolver ref, so
+ *  the checker refuses a call without one. */
 const REQUIRED_GRAMMAR_READERS: Record<string, string> = {
 	scanInline: 'src/lib/core/inline/scan/index.ts',
 	computeInlineContent: 'src/lib/core/inline/index.ts',
@@ -75,11 +76,11 @@ function declaredParameters(code: string, name: string): string | null {
 describe('G4.68 the internal registry readers take the grammar as a required parameter', () => {
 	const sources = collectEditorSources();
 	for (const [name, relPath] of Object.entries(REQUIRED_GRAMMAR_READERS)) {
-		it(`${name} declares \`grammar: GrammarView\` with no default`, () => {
+		it(`${name} declares its grammar, or a ref carrying it, with no default`, () => {
 			const code = sources.find((file) => file.relPath === relPath)?.code ?? '';
 			const parameters = declaredParameters(code, name);
 			expect(parameters, `${relPath} declares no exported ${name}`).not.toBeNull();
-			expect(parameters).toMatch(/\bgrammar: GrammarView\s*(,|$)/);
+			expect(parameters).toMatch(/\b(?:grammar: GrammarView|linkRef: InlineResolverRef)\s*(,|$)/);
 		});
 	}
 });
@@ -163,6 +164,12 @@ const EDITOR_LESS = notUnder('src/lib/testing/', 'src/lib/core/parser.ts');
 
 const REWRITE_PROBE = 'src/lib/components/blocks/text/probe.ts';
 
+/** The writes that reparse a block the editor drew: the prose block's rewrites and auto-pair, and
+ *  the bold and italic toggle. */
+const DRAWN_TREE_REWRITES = (file: SourceFile): boolean =>
+	file.relPath.startsWith('src/lib/components/blocks/text/') ||
+	file.relPath === 'src/lib/core/inline/format-toggle.ts';
+
 const RULES: CallSiteRule[] = [
 	{
 		id: 'G4.68 every plugin registry read outside its module passes the editor grammar',
@@ -195,22 +202,16 @@ const RULES: CallSiteRule[] = [
 	},
 	{
 		id: 'G4.68 a live rewrite reparses with the link resolver its drawn tree was read with',
-		population: (file) => file.relPath.startsWith('src/lib/components/blocks/text/'),
+		population: DRAWN_TREE_REWRITES,
 		calls: ['parseInline'],
 		holds: (args) => {
 			const slot = callArguments(args)[3];
 			return slot !== undefined && slot !== '' && slot !== 'undefined';
 		},
-		// Each a known gap: the auto-pair scan reads its own tree rather than checking a candidate
-		// against the drawn one, so a reference link there reads as brackets.
-		allowed: {
-			'src/lib/components/blocks/text/delimiter-autopair.ts:274': 'the closing-run scan',
-			'src/lib/components/blocks/text/delimiter-autopair.ts:295': 'the closer-end scan',
-			'src/lib/components/blocks/text/delimiter-autopair.ts:312': 'the pair-exists scan'
-		},
+		allowed: {},
 		reason:
 			'a reparse without the resolver reads every reference link as brackets, so a candidate compared with the drawn tree disagrees with it beside one (#443)',
-		atLeastCallers: 4,
+		atLeastCallers: 9,
 		hits: [
 			{ relPath: REWRITE_PROBE, code: 'parseInline(raw, 0, raw.length, undefined, grammar);' }
 		],

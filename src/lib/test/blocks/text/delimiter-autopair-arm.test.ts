@@ -38,7 +38,7 @@ function surfaceOver(
 		seatOutside: () => recorded.outside++,
 		write: (next, before, after) => recorded.writes.push([next, before, after]),
 		keepsBlockKind,
-		grammar: defaultGrammarView,
+		linkRef: { grammar: defaultGrammarView },
 		get writes() {
 			return recorded.writes;
 		},

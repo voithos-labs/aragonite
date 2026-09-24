@@ -9,7 +9,12 @@ import { whole } from './format-toggle-fixture';
 
 const activeAt = (raw: string, start: number, end: number, format: InlineMarkKind) =>
 	isInlineFormatActive(
-		{ display: raw, content: whole(raw), selection: { start, end }, grammar: defaultGrammarView },
+		{
+			display: raw,
+			content: whole(raw),
+			selection: { start, end },
+			linkRef: { grammar: defaultGrammarView }
+		},
 		format
 	);
 
@@ -54,7 +59,7 @@ describe('isInlineFormatActive', () => {
 			display: raw,
 			content: whole(raw),
 			selection: whole(raw),
-			grammar: defaultGrammarView
+			linkRef: { grammar: defaultGrammarView }
 		};
 		expect(isInlineFormatActive(edit, 'link')).toBe(false);
 		expect([...inlineFormatsCovering(edit, ['link'])]).toEqual([]);

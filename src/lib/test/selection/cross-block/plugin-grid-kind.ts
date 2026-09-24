@@ -80,13 +80,8 @@ export function planStored(doc: Document, anchor: SelectionPoint, focus: Selecti
 	return {
 		start: selection.start!,
 		end: selection.end!,
-		plan: planCrossBlockFormat(
-			doc,
-			selection.start!,
-			selection.end!,
-			'strong',
-			undefined,
-			defaultGrammarView
-		)
+		plan: planCrossBlockFormat(doc, selection.start!, selection.end!, 'strong', undefined, {
+			grammar: defaultGrammarView
+		})
 	};
 }

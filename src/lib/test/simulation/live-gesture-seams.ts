@@ -393,7 +393,7 @@ async function nativePress(
 			offset,
 			key,
 			(line) => keepsBlockKind(node, line, defaultGrammarView),
-			defaultGrammarView
+			{ grammar: defaultGrammarView }
 		);
 		if (paired?.kind === 'step-over') return;
 		if (paired) {
@@ -440,7 +440,7 @@ function toggleFormat(
 			display: trimTrailingLineEnding(node.raw),
 			content: getContentRange(node),
 			selection: range,
-			grammar: defaultGrammarView
+			linkRef: { grammar: defaultGrammarView }
 		},
 		drawnMark(gesture).kind,
 		mode
@@ -533,14 +533,9 @@ function acrossLeaves(
 		rangeDelete(h.doc, range.start, range.end, h.sharing, undefined, mode, fixtureLinkRef());
 		return false;
 	}
-	const plan = planCrossBlockFormat(
-		h.doc,
-		range.start,
-		range.end,
-		drawnMark(gesture).kind,
-		mode,
-		defaultGrammarView
-	);
+	const plan = planCrossBlockFormat(h.doc, range.start, range.end, drawnMark(gesture).kind, mode, {
+		grammar: defaultGrammarView
+	});
 	// A toggle the planner turns down writes nothing, which is that code's own answer rather than
 	// a gesture the fuzzer failed to apply.
 	if (plan) applyCrossBlockFormat(h.doc, plan, h.sharing, defaultGrammarView);

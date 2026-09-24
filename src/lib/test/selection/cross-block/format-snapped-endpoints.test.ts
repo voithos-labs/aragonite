@@ -33,14 +33,9 @@ describe('a toggle over a range whose table endpoint sits mid-row', () => {
 	// The contrast that makes the assertion above mean something: the raw pair stops one cell short.
 	it('stops at the raw endpoint when the unsnapped pair is planned directly', () => {
 		const env = makeKeydownEnv(SOURCE);
-		const plan = planCrossBlockFormat(
-			env.deps.doc,
-			DOC_START,
-			MID_ROW_CELL,
-			'strong',
-			undefined,
-			defaultGrammarView
-		)!;
+		const plan = planCrossBlockFormat(env.deps.doc, DOC_START, MID_ROW_CELL, 'strong', undefined, {
+			grammar: defaultGrammarView
+		})!;
 		expect(plan.writes.map((write) => write.path)).toEqual([[0], [1, 0, 0], [1, 0, 1], [1, 1, 0]]);
 	});
 });

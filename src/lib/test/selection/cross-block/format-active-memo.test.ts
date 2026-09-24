@@ -41,7 +41,9 @@ describe('the memoised pressed-state read answers the unmemoised one', () => {
 			for (const [start, end] of PAIRS) {
 				if (end.path[0] >= env.doc.children.length) continue;
 				env.selection.enterCrossBlock(start, end);
-				const expected = crossBlockActiveFormats(env.doc, start, end, defaultGrammarView);
+				const expected = crossBlockActiveFormats(env.doc, start, end, {
+					grammar: defaultGrammarView
+				});
 				for (const { kind, mark } of MARKS) {
 					expect(env.crossBlockCommands.isActive(mark.command), `${kind} on ${source}`).toBe(
 						expected.has(kind)

@@ -149,7 +149,10 @@ export async function handleCrossBlockTypeReplace(
 			// The mount above covered the position the delete resolved; a merge can put the caret
 			// on one the render window never held.
 			if (target.index !== leafIndex) await ctx.revealPath(path);
-			focusCollapsedCaret(ctx.getBlockElByPath, { path, offset: target.offset });
+			focusCollapsedCaret(ctx.getBlockElByPath, {
+				path: [...path, ...target.path],
+				offset: target.offset
+			});
 		}
 	});
 }
