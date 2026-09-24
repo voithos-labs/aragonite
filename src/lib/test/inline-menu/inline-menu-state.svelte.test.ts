@@ -110,6 +110,15 @@ function harness(
 				await tick();
 			}
 		},
+		/** Keys whose bytes have landed but whose read has not run: the `edit` is out and its read
+		 *  waits a tick, or the `edit` itself is still deferred. */
+		typeUnread(text: string, { notified = true } = {}) {
+			const raw = doc.children[block]?.raw ?? '';
+			const at = caret ?? raw.length;
+			write(block, raw.slice(0, at) + text + raw.slice(at));
+			caret = at + text.length;
+			if (notified) events.emit('edit', typedEdit([block]));
+		},
 		/** A burst the editor publishes as a single change: fast typing, an IME commit. */
 		async burst(text: string) {
 			await settle();
@@ -435,6 +444,28 @@ describe('navigation and commit', () => {
 		expect(onCommit.mock.calls[0][0]).toMatchObject({ id: 'world' });
 		expect(onCommit.mock.calls[0][1]).toEqual({ query: 'wo', path: [0], start: 4, end: 7 });
 	});
+
+	// Miss-analysis: every pick here came after the last key's read had run; the simulation's slash
+	// pick on a loaded CI runner was the first to press Enter ahead of it, and left `te` behind.
+	it.each([
+		['its read is pending', true],
+		['its edit is still deferred', false]
+	])(
+		'replaces the whole typed query when the pick comes before the last key: %s',
+		async (_, notified) => {
+			const onCommit = vi.fn();
+			const h = harness('see ');
+			h.menu.registry.addSource(tags({ onCommit }));
+			await h.type('#wo');
+			h.typeUnread('r', { notified });
+
+			expect(h.menu.commit()).toBe(true);
+			await vi.waitFor(() => expect(onCommit).toHaveBeenCalled());
+
+			expect(h.raw()).toBe('see #work');
+			expect(onCommit.mock.calls[0][1]).toEqual({ query: 'wor', path: [0], start: 4, end: 8 });
+		}
+	);
 
 	// Miss-analysis: onCommit was called and never awaited, and no test asked whether the block
 	// it inserts shares the pick's undo entry.
