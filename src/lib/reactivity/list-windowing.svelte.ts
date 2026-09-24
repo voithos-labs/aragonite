@@ -193,10 +193,8 @@ export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
 		return { model: new HeightModel(heights), ids, widthVersion, atListWidth: listEl !== null };
 	}
 
-	// A derived, so the render pass that receives new children windows them from their own table
-	// (VR-14). Tracks ids, not estimates, or every keystroke would rebuild it. Tracks the list
-	// element too: the first table is built during init, before the element exists, so it is
-	// rebuilt once at the list's own width and its guesses are not carried (VR-3).
+	// A derived, so new children window from their own table (VR-14); it tracks ids, not estimates,
+	// and the list element, so the first table, built before the element exists, is redone (VR-3).
 	let latestTable: HeightTable | null = null;
 	const table = $derived.by(() => {
 		const ids = deps.getChildIds();

@@ -70,9 +70,10 @@ import {
 
 /**
  * The inputs the host component feeds in. A function-valued field is a live read,
- * re-evaluated on every use; a plain-valued field is static configuration. `getBoxEl`
- * returns the block's box whose direct `.block-list` child the windowing lookups walk, so
- * other elements beside the list are fine.
+ * re-evaluated on every use; a plain-valued field is static configuration. `getBoxEl` returns
+ * the block's box, whose direct `.block-list` child windowing reads (other elements may sit
+ * beside it). It must read a `$state` element, or the list's first height guesses, made
+ * before the box exists, are never redone.
  */
 export interface ContainerBlockDeps {
 	getNode(): NodeView;
