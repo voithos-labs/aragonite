@@ -42,6 +42,7 @@ function makeSeatHarness(source: string, affinity: EdgeAffinity | null): SeatHar
 	const seat = createCompositionSeat({
 		getDisplayText: () => surface.el.textContent ?? '',
 		getInlines: () => parseInline(source, 0, source.length),
+		getResolver: () => undefined,
 		grammar: defaultGrammarView,
 		getAffinity: () => affinity,
 		getScreen: () => screenVisibilityOf(surface.el),

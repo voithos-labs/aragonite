@@ -27,6 +27,7 @@ function del(
 		screen: screenVisibility('live', { chromePaints }),
 		inlines: parseInline(display, content.start, content.end),
 		installedAs: 'block',
+		resolver: undefined,
 		grammar: defaultGrammarView
 	});
 }
@@ -41,6 +42,7 @@ function delInCell(display: string, caret: number, direction: DeleteDirection = 
 		screen: screenVisibility('live', { chromePaints: false }),
 		inlines: parseInline(display, 0, display.length),
 		installedAs: 'cell',
+		resolver: undefined,
 		grammar: defaultGrammarView
 	});
 }

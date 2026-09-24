@@ -20,6 +20,7 @@ function seatIn(source: string, offset: number, affinity: EdgeAffinity | null, t
 		source,
 		LIVE,
 		typed,
+		undefined,
 		defaultGrammarView
 	);
 }
@@ -148,7 +149,16 @@ describe('relocateComposedRun', () => {
 
 	it('moves a run composed at the trailing content edge past the closing delimiter', () => {
 		expect(
-			relocateComposedRun(BOLD, composed(11, 'かん'), 11, inlines, 'far', LIVE, defaultGrammarView)
+			relocateComposedRun(
+				BOLD,
+				composed(11, 'かん'),
+				11,
+				inlines,
+				'far',
+				LIVE,
+				undefined,
+				defaultGrammarView
+			)
 		).toEqual({
 			raw: 'Some **bold**かん text',
 			caret: 15
@@ -157,7 +167,16 @@ describe('relocateComposedRun', () => {
 
 	it('leaves a run the caret position agrees with alone', () => {
 		expect(
-			relocateComposedRun(BOLD, composed(11, 'かん'), 11, inlines, 'near', LIVE, defaultGrammarView)
+			relocateComposedRun(
+				BOLD,
+				composed(11, 'かん'),
+				11,
+				inlines,
+				'near',
+				LIVE,
+				undefined,
+				defaultGrammarView
+			)
 		).toBeNull();
 	});
 
@@ -165,7 +184,9 @@ describe('relocateComposedRun', () => {
 		const link = 'A [link](http://e.com) tail';
 		const tree = parseInline(link, 0, link.length);
 		const after = link.slice(0, 7) + '感' + link.slice(7);
-		expect(relocateComposedRun(link, after, 7, tree, 'near', LIVE, defaultGrammarView)).toEqual({
+		expect(
+			relocateComposedRun(link, after, 7, tree, 'near', LIVE, undefined, defaultGrammarView)
+		).toEqual({
 			raw: 'A [link](http://e.com)感 tail',
 			caret: 23
 		});
@@ -175,13 +196,31 @@ describe('relocateComposedRun', () => {
 	// a different edit, and rebuilding it from a length difference would corrupt the bytes.
 	it('declines anything that is not a plain insertion at the composition point', () => {
 		expect(
-			relocateComposedRun(BOLD, BOLD, 11, inlines, 'far', LIVE, defaultGrammarView)
+			relocateComposedRun(BOLD, BOLD, 11, inlines, 'far', LIVE, undefined, defaultGrammarView)
 		).toBeNull();
 		expect(
-			relocateComposedRun(BOLD, 'Some **bol**X text', 11, inlines, 'far', LIVE, defaultGrammarView)
+			relocateComposedRun(
+				BOLD,
+				'Some **bol**X text',
+				11,
+				inlines,
+				'far',
+				LIVE,
+				undefined,
+				defaultGrammarView
+			)
 		).toBeNull();
 		expect(
-			relocateComposedRun(BOLD, composed(4, 'X'), 11, inlines, 'far', LIVE, defaultGrammarView)
+			relocateComposedRun(
+				BOLD,
+				composed(4, 'X'),
+				11,
+				inlines,
+				'far',
+				LIVE,
+				undefined,
+				defaultGrammarView
+			)
 		).toBeNull();
 	});
 });

@@ -110,6 +110,7 @@ function resolveDraw(
 		'X',
 		new Set(marks),
 		parseInline(display, 0, display.length),
+		undefined,
 		defaultGrammarView
 	);
 	return result === null ? null : { caret, result };

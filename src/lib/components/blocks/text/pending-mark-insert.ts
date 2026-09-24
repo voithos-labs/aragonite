@@ -21,6 +21,7 @@ import {
 	type InlineMarkKind
 } from '../../../schema/inline-construct-policy';
 import type { GrammarView } from '../../../schema/block-openers';
+import type { LinkReferenceResolver } from '../../../core/inline/link-reference-resolver';
 import { insertsExactly } from './screen-diff';
 
 export interface MarkedInsertion {
@@ -34,6 +35,7 @@ export interface MarkedInsertion {
  * The insertion `text` at `caretOffset` makes under `marks`. Null when the marks name nothing to
  * do, or when no candidate parses back to what was asked: Markdown cannot express every
  * combination at every caret, and a byte that types plainly beats one that shows delimiters.
+ * `resolver` must be the one `inlines` was read with, since every candidate is compared to them.
  */
 export function resolveMarkedInsertion(
 	display: string,
@@ -41,6 +43,7 @@ export function resolveMarkedInsertion(
 	text: string,
 	marks: ReadonlySet<InlineMarkKind>,
 	inlines: readonly InlineNode[],
+	resolver: LinkReferenceResolver | undefined,
 	grammar: GrammarView
 ): MarkedInsertion | null {
 	if (marks.size === 0 || text.length === 0) return null;
@@ -59,7 +62,8 @@ export function resolveMarkedInsertion(
 		...applied
 	]);
 
-	const before = { visible: visibleText(display, grammar), kinds: constructKinds(inlines) };
+	const reading: Reading = { resolver, grammar };
+	const before = { visible: visibleText(display, reading), kinds: constructKinds(inlines) };
 	for (const candidate of candidateInsertions(
 		display,
 		caretOffset,
@@ -68,7 +72,7 @@ export function resolveMarkedInsertion(
 		removed,
 		intended
 	)) {
-		if (parsesAsIntended(candidate, text, intended, before, grammar)) {
+		if (parsesAsIntended(candidate, text, intended, before, reading)) {
 			return { raw: candidate.raw, caret: candidate.textAt + text.length };
 		}
 	}
@@ -177,6 +181,12 @@ function splitOpen(
 
 // ── Verification ─────────────────────────────────────────────────────────────
 
+/** How the block's inline tree was read: a candidate read any other way loses its reference links. */
+interface Reading {
+	resolver: LinkReferenceResolver | undefined;
+	grammar: GrammarView;
+}
+
 /** What the block was before the splice: what it showed, and every construct kind standing in it. */
 interface BlockBefore {
 	visible: string;
@@ -194,15 +204,21 @@ function parsesAsIntended(
 	text: string,
 	intended: ReadonlySet<AnyInlineKind>,
 	before: BlockBefore,
-	grammar: GrammarView
+	reading: Reading
 ): boolean {
-	const nodes = parseInline(candidate.raw, 0, candidate.raw.length, undefined, grammar);
+	const nodes = parseInline(
+		candidate.raw,
+		0,
+		candidate.raw.length,
+		reading.resolver,
+		reading.grammar
+	);
 	const around = enclosingKinds(nodes, candidate.textAt, candidate.textAt + text.length);
 	if (around.size !== intended.size) return false;
 	for (const kind of intended) if (!around.has(kind)) return false;
 	const after = constructKinds(nodes);
 	for (const kind of before.kinds) if (!after.has(kind)) return false;
-	return insertsExactly(before.visible, visibleText(candidate.raw, grammar, nodes), text);
+	return insertsExactly(before.visible, visibleText(candidate.raw, reading, nodes), text);
 }
 
 /** The construct kinds covering `[start, end)`; `text` is content, not a construct. */
@@ -224,9 +240,9 @@ function enclosingKinds(
  *  the block's own: the first byte typed into an empty construct hides its markers, and the
  *  comparison above would read that as bytes lost. This only adds bytes, so no reading of it can
  *  license dropping one. */
-function visibleText(raw: string, grammar: GrammarView, parsed?: readonly InlineNode[]): string {
+function visibleText(raw: string, reading: Reading, parsed?: readonly InlineNode[]): string {
 	return renderedText(
-		parsed ?? parseInline(raw, 0, raw.length, undefined, grammar),
+		parsed ?? parseInline(raw, 0, raw.length, reading.resolver, reading.grammar),
 		raw,
 		CONTENT_VISIBILITY
 	);
