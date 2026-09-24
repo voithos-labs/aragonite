@@ -117,8 +117,7 @@ describe('editor-root focused surface', () => {
 		const h = harness({ insertMarkdown: async () => true });
 		h.nestedSurface.focus();
 		expect(await h.focused.insertMarkdown('> ', { placement: 'below' })).toBe(true);
-		expect(h.calls).toContain('paragraph at 2');
-		expect(h.calls).toContain('insert > at [2]');
+		expect(h.calls).toEqual(['join opens', 'paragraph at 2', 'insert > at [2]', 'join closes']);
 	});
 
 	it('insertMarkdown below declines with no caret and in reading mode, making nothing', async () => {

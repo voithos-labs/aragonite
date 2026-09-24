@@ -418,21 +418,17 @@ describe('navigation and commit', () => {
 	// it inserts shares the pick's undo entry.
 	it('runs the splice and an awaited onCommit inside one undo join', async () => {
 		const h = harness('see ');
-		const onCommitInJoin: boolean[] = [];
-		h.menu.registry.addSource(
-			tags({
-				onCommit: async () => {
-					await tick();
-					onCommitInJoin.push(h.insideJoin());
-				}
-			})
-		);
+		let release!: () => void;
+		const onCommit = vi.fn(() => new Promise<void>((resolve) => (release = resolve)));
+		h.menu.registry.addSource(tags({ onCommit }));
 		await h.type('#wo');
 
 		h.menu.commit();
-		await vi.waitFor(() => expect(onCommitInJoin).toHaveLength(1));
+		await vi.waitFor(() => expect(onCommit).toHaveBeenCalled());
+		await tick();
 		expect(h.splicesInJoin).toEqual([true]);
-		expect(onCommitInJoin).toEqual([true]);
+		expect(h.insideJoin()).toBe(true);
+		release();
 		await vi.waitFor(() => expect(h.insideJoin()).toBe(false));
 	});
 
