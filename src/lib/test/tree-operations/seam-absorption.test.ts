@@ -165,6 +165,7 @@ describe('a splice absorbs a join the reload would fold (GH #61)', () => {
 
 		const change = settled(doc, (body) => deleteNode(body, 1));
 
+		// The blank line above the fence goes with the delete: a known loss, GH #450.
 		expect(serialize(doc)).toBe('para\n    code\n    \n    \n```\n```\n');
 		expect(doc.children.map((c) => [c.kind, c.leadingTrivia, c.raw])).toEqual([
 			['paragraph', '', 'para\n    code\n'],
