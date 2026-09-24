@@ -54,6 +54,11 @@ const INFLATION_ALLOWLIST: readonly InflationException[] = [
 			'six of seven tests are one parametrized loop over the `ROUNDTRIPS` rows, invisible to the literal test counter'
 	},
 	{
+		spec: 'blocks/list/join-into-long-list.spec.ts',
+		reason:
+			'one parametrized loop over the gesture rows (each mode, each gesture), invisible to the literal test counter'
+	},
+	{
 		spec: 'blocks/table/text-under-table.spec.ts',
 		reason:
 			'both tests are one parametrized loop over the `ROUTES` rows (ten tests), invisible to the literal test counter'
