@@ -285,6 +285,8 @@ export function installTestProbes({
 	(window as any).__test = {
 		getSource: () => editor.getSource(),
 		getDocument: () => editor.__test.getDocument(),
+		// The height guesses a windowed list's spacers are built from, so a spec can recompute them.
+		getHeightOracle: () => editor.__test.getHeightOracle(),
 		setSource: (md: string) => {
 			setSource(md);
 		},

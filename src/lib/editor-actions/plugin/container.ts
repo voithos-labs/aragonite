@@ -43,7 +43,7 @@ import {
 } from '../../editor-keys';
 import { captureScrollPosition } from '../../cursor/scroll-hold';
 import { emitCommandError } from '../../editor-events';
-import { owningPluginEditor } from '../../schema/plugin-install';
+import { owningPluginEditor, type EditorContext } from '../../schema/plugin-install';
 import { createBlockListState } from '../../reactivity/block-list-state.svelte';
 import type { WindowResult } from '../../reactivity/block-window.svelte';
 import type { RefSlots } from '../../reactivity/publish-ref.svelte';
@@ -70,9 +70,10 @@ import {
 
 /**
  * The inputs the host component feeds in. A function-valued field is a live read,
- * re-evaluated on every use; a plain-valued field is static configuration. `getBoxEl`
- * returns the block's box whose direct `.block-list` child the windowing lookups walk, so
- * other elements beside the list are fine.
+ * re-evaluated on every use; a plain-valued field is static configuration. `getBoxEl` returns
+ * the block's box, whose direct `.block-list` child windowing reads (other elements may sit
+ * beside it). It must read a `$state` element, or the list's first height guesses, made
+ * before the box exists, are never redone.
  */
 export interface ContainerBlockDeps {
 	getNode(): NodeView;
@@ -145,6 +146,9 @@ export interface ContainerBlock {
 	 * differently. `unknown`, like `commandHooks`: the plugin narrows it.
 	 */
 	getOptions(): unknown;
+	/** This editor's context for the plugin that owns this block's kind; undefined in a bare
+	 *  harness. Its `computeInlineContent` reads the inline syntax this editor draws. */
+	getEditor(): EditorContext | undefined;
 	/** The `BlockComponent` the host re-exports for BlockHost. */
 	containerApi: ContainerBlockComponent;
 	/**
@@ -347,7 +351,9 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 	const linkRef = editorDoc?.linkRef;
 
 	// Resolved by the kind's recorded owner, like the kind-command context's `editor`.
-	const getOptions = (): unknown => owningPluginEditor(pluginEditor, deps.getNode().kind)?.options;
+	const getEditor = (): EditorContext | undefined =>
+		owningPluginEditor(pluginEditor, deps.getNode().kind);
+	const getOptions = (): unknown => getEditor()?.options;
 
 	const listState = createBlockListState(deps.getNode);
 
@@ -600,6 +606,7 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 			captureScrollPosition(deps.getBoxEl(), () => revealAnchor.get() !== null),
 		getPresentationMode,
 		getTheme,
-		getOptions
+		getOptions,
+		getEditor
 	};
 }

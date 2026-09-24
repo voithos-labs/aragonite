@@ -94,7 +94,7 @@ export function createLinkCardCommitter(deps: LinkCardCommitterDeps): LinkCardCo
 						url,
 						...(current.title !== undefined ? { title: current.title } : {})
 					};
-		const bytes = buildLinkEditBytes(link, block.raw, fields, deps.linkRef?.current);
+		const bytes = buildLinkEditBytes(link, block.raw, fields, deps.linkRef);
 		return bytes === null ? null : { bytes, link };
 	}
 
@@ -115,13 +115,7 @@ export function createLinkCardCommitter(deps: LinkCardCommitterDeps): LinkCardCo
 	function commitCreate(target: CreateLinkTarget, url: string): void {
 		const block = nodeAt(deps.getDoc() as DocumentView, target.path);
 		if (block === null || !isBlockNode(block)) return;
-		const bytes = buildLinkWrapBytes(
-			block.raw,
-			target.start,
-			target.end,
-			url,
-			deps.linkRef?.current
-		);
+		const bytes = buildLinkWrapBytes(block.raw, target.start, target.end, url, deps.linkRef);
 		if (bytes === null) return;
 		void write(target.path, target.start, target.end, bytes);
 	}
@@ -129,7 +123,7 @@ export function createLinkCardCommitter(deps: LinkCardCommitterDeps): LinkCardCo
 	function removeLink(target: LinkTarget): void {
 		const resolved = resolve(target);
 		if (!resolved) return;
-		const bytes = buildLinkUnwrapBytes(resolved.link, resolved.block.raw, deps.linkRef?.current);
+		const bytes = buildLinkUnwrapBytes(resolved.link, resolved.block.raw, deps.linkRef);
 		if (bytes === null) return;
 		void write(target.path, resolved.link.start, resolved.link.end, bytes);
 	}

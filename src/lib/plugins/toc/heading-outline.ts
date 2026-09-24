@@ -8,6 +8,7 @@ import {
 	computeInlineContent,
 	headingLevel,
 	type DocumentView,
+	type EditorContext,
 	type InlineNode,
 	type NodeView
 } from '$lib/plugin';
@@ -52,7 +53,12 @@ export function projectInlineText(nodes: readonly InlineNode[], raw: string): st
 	return text;
 }
 
-export function collectHeadings(document: DocumentView | undefined, maxDepth: number): TocEntry[] {
+/** Labels read through `read`, the editor's inline parse, so syntax it left out stays text. */
+export function collectHeadings(
+	document: DocumentView | undefined,
+	maxDepth: number,
+	read: EditorContext['computeInlineContent'] = computeInlineContent
+): TocEntry[] {
 	const entries: TocEntry[] = [];
 
 	const walk = (children: readonly NodeView[], basePath: number[]): void => {
@@ -65,7 +71,7 @@ export function collectHeadings(document: DocumentView | undefined, maxDepth: nu
 						id: path.join('.'),
 						path,
 						level,
-						label: projectInlineText(computeInlineContent(node), node.raw).trim()
+						label: projectInlineText(read(node), node.raw).trim()
 					});
 				}
 			} else if (node.children && node.children.length > 0) {

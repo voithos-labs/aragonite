@@ -3,7 +3,8 @@
  * handlers and `BlockCommandContext.editor` all receive. `document` is a getter so every read is
  * live (rules.md: getters, not values).
  */
-import type { DocumentView } from '../core/node-views';
+import type { DocumentView, NodeView } from '../core/node-views';
+import type { InlineNode } from '../core/nodes';
 import type { DecorationRegistry } from '../decorations/types';
 import type { EditorRects } from '../editor-rects';
 import type { InsertMarkdownOptions } from '../editor-props';
@@ -46,6 +47,8 @@ export function createEditorPluginContexts(deps: {
 	/** The instance's own entry points; the context only delegates. */
 	insertMarkdown: (md: string, options?: InsertMarkdownOptions) => Promise<boolean>;
 	runCommand: (commandId: string, arg?: unknown) => boolean;
+	/** An inline parse in the editor's grammar. */
+	computeInlineContent: (node: NodeView) => InlineNode[];
 }): EditorPluginContexts {
 	const contexts = new Map<string, EditorContext>();
 	const disposers: { plugin: string; dispose: () => void }[] = [];
@@ -73,6 +76,7 @@ export function createEditorPluginContexts(deps: {
 				},
 				insertMarkdown: (md, options) => deps.insertMarkdown(md, options),
 				runCommand: (commandId, arg) => deps.runCommand(commandId, arg),
+				computeInlineContent: deps.computeInlineContent,
 				get presentationMode() {
 					return deps.getPresentationMode();
 				},

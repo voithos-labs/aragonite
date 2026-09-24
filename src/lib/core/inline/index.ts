@@ -80,6 +80,19 @@ export function computeInlineContent(
 	return parseInline(node.raw, range.start, range.end, resolver, grammar);
 }
 
+const readersByGrammar = new WeakMap<GrammarView, (node: NodeView) => InlineNode[]>();
+
+/** One editor's inline parse with no link resolver, the read a plugin gets. One function per
+ *  grammar, so a plugin cache keyed on it is shared by every block of that editor. */
+export function inlineReaderFor(grammar: GrammarView): (node: NodeView) => InlineNode[] {
+	let read = readersByGrammar.get(grammar);
+	if (!read) {
+		read = (node) => computeInlineContent(node, undefined, grammar);
+		readersByGrammar.set(grammar, read);
+	}
+	return read;
+}
+
 // ── Inline Parser ──────────────────────────────────────────────────────────
 
 /**

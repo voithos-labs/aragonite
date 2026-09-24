@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
+import { defaultGrammarView } from '$lib/schema/block-openers';
 import fc from 'fast-check';
 import { parseInline } from '../../core/inline';
 import { renderInlineNodes } from '../../core/inline-render';
@@ -120,7 +121,8 @@ function typeThroughSeat(
 		affinity,
 		display,
 		LIVE,
-		'Z'
+		'Z',
+		defaultGrammarView
 	);
 	const at = seat?.offset ?? caret;
 	return { after: display.slice(0, at) + 'Z' + display.slice(at), relocated: seat !== null };

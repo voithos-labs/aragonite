@@ -65,6 +65,6 @@ export function enterLinkCardAtCaret(query: LinkCardEntryQuery): void {
 	}
 	const range = query.selection;
 	if (range === null || range.start >= range.end) return;
-	if (canWrapRangeAsLink(query.block.raw, range.start, range.end, query.linkRef?.current))
+	if (canWrapRangeAsLink(query.block.raw, range.start, range.end, query.linkRef))
 		query.card.enterCreate({ path: query.path, start: range.start, end: range.end });
 }

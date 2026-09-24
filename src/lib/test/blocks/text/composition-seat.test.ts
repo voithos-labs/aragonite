@@ -3,6 +3,7 @@
 // already overwritten by the time the composed run arrives. Where that run moves to is
 // `edge-seat`'s suite; the mode check lives in the block (`editable-surface-composition-seat`).
 import { describe, it, expect } from 'vitest';
+import { defaultGrammarView } from '$lib/schema/block-openers';
 import { parseInline } from '$lib/core/inline';
 import { createCompositionSeat } from '$lib/components/blocks/text/composition-seat';
 import { screenVisibility } from '$lib/core/inline/visibility';
@@ -28,6 +29,7 @@ function makeSeat(live: Live, pending?: PendingMarksState) {
 	return createCompositionSeat({
 		getDisplayText: () => live.display,
 		getInlines: () => live.inlines,
+		grammar: defaultGrammarView,
 		getAffinity: () => live.affinity,
 		getScreen: () => screenVisibility('live', { chromePaints: false }),
 		consumePendingMarks: () => pending?.consume() ?? live.marks,

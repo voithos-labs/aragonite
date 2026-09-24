@@ -19,6 +19,7 @@ import {
 	getInlineConstructPolicy,
 	type InlineConstructPolicy
 } from '../../../schema/inline-construct-policy';
+import type { GrammarView } from '../../../schema/block-openers';
 import { insertsExactly } from './screen-diff';
 
 export interface EdgeSeat {
@@ -40,7 +41,8 @@ export function resolveEdgeSeat(
 	affinity: EdgeAffinity | null,
 	raw: string,
 	screen: VisibilityContext,
-	typed: string
+	typed: string,
+	grammar: GrammarView
 ): EdgeSeat | null {
 	const runs = markerRuns(inlines, raw, screen);
 	const run = runAt(caretOffset, runs);
@@ -48,10 +50,10 @@ export function resolveEdgeSeat(
 	const policy = getInlineConstructPolicy(run.kind);
 	if (!policy) return null;
 	const content = contentBounds(inlines);
-	const before = shown(raw, content.start, content.end);
+	const before = shown(raw, content.start, content.end, grammar);
 	const holds = (offset: number): boolean => {
 		const candidate = raw.slice(0, offset) + typed + raw.slice(offset);
-		const after = shown(candidate, content.start, content.end + typed.length);
+		const after = shown(candidate, content.start, content.end + typed.length, grammar);
 		return insertsExactly(before, after, typed);
 	};
 	for (const offset of candidateOffsets(run, policy.edgeAffinity, affinity, caretOffset, runs)) {
@@ -77,11 +79,12 @@ export function relocateComposedRun(
 	composedAt: number,
 	inlines: readonly InlineNode[],
 	affinity: EdgeAffinity | null,
-	screen: VisibilityContext
+	screen: VisibilityContext,
+	grammar: GrammarView
 ): { raw: string; caret: number } | null {
 	const composed = plainInsertionAt(before, after, composedAt);
 	if (composed === null) return null;
-	const seat = resolveEdgeSeat(composedAt, inlines, affinity, before, screen, composed);
+	const seat = resolveEdgeSeat(composedAt, inlines, affinity, before, screen, composed, grammar);
 	if (!seat) return null;
 	return {
 		raw: before.slice(0, seat.offset) + composed + before.slice(seat.offset),
@@ -212,8 +215,8 @@ function contentBounds(inlines: readonly InlineNode[]): ContentRange {
 
 /** What the user sees, asked of the code that draws it (G4.33). The content reading, not the
  *  block's own: this module only adds bytes, so no reading of it can license dropping one. */
-const shown = (raw: string, start: number, end: number): string =>
-	renderedText(parseInline(raw, start, end), raw, CONTENT_VISIBILITY);
+const shown = (raw: string, start: number, end: number, grammar: GrammarView): string =>
+	renderedText(parseInline(raw, start, end, undefined, grammar), raw, CONTENT_VISIBILITY);
 
 /** Every construct marker run, in pre-order. */
 function markerRuns(
