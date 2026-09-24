@@ -17,6 +17,11 @@ the windowing suites handed every list its element before the first read.
 - after the load settles, the last height table the nested list built used its
   element's width, narrower than the editor's (regression #431: the only build
   used the scroll container's width, 1280 against a 1164 px list)
+- with items long enough to wrap differently at the two widths, the bottom
+  spacer below the window equals the guesses at the list's width for the items
+  it stands for, not the guesses the first table made at the editor's width
+  (miss-analysis: the first case read only the width of the last build, so a
+  rebuild that kept the first table's guesses stayed green; only the unit saw it)
 
 ## Edge cases
 

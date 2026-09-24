@@ -13,6 +13,12 @@ const DOC =
 	Array.from({ length: ITEMS }, (_, i) => `${QUOTE}- item ${i} ${'word '.repeat(i % 5)}`).join(
 		'\n'
 	) + '\n';
+// Items long enough to wrap onto more lines at the list's width than at the editor's.
+const LONG_DOC =
+	Array.from(
+		{ length: ITEMS },
+		(_, i) => `${QUOTE}- item ${i} ${'word '.repeat(40 + (i % 7) * 6)}`
+	).join('\n') + '\n';
 // One index per quote, then the list itself.
 const LIST_PATH = Array.from({ length: DEPTH + 1 }, () => 0);
 
@@ -57,6 +63,47 @@ test.describe('a nested list estimates at its own width', () => {
 		expect(builds.length).toBeGreaterThanOrEqual(2);
 		expect(builds[0].width).not.toBe(listWidth);
 		expect(builds.at(-1)!.width).toBe(listWidth);
+	});
+
+	// The items below the window never mounted, so the bottom spacer is made of guesses alone,
+	// and the guesses carried from the first table were made at the editor's width.
+	test('the items below the window keep heights guessed at the list width', async ({ page }) => {
+		const editor = new EditorPage(page);
+		await editor.goto();
+		await editor.loadContent(LONG_DOC);
+		await editor.waitForRenderFlush();
+
+		const heights = await page.evaluate((path) => {
+			const probes = (window as any).__test;
+			let list = probes.getDocument();
+			for (const i of path) list = list.children[i];
+			const box = document.querySelector(
+				`[data-block-path='${JSON.stringify(path)}'] .list-block`
+			) as HTMLElement;
+			const mounted = [...box.querySelectorAll('[data-block-path]')]
+				.map((el) => JSON.parse(el.getAttribute('data-block-path')!) as number[])
+				.filter((blockPath) => blockPath.length > path.length);
+			const end = Math.max(...mounted.map((blockPath) => blockPath[path.length])) + 1;
+			const guessAt = (width: number) =>
+				list.children
+					.slice(end)
+					.reduce(
+						(sum: number, item: any) => sum + probes.getHeightOracle().estimate(item, width),
+						0
+					);
+			const spacer = box.querySelector(':scope > .vr-spacer:last-child') as HTMLElement;
+			return {
+				tail: list.children.length - end,
+				spacer: spacer.offsetHeight,
+				atList: guessAt(box.clientWidth),
+				atPort: guessAt((document.querySelector('.editor') as HTMLElement).clientWidth)
+			};
+		}, LIST_PATH);
+
+		expect(heights.tail).toBeGreaterThan(0);
+		// The fixture is only a check where the two widths guess differently.
+		expect(heights.atList).toBeGreaterThan(heights.atPort);
+		expect(heights.spacer).toBe(heights.atList);
 	});
 
 	test('ten keystrokes in a nested item build no height table', async ({ page }) => {
