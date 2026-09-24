@@ -308,17 +308,15 @@ parse('| a | b |\n| - |\n').children.map((c) => c.kind); // ['paragraph']
 
 ### Pinned divergences from cmark-gfm
 
-Coverage is by block type; agreement with the reference implementation is close but not total. These four differences are pinned, not accidental, and each is byte-safe (the round trip holds either way):
+Coverage is by block type; agreement with the reference implementation is close but not total. These three differences are pinned, not accidental, and each is byte-safe (the round trip holds either way):
 
-| Source                                  | Here                                      | cmark-gfm                         |
-| --------------------------------------- | ----------------------------------------- | --------------------------------- |
-| A pipeless line below a table's body    | ends the table; the line is its own block | a one-cell body row               |
-| `-` followed by five spaces and content | a list item whose content is that text    | a list item holding indented code |
-| A bare `-` on its own line              | a paragraph                               | an empty list item                |
-| `- a`, blank line, `- b`                | two sibling `list` nodes                  | one loose list of two items       |
+| Source                                  | Here                                   | cmark-gfm                         |
+| --------------------------------------- | -------------------------------------- | --------------------------------- |
+| `-` followed by five spaces and content | a list item whose content is that text | a list item holding indented code |
+| A bare `-` on its own line              | a paragraph                            | an empty list item                |
+| `- a`, blank line, `- b`                | two sibling `list` nodes               | one loose list of two items       |
 
 ```ts
-parse('| a |\n| - |\n| 1 |\nplain\n').children.map((c) => c.kind); // ['table', 'paragraph']
 parse('-     text\n').children[0].children[0].children[0].raw; // 'text\n'
 parse('-\n').children.map((c) => c.kind); // ['paragraph']
 parse('- a\n\n- b\n').children.map((c) => c.kind); // ['list', 'list']

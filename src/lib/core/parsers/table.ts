@@ -74,14 +74,13 @@ export function parseTable(
 	leadingTrivia: string,
 	delimiter: { columnCount: number; alignments: TableAlignment[] }
 ): BlockOpenerResult {
-	// GFM: the table breaks at a blank line or the start of another block, so a body row is a
-	// pipe-carrying line no opener claims. No paragraph is open here, so nothing is transparent
-	// but the definition, which is never a block start.
+	// GFM: the table breaks at a blank line or the start of another block, so a body row is any
+	// line no opener claims, a pipe or none (spec example 201). No paragraph is open here, so
+	// nothing is transparent but the definition, which is never a block start.
 	let i = startIndex + 2;
 	while (
 		i < endIndex &&
 		!isBlankLine(lines[i].text) &&
-		lines[i].text.includes('|') &&
 		!lineStartsOuterBlock(lines[i], { paragraphOpen: false })
 	) {
 		i++;
