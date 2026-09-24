@@ -38,9 +38,10 @@ read its answer from the harness-only `__registryEnablement` hook rather than fr
 - a paste parses against that editor's grammar: `%%parrot dance` pasted into the editor that omits the parrot lands as prose in the paragraph it was pasted into, leaving that pane with no parrot block (regression #267: the clipboard parsed against every installed plugin, so the paste created a kind that editor resolves no component for)
 - Enter at the start of the `%%parrot` paragraph in the editor that omits the parrot leaves an empty paragraph above a `%%parrot` paragraph, no parrot block, and a tree that reloads as itself (miss-analysis: the split reread both halves in the global grammar, and no spec pressed Enter in the pane that left the plugin out)
 - select all of `$**x**$` and press Ctrl/Cmd+B in the editor that omits latex: the paragraph becomes `**$x$**`, one bold run over the text the editor draws, not a second run nested around the dollars (miss-analysis: every format toggle test ran with each installed plugin active, so no case toggled over syntax an editor left out)
+- End then Enter after `Tip` inside the generic directive box, in the editor that omits admonitions, then typing `Z`: the box takes the line and the dev shape check logs nothing, since it reparses in that editor's grammar (miss-analysis: the unlisted directive case only counted kinds, and no spec edited inside the generic box of an editor that left its plugin out)
 
 ## User interactions
 
 - the activation scenarios navigate and nothing more; both editors are read by DOM class, since what matters is what each instance resolved rather than what either can edit
-- the paste scenario is a real gesture: click into the paragraph, End, then Ctrl/Cmd+V over a seeded clipboard; the split one is a click, Home, then Enter; the bold one is a click, Home, Shift+End, then Ctrl/Cmd+B
+- the paste scenario is a real gesture: click into the paragraph, End, then Ctrl/Cmd+V over a seeded clipboard; the split one is a click, Home, then Enter; the bold one is a click, Home, Shift+End, then Ctrl/Cmd+B; the directive one is a click on `Tip`, End, Enter, then typing
 - the chord scenario asks the instance's own API rather than pressing the key: what a host needs to know is whether the editor takes the chord, and only `reservedChords` and `claimsChord` answer that

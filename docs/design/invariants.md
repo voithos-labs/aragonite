@@ -1462,7 +1462,7 @@ reach are listed with their reasons. `lint/registry-view-reads.test.ts`.
 
 **G4.69 · Reparses take the editor's grammar.** Every `parse` call outside the parser passes a
 grammar, so no edit reads a syntax the editor switched off or an unlisted plugin's opener (#429).
-The dev shape checks and the published whole-document conversion are the listed exceptions.
+The published whole-document conversion is the listed exception.
 `lint/registry-view-reads.test.ts`.
 
 ## Accessibility

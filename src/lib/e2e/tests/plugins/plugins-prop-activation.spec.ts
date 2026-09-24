@@ -102,6 +102,21 @@ test.describe('the plugins prop is the enablement set', () => {
 		expect(await convergedIn(page, 'notListing')).toBe(true);
 	});
 
+	// The fixture fails at teardown on any dev invariant, so passing is the no-warning check.
+	test('Enter inside the generic directive box commits without an invariant', async ({ page }) => {
+		await page.waitForFunction(() => '__activation' in window);
+		const box = page
+			.getByTestId('editor-not-listing')
+			.locator('[data-block-kind="directiveContainer"]');
+		await box.getByText('Tip').click();
+		await page.keyboard.press('End');
+		await page.keyboard.press('Enter');
+		await page.keyboard.type('Z');
+
+		await expect(box).toContainText('Z');
+		expect(await convergedIn(page, 'notListing')).toBe(true);
+	});
+
 	// The badge comes from an onEditor hook, so its absence means the hook never ran here.
 	test('attaches no decoration source from a plugin it did not list', async ({ page }) => {
 		await expect(page.getByTestId('editor-not-listing').locator('.badge-h')).toHaveCount(0);

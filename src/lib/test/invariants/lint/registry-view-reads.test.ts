@@ -97,10 +97,6 @@ const RULES: CallSiteRule[] = [
 		calls: ['parse'],
 		holds: (args) => /\bgrammar\b/.test(args),
 		allowed: {
-			'src/lib/invariants/node-shape.ts:62':
-				'a dev check asking what the bytes can be at all, in every installed grammar',
-			'src/lib/invariants/node-shape.ts:138':
-				'a dev check asking what the bytes can be at all, in every installed grammar',
 			'src/lib/plugins/admonitions/convert-document.ts:11':
 				'a published whole-document conversion that runs with no editor'
 		},
