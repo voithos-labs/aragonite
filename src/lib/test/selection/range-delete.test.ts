@@ -3,6 +3,7 @@ import { rangeDelete } from '../../selection/range-delete';
 import { parse } from '../../core/parser';
 import { serialize } from '../../core/serializer';
 import { createSharingState } from '../../tree-operations/sharing';
+import { fixtureLinkRef } from '../harness/fixture-grammar';
 
 function run(
 	source: string,
@@ -17,7 +18,7 @@ function run(
 		createSharingState(),
 		undefined,
 		undefined,
-		undefined
+		fixtureLinkRef()
 	);
 	return { source: serialize(result.newDoc), caret: result.collapsedCaret };
 }

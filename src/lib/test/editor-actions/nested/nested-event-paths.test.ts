@@ -13,6 +13,7 @@ import {
 	makeEditorActionsDeps
 } from '$lib/test/harness/editor-actions';
 import type { EditEvent } from '$lib/editor-events';
+import { fixtureLinkRef } from '../../harness/fixture-grammar';
 
 // A list nested in a blockquote: its local index (0) differs from its document-absolute
 // path [1, 0], so a local event path can be told from the absolute one.
@@ -61,7 +62,7 @@ function makeNestedList() {
 		parentListContext: undefined,
 		controller,
 		getPresentationMode: undefined,
-		linkRef: undefined
+		linkRef: fixtureLinkRef()
 	});
 
 	const edits: EditEvent[] = [];

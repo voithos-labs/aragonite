@@ -15,6 +15,7 @@ import {
 } from '$lib/components/blocks/text/link-at-point';
 import type { LinkReferenceResolverRef } from '$lib/editor-keys';
 import { makeRenderHarness } from '$lib/test/harness/text-render';
+import { fixtureLinkRef } from '../../harness/fixture-grammar';
 
 function mount(source: string): {
 	el: HTMLElement;
@@ -24,7 +25,10 @@ function mount(source: string): {
 	const doc = parse(source);
 	const node = doc.children[0];
 	const map = buildLinkReferenceMap(doc.children);
-	const linkRef: LinkReferenceResolverRef = { current: map.resolve, signature: map.signature };
+	const linkRef: LinkReferenceResolverRef = fixtureLinkRef({
+		current: map.resolve,
+		signature: map.signature
+	});
 	const harness = makeRenderHarness(node, {
 		mode: 'live',
 		linkResolver: map.resolve,

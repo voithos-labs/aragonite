@@ -10,6 +10,7 @@ import { mergeListItemIntoPrevious } from '$lib/tree-operations/list/unwrap-merg
 import { applyStructuralChangeToIdsRefs } from '$lib/tree-operations/structural-change';
 import { assertContainerParity, seedChildIdsRecursive } from '$lib/test/harness/container-parity';
 import type { CstNode } from '$lib/core/nodes';
+import { fixtureLinkRef } from '../../harness/fixture-grammar';
 
 /**
  * Mirrors the commitContainer path: M1 takes a children-copy and returns the outer-scope
@@ -17,7 +18,7 @@ import type { CstNode } from '$lib/core/nodes';
  */
 function runM1AsCommit(list: CstNode, currentIndex: number): void {
 	const children = list.children!.slice();
-	mergeListItemIntoPrevious(list, children, currentIndex, undefined, undefined, undefined);
+	mergeListItemIntoPrevious(list, children, currentIndex, undefined, undefined, fixtureLinkRef());
 	const refs: undefined[] = new Array(list.children!.length).fill(undefined);
 	applyStructuralChangeToIdsRefs(
 		{ op: 'delete', at: currentIndex, count: 1 },

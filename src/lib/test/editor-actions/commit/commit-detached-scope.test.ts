@@ -18,6 +18,7 @@ import {
 	makeListContextAt
 } from '$lib/test/harness/editor-actions';
 import { drainDevWarns, takeDevWarns } from '$lib/test/support/warn-gate';
+import { fixtureLinkRef } from '../../harness/fixture-grammar';
 
 describe('multi-scope commits with a scope detached by the mutation', () => {
 	it('unindent of the only nested item fires nothing (nested-list scope dies)', async () => {
@@ -73,7 +74,7 @@ describe('multi-scope commits with a scope detached by the mutation', () => {
 			snapshot: { path: asDocPath([0, 0, 0]), offset: 0 },
 			mutate: (views) => {
 				const ledgers = views.map((v) => trackChildIds(v.node));
-				rangeDelete(deps.doc, start, end, views[0].sharing, undefined, undefined, undefined);
+				rangeDelete(deps.doc, start, end, views[0].sharing, undefined, undefined, fixtureLinkRef());
 				return ledgers.map((ledger) => {
 					const change = ledger.read();
 					ledger.release();
@@ -105,7 +106,7 @@ describe('multi-scope commits with a scope detached by the mutation', () => {
 			snapshot: { path: asDocPath([0]), offset: 0 },
 			mutate: (views) => {
 				const ledgers = views.map((v) => trackChildIds(v.node));
-				rangeDelete(deps.doc, start, end, views[0].sharing, undefined, undefined, undefined);
+				rangeDelete(deps.doc, start, end, views[0].sharing, undefined, undefined, fixtureLinkRef());
 				return ledgers.map((ledger) => {
 					const change = ledger.read();
 					ledger.release();

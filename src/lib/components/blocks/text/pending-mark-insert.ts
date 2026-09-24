@@ -244,7 +244,8 @@ function visibleText(raw: string, reading: Reading, parsed?: readonly InlineNode
 	return renderedText(
 		parsed ?? parseInline(raw, 0, raw.length, reading.resolver, reading.grammar),
 		raw,
-		CONTENT_VISIBILITY
+		CONTENT_VISIBILITY,
+		{ grammar: reading.grammar }
 	);
 }
 

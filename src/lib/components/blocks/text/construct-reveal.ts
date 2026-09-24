@@ -47,7 +47,7 @@ interface ChainEntry {
 
 export interface ConstructRevealDeps {
 	get node(): NodeView;
-	get linkRef(): LinkReferenceResolverRef | undefined;
+	get linkRef(): LinkReferenceResolverRef;
 	getEl: () => HTMLElement | null;
 	getAmbientLength: () => number;
 	getPresentationMode: () => PresentationMode;

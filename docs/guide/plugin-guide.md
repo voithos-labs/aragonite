@@ -764,7 +764,8 @@ function registerConspiracy(): void {
 		}
 	});
 
-	registerChromeLeaf(conspiracyTitle, { blockClass: 'conspiracy-title' });
+	// The label is what a screen reader and the block menu call the title row.
+	registerChromeLeaf(conspiracyTitle, { label: 'Theory', blockClass: 'conspiracy-title' });
 }
 
 // definePluginBlock wraps definePlugin around the register step and the component

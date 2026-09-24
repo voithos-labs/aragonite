@@ -5,6 +5,7 @@ import { serialize } from '../../core/serializer';
 import { nodeAt } from '../../tree-operations/node-primitives';
 import { createSharingState } from '../../tree-operations/sharing';
 import type { Document } from '../../core/nodes';
+import { fixtureLinkRef } from '../harness/fixture-grammar';
 
 function run(
 	source: string,
@@ -19,7 +20,7 @@ function run(
 		createSharingState(),
 		undefined,
 		undefined,
-		undefined
+		fixtureLinkRef()
 	);
 	return { doc: result.newDoc, source: serialize(result.newDoc), caret: result.collapsedCaret };
 }

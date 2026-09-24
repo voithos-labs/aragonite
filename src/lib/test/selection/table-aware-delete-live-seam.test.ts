@@ -18,6 +18,7 @@ import {
 import { tableAwareRangeDelete } from '../../selection/range-delete-table';
 import { createSharingState } from '../../tree-operations/sharing';
 import type { CellSelectionPoint, SelectionPoint } from '../../selection/primitives';
+import { fixtureLinkRef } from '../harness/fixture-grammar';
 
 beforeEach(() => registerLiveJoinSeamCleaner(cleanLiveJoinSeam));
 afterEach(() => __resetLiveJoinSeamCleanerForTests());
@@ -33,7 +34,15 @@ const cell = (path: number[], index: number): CellSelectionPoint => ({
 
 function run(source: string, start: SelectionPoint, end: SelectionPoint, mode?: PresentationMode) {
 	const doc = parse(source);
-	const result = tableAwareRangeDelete(doc, start, end, createSharingState(), undefined, mode);
+	const result = tableAwareRangeDelete(
+		doc,
+		start,
+		end,
+		createSharingState(),
+		undefined,
+		mode,
+		fixtureLinkRef()
+	);
 	return { source: serialize(result.newDoc), caret: result.collapsedCaret };
 }
 

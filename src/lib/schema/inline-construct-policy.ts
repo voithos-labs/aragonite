@@ -144,7 +144,7 @@ export function inlineMarkForCommand(command: string): InlineMark | null {
 export type InlineResolverRef = {
 	current?: LinkReferenceResolver;
 	signature?: string;
-	grammar?: GrammarView;
+	grammar: GrammarView;
 };
 
 /**
@@ -156,7 +156,7 @@ export type LiveSplitRebalancer = (
 	offset: number,
 	firstRaw: string,
 	secondRaw: string,
-	linkRef: InlineResolverRef | undefined
+	linkRef: InlineResolverRef
 ) => { firstRaw: string; secondRaw: string } | null;
 
 let splitRebalancer: LiveSplitRebalancer | undefined;
@@ -191,7 +191,7 @@ export interface JoinSeam {
 	end: JoinEndpoint;
 	/** Belongs to one editor, so it is passed on the call: a reference link parsed without it reads
 	 *  as plain brackets, and the cleanup would skip a construct the user saw as a link. */
-	linkRef: InlineResolverRef | undefined;
+	linkRef: InlineResolverRef;
 	/** Text the caller will insert at the join once the cleanup returns. Absent for a plain delete;
 	 *  when present it is part of the bytes the cleanup has to check, since typed text changes what
 	 *  a surviving delimiter pairs against. */

@@ -11,6 +11,7 @@ import { makeBlockListState, makeEditorActionsDeps } from '../harness/editor-act
 import type { CrossBlockMutationContext } from '$lib/selection/cross-block/ops';
 import type { SelectionPoint } from '$lib/selection/primitives';
 import { defaultGrammarView } from '$lib/schema/block-openers';
+import { fixtureLinkRef } from '../harness/fixture-grammar';
 
 function soleTableEnv(source: string) {
 	const { deps } = makeEditorActionsDeps(parse(source).children);
@@ -29,7 +30,7 @@ function soleTableEnv(source: string) {
 		pushUndoSnapshot: () => controller.pushUndoSnapshot(0, 0),
 		grammar: defaultGrammarView,
 		getPresentationMode: undefined,
-		linkRef: undefined
+		linkRef: fixtureLinkRef()
 	};
 	return { deps, table, ctx };
 }

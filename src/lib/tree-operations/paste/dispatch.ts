@@ -97,7 +97,8 @@ export async function pasteDispatch(
 	const { activePlugins } = ctx;
 	const seam: PasteSeam = {
 		presentationMode: ctx.seam?.presentationMode,
-		linkRef: ctx.seam?.linkRef,
+		// No join context means no live mode, so the cut stays literal and reads no definition.
+		linkRef: ctx.seam?.linkRef ?? { grammar: ctx.grammar },
 		grammar: ctx.grammar
 	};
 	const transformed = applyPasteTransforms(input.pastedText, activePlugins);
@@ -227,15 +228,15 @@ export async function pasteDispatch(
 function targetAfterPreDelete(
 	node: CstNode,
 	input: PasteDispatchInput,
-	seam: PasteSeam | undefined
+	seam: PasteSeam
 ): { raw: string; offset: number } {
 	if (!input.preDelete) return { raw: node.raw, offset: input.offset };
 	const cut = cutRangeFromDisplay(
 		node,
 		trimTrailingLineEnding(node.raw),
 		input.preDelete,
-		seam?.presentationMode,
-		seam?.linkRef
+		seam.presentationMode,
+		seam.linkRef
 	);
 	return { raw: cut.display + trailingLineEnding(node.raw), offset: cut.offset };
 }

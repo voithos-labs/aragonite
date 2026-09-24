@@ -22,6 +22,7 @@ import {
 } from '$lib/debug/interaction-trace';
 import { placeCaretAt } from './math-widget-fixture';
 import { makeRenderHarness, type RenderHarness } from '$lib/test/harness/text-render';
+import { fixtureLinkRef } from '../../harness/fixture-grammar';
 
 // 'alpha **bold** tail': strong spans [6,14), and its two `**` spans carry the attribute.
 const RAW = 'alpha **bold** tail\n';
@@ -44,7 +45,7 @@ describe('createConstructReveal: trigger', () => {
 				return node;
 			},
 			get linkRef() {
-				return undefined;
+				return fixtureLinkRef();
 			},
 			getEl: () => el,
 			getAmbientLength: () => 0,

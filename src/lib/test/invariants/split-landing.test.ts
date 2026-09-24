@@ -3,6 +3,7 @@ import { checkSplitLanding } from '$lib/invariants/split-landing';
 import { assertSplitLanding, splitNode } from '$lib/tree-operations';
 import { parse } from '$lib/core/parser';
 import { takeDevWarns } from '$lib/test/support/warn-gate';
+import { fixtureLinkRef } from '../harness/fixture-grammar';
 
 describe('G1.34 split landing', () => {
 	it('accepts a landing that matches the primitive', () => {
@@ -21,7 +22,7 @@ describe('G1.34 split landing', () => {
 	// stays one block, and a plural first half is what pushes it down.
 	it('fires through the join on the pre-#98 landing, and stays silent on the primitive’s', () => {
 		const doc = parse('    a\n\n\n    b\n');
-		const split = splitNode(doc, 0, 7, undefined, undefined, undefined);
+		const split = splitNode(doc, 0, 7, undefined, undefined, fixtureLinkRef());
 		expect(takeDevWarns().map((w) => w.tag)).toEqual(['tree-ops']);
 
 		assertSplitLanding(split, split.secondHalfIndex);

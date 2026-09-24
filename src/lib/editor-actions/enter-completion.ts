@@ -10,7 +10,7 @@ import type { BlockEditActions } from '../action-contracts';
 import type { CstNode } from '../core/nodes';
 import type { NodeView } from '../core/node-views';
 import { getBlockKindDescriptor } from '../schema/block-kind-descriptor';
-import { defaultGrammarView, type GrammarView } from '../schema/block-openers';
+import type { GrammarView } from '../schema/block-openers';
 import {
 	completeLineOnType,
 	completeTypedLine,
@@ -26,18 +26,17 @@ export interface EnterCompletion {
  * Wraps a composed `splitBlock` with the completer check. It sits above the container overrides
  * rather than inside the split, so a container that replaces `splitBlock` cannot lose the
  * completion for its subtree; the blockquote exit's second check lands on a container, which
- * always declines. An absent grammar, which the action deps allow, reads every installed plugin.
+ * always declines.
  */
 export function withEnterCompletion(
 	blockEdit: BlockEditActions,
 	childAt: (index: number) => NodeView | undefined,
-	grammar: GrammarView | undefined
+	grammar: GrammarView
 ): BlockEditActions {
-	const scoped = grammar ?? defaultGrammarView;
 	return {
 		...blockEdit,
 		async splitBlock(index: number, offset: number): Promise<void> {
-			const completion = planEnterCompletion(childAt(index), offset, scoped);
+			const completion = planEnterCompletion(childAt(index), offset, grammar);
 			if (!completion) {
 				await blockEdit.splitBlock(index, offset);
 				return;
@@ -51,15 +50,13 @@ export function withEnterCompletion(
 				{ snapshotOffset: offset }
 			);
 		},
-		// The typing side: a keystroke that leaves the block as a line an on-type completer
-		// recognises (`BlockCompleter.onType`) forms the structure at once, the way a typed
-		// ` ``` ` is a fence the moment the parser sees it. The write lands first, so the typed
-		// line is its own undo step and the replacement covers the bytes the CST actually holds.
+		// A line an on-type completer recognises forms its structure at once. The write lands
+		// first, so the typed line is its own undo step and the replacement covers the stored bytes.
 		async updateBlockContent(index, text, preEditOffset, postEditFocusOffset) {
 			await blockEdit.updateBlockContent(index, text, preEditOffset, postEditFocusOffset);
 			const offset = postEditFocusOffset ?? preEditOffset;
 			if (offset === undefined) return;
-			const completion = planTypedCompletion(childAt(index), offset, scoped);
+			const completion = planTypedCompletion(childAt(index), offset, grammar);
 			if (!completion) return;
 			await blockEdit.replaceBlock(
 				index,

@@ -39,7 +39,7 @@
 		/** The consumer's href rewrite, the first thing the render path applies. */
 		resolveLinkUrl: (rawUrl: string) => string;
 		caretRestore: CaretRestore;
-		linkRef?: LinkReferenceResolverRef;
+		linkRef: LinkReferenceResolverRef;
 		grammar?: GrammarView;
 		menuPresence: MenuPresence;
 	} = $props();

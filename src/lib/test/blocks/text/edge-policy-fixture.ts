@@ -12,6 +12,7 @@ import { trimTrailingLineEnding } from '$lib/core/lines';
 import type { BlockEditActions } from '$lib/action-contracts';
 import type { CstNode } from '$lib/core/nodes';
 import { makePendingMarks } from '$lib/test/harness/editor-actions';
+import { fixtureLinkRef } from '../../harness/fixture-grammar';
 
 export { asRawOffset as at } from '$lib/cursor/coordinate-spaces';
 
@@ -43,7 +44,7 @@ export function makeEdgeDispatch(
 			return null;
 		},
 		get linkRef() {
-			return undefined;
+			return fixtureLinkRef();
 		},
 		getEl: () => el,
 		getAmbientLength: () => 0,

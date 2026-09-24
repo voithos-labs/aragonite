@@ -14,6 +14,7 @@ import {
 	__resetInlineSyntaxForTests,
 	registerInlineSyntax
 } from '../../core/inline/scan/plugin-syntax';
+import { renderOptions } from '../harness/fixture-grammar';
 
 afterEach(() => __resetInlineSyntaxForTests());
 
@@ -113,18 +114,18 @@ describe('inline tree walks at input-controlled nesting depth', () => {
 	it('reads the visible text as the fold of its runs', () => {
 		const raw = '**ab**';
 		const { nodes } = nestedStrong(1, textLeaf);
-		const visible = visibleRuns(nodes, raw, CONTENT_VISIBILITY)
+		const visible = visibleRuns(nodes, raw, CONTENT_VISIBILITY, renderOptions())
 			.filter((run) => run.visible)
 			.map((run) => run.text)
 			.join('');
 
 		expect(visible).toBe('ab');
-		expect(renderedText(nodes, raw, CONTENT_VISIBILITY)).toBe(visible);
+		expect(renderedText(nodes, raw, CONTENT_VISIBILITY, renderOptions())).toBe(visible);
 	});
 
 	it('tiles the rendered source in order past the recursion ceiling', () => {
 		const { nodes, raw } = nestedStrong(RENDER_DEPTH, textLeaf);
-		const runs = visibleRuns(nodes, raw, CONTENT_VISIBILITY);
+		const runs = visibleRuns(nodes, raw, CONTENT_VISIBILITY, renderOptions());
 
 		expect(runs[0].start).toBe(0);
 		expect(runs[runs.length - 1].end).toBe(raw.length);

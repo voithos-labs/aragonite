@@ -19,6 +19,7 @@ import {
 	registerLiveJoinSeamCleaner,
 	__resetLiveJoinSeamCleanerForTests
 } from '$lib/schema/inline-construct-policy';
+import { fixtureLinkRef } from '../../harness/fixture-grammar';
 
 // B-F2: M1 was the one destructive join whose signature could not reach `cleanJoinedRaw`, so
 // Enter-then-Backspace inside a list wrote out the closer/opener pair the user never saw,
@@ -36,7 +37,7 @@ const SPLIT_BOLD = '- Some **bo**\n- **ld** text\n';
 const rejoined = (mode: 'live' | undefined) => {
 	const doc = parse(SPLIT_BOLD);
 	const list = doc.children[0];
-	mergeListItemIntoPrevious(list, list.children!.slice(), 1, undefined, mode, undefined);
+	mergeListItemIntoPrevious(list, list.children!.slice(), 1, undefined, mode, fixtureLinkRef());
 	return serialize(doc);
 };
 

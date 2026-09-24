@@ -83,7 +83,7 @@ export interface WidgetInteractionDeps {
 	/** The mode in effect; reading mode blocks showing a source and the widget edit
 	 *  branches. Optional, so a bare harness reads as 'source'. */
 	getPresentationMode?: () => PresentationMode;
-	get linkRef(): LinkReferenceResolverRef | undefined;
+	get linkRef(): LinkReferenceResolverRef;
 	/** The editor's grammar, the one the render path drew widgets with. */
 	grammar: GrammarView;
 }

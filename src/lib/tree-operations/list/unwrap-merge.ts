@@ -168,7 +168,7 @@ export function mergeListItemIntoPrevious(
 	currentIndex: number,
 	sharing: SharingState | undefined,
 	presentationMode: PresentationMode | undefined,
-	linkRef: InlineResolverRef | undefined
+	linkRef: InlineResolverRef
 ): { mergePoint: { targetPath: number[]; offset: number } } | null {
 	// Targeting may read `list.children`, but the final splice must land in `children`
 	// (`node-primitives.ts` header).

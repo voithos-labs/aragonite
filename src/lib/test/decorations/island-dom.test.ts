@@ -9,10 +9,11 @@ import { rawTextOfNode } from '$lib/cursor/widget-offset';
 import { buildAmbientSpan } from '$lib/ambient/ambient-dom';
 import { contentLengthOf, parseInline } from '$lib/core/inline';
 import { renderInlineNodes } from '$lib/core/inline-render';
+import { renderOptions } from '../harness/fixture-grammar';
 
 function build(raw: string): DocumentFragment {
 	const frag = document.createDocumentFragment();
-	frag.appendChild(renderInlineNodes(parseInline(raw, 0, raw.length), raw));
+	frag.appendChild(renderInlineNodes(parseInline(raw, 0, raw.length), raw, renderOptions()));
 	return frag;
 }
 
@@ -24,7 +25,9 @@ function buildWithMarkerPrefix(raw: string, markerLen: number): DocumentFragment
 	marker.className = 'md-marker';
 	marker.textContent = raw.slice(0, markerLen);
 	frag.appendChild(marker);
-	frag.appendChild(renderInlineNodes(parseInline(raw, markerLen, raw.length), raw));
+	frag.appendChild(
+		renderInlineNodes(parseInline(raw, markerLen, raw.length), raw, renderOptions())
+	);
 	return frag;
 }
 

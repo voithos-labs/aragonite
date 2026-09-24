@@ -26,6 +26,8 @@ export function chromeChild(kind: AnyBlockKind, text: string): CstNode {
 }
 
 export interface ChromeLeafOptions {
+	/** What a screen reader and the block menu call the row; defaults to the kind in words. */
+	label?: string;
 	/** CSS class on the leaf's editable element, for styling the title row. */
 	blockClass?: string;
 	/** A binding replaces the default for its chord; the defaults fill the rest. */
@@ -55,6 +57,7 @@ export function registerChromeLeaf<
 	P extends Partial<BlockComponentProps> & Record<string, unknown>
 >(kind: AnyBlockKind, component: Component<P, BlockComponent>, opts: ChromeLeafOptions = {}): void {
 	registerBlockKind(kind, {
+		...(opts.label !== undefined ? { label: opts.label } : {}),
 		gapEdges: 'none',
 		mergeRole: opts.mergeRole ?? 'not-mergeable',
 		editable: true,

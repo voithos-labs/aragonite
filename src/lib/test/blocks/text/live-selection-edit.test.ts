@@ -8,6 +8,7 @@ import {
 	__resetLiveJoinSeamCleanerForTests
 } from '$lib/schema/inline-construct-policy';
 import type { PresentationMode } from '$lib/presentation-mode';
+import { fixtureLinkRef } from '../../harness/fixture-grammar';
 
 // The one destructive path with no offsets of its own: a browser selection edit inside one block,
 // re-expressed as a join. The decisions here: when it refuses, where the typed bytes land, and
@@ -26,7 +27,7 @@ const editIn = (
 	start: number,
 	end: number,
 	typed: string
-) => resolveSelectionEdit(blockOf(source), { start, end }, typed, mode, undefined);
+) => resolveSelectionEdit(blockOf(source), { start, end }, typed, mode, fixtureLinkRef());
 
 const edit = (source: string, start: number, end: number, typed: string) =>
 	editIn('live', source, start, end, typed);

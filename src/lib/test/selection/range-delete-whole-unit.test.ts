@@ -6,6 +6,7 @@ import { createSharingState } from '$lib/tree-operations/sharing';
 import { expectParseConverged } from '../harness/parse-converged';
 import type { Document } from '$lib/core/nodes';
 import type { SelectionPoint } from '$lib/selection/primitives';
+import { fixtureLinkRef } from '../harness/fixture-grammar';
 
 // A block with no positions inside it (a rule, a diagram) is in a range whole or not at all, so
 // a range that covers it deletes the node: the same-block branch's byte write would leave a rule
@@ -22,7 +23,7 @@ function del(source: string, start: SelectionPoint, end: SelectionPoint) {
 		createSharingState(),
 		undefined,
 		undefined,
-		undefined
+		fixtureLinkRef()
 	);
 	return { doc, caret: result.collapsedCaret };
 }

@@ -11,6 +11,7 @@ import { createSelectionState } from '$lib/selection/selection-state.svelte';
 import { registerBlockListState } from '$lib/reactivity/state-registry';
 import { makeBlockListState, makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
 import { defaultGrammarView } from '$lib/schema/block-openers';
+import { fixtureLinkRef } from '../../harness/fixture-grammar';
 
 // A range delete leaves its survivor beside a neighbour above the selection that absorbs it, so
 // the fix-up merges two blocks outside the selected endpoints, a merge the id bookkeeping the
@@ -35,7 +36,7 @@ function makeEnv(source: string) {
 		pushUndoSnapshot: () => controller.pushUndoSnapshot(0, 0),
 		grammar: defaultGrammarView,
 		getPresentationMode: undefined,
-		linkRef: undefined
+		linkRef: fixtureLinkRef()
 	};
 	return { ...harness, controller, mutCtx };
 }

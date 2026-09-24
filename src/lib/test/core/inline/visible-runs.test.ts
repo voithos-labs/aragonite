@@ -8,9 +8,10 @@ import { describe, it, expect } from 'vitest';
 import { parseInline } from '$lib/core/inline';
 import { CONTENT_VISIBILITY, visibleRuns } from '$lib/core/inline/visibility';
 import type { InlineNode } from '$lib/core/nodes';
+import { renderOptions } from '../../harness/fixture-grammar';
 
 const painted = (nodes: readonly InlineNode[], raw: string) =>
-	visibleRuns(nodes, raw, CONTENT_VISIBILITY)
+	visibleRuns(nodes, raw, CONTENT_VISIBILITY, renderOptions())
 		.filter((run) => run.visible && run.text !== '')
 		.map((run) => [run.start, run.end, run.text]);
 

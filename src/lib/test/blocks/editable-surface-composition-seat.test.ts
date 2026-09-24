@@ -19,6 +19,7 @@ import { trimTrailingLineEnding } from '$lib/core/lines';
 import { screenVisibilityOf } from '$lib/cursor/widget-offset';
 import type { EdgeAffinity } from '$lib/cursor/edge-affinity';
 import { makeSurface, type SurfaceHarness } from '../harness/editable-surface';
+import { fixtureLinkRef } from '../harness/fixture-grammar';
 
 beforeEach(() => registerLiveJoinSeamCleaner(cleanLiveJoinSeam));
 afterEach(() => {
@@ -50,7 +51,7 @@ function makeSeatHarness(source: string, affinity: EdgeAffinity | null): SeatHar
 		restorePendingMarks: () => {},
 		getRawSelection: () => rawSelection,
 		resolveRangeEdit: (range, typed) => {
-			const edit = resolveSelectionEdit(node, range, typed, 'live', undefined);
+			const edit = resolveSelectionEdit(node, range, typed, 'live', fixtureLinkRef());
 			return edit && { raw: trimTrailingLineEnding(edit.raw), caret: edit.caret };
 		}
 	});

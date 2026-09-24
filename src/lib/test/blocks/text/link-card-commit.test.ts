@@ -6,6 +6,7 @@ import { createUndoController } from '$lib/editor-actions/commit/undo-controller
 import { createLinkCardCommitter } from '$lib/components/link-card/link-card-commit';
 import type { LinkTarget } from '$lib/components/blocks/text/link-at-point';
 import { makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
+import { fixtureLinkRef } from '../../harness/fixture-grammar';
 
 // What the card decides on top of the byte writer: which fields survive a URL edit, and when the
 // reference form is kept. The bytes themselves are the writer's business.
@@ -24,7 +25,7 @@ function makeCard(source: string) {
 		events: harness.events,
 		measureRange: () => [],
 		landCaret,
-		linkRef: { current: map.resolve, signature: map.signature }
+		linkRef: fixtureLinkRef({ current: map.resolve, signature: map.signature })
 	});
 	const raw = () => harness.doc.children[0].raw;
 	return {

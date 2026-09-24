@@ -18,6 +18,7 @@ import { pasteDispatch } from '$lib/tree-operations/paste/dispatch';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
 import { createPasteCoordinator } from '$lib/editor-actions/paste-coordinator';
 import { makeEditorActionsDeps, makeStubBlockEdit, pasteContext } from '../harness/editor-actions';
+import { fixtureLinkRef } from '../harness/fixture-grammar';
 
 const noIndentedCode = createRegistryView({ syntax: { indentedCode: false } }).grammar;
 const read = (source: string) => parse(source, { grammar: noIndentedCode });
@@ -31,7 +32,7 @@ registerBlockCompleter(declarePluginKind('indent-box'), {
 describe('an edit route reparses in the editor grammar', () => {
 	it('a merge that leads with four spaces leaves a paragraph', () => {
 		const doc = read('    lead\n\ntail\n');
-		mergeWithNext(doc, 0, undefined, undefined, noIndentedCode);
+		mergeWithNext(doc, 0, undefined, fixtureLinkRef(), noIndentedCode);
 		expect(kindsOf(doc.children)).toEqual(['paragraph']);
 		expect(describeConvergence(doc, noIndentedCode)).toBeNull();
 	});
@@ -60,7 +61,7 @@ describe('an edit route reparses in the editor grammar', () => {
 			createSharingState(),
 			noIndentedCode,
 			undefined,
-			undefined
+			fixtureLinkRef()
 		);
 		expect(kindsOf(doc.children)).toEqual(['paragraph']);
 		expect(describeConvergence(doc, noIndentedCode)).toBeNull();

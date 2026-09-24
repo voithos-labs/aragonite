@@ -22,6 +22,7 @@ import { createSharingState } from '$lib/tree-operations/sharing';
 import { collectEditorSources } from '$lib/test/invariants/lint/scan-source';
 import type { CstNode } from '$lib/core/nodes';
 import type { NodeView } from '$lib/core/node-views';
+import { fixtureLinkRef } from '../harness/fixture-grammar';
 
 const BOY = 'a\u{1F466}b\n';
 
@@ -86,7 +87,7 @@ describe('snapToScalarBoundary', () => {
 describe('the split cut', () => {
 	it('splits beside the pair, never through it', () => {
 		const doc = parse(BOY);
-		splitNode(doc, 0, 2, createSharingState(), undefined, undefined);
+		splitNode(doc, 0, 2, createSharingState(), undefined, fixtureLinkRef());
 		const out = serialize(doc);
 		expect(isWellFormed(out)).toBe(true);
 		expect(out).toBe('a\n\n\u{1F466}b\n');
@@ -101,7 +102,7 @@ describe('the single-block range cut', () => {
 			'a\u{1F466}b',
 			{ start: 0, end: 2 },
 			undefined,
-			undefined
+			fixtureLinkRef()
 		);
 		expect(isWellFormed(cut.display)).toBe(true);
 		expect(cut.display).toBe('\u{1F466}b');
@@ -114,7 +115,7 @@ describe('the single-block range cut', () => {
 			'a\u{1F466}b',
 			{ start: 2, end: 4 },
 			undefined,
-			undefined
+			fixtureLinkRef()
 		);
 		expect(isWellFormed(cut.display)).toBe(true);
 		expect(cut.display).toBe('a');
@@ -151,7 +152,7 @@ describe('the native ranged edit’s join', () => {
 
 	it('snaps a mid-pair endpoint before slicing', () => {
 		const node = parse(SOURCE, { scope: 'fragment' }).children[0] as NodeView;
-		const edit = resolveSelectionEdit(node, { start: 8, end: 22 }, '', 'live', undefined);
+		const edit = resolveSelectionEdit(node, { start: 8, end: 22 }, '', 'live', fixtureLinkRef());
 		expect(edit).not.toBeNull();
 		expect(isWellFormed(edit!.raw)).toBe(true);
 	});

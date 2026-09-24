@@ -73,7 +73,7 @@ export interface TextClipboardDeps {
 	/** The block's live DOM as raw text, so a copy over an uncommitted edit yields what
 	 *  the user sees rather than a stale slice of `node.raw`. */
 	readRevealedText: () => string;
-	get linkRef(): LinkReferenceResolverRef | undefined;
+	get linkRef(): LinkReferenceResolverRef;
 }
 
 export interface TextClipboard extends ClipboardHandlers {

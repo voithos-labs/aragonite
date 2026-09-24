@@ -11,6 +11,7 @@ import type { InlineMenuSource } from '$lib/inline-menu/types';
 import { resolvedInlineContent } from '$lib/core/inline/inline-cache';
 import type { NodeView } from '$lib/core/node-views';
 import { parse } from '$lib/core/parser';
+import { fixtureLinkRef } from '../harness/fixture-grammar';
 
 const source = (over: Partial<InlineMenuSource> & { name: string; trigger: string }) =>
 	({ items: () => [], ...over }) satisfies InlineMenuSource;
@@ -132,7 +133,7 @@ describe('isProseOffset', () => {
 	const at = (raw: string): boolean => {
 		const offset = raw.indexOf('|');
 		const leaf = (parse(raw.replace('|', '') + '\n') as { children: NodeView[] }).children[0];
-		return isProseOffset(resolvedInlineContent(leaf), offset);
+		return isProseOffset(resolvedInlineContent(leaf, fixtureLinkRef()), offset);
 	};
 
 	it('is true in ordinary text and in a link’s own text, which is prose', () => {

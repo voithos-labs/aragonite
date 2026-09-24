@@ -4,6 +4,7 @@ import { parseInline } from '../../core/inline';
 import { renderInlineNodes } from '../../core/inline-render';
 import { rawTextOfNode } from '../../cursor/widget-offset';
 import type { InlineNode } from '../../core/nodes';
+import { renderOptions } from '../harness/fixture-grammar';
 
 describe('renderInlineNodes: hardLineBreak (textContent equals raw)', () => {
 	const cases: { name: string; raw: string }[] = [
@@ -19,13 +20,13 @@ describe('renderInlineNodes: hardLineBreak (textContent equals raw)', () => {
 			const breakNode = nodes.find((n) => n.kind === 'hardLineBreak');
 			expect(breakNode, `expected hardLineBreak in: ${JSON.stringify(raw)}`).toBeDefined();
 			const fragRaw = raw.slice(breakNode!.start, breakNode!.end);
-			const frag = renderInlineNodes([breakNode!], raw);
+			const frag = renderInlineNodes([breakNode!], raw, renderOptions());
 			expect(frag.textContent).toBe(fragRaw);
 		});
 
 		it(`${name}: full-document fragment textContent equals raw`, () => {
 			const nodes = parseInline(raw, 0, raw.length);
-			const frag = renderInlineNodes(nodes, raw);
+			const frag = renderInlineNodes(nodes, raw, renderOptions());
 			expect(frag.textContent).toBe(raw);
 		});
 	}
@@ -35,7 +36,7 @@ describe('renderInlineNodes: escape', () => {
 	it('renders escape as marker span + text node, textContent equals raw', () => {
 		const raw = '\\*';
 		const node: InlineNode = { kind: 'escape', start: 0, end: 2 };
-		const frag = renderInlineNodes([node], raw);
+		const frag = renderInlineNodes([node], raw, renderOptions());
 		const div = document.createElement('div');
 		div.appendChild(frag);
 		expect(div.textContent).toBe('\\*');
@@ -46,7 +47,7 @@ describe('renderInlineNodes: escape', () => {
 	it('escape inside parsed paragraph: full-document textContent equals raw', () => {
 		const raw = '\\*foo\\*';
 		const nodes = parseInline(raw, 0, raw.length);
-		const frag = renderInlineNodes(nodes, raw);
+		const frag = renderInlineNodes(nodes, raw, renderOptions());
 		expect(frag.textContent).toBe(raw);
 	});
 });
@@ -55,7 +56,7 @@ describe('renderInlineNodes: entityReference widget (visible glyph)', () => {
 	it('renders a visible entity as an atomic widget of its decoded glyph', () => {
 		const raw = '&copy;';
 		const node: InlineNode = { kind: 'entityReference', start: 0, end: 6, decoded: '©' };
-		const frag = renderInlineNodes([node], raw);
+		const frag = renderInlineNodes([node], raw, renderOptions());
 		const div = document.createElement('div');
 		div.appendChild(frag);
 		// The DOM shows the glyph; there is no literal-source span.
@@ -69,7 +70,7 @@ describe('renderInlineNodes: entityReference widget (visible glyph)', () => {
 		const raw = 'a &copy; b';
 		const nodes = parseInline(raw, 0, raw.length);
 		const container = document.createElement('div');
-		container.appendChild(renderInlineNodes(nodes, raw));
+		container.appendChild(renderInlineNodes(nodes, raw, renderOptions()));
 		const widget = container.querySelector<HTMLElement>('[data-inline-widget]')!;
 		expect(widget.dataset.sourceStart).toBe('2');
 		expect(widget.dataset.sourceEnd).toBe('8');
@@ -90,7 +91,7 @@ describe('renderInlineNodes: entityReference literal span (invisible glyph)', ()
 	])('renders $name as a literal .md-entity span', ({ raw, decoded }) => {
 		const node: InlineNode = { kind: 'entityReference', start: 0, end: raw.length, decoded };
 		const div = document.createElement('div');
-		div.appendChild(renderInlineNodes([node], raw));
+		div.appendChild(renderInlineNodes([node], raw, renderOptions()));
 		expect(div.querySelector('[data-inline-widget]')).toBeNull();
 		const span = div.querySelector('.md-entity');
 		expect(span?.textContent).toBe(raw);
@@ -108,7 +109,7 @@ describe('inline-render: unresolvedReference', () => {
 			refKind: 'link'
 		};
 		const raw = '[text][missing]';
-		const frag = renderInlineNodes([node], raw);
+		const frag = renderInlineNodes([node], raw, renderOptions());
 		const span = frag.querySelector('span.md-unresolved-ref');
 		expect(span).not.toBeNull();
 		expect(span?.textContent).toBe('[text][missing]');
@@ -123,7 +124,7 @@ describe('inline-render: unresolvedReference', () => {
 			refKind: 'image'
 		};
 		const raw = '![alt][missing]';
-		const frag = renderInlineNodes([node], raw);
+		const frag = renderInlineNodes([node], raw, renderOptions());
 		const span = frag.querySelector('span.md-unresolved-ref');
 		expect(span?.classList.contains('md-unresolved-ref-image')).toBe(true);
 	});
@@ -134,7 +135,7 @@ describe('inline-render: reference label marker class', () => {
 		const raw = '[text][label]';
 		const resolver = (l: string) => (l === 'label' ? { url: 'https://example.com' } : undefined);
 		const inline = parseInline(raw, 0, raw.length, resolver);
-		const frag = renderInlineNodes(inline, raw);
+		const frag = renderInlineNodes(inline, raw, renderOptions());
 		const labelMarker = frag.querySelector('.md-ref-label');
 		expect(labelMarker).not.toBeNull();
 		expect(labelMarker?.textContent).toBe('[label]');
@@ -143,7 +144,7 @@ describe('inline-render: reference label marker class', () => {
 	it('inline link (non-reference) does not emit md-ref-label', () => {
 		const raw = '[text](https://example.com)';
 		const inline = parseInline(raw, 0, raw.length);
-		const frag = renderInlineNodes(inline, raw);
+		const frag = renderInlineNodes(inline, raw, renderOptions());
 		expect(frag.querySelectorAll('.md-ref-label').length).toBe(0);
 	});
 
@@ -151,7 +152,7 @@ describe('inline-render: reference label marker class', () => {
 		const raw = '[text][]';
 		const resolver = (l: string) => (l === 'text' ? { url: 'https://example.com' } : undefined);
 		const inline = parseInline(raw, 0, raw.length, resolver);
-		const frag = renderInlineNodes(inline, raw);
+		const frag = renderInlineNodes(inline, raw, renderOptions());
 		const labelMarker = frag.querySelector('.md-ref-label');
 		expect(labelMarker).not.toBeNull();
 		expect(labelMarker?.textContent).toBe('[]');
@@ -162,7 +163,7 @@ describe('inline-render: href + autolink anchor', () => {
 	it('link node renders <a href={url}>', () => {
 		const raw = '[text](https://example.com)';
 		const inline = parseInline(raw, 0, raw.length);
-		const frag = renderInlineNodes(inline, raw);
+		const frag = renderInlineNodes(inline, raw, renderOptions());
 		const a = frag.querySelector('a');
 		expect(a).not.toBeNull();
 		expect(a?.getAttribute('href')).toBe('https://example.com');
@@ -171,7 +172,7 @@ describe('inline-render: href + autolink anchor', () => {
 	it('link with title sets title attribute', () => {
 		const raw = '[text](https://example.com "the title")';
 		const inline = parseInline(raw, 0, raw.length);
-		const frag = renderInlineNodes(inline, raw);
+		const frag = renderInlineNodes(inline, raw, renderOptions());
 		const a = frag.querySelector('a');
 		expect(a?.getAttribute('title')).toBe('the title');
 	});
@@ -181,14 +182,14 @@ describe('inline-render: href + autolink anchor', () => {
 	it('untitled link discloses its resolved destination as the title', () => {
 		const raw = '[text](https://example.com)';
 		const inline = parseInline(raw, 0, raw.length);
-		const frag = renderInlineNodes(inline, raw);
+		const frag = renderInlineNodes(inline, raw, renderOptions());
 		expect(frag.querySelector('a')?.getAttribute('title')).toBe('https://example.com');
 	});
 
 	it('autolink renders as <a class="md-autolink" href={url}>', () => {
 		const raw = 'see https://example.com here';
 		const inline = parseInline(raw, 0, raw.length);
-		const frag = renderInlineNodes(inline, raw);
+		const frag = renderInlineNodes(inline, raw, renderOptions());
 		const a = frag.querySelector('a.md-autolink');
 		expect(a).not.toBeNull();
 		expect(a?.getAttribute('href')).toBe('https://example.com');
@@ -198,7 +199,7 @@ describe('inline-render: href + autolink anchor', () => {
 	it('email autolink renders <a> with mailto: href', () => {
 		const raw = 'email foo@bar.com today';
 		const inline = parseInline(raw, 0, raw.length);
-		const frag = renderInlineNodes(inline, raw);
+		const frag = renderInlineNodes(inline, raw, renderOptions());
 		const a = frag.querySelector('a.md-autolink');
 		expect(a?.getAttribute('href')).toBe('mailto:foo@bar.com');
 		expect(a?.textContent).toBe('foo@bar.com');
@@ -209,7 +210,7 @@ describe('inline-render: href + autolink anchor', () => {
 		// absolutely instead of resolving the bare host against the current page.
 		const raw = 'visit www.example.com now';
 		const inline = parseInline(raw, 0, raw.length);
-		const frag = renderInlineNodes(inline, raw);
+		const frag = renderInlineNodes(inline, raw, renderOptions());
 		const a = frag.querySelector('a.md-autolink');
 		expect(a?.getAttribute('href')).toBe('http://www.example.com');
 		expect(a?.textContent).toBe('www.example.com');
@@ -218,7 +219,7 @@ describe('inline-render: href + autolink anchor', () => {
 	it('blocked-scheme link renders an inert span, not an anchor', () => {
 		const raw = '[x](javascript:alert(1))';
 		const inline = parseInline(raw, 0, raw.length);
-		const frag = renderInlineNodes(inline, raw);
+		const frag = renderInlineNodes(inline, raw, renderOptions());
 		expect(frag.querySelector('a')).toBeNull();
 		const span = frag.querySelector('span.md-link-blocked');
 		expect(span).not.toBeNull();
@@ -228,7 +229,7 @@ describe('inline-render: href + autolink anchor', () => {
 	it('blocked data: href is inert', () => {
 		const raw = '[x](data:text/html,<script>)';
 		const inline = parseInline(raw, 0, raw.length);
-		const frag = renderInlineNodes(inline, raw);
+		const frag = renderInlineNodes(inline, raw, renderOptions());
 		expect(frag.querySelector('a')).toBeNull();
 		expect(frag.querySelector('span.md-link-blocked')).not.toBeNull();
 	});
@@ -236,7 +237,11 @@ describe('inline-render: href + autolink anchor', () => {
 	it('resolveLinkUrl rewrites the href before rendering', () => {
 		const raw = '[x](/note)';
 		const inline = parseInline(raw, 0, raw.length);
-		const frag = renderInlineNodes(inline, raw, { resolveLinkUrl: (u) => `https://host${u}` });
+		const frag = renderInlineNodes(
+			inline,
+			raw,
+			renderOptions({ resolveLinkUrl: (u) => `https://host${u}` })
+		);
 		expect(frag.querySelector('a')?.getAttribute('href')).toBe('https://host/note');
 	});
 });

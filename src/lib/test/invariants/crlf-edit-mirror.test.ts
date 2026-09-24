@@ -39,6 +39,7 @@ import { createPasteCoordinator } from '../../editor-actions/paste-coordinator';
 import { createUndoController } from '../../editor-actions/commit/undo-controller';
 import { createBlockEditActions } from '../../editor-actions/block-edit';
 import { makeEditorActionsDeps, pasteContext } from '../harness/editor-actions';
+import { fixtureLinkRef, pasteSeam } from '../harness/fixture-grammar';
 import { allowDevWarns } from '../support/warn-gate';
 
 interface EditGesture {
@@ -85,7 +86,8 @@ async function pasteInto(
  *  this test reads the line ending, and none of the three moves one. */
 const deleteBetween = (doc: Document, start: SelectionPoint, end: SelectionPoint) =>
 	serialize(
-		rangeDelete(doc, start, end, createSharingState(), undefined, undefined, undefined).newDoc
+		rangeDelete(doc, start, end, createSharingState(), undefined, undefined, fixtureLinkRef())
+			.newDoc
 	);
 
 const GESTURES: EditGesture[] = [
@@ -211,7 +213,7 @@ const GESTURES: EditGesture[] = [
 		apply: (doc) => {
 			const node = doc.children[0];
 			const caret = node.raw.indexOf('code') + 'code'.length;
-			return codePasteSurface.onInlinePaste!(node, caret, 'X').newRaw;
+			return codePasteSurface.onInlinePaste!(node, caret, 'X', undefined, pasteSeam()).newRaw;
 		}
 	},
 	{

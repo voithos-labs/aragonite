@@ -5,7 +5,16 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { callArguments, collectEditorSources } from './scan-source';
+import type { BlockEditActions } from '$lib/action-contracts';
+import type { InlineNode } from '$lib/core/nodes';
+import { resolvedInlineContent } from '$lib/core/inline/inline-cache';
+import { CONTENT_VISIBILITY, renderedText } from '$lib/core/inline/visibility';
+import { renderInlineNodes } from '$lib/core/inline-render';
+import type { NodeView } from '$lib/core/node-views';
+import type { EditorActionsDeps } from '$lib/editor-actions/deps';
+import { withEnterCompletion } from '$lib/editor-actions/enter-completion';
+import type { LinkReferenceResolverRef } from '$lib/editor-keys';
+import { callArguments, collectEditorSources, type SourceFile } from './scan-source';
 import { describeCallSiteRules, type CallSiteRule } from './call-site-rule';
 import { notUnder } from './file-rule';
 
@@ -16,7 +25,6 @@ const OPTIONAL_GRAMMAR_POSITION: Record<string, number> = {
 	parseInline: 5,
 	computeInlineContent: 3,
 	isVerticallyTransparentNode: 2,
-	keepsBlockKind: 3,
 	soleProseReparse: 2
 };
 
@@ -38,6 +46,8 @@ const REQUIRED_GRAMMAR_READERS: Record<string, string> = {
 	completeLineOnType: 'src/lib/schema/block-completions.ts',
 	planEnterCompletion: 'src/lib/editor-actions/enter-completion.ts',
 	planTypedCompletion: 'src/lib/editor-actions/enter-completion.ts',
+	withEnterCompletion: 'src/lib/editor-actions/enter-completion.ts',
+	keepsBlockKind: 'src/lib/components/blocks/text/edge-policy-dispatch.ts',
 	widgetAtCursor: 'src/lib/components/blocks/text/widget-adjacency.ts',
 	findWidgetNodeByStart: 'src/lib/components/blocks/text/widget-adjacency.ts',
 	findFirstEdgeWidget: 'src/lib/components/blocks/text/widget-adjacency.ts',
@@ -78,10 +88,7 @@ describe('G4.68 the internal registry readers take the grammar as a required par
  *  kits that fall back to every installed plugin, each where an optional grammar arrives. */
 const EVERY_PLUGIN_FALLBACKS: Record<string, string> = {
 	'src/lib/core/inline/index.ts:117': 'the published parseInline takes an optional grammar',
-	'src/lib/core/inline/inline-cache.ts:67': 'the action deps carry the link context optionally',
 	'src/lib/core/inline/transparency.ts:15': 'navigation reads transparency with no editor context',
-	'src/lib/core/inline-render.ts:414': 'the render options reach renderedText with no grammar',
-	'src/lib/editor-actions/enter-completion.ts:36': 'the action deps carry the grammar optionally',
 	'src/lib/core/directive/activate.ts:33': 'the published recognizer type takes an optional grammar'
 };
 
@@ -94,23 +101,62 @@ const FALLBACK_EXEMPT = notUnder(
 	'src/lib/plugin.ts'
 );
 
-describe('G4.68 the every-plugin fallback is spelled only in its listed places', () => {
+/** Each `file:line` that names `defaultGrammarView` outside an import. */
+function fallbackSites(files: SourceFile[]): string[] {
 	const found: string[] = [];
-	for (const file of collectEditorSources().filter(FALLBACK_EXEMPT)) {
+	for (const file of files) {
 		const code = file.code.replace(/^import[^;]*;/gm, (statement) => statement.replace(/\S/g, ' '));
 		code.split('\n').forEach((line, index) => {
 			if (/\bdefaultGrammarView\b/.test(line)) found.push(`${file.relPath}:${index + 1}`);
 		});
 	}
+	return found;
+}
+
+const unlistedFallbacks = (found: string[]): string[] =>
+	found.filter((key) => !(key in EVERY_PLUGIN_FALLBACKS));
+
+describe('G4.68 the every-plugin fallback is spelled only in its listed places', () => {
+	const found = fallbackSites(collectEditorSources().filter(FALLBACK_EXEMPT));
 
 	it('names no fallback outside the list', () => {
-		expect(found.filter((key) => !(key in EVERY_PLUGIN_FALLBACKS))).toEqual([]);
+		expect(unlistedFallbacks(found)).toEqual([]);
 	});
 
 	it('lists no place that no longer falls back', () => {
 		expect(Object.keys(EVERY_PLUGIN_FALLBACKS).filter((key) => !found.includes(key))).toEqual([]);
 	});
 });
+
+// Type pins: the resolver ref, the render options and the action deps require the grammar, so a
+// call leaving it out fails `npm run check` rather than reading every installed plugin.
+// Miss-analysis: each typed the grammar optional, and the scan above sees only a fallback spelled
+// out, never a caller that omits the field.
+export function inlineCacheCallWithoutGrammar(node: NodeView, ref: LinkReferenceResolverRef): void {
+	// @ts-expect-error the resolver ref carries the editor's grammar
+	resolvedInlineContent(node, { current: ref.current, signature: ref.signature });
+	// @ts-expect-error no ref means no grammar
+	resolvedInlineContent(node);
+}
+
+export function renderCallWithoutGrammar(nodes: InlineNode[], raw: string): void {
+	// @ts-expect-error the render options carry the editor's grammar
+	renderInlineNodes(nodes, raw, {});
+	// @ts-expect-error no options means no grammar
+	renderInlineNodes(nodes, raw);
+	// @ts-expect-error the visibility reads render through the same options
+	renderedText(nodes, raw, CONTENT_VISIBILITY);
+}
+
+export function actionDepsWithoutGrammar(
+	deps: Omit<EditorActionsDeps, 'grammar'>,
+	blockEdit: BlockEditActions
+): EditorActionsDeps {
+	// @ts-expect-error the Enter completion reads the editor's grammar
+	withEnterCompletion(blockEdit, () => undefined, undefined);
+	// @ts-expect-error the action deps carry the editor's grammar
+	return deps;
+}
 
 /** The published kits and the plugin API run outside any editor, so the whole process is theirs. */
 const EDITOR_LESS = notUnder('src/lib/testing/', 'src/lib/core/parser.ts');
@@ -138,11 +184,11 @@ const RULES: CallSiteRule[] = [
 		hits: [
 			'parseInline(raw, 0, raw.length);',
 			'computeInlineContent(node, resolver, defaultGrammarView);',
-			'keepsBlockKind(node, line, undefined);'
+			'isVerticallyTransparentNode(node, undefined);'
 		],
 		misses: [
 			'parseInline(raw, 0, raw.length, undefined, grammar);\n' +
-				'keepsBlockKind(node, line, deps.grammar);',
+				'isVerticallyTransparentNode(node, deps.grammar);',
 			'export function parseInline(raw, start, end, resolver, grammar) {}',
 			'interface I { parseInline(raw: string, start?: number): X; }'
 		]

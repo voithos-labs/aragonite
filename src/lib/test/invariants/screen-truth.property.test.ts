@@ -8,6 +8,7 @@ import { CONTENT_EMPTY_ATTR, isHiddenMarkerText } from '../../cursor/widget-offs
 import type { PresentationMode } from '../../presentation-mode';
 import { arbRawString, freshOrFixedSeed } from './arbitraries';
 import '../../schema/built-in-descriptors';
+import { renderOptions } from '../harness/fixture-grammar';
 
 // Two pieces of code answer "which bytes does the user see": the node-space rule every live
 // rewrite verifies through, and the DOM traversal every caret check reads. This compares the two
@@ -32,7 +33,7 @@ function mount(raw: string, mode: PresentationMode, contentEmpty: boolean): HTML
 	const block = document.createElement('div');
 	block.setAttribute('contenteditable', 'true');
 	if (contentEmpty) block.setAttribute(CONTENT_EMPTY_ATTR, '');
-	block.appendChild(renderInlineNodes(parseInline(raw, 0, raw.length), raw));
+	block.appendChild(renderInlineNodes(parseInline(raw, 0, raw.length), raw, renderOptions()));
 	root.appendChild(block);
 	document.body.appendChild(root);
 	// The attribute paints only under focus (the stylesheet's `:focus-within` rule), and the
@@ -55,7 +56,8 @@ function oracleVisibleText(raw: string, mode: PresentationMode, contentEmpty: bo
 	return renderedText(
 		parseInline(raw, 0, raw.length),
 		raw,
-		screenVisibility(mode, { chromePaints: contentEmpty })
+		screenVisibility(mode, { chromePaints: contentEmpty }),
+		renderOptions()
 	);
 }
 
@@ -83,7 +85,12 @@ describe('the node-space check and the DOM walk agree on what the reader sees', 
 	it('a reference label stays hidden even where the rest of the chrome paints', () => {
 		const raw = '[a][ref]\n\n[ref]: u';
 		const nodes = parseInline(raw, 0, 8, () => ({ url: 'u' }));
-		const painted = renderedText(nodes, raw, screenVisibility('live', { chromePaints: true }));
+		const painted = renderedText(
+			nodes,
+			raw,
+			screenVisibility('live', { chromePaints: true }),
+			renderOptions()
+		);
 		expect(painted).toBe('[a]');
 	});
 });

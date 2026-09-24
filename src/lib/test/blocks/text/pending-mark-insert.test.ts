@@ -6,6 +6,7 @@ import { CONTENT_VISIBILITY, renderedText } from '$lib/core/inline/visibility';
 import { resolveMarkedInsertion } from '$lib/components/blocks/text/pending-mark-insert';
 import type { InlineMarkKind } from '$lib/schema/inline-construct-policy';
 import type { InlineNode } from '$lib/core/nodes';
+import { renderOptions } from '../../harness/fixture-grammar';
 
 // The bytes a pending toggle turns the next keystroke into. Live mode draws no delimiter, so the
 // source decides, and every case reparses the result.
@@ -49,7 +50,7 @@ function kindsAround(raw: string, probe: string): string[] {
 /** What the user sees, asked of the renderer. A hand-written scan would count an angle autolink's
  *  `<` and `>` as content, so it could not see them appear on screen. */
 function visibleText(raw: string): string {
-	return renderedText(parseInline(raw, 0, raw.length), raw, CONTENT_VISIBILITY);
+	return renderedText(parseInline(raw, 0, raw.length), raw, CONTENT_VISIBILITY, renderOptions());
 }
 
 describe('applying a mark the chain does not carry', () => {

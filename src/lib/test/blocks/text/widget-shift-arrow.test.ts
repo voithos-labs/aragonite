@@ -16,6 +16,7 @@ import {
 } from '$lib/components/blocks/text/widget-interaction';
 import type { CstNode } from '$lib/core/nodes';
 import { placeCaretAt } from './math-widget-fixture';
+import { fixtureLinkRef } from '../../harness/fixture-grammar';
 
 describe('handleShiftArrowIntoWidget: non-image inline widget', () => {
 	let el: HTMLElement;
@@ -73,7 +74,7 @@ describe('handleShiftArrowIntoWidget: non-image inline widget', () => {
 			setSnapTarget: trap,
 			setPendingCursor: trap,
 			get linkRef() {
-				return undefined;
+				return fixtureLinkRef();
 			}
 		} as unknown as WidgetInteractionDeps;
 		return createWidgetInteraction(deps);

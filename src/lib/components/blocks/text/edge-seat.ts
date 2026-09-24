@@ -47,7 +47,7 @@ export function resolveEdgeSeat(
 	resolver: LinkReferenceResolver | undefined,
 	grammar: GrammarView
 ): EdgeSeat | null {
-	const runs = markerRuns(inlines, raw, screen);
+	const runs = markerRuns(inlines, raw, screen, grammar);
 	const run = runAt(caretOffset, runs);
 	if (!run) return null;
 	const policy = getInlineConstructPolicy(run.kind);
@@ -59,7 +59,8 @@ export function resolveEdgeSeat(
 		renderedText(
 			parseInline(bytes, content.start, end, resolver, grammar),
 			bytes,
-			CONTENT_VISIBILITY
+			CONTENT_VISIBILITY,
+			{ grammar }
 		);
 	const before = shown(raw, content.end);
 	const holds = (offset: number): boolean => {
@@ -134,9 +135,10 @@ export function seatOffsetsAt(
 	caretOffset: number,
 	inlines: readonly InlineNode[],
 	raw: string,
-	screen: VisibilityContext
+	screen: VisibilityContext,
+	grammar: GrammarView
 ): readonly number[] {
-	const runs = markerRuns(inlines, raw, screen);
+	const runs = markerRuns(inlines, raw, screen, grammar);
 	const run = runAt(caretOffset, runs);
 	if (!run) return [];
 	const offsets = screenPositionOffsets(run, runs);
@@ -238,11 +240,12 @@ function contentBounds(inlines: readonly InlineNode[]): ContentRange {
 function markerRuns(
 	inlines: readonly InlineNode[],
 	raw: string,
-	screen: VisibilityContext
+	screen: VisibilityContext,
+	grammar: GrammarView
 ): MarkerRun[] {
 	const runs: MarkerRun[] = [];
 	for (const node of inlineDescendants(inlines)) {
-		const content = constructContentRange(node) ?? paintedRange(node, raw, screen);
+		const content = constructContentRange(node) ?? paintedRange(node, raw, screen, grammar);
 		if (!content) continue;
 		const span = { start: node.start, end: node.end };
 		if (node.start < content.start) {
@@ -277,10 +280,13 @@ const runAt = (offset: number, runs: readonly MarkerRun[]): MarkerRun | null =>
 function paintedRange(
 	node: InlineNode,
 	raw: string,
-	screen: VisibilityContext
+	screen: VisibilityContext,
+	grammar: GrammarView
 ): ContentRange | null {
 	if (node.kind === 'text') return null;
-	const painted = visibleRuns([node], raw, screen).filter((run) => run.visible && run.text !== '');
+	const painted = visibleRuns([node], raw, screen, { grammar }).filter(
+		(run) => run.visible && run.text !== ''
+	);
 	if (painted.length === 0) return null;
 	return { start: painted[0].start, end: painted[painted.length - 1].end };
 }
