@@ -1,4 +1,7 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { createRegistryView } from '$lib/schema/registry-view';
+import { registerMathBlock } from '$lib/plugins/latex/latex-kind';
+import { resetPluginPlatformForTests } from '$lib/testing';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import { deleteNode, spliceChildrenSettled } from '$lib/tree-operations/settle';
@@ -73,5 +76,36 @@ describe('a block turned into text right under a table keeps a blank line', () =
 
 		expect(serialize(doc)).toBe(`${T}# h\n`);
 		expect(describeConvergence(doc)).toBeNull();
+	});
+});
+
+// The follower is read in the editor's grammar and over its own lines, the reading the parse gives
+// the same bytes on reload. Miss-analysis: the check read one line under the default grammar, and
+// every pin above used a one-line built-in opener.
+describe('the blank line a follower takes depends on the editor’s grammar', () => {
+	beforeAll(() => {
+		resetPluginPlatformForTests();
+		registerMathBlock();
+	});
+	afterAll(() => resetPluginPlatformForTests());
+
+	it('a `$$` block that closes below ends the table, so it takes none', () => {
+		const doc = parse(`${T}---\n$$\nx\n$$\n`);
+
+		settled(doc, (body) => deleteNode(body, 1));
+
+		expect(serialize(doc)).toBe(`${T}$$\nx\n$$\n`);
+		expect(doc.children.map((c) => c.kind)).toEqual(['table', 'mathBlock']);
+		expect(describeConvergence(doc)).toBeNull();
+	});
+
+	it('an indented line with indented code switched off would be a row, so it takes one', () => {
+		const off = createRegistryView({ syntax: { indentedCode: false } }).grammar;
+		const doc = parse(`${T}---\n    code\n`, { grammar: off });
+
+		settled(doc, (body) => deleteNode(body, 1), off);
+
+		expect(serialize(doc)).toBe(`${T}\n    code\n`);
+		expect(describeConvergence(doc, off)).toBeNull();
 	});
 });

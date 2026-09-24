@@ -1,7 +1,11 @@
 import type { CstNode, TableAlignment } from '../nodes';
 import type { ParsedLine } from '../lines';
 import { joinRaw, isBlankLine } from '../parser';
-import { lineStartsOuterBlock, type BlockOpenerResult } from '../../schema/block-openers';
+import {
+	lineStartsOuterBlock,
+	type BlockOpenerResult,
+	type GrammarView
+} from '../../schema/block-openers';
 
 // ── Cell splitter ──────────────────────────────────────────────────────────
 
@@ -68,12 +72,22 @@ export function matchTableDelimiterRow(
 // ── Block parser ───────────────────────────────────────────────────────────
 
 /**
- * Whether a table takes this line, straight below its rows, as one more row, pipe or none: GFM
- * ends a table only at a blank line or a line that starts another block (spec example 201), and
- * a link definition never starts one.
+ * Whether a table takes `lines[index]`, straight below its rows, as one more row, pipe or none:
+ * GFM ends a table only at a blank line or a line that starts another block (spec example 201),
+ * and a link definition never starts one. The editor's grammar decides what starts a block, over
+ * the lines below too, since some openers need a closing line.
  */
-export function tableTakesLine(line: ParsedLine): boolean {
-	return !isBlankLine(line.text) && !lineStartsOuterBlock(line, { paragraphOpen: false });
+export function tableTakesLine(
+	lines: ParsedLine[],
+	index: number,
+	end: number,
+	grammar: GrammarView | undefined
+): boolean {
+	const line = lines[index];
+	return (
+		!isBlankLine(line.text) &&
+		!lineStartsOuterBlock(line, { paragraphOpen: false, grammar, window: { lines, index, end } })
+	);
 }
 
 export function parseTable(
@@ -81,10 +95,11 @@ export function parseTable(
 	startIndex: number,
 	endIndex: number,
 	leadingTrivia: string,
-	delimiter: { columnCount: number; alignments: TableAlignment[] }
+	delimiter: { columnCount: number; alignments: TableAlignment[] },
+	grammar: GrammarView
 ): BlockOpenerResult {
 	let i = startIndex + 2;
-	while (i < endIndex && tableTakesLine(lines[i])) i++;
+	while (i < endIndex && tableTakesLine(lines, i, endIndex, grammar)) i++;
 
 	const rows: CstNode[] = [];
 	rows.push(buildRow(lines[startIndex], delimiter.columnCount, true));

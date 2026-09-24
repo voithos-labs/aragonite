@@ -27,7 +27,7 @@ export function parseParagraph(
 		// GFM §4.10: a header/delimiter count mismatch is no table; accepting it would
 		// truncate surplus header cells out of the model.
 		if (delimiter && header && header.length === delimiter.columnCount) {
-			return parseTable(lines, startIndex, endIndex, leadingTrivia, delimiter);
+			return parseTable(lines, startIndex, endIndex, leadingTrivia, delimiter, grammar);
 		}
 	}
 

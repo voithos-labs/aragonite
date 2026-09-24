@@ -467,7 +467,7 @@ export function absorbSeamReading(
 		while (right < children.length && isBlankParagraph(children[right])) right++;
 		const window = children.slice(at, Math.min(right + 1, children.length));
 		if (window.length <= span || window.length < 2) break;
-		if (separateTableFollower(parent, right, sharing)) break;
+		if (separateTableFollower(parent, right, sharing, grammar)) break;
 		// A context-dependent kind has no standalone reading, so a join touching it cannot be asked.
 		if (window.some((node) => tryGetBlockKindDescriptor(node.kind)?.contextDependentKind)) break;
 		if (probe !== undefined && declinesOnHeadLine(window, probe - at, read)) break;
@@ -506,12 +506,18 @@ export function absorbSeamReading(
  * first line as one more row (a quote unwrapped there, a heading turned into text). The edit made
  * the block, so it stays that block rather than merging into the table as the reload would.
  */
-function separateTableFollower(parent: NodeParent, index: number, sharing?: SharingState): boolean {
+function separateTableFollower(
+	parent: NodeParent,
+	index: number,
+	sharing: SharingState | undefined,
+	grammar: GrammarView | undefined
+): boolean {
 	const follower = parent.children[index];
 	if (parent.children[index - 1]?.kind !== 'table' || follower.leadingTrivia !== '') return false;
-	const nl = follower.raw.indexOf('\n');
-	const firstLine = splitLines(nl < 0 ? follower.raw : follower.raw.slice(0, nl + 1))[0];
-	if (!firstLine || !tableTakesLine(firstLine)) return false;
+	// All of the follower's lines, not its first alone: an opener can need a later one to open.
+	const lines = splitLines(follower.raw);
+	if (lines.length === 0) return false;
+	if (!tableTakesLine(lines, 0, lines.length, grammar)) return false;
 	retireChildSpans(parent);
 	mintSeparator(parent, index, sharing);
 	return true;

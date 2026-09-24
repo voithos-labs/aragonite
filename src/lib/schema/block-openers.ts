@@ -195,6 +195,9 @@ export interface OuterBlockScan {
 	paragraphOpen: boolean;
 	/** Defaults to the global openers, the same set `lineInterruptsParagraph` reads. */
 	grammar?: GrammarView;
+	/** The lines `line` sits in (`lines[index]` is `line`), so an opener that needs a later line to
+	 *  open, a `$$` block and its closing line, sees it. Without them `line` is read alone. */
+	window?: { lines: ParsedLine[]; index: number; end: number };
 }
 
 /**
@@ -206,9 +209,7 @@ export interface OuterBlockScan {
 export function lineStartsOuterBlock(line: ParsedLine, scan: OuterBlockScan): boolean {
 	const grammar = scan.grammar ?? defaultGrammarView;
 	const probe: OpenContext = {
-		lines: [line],
-		index: 0,
-		end: 1,
+		...(scan.window ?? { lines: [line], index: 0, end: 1 }),
 		line,
 		leadingTrivia: '',
 		isDocumentParse: false,
