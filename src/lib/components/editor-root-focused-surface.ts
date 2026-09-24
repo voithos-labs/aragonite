@@ -22,6 +22,8 @@ export interface FocusedSurfaceDeps {
 	isReading(): boolean;
 	/** Makes an empty top-level paragraph at `boundary` and focuses it. */
 	insertParagraph(boundary: number, text: string): void | Promise<void>;
+	/** The undo stack's join, so the paragraph `below` makes and the paste into it undo together. */
+	joinUndoEntries(run: () => Promise<void>): Promise<void>;
 }
 
 export interface FocusedSurface {
@@ -30,8 +32,9 @@ export interface FocusedSurface {
 	 *  still reach the dispatch, exactly as the gap caret's own chord handling does. */
 	commandTarget(): KindCommandTarget | null;
 	/** Routed the way a paste event is: transforms, delete-first, one undo entry and focus
-	 *  all live in the block. `below` pastes into a new paragraph after the top-level block. */
-	insertMarkdown(md: string, options?: InsertMarkdownOptions): boolean;
+	 *  all live in the block. `below` pastes into a new paragraph after the top-level block.
+	 *  The focused block is read at the call; the promise resolves once the insert has landed. */
+	insertMarkdown(md: string, options?: InsertMarkdownOptions): Promise<boolean>;
 }
 
 export function createFocusedSurface(deps: FocusedSurfaceDeps): FocusedSurface {
@@ -42,15 +45,19 @@ export function createFocusedSurface(deps: FocusedSurfaceDeps): FocusedSurface {
 		return findSurfacePathForElement(active);
 	}
 
-	function insertAtFocus(md: string): boolean {
+	async function insertAtFocus(md: string): Promise<boolean> {
 		const at = path();
 		if (!at) return false;
-		return deps.getBlockComponent(at)?.insertMarkdown?.(md) ?? false;
+		return (await deps.getBlockComponent(at)?.insertMarkdown?.(md)) ?? false;
 	}
 
-	async function insertBelow(topIndex: number, md: string): Promise<void> {
-		await deps.insertParagraph(topIndex + 1, '');
-		insertAtFocus(md);
+	async function insertBelow(topIndex: number, md: string): Promise<boolean> {
+		let inserted = false;
+		await deps.joinUndoEntries(async () => {
+			await deps.insertParagraph(topIndex + 1, '');
+			inserted = await insertAtFocus(md);
+		});
+		return inserted;
 	}
 
 	return {
@@ -72,9 +79,10 @@ export function createFocusedSurface(deps: FocusedSurfaceDeps): FocusedSurface {
 		insertMarkdown(md, options) {
 			if (options?.placement !== 'below') return insertAtFocus(md);
 			const at = path();
-			if (!at || deps.isReading() || !deps.getBlockComponent(at)?.insertMarkdown) return false;
-			void insertBelow(at[0], md);
-			return true;
+			if (!at || deps.isReading() || !deps.getBlockComponent(at)?.insertMarkdown) {
+				return Promise.resolve(false);
+			}
+			return insertBelow(at[0], md);
 		}
 	};
 }

@@ -82,6 +82,7 @@
 	import { createCrossBlockCommands } from '../selection/cross-block/format-toggle';
 	import { normalizeKeybindingOverrides } from '../schema/keybinding-overrides';
 	import { createEditorRootKeydown } from './editor-root-keydown';
+	import { BARE_MODIFIER_KEYS } from '../schema/keybindings';
 	import { createEditorRootClipboard } from './editor-root-clipboard';
 	import { createModeFlip } from './editor-root-mode-flip';
 	import { createFocusAttribution } from './editor-root-focus';
@@ -499,6 +500,23 @@
 		})
 	);
 
+	// The author's own input ends a pending pick's undo join, so typing while a plugin's onCommit
+	// waits gets its own entry. Window capture runs before the root's handlers: the key that makes a
+	// pick fires here before the pick's join opens.
+	$effect(() => {
+		const win = editorEl?.ownerDocument.defaultView;
+		if (!win) return;
+		const endJoin = (e: Event) => {
+			// A held Shift or Ctrl is not input yet; the key it modifies is.
+			if (e instanceof KeyboardEvent && BARE_MODIFIER_KEYS.includes(e.key)) return;
+			controller.endUndoJoin();
+		};
+		const removers = ['keydown', 'beforeinput', 'paste', 'cut', 'drop'].map((type) =>
+			onRoot(win, type, endJoin, { capture: true })
+		);
+		return () => removers.forEach((remove) => remove());
+	});
+
 	// Register as a body-chord handler so the document-level keydown routes a body-level
 	// chord to exactly one instance: a lone editor takes it unconditionally; among several,
 	// the last-interacted one wins.
@@ -643,7 +661,8 @@
 		events,
 		editorId,
 		commitRange: inlineMenuCommit.commitInlineRange,
-		landCaret: landCaretAtOffset
+		landCaret: landCaretAtOffset,
+		joinUndoEntries: (run) => controller.joinUndoEntries(run)
 	});
 	const inlineMenus: InlineMenuRegistry = inlineMenu.registry;
 	$effect(() => () => inlineMenu.dispose());
@@ -1307,10 +1326,11 @@
 		getDoc,
 		getBlockComponent,
 		isReading: () => effectiveMode === 'reading',
-		insertParagraph: (boundary, text) => blockEdit.insertParagraph(boundary, text)
+		insertParagraph: (boundary, text) => blockEdit.insertParagraph(boundary, text),
+		joinUndoEntries: (run) => controller.joinUndoEntries(run)
 	});
 
-	export function insertMarkdown(md: string, options?: InsertMarkdownOptions): boolean {
+	export function insertMarkdown(md: string, options?: InsertMarkdownOptions): Promise<boolean> {
 		return focusedSurface.insertMarkdown(md, options);
 	}
 

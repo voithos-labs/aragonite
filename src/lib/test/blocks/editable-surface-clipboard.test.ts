@@ -224,11 +224,8 @@ describe('clipboard skeleton: paste order', () => {
 	});
 });
 
-/** The call returns synchronously and the insertion runs on; drain the pending chain. */
-const settled = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 0));
-
 // The API call is the gesture's sibling entry path, so what it must carry is the gesture's
-// own order of steps, not a second sequence written beside it.
+// own order of steps, not a second sequence written beside it. Its promise resolves after the tail.
 describe('clipboard skeleton: programmatic insertMarkdown', () => {
 	it('runs the same fold → cross-block → reset → tail order a paste does', async () => {
 		const log: string[] = [];
@@ -240,8 +237,7 @@ describe('clipboard skeleton: programmatic insertMarkdown', () => {
 				}
 			})
 		);
-		expect(handlers.insertMarkdown('HELLO')).toBe(true);
-		await settled();
+		expect(await handlers.insertMarkdown('HELLO')).toBe(true);
 		expect(log).toEqual(['fold', 'crossblock-paste', 'reset', 'pasteTail:HELLO']);
 	});
 
@@ -258,8 +254,7 @@ describe('clipboard skeleton: programmatic insertMarkdown', () => {
 				} as never
 			})
 		);
-		expect(handlers.insertMarkdown('PAYLOAD')).toBe(true);
-		await settled();
+		expect(await handlers.insertMarkdown('PAYLOAD')).toBe(true);
 		expect(seen).toEqual(['PAYLOAD']);
 	});
 
@@ -269,8 +264,7 @@ describe('clipboard skeleton: programmatic insertMarkdown', () => {
 		const handlers = createClipboardHandlers(
 			deps(log, { isReadOnly: () => true, pasteTail: () => void (tailRan = true) })
 		);
-		expect(handlers.insertMarkdown('X')).toBe(false);
-		await settled();
+		expect(await handlers.insertMarkdown('X')).toBe(false);
 		expect(log).toEqual([]);
 		expect(tailRan).toBe(false);
 	});
@@ -278,16 +272,14 @@ describe('clipboard skeleton: programmatic insertMarkdown', () => {
 	it('declines an empty payload', async () => {
 		const log: string[] = [];
 		const handlers = createClipboardHandlers(deps(log));
-		expect(handlers.insertMarkdown('')).toBe(false);
-		await settled();
+		expect(await handlers.insertMarkdown('')).toBe(false);
 		expect(log).toEqual([]);
 	});
 
 	it('normalizes CRLF the way a pasted payload is normalized', async () => {
 		const log: string[] = [];
 		const handlers = createClipboardHandlers(deps(log));
-		expect(handlers.insertMarkdown('a\r\nb')).toBe(true);
-		await settled();
+		expect(await handlers.insertMarkdown('a\r\nb')).toBe(true);
 		expect(log).toEqual(['crossblock-paste', 'reset', 'pasteTail:a\nb']);
 	});
 });

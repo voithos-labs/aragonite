@@ -11,7 +11,10 @@ test.describe('insertMarkdown: programmatic insertion', () => {
 	let editor: EditorPage;
 
 	const insert = (md: string): Promise<boolean> =>
-		editor.page.evaluate((text) => (window as any).__test.insertMarkdown(text) as boolean, md);
+		editor.page.evaluate(
+			(text) => (window as any).__test.insertMarkdown(text) as Promise<boolean>,
+			md
+		);
 
 	test.beforeEach(async ({ page }) => {
 		editor = new EditorPage(page);

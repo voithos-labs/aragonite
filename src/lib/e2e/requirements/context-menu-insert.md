@@ -10,6 +10,9 @@ empty and the caret is inside it.
 
 - Right-click a paragraph, open the flyout (hover, click or ArrowRight), pick "Code block": an
   empty fence appears after that paragraph, before the next block.
+- One Ctrl+Z after a pick takes the new block and the paragraph made for it back together, leaving
+  the document as it was. Miss-analysis: the flyout cases checked the bytes after a pick and never
+  undid one, so the paragraph and the paste kept an undo entry each.
 - Any other entry works the same way; the list is the block registry's, so a plugin's block
   appears there while the plugin is installed.
 

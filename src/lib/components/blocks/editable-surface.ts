@@ -562,10 +562,10 @@ export interface ClipboardHandlers {
 	onPaste(e: ClipboardEvent): Promise<void>;
 	/**
 	 * Insert `md` exactly as pasting it here would, without the clipboard: the block's half of
-	 * `EditorInstance.insertMarkdown`. True means the pipeline took the text, not that its
-	 * commit has flushed; the synchronous declines are reading mode and an empty payload.
+	 * `EditorInstance.insertMarkdown`. Resolves once the paste has landed; false for reading
+	 * mode and an empty payload, which write nothing.
 	 */
-	insertMarkdown(md: string): boolean;
+	insertMarkdown(md: string): Promise<boolean>;
 }
 
 export function createClipboardHandlers(deps: ClipboardSurfaceDeps): ClipboardHandlers {
@@ -646,11 +646,11 @@ export function createClipboardHandlers(deps: ClipboardSurfaceDeps): ClipboardHa
 		await deps.pasteTail(text, fold?.caret ?? null);
 	}
 
-	function insertMarkdown(md: string): boolean {
+	async function insertMarkdown(md: string): Promise<boolean> {
 		if (deps.isReadOnly()) return false;
 		const text = normalizeLineEndings(md);
 		if (!text) return false;
-		void insertPastedText(text, null);
+		await insertPastedText(text, null);
 		return true;
 	}
 

@@ -47,6 +47,8 @@ export interface InlineMenuStateDeps {
 	) => Promise<void>;
 	/** Land the caret at a raw offset, so the next keystroke addresses the document. */
 	landCaret: (path: number[], offset: number) => Promise<boolean>;
+	/** The undo stack's join, so a pick and the block its source inserts undo in one press. */
+	joinUndoEntries: (run: () => Promise<void>) => Promise<void>;
 }
 
 export interface InlineMenuState {
@@ -334,6 +336,11 @@ export function createInlineMenuState(deps: InlineMenuStateDeps): InlineMenuStat
 	async function commitItem(item: InlineMenuItem): Promise<void> {
 		const live = session;
 		if (!live) return;
+		// One entry for the pick's own bytes and every block its source writes after them.
+		await deps.joinUndoEntries(() => writePick(live, item));
+	}
+
+	async function writePick(live: InlineMenuSession, item: InlineMenuItem): Promise<void> {
 		const source = sources.get(live.source);
 		const range = { query, path: [...live.path], start: live.start, end };
 		close();
@@ -364,7 +371,7 @@ export function createInlineMenuState(deps: InlineMenuStateDeps): InlineMenuStat
 			resnap();
 		}
 		try {
-			source?.onCommit?.(item, range);
+			await source?.onCommit?.(item, range);
 		} catch (error) {
 			report(error, live.source);
 		}

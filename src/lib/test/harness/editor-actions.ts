@@ -242,6 +242,8 @@ export function makeStubController(): UndoController & PasteCommitCoordinator {
 		flushDebouncedCheckpoint: vi.fn(),
 		// Runs the write: the batch breaks are the stubbed half, the bytes are not.
 		isolateUndoEntry: vi.fn((write: () => void) => write()),
+		joinUndoEntries: vi.fn((run: () => Promise<void>) => run()),
+		endUndoJoin: vi.fn(),
 		commitStructural: vi.fn(),
 		commitContainerStructural: vi.fn(),
 		commitMultiScope: vi.fn(),
