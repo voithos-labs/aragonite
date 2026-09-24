@@ -57,3 +57,4 @@ half now lives beside the height-estimator pin in
 
 - zero `[invariant:…]` console fires across every scenario (automatic via the
   shared e2e fixture)
+- No ResizeObserver loop error reaches `window.onerror` when a height correction mounts another block. Miss-analysis: the shared fixture relayed only thrown page errors until it also relayed `window.onerror`, so this loop error went unseen.

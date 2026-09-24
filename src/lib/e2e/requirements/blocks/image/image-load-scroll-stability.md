@@ -19,3 +19,7 @@ asynchronously. That growth must not shift the visible content.
 
 - Scroll an unsized, still-loading image above the viewport, then let it load: the
   reading position does not jump.
+
+## Error cases
+
+- No ResizeObserver loop error reaches `window.onerror` when a height correction mounts another block. Miss-analysis: the shared fixture relayed only thrown page errors until it also relayed `window.onerror`, so this loop error went unseen.

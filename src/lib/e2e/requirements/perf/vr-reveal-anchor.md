@@ -55,3 +55,4 @@ and `test/cursor/editor-rects`; this file covers what the user sees.
 ## Error cases
 
 - No page errors surface during the reveal, the race, or the late decode.
+- No ResizeObserver loop error reaches `window.onerror` when a height correction mounts another block. Miss-analysis: the shared fixture relayed only thrown page errors until it also relayed `window.onerror`, so this loop error went unseen.

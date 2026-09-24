@@ -8,6 +8,7 @@
 import { untrack } from 'svelte';
 import type { BlockComponent } from '../block-component';
 import { firstScrollableDescendant, nearestScrollContainer } from './scroll-ancestors';
+import { observeResize } from './observe-resize';
 
 export function wireOverlayRemeasure(opts: {
 	el: HTMLElement;
@@ -46,13 +47,8 @@ export function wireOverlayRemeasure(opts: {
 	}
 
 	// The block's own box changing under a live range (a paragraph set to a heading, a font
-	// load, a resize) moves the text the rects were measured against. Layout-driven, so it
-	// fires after the change has painted; where absent (jsdom) the scroll paths above still hold.
-	if (typeof ResizeObserver === 'function') {
-		const observer = new ResizeObserver(() => measure());
-		observer.observe(el);
-		disposers.push(() => observer.disconnect());
-	}
+	// load) moves the text the rects were measured against.
+	disposers.push(observeResize(el, () => measure()));
 
 	return () => disposers.forEach((dispose) => dispose());
 }
