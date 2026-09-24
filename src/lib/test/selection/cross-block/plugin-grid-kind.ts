@@ -3,6 +3,7 @@
 // table metadata anywhere), plus the document and the stored-endpoint plan its suites test
 // against. Callers own the registry reset (`__resetSchemaRegistriesForTests`).
 
+import { defaultGrammarView } from '$lib/schema/block-openers';
 import { parse } from '$lib/core/parser';
 import type { CstNode, Document } from '$lib/core/nodes';
 import { registerBlockKind } from '$lib/schema/block-kind-descriptor';
@@ -79,6 +80,13 @@ export function planStored(doc: Document, anchor: SelectionPoint, focus: Selecti
 	return {
 		start: selection.start!,
 		end: selection.end!,
-		plan: planCrossBlockFormat(doc, selection.start!, selection.end!, 'strong', undefined)
+		plan: planCrossBlockFormat(
+			doc,
+			selection.start!,
+			selection.end!,
+			'strong',
+			undefined,
+			defaultGrammarView
+		)
 	};
 }

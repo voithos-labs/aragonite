@@ -17,6 +17,7 @@ import {
 	isProseKind
 } from '../../../core/inline';
 import type { LinkReferenceResolver } from '../../../core/inline/link-reference-resolver';
+import type { GrammarView } from '../../../schema/block-openers';
 import { renderInlineNodes, type ImageLoadPolicy } from '../../../core/inline-render';
 import type { DomTextOffset } from '../../../cursor/coordinate-spaces';
 import { CONTENT_EMPTY_ATTR, holdsOnlyMarkerChrome } from '../../../cursor/widget-offset';
@@ -66,6 +67,8 @@ export interface TextRenderDeps {
 	/** The editor's navigation call, passed on to widgets whose gesture jumps elsewhere. */
 	navigateTo?: (path: number[]) => Promise<boolean>;
 	get linkResolver(): LinkReferenceResolver | undefined;
+	/** The editor's grammar: a plugin it left out claims no bytes and draws no widget here. */
+	grammar: GrammarView;
 	/** A short token that changes exactly when the document's link-reference definitions do
 	 *  (`link-reference-resolver.ts` makes it), so a block holding a reference puts this in
 	 *  its render key instead of a signature string that can reach megabytes. */
@@ -121,7 +124,8 @@ export function createTextRender(deps: TextRenderDeps): TextRender {
 		getTheme: deps.getTheme,
 		getDocument: deps.getDocument,
 		getContentVersion: deps.getContentVersion,
-		navigateTo: deps.navigateTo
+		navigateTo: deps.navigateTo,
+		grammar: deps.grammar
 	});
 	let islandDestroys: Array<() => void> = [];
 
@@ -167,6 +171,7 @@ export function createTextRender(deps: TextRenderDeps): TextRender {
 				buildImageWidget: (imgNode, imgRaw, imgOpts) =>
 					buildImageWidget(imgNode, imgRaw, { ...imgOpts, brokenUrlCache: deps.brokenUrlCache }),
 				buildPortalWidget,
+				grammar: deps.grammar,
 				// Data attributes only, for the code that shows construct markers; set in this
 				// mode alone so the other modes' DOM stays byte-identical.
 				tagConstructMarkers: deps.presentationMode === 'preview-inline',
@@ -238,7 +243,11 @@ export function createTextRender(deps: TextRenderDeps): TextRender {
 			// Working out which parts differ allocates, so it stays behind the trace check.
 			if (isInteractionTraceEnabled())
 				traceRebuild(renderKeySegmentDiff(lastRenderedKey, renderKey), forceRebuild);
-			const content = computeInlineContent(node, hasRef ? deps.linkResolver : undefined);
+			const content = computeInlineContent(
+				node,
+				hasRef ? deps.linkResolver : undefined,
+				deps.grammar
+			);
 			// Rebuilds from the edit path skip the capture-and-restore pair: the component's
 			// pending restore overwrites the selection right after, so it would be wasted.
 			const caretWalkOffset = carryCaret ? captureCaretIfFocused(el) : null;

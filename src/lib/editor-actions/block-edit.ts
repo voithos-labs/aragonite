@@ -161,5 +161,5 @@ export function createBlockEditActions(
 		}
 	};
 
-	return withEnterCompletion(actions, (blockIndex) => scope.children()[blockIndex]);
+	return withEnterCompletion(actions, (blockIndex) => scope.children()[blockIndex], deps.grammar);
 }

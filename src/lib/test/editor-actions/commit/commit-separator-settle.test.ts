@@ -13,6 +13,7 @@ import {
 import { registerBlockListState } from '$lib/reactivity/state-registry';
 import { expectParseConverged } from '$lib/test/harness/parse-converged';
 import { asDocPath } from '$lib/selection/path-math';
+import { defaultGrammarView } from '$lib/schema/block-openers';
 
 // The commit fixes up the blank lines around every splice against the pre-mutate children it
 // still holds (`tree-operations/settle.settleSeparator`). Two contracts the wiring must keep.
@@ -76,7 +77,7 @@ describe('a delete that crosses both shared entries in one commit', () => {
 			revealPath: harness.deps.revealPath,
 			controller,
 			pushUndoSnapshot: () => controller.pushUndoSnapshot(0, 0),
-			grammar: undefined,
+			grammar: defaultGrammarView,
 			getPresentationMode: undefined,
 			linkRef: undefined
 		});

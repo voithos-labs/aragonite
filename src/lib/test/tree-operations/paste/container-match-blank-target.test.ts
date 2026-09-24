@@ -9,7 +9,8 @@ import { createPasteCoordinator } from '$lib/editor-actions/paste-coordinator';
 import {
 	makeBlockListState,
 	makeEditorActionsDeps,
-	makeStubBlockEdit
+	makeStubBlockEdit,
+	pasteContext
 } from '$lib/test/harness/editor-actions';
 import { expectParseConverged } from '$lib/test/harness/parse-converged';
 
@@ -37,12 +38,12 @@ describe('container-matching paste over a blank body block', () => {
 
 		await pasteDispatch(
 			{ pastedText: '> X\n>\n> Y\n', targetPath: [0, 1], offset: 0 },
-			{
+			pasteContext({
 				doc: deps.doc,
 				blockEdit: makeStubBlockEdit(),
 				controller: createPasteCoordinator(controller, deps.revealPath),
 				undoEntry: 'own'
-			}
+			})
 		);
 
 		expect(serialize(deps.doc)).toBe('> a\n>\n> X\n>\n> Y\n>\n> b\n');

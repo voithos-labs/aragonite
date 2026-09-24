@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { defaultGrammarView } from '$lib/schema/block-openers';
 import { afterEach, beforeEach, describe, it, expect } from 'vitest';
 import { parse, serialize } from '$lib';
 import { declaredPluginKind } from '$lib/plugin';
@@ -62,9 +63,9 @@ describe('block math Enter completer: registration', () => {
 	// The plain-GFM guarantee reaches completion too: with nothing installed, `$$` plus Enter
 	// is an ordinary split.
 	it('claims nothing until the kind is registered', () => {
-		expect(completeTypedLine('$$')).toBeNull();
+		expect(completeTypedLine('$$', defaultGrammarView)).toBeNull();
 		registerMathBlock();
-		expect(completeTypedLine('$$')?.lines).toEqual(['$$', '', '$$']);
+		expect(completeTypedLine('$$', defaultGrammarView)?.lines).toEqual(['$$', '', '$$']);
 	});
 
 	// The registry throws on a duplicate kind, so registration checks the registry rather than
@@ -72,7 +73,7 @@ describe('block math Enter completer: registration', () => {
 	it('is inert on a second registration rather than throwing', () => {
 		registerMathBlock();
 		expect(() => registerMathBlockCompleter(declaredPluginKind(MATH_BLOCK))).not.toThrow();
-		expect(completeTypedLine('$$')?.lines).toEqual(['$$', '', '$$']);
+		expect(completeTypedLine('$$', defaultGrammarView)?.lines).toEqual(['$$', '', '$$']);
 	});
 });
 
@@ -84,7 +85,7 @@ describe('block math Enter completion: what the join plans', () => {
 		['$$\r\n', '$$\r\n\r\n$$\r\n', 4]
 	])('mints %j as %j with the caret at %i', (typed, minted, offset) => {
 		registerMathBlock();
-		const plan = planEnterCompletion(parse(typed).children[0], 2)!;
+		const plan = planEnterCompletion(parse(typed).children[0], 2, defaultGrammarView)!;
 		expect(plan.replacement.map((c) => c.kind)).toEqual([MATH_BLOCK]);
 		expect(plan.replacement[0].raw).toBe(minted);
 		expect(plan.caret).toEqual({ path: [], offset });
@@ -94,6 +95,6 @@ describe('block math Enter completion: what the join plans', () => {
 	// is a split.
 	it('declines a caret that is not at the end of the typed fence', () => {
 		registerMathBlock();
-		expect(planEnterCompletion(parse('$$\n').children[0], 1)).toBeNull();
+		expect(planEnterCompletion(parse('$$\n').children[0], 1, defaultGrammarView)).toBeNull();
 	});
 });

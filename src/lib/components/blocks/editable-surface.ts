@@ -186,9 +186,8 @@ export interface EditableSurfaceDeps {
 	crossBlockCommands: CrossBlockCommandRouter;
 	getKeybindingOverrides: () => KeybindingOverrideMap;
 	pasteCoordinator: PasteCommitCoordinator;
-	/** The instance's block grammar, forwarded to the cross-block join-paste reparse.
-	 *  Required-nullable: a surface must answer, and `undefined` means the global one. */
-	grammar: GrammarView | undefined;
+	/** The instance's block grammar, forwarded to the cross-block join-paste reparse. */
+	grammar: GrammarView;
 	/** The plugins this instance activated, forwarded to the paste-transform pipeline. */
 	activePlugins: PluginActivation;
 	/** This editor's events, passed to the cross-block clipboard's error reporting: the

@@ -18,8 +18,13 @@ import { declaredPluginKind } from '$lib/schema/plugin-kind';
 import { DETAILS, registerDetailsKind } from '$lib/plugins/details/details-kind';
 import type { CstNode } from '$lib/core/nodes';
 import { createRegistryView } from '$lib/schema/registry-view';
+import { defaultGrammarView, type GrammarView } from '$lib/schema/block-openers';
 import { activationFor, kindEnablementFor } from '$lib/schema/plugin-activation';
-import { makeEditorActionsDeps, makeStubBlockEdit } from '$lib/test/harness/editor-actions';
+import {
+	makeEditorActionsDeps,
+	makeStubBlockEdit,
+	pasteContext
+} from '$lib/test/harness/editor-actions';
 
 const PARROT_LINE = '%%parrot party responsibly\n';
 
@@ -42,12 +47,12 @@ async function pasteInto(grammar: ReturnType<typeof grammarListing>) {
 	const blockEdit = makeStubBlockEdit();
 	await pasteDispatch(
 		{ pastedText: PARROT_LINE, targetPath: [0], offset: 'target'.length },
-		{
+		pasteContext({
 			doc: deps.doc,
 			blockEdit,
 			controller: createPasteCoordinator(createUndoController(deps), deps.revealPath),
 			grammar
-		}
+		})
 	);
 	return { doc: deps.doc, blockEdit };
 }
@@ -74,13 +79,13 @@ describe('the bodyWrite escape reparse reads the instance grammar', () => {
 	const pasted = (): CstNode[] => [
 		{ kind: 'paragraph', leadingTrivia: '', raw: PARROT_LINE + '</details>\n' } as CstNode
 	];
-	const landedKinds = (grammar: ReturnType<typeof grammarListing> | undefined) =>
+	const landedKinds = (grammar: GrammarView) =>
 		normalizeReplacementForBody(declaredPluginKind(DETAILS), pasted(), grammar).replacement.map(
 			(n) => n.kind
 		);
 
 	it('the global grammar creates the plugin kind', () => {
-		expect(landedKinds(undefined)).toContain(PARROT);
+		expect(landedKinds(defaultGrammarView)).toContain(PARROT);
 	});
 
 	it('the grammar of an editor without the plugin keeps it prose', () => {

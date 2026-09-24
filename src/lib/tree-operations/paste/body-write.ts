@@ -43,7 +43,7 @@ export interface BodyLegalReplacement {
 export function normalizeReplacementForBody(
 	ownerKind: AnyBlockKind | undefined,
 	replacement: CstNode[],
-	grammar?: GrammarView
+	grammar: GrammarView
 ): BodyLegalReplacement {
 	if (ownerKind === undefined || !tryGetBlockKindDescriptor(ownerKind)?.bodyWrite) {
 		return { replacement, mapIndex: (i) => i };
@@ -57,10 +57,7 @@ export function normalizeReplacementForBody(
 			out.push(node);
 			continue;
 		}
-		const reparsed = parse(escaped, {
-			scope: 'fragment',
-			...(grammar ? { grammar } : {})
-		}).children;
+		const reparsed = parse(escaped, { grammar, scope: 'fragment' }).children;
 		if (reparsed.length === 0) {
 			out.push(node);
 			continue;

@@ -11,6 +11,7 @@ import {
 } from '$lib/schema/keybinding-overrides';
 import type { PresentationMode } from '$lib/presentation-mode';
 import type { SearchState } from '$lib/search/search-state.svelte';
+import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
 
 // The search bar's live state, cut down to what the root handler drives. `isOpen`
 // tracks open and closed so the Escape branch and the savedRange check see real state.
@@ -71,7 +72,7 @@ function harness(): Harness {
 
 	const deps: EditorRootKeydownDeps = {
 		// No plugins stood up here, so every installed one is active.
-		activation: undefined,
+		activation: everyInstalledPlugin,
 		get searchBarEnabled() {
 			return searchBar;
 		},

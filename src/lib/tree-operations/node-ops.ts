@@ -139,7 +139,8 @@ export function splitNode(
 		firstRaw,
 		secondRaw,
 		lineEnding,
-		parent.children[blockIndex + 1]
+		parent.children[blockIndex + 1],
+		grammar
 	);
 	const first = reparseAsNodes(
 		firstRaw,
@@ -220,21 +221,28 @@ function splitSeparator(
 	firstRaw: string,
 	secondRaw: string,
 	lineEnding: string,
-	successor: CstNode | undefined
+	successor: CstNode | undefined,
+	grammar: GrammarView | undefined
 ): string {
 	if (isBlankSource(secondRaw)) {
 		const trivia = blankBlockTrivia(isBlankSource(firstRaw), successor, lineEnding);
 		// A body that swallows blank lines (an unclosed fence) takes the separator inside
 		// itself and gains nothing, so ask the bytes rather than assume.
-		return trivia !== '' && blankHalfBecomesBlock(firstRaw, secondRaw, lineEnding) ? trivia : '';
+		const becomesBlock = blankHalfBecomesBlock(firstRaw, secondRaw, lineEnding, grammar);
+		return trivia !== '' && becomesBlock ? trivia : '';
 	}
-	return separatorSplitsOffNextLine(firstRaw, secondRaw, lineEnding) ? lineEnding : '';
+	return separatorSplitsOffNextLine(firstRaw, secondRaw, lineEnding, grammar) ? lineEnding : '';
 }
 
-function blankHalfBecomesBlock(firstRaw: string, secondRaw: string, lineEnding: string): boolean {
+function blankHalfBecomesBlock(
+	firstRaw: string,
+	secondRaw: string,
+	lineEnding: string,
+	grammar: GrammarView | undefined
+): boolean {
 	return (
-		parse(firstRaw + lineEnding + secondRaw, { scope: 'fragment' }).children.length >
-		parse(firstRaw + secondRaw, { scope: 'fragment' }).children.length
+		parse(firstRaw + lineEnding + secondRaw, { grammar, scope: 'fragment' }).children.length >
+		parse(firstRaw + secondRaw, { grammar, scope: 'fragment' }).children.length
 	);
 }
 
@@ -243,8 +251,13 @@ function blankHalfBecomesBlock(firstRaw: string, secondRaw: string, lineEnding: 
  * bytes, never a kind list, so the separator never lands inside a body that swallows both forms.
  * Blank blocks are not counted on either side, or the answer would be yes for every raw.
  */
-function separatorSplitsOffNextLine(raw: string, secondRaw: string, lineEnding: string): boolean {
-	if (DEV && !probeLineOpensAsProse()) {
+function separatorSplitsOffNextLine(
+	raw: string,
+	secondRaw: string,
+	lineEnding: string,
+	grammar: GrammarView | undefined
+): boolean {
+	if (DEV && !probeLineOpensAsProse(grammar)) {
 		devWarn(
 			'tree-ops',
 			`a registered opener claims ${JSON.stringify(NEXT_PROSE_LINE)}, so the split-separator probe no longer stands in for prose`
@@ -254,13 +267,15 @@ function separatorSplitsOffNextLine(raw: string, secondRaw: string, lineEnding: 
 	// absorbs a pipe-bearing one), and the prose stand-in for whatever a later edit puts there.
 	const probes = [secondRaw.slice(0, secondRaw.indexOf('\n') + 1), NEXT_PROSE_LINE + lineEnding];
 	return probes.some(
-		(probe) => contentBlockCount(raw + lineEnding + probe) > contentBlockCount(raw + probe)
+		(probe) =>
+			contentBlockCount(raw + lineEnding + probe, grammar) > contentBlockCount(raw + probe, grammar)
 	);
 }
 
-function contentBlockCount(source: string): number {
-	return parse(source, { scope: 'fragment' }).children.filter((node) => !isBlankParagraph(node))
-		.length;
+function contentBlockCount(source: string, grammar: GrammarView | undefined): number {
+	return parse(source, { grammar, scope: 'fragment' }).children.filter(
+		(node) => !isBlankParagraph(node)
+	).length;
 }
 
 /**
@@ -486,14 +501,15 @@ function installMergedLeaf(
 }
 
 /**
- * Merge the node at `blockIndex` with its successor; combined raw is re-parsed and the
- * merged block inherits the current block's ID. Noop at the tail.
+ * Merge the node at `blockIndex` with its successor; combined raw is re-parsed in the editor's
+ * grammar and the merged block inherits the current block's ID. Noop at the tail.
  */
 export function mergeWithNext(
 	parent: NodeParent,
 	blockIndex: number,
 	presentationMode: PresentationMode | undefined,
-	linkRef: InlineResolverRef | undefined
+	linkRef: InlineResolverRef | undefined,
+	grammar: GrammarView | undefined
 ): MergeResult {
 	if (blockIndex < 0 || blockIndex >= parent.children.length - 1) {
 		return { change: { op: 'noop' }, joinOffset: 0 };
@@ -503,7 +519,7 @@ export function mergeWithNext(
 	const next = parent.children[blockIndex + 1];
 
 	const { raw: mergedRaw, seam } = joinRaw(curr, next, presentationMode, linkRef);
-	const mergedNode = reparseAsNode(mergedRaw, curr.leadingTrivia);
+	const mergedNode = reparseAsNode(mergedRaw, curr.leadingTrivia, grammar);
 	if (!mergedNode) return { change: { op: 'noop' }, joinOffset: 0 };
 	const installed = [mergedNode];
 	assertSingleNodeSink('mergeWithNext', installed);
@@ -535,9 +551,13 @@ function reparseAsNodes(
  * The single-block counterpart for the merges: a join whose bytes read as several blocks does
  * not fit one position, so null refuses it rather than truncating (G1.35).
  */
-function reparseAsNode(raw: string, leadingTrivia: string): CstNode | null {
+function reparseAsNode(
+	raw: string,
+	leadingTrivia: string,
+	grammar: GrammarView | undefined
+): CstNode | null {
 	const { nodes, suffix } = reparseAsNodes(raw, leadingTrivia, (text) =>
-		parse(text, { scope: 'fragment' })
+		parse(text, { grammar, scope: 'fragment' })
 	);
 	if (nodes.length > 1) return null;
 	// A single-block write has no follower to give the split-off blank line to, so it stays in

@@ -3,6 +3,7 @@
 // The toolbar's active-marks read over a range is memoised per (selection, content version), so
 // four buttons cost one pass over the spans. The memo is only sound while both halves of that
 // key invalidate it, which is what the two invalidation cases below pin.
+import { defaultGrammarView } from '$lib/schema/block-openers';
 import { describe, it, expect } from 'vitest';
 import { listInlineMarks } from '$lib/schema/inline-construct-policy';
 import { crossBlockActiveFormats } from '$lib/selection/cross-block/format-range';
@@ -40,7 +41,7 @@ describe('the memoised pressed-state read answers the unmemoised one', () => {
 			for (const [start, end] of PAIRS) {
 				if (end.path[0] >= env.doc.children.length) continue;
 				env.selection.enterCrossBlock(start, end);
-				const expected = crossBlockActiveFormats(env.doc, start, end);
+				const expected = crossBlockActiveFormats(env.doc, start, end, defaultGrammarView);
 				for (const { kind, mark } of MARKS) {
 					expect(env.crossBlockCommands.isActive(mark.command), `${kind} on ${source}`).toBe(
 						expected.has(kind)

@@ -3,6 +3,7 @@
 // The cross-block toggle's span split and its direction rule: the anchor's tail, each middle
 // block's content, the focus block's head, all rewritten the one way the range's own coverage
 // says. Whether a keystroke lands is the commit's business; which spans it would touch is this file's.
+import { defaultGrammarView } from '$lib/schema/block-openers';
 import { describe, it, expect } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
@@ -25,9 +26,9 @@ function toggle(
 	mode?: 'source' | 'live'
 ): string | null {
 	const doc = parse(source);
-	const plan = planCrossBlockFormat(doc, start, end, format, mode);
+	const plan = planCrossBlockFormat(doc, start, end, format, mode, defaultGrammarView);
 	if (!plan) return null;
-	applyCrossBlockFormat(doc, plan, createSharingState(), undefined);
+	applyCrossBlockFormat(doc, plan, createSharingState(), defaultGrammarView);
 	return serialize(doc);
 }
 
@@ -92,7 +93,7 @@ describe('direction is the whole range’s coverage, not each block’s', () => 
 
 describe('the pressed-state read', () => {
 	const active = (source: string, start: SelectionPoint, end: SelectionPoint) =>
-		crossBlockActiveFormats(parse(source), start, end).has('strong');
+		crossBlockActiveFormats(parse(source), start, end, defaultGrammarView).has('strong');
 
 	it('is true only when every participating span carries the mark', () => {
 		expect(active('**alpha**\n\n**beta**\n', at([0], 0), at([1], 8))).toBe(true);
@@ -113,7 +114,14 @@ describe('the pressed-state read', () => {
 describe('the endpoints the plan hands back', () => {
 	it('shift by each endpoint block’s own delta', () => {
 		const doc = parse('alpha one\n\ngamma two\n');
-		const plan = planCrossBlockFormat(doc, at([0], 6), at([1], 5), 'strong', undefined)!;
+		const plan = planCrossBlockFormat(
+			doc,
+			at([0], 6),
+			at([1], 5),
+			'strong',
+			undefined,
+			defaultGrammarView
+		)!;
 		// `alpha **one**` — the tail span now starts two bytes later and ends at the closer.
 		expect(plan.startOffset).toBe(6);
 		expect(plan.endOffset).toBe(9);

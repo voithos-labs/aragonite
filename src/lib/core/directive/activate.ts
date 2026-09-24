@@ -11,19 +11,27 @@ import { registerDirectiveOpeners } from './container-opener';
 import { declaredPluginInlineKind, isInlineKindDeclared } from '../../schema/plugin-kind';
 import { registerInlineSyntax } from '../inline/scan/plugin-syntax';
 import { recognizeTextDirective } from './text-recognizer';
+import { defaultGrammarView, type GrammarView } from '../../schema/block-openers';
+import { registerAsCore } from '../../schema/plugin-install';
 
 export function activateDirectiveGrammar(): void {
-	// The inline handler has no registration of its own to check, so it borrows the `directiveText`
-	// flag, read here before `registerDirectiveTextKind` sets it. It cannot ask whether `:` is
-	// taken: that trigger is shared (emoji uses it too), so the answer could be another plugin's.
-	const alreadyActive = isInlineKindDeclared(DIRECTIVE_TEXT);
+	// The shared directive kinds are core whichever plugin's setup calls this first; only the
+	// names a plugin registers belong to it.
+	registerAsCore(() => {
+		// The inline handler has no registration of its own to check, so it borrows the
+		// `directiveText` flag, read here before `registerDirectiveTextKind` sets it. It cannot ask
+		// whether `:` is taken: that trigger is shared (emoji uses it too).
+		const alreadyActive = isInlineKindDeclared(DIRECTIVE_TEXT);
 
-	registerDirectiveKinds();
-	registerDirectiveOpeners();
-	registerDirectiveTextKind();
+		registerDirectiveKinds();
+		registerDirectiveOpeners();
+		registerDirectiveTextKind();
 
-	if (!alreadyActive) {
-		const kind = declaredPluginInlineKind(DIRECTIVE_TEXT);
-		registerInlineSyntax(':', (raw, pos, end) => recognizeTextDirective(raw, pos, end, kind));
-	}
+		if (!alreadyActive) {
+			const kind = declaredPluginInlineKind(DIRECTIVE_TEXT);
+			registerInlineSyntax(':', (raw, pos, end, grammar?: GrammarView) =>
+				recognizeTextDirective(raw, pos, end, kind, grammar ?? defaultGrammarView)
+			);
+		}
+	});
 }

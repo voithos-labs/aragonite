@@ -9,7 +9,8 @@ import { serialize } from '$lib/core/serializer';
 import {
 	makeBlockListState,
 	makeEditorActionsDeps,
-	makeStubBlockEdit
+	makeStubBlockEdit,
+	pasteContext
 } from '$lib/test/harness/editor-actions';
 import type { BlockListState } from '$lib/reactivity/block-list-state.svelte';
 
@@ -26,12 +27,12 @@ describe('inline paste landing after a fold above the target', () => {
 
 		const result = await pasteDispatch(
 			{ pastedText: 'x', targetPath: [1], offset: 0 },
-			{
+			pasteContext({
 				doc: deps.doc,
 				blockEdit: makeStubBlockEdit(),
 				controller: coordinator,
 				undoEntry: 'join'
-			}
+			})
 		);
 
 		expect(serialize(deps.doc)).toBe('a\nx# h\nb\n');
@@ -49,12 +50,12 @@ describe('inline paste landing after a fold above the target', () => {
 
 		const result = await pasteDispatch(
 			{ pastedText: 'x', targetPath: [0, 1], offset: 0 },
-			{
+			pasteContext({
 				doc: deps.doc,
 				blockEdit: makeStubBlockEdit(),
 				controller: coordinator,
 				undoEntry: 'join'
-			}
+			})
 		);
 
 		expect(serialize(deps.doc)).toBe('> a\n> x# h\n> b\n');

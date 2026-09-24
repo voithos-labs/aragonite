@@ -5,6 +5,7 @@ import { deleteNode, mergeWithNext, splitNode, updateNodeContent } from '../../t
 import { describeConvergence } from '$lib/test/harness/parse-converged';
 import { settled } from '$lib/test/harness/settle-funnel';
 import type { SettledContent } from '$lib/tree-operations/content-write';
+import { defaultGrammarView } from '$lib/schema/block-openers';
 
 // GH #61: a splice can leave neighbours whose adjacent bytes re-read as one block on reload
 // (a list newly standing above indented code absorbs it, since no separator line can hold
@@ -125,7 +126,10 @@ describe('a splice absorbs a join the reload would fold (GH #61)', () => {
 			'fencedCode'
 		]);
 
-		const change = settled(doc, (body) => mergeWithNext(body, 0, undefined, undefined).change);
+		const change = settled(
+			doc,
+			(body) => mergeWithNext(body, 0, undefined, undefined, defaultGrammarView).change
+		);
 
 		expect(doc.children.map((c) => [c.kind, c.leadingTrivia, c.raw])).toEqual([
 			['list', '', '- ab\n\n    code\n'],
@@ -142,7 +146,10 @@ describe('a splice absorbs a join the reload would fold (GH #61)', () => {
 		const doc = parse('- a\n\nb\n\n    code\n \t \n\t\n\n');
 		expect(doc.suffix).toBe('\n');
 
-		const change = settled(doc, (body) => mergeWithNext(body, 0, undefined, undefined).change);
+		const change = settled(
+			doc,
+			(body) => mergeWithNext(body, 0, undefined, undefined, defaultGrammarView).change
+		);
 
 		expect(doc.children.map((c) => [c.kind, c.leadingTrivia, c.raw])).toEqual([
 			['list', '', '- ab\n\n    code\n'],

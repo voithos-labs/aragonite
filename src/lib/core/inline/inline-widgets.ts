@@ -12,6 +12,8 @@ import type { PresentationMode } from '../../presentation-mode';
 import { isLiveHtmlTag, buildLiveHtmlWidget } from './raw-html-widget';
 import { entityRendersGlyph, buildEntityWidget } from './entity-widget';
 import { registerOnce } from '../../schema/register-once';
+import { currentInstallingPlugin } from '../../schema/plugin-install';
+import { ownerEnabled, type GrammarView } from '../../schema/block-openers';
 import { inlineDescendants } from './walk';
 
 /**
@@ -140,7 +142,20 @@ export interface InlineWidgetDescriptor {
 	editing?: InlineWidgetEditingPolicy;
 }
 
-const registry = new Map<AnyInlineKind, InlineWidgetDescriptor>();
+interface RegisteredWidget {
+	descriptor: InlineWidgetDescriptor;
+	/** The plugin whose setup registered the kind; null for a core one. */
+	owner: string | null;
+}
+
+const registry = new Map<AnyInlineKind, RegisteredWidget>();
+
+/** The kind's descriptor under an editor's grammar: absent where the editor left out the plugin
+ *  that registered it, so a node of that kind renders as its source. */
+function widgetOf(kind: AnyInlineKind, grammar: GrammarView): InlineWidgetDescriptor | undefined {
+	const entry = registry.get(kind);
+	return entry && ownerEnabled(grammar, entry.owner) ? entry.descriptor : undefined;
+}
 
 export function registerInlineWidgetKind(
 	kind: AnyInlineKind,
@@ -154,7 +169,7 @@ export function registerInlineWidgetKind(
 	}
 	registerOnce(
 		registry.has(kind),
-		() => registry.set(kind, descriptor),
+		() => registry.set(kind, { descriptor, owner: currentInstallingPlugin() }),
 		`registerInlineWidgetKind: "${kind}" is already registered. Inline-widget kinds are ` +
 			`register-once — a re-registration would clobber a built-in (image/rawHtml).`
 	);
@@ -169,7 +184,7 @@ export function augmentInlineWidgetKind(
 	kind: AnyInlineKind,
 	editing: Partial<InlineWidgetEditingPolicy>
 ): void {
-	const descriptor = registry.get(kind);
+	const descriptor = registry.get(kind)?.descriptor;
 	if (!descriptor) {
 		throw new Error(
 			`augmentInlineWidgetKind: "${kind}" is not registered; register the widget kind before ` +
@@ -179,26 +194,32 @@ export function augmentInlineWidgetKind(
 	descriptor.editing = { ...descriptor.editing, ...editing };
 }
 
+// Each lookup below takes the editor's grammar, which leaves out the plugins it did not list.
+
 /** Kind-level recognition, independent of per-block render policy (renderImagesAsWidgets). */
-export function isInlineWidget(node: InlineNode, raw: string): boolean {
-	const descriptor = registry.get(node.kind);
+export function isInlineWidget(node: InlineNode, raw: string, grammar: GrammarView): boolean {
+	const descriptor = widgetOf(node.kind, grammar);
 	return descriptor ? descriptor.isWidget(node, raw) : false;
 }
 
-export function getInlineWidgetEditing(kind: AnyInlineKind): InlineWidgetEditingPolicy | undefined {
-	return registry.get(kind)?.editing;
+export function getInlineWidgetEditing(
+	kind: AnyInlineKind,
+	grammar: GrammarView
+): InlineWidgetEditingPolicy | undefined {
+	return widgetOf(kind, grammar)?.editing;
 }
 
 /** A kind the caret treats as one character: it steps over in one keypress, has a column of its
  *  own, and a click on its glyph names an edge rather than selecting the widget whole. */
-export function isCharacterLikeWidget(kind: AnyInlineKind): boolean {
-	return getInlineWidgetEditing(kind)?.onEdge === 'step-over';
+export function isCharacterLikeWidget(kind: AnyInlineKind, grammar: GrammarView): boolean {
+	return getInlineWidgetEditing(kind, grammar)?.onEdge === 'step-over';
 }
 
 export function getInlineWidgetComponent(
-	kind: AnyInlineKind
+	kind: AnyInlineKind,
+	grammar: GrammarView
 ): Component<InlineWidgetComponentProps> | undefined {
-	return registry.get(kind)?.component;
+	return widgetOf(kind, grammar)?.component;
 }
 
 /**
@@ -206,10 +227,15 @@ export function getInlineWidgetComponent(
  * non-widget parent is found (the `image` inside `[![alt][ref]][repo]`), but never into a
  * widget's own children, which are atomic. `raw` is the enclosing block's source.
  */
-export function flattenInlineWidgets(nodes: ReadonlyArray<InlineNode>, raw: string): InlineNode[] {
+export function flattenInlineWidgets(
+	nodes: ReadonlyArray<InlineNode>,
+	raw: string,
+	grammar: GrammarView
+): InlineNode[] {
 	const out: InlineNode[] = [];
-	for (const node of inlineDescendants(nodes, (parent) => !isInlineWidget(parent, raw))) {
-		if (isInlineWidget(node, raw)) out.push(node);
+	const isWidget = (node: InlineNode) => isInlineWidget(node, raw, grammar);
+	for (const node of inlineDescendants(nodes, (parent) => !isWidget(parent))) {
+		if (isWidget(node)) out.push(node);
 	}
 	return out;
 }
@@ -222,9 +248,10 @@ export function flattenInlineWidgets(nodes: ReadonlyArray<InlineNode>, raw: stri
 export function buildCoreInlineWidget(
 	node: InlineNode,
 	raw: string,
-	buildPortalWidget?: (node: InlineNode, raw: string) => HTMLElement | null
+	buildPortalWidget: ((node: InlineNode, raw: string) => HTMLElement | null) | undefined,
+	grammar: GrammarView
 ): HTMLElement | null {
-	const descriptor = registry.get(node.kind);
+	const descriptor = widgetOf(node.kind, grammar);
 	if (!descriptor || !descriptor.isWidget(node, raw)) return null;
 	if (descriptor.component) return buildPortalWidget?.(node, raw) ?? null;
 	return descriptor.buildWidget ? descriptor.buildWidget(node, raw) : null;

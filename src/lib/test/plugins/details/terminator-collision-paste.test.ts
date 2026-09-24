@@ -14,8 +14,10 @@ import { registerDetailsKind } from '$lib/plugins/details/details-kind';
 import {
 	makeBlockListState,
 	makeEditorActionsDeps,
-	makeStubBlockEdit
+	makeStubBlockEdit,
+	pasteContext
 } from '$lib/test/harness/editor-actions';
+import { defaultGrammarView } from '$lib/schema/block-openers';
 
 // Miss-analysis: every terminator-collision suite drove the per-block byte writes (typing,
 // split, cross-block delete); paste builds its nodes before any of them, and no test drove
@@ -50,7 +52,7 @@ type Mounted = ReturnType<typeof mountDoc>;
 async function paste(h: Mounted, pastedText: string, targetPath: number[], offset: number) {
 	await pasteDispatch(
 		{ pastedText, targetPath, offset },
-		{ doc: h.doc, blockEdit: makeStubBlockEdit(), controller: h.controller }
+		pasteContext({ doc: h.doc, blockEdit: makeStubBlockEdit(), controller: h.controller })
 	);
 }
 
@@ -116,6 +118,7 @@ describe('details terminator escape at the paste door', () => {
 		const h = mountDoc(OPEN_DETAILS);
 
 		await replaceBlockAtParent({
+			grammar: defaultGrammarView,
 			doc: h.doc,
 			blockPath: [0, 1],
 			replacement: [{ kind: 'htmlBlock', leadingTrivia: '', raw: '</details>\n' } as CstNode],

@@ -13,7 +13,11 @@ import { createUndoController } from '$lib/editor-actions/commit/undo-controller
 import { createBlockEditActions } from '$lib/editor-actions/block-edit';
 import { createHistoryActions } from '$lib/editor-actions/commit/history';
 import { splitNode } from '$lib/tree-operations/node-ops';
-import { makeEditorActionsDeps, makeStubBlockEdit } from '$lib/test/harness/editor-actions';
+import {
+	makeEditorActionsDeps,
+	makeStubBlockEdit,
+	pasteContext
+} from '$lib/test/harness/editor-actions';
 import { triviaRawOf } from '$lib/test/harness/parse-converged';
 
 // A pasted blank line must reach the same shape the same bytes reach by loading or typing
@@ -27,12 +31,12 @@ async function pasteAfterX(clipboard: string): Promise<Document> {
 
 	await pasteDispatch(
 		{ pastedText: clipboard, targetPath: [0], offset: 1 },
-		{
+		pasteContext({
 			doc: deps.doc,
 			blockEdit: makeStubBlockEdit(),
 			controller: createPasteCoordinator(createUndoController(deps), deps.revealPath),
 			undoEntry: 'own'
-		}
+		})
 	);
 	return deps.doc;
 }
@@ -61,12 +65,12 @@ async function pasteLive(
 
 	await pasteDispatch(
 		{ pastedText: clipboard, targetPath, offset },
-		{
+		pasteContext({
 			doc: deps.doc,
 			blockEdit: createBlockEditActions(deps, controller),
 			controller: createPasteCoordinator(controller, deps.revealPath),
 			undoEntry: 'own'
-		}
+		})
 	);
 	return { doc: deps.doc, history: createHistoryActions(deps, controller) };
 }

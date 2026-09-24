@@ -84,7 +84,7 @@ export function defaultStructuralHook(
 	const synthLeaf =
 		cut.display === display ? node : { ...node, raw: cut.display + trailingLineEnding(node.raw) };
 
-	const replacement = buildPastedReplacement(synthLeaf, cut.offset, blocks);
+	const replacement = buildPastedReplacement(synthLeaf, cut.offset, blocks, seam?.grammar);
 	return {
 		replacement,
 		focusReplacementIndex: pastedContentFocusIndex(cut.display, cut.offset, replacement.length),

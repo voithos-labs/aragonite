@@ -22,16 +22,17 @@ function isFunctionArgument(arg: string): boolean {
 
 // ── The live-mode thread ─────────────────────────────────────────────────────
 
-/** Byte-moving sinks whose trailing arguments are the mode and the resolver, by the names their
- *  callers import them under. */
-const MODE_TRAILING_CALLS = [
-	'splitNode',
-	'performSplit',
-	'mergeWithNext',
-	'performMergeNext',
-	'mergeIntoPrevDeepLeaf',
-	'rangeDelete'
-];
+/** Byte-moving sinks and the argument position (0-based) of their mode, by the names their
+ *  callers import them under; the resolver follows the mode, and the grammar may follow both. */
+const MODE_POSITION: Record<string, number> = {
+	splitNode: 4,
+	performSplit: 4,
+	mergeWithNext: 2,
+	performMergeNext: 2,
+	mergeIntoPrevDeepLeaf: 3,
+	rangeDelete: 5
+};
+const MODE_TRAILING_CALLS = Object.keys(MODE_POSITION);
 
 /** Bundle factories whose deps object carries the mode and the resolver down to those sinks. */
 const MODE_BEARING_FACTORIES = ['createStandardNestedActions', 'createListContext'];
@@ -40,9 +41,10 @@ const MODE_BEARING_FACTORIES = ['createStandardNestedActions', 'createListContex
  *  reference form as brackets and declines, which is a marker leak wearing a decline's clothes. */
 const THREADED_AXES = ['getPresentationMode', 'linkRef'];
 
-/** The mode rides second to last, the resolver last: only the mode's `undefined` is a skipped
- *  thread, since a harness with no definitions has no resolver to give. */
-const modeArgument = (args: string): string => callArguments(args).at(-2) ?? '';
+/** Only the mode's `undefined` is a skipped thread, since a harness with no definitions has no
+ *  resolver to give. */
+const modeArgument = (args: string, callee: string): string =>
+	callArguments(args)[MODE_POSITION[callee]] ?? '';
 
 const threadsAxis = (args: string, axis: string): boolean =>
 	new RegExp(`\\b${axis}\\s*[,:}]`).test(args) &&
@@ -111,6 +113,8 @@ const RULES: CallSiteRule[] = [
 		calls: ['pasteDispatch', 'replaceBlockAtParent'],
 		// Both spellings an argument object has: an explicit `grammar:` and the shorthand.
 		holds: (args) => /\bgrammar\s*[:,}]/.test(args),
+		// The type rejects an omitted or undefined grammar; the scan asks each route to name it
+		// rather than spread in a context the reader cannot see.
 		reason:
 			'pasted bytes, or the bodyWrite reparse of them, read an unlisted plugin’s syntax without the instance grammar (#267)',
 		// Four clipboard routes and three splice sites.
@@ -132,19 +136,22 @@ const RULES: CallSiteRule[] = [
 		id: 'every byte-moving sink is told which presentation mode the bytes move in',
 		population: except(CONFORMANCE_KIT),
 		calls: MODE_TRAILING_CALLS,
-		holds: (args) => modeArgument(args) !== 'undefined',
+		holds: (args, callee) => modeArgument(args, callee) !== 'undefined',
 		reason:
 			'split rebalancing and join cleanup run in live mode alone; a caller answering undefined ships byte-literal edits with delimiters on screen',
 		// The shared block-edit core, the list mid-item split, the cross-block delete, node-ops.
 		atLeastCallers: 4,
 		hits: [
-			'splitNode(parent, i, offset, undefined, linkRef);\nmergeWithNext(parent, i, undefined, ref);'
+			'splitNode(parent, i, offset, sharing, undefined, linkRef, grammar);',
+			'mergeWithNext(parent, i, undefined, ref, grammar);'
 		],
 		misses: [
-			'splitNode(parent, i, offset, mode, undefined);\nperformSplit(p, i, o, deps.getPresentationMode?.());\n' +
+			'splitNode(parent, i, offset, sharing, mode, undefined, grammar);\n' +
+				'performSplit(p, i, o, s, deps.getPresentationMode?.(), undefined);\n' +
+				'mergeWithNext(parent, i, mode, undefined, undefined);\n' +
 				'rangeDelete(doc, s, e, sharing, grammar, ctx.getPresentationMode?.(), undefined);',
-			'export function splitNode(parent, blockIndex, offset, presentationMode, undefined) {}\n' +
-				'// performSplit(p, i, o, undefined, undefined) would be wrong'
+			'export function splitNode(parent, blockIndex, offset, sharing, presentationMode) {}\n' +
+				'// performSplit(p, i, o, s, undefined, undefined) would be wrong'
 		]
 	},
 	{

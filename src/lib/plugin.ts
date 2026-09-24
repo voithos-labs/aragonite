@@ -6,6 +6,7 @@
 import TextEditableBlock from './components/blocks/text/TextEditableBlock.svelte';
 import { registerChromeLeaf as bindChromeLeaf } from './editor-actions/plugin/chrome-leaf';
 import { computeInlineContent as parseLeafInline } from './core/inline';
+import { defaultGrammarView } from './schema/block-openers';
 import type { AnyBlockKind, InlineNode } from './core/nodes';
 import type { NodeView } from './core/node-views';
 import type { ChromeLeafOptions } from './editor-actions/plugin/chrome-leaf';
@@ -198,10 +199,11 @@ export { isProseKind } from './core/inline';
 
 /**
  * Inline-parse a prose leaf. No link-reference resolver is available to a plugin, so
- * reference links parse as `unresolvedReference`; every other construct fully resolves.
+ * reference links parse as `unresolvedReference`; every other construct fully resolves. It
+ * reads every installed plugin's syntax, whatever the editor's `plugins` prop lists (#433).
  */
 export function computeInlineContent(node: NodeView): InlineNode[] {
-	return parseLeafInline(node);
+	return parseLeafInline(node, undefined, defaultGrammarView);
 }
 
 // ── Re-registration checks ─────────────────────────────────────────────────────

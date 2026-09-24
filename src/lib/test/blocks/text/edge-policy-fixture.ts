@@ -1,6 +1,7 @@
 // Shared scaffolding for the edge-policy-dispatch suites. The base dependencies do nothing:
 // every behaviour a test asserts on has to come from the caller's `overrides`, or a test
 // could end up asserting against this stub.
+import { defaultGrammarView } from '$lib/schema/block-openers';
 import { afterEach } from 'vitest';
 import {
 	createEdgePolicyDispatch,
@@ -31,6 +32,7 @@ export function makeEdgeDispatch(
 	const readNode = typeof node === 'function' ? node : () => node;
 	const edits: EditTuple[] = [];
 	const deps: EdgePolicyDispatchDeps = {
+		grammar: defaultGrammarView,
 		get node() {
 			return readNode();
 		},

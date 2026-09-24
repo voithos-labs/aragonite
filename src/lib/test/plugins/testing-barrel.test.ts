@@ -97,7 +97,7 @@ describe('resetPluginPlatformForTests aggregate', () => {
 		expect(isPluginInstalled('probeplugin')).toBe(false);
 		expect(onEditorCallbacks('probeplugin')).toHaveLength(0);
 		expect(pluginGlobalBinding('Mod+Shift+1', everyInstalledPlugin)).toBeNull();
-		expect(getPasteSurface('probe-block' as AnyBlockKind)).toBeUndefined();
+		expect(getPasteSurface('probe-block' as AnyBlockKind, everyInstalledPlugin)).toBeUndefined();
 		expect(getInlineRungs('⌘')).toHaveLength(0);
 
 		// The duplicate-registration throw is exactly what a third-party suite hits without

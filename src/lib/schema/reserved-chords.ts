@@ -8,11 +8,7 @@
 import { getAllRegisteredKinds, tryGetBlockKindDescriptor } from './block-kind-descriptor';
 import { GLOBAL_KEYMAP, pluginGlobalChords, reservedUiChords } from './commands';
 import type { KeybindingOverrideMap } from './keybinding-overrides';
-import {
-	everyInstalledPlugin,
-	kindEnablementFor,
-	type PluginActivation
-} from './plugin-activation';
+import { kindEnablementFor, type PluginActivation } from './plugin-activation';
 import { eventToChord, normalizeChord } from './keybindings';
 
 // ── The hardcoded-chord list ─────────────────────────────────────────────────
@@ -340,9 +336,8 @@ export interface ReservedChordOptions {
 	/** The instance's compiled `keybindings` prop, so an override's binds and disables show. */
 	keybindings?: KeybindingOverrideMap;
 	/** The plugins this instance activated: a chord another editor's plugin bound is not this
-	 *  editor's. Required but nullable, so a new caller must answer; `undefined` is every
-	 *  installed plugin. */
-	activation: PluginActivation | undefined;
+	 *  editor's. */
+	activation: PluginActivation;
 }
 
 /**
@@ -386,8 +381,8 @@ function carriesModifier(chord: string): boolean {
 
 /** Only the kinds this editor resolves: an unlisted plugin's kind renders nowhere here, so its
  *  keymap claims nothing. */
-function registeredKeymapChords(activation: PluginActivation | undefined): string[] {
-	const isEnabled = kindEnablementFor(activation ?? everyInstalledPlugin);
+function registeredKeymapChords(activation: PluginActivation): string[] {
+	const isEnabled = kindEnablementFor(activation);
 	return getAllRegisteredKinds()
 		.filter(isEnabled)
 		.flatMap(

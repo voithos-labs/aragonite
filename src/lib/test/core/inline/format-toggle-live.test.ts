@@ -3,6 +3,7 @@ import { describe, it, expect } from 'vitest';
 import { toggleInlineFormat } from '$lib/core/inline/format-toggle';
 import { parseInline } from '$lib/core/inline';
 import { CONTENT_VISIBILITY, renderedText } from '$lib/core/inline/visibility';
+import { defaultGrammarView } from '$lib/schema/block-openers';
 import type { InlineMarkKind } from '$lib/schema/inline-construct-policy';
 import { MARK_FORMATS, markersOf, whole } from './format-toggle-fixture';
 
@@ -12,7 +13,11 @@ import { MARK_FORMATS, markersOf, whole } from './format-toggle-fixture';
 // wrap, and the toggle verified nothing, so the suite had nothing to catch it with.
 
 const live = (raw: string, selection: { start: number; end: number }, format: InlineMarkKind) =>
-	toggleInlineFormat({ display: raw, content: whole(raw), selection }, format, 'live');
+	toggleInlineFormat(
+		{ display: raw, content: whole(raw), selection, grammar: defaultGrammarView },
+		format,
+		'live'
+	);
 
 const screenOf = (display: string) =>
 	renderedText(parseInline(display, 0, display.length), display, CONTENT_VISIBILITY);
@@ -68,7 +73,11 @@ describe('the preview inline syntax handlers write what source writes', () => {
 		'writes an unverified wrap where the marker-hiding fork declines (%s)',
 		(mode) => {
 			const at = (raw: string, selection: { start: number; end: number }) =>
-				toggleInlineFormat({ display: raw, content: whole(raw), selection }, 'strong', mode);
+				toggleInlineFormat(
+					{ display: raw, content: whole(raw), selection, grammar: defaultGrammarView },
+					'strong',
+					mode
+				);
 			expect(at('*ab*', { start: 0, end: 1 })?.newDisplay).toBe('*****ab*');
 			expect(live('*ab*', { start: 0, end: 1 }, 'strong')).toBeNull();
 		}
@@ -77,7 +86,11 @@ describe('the preview inline syntax handlers write what source writes', () => {
 
 describe('source mode reads a run through the space beside it', () => {
 	const source = (raw: string, selection: { start: number; end: number }) =>
-		toggleInlineFormat({ display: raw, content: whole(raw), selection }, 'strong', 'source');
+		toggleInlineFormat(
+			{ display: raw, content: whole(raw), selection, grammar: defaultGrammarView },
+			'strong',
+			'source'
+		);
 
 	// Visible delimiters put the run's own bytes inside the selection, the same reading past a
 	// boundary space that live mode takes over hidden ones.

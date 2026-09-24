@@ -17,6 +17,7 @@ import { cutRangeFromDisplay } from '../node-ops';
 import { trailingLineEnding, trimTrailingLineEnding } from '../../core/lines';
 import {
 	getPasteSurface,
+	isPasteSurfaceRegistered,
 	type PasteRange,
 	type PasteSeam,
 	type PasteSurface,
@@ -56,12 +57,10 @@ export interface PasteDispatchContext {
 	/** `'join'`: the cross-block caller owns the undo entry, so no snapshot is pushed here. */
 	undoEntry?: UndoEntryMode;
 	/** The instance's grammar: the clipboard parse below and the join branch's same-slot
-	 *  reparse both read it, so an unlisted plugin's opener never takes pasted bytes here.
-	 *  Absent = global. */
-	grammar?: GrammarView;
-	/** The plugins this instance activated, so an unlisted plugin's paste transform stays out
-	 *  of the pipeline; absent = every installed plugin. */
-	activePlugins?: PluginActivation;
+	 *  reparse both read it, so an unlisted plugin's opener never takes pasted bytes here. */
+	grammar: GrammarView;
+	/** The plugins this instance activated, so an unlisted plugin's paste hooks stay out. */
+	activePlugins: PluginActivation;
 	/** What the paste's delete half needs for the join cleanup; absent leaves it byte-literal. */
 	seam?: PasteSeam;
 }
@@ -93,7 +92,13 @@ export async function pasteDispatch(
 
 	// Once, before any branch below reads the text; a transform that empties it is an
 	// empty paste.
-	const transformed = applyPasteTransforms(input.pastedText, ctx.activePlugins);
+	const { activePlugins } = ctx;
+	const seam: PasteSeam = {
+		presentationMode: ctx.seam?.presentationMode,
+		linkRef: ctx.seam?.linkRef,
+		grammar: ctx.grammar
+	};
+	const transformed = applyPasteTransforms(input.pastedText, activePlugins);
 	if (!transformed) return {};
 
 	// Ahead of the fragment parse, so the strategy pick and every landed kind follow the
@@ -116,8 +121,9 @@ export async function pasteDispatch(
 		isReservedChromeChild(chromeParent, input.targetPath[input.targetPath.length - 1])
 	) {
 		const flattened = pastedText.replace(/(\r?\n)+/g, ' ').trim();
-		const hook = getPasteSurface(targetNode.kind)?.onInlinePaste ?? defaultInlineHook;
-		const result = hook(targetNode, input.offset, flattened, input.preDelete, ctx.seam);
+		const hook =
+			getPasteSurface(targetNode.kind, activePlugins)?.onInlinePaste ?? defaultInlineHook;
+		const result = hook(targetNode, input.offset, flattened, input.preDelete, seam);
 		const landing = await applyInlineResult(input.targetPath, result, ctx);
 		return inlineCaretResult(result.caretOffset, landing);
 	}
@@ -125,7 +131,7 @@ export async function pasteDispatch(
 	// The delete half, applied once and before the strategy pick since the container routes never
 	// run it: each finder decides on the target's bytes, and a range still standing there answers
 	// about bytes the paste is removing. The hook routes cut their own, kind rules included.
-	const target = targetAfterPreDelete(targetNode, input, ctx.seam);
+	const target = targetAfterPreDelete(targetNode, input, seam);
 
 	const unwrap = findContainerMatchingUnwrap(
 		ctx.doc,
@@ -154,8 +160,9 @@ export async function pasteDispatch(
 		return {};
 	}
 
-	const surface = getPasteSurface(targetNode.kind);
-	if (surface === undefined) {
+	const surface = getPasteSurface(targetNode.kind, activePlugins);
+	// A plugin's surface this editor left out is no gap to warn about: the default hooks are meant.
+	if (surface === undefined && !isPasteSurfaceRegistered(targetNode.kind)) {
 		devWarn(
 			'paste-dispatch',
 			'no paste surface registered for this kind; falling through to default hooks. Register ' +
@@ -188,13 +195,13 @@ export async function pasteDispatch(
 
 	if (strategy === 'inline') {
 		const hook = surface?.onInlinePaste ?? defaultInlineHook;
-		const result = hook(targetNode, input.offset, pastedText, input.preDelete, ctx.seam);
+		const result = hook(targetNode, input.offset, pastedText, input.preDelete, seam);
 		const landing = await applyInlineResult(input.targetPath, result, ctx);
 		return inlineCaretResult(result.caretOffset, landing);
 	}
 
 	const hook = surface?.onStructuralPaste ?? defaultStructuralHook;
-	const result = hook(targetNode, input.offset, blocks.slice(), input.preDelete, ctx.seam);
+	const result = hook(targetNode, input.offset, blocks.slice(), input.preDelete, seam);
 	await applyStructuralResult(
 		input.targetPath,
 		result,

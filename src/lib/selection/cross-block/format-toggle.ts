@@ -36,7 +36,7 @@ export interface CrossBlockCommandDeps {
 	/** The mode each per-block rewrite verifies against. Required but nullable, like the
 	 *  cross-block dispatch context's fields; `undefined` reads as source mode. */
 	getPresentationMode: PresentationModeGetter | undefined;
-	grammar: GrammarView | undefined;
+	grammar: GrammarView;
 	/** The active-marks memo's key alongside the range: the document is mutated in place, so its
 	 *  identity says nothing about whether it changed (`docs/design/editor.md` § 7). */
 	getContentVersion: () => number;
@@ -76,7 +76,7 @@ function createActiveFormatMemo(deps: CrossBlockCommandDeps): () => ReadonlySet<
 		if (!start || !end) return NO_MARKS;
 		const key = `${deps.getContentVersion()}|${pointKey(start)}|${pointKey(end)}`;
 		if (slot?.key !== key) {
-			slot = { key, marks: crossBlockActiveFormats(deps.getDoc(), start, end) };
+			slot = { key, marks: crossBlockActiveFormats(deps.getDoc(), start, end, deps.grammar) };
 		}
 		return slot.marks;
 	};
@@ -96,7 +96,14 @@ async function toggleFormatOverRange(
 	const { anchor, focus, start, end } = deps.selection;
 	if (!anchor || !focus || !start || !end) return;
 	const doc = deps.getDoc();
-	const plan = planCrossBlockFormat(doc, start, end, format, deps.getPresentationMode?.());
+	const plan = planCrossBlockFormat(
+		doc,
+		start,
+		end,
+		format,
+		deps.getPresentationMode?.(),
+		deps.grammar
+	);
 	if (!plan) return;
 
 	const restored = restoredRange(anchor, focus, start, end, plan);

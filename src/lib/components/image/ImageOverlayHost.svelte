@@ -42,7 +42,7 @@
 		getSelectionIsCustomRendered: () => boolean;
 		getPresentationMode: () => PresentationMode;
 		menuPresence: MenuPresence;
-		grammar?: GrammarView;
+		grammar: GrammarView;
 		lifetime: AbortSignal;
 	} = $props();
 

@@ -1,5 +1,6 @@
 // Miss-analysis: nothing tied the selected image's stored bytes to the document, so an undo that
 // moved the image left a selection pointing at nothing, and no test edited under a selected image.
+import { defaultGrammarView } from '$lib/schema/block-openers';
 import { describe, it, expect } from 'vitest';
 import { tick } from 'svelte';
 import { createImageEditCommitter } from '../../components/image/image-edit-commit';
@@ -21,7 +22,8 @@ describe('a selected image whose bytes an edit moves', () => {
 			getEditorEl: () => null,
 			widgetSelection,
 			controller: makeStubController(),
-			events: createEditorEvents()
+			events: createEditorEvents(),
+			grammar: defaultGrammarView
 		});
 		widgetSelection.select({ paragraphPath: [0], sourceStart, preSelectOffset: 0 });
 		const editTo = (next: string) => {
@@ -30,7 +32,9 @@ describe('a selected image whose bytes an edit moves', () => {
 		};
 		const firstImageFields = () =>
 			imageFieldsFromInline(
-				getInlineContent(doc.children[0] as CstNode).find((node) => node.kind === 'image')!
+				getInlineContent(doc.children[0] as CstNode, undefined, undefined, defaultGrammarView).find(
+					(node) => node.kind === 'image'
+				)!
 			);
 		return { widgetSelection, committer, editTo, firstImageFields };
 	}

@@ -15,6 +15,7 @@ import { registerMathBlock } from '$lib/plugins/latex/latex-kind';
 import { reorderChildrenWithTrivia } from '$lib/tree-operations/reorder';
 import { createSharingState } from '$lib/tree-operations/sharing';
 import { freshOrFixedSeed } from '../invariants/arbitraries/property-seed';
+import { defaultGrammarView } from '$lib/schema/block-openers';
 
 const PARAMS = { numRuns: 300, seed: freshOrFixedSeed(414141) } as const;
 
@@ -116,7 +117,14 @@ describe('a reorder lands its block whole beside any neighbour', () => {
 					for (let to = 0; to < total; to++) {
 						if (to === from) continue;
 						const doc = parse(md);
-						reorderChildrenWithTrivia(doc.children, from, to, createSharingState(), true);
+						reorderChildrenWithTrivia(
+							doc.children,
+							from,
+							to,
+							createSharingState(),
+							defaultGrammarView,
+							true
+						);
 						const label = `${JSON.stringify(md)} move ${from}->${to}`;
 						expect(
 							contentPreserved(before, from, doc.children),

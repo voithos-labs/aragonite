@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { defaultGrammarView } from '$lib/schema/block-openers';
 import { afterEach, describe, it, expect } from 'vitest';
 import type { Component } from 'svelte';
 import type { InlineNode } from '../../core/nodes';
@@ -26,12 +27,12 @@ describe('registerInlineWidgetKind: register-once', () => {
 			/register-once|already registered/i
 		);
 		// The rejected re-registration never took: image still recognizes as a widget.
-		expect(isInlineWidget(imageNode, '![](x)')).toBe(true);
+		expect(isInlineWidget(imageNode, '![](x)', defaultGrammarView)).toBe(true);
 	});
 
 	it('registers a fresh plugin kind once, then rejects a duplicate', () => {
 		registerInlineWidgetKind(PLUGIN_KIND, { isWidget: () => true });
-		expect(isInlineWidget(pluginNode, 'xxx')).toBe(true);
+		expect(isInlineWidget(pluginNode, 'xxx', defaultGrammarView)).toBe(true);
 		expect(() => registerInlineWidgetKind(PLUGIN_KIND, { isWidget: () => false })).toThrow(
 			/register-once|already registered/i
 		);
@@ -50,12 +51,12 @@ describe('registerInlineWidgetKind: component and buildWidget are mutually exclu
 			})
 		).toThrow(new RegExp(PLUGIN_KIND));
 		// The rejected registration never took: the kind stays unknown.
-		expect(isInlineWidget(pluginNode, 'xxx')).toBe(false);
+		expect(isInlineWidget(pluginNode, 'xxx', defaultGrammarView)).toBe(false);
 	});
 
 	it('registers a component-only kind and exposes it through the accessor', () => {
 		registerInlineWidgetKind(PLUGIN_KIND, { isWidget: () => true, component: FakeComponent });
-		expect(getInlineWidgetComponent(PLUGIN_KIND)).toBe(FakeComponent);
+		expect(getInlineWidgetComponent(PLUGIN_KIND, defaultGrammarView)).toBe(FakeComponent);
 	});
 
 	it('leaves a buildWidget-only kind with no component', () => {
@@ -63,7 +64,7 @@ describe('registerInlineWidgetKind: component and buildWidget are mutually exclu
 			isWidget: () => true,
 			buildWidget: () => document.createElement('span')
 		});
-		expect(getInlineWidgetComponent(PLUGIN_KIND)).toBeUndefined();
+		expect(getInlineWidgetComponent(PLUGIN_KIND, defaultGrammarView)).toBeUndefined();
 	});
 });
 
@@ -72,11 +73,11 @@ describe('__resetInlineWidgetsForTests', () => {
 
 	it('clears plugin kinds but keeps the built-ins', () => {
 		registerInlineWidgetKind(PLUGIN_KIND, { isWidget: () => true });
-		expect(isInlineWidget(pluginNode, 'xxx')).toBe(true);
+		expect(isInlineWidget(pluginNode, 'xxx', defaultGrammarView)).toBe(true);
 
 		__resetInlineWidgetsForTests();
 
-		expect(isInlineWidget(pluginNode, 'xxx')).toBe(false);
-		expect(isInlineWidget(imageNode, '![](x)')).toBe(true);
+		expect(isInlineWidget(pluginNode, 'xxx', defaultGrammarView)).toBe(false);
+		expect(isInlineWidget(imageNode, '![](x)', defaultGrammarView)).toBe(true);
 	});
 });

@@ -10,6 +10,7 @@ import type { AnyInlineKind, InlineNode } from '../../core/nodes';
 import type { DocumentView } from '../../core/node-views';
 import type { PresentationMode } from '../../presentation-mode';
 import { getInlineWidgetComponent } from '../../core/inline/inline-widgets';
+import type { GrammarView } from '../../schema/block-openers';
 import { tracePoolPass } from '../../debug/interaction-trace';
 import { assertInvariant } from '../../assert';
 import { checkPoolBracket } from '../../invariants/inline-transitions';
@@ -143,6 +144,8 @@ export interface SvelteWidgetPoolDeps {
 	/** The editor's navigation call, for a widget whose gesture jumps elsewhere in the
 	 *  document. Absent in a bare harness. */
 	navigateTo?: (path: number[], offset?: number) => Promise<boolean>;
+	/** The editor's grammar, so a widget kind whose plugin it left out mounts nothing. */
+	grammar: GrammarView;
 }
 
 /**
@@ -151,12 +154,19 @@ export interface SvelteWidgetPoolDeps {
  * `{ inline, source }` snapshot as live props: reuse keys on `${kind} ${source}`, so an instance
  * outlives a mode flip or an edit elsewhere that a frozen value would not.
  */
-export function createSvelteWidgetPool(deps: SvelteWidgetPoolDeps = {}): WidgetPool {
-	const { reportError, getPresentationMode, getTheme, getDocument, getContentVersion, navigateTo } =
-		deps;
+export function createSvelteWidgetPool(deps: SvelteWidgetPoolDeps): WidgetPool {
+	const {
+		reportError,
+		getPresentationMode,
+		getTheme,
+		getDocument,
+		getContentVersion,
+		navigateTo,
+		grammar
+	} = deps;
 	return createWidgetPool<PortalHandle>({
 		create(kind, inline, source) {
-			const component = getInlineWidgetComponent(kind);
+			const component = getInlineWidgetComponent(kind, grammar);
 			if (!component) return null;
 			const wrapper = document.createElement('span');
 			wrapper.dataset.inlineWidget = '';

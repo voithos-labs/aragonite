@@ -8,7 +8,8 @@ import { parse } from '$lib/core/parser';
 import {
 	makeBlockListState,
 	makeEditorActionsDeps,
-	makeStubBlockEdit
+	makeStubBlockEdit,
+	pasteContext
 } from '$lib/test/harness/editor-actions';
 import type { EditEvent } from '$lib/editor-events';
 import type { BlockListState } from '$lib/reactivity/block-list-state.svelte';
@@ -31,7 +32,7 @@ describe('G2.9 paste op-kind emission', () => {
 
 		await pasteDispatch(
 			{ pastedText: '# heading\n\nbody\n', targetPath: [0], offset: 6 },
-			{ doc: deps.doc, blockEdit: makeStubBlockEdit(), controller: coordinator }
+			pasteContext({ doc: deps.doc, blockEdit: makeStubBlockEdit(), controller: coordinator })
 		);
 
 		const ops = editOps(onEdit);
@@ -53,7 +54,7 @@ describe('G2.9 paste op-kind emission', () => {
 
 		await pasteDispatch(
 			{ pastedText: '1. INSERTED\n', targetPath: [0, 0, 0], offset: 'one'.length },
-			{ doc: deps.doc, blockEdit: makeStubBlockEdit(), controller: coordinator }
+			pasteContext({ doc: deps.doc, blockEdit: makeStubBlockEdit(), controller: coordinator })
 		);
 
 		const ops = editOps(onEdit);
@@ -70,12 +71,12 @@ describe('G2.9 paste op-kind emission', () => {
 
 		await pasteDispatch(
 			{ pastedText: 'XYZ\nsecond', targetPath: [0], offset: 5 },
-			{
+			pasteContext({
 				doc: deps.doc,
 				blockEdit: makeStubBlockEdit(),
 				controller: coordinator,
 				undoEntry: 'join'
-			}
+			})
 		);
 
 		const ops = editOps(onEdit);

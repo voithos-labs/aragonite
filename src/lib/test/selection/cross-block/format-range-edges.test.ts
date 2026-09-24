@@ -7,6 +7,7 @@
 // Miss-analysis: every partial span in that file started and ended on a word boundary, and every
 // e2e range was a whole-document Mod+A, so no test ever put a space at a span's edge, the one
 // place the source-mode wrap candidate list has a second entry the mode never reaches.
+import { defaultGrammarView } from '$lib/schema/block-openers';
 import { describe, it, expect } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
@@ -27,9 +28,9 @@ function toggle(
 	mode?: 'source' | 'live'
 ): string | null {
 	const doc = parse(source);
-	const plan = planCrossBlockFormat(doc, start, end, 'strong', mode);
+	const plan = planCrossBlockFormat(doc, start, end, 'strong', mode, defaultGrammarView);
 	if (!plan) return null;
-	applyCrossBlockFormat(doc, plan, createSharingState(), undefined);
+	applyCrossBlockFormat(doc, plan, createSharingState(), defaultGrammarView);
 	return serialize(doc);
 }
 
@@ -59,7 +60,8 @@ describe('a span whose edge lands on whitespace', () => {
 			HEAD.start,
 			HEAD.end,
 			'strong',
-			undefined
+			undefined,
+			defaultGrammarView
 		)!;
 		expect(head.endOffset).toBe('**beta**'.length);
 
@@ -68,7 +70,8 @@ describe('a span whose edge lands on whitespace', () => {
 			TAIL.start,
 			TAIL.end,
 			'strong',
-			undefined
+			undefined,
+			defaultGrammarView
 		)!;
 		expect(tail.startOffset).toBe('alpha '.length);
 	});

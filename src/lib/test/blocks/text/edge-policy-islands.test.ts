@@ -5,6 +5,7 @@
 // only plain edge keys, and a printable key at an element-level caret becomes a CST edit, which
 // ordinary typing can mask byte for byte in a real browser. A third group holds the precedence a
 // user can see: a CST widget wins the shared caret edge over a decoration widget.
+import { defaultGrammarView } from '$lib/schema/block-openers';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createWidgetSelectionState } from '$lib/components/image/widget-selection-state.svelte';
 import { parse } from '$lib/core/parser';
@@ -110,7 +111,9 @@ describe('a CST widget outranks a decoration widget at the same caret edge', () 
 		// `a![c](x)`: the image widget occupies raw 1..8 and the decoration ends at 8 too.
 		// The dispatch tries the widget class first, so its select-then-delete wins.
 		const node = parse('a![c](x)\n').children[0];
-		const image = computeInlineContent(node).find((n: InlineNode) => n.kind === 'image')!;
+		const image = computeInlineContent(node, undefined, defaultGrammarView).find(
+			(n: InlineNode) => n.kind === 'image'
+		)!;
 		const el = mountSurface([document.createTextNode('a![c]('), decorationIsland(6, image.end)]);
 		window.getSelection()?.removeAllRanges();
 

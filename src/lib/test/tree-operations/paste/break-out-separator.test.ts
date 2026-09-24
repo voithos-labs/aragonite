@@ -11,7 +11,7 @@ import {
 import { createPasteCoordinator } from '$lib/editor-actions/paste-coordinator';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
 import { createBlockEditActions } from '$lib/editor-actions/block-edit';
-import { makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
+import { makeEditorActionsDeps, pasteContext } from '$lib/test/harness/editor-actions';
 import { expectParseConverged, triviaRawOf } from '$lib/test/harness/parse-converged';
 
 // A break-out replaces the enclosing list with a first-half list, the pasted blocks and a
@@ -30,12 +30,12 @@ async function pasteInto(doc: Document, targetPath: number[], offset: number, cl
 
 	await pasteDispatch(
 		{ pastedText: clipboard, targetPath, offset },
-		{
+		pasteContext({
 			doc: deps.doc,
 			blockEdit: createBlockEditActions(deps, controller),
 			controller: createPasteCoordinator(controller, deps.revealPath),
 			undoEntry: 'own'
-		}
+		})
 	);
 	return deps.doc;
 }

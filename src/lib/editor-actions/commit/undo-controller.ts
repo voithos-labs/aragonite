@@ -357,7 +357,10 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 					assertIdsInLockstep('commitStructural', idsCopy.length, childrenCopy.length);
 					args.publish(childrenCopy, idsCopy, refsCopy);
 					if (DEV) {
-						assertCommittedNodes(touchedFromChange(change, childrenCopy, args.touchedNodes));
+						assertCommittedNodes(
+							touchedFromChange(change, childrenCopy, args.touchedNodes),
+							deps.grammar
+						);
 					}
 				}
 			} else {
@@ -369,7 +372,10 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 				} else {
 					args.publish();
 					if (DEV) {
-						assertCommittedNodes(touchedContainersWithChildren(args.touchedNodes?.()));
+						assertCommittedNodes(
+							touchedContainersWithChildren(args.touchedNodes?.()),
+							deps.grammar
+						);
 					}
 				}
 			}

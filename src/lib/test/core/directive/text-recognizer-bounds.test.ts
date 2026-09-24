@@ -6,6 +6,7 @@ import { declaredPluginInlineKind } from '$lib/schema/plugin-kind';
 import { activateDirectiveGrammar } from '$lib/core/directive/activate';
 import { DIRECTIVE_TEXT } from '$lib/core/directive/kinds';
 import { expectBoundedGrowth, measureScanGrowth } from '../../harness/scan-growth';
+import { defaultGrammarView } from '$lib/schema/block-openers';
 
 activateDirectiveGrammar(); // before any parse
 
@@ -32,7 +33,11 @@ describe('text directive decline bounds', () => {
 	// The scan range, not the block string, bounds a claim — a `]` past `end` must
 	// leave the run unbalanced.
 	it('ignores a closing bracket beyond the scan range', () => {
-		expect(recognizeTextDirective(':x[a]', 0, 4, kind)).toBeNull();
-		expect(recognizeTextDirective(':x[a]', 0, 5, kind)).toEqual({ kind, start: 0, end: 5 });
+		expect(recognizeTextDirective(':x[a]', 0, 4, kind, defaultGrammarView)).toBeNull();
+		expect(recognizeTextDirective(':x[a]', 0, 5, kind, defaultGrammarView)).toEqual({
+			kind,
+			start: 0,
+			end: 5
+		});
 	});
 });
