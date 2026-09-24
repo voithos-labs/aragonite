@@ -141,7 +141,8 @@ const RULES: CallSiteRule[] = [
 		misses: [
 			'parseInline(raw, 0, raw.length, undefined, grammar);\n' +
 				'keepsBlockKind(node, line, deps.grammar);',
-			'export function parseInline(raw, start, end, resolver, grammar) {}'
+			'export function parseInline(raw, start, end, resolver, grammar) {}',
+			'interface I { parseInline(raw: string, start?: number): X; }'
 		]
 	},
 	{
