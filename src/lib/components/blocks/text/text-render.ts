@@ -195,11 +195,25 @@ export function createTextRender(deps: TextRenderDeps): TextRender {
 	// A `<br>` inside a decoration widget belongs to that widget, so it cannot serve as the
 	// empty block's caret anchor.
 	function ensureBr(el: HTMLElement): void {
-		if (deps.getDisplayText() !== '') return;
+		const display = deps.getDisplayText();
+		if (display.endsWith('\n')) return anchorEmptyLastLine(el);
+		if (display !== '') return;
 		const hasAnchorBr = [...el.querySelectorAll('br')].some(
 			(br) => !br.closest('[data-decoration-island]')
 		);
 		if (!hasAnchorBr) el.appendChild(document.createElement('br'));
+	}
+
+	// Chromium paints no caret on the empty line after a trailing line break, so the next key
+	// would land before the break; the anchor adds no text, so offsets are untouched.
+	function anchorEmptyLastLine(el: HTMLElement): void {
+		const last = el.lastChild;
+		if (last instanceof HTMLElement && last.tagName === 'BR' && 'caretAnchor' in last.dataset) {
+			return;
+		}
+		const anchor = document.createElement('br');
+		anchor.dataset.caretAnchor = '';
+		el.appendChild(anchor);
 	}
 
 	function captureCaretIfFocused(el: HTMLElement): DomTextOffset | null {
