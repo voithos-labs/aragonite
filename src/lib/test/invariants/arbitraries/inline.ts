@@ -78,7 +78,11 @@ const autolink = fc.constantFrom(
 	'foo@bar.com',
 	'mailto:foo@bar.com',
 	'xmpp:foo@bar.com/home',
-	'<foo@bar.com>'
+	'<foo@bar.com>',
+	// An open bracket before the address: only the email form links there.
+	'[a www.example.com',
+	'![https://example.com',
+	'[foo@bar.com'
 );
 
 const escape = fc.constantFrom('\\*', '\\\\', '\\`', '\\[', '\\&', '\\!');
