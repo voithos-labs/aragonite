@@ -48,13 +48,12 @@ export interface EditorContext<Options = unknown> {
 	/** A getter, so always live: the blocks the insert menus offer in this editor, plugin blocks
 	 *  included; the same list as `EditorInstance.getInsertCatalogue()`. */
 	readonly insertCatalogue: readonly InsertEntry[];
-	/** `EditorInstance.insertMarkdown` for this editor, with the same answers: false, and nothing
-	 *  written, with no caret, in reading mode or at a gap caret. Await it inside `onCommit` to
-	 *  keep the insert in the pick's undo entry. */
-	insertMarkdown(md: string, options?: InsertMarkdownOptions): Promise<boolean>;
+	/** `EditorInstance.insertMarkdown` for this editor: false, nothing written, with no caret, in
+	 *  reading mode or at a gap caret. Await it in `onCommit` to keep one undo entry for the pick. */
+	readonly insertMarkdown: (md: string, options?: InsertMarkdownOptions) => Promise<boolean>;
 	/** `EditorInstance.runCommand` for this editor: false, and nothing written, on an unknown id,
 	 *  in reading mode, or with nothing focused for a block command. */
-	runCommand(commandId: string, arg?: unknown): boolean;
+	readonly runCommand: (commandId: string, arg?: unknown) => boolean;
 	/** Inline-parse a prose leaf in this editor's syntax, so a plugin its `plugins` prop left out
 	 *  reads as text, as the editor draws it. Uncached, safe to pass on its own; reference links
 	 *  come back unresolved. */
