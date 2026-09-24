@@ -32,6 +32,21 @@ test.describe('slash commands', () => {
 	});
 
 	test.describe('picks', () => {
+		test('Enter right after fast typing on a slowed CPU picks the whole query', async () => {
+			await editor.page.keyboard.press('Enter');
+			await editor.typeText('/');
+			await menu(editor).waitFor({ state: 'visible' });
+			// A slowed CPU lets Enter arrive before the menu has read the keys typed ahead of it.
+			const cdp = await editor.page.context().newCDPSession(editor.page);
+			await cdp.send('Emulation.setCPUThrottlingRate', { rate: 20 });
+			await editor.page.keyboard.type('quote');
+			await editor.page.keyboard.press('Enter');
+			await cdp.send('Emulation.setCPUThrottlingRate', { rate: 1 });
+
+			await editor.bridge.waitForSourceContains('Type here\n\n> ');
+			expect(await editor.bridge.getSource()).not.toContain('quote');
+		});
+
 		test('/code js on an empty line leaves a js fence with the caret inside', async () => {
 			await editor.page.keyboard.press('Enter');
 			await editor.typeText('/code js');
