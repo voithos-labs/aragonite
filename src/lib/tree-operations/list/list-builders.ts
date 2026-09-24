@@ -8,6 +8,8 @@ import { cloneMetadata, cloneNode } from '../clone';
 import { parseCutResidue, parseFirstBlock } from '../parse-block';
 import { renumberOrderedListFrom } from './ordered-markers';
 import { assignIds } from '../../block-id';
+import { parse } from '../../core/parser';
+import { emptyParagraph } from '../node-primitives';
 import type { GrammarView } from '../../schema/block-openers';
 
 // ── List / item construction ─────────────────────────────────────────────────
@@ -163,6 +165,39 @@ export function buildSplitItems(
 		leadingItem:
 			leadingChildren.length > 0 ? buildListItemWithContent(item, leadingChildren) : null,
 		trailingItem:
-			trailingChildren.length > 0 ? buildListItemWithContent(item, trailingChildren) : null
+			trailingChildren.length > 0 ? trailingItemFor(item, trailingChildren, grammar) : null
 	};
+}
+
+/**
+ * The item holding the text after a split. Its first block goes on the marker line unless the
+ * reload reads that line otherwise (indented code there reads as a wider marker); then it opens
+ * on the line after an empty marker, which is how the parser reads an item starting that way.
+ */
+function trailingItemFor(template: CstNode, children: CstNode[], grammar?: GrammarView): CstNode {
+	const onMarkerLine = buildListItemWithContent(template, children);
+	if (readsBackAsBuilt(onMarkerLine, grammar)) return onMarkerLine;
+	const lineEnding = trailingLineEnding(children[0].raw);
+	const belowMarker = buildListItemWithContent(template, [
+		emptyParagraph('', lineEnding),
+		...children
+	]);
+	return readsBackAsBuilt(belowMarker, grammar) ? belowMarker : onMarkerLine;
+}
+
+/** Whether `item`'s bytes, read alone, give back one item holding the same blocks. */
+function readsBackAsBuilt(item: CstNode, grammar?: GrammarView): boolean {
+	const blocks = parse(item.raw, { grammar, scope: 'fragment' }).children;
+	const list = blocks.length === 1 && blocks[0].kind === 'list' ? blocks[0] : null;
+	const read = list?.children?.length === 1 ? list.children[0] : null;
+	const built = item.children ?? [];
+	return (
+		read?.children?.length === built.length &&
+		read.children.every(
+			(child, i) =>
+				child.kind === built[i].kind &&
+				child.raw === built[i].raw &&
+				child.leadingTrivia === built[i].leadingTrivia
+		)
+	);
 }
