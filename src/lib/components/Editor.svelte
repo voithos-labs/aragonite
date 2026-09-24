@@ -648,7 +648,8 @@
 		events,
 		editorId,
 		commitRange: inlineMenuCommit.commitInlineRange,
-		landCaret: landCaretAtOffset
+		landCaret: landCaretAtOffset,
+		joinUndoEntries: (run) => controller.joinUndoEntries(run)
 	});
 	const inlineMenus: InlineMenuRegistry = inlineMenu.registry;
 	$effect(() => () => inlineMenu.dispose());
@@ -1315,7 +1316,7 @@
 		insertParagraph: (boundary, text) => blockEdit.insertParagraph(boundary, text)
 	});
 
-	export function insertMarkdown(md: string, options?: InsertMarkdownOptions): boolean {
+	export function insertMarkdown(md: string, options?: InsertMarkdownOptions): Promise<boolean> {
 		return focusedSurface.insertMarkdown(md, options);
 	}
 

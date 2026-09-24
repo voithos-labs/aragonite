@@ -265,10 +265,12 @@ export interface BlockComponent {
 	claimRootClipboard?(event: ClipboardEvent): void;
 	/**
 	 * Insert markdown at this block's caret exactly as pasting it would, minus the clipboard:
-	 * the block half of `EditorInstance.insertMarkdown`. True means the paste pipeline took
-	 * the text, not that its commit has flushed. Omitted by non-editable blocks.
+	 * the block half of `EditorInstance.insertMarkdown`. Return a promise that resolves once
+	 * the insert has landed, so the editor can keep it in the undo entry of the gesture that
+	 * asked for it; a plain true means only that the text was taken.
+	 * Omitted by non-editable blocks.
 	 */
-	insertMarkdown?(md: string): boolean;
+	insertMarkdown?(md: string): boolean | Promise<boolean>;
 	/**
 	 * Run a clipboard action from the table cell's right-click menu against the offsets
 	 * captured at menu-open (focus/selection may have moved since).

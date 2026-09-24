@@ -66,8 +66,9 @@ export interface InlineMenuSource {
 	 */
 	items(query: InlineMenuQuery): InlineMenuItem[] | Promise<InlineMenuItem[]>;
 	/** After a pick's bytes have landed. The range is the one the pick replaced, not where the
-	 *  bytes now sit: the caret is at `start + insert.length`. */
-	onCommit?(item: InlineMenuItem, query: Omit<InlineMenuQuery, 'signal'>): void;
+	 *  bytes now sit: the caret is at `start + insert.length`. Writes made before a returned
+	 *  promise resolves join the pick's undo entry, so await them. */
+	onCommit?(item: InlineMenuItem, query: Omit<InlineMenuQuery, 'signal'>): void | Promise<void>;
 	/** Paints one row's content in place of the default label and detail. */
 	row?: Component<InlineMenuRowProps>;
 }

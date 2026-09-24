@@ -45,7 +45,10 @@ const deps = (doc: { children: unknown[] }) => ({
 	getPresentationMode: () => 'source' as const,
 	getTheme: () => 'dark',
 	activation: everyInstalledPlugin as PluginActivation,
-	insertMarkdown: (() => false) as (md: string, options?: InsertMarkdownOptions) => boolean,
+	insertMarkdown: (async () => false) as (
+		md: string,
+		options?: InsertMarkdownOptions
+	) => Promise<boolean>,
 	runCommand: (() => false) as (commandId: string, arg?: unknown) => boolean
 });
 
@@ -97,20 +100,20 @@ describe('createEditorPluginContexts', () => {
 
 	// Miss-analysis: the context carried no way to insert or run anything, so a plugin that wanted
 	// a block had to be registered by the page; nothing asked the context to reach the instance.
-	it('insertMarkdown and runCommand reach the instance, with its answer, false included', () => {
+	it('insertMarkdown and runCommand reach the instance, with its answer, false included', async () => {
 		const inserted: unknown[][] = [];
 		const ran: unknown[][] = [];
 		let answer = true;
 		const ctx = createEditorPluginContexts({
 			...deps({ children: [] }),
-			insertMarkdown: (...args) => (inserted.push(args), answer),
+			insertMarkdown: async (...args) => (inserted.push(args), answer),
 			runCommand: (...args) => (ran.push(args), answer)
 		}).get('p')!;
 
-		expect(ctx.insertMarkdown('> ', { placement: 'below' })).toBe(true);
+		expect(await ctx.insertMarkdown('> ', { placement: 'below' })).toBe(true);
 		expect(ctx.runCommand('heading.cycle', 2)).toBe(true);
 		answer = false;
-		expect(ctx.insertMarkdown('x')).toBe(false);
+		expect(await ctx.insertMarkdown('x')).toBe(false);
 		expect(ctx.runCommand('nope')).toBe(false);
 		expect(inserted).toEqual([
 			['> ', { placement: 'below' }],

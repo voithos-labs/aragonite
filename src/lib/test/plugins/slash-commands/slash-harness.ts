@@ -69,7 +69,8 @@ export function slashHarness(initial: string, options: SlashCommandsOptions = {}
 			events.emit('selectionChange', null);
 			await tick();
 			return true;
-		}
+		},
+		joinUndoEntries: (run) => run()
 	});
 
 	const editor = {
@@ -82,7 +83,7 @@ export function slashHarness(initial: string, options: SlashCommandsOptions = {}
 		options,
 		insertMarkdown: (markdown: string, opts?: InsertMarkdownOptions) => {
 			inserted.push({ markdown, placement: opts?.placement ?? 'caret' });
-			return true;
+			return Promise.resolve(true);
 		},
 		runCommand: (id: string, arg?: unknown) => (ran.push({ id, arg }), true)
 	} as unknown as EditorContext;

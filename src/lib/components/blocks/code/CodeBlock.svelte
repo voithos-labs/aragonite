@@ -825,7 +825,7 @@
 	});
 	const { onCopy, onCut, onPaste } = clipboard;
 
-	export function insertMarkdown(md: string): boolean {
+	export function insertMarkdown(md: string): Promise<boolean> {
 		return clipboard.insertMarkdown(md);
 	}
 </script>

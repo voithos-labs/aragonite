@@ -52,7 +52,7 @@ function harness(opts: { mode?: PresentationMode } = {}) {
 		updateBlockContent: vi.fn(async () => {})
 	};
 	const placeCaretAtPoint = vi.fn(() => true);
-	const insertMarkdown = vi.fn(() => true);
+	const insertMarkdown = vi.fn(async () => true);
 	const menus = createRootMenus({
 		get editorEl() {
 			return root;

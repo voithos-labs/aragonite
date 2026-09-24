@@ -26,6 +26,9 @@ function harness(initial: string, { arrive = true, writeFails = false } = {}) {
 	const landed: number[] = [];
 	/** Each range splice, one undo entry apiece. */
 	const commits: string[] = [];
+	/** How deep the undo join is, and whether each splice ran inside one. */
+	let joinDepth = 0;
+	const splicesInJoin: boolean[] = [];
 
 	/** Put `raw` in one block, reparsing the document the way an edit there would. */
 	function write(index: number, raw: string): void {
@@ -47,6 +50,7 @@ function harness(initial: string, { arrive = true, writeFails = false } = {}) {
 		commitRange: async (path, start, end, bytes) => {
 			if (writeFails) throw new Error('write refused');
 			commits.push(bytes);
+			splicesInJoin.push(joinDepth > 0);
 			const raw = doc.children[path[0]].raw;
 			write(path[0], raw.slice(0, start) + bytes + raw.slice(end));
 			events.emit('edit', typedEdit(path));
@@ -58,6 +62,14 @@ function harness(initial: string, { arrive = true, writeFails = false } = {}) {
 			events.emit('selectionChange', null);
 			await tick();
 			return true;
+		},
+		joinUndoEntries: async (run) => {
+			joinDepth++;
+			try {
+				await run();
+			} finally {
+				joinDepth--;
+			}
 		}
 	});
 
@@ -77,6 +89,8 @@ function harness(initial: string, { arrive = true, writeFails = false } = {}) {
 		errors,
 		landed,
 		commits,
+		splicesInJoin,
+		insideJoin: () => joinDepth > 0,
 		raw: (index = 0) => doc.children[index].raw,
 		setMode: (next: PresentationMode) => (mode = next),
 		/** Type at the caret, one keystroke per character: the byte lands, then its `edit`. */
@@ -400,6 +414,28 @@ describe('navigation and commit', () => {
 		expect(onCommit.mock.calls[0][1]).toEqual({ query: 'wo', path: [0], start: 4, end: 7 });
 	});
 
+	// Miss-analysis: onCommit was called and never awaited, and no test asked whether the block
+	// it inserts shares the pick's undo entry.
+	it('runs the splice and an awaited onCommit inside one undo join', async () => {
+		const h = harness('see ');
+		const onCommitInJoin: boolean[] = [];
+		h.menu.registry.addSource(
+			tags({
+				onCommit: async () => {
+					await tick();
+					onCommitInJoin.push(h.insideJoin());
+				}
+			})
+		);
+		await h.type('#wo');
+
+		h.menu.commit();
+		await vi.waitFor(() => expect(onCommitInJoin).toHaveLength(1));
+		expect(h.splicesInJoin).toEqual([true]);
+		expect(onCommitInJoin).toEqual([true]);
+		await vi.waitFor(() => expect(h.insideJoin()).toBe(false));
+	});
+
 	// Miss-analysis: every commit test used a one-line insert, so nothing ever offered the write
 	// point bytes a paragraph's raw cannot hold, and no test could see it take them.
 	it('refuses a pick whose insert holds a line break, and reports it', async () => {
@@ -633,6 +669,7 @@ describe('a table cell', () => {
 			commitRange: async (_path, _start, _end, bytes) => {
 				commits.push(bytes);
 			},
+			joinUndoEntries: (run) => run(),
 			landCaret: async () => true
 		});
 		menu.registry.addSource(tags());

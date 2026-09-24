@@ -20,6 +20,16 @@ and `runCommand('slashCommands.open', query)` opens the list already narrowed.
 - `/quote` at the end of a text line keeps the line as it was and lands a quote in a new block
   directly below it, with the caret in the quote.
 
+## Undo
+
+A pick is one undo entry, however many writes it makes. Miss-analysis: the pick cases asserted
+the block and never pressed Ctrl+Z, so the query removal, the new paragraph and the paste each
+kept an entry of their own.
+
+- `/quote` at the end of a text line, then one Ctrl+Z: the line reads `Type here /quote` again,
+  no quote below it, the caret after the query; one redo brings the quote back.
+- `/quote` on an empty line, then one Ctrl+Z: the line reads `/quote` again with the caret after it.
+
 ## Opening
 
 - A slash inside a word opens nothing: `and/or` and `9/22` stay text.

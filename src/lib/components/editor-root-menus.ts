@@ -38,7 +38,7 @@ export interface RootMenusDeps {
 	 *  pointer. */
 	placeCaretAtPoint(x: number, y: number): boolean;
 	/** The public insert entry point; a flyout row inserts `below` the block the caret is in. */
-	insertMarkdown(md: string, options?: InsertMarkdownOptions): boolean;
+	insertMarkdown(md: string, options?: InsertMarkdownOptions): Promise<boolean>;
 	/** The insert entries this editor lists, read fresh per menu. */
 	insertCatalogue(): readonly InsertEntry[];
 	setMenu(menu: BlockMenuModel | null): void;
@@ -114,7 +114,7 @@ export function createRootMenus(deps: RootMenusDeps): RootMenus {
 				deps.setMenu(null);
 				if (runClipboardRow(id)) return;
 				const entry = catalogue.find((e) => e.id === id);
-				if (entry && withInsert) deps.insertMarkdown(entry.markdown, { placement: 'below' });
+				if (entry && withInsert) void deps.insertMarkdown(entry.markdown, { placement: 'below' });
 			}
 		});
 	}
