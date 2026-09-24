@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { parse } from '../../core/parser';
 import { mergeIntoPrevDeepLeaf, mergeWithNext } from '../../tree-operations';
 import { applyStructuralChangeToIdsRefs } from '../../tree-operations/structural-change';
+import { defaultGrammarView } from '$lib/schema/block-openers';
 
 // The two joins production reaches: the forward reparse merge, and the backward deep-leaf write.
 
@@ -68,7 +69,7 @@ describe('mergeWithNext', () => {
 	it('merges two paragraphs into one (strips internal line break)', () => {
 		const source = 'Hello\n\nWorld\n';
 		const doc = parse(source);
-		mergeWithNext(doc, 0, undefined, undefined);
+		mergeWithNext(doc, 0, undefined, undefined, defaultGrammarView);
 		expect(doc.children).toHaveLength(1);
 		expect(doc.children[0].kind).toBe('paragraph');
 		expect(doc.children[0].raw).toBe('HelloWorld\n');
@@ -78,7 +79,7 @@ describe('mergeWithNext', () => {
 		const source = 'Hello\n\nWorld\n';
 		const doc = parse(source);
 		const ids = ['keep-me', 'remove-me'];
-		const { change } = mergeWithNext(doc, 0, undefined, undefined);
+		const { change } = mergeWithNext(doc, 0, undefined, undefined, defaultGrammarView);
 		expect(change).toEqual({ op: 'replace', at: 0, count: 2, newCount: 1, idMap: { 0: 0 } });
 		applyStructuralChangeToIdsRefs(change, ids, [undefined, undefined]);
 		expect(ids).toEqual(['keep-me']);
@@ -87,14 +88,14 @@ describe('mergeWithNext', () => {
 	it('preserves leading blank lines of the current block', () => {
 		const source = 'A\n\nB\n\nC\n';
 		const doc = parse(source);
-		mergeWithNext(doc, 1, undefined, undefined);
+		mergeWithNext(doc, 1, undefined, undefined, defaultGrammarView);
 		expect(doc.children[1].leadingTrivia).toBe('\n');
 	});
 
 	it('returns noop when blockIndex is the last block', () => {
 		const source = 'Hello\n';
 		const doc = parse(source);
-		const { change } = mergeWithNext(doc, 0, undefined, undefined);
+		const { change } = mergeWithNext(doc, 0, undefined, undefined, defaultGrammarView);
 		expect(change).toEqual({ op: 'noop' });
 		expect(doc.children).toHaveLength(1);
 	});
@@ -106,7 +107,7 @@ describe('mergeWithNext', () => {
 			{ kind: 'paragraph', leadingTrivia: '', raw: '## ' },
 			{ kind: 'paragraph', leadingTrivia: '', raw: 'Title\n' }
 		];
-		mergeWithNext(doc, 0, undefined, undefined);
+		mergeWithNext(doc, 0, undefined, undefined, defaultGrammarView);
 		expect(doc.children[0].kind).toBe('heading');
 		expect(doc.children[0].raw).toBe('## Title\n');
 	});
@@ -116,7 +117,7 @@ describe('mergeWithNext edge cases', () => {
 	it('returns noop when blockIndex is out of bounds', () => {
 		const source = 'A\n\nB\n';
 		const doc = parse(source);
-		const { change } = mergeWithNext(doc, 5, undefined, undefined);
+		const { change } = mergeWithNext(doc, 5, undefined, undefined, defaultGrammarView);
 		expect(change).toEqual({ op: 'noop' });
 		expect(doc.children).toHaveLength(2);
 	});
@@ -124,7 +125,7 @@ describe('mergeWithNext edge cases', () => {
 	it('returns noop when blockIndex is negative', () => {
 		const source = 'A\n\nB\n';
 		const doc = parse(source);
-		const { change } = mergeWithNext(doc, -1, undefined, undefined);
+		const { change } = mergeWithNext(doc, -1, undefined, undefined, defaultGrammarView);
 		expect(change).toEqual({ op: 'noop' });
 		expect(doc.children).toHaveLength(2);
 	});

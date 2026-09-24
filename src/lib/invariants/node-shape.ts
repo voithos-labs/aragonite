@@ -4,7 +4,7 @@ import { parse } from '../core/parser';
 import { concatChildren } from '../core/serializer';
 import { getBlockKindDescriptor } from '../schema/block-kind-descriptor';
 import { reservedChromeKindOf } from '../schema/reserved-chrome';
-import { listRegisteredOpeners } from '../schema/block-openers';
+import { listRegisteredOpeners, type GrammarView } from '../schema/block-openers';
 import { isDirectiveKind } from '../core/directive/registry';
 import type { InvariantViolation } from '../assert';
 
@@ -48,18 +48,20 @@ function illegalField(kind: string, field: string, why: string): InvariantViolat
 // ── G1.1: container raw not stale ─────────────────────────────────────────────
 
 /**
- * G1.1: a strip container's `raw` agrees with its `children`, so that
- * `strip(raw) === serialize(children)`. It reparses `node.raw` and compares the stripped inner
- * bytes, which a faithful but non-canonical parse survives (comparing against `rebuildRaw`
- * would report those as failures) and which tolerates the editor's empty-paragraph placeholder,
- * whose bytes match the parser's `innerSuffix`. Strip containers only, and recursively.
+ * G1.1: a strip container's `raw` agrees with its `children`: `strip(raw) === serialize(children)`.
+ * It reparses `raw` in the editor's grammar (every installed plugin when absent) and compares the
+ * stripped inner bytes, which a faithful non-canonical parse and the editor's empty-paragraph
+ * placeholder both survive. Strip containers only, and recursively.
  */
-export function checkStaleRaw(node: CstNode): InvariantViolation | null {
+export function checkStaleRaw(node: CstNode, grammar?: GrammarView): InvariantViolation | null {
 	if (getBlockKindDescriptor(node.kind).containerContract !== 'strip') return null;
 
 	// Document scope because the check is handed no document position: fragment scope would
 	// fire on every legitimate position-scoped node at the top.
-	const correspondent = soleCorrespondent(parse(node.raw, { scope: 'document' }).children, node);
+	const correspondent = soleCorrespondent(
+		parse(node.raw, { grammar, scope: 'document' }).children,
+		node
+	);
 
 	if (!rawFaithful(correspondent, node)) {
 		return {
@@ -125,17 +127,19 @@ function stripContainerChildren(node: CstNode): CstNode[] {
 // ── G1.12: opaque container raw not stale ─────────────────────────────────────
 
 /**
- * G1.12: G1.1's staleness check for opaque containers, done through a reparse because a faithful
- * parse may not be canonical. If `raw` does not reparse to exactly one block of this kind, the
- * answer depends on whether the parser can recognize the kind at all: if it can, the raw has
- * genuinely drifted and the check fires; if it cannot, there is nothing to check.
+ * G1.12: G1.1's staleness check for opaque containers, reparsing `raw` in the editor's grammar
+ * (every installed plugin when absent). Raw that no longer reparses to one block of this kind
+ * fires only when the parser can recognize the kind at all; otherwise there is nothing to check.
  */
-export function checkOpaqueStaleRaw(node: CstNode): InvariantViolation | null {
+export function checkOpaqueStaleRaw(
+	node: CstNode,
+	grammar?: GrammarView
+): InvariantViolation | null {
 	if (getBlockKindDescriptor(node.kind).containerContract !== 'opaque') return null;
 
 	// Document scope for the same reason as G1.1: the node arrives without its document
 	// position, and fragment scope would fire on a legitimate position-scoped node.
-	const blocks = parse(node.raw, { scope: 'document' }).children;
+	const blocks = parse(node.raw, { grammar, scope: 'document' }).children;
 	if (blocks.length !== 1 || blocks[0].kind !== node.kind) {
 		if (!hasStandaloneRecognizer(node.kind)) return null;
 		return {

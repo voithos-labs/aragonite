@@ -5,6 +5,7 @@ import {
 } from '$lib/editor-actions/container-block-component';
 import { normalizeKeybindingOverrides } from '$lib/schema/keybinding-overrides';
 import type { AnyBlockKind } from '$lib/core/nodes';
+import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
 
 // The handler a block focused as a whole carries: no inner leaf runs the global chords for
 // it, and the editor root declines while focus sits on the block itself.
@@ -23,7 +24,7 @@ function makeDeps(overrides?: Parameters<typeof normalizeKeybindingOverrides>[0]
 		getKeybindingOverrides: () => compiled,
 		isReading: () => false,
 		// No plugins stood up here, so every installed one is active.
-		activation: undefined
+		activation: everyInstalledPlugin
 	};
 	return { deps, requestUndo, requestRedo };
 }

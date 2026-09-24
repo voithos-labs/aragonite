@@ -16,8 +16,9 @@ import { refSlotsOver } from '$lib/reactivity/publish-ref.svelte';
 import { parse } from '$lib/core/parser';
 import { mockRef, makeStickyColumn, makeEdgeAffinity } from '$lib/test/harness/editor-actions';
 import type { BlockComponent } from '$lib/block-component';
-import type { GrammarView } from '$lib/schema/block-openers';
+import { defaultGrammarView, type GrammarView } from '$lib/schema/block-openers';
 import type { SelectionState } from '$lib/selection/selection-state.svelte';
+import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
 
 /** Override focus to vi.fn() so cross-block dispatch tests can assert calls. */
 const makeRef = (): BlockComponent => mockRef({ focus: vi.fn() });
@@ -108,8 +109,8 @@ export function makeHandlers(
 		crossBlockCommands: { canRun: () => false, run: () => false, isActive: () => false },
 		getKeybindingOverrides: () => normalizeKeybindingOverrides(undefined),
 		pasteCoordinator: createPasteCoordinator(env.controller, env.deps.revealPath),
-		grammar: opts.grammar,
-		activePlugins: undefined,
+		grammar: opts.grammar ?? defaultGrammarView,
+		activePlugins: everyInstalledPlugin,
 		events: env.events,
 		getCursorOffset: opts.getCursorOffset ?? (() => 0),
 		afterReactivity: async () => {}

@@ -21,6 +21,7 @@ import { focusIndexBeforeResidue, landedPasteOffset, trackedPasteCaret } from '.
 import { docPathFrom } from '../../cursor/coordinate-spaces';
 import { resolveParentScope } from './parent-scope';
 import type { PasteDispatchContext } from './dispatch';
+import type { GrammarView } from '../../schema/block-openers';
 
 // ── Public API ───────────────────────────────────────────────────────────────
 
@@ -86,7 +87,8 @@ export async function applyListBreakOut(
 		plan.innerIndex,
 		plan.offset,
 		pastedBlocks,
-		plan.targetRaw
+		plan.targetRaw,
+		ctx.grammar
 	);
 	if (replacement.length === 0) return;
 
@@ -154,14 +156,21 @@ export function buildListBreakOutReplacement(
 	innerIndex: number,
 	offset: number,
 	pastedBlocks: CstNode[],
-	targetRaw?: string
+	targetRaw?: string,
+	grammar?: GrammarView
 ): ListBreakOutReplacement {
 	const items = list.children ?? [];
 	const item = items[itemIndex];
 	if (!item?.children) return { replacement: [], hasTrailingResidue: false };
 	if (!item.children[innerIndex]) return { replacement: [], hasTrailingResidue: false };
 
-	const { leadingItem, trailingItem } = buildSplitItems(item, innerIndex, offset, targetRaw);
+	const { leadingItem, trailingItem } = buildSplitItems(
+		item,
+		innerIndex,
+		offset,
+		targetRaw,
+		grammar
+	);
 
 	const itemsBefore = items.slice(0, itemIndex).map(cloneNode);
 	const itemsAfter = items.slice(itemIndex + 1).map(cloneNode);

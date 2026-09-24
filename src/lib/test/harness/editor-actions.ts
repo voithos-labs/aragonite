@@ -19,6 +19,8 @@ import type { CommitScope, ScopeCommitArgs } from '$lib/editor-actions/block-edi
 import type { ContainerBlockComponentDeps } from '$lib/editor-actions/container-block-component';
 import { refSlotsOver, replaceRefs } from '$lib/reactivity/publish-ref.svelte';
 import type { PasteCommitCoordinator } from '$lib/tree-operations/paste/paste-deps';
+import type { PasteDispatchContext } from '$lib/tree-operations/paste/dispatch';
+import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
 import { createBlockEditActions } from '$lib/editor-actions/block-edit';
 import { createContainerEditActions } from '$lib/editor-actions/container-edit';
@@ -32,7 +34,7 @@ import {
 	type NestedActionsOverrideFactory
 } from '$lib/editor-actions/nested/nested-actions';
 import type { PresentationMode } from '$lib/presentation-mode';
-import type { GrammarView } from '$lib/schema/block-openers';
+import { defaultGrammarView, type GrammarView } from '$lib/schema/block-openers';
 import { parse } from '$lib/core/parser';
 import type { EditEvent, EditorEvents } from '$lib/editor-events';
 import { createBlockListState } from '$lib/reactivity/block-list-state.svelte';
@@ -298,6 +300,15 @@ export interface EditorActionsHarness {
 	/** A plain counter standing in for the editor's content version, so a test can ask whether the
 	 *  function it drove announced its write. */
 	contentVersion: () => number;
+}
+
+/** A paste context for an editor with no `plugins` or `syntax` prop: every installed plugin and
+ *  the default grammar, unless the fixture names its own. */
+export function pasteContext(
+	fields: Omit<PasteDispatchContext, 'grammar' | 'activePlugins'> &
+		Partial<Pick<PasteDispatchContext, 'grammar' | 'activePlugins'>>
+): PasteDispatchContext {
+	return { grammar: defaultGrammarView, activePlugins: everyInstalledPlugin, ...fields };
 }
 
 // `onSelectionChange` is supplied here rather than attached later, because `SelectionState` takes

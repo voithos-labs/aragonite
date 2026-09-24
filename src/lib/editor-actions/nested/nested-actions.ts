@@ -121,12 +121,16 @@ export function createStandardNestedActions(
 	// it is already past the check, and checking again would spend one Enter on two.
 	const childAt = (index: number) => deps.node.children?.[index];
 	if (!overrideFactory) {
-		return { ...defaults, blockEdit: withEnterCompletion(blockEdit, childAt) };
+		return { ...defaults, blockEdit: withEnterCompletion(blockEdit, childAt, deps.grammar) };
 	}
 
 	const overrides = overrideFactory(defaults);
 	return {
-		blockEdit: withEnterCompletion({ ...blockEdit, ...(overrides.blockEdit ?? {}) }, childAt),
+		blockEdit: withEnterCompletion(
+			{ ...blockEdit, ...(overrides.blockEdit ?? {}) },
+			childAt,
+			deps.grammar
+		),
 		focus: { ...focus, ...(overrides.focus ?? {}) },
 		containerEdit: { ...containerEdit, ...(overrides.containerEdit ?? {}) }
 	};

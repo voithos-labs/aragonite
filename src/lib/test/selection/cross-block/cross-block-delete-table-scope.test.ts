@@ -15,6 +15,7 @@ import { makeBlockListState, makeEditorActionsDeps } from '$lib/test/harness/edi
 import type { BlockListState } from '$lib/reactivity/block-list-state.svelte';
 import { metadataOf, type CstNode } from '$lib/core/nodes';
 import type { EditEvent } from '$lib/editor-events';
+import { defaultGrammarView } from '$lib/schema/block-openers';
 
 // The stale-table-row-ids class: a cross-block delete whose whole-row snap splices table.children
 // must commit the table as its own scope, keeping row BlockListState ids/refs in lockstep.
@@ -34,7 +35,7 @@ function makeEnv(source: string) {
 		revealPath: harness.deps.revealPath,
 		controller,
 		pushUndoSnapshot: () => controller.pushUndoSnapshot(0, 0),
-		grammar: undefined,
+		grammar: defaultGrammarView,
 		getPresentationMode: undefined,
 		linkRef: undefined
 	};

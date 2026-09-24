@@ -10,6 +10,7 @@ import type { CstNode } from '../../../core/nodes';
 import type { LinkReferenceResolverRef, ResolveLinkUrl } from '../../../editor-keys';
 import type { IndexedDecoration } from '../../../decorations/buckets';
 import type { ReplaceDecoration, WidgetDecoration } from '../../../decorations/types';
+import { defaultGrammarView } from '$lib/schema/block-openers';
 
 type Island = IndexedDecoration<WidgetDecoration | ReplaceDecoration>;
 
@@ -58,6 +59,7 @@ function mount(
 		get node() {
 			return node;
 		},
+		grammar: defaultGrammarView,
 		get linkRef() {
 			return linkRef;
 		},

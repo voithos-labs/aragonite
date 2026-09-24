@@ -14,7 +14,8 @@ import { testClosure } from '$lib/test/support/closure';
 import {
 	makeStubBlockEdit,
 	makeStubController,
-	registerStubBlockListState
+	registerStubBlockListState,
+	pasteContext
 } from '../../harness/editor-actions';
 import type { AnyBlockKind, CstNode, Document } from '../../../core/nodes';
 
@@ -79,7 +80,7 @@ describe('paste into a reserved-chrome leaf', () => {
 
 		await pasteDispatch(
 			{ pastedText: text, targetPath: [0, 0], offset: 5 },
-			{ doc, blockEdit, controller: makeStubController() }
+			pasteContext({ doc, blockEdit, controller: makeStubController() })
 		);
 
 		expect(blockEdit.updateBlockContent).toHaveBeenCalledOnce();
@@ -118,7 +119,7 @@ describe('paste into a reserved-chrome leaf', () => {
 
 		await pasteDispatch(
 			{ pastedText: '- a\n- b\n', targetPath: [0, 0, 0], offset: 5 },
-			{ doc, blockEdit, controller }
+			pasteContext({ doc, blockEdit, controller })
 		);
 
 		expect(blockEdit.updateBlockContent).toHaveBeenCalledWith(0, 'Title- a - b\n', 12);
@@ -135,7 +136,7 @@ describe('paste into a reserved-chrome leaf', () => {
 
 		await pasteDispatch(
 			{ pastedText: '- x\n- y\n', targetPath: [0, 1, 0], offset: 1 },
-			{ doc, blockEdit, controller }
+			pasteContext({ doc, blockEdit, controller })
 		);
 
 		expect(controller.commitMultiScope).toHaveBeenCalledOnce();

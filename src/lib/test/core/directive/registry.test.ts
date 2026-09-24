@@ -8,6 +8,7 @@ import {
 	__resetDirectiveRegistryForTests,
 	type DirectiveDefinition
 } from '$lib/core/directive/registry';
+import { defaultGrammarView } from '$lib/schema/block-openers';
 
 const kind = declarePluginKind('directiveRegistryProbe');
 const factory: NonNullable<DirectiveDefinition['fromDirective']> = (parsed) =>
@@ -19,12 +20,12 @@ describe('registerDirective', () => {
 	it('resolves a registered definition and reports it registered', () => {
 		const def: DirectiveDefinition = { kind, fromDirective: factory };
 		registerDirective('container', 'note', def);
-		expect(resolveDirective('container', 'note')).toBe(def);
+		expect(resolveDirective('container', 'note', defaultGrammarView)).toBe(def);
 		expect(isDirectiveRegistered('container', 'note')).toBe(true);
 	});
 
 	it('leaves an unregistered (level,name) unresolved', () => {
-		expect(resolveDirective('container', 'note')).toBeUndefined();
+		expect(resolveDirective('container', 'note', defaultGrammarView)).toBeUndefined();
 		expect(isDirectiveRegistered('container', 'note')).toBe(false);
 	});
 
@@ -40,8 +41,8 @@ describe('registerDirective', () => {
 		const leaf: DirectiveDefinition = { kind };
 		registerDirective('container', 'note', container);
 		registerDirective('leaf', 'note', leaf);
-		expect(resolveDirective('container', 'note')).toBe(container);
-		expect(resolveDirective('leaf', 'note')).toBe(leaf);
+		expect(resolveDirective('container', 'note', defaultGrammarView)).toBe(container);
+		expect(resolveDirective('leaf', 'note', defaultGrammarView)).toBe(leaf);
 	});
 });
 

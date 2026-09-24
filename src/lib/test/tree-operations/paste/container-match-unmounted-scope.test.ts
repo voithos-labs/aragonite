@@ -3,7 +3,11 @@ import { describe, it, expect } from 'vitest';
 import { pasteDispatch } from '$lib/tree-operations/paste/dispatch';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
-import { makeRunningPasteController, makeStubBlockEdit } from '$lib/test/harness/editor-actions';
+import {
+	makeRunningPasteController,
+	makeStubBlockEdit,
+	pasteContext
+} from '$lib/test/harness/editor-actions';
 import { allowDevWarns } from '$lib/test/support/warn-gate';
 
 // B-F3: container-match was the one paste route reading the throwing state lookup, so an
@@ -21,12 +25,12 @@ describe('container-matching paste at an unmounted outer scope', () => {
 
 		await pasteDispatch(
 			{ pastedText: '- x\n- y\n', targetPath: [0, 0, 0], offset: 0 },
-			{
+			pasteContext({
 				doc,
 				blockEdit: makeStubBlockEdit(),
 				controller: makeRunningPasteController(),
 				undoEntry: 'join'
-			}
+			})
 		);
 
 		expect(serialize(doc)).toBe('- x\n- y\n- keep\n');

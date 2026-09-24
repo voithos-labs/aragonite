@@ -115,9 +115,16 @@ function cleanTruncatedProse(
  * blank lines carry over, and an empty slice gives a bare paragraph on the source block's line
  * ending (G4.20).
  */
-export function reparseTruncatedEndpoint(node: CstNode, slice: string): CstNode[] {
+export function reparseTruncatedEndpoint(
+	node: CstNode,
+	slice: string,
+	grammar: GrammarView | undefined
+): CstNode[] {
 	const lineEnding = trailingLineEnding(node.raw);
-	const reparsed = parse(normalizeOwnRaw(node, slice) || lineEnding, { scope: 'fragment' });
+	const reparsed = parse(normalizeOwnRaw(node, slice) || lineEnding, {
+		grammar,
+		scope: 'fragment'
+	});
 	if (reparsed.children.length === 0) {
 		return [emptyParagraph(node.leadingTrivia, lineEnding)];
 	}
@@ -156,6 +163,7 @@ export function truncateStartInPlace(
 	isChrome: boolean,
 	live: LiveSeamContext,
 	sharing: SharingState,
+	grammar: GrammarView | undefined,
 	tag: string
 ): number {
 	const cut = charOffsetOf(start, tag);
@@ -168,7 +176,7 @@ export function truncateStartInPlace(
 		installTruncatedEndpoint(
 			doc,
 			start.path,
-			reparseTruncatedEndpoint(startBlock, terminateLine(head.raw, startBlock.raw)),
+			reparseTruncatedEndpoint(startBlock, terminateLine(head.raw, startBlock.raw), grammar),
 			sharing
 		);
 	}
@@ -188,6 +196,7 @@ export function truncateEndInPlace(
 	isChrome: boolean,
 	live: LiveSeamContext,
 	sharing: SharingState,
+	grammar: GrammarView | undefined,
 	tag: string
 ): CstNode | null {
 	const cut = charOffsetOf(end, tag);
@@ -196,7 +205,12 @@ export function truncateEndInPlace(
 		return endBlock;
 	}
 	const tail = cleanTruncatedProse(endBlock, 'tail', cut, live).raw;
-	installTruncatedEndpoint(doc, end.path, reparseTruncatedEndpoint(endBlock, tail), sharing);
+	installTruncatedEndpoint(
+		doc,
+		end.path,
+		reparseTruncatedEndpoint(endBlock, tail, grammar),
+		sharing
+	);
 	return blockNodeAt(doc, end.path);
 }
 

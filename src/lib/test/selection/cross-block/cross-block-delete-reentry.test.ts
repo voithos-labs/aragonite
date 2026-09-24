@@ -10,6 +10,7 @@ import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import { makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
 import type { EditEvent } from '$lib/editor-events';
+import { defaultGrammarView } from '$lib/schema/block-openers';
 
 const SOURCE = '# A\n\npara B\n\npara C\n';
 
@@ -23,7 +24,7 @@ function makeEnv(revealPath?: CrossBlockMutationContext['revealPath']) {
 		revealPath: revealPath ?? harness.deps.revealPath,
 		controller,
 		pushUndoSnapshot: () => controller.pushUndoSnapshot(0, 0),
-		grammar: undefined,
+		grammar: defaultGrammarView,
 		getPresentationMode: undefined,
 		linkRef: undefined
 	};

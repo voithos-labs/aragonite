@@ -70,12 +70,10 @@ export interface CrossBlockDispatchContext {
 	crossBlockCommands: CrossBlockCommandRouter;
 	getKeybindingOverrides: () => KeybindingOverrideMap;
 	pasteCoordinator: PasteCommitCoordinator;
-	/** Block grammar forwarded to the paste reparse. Required but nullable like `pluginEditor`;
-	 *  `undefined` means the global grammar. */
-	grammar: GrammarView | undefined;
-	/** The plugins this instance activated, forwarded to the paste transforms. Required but
-	 *  nullable like `grammar`; `undefined` means every installed plugin. */
-	activePlugins: PluginActivation | undefined;
+	/** Block grammar forwarded to the paste reparse. */
+	grammar: GrammarView;
+	/** The plugins this instance activated, forwarded to the paste hooks. */
+	activePlugins: PluginActivation;
 	/** The editor's event emitter, the paste handler's only channel for a gesture it consumed but
 	 *  could not land. Non-nullable: skipping it drops a paste in silence. */
 	events: EditorEvents;

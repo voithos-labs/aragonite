@@ -10,11 +10,13 @@ import { snapToScalarBoundary, trailingLineEnding, trimTrailingLineEnding } from
 import { isBlankParagraph } from '../../core/parser';
 import { ensureEditableContainers } from '../node-primitives';
 import { parseFirstBlock } from '../parse-block';
+import type { GrammarView } from '../../schema/block-openers';
 
 export function buildPastedReplacement(
 	leaf: NodeView,
 	offset: number,
-	blocks: CstNode[]
+	blocks: CstNode[],
+	grammar?: GrammarView
 ): CstNode[] {
 	if (blocks.length === 0) return [];
 
@@ -34,7 +36,7 @@ export function buildPastedReplacement(
 	// being forced back to a paragraph.
 	if (rawBefore.length > 0) {
 		const beforeRaw = rawBefore + lineEnding;
-		const beforeNode = parseFirstBlock(beforeRaw);
+		const beforeNode = parseFirstBlock(beforeRaw, grammar);
 		beforeNode.leadingTrivia = originalTrivia;
 		ensureEditableContainers(beforeNode);
 		newNodes.push(beforeNode);
@@ -61,7 +63,7 @@ export function buildPastedReplacement(
 	// non-paragraph tail absorb it as a continuation line.
 	if (rawAfter.length > 0) {
 		const afterRaw = rawAfter + lineEnding;
-		const afterNode = parseFirstBlock(afterRaw);
+		const afterNode = parseFirstBlock(afterRaw, grammar);
 		afterNode.leadingTrivia = lineEnding;
 		ensureEditableContainers(afterNode);
 		newNodes.push(afterNode);

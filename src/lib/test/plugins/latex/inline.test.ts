@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { defaultGrammarView } from '$lib/schema/block-openers';
 import { afterEach, beforeEach, describe, it, expect } from 'vitest';
 import { installPlugins, parse, serialize, parseInline, type CstNode, type InlineNode } from '$lib';
 import { admonitionsPlugin } from '$lib/plugins/admonitions';
@@ -140,23 +141,25 @@ describe('math widget dispatch', () => {
 	beforeEach(() => registerMathInline());
 
 	it('registers a component rather than a synchronous builder', () => {
-		expect(getInlineWidgetComponent(MATH_INLINE as InlineNode['kind'])).toBeDefined();
+		expect(
+			getInlineWidgetComponent(MATH_INLINE as InlineNode['kind'], defaultGrammarView)
+		).toBeDefined();
 	});
 
 	it('a component kind builds nothing without a portal builder, and delegates to it verbatim', () => {
 		const node = { kind: MATH_INLINE, start: 0, end: 3 } as InlineNode;
 		// No portal builder → null (the render layer falls back to the raw span).
-		expect(buildCoreInlineWidget(node, '$x$')).toBeNull();
+		expect(buildCoreInlineWidget(node, '$x$', undefined, defaultGrammarView)).toBeNull();
 		// With one, the dispatch returns its element untouched; the render layer adds the
 		// attributes.
 		const portal = document.createElement('span');
-		expect(buildCoreInlineWidget(node, '$x$', () => portal)).toBe(portal);
+		expect(buildCoreInlineWidget(node, '$x$', () => portal, defaultGrammarView)).toBe(portal);
 	});
 
 	// `revealSource` is what the widget-interaction code reads to swap the rendered math
 	// for its editable source; its exact shape is pinned here.
 	it('registers the reveal-source editing policy', () => {
-		const policy = getInlineWidgetEditing(MATH_INLINE as InlineNode['kind']);
+		const policy = getInlineWidgetEditing(MATH_INLINE as InlineNode['kind'], defaultGrammarView);
 		expect(policy?.revealSource).toBe(true);
 		expect(Object.keys(policy ?? {}).sort()).toEqual([
 			'revealContentSpan',
@@ -168,7 +171,10 @@ describe('math widget dispatch', () => {
 	// The span bounds a caret entering the source, and is where a click the glyph measurement
 	// cannot answer for goes; either way the caret stays inside the `$` delimiters.
 	it('reports its content span inside the `$` delimiters', () => {
-		const span = getInlineWidgetEditing(MATH_INLINE as InlineNode['kind'])?.revealContentSpan;
+		const span = getInlineWidgetEditing(
+			MATH_INLINE as InlineNode['kind'],
+			defaultGrammarView
+		)?.revealContentSpan;
 		expect(span?.('$x^2$')).toEqual({ start: 1, end: 4 });
 		expect(span?.('$a$')).toEqual({ start: 1, end: 2 });
 		// Too short to hold delimiters plus content: no span rather than a nonsense one.

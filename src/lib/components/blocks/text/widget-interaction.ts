@@ -40,6 +40,7 @@ import {
 } from '../../../debug/interaction-trace';
 import { assertInvariant } from '../../../assert';
 import type { RevealFold } from '../editable-surface';
+import type { GrammarView } from '../../../schema/block-openers';
 import {
 	caretIsInTextContent,
 	hasModifier,
@@ -83,6 +84,8 @@ export interface WidgetInteractionDeps {
 	 *  branches. Optional, so a bare harness reads as 'source'. */
 	getPresentationMode?: () => PresentationMode;
 	get linkRef(): LinkReferenceResolverRef | undefined;
+	/** The editor's grammar, the one the render path drew widgets with. */
+	grammar: GrammarView;
 }
 
 /** The click a widget gesture reads off: the same event the widget's own handler sees. */
@@ -210,6 +213,9 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		return resolvedInlineContent(node, deps.linkRef);
 	}
 
+	const widgetEditing = (kind: AnyInlineKind) => getInlineWidgetEditing(kind, deps.grammar);
+	const characterLike = (kind: AnyInlineKind) => isCharacterLikeWidget(kind, deps.grammar);
+
 	/**
 	 * Every widget in this block, descending into parents that are not widgets themselves. The
 	 * flat inline list is the wrong shape to scan: a construct wrapping a widget (emphasis around
@@ -218,7 +224,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 	 * whole text is a single emphasis node.
 	 */
 	function widgetsOf(): InlineNode[] {
-		return flattenInlineWidgets(inlinesOf(deps.node), deps.node.raw);
+		return flattenInlineWidgets(inlinesOf(deps.node), deps.node.raw, deps.grammar);
 	}
 
 	// ── Editing a widget's source ──────────────────────────────────────────────
@@ -543,7 +549,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		const start = Number(island.getAttribute('data-source-start'));
 		if (!Number.isInteger(start)) return null;
 		const inline = widgetsOf().find(
-			(n) => n.start === start && getInlineWidgetEditing(n.kind)?.revealSource
+			(n) => n.start === start && widgetEditing(n.kind)?.revealSource
 		);
 		return inline ? { inline } : null;
 	}
@@ -556,7 +562,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 	 */
 	function insideEndOffset(inline: InlineNode): number {
 		const source = deps.node.raw.slice(inline.start, inline.end);
-		const span = getInlineWidgetEditing(inline.kind)?.revealContentSpan?.(source);
+		const span = widgetEditing(inline.kind)?.revealContentSpan?.(source);
 		return span && span.end >= 0 && span.end <= source.length ? span.end : 0;
 	}
 
@@ -564,7 +570,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 	 *  any source was hidden: hiding one reflows the line, and the point then means nothing. */
 	function seatFromPoint(el: HTMLElement, inline: InlineNode, x: number, y: number): number | null {
 		const widget = widgetElByStart(el, inline.start);
-		const atPoint = getInlineWidgetEditing(inline.kind)?.revealOffsetAtPoint;
+		const atPoint = widgetEditing(inline.kind)?.revealOffsetAtPoint;
 		if (!widget || !atPoint) return null;
 		const source = deps.node.raw.slice(inline.start, inline.end);
 		const seat = atPoint(widget, source, x, y);
@@ -583,7 +589,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		// own bounds.
 
 		for (const inline of widgetsOf()) {
-			if (!getInlineWidgetEditing(inline.kind)?.revealSource) continue;
+			if (!widgetEditing(inline.kind)?.revealSource) continue;
 			const widget = widgetElByStart(el, inline.start);
 			if (!widget) continue;
 			const rect = widget.getBoundingClientRect();
@@ -638,7 +644,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 			}
 		}
 		const target = widgetsOf().find(
-			(n) => n.start === targetStart && getInlineWidgetEditing(n.kind)?.revealSource
+			(n) => n.start === targetStart && widgetEditing(n.kind)?.revealSource
 		);
 		if (!target) return;
 		el.focus();
@@ -701,7 +707,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 	function isVerticallyTransparent(): boolean {
 		// Resolver-free, matching the off-window keyboard-extend path, so the vertical-skip
 		// decision is uniform everywhere. Other widget reads stay resolver-aware.
-		return isVerticallyTransparentNode(deps.node);
+		return isVerticallyTransparentNode(deps.node, deps.grammar);
 	}
 
 	async function handleSelectedWidgetKeydown(e: KeyboardEvent): Promise<boolean> {
@@ -709,18 +715,23 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		const selectedWidget = deps.widgetSelection.getSelected();
 		if (selectedWidget === null) return false;
 
-		const widget = findWidgetNodeByStart(selectedWidget.sourceStart, inlinesOf(node), node.raw);
+		const widget = findWidgetNodeByStart(
+			selectedWidget.sourceStart,
+			inlinesOf(node),
+			node.raw,
+			deps.grammar
+		);
 		const widgetIsHere =
 			widget !== null && deps.widgetSelection.isSelected(deps.myPath, selectedWidget.sourceStart);
 		if (!widgetIsHere) return false;
 
 		// The kind's editing policy takes its own keys first. Flattened so the nested image
 		// of `[![alt][ref]][repo]` is the widget resolved.
-		const inline = flattenInlineWidgets(inlinesOf(node), node.raw).find(
+		const inline = flattenInlineWidgets(inlinesOf(node), node.raw, deps.grammar).find(
 			(n) => n.start === widget.start
 		);
 		if (inline) {
-			const policy = getInlineWidgetEditing(inline.kind);
+			const policy = widgetEditing(inline.kind);
 			const consumed = policy?.onSelectedKey?.(e, {
 				node,
 				inline,
@@ -831,7 +842,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		fromTrailingEdge: boolean
 	): void {
 		const enteredOffset = fromTrailingEdge ? widget.end : widget.start;
-		if (getInlineWidgetEditing(widget.kind)?.revealSource) {
+		if (widgetEditing(widget.kind)?.revealSource) {
 			const atSourceOffset = fromTrailingEdge ? widget.end - widget.start : 0;
 			void startReveal(widget, enteredOffset, atSourceOffset);
 		} else {
@@ -851,7 +862,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		if (parkedByFold || revealState) return false;
 		const widget = widgetsOf().find((w) => w.start < offset && offset < w.end);
 		if (!widget) return false;
-		const editing = getInlineWidgetEditing(widget.kind);
+		const editing = widgetEditing(widget.kind);
 		if (!editing?.revealSource || !editing.revealContentSpan) return false;
 		const at = offset - widget.start;
 		const span = editing.revealContentSpan(deps.node.raw.slice(widget.start, widget.end));
@@ -865,8 +876,8 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		if (inlines.length === 0) return false;
 		const target =
 			side === 'start'
-				? findFirstEdgeWidget(inlines, deps.node.raw)
-				: findLastEdgeWidget(inlines, deps.node.raw);
+				? findFirstEdgeWidget(inlines, deps.node.raw, deps.grammar)
+				: findLastEdgeWidget(inlines, deps.node.raw, deps.grammar);
 		if (!target) return false;
 		// Focus the contenteditable so subsequent keys route to this block's handler.
 		deps.getEl()?.focus();
@@ -896,7 +907,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 				// Returns rather than falls through: the edge-snap below would focus this block and
 				// place a caret, stealing back what the widget's own navigation just landed.
 				if (
-					getInlineWidgetEditing(hit.inline.kind)?.claimsActivationClick &&
+					widgetEditing(hit.inline.kind)?.claimsActivationClick &&
 					isWidgetActivationClick(press.modified ?? false, deps.getPresentationMode?.() ?? 'source')
 				) {
 					return;
@@ -926,7 +937,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 
 	function* measuredWidgets(
 		el: HTMLElement,
-		seatsInside: (kind: AnyInlineKind) => boolean = isCharacterLikeWidget
+		seatsInside: (kind: AnyInlineKind) => boolean = characterLike
 	): Generator<WidgetEdgeCandidate> {
 		for (const inline of widgetsOf()) {
 			const widget = widgetElByStart(el, inline.start);
@@ -947,7 +958,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 	 * image's resize handles) owns its press, and a range painted under it would fight that gesture.
 	 */
 	function dragsFromIsland(kind: AnyInlineKind): boolean {
-		return isCharacterLikeWidget(kind) || getInlineWidgetEditing(kind)?.revealSource === true;
+		return characterLike(kind) || widgetEditing(kind)?.revealSource === true;
 	}
 
 	function widgetExtensionTarget(key: 'ArrowRight' | 'ArrowLeft'): number | null {

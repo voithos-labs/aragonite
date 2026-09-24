@@ -18,6 +18,7 @@ import {
 	makeRunningPasteController,
 	registerStubBlockListState
 } from '$lib/test/harness/editor-actions';
+import { defaultGrammarView } from '$lib/schema/block-openers';
 
 const TABLE = '| a | b |\n| --- | --- |\n';
 
@@ -73,6 +74,7 @@ describe('every write that can replace a to-do’s first block drops the marker 
 		registerStubBlockListState(item);
 
 		await replaceBlockAtParent({
+			grammar: defaultGrammarView,
 			doc,
 			blockPath: [0, 0, 0],
 			replacement: parse(TABLE).children,

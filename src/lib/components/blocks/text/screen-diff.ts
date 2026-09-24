@@ -6,7 +6,7 @@
  */
 
 import { getContentRange, isProseKind, parseInline } from '../../../core/inline';
-import type { LinkReferenceResolver } from '../../../core/inline/link-reference-resolver';
+import type { InlineResolverRef } from '../../../schema/inline-construct-policy';
 import type { CstNode, InlineNode } from '../../../core/nodes';
 import { parse } from '../../../core/parser';
 
@@ -32,16 +32,19 @@ export function removesExactly(before: string, after: string, removed: string): 
 	);
 }
 
-/** The check a candidate must pass: its bytes reparse as exactly one prose block, whose inline
- *  tree the caller then runs its own test over. Null refuses, because a reparse that splits the
- *  block or changes its kind is not what the caller is about to install. */
+/** The check a candidate must pass: its bytes reparse, in the editor's grammar, as exactly one
+ *  prose block, whose inline tree the caller then runs its own test over. Null refuses, because a
+ *  reparse that splits the block or changes its kind is not what the caller is about to install. */
 export function soleProseReparse(
 	raw: string,
-	resolver?: LinkReferenceResolver
+	ref?: InlineResolverRef
 ): { block: CstNode; nodes: InlineNode[] } | null {
-	const blocks = parse(raw, { scope: 'fragment' }).children;
+	const blocks = parse(raw, { grammar: ref?.grammar, scope: 'fragment' }).children;
 	if (blocks.length !== 1 || !isProseKind(blocks[0].kind)) return null;
 	const block = blocks[0];
 	const range = getContentRange(block);
-	return { block, nodes: parseInline(block.raw, range.start, range.end, resolver) };
+	return {
+		block,
+		nodes: parseInline(block.raw, range.start, range.end, ref?.current, ref?.grammar)
+	};
 }

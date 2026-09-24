@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
 import { toggleInlineFormat } from '$lib/core/inline/format-toggle';
+import { defaultGrammarView } from '$lib/schema/block-openers';
 import { MARK_FORMATS, markersOf, toggleFormat, whole } from './format-toggle-fixture';
 
 // Coverage routing: a selection already covered by a same-format construct unapplies (splitting
@@ -57,7 +58,11 @@ describe('a selection inside a same-format construct splits it', () => {
 	it('re-emits the construct with its own non-canonical delimiters', () => {
 		const raw = '__text text2__';
 		const r = toggleFormat(
-			{ display: raw, content: whole(raw), selection: { start: 7, end: 12 } },
+			{
+				display: raw,
+				content: whole(raw),
+				selection: { start: 7, end: 12 }
+			},
 			'strong'
 		);
 		expect(r.newDisplay).toBe('__text__ text2');
@@ -84,7 +89,12 @@ describe('a selection inside a same-format construct splits it', () => {
 	it('splits identically in live mode, where no marker paints', () => {
 		const raw = '**text text2**';
 		const r = toggleInlineFormat(
-			{ display: raw, content: whole(raw), selection: { start: 7, end: 12 } },
+			{
+				display: raw,
+				content: whole(raw),
+				selection: { start: 7, end: 12 },
+				grammar: defaultGrammarView
+			},
 			'strong',
 			'live'
 		);
@@ -98,7 +108,12 @@ describe('a selection inside a same-format construct splits it', () => {
 	it('declines when the flanking bytes are literal content, not the construct delimiters', () => {
 		const raw = '**x ** y**';
 		const r = toggleInlineFormat(
-			{ display: raw, content: whole(raw), selection: { start: 6, end: 8 } },
+			{
+				display: raw,
+				content: whole(raw),
+				selection: { start: 6, end: 8 },
+				grammar: defaultGrammarView
+			},
 			'strong',
 			'source'
 		);
@@ -110,7 +125,12 @@ describe('a selection inside a same-format construct splits it', () => {
 	it('declines a cut that would strand another construct’s delimiters', () => {
 		const raw = '**a *b c* d**';
 		const r = toggleInlineFormat(
-			{ display: raw, content: whole(raw), selection: { start: 7, end: 11 } },
+			{
+				display: raw,
+				content: whole(raw),
+				selection: { start: 7, end: 11 },
+				grammar: defaultGrammarView
+			},
 			'strong',
 			'source'
 		);

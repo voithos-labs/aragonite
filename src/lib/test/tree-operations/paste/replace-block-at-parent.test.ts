@@ -6,6 +6,7 @@ import { createPasteCoordinator } from '$lib/editor-actions/paste-coordinator';
 import { makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
 import { parse } from '$lib/core/parser';
 import type { CstNode } from '$lib/core/nodes';
+import { defaultGrammarView } from '$lib/schema/block-openers';
 
 function makePara(raw: string, leadingTrivia = ''): CstNode {
 	return { kind: 'paragraph', leadingTrivia, raw };
@@ -25,6 +26,7 @@ describe('replaceBlockAtParent: id preservation', () => {
 		const originalId = harness.getBlockIds()[0];
 
 		await replaceBlockAtParent({
+			grammar: defaultGrammarView,
 			doc: harness.doc,
 			blockPath: [0],
 			replacement: [makePara('replaced\n'), makeHeading('# new\n')],
@@ -50,6 +52,7 @@ describe('replaceBlockAtParent: id preservation', () => {
 		const originalId = harness.getBlockIds()[0];
 
 		await replaceBlockAtParent({
+			grammar: defaultGrammarView,
 			doc: harness.doc,
 			blockPath: [0],
 			replacement: [makeHeading('# new\n'), makePara('after\n')],
@@ -81,6 +84,7 @@ describe('replaceBlockAtParent: id preservation', () => {
 		const idsBefore = [...harness.getBlockIds()];
 
 		await replaceBlockAtParent({
+			grammar: defaultGrammarView,
 			doc: harness.doc,
 			blockPath: [1],
 			replacement: [],
@@ -108,6 +112,7 @@ describe('replaceBlockAtParent: id preservation', () => {
 		const originalId = harness.getBlockIds()[0];
 
 		await replaceBlockAtParent({
+			grammar: defaultGrammarView,
 			doc: harness.doc,
 			blockPath: [0],
 			replacement: [makePara('plain\n')],

@@ -13,6 +13,7 @@ import type { LinkReferenceResolver } from '../core/inline/link-reference-resolv
 import type { AnyCommandId } from './command-id';
 import { isBuiltinCommandId } from './commands';
 import { deletePluginEntries, registerOnce } from './register-once';
+import type { GrammarView } from './block-openers';
 
 // ── Policy rows ─────────────────────────────────────────────────────────────
 
@@ -135,12 +136,16 @@ export function inlineMarkForCommand(command: string): InlineMark | null {
 // ── Split rebalancer ────────────────────────────────────────────────────────
 
 /**
- * The link-reference resolver a rewrite parses with, typed structurally rather than by naming
- * `editor-keys`' type, which would pull the editor's context module into every module this table
- * serves (`inline-cache` gives the same reason). Registration is process-wide while the resolver
- * belongs to one editor, so it is passed on each call, never at registration.
+ * The link-reference resolver and grammar a rewrite parses with, typed structurally rather than
+ * by naming `editor-keys`' type, which would pull the editor's context module into every module
+ * this table serves. Registration is process-wide while both belong to one editor, so they are
+ * passed on each call, never at registration.
  */
-export type InlineResolverRef = { current?: LinkReferenceResolver; signature?: string };
+export type InlineResolverRef = {
+	current?: LinkReferenceResolver;
+	signature?: string;
+	grammar?: GrammarView;
+};
 
 /**
  * The one live-mode split rewrite, consulting each construct's own `splitBehavior`, so

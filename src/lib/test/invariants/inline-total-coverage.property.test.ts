@@ -1,3 +1,4 @@
+import { defaultGrammarView } from '$lib/schema/block-openers';
 import { afterEach, describe, it, expect } from 'vitest';
 import fc from 'fast-check';
 import type { InlineNode, InlineNodeKind } from '../../core/nodes';
@@ -60,7 +61,7 @@ function assertKindVocabulary(nodes: InlineNode[]): void {
 
 /** The tiling half: every byte covered once, constructs covering their parent. */
 function assertScanContract(raw: string, start: number, end: number): void {
-	const nodes = scanInline(raw, start, end);
+	const nodes = scanInline(raw, start, end, undefined, defaultGrammarView);
 	assertTotalCoverage(nodes, start, end);
 	assertConstructCoverage(nodes);
 	assertKindVocabulary(nodes);

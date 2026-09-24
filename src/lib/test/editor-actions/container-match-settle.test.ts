@@ -9,7 +9,8 @@ import { registerBlockListState } from '$lib/reactivity/state-registry';
 import {
 	makeBlockListState,
 	makeEditorActionsDeps,
-	makeStubBlockEdit
+	makeStubBlockEdit,
+	pasteContext
 } from '$lib/test/harness/editor-actions';
 
 // The container-matching paste merge reattaches the text after the caret through
@@ -34,7 +35,12 @@ describe('the container-matching merge spends its residue settle', () => {
 		// reparses into two blocks inside the last pasted item.
 		await pasteDispatch(
 			{ pastedText: '- one\n- two\n', targetPath: [0, 0, 0], offset: 10 },
-			{ doc: deps.doc, blockEdit: makeStubBlockEdit(), controller: coordinator, undoEntry: 'join' }
+			pasteContext({
+				doc: deps.doc,
+				blockEdit: makeStubBlockEdit(),
+				controller: coordinator,
+				undoEntry: 'join'
+			})
 		);
 
 		const lastItem = deps.doc.children[0].children![1];

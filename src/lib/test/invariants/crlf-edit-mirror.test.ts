@@ -37,7 +37,7 @@ import {
 import { createPasteCoordinator } from '../../editor-actions/paste-coordinator';
 import { createUndoController } from '../../editor-actions/commit/undo-controller';
 import { createBlockEditActions } from '../../editor-actions/block-edit';
-import { makeEditorActionsDeps } from '../harness/editor-actions';
+import { makeEditorActionsDeps, pasteContext } from '../harness/editor-actions';
 
 interface EditGesture {
 	name: string;
@@ -72,12 +72,12 @@ async function pasteInto(
 	const controller = createUndoController(deps);
 	await pasteDispatch(
 		{ pastedText: clipboard, targetPath, offset },
-		{
+		pasteContext({
 			doc: deps.doc,
 			blockEdit: createBlockEditActions(deps, controller),
 			controller: createPasteCoordinator(controller, deps.revealPath),
 			undoEntry: 'own'
-		}
+		})
 	);
 	return deps.doc;
 }

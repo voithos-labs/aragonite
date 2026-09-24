@@ -11,7 +11,7 @@ import {
 } from '../../../tree-operations/paste/paste-transforms';
 import { parse } from '../../../core/parser';
 import { createSharingState } from '../../../tree-operations/sharing';
-import { makeStubBlockEdit, makeStubController } from '../../harness/editor-actions';
+import { makeStubBlockEdit, makeStubController, pasteContext } from '../../harness/editor-actions';
 import type { BlockKind, CstNode, Document } from '../../../core/nodes';
 import { takeDevWarns } from '../../support/warn-gate';
 
@@ -41,7 +41,7 @@ describe('paste-dispatch opaque-fallback warning', () => {
 		const doc = makeDocWithOneBlock('indentedCode', 'plain\n');
 		await pasteDispatch(
 			{ pastedText: 'hello', targetPath: [0], offset: 0 },
-			{ doc, blockEdit: makeStubBlockEdit(), controller: makeStubController() }
+			pasteContext({ doc, blockEdit: makeStubBlockEdit(), controller: makeStubController() })
 		);
 
 		const fires = takeDevWarns();
@@ -62,7 +62,7 @@ describe('paste-dispatch opaque-fallback warning', () => {
 		const doc = makeDocWithOneBlock('paragraph', 'hello\n');
 		await pasteDispatch(
 			{ pastedText: 'X', targetPath: [0], offset: 0 },
-			{ doc, blockEdit: makeStubBlockEdit(), controller: makeStubController() }
+			pasteContext({ doc, blockEdit: makeStubBlockEdit(), controller: makeStubController() })
 		);
 
 		expect(takeDevWarns()).toEqual([]);
@@ -97,7 +97,7 @@ describe('pasteDispatch: paste transforms', () => {
 		// re-route structural.
 		await pasteDispatch(
 			{ pastedText: 'plain prose', targetPath: [0], offset: 6 },
-			{ doc, blockEdit, controller }
+			pasteContext({ doc, blockEdit, controller })
 		);
 
 		expect(controller.commitMultiScope).toHaveBeenCalledOnce();
@@ -113,7 +113,7 @@ describe('pasteDispatch: paste transforms', () => {
 
 		const result = await pasteDispatch(
 			{ pastedText: 'anything', targetPath: [0], offset: 0 },
-			{ doc, blockEdit, controller }
+			pasteContext({ doc, blockEdit, controller })
 		);
 
 		expect(result).toEqual({});

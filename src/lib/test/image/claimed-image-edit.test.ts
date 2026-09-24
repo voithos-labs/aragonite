@@ -5,6 +5,7 @@
  * before they shared one path. Contract: docs/design/plugin-contract.md § Inline authoring.
  */
 
+import { defaultGrammarView } from '$lib/schema/block-openers';
 import { afterEach, describe, it, expect, vi } from 'vitest';
 import { imageWidgetOnSelectedKey } from '../../components/image/image-widget-editing';
 import { parse } from '../../core/parser';
@@ -21,7 +22,9 @@ afterEach(() => __resetInlineSyntaxForTests());
 function firstImage(raw: string): { paragraph: CstNode; image: InlineNode } {
 	const doc = parse(raw);
 	const paragraph = doc.children[0] as CstNode;
-	const image = getInlineContent(paragraph).find((node) => node.kind === 'image');
+	const image = getInlineContent(paragraph, undefined, undefined, defaultGrammarView).find(
+		(node) => node.kind === 'image'
+	);
 	if (!image) throw new Error(`no image parsed out of ${JSON.stringify(raw)}`);
 	return { paragraph, image };
 }

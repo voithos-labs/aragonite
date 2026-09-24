@@ -5,6 +5,7 @@ import { serialize } from '$lib/core/serializer';
 import { mergeIntoPrevDeepLeaf, mergeWithNext } from '$lib/tree-operations';
 import type { BodyParent } from '$lib/tree-operations/node-primitives';
 import { expectParseConverged } from '$lib/test/harness/parse-converged';
+import { defaultGrammarView } from '$lib/schema/block-openers';
 
 // GH #166. Miss-analysis: G2.13's gesture lane drove split, delete and content commits but no
 // merge, so no check ever read a merged tree back; the forward merge's own dev warn was the only
@@ -28,7 +29,7 @@ describe('a join whose bytes read as several blocks is refused, not truncated', 
 	it('declines the forward join rather than dropping every block past the first', () => {
 		const doc = parse(HEADING_OVER_TWO_LINES);
 
-		const { change } = mergeWithNext(doc, 0, undefined, undefined);
+		const { change } = mergeWithNext(doc, 0, undefined, undefined, defaultGrammarView);
 
 		expect(change).toEqual({ op: 'noop' });
 		expect(serialize(doc)).toBe(HEADING_OVER_TWO_LINES);
@@ -50,7 +51,9 @@ describe('a join whose bytes read as several blocks is refused, not truncated', 
 	// fail is the change descriptor and the reload, which is what a truncation would break.
 	it('declines both directions inside a blockquote body', () => {
 		const forward = quotedBody();
-		expect(mergeWithNext(forward.body, 0, undefined, undefined).change).toEqual({ op: 'noop' });
+		expect(mergeWithNext(forward.body, 0, undefined, undefined, defaultGrammarView).change).toEqual(
+			{ op: 'noop' }
+		);
 		expect(forward.body.children).toHaveLength(2);
 		expectParseConverged(forward.doc);
 
@@ -65,7 +68,9 @@ describe('a join whose bytes read as several blocks is refused, not truncated', 
 describe('a join whose bytes stay one block still merges', () => {
 	it('joins two paragraphs forward and backward', () => {
 		const forward = parse('alpha\n\nbeta\n');
-		expect(mergeWithNext(forward, 0, undefined, undefined).change.op).toBe('replace');
+		expect(mergeWithNext(forward, 0, undefined, undefined, defaultGrammarView).change.op).toBe(
+			'replace'
+		);
 		expect(serialize(forward)).toBe('alphabeta\n');
 
 		const backward = parse('alpha\n\nbeta\n');

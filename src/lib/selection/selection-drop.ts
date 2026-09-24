@@ -38,8 +38,8 @@ export interface SelectionDropDeps {
 	coordinator: PasteCommitCoordinator;
 	getPresentationMode: PresentationModeGetter | undefined;
 	linkRef: LinkReferenceResolverRef | undefined;
-	grammar: GrammarView | undefined;
-	activePlugins: PluginActivation | undefined;
+	grammar: GrammarView;
+	activePlugins: PluginActivation;
 	/** The editor's event emitter: a move that throws halfway has nowhere else to report. */
 	events: EditorEvents;
 	/** Draws the caret saying where a release lands; null takes it away again. */
@@ -394,7 +394,7 @@ async function writeBlockRaw(
 		focusReplacementIndex: parsed.replacement.length - 1,
 		focusOffset: caret,
 		source: 'selection-drop',
-		...(deps.grammar ? { grammar: deps.grammar } : {})
+		grammar: deps.grammar
 	});
 	// The count that landed, not the parse's: a container's body rule can rewrite the list. Zero
 	// means the parent was not mounted and nothing was written, so nothing moved.

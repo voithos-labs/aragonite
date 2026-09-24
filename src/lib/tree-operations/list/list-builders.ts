@@ -8,6 +8,7 @@ import { cloneMetadata, cloneNode } from '../clone';
 import { parseFirstBlock } from '../parse-block';
 import { renumberOrderedListFrom } from './ordered-markers';
 import { assignIds } from '../../block-id';
+import type { GrammarView } from '../../schema/block-openers';
 
 // ── List / item construction ─────────────────────────────────────────────────
 
@@ -108,7 +109,8 @@ export function buildListShell(ordered: boolean, children: CstNode[]): CstNode {
 export function splitLeafForPaste(
 	leaf: CstNode,
 	offset: number,
-	raw: string = leaf.raw
+	raw: string = leaf.raw,
+	grammar?: GrammarView
 ): { leadingNode: CstNode | null; trailingNode: CstNode | null; lineEnding: '\n' | '\r\n' } {
 	const lineEnding = trailingLineEnding(raw);
 	const display = trimTrailingLineEnding(raw);
@@ -118,8 +120,10 @@ export function splitLeafForPaste(
 	const leadingText = display.slice(0, cut);
 	const trailingText = display.slice(cut).replace(/^[ \t]/, '');
 
-	const leadingNode = leadingText.length > 0 ? parseFirstBlock(leadingText + lineEnding) : null;
-	const trailingNode = trailingText.length > 0 ? parseFirstBlock(trailingText + lineEnding) : null;
+	const leadingNode =
+		leadingText.length > 0 ? parseFirstBlock(leadingText + lineEnding, grammar) : null;
+	const trailingNode =
+		trailingText.length > 0 ? parseFirstBlock(trailingText + lineEnding, grammar) : null;
 
 	return { leadingNode, trailingNode, lineEnding };
 }
@@ -133,7 +137,8 @@ export function buildSplitItems(
 	item: CstNode,
 	innerIndex: number,
 	offset: number,
-	targetRaw?: string
+	targetRaw?: string,
+	grammar?: GrammarView
 ): { leadingItem: CstNode | null; trailingItem: CstNode | null } {
 	if (!item.children) return { leadingItem: null, trailingItem: null };
 	const targetLeaf = item.children[innerIndex];
@@ -142,7 +147,8 @@ export function buildSplitItems(
 	const { leadingNode, trailingNode } = splitLeafForPaste(
 		targetLeaf,
 		offset,
-		targetRaw ?? targetLeaf.raw
+		targetRaw ?? targetLeaf.raw,
+		grammar
 	);
 
 	const leadingChildren: CstNode[] = item.children.slice(0, innerIndex).map(cloneNode);

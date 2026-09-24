@@ -16,6 +16,7 @@ import {
 	type InlineMarkKind,
 	type InlineMarkPolicy
 } from '../../schema/inline-construct-policy';
+import type { GrammarView } from '../../schema/block-openers';
 import type { InlineNode } from '../nodes';
 import { constructContentRange, inlineDescendants, parseInline, type ContentRange } from './index';
 import { CONTENT_VISIBILITY, renderedText } from './visibility';
@@ -30,6 +31,8 @@ export interface InlineFormatEdit {
 	/** The bytes the block's own kind calls content; every write clamps into them. */
 	content: ContentRange;
 	selection: { start: number; end: number };
+	/** The editor's grammar, so the toggle reads the syntax the editor draws. */
+	grammar: GrammarView;
 }
 
 export interface ToggleInlineFormatResult {
@@ -52,7 +55,7 @@ export function toggleInlineFormat(
 	const end = clampToContent(selection.end, content);
 	// Parsed with the block's own content bounds, so no construct can straddle the structural
 	// bytes the clamp above keeps the write out of.
-	const inlines = parseInline(display, content.start, content.end);
+	const inlines = parseInline(display, content.start, content.end, undefined, edit.grammar);
 	if (start === end) return toggleAtCaret(display, inlines, start, format, mark);
 
 	// A mode that shows the delimiters writes its candidate unverified: the user sees the markers.
@@ -62,8 +65,14 @@ export function toggleInlineFormat(
 
 	// A strip removes one run, so when a second run of the same kind also covers the selection the
 	// split path below handles it: stripping alone would leave the format still active.
-	const sole = covering.length > 1 ? null : soleStripCandidate(display, inlines, from, to, format);
-	if (sole) return paints || preservesScreen(sole, edit, screenOf(display, content)) ? sole : null;
+	const sole =
+		covering.length > 1
+			? null
+			: soleStripCandidate(display, inlines, from, to, format, edit.grammar);
+	if (sole)
+		return paints || preservesScreen(sole, edit, screenOf(display, content, edit.grammar))
+			? sole
+			: null;
 
 	// The flank strip rewrites bytes outside the selection, and byte equality can mistake a nested
 	// run's delimiters for the enclosing one's, so its candidate is verified like the split's.
@@ -121,7 +130,8 @@ export function isInlineFormatActiveAfter(
 		{
 			display: result.newDisplay,
 			content: shiftedContent(edit.content, edit.display, result),
-			selection: { start: result.newSelStart, end: result.newSelEnd }
+			selection: { start: result.newSelStart, end: result.newSelEnd },
+			grammar: edit.grammar
 		},
 		format
 	);
@@ -180,7 +190,7 @@ function coverageOf(edit: InlineFormatEdit): Coverage {
 	const { display, content, selection } = edit;
 	const start = clampToContent(selection.start, content);
 	const end = clampToContent(selection.end, content);
-	const inlines = parseInline(display, content.start, content.end);
+	const inlines = parseInline(display, content.start, content.end, undefined, edit.grammar);
 	// A selection spanning the whole display parses the same as the block, and that is every
 	// middle block of a cross-block range, so the second parse is skipped.
 	const sliceIsDisplay = start === 0 && end === display.length;
@@ -194,7 +204,7 @@ function coverageOf(edit: InlineFormatEdit): Coverage {
 				? []
 				: sliceIsDisplay
 					? inlines
-					: parseInline(display.slice(start, end), 0, end - start)
+					: parseInline(display.slice(start, end), 0, end - start, undefined, edit.grammar)
 	};
 }
 
@@ -206,7 +216,8 @@ function sameEdit(a: InlineFormatEdit, b: InlineFormatEdit): boolean {
 		a.content.start === b.content.start &&
 		a.content.end === b.content.end &&
 		a.selection.start === b.selection.start &&
-		a.selection.end === b.selection.end
+		a.selection.end === b.selection.end &&
+		a.grammar === b.grammar
 	);
 }
 
@@ -257,10 +268,11 @@ function soleStripCandidate(
 	inlines: readonly InlineNode[],
 	start: number,
 	end: number,
-	format: InlineMarkKind
+	format: InlineMarkKind,
+	grammar: GrammarView
 ): ToggleInlineFormatResult | null {
 	const slice = display.slice(start, end);
-	const sliceNodes = parseInline(slice, 0, slice.length);
+	const sliceNodes = parseInline(slice, 0, slice.length, undefined, grammar);
 	const selfSpan = soleSpanOfSelection(sliceNodes, inlines, start, end, format);
 	if (!selfSpan) return null;
 	const unwrapped = stripKindMarkers(
@@ -533,9 +545,9 @@ function wrapRange(
 
 /** A toggle changes formatting, never the text on screen, so the render path's own reading of the
  *  content is what a candidate has to leave unchanged (live-mode.md § 2). */
-function screenOf(display: string, content: ContentRange): string {
+function screenOf(display: string, content: ContentRange, grammar: GrammarView): string {
 	return renderedText(
-		parseInline(display, content.start, content.end),
+		parseInline(display, content.start, content.end, undefined, grammar),
 		display,
 		CONTENT_VISIBILITY
 	);
@@ -547,7 +559,8 @@ function preservesScreen(
 	shown: string
 ): boolean {
 	const { display, content } = edit;
-	return screenOf(candidate.newDisplay, shiftedContent(content, display, candidate)) === shown;
+	const shifted = shiftedContent(content, display, candidate);
+	return screenOf(candidate.newDisplay, shifted, edit.grammar) === shown;
 }
 
 /** The two checks a candidate must pass when the mode hides its markers: the on-screen text is
@@ -560,12 +573,12 @@ function firstFlipVerified(
 	direction: 'apply' | 'unapply'
 ): ToggleInlineFormatResult | null {
 	const { display, content } = edit;
-	const shown = screenOf(display, content);
+	const shown = screenOf(display, content, edit.grammar);
 	return (
 		candidates.find(
 			(candidate) =>
 				preservesScreen(candidate, edit, shown) &&
-				coverageFlipped(candidate, shiftedContent(content, display, candidate), format, direction)
+				coverageFlipped(candidate, edit, format, direction)
 		) ?? null
 	);
 }
@@ -574,12 +587,13 @@ function firstFlipVerified(
  *  covers the selection whole; for unapply, none still overlaps it. */
 function coverageFlipped(
 	candidate: ToggleInlineFormatResult,
-	content: ContentRange,
+	edit: InlineFormatEdit,
 	format: InlineMarkKind,
 	direction: 'apply' | 'unapply'
 ): boolean {
 	const { newDisplay, newSelStart: from, newSelEnd: to } = candidate;
-	const inlines = parseInline(newDisplay, content.start, content.end);
+	const content = shiftedContent(edit.content, edit.display, candidate);
+	const inlines = parseInline(newDisplay, content.start, content.end, undefined, edit.grammar);
 	if (direction === 'apply') return coveringSpansOf(inlines, from, to, format).length > 0;
 	const spans: { start: number; end: number }[] = [];
 	for (const node of inlineDescendants(inlines))

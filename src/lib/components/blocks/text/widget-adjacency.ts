@@ -6,6 +6,7 @@
 
 import type { AnyInlineKind, InlineNode } from '../../../core/nodes';
 import { isInlineWidget, flattenInlineWidgets } from '../../../core/inline/inline-widgets';
+import type { GrammarView } from '../../../schema/block-openers';
 
 export interface WidgetRange {
 	start: number;
@@ -27,13 +28,14 @@ export function widgetAtCursor(
 	offset: number | null,
 	inlineContent: ReadonlyArray<InlineNode> | undefined,
 	raw: string,
-	direction: CaretDirection = 'backward'
+	direction: CaretDirection = 'backward',
+	grammar: GrammarView
 ): WidgetAtCursor | null {
 	if (offset === null) return null;
 	let leadingMatch: WidgetAtCursor | null = null;
 	let trailingMatch: WidgetAtCursor | null = null;
 	// Recurse so a widget nested inside a link (`[![alt][ref]][repo]`) is seen.
-	for (const inline of flattenInlineWidgets(inlineContent ?? [], raw)) {
+	for (const inline of flattenInlineWidgets(inlineContent ?? [], raw, grammar)) {
 		if (offset === inline.start && !leadingMatch)
 			leadingMatch = { start: inline.start, end: inline.end, atRight: false, kind: inline.kind };
 		if (offset === inline.end && !trailingMatch)
@@ -46,9 +48,10 @@ export function widgetAtCursor(
 export function findWidgetNodeByStart(
 	sourceStart: number,
 	inlineContent: ReadonlyArray<InlineNode> | undefined,
-	raw: string
+	raw: string,
+	grammar: GrammarView
 ): WidgetRange | null {
-	for (const inline of flattenInlineWidgets(inlineContent ?? [], raw)) {
+	for (const inline of flattenInlineWidgets(inlineContent ?? [], raw, grammar)) {
 		if (inline.start === sourceStart) {
 			return { start: inline.start, end: inline.end };
 		}
@@ -60,10 +63,11 @@ export function findWidgetNodeByStart(
  *  non-blank, non-widget inline intervenes. */
 export function findFirstEdgeWidget(
 	inlines: ReadonlyArray<InlineNode>,
-	raw: string
+	raw: string,
+	grammar: GrammarView
 ): InlineNode | null {
 	for (const inline of inlines) {
-		if (isInlineWidget(inline, raw)) return inline;
+		if (isInlineWidget(inline, raw, grammar)) return inline;
 		if (inline.kind === 'text' && (inline.text ?? '').trim() === '') continue;
 		return null;
 	}
@@ -73,11 +77,12 @@ export function findFirstEdgeWidget(
 /** Trailing-edge counterpart of `findFirstEdgeWidget`. */
 export function findLastEdgeWidget(
 	inlines: ReadonlyArray<InlineNode>,
-	raw: string
+	raw: string,
+	grammar: GrammarView
 ): InlineNode | null {
 	for (let i = inlines.length - 1; i >= 0; i--) {
 		const inline = inlines[i];
-		if (isInlineWidget(inline, raw)) return inline;
+		if (isInlineWidget(inline, raw, grammar)) return inline;
 		if (inline.kind === 'text' && (inline.text ?? '').trim() === '') continue;
 		return null;
 	}

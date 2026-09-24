@@ -101,6 +101,7 @@ const ALLOWLIST: Record<string, Exemption> = {
 			'$lib/editor-actions/paste-coordinator',
 			'$lib/invariants/node-shape',
 			'$lib/reactivity/state-registry',
+			'$lib/schema/block-openers',
 			'$lib/tree-operations/paste-surfaces',
 			'$lib/tree-operations/paste/dispatch',
 			'$lib/tree-operations/paste/hooks',
@@ -128,8 +129,10 @@ const ALLOWLIST: Record<string, Exemption> = {
 			'body wrap and the registration entry points only'
 	},
 	'src/lib/test/plugins/emoji/widget.test.ts': {
-		specifiers: ['$lib/core/inline/inline-widgets'],
-		reason: 'no registry read-back: a widget kind registers its editing policy but never reads it'
+		specifiers: ['$lib/core/inline/inline-widgets', '$lib/schema/block-openers'],
+		reason:
+			'no registry read-back: a widget kind registers its editing policy but never reads it, ' +
+			'and the read takes a grammar no entry point publishes'
 	},
 	'src/lib/test/plugins/footnotes/definition-split-separator.test.ts': {
 		specifiers: ['$lib/tree-operations', '$lib/testing/parse-convergence'],
@@ -153,8 +156,10 @@ const ALLOWLIST: Record<string, Exemption> = {
 			'renders into'
 	},
 	'src/lib/test/plugins/footnotes/reference.test.ts': {
-		specifiers: ['$lib/core/inline/inline-widgets'],
-		reason: 'no registry read-back: a widget kind registers its component but never reads it'
+		specifiers: ['$lib/core/inline/inline-widgets', '$lib/schema/block-openers'],
+		reason:
+			'no registry read-back: a widget kind registers its component but never reads it, and ' +
+			'the read takes a grammar no entry point publishes'
 	},
 	'src/lib/test/plugins/highlight-occurrences/wiring.test.ts': {
 		specifiers: ['$lib/schema/plugin-install'],
@@ -168,8 +173,10 @@ const ALLOWLIST: Record<string, Exemption> = {
 			'no registry read-back: an inline syntax handler registers on a trigger but is never listed back'
 	},
 	'src/lib/test/plugins/latex/inline.test.ts': {
-		specifiers: ['$lib/core/inline/inline-widgets'],
-		reason: 'no registry read-back for a widget kind, and no published core widget shell builder'
+		specifiers: ['$lib/core/inline/inline-widgets', '$lib/schema/block-openers'],
+		reason:
+			'no registry read-back for a widget kind, no published core widget shell builder, and ' +
+			'no published grammar for either read'
 	},
 	'src/lib/test/plugins/latex/raw-write-rule.test.ts': {
 		specifiers: ['$lib/tree-operations/node-primitives'],
@@ -182,10 +189,14 @@ const ALLOWLIST: Record<string, Exemption> = {
 		reason: "no published read of an inline node's raw text out of its parent's bytes"
 	},
 	'src/lib/test/plugins/latex/typed-completion.test.ts': {
-		specifiers: ['$lib/editor-actions/enter-completion', '$lib/schema/block-completions'],
+		specifiers: [
+			'$lib/editor-actions/enter-completion',
+			'$lib/schema/block-completions',
+			'$lib/schema/block-openers'
+		],
 		reason:
 			'a completer registers but nothing published runs one, and the Enter handler that consults ' +
-			'it has no headless entry'
+			'it has no headless entry, nor a published grammar to run it under'
 	},
 	'src/lib/test/plugins/mermaid/fence-escalation.test.ts': {
 		specifiers: ['$lib/testing/parse-convergence'],
@@ -213,10 +224,14 @@ const ALLOWLIST: Record<string, Exemption> = {
 			'but typing a trigger and the write a pick makes need the menu state of the editor itself'
 	},
 	'src/lib/test/plugins/slash-commands/open-command.test.ts': {
-		specifiers: ['$lib/schema/commands', '$lib/schema/keybindings'],
+		specifiers: [
+			'$lib/schema/commands',
+			'$lib/schema/keybindings',
+			'$lib/schema/plugin-activation'
+		],
 		reason:
-			'no command dispatch or chord read off a mounted editor: the handler of a global command and ' +
-			'its chord binding are reachable only through the schema registries'
+			'no command dispatch or chord read off a mounted editor: the handler of a global command, ' +
+			'its chord binding and the activation it resolves under are reachable only through the schema registries'
 	}
 };
 

@@ -8,6 +8,7 @@ import { getBlockKindDescriptor } from '../../schema/block-kind-descriptor';
 // side-effect import is tree-shaken from the production build.
 import { registerBuiltInDescriptors } from '../../schema/built-in-descriptors';
 import type { LinkReferenceResolver } from './link-reference-resolver';
+import { defaultGrammarView, type GrammarView } from '../../schema/block-openers';
 import { scanInline } from './scan';
 import { inlineDescendants } from './walk';
 import { recordInlineCompute } from '../../perf/instruments';
@@ -66,15 +67,17 @@ export function constructContentRange(node: InlineNode): ContentRange | null {
 
 /**
  * A prose node's inline tree, pure: no caching, no reactive reads. The render path calls this
- * directly; the caching accessor (inline-cache.ts) calls it on a miss.
+ * directly; the caching accessor (inline-cache.ts) calls it on a miss. An editor passes its own
+ * grammar, so a plugin it left out claims no bytes.
  */
 export function computeInlineContent(
 	node: NodeView,
-	resolver?: LinkReferenceResolver
+	resolver: LinkReferenceResolver | undefined,
+	grammar: GrammarView
 ): InlineNode[] {
 	recordInlineCompute();
 	const range = getContentRange(node);
-	return parseInline(node.raw, range.start, range.end, resolver);
+	return parseInline(node.raw, range.start, range.end, resolver, grammar);
 }
 
 // ── Inline Parser ──────────────────────────────────────────────────────────
@@ -83,20 +86,22 @@ export function computeInlineContent(
  * Parse inline content over raw[start, end). Node offsets are absolute into raw, and every byte
  * lands in exactly one node's range. Both bounds are checked, not just typed: a caller the
  * compiler cannot reach that passes only the source would otherwise get one whole-string text
- * node, which is wrong output that looks like a result.
+ * node, which is wrong output that looks like a result. With no grammar it reads every installed
+ * plugin's syntax.
  */
 export function parseInline(
 	raw: string,
 	start: number,
 	end: number,
-	resolver?: LinkReferenceResolver
+	resolver?: LinkReferenceResolver,
+	grammar?: GrammarView
 ): InlineNode[] {
 	if (!Number.isFinite(start) || !Number.isFinite(end)) {
 		throw new TypeError(
 			'parseInline requires both scan bounds: to scan a whole string, call parseInline(src, 0, src.length)'
 		);
 	}
-	return scanInline(raw, start, end, resolver);
+	return scanInline(raw, start, end, resolver, grammar ?? defaultGrammarView);
 }
 
 // ── Inline Tree Walks ──────────────────────────────────────────────────────

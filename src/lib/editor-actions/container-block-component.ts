@@ -42,9 +42,8 @@ export interface EditorGlobalChordDeps extends Pick<
 	getKind: () => AnyBlockKind;
 	getKeybindingOverrides: () => KeybindingOverrideMap | undefined;
 	isReading: () => boolean;
-	/** Required here though optional on the context: a whole-block component that skipped it
-	 *  would consume an unlisted plugin's chord. `undefined` = every installed plugin. */
-	activation: PluginActivation | undefined;
+	/** A whole-block component without it would consume an unlisted plugin's chord. */
+	activation: PluginActivation;
 }
 
 /**

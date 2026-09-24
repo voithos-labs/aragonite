@@ -8,6 +8,7 @@ import {
 	__resetLiveJoinSeamCleanerForTests
 } from '$lib/schema/inline-construct-policy';
 import type { PresentationMode } from '$lib/presentation-mode';
+import { defaultGrammarView } from '$lib/schema/block-openers';
 
 // Both merge primitives production reaches (the deep-leaf write Backspace enters and the reparse
 // write Delete enters), because a rule carried at one of two is the audit's dominant bug. Each
@@ -32,10 +33,15 @@ const merged = (
 
 describe('each merge primitive drops the join pair in live', () => {
 	it('mergeWithNext', () => {
-		expect(merged('live', (doc) => void mergeWithNext(doc, 0, 'live', undefined))).toBe(REJOINED);
-		expect(merged(undefined, (doc) => void mergeWithNext(doc, 0, undefined, undefined))).toBe(
-			RESIDUE
-		);
+		expect(
+			merged('live', (doc) => void mergeWithNext(doc, 0, 'live', undefined, defaultGrammarView))
+		).toBe(REJOINED);
+		expect(
+			merged(
+				undefined,
+				(doc) => void mergeWithNext(doc, 0, undefined, undefined, defaultGrammarView)
+			)
+		).toBe(RESIDUE);
 	});
 
 	it('mergeIntoPrevDeepLeaf', () => {
@@ -64,8 +70,10 @@ describe('the join offset the caret rides moves with the runs the cleanup droppe
 
 	it('the forward merge reports the same join', () => {
 		const doc = parse(SPLIT_BOLD);
-		expect(mergeWithNext(doc, 0, 'live', undefined).joinOffset).toBe(9);
-		expect(mergeWithNext(parse(SPLIT_BOLD), 0, undefined, undefined).joinOffset).toBe(11);
+		expect(mergeWithNext(doc, 0, 'live', undefined, defaultGrammarView).joinOffset).toBe(9);
+		expect(
+			mergeWithNext(parse(SPLIT_BOLD), 0, undefined, undefined, defaultGrammarView).joinOffset
+		).toBe(11);
 	});
 });
 

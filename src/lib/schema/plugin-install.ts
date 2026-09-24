@@ -150,6 +150,18 @@ export function currentInstallingPlugin(): string | null {
 	return installing;
 }
 
+/** Runs shared registrations a plugin's setup triggers as core ones, owned by no plugin, so every
+ *  editor resolves them whichever plugin reached them first. */
+export function registerAsCore(register: () => void): void {
+	const outer = installing;
+	installing = null;
+	try {
+		register();
+	} finally {
+		installing = outer;
+	}
+}
+
 export function recordPluginKindOwner(kind: string, plugin: string): void {
 	kindOwners.set(kind, plugin);
 }

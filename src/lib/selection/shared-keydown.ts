@@ -41,8 +41,8 @@ export interface SharedKeydownContext extends LandableBoundsContext {
 	focus: FocusActions;
 	getBlockElByPath: BlockElLookup;
 	/** The plugins this instance activated; without it the suppression below swallows a
-	 *  chord another editor's plugin owns. `undefined` means every installed plugin. */
-	activePlugins: PluginActivation | undefined;
+	 *  chord another editor's plugin owns. */
+	activePlugins: PluginActivation;
 }
 
 /** True when the event was fully handled; the caller must skip its block-specific branches. */

@@ -32,6 +32,10 @@ quote, the first parse of a file, or the join check after a keystroke.
 - Enter before the tab of the loaded `code` line in the first pane leaves an empty paragraph
   above a paragraph, no indented code, and a tree that reloads as itself. Miss-analysis: the split
   reread both halves in the global grammar, and no spec pressed Enter in the switched-off pane.
+- Delete on the empty line that Enter left above the loaded `code` line joins the two back into
+  the seed in the first pane, a paragraph with no indented code, and a tree that reloads as
+  itself (regression #429). Miss-analysis: the split was pinned in the switched-off pane, and no
+  spec joined two lines there, so the merge's reparse in the global grammar went unseen.
 
 ## User interactions
 
