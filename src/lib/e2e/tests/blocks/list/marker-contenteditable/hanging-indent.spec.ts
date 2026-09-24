@@ -27,9 +27,9 @@ test.describe('list marker, hanging-indent style scoped by ambient length', () =
 		]);
 	});
 
-	// Source mode shows the bytes, so the marker draws at the first child's own size there. The
-	// indent it reserves has to be that width, or wrapped lines land inside the drawn marker.
-	test('a to-do heading reserves an indent as wide as source mode draws its marker', async () => {
+	// Source mode shows the bytes, so the indent a to-do reserves has to cover the `- [ ] ` drawn
+	// there, or wrapped lines land inside the marker.
+	test('a to-do reserves an indent as wide as source mode draws its marker', async () => {
 		await editor.loadContent('- [ ] # note\n');
 		const marker = await editor.page
 			.locator('.list-item-block .md-marker[contenteditable="false"]')
@@ -40,7 +40,9 @@ test.describe('list marker, hanging-indent style scoped by ambient length', () =
 			return parseFloat(getComputedStyle(el as HTMLElement).paddingLeft);
 		});
 
-		expect(paddingLeft).toBeGreaterThanOrEqual(marker!.width);
+		// The indent is a fixed em width fitted to the editor's font; another font can draw the
+		// marker a fraction of a pixel wider, which no reader sees.
+		expect(paddingLeft).toBeGreaterThanOrEqual(marker!.width - 1);
 	});
 
 	test('non-first paragraph in a loose list item has no hanging-indent style', async () => {

@@ -53,13 +53,19 @@ export class EditorBridge {
 
 	/** The predicate runs in the test process, not the page, so it may read any variable in scope. */
 	async waitForSource(predicate: (source: string) => boolean, timeout = 5000): Promise<void> {
+		let last: string | undefined;
 		const settled = async () => {
-			const source = await this.page.evaluate(
+			last = await this.page.evaluate(
 				() => (window as any).__test?.getSource() as string | undefined
 			);
-			return source !== undefined && predicate(source);
+			return last !== undefined && predicate(last);
 		};
-		await expect.poll(settled, { timeout, intervals: [16] }).toBe(true);
+		try {
+			await expect.poll(settled, { timeout, intervals: [16] }).toBe(true);
+		} catch (err) {
+			// A timeout says what the editor held, so a red on another machine explains itself.
+			throw new Error(`waitForSource: the source was ${JSON.stringify(last)}`, { cause: err });
+		}
 	}
 
 	async waitForSourceWith<T>(
