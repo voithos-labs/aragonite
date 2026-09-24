@@ -820,18 +820,10 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 			return false;
 		}
 		// Reading mode still consumes the key, since a selected widget owns its keys, but writes
-		// nothing. Undo is anchored at the caret from before the selection, so Ctrl+Z puts the
-		// caret back where the user actually was.
+		// nothing.
 		const spliceWidget = (text: string): void => {
 			if (isReading()) return;
-			const newRaw = node.raw.slice(0, widget.start) + text + node.raw.slice(widget.end);
-			void deps.blockEdit.updateBlockContent(
-				deps.index,
-				newRaw,
-				selectedWidget.preSelectOffset,
-				widget.start + text.length
-			);
-			deps.widgetSelection.clear();
+			void replaceSelectedWidget(deps, widget, selectedWidget.preSelectOffset, text);
 		};
 		if (e.key === 'Backspace' || e.key === 'Delete') {
 			e.preventDefault();
