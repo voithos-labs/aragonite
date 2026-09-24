@@ -11,3 +11,4 @@ A list long enough that only part of it is drawn, then a paragraph after a blank
 ## Edge cases
 
 - Backspace at the start of `zz`: the paragraph joins the last item's text (`- item 149zz`), and the next key lands at the join (regression: the caret was lost on some runs; miss-analysis: the same as above, where the Backspace join puts the caret)
+- The same Backspace under a 600-item list (GH #472): the next key lands at the join, `- item 599Qzz`

@@ -5,15 +5,19 @@ import { EditorPage } from '../../../editor-page';
 // moves the paragraph into the list's last item, and the key after it must land there.
 // Requirements: `e2e/requirements/blocks/list/join-into-long-list.md`.
 
-const ITEMS = 150;
-const LIST = Array.from({ length: ITEMS }, (_, i) => `- item ${i}\n`).join('');
-const LAST = `- item ${ITEMS - 1}\n`;
+const listOf = (items: number) => Array.from({ length: items }, (_, i) => `- item ${i}\n`).join('');
 
 const JOINS = [
-	{ gesture: 'two typed spaces', typed: '  ', tail: `${LAST}\n  Qzz\n` },
-	{ gesture: 'two pasted spaces', pasted: '  ', tail: `${LAST}\n  Qzz\n` },
-	{ gesture: 'four typed spaces', typed: '    ', tail: `${LAST}\n    Qzz\n` },
-	{ gesture: 'Backspace', pressed: 'Backspace', tail: `- item ${ITEMS - 1}Qzz\n` }
+	{ gesture: 'two typed spaces', items: 150, typed: '  ', tail: `- item 149\n\n  Qzz\n` },
+	{ gesture: 'two pasted spaces', items: 150, pasted: '  ', tail: `- item 149\n\n  Qzz\n` },
+	{ gesture: 'four typed spaces', items: 150, typed: '    ', tail: `- item 149\n\n    Qzz\n` },
+	{ gesture: 'Backspace', items: 150, pressed: 'Backspace', tail: `- item 149Qzz\n` },
+	{
+		gesture: 'Backspace under 600 items',
+		items: 600,
+		pressed: 'Backspace',
+		tail: `- item 599Qzz\n`
+	}
 ];
 
 test.describe('a paragraph joined into the last item of a long list', () => {
@@ -25,10 +29,10 @@ test.describe('a paragraph joined into the last item of a long list', () => {
 	});
 
 	for (const mode of ['source', 'live'] as const) {
-		for (const { gesture, typed, pasted, pressed, tail } of JOINS) {
+		for (const { gesture, items, typed, pasted, pressed, tail } of JOINS) {
 			test(`${mode}: the key after ${gesture} lands in the joined paragraph`, async ({ page }) => {
 				await editor.setPresentationMode(mode);
-				await editor.loadContent(`${LIST}\nzz\n`);
+				await editor.loadContent(`${listOf(items)}\nzz\n`);
 				if (pasted) await editor.seedClipboard(pasted);
 				await editor.focusBlockAtPath([1], 0);
 				if (pasted) await editor.paste();
