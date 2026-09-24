@@ -35,6 +35,9 @@ backtick does this on its own; a plugin trigger opts in with `autoPair: true` on
   a price and `$ ` a shell prompt, so neither keeps a stray `$` after it. A backtick keeps its
   pair for any byte, since `` `1` `` is code.
 - Backspace between the two takes both.
+- Only a pair the auto-pair wrote is dropped this way. `$$b` typed after `pay ` steps over the
+  partner and then types `b`, so a space typed between the two dollars afterwards writes
+  `pay $ $b` (regression: `pay $ b`, one dollar gone).
 
 ## Block openers
 

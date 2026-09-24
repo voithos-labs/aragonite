@@ -12,6 +12,7 @@ import { trimTrailingLineEnding } from '$lib/core/lines';
 import type { BlockEditActions } from '$lib/action-contracts';
 import type { CstNode } from '$lib/core/nodes';
 import { makePendingMarks } from '$lib/test/harness/editor-actions';
+import { createAutoPairRecord } from '$lib/components/blocks/text/auto-pair-record';
 import { fixtureLinkRef } from '../../harness/fixture-grammar';
 
 export { asRawOffset as at } from '$lib/cursor/coordinate-spaces';
@@ -60,6 +61,7 @@ export function makeEdgeDispatch(
 		isReading: () => false,
 		getEdgeAffinity: () => null,
 		pendingMarks: makePendingMarks(),
+		ownPairs: createAutoPairRecord().forBlock(),
 		installedAs: 'block',
 		...overrides
 	};

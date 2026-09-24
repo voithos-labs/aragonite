@@ -7,9 +7,11 @@
  * auto-pairing, through the editor's own resolver.
  */
 import {
+	noteOwnPair,
 	resolveDelimiterAutoPair,
 	resolveEmptyPairBackspace
 } from '../../components/blocks/text/delimiter-autopair';
+import { createAutoPairRecord } from '../../components/blocks/text/auto-pair-record';
 import { isBuiltinBlockKind } from '../../core/nodes';
 import { parse } from '../../core/parser';
 import { defaultGrammarView } from '../../schema/block-openers';
@@ -22,6 +24,8 @@ export class ExpectationTracker {
 	/** Bytes the editor wrote past the caret (an auto-paired closing delimiter, a completed
 	 *  fence's closer); the caret sits before them. */
 	private twin = '';
+	/** The editor's record of the pair its auto-pair wrote, kept over the line being typed. */
+	private ownPairs = createAutoPairRecord().forBlock();
 
 	constructor(initialSource: string) {
 		this.src = initialSource;
@@ -36,16 +40,18 @@ export class ExpectationTracker {
 		const lineStart = this.src.lastIndexOf('\n', at - 1) + 1;
 		const line = this.src.slice(lineStart, at + this.twin.length);
 		const caret = at - lineStart;
+		const ownPair = this.ownPairs.consult(line, caret);
 		const edit = this.pairs()
 			? resolveDelimiterAutoPair(
 					line,
 					{ start: 0, end: line.length },
 					caret,
 					ch,
-					(next) => kindOfLine(next) === kindOfLine(line),
-					{ grammar: defaultGrammarView }
+					{ grammar: defaultGrammarView },
+					{ ownPair, keepsKind: (next) => kindOfLine(next) === kindOfLine(line) }
 				)
 			: null;
+		if (edit) noteOwnPair(this.ownPairs, line, edit);
 		if (edit?.kind === 'step-over') {
 			this.twin = this.twin.slice(1);
 		} else if (edit) {
@@ -61,9 +67,9 @@ export class ExpectationTracker {
 		const at = this.insertionPoint();
 		const lineStart = this.src.lastIndexOf('\n', at - 1) + 1;
 		const line = this.src.slice(lineStart, at + this.twin.length);
-		const pair = this.twin
-			? resolveEmptyPairBackspace(line, at - lineStart, defaultGrammarView)
-			: null;
+		const ownPair = this.ownPairs.consult(line, at - lineStart);
+		const pair = resolveEmptyPairBackspace(line, at - lineStart, ownPair, defaultGrammarView);
+		if (pair) this.ownPairs.forget();
 		if (pair && pair.kind === 'write') {
 			this.src = this.src.slice(0, lineStart) + pair.text + this.src.slice(at + this.twin.length);
 			this.twin = pair.text.slice(pair.caret);
@@ -75,6 +81,8 @@ export class ExpectationTracker {
 
 	/** A resync keeps the held closing bytes only while the document still ends in them. */
 	resync(actualSource: string): void {
+		// A gesture that changed the bytes ended any pair the auto-pair wrote.
+		if (actualSource !== this.src) this.ownPairs.forget();
 		this.src = actualSource;
 		const tail = this.src.endsWith('\n') ? this.src.slice(0, -1) : this.src;
 		if (!tail.endsWith(this.twin)) this.twin = '';

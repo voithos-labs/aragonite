@@ -58,6 +58,20 @@ test.describe('inline delimiter auto-pair', () => {
 		expect(await editor.bridge.getSource()).toBe('pay x\n');
 	});
 
+	// Only the pair the auto-pair wrote is its own: after the step-over and a body byte, the
+	// two dollars are the user's, and a space typed between them keeps both.
+	test('a space typed between the dollars of a typed $$b keeps both', async ({ page }) => {
+		await editor.loadContent('pay \n');
+		await editor.focusBlock(0, 4);
+		await page.keyboard.type('$$b');
+		await editor.bridge.waitForSourceContains('pay $$b');
+		await page.keyboard.press('ArrowLeft');
+		await page.keyboard.press('ArrowLeft');
+		await page.keyboard.type(' ');
+
+		await expect.poll(() => editor.bridge.getSource()).toBe('pay $ $b\n');
+	});
+
 	// The emphasis delimiters: `**` typed ahead of an existing bold run pairs with its own
 	// partner, and the byte after the run just closed lands outside it.
 	test('** and ~~ pair with their own paired closers and close cleanly', async ({ page }) => {

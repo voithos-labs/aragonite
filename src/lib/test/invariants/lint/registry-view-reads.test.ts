@@ -235,7 +235,7 @@ const RULES: CallSiteRule[] = [
 			return slot.startsWith('{') ? /\bcurrent\b/.test(slot) : slot !== 'undefined';
 		},
 		allowed: {
-			'src/lib/components/blocks/text/edge-policy-dispatch.ts:48':
+			'src/lib/components/blocks/text/edge-policy-dispatch.ts:49':
 				'keepsBlockKind compares the block kind only, which no link changes'
 		},
 		reason:

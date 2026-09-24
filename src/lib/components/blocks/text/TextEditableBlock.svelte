@@ -151,12 +151,14 @@
 	const {
 		reorder,
 		pendingMarks,
+		autoPairs,
 		widgetSelection,
 		linkCard,
 		inlineMenuCombobox,
 		decorations: decorationEngine,
 		kindCue
 	} = getContext<EditorServices>(EDITOR_SERVICES_KEY);
+	const ownPairs = autoPairs.forBlock();
 
 	const {
 		resolveImageUrl,
@@ -399,6 +401,7 @@
 		getEdgeAffinity: () => edgeAffinity.get(),
 		noteOutside: edgeAffinity.noteExtreme,
 		pendingMarks,
+		ownPairs,
 		installedAs: 'block'
 	});
 
@@ -960,6 +963,7 @@
 			completesLine: (caret) => planTypedCompletion(node, caret, grammar) !== null,
 			keepsBlockKind: (text) => keepsBlockKind(node, text, grammar),
 			linkRef,
+			ownPairs,
 			write: (text, caretBefore, caretAfter) => {
 				const raw = text + trailingLineEnding(node.raw);
 				void blockEdit.updateBlockContent(index, raw, caretBefore, caretAfter);

@@ -27,6 +27,7 @@ import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
 import { createEditorEvents } from '$lib/editor-events';
 import { createSelectionState } from '$lib/selection/selection-state.svelte';
 import { createRevealAnchorState } from '$lib/cursor/reveal-anchor';
+import { createAutoPairRecord } from '$lib/components/blocks/text/auto-pair-record';
 import { createHeightOracle } from '$lib/cursor/height-oracle';
 import { createScrollport, type Scrollport } from '$lib/cursor/scrollport';
 import { HEIGHT_ESTIMATES } from '$lib/cursor/typography-estimates';
@@ -71,6 +72,7 @@ function stubbedServices(getDoc: () => DocumentView): EditorServices {
 		stickyColumn: makeStickyColumn(),
 		edgeAffinity: makeEdgeAffinity(),
 		pendingMarks: makePendingMarks(),
+		autoPairs: createAutoPairRecord(),
 		revealAnchor: createRevealAnchorState(),
 		// Real: every keydown on an editable block asks it what is selected.
 		widgetSelection: createWidgetSelectionState({ onSelect: () => {} }),

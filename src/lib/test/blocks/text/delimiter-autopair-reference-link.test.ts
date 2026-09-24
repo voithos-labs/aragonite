@@ -13,14 +13,9 @@ const resolver = buildLinkReferenceMap(parse('[ref]: https://x.com\n').children)
 const withDefinitions = { current: resolver, grammar: defaultGrammarView };
 
 const type = (text: string, caret: number, typed: string) =>
-	resolveDelimiterAutoPair(
-		text,
-		{ start: 0, end: text.length },
-		caret,
-		typed,
-		undefined,
-		withDefinitions
-	);
+	resolveDelimiterAutoPair(text, { start: 0, end: text.length }, caret, typed, withDefinitions, {
+		ownPair: null
+	});
 
 describe('auto-pair beside a reference link', () => {
 	it('leaves a * typed before a * inside the link to the browser', () => {

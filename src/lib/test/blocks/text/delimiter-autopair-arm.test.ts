@@ -12,6 +12,8 @@ import {
 	type AutoPairSurface
 } from '$lib/components/blocks/text/delimiter-autopair';
 import { resetPluginPlatformForTests } from '$lib/testing';
+import { createAutoPairRecord } from '$lib/components/blocks/text/auto-pair-record';
+import type { ContentRange } from '$lib/core/inline';
 
 interface Recorded {
 	writes: [string, number, number][];
@@ -22,9 +24,13 @@ interface Recorded {
 function surfaceOver(
 	text: string,
 	caret: number,
-	keepsBlockKind: (text: string) => boolean
+	keepsBlockKind: (text: string) => boolean,
+	/** The empty pair the auto-pair wrote into `text`, when the case starts from one. */
+	own?: ContentRange
 ): AutoPairSurface & Recorded {
 	const recorded: Recorded = { writes: [], carets: [], outside: 0 };
+	const ownPairs = createAutoPairRecord().forBlock();
+	if (own) ownPairs.remember(text, own);
 	return {
 		...recorded,
 		text: () => text,
@@ -39,6 +45,7 @@ function surfaceOver(
 		write: (next, before, after) => recorded.writes.push([next, before, after]),
 		keepsBlockKind,
 		linkRef: { grammar: defaultGrammarView },
+		ownPairs,
 		get writes() {
 			return recorded.writes;
 		},
@@ -61,7 +68,7 @@ describe('the branch keeps the line this block', () => {
 	// `*|*` plus `*` grows to `****`, a thematic break on a line of its own: the key steps past
 	// its partner instead, and a closer typed by hand later completes `**bold**`.
 	it('a grow that would re-kind the line steps past the paired closer', () => {
-		const surface = surfaceOver('**', 1, (line) => line !== '****');
+		const surface = surfaceOver('**', 1, (line) => line !== '****', { start: 0, end: 2 });
 		const e = typed('*');
 		expect(applyDelimiterAutoPair(e, surface)).toBe(true);
 		expect(e.defaultPrevented).toBe(true);
@@ -70,7 +77,7 @@ describe('the branch keeps the line this block', () => {
 	});
 
 	it('a grow the line survives is written', () => {
-		const surface = surfaceOver('**', 1, () => true);
+		const surface = surfaceOver('**', 1, () => true, { start: 0, end: 2 });
 		expect(applyDelimiterAutoPair(typed('*'), surface)).toBe(true);
 		expect(surface.writes).toEqual([['****', 1, 2]]);
 	});
