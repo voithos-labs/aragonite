@@ -24,6 +24,10 @@ updates:
       development-minor-patch:
         dependency-type: 'development'
         update-types: ['minor', 'patch']
+    # jsdom 30.1.0 slows the deep-nesting unit tests from seconds to over a quarter hour; 30.0.1 is pinned.
+    ignore:
+      - dependency-name: 'jsdom'
+        versions: ['30.1.0']
 
   # The workflows pin third-party actions to commit SHAs with the version in
   # a trailing comment; dependabot bumps the SHA and the comment together.
