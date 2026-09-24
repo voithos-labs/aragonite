@@ -204,6 +204,42 @@ function unwashRevealedSource(node: Text): void {
 	revealHighlight()?.delete(range);
 }
 
+/** What {@link replaceSelectedWidget} writes through. */
+export interface WidgetReplaceDeps {
+	get node(): NodeView;
+	get index(): number;
+	blockEdit: BlockEditActions;
+	widgetSelection: WidgetSelectionState;
+	setPendingCursor: (offset: number | null) => void;
+}
+
+/**
+ * Replace a selected widget's bytes with `text` in one undoable write, anchored at the caret from
+ * before the selection, and put the caret right after `text`: with the widget gone the browser
+ * has no caret of its own to keep. Resolves once the write and the caret have landed.
+ */
+export async function replaceSelectedWidget(
+	deps: WidgetReplaceDeps,
+	widget: { start: number; end: number },
+	preSelectOffset: number,
+	text: string
+): Promise<void> {
+	const raw = deps.node.raw;
+	const caretAfter = widget.start + text.length;
+	const write = deps.blockEdit.updateBlockContent(
+		deps.index,
+		raw.slice(0, widget.start) + text + raw.slice(widget.end),
+		preSelectOffset,
+		caretAfter
+	);
+	// Before the write's render, so the caret and the new bytes land in one flush.
+	deps.setPendingCursor(caretAfter);
+	deps.widgetSelection.clear();
+	await write;
+	// The render that places the caret, so a caller awaiting the insert finds the caret there.
+	await tick();
+}
+
 export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInteraction {
 	const isReading = () => deps.getPresentationMode?.() === 'reading';
 
