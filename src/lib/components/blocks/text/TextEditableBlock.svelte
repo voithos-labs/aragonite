@@ -262,13 +262,14 @@
 		relocateComposedText: (after, composedAt) => compositionSeat.relocate(after, composedAt),
 		commitInput: (text, preEdit, saved) => {
 			const committed = text + trailingLineEnding(node.raw);
+			// An enclosing container may rewrite these bytes on the way in, so the caret restore
+			// reads the text actually stored; asked before the write, as the mapping requires.
+			const caret = blockEdit.mapCommittedOffset?.(index, committed, saved);
 			// Typed text is the one write whose kind change the block names (`kind-cue.svelte.ts`).
 			const before = shownKind(node);
 			const write = blockEdit.updateBlockContent(index, committed, preEdit, saved);
 			void kindCue.afterTypedWrite(write, myPath, before);
-			// An enclosing container may rewrite these bytes on the way in, so the caret
-			// restore reads the text actually stored, not the offset the keystroke produced.
-			return blockEdit.mapCommittedOffset?.(committed, saved);
+			return caret;
 		},
 		inputPrelude: () => {
 			markKeystrokeStart();

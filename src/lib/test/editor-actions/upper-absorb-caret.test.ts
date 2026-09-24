@@ -11,13 +11,18 @@ import type { BlockComponent } from '$lib/block-component';
 
 interface FocusCall {
 	slot: number;
+	/** Below the slot, where the caret lands in a leaf inside a container. */
+	path?: number[];
 	offset: unknown;
 }
 
 /** Refs that report which original index they were made for: an idMap carries them across. */
 function labelledRefs(count: number, calls: FocusCall[]): BlockComponent[] {
 	return Array.from({ length: count }, (_, slot) =>
-		mockRef({ focus: (offset) => calls.push({ slot, offset }) })
+		mockRef({
+			focus: (offset) => calls.push({ slot, offset }),
+			focusByPath: (path, offset) => calls.push({ slot, path, offset })
+		})
 	);
 }
 
@@ -54,8 +59,8 @@ describe('caret after a fold above the edited block: top level', () => {
 	});
 
 	// The blank case reaches the same path when emptying changes the kind: a heading emptied to
-	// a blank line is a non-noop trial, so the commit runs and the container above swallows the
-	// index; the blank case's textStart, used by the action, not just computed at the tree op.
+	// a blank line is a non-noop trial, so the commit runs and the list above swallows the line.
+	// The blank case's textStart puts the caret on that line, now the item's second child.
 	it('spends the blank branch textStart when emptying a heading folds it upward', async () => {
 		const h = makeTop('- item\n\n# h\n\n    code\n');
 
@@ -64,7 +69,7 @@ describe('caret after a fold above the edited block: top level', () => {
 		expect(h.harness.doc.children.map((c) => [c.kind, c.raw])).toEqual([
 			['list', '- item\n\n\n    code\n']
 		]);
-		expect(h.calls).toEqual([{ slot: 0, offset: 8 }]);
+		expect(h.calls).toEqual([{ slot: 0, path: [0, 1], offset: 0 }]);
 	});
 
 	// The decline side: nothing merged above, so the caret keeps the offset it was handed.

@@ -72,7 +72,9 @@ export function focusAfterContentReplace(
 	const windowAt = change.op === 'replace' ? change.at : at;
 	if (focusMovedOutsideReplacement(scopePath, windowAt, count)) return;
 	const target = settledCaretTarget(settled, at, focusOffset, scope.children());
-	scope.refAt(target.index)?.focus(target.offset);
+	const ref = scope.refAt(target.index);
+	if (target.path.length === 0) ref?.focus(target.offset);
+	else ref?.focusByPath?.(target.path, target.offset);
 }
 
 /**

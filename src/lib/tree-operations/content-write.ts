@@ -16,6 +16,7 @@ import { getBlockKindDescriptor, tryGetBlockKindDescriptor } from '../schema/blo
 import type { SharingState } from './sharing';
 import { resyncChildIds } from './children';
 import { spliceMany } from './splice-many';
+import { leafAtRawOffset } from './container-offsets';
 import { replacePreservingFirst, type StructuralChange } from './structural-change';
 import { reconcileTaskMetadata, taskMarkerMayStandBefore } from './list/reconcile-task';
 import { fragmentReaderAt, type FragmentReader } from './list/task-paragraph';
@@ -357,22 +358,38 @@ export function reclassifyContainer(
 	return parent.children[index];
 }
 
+/** A caret position after a content write: the block at `index`, then `path` down to the leaf
+ *  the caret sits in (empty when the block is that leaf), and the offset in that leaf. */
+export interface SettledCaret {
+	index: number;
+	path: number[];
+	offset: number;
+}
+
 /**
  * Where a caret at `offset` in the written text ends up once {@link updateNodeContent}'s merges
  * are done: a merge into the block above leaves that block holding the bytes, so the position
- * the edit named is gone and the offset includes what that block put in front of it.
+ * the edit named is gone and the offset includes what that block put in front of it. A block the
+ * write made a container is entered, since a raw offset into it names no caret position.
  */
 export function settledCaretTarget(
 	settled: SettledContent,
 	at: number,
 	offset: number,
 	children: readonly NodeView[]
-): { index: number; offset: number } {
+): SettledCaret {
 	const { change, textStart } = settled;
-	if (change.op !== 'replace') return { index: at, offset };
+	if (change.op !== 'replace') return caretInBlock(children, at, offset);
 	const shifted = offset + textStart;
-	if (change.newCount <= 1) return { index: change.at, offset: shifted };
+	if (change.newCount <= 1) return caretInBlock(children, change.at, shifted);
 	const blocks = children.slice(change.at, change.at + change.newCount);
 	const target = focusTargetInReplacement(blocks, shifted);
-	return { index: change.at + target.index, offset: target.offset };
+	return caretInBlock(children, change.at + target.index, target.offset);
+}
+
+/** A table's bytes map to no leaf, so its caret keeps the raw offset, as every leaf's does. */
+function caretInBlock(children: readonly NodeView[], index: number, offset: number): SettledCaret {
+	const block = children[index];
+	const leaf = block?.children?.length ? leafAtRawOffset(block, offset) : null;
+	return leaf ? { index, path: leaf.path, offset: leaf.offset } : { index, path: [], offset };
 }

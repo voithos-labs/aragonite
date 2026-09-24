@@ -688,15 +688,16 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 	// ── Container marker completion ────────────────────────────────────────────
 
 	/**
-	 * A bare space at the content start of an empty child whose container declares
-	 * `contentStartSpace`. Consumed, not written: the container's `rebuildRaw` writes it back the
-	 * moment content arrives, so inserting it here would double the marker's own space. It is
+	 * A bare space at a child's content start while its container's marker lacks its space
+	 * (`contentStartSpace`). Consumed, not written: the container's `rebuildRaw` writes it back
+	 * with the next write inside, so inserting it here would double the marker's own space. It is
 	 * taken once per child; a later space at the same position is content.
 	 */
 	function handleMarkerCompletion(e: KeyboardEvent, caretOffset: RawOffset | null): boolean {
 		const bareSpace = e.key === ' ' && !e.shiftKey && !hasModifier(e);
 		if (!bareSpace || caretOffset === null || heldRange()) return false;
-		if (!markerCompletion.claimSpace(deps.node, deps.containerParent, caretOffset)) return false;
+		const { node, containerParent, index } = deps;
+		if (!markerCompletion.claimSpace(node, containerParent, index, caretOffset)) return false;
 		e.preventDefault();
 		return true;
 	}

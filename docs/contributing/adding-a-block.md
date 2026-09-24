@@ -161,7 +161,7 @@ Optional, each earning its place:
 - `unwrapRole`: the Backspace-at-start strategy; see `editor-actions/unwrap-strategies.ts`.
 - `bodyWrap`: for a container whose body sits between its own opener and closer lines (a `:::note` fence, say). Pass the same wrap your opener parsed the body with, and the parser then moves the blank line next to the chrome into the wrap instead of into a body block.
 - `bodyWrite`: for a container with a fixed closing line (`</details>`) that a body edit could accidentally type. `normalize` escapes it out of a child's raw, and `mapOffset` says where the caret lands after the escape.
-- `contentStartSpace: 'complete-marker'`: a space typed at the start of an empty child gets eaten, because the marker your `rebuildRaw` emits already carries it. Only sound when `rebuildRaw` does put that space back.
+- `contentStartSpace: 'complete-marker'`: the first space typed at the start of a child whose marker lacks its space (an empty child, or text right after a bare marker) gets eaten, because the marker your `rebuildRaw` emits already carries it. Only sound when `rebuildRaw` does put that space back.
 - `reorderChildren`: this container's direct children reorder among themselves, by drag or Alt+↑/↓; `{ renumberMarkers: true }` for an ordered list. See `tree-operations/reorder-unit.ts`.
 
 ### 2. The component

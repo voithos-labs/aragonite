@@ -37,7 +37,7 @@ describe('settledCaretTarget', () => {
 	const noFold = { change: { op: 'noop' } as const, textStart: 0 };
 
 	it('keeps the written slot where no fold moved it', () => {
-		expect(settledCaretTarget(noFold, 2, 4, [])).toEqual({ index: 2, offset: 4 });
+		expect(settledCaretTarget(noFold, 2, 4, [])).toEqual({ index: 2, path: [], offset: 4 });
 	});
 
 	it('moves to the settled window and carries the absorbed bytes', () => {
@@ -47,6 +47,7 @@ describe('settledCaretTarget', () => {
 		};
 		expect(settledCaretTarget(settled, 1, 1, parse('a\nx# h\nb\n').children)).toEqual({
 			index: 0,
+			path: [],
 			offset: 3
 		});
 	});
@@ -60,7 +61,37 @@ describe('settledCaretTarget', () => {
 		};
 		expect(settledCaretTarget(settled, 1, 4, parse('a\nx\n\ny\nb\n').children)).toEqual({
 			index: 1,
+			path: [],
 			offset: 1
 		});
+	});
+});
+
+// A write that turns its block into a container answers a leaf inside it, since a raw offset
+// into a container names no caret position (GH #456).
+// Miss-analysis: every case here landed in a leaf, so nothing asked where a raw offset into a
+// quote or a list goes, and the component walked it to the container's last child.
+describe('settledCaretTarget into a container the write made', () => {
+	const kindChange = {
+		change: { op: 'replace' as const, at: 0, count: 1, newCount: 1, idMap: { 0: 0 } },
+		textStart: 0
+	};
+
+	it.each([
+		{ shape: 'a quote', source: '> abcdef\n', offset: 2, path: [0] },
+		{ shape: 'a bare quote marker', source: '>abcdef\n', offset: 1, path: [0] },
+		{ shape: 'a list item', source: '- abcdef\n', offset: 2, path: [0, 0] },
+		{ shape: 'an ordered item', source: '1. abcdef\n', offset: 3, path: [0, 0] }
+	])('lands at the text start inside $shape', ({ source, offset, path }) => {
+		expect(settledCaretTarget(kindChange, 0, offset, parse(source).children)).toEqual({
+			index: 0,
+			path,
+			offset: 0
+		});
+	});
+
+	it("keeps a table's raw offset, whose bytes map to no leaf", () => {
+		const table = parse('| a |\n| - |\n').children;
+		expect(settledCaretTarget(kindChange, 0, 3, table)).toEqual({ index: 0, path: [], offset: 3 });
 	});
 });

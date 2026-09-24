@@ -139,19 +139,19 @@ describe('details terminator escape caret image', () => {
 
 		// Caret after the typed `>` (offset 10) lands after the escaped `>` (13):
 		// the `<` ahead of it grew to `&lt;`.
-		expect(h.bundle.blockEdit.mapCommittedOffset?.('</details>\n', 10)).toBe(13);
+		expect(h.bundle.blockEdit.mapCommittedOffset?.(0, '</details>\n', 10)).toBe(13);
 	});
 
 	it('leaves a caret in an untouched line where it was', () => {
 		const h = mountDetails(OPEN_DETAILS);
 
-		expect(h.bundle.blockEdit.mapCommittedOffset?.('plain body\n', 5)).toBe(5);
+		expect(h.bundle.blockEdit.mapCommittedOffset?.(0, 'plain body\n', 5)).toBe(5);
 	});
 
 	it('is a no-op over already-escaped bytes, so a re-commit cannot double-escape', () => {
 		const h = mountDetails(OPEN_DETAILS);
 
-		expect(h.bundle.blockEdit.mapCommittedOffset?.('&lt;/details>\n', 13)).toBe(13);
+		expect(h.bundle.blockEdit.mapCommittedOffset?.(0, '&lt;/details>\n', 13)).toBe(13);
 	});
 
 	// The contract names `normalize` as the idempotent member; assert it directly

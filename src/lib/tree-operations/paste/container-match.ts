@@ -308,7 +308,7 @@ async function applyContainerMatchingMerge(
 			const lastInsertedIdx = unwrap.spliceIndex + remainingItems.length;
 			const target = settledCaretTarget(residue, 0, lastDisplay.length, lastItem.children ?? []);
 			return ctx.controller.landCaret(
-				[...unwrap.outerPath, lastInsertedIdx, target.index],
+				[...unwrap.outerPath, lastInsertedIdx, target.index, ...target.path],
 				target.offset
 			);
 		}
