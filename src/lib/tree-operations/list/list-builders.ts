@@ -5,7 +5,7 @@ import type { NodeView } from '../../core/node-views';
 import { snapToScalarBoundary, trailingLineEnding, trimTrailingLineEnding } from '../../core/lines';
 import { rebuildListItemRaw, rebuildListRaw } from '../../schema/container-rebuilders';
 import { cloneMetadata, cloneNode } from '../clone';
-import { parseFirstBlock } from '../parse-block';
+import { parseCutResidue, parseFirstBlock } from '../parse-block';
 import { renumberOrderedListFrom } from './ordered-markers';
 import { assignIds } from '../../block-id';
 import type { GrammarView } from '../../schema/block-openers';
@@ -101,17 +101,17 @@ export function buildListShell(ordered: boolean, children: CstNode[]): CstNode {
 // ── Paste split ──────────────────────────────────────────────────────────────
 
 /**
- * Slice a leaf's raw at `offset` for a paste-style split, re-parsing each half. One
- * leading whitespace is trimmed from the trailing slice, which would otherwise produce
- * double-space markers after a word-boundary split. Null on an empty side. `raw` overrides
- * the leaf's own bytes, which a paste that ran a delete half first supplies.
+ * Slice a leaf's raw at `offset` for a paste-style split, re-parsing each half; the trailing
+ * half is every block its lines make. One leading space or tab is trimmed from it, which would
+ * otherwise double the space after the new marker. `raw` overrides the leaf's own bytes, which
+ * a paste that ran a delete half first supplies.
  */
 export function splitLeafForPaste(
 	leaf: CstNode,
 	offset: number,
 	raw: string = leaf.raw,
 	grammar?: GrammarView
-): { leadingNode: CstNode | null; trailingNode: CstNode | null; lineEnding: '\n' | '\r\n' } {
+): { leadingNode: CstNode | null; trailingNodes: CstNode[]; lineEnding: '\n' | '\r\n' } {
 	const lineEnding = trailingLineEnding(raw);
 	const display = trimTrailingLineEnding(raw);
 	// Off any scalar interior first: the halves become separate items, so a pair cut here is
@@ -122,10 +122,10 @@ export function splitLeafForPaste(
 
 	const leadingNode =
 		leadingText.length > 0 ? parseFirstBlock(leadingText + lineEnding, grammar) : null;
-	const trailingNode =
-		trailingText.length > 0 ? parseFirstBlock(trailingText + lineEnding, grammar) : null;
+	// The line the cut ended is dropped: the trailing item's marker starts a line of its own.
+	const trailingNodes = parseCutResidue(trailingText, lineEnding, grammar).blocks;
 
-	return { leadingNode, trailingNode, lineEnding };
+	return { leadingNode, trailingNodes, lineEnding };
 }
 
 /**
@@ -144,7 +144,7 @@ export function buildSplitItems(
 	const targetLeaf = item.children[innerIndex];
 	if (!targetLeaf) return { leadingItem: null, trailingItem: null };
 
-	const { leadingNode, trailingNode } = splitLeafForPaste(
+	const { leadingNode, trailingNodes } = splitLeafForPaste(
 		targetLeaf,
 		offset,
 		targetRaw ?? targetLeaf.raw,
@@ -155,7 +155,7 @@ export function buildSplitItems(
 	if (leadingNode) leadingChildren.push(leadingNode);
 
 	const trailingChildren: CstNode[] = [];
-	if (trailingNode) trailingChildren.push(trailingNode);
+	for (const node of trailingNodes) trailingChildren.push(node);
 	for (const c of item.children.slice(innerIndex + 1)) trailingChildren.push(cloneNode(c));
 	if (trailingChildren[0]) trailingChildren[0].leadingTrivia = '';
 

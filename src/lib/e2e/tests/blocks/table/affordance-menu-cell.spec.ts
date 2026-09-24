@@ -42,7 +42,8 @@ test.describe('table block: cell right-click menu', () => {
 
 	// Prose has a right-click menu of its own (clipboard), so what this reads is the table's items.
 	test('right-clicking outside the table does not open the affordance menu', async ({ page }) => {
-		await editor.loadContent(`${TABLE}text below\n`);
+		// A blank line, since a line straight under the rows is one more row.
+		await editor.loadContent(`${TABLE}\ntext below\n`);
 		await page.getByText('text below').click({ button: 'right' });
 		await expect(page.getByRole('menuitem', { name: /delete row/i })).toHaveCount(0);
 		await expect(page.getByRole('menuitem', { name: /delete column/i })).toHaveCount(0);

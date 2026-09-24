@@ -15,18 +15,23 @@ import { trailingLineEnding } from '../../core/lines';
  */
 const EMPTY_MARKER_LINE = /^ {0,3}(?:[-*+]|\d{1,9}[.)])[ \t]+$/;
 
+/** Whether the child at `index` is a list no reload could read back where it stands. */
+export function lacksSublistSeparator(children: readonly CstNode[], index: number): boolean {
+	const list = children[index];
+	const above = children[index - 1];
+	if (!list || list.kind !== 'list' || list.leadingTrivia !== '') return false;
+	if (!above || above.kind !== 'paragraph' || above.raw.trim() === '') return false;
+	return EMPTY_MARKER_LINE.test(firstLineOf(list.raw));
+}
+
 /**
  * Give the child at `index` its separating line when it is a list no reload could read back.
  * Idempotent, and a no-op for every child that already stands apart, so a nesting splice or a
- * raw rebuild may call it unconditionally.
+ * raw rebuild may call it unconditionally. The child must be owned by the live tree.
  */
 export function settleSublistSeparator(children: CstNode[], index: number): void {
-	const list = children[index];
-	const above = children[index - 1];
-	if (!list || list.kind !== 'list' || list.leadingTrivia !== '') return;
-	if (!above || above.kind !== 'paragraph' || above.raw.trim() === '') return;
-	if (!EMPTY_MARKER_LINE.test(firstLineOf(list.raw))) return;
-	list.leadingTrivia = trailingLineEnding(above.raw);
+	if (!lacksSublistSeparator(children, index)) return;
+	children[index].leadingTrivia = trailingLineEnding(children[index - 1].raw);
 }
 
 function firstLineOf(raw: string): string {

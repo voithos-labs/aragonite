@@ -5,7 +5,7 @@
  */
 
 import type { CstNode } from '../nodes';
-import { remapStrippedLines, type ParsedLine } from '../lines';
+import { indentColumns, remapStrippedLines, stripIndentColumns, type ParsedLine } from '../lines';
 import { joinRaw, isBlankLine, parseBlocks } from '../parser';
 import {
 	lineInterruptsParagraph,
@@ -71,19 +71,19 @@ export function parseList(
 		// Any line indented to the content column belongs to the body, a whitespace-only one too; a
 		// run of bare blank lines is taken in only when such a line follows it.
 		while (i < endIndex) {
-			if (getIndent(lines[i].text) >= contentIndent) {
-				paragraphOpen = wouldKeepParagraphOpen(lines[i].text.slice(contentIndent));
+			if (indentColumns(lines[i].text) >= contentIndent) {
+				paragraphOpen = wouldKeepParagraphOpen(stripIndentColumns(lines[i].text, contentIndent));
 				i++;
 			} else if (isBlankLine(lines[i].text)) {
 				let j = i;
 				while (
 					j < endIndex &&
 					isBlankLine(lines[j].text) &&
-					getIndent(lines[j].text) < contentIndent
+					indentColumns(lines[j].text) < contentIndent
 				) {
 					j++;
 				}
-				if (j < endIndex && getIndent(lines[j].text) >= contentIndent) {
+				if (j < endIndex && indentColumns(lines[j].text) >= contentIndent) {
 					i = j;
 				} else {
 					break;
@@ -155,10 +155,6 @@ export function parseList(
 	};
 }
 
-function getIndent(text: string): number {
-	return text.match(/^ */)![0].length;
-}
-
 /**
  * Lazy continuation extends only an open paragraph. Any list marker is block-level, resolved
  * by the outer item loop, so an ordered marker not starting at 1 is excluded here even though
@@ -171,14 +167,14 @@ function wouldKeepParagraphOpen(strippedText: string): boolean {
 	return true;
 }
 
+/** The marker line loses its marker; every later line up to `contentIndent` columns. */
 function stripListItemLines(
 	lines: ParsedLine[],
 	startIndex: number,
 	endIndex: number,
 	contentIndent: number
 ): ParsedLine[] {
-	return remapStrippedLines(lines.slice(startIndex, endIndex), (line, i) => {
-		const stripCount = i === 0 ? contentIndent : Math.min(getIndent(line.text), contentIndent);
-		return line.text.slice(stripCount);
-	});
+	return remapStrippedLines(lines.slice(startIndex, endIndex), (line, i) =>
+		i === 0 ? line.text.slice(contentIndent) : stripIndentColumns(line.text, contentIndent)
+	);
 }

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { defaultStructuralHook, pastedContentFocusIndex } from '$lib/tree-operations/paste/hooks';
+import { defaultStructuralHook } from '$lib/tree-operations/paste/hooks';
 import { parse } from '$lib/core/parser';
 import type { CstNode } from '$lib/core/nodes';
 
@@ -23,20 +23,18 @@ describe('defaultStructuralHook: caret at end of pasted content', () => {
 		expect(result.focusReplacementIndex).toBe(result.replacement.length - 1);
 		expect((result.replacement[result.focusReplacementIndex].raw ?? '').trim()).toBe('two');
 	});
-});
 
-// Takes the display and offset the delete half already resolved, so a join cleanup that moved
-// either one is accounted for by construction rather than re-derived here.
-describe('pastedContentFocusIndex', () => {
-	it('mid-block yields length-2, end-of-block yields length-1', () => {
-		expect(pastedContentFocusIndex('hello world', 5, 4)).toBe(2);
-		expect(pastedContentFocusIndex('hello world', 11, 3)).toBe(2);
-	});
-
-	it('reads the post-delete display, not the original', () => {
-		// `hello world` minus [2,5) is `heworld`, caret at 2: residue follows, so length-2.
-		expect(pastedContentFocusIndex('heworld', 2, 3)).toBe(1);
-		// minus [2,11) is `he`, caret at its end: no residue, so length-1.
-		expect(pastedContentFocusIndex('he', 2, 2)).toBe(1);
+	// Miss-analysis (GH #436): every fixture's residue was one line, so one residue node was
+	// assumed and never checked.
+	it('focuses the last pasted block when the residue is several blocks', () => {
+		const result = defaultStructuralHook(para('abc\n    code\nmore\n'), 3, twoBlocks());
+		expect(result.replacement.map((n) => n.raw)).toEqual([
+			'abc\n',
+			'one\n',
+			'two\n',
+			'    code\n',
+			'more\n'
+		]);
+		expect(result.focusReplacementIndex).toBe(2);
 	});
 });

@@ -93,8 +93,9 @@ describe('table parser: structure', () => {
 		expect((doc.children[0].metadata as TableMetadata).columnCount).toBe(2);
 	});
 
-	it('terminates the table at the first line without a pipe', () => {
-		const doc = parse('| A | B |\n| --- | --- |\n| 1 | 2 |\nNot a row\n');
+	// A line without a pipe right below the rows is a row (`table-pipeless-row.test.ts`).
+	it('terminates the table at a blank line', () => {
+		const doc = parse('| A | B |\n| --- | --- |\n| 1 | 2 |\n\nNot a row\n');
 		expect(doc.children).toHaveLength(2);
 		const table = doc.children[0];
 		expect(table.kind).toBe('table');

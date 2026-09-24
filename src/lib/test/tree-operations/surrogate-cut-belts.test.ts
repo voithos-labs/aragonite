@@ -124,7 +124,7 @@ describe('the single-block range cut', () => {
 describe('the structural paste’s before/after slices', () => {
 	it('keeps the pair whole on one side of the pasted blocks', () => {
 		const leaf = parse(BOY).children[0];
-		const replacement = buildPastedReplacement(leaf, 2, parse('x\n').children);
+		const { nodes: replacement } = buildPastedReplacement(leaf, 2, parse('x\n').children);
 		const raws = replacement.map((node: CstNode) => node.raw);
 		expect(raws.every(isWellFormed)).toBe(true);
 		expect(raws).toEqual(['a\n', 'x\n', '\u{1F466}b\n']);
@@ -134,10 +134,10 @@ describe('the structural paste’s before/after slices', () => {
 describe('the absorb split’s item halves', () => {
 	it('keeps the pair whole on one half', () => {
 		const leaf = parse(BOY).children[0];
-		const { leadingNode, trailingNode } = splitLeafForPaste(leaf, 2);
+		const { leadingNode, trailingNodes } = splitLeafForPaste(leaf, 2);
 		expect(isWellFormed(leadingNode!.raw)).toBe(true);
-		expect(isWellFormed(trailingNode!.raw)).toBe(true);
-		expect([leadingNode!.raw, trailingNode!.raw]).toEqual(['a\n', '\u{1F466}b\n']);
+		expect(isWellFormed(trailingNodes[0].raw)).toBe(true);
+		expect([leadingNode!.raw, trailingNodes[0].raw]).toEqual(['a\n', '\u{1F466}b\n']);
 	});
 });
 

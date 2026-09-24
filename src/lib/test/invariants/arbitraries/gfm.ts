@@ -83,14 +83,16 @@ const linkRefDef = fc
 	.map(([label, url, title]) => `[${label}]: ${url}${title}\n`);
 
 // headerDelta lets the header/delimiter cell counts disagree: GFM §4.10 makes
-// the mismatch a paragraph, not a table, and round-trip must hold either way.
+// the mismatch a paragraph, not a table, and round-trip must hold either way. A line with no
+// pipe after the rows is one more row (GFM example 201).
 const table = fc
 	.tuple(
 		fc.integer({ min: 1, max: 3 }),
 		fc.integer({ min: -1, max: 1 }),
-		fc.array(fc.constantFrom('a', 'b', '1', 'x | y', ''), { minLength: 0, maxLength: 2 })
+		fc.array(fc.constantFrom('a', 'b', '1', 'x | y', ''), { minLength: 0, maxLength: 2 }),
+		fc.constantFrom('', 'plain words\n')
 	)
-	.map(([cols, headerDelta, bodyCells]) => {
+	.map(([cols, headerDelta, bodyCells, pipelessRow]) => {
 		const headerCols = Math.max(1, cols + headerDelta);
 		const header =
 			'| ' + Array.from({ length: headerCols }, (_, i) => 'H' + i).join(' | ') + ' |\n';
@@ -98,7 +100,7 @@ const table = fc
 		const rows = bodyCells
 			.map((cell) => '| ' + Array.from({ length: cols }, () => cell).join(' | ') + ' |\n')
 			.join('');
-		return header + delim + rows;
+		return header + delim + rows + pipelessRow;
 	});
 
 /**
@@ -138,9 +140,16 @@ const { block } = fc.letrec<{ block: string; body: string }>((tie) => ({
 		},
 		{
 			arbitrary: fc
-				.tuple(fc.constantFrom('- ', '* ', '+ ', '1. ', '- [ ] ', '- [x] '), tie('body'))
-				.map(([marker, inner]) => {
-					const pad = ' '.repeat(marker.length);
+				.tuple(
+					fc.constantFrom('- ', '* ', '+ ', '1. ', '- [ ] ', '- [x] '),
+					fc.boolean(),
+					tie('body')
+				)
+				.map(([marker, tabbed, inner]) => {
+					// A tab reaches column four, past a short marker's content column (GFM §2.2).
+					const pad = tabbed
+						? '\t' + ' '.repeat(Math.max(0, marker.length - 4))
+						: ' '.repeat(marker.length);
 					return inner
 						.split('\n')
 						.map((line, i, arr) =>

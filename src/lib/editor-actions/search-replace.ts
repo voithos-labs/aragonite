@@ -14,7 +14,9 @@ import {
 	normalizeReplacementTrivia,
 	writeOwnRaw
 } from '../tree-operations/node-primitives';
-import { rebuildAncestryRaw } from '../schema/container-raw';
+import { rebuildContainerRaw } from '../schema/container-raw';
+import { rebuildUnsharedChain } from '../tree-operations/chain-rebuild';
+import { createSharingState } from '../tree-operations/sharing';
 import {
 	replacePreservingFirst,
 	stampStructuralChange
@@ -64,10 +66,17 @@ export function createSearchReplace(deps: EditorActionsDeps, controller: UndoCon
 			writeOwnRaw(leaf, substituted, deps.grammar);
 		}
 		// A nested leaf's edit must be written up into the clone's container raws before the
-		// reparse from `child.raw`; a top-level leaf needs none.
+		// reparse from `child.raw`, through the rebuild typing uses, which also recomputes the blank
+		// line above a list emptied to its marker. A top-level leaf needs none.
+		const cloneSharing = createSharingState();
 		for (const ranges of byLeaf.values()) {
 			const rel = ranges[0].path.slice(1);
-			if (rel.length > 0) rebuildAncestryRaw(child, rel);
+			if (rel.length === 0) continue;
+			const chain: CstNode[] = [];
+			for (let depth = 1; depth < rel.length; depth++)
+				chain.push(descend(child, rel.slice(0, depth))!);
+			rebuildUnsharedChain(child, chain, cloneSharing, null, deps.grammar);
+			rebuildContainerRaw(child);
 		}
 		const newNodes = parse(child.raw, { grammar: deps.grammar, scope: 'fragment' }).children;
 		// leadingTrivia is positional and lives off `raw`, so parsing `child.raw` alone drops it.

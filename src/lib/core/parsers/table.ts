@@ -67,6 +67,15 @@ export function matchTableDelimiterRow(
 
 // ── Block parser ───────────────────────────────────────────────────────────
 
+/**
+ * Whether a table takes this line, straight below its rows, as one more row, pipe or none: GFM
+ * ends a table only at a blank line or a line that starts another block (spec example 201), and
+ * a link definition never starts one.
+ */
+export function tableTakesLine(line: ParsedLine): boolean {
+	return !isBlankLine(line.text) && !lineStartsOuterBlock(line, { paragraphOpen: false });
+}
+
 export function parseTable(
 	lines: ParsedLine[],
 	startIndex: number,
@@ -74,18 +83,8 @@ export function parseTable(
 	leadingTrivia: string,
 	delimiter: { columnCount: number; alignments: TableAlignment[] }
 ): BlockOpenerResult {
-	// GFM: the table breaks at a blank line or the start of another block, so a body row is a
-	// pipe-carrying line no opener claims. No paragraph is open here, so nothing is transparent
-	// but the definition, which is never a block start.
 	let i = startIndex + 2;
-	while (
-		i < endIndex &&
-		!isBlankLine(lines[i].text) &&
-		lines[i].text.includes('|') &&
-		!lineStartsOuterBlock(lines[i], { paragraphOpen: false })
-	) {
-		i++;
-	}
+	while (i < endIndex && tableTakesLine(lines[i])) i++;
 
 	const rows: CstNode[] = [];
 	rows.push(buildRow(lines[startIndex], delimiter.columnCount, true));

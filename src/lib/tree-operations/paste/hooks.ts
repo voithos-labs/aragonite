@@ -8,7 +8,6 @@ import { isBuiltinBlockKind, type BlockKind, type CstNode } from '../../core/nod
 import { trailingLineEnding, trimTrailingLineEnding } from '../../core/lines';
 import { buildPastedReplacement } from './paste-replacement';
 import { cutRangeFromDisplay } from '../node-ops';
-import { focusIndexBeforeResidue } from './focus-target';
 import {
 	getAllRegisteredKinds,
 	tryGetBlockKindDescriptor
@@ -61,13 +60,28 @@ export function defaultInlineHook(
 		seam
 	);
 
-	const newDisplay =
-		effectiveDisplay.slice(0, effectiveOffset) + text + effectiveDisplay.slice(effectiveOffset);
+	const after = effectiveDisplay.slice(effectiveOffset);
+	const inserted = atLineEnd(after) ? dropClosingLineEnding(text) : text;
+	const newDisplay = effectiveDisplay.slice(0, effectiveOffset) + inserted + after;
 
 	return {
 		newRaw: newDisplay + lineEnding,
-		caretOffset: effectiveOffset + text.length
+		caretOffset: effectiveOffset + inserted.length
 	};
+}
+
+const atLineEnd = (after: string): boolean => after === '' || /^\r?\n/.test(after);
+
+/**
+ * `text` without the one line ending that closes its last line: pasted against the end of a line
+ * it breaks nothing, and kept it would leave a blank line inside the paragraph. A whole blank line
+ * at the end stays, since the clipboard carried it as a block of its own.
+ */
+function dropClosingLineEnding(text: string): string {
+	const closing = /\r?\n$/.exec(text);
+	if (!closing) return text;
+	const rest = text.slice(0, closing.index);
+	return rest === '' || /\r?\n$/.test(rest) ? text : rest;
 }
 
 export function defaultStructuralHook(
@@ -84,26 +98,14 @@ export function defaultStructuralHook(
 	const synthLeaf =
 		cut.display === display ? node : { ...node, raw: cut.display + trailingLineEnding(node.raw) };
 
-	const replacement = buildPastedReplacement(synthLeaf, cut.offset, blocks, seam?.grammar);
-	return {
-		replacement,
-		focusReplacementIndex: pastedContentFocusIndex(cut.display, cut.offset, replacement.length),
-		focusOffset: CURSOR_END
-	};
-}
-
-/**
- * Caret target for a structural paste: the end of the pasted content, not the trailing
- * residue. A mid-block caret leaves the post-caret slice as the replacement's last node,
- * so the pasted content ends one node earlier. Takes the display and offset the delete half
- * already resolved: the join cleanup moves both, and re-deriving them here would disagree.
- */
-export function pastedContentFocusIndex(
-	display: string,
-	offset: number,
-	replacementLength: number
-): number {
-	return focusIndexBeforeResidue(replacementLength, offset < display.length);
+	const { nodes, lastPastedIndex } = buildPastedReplacement(
+		synthLeaf,
+		cut.offset,
+		blocks,
+		seam?.grammar
+	);
+	// The caret lands at the end of the last pasted block.
+	return { replacement: nodes, focusReplacementIndex: lastPastedIndex, focusOffset: CURSOR_END };
 }
 
 // Built-in kinds are all registered by the time this top level runs; a plugin kind

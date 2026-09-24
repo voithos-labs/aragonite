@@ -78,6 +78,11 @@ const SITES: Record<string, SiteStance> = {
 		sinks: 0,
 		why: 'the merged leaf sits below the commit scope, and the deeper levels are listItem/list joins the absorb’s same-kind window test cannot satisfy'
 	},
+	'src/lib/editor-actions/search-replace.ts': {
+		declines: 1,
+		sinks: 0,
+		why: 'the rebuild runs on a private clone that is reparsed whole afterwards, so any fold the chain could produce is read again by that parse and by the commit’s own settle'
+	},
 	'src/lib/testing/container-conformance.ts': {
 		declines: 1,
 		sinks: 0,

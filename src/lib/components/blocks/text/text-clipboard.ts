@@ -30,6 +30,7 @@ import {
 } from '../editable-surface';
 import { pasteDispatch } from '../../../tree-operations/paste/dispatch';
 import { replaceRangeRaw } from './live-selection-edit';
+import { replaceSelectedWidget } from './widget-interaction';
 import type { PresentationMode } from '../../../presentation-mode';
 
 export interface TextClipboardDeps {
@@ -152,9 +153,7 @@ export function createTextClipboard(deps: TextClipboardDeps): TextClipboard {
 			if (widget === null) return false;
 			const { inline, preSelectOffset } = widget;
 			e.clipboardData?.setData('text/plain', deps.node.raw.slice(inline.start, inline.end));
-			const newRaw = deps.node.raw.slice(0, inline.start) + deps.node.raw.slice(inline.end);
-			void deps.blockEdit.updateBlockContent(deps.index, newRaw, preSelectOffset, inline.start);
-			deps.widgetSelection.clear();
+			void replaceSelectedWidget(deps, inline, preSelectOffset, '');
 			return true;
 		},
 
@@ -182,16 +181,7 @@ export function createTextClipboard(deps: TextClipboardDeps): TextClipboard {
 		pasteTail: async (pastedText, foldedCaret) => {
 			const widget = selectedWidgetOnThisBlock();
 			if (widget !== null) {
-				const { inline, preSelectOffset } = widget;
-				const newRaw =
-					deps.node.raw.slice(0, inline.start) + pastedText + deps.node.raw.slice(inline.end);
-				void deps.blockEdit.updateBlockContent(
-					deps.index,
-					newRaw,
-					preSelectOffset,
-					inline.start + pastedText.length
-				);
-				deps.widgetSelection.clear();
+				await replaceSelectedWidget(deps, widget.inline, widget.preSelectOffset, pastedText);
 				return;
 			}
 

@@ -14,17 +14,23 @@ import {
 } from '../../core/lines';
 import { isBlankParagraph } from '../../core/parser';
 import { ensureEditableContainers } from '../node-primitives';
-import { parseFirstBlock } from '../parse-block';
+import { parseCutResidue, parseFirstBlock } from '../parse-block';
 import { terminateLastLine } from '../list/terminator';
 import type { GrammarView } from '../../schema/block-openers';
+
+export interface PastedReplacement {
+	nodes: CstNode[];
+	/** Index of the last pasted block in `nodes`, where the caret lands. */
+	lastPastedIndex: number;
+}
 
 export function buildPastedReplacement(
 	leaf: NodeView,
 	offset: number,
 	blocks: CstNode[],
 	grammar?: GrammarView
-): CstNode[] {
-	if (blocks.length === 0) return [];
+): PastedReplacement {
+	if (blocks.length === 0) return { nodes: [], lastPastedIndex: -1 };
 
 	const leafRaw = leaf.raw;
 	const lineEnding = trailingLineEnding(leafRaw);
@@ -33,7 +39,7 @@ export function buildPastedReplacement(
 	// blocks, so a pair split here is unrecoverable bytes rather than a recoverable edit.
 	const cut = snapToScalarBoundary(display, offset);
 	const rawBefore = display.slice(0, cut);
-	const rawAfter = display.slice(cut);
+	const residue = parseCutResidue(display.slice(cut), lineEnding, grammar);
 	const originalTrivia = leaf.leadingTrivia ?? '';
 
 	const newNodes: CstNode[] = [];
@@ -49,23 +55,27 @@ export function buildPastedReplacement(
 	}
 
 	// With none of the leaf after it, the last pasted block ends where the leaf ended.
-	const closesLine = rawAfter.length === 0 && ownTrailingLineEnding(leafRaw) !== '';
+	const hasResidue = residue.blocks.length > 0;
+	const closesLine = !hasResidue && ownTrailingLineEnding(leafRaw) !== '';
 	const landed = landClipboardBlocks(newNodes.at(-1), blocks, lineEnding, closesLine);
 	if (newNodes.length === 0) landed[0].leadingTrivia = originalTrivia;
 	// Appended, never spread: a paste can outnumber an argument list (G4.60).
 	for (const node of landed) newNodes.push(node);
+	const lastPastedIndex = newNodes.length - 1;
 
-	// Separate node rather than merged into the last pasted block, which would let a
-	// non-paragraph tail absorb it as a continuation line.
-	if (rawAfter.length > 0) {
-		const afterRaw = rawAfter + lineEnding;
-		const afterNode = parseFirstBlock(afterRaw, grammar);
-		afterNode.leadingTrivia = lineEnding;
-		ensureEditableContainers(afterNode);
-		newNodes.push(afterNode);
+	// Separate blocks rather than merged into the last pasted block, which would let a
+	// non-paragraph tail absorb them as continuation lines. A cut at a line's end hands the
+	// residue that line's own break.
+	if (hasResidue) {
+		const [first, ...rest] = residue.blocks;
+		newNodes.push({ ...first, leadingTrivia: residue.endedLine || lineEnding });
+		for (const node of rest) newNodes.push(node);
+		for (let i = lastPastedIndex + 1; i < newNodes.length; i++) {
+			ensureEditableContainers(newNodes[i]);
+		}
 	}
 
-	return newNodes;
+	return { nodes: newNodes, lastPastedIndex };
 }
 
 /**

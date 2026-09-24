@@ -33,7 +33,8 @@ export interface FootnoteDefMetadata {
 
 const OPENER = /^ {0,3}\[\^([^\]\s]+)\]:/;
 const MARKER_STRIP = /^ {0,3}\[\^[^\]\s]+\]: ?/;
-const CONTINUATION_INDENT = /^(\t| {4})/;
+// Four columns, a tab counting to the next multiple of four, so no tab reaches past the body.
+const CONTINUATION_INDENT = /^(?: {0,3}\t| {4})/;
 const CONTINUATION_MARKER = '    ';
 
 /** Per-line approximation of the body's open-paragraph state, as in the core blockquote/list

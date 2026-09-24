@@ -212,7 +212,8 @@ describe('every separator entry point retires the child spans it invalidates', (
 	 * next region rewrite.
 	 */
 	const ANSWERED_ELSEWHERE: Record<string, string> = {
-		mintSeparator: 'reached only from the three doors that retire first',
+		mintSeparator:
+			'reached only from the three entry points and separateTableFollower, which all retire first',
 		absorbWrapPrefix: 'reached only from clearRedundantSeparator, which retires first',
 		installMergedLeaf: 'writes the survivor’s line inside a merge splice; the count moves',
 		absorbSeamReading: 'writes a fresh block’s line, then splices; the count moves',

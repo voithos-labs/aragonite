@@ -8,7 +8,8 @@
 import type { AnyBlockKind, CstNode, Document } from '../core/nodes';
 import type { NodeView } from '../core/node-views';
 import { isBlankParagraph, parse, type ContainerBodyWrap } from '../core/parser';
-import { trailingLineEnding, trimTrailingLineEnding } from '../core/lines';
+import { splitLines, trailingLineEnding, trimTrailingLineEnding } from '../core/lines';
+import { tableTakesLine } from '../core/parsers/table';
 import { devWarn } from '../dev-warn';
 import { assignChildIdsDeep } from '../block-id';
 import { tryGetBlockKindDescriptor } from '../schema/block-kind-descriptor';
@@ -18,6 +19,7 @@ import { assertInvariant } from '../assert';
 import { checkStructuralDescriptor } from '../invariants/structural-descriptor';
 import type { SharingState } from './sharing';
 import { ensureUnsharedChild } from './unshare';
+import { lacksSublistSeparator, settleSublistSeparator } from './list/sublist-separator';
 import { spliceChildren } from './children';
 import { spliceMany } from './splice-many';
 import { applyStructuralChangeToIdsRefs, type StructuralChange } from './structural-change';
@@ -272,6 +274,7 @@ function settleSplicedWindow(
 	} else {
 		settleSeparatorOnBlank(parent, at + Math.max(added - 1, 0), sharing);
 	}
+	settleEmptyMarkerLists(parent, at, added, sharing);
 	// Unconditional, and only here: a delete window at the tail names no surviving block, and
 	// the question is about the parent's last block whatever the window.
 	materializeTailSuffix(parent, sharing);
@@ -297,6 +300,23 @@ function settleSplicedWindow(
 	const beforeTailMint = parent.children.length;
 	materializeTailSuffix(parent, sharing);
 	return widenForTailMint(absorbed, beforeTailMint, parent.children.length);
+}
+
+/**
+ * A list landing under a paragraph with an empty first item, or left there by the splice, takes
+ * the blank line that keeps it a list; typing writes the same line when it rebuilds the list.
+ */
+function settleEmptyMarkerLists(
+	parent: SeparatorParent,
+	at: number,
+	added: number,
+	sharing?: SharingState
+): void {
+	for (let i = at; i <= at + added && i < (parent.children?.length ?? 0); i++) {
+		if (!lacksSublistSeparator(parent.children!, i)) continue;
+		if (sharing) ensureUnsharedChild(parent as NodeParent, i, sharing);
+		settleSublistSeparator(parent.children!, i);
+	}
 }
 
 /** The block that takes the vacated position inherits its separator when it has none of its own
@@ -447,6 +467,7 @@ export function absorbSeamReading(
 		while (right < children.length && isBlankParagraph(children[right])) right++;
 		const window = children.slice(at, Math.min(right + 1, children.length));
 		if (window.length <= span || window.length < 2) break;
+		if (separateTableFollower(parent, right, sharing)) break;
 		// A context-dependent kind has no standalone reading, so a join touching it cannot be asked.
 		if (window.some((node) => tryGetBlockKindDescriptor(node.kind)?.contextDependentKind)) break;
 		if (probe !== undefined && declinesOnHeadLine(window, probe - at, read)) break;
@@ -480,10 +501,27 @@ export function absorbSeamReading(
 	return { at, span, eaten, spliced };
 }
 
-/** Whether the reparse moved more than the separating blank line into the head. Its own bytes
- *  plus that line are what it holds when the division between the two blocks has not moved. */
+/**
+ * Give a block an edit left right under a table a blank line, where the table would read its
+ * first line as one more row (a quote unwrapped there, a heading turned into text). The edit made
+ * the block, so it stays that block rather than merging into the table as the reload would.
+ */
+function separateTableFollower(parent: NodeParent, index: number, sharing?: SharingState): boolean {
+	const follower = parent.children[index];
+	if (parent.children[index - 1]?.kind !== 'table' || follower.leadingTrivia !== '') return false;
+	const nl = follower.raw.indexOf('\n');
+	const firstLine = splitLines(nl < 0 ? follower.raw : follower.raw.slice(0, nl + 1))[0];
+	if (!firstLine || !tableTakesLine(firstLine)) return false;
+	retireChildSpans(parent);
+	mintSeparator(parent, index, sharing);
+	return true;
+}
+
+/** Whether the reparse moved content into the head: more than the separating blank line, or,
+ *  for a container, that line alone, since its body reads an indented one as its own. */
 function headTookContent(head: CstNode, window: readonly CstNode[]): boolean {
-	return head.raw.length > window[0].raw.length + window[1].leadingTrivia.length;
+	const grew = head.raw.length - window[0].raw.length;
+	return grew > window[1].leadingTrivia.length || (head.children !== undefined && grew > 0);
 }
 
 /**

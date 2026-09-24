@@ -113,8 +113,8 @@ describe('a splice absorbs a join the reload would fold (GH #61)', () => {
 		expect(change).toEqual({ op: 'replace', at: 1, count: 3, newCount: 1, idMap: { 0: 0 } });
 	});
 
-	// GH #285: the swallowed block can carry a run of blank lines long enough to stay a block of
-	// its own, so the joined bytes read as the same number of blocks rather than fewer.
+	// GH #285: the swallowed block carries a run of blank lines, which the join must place where
+	// the reload does; here they reach the item's content column, so the list takes them too.
 	// Miss-analysis: every pin here drove a join whose bytes read as strictly fewer blocks, so no
 	// window ever held a blank run that kept the count while the division moved.
 	it('a mergeNext leaving a list above indented code takes its trailing blank run too', () => {
@@ -131,18 +131,17 @@ describe('a splice absorbs a join the reload would fold (GH #61)', () => {
 			(body) => mergeWithNext(body, 0, undefined, undefined, defaultGrammarView).change
 		);
 
+		// Both blank lines reach the item's content column (a tab counts to the next four).
 		expect(doc.children.map((c) => [c.kind, c.leadingTrivia, c.raw])).toEqual([
-			['list', '', '- ab\n\n    code\n'],
-			['paragraph', ' \t \n', '\t\n'],
-			['fencedCode', '', '```\n```\n']
+			['list', '', '- ab\n\n    code\n \t \n\t\n'],
+			['fencedCode', '\n', '```\n```\n']
 		]);
-		expect(change).toEqual({ op: 'replace', at: 0, count: 3, newCount: 2, idMap: { 0: 0 } });
+		expect(change).toEqual({ op: 'replace', at: 0, count: 3, newCount: 1, idMap: { 0: 0 } });
 		expect(describeConvergence(doc)).toBeNull();
 	});
 
-	// The same join at the parent tail: the trailing line the parse keeps in `doc.suffix` reloads
-	// as a block of its own once the merge leaves the last block blank.
-	it('the same join at the tail makes the trailing line a block', () => {
+	// The same join at the parent tail: the document's trailing blank line stays in `doc.suffix`.
+	it('the same join at the tail keeps the trailing line in the suffix', () => {
 		const doc = parse('- a\n\nb\n\n    code\n \t \n\t\n\n');
 		expect(doc.suffix).toBe('\n');
 
@@ -152,12 +151,28 @@ describe('a splice absorbs a join the reload would fold (GH #61)', () => {
 		);
 
 		expect(doc.children.map((c) => [c.kind, c.leadingTrivia, c.raw])).toEqual([
-			['list', '', '- ab\n\n    code\n'],
-			['paragraph', ' \t \n', '\t\n'],
-			['paragraph', '', '\n']
+			['list', '', '- ab\n\n    code\n \t \n\t\n']
 		]);
-		expect(doc.suffix).toBe('');
-		expect(change).toEqual({ op: 'replace', at: 0, count: 3, newCount: 3, idMap: { 0: 0 } });
+		expect(doc.suffix).toBe('\n');
+		expect(change).toEqual({ op: 'replace', at: 0, count: 3, newCount: 1, idMap: { 0: 0 } });
+		expect(describeConvergence(doc)).toBeNull();
+	});
+
+	// GH #285 with a paragraph for the head: the code's blank run stays a block of its own, so the
+	// joined bytes keep the block count while the code moves up into the paragraph.
+	it('a delete leaving a paragraph over indented code takes the code as its continuation', () => {
+		const doc = parse('para\n# h\n    code\n    \n    \n\n```\n```\n');
+
+		const change = settled(doc, (body) => deleteNode(body, 1));
+
+		// The blank line above the fence goes with the delete: a known loss, GH #450.
+		expect(serialize(doc)).toBe('para\n    code\n    \n    \n```\n```\n');
+		expect(doc.children.map((c) => [c.kind, c.leadingTrivia, c.raw])).toEqual([
+			['paragraph', '', 'para\n    code\n'],
+			['paragraph', '    \n', '    \n'],
+			['fencedCode', '', '```\n```\n']
+		]);
+		expect(change).toEqual({ op: 'replace', at: 0, count: 3, newCount: 2, idMap: { 0: 0 } });
 		expect(describeConvergence(doc)).toBeNull();
 	});
 
@@ -168,6 +183,20 @@ describe('a splice absorbs a join the reload would fold (GH #61)', () => {
 
 		expect(doc.children.map((c) => c.raw)).toEqual(['a\n', 'c\n']);
 		expect(change).toEqual({ op: 'delete', at: 1, count: 1 });
+		expect(describeConvergence(doc)).toBeNull();
+	});
+
+	// A list takes an indented separator line into its body, so the join keeps the block count
+	// while the line moves into the item as a child.
+	// Miss-analysis: the equal-count check measured the head's growth against the separator's
+	// length, which is exactly what a container growing by that line shows; the shape property
+	// drew such a line only once tabs counted as indentation.
+	it('a delete bringing an indented separator under a list moves it into the item', () => {
+		const doc = parse('- a\n  \n---\n  \n> q\n');
+
+		settled(doc, (body) => deleteNode(body, 1));
+
+		expect(serialize(doc)).toBe('- a\n  \n  \n> q\n');
 		expect(describeConvergence(doc)).toBeNull();
 	});
 });
