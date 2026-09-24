@@ -42,7 +42,8 @@ export interface EditorActionsDeps {
 	 *  at once without scrolling. */
 	revealPath(path: number[]): Promise<BlockComponent | null>;
 	events: EditorEvents;
-	/** The instance's grammar, so a re-parse or a completer leaves out what the editor did. */
+	/** The instance's grammar, so a re-parse or a completer reads only the plugins and syntax the
+	 *  editor has switched on. */
 	grammar: GrammarView;
 	/** The live effective presentation mode, for the actions that must not write in reading
 	 *  mode. Absent in harnesses, which `isReadingMode` reads as not reading. */

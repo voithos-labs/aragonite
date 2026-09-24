@@ -53,7 +53,8 @@ export interface NestedActionsDeps {
 	/** Document-absolute path of `node`; the copy-before-write and the ancestor rebuild use it. */
 	path: number[];
 	stickyColumn: StickyColumnState;
-	/** The instance's grammar, so a nested re-parse or completer leaves out what the editor did. */
+	/** The instance's grammar, so a nested re-parse or completer reads only the plugins and syntax
+	 *  the editor has switched on. */
 	grammar: GrammarView;
 	/** The live effective mode, for mutations whose bytes depend on what the mode shows (the
 	 *  split's marker rebalance). Nullable rather than optional so each container answers. */

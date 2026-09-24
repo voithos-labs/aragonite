@@ -36,12 +36,11 @@ export interface CrossBlockMutationContext {
 	pushUndoSnapshot: () => void;
 	/** Block grammar for the delete's ancestor rebuild. */
 	grammar: GrammarView;
-	/** The effective mode the delete's join cleanup reads (live-mode.md § 4.5). Required but
-	 *  nullable for the same reason as `grammar`; `undefined` reads as not live, so the join keeps
-	 *  every byte. */
+	/** The effective mode the delete's join cleanup reads (live-mode.md § 4.5). Nullable rather
+	 *  than optional, so no caller skips it; `undefined` reads as not live and keeps every byte. */
 	getPresentationMode: PresentationModeGetter | undefined;
 	/** The instance's link-reference resolver, so the join cleanup parses the reference forms the
-	 *  renderer drew. Required but nullable, like the mode. */
+	 *  renderer drew. */
 	linkRef: LinkReferenceResolverRef;
 }
 

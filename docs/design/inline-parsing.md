@@ -37,7 +37,9 @@ The first one, with the entity widget (a decoded `&copy;` renders as one atomic 
 ```ts
 const raw = 'a &copy; b';
 const div = document.createElement('div');
-div.appendChild(renderInlineNodes(parseInline(raw, 0, raw.length), raw));
+div.appendChild(
+	renderInlineNodes(parseInline(raw, 0, raw.length), raw, { grammar: defaultGrammarView })
+);
 div.textContent; // 'a © b': the widget's six bytes are gone
 rawTextOfNode(div, raw); // 'a &copy; b': the walk puts them back
 ```
@@ -158,11 +160,11 @@ The block parser never calls the inline parser. The editor layer triggers inline
 
 ## 5. Rendering
 
-The renderer takes the inline node array **and the block's `raw`**, and produces a DOM fragment. It needs `raw` because that's where the markers come from (the rule in § 1). "Dim marker spans" below are spans holding a construct's own delimiters, sliced from `raw` and styled faint:
+The renderer takes the inline node array **and the block's `raw`**, and produces a DOM fragment. It needs `raw` because that's where the markers come from (the rule in § 1), and it takes the editor's grammar too, so a plugin the editor leaves out never draws a widget. "Dim marker spans" below are spans holding a construct's own delimiters, sliced from `raw` and styled faint:
 
 ```ts
 const raw = '**bold** and `code`';
-renderInlineNodes(parseInline(raw, 0, raw.length), raw);
+renderInlineNodes(parseInline(raw, 0, raw.length), raw, { grammar: defaultGrammarView });
 // <span class="md-marker">**</span><strong>bold</strong><span class="md-marker">**</span>
 //  and <span class="md-marker">`</span><code class="inline-code-content">code</code><span class="md-marker">`</span>
 ```
