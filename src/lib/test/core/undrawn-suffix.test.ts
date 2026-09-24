@@ -2,7 +2,7 @@
 // Miss-analysis: every kind with bytes past its content range was prose, so no test asked about a
 // kind whose component draws its whole display.
 import { describe, it, expect, afterEach } from 'vitest';
-import { undrawnSuffix } from '../../core/inline';
+import { undrawnSuffix, withUndrawnSuffix } from '../../core/inline';
 import type { CstNode } from '../../core/nodes';
 import { declarePluginKind, registerBlockKind, simpleLeafClosure } from '$lib/plugin';
 import { resetPluginPlatformForTests } from '$lib/testing';
@@ -43,4 +43,21 @@ describe('undrawnSuffix', () => {
 
 		expect(undrawnSuffix(node(kind, '@@ one\n'))).toBe('');
 	});
+});
+
+describe('withUndrawnSuffix', () => {
+	const heading = node('setextHeading', 'Plan\n===\n');
+
+	it.each([
+		['a title', 'Plans', 'Plans\n==='],
+		['an emptied title', '', ''],
+		['a title of spaces and tabs', ' \t', ' \t'],
+		['a title ending in an empty line', 'Plan\n', 'Plan\n'],
+		['a no-break space, which Markdown reads as text', '\u00a0', '\u00a0\n===']
+	])(
+		'puts the underline back under %s only when its last line has text',
+		(_label, text, written) => {
+			expect(withUndrawnSuffix(heading, text)).toBe(written);
+		}
+	);
 });

@@ -1,9 +1,9 @@
 // @vitest-environment jsdom
 //
-// A setext heading's DOM holds only its title: no mode draws the underline. Every write that
-// starts from the text the block reads back from its DOM must still carry the underline.
-// Miss-analysis: cells and code blocks had mount-level typing tests and prose blocks had none,
-// and the shape property's retype gesture wrote the stored raw back rather than the DOM's text.
+// A setext heading's DOM holds only its title: no mode draws the underline. A write from the text
+// the block reads back carries the underline, unless the title's last line is empty.
+// Miss-analysis: prose blocks had no mount-level typing tests, the shape property's retype writes
+// the stored bytes back and never reads the DOM, and no typing case erased the title.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
 import { mount, unmount, flushSync } from 'svelte';
 import TextEditableBlock from '$lib/components/blocks/text/TextEditableBlock.svelte';
@@ -47,7 +47,26 @@ describe('typing into a setext heading keeps its underline', () => {
 	});
 });
 
-describe('a widget source shown in a setext heading folds back with the underline', () => {
+describe('erasing a setext title drops its underline', () => {
+	it.each([
+		['a === underline', 'Plan\n===\n', '', '\n'],
+		['a --- underline', 'Plan\n---\n', '', '\n'],
+		['a long underline', 'Plan\n----------\n', '', '\n'],
+		['CRLF endings', 'Plan\r\n===\r\n', '', '\r\n'],
+		['a title left as a space', 'Plan\n===\n', ' ', ' \n'],
+		['the last line of a two-line title', 'Plan\nmore\n---\n', 'Plan\n', 'Plan\n\n']
+	])('%s', async (_label, source, left, written) => {
+		mounted = mountEditor({ source });
+
+		await typeInto(surfaceAt(mounted, [0]), left);
+
+		expect(mounted.source()).toBe(written);
+		expect(mounted.target.textContent).not.toMatch(/[-=]{3}/);
+		expect(mounted.target.querySelector('hr')).toBeNull();
+	});
+});
+
+describe('a widget source shown in a setext heading closes with the underline', () => {
 	installMathInline();
 
 	function mountMathHeading() {
@@ -86,7 +105,7 @@ describe('a widget source shown in a setext heading folds back with the underlin
 		await unmount(instance);
 	});
 
-	it('an untouched source folds without a write', async () => {
+	it('an untouched source closes without a write', async () => {
 		const { instance, blockEdit } = mountMathHeading();
 		expect(instance.enterEdgeWidget('start')).toBe(true);
 		await flush();

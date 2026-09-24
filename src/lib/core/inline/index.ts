@@ -45,6 +45,16 @@ export function undrawnSuffix(node: NodeView): string {
 	return node.raw.slice(getContentRange(node).end, displayLength(node.raw));
 }
 
+/**
+ * `text` read back from a block's DOM with its undrawn suffix put back, unless the last line is
+ * blank: an underline under nothing would surface as a block of its own, so an emptied title
+ * drops it, as an emptied ATX heading gives up its `#`.
+ */
+export function withUndrawnSuffix(node: NodeView, text: string): string {
+	const lastLine = text.slice(text.lastIndexOf('\n') + 1);
+	return /^[ \t]*$/.test(lastLine) ? text : text + undrawnSuffix(node);
+}
+
 /** The one place a {@link ContentLength} is created. */
 export function contentLengthOf(node: NodeView): ContentLength {
 	return getContentRange(node).end as ContentLength;

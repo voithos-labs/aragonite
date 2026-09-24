@@ -18,7 +18,12 @@
 	} from '../../../editor-keys';
 	import type { IndexedDecoration } from '../../../decorations/buckets';
 	import type { ReplaceDecoration, WidgetDecoration } from '../../../decorations/types';
-	import { getContentRange, isProseKind, undrawnSuffix } from '../../../core/inline';
+	import {
+		getContentRange,
+		isProseKind,
+		undrawnSuffix,
+		withUndrawnSuffix
+	} from '../../../core/inline';
 	import { devWarn } from '../../../dev-warn';
 	import { resolvedInlineContent } from '../../../core/inline/inline-cache';
 	import type { LinkReferenceResolver } from '../../../core/inline/link-reference-resolver';
@@ -501,8 +506,8 @@
 	 *  not seen that edit, and never the undrawn suffix. Counting bytes no caret can reach traps
 	 *  the caret at the block's end, because no key reads as "at the boundary". */
 	function caretReach(): number {
-		const text = widgetInteraction.isRevealing() ? readRawText() : getDisplayText();
-		return text.length - undrawnSuffix(node).length;
+		if (widgetInteraction.isRevealing()) return readDomText().length;
+		return getDisplayText().length - undrawnSuffix(node).length;
 	}
 
 	/** The offsets a caret can reach here, read from the same place the arrow exits use: a mode
@@ -843,10 +848,15 @@
 
 	const onInput = editableSurface.onInput;
 
-	// Read the children one by one rather than `textContent`, so stray text nodes Chromium
-	// inserts around the marker span do not pollute the raw. The DOM stops at the content end, so
-	// the undrawn suffix (a setext underline) is added back and every write from here keeps it.
+	// The DOM stops at the content end, so the undrawn suffix (a setext underline) is added back
+	// and every write from here keeps it.
 	function readRawText(): string {
+		return withUndrawnSuffix(node, readDomText());
+	}
+
+	// Read the children one by one rather than `textContent`, so stray text nodes Chromium
+	// inserts around the marker span do not pollute the raw.
+	function readDomText(): string {
 		if (!el) return '';
 		const ambient = ambientLength > 0 ? ambientSpanOf(el) : null;
 		let out = '';
@@ -854,7 +864,7 @@
 			if (child === ambient) continue;
 			out += rawTextOfNode(child, node.raw);
 		}
-		return out + undrawnSuffix(node);
+		return out;
 	}
 
 	// Captured before the shared handler: its cross-block half clears the arrival side, and the
