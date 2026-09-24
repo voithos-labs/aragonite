@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { inlineFormatsCovering, isInlineFormatActive } from '$lib/core/inline/format-toggle';
+import { defaultGrammarView } from '$lib/schema/block-openers';
 import type { InlineMarkKind } from '$lib/schema/inline-construct-policy';
 import { whole } from './format-toggle-fixture';
 
@@ -7,7 +8,10 @@ import { whole } from './format-toggle-fixture';
 // asked without writing. Kept beside the toggle so the toolbar state and the toggle cannot drift.
 
 const activeAt = (raw: string, start: number, end: number, format: InlineMarkKind) =>
-	isInlineFormatActive({ display: raw, content: whole(raw), selection: { start, end } }, format);
+	isInlineFormatActive(
+		{ display: raw, content: whole(raw), selection: { start, end }, grammar: defaultGrammarView },
+		format
+	);
 
 describe('isInlineFormatActive', () => {
 	it('reads a caret inside the construct as active, and in plain text as not', () => {
@@ -46,7 +50,12 @@ describe('isInlineFormatActive', () => {
 	// readers ask it.
 	it('declines a kind whose policy row declares no mark, through either reader', () => {
 		const raw = '[a](b)';
-		const edit = { display: raw, content: whole(raw), selection: whole(raw) };
+		const edit = {
+			display: raw,
+			content: whole(raw),
+			selection: whole(raw),
+			grammar: defaultGrammarView
+		};
 		expect(isInlineFormatActive(edit, 'link')).toBe(false);
 		expect([...inlineFormatsCovering(edit, ['link'])]).toEqual([]);
 	});

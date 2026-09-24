@@ -6,6 +6,7 @@
 // toggle: bytes no parse reads as a run, which that toggle doubled into `****`.
 import { describe, it, expect } from 'vitest';
 import { toggleInlineFormat, type InlineFormatEdit } from '$lib/core/inline/format-toggle';
+import { defaultGrammarView } from '$lib/schema/block-openers';
 import type { PresentationMode } from '$lib/presentation-mode';
 import type { InlineMarkKind } from '$lib/schema/inline-construct-policy';
 import { MARK_FORMATS, markersOf, whole } from './format-toggle-fixture';
@@ -30,7 +31,12 @@ function presses(
 	count: number
 ): (string | null)[] {
 	const written: (string | null)[] = [];
-	let edit: InlineFormatEdit = { display: PLAIN, content: whole(PLAIN), selection };
+	let edit: InlineFormatEdit = {
+		display: PLAIN,
+		content: whole(PLAIN),
+		selection,
+		grammar: defaultGrammarView
+	};
 	for (let press = 0; press < count; press++) {
 		const result = toggleInlineFormat(edit, format, mode);
 		written.push(result?.newDisplay ?? null);
@@ -38,7 +44,8 @@ function presses(
 		edit = {
 			display: result.newDisplay,
 			content: whole(result.newDisplay),
-			selection: { start: result.newSelStart, end: result.newSelEnd }
+			selection: { start: result.newSelStart, end: result.newSelEnd },
+			grammar: defaultGrammarView
 		};
 	}
 	return written;
@@ -65,7 +72,12 @@ describe.each(MODES)('a toggle over boundary whitespace (%s)', (mode) => {
 	// than a second wrap.
 	it.each(MARK_FORMATS)('leaves the run it wrote selected (%s)', (format) => {
 		const m = markersOf(format);
-		const edit = { display: PLAIN, content: whole(PLAIN), selection: SELECTIONS['both spaces'] };
+		const edit = {
+			display: PLAIN,
+			content: whole(PLAIN),
+			selection: SELECTIONS['both spaces'],
+			grammar: defaultGrammarView
+		};
 		const result = toggleInlineFormat(edit, format, mode);
 		expect(result?.newDisplay.slice(result.newSelStart, result.newSelEnd)).toBe(`${m}word${m}`);
 	});

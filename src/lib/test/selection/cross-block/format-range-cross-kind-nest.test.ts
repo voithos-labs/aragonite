@@ -7,6 +7,7 @@
 //
 // Miss-analysis: every cross-block case gave its middle block plain content or a run of the format
 // pressed, so no case ever put a block the toggle writes and then reads as unchanged into a range.
+import { defaultGrammarView } from '$lib/schema/block-openers';
 import { describe, it, expect } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
@@ -28,9 +29,9 @@ function toggle(
 	mode: 'source' | 'live'
 ) {
 	const doc = parse(source);
-	const plan = planCrossBlockFormat(doc, start, end, 'strong', mode);
+	const plan = planCrossBlockFormat(doc, start, end, 'strong', mode, defaultGrammarView);
 	if (!plan) return null;
-	applyCrossBlockFormat(doc, plan, createSharingState(), undefined);
+	applyCrossBlockFormat(doc, plan, createSharingState(), defaultGrammarView);
 	return serialize(doc);
 }
 

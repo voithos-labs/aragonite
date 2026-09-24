@@ -10,11 +10,19 @@ interface ActivationDoor {
 	claims(): { listing: boolean; notListing: boolean }[];
 	/** Whether the pane's tree reloads as itself in that editor's own grammar. */
 	converged(pane: Pane): boolean;
+	/** The pane's document as Markdown. */
+	source(pane: Pane): string;
 }
 
 const convergedIn = (page: Page, pane: Pane) =>
 	page.evaluate(
 		(p) => (window as unknown as { __activation: ActivationDoor }).__activation.converged(p),
+		pane
+	);
+
+const sourceOf = (page: Page, pane: Pane) =>
+	page.evaluate(
+		(p) => (window as unknown as { __activation: ActivationDoor }).__activation.source(p),
 		pane
 	);
 
@@ -59,8 +67,8 @@ test.describe('the plugins prop is the enablement set', () => {
 		await page.keyboard.press('Home');
 		await page.keyboard.press('Enter');
 
-		// The new empty paragraph, the parrot bytes, the note's body and `Body`.
-		await expect(pane.locator('[data-block-kind="paragraph"]')).toHaveCount(4);
+		// The new empty paragraph, the parrot bytes, the note's body, the dollars and `Body`.
+		await expect(pane.locator('[data-block-kind="paragraph"]')).toHaveCount(5);
 		await expect(pane.locator('[data-block-kind="parrot"]')).toHaveCount(0);
 		expect(await convergedIn(page, 'notListing')).toBe(true);
 	});
@@ -80,6 +88,18 @@ test.describe('the plugins prop is the enablement set', () => {
 		await expect(listed.locator('[data-block-kind="admonition"]')).toHaveCount(1);
 		await expect(unlisted.locator('[data-block-kind="admonition"]')).toHaveCount(0);
 		await expect(unlisted.locator('[data-block-kind="directiveContainer"]')).toHaveCount(1);
+	});
+
+	test('bold over dollars the editor draws as text wraps them in one run', async ({ page }) => {
+		await page.waitForFunction(() => '__activation' in window);
+		const pane = page.getByTestId('editor-not-listing');
+		await pane.locator('[data-block-kind="paragraph"]').filter({ hasText: '$' }).click();
+		await page.keyboard.press('Home');
+		await page.keyboard.press('Shift+End');
+		await page.keyboard.press('ControlOrMeta+b');
+
+		await expect.poll(() => sourceOf(page, 'notListing')).toContain('\n\n**$x$**\n\n');
+		expect(await convergedIn(page, 'notListing')).toBe(true);
 	});
 
 	// The badge comes from an onEditor hook, so its absence means the hook never ran here.

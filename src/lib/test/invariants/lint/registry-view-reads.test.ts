@@ -68,18 +68,6 @@ const RULES: CallSiteRule[] = [
 				'the pending-mark candidate check takes no link context, like its resolver',
 			'src/lib/components/blocks/text/pending-mark-insert.ts:225':
 				'the pending-mark candidate check takes no link context, like its resolver',
-			'src/lib/core/inline/format-toggle.ts:55':
-				'the format toggle is core and takes the display alone, below every command surface',
-			'src/lib/core/inline/format-toggle.ts:183':
-				'the format toggle is core and takes the display alone, below every command surface',
-			'src/lib/core/inline/format-toggle.ts:197':
-				'the format toggle is core and takes the display alone, below every command surface',
-			'src/lib/core/inline/format-toggle.ts:263':
-				'the format toggle is core and takes the display alone, below every command surface',
-			'src/lib/core/inline/format-toggle.ts:538':
-				'the format toggle is core and takes the display alone, below every command surface',
-			'src/lib/core/inline/format-toggle.ts:582':
-				'the format toggle is core and takes the display alone, below every command surface',
 			'src/lib/editor-actions/container-block-component.ts:286':
 				'the whole-block component deps carry no grammar; a container is transparent only if every child is',
 			'src/lib/selection/keyboard-extend.ts:334':

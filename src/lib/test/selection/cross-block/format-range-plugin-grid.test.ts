@@ -7,6 +7,7 @@
 //
 // Miss-analysis: every case fed the branch a parsed table with the grid wholly inside the range,
 // so neither a metadata-free grid nor an endpoint inside one was ever put to it.
+import { defaultGrammarView } from '$lib/schema/block-openers';
 import { afterEach, describe, expect, it } from 'vitest';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { setPluginMetadata } from '$lib/core/nodes';
@@ -27,14 +28,23 @@ describe('a grid whose kind carries no table metadata', () => {
 	it('contributes its cells instead of throwing out of the plan', () => {
 		const doc = docAround(gridOf(registerPluginGrid(), [['a', 'b']]));
 
-		const plan = planCrossBlockFormat(doc, at([0], 0), at([2], 4), 'strong', undefined)!;
+		const plan = planCrossBlockFormat(
+			doc,
+			at([0], 0),
+			at([2], 4),
+			'strong',
+			undefined,
+			defaultGrammarView
+		)!;
 		expect(plan.writes.map((write) => [write.path, write.newDisplay])).toEqual([
 			[[0], '**head**'],
 			[[1, 0, 0], '**a**'],
 			[[1, 0, 1], '**b**'],
 			[[2], '**tail**']
 		]);
-		expect(() => applyCrossBlockFormat(doc, plan, createSharingState(), undefined)).not.toThrow();
+		expect(() =>
+			applyCrossBlockFormat(doc, plan, createSharingState(), defaultGrammarView)
+		).not.toThrow();
 	});
 
 	// The other half of the same bug: metadata present but holding a shape of the plugin's own,
@@ -48,7 +58,8 @@ describe('a grid whose kind carries no table metadata', () => {
 			at([0], 0),
 			at([2], 4),
 			'strong',
-			undefined
+			undefined,
+			defaultGrammarView
 		)!;
 		expect(plan.writes.map((write) => write.path)).toEqual([[0], [1, 0, 0], [1, 0, 1], [2]]);
 	});
@@ -64,7 +75,14 @@ describe('a grid whose kind carries no table metadata', () => {
 			children: [{ kind: kinds.cell, leadingTrivia: '', raw: 'a' }]
 		});
 
-		const plan = planCrossBlockFormat(doc, at([0], 0), at([2], 4), 'strong', undefined)!;
+		const plan = planCrossBlockFormat(
+			doc,
+			at([0], 0),
+			at([2], 4),
+			'strong',
+			undefined,
+			defaultGrammarView
+		)!;
 		expect(plan.writes.map((write) => write.path)).toEqual([[0], [2]]);
 	});
 
@@ -73,7 +91,9 @@ describe('a grid whose kind carries no table metadata', () => {
 		doc.children[0].raw = '**head**\n';
 		doc.children[2].raw = '**tail**\n';
 
-		expect(crossBlockActiveFormats(doc, at([0], 0), at([2], 8)).has('strong')).toBe(true);
+		expect(
+			crossBlockActiveFormats(doc, at([0], 0), at([2], 8), defaultGrammarView).has('strong')
+		).toBe(true);
 	});
 });
 
@@ -129,7 +149,9 @@ describe('a range endpoint deep inside a plugin grid', () => {
 		);
 		doc.children[0].raw = '**head**\n';
 
-		expect(crossBlockActiveFormats(doc, at([0], 0), at([1, 0, 0], 1)).has('strong')).toBe(true);
+		expect(
+			crossBlockActiveFormats(doc, at([0], 0), at([1, 0, 0], 1), defaultGrammarView).has('strong')
+		).toBe(true);
 	});
 
 	// An endpoint on the grid's own path counts cells only where the path is cell space. A plugin
@@ -161,7 +183,14 @@ describe('a grid whose rows differ in width', () => {
 	it('never writes the surplus cell of a wider row', () => {
 		const doc = docAround(gridOf(registerPluginGrid(), RAGGED));
 
-		const plan = planCrossBlockFormat(doc, at([0], 0), at([2], 4), 'strong', undefined)!;
+		const plan = planCrossBlockFormat(
+			doc,
+			at([0], 0),
+			at([2], 4),
+			'strong',
+			undefined,
+			defaultGrammarView
+		)!;
 		expect(plan.writes.map((write) => write.path)).toEqual([
 			[0],
 			[1, 0, 0],

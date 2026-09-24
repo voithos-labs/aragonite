@@ -5,6 +5,7 @@
  * calls those is what this tests.
  */
 
+import { defaultGrammarView } from '$lib/schema/block-openers';
 import type { CstNode, Document } from '$lib/core/nodes';
 import type { PresentationMode } from '$lib/presentation-mode';
 import type { EdgeAffinity } from '$lib/cursor/edge-affinity';
@@ -433,7 +434,8 @@ function toggleFormat(
 		{
 			display: trimTrailingLineEnding(node.raw),
 			content: getContentRange(node),
-			selection: range
+			selection: range,
+			grammar: defaultGrammarView
 		},
 		drawnMark(gesture).kind,
 		mode
@@ -526,10 +528,17 @@ function acrossLeaves(
 		rangeDelete(h.doc, range.start, range.end, h.sharing, undefined, mode, undefined);
 		return false;
 	}
-	const plan = planCrossBlockFormat(h.doc, range.start, range.end, drawnMark(gesture).kind, mode);
+	const plan = planCrossBlockFormat(
+		h.doc,
+		range.start,
+		range.end,
+		drawnMark(gesture).kind,
+		mode,
+		defaultGrammarView
+	);
 	// A toggle the planner turns down writes nothing, which is that code's own answer rather than
 	// a gesture the fuzzer failed to apply.
-	if (plan) applyCrossBlockFormat(h.doc, plan, h.sharing, undefined);
+	if (plan) applyCrossBlockFormat(h.doc, plan, h.sharing, defaultGrammarView);
 	return true;
 }
 

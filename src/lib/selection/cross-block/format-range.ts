@@ -63,9 +63,10 @@ export function planCrossBlockFormat(
 	start: SelectionPoint,
 	end: SelectionPoint,
 	format: InlineMarkKind,
-	mode: PresentationMode | undefined
+	mode: PresentationMode | undefined,
+	grammar: GrammarView
 ): CrossBlockFormatPlan | null {
-	const spans = spansInRange(doc, start, end);
+	const spans = spansInRange(doc, start, end, grammar);
 	if (spans.length === 0) return null;
 	// Read once per span: the vote and the per-span skip below ask the same question, and the
 	// answer costs a parse of the block's inlines.
@@ -101,9 +102,10 @@ export function planCrossBlockFormat(
 export function crossBlockActiveFormats(
 	doc: DocumentView,
 	start: SelectionPoint,
-	end: SelectionPoint
+	end: SelectionPoint,
+	grammar: GrammarView
 ): ReadonlySet<InlineMarkKind> {
-	const spans = spansInRange(doc, start, end);
+	const spans = spansInRange(doc, start, end, grammar);
 	if (spans.length === 0) return new Set();
 	// The running intersection is the next span's candidate set, so a span costs one parse and a
 	// walk per mark still standing, and it empties where a per-mark `every` would stop.
@@ -118,7 +120,7 @@ export function applyCrossBlockFormat(
 	root: NodeParent,
 	plan: CrossBlockFormatPlan,
 	sharing: SharingState,
-	grammar: GrammarView | undefined
+	grammar: GrammarView
 ): void {
 	const chains: CstNode[][] = [];
 	for (const write of plan.writes) {
@@ -150,7 +152,12 @@ interface RangeSpan {
  * supports inline marks and has a non-blank span joins, and a grid hands over its covered
  * cells, which are leaves of that same shape.
  */
-function spansInRange(doc: DocumentView, start: SelectionPoint, end: SelectionPoint): RangeSpan[] {
+function spansInRange(
+	doc: DocumentView,
+	start: SelectionPoint,
+	end: SelectionPoint,
+	grammar: GrammarView
+): RangeSpan[] {
 	const spans: RangeSpan[] = [];
 	const visit = (holder: DocumentView | NodeView, path: number[]): void => {
 		const children = holder.children ?? [];
@@ -163,13 +170,13 @@ function spansInRange(doc: DocumentView, start: SelectionPoint, end: SelectionPo
 				if (tryGetBlockKindDescriptor(child.kind)?.containerContract === 'grid') {
 					// Pushed one by one, never spread: a large grid's covered cells can exceed the
 					// argument-list limit (G4.60).
-					for (const span of gridSpans(child, here, start, end)) spans.push(span);
+					for (const span of gridSpans(child, here, start, end, grammar)) spans.push(span);
 				} else {
 					visit(child, here);
 				}
 				continue;
 			}
-			const span = spanFor(child, here, start, end);
+			const span = spanFor(child, here, start, end, grammar);
 			if (span) spans.push(span);
 		}
 	};
@@ -181,7 +188,8 @@ function spanFor(
 	node: NodeView,
 	path: number[],
 	start: SelectionPoint,
-	end: SelectionPoint
+	end: SelectionPoint,
+	grammar: GrammarView
 ): RangeSpan | null {
 	if (comparePaths(path, start.path) < 0 || comparePaths(path, end.path) > 0) return null;
 	const isStart = comparePaths(path, start.path) === 0;
@@ -190,7 +198,8 @@ function spanFor(
 		node,
 		path,
 		isStart ? charOffsetOf(start, TAG) : null,
-		isEnd ? charOffsetOf(end, TAG) : null
+		isEnd ? charOffsetOf(end, TAG) : null,
+		grammar
 	);
 	return body && { ...body, isStart, isEnd };
 }
@@ -204,7 +213,8 @@ function gridSpans(
 	grid: NodeView,
 	path: number[],
 	start: SelectionPoint,
-	end: SelectionPoint
+	end: SelectionPoint,
+	grammar: GrammarView
 ): RangeSpan[] {
 	const from = gridEndpointCellIndex(grid, path, start);
 	// No endpoint of its own, and the range starts after it: the grid sits wholly before the range.
@@ -212,7 +222,7 @@ function gridSpans(
 	const cells = coveredGridCells(grid, path, from, gridEndpointCellIndex(grid, path, end));
 	const spans: RangeSpan[] = [];
 	for (const cell of cells) {
-		const body = contentSpan(cell.node, cell.path, null, null);
+		const body = contentSpan(cell.node, cell.path, null, null, grammar);
 		if (body)
 			spans.push({
 				...body,
@@ -240,7 +250,8 @@ function contentSpan(
 	node: NodeView,
 	path: number[],
 	from: number | null,
-	to: number | null
+	to: number | null,
+	grammar: GrammarView
 ): Omit<RangeSpan, 'isStart' | 'isEnd'> | null {
 	const descriptor = tryGetBlockKindDescriptor(node.kind);
 	if (!descriptor?.supportsInline || !descriptor.editable || descriptor.isContainer) return null;
@@ -252,7 +263,7 @@ function contentSpan(
 		clampToContent(from ?? content.start, content),
 		clampToContent(to ?? content.end, content)
 	);
-	return selection && { path, edit: { display, content, selection } };
+	return selection && { path, edit: { display, content, selection, grammar } };
 }
 
 const clampToContent = (offset: number, content: ContentRange): number =>

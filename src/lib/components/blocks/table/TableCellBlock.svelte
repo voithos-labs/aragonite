@@ -398,7 +398,7 @@
 		const selection = cursor.getRawSelection() ?? { start: caret, end: caret };
 		const cellText = readCellText();
 		return formatActive(
-			{ display: cellText, content: { start: 0, end: cellText.length }, selection },
+			{ display: cellText, content: { start: 0, end: cellText.length }, selection, grammar },
 			marked.kind
 		);
 	}
@@ -424,7 +424,12 @@
 		// rather than `getContentRange(node)`, whose bytes carry the escapes the write adds.
 		const cellText = readCellText();
 		const result = toggleInlineFormat(
-			{ display: cellText, content: { start: 0, end: cellText.length }, selection: offsets },
+			{
+				display: cellText,
+				content: { start: 0, end: cellText.length },
+				selection: offsets,
+				grammar
+			},
 			format,
 			presentationMode
 		);

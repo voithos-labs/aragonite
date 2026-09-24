@@ -657,7 +657,7 @@
 		const caret = cursor.getRaw() ?? 0;
 		const selection = cursor.getRawSelection() ?? { start: caret, end: caret };
 		return formatActive(
-			{ display: getDisplayText(), content: getContentRange(node), selection },
+			{ display: getDisplayText(), content: getContentRange(node), selection, grammar },
 			marked.kind
 		);
 	}
@@ -1068,7 +1068,7 @@
 		}
 
 		const toggled = toggleInlineFormat(
-			{ display: getDisplayText(), content: getContentRange(node), selection: range },
+			{ display: getDisplayText(), content: getContentRange(node), selection: range, grammar },
 			format,
 			presentationMode
 		);
