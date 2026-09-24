@@ -302,6 +302,7 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 			screen: screenVisibilityOf(el),
 			inlines: inlinesOf(deps.node),
 			installedAs: deps.installedAs,
+			resolver: deps.linkRef?.current,
 			grammar: deps.grammar
 		});
 	}
@@ -327,6 +328,7 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 			deps.node.raw,
 			screenVisibilityOf(el),
 			typed,
+			deps.linkRef?.current,
 			deps.grammar
 		);
 	}
@@ -673,6 +675,7 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 			e.key,
 			marks,
 			inlinesOf(deps.node),
+			deps.linkRef?.current,
 			deps.grammar
 		);
 		if (!marked) return false;

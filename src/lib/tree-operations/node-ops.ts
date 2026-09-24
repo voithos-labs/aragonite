@@ -47,7 +47,9 @@ import {
 	type BodyParentArg,
 	type NodeParent
 } from './node-primitives';
-import { absorbSeamReading, deleteNode } from './settle';
+import { absorbSeamReading, deleteNode, type TrackedPosition } from './settle';
+import { leafAtRawOffset, rawOffsetOfLeaf } from './container-offsets';
+import { CURSOR_END } from '../block-component';
 import { adoptReparsedFields, probeLineOpensAsProse } from './content-write';
 import { fragmentReaderAt, type FragmentReader } from './list/task-paragraph';
 
@@ -381,11 +383,11 @@ export interface MergeResult {
 	joinOffset: number;
 }
 
-/**
- * `targetPath` is relative to `parent.children[blockIndex - 1]`: empty means prev itself
- * is the leaf, non-empty walks into prev's container subtree.
- */
+/** Where the join landed: the block at `index` in the parent, and the leaf at `targetPath` below
+ *  it (empty when that block is the leaf). The index is `blockIndex - 1` unless the fix-up after
+ *  the delete merged that block into the one above it. */
 export interface MergeIntoPrevResult {
+	index: number;
 	targetPath: number[];
 	joinOffset: number;
 	change: StructuralChange;
@@ -431,8 +433,28 @@ export function mergeIntoPrevDeepLeaf(
 		rebuildAncestryRaw(parent.children[blockIndex - 1], mergeTarget.path);
 	}
 
-	const change = deleteNode(parent, blockIndex, sharing);
-	return { targetPath: mergeTarget.path, joinOffset, change };
+	const joined: JoinLanding = { index: blockIndex - 1, targetPath: mergeTarget.path, joinOffset };
+	const at = rawOffsetOfLeaf(parent.children[blockIndex - 1], mergeTarget.path, joinOffset);
+	const tracked = at === null ? undefined : { index: blockIndex - 1, offset: at };
+	const change = deleteNode(parent, blockIndex, sharing, tracked);
+	return { ...landingAfterFixUp(parent, joined, at, tracked), change };
+}
+
+type JoinLanding = Omit<MergeIntoPrevResult, 'change'>;
+
+/** Where the join sits once the delete's fix-up has run: where it was, unless a merge of
+ *  neighbours moved its bytes, and then the leaf now holding them. */
+function landingAfterFixUp(
+	parent: BodyParentArg,
+	joined: JoinLanding,
+	at: number | null,
+	tracked: TrackedPosition | undefined
+): JoinLanding {
+	if (!tracked || (tracked.index === joined.index && tracked.offset === at)) return joined;
+	const leaf = leafAtRawOffset(parent.children[tracked.index], tracked.offset);
+	return leaf
+		? { index: tracked.index, targetPath: leaf.path, joinOffset: leaf.offset }
+		: { index: tracked.index, targetPath: [], joinOffset: CURSOR_END };
 }
 
 /** The container holding `path`'s last index: the parent's own owner for a one-step path. */

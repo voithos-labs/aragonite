@@ -62,9 +62,24 @@ export function terminateLine(text: string, sourceRaw: string): string {
 	return text.endsWith('\n') ? text : text + trailingLineEnding(sourceRaw);
 }
 
-/** Every paste entry point goes through here so Windows CRLF does not leak into a note. */
+/** Every paste entry point goes through here, so the paste rules read LF whatever the clipboard
+ *  held; the paste writes the document's own ending back (`tree-operations/paste/line-ending.ts`). */
 export function normalizeLineEndings(text: string): string {
 	return text.replace(/\r\n/g, '\n');
+}
+
+/** `text` with every line break written as `ending`: how LF text joins a document's own lines. */
+export function withLineEnding(text: string, ending: '\n' | '\r\n'): string {
+	return text.replace(/\r?\n/g, ending);
+}
+
+/** The ending of the line holding `offset`: the break closing it, else the nearest one before it.
+ *  Null when `text` holds no line break at all. */
+export function lineEndingAt(text: string, offset: number): '\n' | '\r\n' | null {
+	const after = text.indexOf('\n', offset);
+	const at = after >= 0 ? after : text.lastIndexOf('\n', offset);
+	if (at < 0) return null;
+	return text[at - 1] === '\r' ? '\r\n' : '\n';
 }
 
 export interface ParsedLine {

@@ -406,6 +406,7 @@
 	const compositionSeat = createCompositionSeat({
 		getDisplayText: () => getDisplayText(),
 		getInlines: () => resolvedInlineContent(node, linkRef),
+		getResolver: () => linkRef?.current,
 		grammar,
 		getAffinity: () => edgeAffinity.get(),
 		getScreen: () => screenVisibilityOf(el ?? null),

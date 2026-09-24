@@ -899,11 +899,13 @@ function absorbWrapPrefix(
  * Remove the node at `blockIndex`, leaving the next sibling separated from its new predecessor
  * and no more. Takes {@link BodyParentArg} because the fix-up can hand a freed line to the
  * owner's `innerPrefix`; the successor's `leadingTrivia` is the op's only in-place write.
+ * `tracked` follows the merges the delete sets off, for a caller landing a caret in the bytes.
  */
 export function deleteNode(
 	parent: BodyParentArg,
 	blockIndex: number,
-	sharing?: SharingState
+	sharing?: SharingState,
+	tracked?: TrackedPosition
 ): StructuralChange {
 	if (blockIndex < 0 || blockIndex >= parent.children.length) return { op: 'noop' };
 
@@ -929,6 +931,7 @@ export function deleteNode(
 		blockIndex - survivor,
 		blockIndex,
 		{ op: 'delete', at: blockIndex, count: 1 },
-		sharing
+		sharing,
+		tracked
 	).change;
 }
