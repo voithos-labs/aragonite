@@ -2,7 +2,7 @@
 	import { parrotPlugin } from '$lib/plugins/parrot';
 	import { emojiPlugin } from '$lib/plugins/emoji';
 	import { admonitionsPlugin } from '$lib/plugins/admonitions';
-	import { DEMO_LATEX, DEMO_TOC } from '../../../demo-plugins';
+	import { DEMO_FOOTNOTES, DEMO_LATEX, DEMO_TOC } from '../../../demo-plugins';
 	import { blockBadgePlugin } from '../block-badge/block-badge-plugin';
 	import { docStatsPlugin } from '../doc-stats/doc-stats-plugin';
 
@@ -16,11 +16,13 @@
 	];
 	const unlistedPlugins = [docStatsPlugin];
 
-	// The `?reads` variant: live mode, so the link card and pending marks run, and the toc in both
-	// editors, so its labels show which inline syntax each editor reads.
-	const listedReadsPlugins = [...listedPlugins, DEMO_TOC];
-	const unlistedReadsPlugins = [...unlistedPlugins, DEMO_TOC];
-	const READS_SEED = '# Title $*x*$\n\n[[toc]]\n\na :smile: b\n\na $x$ b\n';
+	// The `?reads` variant: live mode, so the link card and pending marks run, and the toc and
+	// footnotes in both editors, so their labels and numbers show which inline syntax each reads.
+	const listedReadsPlugins = [...listedPlugins, DEMO_TOC, DEMO_FOOTNOTES];
+	const unlistedReadsPlugins = [...unlistedPlugins, DEMO_TOC, DEMO_FOOTNOTES];
+	const READS_SEED =
+		'# Title $*x*$\n\n[[toc]]\n\na :smile: b\n\na $x$ b\n\n' +
+		'n $[^x]$ m [^y]\n\n[^x]: first note\n\n[^y]: second note\n';
 
 	// Each editor parses the seed in its own grammar: the first reads a parrot block, an emoji, a
 	// note and math; the second, which listed none of those plugins, reads the parrot bytes as a
