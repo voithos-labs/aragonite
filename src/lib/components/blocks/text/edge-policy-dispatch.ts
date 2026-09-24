@@ -301,7 +301,8 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 			direction,
 			screen: screenVisibilityOf(el),
 			inlines: inlinesOf(deps.node),
-			installedAs: deps.installedAs
+			installedAs: deps.installedAs,
+			grammar: deps.grammar
 		});
 	}
 
@@ -325,7 +326,8 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 			deps.getEdgeAffinity(),
 			deps.node.raw,
 			screenVisibilityOf(el),
-			typed
+			typed,
+			deps.grammar
 		);
 	}
 
@@ -670,7 +672,8 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 			caretOffset,
 			e.key,
 			marks,
-			inlinesOf(deps.node)
+			inlinesOf(deps.node),
+			deps.grammar
 		);
 		if (!marked) return false;
 		e.preventDefault();

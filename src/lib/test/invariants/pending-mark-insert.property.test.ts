@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
+import { defaultGrammarView } from '$lib/schema/block-openers';
 import fc from 'fast-check';
 import type { InlineNode } from '../../core/nodes';
 import { parseInline } from '../../core/inline';
@@ -108,7 +109,8 @@ function resolveDraw(
 		caret,
 		'X',
 		new Set(marks),
-		parseInline(display, 0, display.length)
+		parseInline(display, 0, display.length),
+		defaultGrammarView
 	);
 	return result === null ? null : { caret, result };
 }

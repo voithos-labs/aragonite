@@ -20,6 +20,7 @@ import {
 	type InlineMark,
 	type InlineMarkKind
 } from '../../../schema/inline-construct-policy';
+import type { GrammarView } from '../../../schema/block-openers';
 import { insertsExactly } from './screen-diff';
 
 export interface MarkedInsertion {
@@ -39,7 +40,8 @@ export function resolveMarkedInsertion(
 	caretOffset: number,
 	text: string,
 	marks: ReadonlySet<InlineMarkKind>,
-	inlines: readonly InlineNode[]
+	inlines: readonly InlineNode[],
+	grammar: GrammarView
 ): MarkedInsertion | null {
 	if (marks.size === 0 || text.length === 0) return null;
 
@@ -57,7 +59,7 @@ export function resolveMarkedInsertion(
 		...applied
 	]);
 
-	const before = { visible: visibleText(display), kinds: constructKinds(inlines) };
+	const before = { visible: visibleText(display, grammar), kinds: constructKinds(inlines) };
 	for (const candidate of candidateInsertions(
 		display,
 		caretOffset,
@@ -66,7 +68,7 @@ export function resolveMarkedInsertion(
 		removed,
 		intended
 	)) {
-		if (parsesAsIntended(candidate, text, intended, before)) {
+		if (parsesAsIntended(candidate, text, intended, before, grammar)) {
 			return { raw: candidate.raw, caret: candidate.textAt + text.length };
 		}
 	}
@@ -191,15 +193,16 @@ function parsesAsIntended(
 	candidate: Candidate,
 	text: string,
 	intended: ReadonlySet<AnyInlineKind>,
-	before: BlockBefore
+	before: BlockBefore,
+	grammar: GrammarView
 ): boolean {
-	const nodes = parseInline(candidate.raw, 0, candidate.raw.length);
+	const nodes = parseInline(candidate.raw, 0, candidate.raw.length, undefined, grammar);
 	const around = enclosingKinds(nodes, candidate.textAt, candidate.textAt + text.length);
 	if (around.size !== intended.size) return false;
 	for (const kind of intended) if (!around.has(kind)) return false;
 	const after = constructKinds(nodes);
 	for (const kind of before.kinds) if (!after.has(kind)) return false;
-	return insertsExactly(before.visible, visibleText(candidate.raw, nodes), text);
+	return insertsExactly(before.visible, visibleText(candidate.raw, grammar, nodes), text);
 }
 
 /** The construct kinds covering `[start, end)`; `text` is content, not a construct. */
@@ -221,8 +224,12 @@ function enclosingKinds(
  *  the block's own: the first byte typed into an empty construct hides its markers, and the
  *  comparison above would read that as bytes lost. This only adds bytes, so no reading of it can
  *  license dropping one. */
-function visibleText(raw: string, parsed?: readonly InlineNode[]): string {
-	return renderedText(parsed ?? parseInline(raw, 0, raw.length), raw, CONTENT_VISIBILITY);
+function visibleText(raw: string, grammar: GrammarView, parsed?: readonly InlineNode[]): string {
+	return renderedText(
+		parsed ?? parseInline(raw, 0, raw.length, undefined, grammar),
+		raw,
+		CONTENT_VISIBILITY
+	);
 }
 
 // ── The chain ────────────────────────────────────────────────────────────────

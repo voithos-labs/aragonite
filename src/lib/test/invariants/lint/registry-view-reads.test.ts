@@ -16,7 +16,8 @@ const OPTIONAL_GRAMMAR_POSITION: Record<string, number> = {
 	parseInline: 5,
 	computeInlineContent: 3,
 	isVerticallyTransparentNode: 2,
-	keepsBlockKind: 3
+	keepsBlockKind: 3,
+	soleProseReparse: 2
 };
 
 /** The readers whose grammar is a required parameter, so the checker refuses a call without one. */
@@ -43,7 +44,10 @@ const REQUIRED_GRAMMAR_READERS: Record<string, string> = {
 	findLastEdgeWidget: 'src/lib/components/blocks/text/widget-adjacency.ts',
 	resolveDelimiterAutoPair: 'src/lib/components/blocks/text/delimiter-autopair.ts',
 	stepsOverRevealedCloser: 'src/lib/components/blocks/text/delimiter-autopair.ts',
-	resolveEmptyPairBackspace: 'src/lib/components/blocks/text/delimiter-autopair.ts'
+	resolveEmptyPairBackspace: 'src/lib/components/blocks/text/delimiter-autopair.ts',
+	resolveMarkedInsertion: 'src/lib/components/blocks/text/pending-mark-insert.ts',
+	resolveEdgeSeat: 'src/lib/components/blocks/text/edge-seat.ts',
+	relocateComposedRun: 'src/lib/components/blocks/text/edge-seat.ts'
 };
 
 /** An explicit `defaultGrammarView` is the every-plugin reading spelled out, so it counts as none. */
@@ -121,20 +125,6 @@ const RULES: CallSiteRule[] = [
 		// claimed, which this editor draws as text.
 		allowed: {
 			'src/lib/core/inline/index.ts:101': 'an error message naming the call, not a call',
-			'src/lib/components/blocks/text/construct-edge-delete.ts:257':
-				'a verification read one call below a caller that holds the grammar, not yet threaded (#432)',
-			'src/lib/components/blocks/text/edge-seat.ts:216':
-				'a verification read one call below a caller that holds the grammar, not yet threaded (#432)',
-			'src/lib/components/blocks/text/link-source-bytes.ts:91':
-				'a verification read one call below a caller that holds the grammar, not yet threaded (#432)',
-			'src/lib/components/blocks/text/link-source-bytes.ts:135':
-				'a verification read one call below a caller that holds the grammar, not yet threaded (#432)',
-			'src/lib/components/blocks/text/link-source-bytes.ts:212':
-				'a verification read one call below a caller that holds the grammar, not yet threaded (#432)',
-			'src/lib/components/blocks/text/pending-mark-insert.ts:196':
-				'a verification read one call below a caller that holds the grammar, not yet threaded (#432)',
-			'src/lib/components/blocks/text/pending-mark-insert.ts:225':
-				'a verification read one call below a caller that holds the grammar, not yet threaded (#432)',
 			'src/lib/editor-actions/container-block-component.ts:286':
 				'the whole-block component deps carry no grammar; a container is transparent only if every child is',
 			'src/lib/selection/keyboard-extend.ts:334':

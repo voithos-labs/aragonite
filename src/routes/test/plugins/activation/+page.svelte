@@ -2,6 +2,7 @@
 	import { parrotPlugin } from '$lib/plugins/parrot';
 	import { emojiPlugin } from '$lib/plugins/emoji';
 	import { admonitionsPlugin } from '$lib/plugins/admonitions';
+	import { tocPlugin } from '$lib/plugins/toc';
 	import { DEMO_LATEX } from '../../../demo-plugins';
 	import { blockBadgePlugin } from '../block-badge/block-badge-plugin';
 	import { docStatsPlugin } from '../doc-stats/doc-stats-plugin';
@@ -16,6 +17,13 @@
 	];
 	const unlistedPlugins = [docStatsPlugin];
 
+	// The `?reads` variant: live mode, so the link card and pending marks run, and the toc in both
+	// editors, so its labels show which inline syntax each editor reads.
+	const toc = tocPlugin();
+	const listedReadsPlugins = [...listedPlugins, toc];
+	const unlistedReadsPlugins = [...unlistedPlugins, toc];
+	const READS_SEED = '# Title $x$\n\n[[toc]]\n\na :smile: b\n\na $x$ b\n';
+
 	// Each editor parses the seed in its own grammar: the first reads a parrot block, an emoji, a
 	// note and math; the second, which listed none of those plugins, reads the parrot bytes as a
 	// paragraph, the shortcode and the dollars as text, and the fence as the generic directive.
@@ -27,6 +35,11 @@
 	import { Editor, serialize } from '$lib';
 	import { parseConverges } from '$lib/testing/parse-convergence';
 	import { trackParityDocument } from '../../../parity-documents.svelte';
+	import type { PageData } from './$types';
+
+	let { data }: { data: PageData } = $props();
+	const seed = $derived(data.reads ? READS_SEED : SEED);
+	const mode = $derived(data.reads ? 'live' : 'source');
 
 	let listing = $state<ReturnType<typeof Editor>>();
 	let notListing = $state<ReturnType<typeof Editor>>();
@@ -69,11 +82,21 @@
 <div class="activation-harness aragonite-editor-theme">
 	<div class="pane" data-testid="editor-listing">
 		<h2>lists parrot, block-badge, emoji, admonitions, latex</h2>
-		<Editor bind:this={listing} source={SEED} plugins={listedPlugins} />
+		<Editor
+			bind:this={listing}
+			source={seed}
+			plugins={data.reads ? listedReadsPlugins : listedPlugins}
+			presentationMode={mode}
+		/>
 	</div>
 	<div class="pane" data-testid="editor-not-listing">
 		<h2>lists neither</h2>
-		<Editor bind:this={notListing} source={SEED} plugins={unlistedPlugins} />
+		<Editor
+			bind:this={notListing}
+			source={seed}
+			plugins={data.reads ? unlistedReadsPlugins : unlistedPlugins}
+			presentationMode={mode}
+		/>
 	</div>
 </div>
 

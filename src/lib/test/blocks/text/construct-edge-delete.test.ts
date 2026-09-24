@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
+import { defaultGrammarView } from '$lib/schema/block-openers';
 import { parseInline } from '$lib/core/inline';
 import {
 	resolveEdgeDeletion,
@@ -25,7 +26,8 @@ function del(
 		direction,
 		screen: screenVisibility('live', { chromePaints }),
 		inlines: parseInline(display, content.start, content.end),
-		installedAs: 'block'
+		installedAs: 'block',
+		grammar: defaultGrammarView
 	});
 }
 
@@ -38,7 +40,8 @@ function delInCell(display: string, caret: number, direction: DeleteDirection = 
 		direction,
 		screen: screenVisibility('live', { chromePaints: false }),
 		inlines: parseInline(display, 0, display.length),
-		installedAs: 'cell'
+		installedAs: 'cell',
+		grammar: defaultGrammarView
 	});
 }
 

@@ -5,6 +5,7 @@
 // dispatch; no composition-path test ever ran outside live mode, so the ungated sibling
 // moved bytes a source-mode user had placed beside a visible delimiter.
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { defaultGrammarView } from '$lib/schema/block-openers';
 import { parse } from '$lib/core/parser';
 import { parseInline } from '$lib/core/inline';
 import { createCompositionSeat } from '$lib/components/blocks/text/composition-seat';
@@ -41,6 +42,7 @@ function makeSeatHarness(source: string, affinity: EdgeAffinity | null): SeatHar
 	const seat = createCompositionSeat({
 		getDisplayText: () => surface.el.textContent ?? '',
 		getInlines: () => parseInline(source, 0, source.length),
+		grammar: defaultGrammarView,
 		getAffinity: () => affinity,
 		getScreen: () => screenVisibilityOf(surface.el),
 		consumePendingMarks: () => null,

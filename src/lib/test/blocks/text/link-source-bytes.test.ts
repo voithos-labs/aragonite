@@ -97,7 +97,7 @@ describe('link edit bytes: reference forms', () => {
 		const resolver = resolverFor(display);
 		const link = firstLink(display, resolver);
 		const fields = linkFieldsFromInline(link, display);
-		expect(buildLinkEditBytes(link, display, fields, resolver)).toBe(display);
+		expect(buildLinkEditBytes(link, display, fields, { current: resolver })).toBe(display);
 	});
 
 	it('inlines the destination when the caller drops the reference tail', () => {
@@ -105,7 +105,9 @@ describe('link edit bytes: reference forms', () => {
 		const resolver = resolverFor(display);
 		const link = firstLink(display, resolver);
 		const { text } = linkFieldsFromInline(link, display);
-		expect(buildLinkEditBytes(link, display, { text, url: 'new' }, resolver)).toBe('[t](new)');
+		expect(buildLinkEditBytes(link, display, { text, url: 'new' }, { current: resolver })).toBe(
+			'[t](new)'
+		);
 	});
 });
 
@@ -130,7 +132,9 @@ describe('link unwrap bytes: remove link', () => {
 
 	it('a reference link unwraps to its text and leaves the definition alone', () => {
 		const resolver = resolverFor('[t][ref]');
-		expect(buildLinkUnwrapBytes(firstLink('[t][ref]', resolver), '[t][ref]', resolver)).toBe('t');
+		expect(
+			buildLinkUnwrapBytes(firstLink('[t][ref]', resolver), '[t][ref]', { current: resolver })
+		).toBe('t');
 	});
 
 	it.each([

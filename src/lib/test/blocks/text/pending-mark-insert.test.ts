@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
+import { defaultGrammarView } from '$lib/schema/block-openers';
 import { parseInline } from '$lib/core/inline';
 import { CONTENT_VISIBILITY, renderedText } from '$lib/core/inline/visibility';
 import { resolveMarkedInsertion } from '$lib/components/blocks/text/pending-mark-insert';
@@ -23,7 +24,8 @@ function insert(
 		caret,
 		text,
 		new Set(marks),
-		parseInline(display, 0, display.length)
+		parseInline(display, 0, display.length),
+		defaultGrammarView
 	);
 }
 

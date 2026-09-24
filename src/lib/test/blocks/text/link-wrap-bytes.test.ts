@@ -55,7 +55,7 @@ describe('link wrap bytes: the join declines rather than corrupt', () => {
 		const resolver = buildLinkReferenceMap(
 			parse(`${display}\n\n[ref]: https://e.c\n`).children
 		).resolve;
-		expect(buildLinkWrapBytes(display, 4, 9, 'u', resolver)).toBeNull();
+		expect(buildLinkWrapBytes(display, 4, 9, 'u', { current: resolver })).toBeNull();
 	});
 
 	it('a neighbouring `!` that would turn the wrap into an image declines at verification', () => {
