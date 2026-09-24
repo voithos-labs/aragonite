@@ -19,11 +19,13 @@ import {
 import type { PresentationMode } from '../presentation-mode';
 import {
 	displayLength,
+	ownTrailingLineEnding,
 	snapToScalarBoundary,
 	terminateLine,
 	trailingLineEnding,
 	trimTrailingLineEnding
 } from '../core/lines';
+import { undrawnSuffix } from '../core/inline';
 import { devWarn } from '../dev-warn';
 import { assignChildIdsDeep } from '../block-id';
 import { findMergeTarget } from '../schema/merge-rules';
@@ -356,19 +358,54 @@ export function cutRangeFromDisplay(
 	return { display: cleaned.raw, offset: cleaned.seam };
 }
 
-/** The bytes two adjacent blocks make when one absorbs the other, join cleanup included. */
+/**
+ * The bytes of a join: `survivor` cut at `cut`, then `absorbed`'s text from `from`, then the
+ * survivor's undrawn structure (a setext underline), which stays under the joined text. The
+ * absorbed block's own undrawn structure goes with that block. `writeTail` is the absorbed kind's
+ * write rule; `start` and `end` are the offsets the join cut each block at.
+ */
+export function joinAboveUndrawn(
+	survivor: NodeView,
+	cut: number,
+	absorbed: NodeView,
+	from: number,
+	writeTail: (tail: string) => string = (tail) => tail
+): { raw: string; start: number; end: number } {
+	const kept = undrawnSuffix(survivor);
+	const dropped = undrawnSuffix(absorbed);
+	// No caret stands inside undrawn structure, so a cut past it is a cut at the content end.
+	const start = kept ? Math.min(cut, displayLength(survivor.raw) - kept.length) : cut;
+	const textEnd = displayLength(absorbed.raw) - dropped.length;
+	const end = dropped ? Math.min(from, textEnd) : from;
+	const tail = writeTail(
+		dropped
+			? absorbed.raw.slice(end, textEnd) + ownTrailingLineEnding(absorbed.raw)
+			: absorbed.raw.slice(end)
+	);
+	return {
+		raw:
+			survivor.raw.slice(0, start) +
+			trimTrailingLineEnding(tail) +
+			kept +
+			ownTrailingLineEnding(tail),
+		start,
+		end
+	};
+}
+
+/** The bytes two adjacent blocks make when `prev` absorbs `curr`, join cleanup included. */
 function joinRaw(
 	prev: NodeView,
 	curr: NodeView,
 	presentationMode: PresentationMode | undefined,
 	linkRef: InlineResolverRef
 ): CleanedJoin {
-	const seam = displayLength(prev.raw);
+	const { raw, start } = joinAboveUndrawn(prev, displayLength(prev.raw), curr, 0);
 	return cleanJoinedRaw(
 		{
-			mergedRaw: prev.raw.slice(0, seam) + curr.raw,
-			seam,
-			start: { node: prev, offset: seam },
+			mergedRaw: raw,
+			seam: start,
+			start: { node: prev, offset: start },
 			end: { node: curr, offset: 0 },
 			linkRef
 		},

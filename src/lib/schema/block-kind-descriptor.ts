@@ -141,7 +141,7 @@ export interface BlockKindDescriptor {
 	 * repair the block's own syntax around a write that broke it (`schema/fenced-code-raw.ts` is
 	 * the worked example). Reads `node` for the block's own shape, must be idempotent, and must
 	 * give callers a caret mapping when a prefix of the input does not map to a prefix of the
-	 * output. Every write path applies it.
+	 * output. Every write built outside the block's own editable text applies it.
 	 */
 	normalizeRawWrite?: (raw: string, node: NodeView) => string;
 	/**

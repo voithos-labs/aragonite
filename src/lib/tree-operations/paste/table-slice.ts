@@ -7,6 +7,7 @@ import type { CstNode, TableMetadata, TableRowMetadata } from '../../core/nodes'
 import { metadataOf } from '../../core/nodes';
 import { rebuildContainerRaw } from '../../schema/container-raw';
 import { trailingLineEnding } from '../../core/lines';
+import { promoteFirstRowToHeader } from '../table-mutations';
 
 export type RowGoes = 'first' | 'second';
 
@@ -39,14 +40,14 @@ function buildHalf(
 ): CstNode | null {
 	if (rows.length === 0) return null;
 	const cloned: CstNode[] = rows.map(
-		(row, idx) =>
+		(row) =>
 			({
 				...row,
-				metadata: { isHeader: idx === 0 } as TableRowMetadata,
+				metadata: { ...metadataOf(row, 'tableRow'), isHeader: false } as TableRowMetadata,
 				children: row.children!.map((cell) => ({ ...cell }) as CstNode)
 			}) as CstNode
 	);
-	return {
+	const half: CstNode = {
 		kind: 'table',
 		leadingTrivia: '',
 		// The rebuild reads the line ending off the raw it replaces (G4.20).
@@ -57,4 +58,6 @@ function buildHalf(
 		} as TableMetadata,
 		children: cloned
 	};
+	promoteFirstRowToHeader(half);
+	return half;
 }

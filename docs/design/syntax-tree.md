@@ -137,15 +137,16 @@ Only `'strip'` carries that equation as a checked invariant. `'grid'` and `'opaq
 
 - **Grid.** A cell has no standalone line recognizer, so `parse(cell.raw)` would come back a paragraph. That's why table cells are `contextDependentKind`, and why the container's `rebuildRaw` owns the surrounding pipes.
 
-  One accepted normalization: GFM (§ 4.10) ignores body cells beyond the header width, so the parser truncates a wider row's children to the column count while the row's `raw` keeps the authored bytes.
+  GFM (§ 4.10) ignores body cells beyond the header width, so a wider row's children stop at the column count, and the cells past it live on the row as surplus, bytes the file holds that nothing renders.
 
   ```ts
   const table = parse('| a | b |\n| - | - |\n| 1 | 2 | 3 |\n').children[0];
   table.children[1].raw; // '| 1 | 2 | 3 |\n': the authored bytes, third cell included
   table.children[1].children.length; // 2: the model holds the header's column count
+  table.children[1].metadata.surplusCells; // ['3']: the cells past it, as written
   ```
 
-  A pure load-and-save round-trips the surplus untouched; the first table edit rebuilds the row from its children and drops it. Preserving the surplus would need phantom children, or a `raw` that disagrees with `children`, and either breaks the tree being the truth. So the truncation normalizes on first edit, like padding and delimiter normalization, and the dropped cells never entered the model and never rendered.
+  The row's rebuild writes its surplus back after its rendered cells, so an edit anywhere in the row or the table keeps those bytes, the way a load-and-save does; the first edit only tidies their padding. A row that becomes the header (the header row deleted, a table split) takes its surplus as columns and the table widens, since a header wider than its delimiter row is no table at all.
 
 - **Opaque.** Chrome (the parts of a block that are furniture, not content, like a callout's title) lives in the container's own bytes: the title on a `:::note My title` opener line appears in no child at all. So `rebuildRaw` is the _single_ reconstruction path, and correctness is enforced differently: a DEV probe runs the rebuild twice and compares the two outputs to each other (never against `raw`, which a faithful non-canonical parse may legally differ from), and a separate DEV check reparses `raw` to catch children mutated without a rebuild.
 
@@ -231,7 +232,7 @@ A blank block is therefore doing two jobs at once: it's a block, and it's the se
 
 Two separators have no splice to derive them from. The first is a list whose first item is empty, right under a paragraph. A content-less list marker can't interrupt a paragraph (GFM § 5.2, list items), so an item reading `- x` followed by an indented bare `- ` reloads as `x` with a `-` underline, which is a setext heading, and `para` over an emptied `- ` reloads the same way. The marker is the only evidence the item ever existed, and the merge that absorbs boundary lines has nothing to merge it into. Every path that reaches the shape (the Enter-then-Tab nesting move, emptying the first item, a replace or splice that lands such a list) writes a blank line above the list, which is why nesting an empty item leaves a loose list (loose: a list whose items render with paragraph spacing, because a blank line sits inside it).
 
-The second is a block an edit turns into text right under a table. A table takes any line below its rows that opens no other block as one more row (GFM example 201), so unwrapping a quote there, turning a heading into text, or deleting the block between would hand the text to the table. The merge that joins neighbours writes a blank line above the block instead: the edit made a paragraph, and the next key belongs in it.
+The second is a block an edit turns into text right under a table. A table takes any line below its rows that opens no other block as one more row (GFM example 201), reading the lines under it in the editor's grammar (a `$$` block with its closing line opens one, an indented line with indented code switched off opens none), so unwrapping a quote there, turning a heading into text, or deleting the block between would hand the text to the table. The merge that joins neighbours writes a blank line above the block instead: the edit made a paragraph, and the next key belongs in it.
 
 A container inherits all of this through strip-and-recurse. In a body that ends where its indentation ends (a list item, a footnote definition), a whitespace-only line indented to the body belongs to the body, which is why a rebuild writes that indent on an empty block's line closing one; a separator line stays bare, as the parser reads it. The exception is a container whose body sits between chrome lines of its own (`:::note` ... `:::`, `<summary>` ... `</details>`): there the blank line against a chrome line is a separator like any other, so it lands in `innerPrefix` / `innerSuffix` while the rest of its run materializes. The kind declares the wrap it parses with and the separator settle reads that declaration, which makes this a property of the plugin API rather than a per-kind branch in the parser: inside a wrap, the line a settle frees above the body head belongs to the wrap, not to the run. A run that is the whole body sits against both chrome lines and has to give a line to each, since a reload strips both before it materializes any block.
 

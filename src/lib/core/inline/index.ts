@@ -2,7 +2,7 @@
 
 import type { AnyInlineKind, CstNode, InlineNode } from '../nodes';
 import type { NodeView } from '../node-views';
-import { displayLength } from '../lines';
+import { displayLength, isBlankLine } from '../lines';
 import { getBlockKindDescriptor } from '../../schema/block-kind-descriptor';
 // Registered before any descriptor read, headless of the editor mount. Explicit call: a bare
 // side-effect import is tree-shaken from the production build.
@@ -32,6 +32,32 @@ export function getContentRange(node: NodeView): ContentRange {
 	const d = getBlockKindDescriptor(node.kind);
 	if (d.getContentRange) return d.getContentRange(node);
 	return { start: 0, end: displayLength(node.raw) };
+}
+
+/**
+ * The bytes a block keeps past its content, before its trailing line ending: structure no mode
+ * draws (a setext underline). The block's DOM stops before them, so text read back from it gets
+ * them put back before a write, and the caret's reach ends where they start.
+ */
+export function undrawnSuffix(node: NodeView): string {
+	// A kind that is not prose renders its whole display, so nothing past its content is undrawn.
+	if (!isProseKind(node.kind)) return '';
+	return node.raw.slice(getContentRange(node).end, displayLength(node.raw));
+}
+
+/**
+ * `raw` about to be written as `node`'s bytes, less the node's undrawn suffix when the line above
+ * it is blank: an underline under nothing would read as a block of its own, so an emptied title
+ * drops it, as an emptied ATX heading gives up its `#`. The content write and `normalizeOwnRaw`
+ * both apply it, so every write of a leaf's bytes does.
+ */
+export function dropSuffixUnderBlankLine(node: NodeView, raw: string): string {
+	const suffix = undrawnSuffix(node);
+	const display = raw.slice(0, displayLength(raw));
+	if (!suffix || !display.endsWith(suffix)) return raw;
+	const text = display.slice(0, display.length - suffix.length);
+	const lastLine = text.slice(text.lastIndexOf('\n') + 1);
+	return isBlankLine(lastLine) ? text + raw.slice(display.length) : raw;
 }
 
 /** The one place a {@link ContentLength} is created. */

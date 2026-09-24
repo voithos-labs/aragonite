@@ -23,6 +23,7 @@ import {
 	__resetLiveSplitRebalancerForTests
 } from '$lib/schema/inline-construct-policy';
 import { rebalanceLiveSplit } from '$lib/components/blocks/text/live-split-rebalance';
+import { getContentRange, undrawnSuffix } from '$lib/core/inline';
 import type { PresentationMode } from '$lib/presentation-mode';
 import { defaultGrammarView } from '$lib/schema/block-openers';
 import { rebuildUnsharedChain } from '$lib/tree-operations/chain-rebuild';
@@ -153,16 +154,17 @@ function applyEmpty(doc: Document, at: number): void {
 }
 
 /**
- * A prose leaf's own bytes written back, the commit a keystroke and its undo add up to. Inside a
- * list item too: a task item's first paragraph reads its text differently from a standalone one.
+ * A prose leaf's bytes rebuilt from its content, the suffix no mode draws and its line ending,
+ * which is the stored raw: it holds the suffix helper to the content range, not the DOM read.
+ * Inside a list item too: a task item's first paragraph reads its text differently.
  */
 function applyRetype(doc: Document, at: number): void {
-	// A table row rebuilds from its column count, so a row carrying surplus cells loses them on
-	// any write: a byte rule of the table's own, not the reading this gesture checks.
-	const slots = proseLeafSlots(doc).filter(({ holder }) => holder.kind !== 'tableRow');
+	const slots = proseLeafSlots(doc);
 	if (slots.length === 0) return;
 	const slot = slots[at % slots.length];
-	writeLeaf(doc, slot, slot.holder.children![slot.index].raw);
+	const node = slot.holder.children![slot.index];
+	const domText = node.raw.slice(0, getContentRange(node).end);
+	writeLeaf(doc, slot, domText + undrawnSuffix(node) + trailingLineEnding(node.raw));
 }
 
 function writeLeaf(doc: Document, { holder, index, chain }: LeafSlot, text: string): void {

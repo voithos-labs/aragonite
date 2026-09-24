@@ -10,6 +10,7 @@ import type { BodyParent } from '$lib/tree-operations/node-primitives';
 import { type SeparatorParent } from '$lib/tree-operations/node-primitives';
 import { settleSeparator } from '$lib/tree-operations/settle';
 import type { StructuralChange } from '$lib/tree-operations/structural-change';
+import type { GrammarView } from '$lib/schema/block-openers';
 
 /** `editor-actions/block-edit-core.bodyParentOf`: no `suffix` field, by contract. */
 const bodyParentOf = (doc: Document): BodyParent => ({
@@ -32,11 +33,20 @@ function settleParentOf(doc: Document): SeparatorParent {
 	};
 }
 
-/** Runs `mutate` over the body parent, recomputes the separators around it, returns the change. */
+/** Runs `mutate` over the body parent, recomputes the separators around it, returns the change.
+ *  `grammar` is the editor's, which the recompute reads blocks with. */
 export function settled(
 	doc: Document,
-	mutate: (parent: BodyParent) => StructuralChange
+	mutate: (parent: BodyParent) => StructuralChange,
+	grammar?: GrammarView
 ): StructuralChange {
 	const before: CstNode[] = [...doc.children];
-	return settleSeparator(settleParentOf(doc), before, mutate(bodyParentOf(doc)));
+	return settleSeparator(
+		settleParentOf(doc),
+		before,
+		mutate(bodyParentOf(doc)),
+		undefined,
+		undefined,
+		grammar
+	);
 }

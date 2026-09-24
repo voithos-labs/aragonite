@@ -51,6 +51,8 @@ const PRE_REPARSE_SITES: Record<string, string> = {
 		'the endpoint-survivor reparse, shared by all three branches',
 	'src/lib/editor-actions/inline-range-commit.ts':
 		'reads the rule ahead of the write to decide whether the splice changes a byte at all',
+	'src/lib/selection/selection-drop.ts':
+		'a drop writes the bytes it cut from or spliced into a block ahead of their reparse',
 	'src/lib/testing/kind-conformance.ts':
 		"the kind kit's raw-write cell drives each declarer's rule over its fixture"
 };

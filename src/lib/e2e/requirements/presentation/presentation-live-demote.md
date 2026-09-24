@@ -32,9 +32,10 @@ checks against.
   without them `[B][r]` is plain text and its `[` is content the bound would stop at
 - a paragraph opening with a reference construct still merges on that keypress: the moved bound
   serves the kinds that declare no demote too
-- `Delete` at a setext heading's content end takes nothing: the merge it would reach concatenates
-  past the underline and would bring it on screen, so the keypress is consumed until the join
-  code keeps a block's own structure across a merge
+- `Delete` at a setext heading's content end joins the next block onto the title line and leaves
+  the underline under the joined text, so the heading stays a heading and the caret sits where the
+  two texts meet (`setext-join.md` drives the same join in every mode). Miss-analysis: the pin on
+  this keypress encoded its refusal as the contract, so the join it declined was never specified
 - source mode never demotes: a keypress inside the painted `## ` takes a marker byte, because
   there the markers are on screen and the user aimed at them
 
