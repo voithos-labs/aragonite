@@ -1,6 +1,6 @@
 {
 	"recorded": "2026-08-26",
-	"reVerified": "2026-08-26 — the e2e rows are one epoch measured on the PRODUCTION build (the `perf:check` route), replacing the 2026-07-24 dev-build epoch: the instrument changed, so the values were re-recorded rather than re-verified. Container-interior rows fell from 52.1/29.1 ms (dev, pre child-spans) to 3.3/3.0 ms; every other keystroke row read at or below its dev value; the giant-single-paragraph rows were re-measured after a bisected toolbar regression was fixed the same day. giant-single-list-interior-10MB is blessed from the gate's own run (its p95 is the first keystroke after load, which seeds the spans once); its loadMs is the same fixture's giant-single-list-10MB load.",
+	"reVerified": "2026-08-26 — the e2e rows are one epoch measured on the PRODUCTION build (the `perf:check` route), replacing the 2026-07-24 dev-build epoch: the instrument changed, so the values were re-recorded rather than re-verified. Container-interior rows fell from 52.1/29.1 ms (dev, pre child-spans) to 3.3/3.0 ms; every other keystroke row read at or below its dev value; the giant-single-paragraph rows were re-measured after a bisected toolbar regression was fixed the same day. giant-single-list-interior-10MB is blessed from the gate's own run (its p95 is the first keystroke after load, which seeds the spans once); its loadMs is the same fixture's giant-single-list-10MB load. flat-prose-10MB-structural was blessed 2026-09-24 from the gate's own production run (its first value was a dev-server stand-in); its loadMs is the same run's flat-prose-10MB load.",
 	"machine": "AMD Ryzen 7 7700 (8 cores / 16 threads), 31GB RAM, Windows 11 Home 10.0.26200, Node v24.5.0",
 	"note": "Time rows (parse / snapshotPush / snapshotDigest / ancestryRebuild) are REPORT-ONLY references, not gates — measured by `npm run perf:editor` (vitest bench). They are point-in-time and environment-sensitive: a same-machine re-measure can drift roughly ±10-40% with no code change (thermal / OS / Node state), so read them as orders of magnitude, not exact targets. The ENFORCED numbers are `e2e` (keystroke latency, gated by `npm run perf:check`, which builds and previews the app and measures that) and `counters` (structural amplification, hard ceilings in counters.test.ts; amplification.test.ts is its report-only sibling). DEV invariant assertions run under vitest, so snapshot rows are conservative upper bounds vs production. 10MB rows use a 3s time floor so sample counts stay honest. parse / snapshot* rows last refreshed 2026-06-20; ancestryRebuild rows re-blessed as one epoch 2026-08-26, measured with the perf instruments armed, which keeps the dev-only splice belt out of them; the two `interior of a 1MB list` rows were recorded the same day and are the hinted-vs-full comparison for the child-spans rebuild (6.3x on plain objects; the browser gap is larger, since the proxy reads it removes do not exist in node).",
 	"parse": {
@@ -457,10 +457,9 @@
 			"keystrokeP95Ms": 692.5
 		},
 		"flat-prose-10MB-structural": {
-			"provisional": "dev-server p50 per Enter/Backspace edit from a worktree run; re-bless from perf:check on the calibration machine",
-			"loadMs": 778.3,
-			"keystrokeP50Ms": 637.8,
-			"keystrokeP95Ms": 693.1
+			"loadMs": 423.8,
+			"keystrokeP50Ms": 108.1,
+			"keystrokeP95Ms": 118.2
 		}
 	}
 }
