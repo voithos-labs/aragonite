@@ -196,7 +196,7 @@ editor.getBlockKindAt([99]); // null
 
 `getSelection(): EditorSelection | null`
 
-Returns a snapshot of the current selection (a copy, so changing it changes nothing), or `null` when the editor isn't focused.
+Returns a snapshot of the current selection (a copy, so changing it changes nothing), or `null` when the editor isn't focused. While an image is selected whole, it returns a collapsed caret at the image's edge (its end, after a click): the next `insertMarkdown` or keystroke still replaces the image, and passing that value to `setSelection` puts a caret back there without selecting the image again.
 
 ```ts
 editor.getSelection();
@@ -385,7 +385,7 @@ events.on('edit', (e) => e);
 
 `path` is document-absolute for every operation, nested ones and the typing flush included: it walks from the document root to the block that was operated on. One event names one path even when the write spanned several blocks; a `delete` or `updateContent` that did carries `detail.crossBlock: true`, and a host that reconciles incrementally should re-read the whole affected range on those rather than just `path`.
 
-**`selectionChange`** carries the `EditorSelection` snapshot, or `null` when nothing is focused.
+**`selectionChange`** carries the `EditorSelection` snapshot, or `null` when nothing is focused. While an image is selected whole, the snapshot is a collapsed caret at the image's edge (its end, after a click): the next `insertMarkdown` or keystroke still replaces the image, and `setSelection` of that snapshot puts a caret back without selecting the image again.
 
 ```ts
 events.on('selectionChange', (sel) => sel);
