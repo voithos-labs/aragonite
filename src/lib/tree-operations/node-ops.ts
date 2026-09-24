@@ -385,7 +385,7 @@ export interface MergeResult {
 
 /** Where the join landed: the block at `index` in the parent, and the leaf at `targetPath` below
  *  it (empty when that block is the leaf). The index is `blockIndex - 1` unless the fix-up after
- *  the delete folded that block into one above it. */
+ *  the delete merged that block into the one above it. */
 export interface MergeIntoPrevResult {
 	index: number;
 	targetPath: number[];

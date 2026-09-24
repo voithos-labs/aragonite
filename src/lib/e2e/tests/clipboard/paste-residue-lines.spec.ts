@@ -42,6 +42,18 @@ test.describe('a multi-block paste keeps the lines after the caret', () => {
 		expect(asLf(await editor.bridge.getSource())).toBe('abc\n\n> qZ\n> After\n');
 	});
 
+	// The same through a list, whose item holds the pasted paragraph two levels down (GH #193).
+	test('pasting a list item at a line break keeps the caret after the item text', async () => {
+		await editor.seedClipboard('- q');
+		await editor.paste();
+		await editor.bridge.waitForSourceContains('- q');
+		expect(asLf(await editor.bridge.getSource())).toBe('abc\n\n- q\nAfter\n');
+
+		await editor.typeText('Z');
+		await editor.bridge.waitForSourceContains('qZ');
+		expect(asLf(await editor.bridge.getSource())).toBe('abc\n\n- qZ\n  After\n');
+	});
+
 	test('one undo gives the paragraph back', async () => {
 		await editor.seedClipboard('x\n\ny');
 		await editor.paste();

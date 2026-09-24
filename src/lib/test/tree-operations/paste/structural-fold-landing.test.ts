@@ -58,7 +58,7 @@ describe('structural paste landing after the splice settle folds', () => {
 		expect(landCaret).toHaveBeenCalledWith([2], 'two'.length);
 	});
 
-	// The fold head is a container here, so the pasted bytes end inside one of its leaves (GH #193).
+	// The merged head is a container here, so the pasted bytes end inside one of its leaves (GH #193).
 	it('lands inside the container leaf that absorbed the residue', async () => {
 		const { doc, landCaret } = await pasteAt('helloworld\n', '- item', [0], 5);
 

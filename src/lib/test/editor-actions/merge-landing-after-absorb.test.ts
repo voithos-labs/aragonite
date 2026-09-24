@@ -2,9 +2,9 @@ import { describe, it, expect, vi } from 'vitest';
 import { serialize } from '$lib/core/serializer';
 import { makeTopHarness, mockRef } from '$lib/test/harness/editor-actions';
 
-// Backspace joins a line into the block above, and the fix-up can then fold that block into the
+// Backspace joins a line into the block above, and the fix-up can then merge that block into the
 // one above it; the caret has to follow the joined bytes there (GH #193).
-// Miss-analysis: the upper-edge fold was pinned on the tree operation's bytes alone, and the
+// Miss-analysis: the merge at the upper edge was pinned on the tree operation's bytes alone, and the
 // merge actions' caret tests only ever joined two blocks nothing else absorbed.
 
 describe('Backspace whose joined block the block above absorbs', () => {

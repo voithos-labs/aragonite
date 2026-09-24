@@ -104,7 +104,7 @@ export function defaultStructuralHook(
 		blocks,
 		seam?.grammar
 	);
-	// The caret lands where the pasted bytes end, which the fix-up tracks when it folds the
+	// The caret lands where the pasted bytes end, which the fix-up tracks when it merges the
 	// residue into the last pasted block.
 	return { replacement: nodes, focusReplacementIndex: lastPastedIndex, focusOffset: CURSOR_END };
 }
