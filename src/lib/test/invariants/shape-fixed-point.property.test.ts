@@ -18,7 +18,6 @@ import { keepsEveryByte } from '$lib/test/harness/live-oracles';
 import { arbBlankSeparatedGfmDoc, arbInlineSource, freshOrFixedSeed } from './arbitraries';
 import { displayLength, trailingLineEnding } from '$lib/core/lines';
 import { getBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
-import { followsTaskMarker } from '$lib/tree-operations/list/task-paragraph';
 import {
 	registerLiveSplitRebalancer,
 	__resetLiveSplitRebalancerForTests
@@ -26,6 +25,8 @@ import {
 import { rebalanceLiveSplit } from '$lib/components/blocks/text/live-split-rebalance';
 import type { PresentationMode } from '$lib/presentation-mode';
 import { defaultGrammarView } from '$lib/schema/block-openers';
+import { rebuildUnsharedChain } from '$lib/tree-operations/chain-rebuild';
+import { createSharingState } from '$lib/tree-operations/sharing';
 
 // G2.13: an edit on a loaded document leaves a tree that reloads to the same block shape, which
 // is the load, edit, save, load cycle a consumer runs on every remount. Byte round-trip (G2.1)
@@ -133,30 +134,13 @@ function proseLeafSlots(node: Document | CstNode, chain: CstNode[] = []): LeafSl
 }
 
 /**
- * Skips one slot: the opening paragraph of a list that sits right under a paragraph. Emptied, it
- * leaves a bare marker, which cannot interrupt a paragraph and reloads as its text; seed 424242
- * draws it first. A task marker is content, so a task item's paragraph stays in.
- */
-const emptiesCleanly = (doc: Document, { holder, index, chain }: LeafSlot) => {
-	if (holder === chain.at(-1) && holder.kind === 'listItem' && index === 0) {
-		const list = chain.at(-2)!;
-		const listHolder: Document | CstNode = chain.at(-3) ?? doc;
-		const above = listHolder.children![listHolder.children!.indexOf(list) - 1];
-		const opensUnderParagraph =
-			list.children![0] === holder && list.leadingTrivia === '' && above?.kind === 'paragraph';
-		return !opensUnderParagraph || followsTaskMarker(holder, index);
-	}
-	return true;
-};
-
-/**
  * The reverse transition: a block that becomes the blank line (GH #96), indexed over the prose
  * leaves so the draw always lands on an editable one. The gesture is what `commitInput` sends for
  * an emptied block, the line ending alone. Container bodies are included, because the start of a
  * body answers to its container's own opener line, which no top-level draw reaches.
  */
 function applyEmpty(doc: Document, at: number): void {
-	const slots = proseLeafSlots(doc).filter((slot) => emptiesCleanly(doc, slot));
+	const slots = proseLeafSlots(doc);
 	if (slots.length === 0) return;
 	const slot = slots[at % slots.length];
 	writeLeaf(doc, slot, trailingLineEnding(slot.holder.children![slot.index].raw));
@@ -183,9 +167,8 @@ function writeLeaf(doc: Document, { holder, index, chain }: LeafSlot, text: stri
 		const owner = holder as CstNode;
 		updateNodeContent({ children, ownerKind: owner.kind, owner }, index, text);
 	}
-	for (let i = chain.length - 1; i >= 0; i--) {
-		getBlockKindDescriptor(chain[i].kind).rebuildRaw?.(chain[i]);
-	}
+	// The rebuild typing runs, which settles the blank line a changed opener line needs above it.
+	rebuildUnsharedChain(doc, chain, createSharingState(), null, defaultGrammarView);
 }
 
 /**

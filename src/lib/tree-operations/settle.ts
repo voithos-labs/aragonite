@@ -18,6 +18,7 @@ import { assertInvariant } from '../assert';
 import { checkStructuralDescriptor } from '../invariants/structural-descriptor';
 import type { SharingState } from './sharing';
 import { ensureUnsharedChild } from './unshare';
+import { lacksSublistSeparator, settleSublistSeparator } from './list/sublist-separator';
 import { spliceChildren } from './children';
 import { spliceMany } from './splice-many';
 import { applyStructuralChangeToIdsRefs, type StructuralChange } from './structural-change';
@@ -272,6 +273,7 @@ function settleSplicedWindow(
 	} else {
 		settleSeparatorOnBlank(parent, at + Math.max(added - 1, 0), sharing);
 	}
+	settleEmptyMarkerLists(parent, at, added, sharing);
 	// Unconditional, and only here: a delete window at the tail names no surviving block, and
 	// the question is about the parent's last block whatever the window.
 	materializeTailSuffix(parent, sharing);
@@ -297,6 +299,23 @@ function settleSplicedWindow(
 	const beforeTailMint = parent.children.length;
 	materializeTailSuffix(parent, sharing);
 	return widenForTailMint(absorbed, beforeTailMint, parent.children.length);
+}
+
+/**
+ * A list landing under a paragraph with an empty first item, or left there by the splice, takes
+ * the blank line that keeps it a list; the typing route settles the same line in its rebuild.
+ */
+function settleEmptyMarkerLists(
+	parent: SeparatorParent,
+	at: number,
+	added: number,
+	sharing?: SharingState
+): void {
+	for (let i = at; i <= at + added && i < (parent.children?.length ?? 0); i++) {
+		if (!lacksSublistSeparator(parent.children!, i)) continue;
+		if (sharing) ensureUnsharedChild(parent as NodeParent, i, sharing);
+		settleSublistSeparator(parent.children!, i);
+	}
 }
 
 /** The block that takes the vacated position inherits its separator when it has none of its own
