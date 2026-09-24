@@ -178,6 +178,32 @@ const RULES: CallSiteRule[] = [
 		]
 	},
 	{
+		id: 'G4.68 a live rewrite reparses a whole block with the link resolver too',
+		population: (file) => file.relPath.startsWith('src/lib/components/blocks/text/'),
+		calls: ['soleProseReparse'],
+		// A ref passed whole carries its resolver; an object spelled out has to name `current`.
+		holds: (args) => {
+			const slot = callArguments(args)[1];
+			if (slot === undefined) return false;
+			return slot.startsWith('{') ? /\bcurrent\b/.test(slot) : slot !== 'undefined';
+		},
+		allowed: {
+			'src/lib/components/blocks/text/edge-policy-dispatch.ts:49':
+				'keepsBlockKind compares the block kind only, which no link changes'
+		},
+		reason:
+			'a reparse without the resolver reads every reference link as brackets, so a candidate compared with the drawn tree disagrees with it beside one (#443)',
+		atLeastCallers: 3,
+		hits: [{ relPath: REWRITE_PROBE, code: 'soleProseReparse(raw, { grammar });' }],
+		misses: [
+			{
+				relPath: REWRITE_PROBE,
+				code:
+					'soleProseReparse(raw, { current: resolver, grammar });\n' + 'soleProseReparse(raw, ref);'
+			}
+		]
+	},
+	{
 		id: 'G4.69 every parse() call outside the parser reads the editor grammar',
 		population: notUnder('src/lib/testing/', 'src/lib/core/parser.ts'),
 		calls: ['parse'],
