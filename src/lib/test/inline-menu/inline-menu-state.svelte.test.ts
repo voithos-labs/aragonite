@@ -6,7 +6,27 @@ import { createEditorEvents, type EditEvent } from '$lib/editor-events';
 import { createInlineMenuState } from '$lib/inline-menu/inline-menu-state.svelte';
 import type { InlineMenuItem, InlineMenuSource } from '$lib/inline-menu/types';
 import type { PresentationMode } from '$lib/presentation-mode';
+import { definePlugin, installPlugins } from '$lib/schema/plugin-install';
+import { declarePluginInlineKind } from '$lib/schema/plugin-kind';
+import { registerInlineSyntax } from '$lib/core/inline/scan/plugin-syntax';
 import { fixtureLinkRef } from '../harness/fixture-grammar';
+import { grammarListing } from '../plugins/activation/grammar-listing';
+
+// `%%…%%` claims its bytes ahead of a code span inside it, in an editor that lists the plugin.
+const masker = definePlugin({
+	name: 'masker',
+	setup() {
+		const kind = declarePluginInlineKind('masked');
+		registerInlineSyntax('%', (raw, pos, end) => {
+			const close = raw[pos + 1] === '%' ? raw.indexOf('%%', pos + 2) : -1;
+			return close >= 0 && close + 2 <= end ? { kind, start: pos, end: close + 2 } : null;
+		});
+	}
+});
+installPlugins([definePlugin({ name: 'listed', setup() {} }), masker]);
+const MASKED = '%%a `b` c%%';
+const scopedLinkRef = fixtureLinkRef({ grammar: grammarListing(['listed']) });
+const toR = (label: string) => (label === 'r#' ? { url: 'x' } : undefined);
 
 const item = (id: string, insert = id): InlineMenuItem => ({ id, label: id, insert });
 
@@ -291,21 +311,20 @@ describe('a typed trigger opens its source', () => {
 		expect(h.menu.getOpen()).toBeNull();
 	});
 
-	// Miss-analysis: the prose check read the leaf with no link-reference ref, so a resolved
-	// reference link read as brackets, and no harness handed the menu a ref to read.
-	it('reads the editor’s link definitions, so a reference link’s label is not prose', async () => {
-		const resolver = (label: string) => (label === 'r#' ? { url: 'x' } : undefined);
-		for (const [linkRef, opens] of [
-			[fixtureLinkRef({ current: resolver }), false],
-			[fixtureLinkRef(), true]
-		] as const) {
-			const h = harness('[t][r]', { linkRef });
-			h.menu.registry.addSource(tags({ opensAt: () => true }));
-			await h.moveTo(5);
-			await h.type('#');
-			expect(h.raw()).toBe('[t][r#]');
-			expect(h.menu.getOpen() !== null).toBe(opens);
-		}
+	// Miss-analysis: the prose check read the leaf with no link-reference ref, so it saw no link
+	// definitions and every plugin's syntax, and no harness handed the menu an editor's ref.
+	it.each([
+		['a resolved reference link’s label', '[t][r]', 5, fixtureLinkRef({ current: toR }), false],
+		['an unresolved reference link’s label', '[t][r]', 5, fixtureLinkRef(), true],
+		['a code span inside an unlisted plugin’s construct', MASKED, 6, scopedLinkRef, false],
+		['the same code span where every plugin is on', MASKED, 6, fixtureLinkRef(), true]
+	])('reads the editor’s ref for %s', async (_, source, at, linkRef, opens) => {
+		const h = harness(source, { linkRef });
+		h.menu.registry.addSource(tags({ opensAt: () => true }));
+		await h.moveTo(at);
+		await h.type('#');
+		expect(h.raw()).toBe(source.slice(0, at) + '#' + source.slice(at));
+		expect(h.menu.getOpen() !== null).toBe(opens);
 	});
 
 	it('does not open in reading mode', async () => {
