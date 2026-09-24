@@ -2,8 +2,7 @@
 	import { parrotPlugin } from '$lib/plugins/parrot';
 	import { emojiPlugin } from '$lib/plugins/emoji';
 	import { admonitionsPlugin } from '$lib/plugins/admonitions';
-	import { tocPlugin } from '$lib/plugins/toc';
-	import { DEMO_LATEX } from '../../../demo-plugins';
+	import { DEMO_LATEX, DEMO_TOC } from '../../../demo-plugins';
 	import { blockBadgePlugin } from '../block-badge/block-badge-plugin';
 	import { docStatsPlugin } from '../doc-stats/doc-stats-plugin';
 
@@ -19,9 +18,8 @@
 
 	// The `?reads` variant: live mode, so the link card and pending marks run, and the toc in both
 	// editors, so its labels show which inline syntax each editor reads.
-	const toc = tocPlugin();
-	const listedReadsPlugins = [...listedPlugins, toc];
-	const unlistedReadsPlugins = [...unlistedPlugins, toc];
+	const listedReadsPlugins = [...listedPlugins, DEMO_TOC];
+	const unlistedReadsPlugins = [...unlistedPlugins, DEMO_TOC];
 	const READS_SEED = '# Title $*x*$\n\n[[toc]]\n\na :smile: b\n\na $x$ b\n';
 
 	// Each editor parses the seed in its own grammar: the first reads a parrot block, an emoji, a
