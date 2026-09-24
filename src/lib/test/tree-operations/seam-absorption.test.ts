@@ -158,6 +158,23 @@ describe('a splice absorbs a join the reload would fold (GH #61)', () => {
 		expect(describeConvergence(doc)).toBeNull();
 	});
 
+	// GH #285 with a paragraph for the head: the code's blank run stays a block of its own, so the
+	// joined bytes keep the block count while the code moves up into the paragraph.
+	it('a delete leaving a paragraph over indented code takes the code as its continuation', () => {
+		const doc = parse('para\n# h\n    code\n    \n    \n\n```\n```\n');
+
+		const change = settled(doc, (body) => deleteNode(body, 1));
+
+		expect(serialize(doc)).toBe('para\n    code\n    \n    \n```\n```\n');
+		expect(doc.children.map((c) => [c.kind, c.leadingTrivia, c.raw])).toEqual([
+			['paragraph', '', 'para\n    code\n'],
+			['paragraph', '    \n', '    \n'],
+			['fencedCode', '', '```\n```\n']
+		]);
+		expect(change).toEqual({ op: 'replace', at: 0, count: 3, newCount: 2, idMap: { 0: 0 } });
+		expect(describeConvergence(doc)).toBeNull();
+	});
+
 	it('a delete between separated paragraphs stays a plain delete', () => {
 		const doc = parse('a\n\nb\n\nc\n');
 

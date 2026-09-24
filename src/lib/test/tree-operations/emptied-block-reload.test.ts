@@ -163,14 +163,30 @@ describe('emptying a block beside indentation-delimited content', () => {
 		expectParseConverged(doc);
 	});
 
+	// The tab-indented blank line belongs to the code but stops short of the item's content
+	// column (five), so the joined bytes end in it; here it becomes a block, as the reload reads it.
+	it('materializes a trailing blank line the list leaves behind instead of hiding it in raw', () => {
+		const doc = parse('1.   # **b**\n\n| H0 |\n| --- | --- |\n\n     code\n\t\n\n```\n```\n');
+
+		empty(doc, 1);
+
+		expect(serialize(doc)).toBe('1.   # **b**\n\n\n     code\n\t\n\n```\n```\n');
+		expect(layout(doc.children)).toEqual([
+			['list', '', '1.   # **b**\n\n\n     code\n'],
+			['paragraph', '\t\n', '\n'],
+			['fencedCode', '', '```\n```\n']
+		]);
+		expectParseConverged(doc);
+	});
+
 	// The higher-traffic caller of the same merge: a delete puts the neighbours back to back the
 	// same way, and its window can split off the same trailing line.
-	it('materializes the stripped marker on the delete entry point too', () => {
-		const doc = parse('- - # **b**\n\nmid\n\n    code\n\t\n\n```\n```\n');
+	it('materializes the trailing blank line on the delete entry point too', () => {
+		const doc = parse('1.   # **b**\n\nmid\n\n     code\n\t\n\n```\n```\n');
 
 		deleteNode(doc, 1);
 
-		expect(serialize(doc)).toBe('- - # **b**\n\n    code\n\t\n\n```\n```\n');
+		expect(serialize(doc)).toBe('1.   # **b**\n\n     code\n\t\n\n```\n```\n');
 		expectParseConverged(doc);
 	});
 });
