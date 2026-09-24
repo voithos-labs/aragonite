@@ -1012,7 +1012,8 @@ rebuilders, the list terminator and the range-delete branches that sit outside b
 legitimately-literal writes allowlisted by reason AND count. The scans see literal shapes only, so
 an outcome-level check runs each gesture over an LF fixture and its CRLF mirror and requires the
 results to mirror. It catches the creation sites no shape matches (defaulted parameters, placeholder
-paragraphs), and fires for gesture N+1 untaught. `lint/trailing-line-ending-parity.test.ts`
+paragraphs), and fires for gesture N+1 untaught. Every paste route has a row there, pasting LF text
+into both, since a paste writes its own lines in the document's ending too. `lint/trailing-line-ending-parity.test.ts`
 (branches); `crlf-edit-mirror.test.ts` (the outcome check).
 
 **G4.21 · Image byte-write seam.** A name-presence file-set scan, not a behavioral one: the GFM
@@ -1461,7 +1462,10 @@ link-reference ref and the render options carry it as a required field for the s
 readers whose grammar stays optional (the published `parseInline` and `computeInlineContent` among
 them) are held to passing it in its own argument slot, and a fallback to every installed plugin
 is spelled only in the listed places. The reads still left unthreaded are listed with their
-reasons: navigation's transparency check.
+reasons: navigation's transparency check. A live rewrite that checks its candidate against the
+drawn tree also reparses with the link resolver that tree was read with, or a reference link reads
+as brackets beside it (#443); the auto-pair scans, which read no drawn tree, are the listed gap,
+and the bold and italic toggle outside this directory reads without the resolver too (#455).
 `lint/registry-view-reads.test.ts`.
 
 **G4.69 · Reparses take the editor's grammar.** Every `parse` call outside the parser passes a

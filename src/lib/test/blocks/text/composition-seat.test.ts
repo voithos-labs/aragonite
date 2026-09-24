@@ -29,6 +29,7 @@ function makeSeat(live: Live, pending?: PendingMarksState) {
 	return createCompositionSeat({
 		getDisplayText: () => live.display,
 		getInlines: () => live.inlines,
+		getResolver: () => undefined,
 		grammar: defaultGrammarView,
 		getAffinity: () => live.affinity,
 		getScreen: () => screenVisibility('live', { chromePaints: false }),

@@ -26,6 +26,7 @@ function insert(
 		text,
 		new Set(marks),
 		parseInline(display, 0, display.length),
+		undefined,
 		defaultGrammarView
 	);
 }

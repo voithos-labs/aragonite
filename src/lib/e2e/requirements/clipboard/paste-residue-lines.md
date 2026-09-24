@@ -10,6 +10,8 @@ A paste of several blocks splits the paragraph at the caret. Everything after th
 ## Caret placement
 
 - After the paste, a typed character lands at the end of the pasted `y`, before the line break that leads to `After`.
+- After the `> q` paste, a typed character lands after `q`, where the pasted text ends, and not after `After`, the line the quote took in: the source reads `abc\n\n> qZ\n> After\n`.
+- The same with `- q`: the item takes `After` in, and a typed character lands after `q`, giving `abc\n\n- qZ\n  After\n`.
 
 ## Undo
 
@@ -18,3 +20,4 @@ A paste of several blocks splits the paragraph at the caret. Everything after th
 ## Miss-analysis
 
 - GH #436: every residue pin cut a one-line paragraph, so no paste put a line break after the caret; only the first block of the text after the caret was parsed, and the lines past it were dropped. Convergence passed, since the shortened document is a valid tree of its own.
+- GH #447: the caret was pinned only after the two-paragraph paste, whose residue stays a block of its own; no scenario typed after a paste whose last block took the residue in, where the caret went to that block's end.

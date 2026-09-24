@@ -161,6 +161,8 @@ export function actionDepsWithoutGrammar(
 /** The published kits and the plugin API run outside any editor, so the whole process is theirs. */
 const EDITOR_LESS = notUnder('src/lib/testing/', 'src/lib/core/parser.ts');
 
+const REWRITE_PROBE = 'src/lib/components/blocks/text/probe.ts';
+
 const RULES: CallSiteRule[] = [
 	{
 		id: 'G4.68 every plugin registry read outside its module passes the editor grammar',
@@ -189,6 +191,62 @@ const RULES: CallSiteRule[] = [
 				'isVerticallyTransparentNode(node, deps.grammar);',
 			'export function parseInline(raw, start, end, resolver, grammar) {}',
 			'interface I { parseInline(raw: string, start?: number): X; }'
+		]
+	},
+	{
+		id: 'G4.68 a live rewrite reparses with the link resolver its drawn tree was read with',
+		population: (file) => file.relPath.startsWith('src/lib/components/blocks/text/'),
+		calls: ['parseInline'],
+		holds: (args) => {
+			const slot = callArguments(args)[3];
+			return slot !== undefined && slot !== '' && slot !== 'undefined';
+		},
+		// Each a known gap: the auto-pair scan reads its own tree rather than checking a candidate
+		// against the drawn one, so a reference link there reads as brackets.
+		allowed: {
+			'src/lib/components/blocks/text/delimiter-autopair.ts:274': 'the closing-run scan',
+			'src/lib/components/blocks/text/delimiter-autopair.ts:295': 'the closer-end scan',
+			'src/lib/components/blocks/text/delimiter-autopair.ts:312': 'the pair-exists scan'
+		},
+		reason:
+			'a reparse without the resolver reads every reference link as brackets, so a candidate compared with the drawn tree disagrees with it beside one (#443)',
+		atLeastCallers: 4,
+		hits: [
+			{ relPath: REWRITE_PROBE, code: 'parseInline(raw, 0, raw.length, undefined, grammar);' }
+		],
+		misses: [
+			{
+				relPath: REWRITE_PROBE,
+				code:
+					'parseInline(raw, 0, raw.length, resolver, grammar);\n' +
+					'parseInline(raw, 0, raw.length, ref?.current, ref?.grammar);'
+			}
+		]
+	},
+	{
+		id: 'G4.68 a live rewrite reparses a whole block with the link resolver too',
+		population: (file) => file.relPath.startsWith('src/lib/components/blocks/text/'),
+		calls: ['soleProseReparse'],
+		// A ref passed whole carries its resolver; an object spelled out has to name `current`.
+		holds: (args) => {
+			const slot = callArguments(args)[1];
+			if (slot === undefined) return false;
+			return slot.startsWith('{') ? /\bcurrent\b/.test(slot) : slot !== 'undefined';
+		},
+		allowed: {
+			'src/lib/components/blocks/text/edge-policy-dispatch.ts:49':
+				'keepsBlockKind compares the block kind only, which no link changes'
+		},
+		reason:
+			'a reparse without the resolver reads every reference link as brackets, so a candidate compared with the drawn tree disagrees with it beside one (#443)',
+		atLeastCallers: 3,
+		hits: [{ relPath: REWRITE_PROBE, code: 'soleProseReparse(raw, { grammar });' }],
+		misses: [
+			{
+				relPath: REWRITE_PROBE,
+				code:
+					'soleProseReparse(raw, { current: resolver, grammar });\n' + 'soleProseReparse(raw, ref);'
+			}
 		]
 	},
 	{

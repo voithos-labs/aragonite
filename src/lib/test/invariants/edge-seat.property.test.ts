@@ -128,6 +128,7 @@ function typeThroughSeat(
 		display,
 		LIVE,
 		'Z',
+		undefined,
 		defaultGrammarView
 	);
 	const at = seat?.offset ?? caret;

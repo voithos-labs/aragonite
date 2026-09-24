@@ -210,9 +210,10 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 					return mergeResult?.change ?? { op: 'noop' };
 				},
 				afterTick: () => {
-					const ref = scope.refAt(i - 1);
-					const merged = mergedElseFocusPrevious(mergeResult, ref);
+					const merged = mergedElseFocusPrevious(mergeResult, scope.refAt(i - 1));
 					if (!merged) return;
+					// The fix-up after the delete can merge the joined block into the one above it.
+					const ref = scope.refAt(merged.index);
 					if (merged.targetPath.length === 0) ref?.focus(merged.joinOffset);
 					else ref?.focusByPath?.(merged.targetPath, merged.joinOffset);
 				},

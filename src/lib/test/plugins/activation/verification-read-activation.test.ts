@@ -47,6 +47,7 @@ describe('a pending mark reads the syntax the editor draws', () => {
 			'y',
 			new Set(['strong'] as const),
 			inlinesOf(raw),
+			undefined,
 			withoutEither()
 		);
 		expect(marked).toEqual({ raw: 'a $x**y**$ b', caret: 7 });
@@ -57,7 +58,16 @@ describe('the typing position at a hidden run reads the syntax the editor draws'
 	// `**:smile**`: typing `:` inside the bold spells an emoji only where emoji is listed.
 	it('keeps the typed byte at the caret inside the bold', () => {
 		const raw = '**:smile**';
-		const seat = resolveEdgeSeat(8, inlinesOf(raw), 'near', raw, LIVE, ':', withoutEither());
+		const seat = resolveEdgeSeat(
+			8,
+			inlinesOf(raw),
+			'near',
+			raw,
+			LIVE,
+			':',
+			undefined,
+			withoutEither()
+		);
 		expect(seat).toBeNull();
 	});
 });
@@ -74,6 +84,7 @@ describe('the edge delete reads the syntax the editor draws', () => {
 			screen: LIVE,
 			inlines: inlinesOf(raw),
 			installedAs,
+			resolver: undefined,
 			grammar: withoutEither()
 		});
 	};
