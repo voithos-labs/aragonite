@@ -50,7 +50,7 @@
 	import { createTextRender } from './text-render';
 	import { createWidgetInteraction } from './widget-interaction';
 	import { createEdgePolicyDispatch, keepsBlockKind } from './edge-policy-dispatch';
-	import { hidesStructuralSuffix } from './hidden-suffix';
+	import { hidesStructuralSuffix, undrawnSuffix } from './hidden-suffix';
 	import { applyLiveRangeEdit, resolveSelectionEdit } from './live-selection-edit';
 	import { applyDelimiterAutoPair } from './delimiter-autopair';
 	import { createCompositionSeat } from './composition-seat';
@@ -850,7 +850,8 @@
 	const onInput = editableSurface.onInput;
 
 	// Read the children one by one rather than `textContent`, so stray text nodes Chromium
-	// inserts around the marker span do not pollute the raw.
+	// inserts around the marker span do not pollute the raw. The DOM stops at the content end, so
+	// the undrawn suffix (a setext underline) is added back and every write from here keeps it.
 	function readRawText(): string {
 		if (!el) return '';
 		const ambient = ambientLength > 0 ? ambientSpanOf(el) : null;
@@ -859,7 +860,7 @@
 			if (child === ambient) continue;
 			out += rawTextOfNode(child, node.raw);
 		}
-		return out;
+		return out + undrawnSuffix(node);
 	}
 
 	// Captured before the shared handler: its cross-block half clears the arrival side, and the

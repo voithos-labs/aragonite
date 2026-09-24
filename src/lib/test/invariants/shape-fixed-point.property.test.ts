@@ -23,6 +23,8 @@ import {
 	__resetLiveSplitRebalancerForTests
 } from '$lib/schema/inline-construct-policy';
 import { rebalanceLiveSplit } from '$lib/components/blocks/text/live-split-rebalance';
+import { undrawnSuffix } from '$lib/components/blocks/text/hidden-suffix';
+import { getContentRange } from '$lib/core/inline';
 import type { PresentationMode } from '$lib/presentation-mode';
 import { defaultGrammarView } from '$lib/schema/block-openers';
 import { rebuildUnsharedChain } from '$lib/tree-operations/chain-rebuild';
@@ -147,8 +149,9 @@ function applyEmpty(doc: Document, at: number): void {
 }
 
 /**
- * A prose leaf's own bytes written back, the commit a keystroke and its undo add up to. Inside a
- * list item too: a task item's first paragraph reads its text differently from a standalone one.
+ * A prose leaf's text written back the way a keystroke and its undo commit it: what the DOM holds
+ * (up to the content end), the suffix no mode draws, then the line ending. Inside a list item too:
+ * a task item's first paragraph reads its text differently from a standalone one.
  */
 function applyRetype(doc: Document, at: number): void {
 	// A table row rebuilds from its column count, so a row carrying surplus cells loses them on
@@ -156,7 +159,9 @@ function applyRetype(doc: Document, at: number): void {
 	const slots = proseLeafSlots(doc).filter(({ holder }) => holder.kind !== 'tableRow');
 	if (slots.length === 0) return;
 	const slot = slots[at % slots.length];
-	writeLeaf(doc, slot, slot.holder.children![slot.index].raw);
+	const node = slot.holder.children![slot.index];
+	const domText = node.raw.slice(0, getContentRange(node).end);
+	writeLeaf(doc, slot, domText + undrawnSuffix(node) + trailingLineEnding(node.raw));
 }
 
 function writeLeaf(doc: Document, { holder, index, chain }: LeafSlot, text: string): void {
