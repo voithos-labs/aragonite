@@ -36,4 +36,25 @@ test.describe('reading the selection while an image is selected', () => {
 			0
 		);
 	});
+
+	// A resize rewrites the image's bytes while it stays selected, so its end moves under the read.
+	test('after a resize the read follows the image to its new end', async ({ page }) => {
+		const editor = new EditorPage(page);
+		await editor.goto();
+		await editor.loadContent('abc ![c|100x60](/test-fixtures/sample.png)\n');
+		await page.locator('[data-image-widget]').first().click();
+		const handle = (await page.locator('.md-resize-handle-right').first().boundingBox())!;
+		await page.mouse.move(handle.x + 4, handle.y + 4);
+		await page.mouse.down();
+		await page.mouse.move(handle.x - 30, handle.y + 4, { steps: 5 });
+		await page.mouse.up();
+		await editor.bridge.waitForSourceNotContains('|100x60');
+		await expect(page.locator('[data-image-overlay]')).toBeVisible();
+
+		const source = await editor.bridge.getSource();
+		const end = { path: [0], offset: source.indexOf(')') + 1 };
+		await expect
+			.poll(() => page.evaluate(() => (window as any).__test.getSelection()))
+			.toEqual({ anchor: end, focus: end });
+	});
 });

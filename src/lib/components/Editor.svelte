@@ -315,11 +315,15 @@
 		clear: () => widgetSelection.clear()
 	};
 
-	// The caret a selected image stands for: its paragraph at the offset its click left the caret.
+	// The caret a selected image stands for: the edge its selection came from, read off the live
+	// image, since a resize moves its end while it stays selected.
 	function selectedWidgetCaret(): EditorSelection | null {
 		const selected = widgetSelection.getSelected();
 		if (!selected) return null;
-		const point = { path: [...selected.paragraphPath], offset: selected.preSelectOffset };
+		const live = selectedWidget.range();
+		const fromStart = selected.preSelectOffset === selected.sourceStart;
+		const offset = live ? (fromStart ? live.start : live.end) : selected.preSelectOffset;
+		const point = { path: [...selected.paragraphPath], offset };
 		return { anchor: point, focus: point };
 	}
 
