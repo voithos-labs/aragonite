@@ -53,7 +53,9 @@ test.describe('a nested list estimates at its own width', () => {
 		expect(listWidth).toBeLessThan(portWidth);
 
 		const builds = (await heightTableBuilds(page)).filter((b) => b.path === LIST_PATH.join(','));
-		expect(builds.length).toBeGreaterThan(0);
+		// The first table comes before the element exists, so it guessed at another width.
+		expect(builds.length).toBeGreaterThanOrEqual(2);
+		expect(builds[0].width).not.toBe(listWidth);
 		expect(builds.at(-1)!.width).toBe(listWidth);
 	});
 

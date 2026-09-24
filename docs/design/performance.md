@@ -166,7 +166,8 @@ perfSnapshot();
 //   snapshotCount: 0, snapshotCloneBytes: 0, rebuildDepths: {}, containerKindReparses: 0,
 //   formatCoverageReads: 0, undoLiveBytes: 0, undoEntryCount: 0,
 //   blockRenderCount: 0, blockRenderMsTotal: 0, blockRenderPaths: [], keystrokeInPageMs: [],
-//   mountedBlockCount: 0, decorationRuns: 0, islandRebuilds: 0, islandKeyScans: 0
+//   mountedBlockCount: 0, decorationRuns: 0, islandRebuilds: 0, islandKeyScans: 0,
+//   heightTableBuilds: []
 // }
 ```
 
