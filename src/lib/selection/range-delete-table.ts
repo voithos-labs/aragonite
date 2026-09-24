@@ -36,6 +36,7 @@ import {
 } from '../tree-operations/unshare';
 import { rebuildUnsharedAncestry } from '../tree-operations/chain-rebuild';
 import { rebuildTableRowRaw } from '../schema/container-rebuilders';
+import { promoteFirstRowToHeader } from '../tree-operations/table-mutations';
 import { isCollapsedContainer } from '../schema/reserved-chrome';
 import { nearestChromeContainer, isChromeChild } from './range-delete-chrome';
 
@@ -506,7 +507,7 @@ function deleteCellsAndCollapse(
 
 	if (rows.length === 0) return { result: 'tableEmpty', splice };
 	if (headerRemoved) {
-		metadataOf(rows[0], 'tableRow').isHeader = true;
+		promoteFirstRowToHeader(table);
 	}
 	return { result: 'tableSurvives', splice };
 }

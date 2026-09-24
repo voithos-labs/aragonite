@@ -88,7 +88,7 @@ describe('G4.68 the internal registry readers take the grammar as a required par
 /** The places outside the parser, the grammar's own modules, the plugin barrel and the published
  *  kits that fall back to every installed plugin, each where an optional grammar arrives. */
 const EVERY_PLUGIN_FALLBACKS: Record<string, string> = {
-	'src/lib/core/inline/index.ts:117': 'the published parseInline takes an optional grammar',
+	'src/lib/core/inline/index.ts:143': 'the published parseInline takes an optional grammar',
 	'src/lib/core/inline/transparency.ts:15': 'navigation reads transparency with no editor context',
 	'src/lib/core/directive/activate.ts:33': 'the published recognizer type takes an optional grammar'
 };
@@ -179,7 +179,7 @@ const RULES: CallSiteRule[] = [
 		// Each a known gap: the inline tree these sites read can hold a construct an unlisted plugin
 		// claimed, which this editor draws as text.
 		allowed: {
-			'src/lib/core/inline/index.ts:114': 'an error message naming the call, not a call',
+			'src/lib/core/inline/index.ts:140': 'an error message naming the call, not a call',
 			'src/lib/editor-actions/container-block-component.ts:286':
 				'the whole-block component deps carry no grammar; a container is transparent only if every child is',
 			'src/lib/selection/keyboard-extend.ts:334':
@@ -235,7 +235,7 @@ const RULES: CallSiteRule[] = [
 			return slot.startsWith('{') ? /\bcurrent\b/.test(slot) : slot !== 'undefined';
 		},
 		allowed: {
-			'src/lib/components/blocks/text/edge-policy-dispatch.ts:49':
+			'src/lib/components/blocks/text/edge-policy-dispatch.ts:48':
 				'keepsBlockKind compares the block kind only, which no link changes'
 		},
 		reason:

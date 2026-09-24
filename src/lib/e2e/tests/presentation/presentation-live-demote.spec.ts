@@ -136,17 +136,21 @@ test.describe('live mode: Backspace at a heading’s content start demotes befor
 		expect(await ep.bridge.getBlockKind(SETEXT)).toBe('paragraph');
 	});
 
-	// The other end of the same block: Delete there would merge the next block past the underline
-	// and put it on screen, so the key is consumed until a join can keep a block's structure.
-	test('Delete at a setext heading’s content end takes nothing', async ({ page }) => {
+	// The other end of the same block: Delete there joins the next block onto the title line and
+	// leaves the underline under the joined text, so the heading stays a heading.
+	test('Delete at a setext heading’s content end joins the next block above the underline', async ({
+		page
+	}) => {
 		await clickBlockSettled(ep, SETEXT);
 		await page.keyboard.press('End');
 		await ep.waitForRenderFlush();
-		const before = await ep.bridge.getSource();
 
-		await ep.pressDeclined('Delete');
-
-		expect(await ep.bridge.getSource()).toBe(before);
+		await page.keyboard.press('Delete');
+		await ep.bridge.waitForSourceContains('\nSetextplain\n======\n\n[r]:');
+		expect(await ep.bridge.getBlockKind(SETEXT)).toBe('setextHeading');
+		expect(await ep.bridge.getSelectionPaths()).toMatchObject({
+			focus: { path: [SETEXT], offset: 6 }
+		});
 	});
 });
 

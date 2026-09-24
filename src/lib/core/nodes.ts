@@ -93,6 +93,9 @@ export interface TableMetadata {
 
 export interface TableRowMetadata {
 	isHeader: boolean;
+	/** A body row's cells past the header's count, as written: GFM renders none of them, and the
+	 *  row's rebuild writes them back after its rendered cells. Absent when there are none. */
+	surplusCells?: readonly string[];
 }
 
 export interface BlockquoteMetadata {

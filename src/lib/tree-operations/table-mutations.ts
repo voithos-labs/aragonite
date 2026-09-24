@@ -5,6 +5,7 @@
 import type { CstNode, TableRowMetadata, TableAlignment } from '../core/nodes';
 import { metadataOf } from '../core/nodes';
 import { reorderChildren } from './reorder';
+import { generateBlockId } from '../block-id';
 import type { StructuralChange } from './structural-change';
 
 const ALIGN_CYCLE: TableAlignment[] = ['left', 'center', 'right'];
@@ -50,9 +51,45 @@ export function deleteRow(table: CstNode, rowIdx: number): void {
 	const rows = table.children ?? [];
 	const willRemoveHeader = rowIdx === 0;
 	rows.splice(rowIdx, 1);
-	if (willRemoveHeader && rows.length > 0) {
-		metadataOf(rows[0], 'tableRow').isHeader = true;
+	if (willRemoveHeader && rows.length > 0) promoteFirstRowToHeader(table);
+}
+
+/**
+ * Make the table's first row its header. A header wider than the delimiter row is no table at
+ * all, so the row's surplus cells become columns: the table widens, and every row takes its own
+ * surplus into the new columns first, as a reload of the widened table reads it.
+ */
+export function promoteFirstRowToHeader(table: CstNode): void {
+	const rows = table.children ?? [];
+	if (rows.length === 0) return;
+	const meta = metadataOf(table, 'table');
+	const extra = metadataOf(rows[0], 'tableRow').surplusCells?.length ?? 0;
+	if (extra > 0) {
+		meta.columnCount += extra;
+		meta.alignments = [...meta.alignments, ...Array<TableAlignment>(extra).fill('none')];
 	}
+	// Written as copies: only the table is this edit's own, and a row can still be in an undo entry.
+	for (let i = 0; i < rows.length; i++) {
+		if (i === 0 || extra > 0) rows[i] = widenedRow(rows[i], meta.columnCount, i === 0);
+	}
+}
+
+/** A copy of the row holding `columnCount` cells, the missing ones taken from its surplus first. */
+function widenedRow(row: CstNode, columnCount: number, isHeader: boolean): CstNode {
+	const surplus = metadataOf(row, 'tableRow').surplusCells ?? [];
+	const missing = Math.max(0, columnCount - row.children!.length);
+	const added = Array.from({ length: missing }, (_, k): CstNode => ({
+		kind: 'tableCell',
+		leadingTrivia: '',
+		raw: surplus[k] ?? ''
+	}));
+	const rest = surplus.slice(missing);
+	const metadata: TableRowMetadata =
+		rest.length > 0 ? { isHeader, surplusCells: rest } : { isHeader };
+	const copy = { ...row, metadata, children: [...row.children!, ...added] } as CstNode;
+	if (row.childIds) copy.childIds = [...row.childIds, ...added.map(() => generateBlockId())];
+	delete copy.childSpans;
+	return copy;
 }
 
 export function deleteColumn(table: CstNode, colIdx: number): StructuralChange[] {

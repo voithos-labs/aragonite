@@ -60,11 +60,13 @@ export function rebuildTableRowRaw(node: CstNode): void {
 /**
  * The same bytes with a line ending the row does not carry itself: a row created by a structural
  * edit has none from the source, so the table supplies it. Separate from the rebuilder above
- * because `rebuildRaw`'s second parameter is the changed-child hint.
+ * because `rebuildRaw`'s second parameter is the changed-child hint. The row's surplus cells,
+ * the ones GFM does not render, follow its rendered ones.
  */
 export function writeTableRow(node: CstNode, lineEnding: string): void {
 	if (!node.children) return;
-	const cells = node.children.map((c) => c.raw);
+	const surplus = node.metadata ? (metadataOf(node, 'tableRow').surplusCells ?? []) : [];
+	const cells = [...node.children.map((c) => c.raw), ...surplus];
 	node.raw = '| ' + cells.join(' | ') + ' |' + lineEnding;
 }
 

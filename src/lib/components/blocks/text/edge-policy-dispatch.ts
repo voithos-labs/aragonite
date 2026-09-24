@@ -34,7 +34,6 @@ import {
 	type EdgeDeletion,
 	type EdgeDeletionSurface
 } from './construct-edge-delete';
-import { hidesStructuralSuffix } from './hidden-suffix';
 import { resolveEdgeSeat, type EdgeSeat } from './edge-seat';
 import { replaceRangeRaw } from './live-selection-edit';
 import { resolveMarkedInsertion } from './pending-mark-insert';
@@ -193,13 +192,8 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 				'a selection into the ambient span blocks native delete silently, with no beforeinput',
 			claims: handleAmbient
 		},
-		// The four below handle only what would otherwise reach native editing or the block-merge
+		// The three below handle only what would otherwise reach native editing or the block-merge
 		// command; the more specific families above still take a key aimed at one of theirs.
-		{
-			id: 'hidden-suffix-delete',
-			reason: 'the merge this press would reach concatenates past the block’s own hidden structure',
-			claims: handleHiddenSuffixDelete
-		},
 		{
 			id: 'construct-edge-delete',
 			reason: 'a destructive key beside an unpainted delimiter run takes content, never a marker',
@@ -573,23 +567,6 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 			void deps.blockEdit.updateBlockContent(deps.index, edit.raw, range.start, edit.caret);
 			deps.setPendingCursor(edit.caret, 'ambient-delete');
 		}
-		return true;
-	}
-
-	// ── Hidden structural suffix ───────────────────────────────────────────────
-
-	/**
-	 * Delete at the content end of a block whose own structure sits after it: the merge this key
-	 * would reach joins past that suffix, so the key is consumed. The rule lives in
-	 * `hidden-suffix.ts`; the command path asks the same question from its own coordinates.
-	 */
-	function handleHiddenSuffixDelete(e: KeyboardEvent, caretOffset: RawOffset | null): boolean {
-		if (e.key !== 'Delete') return false;
-		if (e.shiftKey || hasModifier(e)) return false;
-		if (caretOffset === null || heldRange()) return false;
-		if (caretOffset !== getContentRange(deps.node).end) return false;
-		if (!hidesStructuralSuffix(deps.getEl(), deps.node, display().length)) return false;
-		e.preventDefault();
 		return true;
 	}
 

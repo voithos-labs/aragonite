@@ -190,6 +190,7 @@ function findImageOnlyBlock(): number {
 }
 
 const PROSE_KINDS = new Set(['paragraph', 'heading', 'setextHeading']);
+const RANGE_LEAF_KINDS = new Set(['paragraph', 'heading']);
 
 // ── Range builds ────────────────────────────────────────────────────────────
 
@@ -229,9 +230,9 @@ async function buildProseRange(ctx: SimContext, g: Gestures): Promise<BuiltRange
 
 /**
  * Filtering by kind matters three times over: a block that renders would open its source
- * instead of anchoring a range, a fenced block's markers make the collapse more than a cut and
- * join, and a blur that commits one source view must not open another. Filtering only on "has
- * no children and is long enough" would let `$$x^2$$` through all three.
+ * instead of anchoring a range, a fenced block's markers or a setext underline make the collapse
+ * more than a cut and join, and a blur that commits one source view must not open another.
+ * Filtering only on "has no children and is long enough" would let `$$x^2$$` through all three.
  */
 async function topLevelLeaves(ctx: SimContext): Promise<number[]> {
 	const leaves = await ctx.page.evaluate(
@@ -248,7 +249,7 @@ async function topLevelLeaves(ctx: SimContext): Promise<number[]> {
 			});
 			return out;
 		},
-		[...PROSE_KINDS]
+		[...RANGE_LEAF_KINDS]
 	);
 	if (leaves.length === 0) {
 		throw new Error(`[${ctx.label}] range-interrupt found no top-level prose leaf to start from`);

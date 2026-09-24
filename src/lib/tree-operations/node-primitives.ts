@@ -11,6 +11,7 @@ import type { DocumentView, NodeView } from '../core/node-views';
 import { parse } from '../core/parser';
 import type { GrammarView } from '../schema/block-openers';
 import { trailingLineEnding } from '../core/lines';
+import { dropSuffixUnderBlankLine } from '../core/inline';
 import { getBlockKindDescriptor, tryGetBlockKindDescriptor } from '../schema/block-kind-descriptor';
 import { reservedChromeKindOf } from '../schema/reserved-chrome';
 
@@ -62,10 +63,13 @@ export const forBody = (parent: BodyParentArg, raw: string): string =>
 /**
  * `raw` made legal as `node`'s own bytes, for a write that replaces the node with a reparse: the
  * reparse re-derives metadata, so structure the rule restores from the old metadata is applied
- * first.
+ * first. An undrawn suffix under a blank line goes before the kind's own rule runs.
  */
 export function normalizeOwnRaw(node: NodeView, raw: string): string {
-	return tryGetBlockKindDescriptor(node.kind)?.normalizeRawWrite?.(raw, node) ?? raw;
+	const descriptor = tryGetBlockKindDescriptor(node.kind);
+	if (!descriptor) return raw;
+	const kept = dropSuffixUnderBlankLine(node, raw);
+	return descriptor.normalizeRawWrite?.(kept, node) ?? kept;
 }
 
 /**
@@ -74,7 +78,7 @@ export function normalizeOwnRaw(node: NodeView, raw: string): string {
  */
 export function writeOwnRaw(node: CstNode, raw: string, grammar: GrammarView | undefined): void {
 	const descriptor = tryGetBlockKindDescriptor(node.kind);
-	const legal = descriptor?.normalizeRawWrite?.(raw, node) ?? raw;
+	const legal = normalizeOwnRaw(node, raw);
 	node.raw = legal;
 	// A context-dependent kind's raw does not reparse to itself, so a fragment parse would only
 	// mis-read metadata that was never parse-derived.

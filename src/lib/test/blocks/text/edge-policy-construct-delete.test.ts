@@ -56,7 +56,7 @@ describe('a destructive key past a construct edge takes the content byte', () =>
 
 	// No safe rewrite exists for `**a **` (a closing run after a space is not right-flanking), and
 	// the browser's version of that key destroys both constructs and shows the stars. This branch
-	// takes the key and writes nothing, the same shape as the hidden-suffix check.
+	// takes the key and writes nothing.
 	it('takes the press and writes nothing where no rewrite parses back', () => {
 		const h = mount('**a *b*** z\n', 'live');
 		const e = key('Backspace');
