@@ -165,25 +165,46 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 	// write that rolls back removes it, and the next write must then open the run's entry.
 	let joinDepth = 0;
 	let joinedEntry: UndoEntry | null = null;
+	// Set by the author's input while a run is pending; until every run ends, writes push alone.
+	let joinEnded = false;
 
 	function isJoinedPush(): boolean {
-		return joinDepth > 0 && joinedEntry !== null && deps.undoManager.peekUndo() === joinedEntry;
+		return (
+			joinDepth > 0 &&
+			!joinEnded &&
+			joinedEntry !== null &&
+			deps.undoManager.peekUndo() === joinedEntry
+		);
 	}
 
 	function pushEntry(entry: UndoEntry): void {
 		deps.undoManager.push(entry);
-		if (joinDepth > 0) joinedEntry = entry;
+		if (joinDepth > 0 && !joinEnded) joinedEntry = entry;
 		recordSnapshotPerf();
 	}
 
 	async function joinUndoEntries(run: () => Promise<void>): Promise<void> {
+		// A join opened after the author's input is a new gesture, so it joins its own writes.
+		if (joinEnded) {
+			joinEnded = false;
+			joinedEntry = null;
+		}
 		joinDepth++;
 		try {
 			await run();
 		} finally {
 			joinDepth--;
-			if (joinDepth === 0) joinedEntry = null;
+			if (joinDepth === 0) {
+				joinedEntry = null;
+				joinEnded = false;
+			}
 		}
+	}
+
+	function endUndoJoin(): void {
+		if (joinDepth === 0) return;
+		joinEnded = true;
+		joinedEntry = null;
 	}
 
 	// ── Entry pushes ─────────────────────────────────────────────────────────
@@ -761,6 +782,7 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 		},
 		flushDebouncedCheckpoint: textBatch.interrupt,
 		joinUndoEntries,
+		endUndoJoin,
 		isolateUndoEntry: (write) => {
 			// Both sides: the first break makes the write push its own snapshot instead of
 			// joining the burst before it, the second keeps the next keystroke out of it.

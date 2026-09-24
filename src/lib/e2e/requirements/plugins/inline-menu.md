@@ -15,7 +15,8 @@ tags (`src/routes/demo-tags/tag-marks-plugin.ts`, synchronous) and a document pi
 list arrives asynchronously (`inline-menu/doc-link-menu-plugin.ts`), the shape a host's wikilink
 menu takes. The seed also lists the bundled slash-commands plugin, a `/` list whose pick inserts a
 block: `insert` is empty and `onCommit` goes through the context's `insertMarkdown`. Its own
-cases are `slash-commands.md`; here it is the third source sharing the page.
+cases are `slash-commands.md`; here it is the third source sharing the page. A fourth, on `@`, holds its
+commit open until the spec releases it; its cases are `inline-menu-held-commit.md`.
 
 ## Opening
 

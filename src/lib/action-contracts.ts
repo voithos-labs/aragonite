@@ -249,6 +249,9 @@ export interface CommitController {
 	/** Make every write `run` starts before its promise ends one undo entry: the state before the
 	 *  first write, with the caret where it was. Each write still rolls back alone. */
 	joinUndoEntries(run: () => Promise<void>): Promise<void>;
+	/** The author's own input: every write after it opens its own entry, even while a join's run
+	 *  is still pending. */
+	endUndoJoin(): void;
 }
 
 export interface ContainerEditActions {
