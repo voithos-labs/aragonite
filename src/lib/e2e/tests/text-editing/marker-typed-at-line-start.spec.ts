@@ -21,7 +21,7 @@ const IN_CONTEXT = [
 		expected: '- [ ] Qabcdef\n'
 	},
 	{
-		shape: 'a bullet joining the list above',
+		shape: 'a bullet under a list',
 		doc: '- a\n\nabcdef\n',
 		path: [1],
 		typed: '- ',

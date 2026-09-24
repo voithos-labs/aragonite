@@ -13,7 +13,7 @@ Typing a list, quote or task marker in front of existing text turns the block in
 ## Edge cases
 
 - `[ ] ` typed at the start of an existing item's text makes it a task and the key lands before the text (regression: `- [ ] abcdQef`; miss-analysis: the item moves the marker out of its paragraph, and the caret restore after a container rewrite knew only the body-write rule)
-- `- ` typed before a paragraph under a list joins that list and the key lands in the new item (regression: `- abcdefQ`)
+- `- ` typed before a paragraph under a list starts a second list below it, and the key lands in its item (regression: `- abcdefQ`)
 - `> ` typed before a paragraph inside a list item makes a quote in the item and the key lands inside it (regression: `> abcdef Q`)
 
 ## User interactions

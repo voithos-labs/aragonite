@@ -98,9 +98,8 @@ function writeAndSettleContent(
 		const widened = widenForTailMint(change, settled, parent.children.length);
 		return settleWriteSeams(parent, blockIndex, lastWritten, widened, sharing, grammar);
 	}
-	// Same-kind typing inside content must never pay for a neighbour reparse. The exceptions are
-	// the writes whose first-line indent is new, and a blank line that stays blank: the indent
-	// decides whether a list item above takes the block in (editor.md § 8).
+	// Same-kind typing skips the neighbour reparse unless the first line's indent moved or a blank
+	// line stays blank: the indent decides whether a list item above takes it in (editor.md § 8).
 	if (change.op === 'noop' && !wasBlank && !indentMoved) return { change, textStart: 0 };
 	return settleWriteSeams(parent, blockIndex, lastWritten, change, sharing, grammar);
 }
