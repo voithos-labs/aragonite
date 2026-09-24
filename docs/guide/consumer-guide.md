@@ -281,7 +281,7 @@ One call runs the whole paste route:
 
 The caret is read when you call, and the promise resolves once the edit has landed and the caret is placed, so `getSource()` after an `await` sees it. `false` means nothing changed: no caret in this editor, reading mode, or a caret parked between two blocks.
 
-`placement: 'below'` is what the right-click "Insert block" rows do: an empty paragraph goes in after the top-level block holding the caret, and the text is pasted into it, so a sentence is never split around a new block. That is two undo entries, the paragraph and the insert.
+`placement: 'below'` is what the right-click "Insert block" rows do: an empty paragraph goes in after the top-level block holding the caret, and the text is pasted into it, so a sentence is never split around a new block. The paragraph and the insert are one undo entry.
 
 `getInsertCatalogue()` lists the blocks those rows offer, in their order: an `id`, a `label`, an `icon` name, `keywords` and the `markdown` to hand this call. A plugin's block is in the list while this editor lists its plugin, so a `+` button or a menu of your own shows it without naming it.
 

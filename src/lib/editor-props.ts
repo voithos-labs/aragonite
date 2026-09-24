@@ -136,7 +136,7 @@ export interface EditorInstance {
 	 * caret is read at the call; the promise resolves true once the insert has landed and the
 	 * caret is placed. False, and nothing mutates, with no caret, in reading mode, or at a gap
 	 * caret. `placement: 'below'` first makes an empty paragraph after the caret's top-level
-	 * block (a second undo entry).
+	 * block, in the same undo entry.
 	 */
 	insertMarkdown(md: string, options?: InsertMarkdownOptions): Promise<boolean>;
 	/**

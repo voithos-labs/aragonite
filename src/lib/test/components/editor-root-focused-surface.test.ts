@@ -7,7 +7,8 @@ import type { GapCaretPosition } from '$lib/selection/gap-caret';
 
 // Miss-analysis: the public entry points were tested through a mounted editor with a caret in
 // a block, so nothing named what they answer for a gap caret, a focus outside the root, or a
-// block that runs no commands.
+// block that runs no commands. The below insert's two writes were never asked to share an
+// undo entry, so each pushed its own.
 
 beforeEach(() => {
 	document.body.replaceChildren();
@@ -60,7 +61,12 @@ function harness(component: Partial<BlockComponent> = {}) {
 			} as BlockComponent;
 		},
 		isReading: () => reading,
-		insertParagraph
+		insertParagraph,
+		joinUndoEntries: async (run) => {
+			calls.push('join opens');
+			await run();
+			calls.push('join closes');
+		}
 	});
 	return {
 		surface,
@@ -100,11 +106,11 @@ describe('editor-root focused surface', () => {
 		expect(insertMarkdown).toHaveBeenCalledWith('- ');
 	});
 
-	it('insertMarkdown below makes a paragraph after the focused block, then inserts there', async () => {
+	it('insertMarkdown below makes a paragraph and inserts there, both in one undo join', async () => {
 		const h = harness({ insertMarkdown: async () => true });
 		h.surface.focus();
 		expect(await h.focused.insertMarkdown('> ', { placement: 'below' })).toBe(true);
-		expect(h.calls).toEqual(['paragraph at 2', 'insert > at [2]']);
+		expect(h.calls).toEqual(['join opens', 'paragraph at 2', 'insert > at [2]', 'join closes']);
 	});
 
 	it('insertMarkdown below from a nested block goes after its top-level block', async () => {

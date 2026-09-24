@@ -1313,7 +1313,8 @@
 		getDoc,
 		getBlockComponent,
 		isReading: () => effectiveMode === 'reading',
-		insertParagraph: (boundary, text) => blockEdit.insertParagraph(boundary, text)
+		insertParagraph: (boundary, text) => blockEdit.insertParagraph(boundary, text),
+		joinUndoEntries: (run) => controller.joinUndoEntries(run)
 	});
 
 	export function insertMarkdown(md: string, options?: InsertMarkdownOptions): Promise<boolean> {

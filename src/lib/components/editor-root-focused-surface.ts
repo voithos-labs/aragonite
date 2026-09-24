@@ -22,6 +22,8 @@ export interface FocusedSurfaceDeps {
 	isReading(): boolean;
 	/** Makes an empty top-level paragraph at `boundary` and focuses it. */
 	insertParagraph(boundary: number, text: string): void | Promise<void>;
+	/** The undo stack's join, so the paragraph `below` makes and the paste into it undo together. */
+	joinUndoEntries(run: () => Promise<void>): Promise<void>;
 }
 
 export interface FocusedSurface {
@@ -50,8 +52,12 @@ export function createFocusedSurface(deps: FocusedSurfaceDeps): FocusedSurface {
 	}
 
 	async function insertBelow(topIndex: number, md: string): Promise<boolean> {
-		await deps.insertParagraph(topIndex + 1, '');
-		return insertAtFocus(md);
+		let inserted = false;
+		await deps.joinUndoEntries(async () => {
+			await deps.insertParagraph(topIndex + 1, '');
+			inserted = await insertAtFocus(md);
+		});
+		return inserted;
 	}
 
 	return {
