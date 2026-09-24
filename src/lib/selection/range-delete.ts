@@ -22,7 +22,8 @@ import {
 } from '../tree-operations/node-primitives';
 import { settleSeparatorOnBlank } from '../tree-operations/settle';
 import { isBlankParagraph } from '../core/parser';
-import { displayLength } from '../core/lines';
+import { displayLength, ownTrailingLineEnding, trimTrailingLineEnding } from '../core/lines';
+import { contentLengthOf, undrawnSuffix } from '../core/inline';
 import { deleteAtPath } from '../tree-operations/path-mutate';
 import { cleanJoinedRaw } from '../tree-operations/node-ops';
 import {
@@ -107,7 +108,12 @@ export function rangeDelete(
 	const sameBlock = comparePaths(start.path, end.path) === 0;
 	const startRaw = startBlock.raw;
 	const endRaw = endBlock.raw;
-	const startOffset = charOffsetOf(start, 'rangeDelete:prose-merge-start');
+	// The start block survives a cross-block delete, so its undrawn structure (a setext underline)
+	// stays under the joined text, and a start past it stands at the content end where the caret is.
+	const keptSuffix = sameBlock ? '' : undrawnSuffix(startBlock);
+	const startOffset = keptSuffix
+		? Math.min(charOffsetOf(start, 'rangeDelete:prose-merge-start'), contentLengthOf(startBlock))
+		: charOffsetOf(start, 'rangeDelete:prose-merge-start');
 	const endOffset = charOffsetOf(end, 'rangeDelete:prose-merge-end');
 
 	// The range holds one block whole, so none of its bytes survive: the byte path below would
@@ -127,12 +133,16 @@ export function rangeDelete(
 	// otherwise leave its closer stranded. A same-block merge is one block's bytes and takes
 	// that rule once, below.
 	const endTail = endRaw.slice(endOffset);
+	const tail = sameBlock ? endTail : normalizeOwnRaw(endBlock, endTail);
 	// A join can create a line neither side held: two lines each with a mid-line `</details>`
 	// become one that opens with it. The survivor lands in the start's container, so that
 	// container's body rule is applied here, before the kinds are derived from the bytes.
 	const mergedRaw = normalizeBodyWrite(
 		blockNodeAt(doc, start.path.slice(0, -1))?.kind,
-		startRaw.slice(0, startOffset) + (sameBlock ? endTail : normalizeOwnRaw(endBlock, endTail))
+		startRaw.slice(0, startOffset) +
+			trimTrailingLineEnding(tail) +
+			keptSuffix +
+			ownTrailingLineEnding(tail)
 	);
 	// After both write rules and before either consumer: in live mode the runs the truncation
 	// left unpaired, and the pair a join brings back to back, are bytes the user never saw

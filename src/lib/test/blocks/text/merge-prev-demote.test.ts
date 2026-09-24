@@ -124,15 +124,17 @@ describe('Backspace at content start in live mode', () => {
 		}
 	});
 
-	// The command's other half, for the callers that never pass the keydown dispatch (cross-block
-	// dispatch, a plugin chord): a setext heading cannot absorb the block below without pulling
-	// its underline into view, so it refuses wherever the caret reports itself to be.
-	it('declines mergeNext on a block whose structure sits past its content', () => {
-		mounted = mountBlock('Title\n===\n', 'live', 7);
+	// The underline is drawn in no mode, so the title's end is the block's end for the caret, and
+	// the join the command reaches lands the next block's text above the underline.
+	it.each<PresentationMode>(['live', 'source', 'preview-inline'])(
+		'takes mergeNext at a setext heading’s content end in %s',
+		(mode) => {
+			mounted = mountBlock('Title\n===\n', mode, 5);
 
-		expect(mounted.instance.runCommand('block.mergeNext')).toBe(false);
-		expect(mounted.blockEdit.mergeWithNext).not.toHaveBeenCalled();
-	});
+			expect(mounted.instance.runCommand('block.mergeNext')).toBe(true);
+			expect(mounted.blockEdit.mergeWithNext).toHaveBeenCalledWith(0);
+		}
+	);
 
 	it('merges a kind that declares no demote, at its own content start', () => {
 		mounted = mountBlock('Title\n', 'live', 0);

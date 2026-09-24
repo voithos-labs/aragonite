@@ -288,7 +288,7 @@ cleanJoinedRaw(gone(7, 11, 'Some **** text\n'), 'live'); // { raw: 'Some  text\n
 - The license is § 2's: live drops only what it never showed, verified against what the two sides showed, and otherwise the literal join stands.
 - Text the gesture writes at the join (a selection typed over, a spellcheck replacement) rides into that verification rather than being spliced in past it. A run the typed bytes re-pair against isn't stranded, so there the literal replace stands: select `bold` in the last example, type `x`, and both runs stay, since the `x` lands between them and pairs them up again.
 - § 4.1's residue rule is the second question the verification asks. The two readings of the stranded runs are ordered least destructive first, and the leaner one can leave a construct the cut emptied: a pair over nothing paints nothing, so the screen check alone would accept it. Least destructive therefore means fewest runs dropped among the readings that leave no residue.
-- The same rule keeps hidden bytes from surfacing through a join: a block holding hidden structure past its content (a setext heading's underline) declines the merge that would concatenate it into view (`hidden-suffix.ts`).
+- The same rule keeps hidden bytes from surfacing through a join: a block holding hidden structure past its content (a setext heading's underline) takes the joined text at its content end, so the structure stays under it instead of being joined into view (`tree-operations/node-ops.ts`). No mode draws that structure, so this holds in every mode, not only live.
 
 ### 4.6 The link card
 

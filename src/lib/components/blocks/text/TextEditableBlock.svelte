@@ -18,7 +18,7 @@
 	} from '../../../editor-keys';
 	import type { IndexedDecoration } from '../../../decorations/buckets';
 	import type { ReplaceDecoration, WidgetDecoration } from '../../../decorations/types';
-	import { getContentRange, isProseKind } from '../../../core/inline';
+	import { getContentRange, isProseKind, undrawnSuffix } from '../../../core/inline';
 	import { devWarn } from '../../../dev-warn';
 	import { resolvedInlineContent } from '../../../core/inline/inline-cache';
 	import type { LinkReferenceResolver } from '../../../core/inline/link-reference-resolver';
@@ -50,7 +50,6 @@
 	import { createTextRender } from './text-render';
 	import { createWidgetInteraction } from './widget-interaction';
 	import { createEdgePolicyDispatch, keepsBlockKind } from './edge-policy-dispatch';
-	import { hidesStructuralSuffix, undrawnSuffix } from './hidden-suffix';
 	import { applyLiveRangeEdit, resolveSelectionEdit } from './live-selection-edit';
 	import { applyDelimiterAutoPair } from './delimiter-autopair';
 	import { createCompositionSeat } from './composition-seat';
@@ -257,7 +256,7 @@
 		setPendingCursor: (offset) => setPendingCursorOffset(offset, 'surface'),
 		getPresentationMode: () => presentationMode,
 		getFocusOffset: () => (el ? selectionFocusWalkOffset(el, ambientLength) : null),
-		getTextLen: () => liveDisplayLength(),
+		getTextLen: () => caretReach(),
 		readText: () => readRawText(),
 		relocateComposedText: (after, composedAt) => compositionSeat.relocate(after, composedAt),
 		commitInput: (text, preEdit, saved) => {
@@ -498,18 +497,19 @@
 		widgetInteraction.snapClickToWidgetEdge(clientX, clientY);
 	}
 
-	/** The length the caret counts against: the DOM's while a source is shown, since the CST
-	 *  has not seen that edit. Against a stale `node.raw`, an edited source at the block's
-	 *  end traps the caret, because no key reads as "at the boundary". */
-	function liveDisplayLength(): number {
-		return widgetInteraction.isRevealing() ? readRawText().length : getDisplayText().length;
+	/** The length the caret counts against: the DOM's while a source is shown, since the CST has
+	 *  not seen that edit, and never the undrawn suffix. Counting bytes no caret can reach traps
+	 *  the caret at the block's end, because no key reads as "at the boundary". */
+	function caretReach(): number {
+		const text = widgetInteraction.isRevealing() ? readRawText() : getDisplayText();
+		return text.length - undrawnSuffix(node).length;
 	}
 
 	/** The offsets a caret can reach here, read from the same place the arrow exits use: a mode
 	 *  that draws no marker puts the block's own bytes out of reach, so every block-edge check
 	 *  uses what the DOM allows rather than 0 and the length. */
 	function caretBounds(): { start: number; end: number } {
-		return el ? caretLandableBounds(sharedCtx, el) : { start: 0, end: liveDisplayLength() };
+		return el ? caretLandableBounds(sharedCtx, el) : { start: 0, end: caretReach() };
 	}
 
 	/** The structural bytes this key gives up before any merge: a declared kind's, in a mode
@@ -573,13 +573,7 @@
 				};
 			case 'block.mergeNext':
 				return {
-					// A block whose own structure sits after its content cannot absorb the next one
-					// without bringing that structure into view (live-mode.md § 4.5). The keydown
-					// dispatch consumes that key; this is the same rule for callers that skip it.
-					applies: () =>
-						offset >= caretBounds().end &&
-						!hasSelectionHelper() &&
-						!hidesStructuralSuffix(el ?? null, node, liveDisplayLength()),
+					applies: () => offset >= caretBounds().end && !hasSelectionHelper(),
 					perform: () => void blockEdit.mergeWithNext(index)
 				};
 			case 'link.openCard':

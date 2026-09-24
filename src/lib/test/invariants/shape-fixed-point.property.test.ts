@@ -23,8 +23,7 @@ import {
 	__resetLiveSplitRebalancerForTests
 } from '$lib/schema/inline-construct-policy';
 import { rebalanceLiveSplit } from '$lib/components/blocks/text/live-split-rebalance';
-import { undrawnSuffix } from '$lib/components/blocks/text/hidden-suffix';
-import { getContentRange } from '$lib/core/inline';
+import { getContentRange, undrawnSuffix } from '$lib/core/inline';
 import type { PresentationMode } from '$lib/presentation-mode';
 import { defaultGrammarView } from '$lib/schema/block-openers';
 import { rebuildUnsharedChain } from '$lib/tree-operations/chain-rebuild';

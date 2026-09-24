@@ -19,6 +19,7 @@ import {
 import type { PresentationMode } from '../presentation-mode';
 import {
 	displayLength,
+	ownTrailingLineEnding,
 	snapToScalarBoundary,
 	terminateLine,
 	trailingLineEnding,
@@ -354,17 +355,27 @@ export function cutRangeFromDisplay(
 	return { display: cleaned.raw, offset: cleaned.seam };
 }
 
-/** The bytes two adjacent blocks make when one absorbs the other, join cleanup included. */
+/**
+ * The bytes two adjacent blocks make when one absorbs the other, join cleanup included. The
+ * absorbed text lands at `prev`'s content end, so structure kept past it (a setext underline)
+ * stays under the joined text instead of being joined into view.
+ */
 function joinRaw(
 	prev: NodeView,
 	curr: NodeView,
 	presentationMode: PresentationMode | undefined,
 	linkRef: InlineResolverRef | undefined
 ): CleanedJoin {
-	const seam = displayLength(prev.raw);
+	const seam =
+		tryGetBlockKindDescriptor(prev.kind)?.getContentRange?.(prev).end ?? displayLength(prev.raw);
+	const kept = prev.raw.slice(seam, displayLength(prev.raw));
 	return cleanJoinedRaw(
 		{
-			mergedRaw: prev.raw.slice(0, seam) + curr.raw,
+			mergedRaw:
+				prev.raw.slice(0, seam) +
+				trimTrailingLineEnding(curr.raw) +
+				kept +
+				ownTrailingLineEnding(curr.raw),
 			seam,
 			start: { node: prev, offset: seam },
 			end: { node: curr, offset: 0 },

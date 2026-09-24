@@ -34,6 +34,15 @@ export function getContentRange(node: NodeView): ContentRange {
 	return { start: 0, end: displayLength(node.raw) };
 }
 
+/**
+ * The bytes a block keeps past its content, before its trailing line ending: structure no mode
+ * draws (a setext underline). The block's DOM stops before them, so text read back from it gets
+ * them put back before a write, and the caret's reach ends where they start.
+ */
+export function undrawnSuffix(node: NodeView): string {
+	return node.raw.slice(getContentRange(node).end, displayLength(node.raw));
+}
+
 /** The one place a {@link ContentLength} is created. */
 export function contentLengthOf(node: NodeView): ContentLength {
 	return getContentRange(node).end as ContentLength;

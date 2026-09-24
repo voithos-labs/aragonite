@@ -35,7 +35,6 @@ describe('the declared branch order', () => {
 			'reading-mode',
 			'decoration-island',
 			'ambient-marker',
-			'hidden-suffix-delete',
 			'construct-edge-delete',
 			'marker-completion',
 			'construct-seat'

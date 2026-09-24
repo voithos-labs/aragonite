@@ -1,9 +1,9 @@
 // @vitest-environment jsdom
 //
-// The caret-edge dispatch's hidden-structure branch, which covers one side only: Delete at a
-// block whose own structure sits after its content. The merge that key would reach joins past the
-// suffix and brings it into view, so the dispatch consumes the key. The prefix side belongs to
-// the demote (`merge-prev-demote.test.ts`), and the last case here holds that split.
+// The caret-edge dispatch at a block whose structure sits past its content (a setext underline).
+// Neither end is the dispatch's to take: Delete at the content end goes to the block command, whose
+// join lands the next block's text above the underline, and Backspace at the content start goes to
+// the demote (`merge-prev-demote.test.ts`).
 // Miss-analysis: these suites mount bare containers with no presentation root, so the
 // marker-hiding modes had no fixture to fail in.
 import { describe, expect, it } from 'vitest';
@@ -26,52 +26,20 @@ function mount(source: string, mode?: string): EdgeDispatchHarness {
 
 installEdgeDispatchCleanup();
 
-describe('a hidden structural suffix swallows Delete at content end', () => {
+describe('Delete at a setext heading’s content end reaches the block command', () => {
 	// `Title\n===`: the underline is structural, so content ends at 5.
-	it('consumes the press at a setext heading’s content end in live', () => {
-		const h = mount('Title\n===\n', 'live');
-		const e = key('Delete');
-		expect(h.handleKeydown(e, at(5))).toBe(true);
-		expect(e.defaultPrevented).toBe(true);
-		expect(h.edits).toHaveLength(0);
-	});
-
-	// Source mode draws the underline, so Delete there acts on bytes the user can see.
-	it('declines in source mode', () => {
-		const h = mount('Title\n===\n', undefined);
-		expect(h.handleKeydown(key('Delete'), at(5))).toBe(false);
-	});
-
-	// The preview modes show the focused block's own structure, so its bytes are editable.
-	for (const mode of ['preview-block', 'preview-inline']) {
-		it(`declines in ${mode}`, () => {
+	for (const mode of [undefined, 'live', 'preview-block', 'preview-inline']) {
+		it(`is left unclaimed in ${mode ?? 'source'} mode`, () => {
 			const h = mount('Title\n===\n', mode);
-			expect(h.handleKeydown(key('Delete'), at(5))).toBe(false);
+			const e = key('Delete');
+			expect(h.handleKeydown(e, at(5))).toBe(false);
+			expect(e.defaultPrevented).toBe(false);
+			expect(h.edits).toHaveLength(0);
 		});
 	}
-
-	// A heading's content runs to the block end, so Delete there is an ordinary merge.
-	it('leaves an ATX heading’s end to the merge path', () => {
-		const h = mount('## Title\n', 'live');
-		expect(h.handleKeydown(key('Delete'), at(8))).toBe(false);
-	});
-
-	it('leaves the press mid-content alone', () => {
-		const h = mount('Title\n===\n', 'live');
-		expect(h.handleKeydown(key('Delete'), at(3))).toBe(false);
-	});
-
-	// A chord is a word-scoped platform command; only the plain key is consumed.
-	it.each([{ ctrlKey: true }, { altKey: true }, { metaKey: true }, { shiftKey: true }])(
-		'declines %o+Delete',
-		(mods) => {
-			const h = mount('Title\n===\n', 'live');
-			expect(h.handleKeydown(key('Delete', mods), at(5))).toBe(false);
-		}
-	);
 });
 
-describe('the prefix side belongs to the block-edge command, not to this branch', () => {
+describe('the prefix side belongs to the block-edge command, not to this dispatch', () => {
 	// The key falls through the whole dispatch so `block.mergePrev` can demote the heading;
 	// consuming it here would silently take the gesture back.
 	it.each([

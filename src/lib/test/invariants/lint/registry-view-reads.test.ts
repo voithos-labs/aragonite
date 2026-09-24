@@ -77,7 +77,7 @@ describe('G4.68 the internal registry readers take the grammar as a required par
 /** The places outside the parser, the grammar's own modules, the plugin barrel and the published
  *  kits that fall back to every installed plugin, each where an optional grammar arrives. */
 const EVERY_PLUGIN_FALLBACKS: Record<string, string> = {
-	'src/lib/core/inline/index.ts:117': 'the published parseInline takes an optional grammar',
+	'src/lib/core/inline/index.ts:126': 'the published parseInline takes an optional grammar',
 	'src/lib/core/inline/inline-cache.ts:67': 'the action deps carry the link context optionally',
 	'src/lib/core/inline/transparency.ts:15': 'navigation reads transparency with no editor context',
 	'src/lib/core/inline-render.ts:414': 'the render options reach renderedText with no grammar',
@@ -124,7 +124,7 @@ const RULES: CallSiteRule[] = [
 		// Each a known gap: the inline tree these sites read can hold a construct an unlisted plugin
 		// claimed, which this editor draws as text.
 		allowed: {
-			'src/lib/core/inline/index.ts:114': 'an error message naming the call, not a call',
+			'src/lib/core/inline/index.ts:123': 'an error message naming the call, not a call',
 			'src/lib/editor-actions/container-block-component.ts:286':
 				'the whole-block component deps carry no grammar; a container is transparent only if every child is',
 			'src/lib/selection/keyboard-extend.ts:334':
