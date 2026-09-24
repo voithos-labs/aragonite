@@ -2,6 +2,7 @@
 // the header's column count (spec example 204), but the cells past it are bytes the file holds.
 // Miss-analysis: the table tests wrote rows as wide as their header, and the shape property's
 // retype gesture skipped table rows because of this very loss, so nothing drove a write into one.
+// The range delete's own header promotion was then left out: only `deleteRow` drove one.
 import { describe, it, expect } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
@@ -19,6 +20,8 @@ import {
 	moveColumn
 } from '$lib/tree-operations/table-mutations';
 import { sliceTableAtRow } from '$lib/tree-operations/paste/table-slice';
+import { rangeDelete } from '$lib/selection/range-delete';
+import { allowDevWarns } from '$lib/test/support/warn-gate';
 import { describeConvergence } from '$lib/test/harness/parse-converged';
 
 const WIDE = '| H0 |\n| --- |\n| x | y |\n';
@@ -126,6 +129,21 @@ describe('the table’s structural edits keep them', () => {
 		deleteRow(table, 0);
 
 		expect(rebuilt(table, doc)).toBe('| x | y |\n| --- | --- |\n| 1 |  |\n');
+		expect(describeConvergence(doc)).toBeNull();
+	});
+
+	it('a range delete from the paragraph above through the header row', () => {
+		const doc = parse('para\n\n| H0 |\n| --- |\n| x | y |\n| 1 |\n');
+		const [start, end] = [
+			{ path: [0], offset: 0 },
+			{ path: [1], offset: 0 }
+		];
+
+		rangeDelete(doc, start, end, createSharingState(), defaultGrammarView, undefined, undefined);
+		// The end is given in cells, the unit the selection snaps a table endpoint to.
+		allowDevWarns(['deleteFromProseIntoTable:end']);
+
+		expect(serialize(doc)).toBe('\n| x | y |\n| --- | --- |\n| 1 |  |\n');
 		expect(describeConvergence(doc)).toBeNull();
 	});
 
