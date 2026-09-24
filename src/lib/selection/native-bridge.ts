@@ -20,7 +20,12 @@ import {
 	createRangeAtDomTextOffsets,
 	domTextOffsetAtNode
 } from '../cursor/widget-offset';
-import { ambientLengthOf, ambientSpanOf, placeCaretAfterAmbientSpan } from '../ambient/ambient-dom';
+import {
+	ambientLengthOf,
+	ambientSpanOf,
+	placeCaretAfterAmbientSpan,
+	pointAfterAmbientSpan
+} from '../ambient/ambient-dom';
 
 // ── Read native → SelectionPoint ────────────────────────────────────────────
 
@@ -126,17 +131,14 @@ export function applySingleBlockRange(
 	const sel = window.getSelection();
 	// A start at raw 0 behind a marker span goes after the span, as a caret does: Chromium drops
 	// a range that opens inside `contenteditable="false"`.
-	if (ambient > 0 && startOffset <= 0 && placeCaretAfterAmbientSpan(blockEl)) {
-		sel?.extend(range.endContainer, range.endOffset);
+	const afterMarker = ambient > 0 && startOffset <= 0 ? pointAfterAmbientSpan(blockEl) : null;
+	const start = afterMarker ?? { node: range.startContainer, offset: range.startOffset };
+	if (focusOffset < anchorOffset) {
+		sel?.setBaseAndExtent(range.endContainer, range.endOffset, start.node, start.offset);
 		return;
 	}
-	if (focusOffset < anchorOffset) {
-		sel?.setBaseAndExtent(
-			range.endContainer,
-			range.endOffset,
-			range.startContainer,
-			range.startOffset
-		);
+	if (afterMarker) {
+		sel?.setBaseAndExtent(start.node, start.offset, range.endContainer, range.endOffset);
 		return;
 	}
 	sel?.removeAllRanges();

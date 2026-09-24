@@ -21,11 +21,14 @@ test.describe('image widget selection and Shift+click', () => {
 		edge: 'first' | 'last'
 	): Promise<{ x: number; y: number }> {
 		return page.evaluate((edge) => {
-			const block = document.querySelector('.paragraph-block')!;
+			const block = document
+				.querySelector('[data-image-widget]')!
+				.closest('[contenteditable="true"]')!;
 			const walker = document.createTreeWalker(block, NodeFilter.SHOW_TEXT);
 			const texts: Text[] = [];
 			for (let n = walker.nextNode(); n; n = walker.nextNode()) {
-				if ((n as Text).data.trim() && !n.parentElement?.closest('[data-image-widget]')) {
+				const chrome = n.parentElement?.closest('[data-image-widget], .md-marker');
+				if ((n as Text).data.trim() && !chrome) {
 					texts.push(n as Text);
 				}
 			}
@@ -76,5 +79,24 @@ test.describe('image widget selection and Shift+click', () => {
 		expect(selected).not.toContain('after');
 		await page.keyboard.type('Z');
 		await editor.bridge.waitForSourceEquals('Z after text here\n');
+	});
+
+	// A list item's marker sits before raw 0, where the range has to start and still grow from
+	// the press.
+	test('Shift+click before a selected image in a list item keeps the press as the focus', async ({
+		page
+	}) => {
+		await editor.loadContent('- ' + SHIFT_CLICK_PARAGRAPH);
+		await page.locator('[data-image-widget]').first().click();
+		await expect(overlay(page)).toBeVisible();
+		const point = await textEdgePoint(page, 'first');
+		await page.keyboard.down('Shift');
+		await page.mouse.click(point.x, point.y);
+		await page.keyboard.press('ArrowRight');
+		await page.keyboard.up('Shift');
+		const selected = await page.evaluate(() => window.getSelection()!.toString());
+		expect(selected.slice(0, 6)).toBe('efore ');
+		await page.keyboard.type('Z');
+		await editor.bridge.waitForSourceEquals('- bZ after text here\n');
 	});
 });

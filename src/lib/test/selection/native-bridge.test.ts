@@ -2,6 +2,7 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import {
 	applyCollapsedCaret,
+	applySingleBlockRange,
 	readCurrentSelection,
 	applySelectionToDom
 } from '../../selection/native-bridge';
@@ -159,6 +160,28 @@ describe('applySelectionToDom: restore routing', () => {
 		expect(sel.anchorOffset).toBe(9);
 		expect(sel.focusNode).toBe(content);
 		expect(sel.focusOffset).toBe(3);
+		document.body.replaceChildren();
+	});
+
+	// Miss-analysis: the backward case above has no marker span, and the marker branch ran before
+	// the direction check, so no test asked for a backward range that starts at raw 0 behind one.
+	it('keeps a backward range backward when it starts at raw 0 behind a marker span', () => {
+		const block = document.createElement('div');
+		block.setAttribute('contenteditable', 'true');
+		const marker = document.createElement('span');
+		marker.className = 'md-marker';
+		marker.setAttribute('contenteditable', 'false');
+		marker.textContent = '- ';
+		const content = document.createTextNode('before pic after');
+		block.append(marker, content);
+		document.body.appendChild(block);
+		block.focus();
+
+		applySingleBlockRange(block, 10, 0);
+
+		const sel = window.getSelection()!;
+		expect(sel.anchorNode === content && sel.focusNode === content).toBe(true);
+		expect({ anchor: sel.anchorOffset, focus: sel.focusOffset }).toEqual({ anchor: 10, focus: 0 });
 		document.body.replaceChildren();
 	});
 
