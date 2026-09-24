@@ -54,6 +54,11 @@ const INFLATION_ALLOWLIST: readonly InflationException[] = [
 			'six of seven tests are one parametrized loop over the `ROUNDTRIPS` rows, invisible to the literal test counter'
 	},
 	{
+		spec: 'blocks/table/text-under-table.spec.ts',
+		reason:
+			'both tests are one parametrized loop over the `ROUTES` rows (ten tests), invisible to the literal test counter'
+	},
+	{
 		spec: 'clipboard/list-paste-absorbs-same-type.spec.ts',
 		reason:
 			'nine of ten tests are one parametrized loop over the absorb `ROWS`, invisible to the literal test counter'
