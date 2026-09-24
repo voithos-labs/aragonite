@@ -472,8 +472,11 @@ export function createInlineMenuState(deps: InlineMenuStateDeps): InlineMenuStat
 		setActive(index) {
 			if (index >= 0 && index < items.length) activeIndex = index;
 		},
-		commit(index = activeIndex) {
-			const item = items[index];
+		commit(index?: number) {
+			// Enter can beat the read the last keystroke scheduled; take it now so the pick
+			// replaces the query the leaf holds, not the one last read.
+			if (scheduled) evaluate();
+			const item = items[index ?? activeIndex];
 			if (!item) return false;
 			void commitItem(item);
 			return true;
