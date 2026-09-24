@@ -19,7 +19,12 @@ import { createRangeAtDomTextOffsets, domTextOffsetAtNode } from '../cursor/widg
 import { trailingLineEnding, trimTrailingLineEnding } from '../core/lines';
 import { blockContentElAt } from '../components/block-el-lookup';
 import { replaceRangeRaw } from '../components/blocks/text/live-selection-edit';
-import { blockNodeAt, emptyParagraph, writeOwnRaw } from '../tree-operations/node-primitives';
+import {
+	blockNodeAt,
+	emptyParagraph,
+	normalizeOwnRaw,
+	writeOwnRaw
+} from '../tree-operations/node-primitives';
 import { cloneNode } from '../tree-operations/clone';
 import { cutRangeFromDisplay } from '../tree-operations/node-ops';
 import { rebuildAncestryRaw } from '../schema/container-raw';
@@ -378,7 +383,8 @@ async function writeBlockRaw(
 	const doc = deps.getDoc();
 	const node = blockNodeAt(doc, path);
 	if (!node) return 0;
-	const written = rewrite(trimTrailingLineEnding(node.raw));
+	// The bytes are built outside the block's own element, so the kind's write rule runs here.
+	const written = normalizeOwnRaw(node, rewrite(trimTrailingLineEnding(node.raw)));
 	// A block emptied by the cut keeps its position as a blank paragraph: no splice, so the
 	// second write's path is still the one resolved at the drop.
 	const parsed = parseReplacement(node, written, deps.grammar, () => [

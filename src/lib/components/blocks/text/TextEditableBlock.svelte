@@ -18,12 +18,7 @@
 	} from '../../../editor-keys';
 	import type { IndexedDecoration } from '../../../decorations/buckets';
 	import type { ReplaceDecoration, WidgetDecoration } from '../../../decorations/types';
-	import {
-		getContentRange,
-		isProseKind,
-		undrawnSuffix,
-		withUndrawnSuffix
-	} from '../../../core/inline';
+	import { getContentRange, isProseKind, undrawnSuffix } from '../../../core/inline';
 	import { devWarn } from '../../../dev-warn';
 	import { resolvedInlineContent } from '../../../core/inline/inline-cache';
 	import type { LinkReferenceResolver } from '../../../core/inline/link-reference-resolver';
@@ -849,10 +844,10 @@
 
 	const onInput = editableSurface.onInput;
 
-	// The DOM stops at the content end, so the undrawn suffix (a setext underline) is added back
-	// and every write from here keeps it.
+	// The DOM stops at the content end, so the undrawn suffix (a setext underline) is added back;
+	// the content write drops it again when the title's last line is left blank.
 	function readRawText(): string {
-		return withUndrawnSuffix(node, readDomText());
+		return readDomText() + undrawnSuffix(node);
 	}
 
 	// Read the children one by one rather than `textContent`, so stray text nodes Chromium

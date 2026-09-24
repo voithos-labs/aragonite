@@ -46,6 +46,24 @@ describe('a range delete starting in a setext title', () => {
 		expect(caret).toEqual({ path: [0], offset: 3 });
 	});
 
+	// Miss-analysis: every range here started after some of the title's text, so none left the
+	// title's last line empty.
+	it.each([
+		['a --- title', 'Plan\n---\n\nnext\n', 0, '\n'],
+		['a === title', 'Plan\n===\n\nnext\n', 0, '\n'],
+		['a two-line title', 'Plan\nmore\n---\n\nnext\n', 5, 'Plan\n\n']
+	])(
+		'from the start of the last title line of %s, leaves no underline under nothing',
+		(_label, source, from, joined) => {
+			const { doc, caret } = run(source, { path: [0], offset: from }, { path: [1], offset: 4 });
+
+			expect(serialize(doc)).toBe(joined);
+			expect(doc.children.map((c) => c.kind)).toEqual(['paragraph']);
+			expect(describeConvergence(doc)).toBeNull();
+			expect(caret).toEqual({ path: [0], offset: from });
+		}
+	);
+
 	// A block-end offset some selection gestures report is the raw end, past the underline; the
 	// caret there stands at the title end, so the join lands there too.
 	it('treats a start at the raw end as the title end', () => {

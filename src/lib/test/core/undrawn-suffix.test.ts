@@ -2,7 +2,7 @@
 // Miss-analysis: every kind with bytes past its content range was prose, so no test asked about a
 // kind whose component draws its whole display.
 import { describe, it, expect, afterEach } from 'vitest';
-import { undrawnSuffix, withUndrawnSuffix } from '../../core/inline';
+import { dropSuffixUnderBlankLine, undrawnSuffix } from '../../core/inline';
 import type { CstNode } from '../../core/nodes';
 import { declarePluginKind, registerBlockKind, simpleLeafClosure } from '$lib/plugin';
 import { resetPluginPlatformForTests } from '$lib/testing';
@@ -45,19 +45,29 @@ describe('undrawnSuffix', () => {
 	});
 });
 
-describe('withUndrawnSuffix', () => {
+describe('dropSuffixUnderBlankLine', () => {
 	const heading = node('setextHeading', 'Plan\n===\n');
 
 	it.each([
-		['a title', 'Plans', 'Plans\n==='],
-		['an emptied title', '', ''],
-		['a title of spaces and tabs', ' \t', ' \t'],
-		['a title ending in an empty line', 'Plan\n', 'Plan\n'],
-		['a no-break space, which Markdown reads as text', '\u00a0', '\u00a0\n===']
-	])(
-		'puts the underline back under %s only when its last line has text',
-		(_label, text, written) => {
-			expect(withUndrawnSuffix(heading, text)).toBe(written);
-		}
-	);
+		['an emptied title', '\n===\n', '\n'],
+		['a title of spaces and tabs', ' \t\n===\n', ' \t\n'],
+		['a title ending in an empty line', 'Plan\n\n===\n', 'Plan\n\n'],
+		['an emptied title with no line ending', '\n===', '']
+	])('drops the underline under %s', (_label, raw, written) => {
+		expect(dropSuffixUnderBlankLine(heading, raw)).toBe(written);
+	});
+
+	it.each([
+		['a title', 'Plans\n===\n'],
+		['a no-break space, which Markdown reads as text', '\u00a0\n===\n'],
+		['bytes that no longer end in the underline', '\n']
+	])('keeps %s as written', (_label, raw) => {
+		expect(dropSuffixUnderBlankLine(heading, raw)).toBe(raw);
+	});
+
+	it('drops a CRLF underline and keeps the line ending', () => {
+		expect(dropSuffixUnderBlankLine(node('setextHeading', 'Plan\r\n---\r\n'), '\r\n---\r\n')).toBe(
+			'\r\n'
+		);
+	});
 });

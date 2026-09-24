@@ -10,6 +10,7 @@ import { isBlankParagraph, parse } from '../core/parser';
 import { escalatedFenceLength, matchFenceOpen } from '../core/parsers/fence-syntax';
 import { isBlockOpenerRegistered, type GrammarView } from '../schema/block-openers';
 import { trailingLineEnding } from '../core/lines';
+import { dropSuffixUnderBlankLine } from '../core/inline';
 import { assignChildIdsDeep } from '../block-id';
 import { perfEnabled, recordContainerKindReparse } from '../perf/instruments';
 import { getBlockKindDescriptor, tryGetBlockKindDescriptor } from '../schema/block-kind-descriptor';
@@ -218,9 +219,9 @@ function writeParsedContent(
 	const node = parent.children[blockIndex];
 	const oldKind = node.kind;
 	const oldDescriptor = getBlockKindDescriptor(oldKind);
-	// Before every reparse below, so the write lands on the kind its committed bytes describe,
-	// not the kind the text would parse to before the container's escape (`bodyWrite`).
-	const bodyText = forBody(parent, text);
+	// Before every reparse below, so the write lands on the kind its committed bytes describe:
+	// an underline left under an emptied title goes, and the container's escape (`bodyWrite`) runs.
+	const bodyText = forBody(parent, dropSuffixUnderBlankLine(node, text));
 
 	// A context-dependent kind has no standalone recognizer, so reparsing would downgrade it:
 	// keep the kind and write raw through its own legality pass.
