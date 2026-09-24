@@ -82,6 +82,44 @@ test.describe('slash commands', () => {
 		});
 	});
 
+	test.describe('undo', () => {
+		/** Picks the one row `/quote` lists, then waits for the quote and the caret inside it. */
+		async function pickQuote(at: number): Promise<void> {
+			await expect.poll(() => rows(editor)).toEqual(['Quote']);
+			await editor.page.keyboard.press('Enter');
+			await expect.poll(() => editor.bridge.getBlockKind(at)).toBe('blockquote');
+			await expect.poll(async () => (await activeBlockPath(editor.page))?.[0]).toBe(at);
+			await editor.waitForRenderFlush();
+		}
+
+		test('/quote after text: one Ctrl+Z restores the query with the caret after it', async () => {
+			await editor.typeText(' /quote');
+			const typed = await editor.bridge.getSource();
+			await pickQuote(TARGET + 1);
+
+			await editor.undo();
+			await editor.bridge.waitForSourceEquals(typed);
+			expect(await editor.bridge.getSelection()).toMatchObject({
+				focus: { path: [TARGET], offset: 'Type here /quote'.length }
+			});
+			await editor.redo();
+			await expect.poll(() => editor.bridge.getBlockKind(TARGET + 1)).toBe('blockquote');
+		});
+
+		test('/quote on an empty line: one Ctrl+Z restores the query line', async () => {
+			await editor.page.keyboard.press('Enter');
+			await editor.typeText('/quote');
+			const typed = await editor.bridge.getSource();
+			await pickQuote(TARGET + 1);
+
+			await editor.undo();
+			await editor.bridge.waitForSourceEquals(typed);
+			expect(await editor.bridge.getSelection()).toMatchObject({
+				focus: { path: [TARGET + 1], offset: '/quote'.length }
+			});
+		});
+	});
+
 	test.describe('opening', () => {
 		test('a slash inside a word opens nothing', async () => {
 			await editor.typeText(' and/or 9/22');

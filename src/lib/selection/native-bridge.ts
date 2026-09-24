@@ -20,7 +20,12 @@ import {
 	createRangeAtDomTextOffsets,
 	domTextOffsetAtNode
 } from '../cursor/widget-offset';
-import { ambientLengthOf, ambientSpanOf, placeCaretAfterAmbientSpan } from '../ambient/ambient-dom';
+import {
+	ambientLengthOf,
+	ambientSpanOf,
+	placeCaretAfterAmbientSpan,
+	pointAfterAmbientSpan
+} from '../ambient/ambient-dom';
 
 // ── Read native → SelectionPoint ────────────────────────────────────────────
 
@@ -126,17 +131,14 @@ export function applySingleBlockRange(
 	const sel = window.getSelection();
 	// A start at raw 0 behind a marker span goes after the span, as a caret does: Chromium drops
 	// a range that opens inside `contenteditable="false"`.
-	if (ambient > 0 && startOffset <= 0 && placeCaretAfterAmbientSpan(blockEl)) {
-		sel?.extend(range.endContainer, range.endOffset);
+	const afterMarker = ambient > 0 && startOffset <= 0 ? pointAfterAmbientSpan(blockEl) : null;
+	const start = afterMarker ?? { node: range.startContainer, offset: range.startOffset };
+	if (focusOffset < anchorOffset) {
+		sel?.setBaseAndExtent(range.endContainer, range.endOffset, start.node, start.offset);
 		return;
 	}
-	if (focusOffset < anchorOffset) {
-		sel?.setBaseAndExtent(
-			range.endContainer,
-			range.endOffset,
-			range.startContainer,
-			range.startOffset
-		);
+	if (afterMarker) {
+		sel?.setBaseAndExtent(start.node, start.offset, range.endContainer, range.endOffset);
 		return;
 	}
 	sel?.removeAllRanges();
@@ -162,16 +164,23 @@ export function parkFocusOnEditorRoot(
 	if (document.activeElement === blockEl) editorRoot.focus({ preventScroll: true });
 }
 
-// ── Selection read/restore for undo ─────────────────────────────────────────
+// ── Selection read/restore ───────────────────────────────────────────────────
 
 /**
- * Cross-block from SelectionState if active; otherwise the focused block's cursor as a deep
- * path (via getCursorPosition) or a shallow one. Null when no block reports a cursor.
+ * The editor's live selection, for every reader outside a gesture: a selected image's caret
+ * first, then the cross-block range, then the focused block's cursor. Null when nothing answers.
+ * The image comes first because the browser puts a caret back at its paragraph's start, which
+ * the editor drops a moment later.
  */
 export function readCurrentSelection(
 	selectionState: SelectionState,
-	blockRefs: (BlockComponent | undefined)[]
+	blockRefs: (BlockComponent | undefined)[],
+	selectedWidgetCaret: () => EditorSelection | null
 ): EditorSelection | null {
+	const widget = selectedWidgetCaret();
+	if (widget) {
+		return { anchor: copySelectionPoint(widget.anchor), focus: copySelectionPoint(widget.focus) };
+	}
 	if (selectionState.isCrossBlock && selectionState.anchor && selectionState.focus) {
 		return {
 			anchor: copySelectionPoint(selectionState.anchor),

@@ -196,7 +196,7 @@ editor.getBlockKindAt([99]); // null
 
 `getSelection(): EditorSelection | null`
 
-Returns a snapshot of the current selection (a copy, so changing it changes nothing), or `null` when the editor isn't focused.
+Returns a snapshot of the current selection (a copy, so changing it changes nothing), or `null` when the editor isn't focused. While an image is selected whole, it returns a collapsed caret at the image's edge (its end, after a click): the next `insertMarkdown` or keystroke still replaces the image, and passing that value to `setSelection` puts a caret back there without selecting the image again.
 
 ```ts
 editor.getSelection();
@@ -263,14 +263,14 @@ Two things about where a point lands:
 
 ### Inserting Markdown at the caret
 
-`insertMarkdown(md: string, options?: { placement?: 'caret' | 'below' }): boolean`
+`insertMarkdown(md: string, options?: { placement?: 'caret' | 'below' }): Promise<boolean>`
 
 Inserts Markdown at the caret the way a paste would. `md` is any Markdown string, `**hi**` or a whole table. The usual caller is a toolbar button inserting a canned snippet; [the insert toolbar recipe](#recipe-an-insert-toolbar) is built on this call.
 
 ```ts
-editor.insertMarkdown('**hi**'); // true
-editor.insertMarkdown('| a | b |\n| --- | --- |\n|  |  |\n'); // true, and a table lands as a block
-editor.insertMarkdown('**hi**'); // false with no caret (reading mode, or focus outside the editor)
+await editor.insertMarkdown('**hi**'); // true
+await editor.insertMarkdown('| a | b |\n| --- | --- |\n|  |  |\n'); // true, and a table lands as a block
+await editor.insertMarkdown('**hi**'); // false with no caret (reading mode, or focus outside the editor)
 ```
 
 One call runs the whole paste route:
@@ -279,9 +279,9 @@ One call runs the whole paste route:
 2. A live selection is deleted, then the text is spliced in the way a paste would pick: a table as a block, a one-liner inline at the caret, list items absorbed into a matching list.
 3. Focus lands at the end of the insertion, and the whole thing is one undo entry.
 
-`false` means nothing changed: no caret in this editor, reading mode, or a caret parked between two blocks. `true` means the pipeline took the text, not that the edit has landed yet, so read the result off the `edit` channel rather than calling `getSource()` on the next line.
+The caret is read when you call, and the promise resolves once the edit has landed and the caret is placed, so `getSource()` after an `await` sees it. `false` means nothing changed: no caret in this editor, reading mode, or a caret parked between two blocks.
 
-`placement: 'below'` is what the right-click "Insert block" rows do: an empty paragraph goes in after the top-level block holding the caret, and the text is pasted into it, so a sentence is never split around a new block. That is two undo entries, the paragraph and the insert.
+`placement: 'below'` is what the right-click "Insert block" rows do: an empty paragraph goes in after the top-level block holding the caret, and the text is pasted into it, so a sentence is never split around a new block. The paragraph and the insert are one undo entry.
 
 `getInsertCatalogue()` lists the blocks those rows offer, in their order: an `id`, a `label`, an `icon` name, `keywords` and the `markdown` to hand this call. A plugin's block is in the list while this editor lists its plugin, so a `+` button or a menu of your own shows it without naming it.
 
@@ -385,7 +385,7 @@ events.on('edit', (e) => e);
 
 `path` is document-absolute for every operation, nested ones and the typing flush included: it walks from the document root to the block that was operated on. One event names one path even when the write spanned several blocks; a `delete` or `updateContent` that did carries `detail.crossBlock: true`, and a host that reconciles incrementally should re-read the whole affected range on those rather than just `path`.
 
-**`selectionChange`** carries the `EditorSelection` snapshot, or `null` when nothing is focused.
+**`selectionChange`** carries the `EditorSelection` snapshot, or `null` when nothing is focused. While an image is selected whole, the snapshot is a collapsed caret at the image's edge (its end, after a click): the next `insertMarkdown` or keystroke still replaces the image, and `setSelection` of that snapshot puts a caret back without selecting the image again.
 
 ```ts
 events.on('selectionChange', (sel) => sel);
@@ -1134,10 +1134,10 @@ The editor's own bar (`src/lib/components/menu/SelectionToolbar.svelte`) is this
 </button>
 ```
 
-1. **Don't let the button take focus.** The call inserts at the caret, and a button that focuses on press has already destroyed it, so the call returns `false`. Cancel the press default, as above, so focus never leaves the document, or stash a `getSelection()` snapshot and `setSelection` it back before inserting.
+1. **Don't let the button take focus.** The call inserts at the caret, and a button that focuses on press has already destroyed it, so the call resolves `false`. Cancel the press default, as above, so focus never leaves the document, or stash a `getSelection()` snapshot and `setSelection` it back before inserting.
 2. **Hand it canonical bytes.** A table button inserts `'| Column | Column |\n| --- | --- |\n|  |  |\n'`; a fence button `'```lang\n\n```\n'`. There's no per-construct API, so a new kind needs no new call. (A table is also typeable: a lone header row completed with `Enter` creates the same thing, per [Keyboard shortcuts](#keyboard-shortcuts).)
 3. **Position with `getRects()`.** `caretRect()` anchors a bar to the insertion point, `blockRect(path)` to the block. Both are viewport-space snapshots; re-read on the next `selectionChange`.
-4. **Read the result on the `edit` channel**, not on the line after the call: the commit lands on the editor's own flush.
+4. **Await the call before reading the result**, or read it on the `edit` channel: the commit lands on the editor's own flush, not on the line after the call.
 
 The repository's `InsertToolbar` component, the fixed strip the showcase mounts under its header in live mode, is this recipe's reference: canonical snippet buttons, the mousedown cancel, and a no-caret greying read off `selectionChange`, the same decline `insertMarkdown` would answer, surfaced before the click.
 
@@ -1166,7 +1166,7 @@ editor.getInlineMenus().open('doc-links');
 ```
 
 1. **`items` is the whole data contract.** Return an array, or a promise of one for a list read off an index. A slow answer a later keystroke superseded is dropped, and its `signal` aborts so you can cancel the read. A rejection is reported on the `error` event and reads as an empty list.
-2. **`insert` is bytes.** The pick replaces the trigger and the query, the caret lands after it, and the whole replacement is one undo entry. There is no construct-specific call: a tag inserts `#work`, a link `[[Roadmap]]`. Add a trailing space there if your construct wants one. One line only: a line break is refused and reported on the `error` event, because those bytes belong to one block. An empty `insert` is fine and just removes the trigger and the query, which is the shape for a `/` command: the pick clears what was typed, and `onCommit` inserts the block through `insertMarkdown`, which puts it in as a paste would. The bundled slash-commands plugin is that shape.
+2. **`insert` is bytes.** The pick replaces the trigger and the query, the caret lands after it, and the whole replacement is one undo entry. There is no construct-specific call: a tag inserts `#work`, a link `[[Roadmap]]`. Add a trailing space there if your construct wants one. One line only: a line break is refused and reported on the `error` event, because those bytes belong to one block. An empty `insert` is fine and just removes the trigger and the query, which is the shape for a `/` command: the pick clears what was typed, and `onCommit` inserts the block through `insertMarkdown`, which puts it in as a paste would. Make `onCommit` async and await the insert there: every write that lands while its promise is pending, up to the author's next input, is part of the pick's undo entry, so the block and the cleared query come back in one press. The bundled slash-commands plugin is that shape.
 3. **An empty list holds no key.** While rows are showing, the editor takes ArrowUp, ArrowDown, Enter, Tab and Escape before the focused block sees them. With nothing to show, the list is gone and Enter is the author's own Enter again, while the session stays alive for the next keystroke.
 4. **`opensAt` and `accepts` are your grammar.** A tag declines a mid-word `#` (so `C#` stays text) and ends on a space; a link accepts spaces and ends on `]`. `open(name)` skips `opensAt`: the gesture is the author's say-so. `open(name, { query })` types a query after the trigger too, so the list opens narrowed. A trigger you type only ever opens where the bytes are prose: inside an inline code span, a link's destination or title, an image, an autolink or raw HTML it opens nothing, whatever your grammar says, so a `#` in a URL fragment stays a fragment, and a destination still being typed, one whose closing `)` has not arrived yet, counts as a destination too. A link's own text is prose, and a trigger there opens.
 5. **Escape dismisses for good.** What was typed stays, and typing on does not reopen the list; only a new trigger does.

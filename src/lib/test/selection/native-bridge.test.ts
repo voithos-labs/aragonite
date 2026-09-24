@@ -2,12 +2,15 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import {
 	applyCollapsedCaret,
+	applySingleBlockRange,
 	readCurrentSelection,
 	applySelectionToDom
 } from '../../selection/native-bridge';
 import { createSelectionState } from '../../selection/selection-state.svelte';
 import { parse } from '../../core/parser';
 import { mockRef } from '../harness/editor-actions';
+
+const NO_WIDGET = () => null;
 
 describe('readCurrentSelection: unfocused editor', () => {
 	it('returns null when no block reports a cursor (does not clamp to block 0 offset 0)', () => {
@@ -18,7 +21,7 @@ describe('readCurrentSelection: unfocused editor', () => {
 			mockRef({ getCursorOffset: () => null })
 		];
 
-		const result = readCurrentSelection(selectionState, blockRefs);
+		const result = readCurrentSelection(selectionState, blockRefs, NO_WIDGET);
 
 		expect(result).toBeNull();
 	});
@@ -30,11 +33,27 @@ describe('readCurrentSelection: unfocused editor', () => {
 			mockRef({ getCursorOffset: () => 7 }),
 			mockRef({ getCursorOffset: () => null })
 		];
-		const result = readCurrentSelection(selectionState, blockRefs);
+		const result = readCurrentSelection(selectionState, blockRefs, NO_WIDGET);
 		expect(result).toEqual({
 			anchor: { path: [1], offset: 7 },
 			focus: { path: [1], offset: 7 }
 		});
+	});
+});
+
+// Miss-analysis: the undo capture read the selected image first, and no test asked the public
+// read, which answered with the caret the browser puts back at the paragraph's start.
+describe('readCurrentSelection: an image selected whole', () => {
+	it("answers the image's edge, not the caret a block reports", () => {
+		const imageEnd = { path: [0], offset: 41 };
+		const blockRefs = [mockRef({ getCursorOffset: () => 0 })];
+
+		const result = readCurrentSelection(createSelectionState(), blockRefs, () => ({
+			anchor: imageEnd,
+			focus: imageEnd
+		}));
+
+		expect(result).toEqual({ anchor: imageEnd, focus: imageEnd });
 	});
 });
 
@@ -46,7 +65,7 @@ describe('undo selection snapshots: cellCoordinate round-trip', () => {
 		const s = createSelectionState({ getDoc: () => doc });
 		s.enterCrossBlock({ path: [0], offset: 1 }, { path: [1], offset: 2, cellCoordinate: true });
 
-		const snap = readCurrentSelection(s, []);
+		const snap = readCurrentSelection(s, [], NO_WIDGET);
 
 		expect(snap?.focus).toEqual({ path: [1], offset: 2, cellCoordinate: true });
 		expect(snap?.anchor).toEqual({ path: [0], offset: 1 });
@@ -56,7 +75,7 @@ describe('undo selection snapshots: cellCoordinate round-trip', () => {
 		const doc = parse(TABLE_LAST);
 		const s = createSelectionState({ getDoc: () => doc });
 		s.enterCrossBlock({ path: [0], offset: 1 }, { path: [1], offset: 2, cellCoordinate: true });
-		const snap = readCurrentSelection(s, [])!;
+		const snap = readCurrentSelection(s, [], NO_WIDGET)!;
 
 		const restored = createSelectionState({ getDoc: () => doc });
 		applySelectionToDom(snap, restored, () => null);
@@ -159,6 +178,28 @@ describe('applySelectionToDom: restore routing', () => {
 		expect(sel.anchorOffset).toBe(9);
 		expect(sel.focusNode).toBe(content);
 		expect(sel.focusOffset).toBe(3);
+		document.body.replaceChildren();
+	});
+
+	// Miss-analysis: the backward case above has no marker span, and the marker branch ran before
+	// the direction check, so no test asked for a backward range that starts at raw 0 behind one.
+	it('keeps a backward range backward when it starts at raw 0 behind a marker span', () => {
+		const block = document.createElement('div');
+		block.setAttribute('contenteditable', 'true');
+		const marker = document.createElement('span');
+		marker.className = 'md-marker';
+		marker.setAttribute('contenteditable', 'false');
+		marker.textContent = '- ';
+		const content = document.createTextNode('before pic after');
+		block.append(marker, content);
+		document.body.appendChild(block);
+		block.focus();
+
+		applySingleBlockRange(block, 10, 0);
+
+		const sel = window.getSelection()!;
+		expect(sel.anchorNode === content && sel.focusNode === content).toBe(true);
+		expect({ anchor: sel.anchorOffset, focus: sel.focusOffset }).toEqual({ anchor: 10, focus: 0 });
 		document.body.replaceChildren();
 	});
 

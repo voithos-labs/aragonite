@@ -133,7 +133,7 @@ function matchAngleConstruct(raw: string, pos: number, end: number): InlineNode 
  * delimiters are pruned. Children of already-built nodes are scanned too, except a link's.
  */
 export function scanGfmAutolinks(ctx: ScanContext): void {
-	const matches = spliceBareAutolinks(ctx.raw, ctx.nodes);
+	const matches = spliceBareAutolinks(ctx.raw, ctx.nodes, 0);
 	if (matches.length > 0) {
 		ctx.delimiters = ctx.delimiters.filter((d) => !meetsAMatch(matches, d.node.start, d.node.end));
 	}
@@ -161,7 +161,8 @@ function scanChildren(raw: string, nodes: InlineNode[]): void {
 			// reference links are both built before this pass, so both skip here.
 			if (node.kind === 'link') continue;
 			if (node.children !== undefined && node.children.length > 0) {
-				spliceBareAutolinks(raw, node.children);
+				// An image's alt sits inside its own open bracket.
+				spliceBareAutolinks(raw, node.children, node.kind === 'image' ? 1 : 0);
 				pending.push(node.children);
 			}
 		}
@@ -171,10 +172,12 @@ function scanChildren(raw: string, nodes: InlineNode[]): void {
 /**
  * The replacement is accumulated and written back rather than spliced per run: spreading a match
  * array as call arguments hits V8's argument limit past ~65k matches, and the block never heals.
+ * `openBrackets` counts the `[` still open where `nodes` start.
  */
-function spliceBareAutolinks(raw: string, nodes: InlineNode[]): InlineNode[] {
+function spliceBareAutolinks(raw: string, nodes: InlineNode[], openBrackets: number): InlineNode[] {
 	const all: InlineNode[] = [];
 	const rebuilt: InlineNode[] = [];
+	const brackets = { open: openBrackets };
 	let i = 0;
 	while (i < nodes.length) {
 		if (nodes[i].kind !== 'text') {
@@ -184,7 +187,7 @@ function spliceBareAutolinks(raw: string, nodes: InlineNode[]): InlineNode[] {
 		}
 		let j = i;
 		while (j + 1 < nodes.length && nodes[j + 1].kind === 'text') j++;
-		const matches = scanRunForBareAutolinks(raw, nodes[i].start, nodes[j].end);
+		const matches = scanRunForBareAutolinks(raw, nodes[i].start, nodes[j].end, brackets);
 		if (matches.length === 0) {
 			for (let k = i; k <= j; k++) rebuilt.push(nodes[k]);
 		} else {
@@ -233,7 +236,17 @@ function spliceRun(raw: string, runNodes: InlineNode[], matches: InlineNode[]): 
 	return out;
 }
 
-function scanRunForBareAutolinks(raw: string, start: number, end: number): InlineNode[] {
+/**
+ * A text run's bare autolinks. As in cmark-gfm, the www and url forms match only where no `[`
+ * is open (a text `[` is one no link closed; each `]` closes the latest), while the email form
+ * matches anywhere. `brackets.open` carries that count from one run to the next.
+ */
+function scanRunForBareAutolinks(
+	raw: string,
+	start: number,
+	end: number,
+	brackets: { open: number }
+): InlineNode[] {
 	const out: InlineNode[] = [];
 	let pos = start;
 	// The email form walks backwards from its `@`, so it must stop where the last link ended.
@@ -241,9 +254,13 @@ function scanRunForBareAutolinks(raw: string, start: number, end: number): Inlin
 	while (pos < end) {
 		const ch = raw[pos];
 		let matched: InlineNode | null = null;
-		if (ch === 'h' || ch === 'H') matched = matchBareHttpAutolink(raw, pos, start, end);
-		else if (ch === 'w' || ch === 'W') matched = matchBareWwwAutolink(raw, pos, start, end);
+		if (ch === '[') brackets.open++;
+		else if (ch === ']') brackets.open = Math.max(0, brackets.open - 1);
 		else if (ch === '@') matched = matchBareEmailAutolink(raw, pos, start, end, claimedEnd);
+		else if (brackets.open === 0) {
+			if (ch === 'h' || ch === 'H') matched = matchBareHttpAutolink(raw, pos, start, end);
+			else if (ch === 'w' || ch === 'W') matched = matchBareWwwAutolink(raw, pos, start, end);
+		}
 		if (matched !== null) {
 			out.push(matched);
 			claimedEnd = matched.end;

@@ -395,7 +395,7 @@ export function installTestProbes({
 		// makes it: viewport coordinates the app read off its own element.
 		placeCaretAtPoint: (x: number, y: number): boolean => editor.placeCaretAtPoint(x, y),
 		// The insertion call, made the way a consumer's toolbar makes it.
-		insertMarkdown: (md: string): boolean => editor.insertMarkdown(md),
+		insertMarkdown: (md: string): Promise<boolean> => editor.insertMarkdown(md),
 		// The command call, made the way a toolbar's button makes it: an id and its argument,
 		// no key combination, no keydown.
 		runCommand: (commandId: string, arg?: unknown): boolean => editor.runCommand(commandId, arg),

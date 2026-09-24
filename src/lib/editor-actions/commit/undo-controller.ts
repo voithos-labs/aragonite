@@ -144,28 +144,83 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 		setUndoGauge(liveBytes, undo.length);
 	}
 
+	const readLive = () =>
+		readCurrentSelection(
+			deps.selectionState,
+			deps.blockRefs,
+			deps.getSelectedWidgetCaret ?? (() => null)
+		);
+
 	/**
-	 * What an entry records as "where the caret was". A selected image comes first: the browser
-	 * puts a caret back in its paragraph that the editor drops a moment later, so a live read
-	 * then names the paragraph start. The gap caret outranks only the caller's fallback, since
-	 * no block ref reports it.
+	 * What an entry records as "where the caret was". The gap caret outranks only the caller's
+	 * fallback, since no block ref reports it.
 	 */
 	function entrySelection(fallback: () => EditorSelection): EditorSelection | GapCaretSelection {
-		const beforeImage = deps.getSelectedWidgetCaret?.();
-		if (beforeImage) return beforeImage;
-		const live = readCurrentSelection(deps.selectionState, deps.blockRefs);
+		const live = readLive();
 		if (live) return live;
 		const gap = deps.selectionState.gapCaret;
 		return gap ? { gapCaret: gap } : fallback();
 	}
 
+	// ── Joined runs ──────────────────────────────────────────────────────────
+
+	// A depth, so a join inside a join stays one entry. The entry is held by identity: a first
+	// write that rolls back removes it, and the next write must then open the run's entry.
+	let joinDepth = 0;
+	let joinedEntry: UndoEntry | null = null;
+	// Set by the author's input while a run is pending; until every run ends, writes push alone.
+	let joinEnded = false;
+
+	function isJoinedPush(): boolean {
+		return (
+			joinDepth > 0 &&
+			!joinEnded &&
+			joinedEntry !== null &&
+			deps.undoManager.peekUndo() === joinedEntry
+		);
+	}
+
+	function pushEntry(entry: UndoEntry): void {
+		deps.undoManager.push(entry);
+		if (joinDepth > 0 && !joinEnded) joinedEntry = entry;
+		recordSnapshotPerf();
+	}
+
+	async function joinUndoEntries(run: () => Promise<void>): Promise<void> {
+		// A join opened after the author's input is a new gesture, so it joins its own writes.
+		if (joinEnded) {
+			joinEnded = false;
+			joinedEntry = null;
+		}
+		joinDepth++;
+		try {
+			await run();
+		} finally {
+			joinDepth--;
+			if (joinDepth === 0) {
+				joinedEntry = null;
+				joinEnded = false;
+			}
+		}
+	}
+
+	function endUndoJoin(): void {
+		if (joinDepth === 0) return;
+		joinEnded = true;
+		joinedEntry = null;
+	}
+
+	// ── Entry pushes ─────────────────────────────────────────────────────────
+
+	// A push inside a joined run after its first returns before the snapshot, so it neither
+	// marks the tree shared nor clears the redo stack.
 	function pushUndoSnapshotPath(fallbackPath: number[], offset: number): void {
-		deps.undoManager.push({
+		if (isJoinedPush()) return;
+		pushEntry({
 			...shareSnapshot(),
 			blockIds: [...deps.blockIds],
 			selection: entrySelection(() => collapsedSelectionAtPath(fallbackPath, offset))
 		});
-		recordSnapshotPerf();
 	}
 
 	// Top-level only: a caller with a deeper path must use pushUndoSnapshotPath, or its
@@ -177,7 +232,8 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 	// Path from the live focused leaf, offset from the caller: the live caret is already
 	// past the edit, but its path still points at the same leaf.
 	function pushTypingSnapshot(leafPath: number[], offset: number): void {
-		const live = readCurrentSelection(deps.selectionState, deps.blockRefs);
+		if (isJoinedPush()) return;
+		const live = readLive();
 		const liveIsCollapsed =
 			!!live &&
 			pathsEqual(live.anchor.path, live.focus.path) &&
@@ -185,12 +241,11 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 		const selection = liveIsCollapsed
 			? collapsedSelectionAtPath(live.anchor.path, offset)
 			: collapsedSelectionAtPath(leafPath, offset);
-		deps.undoManager.push({
+		pushEntry({
 			...shareSnapshot(),
 			blockIds: [...deps.blockIds],
 			selection
 		});
-		recordSnapshotPerf();
 	}
 
 	const textBatch = createTextBatch({
@@ -729,6 +784,8 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 			historyGeneration++;
 		},
 		flushDebouncedCheckpoint: textBatch.interrupt,
+		joinUndoEntries,
+		endUndoJoin,
 		isolateUndoEntry: (write) => {
 			// Both sides: the first break makes the write push its own snapshot instead of
 			// joining the burst before it, the second keeps the next keystroke out of it.

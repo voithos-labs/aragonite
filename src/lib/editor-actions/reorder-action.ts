@@ -46,7 +46,10 @@ export function createReorderAction(
 	onReorder?: (to: number, total: number) => void
 ): ReorderAction {
 	function caretOffset(): number {
-		return readCurrentSelection(deps.selectionState, deps.blockRefs)?.focus.offset ?? 0;
+		const widgetCaret = deps.getSelectedWidgetCaret ?? (() => null);
+		return (
+			readCurrentSelection(deps.selectionState, deps.blockRefs, widgetCaret)?.focus.offset ?? 0
+		);
 	}
 
 	async function commitReorder(

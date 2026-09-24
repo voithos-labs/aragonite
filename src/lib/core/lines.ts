@@ -1,5 +1,16 @@
 /** Line splitting preserving endings and offsets, plus the trailing-line-ending helpers. */
 
+/**
+ * GFM §2.1: a blank line holds nothing but spaces and tabs. Deliberately not `String.trim()`,
+ * which admits all Unicode whitespace: a non-breaking space is content, and a line holding one
+ * continues its block.
+ */
+const NON_BLANK_CHAR = /[^ \t]/;
+
+export function isBlankLine(text: string): boolean {
+	return !NON_BLANK_CHAR.test(text);
+}
+
 /** Length of `raw` excluding any trailing line ending (LF or CRLF). */
 export function displayLength(raw: string): number {
 	if (raw.endsWith('\r\n')) return raw.length - 2;

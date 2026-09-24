@@ -49,8 +49,9 @@ export interface EditorContext<Options = unknown> {
 	 *  included; the same list as `EditorInstance.getInsertCatalogue()`. */
 	readonly insertCatalogue: readonly InsertEntry[];
 	/** `EditorInstance.insertMarkdown` for this editor, with the same answers: false, and nothing
-	 *  written, with no caret, in reading mode or at a gap caret. */
-	insertMarkdown(md: string, options?: InsertMarkdownOptions): boolean;
+	 *  written, with no caret, in reading mode or at a gap caret. Await it inside `onCommit` to
+	 *  keep the insert in the pick's undo entry. */
+	insertMarkdown(md: string, options?: InsertMarkdownOptions): Promise<boolean>;
 	/** `EditorInstance.runCommand` for this editor: false, and nothing written, on an unknown id,
 	 *  in reading mode, or with nothing focused for a block command. */
 	runCommand(commandId: string, arg?: unknown): boolean;

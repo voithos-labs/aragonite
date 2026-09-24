@@ -96,8 +96,9 @@ function writeAndSettleContent(
 		const widened = widenForTailMint(change, settled, parent.children.length);
 		return settleWriteSeams(parent, blockIndex, lastWritten, widened, sharing, grammar);
 	}
-	// Same-kind typing inside content must never pay for a neighbour reparse.
-	if (change.op === 'noop') return { change, textStart: 0 };
+	// Same-kind typing inside content must never pay for a neighbour reparse. A blank line that
+	// stays blank is the exception: its indent decides whether a list item above takes it in.
+	if (change.op === 'noop' && !wasBlank) return { change, textStart: 0 };
 	return settleWriteSeams(parent, blockIndex, lastWritten, change, sharing, grammar);
 }
 

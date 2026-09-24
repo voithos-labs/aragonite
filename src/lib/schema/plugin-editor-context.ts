@@ -45,7 +45,7 @@ export function createEditorPluginContexts(deps: {
 	getTheme: () => string;
 	activation: PluginActivation;
 	/** The instance's own entry points; the context only delegates. */
-	insertMarkdown: (md: string, options?: InsertMarkdownOptions) => boolean;
+	insertMarkdown: (md: string, options?: InsertMarkdownOptions) => Promise<boolean>;
 	runCommand: (commandId: string, arg?: unknown) => boolean;
 	/** An inline parse in the editor's grammar. */
 	computeInlineContent: (node: NodeView) => InlineNode[];

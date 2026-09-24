@@ -18,8 +18,8 @@ import {
 	registerBlockComponent,
 	registerBlockKind,
 	registerBlockOpener,
-	serializeChildren,
 	setPluginMetadata,
+	splitLines,
 	type BlockOpenerResult,
 	type CstNode,
 	type OpenContext
@@ -49,9 +49,10 @@ function keepsParagraphOpen(strippedText: string, grammar: OpenContext['grammar'
 }
 
 /**
- * Blank lines are taken in only while a later indented line still follows; a trailing run of
- * blanks belongs to the document. An unindented non-blank line continues the definition only
- * as a lazy continuation of an open body paragraph (CommonMark §5.1, as cmark-gfm applies it).
+ * A line indented to the body, whitespace-only or not, continues the definition; bare blank lines
+ * are taken in only while such a line follows, so a trailing bare run belongs to the document. An
+ * unindented non-blank line continues only as a lazy continuation of an open body paragraph
+ * (CommonMark §5.1, as cmark-gfm applies it).
  */
 function scanDefinitionEnd(ctx: OpenContext): number {
 	let lastContent = ctx.index;
@@ -59,14 +60,14 @@ function scanDefinitionEnd(ctx: OpenContext): number {
 	let i = ctx.index + 1;
 	while (i < ctx.end) {
 		const text = ctx.lines[i].text;
-		if (isBlankLine(text)) {
-			paragraphOpen = false;
-			i++;
-			continue;
-		}
 		if (CONTINUATION_INDENT.test(text)) {
 			paragraphOpen = keepsParagraphOpen(text.replace(CONTINUATION_INDENT, ''), ctx.grammar);
 			lastContent = i;
+			i++;
+			continue;
+		}
+		if (isBlankLine(text)) {
+			paragraphOpen = false;
 			i++;
 			continue;
 		}
@@ -109,23 +110,38 @@ function tryOpen(ctx: OpenContext): BlockOpenerResult | null {
 	return { node, consumed: next - ctx.index };
 }
 
-/** Splitting on `\n` keeps a `\r` at each segment's tail, so CRLF rides through; a blank
- *  continuation stays unindented. */
+/**
+ * A separator line stays unindented, as the parser reads it. An empty block's line at the body's
+ * end, and the body's trailing blank line, take the indent that keeps them in the definition.
+ */
 export function rebuildFootnoteDefRaw(node: CstNode): void {
 	const meta = getPluginMetadata<FootnoteDefMetadata>(node);
 	const marker = `[^${meta?.label ?? ''}]: `;
-	const inner =
-		(node.innerPrefix ?? '') + serializeChildren(node.children ?? []) + (node.innerSuffix ?? '');
-	const lines = inner.split('\n');
-	node.raw = lines
-		.map((line, i) => {
-			if (i === lines.length - 1 && line === '') return '';
-			if (i === 0) return marker + line;
-			if (line === '' || line === '\r') return line;
-			return CONTINUATION_MARKER + line;
-		})
-		.join('\n');
+	const children = node.children ?? [];
+	const suffix = node.innerSuffix ?? '';
+	let blankTail = children.length;
+	if (isWhitespaceOnly(suffix)) {
+		while (blankTail > 0 && isWhitespaceOnly(children[blankTail - 1].raw)) blankTail--;
+	}
+	// Each piece is whole lines, paired with whether its blank lines are indented.
+	const pieces: [string, boolean][] = [[node.innerPrefix ?? '', false]];
+	children.forEach((child, i) => {
+		pieces.push([child.leadingTrivia, false], [child.raw, i >= blankTail]);
+	});
+	pieces.push([suffix, true]);
+
+	let raw = '';
+	for (const [bytes, indentsBlank] of pieces) {
+		for (const { text, lineEnding } of splitLines(bytes)) {
+			if (raw === '') raw += marker + text + lineEnding;
+			else if (text === '' && !indentsBlank) raw += lineEnding;
+			else raw += CONTINUATION_MARKER + text + lineEnding;
+		}
+	}
+	node.raw = raw;
 }
+
+const isWhitespaceOnly = (text: string): boolean => !/[^ \t\r\n]/.test(text);
 
 export function registerFootnoteDefinition(): void {
 	const kind = declarePluginKind(FOOTNOTE_DEF_KIND);

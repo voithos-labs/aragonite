@@ -24,6 +24,11 @@ export interface InlineRangeCommitDeps {
 }
 
 export interface InlineRangeCommit {
+	/**
+	 * The length change the same splice would store once the leaf's kind rewrites it, read before
+	 * committing; 0 when it would store nothing.
+	 */
+	writtenDelta(path: number[], start: number, end: number, bytes: string): number;
 	/** Splice `bytes` over `[start, end)` of the leaf at `path`; `caretAfter` is the raw offset the
 	 *  entry's snapshot restores. A splice that changes no byte commits nothing. */
 	commitInlineRange(
@@ -36,6 +41,22 @@ export interface InlineRangeCommit {
 }
 
 export function createInlineRangeCommit(deps: InlineRangeCommitDeps): InlineRangeCommit {
+	/** The leaf and its spliced raw, or null when the kind would store the bytes it has. */
+	function planSplice(path: number[], start: number, end: number, bytes: string) {
+		if (path.length === 0) return null;
+		const leaf = nodeAt(deps.getDoc() as DocumentView, path);
+		if (leaf === null || !isBlockNode(leaf)) return null;
+		const newRaw = leaf.raw.slice(0, start) + bytes + leaf.raw.slice(end);
+		// Compared against the bytes the kind would actually store (G4.28), so a splice a table
+		// cell's pipe escaping cancels out adds no undo entry (dismissing an image after a resize).
+		const legal = normalizeOwnRaw(leaf, newRaw);
+		return legal === leaf.raw ? null : { newRaw, legal, delta: legal.length - leaf.raw.length };
+	}
+
+	function writtenDelta(path: number[], start: number, end: number, bytes: string): number {
+		return planSplice(path, start, end, bytes)?.delta ?? 0;
+	}
+
 	async function commitInlineRange(
 		path: number[],
 		start: number,
@@ -43,21 +64,16 @@ export function createInlineRangeCommit(deps: InlineRangeCommitDeps): InlineRang
 		bytes: string,
 		caretAfter: number
 	): Promise<void> {
-		if (path.length === 0) return;
-		const leaf = nodeAt(deps.getDoc() as DocumentView, path);
-		if (leaf === null || !isBlockNode(leaf)) return;
-		const newRaw = leaf.raw.slice(0, start) + bytes + leaf.raw.slice(end);
-		// Compared against the bytes the kind would actually store (G4.28), so a splice a table
-		// cell's pipe escaping cancels out adds no undo entry (dismissing an image after a resize).
-		const legal = normalizeOwnRaw(leaf, newRaw);
-		if (legal === leaf.raw) return;
+		const plan = planSplice(path, start, end, bytes);
+		if (!plan) return;
+		const { newRaw } = plan;
 
 		const { controller } = deps;
 		const snapshot = { path: docPathFrom(path), offset: caretAfter };
 		const leafIdx = path[path.length - 1];
 		const op = {
 			kind: 'updateContent' as const,
-			detail: { length: legal.length },
+			detail: { length: plan.legal.length },
 			eventPath: docPathFrom(path)
 		};
 		if (path.length === 1) {
@@ -119,5 +135,5 @@ export function createInlineRangeCommit(deps: InlineRangeCommitDeps): InlineRang
 		});
 	}
 
-	return { commitInlineRange };
+	return { writtenDelta, commitInlineRange };
 }

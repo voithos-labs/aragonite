@@ -18,8 +18,9 @@
   - Miss-analysis: only the arrow keys were asserted on a selected image; the remaining keys were
     swallowed, and no spec pressed one
 - Moving the mouse off a selected image, or pressing its resize handle or its crop frame, leaves
-  no document caret: the paragraph keeps focus while its image is selected, and the browser puts
-  a caret at its start on any mouse input, which the editor drops while the image stays selected
+  no native caret, and `getSelection()` reports the image's end: the paragraph keeps focus while
+  its image is selected, and the browser puts a caret at its start on any mouse input, which the
+  editor drops while the image stays selected
   - Miss-analysis: no spec read the native selection after a press on the image's controls, and
     the one that pressed the image three times read only the selected text
 

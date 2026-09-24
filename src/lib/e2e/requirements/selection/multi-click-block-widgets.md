@@ -31,7 +31,8 @@ there would collapse the range the user just made.
     which swaps the widget for editable text before the third press arrives, so the rule the
     click order carries for a widget that stays a widget was never on screen
 - double-click or triple-click an inline image: the image stays the one selected thing, with no
-  range and no caret beside it, and a typed character replaces it. The first click selects the
+  native range and no native caret beside it (`getSelection()` reports the image's end), and a
+  typed character replaces it. The first click selects the
   image whole and the second opens its crop frame, so the third press lands on the crop frame
   - Miss-analysis: the case read the selected text, which a collapsed caret leaves empty, and
     counted overlays, which reads only the image's side, so the caret the browser put at the

@@ -89,7 +89,7 @@ export function createSlashSource(
 				insert: ''
 			}));
 		},
-		onCommit: (item, range) => {
+		onCommit: async (item, range) => {
 			const row = rows().find((candidate) => candidate.id === item.id);
 			if (!row) return;
 			const { argument } = splitQuery(range.query);
@@ -101,7 +101,8 @@ export function createSlashSource(
 			} else {
 				// An empty line becomes the block; a line with text keeps it and gets the block below.
 				const empty = leafRaw(editor.document, range.path).trim() === '';
-				editor.insertMarkdown(action.build(argument).markdown, {
+				// Awaited, so the block lands inside the pick's undo entry.
+				await editor.insertMarkdown(action.build(argument).markdown, {
 					placement: empty ? 'caret' : 'below'
 				});
 			}

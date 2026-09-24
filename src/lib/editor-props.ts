@@ -112,6 +112,10 @@ export interface EditorInstance {
 	 * own declared kind name.
 	 */
 	getBlockKindAt(path: number[]): AnyBlockKind | null;
+	/**
+	 * The live selection, or null when nothing is focused. While an image is selected whole it is
+	 * a caret at the image's edge its selection came from (its end after a click).
+	 */
 	getSelection(): EditorSelection | null;
 	/**
 	 * Restore a `getSelection()` snapshot. Async because the target is scrolled into view
@@ -132,12 +136,13 @@ export interface EditorInstance {
 	placeCaretAtPoint(x: number, y: number): boolean;
 	/**
 	 * Insert markdown exactly as pasting it would, minus the clipboard: paste transforms, every
-	 * container-aware strategy, delete-selection-first, one undo entry, focus at the end. True
-	 * means the pipeline took the text; read the result through the `edit` event. False, and
-	 * nothing mutates, with no caret, in reading mode, or at a gap caret. `placement: 'below'`
-	 * first makes an empty paragraph after the caret's top-level block (a second undo entry).
+	 * container-aware strategy, delete-selection-first, one undo entry, focus at the end. The
+	 * caret is read at the call; the promise resolves true once the insert has landed and the
+	 * caret is placed. False, and nothing mutates, with no caret, in reading mode, or at a gap
+	 * caret. `placement: 'below'` first makes an empty paragraph after the caret's top-level
+	 * block, in the same undo entry.
 	 */
-	insertMarkdown(md: string, options?: InsertMarkdownOptions): boolean;
+	insertMarkdown(md: string, options?: InsertMarkdownOptions): Promise<boolean>;
 	/**
 	 * Run a command by id at the focused element, or across a painted range where the id has a
 	 * cross-block handler (a format toggle marks every block it touches, a table works by its

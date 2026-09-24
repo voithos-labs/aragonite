@@ -21,7 +21,10 @@ A grid is data for the cells rather than a block to splice between them, which i
 
 ## Happy paths (structural)
 
-- Paste a heading into a body cell: original table splits; the heading appears between the halves.
+- Paste a heading into a body cell: original table splits; the heading appears between the halves,
+  with a blank line on each side, as a paste into a paragraph separates its blocks
+  - Miss-analysis: these pins took halves abutting the pasted blocks as correct, and none put a
+    paragraph last, whose next line the rows below it would continue
 - Paste a multi-block clipboard (paragraph + heading): all blocks are inserted between the halves in order.
 
 ## Edge cases

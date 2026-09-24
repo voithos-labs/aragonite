@@ -525,22 +525,22 @@ setup(ctx) {
 }
 ```
 
-| Field                          | What it gives you                                                                                                                                                      |
-| ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `editorId`                     | A stable per-mount id. Key your own `Map` / `WeakMap` on it for per-editor state                                                                                       |
-| `document`                     | A live getter for the root document, as a read-only `DocumentView` ([Views](#views-what-you-read-what-you-own))                                                        |
-| `documentGeneration`           | How many times a `source` write has replaced the document, live but not reactive: subscribe to the `sourceSwap` event to hear a change                                 |
-| `events`                       | The subscribe-only event view; `events.on('edit', …)` returns a disposer                                                                                               |
-| `options`                      | The options this editor passed, typed once you write `definePlugin<Options>` (recipe below)                                                                            |
-| `decorations`                  | This editor's decoration registry, where you register a source ([Decorations](#decorations))                                                                           |
-| `rects`                        | This editor's viewport-space geometry: block box, range rects, caret, reveal, navigation                                                                               |
-| `inlineMenus`                  | This editor's registry for lists opened by a typed trigger ([Recipe: a typed-trigger menu](consumer-guide.md#recipe-a-typed-trigger-menu))                             |
-| `insertCatalogue`              | The blocks this editor's insert menus offer, live, yours included once you `registerInsertEntry` from `setup`                                                          |
-| `insertMarkdown(md, options?)` | Insert Markdown the way the instance's own call does ([Inserting Markdown at the caret](consumer-guide.md#inserting-markdown-at-the-caret)); false where that would be |
-| `runCommand(id, arg?)`         | Run a command by id the way the instance's own call does; false where that would be                                                                                    |
-| `computeInlineContent(node)`   | Inline-parse a prose leaf in this editor's syntax, so a plugin its `plugins` prop left out reads as the text the editor draws; pass it where you walk inline nodes     |
-| `presentationMode`             | The effective presentation mode, live, paired with the `presentationModeChange` event ([Presentation modes](#presentation-modes))                                      |
-| `theme`                        | The editor's theme name, live, paired with the `themeChange` event, for content whose colors an engine paints                                                          |
+| Field                          | What it gives you                                                                                                                                                                                |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `editorId`                     | A stable per-mount id. Key your own `Map` / `WeakMap` on it for per-editor state                                                                                                                 |
+| `document`                     | A live getter for the root document, as a read-only `DocumentView` ([Views](#views-what-you-read-what-you-own))                                                                                  |
+| `documentGeneration`           | How many times a `source` write has replaced the document, live but not reactive: subscribe to the `sourceSwap` event to hear a change                                                           |
+| `events`                       | The subscribe-only event view; `events.on('edit', …)` returns a disposer                                                                                                                         |
+| `options`                      | The options this editor passed, typed once you write `definePlugin<Options>` (recipe below)                                                                                                      |
+| `decorations`                  | This editor's decoration registry, where you register a source ([Decorations](#decorations))                                                                                                     |
+| `rects`                        | This editor's viewport-space geometry: block box, range rects, caret, reveal, navigation                                                                                                         |
+| `inlineMenus`                  | This editor's registry for lists opened by a typed trigger ([Recipe: a typed-trigger menu](consumer-guide.md#recipe-a-typed-trigger-menu))                                                       |
+| `insertCatalogue`              | The blocks this editor's insert menus offer, live, yours included once you `registerInsertEntry` from `setup`                                                                                    |
+| `insertMarkdown(md, options?)` | Insert Markdown the way the instance's own call does ([Inserting Markdown at the caret](consumer-guide.md#inserting-markdown-at-the-caret)); a promise that resolves false where that call would |
+| `runCommand(id, arg?)`         | Run a command by id the way the instance's own call does; false where that would be                                                                                                              |
+| `computeInlineContent(node)`   | Inline-parse a prose leaf in this editor's syntax, so a plugin its `plugins` prop left out reads as the text the editor draws; pass it where you walk inline nodes                               |
+| `presentationMode`             | The effective presentation mode, live, paired with the `presentationModeChange` event ([Presentation modes](#presentation-modes))                                                                |
+| `theme`                        | The editor's theme name, live, paired with the `themeChange` event, for content whose colors an engine paints                                                                                    |
 
 Return a disposer from the callback and the editor runs it at unmount. Registration is synchronous-only: call `onEditor` from `setup`, not from some later callback.
 

@@ -132,7 +132,13 @@ export function createImageEditCommitter(deps: ImageEditCommitterDeps): ImageEdi
 	function writeImageEdit(target: WidgetTarget, newFields: ImageFields): void {
 		const edit = resolveEdit(target, newFields);
 		if (!edit) return;
-		const delta = edit.bytes.length - (edit.image.end - edit.image.start);
+		// Read from the bytes the block's kind will store, which a kind's own write rule can change.
+		const delta = inlineRange.writtenDelta(
+			target.paragraphPath,
+			edit.image.start,
+			edit.image.end,
+			edit.bytes
+		);
 		if (delta !== 0) {
 			lastShift = { paragraphPath: target.paragraphPath, editEnd: edit.image.end, delta };
 		}

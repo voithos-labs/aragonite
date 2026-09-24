@@ -202,8 +202,8 @@ export interface EditableLeaf {
 	// ── Programmatic edits ─────────────────────────────────────────────────────
 	/** Insert Markdown at the caret exactly as pasting it here would, without the clipboard:
 	 *  publish it as the component's `insertMarkdown` so `editor.insertMarkdown()` reaches
-	 *  this leaf. True means the paste pipeline took the text, not that its commit flushed. */
-	insertMarkdown(md: string): boolean;
+	 *  this leaf. Resolves once the paste has landed, false when it declined. */
+	insertMarkdown(md: string): Promise<boolean>;
 	/** Mount/focus the source with the caret at `offset` (plain mode: focus only). */
 	reveal(offset?: number): Promise<void>;
 	/** Commit edited source as one undo entry, fire and forget; the parse decides update / kind
