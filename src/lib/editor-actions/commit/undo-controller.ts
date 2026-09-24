@@ -159,13 +159,44 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 		return gap ? { gapCaret: gap } : fallback();
 	}
 
+	// ── Joined runs ──────────────────────────────────────────────────────────
+
+	// A depth, so a join inside a join stays one entry. The entry is held by identity: a first
+	// write that rolls back removes it, and the next write must then open the run's entry.
+	let joinDepth = 0;
+	let joinedEntry: UndoEntry | null = null;
+
+	function isJoinedPush(): boolean {
+		return joinDepth > 0 && joinedEntry !== null && deps.undoManager.peekUndo() === joinedEntry;
+	}
+
+	function pushEntry(entry: UndoEntry): void {
+		deps.undoManager.push(entry);
+		if (joinDepth > 0) joinedEntry = entry;
+		recordSnapshotPerf();
+	}
+
+	async function joinUndoEntries(run: () => Promise<void>): Promise<void> {
+		joinDepth++;
+		try {
+			await run();
+		} finally {
+			joinDepth--;
+			if (joinDepth === 0) joinedEntry = null;
+		}
+	}
+
+	// ── Entry pushes ─────────────────────────────────────────────────────────
+
+	// A push inside a joined run after its first returns before the snapshot, so it neither
+	// marks the tree shared nor clears the redo stack.
 	function pushUndoSnapshotPath(fallbackPath: number[], offset: number): void {
-		deps.undoManager.push({
+		if (isJoinedPush()) return;
+		pushEntry({
 			...shareSnapshot(),
 			blockIds: [...deps.blockIds],
 			selection: entrySelection(() => collapsedSelectionAtPath(fallbackPath, offset))
 		});
-		recordSnapshotPerf();
 	}
 
 	// Top-level only: a caller with a deeper path must use pushUndoSnapshotPath, or its
@@ -177,6 +208,7 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 	// Path from the live focused leaf, offset from the caller: the live caret is already
 	// past the edit, but its path still points at the same leaf.
 	function pushTypingSnapshot(leafPath: number[], offset: number): void {
+		if (isJoinedPush()) return;
 		const live = readCurrentSelection(deps.selectionState, deps.blockRefs);
 		const liveIsCollapsed =
 			!!live &&
@@ -185,12 +217,11 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 		const selection = liveIsCollapsed
 			? collapsedSelectionAtPath(live.anchor.path, offset)
 			: collapsedSelectionAtPath(leafPath, offset);
-		deps.undoManager.push({
+		pushEntry({
 			...shareSnapshot(),
 			blockIds: [...deps.blockIds],
 			selection
 		});
-		recordSnapshotPerf();
 	}
 
 	const textBatch = createTextBatch({
@@ -723,6 +754,7 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 			historyGeneration++;
 		},
 		flushDebouncedCheckpoint: textBatch.interrupt,
+		joinUndoEntries,
 		isolateUndoEntry: (write) => {
 			// Both sides: the first break makes the write push its own snapshot instead of
 			// joining the burst before it, the second keeps the next keystroke out of it.

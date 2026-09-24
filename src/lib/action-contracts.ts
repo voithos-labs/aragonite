@@ -246,6 +246,9 @@ export interface CommitController {
 	/** Run a command's byte write as its own undo entry. A command is not typing, so the
 	 *  keystroke batch breaks on both sides: one Ctrl+Z takes back the command alone. */
 	isolateUndoEntry(write: () => void): void;
+	/** Make every write `run` starts before its promise ends one undo entry: the state before the
+	 *  first write, with the caret where it was. Each write still rolls back alone. */
+	joinUndoEntries(run: () => Promise<void>): Promise<void>;
 }
 
 export interface ContainerEditActions {
