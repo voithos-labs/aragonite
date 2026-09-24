@@ -333,7 +333,7 @@ describe('G2.8 deep childIds backfill on reparse-into-container (#4 class)', () 
 
 		// The live paste path merges the clipboard and splices it through replaceBlock
 		// (defaultStructuralHook → buildPastedReplacement), a second route to the fill-in.
-		const replacement = buildPastedReplacement(h.doc.children[0], 4, nested);
+		const { nodes: replacement } = buildPastedReplacement(h.doc.children[0], 4, nested);
 		await h.actions.replaceBlock(0, replacement);
 
 		assertAligned(h);

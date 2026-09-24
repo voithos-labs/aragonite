@@ -8,7 +8,6 @@ import { isBuiltinBlockKind, type BlockKind, type CstNode } from '../../core/nod
 import { trailingLineEnding, trimTrailingLineEnding } from '../../core/lines';
 import { buildPastedReplacement } from './paste-replacement';
 import { cutRangeFromDisplay } from '../node-ops';
-import { focusIndexBeforeResidue } from './focus-target';
 import {
 	getAllRegisteredKinds,
 	tryGetBlockKindDescriptor
@@ -84,26 +83,14 @@ export function defaultStructuralHook(
 	const synthLeaf =
 		cut.display === display ? node : { ...node, raw: cut.display + trailingLineEnding(node.raw) };
 
-	const replacement = buildPastedReplacement(synthLeaf, cut.offset, blocks, seam?.grammar);
-	return {
-		replacement,
-		focusReplacementIndex: pastedContentFocusIndex(cut.display, cut.offset, replacement.length),
-		focusOffset: CURSOR_END
-	};
-}
-
-/**
- * Caret target for a structural paste: the end of the pasted content, not the trailing
- * residue. A mid-block caret leaves the post-caret slice as the replacement's last node,
- * so the pasted content ends one node earlier. Takes the display and offset the delete half
- * already resolved: the join cleanup moves both, and re-deriving them here would disagree.
- */
-export function pastedContentFocusIndex(
-	display: string,
-	offset: number,
-	replacementLength: number
-): number {
-	return focusIndexBeforeResidue(replacementLength, offset < display.length);
+	const { nodes, lastPastedIndex } = buildPastedReplacement(
+		synthLeaf,
+		cut.offset,
+		blocks,
+		seam?.grammar
+	);
+	// The caret lands at the end of the pasted content, never in the text after the cut.
+	return { replacement: nodes, focusReplacementIndex: lastPastedIndex, focusOffset: CURSOR_END };
 }
 
 // Built-in kinds are all registered by the time this top level runs; a plugin kind
