@@ -340,7 +340,7 @@ Aragonite is free software, released under [AGPL-3.0-or-later](./LICENSE): use i
 
 [^8]: it might work in safari/firefox, but I did not test them yet
 
-[^9]: Parse then serialize returns the same text every time. Unfortunately, aragonite cannot promise that editing never normalizes. A container re-emits its own bytes from its children, so the first edit inside one canonicalizes that container's own syntax. For example, a table's cell padding and delimiter row take their canonical spelling (`|a|b|` becomes `| a | b |`, `|:--|` becomes `| :--- |`), and a list item's tab indentation turns into spaces. docs/design/syntax-tree.md covers why the alternative is worse.
+[^9]: Parse then serialize returns the same text every time. Unfortunately, aragonite cannot promise that editing never normalizes. A container re-emits its own bytes from its children, so the first edit inside one canonicalizes that container's own syntax. For example, a table's cell padding and delimiter row take their canonical spelling (`|a|b|` becomes `| a | b |`, `|:--|` becomes `| :--- |`), and a list item's tab indentation can turn into spaces. docs/design/syntax-tree.md covers why the alternative is worse.
 
 [^10]: A flat model is rejected because of the constraints it places on the plugin system. Read the [Extensible](#extensible) section to understand why this is.
 
