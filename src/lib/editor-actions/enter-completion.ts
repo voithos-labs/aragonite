@@ -23,21 +23,21 @@ export interface EnterCompletion {
 }
 
 /**
- * Wraps a composed `splitBlock` with the completer check, at the two bundle composition sites
- * only. Above the container overrides rather than inside the split, so a container that
- * replaces `splitBlock` cannot lose the completion for its subtree. One Enter checks once per
- * node: the blockquote exit's call into the parent is a second check on a different node,
- * which always declines, since a container is never a prose line.
+ * Wraps a composed `splitBlock` with the completer check. It sits above the container overrides
+ * rather than inside the split, so a container that replaces `splitBlock` cannot lose the
+ * completion for its subtree; the blockquote exit's second check lands on a container, which
+ * always declines. An absent grammar, which the action deps allow, reads every installed plugin.
  */
 export function withEnterCompletion(
 	blockEdit: BlockEditActions,
 	childAt: (index: number) => NodeView | undefined,
 	grammar: GrammarView | undefined
 ): BlockEditActions {
+	const scoped = grammar ?? defaultGrammarView;
 	return {
 		...blockEdit,
 		async splitBlock(index: number, offset: number): Promise<void> {
-			const completion = planEnterCompletion(childAt(index), offset, grammar);
+			const completion = planEnterCompletion(childAt(index), offset, scoped);
 			if (!completion) {
 				await blockEdit.splitBlock(index, offset);
 				return;
@@ -59,7 +59,7 @@ export function withEnterCompletion(
 			await blockEdit.updateBlockContent(index, text, preEditOffset, postEditFocusOffset);
 			const offset = postEditFocusOffset ?? preEditOffset;
 			if (offset === undefined) return;
-			const completion = planTypedCompletion(childAt(index), offset, grammar);
+			const completion = planTypedCompletion(childAt(index), offset, scoped);
 			if (!completion) return;
 			await blockEdit.replaceBlock(
 				index,
@@ -75,7 +75,7 @@ export function withEnterCompletion(
 export function planEnterCompletion(
 	node: NodeView | undefined,
 	offset: number,
-	grammar: GrammarView = defaultGrammarView
+	grammar: GrammarView
 ): EnterCompletion | null {
 	return planCompletion(node, offset, grammar, (line) => completeTypedLine(line, grammar));
 }
@@ -84,7 +84,7 @@ export function planEnterCompletion(
 export function planTypedCompletion(
 	node: NodeView | undefined,
 	offset: number,
-	grammar: GrammarView = defaultGrammarView
+	grammar: GrammarView
 ): EnterCompletion | null {
 	return planCompletion(node, offset, grammar, (line) => completeLineOnType(line, grammar));
 }

@@ -8,11 +8,11 @@
 import type { NodeView } from '../node-views';
 import { getInlineContent } from './inline-cache';
 import { isInlineWidget, isCharacterLikeWidget } from './inline-widgets';
-import type { GrammarView } from '../../schema/block-openers';
+import { defaultGrammarView, type GrammarView } from '../../schema/block-openers';
 
 export function isVerticallyTransparentNode(
 	node: NodeView | null | undefined,
-	grammar?: GrammarView
+	grammar: GrammarView = defaultGrammarView
 ): boolean {
 	if (!node) return false;
 	// An explicit stack: container depth is input-controlled, so recursion could overflow.
@@ -34,7 +34,7 @@ export function isVerticallyTransparentNode(
 	return true;
 }
 
-function isTransparentLeaf(node: NodeView, grammar: GrammarView | undefined): boolean {
+function isTransparentLeaf(node: NodeView, grammar: GrammarView): boolean {
 	// No resolver, so the path-walkers that call this carry none either. The cost is that a
 	// reference-style-image-only paragraph reads as opaque; direct `![](url)` is unaffected.
 	const inlines = getInlineContent(node, undefined, '', grammar);

@@ -29,7 +29,7 @@ export function widgetAtCursor(
 	inlineContent: ReadonlyArray<InlineNode> | undefined,
 	raw: string,
 	direction: CaretDirection = 'backward',
-	grammar?: GrammarView
+	grammar: GrammarView
 ): WidgetAtCursor | null {
 	if (offset === null) return null;
 	let leadingMatch: WidgetAtCursor | null = null;
@@ -49,7 +49,7 @@ export function findWidgetNodeByStart(
 	sourceStart: number,
 	inlineContent: ReadonlyArray<InlineNode> | undefined,
 	raw: string,
-	grammar?: GrammarView
+	grammar: GrammarView
 ): WidgetRange | null {
 	for (const inline of flattenInlineWidgets(inlineContent ?? [], raw, grammar)) {
 		if (inline.start === sourceStart) {
@@ -64,7 +64,7 @@ export function findWidgetNodeByStart(
 export function findFirstEdgeWidget(
 	inlines: ReadonlyArray<InlineNode>,
 	raw: string,
-	grammar?: GrammarView
+	grammar: GrammarView
 ): InlineNode | null {
 	for (const inline of inlines) {
 		if (isInlineWidget(inline, raw, grammar)) return inline;
@@ -78,7 +78,7 @@ export function findFirstEdgeWidget(
 export function findLastEdgeWidget(
 	inlines: ReadonlyArray<InlineNode>,
 	raw: string,
-	grammar?: GrammarView
+	grammar: GrammarView
 ): InlineNode | null {
 	for (let i = inlines.length - 1; i >= 0; i--) {
 		const inline = inlines[i];

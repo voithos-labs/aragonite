@@ -27,9 +27,9 @@ const cache = new WeakMap<NodeView, CacheEntry>();
 
 export function getInlineContent(
 	node: NodeView,
-	resolver?: LinkReferenceResolver,
+	resolver: LinkReferenceResolver | undefined,
 	signature = '',
-	grammar: GrammarView = defaultGrammarView
+	grammar: GrammarView
 ): InlineNode[] {
 	if (!isProseKind(node.kind)) return [];
 	// A block resolves through an LRD only if it holds a bracket; mirroring the render gate keeps
@@ -53,11 +53,17 @@ export function getInlineContent(
 /**
  * The one spelling of `getInlineContent(node, ref.current, ref.signature, ref.grammar)`, so a
  * non-render call site cannot drop the signature or the grammar and silently desync from what
- * render drew. `linkRef` stays structural: naming editor-keys' type would create an import cycle.
+ * render drew. With no `linkRef`, or no grammar on it, it reads every installed plugin. `linkRef`
+ * stays structural: naming editor-keys' type would create an import cycle.
  */
 export function resolvedInlineContent(
 	node: NodeView,
 	linkRef?: { current?: LinkReferenceResolver; signature?: string; grammar?: GrammarView }
 ): InlineNode[] {
-	return getInlineContent(node, linkRef?.current, linkRef?.signature ?? '', linkRef?.grammar);
+	return getInlineContent(
+		node,
+		linkRef?.current,
+		linkRef?.signature ?? '',
+		linkRef?.grammar ?? defaultGrammarView
+	);
 }

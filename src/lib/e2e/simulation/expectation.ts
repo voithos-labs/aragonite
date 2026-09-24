@@ -12,6 +12,7 @@ import {
 } from '../../components/blocks/text/delimiter-autopair';
 import { isBuiltinBlockKind } from '../../core/nodes';
 import { parse } from '../../core/parser';
+import { defaultGrammarView } from '../../schema/block-openers';
 
 /** Kinds whose editable area does no auto-pairing: a typed byte there is literal. */
 const NO_PAIR_KINDS = new Set(['fencedCode', 'indentedCode', 'htmlBlock', 'thematicBreak']);
@@ -41,7 +42,8 @@ export class ExpectationTracker {
 					{ start: 0, end: line.length },
 					caret,
 					ch,
-					(next) => kindOfLine(next) === kindOfLine(line)
+					(next) => kindOfLine(next) === kindOfLine(line),
+					defaultGrammarView
 				)
 			: null;
 		if (edit?.kind === 'step-over') {
@@ -59,7 +61,9 @@ export class ExpectationTracker {
 		const at = this.insertionPoint();
 		const lineStart = this.src.lastIndexOf('\n', at - 1) + 1;
 		const line = this.src.slice(lineStart, at + this.twin.length);
-		const pair = this.twin ? resolveEmptyPairBackspace(line, at - lineStart) : null;
+		const pair = this.twin
+			? resolveEmptyPairBackspace(line, at - lineStart, defaultGrammarView)
+			: null;
 		if (pair && pair.kind === 'write') {
 			this.src = this.src.slice(0, lineStart) + pair.text + this.src.slice(at + this.twin.length);
 			this.twin = pair.text.slice(pair.caret);

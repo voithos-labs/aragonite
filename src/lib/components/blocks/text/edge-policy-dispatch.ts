@@ -75,6 +75,8 @@ export interface EdgePolicyDispatchDeps {
 	 *  resolves against its declaration. */
 	get containerParent(): NodeView | null;
 	get linkRef(): LinkReferenceResolverRef | undefined;
+	/** The editor's grammar, the one the render path drew widgets with. */
+	grammar: GrammarView;
 	getEl: () => HTMLElement | null;
 	getAmbientLength: () => number;
 	/** The container's marker prefix this block renders under, which the join rules read a
@@ -363,7 +365,7 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 		// Forward keys enter the widget after the caret, backward keys the one before, so
 		// a caret between two adjacent widgets enters the one the key is aimed at.
 		const direction = e.key === 'ArrowRight' || e.key === 'Delete' ? 'forward' : 'backward';
-		const grammar = deps.linkRef?.grammar;
+		const { grammar } = deps;
 		const widgetAt = widgetAtCursor(caretOffset, inlinesOf(node), node.raw, direction, grammar);
 		if (!widgetAt) return false;
 		// Past the early return: every keystroke in every prose block reaches the line above, so
@@ -705,7 +707,7 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 		// A delimiter typed over its own closing one is the auto-pair's step-over, handled on
 		// beforeinput (delimiter-autopair.ts); placed outside the run it would be typed instead.
 		const content = getContentRange(deps.node);
-		const grammar = deps.linkRef?.grammar;
+		const { grammar } = deps;
 		const autoPair = resolveDelimiterAutoPair(
 			display(),
 			content,

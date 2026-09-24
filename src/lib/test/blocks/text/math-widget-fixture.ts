@@ -2,6 +2,7 @@
 // stands in faithfully for the render's own widget element: the interaction code reads only those
 // attributes and the source text between the surrounding prose. Mounting the real MathInline
 // (Svelte plus KaTeX) is the e2e's job.
+import { defaultGrammarView } from '$lib/schema/block-openers';
 import { afterEach, beforeEach } from 'vitest';
 import { __resetInlineWidgetsForTests } from '$lib/core/inline/inline-widgets';
 import { __resetInlineSyntaxForTests } from '$lib/core/inline/scan/plugin-syntax';
@@ -70,7 +71,9 @@ export interface MountedWidgetBlock {
 // between the surrounding prose, with zero-length prose left out. `kind` is the raw string.
 export function mountWidgetBlock(source: string, kind: string): MountedWidgetBlock {
 	const node = parse(source).children[0];
-	const inlineWidgets = computeInlineContent(node).filter((n) => n.kind === kind);
+	const inlineWidgets = computeInlineContent(node, undefined, defaultGrammarView).filter(
+		(n) => n.kind === kind
+	);
 	const display = trimTrailingLineEnding(node.raw);
 	const el = document.createElement('div');
 	el.setAttribute('contenteditable', 'true');

@@ -2,6 +2,7 @@
 // Miss-analysis: the depth pins stopped at the renderer and the offset walk
 // (`inline-render-nesting.test.ts`) and never followed their output one call further, so every
 // walk over a rendered fragment or a parsed inline tree recursed per level, unpinned.
+import { defaultGrammarView } from '$lib/schema/block-openers';
 import { afterEach, describe, expect, it } from 'vitest';
 import type { CstNode, InlineNode } from '../../core/nodes';
 import { parse, MAX_NESTING_DEPTH } from '../../core/parser';
@@ -72,10 +73,9 @@ describe('inline tree walks at input-controlled nesting depth', () => {
 		}));
 		const trailing: InlineNode = { kind: 'image', start: raw.length, end: raw.length, url: 'u' };
 
-		expect(flattenInlineWidgets([...nodes, trailing], raw).map((n) => n.start)).toEqual([
-			2 * MODEL_DEPTH,
-			raw.length
-		]);
+		expect(
+			flattenInlineWidgets([...nodes, trailing], raw, defaultGrammarView).map((n) => n.start)
+		).toEqual([2 * MODEL_DEPTH, raw.length]);
 	});
 
 	// A recognizer may build any tree, so a plugin handler's claim record inherits the depth its

@@ -5,6 +5,7 @@
 // The resolver's own table is `delimiter-autopair.test.ts`.
 // Miss-analysis: every resolver case sat inside prose, so none typed the second `*` of an
 // otherwise empty block and watched `****` reparse as a thematic break.
+import { defaultGrammarView } from '$lib/schema/block-openers';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
 	applyDelimiterAutoPair,
@@ -37,7 +38,7 @@ function surfaceOver(
 		seatOutside: () => recorded.outside++,
 		write: (next, before, after) => recorded.writes.push([next, before, after]),
 		keepsBlockKind,
-		grammar: undefined,
+		grammar: defaultGrammarView,
 		get writes() {
 			return recorded.writes;
 		},

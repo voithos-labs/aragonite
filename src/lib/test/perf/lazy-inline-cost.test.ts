@@ -1,3 +1,4 @@
+import { defaultGrammarView } from '$lib/schema/block-openers';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { computeInlineContent } from '../../core/inline';
 import { getInlineContent } from '../../core/inline/inline-cache';
@@ -47,7 +48,7 @@ describe('lazy inline: common keystroke computes once', () => {
 		// build the inline tree. An eager double-parse here is the regression.
 		expect(perfSnapshot().inlineComputeCount).toBe(0);
 
-		computeInlineContent(parent.children[1]);
+		computeInlineContent(parent.children[1], undefined, defaultGrammarView);
 		expect(perfSnapshot().inlineComputeCount).toBe(1);
 	});
 
@@ -59,12 +60,12 @@ describe('lazy inline: common keystroke computes once', () => {
 		};
 
 		updateNodeContent(parent, 1, 'beta!\n');
-		computeInlineContent(parent.children[1]);
+		computeInlineContent(parent.children[1], undefined, defaultGrammarView);
 		expect(perfSnapshot().inlineComputeCount).toBe(1);
 
 		// A different block, never read, adds exactly one compute when something finally reads it,
 		// which proves nothing filled the whole document in advance.
-		getInlineContent(parent.children[2]);
+		getInlineContent(parent.children[2], undefined, undefined, defaultGrammarView);
 		expect(perfSnapshot().inlineComputeCount).toBe(2);
 	});
 });

@@ -145,7 +145,7 @@ export interface SvelteWidgetPoolDeps {
 	 *  document. Absent in a bare harness. */
 	navigateTo?: (path: number[], offset?: number) => Promise<boolean>;
 	/** The editor's grammar, so a widget kind whose plugin it left out mounts nothing. */
-	grammar?: GrammarView;
+	grammar: GrammarView;
 }
 
 /**
@@ -154,7 +154,7 @@ export interface SvelteWidgetPoolDeps {
  * `{ inline, source }` snapshot as live props: reuse keys on `${kind} ${source}`, so an instance
  * outlives a mode flip or an edit elsewhere that a frozen value would not.
  */
-export function createSvelteWidgetPool(deps: SvelteWidgetPoolDeps = {}): WidgetPool {
+export function createSvelteWidgetPool(deps: SvelteWidgetPoolDeps): WidgetPool {
 	const {
 		reportError,
 		getPresentationMode,

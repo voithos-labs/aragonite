@@ -281,6 +281,7 @@
 	const sharedCtx = editableSurface.sharedCtx;
 
 	const widgetInteraction = createWidgetInteraction({
+		grammar,
 		get node() {
 			return node;
 		},
@@ -367,6 +368,7 @@
 	// The one caret-edge dispatch (G4.12); entry execution stays at
 	// `widgetInteraction.enterWidget`.
 	const edgeDispatch = createEdgePolicyDispatch({
+		grammar,
 		get node() {
 			return node;
 		},

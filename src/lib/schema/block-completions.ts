@@ -7,7 +7,7 @@
 
 import { isBuiltinBlockKind, type AnyBlockKind } from '../core/nodes';
 import { deletePluginEntries, registerOnce } from './register-once';
-import { defaultGrammarView, ownerEnabled, type GrammarView } from './block-openers';
+import { ownerEnabled, type GrammarView } from './block-openers';
 import { pluginKindOwner } from './plugin-install';
 
 /**
@@ -58,10 +58,7 @@ function ordered(): readonly [AnyBlockKind, BlockCompleter][] {
 
 /** The first completion for `line`, or null when no completer the editor's grammar allows takes
  *  it. A kind's completer belongs to the plugin that declared the kind. */
-export function completeTypedLine(
-	line: string,
-	grammar: GrammarView = defaultGrammarView
-): CompletionResult | null {
+export function completeTypedLine(line: string, grammar: GrammarView): CompletionResult | null {
 	for (const [kind, completer] of ordered()) {
 		if (!ownerEnabled(grammar, pluginKindOwner(kind))) continue;
 		const claim = completer.tryComplete(line);
@@ -71,10 +68,7 @@ export function completeTypedLine(
 }
 
 /** The first completion for `line` among the completers that answer as the line is typed. */
-export function completeLineOnType(
-	line: string,
-	grammar: GrammarView = defaultGrammarView
-): CompletionResult | null {
+export function completeLineOnType(line: string, grammar: GrammarView): CompletionResult | null {
 	for (const [kind, completer] of ordered()) {
 		if (!completer.onType || !ownerEnabled(grammar, pluginKindOwner(kind))) continue;
 		const claim = completer.tryComplete(line);

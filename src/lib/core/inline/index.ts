@@ -8,7 +8,7 @@ import { getBlockKindDescriptor } from '../../schema/block-kind-descriptor';
 // side-effect import is tree-shaken from the production build.
 import { registerBuiltInDescriptors } from '../../schema/built-in-descriptors';
 import type { LinkReferenceResolver } from './link-reference-resolver';
-import type { GrammarView } from '../../schema/block-openers';
+import { defaultGrammarView, type GrammarView } from '../../schema/block-openers';
 import { scanInline } from './scan';
 import { inlineDescendants } from './walk';
 import { recordInlineCompute } from '../../perf/instruments';
@@ -72,8 +72,8 @@ export function constructContentRange(node: InlineNode): ContentRange | null {
  */
 export function computeInlineContent(
 	node: NodeView,
-	resolver?: LinkReferenceResolver,
-	grammar?: GrammarView
+	resolver: LinkReferenceResolver | undefined,
+	grammar: GrammarView
 ): InlineNode[] {
 	recordInlineCompute();
 	const range = getContentRange(node);
@@ -86,7 +86,8 @@ export function computeInlineContent(
  * Parse inline content over raw[start, end). Node offsets are absolute into raw, and every byte
  * lands in exactly one node's range. Both bounds are checked, not just typed: a caller the
  * compiler cannot reach that passes only the source would otherwise get one whole-string text
- * node, which is wrong output that looks like a result.
+ * node, which is wrong output that looks like a result. With no grammar it reads every installed
+ * plugin's syntax.
  */
 export function parseInline(
 	raw: string,
@@ -100,7 +101,7 @@ export function parseInline(
 			'parseInline requires both scan bounds: to scan a whole string, call parseInline(src, 0, src.length)'
 		);
 	}
-	return scanInline(raw, start, end, resolver, grammar);
+	return scanInline(raw, start, end, resolver, grammar ?? defaultGrammarView);
 }
 
 // ── Inline Tree Walks ──────────────────────────────────────────────────────

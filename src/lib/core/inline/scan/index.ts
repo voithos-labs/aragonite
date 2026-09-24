@@ -5,7 +5,7 @@
 
 import { isBuiltinInlineKind, type InlineNode, type InlineSyntaxClaim } from '../../nodes';
 import type { LinkReferenceResolver } from '../link-reference-resolver';
-import { defaultGrammarView, ownerEnabled, type GrammarView } from '../../../schema/block-openers';
+import { ownerEnabled, type GrammarView } from '../../../schema/block-openers';
 import { inlineDescendants } from '../walk';
 import { handleAngle, scanGfmAutolinks } from './autolinks';
 import { handleBang, handleCloseBracket, handleOpenBracket } from './brackets';
@@ -132,8 +132,8 @@ export function scanInline(
 	raw: string,
 	start: number,
 	end: number,
-	resolver?: LinkReferenceResolver,
-	grammar: GrammarView = defaultGrammarView
+	resolver: LinkReferenceResolver | undefined,
+	grammar: GrammarView
 ): InlineNode[] {
 	if (start >= end) return [];
 	if (!needsScan(raw, start, end)) {

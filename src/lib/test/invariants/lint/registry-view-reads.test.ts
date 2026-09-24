@@ -4,42 +4,69 @@
  * of each route (docs/design/plugin-contract.md § Per-instance enablement).
  */
 
+import { describe, expect, it } from 'vitest';
 import { callArguments, collectEditorSources } from './scan-source';
 import { describeCallSiteRules, type CallSiteRule } from './call-site-rule';
 import { notUnder } from './file-rule';
 
-/** Each reader, and the argument position its grammar takes (1-based). */
-const GRAMMAR_POSITION: Record<string, number> = {
-	scanInline: 5,
+/** The readers whose grammar is optional, and the argument position it takes (1-based). The
+ *  checker cannot see a missing grammar there, so the call's text is read instead. */
+const OPTIONAL_GRAMMAR_POSITION: Record<string, number> = {
 	parseInline: 5,
 	computeInlineContent: 3,
-	getInlineContent: 4,
-	isInlineWidget: 3,
-	getInlineWidgetEditing: 2,
-	getInlineWidgetComponent: 2,
-	isCharacterLikeWidget: 2,
-	flattenInlineWidgets: 3,
-	buildCoreInlineWidget: 4,
-	isAutoPairTrigger: 2,
-	resolveDirective: 3,
-	resolveBlockDirectiveFactory: 3,
-	completeTypedLine: 2,
-	completeLineOnType: 2,
-	planEnterCompletion: 3,
-	planTypedCompletion: 3,
 	isVerticallyTransparentNode: 2,
-	widgetAtCursor: 5,
-	findWidgetNodeByStart: 4,
-	findFirstEdgeWidget: 3,
-	findLastEdgeWidget: 3,
-	resolveDelimiterAutoPair: 6,
 	keepsBlockKind: 3
 };
 
-const threadsGrammar = (args: string, callee: string): boolean => {
-	const slot = callArguments(args)[GRAMMAR_POSITION[callee] - 1];
-	return slot !== undefined && slot !== '' && slot !== 'undefined';
+/** The readers whose grammar is a required parameter, so the checker refuses a call without one. */
+const REQUIRED_GRAMMAR_READERS: Record<string, string> = {
+	scanInline: 'src/lib/core/inline/scan/index.ts',
+	getInlineContent: 'src/lib/core/inline/inline-cache.ts',
+	isInlineWidget: 'src/lib/core/inline/inline-widgets.ts',
+	getInlineWidgetEditing: 'src/lib/core/inline/inline-widgets.ts',
+	getInlineWidgetComponent: 'src/lib/core/inline/inline-widgets.ts',
+	isCharacterLikeWidget: 'src/lib/core/inline/inline-widgets.ts',
+	flattenInlineWidgets: 'src/lib/core/inline/inline-widgets.ts',
+	buildCoreInlineWidget: 'src/lib/core/inline/inline-widgets.ts',
+	isAutoPairTrigger: 'src/lib/core/inline/scan/plugin-syntax.ts',
+	resolveDirective: 'src/lib/core/directive/registry.ts',
+	resolveBlockDirectiveFactory: 'src/lib/core/directive/registry.ts',
+	completeTypedLine: 'src/lib/schema/block-completions.ts',
+	completeLineOnType: 'src/lib/schema/block-completions.ts',
+	planEnterCompletion: 'src/lib/editor-actions/enter-completion.ts',
+	planTypedCompletion: 'src/lib/editor-actions/enter-completion.ts',
+	widgetAtCursor: 'src/lib/components/blocks/text/widget-adjacency.ts',
+	findWidgetNodeByStart: 'src/lib/components/blocks/text/widget-adjacency.ts',
+	findFirstEdgeWidget: 'src/lib/components/blocks/text/widget-adjacency.ts',
+	findLastEdgeWidget: 'src/lib/components/blocks/text/widget-adjacency.ts',
+	resolveDelimiterAutoPair: 'src/lib/components/blocks/text/delimiter-autopair.ts',
+	stepsOverRevealedCloser: 'src/lib/components/blocks/text/delimiter-autopair.ts',
+	resolveEmptyPairBackspace: 'src/lib/components/blocks/text/delimiter-autopair.ts'
 };
+
+/** An explicit `defaultGrammarView` is the every-plugin reading spelled out, so it counts as none. */
+const threadsGrammar = (args: string, callee: string): boolean => {
+	const slot = callArguments(args)[OPTIONAL_GRAMMAR_POSITION[callee] - 1];
+	return slot !== undefined && slot !== '' && slot !== 'undefined' && slot !== 'defaultGrammarView';
+};
+
+/** The parameter list of `name`'s exported declaration in `code`, or null when none is found. */
+function declaredParameters(code: string, name: string): string | null {
+	const match = new RegExp(`export function ${name}\\(([^]*?)\\):`).exec(code);
+	return match ? match[1] : null;
+}
+
+describe('G4.68 the internal registry readers take the grammar as a required parameter', () => {
+	const sources = collectEditorSources();
+	for (const [name, relPath] of Object.entries(REQUIRED_GRAMMAR_READERS)) {
+		it(`${name} declares \`grammar: GrammarView\` with no default`, () => {
+			const code = sources.find((file) => file.relPath === relPath)?.code ?? '';
+			const parameters = declaredParameters(code, name);
+			expect(parameters, `${relPath} declares no exported ${name}`).not.toBeNull();
+			expect(parameters).toMatch(/\bgrammar: GrammarView\s*(,|$)/);
+		});
+	}
+});
 
 /** The published kits and the plugin API run outside any editor, so the whole process is theirs. */
 const EDITOR_LESS = notUnder('src/lib/testing/', 'src/lib/core/parser.ts');
@@ -48,47 +75,47 @@ const RULES: CallSiteRule[] = [
 	{
 		id: 'G4.68 every plugin registry read outside its module passes the editor grammar',
 		population: EDITOR_LESS,
-		calls: Object.keys(GRAMMAR_POSITION),
+		calls: Object.keys(OPTIONAL_GRAMMAR_POSITION),
 		holds: threadsGrammar,
-		// Sites with no grammar in reach, each a known gap: the inline tree they read can hold a
-		// construct an unlisted plugin claimed, which this editor draws as text.
+		// Each a known gap: the inline tree these sites read can hold a construct an unlisted plugin
+		// claimed, which this editor draws as text.
 		allowed: {
-			'src/lib/core/inline/index.ts:100': 'an error message naming the call, not a call',
+			'src/lib/core/inline/index.ts:101': 'an error message naming the call, not a call',
 			'src/lib/components/blocks/text/construct-edge-delete.ts:257':
-				'the edge delete surface carries no link context, so no grammar either',
+				'a verification read one call below a caller that holds the grammar, not yet threaded (#432)',
 			'src/lib/components/blocks/text/edge-seat.ts:216':
-				'a pure byte helper reached from the seat resolver, three calls below any grammar',
+				'a verification read one call below a caller that holds the grammar, not yet threaded (#432)',
 			'src/lib/components/blocks/text/link-source-bytes.ts:91':
-				'the link card passes the resolver alone, two modules above this check',
+				'a verification read one call below a caller that holds the grammar, not yet threaded (#432)',
 			'src/lib/components/blocks/text/link-source-bytes.ts:135':
-				'the link card passes the resolver alone, two modules above this check',
+				'a verification read one call below a caller that holds the grammar, not yet threaded (#432)',
 			'src/lib/components/blocks/text/link-source-bytes.ts:212':
-				'the link card passes the resolver alone, two modules above this check',
+				'a verification read one call below a caller that holds the grammar, not yet threaded (#432)',
 			'src/lib/components/blocks/text/pending-mark-insert.ts:196':
-				'the pending-mark candidate check takes no link context, like its resolver',
+				'a verification read one call below a caller that holds the grammar, not yet threaded (#432)',
 			'src/lib/components/blocks/text/pending-mark-insert.ts:225':
-				'the pending-mark candidate check takes no link context, like its resolver',
+				'a verification read one call below a caller that holds the grammar, not yet threaded (#432)',
 			'src/lib/editor-actions/container-block-component.ts:286':
 				'the whole-block component deps carry no grammar; a container is transparent only if every child is',
 			'src/lib/selection/keyboard-extend.ts:334':
 				'the vertical-extend path walks paths off the document with no editor context',
 			'src/lib/plugins/footnotes/footnote-numbering.ts:42':
-				'the published computeInlineContent takes no grammar: the plugin API exposes none',
+				'the published computeInlineContent takes no grammar: the plugin API exposes none (#433)',
 			'src/lib/plugins/toc/heading-outline.ts:68':
-				'the published computeInlineContent takes no grammar: the plugin API exposes none'
+				'the published computeInlineContent takes no grammar: the plugin API exposes none (#433)'
 		},
 		reason:
 			'a read without the grammar resolves every installed plugin, so an unlisted plugin’s inline syntax, widget, directive name or completer reaches this editor (#266)',
 		atLeastCallers: 10,
 		hits: [
 			'parseInline(raw, 0, raw.length);',
-			'isInlineWidget(node, raw, undefined);',
-			'completeTypedLine(line);'
+			'computeInlineContent(node, resolver, defaultGrammarView);',
+			'keepsBlockKind(node, line, undefined);'
 		],
 		misses: [
 			'parseInline(raw, 0, raw.length, undefined, grammar);\n' +
-				'getInlineWidgetEditing(kind, deps.linkRef?.grammar);',
-			'export function isInlineWidget(node, raw, grammar) {}'
+				'keepsBlockKind(node, line, deps.grammar);',
+			'export function parseInline(raw, start, end, resolver, grammar) {}'
 		]
 	},
 	{

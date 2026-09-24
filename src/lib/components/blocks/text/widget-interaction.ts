@@ -40,6 +40,7 @@ import {
 } from '../../../debug/interaction-trace';
 import { assertInvariant } from '../../../assert';
 import type { RevealFold } from '../editable-surface';
+import type { GrammarView } from '../../../schema/block-openers';
 import {
 	caretIsInTextContent,
 	hasModifier,
@@ -83,6 +84,8 @@ export interface WidgetInteractionDeps {
 	 *  branches. Optional, so a bare harness reads as 'source'. */
 	getPresentationMode?: () => PresentationMode;
 	get linkRef(): LinkReferenceResolverRef | undefined;
+	/** The editor's grammar, the one the render path drew widgets with. */
+	grammar: GrammarView;
 }
 
 /** The click a widget gesture reads off: the same event the widget's own handler sees. */
@@ -210,10 +213,8 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		return resolvedInlineContent(node, deps.linkRef);
 	}
 
-	// Every widget read here goes through the editor's grammar, the one the render path drew with.
-	const grammar = () => deps.linkRef?.grammar;
-	const widgetEditing = (kind: AnyInlineKind) => getInlineWidgetEditing(kind, grammar());
-	const characterLike = (kind: AnyInlineKind) => isCharacterLikeWidget(kind, grammar());
+	const widgetEditing = (kind: AnyInlineKind) => getInlineWidgetEditing(kind, deps.grammar);
+	const characterLike = (kind: AnyInlineKind) => isCharacterLikeWidget(kind, deps.grammar);
 
 	/**
 	 * Every widget in this block, descending into parents that are not widgets themselves. The
@@ -223,7 +224,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 	 * whole text is a single emphasis node.
 	 */
 	function widgetsOf(): InlineNode[] {
-		return flattenInlineWidgets(inlinesOf(deps.node), deps.node.raw, grammar());
+		return flattenInlineWidgets(inlinesOf(deps.node), deps.node.raw, deps.grammar);
 	}
 
 	// ── Editing a widget's source ──────────────────────────────────────────────
@@ -706,7 +707,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 	function isVerticallyTransparent(): boolean {
 		// Resolver-free, matching the off-window keyboard-extend path, so the vertical-skip
 		// decision is uniform everywhere. Other widget reads stay resolver-aware.
-		return isVerticallyTransparentNode(deps.node, grammar());
+		return isVerticallyTransparentNode(deps.node, deps.grammar);
 	}
 
 	async function handleSelectedWidgetKeydown(e: KeyboardEvent): Promise<boolean> {
@@ -718,7 +719,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 			selectedWidget.sourceStart,
 			inlinesOf(node),
 			node.raw,
-			grammar()
+			deps.grammar
 		);
 		const widgetIsHere =
 			widget !== null && deps.widgetSelection.isSelected(deps.myPath, selectedWidget.sourceStart);
@@ -726,7 +727,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 
 		// The kind's editing policy takes its own keys first. Flattened so the nested image
 		// of `[![alt][ref]][repo]` is the widget resolved.
-		const inline = flattenInlineWidgets(inlinesOf(node), node.raw, grammar()).find(
+		const inline = flattenInlineWidgets(inlinesOf(node), node.raw, deps.grammar).find(
 			(n) => n.start === widget.start
 		);
 		if (inline) {
@@ -875,8 +876,8 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		if (inlines.length === 0) return false;
 		const target =
 			side === 'start'
-				? findFirstEdgeWidget(inlines, deps.node.raw, grammar())
-				: findLastEdgeWidget(inlines, deps.node.raw, grammar());
+				? findFirstEdgeWidget(inlines, deps.node.raw, deps.grammar)
+				: findLastEdgeWidget(inlines, deps.node.raw, deps.grammar);
 		if (!target) return false;
 		// Focus the contenteditable so subsequent keys route to this block's handler.
 		deps.getEl()?.focus();

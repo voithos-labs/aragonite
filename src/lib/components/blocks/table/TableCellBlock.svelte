@@ -274,6 +274,7 @@
 	// The same inline-widget code prose uses, with cell-shaped dependencies: no marker prefix,
 	// no snap indicator, since cells render no image widgets, and the escaping `blockEdit`.
 	const widgetInteraction = createWidgetInteraction({
+		grammar,
 		get node() {
 			return node;
 		},
@@ -309,6 +310,7 @@
 	// The one caret-edge dispatch (G4.12), the same code prose uses: a plain edge key against
 	// a CST widget or a decoration widget resolves against its declared policy.
 	const edgeDispatch = createEdgePolicyDispatch({
+		grammar,
 		get node() {
 			return node;
 		},

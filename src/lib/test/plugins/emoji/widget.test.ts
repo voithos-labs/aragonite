@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { defaultGrammarView } from '$lib/schema/block-openers';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { InlineNode } from '$lib';
 import { resetPluginPlatformForTests } from '$lib/testing';
@@ -34,7 +35,7 @@ describe('emoji widget registration', () => {
 	// Atomic delete plus step-over is what makes a Backspace beside it remove the whole
 	// shortcode at once and a plain arrow move across it as if it were one character.
 	it('registers the atomic, step-over editing policy', () => {
-		expect(getInlineWidgetEditing(EMOJI_KIND as InlineNode['kind'])).toEqual({
+		expect(getInlineWidgetEditing(EMOJI_KIND as InlineNode['kind'], defaultGrammarView)).toEqual({
 			deleteGranularity: 'atomic',
 			onEdge: 'step-over'
 		});

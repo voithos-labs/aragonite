@@ -70,7 +70,7 @@ describe('directiveText atomic widget', () => {
 		const raw = 'see :abbr[HTML]{title="x"} here';
 		const node = { kind, start: 4, end: 26 } as InlineNode;
 
-		const el = buildCoreInlineWidget(node, raw);
+		const el = buildCoreInlineWidget(node, raw, undefined, defaultGrammarView);
 
 		expect(el).not.toBeNull();
 		const shell = el as HTMLElement;
@@ -84,6 +84,6 @@ describe('directiveText atomic widget', () => {
 	// `revealSource` is what widget-interaction.ts reads to swap the rendered widget for its
 	// editable source, so a text directive stays editable rather than a read-only block.
 	it('registers the reveal-source editing policy', () => {
-		expect(getInlineWidgetEditing(kind)).toEqual({ revealSource: true });
+		expect(getInlineWidgetEditing(kind, defaultGrammarView)).toEqual({ revealSource: true });
 	});
 });

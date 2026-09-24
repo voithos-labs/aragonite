@@ -13,7 +13,7 @@ import {
 	type ContentRange
 } from '../../../core/inline';
 import { isAutoPairTrigger } from '../../../core/inline/scan/plugin-syntax';
-import { defaultGrammarView, type GrammarView } from '../../../schema/block-openers';
+import type { GrammarView } from '../../../schema/block-openers';
 
 export type AutoPairEdit =
 	| { kind: 'write'; text: string; caret: number }
@@ -62,7 +62,7 @@ export function resolveDelimiterAutoPair(
 	caret: number,
 	typed: string,
 	keepsKind: (text: string) => boolean = () => true,
-	grammar: GrammarView = defaultGrammarView
+	grammar: GrammarView
 ): AutoPairEdit | null {
 	if (typed.length !== 1 || caret < content.start || caret > content.end) return null;
 	const before = text[caret - 1];
@@ -110,7 +110,7 @@ export function stepsOverRevealedCloser(
 	text: string,
 	caret: number,
 	typed: string,
-	grammar: GrammarView = defaultGrammarView
+	grammar: GrammarView
 ): boolean {
 	return typed.length === 1 && policyOf(typed, grammar) !== null && text[caret] === typed;
 }
@@ -121,7 +121,7 @@ export function stepsOverRevealedCloser(
 export function resolveEmptyPairBackspace(
 	text: string,
 	caret: number,
-	grammar: GrammarView = defaultGrammarView
+	grammar: GrammarView
 ): AutoPairEdit | null {
 	const pair = emptyPairEnding(text, caret, grammar) ?? emptyPairAround(text, caret, grammar);
 	if (!pair) return null;
@@ -155,7 +155,7 @@ export interface AutoPairSurface {
 	/** The resolver's block-kind check, for a block whose line can become a different block. */
 	keepsBlockKind?(text: string): boolean;
 	/** The editor's grammar, so a plugin's delimiter pairs only where the plugin is listed. */
-	grammar: GrammarView | undefined;
+	grammar: GrammarView;
 }
 
 /**

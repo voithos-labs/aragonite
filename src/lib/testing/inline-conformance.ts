@@ -422,7 +422,7 @@ function checkWidgetAtomicity(profile: InlineConformanceProfile, rung: InlineRun
 	for (const fixture of profile.fixtures) {
 		for (const node of claimsIn(fixture, profile, rung)) {
 			assert(
-				isInlineWidget(node, fixture),
+				isInlineWidget(node, fixture, defaultGrammarView),
 				`the "${kind}" node from ${JSON.stringify(fixture)} is a registered live widget`
 			);
 			assertSelfDelimiting(fixture, node, kind);
@@ -430,7 +430,7 @@ function checkWidgetAtomicity(profile: InlineConformanceProfile, rung: InlineRun
 	}
 
 	// Both early exits report boundary, not asserted: the inline-widget contract did not run.
-	if (getInlineWidgetComponent(kind) !== undefined) {
+	if (getInlineWidgetComponent(kind, defaultGrammarView) !== undefined) {
 		return {
 			status: 'boundary',
 			detail:
@@ -468,7 +468,7 @@ function assertSelfDelimiting(fixture: string, node: InlineNode, kind: AnyInline
 }
 
 function assertIslandContract(fixture: string, node: InlineNode, kind: AnyInlineKind): void {
-	const island = buildCoreInlineWidget(node, fixture);
+	const island = buildCoreInlineWidget(node, fixture, undefined, defaultGrammarView);
 	assert(island !== null, `the "${kind}" widget builds an island from ${JSON.stringify(fixture)}`);
 	assert(
 		island.hasAttribute('data-inline-widget'),
@@ -515,7 +515,7 @@ function assertWalkLengthIsRawLength(fixture: string): void {
 function checkEditingPolicy(profile: InlineConformanceProfile, rung: InlineRung): string {
 	const kind = profile.kind;
 	assert(kind !== undefined, 'the editingPolicy cell asserts but the profile names no kind');
-	const policy = getInlineWidgetEditing(kind);
+	const policy = getInlineWidgetEditing(kind, defaultGrammarView);
 	assert(
 		policy !== undefined,
 		`"${kind}" declares no editing policy — register one, or declare this cell exempt if the ` +
@@ -707,7 +707,7 @@ function falsifyExcuse(
 	if (cell === 'widget' && profile.kind !== undefined) {
 		const claimed = profile.fixtures
 			.flatMap((f) => mintedNodes(f, profile, rung).map((n) => ({ f, n })))
-			.find(({ f, n }) => n.kind === profile.kind && isInlineWidget(n, f));
+			.find(({ f, n }) => n.kind === profile.kind && isInlineWidget(n, f, defaultGrammarView));
 		if (claimed) {
 			fail(
 				`"${profile.kind}" IS a registered live widget (from ${JSON.stringify(claimed.f)}), so ` +
@@ -716,7 +716,7 @@ function falsifyExcuse(
 		}
 	}
 	if (cell === 'editingPolicy' && profile.kind !== undefined) {
-		const policy = getInlineWidgetEditing(profile.kind);
+		const policy = getInlineWidgetEditing(profile.kind, defaultGrammarView);
 		if (policy && Object.keys(policy).length > 0) {
 			fail(
 				`"${profile.kind}" declares an editing policy, so the editingPolicy cell cannot be excused`

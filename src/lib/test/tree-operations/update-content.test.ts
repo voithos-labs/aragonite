@@ -1,3 +1,4 @@
+import { defaultGrammarView } from '$lib/schema/block-openers';
 import { describe, it, expect } from 'vitest';
 import { parse } from '../../core/parser';
 import { serialize } from '../../core/serializer';
@@ -166,12 +167,14 @@ describe('updateNodeContent', () => {
 	it('exposes fresh inlines via the lazy accessor after an edit (validate-on-read)', () => {
 		const source = '![pic](/sample.png)\n';
 		const doc = parse(source);
-		expect(getInlineContent(doc.children[0]).map((n) => n.kind)).toEqual(['image']);
+		expect(
+			getInlineContent(doc.children[0], undefined, undefined, defaultGrammarView).map((n) => n.kind)
+		).toEqual(['image']);
 
 		updateNodeContent(doc, 0, '![pic](/sample.png)a\n');
 
 		// The accessor recomputes rather than returning the cached image-only tree.
-		const inlines = getInlineContent(doc.children[0]);
+		const inlines = getInlineContent(doc.children[0], undefined, undefined, defaultGrammarView);
 		expect(inlines.map((n) => n.kind)).toEqual(['image', 'text']);
 		expect(inlines[1].text).toBe('a');
 	});

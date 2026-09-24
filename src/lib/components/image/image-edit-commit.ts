@@ -19,10 +19,11 @@ import type { WidgetSelectionState, WidgetTarget } from './widget-selection-stat
 export function imageAtTarget(
 	doc: Document,
 	target: WidgetTarget,
-	linkRef?: LinkReferenceResolverRef
+	linkRef: LinkReferenceResolverRef | undefined,
+	grammar: GrammarView
 ): InlineNode | null {
 	const paragraph = blockNodeAt(doc, target.paragraphPath);
-	return paragraph ? findImageInParagraph(paragraph, target.sourceStart, linkRef) : null;
+	return paragraph ? findImageInParagraph(paragraph, target.sourceStart, linkRef, grammar) : null;
 }
 
 export interface ImageEditCommitterDeps {
@@ -32,8 +33,8 @@ export interface ImageEditCommitterDeps {
 	controller: UndoController;
 	events: EditorEvents;
 	linkRef?: LinkReferenceResolverRef;
-	/** This editor's grammar, for the block's own raw-write rule. Absent means the global one. */
-	grammar?: GrammarView;
+	/** This editor's grammar, for finding the image and for the block's own raw-write rule. */
+	grammar: GrammarView;
 }
 
 export interface SelectedImageFields {
@@ -81,7 +82,7 @@ export function createImageEditCommitter(deps: ImageEditCommitterDeps): ImageEdi
 	}
 
 	const imageAt = (target: WidgetTarget): InlineNode | null =>
-		imageAtTarget(getDoc(), target, deps.linkRef);
+		imageAtTarget(getDoc(), target, deps.linkRef, deps.grammar);
 
 	// The bytes the last popover write moved, applied by the next stale check: the write runs as
 	// the popover unmounts, where a read of the selection still returns the one before the click.
@@ -100,7 +101,7 @@ export function createImageEditCommitter(deps: ImageEditCommitterDeps): ImageEdi
 	): { image: InlineNode; bytes: string } | null {
 		const paragraph = blockNodeAt(getDoc(), target.paragraphPath);
 		if (!paragraph) return null;
-		const image = findImageInParagraph(paragraph, target.sourceStart, deps.linkRef);
+		const image = findImageInParagraph(paragraph, target.sourceStart, deps.linkRef, deps.grammar);
 		if (!image) return null;
 		// Keep the reference form when the url and title are untouched: writing the resolved
 		// url inline would leave the definition unused. Changing either is the user asking.
@@ -291,12 +292,13 @@ export function createImageEditCommitter(deps: ImageEditCommitterDeps): ImageEdi
 function findImageInParagraph(
 	para: NodeView,
 	sourceStart: number,
-	linkRef: LinkReferenceResolverRef | undefined
+	linkRef: LinkReferenceResolverRef | undefined,
+	grammar: GrammarView
 ): InlineNode | null {
 	// Resolver-aware so a reference-style image resolves as the render path saw it,
 	// and flattened so an image nested in a link (`[![alt][ref]][repo]`) is found.
 	const inlines = resolvedInlineContent(para, linkRef);
-	for (const widget of flattenInlineWidgets(inlines, para.raw, linkRef?.grammar)) {
+	for (const widget of flattenInlineWidgets(inlines, para.raw, grammar)) {
 		if (widget.kind === 'image' && widget.start === sourceStart) return widget;
 	}
 	return null;

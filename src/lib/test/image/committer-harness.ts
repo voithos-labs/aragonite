@@ -3,6 +3,7 @@
  * spy controller. Shared by every committer suite; registering a syntax handler stays per test.
  */
 
+import { defaultGrammarView } from '$lib/schema/block-openers';
 import { vi } from 'vitest';
 import { createImageEditCommitter } from '../../components/image/image-edit-commit';
 import { imageFieldsFromInline } from '../../components/image/image-source-bytes';
@@ -32,11 +33,15 @@ export function committerFor(raw: string): CommitterHarness {
 		getEditorEl: () => null,
 		widgetSelection: { getSelected: () => null } as unknown as WidgetSelectionState,
 		controller,
-		events: { emit: vi.fn(), on: vi.fn() } as unknown as EditorEvents
+		events: { emit: vi.fn(), on: vi.fn() } as unknown as EditorEvents,
+		grammar: defaultGrammarView
 	});
-	const image = getInlineContent(doc.children[0] as CstNode).find(
-		(node) => node.kind === 'image' && node.start === 0
-	);
+	const image = getInlineContent(
+		doc.children[0] as CstNode,
+		undefined,
+		undefined,
+		defaultGrammarView
+	).find((node) => node.kind === 'image' && node.start === 0);
 	return {
 		committer,
 		controller,

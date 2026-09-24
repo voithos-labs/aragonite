@@ -1,3 +1,4 @@
+import { defaultGrammarView } from '$lib/schema/block-openers';
 import { describe, it, expect } from 'vitest';
 import { parse } from '../../../core/parser';
 import { parseInline } from '../../../core/inline';
@@ -14,7 +15,7 @@ describe('link-reference reactivity pipeline', () => {
 	// (identical raw, new signature) must thread the fresh map through.
 	function firstProseInlineContent(doc: { children: CstNode[] }): InlineNode[] {
 		const map = buildLinkReferenceMap(doc.children);
-		return getInlineContent(doc.children[0], map.resolve, map.signature);
+		return getInlineContent(doc.children[0], map.resolve, map.signature, defaultGrammarView);
 	}
 
 	it('initial parse with resolver populates resolved link nodes', () => {

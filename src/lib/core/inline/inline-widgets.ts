@@ -13,7 +13,7 @@ import { isLiveHtmlTag, buildLiveHtmlWidget } from './raw-html-widget';
 import { entityRendersGlyph, buildEntityWidget } from './entity-widget';
 import { registerOnce } from '../../schema/register-once';
 import { currentInstallingPlugin } from '../../schema/plugin-install';
-import { defaultGrammarView, ownerEnabled, type GrammarView } from '../../schema/block-openers';
+import { ownerEnabled, type GrammarView } from '../../schema/block-openers';
 import { inlineDescendants } from './walk';
 
 /**
@@ -194,37 +194,30 @@ export function augmentInlineWidgetKind(
 	descriptor.editing = { ...descriptor.editing, ...editing };
 }
 
-// Each lookup below takes the editor's grammar; the default resolves every installed plugin.
+// Each lookup below takes the editor's grammar, which leaves out the plugins it did not list.
 
 /** Kind-level recognition, independent of per-block render policy (renderImagesAsWidgets). */
-export function isInlineWidget(
-	node: InlineNode,
-	raw: string,
-	grammar: GrammarView = defaultGrammarView
-): boolean {
+export function isInlineWidget(node: InlineNode, raw: string, grammar: GrammarView): boolean {
 	const descriptor = widgetOf(node.kind, grammar);
 	return descriptor ? descriptor.isWidget(node, raw) : false;
 }
 
 export function getInlineWidgetEditing(
 	kind: AnyInlineKind,
-	grammar: GrammarView = defaultGrammarView
+	grammar: GrammarView
 ): InlineWidgetEditingPolicy | undefined {
 	return widgetOf(kind, grammar)?.editing;
 }
 
 /** A kind the caret treats as one character: it steps over in one keypress, has a column of its
  *  own, and a click on its glyph names an edge rather than selecting the widget whole. */
-export function isCharacterLikeWidget(
-	kind: AnyInlineKind,
-	grammar: GrammarView = defaultGrammarView
-): boolean {
+export function isCharacterLikeWidget(kind: AnyInlineKind, grammar: GrammarView): boolean {
 	return getInlineWidgetEditing(kind, grammar)?.onEdge === 'step-over';
 }
 
 export function getInlineWidgetComponent(
 	kind: AnyInlineKind,
-	grammar: GrammarView = defaultGrammarView
+	grammar: GrammarView
 ): Component<InlineWidgetComponentProps> | undefined {
 	return widgetOf(kind, grammar)?.component;
 }
@@ -237,7 +230,7 @@ export function getInlineWidgetComponent(
 export function flattenInlineWidgets(
 	nodes: ReadonlyArray<InlineNode>,
 	raw: string,
-	grammar: GrammarView = defaultGrammarView
+	grammar: GrammarView
 ): InlineNode[] {
 	const out: InlineNode[] = [];
 	const isWidget = (node: InlineNode) => isInlineWidget(node, raw, grammar);
@@ -255,8 +248,8 @@ export function flattenInlineWidgets(
 export function buildCoreInlineWidget(
 	node: InlineNode,
 	raw: string,
-	buildPortalWidget?: (node: InlineNode, raw: string) => HTMLElement | null,
-	grammar: GrammarView = defaultGrammarView
+	buildPortalWidget: ((node: InlineNode, raw: string) => HTMLElement | null) | undefined,
+	grammar: GrammarView
 ): HTMLElement | null {
 	const descriptor = widgetOf(node.kind, grammar);
 	if (!descriptor || !descriptor.isWidget(node, raw)) return null;

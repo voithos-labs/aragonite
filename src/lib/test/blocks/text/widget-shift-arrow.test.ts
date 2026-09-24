@@ -5,6 +5,7 @@
 // Shift+ArrowRight must extend across it. Chromium extends across a contenteditable=false element
 // on its own, so e2e cannot tell the difference; jsdom does not, so this catches a filter that
 // narrows to `kind !== 'image'`.
+import { defaultGrammarView } from '$lib/schema/block-openers';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { getInlineContent } from '$lib/core/inline/inline-cache';
@@ -26,7 +27,7 @@ describe('handleShiftArrowIntoWidget: non-image inline widget', () => {
 	beforeEach(() => {
 		// `a<br>b`: text "a" [0,1), rawHtml `<br>` [1,5), text "b" [5,6).
 		node = parse('a<br>b\n').children[0];
-		const inlines = getInlineContent(node);
+		const inlines = getInlineContent(node, undefined, undefined, defaultGrammarView);
 		const br = inlines.find((n) => n.kind === 'rawHtml');
 		if (!br || br.start !== 1 || br.end !== 5) {
 			throw new Error(`expected rawHtml widget at [1,5), got ${JSON.stringify(br)}`);

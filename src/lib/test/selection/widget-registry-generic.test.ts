@@ -6,6 +6,7 @@
  * `<br>`-only paragraph needs content that cannot open one, hence `<br><br>`.
  */
 
+import { defaultGrammarView } from '$lib/schema/block-openers';
 import { describe, it, expect } from 'vitest';
 import type { InlineNode } from '../../core/nodes';
 import { parse } from '../../core/parser';
@@ -41,13 +42,13 @@ describe('vertical transparency for a non-image widget', () => {
 describe('edge-widget helpers for a non-image widget', () => {
 	it('locate the <br> in the real parsed inline content enterEdgeWidget walks', () => {
 		const para = parse('<br> <br>\n').children[0];
-		const inlines = getInlineContent(para);
-		expect(findFirstEdgeWidget(inlines, para.raw)).toMatchObject({
+		const inlines = getInlineContent(para, undefined, undefined, defaultGrammarView);
+		expect(findFirstEdgeWidget(inlines, para.raw, defaultGrammarView)).toMatchObject({
 			start: 0,
 			end: 4,
 			kind: 'rawHtml'
 		});
-		expect(findLastEdgeWidget(inlines, para.raw)).toMatchObject({
+		expect(findLastEdgeWidget(inlines, para.raw, defaultGrammarView)).toMatchObject({
 			start: 5,
 			end: 9,
 			kind: 'rawHtml'
@@ -58,7 +59,9 @@ describe('edge-widget helpers for a non-image widget', () => {
 	// so the node is hand-built to pin the skip-blank-text branch for a `<br>`.
 	it('findFirstEdgeWidget skips leading blank text to a <br>', () => {
 		const raw = '  <br>\n';
-		expect(findFirstEdgeWidget([text(0, 2, '  '), rawHtml(2, 6)], raw)).toMatchObject({
+		expect(
+			findFirstEdgeWidget([text(0, 2, '  '), rawHtml(2, 6)], raw, defaultGrammarView)
+		).toMatchObject({
 			start: 2,
 			end: 6,
 			kind: 'rawHtml'
@@ -67,7 +70,9 @@ describe('edge-widget helpers for a non-image widget', () => {
 
 	it('findLastEdgeWidget skips trailing blank text to a <br>', () => {
 		const raw = '<br>  \n';
-		expect(findLastEdgeWidget([rawHtml(0, 4), text(4, 6, '  ')], raw)).toMatchObject({
+		expect(
+			findLastEdgeWidget([rawHtml(0, 4), text(4, 6, '  ')], raw, defaultGrammarView)
+		).toMatchObject({
 			start: 0,
 			end: 4,
 			kind: 'rawHtml'
@@ -78,7 +83,7 @@ describe('edge-widget helpers for a non-image widget', () => {
 	// registry (`isLiveHtmlTag`), not the node kind and not `image`.
 	it('decline a non-live <span> tag at either edge', () => {
 		const raw = '<span>\n';
-		expect(findFirstEdgeWidget([rawHtml(0, 6)], raw)).toBeNull();
-		expect(findLastEdgeWidget([rawHtml(0, 6)], raw)).toBeNull();
+		expect(findFirstEdgeWidget([rawHtml(0, 6)], raw, defaultGrammarView)).toBeNull();
+		expect(findLastEdgeWidget([rawHtml(0, 6)], raw, defaultGrammarView)).toBeNull();
 	});
 });

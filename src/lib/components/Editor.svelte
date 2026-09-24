@@ -302,7 +302,7 @@
 	const selectedWidget: SelectedWidgetHandle = {
 		range: () => {
 			const target = widgetSelection.getSelected();
-			const image = target && imageAtTarget(doc, target, linkRefView);
+			const image = target && imageAtTarget(doc, target, linkRefView, registryView.grammar);
 			return target && image
 				? { path: [...target.paragraphPath], start: image.start, end: image.end }
 				: null;

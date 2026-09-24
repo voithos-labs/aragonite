@@ -335,6 +335,7 @@ async function pressEdgeKey(
 		gesture.kind === 'type' ? gesture.char : gesture.kind === 'backspace' ? 'Backspace' : 'Delete';
 	const el = mountBlock(node, mode);
 	const dispatch = createEdgePolicyDispatch({
+		grammar: defaultGrammarView,
 		get node() {
 			return h.doc.children[index];
 		},
@@ -388,7 +389,8 @@ async function nativePress(
 			{ start, end },
 			offset,
 			key,
-			(line) => keepsBlockKind(node, line)
+			(line) => keepsBlockKind(node, line),
+			defaultGrammarView
 		);
 		if (paired?.kind === 'step-over') return;
 		if (paired) {
