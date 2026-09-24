@@ -133,7 +133,7 @@ export function registerAdmonitions(options?: AdmonitionsOptions): void {
 		})
 	});
 
-	registerChromeLeaf(title, { blockClass: 'admonition-title' });
+	registerChromeLeaf(title, { label: 'Title', blockClass: 'admonition-title' });
 	registerBlockComponent(admonition, defineBlockComponent(AdmonitionBlock));
 
 	if (options?.convertAlertsOnPaste) {
