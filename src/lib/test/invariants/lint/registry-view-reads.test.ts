@@ -10,7 +10,8 @@ import { describeCallSiteRules, type CallSiteRule } from './call-site-rule';
 import { notUnder } from './file-rule';
 
 /** The readers whose grammar is optional, and the argument position it takes (1-based). The
- *  checker cannot see a missing grammar there, so the call's text is read instead. */
+ *  checker cannot see a missing grammar there, so the call's text is read instead. The core
+ *  `computeInlineContent` requires one, but the plugin barrel publishes the same name without. */
 const OPTIONAL_GRAMMAR_POSITION: Record<string, number> = {
 	parseInline: 5,
 	computeInlineContent: 3,
@@ -21,6 +22,7 @@ const OPTIONAL_GRAMMAR_POSITION: Record<string, number> = {
 /** The readers whose grammar is a required parameter, so the checker refuses a call without one. */
 const REQUIRED_GRAMMAR_READERS: Record<string, string> = {
 	scanInline: 'src/lib/core/inline/scan/index.ts',
+	computeInlineContent: 'src/lib/core/inline/index.ts',
 	getInlineContent: 'src/lib/core/inline/inline-cache.ts',
 	isInlineWidget: 'src/lib/core/inline/inline-widgets.ts',
 	getInlineWidgetEditing: 'src/lib/core/inline/inline-widgets.ts',
@@ -66,6 +68,44 @@ describe('G4.68 the internal registry readers take the grammar as a required par
 			expect(parameters).toMatch(/\bgrammar: GrammarView\s*(,|$)/);
 		});
 	}
+});
+
+/** The places outside the parser, the grammar's own modules, the plugin barrel and the published
+ *  kits that fall back to every installed plugin, each where an optional grammar arrives. */
+const EVERY_PLUGIN_FALLBACKS: Record<string, string> = {
+	'src/lib/core/inline/index.ts:104': 'the published parseInline takes an optional grammar',
+	'src/lib/core/inline/inline-cache.ts:67': 'the action deps carry the link context optionally',
+	'src/lib/core/inline/transparency.ts:15': 'navigation reads transparency with no editor context',
+	'src/lib/core/inline-render.ts:414': 'the render options reach renderedText with no grammar',
+	'src/lib/editor-actions/enter-completion.ts:36': 'the action deps carry the grammar optionally',
+	'src/lib/core/directive/activate.ts:33': 'the published recognizer type takes an optional grammar'
+};
+
+const FALLBACK_EXEMPT = notUnder(
+	'src/lib/testing/',
+	'src/lib/core/parser.ts',
+	'src/lib/core/parsers/',
+	'src/lib/schema/block-openers.ts',
+	'src/lib/schema/registry-view.ts',
+	'src/lib/plugin.ts'
+);
+
+describe('G4.68 the every-plugin fallback is spelled only in its listed places', () => {
+	const found: string[] = [];
+	for (const file of collectEditorSources().filter(FALLBACK_EXEMPT)) {
+		const code = file.code.replace(/^import[^;]*;/gm, (statement) => statement.replace(/\S/g, ' '));
+		code.split('\n').forEach((line, index) => {
+			if (/\bdefaultGrammarView\b/.test(line)) found.push(`${file.relPath}:${index + 1}`);
+		});
+	}
+
+	it('names no fallback outside the list', () => {
+		expect(found.filter((key) => !(key in EVERY_PLUGIN_FALLBACKS))).toEqual([]);
+	});
+
+	it('lists no place that no longer falls back', () => {
+		expect(Object.keys(EVERY_PLUGIN_FALLBACKS).filter((key) => !found.includes(key))).toEqual([]);
+	});
 });
 
 /** The published kits and the plugin API run outside any editor, so the whole process is theirs. */

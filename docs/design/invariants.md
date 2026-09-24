@@ -1455,10 +1455,13 @@ counts, and the mermaid focus view, which a plugin owns.
 
 **G4.68 · Registry reads take the editor's grammar.** The inline syntax, widget kind, directive
 and completer registries are process-wide, and the editor's grammar is what leaves out a plugin
-its `plugins` prop did not list (#266). Every call to one of their readers outside the registry
-modules, and to the helpers that read through them, passes the grammar in its own argument slot,
-so a read that falls back to every installed plugin is visible. The sites with no grammar in
-reach are listed with their reasons. `lint/registry-view-reads.test.ts`.
+its `plugins` prop did not list (#266). The internal readers declare the grammar as a required
+parameter, so the type checker refuses a call without one. The readers whose grammar stays
+optional (the published `parseInline` and `computeInlineContent` among them) are held to passing
+it in its own argument slot, and a fallback to every installed plugin is spelled only in the
+listed places. The reads still left unthreaded are listed with their reasons: the verification
+reads (#432), navigation's transparency check, and the plugin API's inline read (#433).
+`lint/registry-view-reads.test.ts`.
 
 **G4.69 · Reparses take the editor's grammar.** Every `parse` call outside the parser passes a
 grammar, so no edit reads a syntax the editor switched off or an unlisted plugin's opener (#429).
