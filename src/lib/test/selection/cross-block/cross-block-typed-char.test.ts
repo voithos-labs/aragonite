@@ -2,6 +2,8 @@
 import { describe, it, expect } from 'vitest';
 import { lrdMapCouldChange } from '$lib/components/lrd-map-gate';
 import { buildLinkReferenceMap } from '$lib/core/inline/link-reference-resolver';
+import { serialize } from '$lib/core/serializer';
+import { createHistoryActions } from '$lib/editor-actions/commit/history';
 import { makeEnv, makeHandlers, selectAcross, makeBeforeInputEvent } from './typed-char-env';
 import type { CstNode } from '$lib/core/nodes';
 import type { EditEvent } from '$lib/editor-events';
@@ -75,6 +77,19 @@ describe('cross-block typed character: A2/A3 event symmetry', () => {
 		const snapshot = stacks.undo[0].snapshot;
 		const snapshotSource = snapshot.children.map((c) => (c as CstNode).raw).join('');
 		expect(snapshotSource).toBe(before);
+	});
+
+	// Miss-analysis: the environment's document write was a no-op and no test here pressed undo,
+	// so an undo restore would have passed against a document that never went back.
+	it('undo after the typed character restores the document the range covered', async () => {
+		const env = makeEnv('alpha\n\nbeta\n');
+		selectAcross(env.selectionState, [0], [1]);
+		await makeHandlers(env, [0]).handleBeforeInput(makeBeforeInputEvent('Z'));
+		expect(serialize(env.deps.doc)).not.toBe('alpha\n\nbeta\n');
+
+		await createHistoryActions(env.deps, env.controller).requestUndo();
+
+		expect(serialize(env.deps.doc)).toBe('alpha\n\nbeta\n');
 	});
 });
 

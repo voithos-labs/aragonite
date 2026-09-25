@@ -5,31 +5,47 @@ import {
 	dispatchFocusAtColumn
 } from '$lib/editor-actions/focus/focus-dispatch';
 import { CURSOR_END, CURSOR_START } from '$lib/block-component';
-import { mockRef, makeStickyColumn, makeStubFocus } from '$lib/test/harness/editor-actions';
+import {
+	stubBlockComponent,
+	makeStickyColumn,
+	makeStubFocus
+} from '$lib/test/harness/editor-actions';
 
 describe('dispatchMoveFocus', () => {
 	it('delegates upward when innerIndex < 0', async () => {
 		const parentFocus = makeStubFocus();
-		await dispatchMoveFocus([mockRef({ focus: vi.fn() })], -1, 'end', makeStickyColumn(), {
-			focus: parentFocus,
-			index: 5
-		});
+		await dispatchMoveFocus(
+			[stubBlockComponent({ focus: vi.fn() })],
+			-1,
+			'end',
+			makeStickyColumn(),
+			{
+				focus: parentFocus,
+				index: 5
+			}
+		);
 		expect(parentFocus.moveFocus).toHaveBeenCalledWith(4, 'end');
 	});
 
 	it('delegates upward when innerIndex >= refs.length', async () => {
 		const parentFocus = makeStubFocus();
-		await dispatchMoveFocus([mockRef({ focus: vi.fn() })], 1, 'start', makeStickyColumn(), {
-			focus: parentFocus,
-			index: 5
-		});
+		await dispatchMoveFocus(
+			[stubBlockComponent({ focus: vi.fn() })],
+			1,
+			'start',
+			makeStickyColumn(),
+			{
+				focus: parentFocus,
+				index: 5
+			}
+		);
 		expect(parentFocus.moveFocus).toHaveBeenCalledWith(6, 'start');
 	});
 
 	it('forwards moveFocus options to the parent on upward delegation', async () => {
 		const parentFocus = makeStubFocus();
 		await dispatchMoveFocus(
-			[mockRef({ focus: vi.fn() })],
+			[stubBlockComponent({ focus: vi.fn() })],
 			1,
 			'start',
 			makeStickyColumn(),
@@ -40,7 +56,7 @@ describe('dispatchMoveFocus', () => {
 	});
 
 	it('routes numeric position to child.focus(offset)', async () => {
-		const child = mockRef({ focus: vi.fn() });
+		const child = stubBlockComponent({ focus: vi.fn() });
 		await dispatchMoveFocus([child], 0, 3, makeStickyColumn(), {
 			focus: makeStubFocus(),
 			index: 0
@@ -49,7 +65,7 @@ describe('dispatchMoveFocus', () => {
 	});
 
 	it("routes 'end' position to child.focus(CURSOR_END)", async () => {
-		const child = mockRef({ focus: vi.fn() });
+		const child = stubBlockComponent({ focus: vi.fn() });
 		await dispatchMoveFocus([child], 0, 'end', makeStickyColumn(), {
 			focus: makeStubFocus(),
 			index: 0
@@ -58,7 +74,7 @@ describe('dispatchMoveFocus', () => {
 	});
 
 	it('sticky-column variant uses focusAtColumn when sticky X is set', async () => {
-		const child = mockRef({ focus: vi.fn(), focusAtColumn: vi.fn() });
+		const child = stubBlockComponent({ focus: vi.fn(), focusAtColumn: vi.fn() });
 		await dispatchMoveFocus([child], 0, { stickyColumnFrom: 'above' }, makeStickyColumn(42), {
 			focus: makeStubFocus(),
 			index: 0
@@ -68,7 +84,7 @@ describe('dispatchMoveFocus', () => {
 	});
 
 	it('sticky-column variant falls back to focus(CURSOR_START) when from=above and no sticky X', async () => {
-		const child = mockRef({ focus: vi.fn(), focusAtColumn: vi.fn() });
+		const child = stubBlockComponent({ focus: vi.fn(), focusAtColumn: vi.fn() });
 		await dispatchMoveFocus([child], 0, { stickyColumnFrom: 'above' }, makeStickyColumn(null), {
 			focus: makeStubFocus(),
 			index: 0
@@ -78,7 +94,7 @@ describe('dispatchMoveFocus', () => {
 	});
 
 	it('sticky-column variant falls back to CURSOR_END when from=below and child lacks focusAtColumn', async () => {
-		const child = mockRef({ focus: vi.fn() });
+		const child = stubBlockComponent({ focus: vi.fn() });
 		await dispatchMoveFocus([child], 0, { stickyColumnFrom: 'below' }, makeStickyColumn(42), {
 			focus: makeStubFocus(),
 			index: 0
@@ -89,7 +105,7 @@ describe('dispatchMoveFocus', () => {
 	// A target that cannot take focus must not stop the move (`docs/design/editor.md`
 	// § Focus traversal); with no focusable sibling ahead, the walk hands up to the parent.
 	it('non-focusable at the boundary: delegates upward in the move direction', async () => {
-		const child = mockRef({ focus: vi.fn(), focusable: false });
+		const child = stubBlockComponent({ focus: vi.fn(), focusable: false });
 		const parentFocus = makeStubFocus();
 		await dispatchMoveFocus([child], 0, 'start', makeStickyColumn(), {
 			focus: parentFocus,
@@ -101,8 +117,8 @@ describe('dispatchMoveFocus', () => {
 
 	// The interior counterpart: nothing goes to the parent while a focusable sibling remains.
 	it('non-focusable mid-chain: skips to the next focusable sibling', async () => {
-		const nonFocusable = mockRef({ focus: vi.fn(), focusable: false });
-		const focusable = mockRef({ focus: vi.fn(), focusable: true });
+		const nonFocusable = stubBlockComponent({ focus: vi.fn(), focusable: false });
+		const focusable = stubBlockComponent({ focus: vi.fn(), focusable: true });
 		const parentFocus = makeStubFocus();
 		await dispatchMoveFocus([nonFocusable, focusable], 0, 'start', makeStickyColumn(), {
 			focus: parentFocus,
@@ -116,21 +132,21 @@ describe('dispatchMoveFocus', () => {
 
 describe('dispatchFocusByPath', () => {
 	it('single-level path calls refs[first].focus(offset)', () => {
-		const leaf = mockRef({ focus: vi.fn() });
-		dispatchFocusByPath([mockRef({ focus: vi.fn() }), leaf], [1], 7);
+		const leaf = stubBlockComponent({ focus: vi.fn() });
+		dispatchFocusByPath([stubBlockComponent({ focus: vi.fn() }), leaf], [1], 7);
 		expect(leaf.focus).toHaveBeenCalledWith(7);
 	});
 
 	it('multi-level path recurses via child.focusByPath', () => {
 		const focusByPath = vi.fn();
-		const child = mockRef({ focus: vi.fn(), focusByPath });
+		const child = stubBlockComponent({ focus: vi.fn(), focusByPath });
 		dispatchFocusByPath([child], [0, 2], 5);
 		expect(focusByPath).toHaveBeenCalledWith([2], 5);
 	});
 
 	it('empty path calls refs[0].focus(offset)', () => {
-		const first = mockRef({ focus: vi.fn() });
-		dispatchFocusByPath([first, mockRef({ focus: vi.fn() })], [], 3);
+		const first = stubBlockComponent({ focus: vi.fn() });
+		dispatchFocusByPath([first, stubBlockComponent({ focus: vi.fn() })], [], 3);
 		expect(first.focus).toHaveBeenCalledWith(3);
 	});
 
@@ -141,36 +157,36 @@ describe('dispatchFocusByPath', () => {
 
 describe('dispatchFocusAtColumn', () => {
 	it('from=above routes to first child', () => {
-		const first = mockRef({ focus: vi.fn(), focusAtColumn: vi.fn() });
-		const last = mockRef({ focus: vi.fn(), focusAtColumn: vi.fn() });
+		const first = stubBlockComponent({ focus: vi.fn(), focusAtColumn: vi.fn() });
+		const last = stubBlockComponent({ focus: vi.fn(), focusAtColumn: vi.fn() });
 		dispatchFocusAtColumn([first, last], 42, 'above');
 		expect(first.focusAtColumn).toHaveBeenCalledWith(42, 'above');
 		expect(last.focusAtColumn).not.toHaveBeenCalled();
 	});
 
 	it('from=below routes to last child', () => {
-		const first = mockRef({ focus: vi.fn(), focusAtColumn: vi.fn() });
-		const last = mockRef({ focus: vi.fn(), focusAtColumn: vi.fn() });
+		const first = stubBlockComponent({ focus: vi.fn(), focusAtColumn: vi.fn() });
+		const last = stubBlockComponent({ focus: vi.fn(), focusAtColumn: vi.fn() });
 		dispatchFocusAtColumn([first, last], 42, 'below');
 		expect(last.focusAtColumn).toHaveBeenCalledWith(42, 'below');
 		expect(first.focusAtColumn).not.toHaveBeenCalled();
 	});
 
 	it('falls back to focus(CURSOR_START) from above when child lacks focusAtColumn', () => {
-		const first = mockRef({ focus: vi.fn() });
+		const first = stubBlockComponent({ focus: vi.fn() });
 		dispatchFocusAtColumn([first], 42, 'above');
 		expect(first.focus).toHaveBeenCalledWith(CURSOR_START);
 	});
 
 	it('falls back to focus(CURSOR_END) from below when child lacks focusAtColumn', () => {
-		const last = mockRef({ focus: vi.fn() });
+		const last = stubBlockComponent({ focus: vi.fn() });
 		dispatchFocusAtColumn([last], 42, 'below');
 		expect(last.focus).toHaveBeenCalledWith(CURSOR_END);
 	});
 
 	it('passes over a vertically-transparent child', () => {
-		const transparent = mockRef({ focus: vi.fn(), isVerticallyTransparent: () => true });
-		const text = mockRef({ focus: vi.fn(), focusAtColumn: vi.fn() });
+		const transparent = stubBlockComponent({ focus: vi.fn(), isVerticallyTransparent: () => true });
+		const text = stubBlockComponent({ focus: vi.fn(), focusAtColumn: vi.fn() });
 		dispatchFocusAtColumn([transparent, text], 42, 'above');
 		expect(transparent.focus).not.toHaveBeenCalled();
 		expect(text.focusAtColumn).toHaveBeenCalledWith(42, 'above');
@@ -182,12 +198,12 @@ describe('dispatchFocusAtColumn', () => {
 		['above', 'start'],
 		['below', 'end']
 	] as const)('entry from %s stops on a transparent child, at its %s edge', (from, side) => {
-		const image = mockRef({
+		const image = stubBlockComponent({
 			focus: vi.fn(),
 			isVerticallyTransparent: () => true,
 			enterEdgeWidget: vi.fn(() => true)
 		});
-		const text = mockRef({ focus: vi.fn(), focusAtColumn: vi.fn() });
+		const text = stubBlockComponent({ focus: vi.fn(), focusAtColumn: vi.fn() });
 		dispatchFocusAtColumn(from === 'above' ? [image, text] : [text, image], 42, from);
 		expect(image.enterEdgeWidget).toHaveBeenCalledWith(side);
 		expect(text.focusAtColumn).not.toHaveBeenCalled();

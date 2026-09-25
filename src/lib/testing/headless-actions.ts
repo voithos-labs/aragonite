@@ -1,17 +1,19 @@
 /**
- * A headless editor-actions environment for the published conformance kits. Nothing here may
- * import a test runner, since an author's own suite imports this subpath.
+ * The one headless `EditorActionsDeps` builder, behind the published conformance kits and the
+ * in-repo test harness alike. Nothing here may import a test runner, since an author's own suite
+ * imports this subpath; a runner's mock enters through the `spy` option.
  */
 
 import type { BlockEditActions, FocusActions } from '../action-contracts';
 import type { BlockComponent } from '../block-component';
 import type { CstNode, Document } from '../core/nodes';
+import { parse } from '../core/parser';
 import type { StickyColumnState } from '../cursor/sticky-column';
 import type { EdgeAffinityState } from '../cursor/edge-affinity';
 import type { EditorActionsDeps } from '../editor-actions/deps';
+import type { PresentationMode } from '../presentation-mode';
 import { defaultGrammarView } from '../schema/block-openers';
 import { createEditorEvents, type EditorEvents } from '../editor-events';
-import { createBlockListState, type BlockListState } from '../reactivity/block-list-state.svelte';
 import { refSlotsOver, replaceRefs } from '../reactivity/publish-ref.svelte';
 import { createSelectionState } from '../selection/selection-state.svelte';
 import { createSharingState } from '../tree-operations/sharing';
@@ -19,13 +21,14 @@ import { createUndoManager } from '../undo/manager';
 
 // ── Stubs ────────────────────────────────────────────────────────────────────
 
-export function stubBlockComponent(): BlockComponent {
+export function stubBlockComponent(overrides: Partial<BlockComponent> = {}): BlockComponent {
 	return {
 		focus: () => {},
 		parkCaret: () => {},
 		getCursorOffset: () => null,
 		editable: true,
-		focusable: true
+		focusable: true,
+		...overrides
 	} as BlockComponent;
 }
 
@@ -77,35 +80,47 @@ export function recordingFocus(): RecordingFocus {
 	};
 }
 
-// ── Block-list state ─────────────────────────────────────────────────────────
-
-/**
- * A `BlockListState` pre-filled with one ref per child, because the `$effect` that fills refs never
- * runs headlessly. `getNode` reads the live node: the commit primitives replace the ancestor nodes,
- * so a captured reference goes stale after the first commit.
- */
-export function mountBlockListState(getNode: () => CstNode): BlockListState {
-	const state = createBlockListState(() => getNode());
-	replaceRefs(
-		state.innerBlockRefs,
-		(getNode().children ?? []).map(() => stubBlockComponent())
-	);
-	return state;
-}
-
 // ── Editor-actions environment ───────────────────────────────────────────────
+
+export interface HeadlessActionsOptions {
+	/** Wraps each stubbed collaborator (the sticky column, the edge affinity, every block ref), so
+	 *  a runner's mock can record the calls. */
+	spy?: <T extends object>(stub: T) => T;
+	/** A construction option because `SelectionState` cannot take one later. */
+	onSelectionChange?: () => void;
+	presentationMode?: PresentationMode;
+	bumpContentVersion?: () => void;
+}
 
 export interface HeadlessActions {
 	deps: EditorActionsDeps;
 	doc: Document;
 	events: EditorEvents;
+	getBlockIds(): string[];
+	getBlockRefs(): (BlockComponent | undefined)[];
 }
 
-/** An `EditorActionsDeps` over `docChildren`, with every block treated as mounted. */
-export function createHeadlessActions(docChildren: CstNode[]): HeadlessActions {
-	const doc: Document = { kind: 'document', prefix: '', children: docChildren, suffix: '' };
-	let blockIds = docChildren.map((_, i) => `block-${i}`);
-	const blockRefs: (BlockComponent | undefined)[] = docChildren.map(() => stubBlockComponent());
+/**
+ * An `EditorActionsDeps` over `source`, with every block treated as mounted. Pass a whole parsed
+ * `Document` (or the source text) rather than its children: its `suffix` holds the trailing blank
+ * line a children-only fixture loses.
+ */
+export function createHeadlessActions(
+	source: string | Document | CstNode[],
+	options: HeadlessActionsOptions = {}
+): HeadlessActions {
+	const whole = documentOf(source);
+	const doc: Document = {
+		kind: 'document',
+		prefix: whole.prefix,
+		children: whole.children,
+		suffix: whole.suffix
+	};
+	const spy = options.spy ?? (<T>(stub: T) => stub);
+	let blockIds = doc.children.map((_, i) => `block-${i}`);
+	const blockRefs: (BlockComponent | undefined)[] = doc.children.map(() =>
+		spy(stubBlockComponent())
+	);
 	const events = createEditorEvents();
 	const deps: EditorActionsDeps = {
 		get doc() {
@@ -118,22 +133,30 @@ export function createHeadlessActions(docChildren: CstNode[]): HeadlessActions {
 			return blockRefs;
 		},
 		blockRefSlots: refSlotsOver(blockRefs),
-		setDoc: (v: Document) => {
-			Object.assign(doc, v);
+		// In place, so `doc` stays the one live document the caller holds.
+		setDoc: (next: Document) => {
+			Object.assign(doc, next);
 		},
-		setBlockIds: (v: string[]) => {
-			blockIds = v;
+		setBlockIds: (next: string[]) => {
+			blockIds = next;
 		},
-		setBlockRefs: (v: (BlockComponent | undefined)[]) => {
-			replaceRefs(blockRefs, v);
+		setBlockRefs: (next: (BlockComponent | undefined)[]) => {
+			replaceRefs(blockRefs, next);
 		},
-		bumpContentVersion: () => {},
+		bumpContentVersion: options.bumpContentVersion ?? (() => {}),
 		undoManager: createUndoManager(),
 		sharing: createSharingState(),
-		stickyColumn: stubStickyColumn(),
-		edgeAffinity: stubEdgeAffinity(),
-		selectionState: createSelectionState(),
+		stickyColumn: spy(stubStickyColumn()),
+		edgeAffinity: spy(stubEdgeAffinity()),
+		// Document-aware, as the editor's own is: without the document a deep table endpoint is
+		// stored raw, and every dispatch sees endpoints the editor never makes.
+		selectionState: createSelectionState({
+			getDoc: () => doc,
+			...(options.onSelectionChange ? { onChange: options.onSelectionChange } : {})
+		}),
 		getBlockElByPath: () => null,
+		// No render window: every block counts as mounted, so a reveal takes the editor's
+		// already-mounted route, reading the live refs and descending if nested.
 		revealPath: async (path: number[]) => {
 			if (path.length === 0) return null;
 			const ref = blockRefs[path[0]];
@@ -144,7 +167,14 @@ export function createHeadlessActions(docChildren: CstNode[]): HeadlessActions {
 		events,
 		// An author's suite runs with no editor, so every installed plugin is in the grammar.
 		grammar: defaultGrammarView,
-		linkRef: { grammar: defaultGrammarView }
+		linkRef: { grammar: defaultGrammarView },
+		getPresentationMode: options.presentationMode ? () => options.presentationMode! : undefined
 	};
-	return { deps, doc, events };
+	return { deps, doc, events, getBlockIds: () => blockIds, getBlockRefs: () => blockRefs };
+}
+
+function documentOf(source: string | Document | CstNode[]): Document {
+	if (typeof source === 'string') return parse(source);
+	if (Array.isArray(source)) return { kind: 'document', prefix: '', children: source, suffix: '' };
+	return source;
 }

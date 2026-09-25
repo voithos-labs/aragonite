@@ -31,9 +31,9 @@ import { rebuildContainerRawIfContainer } from '../schema/container-raw';
 import { createSharingState } from '../tree-operations/sharing';
 import { rebuildUnsharedAncestry } from '../tree-operations/chain-rebuild';
 import { assertParseConverged } from './parse-convergence';
+import { mountBlockListState } from './headless-block-list.svelte';
 import {
 	createHeadlessActions,
-	mountBlockListState,
 	recordingFocus,
 	stubBlockEdit,
 	stubStickyColumn

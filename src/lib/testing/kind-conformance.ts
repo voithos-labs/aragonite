@@ -345,7 +345,7 @@ async function execUndo(cell: ClosureCell, ctx: KindCellContext | null): Promise
 		`the kit's trailing sentinel parses beside the "${ctx.kind}" fixture rather than being ` +
 			`swallowed by it, so there is a second block to delete`
 	);
-	const { deps } = createHeadlessActions(doc.children);
+	const { deps } = createHeadlessActions(doc);
 	const controller = createUndoController(deps);
 	const blockEdit = createBlockEditActions(deps, controller);
 	const before = deps.undoManager.getStacks().undo.length;

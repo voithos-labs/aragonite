@@ -10,7 +10,7 @@ import { createHistoryActions } from '$lib/editor-actions/commit/history';
 import { createReorderAction } from '$lib/editor-actions/reorder-action';
 import { createBlockListState } from '$lib/reactivity/block-list-state.svelte';
 import { replaceRefs } from '$lib/reactivity/publish-ref.svelte';
-import { mockRef, makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
+import { stubBlockComponent, makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
 import { expectParseConverged } from '$lib/test/harness/parse-converged';
 import { blockNodeAt } from '$lib/tree-operations/node-primitives';
 
@@ -28,7 +28,7 @@ export function makeReorderContainer(
 	const state = createBlockListState(node);
 	replaceRefs(
 		state.innerBlockRefs,
-		(node().children ?? []).map(() => mockRef())
+		(node().children ?? []).map(() => stubBlockComponent())
 	);
 	return {
 		doc: harness.doc,

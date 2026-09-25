@@ -1,13 +1,8 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
 import { pasteDispatch } from '$lib/tree-operations/paste/dispatch';
-import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
-import {
-	makeRunningPasteController,
-	makeStubBlockEdit,
-	pasteContext
-} from '$lib/test/harness/editor-actions';
+import { makePasteCommit, makeStubBlockEdit, pasteContext } from '$lib/test/harness/editor-actions';
 import { allowDevWarns } from '$lib/test/support/warn-gate';
 
 // B-F3: container-match was the one paste route reading the throwing state lookup, so an
@@ -18,17 +13,16 @@ import { allowDevWarns } from '$lib/test/support/warn-gate';
 
 describe('container-matching paste at an unmounted outer scope', () => {
 	it('splices the clipboard through the tolerant entry point rather than dropping it', async () => {
-		const doc = parse('- a\n- keep\n');
-		const list = doc.children[0];
+		const { doc, controller } = makePasteCommit('- a\n- keep\n');
 		// A post-cross-block-delete stub, with no BlockListState registered for the list.
-		list.children![0].children![0].raw = '';
+		doc.children[0].children![0].children![0].raw = '';
 
 		await pasteDispatch(
 			{ pastedText: '- x\n- y\n', targetPath: [0, 0, 0], offset: 0 },
 			pasteContext({
 				doc,
 				blockEdit: makeStubBlockEdit(),
-				controller: makeRunningPasteController(),
+				controller,
 				undoEntry: 'join'
 			})
 		);

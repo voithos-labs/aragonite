@@ -9,7 +9,7 @@ import { parse } from '$lib/core/parser';
 import { createFocusActions } from '$lib/editor-actions/focus/focus';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
 import { createEdgeAffinityState } from '$lib/cursor/edge-affinity';
-import { makeEditorActionsDeps, mockRef } from '$lib/test/harness/editor-actions';
+import { makeEditorActionsDeps, stubBlockComponent } from '$lib/test/harness/editor-actions';
 import type { FocusPosition } from '$lib/block-component';
 
 // `**bold**` above a fence: the caret lands in the closer's hidden run, where 'near' reads as
@@ -22,7 +22,7 @@ function harnessFor(source: string) {
 	// answers null however the move calls it.
 	const affinity = createEdgeAffinityState();
 	deps.edgeAffinity = affinity;
-	deps.setBlockRefs(doc.children.map(() => mockRef({ focus: vi.fn() })));
+	deps.setBlockRefs(doc.children.map(() => stubBlockComponent({ focus: vi.fn() })));
 	const focus = createFocusActions(deps, createUndoController(deps));
 	return {
 		affinity,

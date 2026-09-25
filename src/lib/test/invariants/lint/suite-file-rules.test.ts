@@ -15,6 +15,7 @@ const mockCall = (spec: string) => `vi.${'mock'}(${quoted("'", spec)}, () => ({}
 const spyCall = (mark: string, channel: string) =>
 	`vi.spyOn(console, ${quoted(mark, channel)}).mockImplementation(() => {});`;
 const clockRead = (host: string) => `const t = ${host}.now();`;
+const depsField = (name: string) => `const deps = { ${name}: refSlotsOver(refs) };`;
 
 const SUITE_DIRS = ['src/lib/test/', 'src/lib/e2e/'];
 const PERF_DIRS = ['src/lib/test/perf/', 'src/lib/e2e/tests/perf/'];
@@ -79,6 +80,19 @@ const RULES: FileRule[] = [
 			at('src/lib/e2e/tests/perf/x.perf.spec.ts', clockRead('performance')),
 			at('src/lib/test/perf/y.bench.ts', clockRead('performance'))
 		]
+	},
+	{
+		id: 'one EditorActionsDeps builder for every suite',
+		population: under('src/lib/test/', 'src/lib/testing/'),
+		matches: /\bblockRefSlots\s*:/,
+		allowed: {
+			'src/lib/testing/headless-actions.ts':
+				'the builder the kits and makeEditorActionsDeps share, with the document-aware selection and the real document write'
+		},
+		reason:
+			'a hand-built EditorActionsDeps drifts from the editor: build one with createHeadlessActions, or makeEditorActionsDeps for spied collaborators',
+		hits: [at('src/lib/test/a.test.ts', depsField(['block', 'RefSlots'].join('')))],
+		misses: [at('src/lib/test/b.test.ts', depsField('refSlots'))]
 	},
 	{
 		id: 'no inline block-content selector in e2e specs',

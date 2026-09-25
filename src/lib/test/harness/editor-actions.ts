@@ -1,6 +1,7 @@
-// Shared mocks for editor-actions and selection unit tests.
+// Shared mocks for editor-actions and selection unit tests: the published headless stubs
+// (`testing/headless-actions.ts`) with every member a `vi.fn`, so a test can assert on calls.
 
-import { vi } from 'vitest';
+import { vi, type Mocked } from 'vitest';
 import type {
 	BlockEditActions,
 	ContainerEditActions,
@@ -17,7 +18,7 @@ import type { InlineMarkKind } from '$lib/schema/inline-construct-policy';
 import type { EditorActionsDeps, UndoController } from '$lib/editor-actions/deps';
 import type { CommitScope, ScopeCommitArgs } from '$lib/editor-actions/block-edit-scope';
 import type { ContainerBlockComponentDeps } from '$lib/editor-actions/container-block-component';
-import { refSlotsOver, replaceRefs } from '$lib/reactivity/publish-ref.svelte';
+import { refSlotsOver } from '$lib/reactivity/publish-ref.svelte';
 import type { PasteCommitCoordinator } from '$lib/tree-operations/paste/paste-deps';
 import type { PasteDispatchContext } from '$lib/tree-operations/paste/dispatch';
 import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
@@ -38,19 +39,22 @@ import { defaultGrammarView, type GrammarView } from '$lib/schema/block-openers'
 import { fixtureLinkRef } from './fixture-grammar';
 import { parse } from '$lib/core/parser';
 import type { EditEvent, EditorEvents } from '$lib/editor-events';
-import { createBlockListState } from '$lib/reactivity/block-list-state.svelte';
+import { mountBlockListState } from '$lib/testing/headless-block-list.svelte';
 import type { BlockListState } from '$lib/reactivity/block-list-state.svelte';
-import {
-	registerBlockListState,
-	getStateForNode,
-	expectStateForNode
-} from '$lib/reactivity/state-registry';
-import { createUndoManager } from '$lib/undo/manager';
-import { createSharingState, type SharingState } from '$lib/tree-operations/sharing';
-import { rebuildOwnedContainer } from '$lib/tree-operations/unshare';
+import { getStateForNode, expectStateForNode } from '$lib/reactivity/state-registry';
+import { createSharingState } from '$lib/tree-operations/sharing';
+import { createPasteCoordinator } from '$lib/editor-actions/paste-coordinator';
 import { createSelectionState } from '$lib/selection/selection-state.svelte';
 import type { GapStopScope } from '$lib/selection/gap-caret';
-import { createEditorEvents } from '$lib/editor-events';
+import {
+	createHeadlessActions,
+	stubBlockComponent,
+	stubBlockEdit,
+	stubEdgeAffinity,
+	stubStickyColumn,
+	type HeadlessActions,
+	type HeadlessActionsOptions
+} from '$lib/testing/headless-actions';
 
 // ── CST node factory ─────────────────────────────────────────────────────────
 
@@ -64,17 +68,19 @@ export function parseLeaf(raw: string): CstNode {
 	return parse(raw).children[0];
 }
 
-// ── BlockComponent / sticky-column stubs ─────────────────────────────────────
+// ── Spied stubs ──────────────────────────────────────────────────────────────
 
-export function mockRef(overrides: Partial<BlockComponent> = {}): BlockComponent {
-	return {
-		focus: () => {},
-		getCursorOffset: () => null,
-		editable: true,
-		focusable: true,
-		...overrides
-	} as BlockComponent;
+/** `stub` with every method wrapped in `vi.fn`, keeping its behavior: the member list lives only
+ *  in the published stub, so a new member fails `npm run check` in one place. */
+export function spyEvery<T extends object>(stub: T): Mocked<T> {
+	const spied = { ...stub } as Record<string, unknown>;
+	for (const [key, value] of Object.entries(spied)) {
+		if (typeof value === 'function') spied[key] = vi.fn(value as (...args: unknown[]) => unknown);
+	}
+	return spied as Mocked<T>;
 }
+
+export { stubBlockComponent };
 
 /** A gap scope over `source`: the kinds it parses to are what declare the eligible edges. */
 export function makeGapScope(source: string): GapStopScope {
@@ -87,19 +93,13 @@ export function makeEmptyGapScope(): GapStopScope {
 	return makeGapScope('');
 }
 
-export function makeStickyColumn(x: number | null = null): StickyColumnState {
+export function makeStickyColumn(x: number | null = null): Mocked<StickyColumnState> {
 	const stickyX = x === null ? null : asEditorX(x);
-	return { get: () => stickyX, reset: vi.fn(), capture: vi.fn(), noteKey: vi.fn() };
+	return spyEvery({ ...stubStickyColumn(), get: () => stickyX });
 }
 
-export function makeEdgeAffinity(): EdgeAffinityState {
-	return {
-		get: () => null,
-		reset: vi.fn(),
-		note: vi.fn(),
-		noteTyping: vi.fn(),
-		noteExtreme: vi.fn()
-	};
+export function makeEdgeAffinity(): Mocked<EdgeAffinityState> {
+	return spyEvery(stubEdgeAffinity());
 }
 
 /** The real state, armed with `kinds`: a stub would hide the one property every consumer
@@ -110,26 +110,12 @@ export function makePendingMarks(...kinds: InlineMarkKind[]): PendingMarksState 
 	return marks;
 }
 
-// ── BlockListState stub ──────────────────────────────────────────────────────
+// ── BlockListState ───────────────────────────────────────────────────────────
 
-// `createBlockListState` without Svelte reactivity: ids live on the nodes, refs are local.
-// `getNode` reads the live node, because a commit copies its ancestors and a captured node goes
-// stale (`tree-operations/unshare.ts`); every harness below takes a getter for that reason.
+/** The production state over `getNode` with every child outside the render window, so no ref
+ *  answers. `getNode` reads the live node, because a commit copies its ancestors. */
 export function makeBlockListState(getNode: () => CstNode, ids?: string[]): BlockListState {
-	const node = getNode();
-	if (ids) node.childIds = [...ids];
-	else if (!node.childIds) node.childIds = (node.children ?? []).map((_, i) => `auto-${i}`);
-	const innerBlockRefs: (BlockComponent | undefined)[] = (node.childIds ?? []).map(() => undefined);
-	return {
-		get innerBlockIds() {
-			return getNode().childIds ?? [];
-		},
-		set innerBlockIds(v: string[]) {
-			getNode().childIds = v;
-		},
-		innerBlockRefs,
-		refSlots: refSlotsOver(innerBlockRefs)
-	};
+	return mountBlockListState(getNode, { ids, refAt: () => undefined });
 }
 
 // ── CommitScope stub ─────────────────────────────────────────────────────────
@@ -206,18 +192,8 @@ export function makeShimDeps(
 
 // ── Action-bundle stubs ──────────────────────────────────────────────────────
 
-export function makeStubBlockEdit(): BlockEditActions {
-	return {
-		splitBlock: vi.fn(),
-		descendToBody: vi.fn(),
-		insertParagraph: vi.fn(),
-		mergeWithPrevious: vi.fn(),
-		mergeWithNext: vi.fn(),
-		deleteBlock: vi.fn(),
-		updateBlockContent: vi.fn(),
-		updateBlockMetadata: vi.fn(),
-		replaceBlock: vi.fn()
-	};
+export function makeStubBlockEdit(): Mocked<BlockEditActions> {
+	return spyEvery(stubBlockEdit());
 }
 
 // revealPath resolves null: these consumers assert on moveFocus, not on the
@@ -259,48 +235,27 @@ export function makeStubController(): UndoController & PasteCommitCoordinator {
 
 // ── Paste-dispatch stubs ─────────────────────────────────────────────────────
 
-/** The minimal registered state the paste router resolves for a container scope. */
+/** The registered state the paste router resolves for a container scope, every child unmounted. */
 export function registerStubBlockListState(node: CstNode): void {
-	registerBlockListState(node, {
-		innerBlockIds: (node.children ?? []).map((_, i) => `iid-${i}`),
-		innerBlockRefs: (node.children ?? []).map(() => undefined as BlockComponent | undefined)
-	} as unknown as Parameters<typeof registerBlockListState>[1]);
+	makeBlockListState(() => node);
 }
 
-// Mirrors the real primitive's owned-scope protocol: attach working children, run
-// mutate, rebuild scope raws.
-export function makeRunningPasteController(): UndoController & PasteCommitCoordinator {
+/** The editor's paste coordinator over a real undo controller on `source`. Read results through
+ *  the returned `doc`: a commit replaces the nodes it touches rather than writing into them. */
+export function makePasteCommit(source: string | Document): {
+	doc: Document;
+	controller: PasteCommitCoordinator;
+} {
+	const { deps } = makeEditorActionsDeps(source);
 	return {
-		...makeStubController(),
-		commitMultiScope: vi.fn(
-			async ({
-				scopes,
-				mutate
-			}: {
-				scopes: { node: CstNode }[];
-				mutate: (v: { children: CstNode[]; node: CstNode; sharing: SharingState }[]) => unknown;
-			}) => {
-				const sharing = createSharingState();
-				const views = scopes.map((s) => {
-					const children = [...(s.node.children ?? [])];
-					s.node.children = children;
-					return { children, node: s.node, sharing };
-				});
-				mutate(views);
-				for (const s of scopes) rebuildOwnedContainer(s.node, sharing);
-			}
-		)
-	} as unknown as UndoController & PasteCommitCoordinator;
+		doc: deps.doc,
+		controller: createPasteCoordinator(createUndoController(deps), deps.revealPath)
+	};
 }
 
 // ── EditorActionsDeps factory ────────────────────────────────────────────────
 
-export interface EditorActionsHarness {
-	deps: EditorActionsDeps;
-	doc: Document;
-	events: EditorEvents;
-	getBlockIds: () => string[];
-	getBlockRefs: () => (BlockComponent | undefined)[];
+export interface EditorActionsHarness extends HeadlessActions {
 	/** A plain counter standing in for the editor's content version, so a test can ask whether the
 	 *  function it drove announced its write. */
 	contentVersion: () => number;
@@ -315,81 +270,20 @@ export function pasteContext(
 	return { grammar: defaultGrammarView, activePlugins: everyInstalledPlugin, ...fields };
 }
 
-// `onSelectionChange` is a construction option because `SelectionState` cannot take one later.
-// Pass a whole parsed `Document`: its `suffix` holds the trailing blank line a children-only
-// fixture would lose.
+/** The published headless deps with spied collaborators and a content-version counter. */
 export function makeEditorActionsDeps(
-	source: CstNode[] | Document,
-	options: { onSelectionChange?: () => void; presentationMode?: PresentationMode } = {}
+	source: string | CstNode[] | Document,
+	options: Omit<HeadlessActionsOptions, 'spy' | 'bumpContentVersion'> = {}
 ): EditorActionsHarness {
-	const parsed: Document | undefined = Array.isArray(source) ? undefined : source;
-	const docChildren: CstNode[] = Array.isArray(source) ? source : source.children;
-	const doc: Document = {
-		kind: 'document',
-		prefix: parsed?.prefix ?? '',
-		children: docChildren,
-		suffix: parsed?.suffix ?? ''
-	};
-	let blockIds = docChildren.map((_, i) => `block-${i}`);
-	const blockRefs: (BlockComponent | undefined)[] = docChildren.map(() => mockRef());
-	const events = createEditorEvents();
 	let contentVersion = 0;
-	const deps: EditorActionsDeps = {
-		get doc() {
-			return doc;
-		},
-		get blockIds() {
-			return blockIds;
-		},
-		get blockRefs() {
-			return blockRefs;
-		},
-		blockRefSlots: refSlotsOver(blockRefs),
-		setDoc: (v: Document) => {
-			Object.assign(doc, v);
-		},
-		setBlockIds: (v: string[]) => {
-			blockIds = v;
-		},
-		setBlockRefs: (v: (BlockComponent | undefined)[]) => {
-			replaceRefs(blockRefs, v);
-		},
+	const headless = createHeadlessActions(source, {
+		...options,
+		spy: spyEvery,
 		bumpContentVersion: () => {
 			contentVersion++;
-		},
-		undoManager: createUndoManager(),
-		sharing: createSharingState(),
-		stickyColumn: makeStickyColumn(),
-		edgeAffinity: makeEdgeAffinity(),
-		// The document getter turns on the production endpoint normalization; without it a deep
-		// table path is stored raw and every dispatch test sees endpoints production never makes.
-		selectionState: createSelectionState({
-			getDoc: () => doc,
-			...(options.onSelectionChange ? { onChange: options.onSelectionChange } : {})
-		}),
-		getBlockElByPath: () => null,
-		// No render window in unit tests: every block counts as mounted, so scrolling one into
-		// view takes the production fast path, reading the live refs and descending if nested.
-		revealPath: async (path: number[]) => {
-			if (path.length === 0) return null;
-			const ref = blockRefs[path[0]];
-			if (!ref) return null;
-			if (path.length === 1) return ref;
-			return ref.getBlockComponentByPath?.(path.slice(1)) ?? null;
-		},
-		events,
-		grammar: defaultGrammarView,
-		linkRef: fixtureLinkRef(),
-		getPresentationMode: options.presentationMode ? () => options.presentationMode! : undefined
-	};
-	return {
-		deps,
-		doc,
-		events,
-		getBlockIds: () => blockIds,
-		getBlockRefs: () => blockRefs,
-		contentVersion: () => contentVersion
-	};
+		}
+	});
+	return { ...headless, contentVersion: () => contentVersion };
 }
 
 // ── Top-level action-bundle harness ──────────────────────────────────────────
@@ -441,7 +335,6 @@ export function makeListContextAt(
 ): ListContextHarness {
 	const getNode = () => deps.doc.children[listIndex];
 	const state = makeBlockListState(getNode, opts.ids);
-	registerBlockListState(getNode(), state);
 	const controller = opts.controller ?? createUndoController(deps);
 	const listContext = createListContext({
 		scope: {
@@ -515,16 +408,12 @@ export interface NestedHarnessOptions {
 	overrides?: NestedActionsOverrideFactory;
 	/** Wire the standard list-item overrides (unwrap/merge/delete) onto the bundle. */
 	listOverrides?: boolean;
-	/** Take the id-mirroring stub instead of the reactive state, for a driver with no effect
-	 *  root to own the production state's `$effect` (the jsdom gesture fuzzer). */
-	stubState?: boolean;
 	grammar?: GrammarView;
 	presentationMode?: PresentationMode;
 }
 
-// Full nested-container setup over `source` (parsed) or an explicit node list. The
-// state is the production createBlockListState (reactive, self-registering), so the
-// container under test has a mounted container's shape.
+// Full nested-container setup over `source` (parsed) or an explicit node list, on the
+// production block-list state, so the container under test has a mounted container's shape.
 export function makeNestedHarness(
 	input: string | CstNode[] | Document,
 	opts: NestedHarnessOptions = {}
@@ -539,8 +428,7 @@ export function makeNestedHarness(
 	const controller = createUndoController(deps);
 	const containerEdit = createContainerEditActions(deps, controller);
 	const getNode = () => deps.doc.children[index];
-	const state = opts.stubState ? makeBlockListState(getNode) : createBlockListState(getNode);
-	if (opts.stubState) registerBlockListState(getNode(), state);
+	const state = makeBlockListState(getNode);
 	const overrides = opts.listOverrides
 		? createListOverrides({
 				scope: {

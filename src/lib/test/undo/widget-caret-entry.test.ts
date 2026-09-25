@@ -5,7 +5,7 @@ import { describe, it, expect } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
 import type { EditorSelection } from '$lib/selection/primitives';
-import { makeEditorActionsDeps, mockRef } from '$lib/test/harness/editor-actions';
+import { makeEditorActionsDeps, stubBlockComponent } from '$lib/test/harness/editor-actions';
 
 // What an undo entry records while an image is selected whole, when the user's caret is the one
 // from before the selection and no block's report can be trusted.
@@ -41,14 +41,14 @@ describe('an undo entry recorded while an image is selected', () => {
 	// records the entry runs before the editor drops it.
 	it('outranks a caret the paragraph reports while its image is selected', () => {
 		const h = harness(BESIDE_IMAGE);
-		h.deps.blockRefs[0] = mockRef({ getCursorOffset: () => 0 });
+		h.deps.blockRefs[0] = stubBlockComponent({ getCursorOffset: () => 0 });
 
 		expect(h.controller.captureCurrentState().selection).toEqual(BESIDE_IMAGE);
 	});
 
 	it('leaves a live caret to answer when no image is selected', () => {
 		const h = harness(null);
-		h.deps.blockRefs[1] = mockRef({ getCursorOffset: () => 4 });
+		h.deps.blockRefs[1] = stubBlockComponent({ getCursorOffset: () => 4 });
 
 		expect(h.controller.captureCurrentState().selection).toEqual({
 			anchor: { path: [1], offset: 4 },

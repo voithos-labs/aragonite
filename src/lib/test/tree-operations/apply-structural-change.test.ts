@@ -1,12 +1,12 @@
 import { describe, it, expect } from 'vitest';
 import { applyStructuralChangeToIdsRefs } from '$lib/tree-operations/structural-change';
-import { mockRef } from '$lib/test/harness/editor-actions';
+import { stubBlockComponent } from '$lib/test/harness/editor-actions';
 
 describe('applyStructuralChangeToIdsRefs', () => {
 	describe('noop', () => {
 		it('leaves ids and refs unchanged', () => {
 			const ids = ['a', 'b', 'c'];
-			const refs = [mockRef(), mockRef(), mockRef()];
+			const refs = [stubBlockComponent(), stubBlockComponent(), stubBlockComponent()];
 			applyStructuralChangeToIdsRefs({ op: 'noop' }, ids, refs);
 			expect(ids).toEqual(['a', 'b', 'c']);
 			expect(refs).toHaveLength(3);
@@ -16,7 +16,7 @@ describe('applyStructuralChangeToIdsRefs', () => {
 	describe('insert', () => {
 		it('inserts fresh ids and undefined refs at position', () => {
 			const ids = ['a', 'b', 'c'];
-			const refs = [mockRef(), mockRef(), mockRef()];
+			const refs = [stubBlockComponent(), stubBlockComponent(), stubBlockComponent()];
 			applyStructuralChangeToIdsRefs({ op: 'insert', at: 1, count: 2 }, ids, refs);
 			expect(ids).toHaveLength(5);
 			expect(ids[0]).toBe('a');
@@ -32,7 +32,7 @@ describe('applyStructuralChangeToIdsRefs', () => {
 
 		it('inserts at position 0', () => {
 			const ids = ['x'];
-			const refs = [mockRef()];
+			const refs = [stubBlockComponent()];
 			applyStructuralChangeToIdsRefs({ op: 'insert', at: 0, count: 1 }, ids, refs);
 			expect(ids).toHaveLength(2);
 			expect(ids[1]).toBe('x');
@@ -41,7 +41,7 @@ describe('applyStructuralChangeToIdsRefs', () => {
 
 		it('inserts at end (at === length)', () => {
 			const ids = ['x'];
-			const refs = [mockRef()];
+			const refs = [stubBlockComponent()];
 			applyStructuralChangeToIdsRefs({ op: 'insert', at: 1, count: 1 }, ids, refs);
 			expect(ids).toHaveLength(2);
 			expect(ids[0]).toBe('x');
@@ -51,7 +51,12 @@ describe('applyStructuralChangeToIdsRefs', () => {
 	describe('delete', () => {
 		it('removes count items at position', () => {
 			const ids = ['a', 'b', 'c', 'd'];
-			const refs = [mockRef(), mockRef(), mockRef(), mockRef()];
+			const refs = [
+				stubBlockComponent(),
+				stubBlockComponent(),
+				stubBlockComponent(),
+				stubBlockComponent()
+			];
 			applyStructuralChangeToIdsRefs({ op: 'delete', at: 1, count: 2 }, ids, refs);
 			expect(ids).toEqual(['a', 'd']);
 			expect(refs).toHaveLength(2);
@@ -61,7 +66,7 @@ describe('applyStructuralChangeToIdsRefs', () => {
 	describe('replace without idMap', () => {
 		it('replaces range with fresh ids and undefined refs', () => {
 			const ids = ['a', 'b', 'c'];
-			const refs = [mockRef(), mockRef(), mockRef()];
+			const refs = [stubBlockComponent(), stubBlockComponent(), stubBlockComponent()];
 			applyStructuralChangeToIdsRefs({ op: 'replace', at: 1, count: 1, newCount: 2 }, ids, refs);
 			expect(ids).toHaveLength(4);
 			expect(ids[0]).toBe('a');
@@ -77,8 +82,8 @@ describe('applyStructuralChangeToIdsRefs', () => {
 	describe('replace with idMap (split: new[0] inherits old[0])', () => {
 		it('preserves old id and ref at mapped new position', () => {
 			const ids = ['original', 'b'];
-			const originalRef = mockRef();
-			const refs = [originalRef, mockRef()];
+			const originalRef = stubBlockComponent();
+			const refs = [originalRef, stubBlockComponent()];
 			applyStructuralChangeToIdsRefs(
 				{ op: 'replace', at: 0, count: 1, newCount: 2, idMap: { 0: 0 } },
 				ids,
@@ -96,8 +101,8 @@ describe('applyStructuralChangeToIdsRefs', () => {
 	describe('replace with idMap (merge-prev: new[0] inherits first of two replaced)', () => {
 		it('merged block inherits the first replaced id', () => {
 			const ids = ['prev', 'curr', 'next'];
-			const prevRef = mockRef();
-			const refs = [prevRef, mockRef(), mockRef()];
+			const prevRef = stubBlockComponent();
+			const refs = [prevRef, stubBlockComponent(), stubBlockComponent()];
 			applyStructuralChangeToIdsRefs(
 				{ op: 'replace', at: 0, count: 2, newCount: 1, idMap: { 0: 0 } },
 				ids,
@@ -111,8 +116,8 @@ describe('applyStructuralChangeToIdsRefs', () => {
 	describe('replace with idMap (merge-next: at=blockIndex keeps current id)', () => {
 		it('merged block inherits the first of the two replaced ids', () => {
 			const ids = ['a', 'curr', 'next'];
-			const currRef = mockRef();
-			const refs = [mockRef(), currRef, mockRef()];
+			const currRef = stubBlockComponent();
+			const refs = [stubBlockComponent(), currRef, stubBlockComponent()];
 			applyStructuralChangeToIdsRefs(
 				{ op: 'replace', at: 1, count: 2, newCount: 1, idMap: { 0: 0 } },
 				ids,
@@ -126,7 +131,7 @@ describe('applyStructuralChangeToIdsRefs', () => {
 	describe('replace degenerate cases', () => {
 		it('replace with count=0 behaves like insert', () => {
 			const ids = ['a', 'b'];
-			const refs = [mockRef(), mockRef()];
+			const refs = [stubBlockComponent(), stubBlockComponent()];
 			applyStructuralChangeToIdsRefs({ op: 'replace', at: 1, count: 0, newCount: 2 }, ids, refs);
 			expect(ids).toHaveLength(4);
 			expect(ids[0]).toBe('a');
@@ -135,7 +140,7 @@ describe('applyStructuralChangeToIdsRefs', () => {
 
 		it('replace with newCount=0 behaves like delete', () => {
 			const ids = ['a', 'b', 'c'];
-			const refs = [mockRef(), mockRef(), mockRef()];
+			const refs = [stubBlockComponent(), stubBlockComponent(), stubBlockComponent()];
 			applyStructuralChangeToIdsRefs({ op: 'replace', at: 1, count: 1, newCount: 0 }, ids, refs);
 			expect(ids).toEqual(['a', 'c']);
 		});

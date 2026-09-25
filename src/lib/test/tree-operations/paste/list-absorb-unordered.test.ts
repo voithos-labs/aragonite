@@ -5,9 +5,8 @@ import {
 	__resetPasteSurfacesForTests,
 	registerPasteSurface
 } from '$lib/tree-operations/paste-surfaces';
-import { parse } from '$lib/core/parser';
 import {
-	makeRunningPasteController,
+	makePasteCommit,
 	makeStubBlockEdit,
 	registerStubBlockListState,
 	pasteContext
@@ -24,9 +23,8 @@ describe('list-absorb: marker normalization', () => {
 	});
 
 	it("templates pasted '*' markers to the enclosing '-' list", async () => {
-		const doc = parse('- alpha\n- beta\n');
-		const list = doc.children[0];
-		registerStubBlockListState(list);
+		const { doc, controller } = makePasteCommit('- alpha\n- beta\n');
+		registerStubBlockListState(doc.children[0]);
 
 		// A single-caret paste routes to list-absorb rather than the container-match merge.
 		await pasteDispatch(
@@ -34,10 +32,11 @@ describe('list-absorb: marker normalization', () => {
 			pasteContext({
 				doc,
 				blockEdit: makeStubBlockEdit(),
-				controller: makeRunningPasteController()
+				controller
 			})
 		);
 
+		const list = doc.children[0];
 		const markers = list.children!.map((it) => metadataOf(it, 'listItem').marker);
 		expect(markers).toEqual(['- ', '- ', '- ', '- ']);
 		expect(list.children!.map((it) => it.raw.startsWith('* '))).toEqual([

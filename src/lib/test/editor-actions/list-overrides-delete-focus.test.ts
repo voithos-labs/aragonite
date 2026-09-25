@@ -12,7 +12,7 @@ import {
 	makeNestedActionsDeps,
 	makeStubBlockEdit,
 	makeStubFocus,
-	mockRef
+	stubBlockComponent
 } from '$lib/test/harness/editor-actions';
 import { CURSOR_START } from '$lib/block-component';
 import type { BlockListState } from '$lib/reactivity/block-list-state.svelte';
@@ -31,9 +31,9 @@ describe('list-overrides deleteBlock: focus after deleting the last item', () =>
 		);
 
 		const refs = [
-			mockRef({ focus: vi.fn() }),
-			mockRef({ focus: vi.fn() }),
-			mockRef({ focus: vi.fn() })
+			stubBlockComponent({ focus: vi.fn() }),
+			stubBlockComponent({ focus: vi.fn() }),
+			stubBlockComponent({ focus: vi.fn() })
 		];
 		replaceRefs(listState.innerBlockRefs, refs);
 

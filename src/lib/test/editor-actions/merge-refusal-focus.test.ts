@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { serialize } from '$lib/core/serializer';
 import { CURSOR_END, CURSOR_START } from '$lib/block-component';
-import { makeTopHarness, mockRef } from '$lib/test/harness/editor-actions';
+import { makeTopHarness, stubBlockComponent } from '$lib/test/harness/editor-actions';
 
 // Miss-analysis (GH #166): no case drove Delete or Backspace across a boundary whose joined
 // bytes read as two blocks, so the actions' behaviour there was only ever the tree
@@ -14,7 +14,7 @@ function makeTop(source: string) {
 	const harness = makeTopHarness(source);
 	const focuses = harness.deps.doc.children.map(() => vi.fn());
 	focuses.forEach((focus, i) => {
-		harness.getBlockRefs()[i] = mockRef({ focus });
+		harness.getBlockRefs()[i] = stubBlockComponent({ focus });
 	});
 	return { ...harness, focuses };
 }

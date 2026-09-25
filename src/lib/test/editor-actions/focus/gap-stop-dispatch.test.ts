@@ -2,7 +2,11 @@
 // own boundaries instead of delegating them upward.
 import { describe, it, expect, vi } from 'vitest';
 import { dispatchMoveFocus } from '$lib/editor-actions/focus/focus-dispatch';
-import { mockRef, makeStickyColumn, makeStubFocus } from '$lib/test/harness/editor-actions';
+import {
+	stubBlockComponent,
+	makeStickyColumn,
+	makeStubFocus
+} from '$lib/test/harness/editor-actions';
 import type { FocusPosition } from '$lib/block-component';
 import type { MoveFocusOptions } from '$lib/action-contracts';
 
@@ -13,7 +17,7 @@ function dispatch(
 	options?: MoveFocusOptions
 ) {
 	const parentFocus = makeStubFocus();
-	const child = mockRef({ focus: vi.fn() });
+	const child = stubBlockComponent({ focus: vi.fn() });
 	const gapStop = vi.fn(() => stops);
 	const done = dispatchMoveFocus(
 		[child, child],

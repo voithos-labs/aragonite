@@ -1,9 +1,8 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
 import { pasteDispatch } from '../../../tree-operations/paste/dispatch';
-import { parse } from '../../../core/parser';
 import {
-	makeRunningPasteController,
+	makePasteCommit,
 	makeStubBlockEdit,
 	registerStubBlockListState,
 	pasteContext
@@ -57,21 +56,21 @@ describe('container-matching paste: marker normalization, both routes', () => {
 			raw: '1. alphax\n2. y\n3. keep\n'
 		}
 	])('$name', async ({ source, pastedText, offset, emptyTarget, markers, raw }) => {
-		const doc = parse(source);
-		const list = doc.children[0];
-		if (emptyTarget) list.children![0].children![0].raw = '';
-		registerStubBlockListState(list);
+		const { doc, controller } = makePasteCommit(source);
+		if (emptyTarget) doc.children[0].children![0].children![0].raw = '';
+		registerStubBlockListState(doc.children[0]);
 
 		await pasteDispatch(
 			{ pastedText, targetPath: [0, 0, 0], offset },
 			pasteContext({
 				doc,
 				blockEdit: makeStubBlockEdit(),
-				controller: makeRunningPasteController(),
+				controller,
 				undoEntry: 'join'
 			})
 		);
 
+		const list = doc.children[0];
 		expect(list.children!.map((it) => metadataOf(it, 'listItem').marker)).toEqual(markers);
 		expect(list.raw).toBe(raw);
 	});

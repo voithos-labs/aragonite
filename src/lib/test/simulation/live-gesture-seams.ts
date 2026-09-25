@@ -265,8 +265,7 @@ async function writeInsideContainer(
 
 	const h = makeNestedHarness(doc, {
 		index: target.path[0],
-		presentationMode: mode,
-		stubState: true
+		presentationMode: mode
 	});
 	const children = (): CstNode[] => h.deps.doc.children[target.path[0]].children ?? [];
 	const seeded = children()[seed.path[1]];

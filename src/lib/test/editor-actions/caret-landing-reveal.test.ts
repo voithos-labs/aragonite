@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { landCaretInScope, type CommitScope } from '$lib/editor-actions/block-edit-scope';
 import type { BlockComponent } from '$lib/block-component';
-import { makeCommitScopeStub, mockRef } from '$lib/test/harness/editor-actions';
+import { makeCommitScopeStub, stubBlockComponent } from '$lib/test/harness/editor-actions';
 
 // After a write, the caret goes to its target block only once that block is mounted.
 // Miss-analysis: every caret test mounted all its refs up front, so a caret placement that never
@@ -20,7 +20,7 @@ function scopeMountingOnReveal(calls: FocusCall[]): CommitScope {
 		refAt: (i) => refs[i],
 		async reveal(index) {
 			await Promise.resolve();
-			refs[index] = mockRef({
+			refs[index] = stubBlockComponent({
 				focus: (offset) => calls.push({ offset: offset as number }),
 				focusByPath: (path, offset) => calls.push({ path, offset })
 			});

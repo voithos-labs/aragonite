@@ -6,7 +6,7 @@ import { createReorderAction } from '$lib/editor-actions/reorder-action';
 import { createBlockListState } from '$lib/reactivity/block-list-state.svelte';
 import { registerBlockListState } from '$lib/reactivity/state-registry';
 import { movedBlockToPosition } from '$lib/a11y-strings';
-import { mockRef, makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
+import { stubBlockComponent, makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
 import type { BlockComponent } from '$lib/block-component';
 
 // What a reorder reports, at both levels: the a11y announcement and where the caret goes. A
@@ -28,7 +28,7 @@ function refsAnsweringEverySlot(
 		get(target, prop, receiver) {
 			if (typeof prop === 'string' && /^\d+$/.test(prop)) {
 				const index = Number(prop);
-				return mockRef({ focus: () => focused.push(index) });
+				return stubBlockComponent({ focus: () => focused.push(index) });
 			}
 			return Reflect.get(target, prop, receiver);
 		}

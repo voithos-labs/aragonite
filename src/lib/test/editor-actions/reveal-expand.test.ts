@@ -2,7 +2,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { createContainerBlockComponent } from '$lib/editor-actions/container-block-component';
 import type { BlockComponent } from '$lib/block-component';
-import { makeShimDeps, mockRef } from '$lib/test/harness/editor-actions';
+import { makeShimDeps, stubBlockComponent } from '$lib/test/harness/editor-actions';
 
 // A scroll-into-view aimed into a collapsed container expands it first, so the descent
 // runs against the expanded tree instead of stopping on the hidden body. The expand itself
@@ -23,8 +23,8 @@ function shim(over: {
 
 describe('revealByPath, expanding a collapsed container', () => {
 	it('opens the entry point for a body target and resolves the child the expansion mounted', async () => {
-		const body = mockRef();
-		const refs: (BlockComponent | undefined)[] = [mockRef(), undefined];
+		const body = stubBlockComponent();
+		const refs: (BlockComponent | undefined)[] = [stubBlockComponent(), undefined];
 		// Awaiting the expand before reading the ref is the whole ordering contract.
 		const expandCollapsed = vi.fn(async () => {
 			refs[1] = body;
@@ -40,7 +40,7 @@ describe('revealByPath, expanding a collapsed container', () => {
 	});
 
 	it('leaves the chrome row alone: child 0 stays mounted while collapsed', async () => {
-		const chrome = mockRef();
+		const chrome = stubBlockComponent();
 		const expandCollapsed = vi.fn(async () => true);
 
 		const resolved = await shim({
@@ -55,7 +55,7 @@ describe('revealByPath, expanding a collapsed container', () => {
 
 	it('does not open the entry point for an already-open container', async () => {
 		const expandCollapsed = vi.fn(async () => true);
-		const refs = [mockRef(), mockRef()];
+		const refs = [stubBlockComponent(), stubBlockComponent()];
 
 		await shim({ refs, isCollapsed: () => false, expandCollapsed }).revealByPath!([1]);
 
@@ -65,7 +65,7 @@ describe('revealByPath, expanding a collapsed container', () => {
 	// The fallback: a kind declaring no expand scrolls into view as it did before the expand existed.
 	it('degrades when the kind declares no entry point', async () => {
 		const resolved = await shim({
-			refs: [mockRef(), undefined],
+			refs: [stubBlockComponent(), undefined],
 			isCollapsed: () => true
 		}).revealByPath!([1]);
 
@@ -74,8 +74,8 @@ describe('revealByPath, expanding a collapsed container', () => {
 
 	it('expands every collapsed ancestor on the path, outermost first', async () => {
 		const order: string[] = [];
-		const target = mockRef();
-		const innerRefs: (BlockComponent | undefined)[] = [mockRef(), undefined];
+		const target = stubBlockComponent();
+		const innerRefs: (BlockComponent | undefined)[] = [stubBlockComponent(), undefined];
 		const inner = shim({
 			refs: innerRefs,
 			isCollapsed: () => true,
@@ -85,7 +85,7 @@ describe('revealByPath, expanding a collapsed container', () => {
 				return true;
 			}
 		});
-		const outerRefs: (BlockComponent | undefined)[] = [mockRef(), undefined];
+		const outerRefs: (BlockComponent | undefined)[] = [stubBlockComponent(), undefined];
 		const outer = shim({
 			refs: outerRefs,
 			isCollapsed: () => true,
