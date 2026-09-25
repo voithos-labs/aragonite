@@ -47,7 +47,7 @@ function realBlocks(markdown: string): string[] {
 
 function afterMove(from: number, to: number): string[] {
 	const doc = parse(DOC);
-	reorderChildrenWithTrivia(doc.children, from, to, createSharingState(), defaultGrammarView, true);
+	reorderChildrenWithTrivia(doc.children, from, to, createSharingState(), defaultGrammarView);
 	return realBlocks(serialize(doc));
 }
 
@@ -86,14 +86,7 @@ describe('a reorder keeps every block it moves past', () => {
 		const doc = parse(DOC);
 		const before = doc.children.length;
 		// A fence and a quote: neither can be continued into, so neither needs a separator.
-		reorderChildrenWithTrivia(
-			doc.children,
-			fence,
-			quote,
-			createSharingState(),
-			defaultGrammarView,
-			true
-		);
+		reorderChildrenWithTrivia(doc.children, fence, quote, createSharingState(), defaultGrammarView);
 		expect(doc.children.length).toBe(before);
 	});
 });

@@ -10,7 +10,7 @@ import { defaultGrammarView } from '$lib/schema/block-openers';
 // the lower in (a table read as prose, a rule as a setext underline, two quotes as one). The join
 // keeps a blank line when either side of the moved block had one; a pair that was flush on both
 // sides rejoins, which is what deleting the moved block would leave.
-// Miss-analysis: the property suite exempted any rejoined pair from its content check, so a fold
+// Miss-analysis: the property suite exempted any rejoined pair from its content check, so a merge
 // the move invented passed as the reload's own reading.
 
 const BLOCKS = {
@@ -25,7 +25,7 @@ const BLOCKS = {
 
 function moveHeadingUp(markdown: string) {
 	const doc = parse(markdown);
-	reorderChildrenWithTrivia(doc.children, 1, 0, createSharingState(), defaultGrammarView, true);
+	reorderChildrenWithTrivia(doc.children, 1, 0, createSharingState(), defaultGrammarView);
 	return doc;
 }
 

@@ -34,7 +34,11 @@ whether or not the drag handles are turned on.
   (flush under it) leaves a blank line between the paragraph and the table, so the table stays a
   table; one undo restores the source. Two blocks flush on both sides of the moved block rejoin.
   - Miss-analysis: the property suite exempted every pair the moved block stood between from its
-    content check, so the move folding a table, a rule or a quote into the block above passed.
+    content check, so the move taking a table, a rule or a quote into the block above passed.
+- Inside a quote, a paragraph moved up out from under the quote's HTML block leaves a blank quote
+  line under the HTML block, so the nested quote below stays a quote; one undo restores the source.
+  - Miss-analysis: the rule for the pair a move leaves was pinned on top-level blocks only, and it
+    ran only there.
 
 ## Edge cases
 

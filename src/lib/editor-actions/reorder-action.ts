@@ -74,8 +74,7 @@ export function createReorderAction(
 						unit.index,
 						to,
 						deps.sharing,
-						deps.grammar,
-						true
+						deps.grammar
 					);
 					landing = settled.landing;
 					return settled.change;

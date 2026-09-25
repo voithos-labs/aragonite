@@ -15,7 +15,7 @@ import { defaultGrammarView } from '$lib/schema/block-openers';
 
 function move(markdown: string, from: number, to: number) {
 	const doc = parse(markdown);
-	reorderChildrenWithTrivia(doc.children, from, to, createSharingState(), defaultGrammarView, true);
+	reorderChildrenWithTrivia(doc.children, from, to, createSharingState(), defaultGrammarView);
 	return doc;
 }
 

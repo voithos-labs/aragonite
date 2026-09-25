@@ -114,6 +114,20 @@ test.describe('keyboard reorder', () => {
 		await editor.bridge.waitForSourceEquals(source);
 	});
 
+	// The same rule inside a quote: the quote's HTML block keeps the blank line under it.
+	test('Alt+ArrowUp inside a quote leaves the nested quote its own', async () => {
+		const source = '> <div>\n> x\n> </div>\n>\n> Second\n> > inner\n';
+		await editor.loadContent(source);
+		await editor.page.locator('[contenteditable="true"]', { hasText: 'Second' }).last().click();
+		await editor.page.keyboard.press('Alt+ArrowUp');
+
+		await editor.bridge.waitForSourceEquals('> Second\n>\n> <div>\n> x\n> </div>\n>\n> > inner\n');
+		expect(await editor.parseConverged()).toBe(true);
+
+		await editor.page.keyboard.press('ControlOrMeta+z');
+		await editor.bridge.waitForSourceEquals(source);
+	});
+
 	// A move with no sibling in that direction must change nothing and add no undo entry, or the
 	// press at the boundary silently eats a Ctrl+Z. The unit test for the clamp skips the keymap
 	// dispatch this goes through.

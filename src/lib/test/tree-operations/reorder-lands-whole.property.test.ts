@@ -123,8 +123,7 @@ describe('a reorder lands its block whole beside any neighbour', () => {
 							from,
 							to,
 							createSharingState(),
-							defaultGrammarView,
-							true
+							defaultGrammarView
 						);
 						const label = `${JSON.stringify(md)} move ${from}->${to}`;
 						expect(

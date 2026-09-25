@@ -49,10 +49,7 @@ export function reorderChildrenWithTrivia(
 	to: number,
 	sharing: SharingState,
 	/** The editor's grammar, in which the checks below reread each pair of moved blocks. */
-	grammar: GrammarView | undefined,
-	/** Top-level blocks only: a blank line is a document separator, not a list's or a quote's,
-	 *  whose own children carry their marker and would read a bare blank line as an end. */
-	separators = false
+	grammar: GrammarView | undefined
 ): SettledSplice {
 	if (from === to) return { change: { op: 'noop' }, landing: to };
 	if (isReorderOutOfBounds(from, to, children.length)) {
@@ -70,20 +67,16 @@ export function reorderChildrenWithTrivia(
 	for (let k = 0; k < windowTrivia.length; k++) {
 		children[lo + k].leadingTrivia = windowTrivia[k];
 	}
-	if (separators) {
-		// The rotation moves every position in the window, and a block can land flush under a
-		// paragraph that then reads its lines as its own (a table dissolving into the prose above
-		// it). The pair the moved block stood between is asked the same if a blank line sat on
-		// either side of it; flush on both sides, it rejoins as deleting the moved block would.
-		const vacated = from < to ? from : from + 1;
-		for (let at = lo; at <= hi + 1; at++) {
-			if (at !== vacated || !flushAround) separateSeam(children, at, sharing, grammar);
-		}
-		// A blank block moved by position can hold a line its follower holds too; the run needs
-		// exactly one, and none at the document head, where the reload reads each as a block.
-		for (let at = lo; at <= hi; at++) {
-			if (isBlankParagraph(children[at])) settleSeparatorOnBlank({ children }, at, sharing);
-		}
+	// Each join the move touches gets a blank line where the two blocks would read as one; the
+	// pair the moved block left rejoins only if it sat flush against both of them.
+	const vacated = from < to ? from : from + 1;
+	for (let at = lo; at <= hi + 1; at++) {
+		if (at !== vacated || !flushAround) separateSeam(children, at, sharing, grammar);
+	}
+	// A blank block moved by position can hold a line its follower holds too; the run needs
+	// exactly one, and none at the document head, where the reload reads each as a block.
+	for (let at = lo; at <= hi; at++) {
+		if (isBlankParagraph(children[at])) settleSeparatorOnBlank({ children }, at, sharing);
 	}
 	return absorbWindowSeams(
 		{ children },
