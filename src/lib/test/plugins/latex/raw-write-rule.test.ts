@@ -74,3 +74,14 @@ describe('a truncating write of a ```math fence gets its closing line back', () 
 		expect(write('```math\nx^2\n```\n', written)).toBe(written);
 	});
 });
+
+// Miss-analysis: every closer-restore fixture was LF, so a closer written in LF into a CRLF block
+// read as correct; the last line of a document carries no ending to copy.
+describe('a closer restored into the unterminated last block of a CRLF document is CRLF', () => {
+	it.each([
+		['a $$ block', '$$\r\nx^2\r\n$$', '$$\r\nx^', '$$\r\nx^\r\n$$'],
+		['a ```math fence', '```math\r\nx^2\r\n```', '```math\r\nAfter', '```math\r\nAfter\r\n```']
+	])('%s', (_case, source, written, expected) => {
+		expect(write(source, written)).toBe(expected);
+	});
+});

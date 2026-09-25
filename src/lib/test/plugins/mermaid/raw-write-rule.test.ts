@@ -100,3 +100,13 @@ describe('a truncating write of a mermaid block gets its closing fence back', ()
 		expect(write('```mermaid\ngraph TD\n```\n', once)).toBe(once);
 	});
 });
+
+// Miss-analysis: every closer-restore fixture was LF, so a closer written in LF into a CRLF block
+// read as correct; the last line of a document carries no ending to copy.
+describe('a closing fence restored into the unterminated last block of a CRLF document', () => {
+	it('is CRLF', () => {
+		expect(write('```mermaid\r\ngraph TD\r\n```', '```mermaid\r\nA')).toBe(
+			'```mermaid\r\nA\r\n```'
+		);
+	});
+});

@@ -86,3 +86,11 @@ describe('hasGithubAlert', () => {
 		expect(hasGithubAlert('> [!DANGER]\n> x')).toBe(false);
 	});
 });
+
+// Miss-analysis: every conversion fixture was LF, so no case had a line with no ending of its
+// own in a CRLF text, where the closer's ending is the only one the converter must choose.
+describe('convertGithubAlerts in a CRLF text', () => {
+	it('closes an alert on the last line with the text ending', () => {
+		expect(convertGithubAlerts('a\r\n\r\n> [!NOTE]').converted).toBe('a\r\n\r\n:::note\r\n:::');
+	});
+});

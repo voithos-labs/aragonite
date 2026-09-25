@@ -244,26 +244,35 @@ const GESTURES: EditGesture[] = [
 	{
 		name: 'dissolving a fence into text',
 		source: '```\nfoo\nbar\n```\n',
-		apply: async (doc) => {
-			registerCodeContextActions();
-			const node = doc.children[0];
-			const dissolve = blockContextActionsFor(node, [0], everyInstalledPlugin).find(
-				(action) => action.id === 'code.dissolve'
-			);
-			const written: string[] = [];
-			await dissolve!.run({
-				node,
-				path: [0],
-				deleteBlock: async () => {},
-				replaceRaw: async (raw) => void written.push(raw),
-				transformPaste: (text) => text
-			});
-			return written.join('');
-		}
+		apply: (doc) => dissolveBlock(doc, 0)
+	},
+	{
+		// Miss-analysis: every dissolve fixture had a line break inside the fence to copy.
+		name: 'dissolving a lone opener on the last line',
+		source: 'a\n\n```',
+		apply: (doc) => dissolveBlock(doc, 1)
 	},
 	...unterminatedTail(),
 	...pasteRoutes()
 ];
+
+/** The bytes the code block's "Dissolve into text" row writes for the block at `index`. */
+async function dissolveBlock(doc: Document, index: number): Promise<string> {
+	registerCodeContextActions();
+	const node = doc.children[index];
+	const dissolve = blockContextActionsFor(node, [index], everyInstalledPlugin).find(
+		(action) => action.id === 'code.dissolve'
+	);
+	const written: string[] = [];
+	await dissolve!.run({
+		node,
+		path: [index],
+		deleteBlock: async () => {},
+		replaceRaw: async (raw) => void written.push(raw),
+		transformPaste: (text) => text
+	});
+	return written.join('');
+}
 
 // Miss-analysis: every fixture above ends in a line ending, so no gesture ever had to choose one
 // for a block without its own, the last line of a document that has none (#458).
