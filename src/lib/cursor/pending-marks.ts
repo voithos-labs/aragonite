@@ -8,7 +8,7 @@
 
 import type { InlineMarkKind } from '../schema/inline-construct-policy';
 
-export interface PendingMarksState {
+export interface PendingMarks {
 	/** Null when nothing is pending; never an empty set, so a read is the whole question. */
 	get(): ReadonlySet<InlineMarkKind> | null;
 
@@ -21,7 +21,9 @@ export interface PendingMarksState {
 	/** Hand back a set taken for an insertion that never happened (an IME cancel). Declines once
 	 *  anything else is pending: that is a newer instruction about the same caret. */
 	restore(marks: ReadonlySet<InlineMarkKind>): void;
+}
 
+export interface PendingMarksState extends PendingMarks {
 	reset(): void;
 }
 
