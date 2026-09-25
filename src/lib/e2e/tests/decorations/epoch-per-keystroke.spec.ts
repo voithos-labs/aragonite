@@ -13,7 +13,7 @@ const WORD = 'alpha';
 const OCCURRENCE = '.decoration-overlay.hl-occurrence';
 
 interface Probe {
-	/** Occurrences of the word in block [0] whose live Range rect an overlay covers. */
+	/** Occurrences of the word in block [0] whose painted text an overlay covers. */
 	aligned: number;
 	/** Overlays painted in block [0]: a stale mark measures into extra fragments. */
 	painted: number;
@@ -26,21 +26,15 @@ interface Probe {
  *  document's live geometry rather than a remembered pixel. */
 function probe(page: Page): Promise<Probe> {
 	return page.evaluate((word) => {
-		const bridge = (window as any).__test;
 		const block = document.querySelector("[data-block-path='[0]']");
 		if (!block) throw new Error('probe: no block [0]');
 
-		// The marks address raw offsets, so each occurrence is found in the raw text and measured
-		// through the block's own raw-to-DOM mapping.
-		const raw: string = bridge.getDocument().children[0].raw;
-		const wordRects: { left: number; right: number }[] = [];
-		for (let i = raw.indexOf(word); i !== -1; i = raw.indexOf(word, i + word.length)) {
-			const rects: DOMRect[] = bridge.rects.rangeRects([0], i, i + word.length);
-			wordRects.push({
-				left: Math.min(...rects.map((r) => r.left)),
-				right: Math.max(...rects.map((r) => r.right))
-			});
-		}
+		// Measured off the painted text, never through the raw-to-DOM mapping the overlay itself
+		// paints with, so an overlay drawn off its word cannot agree with its own reference.
+		const wordRects: { left: number; right: number }[] = (window as any).__test.textRunRects(
+			word,
+			[0]
+		);
 		const overlays = [...block.querySelectorAll('.decoration-overlay.hl-occurrence')].map((el) =>
 			el.getBoundingClientRect()
 		);

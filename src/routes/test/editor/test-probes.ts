@@ -202,30 +202,30 @@ function editableLeafAt(
 }
 
 /**
- * The first painted occurrence of `needle` inside one text node, under the block at `path` or
- * anywhere in the editor. Text the presentation mode hides is skipped, and so is a run with no
- * width, since a click aimed at either lands somewhere else.
+ * Each painted occurrence of `needle` inside one text node, in document order, under the block at
+ * `path` or anywhere in the editor. Text the presentation mode hides is skipped, and so is a run
+ * with no width, since a click aimed at either lands somewhere else.
  */
-function findTextRun(needle: string, path?: number[]): TextRunRect | null {
+function* paintedTextRuns(needle: string, path?: number[]): Generator<TextRunRect> {
 	const root = editorRoot();
 	const scope = root && (path ? blockContentElAt(root, path) : root);
-	if (!scope) return null;
+	if (!scope) return;
 	for (const node of domDescendants(scope)) {
 		if (node.nodeType !== Node.TEXT_NODE) continue;
-		const at = (node as Text).data.indexOf(needle);
-		if (at < 0) continue;
 		const editable = node.parentElement?.closest<HTMLElement>('[contenteditable]') ?? scope;
 		if (isHiddenMarkerText(node, editable)) continue;
-		const range = document.createRange();
-		range.setStart(node, at);
-		range.setEnd(node, at + needle.length);
-		const rect = range.getBoundingClientRect();
-		if (rect.width === 0) continue;
-		const host = node.parentElement?.closest('[data-block-path]');
-		const hostPath = host?.getAttribute('data-block-path');
-		return { ...plainRect(rect), path: hostPath ? (JSON.parse(hostPath) as number[]) : null };
+		const data = (node as Text).data;
+		for (let at = data.indexOf(needle); at >= 0; at = data.indexOf(needle, at + needle.length)) {
+			const range = document.createRange();
+			range.setStart(node, at);
+			range.setEnd(node, at + needle.length);
+			const rect = range.getBoundingClientRect();
+			if (rect.width === 0) continue;
+			const host = node.parentElement?.closest('[data-block-path]');
+			const hostPath = host?.getAttribute('data-block-path');
+			yield { ...plainRect(rect), path: hostPath ? (JSON.parse(hostPath) as number[]) : null };
+		}
 	}
-	return null;
 }
 
 // ── The `window.__test` probes the e2e suite drives ────────────────────────
@@ -526,7 +526,11 @@ export function installTestProbes({
 			const box = leaf.el.getBoundingClientRect();
 			return { x: box.right - 1, y: box.top + box.height / 2 };
 		},
-		textRunRect: (needle: string, path?: number[]): TextRunRect | null => findTextRun(needle, path),
+		textRunRect: (needle: string, path?: number[]): TextRunRect | null =>
+			paintedTextRuns(needle, path).next().value ?? null,
+		textRunRects: (needle: string, path?: number[]): TextRunRect[] => [
+			...paintedTextRuns(needle, path)
+		],
 		undoDepth: (): number => editor.__test.getUndoStack().undo.length,
 		// The real call on the instance, made the way an app answering a click on its own UI
 		// makes it: viewport coordinates the app read off its own element.

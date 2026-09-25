@@ -10,7 +10,7 @@ Sources register through the public registry, here through the e2e bridge rather
 ## Happy paths
 
 - A mark over `[0]` 0..5 paints exactly one `.decoration-overlay` carrying the source's class,
-  positioned inside block 0 with a positive width
+  whose left and right edges sit on the painted word `hello`, measured off its text node
 - A mark spanning a soft-wrapped range paints one rect per visual line (2+ rects), each with
   positive width: the per-line measurement the leaf's `measurePartialRects` returns
 - A mark on a table cell (`[0,row,col]`) paints one whole-cell overlay over that cell

@@ -26,7 +26,8 @@ Miss-analysis: every decoration spec awaited its assertion through Playwright's 
 expect timeout, which is longer than the typing pause, so a refresh that arrived one typing
 pause late always passed. The step-aside half went missing a second way: the occurrence
 specs asserted marks after a click and never typed through one, so "highlighted while you
-type" was never a scenario anyone wrote down.
+type" was never a scenario anyone wrote down. The word rects were then measured through the
+overlay's own offset mapping, so an overlay drawn off its word matched its own reference.
 
 ## Happy paths
 
@@ -34,8 +35,8 @@ type" was never a scenario anyone wrote down.
   in the block: the marks step aside for the burst
 - advancing the frozen clock past the typing pause flushes the batched `input` event and
   paints the overlays back onto the words they mark: every overlay's left and right edge
-  sits within a pixel of the live `Range` rect of the word it marks, and no extra overlay is
-  painted
+  sits within a pixel of the word's painted text, measured off the text node itself rather
+  than through the offset mapping the overlay paints with, and no extra overlay is painted
 - the same keystroke rebuilds the cached index exactly once (`__hloccurScans` increases
   by one) while the clock is frozen, so the counter reached the source without the typing
   batch flushing
