@@ -8,7 +8,7 @@
 
 import { afterAll, afterEach, expect } from 'vitest';
 import { tick } from 'svelte';
-import { setDevWarnSink, type DevWarnEntry, type DevWarnSink } from '$lib/dev-warn';
+import { setDevWarnSink, warnTagOfLine, type DevWarnEntry, type DevWarnSink } from '$lib/dev-warn';
 import { resetEditorEnv } from '$lib/env';
 import { __resetCommandWarningsForTests } from '$lib/schema/commands';
 import allowlist from './warn-allowlist.json';
@@ -125,10 +125,6 @@ setDevWarnSink(gateSink);
 
 // ── The Svelte runtime channel ───────────────────────────────────────────────
 
-/** Svelte's runtime warnings print through `console.warn` and nowhere else, headed
- *  `%c[svelte] <code>`. They are recorded under a `svelte:` tag, so one claim covers both. */
-const SVELTE_WARN = /\[svelte\]\s+([a-z0-9_]+)/;
-
 const PRINT = Symbol.for('aragonite:warn-gate:print');
 
 type WatchedWarn = typeof console.warn & { [PRINT]?: typeof console.warn };
@@ -138,13 +134,14 @@ function watchSvelteWarns(): void {
 	// the watcher records into a dead module instance instead of this file's own store.
 	const print = (console.warn as WatchedWarn)[PRINT] ?? console.warn;
 	const watch: WatchedWarn = (...args: unknown[]) => {
-		const code = SVELTE_WARN.exec(String(args[0]))?.[1];
-		if (code === undefined) {
+		// Svelte's runtime warnings print through `console.warn` and nowhere else.
+		const tag = warnTagOfLine(String(args[0]));
+		if (tag === null || !tag.startsWith('svelte:')) {
 			print(...args);
 			return;
 		}
 		gateSink({
-			tag: `svelte:${code}`,
+			tag,
 			message: String(args[0]).replace(/%c/g, '').replace(/\n/g, ' ')
 		});
 	};

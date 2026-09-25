@@ -1,4 +1,5 @@
 import type { FullResult, Reporter, TestCase } from '@playwright/test/reporter';
+import { warnTagOfLine } from '../dev-warn';
 
 /**
  * Fails the run when the dev server's own console carries a dev-warning line: a check or a
@@ -8,16 +9,11 @@ import type { FullResult, Reporter, TestCase } from '@playwright/test/reporter';
  * always does). Which lines count is `docs/contributing/warnings.md`.
  */
 
-const SENTINELS = ['[aragonite:', '[svelte]'];
-
 // Browser-side warnings vite copies into the server output; the page watcher already covers them.
 const CLIENT_RELAY = '[vite] (client)';
 
 // Expected from the shared demo server process: registration order, not a defect (GH #196).
-const EXEMPT_CHANNELS = [
-	'[aragonite:invariant:late-opener-registration]',
-	'[aragonite:plugin-install]'
-];
+const EXEMPT_TAGS = ['invariant:late-opener-registration', 'plugin-install'];
 
 class ServerWarnReporter implements Reporter {
 	private readonly fires: string[] = [];
@@ -46,9 +42,9 @@ class ServerWarnReporter implements Reporter {
 		for (const raw of chunk.toString().split('\n')) {
 			// eslint-disable-next-line no-control-regex -- vite colors its relay marker
 			const line = raw.replace(/\x1b\[[0-9;]*m/g, '');
-			if (!SENTINELS.some((head) => line.includes(head))) continue;
+			const tag = warnTagOfLine(line);
+			if (tag === null || EXEMPT_TAGS.includes(tag)) continue;
 			if (line.includes(CLIENT_RELAY)) continue;
-			if (EXEMPT_CHANNELS.some((c) => line.includes(c))) continue;
 			this.fires.push(line.trimEnd());
 		}
 	}

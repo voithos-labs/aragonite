@@ -1,5 +1,6 @@
 import { test as base, expect, type ConsoleMessage } from '@playwright/test';
 import { getContainerParityMismatches } from './container-parity';
+import { warnTagOfLine } from '../dev-warn';
 
 // The shared e2e `test`, with two checks at teardown. The console watch: dev warnings tagged
 // `[aragonite:…]`, Svelte warnings tagged `[svelte] <code>`, uncaught page errors (`pageerror`),
@@ -18,8 +19,6 @@ interface WarnFixtures {
 	expectPageErrors: string[];
 }
 
-const SENTINEL_TAG = /\[aragonite:([^\]]+)\]/;
-const SVELTE_CODE = /\[svelte\]\s+([a-z0-9_]+)/;
 /** Chromium's message when a ResizeObserver callback resizes what it observes, for `expectPageErrors`. */
 export const RESIZE_OBSERVER_LOOP = 'ResizeObserver loop completed with undelivered notifications.';
 
@@ -41,17 +40,16 @@ function fireOf(m: ConsoleMessage): { tag: string; text: string } | null {
 	const text = `${m.type()}: ${m.text()}`;
 	const relayed = ONERROR_LINE.exec(m.text())?.[1];
 	if (relayed !== undefined) return { tag: `onerror:${relayed}`, text };
-	const sentinel = SENTINEL_TAG.exec(m.text())?.[1];
-	if (sentinel) return { tag: sentinel, text };
-	const code = SVELTE_CODE.exec(m.text())?.[1];
-	if (!code) return null;
+	const tag = warnTagOfLine(m.text());
+	if (tag === null) return null;
+	if (!tag.startsWith('svelte:')) return { tag, text };
 	// Under the dev server every Svelte warning reports Vite's console proxy as its origin, which
 	// names nothing, so the code inside the text is all there is to go on.
 	const at = m.location();
 	const origin = at.url.includes('@vite/client')
 		? ''
 		: `\n  at ${at.url}:${at.lineNumber}:${at.columnNumber}`;
-	return { tag: `svelte:${code}`, text: `${text}${origin}` };
+	return { tag, text: `${text}${origin}` };
 }
 
 export const test = base.extend<WarnFixtures>({
