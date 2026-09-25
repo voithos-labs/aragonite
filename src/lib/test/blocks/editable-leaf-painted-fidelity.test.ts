@@ -12,12 +12,10 @@ import type { CstNode, Document } from '$lib/core/nodes';
 import { editorMountContext } from '../harness/mount-context';
 import { takeDevWarns } from '../support/warn-gate';
 import { installLayoutStubs } from './editor-mount';
+import { settleEditor } from '$lib/test/harness/settle';
 
 const KIND = 'painted-leaf';
 const SOURCE = '@@ one\ntwo';
-
-/** Drains the microtask queue the reveal runs on. */
-const flush = () => new Promise((resolve) => setTimeout(resolve));
 
 /** Two spans and a bare newline: the shape a highlighter hands back, every byte kept. */
 function faithfulPainter(text: string): DocumentFragment {
@@ -64,7 +62,7 @@ function mountLeaf(paint: (text: string) => DocumentFragment) {
 		instance,
 		revealAtEnd: async () => {
 			instance.parkCaret(SOURCE.length);
-			await flush();
+			await settleEditor();
 			const el = target.querySelector<HTMLElement>('.reveal-leaf-source');
 			expect(el, 'the reveal mounted no source element').not.toBeNull();
 			return el!;

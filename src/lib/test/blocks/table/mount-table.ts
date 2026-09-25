@@ -13,7 +13,7 @@ import { parse } from '$lib/core/parser';
 import { makeStickyColumn, makeStubFocus } from '../../harness/editor-actions';
 import { editorMountContext, type MountContextOverrides } from '../../harness/mount-context';
 import { blockHostAt, type MountedEditor } from '../editor-mount';
-import { settleTicks } from './mount-cell';
+import { pressKey } from '$lib/test/harness/settle';
 
 /** jsdom implements neither the caret geometry an exit gesture measures nor a windowing
  *  observer. Measuring a Range's rectangles throws, so an exit without this kills the handler. */
@@ -91,12 +91,6 @@ export function mountTable(source: string, overrides: MountContextOverrides = {}
 	};
 }
 
-/** A keydown on `el`; the cell's handler awaits its widget intercepts first. */
-export async function press(el: HTMLElement, init: KeyboardEventInit): Promise<void> {
-	el.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, cancelable: true, ...init }));
-	await settleTicks();
-}
-
 /** The mounted cell at (rowIdx, colIdx) of the table block at `tablePath` in a full Editor
  *  mount: the one place the selector for a cell of a mounted editor is written. */
 export function cellAt(
@@ -121,6 +115,5 @@ export async function pressInCell(
 ): Promise<void> {
 	const el = cellAt(mounted, rowIdx, colIdx, tablePath);
 	el.focus();
-	el.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, cancelable: true, ...init }));
-	await mounted.settle();
+	await pressKey(el, init);
 }

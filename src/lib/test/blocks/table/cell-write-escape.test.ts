@@ -12,7 +12,8 @@ import { splitRowCells } from '$lib/core/parsers/table';
 import { updateNodeContent } from '$lib/tree-operations/content-write';
 import { writeTableRow } from '$lib/schema/container-rebuilders';
 import { makeStubBlockEdit } from '../../harness/editor-actions';
-import { mountCell, settleTicks } from './mount-cell';
+import { mountCell } from './mount-cell';
+import { settleEditor } from '$lib/test/harness/settle';
 
 // The cell holds `a\|b`, an escaped pipe. The renderer emits the backslash as a marker span and
 // the `|` as text, so both bytes are in the text content and the caret can sit between them.
@@ -28,7 +29,7 @@ function committedRaw(blockEdit: ReturnType<typeof makeStubBlockEdit>): string {
 // The before-input handler awaits the shared prelude before committing, so the
 // commit lands several microtasks after dispatch.
 async function settleCommit(blockEdit: ReturnType<typeof makeStubBlockEdit>): Promise<void> {
-	await settleTicks(() => vi.mocked(blockEdit.updateBlockContent).mock.calls.length > 0);
+	await settleEditor(() => vi.mocked(blockEdit.updateBlockContent).mock.calls.length > 0);
 }
 
 /** Cells the row reparses into once the sink has written the gesture's text. */

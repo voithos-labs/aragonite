@@ -11,6 +11,7 @@ import { parse } from '$lib/core/parser';
 import { makeStubBlockEdit } from '../../harness/editor-actions';
 import { editorMountContext } from '../../harness/mount-context';
 import { installMathInline } from './math-widget-fixture';
+import { settleEditor } from '$lib/test/harness/settle';
 
 installMathInline();
 
@@ -48,10 +49,6 @@ function mountMathParagraph() {
 	};
 }
 
-// Drains the microtask queue that chain runs on, so the assertions read a settled
-// state instead of counting ticks.
-const flush = () => new Promise((resolve) => setTimeout(resolve));
-
 let mounted: ReturnType<typeof mountMathParagraph>;
 afterEach(async () => {
 	if (mounted) await unmount(mounted.instance);
@@ -64,7 +61,7 @@ describe('a block command waits for the reveal fold it triggered', () => {
 		const { instance, el, blockEdit } = mounted;
 
 		expect(instance.enterEdgeWidget('start')).toBe(true);
-		await flush();
+		await settleEditor();
 
 		// The source text node swapped in. `input` is suppressed while it shows, so this lives
 		// only in the DOM until the commit reads it back.
@@ -75,13 +72,13 @@ describe('a block command waits for the reveal fold it triggered', () => {
 		source!.textContent = '# $x$';
 
 		expect(instance.runCommand('block.split')).toBe(true);
-		await flush();
+		await settleEditor();
 
 		expect(mounted.writeLanded()).toBe(false);
 		expect(blockEdit.splitBlock).not.toHaveBeenCalled();
 
 		mounted.releaseWrite();
-		await flush();
+		await settleEditor();
 
 		expect(mounted.writeLanded()).toBe(true);
 		expect(blockEdit.splitBlock).toHaveBeenCalledTimes(1);

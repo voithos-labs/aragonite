@@ -10,6 +10,7 @@ import {
 	__resetRegistryForTests
 } from '$lib/components/blocks/code/code-languages';
 import { mountCode, type MountedCode } from './mount-code';
+import { dispatchKey } from '$lib/test/harness/settle';
 
 const stubGrammar = (() => ({ name: 'stub' })) as unknown as LanguageFn;
 const FENCE = '```js\nconst x = 1\n```\n';
@@ -30,7 +31,7 @@ function type(field: HTMLInputElement, value: string): void {
 }
 
 function press(field: HTMLInputElement, key: string): void {
-	field.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true }));
+	dispatchKey(field, { key });
 	flushSync();
 }
 

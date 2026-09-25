@@ -7,11 +7,11 @@ import { tick } from 'svelte';
 import { installLayoutStubs } from '../blocks/editor-mount';
 import {
 	mountEditorOverProps,
-	settlePropWrite,
 	typeInFirstBlock,
 	unmountEditorOverProps
 } from '../harness/editor-over-props.svelte';
 import type { HeightOracle } from '$lib/cursor/height-oracle';
+import { settleEditor } from '$lib/test/harness/settle';
 
 interface HeightSeam {
 	getHeightOracle(): HeightOracle;
@@ -40,7 +40,7 @@ describe('the measured-height cache does not outlive the document it measured', 
 		expect(oracle.measured(OUTGOING_ID)).toBe(OUTGOING_HEIGHT);
 
 		props.source = 'only\n';
-		await settlePropWrite();
+		await settleEditor();
 
 		expect(oracle.measured(OUTGOING_ID)).toBeUndefined();
 	});

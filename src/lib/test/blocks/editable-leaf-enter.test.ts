@@ -12,13 +12,11 @@ import type { CstNode, Document } from '$lib/core/nodes';
 import { makeStubBlockEdit } from '../harness/editor-actions';
 import { editorMountContext } from '../harness/mount-context';
 import { installLayoutStubs } from './editor-mount';
+import { settleEditor, pressKey } from '$lib/test/harness/settle';
 
 const KIND = 'enter-leaf';
 const RAW = '@@ one\n';
 const SOURCE = '@@ one';
-
-/** Drains the microtask queue the async keydown handler and the reveal both run on. */
-const flush = () => new Promise((resolve) => setTimeout(resolve));
 
 function mountLeaf(singleLine: boolean) {
 	const kind = declarePluginKind(KIND);
@@ -55,18 +53,13 @@ function mountLeaf(singleLine: boolean) {
 		/** Reveal the source with the caret at the end of the block's bytes. */
 		revealAtEnd: async () => {
 			instance.parkCaret(SOURCE.length);
-			await flush();
+			await settleEditor();
 			const el = target.querySelector<HTMLElement>('.reveal-leaf-source');
 			expect(el, 'the reveal mounted no source element').not.toBeNull();
 			return el!;
 		}
 	};
 }
-
-const pressEnter = async (el: HTMLElement) => {
-	el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
-	await flush();
-};
 
 let mounted: ReturnType<typeof mountLeaf> | null = null;
 
@@ -87,7 +80,7 @@ describe('Enter in an editable leaf', () => {
 		mounted = mountLeaf(false);
 		const el = await mounted.revealAtEnd();
 
-		await pressEnter(el);
+		await pressKey(el, { key: 'Enter' });
 
 		expect(el.textContent).toBe(`${SOURCE}\n`);
 		expect(mounted.blockEdit.splitBlock).not.toHaveBeenCalled();
@@ -97,7 +90,7 @@ describe('Enter in an editable leaf', () => {
 		mounted = mountLeaf(true);
 		const el = await mounted.revealAtEnd();
 
-		await pressEnter(el);
+		await pressKey(el, { key: 'Enter' });
 
 		expect(mounted.blockEdit.splitBlock).toHaveBeenCalledWith(0, SOURCE.length);
 		// The fold is the split's precondition, so the source is back to its rendered view.
@@ -115,7 +108,7 @@ describe('Enter in an editable leaf', () => {
 		// key and tears the block down while the shared step is still pending.
 		el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
 		el.remove();
-		await flush();
+		await settleEditor();
 
 		expect(mounted.blockEdit.splitBlock).not.toHaveBeenCalled();
 	});
@@ -132,14 +125,14 @@ describe('Enter in an editable leaf', () => {
 		// A draft the reveal holds and the CST has not seen; the caret goes back to its end.
 		el.textContent = '@@ two';
 		mounted.instance.parkCaret(6);
-		await flush();
-		await pressEnter(el);
+		await settleEditor();
+		await pressKey(el, { key: 'Enter' });
 
 		expect(mounted.blockEdit.updateBlockContent).toHaveBeenCalledWith(0, '@@ two\n', 6, 6);
 		expect(mounted.blockEdit.splitBlock).not.toHaveBeenCalled();
 
 		releaseWrite();
-		await flush();
+		await settleEditor();
 		expect(mounted.blockEdit.splitBlock).toHaveBeenCalledWith(0, 6);
 	});
 });

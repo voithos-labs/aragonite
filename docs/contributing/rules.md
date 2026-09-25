@@ -220,8 +220,9 @@ list is that you hear it from the terminal instead of from the review.
    `npm run check`
 5. **Nothing sequences on `setTimeout`, `requestAnimationFrame` or a microtask trick** (G4.4):
    `await tick()` is the one sequencing primitive, and the short list of timers that sequence
-   nothing (a debounce, an animation) is the allowlist in the test.
-   `npx vitest run src/lib/test/invariants/lint/timing-hacks.test.ts`
+   nothing (a debounce, an animation) is the allowlist in the test. The unit suites wait with
+   `settleEditor` from `src/lib/test/harness/settle.ts`, under the same rule.
+   `npx vitest run src/lib/test/invariants/lint/file-rules.test.ts src/lib/test/invariants/lint/suite-file-rules.test.ts`
 6. **A new file with a `pointerdown` or `mousedown` handler is in one of the two lists** of the
    G2.12 scan: the pointer handlers that place a caret, with the entry point each one goes through, or
    the ones that place none, with the reason.

@@ -16,6 +16,7 @@ const spyCall = (mark: string, channel: string) =>
 	`vi.spyOn(console, ${quoted(mark, channel)}).mockImplementation(() => {});`;
 const clockRead = (host: string) => `const t = ${host}.now();`;
 const depsField = (name: string) => `const deps = { ${name}: refSlotsOver(refs) };`;
+const timerWait = (timer: string) => `await new Promise((r) => ${timer}(r));`;
 
 const SUITE_DIRS = ['src/lib/test/', 'src/lib/e2e/'];
 const PERF_DIRS = ['src/lib/test/perf/', 'src/lib/e2e/tests/perf/'];
@@ -79,6 +80,26 @@ const RULES: FileRule[] = [
 			at('src/lib/test/c.test.ts', '   '),
 			at('src/lib/e2e/tests/perf/x.perf.spec.ts', clockRead('performance')),
 			at('src/lib/test/perf/y.bench.ts', clockRead('performance'))
+		]
+	},
+	{
+		id: 'G4.4 no timing hacks for sequencing, in the unit suites too',
+		population: under('src/lib/test/'),
+		matches: /\b(?:setTimeout|setInterval|queueMicrotask|requestAnimationFrame)\s*\(/,
+		allowed: {
+			'src/lib/test/invariants/lint/file-rules.test.ts':
+				'the editor-side G4.4 row: its probe snippets are timer calls on purpose'
+		},
+		reason:
+			'wait with settleEditor (test/harness/settle.ts), move a wall-clock timer with vi.useFakeTimers, or wait for real I/O with vi.waitFor; a macrotask flush also runs whatever unrelated timer is due, so a test can pass for the wrong reason',
+		reaches: ['src/lib/test/harness/settle.ts'],
+		hits: [
+			at('src/lib/test/a.test.ts', timerWait(['set', 'Timeout'].join(''))),
+			at('src/lib/test/b.test.ts', `${['queue', 'Microtask'].join('')}(() => {});`)
+		],
+		misses: [
+			at('src/lib/test/c.test.ts', 'vi.advanceTimersByTime(250);\nawait settleEditor();'),
+			at('src/lib/e2e/d.spec.ts', timerWait(['set', 'Timeout'].join('')))
 		]
 	},
 	{

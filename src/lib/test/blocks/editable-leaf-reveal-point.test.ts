@@ -15,12 +15,10 @@ import type { CstNode, Document } from '$lib/core/nodes';
 import { makeStubBlockEdit } from '../harness/editor-actions';
 import { editorMountContext } from '../harness/mount-context';
 import { installLayoutStubs } from './editor-mount';
+import { settleEditor } from '$lib/test/harness/settle';
 
 const KIND = 'reveal-point-leaf';
 const RAW = '@@ one two\n';
-
-/** Drains the microtask queue the reveal runs on. */
-const flush = () => new Promise((resolve) => setTimeout(resolve));
 
 function mountLeaf(caretTargetAtPoint?: BlockKindDescriptor['caretTargetAtPoint']) {
 	const kind = declarePluginKind(KIND);
@@ -65,7 +63,7 @@ function mountLeaf(caretTargetAtPoint?: BlockKindDescriptor['caretTargetAtPoint'
 		/** Reveal the source with the caret at the end of the block's bytes. */
 		revealAtEnd: async () => {
 			instance.parkCaret(RAW.length - 1);
-			await flush();
+			await settleEditor();
 			const el = host.querySelector<HTMLElement>('.reveal-leaf-source');
 			expect(el, 'the reveal mounted no source element').not.toBeNull();
 			return el!;
@@ -81,7 +79,7 @@ function mountLeaf(caretTargetAtPoint?: BlockKindDescriptor['caretTargetAtPoint'
 			rendered!.dispatchEvent(
 				new MouseEvent('click', { bubbles: true, cancelable: true, clientX, clientY })
 			);
-			await flush();
+			await settleEditor();
 		}
 	};
 }
@@ -144,7 +142,7 @@ describe('the folded surface’s spread while the source is up', () => {
 		source.dispatchEvent(
 			new PointerEvent('pointerdown', { bubbles: true, cancelable: true, clientX: 40, clientY: 12 })
 		);
-		await flush();
+		await settleEditor();
 
 		expect(hook).not.toHaveBeenCalled();
 	});
@@ -156,7 +154,7 @@ describe('the folded surface’s spread while the source is up', () => {
 		source.dispatchEvent(
 			new KeyboardEvent('keydown', { key: 'z', ctrlKey: true, bubbles: true, cancelable: true })
 		);
-		await flush();
+		await settleEditor();
 
 		expect(mounted.history.requestUndo).toHaveBeenCalledTimes(1);
 	});

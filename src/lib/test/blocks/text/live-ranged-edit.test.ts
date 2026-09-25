@@ -16,9 +16,7 @@ import { registerLiveJoinSeamCleaner } from '$lib/schema/inline-construct-policy
 import { makeStubBlockEdit } from '../../harness/editor-actions';
 import { editorMountContext } from '../../harness/mount-context';
 import { mountCell, noIslands, type MountedCell } from '../table/mount-cell';
-
-/** The async beforeinput chain resolves after the dispatch returns. */
-const settle = () => new Promise((r) => setTimeout(r));
+import { settleEditor } from '$lib/test/harness/settle';
 
 // `**bold** tail`: the run is [0,2) and [6,8), the word `bold` is [2,6).
 const BOLD = '**bold** tail\n';
@@ -74,7 +72,7 @@ async function press(
 		Object.defineProperty(e, 'getTargetRanges', { value: () => [range] });
 	}
 	el.dispatchEvent(e);
-	await settle();
+	await settleEditor();
 	return e;
 }
 

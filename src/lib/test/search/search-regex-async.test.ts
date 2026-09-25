@@ -6,11 +6,7 @@ import {
 	type RegexScanRequest
 } from '../../search/regex-executor';
 import { makeSearchHarness, type ReplaceStub } from './harness';
-
-// Regex scans leave the main thread, so their results arrive after the call that asked for
-// them. These check what the find bar does in the meantime.
-
-const flush = () => new Promise<void>((resolve) => setTimeout(resolve, 0));
+import { settleEditor } from '$lib/test/harness/settle';
 
 /** An executor that resolves only when the test says so, so the gap between starting and
  *  finishing can be inspected. */
@@ -39,7 +35,7 @@ describe('SearchState: off-thread regex scans', () => {
 		expect(state.isScanning).toBe(true);
 		expect(state.matches).toHaveLength(0);
 
-		await flush();
+		await settleEditor();
 		expect(state.isScanning).toBe(false);
 		expect(state.matches).toHaveLength(3);
 		expect(state.activeIndex).toBe(0);
@@ -77,7 +73,7 @@ describe('SearchState: off-thread regex scans', () => {
 				[]
 			]
 		});
-		await flush();
+		await settleEditor();
 
 		expect(state.matches).toHaveLength(1);
 		expect(state.matches[0].path).toEqual([1]);
@@ -94,7 +90,7 @@ describe('SearchState: off-thread regex scans', () => {
 			epoch: held[0].request.epoch,
 			ranges: [[{ start: 0, end: 3 }]]
 		});
-		await flush();
+		await settleEditor();
 
 		expect(state.isOpen).toBe(false);
 		expect(state.matches).toHaveLength(0);
@@ -106,7 +102,7 @@ describe('SearchState: off-thread regex scans', () => {
 		const { state } = makeState('cat cat\n', executor);
 		state.setQuery('(a+)+$');
 		held[0].settle({ ok: false, epoch: held[0].request.epoch, reason: 'timeout' });
-		await flush();
+		await settleEditor();
 
 		expect(state.error).toBe('Regex too slow');
 		expect(state.matches).toHaveLength(0);
@@ -119,7 +115,7 @@ describe('SearchState: off-thread regex scans', () => {
 		const { state } = makeState('cat\n', executor);
 		state.setQuery('c.t');
 		held[0].settle({ ok: false, epoch: held[0].request.epoch, reason: 'error' });
-		await flush();
+		await settleEditor();
 
 		expect(state.error).toBe('Regex search failed');
 		expect(state.matches).toHaveLength(0);
@@ -130,13 +126,13 @@ describe('SearchState: off-thread regex scans', () => {
 		const { state } = makeState('cat cat\n', executor);
 		state.setQuery('(a+)+$');
 		held[0].settle({ ok: false, epoch: held[0].request.epoch, reason: 'timeout' });
-		await flush();
+		await settleEditor();
 		expect(state.error).toBe('Regex too slow');
 
 		state.setQuery('c.t');
 		expect(state.error).toBeNull();
 		held[1].settle({ ok: true, epoch: held[1].request.epoch, ranges: [[{ start: 0, end: 3 }]] });
-		await flush();
+		await settleEditor();
 		expect(state.matches).toHaveLength(1);
 	});
 

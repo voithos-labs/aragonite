@@ -14,6 +14,7 @@ import {
 	placeCaretAt,
 	widgetInteractionDeps
 } from './math-widget-fixture';
+import { settleEditor } from '$lib/test/harness/settle';
 
 installMathInline();
 
@@ -64,7 +65,7 @@ function mountTwoMathBlock() {
 	// select-then-Enter; `enterWidget` runs the synchronous part of `startReveal` before it returns.
 	async function revealFirst(): Promise<void> {
 		interaction.enterWidget(first, true);
-		await new Promise((r) => setTimeout(r));
+		await settleEditor();
 	}
 
 	return {
@@ -94,7 +95,7 @@ describe('foldRevealIfSelectionEscaped: containment scope', () => {
 
 		placeCaretAt(b.trailingText(), 2);
 		b.interaction.foldRevealIfSelectionEscaped();
-		await new Promise((r) => setTimeout(r));
+		await settleEditor();
 
 		expect(b.interaction.isRevealing()).toBe(false);
 		expect(b.commits).toEqual([]);
@@ -111,7 +112,7 @@ describe('foldRevealIfSelectionEscaped: containment scope', () => {
 
 		placeCaretAt(b.trailingText(), 2);
 		b.interaction.foldRevealIfSelectionEscaped();
-		await new Promise((r) => setTimeout(r));
+		await settleEditor();
 
 		expect(b.pendingCursors).toEqual([]);
 		const sel = window.getSelection()!;
@@ -125,7 +126,7 @@ describe('foldRevealIfSelectionEscaped: containment scope', () => {
 
 		placeCaretAt(b.sourceNode(), 2);
 		b.interaction.foldRevealIfSelectionEscaped();
-		await new Promise((r) => setTimeout(r));
+		await settleEditor();
 
 		expect(b.interaction.isRevealing()).toBe(true);
 	});
@@ -137,7 +138,7 @@ describe('foldRevealIfSelectionEscaped: containment scope', () => {
 
 		placeCaretAt(b.trailingText(), 1);
 		b.interaction.foldRevealIfSelectionEscaped();
-		await new Promise((r) => setTimeout(r));
+		await settleEditor();
 
 		expect(b.interaction.isRevealing()).toBe(true);
 		expect(b.commits).toEqual([]);
@@ -151,7 +152,7 @@ describe('foldRevealIfSelectionEscaped: containment scope', () => {
 		const settling = b.revealFirst(); // not awaited: left at the tick before placeCaret
 
 		b.interaction.foldRevealIfSelectionEscaped();
-		await new Promise((r) => setTimeout(r));
+		await settleEditor();
 		await settling;
 
 		expect(b.interaction.isRevealing()).toBe(true);
@@ -161,7 +162,7 @@ describe('foldRevealIfSelectionEscaped: containment scope', () => {
 		// Once settled, the same exit hides the source normally again.
 		placeCaretAt(b.trailingText(), 2);
 		b.interaction.foldRevealIfSelectionEscaped();
-		await new Promise((r) => setTimeout(r));
+		await settleEditor();
 		expect(b.interaction.isRevealing()).toBe(false);
 	});
 });

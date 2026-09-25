@@ -2,7 +2,7 @@
 // switching presentation mode are both prop writes whose consequences live inside the component,
 // so the suites that ask about them mount the real thing. One editor at a time.
 
-import { mount, unmount, flushSync, tick } from 'svelte';
+import { mount, unmount, flushSync } from 'svelte';
 import Editor from '$lib/components/Editor.svelte';
 import type { EditorInstance, EditorProps } from '$lib/editor-props';
 
@@ -34,14 +34,6 @@ export function unmountEditorOverProps(): void {
 	live = null;
 	void unmount(instance);
 	target.remove();
-}
-
-/** Apply the prop write, then let the deferred runs it schedules land: a swap bumps a tick
- *  past its own reset, so no subscriber reads a half-applied tree. */
-export async function settlePropWrite(): Promise<void> {
-	flushSync();
-	await tick();
-	await tick();
 }
 
 /** Type into the first prose block the way an input event reaches the editor. */

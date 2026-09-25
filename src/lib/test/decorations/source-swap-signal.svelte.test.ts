@@ -4,13 +4,10 @@
 // mounted component: from there a swap and an edit are the same `getDoc()` read.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
 import { installLayoutStubs } from '../blocks/editor-mount';
-import {
-	mountEditorOverProps,
-	settlePropWrite,
-	unmountEditorOverProps
-} from '../harness/editor-over-props.svelte';
+import { mountEditorOverProps, unmountEditorOverProps } from '../harness/editor-over-props.svelte';
 import type { DecorationSource, MarkDecoration } from '$lib/decorations/types';
 import type { DecorationEngine } from '$lib/decorations/decoration-state.svelte';
+import { settleEditor } from '$lib/test/harness/settle';
 
 interface SwapSeam {
 	getDecorationEngine(): DecorationEngine;
@@ -41,7 +38,7 @@ describe('a `source` prop swap signals the decorations subsystem', () => {
 		expect(seen).toEqual([{ blocks: 3, epoch: 0 }]);
 
 		props.source = 'only\n';
-		await settlePropWrite();
+		await settleEditor();
 
 		expect(seen.at(-1)).toEqual({ blocks: 1, epoch: 1 });
 	});
@@ -55,7 +52,7 @@ describe('a `source` prop swap signals the decorations subsystem', () => {
 		expect(engine.marksForPath([2])).toHaveLength(1);
 
 		props.source = 'only\n';
-		await settlePropWrite();
+		await settleEditor();
 
 		expect(engine.marksForPath([0])).toHaveLength(1);
 		expect(engine.marksForPath([2])).toHaveLength(0);
@@ -65,7 +62,7 @@ describe('a `source` prop swap signals the decorations subsystem', () => {
 	it('skips the run entirely when no source is registered', async () => {
 		const { editor, props } = mountEditor('one\n\ntwo\n');
 		props.source = 'only\n';
-		await settlePropWrite();
+		await settleEditor();
 		expect(editor.__test.getDecorationEngine().sourceCount).toBe(0);
 
 		// A source registered after the swap still runs against the new document.
@@ -84,13 +81,13 @@ describe('a `source` prop swap moves the content version', () => {
 		const before = editor.__test.getContentVersion();
 
 		props.source = 'only\n';
-		await settlePropWrite();
+		await settleEditor();
 		const afterSwap = editor.__test.getContentVersion();
 		expect(afterSwap).not.toBe(before);
 
 		// The `source !== lastSource` check: writing the same prop replaces no bytes.
 		props.source = 'only\n';
-		await settlePropWrite();
+		await settleEditor();
 		expect(editor.__test.getContentVersion()).toBe(afterSwap);
 	});
 });
@@ -104,7 +101,7 @@ describe('an open find bar rescans against the swapped-in document', () => {
 		expect(search.matches).toHaveLength(3);
 
 		props.source = 'nothing matches now\n';
-		await settlePropWrite();
+		await settleEditor();
 
 		expect(search.matches).toHaveLength(0);
 		expect(search.matchesForPath([0])).toHaveLength(0);
@@ -118,7 +115,7 @@ describe('an open find bar rescans against the swapped-in document', () => {
 		expect(search.matches.map((m) => m.path)).toEqual([[0]]);
 
 		props.source = 'beta only\n\nalpha here\n\nalpha again\n';
-		await settlePropWrite();
+		await settleEditor();
 
 		expect(search.matches.map((m) => m.path)).toEqual([[1], [2]]);
 	});

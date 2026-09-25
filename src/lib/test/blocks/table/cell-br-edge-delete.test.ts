@@ -6,17 +6,14 @@
 // outline around a widget, so what it can offer is the one-key atomic delete, and each case has
 // its navigation counterpart, because arrows must keep the step-over.
 import { describe, it, expect, afterEach, vi } from 'vitest';
-import { mountCell, settleTicks } from './mount-cell';
+import { mountCell } from './mount-cell';
+import { settleEditor, dispatchKey } from '$lib/test/harness/settle';
 
 // `<br>` at raw [4,8) with text on both sides, so both its edges are mid-cell: at a cell's
 // text boundaries the navigation plan owns the key and it never reaches here.
 const CELL = 'Left<br>Right';
 const BR_START = 4;
 const BR_END = 8;
-
-function press(el: HTMLElement, key: string): void {
-	el.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true }));
-}
 
 let mounted: ReturnType<typeof mountCell>;
 afterEach(async () => {
@@ -37,8 +34,8 @@ describe('a destructive key at a mid-cell `<br>` edge deletes it whole, in one p
 			el.focus();
 			instance.setSelection(caret, caret);
 
-			press(el, key);
-			await settleTicks();
+			dispatchKey(el, { key: key });
+			await settleEditor();
 
 			expect(vi.mocked(blockEdit.updateBlockContent).mock.calls).toHaveLength(1);
 			const [index, text, , caretAfter] = vi.mocked(blockEdit.updateBlockContent).mock.calls[0];
@@ -53,8 +50,8 @@ describe('a destructive key at a mid-cell `<br>` edge deletes it whole, in one p
 			el.focus();
 			instance.setSelection(caret, caret);
 
-			press(el, key === 'Backspace' ? 'ArrowLeft' : 'ArrowRight');
-			await settleTicks();
+			dispatchKey(el, { key: key === 'Backspace' ? 'ArrowLeft' : 'ArrowRight' });
+			await settleEditor();
 
 			expect(blockEdit.updateBlockContent).not.toHaveBeenCalled();
 			// The caret crossed the widget rather than resting against it.
@@ -76,8 +73,8 @@ describe('a destructive key at a mid-cell `<br>` edge deletes it whole, in one p
 			el.focus();
 			instance.setSelection(caret, caret);
 
-			press(el, key);
-			await settleTicks();
+			dispatchKey(el, { key: key });
+			await settleEditor();
 
 			// jsdom leaves this key to contenteditable, so no commit means nothing took it;
 			// the browser outcome belongs to e2e/tests/blocks/table/cell-inline-rendering.spec.ts.
@@ -97,8 +94,8 @@ describe('a destructive key at a mid-cell `<br>` edge deletes it whole, in one p
 		el.focus();
 		instance.setSelection(withImage.indexOf(')') + 1, withImage.indexOf(')') + 1);
 
-		press(el, 'Backspace');
-		await settleTicks();
+		dispatchKey(el, { key: 'Backspace' });
+		await settleEditor();
 
 		expect(blockEdit.updateBlockContent).not.toHaveBeenCalled();
 	});

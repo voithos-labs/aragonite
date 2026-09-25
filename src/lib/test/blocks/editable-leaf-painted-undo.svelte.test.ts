@@ -4,7 +4,7 @@
 // what the chord meant, and every case ended before the document moved under an open reveal.
 // How it groups edits went the same way: every case made one edit, so nothing could see that a
 // second keystroke pushed a second entry where the document would have batched both.
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, onTestFinished, vi } from 'vitest';
 import { mount, unmount, flushSync } from 'svelte';
 import RevealLeafBlock from './fixtures/RevealLeafBlock.svelte';
 import { declarePluginKind, registerBlockKind, simpleLeafClosure } from '$lib/plugin';
@@ -19,12 +19,10 @@ import { asDomTextOffset } from '$lib/cursor/coordinate-spaces';
 import { UNDO_DEBOUNCE_MS } from '$lib/editor-actions/commit/text-batch';
 import { editorMountContext } from '../harness/mount-context';
 import { installLayoutStubs } from './editor-mount';
+import { settleEditor, pressKey } from '$lib/test/harness/settle';
 
 const KIND = 'painted-undo-leaf';
 const SOURCE = '@@ one';
-
-/** Drains the microtask queue the async keydown handler and the reveal both run on. */
-const flush = () => new Promise((resolve) => setTimeout(resolve));
 
 function paint(text: string): DocumentFragment {
 	const frag = document.createDocumentFragment();
@@ -76,7 +74,7 @@ function mountLeaf(keybindings: KeybindingOverride[] = []) {
 		history,
 		revealAtEnd: async () => {
 			instance.parkCaret(SOURCE.length);
-			await flush();
+			await settleEditor();
 			const el = target.querySelector<HTMLElement>('.reveal-leaf-source');
 			expect(el, 'the reveal mounted no source element').not.toBeNull();
 			return el!;
@@ -84,13 +82,8 @@ function mountLeaf(keybindings: KeybindingOverride[] = []) {
 	};
 }
 
-async function press(el: HTMLElement, init: KeyboardEventInit): Promise<void> {
-	el.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, cancelable: true, ...init }));
-	await flush();
-}
-
-const pressEnter = (el: HTMLElement) => press(el, { key: 'Enter' });
-const pressUndoChord = (el: HTMLElement) => press(el, { key: 'z', ctrlKey: true });
+const pressEnter = (el: HTMLElement) => pressKey(el, { key: 'Enter' });
+const pressUndoChord = (el: HTMLElement) => pressKey(el, { key: 'z', ctrlKey: true });
 
 /** One typed character as the browser delivers it: a collapsed target range at the caret. */
 async function typeChar(el: HTMLElement, char: string): Promise<void> {
@@ -104,10 +97,8 @@ async function typeChar(el: HTMLElement, char: string): Promise<void> {
 	const range = createRangeFromOffsets(el, asDomTextOffset(at), asDomTextOffset(at));
 	Object.defineProperty(e, 'getTargetRanges', { value: () => (range ? [range] : []) });
 	el.dispatchEvent(e);
-	await flush();
+	await settleEditor();
 }
-
-const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 let mounted: ReturnType<typeof mountLeaf> | null = null;
 
@@ -143,7 +134,7 @@ describe('undo inside an open painted reveal', () => {
 		const el = await mounted.revealAtEnd();
 		await pressEnter(el);
 
-		await press(el, { key: 'u', ctrlKey: true, altKey: true });
+		await pressKey(el, { key: 'u', ctrlKey: true, altKey: true });
 
 		expect(el.textContent).toBe(SOURCE);
 		expect(mounted.history.requestUndo).not.toHaveBeenCalled();
@@ -190,10 +181,13 @@ describe('a burst of typing inside an open painted reveal', () => {
 	});
 
 	it('opens a fresh entry once the typing pause has passed', async () => {
+		// The pause is the batch's own wall-clock timer, so the clock moves instead of the test waiting.
+		vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+		onTestFinished(() => void vi.useRealTimers());
 		mounted = mountLeaf();
 		const el = await mounted.revealAtEnd();
 		await typeChar(el, 'a');
-		await pause(UNDO_DEBOUNCE_MS + 50);
+		vi.advanceTimersByTime(UNDO_DEBOUNCE_MS);
 		await typeChar(el, 'b');
 
 		await pressUndoChord(el);

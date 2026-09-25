@@ -5,12 +5,9 @@
 // first fix paired the drop with a width bump, and only the presentation e2e saw the scroll.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
 import { installLayoutStubs } from '../blocks/editor-mount';
-import {
-	mountEditorOverProps,
-	settlePropWrite,
-	unmountEditorOverProps
-} from '../harness/editor-over-props.svelte';
+import { mountEditorOverProps, unmountEditorOverProps } from '../harness/editor-over-props.svelte';
 import type { HeightOracle } from '$lib/cursor/height-oracle';
+import { settleEditor } from '$lib/test/harness/settle';
 
 interface HeightSeam {
 	getHeightOracle(): HeightOracle;
@@ -41,7 +38,7 @@ describe('a presentation-mode flip does not keep the heights the other mode meas
 		expect(oracle.measured(WINDOWED_OUT_ID)).toBe(OTHER_MODE_HEIGHT);
 
 		props.presentationMode = 'reading';
-		await settlePropWrite();
+		await settleEditor();
 
 		expect(oracle.measured(WINDOWED_OUT_ID)).toBeUndefined();
 	});
@@ -55,7 +52,7 @@ describe('a presentation-mode flip does not keep the heights the other mode meas
 		const before = editor.__test.getWidthVersion();
 
 		props.presentationMode = 'live';
-		await settlePropWrite();
+		await settleEditor();
 
 		expect(editor.__test.getWidthVersion()).toBe(before);
 	});
@@ -66,7 +63,7 @@ describe('a presentation-mode flip does not keep the heights the other mode meas
 		const { oracle, props } = mountAtSource();
 
 		props.presentationMode = 'source';
-		await settlePropWrite();
+		await settleEditor();
 
 		expect(oracle.measured(WINDOWED_OUT_ID)).toBe(OTHER_MODE_HEIGHT);
 	});

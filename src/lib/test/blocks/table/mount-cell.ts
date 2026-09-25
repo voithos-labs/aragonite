@@ -4,7 +4,7 @@
 // `TableContext` so a test reads what the cell asked its table for. Read-only questions and single
 // gestures only: a commit replaces the node and nothing above re-renders with the replacement.
 
-import { mount, unmount, flushSync, tick } from 'svelte';
+import { mount, unmount, flushSync } from 'svelte';
 import { vi } from 'vitest';
 import TableCellBlock from '$lib/components/blocks/table/TableCellBlock.svelte';
 import type { BlockComponent } from '$lib/block-component';
@@ -18,12 +18,6 @@ import { createSelectionState } from '$lib/selection/selection-state.svelte';
 import { createWidgetSelectionState } from '$lib/components/image/widget-selection-state.svelte';
 import { makeStubBlockEdit } from '../../harness/editor-actions';
 import { editorMountContext } from '../../harness/mount-context';
-
-/** Drain the scheduler until `done` (or the bounded worst case): a gesture's prelude, commit
- *  and render effect land several microtasks after dispatch. */
-export async function settleTicks(done?: () => boolean): Promise<void> {
-	for (let i = 0; i < 12 && !done?.(); i++) await tick();
-}
 
 /** A cell renders no decorations unless a test installs some. */
 export const noIslands = {

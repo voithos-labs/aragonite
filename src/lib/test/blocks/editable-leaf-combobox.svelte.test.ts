@@ -12,13 +12,11 @@ import type { CstNode, Document } from '$lib/core/nodes';
 import type { InlineMenuCombobox } from '$lib/inline-menu/inline-menu-state.svelte';
 import { editorMountContext } from '../harness/mount-context';
 import { installLayoutStubs } from './editor-mount';
+import { settleEditor } from '$lib/test/harness/settle';
 
 const KIND = 'combobox-leaf';
 const SOURCE = '@@ one';
 const OPEN: InlineMenuCombobox = { listboxId: 'editor-1-inline-menu', activeOptionId: 'row-inbox' };
-
-/** Drains the microtask queue the reveal runs on. */
-const flush = () => new Promise((resolve) => setTimeout(resolve));
 
 function mountLeaf() {
 	const kind = declarePluginKind(KIND);
@@ -62,7 +60,7 @@ function mountLeaf() {
 		/** Show the source with the caret at the end of the block's bytes. */
 		async revealAtEnd() {
 			instance.parkCaret(SOURCE.length);
-			await flush();
+			await settleEditor();
 			const el = target.querySelector<HTMLElement>('.reveal-leaf-source');
 			expect(el, 'the reveal mounted no source element').not.toBeNull();
 			return el!;

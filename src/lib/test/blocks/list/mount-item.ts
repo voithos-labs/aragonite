@@ -70,10 +70,3 @@ export function mountItem(
 		}
 	};
 }
-
-/** Dispatch a bubbling, cancelable keydown at `el` and report whether it was consumed. */
-export function pressOn(el: HTMLElement, init: KeyboardEventInit): boolean {
-	const event = new KeyboardEvent('keydown', { bubbles: true, cancelable: true, ...init });
-	el.dispatchEvent(event);
-	return event.defaultPrevented;
-}

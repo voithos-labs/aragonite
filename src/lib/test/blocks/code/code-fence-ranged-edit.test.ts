@@ -13,10 +13,7 @@ import {
 	getSelectionOffsets
 } from '$lib/cursor/content-offsets';
 import { mountCode, type MountedCode } from './mount-code';
-
-// Async handlers finish after the dispatch returns; one macrotask drains the await
-// chain (handleSharedBeforeInput) before the guard's commit is observable.
-const settle = () => new Promise((r) => setTimeout(r));
+import { settleEditor } from '$lib/test/harness/settle';
 
 // display "```js\nconst x = 1\n```": opener text [0,5) · body [6,17] · closer text [18,21).
 const SOURCE = '```js\nconst x = 1\n```\n';
@@ -72,7 +69,7 @@ describe('CodeBlock: fence-crossing ranged edits', () => {
 	it('claims a delete whose selection runs into the closer and commits the clamped text', async () => {
 		select(12, 20);
 		const e = beforeInput('deleteContentBackward');
-		await settle();
+		await settleEditor();
 
 		expect(e.defaultPrevented).toBe(true);
 		expect(committedText()).toBe('```js\nconst \n```');
@@ -81,7 +78,7 @@ describe('CodeBlock: fence-crossing ranged edits', () => {
 	it('claims a forward delete the same way: direction picks no different bytes', async () => {
 		select(12, 20);
 		const e = beforeInput('deleteContentForward');
-		await settle();
+		await settleEditor();
 
 		expect(e.defaultPrevented).toBe(true);
 		expect(committedText()).toBe('```js\nconst \n```');
@@ -90,7 +87,7 @@ describe('CodeBlock: fence-crossing ranged edits', () => {
 	it('claims a type-over and writes the typed character into the body', async () => {
 		select(12, 20);
 		const e = beforeInput('insertText', 'Z');
-		await settle();
+		await settleEditor();
 
 		expect(e.defaultPrevented).toBe(true);
 		expect(committedText()).toBe('```js\nconst Z\n```');
@@ -101,7 +98,7 @@ describe('CodeBlock: fence-crossing ranged edits', () => {
 	it('refuses a replacement rather than re-siting a payload it never read', async () => {
 		select(12, 20);
 		const e = replacement('Q');
-		await settle();
+		await settleEditor();
 
 		expect(e.defaultPrevented).toBe(true);
 		expect(mounted.blockEdit.updateBlockContent).not.toHaveBeenCalled();
@@ -110,7 +107,7 @@ describe('CodeBlock: fence-crossing ranged edits', () => {
 	it('claims a soft break and splices it inside the body', async () => {
 		select(12, 20);
 		const e = beforeInput('insertLineBreak');
-		await settle();
+		await settleEditor();
 
 		expect(e.defaultPrevented).toBe(true);
 		expect(committedText()).toBe('```js\nconst \n\n```');
@@ -123,7 +120,7 @@ describe('CodeBlock: fence-crossing ranged edits', () => {
 		mounted = mountCode('```js\n  const x = 1\n```\n');
 		select(14, 22);
 		const e = beforeInput('insertParagraph');
-		await settle();
+		await settleEditor();
 
 		expect(e.defaultPrevented).toBe(true);
 		expect(committedText()).toBe('```js\n  const \n  \n```');
@@ -137,7 +134,7 @@ describe('CodeBlock: fence-crossing ranged edits', () => {
 		]) {
 			select(start, end);
 			const e = beforeInput('deleteContentBackward');
-			await settle();
+			await settleEditor();
 
 			expect(e.defaultPrevented).toBe(true);
 			expect(mounted.blockEdit.updateBlockContent).not.toHaveBeenCalled();
@@ -149,7 +146,7 @@ describe('CodeBlock: fence-crossing ranged edits', () => {
 	it('prevents a collapsed-caret insertion inside the closer run', async () => {
 		select(19, 19);
 		const e = beforeInput('insertText', 'x');
-		await settle();
+		await settleEditor();
 
 		expect(e.defaultPrevented).toBe(true);
 		expect(mounted.blockEdit.updateBlockContent).not.toHaveBeenCalled();
@@ -158,7 +155,7 @@ describe('CodeBlock: fence-crossing ranged edits', () => {
 	it('leaves a selection inside one region to native handling', async () => {
 		select(3, 5); // the info string
 		const e = beforeInput('insertText', 'p');
-		await settle();
+		await settleEditor();
 
 		expect(e.defaultPrevented).toBe(false);
 		expect(mounted.blockEdit.updateBlockContent).not.toHaveBeenCalled();
@@ -176,7 +173,7 @@ describe('CodeBlock: fence-crossing ranged edits', () => {
 		const target = createRangeFromOffsets(mounted.el, asDomTextOffset(3), asDomTextOffset(6));
 		Object.defineProperty(e, 'getTargetRanges', { value: () => [target] });
 		mounted.el.dispatchEvent(e);
-		await settle();
+		await settleEditor();
 
 		expect(e.defaultPrevented).toBe(true);
 		expect(mounted.blockEdit.updateBlockContent).not.toHaveBeenCalled();
@@ -200,7 +197,7 @@ describe('CodeBlock: fence-crossing ranged edits', () => {
 		});
 		Object.defineProperty(e, 'getTargetRanges', { value: () => [target] });
 		mounted.el.dispatchEvent(e);
-		await settle();
+		await settleEditor();
 
 		expect(e.defaultPrevented).toBe(false);
 		expect(mounted.blockEdit.updateBlockContent).not.toHaveBeenCalled();
@@ -210,7 +207,7 @@ describe('CodeBlock: fence-crossing ranged edits', () => {
 	it('cut deletes only the body part of a fence-crossing selection', async () => {
 		select(12, 20);
 		mounted.el.dispatchEvent(new Event('cut', { bubbles: true, cancelable: true }));
-		await settle();
+		await settleEditor();
 
 		expect(committedText()).toBe('```js\nconst \n```');
 	});
@@ -222,7 +219,7 @@ describe('CodeBlock: fence-crossing ranged edits', () => {
 		mounted.el.dispatchEvent(
 			new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true })
 		);
-		await settle();
+		await settleEditor();
 
 		expect(committedText()).toBe('```js\nconst \n\n```');
 	});
@@ -240,7 +237,7 @@ describe('CodeBlock: fence-crossing ranged edits', () => {
 
 		// The check refuses here, which is what "can be typed into" means for this block.
 		const e = beforeInput('insertText', 'X');
-		await settle();
+		await settleEditor();
 		expect(e.defaultPrevented).toBe(false);
 	});
 

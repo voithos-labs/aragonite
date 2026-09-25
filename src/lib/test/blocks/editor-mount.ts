@@ -4,12 +4,13 @@
 // real reactive document underneath and makes `getSource()` a byte-exact assertion surface.
 // Blocks are addressed by doc-absolute path, the coordinate the CST uses.
 
-import { mount, unmount, flushSync, tick } from 'svelte';
+import { mount, unmount, flushSync } from 'svelte';
 import Editor from '$lib/components/Editor.svelte';
 import type { EditorInstance, EditorProps } from '$lib/editor-props';
 import { ambientLengthOf } from '$lib/ambient/ambient-dom';
 import { asRawOffset, toDomTextOffset } from '$lib/cursor/coordinate-spaces';
 import { createRangeFromOffsets } from '$lib/cursor/content-offsets';
+import { settleEditor, pressKey } from '$lib/test/harness/settle';
 
 /** Every mount suite runs the published helpers, so a plugin author's stub is checked here. */
 export { installEditorDomStubsForTests as installLayoutStubs } from '$lib/testing';
@@ -33,9 +34,7 @@ export function mountEditor(props: EditorProps): MountedEditor {
 		instance,
 		target,
 		source: () => instance.getSource(),
-		settle: async () => {
-			for (let i = 0; i < 12; i++) await tick();
-		},
+		settle: settleEditor,
 		destroy: async () => {
 			await unmount(instance);
 			target.remove();
@@ -99,8 +98,5 @@ export async function pressKeyAt(
 ): Promise<KeyboardEvent> {
 	const el = surfaceAt(mounted, path);
 	placeCaret(el, rawOffset);
-	const event = new KeyboardEvent('keydown', { bubbles: true, cancelable: true, ...init });
-	el.dispatchEvent(event);
-	await mounted.settle();
-	return event;
+	return pressKey(el, init);
 }

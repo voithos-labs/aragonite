@@ -14,13 +14,11 @@ import type { KeybindingOverride } from '$lib/schema/keybinding-overrides';
 import { makeStubBlockEdit } from '../harness/editor-actions';
 import { editorMountContext } from '../harness/mount-context';
 import { installLayoutStubs } from './editor-mount';
+import { settleEditor, pressKey } from '$lib/test/harness/settle';
 
 const KIND = 'reveal-undo-leaf';
 const SOURCE = '@@ one two';
 const RAW = `${SOURCE}\n`;
-
-/** Drains the microtask queue the async keydown handler and the reveal both run on. */
-const flush = () => new Promise((resolve) => setTimeout(resolve));
 
 function mountLeaf(overrides: KeybindingOverride[] = []) {
 	const kind = declarePluginKind(KIND);
@@ -67,7 +65,7 @@ function mountLeaf(overrides: KeybindingOverride[] = []) {
 		instance,
 		revealAtEnd: async () => {
 			instance.parkCaret(SOURCE.length);
-			await flush();
+			await settleEditor();
 			const el = target.querySelector<HTMLElement>('.reveal-leaf-source');
 			expect(el, 'the reveal mounted no source element').not.toBeNull();
 			return el!;
@@ -75,14 +73,9 @@ function mountLeaf(overrides: KeybindingOverride[] = []) {
 	};
 }
 
-async function press(el: HTMLElement, init: KeyboardEventInit): Promise<void> {
-	el.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, cancelable: true, ...init }));
-	await flush();
-}
-
 /** One edit of the reveal's own: the Enter a painted multi-line source keeps as a newline. */
 async function editOnce(el: HTMLElement): Promise<void> {
-	await press(el, { key: 'Enter' });
+	await pressKey(el, { key: 'Enter' });
 	expect(el.textContent).toBe(`${SOURCE}\n`);
 }
 
@@ -104,7 +97,7 @@ describe("an open reveal's own undo answers the keymap, not a hardcoded chord", 
 		mounted = mountLeaf();
 		const el = await mounted.revealAtEnd();
 		await editOnce(el);
-		await press(el, { key: 'z', ctrlKey: true });
+		await pressKey(el, { key: 'z', ctrlKey: true });
 		expect(el.textContent).toBe(SOURCE);
 	});
 
@@ -115,9 +108,9 @@ describe("an open reveal's own undo answers the keymap, not a hardcoded chord", 
 		]);
 		const el = await mounted.revealAtEnd();
 		await editOnce(el);
-		await press(el, { key: 'z', ctrlKey: true });
+		await pressKey(el, { key: 'z', ctrlKey: true });
 		expect(el.textContent).toBe(`${SOURCE}\n`);
-		await press(el, { key: 'u', ctrlKey: true, altKey: true });
+		await pressKey(el, { key: 'u', ctrlKey: true, altKey: true });
 		expect(el.textContent).toBe(SOURCE);
 	});
 });
