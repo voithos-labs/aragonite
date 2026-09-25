@@ -130,11 +130,12 @@ _(pre-freeze / unstable)_ The recipe: [Typing a multi-line construct into existe
 
 Every registry on this surface is register-once (a duplicate throws, it never overrides). These are the matching is-it-there checks, for a module that may run twice (hot reload, a re-import) to ask before registering. Guard on these rather than on a module-level flag of your own: the flag outlives the test kit's platform reset, and the guide's registration section tells you how that afternoon goes. The directive and inline tiers keep their own probes, `isDirectiveRegistered` and `isInlineKindDeclared`, in their groups below.
 
-| Export                                                                                                         | Role                                               |
-| -------------------------------------------------------------------------------------------------------------- | -------------------------------------------------- |
-| `isBlockKindDeclared`                                                                                          | Is this kind name already declared?                |
-| `isBlockKindRegistered`, `isBlockComponentRegistered`, `isBlockOpenerRegistered`, `isBlockCompleterRegistered` | One guard per register-once call on the block side |
-| `isPasteTransformRegistered`                                                                                   | The same guard, keyed by a paste transform's name  |
+| Export                                                                                                         | Role                                                  |
+| -------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------- |
+| `isBlockKindDeclared`                                                                                          | Is this kind name already declared?                   |
+| `isBlockKindRegistered`, `isBlockComponentRegistered`, `isBlockOpenerRegistered`, `isBlockCompleterRegistered` | One guard per register-once call on the block side    |
+| `isPasteTransformRegistered`                                                                                   | The same guard, keyed by a paste transform's name     |
+| `isLanguageRegistered`                                                                                         | The same guard, keyed by a code-block language's name |
 
 ### Directive authoring
 
@@ -186,12 +187,12 @@ _(pre-freeze / unstable)_ The container factory's sibling for leaves; the full s
 
 _(pre-freeze / unstable)_ The syntax-highlighting registry behind fenced code. The editor bootstraps a curated couple dozen (the usual suspects: javascript, python, rust, bash, sql, the C family, and friends) plus their aliases, because every grammar is static bundle weight for every consumer. `listLanguages()` tells you exactly which ones you have; a host needing more registers them itself.
 
-Register **before mounting an editor**: a block already on screen re-tokenizes only when its own bytes next change. An unregistered language is not an error: the fence still authors, commits and round-trips, and its body renders untokenized.
+Register **before mounting an editor**: a block already on screen re-tokenizes only when its own bytes next change. An unregistered language is not an error: the fence still authors, commits and round-trips, and its body renders untokenized. A language your plugin's `setup` registers highlights, and shows in the picker, only in the editors that list your plugin; `listLanguages`, `getLanguageAliases` and `highlightCode` have no editor, so they answer for every installed plugin.
 
 | Export               | Role                                                                                                                                   |
 | -------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
 | `registerLanguage`   | Add a grammar under a name, with optional aliases; register-once, so a repeat call with the same name throws                           |
-| `listLanguages`      | Every registered language once, under its canonical name, sorted: the rows the code block's language picker offers                     |
+| `listLanguages`      | Every registered language once, under its canonical name, sorted: the rows a picker with every installed plugin offers                 |
 | `getLanguageAliases` | The other spellings a language answers to, asked by any of them: what a picker's filter matches on                                     |
 | `highlightCode`      | The code block's tokenizer: `(body, language)` to a text-preserving fragment of `code-tok-*` spans, for a plugin's own source surface  |
 | `LanguageGrammar`    | The registry's read shape: the resolved name and its definition                                                                        |

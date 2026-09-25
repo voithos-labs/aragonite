@@ -215,7 +215,10 @@ registries (block context actions, code languages) were never on it: a suite res
 grammar for the rest. Now every registry is built by `createPluginRegistry`, which enrolls its
 reset as it builds the store, so there's no list to forget. The same store records which plugin
 made each entry and answers reads only through an editor's activation, so an entry can't leak
-into an editor that didn't list its plugin either.
+into an editor that didn't list its plugin either. What the store can't reach is a copy kept
+outside it: highlight.js holds its own table of grammars, and the first cut of this fix left the
+first case's grammar there after the reset had cleared the registry. A copy outside the store
+checks itself against the store on every read (`code-renderer.ts :: tokenizeBody`).
 
 **Guard:** the reset is built into `src/lib/schema/plugin-registry.ts` :: `createPluginRegistry`,
 and `src/lib/test/plugins/testing-barrel.test.ts` reads the plugin barrel's own exports, so a new
@@ -231,6 +234,6 @@ report('registry-completeness', () =>
 report('opener-registry', () => checkOpenerRegistry(listRegisteredOpeners(), hasDescriptor));
 ```
 
-**Spec:** the `src/lib/schema/register-once.ts` and `src/lib/schema/plugin-registry.ts` headers,
-and `docs/design/plugin-contract.md`.
+**Spec:** the `src/lib/schema/register-once.ts`, `src/lib/schema/plugin-registry.ts` and
+`src/lib/schema/registry-reset.ts` headers, and `docs/design/plugin-contract.md`.
 ([rule 4](rules.md#the-five-rules))
