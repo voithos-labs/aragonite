@@ -6,7 +6,11 @@
 // the assertion is the document that came out. Only the navigation plans: the structural chords
 // are keymap bindings (cell-table-chords.test.ts). A full Editor mount, because each case writes.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
-import { installLayoutStubs, mountEditor, type MountedEditor } from '../editor-mount';
+import {
+	installLayoutStubs,
+	mountEditor,
+	type MountedEditor
+} from '$lib/test/harness/mount-editor.svelte';
 import { cellAt, pressInCell } from './mount-table';
 
 beforeAll(installLayoutStubs);

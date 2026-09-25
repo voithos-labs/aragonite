@@ -4,13 +4,13 @@
 // does to heights the other mode measured. The "no rebuild" half is the rest of that miss: the
 // first fix paired the drop with a width bump, and only the presentation e2e saw the scroll.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
-import { installLayoutStubs } from '../blocks/editor-mount';
 import {
-	mountEditorOverProps,
-	settlePropWrite,
-	unmountEditorOverProps
-} from '../harness/editor-over-props.svelte';
+	installLayoutStubs,
+	mountEditor,
+	destroyMountedEditors
+} from '$lib/test/harness/mount-editor.svelte';
 import type { HeightOracle } from '$lib/cursor/height-oracle';
+import { settleEditor } from '$lib/test/harness/settle';
 
 interface HeightSeam {
 	getHeightOracle(): HeightOracle;
@@ -21,15 +21,15 @@ const WINDOWED_OUT_ID = 'windowed-out-block';
 const OTHER_MODE_HEIGHT = 99;
 
 beforeAll(installLayoutStubs);
-afterEach(unmountEditorOverProps);
+afterEach(destroyMountedEditors);
 
 /** Mounts in source mode, then records a height as a mounted block's measure pass would. */
 function mountAtSource() {
-	const mounted = mountEditorOverProps<HeightSeam>({
+	const mounted = mountEditor<HeightSeam>({
 		source: 'one\n\ntwo\n',
 		presentationMode: 'source'
 	});
-	const oracle = mounted.editor.__test.getHeightOracle();
+	const oracle = mounted.instance.__test.getHeightOracle();
 	oracle.recordMeasured(WINDOWED_OUT_ID, OTHER_MODE_HEIGHT);
 	return { ...mounted, oracle };
 }
@@ -41,7 +41,7 @@ describe('a presentation-mode flip does not keep the heights the other mode meas
 		expect(oracle.measured(WINDOWED_OUT_ID)).toBe(OTHER_MODE_HEIGHT);
 
 		props.presentationMode = 'reading';
-		await settlePropWrite();
+		await settleEditor();
 
 		expect(oracle.measured(WINDOWED_OUT_ID)).toBeUndefined();
 	});
@@ -51,11 +51,11 @@ describe('a presentation-mode flip does not keep the heights the other mode meas
 	// caret's block, and placing the caret again scrolls it back, losing the user's place (#221).
 	// Each block re-measures on its own mount instead, which costs the user nothing.
 	it('forces no rebuild: the flip moves the width version for nobody', async () => {
-		const { editor, props } = mountAtSource();
+		const { instance: editor, props } = mountAtSource();
 		const before = editor.__test.getWidthVersion();
 
 		props.presentationMode = 'live';
-		await settlePropWrite();
+		await settleEditor();
 
 		expect(editor.__test.getWidthVersion()).toBe(before);
 	});
@@ -66,7 +66,7 @@ describe('a presentation-mode flip does not keep the heights the other mode meas
 		const { oracle, props } = mountAtSource();
 
 		props.presentationMode = 'source';
-		await settlePropWrite();
+		await settleEditor();
 
 		expect(oracle.measured(WINDOWED_OUT_ID)).toBe(OTHER_MODE_HEIGHT);
 	});

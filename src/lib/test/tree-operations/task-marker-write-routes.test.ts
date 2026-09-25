@@ -15,7 +15,7 @@ import { createBlockEditCore } from '$lib/editor-actions/block-edit-core';
 import { resetPluginPlatformForTests } from '$lib/testing';
 import {
 	makeCommitScopeStub,
-	makeRunningPasteController,
+	makePasteCommit,
 	registerStubBlockListState
 } from '$lib/test/harness/editor-actions';
 import { defaultGrammarView } from '$lib/schema/block-openers';
@@ -69,22 +69,22 @@ describe('every write that can replace a to-do’s first block drops the marker 
 	});
 
 	it('the paste splice, where the clipboard lands a table over the paragraph', async () => {
-		const doc = parse('- [ ] alpha\n');
-		const item = doc.children[0].children![0];
-		registerStubBlockListState(item);
+		const { doc, controller } = makePasteCommit('- [ ] alpha\n');
+		registerStubBlockListState(doc.children[0].children![0]);
 
 		await replaceBlockAtParent({
 			grammar: defaultGrammarView,
 			doc,
 			blockPath: [0, 0, 0],
 			replacement: parse(TABLE).children,
-			controller: makeRunningPasteController(),
+			controller,
 			undoEntry: 'own',
 			focusReplacementIndex: 0,
 			focusOffset: 0,
 			source: 'paste-dispatch'
 		});
 
+		const item = doc.children[0].children![0];
 		expect(item.children![0].kind).toBe('table');
 		expect(metaOf(item).taskItem).toBe(false);
 		expect(metaOf(item).taskMarker).toBeNull();

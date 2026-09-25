@@ -13,8 +13,9 @@ import { registerBlockComponent } from '$lib/schema/block-component-registry';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { registerBuiltInBlocks } from '$lib/components/built-in-blocks';
 import SurfacelessBlock from './fixtures/SurfacelessBlock.svelte';
-import { declareComponentlessKind, mountBlockHost, type MountedHost } from './mount-host';
+import { mountBlockHost, type MountedHost } from './mount-host';
 import { installEditorDomStubsForTests } from '$lib/testing';
+import { testLeaf } from '$lib/test/harness/test-kinds';
 
 // The vitest setup registers the built-in descriptors only, but the container
 // assertions need BlockHost to dispatch a real blockquote.
@@ -98,7 +99,7 @@ describe('BlockHost publishes the resolved surface, not the instance', () => {
 
 	it('dev-warns when a component publishes neither surface shape', () => {
 		const doc = parse('surfaceless\n');
-		const kind = declareComponentlessKind('host-surfaceless');
+		const kind = testLeaf('host-surfaceless');
 		// The cast is the point: `defineBlockComponent` rejects this component, so the
 		// only way here is the escape hatch, and this warn is what covers it.
 		registerBlockComponent(kind, {

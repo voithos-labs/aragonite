@@ -5,9 +5,8 @@ import { describe, it, expect } from 'vitest';
 import { parse } from '$lib/core/parser';
 import type { NodeView } from '$lib/core/node-views';
 import { blockAccessibleName, blockKindLabel } from '$lib/a11y-strings';
-import { registerBlockKind } from '$lib/schema/block-kind-descriptor';
 import { declarePluginKind } from '$lib/schema/plugin-kind';
-import { testClosure } from './support/closure';
+import { testLeaf } from '$lib/test/harness/test-kinds';
 
 const first = (md: string): NodeView => parse(md).children[0];
 
@@ -30,14 +29,9 @@ describe('blockAccessibleName', () => {
 
 describe('blockKindLabel for plugin kinds', () => {
 	it('reads the descriptor’s label', () => {
-		const kind = declarePluginKind('labelledWidget');
-		registerBlockKind(kind, {
+		const kind = testLeaf('labelledWidget', {
 			label: 'Chart',
-			gapEdges: 'none',
-			mergeRole: 'not-mergeable',
-			editable: false,
-			supportsInline: false,
-			closure: testClosure
+			editable: false
 		});
 		expect(blockKindLabel(kind)).toBe('Chart');
 	});

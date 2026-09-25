@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { declarePluginKind, declaredPluginKind } from '../../schema/plugin-kind';
-import { registerBlockKind, tryGetBlockKindDescriptor } from '../../schema/block-kind-descriptor';
-import { testClosure } from '$lib/test/support/closure';
+import { tryGetBlockKindDescriptor } from '../../schema/block-kind-descriptor';
+import { testLeaf } from '$lib/test/harness/test-kinds';
 
 describe('declarePluginKind', () => {
 	it('returns the name, branded, for a valid plugin kind', () => {
@@ -28,13 +28,8 @@ describe('declarePluginKind', () => {
 	});
 
 	it('a declared kind round-trips through the descriptor registry', () => {
-		const kind = declarePluginKind('pluginKindRegistryProbe');
-		registerBlockKind(kind, {
-			gapEdges: 'none',
-			mergeRole: 'not-mergeable',
-			editable: false,
-			supportsInline: false,
-			closure: testClosure
+		const kind = testLeaf('pluginKindRegistryProbe', {
+			editable: false
 		});
 		expect(tryGetBlockKindDescriptor(kind)?.mergeRole).toBe('not-mergeable');
 	});

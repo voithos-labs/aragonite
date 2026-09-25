@@ -1,46 +1,87 @@
-// Driving one block component through a mounted Editor. A bare mount keeps the pre-commit
-// node, since a commit copies before writing and in production the parent BlockHost re-renders
-// with the fresh one, so a second gesture runs against a detached tree. The Editor mount puts the
-// real reactive document underneath and makes `getSource()` a byte-exact assertion surface.
-// Blocks are addressed by doc-absolute path, the coordinate the CST uses.
+// The real Editor mounted over a source, the one editor mount every unit suite uses. A bare block
+// mount keeps the node it was handed; under the Editor a commit re-renders with the replacement,
+// `props` are reactive the way a host's are, and `source()` is a byte-exact read. Blocks are
+// addressed by doc-absolute path, the coordinate the CST uses.
 
-import { mount, unmount, flushSync, tick } from 'svelte';
+import { mount, unmount, flushSync } from 'svelte';
+import { SvelteMap } from 'svelte/reactivity';
 import Editor from '$lib/components/Editor.svelte';
 import type { EditorInstance, EditorProps } from '$lib/editor-props';
 import { ambientLengthOf } from '$lib/ambient/ambient-dom';
 import { asRawOffset, toDomTextOffset } from '$lib/cursor/coordinate-spaces';
 import { createRangeFromOffsets } from '$lib/cursor/content-offsets';
+import { settleEditor, pressKey } from '$lib/test/harness/settle';
 
 /** Every mount suite runs the published helpers, so a plugin author's stub is checked here. */
 export { installEditorDomStubsForTests as installLayoutStubs } from '$lib/testing';
 
-export interface MountedEditor {
-	instance: EditorInstance;
+export interface MountedEditor<Seam = unknown> {
+	instance: EditorInstance & { __test: Seam };
+	/** Reactive: write a prop here to drive the component the way a host does. */
+	props: EditorProps;
 	target: HTMLElement;
 	/** The document's bytes as they stand now. */
 	source(): string;
-	/** Drain the scheduler until the commit and its afterTick have settled. */
 	settle(): Promise<void>;
+	/** A second call does nothing, so a test may unmount mid-case and still tear down after. */
 	destroy(): Promise<void>;
 }
 
-export function mountEditor(props: EditorProps): MountedEditor {
+const live = new Set<MountedEditor<unknown>>();
+
+export function mountEditor<Seam = unknown>(initial: EditorProps): MountedEditor<Seam> {
 	const target = document.createElement('div');
 	document.body.appendChild(target);
-	const instance = mount(Editor, { target, props }) as EditorInstance;
+	const props = hostProps(initial);
+	const instance = mount(Editor, { target, props }) as MountedEditor<Seam>['instance'];
 	flushSync();
-	return {
+	const mounted: MountedEditor<Seam> = {
 		instance,
+		props,
 		target,
 		source: () => instance.getSource(),
-		settle: async () => {
-			for (let i = 0; i < 12; i++) await tick();
-		},
+		settle: settleEditor,
 		destroy: async () => {
+			if (!live.delete(mounted)) return;
 			await unmount(instance);
 			target.remove();
 		}
 	};
+	live.add(mounted);
+	return mounted;
+}
+
+/** Props a test writes the way a host does: each key is reactive, and a value is stored as given,
+ *  not wrapped in a deep proxy, so a plugin definition keeps its identity across editors. */
+function hostProps(initial: EditorProps): EditorProps {
+	const values = new SvelteMap<PropertyKey, unknown>(Object.entries(initial));
+	return new Proxy({} as EditorProps, {
+		get: (_, key) => values.get(key),
+		set: (_, key, value) => {
+			values.set(key, value);
+			return true;
+		},
+		has: (_, key) => values.has(key),
+		ownKeys: () =>
+			[...values.keys()].filter((key) => typeof key !== 'number') as (string | symbol)[],
+		getOwnPropertyDescriptor: (_, key) =>
+			values.has(key)
+				? { value: values.get(key), writable: true, enumerable: true, configurable: true }
+				: undefined
+	});
+}
+
+/** Teardown for `afterEach`: every editor still mounted. */
+export async function destroyMountedEditors(): Promise<void> {
+	for (const mounted of [...live]) await mounted.destroy();
+}
+
+/** Type into the first prose block the way an input event reaches the editor. */
+export function typeInFirstBlock(target: HTMLElement, text: string): void {
+	const el = target.querySelector<HTMLElement>('.text-editable-block');
+	if (!el) throw new Error('no prose block is mounted');
+	el.textContent = text;
+	el.dispatchEvent(new InputEvent('input', { bubbles: true }));
 }
 
 /** The BlockHost at `path`, addressed the way the CST addresses it. */
@@ -99,8 +140,5 @@ export async function pressKeyAt(
 ): Promise<KeyboardEvent> {
 	const el = surfaceAt(mounted, path);
 	placeCaret(el, rawOffset);
-	const event = new KeyboardEvent('keydown', { bubbles: true, cancelable: true, ...init });
-	el.dispatchEvent(event);
-	await mounted.settle();
-	return event;
+	return pressKey(el, init);
 }

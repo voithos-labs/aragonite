@@ -8,6 +8,7 @@ import { checkClosureCoherence, type ClosureCoherenceEntry } from '$lib/invarian
 import { closureCoherenceEntry } from '$lib/schema/registration-checks';
 import { testClosure } from '$lib/test/support/closure';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
+import { testContainer } from '$lib/test/harness/test-kinds';
 
 const leaf = { mergeRole: 'not-mergeable', editable: true, supportsInline: false } as const;
 
@@ -76,15 +77,7 @@ describe('closure lands on the read-side descriptor', () => {
 	});
 
 	it('survives registration alongside a container group', () => {
-		const kind = declarePluginKind('closure-container');
-		registerBlockKind(kind, {
-			gapEdges: 'none',
-			mergeRole: 'container',
-			editable: true,
-			supportsInline: false,
-			container: { contract: 'opaque', rebuildRaw: () => {} },
-			closure: testClosure
-		});
+		const kind = testContainer('closure-container', { rebuildRaw: () => {} });
 		const descriptor = getBlockKindDescriptor(kind);
 		expect(descriptor.isContainer).toBe(true);
 		expect(descriptor.closure).toEqual(testClosure);

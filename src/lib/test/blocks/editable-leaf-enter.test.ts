@@ -4,69 +4,24 @@
 // `@@` harness leaf), so the literal newline Enter inserts was always visible and always wanted,
 // and no test asked what a one-line leaf does with a byte it cannot show.
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { mount, unmount, flushSync } from 'svelte';
-import RevealLeafBlock from './fixtures/RevealLeafBlock.svelte';
-import { declarePluginKind, registerBlockKind, simpleLeafClosure } from '$lib/plugin';
+import { unmount } from 'svelte';
 import { resetPluginPlatformForTests } from '$lib/testing';
-import type { CstNode, Document } from '$lib/core/nodes';
-import { makeStubBlockEdit } from '../harness/editor-actions';
-import { editorMountContext } from '../harness/mount-context';
-import { installLayoutStubs } from './editor-mount';
+import { installLayoutStubs } from '$lib/test/harness/mount-editor.svelte';
+import { settleEditor, pressKey } from '$lib/test/harness/settle';
+import { leafDocument, mountRevealLeaf, registerRevealLeafKind } from './fixtures/reveal-leaf';
 
 const KIND = 'enter-leaf';
 const RAW = '@@ one\n';
 const SOURCE = '@@ one';
 
-/** Drains the microtask queue the async keydown handler and the reveal both run on. */
-const flush = () => new Promise((resolve) => setTimeout(resolve));
-
 function mountLeaf(singleLine: boolean) {
-	const kind = declarePluginKind(KIND);
-	registerBlockKind(kind, {
-		gapEdges: 'none',
-		mergeRole: 'not-mergeable',
-		editable: true,
-		supportsInline: false,
-		closure: simpleLeafClosure({
-			focus: { mode: 'implemented', via: 'createEditableLeaf render-primary reveal' },
-			searchPaint: { mode: 'inherit-default' },
-			undo: { mode: 'implemented', via: 'render-primary: one commit when the caret leaves' },
-			simOracle: { mode: 'inherit-default' }
-		})
-	});
-
-	const node: CstNode = { kind, leadingTrivia: '', raw: RAW } as CstNode;
-	const doc: Document = { kind: 'document', prefix: '', children: [node], suffix: '' };
-	const blockEdit = makeStubBlockEdit();
-	const target = document.createElement('div');
-	document.body.appendChild(target);
-
-	const instance = mount(RevealLeafBlock, {
-		target,
-		props: { node, index: 0, myPath: [0], singleLine },
-		context: editorMountContext({ blockEdit, doc: { doc: () => doc } })
-	});
-	flushSync();
-
+	const kind = registerRevealLeafKind(KIND);
+	const mounted = mountRevealLeaf(leafDocument(kind, RAW), { props: { singleLine } });
 	return {
-		instance,
-		blockEdit,
-		source: () => target.querySelector<HTMLElement>('.reveal-leaf-source'),
-		/** Reveal the source with the caret at the end of the block's bytes. */
-		revealAtEnd: async () => {
-			instance.parkCaret(SOURCE.length);
-			await flush();
-			const el = target.querySelector<HTMLElement>('.reveal-leaf-source');
-			expect(el, 'the reveal mounted no source element').not.toBeNull();
-			return el!;
-		}
+		...mounted,
+		source: () => mounted.target.querySelector<HTMLElement>('.reveal-leaf-source')
 	};
 }
-
-const pressEnter = async (el: HTMLElement) => {
-	el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
-	await flush();
-};
 
 let mounted: ReturnType<typeof mountLeaf> | null = null;
 
@@ -87,7 +42,7 @@ describe('Enter in an editable leaf', () => {
 		mounted = mountLeaf(false);
 		const el = await mounted.revealAtEnd();
 
-		await pressEnter(el);
+		await pressKey(el, { key: 'Enter' });
 
 		expect(el.textContent).toBe(`${SOURCE}\n`);
 		expect(mounted.blockEdit.splitBlock).not.toHaveBeenCalled();
@@ -97,7 +52,7 @@ describe('Enter in an editable leaf', () => {
 		mounted = mountLeaf(true);
 		const el = await mounted.revealAtEnd();
 
-		await pressEnter(el);
+		await pressKey(el, { key: 'Enter' });
 
 		expect(mounted.blockEdit.splitBlock).toHaveBeenCalledWith(0, SOURCE.length);
 		// The fold is the split's precondition, so the source is back to its rendered view.
@@ -115,7 +70,7 @@ describe('Enter in an editable leaf', () => {
 		// key and tears the block down while the shared step is still pending.
 		el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
 		el.remove();
-		await flush();
+		await settleEditor();
 
 		expect(mounted.blockEdit.splitBlock).not.toHaveBeenCalled();
 	});
@@ -132,14 +87,14 @@ describe('Enter in an editable leaf', () => {
 		// A draft the reveal holds and the CST has not seen; the caret goes back to its end.
 		el.textContent = '@@ two';
 		mounted.instance.parkCaret(6);
-		await flush();
-		await pressEnter(el);
+		await settleEditor();
+		await pressKey(el, { key: 'Enter' });
 
 		expect(mounted.blockEdit.updateBlockContent).toHaveBeenCalledWith(0, '@@ two\n', 6, 6);
 		expect(mounted.blockEdit.splitBlock).not.toHaveBeenCalled();
 
 		releaseWrite();
-		await flush();
+		await settleEditor();
 		expect(mounted.blockEdit.splitBlock).toHaveBeenCalledWith(0, 6);
 	});
 });

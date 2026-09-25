@@ -8,7 +8,12 @@
 // Miss-analysis: every case over that rule used prose-shaped fixtures, so nothing separated
 // "reads back as what the caller stores" from "reads back as a block".
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
-import { installLayoutStubs, mountEditor, placeCaret, type MountedEditor } from '../editor-mount';
+import {
+	installLayoutStubs,
+	mountEditor,
+	placeCaret,
+	type MountedEditor
+} from '$lib/test/harness/mount-editor.svelte';
 import { cellAt, installTableLayoutStubs } from './mount-table';
 
 let restoreLayout: () => void;

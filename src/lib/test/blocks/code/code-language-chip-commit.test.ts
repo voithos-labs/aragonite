@@ -7,6 +7,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { flushSync } from 'svelte';
 import { mountCode, type MountedCode } from './mount-code';
+import { dispatchKey } from '$lib/test/harness/settle';
 
 // Trailing spaces the parser trims out of `meta.info` and keeps in the block's bytes.
 const PADDED = '```js  \nconst x = 1\n```\n';
@@ -23,7 +24,7 @@ function openField(): HTMLInputElement {
 }
 
 function pressEnter(field: HTMLInputElement): void {
-	field.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+	dispatchKey(field, { key: 'Enter' });
 	flushSync();
 }
 

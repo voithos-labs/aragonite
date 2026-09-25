@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { createNavigationQueue } from '$lib/plugins/toc/navigation-queue';
+import { settleEditor } from '$lib/test/harness/settle';
 
 // A navigation that leaves each call waiting on a promise the test resolves by hand, so the
 // queue's ordering is visible one step at a time: `calls` records the path of every
@@ -17,28 +18,23 @@ function deferredNavigateTo() {
 	};
 }
 
-// Flush enough microtask turns for the resumed loop to issue its next scroll.
-async function settle(): Promise<void> {
-	for (let i = 0; i < 4; i++) await Promise.resolve();
-}
-
 describe('createNavigationQueue', () => {
 	it('runs one navigation at a time: a mid-flight navigate starts no concurrent one', async () => {
 		const { calls, navigateTo, resolveNext } = deferredNavigateTo();
 		const queue = createNavigationQueue({ navigateTo });
 
 		void queue.navigateTo([1]);
-		await settle();
+		await settleEditor();
 		expect(calls).toEqual([[1]]);
 
 		// The one-at-a-time check: without it, navigateTo([2]) would fire here alongside
 		// the first and fail.
 		void queue.navigateTo([2]);
-		await settle();
+		await settleEditor();
 		expect(calls).toEqual([[1]]);
 
 		resolveNext();
-		await settle();
+		await settleEditor();
 		expect(calls).toEqual([[1], [2]]);
 	});
 
@@ -49,16 +45,16 @@ describe('createNavigationQueue', () => {
 		void queue.navigateTo([1]);
 		void queue.navigateTo([2]);
 		void queue.navigateTo([3]);
-		await settle();
+		await settleEditor();
 		expect(calls).toEqual([[1]]);
 
 		resolveNext();
-		await settle();
+		await settleEditor();
 		// Newest wins: the loop picks up [3], never the replaced [2].
 		expect(calls).toEqual([[1], [3]]);
 
 		resolveNext();
-		await settle();
+		await settleEditor();
 		expect(calls).toEqual([[1], [3]]);
 	});
 
@@ -67,15 +63,15 @@ describe('createNavigationQueue', () => {
 		const queue = createNavigationQueue({ navigateTo });
 
 		void queue.navigateTo([1]);
-		await settle();
+		await settleEditor();
 		resolveNext();
-		await settle();
+		await settleEditor();
 		expect(calls).toEqual([[1]]);
 
 		// The loop terminated and cleared `navigating`; a fresh navigate must fire at
 		// once, not stall behind a stuck flag.
 		void queue.navigateTo([9]);
-		await settle();
+		await settleEditor();
 		expect(calls).toEqual([[1], [9]]);
 	});
 });

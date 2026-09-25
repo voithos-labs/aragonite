@@ -8,7 +8,7 @@ import { serialize } from '$lib/core/serializer';
 import { assignChildIdsDeep } from '$lib/block-id';
 import { buildPastedReplacement } from '$lib/tree-operations';
 import {
-	mockRef,
+	stubBlockComponent,
 	makeEditorActionsDeps,
 	makeNestedHarness,
 	makeNode
@@ -183,7 +183,7 @@ function makeContainer(source: string): ContainerHarness {
 	const reorder = createReorderAction(deps, controller);
 	replaceRefs(
 		state.innerBlockRefs,
-		(initial.children ?? []).map(() => mockRef())
+		(initial.children ?? []).map(() => stubBlockComponent())
 	);
 
 	return { doc: deps.doc, node, state, bundle, reorder };

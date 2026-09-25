@@ -1,12 +1,16 @@
 import { describe, it, expect } from 'vitest';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
 import { rangeSelectionOf } from '$lib/test/support/undo-entry';
-import { makeEditorActionsDeps, mockRef, makeNode } from '$lib/test/harness/editor-actions';
+import {
+	makeEditorActionsDeps,
+	stubBlockComponent,
+	makeNode
+} from '$lib/test/harness/editor-actions';
 
 describe('debounced undo snapshot: deep path capture', () => {
 	it('records the live deep path when a ref provides getCursorPosition', () => {
 		const { deps } = makeEditorActionsDeps([makeNode('table', '| a |\n')]);
-		deps.blockRefs[0] = mockRef({
+		deps.blockRefs[0] = stubBlockComponent({
 			getCursorOffset: () => 5,
 			getCursorPosition: () => ({ path: [0, 1], offset: 5 })
 		});
@@ -35,7 +39,7 @@ describe('debounced undo snapshot: deep path capture', () => {
 
 	it('flat top-level prose typing path stays flat (live ref reports [i])', () => {
 		const { deps } = makeEditorActionsDeps([makeNode('paragraph', 'hello\n')]);
-		deps.blockRefs[0] = mockRef({ getCursorOffset: () => 4 });
+		deps.blockRefs[0] = stubBlockComponent({ getCursorOffset: () => 4 });
 
 		const controller = createUndoController(deps);
 		controller.pushUndoSnapshotDebounced([0], 1);

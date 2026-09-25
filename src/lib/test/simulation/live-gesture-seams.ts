@@ -13,7 +13,7 @@ import type { BlockEditActions } from '$lib/action-contracts';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import { getContentRange, isProseKind, parseInline } from '$lib/core/inline';
-import { trailingLineEnding, trimTrailingLineEnding } from '$lib/core/lines';
+import { snapToScalarBoundary, trailingLineEnding, trimTrailingLineEnding } from '$lib/core/lines';
 import { renderInlineNodes } from '$lib/core/inline-render';
 import { listInlineMarks, type InlineMark } from '$lib/schema/inline-construct-policy';
 import { toggleInlineFormat } from '$lib/core/inline/format-toggle';
@@ -168,7 +168,7 @@ export function gestureTargets(doc: Document, kind: GestureKind): ProseLeaf[] {
  *  must count rather than quietly move. */
 export function drawsMidScalar(doc: Document, gesture: Gesture): boolean {
 	return drawnSites(doc, gesture).some(
-		({ node, offset }) => codePointStart(node.raw, offset) !== offset
+		({ node, offset }) => snapToScalarBoundary(node.raw, offset) !== offset
 	);
 }
 
@@ -176,7 +176,7 @@ export function drawsMidScalar(doc: Document, gesture: Gesture): boolean {
  *  only by accident. Absolute offsets, like {@link hiddenEdgeOffsets}. */
 export function scalarInteriors(raw: string, start: number, end: number): number[] {
 	const found: number[] = [];
-	for (let at = start + 1; at < end; at++) if (codePointStart(raw, at) !== at) found.push(at);
+	for (let at = start + 1; at < end; at++) if (snapToScalarBoundary(raw, at) !== at) found.push(at);
 	return found;
 }
 
@@ -208,17 +208,11 @@ function contentOffset(node: CstNode, offset: number): number {
  * holds ({@link storedEndpoint}): both arrive raw, and production code is what has to catch them.
  */
 function throughDoor(node: CstNode, offset: number, kind: GestureKind): number {
-	return kind === 'enter' || spansLeaves(kind) ? offset : codePointStart(node.raw, offset);
+	return kind === 'enter' || spansLeaves(kind) ? offset : snapToScalarBoundary(node.raw, offset);
 }
 
 const drawnOffset = (node: CstNode, gesture: Gesture, offset: number): number =>
 	throughDoor(node, contentOffset(node, offset), gesture.kind);
-
-/** The start of the code point `at` sits inside, which every browser-reported offset already is. */
-function codePointStart(raw: string, at: number): number {
-	const code = raw.charCodeAt(at);
-	return code >= 0xdc00 && code <= 0xdfff ? at - 1 : at;
-}
 
 // ── The gestures ─────────────────────────────────────────────────────────────
 
@@ -265,8 +259,7 @@ async function writeInsideContainer(
 
 	const h = makeNestedHarness(doc, {
 		index: target.path[0],
-		presentationMode: mode,
-		stubState: true
+		presentationMode: mode
 	});
 	const children = (): CstNode[] => h.deps.doc.children[target.path[0]].children ?? [];
 	const seeded = children()[seed.path[1]];
@@ -408,7 +401,7 @@ async function nativePress(
 	// At the start or end of the content the keypress becomes a block gesture: the merge it aims at.
 	if (kind === 'backspace') {
 		if (offset > start) {
-			const from = codePointStart(node.raw, offset - 1);
+			const from = snapToScalarBoundary(node.raw, offset - 1);
 			await write(splice(node.raw, from, offset, ''), from);
 		} else if (index > 0) {
 			await h.blockEdit.mergeWithPrevious(index);
@@ -419,7 +412,7 @@ async function nativePress(
 		if (index < h.doc.children.length - 1) await h.blockEdit.mergeWithNext(index);
 		return;
 	}
-	const to = offset + (codePointStart(node.raw, offset + 1) === offset ? 2 : 1);
+	const to = offset + (snapToScalarBoundary(node.raw, offset + 1) === offset ? 2 : 1);
 	await write(splice(node.raw, offset, to, ''), offset);
 }
 

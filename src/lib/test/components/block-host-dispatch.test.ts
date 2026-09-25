@@ -10,10 +10,11 @@ import { registerBlockComponent, defineBlockComponent } from '$lib/schema/block-
 import { createRegistryView } from '$lib/schema/registry-view';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import RecordingBlock from './fixtures/RecordingBlock.svelte';
-import { declareComponentlessKind, mountBlockHost } from './mount-host';
+import { mountBlockHost } from './mount-host';
 import type { MountedHost } from './mount-host';
 import { installEditorDomStubsForTests } from '$lib/testing';
 import { allowDevWarns } from '$lib/test/support/warn-gate';
+import { testLeaf } from '$lib/test/harness/test-kinds';
 
 // The harness mounts BlockHost without the component layer, so unregistered kinds render raw.
 afterEach(() => allowDevWarns(['block-host']));
@@ -72,7 +73,7 @@ describe('BlockHost dispatches each kind class to its registered component', () 
 	it('renders a plugin kind’s registered component, same as a built-in', () => {
 		// Positive control for the fallback pair below: "no component rendered" only
 		// means something once a plugin kind is shown to render one.
-		const kind = declareComponentlessKind('host-plugin');
+		const kind = testLeaf('host-plugin');
 		registerBlockComponent(kind, defineBlockComponent(RecordingBlock));
 		const doc = parse('plugin text\n');
 		doc.children[0].kind = kind;
@@ -94,7 +95,7 @@ describe('BlockHost dispatches each kind class to its registered component', () 
 describe('BlockHost falls back to a raw-editable surface when no component resolves', () => {
 	it('renders a kind that has a descriptor but no component', () => {
 		const doc = parse('orphan text\n');
-		doc.children[0].kind = declareComponentlessKind('host-orphan');
+		doc.children[0].kind = testLeaf('host-orphan');
 
 		mounted = mountBlockHost(doc);
 
@@ -106,7 +107,7 @@ describe('BlockHost falls back to a raw-editable surface when no component resol
 	it('renders a kind whose component this instance’s registry view disables', () => {
 		// Turning a kind off reaches BlockHost through this editor's own registry
 		// view: a host reading the global registry instead would still render it.
-		const kind = declareComponentlessKind('host-disabled');
+		const kind = testLeaf('host-disabled');
 		registerBlockComponent(kind, defineBlockComponent(RecordingBlock));
 		const doc = parse('disabled text\n');
 		doc.children[0].kind = kind;

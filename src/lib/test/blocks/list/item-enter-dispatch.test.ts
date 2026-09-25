@@ -6,7 +6,7 @@
 // so a real keystroke tells them apart without a spy: the choice is asserted by the document.
 import { describe, it, expect, afterEach, beforeAll } from 'vitest';
 import { parse } from '$lib/core/parser';
-import { installLayoutStubs, mountEditor, pressKeyAt } from '../editor-mount';
+import { installLayoutStubs, mountEditor, pressKeyAt } from '$lib/test/harness/mount-editor.svelte';
 
 beforeAll(installLayoutStubs);
 

@@ -8,7 +8,7 @@ import {
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import {
-	makeRunningPasteController,
+	makePasteCommit,
 	makeStubBlockEdit,
 	registerStubBlockListState,
 	pasteContext
@@ -29,11 +29,11 @@ beforeEach(() => {
 });
 
 async function pasteAfterAbc(source: string, clipboard: string) {
-	const doc = parse(source);
+	const { doc, controller } = makePasteCommit(source);
 	registerStubBlockListState(doc.children[0]);
 	await pasteDispatch(
 		{ pastedText: clipboard, targetPath: [0, 0, 0], offset: 'abc'.length },
-		pasteContext({ doc, blockEdit: makeStubBlockEdit(), controller: makeRunningPasteController() })
+		pasteContext({ doc, blockEdit: makeStubBlockEdit(), controller })
 	);
 	return doc;
 }

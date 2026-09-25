@@ -7,17 +7,8 @@
 import { describe, it, expect, afterEach, beforeEach } from 'vitest';
 import { blockAtPoint, endpointAtPoint, type BlockHit } from '$lib/selection/block-hit-test';
 import { WHOLE_BLOCK_INPUT_ATTR } from '$lib/editor-actions/whole-block-focus-surface';
-import { declarePluginKind } from '$lib/schema/plugin-kind';
-import { registerBlockKind } from '$lib/schema/block-kind-descriptor';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
-import { testClosure } from '$lib/test/support/closure';
-
-const leaf = {
-	mergeRole: 'not-mergeable',
-	editable: true,
-	supportsInline: false,
-	closure: testClosure
-} as const;
+import { testLeaf } from '$lib/test/harness/test-kinds';
 
 const CARET_TARGET = { path: [1, 2], offset: 7 };
 
@@ -48,12 +39,7 @@ describe('blockAtPoint hook plumbing', () => {
 
 	/** Register a kind with the given hooks and label the wrapper with it. */
 	function withKind(name: string, hooks: Record<string, unknown>) {
-		const kind = declarePluginKind(name);
-		registerBlockKind(kind, {
-			gapEdges: 'none',
-			...leaf,
-			...hooks
-		});
+		const kind = testLeaf(name, hooks);
 		wrapper.setAttribute('data-block-kind', kind);
 		return blockAtPoint(root, 10, 10);
 	}

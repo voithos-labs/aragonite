@@ -8,6 +8,7 @@
 import type { InlineNode } from '../../nodes';
 import { assertInvariant } from '../../../assert';
 import { appendNode, type Delimiter, type ScanContext } from './scan-state';
+import { isHighSurrogate, isLowSurrogate } from '../../lines';
 
 // ── Flanking classification (§6.2 phase 1) ──────────────────────────────────
 
@@ -34,10 +35,8 @@ function isWhitespace(ch: string): boolean {
 // Flanking neighbors are read as full code points: a UTF-16 unit read would classify an
 // astral neighbor as a lone surrogate, while the spec defines the classes over code points.
 function codePointBefore(raw: string, pos: number): string {
-	const unit = raw.charCodeAt(pos - 1);
-	if (unit >= 0xdc00 && unit <= 0xdfff && pos >= 2) {
-		const high = raw.charCodeAt(pos - 2);
-		if (high >= 0xd800 && high <= 0xdbff) return raw.slice(pos - 2, pos);
+	if (pos >= 2 && isLowSurrogate(raw.charCodeAt(pos - 1))) {
+		if (isHighSurrogate(raw.charCodeAt(pos - 2))) return raw.slice(pos - 2, pos);
 	}
 	return raw[pos - 1];
 }

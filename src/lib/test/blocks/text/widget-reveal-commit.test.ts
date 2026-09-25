@@ -10,6 +10,7 @@ import { createWidgetInteraction } from '$lib/components/blocks/text/widget-inte
 import { MATH_INLINE } from '$lib/plugins/latex/latex-kind';
 import { installMathInline, mountWidgetBlock, widgetInteractionDeps } from './math-widget-fixture';
 import type { Commit } from './widget-selected-fixture';
+import { settleEditor } from '$lib/test/harness/settle';
 
 installMathInline();
 
@@ -50,7 +51,7 @@ function mountMathBlock() {
 	// anchor the commit assertions below depend on; the trailing edge would anchor at math.end.
 	async function reveal(): Promise<void> {
 		interaction.enterWidget(math, false);
-		await new Promise((r) => setTimeout(r));
+		await settleEditor();
 	}
 
 	return {
@@ -220,7 +221,7 @@ describe('cancelReveal: identity-exact fold-back', () => {
 		);
 
 		interaction.enterWidget(second, false);
-		await new Promise((r) => setTimeout(r));
+		await settleEditor();
 		expect(el.childNodes[3]).not.toBe(secondWidget); // swapped for the source text node
 		await interaction.handleRevealingKeydown(new KeyboardEvent('keydown', { key: 'Escape' }));
 

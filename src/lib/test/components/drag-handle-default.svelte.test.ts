@@ -4,7 +4,11 @@
 // pinned `blockDragHandles=false` but drove every other case through a test page that passes the
 // prop explicitly, so nothing anywhere asserted the default, the one value every consumer gets.
 import { describe, it, expect, afterEach } from 'vitest';
-import { installLayoutStubs, mountEditor, type MountedEditor } from '../blocks/editor-mount';
+import {
+	installLayoutStubs,
+	mountEditor,
+	type MountedEditor
+} from '$lib/test/harness/mount-editor.svelte';
 
 installLayoutStubs();
 

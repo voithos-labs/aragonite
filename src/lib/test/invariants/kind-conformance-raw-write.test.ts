@@ -4,12 +4,10 @@
 // one passed the kit while a range delete over its closer swallowed the document below.
 import { describe, it, expect, beforeEach } from 'vitest';
 import {
-	declarePluginKind,
 	declaredPluginKind,
 	matchFenceClose,
 	matchFenceOpen,
 	OPENER_PRIORITIES,
-	registerBlockKind,
 	registerBlockOpener
 } from '$lib/plugin';
 import { getBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
@@ -20,7 +18,7 @@ import { registerMathBlock, MATH_BLOCK, MATH_FENCE } from '$lib/plugins/latex/la
 import { registerMermaidKind, MERMAID } from '$lib/plugins/mermaid/mermaid-kind';
 import type { NodeView } from '$lib/core/node-views';
 import type { AnyBlockKind } from '$lib/core/nodes';
-import { testClosure } from '$lib/test/support/closure';
+import { testLeaf } from '$lib/test/harness/test-kinds';
 
 beforeEach(() => {
 	resetPluginPlatformForTests();
@@ -54,14 +52,9 @@ describe('kind conformance: the raw-write cell', () => {
 // A fenced leaf whose raw is its own lines and which declares no rule: cutting its closer leaves an
 // unterminated fence that reads every block below it as its body.
 function registerRulelessFence(): AnyBlockKind {
-	const kind = declarePluginKind('ruleless-fence');
-	registerBlockKind(kind, {
-		gapEdges: 'none',
-		mergeRole: 'not-mergeable',
+	const kind = testLeaf('ruleless-fence', {
 		editable: false,
-		supportsInline: false,
-		conformanceFixture: '```ruleless\nbody\n```\n',
-		closure: testClosure
+		conformanceFixture: '```ruleless\nbody\n```\n'
 	});
 	registerBlockOpener(kind, {
 		priority: OPENER_PRIORITIES.fencedCode - 5,

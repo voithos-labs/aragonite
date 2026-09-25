@@ -7,7 +7,7 @@
 // then match during ordinary editing.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
 import type { PresentationMode } from '$lib/presentation-mode';
-import { installLayoutStubs } from '../editor-mount';
+import { installLayoutStubs } from '$lib/test/harness/mount-editor.svelte';
 import { mountItem, type MountedItem } from './mount-item';
 import { allowDevWarns } from '$lib/test/support/warn-gate';
 

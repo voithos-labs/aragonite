@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { serialize } from '$lib/core/serializer';
-import { makeTopHarness, mockRef } from '$lib/test/harness/editor-actions';
+import { makeTopHarness, stubBlockComponent } from '$lib/test/harness/editor-actions';
 
 // Backspace joins a line into the block above, and the fix-up can then merge that block into the
 // one above it; the caret has to follow the joined bytes there (GH #193).
@@ -11,7 +11,7 @@ describe('Backspace whose joined block the block above absorbs', () => {
 	it('lands the caret at the join inside the block that absorbed it', async () => {
 		const harness = makeTopHarness('    code\n\n    \nx\n\n\n[ref]: https://example.com\n');
 		const focuses = harness.deps.doc.children.map(() => vi.fn());
-		focuses.forEach((focus, i) => (harness.getBlockRefs()[i] = mockRef({ focus })));
+		focuses.forEach((focus, i) => (harness.getBlockRefs()[i] = stubBlockComponent({ focus })));
 
 		await harness.actions.mergeWithPrevious(2);
 

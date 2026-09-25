@@ -10,7 +10,7 @@
 import { describe, it, expect, afterEach, beforeEach, beforeAll } from 'vitest';
 import { resetPluginPlatformForTests } from '$lib/testing';
 import { footnotesPlugin } from '$lib/plugins/footnotes';
-import { installLayoutStubs, mountEditor, pressKeyAt } from '../../blocks/editor-mount';
+import { installLayoutStubs, mountEditor, pressKeyAt } from '$lib/test/harness/mount-editor.svelte';
 
 beforeAll(installLayoutStubs);
 

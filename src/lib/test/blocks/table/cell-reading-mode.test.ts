@@ -6,7 +6,11 @@
 // row-appending end of Tab and Enter is a navigation plan reading mode must keep, so the keydown
 // switch carries a check the dispatch cannot supply. One test per side of that split.
 import { describe, it, expect, beforeAll, afterEach, vi } from 'vitest';
-import { installLayoutStubs, mountEditor, type MountedEditor } from '../editor-mount';
+import {
+	installLayoutStubs,
+	mountEditor,
+	type MountedEditor
+} from '$lib/test/harness/mount-editor.svelte';
 import { cellAt, installTableLayoutStubs, pressInCell } from './mount-table';
 import { mountCell, type MountedCell } from './mount-cell';
 

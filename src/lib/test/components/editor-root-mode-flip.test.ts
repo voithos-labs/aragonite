@@ -1,10 +1,10 @@
 // @vitest-environment jsdom
 import { describe, it, expect, afterEach } from 'vitest';
-import { tick } from 'svelte';
 import { createModeFlip } from '$lib/components/editor-root-mode-flip';
 import { createEditorEvents } from '$lib/editor-events';
 import type { PresentationMode } from '$lib/presentation-mode';
 import type { EditorSelection } from '$lib/selection/primitives';
+import { settleEditor } from '$lib/test/harness/settle';
 
 afterEach(() => {
 	document.body.replaceChildren();
@@ -69,12 +69,6 @@ function harness(opts: { mode?: PresentationMode; selection?: EditorSelection | 
 	return { leaf, headerField, flip, calls, selection, flipTo, setMode, setSnapshot };
 }
 
-/** The restore waits one flush of its own before it runs. */
-async function settle(): Promise<void> {
-	await tick();
-	await tick();
-}
-
 describe('editor-root mode flip: the two halves', () => {
 	it('an unchanged mode is a no-op for both halves', () => {
 		const h = harness();
@@ -110,14 +104,14 @@ describe('editor-root mode flip: the caret carry', () => {
 	it('restores the caret captured on the way out after the flush', async () => {
 		const h = harness({ selection: caretAt([1], 3) });
 		h.flipTo('live');
-		await settle();
+		await settleEditor();
 		expect(h.calls.restores).toEqual([[[1], 3]]);
 	});
 
 	it('entering reading clears the gap caret and restores nothing', async () => {
 		const h = harness({ selection: caretAt([1], 3) });
 		h.flipTo('reading');
-		await settle();
+		await settleEditor();
 		expect(h.calls.gapClears).toBe(1);
 		expect(h.calls.restores).toEqual([]);
 	});
@@ -127,7 +121,7 @@ describe('editor-root mode flip: the caret carry', () => {
 		h.flipTo('reading');
 		h.setSnapshot(null);
 		h.flipTo('source');
-		await settle();
+		await settleEditor();
 		expect(h.calls.restores).toEqual([[[2], 5]]);
 	});
 
@@ -135,7 +129,7 @@ describe('editor-root mode flip: the caret carry', () => {
 		const h = harness({ selection: caretAt([1], 3) });
 		h.selection.isCrossBlock = true;
 		h.flipTo('live');
-		await settle();
+		await settleEditor();
 		expect(h.calls.restores).toEqual([]);
 	});
 
@@ -143,7 +137,7 @@ describe('editor-root mode flip: the caret carry', () => {
 		const h = harness({ selection: caretAt([1], 3) });
 		h.flipTo('live');
 		h.setMode('source');
-		await settle();
+		await settleEditor();
 		expect(h.calls.restores).toEqual([]);
 	});
 
@@ -153,7 +147,7 @@ describe('editor-root mode flip: the caret carry', () => {
 		const field = document.createElement('input');
 		document.body.append(field);
 		field.focus();
-		await settle();
+		await settleEditor();
 		expect(h.calls.restores).toEqual([]);
 	});
 });

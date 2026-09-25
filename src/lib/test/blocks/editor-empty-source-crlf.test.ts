@@ -4,7 +4,11 @@
 // A blank line is a block of its own, so a blank source arrives carrying its own endings
 // and only the truly empty source reaches the caret placeholder.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
-import { installLayoutStubs, mountEditor, type MountedEditor } from './editor-mount';
+import {
+	installLayoutStubs,
+	mountEditor,
+	type MountedEditor
+} from '$lib/test/harness/mount-editor.svelte';
 
 beforeAll(installLayoutStubs);
 

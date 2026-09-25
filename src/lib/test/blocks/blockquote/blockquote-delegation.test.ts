@@ -10,7 +10,7 @@ import { mount, unmount, flushSync } from 'svelte';
 import BlockquoteBlock from '$lib/components/blocks/BlockquoteBlock.svelte';
 import { parse } from '$lib/core/parser';
 import { editorMountContext } from '../../harness/mount-context';
-import { installLayoutStubs } from '../editor-mount';
+import { installLayoutStubs } from '$lib/test/harness/mount-editor.svelte';
 import { allowDevWarns } from '$lib/test/support/warn-gate';
 
 // The harness mounts BlockHost without the component layer, so unregistered kinds render raw.

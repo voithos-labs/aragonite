@@ -14,12 +14,7 @@ import {
 	mountBreak,
 	type MountedBreak
 } from './mount-break';
-
-function press(el: HTMLElement, init: KeyboardEventInit): KeyboardEvent {
-	const event = new KeyboardEvent('keydown', { bubbles: true, cancelable: true, ...init });
-	el.dispatchEvent(event);
-	return event;
-}
+import { dispatchKey } from '$lib/test/harness/settle';
 
 let mounted: MountedBreak;
 afterEach(async () => {
@@ -75,8 +70,8 @@ describe('thematic break: keydown levels', () => {
 		(mode, splits) => {
 			mounted = mountBreak(mode);
 
-			expect(press(mounted.el, { key: 'Enter' }).defaultPrevented).toBe(true);
-			press(mounted.el, { key: 'ArrowDown' });
+			expect(dispatchKey(mounted.el, { key: 'Enter' }).defaultPrevented).toBe(true);
+			dispatchKey(mounted.el, { key: 'ArrowDown' });
 
 			expect(vi.mocked(mounted.blockEdit.splitBlock).mock.calls).toEqual(
 				splits ? [[INDEX, displayLength(RAW)]] : []
@@ -94,7 +89,7 @@ describe('thematic break: keydown levels', () => {
 	] as const)('Alt+%s reorders through the kind keymap instead of traversing', (key, dir) => {
 		mounted = mountBreak();
 
-		expect(press(mounted.el, { key, altKey: true }).defaultPrevented).toBe(true);
+		expect(dispatchKey(mounted.el, { key, altKey: true }).defaultPrevented).toBe(true);
 
 		expect(mounted.reorder.nudgeReorderUnit).toHaveBeenCalledWith([INDEX], dir);
 		expect(mounted.focus.moveFocus).not.toHaveBeenCalled();
@@ -105,7 +100,7 @@ describe('thematic break: keydown levels', () => {
 	it('honors an editor-global chord while the block itself holds focus', () => {
 		mounted = mountBreak();
 
-		expect(press(mounted.el, { key: 'z', ctrlKey: true }).defaultPrevented).toBe(true);
+		expect(dispatchKey(mounted.el, { key: 'z', ctrlKey: true }).defaultPrevented).toBe(true);
 
 		expect(mounted.history.requestUndo).toHaveBeenCalledTimes(1);
 	});
@@ -116,7 +111,7 @@ describe('thematic break: keydown levels', () => {
 	it('dead-keys an editor-global chord in reading mode while still consuming it', () => {
 		mounted = mountBreak('reading');
 
-		expect(press(mounted.el, { key: 'z', ctrlKey: true }).defaultPrevented).toBe(true);
+		expect(dispatchKey(mounted.el, { key: 'z', ctrlKey: true }).defaultPrevented).toBe(true);
 
 		expect(mounted.history.requestUndo).not.toHaveBeenCalled();
 	});

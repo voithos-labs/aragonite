@@ -11,6 +11,7 @@ import { createWidgetInteraction } from '$lib/components/blocks/text/widget-inte
 import { createSourceReveal } from '$lib/cursor/reveal-source';
 import { MATH_INLINE } from '$lib/plugins/latex/latex-kind';
 import { installMathInline, mountWidgetBlock, widgetInteractionDeps } from './math-widget-fixture';
+import { settleEditor } from '$lib/test/harness/settle';
 
 installMathInline();
 
@@ -34,8 +35,6 @@ function mountEdgeMathBlock() {
 	return { interaction };
 }
 
-const settle = () => new Promise((r) => setTimeout(r));
-
 describe('reveal transitions: settle-window re-entry (G1.26)', () => {
 	it('a second entry landing synchronously inside the settle window fires', async () => {
 		const { interaction } = mountEdgeMathBlock();
@@ -43,7 +42,7 @@ describe('reveal transitions: settle-window re-entry (G1.26)', () => {
 		// synchronous second entry lands inside it, an ordering no real gesture can produce.
 		interaction.enterEdgeWidget('start');
 		interaction.enterEdgeWidget('start');
-		await settle();
+		await settleEditor();
 
 		const fires = takeDevWarns();
 		expect(fires.map((w) => w.tag)).toEqual(REVEAL_TRANSITION);
@@ -53,7 +52,7 @@ describe('reveal transitions: settle-window re-entry (G1.26)', () => {
 	it('a full reveal → fold-commit cycle stays silent', async () => {
 		const { interaction } = mountEdgeMathBlock();
 		interaction.enterEdgeWidget('start');
-		await settle();
+		await settleEditor();
 		expect(interaction.isRevealing()).toBe(true);
 
 		interaction.foldRevealBeforeMutation();
@@ -65,7 +64,7 @@ describe('reveal transitions: settle-window re-entry (G1.26)', () => {
 	it('a full reveal → Escape-cancel cycle stays silent', async () => {
 		const { interaction } = mountEdgeMathBlock();
 		interaction.enterEdgeWidget('start');
-		await settle();
+		await settleEditor();
 
 		await interaction.handleRevealingKeydown(new KeyboardEvent('keydown', { key: 'Escape' }));
 

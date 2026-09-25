@@ -11,7 +11,7 @@ import ListBlock from '$lib/components/blocks/list/ListBlock.svelte';
 import { CURSOR_END } from '$lib/block-component';
 import { parse } from '$lib/core/parser';
 import { editorMountContext } from '../../harness/mount-context';
-import { installLayoutStubs } from '../editor-mount';
+import { installLayoutStubs } from '$lib/test/harness/mount-editor.svelte';
 import { allowDevWarns } from '$lib/test/support/warn-gate';
 
 // The harness mounts BlockHost without the component layer, so unregistered kinds render raw.

@@ -123,35 +123,31 @@ else.
 ### Mounting a block in isolation
 
 A block component reads its wiring from the editor's context tree, so a bare
-`mount(SomeBlock, …)` needs that context present. `test/harness/mount-context.ts` supplies it:
-`editorMountContext(overrides?)` returns the Map a block requires, with the action triple,
-history, and the three editor facets (services, policies, document) pre-stubbed. A test states
-only what it asserts on and takes sensible stubs for the rest. From
-`test/blocks/text/text-crlf-commit.test.ts`, which mounts a real prose block over a parsed
-document and hands it a decoration engine that reports no widgets:
+`mount(SomeBlock, …)` needs that context present. `src/lib/test/harness/mount-block.ts :: mountBlock`
+mounts one block over a parsed document under the standard context from
+`test/harness/mount-context.ts`, which pre-stubs the action triple, history, and the three editor
+facets (services, policies, document). A test states only what it asserts on and takes sensible
+stubs for the rest. From `test/blocks/text/text-crlf-commit.test.ts`, which mounts a real prose
+block and hands it a decoration engine that reports no widgets:
 
 ```ts
-import { mount, flushSync } from 'svelte';
 import TextEditableBlock from '$lib/components/blocks/text/TextEditableBlock.svelte';
-import { makeStubBlockEdit } from '../../harness/editor-actions';
-import { editorMountContext } from '../../harness/mount-context';
+import { mountBlock } from '../../harness/mount-block';
 
-const doc = parse(source);
-const blockEdit = makeStubBlockEdit();
-const instance = mount(TextEditableBlock, {
-	target,
-	props: { node: doc.children[0], index: 0, myPath: [0] },
-	context: editorMountContext({
-		blockEdit,
-		doc: { doc: () => doc },
-		services: { decorations: noIslands }
-	})
+const { target, blockEdit, dispose } = mountBlock(TextEditableBlock, {
+	source: 'hello
+',
+	overrides: { services: { decorations: noIslands } }
 });
-flushSync();
+// blockEdit is spied: expect(blockEdit.updateBlockContent).toHaveBeenCalledWith(...)
 ```
 
 When the editor grows a newly required context, that costs one harness edit instead of a fix
-across every block-mount test.
+across every block-mount test. A bare mount keeps the node it was handed, since nothing above it
+re-renders after a commit; a test that makes more than one gesture mounts the whole Editor with
+`src/lib/test/harness/mount-editor.svelte.ts :: mountEditor`, whose `props` a test writes the way a
+host does. After a gesture, either mount waits with `src/lib/test/harness/settle.ts :: settleEditor`
+(or sends the key with `pressKey`), never a timer.
 
 ### A dev warning fails its test
 

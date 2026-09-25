@@ -8,10 +8,16 @@ import { describe, it, expect, beforeAll, afterEach } from 'vitest';
 import { mount, unmount, flushSync } from 'svelte';
 import TextEditableBlock from '$lib/components/blocks/text/TextEditableBlock.svelte';
 import { parse } from '$lib/core/parser';
-import { installLayoutStubs, mountEditor, surfaceAt, type MountedEditor } from '../editor-mount';
+import {
+	installLayoutStubs,
+	mountEditor,
+	surfaceAt,
+	type MountedEditor
+} from '$lib/test/harness/mount-editor.svelte';
 import { makeStubBlockEdit } from '../../harness/editor-actions';
 import { editorMountContext } from '../../harness/mount-context';
 import { installMathInline } from './math-widget-fixture';
+import { settleEditor } from '$lib/test/harness/settle';
 
 beforeAll(installLayoutStubs);
 
@@ -84,17 +90,15 @@ describe('a widget source shown in a setext heading closes with the underline', 
 		return { instance, blockEdit, el };
 	}
 
-	const flush = () => new Promise((resolve) => setTimeout(resolve));
-
 	it('an edited source writes the underline back', async () => {
 		const { instance, blockEdit, el } = mountMathHeading();
 		expect(instance.enterEdgeWidget('start')).toBe(true);
-		await flush();
+		await settleEditor();
 		const source = Array.from(el.childNodes).find((c) => c.nodeType === Node.TEXT_NODE);
 		source!.textContent = '$y$';
 
 		instance.runCommand('block.split');
-		await flush();
+		await settleEditor();
 
 		expect(blockEdit.updateBlockContent).toHaveBeenCalledWith(
 			0,
@@ -108,10 +112,10 @@ describe('a widget source shown in a setext heading closes with the underline', 
 	it('an untouched source closes without a write', async () => {
 		const { instance, blockEdit } = mountMathHeading();
 		expect(instance.enterEdgeWidget('start')).toBe(true);
-		await flush();
+		await settleEditor();
 
 		instance.runCommand('block.split');
-		await flush();
+		await settleEditor();
 
 		expect(blockEdit.updateBlockContent).not.toHaveBeenCalled();
 		await unmount(instance);

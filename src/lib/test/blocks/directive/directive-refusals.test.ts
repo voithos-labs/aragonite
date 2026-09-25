@@ -8,13 +8,9 @@
 import { describe, it, expect, beforeAll, afterEach, vi } from 'vitest';
 import type { EditorServices } from '$lib/editor-keys';
 import { makeStubFocus } from '../../harness/editor-actions';
-import {
-	installDirectiveStubs,
-	mountDirective,
-	pressOn,
-	type MountedDirective
-} from './mount-directive';
+import { installDirectiveStubs, mountDirective, type MountedDirective } from './mount-directive';
 import { allowDevWarns } from '$lib/test/support/warn-gate';
+import { dispatchKey } from '$lib/test/harness/settle';
 
 // The harness mounts BlockHost without the component layer, so unregistered kinds render raw.
 afterEach(() => allowDevWarns(['block-host']));
@@ -57,8 +53,8 @@ describe('an unconfigured container does nothing where the dispatch declines', (
 	it('leaves a chord it has no command for to the level above', () => {
 		mounted = mountDirective(BODY);
 
-		expect(pressOn(mounted.box, { key: 'k', ctrlKey: true })).toBe(false);
-		expect(pressOn(mounted.box, { key: 'z', ctrlKey: true })).toBe(false);
+		expect(dispatchKey(mounted.box, { key: 'k', ctrlKey: true }).defaultPrevented).toBe(false);
+		expect(dispatchKey(mounted.box, { key: 'z', ctrlKey: true }).defaultPrevented).toBe(false);
 	});
 
 	// A modifier being held is part of a chord, not a keystroke; `eventToChord` returns
@@ -66,8 +62,10 @@ describe('an unconfigured container does nothing where the dispatch declines', (
 	it('treats a held modifier as no chord at all', () => {
 		mounted = mountDirective(BODY);
 
-		expect(pressOn(mounted.box, { key: 'Control', ctrlKey: true })).toBe(false);
-		expect(pressOn(mounted.box, { key: 'Shift', shiftKey: true })).toBe(false);
+		expect(dispatchKey(mounted.box, { key: 'Control', ctrlKey: true }).defaultPrevented).toBe(
+			false
+		);
+		expect(dispatchKey(mounted.box, { key: 'Shift', shiftKey: true }).defaultPrevented).toBe(false);
 	});
 
 	// Whole-block Enter and Backspace belong to opaque containers that opt in with `getFocusEl`.
@@ -76,9 +74,9 @@ describe('an unconfigured container does nothing where the dispatch declines', (
 		const m = mountWithSpies();
 		mounted = m;
 
-		expect(pressOn(m.box, { key: 'Enter' })).toBe(false);
-		expect(pressOn(m.box, { key: 'Backspace' })).toBe(false);
-		expect(pressOn(m.box, { key: 'Delete' })).toBe(false);
+		expect(dispatchKey(m.box, { key: 'Enter' }).defaultPrevented).toBe(false);
+		expect(dispatchKey(m.box, { key: 'Backspace' }).defaultPrevented).toBe(false);
+		expect(dispatchKey(m.box, { key: 'Delete' }).defaultPrevented).toBe(false);
 
 		expect(m.blockEdit.splitBlock).not.toHaveBeenCalled();
 		expect(m.blockEdit.deleteBlock).not.toHaveBeenCalled();
@@ -91,8 +89,8 @@ describe('an unconfigured container does nothing where the dispatch declines', (
 		const m = mountWithSpies();
 		mounted = m;
 
-		expect(pressOn(m.box, { key: 'ArrowUp', altKey: true })).toBe(false);
-		expect(pressOn(m.box, { key: 'ArrowDown', altKey: true })).toBe(false);
+		expect(dispatchKey(m.box, { key: 'ArrowUp', altKey: true }).defaultPrevented).toBe(false);
+		expect(dispatchKey(m.box, { key: 'ArrowDown', altKey: true }).defaultPrevented).toBe(false);
 
 		expect(m.reorder.nudgeReorderUnit).not.toHaveBeenCalled();
 	});

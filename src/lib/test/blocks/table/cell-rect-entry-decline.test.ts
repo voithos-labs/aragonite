@@ -5,8 +5,14 @@
 // covers the refusing gesture with a paragraph as the last block, where nothing is recorded at
 // all; a table records the pair first and then hears the extend refuse, and no test covered it.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
-import { installLayoutStubs, mountEditor, placeCaret, type MountedEditor } from '../editor-mount';
+import {
+	installLayoutStubs,
+	mountEditor,
+	placeCaret,
+	type MountedEditor
+} from '$lib/test/harness/mount-editor.svelte';
 import { cellAt, installTableLayoutStubs } from './mount-table';
+import { pressKey } from '$lib/test/harness/settle';
 
 // Without the Range stubs the visual-line check throws instead of falling back to the
 // offset comparison the cell's edge test reads.
@@ -29,18 +35,13 @@ afterEach(async () => {
 
 const cell = (rowIdx: number, colIdx: number) => cellAt(mounted!, rowIdx, colIdx, [1]);
 
-async function press(el: HTMLElement, init: KeyboardEventInit): Promise<void> {
-	el.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, cancelable: true, ...init }));
-	await mounted!.settle();
-}
-
 describe('a rectangle entry that cannot leave the table leaves nothing behind', () => {
 	it('a declined downward exit stores no selection', async () => {
 		mounted = mountEditor({ source: TABLE_LAST });
 		const last = cell(1, 1);
 		placeCaret(last, 4);
 
-		await press(last, { key: 'ArrowDown', shiftKey: true });
+		await pressKey(last, { key: 'ArrowDown', shiftKey: true });
 
 		// The caret is still the cell's own. A stored pair would report the table block with a
 		// cell index instead, and it would be invisible: the overlay declines a pair with the
@@ -53,8 +54,8 @@ describe('a rectangle entry that cannot leave the table leaves nothing behind', 
 		const last = cell(1, 1);
 		placeCaret(last, 4);
 
-		await press(last, { key: 'ArrowDown', shiftKey: true });
-		await press(cell(1, 1), { key: 'Backspace' });
+		await pressKey(last, { key: 'ArrowDown', shiftKey: true });
+		await pressKey(cell(1, 1), { key: 'Backspace' });
 
 		// jsdom performs no deletion of its own, so the bytes standing still is the assertion:
 		// a live cross-block state would have run the range delete and cleared the cell.
@@ -69,7 +70,7 @@ describe('a rectangle entry that cannot leave the table leaves nothing behind', 
 		const first = cell(1, 0);
 		placeCaret(first, 2);
 
-		await press(first, { key: 'ArrowDown', shiftKey: true });
+		await pressKey(first, { key: 'ArrowDown', shiftKey: true });
 
 		const selection = mounted.instance.getSelection();
 		// Both endpoints address the table by cell index: cells 2 and 3, a painted rectangle.
@@ -84,7 +85,7 @@ describe('a rectangle entry that cannot leave the table leaves nothing behind', 
 		const last = cell(1, 1);
 		placeCaret(last, 0);
 
-		await press(last, { key: 'ArrowUp', shiftKey: true });
+		await pressKey(last, { key: 'ArrowUp', shiftKey: true });
 
 		const selection = mounted.instance.getSelection();
 		expect(selection?.anchor.path).toEqual([1]);

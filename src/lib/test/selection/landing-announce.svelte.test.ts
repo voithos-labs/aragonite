@@ -3,8 +3,8 @@
 // field (a restore, a `source` swap, a cross-block range). A plain caret landing moves none of
 // them, and the browser event that reported it does not exist in jsdom, so no test could see it.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
-import { installLayoutStubs, mountEditor, pressKeyAt } from '../blocks/editor-mount';
-import type { MountedEditor } from '../blocks/editor-mount';
+import { installLayoutStubs, mountEditor, pressKeyAt } from '$lib/test/harness/mount-editor.svelte';
+import type { MountedEditor } from '$lib/test/harness/mount-editor.svelte';
 import type { EditorSelection } from '../../selection/primitives';
 
 beforeAll(installLayoutStubs);

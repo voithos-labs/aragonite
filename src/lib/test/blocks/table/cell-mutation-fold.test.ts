@@ -7,19 +7,16 @@
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import { registerMathInline } from '$lib/plugins/latex/latex-kind';
 import { resetInlineState } from '../text/math-widget-fixture';
-import { mountCell, settleTicks } from './mount-cell';
+import { mountCell } from './mount-cell';
+import { settleEditor, dispatchKey } from '$lib/test/harness/settle';
 
 const CELL = 'x $a$ yz';
-
-function press(el: HTMLElement, key: string): void {
-	el.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true }));
-}
 
 /** Show the widget's source and type into it: an edit that lives only in the DOM until something
  *  hides it again, exactly as the user's does. */
 async function revealAndEdit(el: HTMLElement, edited: string): Promise<void> {
-	press(el, 'ArrowLeft');
-	await settleTicks();
+	dispatchKey(el, { key: 'ArrowLeft' });
+	await settleEditor();
 	const source = Array.from(el.childNodes).find(
 		(c) => c.nodeType === Node.TEXT_NODE && c.textContent === '$a$'
 	);
@@ -46,7 +43,7 @@ describe('a cell mutation folds the open reveal before it runs', () => {
 		await revealAndEdit(el, '$a_n$');
 
 		expect(instance.runCommand('table.insertRowBelow')).toBe(true);
-		await settleTicks();
+		await settleEditor();
 
 		const commits = vi.mocked(blockEdit.updateBlockContent).mock.calls;
 		expect(commits.map((c) => c[1])).toEqual(['x $a_n$ yz']);
@@ -67,7 +64,7 @@ describe('a cell mutation folds the open reveal before it runs', () => {
 		await revealAndEdit(el, '$a_n$');
 
 		instance.runCommand('format.toggleStrong');
-		await settleTicks();
+		await settleEditor();
 
 		expect(vi.mocked(blockEdit.updateBlockContent).mock.calls[0][1]).toBe('x $a_n$ yz');
 	});

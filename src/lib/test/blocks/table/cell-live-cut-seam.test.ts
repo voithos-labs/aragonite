@@ -11,7 +11,8 @@ import {
 	registerLiveJoinSeamCleaner,
 	__resetLiveJoinSeamCleanerForTests
 } from '$lib/schema/inline-construct-policy';
-import { mountCell, settleTicks, type MountedCell } from './mount-cell';
+import { mountCell, type MountedCell } from './mount-cell';
+import { settleEditor } from '$lib/test/harness/settle';
 
 beforeAll(() => registerLiveJoinSeamCleaner(cleanLiveJoinSeam));
 afterAll(() => __resetLiveJoinSeamCleanerForTests());
@@ -35,7 +36,7 @@ function committedCalls(cell: MountedCell): unknown[][] {
 // The cut/beforeinput handlers await the shared prelude before committing, so the
 // commit lands several microtasks after dispatch.
 async function settleCommit(cell: MountedCell): Promise<void> {
-	await settleTicks(() => committedCalls(cell).length > 0);
+	await settleEditor(() => committedCalls(cell).length > 0);
 }
 
 function dispatchCut(el: HTMLElement): Map<string, string> {
@@ -134,7 +135,7 @@ describe('source mode: the same cuts stay byte-literal', () => {
 		mounted.instance.setSelection(4, 11);
 
 		const e = dispatchBeforeInput(mounted.el, 'insertText', 'X');
-		await settleTicks();
+		await settleEditor();
 
 		expect(e.defaultPrevented).toBe(false);
 		expect(committedCalls(mounted)).toEqual([]);

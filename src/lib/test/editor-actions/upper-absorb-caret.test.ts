@@ -1,7 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import { serialize } from '$lib/core/serializer';
 import { replaceRefs } from '$lib/reactivity/publish-ref.svelte';
-import { mockRef, makeNestedHarness, makeTopHarness } from '$lib/test/harness/editor-actions';
+import {
+	stubBlockComponent,
+	makeNestedHarness,
+	makeTopHarness
+} from '$lib/test/harness/editor-actions';
 import type { BlockComponent } from '$lib/block-component';
 
 // The caret half of GH #21: once the write's fix-up merges the block into the one above, the
@@ -19,7 +23,7 @@ interface FocusCall {
 /** Refs that report which original index they were made for: an idMap carries them across. */
 function labelledRefs(count: number, calls: FocusCall[]): BlockComponent[] {
 	return Array.from({ length: count }, (_, slot) =>
-		mockRef({
+		stubBlockComponent({
 			focus: (offset) => calls.push({ slot, offset }),
 			focusByPath: (path, offset) => calls.push({ slot, path, offset })
 		})

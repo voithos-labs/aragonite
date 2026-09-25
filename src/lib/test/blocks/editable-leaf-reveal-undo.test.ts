@@ -4,85 +4,36 @@
 // level could ask what a host's rebind or disable does to it; the reserved-chords manifest was
 // the only thing that noticed, one layer away from the behaviour.
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { mount, unmount, flushSync } from 'svelte';
-import RevealLeafBlock from './fixtures/RevealLeafBlock.svelte';
-import { declarePluginKind, registerBlockKind, simpleLeafClosure } from '$lib/plugin';
+import { unmount } from 'svelte';
 import { resetPluginPlatformForTests } from '$lib/testing';
-import type { CstNode, Document } from '$lib/core/nodes';
 import { normalizeKeybindingOverrides } from '$lib/schema/keybinding-overrides';
 import type { KeybindingOverride } from '$lib/schema/keybinding-overrides';
-import { makeStubBlockEdit } from '../harness/editor-actions';
-import { editorMountContext } from '../harness/mount-context';
-import { installLayoutStubs } from './editor-mount';
+import { installLayoutStubs } from '$lib/test/harness/mount-editor.svelte';
+import { pressKey } from '$lib/test/harness/settle';
+import { leafDocument, mountRevealLeaf, registerRevealLeafKind } from './fixtures/reveal-leaf';
 
 const KIND = 'reveal-undo-leaf';
 const SOURCE = '@@ one two';
 const RAW = `${SOURCE}\n`;
 
-/** Drains the microtask queue the async keydown handler and the reveal both run on. */
-const flush = () => new Promise((resolve) => setTimeout(resolve));
-
 function mountLeaf(overrides: KeybindingOverride[] = []) {
-	const kind = declarePluginKind(KIND);
-	registerBlockKind(kind, {
-		gapEdges: 'none',
-		mergeRole: 'not-mergeable',
-		editable: true,
-		supportsInline: false,
-		closure: simpleLeafClosure({
-			focus: { mode: 'implemented', via: 'createEditableLeaf render-primary reveal' },
-			searchPaint: { mode: 'inherit-default' },
-			undo: { mode: 'implemented', via: 'render-primary: one commit when the caret leaves' },
-			simOracle: { mode: 'inherit-default' }
-		})
-	});
-
-	const node: CstNode = { kind, leadingTrivia: '', raw: RAW } as CstNode;
-	const doc: Document = { kind: 'document', prefix: '', children: [node], suffix: '' };
-	const target = document.createElement('div');
-	document.body.appendChild(target);
+	const kind = registerRevealLeafKind(KIND);
 	const keybindings = normalizeKeybindingOverrides(overrides);
-
-	const instance = mount(RevealLeafBlock, {
-		target,
+	return mountRevealLeaf(leafDocument(kind, RAW), {
 		props: {
-			node,
-			index: 0,
-			myPath: [0],
 			paint: (text: string) => {
 				const fragment = document.createDocumentFragment();
 				fragment.append(document.createTextNode(text));
 				return fragment;
 			}
 		},
-		context: editorMountContext({
-			blockEdit: makeStubBlockEdit(),
-			doc: { doc: () => doc },
-			policies: { keybindingOverrides: () => keybindings }
-		})
+		overrides: { policies: { keybindingOverrides: () => keybindings } }
 	});
-	flushSync();
-
-	return {
-		instance,
-		revealAtEnd: async () => {
-			instance.parkCaret(SOURCE.length);
-			await flush();
-			const el = target.querySelector<HTMLElement>('.reveal-leaf-source');
-			expect(el, 'the reveal mounted no source element').not.toBeNull();
-			return el!;
-		}
-	};
-}
-
-async function press(el: HTMLElement, init: KeyboardEventInit): Promise<void> {
-	el.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, cancelable: true, ...init }));
-	await flush();
 }
 
 /** One edit of the reveal's own: the Enter a painted multi-line source keeps as a newline. */
 async function editOnce(el: HTMLElement): Promise<void> {
-	await press(el, { key: 'Enter' });
+	await pressKey(el, { key: 'Enter' });
 	expect(el.textContent).toBe(`${SOURCE}\n`);
 }
 
@@ -104,7 +55,7 @@ describe("an open reveal's own undo answers the keymap, not a hardcoded chord", 
 		mounted = mountLeaf();
 		const el = await mounted.revealAtEnd();
 		await editOnce(el);
-		await press(el, { key: 'z', ctrlKey: true });
+		await pressKey(el, { key: 'z', ctrlKey: true });
 		expect(el.textContent).toBe(SOURCE);
 	});
 
@@ -115,9 +66,9 @@ describe("an open reveal's own undo answers the keymap, not a hardcoded chord", 
 		]);
 		const el = await mounted.revealAtEnd();
 		await editOnce(el);
-		await press(el, { key: 'z', ctrlKey: true });
+		await pressKey(el, { key: 'z', ctrlKey: true });
 		expect(el.textContent).toBe(`${SOURCE}\n`);
-		await press(el, { key: 'u', ctrlKey: true, altKey: true });
+		await pressKey(el, { key: 'u', ctrlKey: true, altKey: true });
 		expect(el.textContent).toBe(SOURCE);
 	});
 });

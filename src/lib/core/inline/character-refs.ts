@@ -5,6 +5,7 @@
 
 import type { InlineNode } from '../nodes';
 import { HTML5_NAMED_ENTITIES } from './html-entities';
+import { isHighSurrogate, isLowSurrogate } from '../lines';
 
 const REPLACEMENT = '�';
 
@@ -59,7 +60,7 @@ function decodeNumeric(body: string): string | null {
 	const codePoint = parseInt(digits, isHex ? 16 : 10);
 	if (codePoint === 0) return REPLACEMENT;
 	if (codePoint > 0x10ffff) return REPLACEMENT;
-	if (codePoint >= 0xd800 && codePoint <= 0xdfff) return REPLACEMENT;
+	if (isHighSurrogate(codePoint) || isLowSurrogate(codePoint)) return REPLACEMENT;
 	// The C1 range decodes verbatim, no cp1252 remap: a divergence from an HTML5 reference here
 	// is deliberate, following CommonMark §2.5's letter.
 	return String.fromCodePoint(codePoint);

@@ -4,13 +4,11 @@ import { resetPluginPlatformForTests } from '$lib/testing';
 import { admonitionsPlugin } from '$lib/plugins/admonitions';
 import {
 	activateDirectives,
-	declarePluginKind,
-	registerBlockKind,
 	registerDirective,
 	type CstNode,
 	type ParsedDirective
 } from '$lib/plugin';
-import { testClosure } from '$lib/test/support/closure';
+import { testContainer } from '$lib/test/harness/test-kinds';
 
 /**
  * Admonitions registers five directive names and leaves alone any already registered.
@@ -23,15 +21,7 @@ const PROBE = 'directiveYieldProbe';
 
 function claimNoteDirective(): void {
 	activateDirectives();
-	const kind = declarePluginKind(PROBE);
-	registerBlockKind(kind, {
-		gapEdges: 'none',
-		mergeRole: 'container',
-		editable: true,
-		supportsInline: false,
-		closure: testClosure,
-		container: { contract: 'opaque', rebuildRaw: () => {} }
-	});
+	const kind = testContainer(PROBE, { rebuildRaw: () => {} });
 	registerDirective('container', 'note', {
 		kind,
 		fromDirective: (parsed: ParsedDirective): CstNode => ({

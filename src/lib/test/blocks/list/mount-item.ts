@@ -5,13 +5,13 @@
 // hidden: the editor root handles what the item declines, and a real context turns a decision
 // into a commit.
 
-import { mount, unmount, flushSync } from 'svelte';
 import { vi } from 'vitest';
 import ListItemBlock from '$lib/components/blocks/list/ListItemBlock.svelte';
 import type { ListContext } from '$lib/action-contracts';
 import { LIST_CONTEXT_KEY } from '$lib/editor-keys';
 import { parse } from '$lib/core/parser';
-import { editorMountContext, type MountContextOverrides } from '../../harness/mount-context';
+import { mountBlock } from '../../harness/mount-block';
+import type { MountContextOverrides } from '../../harness/mount-context';
 
 export type RecordingListContext = { [K in keyof ListContext]: ReturnType<typeof vi.fn> };
 
@@ -40,40 +40,19 @@ export function mountItem(
 	itemIndex = 0,
 	overrides: MountContextOverrides = {}
 ): MountedItem {
-	const doc = parse(source);
-	const list = doc.children[0];
 	const listContext = makeRecordingListContext();
-
-	const target = document.createElement('div');
-	document.body.appendChild(target);
-	const context = editorMountContext({ ...overrides, doc: { doc: () => doc, ...overrides.doc } });
-	context.set(LIST_CONTEXT_KEY, listContext as unknown as ListContext);
-	const instance = mount(ListItemBlock, {
-		target,
-		props: {
-			node: list.children![itemIndex],
-			index: itemIndex,
-			myPath: [0, itemIndex],
-			itemCount: list.children!.length
-		},
-		context
+	const doc = parse(source);
+	const mounted = mountBlock(ListItemBlock, {
+		doc,
+		path: [0, itemIndex],
+		props: { itemCount: doc.children[0].children!.length },
+		overrides,
+		context: [[LIST_CONTEXT_KEY, listContext]]
 	});
-	flushSync();
-
 	return {
-		box: target.querySelector('.list-item-block') as HTMLElement,
-		content: target.querySelector('.list-item-content') as HTMLElement,
+		box: mounted.target.querySelector('.list-item-block') as HTMLElement,
+		content: mounted.target.querySelector('.list-item-content') as HTMLElement,
 		listContext,
-		dispose: async () => {
-			await unmount(instance);
-			target.remove();
-		}
+		dispose: mounted.dispose
 	};
-}
-
-/** Dispatch a bubbling, cancelable keydown at `el` and report whether it was consumed. */
-export function pressOn(el: HTMLElement, init: KeyboardEventInit): boolean {
-	const event = new KeyboardEvent('keydown', { bubbles: true, cancelable: true, ...init });
-	el.dispatchEvent(event);
-	return event.defaultPrevented;
 }

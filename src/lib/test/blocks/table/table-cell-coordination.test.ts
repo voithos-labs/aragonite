@@ -7,7 +7,8 @@
 // written; the reset that can be observed, clearing the focused cell, is covered below.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
 import { vi } from 'vitest';
-import { installTableLayoutStubs, mountTable, press, type MountedTable } from './mount-table';
+import { installTableLayoutStubs, mountTable, type MountedTable } from './mount-table';
+import { pressKey } from '$lib/test/harness/settle';
 
 let restoreLayout: () => void;
 beforeAll(() => {
@@ -66,7 +67,7 @@ describe('an arrow at the grid’s vertical edge leaves the table', () => {
 		mounted = mountTable(GRID);
 		mounted.cell(2, 0).focus();
 
-		await press(mounted.cell(2, 0), { key: 'ArrowDown' });
+		await pressKey(mounted.cell(2, 0), { key: 'ArrowDown' });
 
 		expect(mounted.stickyColumn.capture).toHaveBeenCalled();
 		expect(vi.mocked(mounted.focus.moveFocus)).toHaveBeenCalledWith(1, {
@@ -78,7 +79,7 @@ describe('an arrow at the grid’s vertical edge leaves the table', () => {
 		mounted = mountTable(GRID);
 		mounted.cell(0, 1).focus();
 
-		await press(mounted.cell(0, 1), { key: 'ArrowUp' });
+		await pressKey(mounted.cell(0, 1), { key: 'ArrowUp' });
 
 		expect(vi.mocked(mounted.focus.moveFocus)).toHaveBeenCalledWith(-1, {
 			stickyColumnFrom: 'below'
@@ -91,7 +92,7 @@ describe('an arrow at the grid’s vertical edge leaves the table', () => {
 		mounted = mountTable(GRID);
 		mounted.cell(1, 0).focus();
 
-		await press(mounted.cell(1, 0), { key: 'ArrowDown' });
+		await pressKey(mounted.cell(1, 0), { key: 'ArrowDown' });
 
 		expect(document.activeElement).toBe(mounted.cell(2, 0));
 		expect(mounted.focus.moveFocus).not.toHaveBeenCalled();

@@ -13,9 +13,10 @@ import type { EditorServices } from '$lib/editor-keys';
 import { registerBlockComponent, defineBlockComponent } from '$lib/schema/block-component-registry';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import RecordingBlock from './fixtures/RecordingBlock.svelte';
-import { declareComponentlessKind, mountBlockHost } from './mount-host';
+import { mountBlockHost } from './mount-host';
 import type { HostProps, MountedHost } from './mount-host';
 import { installEditorDomStubsForTests } from '$lib/testing';
+import { testLeaf } from '$lib/test/harness/test-kinds';
 
 beforeAll(installEditorDomStubsForTests);
 
@@ -33,7 +34,7 @@ type Recorder = BlockComponent & {
 /** A document whose block at `index` renders through the recording fixture. */
 function recordingDoc(source: string, index = 0) {
 	const doc = parse(source);
-	const kind = declareComponentlessKind('host-recording');
+	const kind = testLeaf('host-recording');
 	registerBlockComponent(
 		kind,
 		defineBlockComponent(RecordingBlock, () => ({ badge: 'from-extra-props' }))

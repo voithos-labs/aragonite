@@ -4,14 +4,13 @@
  */
 
 import { joinRaw } from '$lib/core/parser';
-import { registerBlockKind } from '$lib/schema/block-kind-descriptor';
 import {
 	registerBlockOpener,
 	type BlockOpenerResult,
 	type OpenContext
 } from '$lib/schema/block-openers';
 import { declarePluginKind } from '$lib/schema/plugin-kind';
-import { testClosure } from './closure';
+import { testLeaf } from '$lib/test/harness/test-kinds';
 
 export const FRONT_MATTER = '---\ntitle: x\n---\n';
 
@@ -39,13 +38,8 @@ function openFrontMatter(ctx: OpenContext, kind: PluginKind): BlockOpenerResult 
 
 /** Register the kind and its opener into the freshly-reset registries; returns the kind. */
 export function registerDocumentTopKind(): PluginKind {
-	const kind = declarePluginKind('test-front-matter');
-	registerBlockKind(kind, {
-		gapEdges: 'none',
-		mergeRole: 'not-mergeable',
-		editable: false,
-		supportsInline: false,
-		closure: testClosure
+	const kind = testLeaf('test-front-matter', {
+		editable: false
 	});
 	registerBlockOpener(kind, {
 		priority: 1,

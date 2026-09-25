@@ -11,7 +11,7 @@ import type { EditorError } from '$lib/editor-events';
 import {
 	makeBlockListState,
 	makeEditorActionsDeps,
-	mockRef
+	stubBlockComponent
 } from '$lib/test/harness/editor-actions';
 import { allowDevWarns } from '$lib/test/support/warn-gate';
 
@@ -58,7 +58,7 @@ describe('the commit sequence contains and attributes every throw site', () => {
 	it('reports a throwing cursor read from the snapshot push and rejects the commit', async () => {
 		const { deps, errors, controller, state } = harness();
 		deps.setBlockRefs([
-			mockRef({
+			stubBlockComponent({
 				getCursorPosition: (): never => {
 					throw new Error('plugin getCursorPosition blew up');
 				}

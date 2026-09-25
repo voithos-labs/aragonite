@@ -5,7 +5,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { createFocusActions } from '$lib/editor-actions/focus/focus';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
-import { makeEditorActionsDeps, mockRef } from '$lib/test/harness/editor-actions';
+import { makeEditorActionsDeps, stubBlockComponent } from '$lib/test/harness/editor-actions';
 import type { FocusPosition } from '$lib/block-component';
 import type { MoveFocusOptions } from '$lib/action-contracts';
 import type { PresentationMode } from '$lib/presentation-mode';
@@ -18,7 +18,9 @@ const MIXED = `para\n\n${TABLE}\n${FENCE}\npara\n`;
 function harnessFor(source: string, presentationMode?: PresentationMode) {
 	const { deps, doc } = makeEditorActionsDeps(parse(source).children, { presentationMode });
 	const focused: number[] = [];
-	deps.setBlockRefs(doc.children.map((_, i) => mockRef({ focus: vi.fn(() => focused.push(i)) })));
+	deps.setBlockRefs(
+		doc.children.map((_, i) => stubBlockComponent({ focus: vi.fn(() => focused.push(i)) }))
+	);
 	const focus = createFocusActions(deps, createUndoController(deps));
 	return {
 		doc,

@@ -4,7 +4,7 @@ import { pasteDispatch } from '../../../tree-operations/paste/dispatch';
 import { findContainerMatchingUnwrap } from '../../../tree-operations/paste/container-match';
 import { parse } from '../../../core/parser';
 import {
-	makeRunningPasteController,
+	makePasteCommit,
 	makeStubBlockEdit,
 	registerStubBlockListState,
 	pasteContext
@@ -12,24 +12,23 @@ import {
 
 describe('container-matching paste: empty-target newline-termination (A1)', () => {
 	it('pasting a list without a trailing newline into a non-last empty item keeps the following sibling separate', async () => {
-		const doc = parse('- a\n- keep\n');
-		const list = doc.children[0];
+		const { doc, controller } = makePasteCommit('- a\n- keep\n');
 		// An emptied first item stands in for a post-cross-block-delete stub.
-		list.children![0].children![0].raw = '';
-		registerStubBlockListState(list);
+		doc.children[0].children![0].children![0].raw = '';
+		registerStubBlockListState(doc.children[0]);
 
 		await pasteDispatch(
 			{ pastedText: '- x\n- y', targetPath: [0, 0, 0], offset: 0 },
 			pasteContext({
 				doc,
 				blockEdit: makeStubBlockEdit(),
-				controller: makeRunningPasteController(),
+				controller,
 				undoEntry: 'join'
 			})
 		);
 
 		// An un-terminated last pasted item mashes into the following sibling on one line.
-		expect(list.raw).toBe('- x\n- y\n- keep\n');
+		expect(doc.children[0].raw).toBe('- x\n- y\n- keep\n');
 	});
 });
 

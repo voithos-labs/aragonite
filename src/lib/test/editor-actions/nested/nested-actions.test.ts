@@ -46,7 +46,7 @@ function makeDeferred() {
 function makeParentDeferring(method: 'mergeWithPrevious' | 'mergeWithNext' | 'deleteBlock') {
 	const deferred = makeDeferred();
 	const parent = fakeParentBundles();
-	parent.blockEdit[method] = vi.fn(() => deferred.promise);
+	parent.blockEdit[method] = vi.fn<(index: number) => Promise<void>>(() => deferred.promise);
 	return { deferred, parent };
 }
 

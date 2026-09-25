@@ -12,10 +12,9 @@ import {
 	placeCaretAt,
 	widgetInteractionDeps
 } from './math-widget-fixture';
+import { settleEditor } from '$lib/test/harness/settle';
 
 installMathInline();
-
-const settle = () => new Promise((r) => setTimeout(r));
 const key = (k: string) => new KeyboardEvent('keydown', { key: k });
 
 // "Before $x^2$ after" as TextEditableBlock renders it: one atomic widget between
@@ -41,7 +40,7 @@ function mountMathBlock() {
 
 	async function reveal(): Promise<void> {
 		interaction.enterWidget(math, false);
-		await settle();
+		await settleEditor();
 	}
 	return {
 		interaction,
@@ -68,7 +67,7 @@ describe('canonical reset: every exit lands in the same idle state', () => {
 			async (b) => {
 				placeCaretAt(b.trailingText(), 2);
 				b.interaction.foldRevealIfSelectionEscaped();
-				await settle();
+				await settleEditor();
 			}
 		]
 	];
@@ -106,7 +105,7 @@ describe('canonical reset: the machine is reusable after a fold', () => {
 		// reset that went another way would disable it for good.
 		placeCaretAt(b.trailingText(), 2);
 		b.interaction.foldRevealIfSelectionEscaped();
-		await settle();
+		await settleEditor();
 		expect(b.interaction.isRevealing()).toBe(false);
 	});
 });

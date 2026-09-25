@@ -7,14 +7,14 @@
 // candidates: they take the cross-block toggle, which marks each block's own span rather than
 // type-replacing the range (#107).
 import { describe, it, expect, vi } from 'vitest';
-import { mockRef } from '../../harness/editor-actions';
+import { stubBlockComponent } from '../../harness/editor-actions';
 import { makeKeydownEnv, press } from './keydown-env';
 
 const SOURCE = 'alpha\n\nbeta\n\ngamma\n';
 
 function envWithCommandTarget(runCommand = vi.fn(() => true), presentationMode?: 'reading') {
 	const env = makeKeydownEnv(SOURCE, {
-		revealTo: mockRef({ runCommand }),
+		revealTo: stubBlockComponent({ runCommand }),
 		...(presentationMode ? { presentationMode } : {})
 	});
 	env.selection.enterCrossBlock({ path: [0], offset: 1 }, { path: [1], offset: 2 });
@@ -43,7 +43,9 @@ describe('cross-block keydown: command candidates', () => {
 
 	it('resolves the chord against the survivor kind, not the anchor kind', async () => {
 		const runCommand = vi.fn(() => true);
-		const env = makeKeydownEnv('# head\n\npara\n', { revealTo: mockRef({ runCommand }) });
+		const env = makeKeydownEnv('# head\n\npara\n', {
+			revealTo: stubBlockComponent({ runCommand })
+		});
 		env.selection.enterCrossBlock({ path: [0], offset: 6 }, { path: [1], offset: 4 });
 
 		await env.keydown.handleKeyDown(press('1', { ctrlKey: true }));

@@ -6,6 +6,7 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { MermaidRenderContext } from '$lib/plugins/mermaid/mermaid-renderer';
+import { settleEditor } from '$lib/test/harness/settle';
 
 const engine = vi.hoisted(() => ({ initialize: vi.fn(), render: vi.fn() }));
 /** Counts how many times the mermaid module is evaluated, so a load at import time shows. */
@@ -20,7 +21,6 @@ vi.mock('mermaid', () => {
 // what pins it, since a swapped call would draw the id.
 const drawSvg = async (_id: string, code: string) => ({ svg: `<svg>${code}</svg>` });
 const BASE_CONFIG = { startOnLoad: false, securityLevel: 'strict', suppressErrorRendering: true };
-const settle = () => new Promise((resolve) => setTimeout(resolve));
 
 // The subpath is published, so its callers need not be typed: the context is optional here.
 type LooseRenderer = (code: string, id: string, context?: MermaidRenderContext) => Promise<string>;
@@ -109,7 +109,9 @@ describe('mermaid engine adapter', () => {
 
 		const first = render('A', 'id-a', { theme: 'dark' });
 		const second = render('B', 'id-b', { theme: 'forest' });
-		await settle();
+		// The first render waits on the engine's module load, which is I/O, not a scheduler turn.
+		await vi.waitFor(() => expect(engine.render).toHaveBeenCalled());
+		await settleEditor();
 		expect(engine.render).toHaveBeenCalledTimes(1);
 		expect(engine.initialize).toHaveBeenCalledTimes(1);
 

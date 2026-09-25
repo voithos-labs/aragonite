@@ -889,6 +889,10 @@ skipped and logged as a loop error); the `setTimeout` wall-clock undo debounce i
 `editor-actions/commit/text-batch.ts` (a tick-grained microtask can't express "the user stopped
 typing"); and the `setTimeout` scan deadline in `search/regex-executor.ts` (a cancellation
 budget, not an ordering primitive, since nothing awaits the timer). `lint/file-rules.test.ts`.
+The unit suites answer to the same rule through a row of `lint/suite-file-rules.test.ts`: a test
+waits with `src/lib/test/harness/settle.ts :: settleEditor`, moves a wall-clock timer with fake
+timers, or waits on real I/O with `vi.waitFor`, because a macrotask flush also runs whatever
+unrelated timer happens to be due.
 
 **G4.5 · No synthetic keyboard events.** No synthetic `KeyboardEvent` in editor runtime source. The
 cross-block redispatch hack is retired and stays that way.

@@ -7,9 +7,10 @@
 // false; what only a mount shows is what false means here: no `preventDefault`, and a
 // `ListContext` nothing touched.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
-import { installLayoutStubs } from '../editor-mount';
-import { mountItem, pressOn, type MountedItem } from './mount-item';
+import { installLayoutStubs } from '$lib/test/harness/mount-editor.svelte';
+import { mountItem, type MountedItem } from './mount-item';
 import { allowDevWarns } from '$lib/test/support/warn-gate';
+import { dispatchKey } from '$lib/test/harness/settle';
 
 // The harness mounts BlockHost without the component layer, so unregistered kinds render raw.
 afterEach(() => allowDevWarns(['block-host']));
@@ -31,10 +32,12 @@ describe('a list item claims its own kind chords and nothing else', () => {
 	it('claims the chords its kind declares', () => {
 		mounted = mountItem(NESTABLE, 1);
 
-		expect(pressOn(mounted.content, { key: 'Tab' })).toBe(true);
+		expect(dispatchKey(mounted.content, { key: 'Tab' }).defaultPrevented).toBe(true);
 		expect(mounted.listContext.indentItem).toHaveBeenCalledWith(1);
 
-		expect(pressOn(mounted.content, { key: 'Tab', shiftKey: true })).toBe(true);
+		expect(dispatchKey(mounted.content, { key: 'Tab', shiftKey: true }).defaultPrevented).toBe(
+			true
+		);
 		expect(mounted.listContext.unindentItem).toHaveBeenCalledWith(1);
 	});
 
@@ -49,7 +52,7 @@ describe('a list item claims its own kind chords and nothing else', () => {
 			{ key: 'y', ctrlKey: true },
 			{ key: 'b', ctrlKey: true }
 		]) {
-			expect(pressOn(mounted.content, init)).toBe(false);
+			expect(dispatchKey(mounted.content, init).defaultPrevented).toBe(false);
 		}
 		expect(mounted.listContext.indentItem).not.toHaveBeenCalled();
 		expect(mounted.listContext.unindentItem).not.toHaveBeenCalled();
@@ -61,7 +64,7 @@ describe('a list item claims its own kind chords and nothing else', () => {
 		mounted = mountItem(NESTABLE, 1);
 
 		for (const key of ['Control', 'Shift', 'Alt', 'Meta', 'CapsLock']) {
-			expect(pressOn(mounted.content, { key })).toBe(false);
+			expect(dispatchKey(mounted.content, { key }).defaultPrevented).toBe(false);
 		}
 		expect(mounted.listContext.indentItem).not.toHaveBeenCalled();
 	});
@@ -72,7 +75,7 @@ describe('a list item claims its own kind chords and nothing else', () => {
 		mounted = mountItem(NESTABLE, 1);
 		mounted.content.addEventListener('keydown', (e) => e.preventDefault(), { capture: true });
 
-		pressOn(mounted.content, { key: 'Tab' });
+		dispatchKey(mounted.content, { key: 'Tab' });
 
 		expect(mounted.listContext.indentItem).not.toHaveBeenCalled();
 	});

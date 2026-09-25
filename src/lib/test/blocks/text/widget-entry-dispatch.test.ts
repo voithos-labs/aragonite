@@ -16,6 +16,7 @@ import type { AnyInlineKind } from '$lib/core/nodes';
 import { MATH_INLINE } from '$lib/plugins/latex/latex-kind';
 import { installMathInline, mountWidgetBlock, widgetInteractionDeps } from './math-widget-fixture';
 import { key, makeEdgeDispatch } from './edge-policy-fixture';
+import { settleEditor } from '$lib/test/harness/settle';
 
 installMathInline();
 
@@ -83,14 +84,14 @@ describe('edge dispatch: reveal-capable kind opens the reveal', () => {
 	it('places the caret at the trailing edge entering from the right', async () => {
 		const b = mount('Before $x^2$ after', MATH_INLINE);
 		b.dispatch.handleKeydown(key('ArrowLeft'), asRawOffset(b.widget.end));
-		await new Promise((r) => setTimeout(r));
+		await settleEditor();
 		expect(b.caretRaw()).toBe(b.widget.end);
 	});
 
 	it('places the caret at the leading edge entering from the left', async () => {
 		const b = mount('Before $x^2$ after', MATH_INLINE);
 		b.dispatch.handleKeydown(key('ArrowRight'), asRawOffset(b.widget.start));
-		await new Promise((r) => setTimeout(r));
+		await settleEditor();
 		expect(b.caretRaw()).toBe(b.widget.start);
 	});
 });

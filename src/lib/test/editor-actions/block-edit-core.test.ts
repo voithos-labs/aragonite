@@ -3,14 +3,12 @@ import { createBlockEditCore } from '$lib/editor-actions/block-edit-core';
 import type { CstNode } from '$lib/core/nodes';
 import { CURSOR_EXACT_START, CURSOR_START, type BlockComponent } from '$lib/block-component';
 import { parse } from '$lib/core/parser';
-import { declarePluginKind } from '$lib/schema/plugin-kind';
-import { registerBlockKind } from '$lib/schema/block-kind-descriptor';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { __resetPasteSurfacesForTests } from '$lib/tree-operations/paste-surfaces';
 import { registerCalloutKind } from '../../../routes/test/plugins/callout/callout-kind';
-import { testClosure } from '$lib/test/support/closure';
 import { takeDevWarns } from '$lib/test/support/warn-gate';
 import { makeCommitScopeStub, parseLeaf as leaf } from '$lib/test/harness/editor-actions';
+import { testLeaf } from '$lib/test/harness/test-kinds';
 
 function focusSpy() {
 	const calls: number[] = [];
@@ -150,13 +148,8 @@ describe('block-edit core: whole-block-focus fallback', () => {
 	beforeEach(__resetSchemaRegistriesForTests);
 
 	function wholeBlockNode(editable: boolean): CstNode {
-		const kind = declarePluginKind('spec-whole-block');
-		registerBlockKind(kind, {
-			gapEdges: 'none',
-			mergeRole: 'not-mergeable',
+		const kind = testLeaf('spec-whole-block', {
 			editable,
-			supportsInline: false,
-			closure: testClosure,
 			blockFocus: 'whole-block'
 		});
 		return { kind, leadingTrivia: '', raw: 'diagram\n', children: [] };
@@ -205,13 +198,8 @@ describe('block-edit core: non-editable neighbour fallback', () => {
 	beforeEach(__resetSchemaRegistriesForTests);
 
 	function inertNode(): CstNode {
-		const kind = declarePluginKind('spec-inert-leaf');
-		registerBlockKind(kind, {
-			gapEdges: 'none',
-			mergeRole: 'not-mergeable',
-			editable: false,
-			supportsInline: false,
-			closure: testClosure
+		const kind = testLeaf('spec-inert-leaf', {
+			editable: false
 		});
 		return { kind, leadingTrivia: '', raw: 'inert\n' };
 	}

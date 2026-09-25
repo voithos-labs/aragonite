@@ -4,12 +4,10 @@ import { ALL_BLOCK_KINDS } from '../../core/nodes';
 import { getContentRange } from '../../core/inline';
 import {
 	getBlockKindDescriptor,
-	registerBlockKind,
 	tryGetBlockKindDescriptor
 } from '../../schema/block-kind-descriptor';
-import { declarePluginKind } from '../../schema/plugin-kind';
 import { __resetSchemaRegistriesForTests } from '../../schema/registry-reset';
-import { testClosure } from '$lib/test/support/closure';
+import { testLeaf } from '$lib/test/harness/test-kinds';
 
 describe('block-kind-descriptor registry', () => {
 	it('has a descriptor for every BlockKind', () => {
@@ -168,26 +166,14 @@ describe('blockFocus: whole-block-focus opt-in', () => {
 	});
 
 	it('survives leaf registration', () => {
-		const kind = declarePluginKind('spec-leaf-focus');
-		registerBlockKind(kind, {
-			gapEdges: 'none',
-			mergeRole: 'not-mergeable',
-			editable: true,
-			supportsInline: false,
-			closure: testClosure,
+		const kind = testLeaf('spec-leaf-focus', {
 			blockFocus: 'whole-block'
 		});
 		expect(getBlockKindDescriptor(kind).blockFocus).toBe('whole-block');
 	});
 
 	it('survives registration alongside a container group (opaque childless block)', () => {
-		const kind = declarePluginKind('spec-container-focus');
-		registerBlockKind(kind, {
-			gapEdges: 'none',
-			mergeRole: 'not-mergeable',
-			editable: true,
-			supportsInline: false,
-			closure: testClosure,
+		const kind = testLeaf('spec-container-focus', {
 			blockFocus: 'whole-block',
 			container: { contract: 'opaque', rebuildRaw: () => {} }
 		});

@@ -1,16 +1,10 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach } from 'vitest';
-import { pasteDispatch, defaultInlineHook } from '../../../tree-operations/paste/dispatch';
-import {
-	__resetPasteSurfacesForTests,
-	registerPasteSurface
-} from '../../../tree-operations/paste-surfaces';
+import { pasteDispatch } from '../../../tree-operations/paste/dispatch';
+import { __resetPasteSurfacesForTests } from '../../../tree-operations/paste-surfaces';
 import { findListAbsorb } from '../../../tree-operations/paste/list-absorb';
 import { parse } from '../../../core/parser';
-import { declarePluginKind } from '../../../schema/plugin-kind';
-import { registerBlockKind } from '../../../schema/block-kind-descriptor';
 import { __resetSchemaRegistriesForTests } from '../../../schema/registry-reset';
-import { testClosure } from '$lib/test/support/closure';
 import {
 	makeStubBlockEdit,
 	makeStubController,
@@ -18,31 +12,7 @@ import {
 	pasteContext
 } from '../../harness/editor-actions';
 import type { AnyBlockKind, CstNode, Document } from '../../../core/nodes';
-
-// The shape registerChromeLeaf produces: a reserved title child at child 0 plus that leaf's
-// inline-only paste handlers.
-function registerChromeContainer(): { container: AnyBlockKind; chrome: AnyBlockKind } {
-	const chrome = declarePluginKind('spec-chrome-title');
-	const container = declarePluginKind('spec-chrome-container');
-	registerBlockKind(chrome, {
-		gapEdges: 'none',
-		mergeRole: 'not-mergeable',
-		editable: true,
-		supportsInline: false,
-		closure: testClosure,
-		contextDependentKind: true
-	});
-	registerBlockKind(container, {
-		gapEdges: 'none',
-		mergeRole: 'container',
-		editable: true,
-		supportsInline: false,
-		closure: testClosure,
-		container: { contract: 'opaque', rebuildRaw: () => {}, reservedChrome: { kind: chrome } }
-	});
-	registerPasteSurface({ kind: chrome, onInlinePaste: defaultInlineHook });
-	return { container, chrome };
-}
+import { testChromeContainer } from '$lib/test/harness/test-kinds';
 
 function makeTitledContainerDoc(container: AnyBlockKind, chrome: AnyBlockKind): Document {
 	return {
@@ -74,7 +44,7 @@ describe('paste into a reserved-chrome leaf', () => {
 		['LF', 'one\n\ntwo\n'],
 		['CRLF (Windows clipboard)', 'one\r\n\r\ntwo\r\n']
 	])('flattens a multi-block %s clipboard inline, keeping the chrome one node', async (_, text) => {
-		const { container, chrome } = registerChromeContainer();
+		const { container, chrome } = testChromeContainer('spec-chrome-container', 'spec-chrome-title');
 		const doc = makeTitledContainerDoc(container, chrome);
 		const blockEdit = makeStubBlockEdit();
 
@@ -89,7 +59,7 @@ describe('paste into a reserved-chrome leaf', () => {
 	});
 
 	it('flattens a list clipboard at a chrome path even when an enclosing list would absorb', async () => {
-		const { container, chrome } = registerChromeContainer();
+		const { container, chrome } = testChromeContainer('spec-chrome-container', 'spec-chrome-title');
 		// The title child sits where findListAbsorb treats the container as a list item, so the
 		// container family fires here unless the title check precedes it.
 		const list: CstNode = {
@@ -127,7 +97,7 @@ describe('paste into a reserved-chrome leaf', () => {
 	});
 
 	it('leaves an ordinary paragraph target on the container absorb path', async () => {
-		registerChromeContainer();
+		testChromeContainer('spec-chrome-container', 'spec-chrome-title');
 		const doc = parse('- a\n- b\n');
 		const list = doc.children[0] as CstNode;
 		registerStubBlockListState(list);

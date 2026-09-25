@@ -14,7 +14,7 @@ import {
 	makeNestedHarness,
 	makeStubBlockEdit,
 	makeStubFocus,
-	mockRef
+	stubBlockComponent
 } from '$lib/test/harness/editor-actions';
 import { takeDevWarns } from '$lib/test/support/warn-gate';
 import { describeConvergence } from '$lib/test/harness/parse-converged';
@@ -32,12 +32,16 @@ const SOURCE = 'a\n1. x\n2. y\n';
 function harness() {
 	const h = makeNestedHarness(SOURCE, { index: 1, listOverrides: true });
 	const focused: number[] = [];
-	const survivor = mockRef({ focus: vi.fn((offset?: number) => focused.push(offset ?? -1)) });
+	const survivor = stubBlockComponent({
+		focus: vi.fn((offset?: number) => focused.push(offset ?? -1))
+	});
 	h.deps.blockRefs[0] = survivor as BlockComponent;
 	// The container's own refs answer too, so a caret aimed at the swallowed container is
 	// visible rather than silently absent.
 	const inner: number[] = [];
-	h.state.innerBlockRefs[0] = mockRef({ focus: vi.fn((o?: number) => inner.push(o ?? -1)) });
+	h.state.innerBlockRefs[0] = stubBlockComponent({
+		focus: vi.fn((o?: number) => inner.push(o ?? -1))
+	});
 	const errors: unknown[] = [];
 	h.events.on('error', (e) => errors.push(e));
 	return { ...h, focused, inner, errors, history: createHistoryActions(h.deps, h.controller) };
@@ -79,7 +83,7 @@ describe('a commit whose ancestry settle ate its own scope', () => {
 	it('folds the follower a body write let the container continue into', async () => {
 		const h = makeNestedHarness('> a\n> # h\ntext\n', { index: 0 });
 		const survivor: number[] = [];
-		h.deps.blockRefs[0] = mockRef({
+		h.deps.blockRefs[0] = stubBlockComponent({
 			focus: vi.fn((offset?: number) => survivor.push(offset ?? -1))
 		}) as BlockComponent;
 		const errors: unknown[] = [];

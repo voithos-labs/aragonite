@@ -4,8 +4,9 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import { dropSuffixUnderBlankLine, undrawnSuffix } from '../../core/inline';
 import type { CstNode } from '../../core/nodes';
-import { declarePluginKind, registerBlockKind, simpleLeafClosure } from '$lib/plugin';
+import { simpleLeafClosure } from '$lib/plugin';
 import { resetPluginPlatformForTests } from '$lib/testing';
+import { testLeaf } from '$lib/test/harness/test-kinds';
 
 const node = (kind: string, raw: string) => ({ kind, leadingTrivia: '', raw }) as CstNode;
 
@@ -26,12 +27,7 @@ describe('undrawnSuffix', () => {
 	});
 
 	it('is empty for a kind that is not prose, whatever its content range', () => {
-		const kind = declarePluginKind('short-range-leaf');
-		registerBlockKind(kind, {
-			gapEdges: 'none',
-			mergeRole: 'not-mergeable',
-			editable: true,
-			supportsInline: false,
+		const kind = testLeaf('short-range-leaf', {
 			getContentRange: () => ({ start: 0, end: 2 }),
 			closure: simpleLeafClosure({
 				focus: { mode: 'implemented', via: 'native caret in the raw-editable surface' },

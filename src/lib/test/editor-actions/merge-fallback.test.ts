@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { mergedElseFocusNext, mergedElseFocusPrevious } from '$lib/editor-actions/merge-fallback';
 import { CURSOR_END, CURSOR_START } from '$lib/block-component';
-import { mockRef } from '$lib/test/harness/editor-actions';
+import { stubBlockComponent } from '$lib/test/harness/editor-actions';
 
 // The one owner of the interior-merge fallbacks, shared by block-edit-core's two merges and
 // unwrap-strategies.listItemCascadeMiddle. Tested here so a dropped focus call fails at the
@@ -10,7 +10,7 @@ import { mockRef } from '$lib/test/harness/editor-actions';
 describe('mergedElseFocusPrevious', () => {
 	it('focuses the previous block at its end when the merge found no target', () => {
 		const focus = vi.fn();
-		const result = mergedElseFocusPrevious(null, mockRef({ focus }));
+		const result = mergedElseFocusPrevious(null, stubBlockComponent({ focus }));
 
 		expect(result).toBeNull();
 		expect(focus).toHaveBeenCalledWith(CURSOR_END);
@@ -19,7 +19,7 @@ describe('mergedElseFocusPrevious', () => {
 	it('leaves focus untouched and returns the merge point when a target was found', () => {
 		const focus = vi.fn();
 		const mergePoint = { targetPath: [0, 0], offset: 3 };
-		const result = mergedElseFocusPrevious(mergePoint, mockRef({ focus }));
+		const result = mergedElseFocusPrevious(mergePoint, stubBlockComponent({ focus }));
 
 		expect(result).toBe(mergePoint);
 		expect(focus).not.toHaveBeenCalled();
@@ -34,7 +34,7 @@ describe('mergedElseFocusNext', () => {
 	it('focuses the block that stayed when the entry point refused the join', () => {
 		const focus = vi.fn();
 
-		expect(mergedElseFocusNext({ op: 'noop' }, mockRef({ focus }))).toBe(false);
+		expect(mergedElseFocusNext({ op: 'noop' }, stubBlockComponent({ focus }))).toBe(false);
 		expect(focus).toHaveBeenCalledWith(CURSOR_START);
 	});
 
@@ -42,7 +42,10 @@ describe('mergedElseFocusNext', () => {
 		const focus = vi.fn();
 
 		expect(
-			mergedElseFocusNext({ op: 'replace', at: 0, count: 2, newCount: 1 }, mockRef({ focus }))
+			mergedElseFocusNext(
+				{ op: 'replace', at: 0, count: 2, newCount: 1 },
+				stubBlockComponent({ focus })
+			)
 		).toBe(true);
 		expect(focus).not.toHaveBeenCalled();
 	});

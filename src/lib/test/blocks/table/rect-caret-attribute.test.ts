@@ -6,8 +6,14 @@
 // place. Miss-analysis (Sel-F1): the e2e helper waits on the attribute, which made it the answer
 // to "is a selection live" everywhere, and no test compared it against what the overlay draws.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
-import { installLayoutStubs, mountEditor, placeCaret, type MountedEditor } from '../editor-mount';
+import {
+	installLayoutStubs,
+	mountEditor,
+	placeCaret,
+	type MountedEditor
+} from '$lib/test/harness/mount-editor.svelte';
 import { cellAt, installTableLayoutStubs } from './mount-table';
+import { pressKey } from '$lib/test/harness/settle';
 
 // Without the Range stubs the visual-line check throws instead of falling back to the
 // offset comparison the cell's edge test reads.
@@ -27,11 +33,6 @@ afterEach(async () => {
 // Three rows, so a rectangle can grow downward and shrink back onto the cell it started in.
 const DOC = '| aa | bb |\n| -- | -- |\n| cc | dd |\n| ee | ff |\n';
 
-async function press(el: HTMLElement, init: KeyboardEventInit): Promise<void> {
-	el.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, cancelable: true, ...init }));
-	await mounted!.settle();
-}
-
 function editorRoot(): HTMLElement {
 	return mounted!.target.querySelector('.editor') as HTMLElement;
 }
@@ -43,12 +44,12 @@ describe('the root hides the native caret only while something paints in its pla
 		// At the cell's last visual line, which is what admits the rectangle entry.
 		placeCaret(start, 2);
 
-		await press(start, { key: 'ArrowDown', shiftKey: true });
+		await pressKey(start, { key: 'ArrowDown', shiftKey: true });
 		expect(editorRoot().hasAttribute('data-cross-block')).toBe(true);
 
 		// Back onto the anchor cell: a one-cell rectangle is a stored pair the overlay declines
 		// to draw, same path and offset, so hiding the caret leaves nothing on screen.
-		await press(cellAt(mounted!, 1, 0), { key: 'ArrowUp', shiftKey: true });
+		await pressKey(cellAt(mounted!, 1, 0), { key: 'ArrowUp', shiftKey: true });
 
 		expect(editorRoot().hasAttribute('data-cross-block')).toBe(false);
 	});
@@ -58,7 +59,7 @@ describe('the root hides the native caret only while something paints in its pla
 		const start = cellAt(mounted!, 1, 0);
 		placeCaret(start, 2);
 
-		await press(start, { key: 'ArrowDown', shiftKey: true });
+		await pressKey(start, { key: 'ArrowDown', shiftKey: true });
 
 		expect(editorRoot().hasAttribute('data-cross-block')).toBe(true);
 	});

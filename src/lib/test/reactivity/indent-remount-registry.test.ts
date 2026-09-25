@@ -5,7 +5,7 @@
 // corruption, and has to land on the new one: the entry must be the live mount's state, or
 // every later commit on that list addresses refs nothing renders.
 import { describe, it, expect, afterEach, beforeAll } from 'vitest';
-import { installLayoutStubs, mountEditor, pressKeyAt } from '../blocks/editor-mount';
+import { installLayoutStubs, mountEditor, pressKeyAt } from '$lib/test/harness/mount-editor.svelte';
 import { getStateForNode } from '$lib/reactivity/state-registry';
 import { takeDevWarns } from '../support/warn-gate';
 import type { CstNode, Document } from '$lib/core/nodes';

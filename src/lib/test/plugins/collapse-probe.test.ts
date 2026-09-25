@@ -2,31 +2,20 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { composeCollapseProbe } from '$lib/editor-actions/plugin/container';
 import { getPluginMetadata, setPluginMetadata, type CstNode } from '$lib/core/nodes';
 import { declarePluginKind } from '$lib/schema/plugin-kind';
-import { registerBlockKind } from '$lib/schema/block-kind-descriptor';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
-import { testClosure } from '$lib/test/support/closure';
 import { takeDevWarns } from '$lib/test/support/warn-gate';
+import { testContainer } from '$lib/test/harness/test-kinds';
 
 // The details declaration without its rendering: a `reservedChrome.isCollapsed` reading
 // an `open` metadata flag.
 function registerCollapsible(): ReturnType<typeof declarePluginKind> {
 	const chrome = declarePluginKind('collapse-probe-chrome');
-	const kind = declarePluginKind('collapse-probe-container');
-	registerBlockKind(kind, {
-		gapEdges: 'none',
-		mergeRole: 'container',
-		editable: true,
-		supportsInline: false,
-		closure: testClosure,
-		// It never commits, so a do-nothing strip contract and rebuild satisfy the
-		// required pairing.
-		container: {
-			contract: 'strip',
-			rebuildRaw: () => {},
-			reservedChrome: {
-				kind: chrome,
-				isCollapsed: (n) => !getPluginMetadata<{ open: boolean }>(n)?.open
-			}
+	const kind = testContainer('collapse-probe-container', {
+		contract: 'strip',
+		rebuildRaw: () => {},
+		reservedChrome: {
+			kind: chrome,
+			isCollapsed: (n) => !getPluginMetadata<{ open: boolean }>(n)?.open
 		}
 	});
 	return kind;

@@ -8,15 +8,12 @@
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import { registerMathInline } from '$lib/plugins/latex/latex-kind';
 import { resetInlineState } from '../text/math-widget-fixture';
-import { mountCell, settleTicks } from './mount-cell';
+import { mountCell } from './mount-cell';
+import { settleEditor, dispatchKey } from '$lib/test/harness/settle';
 
 // `x $a$ yz`: a math widget at raw [2,5) with prose on both sides, so every caret offset
 // this test names sits outside the widget span and reads back unambiguously.
 const CELL = 'x $a$ yz';
-
-function press(el: HTMLElement, key: string): void {
-	el.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true }));
-}
 
 /** The source text node swapped in where the widget was. */
 function revealedSource(el: HTMLElement): Text {
@@ -44,11 +41,11 @@ describe('a reveal commit in a cell puts the caret its caret in escaped space', 
 
 		// ArrowLeft at the widget's trailing edge shows its source; the edit inside it
 		// lives only in the DOM by design, since `onInput` is suppressed while it shows.
-		press(el, 'ArrowLeft');
-		await settleTicks();
+		dispatchKey(el, { key: 'ArrowLeft' });
+		await settleEditor();
 		revealedSource(el).textContent = '$a|$';
-		press(el, 'Enter');
-		await settleTicks();
+		dispatchKey(el, { key: 'Enter' });
+		await settleEditor();
 
 		// The write escaped the free `|`, so the commit caret is 7, past `$a\|$`.
 		const [, , , committedCaret] = vi.mocked(blockEdit.updateBlockContent).mock.calls[0];
@@ -65,11 +62,11 @@ describe('a reveal commit in a cell puts the caret its caret in escaped space', 
 		el.focus();
 		instance.setSelection(5, 5);
 
-		press(el, 'ArrowLeft');
-		await settleTicks();
+		dispatchKey(el, { key: 'ArrowLeft' });
+		await settleEditor();
 		revealedSource(el).textContent = '$ab$';
-		press(el, 'Enter');
-		await settleTicks();
+		dispatchKey(el, { key: 'Enter' });
+		await settleEditor();
 
 		// Non-vacuity: the mapping leaves the offset alone when nothing is inserted, so
 		// the escaping cannot be a blanket shift.

@@ -1,35 +1,18 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { checkReservedChromeSlot } from '../../invariants/node-shape';
-import { declarePluginKind } from '../../schema/plugin-kind';
-import { registerBlockKind } from '../../schema/block-kind-descriptor';
 import { __resetSchemaRegistriesForTests } from '../../schema/registry-reset';
-import { testClosure } from '$lib/test/support/closure';
-import { registerOpaque } from '$lib/test/harness/opaque-kind';
-import type { AnyBlockKind, CstNode } from '../../core/nodes';
-
-// A container declaring its child 0 as reserved chrome, plus the chrome leaf.
-function registerChromeContainer(): { container: AnyBlockKind; chrome: AnyBlockKind } {
-	const chrome = declarePluginKind('spec-chrome-title');
-	registerBlockKind(chrome, {
-		gapEdges: 'none',
-		mergeRole: 'not-mergeable',
-		editable: true,
-		supportsInline: false,
-		closure: testClosure,
-		contextDependentKind: true
-	});
-	const container = registerOpaque('spec-chrome-container', {
-		rebuildRaw: () => {},
-		reservedChrome: { kind: chrome }
-	});
-	return { container, chrome };
-}
+import type { CstNode } from '../../core/nodes';
+import { testChromeContainer } from '$lib/test/harness/test-kinds';
+import { __resetPasteSurfacesForTests } from '$lib/tree-operations/paste-surfaces';
 
 describe('checkReservedChromeSlot (G1.14)', () => {
-	beforeEach(() => __resetSchemaRegistriesForTests());
+	beforeEach(() => {
+		__resetSchemaRegistriesForTests();
+		__resetPasteSurfacesForTests();
+	});
 
 	it('passes when child 0 is the declared chrome kind', () => {
-		const { container, chrome } = registerChromeContainer();
+		const { container, chrome } = testChromeContainer('spec-chrome-container', 'spec-chrome-title');
 		const node: CstNode = {
 			kind: container,
 			leadingTrivia: '',
@@ -43,7 +26,7 @@ describe('checkReservedChromeSlot (G1.14)', () => {
 	});
 
 	it('fires when child 0 is a foreign kind', () => {
-		const { container } = registerChromeContainer();
+		const { container } = testChromeContainer('spec-chrome-container', 'spec-chrome-title');
 		const node: CstNode = {
 			kind: container,
 			leadingTrivia: '',
@@ -54,7 +37,7 @@ describe('checkReservedChromeSlot (G1.14)', () => {
 	});
 
 	it('fires when the container has no children', () => {
-		const { container } = registerChromeContainer();
+		const { container } = testChromeContainer('spec-chrome-container', 'spec-chrome-title');
 		const node: CstNode = {
 			kind: container,
 			leadingTrivia: '',

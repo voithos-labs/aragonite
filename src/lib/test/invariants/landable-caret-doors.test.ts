@@ -7,21 +7,20 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import type { Component } from 'svelte';
 import type { BlockComponent, BlockComponentExports, BlockComponentProps } from '$lib/plugin';
 import {
-	declarePluginKind,
 	definePluginBlock,
-	registerBlockKind,
 	registerBlockOpener,
 	simpleLeafClosure,
 	OPENER_PRIORITIES,
 	type EditorPlugin
 } from '$lib/plugin';
 import { installEditorDomStubsForTests, resetPluginPlatformForTests } from '$lib/testing';
-import { mountEditor, type MountedEditor } from '../blocks/editor-mount';
+import { mountEditor, type MountedEditor } from '$lib/test/harness/mount-editor.svelte';
 import { takeDevWarns } from '../support/warn-gate';
 import RogueCaretDoorBlock from './fixtures/RogueCaretDoorBlock.svelte';
 import MarkerSourcePlainBlock from './fixtures/MarkerSourcePlainBlock.svelte';
 import MarkerSourceRevealBlock from './fixtures/MarkerSourceRevealBlock.svelte';
 import InertSurfaceBlock from './fixtures/InertSurfaceBlock.svelte';
+import { testLeaf } from '$lib/test/harness/test-kinds';
 
 const ROGUE_MARKER = '@@rogue';
 const PLAIN_MARKER = '@@plain';
@@ -39,12 +38,7 @@ function markerLinePlugin<P extends Partial<BlockComponentProps> & Record<string
 		kind,
 		component,
 		register: () => {
-			const declared = declarePluginKind(kind);
-			registerBlockKind(declared, {
-				gapEdges: 'none',
-				mergeRole: 'not-mergeable',
-				editable: true,
-				supportsInline: false,
+			const declared = testLeaf(kind, {
 				closure: simpleLeafClosure({
 					focus: { mode: 'implemented', via: 'the fixture owns the caret door under test' },
 					searchPaint: { mode: 'inherit-default' },

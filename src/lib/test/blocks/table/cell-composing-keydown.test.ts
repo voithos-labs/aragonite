@@ -6,7 +6,8 @@
 // handler refuses before the chord dispatcher and the navigation plan. A break here is silent
 // until an IME user confirms a candidate and the table grows a row.
 import { describe, it, expect, afterEach } from 'vitest';
-import { mountCell, settleTicks, type MountedCell } from './mount-cell';
+import { mountCell, type MountedCell } from './mount-cell';
+import { settleEditor, pressKey } from '$lib/test/harness/settle';
 
 let mounted: MountedCell | null = null;
 afterEach(async () => {
@@ -17,15 +18,6 @@ afterEach(async () => {
 
 function compose(m: MountedCell): void {
 	m.el.dispatchEvent(new CompositionEvent('compositionstart', { bubbles: true }));
-}
-
-// The cell's handler awaits its widget handlers before it can take anything, so reading
-// `defaultPrevented` synchronously would report "not taken" for every key, proving nothing.
-async function press(m: MountedCell, init: KeyboardEventInit): Promise<boolean> {
-	const event = new KeyboardEvent('keydown', { bubbles: true, cancelable: true, ...init });
-	m.el.dispatchEvent(event);
-	await settleTicks();
-	return event.defaultPrevented;
 }
 
 describe('a composing table cell claims no keys', () => {
@@ -41,7 +33,7 @@ describe('a composing table cell claims no keys', () => {
 		mounted.el.focus();
 		compose(mounted);
 
-		expect(await press(mounted, init)).toBe(false);
+		expect((await pressKey(mounted.el, init)).defaultPrevented).toBe(false);
 		expect(mounted.tableContext.focusCell).not.toHaveBeenCalled();
 		expect(mounted.tableContext.exitDownward).not.toHaveBeenCalled();
 	});
@@ -57,7 +49,7 @@ describe('a composing table cell claims no keys', () => {
 		mounted.el.focus();
 		compose(mounted);
 
-		expect(await press(mounted, init)).toBe(false);
+		expect((await pressKey(mounted.el, init)).defaultPrevented).toBe(false);
 		expect(mounted.tableContext.insertRowBelow).not.toHaveBeenCalled();
 		expect(mounted.tableContext.deleteRow).not.toHaveBeenCalled();
 		expect(mounted.tableContext.insertColumnRight).not.toHaveBeenCalled();
@@ -69,9 +61,9 @@ describe('a composing table cell claims no keys', () => {
 		mounted.el.focus();
 		compose(mounted);
 		mounted.el.dispatchEvent(new CompositionEvent('compositionend', { bubbles: true, data: 'x' }));
-		await settleTicks();
+		await settleEditor();
 
-		expect(await press(mounted, { key: 'Tab' })).toBe(true);
+		expect((await pressKey(mounted.el, { key: 'Tab' })).defaultPrevented).toBe(true);
 		expect(mounted.tableContext.focusCell).toHaveBeenCalled();
 	});
 });

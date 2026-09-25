@@ -3,7 +3,7 @@ import { consumeStickyLanding } from '$lib/editor-actions/focus/focus-landing';
 import { CURSOR_END, CURSOR_START } from '$lib/block-component';
 import { asEditorX } from '$lib/cursor/coordinate-spaces';
 import { createStickyColumnState, type StickyColumnState } from '$lib/cursor/sticky-column';
-import { mockRef } from '$lib/test/harness/editor-actions';
+import { stubBlockComponent } from '$lib/test/harness/editor-actions';
 
 function capturedSticky(x: number): StickyColumnState {
 	const sticky = createStickyColumnState();
@@ -13,7 +13,7 @@ function capturedSticky(x: number): StickyColumnState {
 
 describe('consumeStickyLanding', () => {
 	it('sticky move from above skips a vertically-transparent block downward', async () => {
-		const block = mockRef({ focus: vi.fn(), isVerticallyTransparent: () => true });
+		const block = stubBlockComponent({ focus: vi.fn(), isVerticallyTransparent: () => true });
 		const retryAt = vi.fn();
 		await consumeStickyLanding(
 			block,
@@ -34,7 +34,7 @@ describe('consumeStickyLanding', () => {
 	] as const)(
 		'sticky move from %s stops on a transparent block, at its %s edge',
 		async (from, side) => {
-			const image = mockRef({
+			const image = stubBlockComponent({
 				focus: vi.fn(),
 				isVerticallyTransparent: () => true,
 				enterEdgeWidget: vi.fn(() => true)
@@ -54,7 +54,7 @@ describe('consumeStickyLanding', () => {
 	);
 
 	it('sticky move from below skips a vertically-transparent block upward', async () => {
-		const block = mockRef({ focus: vi.fn(), isVerticallyTransparent: () => true });
+		const block = stubBlockComponent({ focus: vi.fn(), isVerticallyTransparent: () => true });
 		const retryAt = vi.fn();
 		await consumeStickyLanding(
 			block,
@@ -67,7 +67,7 @@ describe('consumeStickyLanding', () => {
 	});
 
 	it('horizontal move lands on a transparent block instead of skipping', async () => {
-		const block = mockRef({ focus: vi.fn(), isVerticallyTransparent: () => true });
+		const block = stubBlockComponent({ focus: vi.fn(), isVerticallyTransparent: () => true });
 		const retryAt = vi.fn();
 		await consumeStickyLanding(block, 0, 'start', createStickyColumnState(), retryAt);
 		expect(retryAt).not.toHaveBeenCalled();
@@ -76,7 +76,7 @@ describe('consumeStickyLanding', () => {
 
 	for (const side of ['start', 'end'] as const) {
 		it(`'${side}' prefers edge-widget entry when the block accepts`, async () => {
-			const block = mockRef({ focus: vi.fn(), enterEdgeWidget: vi.fn(() => true) });
+			const block = stubBlockComponent({ focus: vi.fn(), enterEdgeWidget: vi.fn(() => true) });
 			await consumeStickyLanding(block, 0, side, createStickyColumnState(), vi.fn());
 			expect(block.enterEdgeWidget).toHaveBeenCalledWith(side);
 			expect(block.focus).not.toHaveBeenCalled();
@@ -84,13 +84,13 @@ describe('consumeStickyLanding', () => {
 	}
 
 	it('falls through to the caret when enterEdgeWidget declines', async () => {
-		const block = mockRef({ focus: vi.fn(), enterEdgeWidget: vi.fn(() => false) });
+		const block = stubBlockComponent({ focus: vi.fn(), enterEdgeWidget: vi.fn(() => false) });
 		await consumeStickyLanding(block, 0, 'end', createStickyColumnState(), vi.fn());
 		expect(block.focus).toHaveBeenCalledWith(CURSOR_END);
 	});
 
 	it('sticky move with captured x routes through focusAtColumn', async () => {
-		const block = mockRef({ focus: vi.fn(), focusAtColumn: vi.fn() });
+		const block = stubBlockComponent({ focus: vi.fn(), focusAtColumn: vi.fn() });
 		await consumeStickyLanding(
 			block,
 			0,
@@ -103,7 +103,7 @@ describe('consumeStickyLanding', () => {
 	});
 
 	it('sticky move with no captured x falls back to focus(CURSOR_START) from above', async () => {
-		const block = mockRef({ focus: vi.fn(), focusAtColumn: vi.fn() });
+		const block = stubBlockComponent({ focus: vi.fn(), focusAtColumn: vi.fn() });
 		await consumeStickyLanding(
 			block,
 			0,
@@ -116,7 +116,7 @@ describe('consumeStickyLanding', () => {
 	});
 
 	it('sticky move with no captured x falls back to focus(CURSOR_END) from below', async () => {
-		const block = mockRef({ focus: vi.fn(), focusAtColumn: vi.fn() });
+		const block = stubBlockComponent({ focus: vi.fn(), focusAtColumn: vi.fn() });
 		await consumeStickyLanding(
 			block,
 			0,
@@ -128,7 +128,7 @@ describe('consumeStickyLanding', () => {
 	});
 
 	it('sticky move with captured x but no focusAtColumn falls back by direction', async () => {
-		const block = mockRef({ focus: vi.fn() });
+		const block = stubBlockComponent({ focus: vi.fn() });
 		await consumeStickyLanding(
 			block,
 			0,
@@ -149,7 +149,7 @@ describe('consumeStickyLanding', () => {
 			{ position: 'end', offset: CURSOR_END }
 		];
 		for (const { position, offset } of cases) {
-			const block = mockRef({ focus: vi.fn() });
+			const block = stubBlockComponent({ focus: vi.fn() });
 			await consumeStickyLanding(block, 0, position, createStickyColumnState(), vi.fn());
 			expect(block.focus).toHaveBeenCalledWith(offset);
 		}

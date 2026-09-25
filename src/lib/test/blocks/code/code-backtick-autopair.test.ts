@@ -8,9 +8,7 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import { asDomTextOffset } from '$lib/cursor/coordinate-spaces';
 import { createRangeFromOffsets } from '$lib/cursor/content-offsets';
 import { mountCode, type MountedCode } from './mount-code';
-
-// The pair's commit runs after an await inside the listener; one macrotask lets it land.
-const settle = () => new Promise((r) => setTimeout(r));
+import { settleEditor } from '$lib/test/harness/settle';
 
 let mounted: MountedCode;
 
@@ -36,7 +34,7 @@ async function typeBacktickAt(source: string, offset: number): Promise<InputEven
 		cancelable: true
 	});
 	mounted.el.dispatchEvent(e);
-	await settle();
+	await settleEditor();
 	return e;
 }
 

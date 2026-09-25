@@ -6,39 +6,28 @@
 // Miss-analysis: the join rules' own suite drives ranges directly and this layer had no test at
 // all, so both checks that fail open (a null selection, a three-entry input-type list) were unseen.
 import { describe, it, expect, afterEach, vi } from 'vitest';
-import { mount, unmount, flushSync } from 'svelte';
+import { unmount } from 'svelte';
 import TextEditableBlock from '$lib/components/blocks/text/TextEditableBlock.svelte';
-import { parse } from '$lib/core/parser';
 import { asDomTextOffset } from '$lib/cursor/coordinate-spaces';
 import { createRangeFromOffsets } from '$lib/cursor/content-offsets';
 import { cleanLiveJoinSeam } from '$lib/components/blocks/text/live-join-seam';
 import { registerLiveJoinSeamCleaner } from '$lib/schema/inline-construct-policy';
 import { makeStubBlockEdit } from '../../harness/editor-actions';
-import { editorMountContext } from '../../harness/mount-context';
 import { mountCell, noIslands, type MountedCell } from '../table/mount-cell';
-
-/** The async beforeinput chain resolves after the dispatch returns. */
-const settle = () => new Promise((r) => setTimeout(r));
+import { settleEditor } from '$lib/test/harness/settle';
+import { mountBlock } from '../../harness/mount-block';
 
 // `**bold** tail`: the run is [0,2) and [6,8), the word `bold` is [2,6).
 const BOLD = '**bold** tail\n';
 
 function mountText(source: string) {
-	const target = document.createElement('div');
-	document.body.appendChild(target);
-	const doc = parse(source);
-	const blockEdit = makeStubBlockEdit();
-	const instance = mount(TextEditableBlock, {
-		target,
-		props: { node: doc.children[0], index: 0, myPath: [0] },
-		context: editorMountContext({
-			blockEdit,
-			doc: { doc: () => doc },
+	const { instance, target, blockEdit } = mountBlock(TextEditableBlock, {
+		source,
+		overrides: {
 			policies: { presentationMode: () => 'live' },
 			services: { decorations: noIslands }
-		})
+		}
 	});
-	flushSync();
 	return { instance, el: target.querySelector('.text-editable-block') as HTMLElement, blockEdit };
 }
 
@@ -74,7 +63,7 @@ async function press(
 		Object.defineProperty(e, 'getTargetRanges', { value: () => [range] });
 	}
 	el.dispatchEvent(e);
-	await settle();
+	await settleEditor();
 	return e;
 }
 

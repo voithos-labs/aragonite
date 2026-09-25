@@ -6,7 +6,12 @@
 // reading-mode check, clearing a cross-block selection, and the paired metadata write. Only a
 // mounted item connects the rendered span to those rules.
 import { describe, it, expect, afterEach, beforeAll } from 'vitest';
-import { installLayoutStubs, mountEditor, blockHostAt, pressKeyAt } from '../editor-mount';
+import {
+	installLayoutStubs,
+	mountEditor,
+	blockHostAt,
+	pressKeyAt
+} from '$lib/test/harness/mount-editor.svelte';
 
 beforeAll(installLayoutStubs);
 

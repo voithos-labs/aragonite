@@ -1,10 +1,9 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
-import { parse } from '../../../core/parser';
 import { serialize } from '../../../core/serializer';
 import { pasteDispatch } from '../../../tree-operations/paste/dispatch';
 import {
-	makeRunningPasteController,
+	makePasteCommit,
 	makeStubBlockEdit,
 	registerStubBlockListState,
 	pasteContext
@@ -19,7 +18,7 @@ import { expectParseConverged } from '../../harness/parse-converged';
 
 describe('container-matching merge reattaches residue through the reparse shared path (GH #56)', () => {
 	it('a fence closer landing in the last pasted item re-reads as its own block', async () => {
-		const doc = parse('- ```js\n  code\n  ```\n');
+		const { doc, controller } = makePasteCommit('- ```js\n  code\n  ```\n');
 		expect(doc.children[0].children?.[0].children?.[0].kind).toBe('fencedCode');
 		registerStubBlockListState(doc.children[0]);
 
@@ -29,7 +28,7 @@ describe('container-matching merge reattaches residue through the reparse shared
 			pasteContext({
 				doc,
 				blockEdit: makeStubBlockEdit(),
-				controller: makeRunningPasteController(),
+				controller,
 				undoEntry: 'join'
 			})
 		);
