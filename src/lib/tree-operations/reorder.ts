@@ -60,6 +60,8 @@ export function reorderChildrenWithTrivia(
 	}
 	const lo = Math.min(from, to);
 	const hi = Math.max(from, to);
+	// Whether the moved block sat flush against both its neighbours, read before the rotation.
+	const flushAround = !children[from].leadingTrivia && !children[from + 1]?.leadingTrivia;
 	const windowTrivia: string[] = [];
 	for (let i = lo; i <= hi; i++) {
 		windowTrivia.push(ensureUnsharedChild({ children }, i, sharing).leadingTrivia);
@@ -71,12 +73,11 @@ export function reorderChildrenWithTrivia(
 	if (separators) {
 		// The rotation moves every position in the window, and a block can land flush under a
 		// paragraph that then reads its lines as its own (a table dissolving into the prose above
-		// it). The join the moved block vacated rejoins, as a reload would read it, unless the
-		// upper block ends only at a blank line and would take every block down to the next one.
+		// it). The pair the moved block stood between is asked the same if a blank line sat on
+		// either side of it; flush on both sides, it rejoins as deleting the moved block would.
 		const vacated = from < to ? from : from + 1;
 		for (let at = lo; at <= hi + 1; at++) {
-			if (at === vacated && !endsOnlyAtBlankLine(children[at - 1], grammar)) continue;
-			separateSeam(children, at, sharing, grammar);
+			if (at !== vacated || !flushAround) separateSeam(children, at, sharing, grammar);
 		}
 		// A blank block moved by position can hold a line its follower holds too; the run needs
 		// exactly one, and none at the document head, where the reload reads each as a block.
@@ -118,18 +119,6 @@ function separateSeam(
 	const readsAsBoth = (trivia: string) => readsAsPair(prev, trivia, next, grammar);
 	if (readsAsBoth(next.leadingTrivia) || !readsAsBoth(apart)) return;
 	ensureUnsharedChild({ children }, at, sharing).leadingTrivia = apart;
-}
-
-// A heading line flush under the block still reads as the block's own text only when nothing
-// but a blank line ends it: an HTML block, which has no closing line the editor could write.
-function endsOnlyAtBlankLine(
-	block: CstNode | undefined,
-	grammar: GrammarView | undefined
-): boolean {
-	if (!block) return false;
-	const eol = trailingLineEnding(block.raw);
-	if (!eol) return false;
-	return parse(block.raw + '# h' + eol, { grammar, scope: 'fragment' }).children.length === 1;
 }
 
 function withLeadingLine(trivia: string, eol: string): string {

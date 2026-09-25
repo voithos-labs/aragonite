@@ -30,6 +30,11 @@ whether or not the drag handles are turned on.
   - Miss-analysis: the join a moved block vacates was only ever pinned between two paragraphs,
     which rejoin as a reload reads them; no case put a block that ends only at a blank line above
     it, so the absorption below it went unasked.
+- A heading moved up from between a paragraph (a blank line above the heading) and a table
+  (flush under it) leaves a blank line between the paragraph and the table, so the table stays a
+  table; one undo restores the source. Two blocks flush on both sides of the moved block rejoin.
+  - Miss-analysis: the property suite exempted every pair the moved block stood between from its
+    content check, so the move folding a table, a rule or a quote into the block above passed.
 
 ## Edge cases
 

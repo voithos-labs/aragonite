@@ -96,6 +96,24 @@ test.describe('keyboard reorder', () => {
 		await editor.bridge.waitForSourceEquals(source);
 	});
 
+	// A blank line kept the paragraph and the table apart above the heading; moving the heading
+	// away keeps one between them, or the table would reload as the paragraph's text.
+	test('Alt+ArrowUp keeps apart the pair a blank line separated', async () => {
+		const source = 'Intro\n\n# Heading\n| A | B |\n| --- | --- |\n| 1 | 2 |\n';
+		await editor.loadContent(source);
+		await editor.page.locator('[contenteditable="true"]', { hasText: 'Heading' }).click();
+		await editor.page.keyboard.press('Alt+ArrowUp');
+
+		await editor.bridge.waitForSourceEquals(
+			'# Heading\n\nIntro\n\n| A | B |\n| --- | --- |\n| 1 | 2 |\n'
+		);
+		expect(await editor.bridge.getBlockKind(2)).toBe('table');
+		expect(await editor.parseConverged()).toBe(true);
+
+		await editor.page.keyboard.press('ControlOrMeta+z');
+		await editor.bridge.waitForSourceEquals(source);
+	});
+
 	// A move with no sibling in that direction must change nothing and add no undo entry, or the
 	// press at the boundary silently eats a Ctrl+Z. The unit test for the clamp skips the keymap
 	// dispatch this goes through.
