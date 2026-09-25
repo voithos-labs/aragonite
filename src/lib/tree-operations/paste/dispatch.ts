@@ -263,4 +263,4 @@ function inlineCaretResult(
 }
 
 export { pickPasteStrategy } from './strategy';
-export { defaultInlineHook, defaultStructuralHook, __getDefaultTextSurface } from './hooks';
+export { defaultInlineHook, defaultStructuralHook } from './hooks';

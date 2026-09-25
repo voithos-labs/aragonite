@@ -4,9 +4,8 @@
 	// API a host uses (`@voithos-labs/aragonite/plugin`). This is the worked example for that
 	// export: one import, one call, before any editor mounts. Off by default, because the language
 	// list is geometry the picker specs read.
-	import { registerLanguage } from '$lib/plugin';
+	import { isLanguageRegistered, registerLanguage } from '$lib/plugin';
 	import elixir from 'highlight.js/lib/languages/elixir';
-	import swift from 'highlight.js/lib/languages/swift';
 	import { HARNESS_SHOWCASE_CONTENT } from '$lib/e2e/test-content';
 	import type { KeybindingOverride } from '$lib/schema/keybinding-overrides';
 	import DebugPanel from '../../debug-panel/DebugPanel.svelte';
@@ -48,11 +47,11 @@
 	let headerTall = $state(false);
 
 	// At module scope this would run during SSR too, where it does nothing; the check keeps the
-	// registration on the client, still ahead of the editor's own mount below.
+	// registration on the client, still ahead of the editor's own mount below. Languages are
+	// register-once, and a second visit to this page runs this again.
 	const extraLanguagesOn = param('extraLanguage') === 'on';
-	if (extraLanguagesOn) {
+	if (extraLanguagesOn && !isLanguageRegistered('elixir')) {
 		registerLanguage('elixir', elixir, ['ex', 'exs']);
-		registerLanguage('swift', swift);
 	}
 
 	// `?slash=on` lists the slash-commands plugin, for the simulation's slash gesture. Off by

@@ -8,8 +8,6 @@ import { createPasteCoordinator } from '$lib/editor-actions/paste-coordinator';
 import { pasteDispatch } from '$lib/tree-operations/paste/dispatch';
 import { replaceBlockAtParent } from '$lib/tree-operations/paste/replace-block-at-parent';
 import { registerBlockListState } from '$lib/reactivity/state-registry';
-import { registerPasteSurface } from '$lib/tree-operations/paste-surfaces';
-import { __getDefaultTextSurface } from '$lib/tree-operations/paste/hooks';
 import { registerDetailsKind } from '$lib/plugins/details/details-kind';
 import {
 	makeBlockListState,
@@ -28,7 +26,6 @@ const OPEN_DETAILS = '<details>\n<summary>T</summary>\n\nbody\n\n</details>\n';
 beforeEach(() => {
 	resetPluginPlatformForTests();
 	registerDetailsKind();
-	registerPasteSurface(__getDefaultTextSurface('paragraph'));
 });
 
 function mountDoc(source: string) {

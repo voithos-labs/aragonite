@@ -30,17 +30,15 @@ import type { SelectionPoint } from '../../selection/primitives';
 import { createSharingState } from '../../tree-operations/sharing';
 import { ensureEditableContainers } from '../../tree-operations/node-primitives';
 import { buildExitReplacement } from '../../tree-operations/list/exit-replacement';
-import { pasteDispatch, __getDefaultTextSurface } from '../../tree-operations/paste/dispatch';
-import {
-	__resetPasteSurfacesForTests,
-	registerPasteSurface
-} from '../../tree-operations/paste-surfaces';
+import { pasteDispatch } from '../../tree-operations/paste/dispatch';
 import { createPasteCoordinator } from '../../editor-actions/paste-coordinator';
 import { createUndoController } from '../../editor-actions/commit/undo-controller';
 import { createBlockEditActions } from '../../editor-actions/block-edit';
 import { makeEditorActionsDeps, pasteContext } from '../harness/editor-actions';
 import { fixtureLinkRef, pasteSeam } from '../harness/fixture-grammar';
 import { allowDevWarns } from '../support/warn-gate';
+import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
+import { ensurePasteSurface } from '$lib/test/support/paste-surface';
 
 interface EditGesture {
 	name: string;
@@ -63,11 +61,9 @@ async function pasteInto(
 	offset: number,
 	clipboard: string
 ): Promise<Document> {
-	__resetPasteSurfacesForTests();
-	registerPasteSurface(__getDefaultTextSurface('paragraph'));
-	registerPasteSurface(__getDefaultTextSurface('heading'));
-	registerPasteSurface(tableCellPasteSurface);
-	registerPasteSurface(codePasteSurface);
+	__resetSchemaRegistriesForTests();
+	ensurePasteSurface(tableCellPasteSurface);
+	ensurePasteSurface(codePasteSurface);
 	const { deps } = makeEditorActionsDeps(doc);
 	const controller = createUndoController(deps);
 	await pasteDispatch(

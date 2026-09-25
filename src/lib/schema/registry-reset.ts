@@ -1,37 +1,19 @@
-import { __removePluginBlockKindsForTests } from './block-kind-descriptor';
-import { __removePluginComponentsForTests } from './block-component-registry';
-import { __removePluginCompletersForTests } from './block-completions';
-import { __removePluginOpenersForTests } from './block-openers';
-import {
-	__removePluginCommandsForTests,
-	__resetCommandWarningsForTests,
-	__resetPluginGlobalKeymapForTests
-} from './commands';
-import { __resetBlockCommandsForTests } from './block-commands';
-import { __clearDeclaredPluginKindsForTests } from './plugin-kind';
-import { __resetRegistrationChecksForTests } from './registration-checks';
-import { __resetInstalledPluginsForTests } from './plugin-install';
-import { __resetInlineConstructPoliciesForTests } from './inline-construct-policy';
-import { __removePluginInsertEntriesForTests } from './insert-catalogue';
-
 /**
- * Test-only. Clears every non-built-in registration; built-ins stay. Also clears the warning
- * de-duplication, the registration-check flags and the installed-plugin set, since state that
- * mirrors a registry must never outlive its reset. The two single-function registrations (the live
- * split rebalancer, the join cleaner) have their own resets: only a suite testing one clears it.
+ * The one test reset of the plugin platform: every registry and every piece of state that
+ * mirrors one enrolls its own reset here when its module loads, and the reset runs them all.
+ * Imports nothing, so any schema module may enroll without an import cycle.
  */
+
+const testResets: (() => void)[] = [];
+
+/** Add process-global plugin state to the reset. A registry from `createPluginRegistry` enrolls
+ *  itself; other state that mirrors a registry enrolls when its module loads. */
+export function enrollTestReset(reset: () => void): void {
+	testResets.push(reset);
+}
+
+/** Test-only. Drops every registration that is not a built-in, and the state that mirrors one
+ *  (installed plugins, registration checks, warning memos). `resetPluginPlatformForTests` runs it. */
 export function __resetSchemaRegistriesForTests(): void {
-	__removePluginBlockKindsForTests();
-	__removePluginComponentsForTests();
-	__removePluginCompletersForTests();
-	__removePluginOpenersForTests();
-	__removePluginCommandsForTests();
-	__resetBlockCommandsForTests();
-	__resetInlineConstructPoliciesForTests();
-	__removePluginInsertEntriesForTests();
-	__resetPluginGlobalKeymapForTests();
-	__resetCommandWarningsForTests();
-	__clearDeclaredPluginKindsForTests();
-	__resetRegistrationChecksForTests();
-	__resetInstalledPluginsForTests();
+	for (const reset of testResets) reset();
 }

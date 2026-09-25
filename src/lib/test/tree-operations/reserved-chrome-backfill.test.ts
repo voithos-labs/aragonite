@@ -3,13 +3,11 @@ import { ensureEditableContainers } from '../../tree-operations/node-primitives'
 import { __resetSchemaRegistriesForTests } from '../../schema/registry-reset';
 import type { CstNode } from '../../core/nodes';
 import { testChromeContainer } from '$lib/test/harness/test-kinds';
-import { __resetPasteSurfacesForTests } from '$lib/tree-operations/paste-surfaces';
 import { testContainer } from '$lib/test/harness/test-kinds';
 
 describe('ensureEditableContainers: reserved-chrome backfill', () => {
 	beforeEach(() => {
 		__resetSchemaRegistriesForTests();
-		__resetPasteSurfacesForTests();
 	});
 
 	it('re-creates a chrome leaf + paragraph when a chrome-declaring container empties', () => {

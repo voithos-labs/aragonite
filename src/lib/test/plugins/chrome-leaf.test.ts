@@ -8,19 +8,16 @@ import {
 import { registerChromeLeaf } from '$lib/editor-actions/plugin/chrome-leaf';
 import TextEditableBlock from '$lib/components/blocks/text/TextEditableBlock.svelte';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
-import { __resetPasteSurfacesForTests } from '$lib/tree-operations/paste-surfaces';
 import type { KeyBinding } from '$lib/schema/keybindings';
+import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
 
 function keymapByChord(keymap: KeyBinding[] | undefined): Record<string, string> {
 	return Object.fromEntries((keymap ?? []).map((b) => [b.chord, b.command]));
 }
 
 describe('registerChromeLeaf', () => {
-	// registerChromeLeaf also makes a register-once paste entry; clear it so re-registering
-	// the same kind across cases does not throw.
 	beforeEach(() => {
 		__resetSchemaRegistriesForTests();
-		__resetPasteSurfacesForTests();
 	});
 
 	it('registers a context-dependent, not-mergeable editable chrome leaf + its component', () => {
@@ -77,7 +74,7 @@ describe('registerChromeLeaf', () => {
 		const kind = declarePluginKind('spec-chrome-leaf');
 		registerChromeLeaf(kind, TextEditableBlock);
 
-		const extraProps = getBlockComponent(kind)?.extraProps;
+		const extraProps = getBlockComponent(kind, everyInstalledPlugin)?.extraProps;
 		expect(extraProps?.({ kind, leadingTrivia: '', raw: '\n' })).toStrictEqual({
 			blockClass: undefined
 		});

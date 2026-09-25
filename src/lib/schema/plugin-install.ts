@@ -1,5 +1,6 @@
 import { devWarn } from '../dev-warn';
 import { isValidPluginName } from './plugin-name';
+import { enrollTestReset } from './registry-reset';
 // Type-only: `editor-events` already imports this module at runtime, so importing a value back
 // would close a cycle from `schema/` to the root.
 import type { DocumentView, NodeView } from '../core/node-views';
@@ -73,10 +74,11 @@ export interface EditorContext<Options = unknown> {
 
 const installed = new Map<string, EditorPlugin>();
 const failed = new Map<string, unknown>();
-const kindOwners = new Map<string, string>();
 const onEditorSubs = new Map<string, OnEditorCallback[]>();
 
 let installing: string | null = null;
+// Bumped whenever the installed set changes, so a cache filtered by installation can tell it is stale.
+let generation = 0;
 
 // ── Public API ───────────────────────────────────────────────────────────────
 
@@ -167,21 +169,8 @@ export function registerAsCore(register: () => void): void {
 	}
 }
 
-export function recordPluginKindOwner(kind: string, plugin: string): void {
-	kindOwners.set(kind, plugin);
-}
-
-export function pluginKindOwner(kind: string): string | null {
-	return kindOwners.get(kind) ?? null;
-}
-
-/** This editor's `EditorContext` for the plugin that owns `kind`. Passing `''` when no plugin owns
- *  it returns the editor's base context, so leaf blocks and containers resolve the same way. */
-export function owningPluginEditor(
-	pluginEditor: ((pluginName: string) => EditorContext | undefined) | undefined,
-	kind: string
-): EditorContext | undefined {
-	return pluginEditor?.(pluginKindOwner(kind) ?? '');
+export function pluginInstallGeneration(): number {
+	return generation;
 }
 
 /** onEditor callbacks a plugin registered during setup, in registration order. */
@@ -197,9 +186,10 @@ export function installedPluginNames(): string[] {
 export function __resetInstalledPluginsForTests(): void {
 	installed.clear();
 	failed.clear();
-	kindOwners.clear();
 	onEditorSubs.clear();
+	generation++;
 }
+enrollTestReset(__resetInstalledPluginsForTests);
 
 // ── Internal ─────────────────────────────────────────────────────────────────
 
@@ -218,6 +208,7 @@ function installOne(plugin: EditorPlugin): void {
 	} finally {
 		close();
 		installing = null;
+		generation++;
 	}
 	installed.set(plugin.name, plugin);
 }

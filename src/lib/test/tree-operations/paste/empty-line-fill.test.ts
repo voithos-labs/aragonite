@@ -3,11 +3,6 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import { pasteDispatch } from '$lib/tree-operations/paste/dispatch';
-import {
-	__resetPasteSurfacesForTests,
-	registerPasteSurface
-} from '$lib/tree-operations/paste-surfaces';
-import { __getDefaultTextSurface } from '$lib/tree-operations/paste/hooks';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
 import { createPasteCoordinator } from '$lib/editor-actions/paste-coordinator';
 import {
@@ -16,14 +11,12 @@ import {
 	pasteContext
 } from '$lib/test/harness/editor-actions';
 import { describeConvergence } from '$lib/test/harness/parse-converged';
+import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 
 // Miss-analysis: no paste test filled one empty paragraph of a run of two, so a clipboard block
 // with no line ending that took the other one's line as its own went unseen.
 
-beforeEach(() => {
-	__resetPasteSurfacesForTests();
-	registerPasteSurface(__getDefaultTextSurface('paragraph'));
-});
+beforeEach(() => __resetSchemaRegistriesForTests());
 
 async function pasteOnFirstEmptyLine(source: string, markdown: string) {
 	const { deps } = makeEditorActionsDeps(parse(source).children);

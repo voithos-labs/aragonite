@@ -5,16 +5,16 @@ import {
 	registerDirective,
 	resolveDirective,
 	isDirectiveRegistered,
-	__resetDirectiveRegistryForTests,
 	type DirectiveDefinition
 } from '$lib/core/directive/registry';
 import { defaultGrammarView } from '$lib/schema/block-openers';
+import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 
 const kind = declarePluginKind('directiveRegistryProbe');
 const factory: NonNullable<DirectiveDefinition['fromDirective']> = (parsed) =>
 	({ kind, leadingTrivia: parsed.leadingTrivia, raw: parsed.raw }) as CstNode;
 
-afterEach(() => __resetDirectiveRegistryForTests());
+afterEach(() => __resetSchemaRegistriesForTests());
 
 describe('registerDirective', () => {
 	it('resolves a registered definition and reports it registered', () => {
@@ -75,10 +75,10 @@ describe('registerDirective per-level factory contract', () => {
 	});
 });
 
-describe('__resetDirectiveRegistryForTests', () => {
+describe('__resetSchemaRegistriesForTests', () => {
 	it('clears registrations so the same (level,name) re-registers without throwing', () => {
 		registerDirective('container', 'note', { kind, fromDirective: factory });
-		__resetDirectiveRegistryForTests();
+		__resetSchemaRegistriesForTests();
 		expect(isDirectiveRegistered('container', 'note')).toBe(false);
 		expect(() =>
 			registerDirective('container', 'note', { kind, fromDirective: factory })

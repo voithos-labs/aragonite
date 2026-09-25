@@ -2,12 +2,12 @@ import { afterEach, describe, expect, it } from 'vitest';
 import type { InlineNode } from '$lib/core/nodes';
 import { parseInline } from '$lib/core/inline';
 import {
-	__resetInlineSyntaxForTests,
 	registerInlineSyntax,
 	type InlineSyntaxRecognizer
 } from '$lib/core/inline/scan/plugin-syntax';
+import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 
-afterEach(() => __resetInlineSyntaxForTests());
+afterEach(() => __resetSchemaRegistriesForTests());
 
 // The label-less `{…}` form isolates the probe: `{`, `}`, `=` are not SPECIAL chars, so
 // only the trigger can force a scan. A `[label]` form would trip needsScan on the `[`.

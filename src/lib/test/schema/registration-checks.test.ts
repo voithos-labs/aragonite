@@ -16,7 +16,6 @@ import {
 import { registerChromeLeaf } from '$lib/editor-actions/plugin/chrome-leaf';
 import TextEditableBlock from '$lib/components/blocks/text/TextEditableBlock.svelte';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
-import { __resetPasteSurfacesForTests } from '$lib/tree-operations/paste-surfaces';
 import { testClosure } from '$lib/test/support/closure';
 import { allowDevWarns, takeDevWarns } from '$lib/test/support/warn-gate';
 import { collector } from '$lib/test/harness/violation-collector';
@@ -51,11 +50,8 @@ const opener = (priority: number): BlockOpener => ({
 	interruptsParagraph: false
 });
 
-// registerChromeLeaf also registers a register-once paste handler, which the schema reset does
-// not clear; reset it so these batches do not accumulate.
 beforeEach(() => {
 	__resetSchemaRegistriesForTests();
-	__resetPasteSurfacesForTests();
 });
 
 // The unit setup registers built-in descriptors but never components, so every check this file

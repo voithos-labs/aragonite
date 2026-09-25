@@ -1,26 +1,22 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import {
-	dispatchKindCommand,
-	registerBlockCommand,
-	__resetBlockCommandsForTests
-} from '$lib/schema/block-commands';
+import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
+import { dispatchKindCommand, registerBlockCommand } from '$lib/schema/block-commands';
 import { normalizeChordStrict } from '$lib/schema/keybindings';
 import type { KeybindingOverrideMap } from '$lib/schema/keybinding-overrides';
 import { declarePluginKind } from '$lib/schema/plugin-kind';
-import {
-	recordPluginKindOwner,
-	__resetInstalledPluginsForTests,
-	type EditorContext
-} from '$lib/schema/plugin-install';
+import type { EditorContext } from '$lib/schema/plugin-install';
+import { declareOwnedKind } from '$lib/test/support/owned-kind';
 import { buildContainerKindTarget } from '$lib/editor-actions/plugin/container';
 import type { AnyBlockKind, CstNode } from '$lib/core/nodes';
 import type { AnyCommandId } from '$lib/schema/command-id';
+import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 
 // No cross-block range in these cases; the range decline has its own suite.
 const GATES = {
 	getPresentationMode: () => 'source' as const,
 	isCrossBlockRange: () => false,
-	crossBlockCommands: undefined
+	crossBlockCommands: undefined,
+	activation: everyInstalledPlugin
 };
 
 // Declared once at module scope: the reset clears the command registry, not the
@@ -47,8 +43,7 @@ function bindKindChord(
 }
 
 afterEach(() => {
-	__resetBlockCommandsForTests();
-	__resetInstalledPluginsForTests();
+	__resetSchemaRegistriesForTests();
 });
 
 describe('plugin container kind-command target', () => {
@@ -126,11 +121,11 @@ describe('plugin container kind-command target', () => {
 
 	it("exposes the owning plugin's EditorContext as ctx.editor, keyed by pluginKindOwner", () => {
 		const fakeEditorContext = { editorId: 'e1' } as unknown as EditorContext;
-		recordPluginKindOwner(note, 'admonitions');
+		const owned = declareOwnedKind('admonitions', 'demoOwnedNote');
 		const pluginEditor = vi.fn((name: string) =>
 			name === 'admonitions' ? fakeEditorContext : ({} as EditorContext)
 		);
-		const node = noteNode();
+		const node = noteNode(owned);
 
 		const target = buildContainerKindTarget({ getNode: () => node }, vi.fn(), pluginEditor);
 

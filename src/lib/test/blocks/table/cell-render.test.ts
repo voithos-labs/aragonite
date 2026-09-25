@@ -1,17 +1,14 @@
 // @vitest-environment jsdom
 import { afterEach, describe, it, expect } from 'vitest';
 import { createCellRender } from '../../../components/blocks/table/cell-render';
-import {
-	INLINE_PRIORITIES,
-	registerInlineSyntax,
-	__resetInlineSyntaxForTests
-} from '../../../core/inline/scan/plugin-syntax';
+import { INLINE_PRIORITIES, registerInlineSyntax } from '../../../core/inline/scan/plugin-syntax';
 import type { CstNode } from '../../../core/nodes';
 import type { LinkReferenceResolverRef, ResolveLinkUrl } from '../../../editor-keys';
 import type { IndexedDecoration } from '../../../decorations/buckets';
 import type { ReplaceDecoration, WidgetDecoration } from '../../../decorations/types';
 import { defaultGrammarView } from '$lib/schema/block-openers';
 import { fixtureLinkRef } from '../../harness/fixture-grammar';
+import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 
 type Island = IndexedDecoration<WidgetDecoration | ReplaceDecoration>;
 
@@ -85,7 +82,7 @@ function mount(
 	};
 }
 
-afterEach(() => __resetInlineSyntaxForTests());
+afterEach(() => __resetSchemaRegistriesForTests());
 
 describe('createCellRender', () => {
 	it('renders emphasis as a styled <em> with dimmed markers', () => {

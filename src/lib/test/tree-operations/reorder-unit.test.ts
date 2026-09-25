@@ -4,7 +4,6 @@ import { resolveReorderUnit } from '$lib/tree-operations/reorder-unit';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import type { CstNode, Document } from '$lib/core/nodes';
 import { testChromeContainer } from '$lib/test/harness/test-kinds';
-import { __resetPasteSurfacesForTests } from '$lib/tree-operations/paste-surfaces';
 
 describe('resolveReorderUnit', () => {
 	it('top-level block resolves to itself under the document', () => {
@@ -90,7 +89,6 @@ describe('resolveReorderUnit', () => {
 describe('resolveReorderUnit: plugin (opaque) container', () => {
 	beforeEach(() => {
 		__resetSchemaRegistriesForTests();
-		__resetPasteSurfacesForTests();
 	});
 
 	// An opaque container at document index 1 whose child 0 is its reserved title child.

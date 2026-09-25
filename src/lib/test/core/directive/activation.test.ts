@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import type { InvariantViolation } from '$lib/assert';
 import { parse } from '$lib/core/parser';
 import { isBlockKindRegistered } from '$lib/schema/block-kind-descriptor';
-import { isBlockOpenerRegistered, __removePluginOpenersForTests } from '$lib/schema/block-openers';
+import { isBlockOpenerRegistered } from '$lib/schema/block-openers';
 import {
 	flushPendingRegistrationChecks,
 	__resetRegistrationChecksForTests,
@@ -10,6 +10,7 @@ import {
 } from '$lib/schema/registration-checks';
 import { activateDirectiveGrammar } from '$lib/core/directive/activate';
 import { DIRECTIVE_CONTAINER, DIRECTIVE_LEAF } from '$lib/core/directive/kinds';
+import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 
 // Activation is call-based, so each case resets the opener registry and check latches to
 // exercise G1.17 (opener registers before the parse that consumes the grammar) both ways.
@@ -25,7 +26,7 @@ function collectRegistrationTags(): string[] {
 
 describe('directive grammar activation', () => {
 	beforeEach(() => {
-		__removePluginOpenersForTests();
+		__resetSchemaRegistriesForTests();
 		__resetRegistrationChecksForTests();
 	});
 

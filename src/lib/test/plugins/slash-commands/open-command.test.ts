@@ -26,7 +26,7 @@ describe('slashCommands.open', () => {
 		installPlugins([slashCommandsPlugin()]);
 		const open = vi.fn(() => true);
 		const editor = { inlineMenus: { open } } as unknown as EditorContext;
-		const run = getCommand(SLASH_COMMANDS_OPEN as never)!;
+		const run = getCommand(SLASH_COMMANDS_OPEN as never, everyInstalledPlugin)!;
 		const dispatch = (arg?: unknown) =>
 			run({
 				history: { requestUndo() {}, requestRedo() {} },

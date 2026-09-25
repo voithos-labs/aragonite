@@ -5,7 +5,7 @@
 // (`test/schema/command-admissibility.test.ts`), where a painted range needs no live selection.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
 import { TOOLBAR_COMMANDS, type EditorInstance } from '$lib';
-import { registerBlockCommand, __resetBlockCommandsForTests } from '$lib/schema/block-commands';
+import { registerBlockCommand } from '$lib/schema/block-commands';
 import { takeDevWarns } from '../support/warn-gate';
 import {
 	installLayoutStubs,
@@ -14,6 +14,7 @@ import {
 	surfaceAt,
 	type MountedEditor
 } from '$lib/test/harness/mount-editor.svelte';
+import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 
 beforeAll(() => installLayoutStubs());
 
@@ -22,7 +23,7 @@ afterEach(async () => {
 	if (mounted) await mounted.destroy();
 	mounted = null;
 	document.body.innerHTML = '';
-	__resetBlockCommandsForTests();
+	__resetSchemaRegistriesForTests();
 });
 
 const SOURCE = 'alpha beta\n';

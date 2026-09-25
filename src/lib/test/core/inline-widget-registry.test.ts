@@ -7,9 +7,9 @@ import {
 	registerInlineWidgetKind,
 	isInlineWidget,
 	getInlineWidgetComponent,
-	type InlineWidgetComponentProps,
-	__resetInlineWidgetsForTests
+	type InlineWidgetComponentProps
 } from '../../core/inline/inline-widgets';
+import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 
 // A kind the registry has never seen, cast through the closed inline-kind union
 // the way a real inline-widget plugin would.
@@ -20,7 +20,7 @@ const imageNode: InlineNode = { kind: 'image', start: 0, end: 6, alt: '', url: '
 const FakeComponent = (() => {}) as unknown as Component<InlineWidgetComponentProps>;
 
 describe('registerInlineWidgetKind: register-once', () => {
-	afterEach(__resetInlineWidgetsForTests);
+	afterEach(__resetSchemaRegistriesForTests);
 
 	it('rejects re-registering the built-in image kind, leaving it intact', () => {
 		expect(() => registerInlineWidgetKind('image', { isWidget: () => false })).toThrow(
@@ -40,7 +40,7 @@ describe('registerInlineWidgetKind: register-once', () => {
 });
 
 describe('registerInlineWidgetKind: component and buildWidget are mutually exclusive', () => {
-	afterEach(__resetInlineWidgetsForTests);
+	afterEach(__resetSchemaRegistriesForTests);
 
 	it('throws, naming the kind, when a descriptor declares both', () => {
 		expect(() =>
@@ -68,14 +68,14 @@ describe('registerInlineWidgetKind: component and buildWidget are mutually exclu
 	});
 });
 
-describe('__resetInlineWidgetsForTests', () => {
-	afterEach(__resetInlineWidgetsForTests);
+describe('__resetSchemaRegistriesForTests', () => {
+	afterEach(__resetSchemaRegistriesForTests);
 
 	it('clears plugin kinds but keeps the built-ins', () => {
 		registerInlineWidgetKind(PLUGIN_KIND, { isWidget: () => true });
 		expect(isInlineWidget(pluginNode, 'xxx', defaultGrammarView)).toBe(true);
 
-		__resetInlineWidgetsForTests();
+		__resetSchemaRegistriesForTests();
 
 		expect(isInlineWidget(pluginNode, 'xxx', defaultGrammarView)).toBe(false);
 		expect(isInlineWidget(imageNode, '![](x)', defaultGrammarView)).toBe(true);

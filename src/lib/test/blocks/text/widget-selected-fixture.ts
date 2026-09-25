@@ -7,6 +7,7 @@ import { createWidgetSelectionState } from '$lib/components/image/widget-selecti
 import type { CstNode } from '$lib/core/nodes';
 import type { LinkReferenceResolverRef } from '$lib/editor-keys';
 import { fixtureLinkRef } from '../../harness/fixture-grammar';
+import { defaultGrammarView } from '$lib/schema/block-openers';
 
 export interface Commit {
 	index: number;
@@ -55,6 +56,7 @@ export function harness(
 		focusActions: new Proxy({}, { get: trap }),
 		setSnapTarget: trap,
 		setPendingCursor: (offset: number | null) => void carets.push(offset),
+		grammar: defaultGrammarView,
 		get linkRef() {
 			return linkRef;
 		},

@@ -6,6 +6,9 @@
  */
 export const EVERY_KIND = '*';
 import type { NodeView } from '../core/node-views';
+import type { PluginActivation } from './plugin-activation';
+import { createPluginRegistry } from './plugin-registry';
+import { registerAsCore } from './plugin-install';
 
 export interface BlockActionContext {
 	node: NodeView;
@@ -15,6 +18,9 @@ export interface BlockActionContext {
 	deleteBlock(): Promise<void>;
 	/** Replace the block's bytes wholesale; the result reparses to whatever those bytes are. */
 	replaceRaw(raw: string): Promise<void>;
+	/** Pasted text through the paste transforms of the plugins this editor lists, as a paste
+	 *  into the editor would see it. */
+	transformPaste(text: string): string;
 }
 
 export interface BlockContextAction {
@@ -28,25 +34,50 @@ export interface BlockContextAction {
 
 export type BlockContextActionProvider = (node: NodeView, path: number[]) => BlockContextAction[];
 
-const providers = new Map<string, BlockContextActionProvider[]>();
+// Filled by `registerBuiltinBlockContextActions`, whose providers survive the test reset.
+const builtinKeys = new Set<string>();
 
-/** Add a provider for `kind`, or for every kind with `EVERY_KIND`. Several may stack. */
+const providers = createPluginRegistry<
+	string,
+	{ kind: string; provider: BlockContextActionProvider }
+>({ label: 'registerBlockContextActions', isBuiltin: (key) => builtinKeys.has(key) });
+
+/**
+ * Add a provider for `kind`, or for every kind with `EVERY_KIND`, under a `name` unique to that
+ * kind. Throws when the name is taken for the kind. A plugin's rows show only in the editors that
+ * list the plugin.
+ */
 export function registerBlockContextActions(
 	kind: string,
+	name: string,
 	provider: BlockContextActionProvider
 ): void {
-	const list = providers.get(kind) ?? [];
-	list.push(provider);
-	providers.set(kind, list);
+	providers.register(
+		`${kind} ${name}`,
+		{ kind, provider },
+		`registerBlockContextActions: "${name}" is already registered for "${kind}". Providers are register-once.`
+	);
 }
 
-export function blockContextActionsFor(node: NodeView, path: number[]): BlockContextAction[] {
-	const own = providers.get(node.kind) ?? [];
-	const every = providers.get(EVERY_KIND) ?? [];
-	return [...own, ...every].flatMap((provider) => provider(node, path));
+/** The editor's own rows: a provider the test reset keeps, owned by no plugin even when a
+ *  plugin's setup is what first reaches it. */
+export function registerBuiltinBlockContextActions(
+	kind: string,
+	name: string,
+	provider: BlockContextActionProvider
+): void {
+	builtinKeys.add(`${kind} ${name}`);
+	registerAsCore(() => registerBlockContextActions(kind, name, provider));
 }
 
-/** Test-only. */
-export function __resetBlockContextActionsForTests(): void {
-	providers.clear();
+export function blockContextActionsFor(
+	node: NodeView,
+	path: number[],
+	activation: PluginActivation
+): BlockContextAction[] {
+	const active = providers.entries(activation).map(([, entry]) => entry);
+	return [
+		...active.filter((entry) => entry.kind === node.kind),
+		...active.filter((entry) => entry.kind === EVERY_KIND)
+	].flatMap(({ provider }) => provider(node, path));
 }

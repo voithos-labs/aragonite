@@ -11,7 +11,13 @@ import type { NodeView } from '../core/node-views';
 import type { DocumentGetter } from '../editor-keys';
 import type { InsertMarkdownOptions } from '../editor-props';
 import type { PresentationMode } from '../presentation-mode';
-import { blockContextActionsFor, type BlockContextAction } from '../schema/context-actions';
+import {
+	blockContextActionsFor,
+	type BlockActionContext,
+	type BlockContextAction
+} from '../schema/context-actions';
+import type { PluginActivation } from '../schema/plugin-activation';
+import { applyPasteTransforms } from '../tree-operations/paste/paste-transforms';
 import type { InsertEntry } from '../schema/insert-catalogue';
 import type { MenuEntry } from './menu/BlockMenu.svelte';
 import { runClipboardAction, type ClipboardAction } from './menu/clipboard-actions';
@@ -41,6 +47,8 @@ export interface RootMenusDeps {
 	insertMarkdown(md: string, options?: InsertMarkdownOptions): Promise<boolean>;
 	/** The insert entries this editor lists, read fresh per menu. */
 	insertCatalogue(): readonly InsertEntry[];
+	/** The plugins this editor lists, whose block actions and paste transforms the menu offers. */
+	activation: PluginActivation;
 	setMenu(menu: BlockMenuModel | null): void;
 }
 
@@ -120,10 +128,10 @@ export function createRootMenus(deps: RootMenusDeps): RootMenus {
 	}
 
 	function openBlockActions(point: Point, host: HTMLElement, path: number[], node: NodeView): void {
-		const actions = blockContextActionsFor(node, path);
+		const actions = blockContextActionsFor(node, path, deps.activation);
 		if (actions.length === 0) return;
 		const index = path[0];
-		const ctx = {
+		const ctx: BlockActionContext = {
 			node,
 			path,
 			deleteBlock: async () => {
@@ -131,7 +139,8 @@ export function createRootMenus(deps: RootMenusDeps): RootMenus {
 			},
 			replaceRaw: async (raw: string) => {
 				await deps.blockEdit.updateBlockContent(index, raw);
-			}
+			},
+			transformPaste: (text) => applyPasteTransforms(text, deps.activation)
 		};
 		deps.setMenu({
 			...point,

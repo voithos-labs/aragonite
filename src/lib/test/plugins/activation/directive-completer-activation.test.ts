@@ -6,7 +6,11 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { resetPluginPlatformForTests } from '$lib/testing';
 import { definePlugin, installPlugins } from '$lib/schema/plugin-install';
-import { declarePluginInlineKind, declarePluginKind } from '$lib/schema/plugin-kind';
+import {
+	declarePluginInlineKind,
+	declarePluginKind,
+	declaredPluginKind
+} from '$lib/schema/plugin-kind';
 import { registerDirective } from '$lib/core/directive/registry';
 import { DIRECTIVE_CONTAINER, DIRECTIVE_TEXT } from '$lib/core/directive/kinds';
 import { registerBlockCompleter } from '$lib/schema/block-completions';
@@ -17,6 +21,8 @@ import { parseInline } from '$lib/core/inline';
 import { defaultGrammarView, type GrammarView } from '$lib/schema/block-openers';
 import type { CstNode } from '$lib/core/nodes';
 import { grammarListing } from './grammar-listing';
+import { createRegistryView } from '$lib/schema/registry-view';
+import { activationFor } from '$lib/schema/plugin-activation';
 
 const unlisted = definePlugin({
 	name: 'unlisted',
@@ -50,6 +56,13 @@ const completes = (grammar: GrammarView) =>
 describe('an unlisted directive name resolves to the generic directive', () => {
 	it('parses a `:::note` fence as the generic container where admonitions is left out', () => {
 		expect(noteKind(grammarListing(['unlisted']))).toBe(DIRECTIVE_CONTAINER);
+	});
+
+	// Miss-analysis: these cases parsed the generic kinds in an editor without admonitions but never
+	// asked for their component, which the component registry filters by its own registering plugin.
+	it('draws the generic container with its own component where admonitions is left out', () => {
+		const view = createRegistryView({ plugins: activationFor(['unlisted']) });
+		expect(view.component(declaredPluginKind(DIRECTIVE_CONTAINER))).toBeDefined();
 	});
 
 	it('parses it as an admonition where every installed plugin is active', () => {

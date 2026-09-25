@@ -2,7 +2,6 @@ import { afterEach, describe, expect, it } from 'vitest';
 import type { InlineNode } from '../../../core/nodes';
 import { parseInline } from '../../../core/inline';
 import {
-	__resetInlineSyntaxForTests,
 	registerInlineSyntax,
 	type InlineSyntaxRecognizer
 } from '../../../core/inline/scan/plugin-syntax';
@@ -12,8 +11,9 @@ import {
 	scanClean,
 	textNode
 } from './scan/scan-test-helpers';
+import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 
-afterEach(() => __resetInlineSyntaxForTests());
+afterEach(() => __resetSchemaRegistriesForTests());
 
 // A minimal Obsidian-style embed stand-in. The extension gate is the point: `![[a]](u)`
 // is a built-in image with alt `[a]`, so the recognizer, consulted first, must decline it.

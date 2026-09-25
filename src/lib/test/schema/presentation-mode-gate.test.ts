@@ -8,7 +8,8 @@ const modeGetter = (mode: PresentationMode) => () => mode;
 const gates = (mode: PresentationMode) => ({
 	getPresentationMode: modeGetter(mode),
 	isCrossBlockRange: () => false,
-	crossBlockCommands: undefined
+	crossBlockCommands: undefined,
+	activation: everyInstalledPlugin
 });
 
 describe('isReadingMode', () => {

@@ -6,24 +6,19 @@ import {
 	runCommandById,
 	dispatchKeyCommand,
 	registerBlockCommand,
-	__resetBlockCommandsForTests,
 	type CommandDispatchContext,
 	type KindCommandTarget
 } from '$lib/schema/block-commands';
-import {
-	registerCommand,
-	__removePluginCommandsForTests,
-	type CommandId
-} from '$lib/schema/commands';
+import { registerCommand, type CommandId } from '$lib/schema/commands';
 import { normalizeKeybindingOverrides } from '$lib/schema/keybinding-overrides';
 import type { AnyCommandId } from '$lib/schema/command-id';
 import type { PresentationMode } from '$lib/presentation-mode';
 import { takeDevWarns } from '../support/warn-gate';
 import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
+import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 
 afterEach(() => {
-	__resetBlockCommandsForTests();
-	__removePluginCommandsForTests();
+	__resetSchemaRegistriesForTests();
 });
 
 let undos = 0;

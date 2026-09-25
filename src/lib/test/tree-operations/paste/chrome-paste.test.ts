@@ -1,7 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach } from 'vitest';
 import { pasteDispatch } from '../../../tree-operations/paste/dispatch';
-import { __resetPasteSurfacesForTests } from '../../../tree-operations/paste-surfaces';
 import { findListAbsorb } from '../../../tree-operations/paste/list-absorb';
 import { parse } from '../../../core/parser';
 import { __resetSchemaRegistriesForTests } from '../../../schema/registry-reset';
@@ -36,7 +35,6 @@ function makeTitledContainerDoc(container: AnyBlockKind, chrome: AnyBlockKind): 
 describe('paste into a reserved-chrome leaf', () => {
 	beforeEach(() => {
 		__resetSchemaRegistriesForTests();
-		__resetPasteSurfacesForTests();
 	});
 
 	// A `\r\n\r\n` break is one run: flattening per-`\n` double-spaces it.

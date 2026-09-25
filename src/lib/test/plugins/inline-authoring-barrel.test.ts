@@ -5,8 +5,7 @@ import { registerInlineWidgetKind } from '$lib/core/inline/inline-widgets';
 import {
 	declarePluginInlineKind,
 	declaredPluginInlineKind,
-	isInlineKindDeclared,
-	__clearDeclaredPluginInlineKindsForTests
+	isInlineKindDeclared
 } from '$lib/schema/plugin-kind';
 import type {
 	InlineSyntaxRecognizer,
@@ -18,6 +17,7 @@ import type {
 	ImageFields,
 	ImageSyntaxRewriter
 } from '$lib/plugin';
+import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 
 // The inline authoring API is not frozen yet. This pins the symbols a plugin imports from
 // `@voithos-labs/aragonite/plugin` to their core implementations, so a dropped or mis-wired
@@ -35,11 +35,11 @@ describe('@voithos-labs/aragonite/plugin inline authoring surface', () => {
 	});
 
 	it('isInlineKindDeclared probes the declared-set without throwing', () => {
-		__clearDeclaredPluginInlineKindsForTests();
+		__resetSchemaRegistriesForTests();
 		expect(pluginBarrel.isInlineKindDeclared('probe-kind')).toBe(false);
 		declarePluginInlineKind('probe-kind');
 		expect(pluginBarrel.isInlineKindDeclared('probe-kind')).toBe(true);
-		__clearDeclaredPluginInlineKindsForTests();
+		__resetSchemaRegistriesForTests();
 	});
 
 	it('keeps the internal inline modules off the barrel', () => {
@@ -54,8 +54,8 @@ describe('@voithos-labs/aragonite/plugin inline authoring surface', () => {
 			'getInlineRungs',
 			'getUnreservedRungs',
 			'getPrefixRungs',
-			'__resetInlineSyntaxForTests',
-			'__resetInlineWidgetsForTests'
+			'__resetSchemaRegistriesForTests',
+			'__resetSchemaRegistriesForTests'
 		]) {
 			expect(pluginBarrel).not.toHaveProperty(seam);
 		}

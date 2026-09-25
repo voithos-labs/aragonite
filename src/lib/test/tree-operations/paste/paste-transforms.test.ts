@@ -2,7 +2,6 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import {
 	registerPasteTransform,
 	applyPasteTransforms,
-	__resetPasteTransformsForTests,
 	type PasteTransform
 } from '../../../tree-operations/paste/paste-transforms';
 import {
@@ -12,6 +11,8 @@ import {
 } from '../../../schema/plugin-install';
 import { activationFor } from '../../../schema/plugin-activation';
 import { allowDevWarns, takeDevWarns } from '../../support/warn-gate';
+import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
+import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
 
 // The ordering fixtures append unconditionally, so the dev idempotence check warns on them;
 // only the containment cases below are about the diagnostic itself.
@@ -39,30 +40,30 @@ function throwingOnCall(
 
 describe('paste-transforms registry', () => {
 	beforeEach(() => {
-		__resetPasteTransformsForTests();
+		__resetSchemaRegistriesForTests();
 		__resetInstalledPluginsForTests();
 	});
 
 	it('returns the input unchanged when no transform is registered', () => {
-		expect(applyPasteTransforms('seed')).toBe('seed');
+		expect(applyPasteTransforms('seed', everyInstalledPlugin)).toBe('seed');
 	});
 
 	it('applies transforms in registration order, each seeing the prior output', () => {
 		registerPasteTransform(appending('first', '-1'));
 		registerPasteTransform(appending('second', '-2'));
-		expect(applyPasteTransforms('seed')).toBe('seed-1-2');
+		expect(applyPasteTransforms('seed', everyInstalledPlugin)).toBe('seed-1-2');
 	});
 
 	it('skips a transform that returns null, leaving the running text for the next', () => {
 		registerPasteTransform({ name: 'not-mine', transform: () => null });
 		registerPasteTransform({ name: 'bang', transform: (text) => `${text}!` });
 		// 'seed!' rather than 'null!' proves the bang transform saw the untouched input.
-		expect(applyPasteTransforms('seed')).toBe('seed!');
+		expect(applyPasteTransforms('seed', everyInstalledPlugin)).toBe('seed!');
 	});
 
 	it('returns the input unchanged when every transform declines', () => {
 		registerPasteTransform({ name: 'decliner', transform: () => null });
-		expect(applyPasteTransforms('seed')).toBe('seed');
+		expect(applyPasteTransforms('seed', everyInstalledPlugin)).toBe('seed');
 	});
 
 	it('throws on a duplicate name (register-once)', () => {
@@ -84,20 +85,20 @@ describe('paste-transforms registry', () => {
 
 	it('clears the registry for tests', () => {
 		registerPasteTransform(appending('gone', '-x'));
-		__resetPasteTransformsForTests();
-		expect(applyPasteTransforms('seed')).toBe('seed');
+		__resetSchemaRegistriesForTests();
+		expect(applyPasteTransforms('seed', everyInstalledPlugin)).toBe('seed');
 	});
 });
 
 describe('paste-transforms containment', () => {
 	beforeEach(() => {
-		__resetPasteTransformsForTests();
+		__resetSchemaRegistriesForTests();
 		__resetInstalledPluginsForTests();
 	});
 
 	it('treats a throwing transform as a decline, leaving the text untouched', () => {
 		registerPasteTransform(throwingOnCall('thrower', 1).transform);
-		expect(applyPasteTransforms('seed')).toBe('seed');
+		expect(applyPasteTransforms('seed', everyInstalledPlugin)).toBe('seed');
 		const fires = takeDevWarns();
 		expect(fires).toHaveLength(1);
 		expect(fires[0].message).toContain("transform 'thrower' threw in the paste pipeline");
@@ -108,19 +109,19 @@ describe('paste-transforms containment', () => {
 		registerPasteTransform({ name: 'bang', transform: (text) => `${text}?` });
 		// 'seed?' proves the pipeline survived the throw and fed the bang transform the
 		// pre-throw running text.
-		expect(applyPasteTransforms('seed')).toBe('seed?');
+		expect(applyPasteTransforms('seed', everyInstalledPlugin)).toBe('seed?');
 	});
 
 	it('keeps the paste when the dev idempotence probe throws on the re-run', () => {
 		const probe = throwingOnCall('probe-thrower', 2);
 		registerPasteTransform(probe.transform);
-		expect(applyPasteTransforms('seed')).toBe('seed!');
+		expect(applyPasteTransforms('seed', everyInstalledPlugin)).toBe('seed!');
 		expect(probe.callCount()).toBe(2); // the idempotence check really ran, so the pin is not vacuous
 	});
 
 	it('reports a probe-time throw as a probe throw, never as a non-idempotent rewrite', () => {
 		registerPasteTransform(throwingOnCall('probe-thrower', 2).transform);
-		applyPasteTransforms('seed');
+		applyPasteTransforms('seed', everyInstalledPlugin);
 		// The message names the idempotence check, not a decline: a "declining" message would
 		// send the author debugging a working paste.
 		const messages = takeDevWarns().map((w) => w.message);
@@ -134,7 +135,7 @@ describe('paste-transforms containment', () => {
 	// absence when the idempotence check throws is a real distinction.
 	it('still reports a genuinely non-idempotent rewrite under its own message', () => {
 		registerPasteTransform(appending('grows', '!'));
-		applyPasteTransforms('seed');
+		applyPasteTransforms('seed', everyInstalledPlugin);
 		expect(takeDevWarns().map((w) => w.message)).toContainEqual(
 			expect.stringContaining("'grows' is not idempotent")
 		);
@@ -143,7 +144,7 @@ describe('paste-transforms containment', () => {
 
 describe('per-instance activation over the transform pipeline', () => {
 	beforeEach(() => {
-		__resetPasteTransformsForTests();
+		__resetSchemaRegistriesForTests();
 		__resetInstalledPluginsForTests();
 	});
 
@@ -163,7 +164,7 @@ describe('per-instance activation over the transform pipeline', () => {
 	it('runs every installed transform when the instance passes no activation', () => {
 		installTransformPlugin('listed', '-1');
 		installTransformPlugin('unlisted', '-2');
-		expect(applyPasteTransforms('seed')).toBe('seed-1-2');
+		expect(applyPasteTransforms('seed', everyInstalledPlugin)).toBe('seed-1-2');
 	});
 
 	it('never gates a transform no plugin owns', () => {

@@ -11,7 +11,6 @@ import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { expectParseConverged } from '$lib/test/harness/parse-converged';
 import type { CstNode } from '$lib/core/nodes';
 import { testChromeContainer } from '$lib/test/harness/test-kinds';
-import { __resetPasteSurfacesForTests } from '$lib/tree-operations/paste-surfaces';
 
 // ── Top-level harness ─────────────────────────────────────────────────────────
 
@@ -140,7 +139,6 @@ describe('reorder action: blockquote', () => {
 describe('reorder action: plugin (opaque) container declines', () => {
 	beforeEach(() => {
 		__resetSchemaRegistriesForTests();
-		__resetPasteSurfacesForTests();
 	});
 
 	// The cause of the whole-alert move: a resolver that does not decline hands back the

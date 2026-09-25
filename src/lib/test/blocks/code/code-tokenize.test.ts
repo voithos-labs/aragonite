@@ -1,33 +1,30 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach } from 'vitest';
 import { tokenizeBody } from '../../../components/blocks/code/code-renderer';
-import {
-	bootstrapCodeLanguages,
-	__resetBootForTests
-} from '../../../components/blocks/code/code-bootstrap';
-import { __resetRegistryForTests } from '../../../components/blocks/code/code-languages';
+import { bootstrapCodeLanguages } from '../../../components/blocks/code/code-bootstrap';
+import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
+import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
 
 describe('tokenizeBody', () => {
 	beforeEach(() => {
-		__resetRegistryForTests();
-		__resetBootForTests();
+		__resetSchemaRegistriesForTests();
 		bootstrapCodeLanguages();
 	});
 
 	it('tokenizes javascript into spans', () => {
-		const frag = tokenizeBody('const x = 42;\n', 'javascript');
+		const frag = tokenizeBody('const x = 42;\n', 'javascript', everyInstalledPlugin);
 		expect(frag.textContent).toBe('const x = 42;\n');
 		expect(frag.querySelector('.code-tok-keyword')).not.toBeNull();
 		expect(frag.querySelector('.code-tok-number')).not.toBeNull();
 	});
 
 	it('resolves aliases (js → javascript)', () => {
-		const frag = tokenizeBody('const x = 42;\n', 'js');
+		const frag = tokenizeBody('const x = 42;\n', 'js', everyInstalledPlugin);
 		expect(frag.querySelector('.code-tok-keyword')?.textContent).toBe('const');
 	});
 
 	it('falls through to plain text for empty info string', () => {
-		const frag = tokenizeBody('const x = 42;\n', '');
+		const frag = tokenizeBody('const x = 42;\n', '', everyInstalledPlugin);
 		expect(frag.textContent).toBe('const x = 42;\n');
 		expect(frag.querySelector('.code-tok-keyword')).toBeNull();
 		expect(frag.childNodes.length).toBe(1);
@@ -35,13 +32,13 @@ describe('tokenizeBody', () => {
 	});
 
 	it('falls through to plain text for unknown language', () => {
-		const frag = tokenizeBody('xyz abc\n', 'klingon');
+		const frag = tokenizeBody('xyz abc\n', 'klingon', everyInstalledPlugin);
 		expect(frag.textContent).toBe('xyz abc\n');
 		expect(frag.querySelector('[class^="code-tok"]')).toBeNull();
 	});
 
 	it('returns an empty fragment for empty body', () => {
-		const frag = tokenizeBody('', 'javascript');
+		const frag = tokenizeBody('', 'javascript', everyInstalledPlugin);
 		expect(frag.childNodes.length).toBe(0);
 	});
 
@@ -54,13 +51,13 @@ describe('tokenizeBody', () => {
 			['unknown content\n', 'unknown-lang']
 		];
 		for (const [body, lang] of inputs) {
-			const frag = tokenizeBody(body, lang);
+			const frag = tokenizeBody(body, lang, everyInstalledPlugin);
 			expect(frag.textContent).toBe(body);
 		}
 	});
 
 	it('restores CRLF endings: textContent equals the CRLF body verbatim', () => {
-		const frag = tokenizeBody('let a = 1\r\nlet b = 2\r\n', 'js');
+		const frag = tokenizeBody('let a = 1\r\nlet b = 2\r\n', 'js', everyInstalledPlugin);
 		expect(frag.textContent).toBe('let a = 1\r\nlet b = 2\r\n');
 		expect(frag.querySelector('.code-tok-keyword')?.textContent).toBe('let');
 	});
@@ -68,12 +65,12 @@ describe('tokenizeBody', () => {
 	it('restores a CRLF newline that lands inside a token span', () => {
 		// A template literal spans lines as one hljs-string; its interior `\r\n` must
 		// round-trip even though it lives inside the token, not between tokens.
-		const frag = tokenizeBody('const s = `a\r\nb`\r\n', 'js');
+		const frag = tokenizeBody('const s = `a\r\nb`\r\n', 'js', everyInstalledPlugin);
 		expect(frag.textContent).toBe('const s = `a\r\nb`\r\n');
 		expect(frag.querySelector('.code-tok-string')?.textContent).toBe('`a\r\nb`');
 	});
 
 	it('ignoreIllegals: mid-typing invalid syntax does not throw', () => {
-		expect(() => tokenizeBody('const x = ', 'javascript')).not.toThrow();
+		expect(() => tokenizeBody('const x = ', 'javascript', everyInstalledPlugin)).not.toThrow();
 	});
 });

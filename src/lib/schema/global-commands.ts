@@ -23,16 +23,14 @@ export function registerGlobalCommand(
 	// registered handler behind a failed registration.
 	if (opts?.chord) assertPluginGlobalChordAvailable(opts.chord, name);
 	const owner = currentInstallingPlugin();
-	// The owner is what lets a plugin ask for its own name again, and what names the prior owner
-	// in a cross-plugin collision.
-	const id = mintCommandId(name, owner);
+	const id = mintCommandId(name);
 	registerCommand(id, (ctx) => {
 		if (!ctx.pluginEditor) {
 			warnDeadKeyCommand(id, 'plugin-global');
 			return false;
 		}
-		// Installed process-wide but absent from this editor's `plugins` prop: inert here, not dead,
-		// so it must not use up the dead-key warning a truly unreachable id gets.
+		// Dispatch reaches this only where the plugin is listed; a caller's own lookup may still
+		// decline, and that is inert rather than dead.
 		const editor = ctx.pluginEditor(owner ?? '');
 		if (!editor) return false;
 		try {
@@ -42,6 +40,6 @@ export function registerGlobalCommand(
 			return true;
 		}
 	});
-	if (opts?.chord) registerPluginGlobalBinding({ chord: opts.chord, command: id }, owner);
+	if (opts?.chord) registerPluginGlobalBinding({ chord: opts.chord, command: id });
 	return id;
 }

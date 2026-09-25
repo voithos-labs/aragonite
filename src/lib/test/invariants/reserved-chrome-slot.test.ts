@@ -3,12 +3,10 @@ import { checkReservedChromeSlot } from '../../invariants/node-shape';
 import { __resetSchemaRegistriesForTests } from '../../schema/registry-reset';
 import type { CstNode } from '../../core/nodes';
 import { testChromeContainer } from '$lib/test/harness/test-kinds';
-import { __resetPasteSurfacesForTests } from '$lib/tree-operations/paste-surfaces';
 
 describe('checkReservedChromeSlot (G1.14)', () => {
 	beforeEach(() => {
 		__resetSchemaRegistriesForTests();
-		__resetPasteSurfacesForTests();
 	});
 
 	it('passes when child 0 is the declared chrome kind', () => {

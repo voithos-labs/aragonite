@@ -6,7 +6,6 @@ import { updateNodeContent } from '$lib/tree-operations/content-write';
 import { trailingLineEnding } from '$lib/core/lines';
 import { rebuildAncestryRaw } from '$lib/schema/container-raw';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
-import { __resetPasteSurfacesForTests } from '$lib/tree-operations/paste-surfaces';
 import { activateDirectiveGrammar } from '$lib/core/directive/activate';
 import { registerCalloutKind } from '../../../routes/test/plugins/callout/callout-kind';
 import { expectParseConverged } from '../harness/parse-converged';
@@ -36,10 +35,7 @@ function deleteBodyChild(
 
 describe('separator settle inside a chrome-wrapped container', () => {
 	beforeEach(() => {
-		// registerChromeLeaf registers a paste surface, so the schema reset alone would leave
-		// it orphaned and a re-register would collide.
 		__resetSchemaRegistriesForTests();
-		__resetPasteSurfacesForTests();
 		registerCalloutKind();
 	});
 	afterEach(__resetSchemaRegistriesForTests);
@@ -93,7 +89,6 @@ describe('separator settle inside a chrome-wrapped container', () => {
 describe('emptying a body block against the wrap’s chrome lines', () => {
 	beforeEach(() => {
 		__resetSchemaRegistriesForTests();
-		__resetPasteSurfacesForTests();
 		registerCalloutKind();
 	});
 	afterEach(__resetSchemaRegistriesForTests);

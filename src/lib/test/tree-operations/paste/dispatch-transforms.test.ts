@@ -1,19 +1,13 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { pasteDispatch, __getDefaultTextSurface } from '../../../tree-operations/paste/dispatch';
-import {
-	__resetPasteSurfacesForTests,
-	registerPasteSurface
-} from '../../../tree-operations/paste-surfaces';
-import {
-	__resetPasteTransformsForTests,
-	registerPasteTransform
-} from '../../../tree-operations/paste/paste-transforms';
+import { pasteDispatch } from '../../../tree-operations/paste/dispatch';
+import { registerPasteTransform } from '../../../tree-operations/paste/paste-transforms';
 import { parse } from '../../../core/parser';
 import { createSharingState } from '../../../tree-operations/sharing';
 import { makeStubBlockEdit, makeStubController, pasteContext } from '../../harness/editor-actions';
 import type { BlockKind, CstNode, Document } from '../../../core/nodes';
 import { takeDevWarns } from '../../support/warn-gate';
+import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 
 // ── Dev-mode opaque-fallback warning ─────────────────────────────────────
 
@@ -34,7 +28,7 @@ function makeDocWithOneBlock(kind: BlockKind, raw: string): Document {
 
 describe('paste-dispatch opaque-fallback warning', () => {
 	beforeEach(() => {
-		__resetPasteSurfacesForTests();
+		__resetSchemaRegistriesForTests();
 	});
 
 	it('warns in dev mode when target kind has no registered surface', async () => {
@@ -51,14 +45,7 @@ describe('paste-dispatch opaque-fallback warning', () => {
 	});
 
 	it('does not warn when target kind has a registered surface', async () => {
-		registerPasteSurface({
-			kind: 'paragraph',
-			onInlinePaste: (node, offset, text) => ({
-				newRaw: node.raw.slice(0, offset) + text + node.raw.slice(offset),
-				caretOffset: offset + text.length
-			}),
-			onStructuralPaste: () => ({ replacement: [], focusReplacementIndex: 0, focusOffset: 0 })
-		});
+		// The built-in paragraph surface, registered when the paste hooks load.
 		const doc = makeDocWithOneBlock('paragraph', 'hello\n');
 		await pasteDispatch(
 			{ pastedText: 'X', targetPath: [0], offset: 0 },
@@ -73,9 +60,7 @@ describe('paste-dispatch opaque-fallback warning', () => {
 
 describe('pasteDispatch: paste transforms', () => {
 	beforeEach(() => {
-		__resetPasteSurfacesForTests();
-		__resetPasteTransformsForTests();
-		registerPasteSurface(__getDefaultTextSurface('paragraph'));
+		__resetSchemaRegistriesForTests();
 	});
 
 	it('a transform that rewrites prose into a heading flips the paste inline → structural', async () => {

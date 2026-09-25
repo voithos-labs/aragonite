@@ -8,9 +8,8 @@
 
 import type { DirectiveTier, DirectiveFence } from './grammar';
 import type { AnyBlockKind, PluginInlineKind, CstNode, InlineNode, Document } from '../nodes';
-import { ownerEnabled, type GrammarView } from '../../schema/block-openers';
-import { currentInstallingPlugin } from '../../schema/plugin-install';
-import { registerOnce } from '../../schema/register-once';
+import type { GrammarView } from '../../schema/block-openers';
+import { createPluginRegistry } from '../../schema/plugin-registry';
 
 export interface ParsedDirective {
 	fence: DirectiveFence;
@@ -31,13 +30,10 @@ export interface DirectiveDefinition {
 	fromDirective?(parsed: ParsedDirective): CstNode | InlineNode;
 }
 
-interface RegisteredDirective {
-	def: DirectiveDefinition;
-	/** The plugin whose setup registered the name; null outside a plugin install. */
-	owner: string | null;
-}
-
-const definitions = new Map<string, RegisteredDirective>();
+const definitions = createPluginRegistry<string, DirectiveDefinition>({
+	label: 'registerDirective',
+	isBuiltin: () => false
+});
 
 const keyOf = (tier: DirectiveTier, name: string): string => `${tier}:${name}`;
 
@@ -60,9 +56,9 @@ export function registerDirective(
 	}
 
 	const key = keyOf(tier, name);
-	registerOnce(
-		definitions.has(key),
-		() => definitions.set(key, { def, owner: currentInstallingPlugin() }),
+	definitions.register(
+		key,
+		def,
 		`registerDirective: "${key}" is already registered. Directives are register-once.`
 	);
 }
@@ -74,8 +70,7 @@ export function resolveDirective(
 	name: string,
 	grammar: GrammarView
 ): DirectiveDefinition | undefined {
-	const entry = definitions.get(keyOf(tier, name));
-	return entry && ownerEnabled(grammar, entry.owner) ? entry.def : undefined;
+	return definitions.get(keyOf(tier, name), grammar.activation);
 }
 
 /**
@@ -100,12 +95,5 @@ export function isDirectiveRegistered(tier: DirectiveTier, name: string): boolea
  * so checking the opener registry alone reads every directive kind as unrecognizable.
  */
 export function isDirectiveKind(kind: AnyBlockKind | PluginInlineKind): boolean {
-	for (const { def } of definitions.values()) {
-		if (def.kind === kind) return true;
-	}
-	return false;
-}
-
-export function __resetDirectiveRegistryForTests(): void {
-	definitions.clear();
+	return definitions.records().some(({ value }) => value.kind === kind);
 }

@@ -1,10 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach } from 'vitest';
-import { pasteDispatch, __getDefaultTextSurface } from '$lib/tree-operations/paste/dispatch';
-import {
-	__resetPasteSurfacesForTests,
-	registerPasteSurface
-} from '$lib/tree-operations/paste-surfaces';
+import { pasteDispatch } from '$lib/tree-operations/paste/dispatch';
 import {
 	makePasteCommit,
 	makeStubBlockEdit,
@@ -12,14 +8,14 @@ import {
 	pasteContext
 } from '../../harness/editor-actions';
 import { metadataOf } from '$lib/core/nodes';
+import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 
 // Absorbing a same-type list paste must normalize markers for both halves: a `*` kept
 // inside a `- ` list is split into two lists by reference parsers.
 
 describe('list-absorb: marker normalization', () => {
 	beforeEach(() => {
-		__resetPasteSurfacesForTests();
-		registerPasteSurface(__getDefaultTextSurface('paragraph'));
+		__resetSchemaRegistriesForTests();
 	});
 
 	it("templates pasted '*' markers to the enclosing '-' list", async () => {

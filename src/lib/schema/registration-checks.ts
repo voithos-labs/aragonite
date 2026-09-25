@@ -39,17 +39,24 @@ import {
 	liftsFirstChild,
 	type BlockKindDescriptor
 } from './block-kind-descriptor';
-import { getBlockComponent } from './block-component-registry';
+import { isBlockComponentRegistered } from './block-component-registry';
 import { listRegisteredOpeners } from './block-openers';
 import { isBuiltinCommandId } from './commands';
 import { isPluginCommandId } from './command-id';
 import { normalizeChord, isChordWellFormed } from './keybindings';
-import { takeRegistrationFlushWork } from './registration-pending';
+import {
+	takeRegistrationFlushWork,
+	__resetRegistrationChecksForTests
+} from './registration-pending';
+import { enrollTestReset } from './registry-reset';
 
 export {
 	hasPendingRegistrationChecks,
 	__resetRegistrationChecksForTests
 } from './registration-pending';
+
+// A flag left behind by a cleared registry would make the next registrations look late.
+enrollTestReset(__resetRegistrationChecksForTests);
 
 /** The same shape as `assertInvariant`, which is the default; tests pass a collector instead. */
 export type RegistrationCheckReport = (tag: string, check: () => InvariantViolation | null) => void;
@@ -57,7 +64,7 @@ export type RegistrationCheckReport = (tag: string, check: () => InvariantViolat
 const hasDescriptor = (kind: AnyBlockKind): boolean =>
 	tryGetBlockKindDescriptor(kind) !== undefined;
 
-const hasComponent = (kind: AnyBlockKind): boolean => getBlockComponent(kind) !== undefined;
+const hasComponent = (kind: AnyBlockKind): boolean => isBlockComponentRegistered(kind);
 
 const keymapEntries = (kinds: readonly AnyBlockKind[]) =>
 	kinds.map((kind) => ({ kind, keymap: tryGetBlockKindDescriptor(kind)?.keymap }));

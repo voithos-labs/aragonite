@@ -4,8 +4,8 @@
  * `editor.insertCatalogue` all read this one list, so no two of them can disagree.
  */
 import { isMenuIconName, type MenuIconName } from '../menu-icons';
-import { currentInstallingPlugin, isPluginInstalled } from './plugin-install';
-import { registerOnce } from './register-once';
+import type { PluginActivation } from './plugin-activation';
+import { createPluginRegistry } from './plugin-registry';
 
 export interface InsertEntry {
 	readonly id: string;
@@ -29,8 +29,11 @@ const BUILT_IN: readonly InsertEntry[] = [
 ];
 const BUILT_IN_IDS = new Set(BUILT_IN.map((e) => e.id));
 
-/** Registration order; the owner is the plugin whose setup registered the entry, or null. */
-const fromPlugins = new Map<string, { entry: InsertEntry; owner: string | null }>();
+// Listed in registration order.
+const fromPlugins = createPluginRegistry<string, InsertEntry>({
+	label: 'registerInsertEntry',
+	isBuiltin: () => false
+});
 
 /**
  * Add a block to every insert menu, listed after the built-ins in registration order. Call it
@@ -46,27 +49,18 @@ export function registerInsertEntry(entry: InsertEntry): void {
 	if (BUILT_IN_IDS.has(entry.id)) {
 		throw new Error(`registerInsertEntry: '${entry.id}' is a built-in insert entry`);
 	}
-	const owner = currentInstallingPlugin();
-	registerOnce(
-		fromPlugins.has(entry.id),
-		() => fromPlugins.set(entry.id, { entry: freezeEntry(entry), owner }),
+	fromPlugins.register(
+		entry.id,
+		freezeEntry(entry),
 		`registerInsertEntry: an insert entry '${entry.id}' is already registered`
 	);
 }
 
-/**
- * Every entry one editor lists: the built-ins, then each plugin entry whose plugin installed
- * cleanly and `isActive` says this editor activated. A fresh frozen list per call.
- */
-export function insertCatalogue(isActive: (plugin: string) => boolean): readonly InsertEntry[] {
-	const listed = [...fromPlugins.values()]
-		.filter(({ owner }) => owner === null || (isPluginInstalled(owner) && isActive(owner)))
-		.map(({ entry }) => entry);
+/** Every entry one editor lists: the built-ins, then each plugin entry `activation` resolves. A
+ *  fresh frozen list per call. */
+export function insertCatalogue(activation: PluginActivation): readonly InsertEntry[] {
+	const listed = fromPlugins.entries(activation).map(([, entry]) => entry);
 	return Object.freeze([...BUILT_IN, ...listed]);
-}
-
-export function __removePluginInsertEntriesForTests(): void {
-	fromPlugins.clear();
 }
 
 // ── Internal ─────────────────────────────────────────────────────────────────

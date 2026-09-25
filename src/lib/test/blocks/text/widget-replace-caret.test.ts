@@ -13,6 +13,7 @@ import { replaceSelectedWidget } from '$lib/components/blocks/text/widget-intera
 import { createWidgetSelectionState } from '$lib/components/image/widget-selection-state.svelte';
 import type { CstNode } from '$lib/core/nodes';
 import { fixtureLinkRef } from '../../harness/fixture-grammar';
+import { defaultGrammarView } from '$lib/schema/block-openers';
 
 const SOURCE = 'lead![cat](x) tail\n';
 const WIDGET = { start: 4, end: 13 };
@@ -74,6 +75,7 @@ describe('replacing a selected widget', () => {
 			edgeAffinity: { reset: () => {}, get: () => null, note: () => {}, noteTyping: () => {} },
 			isReadOnly: () => false,
 			foldRevealBeforeMutation: () => null,
+			grammar: defaultGrammarView,
 			linkRef: fixtureLinkRef()
 		} as unknown as TextClipboardDeps);
 		const store = new Map([['text/plain', 'text']]);

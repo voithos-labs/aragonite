@@ -7,10 +7,12 @@ import {
 	type BlockComponentEntry
 } from '$lib/schema/block-component-registry';
 import { registerBlockOpener, type BlockOpener } from '$lib/schema/block-openers';
-import { bothEnable, createRegistryView, defaultRegistryView } from '$lib/schema/registry-view';
+import { createRegistryView, defaultRegistryView } from '$lib/schema/registry-view';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import type { AnyBlockKind, PluginBlockKind } from '$lib/core/nodes';
 import { testLeaf } from '$lib/test/harness/test-kinds';
+import { activationFor, everyInstalledPlugin } from '$lib/schema/plugin-activation';
+import { definePlugin, installPlugins } from '$lib/schema/plugin-install';
 
 const stubComponent = {} as BlockComponentEntry;
 
@@ -42,7 +44,7 @@ afterEach(() => __resetSchemaRegistriesForTests());
 describe('defaultRegistryView resolves the global definitions verbatim', () => {
 	it('component + descriptor + grammar match the global registry', () => {
 		const kind = registerCallout();
-		expect(defaultRegistryView.component(kind)).toBe(getBlockComponent(kind));
+		expect(defaultRegistryView.component(kind)).toBe(getBlockComponent(kind, everyInstalledPlugin));
 		expect(defaultRegistryView.descriptor(kind)).toBe(getBlockKindDescriptor(kind));
 		expect(parse('@x hi\n', { grammar: defaultRegistryView.grammar }).children[0].kind).toBe(kind);
 	});
@@ -96,20 +98,23 @@ describe('enablement filter', () => {
 
 // The second filter is the test harness's, layered over the editor's own activation, so it may
 // only narrow: one that widened would allow a resolution the shipped path cannot reach.
-describe('bothEnable', () => {
-	const admitsAll = () => true;
-	const admitsNone = () => false;
+describe('a kind filter layered over the activation', () => {
+	it('narrows what the activation allows and never widens it', () => {
+		let kind: PluginBlockKind | undefined;
+		installPlugins([
+			definePlugin({ name: 'callouts', setup: () => void (kind = registerCallout()) })
+		]);
 
-	it('admits a kind only when both sides do', () => {
-		expect(bothEnable(admitsAll, admitsNone)!('paragraph')).toBe(false);
-		expect(bothEnable(admitsNone, admitsAll)!('paragraph')).toBe(false);
-		expect(bothEnable(admitsAll, admitsAll)!('paragraph')).toBe(true);
-	});
-
-	it('passes a lone predicate through, and undefined for neither', () => {
-		expect(bothEnable(admitsNone, undefined)).toBe(admitsNone);
-		expect(bothEnable(undefined, admitsNone)).toBe(admitsNone);
-		expect(bothEnable(undefined, undefined)).toBeUndefined();
+		const unlisted = createRegistryView({ plugins: activationFor([]), isEnabled: () => true });
+		expect(unlisted.component(kind!)).toBeUndefined();
+		const narrowed = createRegistryView({
+			plugins: activationFor(['callouts']),
+			isEnabled: () => false
+		});
+		expect(narrowed.component(kind!)).toBeUndefined();
+		expect(createRegistryView({ plugins: activationFor(['callouts']) }).component(kind!)).toBe(
+			stubComponent
+		);
 	});
 });
 

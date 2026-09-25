@@ -1,23 +1,20 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { createRootMenus, type BlockMenuModel } from '$lib/components/editor-root-menus';
-import {
-	registerDefaultContextActions,
-	__resetDefaultContextActionsForTests
-} from '$lib/components/menu/default-context-actions';
-import { __resetBlockContextActionsForTests } from '$lib/schema/context-actions';
+import { registerDefaultContextActions } from '$lib/components/menu/default-context-actions';
 import { BLOCK_ACTIONS_LABEL } from '$lib/a11y-strings';
 import { parse } from '$lib/core/parser';
 import { insertCatalogue } from '$lib/schema/insert-catalogue';
+import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
 import type { PresentationMode } from '$lib/presentation-mode';
+import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 
 // Miss-analysis: which menu a right-click opens (a block's actions, the clipboard rows with or
 // without the insert flyout, or nothing) was pinned only through Playwright, one target per spec.
 
 beforeEach(() => {
 	document.body.replaceChildren();
-	__resetBlockContextActionsForTests();
-	__resetDefaultContextActionsForTests();
+	__resetSchemaRegistriesForTests();
 	registerDefaultContextActions();
 });
 
@@ -65,7 +62,8 @@ function harness(opts: { mode?: PresentationMode } = {}) {
 		blockEdit,
 		placeCaretAtPoint,
 		insertMarkdown,
-		insertCatalogue: () => insertCatalogue(() => true),
+		insertCatalogue: () => insertCatalogue(everyInstalledPlugin),
+		activation: everyInstalledPlugin,
 		setMenu: (next) => (menu = next)
 	});
 	root.addEventListener('contextmenu', menus.onRootContextMenu);

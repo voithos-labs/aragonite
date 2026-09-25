@@ -14,7 +14,6 @@ import {
 } from '../../schema/block-kind-descriptor';
 import {
 	registerPasteSurface,
-	type PasteSurface,
 	type PasteRange,
 	type PasteSeam,
 	type InlinePasteResult,
@@ -121,13 +120,4 @@ for (const kind of getAllRegisteredKinds()) {
 			onStructuralPaste: defaultStructuralHook
 		});
 	}
-}
-
-/** Test-only: produce a default text surface descriptor. */
-export function __getDefaultTextSurface(kind: PasteSurface['kind']): PasteSurface {
-	return {
-		kind,
-		onInlinePaste: defaultInlineHook,
-		onStructuralPaste: defaultStructuralHook
-	};
 }

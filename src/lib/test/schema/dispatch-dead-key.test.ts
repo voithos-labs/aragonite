@@ -3,12 +3,12 @@ import { normalizeKeybindingOverrides } from '$lib/schema/keybinding-overrides';
 import {
 	dispatchKeyCommand,
 	registerBlockCommand,
-	runCommandById,
-	__resetBlockCommandsForTests
+	runCommandById
 } from '$lib/schema/block-commands';
 import { runGlobalChord, runGlobalChordOnKind } from '$lib/schema/commands';
 import { takeDevWarns } from '../support/warn-gate';
 import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
+import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 
 describe('leaf-path dispatch of an unresolved plugin command', () => {
 	const ctx = {
@@ -20,7 +20,7 @@ describe('leaf-path dispatch of an unresolved plugin command', () => {
 	};
 
 	afterEach(() => {
-		__resetBlockCommandsForTests();
+		__resetSchemaRegistriesForTests();
 		vi.restoreAllMocks();
 	});
 

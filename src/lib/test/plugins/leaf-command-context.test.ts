@@ -1,22 +1,15 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import {
-	dispatchKeyCommand,
-	registerBlockCommand,
-	__resetBlockCommandsForTests
-} from '$lib/schema/block-commands';
-import { __resetCommandWarningsForTests } from '$lib/schema/commands';
+import { dispatchKeyCommand, registerBlockCommand } from '$lib/schema/block-commands';
 import { normalizeChordStrict } from '$lib/schema/keybindings';
 import type { KeybindingOverrideMap } from '$lib/schema/keybinding-overrides';
 import { declarePluginKind } from '$lib/schema/plugin-kind';
 import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
-import {
-	recordPluginKindOwner,
-	__resetInstalledPluginsForTests,
-	type EditorContext
-} from '$lib/schema/plugin-install';
+import type { EditorContext } from '$lib/schema/plugin-install';
+import { declareOwnedKind } from '$lib/test/support/owned-kind';
 import { buildLeafCommandContext } from '$lib/components/blocks/editable-leaf';
 import type { AnyBlockKind, CstNode } from '$lib/core/nodes';
 import type { AnyCommandId } from '$lib/schema/command-id';
+import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 
 // Branded plugin kinds, declared once at module scope (the reset clears commands,
 // not kind declarations; a per-test declare would double-throw).
@@ -69,11 +62,7 @@ function buildCtx(over: CtxOverrides = {}) {
 	);
 }
 
-afterEach(() => {
-	__resetCommandWarningsForTests();
-	__resetBlockCommandsForTests();
-	__resetInstalledPluginsForTests();
-});
+afterEach(() => __resetSchemaRegistriesForTests());
 
 describe('editable-leaf command context', () => {
 	it('routes updateMetadata to blockEdit.updateBlockMetadata at the live index', () => {
@@ -101,12 +90,12 @@ describe('editable-leaf command context', () => {
 
 	it("exposes the owning plugin's EditorContext as ctx.editor, keyed by pluginKindOwner", () => {
 		const fakeEditorContext = { editorId: 'e1' } as unknown as EditorContext;
-		recordPluginKindOwner(leaf, 'admonitions');
+		const owned = declareOwnedKind('admonitions', 'demoOwnedLeaf');
 		const pluginEditor = vi.fn((name: string) =>
 			name === 'admonitions' ? fakeEditorContext : ({} as EditorContext)
 		);
 
-		const ctx = buildCtx({ pluginEditor });
+		const ctx = buildCtx({ getNode: () => leafNode(owned), pluginEditor });
 
 		expect(ctx.editor).toBe(fakeEditorContext);
 		expect(pluginEditor).toHaveBeenCalledWith('admonitions');

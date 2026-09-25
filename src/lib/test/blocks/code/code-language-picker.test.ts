@@ -5,12 +5,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { flushSync } from 'svelte';
 import type { LanguageFn } from 'highlight.js';
-import {
-	registerLanguage,
-	__resetRegistryForTests
-} from '$lib/components/blocks/code/code-languages';
+import { registerLanguage } from '$lib/components/blocks/code/code-languages';
 import { mountCode, type MountedCode } from './mount-code';
 import { dispatchKey } from '$lib/test/harness/settle';
+import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 
 const stubGrammar = (() => ({ name: 'stub' })) as unknown as LanguageFn;
 const FENCE = '```js\nconst x = 1\n```\n';
@@ -52,7 +50,7 @@ function commits(): string[] {
 }
 
 beforeEach(() => {
-	__resetRegistryForTests();
+	__resetSchemaRegistriesForTests();
 	registerLanguage('javascript', stubGrammar, ['js']);
 	registerLanguage('rust', stubGrammar, ['rs']);
 	registerLanguage('c', stubGrammar);

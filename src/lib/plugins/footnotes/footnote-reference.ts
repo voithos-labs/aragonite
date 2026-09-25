@@ -9,7 +9,6 @@ import {
 	INLINE_PRIORITIES,
 	createScanIndex,
 	declarePluginInlineKind,
-	isInlineKindDeclared,
 	registerInlineSyntax,
 	registerInlineWidgetKind,
 	type InlineNode,
@@ -53,9 +52,6 @@ function recognizeFootnoteReference(
 }
 
 export function registerFootnoteReference(): void {
-	// Keyed on the kind registry, not a module latch, so the platform reset that clears
-	// the inline registries also clears this guard.
-	if (isInlineKindDeclared(FOOTNOTE_REF_KIND)) return;
 	const kind = declarePluginInlineKind(FOOTNOTE_REF_KIND);
 	registerInlineSyntax('[', (raw, pos, end) => recognizeFootnoteReference(raw, pos, end, kind), {
 		prefix: '[^',

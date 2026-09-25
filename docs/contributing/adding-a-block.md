@@ -519,10 +519,10 @@ Not a new block kind, but this is where everyone looks for it, so it lands here.
 import rust from 'highlight.js/lib/languages/rust';
 
 // ...inside bootstrapCodeLanguages()
-registerLanguage('rust', rust, ['rs']);
+registerBuiltinLanguage('rust', rust, ['rs']);
 ```
 
-One import from `highlight.js/lib/languages/<name>`, one `registerLanguage('<name>', <grammar>, [aliases])` call. Nothing else changes; the language is live on the next editor mount.
+One import from `highlight.js/lib/languages/<name>`, one `registerBuiltinLanguage('<name>', <grammar>, [aliases])` call. The built-in form is what keeps the language through the test reset; a host's own languages go through the public `registerLanguage`. Nothing else changes; the language is live on the next editor mount.
 
 ## Testing
 

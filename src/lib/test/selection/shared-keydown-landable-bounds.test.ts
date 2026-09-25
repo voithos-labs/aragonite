@@ -35,7 +35,7 @@ interface Env {
  *  would answer for a document that never rendered. */
 function render(node: CstNode): HTMLElement {
 	const { el, deps } = makeRenderHarness(node, { mode: 'live' });
-	if (node.kind === 'fencedCode') el.replaceChildren(renderCodeBlock(node));
+	if (node.kind === 'fencedCode') el.replaceChildren(renderCodeBlock(node, everyInstalledPlugin));
 	else createTextRender(deps).render();
 	return el;
 }

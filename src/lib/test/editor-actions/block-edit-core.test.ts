@@ -4,7 +4,6 @@ import type { CstNode } from '$lib/core/nodes';
 import { CURSOR_EXACT_START, CURSOR_START, type BlockComponent } from '$lib/block-component';
 import { parse } from '$lib/core/parser';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
-import { __resetPasteSurfacesForTests } from '$lib/tree-operations/paste-surfaces';
 import { registerCalloutKind } from '../../../routes/test/plugins/callout/callout-kind';
 import { takeDevWarns } from '$lib/test/support/warn-gate';
 import { makeCommitScopeStub, parseLeaf as leaf } from '$lib/test/harness/editor-actions';
@@ -255,10 +254,7 @@ describe('block-edit core: thematicBreak focus-then-delete', () => {
 // the core hands the tree ops the commit view's shape, whose owner no test ever asserted.
 describe('block-edit core: wrap-owner threading', () => {
 	beforeEach(() => {
-		// registerChromeLeaf registers a paste surface, so the schema reset alone would leave
-		// it orphaned and a re-register would collide.
 		__resetSchemaRegistriesForTests();
-		__resetPasteSurfacesForTests();
 		registerCalloutKind();
 	});
 	afterEach(__resetSchemaRegistriesForTests);

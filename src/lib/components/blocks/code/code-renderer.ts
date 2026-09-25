@@ -11,6 +11,8 @@ import { devWarn } from '../../../dev-warn';
 import { assertInvariant } from '../../../assert';
 import { checkRenderedTextFidelity } from '../../../invariants/render-fidelity';
 import hljs from 'highlight.js/lib/core';
+import type { LanguageFn } from 'highlight.js';
+import type { PluginActivation } from '../../../schema/plugin-activation';
 import { getLanguageGrammar } from './code-languages';
 
 // ── Public API ───────────────────────────────────────────────────────────────
@@ -119,22 +121,28 @@ export function walkHljsNodes(source: Node, target: DocumentFragment | HTMLEleme
 
 // ── Body tokenization ─────────────────────────────────────────────────────
 
-const registeredWithHljs = new Set<string>();
+// The definition highlight.js last took under each name, checked against the language registry
+// on every read, so a grammar the registry replaced (a reset, a dev-server re-run) replaces here.
+const handedToHljs = new Map<string, LanguageFn>();
 
 /** `ignoreIllegals` is set so mid-typing invalid syntax doesn't throw. */
-export function tokenizeBody(body: string, infoString: string): DocumentFragment {
+export function tokenizeBody(
+	body: string,
+	infoString: string,
+	activation: PluginActivation
+): DocumentFragment {
 	const frag = document.createDocumentFragment();
 	if (body.length === 0) return frag;
 
-	const grammar = getLanguageGrammar(infoString);
+	const grammar = getLanguageGrammar(infoString, activation);
 	if (!grammar) {
 		frag.appendChild(document.createTextNode(body));
 		return frag;
 	}
 
-	if (!registeredWithHljs.has(grammar.name)) {
+	if (handedToHljs.get(grammar.name) !== grammar.definition) {
 		hljs.registerLanguage(grammar.name, grammar.definition);
-		registeredWithHljs.add(grammar.name);
+		handedToHljs.set(grammar.name, grammar.definition);
 	}
 
 	// `template.innerHTML` normalizes every `\r\n`/`\r` to `\n`, so a CRLF body is
@@ -249,7 +257,8 @@ function renderCloserLine(slice: FencedCodeSlice, leadingNewline: boolean): Docu
 
 // ── Top-level render ─────────────────────────────────────────────────────
 
-export function renderCodeBlock(node: NodeView): DocumentFragment {
+/** `activation` is the editor's, so a language whose plugin it left out renders untokenized. */
+export function renderCodeBlock(node: NodeView, activation: PluginActivation): DocumentFragment {
 	const slice = trimSliceTail(sliceFencedCode(node));
 	const meta = metadataOf(node, 'fencedCode');
 	const frag = document.createDocumentFragment();
@@ -265,7 +274,7 @@ export function renderCodeBlock(node: NodeView): DocumentFragment {
 	const bodyText = separatorNewline ? slice.body.slice(0, -1) : slice.body;
 
 	frag.appendChild(renderOpenerLine(slice, meta.fenceMarker, meta.fenceLength));
-	frag.appendChild(tokenizeBody(bodyText, slice.infoString));
+	frag.appendChild(tokenizeBody(bodyText, slice.infoString, activation));
 	// Chromium paints no caret on an empty last body line with only the hidden closer after it, so
 	// a `br` anchors that line without touching textContent; source mode hides it in CSS.
 	if (separatorNewline && bodyText.endsWith('\n')) {

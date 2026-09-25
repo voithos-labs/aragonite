@@ -3,12 +3,12 @@ import { describe, it, expect } from 'vitest';
 import type { InlineNode } from '../../../../core/nodes';
 import { parseInline } from '../../../../core/inline';
 import { scanInline } from '../../../../core/inline/scan';
-import { __resetInlineSyntaxForTests } from '../../../../core/inline/scan/plugin-syntax';
 import {
 	normalizeLinkLabel,
 	type LinkReferenceResolver,
 	type ResolvedReference
 } from '../../../../core/inline/link-reference-resolver';
+import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 
 // ── Coverage assertions ─────────────────────────────────────────────────────
 
@@ -201,7 +201,7 @@ export function resolverOf(entries: Record<string, ResolvedReference>): LinkRefe
  * measured against. Resets first, so a caller can register after taking it.
  */
 export function scanClean(raw: string, end = raw.length): InlineNode[] {
-	__resetInlineSyntaxForTests();
+	__resetSchemaRegistriesForTests();
 	return parseInline(raw, 0, end);
 }
 

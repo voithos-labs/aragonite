@@ -4,12 +4,7 @@
  * `$$` plus Enter still splits exactly as bare GFM does.
  */
 
-import {
-	isBlockCompleterRegistered,
-	registerBlockCompleter,
-	type AnyBlockKind,
-	type CompletionResult
-} from '$lib/plugin';
+import { registerBlockCompleter, type AnyBlockKind, type CompletionResult } from '$lib/plugin';
 
 const BLOCK_FENCE = '$$';
 
@@ -21,7 +16,6 @@ export function tryCompleteMathBlock(line: string): CompletionResult | null {
 }
 
 export function registerMathBlockCompleter(kind: AnyBlockKind): void {
-	if (isBlockCompleterRegistered(kind)) return;
 	// On typing as well as on Enter: a lone `$$` can only be the pair's opener, so the block
 	// forms as the second `$` is typed, the way a typed ` ``` ` becomes a fence at once.
 	registerBlockCompleter(kind, { tryComplete: tryCompleteMathBlock, onType: true });

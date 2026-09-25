@@ -7,6 +7,12 @@ import TextEditableBlock from './components/blocks/text/TextEditableBlock.svelte
 import { registerChromeLeaf as bindChromeLeaf } from './editor-actions/plugin/chrome-leaf';
 import { computeInlineContent as parseLeafInline } from './core/inline';
 import { defaultGrammarView } from './schema/block-openers';
+import { everyInstalledPlugin } from './schema/plugin-activation';
+import {
+	getLanguageAliases as aliasesIn,
+	listLanguages as languagesIn
+} from './components/blocks/code/code-languages';
+import { tokenizeBody } from './components/blocks/code/code-renderer';
 import type { AnyBlockKind, InlineNode } from './core/nodes';
 import type { NodeView } from './core/node-views';
 import type { ChromeLeafOptions } from './editor-actions/plugin/chrome-leaf';
@@ -101,20 +107,25 @@ export { registerBlockCompleter } from './schema/block-completions';
 export type { BlockCompleter, CompletionResult } from './schema/block-completions';
 
 // ── Code-block languages (pre-freeze) ────────────────────────────────────────
-// The registry behind fenced-code highlighting. The editor loads a curated set (every grammar
-// is bundle weight for every consumer), so a host that needs more registers them itself, before
-// mounting an editor: a block already on screen re-tokenizes only when its bytes next change.
-// An unregistered language is not an error; the fence still round-trips, just untokenized.
-// `listLanguages` lists each language once; `getLanguageAliases` holds the other spellings.
-export {
-	registerLanguage,
-	listLanguages,
-	getLanguageAliases
-} from './components/blocks/code/code-languages';
+// The registry behind fenced-code highlighting. The editor loads a curated set, so a host that
+// needs more registers them before mounting an editor; an unregistered language still
+// round-trips, just untokenized. A code block reads only the languages its editor's plugins
+// registered; the three reads below have no editor, so they see every installed plugin's.
+export { registerLanguage } from './components/blocks/code/code-languages';
 export type { LanguageGrammar } from './components/blocks/code/code-languages';
-// The code block's own tokenizer, for a plugin whose own source view wants the same highlighting
-// (block math paints its LaTeX with it). Text-preserving: the fragment's `textContent` is `body`.
-export { tokenizeBody as highlightCode } from './components/blocks/code/code-renderer';
+/** Every language once, under its canonical name, sorted. */
+export function listLanguages(): string[] {
+	return languagesIn(everyInstalledPlugin);
+}
+/** The other spellings a language answers to, asked by any of them. */
+export function getLanguageAliases(name: string): readonly string[] {
+	return aliasesIn(name, everyInstalledPlugin);
+}
+/** The code block's own tokenizer, for a plugin's own source view (block math paints its LaTeX
+ *  with it). Text-preserving: the fragment's `textContent` is `body`. */
+export function highlightCode(body: string, language: string): DocumentFragment {
+	return tokenizeBody(body, language, everyInstalledPlugin);
+}
 // Re-exported so a host names the grammar type without importing highlight.js itself, which
 // it holds only transitively.
 export type { LanguageFn } from 'highlight.js';
@@ -215,6 +226,7 @@ export { isBlockComponentRegistered } from './schema/block-component-registry';
 export { isBlockOpenerRegistered } from './schema/block-openers';
 export { isBlockCompleterRegistered } from './schema/block-completions';
 export { isPasteTransformRegistered } from './tree-operations/paste/paste-transforms';
+export { isLanguageRegistered } from './components/blocks/code/code-languages';
 
 // ── Container-authoring API (pre-freeze) ─────────────────────────────────────
 // Lets a plugin build an editable nested container as thinly as the built-in

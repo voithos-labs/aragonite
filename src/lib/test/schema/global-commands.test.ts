@@ -10,12 +10,9 @@ import {
 	isDefaultGlobalChord,
 	runGlobalChord,
 	pluginGlobalBinding,
-	__resetPluginGlobalKeymapForTests,
-	__removePluginCommandsForTests,
 	type GlobalCommandContext
 } from '$lib/schema/commands';
 import { normalizeKeybindingOverrides } from '$lib/schema/keybinding-overrides';
-import { __resetMintedCommandIdsForTests } from '$lib/schema/command-id';
 import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
 import {
 	definePlugin,
@@ -23,6 +20,7 @@ import {
 	__resetInstalledPluginsForTests,
 	type EditorContext
 } from '$lib/schema/plugin-install';
+import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 
 const editor = {
 	editorId: 'e',
@@ -38,22 +36,20 @@ const ctx = (over?: Partial<GlobalCommandContext>): GlobalCommandContext => ({
 });
 
 beforeEach(() => {
-	__resetPluginGlobalKeymapForTests();
-	__removePluginCommandsForTests();
-	__resetMintedCommandIdsForTests();
+	__resetSchemaRegistriesForTests();
 });
 
 describe('registerGlobalCommand', () => {
 	it('creates, registers, and the handler receives the per-instance EditorContext', () => {
 		let got: EditorContext | undefined;
 		const id = registerGlobalCommand('demo.stats', (e) => ((got = e), true));
-		expect(getCommand(id)!(ctx())).toBe(true);
+		expect(getCommand(id, everyInstalledPlugin)!(ctx())).toBe(true);
 		expect(got).toBe(editor);
 	});
 
 	it('declines (false) when the dispatch site supplies no pluginEditor', () => {
 		const id = registerGlobalCommand('demo.lone', () => true);
-		expect(getCommand(id)!(ctx({ pluginEditor: undefined }))).toBe(false);
+		expect(getCommand(id, everyInstalledPlugin)!(ctx({ pluginEditor: undefined }))).toBe(false);
 		expect(takeDevWarns().map((w) => w.tag)).toEqual(['commands']);
 	});
 
@@ -71,7 +67,9 @@ describe('registerGlobalCommand', () => {
 				}
 			})
 		]);
-		expect(getCommand(id)!(ctx({ pluginEditor: () => undefined }))).toBe(false);
+		expect(getCommand(id, everyInstalledPlugin)!(ctx({ pluginEditor: () => undefined }))).toBe(
+			false
+		);
 		expect(ran).toBe(false);
 		expect(takeDevWarns()).toEqual([]);
 	});
@@ -81,7 +79,9 @@ describe('registerGlobalCommand', () => {
 		const id = registerGlobalCommand('demo.boom', () => {
 			throw new Error('boom');
 		});
-		expect(getCommand(id)!(ctx({ onCommandError: (r) => reports.push(r) }))).toBe(true);
+		expect(
+			getCommand(id, everyInstalledPlugin)!(ctx({ onCommandError: (r) => reports.push(r) }))
+		).toBe(true);
 		expect(reports).toHaveLength(1);
 	});
 

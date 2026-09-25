@@ -2,7 +2,6 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { parse } from '../../core/parser';
 import { mergeListItemIntoPrevious } from '../../tree-operations';
 import { __resetSchemaRegistriesForTests } from '../../schema/registry-reset';
-import { __resetPasteSurfacesForTests } from '../../tree-operations/paste-surfaces';
 import { registerDetailsKind } from '$lib/plugins/details/details-kind';
 import type { CstNode } from '../../core/nodes';
 import { fixtureLinkRef } from '../harness/fixture-grammar';
@@ -214,7 +213,6 @@ describe('mergeListItemIntoPrevious', () => {
 describe('mergeListItemIntoPrevious: collapsed container as previous leaf', () => {
 	beforeEach(() => {
 		__resetSchemaRegistriesForTests();
-		__resetPasteSurfacesForTests();
 		registerDetailsKind();
 	});
 

@@ -3,11 +3,6 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import { pasteDispatch } from '$lib/tree-operations/paste/dispatch';
-import {
-	__resetPasteSurfacesForTests,
-	registerPasteSurface
-} from '$lib/tree-operations/paste-surfaces';
-import { __getDefaultTextSurface } from '$lib/tree-operations/paste/hooks';
 import { tableCellPasteSurface } from '$lib/components/blocks/table/table-cell-paste';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
 import { createPasteCoordinator } from '$lib/editor-actions/paste-coordinator';
@@ -17,6 +12,8 @@ import {
 	pasteContext
 } from '$lib/test/harness/editor-actions';
 import { describeConvergence } from '$lib/test/harness/parse-converged';
+import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
+import { ensurePasteSurface } from '$lib/test/support/paste-surface';
 
 // A block pasted or inserted with no line ending of its own took the next block's blank line as
 // its ending, and a block landed after a table's cell had no blank line before or after it, so
@@ -27,9 +24,8 @@ import { describeConvergence } from '$lib/test/harness/parse-converged';
 const TABLE = '| a | b |\n| --- | --- |\n| c |  |\n';
 
 beforeEach(() => {
-	__resetPasteSurfacesForTests();
-	registerPasteSurface(tableCellPasteSurface);
-	registerPasteSurface(__getDefaultTextSurface('paragraph'));
+	__resetSchemaRegistriesForTests();
+	ensurePasteSurface(tableCellPasteSurface);
 });
 
 async function insert(source: string, targetPath: number[], offset: number, markdown: string) {

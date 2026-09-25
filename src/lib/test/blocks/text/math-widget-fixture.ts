@@ -4,9 +4,6 @@
 // (Svelte plus KaTeX) is the e2e's job.
 import { defaultGrammarView } from '$lib/schema/block-openers';
 import { afterEach, beforeEach } from 'vitest';
-import { __resetInlineWidgetsForTests } from '$lib/core/inline/inline-widgets';
-import { __resetInlineSyntaxForTests } from '$lib/core/inline/scan/plugin-syntax';
-import { __clearDeclaredPluginInlineKindsForTests } from '$lib/schema/plugin-kind';
 import { registerMathInline } from '$lib/plugins/latex/latex-kind';
 import { parse } from '$lib/core/parser';
 import { computeInlineContent } from '$lib/core/inline';
@@ -16,6 +13,7 @@ import { createWidgetSelectionState } from '$lib/components/image/widget-selecti
 import type { WidgetInteractionDeps } from '$lib/components/blocks/text/widget-interaction';
 import type { CstNode, InlineNode } from '$lib/core/nodes';
 import { fixtureLinkRef } from '../../harness/fixture-grammar';
+import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 
 export function stampMathWidget(node: InlineNode): HTMLElement {
 	const wrapper = document.createElement('span');
@@ -28,9 +26,7 @@ export function stampMathWidget(node: InlineNode): HTMLElement {
 }
 
 export function resetInlineState(): void {
-	__resetInlineSyntaxForTests();
-	__resetInlineWidgetsForTests();
-	__clearDeclaredPluginInlineKindsForTests();
+	__resetSchemaRegistriesForTests();
 }
 
 /** The reset pair the widget-reveal suites share: register the math inline kind
@@ -120,6 +116,7 @@ export function widgetInteractionDeps(
 				(acc, child) => acc + rawTextOfNode(child, base.node.raw),
 				''
 			),
+		grammar: defaultGrammarView,
 		get linkRef() {
 			return fixtureLinkRef();
 		},

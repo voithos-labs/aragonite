@@ -73,6 +73,7 @@ describe('handleShiftArrowIntoWidget: non-image inline widget', () => {
 			focusActions: new Proxy({}, { get: trap }),
 			setSnapTarget: trap,
 			setPendingCursor: trap,
+			grammar: defaultGrammarView,
 			get linkRef() {
 				return fixtureLinkRef();
 			}

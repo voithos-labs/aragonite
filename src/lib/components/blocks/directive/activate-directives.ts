@@ -12,6 +12,7 @@ import {
 	isBlockComponentRegistered
 } from '$lib/schema/block-component-registry';
 import { declaredPluginKind } from '$lib/schema/plugin-kind';
+import { registerAsCore } from '$lib/schema/plugin-install';
 import { DIRECTIVE_CONTAINER, DIRECTIVE_LEAF } from '$lib/core/directive/kinds';
 import DirectiveContainerBlock from './DirectiveContainerBlock.svelte';
 import TextEditableBlock from '../text/TextEditableBlock.svelte';
@@ -19,19 +20,23 @@ import TextEditableBlock from '../text/TextEditableBlock.svelte';
 export function activateDirectives(): void {
 	activateDirectiveGrammar();
 
-	if (!isBlockComponentRegistered(DIRECTIVE_CONTAINER)) {
-		registerBlockComponent(
-			declaredPluginKind(DIRECTIVE_CONTAINER),
-			defineBlockComponent(DirectiveContainerBlock)
-		);
-	}
+	// Core like the grammar, so an editor that left out the plugin turning directives on still
+	// draws the generic boxes.
+	registerAsCore(() => {
+		if (!isBlockComponentRegistered(DIRECTIVE_CONTAINER)) {
+			registerBlockComponent(
+				declaredPluginKind(DIRECTIVE_CONTAINER),
+				defineBlockComponent(DirectiveContainerBlock)
+			);
+		}
 
-	// The leaf's kind descriptor already drives its dimmed marker and split behavior, so it
-	// reuses the built-in text block component as is.
-	if (!isBlockComponentRegistered(DIRECTIVE_LEAF)) {
-		registerBlockComponent(
-			declaredPluginKind(DIRECTIVE_LEAF),
-			defineBlockComponent(TextEditableBlock, () => ({ blockClass: 'directive-leaf' }))
-		);
-	}
+		// The leaf's kind descriptor already drives its dimmed marker and split behavior, so it
+		// reuses the built-in text block component as is.
+		if (!isBlockComponentRegistered(DIRECTIVE_LEAF)) {
+			registerBlockComponent(
+				declaredPluginKind(DIRECTIVE_LEAF),
+				defineBlockComponent(TextEditableBlock, () => ({ blockClass: 'directive-leaf' }))
+			);
+		}
+	});
 }

@@ -4,9 +4,10 @@ import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import { declarePluginKind } from '$lib/schema/plugin-kind';
 import { rebuildDirectiveContainerRaw } from '$lib/core/directive/kinds';
-import { registerDirective, __resetDirectiveRegistryForTests } from '$lib/core/directive/registry';
+import { registerDirective } from '$lib/core/directive/registry';
 import { activateDirectiveGrammar } from '$lib/core/directive/activate';
 import { roundTripCases } from '$lib/test/support/round-trip';
+import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 
 activateDirectiveGrammar(); // before any parse
 
@@ -70,7 +71,7 @@ describe('registered-name dispatch via fromDirective', () => {
 			}
 		});
 	});
-	afterAll(() => __resetDirectiveRegistryForTests());
+	afterAll(() => __resetSchemaRegistriesForTests());
 
 	it('delegates a registered name to its factory node, not the generic kind', () => {
 		expect(parse(':::chart\nx\n:::\n').children[0].kind).toBe('directiveChartProbe');

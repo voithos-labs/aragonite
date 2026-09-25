@@ -7,11 +7,9 @@ import {
 	runCommandById,
 	dispatchKeyCommand,
 	registerBlockCommand,
-	__resetBlockCommandsForTests,
 	type CommandDispatchContext,
 	type KindCommandTarget
 } from '$lib/schema/block-commands';
-import { __removePluginCommandsForTests } from '$lib/schema/commands';
 import { TOOLBAR_COMMANDS } from '$lib/index';
 import { normalizeKeybindingOverrides } from '$lib/schema/keybinding-overrides';
 import type { AnyCommandId } from '$lib/schema/command-id';
@@ -19,10 +17,10 @@ import type { NodeView } from '$lib/core/node-views';
 import type { PresentationMode } from '$lib/presentation-mode';
 import { allowDevWarns } from '../support/warn-gate';
 import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
+import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 
 afterEach(() => {
-	__resetBlockCommandsForTests();
-	__removePluginCommandsForTests();
+	__resetSchemaRegistriesForTests();
 });
 
 function context(over: Partial<CommandDispatchContext> = {}): CommandDispatchContext {

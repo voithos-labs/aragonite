@@ -5,7 +5,6 @@ import { updateNodeContent } from '$lib/tree-operations/content-write';
 import { trailingLineEnding } from '$lib/core/lines';
 import { rebuildAncestryRaw } from '$lib/schema/container-raw';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
-import { __resetPasteSurfacesForTests } from '$lib/tree-operations/paste-surfaces';
 import { installPlugins } from '$lib';
 import { detailsPlugin } from '$lib/plugins/details';
 import { makeNestedHarness } from '$lib/test/harness/editor-actions';
@@ -35,7 +34,6 @@ const emptyBodyChild = (container: CstNode, at: number) =>
 describe('the closer strip a blank tail borrowed', () => {
 	beforeEach(() => {
 		__resetSchemaRegistriesForTests();
-		__resetPasteSurfacesForTests();
 		registerCalloutKind();
 	});
 	afterEach(__resetSchemaRegistriesForTests);
@@ -83,7 +81,6 @@ describe('the closer strip a blank tail borrowed', () => {
 describe('a tail split then typed, through the container bundle', () => {
 	beforeEach(() => {
 		__resetSchemaRegistriesForTests();
-		__resetPasteSurfacesForTests();
 		registerCalloutKind();
 		installPlugins([detailsPlugin()]);
 	});
