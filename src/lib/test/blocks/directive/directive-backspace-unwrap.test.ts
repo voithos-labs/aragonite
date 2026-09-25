@@ -8,7 +8,7 @@
 import { describe, it, expect, afterEach, beforeEach, beforeAll } from 'vitest';
 import { resetPluginPlatformForTests } from '$lib/testing';
 import { activateDirectives } from '$lib/plugin';
-import { installLayoutStubs, mountEditor, pressKeyAt } from '../editor-mount';
+import { installLayoutStubs, mountEditor, pressKeyAt } from '$lib/test/harness/mount-editor.svelte';
 
 beforeAll(installLayoutStubs);
 

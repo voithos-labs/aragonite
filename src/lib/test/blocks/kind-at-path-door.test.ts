@@ -4,7 +4,11 @@
 // the read that replaces probing the rendered DOM for a block's class.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
 import type { AnyBlockKind, EditorInstance } from '$lib';
-import { installLayoutStubs, mountEditor, type MountedEditor } from './editor-mount';
+import {
+	installLayoutStubs,
+	mountEditor,
+	type MountedEditor
+} from '$lib/test/harness/mount-editor.svelte';
 
 beforeAll(() => installLayoutStubs());
 

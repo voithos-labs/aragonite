@@ -7,7 +7,12 @@
 // with a `\|` escape standing before it.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
 import { tick } from 'svelte';
-import { installLayoutStubs, mountEditor, placeCaret, type MountedEditor } from '../editor-mount';
+import {
+	installLayoutStubs,
+	mountEditor,
+	placeCaret,
+	type MountedEditor
+} from '$lib/test/harness/mount-editor.svelte';
 import { cellAt, installTableLayoutStubs } from './mount-table';
 import { domTextOffsetAtNode } from '$lib/cursor/widget-offset';
 import type { UndoEntry } from '$lib/undo/types';

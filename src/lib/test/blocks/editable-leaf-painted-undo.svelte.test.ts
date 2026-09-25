@@ -5,11 +5,9 @@
 // How it groups edits went the same way: every case made one edit, so nothing could see that a
 // second keystroke pushed a second entry where the document would have batched both.
 import { describe, it, expect, beforeEach, afterEach, onTestFinished, vi } from 'vitest';
-import { mount, unmount, flushSync } from 'svelte';
-import RevealLeafBlock from './fixtures/RevealLeafBlock.svelte';
-import { declarePluginKind, registerBlockKind, simpleLeafClosure } from '$lib/plugin';
+import { unmount, flushSync } from 'svelte';
 import { resetPluginPlatformForTests } from '$lib/testing';
-import type { CstNode, Document } from '$lib/core/nodes';
+import type { Document } from '$lib/core/nodes';
 import {
 	normalizeKeybindingOverrides,
 	type KeybindingOverride
@@ -17,9 +15,9 @@ import {
 import { createRangeFromOffsets, getCursorOffset } from '$lib/cursor/content-offsets';
 import { asDomTextOffset } from '$lib/cursor/coordinate-spaces';
 import { UNDO_DEBOUNCE_MS } from '$lib/editor-actions/commit/text-batch';
-import { editorMountContext } from '../harness/mount-context';
-import { installLayoutStubs } from './editor-mount';
+import { installLayoutStubs } from '$lib/test/harness/mount-editor.svelte';
 import { settleEditor, pressKey } from '$lib/test/harness/settle';
+import { leafDocument, mountRevealLeaf, registerRevealLeafKind } from './fixtures/reveal-leaf';
 
 const KIND = 'painted-undo-leaf';
 const SOURCE = '@@ one';
@@ -33,53 +31,17 @@ function paint(text: string): DocumentFragment {
 }
 
 function mountLeaf(keybindings: KeybindingOverride[] = []) {
-	const kind = declarePluginKind(KIND);
-	registerBlockKind(kind, {
-		gapEdges: 'none',
-		mergeRole: 'not-mergeable',
-		editable: true,
-		supportsInline: false,
-		closure: simpleLeafClosure({
-			focus: { mode: 'implemented', via: 'createEditableLeaf render-primary reveal' },
-			searchPaint: { mode: 'inherit-default' },
-			undo: { mode: 'implemented', via: 'render-primary: one commit when the caret leaves' },
-			simOracle: { mode: 'inherit-default' }
-		})
-	});
+	const kind = registerRevealLeafKind(KIND);
 	// Reactive on purpose: the source's sync attachment re-runs on `raw`, which is how an
 	// external rewrite (an undo landing new bytes at this index) reaches an open reveal.
-	const doc = $state<Document>({
-		kind: 'document',
-		prefix: '',
-		children: [{ kind, leadingTrivia: '', raw: `${SOURCE}\n` } as CstNode],
-		suffix: ''
-	});
+	const doc = $state<Document>(leafDocument(kind, `${SOURCE}\n`));
 	const history = { requestUndo: vi.fn(), requestRedo: vi.fn() };
 	const overrides = normalizeKeybindingOverrides(keybindings);
-	const target = document.createElement('div');
-	document.body.appendChild(target);
-	const instance = mount(RevealLeafBlock, {
-		target,
-		props: { node: doc.children[0], index: 0, myPath: [0], paint },
-		context: editorMountContext({
-			history,
-			doc: { doc: () => doc },
-			policies: { keybindingOverrides: () => overrides }
-		})
+	const mounted = mountRevealLeaf(doc, {
+		props: { paint },
+		overrides: { history, policies: { keybindingOverrides: () => overrides } }
 	});
-	flushSync();
-	return {
-		instance,
-		doc,
-		history,
-		revealAtEnd: async () => {
-			instance.parkCaret(SOURCE.length);
-			await settleEditor();
-			const el = target.querySelector<HTMLElement>('.reveal-leaf-source');
-			expect(el, 'the reveal mounted no source element').not.toBeNull();
-			return el!;
-		}
-	};
+	return { ...mounted, history };
 }
 
 const pressEnter = (el: HTMLElement) => pressKey(el, { key: 'Enter' });

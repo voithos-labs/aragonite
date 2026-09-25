@@ -5,7 +5,12 @@
 // covers the refusing gesture with a paragraph as the last block, where nothing is recorded at
 // all; a table records the pair first and then hears the extend refuse, and no test covered it.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
-import { installLayoutStubs, mountEditor, placeCaret, type MountedEditor } from '../editor-mount';
+import {
+	installLayoutStubs,
+	mountEditor,
+	placeCaret,
+	type MountedEditor
+} from '$lib/test/harness/mount-editor.svelte';
 import { cellAt, installTableLayoutStubs } from './mount-table';
 import { pressKey } from '$lib/test/harness/settle';
 

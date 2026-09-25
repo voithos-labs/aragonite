@@ -6,7 +6,7 @@
 // breaking stops indenting with no other sign. The reading-mode case pins that the item hands
 // the dispatcher its mode getter, which is what refuses the key there (G4.19).
 import { describe, it, expect, afterEach, beforeAll } from 'vitest';
-import { installLayoutStubs, mountEditor, pressKeyAt } from '../editor-mount';
+import { installLayoutStubs, mountEditor, pressKeyAt } from '$lib/test/harness/mount-editor.svelte';
 
 beforeAll(installLayoutStubs);
 

@@ -11,7 +11,7 @@ import { Editor, type EditorInstance } from '$lib';
 import { installEditorDomStubsForTests, resetPluginPlatformForTests } from '$lib/testing';
 import { latexPlugin } from '$lib/plugins/latex';
 import type { MathRenderer } from '$lib/plugins/latex/math-renderer';
-import { installLayoutStubs } from '../../blocks/editor-mount';
+import { installLayoutStubs } from '$lib/test/harness/mount-editor.svelte';
 
 const stubRenderer: MathRenderer = () => ({ dom: document.createElement('span') });
 

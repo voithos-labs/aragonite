@@ -4,12 +4,12 @@
 // one change where all of its keys die at once.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
 import { tick } from 'svelte';
-import { installLayoutStubs } from '../blocks/editor-mount';
 import {
-	mountEditorOverProps,
-	typeInFirstBlock,
-	unmountEditorOverProps
-} from '../harness/editor-over-props.svelte';
+	installLayoutStubs,
+	mountEditor,
+	destroyMountedEditors,
+	typeInFirstBlock
+} from '$lib/test/harness/mount-editor.svelte';
 import type { HeightOracle } from '$lib/cursor/height-oracle';
 import { settleEditor } from '$lib/test/harness/settle';
 
@@ -24,12 +24,12 @@ const OUTGOING_HEIGHT = 99;
 // jsdom lays nothing out, so the stub also keeps the width path, the cache's other way of
 // losing entries, from firing: anything the cache loses here was lost to the swap.
 beforeAll(installLayoutStubs);
-afterEach(unmountEditorOverProps);
+afterEach(destroyMountedEditors);
 
 /** Mounts, then records a measured height as a mounted block's measure pass would. */
 function mountWithMeasuredBlock() {
-	const mounted = mountEditorOverProps<HeightSeam>({ source: 'one\n\ntwo\n' });
-	const oracle = mounted.editor.__test.getHeightOracle();
+	const mounted = mountEditor<HeightSeam>({ source: 'one\n\ntwo\n' });
+	const oracle = mounted.instance.__test.getHeightOracle();
 	oracle.recordMeasured(OUTGOING_ID, OUTGOING_HEIGHT);
 	return { ...mounted, oracle };
 }
@@ -48,7 +48,7 @@ describe('the measured-height cache does not outlive the document it measured', 
 	// Replacing the document is the only time an edit may drop these: ids survive a keystroke,
 	// so dropping them then would cost a full re-measure per batch of typing.
 	it('keeps measured heights across an edit, which replaces no document', async () => {
-		const { editor, oracle, target } = mountWithMeasuredBlock();
+		const { instance: editor, oracle, target } = mountWithMeasuredBlock();
 		const before = editor.__test.getContentVersion();
 
 		typeInFirstBlock(target, 'one!');

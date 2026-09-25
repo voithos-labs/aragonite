@@ -6,7 +6,7 @@
 // `createNestedBlockEdit` and dispatched into `firstChildUnwrapStrategies`. Four parts have to
 // agree, each tested alone, and a mount is the only level where that agreement shows.
 import { describe, it, expect, afterEach, beforeAll } from 'vitest';
-import { installLayoutStubs, mountEditor, pressKeyAt } from '../editor-mount';
+import { installLayoutStubs, mountEditor, pressKeyAt } from '$lib/test/harness/mount-editor.svelte';
 
 beforeAll(installLayoutStubs);
 

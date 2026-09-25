@@ -7,7 +7,11 @@
 // unit test of either half alone cannot see it.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
 import type { KeybindingOverride } from '$lib/schema/keybinding-overrides';
-import { installLayoutStubs, mountEditor, type MountedEditor } from '../editor-mount';
+import {
+	installLayoutStubs,
+	mountEditor,
+	type MountedEditor
+} from '$lib/test/harness/mount-editor.svelte';
 import { cellAt, pressInCell } from './mount-table';
 
 beforeAll(installLayoutStubs);

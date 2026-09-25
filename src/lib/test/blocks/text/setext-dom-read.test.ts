@@ -8,7 +8,12 @@ import { describe, it, expect, beforeAll, afterEach } from 'vitest';
 import { mount, unmount, flushSync } from 'svelte';
 import TextEditableBlock from '$lib/components/blocks/text/TextEditableBlock.svelte';
 import { parse } from '$lib/core/parser';
-import { installLayoutStubs, mountEditor, surfaceAt, type MountedEditor } from '../editor-mount';
+import {
+	installLayoutStubs,
+	mountEditor,
+	surfaceAt,
+	type MountedEditor
+} from '$lib/test/harness/mount-editor.svelte';
 import { makeStubBlockEdit } from '../../harness/editor-actions';
 import { editorMountContext } from '../../harness/mount-context';
 import { installMathInline } from './math-widget-fixture';

@@ -16,7 +16,7 @@ import {
 	type EditorPlugin
 } from '$lib/plugin';
 import { installEditorDomStubsForTests, resetPluginPlatformForTests } from '$lib/testing';
-import { mountEditor, type MountedEditor } from '../blocks/editor-mount';
+import { mountEditor, type MountedEditor } from '$lib/test/harness/mount-editor.svelte';
 import { takeDevWarns } from '../support/warn-gate';
 import RogueCaretDoorBlock from './fixtures/RogueCaretDoorBlock.svelte';
 import MarkerSourcePlainBlock from './fixtures/MarkerSourcePlainBlock.svelte';

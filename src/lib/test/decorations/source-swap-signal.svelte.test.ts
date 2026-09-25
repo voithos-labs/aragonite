@@ -3,8 +3,11 @@
 // Whether replacing the whole `source` reaches the decoration code can only be asked of the
 // mounted component: from there a swap and an edit are the same `getDoc()` read.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
-import { installLayoutStubs } from '../blocks/editor-mount';
-import { mountEditorOverProps, unmountEditorOverProps } from '../harness/editor-over-props.svelte';
+import {
+	installLayoutStubs,
+	mountEditor,
+	destroyMountedEditors
+} from '$lib/test/harness/mount-editor.svelte';
 import type { DecorationSource, MarkDecoration } from '$lib/decorations/types';
 import type { DecorationEngine } from '$lib/decorations/decoration-state.svelte';
 import { settleEditor } from '$lib/test/harness/settle';
@@ -15,9 +18,9 @@ interface SwapSeam {
 }
 
 beforeAll(installLayoutStubs);
-afterEach(unmountEditorOverProps);
+afterEach(destroyMountedEditors);
 
-const mountEditor = (source: string) => mountEditorOverProps<SwapSeam>({ source });
+const mountSource = (source: string) => mountEditor<SwapSeam>({ source });
 
 /** Marks the document's last block, a path only the document it ran against has. */
 function tailSource(seen: { blocks: number; epoch: number }[]): DecorationSource {
@@ -32,7 +35,7 @@ function tailSource(seen: { blocks: number; epoch: number }[]): DecorationSource
 
 describe('a `source` prop swap signals the decorations subsystem', () => {
 	it('re-provides every registered source against the new document', async () => {
-		const { editor, props } = mountEditor('one\n\ntwo\n\nthree\n');
+		const { instance: editor, props } = mountSource('one\n\ntwo\n\nthree\n');
 		const seen: { blocks: number; epoch: number }[] = [];
 		editor.getDecorations().addSource(tailSource(seen));
 		expect(seen).toEqual([{ blocks: 3, epoch: 0 }]);
@@ -46,7 +49,7 @@ describe('a `source` prop swap signals the decorations subsystem', () => {
 	// The buckets, not the counter: `runSource` skips the reassignment when a source was empty
 	// and stays empty, so asserting on the counter alone would pass over a stale bucket.
 	it('replaces the published buckets, leaving nothing at a path the new document lacks', async () => {
-		const { editor, props } = mountEditor('one\n\ntwo\n\nthree\n');
+		const { instance: editor, props } = mountSource('one\n\ntwo\n\nthree\n');
 		editor.getDecorations().addSource(tailSource([]));
 		const engine = editor.__test.getDecorationEngine();
 		expect(engine.marksForPath([2])).toHaveLength(1);
@@ -60,7 +63,7 @@ describe('a `source` prop swap signals the decorations subsystem', () => {
 
 	// The perf contract: a document swap with nothing registered does no decoration work.
 	it('skips the run entirely when no source is registered', async () => {
-		const { editor, props } = mountEditor('one\n\ntwo\n');
+		const { instance: editor, props } = mountSource('one\n\ntwo\n');
 		props.source = 'only\n';
 		await settleEditor();
 		expect(editor.__test.getDecorationEngine().sourceCount).toBe(0);
@@ -77,7 +80,7 @@ describe('a `source` prop swap signals the decorations subsystem', () => {
 // `reactivity/content-version-doors`.
 describe('a `source` prop swap moves the content version', () => {
 	it('announces the replaced document, and nothing when the prop is rewritten unchanged', async () => {
-		const { editor, props } = mountEditor('one\n\ntwo\n');
+		const { instance: editor, props } = mountSource('one\n\ntwo\n');
 		const before = editor.__test.getContentVersion();
 
 		props.source = 'only\n';
@@ -94,7 +97,7 @@ describe('a `source` prop swap moves the content version', () => {
 
 describe('an open find bar rescans against the swapped-in document', () => {
 	it('clears a stale match count and its overlay decorations when the new document has none', async () => {
-		const { editor, props } = mountEditor('alpha one\n\nalpha two\n\nalpha three\n');
+		const { instance: editor, props } = mountSource('alpha one\n\nalpha two\n\nalpha three\n');
 		const search = editor.getSearch();
 		search.open();
 		search.setQuery('alpha');
@@ -108,7 +111,7 @@ describe('an open find bar rescans against the swapped-in document', () => {
 	});
 
 	it('rescans onto the new document’s matches when it has some', async () => {
-		const { editor, props } = mountEditor('alpha one\n\nbeta two\n');
+		const { instance: editor, props } = mountSource('alpha one\n\nbeta two\n');
 		const search = editor.getSearch();
 		search.open();
 		search.setQuery('alpha');

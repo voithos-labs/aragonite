@@ -5,7 +5,11 @@
 // decline them (cell-keydown-plan.test.ts) and the behaviour has to be covered where it happens.
 // A full Editor mount, because each case writes and replaces the node.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
-import { installLayoutStubs, mountEditor, type MountedEditor } from '../editor-mount';
+import {
+	installLayoutStubs,
+	mountEditor,
+	type MountedEditor
+} from '$lib/test/harness/mount-editor.svelte';
 import { pressInCell } from './mount-table';
 
 beforeAll(installLayoutStubs);

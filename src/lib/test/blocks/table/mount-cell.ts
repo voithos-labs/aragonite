@@ -4,7 +4,6 @@
 // `TableContext` so a test reads what the cell asked its table for. Read-only questions and single
 // gestures only: a commit replaces the node and nothing above re-renders with the replacement.
 
-import { mount, unmount, flushSync } from 'svelte';
 import { vi } from 'vitest';
 import TableCellBlock from '$lib/components/blocks/table/TableCellBlock.svelte';
 import type { BlockComponent } from '$lib/block-component';
@@ -17,7 +16,7 @@ import { TABLE_CONTEXT_KEY } from '$lib/editor-keys';
 import { createSelectionState } from '$lib/selection/selection-state.svelte';
 import { createWidgetSelectionState } from '$lib/components/image/widget-selection-state.svelte';
 import { makeStubBlockEdit } from '../../harness/editor-actions';
-import { editorMountContext } from '../../harness/mount-context';
+import { mountBlock } from '../../harness/mount-block';
 
 /** A cell renders no decorations unless a test installs some. */
 export const noIslands = {
@@ -81,52 +80,31 @@ function documentAround(node: CstNode): Document {
 
 /** The last row of a 2x2 table, so a vertical move exits rather than staying inside. */
 export function mountCell(raw: string, policies: Partial<EditorPolicies> = {}): MountedCell {
-	const target = document.createElement('div');
-	document.body.appendChild(target);
 	const node: CstNode = { kind: 'tableCell', leadingTrivia: '', raw };
-	const blockEdit = makeStubBlockEdit();
 	const selection = createSelectionState();
 	const tableContext = makeStubTableContext();
-
-	const doc = documentAround(node);
-	const context = editorMountContext({
-		blockEdit,
-		policies,
-		doc: { doc: () => doc },
-		services: {
-			decorations: noIslands,
-			selection,
-			widgetSelection: createWidgetSelectionState({ onSelect: () => {} })
-		}
-	});
-	context.set(TABLE_CONTEXT_KEY, tableContext);
-
 	const refs: (BlockComponent | undefined)[] = [];
-	const instance = mount(TableCellBlock, {
-		target,
-		props: {
-			node,
-			index: 0,
-			myPath: [0, 1, 0],
-			rowIdx: 1,
-			columnCount: 2,
-			rowCount: 2,
-			slots: refSlotsOver(refs)
+	const mounted = mountBlock(TableCellBlock, {
+		doc: documentAround(node),
+		path: [0, 1, 0],
+		props: { rowIdx: 1, columnCount: 2, rowCount: 2, slots: refSlotsOver(refs) },
+		overrides: {
+			policies,
+			services: {
+				decorations: noIslands,
+				selection,
+				widgetSelection: createWidgetSelectionState({ onSelect: () => {} })
+			}
 		},
-		context
+		context: [[TABLE_CONTEXT_KEY, tableContext]]
 	});
-	flushSync();
-
 	return {
-		instance: instance as MountedCell['instance'],
-		el: target.querySelector('.table-cell') as HTMLElement,
-		blockEdit,
+		instance: mounted.instance as MountedCell['instance'],
+		el: mounted.target.querySelector('.table-cell') as HTMLElement,
+		blockEdit: mounted.blockEdit,
 		selection,
 		tableContext,
 		ref: () => refs[0]!,
-		dispose: async () => {
-			await unmount(instance);
-			target.remove();
-		}
+		dispose: mounted.dispose
 	};
 }

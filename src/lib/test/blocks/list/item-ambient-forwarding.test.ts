@@ -7,7 +7,12 @@
 // measured against a control case through the same `ambientSpanOf` helper.
 import { describe, it, expect, afterEach, beforeAll } from 'vitest';
 import { ambientSpanOf } from '$lib/ambient/ambient-dom';
-import { installLayoutStubs, mountEditor, blockHostAt, surfaceAt } from '../editor-mount';
+import {
+	installLayoutStubs,
+	mountEditor,
+	blockHostAt,
+	surfaceAt
+} from '$lib/test/harness/mount-editor.svelte';
 
 beforeAll(installLayoutStubs);
 

@@ -6,7 +6,12 @@
 // place. Miss-analysis (Sel-F1): the e2e helper waits on the attribute, which made it the answer
 // to "is a selection live" everywhere, and no test compared it against what the overlay draws.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
-import { installLayoutStubs, mountEditor, placeCaret, type MountedEditor } from '../editor-mount';
+import {
+	installLayoutStubs,
+	mountEditor,
+	placeCaret,
+	type MountedEditor
+} from '$lib/test/harness/mount-editor.svelte';
 import { cellAt, installTableLayoutStubs } from './mount-table';
 import { pressKey } from '$lib/test/harness/settle';
 

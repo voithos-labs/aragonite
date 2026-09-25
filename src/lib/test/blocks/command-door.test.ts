@@ -13,7 +13,7 @@ import {
 	selectRange,
 	surfaceAt,
 	type MountedEditor
-} from './editor-mount';
+} from '$lib/test/harness/mount-editor.svelte';
 
 beforeAll(() => installLayoutStubs());
 

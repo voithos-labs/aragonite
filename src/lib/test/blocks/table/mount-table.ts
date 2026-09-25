@@ -3,16 +3,15 @@
 // Mounts of a cell on its own (cell-write-escape, cell-reveal-caret) stub that context; these
 // tests are about what the table does with it.
 
-import { mount, unmount, flushSync } from 'svelte';
 import TableBlock from '$lib/components/blocks/table/TableBlock.svelte';
 import type { BlockComponent } from '$lib/block-component';
 import type { CstNode, Document } from '$lib/core/nodes';
 import type { FocusActions } from '$lib/action-contracts';
 import type { StickyColumnState } from '$lib/cursor/sticky-column';
-import { parse } from '$lib/core/parser';
 import { makeStickyColumn, makeStubFocus } from '../../harness/editor-actions';
-import { editorMountContext, type MountContextOverrides } from '../../harness/mount-context';
-import { blockHostAt, type MountedEditor } from '../editor-mount';
+import { mountBlock } from '../../harness/mount-block';
+import type { MountContextOverrides } from '../../harness/mount-context';
+import { blockHostAt, type MountedEditor } from '$lib/test/harness/mount-editor.svelte';
 import { pressKey } from '$lib/test/harness/settle';
 
 /** jsdom implements neither the caret geometry an exit gesture measures nor a windowing
@@ -49,24 +48,15 @@ export interface MountedTable {
 }
 
 /** Mount the table parsed from `source` at document index 0. Read-only questions only: a commit
- *  needs a real parent to re-render with the replaced node (`blocks/editor-mount.ts`). */
+ *  needs a real parent to re-render with the replaced node (`harness/mount-editor.svelte.ts`). */
 export function mountTable(source: string, overrides: MountContextOverrides = {}): MountedTable {
-	const target = document.createElement('div');
-	document.body.appendChild(target);
-	const doc = parse(source);
 	const focus = overrides.focus ?? makeStubFocus();
 	const stickyColumn = overrides.services?.stickyColumn ?? makeStickyColumn();
-	const instance = mount(TableBlock, {
-		target,
-		props: { node: doc.children[0], index: 0, myPath: [0] },
-		context: editorMountContext({
-			...overrides,
-			focus,
-			doc: { doc: () => doc, ...overrides.doc },
-			services: { ...overrides.services, stickyColumn }
-		})
+	const mounted = mountBlock(TableBlock, {
+		source,
+		overrides: { ...overrides, focus, services: { ...overrides.services, stickyColumn } }
 	});
-	flushSync();
+	const { doc, target, instance } = mounted;
 	const el = target.querySelector('[role="table"]') as HTMLElement;
 	return {
 		doc,
@@ -84,10 +74,7 @@ export function mountTable(source: string, overrides: MountContextOverrides = {}
 			if (!found) throw new Error(`no mounted cell at ${rowIdx},${colIdx}`);
 			return found;
 		},
-		dispose: async () => {
-			await unmount(instance);
-			target.remove();
-		}
+		dispose: mounted.dispose
 	};
 }
 

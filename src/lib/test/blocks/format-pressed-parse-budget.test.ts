@@ -14,7 +14,12 @@ import {
 	perfSnapshot,
 	resetPerfInstruments
 } from '$lib/perf/instruments';
-import { installLayoutStubs, mountEditor, selectRange, surfaceAt } from './editor-mount';
+import {
+	installLayoutStubs,
+	mountEditor,
+	selectRange,
+	surfaceAt
+} from '$lib/test/harness/mount-editor.svelte';
 import { mountCell } from './table/mount-cell';
 
 beforeAll(() => installLayoutStubs());

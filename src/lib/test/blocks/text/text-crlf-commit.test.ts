@@ -4,12 +4,10 @@
 // appending a hard `\n` there would make the first keystroke rewrite the block's line ending.
 // Driven through the mounted component's real input listener, since the commit lives there.
 import { describe, it, expect, afterEach, vi } from 'vitest';
-import { mount, unmount, flushSync } from 'svelte';
+import { unmount } from 'svelte';
 import TextEditableBlock from '$lib/components/blocks/text/TextEditableBlock.svelte';
-import { parse } from '$lib/core/parser';
 import type { EditorServices } from '$lib/editor-keys';
-import { makeStubBlockEdit } from '../../harness/editor-actions';
-import { editorMountContext } from '../../harness/mount-context';
+import { mountBlock } from '../../harness/mount-block';
 
 // The render effect reads decorations off `decorationEngine`; the stub returns none.
 const noIslands = {
@@ -17,20 +15,10 @@ const noIslands = {
 } as unknown as EditorServices['decorations'];
 
 function mountText(source: string) {
-	const target = document.createElement('div');
-	document.body.appendChild(target);
-	const doc = parse(source);
-	const blockEdit = makeStubBlockEdit();
-	const instance = mount(TextEditableBlock, {
-		target,
-		props: { node: doc.children[0], index: 0, myPath: [0] },
-		context: editorMountContext({
-			blockEdit,
-			doc: { doc: () => doc },
-			services: { decorations: noIslands }
-		})
+	const { instance, target, blockEdit } = mountBlock(TextEditableBlock, {
+		source,
+		overrides: { services: { decorations: noIslands } }
 	});
-	flushSync();
 	const el = target.querySelector('.text-editable-block') as HTMLElement;
 	return { instance, el, blockEdit };
 }

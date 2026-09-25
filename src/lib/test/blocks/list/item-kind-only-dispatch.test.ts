@@ -7,7 +7,7 @@
 // false; what only a mount shows is what false means here: no `preventDefault`, and a
 // `ListContext` nothing touched.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
-import { installLayoutStubs } from '../editor-mount';
+import { installLayoutStubs } from '$lib/test/harness/mount-editor.svelte';
 import { mountItem, type MountedItem } from './mount-item';
 import { allowDevWarns } from '$lib/test/support/warn-gate';
 import { dispatchKey } from '$lib/test/harness/settle';
