@@ -85,7 +85,7 @@ export async function applyListAbsorb(
 		plan.innerIndex,
 		plan.offset,
 		plan.targetRaw,
-		ctx.grammar
+		ctx.reading.grammar
 	);
 	const pastedItems = (pastedList.children ?? []).map((c) => cloneNode(c));
 

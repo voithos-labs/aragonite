@@ -8,7 +8,7 @@ import { describe, it, expect, beforeAll } from 'vitest';
 import { augmentInlineWidgetKind } from '$lib/core/inline/inline-widgets';
 import { imageWidgetOnSelectedKey } from '$lib/components/image/image-widget-editing';
 import { harness } from './widget-selected-fixture';
-import { fixtureLinkRef } from '../../harness/fixture-grammar';
+import { fixtureReading } from '../../harness/fixture-grammar';
 
 beforeAll(() => {
 	// Mirrors the mount-time wire-up (built-in-blocks.ts): the core image kind
@@ -39,7 +39,7 @@ describe('handleSelectedWidgetKeydown: Shift+Arrow through the editing policy', 
 		const { interaction, commits } = harness(
 			'[![cat][shot]][repo]\n',
 			1,
-			fixtureLinkRef({
+			fixtureReading({
 				current: resolve,
 				signature: 'shot|repo'
 			})

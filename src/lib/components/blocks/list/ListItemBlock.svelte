@@ -61,14 +61,11 @@
 	const parentBlockEdit = getContext<BlockEditActions>(BLOCK_EDIT_KEY);
 	const parentFocus = getContext<FocusActions>(FOCUS_KEY);
 	const parentContainerEdit = getContext<ContainerEditActions>(CONTAINER_EDIT_KEY);
-	const { stickyColumn, selection, registryView, decorations, events, activePlugins } =
+	const { stickyColumn, selection, decorations, events, activePlugins } =
 		getContext<EditorServices>(EDITOR_SERVICES_KEY);
-	const {
-		keybindingOverrides,
-		blockDragHandles: getDragHandles,
-		presentationMode: getPresentationMode
-	} = getContext<EditorPolicies>(EDITOR_POLICIES_KEY);
-	const { reading: linkRef } = getContext<EditorDoc>(EDITOR_DOC_KEY);
+	const { keybindingOverrides, blockDragHandles: getDragHandles } =
+		getContext<EditorPolicies>(EDITOR_POLICIES_KEY);
+	const { reading } = getContext<EditorDoc>(EDITOR_DOC_KEY);
 
 	const listContext = getContext<ListContext>(LIST_CONTEXT_KEY);
 	// $derived, not a mount-time snapshot: a runtime prop toggle must reach blocks
@@ -78,7 +75,7 @@
 	// a lone item still counts as one (a dragged sibling never arrives, and the class costs
 	// nothing) and simply shows nothing to grab.
 	const showsHandle = $derived(showsListItemDragHandle(itemCount, dragHandles));
-	const presentationMode = $derived(getPresentationMode?.() ?? 'source');
+	const presentationMode = $derived(reading.mode());
 	const readOnly = $derived(presentationMode === 'reading');
 
 	// The marker-hiding CSS tells a bullet from a number from a checkbox through this attribute,
@@ -157,9 +154,7 @@
 		{
 			scope,
 			stickyColumn,
-			grammar: registryView.grammar,
-			getPresentationMode,
-			linkRef,
+			reading,
 			parent: {
 				blockEdit: parentBlockEdit,
 				focus: parentFocus,
@@ -271,7 +266,7 @@
 				chord,
 				{ kind: node.kind, runCommand },
 				{
-					getPresentationMode,
+					getPresentationMode: reading.mode,
 					activation: activePlugins,
 					isCrossBlockRange: () => selection?.isCrossBlock ?? false,
 					// A key bubbling to a container carries no range command: the block below owns

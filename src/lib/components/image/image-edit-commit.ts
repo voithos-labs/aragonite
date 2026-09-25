@@ -3,15 +3,14 @@ import { resolvedInlineContent } from '../../core/inline/inline-cache';
 import { flattenInlineWidgets } from '../../core/inline/inline-widgets';
 import type { Document, ImageFields, InlineNode } from '../../core/nodes';
 import type { NodeView } from '../../core/node-views';
-import type { LinkReferenceResolverRef } from '../../editor-keys';
 import type { UndoController } from '../../editor-actions/deps';
 import { createInlineRangeCommit } from '../../editor-actions/inline-range-commit';
 import type { EditorEvents } from '../../editor-events';
-import type { GrammarView } from '../../schema/block-openers';
 import { FALLBACK_CONTENT_WIDTH } from '../../cursor/typography-estimates';
 import { blockNodeAt } from '../../tree-operations/node-primitives';
 import { buildImageEditBytes, imageFieldsFromInline, sameImageFields } from './image-source-bytes';
 import type { WidgetSelectionState, WidgetTarget } from './widget-selection-state.svelte';
+import type { Reading } from '../../schema/reading';
 
 // ── Public API ──────────────────────────────────────────────────────────
 
@@ -19,10 +18,10 @@ import type { WidgetSelectionState, WidgetTarget } from './widget-selection-stat
 export function imageAtTarget(
 	doc: Document,
 	target: WidgetTarget,
-	linkRef: LinkReferenceResolverRef
+	reading: Reading
 ): InlineNode | null {
 	const paragraph = blockNodeAt(doc, target.paragraphPath);
-	return paragraph ? findImageInParagraph(paragraph, target.sourceStart, linkRef) : null;
+	return paragraph ? findImageInParagraph(paragraph, target.sourceStart, reading) : null;
 }
 
 export interface ImageEditCommitterDeps {
@@ -31,9 +30,9 @@ export interface ImageEditCommitterDeps {
 	widgetSelection: WidgetSelectionState;
 	controller: UndoController;
 	events: EditorEvents;
-	linkRef: LinkReferenceResolverRef;
-	/** This editor's grammar, for the block's own raw-write rule. */
-	grammar: GrammarView;
+	/** How the editor reads its bytes: the image is found in the block as drawn, and the block's
+	 *  own raw-write rule reads its grammar. */
+	reading: Reading;
 }
 
 export interface SelectedImageFields {
@@ -66,7 +65,7 @@ export interface ImageEditCommitter {
 
 export function createImageEditCommitter(deps: ImageEditCommitterDeps): ImageEditCommitter {
 	const { getDoc, getEditorEl, widgetSelection, controller, events } = deps;
-	const inlineRange = createInlineRangeCommit({ getDoc, controller, grammar: deps.grammar });
+	const inlineRange = createInlineRangeCommit({ getDoc, controller, reading: deps.reading });
 
 	function queryWidgetEl(paragraphPath: number[], sourceStart: number): HTMLElement | null {
 		const root = getEditorEl();
@@ -81,7 +80,7 @@ export function createImageEditCommitter(deps: ImageEditCommitterDeps): ImageEdi
 	}
 
 	const imageAt = (target: WidgetTarget): InlineNode | null =>
-		imageAtTarget(getDoc(), target, deps.linkRef);
+		imageAtTarget(getDoc(), target, deps.reading);
 
 	// The bytes the last popover write moved, applied by the next stale check: the write runs as
 	// the popover unmounts, where a read of the selection still returns the one before the click.
@@ -100,7 +99,7 @@ export function createImageEditCommitter(deps: ImageEditCommitterDeps): ImageEdi
 	): { image: InlineNode; bytes: string } | null {
 		const paragraph = blockNodeAt(getDoc(), target.paragraphPath);
 		if (!paragraph) return null;
-		const image = findImageInParagraph(paragraph, target.sourceStart, deps.linkRef);
+		const image = findImageInParagraph(paragraph, target.sourceStart, deps.reading);
 		if (!image) return null;
 		// Keep the reference form when the url and title are untouched: writing the resolved
 		// url inline would leave the definition unused. Changing either is the user asking.
@@ -297,12 +296,12 @@ export function createImageEditCommitter(deps: ImageEditCommitterDeps): ImageEdi
 function findImageInParagraph(
 	para: NodeView,
 	sourceStart: number,
-	linkRef: LinkReferenceResolverRef
+	reading: Reading
 ): InlineNode | null {
 	// Resolver-aware so a reference-style image resolves as the render path saw it,
 	// and flattened so an image nested in a link (`[![alt][ref]][repo]`) is found.
-	const inlines = resolvedInlineContent(para, linkRef);
-	for (const widget of flattenInlineWidgets(inlines, para.raw, linkRef.grammar)) {
+	const inlines = resolvedInlineContent(para, reading);
+	for (const widget of flattenInlineWidgets(inlines, para.raw, reading.grammar)) {
 		if (widget.kind === 'image' && widget.start === sourceStart) return widget;
 	}
 	return null;

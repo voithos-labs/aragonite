@@ -26,6 +26,7 @@ import {
 import type { EditEvent } from '../editor-events';
 import { isDirectiveKind } from '../core/directive/registry';
 import { defaultGrammarView, isBlockOpenerRegistered } from '../schema/block-openers';
+import { kitReading } from './kit-reading';
 import { getBlockKindDescriptor, type BlockKindDescriptor } from '../schema/block-kind-descriptor';
 import { rebuildContainerRawIfContainer } from '../schema/container-raw';
 import { createSharingState } from '../tree-operations/sharing';
@@ -270,9 +271,7 @@ export async function checkStripLocalIndexAddressing(
 				path: containerChain.slice(0, depth + 1)
 			},
 			stickyColumn: stubStickyColumn(),
-			grammar: defaultGrammarView,
-			getPresentationMode: undefined,
-			linkRef: { grammar: defaultGrammarView },
+			reading: kitReading(),
 			parent: {
 				blockEdit: parentBundle?.blockEdit ?? stubBlockEdit(),
 				focus: parentBundle?.focus ?? recordingFocus(),
@@ -371,7 +370,7 @@ function mountTableMutations(children: CstNode[], tableIndex: number) {
 		},
 		parentContainerEdit: rootContainerEdit,
 		controller,
-		grammar: deps.grammar,
+		reading: deps.reading,
 		focusCell: () => {},
 		announceReorder: () => {}
 	});
@@ -469,9 +468,7 @@ async function checkListIndentOneUndo(): Promise<void> {
 		parentFocus: recordingFocus(),
 		parentListContext: undefined,
 		controller,
-		grammar: deps.grammar,
-		getPresentationMode: undefined,
-		linkRef: deps.linkRef
+		reading: deps.reading
 	});
 
 	const before = deps.undoManager.getStacks().undo.length;
@@ -526,9 +523,7 @@ export async function checkFocusBubbleTermination(
 				},
 				path: [index],
 				stickyColumn: stubStickyColumn(),
-				grammar: defaultGrammarView,
-				getPresentationMode: undefined,
-				linkRef: { grammar: defaultGrammarView },
+				reading: kitReading(),
 				parent: { blockEdit: stubBlockEdit(), focus, containerEdit: {} as never }
 			}
 		);

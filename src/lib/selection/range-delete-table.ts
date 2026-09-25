@@ -7,8 +7,7 @@
  */
 
 import type { GrammarView } from '../schema/block-openers';
-import type { PresentationMode } from '../presentation-mode';
-import type { InlineResolverRef } from '../schema/inline-construct-policy';
+import type { Reading } from '../schema/reading';
 import type { CstNode, Document } from '../core/nodes';
 import { metadataOf } from '../core/nodes';
 import type { SelectionPoint } from './primitives';
@@ -23,8 +22,7 @@ import {
 	applyPlannedDeletion,
 	rebuildSharedAncestries,
 	truncateEndInPlace,
-	truncateStartInPlace,
-	type LiveSeamContext
+	truncateStartInPlace
 } from './range-delete-ceremony';
 import { comparePaths } from './path-math';
 import { blockNodeAt, emptyParagraph } from '../tree-operations/node-primitives';
@@ -51,12 +49,11 @@ export function tableAwareRangeDelete(
 	start: SelectionPoint,
 	end: SelectionPoint,
 	sharing: SharingState,
-	grammar: GrammarView,
-	presentationMode: PresentationMode | undefined,
-	linkRef: InlineResolverRef
+	reading: Reading
 ): RangeDeleteResult {
+	const { grammar } = reading;
 	const sameBlock = comparePaths(start.path, end.path) === 0;
-	const live = { presentationMode, linkRef };
+	const live = reading;
 
 	// Copy both endpoint chains (and the table subtrees: cell raws, row splices, and header
 	// promotion all write at depth) before any capture or mutation.
@@ -147,7 +144,7 @@ function deleteFromProseIntoTable(
 	table: CstNode,
 	sharing: SharingState,
 	grammar: GrammarView,
-	live: LiveSeamContext
+	live: Reading
 ): RangeDeleteResult {
 	const startC = nearestChromeContainer(doc, start.path);
 	const startIsChrome = startC !== null && isChromeChild(startC, start.path);
@@ -205,7 +202,7 @@ function deleteFromTableIntoProse(
 	endBlock: CstNode,
 	sharing: SharingState,
 	grammar: GrammarView,
-	live: LiveSeamContext
+	live: Reading
 ): RangeDeleteResult {
 	const lineEnding = trailingLineEnding(table.raw);
 	const startCell = cellIndexOf(start, 'deleteFromTableIntoProse:start');

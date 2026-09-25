@@ -59,7 +59,7 @@ async function commitInlineJoin(
 				{ children: view.children, ownerKind: view.node.kind, owner: view.node },
 				leafIndex,
 				result.newRaw,
-				ctx.grammar,
+				ctx.reading.grammar,
 				view.sharing
 			);
 			siblings = view.children;
@@ -98,6 +98,6 @@ export async function applyStructuralResult(
 		focusOffset: result.focusOffset,
 		source: 'paste-dispatch',
 		trailingSeparator,
-		grammar: ctx.grammar
+		grammar: ctx.reading.grammar
 	});
 }

@@ -7,7 +7,7 @@
 
 import type { BlockEditActions, UndoEntryMode } from '../../action-contracts';
 import type { CstNode, Document } from '../../core/nodes';
-import type { GrammarView } from '../../schema/block-openers';
+import type { Reading } from '../../schema/reading';
 import type { PluginActivation } from '../../schema/plugin-activation';
 import { parse } from '../../core/parser';
 import { isBlockNode, nodeAt } from '../node-primitives';
@@ -17,7 +17,6 @@ import {
 	getPasteSurface,
 	isPasteSurfaceRegistered,
 	type PasteRange,
-	type PasteSeam,
 	type PasteSurface,
 	type StructuralPasteResult
 } from '../paste-surfaces';
@@ -56,13 +55,12 @@ export interface PasteDispatchContext {
 	controller: PasteCommitCoordinator;
 	/** `'join'`: the cross-block caller owns the undo entry, so no snapshot is pushed here. */
 	undoEntry?: UndoEntryMode;
-	/** The instance's grammar: the clipboard parse below and the join branch's same-slot
-	 *  reparse both read it, so an unlisted plugin's opener never takes pasted bytes here. */
-	grammar: GrammarView;
+	/** The instance's reading: the clipboard parse and the join branch's same-slot reparse read its
+	 *  grammar, so an unlisted plugin's opener never takes pasted bytes, and the delete half is a
+	 *  join its mode decides the cleanup of. */
+	reading: Reading;
 	/** The plugins this instance activated, so an unlisted plugin's paste hooks stay out. */
 	activePlugins: PluginActivation;
-	/** What the paste's delete half needs for the join cleanup; absent leaves it byte-literal. */
-	seam?: PasteSeam;
 }
 
 /** Where an inline paste's caret belongs once the commit settled, when that moved it. */
@@ -93,12 +91,7 @@ export async function pasteDispatch(
 	// Once, before any branch below reads the text; a transform that empties it is an
 	// empty paste.
 	const { activePlugins } = ctx;
-	const seam: PasteSeam = {
-		presentationMode: ctx.seam?.presentationMode,
-		// No join context means no live mode, so the cut stays literal and reads no definition.
-		linkRef: ctx.seam?.linkRef ?? { grammar: ctx.grammar },
-		grammar: ctx.grammar
-	};
+	const { reading } = ctx;
 	const transformed = applyPasteTransforms(input.pastedText, activePlugins);
 	if (!transformed) return {};
 
@@ -113,7 +106,7 @@ export async function pasteDispatch(
 	// bytes are what every block route writes.
 	const ending = pasteLineEnding(ctx.doc, input.targetPath, targetNode, input.offset);
 	const parsed = parse(withLineEnding(pastedText, ending), {
-		grammar: ctx.grammar,
+		grammar: reading.grammar,
 		scope: 'fragment'
 	});
 	if (parsed.children.length === 0) return {};
@@ -129,14 +122,14 @@ export async function pasteDispatch(
 		const flattened = pastedText.replace(/(\r?\n)+/g, ' ').trim();
 		const hook =
 			getPasteSurface(targetNode.kind, activePlugins)?.onInlinePaste ?? defaultInlineHook;
-		const result = hook(targetNode, input.offset, flattened, input.preDelete, seam);
+		const result = hook(targetNode, input.offset, flattened, input.preDelete, reading);
 		const landing = await applyInlineResult(input.targetPath, result, ctx);
 		return inlineCaretResult(result.caretOffset, landing);
 	}
 
 	// The delete half, applied before the container finders, which decide on the target's bytes and
 	// never cut the range themselves; the hook routes cut their own, kind rules included.
-	const target = targetAfterPreDelete(targetNode, input, seam);
+	const target = targetAfterPreDelete(targetNode, input, reading);
 
 	const unwrap = findContainerMatchingUnwrap(
 		ctx.doc,
@@ -192,7 +185,7 @@ export async function pasteDispatch(
 			blocks: blocks.slice(),
 			controller: ctx.controller,
 			undoEntry: ctx.undoEntry ?? 'own',
-			grammar: ctx.grammar
+			grammar: reading.grammar
 		});
 		return {};
 	}
@@ -201,7 +194,7 @@ export async function pasteDispatch(
 		const hook = surface?.onInlinePaste ?? defaultInlineHook;
 		const result = inlineResultInEnding(
 			targetNode.raw,
-			hook(targetNode, input.offset, pastedText, input.preDelete, seam),
+			hook(targetNode, input.offset, pastedText, input.preDelete, reading),
 			ending
 		);
 		const landing = await applyInlineResult(input.targetPath, result, ctx);
@@ -209,7 +202,7 @@ export async function pasteDispatch(
 	}
 
 	const hook = surface?.onStructuralPaste ?? defaultStructuralHook;
-	const result = hook(targetNode, input.offset, blocks.slice(), input.preDelete, seam);
+	const result = hook(targetNode, input.offset, blocks.slice(), input.preDelete, reading);
 	await applyStructuralResult(
 		input.targetPath,
 		result,
@@ -223,16 +216,10 @@ export async function pasteDispatch(
 function targetAfterPreDelete(
 	node: CstNode,
 	input: PasteDispatchInput,
-	seam: PasteSeam
+	reading: Reading
 ): { raw: string; offset: number } {
 	if (!input.preDelete) return { raw: node.raw, offset: input.offset };
-	const cut = cutRangeFromDisplay(
-		node,
-		trimTrailingLineEnding(node.raw),
-		input.preDelete,
-		seam.presentationMode,
-		seam.linkRef
-	);
+	const cut = cutRangeFromDisplay(node, trimTrailingLineEnding(node.raw), input.preDelete, reading);
 	return { raw: cut.display + trailingLineEnding(node.raw), offset: cut.offset };
 }
 

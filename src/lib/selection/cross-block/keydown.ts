@@ -90,7 +90,7 @@ async function handleCrossBlockActive(
 	// Extend/collapse/copy stay live in reading mode; these two branches delete.
 	if (e.key === 'Backspace' || e.key === 'Delete') {
 		e.preventDefault();
-		if (isReadingMode(ctx.getPresentationMode)) return true;
+		if (isReadingMode(ctx.reading.mode)) return true;
 		await performCrossBlockDelete(mutCtx, { tableCoverageDelete: true });
 		return true;
 	}
@@ -101,14 +101,14 @@ async function handleCrossBlockActive(
 	// which are declined.
 	if (isClaimedRewriteChord(e)) {
 		e.preventDefault();
-		if (isReadingMode(ctx.getPresentationMode)) return true;
+		if (isReadingMode(ctx.reading.mode)) return true;
 		await dispatchOverRange(ctx, e, myPath);
 		return true;
 	}
 
 	if (isCommandCandidateKey(e)) {
 		e.preventDefault();
-		if (isReadingMode(ctx.getPresentationMode)) return true;
+		if (isReadingMode(ctx.reading.mode)) return true;
 		// Mount the delete's own caret, not the pre-delete start path: `rangeDelete` returns the
 		// post-delete position, and for a table endpoint that is the [table, row, col] cell whose
 		// `runCommand` exists (the wrapper path has none).
@@ -127,7 +127,7 @@ async function handleCrossBlockActive(
 					history: ctx.history,
 					pluginEditor: ctx.pluginEditor,
 					activation: ctx.activePlugins,
-					getPresentationMode: ctx.getPresentationMode,
+					getPresentationMode: ctx.reading.mode,
 					isCrossBlockRange: () => selection.isCrossBlock,
 					crossBlockCommands: ctx.crossBlockCommands
 				},
@@ -257,7 +257,7 @@ async function dispatchOverRange(
 			history: ctx.history,
 			pluginEditor: ctx.pluginEditor,
 			activation: ctx.activePlugins,
-			getPresentationMode: ctx.getPresentationMode,
+			getPresentationMode: ctx.reading.mode,
 			isCrossBlockRange: () => ctx.selection.isCrossBlock,
 			crossBlockCommands: ctx.crossBlockCommands
 		},
@@ -389,7 +389,7 @@ function handleCompositionStart(
 	ctx.stickyColumn.reset();
 	ctx.edgeAffinity.reset();
 	if (!ctx.selection.isCrossBlock) return false;
-	if (isReadingMode(ctx.getPresentationMode)) return false;
+	if (isReadingMode(ctx.reading.mode)) return false;
 	performCrossBlockDeleteSync(mutCtx);
 	return true;
 }

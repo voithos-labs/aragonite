@@ -106,9 +106,9 @@ export async function handleCrossBlockTypeReplace(
 						chain[chain.length - 2]?.kind,
 						owned.raw.slice(0, charOffset) + typed + owned.raw.slice(charOffset)
 					),
-					ctx.grammar
+					ctx.reading.grammar
 				);
-				rebuildUnsharedChain(doc, chain, sharing, null, ctx.grammar);
+				rebuildUnsharedChain(doc, chain, sharing, null, ctx.reading.grammar);
 				return [{ op: 'noop' }];
 			}
 
@@ -121,7 +121,7 @@ export async function handleCrossBlockTypeReplace(
 				{ children: scopeView.children, ownerKind: scopeView.node.kind, owner: scopeView.node },
 				leafIndex,
 				newText,
-				ctx.grammar,
+				ctx.reading.grammar,
 				sharing
 			);
 			stampStructuralChange(scopeView.children, settled.change, sharing);
@@ -166,7 +166,7 @@ async function replaceCoveredBlockWithText(
 	const doc = ctx.getDoc();
 	const covered = blockNodeAt(doc, blockPath);
 	if (!covered) return;
-	const parsed = parseReplacement(covered, typed, ctx.grammar);
+	const parsed = parseReplacement(covered, typed, ctx.reading.grammar);
 	if (!parsed) return;
 
 	mutCtx.pushUndoSnapshot();
@@ -181,7 +181,7 @@ async function replaceCoveredBlockWithText(
 		focusReplacementIndex: parsed.replacement.length - 1,
 		focusOffset: CURSOR_END,
 		source: 'cross-block-covered-block',
-		grammar: ctx.grammar
+		grammar: ctx.reading.grammar
 	});
 }
 

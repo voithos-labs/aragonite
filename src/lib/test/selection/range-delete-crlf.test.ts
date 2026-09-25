@@ -9,19 +9,10 @@ import { createSharingState } from '../../tree-operations/sharing';
 import { registerCalloutForTests } from './chrome-plugins';
 import { expectParseConverged } from '../harness/parse-converged';
 import type { SelectionPoint } from '../../selection/primitives';
-import { fixtureLinkRef } from '../harness/fixture-grammar';
-import { defaultGrammarView } from '$lib/schema/block-openers';
+import { fixtureReading } from '../harness/fixture-grammar';
 
 function run(source: string, start: SelectionPoint, end: SelectionPoint): string {
-	const doc = rangeDelete(
-		parse(source),
-		start,
-		end,
-		createSharingState(),
-		defaultGrammarView,
-		undefined,
-		fixtureLinkRef()
-	).newDoc;
+	const doc = rangeDelete(parse(source), start, end, createSharingState(), fixtureReading()).newDoc;
 	// The new paragraph is a blank line, so its own separator is fixed up with the rest of the
 	// run; bytes alone would pass on a shape that reloads one empty paragraph wider (GH #96).
 	expectParseConverged(doc);

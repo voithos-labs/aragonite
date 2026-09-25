@@ -1,6 +1,5 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
-import { defaultGrammarView } from '$lib/schema/block-openers';
 import fc from 'fast-check';
 import type { InlineNode } from '../../core/nodes';
 import { parseInline } from '../../core/inline';
@@ -13,6 +12,7 @@ import type { InlineMarkKind } from '../../schema/inline-construct-policy';
 import { isSubsequence } from '$lib/test/harness/live-oracles';
 import { caretPositions, countOnScreen, paintedText } from '$lib/test/harness/painted-text';
 import { arbInlineSource, freshOrFixedSeed } from './arbitraries';
+import { fixtureReading } from '$lib/test/harness/fixture-grammar';
 
 // A pending mark rewrites bytes the user never sees, so the only honest check is what the render
 // path does with them: at every caret, for every subset of marks, the toggle took exactly (or
@@ -110,8 +110,7 @@ function resolveDraw(
 		'X',
 		new Set(marks),
 		parseInline(display, 0, display.length),
-		undefined,
-		defaultGrammarView
+		fixtureReading()
 	);
 	return result === null ? null : { caret, result };
 }

@@ -19,8 +19,7 @@ import { rangeDelete } from '../../selection/range-delete';
 import { createSharingState } from '../../tree-operations/sharing';
 import { registerCalloutForTests } from './chrome-plugins';
 import type { SelectionPoint } from '../../selection/primitives';
-import { fixtureLinkRef } from '../harness/fixture-grammar';
-import { defaultGrammarView } from '$lib/schema/block-openers';
+import { fixtureReading } from '../harness/fixture-grammar';
 
 beforeEach(() => {
 	registerCalloutForTests();
@@ -33,15 +32,7 @@ const FIXTURE = 'Above\n\n:::callout Title\nSome **bold** text\n:::\n\nBelow\n';
 
 function run(source: string, start: SelectionPoint, end: SelectionPoint, mode?: PresentationMode) {
 	const doc = parse(source);
-	const result = rangeDelete(
-		doc,
-		start,
-		end,
-		createSharingState(),
-		defaultGrammarView,
-		mode,
-		fixtureLinkRef()
-	);
+	const result = rangeDelete(doc, start, end, createSharingState(), fixtureReading({}, mode));
 	return { source: serialize(result.newDoc), caret: result.collapsedCaret };
 }
 

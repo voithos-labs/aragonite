@@ -10,7 +10,7 @@ import type { BlockComponent } from '../block-component';
 import type { EdgeAffinityState } from '../cursor/edge-affinity';
 import type { UserScrollport } from '../cursor/scroll-ancestors';
 import type { StickyColumnState } from '../cursor/sticky-column';
-import type { BlockElLookup, DocumentGetter, LinkReferenceResolverRef } from '../editor-keys';
+import type { BlockElLookup, DocumentGetter } from '../editor-keys';
 import type { PresentationMode } from '../presentation-mode';
 import { resetForPointerDown } from '../selection/cross-block/pointer';
 import { createDeadSpaceCaret } from '../selection/dead-space-caret';
@@ -25,6 +25,7 @@ import type { WidgetSelectionState } from './image/widget-selection-state.svelte
 import { LINK_ELEMENT_SELECTOR, resolveLinkAtPoint } from './blocks/text/link-at-point';
 import { onRoot, removeAll } from './editor-root-listeners';
 import type { LinkCardState } from './link-card/link-card-state.svelte';
+import type { Reading } from '../schema/reading';
 
 export interface RootGesturesDeps {
 	/** A getter, never a value: every branch below checks the mode in force at the gesture. */
@@ -42,7 +43,7 @@ export interface RootGesturesDeps {
 	isHostChrome(node: Node | null): boolean;
 	activateLink(href: string, event: MouseEvent): void;
 	linkCard: Pick<LinkCardState, 'open'>;
-	linkRef: LinkReferenceResolverRef;
+	reading: Reading;
 	/** Which inline widget is selected whole, so the click order can leave a run on it alone. */
 	widgetSelection: Pick<WidgetSelectionState, 'isSelected'>;
 }
@@ -102,7 +103,7 @@ export function createRootGestures(deps: RootGesturesDeps): RootGestures {
 		if (block === null || !isBlockNode(block)) return false;
 		const contentEl = deps.getBlockElByPath(path);
 		if (!contentEl) return false;
-		const hit = resolveLinkAtPoint({ contentEl, block, path, linkRef: deps.linkRef });
+		const hit = resolveLinkAtPoint({ contentEl, block, path, reading: deps.reading });
 		if (!hit) return false;
 		return deps.linkCard.open(hit.target);
 	}

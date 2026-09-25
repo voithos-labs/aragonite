@@ -28,7 +28,7 @@ import type { PresentationMode } from '$lib/presentation-mode';
 import { defaultGrammarView } from '$lib/schema/block-openers';
 import { rebuildUnsharedChain } from '$lib/tree-operations/chain-rebuild';
 import { createSharingState } from '$lib/tree-operations/sharing';
-import { fixtureLinkRef } from '../harness/fixture-grammar';
+import { fixtureReading } from '../harness/fixture-grammar';
 
 // G2.13: an edit on a loaded document leaves a tree that reloads to the same block shape, which
 // is the load, edit, save, load cycle a consumer runs on every remount. Byte round-trip (G2.1)
@@ -80,9 +80,7 @@ function applyGesture(doc: Document, gesture: Gesture, mode: PresentationMode | 
 				const offset = Math.min(gesture.offset, displayLength(node.raw));
 				settled(
 					doc,
-					(body) =>
-						splitNode(body, at, offset, undefined, mode, fixtureLinkRef(), defaultGrammarView)
-							.change
+					(body) => splitNode(body, at, offset, undefined, fixtureReading({}, mode)).change
 				);
 			}
 			return;
@@ -124,11 +122,10 @@ function applyMerge(doc: Document, at: number, op: 'mergePrev' | 'mergeNext'): v
 	const i = pairs[at % pairs.length];
 	settled(doc, (body) =>
 		op === 'mergePrev'
-			? (mergeIntoPrevDeepLeaf(body, i, undefined, undefined, fixtureLinkRef(), defaultGrammarView)
-					?.change ?? {
+			? (mergeIntoPrevDeepLeaf(body, i, undefined, fixtureReading())?.change ?? {
 					op: 'noop'
 				})
-			: mergeWithNext(body, i - 1, undefined, fixtureLinkRef(), defaultGrammarView).change
+			: mergeWithNext(body, i - 1, fixtureReading()).change
 	);
 }
 

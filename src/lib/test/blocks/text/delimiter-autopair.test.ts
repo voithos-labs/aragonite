@@ -7,18 +7,12 @@ import {
 import { resetPluginPlatformForTests } from '$lib/testing';
 import { registerMathInline } from '$lib/plugins/latex/latex-kind';
 import type { ContentRange } from '$lib/core/inline';
+import { fixtureReading } from '$lib/test/harness/fixture-grammar';
 
 const whole = (text: string) => ({ start: 0, end: text.length });
 /** `own` is the empty pair the auto-pair wrote at this caret, as its record reports it. */
 const type = (text: string, caret: number, typed: string, own: ContentRange | null = null) =>
-	resolveDelimiterAutoPair(
-		text,
-		whole(text),
-		caret,
-		typed,
-		{ grammar: defaultGrammarView },
-		{ ownPair: own }
-	);
+	resolveDelimiterAutoPair(text, whole(text), caret, typed, fixtureReading(), { ownPair: own });
 const backspace = (text: string, caret: number, own: ContentRange | null) =>
 	resolveEmptyPairBackspace(text, caret, own, defaultGrammarView);
 const pairAt = (start: number, end: number): ContentRange => ({ start, end });
@@ -80,14 +74,9 @@ describe('delimiter auto-pair', () => {
 
 	it('declines outside the content range and for multi-byte input', () => {
 		expect(
-			resolveDelimiterAutoPair(
-				'# head',
-				{ start: 2, end: 6 },
-				1,
-				'`',
-				{ grammar: defaultGrammarView },
-				{ ownPair: null }
-			)
+			resolveDelimiterAutoPair('# head', { start: 2, end: 6 }, 1, '`', fixtureReading(), {
+				ownPair: null
+			})
 		).toBeNull();
 		expect(type('ab', 1, '``')).toBeNull();
 	});

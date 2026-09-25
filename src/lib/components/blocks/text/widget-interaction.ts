@@ -9,8 +9,6 @@ import { tick } from 'svelte';
 import type { BlockEditActions, FocusActions } from '../../../action-contracts';
 import type { AnyInlineKind, InlineNode } from '../../../core/nodes';
 import type { NodeView } from '../../../core/node-views';
-import type { PresentationMode } from '../../../presentation-mode';
-import type { LinkReferenceResolverRef } from '../../../editor-keys';
 import type { WidgetSelectionState } from '../../image/widget-selection-state.svelte';
 import type { AmbientCursorIO } from '../../../ambient/ambient-cursor';
 import { resolvedInlineContent } from '../../../core/inline/inline-cache';
@@ -41,7 +39,6 @@ import {
 } from '../../../debug/interaction-trace';
 import { assertInvariant } from '../../../assert';
 import type { RevealFold } from '../editable-surface';
-import type { GrammarView } from '../../../schema/block-openers';
 import {
 	caretIsInTextContent,
 	hasModifier,
@@ -56,6 +53,7 @@ import {
 	rawHasNoTextAfter,
 	widgetElByStart
 } from './widget-adjacency';
+import type { Reading } from '../../../schema/reading';
 
 export interface WidgetInteractionDeps {
 	get node(): NodeView;
@@ -81,12 +79,9 @@ export interface WidgetInteractionDeps {
 	setRevealing: (value: boolean) => void;
 	/** Hiding a shown source mid-selection would strand a selection endpoint anchored in it. */
 	isCrossBlock: () => boolean;
-	/** The mode in effect; reading mode blocks showing a source and the widget edit
-	 *  branches. Optional, so a bare harness reads as 'source'. */
-	getPresentationMode?: () => PresentationMode;
-	get linkRef(): LinkReferenceResolverRef;
-	/** The editor's grammar, the one the render path drew widgets with. */
-	grammar: GrammarView;
+	/** How the editor reads its bytes: the grammar the render path drew widgets with, and the mode
+	 *  whose reading setting blocks showing a source and the widget edit branches. */
+	get reading(): Reading;
 }
 
 /** The click a widget gesture reads off: the same event the widget's own handler sees. */
@@ -234,21 +229,21 @@ export async function replaceSelectedWidget(
 }
 
 export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInteraction {
-	const isReading = () => deps.getPresentationMode?.() === 'reading';
+	const isReading = () => deps.reading.mode() === 'reading';
 
 	// Resolver-aware so widget detection matches the render path's view; a mismatch
 	// around reference-style image widgets breaks cursor and clipboard offsets.
 	function inlinesOf(node: NodeView): InlineNode[] {
-		return resolvedInlineContent(node, deps.linkRef);
+		return resolvedInlineContent(node, deps.reading);
 	}
 
-	const widgetEditing = (kind: AnyInlineKind) => getInlineWidgetEditing(kind, deps.grammar);
-	const characterLike = (kind: AnyInlineKind) => isCharacterLikeWidget(kind, deps.grammar);
+	const widgetEditing = (kind: AnyInlineKind) => getInlineWidgetEditing(kind, deps.reading.grammar);
+	const characterLike = (kind: AnyInlineKind) => isCharacterLikeWidget(kind, deps.reading.grammar);
 
 	/** Every widget in this block, nested ones included: a construct wrapping a widget (emphasis
 	 *  around a formula, a link around an image) hides it from the top-level inline list. */
 	function widgetsOf(): InlineNode[] {
-		return flattenInlineWidgets(inlinesOf(deps.node), deps.node.raw, deps.grammar);
+		return flattenInlineWidgets(inlinesOf(deps.node), deps.node.raw, deps.reading.grammar);
 	}
 
 	// ── Editing a widget's source ──────────────────────────────────────────────
@@ -724,7 +719,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 	function isVerticallyTransparent(): boolean {
 		// Resolver-free, matching the off-window keyboard-extend path, so the vertical-skip
 		// decision is uniform everywhere. Other widget reads stay resolver-aware.
-		return isVerticallyTransparentNode(deps.node, deps.grammar);
+		return isVerticallyTransparentNode(deps.node, deps.reading.grammar);
 	}
 
 	async function handleSelectedWidgetKeydown(e: KeyboardEvent): Promise<boolean> {
@@ -736,7 +731,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 			selectedWidget.sourceStart,
 			inlinesOf(node),
 			node.raw,
-			deps.grammar
+			deps.reading.grammar
 		);
 		const widgetIsHere =
 			widget !== null && deps.widgetSelection.isSelected(deps.myPath, selectedWidget.sourceStart);
@@ -744,7 +739,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 
 		// The kind's editing policy takes its own keys first. Flattened so the nested image
 		// of `[![alt][ref]][repo]` is the widget resolved.
-		const inline = flattenInlineWidgets(inlinesOf(node), node.raw, deps.grammar).find(
+		const inline = flattenInlineWidgets(inlinesOf(node), node.raw, deps.reading.grammar).find(
 			(n) => n.start === widget.start
 		);
 		if (inline) {
@@ -757,7 +752,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 				index: deps.index,
 				preSelectOffset: selectedWidget.preSelectOffset,
 				editorContentWidth: deps.getEditorContentWidth(),
-				presentationMode: deps.getPresentationMode?.() ?? 'source',
+				presentationMode: deps.reading.mode(),
 				updateContent: (newRaw, caretBefore, caretAfter) =>
 					void deps.blockEdit.updateBlockContent(deps.index, newRaw, caretBefore, caretAfter)
 			});
@@ -885,8 +880,8 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		if (inlines.length === 0) return false;
 		const target =
 			side === 'start'
-				? findFirstEdgeWidget(inlines, deps.node.raw, deps.grammar)
-				: findLastEdgeWidget(inlines, deps.node.raw, deps.grammar);
+				? findFirstEdgeWidget(inlines, deps.node.raw, deps.reading.grammar)
+				: findLastEdgeWidget(inlines, deps.node.raw, deps.reading.grammar);
 		if (!target) return false;
 		// Focus the contenteditable so subsequent keys route to this block's handler.
 		deps.getEl()?.focus();
@@ -917,7 +912,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 				// place a caret, stealing back what the widget's own navigation just landed.
 				if (
 					widgetEditing(hit.inline.kind)?.claimsActivationClick &&
-					isWidgetActivationClick(press.modified ?? false, deps.getPresentationMode?.() ?? 'source')
+					isWidgetActivationClick(press.modified ?? false, deps.reading.mode())
 				) {
 					return;
 				}

@@ -8,11 +8,9 @@
 
 import type { BlockEditActions } from '../../../action-contracts';
 import type { NodeView } from '../../../core/node-views';
-import type { LinkReferenceResolverRef } from '../../../editor-keys';
 import type { InlineNode } from '../../../core/nodes';
 import type { InlineWidgetEditingPolicy } from '../../../core/inline/inline-widgets';
 import { resolvedInlineContent } from '../../../core/inline/inline-cache';
-import type { GrammarView } from '../../../schema/block-openers';
 import { getContentRange } from '../../../core/inline';
 import { getInlineWidgetEditing } from '../../../core/inline/inline-widgets';
 import { trimTrailingLineEnding, trailingLineEnding } from '../../../core/lines';
@@ -41,13 +39,12 @@ import { widgetAtCursor } from './widget-adjacency';
 import { noteOwnPair, resolveDelimiterAutoPair } from './delimiter-autopair';
 import type { BlockAutoPairs } from './auto-pair-record';
 import { soleProseReparse } from './screen-diff';
+import type { Reading } from '../../../schema/reading';
 
-/** Whether `line` still parses back as `node`'s kind in the editor's grammar, which the auto-pair
+/** Whether `line` still parses back as `node`'s kind as the editor reads it, which the auto-pair
  *  resolver checks. */
-export function keepsBlockKind(node: NodeView, line: string, grammar: GrammarView): boolean {
-	return (
-		soleProseReparse(line + trailingLineEnding(node.raw), { grammar })?.block.kind === node.kind
-	);
+export function keepsBlockKind(node: NodeView, line: string, reading: Reading): boolean {
+	return soleProseReparse(line + trailingLineEnding(node.raw), reading)?.block.kind === node.kind;
 }
 
 /** The part of the inline-widget editing policy the built-in widget rules reuse, in the same
@@ -74,9 +71,8 @@ export interface EdgePolicyDispatchDeps {
 	/** The nearest ancestor container, or null at the document root. A key at the content start
 	 *  resolves against its declaration. */
 	get containerParent(): NodeView | null;
-	get linkRef(): LinkReferenceResolverRef;
-	/** The editor's grammar, the one the render path drew widgets with. */
-	grammar: GrammarView;
+	/** How the editor reads its bytes, the grammar the render path drew widgets with included. */
+	get reading(): Reading;
 	getEl: () => HTMLElement | null;
 	getAmbientLength: () => number;
 	/** The container's marker prefix this block renders under, which the join rules read a
@@ -218,7 +214,7 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 	}
 
 	function inlinesOf(node: NodeView): InlineNode[] {
-		return resolvedInlineContent(node, deps.linkRef);
+		return resolvedInlineContent(node, deps.reading);
 	}
 
 	function display(): string {
@@ -270,15 +266,6 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 
 	// ── The shared helpers the branches below use ────────────────────────────
 
-	/**
-	 * Which mode a range rewrite is judged in. Past the reading-mode check, a block showing no
-	 * markers is in live mode, the only mode with hidden delimiter runs to clean up; every other
-	 * mode takes the literal edit the browser would have written.
-	 */
-	function joinSeamMode(el: HTMLElement): 'live' | undefined {
-		return revealsNoMarkers(el) ? 'live' : undefined;
-	}
-
 	/** What the construct-edge rule (live-mode.md § 4.4) does with a destructive key here, or null
 	 *  where the block draws its markers and the byte beside the caret is one the user can see. */
 	function edgeDeletionAt(
@@ -295,8 +282,7 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 			screen: screenVisibilityOf(el),
 			inlines: inlinesOf(deps.node),
 			installedAs: deps.installedAs,
-			resolver: deps.linkRef?.current,
-			grammar: deps.grammar
+			reading: deps.reading
 		});
 	}
 
@@ -321,8 +307,7 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 			deps.node.raw,
 			screenVisibilityOf(el),
 			typed,
-			deps.linkRef?.current,
-			deps.grammar
+			deps.reading
 		);
 	}
 
@@ -341,8 +326,7 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 				deps.node,
 				range,
 				typed,
-				joinSeamMode(el),
-				deps.linkRef,
+				deps.reading,
 				deps.getAmbientPrefix?.() ?? ''
 			);
 			void deps.blockEdit.updateBlockContent(deps.index, edit.raw, range.start, edit.caret);
@@ -362,7 +346,7 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 		// Forward keys enter the widget after the caret, backward keys the one before, so
 		// a caret between two adjacent widgets enters the one the key is aimed at.
 		const direction = e.key === 'ArrowRight' || e.key === 'Delete' ? 'forward' : 'backward';
-		const { grammar } = deps;
+		const { grammar } = deps.reading;
 		const widgetAt = widgetAtCursor(caretOffset, inlinesOf(node), node.raw, direction, grammar);
 		if (!widgetAt) return false;
 		// Past the early return: every keystroke in every prose block reaches the line above, so
@@ -559,8 +543,7 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 				deps.node,
 				range,
 				'',
-				joinSeamMode(el),
-				deps.linkRef,
+				deps.reading,
 				deps.getAmbientPrefix?.() ?? ''
 			);
 			void deps.blockEdit.updateBlockContent(deps.index, edit.raw, range.start, edit.caret);
@@ -647,8 +630,7 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 			e.key,
 			marks,
 			inlinesOf(deps.node),
-			deps.linkRef?.current,
-			deps.grammar
+			deps.reading
 		);
 		if (!marked) return false;
 		e.preventDefault();
@@ -686,9 +668,9 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 		// A delimiter typed over its own closing one is the auto-pair's step-over, handled on
 		// beforeinput (delimiter-autopair.ts); placed outside the run it would be typed instead.
 		const content = getContentRange(deps.node);
-		const { grammar, linkRef, ownPairs } = deps;
+		const { reading, ownPairs } = deps;
 		const text = display();
-		const autoPair = resolveDelimiterAutoPair(text, content, caretOffset, e.key, linkRef, {
+		const autoPair = resolveDelimiterAutoPair(text, content, caretOffset, e.key, reading, {
 			ownPair: ownPairs.consult(text, caretOffset)
 		});
 		if (autoPair?.kind === 'step-over') return false;
@@ -700,9 +682,9 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 		// Those rules decide where the byte lands; what a delimiter keystroke writes there is
 		// still the auto-pair's answer, or a byte placed past a run would arrive without its
 		// closing partner. The kind goes into the debug trace, naming the construct involved.
-		const paired = resolveDelimiterAutoPair(text, content, seat.offset, e.key, linkRef, {
+		const paired = resolveDelimiterAutoPair(text, content, seat.offset, e.key, reading, {
 			ownPair: ownPairs.consult(text, seat.offset),
-			keepsKind: (line) => keepsBlockKind(deps.node, line, grammar)
+			keepsKind: (line) => keepsBlockKind(deps.node, line, reading)
 		});
 		if (paired && paired.kind !== 'step-over') {
 			noteOwnPair(ownPairs, text, paired);

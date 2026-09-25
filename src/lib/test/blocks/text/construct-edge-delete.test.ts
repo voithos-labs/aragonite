@@ -1,12 +1,12 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
-import { defaultGrammarView } from '$lib/schema/block-openers';
 import { parseInline } from '$lib/core/inline';
 import {
 	resolveEdgeDeletion,
 	type DeleteDirection
 } from '$lib/components/blocks/text/construct-edge-delete';
 import { screenVisibility } from '$lib/core/inline/visibility';
+import { fixtureReading } from '$lib/test/harness/fixture-grammar';
 
 // The bytes a destructive key at a hidden delimiter run produces. Live mode draws no marker, so
 // the source decides and every result is reparsed: a keypress must never leave a delimiter on
@@ -27,8 +27,7 @@ function del(
 		screen: screenVisibility('live', { chromePaints }),
 		inlines: parseInline(display, content.start, content.end),
 		installedAs: 'block',
-		resolver: undefined,
-		grammar: defaultGrammarView
+		reading: fixtureReading()
 	});
 }
 
@@ -42,8 +41,7 @@ function delInCell(display: string, caret: number, direction: DeleteDirection = 
 		screen: screenVisibility('live', { chromePaints: false }),
 		inlines: parseInline(display, 0, display.length),
 		installedAs: 'cell',
-		resolver: undefined,
-		grammar: defaultGrammarView
+		reading: fixtureReading()
 	});
 }
 

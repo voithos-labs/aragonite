@@ -52,7 +52,7 @@ export function makeTableMutations(
 		},
 		parentContainerEdit: createContainerEditActions(deps, controller),
 		controller,
-		grammar: deps.grammar,
+		reading: deps.reading,
 		focusCell,
 		announceReorder
 	});

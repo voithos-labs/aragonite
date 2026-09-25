@@ -3,10 +3,10 @@ import { describe, it, expect } from 'vitest';
 import { toggleInlineFormat } from '$lib/core/inline/format-toggle';
 import { parseInline } from '$lib/core/inline';
 import { CONTENT_VISIBILITY, renderedText } from '$lib/core/inline/visibility';
-import { defaultGrammarView } from '$lib/schema/block-openers';
 import type { InlineMarkKind } from '$lib/schema/inline-construct-policy';
 import { MARK_FORMATS, markersOf, whole } from './format-toggle-fixture';
 import { renderOptions } from '../../harness/fixture-grammar';
+import { fixtureReading } from '$lib/test/harness/fixture-grammar';
 
 // What a toggle may write where the delimiters are hidden: the bytes are a candidate until the
 // render path agrees the screen still reads the same (live-mode.md § 2). Miss-analysis: every
@@ -15,9 +15,8 @@ import { renderOptions } from '../../harness/fixture-grammar';
 
 const live = (raw: string, selection: { start: number; end: number }, format: InlineMarkKind) =>
 	toggleInlineFormat(
-		{ display: raw, content: whole(raw), selection, linkRef: { grammar: defaultGrammarView } },
-		format,
-		'live'
+		{ display: raw, content: whole(raw), selection, reading: fixtureReading({}, 'live') },
+		format
 	);
 
 const screenOf = (display: string) =>
@@ -84,10 +83,9 @@ describe('the preview inline syntax handlers write what source writes', () => {
 						display: raw,
 						content: whole(raw),
 						selection,
-						linkRef: { grammar: defaultGrammarView }
+						reading: fixtureReading({}, mode)
 					},
-					'strong',
-					mode
+					'strong'
 				);
 			expect(at('*ab*', { start: 0, end: 1 })?.newDisplay).toBe('*****ab*');
 			expect(live('*ab*', { start: 0, end: 1 }, 'strong')).toBeNull();
@@ -98,9 +96,8 @@ describe('the preview inline syntax handlers write what source writes', () => {
 describe('source mode reads a run through the space beside it', () => {
 	const source = (raw: string, selection: { start: number; end: number }) =>
 		toggleInlineFormat(
-			{ display: raw, content: whole(raw), selection, linkRef: { grammar: defaultGrammarView } },
-			'strong',
-			'source'
+			{ display: raw, content: whole(raw), selection, reading: fixtureReading() },
+			'strong'
 		);
 
 	// Visible delimiters put the run's own bytes inside the selection, the same reading past a

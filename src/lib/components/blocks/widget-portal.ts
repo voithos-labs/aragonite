@@ -8,10 +8,9 @@
 import { mount, unmount } from 'svelte';
 import type { AnyInlineKind, InlineNode } from '../../core/nodes';
 import type { DocumentView } from '../../core/node-views';
-import type { PresentationMode } from '../../presentation-mode';
 import { inlineReaderFor } from '../../core/inline';
 import { getInlineWidgetComponent } from '../../core/inline/inline-widgets';
-import type { GrammarView } from '../../schema/block-openers';
+import type { Reading } from '../../schema/reading';
 import { tracePoolPass } from '../../debug/interaction-trace';
 import { assertInvariant } from '../../assert';
 import { checkPoolBracket } from '../../invariants/inline-transitions';
@@ -131,12 +130,11 @@ interface PortalHandle {
 }
 
 /** The live channels a mounted widget reads beside its frozen `{ inline, source }`
- *  snapshot. Every member is optional so a bare harness can mount without a shell. */
+ *  snapshot. Every member but the reading is optional so a bare harness can mount without a shell. */
 export interface SvelteWidgetPoolDeps {
 	/** A widget component's synchronous mount throw goes here (the editor's `error`
 	 *  channel). Absent leaves the caller falling back to the raw span silently. */
 	reportError?: (error: unknown) => void;
-	getPresentationMode?: () => PresentationMode;
 	/** The editor's theme name, beside the mode, for a widget whose body is drawn with
 	 *  its own colours, which CSS cannot reach, rather than styled by CSS. */
 	getTheme?: () => string;
@@ -145,8 +143,9 @@ export interface SvelteWidgetPoolDeps {
 	/** The editor's navigation call, for a widget whose gesture jumps elsewhere in the
 	 *  document. Absent in a bare harness. */
 	navigateTo?: (path: number[], offset?: number) => Promise<boolean>;
-	/** The editor's grammar, so a widget kind whose plugin it left out mounts nothing. */
-	grammar: GrammarView;
+	/** How the editor reads its bytes: a widget kind whose plugin it left out mounts nothing, and a
+	 *  mounted widget reads the mode and parses inline content through it. */
+	reading: Reading;
 }
 
 /**
@@ -156,15 +155,8 @@ export interface SvelteWidgetPoolDeps {
  * outlives a mode switch or an edit elsewhere that a frozen value would not.
  */
 export function createSvelteWidgetPool(deps: SvelteWidgetPoolDeps): WidgetPool {
-	const {
-		reportError,
-		getPresentationMode,
-		getTheme,
-		getDocument,
-		getContentVersion,
-		navigateTo,
-		grammar
-	} = deps;
+	const { reportError, getTheme, getDocument, getContentVersion, navigateTo, reading } = deps;
+	const { grammar } = reading;
 	const readInline = inlineReaderFor(grammar);
 	return createWidgetPool<PortalHandle>({
 		create(kind, inline, source) {
@@ -181,7 +173,7 @@ export function createSvelteWidgetPool(deps: SvelteWidgetPoolDeps): WidgetPool {
 					props: {
 						inline,
 						source,
-						getPresentationMode,
+						getPresentationMode: reading.mode,
 						getTheme,
 						getDocument,
 						getContentVersion,

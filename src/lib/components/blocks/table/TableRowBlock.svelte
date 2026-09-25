@@ -11,12 +11,10 @@
 		BLOCK_EDIT_KEY,
 		CONTAINER_EDIT_KEY,
 		EDITOR_DOC_KEY,
-		EDITOR_POLICIES_KEY,
 		EDITOR_SERVICES_KEY,
 		FOCUS_KEY,
 		PARENT_SCOPE_SINK_KEY,
 		type EditorDoc,
-		type EditorPolicies,
 		type EditorServices,
 		type ParentScopeSink
 	} from '../../../editor-keys';
@@ -58,12 +56,8 @@
 	const parentBlockEdit = getContext<BlockEditActions>(BLOCK_EDIT_KEY);
 	const parentFocus = getContext<FocusActions>(FOCUS_KEY);
 	const parentContainerEdit = getContext<ContainerEditActions>(CONTAINER_EDIT_KEY);
-	const { stickyColumn, registryView, decorations, events } =
-		getContext<EditorServices>(EDITOR_SERVICES_KEY);
-	const getPresentationMode = getContext<EditorPolicies | undefined>(
-		EDITOR_POLICIES_KEY
-	)?.presentationMode;
-	const { reading: linkRef } = getContext<EditorDoc>(EDITOR_DOC_KEY);
+	const { stickyColumn, decorations, events } = getContext<EditorServices>(EDITOR_SERVICES_KEY);
+	const { reading } = getContext<EditorDoc>(EDITOR_DOC_KEY);
 
 	const cellsState = createBlockListState(() => node);
 
@@ -124,9 +118,7 @@
 	const bundle = createStandardNestedActions(cellsState, {
 		scope,
 		stickyColumn,
-		grammar: registryView.grammar,
-		getPresentationMode,
-		linkRef,
+		reading,
 		parent: {
 			blockEdit: parentBlockEdit,
 			focus: parentFocus,

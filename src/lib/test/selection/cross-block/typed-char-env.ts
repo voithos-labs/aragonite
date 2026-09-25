@@ -9,10 +9,10 @@ import { normalizeKeybindingOverrides } from '$lib/schema/keybinding-overrides';
 import { createBlockEditActions } from '$lib/editor-actions/block-edit';
 import { makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
 import type { BlockComponent } from '$lib/block-component';
-import { defaultGrammarView, type GrammarView } from '$lib/schema/block-openers';
+import { type GrammarView } from '$lib/schema/block-openers';
 import type { SelectionState } from '$lib/selection/selection-state.svelte';
 import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
-import { fixtureLinkRef } from '../../harness/fixture-grammar';
+import { fixtureReading } from '../../harness/fixture-grammar';
 
 export function makeEnv(source: string) {
 	const { deps, doc, events } = makeEditorActionsDeps(source);
@@ -65,13 +65,11 @@ export function makeHandlers(
 		controller: env.controller,
 		history: { requestUndo() {}, requestRedo() {} },
 		pluginEditor: undefined,
-		getPresentationMode: () => 'source' as const,
-		linkRef: fixtureLinkRef(),
+		reading: fixtureReading(opts.grammar ? { grammar: opts.grammar } : {}),
 		onCommandError: undefined,
 		crossBlockCommands: { canRun: () => false, run: () => false, isActive: () => false },
 		getKeybindingOverrides: () => normalizeKeybindingOverrides(undefined),
 		pasteCoordinator: createPasteCoordinator(env.controller, env.deps.revealPath),
-		grammar: opts.grammar ?? defaultGrammarView,
 		activePlugins: everyInstalledPlugin,
 		events: env.events,
 		getCursorOffset: opts.getCursorOffset ?? (() => 0),

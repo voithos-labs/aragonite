@@ -5,7 +5,7 @@ import { updateNodeContent } from '$lib/tree-operations/content-write';
 import { splitNode } from '$lib/tree-operations/node-ops';
 import { expectParseConverged, layoutOf as layout } from '$lib/test/harness/parse-converged';
 import type { Document } from '$lib/core/nodes';
-import { fixtureLinkRef } from '../harness/fixture-grammar';
+import { fixtureReading } from '../harness/fixture-grammar';
 import { defaultGrammarView } from '$lib/schema/block-openers';
 
 // The typing-equals-loading rule at tree level: the simulation compares source bytes across the
@@ -14,8 +14,8 @@ import { defaultGrammarView } from '$lib/schema/block-openers';
 /** "1", Enter, Enter, "2": the Enter-split byte policy, driven through the ops. */
 function typeOneEnterEnterTwo(): Document {
 	const doc = parse('1\n');
-	splitNode(doc, 0, 1, undefined, undefined, fixtureLinkRef(), defaultGrammarView);
-	splitNode(doc, 1, 0, undefined, undefined, fixtureLinkRef(), defaultGrammarView);
+	splitNode(doc, 0, 1, undefined, fixtureReading());
+	splitNode(doc, 1, 0, undefined, fixtureReading());
 	updateNodeContent(doc, 2, '2\n', defaultGrammarView);
 	return doc;
 }
@@ -23,9 +23,9 @@ function typeOneEnterEnterTwo(): Document {
 describe('a typed blank line survives the reload', () => {
 	it('holds the Enter-split byte policy', () => {
 		const doc = parse('1\n');
-		splitNode(doc, 0, 1, undefined, undefined, fixtureLinkRef(), defaultGrammarView);
+		splitNode(doc, 0, 1, undefined, fixtureReading());
 		expect(serialize(doc)).toBe('1\n\n\n');
-		splitNode(doc, 1, 0, undefined, undefined, fixtureLinkRef(), defaultGrammarView);
+		splitNode(doc, 1, 0, undefined, fixtureReading());
 		expect(serialize(doc)).toBe('1\n\n\n\n');
 		updateNodeContent(doc, 2, '2\n', defaultGrammarView);
 		expect(serialize(doc)).toBe('1\n\n\n2\n');
@@ -66,7 +66,7 @@ describe('a lone blank document is the block you type into', () => {
 describe('typing into the blank line an Enter opened', () => {
 	it('takes back the separator the blank line was standing in for', () => {
 		const doc = parse('Hello world\n\nSecond paragraph\n');
-		splitNode(doc, 0, 11, undefined, undefined, fixtureLinkRef(), defaultGrammarView);
+		splitNode(doc, 0, 11, undefined, fixtureReading());
 		expect(serialize(doc)).toBe('Hello world\n\n\nSecond paragraph\n');
 
 		updateNodeContent(doc, 1, 'x\n', defaultGrammarView);
@@ -77,7 +77,7 @@ describe('typing into the blank line an Enter opened', () => {
 
 	it('creates none at the tail, where the blank half already carried one', () => {
 		const doc = parse('Hello world\n');
-		splitNode(doc, 0, 11, undefined, undefined, fixtureLinkRef(), defaultGrammarView);
+		splitNode(doc, 0, 11, undefined, fixtureReading());
 		updateNodeContent(doc, 1, 'x\n', defaultGrammarView);
 
 		expect(serialize(doc)).toBe('Hello world\n\nx\n');
@@ -102,8 +102,8 @@ describe('typing into the blank line an Enter opened', () => {
 	// carries its line; a second one there reloads as one more empty paragraph.
 	it('leaves a follower that already carries the separator alone', () => {
 		const doc = parse('Hello\n\nSecond\n');
-		splitNode(doc, 0, 5, undefined, undefined, fixtureLinkRef(), defaultGrammarView);
-		splitNode(doc, 1, 0, undefined, undefined, fixtureLinkRef(), defaultGrammarView);
+		splitNode(doc, 0, 5, undefined, fixtureReading());
+		splitNode(doc, 1, 0, undefined, fixtureReading());
 
 		updateNodeContent(doc, 1, 'x\n', defaultGrammarView);
 
@@ -157,7 +157,7 @@ describe('typing into a blank line the load created', () => {
 describe('an Enter at block start survives the reload', () => {
 	it('reloads a leading empty paragraph as a block', () => {
 		const doc = parse('a\n');
-		splitNode(doc, 0, 0, undefined, undefined, fixtureLinkRef(), defaultGrammarView);
+		splitNode(doc, 0, 0, undefined, fixtureReading());
 		expect(serialize(doc)).toBe('\na\n');
 		expect(layout(parse('\na\n').children)).toEqual(layout(doc.children));
 	});

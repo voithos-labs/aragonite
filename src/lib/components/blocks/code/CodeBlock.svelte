@@ -79,18 +79,14 @@
 		selection,
 		getDoc,
 		getEditorRoot,
-		grammar,
 		activePlugins,
-		events: editorEvents
+		events: editorEvents,
+		reading
 	} = wiring.deps;
 	const { reorder, menuPresence } = getContext<EditorServices>(EDITOR_SERVICES_KEY);
-	const {
-		presentationMode: getPresentationMode,
-		onPasteImage,
-		onRunCode,
-		codeMenuItems
-	} = getContext<EditorPolicies>(EDITOR_POLICIES_KEY);
-	const presentationMode = $derived(getPresentationMode?.() ?? 'source');
+	const { onPasteImage, onRunCode, codeMenuItems } =
+		getContext<EditorPolicies>(EDITOR_POLICIES_KEY);
+	const presentationMode = $derived(reading.mode());
 	const readOnly = $derived(presentationMode === 'reading');
 	let el: HTMLDivElement | undefined = $state();
 	let composing = $state(false);
@@ -116,7 +112,6 @@
 		setPendingCursor: (offset) => {
 			pendingCursorOffset = offset;
 		},
-		getPresentationMode,
 		getFocusOffset,
 		getTextLen,
 		readText,
@@ -793,7 +788,7 @@
 					doc: getDoc(),
 					blockEdit,
 					controller: pasteCoordinator,
-					grammar,
+					reading,
 					activePlugins
 				}
 			);

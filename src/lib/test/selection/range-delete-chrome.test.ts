@@ -7,8 +7,7 @@ import { createSharingState } from '../../tree-operations/sharing';
 import { registerCalloutForTests } from './chrome-plugins';
 import { expectParseConverged } from '../harness/parse-converged';
 import type { SelectionPoint } from '../../selection/primitives';
-import { fixtureLinkRef } from '../harness/fixture-grammar';
-import { defaultGrammarView } from '$lib/schema/block-openers';
+import { fixtureReading } from '../harness/fixture-grammar';
 
 // Two body children so in-place truncation is distinguishable from an upward merge. Paths:
 // [0]=Above, [1]=note ([1,0]=title, [1,1]=Body1, [1,2]=Body2), [2]=Below.
@@ -20,15 +19,7 @@ function point(path: number[], offset: number): SelectionPoint {
 
 function run(source: string, start: SelectionPoint, end: SelectionPoint) {
 	const doc = parse(source);
-	const result = rangeDelete(
-		doc,
-		start,
-		end,
-		createSharingState(),
-		defaultGrammarView,
-		undefined,
-		fixtureLinkRef()
-	);
+	const result = rangeDelete(doc, start, end, createSharingState(), fixtureReading());
 	return { doc: result.newDoc, source: serialize(result.newDoc), caret: result.collapsedCaret };
 }
 
@@ -122,9 +113,7 @@ describe('chrome wall: rangeDelete post-states', () => {
 			point([0], 5),
 			point([1, 2], 5),
 			createSharingState(),
-			defaultGrammarView,
-			undefined,
-			fixtureLinkRef()
+			fixtureReading()
 		);
 		expect(serialize(result.newDoc)).toBe('Above\n\nBelow\n');
 		// One splice, not an emptying followed by cleanup: the detached node keeps its children,
@@ -161,15 +150,7 @@ describe('chrome wall: rangeDelete post-states', () => {
 
 		const sharing = createSharingState();
 		sharing.markSnapshotTaken();
-		rangeDelete(
-			doc,
-			point([0], 2),
-			point([1, 1], 2),
-			sharing,
-			defaultGrammarView,
-			undefined,
-			fixtureLinkRef()
-		);
+		rangeDelete(doc, point([0], 2), point([1, 1], 2), sharing, fixtureReading());
 
 		expect(snapshotTitle.raw).toBe('Title\n');
 	});

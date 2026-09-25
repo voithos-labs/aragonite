@@ -63,7 +63,7 @@ export function createSearchReplace(deps: EditorActionsDeps, controller: UndoCon
 				owner?.kind,
 				applyRangesToText(leaf.raw, ranges, template)
 			);
-			writeOwnRaw(leaf, substituted, deps.grammar);
+			writeOwnRaw(leaf, substituted, deps.reading.grammar);
 		}
 		// A nested leaf's edit must be written up into the clone's container raws before the
 		// reparse from `child.raw`, through the rebuild typing uses, which also recomputes the blank
@@ -75,10 +75,13 @@ export function createSearchReplace(deps: EditorActionsDeps, controller: UndoCon
 			const chain: CstNode[] = [];
 			for (let depth = 1; depth < rel.length; depth++)
 				chain.push(descend(child, rel.slice(0, depth))!);
-			rebuildUnsharedChain(child, chain, cloneSharing, null, deps.grammar);
+			rebuildUnsharedChain(child, chain, cloneSharing, null, deps.reading.grammar);
 			rebuildContainerRaw(child);
 		}
-		const newNodes = parse(child.raw, { grammar: deps.grammar, scope: 'fragment' }).children;
+		const newNodes = parse(child.raw, {
+			grammar: deps.reading.grammar,
+			scope: 'fragment'
+		}).children;
 		// leadingTrivia is positional and lives off `raw`, so parsing `child.raw` alone drops it.
 		return normalizeReplacementTrivia(child, newNodes);
 	}

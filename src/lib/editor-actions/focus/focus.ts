@@ -20,7 +20,7 @@ export function createFocusActions(
 	const gapScope: GapStopScope = {
 		getDoc: () => deps.doc,
 		selection: deps.selectionState,
-		getPresentationMode: deps.getPresentationMode
+		getPresentationMode: deps.reading.mode
 	};
 	const gapStopAt = (parentPath: number[], boundaryIndex: number) =>
 		tryGapStop(gapScope, parentPath, boundaryIndex);

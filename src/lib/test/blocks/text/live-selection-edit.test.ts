@@ -8,7 +8,7 @@ import {
 	__resetLiveJoinSeamCleanerForTests
 } from '$lib/schema/inline-construct-policy';
 import type { PresentationMode } from '$lib/presentation-mode';
-import { fixtureLinkRef } from '../../harness/fixture-grammar';
+import { fixtureReading } from '../../harness/fixture-grammar';
 
 // The one destructive path with no offsets of its own: a browser selection edit inside one block,
 // re-expressed as a join. The decisions here: when it refuses, where the typed bytes land, and
@@ -27,7 +27,7 @@ const editIn = (
 	start: number,
 	end: number,
 	typed: string
-) => resolveSelectionEdit(blockOf(source), { start, end }, typed, mode, fixtureLinkRef());
+) => resolveSelectionEdit(blockOf(source), { start, end }, typed, fixtureReading({}, mode));
 
 const edit = (source: string, start: number, end: number, typed: string) =>
 	editIn('live', source, start, end, typed);
@@ -66,10 +66,11 @@ describe('what it declines, leaving the edit to the browser', () => {
 		expect(edit(MIXED, 9, 11, 'X')).toBeNull();
 	});
 
-	it('every mode but live, over the very range live rewrites', () => {
+	// Reading mode hides delimiters too, but it writes nothing, so its gestures never get here.
+	it('every mode that draws the caret block’s delimiters, over the very range live rewrites', () => {
 		expect(editIn('source', MIXED, 9, 21, 'X')).toBeNull();
+		expect(editIn('preview-block', MIXED, 9, 21, 'X')).toBeNull();
 		expect(editIn('preview-inline', MIXED, 9, 21, 'X')).toBeNull();
-		expect(editIn('reading', MIXED, 9, 21, 'X')).toBeNull();
 		expect(editIn(undefined, MIXED, 9, 21, 'X')).toBeNull();
 	});
 

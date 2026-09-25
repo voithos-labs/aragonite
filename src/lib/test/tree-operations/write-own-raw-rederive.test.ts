@@ -4,7 +4,7 @@ import { serialize } from '../../core/serializer';
 import { mergeIntoPrevDeepLeaf } from '../../tree-operations';
 import { writeOwnRaw } from '../../tree-operations/node-primitives';
 import { describeConvergence } from '$lib/test/harness/parse-converged';
-import { fixtureLinkRef } from '../harness/fixture-grammar';
+import { fixtureReading } from '../harness/fixture-grammar';
 import { defaultGrammarView } from '$lib/schema/block-openers';
 
 // GH #54: the in-place write discipline left kind and parse-owned metadata stale: the write
@@ -38,14 +38,7 @@ describe('mergeIntoPrevDeepLeaf re-derives what the absorbed bytes parse as (GH 
 		const doc = parse('\n# h\n');
 		expect(doc.children.map((c) => c.kind)).toEqual(['paragraph', 'heading']);
 
-		const result = mergeIntoPrevDeepLeaf(
-			doc,
-			1,
-			undefined,
-			undefined,
-			fixtureLinkRef(),
-			defaultGrammarView
-		);
+		const result = mergeIntoPrevDeepLeaf(doc, 1, undefined, fixtureReading());
 
 		expect(result).not.toBeNull();
 		expect(doc.children).toHaveLength(1);
@@ -59,7 +52,7 @@ describe('mergeIntoPrevDeepLeaf re-derives what the absorbed bytes parse as (GH 
 		const doc = parse('one\n\ntwo\n');
 		const target = doc.children[0];
 
-		mergeIntoPrevDeepLeaf(doc, 1, undefined, undefined, fixtureLinkRef(), defaultGrammarView);
+		mergeIntoPrevDeepLeaf(doc, 1, undefined, fixtureReading());
 
 		expect(doc.children[0]).toBe(target);
 		expect(doc.children[0].raw).toBe('onetwo\n');

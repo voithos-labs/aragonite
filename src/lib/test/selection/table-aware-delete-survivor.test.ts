@@ -11,8 +11,7 @@ import { blockNodeAt } from '../../tree-operations/node-primitives';
 import { __resetSchemaRegistriesForTests } from '../../schema/registry-reset';
 import { registerDetailsKind } from '../../plugins/details/details-kind';
 import type { CellSelectionPoint } from '../../selection/primitives';
-import { fixtureLinkRef } from '../harness/fixture-grammar';
-import { defaultGrammarView } from '$lib/schema/block-openers';
+import { fixtureReading } from '../harness/fixture-grammar';
 
 /** Row-major cell index on the table block's own path. */
 const cell = (path: number[], index: number): CellSelectionPoint => ({
@@ -34,9 +33,7 @@ function deleteBothTables(source: string, firstTableIndex: number) {
 		cell([firstTableIndex], 0),
 		cell([firstTableIndex + 1], 3),
 		createSharingState(),
-		defaultGrammarView,
-		undefined,
-		fixtureLinkRef()
+		fixtureReading()
 	);
 }
 

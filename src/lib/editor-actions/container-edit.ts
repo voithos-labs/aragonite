@@ -58,7 +58,7 @@ export function createContainerEditActions(
 				chain,
 				deps.sharing,
 				folds,
-				deps.grammar,
+				deps.reading.grammar,
 				leafPreviousRaw === undefined ? undefined : { path: absPath, leafPreviousRaw }
 			);
 			publishAncestryFolds(deps, folds);

@@ -5,7 +5,6 @@
 // The resolver's own table is `delimiter-autopair.test.ts`.
 // Miss-analysis: every resolver case sat inside prose, so none typed the second `*` of an
 // otherwise empty block and watched `****` reparse as a thematic break.
-import { defaultGrammarView } from '$lib/schema/block-openers';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
 	applyDelimiterAutoPair,
@@ -14,6 +13,7 @@ import {
 import { resetPluginPlatformForTests } from '$lib/testing';
 import { createAutoPairRecord } from '$lib/components/blocks/text/auto-pair-record';
 import type { ContentRange } from '$lib/core/inline';
+import { fixtureReading } from '$lib/test/harness/fixture-grammar';
 
 interface Recorded {
 	writes: [string, number, number][];
@@ -39,12 +39,11 @@ function surfaceOver(
 		hasSelection: () => false,
 		isRevealing: () => false,
 		foldReveal: () => null,
-		markersPaint: () => false,
 		setCaret: (offset) => recorded.carets.push(offset),
 		seatOutside: () => recorded.outside++,
 		write: (next, before, after) => recorded.writes.push([next, before, after]),
 		keepsBlockKind,
-		linkRef: { grammar: defaultGrammarView },
+		reading: fixtureReading(),
 		ownPairs,
 		get writes() {
 			return recorded.writes;

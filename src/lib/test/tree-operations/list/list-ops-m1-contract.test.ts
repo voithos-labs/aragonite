@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { mergeListItemIntoPrevious } from '$lib/tree-operations/list/unwrap-merge';
-import { fixtureLinkRef } from '../../harness/fixture-grammar';
+import { fixtureReading } from '../../harness/fixture-grammar';
 
 describe('mergeListItemIntoPrevious: children-array contract', () => {
 	it('mutates the caller-owned children copy, not a hidden internal array', () => {
@@ -12,14 +12,7 @@ describe('mergeListItemIntoPrevious: children-array contract', () => {
 		const childrenCopy = list.children!.slice();
 		const originalLength = childrenCopy.length;
 
-		const result = mergeListItemIntoPrevious(
-			list,
-			childrenCopy,
-			2,
-			undefined,
-			undefined,
-			fixtureLinkRef()
-		);
+		const result = mergeListItemIntoPrevious(list, childrenCopy, 2, undefined, fixtureReading());
 		if (!result) throw new Error('expected a merge target');
 
 		expect(childrenCopy.length).toBe(originalLength - 1);

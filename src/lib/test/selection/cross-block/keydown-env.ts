@@ -19,8 +19,7 @@ import { serialize } from '$lib/core/serializer';
 import { installEditorDomStubsForTests } from '$lib/testing';
 import { makeEditorActionsDeps } from '../../harness/editor-actions';
 import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
-import { defaultGrammarView } from '$lib/schema/block-openers';
-import { fixtureLinkRef } from '../../harness/fixture-grammar';
+import { fixtureReading } from '../../harness/fixture-grammar';
 
 export interface KeydownEnvOptions {
 	presentationMode?: PresentationMode;
@@ -69,12 +68,9 @@ export function makeKeydownEnv(source: string | Document, opts: KeydownEnvOption
 		revealPath,
 		controller,
 		pushUndoSnapshot: () => controller.pushUndoSnapshot(0, 0),
-		grammar: defaultGrammarView,
-		getPresentationMode: undefined,
-		linkRef: fixtureLinkRef()
+		reading: fixtureReading()
 	};
 
-	const getPresentationMode = opts.presentationMode ? () => opts.presentationMode! : undefined;
 	// The real handler, so a format chord over a range moves the bytes it would move in production.
 	const crossBlockCommands = createCrossBlockCommands({
 		selection,
@@ -82,8 +78,7 @@ export function makeKeydownEnv(source: string | Document, opts: KeydownEnvOption
 		getBlockElByPath,
 		revealPath,
 		controller,
-		getPresentationMode,
-		linkRef: { grammar: defaultGrammarView },
+		reading: fixtureReading({}, opts.presentationMode),
 		getContentVersion: harness.contentVersion
 	});
 
@@ -101,11 +96,10 @@ export function makeKeydownEnv(source: string | Document, opts: KeydownEnvOption
 		controller,
 		history: { requestUndo: vi.fn(), requestRedo: vi.fn() },
 		pluginEditor: undefined,
-		getPresentationMode,
+		reading: fixtureReading({}, opts.presentationMode),
 		onCommandError,
 		crossBlockCommands,
 		getKeybindingOverrides: () => ({ global: new Map(), byKind: new Map() }),
-		grammar: defaultGrammarView,
 		activePlugins: everyInstalledPlugin,
 		afterReactivity: async () => {}
 	} as unknown as CrossBlockDispatchContext;

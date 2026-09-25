@@ -617,9 +617,7 @@
 		getBlockElByPath,
 		revealPath,
 		events,
-		grammar: registryView.grammar,
-		getPresentationMode: () => effectiveMode,
-		linkRef: reading
+		reading
 	};
 	const { blockEdit, focus, history, containerEdit, controller } =
 		createEditorActions(editorActionsDeps);
@@ -659,18 +657,14 @@
 
 	// The typed-trigger menus (`#tag`, `[[link`). The write is the same one-entry range splice the
 	// link card and the image popover use, so a pick undoes in one press.
-	const inlineMenuCommit = createInlineRangeCommit({
-		getDoc,
-		controller,
-		grammar: registryView.grammar
-	});
+	const inlineMenuCommit = createInlineRangeCommit({ getDoc, controller, reading });
 	const inlineMenu = createInlineMenuState({
 		getDoc,
 		getSelection,
 		getMode: () => effectiveMode,
 		events,
 		editorId,
-		linkRef: reading,
+		reading,
 		commitRange: inlineMenuCommit.commitInlineRange,
 		landCaret: landCaretAtOffset,
 		joinUndoEntries: (run) => controller.joinUndoEntries(run)
@@ -794,8 +788,7 @@
 		getBlockElByPath,
 		revealPath,
 		controller,
-		getPresentationMode: () => effectiveMode,
-		linkRef: reading,
+		reading,
 		getContentVersion: contentVersion.read
 	});
 
@@ -905,7 +898,7 @@
 		isHostChrome,
 		activateLink,
 		linkCard,
-		linkRef: reading,
+		reading,
 		widgetSelection
 	});
 	// The drop handler installs on the same root; its deps are the paste pipeline's, not a
@@ -920,9 +913,7 @@
 				getDoc,
 				controller,
 				coordinator: pasteCoordinator,
-				getPresentationMode: () => effectiveMode,
-				linkRef: reading,
-				grammar: registryView.grammar,
+				reading,
 				activePlugins,
 				events,
 				setDropCaret: (rect) => (dropCaret = rect),
@@ -1032,13 +1023,11 @@
 		controller,
 		history,
 		pluginEditor: pluginEditorLookup,
-		getPresentationMode: () => effectiveMode,
-		linkRef: reading,
+		reading,
 		onCommandError: commandErrorSink,
 		crossBlockCommands,
 		pasteCoordinator,
 		getKeybindingOverrides: () => overridesMap,
-		grammar: registryView.grammar,
 		activePlugins,
 		events,
 		getCursorOffset: () => selectionState.focus?.offset ?? null,
@@ -1553,8 +1542,6 @@
 		getContentVersion={contentVersion.read}
 		getEditorEl={() => editorEl ?? null}
 		getSelectionIsCustomRendered={() => selectionState.isCustomRendered}
-		getPresentationMode={() => effectiveMode}
-		grammar={registryView.grammar}
 		lifetime={lifetimeController.signal}
 		{menuPresence}
 	/>
@@ -1569,8 +1556,7 @@
 		{activateLink}
 		resolveLinkUrl={resolveLinkUrlImpl}
 		caretRestore={linkCardCaret}
-		linkRef={reading}
-		grammar={registryView.grammar}
+		{reading}
 		{menuPresence}
 	/>
 	<InlineMenuHost

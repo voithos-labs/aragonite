@@ -20,8 +20,7 @@ import {
 	type InlineMark,
 	type InlineMarkKind
 } from '../../../schema/inline-construct-policy';
-import type { GrammarView } from '../../../schema/block-openers';
-import type { LinkReferenceResolver } from '../../../core/inline/link-reference-resolver';
+import type { Reading } from '../../../schema/reading';
 import { insertsExactly } from './screen-diff';
 
 export interface MarkedInsertion {
@@ -35,7 +34,7 @@ export interface MarkedInsertion {
  * The insertion `text` at `caretOffset` makes under `marks`. Null when the marks name nothing to
  * do, or when no candidate parses back to what was asked: Markdown cannot express every
  * combination at every caret, and a byte that types plainly beats one that shows delimiters.
- * `resolver` must be the one `inlines` was read with, since every candidate is compared to them.
+ * `reading` must be the one `inlines` was read with, since every candidate is compared to them.
  */
 export function resolveMarkedInsertion(
 	display: string,
@@ -43,8 +42,7 @@ export function resolveMarkedInsertion(
 	text: string,
 	marks: ReadonlySet<InlineMarkKind>,
 	inlines: readonly InlineNode[],
-	resolver: LinkReferenceResolver | undefined,
-	grammar: GrammarView
+	reading: Reading
 ): MarkedInsertion | null {
 	if (marks.size === 0 || text.length === 0) return null;
 
@@ -62,7 +60,6 @@ export function resolveMarkedInsertion(
 		...applied
 	]);
 
-	const reading: Reading = { resolver, grammar };
 	const before = { visible: visibleText(display, reading), kinds: constructKinds(inlines) };
 	for (const candidate of candidateInsertions(
 		display,
@@ -181,12 +178,6 @@ function splitOpen(
 
 // ── Verification ─────────────────────────────────────────────────────────────
 
-/** How the block's inline tree was read: a candidate read any other way loses its reference links. */
-interface Reading {
-	resolver: LinkReferenceResolver | undefined;
-	grammar: GrammarView;
-}
-
 /** What the block was before the splice: what it showed, and every construct kind standing in it. */
 interface BlockBefore {
 	visible: string;
@@ -210,7 +201,7 @@ function parsesAsIntended(
 		candidate.raw,
 		0,
 		candidate.raw.length,
-		reading.resolver,
+		reading.current,
 		reading.grammar
 	);
 	const around = enclosingKinds(nodes, candidate.textAt, candidate.textAt + text.length);
@@ -239,7 +230,7 @@ function enclosingKinds(
  *  own: the first byte typed into an empty construct hides its markers, which is not a loss. */
 function visibleText(raw: string, reading: Reading, parsed?: readonly InlineNode[]): string {
 	return renderedText(
-		parsed ?? parseInline(raw, 0, raw.length, reading.resolver, reading.grammar),
+		parsed ?? parseInline(raw, 0, raw.length, reading.current, reading.grammar),
 		raw,
 		CONTENT_VISIBILITY,
 		{ grammar: reading.grammar }

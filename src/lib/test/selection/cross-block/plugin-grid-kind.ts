@@ -3,13 +3,13 @@
 // table metadata anywhere), plus the document and the stored-endpoint plan its suites test
 // against. Callers own the registry reset (`__resetSchemaRegistriesForTests`).
 
-import { defaultGrammarView } from '$lib/schema/block-openers';
 import { parse } from '$lib/core/parser';
 import type { CstNode, Document } from '$lib/core/nodes';
 import { planCrossBlockFormat } from '$lib/selection/cross-block/format-range';
 import type { SelectionPoint } from '$lib/selection/primitives';
 import { createSelectionState } from '$lib/selection/selection-state.svelte';
 import { testLeaf } from '$lib/test/harness/test-kinds';
+import { fixtureReading } from '$lib/test/harness/fixture-grammar';
 
 const joinChildren = (node: CstNode, sep: string) =>
 	(node.children ?? []).map((child) => child.raw).join(sep);
@@ -68,8 +68,6 @@ export function planStored(doc: Document, anchor: SelectionPoint, focus: Selecti
 	return {
 		start: selection.start!,
 		end: selection.end!,
-		plan: planCrossBlockFormat(doc, selection.start!, selection.end!, 'strong', undefined, {
-			grammar: defaultGrammarView
-		})
+		plan: planCrossBlockFormat(doc, selection.start!, selection.end!, 'strong', fixtureReading())
 	};
 }

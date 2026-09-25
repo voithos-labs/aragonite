@@ -75,7 +75,7 @@ export function normalizeOwnRaw(node: NodeView, raw: string): string {
  * Write `raw` as `node`'s own bytes through its kind's rule, in place. Every write of a leaf's
  * bytes that bypasses the kind's editable element must use this or {@link normalizeOwnRaw}.
  */
-export function writeOwnRaw(node: CstNode, raw: string, grammar: GrammarView | undefined): void {
+export function writeOwnRaw(node: CstNode, raw: string, grammar: GrammarView): void {
 	const descriptor = tryGetBlockKindDescriptor(node.kind);
 	const legal = normalizeOwnRaw(node, raw);
 	node.raw = legal;

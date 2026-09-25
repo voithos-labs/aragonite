@@ -7,7 +7,7 @@ import { splitNode } from '$lib/tree-operations/node-ops';
 import { createSharingState } from '$lib/tree-operations/sharing';
 import { expectParseConverged } from '../harness/parse-converged';
 import type { Document } from '$lib/core/nodes';
-import { fixtureLinkRef } from '../harness/fixture-grammar';
+import { fixtureReading } from '../harness/fixture-grammar';
 import { defaultGrammarView } from '$lib/schema/block-openers';
 
 // GH #96 through the delete paths: a selection covering a block's whole text leaves it blank, and
@@ -25,17 +25,15 @@ function emptyBlock(doc: Document, index: number): void {
 		{ path: [index], offset: 0 },
 		{ path: [index], offset: end },
 		createSharingState(),
-		defaultGrammarView,
-		undefined,
-		fixtureLinkRef()
+		fixtureReading()
 	);
 }
 
 /** [Hello, x('\n'), blank(''), Second('\n')] — the split shape, whose run line sits two below. */
 function splitShape(): Document {
 	const doc = parse('Hello\n\nSecond\n');
-	splitNode(doc, 0, 5, undefined, undefined, fixtureLinkRef(), defaultGrammarView);
-	splitNode(doc, 1, 0, undefined, undefined, fixtureLinkRef(), defaultGrammarView);
+	splitNode(doc, 0, 5, undefined, fixtureReading());
+	splitNode(doc, 1, 0, undefined, fixtureReading());
 	updateNodeContent(doc, 1, 'x\n', defaultGrammarView);
 	return doc;
 }
@@ -79,9 +77,7 @@ describe('a delete that empties a block settles the run it joins', () => {
 			{ path: [1], offset: 0 },
 			{ path: [2], offset: 0 },
 			createSharingState(),
-			defaultGrammarView,
-			undefined,
-			fixtureLinkRef()
+			fixtureReading()
 		);
 
 		expect(doc.children.map((c) => c.raw)).toEqual(['Hello\n', '\n', 'Second\n']);

@@ -5,17 +5,12 @@
 
 import type { BlockEditActions } from '../../../action-contracts';
 import type { NodeView } from '../../../core/node-views';
-import type {
-	DocumentGetter,
-	LinkReferenceResolverRef,
-	PasteImageHook
-} from '../../../editor-keys';
+import type { DocumentGetter, PasteImageHook } from '../../../editor-keys';
 import type { EditorEvents } from '../../../editor-events';
 import type { WidgetSelectionState } from '../../image/widget-selection-state.svelte';
 import type { AmbientCursorIO } from '../../../ambient/ambient-cursor';
 import type { CrossBlockHandlers } from '../../../selection/cross-block/dispatch';
 import type { PasteCommitCoordinator } from '../../../tree-operations/paste/paste-deps';
-import type { GrammarView } from '../../../schema/block-openers';
 import type { PluginActivation } from '../../../schema/plugin-activation';
 import type { SelectionState } from '../../../selection/selection-state.svelte';
 import type { StickyColumnState } from '../../../cursor/sticky-column';
@@ -31,7 +26,7 @@ import {
 import { pasteDispatch } from '../../../tree-operations/paste/dispatch';
 import { replaceRangeRaw } from './live-selection-edit';
 import { replaceSelectedWidget } from './widget-interaction';
-import type { PresentationMode } from '../../../presentation-mode';
+import type { Reading } from '../../../schema/reading';
 
 export interface TextClipboardDeps {
 	get node(): NodeView;
@@ -49,8 +44,6 @@ export interface TextClipboardDeps {
 	edgeAffinity: EdgeAffinityState;
 	blockEdit: BlockEditActions;
 	pasteCoordinator: PasteCommitCoordinator;
-	/** This editor's grammar, so an unlisted plugin's opener never takes pasted bytes here. */
-	grammar: GrammarView;
 	/** The plugins this instance activated, so an unlisted plugin's paste transform stays out. */
 	activePlugins: PluginActivation;
 	getDoc: DocumentGetter;
@@ -64,16 +57,15 @@ export interface TextClipboardDeps {
 	foldRevealBeforeMutation: () => RevealFold | null;
 	/** True while an inline widget on this block is showing its source. */
 	isRevealing: () => boolean;
-	/** The mode the cut's join rules answer to (live-mode.md § 4.5); `undefined` reads as not
-	 *  live. */
-	getPresentationMode: () => PresentationMode | undefined;
 	/** The container's marker prefix this block renders under, which the cut reads its candidate
 	 *  back through: a list item body left starting with a space reparses under a wider marker. */
 	getAmbientPrefix: () => string;
 	/** The block's live DOM as raw text, so a copy over an uncommitted edit yields what
 	 *  the user sees rather than a stale slice of `node.raw`. */
 	readRevealedText: () => string;
-	get linkRef(): LinkReferenceResolverRef;
+	/** How this editor reads its bytes: an unlisted plugin's opener never takes pasted bytes here,
+	 *  and a cut is a join its mode decides the cleanup of (live-mode.md § 4.5). */
+	get reading(): Reading;
 }
 
 export interface TextClipboard extends ClipboardHandlers {
@@ -102,8 +94,9 @@ export function createTextClipboard(deps: TextClipboardDeps): TextClipboard {
 		if (selected === null || !deps.widgetSelection.isSelected(deps.myPath, selected.sourceStart)) {
 			return null;
 		}
-		const inline = resolvedInlineContent(deps.node, deps.linkRef).find(
-			(n) => isInlineWidget(n, deps.node.raw, deps.grammar) && n.start === selected.sourceStart
+		const inline = resolvedInlineContent(deps.node, deps.reading).find(
+			(n) =>
+				isInlineWidget(n, deps.node.raw, deps.reading.grammar) && n.start === selected.sourceStart
 		);
 		return inline ? { inline, preSelectOffset: selected.preSelectOffset } : null;
 	}
@@ -170,8 +163,7 @@ export function createTextClipboard(deps: TextClipboardDeps): TextClipboard {
 				deps.node,
 				selOffsets,
 				'',
-				deps.getPresentationMode(),
-				deps.linkRef,
+				deps.reading,
 				deps.getAmbientPrefix()
 			);
 			void deps.blockEdit.updateBlockContent(deps.index, edit.raw, selOffsets.start);
@@ -201,9 +193,8 @@ export function createTextClipboard(deps: TextClipboardDeps): TextClipboard {
 					doc: deps.getDoc(),
 					blockEdit: deps.blockEdit,
 					controller: deps.pasteCoordinator,
-					grammar: deps.grammar,
-					activePlugins: deps.activePlugins,
-					seam: { presentationMode: deps.getPresentationMode(), linkRef: deps.linkRef }
+					reading: deps.reading,
+					activePlugins: deps.activePlugins
 				}
 			);
 

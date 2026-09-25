@@ -6,7 +6,6 @@
 //
 // Miss-analysis: the format-range suite drew tables by hand, so no test ever covered a grid
 // wide enough to reach the argument-count limit; the shapes were too tame for the class.
-import { defaultGrammarView } from '$lib/schema/block-openers';
 import { describe, it, expect } from 'vitest';
 import { parse } from '$lib/core/parser';
 import {
@@ -14,6 +13,7 @@ import {
 	planCrossBlockFormat
 } from '$lib/selection/cross-block/format-range';
 import type { SelectionPoint } from '$lib/selection/primitives';
+import { fixtureReading } from '$lib/test/harness/fixture-grammar';
 
 // Past the argument-count limit with room to spare: the ceiling is stack-dependent, so a
 // count pinned just over one machine's measurement passes on the next machine's.
@@ -38,15 +38,13 @@ describe('cross-block format over a grid larger than an argument list', () => {
 	it('reads the pressed state over every covered cell', () => {
 		expect(doc.children[0].children).toHaveLength(ROWS);
 		expect(() =>
-			crossBlockActiveFormats(doc, cell(0), cell(LAST_CELL), { grammar: defaultGrammarView })
+			crossBlockActiveFormats(doc, cell(0), cell(LAST_CELL), fixtureReading())
 		).not.toThrow();
 	});
 
 	it('plans the toggle over every covered cell', () => {
 		expect(() =>
-			planCrossBlockFormat(doc, cell(0), cell(LAST_CELL), 'strong', 'source', {
-				grammar: defaultGrammarView
-			})
+			planCrossBlockFormat(doc, cell(0), cell(LAST_CELL), 'strong', fixtureReading())
 		).not.toThrow();
 	});
 });

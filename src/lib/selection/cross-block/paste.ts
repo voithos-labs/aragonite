@@ -92,7 +92,7 @@ export async function handleCrossBlockPaste(
 			blockEdit: ctx.blockEdit,
 			controller: ctx.pasteCoordinator,
 			undoEntry: 'join',
-			grammar: ctx.grammar,
+			reading: ctx.reading,
 			activePlugins: ctx.activePlugins
 		}
 	);
@@ -163,7 +163,7 @@ async function replaceCoveredBlockWithPaste(
 	const parsed = parseReplacement(
 		covered,
 		applyPasteTransforms(pasted, ctx.activePlugins),
-		ctx.grammar
+		ctx.reading.grammar
 	);
 	if (!parsed) return;
 
@@ -179,7 +179,7 @@ async function replaceCoveredBlockWithPaste(
 		focusReplacementIndex: parsed.replacement.length - 1,
 		focusOffset: CURSOR_END,
 		source: 'cross-block-covered-block',
-		grammar: ctx.grammar,
+		grammar: ctx.reading.grammar,
 		// Nothing is reattached after the pasted text here, since the block's whole position is
 		// the target, so the trailing blank line comes in unfiltered (`paste/dispatch.ts` states
 		// the rule).

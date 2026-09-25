@@ -39,7 +39,12 @@ async function deleteEmptyItem(
 		state,
 		snapshot: { path: extendDocPath(deps.path, itemIndex), offset: 0 },
 		mutate: (scope) => {
-			const change = performDelete(scopeParentOf(scope), itemIndex, deps.grammar, scope.sharing);
+			const change = performDelete(
+				scopeParentOf(scope),
+				itemIndex,
+				deps.reading.grammar,
+				scope.sharing
+			);
 			renumberOrderedList(scope.node, itemIndex, scope.sharing);
 			return change;
 		},
@@ -143,8 +148,7 @@ async function listItemCascadeMiddle(
 				scope.children,
 				itemIndex,
 				scope.sharing,
-				deps.getPresentationMode?.(),
-				deps.linkRef
+				deps.reading
 			);
 			mergePoint = result?.mergePoint ?? null;
 			return mergePoint ? { op: 'delete', at: itemIndex, count: 1 } : { op: 'noop' };

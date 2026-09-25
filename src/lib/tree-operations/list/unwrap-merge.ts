@@ -6,8 +6,7 @@
 
 import type { CstNode, ListMetadata } from '../../core/nodes';
 import type { NodeView } from '../../core/node-views';
-import type { PresentationMode } from '../../presentation-mode';
-import type { InlineResolverRef } from '../../schema/inline-construct-policy';
+import type { Reading } from '../../schema/reading';
 import { metadataOf } from '../../core/nodes';
 import { trailingLineEnding } from '../../core/lines';
 import { cleanJoinedRaw } from '../node-ops';
@@ -165,8 +164,7 @@ export function mergeListItemIntoPrevious(
 	children: CstNode[],
 	currentIndex: number,
 	sharing: SharingState | undefined,
-	presentationMode: PresentationMode | undefined,
-	linkRef: InlineResolverRef
+	reading: Reading
 ): { mergePoint: { targetPath: number[]; offset: number } } | null {
 	// Targeting may read `list.children`, but the final splice must land in `children`
 	// (`node-primitives.ts` header).
@@ -215,16 +213,13 @@ export function mergeListItemIntoPrevious(
 	const lineEnding = trailingLineEnding(targetParagraph.raw ?? '');
 	// Every destructive join goes through the join cleanup, M1 included: a literal concatenation
 	// would show the delimiter runs the join left unpaired, which live mode had hidden.
-	const joined = cleanJoinedRaw(
-		{
-			mergedRaw: targetOriginalText + currentFirstText,
-			seam: targetOriginalText.length,
-			start: { node: targetParagraph, offset: targetOriginalText.length },
-			end: { node: currentFirstParagraph, offset: 0 },
-			linkRef
-		},
-		presentationMode
-	);
+	const joined = cleanJoinedRaw({
+		mergedRaw: targetOriginalText + currentFirstText,
+		seam: targetOriginalText.length,
+		start: { node: targetParagraph, offset: targetOriginalText.length },
+		end: { node: currentFirstParagraph, offset: 0 },
+		reading
+	});
 	// The caret follows the cleaned join offset: a run dropped on the target's side moves where
 	// the two halves met.
 	const mergeOffset = joined.seam;

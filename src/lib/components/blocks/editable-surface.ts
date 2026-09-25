@@ -18,9 +18,7 @@ import type {
 	BlockElLookup,
 	DocumentGetter,
 	PasteImageHook,
-	PluginEditorLookup,
-	LinkReferenceResolverRef,
-	PresentationModeGetter
+	PluginEditorLookup
 } from '../../editor-keys';
 import { emitClipboardError, type EditorEvents } from '../../editor-events';
 import type { InlineMenuCombobox } from '../../inline-menu/inline-menu-state.svelte';
@@ -28,7 +26,6 @@ import type { NodeView } from '../../core/node-views';
 import { blockAccessibleName } from '../../a11y-strings';
 import type { KeybindingOverrideMap } from '../../schema/keybinding-overrides';
 import type { CommandErrorSink, CrossBlockCommandRouter } from '../../schema/block-commands';
-import type { GrammarView } from '../../schema/block-openers';
 import type { PluginActivation } from '../../schema/plugin-activation';
 import type { UndoController } from '../../editor-actions/deps';
 import type { PasteCommitCoordinator } from '../../tree-operations/paste/paste-deps';
@@ -63,6 +60,7 @@ import {
 } from '../../debug/interaction-trace';
 import { assertInvariant } from '../../assert';
 import { checkCompositionEndPaired } from '../../invariants/inline-transitions';
+import type { Reading } from '../../schema/reading';
 
 // ── Keydown verdict ─────────────────────────────────────────────────────────
 
@@ -176,18 +174,14 @@ export interface EditableSurfaceDeps {
 	// Required (undefinable value) so a surface can't skip the thread and silently
 	// contain plugin throws.
 	pluginEditor: PluginEditorLookup | undefined;
-	/** The presentation mode in effect, for the cross-block reading check; passed on its own,
-	 *  not through `pluginEditor`. */
-	getPresentationMode: PresentationModeGetter | undefined;
-	/** This editor's link-reference resolver, passed to the cross-block join rules. */
-	linkRef: LinkReferenceResolverRef;
+	/** How this editor reads its bytes, for the cross-block join rules, the join-paste reparse and
+	 *  the reading-mode check. */
+	reading: Reading;
 	onCommandError: CommandErrorSink | undefined;
 	/** The handler a range command goes to, passed to the cross-block composer. */
 	crossBlockCommands: CrossBlockCommandRouter;
 	getKeybindingOverrides: () => KeybindingOverrideMap;
 	pasteCoordinator: PasteCommitCoordinator;
-	/** The instance's block grammar, forwarded to the cross-block join-paste reparse. */
-	grammar: GrammarView;
 	/** The plugins this instance activated, forwarded to the paste-transform pipeline. */
 	activePlugins: PluginActivation;
 	/** This editor's events, passed to the cross-block clipboard's error reporting: the
@@ -295,13 +289,11 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		controller: deps.controller,
 		history: deps.history,
 		pluginEditor: deps.pluginEditor,
-		getPresentationMode: deps.getPresentationMode,
-		linkRef: deps.linkRef,
+		reading: deps.reading,
 		onCommandError: deps.onCommandError,
 		crossBlockCommands: deps.crossBlockCommands,
 		getKeybindingOverrides: deps.getKeybindingOverrides,
 		pasteCoordinator: deps.pasteCoordinator,
-		grammar: deps.grammar,
 		activePlugins: deps.activePlugins,
 		events: deps.events,
 		getCursorOffset: () => deps.backend.getRaw(),

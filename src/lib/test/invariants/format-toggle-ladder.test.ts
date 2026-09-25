@@ -6,7 +6,6 @@
 // decline is excused, so a new corpus line fails nothing on its own; a shape that should write
 // needs a unit test. Miss-analysis: the equivalence lived only in prose, so a fourth branch on one
 // side and not the other would send writes to the wrong place in silence.
-import { defaultGrammarView } from '$lib/schema/block-openers';
 import { describe, it, expect } from 'vitest';
 import {
 	isInlineFormatActive,
@@ -17,6 +16,7 @@ import {
 } from '$lib/core/inline/format-toggle';
 import { paintsFocusedMarkers, type PresentationMode } from '$lib/presentation-mode';
 import { listInlineMarks } from '$lib/schema/inline-construct-policy';
+import { fixtureReading } from '$lib/test/harness/fixture-grammar';
 
 /** Shapes the naive reading breaks on: nesting same-kind, cross-kind and interleaved, non-canonical
  *  runs, a literal delimiter, an empty pair, a code span's opaque bytes, escapes at both construct
@@ -110,11 +110,11 @@ describe('G2.14: the pressed-state read and the toggle direction', () => {
 						display,
 						content,
 						selection,
-						linkRef: { grammar: defaultGrammarView }
+						reading: fixtureReading()
 					};
 					const active = isInlineFormatActive(edit, kind);
 					for (const mode of MODES) {
-						const result = toggleInlineFormat(edit, kind, mode);
+						const result = toggleInlineFormat({ ...edit, reading: fixtureReading({}, mode) }, kind);
 						// Declining is sound in both directions: a toggle's fallback is not writing.
 						if (!result) continue;
 						const excused =

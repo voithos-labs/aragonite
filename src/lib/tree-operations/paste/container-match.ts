@@ -227,9 +227,9 @@ async function applyContainerMatchingMerge(
 				writeOwnRaw(
 					ownedLeaf,
 					displayBefore + firstItemText + displayAfter + targetLineEnding,
-					ctx.grammar
+					ctx.reading.grammar
 				);
-				rebuildUnsharedChain(ctx.doc, chain, sharing, null, ctx.grammar);
+				rebuildUnsharedChain(ctx.doc, chain, sharing, null, ctx.reading.grammar);
 				return [{ op: 'noop' }];
 			},
 			op: {
@@ -256,14 +256,14 @@ async function applyContainerMatchingMerge(
 		mutate: ([scopeView]) => {
 			const sharing = scopeView.sharing;
 			const { chain, ownedLeaf } = ownMergedLeafSpine(sharing);
-			writeOwnRaw(ownedLeaf, displayBefore + firstItemText + targetLineEnding, ctx.grammar);
+			writeOwnRaw(ownedLeaf, displayBefore + firstItemText + targetLineEnding, ctx.reading.grammar);
 			// The residue can cross a kind boundary (a fence closer landing in a paragraph),
 			// so it reattaches through the reparse path, never a bare write.
 			residue = updateNodeContent(
 				{ children: lastItem.children!, ownerKind: lastItem.kind, owner: lastItem },
 				0,
 				lastDisplay + displayAfter + lastLineEnding,
-				ctx.grammar,
+				ctx.reading.grammar,
 				sharing
 			);
 			// The write's fix-up can splice the item's own body, a list this commit's descriptor
@@ -277,7 +277,7 @@ async function applyContainerMatchingMerge(
 			}
 			// Both rebuilds run before the splice, so the children written to state carry correct
 			// raws in one reactive flush.
-			rebuildUnsharedChain(ctx.doc, chain, sharing, null, ctx.grammar);
+			rebuildUnsharedChain(ctx.doc, chain, sharing, null, ctx.reading.grammar);
 			rebuildContainerRawIfContainer(remainingItems[remainingItems.length - 1]);
 
 			// The siblings land after the merged target, which keeps its own slot.

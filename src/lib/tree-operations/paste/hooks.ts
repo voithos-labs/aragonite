@@ -15,10 +15,10 @@ import {
 import {
 	registerPasteSurface,
 	type PasteRange,
-	type PasteSeam,
 	type InlinePasteResult,
 	type StructuralPasteResult
 } from '../paste-surfaces';
+import type { Reading } from '../../schema/reading';
 
 // Registered by their own component instead of the loop below. One registrar per kind, so
 // correctness doesn't hinge on module load order.
@@ -35,10 +35,10 @@ function applyPreDelete(
 	display: string,
 	preDelete: PasteRange | undefined,
 	offset: number,
-	seam: PasteSeam
+	reading: Reading
 ): { display: string; offset: number } {
 	if (!preDelete) return { display, offset };
-	return cutRangeFromDisplay(node, display, preDelete, seam.presentationMode, seam.linkRef);
+	return cutRangeFromDisplay(node, display, preDelete, reading);
 }
 
 export function defaultInlineHook(
@@ -46,7 +46,7 @@ export function defaultInlineHook(
 	offset: number,
 	text: string,
 	preDelete: PasteRange | undefined,
-	seam: PasteSeam
+	reading: Reading
 ): InlinePasteResult {
 	const display = trimTrailingLineEnding(node.raw);
 	const lineEnding = trailingLineEnding(node.raw);
@@ -56,7 +56,7 @@ export function defaultInlineHook(
 		display,
 		preDelete,
 		offset,
-		seam
+		reading
 	);
 
 	const after = effectiveDisplay.slice(effectiveOffset);
@@ -88,10 +88,10 @@ export function defaultStructuralHook(
 	offset: number,
 	blocks: CstNode[],
 	preDelete: PasteRange | undefined,
-	seam: PasteSeam
+	reading: Reading
 ): StructuralPasteResult {
 	const display = trimTrailingLineEnding(node.raw);
-	const cut = applyPreDelete(node, display, preDelete, offset, seam);
+	const cut = applyPreDelete(node, display, preDelete, offset, reading);
 	// Compare the bytes rather than the range: a cleanup can drop more than the selection did,
 	// and an empty range leaves them equal, which is exactly when the original node stands.
 	const synthLeaf =
@@ -101,7 +101,7 @@ export function defaultStructuralHook(
 		synthLeaf,
 		cut.offset,
 		blocks,
-		seam.grammar
+		reading.grammar
 	);
 	// The caret lands where the pasted bytes end, which the fix-up tracks when it merges the
 	// residue into the last pasted block.

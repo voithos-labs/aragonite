@@ -8,8 +8,7 @@
 
 import type { UndoEntryMode } from '../../action-contracts';
 import type { SelectionState } from '../selection-state.svelte';
-import type { GrammarView } from '../../schema/block-openers';
-import type { LinkReferenceResolverRef, PresentationModeGetter } from '../../editor-keys';
+import type { Reading } from '../../schema/reading';
 import { deleteSnapshot, type SelectionPoint } from '../primitives';
 import type { CstNode, Document } from '../../core/nodes';
 import type { BlockComponent } from '../../block-component';
@@ -34,14 +33,9 @@ export interface CrossBlockMutationContext {
 	controller: CommitController;
 	/** Push an undo snapshot immediately, bypassing the debounce. */
 	pushUndoSnapshot: () => void;
-	/** Block grammar for the delete's ancestor rebuild. */
-	grammar: GrammarView;
-	/** The effective mode the delete's join cleanup reads (live-mode.md § 4.5). Nullable rather
-	 *  than optional, so no caller skips it; `undefined` reads as not live and keeps every byte. */
-	getPresentationMode: PresentationModeGetter | undefined;
-	/** The instance's link-reference resolver, so the join cleanup parses the reference forms the
-	 *  renderer drew. */
-	linkRef: LinkReferenceResolverRef;
+	/** How the editor reads its bytes: the ancestor rebuild reads its grammar, and the join cleanup
+	 *  its link definitions and mode (live-mode.md § 4.5). */
+	reading: Reading;
 }
 
 /** Options for {@link performCrossBlockDelete}. Absent = plain delete, own snapshot and caret. */
@@ -182,15 +176,7 @@ async function commitPureTopLevelDelete(
 				}
 			};
 			const ledger = trackChildIds(proxyDoc);
-			const result = rangeDelete(
-				proxyDoc,
-				start,
-				end,
-				ctx.controller.sharing,
-				ctx.grammar,
-				ctx.getPresentationMode?.(),
-				ctx.linkRef
-			);
+			const result = rangeDelete(proxyDoc, start, end, ctx.controller.sharing, ctx.reading);
 			collapsedCaret = result.collapsedCaret;
 			ctx.selection.collapse();
 			return ledger.read();
@@ -240,15 +226,7 @@ async function commitCrossContainerDelete(
 			// scope nodes stay valid because splices happen in place.
 			const ledgers = scopeViews.map((v) => trackChildIds(v.node));
 
-			const result = rangeDelete(
-				doc,
-				start,
-				end,
-				sharing,
-				ctx.grammar,
-				ctx.getPresentationMode?.(),
-				ctx.linkRef
-			);
+			const result = rangeDelete(doc, start, end, sharing, ctx.reading);
 			collapsedCaret = result.collapsedCaret;
 			ctx.selection.collapse();
 

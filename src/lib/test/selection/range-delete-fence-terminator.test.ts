@@ -6,8 +6,7 @@ import { createSharingState } from '$lib/tree-operations/sharing';
 import { registerCalloutForTests } from './chrome-plugins';
 import { expectParseConverged } from '../harness/parse-converged';
 import { allowDevWarns } from '$lib/test/support/warn-gate';
-import { fixtureLinkRef } from '../harness/fixture-grammar';
-import { defaultGrammarView } from '$lib/schema/block-openers';
+import { fixtureReading } from '../harness/fixture-grammar';
 
 // rangeDelete is driven with hand-built endpoints, so the table branch sees a character offset
 // `SelectionState` would have snapped to a cell coordinate.
@@ -31,9 +30,7 @@ describe('range delete inside a fenced code block', () => {
 			{ path: [0], offset: 8 },
 			{ path: [0], offset: 9 },
 			sharing(),
-			defaultGrammarView,
-			undefined,
-			fixtureLinkRef()
+			fixtureReading()
 		);
 
 		expect(serialize(doc)).toBe('````js\n```\nbody\n````\n\n# Heading\n');
@@ -48,9 +45,7 @@ describe('range delete inside a fenced code block', () => {
 			{ path: [0], offset: 8 },
 			{ path: [0], offset: 9 },
 			sharing(),
-			defaultGrammarView,
-			undefined,
-			fixtureLinkRef()
+			fixtureReading()
 		);
 
 		expect(doc.children.map((c) => c.kind)).toEqual(['fencedCode', 'heading']);
@@ -64,9 +59,7 @@ describe('range delete inside a fenced code block', () => {
 			{ path: [0], offset: 8 },
 			{ path: [0], offset: 9 },
 			sharing(),
-			defaultGrammarView,
-			undefined,
-			fixtureLinkRef()
+			fixtureReading()
 		);
 
 		expect(serialize(doc)).toBe('```js\nabcd\n```\n\n# Heading\n');
@@ -83,9 +76,7 @@ describe('range delete inside a fenced code block', () => {
 			{ path: [0], offset: 2 },
 			{ path: [0], offset: 3 },
 			sharing(),
-			defaultGrammarView,
-			undefined,
-			fixtureLinkRef()
+			fixtureReading()
 		);
 
 		expect(serialize(doc)).toBe('```\n\n# Heading\n');
@@ -107,9 +98,7 @@ describe('range delete that consumes a fenced code closer', () => {
 			{ path: [0], offset: 8 },
 			{ path: [0], offset: 14 },
 			sharing(),
-			defaultGrammarView,
-			undefined,
-			fixtureLinkRef()
+			fixtureReading()
 		);
 
 		expect(serialize(doc)).toBe('```js\nbo\n```\n\npara\n');
@@ -124,9 +113,7 @@ describe('range delete that consumes a fenced code closer', () => {
 			{ path: [0], offset: 8 },
 			{ path: [1], offset: 2 },
 			sharing(),
-			defaultGrammarView,
-			undefined,
-			fixtureLinkRef()
+			fixtureReading()
 		);
 
 		expect(serialize(doc)).toBe('```js\nbora\n```\n\ntail\n');
@@ -144,9 +131,7 @@ describe('range delete that consumes a fenced code closer', () => {
 			{ path: [0], offset: 8 },
 			{ path: [1], offset: 1 },
 			sharing(),
-			defaultGrammarView,
-			undefined,
-			fixtureLinkRef()
+			fixtureReading()
 		);
 
 		expect(doc.children.map((c) => c.kind)).toEqual(['fencedCode', 'table', 'paragraph']);
@@ -161,9 +146,7 @@ describe('range delete that consumes a fenced code closer', () => {
 			{ path: [0], offset: 13 },
 			{ path: [0], offset: 20 },
 			sharing(),
-			defaultGrammarView,
-			undefined,
-			fixtureLinkRef()
+			fixtureReading()
 		);
 
 		expect(serialize(doc)).toBe('````js\n```\nbo\n````\n\npara\n');
@@ -178,9 +161,7 @@ describe('range delete that consumes a fenced code closer', () => {
 			{ path: [0], offset: 9 },
 			{ path: [0], offset: 16 },
 			sharing(),
-			defaultGrammarView,
-			undefined,
-			fixtureLinkRef()
+			fixtureReading()
 		);
 
 		expect(serialize(doc)).toBe('```js\r\nbo\r\n```\r\n\r\npara\r\n');
@@ -197,9 +178,7 @@ describe('range delete that consumes a fenced code closer', () => {
 			{ path: [0], offset: 9 },
 			{ path: [1], offset: 4 },
 			sharing(),
-			defaultGrammarView,
-			undefined,
-			fixtureLinkRef()
+			fixtureReading()
 		);
 
 		expect(serialize(doc)).toBe('```js\r\nbo\r\n```\n');
@@ -217,9 +196,7 @@ describe('range delete that consumes a fenced code closer', () => {
 				{ path: [0], offset: 8 },
 				{ path: [1, 0], offset: 3 },
 				sharing(),
-				defaultGrammarView,
-				undefined,
-				fixtureLinkRef()
+				fixtureReading()
 			);
 
 			expect(doc.children.map((c) => c.kind)).toEqual(['fencedCode', 'callout', 'paragraph']);

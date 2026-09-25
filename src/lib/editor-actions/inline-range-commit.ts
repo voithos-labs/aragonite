@@ -8,7 +8,7 @@ import type { Document } from '../core/nodes';
 import type { DocumentView, NodeView } from '../core/node-views';
 import { docPathFrom } from '../cursor/coordinate-spaces';
 import { expectStateForNode } from '../reactivity/state-registry';
-import type { GrammarView } from '../schema/block-openers';
+import type { Reading } from '../schema/reading';
 import { updateNodeContent } from '../tree-operations/content-write';
 import { isBlockNode, nodeAt, normalizeOwnRaw } from '../tree-operations/node-primitives';
 import { stampStructuralChange } from '../tree-operations/structural-change';
@@ -19,8 +19,8 @@ import type { UndoController } from './deps';
 export interface InlineRangeCommitDeps {
 	getDoc: () => Document;
 	controller: UndoController;
-	/** The instance's grammar, for the leaf kind's own raw-write rule. */
-	grammar: GrammarView;
+	/** The editor's reading, whose grammar the leaf kind's own raw-write rule reads. */
+	reading: Reading;
 }
 
 export interface InlineRangeCommit {
@@ -97,7 +97,7 @@ export function createInlineRangeCommit(deps: InlineRangeCommitDeps): InlineRang
 						parent,
 						leafIdx,
 						newRaw,
-						deps.grammar,
+						deps.reading.grammar,
 						controller.sharing
 					);
 					stampStructuralChange(children, change, controller.sharing);
@@ -125,7 +125,7 @@ export function createInlineRangeCommit(deps: InlineRangeCommitDeps): InlineRang
 					scopeParentOf(scope),
 					leafIdx,
 					newRaw,
-					deps.grammar,
+					deps.reading.grammar,
 					scope.sharing
 				);
 				stampStructuralChange(scope.children, change, scope.sharing);

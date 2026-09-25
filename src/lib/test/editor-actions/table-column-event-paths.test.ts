@@ -8,8 +8,7 @@ import { registerBlockListState } from '$lib/reactivity/state-registry';
 import { makeBlockListState, makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
 import { makeTableMutations } from './table-mutations-harness';
 import type { EditEvent } from '$lib/editor-events';
-import { defaultGrammarView } from '$lib/schema/block-openers';
-import { fixtureLinkRef } from '../harness/fixture-grammar';
+import { fixtureReading } from '../harness/fixture-grammar';
 
 // A column is not a child node, so column edits address the table and carry the column
 // index in the event detail. Two sites share the contract: the alignment edits
@@ -75,9 +74,7 @@ function makeColumnCoverageEnv() {
 		revealPath: deps.revealPath,
 		controller,
 		pushUndoSnapshot: () => controller.pushUndoSnapshot(0, 0),
-		grammar: defaultGrammarView,
-		getPresentationMode: undefined,
-		linkRef: fixtureLinkRef()
+		reading: fixtureReading()
 	};
 	return { deps, table, ctx, edits };
 }

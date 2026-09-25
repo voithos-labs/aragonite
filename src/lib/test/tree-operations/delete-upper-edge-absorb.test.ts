@@ -4,7 +4,7 @@ import { serialize } from '$lib/core/serializer';
 import { deleteNode } from '$lib/tree-operations/settle';
 import { mergeIntoPrevDeepLeaf } from '$lib/tree-operations/node-ops';
 import { describeConvergence } from '$lib/test/harness/parse-converged';
-import { fixtureLinkRef } from '../harness/fixture-grammar';
+import { fixtureReading } from '../harness/fixture-grammar';
 import { defaultGrammarView } from '$lib/schema/block-openers';
 
 // GH #173: `deleteNode`'s neighbour merge looked downward only, so a merge whose rewritten
@@ -20,14 +20,7 @@ describe('a merge whose survivor the block above absorbs', () => {
 		const doc = parse('    code\n\n    \nx\n\n\n[ref]: https://example.com\n');
 		expect(doc.children).toHaveLength(5);
 
-		const merged = mergeIntoPrevDeepLeaf(
-			doc,
-			2,
-			undefined,
-			undefined,
-			fixtureLinkRef(),
-			defaultGrammarView
-		);
+		const merged = mergeIntoPrevDeepLeaf(doc, 2, undefined, fixtureReading());
 
 		expect(serialize(doc)).toBe('    code\n\n    x\n\n\n[ref]: https://example.com\n');
 		expect(doc.children[0].raw).toBe('    code\n\n    x\n');

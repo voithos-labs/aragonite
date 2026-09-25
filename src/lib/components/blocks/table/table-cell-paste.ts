@@ -17,10 +17,10 @@ import { replaceBlockAtParent } from '../../../tree-operations/paste/replace-blo
 import type {
 	InlinePasteResult,
 	PasteRange,
-	PasteSeam,
 	PasteSurface,
 	ScopedStructuralPasteInput
 } from '../../../tree-operations/paste-surfaces';
+import type { Reading } from '../../../schema/reading';
 
 // ── Public API ─────────────────────────────────────────────────────────────
 
@@ -41,7 +41,7 @@ export function tableCellInlinePaste(
 	offset: number,
 	text: string,
 	preDelete: PasteRange | undefined,
-	seam: PasteSeam
+	reading: Reading
 ): InlinePasteResult {
 	const cleaned = normalizeWhitespace(text);
 
@@ -51,8 +51,7 @@ export function tableCellInlinePaste(
 		node,
 		node.raw,
 		preDelete ?? { start: offset, end: offset },
-		seam.presentationMode,
-		seam.linkRef
+		reading
 	);
 
 	const spliced = raw.slice(0, effectiveOffset) + cleaned + raw.slice(effectiveOffset);

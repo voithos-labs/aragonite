@@ -7,7 +7,7 @@
 
 import type { AmbientPrefix } from '../../../block-component';
 import type { DocumentView, NodeView } from '../../../core/node-views';
-import { hidesMarkers, type PresentationMode } from '../../../presentation-mode';
+import { hidesMarkers } from '../../../presentation-mode';
 import type { ResolveImageUrl, ResolveLinkUrl } from '../../../editor-keys';
 import { buildAmbientSpan } from '../../../ambient/ambient-dom';
 import {
@@ -16,8 +16,7 @@ import {
 	getContentRange,
 	isProseKind
 } from '../../../core/inline';
-import type { LinkReferenceResolver } from '../../../core/inline/link-reference-resolver';
-import type { GrammarView } from '../../../schema/block-openers';
+import type { Reading } from '../../../schema/reading';
 import { renderInlineNodes, type ImageLoadPolicy } from '../../../core/inline-render';
 import type { DomTextOffset } from '../../../cursor/coordinate-spaces';
 import { CONTENT_EMPTY_ATTR, holdsOnlyMarkerChrome } from '../../../cursor/widget-offset';
@@ -52,9 +51,9 @@ export interface TextRenderDeps {
 	resolveImageUrl: ResolveImageUrl;
 	resolveLinkUrl: ResolveLinkUrl;
 	get imageLoadPolicy(): ImageLoadPolicy;
-	/** The mode in effect. Read inside the render pass on purpose: that read is the
-	 *  reactive dependency that re-renders every mounted block when the mode changes. */
-	get presentationMode(): PresentationMode;
+	/** How the editor reads its bytes. Its mode is read inside the render pass on purpose: that read
+	 *  is the reactive dependency that re-renders every mounted block when the mode changes. */
+	get reading(): Reading;
 	/** The editor's theme name, passed on to widgets. Not part of the render key: this DOM
 	 *  is themed by CSS, so only a widget that draws its own colors reads it. */
 	getTheme?: () => string;
@@ -66,13 +65,6 @@ export interface TextRenderDeps {
 	getContentVersion?: () => number;
 	/** The editor's navigation call, passed on to widgets whose gesture jumps elsewhere. */
 	navigateTo?: (path: number[]) => Promise<boolean>;
-	get linkResolver(): LinkReferenceResolver | undefined;
-	/** The editor's grammar: a plugin it left out claims no bytes and draws no widget here. */
-	grammar: GrammarView;
-	/** A short token that changes exactly when the document's link-reference definitions do
-	 *  (`link-reference-resolver.ts` makes it), so a block holding a reference puts this in
-	 *  its render key instead of a signature string that can reach megabytes. */
-	get linkStamp(): string;
 	/** Decoration widgets, sorted by position. A getter read inside the render pass on
 	 *  purpose: that read is the dependency that re-renders the block when one changes. */
 	get islands(): IndexedDecoration<WidgetDecoration | ReplaceDecoration>[];
@@ -120,12 +112,11 @@ export function createTextRender(deps: TextRenderDeps): TextRender {
 	let lastRenderedKey = '';
 	const widgetPool = createSvelteWidgetPool({
 		reportError: deps.reportRenderError,
-		getPresentationMode: () => deps.presentationMode,
 		getTheme: deps.getTheme,
 		getDocument: deps.getDocument,
 		getContentVersion: deps.getContentVersion,
 		navigateTo: deps.navigateTo,
-		grammar: deps.grammar
+		reading: deps.reading
 	});
 	let islandDestroys: Array<() => void> = [];
 
@@ -171,11 +162,11 @@ export function createTextRender(deps: TextRenderDeps): TextRender {
 				buildImageWidget: (imgNode, imgRaw, imgOpts) =>
 					buildImageWidget(imgNode, imgRaw, { ...imgOpts, brokenUrlCache: deps.brokenUrlCache }),
 				buildPortalWidget,
-				grammar: deps.grammar,
+				grammar: deps.reading.grammar,
 				// Data attributes only, for the code that shows construct markers; set in this
 				// mode alone so the other modes' DOM stays byte-identical.
-				tagConstructMarkers: deps.presentationMode === 'preview-inline',
-				pendingBreakSeat: hidesMarkers(deps.presentationMode)
+				tagConstructMarkers: deps.reading.mode() === 'preview-inline',
+				pendingBreakSeat: hidesMarkers(deps.reading.mode())
 			})
 		);
 		return frag;
@@ -234,14 +225,14 @@ export function createTextRender(deps: TextRenderDeps): TextRender {
 		// Checking for a bracket before reading the signature or the resolver keeps one edit
 		// to a link-reference definition from re-rendering the whole document.
 		const hasRef = node.raw.includes('[');
-		const refKeyPart = hasRef ? deps.linkStamp : '';
+		const refKeyPart = hasRef ? String(deps.reading.epoch) : '';
 		// The built widget bakes in `imageLoadPolicy`, so the key tracks it, but only for
 		// blocks with an image, which keeps image-free blocks off that dependency.
 		const hasImg = node.raw.includes('![');
 		const imgKeyPart = hasImg ? deps.imageLoadPolicy : '';
 		// Always included, unlike the reference and image parts: a mode change re-renders
 		// every mounted block. '' in source mode keeps the default key byte-identical.
-		const mode = deps.presentationMode;
+		const mode = deps.reading.mode();
 		const modeKeyPart = mode === 'source' ? '' : mode;
 		const islands = deps.islands;
 		// The kind is a render input, not just a branch selector: two prose kinds can share
@@ -259,8 +250,8 @@ export function createTextRender(deps: TextRenderDeps): TextRender {
 				traceRebuild(renderKeySegmentDiff(lastRenderedKey, renderKey), forceRebuild);
 			const content = computeInlineContent(
 				node,
-				hasRef ? deps.linkResolver : undefined,
-				deps.grammar
+				hasRef ? deps.reading.current : undefined,
+				deps.reading.grammar
 			);
 			// Rebuilds from the edit path skip the capture-and-restore pair: the component's
 			// pending restore overwrites the selection right after, so it would be wasted.

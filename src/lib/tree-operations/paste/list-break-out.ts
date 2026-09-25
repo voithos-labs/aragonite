@@ -88,7 +88,7 @@ export async function applyListBreakOut(
 		plan.offset,
 		pastedBlocks,
 		plan.targetRaw,
-		ctx.grammar
+		ctx.reading.grammar
 	);
 	if (replacement.length === 0) return;
 

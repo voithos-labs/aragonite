@@ -2,14 +2,13 @@
 	import type { Document } from '../../core/nodes';
 	import type { UndoController } from '../../editor-actions/deps';
 	import type { EditorEvents } from '../../editor-events';
-	import type { LinkReferenceResolverRef } from '../../editor-keys';
-	import type { GrammarView } from '../../schema/block-openers';
 	import type { CaretRestore } from '../../selection/caret-restore';
 	import { resolveHref } from '../../core/inline-render';
 	import LinkCard from './LinkCard.svelte';
 	import { createLinkCardCommitter } from './link-card-commit';
 	import type { LinkCardState } from './link-card-state.svelte';
 	import type { MenuPresence } from '../menu/menu-presence.svelte';
+	import type { Reading } from '../../schema/reading';
 
 	// Mounted unconditionally by Editor: the anchoring and dismiss effects must observe the card's
 	// target changing, so the open/closed `{#if}` lives here rather than at the mount site.
@@ -24,8 +23,7 @@
 		activateLink,
 		resolveLinkUrl,
 		caretRestore,
-		linkRef,
-		grammar,
+		reading,
 		menuPresence
 	}: {
 		card: LinkCardState;
@@ -39,8 +37,7 @@
 		/** The consumer's href rewrite, the first thing the render path applies. */
 		resolveLinkUrl: (rawUrl: string) => string;
 		caretRestore: CaretRestore;
-		linkRef: LinkReferenceResolverRef;
-		grammar: GrammarView;
+		reading: Reading;
 		menuPresence: MenuPresence;
 	} = $props();
 
@@ -57,8 +54,7 @@
 		events,
 		measureRange,
 		landCaret,
-		linkRef,
-		grammar
+		reading
 	});
 
 	$effect(() => {

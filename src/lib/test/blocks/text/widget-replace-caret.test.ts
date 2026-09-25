@@ -12,7 +12,7 @@ import {
 import { replaceSelectedWidget } from '$lib/components/blocks/text/widget-interaction';
 import { createWidgetSelectionState } from '$lib/components/image/widget-selection-state.svelte';
 import type { CstNode } from '$lib/core/nodes';
-import { fixtureLinkRef } from '../../harness/fixture-grammar';
+import { fixtureReading } from '../../harness/fixture-grammar';
 import { defaultGrammarView } from '$lib/schema/block-openers';
 
 const SOURCE = 'lead![cat](x) tail\n';
@@ -76,7 +76,7 @@ describe('replacing a selected widget', () => {
 			isReadOnly: () => false,
 			foldRevealBeforeMutation: () => null,
 			grammar: defaultGrammarView,
-			linkRef: fixtureLinkRef()
+			reading: fixtureReading()
 		} as unknown as TextClipboardDeps);
 		const store = new Map([['text/plain', 'text']]);
 		const pasted = clipboard.onPaste({

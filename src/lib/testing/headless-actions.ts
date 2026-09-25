@@ -12,7 +12,7 @@ import type { StickyColumnState } from '../cursor/sticky-column';
 import type { EdgeAffinityState } from '../cursor/edge-affinity';
 import type { EditorActionsDeps } from '../editor-actions/deps';
 import type { PresentationMode } from '../presentation-mode';
-import { defaultGrammarView } from '../schema/block-openers';
+import { kitReading } from './kit-reading';
 import { createEditorEvents, type EditorEvents } from '../editor-events';
 import { refSlotsOver, replaceRefs } from '../reactivity/publish-ref.svelte';
 import { createSelectionState } from '../selection/selection-state.svelte';
@@ -166,9 +166,7 @@ export function createHeadlessActions(
 		},
 		events,
 		// An author's suite runs with no editor, so every installed plugin is in the grammar.
-		grammar: defaultGrammarView,
-		linkRef: { grammar: defaultGrammarView },
-		getPresentationMode: options.presentationMode ? () => options.presentationMode! : undefined
+		reading: kitReading(() => options.presentationMode ?? 'source')
 	};
 	return { deps, doc, events, getBlockIds: () => blockIds, getBlockRefs: () => blockRefs };
 }

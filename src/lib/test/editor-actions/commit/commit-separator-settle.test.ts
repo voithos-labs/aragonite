@@ -13,8 +13,7 @@ import {
 import { registerBlockListState } from '$lib/reactivity/state-registry';
 import { expectParseConverged } from '$lib/test/harness/parse-converged';
 import { asDocPath } from '$lib/selection/path-math';
-import { defaultGrammarView } from '$lib/schema/block-openers';
-import { fixtureLinkRef } from '../../harness/fixture-grammar';
+import { fixtureReading } from '../../harness/fixture-grammar';
 
 // The commit fixes up the blank lines around every splice against the pre-mutate children it
 // still holds (`tree-operations/settle.settleSeparator`). Two contracts the wiring must keep.
@@ -78,9 +77,7 @@ describe('a delete that crosses both shared entries in one commit', () => {
 			revealPath: harness.deps.revealPath,
 			controller,
 			pushUndoSnapshot: () => controller.pushUndoSnapshot(0, 0),
-			grammar: defaultGrammarView,
-			getPresentationMode: undefined,
-			linkRef: fixtureLinkRef()
+			reading: fixtureReading()
 		});
 		return harness;
 	}
@@ -95,7 +92,7 @@ describe('a delete that crosses both shared entries in one commit', () => {
 	// The split shape: the blank slot holds no line and its follower holds the run's one.
 	it('settles once when the range starts in a split-shaped blank block', () => {
 		const split = parse('alpha\n\ndelta\n\nomega\n');
-		splitNode(split, 0, 5, undefined, undefined, fixtureLinkRef(), defaultGrammarView);
+		splitNode(split, 0, 5, undefined, fixtureReading());
 		const h = deleteAcross(serialize(split), [1], [2], [0, 2]);
 
 		expectParseConverged(h.deps.doc);

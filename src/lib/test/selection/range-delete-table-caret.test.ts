@@ -5,23 +5,14 @@ import { createSharingState } from '../../tree-operations/sharing';
 import type { SelectionPoint } from '../../selection/primitives';
 import { allowDevWarns } from '$lib/test/support/warn-gate';
 import { TWO_COL_THREE_ROW } from './table-fixtures';
-import { fixtureLinkRef } from '../harness/fixture-grammar';
-import { defaultGrammarView } from '$lib/schema/block-openers';
+import { fixtureReading } from '../harness/fixture-grammar';
 
 // rangeDelete is driven with hand-built endpoints, so the table branches see character offsets
 // `SelectionState` would have snapped to cell coordinates.
 afterEach(() => allowDevWarns(['deleteAcrossTwoTables:start', 'deleteAcrossTwoTables:end']));
 
 function run(source: string, start: SelectionPoint, end: SelectionPoint) {
-	const result = rangeDelete(
-		parse(source),
-		start,
-		end,
-		createSharingState(),
-		defaultGrammarView,
-		undefined,
-		fixtureLinkRef()
-	);
+	const result = rangeDelete(parse(source), start, end, createSharingState(), fixtureReading());
 	return { doc: result.newDoc, caret: result.collapsedCaret };
 }
 

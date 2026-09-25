@@ -36,7 +36,7 @@ export function createBlockEditActions(
 		const preview = previewContentReparse(
 			deps.doc.children[blockIndex],
 			text,
-			deps.grammar,
+			deps.reading.grammar,
 			undefined,
 			blockIndex === deps.doc.children.length - 1 ? deps.doc.suffix : ''
 		);
@@ -67,7 +67,7 @@ export function createBlockEditActions(
 						},
 						blockIndex,
 						text,
-						deps.grammar,
+						deps.reading.grammar,
 						view.sharing
 					);
 					stampStructuralChange(view.children, settled.change, view.sharing);
@@ -86,7 +86,7 @@ export function createBlockEditActions(
 			{ children: deps.doc.children, ownerKind: undefined, owner: undefined },
 			blockIndex,
 			text,
-			deps.grammar,
+			deps.reading.grammar,
 			deps.sharing
 		);
 		// Filling a blank block can still merge it into a neighbour here (the single-node trial
@@ -161,5 +161,9 @@ export function createBlockEditActions(
 		}
 	};
 
-	return withEnterCompletion(actions, (blockIndex) => scope.children()[blockIndex], deps.grammar);
+	return withEnterCompletion(
+		actions,
+		(blockIndex) => scope.children()[blockIndex],
+		deps.reading.grammar
+	);
 }

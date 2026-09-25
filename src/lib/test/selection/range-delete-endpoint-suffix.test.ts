@@ -3,8 +3,7 @@ import { rangeDelete } from '../../selection/range-delete';
 import { parse } from '../../core/parser';
 import { serialize } from '../../core/serializer';
 import { createSharingState } from '../../tree-operations/sharing';
-import { fixtureLinkRef } from '../harness/fixture-grammar';
-import { defaultGrammarView } from '$lib/schema/block-openers';
+import { fixtureReading } from '../harness/fixture-grammar';
 
 // Miss-analysis: every truncated-endpoint pin cut inside prose lines, so no surviving slice
 // ever ended in a blank line — only indented code holds one inside a leaf's raw.
@@ -14,15 +13,7 @@ function run(
 	end: { path: number[]; offset: number }
 ): string {
 	const doc = parse(source);
-	const result = rangeDelete(
-		doc,
-		start,
-		end,
-		createSharingState(),
-		defaultGrammarView,
-		undefined,
-		fixtureLinkRef()
-	);
+	const result = rangeDelete(doc, start, end, createSharingState(), fixtureReading());
 	return serialize(result.newDoc);
 }
 

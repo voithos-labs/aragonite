@@ -6,8 +6,7 @@ import { createSharingState } from '../../tree-operations/sharing';
 import type { Document } from '../../core/nodes';
 import type { SelectionPoint } from '../../selection/primitives';
 import { allowDevWarns } from '$lib/test/support/warn-gate';
-import { fixtureLinkRef } from '../harness/fixture-grammar';
-import { defaultGrammarView } from '$lib/schema/block-openers';
+import { fixtureReading } from '../harness/fixture-grammar';
 
 // rangeDelete is driven with hand-built endpoints, so the table branches see character offsets
 // `SelectionState` would have snapped to cell coordinates first.
@@ -27,15 +26,7 @@ afterEach(() =>
 const TWO_COL_TWO_ROW = '| a | b |\n| --- | --- |\n| 1 | 2 |\n';
 
 function run(doc: Document, start: SelectionPoint, end: SelectionPoint) {
-	const result = rangeDelete(
-		doc,
-		start,
-		end,
-		createSharingState(),
-		defaultGrammarView,
-		undefined,
-		fixtureLinkRef()
-	);
+	const result = rangeDelete(doc, start, end, createSharingState(), fixtureReading());
 	return { doc: result.newDoc, source: serialize(result.newDoc), caret: result.collapsedCaret };
 }
 

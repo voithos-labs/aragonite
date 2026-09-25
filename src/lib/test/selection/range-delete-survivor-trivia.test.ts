@@ -6,8 +6,7 @@ import { createSharingState } from '$lib/tree-operations/sharing';
 import { registerCalloutForTests } from './chrome-plugins';
 import { expectParseConverged } from '../harness/parse-converged';
 import type { SelectionPoint } from '$lib/selection/primitives';
-import { fixtureLinkRef } from '../harness/fixture-grammar';
-import { defaultGrammarView } from '$lib/schema/block-openers';
+import { fixtureReading } from '../harness/fixture-grammar';
 
 // Issue #60: the plain merge installed the survivor straight from a fragment reparse, which
 // creates its own leading blank lines, so the start block's separator was dropped and its bytes
@@ -19,7 +18,7 @@ const sharing = () => createSharingState();
 
 function del(source: string, start: SelectionPoint, end: SelectionPoint) {
 	const doc = parse(source);
-	rangeDelete(doc, start, end, sharing(), defaultGrammarView, undefined, fixtureLinkRef());
+	rangeDelete(doc, start, end, sharing(), fixtureReading());
 	return doc;
 }
 

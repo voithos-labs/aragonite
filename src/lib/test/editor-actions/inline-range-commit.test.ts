@@ -21,7 +21,7 @@ function makeTop(source: string) {
 		commit: createInlineRangeCommit({
 			getDoc: () => harness.doc,
 			controller: harness.controller,
-			grammar: harness.deps.grammar
+			reading: harness.deps.reading
 		})
 	};
 }
@@ -77,7 +77,7 @@ describe('inline-range commit: nested', () => {
 		const commit = createInlineRangeCommit({
 			getDoc: () => h.deps.doc,
 			controller: h.controller,
-			grammar: h.deps.grammar
+			reading: h.deps.reading
 		});
 		const item = h.getNode().children![0];
 		const at = item.raw.indexOf('[x](old)');
@@ -92,7 +92,7 @@ describe('inline-range commit: nested', () => {
 		const commit = createInlineRangeCommit({
 			getDoc: () => h.deps.doc,
 			controller: h.controller,
-			grammar: h.deps.grammar
+			reading: h.deps.reading
 		});
 		const edits: EditEvent[] = [];
 		h.events.on('edit', (e) => edits.push(e));
@@ -138,7 +138,7 @@ describe('inline-range commit: a blank paragraph filled or emptied', () => {
 		const commit = createInlineRangeCommit({
 			getDoc: () => h.deps.doc,
 			controller: h.controller,
-			grammar: h.deps.grammar
+			reading: h.deps.reading
 		});
 		await commit.commitInlineRange([0, 1], 0, 6, '', 0);
 		const quote = h.deps.doc.children[0];

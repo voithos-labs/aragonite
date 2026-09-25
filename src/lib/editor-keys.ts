@@ -8,7 +8,6 @@
 
 import type { MenuPresence } from './components/menu/menu-presence.svelte';
 import type { Document } from './core/nodes';
-import type { LinkReferenceResolver } from './core/inline/link-reference-resolver';
 import type { ImageLoadPolicy } from './core/inline-render';
 import type { UserScrollport } from './cursor/scroll-ancestors';
 import type { Scrollport } from './cursor/scrollport';
@@ -38,7 +37,6 @@ import type { InlineMenuCombobox } from './inline-menu/inline-menu-state.svelte'
 import type { WidgetSelectionState } from './components/image/widget-selection-state.svelte';
 import type { LinkCardState } from './components/link-card/link-card-state.svelte';
 import type { KindCue } from './components/kind-cue.svelte';
-import type { GrammarView } from './schema/block-openers';
 
 // ── Shared value-shape types ─────────────────────────────────────────────────
 
@@ -102,18 +100,6 @@ export type BlockElLookup = (path: number[]) => HTMLElement | null;
 export type DocumentGetter = () => Document;
 export type FocusedPathGetter = () => number[] | null;
 export type VersionGetter = () => number;
-
-/** What inline parsers in block components read from the editor: its link-reference resolver
- *  and its grammar. Wrapped in a `{ current }` accessor so the editor shell can rebuild the
- *  resolver after each commit without invalidating descendants' getContext bindings. `epoch` is
- *  a small counter render memos key on, instead of the whole (~MB-scale) `signature`. */
-export type LinkReferenceResolverRef = {
-	current?: LinkReferenceResolver;
-	signature?: string;
-	epoch?: number;
-	/** The editor's grammar, so the scan leaves out the inline syntax of a plugin it did not list. */
-	grammar: GrammarView;
-};
 
 // ── Action triple (per-key: containers re-provide these three) ───────────────
 

@@ -4,8 +4,7 @@
  */
 
 import type { CstNode, Document } from '../core/nodes';
-import type { GrammarView } from '../schema/block-openers';
-import type { LinkReferenceResolverRef, PresentationModeGetter } from '../editor-keys';
+import type { Reading } from '../schema/reading';
 import type { PluginActivation } from '../schema/plugin-activation';
 import type { CommitController } from '../action-contracts';
 import type { PasteCommitCoordinator } from '../tree-operations/paste/paste-deps';
@@ -38,9 +37,8 @@ export interface SelectionDropDeps {
 	getDoc(): Document;
 	controller: CommitController;
 	coordinator: PasteCommitCoordinator;
-	getPresentationMode: PresentationModeGetter | undefined;
-	linkRef: LinkReferenceResolverRef;
-	grammar: GrammarView;
+	/** How the editor reads its bytes: the cut is a join, and the reparse reads its grammar. */
+	reading: Reading;
 	activePlugins: PluginActivation;
 	/** The editor's event emitter: a move that throws halfway has nowhere else to report. */
 	events: EditorEvents;
@@ -332,8 +330,7 @@ function cutFrom(deps: SelectionDropDeps, from: DragSource): ScopeCut | null {
 		node,
 		{ start: from.start, end: from.end },
 		'',
-		deps.getPresentationMode?.(),
-		deps.linkRef,
+		deps.reading,
 		containerAmbientPrefix(deps.getDoc(), from.path)
 	);
 	const raw = trimTrailingLineEnding(edit.raw);
@@ -351,15 +348,14 @@ function cutFromCell(deps: SelectionDropDeps, from: DragSource, cell: CstNode): 
 		cell,
 		cell.raw,
 		{ start: from.start, end: from.end },
-		deps.getPresentationMode?.(),
-		deps.linkRef
+		deps.reading
 	);
 	const rebuilt = cloneNode(table);
 	const inner = from.path.slice(-2);
 	const [rowIdx, colIdx] = inner;
 	const written = rebuilt.children?.[rowIdx]?.children?.[colIdx];
 	if (!written) return null;
-	writeOwnRaw(written, cut.display, deps.grammar);
+	writeOwnRaw(written, cut.display, deps.reading.grammar);
 	rebuildAncestryRaw(rebuilt, inner);
 	const raw = trimTrailingLineEnding(rebuilt.raw);
 	return { path: tablePath, raw, shrunkBy: trimTrailingLineEnding(table.raw).length - raw.length };
@@ -384,7 +380,7 @@ async function writeBlockRaw(
 	const written = normalizeOwnRaw(node, rewrite(trimTrailingLineEnding(node.raw)));
 	// A block emptied by the cut keeps its position as a blank paragraph: no splice, so the
 	// second write's path is still the one resolved at the drop.
-	const parsed = parseReplacement(node, written, deps.grammar, () => [
+	const parsed = parseReplacement(node, written, deps.reading.grammar, () => [
 		emptyParagraph(node.leadingTrivia ?? '', trailingLineEnding(node.raw))
 	]);
 	if (!parsed) return 0;
@@ -397,7 +393,7 @@ async function writeBlockRaw(
 		focusReplacementIndex: parsed.replacement.length - 1,
 		focusOffset: caret,
 		source: 'selection-drop',
-		grammar: deps.grammar
+		grammar: deps.reading.grammar
 	});
 	// The count that landed, not the parse's: a container's body rule can rewrite the list. Zero
 	// means the parent was not mounted and nothing was written, so nothing moved.

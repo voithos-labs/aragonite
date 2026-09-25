@@ -13,7 +13,7 @@ import {
 } from '../../../core/inline';
 import { isAutoPairTrigger } from '../../../core/inline/scan/plugin-syntax';
 import type { GrammarView } from '../../../schema/block-openers';
-import type { InlineResolverRef } from '../../../schema/inline-construct-policy';
+import type { Reading } from '../../../schema/reading';
 import type { BlockAutoPairs } from './auto-pair-record';
 
 export type AutoPairEdit =
@@ -66,29 +66,29 @@ function policyOf(ch: string, grammar: GrammarView): PairPolicy | null {
 /**
  * What a single typed byte does at a collapsed caret, or null to leave the insertion to the
  * browser. `content` bounds the inline scan (a heading's `# ` is not prose); the caret must lie
- * inside it. `linkRef` carries the link definitions and grammar the block was drawn with.
+ * inside it. `reading` carries the link definitions and grammar the block was drawn with.
  */
 export function resolveDelimiterAutoPair(
 	text: string,
 	content: ContentRange,
 	caret: number,
 	typed: string,
-	linkRef: InlineResolverRef,
+	reading: Reading,
 	{ ownPair, keepsKind = () => true }: AutoPairContext
 ): AutoPairEdit | null {
 	if (typed.length !== 1 || caret < content.start || caret > content.end) return null;
 	const before = text[caret - 1];
 	const after = text[caret];
-	const policy = policyOf(typed, linkRef.grammar);
+	const policy = policyOf(typed, reading.grammar);
 	const inside = ownPair && isBetweenRuns(ownPair, caret) ? ownPair : null;
-	if (!policy) return inside && collapseEmptyPair(text, content, caret, typed, inside, linkRef);
-	if (after === typed && closingRunAt(text, content, caret, typed, linkRef)) {
+	if (!policy) return inside && collapseEmptyPair(text, content, caret, typed, inside, reading);
+	if (after === typed && closingRunAt(text, content, caret, typed, reading)) {
 		return { kind: 'step-over', caret: caret + 1, overConstruct: true };
 	}
 	const paired = text.slice(0, caret) + typed + text.slice(caret);
 	// The typed byte lengthens the content, so a scan of the paired line reads one byte further.
 	const pairedContent = { start: content.start, end: content.end + 1 };
-	if (closerEndsAt(paired, pairedContent, caret + 1, typed, linkRef)) {
+	if (closerEndsAt(paired, pairedContent, caret + 1, typed, reading)) {
 		return { kind: 'close', text: paired, caret: caret + 1 };
 	}
 	const pair = (next: string, pairRange: ContentRange): AutoPairEdit | null => {
@@ -106,7 +106,7 @@ export function resolveDelimiterAutoPair(
 		const grown = text.slice(0, caret) + typed + typed + text.slice(caret);
 		return pair(grown, { start: inside.start, end: inside.end + 2 });
 	}
-	if (before === typed && !closerEndsAt(text, content, caret, typed, linkRef)) {
+	if (before === typed && !closerEndsAt(text, content, caret, typed, reading)) {
 		// `~|` plus `~`: the double run this delimiter pairs on, as long as it is a lone run.
 		const single = text[caret - 2] !== typed;
 		if (policy.inside === 'grow' && single) {
@@ -169,8 +169,6 @@ export interface AutoPairSurface {
 	hasSelection(): boolean;
 	isRevealing(): boolean;
 	foldReveal(): { settled: Promise<void> } | null;
-	/** Whether the closer a step-over passes is on screen; when it is hidden, only the side moves. */
-	markersPaint(): boolean;
 	setCaret(offset: number): void;
 	/** Record the arrival side the next typed byte reads: past the construct's delimiters. */
 	seatOutside(): void;
@@ -181,9 +179,10 @@ export interface AutoPairSurface {
 	completesLine?(caret: number): boolean;
 	/** The resolver's block-kind check, for a block whose line can become a different block. */
 	keepsBlockKind?(text: string): boolean;
-	/** The link definitions and grammar the block was drawn with: a plugin's delimiter pairs only
-	 *  where the plugin is listed, and a reference link is read as the link it draws. */
-	linkRef: InlineResolverRef;
+	/** How the block was drawn: a plugin's delimiter pairs only where the plugin is listed, a
+	 *  reference link reads as the link it draws, and a hidden closer a step-over passes moves only
+	 *  the arrival side. */
+	reading: Reading;
 	/** This block's view of the editor's record of the pair the auto-pair last wrote. */
 	ownPairs: BlockAutoPairs;
 }
@@ -201,7 +200,7 @@ export function applyDelimiterAutoPair(e: InputEvent, surface: AutoPairSurface):
 	const text = surface.text();
 	const ownPair = surface.ownPairs.consult(text, caret);
 	if (surface.isRevealing()) {
-		if (!typing || !stepsOverRevealedCloser(text, caret, e.data ?? '', surface.linkRef.grammar)) {
+		if (!typing || !stepsOverRevealedCloser(text, caret, e.data ?? '', surface.reading.grammar)) {
 			return false;
 		}
 		e.preventDefault();
@@ -210,17 +209,17 @@ export function applyDelimiterAutoPair(e: InputEvent, surface: AutoPairSurface):
 		return true;
 	}
 	const edit = typing
-		? resolveDelimiterAutoPair(text, surface.content(), caret, e.data ?? '', surface.linkRef, {
+		? resolveDelimiterAutoPair(text, surface.content(), caret, e.data ?? '', surface.reading, {
 				ownPair,
 				keepsKind: surface.keepsBlockKind
 			})
-		: resolveEmptyPairBackspace(text, caret, ownPair, surface.linkRef.grammar);
+		: resolveEmptyPairBackspace(text, caret, ownPair, surface.reading.grammar);
 	if (!edit) return false;
 	e.preventDefault();
 	noteOwnPair(surface.ownPairs, text, edit);
 	switch (edit.kind) {
 		case 'step-over':
-			if (edit.overConstruct && !surface.markersPaint()) surface.seatOutside();
+			if (edit.overConstruct && surface.reading.hidesDelimitersAtCaret()) surface.seatOutside();
 			else if (surface.completesLine?.(edit.caret)) surface.write(text, caret, edit.caret);
 			else surface.setCaret(edit.caret);
 			return true;
@@ -251,11 +250,11 @@ function collapseEmptyPair(
 	caret: number,
 	typed: string,
 	own: ContentRange,
-	linkRef: InlineResolverRef
+	reading: Reading
 ): AutoPairEdit | null {
 	const paired = text.slice(0, caret) + typed + text.slice(caret);
 	const shifted = { start: content.start, end: content.end + 1 };
-	if (constructAt(paired, shifted, own.start, own.end + 1, linkRef)) return null;
+	if (constructAt(paired, shifted, own.start, own.end + 1, reading)) return null;
 	const k = caret - own.start;
 	return write(text.slice(0, caret) + typed + text.slice(caret + k), caret + 1);
 }
@@ -267,10 +266,10 @@ function closingRunAt(
 	content: ContentRange,
 	caret: number,
 	typed: string,
-	linkRef: InlineResolverRef
+	reading: Reading
 ): boolean {
 	for (const node of inlineDescendants(
-		parseInline(text, content.start, content.end, linkRef.current, linkRef.grammar)
+		parseInline(text, content.start, content.end, reading.current, reading.grammar)
 	)) {
 		if (node.kind === 'text' || text[node.start] !== typed || node.end <= caret) continue;
 		let closer = node.end;
@@ -286,10 +285,10 @@ function closerEndsAt(
 	content: ContentRange,
 	end: number,
 	typed: string,
-	linkRef: InlineResolverRef
+	reading: Reading
 ): boolean {
 	for (const node of inlineDescendants(
-		parseInline(text, content.start, content.end, linkRef.current, linkRef.grammar)
+		parseInline(text, content.start, content.end, reading.current, reading.grammar)
 	)) {
 		if (node.kind === 'text' || node.end !== end || text[end - 1] !== typed) continue;
 		const inner = constructContentRange(node);
@@ -303,10 +302,10 @@ function constructAt(
 	content: ContentRange,
 	start: number,
 	end: number,
-	linkRef: InlineResolverRef
+	reading: Reading
 ): boolean {
 	for (const node of inlineDescendants(
-		parseInline(text, content.start, content.end, linkRef.current, linkRef.grammar)
+		parseInline(text, content.start, content.end, reading.current, reading.grammar)
 	)) {
 		if (node.kind !== 'text' && node.start === start && node.end === end) return true;
 	}

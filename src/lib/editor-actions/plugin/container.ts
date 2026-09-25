@@ -343,7 +343,6 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 		reorder,
 		revealAnchor,
 		events: editorEvents,
-		registryView,
 		activePlugins
 	} = getContext<EditorServices>(EDITOR_SERVICES_KEY);
 	const {
@@ -351,7 +350,7 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 		presentationMode: getPresentationMode,
 		theme: getTheme
 	} = getContext<EditorPolicies>(EDITOR_POLICIES_KEY);
-	const { pluginEditor, reading: linkRef } = getContext<EditorDoc>(EDITOR_DOC_KEY);
+	const { pluginEditor, reading } = getContext<EditorDoc>(EDITOR_DOC_KEY);
 
 	// Resolved by the kind's recorded owner, like the kind-command context's `editor`.
 	const getEditor = (): EditorContext | undefined =>
@@ -396,9 +395,7 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 		{
 			scope,
 			stickyColumn,
-			grammar: registryView.grammar,
-			getPresentationMode,
-			linkRef,
+			reading,
 			parent: {
 				blockEdit: parentBlockEdit,
 				focus: parentFocus,

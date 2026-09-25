@@ -9,8 +9,7 @@ import { serialize } from '../../core/serializer';
 import { tableAwareRangeDelete } from '../../selection/range-delete-table';
 import { createSharingState } from '../../tree-operations/sharing';
 import type { CellSelectionPoint, SelectionPoint } from '../../selection/primitives';
-import { fixtureLinkRef } from '../harness/fixture-grammar';
-import { defaultGrammarView } from '$lib/schema/block-openers';
+import { fixtureReading } from '../harness/fixture-grammar';
 
 // Paragraph at [0], 3-row table at [1] (header + two body rows), blank line between.
 const PROSE_THEN_TABLE = 'intro text\n\n| A | B |\n| --- | --- |\n| 1 | 2 |\n| 3 | 4 |\n';
@@ -26,15 +25,7 @@ const cell = (path: number[], index: number): CellSelectionPoint => ({
 function deletedBytes(source: string, start: SelectionPoint, end: SelectionPoint): string {
 	const doc = parse(source);
 	return serialize(
-		tableAwareRangeDelete(
-			doc,
-			start,
-			end,
-			createSharingState(),
-			defaultGrammarView,
-			undefined,
-			fixtureLinkRef()
-		).newDoc
+		tableAwareRangeDelete(doc, start, end, createSharingState(), fixtureReading()).newDoc
 	);
 }
 

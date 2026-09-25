@@ -7,8 +7,7 @@ import type { Document, TableMetadata, TableRowMetadata } from '../../core/nodes
 import type { SelectionPoint } from '../../selection/primitives';
 import { allowDevWarns } from '$lib/test/support/warn-gate';
 import { TWO_COL_FOUR_ROW, findTable } from './table-fixtures';
-import { fixtureLinkRef } from '../harness/fixture-grammar';
-import { defaultGrammarView } from '$lib/schema/block-openers';
+import { fixtureReading } from '../harness/fixture-grammar';
 
 // rangeDelete is driven with hand-built endpoints, so the table branches see character offsets
 // `SelectionState` would have snapped to cell coordinates first.
@@ -16,15 +15,7 @@ afterEach(() => allowDevWarns(['deleteFromProseIntoTable:end', 'deleteFromTableI
 
 function run(input: string | Document, start: SelectionPoint, end: SelectionPoint) {
 	const doc = typeof input === 'string' ? parse(input) : input;
-	const result = rangeDelete(
-		doc,
-		start,
-		end,
-		createSharingState(),
-		defaultGrammarView,
-		undefined,
-		fixtureLinkRef()
-	);
+	const result = rangeDelete(doc, start, end, createSharingState(), fixtureReading());
 	return { doc: result.newDoc, source: serialize(result.newDoc), caret: result.collapsedCaret };
 }
 

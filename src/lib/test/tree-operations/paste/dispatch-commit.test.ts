@@ -16,6 +16,7 @@ import {
 import type { CstNode } from '../../../core/nodes';
 import type { PasteCommitCoordinator } from '../../../tree-operations/paste/paste-deps';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
+import { fixtureReading } from '$lib/test/harness/fixture-grammar';
 
 // ── Container-matching merge runs its raw mutation inside commitMultiScope ────
 
@@ -136,7 +137,7 @@ describe('pasteDispatch: cross-block inline join reparse', () => {
 				blockEdit: makeStubBlockEdit(),
 				controller: createPasteCoordinator(createUndoController(deps), deps.revealPath),
 				undoEntry: 'join',
-				grammar: createGrammarView((kind) => kind !== 'list')
+				reading: fixtureReading({ grammar: createGrammarView((kind) => kind !== 'list') })
 			})
 		);
 

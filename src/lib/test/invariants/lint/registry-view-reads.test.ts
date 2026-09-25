@@ -13,7 +13,7 @@ import { renderInlineNodes } from '$lib/core/inline-render';
 import type { NodeView } from '$lib/core/node-views';
 import type { EditorActionsDeps } from '$lib/editor-actions/deps';
 import { withEnterCompletion } from '$lib/editor-actions/enter-completion';
-import type { LinkReferenceResolverRef } from '$lib/editor-keys';
+import type { Reading } from '$lib/schema/reading';
 import {
 	callArguments,
 	collectEditorSources,
@@ -30,8 +30,7 @@ import { notUnder } from './file-rule';
 const OPTIONAL_GRAMMAR_POSITION: Record<string, number> = {
 	parseInline: 5,
 	computeInlineContent: 3,
-	isVerticallyTransparentNode: 2,
-	soleProseReparse: 2
+	isVerticallyTransparentNode: 2
 };
 
 /** The readers whose grammar is a required parameter, alone or inside the link-resolver ref, so
@@ -86,7 +85,7 @@ describe('G4.68 the internal registry readers take the grammar as a required par
 			const code = sources.find((file) => file.relPath === relPath)?.code ?? '';
 			const parameters = declaredParameters(code, name);
 			expect(parameters, `${relPath} declares no exported ${name}`).not.toBeNull();
-			expect(parameters).toMatch(/\b(?:grammar: GrammarView|linkRef: InlineResolverRef)\s*(,|$)/);
+			expect(parameters).toMatch(/\b(?:grammar: GrammarView|reading: Reading)\s*(,|$)/);
 		});
 	}
 });
@@ -143,7 +142,7 @@ describe('G4.68 the every-plugin fallback is spelled only in its listed places',
 // call leaving it out fails `npm run check` rather than reading every installed plugin.
 // Miss-analysis: each typed the grammar optional, and the scan above sees only a fallback spelled
 // out, never a caller that omits the field.
-export function inlineCacheCallWithoutGrammar(node: NodeView, ref: LinkReferenceResolverRef): void {
+export function inlineCacheCallWithoutGrammar(node: NodeView, ref: Reading): void {
 	// @ts-expect-error the resolver ref carries the editor's grammar
 	resolvedInlineContent(node, { current: ref.current, signature: ref.signature });
 	// @ts-expect-error no ref means no grammar
@@ -160,12 +159,12 @@ export function renderCallWithoutGrammar(nodes: InlineNode[], raw: string): void
 }
 
 export function actionDepsWithoutGrammar(
-	deps: Omit<EditorActionsDeps, 'grammar'>,
+	deps: Omit<EditorActionsDeps, 'reading'>,
 	blockEdit: BlockEditActions
 ): EditorActionsDeps {
 	// @ts-expect-error the Enter completion reads the editor's grammar
 	withEnterCompletion(blockEdit, () => undefined, undefined);
-	// @ts-expect-error the action deps carry the editor's grammar
+	// @ts-expect-error the action deps carry the editor's reading
 	return deps;
 }
 
@@ -231,32 +230,6 @@ const RULES: CallSiteRule[] = [
 				code:
 					'parseInline(raw, 0, raw.length, resolver, grammar);\n' +
 					'parseInline(raw, 0, raw.length, ref?.current, ref?.grammar);'
-			}
-		]
-	},
-	{
-		id: 'G4.68 a live rewrite reparses a whole block with the link resolver too',
-		population: (file) => file.relPath.startsWith('src/lib/components/blocks/text/'),
-		calls: ['soleProseReparse'],
-		// A ref passed whole carries its resolver; an object spelled out has to name `current`.
-		holds: (args) => {
-			const slot = callArguments(args)[1];
-			if (slot === undefined) return false;
-			return slot.startsWith('{') ? /\bcurrent\b/.test(slot) : slot !== 'undefined';
-		},
-		allowed: {
-			'src/lib/components/blocks/text/edge-policy-dispatch.ts :: keepsBlockKind':
-				'keepsBlockKind compares the block kind only, which no link changes'
-		},
-		reason:
-			'a reparse without the resolver reads every reference link as brackets, so a candidate compared with the drawn tree disagrees with it beside one (#443)',
-		atLeastCallers: 3,
-		hits: [{ relPath: REWRITE_PROBE, code: 'soleProseReparse(raw, { grammar });' }],
-		misses: [
-			{
-				relPath: REWRITE_PROBE,
-				code:
-					'soleProseReparse(raw, { current: resolver, grammar });\n' + 'soleProseReparse(raw, ref);'
 			}
 		]
 	},

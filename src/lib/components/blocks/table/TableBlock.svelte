@@ -19,12 +19,10 @@
 		BLOCK_EDIT_KEY,
 		CONTAINER_EDIT_KEY,
 		EDITOR_DOC_KEY,
-		EDITOR_POLICIES_KEY,
 		EDITOR_SERVICES_KEY,
 		FOCUS_KEY,
 		TABLE_CONTEXT_KEY,
 		type EditorDoc,
-		type EditorPolicies,
 		type EditorServices
 	} from '../../../editor-keys';
 	import { metadataOf } from '../../../core/nodes';
@@ -71,19 +69,17 @@
 		stickyColumn: editorStickyColumn,
 		selection,
 		reorderAnnounce: announceReorder,
-		registryView,
 		menuPresence
 	} = getContext<EditorServices>(EDITOR_SERVICES_KEY);
 	const {
 		editorRoot: getEditorRoot,
 		widthVersion: getWidthVersion,
 		lifetime: editorLifetime,
-		reading: linkRef
+		reading
 	} = getContext<EditorDoc>(EDITOR_DOC_KEY);
-	const { presentationMode: getPresentationMode } = getContext<EditorPolicies>(EDITOR_POLICIES_KEY);
 	// Every menu item changes the table, so reading mode refuses to open it and the
 	// browser's own context menu, with Copy, shows instead.
-	const readOnly = $derived(getPresentationMode() === 'reading');
+	const readOnly = $derived(reading.mode() === 'reading');
 
 	const meta = $derived(metadataOf(node, 'table'));
 	const rowCount = $derived(node.children?.length ?? 0);
@@ -127,9 +123,7 @@
 	const bundle = createStandardNestedActions(rowsState, {
 		scope,
 		stickyColumn: editorStickyColumn,
-		grammar: registryView.grammar,
-		getPresentationMode,
-		linkRef,
+		reading,
 		parent: {
 			blockEdit: parentBlockEdit,
 			focus: focusActions,
@@ -229,7 +223,7 @@
 	}
 
 	const mutations = createTableMutationsContext({
-		grammar: registryView.grammar,
+		reading,
 		get node() {
 			return node;
 		},

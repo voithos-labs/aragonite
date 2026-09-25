@@ -9,6 +9,7 @@ import type { InlineNode } from '../nodes';
 import type { NodeView } from '../node-views';
 import type { LinkReferenceResolver } from './link-reference-resolver';
 import type { GrammarView } from '../../schema/block-openers';
+import type { Reading } from '../../schema/reading';
 import { computeInlineContent, isProseKind } from './index';
 
 interface CacheSlot {
@@ -51,13 +52,9 @@ export function getInlineContent(
 }
 
 /**
- * The one spelling of `getInlineContent(node, ref.current, ref.signature, ref.grammar)`, so a
- * non-render call site cannot drop the signature or the grammar and desync from what render drew.
- * `linkRef` stays structural: naming editor-keys' type would create an import cycle.
+ * The one spelling of `getInlineContent` over the editor's reading, so a non-render call site
+ * cannot drop the signature or the grammar and desync from what render drew.
  */
-export function resolvedInlineContent(
-	node: NodeView,
-	linkRef: { current?: LinkReferenceResolver; signature?: string; grammar: GrammarView }
-): InlineNode[] {
-	return getInlineContent(node, linkRef.current, linkRef.signature ?? '', linkRef.grammar);
+export function resolvedInlineContent(node: NodeView, reading: Reading): InlineNode[] {
+	return getInlineContent(node, reading.current, reading.signature, reading.grammar);
 }

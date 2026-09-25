@@ -14,7 +14,7 @@ import { deleteAtPath, replaceAtPath } from '$lib/tree-operations/path-mutate';
 import { createSharingState } from '$lib/tree-operations/sharing';
 import { createRegistryView } from '$lib/schema/registry-view';
 import { describeConvergence } from '$lib/test/harness/parse-converged';
-import { fixtureLinkRef } from '$lib/test/harness/fixture-grammar';
+import { fixtureReading } from '$lib/test/harness/fixture-grammar';
 import { defaultGrammarView } from '$lib/schema/block-openers';
 
 // A write reads its neighbours in the editor's grammar, so a paragraph that comes to sit over
@@ -56,14 +56,14 @@ describe('a split, join or delete beside a switched-off syntax', () => {
 		{
 			name: 'Enter between `a` and `bc` above `---`',
 			source: 'abc\n---\n',
-			run: (doc) => splitNode(doc, 0, 1, createSharingState(), 'source', fixtureLinkRef(), off),
+			run: (doc) => splitNode(doc, 0, 1, createSharingState(), fixtureReading({ grammar: off })),
 			kinds: ['paragraph', 'paragraph', 'thematicBreak']
 		},
 		{
 			name: 'Backspace joining a heading into the paragraph above `---`',
 			source: 'a\n# h\n---\n',
 			run: (doc) =>
-				mergeIntoPrevDeepLeaf(doc, 1, createSharingState(), 'source', fixtureLinkRef(), off),
+				mergeIntoPrevDeepLeaf(doc, 1, createSharingState(), fixtureReading({ grammar: off })),
 			kinds: ['paragraph', 'thematicBreak']
 		},
 		{

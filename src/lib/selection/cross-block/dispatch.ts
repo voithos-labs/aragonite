@@ -7,13 +7,7 @@
 
 import type { BlockEditActions, HistoryActions } from '../../action-contracts';
 import type { BlockComponent } from '../../block-component';
-import type {
-	BlockElLookup,
-	DocumentGetter,
-	LinkReferenceResolverRef,
-	PluginEditorLookup,
-	PresentationModeGetter
-} from '../../editor-keys';
+import type { BlockElLookup, DocumentGetter, PluginEditorLookup } from '../../editor-keys';
 import type { UserScrollport } from '../../cursor/scroll-ancestors';
 import type { SelectionState } from '../selection-state.svelte';
 import type { SelectedWidgetHandle } from '../primitives';
@@ -24,7 +18,7 @@ import type { CommitController } from '../../action-contracts';
 import type { KeybindingOverrideMap } from '../../schema/keybinding-overrides';
 import type { CommandErrorSink, CrossBlockCommandRouter } from '../../schema/block-commands';
 import type { EditorEvents } from '../../editor-events';
-import type { GrammarView } from '../../schema/block-openers';
+import type { Reading } from '../../schema/reading';
 import type { PluginActivation } from '../../schema/plugin-activation';
 import type { PasteCommitCoordinator } from '../../tree-operations/paste/paste-deps';
 import { isReadingMode } from '../../presentation-mode';
@@ -59,18 +53,15 @@ export interface CrossBlockDispatchContext {
 	// Passed so a post-delete command dispatch reaches a plugin-global handler and contains its
 	// throw. Required but nullable, so a new context constructor cannot silently skip it.
 	pluginEditor: PluginEditorLookup | undefined;
-	/** The effective presentation mode; the reading-mode check on the destructive branches reads it. */
-	getPresentationMode: PresentationModeGetter | undefined;
-	/** The instance's link-reference resolver, forwarded to the delete's join cleanup. */
-	linkRef: LinkReferenceResolverRef;
+	/** How the editor reads its bytes: the delete's join cleanup and the paste reparse read it, and
+	 *  the destructive branches refuse its reading mode. */
+	reading: Reading;
 	onCommandError: CommandErrorSink | undefined;
 	/** The handler a format chord takes over the live range; the dispatcher routes there rather
 	 *  than declining. Non-nullable: without it a format chord is swallowed and nothing happens. */
 	crossBlockCommands: CrossBlockCommandRouter;
 	getKeybindingOverrides: () => KeybindingOverrideMap;
 	pasteCoordinator: PasteCommitCoordinator;
-	/** Block grammar forwarded to the paste reparse. */
-	grammar: GrammarView;
 	/** The plugins this instance activated, forwarded to the paste hooks. */
 	activePlugins: PluginActivation;
 	/** The editor's event emitter, the paste handler's only channel for a gesture it consumed but
@@ -121,9 +112,7 @@ export function createCrossBlockHandlers(ctx: CrossBlockDispatchContext): CrossB
 		controller: ctx.controller,
 		pushUndoSnapshot: () =>
 			ctx.controller.pushUndoSnapshot(ctx.getIndex(), ctx.getCursorOffset() ?? 0),
-		grammar: ctx.grammar,
-		getPresentationMode: ctx.getPresentationMode,
-		linkRef: ctx.linkRef
+		reading: ctx.reading
 	};
 
 	const keydown = createCrossBlockKeydown(ctx, mutationCtx);
@@ -132,10 +121,10 @@ export function createCrossBlockHandlers(ctx: CrossBlockDispatchContext): CrossB
 	// The reading-mode checks for the mutating handlers live here, so every construction site
 	// (each editable block, the editor root) inherits them. Keydown checks its own destructive
 	// branches, since it also carries navigation, which stays live.
-	const reading = () => isReadingMode(ctx.getPresentationMode);
+	const refusesWrites = () => isReadingMode(ctx.reading.mode);
 
 	const insertText = async (text: string): Promise<boolean> => {
-		if (reading()) return true;
+		if (refusesWrites()) return true;
 		if (!ctx.selection.isCrossBlock) return false;
 		await handleCrossBlockTypeReplace(ctx, mutationCtx, text);
 		return true;
@@ -146,14 +135,14 @@ export function createCrossBlockHandlers(ctx: CrossBlockDispatchContext): CrossB
 		handleCompositionStart: keydown.handleCompositionStart,
 		handlePointerDown: pointer.handlePointerDown,
 		handlePaste: async (e, replacement) => {
-			if (reading()) {
+			if (refusesWrites()) {
 				e?.preventDefault();
 				return true;
 			}
 			return handleCrossBlockPaste(ctx, mutationCtx, e, replacement);
 		},
 		handleBeforeInput: async (e) => {
-			if (reading()) {
+			if (refusesWrites()) {
 				e.preventDefault();
 				return true;
 			}
@@ -165,7 +154,7 @@ export function createCrossBlockHandlers(ctx: CrossBlockDispatchContext): CrossB
 		performCrossBlockDeleteFromEvent: async () => {
 			// Reached from cut handlers after the clipboard write; declining the delete
 			// degrades a reading-mode cut to a copy.
-			if (reading()) return;
+			if (refusesWrites()) return;
 			await performCrossBlockDelete(mutationCtx);
 		}
 	};

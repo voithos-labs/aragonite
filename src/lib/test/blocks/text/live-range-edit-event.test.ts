@@ -11,7 +11,7 @@ import {
 	resolveLiveRangeEdit,
 	type LiveEditCursor
 } from '$lib/components/blocks/text/live-selection-edit';
-import { fixtureLinkRef } from '../../harness/fixture-grammar';
+import { fixtureReading } from '../../harness/fixture-grammar';
 
 const LINK = 'Some [ab](u)text\n';
 
@@ -62,8 +62,7 @@ describe('a collapsed insertion whose browser target disagrees with the DOM care
 			insertEvent(' '),
 			node,
 			cursorReading(8, 12),
-			'live',
-			fixtureLinkRef()
+			fixtureReading({}, 'live')
 		);
 		expect(edit).toEqual({
 			kind: 'rewrite',
@@ -76,7 +75,7 @@ describe('a collapsed insertion whose browser target disagrees with the DOM care
 	it('leaves the browser its insert where the two agree', () => {
 		placeCaret();
 		expect(
-			resolveLiveRangeEdit(insertEvent(' '), node, cursorReading(8, 8), 'live', fixtureLinkRef())
+			resolveLiveRangeEdit(insertEvent(' '), node, cursorReading(8, 8), fixtureReading({}, 'live'))
 		).toBeNull();
 	});
 
@@ -85,14 +84,14 @@ describe('a collapsed insertion whose browser target disagrees with the DOM care
 	it('leaves the browser an insert downstream of the caret', () => {
 		placeCaret();
 		expect(
-			resolveLiveRangeEdit(insertEvent(' '), node, cursorReading(6, 5), 'live', fixtureLinkRef())
+			resolveLiveRangeEdit(insertEvent(' '), node, cursorReading(6, 5), fixtureReading({}, 'live'))
 		).toBeNull();
 	});
 
 	it('stays out of every other mode', () => {
 		placeCaret();
 		expect(
-			resolveLiveRangeEdit(insertEvent(' '), node, cursorReading(8, 12), 'source', fixtureLinkRef())
+			resolveLiveRangeEdit(insertEvent(' '), node, cursorReading(8, 12), fixtureReading())
 		).toBeNull();
 	});
 });

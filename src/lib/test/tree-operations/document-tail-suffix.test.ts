@@ -6,7 +6,7 @@ import { emptyParagraph } from '../../tree-operations/node-primitives';
 import { settleSeparatorOnBlank } from '../../tree-operations/settle';
 import { describeConvergence } from '$lib/test/harness/parse-converged';
 import { settled } from '$lib/test/harness/settle-funnel';
-import { fixtureLinkRef } from '../harness/fixture-grammar';
+import { fixtureReading } from '../harness/fixture-grammar';
 import { defaultGrammarView } from '$lib/schema/block-openers';
 
 // GH #129: the parser keeps a document's one trailing blank line in `doc.suffix` only while
@@ -51,8 +51,7 @@ describe('the folded trailing blank materializes when the tail turns blank (GH #
 
 		const change = settled(
 			doc,
-			(body) =>
-				splitNode(body, 0, 14, undefined, undefined, fixtureLinkRef(), defaultGrammarView).change
+			(body) => splitNode(body, 0, 14, undefined, fixtureReading()).change
 		);
 
 		expect(doc.children).toHaveLength(3);

@@ -8,7 +8,6 @@
 		createInlineFormatActiveMemo,
 		toggleInlineFormat
 	} from '../../../core/inline/format-toggle';
-	import { paintsFocusedMarkers } from '../../../presentation-mode';
 	import {
 		inlineMarkForCommand,
 		type InlineMarkKind
@@ -137,11 +136,11 @@
 		getDoc,
 		getBlockElByPath,
 		getEditorRoot,
-		grammar,
 		activePlugins,
 		events: editorEvents,
-		linkRef
+		reading
 	} = wiring.deps;
+	const { grammar } = reading;
 	const tableContext = getContext<TableContext>(TABLE_CONTEXT_KEY);
 	const {
 		pendingMarks,
@@ -154,15 +153,13 @@
 	} = getContext<EditorServices>(EDITOR_SERVICES_KEY);
 	const ownPairs = autoPairs.forBlock();
 	const {
-		presentationMode: getPresentationMode,
 		theme: getTheme,
 		resolveLinkUrl,
 		onPasteImage
 	} = getContext<EditorPolicies>(EDITOR_POLICIES_KEY);
 	const { contentVersion: getContentVersion, lifetime: editorLifetime } =
 		getContext<EditorDoc>(EDITOR_DOC_KEY);
-	const presentationMode = $derived(getPresentationMode?.() ?? 'source');
-	const readOnly = $derived(presentationMode === 'reading');
+	const readOnly = $derived(reading.mode() === 'reading');
 
 	// A shared constant keeps an empty decoration list out of the render key.
 	const NO_ISLANDS: IndexedDecoration<WidgetDecoration | ReplaceDecoration>[] = [];
@@ -243,7 +240,6 @@
 			composing = value;
 		},
 		setPendingCursor: (offset) => parkCursor(offset),
-		getPresentationMode,
 		getFocusOffset: () => getRawFocusOffset(),
 		getTextLen: () => (el ? containerDomTextLength(el) : 0),
 		readText: () => readCellText(),
@@ -260,9 +256,8 @@
 	// The same placement rules the keydown dispatch uses, for the one insertion it cannot reach.
 	const compositionSeat = createCompositionSeat({
 		getDisplayText: () => trimTrailingLineEnding(node.raw),
-		getInlines: () => resolvedInlineContent(node, linkRef),
-		getResolver: () => linkRef?.current,
-		grammar,
+		getInlines: () => resolvedInlineContent(node, reading),
+		reading,
 		getAffinity: () => edgeAffinity.get(),
 		getScreen: () => screenVisibilityOf(el ?? null),
 		consumePendingMarks: () => pendingMarks.consume(),
@@ -275,7 +270,6 @@
 	// The same inline-widget code prose uses, with cell-shaped dependencies: no marker prefix,
 	// no snap indicator, since cells render no image widgets, and the escaping `blockEdit`.
 	const widgetInteraction = createWidgetInteraction({
-		grammar,
 		get node() {
 			return node;
 		},
@@ -299,9 +293,8 @@
 			revealing = value;
 		},
 		isCrossBlock: () => selection.isCrossBlock,
-		getPresentationMode,
-		get linkRef() {
-			return linkRef;
+		get reading() {
+			return reading;
 		}
 	});
 
@@ -311,7 +304,6 @@
 	// The one caret-edge dispatch (G4.12), the same code prose uses: a plain edge key against
 	// a CST widget or a decoration widget resolves against its declared policy.
 	const edgeDispatch = createEdgePolicyDispatch({
-		grammar,
 		get node() {
 			return node;
 		},
@@ -321,8 +313,8 @@
 		get containerParent() {
 			return blockNodeAt(getDoc(), myPath.slice(0, -1));
 		},
-		get linkRef() {
-			return linkRef;
+		get reading() {
+			return reading;
 		},
 		getEl: () => el ?? null,
 		getAmbientLength: () => 0,
@@ -378,8 +370,7 @@
 		contentEl,
 		block: node,
 		path: myPath,
-		linkRef,
-		mode: presentationMode,
+		reading,
 		selection: range,
 		crossBlockRange: selection.isCrossBlock
 	});
@@ -400,7 +391,7 @@
 		const selection = cursor.getRawSelection() ?? { start: caret, end: caret };
 		const cellText = readCellText();
 		return formatActive(
-			{ display: cellText, content: { start: 0, end: cellText.length }, selection, linkRef },
+			{ display: cellText, content: { start: 0, end: cellText.length }, selection, reading },
 			marked.kind
 		);
 	}
@@ -416,7 +407,7 @@
 		if (!offsets) return true;
 		// A mode that draws no delimiter would keep an empty pair as invisible bytes, so the mark
 		// waits for the next insertion instead (live-mode.md § 4.3).
-		if (!paintsFocusedMarkers(presentationMode) && offsets.start === offsets.end) {
+		if (reading.hidesDelimitersAtCaret() && offsets.start === offsets.end) {
 			controller.flushDebouncedCheckpoint();
 			pendingMarks.toggle(format);
 			return true;
@@ -429,10 +420,9 @@
 				display: cellText,
 				content: { start: 0, end: cellText.length },
 				selection: offsets,
-				linkRef
+				reading
 			},
-			format,
-			presentationMode
+			format
 		);
 		if (!result) return true;
 		// Anchor undo at the post-toggle caret, and keep it out of any typing batch: a command
@@ -537,14 +527,10 @@
 		get node() {
 			return node;
 		},
-		get linkRef() {
-			return linkRef;
+		get reading() {
+			return reading;
 		},
-		grammar,
 		resolveLinkUrl,
-		get presentationMode() {
-			return presentationMode;
-		},
 		getTheme,
 		getDocument: () => getDoc(),
 		getContentVersion,
@@ -781,8 +767,7 @@
 			e,
 			node,
 			cursor,
-			presentationMode,
-			linkRef,
+			reading,
 			'',
 			widgetInteraction.isRevealing,
 			(edit) => {
@@ -801,10 +786,9 @@
 			hasSelection: () => cursor.getRawSelection() !== null,
 			isRevealing: widgetInteraction.isRevealing,
 			foldReveal: () => widgetInteraction.foldRevealBeforeMutation(),
-			markersPaint: () => paintsFocusedMarkers(presentationMode),
 			setCaret: (offset) => cursor.setRaw(asRawOffset(offset)),
 			seatOutside: edgeAffinity.noteExtreme,
-			linkRef,
+			reading,
 			ownPairs,
 			write: (text, caretBefore, caretAfter) => {
 				void blockEdit.updateBlockContent(index, text, caretBefore, caretAfter);
@@ -982,7 +966,7 @@
 	// never saw (live-mode.md § 4.5).
 	function deleteCellRange(start: number, end: number): void {
 		const display = trimTrailingLineEnding(node.raw);
-		const cut = cutRangeFromDisplay(node, display, { start, end }, presentationMode, linkRef);
+		const cut = cutRangeFromDisplay(node, display, { start, end }, reading);
 		void blockEdit.updateBlockContent(index, cut.display, start, cut.offset);
 		parkCursor(cut.offset, cut.display);
 	}
@@ -1002,11 +986,8 @@
 				doc: getDoc(),
 				blockEdit,
 				controller: pasteCoordinator,
-				grammar,
-				activePlugins,
-				// The delete half is a join like any other, and a cell's is no more literal than
-				// a paragraph's: without it a live cut pastes the runs it stranded into view.
-				seam: { presentationMode, linkRef }
+				reading,
+				activePlugins
 			}
 		);
 		// Already escaped: the cell's paste surface reports its caret in escaped space.

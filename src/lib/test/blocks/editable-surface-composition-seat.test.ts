@@ -5,7 +5,6 @@
 // dispatch; no composition-path test ever ran outside live mode, so the ungated sibling
 // moved bytes a source-mode user had placed beside a visible delimiter.
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { defaultGrammarView } from '$lib/schema/block-openers';
 import { parse } from '$lib/core/parser';
 import { parseInline } from '$lib/core/inline';
 import { createCompositionSeat } from '$lib/components/blocks/text/composition-seat';
@@ -19,7 +18,7 @@ import { trimTrailingLineEnding } from '$lib/core/lines';
 import { screenVisibilityOf } from '$lib/cursor/widget-offset';
 import type { EdgeAffinity } from '$lib/cursor/edge-affinity';
 import { makeSurface, type SurfaceHarness } from '../harness/editable-surface';
-import { fixtureLinkRef } from '../harness/fixture-grammar';
+import { fixtureReading } from '../harness/fixture-grammar';
 
 beforeEach(() => registerLiveJoinSeamCleaner(cleanLiveJoinSeam));
 afterEach(() => {
@@ -43,15 +42,14 @@ function makeSeatHarness(source: string, affinity: EdgeAffinity | null): SeatHar
 	const seat = createCompositionSeat({
 		getDisplayText: () => surface.el.textContent ?? '',
 		getInlines: () => parseInline(source, 0, source.length),
-		getResolver: () => undefined,
-		grammar: defaultGrammarView,
+		reading: fixtureReading(),
 		getAffinity: () => affinity,
 		getScreen: () => screenVisibilityOf(surface.el),
 		consumePendingMarks: () => null,
 		restorePendingMarks: () => {},
 		getRawSelection: () => rawSelection,
 		resolveRangeEdit: (range, typed) => {
-			const edit = resolveSelectionEdit(node, range, typed, 'live', fixtureLinkRef());
+			const edit = resolveSelectionEdit(node, range, typed, fixtureReading({}, 'live'));
 			return edit && { raw: trimTrailingLineEnding(edit.raw), caret: edit.caret };
 		}
 	});

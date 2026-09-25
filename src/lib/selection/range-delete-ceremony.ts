@@ -7,8 +7,7 @@
  */
 
 import type { GrammarView } from '../schema/block-openers';
-import type { PresentationMode } from '../presentation-mode';
-import type { InlineResolverRef } from '../schema/inline-construct-policy';
+import type { Reading } from '../schema/reading';
 import type { CstNode, Document } from '../core/nodes';
 import type { SelectionPoint } from './primitives';
 import type { SharingState } from '../tree-operations/sharing';
@@ -74,12 +73,6 @@ export function deleteSubtreesIdentityGated(
 	}
 }
 
-/** What a text truncation needs from live mode; the mode is undefined outside it. */
-export interface LiveSeamContext {
-	presentationMode: PresentationMode | undefined;
-	linkRef: InlineResolverRef;
-}
-
 /**
  * A truncation in a wall branch is half a join: the delimiter runs it leaves unpaired are bytes
  * the user never saw in live mode, so the kept text side goes through the same cleanup a join
@@ -90,7 +83,7 @@ function cleanTruncatedProse(
 	node: CstNode,
 	kept: 'head' | 'tail',
 	cut: number,
-	live: LiveSeamContext
+	live: Reading
 ): { raw: string; seam: number } {
 	const join =
 		kept === 'head'
@@ -106,7 +99,7 @@ function cleanTruncatedProse(
 					start: { node, offset: 0 },
 					end: { node, offset: cut }
 				};
-	return cleanJoinedRaw({ ...join, linkRef: live.linkRef }, live.presentationMode);
+	return cleanJoinedRaw({ ...join, reading: live });
 }
 
 /**
@@ -163,7 +156,7 @@ export function truncateStartInPlace(
 	start: SelectionPoint,
 	startBlock: CstNode,
 	isChrome: boolean,
-	live: LiveSeamContext,
+	live: Reading,
 	sharing: SharingState,
 	grammar: GrammarView,
 	tag: string
@@ -197,7 +190,7 @@ export function truncateEndInPlace(
 	end: SelectionPoint,
 	endBlock: CstNode,
 	isChrome: boolean,
-	live: LiveSeamContext,
+	live: Reading,
 	sharing: SharingState,
 	grammar: GrammarView,
 	tag: string

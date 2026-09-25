@@ -19,8 +19,7 @@ import {
 } from '$lib/schema/inline-construct-policy';
 import { arbInlineSource, freshOrFixedSeed } from './arbitraries';
 import type { PresentationMode } from '$lib/presentation-mode';
-import { fixtureLinkRef, renderOptions } from '../harness/fixture-grammar';
-import { defaultGrammarView } from '$lib/schema/block-openers';
+import { fixtureReading, renderOptions } from '../harness/fixture-grammar';
 
 /**
  * The join described in live-mode.md § 4.5, under random range deletes. A comparison, like the
@@ -89,9 +88,7 @@ function deleteRange(
 		{ path: points.start.slice(0, 1), offset: points.start[1] },
 		{ path: points.end.slice(0, 1), offset: points.end[1] },
 		createSharingState(),
-		defaultGrammarView,
-		mode,
-		fixtureLinkRef()
+		fixtureReading({}, mode)
 	);
 	const bytes = serialize(doc);
 	return {

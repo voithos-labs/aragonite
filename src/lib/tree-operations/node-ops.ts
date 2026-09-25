@@ -13,10 +13,9 @@ import {
 	getLiveJoinSeamCleaner,
 	getLiveSplitRebalancer,
 	type CleanedJoin,
-	type InlineResolverRef,
 	type JoinSeam
 } from '../schema/inline-construct-policy';
-import type { PresentationMode } from '../presentation-mode';
+import type { Reading } from '../schema/reading';
 import {
 	displayLength,
 	ownTrailingLineEnding,
@@ -91,15 +90,14 @@ export function splitNode(
 	blockIndex: number,
 	offset: number,
 	sharing: SharingState | undefined,
-	presentationMode: PresentationMode | undefined,
-	linkRef: InlineResolverRef,
-	grammar: GrammarView,
+	reading: Reading,
 	readSecondHalf: FragmentReader = fragmentReaderAt(
 		ownerAt(parent, [blockIndex]),
 		blockIndex + 1,
-		grammar
+		reading.grammar
 	)
 ): SplitResult {
+	const { grammar } = reading;
 	const noop: SplitResult = { change: { op: 'noop' }, secondHalfIndex: blockIndex + 1 };
 	if (blockIndex < 0 || blockIndex >= parent.children.length) return noop;
 
@@ -123,10 +121,10 @@ export function splitNode(
 	firstRaw = terminateLine(firstRaw, rawText);
 	secondRaw = terminateLine(secondRaw, rawText);
 
-	// Only live mode rebalances, since its delimiters are hidden and a literal half would show runs
-	// the user never saw; the rebalancer declines when its bytes do not parse back.
-	if (presentationMode === 'live') {
-		const rebalanced = getLiveSplitRebalancer()?.(node, offset, firstRaw, secondRaw, linkRef);
+	// Only a block that hides its delimiters rebalances, since a literal half would show runs the
+	// user never saw; the rebalancer declines when its bytes do not parse back.
+	if (reading.hidesDelimitersAtCaret()) {
+		const rebalanced = getLiveSplitRebalancer()?.(node, offset, firstRaw, secondRaw, reading);
 		if (rebalanced) {
 			firstRaw = rebalanced.firstRaw;
 			secondRaw = rebalanced.secondRaw;
@@ -275,7 +273,7 @@ function separatorSplitsOffNextLine(
 	);
 }
 
-function contentBlockCount(source: string, grammar: GrammarView | undefined): number {
+function contentBlockCount(source: string, grammar: GrammarView): number {
 	return parse(source, { grammar, scope: 'fragment' }).children.filter(
 		(node) => !isBlankParagraph(node)
 	).length;
@@ -312,17 +310,14 @@ function structuralSuffixSplit(
 // ── Merge ──
 
 /**
- * `join.mergedRaw` with the delimiter runs the join left unpaired at the join point dropped, in
- * live mode only (live-mode.md § 4.5). The one registered cleaner verifies its own bytes and
- * otherwise declines, leaving the literal join every other mode gets. Every destructive join
- * goes through here.
+ * `join.mergedRaw` with the delimiter runs the join left unpaired at the join point dropped, only
+ * where the caret's block hides its delimiters (live-mode.md § 4.5). The one registered cleaner
+ * verifies its own bytes and otherwise declines, leaving the literal join every other mode gets.
+ * Every destructive join goes through here.
  */
-export function cleanJoinedRaw(
-	join: JoinSeam,
-	presentationMode: PresentationMode | undefined
-): CleanedJoin {
+export function cleanJoinedRaw(join: JoinSeam): CleanedJoin {
 	const literal = { raw: join.mergedRaw, seam: join.seam };
-	if (presentationMode !== 'live') return literal;
+	if (!join.reading.hidesDelimitersAtCaret()) return literal;
 	return getLiveJoinSeamCleaner()?.(join) ?? literal;
 }
 
@@ -335,8 +330,7 @@ export function cutRangeFromDisplay(
 	node: NodeView,
 	display: string,
 	range: { start: number; end: number },
-	presentationMode: PresentationMode | undefined,
-	linkRef: InlineResolverRef
+	reading: Reading
 ): { display: string; offset: number } {
 	// Both ends are moved off the middle of a surrogate pair before the slice: half a pair here
 	// is unrecoverable bytes, not a recoverable edit. Snapping both the same direction cannot
@@ -344,16 +338,13 @@ export function cutRangeFromDisplay(
 	const start = snapToScalarBoundary(display, range.start);
 	const end = snapToScalarBoundary(display, range.end);
 	if (start >= end) return { display, offset: start };
-	const cleaned = cleanJoinedRaw(
-		{
-			mergedRaw: display.slice(0, start) + display.slice(end),
-			seam: start,
-			start: { node, offset: start },
-			end: { node, offset: end },
-			linkRef
-		},
-		presentationMode
-	);
+	const cleaned = cleanJoinedRaw({
+		mergedRaw: display.slice(0, start) + display.slice(end),
+		seam: start,
+		start: { node, offset: start },
+		end: { node, offset: end },
+		reading
+	});
 	return { display: cleaned.raw, offset: cleaned.seam };
 }
 
@@ -393,23 +384,15 @@ export function joinAboveUndrawn(
 }
 
 /** The bytes two adjacent blocks make when `prev` absorbs `curr`, join cleanup included. */
-function joinRaw(
-	prev: NodeView,
-	curr: NodeView,
-	presentationMode: PresentationMode | undefined,
-	linkRef: InlineResolverRef
-): CleanedJoin {
+function joinRaw(prev: NodeView, curr: NodeView, reading: Reading): CleanedJoin {
 	const { raw, start } = joinAboveUndrawn(prev, displayLength(prev.raw), curr, 0);
-	return cleanJoinedRaw(
-		{
-			mergedRaw: raw,
-			seam: start,
-			start: { node: prev, offset: start },
-			end: { node: curr, offset: 0 },
-			linkRef
-		},
-		presentationMode
-	);
+	return cleanJoinedRaw({
+		mergedRaw: raw,
+		seam: start,
+		start: { node: prev, offset: start },
+		end: { node: curr, offset: 0 },
+		reading
+	});
 }
 
 /** What a join reports: the structural splice, plus where the two blocks met in the survivor's
@@ -438,9 +421,7 @@ export function mergeIntoPrevDeepLeaf(
 	parent: BodyParentArg,
 	blockIndex: number,
 	sharing: SharingState | undefined,
-	presentationMode: PresentationMode | undefined,
-	linkRef: InlineResolverRef,
-	grammar: GrammarView
+	reading: Reading
 ): MergeIntoPrevResult | null {
 	if (blockIndex <= 0 || blockIndex >= parent.children.length) return null;
 
@@ -454,8 +435,8 @@ export function mergeIntoPrevDeepLeaf(
 	const target = holderChildrenAt(parent.children, leafPath)[slot];
 	const curr = parent.children[blockIndex];
 	const lineEnding = trailingLineEnding(target.raw);
-	const { raw: mergedRaw, seam: joinOffset } = joinRaw(target, curr, presentationMode, linkRef);
-	const read = fragmentReaderAt(ownerAt(parent, leafPath), slot, grammar);
+	const { raw: mergedRaw, seam: joinOffset } = joinRaw(target, curr, reading);
+	const read = fragmentReaderAt(ownerAt(parent, leafPath), slot, reading.grammar);
 	const merged = mergedLeafFor(target, trimTrailingLineEnding(mergedRaw) + lineEnding, read);
 	if (!merged) return null;
 
@@ -472,7 +453,7 @@ export function mergeIntoPrevDeepLeaf(
 	const joined: JoinLanding = { index: blockIndex - 1, targetPath: mergeTarget.path, joinOffset };
 	const at = rawOffsetOfLeaf(parent.children[blockIndex - 1], mergeTarget.path, joinOffset);
 	const tracked = at === null ? undefined : { index: blockIndex - 1, offset: at };
-	const change = deleteNode(parent, blockIndex, grammar, sharing, tracked);
+	const change = deleteNode(parent, blockIndex, reading.grammar, sharing, tracked);
 	return { ...landingAfterFixUp(parent, joined, at, tracked), change };
 }
 
@@ -565,9 +546,7 @@ function installMergedLeaf(
 export function mergeWithNext(
 	parent: NodeParent,
 	blockIndex: number,
-	presentationMode: PresentationMode | undefined,
-	linkRef: InlineResolverRef,
-	grammar: GrammarView
+	reading: Reading
 ): MergeResult {
 	if (blockIndex < 0 || blockIndex >= parent.children.length - 1) {
 		return { change: { op: 'noop' }, joinOffset: 0 };
@@ -576,8 +555,8 @@ export function mergeWithNext(
 	const curr = parent.children[blockIndex];
 	const next = parent.children[blockIndex + 1];
 
-	const { raw: mergedRaw, seam } = joinRaw(curr, next, presentationMode, linkRef);
-	const mergedNode = reparseAsNode(mergedRaw, curr.leadingTrivia, grammar);
+	const { raw: mergedRaw, seam } = joinRaw(curr, next, reading);
+	const mergedNode = reparseAsNode(mergedRaw, curr.leadingTrivia, reading.grammar);
 	if (!mergedNode) return { change: { op: 'noop' }, joinOffset: 0 };
 	const installed = [mergedNode];
 	assertSingleNodeSink('mergeWithNext', installed);

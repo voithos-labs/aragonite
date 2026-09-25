@@ -5,8 +5,7 @@ import { serialize } from '../../core/serializer';
 import { nodeAt } from '../../tree-operations/node-primitives';
 import { createSharingState } from '../../tree-operations/sharing';
 import type { Document } from '../../core/nodes';
-import { fixtureLinkRef } from '../harness/fixture-grammar';
-import { defaultGrammarView } from '$lib/schema/block-openers';
+import { fixtureReading } from '../harness/fixture-grammar';
 
 function run(
 	source: string,
@@ -14,15 +13,7 @@ function run(
 	end: { path: number[]; offset: number }
 ) {
 	const doc = parse(source);
-	const result = rangeDelete(
-		doc,
-		start,
-		end,
-		createSharingState(),
-		defaultGrammarView,
-		undefined,
-		fixtureLinkRef()
-	);
+	const result = rangeDelete(doc, start, end, createSharingState(), fixtureReading());
 	return { doc: result.newDoc, source: serialize(result.newDoc), caret: result.collapsedCaret };
 }
 
