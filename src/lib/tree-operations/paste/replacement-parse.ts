@@ -6,7 +6,7 @@
 
 import type { CstNode } from '../../core/nodes';
 import type { GrammarView } from '../../schema/block-openers';
-import { parse } from '../../core/parser';
+import { readBlocks } from '../../core/parser';
 import { terminateLine } from '../../core/lines';
 import { ensureEditableContainers, normalizeReplacementTrivia } from '../node-primitives';
 
@@ -26,7 +26,7 @@ export function parseReplacement(
 	grammar: GrammarView,
 	fallback?: () => CstNode[]
 ): ParsedReplacement | null {
-	const parsed = parse(terminateLine(raw, original.raw), { grammar, scope: 'fragment' });
+	const parsed = readBlocks(terminateLine(raw, original.raw), { grammar, scope: 'fragment' });
 	const children = parsed.children.length > 0 ? parsed.children : fallback?.();
 	if (!children || children.length === 0) return null;
 	const replacement = normalizeReplacementTrivia(original, children);

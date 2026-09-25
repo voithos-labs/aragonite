@@ -7,7 +7,7 @@
 import { isDevChecks } from '../env';
 import { headingLevel, type CstNode } from '../core/nodes';
 import type { NodeView } from '../core/node-views';
-import { isBlankParagraph, isBlankSource, parse } from '../core/parser';
+import { isBlankParagraph, isBlankSource, readBlocks } from '../core/parser';
 import type { GrammarView } from '../schema/block-openers';
 import {
 	getLiveJoinSeamCleaner,
@@ -242,8 +242,8 @@ function blankHalfBecomesBlock(
 	grammar: GrammarView
 ): boolean {
 	return (
-		parse(firstRaw + lineEnding + secondRaw, { grammar, scope: 'fragment' }).children.length >
-		parse(firstRaw + secondRaw, { grammar, scope: 'fragment' }).children.length
+		readBlocks(firstRaw + lineEnding + secondRaw, { grammar, scope: 'fragment' }).children.length >
+		readBlocks(firstRaw + secondRaw, { grammar, scope: 'fragment' }).children.length
 	);
 }
 
@@ -274,7 +274,7 @@ function separatorSplitsOffNextLine(
 }
 
 function contentBlockCount(source: string, grammar: GrammarView): number {
-	return parse(source, { grammar, scope: 'fragment' }).children.filter(
+	return readBlocks(source, { grammar, scope: 'fragment' }).children.filter(
 		(node) => !isBlankParagraph(node)
 	).length;
 }
@@ -590,7 +590,7 @@ function reparseAsNodes(
  */
 function reparseAsNode(raw: string, leadingTrivia: string, grammar: GrammarView): CstNode | null {
 	const { nodes, suffix } = reparseAsNodes(raw, leadingTrivia, (text) =>
-		parse(text, { grammar, scope: 'fragment' })
+		readBlocks(text, { grammar, scope: 'fragment' })
 	);
 	if (nodes.length > 1) return null;
 	// A single-block write has no follower to give the split-off blank line to, so it stays in

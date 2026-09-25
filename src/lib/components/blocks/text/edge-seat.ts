@@ -7,7 +7,7 @@
 
 import type { AnyInlineKind, InlineNode } from '../../../core/nodes';
 import type { EdgeAffinity } from '../../../cursor/edge-affinity';
-import { constructContentRange, inlineDescendants, parseInline } from '../../../core/inline';
+import { constructContentRange, inlineDescendants, readInline } from '../../../core/inline';
 import {
 	CONTENT_VISIBILITY,
 	renderedText,
@@ -57,7 +57,7 @@ export function resolveEdgeSeat(
 	// bytes, so no reading of it can license dropping one.
 	const shown = (bytes: string, end: number): string =>
 		renderedText(
-			parseInline(bytes, content.start, end, reading.current, grammar),
+			readInline(bytes, content.start, end, reading.resolver, grammar),
 			bytes,
 			CONTENT_VISIBILITY,
 			{ grammar }

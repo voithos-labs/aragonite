@@ -34,7 +34,7 @@ function editOf(
 		display,
 		content: { start: 0, end: display.length },
 		selection: { start, end },
-		reading: fixtureReading({ current: resolver }, mode)
+		reading: fixtureReading({ resolver: resolver }, mode)
 	};
 }
 
@@ -76,7 +76,7 @@ describe('the pressed state beside a reference link', () => {
 	it('re-reads when the definitions change under the same ref', () => {
 		const definitions: { current?: LinkReferenceResolver } = {};
 		const reading: Reading = fixtureReading({
-			get current() {
+			get resolver() {
 				return definitions.current;
 			}
 		});
@@ -96,7 +96,7 @@ describe('a cross-block bold starting inside a reference link', () => {
 			{ path: [0], offset: 7 },
 			{ path: [1], offset: 5 },
 			'strong',
-			fixtureReading({ current: resolver })
+			fixtureReading({ resolver: resolver })
 		);
 		expect(plan?.writes.map((write) => [write.path, write.newDisplay])).toEqual([
 			[[1], '**other**']

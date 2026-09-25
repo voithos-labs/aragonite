@@ -37,8 +37,8 @@ function mountBlock(source: string, mode: PresentationMode, caret: number) {
 			doc: {
 				doc: () => doc,
 				reading: fixtureReading({
-					current: references.resolve,
-					signature: references.signature,
+					resolver: references.resolve,
+					resolverSignature: references.signature,
 					mode: () => mode
 				})
 			},

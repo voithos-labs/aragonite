@@ -314,7 +314,7 @@ describe('a typed trigger opens its source', () => {
 	// Miss-analysis: the prose check read the leaf with no link-reference ref, so it saw no link
 	// definitions and every plugin's syntax, and no harness handed the menu an editor's ref.
 	it.each([
-		['a resolved reference link’s label', '[t][r]', 5, fixtureReading({ current: toR }), false],
+		['a resolved reference link’s label', '[t][r]', 5, fixtureReading({ resolver: toR }), false],
 		['an unresolved reference link’s label', '[t][r]', 5, fixtureReading(), true],
 		['a code span inside an unlisted plugin’s construct', MASKED, 6, scopedLinkRef, false],
 		['the same code span where every plugin is on', MASKED, 6, fixtureReading(), true]

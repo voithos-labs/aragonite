@@ -40,8 +40,8 @@ describe('handleSelectedWidgetKeydown: Shift+Arrow through the editing policy', 
 			'[![cat][shot]][repo]\n',
 			1,
 			fixtureReading({
-				current: resolve,
-				signature: 'shot|repo'
+				resolver: resolve,
+				resolverSignature: 'shot|repo'
 			})
 		);
 		expect(await interaction.handleSelectedWidgetKeydown(shiftRight())).toBe(true);

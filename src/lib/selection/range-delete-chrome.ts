@@ -62,7 +62,6 @@ export function chromeAwareRangeDelete(
 	const { grammar } = reading;
 	const startC = nearestChromeContainer(doc, start.path);
 	const endC = nearestChromeContainer(doc, end.path);
-	const live = reading;
 
 	// Copy every chain that will be written before node identities are captured (G1.9): chains
 	// stay valid across splices, paths do not.
@@ -85,7 +84,7 @@ export function chromeAwareRangeDelete(
 			end,
 			endChain[endChain.length - 1],
 			endC !== null && isChromeChild(endC, end.path),
-			live,
+			reading,
 			sharing,
 			grammar,
 			'chromeAwareRangeDelete:end'
@@ -101,7 +100,7 @@ export function chromeAwareRangeDelete(
 		start,
 		startChain[startChain.length - 1],
 		startC !== null && isChromeChild(startC, start.path),
-		live,
+		reading,
 		sharing,
 		grammar,
 		'chromeAwareRangeDelete:start'

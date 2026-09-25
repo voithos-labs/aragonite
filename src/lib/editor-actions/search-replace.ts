@@ -5,7 +5,7 @@
  * shared one. Returns the count actually replaced.
  */
 import type { CstNode } from '../core/nodes';
-import { parse } from '../core/parser';
+import { readBlocks } from '../core/parser';
 import { cloneNode } from '../tree-operations/clone';
 import { spliceMany } from '../tree-operations/splice-many';
 import { getBlockKindDescriptor } from '../schema/block-kind-descriptor';
@@ -78,7 +78,7 @@ export function createSearchReplace(deps: EditorActionsDeps, controller: UndoCon
 			rebuildUnsharedChain(child, chain, cloneSharing, null, deps.reading.grammar);
 			rebuildContainerRaw(child);
 		}
-		const newNodes = parse(child.raw, {
+		const newNodes = readBlocks(child.raw, {
 			grammar: deps.reading.grammar,
 			scope: 'fragment'
 		}).children;

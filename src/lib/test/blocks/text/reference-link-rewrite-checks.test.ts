@@ -48,7 +48,7 @@ describe('a pending mark beside a reference link', () => {
 				'y',
 				marks,
 				inlines,
-				fixtureReading({ current: resolver })
+				fixtureReading({ resolver: resolver })
 			)
 		).toEqual({ raw: 'see [text][ref] here**y**', caret: 23 });
 	});
@@ -59,7 +59,7 @@ describe('a pending mark beside a reference link', () => {
 		const seat = createCompositionSeat({
 			getDisplayText: () => display,
 			getInlines: () => inlines,
-			reading: fixtureReading({ current: resolver }),
+			reading: fixtureReading({ resolver: resolver }),
 			getAffinity: () => null,
 			getScreen: () => LIVE,
 			consumePendingMarks: () => new Set<InlineMarkKind>(['strong']),
@@ -78,7 +78,7 @@ describe('a typed byte at a reference link’s hidden closing run', () => {
 		const { resolver, inlines } = drawn(display);
 
 		expect(
-			resolveEdgeSeat(11, inlines, null, display, LIVE, '*', fixtureReading({ current: resolver }))
+			resolveEdgeSeat(11, inlines, null, display, LIVE, '*', fixtureReading({ resolver: resolver }))
 		).toBeNull();
 	});
 });
@@ -99,7 +99,7 @@ describe('a destructive key inside a reference link', () => {
 			screen: LIVE,
 			inlines,
 			installedAs,
-			reading: fixtureReading({ current: resolver })
+			reading: fixtureReading({ resolver: resolver })
 		});
 	}
 

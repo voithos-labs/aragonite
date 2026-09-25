@@ -52,7 +52,9 @@ describe('the list-item merge crosses the live join', () => {
 	// Hand-built rather than `makeNestedHarness`: this suite needs jsdom for the visibility
 	// read, where the harness's production block-list state is an orphaned `$effect`.
 	it('the middle-item Backspace hands the mode down', async () => {
-		const { deps } = makeEditorActionsDeps(parse(SPLIT_BOLD), { presentationMode: 'live' });
+		const { deps } = makeEditorActionsDeps(parse(SPLIT_BOLD), {
+			reading: fixtureReading({}, 'live')
+		});
 		const controller = createUndoController(deps);
 		const containerEdit = createContainerEditActions(deps, controller);
 		const getNode = () => deps.doc.children[0];

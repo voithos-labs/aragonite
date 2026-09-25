@@ -92,7 +92,7 @@ export function createCellRender(deps: CellRenderDeps): CellRender {
 		// a link-reference definition from re-rendering every cell. A false hit reparses the same.
 		const hasRef = node.raw.includes('[');
 		// Key on the short signature token, never the string, which can reach megabytes.
-		const sig = hasRef ? String(deps.reading.epoch) : '';
+		const sig = hasRef ? String(deps.reading.resolverEpoch) : '';
 		// Always included, unlike the reference part: a mode change re-renders every mounted
 		// cell. '' in source mode keeps the default key byte-identical, as text-render does.
 		const mode = deps.reading.mode();
@@ -104,7 +104,7 @@ export function createCellRender(deps: CellRenderDeps): CellRender {
 
 		const content = computeInlineContent(
 			node,
-			hasRef ? deps.reading.current : undefined,
+			hasRef ? deps.reading.resolver : undefined,
 			deps.reading.grammar
 		);
 		// A decoration change rebuilds a focused cell with no restore pending, so the caret is

@@ -21,9 +21,9 @@ export function renderOptions(over: Partial<RenderInlineOptions> = {}): RenderIn
 export function fixtureReading(over: Partial<Reading> = {}, mode?: PresentationMode): Reading {
 	const reading = {
 		grammar: defaultGrammarView,
-		current: undefined,
-		signature: '',
-		epoch: 0,
+		resolver: undefined,
+		resolverSignature: '',
+		resolverEpoch: 0,
 		mode: (): PresentationMode => 'source'
 	} as Reading;
 	const { hidesDelimitersAtCaret: _derived, ...fields } = Object.getOwnPropertyDescriptors(over);

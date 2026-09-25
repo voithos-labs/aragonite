@@ -8,7 +8,7 @@ import { cloneMetadata, cloneNode } from '../clone';
 import { parseCutResidue, parseFirstBlock } from '../parse-block';
 import { renumberOrderedListFrom } from './ordered-markers';
 import { assignIds } from '../../block-id';
-import { parse } from '../../core/parser';
+import { readBlocks } from '../../core/parser';
 import { emptyParagraph } from '../node-primitives';
 import type { GrammarView } from '../../schema/block-openers';
 
@@ -187,7 +187,7 @@ function trailingItemFor(template: CstNode, children: CstNode[], grammar: Gramma
 
 /** Whether `item`'s bytes, read alone, give back one item holding the same blocks. */
 function readsBackAsBuilt(item: CstNode, grammar: GrammarView): boolean {
-	const blocks = parse(item.raw, { grammar, scope: 'fragment' }).children;
+	const blocks = readBlocks(item.raw, { grammar, scope: 'fragment' }).children;
 	const list = blocks.length === 1 && blocks[0].kind === 'list' ? blocks[0] : null;
 	const read = list?.children?.length === 1 ? list.children[0] : null;
 	const built = item.children ?? [];

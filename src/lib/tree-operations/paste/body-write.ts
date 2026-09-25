@@ -6,7 +6,7 @@
 
 import type { AnyBlockKind, CstNode, Document } from '../../core/nodes';
 import type { GrammarView } from '../../schema/block-openers';
-import { parse } from '../../core/parser';
+import { readBlocks } from '../../core/parser';
 import { tryGetBlockKindDescriptor } from '../../schema/block-kind-descriptor';
 import {
 	ensureEditableContainers,
@@ -57,7 +57,7 @@ export function normalizeReplacementForBody(
 			out.push(node);
 			continue;
 		}
-		const reparsed = parse(escaped, { grammar, scope: 'fragment' }).children;
+		const reparsed = readBlocks(escaped, { grammar, scope: 'fragment' }).children;
 		if (reparsed.length === 0) {
 			out.push(node);
 			continue;

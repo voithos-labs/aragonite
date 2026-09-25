@@ -56,5 +56,5 @@ export function getInlineContent(
  * cannot drop the signature or the grammar and desync from what render drew.
  */
 export function resolvedInlineContent(node: NodeView, reading: Reading): InlineNode[] {
-	return getInlineContent(node, reading.current, reading.signature, reading.grammar);
+	return getInlineContent(node, reading.resolver, reading.resolverSignature, reading.grammar);
 }

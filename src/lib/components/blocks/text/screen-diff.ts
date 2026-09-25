@@ -5,10 +5,10 @@
  * traversal.
  */
 
-import { getContentRange, isProseKind, parseInline } from '../../../core/inline';
+import { getContentRange, isProseKind, readInline } from '../../../core/inline';
 import type { Reading } from '../../../schema/reading';
 import type { CstNode, InlineNode } from '../../../core/nodes';
-import { parse } from '../../../core/parser';
+import { readBlocks } from '../../../core/parser';
 
 /** Whether `after` is `before` with `text` spliced in at one place and nothing else moved. */
 export function insertsExactly(before: string, after: string, text: string): boolean {
@@ -39,12 +39,12 @@ export function soleProseReparse(
 	raw: string,
 	reading: Reading
 ): { block: CstNode; nodes: InlineNode[] } | null {
-	const blocks = parse(raw, { grammar: reading.grammar, scope: 'fragment' }).children;
+	const blocks = readBlocks(raw, { grammar: reading.grammar, scope: 'fragment' }).children;
 	if (blocks.length !== 1 || !isProseKind(blocks[0].kind)) return null;
 	const block = blocks[0];
 	const range = getContentRange(block);
 	return {
 		block,
-		nodes: parseInline(block.raw, range.start, range.end, reading.current, reading.grammar)
+		nodes: readInline(block.raw, range.start, range.end, reading.resolver, reading.grammar)
 	};
 }

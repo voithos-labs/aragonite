@@ -26,7 +26,7 @@ function makeCard(source: string) {
 		events: harness.events,
 		measureRange: () => [],
 		landCaret,
-		reading: fixtureReading({ current: map.resolve, signature: map.signature })
+		reading: fixtureReading({ resolver: map.resolve, resolverSignature: map.signature })
 	});
 	const raw = () => harness.doc.children[0].raw;
 	return {

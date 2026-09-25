@@ -296,7 +296,9 @@ describe('a reference form rebalances only when the resolver reaches the join', 
 			offset,
 			raw.slice(0, offset) + '\n',
 			raw.slice(offset),
-			fixtureReading(withResolver ? { current: map.resolve, signature: map.signature } : {})
+			fixtureReading(
+				withResolver ? { resolver: map.resolve, resolverSignature: map.signature } : {}
+			)
 		);
 	}
 

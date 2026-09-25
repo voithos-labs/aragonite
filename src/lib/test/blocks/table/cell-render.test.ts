@@ -167,13 +167,13 @@ describe('createCellRender', () => {
 		let signature = 'sig-old';
 		let epoch = 0;
 		const reading: Reading = fixtureReading({
-			get current() {
+			get resolver() {
 				return (label: string) => (label === 'r' ? { url } : undefined);
 			},
-			get signature() {
+			get resolverSignature() {
 				return signature;
 			},
-			get epoch() {
+			get resolverEpoch() {
 				return epoch;
 			}
 		});
@@ -193,13 +193,13 @@ describe('createCellRender', () => {
 		let signature = 'sig-1';
 		let epoch = 1;
 		const reading: Reading = fixtureReading({
-			get current() {
+			get resolver() {
 				return (label: string) => (label === 'r' ? { url } : undefined);
 			},
-			get signature() {
+			get resolverSignature() {
 				return signature;
 			},
-			get epoch() {
+			get resolverEpoch() {
 				return epoch;
 			}
 		});
@@ -222,10 +222,10 @@ describe('createCellRender', () => {
 	it('does not fold signature into the key when raw has no bracket', () => {
 		let signature = 'sig-old';
 		const reading: Reading = fixtureReading({
-			get current() {
+			get resolver() {
 				return undefined;
 			},
-			get signature() {
+			get resolverSignature() {
 				return signature;
 			}
 		});

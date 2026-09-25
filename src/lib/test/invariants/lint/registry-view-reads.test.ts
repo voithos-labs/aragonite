@@ -1,8 +1,9 @@
 /**
- * G4.68 and G4.69: the published readers whose grammar is optional (`parse`, `parseInline`) are
- * called with the editor's grammar, and the every-plugin fallback is spelled only where no editor
- * exists. Every internal reader takes the grammar or the reading as a required parameter, which the
- * type checks (docs/design/plugin-contract.md § Per-instance enablement).
+ * G4.68 and G4.69: every read the editor makes resolves through the editor's grammar, so a
+ * plugin it left out, or a syntax it switched off, stays out (docs/design/plugin-contract.md
+ * § Per-instance enablement). Internal readers take the grammar or the reading as a required
+ * parameter; the scans below hold the parts a type cannot: who imports the published readers that
+ * default it, and where the every-plugin fallback is spelled.
  */
 
 import { describe, expect, it } from 'vitest';
@@ -20,24 +21,99 @@ import {
 	collectEditorSources,
 	enclosingFunction,
 	lexicalClasses,
+	stripComments,
 	type SourceFile
 } from './scan-source';
 import { describeCallSiteRules, type CallSiteRule } from './call-site-rule';
 import { notUnder } from './file-rule';
 
-/** The readers whose grammar is optional, and the argument position it takes (1-based). The
- *  checker cannot see a missing grammar there, so the call's text is read instead. The core
- *  `computeInlineContent` requires one, but the plugin barrel publishes the same name without. */
-const OPTIONAL_GRAMMAR_POSITION: Record<string, number> = {
-	parseInline: 5,
-	computeInlineContent: 3
-};
+// ── G4.69 the defaulted readers stay at the edge ─────────────────────────────
 
-/** An explicit `defaultGrammarView` is the every-plugin reading spelled out, so it counts as none. */
-const threadsGrammar = (args: string, callee: string): boolean => {
-	const slot = callArguments(args)[OPTIONAL_GRAMMAR_POSITION[callee] - 1];
-	return slot !== undefined && slot !== '' && slot !== 'undefined' && slot !== 'defaultGrammarView';
+/** The files that may import a reader whose grammar defaults to every installed plugin: the
+ *  barrels publishing them, and the published code that runs with no editor. */
+const DEFAULTED_READER_IMPORTERS: Record<string, string> = {
+	'src/lib/index.ts': 'the public barrel publishes parse and parseInline',
+	'src/lib/plugin.ts': 'the plugin barrel publishes parse and its no-editor computeInlineContent',
+	'src/lib/plugins/admonitions/convert-document.ts':
+		'a published whole-document conversion that runs with no editor',
+	'src/lib/plugins/footnotes/footnote-numbering.ts':
+		'the published numbering reads every plugin with no editor; a mounted widget passes its own reader',
+	'src/lib/plugins/toc/heading-outline.ts':
+		'the outline reads every plugin with no editor; the toc block passes its editor reader'
 };
+const mayImportDefaulted = (relPath: string): boolean =>
+	relPath in DEFAULTED_READER_IMPORTERS || relPath.startsWith('src/lib/testing/');
+
+/** Each defaulted reader a file imports from inside the library: `parse` and `parseInline` from
+ *  anywhere in it, and the plugin barrel's `computeInlineContent`, which reads every plugin. */
+function defaultedReaderImports(code: string): string[] {
+	const found: string[] = [];
+	const statement = /\b(?:import|export)\s*(?:type\s*)?\{([^}]*)\}\s*from\s*['"]([^'"]+)['"]/g;
+	for (const match of stripComments(code).matchAll(statement)) {
+		const specifier = match[2];
+		if (!specifier.startsWith('$lib') && !specifier.startsWith('.')) continue;
+		for (const entry of match[1].split(',')) {
+			const name = entry
+				.trim()
+				.replace(/^type\s+/, '')
+				.split(/\s+as\s+/)[0];
+			const fromPluginBarrel = /(^\$lib|\/|^\.)\/?plugin$/.test(specifier);
+			if (name === 'parse' || name === 'parseInline') found.push(`${name} <- ${specifier}`);
+			else if (name === 'computeInlineContent' && fromPluginBarrel) {
+				found.push(`${name} <- ${specifier}`);
+			}
+		}
+	}
+	return found;
+}
+
+describe('G4.69 only the barrels, the kits and no-editor code import the defaulted readers', () => {
+	const sources = collectEditorSources().filter((file) => file.relPath.startsWith('src/lib/'));
+
+	it('finds none elsewhere in the library', () => {
+		const offenders = sources
+			.filter((file) => !mayImportDefaulted(file.relPath))
+			.map((file) => ({ relPath: file.relPath, hits: defaultedReaderImports(file.code) }))
+			.filter((file) => file.hits.length > 0);
+		expect(
+			offenders,
+			'inside the editor, parse with `readBlocks` and read inline content with `readInline`: both take the grammar, so none reads every installed plugin (#266, #429)'
+		).toEqual([]);
+	});
+
+	it('lists no file that no longer imports one', () => {
+		const stale = Object.keys(DEFAULTED_READER_IMPORTERS).filter((relPath) => {
+			const file = sources.find((f) => f.relPath === relPath);
+			return !file || defaultedReaderImports(file.code).length === 0;
+		});
+		expect(stale).toEqual([]);
+	});
+
+	it('matches the defaulted readers by name and source', () => {
+		expect(defaultedReaderImports("import { parse } from '../core/parser';")).toEqual([
+			'parse <- ../core/parser'
+		]);
+		expect(
+			defaultedReaderImports("import {\n\ttype X,\n\tparseInline as p\n} from '$lib/core/inline';")
+		).toEqual(['parseInline <- $lib/core/inline']);
+		expect(defaultedReaderImports("import { computeInlineContent } from '$lib/plugin';")).toEqual([
+			'computeInlineContent <- $lib/plugin'
+		]);
+	});
+
+	it('spares the internal readers, other names and other packages', () => {
+		expect(
+			defaultedReaderImports(
+				"import { readBlocks, parseBlocks } from '../core/parser';\n" +
+					"import { readInline, computeInlineContent } from './index';\n" +
+					"import { parse } from 'yaml';\n" +
+					"// import { parse } from '../core/parser';"
+			)
+		).toEqual([]);
+	});
+});
+
+// ── G4.68 the every-plugin fallback ──────────────────────────────────────────
 
 /** The places outside the parser, the grammar's own modules, the plugin barrel and the published
  *  kits that fall back to every installed plugin, each where an optional grammar arrives. */
@@ -85,14 +161,14 @@ describe('G4.68 the every-plugin fallback is spelled only in its listed places',
 	});
 });
 
-// Type pins: the resolver ref, the render options and the action deps require the grammar, so a
+// Type pins: the inline cache, the render options and the action deps require the grammar, so a
 // call leaving it out fails `npm run check` rather than reading every installed plugin.
 // Miss-analysis: each typed the grammar optional, and the scan above sees only a fallback spelled
 // out, never a caller that omits the field.
-export function inlineCacheCallWithoutGrammar(node: NodeView, ref: Reading): void {
-	// @ts-expect-error the resolver ref carries the editor's grammar
-	resolvedInlineContent(node, { current: ref.current, signature: ref.signature });
-	// @ts-expect-error no ref means no grammar
+export function inlineCacheCallWithoutGrammar(node: NodeView, reading: Reading): void {
+	// @ts-expect-error the reading carries the editor's grammar
+	resolvedInlineContent(node, { resolver: reading.resolver });
+	// @ts-expect-error no reading means no grammar
 	resolvedInlineContent(node);
 }
 
@@ -115,8 +191,7 @@ export function actionDepsWithoutGrammar(
 	return deps;
 }
 
-/** The published kits and the plugin API run outside any editor, so the whole process is theirs. */
-const EDITOR_LESS = notUnder('src/lib/testing/', 'src/lib/core/parser.ts');
+// ── #443 the resolver a drawn tree was read with ─────────────────────────────
 
 const REWRITE_PROBE = 'src/lib/components/blocks/text/probe.ts';
 
@@ -128,32 +203,9 @@ const DRAWN_TREE_REWRITES = (file: SourceFile): boolean =>
 
 const RULES: CallSiteRule[] = [
 	{
-		id: 'G4.68 every plugin registry read outside its module passes the editor grammar',
-		population: EDITOR_LESS,
-		calls: Object.keys(OPTIONAL_GRAMMAR_POSITION),
-		holds: threadsGrammar,
-		// Each a known gap: the inline tree these sites read can hold a construct an unlisted plugin
-		// claimed, which this editor draws as text.
-		allowed: {
-			'src/lib/core/inline/index.ts :: parseInline': 'an error message naming the call, not a call'
-		},
-		reason:
-			'a read without the grammar resolves every installed plugin, so an unlisted plugin’s inline syntax, widget, directive name or completer reaches this editor (#266)',
-		atLeastCallers: 10,
-		hits: [
-			'parseInline(raw, 0, raw.length);',
-			'computeInlineContent(node, resolver, defaultGrammarView);'
-		],
-		misses: [
-			'parseInline(raw, 0, raw.length, undefined, grammar);',
-			'export function parseInline(raw, start, end, resolver, grammar) {}',
-			'interface I { parseInline(raw: string, start?: number): X; }'
-		]
-	},
-	{
 		id: 'G4.68 a live rewrite reparses with the link resolver its drawn tree was read with',
 		population: DRAWN_TREE_REWRITES,
-		calls: ['parseInline'],
+		calls: ['readInline'],
 		holds: (args) => {
 			const slot = callArguments(args)[3];
 			return slot !== undefined && slot !== '' && slot !== 'undefined';
@@ -162,34 +214,14 @@ const RULES: CallSiteRule[] = [
 		reason:
 			'a reparse without the resolver reads every reference link as brackets, so a candidate compared with the drawn tree disagrees with it beside one (#443)',
 		atLeastCallers: 9,
-		hits: [
-			{ relPath: REWRITE_PROBE, code: 'parseInline(raw, 0, raw.length, undefined, grammar);' }
-		],
+		hits: [{ relPath: REWRITE_PROBE, code: 'readInline(raw, 0, raw.length, undefined, grammar);' }],
 		misses: [
 			{
 				relPath: REWRITE_PROBE,
 				code:
-					'parseInline(raw, 0, raw.length, resolver, grammar);\n' +
-					'parseInline(raw, 0, raw.length, ref?.current, ref?.grammar);'
+					'readInline(raw, 0, raw.length, resolver, grammar);\n' +
+					'readInline(raw, 0, raw.length, reading.resolver, reading.grammar);'
 			}
-		]
-	},
-	{
-		id: 'G4.69 every parse() call outside the parser reads the editor grammar',
-		population: notUnder('src/lib/testing/', 'src/lib/core/parser.ts'),
-		calls: ['parse'],
-		holds: (args) => /\bgrammar\b/.test(args),
-		allowed: {
-			'src/lib/plugins/admonitions/convert-document.ts :: convertGithubAlertsInDocument':
-				'a published whole-document conversion that runs with no editor'
-		},
-		reason:
-			'a reparse without the grammar reads a switched-off syntax or an unlisted plugin’s opener, so an edit makes a kind a reload of the same bytes would not (#429)',
-		atLeastCallers: 10,
-		hits: ["parse(raw, { scope: 'fragment' });"],
-		misses: [
-			"parse(raw, { grammar, scope: 'fragment' });\nparse(raw, { grammar: view.grammar });",
-			'parseInline(raw); JSON.parse(raw); doc.parse(raw);'
 		]
 	}
 ];

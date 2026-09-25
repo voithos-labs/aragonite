@@ -8,7 +8,7 @@
 import {
 	constructContentRange,
 	inlineDescendants,
-	parseInline,
+	readInline,
 	type ContentRange
 } from '../../../core/inline';
 import { isAutoPairTrigger } from '../../../core/inline/scan/plugin-syntax';
@@ -269,7 +269,7 @@ function closingRunAt(
 	reading: Reading
 ): boolean {
 	for (const node of inlineDescendants(
-		parseInline(text, content.start, content.end, reading.current, reading.grammar)
+		readInline(text, content.start, content.end, reading.resolver, reading.grammar)
 	)) {
 		if (node.kind === 'text' || text[node.start] !== typed || node.end <= caret) continue;
 		let closer = node.end;
@@ -288,7 +288,7 @@ function closerEndsAt(
 	reading: Reading
 ): boolean {
 	for (const node of inlineDescendants(
-		parseInline(text, content.start, content.end, reading.current, reading.grammar)
+		readInline(text, content.start, content.end, reading.resolver, reading.grammar)
 	)) {
 		if (node.kind === 'text' || node.end !== end || text[end - 1] !== typed) continue;
 		const inner = constructContentRange(node);
@@ -305,7 +305,7 @@ function constructAt(
 	reading: Reading
 ): boolean {
 	for (const node of inlineDescendants(
-		parseInline(text, content.start, content.end, reading.current, reading.grammar)
+		readInline(text, content.start, content.end, reading.resolver, reading.grammar)
 	)) {
 		if (node.kind !== 'text' && node.start === start && node.end === end) return true;
 	}

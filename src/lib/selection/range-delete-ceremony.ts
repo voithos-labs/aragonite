@@ -11,7 +11,7 @@ import type { Reading } from '../schema/reading';
 import type { CstNode, Document } from '../core/nodes';
 import type { SelectionPoint } from './primitives';
 import type { SharingState } from '../tree-operations/sharing';
-import { parse } from '../core/parser';
+import { readBlocks } from '../core/parser';
 import { displayLength, terminateLine, trailingLineEnding } from '../core/lines';
 import { charOffsetOf, walkBetween } from './primitives';
 import {
@@ -83,7 +83,7 @@ function cleanTruncatedProse(
 	node: CstNode,
 	kept: 'head' | 'tail',
 	cut: number,
-	live: Reading
+	reading: Reading
 ): { raw: string; seam: number } {
 	const join =
 		kept === 'head'
@@ -99,7 +99,7 @@ function cleanTruncatedProse(
 					start: { node, offset: 0 },
 					end: { node, offset: cut }
 				};
-	return cleanJoinedRaw({ ...join, reading: live });
+	return cleanJoinedRaw({ ...join, reading });
 }
 
 /**
@@ -115,7 +115,7 @@ export function reparseTruncatedEndpoint(
 	grammar: GrammarView
 ): CstNode[] {
 	const lineEnding = trailingLineEnding(node.raw);
-	const reparsed = parse(normalizeOwnRaw(node, slice) || lineEnding, {
+	const reparsed = readBlocks(normalizeOwnRaw(node, slice) || lineEnding, {
 		grammar,
 		scope: 'fragment'
 	});
@@ -156,7 +156,7 @@ export function truncateStartInPlace(
 	start: SelectionPoint,
 	startBlock: CstNode,
 	isChrome: boolean,
-	live: Reading,
+	reading: Reading,
 	sharing: SharingState,
 	grammar: GrammarView,
 	tag: string
@@ -164,7 +164,7 @@ export function truncateStartInPlace(
 	const cut = charOffsetOf(start, tag);
 	const head = isChrome
 		? { raw: startBlock.raw.slice(0, cut), seam: cut }
-		: cleanTruncatedProse(startBlock, 'head', cut, live);
+		: cleanTruncatedProse(startBlock, 'head', cut, reading);
 	if (isChrome) {
 		startBlock.raw = terminateLine(head.raw, startBlock.raw);
 	} else {
@@ -190,7 +190,7 @@ export function truncateEndInPlace(
 	end: SelectionPoint,
 	endBlock: CstNode,
 	isChrome: boolean,
-	live: Reading,
+	reading: Reading,
 	sharing: SharingState,
 	grammar: GrammarView,
 	tag: string
@@ -200,7 +200,7 @@ export function truncateEndInPlace(
 		endBlock.raw = endBlock.raw.slice(cut) || trailingLineEnding(endBlock.raw);
 		return endBlock;
 	}
-	const tail = cleanTruncatedProse(endBlock, 'tail', cut, live).raw;
+	const tail = cleanTruncatedProse(endBlock, 'tail', cut, reading).raw;
 	installTruncatedEndpoint(
 		doc,
 		end.path,

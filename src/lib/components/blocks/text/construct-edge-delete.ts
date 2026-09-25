@@ -8,7 +8,7 @@
 import {
 	constructContentRange,
 	inlineDescendants,
-	parseInline,
+	readInline,
 	type ContentRange
 } from '../../../core/inline';
 import {
@@ -250,7 +250,7 @@ function visibleText(raw: string, { installedAs, reading }: EdgeDeletionQuery): 
 	// Cell text is never a block, so it reads as its inline content and nothing else can refuse it.
 	if (installedAs === 'cell')
 		return renderedText(
-			parseInline(raw, 0, raw.length, reading.current, grammar),
+			readInline(raw, 0, raw.length, reading.resolver, grammar),
 			raw,
 			CONTENT_VISIBILITY,
 			{ grammar }

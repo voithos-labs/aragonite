@@ -10,7 +10,7 @@ import {
 	getContentRange,
 	inlineDescendants,
 	isProseKind,
-	parseInline
+	readInline
 } from '../../../core/inline';
 import {
 	CONTENT_VISIBILITY,
@@ -37,11 +37,11 @@ export const rebalanceLiveSplit: LiveSplitRebalancer = (
 ) => {
 	const read = readSplitBytes(node, offset, firstRaw, secondRaw);
 	if (read === null) return null;
-	const inlines = parseInline(
+	const inlines = readInline(
 		read.raw,
 		read.contentStart,
 		read.contentEnd,
-		reading.current,
+		reading.resolver,
 		reading.grammar
 	);
 	// Markers standing over nothing are all on screen (live-mode.md § 4.1), so closing and
@@ -308,7 +308,7 @@ export function parsesBack(
 	// the "the screen never showed it" rule is tested here rather than taken on trust.
 	if (candidate.droppedTail !== undefined && candidate.droppedTail.trim() !== '') return false;
 	const whole = renderedText(
-		parseInline(bytes.raw, bytes.contentStart, bytes.contentEnd, reading.current, reading.grammar),
+		readInline(bytes.raw, bytes.contentStart, bytes.contentEnd, reading.resolver, reading.grammar),
 		bytes.raw,
 		CONTENT_VISIBILITY,
 		{ grammar: reading.grammar }

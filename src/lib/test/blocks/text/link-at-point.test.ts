@@ -26,12 +26,12 @@ function mount(source: string): {
 	const node = doc.children[0];
 	const map = buildLinkReferenceMap(doc.children);
 	const reading: Reading = fixtureReading({
-		current: map.resolve,
-		signature: map.signature
+		resolver: map.resolve,
+		resolverSignature: map.signature
 	});
 	const harness = makeRenderHarness(node, {
 		mode: 'live',
-		reading: { current: map.resolve, signature: map.signature, epoch: 1 }
+		reading: { resolver: map.resolve, resolverSignature: map.signature, resolverEpoch: 1 }
 	});
 	createTextRender(harness.deps).render();
 	return { el: harness.el, node, reading };

@@ -5,7 +5,7 @@
  */
 
 import type { Editor } from '$lib';
-import { parse } from '$lib/core/parser';
+import { parse, readBlocks } from '$lib/core/parser';
 import {
 	dumpTree,
 	dumpUndoStack,
@@ -58,8 +58,12 @@ export function createDebugPanelFeed(getEditor: () => EditorInstance | undefined
 		// kind no longer matches its raw text, a short-lived block the serializer trims). Where
 		// the two differ is the bug.
 		getCst: () => {
-			const reparse = `--- REPARSE OF getSource() ---\n${dumpTree(parse(liveSource))}`;
 			const editor = getEditor();
+			// In the editor's grammar, so an editor with a syntax off reparses the way it renders.
+			const reparsed = editor
+				? readBlocks(liveSource, { grammar: editor.__test.getGrammar(), scope: 'document' })
+				: parse(liveSource, { scope: 'document' });
+			const reparse = `--- REPARSE OF getSource() ---\n${dumpTree(reparsed)}`;
 			if (!editor) return reparse;
 			return `--- LIVE ---\n${dumpTree(editor.__test.getDocument())}\n\n${reparse}`;
 		},
@@ -76,8 +80,9 @@ export function createDebugPanelFeed(getEditor: () => EditorInstance | undefined
 			// tick is read first: if the editor is undefined the first time this runs, the early
 			// return below would skip the signal and this would never re-run.
 			void tick;
-			if (!getEditor()) return '';
-			return dumpFocusedInlineTree(liveSource);
+			const editor = getEditor();
+			if (!editor) return '';
+			return dumpFocusedInlineTree(editor);
 		},
 		getOpsLog: () => {
 			const log = getEditor()?.__test?.getOperationsLog?.();

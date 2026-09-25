@@ -203,20 +203,21 @@ What every branch obeys:
 What happens to delimiters an edit cuts through or empties. Splits first:
 
 ```ts
+// reading: the editor's Reading (schema/reading.ts), its grammar and link resolver
 const node = parse('Some **bold** text\n').children[0];
-rebalanceLiveSplit(node, 9, 'Some **bo\n', 'ld** text\n', undefined);
+rebalanceLiveSplit(node, 9, 'Some **bo\n', 'ld** text\n', reading);
 // { firstRaw: 'Some **bo**\n', secondRaw: '**ld** text\n' }: closed before the cut, reopened after
 
 const link = parse('see [here](https://x.example) now\n').children[0];
-rebalanceLiveSplit(link, 6, 'see [h\n', 'ere](https://x.example) now\n', undefined);
+rebalanceLiveSplit(link, 6, 'see [h\n', 'ere](https://x.example) now\n', reading);
 // { firstRaw: 'see [h](https://x.example)\n', secondRaw: '[ere](https://x.example) now\n' }
 
 const auto = parse('see <https://x.example> now\n').children[0];
-rebalanceLiveSplit(auto, 8, 'see <htt\n', 'ps://x.example> now\n', undefined);
+rebalanceLiveSplit(auto, 8, 'see <htt\n', 'ps://x.example> now\n', reading);
 // { firstRaw: 'see \n', secondRaw: '<https://x.example> now\n' }: the cut moved to the nearer edge
 
 const image = parse('a ![alt](i.png) b\n').children[0];
-rebalanceLiveSplit(image, 5, 'a ![a\n', 'lt](i.png) b\n', undefined); // null: a plain kind, so the literal cut stands
+rebalanceLiveSplit(image, 5, 'a ![a\n', 'lt](i.png) b\n', reading); // null: a plain kind, so the literal cut stands
 ```
 
 - Enter inside a `close-and-reopen` construct closes it before the cut and reopens it after, innermost first, so neither half strands a run, and a split link carries its destination into both halves (`live-split-rebalance.ts`). A `plain` kind with content declines, and the byte-literal cut stands.

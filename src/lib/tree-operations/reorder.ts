@@ -1,5 +1,5 @@
 import type { CstNode } from '../core/nodes';
-import { isBlankParagraph, parse } from '../core/parser';
+import { isBlankParagraph, readBlocks } from '../core/parser';
 import { trailingLineEnding } from '../core/lines';
 import type { SharingState } from './sharing';
 import { ensureUnsharedChild } from './unshare';
@@ -110,7 +110,7 @@ function withLeadingLine(trivia: string, eol: string): string {
 // Two blocks of the same shape, not merely two: a quote lazily taking the first line of the
 // prose below it still reads as two, with the remainder a different kind.
 function readsAsPair(prev: CstNode, trivia: string, next: CstNode, grammar: GrammarView): boolean {
-	const blocks = parse(prev.raw + trivia + next.raw, { grammar, scope: 'fragment' }).children;
+	const blocks = readBlocks(prev.raw + trivia + next.raw, { grammar, scope: 'fragment' }).children;
 	return (
 		blocks.length === 2 &&
 		blocks[0].kind === prev.kind &&

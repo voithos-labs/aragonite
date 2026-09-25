@@ -245,13 +245,13 @@
 	 *  the action bundles (through their deps), so a post-commit rebuild reaches both. */
 	const reading: Reading = {
 		grammar: registryView.grammar,
-		get current(): LinkReferenceResolver {
+		get resolver(): LinkReferenceResolver {
 			return currentResolver;
 		},
-		get signature(): string {
+		get resolverSignature(): string {
 			return currentSignature;
 		},
-		get epoch(): number {
+		get resolverEpoch(): number {
 			return signatureEpoch;
 		},
 		mode: () => effectiveMode,
@@ -883,9 +883,6 @@
 	// ── Root gestures ───────────────────────────────────────────────────
 
 	const rootGestures = createRootGestures({
-		get mode() {
-			return reading.mode();
-		},
 		getDoc,
 		selection: selectionState,
 		stickyColumn,

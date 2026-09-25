@@ -10,7 +10,7 @@ import {
 	getContentRange,
 	inlineDescendants,
 	isProseKind,
-	parseInline
+	readInline
 } from '../../../core/inline';
 import {
 	CONTENT_VISIBILITY,
@@ -22,7 +22,7 @@ import type { Reading } from '../../../schema/reading';
 import type { GrammarView } from '../../../schema/block-openers';
 import type { RenderInlineOptions } from '../../../core/inline-render';
 import type { AnyInlineKind, InlineNode } from '../../../core/nodes';
-import { parse } from '../../../core/parser';
+import { readBlocks } from '../../../core/parser';
 import {
 	getInlineConstructPolicy,
 	type JoinEndpoint,
@@ -134,11 +134,11 @@ function readSide(endpoint: JoinEndpoint, keep: 'before' | 'after', reading: Rea
 	const content = getContentRange(node);
 	if (offset < content.start || offset > content.end) return null;
 
-	const inlines = parseInline(
+	const inlines = readInline(
 		node.raw,
 		content.start,
 		content.end,
-		reading.current,
+		reading.resolver,
 		reading.grammar
 	);
 	// Markers standing over nothing are all on screen (live-mode.md § 4.1), so a run that survives
@@ -401,7 +401,7 @@ function readCandidate(
  */
 function keepsContainerMarker(prefix: string, raw: string, grammar: GrammarView): boolean {
 	if (prefix === '') return true;
-	const blocks = parse(prefix + raw, { grammar, scope: 'fragment' }).children;
+	const blocks = readBlocks(prefix + raw, { grammar, scope: 'fragment' }).children;
 	if (blocks.length !== 1) return false;
 	return (blocks[0] as { marker?: string }).marker === prefix;
 }

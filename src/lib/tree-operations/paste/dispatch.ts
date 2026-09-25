@@ -9,7 +9,7 @@ import type { BlockEditActions, UndoEntryMode } from '../../action-contracts';
 import type { CstNode, Document } from '../../core/nodes';
 import type { Reading } from '../../schema/reading';
 import type { PluginActivation } from '../../schema/plugin-activation';
-import { parse } from '../../core/parser';
+import { readBlocks } from '../../core/parser';
 import { isBlockNode, nodeAt } from '../node-primitives';
 import { cutRangeFromDisplay } from '../node-ops';
 import { trailingLineEnding, trimTrailingLineEnding } from '../../core/lines';
@@ -105,7 +105,7 @@ export async function pasteDispatch(
 	// The hooks read the LF text; the blocks are parsed in the document's own ending, since their
 	// bytes are what every block route writes.
 	const ending = pasteLineEnding(ctx.doc, input.targetPath, targetNode, input.offset);
-	const parsed = parse(withLineEnding(pastedText, ending), {
+	const parsed = readBlocks(withLineEnding(pastedText, ending), {
 		grammar: reading.grammar,
 		scope: 'fragment'
 	});

@@ -10,7 +10,7 @@ import { fixtureReading } from '$lib/test/harness/fixture-grammar';
 // resolver, so a reference link read as brackets there and nothing compared the two readings.
 
 const resolver = buildLinkReferenceMap(parse('[ref]: https://x.com\n').children).resolve;
-const withDefinitions = fixtureReading({ current: resolver });
+const withDefinitions = fixtureReading({ resolver: resolver });
 
 const type = (text: string, caret: number, typed: string) =>
 	resolveDelimiterAutoPair(text, { start: 0, end: text.length }, caret, typed, withDefinitions, {

@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { getContext, tick, untrack } from 'svelte';
 	import { CURSOR_START, type AmbientPrefix, type BlockComponent } from '../../../block-component';
-	import { parse } from '../../../core/parser';
+	import { readBlocks } from '../../../core/parser';
 	import { ambientHoldsTaskBox } from '../list/task-checkbox';
 	import { shownKind } from '../../kind-cue.svelte';
 	import type { DocumentView, NodeView } from '../../../core/node-views';
@@ -572,7 +572,7 @@
 						// Text after a task box is the to-do's own text, so a written `# ` would stay
 						// text there; replacing the block makes the heading and gives the box up.
 						if (ambientHoldsTaskBox(ambientPrefix)) {
-							const heading = parse(cycled.newRaw, { grammar, scope: 'fragment' }).children;
+							const heading = readBlocks(cycled.newRaw, { grammar, scope: 'fragment' }).children;
 							const focus = { replacementIndex: 0, offset: cycled.caretOffset };
 							void blockEdit.replaceBlock(index, heading, focus, { snapshotOffset: offset });
 							return;

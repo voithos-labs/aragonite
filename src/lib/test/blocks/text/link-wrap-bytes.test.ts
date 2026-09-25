@@ -59,7 +59,7 @@ describe('link wrap bytes: the join declines rather than corrupt', () => {
 			parse(`${display}\n\n[ref]: https://e.c\n`).children
 		).resolve;
 		expect(
-			buildLinkWrapBytes(display, 4, 9, 'u', fixtureReading({ current: resolver }))
+			buildLinkWrapBytes(display, 4, 9, 'u', fixtureReading({ resolver: resolver }))
 		).toBeNull();
 	});
 

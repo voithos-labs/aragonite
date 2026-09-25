@@ -418,7 +418,7 @@ export function makeNestedHarness(
 	const index = opts.index ?? nodes.length - 1;
 	const { deps, events, contentVersion } = makeEditorActionsDeps(
 		source,
-		opts.presentationMode ? { presentationMode: opts.presentationMode } : {}
+		opts.presentationMode ? { reading: fixtureReading({}, opts.presentationMode) } : {}
 	);
 	const controller = createUndoController(deps);
 	const containerEdit = createContainerEditActions(deps, controller);

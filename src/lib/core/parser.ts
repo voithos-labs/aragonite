@@ -35,20 +35,28 @@ export const MAX_NESTING_DEPTH = 512;
 export type ParseScope = 'document' | 'fragment';
 
 /**
- * Parse GFM to a lossless CST. `opts.grammar` is the per-instance grammar view, defaulting to
- * the global openers; container bodies parse through it too. `opts.scope` reaches openers as
- * `ctx.isDocumentParse`; it defaults to `'document'`, so whole-source callers need nothing.
+ * Parse GFM to a lossless CST. The published entry: `opts.grammar` defaults to every installed
+ * plugin's openers and `opts.scope` to `'document'`, so whole-source callers need nothing. Code
+ * inside the editor calls {@link readBlocks}, which takes both.
  */
 export function parse(
 	source: string,
 	opts?: { grammar?: GrammarView; scope?: ParseScope }
 ): Document {
-	const t0 = perfEnabled() ? performance.now() : 0;
-	const lines = splitLines(source);
-	const result = parseBlocks(lines, 0, lines.length, {
+	return readBlocks(source, {
 		grammar: opts?.grammar ?? defaultGrammarView,
 		scope: opts?.scope ?? 'document'
 	});
+}
+
+/** `parse` for code inside the editor: the grammar is the editor's, so it is never left out. */
+export function readBlocks(
+	source: string,
+	read: { grammar: GrammarView; scope: ParseScope }
+): Document {
+	const t0 = perfEnabled() ? performance.now() : 0;
+	const lines = splitLines(source);
+	const result = parseBlocks(lines, 0, lines.length, read);
 	if (perfEnabled()) recordParse(performance.now() - t0, result.children.length);
 	return { kind: 'document', prefix: '', children: result.children, suffix: result.suffix };
 }

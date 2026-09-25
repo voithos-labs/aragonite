@@ -10,9 +10,9 @@ import type { Reading } from '../schema/reading';
 export function kitReading(mode: () => PresentationMode = () => 'source'): Reading {
 	return {
 		grammar: defaultGrammarView,
-		current: undefined,
-		signature: '',
-		epoch: 0,
+		resolver: undefined,
+		resolverSignature: '',
+		resolverEpoch: 0,
 		mode,
 		hidesDelimitersAtCaret: () => hidesDelimitersAtCaret(mode())
 	};

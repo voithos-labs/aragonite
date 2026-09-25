@@ -5,7 +5,7 @@
  * source, which a private scan of the parse tree cannot see.
  */
 
-import { inlineDescendants, parseInline } from '../../../core/inline';
+import { inlineDescendants, readInline } from '../../../core/inline';
 import { encodeDestination, escapeTitle } from '../../../core/inline/destination-bytes';
 import type { Reading } from '../../../schema/reading';
 import { CONTENT_VISIBILITY, renderedText } from '../../../core/inline/visibility';
@@ -89,7 +89,7 @@ export function canWrapRangeAsLink(
 ): boolean {
 	if (start >= end || end > display.length) return false;
 	return flattenInline(
-		parseInline(display, 0, display.length, reading.current, reading.grammar)
+		readInline(display, 0, display.length, reading.resolver, reading.grammar)
 	).every((n) => WRAP_SAFE_KINDS.has(n.kind) || n.end <= start || n.start >= end);
 }
 
@@ -133,7 +133,7 @@ function declineClaimed(link: InlineNode, what: string): boolean {
  *  and drops none, so no reading of it can license losing one. */
 function visibleText(raw: string, reading: Reading): string {
 	return renderedText(
-		parseInline(raw, 0, raw.length, reading.current, reading.grammar),
+		readInline(raw, 0, raw.length, reading.resolver, reading.grammar),
 		raw,
 		CONTENT_VISIBILITY,
 		{ grammar: reading.grammar }
@@ -215,7 +215,7 @@ function relinkedRange(
 	const raw = spliced(candidate, link.start, link.end, display);
 	const end = link.start + candidate.length;
 	const found = flattenInline(
-		parseInline(raw, 0, raw.length, reading.current, reading.grammar)
+		readInline(raw, 0, raw.length, reading.resolver, reading.grammar)
 	).find(
 		(n) => (n.kind === 'link' || n.kind === 'autolink') && n.start < end && n.end > link.start
 	);

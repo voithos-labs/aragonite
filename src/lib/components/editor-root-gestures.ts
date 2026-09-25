@@ -11,7 +11,6 @@ import type { EdgeAffinityState } from '../cursor/edge-affinity';
 import type { UserScrollport } from '../cursor/scroll-ancestors';
 import type { StickyColumnState } from '../cursor/sticky-column';
 import type { BlockElLookup, DocumentGetter } from '../editor-keys';
-import type { PresentationMode } from '../presentation-mode';
 import { resetForPointerDown } from '../selection/cross-block/pointer';
 import { createDeadSpaceCaret } from '../selection/dead-space-caret';
 import { installDragListener } from '../selection/drag-pointer';
@@ -28,8 +27,6 @@ import type { LinkCardState } from './link-card/link-card-state.svelte';
 import type { Reading } from '../schema/reading';
 
 export interface RootGesturesDeps {
-	/** A getter, never a value: every branch below checks the mode in force at the gesture. */
-	get mode(): PresentationMode;
 	getDoc: DocumentGetter;
 	selection: SelectionState;
 	stickyColumn: StickyColumnState;
@@ -43,6 +40,7 @@ export interface RootGesturesDeps {
 	isHostChrome(node: Node | null): boolean;
 	activateLink(href: string, event: MouseEvent): void;
 	linkCard: Pick<LinkCardState, 'open'>;
+	/** Read at the gesture: every branch below checks the mode in force then. */
 	reading: Reading;
 	/** Which inline widget is selected whole, so the click order can leave a run on it alone. */
 	widgetSelection: Pick<WidgetSelectionState, 'isSelected'>;
@@ -73,7 +71,7 @@ export function createRootGestures(deps: RootGesturesDeps): RootGestures {
 		gapScope: {
 			getDoc: deps.getDoc,
 			selection: deps.selection,
-			getPresentationMode: () => deps.mode
+			getPresentationMode: deps.reading.mode
 		},
 		lastBlockIndex: () => deps.getDoc().children.length - 1,
 		revealBlock: (index) => deps.revealPath([index])
@@ -127,14 +125,14 @@ export function createRootGestures(deps: RootGesturesDeps): RootGestures {
 			// Always suppressed: cursor placement comes from mousedown. Reading mode has no caret
 			// for a plain click to place, so there links behave as in a rendered document.
 			e.preventDefault();
-			if (e.ctrlKey || e.metaKey || deps.mode === 'reading') deps.activateLink(href, e);
+			if (e.ctrlKey || e.metaKey || deps.reading.mode() === 'reading') deps.activateLink(href, e);
 		};
 
 		const handleClick = (e: MouseEvent) => {
 			const target = e.target as Element | null;
 			// Ahead of the link branch: a link with a blocked scheme renders as a plain span, and
 			// it is exactly the link a user opens the card to fix. Mod-click still activates, below.
-			if (deps.mode === 'live' && !e.ctrlKey && !e.metaKey) {
+			if (deps.reading.mode() === 'live' && !e.ctrlKey && !e.metaKey) {
 				const linkEl = target?.closest(LINK_ELEMENT_SELECTOR);
 				if (linkEl && !deps.isHostChrome(linkEl) && openLinkCard(linkEl)) {
 					e.preventDefault();
@@ -178,7 +176,7 @@ export function createRootGestures(deps: RootGesturesDeps): RootGestures {
 			marginDrag = false;
 			marginDown = { x: e.clientX, y: e.clientY };
 			if (e.button !== 0 || e.shiftKey || e.ctrlKey || e.metaKey || e.altKey) return;
-			if (deps.mode === 'reading' || !dragStartsHere(root, e.target)) return;
+			if (deps.reading.mode() === 'reading' || !dragStartsHere(root, e.target)) return;
 			const anchor = deadSpaceCaret.anchorAtPoint(root, e.clientX, e.clientY);
 			if (!anchor) return;
 			marginDrag = true;
@@ -223,7 +221,7 @@ export function createRootGestures(deps: RootGesturesDeps): RootGestures {
 				getScrollContainer: () => deps.getScrollHost() ?? root,
 				lifetimeSignal: deps.getLifetime(),
 				marginBlockAt: (target, x, y) =>
-					deps.mode !== 'reading' && dragStartsHere(root, target)
+					deps.reading.mode() !== 'reading' && dragStartsHere(root, target)
 						? deadSpaceCaret.blockPathNearPoint(root, x, y)
 						: null,
 				pressesSelectedWidget

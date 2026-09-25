@@ -105,7 +105,7 @@ describe('link edit bytes: reference forms', () => {
 		const resolver = resolverFor(display);
 		const link = firstLink(display, resolver);
 		const fields = linkFieldsFromInline(link, display);
-		expect(buildLinkEditBytes(link, display, fields, fixtureReading({ current: resolver }))).toBe(
+		expect(buildLinkEditBytes(link, display, fields, fixtureReading({ resolver: resolver }))).toBe(
 			display
 		);
 	});
@@ -116,7 +116,12 @@ describe('link edit bytes: reference forms', () => {
 		const link = firstLink(display, resolver);
 		const { text } = linkFieldsFromInline(link, display);
 		expect(
-			buildLinkEditBytes(link, display, { text, url: 'new' }, fixtureReading({ current: resolver }))
+			buildLinkEditBytes(
+				link,
+				display,
+				{ text, url: 'new' },
+				fixtureReading({ resolver: resolver })
+			)
 		).toBe('[t](new)');
 	});
 });
@@ -152,7 +157,7 @@ describe('link unwrap bytes: remove link', () => {
 			buildLinkUnwrapBytes(
 				firstLink('[t][ref]', resolver),
 				'[t][ref]',
-				fixtureReading({ current: resolver })
+				fixtureReading({ resolver: resolver })
 			)
 		).toBe('t');
 	});

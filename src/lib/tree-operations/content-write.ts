@@ -6,7 +6,7 @@
 
 import type { AnyBlockKind, CstNode, Document } from '../core/nodes';
 import type { NodeView } from '../core/node-views';
-import { isBlankParagraph, parse } from '../core/parser';
+import { isBlankParagraph, readBlocks } from '../core/parser';
 import { escalatedFenceLength, matchFenceOpen } from '../core/parsers/fence-syntax';
 import { isBlockOpenerRegistered, type GrammarView } from '../schema/block-openers';
 import { trailingLineEnding } from '../core/lines';
@@ -314,7 +314,7 @@ function reconcileBackfilledRaw(node: CstNode): void {
  * a kind list, so a kind registered later is covered the day it registers.
  */
 export function lineOpensAs(line: string, grammar: GrammarView): AnyBlockKind {
-	return parse(`${line}\n`, { grammar, scope: 'fragment' }).children[0]?.kind ?? 'paragraph';
+	return readBlocks(`${line}\n`, { grammar, scope: 'fragment' }).children[0]?.kind ?? 'paragraph';
 }
 
 /** Whether the grammar in effect still leaves `NEXT_PROSE_LINE` an ordinary paragraph. */
@@ -325,7 +325,7 @@ export function probeLineOpensAsProse(grammar: GrammarView): boolean {
 /**
  * Re-derive the container at `index` from its own (already rebuilt) raw, replacing it in the
  * slot when that raw now opens as a different kind (editor.md § 8). Eligibility is the opener
- * registry: registering an opener is exactly the claim that `parse(raw)` reproduces the kind.
+ * registry: registering an opener is exactly the claim that `readBlocks(raw)` reproduces the kind.
  */
 export function reclassifyContainer(
 	parent: NodeParent,
@@ -338,7 +338,7 @@ export function reclassifyContainer(
 	if (!descriptor?.isContainer || !isBlockOpenerRegistered(node.kind)) return null;
 
 	if (perfEnabled()) recordContainerKindReparse();
-	const parsed = parse(node.raw, { grammar, scope: 'fragment' }).children;
+	const parsed = readBlocks(node.raw, { grammar, scope: 'fragment' }).children;
 	// A container's raw is one block by construction; a multi-block reparse means bytes this
 	// function has no position for, left to the edit that owns the mutation.
 	if (parsed.length !== 1 || parsed[0].kind === node.kind) return null;

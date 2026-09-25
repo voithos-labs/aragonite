@@ -84,9 +84,6 @@ function harness(opts: { mode?: PresentationMode } = {}) {
 	const component = { focusable: true, focus, startDragAtPoint } as unknown as BlockComponent;
 	const activateLink = vi.fn();
 	const gestures = createRootGestures({
-		get mode() {
-			return mode;
-		},
 		getDoc: () => doc,
 		selection,
 		stickyColumn: createStickyColumnState(),
@@ -99,7 +96,10 @@ function harness(opts: { mode?: PresentationMode } = {}) {
 		isHostChrome: (node) => !!node && header.contains(node),
 		activateLink,
 		linkCard: { open: () => false },
-		reading: fixtureReading({ current: refs.resolve, signature: refs.signature, epoch: 0 }),
+		reading: fixtureReading(
+			{ resolver: refs.resolve, resolverSignature: refs.signature, resolverEpoch: 0 },
+			mode
+		),
 		widgetSelection: { isSelected: () => false }
 	});
 	teardowns.push(gestures.install(root));

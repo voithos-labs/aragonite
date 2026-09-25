@@ -53,7 +53,6 @@ export function tableAwareRangeDelete(
 ): RangeDeleteResult {
 	const { grammar } = reading;
 	const sameBlock = comparePaths(start.path, end.path) === 0;
-	const live = reading;
 
 	// Copy both endpoint chains (and the table subtrees: cell raws, row splices, and header
 	// promotion all write at depth) before any capture or mutation.
@@ -72,9 +71,18 @@ export function tableAwareRangeDelete(
 		return deleteAcrossTwoTables(doc, start, end, startBlock, endBlock, sharing, grammar);
 	}
 	if (startBlock.kind === 'table') {
-		return deleteFromTableIntoProse(doc, start, end, startBlock, endBlock, sharing, grammar, live);
+		return deleteFromTableIntoProse(
+			doc,
+			start,
+			end,
+			startBlock,
+			endBlock,
+			sharing,
+			grammar,
+			reading
+		);
 	}
-	return deleteFromProseIntoTable(doc, start, end, startBlock, endBlock, sharing, grammar, live);
+	return deleteFromProseIntoTable(doc, start, end, startBlock, endBlock, sharing, grammar, reading);
 }
 
 /**
@@ -144,7 +152,7 @@ function deleteFromProseIntoTable(
 	table: CstNode,
 	sharing: SharingState,
 	grammar: GrammarView,
-	live: Reading
+	reading: Reading
 ): RangeDeleteResult {
 	const startC = nearestChromeContainer(doc, start.path);
 	const startIsChrome = startC !== null && isChromeChild(startC, start.path);
@@ -173,7 +181,7 @@ function deleteFromProseIntoTable(
 		start,
 		startBlock,
 		startIsChrome,
-		live,
+		reading,
 		sharing,
 		grammar,
 		'deleteFromProseIntoTable:start'
@@ -202,7 +210,7 @@ function deleteFromTableIntoProse(
 	endBlock: CstNode,
 	sharing: SharingState,
 	grammar: GrammarView,
-	live: Reading
+	reading: Reading
 ): RangeDeleteResult {
 	const lineEnding = trailingLineEnding(table.raw);
 	const startCell = cellIndexOf(start, 'deleteFromTableIntoProse:start');
@@ -234,7 +242,7 @@ function deleteFromTableIntoProse(
 				end,
 				endBlock,
 				endIsChrome,
-				live,
+				reading,
 				sharing,
 				grammar,
 				'deleteFromTableIntoProse:end'

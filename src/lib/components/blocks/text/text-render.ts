@@ -225,7 +225,7 @@ export function createTextRender(deps: TextRenderDeps): TextRender {
 		// Checking for a bracket before reading the signature or the resolver keeps one edit
 		// to a link-reference definition from re-rendering the whole document.
 		const hasRef = node.raw.includes('[');
-		const refKeyPart = hasRef ? String(deps.reading.epoch) : '';
+		const refKeyPart = hasRef ? String(deps.reading.resolverEpoch) : '';
 		// The built widget bakes in `imageLoadPolicy`, so the key tracks it, but only for
 		// blocks with an image, which keeps image-free blocks off that dependency.
 		const hasImg = node.raw.includes('![');
@@ -250,7 +250,7 @@ export function createTextRender(deps: TextRenderDeps): TextRender {
 				traceRebuild(renderKeySegmentDiff(lastRenderedKey, renderKey), forceRebuild);
 			const content = computeInlineContent(
 				node,
-				hasRef ? deps.reading.current : undefined,
+				hasRef ? deps.reading.resolver : undefined,
 				deps.reading.grammar
 			);
 			// Rebuilds from the edit path skip the capture-and-restore pair: the component's

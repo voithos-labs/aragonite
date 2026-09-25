@@ -141,7 +141,10 @@ interface Harness {
 }
 
 function harnessFor(source: string, mode: PresentationMode | undefined): Harness {
-	const { deps } = makeEditorActionsDeps(parse(source), mode ? { presentationMode: mode } : {});
+	const { deps } = makeEditorActionsDeps(
+		parse(source),
+		mode ? { reading: fixtureReading({}, mode) } : {}
+	);
 	return {
 		doc: deps.doc,
 		blockEdit: createBlockEditActions(deps, createUndoController(deps)),

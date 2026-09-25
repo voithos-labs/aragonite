@@ -7,7 +7,7 @@
 
 import type { AnyBlockKind, CstNode, Document } from '../core/nodes';
 import type { NodeView } from '../core/node-views';
-import { isBlankParagraph, parse, type ContainerBodyWrap } from '../core/parser';
+import { isBlankParagraph, readBlocks, type ContainerBodyWrap } from '../core/parser';
 import { splitLines, trailingLineEnding, trimTrailingLineEnding } from '../core/lines';
 import { tableTakesLine } from '../core/parsers/table';
 import { devWarn } from '../dev-warn';
@@ -446,7 +446,7 @@ export function absorbSeamReading(
 	headProbe?: number,
 	onBeforeSplice?: () => void
 ): SeamAbsorption {
-	const read = (bytes: string) => parse(bytes, { grammar, scope: 'fragment' });
+	const read = (bytes: string) => readBlocks(bytes, { grammar, scope: 'fragment' });
 	const children = parent.children;
 	if (seamLeft < 0) return { at: 0, span: 0, eaten: 0, spliced: false };
 	let left = seamLeft;

@@ -15,7 +15,7 @@ import {
 } from '../../schema/inline-construct-policy';
 import type { Reading } from '../../schema/reading';
 import type { InlineNode } from '../nodes';
-import { constructContentRange, inlineDescendants, parseInline, type ContentRange } from './index';
+import { constructContentRange, inlineDescendants, readInline, type ContentRange } from './index';
 import { CONTENT_VISIBILITY, renderedText } from './visibility';
 
 // ── Public API ───────────────────────────────────────────────────────────────
@@ -52,11 +52,11 @@ export function toggleInlineFormat(
 	const end = clampToContent(selection.end, content);
 	// Parsed with the block's own content bounds, so no construct can straddle the structural
 	// bytes the clamp above keeps the write out of.
-	const inlines = parseInline(
+	const inlines = readInline(
 		display,
 		content.start,
 		content.end,
-		edit.reading.current,
+		edit.reading.resolver,
 		edit.reading.grammar
 	);
 	if (start === end) return toggleAtCaret(display, inlines, start, format, mark);
@@ -172,11 +172,11 @@ export function createInlineFormatActiveMemo(): (
 	// so a definition edited elsewhere changes it under the same ref.
 	let slot: {
 		edit: InlineFormatEdit;
-		resolver: Reading['current'];
+		resolver: Reading['resolver'];
 		coverage: Coverage;
 	} | null = null;
 	return (edit, format) => {
-		const resolver = edit.reading.current;
+		const resolver = edit.reading.resolver;
 		if (!slot || slot.resolver !== resolver || !sameEdit(slot.edit, edit))
 			slot = { edit, resolver, coverage: coverageOf(edit) };
 		return coverageCarries(slot.coverage, format);
@@ -201,11 +201,11 @@ function coverageOf(edit: InlineFormatEdit): Coverage {
 	const { display, content, selection } = edit;
 	const start = clampToContent(selection.start, content);
 	const end = clampToContent(selection.end, content);
-	const inlines = parseInline(
+	const inlines = readInline(
 		display,
 		content.start,
 		content.end,
-		edit.reading.current,
+		edit.reading.resolver,
 		edit.reading.grammar
 	);
 	// A selection spanning the whole display parses the same as the block, and that is every
@@ -221,11 +221,11 @@ function coverageOf(edit: InlineFormatEdit): Coverage {
 				? []
 				: sliceIsDisplay
 					? inlines
-					: parseInline(
+					: readInline(
 							display.slice(start, end),
 							0,
 							end - start,
-							edit.reading.current,
+							edit.reading.resolver,
 							edit.reading.grammar
 						)
 	};
@@ -295,7 +295,7 @@ function soleStripCandidate(
 	reading: Reading
 ): ToggleInlineFormatResult | null {
 	const slice = display.slice(start, end);
-	const sliceNodes = parseInline(slice, 0, slice.length, reading.current, reading.grammar);
+	const sliceNodes = readInline(slice, 0, slice.length, reading.resolver, reading.grammar);
 	const selfSpan = soleSpanOfSelection(sliceNodes, inlines, start, end, format);
 	if (!selfSpan) return null;
 	const unwrapped = stripKindMarkers(
@@ -570,7 +570,7 @@ function wrapRange(
  *  content is what a candidate has to leave unchanged (live-mode.md § 2). */
 function screenOf(display: string, content: ContentRange, reading: Reading): string {
 	return renderedText(
-		parseInline(display, content.start, content.end, reading.current, reading.grammar),
+		readInline(display, content.start, content.end, reading.resolver, reading.grammar),
 		display,
 		CONTENT_VISIBILITY,
 		{ grammar: reading.grammar }
@@ -617,11 +617,11 @@ function coverageFlipped(
 ): boolean {
 	const { newDisplay, newSelStart: from, newSelEnd: to } = candidate;
 	const content = shiftedContent(edit.content, edit.display, candidate);
-	const inlines = parseInline(
+	const inlines = readInline(
 		newDisplay,
 		content.start,
 		content.end,
-		edit.reading.current,
+		edit.reading.resolver,
 		edit.reading.grammar
 	);
 	if (direction === 'apply') return coveringSpansOf(inlines, from, to, format).length > 0;

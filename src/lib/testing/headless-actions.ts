@@ -11,7 +11,6 @@ import { parse } from '../core/parser';
 import type { StickyColumnState } from '../cursor/sticky-column';
 import type { EdgeAffinityState } from '../cursor/edge-affinity';
 import type { EditorActionsDeps } from '../editor-actions/deps';
-import type { PresentationMode } from '../presentation-mode';
 import { kitReading } from './kit-reading';
 import type { Reading } from '../schema/reading';
 import { createEditorEvents, type EditorEvents } from '../editor-events';
@@ -89,9 +88,8 @@ export interface HeadlessActionsOptions {
 	spy?: <T extends object>(stub: T) => T;
 	/** A construction option because `SelectionState` cannot take one later. */
 	onSelectionChange?: () => void;
-	presentationMode?: PresentationMode;
-	/** The editor's reading in full, for a suite whose editor switched a syntax off; it wins over
-	 *  `presentationMode`. */
+	/** The editor's reading, for a suite whose editor is in another mode or switched a syntax off.
+	 *  Absent, every installed plugin in styled source. */
 	reading?: Reading;
 	bumpContentVersion?: () => void;
 }
@@ -170,7 +168,7 @@ export function createHeadlessActions(
 		},
 		events,
 		// An author's suite runs with no editor, so every installed plugin is in the grammar.
-		reading: options.reading ?? kitReading(() => options.presentationMode ?? 'source')
+		reading: options.reading ?? kitReading()
 	};
 	return { deps, doc, events, getBlockIds: () => blockIds, getBlockRefs: () => blockRefs };
 }

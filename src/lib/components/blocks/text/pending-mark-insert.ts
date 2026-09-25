@@ -9,7 +9,7 @@ import {
 	constructContentRange,
 	constructKinds,
 	inlineDescendants,
-	parseInline
+	readInline
 } from '../../../core/inline';
 import { CONTENT_VISIBILITY, renderedText } from '../../../core/inline/visibility';
 import type { AnyInlineKind, InlineNode } from '../../../core/nodes';
@@ -197,11 +197,11 @@ function parsesAsIntended(
 	before: BlockBefore,
 	reading: Reading
 ): boolean {
-	const nodes = parseInline(
+	const nodes = readInline(
 		candidate.raw,
 		0,
 		candidate.raw.length,
-		reading.current,
+		reading.resolver,
 		reading.grammar
 	);
 	const around = enclosingKinds(nodes, candidate.textAt, candidate.textAt + text.length);
@@ -230,7 +230,7 @@ function enclosingKinds(
  *  own: the first byte typed into an empty construct hides its markers, which is not a loss. */
 function visibleText(raw: string, reading: Reading, parsed?: readonly InlineNode[]): string {
 	return renderedText(
-		parsed ?? parseInline(raw, 0, raw.length, reading.current, reading.grammar),
+		parsed ?? readInline(raw, 0, raw.length, reading.resolver, reading.grammar),
 		raw,
 		CONTENT_VISIBILITY,
 		{ grammar: reading.grammar }
