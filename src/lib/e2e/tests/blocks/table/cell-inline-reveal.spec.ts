@@ -1,5 +1,6 @@
 import { test, expect } from '../../../fixtures';
-import { PluginsPage, revealWidget, roundTripStable } from '../../plugins/helpers';
+import { revealWidget, roundTripStable } from '../../plugins/helpers';
+import { CellMathPage } from './helpers';
 
 /**
  * Showing an inline `$…$` formula's source to edit it, inside a table cell
@@ -10,23 +11,6 @@ import { PluginsPage, revealWidget, roundTripStable } from '../../plugins/helper
  */
 
 const SEED = '| Formula | Note |\n| --- | --- |\n| $x^2$ | ok |\n\nAfter\n';
-
-class CellMathPage extends PluginsPage {
-	get mathWidget() {
-		return this.page.locator('.math-inline-widget');
-	}
-	// Body row cells follow the two header cells in document order.
-	get formulaCell() {
-		return this.page.locator('.table-cell').nth(2);
-	}
-	get noteCell() {
-		return this.page.locator('.table-cell').nth(3);
-	}
-	async gotoMathTable() {
-		await this.gotoPlugins('mathtable');
-		await expect(this.mathWidget).toHaveCount(1);
-	}
-}
 
 test.describe('table cell: inline math reveal-to-edit', () => {
 	let editor: CellMathPage;

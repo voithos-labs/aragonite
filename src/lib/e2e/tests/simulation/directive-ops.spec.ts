@@ -4,7 +4,7 @@ import { PluginsPage } from '../plugins/helpers';
 import { Gestures } from '../../simulation/gestures';
 import { attachErrorCollector } from '../../simulation/error-collector';
 import { makeRng } from '../../simulation/rng';
-import { assertCoreOracles } from '../../simulation/invariants';
+import { assertCheckpoint } from '../../simulation/invariants';
 import { makeSimContext, topLevelIndexOf } from './helpers';
 
 // The `:::name` syntax, run in the default gate. It covers three shapes (an opaque container,
@@ -53,15 +53,14 @@ test.describe('directive-ops simulation', () => {
 		const ctx = await makeSimContext(page, editor, 'directive-ops', { errors });
 		const g = new Gestures(ctx, makeRng(1));
 
-		const checkOracles = (label: string) => assertCoreOracles(ctx, label);
-		await checkOracles('loaded');
+		await assertCheckpoint(ctx, 'loaded');
 
 		// ── Inline: insert a widget, then open it, edit it and commit ─────────────
 		await editor.focusBlockEnd(0);
 		await page.keyboard.type(' ');
 		await g.insertTextDirective('abbr', 'HTML');
 		await expect(page.locator('.directive-text-widget')).toHaveCount(1);
-		await checkOracles('text-inserted');
+		await assertCheckpoint(ctx, 'text-inserted');
 
 		// Proves the decoration source is alive: one that quietly stopped would leave this suite
 		// green with no decoration coverage at all. It comes after the first edit, not at load,
@@ -73,7 +72,7 @@ test.describe('directive-ops simulation', () => {
 		// Step past `:abbr[` (6 chars) into the label, insert an 'X', blur to commit.
 		await g.revealEditTextDirective(6, 'X', 2);
 		expect(await editor.bridge.getSource()).toContain(':abbr[XHTML]');
-		await checkOracles('text-edited');
+		await assertCheckpoint(ctx, 'text-edited');
 
 		// ── One-line form: insert on a new line, edit it, Backspace at its start ────
 		await editor.focusBlockEnd((await editor.bridge.getBlockCount()) - 1);
@@ -81,32 +80,32 @@ test.describe('directive-ops simulation', () => {
 		await g.insertLeafDirective('toc', 'info');
 		const leafIndex = (await editor.bridge.getBlockCount()) - 1;
 		expect(await editor.bridge.getBlockKind(leafIndex)).toBe('directiveLeaf');
-		await checkOracles('leaf-inserted');
+		await assertCheckpoint(ctx, 'leaf-inserted');
 
 		await g.editLeafInfo(leafIndex, ' more');
 		expect(await editor.bridge.getSource()).toContain('::toc info more');
-		await checkOracles('leaf-edited');
+		await assertCheckpoint(ctx, 'leaf-edited');
 
 		// It cannot merge, so Backspace at its start moves the focus and joins nothing.
 		await g.leafBackspaceAtStart(leafIndex);
-		await checkOracles('leaf-not-mergeable');
+		await assertCheckpoint(ctx, 'leaf-not-mergeable');
 
 		// ── Container, unregistered: edit the body, then split it ─────────────────
 		let tipIndex = await topLevelIndexOf(page, 'directiveContainer');
 		await g.editContainerBody([tipIndex, 0], ' extra');
 		expect(await editor.bridge.getSource()).toContain('Generic body. extra');
-		await checkOracles('tip-body-edit');
+		await assertCheckpoint(ctx, 'tip-body-edit');
 
 		// The caret sits at the end of the edited child, so Enter splits it in place, which
 		// must add a child to the container, never to the document root.
 		await g.pressEnter();
-		await checkOracles('tip-body-split');
+		await assertCheckpoint(ctx, 'tip-body-split');
 
 		// ── Container, registered: edit the callout's body child ──────────────────
 		const noteIndex = await topLevelIndexOf(page, 'callout');
 		await g.editContainerBody([noteIndex, 1], ' reg');
 		expect(await editor.bridge.getSource()).toContain('Registered body. reg');
-		await checkOracles('note-body-edit');
+		await assertCheckpoint(ctx, 'note-body-edit');
 
 		// ── Insert a container by pasting a copied one (a multi-line fence cannot
 		//    form from live typing), then undo ──────────────────────────────────
@@ -123,14 +122,14 @@ test.describe('directive-ops simulation', () => {
 			containersBefore,
 			{ timeout: 5000, polling: 16 }
 		);
-		await checkOracles('container-pasted');
+		await assertCheckpoint(ctx, 'container-pasted');
 
 		await g.pause();
 		await g.undo();
-		await checkOracles('container-paste-undo');
+		await assertCheckpoint(ctx, 'container-paste-undo');
 
 		// ── Undo across the widget commit and the change of kind ──────────────────
 		await g.undo();
-		await checkOracles('note-body-edit-undo');
+		await assertCheckpoint(ctx, 'note-body-edit-undo');
 	});
 });

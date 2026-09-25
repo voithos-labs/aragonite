@@ -2,6 +2,7 @@ import { type Page } from '@playwright/test';
 import { test, expect } from '../../fixtures';
 import { dragBetweenPoints } from './helpers';
 import { MermaidPage, STANDARD_DIAGRAM_DOC } from './mermaid-helpers';
+import { pointAtRaw } from '../../text-runs';
 
 /**
  * A drag the diagram takes for its own panning starts no block selection, and a drag it has not
@@ -85,7 +86,7 @@ test.describe('a diagram pan claims its own drag', () => {
 		if (!box) throw new Error('the rendered diagram has no bounding box');
 		const from = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
 
-		await dragBetweenPoints(page, from, await editor.pointForOffset([2], 4));
+		await dragBetweenPoints(page, from, await pointAtRaw(editor.page, [2], 4));
 
 		await editor.waitForCrossBlock(true);
 		expect(await editor.bridge.isCrossBlockActive()).toBe(true);

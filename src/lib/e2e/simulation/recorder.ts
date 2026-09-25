@@ -41,11 +41,11 @@ export class Recorder {
 			path: `${this.runDir}/${screenshot}`,
 			fullPage: true
 		});
-		const [expectedSource, cstDump, selection, undoStack] = await Promise.all([
+		const [expectedSource, cstDump, selection, undoDepth] = await Promise.all([
 			this.editor.bridge.getSource(),
 			this.page.evaluate(() => (window as any).__test.dumpTree()),
 			this.page.evaluate(() => (window as any).__test.dumpSelection()),
-			this.page.evaluate(() => (window as any).__test.dumpUndoStack())
+			this.editor.bridge.getUndoDepth()
 		]);
 		this.entries.push({
 			index,
@@ -54,7 +54,7 @@ export class Recorder {
 			expectedSource,
 			cstDump,
 			selection,
-			undoDepth: parseUndoDepth(undoStack),
+			undoDepth,
 			screenshot
 		});
 	}
@@ -73,9 +73,4 @@ export function runDirForSeed(seed: number): string {
 
 function pad(n: number): string {
 	return String(n).padStart(2, '0');
-}
-
-function parseUndoDepth(dump: string): number {
-	const match = /undo-depth=(\d+)/.exec(dump);
-	return match ? Number(match[1]) : 0;
 }

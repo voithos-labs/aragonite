@@ -8,6 +8,7 @@ import {
 	dragBetweenPoints,
 	stateConsistencyViolations
 } from './reserved-chrome-helpers';
+import { pointAtRaw } from '../../text-runs';
 
 /**
  * The `:::callout` callout reserves child 0 as an editable `callout-title` row (see
@@ -132,7 +133,7 @@ test.describe('reserved child-0 chrome: wall × table branch', () => {
 		await dragBetweenPoints(
 			page,
 			await cellCenter(page, 2),
-			await editor.pointForOffset([1, 0], 3)
+			await pointAtRaw(editor.page, [1, 0], 3)
 		);
 		await editor.waitForCrossBlock(true);
 		await page.keyboard.press('Delete');
@@ -184,7 +185,7 @@ test.describe('reserved child-0 chrome: wall × table branch', () => {
 		await dragBetweenPoints(
 			page,
 			await cellCenter(page, 2),
-			await editor.pointForOffset([1, 1], 4)
+			await pointAtRaw(editor.page, [1, 1], 4)
 		);
 		await editor.waitForCrossBlock(true);
 		await page.keyboard.press('Delete');

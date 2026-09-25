@@ -577,13 +577,15 @@ applicator, which every record crosses; the consumer half fires at the two commi
 because a record can fit its own array while describing the wrong window. `childSpans` is the same
 shape of parallel array and gets the same reading, one span PAIR per child, over the nodes a commit
 touched: a rebuild seeding the wrong length, or a shape change that outlived its drop, is a
-stale-region splice waiting for the next keystroke. Predicates `checkStructuralDescriptor`,
-`checkIdsChildrenLockstep`, `checkChildSpansLockstep` (`structural-descriptor.ts`) · seams
+stale-region splice waiting for the next keystroke. The same touched nodes get their keyed
+containers' ids checked at every depth below them, the check the e2e teardown and the test bridge
+run over the whole document. Predicates `checkStructuralDescriptor`, `checkIdsChildrenLockstep`,
+`checkChildSpansLockstep` (`structural-descriptor.ts`), `checkChildIdParity` (`child-id-parity.ts`) · seams
 `tree-operations/structural-change.ts :: applyStructuralChangeToIdsRefs`, the commit primitive
 (`editor-actions/commit/undo-controller.ts`), and the per-commit node check
 (`invariants/install.ts :: assertCommittedNodes`) · `structural-descriptor.test.ts`,
 `test/schema/child-spans.test.ts`,
-`test/selection/cross-block/cross-block-delete-seam-fold.test.ts`.
+`test/selection/cross-block/cross-block-delete-seam-fold.test.ts`, `test/invariants/child-id-parity.test.ts`.
 
 **G1.37 · Descriptor-field coherence.** Field pairs the registration shape can represent and no kind
 can mean together, checked against the declarations alone. `contextDependentKind` beside a

@@ -1,5 +1,6 @@
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
+import { textRunRect } from '../../text-runs';
 import { expectNoNewA11yViolations } from '../../a11y/axe-helper';
 
 // The handle is for the mouse alone: one per block that is an object (code, table, picture,
@@ -121,23 +122,14 @@ test.describe('reorder hover handle', () => {
 		await code.hover();
 		await expect(code.locator('.block-drag-handle')).toHaveCSS('opacity', '1');
 
-		const seat = await code.evaluate((host) => {
+		const firstLineTop = (await textRunRect(page, 'first', { path: [0] })).top;
+		const seat = await code.evaluate((host, lineTop) => {
 			const grip = host.querySelector('.grip')!.getBoundingClientRect();
 			const card = host.getBoundingClientRect();
-			const body = host.querySelector('.code-block')!;
-			const tw = document.createTreeWalker(body, NodeFilter.SHOW_TEXT);
-			let firstLineTop = NaN;
-			for (let t = tw.nextNode(); t; t = tw.nextNode()) {
-				if (!t.textContent?.includes('first')) continue;
-				const range = document.createRange();
-				range.selectNodeContents(t);
-				firstLineTop = range.getClientRects()[0].top;
-				break;
-			}
 			const centre = grip.top + grip.height / 2;
 			const line = parseFloat(getComputedStyle(host).lineHeight) || 20;
-			return { fromCardTop: centre - card.top, aboveFirstLine: firstLineTop - centre, line };
-		});
+			return { fromCardTop: centre - card.top, aboveFirstLine: lineTop - centre, line };
+		}, firstLineTop);
 		expect(seat.fromCardTop, 'inside the card, not on its edge').toBeGreaterThan(4);
 		expect(seat.fromCardTop, 'within the first line-height of the card').toBeLessThanOrEqual(
 			seat.line

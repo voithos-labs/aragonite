@@ -41,6 +41,11 @@ import {
 	interactionTraceSnapshot
 } from '$lib/debug/interaction-trace';
 import type { ClosureBlock } from '$lib/schema/closure';
+import { blockContentElAt } from '$lib/components/block-el-lookup';
+import { TABLE_CELL_SELECTOR } from '$lib/components/block-content-selector';
+import { domDescendants } from '$lib/cursor/dom-walk';
+import { isHiddenMarkerText } from '$lib/cursor/widget-offset';
+import { childIdDrifts } from '$lib/invariants/child-id-parity';
 import ThrowOnRenderBlock from './ThrowOnRenderBlock.svelte';
 
 type EditorInstance = ReturnType<typeof Editor>;
@@ -137,6 +142,89 @@ function collectConformanceEntries(): ConformanceSweepEntry[] {
 		);
 	}
 	return entries;
+}
+
+// ── Aim points: where the editor puts a raw offset or a word on screen ─────
+// Backs `src/lib/e2e/text-runs.ts`; the coordinates are the viewport's, as a mouse gesture takes.
+
+interface PlainRect {
+	left: number;
+	top: number;
+	right: number;
+	bottom: number;
+	width: number;
+	height: number;
+}
+
+interface TextRunRect extends PlainRect {
+	/** The block holding the run, or null for text outside every block. */
+	path: number[] | null;
+}
+
+const plainRect = (r: DOMRect): PlainRect => ({
+	left: r.left,
+	top: r.top,
+	right: r.right,
+	bottom: r.bottom,
+	width: r.width,
+	height: r.height
+});
+
+// The harness routes mount one editor, so the first editor root on the page is this one.
+const editorRoot = (): HTMLElement | null => document.querySelector<HTMLElement>('.editor');
+
+/**
+ * The editable element a caret at `path` goes to, and its own path: the block itself for a leaf
+ * or a table cell, else its first or last editable descendant (a table's cell gets its row and
+ * column appended). A block with nothing editable (a rule, an image) answers itself.
+ */
+function editableLeafAt(
+	path: number[],
+	which: 'first' | 'last'
+): { path: number[]; el: HTMLElement } | null {
+	const root = editorRoot();
+	const content = root && blockContentElAt(root, path);
+	if (!content) return null;
+	const editables = content.matches('[contenteditable="true"]')
+		? [content]
+		: [...content.querySelectorAll<HTMLElement>('[contenteditable="true"]')];
+	const leaf = (which === 'last' ? editables.at(-1) : editables[0]) ?? content;
+	if (leaf === content) return { path, el: leaf };
+	const owner = leaf.closest('[data-block-path]')!;
+	const leafPath = JSON.parse(owner.getAttribute('data-block-path')!) as number[];
+	if (leaf.matches(TABLE_CELL_SELECTOR)) {
+		const row = leaf.closest<HTMLElement>('[data-table-row-idx]')!;
+		const cells = [...row.querySelectorAll(`:scope > ${TABLE_CELL_SELECTOR}`)];
+		leafPath.push(Number(row.dataset.tableRowIdx), cells.indexOf(leaf));
+	}
+	return { path: leafPath, el: leaf };
+}
+
+/**
+ * The first painted occurrence of `needle` inside one text node, under the block at `path` or
+ * anywhere in the editor. Text the presentation mode hides is skipped, and so is a run with no
+ * width, since a click aimed at either lands somewhere else.
+ */
+function findTextRun(needle: string, path?: number[]): TextRunRect | null {
+	const root = editorRoot();
+	const scope = root && (path ? blockContentElAt(root, path) : root);
+	if (!scope) return null;
+	for (const node of domDescendants(scope)) {
+		if (node.nodeType !== Node.TEXT_NODE) continue;
+		const at = (node as Text).data.indexOf(needle);
+		if (at < 0) continue;
+		const editable = node.parentElement?.closest<HTMLElement>('[contenteditable]') ?? scope;
+		if (isHiddenMarkerText(node, editable)) continue;
+		const range = document.createRange();
+		range.setStart(node, at);
+		range.setEnd(node, at + needle.length);
+		const rect = range.getBoundingClientRect();
+		if (rect.width === 0) continue;
+		const host = node.parentElement?.closest('[data-block-path]');
+		const hostPath = host?.getAttribute('data-block-path');
+		return { ...plainRect(rect), path: hostPath ? (JSON.parse(hostPath) as number[]) : null };
+	}
+	return null;
 }
 
 // ── The `window.__test` probes the e2e suite drives ────────────────────────
@@ -393,6 +481,48 @@ export function installTestProbes({
 		// same endpoint variant it got, and the path-only form drops `cellCoordinate`.
 		getSelection: (): EditorSelection | null => editor.getSelection(),
 		setSelection: (selection: EditorSelection): Promise<boolean> => editor.setSelection(selection),
+		// Spec setup's one caret placement: through `setSelection`, the call every real placement
+		// ends in, at a raw offset of the leaf a caret at `path` goes to. It clamps past the end.
+		placeCaret: (path: number[], position: 'start' | 'end' | number): Promise<boolean> => {
+			const leaf = editableLeafAt(path, position === 'end' ? 'last' : 'first');
+			if (!leaf) throw new Error(`placeCaret: no block content at ${JSON.stringify(path)}`);
+			const offset = position === 'start' ? 0 : position === 'end' ? Infinity : position;
+			leaf.el.focus();
+			return editor.setSelection({
+				anchor: { path: leaf.path, offset },
+				focus: { path: leaf.path, offset }
+			});
+		},
+		// A pixel just inside the character on `edge`'s side of a raw offset, measured by the
+		// block's own raw-to-DOM mapping (`getRects().rangeRects`), so a click there lands at the
+		// offset. Falls back to the other side, then to the end of the leaf.
+		pointAtRaw: (
+			path: number[],
+			offset: number,
+			edge: 'before' | 'after'
+		): { x: number; y: number } | null => {
+			const leaf = editableLeafAt(path, 'first');
+			if (!leaf) return null;
+			const painted = (start: number, end: number) =>
+				editor
+					.getRects()
+					.rangeRects(leaf.path, start, end)
+					.filter((r) => r.width > 0);
+			const after = () => {
+				const r = painted(offset, offset + 1)[0];
+				return r && { x: r.left + 1, y: r.top + r.height / 2 };
+			};
+			const before = () => {
+				const r = offset > 0 ? painted(offset - 1, offset).at(-1) : undefined;
+				return r && { x: r.right - 1, y: r.top + r.height / 2 };
+			};
+			const point = edge === 'after' ? (after() ?? before()) : (before() ?? after());
+			if (point) return point;
+			const box = leaf.el.getBoundingClientRect();
+			return { x: box.right - 1, y: box.top + box.height / 2 };
+		},
+		textRunRect: (needle: string, path?: number[]): TextRunRect | null => findTextRun(needle, path),
+		undoDepth: (): number => editor.__test.getUndoStack().undo.length,
 		// The real call on the instance, made the way an app answering a click on its own UI
 		// makes it: viewport coordinates the app read off its own element.
 		placeCaretAtPoint: (x: number, y: number): boolean => editor.placeCaretAtPoint(x, y),
@@ -623,6 +753,12 @@ export function installTestProbes({
 		auditBlockListStateConsistency: (): StateDrift[] => {
 			const doc = editor.__test.getDocument();
 			const violations: StateDrift[] = [];
+			// The ids go through the shared keyed-container check; the refs are this list state's own.
+			const idDrifts = new Set(
+				doc.children.flatMap((block, i) =>
+					childIdDrifts(block).map((drift) => [i, ...drift.path].join())
+				)
+			);
 			let containers = 0;
 			let resolved = 0;
 			function walk(node: CstNode, path: number[]): void {
@@ -634,7 +770,7 @@ export function installTestProbes({
 					const childrenLen = node.children.length;
 					const idsLen = state.innerBlockIds.length;
 					const refsLen = state.innerBlockRefs.length;
-					if (idsLen !== childrenLen || refsLen !== childrenLen) {
+					if (idDrifts.has(path.join()) || refsLen !== childrenLen) {
 						violations.push({ path: [...path], kind: node.kind, childrenLen, idsLen, refsLen });
 					}
 				}

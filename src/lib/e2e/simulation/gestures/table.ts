@@ -1,4 +1,4 @@
-import { type SimContext } from '../invariants';
+import { type SimContext, actThenResync } from '../invariants';
 
 // Table gestures. They resync rather than predict: building a table pads every cell to a
 // standard width, and an edit to a cell lands between pipes in the middle of the source, so
@@ -49,17 +49,4 @@ export async function insertRowBelow(ctx: SimContext, cellIndex: number): Promis
 export async function deleteRow(ctx: SimContext, cellIndex: number): Promise<void> {
 	await clickCell(ctx, cellIndex);
 	await actThenResync(ctx, () => ctx.page.keyboard.press('ControlOrMeta+Shift+Backspace'));
-}
-
-/**
- * Waiting for the source to differ works for any of these and needs no worked-out target. A
- * delete that does nothing (the table is already one row or one column) leaves the source
- * unchanged, so the wait times out and the gesture throws instead of recording a stale state.
- */
-async function actThenResync(ctx: SimContext, act: () => Promise<void>): Promise<void> {
-	const before = await ctx.editor.bridge.getSource();
-	await act();
-	await ctx.editor.bridge.waitForSourceWith((source, prev) => source !== prev, before);
-	await ctx.editor.waitForRenderFlush();
-	ctx.tracker.resync(await ctx.editor.bridge.getSource());
 }

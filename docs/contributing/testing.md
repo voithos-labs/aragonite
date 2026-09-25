@@ -531,8 +531,15 @@ reactivity and render flush, not a debouncer.
 
 **Use `focusBlockEnd` / `focusBlockStart` / `focusBlock` to set up a caret.** They place it
 through the editor's own `setSelection`, so the caret sits in a text node the way a click or a
-key leaves it; `focusBlock` takes a raw offset. When the placement itself is under test, click
-(`clickBlockAtPath`) and walk with the keyboard instead.
+key leaves it; `focusBlock` takes a raw offset, and `focusBlockAtPath` does the same for a nested
+block or a table cell. When the placement itself is under test, click (`clickBlockAtPath`) and
+walk with the keyboard instead.
+
+**Aim a pointer through `src/lib/e2e/text-runs.ts`, never a DOM walk of your own.** `pointAtRaw`
+asks the block where a raw offset sits on screen, and `textRunRect` finds a word in the text the
+mode actually paints. A walk written in the spec counts a widget's glyph or a hidden marker its
+own way and aims beside the offset it meant; a source scan fails any `createTreeWalker` under
+`src/lib/e2e/tests/`.
 
 **Use `getBlockCount()` for structural assertions after a split.** The bridge reads the live
 CST, so it sees a transient block the serializer would trim and a live-kind-vs-raw desync a
@@ -723,13 +730,14 @@ deep bullet nesting in the outline, a nested `> >` blockquote in the reading not
 A session that scripts its own gestures rather than typing a whole note starts the same way.
 `makeSimContext` (`tests/simulation/helpers.ts`) bundles the page, the page object, an
 expectation tracker seeded from the current source, and the error collector into the one
-context every oracle reads; `assertCoreOracles` is the checkpoint sweep (no errors, round-trip
-stable, nested state consistent). From `tests/simulation/table-ops.spec.ts`:
+context every oracle reads; `assertCheckpoint` is the one checkpoint sweep (no errors, container
+ids, nested state, round-trip, a valid selection, and parse convergence unless the note waives
+it). From `tests/simulation/table-ops.spec.ts`:
 
 ```ts
 import { Gestures } from '../../simulation/gestures';
 import { makeRng } from '../../simulation/rng';
-import { assertCoreOracles } from '../../simulation/invariants';
+import { assertCheckpoint } from '../../simulation/invariants';
 import { makeSimContext } from './helpers';
 
 await editor.loadContent(START_TABLE);
@@ -738,9 +746,9 @@ const ctx = await makeSimContext(page, editor, 'table-ops', { errors });
 const g = new Gestures(ctx, makeRng(1));
 
 await g.insertColumnRight(0);
-await assertCoreOracles(ctx, 'after-insert-column');
+await assertCheckpoint(ctx, 'after-insert-column');
 await g.editCell(1, 'C');
-await assertCoreOracles(ctx, 'after-edit-cell');
+await assertCheckpoint(ctx, 'after-edit-cell');
 ```
 
 **Determinism** comes from a single seeded PRNG: same seed ⇒ same gesture stream ⇒ same asserted

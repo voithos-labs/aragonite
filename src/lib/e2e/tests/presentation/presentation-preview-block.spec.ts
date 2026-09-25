@@ -1,7 +1,7 @@
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 import type { Page } from '@playwright/test';
-import { centerOfWord } from './helpers';
+import { textRunCenter } from '../../text-runs';
 
 // Block-granular live preview: every block hides its markers except the focused one,
 // CSS-only. Editing scenarios live in presentation-preview-block-editing.spec.ts.
@@ -112,7 +112,7 @@ test.describe('preview-block: caret + traversal', () => {
 		page
 	}) => {
 		// "alpha **beta** gamma": click mid-"beta" while the block is rendered.
-		const point = await centerOfWord(page, 'beta');
+		const point = await textRunCenter(page, 'beta');
 		await page.mouse.click(point.x, point.y);
 		await ep.waitForRenderFlush();
 

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { parse } from '$lib/core/parser';
 import type { CstNode } from '$lib/core/nodes';
-import { checkChildIdParity } from '$lib/invariants/child-id-parity';
+import { checkChildIdParity, childIdDrifts } from '$lib/invariants/child-id-parity';
 
 /** `- a` over a nested `- b` list: a list, its item, and the item's own list. */
 function nestedList(): CstNode {
@@ -34,5 +34,20 @@ describe('checkChildIdParity', () => {
 
 		expect(checkChildIdParity(list)).toBeNull();
 		expect(checkChildIdParity(list, { everyKeyed: true })?.code).toBe('child-id-parity');
+	});
+});
+
+describe('childIdDrifts', () => {
+	it('lists every container out of step with its path, in document order', () => {
+		const list = nestedList();
+		list.childIds!.push('extra');
+		list.children![0].childIds!.pop();
+
+		expect(
+			childIdDrifts(list).map(({ path, kind, children, ids }) => ({ path, kind, children, ids }))
+		).toEqual([
+			{ path: [], kind: 'list', children: 1, ids: 2 },
+			{ path: [0], kind: 'listItem', children: 2, ids: 1 }
+		]);
 	});
 });

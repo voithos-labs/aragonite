@@ -1,5 +1,6 @@
 import { test, expect } from '../../../fixtures';
 import { EditorPage } from '../../../editor-page';
+import { textOutsideMarkers } from '../../../text-runs';
 import type { Page } from '@playwright/test';
 
 // A paste over a single-block selection is a delete then an insert, and its delete half is a
@@ -9,23 +10,6 @@ import type { Page } from '@playwright/test';
 // Requirements: `e2e/requirements/clipboard/single-block/live-join-seam.md`.
 
 const DOC = 'Some **bold** text\n\nX\n';
-
-/** What the block shows: its text minus every span a marker-hiding mode paints nothing for. */
-async function visibleText(page: Page, block: number): Promise<string> {
-	return page.evaluate((index) => {
-		const host = document.querySelector(`[data-block-path='[${index}]']`);
-		if (!host) return '';
-		const walker = document.createTreeWalker(host, NodeFilter.SHOW_TEXT);
-		let out = '';
-		let node: Node | null;
-		while ((node = walker.nextNode())) {
-			if (!node.parentElement?.closest('.md-marker, .md-ref-label, .md-fence-line')) {
-				out += node.textContent ?? '';
-			}
-		}
-		return out;
-	}, block);
-}
 
 /** Copy the one-character second block, so the clipboard holds an inline payload. */
 async function copyPayload(ep: EditorPage, page: Page): Promise<void> {
@@ -57,7 +41,7 @@ test.describe('single-block paste over a construct edge', () => {
 		await ep.bridge.waitForSourceNotContains('**bold**');
 		await ep.waitForRenderFlush();
 
-		expect(await visibleText(page, 0)).not.toContain('*');
+		expect(await textOutsideMarkers(ep.getBlock(0))).not.toContain('*');
 		expect(await ep.bridge.getSource()).not.toContain('**b');
 	});
 
@@ -105,7 +89,7 @@ test.describe('table-cell paste over a construct edge', () => {
 		await ep.bridge.waitForSourceNotContains('**bold**');
 		await ep.waitForRenderFlush();
 
-		expect(await visibleText(page, 0)).not.toContain('*');
+		expect(await textOutsideMarkers(ep.getBlock(0))).not.toContain('*');
 		expect(await ep.bridge.getSource()).toContain('| Some bXxt |');
 	});
 
@@ -146,7 +130,7 @@ test.describe('table-cell paste over a construct edge', () => {
 		await ep.bridge.waitForSourceNotContains('**z**');
 		await ep.waitForRenderFlush();
 
-		expect(await visibleText(page, 0)).not.toContain('*');
+		expect(await textOutsideMarkers(ep.getBlock(0))).not.toContain('*');
 		expect(await ep.bridge.getSource()).toContain('a\\|b');
 	});
 });

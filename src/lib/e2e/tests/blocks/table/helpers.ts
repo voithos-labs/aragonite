@@ -1,4 +1,5 @@
 import { expect, type Locator, type Page } from '@playwright/test';
+import { PluginsPage } from '../../plugins/helpers';
 
 // Shared pointer helpers for the table block e2e specs. The drag is the real mouse path (down,
 // interpolated moves, up), and the 10 steps match `EditorPage`'s own `dragMouseTo`.
@@ -49,4 +50,27 @@ export async function openFlyout(
 	const row = page.getByRole('menuitem', { name: group, exact: true });
 	await expect(row).toBeVisible();
 	await row.hover();
+}
+
+// ── The inline-math table seed ──────────────────────────────────────────────
+
+/** The `mathtable` plugins seed: a two-column table whose first body cell holds `$x^2$`. */
+export class CellMathPage extends PluginsPage {
+	get mathWidget() {
+		return this.page.locator('.math-inline-widget');
+	}
+
+	// Body row cells follow the two header cells in document order.
+	get formulaCell() {
+		return this.page.locator('.table-cell').nth(2);
+	}
+
+	get noteCell() {
+		return this.page.locator('.table-cell').nth(3);
+	}
+
+	async gotoMathTable() {
+		await this.gotoPlugins('mathtable');
+		await expect(this.mathWidget).toHaveCount(1);
+	}
 }

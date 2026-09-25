@@ -7,9 +7,9 @@ import {
 	enterPresentationMode,
 	focusOffset,
 	landAt,
-	stepTo,
-	visibleText
+	stepTo
 } from './helpers';
+import { textOutsideMarkers } from '../../text-runs';
 
 // What Enter inside a construct writes in live mode: a closed pair above, a reopened one below,
 // and the URL of a split link in both halves. The source is the reference, because a hidden
@@ -162,8 +162,8 @@ test.describe('live mode: a cut that would strand terminal whitespace', () => {
 		await ep.bridge.waitForSourceContains('~~foo~~\n\n');
 
 		// The screen is what licensed the drop, so the screen is what it answers to.
-		expect(await visibleText(ep, 0)).toBe('foo');
-		expect(await visibleText(ep, 1)).toBe('');
+		expect(await textOutsideMarkers(ep.getBlock(0))).toBe('foo');
+		expect(await textOutsideMarkers(ep.getBlock(1))).toBe('');
 		expect(await ep.bridge.getSource()).not.toContain('~~foo\n');
 
 		// Reload convergence: the bytes the split wrote come back as the same screen.
@@ -171,7 +171,7 @@ test.describe('live mode: a cut that would strand terminal whitespace', () => {
 		await ep.loadContent(written);
 		await ep.waitForRenderFlush();
 		expect(await ep.bridge.getSource()).toBe(written);
-		expect(await visibleText(ep, 0)).toBe('foo');
+		expect(await textOutsideMarkers(ep.getBlock(0))).toBe('foo');
 	});
 });
 
@@ -188,7 +188,7 @@ test.describe('live mode: a cut through a childless construct', () => {
 
 		expect(await ep.bridge.getSource()).toBe('<https://example.com>\n\n tail\n');
 		// No bracket reaches the screen on either side, which is the point of moving the cut.
-		expect(await visibleText(ep, 0)).toBe('https://example.com');
+		expect(await textOutsideMarkers(ep.getBlock(0))).toBe('https://example.com');
 	});
 });
 

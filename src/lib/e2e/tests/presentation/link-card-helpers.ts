@@ -1,6 +1,6 @@
 import { expect, type Page } from '@playwright/test';
 import type { EditorPage } from '../../editor-page';
-import { centerOfWord } from './helpers';
+import { textRunCenter } from '../../text-runs';
 
 // The link card's selectors and the gestures that open and commit it.
 
@@ -9,7 +9,7 @@ export const URL_FIELD = `${CARD} input`;
 
 /** A real click on the rendered link text, the only gesture that opens the card. */
 export async function clickLink(ep: EditorPage, page: Page, word: string): Promise<void> {
-	const point = await centerOfWord(page, word);
+	const point = await textRunCenter(page, word);
 	await page.mouse.click(point.x, point.y);
 	await ep.waitForRenderFlush();
 }

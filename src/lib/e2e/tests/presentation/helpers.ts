@@ -1,5 +1,6 @@
 import { expect, type Page } from '@playwright/test';
 import { EditorPage } from '../../editor-page';
+import { textRunCenter } from '../../text-runs';
 
 // Shared pointer and caret helpers for the presentation specs.
 
@@ -42,7 +43,7 @@ export async function clickBlockSettled(ep: EditorPage, index: number): Promise<
 }
 
 export async function clickWordSettled(ep: EditorPage, page: Page, word: string): Promise<void> {
-	const point = await centerOfWord(page, word);
+	const point = await textRunCenter(page, word);
 	await page.mouse.click(point.x, point.y);
 	await ep.waitForRenderFlush();
 	await expect.poll(() => focusOffset(ep), { timeout: 5000 }).toBeGreaterThanOrEqual(0);
@@ -99,74 +100,4 @@ export async function extendTo(
 	throw new Error(
 		`extendTo: Shift+${key} never reached [${path}]@${offset} (at [${focus?.path}]@${focus?.offset})`
 	);
-}
-
-/** What a block shows: its content text minus every span a marker-hiding mode paints nothing
- *  for. Read from the page object's own block-content element, never the outer wrapper, whose
- *  markers and buttons add whitespace text nodes of their own. */
-export async function visibleText(ep: EditorPage, block: number): Promise<string> {
-	return ep.getBlock(block).evaluate((el) => {
-		const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
-		let out = '';
-		let node: Node | null;
-		while ((node = walker.nextNode())) {
-			if (!node.parentElement?.closest('.md-marker, .md-ref-label, .md-fence-line')) {
-				out += node.textContent ?? '';
-			}
-		}
-		return out;
-	});
-}
-
-// The client rect of the first visible text node holding `word`, which the point helpers below
-// pick from. It avoids raw-offset geometry: hidden markers have no layout box, so measuring from
-// a raw offset gets them wrong.
-async function rectOfWord(
-	page: Page,
-	word: string
-): Promise<{ left: number; right: number; y: number }> {
-	const rect = await page.evaluate((w) => {
-		const root = document.querySelector('.editor')!;
-		const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
-		let node: Node | null;
-		while ((node = walker.nextNode())) {
-			const i = node.textContent?.indexOf(w) ?? -1;
-			if (i >= 0) {
-				const range = document.createRange();
-				range.setStart(node, i);
-				range.setEnd(node, i + w.length);
-				const r = range.getBoundingClientRect();
-				return { left: r.left, right: r.right, y: r.top + r.height / 2 };
-			}
-		}
-		return null;
-	}, word);
-	if (!rect) throw new Error(`rectOfWord: "${word}" not found`);
-	return rect;
-}
-
-export async function centerOfWord(page: Page, word: string): Promise<{ x: number; y: number }> {
-	const rect = await rectOfWord(page, word);
-	return { x: (rect.left + rect.right) / 2, y: rect.y };
-}
-
-// The pixel just inside `word`'s leading edge. With its trailing counterpart it is the widest
-// drag a word allows, which keeps a drag-select off the runner's font-metric knife's edge.
-export async function leadingEdgeOfWord(
-	page: Page,
-	word: string
-): Promise<{ x: number; y: number }> {
-	const rect = await rectOfWord(page, word);
-	return { x: rect.left + 1, y: rect.y };
-}
-
-// The pixel just inside `word`'s trailing edge, the one gesture that puts a caret at a
-// construct's content edge by clicking. A hidden delimiter run has no box, so the nearest
-// character boundary to this pixel is that edge.
-export async function trailingEdgeOfWord(
-	page: Page,
-	word: string
-): Promise<{ x: number; y: number }> {
-	const rect = await rectOfWord(page, word);
-	return { x: rect.right - 1, y: rect.y };
 }

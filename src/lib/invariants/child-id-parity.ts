@@ -8,26 +8,56 @@
 import type { NodeView } from '../core/node-views';
 import type { InvariantViolation } from '../assert';
 
-export function checkChildIdParity(
-	node: NodeView,
-	options: { everyKeyed?: boolean } = {}
-): InvariantViolation | null {
-	return walk(node, options.everyKeyed ?? false, node.kind);
+export interface ChildIdDrift {
+	/** Child indices from the checked node down to the container out of step. */
+	path: number[];
+	kind: string;
+	children: number;
+	ids: number | undefined;
+	/** The kinds from the checked node down, for a message a reader can follow. */
+	trail: string;
 }
 
-function walk(node: NodeView, everyKeyed: boolean, at: string): InvariantViolation | null {
-	if (!node.children) return null;
-	const ids = node.childIds;
-	if (ids === undefined ? everyKeyed : ids.length !== node.children.length) {
-		return {
-			code: 'child-id-parity',
-			message: `${at}: ${ids?.length ?? 'no'} child ids for ${node.children.length} children`,
-			detail: { kind: node.kind, children: node.children.length, ids: ids?.length }
-		};
+export interface ChildIdParityOptions {
+	everyKeyed?: boolean;
+}
+
+export function checkChildIdParity(
+	node: NodeView,
+	options: ChildIdParityOptions = {}
+): InvariantViolation | null {
+	const [first] = childIdDrifts(node, options, 1);
+	if (!first) return null;
+	return {
+		code: 'child-id-parity',
+		message: `${first.trail}: ${first.ids ?? 'no'} child ids for ${first.children} children`,
+		detail: { kind: first.kind, children: first.children, ids: first.ids }
+	};
+}
+
+/** Every container under `node` (itself included) whose ids are out of step, in document order. */
+export function childIdDrifts(
+	node: NodeView,
+	options: ChildIdParityOptions = {},
+	limit = Infinity
+): ChildIdDrift[] {
+	const drifts: ChildIdDrift[] = [];
+	const everyKeyed = options.everyKeyed ?? false;
+	const stack: { node: NodeView; path: number[]; trail: string }[] = [
+		{ node, path: [], trail: node.kind }
+	];
+	while (stack.length > 0 && drifts.length < limit) {
+		const { node: at, path, trail } = stack.pop()!;
+		if (!at.children) continue;
+		const ids = at.childIds;
+		if (ids === undefined ? everyKeyed : ids.length !== at.children.length) {
+			drifts.push({ path, kind: at.kind, children: at.children.length, ids: ids?.length, trail });
+		}
+		// Reversed push, so the pops come out in document order.
+		for (let i = at.children.length - 1; i >= 0; i--) {
+			const child = at.children[i];
+			stack.push({ node: child, path: [...path, i], trail: `${trail}[${i}] ${child.kind}` });
+		}
 	}
-	for (let i = 0; i < node.children.length; i++) {
-		const violation = walk(node.children[i], everyKeyed, `${at}[${i}] ${node.children[i].kind}`);
-		if (violation) return violation;
-	}
-	return null;
+	return drifts;
 }

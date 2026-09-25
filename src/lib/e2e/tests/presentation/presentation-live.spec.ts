@@ -1,8 +1,9 @@
 import { test, expect } from '../../fixtures';
 import type { EditorPage } from '../../editor-page';
 import type { Page } from '@playwright/test';
-import { centerOfWord, enterPresentationMode } from './helpers';
+import { enterPresentationMode } from './helpers';
 import { PluginsPage } from '../plugins/helpers';
+import { textRunCenter } from '../../text-runs';
 
 // Live mode: reading mode's marker-hiding CSS over an editable document, and markers that never
 // show, which is what separates it from both preview modes.
@@ -78,7 +79,7 @@ test.describe('live mode: markers never reveal', () => {
 		const headingMarker = ep.getBlock(0).locator('.md-marker').first();
 		const emphasisMarkers = ep.getBlock(1).locator('.md-marker');
 
-		const point = await centerOfWord(page, 'bold');
+		const point = await textRunCenter(page, 'bold');
 		await page.mouse.click(point.x, point.y);
 		await ep.waitForRenderFlush();
 		expect((await ep.bridge.getSelectionPaths())?.focus.path).toEqual([1]);

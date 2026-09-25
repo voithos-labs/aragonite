@@ -20,6 +20,7 @@ import {
 	checkCategoryFields
 } from './node-shape';
 import { checkContentRange } from './descriptor';
+import { checkChildIdParity } from './child-id-parity';
 import { checkChildSpansLockstep, checkIdsChildrenLockstep } from './structural-descriptor';
 import { checkSnapshotIntegrity, type SnapshotEntry } from './snapshot-integrity';
 
@@ -38,6 +39,7 @@ export function assertCommittedNodes(nodes: CstNode[], grammar: GrammarView | un
 		assertInvariant('category-fields', () => checkCategoryFields(node));
 		assertInvariant('content-range', () => checkContentRange(node));
 		assertInvariant('child-spans-lockstep', () => checkChildSpansLockstep(node));
+		assertInvariant('child-id-parity', () => checkChildIdParity(node));
 	}
 }
 

@@ -173,6 +173,27 @@ const RULES: FileRule[] = [
 					'wrapper.querySelector(BLOCK_CONTENT_SELECTOR)'
 			)
 		]
+	},
+	{
+		id: 'e2e specs aim at text through the editor’s own offset mapping',
+		population: under('src/lib/e2e/tests/'),
+		matches: /\bcreateTreeWalker\s*\(/,
+		allowed: {
+			'src/lib/e2e/tests/plugins/showcase-occurrences.spec.ts':
+				'drives the `/` showcase, a page with no test bridge, so there is no editor mapping to ask',
+			'src/lib/e2e/tests/plugins/snap-caret-height.spec.ts':
+				'measures the browser’s own caret box in the prose, the reference the drawn caret is held to'
+		},
+		reason:
+			'a text walk in a spec counts widget glyphs and hidden marker text its own way, so its aim point drifts from the offset the editor means: use pointAtRaw or textRunRect from e2e/text-runs.ts',
+		hits: [
+			at('src/lib/e2e/tests/x.spec.ts', 'const w = document.createTreeWalker(el, 4);'),
+			at('src/lib/e2e/tests/y/helpers.ts', 'document.createTreeWalker (root, NodeFilter.SHOW_TEXT)')
+		],
+		misses: [
+			at('src/lib/e2e/tests/x.spec.ts', "const at = await pointAtRaw(page, [0], 3, 'after');"),
+			at('src/lib/e2e/text-runs.ts', 'document.createTreeWalker(el, 4);')
+		]
 	}
 ];
 

@@ -1,6 +1,7 @@
 import type { Page } from '@playwright/test';
 import { test, expect } from '../../fixtures';
-import { PluginsPage, dragBetweenPoints, textRunCenter } from './helpers';
+import { PluginsPage, dragBetweenPoints } from './helpers';
+import { textRunCenter } from '../../text-runs';
 
 /**
  * A GitHub alert caught in a cross-block selection (requirements/plugins/github-alert-selection-
@@ -41,8 +42,8 @@ test.describe('cross-block selection overlay - a GitHub alert held whole', () =>
 	test('a pointer drag across the alert paints the same one box', async ({ page }) => {
 		await dragBetweenPoints(
 			page,
-			await textRunCenter(page, [0], 'above'),
-			await textRunCenter(page, [2], 'below')
+			await textRunCenter(page, 'above', { path: [0] }),
+			await textRunCenter(page, 'below', { path: [2] })
 		);
 		await editor.waitForCrossBlock(true);
 

@@ -1,5 +1,6 @@
 import { test, expect } from '../../fixtures';
 import { PluginsPage, clickWidgetCenter, clickWidgetEnd } from './helpers';
+import { textRunStart } from '../../text-runs';
 
 /**
  * When an open inline-math source closes again, on the seed with two equations in one paragraph,
@@ -36,29 +37,11 @@ class TwoMathPage extends PluginsPage {
 		expect(await this.getBlockText(0)).toContain(EQ1);
 	}
 
-	/** A real mouse click just left of `needle`'s first character in block [0], so the caret lands
+	/** A real mouse click on `needle`'s first glyph in block [0], so the caret lands
 	 *  at its leading boundary. */
 	async clickTextStart(needle: string): Promise<void> {
-		const rect = await this.page.evaluate((text) => {
-			const wrapper = document.querySelector("[data-block-path='[0]']");
-			const editable = wrapper?.querySelector('[contenteditable]');
-			if (!editable) return null;
-			const walker = document.createTreeWalker(editable, NodeFilter.SHOW_TEXT);
-			let node: Node | null;
-			while ((node = walker.nextNode())) {
-				const idx = node.textContent?.indexOf(text) ?? -1;
-				if (idx >= 0) {
-					const range = document.createRange();
-					range.setStart(node, idx);
-					range.setEnd(node, idx + text.length);
-					const r = range.getBoundingClientRect();
-					return { left: r.left, top: r.top, height: r.height };
-				}
-			}
-			return null;
-		}, needle);
-		if (!rect) throw new Error(`no text node containing "${needle}" in block [0]`);
-		await this.page.mouse.click(rect.left + 1, rect.top + rect.height / 2);
+		const start = await textRunStart(this.page, needle, { path: [0] });
+		await this.page.mouse.click(start.x, start.y);
 	}
 }
 

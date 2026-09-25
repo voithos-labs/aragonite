@@ -3,7 +3,7 @@ import type { Page } from '@playwright/test';
 import { Gestures } from '../../simulation/gestures';
 import { attachErrorCollector } from '../../simulation/error-collector';
 import { makeRng } from '../../simulation/rng';
-import { type SimContext, assertCoreOracles } from '../../simulation/invariants';
+import { type SimContext, assertCheckpoint } from '../../simulation/invariants';
 import { makeSimContext, topLevelIndexOf } from './helpers';
 import { PluginsPage, activeBlockPath } from '../plugins/helpers';
 
@@ -114,8 +114,7 @@ test.describe('plugin-container ops simulation', () => {
 		const ctx = await makeSimContext(page, editor, 'plugin-ops', { errors });
 		const g = new Gestures(ctx, makeRng(1));
 
-		const checkOracles = (label: string) => assertCoreOracles(ctx, label);
-		await checkOracles('loaded');
+		await assertCheckpoint(ctx, 'loaded');
 
 		// ── A move inside an opaque container is refused and changes no bytes ──────
 		// The note sits mid-document, so a move that looked outside the container would jump it
@@ -123,7 +122,7 @@ test.describe('plugin-container ops simulation', () => {
 		// refusal under these checks.
 		const declineNoteIdx = await topLevelIndexOf(page, 'callout');
 		await g.reorderInContainer([declineNoteIdx, 1]);
-		await checkOracles('note-body-reorder-declined');
+		await assertCheckpoint(ctx, 'note-body-reorder-declined');
 
 		// ── Typing in the callout's title and body ───────────────────────────────
 		let noteIdx = await topLevelIndexOf(page, 'callout');
@@ -131,7 +130,7 @@ test.describe('plugin-container ops simulation', () => {
 		// The container's raw text must have been rebuilt from its children: raw text left
 		// stale would still read `:::callout Title`.
 		expect(await containerRaw(page, 'callout')).toContain(':::callout Title!');
-		await checkOracles('callout-title-edit');
+		await assertCheckpoint(ctx, 'callout-title-edit');
 
 		// Proves the decoration source is alive: one that quietly stopped would leave this suite
 		// green with no decoration coverage at all. It comes after the first edit, not at load,
@@ -141,14 +140,14 @@ test.describe('plugin-container ops simulation', () => {
 			.toBeGreaterThan(0);
 
 		await typeAtPath(ctx, [noteIdx, 1], ' more');
-		await checkOracles('note-body-edit');
+		await assertCheckpoint(ctx, 'note-body-edit');
 
 		// Command dispatch: a real shortcut for a plugin command travels from a callout child up
 		// to the container's handler and commits a metadata update.
 		await g.pause();
 		await g.setCalloutKind();
 		expect(await containerRaw(page, 'callout')).toContain(':::aside');
-		await checkOracles('note-set-kind');
+		await assertCheckpoint(ctx, 'note-set-kind');
 
 		// ── A global command that only reads changes nothing ──────────────────────
 		// A global shortcut a plugin registered commits nothing, so the source and the undo
@@ -160,41 +159,41 @@ test.describe('plugin-container ops simulation', () => {
 		await g.publishDocStats();
 		expect(await editor.bridge.getSource()).toBe(beforeDocStats);
 		expect(await page.evaluate(() => (window as any).__test.dumpUndoStack())).toBe(undoBefore);
-		await checkOracles('global-command-docstats');
+		await assertCheckpoint(ctx, 'global-command-docstats');
 
 		// ── Split the callout body, then undo/redo the split's typing ───────────
 		await g.pause();
 		await editor.clickBlockAtPath([noteIdx, 1], 0);
 		await page.keyboard.press('End');
 		await g.pressEnter();
-		await checkOracles('note-body-split');
+		await assertCheckpoint(ctx, 'note-body-split');
 
 		await typeAtCaret(ctx, 'second');
-		await checkOracles('note-split-typed');
+		await assertCheckpoint(ctx, 'note-split-typed');
 
 		await g.pause();
 		await g.undo();
-		await checkOracles('note-split-undo');
+		await assertCheckpoint(ctx, 'note-split-undo');
 		await g.redo();
-		await checkOracles('note-split-redo');
+		await assertCheckpoint(ctx, 'note-split-redo');
 
 		// ── Edit the details summary, Enter into the body, type there ────────────
 		let detailsIdx = await topLevelIndexOf(page, 'details');
 		await typeAtPath(ctx, [detailsIdx, 0], 'Z');
-		await checkOracles('summary-edit');
+		await assertCheckpoint(ctx, 'summary-edit');
 
 		await enterDescendSummary(ctx, detailsIdx);
-		await checkOracles('summary-enter-descend');
+		await assertCheckpoint(ctx, 'summary-enter-descend');
 
 		await typeAtCaret(ctx, 'pre');
 		expect(await editor.bridge.getSource()).toContain('preBody');
-		await checkOracles('details-body-edit');
+		await assertCheckpoint(ctx, 'details-body-edit');
 
 		// ── Collapse, merge-from-below into the collapsed container, expand ─────
 		await g.pause();
 		await g.toggleCollapse();
 		await expect(page.locator('.details-toggle')).toHaveAttribute('aria-expanded', 'false');
-		await checkOracles('collapsed');
+		await assertCheckpoint(ctx, 'collapsed');
 
 		detailsIdx = await topLevelIndexOf(page, 'details');
 		let tailIdx = (await rootCount(page)) - 1;
@@ -202,21 +201,21 @@ test.describe('plugin-container ops simulation', () => {
 		// The hidden body was refused: the caret stopped at the summary and the block below
 		// is intact.
 		expect(await activeBlockPath(page)).toEqual([detailsIdx, 0]);
-		await checkOracles('merge-into-collapsed');
+		await assertCheckpoint(ctx, 'merge-into-collapsed');
 
 		await g.toggleCollapse();
 		await expect(page.locator('.details-toggle')).toHaveAttribute('aria-expanded', 'true');
-		await checkOracles('expanded');
+		await assertCheckpoint(ctx, 'expanded');
 
 		// ── Merge-from-below into the OPEN container, then undo ──────────────────
 		tailIdx = (await rootCount(page)) - 1;
 		await mergeFromBelow(ctx, tailIdx, true);
 		expect(await editor.bridge.getSource()).toContain('Tail paragraph');
-		await checkOracles('merge-into-open');
+		await assertCheckpoint(ctx, 'merge-into-open');
 
 		await g.pause();
 		await g.undo();
-		await checkOracles('merge-undo');
+		await assertCheckpoint(ctx, 'merge-undo');
 
 		// ── Select across containers, copy, paste, undo ──────────────────────────
 		// Drag a selection from the callout body, across the list and out of both containers,
@@ -231,11 +230,11 @@ test.describe('plugin-container ops simulation', () => {
 		await g.clickToReposition([tailIdx]);
 		await page.keyboard.press('End');
 		await g.pasteHere();
-		await checkOracles('cross-container-paste');
+		await assertCheckpoint(ctx, 'cross-container-paste');
 
 		await g.pause();
 		await g.undo();
-		await checkOracles('cross-container-undo');
+		await assertCheckpoint(ctx, 'cross-container-undo');
 
 		// ── Paste a GitHub alert, which parses as a githubAlert ──────────────────
 		// Converting is opt-in, so the pasted `> [!TIP]` blockquote keeps its bytes and parses
@@ -245,10 +244,10 @@ test.describe('plugin-container ops simulation', () => {
 		await g.clickToReposition([tailIdx]);
 		await page.keyboard.press('End');
 		await g.pasteGithubAlert();
-		await checkOracles('github-alert-paste');
+		await assertCheckpoint(ctx, 'github-alert-paste');
 
 		await g.pause();
 		await g.undo();
-		await checkOracles('github-alert-paste-undo');
+		await assertCheckpoint(ctx, 'github-alert-paste-undo');
 	});
 });

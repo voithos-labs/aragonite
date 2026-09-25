@@ -16,11 +16,6 @@ function tallTable(bodyRows: number): string {
 
 const BODY_ROWS = 300;
 
-// An unmounted row's cells get no `childIds` until the row mounts, so the whole-tree scan reports
-// `{tableRow, 2, 0}` for every unmounted row; a move must add nothing else.
-const benign = (m: { kind: string; children: number; ids: number }) =>
-	m.kind === 'tableRow' && m.children === 2 && m.ids === 0;
-
 test.describe('table block: row moves on a row-windowed table', () => {
 	let editor: EditorPage;
 
@@ -60,7 +55,7 @@ test.describe('table block: row moves on a row-windowed table', () => {
 		await expect(page.locator('.editor-sr-live-reorder')).toHaveText(
 			`Moved row to position ${from + 1} of ${BODY_ROWS}`
 		);
-		expect((await getContainerParityMismatches(page)).filter((m) => !benign(m))).toEqual([]);
+		expect(await getContainerParityMismatches(page)).toEqual([]);
 		expect(pageErrors).toEqual([]);
 	});
 
@@ -84,7 +79,7 @@ test.describe('table block: row moves on a row-windowed table', () => {
 			return { children: t.children.length, ids: t.childIds?.length ?? 0 };
 		});
 		expect(tableNode).toEqual({ children: BODY_ROWS + 1, ids: BODY_ROWS + 1 });
-		expect((await getContainerParityMismatches(page)).filter((m) => !benign(m))).toEqual([]);
+		expect(await getContainerParityMismatches(page)).toEqual([]);
 		expect(pageErrors).toEqual([]);
 	});
 });

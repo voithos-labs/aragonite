@@ -1,7 +1,8 @@
 import { test, expect } from '../../fixtures';
 import type { EditorPage } from '../../editor-page';
 import type { Page } from '@playwright/test';
-import { centerOfWord, enterPresentationMode, focusOffset, focusPath, press } from './helpers';
+import { enterPresentationMode, focusOffset, focusPath, press } from './helpers';
+import { textRunCenter } from '../../text-runs';
 
 // Live-mode caret edges: no caret reports from inside a hidden marker run, and the block's
 // exits and destructive keys read its content bounds. jsdom cannot see where Chromium drops an
@@ -142,7 +143,7 @@ test.describe('live mode: hidden runs a caret must not be able to type into', ()
 	test('clicking into a code block body types there and leaves both fences intact', async ({
 		page
 	}) => {
-		const point = await centerOfWord(page, 'const');
+		const point = await textRunCenter(page, 'const');
 		await page.mouse.click(point.x, point.y);
 		await ep.waitForRenderFlush();
 		expect(await focusPath(ep)).toEqual([CODE]);

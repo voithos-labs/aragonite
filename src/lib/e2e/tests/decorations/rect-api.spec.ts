@@ -1,6 +1,7 @@
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 import { FIXTURE_BYTES, cstBlockCount } from '../perf/vr-helpers';
+import { pointAtRaw } from '../../text-runs';
 
 /**
  * Public rect API (requirements/decorations/rect-api.md). E2E, not a unit suite, because
@@ -130,7 +131,7 @@ test.describe('public rect api', () => {
 
 	test('caretRect lands near a clicked position', async ({ page }) => {
 		await editor.loadContent('measure this caret\n');
-		const point = await editor.pointForOffset([0], 8);
+		const point = await pointAtRaw(editor.page, [0], 8);
 		await page.mouse.click(point.x, point.y);
 		await editor.waitForRenderFlush();
 

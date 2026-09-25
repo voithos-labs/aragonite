@@ -2,6 +2,7 @@ import { test, expect } from '../../../fixtures';
 import { EditorPage } from '../../../editor-page';
 import { dragBetweenBoxes, dragBetweenCells } from './helpers';
 import { roundTripStable } from '../../plugins/helpers';
+import { pointAtRaw } from '../../../text-runs';
 
 // A cross-block range reaching into a table rewrites its cells. Endpoints inside a grid are cell
 // indices, so every covered cell is marked whole; which cells those are is the grid's own question.
@@ -46,7 +47,7 @@ test.describe('table block: cross-block format toggle', () => {
 		// pulls the run to that row's last cell, so the row is marked whole and row 2 is untouched.
 		// A measured start point rather than the text box's centre, which lands past "head" and
 		// gives the paragraph an empty span.
-		const start = await editor.pointForOffset([0], 0);
+		const start = await pointAtRaw(editor.page, [0], 0);
 		const cell = await page.locator('.table-cell').nth(3).boundingBox();
 		if (!cell) throw new Error('missing cell bounding box');
 		await dragBetweenBoxes(page, { x: start.x, y: start.y, width: 0, height: 0 }, cell);

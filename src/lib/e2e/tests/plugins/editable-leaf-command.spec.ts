@@ -1,5 +1,6 @@
 import { test, expect } from '../../fixtures';
-import { PluginsPage, roundTripStable, capturedErrors } from './helpers';
+import { roundTripStable, capturedErrors } from './helpers';
+import { MemoPage } from './memo-helpers';
 import { capturePageErrors } from '../../page-probes';
 
 /**
@@ -10,17 +11,6 @@ import { capturePageErrors } from '../../page-probes';
  * `createEditableLeaf` factory, and that a throwing handler is caught and reported as an
  * `origin: 'command'` error rather than escaping.
  */
-
-class MemoPage extends PluginsPage {
-	get memo() {
-		return this.page.locator('.memo-block');
-	}
-
-	async gotoSeed(): Promise<void> {
-		await this.gotoPlugins('memo');
-		await expect(this.memo).toHaveCount(1);
-	}
-}
 
 test.describe('plugin block commands on the editable-leaf level: the %% memo kind', () => {
 	let editor: MemoPage;

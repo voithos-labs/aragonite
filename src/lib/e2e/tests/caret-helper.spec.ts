@@ -1,5 +1,6 @@
 import { test, expect } from '../fixtures';
 import { EditorPage } from '../editor-page';
+import { PluginsPage } from './plugins/helpers';
 
 const TEXT_NODE = 3;
 
@@ -66,5 +67,21 @@ test.describe('the page object caret helpers', () => {
 
 		await editor.focusBlockEnd(0);
 		expect((await readCaret(editor)).editor).toEqual({ path: [0, 1, 1], offset: 2 });
+	});
+
+	test('focusBlockAtPath counts an inline widget by its raw bytes, not its glyph', async ({
+		page
+	}) => {
+		const plugins = new PluginsPage(page);
+		await plugins.gotoPlugins('emoji');
+		await plugins.loadContent('Alpha :tada: beta\n');
+		await expect(page.locator('[data-inline-widget]')).toHaveCount(1);
+
+		// Raw offset 12 sits right after `:tada:`, which renders as a two-unit glyph.
+		await plugins.focusBlockAtPath([0], 12);
+
+		await expect
+			.poll(async () => (await plugins.bridge.getSelectionPaths())?.focus)
+			.toEqual({ path: [0], offset: 12 });
 	});
 });

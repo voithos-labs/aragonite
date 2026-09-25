@@ -1,6 +1,7 @@
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 import { waitForFirstImageLoaded } from '../blocks/image/helpers';
+import { pointAtRaw } from '../../text-runs';
 
 // Clicks in the root's own padding and below the last block
 // (`requirements/selection/dead-space-click.md`). Both must place a caret: focusing the root
@@ -44,7 +45,7 @@ async function belowDocumentY(editor: EditorPage): Promise<number> {
 // A click at offset 0 of block 0: a click a few pixels into the box lands after the first
 // glyph in a proportional face, and the selection then starts one character in.
 async function blockStartPoint(editor: EditorPage): Promise<{ x: number; y: number }> {
-	return editor.pointForOffset([0], 0);
+	return pointAtRaw(editor.page, [0], 0);
 }
 
 test.describe('dead-space clicks place a caret', () => {

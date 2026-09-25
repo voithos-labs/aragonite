@@ -1,6 +1,7 @@
 import type { Page } from '@playwright/test';
 import { test, expect } from '../../../fixtures';
 import { EditorPage } from '../../../editor-page';
+import { textRunRect, textRunStart, type Point } from '../../../text-runs';
 
 // Shift+click while an image is selected whole: no caret exists to grow a range from, so the
 // range grows from the image.
@@ -14,33 +15,12 @@ test.describe('image widget selection and Shift+click', () => {
 
 	const overlay = (page: Page) => page.locator('[data-image-overlay]');
 
-	// A point in the paragraph's text on the image's line: left of its first letter, or in the
-	// empty space past its last one, where the browser puts the caret at the text's end.
-	async function textEdgePoint(
-		page: Page,
-		edge: 'first' | 'last'
-	): Promise<{ x: number; y: number }> {
-		return page.evaluate((edge) => {
-			const block = document
-				.querySelector('[data-image-widget]')!
-				.closest('[contenteditable="true"]')!;
-			const walker = document.createTreeWalker(block, NodeFilter.SHOW_TEXT);
-			const texts: Text[] = [];
-			for (let n = walker.nextNode(); n; n = walker.nextNode()) {
-				const chrome = n.parentElement?.closest('[data-image-widget], .md-marker');
-				if ((n as Text).data.trim() && !chrome) {
-					texts.push(n as Text);
-				}
-			}
-			const text = edge === 'first' ? texts[0] : texts[texts.length - 1];
-			const range = document.createRange();
-			const at = edge === 'first' ? 0 : text.data.length - 1;
-			range.setStart(text, at);
-			range.setEnd(text, at + 1);
-			const rect = range.getBoundingClientRect();
-			const x = edge === 'first' ? rect.left + 1 : rect.right + 30;
-			return { x, y: rect.top + rect.height / 2 };
-		}, edge);
+	// A point in the paragraph's text on the image's line: on its first glyph, or in the empty space
+	// past its last one, where the browser puts the caret at the text's end.
+	async function textEdgePoint(page: Page, edge: 'first' | 'last'): Promise<Point> {
+		if (edge === 'first') return textRunStart(page, 'before');
+		const last = await textRunRect(page, 'here');
+		return { x: last.right + 30, y: last.top + last.height / 2 };
 	}
 
 	const SHIFT_CLICK_PARAGRAPH = 'before ![pic|40x20](/test-fixtures/sample.png) after text here\n';

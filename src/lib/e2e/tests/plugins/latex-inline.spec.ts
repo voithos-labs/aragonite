@@ -1,11 +1,6 @@
 import { test, expect } from '../../fixtures';
-import {
-	PluginsPage,
-	clickWidgetEnd,
-	revealWidget,
-	roundTripStable,
-	textRunCenter
-} from './helpers';
+import { PluginsPage, clickWidgetEnd, revealWidget, roundTripStable } from './helpers';
+import { textRunCenter, textRunRect } from '../../text-runs';
 import { capturePageErrors } from '../../page-probes';
 import { attachIme } from '../../simulation/ime';
 
@@ -36,33 +31,6 @@ class MathPage extends PluginsPage {
 	async revealAtFormulaEnd(): Promise<void> {
 		await clickWidgetEnd(this.mathWidget);
 		await expect(this.mathWidget).toHaveCount(0);
-	}
-
-	/**
-	 * Vertical center of `needle`, in block [0]. A range over the substring alone (not the whole
-	 * text node, which may span the soft-wrapped break) isolates the line the needle sits on.
-	 */
-	async lineYContaining(needle: string): Promise<number> {
-		const y = await this.page.evaluate((text) => {
-			const wrapper = document.querySelector("[data-block-path='[0]']");
-			const editable = wrapper?.querySelector('[contenteditable]');
-			if (!editable) return null;
-			const walker = document.createTreeWalker(editable, NodeFilter.SHOW_TEXT);
-			let node: Node | null;
-			while ((node = walker.nextNode())) {
-				const idx = node.textContent?.indexOf(text) ?? -1;
-				if (idx >= 0) {
-					const range = document.createRange();
-					range.setStart(node, idx);
-					range.setEnd(node, idx + text.length);
-					const rect = range.getBoundingClientRect();
-					return rect.top + rect.height / 2;
-				}
-			}
-			return null;
-		}, needle);
-		if (y === null) throw new Error(`no text node containing "${needle}" in block [0]`);
-		return y;
 	}
 
 	/** True when the collapsed selection currently sits inside block [0]. */
@@ -114,7 +82,8 @@ test.describe('plugin inline math: select → reveal-source editing', () => {
 
 		const widgetBox = await editor.mathWidget.boundingBox();
 		if (!widgetBox) throw new Error('math widget has no bounding box');
-		const line2Y = await editor.lineYContaining('second visual line');
+		const line2 = await textRunRect(page, 'second visual line', { path: [0] });
+		const line2Y = line2.top + line2.height / 2;
 		// Premise: the second line renders below the widget, so the point below is
 		// genuinely a different visual line sharing the widget's column.
 		expect(line2Y).toBeGreaterThan(widgetBox.y + widgetBox.height);
@@ -301,7 +270,7 @@ test.describe('plugin inline math: a double-click inside an open reveal', () => 
 
 			await editor.revealByClick();
 
-			const word = await textRunCenter(page, [0], 'beta');
+			const word = await textRunCenter(page, 'beta', { path: [0] });
 			await page.mouse.dblclick(word.x, word.y);
 			await editor.waitForRenderFlush();
 

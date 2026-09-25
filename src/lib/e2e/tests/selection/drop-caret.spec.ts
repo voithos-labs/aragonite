@@ -1,6 +1,7 @@
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
-import { blockCenter, runCenter, runStart } from './multi-click-helpers';
+import { blockCenter } from './multi-click-helpers';
+import { textRunCenter, textRunStart, pointAtRaw } from '../../text-runs';
 
 // The caret shown while a dragged selection is held over the editor
 // (`requirements/selection/drop-caret.md`). Aim points are a run's first glyph, whose
@@ -54,7 +55,7 @@ test.describe('the caret a held drag shows', () => {
 	});
 
 	async function doubleClickOn(needle: string): Promise<Point> {
-		const at = await runCenter(editor.page, needle);
+		const at = await textRunCenter(editor.page, needle);
 		await editor.page.mouse.dblclick(at.x, at.y);
 		return at;
 	}
@@ -62,9 +63,9 @@ test.describe('the caret a held drag shows', () => {
 	test('stands at the offset the release then lands at', async ({ page }) => {
 		// Measured before the drag: "para here" starts at offset 7, which is where the
 		// released word turns out to land.
-		const landing = await editor.pointForOffset([1], 7);
+		const landing = await pointAtRaw(editor.page, [1], 7);
 		const beta = await doubleClickOn('beta');
-		await holdOver(page, beta, await runStart(page, 'para here'));
+		await holdOver(page, beta, await textRunStart(page, 'para here'));
 
 		await expect(page.locator('.drop-caret')).toHaveCount(1);
 		expect(Math.abs((await caretLeft(page)) - (landing.x - 1))).toBeLessThan(3);
@@ -76,10 +77,10 @@ test.describe('the caret a held drag shows', () => {
 
 	test('follows the hold to a newer offset', async ({ page }) => {
 		const beta = await doubleClickOn('beta');
-		await holdOver(page, beta, await runStart(page, 'second para here'));
+		await holdOver(page, beta, await textRunStart(page, 'second para here'));
 		const atBlockStart = await caretLeft(page);
 
-		const later = await runStart(page, 'para here');
+		const later = await textRunStart(page, 'para here');
 		await page.mouse.move(later.x, later.y, { steps: 6 });
 		await expect(page.locator('.drop-caret')).toHaveCount(1);
 		expect(await caretLeft(page)).toBeGreaterThan(atBlockStart);
@@ -90,7 +91,7 @@ test.describe('the caret a held drag shows', () => {
 
 	test('is drawn over the text without taking a hold of its own', async ({ page }) => {
 		const beta = await doubleClickOn('beta');
-		await holdOver(page, beta, await runStart(page, 'para here'));
+		await holdOver(page, beta, await textRunStart(page, 'para here'));
 
 		expect(
 			await page.evaluate(() => {
@@ -115,7 +116,7 @@ test.describe('the caret a held drag shows', () => {
 
 	test('a hold carried out of the editor takes the caret away', async ({ page }) => {
 		const beta = await doubleClickOn('beta');
-		await holdOver(page, beta, await runStart(page, 'para here'));
+		await holdOver(page, beta, await textRunStart(page, 'para here'));
 		await expect(page.locator('.drop-caret')).toHaveCount(1);
 
 		const away = await outsideEditor(page);
@@ -133,7 +134,7 @@ test.describe('the caret a held drag shows', () => {
 		// "alpha\nbet": the break makes it a payload this handler does not move. A count that
 		// stopped short of the break would move the bytes and change the document below.
 		for (let i = 0; i < 9; i++) await page.keyboard.press('Shift+ArrowRight');
-		await holdOver(page, await runCenter(page, 'bet'), await runCenter(page, 'gamma'));
+		await holdOver(page, await textRunCenter(page, 'bet'), await textRunCenter(page, 'gamma'));
 
 		await expect(page.locator('.drop-caret')).toHaveCount(0);
 
@@ -143,9 +144,9 @@ test.describe('the caret a held drag shows', () => {
 	});
 
 	test('a landing inside the dragged range shows none', async ({ page }) => {
-		const alpha = await runCenter(page, 'alpha');
+		const alpha = await textRunCenter(page, 'alpha');
 		await page.mouse.click(alpha.x, alpha.y, { clickCount: 3 });
-		await holdOver(page, alpha, await runCenter(page, 'gamma'));
+		await holdOver(page, alpha, await textRunCenter(page, 'gamma'));
 
 		await expect(page.locator('.drop-caret')).toHaveCount(0);
 
@@ -160,7 +161,7 @@ test.describe('the caret a held drag shows', () => {
 		// "alpha beta", whose "beta" starts strictly inside it.
 		for (let i = 0; i < 10; i++) await page.keyboard.press('Shift+ArrowRight');
 		await page.keyboard.down('Control');
-		await holdOver(page, await runCenter(page, 'alpha'), await runStart(page, 'beta'));
+		await holdOver(page, await textRunCenter(page, 'alpha'), await textRunStart(page, 'beta'));
 
 		await expect(page.locator('.drop-caret')).toHaveCount(1);
 

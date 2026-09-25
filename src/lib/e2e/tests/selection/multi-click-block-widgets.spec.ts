@@ -1,7 +1,8 @@
 import { test, expect } from '../../fixtures';
 import { documentCaret } from '../blocks/image/helpers';
 import { PluginsPage } from '../plugins/helpers';
-import { multiClick, nativeSelectionText, runCenter, widgetCenter } from './multi-click-helpers';
+import { multiClick, nativeSelectionText, inlineWidgetCenter } from './multi-click-helpers';
+import { textRunCenter } from '../../text-runs';
 
 // Triple-click, the block level of the click order, on a widget-dense paragraph
 // (`requirements/selection/multi-click-block-widgets.md`), driven on the math seed so the
@@ -52,7 +53,7 @@ test.describe('multi-click: the block inline syntax handler beside inline widget
 			await editor.loadContent(SHOWCASE_PARAGRAPH);
 			await editor.setPresentationMode(mode);
 			await expect(page.locator('[data-inline-widget]')).toHaveCount(9);
-			const at = await runCenter(page, 'possess the energy');
+			const at = await textRunCenter(page, 'possess the energy');
 			await page.mouse.click(at.x, at.y, { clickCount: 3 });
 			await expect.poll(() => selectionEnds(page)).toEqual(SHOWCASE_ENDS);
 			// The release has already been handled; a caret placed later would drop the range.
@@ -66,7 +67,7 @@ test.describe('multi-click: the block inline syntax handler beside inline widget
 			await editor.loadContent(SHOWCASE_PARAGRAPH);
 			await editor.setPresentationMode(mode);
 			await expect(page.locator('[data-inline-widget]')).toHaveCount(9);
-			await multiClick(page, await widgetCenter(page, KATEX_GLYPHS), 3);
+			await multiClick(page, await inlineWidgetCenter(page, KATEX_GLYPHS), 3);
 			await expect.poll(() => selectionEnds(page)).toEqual(SHOWCASE_ENDS);
 			await page.waitForTimeout(150);
 			await expect.poll(() => selectionEnds(page)).toEqual(SHOWCASE_ENDS);
@@ -78,7 +79,7 @@ test.describe('multi-click: the block inline syntax handler beside inline widget
 			await editor.loadContent(SHOWCASE_PARAGRAPH);
 			await editor.setPresentationMode(mode);
 			await expect(page.locator('[data-inline-widget]')).toHaveCount(9);
-			await multiClick(page, await widgetCenter(page, KATEX_GLYPHS), 3);
+			await multiClick(page, await inlineWidgetCenter(page, KATEX_GLYPHS), 3);
 			// The formula re-renders as its source closes, and the range has to come back with it.
 			await expect(page.locator('[data-inline-widget]')).toHaveCount(9);
 			await expect.poll(() => selectionEnds(page)).toEqual(SHOWCASE_ENDS);
@@ -91,7 +92,7 @@ test.describe('multi-click: the block inline syntax handler beside inline widget
 			await editor.loadContent('$x^2$ opens this line\n');
 			await editor.setPresentationMode(mode);
 			await expect(page.locator('[data-inline-widget]')).toHaveCount(1);
-			const at = await runCenter(page, 'opens');
+			const at = await textRunCenter(page, 'opens');
 			await page.mouse.click(at.x, at.y, { clickCount: 3 });
 			// The rendered formula has no stable spelling, so the range is read at its two ends:
 			// it reaches the last word, and it starts far enough back to hold the formula.
@@ -104,7 +105,7 @@ test.describe('multi-click: the block inline syntax handler beside inline widget
 	}) => {
 		await editor.loadContent(ENTITY_PARAGRAPH);
 		await expect(page.locator('[data-inline-widget]')).toHaveCount(1);
-		await multiClick(page, await widgetCenter(page), 3);
+		await multiClick(page, await inlineWidgetCenter(page), 3);
 		await expect.poll(() => reachesBothEnds(page, 'on this line')).toEqual([true, true]);
 		await page.waitForTimeout(150);
 		await expect.poll(() => reachesBothEnds(page, 'on this line')).toEqual([true, true]);
@@ -122,7 +123,7 @@ test.describe('multi-click: the block inline syntax handler beside inline widget
 			await page.waitForFunction(
 				() => (document.querySelector('[data-image-widget] img') as HTMLImageElement)?.complete
 			);
-			await multiClick(page, await widgetCenter(page), clicks);
+			await multiClick(page, await inlineWidgetCenter(page), clicks);
 			await expect(page.locator('[data-image-overlay]')).toHaveCount(1);
 			await page.waitForTimeout(150);
 			expect(await nativeSelectionText(page)).toBe('');

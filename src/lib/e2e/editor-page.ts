@@ -2,12 +2,9 @@ import { expect, type Page, type Locator } from '@playwright/test';
 import { EditorBridge } from './editor-bridge';
 import { createClipboardArm, type ClipboardArm } from './clipboard-arm';
 import { generateFixture, type FixtureShape } from '../test/perf/fixtures/generate';
-import {
-	BLOCK_CONTENT_SELECTOR,
-	BLOCK_CONTENT_LOCATOR_SELECTOR,
-	TABLE_CELL_SELECTOR
-} from '../components/block-content-selector';
-import { watchPageFailures } from './page-probes';
+import { BLOCK_CONTENT_LOCATOR_SELECTOR } from '../components/block-content-selector';
+import { PAST_TYPING_PAUSE_MS, watchPageFailures } from './page-probes';
+import { pointAtRaw } from './text-runs';
 
 // Re-exported so a spec's in-`evaluate` block-content lookup uses the one selector definition
 // instead of inlining `:not(.selection-overlay)`.
@@ -184,15 +181,15 @@ export class EditorPage {
 	// ── Cursor Positioning ──────────────────────────────────────────────
 
 	async focusBlockEnd(index: number) {
-		await this.placeCaretInBlock(index, 'end');
+		await this.placeCaretAtPath([index], 'end');
 	}
 
 	async focusBlock(index: number, offset: number) {
-		await this.placeCaretInBlock(index, offset);
+		await this.placeCaretAtPath([index], offset);
 	}
 
 	async focusBlockStart(index: number) {
-		await this.placeCaretInBlock(index, 'start');
+		await this.placeCaretAtPath([index], 'start');
 	}
 
 	/**
@@ -201,99 +198,22 @@ export class EditorPage {
 	 * drives `clickBlockAtPath` or the keyboard instead. A number is a raw offset; a container
 	 * or table takes its first leaf, or its last one for `'end'`.
 	 */
-	private async placeCaretInBlock(
-		index: number,
+	private async placeCaretAtPath(
+		path: number[],
 		position: 'start' | 'end' | number
 	): Promise<void> {
 		const placed = await this.page.evaluate(
-			async ({ pathAttr, position, contentSelector, cellSelector }) => {
-				const wrapper = document.querySelector(`[data-block-path='${pathAttr}']`);
-				const content = wrapper?.querySelector(contentSelector) as HTMLElement | null;
-				// Throws rather than returning quietly: a selector that no longer matches must
-				// fail the spec, not let a later "nothing is there" assertion pass for the
-				// wrong reason.
-				if (!content) throw new Error(`placeCaretInBlock: no editable at ${pathAttr}`);
-
-				const editables = content.matches('[contenteditable="true"]')
-					? [content]
-					: [...content.querySelectorAll<HTMLElement>('[contenteditable="true"]')];
-				// A block with no editable of its own (a rule, an image) takes the caret at its path.
-				const leaf = (position === 'end' ? editables.at(-1) : editables[0]) ?? content;
-
-				const owner = leaf.closest('[data-block-path]')!;
-				const path = JSON.parse(owner.getAttribute('data-block-path')!) as number[];
-				// A table cell has no wrapper of its own; its caret path is [table, row, column].
-				if (leaf.matches(cellSelector)) {
-					const row = leaf.closest('[data-table-row-idx]') as HTMLElement;
-					const cells = [...row.querySelectorAll(`:scope > ${cellSelector}`)];
-					path.push(Number(row.dataset.tableRowIdx), cells.indexOf(leaf));
-				}
-				// `setSelection` clamps an offset past the content to the block's end.
-				const offset = position === 'start' ? 0 : position === 'end' ? Infinity : position;
-				leaf.focus();
-				return (window as any).__test.setSelection({
-					anchor: { path, offset },
-					focus: { path, offset }
-				}) as Promise<boolean>;
-			},
-			{
-				pathAttr: JSON.stringify([index]),
-				position,
-				contentSelector: BLOCK_CONTENT_SELECTOR,
-				cellSelector: TABLE_CELL_SELECTOR
-			}
+			({ path, position }) => (window as any).__test.placeCaret(path, position) as Promise<boolean>,
+			{ path, position }
 		);
-		if (!placed) throw new Error(`placeCaretInBlock: the editor declined [${index}] @ ${position}`);
+		if (!placed) {
+			throw new Error(`placeCaret: the editor declined ${JSON.stringify(path)} @ ${position}`);
+		}
 	}
 
-	// `offset` is a raw offset: the walk skips the container marker spans, which are DOM text
-	// but not raw.
+	/** `focusBlock` for any path, nested blocks and table cells included. */
 	async focusBlockAtPath(path: number[], offset: number): Promise<void> {
-		await this.page.evaluate(
-			({ path, offset, contentSelector }) => {
-				const attr = JSON.stringify(path);
-				const wrapper = document.querySelector(`[data-block-path='${attr}']`);
-				// Throws rather than returning quietly: a selector that no longer matches must
-				// fail the spec, not pass a later "nothing is there" assertion for the wrong reason.
-				if (!wrapper) throw new Error(`focusBlockAtPath: no block wrapper at ${attr}`);
-				const block = wrapper.querySelector(contentSelector) as HTMLElement | null;
-				if (!block) throw new Error(`focusBlockAtPath: no editable at ${attr}`);
-				block.focus();
-
-				const range = document.createRange();
-				const walker = document.createTreeWalker(block, NodeFilter.SHOW_TEXT, {
-					// The marker spans a container draws (contenteditable="false") count toward
-					// DOM text but not toward raw. Callers pass raw offsets.
-					acceptNode(n) {
-						const parent = (n as Text).parentElement;
-						if (parent?.closest('.md-marker[contenteditable="false"]')) {
-							return NodeFilter.FILTER_REJECT;
-						}
-						return NodeFilter.FILTER_ACCEPT;
-					}
-				});
-				let remaining = offset;
-				let node: Node | null;
-				while ((node = walker.nextNode())) {
-					const len = node.textContent?.length ?? 0;
-					if (remaining <= len) {
-						range.setStart(node, remaining);
-						range.setEnd(node, remaining);
-						const sel = window.getSelection();
-						sel?.removeAllRanges();
-						sel?.addRange(range);
-						return;
-					}
-					remaining -= len;
-				}
-				const sel = window.getSelection();
-				sel?.removeAllRanges();
-				range.selectNodeContents(block);
-				range.collapse(false);
-				sel?.addRange(range);
-			},
-			{ path, offset, contentSelector: BLOCK_CONTENT_SELECTOR }
-		);
+		await this.placeCaretAtPath(path, offset);
 	}
 
 	// ── User Actions ────────────────────────────────────────────────────
@@ -307,7 +227,7 @@ export class EditorPage {
 	 * `clickBlock` cannot reach.
 	 */
 	async clickBlockAtPath(path: number[], offset: number): Promise<void> {
-		const point = await this.pointForOffset(path, offset);
+		const point = await pointAtRaw(this.page, path, offset);
 		await this.page.mouse.click(point.x, point.y);
 		await this.waitForRenderFlush();
 	}
@@ -356,8 +276,8 @@ export class EditorPage {
 		endPath: number[],
 		endOffset: number
 	): Promise<void> {
-		const start = await this.pointForOffset(startPath, startOffset);
-		const end = await this.pointForOffset(endPath, endOffset);
+		const start = await pointAtRaw(this.page, startPath, startOffset);
+		const end = await pointAtRaw(this.page, endPath, endOffset);
 
 		await this.page.mouse.move(start.x, start.y);
 		await this.page.mouse.down();
@@ -376,9 +296,9 @@ export class EditorPage {
 		endPath: number[],
 		endOffset: number
 	): Promise<void> {
-		const start = await this.pointForOffset(startPath, startOffset);
-		const mid = await this.pointForOffset(midPath, midOffset);
-		const end = await this.pointForOffset(endPath, endOffset);
+		const start = await pointAtRaw(this.page, startPath, startOffset);
+		const mid = await pointAtRaw(this.page, midPath, midOffset);
+		const end = await pointAtRaw(this.page, endPath, endOffset);
 
 		await this.page.mouse.move(start.x, start.y);
 		await this.page.mouse.down();
@@ -400,53 +320,11 @@ export class EditorPage {
 	}
 
 	async shiftClickBlock(path: number[], offset: number): Promise<void> {
-		const point = await this.pointForOffset(path, offset);
+		const point = await pointAtRaw(this.page, path, offset);
 		await this.page.keyboard.down('Shift');
 		await this.page.mouse.click(point.x, point.y);
 		await this.page.keyboard.up('Shift');
 		await this.waitForRenderFlush();
-	}
-
-	/** Pixel point of a raw offset inside any `data-block-path` block. */
-	async pointForOffset(path: number[], offset: number): Promise<{ x: number; y: number }> {
-		const point = await this.page.evaluate(
-			({ path, offset }) => {
-				const wrapper = document.querySelector(`[data-block-path='${JSON.stringify(path)}']`);
-				const editable = wrapper?.querySelector('[contenteditable]') as HTMLElement | null;
-				if (!editable) return null;
-				const range = document.createRange();
-				let remaining = offset;
-				const walker = document.createTreeWalker(editable, NodeFilter.SHOW_TEXT, {
-					// The marker spans a container draws (contenteditable="false") count toward
-					// DOM text but not toward raw. Callers pass raw offsets.
-					acceptNode(n) {
-						const parent = (n as Text).parentElement;
-						if (parent?.closest('.md-marker[contenteditable="false"]')) {
-							return NodeFilter.FILTER_REJECT;
-						}
-						return NodeFilter.FILTER_ACCEPT;
-					}
-				});
-				let node: Node | null;
-				while ((node = walker.nextNode())) {
-					const len = node.textContent?.length ?? 0;
-					if (remaining <= len) {
-						range.setStart(node, remaining);
-						range.setEnd(node, remaining);
-						const rect = range.getBoundingClientRect();
-						return { x: rect.left + 1, y: rect.top + rect.height / 2 };
-					}
-					remaining -= len;
-				}
-				const rect = editable.getBoundingClientRect();
-				return { x: rect.right - 1, y: rect.top + rect.height / 2 };
-			},
-			{ path, offset }
-		);
-		if (!point) {
-			throw new Error(`pointForOffset: could not resolve ${JSON.stringify(path)} @ ${offset}`);
-		}
-		return point;
 	}
 
 	async getCaretPixelX(): Promise<number> {
@@ -508,7 +386,7 @@ export class EditorPage {
 	 * happen after the previous batch's debounce window.
 	 */
 	async waitForUndoBatchFlush(): Promise<void> {
-		await this.page.waitForTimeout(300);
+		await this.page.waitForTimeout(PAST_TYPING_PAUSE_MS);
 	}
 
 	/**

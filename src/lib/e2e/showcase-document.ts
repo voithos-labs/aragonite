@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs';
+import { WORD_CHAR } from '../plugins/highlight-occurrences/word-char';
 
 /**
  * The `/` demo document as bytes. It is rewritten by hand, so the specs on that route work out
@@ -65,6 +66,8 @@ export function scanShowcase(md: string = SHOWCASE_MD): ShowcaseScan {
 	return { prose, fences, blockMath, headings };
 }
 
+const WORD_RUN = new RegExp(`${WORD_CHAR.source}+`, 'gu');
+
 /**
  * The word a caret should light up: the most repeated alphabetic word of four letters or more
  * inside one plain paragraph, or null when the document holds none. Split into words the way
@@ -75,7 +78,7 @@ export function repeatedWordInParagraph(scan: ShowcaseScan = scanShowcase()): Re
 	let best: RepeatedWord | null = null;
 	for (const paragraph of plainParagraphs(scan.prose)) {
 		const counts = new Map<string, number>();
-		for (const [token] of paragraph.matchAll(/[\p{L}\p{N}_]+/gu)) {
+		for (const [token] of paragraph.matchAll(WORD_RUN)) {
 			if (/^[A-Za-z]{4,}$/.test(token)) counts.set(token, (counts.get(token) ?? 0) + 1);
 		}
 		for (const [word, count] of counts) {

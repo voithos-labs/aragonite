@@ -3,7 +3,7 @@ import { PluginsPage } from '../plugins/helpers';
 import { Gestures } from '../../simulation/gestures';
 import { attachErrorCollector } from '../../simulation/error-collector';
 import { makeRng } from '../../simulation/rng';
-import { assertCoreOracles, assertParseConvergence } from '../../simulation/invariants';
+import { assertCheckpoint } from '../../simulation/invariants';
 import { makeSimContext } from './helpers';
 
 // Footnotes, run in the default gate, covering two parts no long session had reached before:
@@ -42,11 +42,7 @@ test.describe('footnote-ops simulation', () => {
 		const ctx = await makeSimContext(page, editor, 'footnote-ops', { errors });
 		const g = new Gestures(ctx, makeRng(1));
 
-		const checkOracles = async (label: string) => {
-			await assertCoreOracles(ctx, label);
-			await assertParseConvergence(ctx);
-		};
-		await checkOracles('loaded');
+		await assertCheckpoint(ctx, 'loaded');
 
 		// ── References: type a new one, open it, edit its label, delete it ─────────
 		await editor.focusBlockEnd(0);
@@ -54,17 +50,17 @@ test.describe('footnote-ops simulation', () => {
 		await g.typeFootnoteReference('z');
 		// Document order is now [^z] (block 0), [^a] (block 1).
 		await expect(page.locator('.footnote-ref')).toHaveCount(2);
-		await checkOracles('reference-typed');
+		await assertCheckpoint(ctx, 'reference-typed');
 
 		// Open the existing [^a] (index 1 in document order) and close it again by clicking
 		// block 0: only the view changes, and the bytes must come back identical.
 		await g.revealFootnoteReference(1, 0);
-		await checkOracles('reference-revealed');
+		await assertCheckpoint(ctx, 'reference-revealed');
 
 		// Edit [^z]'s label (index 0 in document order) to [^qz] by opening and committing it.
 		await g.editFootnoteLabel(0, 'q', 1);
 		expect(await editor.bridge.getSource()).toContain('[^qz]');
-		await checkOracles('reference-edited');
+		await assertCheckpoint(ctx, 'reference-edited');
 
 		// Turn [^qz] (index 0 in document order) into plain text: open it, delete the opening
 		// `[`, commit. The reference is gone and its remaining bytes stay.
@@ -72,44 +68,44 @@ test.describe('footnote-ops simulation', () => {
 		await expect(page.locator('.footnote-ref')).toHaveCount(1);
 		expect(await editor.bridge.getSource()).toContain('^qz]');
 		expect(await editor.bridge.getSource()).not.toContain('[^qz]');
-		await checkOracles('reference-deleted');
+		await assertCheckpoint(ctx, 'reference-deleted');
 
 		// ── Definitions: build one, split its body, edit it, leave it ──────────────
 		const defIndex = (await editor.bridge.getBlockCount()) - 1;
 		await g.typeFootnoteDefinition(defIndex, 'b', 'A second note.');
 		expect(await editor.bridge.getBlockKind(defIndex)).toBe('footnote-def');
 		await expect(page.locator('.footnote-def')).toHaveCount(2);
-		await checkOracles('definition-typed');
+		await assertCheckpoint(ctx, 'definition-typed');
 
 		// Enter in the middle of the body splits that child in two: the split must add a child
 		// to the container, never to the document root, which the gesture checks itself.
 		await g.splitFootnoteDefinitionBody([defIndex, 0]);
-		await checkOracles('definition-body-split');
+		await assertCheckpoint(ctx, 'definition-body-split');
 
 		// Edit the second half of the split; the container rebuilds its raw text around it.
 		await g.editContainerBody([defIndex, 1], 'Continued note.');
 		expect(await editor.bridge.getSource()).toContain('Continued note.');
-		await checkOracles('definition-body-continued');
+		await assertCheckpoint(ctx, 'definition-body-continued');
 
 		// Backspace at the start of the definition's first child lifts it out as the paragraph
 		// before the marker, and the rest of the body stays under the marker.
 		const beforeExit = await editor.bridge.getSource();
 		await g.footnoteDefinitionExitBackspace([defIndex, 0]);
-		await checkOracles('definition-exit-backspace');
+		await assertCheckpoint(ctx, 'definition-exit-backspace');
 
 		// ── Undo back across the definition edits and the deleted reference ─────────
 		await g.pause();
 		await g.undo();
 		expect(await editor.bridge.getSource()).toBe(beforeExit);
-		await checkOracles('undo-exit-backspace');
+		await assertCheckpoint(ctx, 'undo-exit-backspace');
 
 		await g.undo();
-		await checkOracles('undo-continuation');
+		await assertCheckpoint(ctx, 'undo-continuation');
 
 		await g.undo();
-		await checkOracles('undo-split');
+		await assertCheckpoint(ctx, 'undo-split');
 
 		await g.undo();
-		await checkOracles('undo-definition');
+		await assertCheckpoint(ctx, 'undo-definition');
 	});
 });
