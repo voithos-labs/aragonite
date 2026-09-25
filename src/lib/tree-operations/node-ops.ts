@@ -4,7 +4,7 @@
  * report; the commit sequence recomputes the separators around them (`settle.ts`).
  */
 
-import { DEV } from 'esm-env';
+import { isDevChecks } from '../env';
 import { headingLevel, type CstNode } from '../core/nodes';
 import type { NodeView } from '../core/node-views';
 import { isBlankParagraph, isBlankSource, parse } from '../core/parser';
@@ -152,7 +152,7 @@ export function splitNode(
 	// The blank line the parse split off the first half stands between the halves, so it is the
 	// second half's separator; `separator` is empty when the bytes already end in a blank line.
 	const second = reparseAsNodes(secondRaw, first.suffix + separator, readSecondHalf);
-	if (DEV && first.nodes.length > 1) {
+	if (isDevChecks() && first.nodes.length > 1) {
 		// Legal, since the result carries the caret index, but rare enough to keep visible.
 		devWarn('tree-ops', `splitNode: the first half parsed to ${first.nodes.length} blocks`);
 	}
@@ -258,7 +258,7 @@ function separatorSplitsOffNextLine(
 	lineEnding: string,
 	grammar: GrammarView | undefined
 ): boolean {
-	if (DEV && !probeLineOpensAsProse(grammar)) {
+	if (isDevChecks() && !probeLineOpensAsProse(grammar)) {
 		devWarn(
 			'tree-ops',
 			`a registered opener claims ${JSON.stringify(NEXT_PROSE_LINE)}, so the split-separator probe no longer stands in for prose`

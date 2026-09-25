@@ -1,13 +1,11 @@
 /**
- * Dev-mode performance counters for the profiling harness. It depends on nothing, so anything
- * that records into it can import it. Recording stays off until a runtime switch that only
- * turns on in dev or Vitest, leaving production one boolean check per record call. Internal:
- * never exported from the editor barrel.
+ * Dev-mode performance counters for the profiling harness. It depends only on the build flags,
+ * so anything that records into it can import it. Recording stays off until a runtime switch that
+ * turns on only in a dev build or a test run, leaving production one boolean check per record
+ * call. Internal: never exported from the editor barrel.
  */
-import { DEV } from 'esm-env';
+import { editorEnv, isDevChecks } from '../env';
 import type { DocumentView } from '../core/node-views';
-
-declare const process: { env?: Record<string, string | undefined> } | undefined;
 
 export interface PerfSnapshot {
 	snapshotCount: number;
@@ -68,9 +66,7 @@ function emptySnapshot(): PerfSnapshot {
 // ── Switch and readout ──────────────────────────────────────────────────────
 
 export function enablePerfInstruments(): void {
-	if (DEV || (typeof process !== 'undefined' && process?.env?.VITEST)) {
-		enabled = true;
-	}
+	if (isDevChecks() || editorEnv.isTest) enabled = true;
 }
 
 export function disablePerfInstruments(): void {

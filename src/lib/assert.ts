@@ -1,9 +1,10 @@
 /**
  * Where a dev-mode invariant check reports: it sends a violation to `devWarn` and never
- * throws, since a false positive must not crash a real editor. In production the check is
- * not even run. Tests call the predicates directly rather than going through here.
+ * throws, since a false positive must not crash a real editor. Outside a dev build, unless
+ * `configureEditorEnv` turned dev on, the check is not even run. Tests call the predicates
+ * directly rather than going through here.
  */
-import { DEV } from 'esm-env';
+import { isDevChecks } from './env';
 import { devWarn } from './dev-warn';
 
 export interface InvariantViolation {
@@ -13,7 +14,7 @@ export interface InvariantViolation {
 }
 
 export function assertInvariant(tag: string, check: () => InvariantViolation | null): void {
-	if (!DEV) return;
+	if (!isDevChecks()) return;
 	const violation = check();
 	if (violation) {
 		// `invariant:` namespaces the console marker so the e2e simulation's error

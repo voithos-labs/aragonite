@@ -202,6 +202,18 @@ const RULES: FileRule[] = [
 		]
 	},
 	{
+		id: 'every dev-only check reads the build flag through env.ts',
+		matches: /from\s*['"]esm-env['"]/,
+		allowed: {
+			'src/lib/env.ts': 'the one reader: isDevChecks() answers for every dev-only check'
+		},
+		reason:
+			'a check reading DEV itself stays off under configureEditorEnv({ isDev: true }), so a suite on a toolchain resolving no export conditions runs without it: call isDevChecks()',
+		reaches: ['src/lib/env.ts'],
+		hits: ["import { DEV } from 'esm-env';", 'import { BROWSER, DEV } from "esm-env";'],
+		misses: ["import { isDevChecks } from '../env';"]
+	},
+	{
 		id: 'G4.5 no synthetic KeyboardEvent in editor runtime',
 		matches: /new\s+KeyboardEvent\s*\(/,
 		reason:

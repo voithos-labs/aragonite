@@ -1051,7 +1051,9 @@ the block by moving bytes while adding no character. `lint/code-commit-funnel.te
 **G4.25 · No `import.meta` env reads.** Nowhere under `src/lib`. It's a Vite-only extension, so
 outside a Vite bundle the object is undefined and a module-scope read throws at import time; the
 library wouldn't load at all under another bundler. Toolchain flags come from `esm-env`, whose
-export conditions every bundler resolves and whose `DEV` still folds away in a production build.
+export conditions every bundler resolves, and `src/lib/env.ts` alone imports it: every dev-only
+check asks `isDevChecks()`, so `configureEditorEnv({ isDev: true })` turns the checks and the dev
+warnings on together (a row of `lint/file-rules.test.ts`).
 This is the one scan covering the test tree too, because `svelte-package` inspects everything it
 copies and warns on the token wherever it sits, and it only warns, so a test-tree read would rot the
 packaging claim unwatched. Library-scoped rather than repo-wide: the reference plugins and the

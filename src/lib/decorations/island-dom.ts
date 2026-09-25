@@ -5,7 +5,7 @@
  * this pass cannot place drops silently; `decoration-state.svelte.ts` warns about it.
  */
 
-import { DEV } from 'esm-env';
+import { isDevChecks } from '../env';
 import { ambientSpanOf } from '../ambient/ambient-dom';
 import type { ContentLength } from '../core/inline';
 import { asRawOffset, toDomTextOffset, toRawOffset } from '../cursor/coordinate-spaces';
@@ -110,7 +110,7 @@ export function applyIslandDecorations(
 		if (ambient && ambient.contains(range.startContainer)) range.setStartAfter(ambient);
 
 		const extracted = range.extractContents();
-		if (DEV) {
+		if (isDevChecks()) {
 			const displaced = rawTextOfNode(extracted, raw);
 			if (displaced !== raw.slice(start, end)) {
 				devWarn('decorations', 'replace decoration span disagrees with the displaced DOM bytes', {

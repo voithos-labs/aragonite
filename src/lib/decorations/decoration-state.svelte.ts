@@ -1,6 +1,6 @@
 /** One editor's decoration sources, their merged results, and the per-path lookups the
  *  overlays and inline widgets read. A source never runs inside a commit. */
-import { DEV } from 'esm-env';
+import { isDevChecks } from '../env';
 import { tick } from 'svelte';
 import type { DocumentView, NodeView } from '../core/node-views';
 import {
@@ -110,7 +110,7 @@ export function createDecorationEngine(deps: DecorationEngineDeps): DecorationEn
 	}
 
 	function warnUnrenderableIslands(sourceName: string, decs: Decoration[]): void {
-		if (!DEV) return;
+		if (!isDevChecks()) return;
 		const doc = deps.getDoc();
 		for (const dec of decs) {
 			if (dec.type !== 'widget' && dec.type !== 'replace') continue;

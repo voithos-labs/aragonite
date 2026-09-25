@@ -4,7 +4,7 @@
  * the commit copies it. Keystroke batching is in text-batch.ts.
  */
 
-import { DEV } from 'esm-env';
+import { isDevChecks } from '../../env';
 import { tick } from 'svelte';
 import type { BlockComponent } from '../../block-component';
 import type { CstNode, Document } from '../../core/nodes';
@@ -132,7 +132,7 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 			children: [...deps.doc.children],
 			suffix: deps.doc.suffix
 		};
-		return { snapshot, integrity: DEV ? digestDoc(snapshot) : undefined };
+		return { snapshot, integrity: isDevChecks() ? digestDoc(snapshot) : undefined };
 	}
 
 	function recordSnapshotPerf(): void {
@@ -335,7 +335,7 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 		deps.edgeAffinity.reset();
 		textBatch.interrupt();
 
-		if (DEV) {
+		if (isDevChecks()) {
 			// Both declared paths must be document-absolute; `invariants` imports nothing at
 			// runtime, so the number[] to DocPath conversion lives here.
 			assertCommitPaths(
@@ -380,7 +380,7 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 					applyStructuralChangeToIdsRefs(change, idsCopy, refsCopy);
 					assertIdsInLockstep('commitStructural', idsCopy.length, childrenCopy.length);
 					args.publish(childrenCopy, idsCopy, refsCopy);
-					if (DEV) {
+					if (isDevChecks()) {
 						assertCommittedNodes(
 							touchedFromChange(change, childrenCopy, args.touchedNodes),
 							deps.grammar
@@ -395,7 +395,7 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 					discarded = true;
 				} else {
 					args.publish();
-					if (DEV) {
+					if (isDevChecks()) {
 						assertCommittedNodes(
 							touchedContainersWithChildren(args.touchedNodes?.()),
 							deps.grammar
@@ -403,7 +403,7 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 					}
 				}
 			}
-			if (!discarded && DEV) {
+			if (!discarded && isDevChecks()) {
 				// G1.9: a missed copy before write corrupts the newest undo entry, so catch it at
 				// the commit, not at some distant undo. Never throws.
 				assertUndoTopIntegrity(deps.undoManager.peekUndo() ?? undefined);
@@ -413,7 +413,7 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 			reportCommitError(args, err);
 			// Loud in dev; production swallows it so one failed edit does not kill the editor.
 			// The tree is intact either way: rolled back, or never installed.
-			if (DEV) throw err;
+			if (isDevChecks()) throw err;
 			return false;
 		}
 

@@ -218,3 +218,36 @@ describe('perf boundaries', () => {
 		expect(perfSnapshot().rebuildDepths).toEqual({ 5: 1 });
 	});
 });
+
+// Miss-analysis: the switch read Vitest's own env variable, and every suite runs under Vitest, so
+// the override a suite on another runner is told to call never reached it.
+describe('the perf switch reads the editor environment', () => {
+	afterEach(() => {
+		vi.unstubAllEnvs();
+		vi.doUnmock('esm-env');
+		vi.resetModules();
+	});
+
+	async function freshInstruments(): Promise<{
+		perf: typeof import('../../perf/instruments');
+		env: typeof import('../../env');
+	}> {
+		vi.stubEnv('VITEST', '');
+		vi.resetModules();
+		vi.doMock('esm-env', () => ({ DEV: false }));
+		return { perf: await import('../../perf/instruments'), env: await import('../../env') };
+	}
+
+	it('stays off on a production build outside a declared test runner', async () => {
+		const { perf } = await freshInstruments();
+		perf.enablePerfInstruments();
+		expect(perf.perfEnabled()).toBe(false);
+	});
+
+	it('turns on under a runner that declares itself through configureEditorEnv', async () => {
+		const { perf, env } = await freshInstruments();
+		env.configureEditorEnv({ isTest: true });
+		perf.enablePerfInstruments();
+		expect(perf.perfEnabled()).toBe(true);
+	});
+});
