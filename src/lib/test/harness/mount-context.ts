@@ -176,7 +176,8 @@ export function editorMountContext(overrides: MountContextOverrides = {}): Map<s
 	// see the override rather than the empty placeholder.
 	const policies: EditorPolicies = { ...stubbedPolicies(), ...overrides.policies };
 	const docBase = stubbedDoc(emptyDoc);
-	// The reading follows the services' grammar and the policies' mode unless a test supplies its own.
+	// The reading follows the services' grammar and the policies' mode unless a test supplies its
+	// own. The grammar is a getter because the services are built from the document below.
 	docBase.reading = fixtureReading({
 		get grammar() {
 			return services.registryView.grammar;

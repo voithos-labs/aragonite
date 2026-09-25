@@ -14,6 +14,7 @@ import { deleteAtPath, replaceAtPath } from '$lib/tree-operations/path-mutate';
 import { createSharingState } from '$lib/tree-operations/sharing';
 import { createRegistryView } from '$lib/schema/registry-view';
 import { describeConvergence } from '$lib/test/harness/parse-converged';
+import { makeTopHarness } from '$lib/test/harness/editor-actions';
 import { fixtureReading } from '$lib/test/harness/fixture-grammar';
 import { defaultGrammarView } from '$lib/schema/block-openers';
 
@@ -42,7 +43,7 @@ describe('a write beside a switched-off syntax', () => {
 	});
 });
 
-// Miss-analysis (#553): every split, join and range-delete test ran in the shipped grammar, so no
+// Miss-analysis: every split, join and range-delete test ran in the shipped grammar, so no
 // test saw the fix-up after each of them read the joined bytes without the editor's grammar.
 describe('a split, join or delete beside a switched-off syntax', () => {
 	interface Route {
@@ -97,4 +98,17 @@ describe('a split, join or delete beside a switched-off syntax', () => {
 			expect(describeConvergence(doc, off)).toBeNull();
 		});
 	}
+});
+
+// The same key through the editor's own actions, so a route that dropped the editor's reading
+// between the key and the tree operation fails here too.
+describe('Enter beside a switched-off syntax, through the editor actions', () => {
+	const reading = fixtureReading({ grammar: off });
+
+	it('Enter between `a` and `bc` above `---` leaves a paragraph over a divider', async () => {
+		const h = makeTopHarness(parse('abc\n---\n', { grammar: off }), { reading });
+		await h.actions.splitBlock(0, 1);
+		expect(h.doc.children.map((c) => c.kind)).toEqual(['paragraph', 'paragraph', 'thematicBreak']);
+		expect(describeConvergence(h.doc, off)).toBeNull();
+	});
 });

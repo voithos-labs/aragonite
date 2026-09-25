@@ -13,6 +13,7 @@ import type { EdgeAffinityState } from '../cursor/edge-affinity';
 import type { EditorActionsDeps } from '../editor-actions/deps';
 import type { PresentationMode } from '../presentation-mode';
 import { kitReading } from './kit-reading';
+import type { Reading } from '../schema/reading';
 import { createEditorEvents, type EditorEvents } from '../editor-events';
 import { refSlotsOver, replaceRefs } from '../reactivity/publish-ref.svelte';
 import { createSelectionState } from '../selection/selection-state.svelte';
@@ -89,6 +90,9 @@ export interface HeadlessActionsOptions {
 	/** A construction option because `SelectionState` cannot take one later. */
 	onSelectionChange?: () => void;
 	presentationMode?: PresentationMode;
+	/** The editor's reading in full, for a suite whose editor switched a syntax off; it wins over
+	 *  `presentationMode`. */
+	reading?: Reading;
 	bumpContentVersion?: () => void;
 }
 
@@ -166,7 +170,7 @@ export function createHeadlessActions(
 		},
 		events,
 		// An author's suite runs with no editor, so every installed plugin is in the grammar.
-		reading: kitReading(() => options.presentationMode ?? 'source')
+		reading: options.reading ?? kitReading(() => options.presentationMode ?? 'source')
 	};
 	return { deps, doc, events, getBlockIds: () => blockIds, getBlockRefs: () => blockRefs };
 }
