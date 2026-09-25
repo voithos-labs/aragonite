@@ -16,7 +16,7 @@ import {
 export const OCCURRENCE_CLASS = 'hl-occurrence';
 
 // Astral-plane text falls outside "word" here, which is honest enough for a reference plugin.
-const WORD_CHAR = /[\p{L}\p{N}_]/u;
+export const WORD_CHAR = /[\p{L}\p{N}_]/u;
 
 export interface WordSpan {
 	word: string;

@@ -27,6 +27,16 @@ export function ownTrailingLineEnding(raw: string): '' | '\n' | '\r\n' {
 	return raw.slice(displayLength(raw)) as '' | '\n' | '\r\n';
 }
 
+/** The first half of a UTF-16 surrogate pair, as a code unit (`charCodeAt`). */
+export function isHighSurrogate(unit: number): boolean {
+	return unit >= 0xd800 && unit <= 0xdbff;
+}
+
+/** The second half of a UTF-16 surrogate pair, as a code unit (`charCodeAt`). */
+export function isLowSurrogate(unit: number): boolean {
+	return unit >= 0xdc00 && unit <= 0xdfff;
+}
+
 /**
  * `offset` moved off the interior of a surrogate pair, back to the pair's start: a cut there
  * leaves a lone surrogate, which no UTF-8 encoder round-trips. Code points only, not graphemes.
@@ -34,8 +44,7 @@ export function ownTrailingLineEnding(raw: string): '' | '\n' | '\r\n' {
 export function snapToScalarBoundary(raw: string, offset: number): number {
 	if (offset <= 0 || offset >= raw.length) return offset;
 	const splitsPair =
-		(raw.charCodeAt(offset - 1) & 0xfc00) === 0xd800 &&
-		(raw.charCodeAt(offset) & 0xfc00) === 0xdc00;
+		isHighSurrogate(raw.charCodeAt(offset - 1)) && isLowSurrogate(raw.charCodeAt(offset));
 	return splitsPair ? offset - 1 : offset;
 }
 

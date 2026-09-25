@@ -21,6 +21,7 @@ import type { GrammarView } from '../../../schema/block-openers';
 import type { LinkReferenceResolver } from '../../../core/inline/link-reference-resolver';
 import { getInlineConstructPolicy } from '../../../schema/inline-construct-policy';
 import { removesExactly, soleProseReparse } from './screen-diff';
+import { isHighSurrogate, isLowSurrogate } from '../../../core/lines';
 
 // ── Public API ───────────────────────────────────────────────────────────────
 
@@ -159,18 +160,11 @@ function deletionTarget(
 /** The whole code point `at` belongs to. Half a surrogate pair is not a character, and this module
  *  handles keys beside a hidden run wherever they land, emoji included. */
 function codePointAt(display: string, at: number): Span {
-	const start = isLowSurrogate(display, at) && isHighSurrogate(display, at - 1) ? at - 1 : at;
-	return { start, end: isHighSurrogate(display, start) ? start + 2 : start + 1 };
-}
-
-function isHighSurrogate(display: string, at: number): boolean {
-	const code = display.charCodeAt(at);
-	return code >= 0xd800 && code <= 0xdbff;
-}
-
-function isLowSurrogate(display: string, at: number): boolean {
-	const code = display.charCodeAt(at);
-	return code >= 0xdc00 && code <= 0xdfff;
+	const start =
+		isLowSurrogate(display.charCodeAt(at)) && isHighSurrogate(display.charCodeAt(at - 1))
+			? at - 1
+			: at;
+	return { start, end: isHighSurrogate(display.charCodeAt(start)) ? start + 2 : start + 1 };
 }
 
 /**
