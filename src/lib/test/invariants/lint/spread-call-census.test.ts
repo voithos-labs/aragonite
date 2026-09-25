@@ -7,7 +7,15 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { collectEditorSources, lexicalClasses, type SourceFile } from './scan-source';
+import {
+	collectEditorSources,
+	enclosingFunction,
+	isParameterList,
+	LEXICAL_CLASSES,
+	lexicalClasses,
+	openerBefore,
+	type SourceFile
+} from './scan-source';
 
 interface Declaration {
 	/** `bounded`: a named ceiling. `gap`: the count follows the document, and the call can fail. */
@@ -57,164 +65,11 @@ const ALLOWLIST: Record<string, Declaration> = {
 
 // ── The scan ─────────────────────────────────────────────────────────────────
 
-const CODE = 0;
-
-const CONTROL_KEYWORDS = new Set(['if', 'for', 'while', 'switch', 'catch', 'do', 'else', 'with']);
+const CODE = LEXICAL_CLASSES.indexOf('code');
 
 interface SpreadSite {
 	key: string;
 	line: number;
-}
-
-/** The innermost bracket still open at `at`, or null at the top level. */
-function openerBefore(text: string, cls: Uint8Array, at: number): number | null {
-	let depth = 0;
-	for (let i = at - 1; i >= 0; i--) {
-		if (cls[i] !== CODE) continue;
-		const ch = text[i];
-		if (ch === ')' || ch === ']' || ch === '}') depth++;
-		else if (ch === '(' || ch === '[' || ch === '{') {
-			if (depth === 0) return i;
-			depth--;
-		}
-	}
-	return null;
-}
-
-function matchingOpen(text: string, cls: Uint8Array, close: number): number | null {
-	let depth = 0;
-	for (let i = close; i >= 0; i--) {
-		if (cls[i] !== CODE) continue;
-		if (text[i] === ')') depth++;
-		else if (text[i] === '(' && --depth === 0) return i;
-	}
-	return null;
-}
-
-function matchingClose(text: string, cls: Uint8Array, open: number): number {
-	let depth = 0;
-	for (let i = open; i < text.length; i++) {
-		if (cls[i] !== CODE) continue;
-		const ch = text[i];
-		if (ch === '(') depth++;
-		else if (ch === ')' && --depth === 0) return i;
-	}
-	return text.length;
-}
-
-const skipBack = (text: string, cls: Uint8Array, from: number): number => {
-	let i = from;
-	while (i >= 0 && (cls[i] !== CODE || /\s/.test(text[i]))) i--;
-	return i;
-};
-
-const skipForward = (text: string, cls: Uint8Array, from: number): number => {
-	let i = from;
-	while (i < text.length && (cls[i] !== CODE || /\s/.test(text[i]))) i++;
-	return i;
-};
-
-function identifierBefore(text: string, at: number): string {
-	let start = at + 1;
-	while (start > 0 && /[\w$]/.test(text[start - 1])) start--;
-	return text.slice(start, at + 1);
-}
-
-/**
- * A parameter list rather than an argument list. A rest parameter names one array; it never
- * grows a call. The tells are the `function` keyword before, and a body or arrow after.
- */
-function isParameterList(text: string, cls: Uint8Array, open: number): boolean {
-	const before = skipBack(text, cls, open - 1);
-	const name = identifierBefore(text, before);
-	if (name === 'function') return true;
-	if (identifierBefore(text, skipBack(text, cls, before - name.length)) === 'function') return true;
-
-	let after = skipForward(text, cls, matchingClose(text, cls, open) + 1);
-	if (text[after] === ':') {
-		let depth = 0;
-		for (after++; after < text.length; after++) {
-			if (cls[after] !== CODE) continue;
-			const ch = text[after];
-			if (ch === '(' || ch === '[' || ch === '<') depth++;
-			else if (ch === ')' || ch === ']' || ch === '>') depth--;
-			else if (depth <= 0 && (ch === '{' || ch === ';' || ch === ',' || ch === '=')) break;
-		}
-	}
-	return text.startsWith('=>', after) || text[after] === '{';
-}
-
-/**
- * The `(` of the parameter list a `{` closes over, or null where the brace opens a plain block
- * or an object literal. Only a return type and an arrow may sit between the two.
- */
-function parameterListOf(text: string, cls: Uint8Array, brace: number): number | null {
-	let depth = 0;
-	let between = '';
-	for (let i = brace - 1; i >= 0; i--) {
-		if (cls[i] !== CODE) continue;
-		const ch = text[i];
-		if (depth === 0) {
-			if (ch === ')') {
-				const gap = between.replace(/\s|=>/g, '');
-				return gap === '' || gap.startsWith(':') ? matchingOpen(text, cls, i) : null;
-			}
-			if (ch === ';' || ch === '{' || ch === '}' || ch === '(' || ch === '[') return null;
-		}
-		if (ch === ')' || ch === ']' || ch === '}') depth++;
-		else if (ch === '(' || ch === '[' || ch === '{') depth--;
-		between = ch + between;
-	}
-	return null;
-}
-
-/** The `:` of a declaration's type annotation, so `const f: Cleaner = (x) => …` reads as `f`. */
-function annotationColonBefore(text: string, cls: Uint8Array, assign: number): number {
-	let depth = 0;
-	for (let i = assign - 1; i >= 0; i--) {
-		if (cls[i] !== CODE) continue;
-		const ch = text[i];
-		if (ch === '>' || ch === ')' || ch === ']' || ch === '}') depth++;
-		else if (ch === '<' || ch === '(' || ch === '[' || ch === '{') depth--;
-		else if (depth === 0 && ch === ':') return i;
-		if (depth === 0 && (ch === ';' || ch === ',' || ch === '{' || ch === '}')) break;
-	}
-	return assign;
-}
-
-/** Back over a type-parameter list, so `function pick<T>(…)` names `pick` and not the module. */
-function skipTypeParameters(text: string, cls: Uint8Array, at: number): number {
-	if (text[at] !== '>') return at;
-	let depth = 0;
-	for (let i = at; i >= 0; i--) {
-		if (cls[i] !== CODE) continue;
-		if (text[i] === '>') depth++;
-		else if (text[i] === '<' && --depth === 0) return skipBack(text, cls, i - 1);
-	}
-	return at;
-}
-
-/** The nearest enclosing named function, walking out through blocks and anonymous scopes. */
-function enclosingName(text: string, cls: Uint8Array, at: number): string {
-	let from = at;
-	for (let hop = 0; hop < 24; hop++) {
-		const open = openerBefore(text, cls, from);
-		if (open === null) return '<module>';
-		from = open;
-		if (text[open] !== '{') continue;
-		const paren = parameterListOf(text, cls, open);
-		if (paren === null) continue;
-		const before = skipTypeParameters(text, cls, skipBack(text, cls, paren - 1));
-		const direct = identifierBefore(text, before);
-		if (CONTROL_KEYWORDS.has(direct)) continue;
-		if (direct !== '' && direct !== 'function') return direct;
-		const anchor = direct === '' ? before : skipBack(text, cls, before - direct.length);
-		if (text[anchor] !== '=' && text[anchor] !== ':') continue;
-		const declared = text[anchor] === ':' ? anchor : annotationColonBefore(text, cls, anchor);
-		const named = identifierBefore(text, skipBack(text, cls, declared - 1));
-		if (named !== '') return named;
-	}
-	return '<module>';
 }
 
 function spreadSites(file: SourceFile): SpreadSite[] {
@@ -226,11 +81,11 @@ function spreadSites(file: SourceFile): SpreadSite[] {
 		if (cls[i] !== CODE || cls[i + 1] !== CODE || cls[i + 2] !== CODE) continue;
 		const spread = i;
 		i += 2;
-		const open = openerBefore(text, cls, spread);
+		const open = openerBefore(text, spread, cls);
 		if (open === null || text[open] !== '(') continue;
-		if (isParameterList(text, cls, open)) continue;
+		if (isParameterList(text, open, cls)) continue;
 		out.push({
-			key: `${file.relPath} :: ${enclosingName(text, cls, open)}`,
+			key: `${file.relPath} :: ${enclosingFunction(text, open, cls)}`,
 			line: text.slice(0, spread).split('\n').length
 		});
 	}
@@ -301,21 +156,6 @@ describe('G4.60 scan self-tests', () => {
 		);
 		expect(scan('const api = { moveFocus: (...args: unknown[]) => {} };\n')).toEqual([]);
 		expect(scan('function appendAll(at: number, ...items: Node[]): void {}\n')).toEqual([]);
-	});
-
-	it('names the enclosing function past a return type, a declared type and a type parameter', () => {
-		expect(scan('function menu(a: T): Item[] {\n\titems.push(...group());\n}\n')[0].key).toBe(
-			'f.ts :: menu'
-		);
-		expect(scan('function pick<T>(a: T[]): void {\n\tsink(...a);\n}\n')[0].key).toBe(
-			'f.ts :: pick'
-		);
-		expect(scan('const clean: Cleaner = (j) => {\n\tMath.min(...c);\n};\n')[0].key).toBe(
-			'f.ts :: clean'
-		);
-		expect(scan('function outer() {\n\tfor (const x of y) {\n\t\tp(...z);\n\t}\n}\n')[0].key).toBe(
-			'f.ts :: outer'
-		);
 	});
 
 	it('reds on an undeclared site, and on a declaration nothing backs', () => {

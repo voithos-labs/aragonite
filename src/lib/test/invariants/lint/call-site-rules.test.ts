@@ -179,8 +179,6 @@ const RULES: CallSiteRule[] = [
 		population: notUnder('examples/consumer/src/', 'src/lib/core/parser.ts', 'src/lib/testing/'),
 		calls: ['parse'],
 		holds: (args) => args.includes('scope:'),
-		/** Each call allowed to stay silent, keyed `relPath:line`, with why. */
-		allowed: {},
 		reason:
 			"every parse() call outside core/parser.ts passes an explicit scope: { scope: 'fragment' } for one block's bytes, { scope: 'document' } for whole source; silence reads as document (#52)",
 		hits: ['const d = parse(raw);', "parse(')');\nparse(x, { scope: 'fragment' });"],

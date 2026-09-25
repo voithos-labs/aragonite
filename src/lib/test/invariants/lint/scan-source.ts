@@ -349,6 +349,192 @@ function classifyRange(code: string, from: number, to: number, out: Uint8Array):
 	}
 }
 
+// ── Enclosing function ───────────────────────────────────────────────────────
+
+const CONTROL_KEYWORDS = new Set(['if', 'for', 'while', 'switch', 'catch', 'do', 'else', 'with']);
+
+/**
+ * The nearest named function around `at`, walking out through blocks and anonymous scopes, or
+ * `<module>` at the top level. Allowlists key on `relPath :: name`, which survives edits above
+ * the site. Pass `classes` when naming several sites in one file.
+ */
+export function enclosingFunction(
+	code: string,
+	at: number,
+	classes: Uint8Array = lexicalClasses(code)
+): string {
+	let from = at;
+	for (let hop = 0; hop < 24; hop++) {
+		const open = innermostOpener(code, classes, from);
+		if (open === null) return '<module>';
+		from = open;
+		const paren =
+			code[open] === '{'
+				? parameterListOf(code, classes, open)
+				: code[open] === '(' && parameterListAt(code, classes, open)
+					? open
+					: null;
+		if (paren === null) continue;
+		const name = functionNameBefore(code, classes, paren);
+		if (name !== null) return name;
+	}
+	return '<module>';
+}
+
+/** The innermost bracket still open at `at`, or null at the top level. */
+export function openerBefore(
+	code: string,
+	at: number,
+	classes: Uint8Array = lexicalClasses(code)
+): number | null {
+	return innermostOpener(code, classes, at);
+}
+
+/** Whether the `(` at `open` starts a parameter list rather than an argument list: the
+ *  `function` keyword before it, or a body or arrow after it. */
+export function isParameterList(
+	code: string,
+	open: number,
+	classes: Uint8Array = lexicalClasses(code)
+): boolean {
+	return parameterListAt(code, classes, open);
+}
+
+function innermostOpener(text: string, cls: Uint8Array, at: number): number | null {
+	let depth = 0;
+	for (let i = at - 1; i >= 0; i--) {
+		if (cls[i] !== CODE) continue;
+		const ch = text[i];
+		if (ch === ')' || ch === ']' || ch === '}') depth++;
+		else if (ch === '(' || ch === '[' || ch === '{') {
+			if (depth === 0) return i;
+			depth--;
+		}
+	}
+	return null;
+}
+
+function matchingOpen(text: string, cls: Uint8Array, close: number): number | null {
+	let depth = 0;
+	for (let i = close; i >= 0; i--) {
+		if (cls[i] !== CODE) continue;
+		if (text[i] === ')') depth++;
+		else if (text[i] === '(' && --depth === 0) return i;
+	}
+	return null;
+}
+
+function matchingClose(text: string, cls: Uint8Array, open: number): number {
+	let depth = 0;
+	for (let i = open; i < text.length; i++) {
+		if (cls[i] !== CODE) continue;
+		const ch = text[i];
+		if (ch === '(') depth++;
+		else if (ch === ')' && --depth === 0) return i;
+	}
+	return text.length;
+}
+
+function skipBack(text: string, cls: Uint8Array, from: number): number {
+	let i = from;
+	while (i >= 0 && (cls[i] !== CODE || /\s/.test(text[i]))) i--;
+	return i;
+}
+
+function skipForward(text: string, cls: Uint8Array, from: number): number {
+	let i = from;
+	while (i < text.length && (cls[i] !== CODE || /\s/.test(text[i]))) i++;
+	return i;
+}
+
+function identifierBefore(text: string, at: number): string {
+	let start = at + 1;
+	while (start > 0 && /[\w$]/.test(text[start - 1])) start--;
+	return text.slice(start, at + 1);
+}
+
+function parameterListAt(text: string, cls: Uint8Array, open: number): boolean {
+	const before = skipBack(text, cls, open - 1);
+	const name = identifierBefore(text, before);
+	if (name === 'function') return true;
+	if (identifierBefore(text, skipBack(text, cls, before - name.length)) === 'function') return true;
+
+	let after = skipForward(text, cls, matchingClose(text, cls, open) + 1);
+	if (text[after] === ':') {
+		let depth = 0;
+		for (after++; after < text.length; after++) {
+			if (cls[after] !== CODE) continue;
+			const ch = text[after];
+			if (ch === '(' || ch === '[' || ch === '<') depth++;
+			else if (ch === ')' || ch === ']' || ch === '>') depth--;
+			else if (depth <= 0 && (ch === '{' || ch === ';' || ch === ',' || ch === '=')) break;
+		}
+	}
+	return text.startsWith('=>', after) || text[after] === '{';
+}
+
+/** The `(` of the parameter list a `{` closes over, or null where the brace opens a plain block
+ *  or an object literal. Only a return type and an arrow may sit between the two. */
+function parameterListOf(text: string, cls: Uint8Array, brace: number): number | null {
+	let depth = 0;
+	let between = '';
+	for (let i = brace - 1; i >= 0; i--) {
+		if (cls[i] !== CODE) continue;
+		const ch = text[i];
+		if (depth === 0) {
+			if (ch === ')') {
+				const gap = between.replace(/\s|=>/g, '');
+				return gap === '' || gap.startsWith(':') ? matchingOpen(text, cls, i) : null;
+			}
+			if (ch === ';' || ch === '{' || ch === '}' || ch === '(' || ch === '[') return null;
+		}
+		if (ch === ')' || ch === ']' || ch === '}') depth++;
+		else if (ch === '(' || ch === '[' || ch === '{') depth--;
+		between = ch + between;
+	}
+	return null;
+}
+
+/** The name a parameter list at `paren` declares: `function name(`, `name(` for a method, or
+ *  `const name = (` and `name: (` for an assigned arrow. Null for a control statement. */
+function functionNameBefore(text: string, cls: Uint8Array, paren: number): string | null {
+	const before = skipTypeParameters(text, cls, skipBack(text, cls, paren - 1));
+	const direct = identifierBefore(text, before);
+	if (CONTROL_KEYWORDS.has(direct)) return null;
+	if (direct !== '' && direct !== 'function' && direct !== 'async') return direct;
+	const anchor = direct === '' ? before : skipBack(text, cls, before - direct.length);
+	if (text[anchor] !== '=' && text[anchor] !== ':') return null;
+	const declared = text[anchor] === ':' ? anchor : annotationColonBefore(text, cls, anchor);
+	const named = identifierBefore(text, skipBack(text, cls, declared - 1));
+	return named === '' ? null : named;
+}
+
+/** The `:` of a declaration's type annotation, so `const f: Cleaner = (x) => …` reads as `f`. */
+function annotationColonBefore(text: string, cls: Uint8Array, assign: number): number {
+	let depth = 0;
+	for (let i = assign - 1; i >= 0; i--) {
+		if (cls[i] !== CODE) continue;
+		const ch = text[i];
+		if (ch === '>' || ch === ')' || ch === ']' || ch === '}') depth++;
+		else if (ch === '<' || ch === '(' || ch === '[' || ch === '{') depth--;
+		else if (depth === 0 && ch === ':') return i;
+		if (depth === 0 && (ch === ';' || ch === ',' || ch === '{' || ch === '}')) break;
+	}
+	return assign;
+}
+
+/** Back over a type-parameter list, so `function pick<T>(…)` names `pick` and not the module. */
+function skipTypeParameters(text: string, cls: Uint8Array, at: number): number {
+	if (text[at] !== '>') return at;
+	let depth = 0;
+	for (let i = at; i >= 0; i--) {
+		if (cls[i] !== CODE) continue;
+		if (text[i] === '>') depth++;
+		else if (text[i] === '<' && --depth === 0) return skipBack(text, cls, i - 1);
+	}
+	return at;
+}
+
 // ── Raw-write statements ─────────────────────────────────────────────────────
 
 /** Bound on a statement's span, so a missing semicolon can't swallow the rest of the file. */

@@ -12,6 +12,7 @@ import {
 	callArguments,
 	collectEditorSources,
 	EDITOR_SRC,
+	enclosingFunction,
 	importSpecifiers,
 	isProseSurface,
 	literalSpans,
@@ -220,5 +221,35 @@ describe('literal-aware walking', () => {
 		expect(rawAssignments([{ relPath: 'x', text: src, code: src }])).toEqual([
 			{ relPath: 'x', statement: ".raw = source.replace(/'/g, '') + ending" }
 		]);
+	});
+});
+
+describe('enclosingFunction', () => {
+	const nameAt = (code: string, token = 'site') => enclosingFunction(code, code.indexOf(token));
+
+	it('names a declaration, a method and an assigned arrow, past types and type parameters', () => {
+		expect(nameAt('function menu(a: T): Item[] {\n\tsite();\n}')).toBe('menu');
+		expect(nameAt('function pick<T>(a: T[]): void {\n\tsite(a);\n}')).toBe('pick');
+		expect(nameAt('const clean: Cleaner = (j) => {\n\tsite();\n};')).toBe('clean');
+		expect(nameAt('const api = { run(): void {\n\tsite();\n} };')).toBe('run');
+		expect(nameAt('const load = async (u) => {\n\tsite(u);\n};')).toBe('load');
+	});
+
+	it('walks out through control blocks, callbacks and plain blocks', () => {
+		expect(nameAt('function outer() {\n\tfor (const x of y) {\n\t\tif (x) site();\n\t}\n}')).toBe(
+			'outer'
+		);
+		expect(nameAt('function outer() {\n\titems.map((x) => {\n\t\tsite(x);\n\t});\n}')).toBe(
+			'outer'
+		);
+	});
+
+	it('names the function whose parameter list holds the site, as for a default value', () => {
+		expect(nameAt('export function read(n, grammar = site) {\n\treturn n;\n}')).toBe('read');
+	});
+
+	it('answers <module> at the top level, and reads no bracket inside a literal', () => {
+		expect(nameAt('const x = site();')).toBe('<module>');
+		expect(nameAt("const s = '{';\nfunction f() {}\nsite();")).toBe('<module>');
 	});
 });
