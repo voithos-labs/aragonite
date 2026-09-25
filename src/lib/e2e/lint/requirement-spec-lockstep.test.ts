@@ -8,10 +8,13 @@
 import { describe, it, expect } from 'vitest';
 import { readdirSync, readFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
+import { createRequire } from 'node:module';
 import path from 'node:path';
 
 const SPEC_DIR = path.resolve('src/lib/e2e/tests');
 const REQUIREMENT_DIR = path.resolve('src/lib/e2e/requirements');
+// Node's own lookup finds the Playwright CLI from a worktree that has no node_modules of its own.
+const resolveModule = createRequire(import.meta.url).resolve;
 
 // ── Rule 3's named divergences ──────────────────────────────────────────────
 
@@ -152,7 +155,7 @@ export function countListedTests(report: ListReport): Map<string, number> {
 function listTests(): ListReport {
 	const run = spawnSync(
 		process.execPath,
-		[path.resolve('node_modules/@playwright/test/cli.js'), 'test', '--list', '--reporter=json'],
+		[resolveModule('@playwright/test/cli'), 'test', '--list', '--reporter=json'],
 		// The WebKit lane's specs belong to no other project, so they list only with it on.
 		{ encoding: 'utf8', maxBuffer: 256 * 1024 * 1024, env: { ...process.env, WEBKIT: '1' } }
 	);
