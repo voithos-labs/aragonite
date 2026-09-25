@@ -4,7 +4,7 @@
  * hand per component and `BlockComponent` declares the member optional: the next block would
  * compile fine and silently decline every `editor.insertMarkdown`. Two routes deliver it, and
  * this reads whichever one the component actually uses: an instance export, or the object it
- * hands `publishRefSlot` (GH #148).
+ * hands `publishRefSlot`.
  */
 import { describe, it, expect } from 'vitest';
 import { balancedRegion, callArguments, callsTo, collectEditorSources } from './scan-source';
@@ -66,8 +66,8 @@ describe('G4.38 insertion entry-point surface parity', () => {
 		expect(silent, RULE).toEqual([]);
 	});
 
-	// The cell is the whole population for that route, and the first check that would stop proving
-	// anything: losing it leaves this scanning exports only, the blind spot #148 named.
+	// The cell is the only component on the published-object route, so losing it would leave this
+	// scan reading instance exports alone.
 	it('the table cell is scanned through the literal its row actually mounts', () => {
 		const cell = components.find((f) => f.relPath.endsWith('TableCellBlock.svelte'));
 		expect(cell, 'TableCellBlock left the editable-surface population').toBeDefined();

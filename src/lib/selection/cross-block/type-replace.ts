@@ -1,10 +1,8 @@
 /**
- * Cross-block type-replace: the user typed a character with a cross-block selection active.
- * Delete the range, splice the character into the surviving leaf's raw, reparse so a marker at
- * offset 0 re-derives the kind, as the single-block typing path does. Committed through
- * `commitMultiScope` so a kind change creates a fresh node, ids and refs stay in sync, and the
- * op is `updateContent`. A range holding its block whole has no surviving leaf and takes the
- * replace path at the foot of the file.
+ * Typing a character over a cross-block range: delete the range, splice the character into the
+ * surviving leaf and reparse it, so a marker typed at offset 0 changes the kind as single-block
+ * typing does. A range holding one block whole leaves no surviving leaf, so the character
+ * replaces that block instead.
  */
 
 import type { MultiScopeTarget } from '../../action-contracts';
@@ -71,20 +69,16 @@ export async function handleCrossBlockTypeReplace(
 		return;
 	}
 
-	// `updateContent`, not `input`: the same as the single-block path's kind-changing branch
-	// (`updateBlockContent` in `block-edit.ts`). Only that path's kind-stable branch emits the
-	// debounced `input`, which consumers read as the kind having held. `snapshot: 'skip'` keeps
-	// the character in the delete's undo entry.
+	// `updateContent`, not `input`: consumers read `input` as the kind having held, and this
+	// reparse may change it. `snapshot: 'skip'` keeps the character in the delete's undo entry.
 	const scope = resolveTypedCharScope(ctx, caret.path);
 	if (!scope) {
 		focusCollapsedCaret(ctx.getBlockElByPath, caret);
 		return;
 	}
 
-	// `resolveTypedCharScope` returns the leaf's immediate parent: every mounted container
-	// registers a `BlockListState`, and the document root stands in for a top-level leaf. The
-	// check below is the backstop: an unregistered ancestor would make `scope` a grandparent and
-	// splice the wrong position, so that case falls back to a raw-only splice.
+	// Every mounted container registers a `BlockListState`, so the scope is the leaf's parent; an
+	// unregistered ancestor would make it a grandparent, and that case splices raw only.
 	const leafIndex = caret.path[caret.path.length - 1];
 	const scopeIsImmediateParent = scope.path.length === caret.path.length - 1;
 

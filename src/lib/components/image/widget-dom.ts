@@ -33,16 +33,12 @@ export function buildImageWidget(
 	widget.dataset.sourceEnd = String(node.end);
 	widget.setAttribute('contenteditable', 'false');
 
-	// Select on `click`, never `pointerdown`: a pointerdown listener would take over a
-	// gesture that starts on the image, so no cross-block drag could begin here.
-	// Shift-click extends a cross-block selection, which the block owns, so leave it.
+	// On `click`, not `pointerdown`, so a drag can still start on the image; a Shift-click
+	// extends the block's own selection.
 	widget.addEventListener('click', (e) => {
 		if (e.shiftKey) return;
-		// Resolve the path on the click rather than baking it in at build time: content
-		// inserted above shifts the block's path without touching its `raw`, so the render
-		// cache skips a rebuild and a baked path would find the wrong CST node. It resolves
-		// the editable block: inside a cell the path stops at the table, whose offsets are
-		// cell indices.
+		// Resolved at the click: content inserted above moves the block's path without a
+		// rebuild of this widget, so a path stored at build time would go stale.
 		const paragraphPath = findSurfacePathForElement(widget);
 		if (!paragraphPath) return;
 		// Match TextEditableBlock.snapClickToWidgetEdge, which puts the caret at the

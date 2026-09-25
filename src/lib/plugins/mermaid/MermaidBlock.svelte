@@ -144,8 +144,7 @@
 	const overlayView = createPanZoom();
 
 	// Turned on by focus, so an unfocused diagram hijacks neither the page nor the editor's own
-	// drag. Kept as state rather than read back from the DOM: the editor reads the same fact
-	// from the markup, so there is one value.
+	// drag. The markup attribute is written from this one value.
 	let gestureArmed = $state(false);
 
 	function onViewportWheel(e: WheelEvent): void {

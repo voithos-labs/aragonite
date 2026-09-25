@@ -291,9 +291,8 @@ export function checkInlineConstructPolicy(
 		if (entry.mark) {
 			const clash = markClashOf(entry.kind, entry.mark, ranks, commands);
 			if (clash) return clash;
-			// The built-in command ids are a closed set and each already means something, so a
-			// plugin mark taking one shadows that meaning wherever the mark table is consulted
-			// first, and the editable blocks do not agree on where in their lookup that is.
+			// A built-in command id already means something, so a plugin mark taking one would shadow
+			// that meaning wherever the mark table is consulted first.
 			if (!isBuiltinInlineKind(entry.kind) && isBuiltinCommandId(entry.mark.command)) {
 				return {
 					code: 'inline-construct-policy',

@@ -116,11 +116,8 @@ export function registerDirectiveOpeners(): void {
 
 // ── Closer indexing ─────────────────────────────────────────────────────────
 
-// A closer is an all-colon line, closing any opener whose colon count is <= its length.
-// Positions are indexed once per line array, keyed by array identity, because an
-// unclosed-opener flood otherwise rescans to EOF per opener (O(n^2)). `maxCounts` is a max-tree
-// over the closer run lengths, so "first closer at or after k with a long enough run" is a
-// descent, at a cost indifferent to how the run lengths are distributed.
+// Closer lines indexed once per line array: a flood of unclosed openers would otherwise rescan
+// to the end per opener. A closer closes any opener with at most its colon count.
 interface CloserIndex {
 	positions: Int32Array;
 	/** Heap-layout max-tree over the closer run lengths, padded to `leafBase` leaves. */
@@ -154,10 +151,8 @@ function closerIndex(lines: ParsedLine[]): CloserIndex {
 	return index;
 }
 
-/**
- * Smallest closer-index slot at or after `from` whose count is >= `min`, or -1. Padding leaves
- * hold 0 and an opener runs at least two colons, so they never match.
- */
+/** First closer index at or after `from` with a run of at least `min` colons, or -1. Padding
+ *  leaves hold 0, and an opener runs at least two colons, so they never match. */
 function firstCloserAtLeast(index: CloserIndex, from: number, min: number): number {
 	const descend = (node: number, lo: number, hi: number): number => {
 		if (hi <= from || index.maxCounts[node] < min) return -1;

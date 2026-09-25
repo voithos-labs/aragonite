@@ -126,15 +126,13 @@ export function settleSeparatorOnBlank(
 	for (let i = start; i <= Math.min(end + 1, children.length - 1); i++) {
 		if (children[i].leadingTrivia !== '') standing.push(i);
 	}
-	// A fence line at either end of the run takes one blank line into `innerPrefix`/`innerSuffix`
-	// (the line the parser strips against the fence), on top of the run's own count, when prose
-	// sits on the run's other side; an all-blank body needs none.
+	// A fence line at either end of the run strips one blank line into `innerPrefix`/`innerSuffix`
+	// on top of the run's own count when prose sits on the other side; an all-blank body needs none.
 	const wrap = bodyWrapOf(parent);
 	const slots = wrapSlotsOf(parent);
 	const bodyEnd = children.length - 1;
-	// A run of two or more that is the whole body sits against both fence lines: the reload
-	// strips a line into each of `innerPrefix` and `innerSuffix` before it makes a block, so the
-	// run must supply both.
+	// A run of two or more that is the whole body sits against both fence lines, and the reload
+	// strips a line into each of `innerPrefix` and `innerSuffix`, so the run supplies both.
 	const twoPeelBody =
 		!!slots &&
 		wrap?.afterOpenerLine === true &&
@@ -154,16 +152,14 @@ export function settleSeparatorOnBlank(
 	}
 	const headUnderWrap =
 		!!slots && wrap?.afterOpenerLine === true && start === bodyStart && end < bodyEnd;
-	// A line already standing is what the reload strips against the opener, so taking one into
-	// `innerPrefix` as well would add a line; a `twoPeelBody` counts its lines in
-	// `innerPrefix`/`innerSuffix`, not in the run.
+	// A line already standing is the one the reload strips against the opener, so taking another
+	// into `innerPrefix` would add a line; a `twoPeelBody` keeps its lines in the wrap fields.
 	const takesOpenerPeel = twoPeelBody || (headUnderWrap && standing.length === 0);
 	if (slots && takesOpenerPeel && !slots.innerPrefix) {
 		slots.innerPrefix = trailingLineEnding(children[start].raw);
 	}
-	// Under the opener the run keeps exactly one stripped line, in `innerPrefix` or still
-	// standing; elsewhere a run with no line above it separates from nothing and every line
-	// becomes a block.
+	// Under the opener the run keeps exactly one stripped line, in `innerPrefix` or standing;
+	// elsewhere a run with nothing above it separates nothing, so every line is a block.
 	let wanted: number;
 	if (twoPeelBody) wanted = 0;
 	else if (headUnderWrap) wanted = slots?.innerPrefix ? 0 : 1;
@@ -626,11 +622,10 @@ export interface SettledSplice {
 }
 
 /**
- * Ask every join the splice at `at` disturbed whether its two sides now re-read as one block:
- * the window's two edges and the joins inside it, since a move can break a join that was
- * already correct. Each merge continues downward. `headProbe` names the one block whose bytes
- * changed, so a join can be refused on its first line alone; dropped once anything merges,
- * since its index has moved.
+ * Ask every join the splice at `at` disturbed (both window edges and the joins inside it, since
+ * a move can break a join that was correct) whether its two sides now re-read as one block; each
+ * merge continues downward. `headProbe` names the one block whose bytes changed, so a join can be
+ * refused on its first line alone, and is dropped once anything merges.
  */
 export function absorbWindowSeams(
 	parent: NodeParent,

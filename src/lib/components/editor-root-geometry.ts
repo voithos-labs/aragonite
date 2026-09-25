@@ -1,9 +1,7 @@
 /**
- * Editor-root geometry observers: the width and viewport-height watchers, the type-scale
- * measurement and the header-height compensation. Each observes the element its installing
- * `$effect` captured and returns the teardown; the values they feed (`widthVersion`,
- * `typeScale`, `viewportHeightVersion`) stay in `Editor.svelte`, which is what the rest of the
- * root reads. ResizeObserver already batches per callback, so there is no timer (G4.4).
+ * The editor root's size observers: each watches the element it is handed and returns its
+ * teardown, and the values they feed stay in `Editor.svelte`. ResizeObserver already batches
+ * per callback, so there is no timer (G4.4).
  */
 
 import type { UserScrollport } from '../cursor/scroll-ancestors';

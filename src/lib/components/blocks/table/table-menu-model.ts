@@ -31,12 +31,9 @@ export function clampMenuToViewport(
 	};
 }
 
-/**
- * Where a flyout hanging off its parent row ends up on screen: moved up just enough to clear the
- * viewport bottom, never above the top margin, and, when its right edge would overflow, moved to
- * the parent menu's left side. Moving it up keeps the hovered row pointing into it; moving it
- * sideways keeps it off its own parent. Pure, so the two flyouts share one rule.
- */
+/** Where a flyout hanging off its row lands: raised just enough to clear the viewport bottom
+ *  (never above the top margin), and moved to the parent menu's left side when its right edge
+ *  would overflow and the left side has room. */
 export function flyoutPlacement(
 	flyout: { top: number; bottom: number; right: number; width: number },
 	parentMenu: { left: number },

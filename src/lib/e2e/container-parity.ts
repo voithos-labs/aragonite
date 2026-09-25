@@ -1,10 +1,8 @@
 /**
- * Checks each container's `children` against its `childIds`, the browser-side copy of
- * `test/harness/container-parity.ts`: extending `children` without `childIds` leaves trailing
- * keyed-each entries with undefined keys and breaks the redraw after undo. A container that
- * never mounted is fine, since `childIds` are created on mount. Every editor comes from
- * `window.__parityDocuments`, since `window.__test` on a two-editor route answers for whichever
- * registered first. Returns the mismatches rather than asserting, so the spec owns the diff.
+ * Finds containers whose `children` and `childIds` differ in length, in every editor on the page
+ * (`window.__parityDocuments`, since `window.__test` answers for one editor only). A mismatch hands
+ * the keyed each block undefined keys and breaks the redraw after undo; a container that never
+ * mounted has no `childIds` yet and passes. Returns the mismatches so the caller asserts.
  */
 
 import type { Page } from '@playwright/test';

@@ -224,11 +224,8 @@
 
 	// ── The rail ──────────────────────────────────────────────────────────────
 
-	// The side gutter stands in for the fence markers a mode draws nothing for, so never in
-	// source mode, which always draws its own. A block with no content does draw dimmed markers
-	// and still gets the gutter: the picker is how a language is set, and a fence with none is
-	// exactly where it is wanted. The two overlapping is the same accepted overlap as a focused
-	// preview block showing both fence and gutter.
+	// The side gutter stands in for fence markers the mode does not draw, so source mode never gets
+	// one. An empty fence gets it too, dimmed markers and all: the picker is how a language is set.
 	const showRail = $derived(hidesMarkers(presentationMode));
 	const infoString = $derived(metadataOf(node, 'fencedCode').info);
 
@@ -243,27 +240,21 @@
 	}
 
 	/**
-	 * A fence with no language and no body, the moment it takes focus. Keyed on the first focus
-	 * after mounting, not on the edit that made it: a block made by an insert command mounts
-	 * after that commit and never hears it, so the caret arriving is the only signal every path
-	 * shares. Loading a document focuses nothing and opens no pickers.
+	 * Offer the language picker on the first focus of a fence with no language and no body. Keyed
+	 * on focus, not on the edit that made the fence: a block an insert command creates mounts after
+	 * that commit, so the caret arriving is the one signal every path shares.
 	 */
 	let autoOpenLanguage = $state(false);
 	let languageOffered = false;
 	function onSurfaceFocus(): void {
 		if (languageOffered || readOnly || !showRail) return;
 		languageOffered = true;
-		// A caret that stepped into an existing fence is passing through, and a picker taking
-		// focus there traps that movement. A typed opener is still being written, and a click
-		// or an insert command places the caret with no arrival key recorded: those are the
-		// moments the user is authoring.
+		// A caret that stepped into an existing fence is passing through, and a picker would trap
+		// it; a click or an insert command records no arrival key, and that is the user authoring.
 		const steppedIn = metadataOf(node, 'fencedCode').closed && edgeAffinity.get() !== null;
 		const offerLanguage = infoString === '' && bodyText().trim() === '' && !steppedIn;
-		// Deferred past the commit's own focus work. Creating a fence focuses this block twice,
-		// once as it mounts and once when the commit places its caret, so opening on the first
-		// would put the field up only for the second to blur it away. A fence that is still
-		// bare is completed first, with or without a language, so the picker opens over a
-		// real block.
+		// Deferred past the commit's own caret placement, which focuses this block a second time
+		// and would blur a picker opened on the first. A bare fence is completed before it opens.
 		void tick().then(() => {
 			const completed = completeBareFence();
 			if (!offerLanguage) return;
@@ -278,11 +269,9 @@
 	}
 
 	/**
-	 * A fence with no body line, whether a just-typed opener or an opener against its closer, is
-	 * a block whose only bytes are its own markers: nowhere for a caret, so those markers have to
-	 * be drawn. Writes an opener, one empty body line and a closer, with the caret on that line.
-	 * Block math gets this from the Enter completion, which a fence cannot use: ``` parses as an
-	 * unclosed fence the moment it is typed, so no paragraph is left to complete.
+	 * A fence with no body line (a just-typed opener, or an opener against its closer) has nowhere
+	 * for a caret, so it is written as opener, one empty body line and closer, with the caret on
+	 * that line. True when it wrote.
 	 */
 	function completeBareFence(): boolean {
 		if (!el) return false;
@@ -336,11 +325,9 @@
 	}
 
 	/**
-	 * This block's own call, not `moveFocus`: the side gutter belongs to one block. Offset 0 is
-	 * not the body: on an unclosed fence the opener run counts as content by design, which is
-	 * what lets a just-typed ` ``` ` be deleted back out, so `focus(0)` would leave the caret
-	 * before the backticks and the next keystroke would rewrite the opener. `clampRangeToBody`
-	 * clamps unconditionally, which is the "wherever the body starts" this needs.
+	 * Put the caret back at the body start after the side gutter closes. Not `focus(0)`: on an
+	 * unclosed fence the opener run counts as content, so offset 0 sits before the backticks;
+	 * `clampRangeToBody` clamps unconditionally.
 	 */
 	function returnCaretToBody(): void {
 		// Focus first and place the caret through the pending-caret field the render effect
@@ -484,11 +471,8 @@
 	}
 
 	/**
-	 * A delete while the fence lines are hidden is applied here, whatever range the browser
-	 * reports: Chromium, deleting the last visible character of a line, also removes the
-	 * unrendered nodes beside it, which is the opener's whole fence line, so a Backspace on the
-	 * last body character would leave `\n\`\`\`` and reparse the block into a fresh fence. The
-	 * span is clamped to the body.
+	 * A delete while the fence lines are hidden is applied here, clamped to the body: Chromium,
+	 * deleting the last visible character of a line, also removes the unrendered fence line beside it.
 	 */
 	function guardHiddenFenceDelete(e: InputEvent, range: RawRange): boolean {
 		if (!showRail || !/^delete(?!By)/.test(e.inputType)) return false;
@@ -520,10 +504,8 @@
 	}
 
 	/**
-	 * The text each handled input type writes over its span: only a payload that can be read off
-	 * the event, or built here, is moved onto the body, and every other type is refused, meaning
-	 * null, the event prevented and nothing committed. Text carried on a `dataTransfer` would
-	 * reach `parse()` without the paste transforms (G4.11).
+	 * The text an input type writes over its span, or null to refuse it (prevented, nothing
+	 * committed). A `dataTransfer` payload is refused: it would skip the paste transforms (G4.11).
 	 */
 	function rangedEditInsertion(e: InputEvent, span: RawRange): string | null {
 		if (e.inputType.startsWith('delete')) return '';
@@ -591,10 +573,8 @@
 			offset === 0 ||
 			classifyFenceBoundary({ node, offset, forward: false }).kind === 'exitPrev'
 		) {
-			// At the top of an empty fence the block is the only thing the key could mean: there
-			// is no text to delete and nothing to merge, and stepping the caret out leaves a
-			// block the user just asked to be rid of. A fence with a body keeps the step-out,
-			// since one keypress must never take code with it.
+			// At the top of an empty fence the key can only mean the block, so it goes; a fence
+			// with a body keeps the step-out, since one keypress must never take code with it.
 			if (bodyText().trim() === '') {
 				void blockEdit.deleteBlock(index);
 				focusActions.moveFocus(index - 1, 'end');

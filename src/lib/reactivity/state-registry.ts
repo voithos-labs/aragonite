@@ -18,12 +18,8 @@ export function registerBlockListState(node: NodeView, state: BlockListState): v
 	}
 }
 
-/**
- * A dev-mode signal, not a guarantee. Svelte creates the new mount of a structural remount
- * before tearing the old one down, so two components registering inside one flush says nothing
- * about ownership; ask again afterwards, where a loser still holding child refs means either a
- * second live owner or a teardown whose clearing never reached the live slots.
- */
+/** A dev-mode signal, checked a tick later because Svelte mounts a remount's new component
+ *  before tearing down the old one: a loser still holding child refs then has a live rival. */
 async function reportContestedClaim(
 	node: NodeView,
 	loser: BlockListState,

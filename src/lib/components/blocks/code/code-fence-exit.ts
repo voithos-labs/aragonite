@@ -59,10 +59,9 @@ export function computeFenceExit(input: FenceExitInput): FenceExitResult {
 }
 
 /**
- * The block's other way out: a closer typed on the body's empty last line. Every other editor
- * reads that run as "done here", and the bytes never land, because written they would be a body
- * line that reads as the closer, which the fence rule can only answer by growing the fence. A run
- * anywhere else is content, and growing the fence there keeps its CommonMark meaning.
+ * The block's other way out: a closer run typed on the body's empty last line leaves the block
+ * and its bytes never land (written, the fence rule would grow the fence). A run anywhere else
+ * is content.
  */
 export function computeTypedFenceExit(input: TypedFenceExitInput): TypedFenceExitResult {
 	const { text, offset, meta, typed } = input;

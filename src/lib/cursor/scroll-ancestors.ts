@@ -1,8 +1,6 @@
 /**
- * "What scrolls" and "what clips" are two walks, never one: the scrolling walk asks for
- * `auto`/`scroll` and stops at the first answer, the clipping walk asks for anything that bounds
- * the visible region and collects the whole chain, since visibility is their intersection.
- * An `overflow: hidden` auto-height card matches a clipping predicate while doing neither.
+ * Ancestor walks for "what scrolls" (the first `auto`/`scroll` ancestor) and "what clips" (the
+ * whole chain of ancestors bounding the visible region, since visibility is their intersection).
  * `selection/drag-pointer.ts` keeps its own inner walk, so a change here does not change it.
  */
 

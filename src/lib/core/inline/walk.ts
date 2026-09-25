@@ -1,17 +1,14 @@
 /**
- * The one iterative pre-order over an inline tree. Nesting depth is input-controlled (a `**` run
- * nests one construct per pair), so a per-level call frame overflows the stack and strands the
- * block in the unhealable failed-block fallback. Dependency-free, so the scan reaches it without
- * closing a cycle through the inline entry point.
+ * The one iterative pre-order over an inline tree: nesting depth is input-controlled, so a
+ * recursive walk could overflow the stack.
  */
 
 import type { InlineNode } from '../nodes';
 
 /**
- * Each node, then its children, in source order. `descend` declines a node's children — the node
- * itself is still yielded, and is asked only when it has any. Yields nodes only: what the user
- * sees stays the render path's question (G4.33). Each child list is snapshotted onto the stack
- * when its parent pops, so a consumer that rewrites `children` must finish the walk first.
+ * Each node, then its children, in source order; `descend` returning false skips a node's
+ * children but still yields the node. A consumer that rewrites `children` must finish the walk
+ * first: each child list is copied onto the stack when its parent pops.
  */
 export function* inlineDescendants(
 	nodes: readonly InlineNode[],

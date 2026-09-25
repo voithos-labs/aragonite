@@ -126,10 +126,8 @@
 		// Row 0 is the block's own language (see `suggestions`), so the highlight starts where
 		// a bare Enter re-commits what is already set.
 		activeIndex = 0;
-		// A first guess at the trigger's position, before the popout renders. Without it the
-		// popout mounts at the viewport's top-left corner while it waits to be measured, and
-		// focusing the field inside it drags the page up there, which is the page jumping to
-		// the top when a code block is created. The measurement below refines it.
+		// A first guess at the trigger's position before the popout is measured: mounted at the
+		// viewport's corner, focusing the field inside it would scroll the page up there.
 		const anchor = chipEl?.getBoundingClientRect();
 		if (anchor) {
 			listAt = {
@@ -209,10 +207,8 @@
 		copied = await onCopy();
 	}
 
-	// The confirmation lasts exactly as long as the gutter is shown: the pointer leaving the
-	// block, or focus leaving the gutter, hides it, and the next time it appears is a new
-	// gesture that should offer to copy again rather than still report the last one. Reverting
-	// on a clock would be sequencing on a timer, which G4.4 rules out.
+	// The copied confirmation lasts as long as the gutter shows: the pointer or focus leaving it
+	// clears it, so the next showing offers to copy again. No timer (G4.4).
 	function clearCopied(): void {
 		copied = false;
 	}
@@ -277,22 +273,16 @@
 	const MAX_POPOUT_HEIGHT = 320;
 
 	/**
-	 * Place a popout beside its trigger without ever covering it. Below is preferred, above is
-	 * taken when below cannot hold it and above can, and whichever side wins caps the popout's
-	 * height to the space actually there. A plain clamp into the viewport slides the box up over
-	 * the button that opened it, which is exactly what must not happen.
+	 * Place a popout under its trigger, right-aligned to it and held inside the viewport
+	 * horizontally, never covering the trigger. Short of room below, it caps its height and
+	 * scrolls rather than moving above, so one gesture always opens the same way.
 	 */
 	function placeAgainst(anchor: HTMLElement | undefined, popout: HTMLElement): Placement {
 		const a = (anchor ?? popout).getBoundingClientRect();
 		const size = popout.getBoundingClientRect();
-		// Always downward. Moving above when the space below runs short would make the menu
-		// appear on whichever side the block happened to sit, so the same gesture would open
-		// in two directions; a menu always under its trigger is the predictable one. When the
-		// space is short the popout scrolls inside what is there instead of moving.
 		const roomBelow = window.innerHeight - a.bottom - ANCHOR_GAP - EDGE_MARGIN;
 		const maxHeight = Math.min(MAX_POPOUT_HEIGHT, Math.max(120, roomBelow));
 		const y = a.bottom + ANCHOR_GAP;
-		// Right-aligned to the trigger, then held inside the viewport horizontally only.
 		const maxX = Math.max(EDGE_MARGIN, window.innerWidth - size.width - EDGE_MARGIN);
 		const x = Math.min(Math.max(EDGE_MARGIN, a.right - size.width), maxX);
 		return { x, y, maxHeight };
@@ -314,10 +304,8 @@
 		menuAt = placeAgainst(menuButtonEl, menuEl);
 	});
 
-	// A fixed popout does not move with the gutter it hangs off, so it is placed again against
-	// its trigger whenever the page scrolls or resizes. Placed again, not closed: closing it
-	// would throw away a menu the user had just opened and would race the scroll that focusing
-	// the field can cause, closing the picker in the same tick it opened.
+	// A fixed popout does not move with the gutter, so it is placed again on every scroll and
+	// resize; not closed, since focusing the field can itself scroll and would close the picker.
 	$effect(() => {
 		if (!editing && !menuOpen) return;
 		const reposition = (): void => {

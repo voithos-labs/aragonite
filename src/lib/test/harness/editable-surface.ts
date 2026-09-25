@@ -18,12 +18,10 @@ export interface SurfaceHarness {
 }
 
 /**
- * A real contenteditable behind the harness, so `readText` reads the DOM honestly: a test
- * simulates the IME by assigning `el.textContent`, which is exactly what the browser hands the
- * input path. The caret is a settable value because jsdom has none. Only the two context reads
- * the composition path touches are real; the rest is built but never called. `presentationMode`
- * mounts the block under a root marked with that mode, which is where the traversal that finds
- * caret positions reads it.
+ * An editable surface over a real contenteditable: a test simulates the IME by assigning
+ * `el.textContent`, as the browser does, and sets the caret by hand because jsdom has none. Only
+ * the reads the composition path makes are real. `presentationMode` mounts the block under a root
+ * carrying that mode, where caret-position lookup reads it.
  */
 export function makeSurface(
 	commitInput?: EditableSurfaceDeps['commitInput'],

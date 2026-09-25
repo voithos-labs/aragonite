@@ -8,10 +8,7 @@
 	// A render-primary editable block: all editing behavior lives in `createEditableLeaf`, so
 	// this component owns only how the render and the source are laid out.
 	import { createEditableLeaf, type BlockComponent, type NodeView } from '$lib/plugin';
-	// Defined here like the other labels: bundled plugins import only the public barrel.
-	// The three ways the source and its preview can share the block while editing (see
-	// `math-layout.ts`); the host's plugin options pick the starting one. The toggle cycles
-	// through them, and its label names the layout it will switch to.
+	// The layout toggle cycles through these, and its label names the layout it switches to.
 	type MathLayout = MathBlockLayout;
 	const LAYOUT_NEXT: Record<MathLayout, MathLayout> = {
 		split: 'stacked',
@@ -64,24 +61,20 @@
 		}
 	});
 
-	// While editing, the preview sits beside the editable element that holds focus: its
-	// scrollbar (a wide equation overflows the half-width card) must not take that focus,
-	// because losing it closes the source. Only while editing: the click that opens the source
-	// is a click made while it is closed.
+	// A press on the preview's scrollbar while editing must not take focus from the source,
+	// because losing focus closes the source.
 	function keepSourceFocus(e: MouseEvent): void {
 		if (revealed) e.preventDefault();
 	}
 
-	// Per block and per session: someone who changes the layout is asking about this one
-	// equation while they edit it, not setting a preference for the document. The starting
-	// layout comes from this editor's plugin options, else the factory's default.
+	// Per block and per session: a layout change is about this one equation, not a document
+	// preference. The start comes from this editor's plugin options, else the factory default.
 	// svelte-ignore state_referenced_locally
 	let layout = $state<MathLayout>(resolveDefaultLayout(leaf.getOptions(), blockLayout));
 	const previewOpen = $derived(layout !== 'source');
 
-	// Edits the block applies itself report through `onSourceEdit`; this is the browser's own
-	// path (an IME composition committing), where the highlighting goes stale until repainted.
-	// The block's handler runs first so the IME bookkeeping it owns is untouched.
+	// The browser's own edits (an IME composition committing) skip `onSourceEdit`, so the
+	// highlighting is repainted here, after the leaf's handler has done its IME bookkeeping.
 	function onSourceInput(e: Event): void {
 		leaf.surfaceProps.oninput();
 		if ((e as InputEvent).isComposing) return;
@@ -142,10 +135,8 @@
 	} satisfies BlockComponent);
 </script>
 
-<!-- Editing shows the source and the render side by side rather than swapping one for the
-	other: swapping re-flows the whole document on every click, and a preview that appears only
-	after you stop editing is the one you needed while typing. Each half is a card, and the
-	toggle button sits in the top-right of whichever card is showing. -->
+<!-- While editing, the source and the live preview are two cards; the toggle sits in the
+	top-right of whichever card is showing. -->
 <div
 	class="math-block"
 	class:math-block-editing={revealed}
@@ -233,8 +224,7 @@
 		gap: 6px;
 	}
 
-	/* Stacked: the source above its preview, each the block's full width, for an equation too
-	   long to read at half width. Not the default: it grows the block and reshuffles the page. */
+	/* Stacked: the source above its preview, each full width, for an equation too long for half. */
 	.math-block-stacked {
 		display: grid;
 		grid-template-columns: 1fr;
@@ -268,15 +258,11 @@
 	.math-block-source {
 		outline: none;
 		padding: 10px 12px;
-		/* Wraps rather than scrolling sideways. The card is half the block's width, so any real
-		   formula overflows it, and a horizontal scrollbar hides the very text being edited.
-		   `pre-wrap` keeps the author's own line breaks and wraps only what is too long;
-		   LaTeX has no indentation for wrapping to destroy. */
+		/* Wraps rather than scrolling sideways, so the half-width card never hides the text
+		   being edited; `pre-wrap` keeps the author's own line breaks. */
 		white-space: pre-wrap;
 		overflow-wrap: anywhere;
-		/* Left-aligned, like every other editable source area. Centring gives each line a
-		   different starting x, which is what makes multi-line LaTeX unreadable; the render is
-		   the half that is centred, the way Overleaf and friends pair them. */
+		/* Left-aligned like every editable source area; only the render is centred. */
 		text-align: left;
 		background: transparent;
 		border-color: transparent;

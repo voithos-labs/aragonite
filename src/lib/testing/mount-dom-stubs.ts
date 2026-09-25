@@ -9,11 +9,9 @@ class NoopResizeObserver {
 }
 
 /**
- * Fills the two jsdom gaps a mounted editor hits, the block-height `ResizeObserver` and
- * `scrollIntoView`, once, before the first mount. Each is installed only where it is missing, so a
- * runner that supplies a real one keeps it and the call does nothing in a browser. Windowing
- * decides from estimated heights in either scroll mode, so keep fixture documents small when a
- * test asserts a block is mounted: jsdom reports a zero-height viewport and mounts only a few.
+ * Fills the two jsdom gaps a mounted editor hits (`ResizeObserver`, `scrollIntoView`) where they
+ * are missing; call once before the first mount. jsdom's viewport has no height, so only a few
+ * blocks mount: keep fixture documents small when a test asserts a block is mounted.
  */
 export function installEditorDomStubsForTests(): void {
 	const globals = globalThis as StubbableGlobals;

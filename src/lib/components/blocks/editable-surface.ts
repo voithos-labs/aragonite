@@ -163,8 +163,8 @@ export interface EditableSurfaceDeps {
 	getBlockElByPath: BlockElLookup;
 	focusActions: FocusActions;
 	getEditorRoot: () => HTMLElement | null;
-	/** What scrolls this editor: the root in self mode, the host's scroller, or the
-	 *  window) in host mode; threaded to the cross-block drag-select autoscroll. */
+	/** What scrolls this editor (the root in self mode; the host's scroller or the window in
+	 *  host mode), for the cross-block drag-select autoscroll. */
 	getScrollHost: () => UserScrollport | null;
 	getEditorLifetime: () => AbortSignal | null;
 	stickyColumn: StickyColumnState;
@@ -176,8 +176,8 @@ export interface EditableSurfaceDeps {
 	// Required (undefinable value) so a surface can't skip the thread and silently
 	// contain plugin throws.
 	pluginEditor: PluginEditorLookup | undefined;
-	/** The presentation mode in effect, passed to the cross-block reading check, since a
-	 *  sibling to `pluginEditor`, never smuggled through it. */
+	/** The presentation mode in effect, for the cross-block reading check; passed on its own,
+	 *  not through `pluginEditor`. */
 	getPresentationMode: PresentationModeGetter | undefined;
 	/** This editor's link-reference resolver, passed to the cross-block join rules. */
 	linkRef: LinkReferenceResolverRef;
@@ -229,10 +229,9 @@ export interface EditableSurface {
 	surface: EditableSurfaceMethods;
 	caret: ClipboardCaretIO;
 	/**
-	 * True while this block's element is out of the document: a host that was torn down, or
-	 * render-primary leaf whose source is folded. Svelte's delegated walk does not await a keydown
-	 * handler, so a container above it, such as a list item's Tab, takes the key and unmounts it
-	 * while a step is suspended; every awaited step asks this before reading on.
+	 * True while this block's element is out of the document (a torn-down host, a folded leaf).
+	 * Svelte does not await a keydown handler, so a container above can unmount the block while a
+	 * step is suspended; every awaited step asks this before reading on.
 	 */
 	isDetached(): boolean;
 	/** Bound to the element's `beforeinput`: every input route fires it, keydown or not, so the
@@ -332,17 +331,16 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 	// ── BlockComponent surface ────────────────────────────────────────────────
 
 	/**
-	 * Every way of placing a caret lands here, so every offset, a marker value or a number, clamps
-	 * into the reachable range: a caret behind a hidden marker run is one no arrow produces, where
-	 * the next
-	 * byte joins a construct the arrival was outside of (live-mode.md § 4.2). Where the markers
-	 * paint, the clamp is identity; CURSOR_EXACT_START is the one exception.
+	 * Every caret placement lands here, so every offset clamps to where a caret can sit: behind a
+	 * hidden marker run the next byte would join a construct the caret arrived outside of
+	 * (live-mode.md § 4.2). Where markers paint the clamp changes nothing; CURSOR_EXACT_START
+	 * skips it.
 	 */
 	function parkCaret(offset: number): void {
 		const el = deps.getEl();
 		if (!el) return;
-		// `preventScroll`: placing a caret must not move the page; the code that shows a source
-		// target is off-screen; an implicit focus scroll jumped the document on every table edit.
+		// Placing a caret never scrolls; the caller that brings an off-screen target into view
+		// does that itself.
 		el.focus({ preventScroll: true });
 		if (offset === CURSOR_EXACT_START) {
 			deps.backend.setRaw(asRawOffset(0));
@@ -465,7 +463,6 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 	function onCompositionEnd(): void {
 		// `onCompositionStart` always sets the flag, so an unpaired end means a consumer
 		// wired compositionend without compositionstart (G1.27).
-		// TODO(#37): relax to once-per-focus if Safari's duplicate compositionend fires reach here.
 		assertInvariant('composition-window', () => checkCompositionEndPaired(deps.getComposing()));
 		traceCompositionEnd();
 		deps.setComposing(false);
@@ -512,12 +509,10 @@ export interface RevealFold {
 // ── Clipboard skeleton ──────────────────────────────────────────────────────
 
 /**
- * The ordered copy, cut and paste handling shared by the four editable blocks, holding the steps
- * that must stay in step (the reading check, the cross-block write, hiding a shown source, the
- * image branch) so no
- * surface can skip or resequence one. Paste prevents before its first await, or native paste fires
- * while the fold settles. Reads and writes go through the event's synchronous `clipboardData`;
- * `navigator.clipboard` is permission-gated and unreliable in Tauri's wry webview.
+ * The copy, cut and paste steps shared by the four editable blocks, in one order no block can
+ * skip or reshuffle. Paste prevents the default before its first await, or the native paste runs
+ * while a shown source hides. Everything goes through the event's synchronous `clipboardData`;
+ * `navigator.clipboard` is permission-gated and unreliable in Tauri's webview.
  */
 export interface ClipboardSurfaceDeps {
 	stickyColumn: StickyColumnState;

@@ -1,7 +1,6 @@
 /**
- * Editor-root document swap: the `source` prop's whole-document replacement. Every piece of
- * per-document state resets here in one fixed order, so a swap cannot skip a step; the
- * `$effect` that detects the change stays in `Editor.svelte` as the check plus one call.
+ * The `source` prop's whole-document replacement. Every piece of per-document state resets here
+ * in one fixed order, so a swap cannot skip a step.
  */
 
 import type { Document } from '../core/nodes';

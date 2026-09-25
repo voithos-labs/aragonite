@@ -1,3 +1,5 @@
+/** One editor's decoration sources, their merged results, and the per-path lookups the
+ *  overlays and inline widgets read. A source never runs inside a commit. */
 import { DEV } from 'esm-env';
 import { tick } from 'svelte';
 import type { DocumentView, NodeView } from '../core/node-views';
@@ -82,12 +84,8 @@ export function createDecorationEngine(deps: DecorationEngineDeps): DecorationEn
 		results = copy;
 	}
 
-	/**
-	 * Why the render path will apply nothing for this inline widget, or null when it will. The
-	 * answer belongs here and nowhere later: only this pass holds the decorations beside the
-	 * document they came from, so only here does an unrenderable one mean the author placed it
-	 * wrong rather than the document having changed since.
-	 */
+	/** Why the render path will apply nothing for this inline widget, or null when it will.
+	 *  Asked here because only this pass sees the decoration beside the document it came from. */
 	function islandDefect(
 		dec: WidgetDecoration | ReplaceDecoration,
 		node: NodeView

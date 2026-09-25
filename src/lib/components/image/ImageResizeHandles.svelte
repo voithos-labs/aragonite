@@ -26,9 +26,8 @@
 		currentWidth: number;
 	} | null = $state(null);
 
-	// `md-image-broken` is toggled imperatively on the widget, which Svelte doesn't
-	// track, so a MutationObserver mirrors it into reactive state. Each commit rebuilds
-	// the widget DOM, so the observer re-attaches on every edit event.
+	// Mirrors the widget's `md-image-broken` class into state; re-attached on every edit, since
+	// each commit rebuilds the widget.
 	let isBroken = $state(false);
 	$effect(() => {
 		let observer: MutationObserver | null = null;
@@ -64,12 +63,8 @@
 		return getWidgetEl()?.querySelector('img') ?? null;
 	}
 
-	/**
-	 * What the drag measures and previews on. A cropped image is a frame (the widget) with the
-	 * picture panned inside it, so the `<img>` is neither the size being changed nor the box the
-	 * user is dragging: previewing on it bulges the picture out of its frame, and above zoom 1
-	 * the drag would start from the painted image's width and jump.
-	 */
+	// A cropped image resizes its frame (the widget), not the `<img>` panned inside it, which
+	// would bulge out of the frame and, zoomed, start the drag from the wrong width.
 	function isCropped(): boolean {
 		return getWidgetEl()?.classList.contains('md-image-cropped') ?? false;
 	}
@@ -187,12 +182,8 @@
 {/if}
 
 <style>
-	/* A neutral handle sitting inside the picture's right edge: the selection ring owns the edge
-	   itself, and the accent colour is the ring's, so a second accent shape beside it reads as
-	   decoration rather than a control. White over a hairline rim so it shows on a dark picture
-	   and a pale one alike. The click strip is wider than the paint, so on a picture too narrow
-	   for both the strip and a clickable middle (an icon-sized image) the handle moves back
-	   outside the edge. */
+	/* White over a hairline rim, inside the right edge, so it shows on any picture without
+	   competing with the accent selection ring; on an icon-sized image it moves outside the edge. */
 	.md-resize-handle {
 		position: absolute;
 		right: clamp(-3px, calc(50% - 20px), 7px);

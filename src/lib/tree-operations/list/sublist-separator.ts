@@ -1,9 +1,7 @@
 /**
  * The blank line a list whose first item is empty must have between it and the paragraph
- * directly above. A marker with no content cannot interrupt a paragraph (CommonMark § 5.2), so
- * those bytes reload as a setext heading, and the marker is the item's only evidence, so the
- * neighbour merge has nothing to merge it into. A list with content that stopped interrupting
- * is the merge's case.
+ * directly above: a marker with no content cannot interrupt a paragraph (CommonMark § 5.2), so
+ * without it those bytes reload as a setext heading.
  */
 
 import type { CstNode } from '../../core/nodes';

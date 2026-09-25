@@ -41,11 +41,9 @@ export function publishAncestryFolds(
 }
 
 /**
- * Where the caret goes after a collapse: the container's index is gone (the reparse recreates
- * every block in the collapsed range), so a focus aimed at it has nothing to land on.
- * `scopePath` is the committing list's own path; the collapse's depth names the parent. The
- * chain rebuilds innermost first, so the last collapse is the outermost, the one whose index
- * swallowed the others and the only place still addressable after them all.
+ * Where the caret goes after a collapse, whose reparse recreated every block in its range.
+ * `scopePath` is the committing list's path. The last collapse is the outermost (the rebuild
+ * runs innermost first), so its index is the only one still addressable.
  */
 export function foldLandingFor(
 	folds: readonly AncestrySeamFold[],

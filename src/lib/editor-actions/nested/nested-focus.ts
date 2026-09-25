@@ -17,9 +17,8 @@ export function createNestedFocus(state: BlockListState, deps: NestedActionsDeps
 		// for the same reason: the root holds the document and selection reads.
 		revealPath: parent.focus.revealPath,
 		tryGapStop: parent.focus.tryGapStop,
-		// Synchronous, and unlike the root `moveFocus` it does not scroll an unmounted inner
-		// target into view. The caller keeps the target adjacent (VR-12,
-		// docs/design/virtual-rendering.md).
+		// Unlike the root `moveFocus`, never scrolls an unmounted child into view: the caller
+		// keeps the target mounted (docs/design/virtual-rendering.md).
 		async moveFocus(
 			innerIndex: number,
 			position: FocusPosition,

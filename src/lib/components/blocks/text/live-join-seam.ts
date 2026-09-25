@@ -323,12 +323,8 @@ function withoutSpans(raw: string, spans: readonly Span[]): string {
 const shownAfterJoin = (left: Side, right: Side, typed: string): string =>
 	visibleSide(left, 'before') + typed + visibleSide(right, 'after');
 
-/**
- * What the user sees, asked of the code that draws it: the render's own DOM with every marker
- * span dropped. The clip decides only where the bytes stop; a construct the cut crosses still
- * contributes its content, since its delimiter runs draw nothing either way, which `readSide`
- * has already established by refusing a side whose markers are visible.
- */
+/** What the user sees of one side, asked of the render with every marker dropped. A construct the
+ *  cut crosses still gives its content, since `readSide` refused any side whose markers paint. */
 function visibleSide(side: Side, keep: 'before' | 'after'): string {
 	return renderedText(clipNodes(side.inlines, side.cut, keep), side.raw, CONTENT_VISIBILITY, {
 		grammar: side.grammar

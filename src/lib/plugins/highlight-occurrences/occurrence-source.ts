@@ -1,9 +1,7 @@
 /**
- * The plugin guide's § Decorations recipe, "cache the scan on editEpoch": building the index
- * costs a document walk, so it is rebuilt only when `editEpoch` changes, reusing each block's
- * token list, and a caret move re-filters the cached index with one map read. The marks step
- * aside while you type: an `editEpoch` with no `edit` or `sourceSwap` event before it is a
- * keystroke, and either event puts them back.
+ * The occurrence mark source: the word index is rebuilt only when `editEpoch` changes, and a caret
+ * move is one map read. The marks hide while you type: an `editEpoch` with no `edit` or
+ * `sourceSwap` event before it is a keystroke, and either event shows them again.
  */
 
 import type {

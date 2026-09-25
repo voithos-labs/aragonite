@@ -1,10 +1,8 @@
 /**
- * A typed inline delimiter closes itself: a lone `$`, backtick, `*`, `_` or `~~` would pair with
- * whatever matching run comes later on the line, so the keystroke writes its partner after the
- * caret. Typing that partner steps past it, a closer typed by hand puts the next byte outside,
- * and an empty pair the auto-pair wrote (`auto-pair-record.ts`) drops its partner when the first
- * body byte makes it no construct. `applyDelimiterAutoPair` is the one `beforeinput` handler
- * every prose block runs (G4.65).
+ * A typed inline delimiter (`$`, backtick, `*`, `_`, `~~`) writes its partner after the caret, so
+ * it cannot pair with a later run on the line. Typing the partner steps past it, and an empty pair
+ * the auto-pair wrote (`auto-pair-record.ts`) drops its partner when the first byte inside makes
+ * it no construct. Every prose block runs `applyDelimiterAutoPair` on `beforeinput` (G4.65).
  */
 
 import {

@@ -72,12 +72,9 @@ export function resolveLiveRangeEdit(
 }
 
 /**
- * A collapsed insertion has nothing to clean, but Chromium inserts at its own normalised reading
- * of the caret's pixel, back across a hidden run, while the DOM caret may sit where a commit left
- * it, past that run (just after a `)` was typed). A target behind the caret is that
- * normalisation, and the byte belongs where the caret is, the side keydown settled on. A target
- * at or past the caret is the browser placing the byte itself, which a split's reopened run
- * relies on: with the caret at its start, the byte goes inside.
+ * A collapsed insertion Chromium aimed back across a hidden run from where the DOM caret sits
+ * (just after a typed `)`): the byte goes where the caret is. A target at or past the caret is
+ * the browser's own placement, which a split's reopened run relies on, so it stands.
  */
 function parkedCaretInsertion(
 	node: NodeView,

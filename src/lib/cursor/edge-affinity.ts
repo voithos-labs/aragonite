@@ -18,10 +18,7 @@ export type EdgeAffinity = 'near' | 'far' | 'outside';
 export interface EdgeAffinityState {
 	get(): EdgeAffinity | null;
 
-	/**
-	 * The only entry point a keydown handler may use; `reset()` stays public for the lifecycle,
-	 * commit, undo and pointer callers, whose unconditional clear has no key to classify.
-	 */
+	/** The only entry point a keydown handler may use; `reset()` is for callers with no key. */
 	note(e: Pick<KeyboardEvent, 'key' | 'altKey'> & Partial<Pick<KeyboardEvent, 'metaKey'>>): void;
 
 	/** A committed keystroke belongs to the content whatever arrival preceded it. */

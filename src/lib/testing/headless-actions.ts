@@ -1,8 +1,6 @@
 /**
- * A headless editor-actions environment for the published conformance kit. These stubs restate the
- * in-repo `test/harness` mocks rather than reusing them, because those are built on `vi.fn()`:
- * `@voithos-labs/aragonite/testing` is imported into an author's own suite, so importing a runner
- * here would load Vitest for anyone reaching for `resetPluginPlatformForTests` alone.
+ * A headless editor-actions environment for the published conformance kits. Nothing here may
+ * import a test runner, since an author's own suite imports this subpath.
  */
 
 import type { BlockEditActions, FocusActions } from '../action-contracts';

@@ -11,7 +11,7 @@ import type { StructuralChange } from '../tree-operations/structural-change';
 import { readBlockPath } from '../selection/path-lookup';
 import { landCaretInScope, type CommitScope } from './block-edit-scope';
 
-// ── Reparse probe ────────────────────────────────────────────────────────────
+// ── Trial reparse ────────────────────────────────────────────────────────────
 
 /**
  * Run the content update on a throwaway copy of the node to pick between the structural

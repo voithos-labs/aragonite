@@ -1,21 +1,20 @@
+/** A block list's child-component refs, and scrolling a child into the mounted range before
+ *  reading its ref. */
 import { tick, untrack } from 'svelte';
 
 /**
- * One block list's array of child-component refs, reached only through the accessors its
- * owner creates. The object's identity is what the list is known by: the mount registry keys
- * on it, so a mount in one list cannot wake a waiter in another (a nested level, a sibling
- * container, a second editor). Neither accessor is reactive, since the array underneath is
- * plain, so a `get` creates no dependency and a `set` wakes no effect; use `whenRefMounted`.
+ * One block list's child-component refs, reached only through these accessors. The object's
+ * identity names the list, so a mount in one list never wakes a waiter in another. Neither
+ * accessor is reactive; wait for a mount with `whenRefMounted`.
  */
 export interface RefSlots<T> {
 	set(index: number, ref: T | undefined): void;
 	get(index: number): T | undefined;
 }
 
-/** Builds the accessors over a list's ref array. Takes the array itself, not a getter, so it
- *  cannot be re-aimed at a replacement: Svelte holds a teardown's reads to pre-flush values, so
- *  a swapped array takes each cleanup's clear with it and leaves the dead ref in the live one.
- *  Write a whole new set of contents with `replaceRefs`. */
+/** Builds the accessors over a list's ref array. The array itself, never a getter: a cleanup
+ *  that ran against a replaced array would leave a dead ref in the live one. Replace contents
+ *  with `replaceRefs`. */
 export function refSlotsOver<T>(refs: (T | undefined)[]): RefSlots<T> {
 	return {
 		set: (index, ref) => {
@@ -67,13 +66,8 @@ export function publishRefSlot<T>(
 // Weak, so the entry dies with the ref rather than outliving the list.
 const publishedElements = new WeakMap<object, Element>();
 
-/**
- * True when the entry's ref is a mount that already left the DOM. The one place this is
- * answered, and it asks whether the element is still in the DOM, never whether the block is in
- * the mounted range: a scripted scroll moves the range a flush before the DOM follows, so
- * treating "outside the range" as dead would clear refs whose components are still mounted and
- * which nothing writes again. A ref with no recorded box counts as live.
- */
+/** True when the entry's ref is a mount whose element already left the DOM. Asks the DOM, never
+ *  the mounted range, which moves a flush before the DOM follows. A ref with no box is live. */
 function isSlotDetached<T>(slots: RefSlots<T>, index: number): boolean {
 	const ref = slots.get(index);
 	if (typeof ref !== 'object' || ref === null) return false;
@@ -90,10 +84,8 @@ export interface RevealChildOptions<T> {
 	readonly childCount: number;
 	/** Scroll this list so child `index` is in the mounted range; resolves after a tick. */
 	readonly revealChild: (index: number) => Promise<void>;
-	/** True when `index` is inside the list's current mounted range, read after `revealChild`
-	 *  resolved, which is what makes the wait terminate (VR-5). Optional only for a list that
-	 *  does not window: every real caller supplies it, so the bounded retry below is the test
-	 *  harness's fallback, not a live path. */
+	/** True when `index` is in the list's mounted range after `revealChild`, which lets the wait
+	 *  give up instead of hanging (VR-5). Every production caller supplies it. */
 	readonly isInWindow?: (index: number) => boolean;
 }
 
@@ -101,13 +93,8 @@ export interface RevealChildOptions<T> {
  *  spin forever on a child that never mounts. This bounds those turns. */
 const MAX_MOUNT_REWAITS = 64;
 
-/**
- * Bring child `index` into the mounted range before a caller reads its ref: drop a ref that
- * left the DOM, scroll the child in, and await its mount. Shared by the standard container path
- * and TableBlock's own, so "is this entry a live mount" is decided in one place. It terminates
- * (VR-5) because only a mount at this index in this list wakes the wait: a windowing caller
- * checks the range first, and one that does not window races each wait against a tick.
- */
+/** Brings child `index` into the mounted range before a caller reads its ref: drops a ref that
+ *  left the DOM, scrolls the child in, and waits for its mount, giving up when it cannot come. */
 export async function revealChildOrWait<T>(
 	index: number,
 	opts: RevealChildOptions<T>
@@ -137,12 +124,8 @@ export async function revealChildOrWait<T>(
 
 const mountWaiters = new WeakMap<object, Map<number, Array<() => void>>>();
 
-/**
- * Resolve when entry `index` of `slots` is, or becomes, filled. Woken by `publishRefSlot` on
- * a real mount, never by a timer (Design Rule #2, G4.4). A wake can still be spurious within
- * one list: a mount that clears its entry in the same flush leaves it empty, so the caller
- * checks again.
- */
+/** Resolves when entry `index` of `slots` is, or becomes, filled; woken by `publishRefSlot`,
+ *  never a timer. A mount that clears its entry in the same flush wakes it spuriously. */
 export function whenRefMounted<T>(slots: RefSlots<T>, index: number): Promise<void> {
 	if (slots.get(index) !== undefined) return Promise.resolve();
 	return new Promise((resolve) => {

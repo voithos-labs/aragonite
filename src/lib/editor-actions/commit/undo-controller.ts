@@ -545,9 +545,8 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 		const isDoc = (s.node as unknown) === (deps.doc as unknown);
 		const chain = isDoc ? [] : ensureUnsharedPath(deps.doc, s.path, deps.sharing);
 		if (!isDoc && chain.length !== s.path.length) {
-			// Falling back to the caller's still-shared node would silently corrupt the undo
-			// entry sharing it (G1.9); G1.19 and G1.22 are dev-only. This path throws; its
-			// sibling (`withUnsharedSpine`, G1.20) rebuilds what the walk did reach.
+			// A short chain leaves the container node shared with an undo entry, and writing it
+			// would corrupt that entry (G1.9), so the commit throws rather than write it.
 			const message = `commitMultiScope: unshared chain depth ${chain.length} != scope path depth ${s.path.length} (path [${s.path.join(',')}])`;
 			assertInvariant('multi-scope-scope-depth', () => ({
 				code: 'multi-scope-scope-depth',

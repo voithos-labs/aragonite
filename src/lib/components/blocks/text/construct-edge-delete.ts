@@ -252,12 +252,8 @@ function isDelimiterByte(constructs: readonly PolicyConstruct[], at: number): bo
 
 // ── Verification ─────────────────────────────────────────────────────────────
 
-/**
- * What the user sees, asked of the code that draws it, over the bytes read back as the caller
- * stores them; null where they do not read back at all. The content reading, not the block's own:
- * a cut that empties a construct brings its markers into view, and the comparison would read that
- * as bytes lost. Safe, because the case where markers are drawn returned above.
- */
+/** What the user sees over the bytes read back as the caller stores them, or null where they do
+ *  not read back. The content reading, since a cut that empties a construct shows its markers. */
 function visibleText(
 	raw: string,
 	{ installedAs, resolver, grammar }: EdgeDeletionQuery

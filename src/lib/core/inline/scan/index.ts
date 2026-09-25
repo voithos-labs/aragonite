@@ -100,10 +100,8 @@ function tryRungs(
 		if (node.end <= pos) {
 			throw new Error(`inline-syntax "${rung.prefix}" did not advance`);
 		}
-		// A block's scan range is not always its whole raw (a heading's excludes the closing `#`
-		// run, a table cell's the `|`), so a recognizer searching the whole string claims bytes the
-		// block still needs, and the only trace is wrong caret offsets. Ending exactly at `end` is
-		// fine; only past it is a fault.
+		// A block's scan range is not always its whole raw (a setext heading's stops before its
+		// underline), so a recognizer that reads past `end` takes bytes the block still needs.
 		if (node.end > end) {
 			throw new Error(
 				`inline-syntax "${rung.prefix}" claimed [${node.start}, ${node.end}), past the scan ` +
@@ -116,11 +114,8 @@ function tryRungs(
 	return null;
 }
 
-// A plugin handler that creates a built-in kind (an `image` over `![[cat.png]]`) borrows the
-// editor's model for its own bytes, and the editor's writers emit built-in grammar, so a resize
-// would rewrite the author's syntax as GFM; the claim tells the writers whose syntax it is.
-// Descendants are marked by the same rule; a plugin's own kind needs no mark. Assigned, never
-// merged, so a recognizer cannot name its own claimer.
+// A built-in node a plugin handler created (an `image` over `![[cat.png]]`) is marked with that
+// handler, so the editor's writers re-serialize it in the plugin's syntax rather than GFM.
 function stampClaim(node: InlineNode, claim: InlineSyntaxClaim): void {
 	for (const inline of inlineDescendants([node])) {
 		if (isBuiltinInlineKind(inline.kind)) inline.syntaxClaim = claim;

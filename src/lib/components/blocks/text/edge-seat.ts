@@ -169,12 +169,9 @@ const otherEnd = (run: MarkerRun, side: EdgeAffinity): number =>
 	offsetForSide(run, side) === run.start ? run.end : run.start;
 
 /**
- * The offsets to try, best first: the side the policy names, then the run's other end, which is
- * the split rebalancer's "keep the space outside" rule in these terms, since a byte the run's
- * inner side destroys is one its outer side keeps. Then the literal caret offset, checked like
- * any other candidate, because a parse it changes is no reason to stop looking. The rest of the
- * screen position ends the list, nearest the policy's side first, for a caret whose own
- * construct has no answer.
+ * The offsets to try, best first: the side the policy names, the run's other end (a byte one side
+ * destroys the other can keep), the caret itself, then the rest of the screen position, nearest
+ * the policy's side first.
  */
 function candidateOffsets(
 	run: MarkerRun,
@@ -197,10 +194,8 @@ function candidateOffsets(
 	return edgeAffinity === 'never-extend' ? offsets.filter((o) => outsideSpan(run, o)) : offsets;
 }
 
-/** Whether `offset` lies outside the run's own construct. A `never-extend` row allows nothing
- *  inside: half a URL is not a URL, half an escape is a literal backslash, and a destination the
- *  mode never draws is one the render cannot check. Stated over the construct's whole span rather
- *  than its run's inner end, since the screen position reaches inside through a neighbour's run. */
+/** Whether `offset` lies outside the run's whole construct, which is all a `never-extend` row
+ *  allows: half a URL is not a URL, and half an escape is a literal backslash. */
 const outsideSpan = (run: MarkerRun, offset: number): boolean =>
 	offset <= run.span.start || offset >= run.span.end;
 
@@ -271,11 +266,8 @@ const runAt = (offset: number, runs: readonly MarkerRun[]): MarkerRun | null =>
 
 /**
  * What a construct with no children draws, as a range in the block's own bytes: the outer bounds
- * of its visible runs, one continuous stretch for such a construct. That continuity is what the
- * two marker runs below are carved out of, held by
- * `test/core/inline/painted-contiguity.property`. Asked of the render rather than worked out per
- * kind, since only the render knows which bytes a construct shows (G4.33), and read in the
- * block's own mode: where markers are drawn, nothing is hidden and nothing needs moving.
+ * of its visible runs, asked of the render in the block's own mode (G4.33). That range is one
+ * continuous stretch, held by `test/core/inline/painted-contiguity.property`.
  */
 function paintedRange(
 	node: InlineNode,

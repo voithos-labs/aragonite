@@ -94,9 +94,8 @@ export function rangeDelete(
 		throw new Error('rangeDelete: start or end path does not resolve to a block node');
 	}
 
-	// The wall branches join nothing, but a truncation still leaves delimiter runs unpaired, so
-	// their text endpoints go through the unpaired-run cleanup; only a title line's raw write
-	// stays byte for byte.
+	// A table or a container title line is never merged across: those branches truncate each
+	// endpoint in place instead of joining them.
 	if (involvesTable(startBlock, endBlock)) {
 		return tableAwareRangeDelete(doc, start, end, sharing, grammar, presentationMode, linkRef);
 	}
@@ -201,10 +200,8 @@ export function rangeDelete(
 		rebuildUnsharedAncestry(doc, path, sharing, null, grammar);
 	}
 
-	// The reparse may change the kind, even leaf to container (a list marker joined to its item
-	// text). Caret restore focuses the element at the path, and a container path would focus a
-	// non-editable wrapper, so descend to the leaf. The offset stays a byte offset (paste and
-	// type-replace splice at it); the restore clamps it to where a caret can sit.
+	// The reparse can turn the survivor into a container (a list marker joined to text), and the
+	// caret restore focuses the element at the path, so the caret goes to the first leaf.
 	const leafPath = firstLeafAtOrAfter(doc, start.path);
 	const collapsedCaret: SelectionPoint =
 		leafPath && leafPath.length > start.path.length

@@ -32,11 +32,8 @@ interface ContainerUnwrap {
 	/** Index within outer.children of the target descendant. */
 	spliceIndex: number;
 	items: CstNode[];
-	/**
-	 * Non-empty-target variant: merge the first clipboard item into the target leaf, splice
-	 * the rest as siblings, reattach post-caret residue to the last. Absent means the
-	 * descendant is empty and gets replaced wholesale.
-	 */
+	/** A non-empty target: the first item merges into the target leaf, the rest land as siblings
+	 *  with the residue on the last. Absent: the empty descendant is replaced whole. */
 	merge?: {
 		targetLeafPath: number[];
 		offset: number;

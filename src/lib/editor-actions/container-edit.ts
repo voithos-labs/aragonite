@@ -50,10 +50,8 @@ export function createContainerEditActions(
 			if (chain.length === absPath.length) {
 				publishScopeFold(deps, chain[absPath.length - 2], written);
 			}
-			// Containers that collapsed while their ancestors were rebuilt: a splice in the
-			// container's parent, not in the child list written above. The undo function is
-			// dropped on purpose (this path is not a commit, so nothing rolls back), and the
-			// caret landing (`foldLandingFor`) needs a tick this synchronous path has not got.
+			// Containers that collapsed into their parent during the rebuild. Nothing rolls back
+			// outside a commit, so their undo function is dropped, and no caret is placed after them.
 			const folds: AncestrySeamFold[] = [];
 			const replacements = rebuildUnsharedChain(
 				deps.doc,

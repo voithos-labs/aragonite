@@ -1,9 +1,7 @@
 /**
- * Children mutations that keep `childIds` in step, for writes outside a commit scope (descendants
- * and ancestors found by walking the tree, see the `node-primitives.ts` header). Inside a commit
- * scope the StructuralChange descriptor keeps ids and refs in step; here a hand-rolled splice
- * would let the id array drift and break Svelte's keyed each. The same shape change invalidates
- * `childSpans`, so both arrays are updated here.
+ * Children mutations that keep `childIds` and `childSpans` in step, for writes outside a commit
+ * scope (descendants and ancestors found by walking the tree, `node-primitives.ts` header). A
+ * hand-rolled splice there would let the id array drift and break Svelte's keyed each.
  */
 
 import type { CstNode } from '../core/nodes';

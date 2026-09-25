@@ -83,10 +83,8 @@ export function placeCaretAfterAmbientSpan(blockEl: HTMLElement): boolean {
 export function pointAfterAmbientSpan(blockEl: HTMLElement): { node: Node; offset: number } | null {
 	const span = ambientSpanOf(blockEl);
 	if (!span) return null;
-	// Prefer the first text node after the span so visual-line geometry returns real rects; the
-	// spot after the span has no textbox in empty-item state. A hidden marker run next to the span
-	// is not that text node: it paints nothing, and descending into it would put raw offset 0
-	// inside unpainted bytes.
+	// The first text node after the span has real rects where the spot after the span may not;
+	// a hidden marker run there paints nothing, so raw offset 0 must not land in it.
 	const textAfter = firstTextNodeAfter(span);
 	if (textAfter && !isHiddenMarkerText(textAfter, blockEl)) return { node: textAfter, offset: 0 };
 	const parent = span.parentNode!;

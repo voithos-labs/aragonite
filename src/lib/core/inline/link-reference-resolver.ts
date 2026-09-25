@@ -3,7 +3,7 @@
 import type { CstNode } from '../nodes';
 import { metadataOf } from '../nodes';
 
-/** CommonMark §4.7 normalization. BMP-only: full Unicode case-fold is deferred until reported. */
+/** CommonMark §4.7 normalization, lowercasing rather than full Unicode case folding. */
 export function normalizeLinkLabel(raw: string): string {
 	return raw.trim().replace(/\s+/g, ' ').toLowerCase();
 }
@@ -15,9 +15,8 @@ export interface LinkReferenceMap {
 	/** Takes a non-normalized label. */
 	resolve: LinkReferenceResolver;
 	/**
-	 * Stable snapshot of the LRD set. The lazy inline cache validates reference-bearing blocks
-	 * on it, so an LRD change elsewhere re-resolves them. The render path keys on a compact
-	 * epoch instead, never this string: it reaches ~MB scale in reference-heavy documents.
+	 * Stable snapshot of the definition set, which the lazy inline cache keys on. The render path
+	 * keys on a small counter instead: this string reaches megabytes in reference-heavy documents.
 	 */
 	readonly signature: string;
 }

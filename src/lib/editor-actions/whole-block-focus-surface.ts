@@ -34,10 +34,8 @@ export function isEditableEventTarget(target: EventTarget | null): boolean {
 
 /**
  * The hidden host is the block's one tab stop, so a declared element that is not itself an
- * editor leaves the tab order (editor.md § 8). Applied on every read rather than once at
- * mount: a kind's declared element is whatever its current render state supplies, and a
- * state that appears after mount would otherwise keep its stop. The inverse of
- * `focusWholeBlockEl`, which only ever makes a box focusable, never the reverse.
+ * editor leaves the tab order (editor.md § 8). Applied on every read, since a render state
+ * that appears after mount supplies a new element.
  */
 export function demoteDeclaredFromTabOrder(declared: HTMLElement | null): HTMLElement | null {
 	if (declared && declared.tabIndex >= 0 && !isEditableEventTarget(declared)) {

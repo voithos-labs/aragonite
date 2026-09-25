@@ -1,5 +1,5 @@
 /**
- * Where a `[^label]` reference jumps to: the caret landing inside that label's definition.
+ * Where a `[^label]` reference jumps to: the block inside that label's definition.
  * Depth-first in document order, so two definitions under one label resolve to the first,
  * which is the one GFM renders.
  */

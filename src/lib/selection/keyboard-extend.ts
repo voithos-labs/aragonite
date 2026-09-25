@@ -1,4 +1,4 @@
-/** Cross-block keyboard extension and collapse. Pure helpers over SelectionState. */
+/** Cross-block keyboard extension and collapse: `SelectionState` writes plus the native caret. */
 
 import type { SelectionState } from './selection-state.svelte';
 import type { SelectedWidgetHandle, SelectedWidgetRange, SelectionPoint } from './primitives';
@@ -289,7 +289,7 @@ export function handleShiftClick(
 	const anchor = readNativeCaretInBlock(previouslyFocusedBlockEl, anchorPath);
 	if (!anchor) return false;
 
-	// Same-block — native selection already produced a single-block range.
+	// Same block: the browser's own shift-click already made the range.
 	if (comparePaths(anchor.path, focusPoint.path) === 0) return false;
 
 	selection.enterCrossBlock(anchor, focusPoint);

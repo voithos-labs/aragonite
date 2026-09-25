@@ -10,10 +10,9 @@ import { orderedBaseOf } from './ordered-markers';
 
 /**
  * The parent-level replacement when a list item exits its list, laid out as
- * `[firstHalfList?, exitParagraph, ...liftedBlocks, secondHalfList?]`. Matching-type
- * nested items rejoin the surviving halves; everything else lifts as a top-level block.
- * `paragraphIndex` is the exit paragraph's slot, the caller's focus target. Input is not
- * mutated.
+ * `[firstHalfList?, exitParagraph, ...liftedBlocks, secondHalfList?]`: matching-type nested items
+ * rejoin the surviving halves and everything else lifts out. `paragraphIndex` is the exit
+ * paragraph's index, the caller's focus target. Input is not mutated.
  */
 export function buildExitReplacement(
 	list: NodeView,

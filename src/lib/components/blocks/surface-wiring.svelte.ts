@@ -1,8 +1,8 @@
 /**
  * The context wiring every editable-block component threads identically: one init-time bundle
  * of the shared `EditableSurfaceDeps` fields, plus chord dispatch built over the same gates and
- * the shared teardown that moves focus away. Call it during component init: `getContext`
- * `createEditableSurface` itself stays context-free (the jsdom harness constructs it bare).
+ * the shared teardown that moves focus away. Call it during component init, since it reads
+ * `getContext`; `createEditableSurface` itself stays context-free so the jsdom harness can build it.
  */
 
 import { getContext } from 'svelte';

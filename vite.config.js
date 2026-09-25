@@ -24,14 +24,9 @@ const silenceBrokenImageFixture = {
 	}
 };
 
-// A checkout on a Windows drive mounted into WSL (`/mnt/c/...`) gets no inotify events, so the
-// watcher never fires and an edit looks like it did nothing until the server restarts.
-// `ARAGONITE_POLL=1 npm run dev` swaps in polling, which does see those writes.
-//
-// OPT-IN, not automatic: polling walks the tree on every tick, and over a drvfs mount that is
-// expensive enough to saturate the machine — measured at load ~10 here, with the dev server up
-// but too starved to answer. The ignore list below is what keeps it survivable, so anything
-// bulky added to the repo belongs in it.
+// A checkout on a Windows drive mounted into WSL (`/mnt/c/...`) gets no file-change events, so
+// `ARAGONITE_POLL=1 npm run dev` swaps in polling. It stays opt-in because polling walks the whole
+// tree each tick, which can starve the machine; anything bulky belongs in the ignore list below.
 const usePolling = process.env.ARAGONITE_POLL === '1';
 
 // A worktree whose `node_modules` is a junction into another checkout resolves every dep to a

@@ -47,9 +47,8 @@ export function hasMermaidRenderer(): boolean {
 }
 
 /**
- * The theme belongs in the cache key rather than clearing the cache, so switching back is a
- * hit; an SVG string needs no copy per caller. A parse failure resolves to an `error` and is
- * cached like a success. `theme` is required, so a caller cannot forget it and still compile.
+ * Keyed on theme and code, so switching the theme back is a cache hit. A parse failure resolves
+ * to an `error` and is cached like a success.
  */
 export function renderMermaid(code: string, theme: string): Promise<MermaidRenderResult> {
 	// Joined with a NUL so no (theme, code) pair can run together into another pair's key.

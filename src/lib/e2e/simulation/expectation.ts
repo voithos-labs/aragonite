@@ -1,10 +1,8 @@
 /**
- * The expected answer, held as one source string rather than a second syntax tree. It predicts
- * one thing, a printable character typed at the caret, because that byte is literal source
- * however the editor re-classifies the block; every gesture with automatic behaviour resyncs
- * instead. Insertion goes before the single trailing newline the editor keeps, which is also
- * where Enter leaves its empty block. The one automatic behaviour modelled is delimiter
- * auto-pairing, through the editor's own resolver.
+ * The simulation's expected source, as one string. It predicts only a printable character typed
+ * at the caret (plus delimiter auto-pairing, through the editor's own resolver); every gesture with
+ * other automatic behaviour resyncs instead. A typed byte goes before the single trailing newline
+ * the editor keeps.
  */
 import {
 	noteOwnPair,

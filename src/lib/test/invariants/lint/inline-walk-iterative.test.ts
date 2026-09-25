@@ -1,9 +1,8 @@
 /**
  * G4.56: every traversal over an inline tree or its rendered DOM is iterative. Inline nesting
  * depth comes from the input, so one call frame per level overflows the stack and strands the
- * block in a fallback it cannot recover from (#200). It covers `core/inline/`, `cursor/`,
- * `ambient/` and the live gesture code under `components/blocks/text/`, whose join rebuild goes
- * through the same pre-order (#226).
+ * block in a fallback it cannot recover from. It covers `core/inline/`, `cursor/`, `ambient/` and
+ * the live gesture code under `components/blocks/text/`, whose join rebuild walks the same order.
  */
 
 import { describe, it, expect } from 'vitest';

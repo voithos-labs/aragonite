@@ -37,12 +37,8 @@ export interface ContainerWindowingOpts {
 	isCollapsed?: () => boolean;
 }
 
-/**
- * Put the block being scrolled into view into the root list's coordinates. The height table
- * addresses top-level children only, so a target further down contributes its ancestor's index
- * plus the measured drop to itself; without that, the hold re-asserts the container's top and
- * pushes a target already in place back out of view.
- */
+/** The block being scrolled into view in the root list's coordinates: a nested target is its
+ *  top-level ancestor's index plus the measured drop from that ancestor's top to its own. */
 export function placementOf(
 	target: RevealTarget | null,
 	blockEl: BlockElLookup
@@ -52,9 +48,8 @@ export function placementOf(
 	if (target.path.length === 1) return shallow;
 	const ancestorEl = blockEl([shallow.index]);
 	const targetEl = blockEl(target.path);
-	// The ancestor's top is a different block, and is only right while the ancestor itself is
-	// unmounted and the height table's offset is all we know. A mounted ancestor whose target is
-	// missing means the user scrolled past it inside the container: decline, never jump.
+	// An unmounted ancestor falls back to its own top; a mounted one with no target means the
+	// user scrolled past the target inside the container, so decline rather than jump.
 	if (!ancestorEl) return shallow;
 	if (!targetEl) return null;
 	const targetRect = targetEl.getBoundingClientRect();
@@ -106,9 +101,8 @@ export function useContainerWindowing(opts: ContainerWindowingOpts): ListWindowi
 			? (h) => parentSink.setChildSubtotal(opts.getIndex(), h)
 			: undefined,
 		isCollapsed: opts.isCollapsed,
-		// A fast scroll can outrun the deferred window recompute and briefly paint an empty
-		// spacer (VR-8). 6 widens the band without breaking the ceiling on mounted blocks (the
-		// e2e bound of under 60 checks that); a skeleton background covers the one-frame gap.
+		// Wide enough that a fast scroll rarely outruns the window recompute and paints an empty
+		// spacer (VR-8), narrow enough to keep the count of mounted blocks low.
 		overscan: 6,
 		pinExtensionCap: 100,
 		activateAbovePx: 4000,

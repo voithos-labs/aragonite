@@ -1,11 +1,9 @@
 /**
- * Fails a unit test on a warning (Vitest setup). Every `devWarn` and every Svelte runtime warning
- * fails the test it happened in, unless the test claims it (`takeDevWarns` to assert on it,
- * `drainDevWarns` to discard it, `allowDevWarns` for a file's incidental tags) or the emitting
- * file is allowlisted for the whole run. Those claim functions are file-level `afterEach` hooks,
- * so the config sets `sequence.hooks: 'stack'` to run them first. A per-file `afterAll` closes the
- * two holes a per-test check cannot see: a declared tag that no longer fires, and a warning that
- * outlived every test.
+ * Vitest setup that fails a unit test on any `devWarn` or Svelte runtime warning it did not claim
+ * (`takeDevWarns`, `drainDevWarns`, `allowDevWarns`) and that `warn-allowlist.json` does not list.
+ * Claims run in file-level `afterEach` hooks, so the config's `sequence.hooks: 'stack'` runs them
+ * before this verdict. A per-file `afterAll` also fails a declared tag that never fired and a
+ * warning that arrived after the last test.
  */
 
 import { afterAll, afterEach, expect } from 'vitest';

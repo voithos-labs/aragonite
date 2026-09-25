@@ -82,11 +82,9 @@ export function mathBodySpan(text: string): { start: number; end: number } {
 }
 
 /**
- * A block with no body line at all (`$$$$`, `$$\n$$`, a ```math sitting straight on its closer)
- * has nowhere for a caret to sit once the fence lines hide, and Backspace has no byte to mean.
- * Every such block is completed the same way: opener, one empty body line, closer, caret on
- * that line, rebuilt from its own delimiters. A block with a body line, blank or not, is left
- * alone.
+ * A block with no body line (`$$$$`, `$$\n$$`, a ```math straight on its closer) has nowhere for
+ * a caret once the fence lines hide, so it gains one empty body line with the caret on it. A block
+ * with a body line, blank or not, is left alone.
  */
 export function completeBareMathSource(text: string): { text: string; caret: number } | null {
 	const { opener, body, closer } = sliceMathSource(text);

@@ -290,11 +290,8 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 				mutate: (view) => {
 					const node = view.unshareChild(i);
 					node.metadata = { ...(node.metadata ?? {}), ...metadata } as typeof node.metadata;
-					// Through `rebuildUnsharedChain`, not a bare rebuild: metadata can feed the
-					// container's opener line (an alert's type), so the rebuilt bytes may parse as
-					// a different kind, and the top-level commit runs no chain rebuild of its own.
-					// `folds: null` because the rebuild root is the commit's own children array,
-					// whose change this mutate has already fixed as `noop`.
+					// The chain rebuild re-derives the kind, since metadata can rewrite the opener
+					// line (an alert's type). No collapses: this mutate reports `noop` for the list.
 					const [reclassified] = rebuildUnsharedChain(
 						{ children: view.children },
 						[node],

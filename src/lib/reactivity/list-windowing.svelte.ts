@@ -94,13 +94,8 @@ export interface ListWindowing {
 	 *  last applied and re-measure only on a real change after mount, so the resize a mount
 	 *  fires for nothing costs no DOM read during a fast scroll. */
 	measureChildOnResize(id: string, observedHeight: number): void;
-	/**
-	 * True when the scroll position is already where the block being scrolled into view
-	 * belongs. Asked by any writer that would otherwise add a relative delta to the same
-	 * `scrollTop`: this position comes from live geometry, so a delta on top counts twice. A
-	 * question, never a write: moving here would drag the user to the top of that block on a
-	 * resize they only wanted compensated. Root list only; a nested list answers false.
-	 */
+	/** True when the scroll position already sits where the block being scrolled into view
+	 *  belongs, so a writer adding a delta would count it twice. Root list only. */
 	revealHoldsScroll(): boolean;
 	/** Scroll this list so child `index` is inside the mounted range; resolves after a tick. */
 	revealChild(index: number): Promise<void>;
@@ -111,13 +106,8 @@ export interface ListWindowing {
 	dispose(): void;
 }
 
-/**
- * Whether a resize is worth re-measuring (pure, unit-tested). Decided on the height
- * differing from the recorded one, never on which callback delivered it: a remount from cache
- * can report the grown size in the very first callback, so a rule about callback order would
- * drop it. `recorded === undefined` means this list has applied no height for the block yet,
- * so leave it to the batched pass rather than racing a read into a fast scroll's layout.
- */
+/** Whether a resize is worth re-measuring: only when the height differs from the one this list
+ *  applied. With none applied yet, the batched pass owns the first measure. */
 export function shouldRemeasureOnResize(recorded: number | undefined, observed: number): boolean {
 	if (observed <= 0 || recorded === undefined) return false;
 	return Math.abs(recorded - observed) >= 1;
@@ -139,10 +129,8 @@ const collapsedWindow: WindowResult = Object.freeze({
 	bottomSpacerPx: 0
 });
 
-// This list's top within the scroll container's content: the offset that converts the
-// container's `scrollTop` into this list's own range, correct at every depth because the
-// spacers preserve the geometry above the list. Computed in one place, since two callers
-// disagreeing would be a coordinate bug. The arithmetic itself is pure (`scope-geometry`).
+// This list's top within the scroll container's content, which converts the container's
+// `scrollTop` into this list's own range at any depth.
 function listTopInPort(port: Scrollport, listEl: HTMLElement): number {
 	return listTopWithinContent(
 		listEl.getBoundingClientRect().top,
@@ -218,13 +206,9 @@ export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
 	const registry = new Map<string, RegisteredChild>();
 	const pending = new Set<string>();
 
-	/**
-	 * The `scrollTop` that puts the block being scrolled into view where it was asked to go,
-	 * or null when no such scroll is in progress. The one definition of where that block
-	 * belongs, shared by the writer that moves there and the check that asks whether we are
-	 * there. The ancestor's offset comes from the height table, never `getBoundingClientRect`:
-	 * writing to the table only marks `$state` dirty, so a DOM read here would see stale layout.
-	 */
+	/** The `scrollTop` that puts the block being scrolled into view where it was asked to go, or
+	 *  null when no such scroll is in progress. Offsets come from the height table: the DOM has
+	 *  not laid out the table's latest writes yet. */
 	function revealTargetScrollTop(): number | null {
 		const port = deps.getPort();
 		const listEl = deps.getListEl();
@@ -254,25 +238,17 @@ export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
 		return true;
 	}
 
-	/**
-	 * Runs the change and writes no scroll while the browser's own anchoring holds the user's
-	 * place (host mode below the windowing threshold). It wins even over a scroll into view,
-	 * which would otherwise re-assert an absolute position the browser is already holding: two
-	 * writers on one scroll position correct it twice.
-	 */
+	/** Runs the change and writes no scroll while the browser's own anchoring holds the user's
+	 *  place (host mode below the windowing threshold); this wins even over a scroll into view. */
 	function skipWhileHostAnchors(mutate: () => void): boolean {
 		if (deps.correctsScroll()) return false;
 		mutate();
 		return true;
 	}
 
-	/**
-	 * A scroll into view wins over either rule for holding a block still: the target's absolute
-	 * position is re-asserted after the change, overriding the browser's own clamping, which
-	 * drags `scrollTop` off the target while undecoded images outside the viewport measure about
-	 * zero. Adding a delta cannot keep up with that clamping. Returns true when it ran the
-	 * change and owns the scroll position; shared because both corrections need it.
-	 */
+	/** While a scroll into view is in progress, runs the change and re-asserts the target's
+	 *  absolute position, which survives the browser clamping `scrollTop` as images decode.
+	 *  True when it ran the change. */
 	function reassertRevealAnchor(mutate: () => void): boolean {
 		const reveal = deps.getRevealAnchorTarget?.() ?? null;
 		if (reveal == null || reveal.index >= table.model.size || !deps.getPort()) return false;
@@ -281,25 +257,17 @@ export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
 		return true;
 	}
 
-	/**
-	 * Which block this correction holds still: the one at the top of the viewport by default,
-	 * the focused one when it sits at or below that. Clicking a construct that shows its source
-	 * (a math block, a paragraph with inline math) resizes that block and hides the source of
-	 * whichever showed it before; holding the top of the viewport, both slide the clicked block
-	 * out from under the pointer. Holding the focused block keeps its start where it is, so
-	 * only the content after it reflows.
-	 */
+	/** The block a correction holds still: the focused block when it sits at or below the top
+	 *  of the viewport, so a click that shows a block's source leaves that block under the
+	 *  pointer; otherwise the block at the top. */
 	function anchorIndexFor(topIndex: number): number {
 		const pinned = pinnedIndex();
 		if (pinned === null || pinned < topIndex || pinned >= table.model.size) return topIndex;
 		return pinned;
 	}
 
-	// Hold one block's screen position across a height change that would otherwise slide the
-	// visible content (VR-2); the browser's `overflow-anchor` is off wherever this runs, so
-	// nothing else holds it. The delta comes from the height table, not `getBoundingClientRect`:
-	// writing to the table only marks `$state` dirty, so a DOM read here would see the layout
-	// from before the flush and a delta of about zero.
+	// Holds one block's screen position across a height change (VR-2), since `overflow-anchor` is
+	// off. The delta comes from the height table: the DOM would still show the old layout.
 	function correctAnchor(mutate: () => void): void {
 		if (skipWhileHostAnchors(mutate)) return;
 		if (reassertRevealAnchor(mutate)) return;
@@ -311,11 +279,8 @@ export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
 		if (delta !== 0 && port) port.scrollBy(delta);
 	}
 
-	// The version of `correctAnchor` for a new table. A change in the child count shifts every
-	// index after it, so the index-based version would measure a different block at index N and
-	// correct by about one block's height too much (the VR-2 jump on an edit above the viewport).
-	// Find the block by its stable id instead, against the old table's ordering; a held block
-	// that was deleted has nothing left to hold, so skip.
+	// `correctAnchor` for a new table: the held block is found by id, since a changed child count
+	// shifts every index after it. A deleted held block has nothing to hold.
 	function correctAnchorByStableId(
 		before: HeightTable,
 		after: HeightTable,
@@ -329,10 +294,8 @@ export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
 		const offsetBefore = before.model.offsetOf(anchorIndex);
 		const anchorId = before.ids[anchorIndex];
 		mutate();
-		// At `lst === 0` the block at the top of the viewport belongs to a list above this one,
-		// so this list holds nothing: a nonzero delta could only come from the block moving within
-		// this list, and following it would shift the shared `scrollTop` for no reason. The
-		// index-based version needs no such check: `offsetOf` of the same index is 0 here anyway.
+		// At `lst === 0` the top of the viewport belongs to a list above this one, so this list
+		// holds nothing and must not move the shared `scrollTop`.
 		if (lst === 0) return;
 		const newIndex = anchorId !== undefined ? after.ids.indexOf(anchorId) : -1;
 		if (newIndex === -1) return;
@@ -350,10 +313,8 @@ export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
 			const before = correctedTable;
 			const widthChanged = next.widthVersion !== before.widthVersion;
 			correctedTable = next;
-			// One correction across one change of table: a delta taken between the new estimates and
-			// the re-measure compares measured-before against estimated-after, and lands a block off
-			// wherever the wrong table names a different top child (#188). Width only: re-measuring
-			// on a structural edit costs a reflow per split.
+			// The re-measure runs inside the same correction, so the delta compares measured heights
+			// on both sides. Width changes only: re-measuring on a structural edit costs a reflow.
 			correctAnchorByStableId(before, next, () => {
 				heightVersion++;
 				if (widthChanged) remeasureMounted();
@@ -369,10 +330,8 @@ export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
 		return Math.max(0, port.scrollTop() - listTopInPort(port, listEl));
 	}
 
-	// Each list windows against its own slice of the viewport: against the full container
-	// height, N stacked lists would each mount a viewport's worth of blocks. Falls back to the
-	// full height when the list is unmounted. Read only by the window `$derived`, which is why
-	// the height counter is read here and not in `revealTargetScrollTop`.
+	// Each list windows against its own slice of the viewport, or N stacked lists would each
+	// mount a viewport's worth of blocks. The full height stands in while the list is unmounted.
 	function scopeViewportHeight(): number {
 		void deps.getViewportHeightVersion();
 		const port = deps.getPort();
@@ -418,11 +377,9 @@ export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
 	// clamp.
 	const effectiveWindow = $derived.by(() => (deps.isCollapsed?.() ? collapsedWindow : win.result));
 
-	// Children measuring in resize the spacers, so the box height the parent measured when this
-	// container mounted goes stale. The box height, not the table's total, so it matches what this
-	// container's own BlockHost measured; otherwise two writers fight over one entry. Checked
-	// against the box actually moving: without that, the rect read and the upward write chain
-	// through the lists inside the observer's own frame and raise its loop warning (#189).
+	// Reports this list's box height upward as its children measure in. The box, not the table's
+	// total, so it agrees with the parent's own measure of the same box; unchanged boxes report
+	// nothing, or the upward writes chain inside the resize observer's frame.
 	let reportedSelfHeight = 0;
 	$effect(() => {
 		void heightVersion;
@@ -506,9 +463,8 @@ export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
 				table.model.setHeight(index, total);
 				heightVersion++;
 			};
-			// No correction unless a scroll into view is in progress; that is the only exception, so
-			// every other write still cascades nothing. Without it, growth inside the target's own
-			// container pushes a target already placed down by its full height (#32).
+			// No correction, except that a scroll into view in progress keeps its target placed while
+			// the target's own container grows.
 			if (!skipWhileHostAnchors(write) && !reassertRevealAnchor(write)) write();
 		},
 		// Read after the flush that mounted the child, not inside it: content can land later in

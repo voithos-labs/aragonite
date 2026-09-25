@@ -112,9 +112,8 @@ export function createCellRender(deps: CellRenderDeps): CellRender {
 			hasRef ? deps.linkRef?.current : undefined,
 			deps.grammar
 		);
-		// A change to the decorations rebuilds a focused cell with no pending offset from the
-		// edit path, so the caret is carried across; the edit path opts out because its own
-		// restore runs after and wins, as text-render does.
+		// A decoration change rebuilds a focused cell with no restore pending, so the caret is
+		// carried across; an edit opts out because its own restore runs after.
 		const caretWalkOffset = (opts?.carryCaret ?? true) ? captureFocusedCaretWalkOffset(el) : null;
 		// Bracketing the rebuild pools portal widgets, so an unchanged `$…$` keeps its
 		// instance across per-keystroke rebuilds. Decoration widgets are not pooled.

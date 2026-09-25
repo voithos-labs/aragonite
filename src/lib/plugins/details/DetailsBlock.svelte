@@ -1,7 +1,6 @@
 <script lang="ts">
-	// Whether a section is collapsed is decided in one place, `reservedChrome.isCollapsed` on
-	// the kind descriptor. Reading mode's temporary open state goes into the factory on top of
-	// it, so windowing, focus and the caret never disagree.
+	// The document's collapsed state comes from `reservedChrome.isCollapsed`; reading mode's
+	// temporary open state is passed to the factory on top of it, so windowing and focus agree.
 	import {
 		BlockList,
 		createContainerBlock,

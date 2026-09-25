@@ -82,11 +82,8 @@ export function asCellIndex(n: number): CellIndex {
 
 // ── Cell grid decode ─────────────────────────────────────────────────────────
 
-/**
- * Row-major cell index to `{ row, col }` for a table of `colCount` columns, the one place this
- * divmod lives. Takes a plain number so a `CellIndex` holder and a bare loop counter both reach
- * it without a cast.
- */
+/** Row-major cell index to `{ row, col }` for a table of `colCount` columns. Takes a plain
+ *  number so a `CellIndex` and a bare loop counter both reach it without a cast. */
 export function cellRowCol(cellIdx: number, colCount: number): { row: number; col: number } {
 	const row = Math.floor(cellIdx / colCount);
 	return { row, col: cellIdx - row * colCount };
@@ -94,10 +91,8 @@ export function cellRowCol(cellIdx: number, colCount: number): { row: number; co
 
 // ── DocPath composition (document-absolute path helpers, in a dependency-free module) ──
 //
-// `DocPath`'s type and its branding function live in `selection/path-math.ts`; the composers
-// live here because `tree-operations/` must reach them without depending on `selection/`. Bare
-// `as DocPath` casts for the same reason: importing the runtime function would reopen the
-// cursor-selection import cycle, while a type-only import is erased.
+// Here so `tree-operations/` can compose paths without importing `selection/`; the casts are
+// bare because importing `selection/path-math.ts` at runtime would close an import cycle.
 
 /** Append a child index to a parent path, yielding a document-absolute path. */
 export function extendDocPath(parent: readonly number[], index: number): DocPath {

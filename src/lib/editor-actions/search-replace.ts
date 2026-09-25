@@ -116,10 +116,8 @@ export function createSearchReplace(deps: EditorActionsDeps, controller: UndoCon
 		const indices = [...groups.keys()].sort((a, b) => b - a); // last-first keeps lower indices valid
 		if (indices.length === 0) return 0;
 		const seed = groups.get(indices[indices.length - 1])![0];
-		// One pushed snapshot plus per-subtree skip commits is one undo entry, so a throw
-		// mid-batch still recovers in one Ctrl+Z. The push happens outside any commit, so its
-		// rollback is ours too: a batch whose first subtree throws applies nothing and must
-		// leave no entry behind, or the next Ctrl+Z restores the document to where it already is.
+		// One snapshot for the whole batch, pushed outside any commit, so a batch that applies
+		// nothing removes it below; otherwise the next Ctrl+Z would restore nothing.
 		const stacksBeforePush = deps.undoManager.getStacks();
 		controller.pushUndoSnapshotPath(seed.path, seed.start);
 		let newBlockCount = 0;

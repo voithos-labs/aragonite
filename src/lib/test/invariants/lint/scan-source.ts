@@ -15,11 +15,9 @@ export const EDITOR_SRC = path.resolve('src/lib');
 export const ROUTES_SRC = path.resolve('src/routes');
 
 /**
- * The roots a repo-wide scan must cover: the library, plus the repo's only first-party
- * stand-ins for an external author (the reference plugins and the consumer example). A
- * rule that holds for `src/lib` and not for them ships a reference implementation that
- * models the violation. A genuinely library-internal lint opts out by passing
- * `EDITOR_SRC` explicitly and saying why.
+ * The roots a repo-wide scan covers: the library plus the reference plugins and the consumer
+ * example, which stand in for an outside author and must not model a violation. A lint about
+ * library internals alone passes `EDITOR_SRC` and says why.
  */
 export const REPO_WIDE_ROOTS = [
 	EDITOR_SRC,
@@ -58,11 +56,9 @@ export function stripComments(text: string): string {
 }
 
 /**
- * Recursively collect `.ts`/`.svelte` files under `dir`, excluding test, e2e,
- * and `.d.ts`. With no argument, scans every root in `REPO_WIDE_ROOTS`.
- * `includeTests` is for a rule that binds the whole packaged tree, not just runtime code;
- * `includeStyles` adds `.css`, off by default so a code-shape scan never reads stylesheet
- * text (a `url(//…)` would blank as a comment).
+ * Every `.ts`/`.svelte` file under `dir` (default: every root in `REPO_WIDE_ROOTS`), skipping
+ * `test`, `e2e` and `.d.ts`. `includeTests` covers the whole packaged tree; `includeStyles` adds
+ * `.css`, off by default because a `url(//…)` would blank as a comment.
  */
 export function collectEditorSources(
 	dir?: string,

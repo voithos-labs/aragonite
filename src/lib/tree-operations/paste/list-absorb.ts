@@ -1,9 +1,7 @@
 /**
- * Paste absorb: a same-type list pasted into a non-empty list item flattens as siblings of
- * the target, with markers normalized to the enclosing list's style, the flat result most
- * markdown editors produce. Covers the single-block non-empty same-type case that runs
- * after `findContainerMatchingUnwrap` and would otherwise fall through to the default
- * structural paste; mismatched types go to `list-break-out` instead.
+ * Paste absorb: a same-type list pasted into a non-empty list item lands as siblings of the target
+ * item, markers restyled to the enclosing list's, as most markdown editors do. Runs after
+ * `findContainerMatchingUnwrap`; a mismatched type goes to `list-break-out` instead.
  */
 
 import { CURSOR_END } from '../../block-component';

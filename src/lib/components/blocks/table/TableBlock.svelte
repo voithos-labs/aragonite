@@ -89,11 +89,8 @@
 	const rowCount = $derived(node.children?.length ?? 0);
 	const columnCount = $derived(meta.columnCount);
 
-	// A column reorder moves cells around while leaving columnCount and widthVersion untouched,
-	// so on its own it cannot invalidate the width floors below; the header row's cell bytes move
-	// with it, so the measure token includes them. The bytes, not the row's `childIds`: those are
-	// created at the row's first mount, so a header row scrolled out of view would hold the token
-	// still across the very reorder it exists to catch.
+	// A column move changes neither the count nor the width, so the width floors below also key
+	// on the header row's cell bytes (not its ids, which an unmounted header row lacks).
 	const columnStructureToken = $derived(
 		// The grammar keeps a cell to one line, so a newline joiner cannot be confused for content.
 		(node.children?.[0]?.children ?? []).map((cell) => cell.raw).join('\n')
@@ -160,9 +157,8 @@
 	let win = $derived(windowing.window);
 	let bounds = $derived(sliceWindow((node.children ?? []).length, win));
 
-	// Hold each column track to the widest cell seen across every row that has been mounted: a
-	// bare `minmax(80px, max-content)` sizes to the mounted cells only, so a column jumps width
-	// as a wide cell scrolls out (F6). The floor only ever grows.
+	// Each column holds the widest cell any mounted row has shown, so a column does not narrow
+	// as row windowing unmounts its widest cell. The floor only grows.
 	let columnMaxWidths = $state<number[]>([]);
 
 	const trackTemplate = $derived(
@@ -174,9 +170,8 @@
 
 	let measuredColumnEpoch = '';
 
-	// A change to the measure token clears the cache first: the old maxima are stale, and
-	// growing only would otherwise hold a track too wide. While the token is unchanged the
-	// floor only grows and only writes state on an increase, so the effect settles.
+	// A new measure token clears the stale maxima; otherwise the floors only grow and write state
+	// only on an increase, so the effect stops re-running.
 	$effect(() => {
 		void win;
 		const epoch = `${columnCount}:${getWidthVersion?.() ?? 0}:${columnStructureToken}`;
@@ -322,10 +317,8 @@
 			: []
 	);
 
-	// Notion's edge affordances: a strip past the table's right edge adds a column, one below
-	// it adds a row. Each shows on hover of its strip, and stays shown while the caret is in
-	// the last column / row. Geometry is the table's own box, measured after layout settles and
-	// again whenever the table resizes.
+	// The add-column and add-row strips show on hover, and stay shown while the caret is in the
+	// last column or row.
 	const addAffordance = $derived({
 		column: !readOnly && caretCell?.colIdx === columnCount - 1,
 		row: !readOnly && caretCell?.rowIdx === rowCount - 1
@@ -459,9 +452,8 @@
 	export const editable = true;
 	export const focusable = true;
 
-	// A two-dimensional block: one integer cannot address a cell, so both caret entry points
-	// copy `createContainerBlockComponent`'s collapse to first or last, and cell callers use
-	// `focusByPath`.
+	// One integer cannot address a cell, so an offset lands in the first or the last cell; a
+	// caller that names a cell uses `focusByPath`.
 	function tableLanding(offset: number): {
 		rowIdx: number;
 		colIdx: number;
@@ -565,9 +557,8 @@
 		return { start: win.start, end: win.end };
 	}
 
-	// A click beside the table runs the same cell drag a click in a cell runs, anchored at the
-	// nearest cell, so a drag that starts in the margin grows the same rectangle it would from
-	// that cell, and leaves the table as a cross-block range the same way.
+	// A press beside the table starts the cell drag from the nearest cell, so a drag from the
+	// margin grows the same rectangle a drag from that cell would.
 	export function startDragAtPoint(clientX: number, clientY: number, e: PointerEvent): boolean {
 		if (!tableEl || readOnly) return false;
 		const host = tableEl.parentElement;
@@ -712,10 +703,8 @@
 		border-top: 1px solid var(--color-border, #3e3e3b);
 		border-left: 1px solid var(--color-border, #3e3e3b);
 	}
-	/* The edge strips sit in the host's box beside and below the grid, outside the grid's own
-	   scroller, and start exactly at the table's edge so they never cover a cell. They appear
-	   on hover through CSS alone; `.table-add-pinned` means the caret is holding them open.
-	   The mousedown is consumed so the cell keeps that caret. */
+	/* The edge strips sit outside the grid's scroller, starting at the table's edge so they never
+	   cover a cell; `.table-add-pinned` means the caret holds them open. */
 	.table-add-zone {
 		position: absolute;
 		z-index: 3;

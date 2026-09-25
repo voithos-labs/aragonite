@@ -1,10 +1,8 @@
 /**
  * Byte offsets of each child's rendered region inside its container's own `raw`, so a typing
- * rewrite replaces one region instead of re-joining every child (one read through the `$state`
- * proxy instead of one per child). Bookkeeping only: nothing serializes or renders it, and a span
- * left stale by a missed invalidation fails the region check below and falls back to the full
- * rebuild. A `Uint32Array` on purpose: Svelte proxies plain arrays, and the shift would create a
- * reactive source per element.
+ * rewrite replaces one region instead of re-joining every child. Bookkeeping only: a span left
+ * stale fails the region check below and falls back to the full rebuild. A `Uint32Array` because
+ * Svelte proxies plain arrays, one reactive source per element.
  */
 
 import { DEV } from 'esm-env';

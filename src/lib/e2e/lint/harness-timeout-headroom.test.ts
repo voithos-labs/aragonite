@@ -1,7 +1,7 @@
 /**
  * The harness's wait for `window.__test` has to run out before Playwright's own test timeout,
  * or the runner kills the test first and every bridge miss reports the bare runner line instead
- * of what the page did (#375).
+ * of what the page did.
  * Miss-analysis: no test asserted the harness wait's ceiling sits under the runner's, so the
  * harness built its diagnostic and could never report it.
  */

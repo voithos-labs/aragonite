@@ -84,9 +84,8 @@ async function handleCrossBlockActive(
 	const myPath = ctx.getMyPath();
 	const doc = getDoc();
 
-	// Ctrl+C / Ctrl+X intentionally pass through: the copy/cut event writes synchronously via
-	// e.clipboardData.setData, since Tauri's wry webview refuses navigator.clipboard.writeText.
-	// Without a caret at the endpoint Chromium retargets to <body>, caught by editor-root-clipboard.
+	// Ctrl+C and Ctrl+X pass through to the copy and cut events, which write the clipboard
+	// synchronously; Tauri's webview refuses `navigator.clipboard.writeText`.
 
 	// Extend/collapse/copy stay live in reading mode; these two branches delete.
 	if (e.key === 'Backspace' || e.key === 'Delete') {
@@ -280,11 +279,10 @@ function isCommandCandidateKey(e: KeyboardEvent): boolean {
 }
 
 /**
- * The chords the cross-block range handles itself: swallowed before the browser's own bold (or
- * Ctrl+K kill-line) runs and before the delete-and-redispatch branch sees them, then handed to
- * the command dispatcher, which routes a format id to the cross-block handler and declines the
- * rest (`CROSS_BLOCK_RANGE_COMMAND_IDS` and `RANGE_DECLINED_COMMAND_IDS` in `schema/commands`).
- * Mod+Shift+X is listed on its own because unshifted Mod+X is the block cut.
+ * The chords the cross-block range handles itself, swallowed before the browser's own bold (or
+ * Ctrl+K kill-line) runs; the command dispatcher then runs or declines each
+ * (`CROSS_BLOCK_RANGE_COMMAND_IDS`, `RANGE_DECLINED_COMMAND_IDS`). Mod+Shift+X is listed on its
+ * own because unshifted Mod+X is the block cut.
  */
 function isClaimedRewriteChord(e: KeyboardEvent): boolean {
 	if (!(e.ctrlKey || e.metaKey) || e.altKey) return false;
@@ -332,12 +330,9 @@ function kindOfPath(path: number[], doc: Document): AnyBlockKind {
 }
 
 /**
- * Brings the focus endpoint into view after an extend. A cell-coordinate focus addresses the
- * table block by cell index, so the cell path is mounted to bring in a windowed-out row, then
- * the dispatch caret is put there to keep the next keystroke routed. At the cell's start, not
- * its end: an end caret in the last cell makes ArrowRight read as leaving the table.
- * `parkCaret`, never `focus`: this runs while an extend grows, and `focus` would end the range
- * (G2.12).
+ * Mounts the focus endpoint after an extend and puts the caret there so the next key reaches it.
+ * A cell focus puts it at the cell's start: at its end, ArrowRight would read as leaving the
+ * table. `parkCaret`, never `focus`, which would end the growing range (G2.12).
  */
 async function revealActiveEndpoint(ctx: CrossBlockDispatchContext): Promise<void> {
 	const focus = ctx.selection.focus;

@@ -45,9 +45,8 @@ export function tableCellInlinePaste(
 ): InlinePasteResult {
 	const cleaned = normalizeWhitespace(text);
 
-	// The delete half goes through the join rules before the escaping stage (live-mode.md § 4.5):
-	// those rules read and write the cell's own displayed bytes, and `normalizeCellRaw` still
-	// runs over whatever they produce.
+	// The delete half goes through the join rules first (live-mode.md § 4.5); the kind's pipe
+	// escaping runs over whatever they produce.
 	const { display: raw, offset: effectiveOffset } = cutRangeFromDisplay(
 		node,
 		node.raw,

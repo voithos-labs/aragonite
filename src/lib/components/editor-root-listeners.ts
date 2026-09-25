@@ -1,8 +1,6 @@
 /**
- * Editor-root document listeners: the mod-active cursor tracker, the reveal-anchor release,
- * the selectionchange bridge and the blur announcer. Pure dispatch over live getters; each
- * installing `$effect` stays in `Editor.svelte` as a check plus one install call, returning
- * the teardown. `onRoot` and `removeAll` hold the add/remove pair in one place.
+ * The editor root's document and window listeners, each installed by one call that returns its
+ * teardown. `onRoot` and `removeAll` keep every add paired with its remove.
  */
 
 import { tick } from 'svelte';

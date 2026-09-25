@@ -1,9 +1,7 @@
 /**
  * Swapping between a rendered view and its editable source: the caret logic shared by inline
- * widgets and blocks that render by default (both inject the swap and the revealed flag). The
- * caret is placed only through `cursor/widget-offset.ts`, converting block-source offsets to
- * DOM-walk offsets by adding `getAmbientLength()` in the one `placeCaret` function.
- * Precondition `source.length === sourceEnd - sourceStart`, asserted at entry (G1.26).
+ * widgets and blocks that render by default (both inject the swap and the revealed flag).
+ * Precondition: `source.length === sourceEnd - sourceStart`, asserted at entry (G1.26).
  */
 
 import { tick } from 'svelte';

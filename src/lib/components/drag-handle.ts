@@ -1,11 +1,6 @@
 /**
- * The block drag handle's two rules, kept out of the components that render it: which blocks
- * get one, and where it sits.
- *
- * Prose gets none: a paragraph, a heading, a quote and the note cards read as text on the
- * page, and a handle beside every one is noise. The blocks that get one are the objects a user
- * picks up whole: pictures, code, tables, equations, diagrams, list items, dividers. A block
- * without one can still be reordered by keyboard, and a dragged block still drops beside it.
+ * The block drag handle's two rules: which blocks get one (the objects a user picks up whole,
+ * never prose), and where it sits. A block without one still reorders by keyboard.
  */
 
 import type { NodeView } from '../core/node-views';
@@ -114,12 +109,9 @@ function bandRect(rect: DOMRect, line: number): DOMRect {
 }
 
 /**
- * Svelte attachment for the handle element: places the handle once the block has laid out, and
- * again on every pointerover inside its host, so it follows edits made while hovered.
- *
- * Placing it at mount is what makes the handle clickable where it appears: it is its own click
- * target before any hover, so one left at the stylesheet's default while the handle ends up
- * elsewhere is a target the pointer misses. One rAF-batched read per handle.
+ * Svelte attachment for the handle element: places the handle once the block has laid out, so
+ * its click target is where it paints before any hover, and again on every pointerover inside
+ * its host, so it follows edits made while hovered.
  */
 export function alignDragHandle(handle: HTMLElement): (() => void) | void {
 	const host = handle.parentElement;

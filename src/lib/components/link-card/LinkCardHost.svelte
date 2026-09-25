@@ -67,17 +67,15 @@
 		return linkCard.syncCardToLink(() => cardEl ?? null);
 	});
 
-	// A target that stops resolving unrenders the card but leaves the state set, so its
-	// document-capture listeners live on and the next write that makes it resolve again
-	// resurrects it holding a draft from before. Closing is the only honest answer.
+	// A target that stops resolving closes the card, or a later write that makes it resolve
+	// again would bring it back holding an old draft.
 	$effect(() => {
 		const target = card.getTarget();
 		if (target && !linkCard.resolve(target)) card.close();
 	});
 
-	// A create target names bytes by range alone, so a write from outside the gesture moves them
-	// under it. The commit path closes before it writes, and the handler re-reads the target, so
-	// only an outside edit closes the card here.
+	// A create target is a bare range, which any other write would shift under it; the card's own
+	// commit closes it before writing, so only an outside edit closes it here.
 	$effect(() => {
 		if (!card.getCreateTarget()) return;
 		return events.on('edit', () => {
@@ -85,9 +83,8 @@
 		});
 	});
 
-	// A click outside dismisses the card without changing anything and leaves the caret where it
-	// just landed. Escape is document-level because the opening click leaves the caret in the
-	// document: the card sits beside a live caret until the user steps into it, and both close.
+	// A click outside closes the card and leaves the caret where it landed. Escape is read at the
+	// document because a clicked card sits beside a caret that stays there.
 	$effect(() => {
 		if (!card.getTarget() && !card.getCreateTarget()) return;
 		const onPointerDown = (e: PointerEvent) => {

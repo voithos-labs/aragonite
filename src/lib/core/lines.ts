@@ -1,10 +1,6 @@
 /** Line splitting preserving endings and offsets, plus the trailing-line-ending helpers. */
 
-/**
- * GFM §2.1: a blank line holds nothing but spaces and tabs. Deliberately not `String.trim()`,
- * which admits all Unicode whitespace: a non-breaking space is content, and a line holding one
- * continues its block.
- */
+/** GFM §2.1: a blank line holds only spaces and tabs; a non-breaking space is content. */
 const NON_BLANK_CHAR = /[^ \t]/;
 
 export function isBlankLine(text: string): boolean {
@@ -32,11 +28,8 @@ export function ownTrailingLineEnding(raw: string): '' | '\n' | '\r\n' {
 }
 
 /**
- * `offset` moved off the interior of a surrogate pair, back to the pair's start. Caret offsets
- * are UTF-16 code units, so a cut at one can halve an astral character and leave a lone
- * surrogate, which no UTF-8 encoder round-trips (`TextEncoder` yields U+FFFD) and no undo
- * restores. Code points only: a grapheme cluster is a rendering question, and snapping to one
- * would move a caret the author placed between two separate characters.
+ * `offset` moved off the interior of a surrogate pair, back to the pair's start: a cut there
+ * leaves a lone surrogate, which no UTF-8 encoder round-trips. Code points only, not graphemes.
  */
 export function snapToScalarBoundary(raw: string, offset: number): number {
 	if (offset <= 0 || offset >= raw.length) return offset;
@@ -146,11 +139,7 @@ export function stripIndentColumns(text: string, columns: number): string {
 	return ' '.repeat(indentColumns(text) - columns) + text.slice(leadLength);
 }
 
-/**
- * Rebuild a `ParsedLine[]` after a per-line strip, as the container parsers do when they reparse
- * a prefix-stripped body. Recompute, not spread: reusing an input line's offsets after shortening
- * its text desyncs the offsets from the bytes.
- */
+/** A `ParsedLine[]` rebuilt after a per-line strip, offsets recomputed from the stripped bytes. */
 export function remapStrippedLines(
 	lines: ParsedLine[],
 	stripLine: (line: ParsedLine, index: number) => string

@@ -57,11 +57,9 @@ export function readNativeCaretInBlock(
 // ── Apply SelectionPoint → native ───────────────────────────────────────────
 
 /**
- * Places a collapsed native caret at a `SelectionPoint`, converting through the block's leading
- * marker length. The same clamp as `parkCaret` applies: a caret may not sit past a hidden
- * marker run, whatever offset the caller derived. Only collapsed carets clamp; a selection may
- * cover such a run, so `applySingleBlockRange` does not. Raw offset 0 behind a marker span goes
- * after the span, because Chromium bounces a caret out of `contenteditable="false"`.
+ * Places a collapsed native caret at a `SelectionPoint`, clamped as `parkCaret` clamps: never
+ * past a hidden marker run. Raw offset 0 behind a marker span goes after the span, because
+ * Chromium bounces a caret out of `contenteditable="false"`.
  */
 export function applyCollapsedCaret(blockEl: HTMLElement, point: SelectionPoint): void {
 	const ambient = ambientLengthOf(blockEl);

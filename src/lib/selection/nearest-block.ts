@@ -65,7 +65,7 @@ export function nearestBand(
 // ── Probing ────────────────────────────────────────────────────────────────
 
 /** The band's own probe point: {@link clampPointIntoBox}, except that `belowAll` takes the
- *  trailing corner — the block's last position — rather than the point's own x. */
+ *  trailing corner (the block's last position) rather than the point's own x. */
 export function probePointIn(
 	rect: DOMRect,
 	x: number,

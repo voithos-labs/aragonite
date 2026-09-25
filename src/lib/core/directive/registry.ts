@@ -21,7 +21,7 @@ export interface ParsedDirective {
 	raw: string;
 	closerColonCount: number;
 	closerNewline: boolean;
-	/** Opener line ending; a factory stores it so a rebuild reproduces CRLF chrome lines. */
+	/** Opener line ending; a factory stores it so a rebuild keeps CRLF fence lines. */
 	lineEnding: string;
 }
 

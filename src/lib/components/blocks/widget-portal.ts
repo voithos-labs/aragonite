@@ -153,7 +153,7 @@ export interface SvelteWidgetPoolDeps {
  * The pool wired to Svelte mounting. A synchronous mount throw is caught, reported and surfaced as
  * null so the caller falls back to the raw span. The getters sit alongside the frozen
  * `{ inline, source }` snapshot as live props: reuse keys on `${kind} ${source}`, so an instance
- * outlives a mode flip or an edit elsewhere that a frozen value would not.
+ * outlives a mode switch or an edit elsewhere that a frozen value would not.
  */
 export function createSvelteWidgetPool(deps: SvelteWidgetPoolDeps): WidgetPool {
 	const {

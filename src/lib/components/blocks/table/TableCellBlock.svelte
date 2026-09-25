@@ -168,11 +168,9 @@
 	const NO_ISLANDS: IndexedDecoration<WidgetDecoration | ReplaceDecoration>[] = [];
 
 	// ── How the cell writes its bytes ───────────────────────────────────────
-	//
-	// Every write of this cell's raw goes through `blockEdit`; the escaping is the kind's, in
-	// `normalizeRawWrite`. The caret half stays here: `caretAfter` counts into the text the caller
-	// wrote, so the inserted backslashes move it, while `caretBefore` counts into the
-	// already-escaped bytes and is left alone.
+
+	// The kind's write rule escapes pipes, so `caretAfter` (counted in the unescaped text) is
+	// moved past the inserted backslashes; `caretBefore` already counts escaped bytes.
 	const blockEdit: BlockEditActions = {
 		...parentBlockEdit,
 		updateBlockContent(i, text, caretBefore, caretAfter) {
@@ -203,9 +201,8 @@
 	let revealing = $state(false);
 	let pendingCursorOffset = $state<number | null>(null);
 
-	// The other half of that write path, and the only write of `pendingCursorOffset` besides the
-	// render effect's clear. A pending cursor never goes through `blockEdit`, so the caller hands
-	// over the text its offset counts into; no text means it already counts into escaped bytes.
+	// The only writer of `pendingCursorOffset` besides the render's clear. `writtenText` is the
+	// unescaped text `offset` counts into; without it the offset already counts escaped bytes.
 	function parkCursor(offset: number | null, writtenText?: string): void {
 		pendingCursorOffset =
 			offset === null || writtenText === undefined
@@ -345,9 +342,8 @@
 				cursor.setRaw(asRawOffset(fromTrailingEdge ? widget.start : widget.end));
 			}
 		},
-		// A cell draws no selection outline around a widget, so the prose select-then-delete
-		// default would show nothing between the two keys. Limited to what the cell actually
-		// draws as a widget, and merged onto the registered policy rather than replacing it.
+		// A cell draws no selection outline around a widget, so a drawn widget deletes whole
+		// instead of being selected first; the registered policy is otherwise kept.
 		widgetEdgePolicy: (widget) => {
 			const registered = widgetEditing(widget.kind);
 			if (!el || registered?.revealSource) return undefined;
@@ -376,9 +372,8 @@
 	export const setSelection = editableSurface.surface.setSelection;
 	export const measurePartialRects = editableSurface.surface.measurePartialRects;
 
-	/** What the link card is asked about here. `range` is null when the chord runs, since a
-	 *  create would have to deal with a cell's pipe escapes, and the live one when the pressed
-	 *  state is read. */
+	// The chord passes a null `range`, so a cell never creates a link; the pressed state passes
+	// the live selection.
 	const linkCardQuery = (contentEl: HTMLElement, range: { start: number; end: number } | null) => ({
 		contentEl,
 		block: node,
@@ -419,9 +414,8 @@
 		const offsets =
 			cursor.getRawSelection() ?? (caret === null ? null : { start: caret, end: caret });
 		if (!offsets) return true;
-		// The same branch the prose block takes, on the same question: a block that draws no
-		// delimiter would keep an abandoned empty pair as invisible bytes in the cell
-		// (live-mode.md § 4.3).
+		// A mode that draws no delimiter would keep an empty pair as invisible bytes, so the mark
+		// waits for the next insertion instead (live-mode.md § 4.3).
 		if (!paintsFocusedMarkers(presentationMode) && offsets.start === offsets.end) {
 			controller.flushDebouncedCheckpoint();
 			pendingMarks.toggle(format);
@@ -454,11 +448,8 @@
 		return true;
 	}
 
-	/**
-	 * The one place a cell edit starts. A shown source holds this cell's bytes in the DOM, where
-	 * the CST has not seen them, so an edit would either splice the old source or rebuild the
-	 * whole row from the cell raws and drop the edit. Hide it, wait for the write, then act.
-	 */
+	// A shown source holds bytes the tree has not seen, so a command runs only after the source
+	// is hidden and its edit written.
 	function afterRevealFold(run: () => void): void {
 		if (!widgetInteraction.isRevealing()) {
 			run();
@@ -504,9 +495,8 @@
 		return () => void applyCellPlan(plan);
 	}
 
-	// Every chord the `tableCell` keymap binds arrives here, including from cross-block
-	// dispatch, which carries no event, so the 'native' and 'select-all-step' plans are
-	// declined and only the action plans run.
+	// Every `tableCell` keymap chord arrives here, some with no event behind them, so only the
+	// plans that act without one run.
 	export function runCommand(id: CommandId): boolean {
 		if (!el) return false;
 		const perform = cellCommand(id, el);
@@ -622,12 +612,10 @@
 		compositionSeat.noteEnd();
 	}
 
-	// Shared by the live keydown path and the cross-block dispatch entry, which differ
-	// only in where the offset comes from; both guard `el` before calling.
+	// Callers guard `el` first.
 	function cellPlanState(offset: number): CellKeyState {
-		// A cell has no marker prefix, so the traversal's offsets are the raw offsets the plan
-		// compares. Deliberately not checked against the mode, unlike the prose bounds: a cell's
-		// move follows what is on screen, so the bound tracks what preview-inline shows.
+		// A cell has no marker prefix, so these are raw offsets; they follow what is on screen,
+		// not the mode, since a cell's move follows what the user sees.
 		const bounds = landableDomTextBounds(el!);
 		return {
 			rowIdx,
@@ -645,9 +633,8 @@
 	async function onKeyDown(e: KeyboardEvent): Promise<void> {
 		if (composing || !el) return;
 
-		// Ahead of the plan, where the shared handling would run it: that reset is reachable
-		// only on the 'native' branch, so every key the plan takes would leave the select-all
-		// run active. `eventToChord` declines bare modifiers and uppercase letters.
+		// Ahead of the plan: the shared handling's reset runs only on the 'native' branch, so a
+		// key the plan takes would leave the select-all run active. A bare modifier gives null.
 		const chord = eventToChord(e);
 		if (chord !== null && chord !== SELECT_ALL_CHORD) selection.resetSelectAllCount();
 
@@ -671,9 +658,8 @@
 
 		const caretBeforeKey = cursor.getRaw() ?? 0;
 
-		// First, because neither the navigation plan's boundary branches nor the shared
-		// ArrowLeft-at-0 move tests modifiers: either would eat the column reorder at a cell's
-		// left edge. It is also the only point a consumer's `keybindings` override reaches.
+		// Before the plan, whose boundary branches ignore modifiers and would eat a column move at
+		// the cell's left edge; also the one point a consumer's `keybindings` override reaches.
 		if (wiring.dispatchChord(e, { kind: node.kind, runCommand })) return;
 
 		const plan = cellKeydownPlan(
@@ -722,9 +708,8 @@
 
 	const onKeyDownTraced = withKeydownVerdict(onKeyDown);
 
-	// The navigation plans, which need no live event; the caller calls `preventDefault`. A shown
-	// source is hidden here rather than at each caller, because insert-row-below rebuilds every
-	// row from the cell raws and would discard the edit.
+	// A shown source is hidden first: insert-row-below rebuilds every row from the cell raws and
+	// would discard its edit. The caller calls `preventDefault`.
 	async function applyCellPlan(plan: CellKeyPlan): Promise<void> {
 		const fold = widgetInteraction.foldRevealBeforeMutation();
 		if (fold) await fold.settled;
@@ -742,9 +727,8 @@
 		}
 	}
 
-	// Start a rectangle inside the table from a collapsed cell caret on the first
-	// Shift+ArrowUp or Down. Only at the cell's visual edge, so a multi-line cell still
-	// extends its own text first, as prose does. Returns false to fall through.
+	// Only at the cell's first or last visual line, so a wrapped cell extends its own text first,
+	// as prose does. False falls through.
 	function startIntraTableRect(key: 'ArrowUp' | 'ArrowDown', offset: number): boolean {
 		if (!el) return false;
 		const bounds = landableDomTextBounds(el);
@@ -769,10 +753,8 @@
 			selection.enterCrossBlock(anchor, { path: tablePath.slice(), offset: ext.offset });
 			return true;
 		}
-		// Start the rectangle at the current cell, then hand off to the block-level extend so
-		// the selection leaves the table. That start is recorded before the extend can answer,
-		// so a refusal, when there is no block past the table, has to take it back: the stored
-		// pair would be an invisible selection the next Backspace deletes a whole cell through.
+		// Recorded before the block-level extend answers, so a refusal (no block past the table)
+		// takes it back: left behind, the next Backspace would delete a whole cell through it.
 		selection.enterCrossBlock(anchor, { path: tablePath.slice(), offset: currentIdx });
 		const extended =
 			ext.direction === 'forward'
@@ -904,18 +886,14 @@
 		installCellDragListener({ editorRoot, selection, lifetimeSignal: editorLifetime }, anchor, e);
 	}
 
-	// Copy, cut and paste through the shared handlers. The cell adds two cases: a rectangle
-	// inside the table, copied as a GFM sub-table, and a raw slice of one cell, which keeps
-	// widget bytes such as `<br>` that a copy of the rendered text drops. The rectangle also
-	// goes on the clipboard as a spreadsheet table, because Excel and Sheets read text/html.
+	// A rectangle also goes on the clipboard as an HTML table, which spreadsheets read.
 	function writeRectHtml(e: ClipboardEvent): void {
 		const grid = intraTableRectGrid({ selection, getDoc });
 		if (grid) e.clipboardData?.setData('text/html', gridToHtmlTable(grid));
 	}
 
-	// A grid, whether tabs from a spreadsheet or a GFM table, fills cells starting here: the
-	// rectangle's top-left when one is live, otherwise this cell, growing the table to fit. A
-	// whole-table selection still replaces, and a payload that is not a grid pastes as usual.
+	// A pasted grid (spreadsheet tabs or a GFM table) fills cells from the live rectangle's
+	// top-left or this cell, growing the table; a whole-table selection still replaces.
 	async function pasteGridHere(text: string): Promise<boolean> {
 		const grid = parseClipboardGrid(text);
 		if (!grid) return false;
@@ -1000,9 +978,8 @@
 
 	// ── Shared edit helpers (event handlers and the right-click menu) ────────
 
-	// The truncation is a join like the paste's delete half: in live mode the runs it strands
-	// are bytes the user never saw, so it goes through the same join rules before the escaping
-	// write (live-mode.md § 4.5).
+	// Through the join rules, since in live mode the delete can strand delimiter runs the user
+	// never saw (live-mode.md § 4.5).
 	function deleteCellRange(start: number, end: number): void {
 		const display = trimTrailingLineEnding(node.raw);
 		const cut = cutRangeFromDisplay(node, display, { start, end }, presentationMode, linkRef);
@@ -1038,10 +1015,8 @@
 
 	// ── Right-click menu clipboard (no ClipboardEvent) ──────────────────────
 	//
-	// Copy/Cut restore the range and fire `execCommand('copy')`, keeping the clipboard write
-	// synchronous the way Tauri needs and `navigator.clipboard.writeText` isn't. `execCommand('cut')`
-	// is unusable because onCut's write trails an await, so Cut copies then deletes; paste has no
-	// sync equivalent at all.
+	// Cut copies then deletes: `onCut` writes the clipboard after an await, which a scripted
+	// `execCommand('cut')` has already closed.
 
 	function getSelectionOffsets(): { start: number; end: number } | null {
 		const range = cursor.getRawSelection();
@@ -1093,9 +1068,8 @@
 		if (action === 'cut') deleteCellRange(sel.start, sel.end);
 	}
 
-	// A click past a widget drops the caret at an element-level position with no text
-	// anchor, so snap to the nearest widget edge (or reveal). Normal text clicks fall
-	// through untouched.
+	// A click past a widget leaves the caret with no text to sit in, so it moves to the
+	// nearest widget edge.
 	function onClick(e: MouseEvent): void {
 		const x = lastClickClientX;
 		const y = lastClickClientY;
@@ -1149,10 +1123,8 @@
 ></div>
 
 <style>
-	/* Two sides only. The grid has no `border-collapse`, so a cell drawing all four put two
-	   1px lines on every shared edge — visibly heavier inside the table than around it. The
-	   container draws the top and left, these draw the right and bottom, and every rule in
-	   the grid is one line wide. */
+	/* The right and bottom only: the grid has no `border-collapse`, so the table draws the top
+	   and left and every shared edge stays one line wide. */
 	.table-cell {
 		outline: none;
 		padding: 4px 8px;

@@ -1,7 +1,7 @@
 /**
  * A kind's own raw-write rule (`normalizeRawWrite`) reaches its bytes through two functions,
  * `writeOwnRaw` in place and `normalizeOwnRaw` for a caller that reparses the result, and every
- * write to a leaf's raw that bypasses the kind's own component calls one (issues #45, #55). The
+ * write to a leaf's raw that bypasses the kind's own component calls one. The
  * lists of sites make the next such write a decision; the allowlist of bare writes below makes a
  * write that names neither function one too.
  */

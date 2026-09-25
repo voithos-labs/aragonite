@@ -75,10 +75,8 @@ export async function replaceBlockAtParent(args: ReplaceBlockAtParentArgs): Prom
 		args.grammar
 	);
 	const focusReplacementIndex = mapIndex(args.focusReplacementIndex);
-	// The fix-up can merge the spliced window into its neighbours, which moves both halves of the
-	// caret target: the residue reattaches inside the last pasted leaf, and a merge above moves
-	// the position itself. The commit keeps this updated through its merges and `afterTick`
-	// reads it back.
+	// The fix-up's merges can move the caret target (a residue joining the last pasted leaf, a
+	// merge above), so the commit keeps this position updated and `afterTick` reads it back.
 	const caret = trackedPasteCaret(replacement, blockIdx, focusReplacementIndex, focusOffset);
 
 	const oldBlock = nodeAt(doc, blockPath) as CstNode | null;

@@ -287,8 +287,8 @@ function survivingAnchorCellCaret(
 	const survivorRow = anchorRow - 1;
 	const survivorCol = cellsPerRow - 1;
 	if (survivorRow < 0) {
-		// Defensive: anchor in row 0 and that row removed. Callers collapse to 'tableEmpty'
-		// first, but the contract must not index table.children[-1].
+		// Row 0 removed with the anchor in it: callers report 'tableEmpty' first, so this only
+		// keeps the lookup off `children[-1]`.
 		return { path: [...startPath, 0, 0], offset: 0 };
 	}
 	const survivor = table.children![survivorRow].children![survivorCol];
@@ -410,9 +410,7 @@ function survivingChildren(doc: Document, path: number[]): CstNode[] | null {
 }
 
 // The caret at a survivor's end, descending to the leaf: the last child at each step, or child
-// 0 for a collapsed container, whose title line is all that shows. The test is whether the leaf
-// can take focus, not whether it can merge: a fenced code leaf is editable but not mergeable,
-// and the merge walk would leave the caret on the container's own path.
+// 0 for a collapsed container, whose title line is all that shows.
 function survivorEndCaret(node: CstNode, path: number[]): SelectionPoint {
 	let leaf = node;
 	const leafPath = path.slice();

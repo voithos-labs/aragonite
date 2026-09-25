@@ -66,10 +66,8 @@
 	/** The open flyout, if any: hover or ArrowRight on its row opens it, ArrowLeft closes it. */
 	let openGroup = $state<'row' | 'column' | null>(null);
 
-	// The point the menu opened on, in viewport coordinates, re-read on scroll and resize so the
-	// menu stays on it and leaves the viewport with it. It is never clamped back into view, which
-	// would float it over unrelated content: the clamp runs once, when the size is first known,
-	// and its shift is kept as a constant offset.
+	// The menu follows its open point on scroll and resize, clamped into the viewport once, when
+	// its size is known; re-clamping would float it over unrelated content.
 	// svelte-ignore state_referenced_locally
 	let at = $state({ x, y });
 	let shift = $state<{ x: number; y: number } | null>(null);
@@ -98,9 +96,8 @@
 	const left = $derived(at.x + (shift?.x ?? 0));
 	const top = $derived(at.y + (shift?.y ?? 0));
 
-	// The first enabled item is the keyboard entry point; disabled items are never stops.
-	// Untracked: `focusStop` reads the open flyout, and a tracked read here would re-run this
-	// mount-time landing every time a flyout opened, pulling focus straight back out of it.
+	// Focus starts on the first enabled item. Untracked, or opening a flyout would re-run this and
+	// pull focus back out of it.
 	$effect(() => {
 		if (menuEl) untrack(() => focusStop(0));
 	});
@@ -350,9 +347,8 @@
 {/snippet}
 
 <style>
-	/* The panel, rows, icons and dividers are the shared `.md-menu` family (editor.css); only
-	   the alignment trio is this menu's own: three icon buttons on one row, with the active
-	   one lifted as if hovered. */
+	/* The panel and rows are the shared `.md-menu` family (editor.css); the alignment trio is
+	   this menu's own. */
 	.table-action-menu-alignment {
 		display: flex;
 		gap: 2px;

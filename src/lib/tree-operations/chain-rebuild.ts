@@ -70,10 +70,9 @@ export interface ChainWriteHint {
 
 /**
  * Rebuild raws along an owned ancestor chain innermost first, re-deriving each container's kind
- * and merging the joins at its own position; chain- rather than path-based so it survives index
- * shifts. Both passes run only when a boundary line of the rebuilt raw moved. `folds` is
- * nullable on purpose: a merge splices the parent's array, so only a caller that reconciles
- * that list's ids and refs passes an array to collect them.
+ * and merging the joins at its own position, both only when the rebuilt raw's first or last line
+ * moved. A merge splices the parent's array, so only a caller that reconciles that array's ids
+ * and refs passes `folds`; null skips the joins.
  */
 export function rebuildUnsharedChain(
 	root: NodeParent | CstNode,
@@ -165,9 +164,8 @@ interface ChainSlot {
 	owner: CstNode | null;
 	depth: number;
 	index: number;
-	/** The join above depends on the opener line, the one below on the closer: each is checked
-	 *  only when its own line moved, so an edit in the first child never pays for the
-	 *  follower-side parse. */
+	/** The join above depends on the opener line and the one below on the closer, so each is
+	 *  checked only when its own line moved. */
 	openerMoved: boolean;
 	closerMoved: boolean;
 }

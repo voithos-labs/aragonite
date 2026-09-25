@@ -67,11 +67,9 @@ export function __resetPasteTransformsForTests(): void {
 }
 
 /**
- * The one place plugin `transform()` code is called from. On the cross-block route the
- * covering range delete has already committed, so an escaping throw would leave the
- * selection deleted and nothing pasted; a throw becomes the null a decline returns. The
- * warning names its phase because a throw during the idempotence check, read as a decline,
- * would send the author debugging a paste that worked.
+ * The one place plugin `transform()` code is called from. A throw becomes a decline, since on the
+ * cross-block route the range delete has already committed and an escaping throw would leave the
+ * selection deleted and nothing pasted. The warning names its phase, the dev re-run or the paste.
  */
 function runContained(
 	transform: PasteTransform,

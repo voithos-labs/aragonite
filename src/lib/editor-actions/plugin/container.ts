@@ -180,7 +180,7 @@ export interface ContainerBlock {
 	captureScrollPosition(): () => Promise<void>;
 }
 
-// ── Collapse gates ───────────────────────────────────────────────────────────
+// ── Collapsed-container checks ───────────────────────────────────────────────
 
 /**
  * "Collapsed" has one definition: the descriptor's `reservedChrome.isCollapsed`. An explicit

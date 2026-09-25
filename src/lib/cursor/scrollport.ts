@@ -27,12 +27,9 @@ export function createScrollport(target: UserScrollport): Scrollport {
 	);
 }
 
-/**
- * Adds the relative write every scroll correction goes through. A scroller snaps a fractional
- * write to a whole device pixel and reports the snapped value back, so a run of corrections (a
- * mode switch fires one per re-measured block) would drop that fraction every time and slide the
- * user's content by the sum. The refused fraction is kept for the next call instead.
- */
+/** Adds the relative write every scroll correction goes through. The scroll container snaps a
+ *  fractional write to a device pixel, so the refused fraction is kept for the next call, or a
+ *  run of corrections would slide the content by their sum. */
 export function withRelativeScroll(base: Omit<Scrollport, 'scrollBy'>): Scrollport {
 	let carried = 0;
 	let written: number | null = null;

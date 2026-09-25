@@ -7,7 +7,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { collectEditorSources } from './scan-source';
+import { collectEditorSources, stripComments } from './scan-source';
 
 const CELL = 'src/lib/components/blocks/table/TableCellBlock.svelte';
 
@@ -102,8 +102,8 @@ describe('every cell content write routes through the caret-mapping wrapper', ()
 	});
 
 	it('a capability mention inside a comment cannot satisfy the scan', () => {
-		const commented = collectEditorSources().find((f) => f.relPath === CELL)!;
-		expect(CAPABILITY.test(commented.text)).toBe(true);
-		expect(CAPABILITY.test(commented.code)).toBe(false);
+		const commented = '// the write goes through normalizeRawWrite\nconst x = 1;\n';
+		expect(CAPABILITY.test(commented)).toBe(true);
+		expect(CAPABILITY.test(stripComments(commented))).toBe(false);
 	});
 });

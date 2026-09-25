@@ -115,18 +115,16 @@ export function splitNode(
 	const cut = headingHeadCut(descriptor, node, cutPastLineEnding(descriptor, node, offset));
 
 	const suffixSplit = structuralSuffixSplit(descriptor, node, cut);
-	// Both halves are escaped: each can collide with the container's syntax alone (a `</details>`
-	// stranded on the second half, or a first half that becomes a bare closer once its trailing
-	// text is cut away).
+	// Both halves are escaped: either can collide with the container's syntax alone (a stranded
+	// `</details>`, or a first half that is a bare closer once its trailing text is cut away).
 	let firstRaw = forBody(parent, suffixSplit ? suffixSplit.firstRaw : rawText.slice(0, cut));
 	let secondRaw = forBody(parent, suffixSplit ? suffixSplit.secondRaw : rawText.slice(cut));
 
 	firstRaw = terminateLine(firstRaw, rawText);
 	secondRaw = terminateLine(secondRaw, rawText);
 
-	// Only live mode rebalances: there the delimiters around the cut are hidden, so a byte-literal
-	// half would show runs the user never saw. The rebalancer declines when its bytes do not
-	// parse back, leaving the literal cut every other mode gets.
+	// Only live mode rebalances, since its delimiters are hidden and a literal half would show runs
+	// the user never saw; the rebalancer declines when its bytes do not parse back.
 	if (presentationMode === 'live') {
 		const rebalanced = getLiveSplitRebalancer()?.(node, offset, firstRaw, secondRaw, linkRef);
 		if (rebalanced) {
@@ -165,9 +163,8 @@ export function splitNode(
 	nodes[nodes.length - 1].raw += second.suffix;
 	const splitTail = blockIndex === parent.children.length - 1;
 	parent.children.splice(blockIndex, 1, ...nodes);
-	// The merge window starts at the join itself: a wider one would reach back into the spliced
-	// set and break the one-window accounting. At the tail, the document's trailing blank line
-	// is the separator fix-up's to handle.
+	// The merge window starts at the join, since a wider one would reach back into the spliced
+	// set; at the tail the document's trailing blank line is left to the separator fix-up.
 	const seamLeft = blockIndex + nodes.length - 1;
 	const eaten = splitTail ? 0 : absorbSeamReading(parent, seamLeft, seamLeft, sharing).eaten;
 	return {

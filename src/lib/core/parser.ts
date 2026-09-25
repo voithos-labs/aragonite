@@ -24,10 +24,8 @@ registerBuiltInOpeners();
 registerTableCompleter();
 
 /**
- * Container-nesting cap: past it the remaining prefix parses as paragraph content instead of
- * recursing, so pathological input degrades rather than overflowing the stack. Sits well under
- * the empirical crash point, with headroom for the tree walks that recurse to the same depth.
- * Byte-preserving, since only a top-level node's `raw` serializes and that is fixed first.
+ * Container-nesting cap: past it the rest parses as paragraph text instead of recursing, so deep
+ * input cannot overflow the stack. Bytes are unaffected: the top-level `raw` is fixed first.
  */
 export const MAX_NESTING_DEPTH = 512;
 
@@ -75,12 +73,10 @@ export function parseTaskItemBody(source: string, grammar?: GrammarView): Docume
 }
 
 /**
- * The entry point incremental parsing re-parses ranges through: a block-aligned window parses
- * identically to a full parse of the window's text. A window is a fragment unless its caller
- * says otherwise, so `parse` alone defaults to document scope. Blank-line rule
- * (`design/syntax-tree.md`): the first blank line of a run separates and becomes the next
- * block's `leadingTrivia`; every later one is an empty paragraph carrying its own bytes.
- * `firstLineIsParagraph` makes a non-blank first line paragraph text whatever it would open.
+ * Parse `lines[start, end)` into blocks; a block-aligned window parses as a full parse of its
+ * text would. The first blank line of a run becomes the next block's `leadingTrivia`, every later
+ * one an empty paragraph (`docs/design/syntax-tree.md`). `firstLineIsParagraph` reads the first
+ * line as paragraph text whatever it would open.
  */
 export function parseBlocks(
 	lines: ParsedLine[],

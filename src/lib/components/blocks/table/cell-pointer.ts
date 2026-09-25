@@ -1,7 +1,7 @@
 /**
- * Cell-aware pointer drag and shift+click for tables. Builds the shallow-path
- * intra-table multi-cell SelectionState (anchor.path === focus.path === tablePath,
- * offsets are cellIdx-based) when input crosses cell boundaries inside one table.
+ * Pointer drag and Shift+click across a table's cells, and the cell hit tests they use. A
+ * rectangle inside one table is a selection whose two endpoints both name the table's path,
+ * with row-major cell indices as offsets.
  */
 
 import type { SelectionState } from '../../../selection/selection-state.svelte';
@@ -40,9 +40,8 @@ export function installCellDragListener(
 	down: PointerEvent
 ): { dispose(): void } {
 	const anchorCellIdx = anchor.rowIdx * anchor.columnCount + anchor.colIdx;
-	// cellCoordinate marks the offset row-major, so a drag that exits to a foreign block
-	// gets the whole-row snap (table-endpoint-snap.ts) and copy/delete agree on the same
-	// rows. Same-table extends compare equal paths and short-circuit the snap.
+	// Flagged as a cell index, so a drag that leaves the table snaps to whole rows
+	// (table-endpoint-snap.ts) and copy and delete agree on which rows it covers.
 	const anchorPoint: CellSelectionPoint = {
 		path: anchor.tablePath.slice(),
 		offset: anchorCellIdx,
@@ -143,11 +142,8 @@ export function handleCellShiftClick(
 // Rows carry `data-table-row-idx` and cells match `TABLE_CELL_SELECTOR`; `selection/path-lookup.ts`
 // and `components/block-el-lookup.ts` read the same markup, so a change to it reaches all three.
 
-/**
- * The mounted table rows, in DOM order. Row windowing unmounts row 0 once the table scrolls
- * past it, so index 0 is the first mounted row, which is still fine for column geometry
- * because the column tracks are uniform (VR-K1).
- */
+/** The mounted rows in DOM order; under row windowing the first need not be row 0, which
+ *  column geometry can ignore because every row shares the column tracks. */
 export function mountedRowEls(tableEl: HTMLElement): HTMLElement[] {
 	return Array.from(tableEl.querySelectorAll<HTMLElement>(':scope > [data-table-row-idx]'));
 }
@@ -159,10 +155,7 @@ export function rowCellEls(rowEl: Element): HTMLElement[] {
 
 // ── Hit testing ────────────────────────────────────────────────────────────
 
-/**
- * A viewport point → its cell within `tableEl`, or null when the point falls outside
- * this specific table. Thin entry over `cellCoordsOfElement`.
- */
+/** The cell of `tableEl` under a viewport point, or null outside this table. */
 export function cellAtPoint(
 	clientX: number,
 	clientY: number,
@@ -171,11 +164,8 @@ export function cellAtPoint(
 	return cellCoordsOfElement(document.elementFromPoint(clientX, clientY), tableEl);
 }
 
-/**
- * An element (click target, previously focused element) → its cell coords within
- * `tableEl`. Identity-checks the owning table, so a sibling table can't masquerade
- * as the originating one.
- */
+/** The cell of `tableEl` an element sits in; the owning table is compared by identity, so a
+ *  cell of a nested or sibling table never answers for this one. */
 export function cellCoordsOfElement(
 	el: Element | null,
 	tableEl: HTMLElement

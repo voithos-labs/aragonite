@@ -80,8 +80,8 @@ describe('G4.50 every block command answers the cross-block range question', () 
 		expect(named.filter((id) => !vocabulary.has(id))).toEqual([]);
 	});
 
-	// A published toolbar id answering "range-safe" is this bug's shape: the button stays live over
-	// a cross-block selection and the click lands on whichever block holds the anchor (#324).
+	// A toolbar id marked range-safe keeps its button live over a cross-block selection, and the
+	// click then lands on whichever block holds the anchor.
 	it('never calls a published toolbar id range-safe', () => {
 		const offered = Object.values(TOOLBAR_COMMANDS);
 		expect(offered.filter((id) => RANGE_SAFE[id] !== undefined)).toEqual([]);

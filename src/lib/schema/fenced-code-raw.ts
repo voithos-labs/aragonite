@@ -163,11 +163,9 @@ function restoredCloser(
 }
 
 /**
- * The closer a write left behind after removing the block's own opener: syntax nothing claims, so
- * it goes rather than stays, since as text it opens a fence over the real blocks below. Null when
- * there is none, or when a line above could close on that run: same marker, run no longer than the
- * closer's. An open line with a different marker or a longer run is body text the run never
- * closed.
+ * Drops the closer a write stranded by removing the block's own opener, since as text it would
+ * open a fence over the blocks below. Null when there is none, or when a line above could close on
+ * that run (same marker, run no longer than the closer's).
  */
 function droppedStrandedCloser(lines: string[], fence: FenceShape): string | null {
 	const closer = lastCloserIndex(lines, fence, 0);
@@ -215,11 +213,8 @@ function countDroppedBefore(info: string, infoStart: number, caret: number): num
 }
 
 /**
- * Separate a closer the write ran into. A fence with no body line has nothing between its two
- * runs, so the only caret position in the body is the start of the closer's line, and the first
- * character typed there lands in front of the closer run: ```` ```\nAB``` ````, which no longer
- * reads as closed and shows the run as body text. The metadata still says the fence is closed
- * while the text carries no closer line, so the missing line ending is what puts it back.
+ * Separate a closer the write ran into: text typed at the start of an empty fence's closer line
+ * lands in front of the run (```` ```\nAB``` ````), so a line ending goes back before the run.
  */
 function separateGluedCloser(input: FenceWriteInput): FenceWriteResult {
 	const { display, caret, fence } = input;

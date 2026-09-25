@@ -1,9 +1,7 @@
 /**
- * The walk behind every "widen the opener past its own body" rule: raise `minimum` one past
- * each body line that would close the block at the width reached so far. A core leaf because
- * the fence grammar and the directive grammar both need it, and neither should import the
- * other's directory. Per-syntax knowledge stays in `closerRun`, which reports the closing
- * line's run length or `null` for a line that does not close.
+ * The run length a fence or directive opener needs so no body line closes it: `minimum`, raised
+ * one past each body line that would close the block at the width reached so far. `closerRun`
+ * reports a closing line's run length, or `null` for a line that does not close.
  */
 export function escalateTerminatorRun(
 	body: string,

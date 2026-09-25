@@ -23,13 +23,8 @@ export interface StickyColumnState {
 
 	reset(): void;
 
-	/**
-	 * The only entry point a keydown handler may use; `reset()` stays public for the lifecycle,
-	 * commit, undo and paste callers, whose unconditional clear has no key to classify. `measureX`
-	 * is read only on the capture branch, and only the caller can supply it (the X comes from the
-	 * live caret); a caller holding a range rather than a caret omits it, and a capture key then
-	 * keeps the column rather than clearing it.
-	 */
+	/** The only entry point a keydown handler may use. `measureX` reads the live caret's X on a
+	 *  capture key; a caller holding a range omits it, and the column is then kept. */
 	noteKey(e: Pick<KeyboardEvent, 'key' | 'altKey'>, measureX?: () => EditorX | null): void;
 }
 

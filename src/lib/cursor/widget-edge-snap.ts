@@ -1,9 +1,7 @@
 /**
  * Which atomic inline widget's raw edge a point lands on: the nearest edge among the widgets the
- * caller measures, so a run of adjacent widgets answers the one the point is actually beside. A
- * point inside a widget reads its kind: one that behaves like a character names the edge on the
- * point's side, while one that selects whole declines and keeps its own click handling. A point
- * above or below a widget, sharing its columns, names the edge on its side too.
+ * caller measures. A point on a widget that behaves like a character names the edge on its side;
+ * one on a widget that selects whole declines, leaving that widget's own click handling.
  */
 
 export interface WidgetEdgeCandidate {

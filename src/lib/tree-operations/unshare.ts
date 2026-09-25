@@ -1,9 +1,8 @@
 /**
- * Copy on write for undo's structural sharing: undo entries still reference shared nodes, so
- * every node from the root down to the target is copied before an in-place write. Copies are
- * shallow, so unshare deeper wherever you write. After assigning a copy into the live tree,
- * re-read it through the tree: the `$state` proxy is canonical, not the copy you held. Also
- * the only allowed way to turn a read-only view into a writable node (`core/node-views.ts`).
+ * Copy before write: undo entries reference the live tree's nodes, so every node from the root
+ * down to the target is copied before an in-place write, and this is the only way from a
+ * read-only view to a writable node. Copies are shallow, so copy deeper wherever you write, and
+ * re-read a copy through the tree after assigning it: the `$state` proxy is the node, not the copy.
  */
 import type { CstNode } from '../core/nodes';
 import type { NodeParentView, NodeView } from '../core/node-views';

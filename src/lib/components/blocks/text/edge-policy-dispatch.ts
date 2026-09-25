@@ -104,12 +104,8 @@ export interface EdgePolicyDispatchDeps {
 		widget: { start: number; end: number; kind: InlineNode['kind'] },
 		fromTrailingEdge: boolean
 	) => void;
-	/**
-	 * Replace the edge policy for a widget this block renders on its own terms, where the kind's
-	 * registration does not apply: a policy names something the user can do, and a block that
-	 * draws none of it must answer differently rather than half-work. `undefined` keeps the
-	 * registered policy.
-	 */
+	/** Replace the edge policy for a widget this block draws on its own terms, where the kind's
+	 *  registered policy names a gesture the block cannot show. `undefined` keeps the registered one. */
 	widgetEdgePolicy?: (widget: {
 		start: number;
 		end: number;
@@ -144,10 +140,9 @@ export interface EdgePolicyDispatch {
 }
 
 /**
- * One family of gestures and what it takes on a keydown, in the order the families outrank each
- * other. Declared instead of a chain of `if`s so a new family is a visible entry with its reason
- * attached. Not policy rows: this is a total order over families, where a policy row answers a
- * per-construct question. `test/invariants/lint/policy-arm-census.test.ts` asserts the split.
+ * One family of gestures and what it takes on a keydown, listed in the order the families outrank
+ * each other. A family is not a per-construct policy row; `policy-arm-census.test.ts` checks that
+ * split.
  */
 interface DispatchArm {
 	id: string;
@@ -608,13 +603,9 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 
 	// ── Pending marks from a toggle ────────────────────────────────────────────
 
-	/**
-	 * The byte that completes a hard break made at the end of a block. `insertHardBreak` writes
-	 * `\\` plus a line ending there, but that ending is the block's own trailing one, so the
-	 * display stops at the backslash and the caret has nowhere to sit past it. The next printable
-	 * key supplies the following line: it lands after the break, not between the backslash and
-	 * its newline, where it would read as content and undo the break.
-	 */
+	/** The byte after a hard break made at the end of a block, whose line ending is the block's
+	 *  own trailing one, so no caret can sit past it. The key lands after the break rather than
+	 *  between the backslash and its newline, where it would undo the break. */
 	function handleTransitionalHardBreak(e: KeyboardEvent, caretOffset: RawOffset | null): boolean {
 		if (deps.isReading()) return false;
 		if (!isPlainTypingKey(e) || caretOffset === null || heldRange()) return false;

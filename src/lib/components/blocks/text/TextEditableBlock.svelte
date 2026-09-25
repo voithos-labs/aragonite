@@ -651,8 +651,7 @@
 	export function isCommandActive(id: CommandId): boolean {
 		const marked = inlineMarkForCommand(id);
 		if (!marked) {
-			// The text block and the table cell both name this id, as their run branches do: a
-			// registry for a single command would be premature.
+			// The link card is the one pressed state no mark policy answers.
 			if (id !== 'link.openCard' || !el) return false;
 			return linkCardTargetAt(linkCardQuery(el, cursor.getRawSelection())) !== null;
 		}

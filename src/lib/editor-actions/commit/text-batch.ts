@@ -18,11 +18,8 @@ export interface TextBatch {
 	 */
 	keystroke(leafPath: number[], offset: number, batchKey?: string | number): void;
 	/**
-	 * Start the pause timer, called once the keystroke's own edit has finished. Separate from
-	 * `keystroke` because the timer measures the pause the user leaves, not the pause plus the
-	 * editor's own work: started earlier, a keystroke whose processing takes about as long as
-	 * the timer would open a fresh batch every time, one undo entry per character. Does
-	 * nothing without a live batch.
+	 * Start the pause timer once the keystroke's own edit has finished, so the editor's own
+	 * work never counts as the user's pause. Does nothing without a live batch.
 	 */
 	armPause(): void;
 	/**

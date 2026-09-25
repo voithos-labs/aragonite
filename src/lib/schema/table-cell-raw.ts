@@ -1,10 +1,8 @@
 /**
- * The rule for writing a table cell's bytes, declared on the kind as `normalizeRawWrite` and
- * applied where content is written (`tree-operations/content-write.updateNodeContent`). A cell's
- * bytes go into its row unchanged, and the parser cuts a row that reparses with more columns than
- * the delimiter row declares, so a bare `|` or line break reaching a cell's raw would delete the
- * last column's content. Both passes work prefix by prefix, which is what lets `escapedCellOffset`
- * map a caret position exactly.
+ * The rule for writing a table cell's bytes, declared on the kind as `normalizeRawWrite`. A cell's
+ * bytes go into its row unchanged, so a bare `|` or line break reaching them would split the row
+ * and delete the last column's content. Both passes work prefix by prefix, which is what lets
+ * `escapedCellOffset` (`components/blocks/table/table-cell-paste.ts`) map a caret exactly.
  */
 
 /**

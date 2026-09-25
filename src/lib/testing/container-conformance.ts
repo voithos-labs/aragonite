@@ -1,5 +1,5 @@
 /**
- * G4.3: the container conformance kit, published at `@voithos-labs/aragonite/testing`. Register
+ * The container conformance kit (G4.3), published at `@voithos-labs/aragonite/testing`. Register
  * your kind, then point the kit at it with fixtures and a coverage table saying, per invariant,
  * whether it asserts or is excused; a silent skip is not allowed and a thin reason fails the run.
  * The plugin guide's "Conformance-testing a container" says what each cell expects. A cell that
@@ -604,10 +604,8 @@ export function checkDeclarationSanity(
 ): void {
 	const descriptor = getBlockKindDescriptor(kind);
 
-	// A fact about the grammar, not about the declaration: an opaque container wraps its body
-	// between marker lines of its own, so a body line can reproduce its closer whether or not the
-	// kind declares the repair. The `bodyWrite` branch stays, because a declared repair is tested
-	// on any contract.
+	// An opaque container wraps its body between its own marker lines, so a body line can
+	// reproduce its closer whatever it declares; a declared `bodyWrite` is tested on any contract.
 	const owesCollisionAnswer = descriptor.containerContract === 'opaque' || !!descriptor.bodyWrite;
 	if (owesCollisionAnswer && profile.terminatorCollision.mode !== 'assert') {
 		fail(
@@ -740,9 +738,8 @@ function assertBodyWrapMatchesParse(kind: AnyBlockKind, descriptor: BlockKindDes
 				`whose top level opens a "${kind}" carrying a body`
 		);
 	}
-	// A kind with no standalone recognizer (listItem) can only ever be nested, so it is tested
-	// where the fixture puts it. Openers alone misread directive kinds, whose recognizer is the
-	// shared `:::`.
+	// A kind with no recognizer of its own (listItem) is tested where the fixture nests it; a
+	// directive kind's recognizer is the shared `:::`, which the opener registry does not list.
 	const doc = parse(fixture);
 	const opensAtTop = isBlockOpenerRegistered(kind) || isDirectiveKind(kind);
 	const node = opensAtTop
@@ -755,9 +752,8 @@ function assertBodyWrapMatchesParse(kind: AnyBlockKind, descriptor: BlockKindDes
 			`node, and a fixture without one would skip it silently while the declarations cell reads ` +
 			`asserted`
 	);
-	// A container that keeps its body in metadata parses with no children, so there is no body
-	// child for a blank line to be stripped from. Nothing is left to test, and the declaration has
-	// to be absent: a wrap the parse can never perform would lie to the separator fix-up.
+	// A container whose body lives in metadata parses childless, so it has no wrap to test and
+	// must declare none: the blank-line fix-up would trust a wrap the parse never performs.
 	if (!node.children?.length) {
 		assertIs(
 			descriptor.bodyWrap?.afterOpenerLine,

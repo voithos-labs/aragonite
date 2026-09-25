@@ -1,10 +1,8 @@
 /**
  * Per-inline-kind editing policy: how a construct behaves at its edges, whether emptying it
  * unwraps it, how a split treats its markers, whether preview-inline may show its markers, and
- * what a format chord writes for it. It lives in `schema/` because that is the only directory
- * `tree-operations`, `selection`, `components` and `core/inline` can all import. The rows are
- * data; the split rebalancer is a function the component layer registers, so this file never
- * imports it.
+ * what a format chord writes for it. The rows are data; the live split and join rewrites are
+ * functions the component layer registers here.
  */
 
 import { isBuiltinInlineKind, type AnyInlineKind } from '../core/nodes';

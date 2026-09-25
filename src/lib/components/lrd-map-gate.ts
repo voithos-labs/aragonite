@@ -1,3 +1,5 @@
+// When to rebuild the link reference definition map, and the counter that render caches key on.
+
 import type { DocumentView } from '../core/node-views';
 import type { EditEvent } from '../editor-events';
 import { nodeAt } from '../tree-operations/node-primitives';

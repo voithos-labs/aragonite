@@ -1,7 +1,8 @@
 /**
- * Inline-widget interaction for TextEditableBlock: the offset math and the handler
- * bodies that branch off keydown/click. Each keydown sub-handler returns whether it
- * consumed the event, so the component can interleave them with the shared pipeline.
+ * Inline-widget interaction for the prose editable elements (the text block and the table cell):
+ * selecting a widget, showing its source, and the keydown and click handlers around both. Each
+ * keydown handler returns whether it consumed the event, so the component can interleave them
+ * with the shared pipeline.
  */
 
 import { tick } from 'svelte';
@@ -140,13 +141,9 @@ export interface WidgetInteraction {
 	/** The point sits on a widget that can show its source. `pointerdown` then cancels the
 	 *  browser's own caret placement so nothing races this one. */
 	isPointOnRevealWidget(x: number, y: number): boolean;
-	/**
-	 * Where a press on a non-editable inline widget anchors a drag: the widget's own raw edge on
-	 * the point's side, for a kind the caret reads as one character. Null over no widget, or over
-	 * one running a pointer gesture of its own. The browser cannot answer this, since
-	 * `user-select: none` makes it return a position in the neighbouring text that drifts with
-	 * whatever is already selected.
-	 */
+	/** Where a press on a non-editable inline widget anchors a drag: the widget's raw edge on the
+	 *  point's side. Null over no widget, or one with a pointer gesture of its own; the browser
+	 *  answers with a position in the neighbouring text under `user-select: none`. */
 	islandDragAnchor(x: number, y: number): number | null;
 }
 
@@ -166,13 +163,9 @@ function caretMoveEdge(key: string): 'start' | 'end' | null {
 	}
 }
 
-/**
- * The inline-code tint over a shown source, drawn with the CSS Custom Highlight API
- * (`::highlight(md-inline-reveal)` in editor.css) rather than a wrapper span: the contract, and
- * every offset read against it, is that the source is a bare text node in the block. The range
- * selects the node, so it keeps covering the text as typing grows it. Without the API (jsdom, an
- * old browser) the source simply shows untinted.
- */
+/** The tint over a shown source, drawn with the CSS Custom Highlight API
+ *  (`::highlight(md-inline-reveal)`) because every offset read needs the source to stay a bare
+ *  text node. Without the API (jsdom, an old browser) the source shows untinted. */
 const REVEAL_HIGHLIGHT = 'md-inline-reveal';
 const washRanges = new WeakMap<Text, Range>();
 
@@ -252,13 +245,8 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 	const widgetEditing = (kind: AnyInlineKind) => getInlineWidgetEditing(kind, deps.grammar);
 	const characterLike = (kind: AnyInlineKind) => isCharacterLikeWidget(kind, deps.grammar);
 
-	/**
-	 * Every widget in this block, descending into parents that are not widgets themselves. The
-	 * flat inline list is the wrong shape to scan: a construct wrapping a widget (emphasis around
-	 * a math span, a link around an image) hides it, and a pointer or arrow-key path reading that
-	 * list would not see it at all. `> *… $L/9 \times 10^{20}$ …*` is one such shape: the quote's
-	 * whole text is a single emphasis node.
-	 */
+	/** Every widget in this block, nested ones included: a construct wrapping a widget (emphasis
+	 *  around a formula, a link around an image) hides it from the top-level inline list. */
 	function widgetsOf(): InlineNode[] {
 		return flattenInlineWidgets(inlinesOf(deps.node), deps.node.raw, deps.grammar);
 	}
@@ -560,15 +548,8 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		})();
 	}
 
-	// The one hit test shared by the pointerdown check, the click dispatch, and the re-resolve
-	// after a source is hidden.
-	/**
-	 * What the pointer is actually over, asked of the DOM rather than of a rectangle. A widget's
-	 * border box is not what the user sees: a KaTeX render such as a superscript or a fraction
-	 * draws above and below its own box, so a click on the visible glyphs can miss the rectangle
-	 * by a pixel or two. `elementFromPoint` has no such gap: it answers with whatever is drawn
-	 * at the point, overflow included.
-	 */
+	/** The widget under the pointer, asked of the DOM rather than of a rectangle: a KaTeX render
+	 *  draws past its own border box, and `elementFromPoint` counts that overflow. */
 	function revealWidgetFromDom(
 		el: HTMLElement,
 		x: number,

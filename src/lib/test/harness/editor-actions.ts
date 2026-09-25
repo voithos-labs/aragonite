@@ -112,11 +112,9 @@ export function makePendingMarks(...kinds: InlineMarkKind[]): PendingMarksState 
 
 // ── BlockListState stub ──────────────────────────────────────────────────────
 
-// Mirrors production `createBlockListState` without Svelte reactivity: ids live on the nodes, so
-// they follow the copy-before-write node replacement, and refs are local. `getNode` has to read
-// the live node (`() => doc.children[0]`): a captured node goes stale the first time a commit
-// copies its ancestors (`tree-operations/unshare.ts`). Every harness below takes the same getter
-// for the same reason.
+// `createBlockListState` without Svelte reactivity: ids live on the nodes, refs are local.
+// `getNode` reads the live node, because a commit copies its ancestors and a captured node goes
+// stale (`tree-operations/unshare.ts`); every harness below takes a getter for that reason.
 export function makeBlockListState(getNode: () => CstNode, ids?: string[]): BlockListState {
 	const node = getNode();
 	if (ids) node.childIds = [...ids];
@@ -317,10 +315,9 @@ export function pasteContext(
 	return { grammar: defaultGrammarView, activePlugins: everyInstalledPlugin, ...fields };
 }
 
-// `onSelectionChange` is supplied here rather than attached later, because `SelectionState` takes
-// it at construction and a test counting emissions cannot install one afterwards. This takes a
-// whole parsed `Document`, not only its children: the parse puts a trailing blank line into
-// `suffix`, and a children-only fixture loses it, and with it every block that line would become.
+// `onSelectionChange` is a construction option because `SelectionState` cannot take one later.
+// Pass a whole parsed `Document`: its `suffix` holds the trailing blank line a children-only
+// fixture would lose.
 export function makeEditorActionsDeps(
 	source: CstNode[] | Document,
 	options: { onSelectionChange?: () => void; presentationMode?: PresentationMode } = {}

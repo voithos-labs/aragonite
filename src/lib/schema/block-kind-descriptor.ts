@@ -10,8 +10,7 @@ import type { KeyBinding } from './keybindings';
 
 /**
  * The Backspace-merge roles (`docs/design/editor.md`, "Merge eligibility: roles, not pairs").
- * Here rather than in `merge-rules.ts` so the descriptor registry can import it without a cycle.
- * The runtime role check (G1.30) derives its list from this tuple, so it is never re-listed.
+ * The runtime role check (G1.30) reads its list from this tuple.
  */
 export const MERGE_ROLES = [
 	'prose',
@@ -145,12 +144,10 @@ export interface BlockKindDescriptor {
 	 */
 	normalizeRawWrite?: (raw: string, node: NodeView) => string;
 	/**
-	 * Make text legal as a child's raw inside this container's body (container kinds only):
-	 * `normalizeRawWrite`'s counterpart on the container side, for a container whose fixed closing
-	 * line (`</details>`) a body write could otherwise reproduce and truncate on. Applied at the
-	 * write paths before the reparse that derives the kind, since the escape changes what the
-	 * bytes parse to. `normalize` is idempotent and works line by line; `mapOffset` is its exact
-	 * caret mapping.
+	 * Make text legal as a child's raw inside this container's body (container kinds only), for a
+	 * container whose fixed closing line (`</details>`) a body write could reproduce. Applied before
+	 * the reparse that derives the kind. `normalize` is idempotent and works line by line;
+	 * `mapOffset` is its exact caret mapping.
 	 */
 	bodyWrite?: {
 		normalize: (raw: string) => string;
@@ -239,9 +236,8 @@ export interface BlockKindDescriptor {
 		clientX: number,
 		clientY: number
 	) => CaretTarget | null;
-	/** O(1) content-height estimate in px for virtual rendering, with no subtree traversal. The
-	 *  `HeightOracle` (estimates block heights) adds the block's frame; a measured height still
-	 *  wins. */
+	/** O(1) content-height estimate in px for windowing, with no subtree traversal. The height
+	 *  estimator adds the block's frame; a measured height still wins. */
 	estimateHeight?: (node: NodeView, env: { width: number }) => number;
 }
 
@@ -392,9 +388,7 @@ function normalizeRegistration(registration: BlockKindRegistration): BlockKindDe
 	return { ...flat, ...containerFields, isContainer: true, containerContract: contract };
 }
 
-// Throws if the kind was never registered, so partial data cannot create one. The built-in versus
-// plugin check lives in the two public entries below; the leaf/container check lives here so
-// both entries share it.
+// Throws if the kind was never registered, so partial data cannot create one.
 function mergeBlockKindFields(
 	entry: string,
 	kind: AnyBlockKind,
@@ -416,7 +410,7 @@ function mergeBlockKindFields(
 			);
 		}
 		// Merge, never unset: skipping undefined keeps an explicitly-undefined group field from
-		// breaking the contract/rebuild pairing. Keyed off the group, not a hand-kept field list.
+		// breaking the contract/rebuild pairing.
 		const { contract, ...group } = container;
 		next.containerContract = contract ?? existing.containerContract;
 		Object.assign(

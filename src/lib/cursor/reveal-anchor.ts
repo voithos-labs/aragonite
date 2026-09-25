@@ -1,9 +1,7 @@
 /**
- * The block a scroll-into-view holds in place. While one is in progress, the root block list's
- * `correctAnchor` keeps the target at its requested `block` placement on screen instead of holding
- * the block at the top of the viewport, so image decodes above it cannot shrink the document and
- * clamp the scroll off it. One slot, owned by the latest claim; a plain closed-over value, never
- * reactive `$state`.
+ * The block a scroll into view holds in place: while one is in progress, the root list's
+ * `correctAnchor` keeps that block at its requested placement, so image decodes above it cannot
+ * clamp the scroll off it. One slot, owned by the latest claim; a plain value, not `$state`.
  */
 export type RevealBlock = 'nearest' | 'center';
 

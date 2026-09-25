@@ -326,12 +326,8 @@ export function screenVisibilityOf(container: ParentNode | null): VisibilityCont
 	);
 }
 
-/**
- * The attribute's condition as `styles/editor.css` states it: the container carries
- * `data-content-empty` and holds focus. The markers paint to give a caret somewhere to sit, so a
- * marked block nobody is in keeps them hidden and reads as the empty construct it is. Focus
- * containment rather than `:focus-within`, so jsdom, which lacks that pseudo-class, agrees.
- */
+/** The stylesheet's condition for painting an empty construct's markers: `data-content-empty`
+ *  plus focus inside, read by containment because jsdom lacks `:focus-within`. */
 function chromeStampPaints(container: Element): boolean {
 	if (!container.hasAttribute(CONTENT_EMPTY_ATTR)) return false;
 	const active = container.ownerDocument.activeElement;
@@ -339,11 +335,9 @@ function chromeStampPaints(container: Element): boolean {
 }
 
 /**
- * The first and last walk offsets a caret can sit at in `container`; a hidden marker run or the
- * leading marker prefix holds no such position, so the bound moves past it. The checks at a block's
- * edge read these instead of 0 and the walk length, which a mode painting no marker makes
- * unreachable. A container whose text is all hidden (an empty fence) answers `{len, len}`, so every
- * `offset <= start` check holds.
+ * The first and last walk offsets a caret can sit at in `container`, past any hidden marker run
+ * and the leading marker prefix; the checks at a block's edge read these instead of 0 and the
+ * walk length. A container whose text is all hidden (an empty fence) answers `{len, len}`.
  */
 export function landableDomTextBounds(container: ParentNode): {
 	start: DomTextOffset;
@@ -405,10 +399,8 @@ export function chromeFreeText(container: ParentNode): string {
 
 /**
  * Whether every byte in `container` is marker text, with at least one span of a family the
- * empty-construct override paints. This is the condition the render path writes as
- * `data-content-empty` and the walk reads back, computed without reading that attribute, or
- * each render would flip the previous one's answer. A reference label is a marker that stays
- * hidden: neither content behind the attribute nor the paint the attribute promises.
+ * empty-construct override paints: the condition the render path writes as `data-content-empty`,
+ * computed without reading that attribute so a render never flips the previous one's answer.
  */
 export function holdsOnlyMarkerChrome(container: ParentNode): boolean {
 	let chrome = false;
@@ -594,11 +586,9 @@ type WalkSegment =
 	| { kind: 'widget'; el: Element; start: number; len: number };
 
 /**
- * The segment classification every walk reader shares: a text node contributes its textContent
- * length, an atomic widget its raw source length (never descended), any other element nothing of
- * its own. Hidden marker text counts exactly like visible text, since hiding is CSS-only and the
- * offsets must survive it, and carries the span that hides it. Offsets stay plain numbers; the
- * caller applies the `DomTextOffset` brand.
+ * The segments every walk reader shares: a text node counts its text length, an atomic widget
+ * its raw source length (never descended), any other element nothing. Hidden marker text counts
+ * like visible text, since hiding is CSS-only, and carries the span that hides it.
  */
 function* walkSegments(root: ParentNode, mode: PresentationMode | null): Generator<WalkSegment> {
 	let count = 0;

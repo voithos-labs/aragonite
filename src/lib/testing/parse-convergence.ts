@@ -1,9 +1,7 @@
 /**
- * Compares the live tree against `parse(serialize(live))`. A byte round-trip after a mutation is
- * trivially true (G2.1 makes `serialize∘parse` the identity), so this compares structure instead:
- * kinds, the shape of the children, and the metadata the parser derives. The comparison is exact,
- * because the parser turns blank lines into blocks, so an empty paragraph reparses as itself. The
- * reparse uses `grammar`, the registered one by default: pass the editor's own when it has one.
+ * Compares the live tree's structure (kinds, children, parser-derived metadata) with a fresh parse
+ * of its own bytes; a byte round-trip would pass trivially, since `serialize(parse(s)) === s` for
+ * every input. Pass the editor's `grammar` when it has one.
  */
 
 import type { BlockMetadataByKind, CstNode, Document } from '../core/nodes';

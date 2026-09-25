@@ -274,12 +274,8 @@ export function createInlineMenuState(deps: InlineMenuStateDeps): InlineMenuStat
 		begin(opening.source, caret.path, opening.start, caret.offset);
 	}
 
-	/**
-	 * Fill in a baseline for a leaf that has none: a caret reaches one with no read in between (a
-	 * click into a list item, Enter onto a new line), and the first keystroke there would have
-	 * nothing to be the difference from. Only ever fills a missing baseline, because within a
-	 * burst the standing one still predates the trigger and must not be advanced past it.
-	 */
+	/** Takes a baseline for a leaf the caret reached with no read in between (a click, Enter onto
+	 *  a new line). Never replaces one: mid-burst, the standing baseline predates the trigger. */
 	function primeBaseline(): void {
 		if (disposed || sources.size === 0 || session !== null || writing) return;
 		const caret = deps.getMode() === 'reading' ? null : caretLeaf();

@@ -55,9 +55,8 @@
 	// every render, so its identity says nothing about whether the image changed.
 	let seedBytes = $state(untrack(() => buildBytes(target, fields)));
 
-	// The popover follows the document while it is open: an undo, or any write from outside this
-	// gesture, moves the image past the draft, and the commit on dismiss would put the old bytes
-	// back. The unfinished draft is discarded rather than a committed change reverted.
+	// A write from outside the popover (an undo) discards the draft, or the commit on dismiss
+	// would put the old bytes back.
 	$effect(() => {
 		const live = buildBytes(target, fields);
 		if (live === seedBytes) return;
@@ -74,9 +73,8 @@
 		return () => document.removeEventListener('pointerdown', handler, true);
 	});
 
-	// The commit runs in $effect cleanup so dismissing, switching image and clearing
-	// programmatically all commit in one place. A crop still open is abandoned, not
-	// committed: only the tick button writes one.
+	// In the effect's cleanup, so every way the popover closes commits here; an open crop is
+	// abandoned, since only the tick button writes one.
 	$effect(() => {
 		return () => {
 			if (cropping) cancelCrop();
@@ -136,9 +134,8 @@
 	}
 
 	// ── Crop ───────────────────────────────────────────────────────────────────
-	// limestone's cover crop: drag pans, the wheel zooms, corner brackets mark the frame, and
-	// the tick writes it. The frame is the box the image has right now, so an unframed image
-	// gains `|WxH` on its first crop.
+	// Drag pans, the wheel zooms, the corners resize the frame, the tick writes it. The frame
+	// starts as the image's current box, so an unframed image gains `|WxH` on its first crop.
 
 	let draft = $state<ImageCrop>(DEFAULT_CROP);
 	let frame: Size = { width: 0, height: 0 };
@@ -235,10 +232,8 @@
 		paintDraft();
 	}
 
-	// The corner brackets resize the frame itself, which is what changes its aspect. The frame
-	// is anchored where the image sits in the flow, so every corner moves the far edges: a
-	// left-hand corner dragged inward shrinks the width the way the right-hand one dragged
-	// inward does.
+	// The frame stays anchored in the flow, so every corner moves the far edges: a left corner
+	// dragged inward shrinks the width as a right one does.
 	type Corner = 'tl' | 'tr' | 'bl' | 'br';
 	const MIN_FRAME = 32;
 	let cornerDrag: { corner: Corner; startX: number; startY: number; start: Size } | null = null;
@@ -270,9 +265,8 @@
 		cornerDrag = null;
 	}
 
-	// A double click on the picture is the crop gesture: the first click selects the image, so
-	// by the second the toolbar (and this listener) is already mounted. On the document, since
-	// each commit rebuilds the widget and a listener bound to one goes stale with it.
+	// A double click on the picture starts a crop. On the document, since each commit rebuilds
+	// the widget and a listener bound to it would go stale.
 	$effect(() => {
 		const onDoubleClick = (e: MouseEvent) => {
 			if (cropping) return;
@@ -485,8 +479,7 @@
 		background: var(--color-surface, #2d3033);
 	}
 
-	/* The alt field, hung off the toolbar's far side on the shared menu panel: a caption over
-	   its input, the way a properties row reads, rather than a label beside a box. */
+	/* The alt field hangs off the toolbar's far side: a caption over its input. */
 	.md-image-field {
 		position: absolute;
 		top: 0;
@@ -519,8 +512,7 @@
 		color: var(--color-text-muted, #aaaaaa);
 	}
 
-	/* Underlined, not boxed: one line under the text reads as a field to fill in and keeps the
-	   panel quiet, where a second rounded box inside a rounded card is one frame too many. */
+	/* Underlined, not boxed: a box inside the rounded panel would read as a frame in a frame. */
 	.md-image-field input {
 		width: 100%;
 		box-sizing: border-box;

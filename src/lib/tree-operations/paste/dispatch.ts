@@ -1,10 +1,8 @@
 /**
- * Single entry point for paste: parse the clipboard, pick inline vs structural, route through
- * the target kind's `PasteSurface` (its paste handlers). Inline and structural handlers are
- * stateless transforms this module applies; a scoped-structural handler owns its whole mutation
- * including focus. Cross-block paste (`undoEntry: 'join'`) uses DOM-level focus, because the
- * originating block's `pendingCursorOffset` may address a block the range delete is about to
- * unmount.
+ * Single entry point for paste: parse the clipboard, pick inline or structural, and route through
+ * the target kind's `PasteSurface` (its paste handlers), whose inline and structural results this
+ * module applies; a scoped-structural handler owns its whole mutation, focus included. A
+ * cross-block paste focuses through the DOM, since its range delete may unmount the origin block.
  */
 
 import type { BlockEditActions, UndoEntryMode } from '../../action-contracts';
@@ -120,9 +118,8 @@ export async function pasteDispatch(
 	});
 	if (parsed.children.length === 0) return {};
 
-	// A reserved title child is single-line when serialized, so paste there is forced inline
-	// ahead of the container-paste family: a multi-block clipboard must never split it. The trim
-	// drops the edge spaces the newline flattening produced, not bytes anyone copied.
+	// A reserved title child serializes on one line, so paste there is forced inline before any
+	// container route could split it; the trim drops only the spaces the flattening made.
 	const chromeParent = nodeAt(ctx.doc, input.targetPath.slice(0, -1));
 	if (
 		chromeParent &&
@@ -137,9 +134,8 @@ export async function pasteDispatch(
 		return inlineCaretResult(result.caretOffset, landing);
 	}
 
-	// The delete half, applied once and before the strategy pick since the container routes never
-	// run it: each finder decides on the target's bytes, and a range still standing there answers
-	// about bytes the paste is removing. The hook routes cut their own, kind rules included.
+	// The delete half, applied before the container finders, which decide on the target's bytes and
+	// never cut the range themselves; the hook routes cut their own, kind rules included.
 	const target = targetAfterPreDelete(targetNode, input, seam);
 
 	const unwrap = findContainerMatchingUnwrap(
@@ -155,9 +151,8 @@ export async function pasteDispatch(
 		return {};
 	}
 
-	// The rest of the container paste-merge family, for single-block non-empty targets:
-	// absorb when `matchesAncestor` accepts the enclosing container, break-out when it
-	// does not.
+	// For a single-block non-empty target: absorb when `matchesAncestor` accepts the enclosing
+	// container, break out when it does not.
 	const absorb = findListAbsorb(ctx.doc, input.targetPath, parsed, target.offset, target.raw);
 	if (absorb) {
 		await applyListAbsorb(absorb, parsed.children[0], ctx);
@@ -242,12 +237,10 @@ function targetAfterPreDelete(
 }
 
 /**
- * A clipboard's trailing blank line is content: the parser keeps exactly one in `suffix` while
- * a second already becomes a block, and the inline route splices the bytes verbatim, so reading
- * the children alone made one route keep the copied separation and the other lose it. Applied
- * only where the splice leaves nothing behind the pasted blocks; a residue or a follower already
- * carries a separator of its own, and a kind that treats blank edges as packaging declines the
- * whole question.
+ * A clipboard's trailing blank line is content the parser keeps in `suffix`, which the inline
+ * route pastes verbatim, so the structural route lands it too. Only where nothing follows the
+ * pasted blocks in the splice (a residue carries its own separator), and never for a kind that
+ * treats blank edges as packaging.
  */
 function trailingSeparatorOf(
 	parsed: Document,

@@ -33,11 +33,9 @@ export async function applyInlineResult(
 }
 
 /**
- * Cross-block inline paste. `'join'` means the caller already pushed the covering undo
- * snapshot, not that the commit is skipped: committing is what keeps the parent's `childIds`
- * aligned and puts the insertion on the `edit` stream. The mutation goes through the
- * same-position reparse path, so a paste completing marker syntax puts a node of the reparsed
- * kind there instead of leaving the old kind holding foreign bytes.
+ * Cross-block inline paste. `'join'` means the caller already pushed the undo snapshot; the
+ * commit still runs, to keep the parent's `childIds` aligned and report the edit. The write goes
+ * through the reparse path, so a paste that completes marker syntax changes the block's kind.
  */
 async function commitInlineJoin(
 	targetPath: number[],

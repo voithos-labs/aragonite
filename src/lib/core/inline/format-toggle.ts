@@ -1,11 +1,9 @@
 /**
- * Toggles an inline format (bold, emphasis, code) inside a prose block. Over a selection the parse
- * decides the direction: a range a same-format run already covers is unformatted, a range touching
- * such runs is formatted over their union, and a bare range is wrapped. A mode that shows the
- * delimiters writes the strip and the wrap as-is; every other candidate must pass verification. At
- * a collapsed caret: unwrap the enclosing span, else drop an empty pair, else insert one
- * (live-mode.md § 4.3). Every write stays inside the content range: a marker in `# ` changes
- * the kind.
+ * Toggles an inline format (bold, emphasis, code) inside a prose block, and answers whether a range
+ * already carries one. The parse decides the direction, and in a mode that hides markers a
+ * candidate must leave the screen text unchanged; the collapsed-caret case is
+ * `docs/design/live-mode.md` § 4.3. Writes stay inside the content range: a marker in `# ` would
+ * change the kind.
  */
 
 import { recordFormatCoverageRead } from '../../perf/instruments';

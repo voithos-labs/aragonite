@@ -50,10 +50,8 @@ export interface CrossBlockDeleteOptions {
 	undoEntry?: UndoEntryMode;
 	/** The caller installs a final caret after further mutations. */
 	skipCaretRestore?: boolean;
-	/**
-	 * Route intra-table full/row/column coverage to a structural delete. Backspace opts in;
-	 * type-replace/paste/cut stay on cell-clear so the follow-up insert lands in the anchor cell.
-	 */
+	/** Delete a range covering a whole table, row or column structurally; without it the cells
+	 *  are cleared and the table keeps its shape. */
 	tableCoverageDelete?: boolean;
 }
 

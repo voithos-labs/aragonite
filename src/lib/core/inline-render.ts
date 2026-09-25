@@ -112,10 +112,8 @@ function renderInlineCode(
 	opts: RenderInlineOptions
 ): DocumentFragment {
 	const frag = document.createDocumentFragment();
-	// Every span is a slice of raw, never a parsed field that happens to agree, and each is its
-	// own slice: the opening fence is capped at half the node and the closing one read back off
-	// the tail, so a node nobody parsed (a plugin-created node over unfenced bytes) still emits
-	// its bytes exactly once (G2.4).
+	// Slices of raw, the opening fence capped at half the node, so a plugin-created node over
+	// unfenced bytes still emits each byte exactly once.
 	const fenceLimit = node.start + Math.floor((node.end - node.start) / 2);
 	let contentStart = node.start;
 	while (contentStart < fenceLimit && raw[contentStart] === '`') contentStart++;
@@ -450,11 +448,9 @@ export function renderInlineNodes(
 }
 
 /**
- * `insertHardBreak` at the end of a block writes a `\` whose line ending is the block's trailing
- * one, so until the next key supplies the following line CommonMark (and the scanner) read the
- * byte as literal text. Rendered like this the user sees the new line they asked for instead of
- * a stray backslash. A `br` adds no textContent, so the offset traversal stays exact (G1.28) and
- * puts offset `length` after the first anchor.
+ * A `\` ending the block is a hard break still waiting for its next line, which the scanner reads
+ * as literal text until then; drawn as a hidden marker plus two `br` anchors, the user sees the new
+ * line. A `br` adds no textContent, so raw offsets are unaffected.
  */
 function paintPendingBreak(nodes: InlineNode[], raw: string, frag: DocumentFragment): void {
 	const last = nodes[nodes.length - 1];

@@ -1,10 +1,8 @@
 /**
- * Decoration widgets placed in the text flow: a zero-width `widget` insertion, and a `replace`
- * that covers real bytes. Each renders as an inline widget the caret cannot enter, so the shared
- * raw-offset traversal reads the block back byte-exact: a `widget` spans zero bytes, and a
- * `replace`'s `data-source-*` span equals the raw span of the DOM it displaced. Whether the
- * author could place a range at all is decided in `decoration-state.svelte.ts`, where the source
- * and the document are the same version; a range this pass cannot honour drops silently.
+ * Decoration widgets placed in the text flow: a zero-width `widget`, and a `replace` covering
+ * real bytes. Each renders as an inline widget the caret cannot enter whose `data-source-*` span
+ * equals the bytes it stands for, so the offset walk reads the block back byte-exact. A range
+ * this pass cannot place drops silently; `decoration-state.svelte.ts` warns about it.
  */
 
 import { DEV } from 'esm-env';
@@ -145,9 +143,8 @@ export function applyIslandDecorations(
 	}
 }
 
-/** What these widgets contribute to a render key. None gives `''`, so an undecorated block's
- *  key stays byte-identical to the format with no widgets. Widget identity is deliberately
- *  ignored: the same position and class give the same signature (see `DecorationWidgetSpec`). */
+/** What these widgets add to a render key: `''` for none, so an undecorated block's key is
+ *  unchanged. Widget identity is ignored (see `DecorationWidgetSpec`). */
 export function islandRenderKeyPart(
 	islands: IndexedDecoration<WidgetDecoration | ReplaceDecoration>[]
 ): string {

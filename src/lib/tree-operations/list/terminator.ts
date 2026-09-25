@@ -1,9 +1,7 @@
 /**
- * Ensure a list item's `raw` ends with a line ending. Without it `rebuildListRaw`
- * concatenates adjacent items' raws into one line, which re-parses as one item. The
- * ending is a parameter, never a literal `'\n'`: an item arriving without one adopts the
- * target's (G4.20), or a paste strands an LF line inside a CRLF list. Parse-time items
- * keep their original state; only mid-list splices normalize.
+ * Ensure a list item's `raw` ends with a line ending, or `rebuildListRaw` joins adjacent items
+ * into one line that reloads as one item. The ending is the target's, never a literal `'\n'`
+ * (G4.20), or a paste strands an LF line in a CRLF list. Only mid-list splices normalize.
  */
 
 import type { CstNode } from '../../core/nodes';

@@ -1,9 +1,6 @@
 /**
- * Dragging a selection and dropping it. The browser's own version is two separate edits
- * (`deleteByDrag` on the source, `insertFromDrop` on the target), so undo takes two steps over a
- * document that lost bytes in between, and inside one block the first edit re-renders the
- * element under the drop. The editor does it instead: one undo snapshot over two raw writes,
- * which splice nothing, so no path moves under the second.
+ * Dragging a selection and dropping it, as one undo entry over two raw writes (the cut, then
+ * the insert). The browser's own drag is two separate edits, which undo would take in two steps.
  */
 
 import type { CstNode, Document } from '../core/nodes';

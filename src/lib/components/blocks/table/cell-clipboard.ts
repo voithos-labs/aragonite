@@ -23,11 +23,8 @@ export interface IntraTableRect {
 	focusCellIdx: number;
 }
 
-/**
- * Both endpoints share the table path, so each `offset` is a row-major cell index (unflagged;
- * `selection/primitives` covers cell offsets established by context). Callers compare
- * `tablePath` against their own, since the rectangle belongs to at most one table.
- */
+/** A rectangle's endpoints share the table path, so each offset is a row-major cell index.
+ *  Callers compare `tablePath` with their own: the rectangle belongs to one table at most. */
 export function intraTableRect(selection: SelectionState): IntraTableRect | null {
 	const { anchor, focus } = selection;
 	if (!selection.isCustomRendered || !anchor || !focus || !pathsEqual(anchor.path, focus.path)) {

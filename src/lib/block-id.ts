@@ -5,11 +5,7 @@ import type { NodeView } from './core/node-views';
 const RUN = Math.random().toString(36).slice(2, 8);
 let sequence = 0;
 
-/**
- * These ids key Svelte's `{#each}`: process uniqueness, not unguessability. `crypto.randomUUID`
- * answers a question nobody asked here, at a per-block cost a large load pays in full
- * (`performance.md`), and is secure-context-only besides.
- */
+/** Keys for Svelte's `{#each}`: unique within the process and cheap per block, not unguessable. */
 export function generateBlockId(): string {
 	sequence += 1;
 	return `b${RUN}-${sequence}`;

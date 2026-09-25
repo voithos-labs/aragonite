@@ -56,10 +56,8 @@ export function watchPageFailures(page: Page): PageFailures {
 	};
 }
 
-// Demo routes render their editor on the server, so blocks on screen prove nothing about
-// handlers: a click before hydration reaches none of them. `trackParityDocument` registers from
-// a client-only effect, so its arrival is the signal, and a route without the test bridge has
-// no other.
+// Demo routes render their editor on the server, so a click before hydration reaches no handler.
+// `trackParityDocument` registers from a client-only effect, which makes its arrival the signal.
 export function waitForEditorHydrated(page: Page): Promise<unknown> {
 	return page.waitForFunction(
 		() => ((window as { __parityDocuments?: unknown[] }).__parityDocuments ?? []).length > 0
@@ -71,10 +69,8 @@ export function waitForEditorHydrated(page: Page): Promise<unknown> {
 const FROZEN_AT = new Date('2026-01-01T00:00:00Z');
 const FROZEN_UNTIL = new Date('2026-01-01T00:00:01Z');
 
-// Stops every in-page timer, so a spec decides when the editor's typing pause elapses.
-// `install` alone leaves the fake clock ticking; only pausing it stops timers, and Playwright's
-// own retries keep running on the runner's real clock. Call it after the setup gestures: the
-// harness's render waits ride rAF, which a frozen page never runs.
+// Stops every in-page timer (`install` alone keeps them running; `pauseAt` stops them), so a spec
+// decides when the typing pause elapses. Call it after setup: the render waits ride rAF.
 export async function freezeInPageClock(page: Page): Promise<void> {
 	await page.clock.install({ time: FROZEN_AT });
 	await page.clock.pauseAt(FROZEN_UNTIL);

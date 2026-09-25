@@ -50,8 +50,7 @@ function isLetterA(key: string): boolean {
 export function cellKeydownPlan(e: CellKeyInput, s: CellKeyState): CellKeyPlan {
 	const pos = { rowIdx: s.rowIdx, colIdx: s.colIdx };
 
-	// Two stages, like every other block: the cell's own text first, then the document. A table
-	// stage in between would be unique to this editor; other editors go straight to the page.
+	// Two stages, like every other block: the cell's own text first, then the document.
 	if (e.ctrlOrMeta && isLetterA(e.key) && !e.shiftKey && !e.altKey) {
 		return {
 			kind: 'select-all-step',

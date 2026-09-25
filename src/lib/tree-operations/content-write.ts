@@ -353,9 +353,8 @@ export function reclassifyContainer(
 	replacement.raw = node.raw;
 	replacement.leadingTrivia = node.leadingTrivia;
 	if (backfilled) reconcileBackfilledRaw(replacement);
-	// A freshly parsed node carries no `childIds`, and this swap is written to state under the
-	// position's reused component instance, so undefined keys would reach the nested keyed
-	// `{#each}`.
+	// A freshly parsed node carries no `childIds`, and the swap reuses the position's component,
+	// so undefined keys would reach its nested keyed `{#each}`.
 	assignChildIdsDeep(replacement);
 	parent.children[index] = replacement;
 	// Write, then re-read through the tree (`unshare.ts` header).

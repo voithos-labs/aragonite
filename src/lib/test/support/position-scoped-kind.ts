@@ -17,11 +17,8 @@ export const FRONT_MATTER = '---\ntitle: x\n---\n';
 
 type PluginKind = ReturnType<typeof declarePluginKind>;
 
-/**
- * The supported check. Written as `!== false` rather than a plain truth test so the opener still
- * fires where the field is absent, which is what makes the regression test fail rather than pass
- * for the wrong reason.
- */
+/** `!== false` so the opener still fires where the parser omits the field, which is the case the
+ *  regression suites need to see fail. */
 function atDocumentTop(ctx: OpenContext): boolean {
 	return (
 		ctx.isDocumentParse !== false && ctx.index === 0 && ctx.depth === 0 && ctx.leadingTrivia === ''

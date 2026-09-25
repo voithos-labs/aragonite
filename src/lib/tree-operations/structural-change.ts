@@ -39,11 +39,9 @@ export function replacePreservingFirst(
 }
 
 /**
- * Mark the nodes a change's insert/replace window created as owned by the live tree;
- * pre-existing nodes go through `unshare.ts` instead. Also backfills `childIds` on containers
- * in a created subtree before the commit writes to state: a freshly parsed node carries none,
- * and under a reused component instance the nested keyed `{#each}` renders before the re-init
- * effect, so undefined keys would reach Svelte.
+ * Mark the nodes a change's insert/replace window created as owned by the live tree (existing
+ * nodes go through `unshare.ts`), and give every container in them `childIds`: a freshly parsed
+ * node has none, and a reused component's nested keyed `{#each}` renders before its re-init.
  */
 export function stampStructuralChange(
 	children: CstNode[],

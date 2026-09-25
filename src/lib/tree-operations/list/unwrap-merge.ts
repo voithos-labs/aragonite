@@ -112,11 +112,9 @@ function depthOneListFor(
 }
 
 /**
- * Relocate the merged-away item's remaining children by "preserve absolute indent":
- * nested-list items promote to the depth-1 sibling container when the merge target sits
- * deeper, everything else absorbs into the target item. Children are moved into the live
- * tree and copied individually, so the snapshot's view of the deleted item stays intact
- * (G1.9).
+ * Move the merged-away item's remaining children, keeping their absolute indent: nested-list
+ * items promote to the depth-1 sibling list when the merge target sits deeper, everything else
+ * joins the target item. Each child is copied first, so the undo entry's deleted item stays intact.
  */
 function relocateRemainingChildren(
 	list: CstNode,

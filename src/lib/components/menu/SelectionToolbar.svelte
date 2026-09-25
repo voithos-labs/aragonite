@@ -195,10 +195,8 @@
 		const { start, end } = normalizeSelection(selection);
 		const sameBlock = start.path.join('.') === end.path.join('.');
 		if (!sameBlock) {
-			// The bar hangs off where the selection ends, so the end block's rectangles come
-			// first. A selection starting at the very end of one block (a drag that left the
-			// block upward, or began at the previous paragraph's end) leaves the start block's
-			// remaining range empty, so that is the fallback, and its whole box the last resort.
+			// The bar hangs off where the selection ends; the start block's remaining range, then
+			// its whole box, are the fallbacks when the end block yields no rectangle.
 			const rects = editor.getRects();
 			const endRects =
 				editor.getBlockKindAt(end.path) !== 'table' && end.offset > 0

@@ -235,11 +235,8 @@ function enclosingKinds(
 	return kinds;
 }
 
-/** What the user sees, asked of the code that draws it: only the render knows which bytes a kind
- *  draws as markers (G4.33), so nothing here scans the parse tree itself. The content reading, not
- *  the block's own: the first byte typed into an empty construct hides its markers, and the
- *  comparison above would read that as bytes lost. This only adds bytes, so no reading of it can
- *  license dropping one. */
+/** What the user sees, asked of the render (G4.33). The content reading rather than the block's
+ *  own: the first byte typed into an empty construct hides its markers, which is not a loss. */
 function visibleText(raw: string, reading: Reading, parsed?: readonly InlineNode[]): string {
 	return renderedText(
 		parsed ?? parseInline(raw, 0, raw.length, reading.resolver, reading.grammar),
@@ -273,11 +270,9 @@ function isSymmetricPair(kind: AnyInlineKind): boolean {
 }
 
 /**
- * Every construct holding `offset`, outermost first: one missing from the chain is missing from
- * `intended`, which is what lets a candidate destroy it unnoticed. A construct with children
- * includes its content bounds; one without them counts only its strict interior, since its edges
- * are ordinary insertion points. Exported for the depth test, which has to reach it with a tree
- * no real insertion could be rendered at.
+ * Every construct holding `offset`, outermost first; one missing here would be missing from
+ * `intended`, and a candidate could destroy it unnoticed. Exported for the depth test, which needs
+ * a tree no real insertion could be rendered at.
  */
 export function constructChainAt(offset: number, inlines: readonly InlineNode[]): ChainNode[] {
 	const holds = (node: InlineNode): boolean => holdsOffset(node, offset);

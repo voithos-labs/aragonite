@@ -8,13 +8,9 @@
 	} from '../../a11y-strings';
 	import MenuIcon from '../menu/MenuIcon.svelte';
 
-	// A small panel positioned over one link construct. Enter commits; Escape is the host's,
-	// since it must also close a card the document still has the caret for.
-	//
-	// `role="dialog"` without `aria-modal`: a click leaves the card beside a live caret and the
-	// document behind stays the user's to type in, which is the opposite of what aria-modal would
-	// tell a screen reader. The focus trap starts on entry (Mod+K, or focus reaching the field),
-	// where that claim is true, and Escape returns the caret it borrowed.
+	// The URL panel over one link. Enter commits; Escape is the host's, since it also closes a
+	// card the document still holds the caret for. Not `aria-modal`: a clicked card sits beside a
+	// live caret, and the focus trap starts only once focus enters the card.
 	let {
 		url,
 		canWrite,
@@ -40,10 +36,8 @@
 	} = $props();
 
 	let draft = $state(untrack(() => url));
-	// The card opens on a blocked link so the URL can be repaired, but may not pass that URL
-	// on: `onLinkActivate` reaches the host app's own opener, and this is the only way in
-	// carrying a URL the user typed rather than the document's. An empty draft resolves as a
-	// relative URL, so it is refused too.
+	// Open hands a typed URL to the host's opener, so it gets the render path's scheme check;
+	// an empty draft would resolve as a relative URL, so it is refused too.
 	const openable = $derived(draft.trim() === '' ? undefined : resolveHref(draft));
 	let seed = $state(untrack(() => url));
 	let cardEl: HTMLDivElement | undefined = $state();
@@ -159,9 +153,8 @@
 </div>
 
 <style>
-	/* Built like the editor's menus (`.md-menu`, editor.css) and the image toolbar's field: a
-	   caption over an underlined input with icon buttons beside it, so the card reads as one of
-	   the editor's popovers rather than a form. */
+	/* Styled like the editor's menus (`.md-menu`, editor.css) and the image alt field, so the card
+	   reads as one of the editor's popovers rather than a form. */
 	.md-link-card {
 		position: absolute;
 		top: 0;
@@ -196,8 +189,7 @@
 		text-transform: uppercase;
 		color: var(--color-text-muted, #aaaaaa);
 	}
-	/* Underlined, not boxed: one rule under the text still reads as a field to fill in, where a
-	   second rounded box inside a rounded card reads as a frame inside a frame. */
+	/* Underlined, not boxed: a box inside the rounded card would read as a frame in a frame. */
 	.md-link-card-field input {
 		width: 100%;
 		box-sizing: border-box;

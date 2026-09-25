@@ -190,8 +190,8 @@ const REWRITE_MODULES: Record<string, string> = {
 	'src/lib/core/inline/format-toggle.ts': 'the format toggle'
 };
 
-/** Every file permitted to name `preDelete` at all; name-level equality closes the alias, bracket
- *  and helper-forward holes an endpoint-spelling matcher left open (#114). */
+/** Every file permitted to name `preDelete` at all; matching the bare name also catches an
+ *  aliased import, a bracket access and a helper that forwards it. */
 const PRE_DELETE_NAMERS: Record<string, string> = {
 	'src/lib/tree-operations/paste-surfaces.ts': 'the surface contract declaring the parameter',
 	'src/lib/tree-operations/paste/dispatch.ts': 'the request entry carrying the field to the hooks',

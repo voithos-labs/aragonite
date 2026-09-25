@@ -1,10 +1,7 @@
 /**
- * Moving a block among its siblings, for drag-and-drop and the keyboard nudge: resolve the
- * unit a path points into, clamp the destination, commit one permutation. A reorder creates no
- * node (each moved block keeps its id and ref through the `reorderChildren` idMap); the only
- * writes are blank-line separators and marker renumbering. A move can make two neighbours
- * merge, so the caret and the announcement use the outcome the primitive reports, not the
- * destination the clamp picked.
+ * Moving a block among its siblings, for drag-and-drop and the keyboard nudge, as one commit.
+ * A move can make two neighbours merge, so the caret and the announcement use the index the
+ * reorder reports, not the destination the clamp picked.
  */
 
 import { CURSOR_START } from '../block-component';

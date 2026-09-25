@@ -8,13 +8,9 @@ import {
 } from '../invariants';
 
 /**
- * The behaviour behind G2.12, which a source scan checks statically: a live cross-block range,
- * a gesture that interrupts it, then one printable key.
- *
- * Each gesture is held to one outcome, checked by comparing bytes exactly: not by accepting
- * either legal outcome, and not by reading `isCrossBlockActive()` back, since both agree with
- * whatever happened. Each `consumes` was observed, not read off G2.12, or this suite would
- * only repeat what it cross-checks. Ranges are built so corruption lands far from the prediction.
+ * A live cross-block range, a gesture that interrupts it, then one printable key: the behaviour
+ * the G2.12 source scan checks statically. Each gesture is held to one observed outcome, compared
+ * byte for byte, and each range is built so corruption lands far from the prediction.
  */
 
 export type RangeInterruptGesture =

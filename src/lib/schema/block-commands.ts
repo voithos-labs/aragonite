@@ -332,11 +332,9 @@ export function dispatchKeyCommand(
 }
 
 /**
- * Dispatch for a chord that bubbled up to a container. Kind commands only, no global ones:
- * undo/redo belong to the focused leaf, and a container re-firing them would double-fire
- * (`resolveKindBinding` in `./commands`). The callers hold no `GlobalCommandContext`, so they pass
- * the checks directly, and an override that resolves a global id here resolves as dead, declining
- * with a warning rather than being dropped by a `runCommand` that has no handler for it.
+ * Dispatch for a chord that bubbled up to a container. Kind commands only: undo/redo belong to the
+ * focused leaf, and a container re-firing them would double-fire. An override that resolves a
+ * global id here declines as dead, with a warning.
  */
 export function dispatchKindCommand(
 	chord: string,

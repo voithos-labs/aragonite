@@ -52,7 +52,7 @@
 		slots?: RefSlots<BlockComponent>;
 	} = $props();
 
-	// A row's position among the table's children IS its row index.
+	// A row's position among the table's children is its row index.
 	const rowIdx = $derived(index);
 
 	const parentBlockEdit = getContext<BlockEditActions>(BLOCK_EDIT_KEY);
@@ -81,9 +81,8 @@
 		badgeRefusal: 'a table row renders no box of its own to hold one'
 	});
 
-	// A `display: contents` row has no box, so measure a cell: every cell stretches to
-	// the grid row track, making its border-box height the row height. Enrolling in the
-	// table scope's batched pass keeps a fling to one reflow, not one per mounted row.
+	// A `display: contents` row has no box, so a cell, stretched to the row track, gives the row
+	// height; the table's batched pass keeps a fast scroll to one reflow.
 	$effect(() => {
 		void index;
 		if (!parentSink) return;
@@ -98,9 +97,8 @@
 		);
 	});
 
-	// Skip the mount run (mirrors BlockHost): a read here interleaved with the prior row's
-	// subtotal write forces one reflow per row mounted in the frame (VR-4). The batched
-	// pass owns mount measurement; this effect re-measures only on a later edit.
+	// Re-measures on a later edit only: the batched pass measures at mount, and a read here then
+	// would force one reflow per mounted row.
 	let firstRun = true;
 	$effect(() => {
 		void node.raw;

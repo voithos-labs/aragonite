@@ -84,9 +84,8 @@ export function traversalStep(position: FocusPosition): -1 | 0 | 1 {
 }
 
 /**
- * Synchronous and scrolls nothing into view, so an unmounted `refs[first]` silently does
- * nothing. The caller keeps the target within the mounted window (VR-12,
- * docs/design/virtual-rendering.md); anything further goes through the async `revealByPath`.
+ * Scrolls nothing into view, so an unmounted target does nothing; a caller that cannot keep
+ * the target mounted goes through the async `revealByPath` (docs/design/virtual-rendering.md).
  */
 export function dispatchFocusByPath(
 	refs: (BlockComponent | undefined)[],

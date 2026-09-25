@@ -1,8 +1,6 @@
 <!--
   One alert box for both kinds: the directive admonition (an editable title at child 0)
-  and the GitHub alert (no title, a static badge instead). createContainerBlock holds all
-  the child-list state, so this file owns only the box around it; node, index and path go
-  in as functions so each is re-read live rather than snapshotted.
+  and the GitHub alert (no title, a static badge instead).
 -->
 <script lang="ts">
 	import { BlockList, createContainerBlock, getPluginMetadata, type NodeView } from '$lib/plugin';

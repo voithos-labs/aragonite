@@ -241,12 +241,11 @@ export async function toggleTaskByKeyboard(
 }
 
 /**
- * The one insert that starts from no block at all: a key at the edge of `boundaryIndex` puts
- * the caret in the gap between blocks, and the next key creates a paragraph there (empty `text`
- * means Enter). Both halves are checked, or a caret that went into the block instead would
- * record an ordinary edit as gap coverage. The new block leaves the caret mid-document, so this
- * is a note's last gesture. Arriving by 'arrow-up' serves containers with a title row, where
- * Backspace on the first child does nothing on purpose; the default covers Backspace at an edge.
+ * A key at the edge of `boundaryIndex` puts the caret in the gap between blocks, and the next key
+ * creates a paragraph there (empty `text` means Enter); both halves are checked, so an ordinary
+ * edit cannot pass as gap coverage. It leaves the caret mid-document, so it is a note's last
+ * gesture. `'arrow-up'` serves containers with a title row, where Backspace on the first child
+ * does nothing.
  */
 export async function mintAtGap(
 	ctx: SimContext,

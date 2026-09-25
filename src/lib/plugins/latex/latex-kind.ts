@@ -184,11 +184,8 @@ function splitCarriageReturn(line: string): { text: string; cr: string } {
 }
 
 /**
- * Put back a closer a truncating write dropped, declared on both math kinds as
- * `normalizeRawWrite`. Bytes reaching a block this way never came from the user typing its fence,
- * so a range that ran out of the body leaves the block standing rather than degrading it to a
- * paragraph, the same answer a fenced code block gives. A first line that no longer opens the
- * block is left alone: those bytes have stopped being its syntax.
+ * The `$$` kind's `normalizeRawWrite`: put back a closer a truncating write dropped, as a fenced
+ * code block does. A first line that no longer opens the block is left alone.
  */
 function normalizeMathBlockRaw(raw: string, node: NodeView): string {
 	const display = trimTrailingLineEnding(raw);

@@ -1,10 +1,7 @@
-// Two documentation gates, both run on every invocation. With a <dir> argument the pack
-// is also written there (the directory is cleared first — see the refusal below).
-// Gate 1: the public docs pack (docs/guide/, subfolders included) leaves the repo as one tree, so
-// every relative pointer must land on a file the pack carries (a doc, or an asset beside it), and
-// a `#fragment` outside code must name a heading that doc still has, slugged as GitHub does.
-// Gate 2: the rest of the corpus (README, CONTRIBUTING, docs/) must have every relative link
-// resolve to a real file or directory.
+// Two documentation checks, run on every invocation; with a <dir> argument the pack is also
+// written there, into a cleared directory. Gate 1: every relative link inside the public pack
+// (docs/guide/) lands on a file the pack carries, and every `#fragment` outside code names a heading
+// that doc still has. Gate 2: every relative link in README, CONTRIBUTING and docs/ resolves.
 import { execSync } from 'node:child_process';
 import {
 	copyFileSync,

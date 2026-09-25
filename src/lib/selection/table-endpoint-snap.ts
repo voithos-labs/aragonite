@@ -57,9 +57,8 @@ export interface GridCell {
 	path: number[];
 }
 
-/** A grid's own width, row 0's cell count — not `metadata.columnCount`: `containerContract: 'grid'`
- *  is a plugin contract, and a kind with no table metadata reaches here. A column mutation splices
- *  each row and the count together, so the two agree on a table. */
+/** A grid's width as row 0's cell count, not `metadata.columnCount`: a plugin grid kind has no
+ *  table metadata. On a table the two agree, since a column edit changes both together. */
 function gridColumnCount(grid: NodeView): number {
 	return grid.children?.[0]?.children?.length ?? 0;
 }

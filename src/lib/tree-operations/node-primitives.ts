@@ -1,9 +1,8 @@
 /**
- * The parent shapes, node constructors and path walks under every tree op. Children-array
- * contract: an op mutating a container's top-level children takes the array as a parameter and
- * mutates that, never `node.children`, which the caller owns and writes back. A descendant found
- * by walking the live tree is the exception: mutate it in place after the caller copied its
- * ancestors (`unshare.ts`), or through `commitMultiScope` when the change is structural.
+ * The parent shapes, node constructors and path walks under every tree op. An op mutating a
+ * container's children takes the array as a parameter, never `node.children`, which the caller
+ * owns and writes back; a descendant found by walking the live tree is mutated in place after its
+ * ancestors are copied (`unshare.ts`), or through `commitMultiScope` when the change is structural.
  */
 
 import type { AnyBlockKind, CstNode, Document } from '../core/nodes';

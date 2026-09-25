@@ -349,9 +349,8 @@
 				path: e.path,
 				detail: ('detail' in e ? e.detail : undefined) ?? {}
 			});
-			// The shell maintains only the link-reference resolver (inline content computes
-			// lazily on read, in core/inline/inline-cache), and hands out a fresh identity only
-			// on a real signature change: one per edit would re-render every block that read it.
+			// A fresh resolver only on a real signature change: one per edit would re-render
+			// every block that read it.
 			if (lrdMapCouldChange(doc, e)) {
 				const newMap = buildLinkReferenceMap(doc.children);
 				const next = advanceSignatureEpoch(currentSignature, signatureEpoch, newMap.signature);
@@ -841,9 +840,7 @@
 		presentationMode: () => effectiveMode,
 		theme: () => theme,
 		keybindingOverrides: () => overridesMap,
-		// An accessor, not the `onPasteImage,` shorthand: the shorthand captures the prop
-		// and svelte-check reports `state_referenced_locally`, which
-		// `svelte/no-unused-svelte-ignore` won't let us suppress.
+		// An accessor, not the `onPasteImage,` shorthand, which would capture the prop's value.
 		get onPasteImage() {
 			return onPasteImage;
 		},
@@ -1246,9 +1243,8 @@
 	});
 
 	// Plain `let`, not $state or $derived: the scroll correction asks for this mid-measure,
-	// where evaluating the window derived would force the layout read the batched pass exists
-	// to avoid (VR-4). Nothing reactive reads it: the root's own attribute reads the derived,
-	// so this flag lags it by one flush when windowing switches on or off, measured harmless.
+	// where evaluating the window derived would force a layout read (VR-4). It lags the
+	// derived by one flush when windowing switches on or off.
 	let rootWindowingActive = false;
 	$effect(() => {
 		rootWindowingActive = topWindowing.window.active;
@@ -1626,9 +1622,7 @@
 		overflow-anchor: none;
 		scrollbar-width: thin;
 		scrollbar-color: var(--color-border, #3e3e3b) transparent;
-		/* No box of its own. A document is the page's content, not a widget sitting on it, and
-		   an outline around the whole editor reads as a form field the moment the host gives it
-		   a column. A host that wants the frame draws it on its own container. */
+		/* No border or outline: a document is the page's content, not a widget on it. */
 		/* Containing block for the image overlay portal. */
 		position: relative;
 	}
