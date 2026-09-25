@@ -2,7 +2,7 @@
  * The empty delimiter pair the auto-pair last wrote, one record per editor: only that pair is its
  * to step over, collapse or delete, since the same bytes typed by hand are the user's. It holds
  * while the pair and the text either side are the bytes the write left, so typing inside keeps
- * it; an edit outside it, a key with the caret elsewhere or in another block, or an undo ends it.
+ * it; an edit outside it, or a key with the caret elsewhere or in another block, ends it.
  */
 
 import type { ContentRange } from '../../../core/inline';
