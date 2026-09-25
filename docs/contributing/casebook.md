@@ -209,12 +209,19 @@ unchanged everywhere it's observed.
 
 The same no-unregister rule reaches the public API. A plugin author's suite can't re-install
 between cases without a supported entry point, so `@voithos-labs/aragonite/testing` exports
-`resetPluginPlatformForTests()`, and every new registration reachable from the public plugin
-surface must wire its reset into it, or the next author hits the duplicate throw on their second
-`beforeEach`.
+`resetPluginPlatformForTests()`. That reset once walked a hand-kept list, and two public
+registries (block context actions, code languages) were never on it: a suite resetting in
+`beforeEach` saw one more copy of its context-menu row per case, and kept the first case's
+grammar for the rest. Now every registry is built by `createPluginRegistry`, which enrolls its
+reset as it builds the store, so there's no list to forget. The same store records which plugin
+made each entry and answers reads only through an editor's activation, so an entry can't leak
+into an editor that didn't list its plugin either.
 
-**Guard:** the registry coherence family (G1.2, G1.10, G1.17, G1.18) sweeps the live registry in
-the registration-check flush at editor mount, one guard call per check (trimmed):
+**Guard:** the reset is built into `src/lib/schema/plugin-registry.ts` :: `createPluginRegistry`,
+and `src/lib/test/plugins/testing-barrel.test.ts` reads the plugin barrel's own exports, so a new
+public `register*` or `declare*` without a probe fails the suite. The registry coherence family
+(G1.2, G1.10, G1.17, G1.18) sweeps the live registry in the registration-check flush at editor
+mount, one guard call per check (trimmed):
 
 ```ts
 // src/lib/schema/registration-checks.ts :: flushPendingRegistrationChecks
@@ -224,5 +231,6 @@ report('registry-completeness', () =>
 report('opener-registry', () => checkOpenerRegistry(listRegisteredOpeners(), hasDescriptor));
 ```
 
-**Spec:** the `src/lib/schema/register-once.ts` header and `docs/design/plugin-contract.md`.
+**Spec:** the `src/lib/schema/register-once.ts` and `src/lib/schema/plugin-registry.ts` headers,
+and `docs/design/plugin-contract.md`.
 ([rule 4](rules.md#the-five-rules))

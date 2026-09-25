@@ -1632,12 +1632,12 @@ Chord strings follow the consumer guide's chord model: fixed-order `Mod` / `Alt`
 
 ## Block context actions
 
-**`registerBlockContextActions(kind, provider)`**
+**`registerBlockContextActions(kind, name, provider)`**
 
-The right-click menu on a block of `kind` (a code block, a table, a plugin's own block) lists what its providers return, ahead of the editor's own rows (copy, replace with the clipboard, remove). Register from `setup`. The provider is consulted on every open, so it reads the block as it is then; several may stack on one kind, and `EVERY_KIND` (`'*'`) registers for every kind. Prose is the page's background: a paragraph or heading keeps the browser's own menu and consults no provider.
+The right-click menu on a block of `kind` (a code block, a table, a plugin's own block) lists what its providers return, ahead of the editor's own rows (copy, replace with the clipboard, remove). Register from `setup`: the rows show only in the editors that list your plugin. The provider is consulted on every open, so it reads the block as it is then. Several may share one kind under different names, a taken name throws, and `EVERY_KIND` (`'*'`) registers for every kind. Prose is the page's background: a paragraph or heading keeps the browser's own menu and consults no provider.
 
 ```ts
-registerBlockContextActions(conspiracy, (node) => [
+registerBlockContextActions(conspiracy, 'debunk', (node) => [
 	{
 		id: 'conspiracy.debunk',
 		label: 'Mark debunked',
@@ -1647,7 +1647,7 @@ registerBlockContextActions(conspiracy, (node) => [
 ]);
 ```
 
-`run` receives a `BlockActionContext`: the node, its path, `deleteBlock()`, and `replaceRaw(raw)`, which rewrites the block's bytes wholesale and reparses them, the road the default replace row takes. Each is one undo entry. `icon` names a glyph the editor's menus already draw (the same set the code rail and the table menu use); a row without one shows none. `danger` paints the row in the error colour, for an action that is not one undo away.
+`run` receives a `BlockActionContext`: the node, its path, `deleteBlock()`, and `replaceRaw(raw)`, which rewrites the block's bytes wholesale and reparses them, the road the default replace row takes. Each is one undo entry. An action that writes clipboard text runs it through `transformPaste(text)` first, so it gets the rewrites a paste into that editor would. `icon` names a glyph the editor's menus already draw (the same set the code rail and the table menu use); a row without one shows none. `danger` paints the row in the error colour, for an action that is not one undo away.
 
 ## Paste transforms
 

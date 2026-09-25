@@ -84,8 +84,8 @@ isPluginInstalled('parrot'); // false, and declaredPluginKind('parrot') throws u
 
 What that clears, and what it deliberately leaves alone:
 
-- Cleared: every non-built-in registration. Kinds, components, openers, completers, commands and keymaps, the inline syntax and widget registries, the paste surfaces and transform pipelines, the `:::` directive registry, and the installed-plugin set.
-- Built-in registrations survive, exactly as in production. One exception: paste surfaces are wiped whole, built-ins included, so a case that pastes into a built-in block after a reset re-registers or skips the reset. Parse and round-trip cases don't care.
+- Cleared: every non-built-in registration. Kinds, components, openers, completers, commands and keymaps, block context actions, insert entries, code languages, the inline syntax and widget registries, the paste surfaces and transform pipelines, the `:::` directive registry, and the installed-plugin set.
+- Built-in registrations survive, exactly as in production, the built-in paste surfaces and code languages included, so a case that pastes into a built-in block after a reset needs nothing re-registered.
 - Runtime state is untouched. The undo stack, the selection, and any live document are yours to set up.
 - It's test-only and throws outside a detected test environment. Detection is Vitest-specific (it reads `process.env.VITEST`), so a suite on another runner opts in first and puts the detected defaults back after:
 
@@ -142,7 +142,7 @@ One prerequisite: warnings only emit while the editor believes it's in a dev bui
 
 ### Proving a paste transform is wired
 
-`registerPasteTransform` writes into a registry nothing else on the public surface reads, so the subpath ships the driver. `applyPasteTransforms(text)` is the very function every clipboard-to-parse route runs, so driving it proves your transform is **wired**, not merely that your pure function works:
+`registerPasteTransform` writes into a registry nothing else on the public surface reads, so the subpath ships the driver. `applyPasteTransforms(text)` is the very function every clipboard-to-parse route runs, so driving it proves your transform is **wired**, not merely that your pure function works. It runs every installed plugin's transforms, as an editor with no `plugins` prop would; pass a list of plugin names, `applyPasteTransforms(text, ['parrot'])`, to run it as an editor listing only those (a transform your plugin's setup registered runs only when your plugin is in the list):
 
 ```ts
 import { applyPasteTransforms } from '@voithos-labs/aragonite/testing';
