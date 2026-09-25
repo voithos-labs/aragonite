@@ -1034,10 +1034,11 @@ document to reach a shape, not the separator pass.) `e2e/lint/settle-predicate-v
 
 **G4.23 · Requirement and spec lockstep.** Every spec under `e2e/tests/` pairs with a requirement
 file under `e2e/requirements/` and vice versa (`.perf` stripped from the stem, no two specs claiming
-one file); each requirement carries a title, a section and a scenario, each spec a `test()`; and a
-requirement list three times longer than its spec's test count is named with a reason in the scan's
-allowlist. Count EQUALITY is refuted by measurement, most pairs diverge legitimately; the dated
-survey is in the file header. `e2e/lint/requirement-spec-lockstep.test.ts`.
+one file); each requirement carries a title, a section and a scenario, and Playwright lists at least
+one test for each spec; and a requirement list three times longer than the tests
+`playwright test --list` reports for its spec is named with a reason in the scan's allowlist. Count
+EQUALITY is refuted by measurement: one test routinely walks several bullets.
+`e2e/lint/requirement-spec-lockstep.test.ts`.
 
 **G4.24 · Code-surface commit route.** `CodeBlock.svelte` holds exactly one `updateBlockContent`
 call, and it's `commitDisplay`'s, so the fence write reconciliation (escalate a body line the parser

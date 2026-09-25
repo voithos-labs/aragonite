@@ -2,11 +2,12 @@
  * G4.23: every spec pairs with a requirement file and every requirement file with a spec, so
  * the file tree is the list of what e2e covers (`docs/contributing/testing.md`). Three rules,
  * from strictest: pairing both ways, shape (a placeholder written only to pair fails), and a
- * scenario count far ahead of the test count, which an allowlist may excuse. A green run
- * proves pairing alone, never that a bullet maps to a test. Runs outside `test:editor:invariants`.
+ * scenario count far ahead of the tests Playwright lists for the spec, which an allowlist may
+ * excuse. A green run proves pairing alone, never that a bullet maps to a test.
  */
 import { describe, it, expect } from 'vitest';
 import { readdirSync, readFileSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
 import path from 'node:path';
 
 const SPEC_DIR = path.resolve('src/lib/e2e/tests');
@@ -44,44 +45,9 @@ const INFLATION_ALLOWLIST: readonly InflationException[] = [
 			'three of the six bullets are v1 narrowings (the click route, container entry, and the measured-unreachable windowed join), and a fourth is the interaction note, none of them scenarios the two gestures could drive'
 	},
 	{
-		spec: 'blocks/atomic-cross-block-delete.spec.ts',
-		reason:
-			'four hard-invariant bullets asserted in every scenario, and the two tests are one parametrized loop over the atomic variants'
-	},
-	{
-		spec: 'clipboard/list-copy-paste-roundtrip.spec.ts',
-		reason:
-			'six of seven tests are one parametrized loop over the `ROUNDTRIPS` rows, invisible to the literal test counter'
-	},
-	{
-		spec: 'blocks/list/join-into-long-list.spec.ts',
-		reason:
-			'one parametrized loop over the gesture rows (each mode, each gesture), invisible to the literal test counter'
-	},
-	{
-		spec: 'blocks/table/text-under-table.spec.ts',
-		reason:
-			'both tests are one parametrized loop over the `ROUTES` rows (ten tests), invisible to the literal test counter'
-	},
-	{
-		spec: 'clipboard/list-paste-absorbs-same-type.spec.ts',
-		reason:
-			'nine of ten tests are one parametrized loop over the absorb `ROWS`, invisible to the literal test counter'
-	},
-	{
-		spec: 'inline-editing/formatting-shortcuts.spec.ts',
-		reason:
-			'six of seven tests are one parametrized loop over the `TOGGLES` rows, invisible to the literal test counter'
-	},
-	{
 		spec: 'blocks/code/fence-content-validity.spec.ts',
 		reason:
 			'the write rule reaches most of its entry points headlessly (the byte sinks, find/replace, the range-delete branches), so those bullets are unit-pinned and the spec drives only the gestures a user makes through the DOM'
-	},
-	{
-		spec: 'perf/perf-gate.perf.spec.ts',
-		reason:
-			'three parametrized loops run 17 gated rows, and the bullets state budget, baseline policy and what the gate cannot see rather than scenarios'
 	},
 	{
 		spec: 'perf/vr-reveal-anchor.spec.ts',
@@ -152,25 +118,46 @@ export function readRequirementShape(text: string): RequirementShape {
 	return { hasTitle, sections, scenarioUnits };
 }
 
+interface ListedSuite {
+	title: string;
+	specs?: { title: string; file: string; line: number; column: number }[];
+	suites?: ListedSuite[];
+}
+
+/** The part of a `playwright test --list --reporter=json` report the count reads. */
+export interface ListReport {
+	suites: ListedSuite[];
+	errors: { message?: string }[];
+}
+
 /**
- * A parametrized loop counts once, the shape rule 3's threshold was measured against. A string
- * literal for the title is what makes a call a test: `test.skip(condition, reason)` is a run
- * guard, and counting those inflated the test side in exactly the files most likely to drift.
+ * Tests per spec file, keyed by the file's path under `tests/`. The report repeats a test once
+ * per project that runs it, so a test is identified by its position and full title instead.
  */
-export function countTests(code: string): number {
-	const withoutComments = code
-		.split('\n')
-		.map((line) => {
-			const trimmed = line.trimStart();
-			const isComment =
-				trimmed.startsWith('//') || trimmed.startsWith('*') || trimmed.startsWith('/*');
-			return isComment ? '' : line;
-		})
-		.join('\n');
-	const calls = withoutComments.matchAll(
-		/(?:^|[\s.;{}])test(?:\.skip|\.fixme|\.only)?\s*\(\s*(.?)/g
+export function countListedTests(report: ListReport): Map<string, number> {
+	const keysByFile = new Map<string, Set<string>>();
+	function walk(suite: ListedSuite, titles: string): void {
+		for (const spec of suite.specs ?? []) {
+			const keys = keysByFile.get(spec.file) ?? new Set<string>();
+			keys.add(`${spec.line}:${spec.column}:${titles} > ${spec.title}`);
+			keysByFile.set(spec.file, keys);
+		}
+		for (const child of suite.suites ?? []) walk(child, `${titles} > ${child.title}`);
+	}
+	for (const suite of report.suites) walk(suite, suite.title);
+	return new Map([...keysByFile].map(([file, keys]) => [file, keys.size]));
+}
+
+/** List mode loads the specs without starting the web server or a browser. */
+function listTests(): ListReport {
+	const run = spawnSync(
+		process.execPath,
+		[path.resolve('node_modules/@playwright/test/cli.js'), 'test', '--list', '--reporter=json'],
+		// The WebKit lane's specs belong to no other project, so they list only with it on.
+		{ encoding: 'utf8', maxBuffer: 256 * 1024 * 1024, env: { ...process.env, WEBKIT: '1' } }
 	);
-	return [...calls].filter(({ 1: firstArgument }) => `'"\``.includes(firstArgument)).length;
+	if (!run.stdout) throw new Error(`playwright test --list printed nothing: ${run.stderr}`);
+	return JSON.parse(run.stdout) as ListReport;
 }
 
 /** Rule 3's predicate: a requirement list that ran far ahead of its spec. */
@@ -204,9 +191,13 @@ interface Lockstep {
 	specsWithoutRequirement: string[];
 	requirementsWithoutSpec: string[];
 	stemCollisions: string[];
+	listErrors: string[];
+	unlistedSpecs: string[];
 }
 
 function scanLockstep(): Lockstep {
+	const listing = listTests();
+	const listedTests = countListedTests(listing);
 	const specs = relativePaths(SPEC_DIR, '.spec.ts');
 	const requirements = relativePaths(REQUIREMENT_DIR, '.md');
 	const requirementStems = new Set(requirements.map((file) => file.replace(/\.md$/, '')));
@@ -229,7 +220,7 @@ function scanLockstep(): Lockstep {
 			spec,
 			requirement: `${stem}.md`,
 			shape: readRequirementShape(readFileSync(path.join(REQUIREMENT_DIR, `${stem}.md`), 'utf8')),
-			tests: countTests(readFileSync(path.join(SPEC_DIR, spec), 'utf8'))
+			tests: listedTests.get(spec) ?? 0
 		});
 	}
 
@@ -243,7 +234,9 @@ function scanLockstep(): Lockstep {
 		),
 		stemCollisions: [...claimedBy]
 			.filter(([, claimants]) => claimants.length > 1)
-			.map(([stem, claimants]) => `${stem}.md ← ${claimants.join(' + ')}`)
+			.map(([stem, claimants]) => `${stem}.md ← ${claimants.join(' + ')}`),
+		listErrors: listing.errors.map((error) => error.message ?? JSON.stringify(error)),
+		unlistedSpecs: specs.filter((spec) => !listedTests.has(spec))
 	};
 }
 
@@ -302,6 +295,11 @@ describe('G4.23 requirement↔spec lockstep', () => {
 		expect(lockstep.pairs.length).toBeGreaterThan(300);
 	});
 
+	// A spec that fails to load drops out of the listing instead of reading as zero tests.
+	it('listed every spec without a load error', () => {
+		expect(lockstep.listErrors, 'playwright test --list reported errors').toEqual([]);
+	});
+
 	it('every spec has a requirement file', () => {
 		expect(
 			lockstep.specsWithoutRequirement,
@@ -337,12 +335,11 @@ describe('G4.23 requirement↔spec lockstep', () => {
 		).toEqual([]);
 	});
 
-	it('every spec declares at least one test', () => {
-		const empty = lockstep.pairs.filter(({ tests }) => tests === 0).map(({ spec }) => spec);
+	it('Playwright lists at least one test for every spec', () => {
 		expect(
-			empty,
-			`specs with no test() call: their requirement file's scenarios run nowhere:
-  ${empty.join('\n  ')}`
+			lockstep.unlistedSpecs,
+			`specs Playwright lists no test for, so their requirement file's scenarios run nowhere. Either the spec declares no test, or no project in playwright.config.ts matches it (a lane switched on by an env var needs that var in listTests):
+  ${lockstep.unlistedSpecs.join('\n  ')}`
 		).toEqual([]);
 	});
 
@@ -357,7 +354,7 @@ describe('G4.23 requirement↔spec lockstep', () => {
 			);
 		expect(
 			unexplained,
-			`requirement lists 3× longer than their spec's test count. Either the scenarios lost their tests, or the divergence is deliberate, in which case name it in INFLATION_ALLOWLIST with the reason:
+			`requirement lists 3× longer than the tests Playwright lists for their spec. Either the scenarios lost their tests, or the divergence is deliberate, in which case name it in INFLATION_ALLOWLIST with the reason:
   ${unexplained.join('\n  ')}`
 		).toEqual([]);
 	});
@@ -423,27 +420,42 @@ describe('G4.23 requirement↔spec lockstep: classifier self-tests', () => {
 		expect(readRequirementShape(text).scenarioUnits).toBe(1);
 	});
 
-	it('counts test() calls outside comments, including modifiers', () => {
-		const code = [
-			"test('a', () => {});",
-			"test.skip('b', () => {});",
-			"// test('commented out', () => {});",
-			"	test.fixme('c', () => {});",
-			"expect(latest('d')).toBe(1);",
-			'test(`a ${shape} template title`, () => {});'
-		].join('\n');
-		expect(countTests(code)).toBe(4);
-	});
-
-	// The discriminating case: a run guard and a skipped test are both `test.skip(`,
-	// and only the second has a title.
-	it('does not count a file-level test.skip run guard as a test', () => {
-		expect(
-			countTests("test.skip(!process.env.PERF || !!process.env.PERF_GATE, 'report-only');")
-		).toBe(0);
-		expect(
-			countTests("test.skip(condition, 'reason');\ntest.skip('a real skipped test', fn);")
-		).toBe(1);
+	it('counts each test a loop generates once, however many projects list it', () => {
+		const loopFile = (): ListReport['suites'][number] => ({
+			title: 'loop.spec.ts',
+			suites: [
+				{
+					title: 'rows',
+					specs: ['a', 'b', 'c'].map((row) => ({
+						title: `row ${row}`,
+						file: 'loop.spec.ts',
+						line: 5,
+						column: 3
+					}))
+				}
+			]
+		});
+		const report: ListReport = {
+			// One copy per project: the report repeats a file under every project that runs it.
+			suites: [
+				loopFile(),
+				loopFile(),
+				{
+					title: 'nested/twins.spec.ts',
+					suites: ['first', 'second'].map((title) => ({
+						title,
+						specs: [{ title: 'same title', file: 'nested/twins.spec.ts', line: 9, column: 2 }]
+					}))
+				}
+			],
+			errors: []
+		};
+		expect(countListedTests(report)).toEqual(
+			new Map([
+				['loop.spec.ts', 3],
+				['nested/twins.spec.ts', 2]
+			])
+		);
 	});
 
 	it('fires on a requirement list that ran ahead, not on ordinary divergence', () => {
