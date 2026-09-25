@@ -661,7 +661,7 @@
 	const inlineMenu = createInlineMenuState({
 		getDoc,
 		getSelection,
-		getMode: () => effectiveMode,
+		getMode: reading.mode,
 		events,
 		editorId,
 		reading,
@@ -685,7 +685,7 @@
 		getDocumentGeneration: documentSwap.generation,
 		// The one place the mode enters the dispatch levels; they read it back through
 		// the pluginEditor lookup they already pass around.
-		getPresentationMode: () => effectiveMode,
+		getPresentationMode: reading.mode,
 		getTheme: () => theme,
 		activation: activePlugins,
 		// Called at use, never here: both read state declared further down this component.
@@ -770,7 +770,7 @@
 	let kindAnnouncement = $state('');
 	const kindCue = createKindCue({
 		getDoc,
-		getPresentationMode: () => effectiveMode,
+		getPresentationMode: reading.mode,
 		announce: async (label) => {
 			kindAnnouncement = '';
 			await tick();
@@ -831,7 +831,7 @@
 		imageLoadPolicy: () => imageLoadPolicy,
 		// Reading mode turns the drag handles off through the prop's own getter.
 		blockDragHandles: () => blockDragHandles && effectiveMode !== 'reading',
-		presentationMode: () => effectiveMode,
+		presentationMode: reading.mode,
 		theme: () => theme,
 		keybindingOverrides: () => overridesMap,
 		// An accessor, not the `onPasteImage,` shorthand, which would capture the prop's value.
@@ -857,7 +857,7 @@
 			return editorEl;
 		},
 		get mode() {
-			return effectiveMode;
+			return reading.mode();
 		},
 		selection: selectionState,
 		getSelection,
@@ -884,7 +884,7 @@
 
 	const rootGestures = createRootGestures({
 		get mode() {
-			return effectiveMode;
+			return reading.mode();
 		},
 		getDoc,
 		selection: selectionState,
@@ -927,7 +927,7 @@
 			return editorEl;
 		},
 		get mode() {
-			return effectiveMode;
+			return reading.mode();
 		},
 		getDoc,
 		isHostChrome,
@@ -1043,7 +1043,7 @@
 			return searchBar;
 		},
 		get mode() {
-			return effectiveMode;
+			return reading.mode();
 		},
 		get canReplace() {
 			return canReplace;
@@ -1188,7 +1188,7 @@
 
 	const focusAttribution = createFocusAttribution({
 		get mode() {
-			return effectiveMode;
+			return reading.mode();
 		}
 	});
 	$effect(() => {
@@ -1338,7 +1338,7 @@
 		history,
 		pluginEditor: pluginEditorLookup,
 		activation: activePlugins,
-		getPresentationMode: () => effectiveMode,
+		getPresentationMode: reading.mode,
 		isCrossBlockRange: () => selectionState.isCrossBlock,
 		crossBlockCommands: crossBlockCommands
 	};
