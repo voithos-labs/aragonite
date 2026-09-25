@@ -39,7 +39,7 @@ import {
 	makeStubContainerEdit,
 	makeStubFocus
 } from './editor-actions';
-import { fixtureLinkRef } from './fixture-grammar';
+import { fixtureReading } from './fixture-grammar';
 
 interface HistoryStub {
 	requestUndo: () => void;
@@ -131,7 +131,7 @@ function stubbedDoc(emptyDoc: Document): EditorDoc {
 	return {
 		doc: () => emptyDoc,
 		contentVersion: () => ++version,
-		linkRef: fixtureLinkRef(),
+		reading: fixtureReading(),
 		pluginEditor: (() => undefined) as unknown as EditorDoc['pluginEditor'],
 		lifetime: new AbortController().signal,
 		editorRoot: () => null,
@@ -174,14 +174,24 @@ export function editorMountContext(overrides: MountContextOverrides = {}): Map<s
 	const emptyDoc: Document = { kind: 'document', prefix: '', children: [], suffix: '' };
 	// The document group is assembled first, so services that read the document (decorations)
 	// see the override rather than the empty placeholder.
-	const doc: EditorDoc = withDerivedScrollport({ ...stubbedDoc(emptyDoc), ...overrides.doc });
+	const policies: EditorPolicies = { ...stubbedPolicies(), ...overrides.policies };
+	const docBase = stubbedDoc(emptyDoc);
+	// The reading follows the services' grammar and the policies' mode unless a test supplies its own.
+	docBase.reading = fixtureReading({
+		get grammar() {
+			return services.registryView.grammar;
+		},
+		mode: () => policies.presentationMode()
+	});
+	const doc: EditorDoc = withDerivedScrollport({ ...docBase, ...overrides.doc });
+	const services: EditorServices = { ...stubbedServices(doc.doc), ...overrides.services };
 	return new Map<symbol, unknown>([
 		[BLOCK_EDIT_KEY, overrides.blockEdit ?? makeStubBlockEdit()],
 		[FOCUS_KEY, overrides.focus ?? makeStubFocus()],
 		[HISTORY_KEY, overrides.history ?? { requestUndo: vi.fn(), requestRedo: vi.fn() }],
 		[CONTAINER_EDIT_KEY, overrides.containerEdit ?? makeStubContainerEdit()],
-		[EDITOR_SERVICES_KEY, { ...stubbedServices(doc.doc), ...overrides.services }],
-		[EDITOR_POLICIES_KEY, { ...stubbedPolicies(), ...overrides.policies }],
+		[EDITOR_SERVICES_KEY, services],
+		[EDITOR_POLICIES_KEY, policies],
 		[EDITOR_DOC_KEY, doc]
 	]);
 }

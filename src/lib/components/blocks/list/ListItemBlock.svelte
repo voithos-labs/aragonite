@@ -68,7 +68,7 @@
 		blockDragHandles: getDragHandles,
 		presentationMode: getPresentationMode
 	} = getContext<EditorPolicies>(EDITOR_POLICIES_KEY);
-	const { linkRef } = getContext<EditorDoc>(EDITOR_DOC_KEY);
+	const { reading: linkRef } = getContext<EditorDoc>(EDITOR_DOC_KEY);
 
 	const listContext = getContext<ListContext>(LIST_CONTEXT_KEY);
 	// $derived, not a mount-time snapshot: a runtime prop toggle must reach blocks

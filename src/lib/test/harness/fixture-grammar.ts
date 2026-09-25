@@ -3,6 +3,8 @@
 import type { RenderInlineOptions } from '$lib/core/inline-render';
 import type { LinkReferenceResolverRef } from '$lib/editor-keys';
 import { defaultGrammarView, type GrammarView } from '$lib/schema/block-openers';
+import type { Reading } from '$lib/schema/reading';
+import { hidesDelimitersAtCaret } from '$lib/presentation-mode';
 import type { PasteSeam } from '$lib/tree-operations/paste-surfaces';
 
 /** The grammar itself, for a tree operation that takes it bare. */
@@ -20,6 +22,20 @@ export function fixtureLinkRef(
 ): LinkReferenceResolverRef {
 	const ref: LinkReferenceResolverRef = { grammar: defaultGrammarView };
 	return Object.defineProperties(ref, Object.getOwnPropertyDescriptors(over));
+}
+
+/** An editor's reading with the fixture grammar, no definitions and styled source, unless
+ *  `over` names its own. Copied by property descriptor, so a getter in `over` stays live. */
+export function fixtureReading(over: Partial<Reading> = {}): Reading {
+	const reading: Reading = {
+		grammar: defaultGrammarView,
+		current: undefined,
+		signature: '',
+		epoch: 0,
+		mode: () => 'source',
+		hidesDelimitersAtCaret: () => hidesDelimitersAtCaret(reading.mode())
+	};
+	return Object.defineProperties(reading, Object.getOwnPropertyDescriptors(over));
 }
 
 /** A paste hook's join context outside any mode, so the delete half cuts byte-literally. */

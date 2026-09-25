@@ -16,6 +16,7 @@ import type { PresentationMode } from './presentation-mode';
 import type { KeybindingOverrideMap } from './schema/keybinding-overrides';
 import type { EditorContext } from './schema/plugin-install';
 import type { RegistryView } from './schema/registry-view';
+import type { Reading } from './schema/reading';
 import type { PluginActivation } from './schema/plugin-activation';
 import type { CrossBlockCommandRouter } from './schema/block-commands';
 import type { EditorRects } from './editor-rects';
@@ -245,7 +246,8 @@ export interface EditorDoc {
 	/** Changes whenever the document's bytes change: the only sound memo key over a
 	 *  document whose `$state` proxy is mutated in place and never changes identity. */
 	contentVersion: () => number;
-	linkRef: LinkReferenceResolverRef;
+	/** How this editor reads its bytes: grammar, link definitions, mode. */
+	reading: Reading;
 	/** Resolves a plugin's per-instance `EditorContext`: the one object `onEditor` callbacks,
 	 *  global-command handlers and `BlockCommandContext.editor` all share. */
 	pluginEditor: PluginEditorLookup;

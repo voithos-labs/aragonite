@@ -17,7 +17,7 @@ import { declaredPluginKind } from '$lib/schema/plugin-kind';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { makeStubBlockEdit } from '../../harness/editor-actions';
 import { editorMountContext } from '../../harness/mount-context';
-import { fixtureLinkRef } from '../../harness/fixture-grammar';
+import { fixtureReading } from '../../harness/fixture-grammar';
 
 /** One block under a presentation root, focused, with the caret placed by the block itself. */
 function mountBlock(source: string, mode: PresentationMode, caret: number) {
@@ -36,7 +36,11 @@ function mountBlock(source: string, mode: PresentationMode, caret: number) {
 			blockEdit,
 			doc: {
 				doc: () => doc,
-				linkRef: fixtureLinkRef({ current: references.resolve, signature: references.signature })
+				reading: fixtureReading({
+					current: references.resolve,
+					signature: references.signature,
+					mode: () => mode
+				})
 			},
 			policies: { presentationMode: () => mode }
 		})

@@ -9,7 +9,7 @@
 import {
 	asPresentationMode,
 	hidesMarkers,
-	paintsFocusedMarkers,
+	hidesDelimitersAtCaret,
 	type PresentationMode
 } from '../presentation-mode';
 import { widgetSourceRange } from '../core/inline/inline-widgets';
@@ -304,13 +304,13 @@ export function isHiddenMarkerRoot(el: Element, container: HTMLElement): boolean
 }
 
 /**
- * `paintsFocusedMarkers` read from the DOM: whether this container's mode paints no marker at
+ * `hidesDelimitersAtCaret` read from the DOM: whether this container's mode paints no marker at
  * all in the focused block, neither its own prefix (`## `, a fence, a setext underline) nor an
  * inline construct's delimiters. A container with no mode attribute is styled source, which paints.
  */
 export function revealsNoMarkers(container: ParentNode): boolean {
 	const mode = markerHidingMode(container);
-	return mode !== null && !paintsFocusedMarkers(mode);
+	return mode !== null && hidesDelimitersAtCaret(mode);
 }
 
 /**

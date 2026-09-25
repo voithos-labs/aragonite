@@ -50,7 +50,7 @@
 	// While cropping, the pointer over the image belongs to the crop; the handle stands aside.
 	let cropping = $state(false);
 
-	const { linkRef } = getContext<EditorDoc>(EDITOR_DOC_KEY);
+	const { reading: linkRef } = getContext<EditorDoc>(EDITOR_DOC_KEY);
 
 	// Props are stable for the editor's lifetime, so capturing once is deliberate:
 	// reactive values already come in as getters.

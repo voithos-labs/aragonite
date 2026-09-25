@@ -49,6 +49,11 @@ export function paintsFocusedMarkers(mode: PresentationMode): boolean {
 	return !hidesMarkers(mode) || isPreviewMode(mode);
 }
 
+/** The converse, the one check a rewrite asks before dropping delimiter bytes at the caret. */
+export function hidesDelimitersAtCaret(mode: PresentationMode): boolean {
+	return !paintsFocusedMarkers(mode);
+}
+
 /**
  * The read-only check every dispatch path keys off. The parameter is a plain function type
  * so `schema/` and `selection/` need no `editor-keys` import; an `undefined` getter (a test

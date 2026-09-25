@@ -63,7 +63,7 @@
 	const getPresentationMode = getContext<EditorPolicies | undefined>(
 		EDITOR_POLICIES_KEY
 	)?.presentationMode;
-	const { linkRef } = getContext<EditorDoc>(EDITOR_DOC_KEY);
+	const { reading: linkRef } = getContext<EditorDoc>(EDITOR_DOC_KEY);
 
 	const cellsState = createBlockListState(() => node);
 

@@ -88,7 +88,7 @@ export function wireSurfaceContexts(): SurfaceWiring {
 		scrollHost: getScrollHost,
 		lifetime: editorLifetime,
 		pluginEditor,
-		linkRef
+		reading: linkRef
 	} = getContext<EditorDoc>(EDITOR_DOC_KEY);
 
 	const deps: SharedSurfaceDeps = {

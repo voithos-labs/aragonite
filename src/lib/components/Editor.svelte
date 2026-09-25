@@ -21,7 +21,6 @@
 		type BlockElLookup,
 		type DocumentGetter,
 		type EditorDoc,
-		type LinkReferenceResolverRef,
 		type EditorPolicies,
 		type EditorServices,
 		type PluginEditorLookup,
@@ -129,6 +128,8 @@
 	import { createEditorPluginContexts, mintEditorId } from '../schema/plugin-editor-context';
 	import { insertCatalogue, type InsertEntry } from '../schema/insert-catalogue';
 	import { createRegistryView, type KindEnablement } from '../schema/registry-view';
+	import type { Reading } from '../schema/reading';
+	import { hidesDelimitersAtCaret } from '../presentation-mode';
 	import BlockList from './BlockList.svelte';
 	import SearchBar from './SearchBar.svelte';
 	import SelectionToolbar from './menu/SelectionToolbar.svelte';
@@ -240,9 +241,10 @@
 	let currentSignature = $state<string>(initial.signature);
 	// Reference-bearing render memos key on this instead of the whole (~MB) signature.
 	let signatureEpoch = $state<number>(0);
-	/** One ref for every consumer (the block components through context, the action bundles
-	 *  through their deps), so a post-commit rebuild reaches both without re-binding either. */
-	const linkRefView: LinkReferenceResolverRef = {
+	/** This editor's one reading context, shared by the block components (through context) and
+	 *  the action bundles (through their deps), so a post-commit rebuild reaches both. */
+	const reading: Reading = {
+		grammar: registryView.grammar,
 		get current(): LinkReferenceResolver {
 			return currentResolver;
 		},
@@ -252,7 +254,8 @@
 		get epoch(): number {
 			return signatureEpoch;
 		},
-		grammar: registryView.grammar
+		mode: () => effectiveMode,
+		hidesDelimitersAtCaret: () => hidesDelimitersAtCaret(effectiveMode)
 	};
 	// Plain, not `$state`: where the root list's child refs are stored (see `refSlotsOver`).
 	const blockRefs: (BlockComponent | undefined)[] = [];
@@ -306,7 +309,7 @@
 	const selectedWidget: SelectedWidgetHandle = {
 		range: () => {
 			const target = widgetSelection.getSelected();
-			const image = target && imageAtTarget(doc, target, linkRefView);
+			const image = target && imageAtTarget(doc, target, reading);
 			return target && image
 				? { path: [...target.paragraphPath], start: image.start, end: image.end }
 				: null;
@@ -616,9 +619,7 @@
 		events,
 		grammar: registryView.grammar,
 		getPresentationMode: () => effectiveMode,
-		get linkRef() {
-			return linkRefView;
-		}
+		linkRef: reading
 	};
 	const { blockEdit, focus, history, containerEdit, controller } =
 		createEditorActions(editorActionsDeps);
@@ -669,7 +670,7 @@
 		getMode: () => effectiveMode,
 		events,
 		editorId,
-		linkRef: linkRefView,
+		linkRef: reading,
 		commitRange: inlineMenuCommit.commitInlineRange,
 		landCaret: landCaretAtOffset,
 		joinUndoEntries: (run) => controller.joinUndoEntries(run)
@@ -794,7 +795,7 @@
 		revealPath,
 		controller,
 		getPresentationMode: () => effectiveMode,
-		linkRef: linkRefView,
+		linkRef: reading,
 		getContentVersion: contentVersion.read
 	});
 
@@ -904,7 +905,7 @@
 		isHostChrome,
 		activateLink,
 		linkCard,
-		linkRef: linkRefView,
+		linkRef: reading,
 		widgetSelection
 	});
 	// The drop handler installs on the same root; its deps are the paste pipeline's, not a
@@ -920,7 +921,7 @@
 				controller,
 				coordinator: pasteCoordinator,
 				getPresentationMode: () => effectiveMode,
-				linkRef: linkRefView,
+				linkRef: reading,
 				grammar: registryView.grammar,
 				activePlugins,
 				events,
@@ -1032,7 +1033,7 @@
 		history,
 		pluginEditor: pluginEditorLookup,
 		getPresentationMode: () => effectiveMode,
-		linkRef: linkRefView,
+		linkRef: reading,
 		onCommandError: commandErrorSink,
 		crossBlockCommands,
 		pasteCoordinator,
@@ -1217,7 +1218,7 @@
 	setContext(EDITOR_DOC_KEY, {
 		doc: getDoc,
 		contentVersion: contentVersion.read,
-		linkRef: linkRefView,
+		reading,
 		pluginEditor: pluginEditorLookup,
 		lifetime: lifetimeController.signal,
 		editorRoot: () => editorEl ?? null,
@@ -1568,7 +1569,7 @@
 		{activateLink}
 		resolveLinkUrl={resolveLinkUrlImpl}
 		caretRestore={linkCardCaret}
-		linkRef={linkRefView}
+		linkRef={reading}
 		grammar={registryView.grammar}
 		{menuPresence}
 	/>

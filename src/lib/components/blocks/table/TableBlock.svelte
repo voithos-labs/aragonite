@@ -78,7 +78,7 @@
 		editorRoot: getEditorRoot,
 		widthVersion: getWidthVersion,
 		lifetime: editorLifetime,
-		linkRef
+		reading: linkRef
 	} = getContext<EditorDoc>(EDITOR_DOC_KEY);
 	const { presentationMode: getPresentationMode } = getContext<EditorPolicies>(EDITOR_POLICIES_KEY);
 	// Every menu item changes the table, so reading mode refuses to open it and the
