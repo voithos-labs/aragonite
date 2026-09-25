@@ -5,7 +5,7 @@ import { attachErrorCollector } from '../../simulation/error-collector';
 import { attachIme } from '../../simulation/ime';
 import { makeRng } from '../../simulation/rng';
 import type { CompositionCase } from '../../simulation/gestures/ime';
-import { assertCoreOracles, assertParseConvergence } from '../../simulation/invariants';
+import { assertCheckpoint } from '../../simulation/invariants';
 import { makeSimContext } from './helpers';
 
 // IME composition, run in the default gate: the multibyte insert path no long session had
@@ -51,31 +51,27 @@ test.describe('ime-ops simulation', () => {
 			const rng = makeRng(seed);
 			const g = new Gestures(ctx, rng);
 
-			const checkOracles = async (label: string): Promise<void> => {
-				await assertCoreOracles(ctx, label);
-				await assertParseConvergence(ctx);
-			};
-			await checkOracles('loaded');
+			await assertCheckpoint(ctx, 'loaded');
 
 			// ── Compose + commit into the first paragraph ───────────────────────────
 			const first = rng.pick(COMPOSITIONS);
 			await g.composeCommit(0, first);
 			expect(await editor.bridge.getSource()).toContain(first.commit);
-			await checkOracles('compose-commit-first');
+			await assertCheckpoint(ctx, 'compose-commit-first');
 
 			// ── An abandoned composition in the second paragraph changes nothing ────
 			await g.composeAbort(1, rng.pick(COMPOSITIONS));
-			await checkOracles('compose-abort');
+			await assertCheckpoint(ctx, 'compose-abort');
 
 			// ── Compose + commit into the third, then undo it in one step ───────────
 			const beforeThird = await editor.bridge.getSource();
 			await g.composeCommit(2, rng.pick(COMPOSITIONS));
-			await checkOracles('compose-commit-third');
+			await assertCheckpoint(ctx, 'compose-commit-third');
 
 			await editor.undo();
 			await editor.bridge.waitForSourceEquals(beforeThird);
 			ctx.tracker.resync(beforeThird);
-			await checkOracles('compose-undo');
+			await assertCheckpoint(ctx, 'compose-undo');
 
 			// The undone commit is gone; the first paragraph's commit survives.
 			expect(await editor.bridge.getSource()).toContain(first.commit);

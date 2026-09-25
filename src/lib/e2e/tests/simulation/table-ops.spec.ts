@@ -4,7 +4,7 @@ import { EditorPage } from '../../editor-page';
 import { Gestures } from '../../simulation/gestures';
 import { attachErrorCollector } from '../../simulation/error-collector';
 import { makeRng } from '../../simulation/rng';
-import { assertCoreOracles } from '../../simulation/invariants';
+import { assertCheckpoint } from '../../simulation/invariants';
 import { makeSimContext } from './helpers';
 
 // Tables, run in the default gate. A table is the hardest kind for reactive state: a container
@@ -47,42 +47,40 @@ test.describe('note-taking simulation: table row/column moves', () => {
 		const ctx = await makeSimContext(page, editor, 'table-ops', { errors });
 		const g = new Gestures(ctx, makeRng(1));
 
-		const checkOracles = (label: string) => assertCoreOracles(ctx, label);
-
 		// 2 columns by 3 rows (a header and two body rows). Cells are counted across rows:
 		// header 0 and 1, first body row 2 and 3, second 4 and 5.
 		await g.insertColumnRight(0);
-		await checkOracles('after-insert-column');
+		await assertCheckpoint(ctx, 'after-insert-column');
 		expect(await columnCount(page)).toBe(3);
 
 		// Edit the new empty header cell (index 1 in a header row of three).
 		await g.editCell(1, 'C');
-		await checkOracles('after-edit-cell');
+		await assertCheckpoint(ctx, 'after-edit-cell');
 
 		// Insert a body row below the first one. With three columns, the first body row's
 		// first cell is index 3, since the header takes 0 to 2.
 		await g.insertRowBelow(3);
-		await checkOracles('after-insert-row');
+		await assertCheckpoint(ctx, 'after-insert-row');
 
 		// Delete the row just inserted (its first cell is index 6).
 		await g.deleteRow(6);
-		await checkOracles('after-delete-row');
+		await assertCheckpoint(ctx, 'after-delete-row');
 		expect(await columnCount(page)).toBe(3);
 
 		// Delete the middle column, clicking any body cell in column 1, which is index 4.
 		await g.deleteColumn(4);
-		await checkOracles('after-delete-column');
+		await assertCheckpoint(ctx, 'after-delete-column');
 		expect(await columnCount(page)).toBe(2);
 
 		// Undo the deleted column: cloning replaces every container, so the state registry and
 		// each row's child ids have to follow, or the nested state goes out of step.
 		await g.undo();
-		await checkOracles('after-undo');
+		await assertCheckpoint(ctx, 'after-undo');
 		expect(await columnCount(page)).toBe(3);
 
 		// Extending a selection into the table (G2.12) opens the cell it reaches and puts the
 		// caret there, and the whole detour moves no bytes.
 		await g.liveExtendIntoTablePark();
-		await checkOracles('after-live-extend-park');
+		await assertCheckpoint(ctx, 'after-live-extend-park');
 	});
 });

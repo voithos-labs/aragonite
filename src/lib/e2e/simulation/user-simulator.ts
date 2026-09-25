@@ -9,16 +9,12 @@ import { availableRangeInterrupts } from './gestures/range-interrupt';
 import type { NoteFixture } from './notes/types';
 import {
 	type SimContext,
+	assertCheckpoint,
 	assertContainsInOrder,
-	assertContainerParity,
 	assertEndState,
-	assertNestedStateConsistent,
-	assertNoErrors,
 	assertParseConvergence,
-	assertRoundTripStable,
-	assertSelectionValidity,
-	undoRedoDifferential,
-	undoStackDepth
+	revertingDetour,
+	undoRedoDifferential
 } from './invariants';
 
 export interface SessionOpts {
@@ -77,13 +73,7 @@ export async function runSession(page: Page, editor: EditorPage, opts: SessionOp
 	// screenshots and state dumps gathered so far are still there for the visual review; the
 	// failure then throws on, never hidden.
 	try {
-		ctx.label = 'checkpoint';
-		await assertNoErrors(ctx);
-		await assertNestedStateConsistent(ctx);
-		await assertContainerParity(ctx);
-		await assertRoundTripStable(ctx);
-		await assertSelectionValidity(ctx);
-		await assertParseConvergence(ctx);
+		await assertCheckpoint(ctx, 'checkpoint');
 		await assertContainsInOrder(ctx, opts.note.landmarks);
 		await recorder?.checkpoint('note-built', 'build');
 
@@ -105,12 +95,7 @@ export async function runSession(page: Page, editor: EditorPage, opts: SessionOp
 		ctx.label = 'undo-redo-differential';
 		await runRevertingDifferential(ctx);
 
-		ctx.label = 'end-state';
-		await assertNoErrors(ctx);
-		await assertContainerParity(ctx);
-		await assertRoundTripStable(ctx);
-		await assertSelectionValidity(ctx);
-		await assertParseConvergence(ctx);
+		await assertCheckpoint(ctx, 'end-state');
 		await assertEndState(ctx, canonical);
 	} finally {
 		await recorder?.finalize();
@@ -136,9 +121,8 @@ async function runRevertingDifferential(ctx: SimContext): Promise<void> {
 
 /**
  * Detours that make the session look human and each leave the bytes exactly as they were, so the
- * end state still matches for every note and seed. The seed decides which run, spreading the
- * shapes of undo batches across runs. Each `pause()` is required: it flushes the input batcher
- * so the delete after it gets its own undo entry, without which one Ctrl+Z goes too far.
+ * end state still matches for every note and seed. The seed decides which run, and the pauses
+ * between them spread the shapes of undo batches across runs.
  */
 async function runCancellingDetours(ctx: SimContext, g: Gestures, rng: Rng): Promise<void> {
 	if (rng.chance(0.5)) await g.pause();
@@ -208,50 +192,34 @@ async function rangeInterruptDetour(ctx: SimContext, g: Gestures, rng: Rng): Pro
  * sibling below it in every note, so the move always does something.
  */
 async function reorderUndoDetour(ctx: SimContext, g: Gestures): Promise<void> {
-	const before = await ctx.editor.bridge.getSource();
-	await g.pause();
-	await g.reorder(0, 1);
-	await g.pause();
-	await g.undo();
-	await ctx.editor.bridge.waitForSourceEquals(before, 3000);
-	ctx.tracker.resync(before);
+	await revertingDetour(ctx, () => g.reorder(0, 1));
 }
 
 /**
  * Block 0 is a heading or paragraph in every note, so `End` plus a small selection to the left
- * always has characters to remove. The `pause` before the delete gives it its own undo entry,
- * so one Ctrl+Z reverses exactly that.
+ * always has characters to remove.
  */
 async function selectDeleteUndoDetour(ctx: SimContext, g: Gestures, rng: Rng): Promise<void> {
-	const before = await ctx.editor.bridge.getSource();
-	await g.pause();
-	await g.clickToReposition([0]);
-	await ctx.page.keyboard.press('End');
-	await g.selectAndDelete(rng.int(3, 6));
-	await g.pause();
-	await g.undo();
-	await ctx.editor.bridge.waitForSourceEquals(before, 3000);
-	ctx.tracker.resync(before);
+	await revertingDetour(ctx, async () => {
+		await g.clickToReposition([0]);
+		await ctx.page.keyboard.press('End');
+		await g.selectAndDelete(rng.int(3, 6));
+	});
 }
 
 /**
- * Leaves the bytes as they were, separated by `pause` like the delete detour. The clipboard is
- * left holding text, but the source is unchanged once the paste is undone, which is all the end
- * state looks at.
+ * The clipboard is left holding text, but the source is unchanged once the paste is undone,
+ * which is all the end state looks at.
  */
 async function copyPasteUndoDetour(ctx: SimContext, g: Gestures): Promise<void> {
-	const before = await ctx.editor.bridge.getSource();
-	await g.pause();
-	await g.clickToReposition([0]);
-	await ctx.page.keyboard.press('End');
-	await g.selectChars(4);
-	await g.copySelection();
-	await ctx.page.keyboard.press('End');
-	await g.pasteHere();
-	await g.pause();
-	await g.undo();
-	await ctx.editor.bridge.waitForSourceEquals(before, 3000);
-	ctx.tracker.resync(before);
+	await revertingDetour(ctx, async () => {
+		await g.clickToReposition([0]);
+		await ctx.page.keyboard.press('End');
+		await g.selectChars(4);
+		await g.copySelection();
+		await ctx.page.keyboard.press('End');
+		await g.pasteHere();
+	});
 }
 
 /**
@@ -260,10 +228,16 @@ async function copyPasteUndoDetour(ctx: SimContext, g: Gestures): Promise<void> 
  * the range is built and how it is destroyed, so the pairs spread across runs.
  */
 async function crossBlockDestroyUndoDetour(ctx: SimContext, g: Gestures, rng: Rng): Promise<void> {
-	const before = await ctx.editor.bridge.getSource();
 	const destroy = rng.pick(['backspace', 'delete', 'cut', 'type-over', 'paste-over'] as const);
-	await g.pause();
+	await revertingDetour(ctx, () => buildAndDestroyRange(ctx, g, rng, destroy));
+}
 
+async function buildAndDestroyRange(
+	ctx: SimContext,
+	g: Gestures,
+	rng: Rng,
+	destroy: 'backspace' | 'delete' | 'cut' | 'type-over' | 'paste-over'
+): Promise<void> {
 	// Pasting over the range needs something on the clipboard, so copy from block 0 first: the
 	// copy collapses whatever is selected, so it has to happen before the range is built.
 	if (destroy === 'paste-over') {
@@ -288,11 +262,6 @@ async function crossBlockDestroyUndoDetour(ctx: SimContext, g: Gestures, rng: Rn
 	else await g.pasteOverSelection();
 
 	await assertParseConvergence(ctx);
-
-	await g.pause();
-	await g.undo();
-	await ctx.editor.bridge.waitForSourceEquals(before, 3000);
-	ctx.tracker.resync(before);
 }
 
 // Looking for an eligible pair keeps the detour a real merge on any note, rather than a
@@ -324,14 +293,10 @@ async function findMergeableParagraph(ctx: SimContext): Promise<number | null> {
 async function mergeUndoDetour(ctx: SimContext, g: Gestures): Promise<void> {
 	const target = await findMergeableParagraph(ctx);
 	if (target === null) return;
-	const before = await ctx.editor.bridge.getSource();
-	await g.pause();
-	await g.mergeBackspaceAtStart([target]);
-	await assertParseConvergence(ctx);
-	await g.pause();
-	await g.undo();
-	await ctx.editor.bridge.waitForSourceEquals(before, 3000);
-	ctx.tracker.resync(before);
+	await revertingDetour(ctx, async () => {
+		await g.mergeBackspaceAtStart([target]);
+		await assertParseConvergence(ctx);
+	});
 }
 
 /**
@@ -342,7 +307,7 @@ async function mergeUndoDetour(ctx: SimContext, g: Gestures): Promise<void> {
  */
 async function runFullSessionUndoUnwind(ctx: SimContext, initialSource: string): Promise<void> {
 	const preUnwind = await ctx.editor.bridge.getSource();
-	const depth = await undoStackDepth(ctx);
+	const depth = await ctx.editor.bridge.getUndoDepth();
 	if (depth === 0) {
 		throw new Error(
 			`[${ctx.label}] undo-unwind: the build produced an empty undo stack; the ` +

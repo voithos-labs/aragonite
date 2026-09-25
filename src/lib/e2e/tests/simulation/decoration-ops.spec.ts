@@ -3,7 +3,7 @@ import { PluginsPage } from '../plugins/helpers';
 import { Gestures } from '../../simulation/gestures';
 import { attachErrorCollector } from '../../simulation/error-collector';
 import { makeRng } from '../../simulation/rng';
-import { assertCoreOracles, assertParseConvergence } from '../../simulation/invariants';
+import { assertCheckpoint } from '../../simulation/invariants';
 import { makeSimContext } from './helpers';
 
 // Decorations, run in the default gate. plugin-ops already runs the decoration machinery
@@ -56,46 +56,42 @@ test.describe('decoration-ops simulation', () => {
 		const ctx = await makeSimContext(page, editor, 'decoration-ops', { errors });
 		const g = new Gestures(ctx, makeRng(1));
 
-		const checkOracles = async (label: string): Promise<void> => {
-			await assertCoreOracles(ctx, label);
-			await assertParseConvergence(ctx);
-		};
-		await checkOracles('loaded');
+		await assertCheckpoint(ctx, 'loaded');
 
 		// ── Replace decoration (block 0): walk it, delete from each edge, type beside it ──
 		await g.walkAcrossIsland(0);
-		await checkOracles('replace-walk');
+		await assertCheckpoint(ctx, 'replace-walk');
 
 		await g.edgeDeleteReplaceIsland(0, 'Backspace');
-		await checkOracles('replace-backspace-delete');
+		await assertCheckpoint(ctx, 'replace-backspace-delete');
 
 		await g.edgeDeleteReplaceIsland(0, 'Delete');
-		await checkOracles('replace-delete-delete');
+		await assertCheckpoint(ctx, 'replace-delete-delete');
 
 		await g.typeAdjacentToIsland(0);
-		await checkOracles('replace-type-adjacent');
+		await assertCheckpoint(ctx, 'replace-type-adjacent');
 
 		// ── Widget decoration (block 1): walk through it, backspace through it, type beside ──
 		await g.walkAcrossIsland(1);
-		await checkOracles('widget-walk');
+		await assertCheckpoint(ctx, 'widget-walk');
 
 		await g.backspaceThroughWidgetIsland(1);
-		await checkOracles('widget-backspace-through');
+		await assertCheckpoint(ctx, 'widget-backspace-through');
 
 		await g.typeAdjacentToIsland(1);
-		await checkOracles('widget-type-adjacent');
+		await assertCheckpoint(ctx, 'widget-type-adjacent');
 
 		// ── Block decoration (block 2): reorder down and back; the badge follows ──
 		await g.reorderDecoratedBlock(2);
-		await checkOracles('badge-reorder');
+		await assertCheckpoint(ctx, 'badge-reorder');
 
 		// ── Entity widget (block 3): type mid-sentence, then delete it whole ──
 		await g.typeEntityWidget(3, 5, '&copy;');
 		expect(await editor.bridge.getSource()).toContain('Tail &copy;line');
-		await checkOracles('entity-typed');
+		await assertCheckpoint(ctx, 'entity-typed');
 
 		await g.atomicDeleteEntityWidget(3);
-		await checkOracles('entity-deleted');
+		await assertCheckpoint(ctx, 'entity-deleted');
 
 		// Every gesture leaves the bytes as they were, so the document is back to what loaded.
 		expect(await editor.bridge.getSource()).toBe(loaded);

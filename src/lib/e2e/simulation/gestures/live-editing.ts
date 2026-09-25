@@ -1,4 +1,5 @@
-import { settleTypedSource, undoStackDepth, type SimContext } from '../invariants';
+import { actThenResync, settleTypedSource, type SimContext } from '../invariants';
+import { textRunCenter } from '../../text-runs';
 
 /**
  * Live-mode editing gestures. Each switches into live mode through the header toggle, drives one
@@ -199,9 +200,7 @@ export async function liveTypeFenceOpener(
 	info: string
 ): Promise<void> {
 	await typedOpener(ctx, blockIndex, async () => {
-		const before = await ctx.editor.bridge.getSource();
-		await ctx.editor.typeSlowly('```');
-		await ctx.editor.bridge.waitForSourceWith((source, prev) => source !== prev, before);
+		await actThenResync(ctx, () => ctx.editor.typeSlowly('```'));
 		// The completed fence opens its language picker, which keeps the keys until Enter writes
 		// the info string and puts the caret back in the body.
 		await ctx.page.locator('.code-lang-picker input').waitFor({ state: 'visible' });
@@ -227,9 +226,7 @@ export async function liveTypeTableOpener(
 			await ctx.editor.typeSlowly(ch);
 			await settleTypedSource(ctx, ctx.tracker.appendChar(ch));
 		}
-		const before = await ctx.editor.bridge.getSource();
-		await ctx.page.keyboard.press('Enter');
-		await ctx.editor.bridge.waitForSourceWith((source, prev) => source !== prev, before);
+		await actThenResync(ctx, () => ctx.page.keyboard.press('Enter'));
 		await settleMint(ctx, 'table', 'completing a header row');
 	});
 }
@@ -374,7 +371,7 @@ async function typedOpener(
 ): Promise<void> {
 	await inLiveMode(ctx, async () => {
 		const { page, editor, tracker } = ctx;
-		const depth = await undoStackDepth(ctx);
+		const depth = await ctx.editor.bridge.getUndoDepth();
 		await editor.clickBlock(blockIndex);
 		await page.keyboard.press('End');
 		await editor.waitForRenderFlush();
@@ -385,7 +382,7 @@ async function typedOpener(
 
 		await run();
 
-		for (let spent = (await undoStackDepth(ctx)) - depth; spent > 0; spent--) {
+		for (let spent = (await ctx.editor.bridge.getUndoDepth()) - depth; spent > 0; spent--) {
 			await editor.undo();
 			await editor.waitForRenderFlush();
 		}
@@ -394,9 +391,7 @@ async function typedOpener(
 
 /** The keystrokes that create a block's own markers. */
 async function mintOpener(ctx: SimContext, opener: string, kind: string): Promise<void> {
-	const before = await ctx.editor.bridge.getSource();
-	await ctx.editor.typeSlowly(opener);
-	await ctx.editor.bridge.waitForSourceWith((source, prev) => source !== prev, before);
+	await actThenResync(ctx, () => ctx.editor.typeSlowly(opener));
 	await settleMint(ctx, kind, `typing ${JSON.stringify(opener)}`);
 }
 
@@ -478,25 +473,10 @@ async function selectWord(ctx: SimContext, blockIndex: number, word: string): Pr
 	await ctx.editor.waitForRenderFlush();
 }
 
-/** Click the middle of a rendered phrase, measured from the text node rather than worked out
+/** Click the middle of a painted phrase, found in the text the mode shows rather than worked out
  *  from a raw offset: a hidden run of text measures to nothing, so that pixel would miss. */
 async function clickText(ctx: SimContext, phrase: string): Promise<void> {
-	const point = await ctx.page.evaluate((needle) => {
-		const root = document.querySelector('.editor')!;
-		const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
-		let node: Node | null;
-		while ((node = walker.nextNode())) {
-			const at = node.textContent?.indexOf(needle) ?? -1;
-			if (at < 0) continue;
-			const range = document.createRange();
-			range.setStart(node, at);
-			range.setEnd(node, at + needle.length);
-			const rect = range.getBoundingClientRect();
-			return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
-		}
-		return null;
-	}, phrase);
-	if (!point) throw new Error(`[${ctx.label}] no rendered text matching ${JSON.stringify(phrase)}`);
+	const point = await textRunCenter(ctx.page, phrase);
 	await ctx.page.mouse.click(point.x, point.y);
 	await ctx.editor.waitForRenderFlush();
 }

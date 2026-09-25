@@ -3,7 +3,7 @@ import { PluginsPage } from '../plugins/helpers';
 import { Gestures } from '../../simulation/gestures';
 import { attachErrorCollector } from '../../simulation/error-collector';
 import { makeRng } from '../../simulation/rng';
-import { assertCoreOracles, assertParseConvergence } from '../../simulation/invariants';
+import { assertCheckpoint } from '../../simulation/invariants';
 import { makeSimContext } from './helpers';
 
 // GitHub alerts, run in the default gate. A `> [!TYPE]` blockquote is its own `githubAlert`
@@ -39,11 +39,7 @@ test.describe('github-alert-ops simulation', () => {
 		const ctx = await makeSimContext(page, editor, 'github-alert-ops', { errors });
 		const g = new Gestures(ctx, makeRng(1));
 
-		const checkOracles = async (label: string): Promise<void> => {
-			await assertCoreOracles(ctx, label);
-			await assertParseConvergence(ctx);
-		};
-		await checkOracles('loaded');
+		await assertCheckpoint(ctx, 'loaded');
 		expect(await editor.bridge.getBlockKind(1)).toBe('githubAlert');
 
 		// ── Build an alert after the last block; the one already there stays at [1] ─
@@ -52,13 +48,13 @@ test.describe('github-alert-ops simulation', () => {
 		await g.typeGithubAlert(2, 'TIP', 'Fresh alert body');
 		expect(await editor.bridge.getBlockKind(3)).toBe('githubAlert');
 		expect(await editor.bridge.getSource()).toContain('> [!TIP]\n> Fresh alert body');
-		await checkOracles('typed-from-scratch');
+		await assertCheckpoint(ctx, 'typed-from-scratch');
 
 		// ── Editing inside the typed alert rebuilds it and keeps its kind ───────────
 		await g.editContainerBody([3, 0], ' plus');
 		expect(await editor.bridge.getBlockKind(3)).toBe('githubAlert');
 		expect(await editor.bridge.getSource()).toContain('Fresh alert body plus');
-		await checkOracles('body-edited');
+		await assertCheckpoint(ctx, 'body-edited');
 
 		// ── Move the existing alert's body children within the container ────────────
 		// Alt+ArrowDown swaps body child 0 in place; the alert keeps its kind, its marker and
@@ -66,25 +62,25 @@ test.describe('github-alert-ops simulation', () => {
 		await g.reorderGithubAlertBodyChild(1, 0, 1);
 		expect(await editor.bridge.getBlockKind(1)).toBe('githubAlert');
 		expect(await editor.bridge.getSource()).toContain('[!WARNING]');
-		await checkOracles('body-reordered');
+		await assertCheckpoint(ctx, 'body-reordered');
 
 		// ── Merging a middle child stays inside the container ────────────────────────
 		// Backspace at the start of a body child that is not the first joins it to the one
 		// above; the alert keeps its kind, its marker and its position, which is checked.
 		await g.mergeGithubAlertMiddleChild(1, 1);
-		await checkOracles('middle-child-merge');
+		await assertCheckpoint(ctx, 'middle-child-merge');
 
 		// ── Unwrap the existing alert: the marker goes and [1] reparses as plain ────
 		await g.unwrapGithubAlert(1);
 		expect(await editor.bridge.getBlockKind(1)).not.toBe('githubAlert');
 		expect(await editor.bridge.getSource()).not.toContain('[!WARNING]');
-		await checkOracles('unwrapped');
+		await assertCheckpoint(ctx, 'unwrapped');
 
 		// ── One undo of that Backspace brings the alert back ─────────────────────────
 		await g.pause();
 		await g.undo();
 		expect(await editor.bridge.getBlockKind(1)).toBe('githubAlert');
 		expect(await editor.bridge.getSource()).toContain('[!WARNING]');
-		await checkOracles('undo-unwrap');
+		await assertCheckpoint(ctx, 'undo-unwrap');
 	});
 });

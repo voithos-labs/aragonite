@@ -194,20 +194,9 @@ export async function assertSelectionValidity(ctx: SimContext): Promise<void> {
 }
 
 /**
- * The checkpoint pass every note runs. Parse convergence is not part of it: whether it is waived
- * depends on the note, so a session that wants it calls `assertParseConvergence` as well.
- */
-export async function assertCoreOracles(ctx: SimContext, label: string): Promise<void> {
-	ctx.label = label;
-	await assertNoErrors(ctx);
-	await assertRoundTripStable(ctx);
-	await assertNestedStateConsistent(ctx);
-}
-
-/**
- * Run right after a range collapse or a merge, when the tree is likeliest to be corrupt and
- * before the next gesture builds on it. Parse convergence stays with the caller, since its
- * waiver belongs to the note.
+ * The structural checks, run right after a range collapse or a merge, when the tree is likeliest
+ * to be corrupt and before the next gesture builds on it. Parse convergence stays with the
+ * caller, since its waiver belongs to the note.
  */
 export async function assertStructuralIntegrity(ctx: SimContext): Promise<void> {
 	await assertNoErrors(ctx);
@@ -215,6 +204,20 @@ export async function assertStructuralIntegrity(ctx: SimContext): Promise<void> 
 	await assertNestedStateConsistent(ctx);
 	await assertRoundTripStable(ctx);
 	await assertSelectionValidity(ctx);
+}
+
+/**
+ * The one set of checks a checkpoint runs: the structural ones plus parse convergence. A note
+ * whose gestures leave the tree legitimately unconverged waives that part, and says why.
+ */
+export async function assertCheckpoint(
+	ctx: SimContext,
+	label: string,
+	{ parseConvergence = true }: { parseConvergence?: boolean } = {}
+): Promise<void> {
+	ctx.label = label;
+	await assertStructuralIntegrity(ctx);
+	if (parseConvergence) await assertParseConvergence(ctx);
 }
 
 // ── Undo and redo check ─────────────────────────────────────────────────────
@@ -255,15 +258,38 @@ export async function undoRedoDifferential(
 	ctx.tracker.resync(after);
 }
 
-/** How many entries the undo stack holds. A gesture whose keypress count depends on how its
- *  keystrokes batched unwinds by the difference rather than by a guessed number. */
-export async function undoStackDepth(ctx: SimContext): Promise<number> {
-	const dump: string = await ctx.page.evaluate(() => (window as any).__test.dumpUndoStack());
-	const match = /undo-depth=(\d+)/.exec(dump);
-	if (!match) {
-		throw new Error(`[${ctx.label}] could not read the undo depth from the bridge dump.`);
-	}
-	return Number(match[1]);
+/**
+ * Run `gesture` as an undo entry of its own, undo it, and wait for the bytes to come back, so
+ * the tracker resumes exactly where it was. A detour that draws from the seed draws before
+ * calling this, which keeps each seed's sequence of draws unchanged.
+ */
+export async function revertingDetour(
+	ctx: SimContext,
+	gesture: () => Promise<void>
+): Promise<void> {
+	const before = await ctx.editor.bridge.getSource();
+	await ctx.editor.waitForUndoBatchFlush();
+	await gesture();
+	await ctx.editor.waitForUndoBatchFlush();
+	await ctx.editor.undo();
+	await ctx.editor.bridge.waitForSourceEquals(before, 3000);
+	ctx.tracker.resync(before);
+}
+
+// ── Gestures whose result is read back, not predicted ───────────────────────
+
+/**
+ * Run `act`, wait for the source to change, and take the new source as the expected one. For a
+ * gesture whose bytes the tracker cannot work out; one that changes nothing times out and throws.
+ */
+export async function actThenResync(ctx: SimContext, act: () => Promise<void>): Promise<string> {
+	const before = await ctx.editor.bridge.getSource();
+	await act();
+	await ctx.editor.bridge.waitForSourceWith((source, prev) => source !== prev, before);
+	await ctx.editor.waitForRenderFlush();
+	const after = await ctx.editor.bridge.getSource();
+	ctx.tracker.resync(after);
+	return after;
 }
 
 // ── Internal ────────────────────────────────────────────────────────────────

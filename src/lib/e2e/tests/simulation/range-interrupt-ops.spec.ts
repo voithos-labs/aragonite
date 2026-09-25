@@ -5,7 +5,7 @@ import { PluginsPage } from '../plugins/helpers';
 import { Gestures } from '../../simulation/gestures';
 import { attachErrorCollector } from '../../simulation/error-collector';
 import { makeRng } from '../../simulation/rng';
-import { assertCoreOracles } from '../../simulation/invariants';
+import { assertCheckpoint } from '../../simulation/invariants';
 import type { RangeInterruptGesture } from '../../simulation/gestures/range-interrupt';
 import { makeSimContext } from './helpers';
 
@@ -127,9 +127,9 @@ async function runProbe(
 	const ctx = await makeSimContext(page, editor, gesture, { errors });
 	const g = new Gestures(ctx, makeRng(1));
 
-	await assertCoreOracles(ctx, `${gesture}: loaded`);
+	await assertCheckpoint(ctx, `${gesture}: loaded`);
 	await g.rangeInterrupt(gesture);
-	await assertCoreOracles(ctx, `${gesture}: interrupted`);
+	await assertCheckpoint(ctx, `${gesture}: interrupted`);
 }
 
 test.describe('range-interrupt simulation', () => {

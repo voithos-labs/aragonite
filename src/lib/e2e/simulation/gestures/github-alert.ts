@@ -1,4 +1,4 @@
-import { type SimContext, assertStructuralIntegrity } from '../invariants';
+import { type SimContext, actThenResync, assertStructuralIntegrity } from '../invariants';
 
 // Gestures for a native GitHub alert (plugins route, `?seed=admonitions`). A `> [!TYPE]`
 // blockquote is its own `githubAlert` container: the marker lives only in the container's raw
@@ -111,14 +111,12 @@ export async function reorderGithubAlertBodyChild(
 	childIndex: number,
 	dir: -1 | 1
 ): Promise<void> {
-	const { page, editor, tracker } = ctx;
+	const { page, editor } = ctx;
 	const before = await alertShape(ctx, alertIndex);
-	const beforeSource = await editor.bridge.getSource();
 
 	await editor.clickBlockAtPath([alertIndex, childIndex], 0);
 	await editor.waitForRenderFlush();
-	await page.keyboard.press(dir < 0 ? 'Alt+ArrowUp' : 'Alt+ArrowDown');
-	await editor.bridge.waitForSourceWith((source, prev) => source !== prev, beforeSource);
+	await actThenResync(ctx, () => page.keyboard.press(dir < 0 ? 'Alt+ArrowUp' : 'Alt+ArrowDown'));
 
 	const after = await alertShape(ctx, alertIndex);
 	if (
@@ -133,7 +131,6 @@ export async function reorderGithubAlertBodyChild(
 		);
 	}
 	await assertStructuralIntegrity(ctx);
-	tracker.resync(await editor.bridge.getSource());
 }
 
 // ── Internal ────────────────────────────────────────────────────────────────

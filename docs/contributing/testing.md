@@ -730,13 +730,14 @@ deep bullet nesting in the outline, a nested `> >` blockquote in the reading not
 A session that scripts its own gestures rather than typing a whole note starts the same way.
 `makeSimContext` (`tests/simulation/helpers.ts`) bundles the page, the page object, an
 expectation tracker seeded from the current source, and the error collector into the one
-context every oracle reads; `assertCoreOracles` is the checkpoint sweep (no errors, round-trip
-stable, nested state consistent). From `tests/simulation/table-ops.spec.ts`:
+context every oracle reads; `assertCheckpoint` is the one checkpoint sweep (no errors, container
+ids, nested state, round-trip, a valid selection, and parse convergence unless the note waives
+it). From `tests/simulation/table-ops.spec.ts`:
 
 ```ts
 import { Gestures } from '../../simulation/gestures';
 import { makeRng } from '../../simulation/rng';
-import { assertCoreOracles } from '../../simulation/invariants';
+import { assertCheckpoint } from '../../simulation/invariants';
 import { makeSimContext } from './helpers';
 
 await editor.loadContent(START_TABLE);
@@ -745,9 +746,9 @@ const ctx = await makeSimContext(page, editor, 'table-ops', { errors });
 const g = new Gestures(ctx, makeRng(1));
 
 await g.insertColumnRight(0);
-await assertCoreOracles(ctx, 'after-insert-column');
+await assertCheckpoint(ctx, 'after-insert-column');
 await g.editCell(1, 'C');
-await assertCoreOracles(ctx, 'after-edit-cell');
+await assertCheckpoint(ctx, 'after-edit-cell');
 ```
 
 **Determinism** comes from a single seeded PRNG: same seed ⇒ same gesture stream ⇒ same asserted

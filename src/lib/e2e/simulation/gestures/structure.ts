@@ -1,4 +1,4 @@
-import { type SimContext, assertFocusBlock, settleTypedSource } from '../invariants';
+import { type SimContext, actThenResync, assertFocusBlock, settleTypedSource } from '../invariants';
 
 /**
  * Structural gestures set off behaviour of the editor's own, so none can be predicted character
@@ -272,11 +272,4 @@ export async function mintAtGap(
 		// hidden host and the new bytes came from somewhere else.
 		await ctx.editor.bridge.waitForGapCaret(null);
 	});
-}
-
-async function actThenResync(ctx: SimContext, act: () => Promise<void>): Promise<void> {
-	const before = await ctx.editor.bridge.getSource();
-	await act();
-	await ctx.editor.bridge.waitForSourceWith((source, prev) => source !== prev, before);
-	ctx.tracker.resync(await ctx.editor.bridge.getSource());
 }
